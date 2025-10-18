@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- 合并图标 - Merge Icon (单色版) -->
+
+<svg
+   viewBox="0 0 24 24"
+   width="24"
+   height="24"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="merge.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="m 15.292969,-2.7070313 a 1,1 0 0 0 0,1.4140626 L 19.585937,3 15.585938,7 H 10 C 9.4358706,7 9,6.5641294 9,6 V 3 A 1,1 0 0 0 8,2 1,1 0 0 0 7,3 v 3 c 0,1.6450096 1.3549904,3 3,3 h 9 A 1,1 0 0 0 20,8 1,1 0 0 0 19,7 h -0.585938 l 3.292969,-3.2929687 a 1.0001,1.0001 0 0 0 0,-1.4140625 l -5,-5.0000001 a 1,1 0 0 0 -1.414062,0 z M 10,14 c -1.6450096,0 -3,1.35499 -3,3 v 4 a 1,1 0 0 0 1,1 1,1 0 0 0 1,-1 v -4 c 0,-0.564129 0.4358706,-1 1,-1 h 5.292969 a 1,1 0 0 0 0,0.707031 L 19.585937,21 15.292969,25.292969 a 1,1 0 0 0 0,1.414062 1,1 0 0 0 1.414062,0 l 5,-5 a 1.0001,1.0001 0 0 0 0,-1.414062 L 17.414062,16 H 19 a 1,1 0 0 0 1,-1 1,1 0 0 0 -1,-1 z"
+     id="path1" />
+</svg>

@@ -1,0 +1,83 @@
+{
+	"schemaVersion": 1,
+	"id": "chronoblocks",
+	"version": "${version}",
+	"name": "ChronoBlocks",
+	"description": "A powerful time-based building and planning mod for Minecraft. Create, manage, and visualize complex building projects with advanced UI tools.",
+	"authors": [
+		"ChronoBlocks Team"
+	],
+	"contact": {
+		"homepage": "https://github.com/ChronoBlocks/chronoblocks",
+		"sources": "https://github.com/ChronoBlocks/chronoblocks",
+		"issues": "https://github.com/ChronoBlocks/chronoblocks/issues"
+	},
+	"license": "MIT",
+	"icon": "assets/chronoblocks/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.chronoblocks.ChronoBlocksMod"
+		],
+		"client": [
+			"com.chronoblocks.client.ChronoBlocksClient"
+		],
+		"fabric-datagen": [
+			"com.chronoblocks.ChronoBlocksDataGenerator"
+		]
+	},
+	"mixins": [
+		{
+			"config": "chronoblocks.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.16.10",
+		"minecraft": "~1.21.4",
+		"java": ">=21",
+		"fabric-api": ">=0.119.4"
+	},
+	"suggests": {
+		"modmenu": ">=4.0.0",
+		"jei": ">=12.0.0",
+		"wthit": ">=5.0.0"
+	},
+	"breaks": {
+		"optifabric": "*"
+	},
+	"custom": {
+		"modmenu": {
+			"links": {
+				"modmenu.discord": "https://discord.gg/chronoblocks",
+				"modmenu.wiki": "https://github.com/ChronoBlocks/chronoblocks/wiki"
+			},
+			"badges": [
+				"library"
+			]
+		},
+		"compatibility": {
+			"minecraft": {
+				"min": "1.21.0",
+				"max": "1.21.4",
+				"recommended": "1.21.4"
+			},
+			"fabric": {
+				"min": "0.119.4",
+				"recommended": "0.119.4+1.21.4"
+			},
+			"java": {
+				"min": "21",
+				"recommended": "21"
+			}
+		},
+		"features": [
+			"Advanced UI System",
+			"Time-based Planning",
+			"3D Visualization",
+			"Project Management",
+			"Multi-layer Support",
+			"Real-time Collaboration"
+		]
+	}
+}

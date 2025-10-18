@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- 图钉/位置图标 - Pin/Location Icon (单色版) -->
+
+<svg
+   viewBox="0 0 24 24"
+   width="24"
+   height="24"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="pin.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="M 12,0 C 6.4889982,0 2,4.4889941 2,10 c 0,3.928571 2.4391009,7.348478 4.7734375,9.8125 2.3343366,2.464022 4.6718755,4.019531 4.6718755,4.019531 L 12,24.201172 12.554688,23.832031 c 0,0 2.337538,-1.555509 4.671874,-4.019531 C 19.560899,17.348478 22,13.928571 22,10 22,4.4889941 17.511002,0 12,0 Z m 0,2 c 4.430123,0 8,3.5698737 8,8 0,3.071429 -2.060899,6.151522 -4.226562,8.4375 C 13.885428,20.430399 12.452577,21.375148 12,21.689453 11.547423,21.375148 10.114572,20.430399 8.2265625,18.4375 6.0608991,16.151522 4,13.071429 4,10 4,5.5698737 7.5698765,2 12,2 Z"
+     id="path1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="m 12,6 c -2.1972944,0 -4,1.8027056 -4,4 0,2.197294 1.8027056,4 4,4 2.197294,0 4,-1.802706 4,-4 0,-2.1972944 -1.802706,-4 -4,-4 z m 0,2 c 1.116414,0 2,0.8835859 2,2 0,1.116414 -0.883586,2 -2,2 -1.116414,0 -2,-0.883586 -2,-2 0,-1.1164141 0.883586,-2 2,-2 z"
+     id="circle1" />
+</svg>

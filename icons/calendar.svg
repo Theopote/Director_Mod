@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- 日历图标 - Calendar Icon (单色版) -->
+
+<svg
+   viewBox="0 0 24 24"
+   width="24"
+   height="24"
+   version="1.1"
+   id="svg3"
+   sodipodi:docname="calendar.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs3" />
+  <sodipodi:namedview
+     id="namedview3"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="M 5,3 C 3.3552972,3 2,4.3552972 2,6 v 14 c 0,1.644703 1.3552972,3 3,3 h 14 c 1.644703,0 3,-1.355297 3,-3 V 6 C 22,4.3552972 20.644703,3 19,3 Z m 0,2 h 14 c 0.571297,0 1,0.4287028 1,1 v 14 c 0,0.571297 -0.428703,1 -1,1 H 5 C 4.4287028,21 4,20.571297 4,20 V 6 C 4,5.4287028 4.4287028,5 5,5 Z"
+     id="rect1" />
+  <g
+     id="line1"
+     style="opacity:1">
+    <path
+       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+       d="M 16,2 V 6"
+       id="path3" />
+    <path
+       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+       d="m 16,1 a 1,1 0 0 0 -1,1 v 4 a 1,1 0 0 0 1,1 1,1 0 0 0 1,-1 V 2 A 1,1 0 0 0 16,1 Z"
+       id="path4" />
+  </g>
+  <g
+     id="line2"
+     style="opacity:1">
+    <path
+       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+       d="M 8,2 V 6"
+       id="path5" />
+    <path
+       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+       d="M 8,1 A 1,1 0 0 0 7,2 V 6 A 1,1 0 0 0 8,7 1,1 0 0 0 9,6 V 2 A 1,1 0 0 0 8,1 Z"
+       id="path6" />
+  </g>
+  <g
+     id="line3"
+     style="opacity:1">
+    <path
+       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+       d="M 3,10 H 21"
+       id="path7" />
+    <path
+       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+       d="m 3,9 v 2 H 21 V 9 Z"
+       id="path8" />
+  </g>
+</svg>

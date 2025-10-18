@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- 上传图标 - Upload Icon (单色版) -->
+
+<svg
+   viewBox="0 0 24 24"
+   width="24"
+   height="24"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="upload.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="m 12,2 a 1,1 0 0 0 -0.292969,0.2929688 1.0001,1.0001 0 0 0 -0.414062,0 L 6.2929687,7.2929687 a 1,1 0 0 0 0,1.4140626 1,1 0 0 0 1.4140625,0 L 11,5.4140625 V 15 a 1,1 0 0 0 1,1 1,1 0 0 0 1,-1 V 5.4140625 l 3.292969,3.2929688 a 1,1 0 0 0 1.414062,0 1,1 0 0 0 0,-1.4140626 l -5,-4.9999999 a 1.0001,1.0001 0 0 0 -0.414062,0 A 1,1 0 0 0 12,2 Z M 3,14 a 1,1 0 0 0 -1,1 v 4 c 0,1.64501 1.3549904,3 3,3 h 14 c 1.64501,0 3,-1.35499 3,-3 v -4 a 1,1 0 0 0 -1,-1 1,1 0 0 0 -1,1 v 4 c 0,0.564129 -0.435871,1 -1,1 H 5 C 4.4358706,20 4,19.564129 4,19 V 15 A 1,1 0 0 0 3,14 Z"
+     id="path1" />
+</svg>

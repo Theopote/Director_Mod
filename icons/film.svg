@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- 胶片图标 - Film Icon (单色版) -->
+
+<svg
+   viewBox="0 0 24 24"
+   width="24"
+   height="24"
+   version="1.1"
+   id="svg7"
+   sodipodi:docname="film.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs7" />
+  <sodipodi:namedview
+     id="namedview7"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="M 4.1796875,1 C 2.4352647,1 1,2.4352647 1,4.1796875 V 19.820312 C 1,21.564735 2.4352647,23 4.1796875,23 H 19.820312 C 21.564735,23 23,21.564735 23,19.820312 V 4.1796875 C 23,2.4352647 21.564735,1 19.820312,1 Z m 0,2 H 19.820312 C 20.49133,3 21,3.5086702 21,4.1796875 V 19.820312 C 21,20.49133 20.49133,21 19.820312,21 H 4.1796875 C 3.5086702,21 3,20.49133 3,19.820312 V 4.1796875 C 3,3.5086702 3.5086702,3 4.1796875,3 Z"
+     id="rect1" />
+  <g
+     id="line1"
+     style="opacity:1">
+    <path
+       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+       d="M 7,2 V 22"
+       id="path7" />
+    <path
+       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+       d="M 6,2 V 22 H 8 V 2 Z"
+       id="path8" />
+  </g>
+  <g
+     id="line2"
+     style="opacity:1">
+    <path
+       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+       d="M 17,2 V 22"
+       id="path9" />
+    <path
+       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+       d="m 16,2 v 20 h 2 V 2 Z"
+       id="path10" />
+  </g>
+  <g
+     id="line3"
+     style="opacity:1">
+    <path
+       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+       d="M 2,12 H 22"
+       id="path11" />
+    <path
+       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+       d="m 2,11 v 2 h 20 v -2 z"
+       id="path12" />
+  </g>
+  <g
+     id="line4"
+     style="opacity:1">
+    <path
+       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+       d="M 2,6 H 7"
+       id="path13" />
+    <path
+       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+       d="M 2,5 V 7 H 7 V 5 Z"
+       id="path14" />
+  </g>
+  <g
+     id="line5"
+     style="opacity:1">
+    <path
+       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+       d="M 2,18 H 7"
+       id="path15" />
+    <path
+       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+       d="m 2,17 v 2 h 5 v -2 z"
+       id="path16" />
+  </g>
+  <g
+     id="line6"
+     style="opacity:1">
+    <path
+       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+       d="m 17,6 h 5"
+       id="path17" />
+    <path
+       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+       d="m 17,5 v 2 h 5 V 5 Z"
+       id="path18" />
+  </g>
+  <g
+     id="line7"
+     style="opacity:1">
+    <path
+       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+       d="m 17,18 h 5"
+       id="path19" />
+    <path
+       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+       d="m 17,17 v 2 h 5 v -2 z"
+       id="path20" />
+  </g>
+</svg>

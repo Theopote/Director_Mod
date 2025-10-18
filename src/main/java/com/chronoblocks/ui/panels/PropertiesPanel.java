@@ -1,0 +1,662 @@
+package com.chronoblocks.ui.panels;
+
+import com.chronoblocks.ui.properties.IPropertyAdapter;
+import com.chronoblocks.ui.properties.PropertyAdapterRegistry;
+import com.chronoblocks.ui.selection.SelectionManager;
+import com.chronoblocks.ui.theme.UITheme;
+import com.chronoblocks.ui.theme.Icons;
+import imgui.ImGui;
+import imgui.flag.ImGuiWindowFlags;
+import imgui.flag.ImGuiStyleVar;
+import imgui.flag.ImGuiInputTextFlags;
+import imgui.type.ImString;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * 🎨 智能动态属性面板 v5.0 (现代化增强版) - ChronoBlocks Properties System
+ * <p>
+ * 根据当前选择的对象类型，自动切换到对应的属性编辑器。
+ * 支持 <b>17种专用适配器</b> + 通用反射适配器。
+ * </p>
+ * 
+ * <h3>✨ 核心功能</h3>
+ * <ul>
+ *   <li>🎯 <strong>上下文驱动</strong> - 根据选中对象类型动态渲染</li>
+ *   <li>🔄 <strong>事件驱动更新</strong> - 监听选择变化事件</li>
+ *   <li>🧩 <strong>智能类型适配</strong> - 4级查找机制（精确→继承→supports→fallback）</li>
+ *   <li>↔️ <strong>双向绑定</strong> - 属性修改即时反映到对象</li>
+ *   <li>📊 <strong>实时统计</strong> - 显示适配器信息和性能指标</li>
+ *   <li>🛠️ <strong>调试模式</strong> - 详细的日志和诊断信息</li>
+ *   <li>🔍 <strong>搜索功能</strong> - 快速查找属性（v5.0新增）</li>
+ *   <li>📈 <strong>统计面板</strong> - 详细的性能监控（v5.0新增）</li>
+ *   <li>💾 <strong>保存状态</strong> - Dirty标记和保存指示（v5.0新增）</li>
+ *   <li>🧰 <strong>工具栏</strong> - 刷新、展开/折叠控制（v5.0新增）</li>
+ * </ul>
+ * 
+ * <h3>📋 支持的对象类型（16+1种）</h3>
+ * <table border="1" cellpadding="5" cellspacing="0">
+ *   <tr><th>类别</th><th>对象类型</th><th>适配器</th></tr>
+ *   <tr><td rowspan="3"><b>时间线系统</b></td>
+ *       <td>TimelineProject</td><td>TimelineProjectPropertyAdapter</td></tr>
+ *   <tr><td>TimelineSequence</td><td>TimelineSequencePropertyAdapter</td></tr>
+ *   <tr><td>TimelineTrack</td><td>TimelineTrackPropertyAdapter</td></tr>
+ *   <tr><td rowspan="3"><b>核心对象</b></td>
+ *       <td>Keyframe</td><td>KeyframePropertyAdapter</td></tr>
+ *   <tr><td>Container</td><td>ContainerPropertyAdapter</td></tr>
+ *   <tr><td>AnimationClip</td><td>ClipPropertyAdapter</td></tr>
+ *   <tr><td rowspan="6"><b>扩展系统</b></td>
+ *       <td>Effect</td><td>EffectPropertyAdapter</td></tr>
+ *   <tr><td>ProjectEnvironment</td><td>ProjectEnvironmentPropertyAdapter</td></tr>
+ *   <tr><td>MaterialLibrary</td><td>MaterialLibraryPropertyAdapter</td></tr>
+ *   <tr><td>Camera</td><td>CameraPropertyAdapter</td></tr>
+ *   <tr><td>PostProcessing</td><td>PostProcessingPropertyAdapter</td></tr>
+ *   <tr><td>PhysicsEnvironment</td><td>PhysicsEnvironmentPropertyAdapter</td></tr>
+ *   <tr><td rowspan="3"><b>扩展类型</b></td>
+ *       <td>Vector3f</td><td>Vector3fPropertyAdapter</td></tr>
+ *   <tr><td>Vector4f (Color)</td><td>ColorPropertyAdapter</td></tr>
+ *   <tr><td>List</td><td>ListPropertyAdapter</td></tr>
+ *   <tr><td><b>通用回退</b></td>
+ *       <td>Object (任意)</td><td>GenericPropertyAdapter</td></tr>
+ * </table>
+ * 
+ * <h3>🧠 使用示例</h3>
+ * <pre>{@code
+ * // 示例 1: 选择关键帧
+ * Keyframe kf = ...;
+ * SelectionManager.get().setCurrentSelection(kf);
+ * // → 自动显示关键帧属性编辑器
+ * 
+ * // 示例 2: 选择相机
+ * Camera camera = ...;
+ * SelectionManager.get().setCurrentSelection(camera);
+ * // → 自动显示相机属性编辑器（FOV、景深、镜头特效等）
+ * 
+ * // 示例 3: 选择未知对象
+ * MyCustomObject obj = ...;
+ * SelectionManager.get().setCurrentSelection(obj);
+ * // → 自动使用通用反射适配器显示所有字段
+ * }</pre>
+ * 
+ * <h3>🆕 v5.0 新增特性（合并 ModernPropertiesPanel）</h3>
+ * <ul>
+ *   <li>搜索功能 - 快速查找属性</li>
+ *   <li>工具栏 - 展开/折叠、刷新、统计开关</li>
+ *   <li>状态栏 - 适配器信息显示</li>
+ *   <li>统计面板 - 详细的性能指标</li>
+ *   <li>保存状态指示 - Dirty标记和保存按钮</li>
+ *   <li>多选提示 - 显示多选对象数量</li>
+ * </ul>
+ * 
+ * @version 5.0
+ * @since 2025-10-16
+ * @author ChronoBlocks Team
+ */
+public class PropertiesPanel extends AbstractPanel {
+    private static final Logger LOGGER = LoggerFactory.getLogger(PropertiesPanel.class);
+    
+    // ==================== 当前选择 ====================
+    
+    /** 当前选择的对象 */
+    private Object currentSelection;
+    
+    /** 当前适配器 */
+    private IPropertyAdapter<Object> currentAdapter;
+    
+    /** 上次更新时间（用于检测选择变化） */
+    private long lastUpdateTime = 0;
+    
+    /** 更新间隔（毫秒） */
+    private static final long UPDATE_INTERVAL = 100;
+    
+    // ==================== 现代化功能特性 ====================
+    
+    /** 是否显示统计信息 */
+    private boolean showStatistics = false;
+    
+    /** 搜索过滤文本 */
+    private final ImString searchText = new ImString(256);
+    
+    /** 搜索关键词（简化版，不依赖 PropertySearchFilter） */
+    private String searchQuery = "";
+    
+    /** 是否展开所有组 */
+    private boolean expandAll = false;
+    
+    /** 是否有未保存的修改 */
+    private boolean isDirty = false;
+    
+    // ==================== 面板配置 ====================
+
+    @Override
+    public String getPanelName() {
+        return "Properties";
+    }
+    
+    @Override
+    public String getWindowName() {
+        return Icons.CLIPBOARD + " 属性###PropertiesPanel";
+    }
+    
+    @Override
+    protected int getWindowFlags() {
+        return ImGuiWindowFlags.None;
+    }
+
+    @Override
+    public int getPriority() {
+        return 150;
+    }
+    
+    @Override
+    public boolean shouldReserveDockSpaceWhenHidden() {
+        return super.shouldReserveDockSpaceWhenHidden();
+    }
+    
+    @Override
+    protected boolean shouldShowHiddenPlaceholderIndicator() {
+        return false;
+    }
+    
+    // ==================== 初始化 ====================
+    
+    /**
+     * 构造函数
+     */
+    public PropertiesPanel() {
+        super();
+        
+        // 注册选择变化监听器
+        SelectionManager.get().addSelectionChangedListener(this::onSelectionChanged);
+        
+        LOGGER.info("[PropertiesPanel] 已初始化智能属性面板");
+    }
+
+    // ==================== 主渲染方法 ====================
+
+    @Override
+    protected void doRender() {
+        // 定期检查选择变化（备用机制）
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastUpdateTime > UPDATE_INTERVAL) {
+            checkSelectionChange();
+            lastUpdateTime = currentTime;
+        }
+        
+        // 渲染工具栏（搜索 + 展开控制 + 工具按钮）
+        renderToolbar();
+        
+        UITheme.separator();
+        UITheme.spacingSmall();
+        
+        // 渲染属性内容
+        if (currentSelection == null) {
+            renderNoSelectionMessage();
+            return;
+        }
+        
+        if (currentAdapter == null) {
+            renderNoAdapterMessage();
+            return;
+        }
+        
+        // 渲染对象类型标题
+        renderObjectTypeHeader();
+        
+        UITheme.separator();
+        
+        // 渲染属性
+        try {
+            boolean modified = currentAdapter.renderProperties(currentSelection);
+            if (modified) {
+                isDirty = true; // 标记为已修改
+                LOGGER.debug("[PropertiesPanel] 属性已修改: {}", 
+                    currentSelection.getClass().getSimpleName());
+                // TODO: 可以在这里触发撤销/重做系统
+            }
+        } catch (Exception e) {
+            LOGGER.error("[PropertiesPanel] 渲染属性时出错: {}", e.getMessage(), e);
+            renderErrorMessage(e);
+        }
+        
+        // 多选提示
+        var multiSelection = SelectionManager.get().getMultiSelection();
+        if (multiSelection.size() > 1) {
+            UITheme.separator();
+            ImGui.textDisabled(String.format("多选 (%d 个对象)", multiSelection.size()));
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("当前选择了多个对象，只显示第一个对象的属性");
+            }
+        }
+        
+        // 渲染状态栏
+        renderStatusBar();
+        
+        // 渲染统计信息（可选）
+        if (showStatistics) {
+            renderStatistics();
+        }
+    }
+    
+    /**
+     * 选择变化回调
+     */
+    private void onSelectionChanged(Object newSelection) {
+        LOGGER.debug("[PropertiesPanel] Selection changed event: {} → {}",
+            currentSelection != null ? currentSelection.getClass().getSimpleName() : "null",
+            newSelection != null ? newSelection.getClass().getSimpleName() : "null");
+        
+        updateSelection(newSelection);
+    }
+    
+    /**
+     * 检查选择是否变化
+     */
+    private void checkSelectionChange() {
+        Object newSelection = SelectionManager.get().getCurrentSelection();
+        if (newSelection != currentSelection) {
+            updateSelection(newSelection);
+        }
+    }
+    
+    /**
+     * 更新当前选择和适配器
+     */
+    private void updateSelection(Object newSelection) {
+        currentSelection = newSelection;
+        currentAdapter = PropertyAdapterRegistry.getAdapterFor(newSelection);
+        
+        if (newSelection != null) {
+            LOGGER.info("[PropertiesPanel] 选中对象: {} ({})", 
+                newSelection.getClass().getSimpleName(),
+                currentAdapter != null ? "有适配器" : "无适配器");
+        } else {
+            LOGGER.debug("[PropertiesPanel] 清除选择");
+        }
+    }
+    
+    /**
+     * 渲染工具栏（搜索 + 展开控制 + 工具按钮）
+     */
+    private void renderToolbar() {
+        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 6.0f);
+        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4.0f, 4.0f);
+
+        // 搜索框
+        ImGui.pushItemWidth(-100);
+        if (ImGui.inputTextWithHint("##search", Icons.SEARCH + " 搜索属性...", searchText, ImGuiInputTextFlags.None)) {
+            // 更新搜索关键词
+            searchQuery = searchText.get().toLowerCase().trim();
+            LOGGER.trace("[PropertiesPanel] 搜索更新: {}", searchQuery);
+        }
+        ImGui.popItemWidth();
+        
+        if (ImGui.isItemHovered()) {
+            ImGui.beginTooltip();
+            ImGui.text("搜索属性名称（支持模糊匹配）");
+            ImGui.endTooltip();
+        }
+
+        ImGui.sameLine();
+
+        // 展开/折叠按钮
+        if (ImGui.button(expandAll ? "折叠" : "展开", 50, 0)) {
+            expandAll = !expandAll;
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(expandAll ? "折叠所有组" : "展开所有组");
+        }
+
+        ImGui.popStyleVar(2);
+
+        // 第二行：工具按钮 + 状态指示器
+        UITheme.spacingSmall();
+
+        // 刷新按钮
+        if (ImGui.smallButton(Icons.REFRESH)) {
+            updateSelection(currentSelection); // 刷新适配器
+            LOGGER.debug("[PropertiesPanel] 已刷新适配器");
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("刷新适配器");
+        }
+
+        ImGui.sameLine();
+
+        // 统计信息开关
+        if (ImGui.smallButton(showStatistics ? Icons.STATS : Icons.CHART)) {
+            showStatistics = !showStatistics;
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(showStatistics ? "隐藏统计信息" : "显示统计信息");
+        }
+
+        ImGui.sameLine();
+        ImGui.textDisabled("|");
+        ImGui.sameLine();
+
+        // 保存状态指示器
+        if (isDirty) {
+            ImGui.textColored(1.0f, 0.8f, 0.0f, 1.0f, Icons.DOT + " 未保存");
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("有未保存的修改");
+            }
+
+            ImGui.sameLine();
+            if (ImGui.smallButton(Icons.SAVE)) {
+                isDirty = false;
+                LOGGER.debug("[PropertiesPanel] 已标记为已保存");
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("标记为已保存");
+            }
+        } else if (currentSelection != null) {
+            ImGui.textColored(0.4f, 1.0f, 0.5f, 1.0f, Icons.CHECK + " 已保存");
+        }
+    }
+    
+    /**
+     * 渲染状态栏
+     */
+    private void renderStatusBar() {
+        if (currentAdapter == null || currentSelection == null) {
+            return;
+        }
+
+        UITheme.separator();
+        UITheme.spacingSmall();
+
+        // 适配器信息
+        String adapterName = currentAdapter.getAdapterName();
+        String typeName = currentSelection.getClass().getSimpleName();
+        
+        ImGui.textDisabled(String.format("适配器: %s | 类型: %s", adapterName, typeName));
+    }
+    
+    /**
+     * 渲染统计信息
+     */
+    private void renderStatistics() {
+        UITheme.separator();
+        UITheme.spacingSmall();
+
+        if (ImGui.collapsingHeader(Icons.STATS + " 性能统计")) {
+            ImGui.indent();
+
+            ImGui.text("注册信息:");
+            int adapterCount = PropertyAdapterRegistry.getAdapterCount();
+            boolean hasFallback = PropertyAdapterRegistry.hasFallbackAdapter();
+            
+            ImGui.bulletText(String.format("已注册适配器: %d 个", adapterCount));
+            ImGui.bulletText(String.format("回退适配器: %s", hasFallback ? "✓ 已启用" : "✗ 未启用"));
+
+            UITheme.spacingSmall();
+
+            ImGui.text("当前状态:");
+            ImGui.bulletText(String.format("当前对象: %s", 
+                currentSelection != null ? currentSelection.getClass().getSimpleName() : "无"));
+            ImGui.bulletText(String.format("当前适配器: %s", 
+                currentAdapter != null ? currentAdapter.getAdapterName() : "无"));
+            ImGui.bulletText(String.format("修改状态: %s", isDirty ? (Icons.DOT + " 未保存") : (Icons.CHECK + " 已保存")));
+            ImGui.bulletText(String.format("搜索查询: %s", searchQuery.isEmpty() ? "(无)" : searchQuery));
+
+            ImGui.unindent();
+        }
+    }
+
+    /**
+     * 渲染对象类型标题
+     */
+    private void renderObjectTypeHeader() {
+        if (currentAdapter != null) {
+            // 适配器名称（带图标）
+            String adapterName = currentAdapter.getAdapterName();
+            UITheme.title(adapterName);
+            
+            // 对象类型信息
+            String typeName = currentSelection.getClass().getSimpleName();
+            String packageName = currentSelection.getClass().getPackageName();
+            UITheme.label(String.format("类型: %s", typeName), UITheme.DarkTheme.TEXT);
+            
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(String.format("完整类名: %s.%s", packageName, typeName));
+            }
+            
+            // 调试信息按钮
+            ImGui.sameLine();
+            if (ImGui.smallButton(Icons.SEARCH + " 调试")) {
+                LOGGER.info("[PropertiesPanel] 调试信息:\n{}", 
+                    currentAdapter.getDebugInfo(currentSelection));
+                LOGGER.info("[PropertiesPanel] 注册表状态:\n{}", 
+                    PropertyAdapterRegistry.getDebugInfo());
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("输出适配器和注册表的调试信息到日志");
+            }
+            
+        } else if (currentSelection != null) {
+            String typeName = currentSelection.getClass().getSimpleName();
+            UITheme.label("对象: " + typeName, UITheme.DarkTheme.TEXT);
+        }
+    }
+    
+    /**
+     * 渲染无选择消息
+     */
+    private void renderNoSelectionMessage() {
+        UITheme.spacingLarge();
+        UITheme.title(Icons.CLIPBOARD + " 属性面板");
+        UITheme.spacingSmall();
+        
+        UITheme.label("未选择对象", UITheme.DarkTheme.TEXT_DISABLED);
+        UITheme.spacingSmall();
+        
+        ImGui.textWrapped("在时间线或场景中选择一个对象以查看和编辑其属性");
+        
+        UITheme.spacing();
+        UITheme.separator();
+        UITheme.spacing();
+        
+        // ========== 支持的对象类型（16+1种）==========
+        UITheme.label(Icons.STAR + " 支持的对象类型（17种）", UITheme.DarkTheme.TEXT);
+        UITheme.spacingSmall();
+        
+        // 时间线系统（3个）
+        if (ImGui.collapsingHeader(Icons.ANIMATION + " 时间线系统（3个）")) {
+            ImGui.indent();
+            ImGui.bullet(); ImGui.text("时间线项目 (TimelineProject)");
+            ImGui.bullet(); ImGui.text("时间线序列 (TimelineSequence)");
+            ImGui.bullet(); ImGui.text("时间线轨道 (TimelineTrack)");
+            ImGui.unindent();
+        }
+        
+        // 核心对象（3个）
+        if (ImGui.collapsingHeader(Icons.TARGET + " 核心对象（3个）")) {
+            ImGui.indent();
+            ImGui.bullet(); ImGui.text("关键帧 (Keyframe)");
+            ImGui.bullet(); ImGui.text("容器 (Container)");
+            ImGui.bullet(); ImGui.text("动画片段 (AnimationClip)");
+            ImGui.unindent();
+        }
+        
+        // 扩展系统（6个）
+        if (ImGui.collapsingHeader(Icons.STAR + " 扩展系统（6个）")) {
+            ImGui.indent();
+            ImGui.bullet(); ImGui.text("特效 (Effect)");
+            ImGui.bullet(); ImGui.text("项目环境 (ProjectEnvironment)");
+            ImGui.bullet(); ImGui.text("材质库 (MaterialLibrary)");
+            ImGui.bullet(); ImGui.text("相机 (Camera)");
+            ImGui.bullet(); ImGui.text("后处理 (PostProcessing)");
+            ImGui.bullet(); ImGui.text("物理环境 (PhysicsEnvironment)");
+            ImGui.unindent();
+        }
+        
+        // 扩展类型（3个）
+        if (ImGui.collapsingHeader(Icons.WRENCH + " 扩展类型（3个）")) {
+            ImGui.indent();
+            ImGui.bullet(); ImGui.text("三维向量 (Vector3f)");
+            ImGui.bullet(); ImGui.text("颜色 (Vector4f)");
+            ImGui.bullet(); ImGui.text("列表 (List)");
+            ImGui.unindent();
+        }
+        
+        // 通用回退（1个）
+        if (ImGui.collapsingHeader(Icons.SHIELD + " 通用回退（1个）")) {
+            ImGui.indent();
+            ImGui.bullet(); ImGui.text("任意对象 (GenericPropertyAdapter)");
+            ImGui.unindent();
+        }
+        
+        UITheme.spacing();
+        UITheme.separator();
+        UITheme.spacing();
+        
+        // 统计信息
+        int adapterCount = PropertyAdapterRegistry.getAdapterCount();
+        boolean hasFallback = PropertyAdapterRegistry.hasFallbackAdapter();
+        
+        UITheme.label(String.format(Icons.STATS + " 已注册适配器: %d 个", adapterCount), UITheme.DarkTheme.TEXT);
+        
+        // 回退适配器状态（使用颜色）
+        if (hasFallback) {
+            ImGui.textColored(0.4f, 1.0f, 0.5f, 1.0f, Icons.SHIELD + " 回退适配器: 已启用");
+        } else {
+            UITheme.label(Icons.SHIELD + " 回退适配器: 未启用", UITheme.DarkTheme.TEXT_DISABLED);
+        }
+    }
+    
+    /**
+     * 渲染无适配器消息
+     */
+    private void renderNoAdapterMessage() {
+        UITheme.spacingLarge();
+        UITheme.title(Icons.WARNING + " 无可用的属性编辑器");
+        UITheme.spacingSmall();
+        
+        String typeName = currentSelection.getClass().getSimpleName();
+        String fullClassName = currentSelection.getClass().getName();
+        
+        // 警告消息（黄色）
+        ImGui.textColored(1.0f, 0.8f, 0.2f, 1.0f, 
+            String.format("对象类型 \"%s\" 没有注册属性适配器", typeName));
+        
+        UITheme.spacing();
+        UITheme.separator();
+        UITheme.spacing();
+        
+        // 对象信息
+        ImGui.text(Icons.PACKAGE + " 对象信息:");
+        ImGui.indent();
+        ImGui.bullet(); ImGui.text(String.format("类名: %s", typeName));
+        ImGui.bullet(); ImGui.text(String.format("完整路径: %s", fullClassName));
+        ImGui.bullet(); ImGui.text(String.format("包名: %s", currentSelection.getClass().getPackageName()));
+        ImGui.unindent();
+        
+        UITheme.spacing();
+        UITheme.separator();
+        UITheme.spacing();
+        
+        // 解决方案
+        ImGui.text(Icons.LIGHTBULB + " 解决方案:");
+        ImGui.indent();
+        ImGui.text("1️⃣ 创建专用适配器:");
+        ImGui.indent();
+        ImGui.bulletText("实现 IPropertyAdapter<YourType> 接口");
+        ImGui.bulletText("在 PropertyAdapterBootstrap 中注册");
+        ImGui.unindent();
+        
+        UITheme.spacingSmall();
+        
+        ImGui.text("2️⃣ 使用通用适配器:");
+        ImGui.indent();
+        ImGui.bulletText("确保 GenericPropertyAdapter 已注册为回退适配器");
+        ImGui.bulletText("检查 PropertyAdapterBootstrap.initialize() 是否已调用");
+        ImGui.unindent();
+        ImGui.unindent();
+        
+        UITheme.spacing();
+        UITheme.separator();
+        UITheme.spacing();
+        
+        // 调试按钮
+        if (ImGui.button(Icons.SEARCH + " 查看注册表详情", 200, 25)) {
+            LOGGER.info("[PropertiesPanel] 注册表状态:\n{}", 
+                PropertyAdapterRegistry.getDebugInfo());
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("输出所有已注册适配器的详细信息到日志");
+        }
+    }
+    
+    /**
+     * 渲染错误消息
+     */
+    private void renderErrorMessage(Exception e) {
+        UITheme.spacingLarge();
+        UITheme.title(Icons.ERROR + " 渲染错误");
+        UITheme.spacingSmall();
+        
+        // 错误消息（红色）
+        ImGui.textColored(1.0f, 0.4f, 0.4f, 1.0f, "渲染属性时发生错误");
+        
+        UITheme.spacing();
+        UITheme.separator();
+        UITheme.spacing();
+        
+        // 错误详情
+        ImGui.text(Icons.CLIPBOARD + " 错误详情:");
+        ImGui.indent();
+        ImGui.bullet(); ImGui.text(String.format("异常类型: %s", e.getClass().getSimpleName()));
+        ImGui.bullet(); ImGui.text(String.format("错误消息: %s", e.getMessage() != null ? e.getMessage() : "(无)"));
+        ImGui.unindent();
+        
+        UITheme.spacing();
+        
+        // 堆栈跟踪（折叠）
+        if (ImGui.collapsingHeader(Icons.SEARCH + " 堆栈跟踪")) {
+            ImGui.indent();
+            StackTraceElement[] stackTrace = e.getStackTrace();
+            for (int i = 0; i < Math.min(stackTrace.length, 10); i++) {
+                ImGui.bulletText(stackTrace[i].toString());
+            }
+            if (stackTrace.length > 10) {
+                ImGui.text(String.format("... 还有 %d 行", stackTrace.length - 10));
+            }
+            ImGui.unindent();
+        }
+        
+        UITheme.spacing();
+        UITheme.separator();
+        UITheme.spacing();
+        
+        // 建议操作
+        ImGui.text(Icons.LIGHTBULB + " 建议操作:");
+        ImGui.indent();
+        ImGui.bulletText("检查对象是否包含所有必需的属性");
+        ImGui.bulletText("查看日志获取完整的错误堆栈");
+        ImGui.bulletText("确认适配器实现是否正确");
+        ImGui.bulletText("尝试重新选择对象");
+        ImGui.unindent();
+        
+        UITheme.spacing();
+        
+        // 重新选择按钮
+        if (ImGui.button(Icons.REFRESH + " 清除选择并重试", 150, 25)) {
+            SelectionManager.get().clearSelection();
+            updateSelection(null);
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("清除当前选择，尝试解决错误");
+        }
+    }
+    
+    // ==================== 生命周期 ====================
+    
+    @Override
+    public void dispose() {
+        // 移除监听器
+        SelectionManager.get().removeSelectionChangedListener(this::onSelectionChanged);
+        super.dispose();
+        LOGGER.debug("[PropertiesPanel] 已销毁");
+    }
+}

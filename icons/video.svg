@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- 视频图标 - Video Icon (单色版) -->
+
+<svg
+   viewBox="0 0 24 24"
+   width="24"
+   height="24"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="video.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="M 3,4 C 1.3549904,4 0,5.3549904 0,7 v 10 c 0,1.64501 1.3549904,3 3,3 h 13 c 1.64501,0 3,-1.35499 3,-3 v -1.626953 l 3.417969,2.441406 A 1.0001,1.0001 0 0 0 24,17 V 7 A 1.0001,1.0001 0 0 0 22.417969,6.1855469 L 19,8.6269531 V 7 C 19,5.3549904 17.64501,4 16,4 Z m 0,2 h 13 c 0.564129,0 1,0.4358706 1,1 v 3.054688 l -1.582031,1.130859 a 1.0001,1.0001 0 0 0 0,1.628906 L 17,13.945313 V 17 c 0,0.564129 -0.435871,1 -1,1 H 3 C 2.4358706,18 2,17.564129 2,17 V 7 C 2,6.4358706 2.4358706,6 3,6 Z m 19,2.9453125 v 6.1093755 l -3,-2.142579 v -1.824218 z"
+     id="path1" />
+</svg>

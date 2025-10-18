@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- 旋转图标 - Rotate Icon (单色版) -->
+
+<svg
+   viewBox="0 0 24 24"
+   width="24"
+   height="24"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="rotate.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="M 12.935547,0.9609375 C 11.79375,0.87116868 10.644028,0.95580614 9.5371094,1.2089844 5.1094342,2.2216973 1.2387442,5.9404379 1,11.457031 A 1,1 0 0 0 1.9570312,12.5 1,1 0 0 0 3,11.542969 C 3.2007334,6.9046805 6.3244606,3.9953112 9.984375,3.1582031 13.402383,2.3764247 17.125698,3.5266591 19.400391,7 H 15.5 a 1,1 0 0 0 -1,1 1,1 0 0 0 1,1 h 6 a 1.0001,1.0001 0 0 0 1,-1 V 2 a 1,1 0 0 0 -1,-1 1,1 0 0 0 -1,1 V 5.2070312 C 18.508389,2.6557679 15.793321,1.1856177 12.935547,0.9609375 Z m 9.117187,10.5410155 a 1,1 0 0 0 -1.050781,0.945313 c -0.242277,4.61568 -3.37278,7.496491 -7.02539,8.3125 C 10.601328,21.513807 6.9444844,20.375238 4.6757812,17 H 8.5 a 1,1 0 0 0 1,-1 1,1 0 0 0 -1,-1 h -6 a 1.0001,1.0001 0 0 0 -1,1 v 6 a 1,1 0 0 0 1,1 1,1 0 0 0 1,-1 v -3.304688 c 2.7723054,3.55564 7.04471,4.879619 10.912109,4.015625 4.419436,-0.98732 8.297699,-4.666884 8.585938,-10.158203 a 1,1 0 0 0 -0.945313,-1.050781 z"
+     id="path1" />
+</svg>

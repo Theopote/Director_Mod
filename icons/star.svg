@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- 星星图标 - Star Icon (单色版) -->
+
+<svg
+   viewBox="0 0 24 24"
+   width="24"
+   height="24"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="star.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="M 12,1.25 A 0.750075,0.750075 0 0 0 11.328125,1.6679687 L 8.4121094,7.5742187 1.890625,8.5273438 A 0.750075,0.750075 0 0 0 1.4765625,9.8066406 l 4.7167969,4.5957034 -1.1132813,6.490234 a 0.750075,0.750075 0 0 0 1.0898438,0.791016 L 12,18.617187 l 5.830078,3.066407 a 0.750075,0.750075 0 0 0 1.089844,-0.791016 L 17.806641,14.402344 22.523437,9.8066406 A 0.750075,0.750075 0 0 0 22.109375,8.5273438 L 15.587891,7.5742187 12.671875,1.6679687 A 0.750075,0.750075 0 0 0 12,1.25 Z m 0,2.4433594 2.417969,4.8984375 a 0.750075,0.750075 0 0 0 0.564453,0.4101562 l 5.40625,0.7910157 -3.91211,3.8105472 a 0.750075,0.750075 0 0 0 -0.214843,0.664062 l 0.921875,5.380859 -4.833985,-2.542968 a 0.750075,0.750075 0 0 0 -0.699218,0 l -4.8339848,2.542968 0.921875,-5.380859 A 0.750075,0.750075 0 0 0 7.5234375,13.603516 L 3.6113281,9.7929688 9.0175781,9.0019531 A 0.750075,0.750075 0 0 0 9.5820313,8.5917969 Z"
+     id="path1" />
+</svg>

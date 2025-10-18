@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- 工具箱图标 - Toolbox Icon (单色版) -->
+
+<svg
+   viewBox="0 0 24 24"
+   width="24"
+   height="24"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="toolbox.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="M 8,1 A 1.0001,1.0001 0 0 0 7,2 V 7 H 3 C 1.3549904,7 0,8.3549904 0,10 v 2 6 c 0,1.64501 1.3549904,3 3,3 h 18 c 1.64501,0 3,-1.35499 3,-3 V 12 10 C 24,8.3549904 22.64501,7 21,7 H 17 V 2 A 1.0001,1.0001 0 0 0 16,1 Z m 1,2 h 6 V 7 H 9 Z M 3,9 h 5 8 5 c 0.564129,0 1,0.4358706 1,1 v 1 H 2 V 10 C 2,9.4358706 2.4358706,9 3,9 Z m -1,4 h 20 v 5 c 0,0.564129 -0.435871,1 -1,1 H 3 C 2.4358706,19 2,18.564129 2,18 Z"
+     id="path1" />
+</svg>

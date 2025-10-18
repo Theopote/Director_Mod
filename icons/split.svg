@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- 分割图标 - Split Icon (单色版) -->
+
+<svg
+   viewBox="0 0 24 24"
+   width="24"
+   height="24"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="split.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" />
+  <circle
+     cx="12"
+     cy="12"
+     r="3"
+     fill="#000000"
+     id="circle1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="m 12,1 a 1,1 0 0 0 -1,1 v 7 a 1,1 0 0 0 1,1 1,1 0 0 0 1,-1 V 2 A 1,1 0 0 0 12,1 Z M 2.2929688,1.2929687 a 1,1 0 0 0 0,1.4140626 l 4.9999999,4.9999999 a 1,1 0 0 0 1.4140626,0 1,1 0 0 0 0,-1.4140625 l -5,-5 a 1,1 0 0 0 -1.4140625,0 z m 18.0000002,0 -5,5 a 1,1 0 0 0 0,1.4140625 1,1 0 0 0 1.414062,0 l 5,-4.9999999 a 1,1 0 0 0 0,-1.4140626 1,1 0 0 0 -1.414062,0 z M 2,11 a 1,1 0 0 0 -1,1 1,1 0 0 0 1,1 h 7 a 1,1 0 0 0 1,-1 1,1 0 0 0 -1,-1 z m 13,0 a 1,1 0 0 0 -1,1 1,1 0 0 0 1,1 h 7 a 1,1 0 0 0 1,-1 1,1 0 0 0 -1,-1 z m -3,3 a 1,1 0 0 0 -1,1 v 7 a 1,1 0 0 0 1,1 1,1 0 0 0 1,-1 v -7 a 1,1 0 0 0 -1,-1 z m -4,2 a 1,1 0 0 0 -0.7070313,0.292969 l -4.9999999,5 a 1,1 0 0 0 0,1.414062 1,1 0 0 0 1.4140625,0 l 5,-5 a 1,1 0 0 0 0,-1.414062 A 1,1 0 0 0 8,16 Z m 7.292969,0.292969 a 1,1 0 0 0 0,1.414062 l 5,5 a 1,1 0 0 0 1.414062,0 1,1 0 0 0 0,-1.414062 l -5,-5 a 1,1 0 0 0 -1.414062,0 z"
+     id="path1" />
+</svg>

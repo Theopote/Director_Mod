@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- 父子关系图标 - Parent Icon (单色版) -->
+
+<svg
+   viewBox="0 0 24 24"
+   width="24"
+   height="24"
+   version="1.1"
+   id="svg4"
+   sodipodi:docname="parent.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs4" />
+  <sodipodi:namedview
+     id="namedview4"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="M 12,1 C 9.8027056,1 8,2.8027056 8,5 8,7.1972944 9.8027056,9 12,9 14.197294,9 16,7.1972944 16,5 16,2.8027056 14.197294,1 12,1 Z m 0,2 c 1.116414,0 2,0.8835859 2,2 0,1.1164141 -0.883586,2 -2,2 -1.116414,0 -2,-0.8835859 -2,-2 0,-1.1164141 0.883586,-2 2,-2 z"
+     id="circle1" />
+  <g
+     id="line1"
+     style="opacity:1">
+    <path
+       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+       d="m 12,8 v 4"
+       id="path4" />
+    <path
+       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+       d="m 11,8 v 4 h 2 V 8 Z"
+       id="path5" />
+  </g>
+  <g
+     id="line2"
+     style="opacity:1">
+    <path
+       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+       d="M 12,12 7,17"
+       id="path6" />
+    <path
+       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+       d="m 11.292969,11.292969 -5.0000003,5 1.4140625,1.414062 4.9999998,-5 z"
+       id="path7" />
+  </g>
+  <g
+     id="line3"
+     style="opacity:1">
+    <path
+       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+       d="m 12,12 5,5"
+       id="path8" />
+    <path
+       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
+       d="m 12.707031,11.292969 -1.414062,1.414062 5,5 1.414062,-1.414062 z"
+       id="path9" />
+  </g>
+  <circle
+     cx="7"
+     cy="19"
+     r="2"
+     fill="#000000"
+     id="circle3" />
+  <circle
+     cx="17"
+     cy="19"
+     r="2"
+     fill="#000000"
+     id="circle4" />
+</svg>

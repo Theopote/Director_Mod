@@ -1,0 +1,67 @@
+{
+  "panels": [
+    {
+      "type": "MenuBarPanel",
+      "enabled": true,
+      "priority": 10,
+      "properties": {
+        "title": "ChronoBlocks Menu",
+        "showIcons": true,
+        "theme": "dark"
+      },
+      "dependencies": []
+    },
+    {
+      "type": "ToolbarPanel",
+      "enabled": true,
+      "priority": 20,
+      "properties": {
+        "orientation": "horizontal",
+        "buttonSize": 32,
+        "showLabels": true
+      },
+      "dependencies": ["MenuBarPanel"]
+    },
+    {
+      "type": "ContainerPanel",
+      "enabled": true,
+      "priority": 30,
+      "properties": {
+        "layout": "dockable",
+        "resizable": true,
+        "closable": true
+      },
+      "dependencies": ["ToolbarPanel"]
+    },
+    {
+      "type": "PropertiesPanel",
+      "enabled": true,
+      "priority": 40,
+      "properties": {
+        "collapsible": true,
+        "defaultExpanded": true,
+        "minWidth": 250,
+        "maxWidth": 400
+      },
+      "dependencies": ["ContainerPanel"]
+    },
+    {
+      "type": "TimelinePanel",
+      "enabled": true,
+      "priority": 50,
+      "properties": {
+        "height": 200,
+        "showControls": true,
+        "autoPlay": false
+      },
+      "dependencies": ["ContainerPanel"]
+    }
+  ],
+  "settings": {
+    "enableValidation": true,
+    "enableLogging": true,
+    "defaultFactory": "PanelFactory",
+    "configVersion": "2.1",
+    "description": "ChronoBlocks UI Configuration - 支持动态面板配置和依赖注入"
+  }
+}

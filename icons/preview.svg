@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- 预览图标 - Preview Icon (单色版) -->
+
+<svg
+   viewBox="0 0 24 24"
+   width="24"
+   height="24"
+   version="1.1"
+   id="svg2"
+   sodipodi:docname="preview.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs2" />
+  <sodipodi:namedview
+     id="namedview2"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="M 12,3 C 4.2380952,3 0.10546875,11.552734 0.10546875,11.552734 L -0.1171875,12 0.10546875,12.447266 C 0.10546875,12.447266 4.2380952,21 12,21 19.761905,21 23.894531,12.447266 23.894531,12.447266 L 24.117187,12 23.894531,11.552734 C 23.894531,11.552734 19.761905,3 12,3 Z m 0,2 c 5.863389,0 9.347663,6.209584 9.779297,7 C 21.347663,12.790416 17.863389,19 12,19 6.1366105,19 2.6523365,12.790416 2.2207031,12 2.6523365,11.209584 6.1366105,5 12,5 Z"
+     id="path1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="m 12,8 c -2.1972944,0 -4,1.8027056 -4,4 0,2.197294 1.8027056,4 4,4 2.197294,0 4,-1.802706 4,-4 0,-2.1972944 -1.802706,-4 -4,-4 z m 0,2 c 1.116414,0 2,0.883586 2,2 0,1.116414 -0.883586,2 -2,2 -1.116414,0 -2,-0.883586 -2,-2 0,-1.116414 0.883586,-2 2,-2 z"
+     id="circle1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="M 12,8.25 A 0.75,0.75 0 0 0 11.25,9 v 3.310547 l 2.21875,2.220703 a 0.75,0.75 0 0 0 1.0625,0 0.75,0.75 0 0 0 0,-1.0625 L 12.75,11.689453 V 9 A 0.75,0.75 0 0 0 12,8.25 Z"
+     id="path2" />
+</svg>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- 循环图标 - Loop Icon (单色版) -->
+
+<svg
+   viewBox="0 0 24 24"
+   width="24"
+   height="24"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="loop.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="m 16.292969,0.29296875 a 1,1 0 0 0 0,1.41406245 L 18.585937,4 H 7 C 4.2504209,4 2,6.2504209 2,9 v 2 a 1,1 0 0 0 1,1 1,1 0 0 0 1,-1 V 9 C 4,7.3313011 5.3313011,6 7,6 h 11.585937 l -2.292968,2.2929688 a 1,1 0 0 0 0,1.4140625 1,1 0 0 0 1.414062,0 l 4,-4.0000001 a 1.0001,1.0001 0 0 0 0,-0.4140625 A 1,1 0 0 0 22,5 1,1 0 0 0 21.707031,4.7070312 a 1.0001,1.0001 0 0 0 0,-0.4140625 l -4,-3.99999995 a 1,1 0 0 0 -1.414062,0 z M 21,12 a 1,1 0 0 0 -1,1 v 2 c 0,1.668699 -1.331301,3 -3,3 H 5.4140625 l 2.2929687,-2.292969 a 1,1 0 0 0 0,-1.414062 1,1 0 0 0 -1.4140625,0 l -3.9999999,4 a 1.0001,1.0001 0 0 0 0,0.414062 A 1,1 0 0 0 2,19 a 1,1 0 0 0 0.2929688,0.292969 1.0001,1.0001 0 0 0 0,0.414062 l 3.9999999,4 a 1,1 0 0 0 1.4140625,0 1,1 0 0 0 0,-1.414062 L 5.4140625,20 H 17 c 2.749579,0 5,-2.250421 5,-5 v -2 a 1,1 0 0 0 -1,-1 z"
+     id="path1" />
+</svg>

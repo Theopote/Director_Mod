@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- 曲线图标 - Curve Icon (单色版) -->
+
+<svg
+   viewBox="0 0 24 24"
+   width="24"
+   height="24"
+   version="1.1"
+   id="svg2"
+   sodipodi:docname="curve.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs2" />
+  <sodipodi:namedview
+     id="namedview2"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="M 12,3 C 10.216667,3 8.8301732,4.3044703 7.671875,5.9160156 6.5135768,7.527561 5.5285448,9.581629 4.6992187,11.623047 3.0405667,15.705883 2.0292969,19.757813 2.0292969,19.757812 a 1,1 0 0 0 0.7285156,1.212891 1,1 0 0 0 1.2128906,-0.728516 c 0,0 0.9887302,-3.94807 2.5800781,-7.865234 C 7.3464552,10.418371 8.2989232,8.472439 9.296875,7.0839844 10.294827,5.6955297 11.283333,5 12,5 c 0.716667,0 1.705173,0.6955297 2.703125,2.0839844 0.997952,1.3884546 1.95042,3.3343866 2.746094,5.2929686 1.591348,3.917164 2.580078,7.865234 2.580078,7.865234 a 1,1 0 0 0 1.21289,0.728516 1,1 0 0 0 0.728516,-1.212891 c 0,0 -1.01127,-4.051929 -2.669922,-8.134765 C 18.471455,9.581629 17.486423,7.527561 16.328125,5.9160156 15.169827,4.3044703 13.783333,3 12,3 Z"
+     id="path1" />
+  <circle
+     cx="3"
+     cy="20"
+     r="2"
+     fill="#000000"
+     id="circle1" />
+  <circle
+     cx="21"
+     cy="20"
+     r="2"
+     fill="#000000"
+     id="circle2" />
+</svg>

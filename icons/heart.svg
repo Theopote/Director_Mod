@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- 心形图标 - Heart Icon (单色版) -->
+
+<svg
+   viewBox="0 0 24 24"
+   width="24"
+   height="24"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="heart.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="M 6.7480469,1.9101562 C 5.0949528,2.0073974 3.5827598,2.772709 2.453125,3.9023438 1.3234902,5.0319785 0.55622556,6.5441716 0.45898438,8.1972656 0.36174319,9.8503597 0.97968212,11.624213 2.453125,13.097656 l 1.0605469,1.058594 7.7792971,7.78125 a 1.0001,1.0001 0 0 0 1.414062,0 l 7.779297,-7.78125 1.060547,-1.058594 c 2.531457,-2.530268 2.531457,-6.6650435 0,-9.1953122 -2.530269,-2.5314568 -6.663091,-2.5314568 -9.193359,0 L 12,4.2558594 11.646484,3.9023438 C 10.173041,2.4289009 8.4011409,1.8129151 6.7480469,1.9101562 Z M 6.8652344,3.90625 c 1.102322,-0.064843 2.2472981,0.2902669 3.3671876,1.4101562 l 1.060547,1.0605469 a 1.0001,1.0001 0 0 0 1.414062,0 l 1.060547,-1.0605469 c 1.765916,-1.7667448 4.599319,-1.7667448 6.365234,0 1.766745,1.7659158 1.766745,4.6012718 0,6.3671878 L 19.072266,12.742188 12,19.816406 4.9277344,12.742188 3.8671875,11.683594 C 2.7472982,10.563704 2.3921885,9.4187283 2.4570313,8.3164063 2.521874,7.2140842 3.0518223,6.1317715 3.8671875,5.3164062 4.6825527,4.501041 5.7629123,3.9710927 6.8652344,3.90625 Z"
+     id="path1" />
+</svg>

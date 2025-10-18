@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- 编辑图标 - Edit/Pencil Icon (单色版) -->
+
+<svg
+   viewBox="0 0 24 24"
+   width="24"
+   height="24"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="edit.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="M 20.152344,0.84570313 C 19.345708,0.79825378 18.469745,1.1161922 17.792969,1.7929687 L 8.2929688,11.292969 a 1.0001,1.0001 0 0 0 -0.2636719,0.464844 l -1,4 a 1.0001,1.0001 0 0 0 1.2128906,1.21289 l 4.0000005,-1 a 1.0001,1.0001 0 0 0 0.464843,-0.263672 l 9.5,-9.4999998 C 22.883808,5.5302547 23.201746,4.6542922 23.154297,3.8476563 23.106848,3.0410203 22.739166,2.3251035 22.207031,1.7929687 21.674896,1.260834 20.95898,0.89315247 20.152344,0.84570313 Z M 20.035156,2.8417969 c 0.255864,0.015051 0.539948,0.1473691 0.757813,0.3652344 0.217865,0.2178652 0.350183,0.5019486 0.365234,0.7578125 0.01505,0.2558638 -0.04201,0.5049019 -0.365234,0.8281249 L 11.488281,14.097656 9.375,14.625 9.9023438,12.511719 19.207031,3.2070313 C 19.530254,2.8838082 19.779292,2.826746 20.035156,2.8417969 Z M 4,3 C 2.3549904,3 1,4.3549904 1,6 v 14 c 0,1.64501 1.3549904,3 3,3 h 14 c 1.64501,0 3,-1.35499 3,-3 v -7 a 1,1 0 0 0 -1,-1 1,1 0 0 0 -1,1 v 7 c 0,0.564129 -0.435871,1 -1,1 H 4 C 3.4358706,21 3,20.564129 3,20 V 6 C 3,5.4358706 3.4358706,5 4,5 h 7 A 1,1 0 0 0 12,4 1,1 0 0 0 11,3 Z"
+     id="path1" />
+</svg>
