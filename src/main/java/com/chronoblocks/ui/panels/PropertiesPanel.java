@@ -279,7 +279,7 @@ public class PropertiesPanel extends AbstractPanel {
      * 渲染工具栏（搜索 + 展开控制 + 工具按钮）
      */
     private void renderToolbar() {
-        ImGui.pushStyleVar(ImGuiStyleVar.FrameRounding, 6.0f);
+        // 搜索框使用统一的圆角样式（不再单独设置）
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4.0f, 4.0f);
 
         // 搜索框
@@ -299,21 +299,21 @@ public class PropertiesPanel extends AbstractPanel {
 
         ImGui.sameLine();
 
-        // 展开/折叠按钮
-        if (ImGui.button(expandAll ? "折叠" : "展开", 50, 0)) {
+        // 展开/折叠按钮（使用自动宽度和统一圆角）
+        if (ImGui.button(expandAll ? "折叠" : "展开", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
             expandAll = !expandAll;
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(expandAll ? "折叠所有组" : "展开所有组");
         }
 
-        ImGui.popStyleVar(2);
+        ImGui.popStyleVar();
 
         // 第二行：工具按钮 + 状态指示器
         UITheme.spacingSmall();
 
-        // 刷新按钮
-        if (ImGui.smallButton(Icons.REFRESH)) {
+        // 刷新按钮（改用普通按钮，使用自动宽度）
+        if (ImGui.button(Icons.REFRESH, 0, UITheme.Spacing.BUTTON_HEIGHT)) {
             updateSelection(currentSelection); // 刷新适配器
             LOGGER.debug("[PropertiesPanel] 已刷新适配器");
         }
@@ -323,8 +323,8 @@ public class PropertiesPanel extends AbstractPanel {
 
         ImGui.sameLine();
 
-        // 统计信息开关
-        if (ImGui.smallButton(showStatistics ? Icons.STATS : Icons.CHART)) {
+        // 统计信息开关（改用普通按钮，使用自动宽度）
+        if (ImGui.button(showStatistics ? Icons.STATS : Icons.CHART, 0, UITheme.Spacing.BUTTON_HEIGHT)) {
             showStatistics = !showStatistics;
         }
         if (ImGui.isItemHovered()) {
@@ -343,7 +343,8 @@ public class PropertiesPanel extends AbstractPanel {
             }
 
             ImGui.sameLine();
-            if (ImGui.smallButton(Icons.SAVE)) {
+            // 保存按钮（改用普通按钮，使用自动宽度）
+            if (ImGui.button(Icons.SAVE, 0, UITheme.Spacing.BUTTON_HEIGHT)) {
                 isDirty = false;
                 LOGGER.debug("[PropertiesPanel] 已标记为已保存");
             }
@@ -422,9 +423,9 @@ public class PropertiesPanel extends AbstractPanel {
                 ImGui.setTooltip(String.format("完整类名: %s.%s", packageName, typeName));
             }
             
-            // 调试信息按钮
+            // 调试信息按钮（改用普通按钮，使用自动宽度）
             ImGui.sameLine();
-            if (ImGui.smallButton(Icons.SEARCH + " 调试")) {
+            if (ImGui.button(Icons.SEARCH + " 调试", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
                 LOGGER.info("[PropertiesPanel] 调试信息:\n{}", 
                     currentAdapter.getDebugInfo(currentSelection));
                 LOGGER.info("[PropertiesPanel] 注册表状态:\n{}", 

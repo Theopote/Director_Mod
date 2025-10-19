@@ -77,8 +77,8 @@ public class ToolbarPanel extends AbstractPanel {
 
     @Override
     protected void doRender() {
-        // 使用主题间距
-        ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, UITheme.Spacing.NORMAL, UITheme.Spacing.SMALL);
+        // 使用统一的元素间距（4px）和按钮内边距（12px, 3px）
+        ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, UITheme.Spacing.ELEMENT_SPACING, UITheme.Spacing.ELEMENT_SPACING);
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, UITheme.Spacing.BUTTON_PADDING_X, UITheme.Spacing.BUTTON_PADDING_Y);
         
         renderToolButtons();
@@ -109,7 +109,8 @@ public class ToolbarPanel extends AbstractPanel {
                 float[] highlightColor = UITheme.toFloatArrayPublic(UITheme.DarkTheme.TAB_ACTIVE);
                 ImGui.pushStyleColor(ImGuiCol.Button, highlightColor[0], highlightColor[1], highlightColor[2], highlightColor[3]);
             }
-            if (ImGui.button(mode.getDisplayName() + "##" + mode.name(), 70, UITheme.Spacing.BUTTON_HEIGHT)) {
+            // 使用自动宽度：按钮宽度 = 文字宽度 + 2×边距(12px)
+            if (ImGui.button(mode.getDisplayName() + "##" + mode.name(), 0, UITheme.Spacing.BUTTON_HEIGHT)) {
                 setCurrentTool(mode);
             }
             if (active) {
@@ -128,16 +129,16 @@ public class ToolbarPanel extends AbstractPanel {
         UITheme.label(Icons.PLAY, UITheme.DarkTheme.TEXT_SELECTED);
         ImGui.sameLine();
 
-        // Play / Pause - 使用统一按钮高度
+        // Play / Pause - 使用自动宽度
         if (pc.isPlaying()) {
-            if (ImGui.button(Icons.PAUSE + " 暂停##play", 70, UITheme.Spacing.BUTTON_HEIGHT)) pc.pause();
+            if (ImGui.button(Icons.PAUSE + " 暂停##play", 0, UITheme.Spacing.BUTTON_HEIGHT)) pc.pause();
         } else {
-            if (ImGui.button(Icons.PLAY + " 播放##play", 70, UITheme.Spacing.BUTTON_HEIGHT)) pc.play();
+            if (ImGui.button(Icons.PLAY + " 播放##play", 0, UITheme.Spacing.BUTTON_HEIGHT)) pc.play();
         }
         ImGui.sameLine();
 
-        // Stop
-        if (ImGui.button(Icons.STOP + " 停止##play", 70, UITheme.Spacing.BUTTON_HEIGHT)) pc.stop();
+        // Stop - 使用自动宽度
+        if (ImGui.button(Icons.STOP + " 停止##play", 0, UITheme.Spacing.BUTTON_HEIGHT)) pc.stop();
         ImGui.sameLine();
 
         // Loop toggle
@@ -185,7 +186,8 @@ public class ToolbarPanel extends AbstractPanel {
         }
         
         String label = enabled ? (Icons.VISIBLE + " 可见") : (Icons.INVISIBLE + " 隐藏");
-        if (ImGui.button(label + "##renderToggle", 80, UITheme.Spacing.BUTTON_HEIGHT)) {
+        // 使用自动宽度
+        if (ImGui.button(label + "##renderToggle", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
             renderer.setEnabled(!enabled);
             logger.info("[ChronoBlocks] 容器渲染已{}", enabled ? "禁用" : "启用");
         }
@@ -226,7 +228,8 @@ public class ToolbarPanel extends AbstractPanel {
         ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 1.0f, 0.3f, 0.3f, 1.0f);
         ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.6f, 0.1f, 0.1f, 1.0f);
 
-        if (ImGui.button("关闭##close", 60, 0)) handleCloseWindow();
+        // 使用自动宽度
+        if (ImGui.button("关闭##close", 0, UITheme.Spacing.BUTTON_HEIGHT)) handleCloseWindow();
         if (ImGui.isItemHovered()) ImGui.setTooltip("关闭 ChronoBlocks 窗口");
 
         ImGui.popStyleColor(3);

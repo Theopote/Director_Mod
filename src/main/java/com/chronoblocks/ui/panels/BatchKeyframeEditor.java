@@ -168,19 +168,19 @@ public class BatchKeyframeEditor extends AbstractPanel {
             applyInterpolationType(types[selectedTypeIndex]);
         }
         
-        // 快捷按钮
+        // 快捷按钮（使用普通按钮替代smallButton，保持统一）
         ImGui.spacing();
         ImGui.text("快捷设置:");
         
-        if (ImGui.smallButton("线性")) {
+        if (ImGui.button("线性", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
             applyInterpolationType(InterpolationType.LINEAR);
         }
         ImGui.sameLine();
-        if (ImGui.smallButton("缓入缓出")) {
+        if (ImGui.button("缓入缓出", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
             applyInterpolationType(InterpolationType.EASE_IN_OUT);
         }
         ImGui.sameLine();
-        if (ImGui.smallButton("贝塞尔")) {
+        if (ImGui.button("贝塞尔", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
             applyInterpolationType(InterpolationType.BEZIER);
         }
     }

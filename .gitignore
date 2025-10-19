@@ -38,3 +38,12 @@ hs_err_*.log
 replay_*.log
 *.hprof
 *.jfr
+
+# ChronoBlocks specific
+
+# Icon conversion temporary files
+icons_converted/
+icons_original_backup_*/
+
+# ImGui config
+config/chronoblocks/imgui.ini

@@ -252,7 +252,8 @@ public class KeyframePropertiesPanel extends AbstractPanel {
                 ImGui.sameLine();
             }
             
-            if (ImGui.smallButton(BEZIER_PRESETS[i] + "##preset" + i)) {
+            // 使用普通按钮替代smallButton，保持统一
+            if (ImGui.button(BEZIER_PRESETS[i] + "##preset" + i, 0, UITheme.Spacing.BUTTON_HEIGHT)) {
                 String presetName = BEZIER_PRESETS[i].toLowerCase();
                 float[] preset = com.chronoblocks.core.animation.CurveInterpolator.getBezierPreset(presetName);
                 

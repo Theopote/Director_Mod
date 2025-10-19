@@ -4,21 +4,35 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 时间线轨道
- * 包含多个 TimelineClip
+ * 时间线轨道（专业级多类型支持）
+ * 包含多个 TimelineClip，支持不同的轨道类型
  * 
  * @author ChronoBlocks Team
- * @version 6.0
+ * @version 7.0
  */
 public class TimelineTrack {
     private String name;
+    private TrackType type;  // 轨道类型
     private final List<TimelineClip> clips = new ArrayList<>();
     private boolean locked = false;
     private boolean visible = true;
     private int zOrder = 0;  // Z轴排序
+    private boolean muted = false;  // 静音（对音频轨道有效）
+    private boolean solo = false;   // 独奏（只播放此轨道）
     
+    /**
+     * 构造函数（默认为容器轨道）
+     */
     public TimelineTrack(String name) {
+        this(name, TrackType.CONTAINER);
+    }
+    
+    /**
+     * 构造函数（指定轨道类型）
+     */
+    public TimelineTrack(String name, TrackType type) {
         this.name = name;
+        this.type = type;
     }
     
     // ========== Clip 管理 ==========
@@ -103,6 +117,30 @@ public class TimelineTrack {
     
     public void setZOrder(int zOrder) {
         this.zOrder = zOrder;
+    }
+    
+    public TrackType getType() {
+        return type;
+    }
+    
+    public void setType(TrackType type) {
+        this.type = type;
+    }
+    
+    public boolean isMuted() {
+        return muted;
+    }
+    
+    public void setMuted(boolean muted) {
+        this.muted = muted;
+    }
+    
+    public boolean isSolo() {
+        return solo;
+    }
+    
+    public void setSolo(boolean solo) {
+        this.solo = solo;
     }
 }
 

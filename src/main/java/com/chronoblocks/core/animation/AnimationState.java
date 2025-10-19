@@ -23,7 +23,7 @@ public class AnimationState {
     // ========== 播放状态 ==========
     private boolean playing = false;
     private float currentTime = 0f;
-    private float duration = 10.0f; // 默认持续时间
+    private float duration = 20.0f; // 默认持续时间（20秒）
 
     // ========== 选择状态 ==========
     private int selectedTrack = -1;
@@ -44,7 +44,7 @@ public class AnimationState {
         
         // 从剪辑计算持续时间
         if (clip != null) {
-            this.duration = Math.max(clip.computeDuration(), 10.0f);
+            this.duration = Math.max(clip.computeDuration(), 20.0f);
         }
     }
 
@@ -59,7 +59,7 @@ public class AnimationState {
         clearSelection();
         // 更新持续时间
         if (clip != null) {
-            this.duration = Math.max(clip.computeDuration(), 10.0f);
+            this.duration = Math.max(clip.computeDuration(), 20.0f);
         }
     }
 

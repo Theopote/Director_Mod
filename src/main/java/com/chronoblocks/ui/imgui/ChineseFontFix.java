@@ -48,7 +48,7 @@ public class ChineseFontFix {
 
                     chineseFont = io.getFonts().addFontFromFileTTF(
                             systemFont,
-                            20.0f,
+                            18.0f,  // 18px字体，与主字体管理器保持一致
                             fontConfig,
                             glyphRanges
                     );

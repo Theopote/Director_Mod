@@ -3,7 +3,10 @@ package com.chronoblocks.ui.timeline;
 import com.chronoblocks.core.animation.AnimationState;
 import com.chronoblocks.core.playback.PlaybackController;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Timeline 数据模型（v4.5 一体化交互系统）
@@ -23,7 +26,7 @@ public class TimelineModel {
     // ========== 视图状态（本地管理）==========
     private float pixelsPerSecond = 80.0f;
     private float scrollX = 0f;
-    private final float minPps = 20.0f;
+    private final float minPps = 5.0f;   // 降低最小值，支持查看更长的时间线
     private final float maxPps = 800.0f;
     
     // ========== 吸附设置 ==========
@@ -37,13 +40,33 @@ public class TimelineModel {
     private TimelineClip selectedClip = null;
     
     // ========== v4.5 多选支持 ==========
-    private final List<Object> selectedItems = new ArrayList<>();  // 可以是 Keyframe, Clip 等
+    private final Set<Object> selectedItems = new HashSet<>();  // 可以是 Keyframe, Clip 等（使用 Set 避免重复）
     private Object lastClickedItem = null;
     private boolean multiSelectMode = false;  // Ctrl 键是否按下
     
     // ========== 构造函数 ==========
     public TimelineModel() {
-        createDemoTracks();
+        // 尝试加载保存的数据
+        if (TimelineModelPersistence.hasSavedData()) {
+            TimelineModelPersistence.loadFromFile(this);
+        } else {
+            // 如果没有保存的数据，创建演示轨道
+            createDemoTracks();
+        }
+    }
+    
+    /**
+     * 保存当前时间线数据
+     */
+    public void save() {
+        TimelineModelPersistence.saveToFile(this);
+    }
+    
+    /**
+     * 重新加载保存的数据
+     */
+    public void reload() {
+        TimelineModelPersistence.loadFromFile(this);
     }
     
     // ========== 播放控制（委托给 PlaybackController）==========
@@ -72,16 +95,6 @@ public class TimelineModel {
         AnimationState state = AnimationState.get();
         state.setCurrentTime(state.getDuration());
         state.setPlaying(false);
-    }
-    
-    /**
-     * 更新播放逻辑（已废弃，现在由 PlaybackController 统一驱动）
-     * @deprecated 保留用于兼容性，实际播放由 PlaybackController.update() 处理
-     */
-    @Deprecated
-    public void updatePlayback(float deltaTime) {
-        // 保留空实现，播放逻辑已移到 PlaybackController
-        // Timeline 只负责读取 AnimationState 的状态并显示
     }
     
     // ========== 缩放控制 ==========
@@ -166,24 +179,56 @@ public class TimelineModel {
         return Math.max(a, Math.min(b, v));
     }
     
-    private void createDemoTracks() {
-        TimelineTrack t1 = new TimelineTrack("方块动画");
-        TimelineTrack t2 = new TimelineTrack("粒子特效");
+    /**
+     * 创建演示轨道（仅用于测试和演示）
+     * 生产代码不应调用此方法，应从项目数据加载轨道
+     * @deprecated 仅供测试使用，请在测试类中调用
+     */
+    @Deprecated
+    public void createDemoTracks() {
+        // 容器轨道（方块动画） - 扩展到20秒
+        TimelineTrack containerTrack = new TimelineTrack("建筑物出现", TrackType.CONTAINER);
+        TimelineClip containerClip1 = new TimelineClip("建筑A", 0.0f, 5.0f, TrackType.CONTAINER.getClipColor());
+        TimelineClip containerClip2 = new TimelineClip("建筑B", 6.0f, 12.0f, TrackType.CONTAINER.getClipColor());
+        TimelineClip containerClip3 = new TimelineClip("建筑C", 13.0f, 18.0f, TrackType.CONTAINER.getClipColor());
+        containerClip1.addKeyframe(0.5f);
+        containerClip1.addKeyframe(2.5f);
+        containerTrack.addClip(containerClip1);
+        containerTrack.addClip(containerClip2);
+        containerTrack.addClip(containerClip3);
         
-        TimelineClip clip1 = new TimelineClip("移动", 0.0f, 2.5f, rgba(200,160,80,255));
-        TimelineClip clip2 = new TimelineClip("旋转", 3.0f, 5.0f, rgba(120, 200, 140,255));
-        TimelineClip clip3 = new TimelineClip("烟雾", 1.0f, 4.0f, rgba(120,180,255,255));
+        // 摄像机轨道 - 扩展到20秒
+        TimelineTrack cameraTrack = new TimelineTrack("主摄像机", TrackType.CAMERA);
+        TimelineClip cameraClip = new TimelineClip("环绕飞行", 0.0f, 20.0f, TrackType.CAMERA.getClipColor());
+        cameraClip.addKeyframe(0.0f);
+        cameraClip.addKeyframe(5.0f);
+        cameraClip.addKeyframe(10.0f);
+        cameraClip.addKeyframe(15.0f);
+        cameraClip.addKeyframe(20.0f);
+        cameraTrack.addClip(cameraClip);
         
-        clip1.addKeyframe(0.5f);
-        clip1.addKeyframe(1.5f);
-        clip2.addKeyframe(3.5f);
+        // 天气轨道 - 扩展到20秒
+        TimelineTrack weatherTrack = new TimelineTrack("时间与天气", TrackType.WEATHER);
+        TimelineClip weatherClip1 = new TimelineClip("黎明", 0.0f, 5.0f, TrackType.WEATHER.getClipColor());
+        TimelineClip weatherClip2 = new TimelineClip("正午", 5.0f, 12.0f, TrackType.WEATHER.getClipColor());
+        TimelineClip weatherClip3 = new TimelineClip("黄昏", 12.0f, 17.0f, TrackType.WEATHER.getClipColor());
+        TimelineClip weatherClip4 = new TimelineClip("夜晚", 17.0f, 20.0f, TrackType.WEATHER.getClipColor());
+        weatherTrack.addClip(weatherClip1);
+        weatherTrack.addClip(weatherClip2);
+        weatherTrack.addClip(weatherClip3);
+        weatherTrack.addClip(weatherClip4);
         
-        t1.addClip(clip1);
-        t1.addClip(clip2);
-        t2.addClip(clip3);
+        // 特效轨道 - 扩展到20秒
+        TimelineTrack effectTrack = new TimelineTrack("粒子特效", TrackType.EFFECT);
+        TimelineClip effectClip1 = new TimelineClip("烟雾", 2.0f, 8.0f, TrackType.EFFECT.getClipColor());
+        TimelineClip effectClip2 = new TimelineClip("火焰", 10.0f, 16.0f, TrackType.EFFECT.getClipColor());
+        effectTrack.addClip(effectClip1);
+        effectTrack.addClip(effectClip2);
         
-        tracks.add(t1);
-        tracks.add(t2);
+        tracks.add(containerTrack);
+        tracks.add(cameraTrack);
+        tracks.add(weatherTrack);
+        tracks.add(effectTrack);
     }
     
     private static int rgba(int r, int g, int b, int a) {
@@ -221,10 +266,31 @@ public class TimelineModel {
     }
     
     /**
-     * 获取持续时间（从全局 AnimationState）
+     * 获取持续时间（取用户设定值和片段最大结束时间中的较大值）
+     * 这样既能自动适应片段长度，又允许用户手动设置更长的时长
      */
-    public float getDuration() { 
-        return AnimationState.get().getDuration(); 
+    public float getDuration() {
+        float maxEndTime = calculateDynamicDuration();
+        float userSetDuration = AnimationState.get().getDuration();
+        
+        // 返回两者中的较大值，这样用户可以手动设置超过片段长度的时长
+        return Math.max(maxEndTime, userSetDuration); 
+    }
+    
+    /**
+     * 动态计算持续时间：遍历所有轨道和片段，找到最大的结束时间
+     * @return 最大的片段结束时间，如果没有片段则返回 0
+     */
+    public float calculateDynamicDuration() {
+        float maxEndTime = 0f;
+        
+        for (TimelineTrack track : tracks) {
+            for (TimelineClip clip : track.getClips()) {
+                maxEndTime = Math.max(maxEndTime, clip.getEndTime());
+            }
+        }
+        
+        return maxEndTime;
     }
     
     /**
@@ -306,14 +372,17 @@ public class TimelineModel {
     }
     
     /**
-     * 全选当前轨道的所有关键帧
+     * 全选所有片段（包括所有轨道的所有 Clip）
      */
     public void selectAll() {
         selectedItems.clear();
-        // TODO: 实现全选逻辑
-        // for (TimelineTrack track : tracks) {
-        //     selectedItems.addAll(track.getKeyframes());
-        // }
+        
+        // 使用 Stream API 收集所有轨道的所有片段
+        List<TimelineClip> allClips = tracks.stream()
+            .flatMap(track -> track.getClips().stream())
+            .collect(Collectors.toList());
+        
+        selectedItems.addAll(allClips);
     }
     
     /**

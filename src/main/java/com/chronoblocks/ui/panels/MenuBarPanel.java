@@ -665,7 +665,8 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
             
             UITheme.separator();
             
-            if (ImGui.button("OK", 100, UITheme.Spacing.BUTTON_HEIGHT)) {
+            // 使用自动宽度
+            if (ImGui.button("OK", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
                         showAboutDialog.set(false);
                     }
             
@@ -696,11 +697,12 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
             
             UITheme.separator();
             
-            if (ImGui.button("OK", 100, UITheme.Spacing.BUTTON_HEIGHT)) {
+            // 使用自动宽度
+            if (ImGui.button("OK", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
                         showSettingsDialog.set(false);
                     }
                     ImGui.sameLine();
-            if (ImGui.button("Cancel", 100, UITheme.Spacing.BUTTON_HEIGHT)) {
+            if (ImGui.button("Cancel", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
                         showSettingsDialog.set(false);
                     }
             
@@ -747,7 +749,8 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
             
             UITheme.separator();
             
-            if (ImGui.button("Close", 100, UITheme.Spacing.BUTTON_HEIGHT)) {
+            // 使用自动宽度
+            if (ImGui.button("Close", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
                 showShortcutsDialog.set(false);
             }
             

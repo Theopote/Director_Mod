@@ -1,6 +1,7 @@
 package com.chronoblocks.ui.adapters.render;
 
 import com.chronoblocks.ui.adapters.util.PropertySearchFilter;
+import com.chronoblocks.ui.theme.UITheme;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.flag.ImGuiCol;
@@ -318,7 +319,8 @@ public class PropertyGroupRenderer {
     public void renderCollapseAllControls() {
         ImGui.separator();
         
-        if (ImGui.button("展开全部", 80, 0)) {
+        // 使用自动宽度：按钮宽度 = 文字宽度 + 2×边距
+        if (ImGui.button("展开全部", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
             expandedGroups.replaceAll((k, v) -> true);
             expandAll = true;
         }
@@ -329,7 +331,7 @@ public class PropertyGroupRenderer {
         
         ImGui.sameLine();
         
-        if (ImGui.button("折叠全部", 80, 0)) {
+        if (ImGui.button("折叠全部", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
             expandedGroups.replaceAll((k, v) -> false);
             expandAll = false;
         }

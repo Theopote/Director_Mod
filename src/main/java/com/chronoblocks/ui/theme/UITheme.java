@@ -92,10 +92,19 @@ public class UITheme {
     
     // ==================== 间距规范 ====================
     
-    /** 间距常量（像素） */
+    /** 
+     * 间距常量（像素）
+     * 
+     * <p>设计原则：
+     * <ul>
+     *   <li>元素之间的间距：4px（紧凑而不拥挤）</li>
+     *   <li>面板边距：12px（比元素间距大3倍，层次清晰）</li>
+     *   <li>分组间距：8px（适中的分组距离）</li>
+     * </ul>
+     */
     public static class Spacing {
         public static final float TINY = 2.0f;          // 超小间距
-        public static final float SMALL = 4.0f;         // 小间距
+        public static final float SMALL = 4.0f;         // 小间距（推荐用于元素之间）
         public static final float NORMAL = 8.0f;        // 标准间距
         public static final float MEDIUM = 12.0f;       // 中等间距
         public static final float LARGE = 16.0f;        // 大间距
@@ -107,14 +116,22 @@ public class UITheme {
         public static final float PADDING_NORMAL = 8.0f;
         public static final float PADDING_LARGE = 12.0f;
         
-        // 面板边距
-        public static final float PANEL_PADDING = 12.0f;
-        public static final float PANEL_SPACING = 8.0f;
+        // 面板边距（控件与面板边缘的距离，比元素间距大）
+        public static final float PANEL_PADDING = 8.0f;          // 面板内边距（12px）
+        public static final float PANEL_SPACING = 8.0f;           // 面板之间的间距
         
-        // 按钮尺寸
-        public static final float BUTTON_HEIGHT = 24.0f;
-        public static final float BUTTON_PADDING_X = 12.0f;
-        public static final float BUTTON_PADDING_Y = 6.0f;
+        // 元素间距（推荐的统一间距）
+        public static final float ELEMENT_SPACING = 6.0f;         // 元素之间的标准间距（水平和垂直）
+        public static final float ELEMENT_SPACING_HORIZONTAL = 6.0f;  // 左右按钮之间
+        public static final float ELEMENT_SPACING_VERTICAL = 6.0f;    // 上下元素之间
+        
+        // 按钮尺寸（18px字体 + 上下各3px padding = 24px总高度）
+        public static final float BUTTON_HEIGHT = 24.0f;  // 保持24px高度
+        public static final float BUTTON_PADDING_X = 12.0f;  // 推荐的水平内边距
+        public static final float BUTTON_PADDING_Y = 3.0f;  // 3px边距，适配18px字体
+        
+        // 按钮宽度模式
+        public static final float BUTTON_WIDTH_AUTO = 0.0f;  // 自动宽度（根据文字长度）
         
         // 输入框
         public static final float INPUT_HEIGHT = 24.0f;
@@ -141,15 +158,20 @@ public class UITheme {
     
     // ==================== 字体规范 ====================
     
-    /** 字体大小 */
+    /** 
+     * 字体大小规范
+     * 
+     * <p>注意：实际使用的默认字体大小为 18px（在 ImGuiFontManager 中设置）
+     * <p>这里的常量用于特殊需求的字体大小推送
+     */
     public static class FontSize {
-        public static final float TINY = 11.0f;
-        public static final float SMALL = 13.0f;
-        public static final float NORMAL = 15.0f;
-        public static final float MEDIUM = 17.0f;
-        public static final float LARGE = 19.0f;
-        public static final float EXTRA_LARGE = 24.0f;
-        public static final float TITLE = 18.0f;
+        public static final float TINY = 12.0f;
+        public static final float SMALL = 14.0f;
+        public static final float NORMAL = 18.0f;   // 更新为实际使用的默认字体大小
+        public static final float MEDIUM = 20.0f;
+        public static final float LARGE = 22.0f;
+        public static final float EXTRA_LARGE = 26.0f;
+        public static final float TITLE = 20.0f;    // 标题字体稍大
     }
     
     // ==================== 应用主题 ====================
@@ -215,10 +237,19 @@ public class UITheme {
         setStyleColor(style, ImGuiCol.TabUnfocusedActive, DarkTheme.TAB_UNFOCUSED);
         
         // 设置样式参数
+        // 1. 面板边距：12px（控件与面板边缘的距离）
         style.setWindowPadding(Spacing.PANEL_PADDING, Spacing.PANEL_PADDING);
-        style.setFramePadding(Spacing.PADDING_NORMAL, Spacing.PADDING_SMALL);
-        style.setItemSpacing(Spacing.NORMAL, Spacing.NORMAL);
-        style.setItemInnerSpacing(Spacing.SMALL, Spacing.SMALL);
+        
+        // 2. 按钮内边距：18px字体 + 上下各3px = 24px按钮高度
+        style.setFramePadding(Spacing.BUTTON_PADDING_X, Spacing.BUTTON_PADDING_Y);  // (12px, 3px)
+        
+        // 3. 元素间距：统一使用4px（上下按钮之间、左右按钮之间都是4px）
+        style.setItemSpacing(Spacing.ELEMENT_SPACING, Spacing.ELEMENT_SPACING);  // (4px, 4px)
+        
+        // 4. 元素内部间距：4px（如复选框的框与文字之间）
+        style.setItemInnerSpacing(Spacing.SMALL, Spacing.SMALL);  // (4px, 4px)
+        
+        // 5. 缩进间距：16px
         style.setIndentSpacing(Spacing.LARGE);
         
         // 圆角
@@ -295,24 +326,39 @@ public class UITheme {
     }
     
     /**
-     * 添加标准间距
+     * 添加标准元素间距（推荐使用）
+     * 
+     * <p>用于元素之间（按钮与按钮、控件与控件）的标准间距：4px
      */
     public static void spacing() {
-        spacing(Spacing.NORMAL);
+        spacing(Spacing.ELEMENT_SPACING);  // 4px，统一的元素间距
     }
     
     /**
-     * 添加小间距
+     * 添加小间距（2px）
+     * 
+     * <p>用于非常紧凑的布局
      */
     public static void spacingSmall() {
-        spacing(Spacing.SMALL);
+        spacing(Spacing.TINY);  // 2px
     }
     
     /**
-     * 添加大间距
+     * 添加中等间距（8px）
+     * 
+     * <p>用于分组之间、段落之间的间距
+     */
+    public static void spacingMedium() {
+        spacing(Spacing.NORMAL);  // 8px
+    }
+    
+    /**
+     * 添加大间距（12px）
+     * 
+     * <p>用于大的分组或区域之间的间距，与面板边距相同
      */
     public static void spacingLarge() {
-        spacing(Spacing.LARGE);
+        spacing(Spacing.MEDIUM);  // 12px，与PANEL_PADDING一致
     }
     
     /**
@@ -324,11 +370,13 @@ public class UITheme {
     
     /**
      * 分隔符（加强版）
+     * 
+     * <p>分隔符上下各留4px间距，与元素间距保持一致
      */
     public static void separator() {
-        spacing(Spacing.SMALL);
+        spacing(Spacing.ELEMENT_SPACING);  // 上方间距4px
         ImGui.separator();
-        spacing(Spacing.SMALL);
+        spacing(Spacing.ELEMENT_SPACING);  // 下方间距4px
     }
     
     /**

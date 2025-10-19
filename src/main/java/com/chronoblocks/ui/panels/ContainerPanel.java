@@ -4,6 +4,7 @@ import com.chronoblocks.core.container.*;
 import com.chronoblocks.core.container.commands.*;
 import com.chronoblocks.core.timeline.TimelineCommandHistory;
 import com.chronoblocks.ui.theme.Icons;
+import com.chronoblocks.ui.theme.UITheme;
 import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.*;
@@ -145,13 +146,13 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
     }
     
     private void renderToolbar() {
-        // 第一行：容器操作
-        if (ImGui.button(Icons.ADD + " 新建容器")) {
+        // 第一行：容器操作（使用自动宽度：按钮宽度 = 文字宽度 + 2×边距）
+        if (ImGui.button(Icons.ADD + " 新建容器", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
             createNewContainer();
         }
         
         ImGui.sameLine();
-        if (ImGui.button(Icons.BLOCK + " 从世界采集")) {
+        if (ImGui.button(Icons.BLOCK + " 从世界采集", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
             collectBlocksFromWorld();
         }
         
@@ -160,17 +161,17 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
         boolean hasSelection = selected != null;
         
         if (!hasSelection) ImGui.beginDisabled();
-        if (ImGui.button(Icons.DELETE + " 删除选中")) {
+        if (ImGui.button(Icons.DELETE + " 删除选中", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
             deleteSelectedContainer();
         }
         ImGui.sameLine();
-        if (ImGui.button(Icons.COPY + " 复制")) {
+        if (ImGui.button(Icons.COPY + " 复制", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
             duplicateSelectedContainer();
         }
         if (!hasSelection) ImGui.endDisabled();
         
         ImGui.sameLine();
-        if (ImGui.button(expandAll ? "折叠全部" : "展开全部")) {
+        if (ImGui.button(expandAll ? "折叠全部" : "展开全部", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
             expandAll = !expandAll;
         }
         
@@ -195,19 +196,19 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
         }
         ImGui.popItemWidth();
         
-        // 第二行：撤销/重做
+        // 第二行：撤销/重做（使用自动宽度）
         boolean canUndo = commandHistory.canUndo();
         boolean canRedo = commandHistory.canRedo();
         
         if (!canUndo) ImGui.beginDisabled();
-        if (ImGui.button(Icons.UNDO + " 撤销")) {
+        if (ImGui.button(Icons.UNDO + " 撤销", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
             commandHistory.undo();
         }
         if (!canUndo) ImGui.endDisabled();
         
         ImGui.sameLine();
         if (!canRedo) ImGui.beginDisabled();
-        if (ImGui.button(Icons.REDO + " 重做")) {
+        if (ImGui.button(Icons.REDO + " 重做", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
             commandHistory.redo();
         }
         if (!canRedo) ImGui.endDisabled();
@@ -387,11 +388,11 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
                     containerManager.moveContainerToParent(contextMenuContainer, null);
                 }
                 
-                if (ImGui.menuItem("上移", "Ctrl+↑")) {
+                if (ImGui.menuItem("上移", "Ctrl+Up")) {
                     containerManager.moveContainerUp(contextMenuContainer);
                 }
                 
-                if (ImGui.menuItem("下移", "Ctrl+↓")) {
+                if (ImGui.menuItem("下移", "Ctrl+Down")) {
                     containerManager.moveContainerDown(contextMenuContainer);
                 }
                 
@@ -469,7 +470,7 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
             
             ImGui.separator();
             
-            if (ImGui.button("确定", 120, 0) || enterPressed) {
+            if (ImGui.button("确定", 0, UITheme.Spacing.BUTTON_HEIGHT) || enterPressed) {
                 String newName = renameBuffer.get().trim();
                 if (!newName.isEmpty() && renamingContainer != null) {
                     renamingContainer.setName(newName);
@@ -481,7 +482,7 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
             
             ImGui.sameLine();
             
-            if (ImGui.button("取消", 120, 0)) {
+            if (ImGui.button("取消", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
                 renamingContainer = null;
                 ImGui.closeCurrentPopup();
             }

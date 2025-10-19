@@ -26,9 +26,9 @@ import java.io.InputStream;
 public class ImGuiFontManager {
     private static final Logger LOGGER = LoggerFactory.getLogger("ChronoBlocks-FontManager");
     
-    // 字体大小配置
-    private static final float DEFAULT_FONT_SIZE = 20.0f;
-    private static final float ICON_FONT_SIZE = 20.0f;  // 图标字体大小（与主字体相同）
+    // 字体大小配置（24px按钮 + 18px字体 + 上下各3px边距）
+    private static final float DEFAULT_FONT_SIZE = 18.0f;  // 18px字体，适配24px按钮
+    private static final float ICON_FONT_SIZE = 18.0f;  // 图标字体大小（与主字体相同）
     
     // 字体资源路径
     private static final String FONT_PATH_PREFIX = "/assets/chronoblocks/fonts/";
