@@ -341,10 +341,9 @@ public class UIConfigurationBuilder {
      * @return 面板列表
      */
     private List<IPanel> createPanels(IPanelFactory factory, PanelConfiguration config) {
-        List<IPanel> panels = new CopyOnWriteArrayList<>();
-        
+
         // 添加自定义面板
-        panels.addAll(customPanels);
+        List<IPanel> panels = new CopyOnWriteArrayList<>(customPanels);
         
         // 从配置文件创建面板
         if (config != null && config.getPanels() != null) {
@@ -428,14 +427,20 @@ public class UIConfigurationBuilder {
     private Class<? extends IPanel> getPanelTypeByName(String typeName) {
         // 这里可以使用反射或映射表来查找面板类型
         // 为了简化，我们使用硬编码映射
-        switch (typeName) {
-            case "MenuBarPanel": return MenuBarPanel.class;
-            case "ToolbarPanel": return ToolbarPanel.class;
-            case "ContainerPanel": return ContainerPanel.class;
-            case "PropertiesPanel": return PropertiesPanel.class;
-            case "TimelinePanel": return TimelinePanel.class;
-            default: return null;
-        }
+        return switch (typeName) {
+            case "MenuBarPanel" -> MenuBarPanel.class;
+            case "ToolbarPanel" -> ToolbarPanel.class;
+            case "ContainerPanel" -> ContainerPanel.class;
+            case "PropertiesPanel" -> PropertiesPanel.class;
+            case "TimelinePanel" -> TimelinePanel.class;
+            // 添加新的模块化面板
+            case "ToolPropertiesPanel" -> ToolPropertiesPanel.class;
+            case "RenderSettingsPanel" -> RenderSettingsPanel.class;
+            case "SelectionFilterPanel" -> SelectionFilterPanel.class;
+            case "SelectionHistoryPanel" -> SelectionHistoryPanel.class;
+            case "HelpPanel" -> HelpPanel.class;
+            default -> null;
+        };
     }
     
     /**
@@ -450,7 +455,13 @@ public class UIConfigurationBuilder {
             ToolbarPanel.class,
             ContainerPanel.class,
             PropertiesPanel.class,
-            TimelinePanel.class
+            TimelinePanel.class,
+            // 添加新的模块化面板
+            ToolPropertiesPanel.class,
+            RenderSettingsPanel.class,
+            SelectionFilterPanel.class,
+            SelectionHistoryPanel.class,
+            HelpPanel.class
         );
         
         for (Class<? extends IPanel> panelType : defaultTypes) {

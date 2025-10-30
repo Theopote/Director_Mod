@@ -88,6 +88,25 @@ public class UITheme {
         public static final int RESIZE_GRIP = rgba(61, 133, 224, 51);        // 调整大小手柄
         public static final int RESIZE_GRIP_HOVERED = rgba(61, 133, 224, 153);
         public static final int RESIZE_GRIP_ACTIVE = rgba(61, 133, 224, 255);
+        
+        // 状态指示器颜色
+        public static final int DIRECTOR_ACTIVE = rgba(0, 150, 0, 255);       // 导演模式激活
+        public static final int DIRECTOR_INACTIVE = rgba(100, 100, 100, 255); // 导演模式未激活
+        public static final int FPS_GOOD = rgba(0, 255, 0, 255);              // FPS良好（绿色）
+        public static final int FPS_WARN = rgba(255, 255, 0, 255);           // FPS警告（黄色）
+        public static final int FPS_BAD = rgba(255, 0, 0, 255);             // FPS差（红色）
+        
+        // 按钮特殊颜色
+        public static final int BUTTON_DEBUG = rgba(51, 153, 204, 255);       // 调试按钮
+        public static final int BUTTON_DEBUG_HOVERED = rgba(77, 179, 230, 255);
+        public static final int BUTTON_DEBUG_ACTIVE = rgba(26, 128, 179, 255);
+        public static final int BUTTON_DANGER = rgba(204, 51, 51, 255);       // 危险按钮（关闭）
+        public static final int BUTTON_DANGER_HOVERED = rgba(255, 77, 77, 255);
+        public static final int BUTTON_DANGER_ACTIVE = rgba(179, 26, 26, 255);
+        
+        // 渲染开关颜色
+        public static final int RENDER_ENABLED = rgba(51, 204, 51, 255);      // 渲染启用（绿色）
+        public static final int RENDER_ENABLED_HOVERED = rgba(77, 255, 77, 255);
     }
     
     // ==================== 间距规范 ====================
@@ -97,9 +116,9 @@ public class UITheme {
      * 
      * <p>设计原则：
      * <ul>
-     *   <li>元素之间的间距：4px（紧凑而不拥挤）</li>
-     *   <li>面板边距：12px（比元素间距大3倍，层次清晰）</li>
-     *   <li>分组间距：8px（适中的分组距离）</li>
+     *   <li>元素之间的间距：6px（按钮之间、控件之间）</li>
+     *   <li>按钮文字左右内边距：6px（等于元素间距，视觉统一）</li>
+     *   <li>面板边距：8px（控件与面板边缘的距离）</li>
      * </ul>
      */
     public static class Spacing {
@@ -127,7 +146,7 @@ public class UITheme {
         
         // 按钮尺寸（18px字体 + 上下各3px padding = 24px总高度）
         public static final float BUTTON_HEIGHT = 24.0f;  // 保持24px高度
-        public static final float BUTTON_PADDING_X = 12.0f;  // 推荐的水平内边距
+        public static final float BUTTON_PADDING_X = 6.0f;  // 按钮文字左右内边距，等于元素间距
         public static final float BUTTON_PADDING_Y = 3.0f;  // 3px边距，适配18px字体
         
         // 按钮宽度模式
@@ -161,17 +180,21 @@ public class UITheme {
     /** 
      * 字体大小规范
      * 
-     * <p>注意：实际使用的默认字体大小为 18px（在 ImGuiFontManager 中设置）
-     * <p>这里的常量用于特殊需求的字体大小推送
+     * <p>统一的字体大小配置，用于ImGuiFontManager和UI组件
      */
     public static class FontSize {
+        // 基础字体大小
+        public static final float DEFAULT = 18.0f;      // 默认字体大小（中英文）
+        public static final float ICON = 18.0f;         // 图标字体大小
+        
+        // 分级字体大小
         public static final float TINY = 12.0f;
         public static final float SMALL = 14.0f;
-        public static final float NORMAL = 18.0f;   // 更新为实际使用的默认字体大小
+        public static final float NORMAL = 18.0f;        // 与DEFAULT相同
         public static final float MEDIUM = 20.0f;
         public static final float LARGE = 22.0f;
         public static final float EXTRA_LARGE = 26.0f;
-        public static final float TITLE = 20.0f;    // 标题字体稍大
+        public static final float TITLE = 20.0f;         // 标题字体稍大
     }
     
     // ==================== 应用主题 ====================
@@ -240,11 +263,11 @@ public class UITheme {
         // 1. 面板边距：12px（控件与面板边缘的距离）
         style.setWindowPadding(Spacing.PANEL_PADDING, Spacing.PANEL_PADDING);
         
-        // 2. 按钮内边距：18px字体 + 上下各3px = 24px按钮高度
-        style.setFramePadding(Spacing.BUTTON_PADDING_X, Spacing.BUTTON_PADDING_Y);  // (12px, 3px)
+        // 2. 按钮内边距：18px字体 + 上下各3px = 24px按钮高度，左右各6px = 元素间距
+        style.setFramePadding(Spacing.BUTTON_PADDING_X, Spacing.BUTTON_PADDING_Y);  // (6px, 3px)
         
-        // 3. 元素间距：统一使用4px（上下按钮之间、左右按钮之间都是4px）
-        style.setItemSpacing(Spacing.ELEMENT_SPACING, Spacing.ELEMENT_SPACING);  // (4px, 4px)
+        // 3. 元素间距：统一使用6px（上下按钮之间、左右按钮之间都是6px）
+        style.setItemSpacing(Spacing.ELEMENT_SPACING, Spacing.ELEMENT_SPACING);  // (6px, 6px)
         
         // 4. 元素内部间距：4px（如复选框的框与文字之间）
         style.setItemInnerSpacing(Spacing.SMALL, Spacing.SMALL);  // (4px, 4px)
@@ -307,6 +330,32 @@ public class UITheme {
     private static void setStyleColor(ImGuiStyle style, int idx, int rgba) {
         float[] color = toFloatArray(rgba);
         style.setColor(idx, color[0], color[1], color[2], color[3]);
+    }
+    
+    /**
+     * 推送调试按钮颜色样式
+     */
+    public static void pushDebugButtonColors() {
+        float[] color = toFloatArray(DarkTheme.BUTTON_DEBUG);
+        float[] hoverColor = toFloatArray(DarkTheme.BUTTON_DEBUG_HOVERED);
+        float[] activeColor = toFloatArray(DarkTheme.BUTTON_DEBUG_ACTIVE);
+        
+        ImGui.pushStyleColor(ImGuiCol.Button, color[0], color[1], color[2], color[3]);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, hoverColor[0], hoverColor[1], hoverColor[2], hoverColor[3]);
+        ImGui.pushStyleColor(ImGuiCol.ButtonActive, activeColor[0], activeColor[1], activeColor[2], activeColor[3]);
+    }
+    
+    /**
+     * 推送危险按钮颜色样式（如关闭按钮）
+     */
+    public static void pushDangerButtonColors() {
+        float[] color = toFloatArray(DarkTheme.BUTTON_DANGER);
+        float[] hoverColor = toFloatArray(DarkTheme.BUTTON_DANGER_HOVERED);
+        float[] activeColor = toFloatArray(DarkTheme.BUTTON_DANGER_ACTIVE);
+        
+        ImGui.pushStyleColor(ImGuiCol.Button, color[0], color[1], color[2], color[3]);
+        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, hoverColor[0], hoverColor[1], hoverColor[2], hoverColor[3]);
+        ImGui.pushStyleColor(ImGuiCol.ButtonActive, activeColor[0], activeColor[1], activeColor[2], activeColor[3]);
     }
     
     /**

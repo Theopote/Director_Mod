@@ -115,6 +115,16 @@ public class UIConfiguration {
             panels.add(panelFactory.createPanel(PropertiesPanel.class, minecraftClient));
             panels.add(panelFactory.createPanel(TimelinePanel.class, minecraftClient));
             
+            // 注册新的选择系统面板
+            panels.add(panelFactory.createPanel(SelectionFilterPanel.class, minecraftClient));
+            panels.add(panelFactory.createPanel(SelectionRenderSettingsPanel.class, minecraftClient));
+            
+            // 注册模块化的独立面板
+            panels.add(panelFactory.createPanel(ToolPropertiesPanel.class, minecraftClient));
+            panels.add(panelFactory.createPanel(RenderSettingsPanel.class, minecraftClient));
+            panels.add(panelFactory.createPanel(SelectionHistoryPanel.class, minecraftClient));
+            panels.add(panelFactory.createPanel(HelpPanel.class, minecraftClient));
+            
             // 按优先级排序
             panels.sort(Comparator.comparingInt(IPanel::getPriority));
             

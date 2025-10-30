@@ -3,46 +3,47 @@ package com.chronoblocks.ui.panels;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
-import com.chronoblocks.core.animation.AnimationState;
-import com.chronoblocks.core.playback.PlaybackController;
+import com.chronoblocks.core.selection.SelectionManager;
+import com.chronoblocks.core.selection.SelectionTool;
+import com.chronoblocks.ui.aware.IPanelRegistryAware;
+import com.chronoblocks.ui.di.IPanelRegistry;
 import com.chronoblocks.ui.theme.UITheme;
 import com.chronoblocks.ui.theme.Icons;
 
 /**
- * ChronoBlocks Toolbar v4.0
- * 
- * 简洁专业版工具栏：
- * - 工具选择（Select / Move / Rotate / Scale）
- * - 播放控制（Play / Pause / Stop / Loop）
- * - 状态显示（时间 / 工具模式 / FPS）
+ * ChronoBlocks Toolbar v6.0 - 模块化重构版
+ * <p>
+ * 专注于核心工具栏功能：
+ * - 选择工具（点击 / 框选 / 魔棒）
+ * - 状态显示（工具模式 / 选择数量 / FPS）
+ * - 渲染控制（容器显示开关）
+ * - 面板调度（通过PanelRegistry管理子面板）
  * - 窗口控制（关闭）
+ * <p>
+ * 其他功能已模块化为独立面板：
+ * - ToolPropertiesPanel - 工具属性
+ * - RenderSettingsPanel - 渲染设置
+ * - SelectionFilterPanel - 选择过滤器
+ * - SelectionHistoryPanel - 选择历史
+ * - HelpPanel - 帮助面板
  */
-public class ToolbarPanel extends AbstractPanel {
+public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
 
-    public enum ToolMode {
-        SELECT("选择", "S"),
-        MOVE("移动", "M"),
-        ROTATE("旋转", "R"),
-        SCALE("缩放", "C");
+    private final SelectionManager selectionManager;
+    private IPanelRegistry panelRegistry;
 
-        private final String displayName;
-        private final String shortcut;
+    // 当前选择操作模式
+    private com.chronoblocks.core.selection.SelectionOperation currentOperation = com.chronoblocks.core.selection.SelectionOperation.ADD;
 
-        ToolMode(String name, String shortcut) {
-            this.displayName = name;
-            this.shortcut = shortcut;
+
+    /**
+     * 构造函数 - 初始化选择管理器
+     */
+    public ToolbarPanel() {
+        this.selectionManager = SelectionManager.get();
+        if (this.selectionManager == null) {
+            logger.error("[ToolbarPanel] 严重: SelectionManager.get() 返回 null，工具栏将无法工作！");
         }
-
-        public String getDisplayName() { return displayName; }
-        public String getShortcut() { return shortcut; }
-    }
-
-    private ToolMode currentTool = ToolMode.SELECT;
-    private boolean isLoopEnabled = false;
-    
-    // RGBA颜色打包辅助方法
-    private static int rgba(int r, int g, int b, int a) {
-        return (r << 24) | (g << 16) | (b << 8) | a;
     }
 
     @Override
@@ -65,10 +66,6 @@ public class ToolbarPanel extends AbstractPanel {
         return imgui.flag.ImGuiWindowFlags.NoCollapse;
     }
 
-    @Override
-    public boolean shouldReserveDockSpaceWhenHidden() {
-        return false;
-    }
 
     @Override
     protected boolean shouldShowHiddenPlaceholderIndicator() {
@@ -77,156 +74,251 @@ public class ToolbarPanel extends AbstractPanel {
 
     @Override
     protected void doRender() {
-        // 使用统一的元素间距（4px）和按钮内边距（12px, 3px）
+        // 关键依赖检查
+        if (selectionManager == null) {
+            ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, "严重错误: SelectionManager 未初始化!");
+            return; // 提前退出，防止NPE
+        }
+
+        // 确保选择管理器状态是最新的
+        if (!selectionManager.hasCurrentTool()) {
+            logger.debug("[ToolbarPanel] 没有当前工具，尝试设置默认工具");
+            try {
+                var world = net.minecraft.client.MinecraftClient.getInstance().world;
+                if (world != null) {
+                    // 尝试设置默认工具
+                    selectionManager.setCurrentTool("click", world);
+                }
+            } catch (Exception e) {
+                logger.warn("[ToolbarPanel] 设置默认工具失败", e);
+            }
+        }
+
+        // 使用统一的元素间距（6px）和按钮内边距（6px, 3px）
         ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, UITheme.Spacing.ELEMENT_SPACING, UITheme.Spacing.ELEMENT_SPACING);
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, UITheme.Spacing.BUTTON_PADDING_X, UITheme.Spacing.BUTTON_PADDING_Y);
-        
-        renderToolButtons();
-        ImGui.sameLine();
+
+        // 获取可用宽度，用于自动换行判断
+        float availWidth = ImGui.getContentRegionAvailX();
+        float spacing = UITheme.Spacing.ELEMENT_SPACING;
+
+        // 定义一个用于检查是否需要换行的lambda函数
+        java.util.function.Consumer<Float> checkWrap = (Float nextWidth) -> {
+            float xNext = ImGui.getCursorPosX() + nextWidth + spacing;
+            if (xNext > availWidth) {
+                ImGui.newLine();
+            } else {
+                ImGui.sameLine();
+            }
+        };
+
+        // 工具按钮组
+        renderSelectionToolButtons();
+        checkWrap.accept(180f);
         UITheme.separator();
-        ImGui.sameLine();
-        renderPlaybackControls();
-        ImGui.sameLine();
+
+        // 操作组
+        checkWrap.accept(120f);
+        renderSelectionOperations();
+        checkWrap.accept(160f);
         UITheme.separator();
-        ImGui.sameLine();
+
+        // 面板切换按钮组
+        checkWrap.accept(60f);
+        renderPanelToggleButton(Icons.SETTINGS, "属性", ToolPropertiesPanel.class, "打开工具属性面板", ToolPropertiesPanel.PANEL_NAME);
+        checkWrap.accept(60f);
+        renderPanelToggleButton(Icons.HELP, "帮助", HelpPanel.class, "打开帮助面板", HelpPanel.PANEL_NAME);
+        checkWrap.accept(60f);
+        renderPanelToggleButton(Icons.COLOR, "渲染", RenderSettingsPanel.class, "打开渲染设置面板", RenderSettingsPanel.PANEL_NAME);
+        checkWrap.accept(60f);
+        renderPanelToggleButton(Icons.FILTER, "过滤", SelectionFilterPanel.class, "打开选择过滤器面板", SelectionFilterPanel.PANEL_NAME);
+        checkWrap.accept(60f);
+        renderPanelToggleButton(Icons.UNDO, "历史", SelectionHistoryPanel.class, "打开选择历史面板", SelectionHistoryPanel.PANEL_NAME);
+        checkWrap.accept(60f);
+        UITheme.separator();
+
+        // 状态与关闭
+        checkWrap.accept(120f);
         renderStatusIndicators();
-        ImGui.sameLine();
+        checkWrap.accept(100f);
         renderCloseButton();
-        
+
+        // 移除集成的面板渲染，现在使用独立面板
+        // 这些面板现在通过Window菜单的Toggle Panels来管理
+        // 或者通过工具栏按钮打开独立面板
+
+        // 处理快捷键输入
+        handleKeyInput();
+
         ImGui.popStyleVar(2);
     }
 
-    /* ---------- 工具选择 ---------- */
-    private void renderToolButtons() {
-        // 工具图标
-        UITheme.label(Icons.TOOLS, UITheme.DarkTheme.TEXT_SELECTED);
-        ImGui.sameLine();
+    /* ---------- 选择工具按钮 ---------- */
+    private void renderSelectionToolButtons() {
+        if (selectionManager == null) return;
 
-        for (ToolMode mode : ToolMode.values()) {
-            boolean active = (currentTool == mode);
+        // 选择工具图标（不调用sameLine，由外部管理换行）
+        UITheme.label(Icons.TOOLS, UITheme.DarkTheme.TEXT_SELECTED);
+
+        // 获取实时的当前工具ID
+        String currentToolId = selectionManager.getCurrentToolId();
+
+        // 渲染所有注册的选择工具
+        for (SelectionTool tool : selectionManager.getRegistry().getAllTools()) {
+            // 在循环内管理换行
+            ImGui.sameLine();
+
+            boolean active = tool.getId().equals(currentToolId);
+
             if (active) {
                 // 使用主题高亮色
                 float[] highlightColor = UITheme.toFloatArrayPublic(UITheme.DarkTheme.TAB_ACTIVE);
                 ImGui.pushStyleColor(ImGuiCol.Button, highlightColor[0], highlightColor[1], highlightColor[2], highlightColor[3]);
             }
-            // 使用自动宽度：按钮宽度 = 文字宽度 + 2×边距(12px)
-            if (ImGui.button(mode.getDisplayName() + "##" + mode.name(), 0, UITheme.Spacing.BUTTON_HEIGHT)) {
-                setCurrentTool(mode);
+
+            // 使用更唯一的按钮ID，避免冲突
+            String icon = getToolIcon(tool.getId());
+            String buttonLabel = icon + " " + tool.getDisplayName();
+            String buttonId = "ToolbarPanel_tool_" + tool.getId() + "_" + System.identityHashCode(tool);
+
+            // 使用更明确的按钮样式
+            if (ImGui.button(buttonLabel + "##" + buttonId, 0, UITheme.Spacing.BUTTON_HEIGHT)) {
+                logger.info("[ToolbarPanel] 按钮被点击: {} (ID: {})", tool.getDisplayName(), tool.getId());
+
+                // 立即更新UI状态，避免延迟
+                try {
+                    setCurrentSelectionTool(tool);
+                } catch (Exception e) {
+                    logger.error("[ToolbarPanel] 设置选择工具失败", e);
+                }
             }
+
             if (active) {
                 ImGui.popStyleColor();
             }
+
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(mode.getDisplayName() + " (" + mode.getShortcut() + ")");
+                ImGui.setTooltip(tool.getDisplayName() + "\n" + tool.getDescription());
             }
-            ImGui.sameLine();
         }
     }
 
-    /* ---------- 播放控制 ---------- */
-    private void renderPlaybackControls() {
-        PlaybackController pc = PlaybackController.get();
-        UITheme.label(Icons.PLAY, UITheme.DarkTheme.TEXT_SELECTED);
-        ImGui.sameLine();
+    /* ---------- 选择操作 ---------- */
+    private void renderSelectionOperations() {
+        // 选择操作模式 - 三个互斥的单选按钮（不调用sameLine，由外部管理换行）
+        UITheme.label(Icons.TOOLS + " 操作模式:", UITheme.DarkTheme.TEXT_SELECTED);
 
-        // Play / Pause - 使用自动宽度
-        if (pc.isPlaying()) {
-            if (ImGui.button(Icons.PAUSE + " 暂停##play", 0, UITheme.Spacing.BUTTON_HEIGHT)) pc.pause();
-        } else {
-            if (ImGui.button(Icons.PLAY + " 播放##play", 0, UITheme.Spacing.BUTTON_HEIGHT)) pc.play();
+        // 加选按钮
+        ImGui.sameLine();
+        boolean addSelected = currentOperation == com.chronoblocks.core.selection.SelectionOperation.ADD;
+        if (addSelected) {
+            float[] activeColor = UITheme.toFloatArrayPublic(UITheme.DarkTheme.TAB_ACTIVE);
+            ImGui.pushStyleColor(ImGuiCol.Button, activeColor[0], activeColor[1], activeColor[2], activeColor[3]);
         }
-        ImGui.sameLine();
+        if (ImGui.button(Icons.ADD + " 加选##addOp", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
+            setCurrentOperation(com.chronoblocks.core.selection.SelectionOperation.ADD);
+        }
+        if (addSelected) {
+            ImGui.popStyleColor();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("将新选择的方块添加到现有选区");
+        }
 
-        // Stop - 使用自动宽度
-        if (ImGui.button(Icons.STOP + " 停止##play", 0, UITheme.Spacing.BUTTON_HEIGHT)) pc.stop();
+        // 减选按钮
         ImGui.sameLine();
+        boolean subtractSelected = currentOperation == com.chronoblocks.core.selection.SelectionOperation.SUBTRACT;
+        if (subtractSelected) {
+            float[] activeColor = UITheme.toFloatArrayPublic(UITheme.DarkTheme.TAB_ACTIVE);
+            ImGui.pushStyleColor(ImGuiCol.Button, activeColor[0], activeColor[1], activeColor[2], activeColor[3]);
+        }
+        if (ImGui.button(Icons.MINUS + " 减选##subtractOp", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
+            setCurrentOperation(com.chronoblocks.core.selection.SelectionOperation.SUBTRACT);
+        }
+        if (subtractSelected) {
+            ImGui.popStyleColor();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("从现有选区中移除新选择的方块");
+        }
 
-        // Loop toggle
-        if (ImGui.checkbox(Icons.LOOP + " 循环##loop", isLoopEnabled)) {
-            isLoopEnabled = !isLoopEnabled;
-            pc.toggleLoop();
+        // 交集按钮
+        ImGui.sameLine();
+        boolean intersectSelected = currentOperation == com.chronoblocks.core.selection.SelectionOperation.INTERSECT;
+        if (intersectSelected) {
+            float[] activeColor = UITheme.toFloatArrayPublic(UITheme.DarkTheme.TAB_ACTIVE);
+            ImGui.pushStyleColor(ImGuiCol.Button, activeColor[0], activeColor[1], activeColor[2], activeColor[3]);
+        }
+        if (ImGui.button(Icons.LINK + " 交集##intersectOp", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
+            setCurrentOperation(com.chronoblocks.core.selection.SelectionOperation.INTERSECT);
+        }
+        if (intersectSelected) {
+            ImGui.popStyleColor();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("只保留现有选区和新选择方块的交集");
+        }
+
+        // 容器生成按钮
+        ImGui.sameLine();
+        if (ImGui.button(Icons.CONTAINER + " 生成容器")) {
+            generateContainerFromSelection();
+        }
+
+        // 选区到动画轨道按钮
+        ImGui.sameLine();
+        if (ImGui.button(Icons.ANIMATION  + "选区"+ Icons.ARROW_RIGHT + "轨道")) {
+            createAnimatedTrackFromSelection();
         }
     }
 
     /* ---------- 状态显示 ---------- */
     private void renderStatusIndicators() {
-        AnimationState state = AnimationState.get();
-        float time = state.getCurrentTime();
-        float duration = state.getClip() != null ? state.getClip().computeDuration() : 10.0f;
         float fps = ImGui.getIO().getFramerate();
 
-        // 使用主题文本颜色
-        UITheme.label(String.format(Icons.TIME + " %.2f / %.2fs", time, duration), UITheme.DarkTheme.TEXT);
-        ImGui.sameLine();
-        UITheme.label(Icons.TOOLBOX + " " + currentTool.getDisplayName(), UITheme.DarkTheme.TEXT);
-        ImGui.sameLine();
-        UITheme.label(String.format("FPS: %.0f", fps), UITheme.DarkTheme.TEXT);
-        
-        // 渲染开关 v4.5
-        ImGui.sameLine();
-        renderRenderingToggle();
-    }
-    
-    /* ---------- 渲染开关 v4.5 ---------- */
-    private void renderRenderingToggle() {
-        var renderer = com.chronoblocks.client.renderer.ContainerRenderer.get();
-        boolean enabled = renderer.isEnabled();
-        
-        // 使用主题颜色的可视化开关
-        if (enabled) {
-            float[] activeColor = UITheme.toFloatArrayPublic(rgba(51, 204, 51, 255)); // 绿色
-            float[] hoverColor = UITheme.toFloatArrayPublic(rgba(77, 255, 77, 255));
-            ImGui.pushStyleColor(ImGuiCol.Button, activeColor[0], activeColor[1], activeColor[2], activeColor[3]);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, hoverColor[0], hoverColor[1], hoverColor[2], hoverColor[3]);
+        // 显示当前选择工具和选择状态
+        if (selectionManager != null && selectionManager.hasCurrentTool()) {
+            String toolName = selectionManager.getCurrentToolDisplayName();
+            int selectionCount = selectionManager.getCurrentSelection().size();
+            String toolIcon = getToolIcon(selectionManager.getCurrentToolId());
+
+            // 使用不同颜色显示选择状态
+            if (selectionCount > 0) {
+                UITheme.label(toolIcon + " " + toolName + " (" + selectionCount + ")", UITheme.DarkTheme.TEXT_SELECTED);
+            } else {
+                UITheme.label(toolIcon + " " + toolName, UITheme.DarkTheme.TEXT);
+            }
+            ImGui.sameLine();
+
+            // 显示选择状态指示器
+            if (selectionCount > 0) {
+                ImGui.textColored(0.0f, 1.0f, 0.0f, 1.0f, "●"); // 绿色圆点表示有选择
+            } else {
+                ImGui.textColored(0.5f, 0.5f, 0.5f, 1.0f, "○"); // 灰色圆圈表示无选择
+            }
+            ImGui.sameLine();
         } else {
-            float[] inactiveColor = UITheme.toFloatArrayPublic(UITheme.DarkTheme.BUTTON);
-            float[] hoverColor = UITheme.toFloatArrayPublic(UITheme.DarkTheme.BUTTON_HOVERED);
-            ImGui.pushStyleColor(ImGuiCol.Button, inactiveColor[0], inactiveColor[1], inactiveColor[2], inactiveColor[3]);
-            ImGui.pushStyleColor(ImGuiCol.ButtonHovered, hoverColor[0], hoverColor[1], hoverColor[2], hoverColor[3]);
+            UITheme.label(Icons.TOOLS + " 选择工具", UITheme.DarkTheme.TEXT);
+            ImGui.sameLine();
         }
-        
-        String label = enabled ? (Icons.VISIBLE + " 可见") : (Icons.INVISIBLE + " 隐藏");
-        // 使用自动宽度
-        if (ImGui.button(label + "##renderToggle", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
-            renderer.setEnabled(!enabled);
-            logger.info("[ChronoBlocks] 容器渲染已{}", enabled ? "禁用" : "启用");
+
+        // 显示FPS，使用不同颜色表示性能状态
+        if (fps >= 60) {
+            float[] color = UITheme.toFloatArrayPublic(UITheme.DarkTheme.FPS_GOOD);
+            ImGui.textColored(color[0], color[1], color[2], color[3], String.format("FPS: %.0f", fps));
+        } else if (fps >= 30) {
+            float[] color = UITheme.toFloatArrayPublic(UITheme.DarkTheme.FPS_WARN);
+            ImGui.textColored(color[0], color[1], color[2], color[3], String.format("FPS: %.0f", fps));
+        } else {
+            float[] color = UITheme.toFloatArrayPublic(UITheme.DarkTheme.FPS_BAD);
+            ImGui.textColored(color[0], color[1], color[2], color[3], String.format("FPS: %.0f", fps));
         }
-        
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(enabled ? "点击隐藏容器边界框" : "点击显示容器边界框");
-        }
-        
-        ImGui.popStyleColor(2);
-        
-        // 渲染选项弹出菜单（右键点击按钮打开）
-        if (enabled && ImGui.beginPopupContextItem("renderOptions")) {
-            UITheme.title(Icons.RULER + " 渲染选项");
-            
-            // ImGui checkbox 需要传递 boolean[] 数组
-            boolean showBBox = renderer.isShowBoundingBox();
-            if (ImGui.checkbox("边界框", showBBox)) {
-                renderer.setShowBoundingBox(!showBBox);
-            }
-            
-            boolean showCenter = renderer.isShowCenterPoint();
-            if (ImGui.checkbox("中心点", showCenter)) {
-                renderer.setShowCenterPoint(!showCenter);
-            }
-            
-            boolean showAxes = renderer.isShowAxes();
-            if (ImGui.checkbox("坐标轴", showAxes)) {
-                renderer.setShowAxes(!showAxes);
-            }
-            
-            ImGui.endPopup();
-        }
+        // 渲染开关已移除 - 功能在容器面板中实现
     }
 
     /* ---------- 关闭按钮 ---------- */
     private void renderCloseButton() {
-        ImGui.pushStyleColor(ImGuiCol.Button, 0.8f, 0.2f, 0.2f, 1.0f);
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, 1.0f, 0.3f, 0.3f, 1.0f);
-        ImGui.pushStyleColor(ImGuiCol.ButtonActive, 0.6f, 0.1f, 0.1f, 1.0f);
+        UITheme.pushDangerButtonColors();
 
         // 使用自动宽度
         if (ImGui.button("关闭##close", 0, UITheme.Spacing.BUTTON_HEIGHT)) handleCloseWindow();
@@ -235,15 +327,117 @@ public class ToolbarPanel extends AbstractPanel {
         ImGui.popStyleColor(3);
     }
 
-    private void setCurrentTool(ToolMode tool) {
-        if (currentTool != tool) {
-            currentTool = tool;
-            logger.info("[ChronoBlocks] Tool switched to {}", tool.getDisplayName());
+    private void setCurrentSelectionTool(SelectionTool tool) {
+        if (selectionManager != null && tool != null) {
+            var world = net.minecraft.client.MinecraftClient.getInstance().world;
+            if (world != null) {
+                try {
+                    // 确保工具切换是原子操作
+                    String previousToolId = selectionManager.getCurrentToolId();
+                    selectionManager.setCurrentTool(tool.getId(), world);
+
+                    // 验证切换是否成功
+                    String newToolId = selectionManager.getCurrentToolId();
+                    if (newToolId.equals(tool.getId())) {
+                        logger.info("[ChronoBlocks] Selection tool switched from {} to {}", previousToolId, tool.getDisplayName());
+                    } else {
+                        logger.warn("[ChronoBlocks] Tool switch failed: expected {}, got {}", tool.getId(), newToolId);
+                    }
+                } catch (Exception e) {
+                    logger.error("[ChronoBlocks] Failed to switch tool to {}", tool.getDisplayName(), e);
+                }
+            } else {
+                logger.warn("[ChronoBlocks] World is null, cannot switch tool");
+            }
+        } else {
+            logger.warn("[ChronoBlocks] SelectionManager or tool is null");
         }
     }
 
-    public ToolMode getCurrentTool() {
-        return currentTool;
+    /**
+     * 根据工具ID获取对应的自定义图标
+     */
+    private String getToolIcon(String toolId) {
+        return switch (toolId) {
+            // 基础工具
+            case "click" -> Icons.SELECT;      // 点击选择工具
+            case "box" -> Icons.BOX;           // 框选工具
+            case "wand" -> Icons.MAGIC;        // 魔棒工具
+
+            // 高级工具
+            case "face" -> Icons.COLOR;        // 面选择工具
+            case "sphere" -> Icons.SPHERE;     // 球体选择工具
+            case "cylinder" -> Icons.CYLINDER; // 圆柱体选择工具
+            case "pyramid" -> Icons.DIAMOND;   // 金字塔选择工具
+            case "connected" -> Icons.LINK;    // 关联选择工具
+            case "inverse" -> Icons.UNDO;      // 反向选择工具
+            case "typefilter" -> Icons.FILTER; // 按类型选择工具
+            case "brush" -> Icons.BRUSH;       // 笔刷选择工具
+            case "lasso" -> Icons.LASSO;       // 套索选择工具
+
+            // 多模式选择工具
+            case "box_v2" -> Icons.BOX;        // 框选工具v2
+
+            default -> Icons.TOOLS;            // 默认工具图标
+        };
+    }
+
+    /**
+     * 设置当前选择操作模式
+     */
+    private void setCurrentOperation(com.chronoblocks.core.selection.SelectionOperation operation) {
+        if (currentOperation != operation) {
+            currentOperation = operation;
+            logger.info("[ToolbarPanel] 设置选择操作模式: {}", operation.getDisplayName());
+
+            // 将操作模式传递给当前工具
+            var currentTool = selectionManager.getCurrentTool();
+            if (currentTool instanceof com.chronoblocks.core.selection.tools.BoxSelectTool_v2 boxTool) {
+                boxTool.setOperation(operation);
+            } else if (currentTool instanceof com.chronoblocks.core.selection.tools.BrushSelectTool brushTool) {
+                brushTool.setOperation(operation);
+            }
+        }
+    }
+
+    /**
+     * 从选区生成容器
+     */
+    private void generateContainerFromSelection() {
+        logger.info("[ToolbarPanel] 从选区生成容器");
+
+        try {
+            com.chronoblocks.core.actions.SelectionToContainerAction.execute();
+            logger.info("[ToolbarPanel] 容器生成成功");
+        } catch (Exception e) {
+            logger.error("[ToolbarPanel] 容器生成失败", e);
+        }
+    }
+
+    /**
+     * 从选区创建动画轨道
+     */
+    private void createAnimatedTrackFromSelection() {
+        logger.info("[ToolbarPanel] 从选区创建动画轨道");
+
+        try {
+            var defaults = new com.chronoblocks.core.bridge.SelectionAnimationBridge.Defaults()
+                    .range(0f, 2.0f)
+                    .fade(0.25f)
+                    .intro(new org.joml.Vector3f(0, 2, 0))
+                    .outro(new org.joml.Vector3f(0, -2, 0));
+
+            var result = com.chronoblocks.core.bridge.SelectionAnimationBridge
+                    .createAnimatedTrackFromSelection("Layer", new java.awt.Color(64, 160, 255), defaults);
+
+            if (!result.ok()) {
+                logger.warn("[ToolbarPanel] 创建动画轨道失败: {}", result.message());
+            } else {
+                logger.info("[ToolbarPanel] 成功创建动画轨道: {}", result.track().getName());
+            }
+        } catch (Exception e) {
+            logger.error("[ToolbarPanel] 创建动画轨道失败", e);
+        }
     }
 
     private void handleCloseWindow() {
@@ -256,6 +450,142 @@ public class ToolbarPanel extends AbstractPanel {
             }
         } catch (Exception e) {
             logger.error("[ChronoBlocks] Failed to close ChronoBlocks window", e);
+        }
+    }
+
+    // 移除不再使用的方法，现在使用独立面板
+
+    /**
+     * 设置面板注册表引用
+     */
+    @Override
+    public void setPanelRegistry(IPanelRegistry panelRegistry) {
+        this.panelRegistry = panelRegistry;
+        logger.info("[ToolbarPanel] 面板注册表已设置，面板数量: {}", panelRegistry != null ? panelRegistry.size() : 0);
+        if (panelRegistry != null) {
+            logger.info("[ToolbarPanel] 可用的面板:");
+            for (IPanel panel : panelRegistry.getAllPanels()) {
+                logger.info("[ToolbarPanel]   - {} (类型: {})", panel.getPanelName(), panel.getClass().getSimpleName());
+            }
+        }
+    }
+
+    /**
+     * 切换面板显示状态
+     */
+    private void togglePanel(Class<? extends IPanel> panelClass, String... fallbackPanelNames) {
+        String targetLabel = panelClass != null ? panelClass.getSimpleName() :
+                (fallbackPanelNames != null && fallbackPanelNames.length > 0 ? fallbackPanelNames[0] : "未知面板");
+        try {
+            logger.info("[ToolbarPanel] 尝试切换面板: {}", targetLabel);
+
+            if (panelRegistry == null) {
+                logger.warn("[ToolbarPanel] 面板注册表未设置，无法切换面板: {}", targetLabel);
+                return;
+            }
+
+            IPanel panel = null;
+
+            if (panelClass != null) {
+                panel = panelRegistry.getPanel(panelClass);
+                if (panel == null) {
+                    for (IPanel candidate : panelRegistry.getAllPanels()) {
+                        if (panelClass.isInstance(candidate)) {
+                            panel = candidate;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            if (panel == null && fallbackPanelNames != null) {
+                for (String candidateName : fallbackPanelNames) {
+                    if (candidateName == null || candidateName.isBlank()) {
+                        continue;
+                    }
+                    panel = panelRegistry.getPanelByName(candidateName);
+                    if (panel != null) {
+                        targetLabel = candidateName;
+                        break;
+                    }
+                }
+            }
+
+            if (panel != null) {
+                boolean currentVisible = panel.isVisible();
+                boolean newVisible = !currentVisible;
+                panel.setVisible(newVisible);
+                logger.info("[ToolbarPanel] 切换面板: {} -> {} (从 {} 到 {})",
+                        panel.getPanelName(), newVisible ? "显示" : "隐藏", currentVisible, newVisible);
+            } else {
+                String fallbackDescription = buildFallbackDescription(fallbackPanelNames);
+                logger.warn("[ToolbarPanel] 未找到面板: {} (class: {}, fallback: {})",
+                        targetLabel,
+                        panelClass != null ? panelClass.getName() : "无",
+                        fallbackDescription);
+                logger.info("[ToolbarPanel] 可用的面板:");
+                for (IPanel p : panelRegistry.getAllPanels()) {
+                    if (p != null) {
+                        logger.info("[ToolbarPanel]   - {} (类型: {})", p.getPanelName(), p.getClass().getSimpleName());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            logger.error("[ToolbarPanel] 切换面板失败: {}", targetLabel, e);
+        }
+    }
+
+    /**
+     * 构建候选面板名称描述
+     */
+    private String buildFallbackDescription(String... fallbackPanelNames) {
+        if (fallbackPanelNames == null || fallbackPanelNames.length == 0) {
+            return "无候选名称";
+        }
+        StringBuilder builder = new StringBuilder();
+        for (String name : fallbackPanelNames) {
+            if (name == null || name.isBlank()) {
+                continue;
+            }
+            if (!builder.isEmpty()) {
+                builder.append("/");
+            }
+            builder.append(name);
+        }
+        return !builder.isEmpty() ? builder.toString() : "无候选名称";
+    }
+
+    /**
+     * 处理快捷键输入
+     */
+    private void handleKeyInput() {
+        try {
+            com.chronoblocks.ui.input.SelectionToolKeyBindings.handleKeyInput();
+        } catch (Exception e) {
+            logger.error("[ToolbarPanel] 处理快捷键输入失败", e);
+        }
+    }
+
+    /**
+     * 渲染一个标准的工具栏按钮，用于切换指定面板的可见性。
+     *
+     * @param icon      按钮图标 (来自 Icons 类)
+     * @param label     按钮的文本标签
+     * @param tooltip   鼠标悬停时显示的工具提示文本
+     */
+    private void renderPanelToggleButton(String icon, String label, Class<? extends IPanel> panelClass,
+                                         String tooltip, String... fallbackPanelNames) {
+        String uniqueId = panelClass != null ? panelClass.getSimpleName()
+                : (fallbackPanelNames != null && fallbackPanelNames.length > 0 ? fallbackPanelNames[0] : label);
+        String buttonId = icon + " " + label + "##" + uniqueId + "Toggle";
+
+        if (ImGui.button(buttonId, 0, UITheme.Spacing.BUTTON_HEIGHT)) {
+            logger.info("[ToolbarPanel] 面板切换按钮被点击: {}", uniqueId);
+            togglePanel(panelClass, fallbackPanelNames);
+        }
+
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(tooltip);
         }
     }
 }

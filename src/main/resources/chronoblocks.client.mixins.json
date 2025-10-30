@@ -5,7 +5,15 @@
   "client": [
     "MouseMixin",
     "KeyboardMixin",
-    "KeyboardInputMixin"
+    "CrosshairMixin",
+    "CursorMixin",
+    "KeyboardInputMixin",
+    "ClientPlayerInteractionManagerMixin",
+    "GameRendererMixin",
+    "HotbarMixin",
+    "DebugHudMixin",
+    "WorldRendererMixin",
+    "ClientWorldMixin"
   ],
   "injectors": {
     "defaultRequire": 1

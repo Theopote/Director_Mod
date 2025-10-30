@@ -1,6 +1,7 @@
 package com.chronoblocks.client;
 
 import com.chronoblocks.i18n.LanguageChangeListener;
+import com.chronoblocks.client.input.ChronoBlocksInputSystem;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.minecraft.resource.ResourceType;
 
@@ -9,6 +10,7 @@ import net.minecraft.client.MinecraftClient;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
@@ -119,12 +121,33 @@ public class ChronoBlocksClient implements ClientModInitializer {
         // 注册语言切换监听器
         registerLanguageChangeListener();
         
+        // 注册导演模式快捷键
+        registerAdminModeKeyBindings();
+        
         // 注册容器渲染事件 v4.5
         registerContainerRenderingEvents();
+        
+        // 注册选择渲染事件
+        registerSelectionRenderingEvents();
+        
+        // 注册方块边框渲染事件
+        registerBlockOutlineRenderingEvents();
         
         LOGGER.info("[ChronoBlocks] Event handlers registered successfully");
     }
     
+    /**
+     * 注册导演模式快捷键
+     */
+    private void registerAdminModeKeyBindings() {
+        try {
+            // 导演模式快捷键已移除，因为导演模式现在自动集成到ChronoBlocksScreen中
+            LOGGER.info("[ChronoBlocks] 导演模式快捷键已移除（自动集成）");
+        } catch (Exception e) {
+            LOGGER.error("[ChronoBlocks] 导演模式快捷键注册失败", e);
+        }
+    }
+
     /**
      * 注册容器渲染事件（v4.5 动画系统）
      */
@@ -134,6 +157,33 @@ public class ChronoBlocksClient implements ClientModInitializer {
             LOGGER.info("[ChronoBlocks] 容器渲染事件已注册 v4.5");
         } catch (Exception e) {
             LOGGER.error("[ChronoBlocks] 注册容器渲染事件失败", e);
+        }
+    }
+    
+    /**
+     * 注册选择渲染事件
+     */
+    private void registerSelectionRenderingEvents() {
+        try {
+            com.chronoblocks.client.renderer.SelectionRenderEvents.register();
+            LOGGER.info("[ChronoBlocks] 选择渲染事件已注册");
+        } catch (Exception e) {
+            LOGGER.error("[ChronoBlocks] 注册选择渲染事件失败", e);
+        }
+    }
+    
+    /**
+     * 注册方块边框渲染事件
+     */
+    private void registerBlockOutlineRenderingEvents() {
+        try {
+            // 注册世界渲染后事件 - 在所有实体渲染完成后渲染方块边框
+            // 传递 VertexConsumerProvider 确保使用正确的渲染层
+            WorldRenderEvents.AFTER_ENTITIES.register((context) -> 
+                ChronoBlocksInputSystem.renderOutline(context.matrixStack(), context.consumers()));
+            LOGGER.info("[ChronoBlocks] 方块边框渲染事件已注册");
+        } catch (Exception e) {
+            LOGGER.error("[ChronoBlocks] 注册方块边框渲染事件失败", e);
         }
     }
     
@@ -162,6 +212,8 @@ public class ChronoBlocksClient implements ClientModInitializer {
                     openChronoBlocksScreen();
                     LOGGER.debug("[ChronoBlocks] ChronoBlocks UI opened via key binding");
                 }
+                
+                // 导演模式快捷键处理已移除（自动集成）
             }
         });
     }

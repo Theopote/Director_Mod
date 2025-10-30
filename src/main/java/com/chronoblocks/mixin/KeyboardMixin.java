@@ -17,12 +17,12 @@ import org.slf4j.LoggerFactory;
  */
 @Mixin(Keyboard.class)
 public class KeyboardMixin {
-    
+
     @Unique
     private static final Logger LOGGER = LoggerFactory.getLogger("ChronoBlocks/KeyboardMixin");
     @Unique
     private static final boolean DEBUG = Boolean.getBoolean("chronoblocks.input.debug");
-    
+
     /**
      * 拦截键盘按键事件
      * <p>
@@ -32,7 +32,7 @@ public class KeyboardMixin {
     @Inject(method = "onKey", at = @At("HEAD"), cancellable = true)
     private void onKey(long window, int key, int scancode, int action, int modifiers, CallbackInfo ci) {
         InputFocusManager focusManager = InputFocusManager.getInstance();
-        
+
         // 如果ChronoBlocks窗口激活且应该捕获键盘
         if (focusManager.shouldCaptureKeyboard()) {
             if (DEBUG) {
@@ -42,7 +42,7 @@ public class KeyboardMixin {
             ci.cancel();
         }
     }
-    
+
     /**
      * 拦截字符输入事件
      * <p>
@@ -52,7 +52,7 @@ public class KeyboardMixin {
     @Inject(method = "onChar", at = @At("HEAD"), cancellable = true)
     private void onChar(long window, int codePoint, int modifiers, CallbackInfo ci) {
         InputFocusManager focusManager = InputFocusManager.getInstance();
-        
+
         // 如果ChronoBlocks窗口激活且应该捕获键盘
         if (focusManager.shouldCaptureKeyboard()) {
             if (DEBUG) {
@@ -63,4 +63,3 @@ public class KeyboardMixin {
         }
     }
 }
-

@@ -560,7 +560,7 @@ public class PropertiesPanel extends AbstractPanel {
         // 解决方案
         ImGui.text(Icons.LIGHTBULB + " 解决方案:");
         ImGui.indent();
-        ImGui.text("1️⃣ 创建专用适配器:");
+        ImGui.text(Icons.PLUS + " 创建专用适配器:");
         ImGui.indent();
         ImGui.bulletText("实现 IPropertyAdapter<YourType> 接口");
         ImGui.bulletText("在 PropertyAdapterBootstrap 中注册");
@@ -568,7 +568,7 @@ public class PropertiesPanel extends AbstractPanel {
         
         UITheme.spacingSmall();
         
-        ImGui.text("2️⃣ 使用通用适配器:");
+        ImGui.text(Icons.SETTINGS + " 使用通用适配器:");
         ImGui.indent();
         ImGui.bulletText("确保 GenericPropertyAdapter 已注册为回退适配器");
         ImGui.bulletText("检查 PropertyAdapterBootstrap.initialize() 是否已调用");

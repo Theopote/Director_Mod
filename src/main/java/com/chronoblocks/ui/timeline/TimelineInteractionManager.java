@@ -112,6 +112,13 @@ public class TimelineInteractionManager {
     public float getDragStartValue2() {
         return dragStartValue2;
     }
+
+    /**
+     * 更新当前交互对象（用于拖动过程中替换关键帧等场景）
+     */
+    public void updateActiveObject(Object object) {
+        this.activeObject = object;
+    }
     
     /**
      * 计算鼠标偏移量（X轴）

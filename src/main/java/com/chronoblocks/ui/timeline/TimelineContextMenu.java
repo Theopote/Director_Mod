@@ -104,6 +104,13 @@ public class TimelineContextMenu {
     }
     
     /**
+     * 添加菜单项（带条件禁用和快捷键）
+     */
+    public void addItem(String label, Runnable action, boolean enabled, String shortcut) {
+        menuItems.add(new MenuItem(label, action, enabled, shortcut));
+    }
+    
+    /**
      * 添加命令菜单项（自动加入历史栈）
      */
     public void addCommandItem(String label, TimelineCommand command) {

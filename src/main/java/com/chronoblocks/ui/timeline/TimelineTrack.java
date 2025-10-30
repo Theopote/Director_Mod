@@ -37,17 +37,34 @@ public class TimelineTrack {
     
     // ========== Clip 管理 ==========
     
+    /**
+     * 添加片段到轨道，并自动设置父引用
+     */
     public void addClip(TimelineClip clip) {
-        clips.add(clip);
+        if (clip != null && !this.clips.contains(clip)) {
+            this.clips.add(clip);
+            clip.setParentTrack(this); // 设置父引用，实现 O(1) 反向查找
+        }
     }
     
+    /**
+     * 从轨道移除片段，并清除父引用
+     */
     public void removeClip(TimelineClip clip) {
-        clips.remove(clip);
+        if (clip != null && this.clips.remove(clip)) {
+            clip.setParentTrack(null); // 清除父引用
+        }
     }
     
+    /**
+     * 根据索引移除片段，并清除父引用
+     */
     public void removeClipAt(int index) {
         if (index >= 0 && index < clips.size()) {
-            clips.remove(index);
+            TimelineClip clip = clips.remove(index);
+            if (clip != null) {
+                clip.setParentTrack(null); // 清除父引用
+            }
         }
     }
     

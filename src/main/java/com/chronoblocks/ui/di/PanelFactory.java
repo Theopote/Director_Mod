@@ -1,6 +1,9 @@
 package com.chronoblocks.ui.di;
 
 import com.chronoblocks.ui.panels.*;
+import com.chronoblocks.core.container.ContainerManager;
+import com.chronoblocks.core.container.WorldBlockCollector;
+import com.chronoblocks.core.timeline.TimelineCommandHistory;
 import net.minecraft.client.MinecraftClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,11 +76,19 @@ public class PanelFactory implements IPanelFactory {
             return new ToolbarPanel();
         });
         
-        // 注册ContainerPanel创建器
+        // 注册ContainerPanel创建器 - 使用依赖注入
         registerPanelCreator(ContainerPanel.class, minecraftClient -> {
-            LOGGER.debug("[PanelFactory] 创建ContainerPanel (MinecraftClient: {})", 
+            LOGGER.debug("[PanelFactory] 创建ContainerPanel with Dependency Injection (MinecraftClient: {})", 
                 minecraftClient != null ? "已注入" : "未注入");
-            return new ContainerPanel();
+            
+            // 创建依赖对象
+            ContainerManager containerManager = new ContainerManager();
+            TimelineCommandHistory commandHistory = new TimelineCommandHistory();
+            ContainerPropertiesPanel propertiesPanel = new ContainerPropertiesPanel(commandHistory);
+            WorldBlockCollector blockCollector = new WorldBlockCollector();
+            
+            // 使用依赖注入构造函数
+            return new ContainerPanel(containerManager, commandHistory, propertiesPanel, blockCollector);
         });
         
         // 注册PropertiesPanel创建器
@@ -92,6 +103,48 @@ public class PanelFactory implements IPanelFactory {
             LOGGER.debug("[PanelFactory] 创建TimelinePanel (MinecraftClient: {})", 
                 minecraftClient != null ? "已注入" : "未注入");
             return new TimelinePanel();
+        });
+        
+        // 注册SelectionFilterPanel创建器
+        registerPanelCreator(SelectionFilterPanel.class, minecraftClient -> {
+            LOGGER.debug("[PanelFactory] 创建SelectionFilterPanel (MinecraftClient: {})", 
+                minecraftClient != null ? "已注入" : "未注入");
+            return new SelectionFilterPanel();
+        });
+        
+        // 注册SelectionRenderSettingsPanel创建器
+        registerPanelCreator(SelectionRenderSettingsPanel.class, minecraftClient -> {
+            LOGGER.debug("[PanelFactory] 创建SelectionRenderSettingsPanel (MinecraftClient: {})", 
+                minecraftClient != null ? "已注入" : "未注入");
+            return new SelectionRenderSettingsPanel();
+        });
+        
+        // 注册ToolPropertiesPanel创建器
+        registerPanelCreator(ToolPropertiesPanel.class, minecraftClient -> {
+            LOGGER.debug("[PanelFactory] 创建ToolPropertiesPanel (MinecraftClient: {})", 
+                minecraftClient != null ? "已注入" : "未注入");
+            return new ToolPropertiesPanel();
+        });
+        
+        // 注册RenderSettingsPanel创建器
+        registerPanelCreator(RenderSettingsPanel.class, minecraftClient -> {
+            LOGGER.debug("[PanelFactory] 创建RenderSettingsPanel (MinecraftClient: {})", 
+                minecraftClient != null ? "已注入" : "未注入");
+            return new RenderSettingsPanel();
+        });
+        
+        // 注册SelectionHistoryPanel创建器
+        registerPanelCreator(SelectionHistoryPanel.class, minecraftClient -> {
+            LOGGER.debug("[PanelFactory] 创建SelectionHistoryPanel (MinecraftClient: {})", 
+                minecraftClient != null ? "已注入" : "未注入");
+            return new SelectionHistoryPanel();
+        });
+        
+        // 注册HelpPanel创建器
+        registerPanelCreator(HelpPanel.class, minecraftClient -> {
+            LOGGER.debug("[PanelFactory] 创建HelpPanel (MinecraftClient: {})", 
+                minecraftClient != null ? "已注入" : "未注入");
+            return new HelpPanel();
         });
         
         

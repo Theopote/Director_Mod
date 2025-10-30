@@ -510,6 +510,11 @@ public class ChronoBlocksUIManager {
 
             // 2. 渲染DockSpace布局 - 为其他面板提供停靠区域
             int dockspaceId = renderDockSpaceWithPanels();
+            if (dockspaceId == -1) {
+                // DockSpace 未就绪时，跳过本帧的面板渲染，避免 Begin/End 失配
+                logWarn("DockSpace 未就绪，跳过本帧面板渲染");
+                return;
+            }
 
             // *** 暂时禁用自动布局，让面板独立渲染 ***
             // 先让面板能够正常显示，再解决布局问题
@@ -943,5 +948,13 @@ public class ChronoBlocksUIManager {
         if (totalPanels > 0 && (double) panelDisposalErrors / totalPanels > 0.5) {
             LOGGER.warn("[ChronoBlocks] 面板释放失败率过高: {}/{}，可能存在严重问题", panelDisposalErrors, totalPanels);
         }
+    }
+    
+    /**
+     * 获取面板注册表
+     * @return 面板注册表实例
+     */
+    public IPanelRegistry getPanelRegistry() {
+        return panelRegistry;
     }
 }

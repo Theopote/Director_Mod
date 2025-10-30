@@ -66,6 +66,14 @@ public class TimelineContextMenuBuilder {
     }
     
     /**
+     * 添加带条件禁用的菜单项
+     */
+    public TimelineContextMenuBuilder item(String label, Runnable action, String shortcut, boolean enabled) {
+        menu.addItem(label, action, enabled, shortcut);
+        return this;
+    }
+    
+    /**
      * 添加命令菜单项（自动加入历史）
      */
     public TimelineContextMenuBuilder command(String label, TimelineCommand command) {

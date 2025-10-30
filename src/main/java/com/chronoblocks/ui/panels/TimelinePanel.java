@@ -2,45 +2,46 @@ package com.chronoblocks.ui.panels;
 
 import com.chronoblocks.core.timeline.TimelineCommandHistory;
 import com.chronoblocks.core.timeline.commands.*;
+import com.chronoblocks.core.container.Container;
+import com.chronoblocks.core.container.ContainerManager;
 import com.chronoblocks.ui.timeline.*;
-import com.chronoblocks.ui.timeline.TimelineInteractionManager.InteractionMode;
 import com.chronoblocks.ui.theme.UITheme;
-import com.chronoblocks.ui.theme.Icons;
 import imgui.ImGui;
-import imgui.ImGuiIO;
 import imgui.ImDrawList;
 import imgui.type.ImString;
 import imgui.flag.ImGuiKey;
 import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiWindowFlags;
-import imgui.flag.ImGuiStyleVar;
-import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiInputTextFlags;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.UUID;
 
 /**
- * ChronoBlocks 专业级时间轴面板（架构重构版 v6.0）
+ * ChronoBlocks 专业级时间轴面板（架构重构版 v7.4）
  * <p>
  * 基于完全解耦的 MVC 架构设计：
  * <ul>
  *   <li>✅ Model: {@link TimelineModel} - 纯数据模型</li>
  *   <li>✅ View: {@link TimelineRenderer} - 纯渲染逻辑</li>
- *   <li>✅ Controller: {@link TimelinePanel} - 交互控制</li>
+ *   <li>✅ Controller: {@link TimelinePanel} - 中央协调器</li>
  *   <li>✅ Command Pattern: 完整的撤销/重做</li>
- *   <li>✅ Interaction Manager: 统一状态管理</li>
- *   <li>✅ Shortcut Manager: 模块化快捷键</li>
- *   <li>✅ Context Menu Builder: 流式API菜单</li>
+ *   <li>✅ Interaction Handler: 专职交互处理器</li>
+ *   <li>✅ Control Bar: 独立的工具栏组件</li>
+ *   <li>✅ Context Menu Factory: 菜单工厂模式</li>
  * </ul>
  * </p>
  * 
  * @author ChronoBlocks Team
- * @version 6.0
+ * @version 7.4
  * @since 1.0
  */
-public class TimelinePanel extends AbstractPanel {
+public class TimelinePanel extends AbstractPanel 
+        implements TimelineInteractionHandler.InteractionCallbacks,
+                   TimelineContextMenuFactory.MenuCallbacks,
+                   TimelineControlBar.Callbacks {
     private static final Logger LOGGER = LoggerFactory.getLogger(TimelinePanel.class);
     
     // ========== 核心组件（架构优化）==========
@@ -48,33 +49,22 @@ public class TimelinePanel extends AbstractPanel {
     private final TimelineRenderer renderer;
     private final TimelineCommandHistory commandHistory;
     private final TimelineInteractionManager interactionManager;
+    private final TimelineInteractionHandler interactionHandler;
+    private final TimelineContextMenuFactory menuFactory;
+    private final TimelineControlBar controlBar;
     private final ShortcutManager shortcutManager;
     
-    // ========== UI 状态 ==========
+    // ========== UI 状态（封装优化）==========
+    private final ClipboardState clipboard = new ClipboardState();
+    private final RenamingState renaming = new RenamingState();
     private TimelineContextMenu activeContextMenu = null;
     private int dropTargetTrackIndex = -1;
     private TimelineTrack hoveredTrack = null;  // 鼠标悬停的轨道
-    
-    // ========== 剪贴板 ==========
-    private TimelineClip clipboardClip = null;  // 剪贴板中的片段
-    private boolean clipboardIsCut = false;      // 是否是剪切操作
-    
-    // ========== 原位重命名 ==========
-    private TimelineTrack editingTrack = null;  // 正在编辑的轨道
-    private ImString trackEditBuffer = new ImString(256);  // 编辑输入缓冲区
-    
-    // ========== 中键平移状态 ==========
-    private boolean middleButtonPanning = false;
-    private float panStartX = 0f;
     
     // ========== 自动保存 ==========
     private long lastAutoSaveTime = System.currentTimeMillis();
     private static final long AUTO_SAVE_INTERVAL = 5000; // 5秒自动保存
     private boolean dataChanged = false; // 数据是否改变
-    
-    // ========== 缩放预设 ==========
-    private static final float[] ZOOM_PRESETS = {10f, 40f, 80f, 120f, 200f, 400f};
-    private static final String[] ZOOM_PRESET_LABELS = {"0.1x", "0.5x", "1x", "1.5x", "2.5x", "5x"};
     
     // ========== 布局常量 ==========
     // 根据轨道数量动态计算高度，最多支持40条轨道
@@ -98,10 +88,16 @@ public class TimelinePanel extends AbstractPanel {
         this.renderer = new TimelineRenderer(model);
         this.commandHistory = new TimelineCommandHistory();
         this.interactionManager = new TimelineInteractionManager();
+        this.interactionHandler = new TimelineInteractionHandler(model, interactionManager, commandHistory, renderer);
         this.shortcutManager = new ShortcutManager();
         
         // 配置历史管理
         commandHistory.setMaxHistorySize(100);
+        
+        // 直接传递 this 作为回调对象（简洁的回调注入）
+        this.interactionHandler.setCallbacks(this);
+        this.menuFactory = new TimelineContextMenuFactory(commandHistory, model, this);
+        this.controlBar = new TimelineControlBar(model, commandHistory, this);
         
         // 注册快捷键
         registerShortcuts();
@@ -161,17 +157,14 @@ public class TimelinePanel extends AbstractPanel {
     
     @Override
     protected void doRender() {
-        // 1. 处理快捷键
+        // 1. 更新播放状态（每帧调用）
+        updatePlayback();
+        
+        // 2. 处理快捷键
         shortcutManager.handleInput(ImGui.getIO());
         
-        // 2. 播放逻辑现在由 ChronoBlocksUIManager 统一驱动
-        // （已废弃 model.updatePlayback()，由 PlaybackController.update() 替代）
-        
-        // 3. 渲染控制栏（使用统一的元素间距4px）
-        ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, UITheme.Spacing.ELEMENT_SPACING, UITheme.Spacing.ELEMENT_SPACING);
-        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, UITheme.Spacing.BUTTON_PADDING_X, UITheme.Spacing.BUTTON_PADDING_Y);
+        // 3. 渲染控制栏（委托给专门的组件）
         renderControlBar();
-        ImGui.popStyleVar(2);
         
         UITheme.separator();
         
@@ -181,16 +174,36 @@ public class TimelinePanel extends AbstractPanel {
         // 5. 渲染新建轨道菜单
         renderAddTrackMenu();
         
-        // 6. 渲染轨道上下文菜单
-        renderTrackContextMenu();
-        
-        // 7. 渲染片段上下文菜单
+        // 6. 渲染活动的上下文菜单（片段、轨道、关键帧）
         if (activeContextMenu != null) {
             activeContextMenu.render();
         }
         
         // 8. 自动保存（每5秒保存一次）
         autoSaveIfNeeded();
+    }
+    
+    /**
+     * 更新播放状态（每帧调用）
+     */
+    private void updatePlayback() {
+        if (!model.isPlaying()) return;
+        
+        // 计算时间增量（基于 ImGui 的帧时间）
+        float deltaTime = ImGui.getIO().getDeltaTime();
+        
+        // 更新当前时间
+        float newTime = model.getCurrentTime() + deltaTime;
+        float duration = model.getDuration();
+        
+        // 处理超出范围
+        if (newTime > duration) {
+            newTime = duration; // 停在终点
+            model.setPlaying(false);
+            LOGGER.debug("[Timeline] 播放结束，停在终点");
+        }
+        
+        model.setCurrentTime(newTime);
     }
     
     /**
@@ -214,155 +227,10 @@ public class TimelinePanel extends AbstractPanel {
     }
     
     /**
-     * 渲染控制栏
+     * 渲染控制栏（委托给专门的组件）
      */
     private void renderControlBar() {
-        // ========== 轨道管理按钮 ==========
-        if (ImGui.button(Icons.ADD + " 新建轨道", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
-            openAddTrackMenu();
-        }
-        
-        ImGui.sameLine();
-        
-        boolean hasSelection = model.getSelectedClip() != null;
-        if (!hasSelection) ImGui.beginDisabled();
-        if (ImGui.button(Icons.DELETE + " 删除", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
-            deleteSelectedClip();
-        }
-        if (!hasSelection) ImGui.endDisabled();
-        
-        ImGui.sameLine();
-        UITheme.spacingSmall();
-        ImGui.sameLine();
-        
-        // ========== 撤销/重做按钮（自动宽度）==========
-        boolean canUndo = commandHistory.canUndo();
-        boolean canRedo = commandHistory.canRedo();
-        
-        if (!canUndo) ImGui.beginDisabled();
-        if (ImGui.button(Icons.UNDO + " 撤销", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
-            commandHistory.undo();
-        }
-        if (!canUndo) ImGui.endDisabled();
-        
-        ImGui.sameLine();
-        
-        if (!canRedo) ImGui.beginDisabled();
-        if (ImGui.button(Icons.REDO + " 重做", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
-            commandHistory.redo();
-        }
-        if (!canRedo) ImGui.endDisabled();
-        
-        ImGui.sameLine();
-        UITheme.label(String.format("(%d/%d)", 
-            commandHistory.getUndoSize(), 
-            commandHistory.getRedoSize()), UITheme.DarkTheme.TEXT_DISABLED);
-        
-        ImGui.sameLine();
-        UITheme.spacingSmall();
-        ImGui.sameLine();
-        
-        // ========== 播放控制（自动宽度）==========
-        if (ImGui.button(Icons.SKIP_BACK, 0, UITheme.Spacing.BUTTON_HEIGHT)) {
-            model.jumpToStart();
-        }
-        ImGui.sameLine();
-        if (ImGui.button(model.isPlaying() ? (Icons.PAUSE + " 暂停") : (Icons.PLAY + " 播放"), 0, UITheme.Spacing.BUTTON_HEIGHT)) {
-            model.togglePlay();
-        }
-        ImGui.sameLine();
-        if (ImGui.button(Icons.SKIP_FORWARD, 0, UITheme.Spacing.BUTTON_HEIGHT)) {
-            model.jumpToEnd();
-        }
-        ImGui.sameLine();
-        ImGui.text("时间:");
-        
-        // ========== 当前时间显示 ==========
-        ImGui.sameLine();
-        ImGui.text(String.format("%.2f", model.getCurrentTime()));
-        
-        ImGui.sameLine();
-        ImGui.text("/");
-        
-        // ========== 总时长输入（可编辑，带明显提示）==========
-        ImGui.sameLine();
-        float[] durationRef = {model.getDuration()};
-        ImGui.pushItemWidth(100);
-        ImGui.pushStyleColor(ImGuiCol.FrameBg, 0.15f, 0.25f, 0.45f, 0.8f); // 深蓝色背景提示可编辑
-        ImGui.pushStyleColor(ImGuiCol.FrameBgHovered, 0.2f, 0.35f, 0.6f, 0.9f); // 悬停高亮
-        ImGui.pushStyleColor(ImGuiCol.FrameBgActive, 0.25f, 0.4f, 0.7f, 1.0f); // 激活高亮
-        if (ImGui.dragFloat("##duration", durationRef, 0.5f, 1.0f, 3600.0f, "%.1fs")) {
-            float newDuration = Math.max(1.0f, Math.min(3600.0f, durationRef[0]));
-            model.setDuration(newDuration);
-            LOGGER.info("[Timeline] 手动设置总时长: {:.2f}s", newDuration);
-        }
-        ImGui.popStyleColor(3);
-        ImGui.popItemWidth();
-        
-        if (ImGui.isItemHovered()) {
-            ImGui.beginTooltip();
-            ImGui.text(Icons.EDIT + " 可编辑总时长");
-            ImGui.separator();
-            ImGui.text("• 左键拖动调整");
-            ImGui.text("• Ctrl+点击输入数字");
-            ImGui.text("• 范围: 1.0s - 3600.0s");
-            ImGui.endTooltip();
-        }
-        
-        // ========== 精确时间输入 ==========
-        ImGui.sameLine();
-        UITheme.spacingSmall();
-        ImGui.sameLine();
-        ImGui.text("跳转:");
-        ImGui.sameLine();
-        float[] timeRef = {model.getCurrentTime()};
-        ImGui.pushItemWidth(70);
-        if (ImGui.dragFloat("##currentTime", timeRef, 0.01f, 0, model.getDuration(), "%.2fs")) {
-            model.setCurrentTime(timeRef[0]);
-        }
-        ImGui.popItemWidth();
-        
-        ImGui.sameLine();
-        
-        // ========== 吸附控制 ==========
-        boolean snapEnabled = model.isSnapEnabled();
-        if (ImGui.checkbox("吸附 (Ctrl切换)", snapEnabled)) {
-            model.setSnapEnabled(!snapEnabled);
-        }
-        
-        ImGui.sameLine();
-        ImGui.text(String.format("缩放: %.0f px/s", model.getPixelsPerSecond()));
-        
-        // ========== 缩放预设按钮 ==========
-        ImGui.sameLine();
-        for (int i = 0; i < ZOOM_PRESETS.length; i++) {
-            if (ImGui.button(ZOOM_PRESET_LABELS[i])) {
-                model.setZoom(ZOOM_PRESETS[i]);
-            }
-            if (i < ZOOM_PRESETS.length - 1) {
-                ImGui.sameLine();
-            }
-        }
-        
-        ImGui.sameLine();
-        
-        // ========== 适应视图按钮 ==========
-        if (ImGui.button("适应")) {
-            fitTimelineToView();
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.beginTooltip();
-            ImGui.text(Icons.FIT_SCREEN + " 自动缩放以查看整个时间线");
-            ImGui.endTooltip();
-        }
-        
-        ImGui.sameLine();
-        
-        // ========== 缩放滑块 ==========
-        float[] ppsRef = {model.getPixelsPerSecond()};
-        if (ImGui.sliderFloat("##zoom", ppsRef, model.getMinPps(), model.getMaxPps(), "%.0f")) {
-            model.setZoom(ppsRef[0]);
-        }
+        controlBar.render();
     }
     
     /**
@@ -387,9 +255,6 @@ public class TimelinePanel extends AbstractPanel {
         // 渲染原位编辑输入框
         renderInlineEdit(winX, contentY);
         
-        // 处理鼠标输入
-        handleMouseInput(contentX, contentY, contentW, contentH);
-        
         // 渲染拖放高亮
         if (dropTargetTrackIndex >= 0) {
             float y = contentY + dropTargetTrackIndex * (TimelineRenderer.getTrackHeight() + TimelineRenderer.getTrackGap());
@@ -400,430 +265,12 @@ public class TimelinePanel extends AbstractPanel {
         ImGui.setCursorScreenPos(winX, winY);
         ImGui.invisibleButton("##TimelineCanvas", winW, canvasHeight);
         
-        // 处理片段交互
-        handleClipInteractions(contentX, contentY, contentW, contentH);
-        
-        // 处理播放头交互
-        handlePlayheadInteraction(contentX, contentY, contentW, contentH);
-        
-        // 接收拖放
-        handleDragDrop(contentX);
+        // 使用统一的交互处理器处理所有交互（鼠标输入、片段、关键帧、播放头、拖放）
+        interactionHandler.handleCanvasInteractions(contentX, contentY, contentW, contentH, 0f);
         
         ImGui.setCursorScreenPos(winX, winY + canvasHeight);
     }
     
-    /**
-     * 处理鼠标输入（缩放、平移）
-     */
-    private void handleMouseInput(float contentX, float contentY, float contentW, float contentH) {
-        ImGuiIO io = ImGui.getIO();
-        float mx = ImGui.getMousePosX();
-        
-        // 中键拖拽平移
-        boolean middleDown = ImGui.isMouseDown(ImGuiMouseButton.Middle);
-        if (middleDown && !middleButtonPanning && ImGui.isMouseClicked(ImGuiMouseButton.Middle)) {
-            middleButtonPanning = true;
-            panStartX = mx;
-        }
-        if (middleButtonPanning && middleDown) {
-            float dx = mx - panStartX;
-            model.scroll(-dx);
-            panStartX = mx;
-            model.clampScroll(contentW);
-        }
-        if (middleButtonPanning && ImGui.isMouseReleased(ImGuiMouseButton.Middle)) {
-            middleButtonPanning = false;
-        }
-        
-        // 鼠标滚轮缩放
-        boolean hoverContent = isMouseHoveringRect(contentX, contentY, contentX + contentW, contentY + contentH);
-        if (hoverContent) {
-            float wheel = io.getMouseWheel();
-            if (wheel != 0f) {
-                float oldPps = model.getPixelsPerSecond();
-                // Ctrl+滚轮：精细缩放（50%速度）
-                boolean ctrlPressed = io.getKeyCtrl();
-                float baseFactor = (float)Math.pow(1.1, wheel);
-                float factor = ctrlPressed ? (float)Math.pow(baseFactor, 0.5) : baseFactor;
-                model.zoom(factor);
-                model.adjustScrollAfterZoom(mx, contentX, contentW, oldPps);
-            }
-            
-            // 水平滚轮滚动
-            float wheelH = io.getMouseWheelH();
-            if (wheelH != 0f) {
-                model.scroll(-wheelH * 40f);
-                model.clampScroll(contentW);
-            }
-        }
-    }
-    
-    /**
-     * 处理片段交互
-     */
-    private void handleClipInteractions(float contentX, float contentY, float contentW, float contentH) {
-        float y = contentY;
-        float winX = contentX - TimelineRenderer.getLeftLabelWidth();
-        
-        for (TimelineTrack track : model.getTracks()) {
-            // 跳过不可见轨道
-            if (y + TimelineRenderer.getTrackHeight() < contentY || y > contentY + contentH) {
-                y += TimelineRenderer.getTrackHeight() + TimelineRenderer.getTrackGap();
-                continue;
-            }
-            
-            // 检测轨道标签区域的右键点击
-            boolean hoverTrackLabel = isMouseHoveringRect(
-                winX, y, 
-                contentX, y + TimelineRenderer.getTrackHeight()
-            );
-            
-            if (hoverTrackLabel) {
-                hoveredTrack = track;
-                if (ImGui.isMouseClicked(ImGuiMouseButton.Right)) {
-                    LOGGER.debug("[Timeline] 右键点击轨道: {}", track.getName());
-                    openTrackContextMenu(track);
-                    return; // 阻止事件穿透，防止下方轨道也触发
-                }
-            }
-            
-            for (TimelineClip clip : track.getClips()) {
-                handleClipInteraction(clip, track, contentX, y);
-            }
-            
-            y += TimelineRenderer.getTrackHeight() + TimelineRenderer.getTrackGap();
-        }
-    }
-    
-    /**
-     * 处理单个 Clip 的交互
-     */
-    private void handleClipInteraction(TimelineClip clip, TimelineTrack track, float contentX, float y) {
-        float x1 = model.timeToScreen(clip.getStartTime(), contentX);
-        float x2 = model.timeToScreen(clip.getEndTime(), contentX);
-        float mx = ImGui.getMousePosX();
-        
-        boolean hovered = isMouseHoveringRect(x1, y, x2, y + TimelineRenderer.getTrackHeight());
-        
-        // 右键菜单
-        if (hovered && ImGui.isMouseClicked(ImGuiMouseButton.Right)) {
-            model.setSelectedClip(clip);
-            openClipContextMenu(clip);
-            return;
-        }
-        
-        // 绘制调整把手
-        renderer.renderResizeHandles(ImGui.getWindowDrawList(), clip, contentX, y, TimelineRenderer.getTrackHeight());
-        
-        // 检测边缘悬浮
-        boolean hoverLeft = Math.abs(mx - x1) < TimelineRenderer.getResizeHandleWidth() && hovered;
-        boolean hoverRight = Math.abs(mx - x2) < TimelineRenderer.getResizeHandleWidth() && hovered;
-        
-        // 开始交互
-        if (!interactionManager.isInteracting() && hovered && 
-            ImGui.isMouseClicked(ImGuiMouseButton.Left)) {
-            
-            model.setSelectedClip(clip);
-            
-            InteractionMode mode;
-            if (hoverLeft) {
-                mode = InteractionMode.RESIZE_CLIP_LEFT;
-            } else if (hoverRight) {
-                mode = InteractionMode.RESIZE_CLIP_RIGHT;
-            } else {
-                mode = InteractionMode.DRAG_CLIP;
-            }
-            
-            interactionManager.startInteraction(
-                mode, clip, mx, 0,
-                clip.getStartTime(), clip.getEndTime()
-            );
-        }
-        
-        // 执行交互
-        if (interactionManager.getActiveObject() == clip && ImGui.isMouseDown(ImGuiMouseButton.Left)) {
-            handleActiveClipInteraction(clip);
-        }
-        
-        // 结束交互
-        if (interactionManager.getActiveObject() == clip && ImGui.isMouseReleased(ImGuiMouseButton.Left)) {
-            endClipInteraction(clip);
-        }
-        
-        // 双击添加/删除关键帧
-        if (hovered && ImGui.isMouseDoubleClicked(ImGuiMouseButton.Left)) {
-            handleKeyframeDoubleClick(clip, mx, contentX);
-        }
-        
-        // 处理关键帧交互
-        handleKeyframeInteractions(clip, contentX, y);
-    }
-    
-    /**
-     * 处理活动片段的交互（拖动/调整）
-     */
-    private void handleActiveClipInteraction(TimelineClip clip) {
-        float mx = ImGui.getMousePosX();
-        float deltaX = interactionManager.calculateDeltaX(mx);
-        float deltaTime = deltaX / model.getPixelsPerSecond();
-        
-        boolean effectiveSnap = model.isSnapEnabled() ^ ImGui.getIO().getKeyCtrl();
-        
-        switch (interactionManager.getCurrentMode()) {
-            case DRAG_CLIP:
-                // 检查是否是组拖拽（多选模式）
-                List<Object> selectedItems = model.getSelectedItems();
-                boolean isGroupDrag = selectedItems.size() > 1 && model.isSelected(clip);
-
-                float newStart = interactionManager.getDragStartValue() + deltaTime;
-                if (effectiveSnap) newStart = model.snapToInterval(newStart);
-                if (isGroupDrag) {
-                    // 组拖拽：同时移动所有选中的片段
-                    float actualDelta = newStart - interactionManager.getDragStartValue();
-                    
-                    // 对所有选中的片段应用相同的偏移
-                    for (Object item : selectedItems) {
-                        if (item instanceof TimelineClip) {
-                            TimelineClip selectedClip = (TimelineClip) item;
-                            float clipNewStart = selectedClip.getStartTime() + actualDelta;
-                            clipNewStart = clamp(clipNewStart, 0f, model.getDuration() - selectedClip.getLength());
-                            selectedClip.setStartTime(clipNewStart);
-                            selectedClip.setEndTime(clipNewStart + selectedClip.getLength());
-                        }
-                    }
-                } else {
-                    // 单个片段拖拽
-                    newStart = clamp(newStart, 0f, model.getDuration() - clip.getLength());
-                    clip.setEndTime(newStart + clip.getLength());
-                    clip.setStartTime(newStart);
-                }
-                break;
-                
-            case RESIZE_CLIP_LEFT:
-                float newLeft = interactionManager.getDragStartValue() + deltaTime;
-                if (effectiveSnap) newLeft = model.snapToInterval(newLeft);
-                clip.setStartTime(clamp(newLeft, 0f, clip.getEndTime() - 0.1f));
-                break;
-                
-            case RESIZE_CLIP_RIGHT:
-                float newRight = interactionManager.getDragStartValue2() + deltaTime;
-                if (effectiveSnap) newRight = model.snapToInterval(newRight);
-                clip.setEndTime(clamp(newRight, clip.getStartTime() + 0.1f, model.getDuration()));
-                break;
-                
-            default:
-                break;
-        }
-    }
-    
-    /**
-     * 结束片段交互并创建命令
-     */
-    private void endClipInteraction(TimelineClip clip) {
-        InteractionMode mode = interactionManager.getCurrentMode();
-        
-        if (mode == InteractionMode.DRAG_CLIP || 
-            mode == InteractionMode.RESIZE_CLIP_LEFT || 
-            mode == InteractionMode.RESIZE_CLIP_RIGHT) {
-            
-            // 检查是否需要自动扩展时间长度
-            autoExtendDuration(clip.getEndTime());
-            
-            // 创建移动命令
-            MoveClipCommand cmd = new MoveClipCommand(
-                new MoveClipCommand.Clip() {
-                    @Override
-                    public float getStartTime() { return clip.getStartTime(); }
-                    @Override
-                    public void setStartTime(float time) { clip.setStartTime(time); }
-                    @Override
-                    public float getEndTime() { return clip.getEndTime(); }
-                    @Override
-                    public void setEndTime(float time) { clip.setEndTime(time); }
-                    @Override
-                    public float getLength() { return clip.getLength(); }
-                },
-                clip.getStartTime(),
-                clip.getEndTime()
-            );
-            
-            commandHistory.executeCommand(cmd);
-            markDataChanged(); // 标记数据已改变
-            LOGGER.info("[Timeline] 完成 {} 操作（命令）", mode);
-        }
-        
-        interactionManager.endInteraction();
-    }
-    
-    /**
-     * 自动扩展时间长度（如果片段超出当前时长）
-     */
-    private void autoExtendDuration(float requiredTime) {
-        float currentDuration = model.getDuration();
-        if (requiredTime > currentDuration) {
-            // 扩展到片段结束时间，再加1秒缓冲
-            float newDuration = (float)Math.ceil(requiredTime + 1.0f);
-            model.setDuration(newDuration);
-            LOGGER.info("[Timeline] 自动扩展时长: {:.2f}s -> {:.2f}s", currentDuration, newDuration);
-        }
-    }
-    
-    /**
-     * 处理关键帧交互
-     */
-    private void handleKeyframeInteractions(TimelineClip clip, float contentX, float y) {
-        float mx = ImGui.getMousePosX();
-        
-        for (Float kf : new ArrayList<>(clip.getKeyframes())) {
-            float kx = model.timeToScreen(kf, contentX);
-            boolean hoverKeyframe = Math.abs(mx - kx) < 5 && 
-                                   isMouseHoveringRect(kx - 5, y, kx + 5, y + TimelineRenderer.getTrackHeight());
-            
-            // 右键菜单
-            if (hoverKeyframe && ImGui.isMouseClicked(ImGuiMouseButton.Right)) {
-                openKeyframeContextMenu(clip, kf);
-                return;
-            }
-            
-            // 拖动关键帧
-            if (!interactionManager.isInteracting() && hoverKeyframe && 
-                ImGui.isMouseClicked(ImGuiMouseButton.Left)) {
-                interactionManager.startInteraction(
-                    InteractionMode.DRAG_KEYFRAME,
-                    kf, mx, 0, kf, 0f
-                );
-            }
-        }
-        
-        // 处理关键帧拖动
-        if (interactionManager.isInteracting(InteractionMode.DRAG_KEYFRAME) && 
-            ImGui.isMouseDown(ImGuiMouseButton.Left)) {
-            
-            Object activeObj = interactionManager.getActiveObject();
-            if (activeObj instanceof Float) {
-                float oldTime = (Float) activeObj;
-                float deltaX = interactionManager.calculateDeltaX(mx);
-                float deltaTime = deltaX / model.getPixelsPerSecond();
-                float newTime = interactionManager.getDragStartValue() + deltaTime;
-                
-                boolean effectiveSnap = model.isSnapEnabled() ^ ImGui.getIO().getKeyCtrl();
-                if (effectiveSnap) newTime = model.snapToInterval(newTime);
-                
-                newTime = clamp(newTime, clip.getStartTime(), clip.getEndTime());
-                
-                int index = clip.getKeyframes().indexOf(oldTime);
-                if (index >= 0) {
-                    clip.getKeyframes().set(index, newTime);
-                }
-            }
-        }
-        
-        if (interactionManager.isInteracting(InteractionMode.DRAG_KEYFRAME) && 
-            ImGui.isMouseReleased(ImGuiMouseButton.Left)) {
-            Collections.sort(clip.getKeyframes());
-            interactionManager.endInteraction();
-            LOGGER.debug("[Timeline] 关键帧拖动完成");
-        }
-    }
-    
-    /**
-     * 处理播放头交互（优化版：更大的拖动区域，更流畅）
-     */
-    private void handlePlayheadInteraction(float contentX, float contentY, float contentW, float contentH) {
-        float px = model.timeToScreen(model.getCurrentTime(), contentX);
-        
-        // 扩大拖动区域：整个标尺高度 + 垂直线区域
-        float rulerTop = contentY - TimelineRenderer.getRulerHeight();
-        boolean hoveredHandle = isMouseHoveringRect(px - 12, rulerTop, px + 12, contentY + contentH);
-        
-        // 如果正在拖动其他元素，不处理播放头
-        if (interactionManager.isInteracting() && 
-            interactionManager.getCurrentMode() != InteractionMode.DRAG_PLAYHEAD) {
-            return;
-        }
-        
-        // 开始拖动播放头
-        if (!interactionManager.isInteracting() && hoveredHandle && 
-            ImGui.isMouseClicked(ImGuiMouseButton.Left)) {
-            interactionManager.startInteraction(
-                InteractionMode.DRAG_PLAYHEAD,
-                null, ImGui.getMousePosX(), 0,
-                model.getCurrentTime(), 0f
-            );
-            LOGGER.debug("[Timeline] 开始拖动播放头");
-        }
-        
-        // 拖动中
-        if (interactionManager.isInteracting(InteractionMode.DRAG_PLAYHEAD) && 
-            ImGui.isMouseDown(ImGuiMouseButton.Left)) {
-            
-            float deltaX = interactionManager.calculateDeltaX(ImGui.getMousePosX());
-            float deltaTime = deltaX / model.getPixelsPerSecond();
-            float newTime = interactionManager.getDragStartValue() + deltaTime;
-            
-            // 吸附支持（Ctrl 切换）
-            boolean effectiveSnap = model.isSnapEnabled() ^ ImGui.getIO().getKeyCtrl();
-            if (effectiveSnap) newTime = model.snapToInterval(newTime);
-            
-            // 限制范围
-            newTime = clamp(newTime, 0f, model.getDuration());
-            model.setCurrentTime(newTime);
-        }
-        
-        // 结束拖动
-        if (interactionManager.isInteracting(InteractionMode.DRAG_PLAYHEAD) && 
-            ImGui.isMouseReleased(ImGuiMouseButton.Left)) {
-            interactionManager.endInteraction();
-            LOGGER.debug("[Timeline] 播放头移动到: {:.2f}s", model.getCurrentTime());
-        }
-        
-        // 点击标尺跳转（只在未拖动时）
-        if (!interactionManager.isInteracting() && 
-            ImGui.isMouseClicked(ImGuiMouseButton.Left) && 
-            isMouseHoveringRect(contentX, rulerTop, contentX + contentW, contentY)) {
-            float t = model.screenToTime(ImGui.getMousePosX(), contentX);
-            t = clamp(t, 0f, model.getDuration());
-            model.setCurrentTime(t);
-            LOGGER.debug("[Timeline] 点击标尺跳转到: {:.2f}s", t);
-        }
-    }
-    
-    /**
-     * 处理拖放
-     */
-    private void handleDragDrop(float contentX) {
-        if (ImGui.beginDragDropTarget()) {
-            Object payload = ImGui.acceptDragDropPayload(DND_PAYLOAD_ITEM);
-            if (payload != null) {
-                String name = "物品";
-                try {
-                    if (payload instanceof byte[]) {
-                        name = new String((byte[]) payload);
-                    } else if (payload instanceof String) {
-                        name = (String) payload;
-                    }
-                } catch (Exception e) {
-                    LOGGER.warn("[Timeline] 解析拖放数据失败: {}", e.getMessage());
-                }
-                
-                float mouseX = ImGui.getMousePosX();
-                float t = model.screenToTime(mouseX, contentX);
-                t = clamp(t, 0f, model.getDuration());
-                
-                TimelineClip newClip = new TimelineClip(name, t, 
-                    Math.min(model.getDuration(), t + 1.0f), rgba(160,200,255,255));
-                
-                int targetIdx = Math.max(dropTargetTrackIndex, 0);
-                TimelineTrack targetTrack = model.getTrackAt(targetIdx);
-                if (targetTrack != null) {
-                    targetTrack.addClip(newClip);
-                    LOGGER.info("[Timeline] 拖放物品 '{}' -> 轨道 {} 在 {:.2f}s", 
-                        name, targetIdx, newClip.getStartTime());
-                }
-            }
-            ImGui.endDragDropTarget();
-        }
-    }
     
     /**
      * 双击处理关键帧添加/删除
@@ -835,12 +282,12 @@ public class TimelinePanel extends AbstractPanel {
         Float existingKf = clip.getKeyframeAt(clickTime, 0.1f);
         
         if (existingKf != null) {
-            RemoveKeyframeCommand cmd = new RemoveKeyframeCommand(clip.getKeyframes(), existingKf);
+            RemoveKeyframeCommand cmd = new RemoveKeyframeCommand(clip, existingKf);
             commandHistory.executeCommand(cmd);
             markDataChanged(); // 标记数据已改变
             LOGGER.debug("[Timeline] 删除关键帧 at {:.2f}（命令）", existingKf);
         } else {
-            AddKeyframeCommand cmd = new AddKeyframeCommand(clip.getKeyframes(), clickTime);
+            AddKeyframeCommand cmd = new AddKeyframeCommand(clip, clickTime);
             commandHistory.executeCommand(cmd);
             markDataChanged(); // 标记数据已改变
             LOGGER.debug("[Timeline] 添加关键帧 at {:.2f}（命令）", clickTime);
@@ -894,83 +341,11 @@ public class TimelinePanel extends AbstractPanel {
     }
     
     /**
-     * 打开轨道上下文菜单
+     * 打开轨道上下文菜单（使用菜单工厂）
      */
     private void openTrackContextMenu(TimelineTrack track) {
-        ImGui.openPopup("轨道菜单##TrackContextMenu");
-        hoveredTrack = track;
-    }
-    
-    /**
-     * 渲染轨道上下文菜单
-     */
-    private void renderTrackContextMenu() {
-        if (ImGui.beginPopup("轨道菜单##TrackContextMenu")) {
-            if (hoveredTrack != null) {
-                // 显示轨道信息
-                ImGui.text(hoveredTrack.getType().getIconAndName());
-                ImGui.text("\"" + hoveredTrack.getName() + "\"");
-                ImGui.separator();
-                
-                // 重命名
-                if (ImGui.menuItem(Icons.EDIT + " 重命名", "F2")) {
-                    startEditingTrack(hoveredTrack);
-                }
-                
-                // 复制
-                if (ImGui.menuItem(Icons.COPY + " 复制轨道")) {
-                    duplicateTrack(hoveredTrack);
-                }
-                
-                ImGui.separator();
-                
-                // 上移轨道
-                int currentIndex = model.getTracks().indexOf(hoveredTrack);
-                boolean canMoveUp = currentIndex > 0;
-                if (ImGui.menuItem(Icons.ARROW_UP + " 上移轨道", null, false, canMoveUp)) {
-                    moveTrackUp(hoveredTrack);
-                }
-                
-                // 下移轨道
-                boolean canMoveDown = currentIndex < model.getTracks().size() - 1 && currentIndex >= 0;
-                if (ImGui.menuItem(Icons.ARROW_DOWN + " 下移轨道", null, false, canMoveDown)) {
-                    moveTrackDown(hoveredTrack);
-                }
-                
-                ImGui.separator();
-                
-                // 锁定/解锁
-                String lockText = hoveredTrack.isLocked() ? 
-                    (Icons.UNLOCK + " 解锁") : (Icons.LOCK + " 锁定");
-                if (ImGui.menuItem(lockText)) {
-                    hoveredTrack.setLocked(!hoveredTrack.isLocked());
-                    LOGGER.info("[Timeline] {} 轨道: {}", 
-                               hoveredTrack.isLocked() ? "锁定" : "解锁", 
-                               hoveredTrack.getName());
-                }
-                
-                // 显示/隐藏
-                String visText = hoveredTrack.isVisible() ? 
-                    (Icons.INVISIBLE + " 隐藏") : (Icons.VISIBLE + " 显示");
-                if (ImGui.menuItem(visText)) {
-                    hoveredTrack.setVisible(!hoveredTrack.isVisible());
-                    LOGGER.info("[Timeline] {} 轨道: {}", 
-                               hoveredTrack.isVisible() ? "显示" : "隐藏", 
-                               hoveredTrack.getName());
-                }
-                
-                ImGui.separator();
-                
-                // 删除（红色高亮）
-                ImGui.pushStyleColor(ImGuiCol.Text, 1.0f, 0.3f, 0.3f, 1.0f);
-                if (ImGui.menuItem(Icons.DELETE + " 删除轨道")) {
-                    deleteTrack(hoveredTrack);
-                }
-                ImGui.popStyleColor();
-            }
-            
-            ImGui.endPopup();
-        }
+        activeContextMenu = menuFactory.createForTrack(track);
+        activeContextMenu.open();
     }
     
     /**
@@ -1002,11 +377,7 @@ public class TimelinePanel extends AbstractPanel {
      * 开始原位编辑轨道名称
      */
     private void startEditingTrack(TimelineTrack track) {
-        editingTrack = track;
-        // 先清空缓冲区，避免遗留字符
-        trackEditBuffer.set("");
-        // 再设置新值
-        trackEditBuffer.set(track.getName());
+        renaming.startEditing(track);
         LOGGER.debug("[Timeline] 开始编辑轨道: '{}'", track.getName());
     }
     
@@ -1014,15 +385,15 @@ public class TimelinePanel extends AbstractPanel {
      * 完成原位编辑
      */
     private void finishEditingTrack(boolean apply) {
-        if (editingTrack == null) return;
+        if (!renaming.isEditing()) return;
         
         if (apply) {
             // 获取字符串并清理
-            String newName = cleanTrackName(trackEditBuffer.get());
+            String newName = cleanTrackName(renaming.buffer.get());
             
             if (!newName.isEmpty()) {
-                String oldName = editingTrack.getName();
-                editingTrack.setName(newName);
+                String oldName = renaming.track.getName();
+                renaming.track.setName(newName);
                 markDataChanged();
                 LOGGER.info("[Timeline] 轨道重命名: '{}' -> '{}'", oldName, newName);
             } else {
@@ -1030,7 +401,7 @@ public class TimelinePanel extends AbstractPanel {
             }
         }
         
-        editingTrack = null;
+        renaming.clear();
         LOGGER.debug("[Timeline] 完成编辑轨道");
     }
     
@@ -1065,12 +436,12 @@ public class TimelinePanel extends AbstractPanel {
      * 渲染原位编辑输入框
      */
     private void renderInlineEdit(float winX, float contentY) {
-        if (editingTrack == null) return;
+        if (!renaming.isEditing()) return;
         
         // 找到正在编辑的轨道索引
-        int trackIndex = model.getTracks().indexOf(editingTrack);
+        int trackIndex = model.getTracks().indexOf(renaming.track);
         if (trackIndex < 0) {
-            editingTrack = null;
+            renaming.clear();
             return;
         }
         
@@ -1090,7 +461,7 @@ public class TimelinePanel extends AbstractPanel {
         ImGui.setKeyboardFocusHere();
         
         // 输入框（支持 Enter 确认）
-        boolean enterPressed = ImGui.inputText("##TrackNameEdit", trackEditBuffer, 
+        boolean enterPressed = ImGui.inputText("##TrackNameEdit", renaming.buffer, 
             ImGuiInputTextFlags.EnterReturnsTrue);
         
         ImGui.popItemWidth();
@@ -1112,45 +483,36 @@ public class TimelinePanel extends AbstractPanel {
     }
     
     /**
-     * 复制轨道
+     * 复制轨道（控制器负责命名和偏移逻辑）
      */
     private void duplicateTrack(TimelineTrack track) {
         if (track == null) return;
         
-        // 计算同类型轨道数量
-        int sameTypeCount = 0;
-        for (TimelineTrack t : model.getTracks()) {
-            if (t.getType() == track.getType()) {
-                sameTypeCount++;
-            }
-        }
-        
-        // 创建副本
+        // 1. 计算新名称（控制器逻辑）
+        long sameTypeCount = model.getTracks().stream()
+            .filter(t -> t.getType() == track.getType())
+            .count();
         String newName = track.getType().getDisplayName() + " " + (sameTypeCount + 1);
-        TimelineTrack newTrack = new TimelineTrack(newName, track.getType());
         
-        // 复制所有片段（偏移0.5秒）
+        // 2. 创建新轨道
+        TimelineTrack newTrack = new TimelineTrack(newName, track.getType());
+
+        // 3. 复制片段，并应用业务规则（控制器逻辑）
         for (TimelineClip clip : track.getClips()) {
-            TimelineClip newClip = new TimelineClip(
-                clip.getLabel() + " (副本)",
-                clip.getStartTime() + 0.5f,
-                clip.getEndTime() + 0.5f,
-                clip.getColor()
-            );
+            TimelineClip newClip = new TimelineClip(clip); // 使用拷贝构造函数（标准 Java 模式）
+            newClip.setLabel(clip.getLabel() + " (副本)"); // 控制器负责命名
             
-            // 复制关键帧
-            for (Float kf : clip.getKeyframes()) {
-                newClip.addKeyframe(kf + 0.5f);
-            }
-            
+            // 使用 offsetTime 简化偏移逻辑（自动处理关键帧）
+            newClip.offsetTime(0.5f);
+
             newTrack.addClip(newClip);
         }
-        
+
         model.addTrack(newTrack);
-        markDataChanged(); // 标记数据已改变，触发自动保存
+        markDataChanged();
         LOGGER.info("[Timeline] 已复制轨道: {} -> {}", track.getName(), newName);
     }
-    
+
     /**
      * 上移轨道（交换索引）
      */
@@ -1186,33 +548,10 @@ public class TimelinePanel extends AbstractPanel {
     }
     
     /**
-     * 打开片段上下文菜单（支持剪切/粘贴）
+     * 打开片段上下文菜单（使用菜单工厂）
      */
     private void openClipContextMenu(TimelineClip clip) {
-        TimelineTrack track = model.findTrackForClip(clip);
-        
-        activeContextMenu = TimelineContextMenuBuilder.forClip(commandHistory)
-            .item("剪切", () -> cutClip(clip, track), "Ctrl+X")
-            .item("复制", () -> copyClip(clip), "Ctrl+C")
-            .item("粘贴", () -> pasteClipToTrack(track), "Ctrl+V")
-            .separator()
-            .item("复制片段", this::duplicateSelectedClip, "Ctrl+D")
-            .separator()
-            .item("删除", this::deleteSelectedClip, "Del")
-            .separator()
-            .item("设置时长为 1s", () -> {
-                clip.setLength(1.0f);
-                markDataChanged();
-            })
-            .item("设置时长为 2s", () -> {
-                clip.setLength(2.0f);
-                markDataChanged();
-            })
-            .item("设置时长为 5s", () -> {
-                clip.setLength(5.0f);
-                markDataChanged();
-            })
-            .build();
+        activeContextMenu = menuFactory.createForClip(clip);
     }
     
     /**
@@ -1221,9 +560,8 @@ public class TimelinePanel extends AbstractPanel {
     private void cutClip(TimelineClip clip, TimelineTrack track) {
         if (clip == null || track == null) return;
         
-        // 复制到剪贴板
-        clipboardClip = clip.clone();
-        clipboardIsCut = true;
+        // 复制到剪贴板（使用封装的状态对象 + 拷贝构造函数）
+        clipboard.set(new TimelineClip(clip), true);
         
         // 删除原片段（使用命令支持撤销）
         @SuppressWarnings("unchecked")
@@ -1242,8 +580,7 @@ public class TimelinePanel extends AbstractPanel {
     private void copyClip(TimelineClip clip) {
         if (clip == null) return;
         
-        clipboardClip = clip.clone();
-        clipboardIsCut = false;
+        clipboard.set(new TimelineClip(clip), false);
         LOGGER.info("[Timeline] 复制片段: {}", clip.getLabel());
     }
     
@@ -1251,10 +588,10 @@ public class TimelinePanel extends AbstractPanel {
      * 粘贴片段到指定轨道
      */
     private void pasteClipToTrack(TimelineTrack track) {
-        if (clipboardClip == null || track == null) return;
+        if (!clipboard.hasClip() || track == null) return;
         
-        // 创建副本
-        TimelineClip newClip = clipboardClip.clone();
+        // 创建副本（使用拷贝构造函数）
+        TimelineClip newClip = new TimelineClip(clipboard.clip);
         
         // 调整时间以避免重叠
         float pasteTime = model.getCurrentTime();
@@ -1269,25 +606,16 @@ public class TimelinePanel extends AbstractPanel {
         LOGGER.info("[Timeline] 粘贴片段: {} 到轨道 {}", newClip.getLabel(), track.getName());
         
         // 如果是剪切操作，清空剪贴板
-        if (clipboardIsCut) {
-            clipboardClip = null;
-            clipboardIsCut = false;
+        if (clipboard.isCut) {
+            clipboard.clear();
         }
     }
     
     /**
-     * 打开关键帧上下文菜单
+     * 打开关键帧上下文菜单（使用菜单工厂）
      */
     private void openKeyframeContextMenu(TimelineClip clip, float keyframeTime) {
-        activeContextMenu = TimelineContextMenuBuilder.createStandardKeyframeMenu(
-            commandHistory,
-            keyframeTime,
-            () -> {
-                RemoveKeyframeCommand cmd = new RemoveKeyframeCommand(clip.getKeyframes(), keyframeTime);
-                commandHistory.executeCommand(cmd);
-                markDataChanged(); // 标记数据已改变
-            }
-        );
+        activeContextMenu = menuFactory.createForKeyframe(clip, keyframeTime);
     }
     
     /**
@@ -1316,7 +644,7 @@ public class TimelinePanel extends AbstractPanel {
      * 粘贴到当前选中片段所在的轨道，如果没有选中则粘贴到第一个轨道
      */
     private void pasteClip() {
-        if (clipboardClip == null) return;
+        if (!clipboard.hasClip()) return;
         
         TimelineTrack targetTrack = null;
         
@@ -1379,38 +707,361 @@ public class TimelinePanel extends AbstractPanel {
     }
     
     /**
-     * 复制选中的片段
+     * 复制选中的片段（控制器负责命名和偏移逻辑）
      */
     private void duplicateSelectedClip() {
         TimelineClip selectedClip = model.getSelectedClip();
         if (selectedClip == null) return;
         
-        TimelineClip duplicate = selectedClip.clone();
-        duplicate.setStartTime(duplicate.getEndTime() + 0.5f);
-        duplicate.setEndTime(duplicate.getStartTime() + selectedClip.getLength());
+        TimelineClip duplicate = new TimelineClip(selectedClip); // 使用拷贝构造函数（标准 Java 模式）
+        duplicate.setLabel(selectedClip.getLabel() + " (副本)"); // 控制器负责命名
+        
+        // 使用 offsetTime 简化偏移逻辑（自动处理关键帧）
+        float offset = selectedClip.getLength() + 0.5f;
+        duplicate.offsetTime(offset);
         
         TimelineTrack track = model.findTrackForClip(selectedClip);
         if (track != null) {
             track.addClip(duplicate);
             model.setSelectedClip(duplicate);
-            LOGGER.info("[Timeline] 复制片段");
+            markDataChanged();
+            LOGGER.info("[Timeline] 复制片段: {}", duplicate.getLabel());
         }
     }
     
-    // ========== 工具方法 ==========
+    // ========== 回调接口实现（TimelineInteractionHandler.InteractionCallbacks）==========
     
-    private boolean isMouseHoveringRect(float x1, float y1, float x2, float y2) {
+    @Override
+    public void onClipRightClick(TimelineClip clip) {
+        openClipContextMenu(clip);
+    }
+
+    @Override
+    public void onTrackRightClick(TimelineTrack track) {
+        openTrackContextMenu(track);
+    }
+
+    @Override
+    public void onKeyframeRightClick(TimelineClip clip, float keyframeTime) {
+        openKeyframeContextMenu(clip, keyframeTime);
+    }
+
+    @Override
+    public void onKeyframeDoubleClick(TimelineClip clip, float mouseX, float contentX) {
+        handleKeyframeDoubleClick(clip, mouseX, contentX);
+    }
+
+    @Override
+    public void onClipInteractionFinished(TimelineClip clip, float originalStartTime, float originalEndTime) {
+        // 使用 ClipAdapter 简化命令创建，避免冗长的匿名内部类
+        MoveClipCommand cmd = new MoveClipCommand(
+            new ClipAdapter(clip),
+            originalStartTime,
+            originalEndTime
+        );
+        commandHistory.executeCommand(cmd);
+        model.markDurationDirty(); // 片段时间修改可能影响总时长
+        markDataChanged();
+        LOGGER.info("[Timeline] 完成片段移动操作（命令）");
+    }
+
+    @Override
+    public void onKeyframeDragFinished(TimelineClip clip, float originalTime, float newTime) {
+        // 控制器负责创建命令和管理数据修改
+        // 使用 Remove + Add 命令实现关键帧移动
+        commandHistory.executeCommand(new RemoveKeyframeCommand(clip, originalTime));
+        commandHistory.executeCommand(new AddKeyframeCommand(clip, newTime));
+        markDataChanged();
+        LOGGER.info("[Timeline] 移动关键帧从 {:.2f}s 到 {:.2f}s（命令）", originalTime, newTime);
+    }
+
+    @Override
+    public void onDataChanged() {
+        markDataChanged();
+    }
+
+    @Override
+    public void setHoveredTrack(TimelineTrack track) {
+        hoveredTrack = track;
+    }
+
+    @Override
+    public void setDropTargetTrackIndex(int index) {
+        dropTargetTrackIndex = index;
+    }
+
+    @Override
+    public boolean isMouseHoveringRect(float x1, float y1, float x2, float y2) {
         float mx = ImGui.getMousePosX();
         float my = ImGui.getMousePosY();
         return mx >= x1 && mx <= x2 && my >= y1 && my <= y2;
     }
+
+    @Override
+    public void onToggleTrackLock(TimelineTrack track) {
+        if (track == null) return;
+        track.setLocked(!track.isLocked());
+        markDataChanged();
+    }
+
+    @Override
+    public void onToggleTrackVisible(TimelineTrack track) {
+        if (track == null) return;
+        track.setVisible(!track.isVisible());
+        markDataChanged();
+    }
+
+    @Override
+    public void onContainerDropped(String containerId) {
+        try {
+            // 1. 根据ID获取容器
+            UUID containerUuid = UUID.fromString(containerId);
+            Container container = ContainerManager.getInstance().getContainer(containerUuid);
+            
+            if (container == null) {
+                LOGGER.warn("[Timeline] 容器不存在: {}", containerId);
+                return;
+            }
+            
+            // 2. 创建容器轨道（使用UI层的TimelineTrack）
+            TimelineTrack track = new TimelineTrack(container.getName());
+            track.setName("Track_" + container.getName());
+            
+            // 3. 添加到时间线模型
+            model.addTrack(track);
+            
+            // 4. 标记数据已改变
+            markDataChanged();
+            
+            LOGGER.info("[Timeline] 成功创建容器轨道: {} -> {}", 
+                container.getName(), track.getName());
+                
+        } catch (Exception e) {
+            LOGGER.error("[Timeline] 处理容器拖放失败: {}", containerId, e);
+        }
+    }
+
+    @Override
+    public void onContainerDroppedToTrack(String containerId, int trackIndex) {
+        try {
+            // 1. 根据ID获取容器
+            UUID containerUuid = UUID.fromString(containerId);
+            Container container = ContainerManager.getInstance().getContainer(containerUuid);
+            
+            if (container == null) {
+                LOGGER.warn("[Timeline] 容器不存在: {}", containerId);
+                return;
+            }
+            
+            // 2. 获取目标轨道
+            TimelineTrack targetTrack = model.getTrackAt(trackIndex);
+            if (targetTrack == null) {
+                LOGGER.warn("[Timeline] 目标轨道不存在，索引: {}", trackIndex);
+                return;
+            }
+            
+            // 3. 计算鼠标位置对应的时间
+            float mouseX = ImGui.getMousePosX();
+            float contentX = ImGui.getCursorScreenPosX() + TimelineRenderer.getLeftLabelWidth();
+            float dropTime = model.screenToTime(mouseX, contentX);
+            
+            // 4. 应用吸附
+            if (model.isSnapEnabled()) {
+                dropTime = model.snapToInterval(dropTime);
+            }
+            
+            // 5. 确保时间在有效范围内
+            dropTime = Math.max(0f, Math.min(dropTime, model.getDuration() - 1f));
+            
+            // 6. 创建容器片段
+            TimelineClip clip = new TimelineClip(
+                container.getName(), 
+                dropTime, 
+                dropTime + 1f, // 默认1秒长度
+                0xFF4A90E2 // 蓝色
+            );
+            
+            // 7. 添加到目标轨道
+            targetTrack.addClip(clip);
+            
+            // 8. 标记数据已改变
+            markDataChanged();
+            
+            LOGGER.info("[Timeline] 成功将容器 {} 添加到轨道 {} 的时间 {}s", 
+                container.getName(), targetTrack.getName(), dropTime);
+                
+        } catch (Exception e) {
+            LOGGER.error("[Timeline] 处理容器拖放到轨道失败: {} -> 轨道{}", containerId, trackIndex, e);
+        }
+    }
+
+    @Override
+    public void onContainerDropRejected(String containerId, int trackIndex) {
+        try {
+            // 1. 根据ID获取容器
+            UUID containerUuid = UUID.fromString(containerId);
+            Container container = ContainerManager.getInstance().getContainer(containerUuid);
+            
+            if (container == null) {
+                LOGGER.warn("[Timeline] 容器不存在: {}", containerId);
+                return;
+            }
+            
+            // 2. 获取目标轨道
+            TimelineTrack targetTrack = model.getTrackAt(trackIndex);
+            if (targetTrack == null) {
+                LOGGER.warn("[Timeline] 目标轨道不存在，索引: {}", trackIndex);
+                return;
+            }
+            
+            // 3. 显示错误提示
+            String containerName = container.getName();
+            String trackTypeName = targetTrack.getType().getDisplayName();
+            
+            LOGGER.warn("[Timeline] 容器拖放被拒绝: {} 不能拖放到 {} 轨道上", 
+                containerName, trackTypeName);
+            
+            // 4. 可以在这里添加用户界面提示，比如显示一个临时的错误消息
+            // 由于ImGui的限制，这里只记录日志，实际应用中可以通过其他方式显示提示
+            
+        } catch (Exception e) {
+            LOGGER.error("[Timeline] 处理容器拖放拒绝失败: {} -> 轨道{}", containerId, trackIndex, e);
+        }
+    }
+    
+    // ========== 回调接口实现（TimelineContextMenuFactory.MenuCallbacks）==========
+
+    @Override
+    public void onCutClip(TimelineClip clip, TimelineTrack track) {
+        cutClip(clip, track);
+    }
+
+    @Override
+    public void onCopyClip(TimelineClip clip) {
+        copyClip(clip);
+    }
+
+    @Override
+    public void onPasteClip(TimelineTrack track) {
+        pasteClipToTrack(track);
+    }
+
+    @Override
+    public void onDeleteClip() {
+        deleteSelectedClip();
+    }
+
+    @Override
+    public void onDuplicateClip() {
+        duplicateSelectedClip();
+    }
+
+    @Override
+    public void onSetClipLength(TimelineClip clip, float length) {
+        clip.setLength(length);
+        markDataChanged();
+    }
+
+    @Override
+    public void onDeleteTrack(TimelineTrack track) {
+        deleteTrack(track);
+    }
+
+    @Override
+    public void onStartEditTrack(TimelineTrack track) {
+        startEditingTrack(track);
+    }
+
+    @Override
+    public void onDuplicateTrack(TimelineTrack track) {
+        duplicateTrack(track);
+    }
+
+    @Override
+    public void onMoveTrackUp(TimelineTrack track) {
+        moveTrackUp(track);
+    }
+
+    @Override
+    public void onMoveTrackDown(TimelineTrack track) {
+        moveTrackDown(track);
+    }
+
+    @Override
+    public void onRemoveKeyframe(TimelineClip clip, float keyframeTime) {
+        RemoveKeyframeCommand cmd = new RemoveKeyframeCommand(clip, keyframeTime);
+        commandHistory.executeCommand(cmd);
+        markDataChanged();
+    }
+    
+    // ========== 回调接口实现（TimelineControlBar.Callbacks）==========
+    
+    @Override
+    public void onAddTrackClicked() {
+        openAddTrackMenu();
+    }
+
+    @Override
+    public void onDeleteSelectedClicked() {
+        deleteSelectedClip();
+    }
+
+    @Override
+    public void onFitToViewClicked() {
+        fitTimelineToView();
+    }
+    
+    // ========== 工具方法 ==========
     
     private float clamp(float v, float a, float b) {
         return Math.max(a, Math.min(b, v));
     }
     
-    private static int rgba(int r, int g, int b, int a) {
-        return ((a & 0xFF) << 24) | ((b & 0xFF) << 16) | ((g & 0xFF) << 8) | ((r & 0xFF));
+    // ========== 私有内部类：状态封装 ==========
+    
+    /**
+     * 封装剪贴板状态
+     */
+    private static class ClipboardState {
+        TimelineClip clip = null;
+        boolean isCut = false;
+
+        void set(TimelineClip clip, boolean isCut) {
+            this.clip = clip;
+            this.isCut = isCut;
+        }
+
+        void clear() {
+            this.clip = null;
+            this.isCut = false;
+        }
+        
+        boolean hasClip() {
+            return clip != null;
+        }
+    }
+
+    /**
+     * 封装轨道重命名状态
+     */
+    private static class RenamingState {
+        TimelineTrack track = null;
+        final ImString buffer = new ImString(256);
+
+        void startEditing(TimelineTrack track) {
+            this.track = track;
+            this.buffer.set("");  // 先清空
+            this.buffer.set(track.getName());  // 再设置
+        }
+
+        void clear() {
+            this.track = null;
+            this.buffer.set("");
+        }
+        
+        boolean isEditing() {
+            return track != null;
+        }
     }
     
     @Override

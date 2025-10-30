@@ -59,6 +59,12 @@ public abstract class AbstractPanel implements IPanel {
                     windowStarted = ImGui.begin(getWindowName(), windowFlags);
                     if (windowStarted) {
                         try {
+                            // 检查是否点击了关闭按钮
+                            if (ImGui.isWindowAppearing()) {
+                                // 设置窗口默认大小（高度为80%）
+                                setDefaultWindowSize();
+                            }
+                            
                             if (renderPlaceholder || hidden) {
                                 // 渲染隐藏占位符
                                 renderHiddenPlaceholder();
@@ -214,7 +220,8 @@ public abstract class AbstractPanel implements IPanel {
      * @return 窗口标志，默认为0（使用ImGui默认标志）
      */
     protected int getWindowFlags() {
-        return 0;
+        // 默认添加关闭按钮，但允许子类重写
+        return imgui.flag.ImGuiWindowFlags.None;
     }
 
     /**
@@ -233,6 +240,23 @@ public abstract class AbstractPanel implements IPanel {
      */
     protected boolean shouldShowHiddenPlaceholderIndicator() {
         return true;
+    }
+
+    /**
+     * 设置窗口的默认大小
+     * 子类可以重写此方法来设置自定义的默认大小
+     */
+    protected void setDefaultWindowSize() {
+        // 获取视口大小
+        imgui.ImGuiViewport viewport = imgui.ImGui.getMainViewport();
+        float viewportWidth = viewport.getWorkSizeX();
+        float viewportHeight = viewport.getWorkSizeY();
+        
+        // 设置默认窗口大小（宽度保持默认，高度为视口高度的80%）
+        float defaultWidth = Math.min(400.0f, viewportWidth * 0.3f); // 宽度为视口宽度的30%，最大400px
+        float defaultHeight = viewportHeight * 0.8f; // 高度为视口高度的80%
+        
+        imgui.ImGui.setNextWindowSize(defaultWidth, defaultHeight, imgui.flag.ImGuiCond.FirstUseEver);
     }
 
 }

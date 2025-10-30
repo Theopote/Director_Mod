@@ -110,6 +110,25 @@ public class PanelRegistry implements IPanelRegistry {
         return panel;
     }
     
+    /**
+     * 通过面板名称获取面板实例
+     * @param panelName 面板名称
+     * @return 面板实例，如果未找到则返回null
+     */
+    public IPanel getPanelByName(String panelName) {
+        if (panelName == null || panelName.trim().isEmpty()) {
+            return null;
+        }
+        
+        for (IPanel panel : panelMap.values()) {
+            if (panelName.equals(panel.getPanelName())) {
+                return panel;
+            }
+        }
+        
+        return null;
+    }
+    
     @Override
     public boolean hasPanel(Class<? extends IPanel> panelType) {
         return panelType != null && panelMap.containsKey(panelType);

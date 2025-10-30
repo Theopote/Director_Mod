@@ -1,9 +1,12 @@
 package com.chronoblocks.mixin;
 
+import com.chronoblocks.core.selection.SelectionInputHandler;
 import com.chronoblocks.ui.ChronoBlocksScreen;
-import net.minecraft.client.Mouse;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.Mouse;
 import org.lwjgl.glfw.GLFW;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -13,94 +16,154 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * 鼠标输入Mixin
- * <p>
- * 拦截鼠标输入事件，根据光标位置决定是否允许游戏处理输入
+ * 🖱️ MouseMixin v2.0 (ChronoBlocks 专用输入系统)
+ * ======================================================
+ * ✅ 改进点：
+ * - 精确 ImGui 区域 Hover 判断（GLFW 像素坐标）
+ * - 线程安全的 SelectionInputHandler 拖拽逻辑
+ * - 视角拖拽灵敏度自动匹配鼠标灵敏度
+ * - 在 UI 外自动恢复光标锁定
+ * - 减少多余日志，优化逻辑层次
  */
 @Mixin(Mouse.class)
-public class MouseMixin {
+public abstract class MouseMixin {
+
+    @Unique
+    private static final Logger LOGGER = LoggerFactory.getLogger("ChronoBlocks-MouseMixin");
 
     @Shadow @Final private MinecraftClient client;
     @Shadow private double cursorDeltaX;
     @Shadow private double cursorDeltaY;
-    
+
     @Unique
     private boolean chronoblocks$isDragging = false;
-    
+
     @Unique
-    private static final double LOOK_SENSITIVITY = 5.0;  // 🎯 提高灵敏度，让视角移动更快
-    
+    private SelectionInputHandler selectionInputHandler;
+
+    @Unique
+    private double lastX, lastY;
+
     /**
-     * 拦截光标移动事件
-     * <p>
-     * 当鼠标在UI外且按住中键时，处理视角移动
+     * 🔍 判断鼠标是否在 ChronoBlocks ImGui 区域内
      */
-    @Inject(method = "onCursorPos", at = @At("HEAD"))
+    @Unique
+    private boolean isHoveringChronoBlocksUI(ChronoBlocksScreen screen) {
+        if (client == null || client.getWindow() == null) return false;
+        double[] x = new double[1];
+        double[] y = new double[1];
+        GLFW.glfwGetCursorPos(client.getWindow().getHandle(), x, y);
+        return screen.isMouseOverChronoBlocksGui(x[0], y[0]);
+    }
+
+    /**
+     * 🎯 光标移动事件：控制中键拖动视角
+     * 在 @At("TAIL") 阶段调用，确保 cursorDelta 已更新。
+     */
+    @Inject(method = "onCursorPos", at = @At("TAIL"))
     private void onCursorPos(long window, double x, double y, CallbackInfo ci) {
+        if (!(client.currentScreen instanceof ChronoBlocksScreen screen)) return;
+
+        boolean hover = isHoveringChronoBlocksUI(screen);
+
+        // 更新位移记录
+        double dx = x - lastX;
+        double dy = y - lastY;
+        lastX = x;
+        lastY = y;
+
+        if (!hover && chronoblocks$isDragging && client.player != null) {
+            double baseSensitivity = client.options.getMouseSensitivity().getValue();
+            double scale = baseSensitivity * 2.0; // ✅ 动态灵敏度系数
+            client.player.changeLookDirection(dx * scale, dy * scale);
+        }
+    }
+
+    /**
+     * 🖱️ 鼠标按键事件
+     * - 中键控制视角拖拽模式
+     * - 左键触发选择逻辑
+     */
+    @Inject(method = "onMouseButton", at = @At("HEAD"), cancellable = true)
+    private void onMouseButton(long window, int button, int action, int mods, CallbackInfo ci) {
+        if (selectionInputHandler == null) {
+            selectionInputHandler = new SelectionInputHandler();
+        }
+
+        // 🎥 中键：切换视角拖拽模式
+        if (button == GLFW.GLFW_MOUSE_BUTTON_MIDDLE) {
+            chronoblocks$isDragging = (action == GLFW.GLFW_PRESS);
+            return;
+        }
+
+        // 仅在 ChronoBlocks 打开时拦截
         if (client.currentScreen instanceof ChronoBlocksScreen screen) {
-            // 直接检查鼠标是否在UI上
-            boolean mouseOverGui = screen.isMouseOverChronoBlocksGui(x, y);
-            
-            // 如果鼠标在UI外且正在拖动（按住中键），处理视角移动
-            if (!mouseOverGui && chronoblocks$isDragging) {
-                double mouseSensitivity = client.options.getMouseSensitivity().getValue();
-                
-                if (client.player != null) {
-                    client.player.changeLookDirection(
-                        cursorDeltaX * mouseSensitivity * LOOK_SENSITIVITY,
-                        cursorDeltaY * mouseSensitivity * LOOK_SENSITIVITY
-                    );
+            boolean hover = isHoveringChronoBlocksUI(screen);
+
+            if (hover) {
+                // 🧱 在 ImGui 面板上点击：拦截事件
+                ci.cancel();
+                return;
+            }
+
+            // 🧭 不在 UI 上：交给方块选择逻辑处理
+            if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
+                boolean shift = (mods & GLFW.GLFW_MOD_SHIFT) != 0;
+                synchronized (selectionInputHandler) {
+                    if (action == GLFW.GLFW_PRESS) {
+                        LOGGER.debug("[ChronoBlocks] 左键按下（shift={}）", shift);
+                        selectionInputHandler.handleMouseDragStart(true);
+                    } else if (action == GLFW.GLFW_RELEASE) {
+                        LOGGER.debug("[ChronoBlocks] 左键释放，拖拽状态={}", selectionInputHandler.isDragging());
+                        selectionInputHandler.handleMouseClick(true, shift);
+                        if (selectionInputHandler.isDragging()) {
+                            selectionInputHandler.handleMouseDragEnd(true);
+                        }
+                    }
                 }
             }
         }
     }
-    
+
     /**
-     * 拦截鼠标按钮事件
-     */
-    @Inject(method = "onMouseButton", at = @At("HEAD"), cancellable = true)
-    private void onMouseButton(long window, int button, int action, int mods, CallbackInfo ci) {
-        // 中键事件处理
-        if (button == GLFW.GLFW_MOUSE_BUTTON_MIDDLE) {
-            if (action == GLFW.GLFW_PRESS) {
-                chronoblocks$isDragging = true;
-            } else if (action == GLFW.GLFW_RELEASE) {
-                chronoblocks$isDragging = false;
-            }
-            return;
-        }
-        
-        if (client.currentScreen instanceof ChronoBlocksScreen screen) {
-            // 其他鼠标按钮：如果在UI上，拦截事件
-            boolean mouseOverGui = screen.isMouseOverChronoBlocksGui(client.mouse.getX(), client.mouse.getY());
-            if (mouseOverGui) {
-                ci.cancel();
-            }
-        }
-    }
-    
-    /**
-     * 拦截鼠标滚轮事件
+     * 🌀 鼠标滚轮事件：在 UI 区域内拦截
      */
     @Inject(method = "onMouseScroll", at = @At("HEAD"), cancellable = true)
     private void onMouseScroll(long window, double horizontal, double vertical, CallbackInfo ci) {
         if (client.currentScreen instanceof ChronoBlocksScreen screen) {
-            boolean mouseOverGui = screen.isMouseOverChronoBlocksGui(client.mouse.getX(), client.mouse.getY());
-            if (mouseOverGui) {
+            if (isHoveringChronoBlocksUI(screen)) {
                 ci.cancel();
             }
         }
     }
-    
+
     /**
-     * 阻止在UI上时锁定光标
+     * 🔒 防止 UI 区域中光标被锁定
+     * 在 UI 外自动恢复锁定状态
      */
     @Inject(method = "lockCursor", at = @At("HEAD"), cancellable = true)
     private void onLockCursor(CallbackInfo ci) {
         if (client.currentScreen instanceof ChronoBlocksScreen screen) {
-            boolean mouseOverGui = screen.isMouseOverChronoBlocksGui(client.mouse.getX(), client.mouse.getY());
-            if (mouseOverGui) {
+            boolean hover = isHoveringChronoBlocksUI(screen);
+            if (hover) {
                 ci.cancel();
+            } else if (!client.mouse.isCursorLocked()) {
+                client.mouse.lockCursor();
+            }
+        }
+    }
+
+    /**
+     * ⏱️ 每帧更新拖拽逻辑（线程安全）
+     */
+    @Inject(method = "tick", at = @At("HEAD"))
+    private void onTick(CallbackInfo ci) {
+        if (selectionInputHandler != null) {
+            synchronized (selectionInputHandler) {
+                selectionInputHandler.tick();
+                if (selectionInputHandler.isDragging()) {
+                    selectionInputHandler.handleMouseDragUpdate();
+                }
             }
         }
     }

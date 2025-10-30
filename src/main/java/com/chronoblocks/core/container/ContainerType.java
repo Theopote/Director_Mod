@@ -12,7 +12,7 @@ public enum ContainerType {
     /**
      * 分组容器 - 用于组织其他容器
      */
-    GROUP("分组", Icons.FOLDER),
+    GROUP("容器", Icons.FOLDER),
     
     /**
      * 建筑容器 - 代表一个建筑结构

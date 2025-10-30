@@ -1,5 +1,6 @@
 package com.chronoblocks.ui.imgui;
 
+import com.chronoblocks.ui.theme.UITheme;
 import imgui.ImFontAtlas;
 import imgui.ImFontConfig;
 import imgui.ImGuiIO;
@@ -26,9 +27,9 @@ import java.io.InputStream;
 public class ImGuiFontManager {
     private static final Logger LOGGER = LoggerFactory.getLogger("ChronoBlocks-FontManager");
     
-    // 字体大小配置（24px按钮 + 18px字体 + 上下各3px边距）
-    private static final float DEFAULT_FONT_SIZE = 18.0f;  // 18px字体，适配24px按钮
-    private static final float ICON_FONT_SIZE = 18.0f;  // 图标字体大小（与主字体相同）
+    // 字体大小配置（从UITheme获取，保持一致性）
+    private static final float DEFAULT_FONT_SIZE = UITheme.FontSize.DEFAULT;  // 18px字体，适配24px按钮
+    private static final float ICON_FONT_SIZE = UITheme.FontSize.ICON;        // 图标字体大小（与主字体相同）
     
     // 字体资源路径
     private static final String FONT_PATH_PREFIX = "/assets/chronoblocks/fonts/";
@@ -215,16 +216,20 @@ public class ImGuiFontManager {
     
     /**
      * 获取默认字体大小
+     * @deprecated 建议直接使用 UITheme.FontSize.DEFAULT
      */
+    @Deprecated
     public static float getDefaultFontSize() {
-        return DEFAULT_FONT_SIZE;
+        return UITheme.FontSize.DEFAULT;
     }
     
     /**
      * 获取图标字体大小
+     * @deprecated 建议直接使用 UITheme.FontSize.ICON
      */
+    @Deprecated
     public static float getIconFontSize() {
-        return ICON_FONT_SIZE;
+        return UITheme.FontSize.ICON;
     }
 }
 

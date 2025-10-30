@@ -3,6 +3,7 @@ package com.chronoblocks.ui.panels;
 import com.chronoblocks.core.animation.InterpolationType;
 import com.chronoblocks.core.animation.Keyframe;
 import com.chronoblocks.ui.theme.UITheme;
+import com.chronoblocks.ui.theme.Icons;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImInt;
@@ -148,7 +149,7 @@ public class BatchKeyframeEditor extends AbstractPanel {
      * 渲染插值类型设置区域
      */
     private void renderInterpolationSection() {
-        ImGui.textColored(0.6f, 0.8f, 1.0f, 1.0f, "📊 插值类型");
+        ImGui.textColored(0.6f, 0.8f, 1.0f, 1.0f, Icons.STATS + " 插值类型");
         ImGui.spacing();
         
         // 插值类型下拉框

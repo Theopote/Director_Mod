@@ -60,6 +60,13 @@ public interface IPanelRegistry {
     <T extends IPanel> T getRequiredPanel(Class<T> panelType);
     
     /**
+     * 通过面板名称获取面板实例
+     * @param panelName 面板名称
+     * @return 面板实例，如果未找到则返回null
+     */
+    IPanel getPanelByName(String panelName);
+    
+    /**
      * 检查是否已注册指定类型的面板
      * @param panelType 面板类型
      * @return true如果已注册，false否则

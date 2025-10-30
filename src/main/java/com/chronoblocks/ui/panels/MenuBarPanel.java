@@ -568,32 +568,29 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
         
         if (ImGui.begin("##StatusBar", flags)) {
             try {
-                // FPS
-                UITheme.label(String.format("FPS: %.1f", fps), UITheme.DarkTheme.TEXT);
-                ImGui.sameLine(150);
                 
                 // 播放状态
                 String playStatus = pc.isPlaying() ? (Icons.PLAY + " Playing") : (Icons.PAUSE + " Paused");
                 int statusColor = pc.isPlaying() 
-                    ? rgba(51, 204, 51, 255)  // 绿色
+                    ? rgba(51, 204, 51)  // 绿色
                     : UITheme.DarkTheme.TEXT;
                 UITheme.label(playStatus, statusColor);
-                ImGui.sameLine(300);
+                ImGui.sameLine(150);
                 
                 // 时间轴
                 UITheme.label(String.format("Time: %.2fs / %.2fs", currentTimeline, totalDuration), 
                     UITheme.DarkTheme.TEXT);
-                ImGui.sameLine(500);
+                ImGui.sameLine(350);
                 
                 // 面板数量
                 UITheme.label(String.format("Panels: %d/%d visible", visiblePanels, totalPanels), 
                     UITheme.DarkTheme.TEXT_DISABLED);
-                ImGui.sameLine(700);
+                ImGui.sameLine(550);
                 
                 // 循环状态
                 if (pc.isLoop()) {
-                    UITheme.label(Icons.LOOP + " Loop", rgba(61, 133, 224, 255));
-                    ImGui.sameLine(850);
+                    UITheme.label(Icons.LOOP + " Loop", rgba(61, 133, 224));
+                    ImGui.sameLine(750);
                 }
                 
                 // 播放速度
@@ -612,8 +609,8 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
     }
     
     // RGBA颜色打包辅助方法
-    private static int rgba(int r, int g, int b, int a) {
-        return (r << 24) | (g << 16) | (b << 8) | a;
+    private static int rgba(int r, int g, int b) {
+        return (r << 24) | (g << 16) | (b << 8) | 255;
     }
 
     // ==================== 对话框 ====================
