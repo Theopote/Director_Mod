@@ -1,6 +1,6 @@
 package com.chronoblocks.core.selection.algorithms;
 
-import com.chronoblocks.core.selection.filter.SelectionFilter;
+import com.chronoblocks.core.selection.block_filters.BlockFilter;
 import net.minecraft.block.BlockState;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -23,7 +23,7 @@ public final class ConnectedSelection {
 
     public static Set<BlockPos> select(World world,
                                        BlockPos start,
-                                       SelectionFilter filter,
+                                       BlockFilter filter,
                                        boolean faceOnly6,
                                        int maxCount,
                                        int maxDepth) {

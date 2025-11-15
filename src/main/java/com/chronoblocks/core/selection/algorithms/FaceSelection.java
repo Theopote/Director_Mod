@@ -1,6 +1,6 @@
 package com.chronoblocks.core.selection.algorithms;
 
-import com.chronoblocks.core.selection.filter.SelectionFilter;
+import com.chronoblocks.core.selection.block_filters.BlockFilter;
 import net.minecraft.block.BlockState;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
@@ -23,7 +23,7 @@ public final class FaceSelection {
 
     public static Set<BlockPos> select(World w,
                                        BlockHitResult hit,
-                                       SelectionFilter filter,
+                                       BlockFilter filter,
                                        int maxCount) {
         if (w == null || hit == null) return Set.of();
 

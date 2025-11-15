@@ -1,12 +1,11 @@
 package com.chronoblocks.client.renderer;
 
-import com.chronoblocks.core.animation.AnimationApplicator;
+import com.chronoblocks.animation.core.EvaluatedPose;
+import com.chronoblocks.animation.integration.playback.ClipPlaybackRuntimeManager;
 import com.chronoblocks.core.container.Container;
 import com.chronoblocks.core.container.ContainerManager;
 import com.chronoblocks.core.container.ContainerTransform;
 import com.mojang.blaze3d.systems.RenderSystem;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.VertexBuffer;
 import net.minecraft.client.render.*;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.BlockPos;
@@ -61,6 +60,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ContainerRenderer {
     private static final Logger LOGGER = LoggerFactory.getLogger(ContainerRenderer.class);
     private static final ContainerRenderer INSTANCE = new ContainerRenderer();
+    private final Map<UUID, EvaluatedPose> poseOverrides = new ConcurrentHashMap<>();
+    private final Map<UUID, ContainerTransform> transformCache = new ConcurrentHashMap<>();
     
     // ==================== 渲染配置 ====================
     
@@ -94,6 +95,7 @@ public class ContainerRenderer {
     private Color boundingBoxColor = new Color(0, 255, 255, 200);
     
     /** 选中容器边界框颜色（黄色） */
+    @SuppressWarnings("unused")
     private Color selectedBoundingBoxColor = new Color(255, 255, 0, 255);
     
     /** 中心点颜色（红色） */
@@ -169,13 +171,46 @@ public class ContainerRenderer {
             // 遍历所有容器
             for (Container container : containerManager.getAllContainers()) {
                 if (container == null) continue;
-                
-                // 获取容器变换
-                ContainerTransform transform = AnimationApplicator.get()
-                    .getContainerTransform(container.getId());
-                
-                if (transform == null) {
-                    transform = new ContainerTransform();
+                UUID containerId = container.getId();
+
+                ContainerTransform transform = transformCache
+                    .computeIfAbsent(containerId, id -> new ContainerTransform());
+                transform.reset();
+
+                EvaluatedPose pose = ClipPlaybackRuntimeManager.get().getPose(containerId);
+                EvaluatedPose overridePose = poseOverrides.get(containerId);
+                if (overridePose != null) {
+                    pose = pose.merge(overridePose);
+                }
+
+                if (pose.position() != null) {
+                    transform.setPosition(
+                        (float) pose.position().x,
+                        (float) pose.position().y,
+                        (float) pose.position().z
+                    );
+                }
+
+                if (pose.scale() != null) {
+                    transform.setScale(
+                        (float) pose.scale().x,
+                        (float) pose.scale().y,
+                        (float) pose.scale().z
+                    );
+                }
+
+                if (pose.rotation() != null) {
+                    transform.setRotation(
+                        (float) pose.rotation().x,
+                        (float) pose.rotation().y,
+                        (float) pose.rotation().z
+                    );
+                }
+
+                if (pose.visibility() != 1.0) {
+                    transform.setOpacity(
+                        (float) Math.max(0.0, Math.min(1.0, pose.visibility()))
+                    );
                 }
                 
                 // 渲染容器
@@ -231,6 +266,9 @@ public class ContainerRenderer {
                 
                 // 应用动画变换
                 applyTransform(matrices, transform);
+                if (transform.getOpacity() <= 0.01f) {
+                    return;
+                }
                 
                 // 计算LOD级别
                 int lodLevel = calculateLODLevel(distance);
@@ -541,6 +579,17 @@ public class ContainerRenderer {
     public void setEnabled(boolean enabled) { 
         this.enabled = enabled;
         LOGGER.info("[ContainerRenderer] Rendering {}", enabled ? "enabled" : "disabled");
+    }
+
+    public void applyEvaluatedPose(UUID containerId, EvaluatedPose pose) {
+        if (containerId == null) {
+            return;
+        }
+        if (pose == null || pose.equals(EvaluatedPose.empty())) {
+            poseOverrides.remove(containerId);
+        } else {
+            poseOverrides.put(containerId, pose);
+        }
     }
     
     public boolean isShowBoundingBox() { return showBoundingBox; }

@@ -140,7 +140,7 @@ public class UITheme {
         public static final float PANEL_SPACING = 8.0f;           // 面板之间的间距
         
         // 元素间距（推荐的统一间距）
-        public static final float ELEMENT_SPACING = 6.0f;         // 元素之间的标准间距（水平和垂直）
+        public static final float ELEMENT_SPACING = 4.0f;         // 元素之间的标准间距（水平和垂直）
         public static final float ELEMENT_SPACING_HORIZONTAL = 6.0f;  // 左右按钮之间
         public static final float ELEMENT_SPACING_VERTICAL = 6.0f;    // 上下元素之间
         
@@ -153,7 +153,7 @@ public class UITheme {
         public static final float BUTTON_WIDTH_AUTO = 0.0f;  // 自动宽度（根据文字长度）
         
         // 输入框
-        public static final float INPUT_HEIGHT = 24.0f;
+        public static final float INPUT_HEIGHT = 22.0f;
         public static final float INPUT_PADDING = 8.0f;
         
         // 标题栏
@@ -184,8 +184,8 @@ public class UITheme {
      */
     public static class FontSize {
         // 基础字体大小
-        public static final float DEFAULT = 18.0f;      // 默认字体大小（中英文）
-        public static final float ICON = 18.0f;         // 图标字体大小
+        public static final float DEFAULT = 16.0f;      // 默认字体大小（中英文）
+        public static final float ICON = 16.0f;         // 图标字体大小
         
         // 分级字体大小
         public static final float TINY = 12.0f;

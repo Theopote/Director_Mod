@@ -1,7 +1,6 @@
 package com.chronoblocks.client;
 
 import com.chronoblocks.i18n.LanguageChangeListener;
-import com.chronoblocks.client.input.ChronoBlocksInputSystem;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
 import net.minecraft.resource.ResourceType;
 
@@ -10,7 +9,6 @@ import net.minecraft.client.MinecraftClient;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
-import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
@@ -18,6 +16,7 @@ import net.minecraft.item.ItemStack;
 import net.minecraft.item.Item;
 import com.chronoblocks.registry.ModItems;
 import com.chronoblocks.client.debug.ChronoBlocksDebugger;
+import com.chronoblocks.client.renderer.pipeline.ChronoBlocksRendererRegistry;
 // ImGui 相关导入已移除，现在由 ImGuiRenderer 统一管理
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,6 +67,10 @@ public class ChronoBlocksClient implements ClientModInitializer {
         
         // 注册自定义键绑定
         registerKeyBindings();
+        initializeRendererRegistry();
+        
+        // 初始化容器实时接收订阅器 (v5.0)
+        initializeContainerIntakeSystem();
         
         // 注册客户端启动完成事件
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
@@ -124,15 +127,6 @@ public class ChronoBlocksClient implements ClientModInitializer {
         // 注册导演模式快捷键
         registerAdminModeKeyBindings();
         
-        // 注册容器渲染事件 v4.5
-        registerContainerRenderingEvents();
-        
-        // 注册选择渲染事件
-        registerSelectionRenderingEvents();
-        
-        // 注册方块边框渲染事件
-        registerBlockOutlineRenderingEvents();
-        
         LOGGER.info("[ChronoBlocks] Event handlers registered successfully");
     }
     
@@ -148,42 +142,29 @@ public class ChronoBlocksClient implements ClientModInitializer {
         }
     }
 
-    /**
-     * 注册容器渲染事件（v4.5 动画系统）
-     */
-    private void registerContainerRenderingEvents() {
+    private void initializeRendererRegistry() {
         try {
-            com.chronoblocks.client.renderer.ContainerRenderEvents.register();
-            LOGGER.info("[ChronoBlocks] 容器渲染事件已注册 v4.5");
+            ChronoBlocksRendererRegistry registry = ChronoBlocksRendererRegistry.get();
+            if (!registry.isInitialized()) {
+                registry.initialize();
+                LOGGER.info("[ChronoBlocks] Renderer registry initialized at client startup");
+            } else {
+                LOGGER.debug("[ChronoBlocks] Renderer registry already initialized, skipping client startup init.");
+            }
         } catch (Exception e) {
-            LOGGER.error("[ChronoBlocks] 注册容器渲染事件失败", e);
+            LOGGER.error("[ChronoBlocks] 初始化渲染注册表失败", e);
         }
     }
     
     /**
-     * 注册选择渲染事件
+     * 初始化容器实时接收系统 (v5.0)
      */
-    private void registerSelectionRenderingEvents() {
+    private void initializeContainerIntakeSystem() {
         try {
-            com.chronoblocks.client.renderer.SelectionRenderEvents.register();
-            LOGGER.info("[ChronoBlocks] 选择渲染事件已注册");
+            com.chronoblocks.core.container.ContainerIntakeSubscriber.initialize();
+            LOGGER.info("[ChronoBlocks] 容器实时接收系统已初始化");
         } catch (Exception e) {
-            LOGGER.error("[ChronoBlocks] 注册选择渲染事件失败", e);
-        }
-    }
-    
-    /**
-     * 注册方块边框渲染事件
-     */
-    private void registerBlockOutlineRenderingEvents() {
-        try {
-            // 注册世界渲染后事件 - 在所有实体渲染完成后渲染方块边框
-            // 传递 VertexConsumerProvider 确保使用正确的渲染层
-            WorldRenderEvents.AFTER_ENTITIES.register((context) -> 
-                ChronoBlocksInputSystem.renderOutline(context.matrixStack(), context.consumers()));
-            LOGGER.info("[ChronoBlocks] 方块边框渲染事件已注册");
-        } catch (Exception e) {
-            LOGGER.error("[ChronoBlocks] 注册方块边框渲染事件失败", e);
+            LOGGER.error("[ChronoBlocks] 初始化容器实时接收系统失败", e);
         }
     }
     
@@ -533,15 +514,6 @@ public class ChronoBlocksClient implements ClientModInitializer {
         }
     }
 
-    // ImGui 状态检查方法已移除，现在由 ImGuiRenderer 统一管理
-
-    /**
-     * 检查玩家是否持有工具（使用缓存）
-     */
-    public static boolean isPlayerHoldingTool() {
-        return playerHoldingTool;
-    }
-
     /**
      * 获取性能统计信息
      */
@@ -568,29 +540,4 @@ public class ChronoBlocksClient implements ClientModInitializer {
             (currentTime - lastItemUseTime) < ITEM_USE_DEBOUNCE ? "Yes" : "No"
         );
     }
-
-    /**
-     * 检查防抖状态
-     */
-    public static boolean isDebounceActive() {
-        long currentTime = System.currentTimeMillis();
-        return (currentTime - lastItemUseTime) < ITEM_USE_DEBOUNCE;
-    }
-
-    /**
-     * 检查ChronoBlocks屏幕是否当前打开
-     */
-    public static boolean isChronoBlocksScreenOpen() {
-        try {
-            MinecraftClient client = MinecraftClient.getInstance();
-            return client != null && isChronoBlocksScreenAlreadyOpen(client);
-        } catch (Exception e) {
-            LOGGER.debug("[ChronoBlocks] Error checking if ChronoBlocks screen is open: {}", e.getMessage());
-            return false;
-        }
-    }
-
-    // 主题相关方法已移除，现在由 UITheme 统一管理
-    
-    // ImGui 组件检查方法已移除，现在由 ImGuiRenderer 统一管理
 }

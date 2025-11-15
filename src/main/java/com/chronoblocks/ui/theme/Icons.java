@@ -2,7 +2,7 @@ package com.chronoblocks.ui.theme;
 
 /**
  * ChronoBlocks Icons - Auto-generated from IcoMoon
- * 
+ * <p>
  * Unicode Range: U+E900 - U+E9A2
  * Total Icons: 161
  * Generated: 2025-10-18 17:11:09

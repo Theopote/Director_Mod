@@ -3,7 +3,6 @@ package com.chronoblocks.ui.panels;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
-import com.chronoblocks.core.animation.AnimationState;
 import com.chronoblocks.core.playback.PlaybackController;
 import com.chronoblocks.ui.ChronoBlocksUIManager;
 import com.chronoblocks.ui.aware.IPanelRegistryAware;
@@ -19,7 +18,7 @@ import com.chronoblocks.ui.theme.Icons;
  * <ul>
  *   <li>顶部菜单栏 - File / Edit / Animation / Container / Window / Tools / Help</li>
  *   <li>底部状态栏 - FPS / 播放状态 / 时间轴 / 面板数量</li>
- *   <li>动态状态同步 - 与 PlaybackController、AnimationState 实时联动</li>
+ *   <li>动态状态同步 - 与 PlaybackController、Timeline 服务实时联动</li>
  *   <li>面板管理集成 - 与 PanelRegistry 深度集成</li>
  *   <li>专业对话框 - About / Settings / Shortcuts</li>
  * </ul>
@@ -217,8 +216,7 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
      * 动画菜单 - 动画控制与管理
      */
     private void renderAnimationMenu() {
-            PlaybackController pc = PlaybackController.get();
-            AnimationState state = AnimationState.get();
+        PlaybackController pc = PlaybackController.get();
             
         if (ImGui.beginMenu(Icons.ANIMATION + " Animation")) {
             // 播放控制
@@ -288,13 +286,10 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
             
             // 时间轴导航
             if (ImGui.menuItem(Icons.SKIP_BACK + " Go to Start", "Home")) {
-                state.setCurrentTime(0f);
+                pc.seek(0f);
             }
             if (ImGui.menuItem(Icons.SKIP_FORWARD + " Go to End", "End")) {
-                if (state.getClip() != null) {
-                    float duration = state.getClip().computeDuration();
-                    state.setCurrentTime(duration);
-                }
+                pc.seek(pc.getDuration());
             }
             
             ImGui.separator();
@@ -537,7 +532,6 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
         
         // 获取状态信息
         PlaybackController pc = PlaybackController.get();
-        AnimationState state = AnimationState.get();
         
         int visiblePanels = 0;
         int totalPanels = 0;
@@ -550,9 +544,8 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
             }
         }
         
-        float currentTimeline = state.getCurrentTime();
-        float totalDuration = state.getClip() != null
-            ? state.getClip().computeDuration() : 0f;
+        float currentTimeline = pc.getCurrentTime();
+        float totalDuration = pc.getDuration();
         
         // 渲染状态栏窗口
         float statusBarHeight = 22.0f;

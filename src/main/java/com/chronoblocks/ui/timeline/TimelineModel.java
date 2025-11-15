@@ -5,7 +5,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 /**
  * Timeline 数据模型（v7.4 统一真相源）
@@ -14,7 +13,7 @@ import java.util.stream.Collectors;
  * 
  * 架构改进：
  * - ✅ 单一真相源：TimelineModel 拥有所有数据，不再委托
- * - ✅ 消除单例依赖：不依赖 AnimationState 或 PlaybackController
+ * - ✅ 消除单例依赖：不依赖旧 AnimationState 或 PlaybackController
  * - ✅ 完全自洽：模型管理自己的状态
  * - ✅ 易于测试：无全局依赖
  * 

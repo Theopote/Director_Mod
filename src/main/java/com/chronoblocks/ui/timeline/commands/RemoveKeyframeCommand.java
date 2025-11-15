@@ -1,0 +1,45 @@
+package com.chronoblocks.ui.timeline.commands;
+
+import com.chronoblocks.ui.timeline.TimelineClip;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * 删除关键帧命令。
+ */
+public class RemoveKeyframeCommand implements TimelineCommand {
+    private static final Logger LOGGER = LoggerFactory.getLogger(RemoveKeyframeCommand.class);
+
+    private final TimelineClip clip;
+    private final float time;
+    private boolean removed = false;
+
+    public RemoveKeyframeCommand(TimelineClip clip, float time) {
+        this.clip = clip;
+        this.time = time;
+    }
+
+    @Override
+    public void execute() {
+        removed = clip.removeKeyframe(time);
+        if (removed) {
+            LOGGER.debug("[Timeline] 删除关键帧 {:.2f}", time);
+        }
+    }
+
+    @Override
+    public void undo() {
+        if (!removed) {
+            return;
+        }
+        clip.addKeyframe(time);
+        LOGGER.debug("[Timeline] 恢复关键帧 {:.2f}", time);
+    }
+
+    @Override
+    public String getDescription() {
+        return String.format("删除关键帧(%.2fs)", time);
+    }
+}
+
+

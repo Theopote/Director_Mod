@@ -38,6 +38,14 @@ public interface SelectionTool {
 
     /** 鼠标点击选择逻辑 */
     void onClick(World world, BlockPos pos, boolean isShiftDown);
+    
+    /** 鼠标右键点击逻辑（可选，用于两点式建盒等） */
+    default void onRightClick(World world, BlockPos pos) {
+        // 默认实现：无操作
+    }
+
+    /** 鼠标悬停逻辑（可选，用于预览） */
+    default void onHover(World world, BlockPos pos) {}
 
     /** 拖拽选择开始 */
     default void onDragStart(World world, BlockPos start) {}

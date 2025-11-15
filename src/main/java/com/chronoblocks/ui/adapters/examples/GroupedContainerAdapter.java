@@ -1,6 +1,7 @@
 package com.chronoblocks.ui.adapters.examples;
 
 import com.chronoblocks.core.container.Container;
+import com.chronoblocks.core.container.ContainerAnimationPreset;
 import com.chronoblocks.core.container.ContainerType;
 import com.chronoblocks.core.container.AnimationMode;
 import com.chronoblocks.ui.adapters.BasePropertyAdapter;
@@ -181,14 +182,14 @@ public class GroupedContainerAdapter extends BasePropertyAdapter<Container> {
                     return false;
                 });
 
-        // 可见性
+        // 可见性（使用容器状态）
         changed |= groupRenderer.renderPropertyWithResult("可见",
                 Arrays.asList("visible", "show", "visual"),
                 Arrays.asList("visual"),
                 () -> {
-                    boolean visible = container.isVisible();
-                    if (ImGui.checkbox("##visible", visible)) {
-                        container.setVisible(!visible);
+                    boolean isVisible = container.getState() == com.chronoblocks.core.container.ContainerState.VISIBLE;
+                    if (ImGui.checkbox("##visible", isVisible)) {
+                        container.toggleState();
                         return true;
                     }
                     return false;
@@ -216,8 +217,10 @@ public class GroupedContainerAdapter extends BasePropertyAdapter<Container> {
     private boolean renderAnimationProperties(Container container) {
         boolean changed = false;
 
+        ContainerAnimationPreset preset = container.getDefaultAnimationPreset();
+
         // 动画模式
-        changed |= groupRenderer.renderPropertyWithResult("动画模式",
+        changed |= groupRenderer.renderPropertyWithResult("默认动画模式",
                 Arrays.asList("mode", "animation"),
                 Arrays.asList("animation"),
                 () -> {
@@ -226,12 +229,73 @@ public class GroupedContainerAdapter extends BasePropertyAdapter<Container> {
                     for (int i = 0; i < modes.length; i++) {
                         modeNames[i] = modes[i].name();
                     }
-                    
-                    int currentIndex = getCurrentModeIndex(container.getAnimationMode(), modes);
-                    ImInt index = new ImInt(currentIndex);
-                    
+
+                    ImInt index = new ImInt(preset.getMode().ordinal());
+
                     if (ImGui.combo("##animMode", index, modeNames)) {
-                        container.setAnimationMode(modes[index.get()]);
+                        ContainerAnimationPreset updated = container.getDefaultAnimationPreset().copy();
+                        updated.setMode(modes[index.get()]);
+                        container.setDefaultAnimationPreset(updated);
+                        return true;
+                    }
+                    return false;
+                });
+
+        // 动画时长
+        changed |= groupRenderer.renderPropertyWithResult("建议时长 (秒)",
+                Arrays.asList("duration", "animation"),
+                Arrays.asList("animation"),
+                () -> {
+                    float[] value = {container.getDefaultAnimationPreset().getSuggestedDuration()};
+                    if (ImGui.dragFloat("##animDuration", value, 0.1f, 0.05f, 600.0f, "%.2fs")) {
+                        ContainerAnimationPreset updated = container.getDefaultAnimationPreset().copy();
+                        updated.setSuggestedDuration(value[0]);
+                        container.setDefaultAnimationPreset(updated);
+                        return true;
+                    }
+                    return false;
+                });
+
+        // 动画延迟
+        changed |= groupRenderer.renderPropertyWithResult("默认延迟 (秒)",
+                Arrays.asList("delay", "animation"),
+                Arrays.asList("animation"),
+                () -> {
+                    float[] value = {container.getDefaultAnimationPreset().getDelay()};
+                    if (ImGui.dragFloat("##animDelay", value, 0.05f, 0.0f, 120.0f, "%.2fs")) {
+                        ContainerAnimationPreset updated = container.getDefaultAnimationPreset().copy();
+                        updated.setDelay(Math.max(0.0f, value[0]));
+                        container.setDefaultAnimationPreset(updated);
+                        return true;
+                    }
+                    return false;
+                });
+
+        // Easing
+        changed |= groupRenderer.renderPropertyWithResult("默认 Easing",
+                Arrays.asList("easing", "animation"),
+                Arrays.asList("animation"),
+                () -> {
+                    ImString buffer = new ImString(container.getDefaultAnimationPreset().getEasing(), 64);
+                    if (ImGui.inputText("##animEasing", buffer)) {
+                        ContainerAnimationPreset updated = container.getDefaultAnimationPreset().copy();
+                        updated.setEasing(buffer.get());
+                        container.setDefaultAnimationPreset(updated);
+                        return true;
+                    }
+                    return false;
+                });
+
+        // 排序
+        changed |= groupRenderer.renderPropertyWithResult("默认排序",
+                Arrays.asList("ordering", "animation"),
+                Arrays.asList("animation"),
+                () -> {
+                    ImString buffer = new ImString(container.getDefaultAnimationPreset().getOrdering(), 64);
+                    if (ImGui.inputText("##animOrdering", buffer)) {
+                        ContainerAnimationPreset updated = container.getDefaultAnimationPreset().copy();
+                        updated.setOrdering(buffer.get());
+                        container.setDefaultAnimationPreset(updated);
                         return true;
                     }
                     return false;
@@ -344,15 +408,6 @@ public class GroupedContainerAdapter extends BasePropertyAdapter<Container> {
     private int getCurrentTypeIndex(ContainerType current, ContainerType[] types) {
         for (int i = 0; i < types.length; i++) {
             if (types[i] == current) {
-                return i;
-            }
-        }
-        return 0;
-    }
-
-    private int getCurrentModeIndex(AnimationMode current, AnimationMode[] modes) {
-        for (int i = 0; i < modes.length; i++) {
-            if (modes[i] == current) {
                 return i;
             }
         }

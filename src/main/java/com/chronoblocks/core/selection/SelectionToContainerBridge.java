@@ -50,7 +50,7 @@ public class SelectionToContainerBridge {
             return;
         }
         
-        LOGGER.info("[SelectionToContainerBridge] 选择状态变化，包含 {} 个方块", selection.size());
+        LOGGER.debug("[SelectionToContainerBridge] 选择状态变化，包含 {} 个方块", selection.size());
         
         // 这里可以添加自动创建容器的逻辑
         // 例如：当选择达到一定数量时自动创建容器
@@ -73,6 +73,8 @@ public class SelectionToContainerBridge {
         // 添加选择的方块到容器
         container.addBlocks(selection.getSelectedBlocks());
         
+        // v5.2: 如果容器是隐藏状态，可见性由ContainerVisibilityService管理
+        
         // 设置容器的元数据
         container.setMetadata("sourceTool", selection.getSourceToolId());
         container.setMetadata("selectionTime", selection.getTimestamp());
@@ -81,7 +83,7 @@ public class SelectionToContainerBridge {
         // 注册到容器管理器
         if (containerManager != null) {
             containerManager.addContainer(container);
-            LOGGER.info("[SelectionToContainerBridge] 成功创建容器 '{}'，包含 {} 个方块", 
+            LOGGER.debug("[SelectionToContainerBridge] 成功创建容器 '{}'，包含 {} 个方块", 
                        containerName, selection.size());
         } else {
             LOGGER.warn("[SelectionToContainerBridge] 容器管理器未初始化");
@@ -108,7 +110,8 @@ public class SelectionToContainerBridge {
         // 添加选择的方块到容器
         container.addBlocks(selection.getSelectedBlocks());
         
-        LOGGER.info("[SelectionToContainerBridge] 成功将 {} 个方块添加到容器 '{}'", 
+        // v5.2: 如果容器是隐藏状态，可见性由ContainerVisibilityService管理
+        LOGGER.debug("[SelectionToContainerBridge] 成功将 {} 个方块添加到容器 '{}'", 
                    selection.size(), container.getName());
         
         return true;
@@ -134,7 +137,7 @@ public class SelectionToContainerBridge {
             container.removeBlock(pos);
         }
         
-        LOGGER.info("[SelectionToContainerBridge] 成功从容器 '{}' 中移除 {} 个方块", 
+        LOGGER.debug("[SelectionToContainerBridge] 成功从容器 '{}' 中移除 {} 个方块", 
                    container.getName(), selection.size());
         
         return true;
@@ -156,7 +159,7 @@ public class SelectionToContainerBridge {
         
         // 这里需要设置到选择管理器中
         // 由于SelectionManager没有直接设置选择的方法，我们通过工具来处理
-        LOGGER.info("[SelectionToContainerBridge] 选择容器 '{}' 中的 {} 个方块", 
+        LOGGER.debug("[SelectionToContainerBridge] 选择容器 '{}' 中的 {} 个方块", 
                    container.getName(), container.getBlockCount());
     }
     

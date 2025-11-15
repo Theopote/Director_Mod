@@ -210,9 +210,6 @@ public class ImGuiRenderer {
                 ImGui.render();
                 imGuiGl3.renderDrawData(ImGui.getDrawData());
                 
-                // 在 ImGui 渲染完成后，渲染容器到 3D 世界空间 v4.5
-                renderContainersInWorldSpace();
-                
                 LOGGER.debug("[ChronoBlocks] ImGui frame ended successfully");
             } catch (Exception e) {
                 LOGGER.error("[ChronoBlocks] Failed to end frame", e);
@@ -222,22 +219,6 @@ public class ImGuiRenderer {
         }
     }
     
-    /**
-     * 在世界空间中渲染容器（v4.5 动画系统）
-     */
-    private void renderContainersInWorldSpace() {
-        try {
-            // 获取 delta 时间
-            float delta = ImGui.getIO().getDeltaTime();
-            
-            // 调用容器渲染事件
-            com.chronoblocks.client.renderer.ContainerRenderEvents.renderInWorld(delta);
-            
-        } catch (Exception e) {
-            LOGGER.trace("[ChronoBlocks] Container rendering skipped: {}", e.getMessage());
-        }
-    }
-
     /**
      * 清理资源
      */

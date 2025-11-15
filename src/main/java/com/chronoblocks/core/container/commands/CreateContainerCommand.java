@@ -18,7 +18,7 @@ public class CreateContainerCommand implements ContainerCommand {
     private Container createdContainer;
     
     public CreateContainerCommand(ContainerManager manager, String name) {
-        this(manager, name, ContainerType.GROUP, null);
+        this(manager, name, ContainerType.CUSTOM, null);
     }
     
     public CreateContainerCommand(ContainerManager manager, String name, ContainerType type, Container parent) {
@@ -31,8 +31,9 @@ public class CreateContainerCommand implements ContainerCommand {
     @Override
     public void execute() {
         createdContainer = manager.createContainer(name, type);
-        if (parent != null) {
-            manager.moveContainerToParent(createdContainer, parent);
+        Container safeParent = parent != null && parent.getType() == ContainerType.GROUP ? parent : null;
+        if (safeParent != null) {
+            manager.moveContainerToParent(createdContainer, safeParent);
         }
     }
     

@@ -1,6 +1,7 @@
 package com.chronoblocks.ui.input;
 
 import com.chronoblocks.core.selection.SelectionManager;
+import com.chronoblocks.core.selection.SelectionOperationSupport;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import org.lwjgl.glfw.GLFW;
@@ -77,8 +78,8 @@ public class SelectionToolKeyBindings {
             "key.categories.chronoblocks"
         ));
         
-        KEY_BINDINGS.put("sphere_tool", new KeyBinding(
-            "key.chronoblocks.selection.sphere",
+        KEY_BINDINGS.put("geometry_tool", new KeyBinding(
+            "key.chronoblocks.selection.geometry",
             InputUtil.Type.KEYSYM,
             GLFW.GLFW_KEY_6,
             "key.categories.chronoblocks"
@@ -149,8 +150,8 @@ public class SelectionToolKeyBindings {
                 switchToTool("brush");
             } else if (KEY_BINDINGS.get("face_tool").wasPressed()) {
                 switchToTool("face");
-            } else if (KEY_BINDINGS.get("sphere_tool").wasPressed()) {
-                switchToTool("sphere");
+            } else if (KEY_BINDINGS.get("geometry_tool").wasPressed()) {
+                switchToTool("geometry");
             }
             
             // 检查操作模式快捷键
@@ -192,12 +193,12 @@ public class SelectionToolKeyBindings {
      */
     private static void setOperationMode(com.chronoblocks.core.selection.SelectionOperation operation) {
         var currentTool = selectionManager.getCurrentTool();
-        if (currentTool instanceof com.chronoblocks.core.selection.tools.BoxSelectTool_v2 boxTool) {
-            boxTool.setOperation(operation);
-        } else if (currentTool instanceof com.chronoblocks.core.selection.tools.BrushSelectTool brushTool) {
-            brushTool.setOperation(operation);
+        if (currentTool instanceof SelectionOperationSupport operationSupport) {
+            operationSupport.setOperation(operation);
+            LOGGER.info("[SelectionToolKeyBindings] 快捷键设置操作模式: {}", operation.getDisplayName());
+        } else {
+            LOGGER.debug("[SelectionToolKeyBindings] 当前工具不支持操作模式切换: {}", currentTool != null ? currentTool.getId() : "null");
         }
-        LOGGER.info("[SelectionToolKeyBindings] 快捷键设置操作模式: {}", operation.getDisplayName());
     }
     
     /**
@@ -263,7 +264,7 @@ public class SelectionToolKeyBindings {
             3 - 魔棒工具
             4 - 笔刷工具
             5 - 面选择工具
-            6 - 球体选择工具
+            6 - 几何选择工具
             + - 加选模式
             - - 减选模式
             0 - 交集模式

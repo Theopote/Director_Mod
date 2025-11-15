@@ -435,7 +435,8 @@ public class UIConfigurationBuilder {
             case "TimelinePanel" -> TimelinePanel.class;
             // 添加新的模块化面板
             case "ToolPropertiesPanel" -> ToolPropertiesPanel.class;
-            case "RenderSettingsPanel" -> RenderSettingsPanel.class;
+            case "SelectionRenderSettingsPanel" -> SelectionRenderSettingsPanel.class;
+            case "RenderSettingsPanel" -> SelectionRenderSettingsPanel.class; // 向后兼容
             case "SelectionFilterPanel" -> SelectionFilterPanel.class;
             case "SelectionHistoryPanel" -> SelectionHistoryPanel.class;
             case "HelpPanel" -> HelpPanel.class;
@@ -458,7 +459,7 @@ public class UIConfigurationBuilder {
             TimelinePanel.class,
             // 添加新的模块化面板
             ToolPropertiesPanel.class,
-            RenderSettingsPanel.class,
+            SelectionRenderSettingsPanel.class,
             SelectionFilterPanel.class,
             SelectionHistoryPanel.class,
             HelpPanel.class

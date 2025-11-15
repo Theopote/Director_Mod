@@ -14,36 +14,48 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * ClientPlayerInteractionManager的Mixin
- * 当ChronoBlocks界面打开时，完全阻止方块交互
+ * 在ChronoBlocks模式下阻止方块交互
+ * 
  */
 @Mixin(ClientPlayerInteractionManager.class)
 public class ClientPlayerInteractionManagerMixin {
 
     /**
      * 拦截方块右键交互
-     * 当ChronoBlocks界面打开时，完全阻止方块交互
+     * 在ChronoBlocks模式下阻止交互
      */
     @Inject(method = "interactBlock", at = @At("HEAD"), cancellable = true)
     private void onInteractBlock(net.minecraft.client.network.ClientPlayerEntity player, 
                                 Hand hand, BlockHitResult hitResult, CallbackInfoReturnable<ActionResult> cir) {
-        
+        // ChronoBlocks 界面检查
         ChronoBlocksClientController controller = ChronoBlocksClientController.getInstance();
-        if (controller.shouldDisableBlockInteraction()) {
-            System.out.println("[ClientPlayerInteractionManagerMixin] ✅ 方块右键交互被阻止");
+        if (controller != null && controller.shouldDisableBlockInteraction()) {
             cir.setReturnValue(ActionResult.PASS);
         }
     }
     
     /**
      * 拦截方块左键攻击
-     * 当ChronoBlocks界面打开时，完全阻止方块破坏
+     * 在ChronoBlocks模式下阻止破坏
      */
     @Inject(method = "attackBlock", at = @At("HEAD"), cancellable = true)
     private void onAttackBlock(BlockPos pos, Direction direction, CallbackInfoReturnable<Boolean> cir) {
-        
+        // ChronoBlocks 界面检查
         ChronoBlocksClientController controller = ChronoBlocksClientController.getInstance();
-        if (controller.shouldDisableBlockInteraction()) {
-            System.out.println("[ClientPlayerInteractionManagerMixin] ✅ 方块左键攻击被阻止");
+        if (controller != null && controller.shouldDisableBlockInteraction()) {
+            cir.setReturnValue(false);
+        }
+    }
+    
+    /**
+     * 拦截方块持续破坏
+     * 在ChronoBlocks模式下阻止持续破坏
+     */
+    @Inject(method = "updateBlockBreakingProgress", at = @At("HEAD"), cancellable = true)
+    private void onUpdateBlockBreakingProgress(BlockPos pos, Direction direction, CallbackInfoReturnable<Boolean> cir) {
+        // ChronoBlocks 界面检查
+        ChronoBlocksClientController controller = ChronoBlocksClientController.getInstance();
+        if (controller != null && controller.shouldDisableBlockInteraction()) {
             cir.setReturnValue(false);
         }
     }

@@ -1,318 +1,402 @@
 package com.chronoblocks.ui.panels;
 
-import com.chronoblocks.client.renderer.SelectionRenderEvents;
 import com.chronoblocks.client.renderer.SelectionRenderer;
-import com.chronoblocks.client.renderer.ToolPreviewManager;
 import com.chronoblocks.ui.theme.Icons;
 import com.chronoblocks.ui.theme.UITheme;
 import imgui.ImGui;
+import imgui.type.ImInt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * 🎯 选择渲染设置面板
+ * SelectionRenderSettingsPanel v4.0（样式预设版）
+ * <p>
+ * 允许用户自定义选区的显示样式，包括：
+ * - 渲染模式（线框 / 半透明 / 混合）
+ * - 边框颜色与宽度（独立的边框预设）
+ * - 填充颜色与透明度（独立的填充预设）
+ * - 动画与高亮效果
+ * - 模块化预设系统（边框预设 + 填充预设可自由组合）
+ * - 性能设置（渲染距离、视锥剔除、遮挡剔除、渲染质量）
  * 
- * 提供选择渲染效果的详细配置选项，包括：
- * - 颜色设置
- * - 透明度调节
- * - 轮廓线宽度
- * - 动画效果开关
+ * <p>
+ * <strong>与其他面板的区别：</strong>
+ * <ul>
+ *   <li>此面板：专注于选区样式预设和性能优化，实时生效</li>
+ *   <li>ToolPropertiesPanel：专注于工具参数配置和工具预览设置</li>
+ * </ul>
  * 
- * @author ChronoBlocks Team
- * @version 1.0
+ * <p>
+ * <strong>重要特性：</strong>
+ * - 所有设置实时生效，无需点击"应用"按钮
+ * - 自动禁用SelectionOverlayRenderer，避免重复渲染
+ * - 模块化预设系统：边框和填充预设可自由组合
+ * 
+ * @author ChronoBlocks
+ * @version 4.1
+ * @see ToolPropertiesPanel 工具属性面板（包含工具预览设置）
  */
 public class SelectionRenderSettingsPanel extends AbstractPanel {
     
+    // ==================== 样式数据结构 ====================
+    
+    /**
+     * 边框样式预设
+     */
+    public record BorderStyle(String name, float[] color, float width) {}
+    
+    /**
+     * 填充样式预设
+     */
+    public record FillStyle(String name, float[] color, float intensity) {}
+    
+    /** 面板名称常量 */
+    public static final String PANEL_NAME = "SelectionRenderSettings";
+    
     private static final Logger LOGGER = LoggerFactory.getLogger(SelectionRenderSettingsPanel.class);
     
-    /** 选择渲染器 */
-    private final SelectionRenderer selectionRenderer;
+    // ==================== 默认值常量 ====================
     
-    /** 工具预览管理器 */
-    private final ToolPreviewManager toolPreviewManager;
+    /** 默认渲染模式：0=线框, 1=填充, 2=混合 */
+    private static final int DEFAULT_RENDER_MODE = 2;
     
-    /** 颜色编辑状态 */
-    private float[] selectionColor = {0.0f, 1.0f, 0.0f, 0.3f}; // 绿色半透明
-    private float[] outlineColor = {0.0f, 1.0f, 0.0f, 0.8f}; // 绿色轮廓
-    private float[] previewColor = {1.0f, 1.0f, 0.0f, 0.3f}; // 黄色半透明
-    private float[] previewOutlineColor = {1.0f, 1.0f, 0.0f, 0.8f}; // 黄色轮廓
+    /** 默认高亮颜色 RGBA */
+    private static final float[] DEFAULT_HIGHLIGHT_COLOR = {1.0f, 1.0f, 1.0f, 0.35f};
     
-    /** 其他设置 */
-    private float outlineWidth = 2.0f;
-    private boolean showSelectionCount = true;
-    private boolean enableAnimations = true;
-    private boolean enablePreview = true;
-    private float brushPreviewRadius = 3.0f;
+    /** 默认边框颜色 RGBA */
+    private static final float[] DEFAULT_BORDER_COLOR = {0.1f, 0.8f, 1.0f, 0.95f};
     
+    /** 默认边框宽度 */
+    private static final float DEFAULT_BORDER_WIDTH = 2.0f;
+    
+    /** 默认高亮强度 */
+    private static final float DEFAULT_HIGHLIGHT_INTENSITY = 1.0f;
+    
+    /** 默认最大渲染距离 */
+    private static final int DEFAULT_MAX_RENDER_DISTANCE = 64;
+    
+    // ==================== 成员变量 ====================
+    
+    /**
+     * 构造函数 - 默认不可见
+     */
     public SelectionRenderSettingsPanel() {
-        this.selectionRenderer = SelectionRenderEvents.getSelectionRenderer();
-        this.toolPreviewManager = SelectionRenderEvents.getToolPreviewManager();
+        super();
+        // 默认不可见，由Window菜单的Toggle Panels管理
+        setVisible(false);
         
-        // 从渲染器获取当前设置
-        updateFromRenderer();
-        
-        LOGGER.info("[SelectionRenderSettingsPanel] 初始化选择渲染设置面板");
+        // 注意：不在构造函数中立即应用设置，而是在首次渲染时应用
+        // 这样可以避免在UI系统完全初始化前调用渲染器
     }
+    
+    /** 渲染模式：0=线框, 1=填充, 2=混合 */
+    private int renderMode = DEFAULT_RENDER_MODE;
+    
+    // ==================== 模块化预设系统 ====================
+    
+    /** 边框样式预设列表 */
+    private final BorderStyle[] borderPresets = {
+        new BorderStyle("蓝色辉光", new float[]{0.1f, 0.7f, 1.0f, 1.0f}, 2.5f),
+        new BorderStyle("危险红", new float[]{1.0f, 0.2f, 0.2f, 1.0f}, 2.0f),
+        new BorderStyle("科技绿", new float[]{0.1f, 1.0f, 0.3f, 1.0f}, 1.5f),
+        new BorderStyle("默认", new float[]{0.1f, 0.8f, 1.0f, 0.95f}, 2.0f)
+    };
+    
+    /** 填充样式预设列表 */
+    private final FillStyle[] fillPresets = {
+        new FillStyle("柔光蓝", new float[]{0.3f, 0.7f, 1.0f, 0.25f}, 1.0f),
+        new FillStyle("警告黄", new float[]{1.0f, 0.8f, 0.0f, 0.30f}, 1.2f),
+        new FillStyle("幽灵绿", new float[]{0.1f, 1.0f, 0.3f, 0.2f}, 0.8f),
+        new FillStyle("默认", DEFAULT_HIGHLIGHT_COLOR.clone(), DEFAULT_HIGHLIGHT_INTENSITY)
+    };
+    
+    /** 当前选择的边框预设索引 */
+    private int selectedBorderPreset = 3; // 默认选择"默认"预设
+    
+    /** 当前选择的填充预设索引 */
+    private int selectedFillPreset = 3; // 默认选择"默认"预设
+    
+    /** 高亮设置 */
+    private float[] highlightColor = DEFAULT_HIGHLIGHT_COLOR.clone();
+    private float highlightIntensity = DEFAULT_HIGHLIGHT_INTENSITY;
+    
+    /** 边框线设置 */
+    private float[] borderColor = DEFAULT_BORDER_COLOR.clone();
+    private float borderWidth = DEFAULT_BORDER_WIDTH;
+    
+    /** 性能设置 */
+    private int maxRenderDistance = DEFAULT_MAX_RENDER_DISTANCE;
+    private boolean enableFrustumCulling = true;
+    private boolean enableOcclusionCulling = false;
+    
+    /** 标记设置是否已应用 */
+    private boolean settingsApplied = false;
     
     @Override
     public String getPanelName() {
-        return "SelectionRenderSettings";
+        return PANEL_NAME;
     }
     
     @Override
     public String getWindowName() {
-        return "选择渲染设置###SelectionRenderSettingsPanel";
+        return Icons.COLOR + " 选区渲染设置###SelectionRenderSettingsPanel";
     }
     
     @Override
     public int getPriority() {
-        return 15;
+        return 30;
     }
     
     @Override
     protected int getWindowFlags() {
-        return imgui.flag.ImGuiWindowFlags.NoCollapse;
-    }
-    
-    @Override
-    public boolean shouldReserveDockSpaceWhenHidden() {
-        return false;
-    }
-    
-    @Override
-    protected boolean shouldShowHiddenPlaceholderIndicator() {
-        return false;
+        return super.getWindowFlags();
     }
     
     @Override
     protected void doRender() {
-        UITheme.title(Icons.SETTINGS + " 选择渲染设置");
+        // 首次渲染时应用默认设置（如果尚未应用）
+        if (!settingsApplied) {
+            try {
+                applySettings();
+                settingsApplied = true;
+                LOGGER.info("[SelectionRenderSettingsPanel] 首次渲染时已应用默认渲染设置");
+            } catch (Exception e) {
+                LOGGER.warn("[SelectionRenderSettingsPanel] 首次渲染时应用设置失败", e);
+            }
+        }
         
-        // 渲染开关
-        renderRenderToggles();
+        UITheme.title(Icons.COLOR + " 选区渲染设置");
+        
+        // 渲染模式选择
+        renderModeSelector();
         ImGui.separator();
         
-        // 颜色设置
-        renderColorSettings();
+        // 样式预设
+        renderStylePresets();
         ImGui.separator();
         
-        // 预览设置
-        renderPreviewSettings();
+        // 高亮设置
+        renderHighlightSettings();
         ImGui.separator();
         
-        // 其他设置
-        renderOtherSettings();
+        // 边框设置
+        renderBorderSettings();
         ImGui.separator();
         
-        // 重置按钮
-        renderResetButton();
+        // 性能设置
+        renderPerformanceSettings();
+        ImGui.separator();
+        
+        // 操作按钮
+        renderActionButtons();
     }
     
     /**
-     * 渲染渲染开关
+     * 渲染模式选择
      */
-    private void renderRenderToggles() {
-        UITheme.label("渲染开关:", UITheme.DarkTheme.TEXT_SELECTED);
+    private void renderModeSelector() {
+        UITheme.label("渲染模式:", UITheme.DarkTheme.TEXT_SELECTED);
         
-        // 选择渲染开关
-        boolean selectionEnabled = selectionRenderer.isEnabled();
-        if (ImGui.checkbox("启用选择渲染", selectionEnabled)) {
-            selectionRenderer.setEnabled(!selectionEnabled);
-        }
+        String[] modes = {"线框", "半透明", "线框 + 半透明"};
+        ImInt modeInt = new ImInt(renderMode);
         
-        // 预览渲染开关
-        boolean previewEnabled = toolPreviewManager.isEnabled();
-        if (ImGui.checkbox("启用预览渲染", previewEnabled)) {
-            toolPreviewManager.setEnabled(!previewEnabled);
-        }
-        
-        // 选择数量显示开关
-        if (ImGui.checkbox("显示选择数量", showSelectionCount)) {
-            showSelectionCount = !showSelectionCount;
-            selectionRenderer.setShowSelectionCount(showSelectionCount);
-        }
-        
-        // 动画效果开关
-        if (ImGui.checkbox("启用动画效果", enableAnimations)) {
-            enableAnimations = !enableAnimations;
-            selectionRenderer.setEnableAnimations(enableAnimations);
+        if (ImGui.combo("##renderMode", modeInt, modes)) {
+            renderMode = modeInt.get();
+            LOGGER.info("[SelectionRenderSettingsPanel] 渲染模式: {}", modes[renderMode]);
+            applySettings(); // 实时应用
         }
     }
     
     /**
-     * 渲染颜色设置
+     * 样式预设 - 模块化设计
+     * 边框预设和填充预设可以自由组合
      */
-    private void renderColorSettings() {
-        UITheme.label("颜色设置:", UITheme.DarkTheme.TEXT_SELECTED);
+    private void renderStylePresets() {
+        // --- 边框预设 ---
+        UITheme.label("边框样式预设:", UITheme.DarkTheme.TEXT_SELECTED);
         
-        // 选择高亮颜色
-        UITheme.label("选择高亮颜色:", UITheme.DarkTheme.TEXT);
-        ImGui.sameLine();
-        if (ImGui.colorEdit4("##selectionColor", selectionColor)) {
-            selectionRenderer.setSelectionColor(selectionColor);
+        // 从对象数组中提取名称
+        String[] borderPresetNames = java.util.Arrays.stream(borderPresets)
+                                                      .map(BorderStyle::name)
+                                                      .toArray(String[]::new);
+        
+        ImInt borderPresetInt = new ImInt(selectedBorderPreset);
+        if (ImGui.combo("##borderPreset", borderPresetInt, borderPresetNames)) {
+            selectedBorderPreset = borderPresetInt.get();
+            applyBorderPreset(borderPresets[selectedBorderPreset]);
         }
         
-        // 选择轮廓颜色
-        UITheme.label("选择轮廓颜色:", UITheme.DarkTheme.TEXT);
-        ImGui.sameLine();
-        if (ImGui.colorEdit4("##outlineColor", outlineColor)) {
-            selectionRenderer.setOutlineColor(outlineColor);
-        }
+        ImGui.separator();
         
-        // 预览高亮颜色
-        UITheme.label("预览高亮颜色:", UITheme.DarkTheme.TEXT);
-        ImGui.sameLine();
-        if (ImGui.colorEdit4("##previewColor", previewColor)) {
-            toolPreviewManager.setPreviewColor(previewColor);
-        }
+        // --- 填充预设 ---
+        UITheme.label("填充样式预设:", UITheme.DarkTheme.TEXT_SELECTED);
         
-        // 预览轮廓颜色
-        UITheme.label("预览轮廓颜色:", UITheme.DarkTheme.TEXT);
-        ImGui.sameLine();
-        if (ImGui.colorEdit4("##previewOutlineColor", previewOutlineColor)) {
-            toolPreviewManager.setPreviewOutlineColor(previewOutlineColor);
+        String[] fillPresetNames = java.util.Arrays.stream(fillPresets)
+                                                    .map(FillStyle::name)
+                                                    .toArray(String[]::new);
+        
+        ImInt fillPresetInt = new ImInt(selectedFillPreset);
+        if (ImGui.combo("##fillPreset", fillPresetInt, fillPresetNames)) {
+            selectedFillPreset = fillPresetInt.get();
+            applyFillPreset(fillPresets[selectedFillPreset]);
         }
     }
     
     /**
-     * 渲染预览设置
+     * 应用边框预设并立即生效
      */
-    private void renderPreviewSettings() {
-        UITheme.label("预览设置:", UITheme.DarkTheme.TEXT_SELECTED);
+    private void applyBorderPreset(BorderStyle style) {
+        this.borderColor = style.color().clone();
+        this.borderWidth = style.width();
         
-        // 笔刷预览半径
-        UITheme.label("笔刷预览半径:", UITheme.DarkTheme.TEXT);
-        ImGui.sameLine();
-        float[] radiusArray = {brushPreviewRadius};
-        if (ImGui.sliderFloat("##brushPreviewRadius", radiusArray, 1.0f, 10.0f, "%.1f")) {
-            brushPreviewRadius = radiusArray[0];
-            toolPreviewManager.setBrushPreviewRadius(brushPreviewRadius);
+        // 立即应用到渲染器
+        applySettings();
+        
+        LOGGER.info("[SelectionRenderSettingsPanel] 应用边框预设: {}", style.name());
+    }
+    
+    /**
+     * 应用填充预设并立即生效
+     */
+    private void applyFillPreset(FillStyle style) {
+        this.highlightColor = style.color().clone();
+        this.highlightIntensity = style.intensity();
+        
+        // 立即应用到渲染器
+        applySettings();
+        
+        LOGGER.info("[SelectionRenderSettingsPanel] 应用填充预设: {}", style.name());
+    }
+    
+    /**
+     * 高亮设置
+     */
+    private void renderHighlightSettings() {
+        UITheme.label("填充高亮:", UITheme.DarkTheme.TEXT_SELECTED);
+
+        ImGui.indent();
+
+        if (ImGui.colorEdit4("填充颜色##highlightColor", highlightColor)) {
+            LOGGER.debug("[SelectionRenderSettingsPanel] 高亮颜色更新");
+            applySettings(); // 实时应用
+        }
+
+        float[] intensity = {highlightIntensity};
+        if (ImGui.sliderFloat("亮度##highlightIntensity", intensity, 0.1f, 2.0f, "%.1f")) {
+            highlightIntensity = intensity[0];
+            applySettings(); // 实时应用
+        }
+
+        ImGui.unindent();
+    }
+    
+    /**
+     * 边框设置
+     */
+    private void renderBorderSettings() {
+        UITheme.label("边框线设置:", UITheme.DarkTheme.TEXT_SELECTED);
+        
+        ImGui.indent();
+
+        if (ImGui.colorEdit4("边框颜色##borderColor", borderColor)) {
+            LOGGER.debug("[SelectionRenderSettingsPanel] 边框颜色更新");
+            applySettings(); // 实时应用
+        }
+
+        float[] width = {borderWidth};
+        if (ImGui.sliderFloat("线宽##borderWidth", width, 1.0f, 5.0f, "%.1f")) {
+            borderWidth = width[0];
+            applySettings(); // 实时应用
+        }
+
+        ImGui.unindent();
+    }
+    
+    /**
+     * 性能设置
+     */
+    private void renderPerformanceSettings() {
+        UITheme.label("性能设置:", UITheme.DarkTheme.TEXT_SELECTED);
+        
+        int[] distance = {maxRenderDistance};
+        if (ImGui.sliderInt("最大渲染距离##maxRenderDist", distance, 16, 128)) {
+            maxRenderDistance = distance[0];
+            applySettings(); // 实时应用
         }
         
-        // 预览开关
-        if (ImGui.checkbox("启用预览效果", enablePreview)) {
-            enablePreview = !enablePreview;
-            // 这里可以控制预览的启用/禁用
+        if (ImGui.checkbox("视锥剔除##frustum", enableFrustumCulling)) {
+            enableFrustumCulling = !enableFrustumCulling;
+            applySettings(); // 实时应用
+        }
+        
+        if (ImGui.checkbox("遮挡剔除##occlusion", enableOcclusionCulling)) {
+            enableOcclusionCulling = !enableOcclusionCulling;
+            applySettings(); // 实时应用
         }
     }
     
     /**
-     * 渲染其他设置
+     * 操作按钮
+     * 注意：已移除"应用"按钮，所有设置实时生效
      */
-    private void renderOtherSettings() {
-        UITheme.label("其他设置:", UITheme.DarkTheme.TEXT_SELECTED);
-        
-        // 轮廓线宽度
-        UITheme.label("轮廓线宽度:", UITheme.DarkTheme.TEXT);
-        ImGui.sameLine();
-        float[] widthArray = {outlineWidth};
-        if (ImGui.sliderFloat("##outlineWidth", widthArray, 1.0f, 5.0f, "%.1f")) {
-            outlineWidth = widthArray[0];
-            selectionRenderer.setOutlineWidth(outlineWidth);
-        }
-        
-        // 显示当前预览状态
-        if (toolPreviewManager.isDragging()) {
-            UITheme.label("预览状态: 拖拽中", UITheme.DarkTheme.TEXT_SELECTED);
-            UITheme.label("预览方块数量: " + toolPreviewManager.getPreviewBlockCount(), UITheme.DarkTheme.TEXT);
-        } else {
-            UITheme.label("预览状态: 空闲", UITheme.DarkTheme.TEXT);
-        }
-    }
-    
-    /**
-     * 渲染重置按钮
-     */
-    private void renderResetButton() {
+    private void renderActionButtons() {
         UITheme.label("操作:", UITheme.DarkTheme.TEXT_SELECTED);
         
-        if (ImGui.button("重置为默认设置##reset")) {
+        if (ImGui.button("重置##resetSettings")) {
             resetToDefaults();
-        }
-        
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("重置所有设置为默认值");
-        }
-        
-        ImGui.sameLine();
-        
-        if (ImGui.button("应用设置##apply")) {
-            applySettings();
-        }
-        
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("应用当前设置到渲染器");
-        }
-    }
-    
-    /**
-     * 从渲染器更新设置
-     */
-    private void updateFromRenderer() {
-        try {
-            selectionColor = selectionRenderer.getSelectionColor();
-            outlineColor = selectionRenderer.getOutlineColor();
-            previewColor = toolPreviewManager.getPreviewColor();
-            previewOutlineColor = toolPreviewManager.getPreviewOutlineColor();
-            outlineWidth = selectionRenderer.getOutlineWidth();
-            showSelectionCount = selectionRenderer.isShowSelectionCount();
-            enableAnimations = selectionRenderer.isEnableAnimations();
-            brushPreviewRadius = toolPreviewManager.getBrushPreviewRadius();
-            
-        } catch (Exception e) {
-            LOGGER.error("[SelectionRenderSettingsPanel] 从渲染器更新设置失败", e);
-        }
-    }
-    
-    /**
-     * 重置为默认设置
-     */
-    private void resetToDefaults() {
-        try {
-            // 重置颜色
-            selectionColor = new float[]{0.0f, 1.0f, 0.0f, 0.3f};
-            outlineColor = new float[]{0.0f, 1.0f, 0.0f, 0.8f};
-            previewColor = new float[]{1.0f, 1.0f, 0.0f, 0.3f};
-            previewOutlineColor = new float[]{1.0f, 1.0f, 0.0f, 0.8f};
-            
-            // 重置其他设置
-            outlineWidth = 2.0f;
-            showSelectionCount = true;
-            enableAnimations = true;
-            enablePreview = true;
-            brushPreviewRadius = 3.0f;
-            
-            // 应用设置
-            applySettings();
-            
-            LOGGER.info("[SelectionRenderSettingsPanel] 设置已重置为默认值");
-            
-        } catch (Exception e) {
-            LOGGER.error("[SelectionRenderSettingsPanel] 重置设置失败", e);
         }
     }
     
     /**
      * 应用设置到渲染器
+     * 确保所有选择工具都使用统一的渲染样式
      */
     private void applySettings() {
         try {
-            // 应用颜色设置
-            selectionRenderer.setSelectionColor(selectionColor);
-            selectionRenderer.setOutlineColor(outlineColor);
-            toolPreviewManager.setPreviewColor(previewColor);
-            toolPreviewManager.setPreviewOutlineColor(previewOutlineColor);
+            SelectionRenderer renderer = SelectionRenderer.getInstance();
             
-            // 应用其他设置
-            selectionRenderer.setOutlineWidth(outlineWidth);
-            selectionRenderer.setShowSelectionCount(showSelectionCount);
-            selectionRenderer.setEnableAnimations(enableAnimations);
-            toolPreviewManager.setBrushPreviewRadius(brushPreviewRadius);
+            // 应用主渲染器设置（所有选择工具都会通过SelectionRenderer统一渲染）
+            renderer.setEnabled(true);
+            renderer.setSelectionColor(highlightColor);
+            renderer.setOutlineColor(borderColor);
+            renderer.setOutlineWidth(borderWidth);
+            renderer.setEnableAnimations(false);
+            renderer.setRenderMode(renderMode);
+            renderer.setHighlightIntensity(highlightIntensity);
+            renderer.setEnableFill(renderMode == 1 || renderMode == 2);
             
-            LOGGER.info("[SelectionRenderSettingsPanel] 设置已应用到渲染器");
+            // 应用性能设置
+            renderer.setMaxRenderDistance(maxRenderDistance);
+            renderer.setEnableFrustumCulling(enableFrustumCulling);
+            renderer.setEnableOcclusionCulling(enableOcclusionCulling);
             
+            LOGGER.debug("[SelectionRenderSettingsPanel] 应用渲染设置成功 - 模式: {}, 距离: {}", 
+                renderMode, maxRenderDistance);
+            LOGGER.debug("[SelectionRenderSettingsPanel] SelectionOverlayRenderer保持启用，交互元素（面中心小方块、双向箭头）始终显示");
         } catch (Exception e) {
             LOGGER.error("[SelectionRenderSettingsPanel] 应用设置失败", e);
         }
+    }
+    
+    /**
+     * 重置默认值
+     * 使用常量定义，避免重复定义
+     */
+    private void resetToDefaults() {
+        renderMode = DEFAULT_RENDER_MODE;
+        selectedBorderPreset = 3; // 默认预设
+        selectedFillPreset = 3; // 默认预设
+        highlightColor = DEFAULT_HIGHLIGHT_COLOR.clone();
+        borderColor = DEFAULT_BORDER_COLOR.clone();
+        borderWidth = DEFAULT_BORDER_WIDTH;
+        highlightIntensity = DEFAULT_HIGHLIGHT_INTENSITY;
+        maxRenderDistance = DEFAULT_MAX_RENDER_DISTANCE;
+        enableFrustumCulling = true;
+        enableOcclusionCulling = false;
+        
+        // 重置后自动应用
+        applySettings();
+        
+        LOGGER.info("[SelectionRenderSettingsPanel] 重置为默认值并已应用");
     }
 }

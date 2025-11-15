@@ -52,13 +52,19 @@ public class SelectionState {
     
     public static SelectionState of(Set<BlockPos> blocks) {
         SelectionState state = new SelectionState("unknown");
-        state.selectedBlocks.addAll(blocks);
+        // 创建副本以避免并发修改异常
+        synchronized (blocks) {
+            state.selectedBlocks.addAll(new HashSet<>(blocks));
+        }
         return state;
     }
     
     public static SelectionState of(Set<BlockPos> blocks, String toolId) {
         SelectionState state = new SelectionState(toolId);
-        state.selectedBlocks.addAll(blocks);
+        // 创建副本以避免并发修改异常
+        synchronized (blocks) {
+            state.selectedBlocks.addAll(new HashSet<>(blocks));
+        }
         return state;
     }
     

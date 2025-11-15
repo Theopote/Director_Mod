@@ -1,14 +1,9 @@
 package com.chronoblocks.client.input;
 
-import com.chronoblocks.client.ChronoBlocksClientController;
-import com.chronoblocks.client.renderer.BlockOutlineRenderer;
-import com.chronoblocks.ui.ChronoBlocksScreen;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.Camera;
-import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.RaycastContext;
 import org.joml.Matrix4f;
@@ -23,7 +18,7 @@ import org.joml.Vector4f;
  * <p>
  * 核心方法：
  * - 使用OpenGL标准unproject（投影矩阵反投影）
- * - 这是Blender、Axiom、WorldEdit等专业软件使用的方法
+ * - 这是Blender、WorldEdit等专业软件使用的方法
  * - 数学上100%精确，自动处理FOV、宽高比、相机旋转
  */
 public final class ChronoBlocksInputSystem {
@@ -43,16 +38,10 @@ public final class ChronoBlocksInputSystem {
     private static final double CACHE_POSITION_EPSILON = 0.001; // 相机位置比较阈值
 
     private ChronoBlocksInputSystem() {}
-
-    public static boolean isEditorActive() {
-        return MC.currentScreen instanceof ChronoBlocksScreen
-                || ChronoBlocksClientController.getInstance().isChronoBlocksModeActive();
-    }
-
     /**
      * 使用OpenGL标准unproject方法构建从ImGui鼠标位置到世界的射线
      * <p>
-     * 这是Blender、Axiom、WorldEdit等专业软件使用的方法：
+     * 这是Blender、WorldEdit等专业软件使用的方法：
      * 屏幕坐标 → NDC → 逆投影矩阵 → 逆视图矩阵 → 世界射线方向
      * <p>
      * 优点：
@@ -198,42 +187,6 @@ public final class ChronoBlocksInputSystem {
         lastCameraPos = null;
         lastMouseX = Double.NaN;
         lastMouseY = Double.NaN;
-    }
-
-    /**
-     * 渲染方块高亮轮廓
-     * <p>
-     * 注意：此方法只负责渲染，不负责更新射线
-     * 射线更新应该在外部统一管理（如WorldRenderEvents回调中）
-     */
-    public static void renderOutline(MatrixStack matrices, net.minecraft.client.render.VertexConsumerProvider vertexConsumers) {
-        if (!isEditorActive()) {
-            return;
-        }
-
-        // 确保光标解锁（这个操作可以移到输入处理中）
-        long windowHandle = MC.getWindow().getHandle();
-        org.lwjgl.glfw.GLFW.glfwSetInputMode(windowHandle, org.lwjgl.glfw.GLFW.GLFW_CURSOR, org.lwjgl.glfw.GLFW.GLFW_CURSOR_NORMAL);
-
-        // 更新射线（在渲染时更新，确保每帧都有最新结果）
-        BlockHitResult ray = raycastFromImGui();
-        
-        renderOutlineInternal(matrices, vertexConsumers, ray);
-    }
-
-    /**
-     * 内部渲染方法
-     */
-    private static void renderOutlineInternal(MatrixStack matrices, 
-                                             net.minecraft.client.render.VertexConsumerProvider vertexConsumers,
-                                             BlockHitResult ray) {
-        if (matrices == null || vertexConsumers == null) {
-            return;
-        }
-
-        if (ray != null && ray.getType() == HitResult.Type.BLOCK) {
-            BlockOutlineRenderer.renderOutline(matrices, vertexConsumers, ray);
-        }
     }
 
     /**

@@ -1,6 +1,6 @@
 package com.chronoblocks.core.selection.algorithms;
 
-import com.chronoblocks.core.selection.filter.SelectionFilter;
+import com.chronoblocks.core.selection.block_filters.BlockFilter;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.world.World;
@@ -19,7 +19,7 @@ import java.util.Set;
 public final class RegionSelectors {
     private RegionSelectors(){}
 
-    public static Set<BlockPos> selectInBox(World w, Box box, SelectionFilter filter) {
+    public static Set<BlockPos> selectInBox(World w, Box box, BlockFilter filter) {
         Set<BlockPos> out = new LinkedHashSet<>();
         int minX = (int)Math.floor(box.minX), maxX = (int)Math.floor(box.maxX) - 1;
         int minY = (int)Math.floor(box.minY), maxY = (int)Math.floor(box.maxY) - 1;
@@ -35,7 +35,7 @@ public final class RegionSelectors {
         // 若体积巨大，可分层分批交给批处理执行器
     }
 
-    public static Set<BlockPos> selectSphere(World w, BlockPos center, double radius, SelectionFilter filter) {
+    public static Set<BlockPos> selectSphere(World w, BlockPos center, double radius, BlockFilter filter) {
         Set<BlockPos> out = new LinkedHashSet<>();
         int r = (int)Math.ceil(radius);
         int cx=center.getX(), cy=center.getY(), cz=center.getZ();
@@ -52,7 +52,7 @@ public final class RegionSelectors {
         return out;
     }
 
-    public static Set<BlockPos> selectCylinder(World w, BlockPos center, double radius, int halfHeightY, SelectionFilter filter) {
+    public static Set<BlockPos> selectCylinder(World w, BlockPos center, double radius, int halfHeightY, BlockFilter filter) {
         Set<BlockPos> out = new LinkedHashSet<>();
         int r = (int)Math.ceil(radius);
         int cx=center.getX(), cy=center.getY(), cz=center.getZ();

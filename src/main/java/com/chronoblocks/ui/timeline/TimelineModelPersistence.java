@@ -1,5 +1,7 @@
 package com.chronoblocks.ui.timeline;
 
+import com.chronoblocks.animation.timeline.ClipAnimationConfig;
+import com.chronoblocks.core.container.AnimationMode;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import org.slf4j.Logger;
@@ -10,7 +12,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * TimelineModel 持久化管理器
@@ -51,6 +55,8 @@ public class TimelineModelPersistence {
         public int zOrder = 0;
         public boolean muted = false;
         public boolean solo = false;
+        public String boundContainerName;
+        public String boundContainerId;
     }
     
     /**
@@ -64,6 +70,12 @@ public class TimelineModelPersistence {
         public List<Float> keyframes = new ArrayList<>();
         public boolean muted = false;
         public float opacity = 1.0f;
+        public String animationMode;
+        public float animationDuration = 2.0f;
+        public float animationDelay = 0.0f;
+        public String animationEasing = "Linear";
+        public String animationOrdering = "Sequential";
+        public Map<String, Object> animationParams = new HashMap<>();
     }
     
     /**
@@ -89,6 +101,8 @@ public class TimelineModelPersistence {
             trackDTO.zOrder = track.getZOrder();
             trackDTO.muted = track.isMuted();
             trackDTO.solo = track.isSolo();
+            trackDTO.boundContainerName = track.getBoundContainerName();
+            trackDTO.boundContainerId = track.getBoundContainerId();
             
             // 保存轨道的所有片段
             for (TimelineClip clip : track.getClips()) {
@@ -100,6 +114,13 @@ public class TimelineModelPersistence {
                 clipDTO.muted = clip.isMuted();
                 clipDTO.opacity = clip.getOpacity();
                 clipDTO.keyframes.addAll(clip.getKeyframes());
+                ClipAnimationConfig config = clip.getAnimationConfig();
+                clipDTO.animationMode = config.getMode().name();
+                clipDTO.animationDuration = config.getDuration();
+                clipDTO.animationDelay = config.getDelay();
+                clipDTO.animationEasing = config.getEasing();
+                clipDTO.animationOrdering = config.getOrdering();
+                clipDTO.animationParams.putAll(config.getParams());
                 
                 trackDTO.clips.add(clipDTO);
             }
@@ -146,6 +167,8 @@ public class TimelineModelPersistence {
             track.setZOrder(trackDTO.zOrder);
             track.setMuted(trackDTO.muted);
             track.setSolo(trackDTO.solo);
+            track.setBoundContainerName(trackDTO.boundContainerName);
+            track.setBoundContainerId(trackDTO.boundContainerId);
             
             // 恢复所有片段
             for (ClipDTO clipDTO : trackDTO.clips) {
@@ -157,6 +180,26 @@ public class TimelineModelPersistence {
                 );
                 clip.setMuted(clipDTO.muted);
                 clip.setOpacity(clipDTO.opacity);
+                ClipAnimationConfig config = clip.getAnimationConfig();
+                if (clipDTO.animationMode != null) {
+                    try {
+                        config.setMode(AnimationMode.valueOf(clipDTO.animationMode));
+                    } catch (IllegalArgumentException ignored) {
+                        LOGGER.warn("[TimelineModelPersistence] 未知的动画模式: {}", clipDTO.animationMode);
+                    }
+                }
+                config.setDuration(clipDTO.animationDuration > 0.0f ? clipDTO.animationDuration : config.getDuration());
+                config.setDelay(Math.max(0.0f, clipDTO.animationDelay));
+                if (clipDTO.animationEasing != null) {
+                    config.setEasing(clipDTO.animationEasing);
+                }
+                if (clipDTO.animationOrdering != null) {
+                    config.setOrdering(clipDTO.animationOrdering);
+                }
+                if (clipDTO.animationParams != null && !clipDTO.animationParams.isEmpty()) {
+                    config.getParams().clear();
+                    config.getParams().putAll(clipDTO.animationParams);
+                }
                 
                 // 恢复关键帧
                 for (Float keyframe : clipDTO.keyframes) {

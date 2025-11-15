@@ -1,11 +1,14 @@
 package com.chronoblocks.core.playback;
 
-import com.chronoblocks.core.animation.AnimationClip;
-import com.chronoblocks.core.animation.AnimationState;
-import com.chronoblocks.core.animation.Keyframe;
-import com.chronoblocks.core.animation.Track;
+import com.chronoblocks.animation.integration.playback.ClipPlaybackRuntimeManager;
+import com.chronoblocks.animation.timeline.AnimationTimelineService;
+import com.chronoblocks.animation.timeline.TimelineController;
+import com.chronoblocks.animation.core.AnimationClip;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * ChronoBlocks 播放控制器（v4.5 一体化交互系统）
@@ -18,7 +21,7 @@ import org.slf4j.LoggerFactory;
  * - 帧驱动更新（Tick）
  * 
  * 数据流：
- * Toolbar → PlaybackController → AnimationState → Timeline 显示
+ * Toolbar → PlaybackController → Timeline / Runtime → 容器渲染
  * 
  * @author ChronoBlocks Team
  * @version 4.5
@@ -28,8 +31,12 @@ public class PlaybackController {
     private static final PlaybackController INSTANCE = new PlaybackController();
 
     // ========== 播放控制状态 ==========
+    private boolean playing = false;
     private boolean loop = false;
     private float speed = 1.0f; // 1x
+    private double currentTimeSec = 0.0;
+
+    private final List<PlaybackListener> listeners = new CopyOnWriteArrayList<>();
 
     private PlaybackController() {}
 
@@ -41,28 +48,36 @@ public class PlaybackController {
      * 开始播放动画
      */
     public void play() { 
-        AnimationState state = AnimationState.get();
-        state.setPlaying(true); 
+        if (playing) {
+            return;
+        }
+        playing = true;
+        ClipPlaybackRuntimeManager.get().update(currentTimeSec);
         LOGGER.debug("[Playback] Animation started");
+        notifyListeners();
     }
     
     /**
      * 暂停播放动画
      */
     public void pause() { 
-        AnimationState state = AnimationState.get();
-        state.setPlaying(false); 
+        if (!playing) {
+            return;
+        }
+        playing = false;
         LOGGER.debug("[Playback] Animation paused");
+        notifyListeners();
     }
     
     /**
      * 停止播放并重置到起点
      */
     public void stop() { 
-        AnimationState state = AnimationState.get();
-        state.setPlaying(false); 
-        state.setCurrentTime(0f); 
+        playing = false;
+        currentTimeSec = 0.0;
+        ClipPlaybackRuntimeManager.get().update(currentTimeSec);
         LOGGER.debug("[Playback] Animation stopped and reset to 0");
+        notifyListeners();
     }
     
     /**
@@ -71,6 +86,7 @@ public class PlaybackController {
     public void toggleLoop() { 
         loop = !loop; 
         LOGGER.debug("[Playback] Loop {}", loop ? "enabled" : "disabled");
+        notifyListeners();
     }
 
     /**
@@ -78,15 +94,18 @@ public class PlaybackController {
      * @param time 目标时间（秒）
      */
     public void seek(float time) {
-        AnimationState state = AnimationState.get();
-        state.setCurrentTime(time);
-        LOGGER.trace("[Playback] Seeked to time: {}", time);
+        double duration = computeDuration();
+        double clamped = duration > 0.0 ? Math.max(0.0, Math.min(time, duration)) : Math.max(0.0, time);
+        currentTimeSec = clamped;
+        ClipPlaybackRuntimeManager.get().update(currentTimeSec);
+        LOGGER.trace("[Playback] Seeked to time: {}", currentTimeSec);
+        notifyListeners();
     }
 
     // ========== 状态查询 ==========
     
     public boolean isPlaying() { 
-        return AnimationState.get().isPlaying(); 
+        return playing; 
     }
     
     public boolean isLoop() { 
@@ -96,10 +115,19 @@ public class PlaybackController {
     public void setSpeed(float speed) { 
         this.speed = Math.max(0.1f, Math.min(speed, 5.0f)); 
         LOGGER.debug("[Playback] Speed set to {}", this.speed);
+        notifyListeners();
     }
     
     public float getSpeed() { 
         return speed; 
+    }
+
+    public float getCurrentTime() {
+        return (float) currentTimeSec;
+    }
+
+    public float getDuration() {
+        return (float) computeDuration();
     }
 
     // ========== 帧更新驱动 ==========
@@ -109,53 +137,82 @@ public class PlaybackController {
      * @param deltaSeconds 上一帧到当前帧的时间差（秒）
      */
     public void update(float deltaSeconds) {
-        AnimationState state = AnimationState.get();
-        
-        // 只在播放状态下更新时间
-        if (!state.isPlaying()) return;
-        
-        AnimationClip clip = state.getClip();
-        if (clip == null) return;
+        if (!playing) {
+            return;
+        }
 
-        // 计算新时间
-        float t = state.getCurrentTime() + deltaSeconds * speed;
-        float duration = state.getDuration();
+        double duration = computeDuration();
+        if (duration <= 0.0) {
+            ClipPlaybackRuntimeManager.get().update(currentTimeSec);
+            return;
+        }
 
-        // 处理超出范围
-        if (t > duration) {
+        double nextTime = currentTimeSec + deltaSeconds * speed;
+        if (nextTime > duration) {
             if (loop) {
-                t = 0f; // 循环回到起点
+                nextTime = nextTime % duration;
                 LOGGER.trace("[Playback] Looped to start");
             } else {
-                t = duration; // 停在终点
-                state.setPlaying(false);
+                nextTime = duration;
+                playing = false;
                 LOGGER.debug("[Playback] Reached end, stopped");
             }
         }
-        if (t < 0f) t = 0f;
-        
-        state.setCurrentTime(t);
+        if (nextTime < 0.0) {
+            nextTime = 0.0;
+        }
+        currentTimeSec = nextTime;
 
-        // 采样并应用动画到容器系统
-        sampleAndApplyAnimation(t, clip);
+        ClipPlaybackRuntimeManager.get().update(currentTimeSec);
+        notifyListeners();
     }
-    
-    /**
-     * 采样动画数据并应用到容器（v4.5）
-     */
-    private void sampleAndApplyAnimation(float time, AnimationClip clip) {
-        // Sample each track at time t and apply to container system
-        for (Track track : clip.getTracks()) {
-            Keyframe sample = track.sample(time);
-            
-            if (sample != null) {
-                // 应用动画到容器
-                com.chronoblocks.core.animation.AnimationApplicator.get()
-                    .applyAnimation(track, sample);
-                
-                LOGGER.trace("[Playback] Track '{}' sampled at t={}: {}", 
-                    track.getName(), time, sample);
+
+    private double computeDuration() {
+        TimelineController controller = AnimationTimelineService.get().getTimelineController();
+        double maxEnd = 0.0;
+        for (AnimationClip clip : controller.getPlayableGraph().getClips()) {
+            maxEnd = Math.max(maxEnd, clip.getEnd());
+        }
+        return maxEnd;
+    }
+
+    private void notifyListeners() {
+        double duration = computeDuration();
+        PlaybackEvent event = new PlaybackEvent(
+            playing,
+            loop,
+            speed,
+            currentTimeSec,
+            duration
+        );
+        for (PlaybackListener listener : listeners) {
+            try {
+                listener.onPlaybackEvent(event);
+            } catch (Exception e) {
+                LOGGER.warn("[Playback] Listener threw exception", e);
             }
         }
     }
+
+    public void addListener(PlaybackListener listener) {
+        if (listener != null) {
+            listeners.add(listener);
+        }
+    }
+
+    public void removeListener(PlaybackListener listener) {
+        listeners.remove(listener);
+    }
+
+    public interface PlaybackListener {
+        void onPlaybackEvent(PlaybackEvent event);
+    }
+
+    public record PlaybackEvent(
+        boolean playing,
+        boolean loop,
+        float speed,
+        double currentTimeSec,
+        double durationSec
+    ) {}
 }

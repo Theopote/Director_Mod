@@ -108,7 +108,7 @@ public final class SelectionManager {
      */
     @SuppressWarnings("unchecked")
     public <T> T getCurrentSelectionAs(Class<T> type) {
-        if (currentSelection != null && type.isInstance(currentSelection)) {
+        if (type.isInstance(currentSelection)) {
             return (T) currentSelection;
         }
         return null;
@@ -130,7 +130,7 @@ public final class SelectionManager {
      * @return 如果是指定类型则返回 true
      */
     public boolean isSelectionOfType(Class<?> type) {
-        return currentSelection != null && type.isInstance(currentSelection);
+        return type.isInstance(currentSelection);
     }
     
     /**

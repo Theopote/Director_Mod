@@ -1,9 +1,11 @@
 package com.chronoblocks.ui.properties;
 
-import com.chronoblocks.core.animation.AnimationClip;
-import com.chronoblocks.core.animation.Keyframe;
+import com.chronoblocks.animation.core.AnimationClip;
+import com.chronoblocks.animation.core.Keyframe;
 import com.chronoblocks.core.container.Container;
+import com.chronoblocks.ui.adapters.impl.TrackAdapter;
 import com.chronoblocks.ui.properties.adapters.*;
+import com.chronoblocks.ui.timeline.TimelineClip;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -108,8 +110,10 @@ public final class PropertyAdapterBootstrap {
             registerAdapter(Container.class, new ContainerPropertyAdapter());
             registeredCount++;
             
-            // ✅ 动画片段属性适配器
+            // ✅ 动画片段属性适配器（新版动画系统）
             registerAdapter(AnimationClip.class, new ClipPropertyAdapter());
+            registeredCount++;
+            registerAdapter(TimelineClip.class, new TimelineClipPropertyAdapter());
             registeredCount++;
             
             LOGGER.info("  ========== 扩展系统适配器 ==========");
@@ -205,52 +209,6 @@ public final class PropertyAdapterBootstrap {
         LOGGER.info("[PropertyAdapterBootstrap] ✅ 已注册: {} → {}", 
             adapter.getClass().getSimpleName(), 
             targetName);
-    }
-    
-    /**
-     * 尝试注册可选的适配器
-     * 
-     * <p>允许在某些模块缺失时静默跳过，不影响核心功能。
-     * 
-     * @param targetClassName 目标类的完整类名
-     * @param adapterClassName 适配器类的完整类名
-     * @return 如果成功注册则返回 1，否则返回 0
-     */
-    @SuppressWarnings("unchecked")
-    private static int tryRegisterOptional(String targetClassName, String adapterClassName) {
-        try {
-            // 尝试加载目标类
-            Class<?> targetClass = Class.forName(targetClassName);
-            
-            // 尝试加载并实例化适配器类
-            Class<?> adapterClass = Class.forName(adapterClassName);
-            Object adapterInstance = adapterClass.getDeclaredConstructor().newInstance();
-            
-            // 类型安全的注册
-            if (adapterInstance instanceof IPropertyAdapter) {
-                @SuppressWarnings("unchecked")
-                IPropertyAdapter<Object> adapter = (IPropertyAdapter<Object>) adapterInstance;
-                @SuppressWarnings("unchecked")
-                Class<Object> type = (Class<Object>) targetClass;
-                PropertyAdapterRegistry.registerAdapter(type, adapter);
-            } else {
-                throw new IllegalArgumentException("Adapter must implement IPropertyAdapter");
-            }
-            
-            LOGGER.info("[PropertyAdapterBootstrap] ✅ 已注册可选模块: {} → {}", 
-                adapterClass.getSimpleName(), 
-                targetClass.getSimpleName());
-            
-            return 1;
-            
-        } catch (ClassNotFoundException e) {
-            LOGGER.debug("[PropertyAdapterBootstrap] ⏭ 可选模块未加载: {}", targetClassName);
-            return 0;
-        } catch (Exception e) {
-            LOGGER.error("[PropertyAdapterBootstrap] ❌ 注册可选适配器失败: {} → {}", 
-                adapterClassName, targetClassName, e);
-            return 0;
-        }
     }
     
     /**

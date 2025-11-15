@@ -37,10 +37,11 @@ import org.slf4j.LoggerFactory;
  * <h3>📋 支持的对象类型（16+1种）</h3>
  * <table border="1" cellpadding="5" cellspacing="0">
  *   <tr><th>类别</th><th>对象类型</th><th>适配器</th></tr>
- *   <tr><td rowspan="3"><b>时间线系统</b></td>
+ *   <tr><td rowspan="4"><b>时间线系统</b></td>
  *       <td>TimelineProject</td><td>TimelineProjectPropertyAdapter</td></tr>
  *   <tr><td>TimelineSequence</td><td>TimelineSequencePropertyAdapter</td></tr>
  *   <tr><td>TimelineTrack</td><td>TimelineTrackPropertyAdapter</td></tr>
+ *   <tr><td>TimelineClip</td><td>TimelineClipPropertyAdapter</td></tr>
  *   <tr><td rowspan="3"><b>核心对象</b></td>
  *       <td>Keyframe</td><td>KeyframePropertyAdapter</td></tr>
  *   <tr><td>Container</td><td>ContainerPropertyAdapter</td></tr>

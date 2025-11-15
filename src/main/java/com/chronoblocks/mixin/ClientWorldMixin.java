@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * 🎬 ClientWorldMixin v2.3
+ * 🎬 ClientWorldMixin v2.4
  * -----------------------------------------------------
  * 在 ChronoBlocks 导演模式下实现选择性冻结：
  * - 暂停世界时间流逝 (tickTime)
@@ -18,7 +18,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * ✅ 保持玩家移动能力，只冻结非玩家实体
  * 
  * @author ChronoBlocks Team
- * @version 2.3
+ * @version 2.4
  */
 @Mixin(ClientWorld.class)
 public abstract class ClientWorldMixin {
@@ -47,7 +47,8 @@ public abstract class ClientWorldMixin {
             ci.cancel();
         }
     }
-
+    
+    // 注意：getBlockState 方法在 World 基类中，已移至 WorldMixin
     // 注意：tickWeather和tickLighting方法在ClientWorld中不存在
     // 天气和光照处理在更高层级，通过tickTime和tickEntities已经可以拦截大部分功能
 }

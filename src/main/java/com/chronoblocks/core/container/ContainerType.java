@@ -10,32 +10,52 @@ import com.chronoblocks.ui.theme.Icons;
  */
 public enum ContainerType {
     /**
-     * 分组容器 - 用于组织其他容器
+     * 分组容器 - 仅用于组织其他容器
      */
-    GROUP("容器", Icons.FOLDER),
-    
+    GROUP("组", Icons.FOLDER),
+
     /**
-     * 建筑容器 - 代表一个建筑结构
+     * 结构容器 - 静态方块组合（建筑、地形、道路）
      */
-    BUILDING("建筑", Icons.BUILDING),
-    
+    STRUCTURE("建筑结构", Icons.BUILDING),
+
     /**
-     * 区域容器 - 代表一个空间区域
+     * 植被容器 - 自然元素（树、草、藤蔓）
      */
-    REGION("区域", Icons.AREA),
-    
+    VEGETATION("植被", Icons.SPRING),
+
     /**
-     * 粒子容器 - 用于粒子效果
+     * 流体容器 - 水体、岩浆、雾、云
      */
-    PARTICLE("粒子", Icons.PARTICLE),
-    
+    FLUID("流体", Icons.WAVEFORM),
+
     /**
-     * 动画容器 - 预定义动画序列
+     * 实体容器 - 动物、NPC、展示模型
      */
-    ANIMATION("动画", Icons.ANIMATION),
-    
+    ENTITY("实体", Icons.GROUP),
+
     /**
-     * 自定义容器
+     * 粒子容器 - 视觉特效烟雾火花等
+     */
+    PARTICLE("粒子特效", Icons.PARTICLE),
+
+    /**
+     * 环境容器 - 光照、天气、天空等全局控制
+     */
+    ENVIRONMENT("环境", Icons.LIGHT),
+
+    /**
+     * 装饰容器 - 家具、雕像、标识等艺术物件
+     */
+    DECORATION("装饰物", Icons.PALETTE),
+
+    /**
+     * 逻辑容器 - 脚本、动画序列、触发控制
+     */
+    LOGIC("逻辑控制", Icons.SETTINGS),
+
+    /**
+     * 自定义容器 - 供拓展或插件使用
      */
     CUSTOM("自定义", Icons.CONTAINER);
     

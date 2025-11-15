@@ -11,13 +11,14 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * 🚫 WorldRendererMixin - 阻止原版方块边框渲染
- * ==============================================
+ * 🚫 WorldRendererMixin - 阻止原版方块边框渲染 + 尝试拦截区块渲染
+ * ============================================================
  * 在ChronoBlocks模式下：
  * - 完全取消Minecraft默认的方块高亮边框渲染
  * - 原版通过renderTargetBlockOutline()绘制的蓝色边框被拦截
  * - 配合ChronoBlocksInputSystem的自定义边框渲染
- *
+ * - 尝试拦截区块渲染以隐藏容器中的方块
+ * <p>
  * 基于Minecraft 1.21.4源码中的WorldRenderer类方法签名
  */
 @Mixin(WorldRenderer.class)

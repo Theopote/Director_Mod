@@ -1,10 +1,16 @@
 package com.chronoblocks.ui;
 
+import com.chronoblocks.client.ChronoBlocksClientController;
+import com.chronoblocks.client.gizmo.GizmoManager;
+import com.chronoblocks.client.renderer.ContainerRenderer;
+import com.chronoblocks.client.renderer.SelectionRenderer;
+import com.chronoblocks.client.renderer.ToolPreviewManager;
+import com.chronoblocks.client.renderer.pipeline.ChronoBlocksRendererRegistry;
+import com.chronoblocks.ui.cursor.ImGuiCursorController;
+import com.chronoblocks.ui.di.UIConfiguration;
+import com.chronoblocks.ui.di.UIConfigurationBuilder;
 import com.chronoblocks.ui.imgui.ImGuiRenderer;
 import com.chronoblocks.ui.input.InputFocusManager;
-import com.chronoblocks.client.renderer.MouseHoverRenderEvents;
-import com.chronoblocks.client.renderer.MouseHoverRenderer;
-import com.chronoblocks.client.ChronoBlocksClientController;
 import com.chronoblocks.world.snapshot.WorldSnapshotManager;
 import imgui.ImGui;
 import net.minecraft.client.MinecraftClient;
@@ -14,59 +20,33 @@ import net.minecraft.text.Text;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-// 导入客户端管理器
-import com.chronoblocks.ui.di.UIConfiguration;
-import com.chronoblocks.ui.di.UIConfigurationBuilder;
-
 /**
- * 🎥 ChronoBlocksScreen v5.0
- * -------------------------------------------
- * ChronoBlocks 导演模式主界面（ImGui DockSpace + 面板系统）
- * <p>
- * ✅ 延迟初始化 UIManager（防止 ImGui 初始化竞态）
- * ✅ 独立渲染阶段：beginFrame / renderPanels / endFrame
- * ✅ DockSpace 全屏可拖拽布局
- * ✅ 生命周期钩子：onEnter / onExit
- * ✅ 自动恢复窗口尺寸更新
- * ✅ 调试信息栏（FPS / 面板数量 / 帧号）
+ * 🎥 ChronoBlocksScreen v5.1
+ * - 统一清理：cleanupRenderSystems()
+ * - 渲染注册表自检：RendererRegistry 状态检查与补挂载
+ * - ContainerRenderer 延迟启用：onDisplayed() 中启用、removed()/close() 中关闭
+ * - 降噪日志：常规帧日志降至 trace 级
+ * - 初始化与退出职责分层：removed() 与 close() 各司其职
  */
 public class ChronoBlocksScreen extends Screen {
-    
     private static final Logger LOGGER = LoggerFactory.getLogger(ChronoBlocksScreen.class);
-    
-    // 布局常量 - 参考TreeFactory的设计（保留用于未来扩展）
-    // private static final float UI_WIDTH_RATIO = 0.3f;  // UI宽度为窗口宽度的30%
 
     private final MinecraftClient client;
-    
-    // UI管理器
     private ChronoBlocksUIManager uiManager;
-    
-    // 初始化状态标志
     private boolean initializationFailed = false;
     private boolean isInitialized = false;
-    
-    // 导演模式状态
     private boolean directorModeActive = false;
     private WorldSnapshotManager snapshotManager;
-    
 
     public ChronoBlocksScreen() {
         super(Text.literal("ChronoBlocks"));
         this.client = MinecraftClient.getInstance();
-        LOGGER.info("[ChronoBlocks] 创建新的ChronoBlocksScreen");
-        
-        // 通知InputFocusManager窗口已打开
+        LOGGER.info("[ChronoBlocks] 创建新的 ChronoBlocksScreen");
+
         InputFocusManager.getInstance().setChronoBlocksScreenActive(true);
-        
-        // 激活ChronoBlocks模式
+
         ChronoBlocksClientController.getInstance().activateChronoBlocksMode();
-        
-        // 启用鼠标悬停高亮渲染
-        MouseHoverRenderEvents.enable();
-        MouseHoverRenderer.getInstance().enable();
-        
-        // 确保鼠标光标可见
+
         if (client != null && client.mouse != null) {
             client.mouse.unlockCursor();
             LOGGER.info("[ChronoBlocks] 鼠标光标已解锁");
@@ -77,35 +57,32 @@ public class ChronoBlocksScreen extends Screen {
     protected void init() {
         super.init();
         
-        // 解锁鼠标光标 - 关键实现
         if (client != null && client.mouse != null) {
             client.mouse.unlockCursor();
-            LOGGER.info("[ChronoBlocks] 🖱️ 鼠标光标已解锁");
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[ChronoBlocks] 🖱️ 鼠标光标已解锁");
+            }
         }
-        
-        // 防止重复初始化
+
         if (isInitialized) {
-            LOGGER.debug("[ChronoBlocks] UI管理器已经初始化，跳过重复初始化");
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[ChronoBlocks] 已初始化，跳过");
+            }
             return;
         }
-        
-        // ImGui is now initialized centrally by ChronoBlocksClientInitializer.
-        // We just need to check if it was successful.
+
         if (!ImGuiRenderer.getInstance().isInitialized()) {
-            LOGGER.error("[ChronoBlocks] ImGui is not initialized. The UI cannot be displayed.");
+            LOGGER.error("[ChronoBlocks] ImGui 未初始化，UI 无法显示");
             initializationFailed = true;
             return;
         }
-        
-        // 清理之前的ImGui状态，确保干净的起始状态
+
         try {
-            LOGGER.debug("[ChronoBlocks] 清理之前的ImGui状态");
-            com.chronoblocks.ui.imgui.ImGuiStateChecker.forceCleanupStack("ChronoBlocksScreen初始化清理");
+            com.chronoblocks.ui.imgui.ImGuiStateChecker.forceCleanupStack("ChronoBlocksScreen.init 清理");
         } catch (Exception e) {
-            LOGGER.warn("[ChronoBlocks] 清理ImGui状态时发生错误", e);
+            LOGGER.warn("[ChronoBlocks] 清理 ImGui 状态时发生错误", e);
         }
-        
-        // 初始化UI管理器
+
         try {
             UIConfiguration config = UIConfigurationBuilder.builder()
                 .withMinecraftClient(client)
@@ -113,27 +90,18 @@ public class ChronoBlocksScreen extends Screen {
                 .build();
             this.uiManager = config.createUIManager();
             this.isInitialized = true;
-            LOGGER.info("[ChronoBlocks] UI管理器初始化成功");
+            LOGGER.info("[ChronoBlocks] UI 管理器初始化成功");
         } catch (Exception e) {
-            LOGGER.error("[ChronoBlocks] UI管理器初始化失败: {}", e.getMessage(), e);
+            LOGGER.error("[ChronoBlocks] UI 管理器初始化失败: {}", e.getMessage(), e);
             this.uiManager = null;
             initializationFailed = true;
         }
-        
-        // 初始化选择工具系统
+
         try {
             initializeSelectionSystem();
             LOGGER.info("[ChronoBlocks] 选择工具系统初始化完成");
         } catch (Exception e) {
             LOGGER.error("[ChronoBlocks] 选择工具系统初始化失败", e);
-        }
-        
-        // 启用容器渲染 v4.5
-        try {
-            com.chronoblocks.client.renderer.ContainerRenderEvents.enable();
-            LOGGER.info("[ChronoBlocks] 容器渲染已启用");
-        } catch (Exception e) {
-            LOGGER.error("[ChronoBlocks] 启用容器渲染失败", e);
         }
     }
 
@@ -142,13 +110,25 @@ public class ChronoBlocksScreen extends Screen {
         super.onDisplayed();
         LOGGER.info("[ChronoBlocks] 🎬 进入导演模式界面");
         enterDirectorMode();
+        ChronoBlocksRendererRegistry rendererRegistry = ChronoBlocksRendererRegistry.get();
+        if (!rendererRegistry.isInitialized()) {
+            LOGGER.warn("[ChronoBlocks] 渲染注册表未激活，尝试重新初始化");
+            rendererRegistry.ensureInitialized();
+        }
+        try {
+            ContainerRenderer.get().setEnabled(true);
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[ChronoBlocks] ContainerRenderer 已启用");
+            }
+        } catch (Exception e) {
+            LOGGER.error("[ChronoBlocks] 启用 ContainerRenderer 失败", e);
+        }
     }
 
 
     @Override
     public void render(DrawContext context, int mouseX, int mouseY, float delta) {
-        // 如果初始化失败，显示错误信息
-        if (initializationFailed) {
+        if (initializationFailed || !isInitialized) {
             renderErrorScreen(context, mouseX, mouseY, delta);
             return;
         }
@@ -159,17 +139,25 @@ public class ChronoBlocksScreen extends Screen {
 
             // 更新显示尺寸（处理全屏切换等）
             imGuiRenderer.updateDisplaySize();
-            LOGGER.debug("[ChronoBlocks] Display size updated");
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[ChronoBlocks] Display size updated");
+            }
 
             // 开始新的ImGui帧
             imGuiRenderer.beginFrame();
-            LOGGER.debug("[ChronoBlocks] ImGui frame started");
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[ChronoBlocks] ImGui frame started");
+            }
 
             // 渲染UI管理器（包含DockSpace）
             if (uiManager != null) {
-                LOGGER.debug("[ChronoBlocks] Rendering UI manager...");
+                if (LOGGER.isTraceEnabled()) {
+                    LOGGER.trace("[ChronoBlocks] Rendering UI manager...");
+                }
                 uiManager.render();
-                LOGGER.debug("[ChronoBlocks] UI manager rendered successfully");
+                if (LOGGER.isTraceEnabled()) {
+                    LOGGER.trace("[ChronoBlocks] UI manager rendered successfully");
+                }
             } else {
                 LOGGER.warn("[ChronoBlocks] UIManager为空，跳过UI渲染");
             }
@@ -180,9 +168,14 @@ public class ChronoBlocksScreen extends Screen {
             // 移除调试状态栏显示（FPS、Panels、Frame#已在工具栏和状态栏显示）
             // renderDebugStatusBar();
 
+            // ✅ 应用 ImGui 光标状态（来自 BoxSelectTool 等工具）
+            ImGuiCursorController.get().applyToImGui();
+
             // 结束ImGui帧
             imGuiRenderer.endFrame();
-            LOGGER.debug("[ChronoBlocks] ImGui frame ended");
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[ChronoBlocks] ImGui frame ended");
+            }
 
         } catch (Exception e) {
             LOGGER.error("[ChronoBlocks] UI渲染异常", e);
@@ -253,18 +246,9 @@ public class ChronoBlocksScreen extends Screen {
         super.removed();
         LOGGER.info("[ChronoBlocks] 🧭 退出导演模式界面");
         exitDirectorMode();
-        
-        // 禁用容器渲染 v4.5
-        try {
-            com.chronoblocks.client.renderer.ContainerRenderEvents.disable();
-            LOGGER.info("[ChronoBlocks] 容器渲染已禁用");
-        } catch (Exception e) {
-            LOGGER.error("[ChronoBlocks] 禁用容器渲染失败", e);
-        }
-        
-        // 通知InputFocusManager窗口已关闭
+        cleanupRenderSystems(false);
         InputFocusManager.getInstance().setChronoBlocksScreenActive(false);
-        LOGGER.info("[ChronoBlocks] ChronoBlocksScreen已关闭，恢复游戏输入模式");
+        LOGGER.info("[ChronoBlocks] ChronoBlocksScreen 已关闭，恢复游戏输入模式");
     }
     
     @Override
@@ -311,7 +295,9 @@ public class ChronoBlocksScreen extends Screen {
     @Override
     public void resize(MinecraftClient client, int width, int height) {
         super.resize(client, width, height);
-        LOGGER.debug("[ChronoBlocks] 窗口大小变更: {}x{}", width, height);
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("[ChronoBlocks] 窗口大小变更: {}x{}", width, height);
+        }
         ImGuiRenderer.getInstance().updateDisplaySize();
     }
 
@@ -320,103 +306,81 @@ public class ChronoBlocksScreen extends Screen {
      */
     private void initializeSelectionSystem() {
         LOGGER.info("[ChronoBlocks] 初始化选择工具系统...");
-        
-        try {
-            // 获取选择管理器
-            com.chronoblocks.core.selection.SelectionManager selectionManager = 
-                com.chronoblocks.core.selection.SelectionManager.get();
-            
-            if (selectionManager == null) {
-                LOGGER.error("[ChronoBlocks] SelectionManager为空，无法初始化");
-                return;
-            }
-            
-            // 设置默认工具为"点击选择"
-            if (!selectionManager.hasCurrentTool() && client.world != null) {
-                LOGGER.info("[ChronoBlocks] 设置默认选择工具: 点击选择");
-                selectionManager.setCurrentTool("click", client.world);
-                
-                // 验证工具是否设置成功
-                if (selectionManager.hasCurrentTool()) {
-                    LOGGER.info("[ChronoBlocks] ✅ 当前工具: {}", 
-                        selectionManager.getCurrentToolDisplayName());
-                } else {
-                    LOGGER.warn("[ChronoBlocks] ⚠️ 设置默认工具失败");
-                }
-            } else {
-                LOGGER.info("[ChronoBlocks] 当前工具: {}", 
+
+        ChronoBlocksRendererRegistry registry = ChronoBlocksRendererRegistry.get();
+        if (!registry.isInitialized()) {
+            LOGGER.warn("[ChronoBlocks] ⚠️ 渲染注册表未初始化，正在初始化...");
+            registry.ensureInitialized();
+        }
+
+        com.chronoblocks.core.selection.SelectionManager selectionManager =
+            com.chronoblocks.core.selection.SelectionManager.get();
+        if (selectionManager == null) {
+            LOGGER.error("[ChronoBlocks] SelectionManager 为空，无法初始化");
+            return;
+        }
+
+        if (!selectionManager.hasCurrentTool() && client.world != null) {
+            selectionManager.setCurrentTool("box", client.world);
+            if (selectionManager.hasCurrentTool()) {
+                LOGGER.info("[ChronoBlocks] ✅ 当前工具: {}",
                     selectionManager.getCurrentToolDisplayName());
+            } else {
+                LOGGER.warn("[ChronoBlocks] ⚠️ 设置默认工具失败");
             }
-            
-            // 启用选择渲染器
-            com.chronoblocks.client.renderer.SelectionRenderer renderer = 
-                com.chronoblocks.client.renderer.SelectionRenderer.getInstance();
-            renderer.setEnabled(true);
-            LOGGER.info("[ChronoBlocks] ✅ 选择渲染器已启用");
-            
-            // 确保选择渲染事件已注册
-            if (!com.chronoblocks.client.renderer.SelectionRenderEvents.isRegistered()) {
-                LOGGER.warn("[ChronoBlocks] ⚠️ 选择渲染事件未注册，现在注册...");
-                com.chronoblocks.client.renderer.SelectionRenderEvents.register();
-            }
-            
-            LOGGER.info("[ChronoBlocks] ✅ 选择工具系统初始化完成");
-            
-        } catch (Exception e) {
-            LOGGER.error("[ChronoBlocks] 初始化选择工具系统失败", e);
+        } else if (selectionManager.hasCurrentTool() && LOGGER.isTraceEnabled()) {
+            LOGGER.trace("[ChronoBlocks] 当前工具: {}",
+                selectionManager.getCurrentToolDisplayName());
+        }
+
+        try {
+            SelectionRenderer.getInstance().setEnabled(true);
+        } catch (Throwable ignored) {
+            // 由渲染注册表托管，忽略
         }
     }
     
     @Override
     public void close() {
-        // 停用ChronoBlocks模式
         ChronoBlocksClientController.getInstance().deactivateChronoBlocksMode();
-        
-        // 禁用鼠标悬停高亮渲染
-        MouseHoverRenderEvents.disable();
-        MouseHoverRenderer.getInstance().disable();
-        
-        // 恢复鼠标锁定状态
+        cleanupRenderSystems(true);
+
         if (client != null && client.mouse != null) {
             client.mouse.lockCursor();
             LOGGER.info("[ChronoBlocks] 鼠标光标已锁定，恢复游戏状态");
         }
-        
-        
-        // ImGui 会自动保存布局到 imgui.ini 文件
-        
-        // 释放UI Manager资源
+
         if (uiManager != null) {
             try {
                 uiManager.dispose();
-                LOGGER.debug("[ChronoBlocks] UI管理器资源已释放");
+                if (LOGGER.isTraceEnabled()) {
+                    LOGGER.trace("[ChronoBlocks] UI 管理器资源已释放");
+                }
             } catch (Exception e) {
                 LOGGER.warn("[ChronoBlocks] 释放UI管理器资源时发生错误", e);
             } finally {
                 uiManager = null; // 确保引用被清空
             }
         }
-        
-        // 强制清理ImGui状态，防止第二次打开时的冲突
+
         try {
-            LOGGER.debug("[ChronoBlocks] 强制清理ImGui状态");
-            com.chronoblocks.ui.imgui.ImGuiStateChecker.forceCleanupStack("ChronoBlocksScreen关闭清理");
+            com.chronoblocks.ui.imgui.ImGuiStateChecker.forceCleanupStack("ChronoBlocksScreen.close 清理");
         } catch (Exception e) {
-            LOGGER.warn("[ChronoBlocks] 清理ImGui状态时发生错误", e);
+            LOGGER.warn("[ChronoBlocks] 清理 ImGui 状态时发生错误", e);
         }
-        
-        // 重置DockSpace布局状态，下次打开时重新应用默认布局
+
         try {
             com.chronoblocks.ui.layout.DockSpaceLayoutBuilder.resetLayoutState();
-            LOGGER.debug("[ChronoBlocks] DockSpace布局状态已重置");
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[ChronoBlocks] DockSpace 布局状态已重置");
+            }
         } catch (Exception e) {
             LOGGER.warn("[ChronoBlocks] 重置DockSpace布局状态时发生错误", e);
         }
-        
-        // 重置状态标志
+
         initializationFailed = false;
         isInitialized = false;
-        
+
         super.close();
     }
     
@@ -508,18 +472,14 @@ public class ChronoBlocksScreen extends Screen {
 
         try {
             if (client.world != null) {
-                // 1️⃣ 解冻非玩家实体
-                client.world.getEntities().forEach(entity -> {
-                    // 只解冻非玩家实体，玩家本来就没有被冻结
-                    if (!(entity instanceof net.minecraft.entity.player.PlayerEntity)) {
-                        entity.setFrozenTicks(0);
-                    }
-                });
-                LOGGER.debug("[ChronoBlocks] 非玩家实体解冻");
+                if (LOGGER.isTraceEnabled()) {
+                    LOGGER.trace("[ChronoBlocks] 实体保持自由移动");
+                }
 
-                // 2️⃣ 停用 mixin 拦截（时间会自动恢复流逝）
                 ChronoBlocksClientController.getInstance().deactivateChronoBlocksMode();
-                LOGGER.debug("[ChronoBlocks] 时间流动恢复");
+                if (LOGGER.isTraceEnabled()) {
+                    LOGGER.trace("[ChronoBlocks] 时间流动恢复");
+                }
 
                 // 3️⃣ 恢复世界快照（方块状态）
                 if (snapshotManager != null) {
@@ -537,9 +497,9 @@ public class ChronoBlocksScreen extends Screen {
     }
 
     /**
-     * 🌍 冻结世界 v2.1
-     * 暂停世界时间流逝，让植物停止生长、动物停止活动
-     * 注意：不冻结玩家，让玩家可以自由移动摄像机进行动画制作
+     * 🌍 冻结世界 v2.2
+     * 暂停世界时间流逝，让植物停止生长
+     * 注意：不冻结实体，让所有实体（包括动物）自由移动，避免颤抖和闪烁问题
      */
     private void freezeWorld() {
         try {
@@ -547,23 +507,16 @@ public class ChronoBlocksScreen extends Screen {
                 // 🔹 1️⃣ 固定当前时间（通过World直接设置）
                 long fixedTime = client.world.getTimeOfDay();
                 client.world.setTime(fixedTime, fixedTime, false);
-                LOGGER.debug("[ChronoBlocks] 世界时间已冻结 (固定于 tick={})", fixedTime);
+                if (LOGGER.isTraceEnabled()) {
+                    LOGGER.trace("[ChronoBlocks] 世界时间已冻结 (tick={})", fixedTime);
+                    LOGGER.trace("[ChronoBlocks] 实体保持自由移动，避免颤抖和闪烁");
+                }
 
-                // 🔹 2️⃣ 冻结非玩家实体（动物、怪物等，但保留玩家移动）
-                client.world.getEntities().forEach(entity -> {
-                    try {
-                        // 不冻结玩家，让玩家可以移动摄像机
-                        if (!(entity instanceof net.minecraft.entity.player.PlayerEntity)) {
-                            entity.setFrozenTicks(Integer.MAX_VALUE);
-                        }
-                    } catch (Exception ignored) {}
-                });
-                LOGGER.debug("[ChronoBlocks] 非玩家实体已冻结，玩家可自由移动");
-
-                // 🔹 3️⃣ 启用 mixin 拦截（tickTime / tickEntities）
+                // 🔹 3️⃣ 启用 mixin 拦截（tickTime / doRandomBlockDisplayTicks）
+                // 通过ClientWorldMixin拦截世界时间更新，实现时间冻结
                 ChronoBlocksClientController.getInstance().activateChronoBlocksMode();
 
-                LOGGER.info("[ChronoBlocks] 🌍 世界冻结完成 - 非玩家实体、植物全静止，玩家可自由移动");
+                LOGGER.info("[ChronoBlocks] 🌍 世界冻结完成 - 时间已冻结，实体自由移动");
             }
         } catch (Exception e) {
             LOGGER.error("[ChronoBlocks] 冻结世界失败", e);
@@ -578,18 +531,46 @@ public class ChronoBlocksScreen extends Screen {
     public void tick() {
         super.tick();
         
-        // 安全检查：如果UI开着但controller未激活，则激活
         if (directorModeActive && !ChronoBlocksClientController.getInstance().isChronoBlocksModeActive()) {
-            LOGGER.warn("[ChronoBlocks] 检测到模式状态不同步，重新激活ChronoBlocks模式");
+            LOGGER.warn("[ChronoBlocks] 检测到模式状态不同步，重新激活 ChronoBlocks 模式");
             ChronoBlocksClientController.getInstance().activateChronoBlocksMode();
+        }
+
+        ChronoBlocksRendererRegistry registry = ChronoBlocksRendererRegistry.get();
+        if (!registry.isInitialized()) {
+            LOGGER.warn("[ChronoBlocks] 渲染注册表失效，尝试补挂载");
+            registry.ensureInitialized();
         }
     }
 
-    /**
-     * 检查导演模式是否激活
-     */
-    public boolean isDirectorModeActive() {
-        return directorModeActive;
+    private void cleanupRenderSystems(boolean full) {
+        try {
+            SelectionRenderer.getInstance().clearAll();
+        } catch (Exception e) {
+            LOGGER.warn("[ChronoBlocks] 清理 SelectionRenderer 状态失败", e);
+        }
+        try {
+            ToolPreviewManager.get().clearPreview();
+        } catch (Exception e) {
+            LOGGER.warn("[ChronoBlocks] 清理工具预览失败", e);
+        }
+        try {
+            ContainerRenderer.get().setEnabled(false);
+        } catch (Exception e) {
+            LOGGER.warn("[ChronoBlocks] 停用 ContainerRenderer 失败", e);
+        }
+        try {
+            GizmoManager.get().deactivate();
+        } catch (Exception e) {
+            LOGGER.warn("[ChronoBlocks] 停用 Gizmo 失败", e);
+        }
+
+        if (full) {
+            try {
+                com.chronoblocks.core.selection.SelectionManager.get().clearSelection();
+            } catch (Exception e) {
+                LOGGER.warn("[ChronoBlocks] 清除选区失败", e);
+            }
+        }
     }
-    
 }

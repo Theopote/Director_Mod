@@ -1,5 +1,7 @@
 package com.chronoblocks.ui.timeline;
 
+import com.chronoblocks.animation.timeline.ClipAnimationConfig;
+import com.chronoblocks.core.container.ContainerAnimationPreset;
 import com.chronoblocks.ui.util.UIUtils;
 
 import java.util.*;
@@ -35,6 +37,7 @@ public class TimelineClip {
     // ========== 额外属性 ==========
     private boolean muted = false;
     private float opacity = 1.0f;
+    private ClipAnimationConfig animationConfig = ClipAnimationConfig.defaultConfig();
     
     // ========== 父引用（用于 O(1) 查找）==========
     private TimelineTrack parentTrack = null;
@@ -63,6 +66,7 @@ public class TimelineClip {
         this.keyframes.addAll(other.keyframes);
         this.muted = other.muted;
         this.opacity = other.opacity;
+        this.animationConfig = other.animationConfig != null ? other.animationConfig.copy() : ClipAnimationConfig.defaultConfig();
     }
 
     // ========== 时间操作 ==========
@@ -208,6 +212,31 @@ public class TimelineClip {
 
     public float getOpacity() { return opacity; }
     public void setOpacity(float opacity) { this.opacity = UIUtils.clamp(opacity, 0f, 1f); }
+
+    public ClipAnimationConfig getAnimationConfig() {
+        if (animationConfig == null) {
+            animationConfig = ClipAnimationConfig.defaultConfig();
+        }
+        return animationConfig;
+    }
+
+    public void setAnimationConfig(ClipAnimationConfig config) {
+        this.animationConfig = config != null ? config.copy() : ClipAnimationConfig.defaultConfig();
+    }
+
+    public void applyPreset(ContainerAnimationPreset preset) {
+        if (preset == null) {
+            return;
+        }
+        ClipAnimationConfig config = getAnimationConfig();
+        config.setMode(preset.getMode());
+        config.setDuration(Math.max(config.getDuration(), preset.getSuggestedDuration()));
+        config.setDelay(preset.getDelay());
+        config.setEasing(preset.getEasing());
+        config.setOrdering(preset.getOrdering());
+        config.getParams().clear();
+        config.getParams().putAll(preset.getParams());
+    }
     
     /**
      * 获取父轨道引用（用于 O(1) 反向查找）

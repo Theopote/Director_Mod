@@ -1,157 +1,89 @@
 package com.chronoblocks.ui.adapters.impl;
 
-import com.chronoblocks.core.animation.Track;
+import com.chronoblocks.animation.core.Keyframe;
+import com.chronoblocks.animation.core.RotationTrack;
+import com.chronoblocks.animation.core.Track;
+import com.chronoblocks.animation.core.TransformTrack;
+import com.chronoblocks.animation.core.VisibilityTrack;
 import com.chronoblocks.ui.adapters.BasePropertyAdapter;
+import com.chronoblocks.ui.theme.UITheme;
 import imgui.ImGui;
+import net.minecraft.util.math.Vec3d;
 
 /**
- * 🎵 TrackAdapter - 轨道属性适配器
- *
- * <p>为 ChronoBlocks 动画轨道对象提供专用属性编辑器。
- *
- * <h3>✨ 支持的属性：</h3>
- * <ul>
- *     <li>📝 基础属性：名称、目标ID</li>
- *     <li>🎯 绑定信息：目标类型（方块/容器）</li>
- *     <li>⏱ 时间线：关键帧数量、时长</li>
- *     <li>📊 统计信息：关键帧分布、采样信息</li>
- * </ul>
- *
- * @author ChronoBlocks Team
- * @version 4.5
- * @since 4.5
+ * 新动画系统轨道属性适配器。
  */
+@SuppressWarnings("rawtypes")
 public class TrackAdapter extends BasePropertyAdapter<Track> {
 
     @Override
     protected boolean doRenderProperties(Track track) {
-        boolean changed = false;
+        UITheme.title("🎵 轨道信息");
 
-        // ========== 基础属性 ==========
-        renderSectionHeader("📝 基础信息");
-        
-        changed |= renderTextProperty("轨道名称",
-                track::getName,
-                track::setName,
-                128);
-        
-        changed |= renderTextProperty("目标ID",
-                track::getTargetId,
-                track::setTargetId,
-                128);
-        
-        changed |= renderBoolProperty("目标是容器",
-                track::isTargetContainer,
-                track::setTargetIsContainer);
-        
-        renderHelpMarker("勾选表示目标是容器，否则是单个方块");
+        UITheme.beginGroup("基础信息");
+        ImGui.text("属性路径: " + track.getPropertyPath());
+        ImGui.text("轨道类型: " + resolveType(track));
+        ImGui.text("关键帧数量: " + track.getKeyframes().size());
+        UITheme.endGroup();
 
-        // ========== 时间线信息 ==========
-        renderSectionHeader("⏱ 时间线");
-        
-        int keyframeCount = track.getKeyframes().size();
-        renderReadOnlyText("关键帧数量", String.valueOf(keyframeCount));
-        
-        if (keyframeCount > 0) {
-            float firstTime = track.getKeyframes().get(0).getTime();
-            float lastTime = track.getKeyframes().get(keyframeCount - 1).getTime();
-            float duration = lastTime - firstTime;
-            
-            renderReadOnlyText("起始时间", String.format("%.2f 秒", firstTime));
-            renderReadOnlyText("结束时间", String.format("%.2f 秒", lastTime));
-            renderReadOnlyText("时长", String.format("%.2f 秒", duration));
+        UITheme.separator();
+
+        UITheme.beginGroup("时间范围");
+        var keyframes = track.getKeyframes();
+        if (keyframes.isEmpty()) {
+            ImGui.textDisabled("暂无关键帧");
         } else {
-            ImGui.textDisabled("尚无关键帧");
+            Object firstObj = keyframes.get(0);
+            Object lastObj = keyframes.get(keyframes.size() - 1);
+            double first = firstObj instanceof Keyframe<?> kf ? kf.time() : 0.0;
+            double last = lastObj instanceof Keyframe<?> kf ? kf.time() : first;
+            ImGui.text(String.format("起始: %.3fs", first));
+            ImGui.text(String.format("结束: %.3fs", last));
+            ImGui.text(String.format("跨度: %.3fs", Math.max(0.0, last - first)));
         }
+        UITheme.endGroup();
 
-        // ========== 关键帧列表（只读预览） ==========
-        if (keyframeCount > 0) {
-            renderSectionHeader("🎬 关键帧");
-            
-            ImGui.beginChild("##keyframe_list", 0, 150, true);
-            
-            for (int i = 0; i < Math.min(keyframeCount, 10); i++) {
-                var kf = track.getKeyframes().get(i);
-                ImGui.text(String.format("[%d] %.2f 秒", i, kf.getTime()));
-                
-                if (ImGui.isItemHovered()) {
-                    ImGui.beginTooltip();
-                    ImGui.text(String.format("位置: (%.1f, %.1f, %.1f)",
-                            kf.getPosition()[0],
-                            kf.getPosition()[1],
-                            kf.getPosition()[2]));
-                    ImGui.text(String.format("旋转: (%.1f°, %.1f°, %.1f°)",
-                            kf.getRotation()[0],
-                            kf.getRotation()[1],
-                            kf.getRotation()[2]));
-                    ImGui.text(String.format("缩放: (%.2f, %.2f, %.2f)",
-                            kf.getScale()[0],
-                            kf.getScale()[1],
-                            kf.getScale()[2]));
-                    ImGui.text(String.format("不透明度: %.2f", kf.getOpacity()));
-                    ImGui.endTooltip();
+        UITheme.separator();
+
+        if (!keyframes.isEmpty()) {
+            UITheme.beginGroup("关键帧预览");
+            ImGui.beginChild("##track_keyframes", 0, 180, true);
+            for (int i = 0; i < keyframes.size(); i++) {
+                Object entry = keyframes.get(i);
+                if (entry instanceof Keyframe<?> kf) {
+                    ImGui.text(String.format("[%d] t=%.3fs %s", i + 1, kf.time(), describeValue(kf.value())));
+                } else {
+                    ImGui.text(String.format("[%d] %s", i + 1, String.valueOf(entry)));
                 }
             }
-            
-            if (keyframeCount > 10) {
-                ImGui.textDisabled(String.format("... 还有 %d 个关键帧", keyframeCount - 10));
-            }
-            
             ImGui.endChild();
+            UITheme.endGroup();
         }
 
-        // ========== 采样预览 ==========
-        if (keyframeCount >= 2) {
-            renderSectionHeader("🔍 采样预览");
-            
-            float[] sampleTime = {0.0f};
-            if (ImGui.sliderFloat("采样时间", sampleTime, 
-                    track.getKeyframes().get(0).getTime(),
-                    track.getKeyframes().get(keyframeCount - 1).getTime(),
-                    "%.2f 秒")) {
-                
-                var sampledKf = track.sample(sampleTime[0]);
-                
-                ImGui.spacing();
-                ImGui.textDisabled("采样结果:");
-                ImGui.text(String.format("  位置: (%.1f, %.1f, %.1f)",
-                        sampledKf.getPosition()[0],
-                        sampledKf.getPosition()[1],
-                        sampledKf.getPosition()[2]));
-                ImGui.text(String.format("  旋转: (%.1f°, %.1f°, %.1f°)",
-                        sampledKf.getRotation()[0],
-                        sampledKf.getRotation()[1],
-                        sampledKf.getRotation()[2]));
-                ImGui.text(String.format("  不透明度: %.2f", sampledKf.getOpacity()));
-            }
-        }
-
-        return changed;
+        return false;
     }
 
-    @Override
-    public void onPropertyChanged(Track track) {
-        super.onPropertyChanged(track);
-        // 重新排序关键帧
-        track.sortByTime();
-        logger.debug("[TrackAdapter] 轨道属性已更新: {}", track.getName());
+    private String resolveType(Track track) {
+        if (track instanceof TransformTrack transformTrack) {
+            return transformTrack.isScaleTrack() ? "ScaleTrack" : "PositionTrack";
+        }
+        if (track instanceof RotationTrack) {
+            return "RotationTrack";
+        }
+        if (track instanceof VisibilityTrack) {
+            return "VisibilityTrack";
+        }
+        return track.getClass().getSimpleName();
     }
 
-    @Override
-    public boolean validate(Track track) {
-        // 验证名称不为空
-        if (track.getName() == null || track.getName().trim().isEmpty()) {
-            logger.warn("[TrackAdapter] 轨道名称为空");
-            return false;
+    private String describeValue(Object value) {
+        if (value instanceof Vec3d vec) {
+            return String.format("(%.2f, %.2f, %.2f)", vec.x, vec.y, vec.z);
         }
-
-        // 验证目标ID不为空
-        if (track.getTargetId() == null || track.getTargetId().trim().isEmpty()) {
-            logger.warn("[TrackAdapter] 目标ID为空");
-            return false;
+        if (value instanceof Number number) {
+            return String.format("%.3f", number.doubleValue());
         }
-
-        return true;
+        return String.valueOf(value);
     }
 
     @Override
@@ -161,17 +93,18 @@ public class TrackAdapter extends BasePropertyAdapter<Track> {
 
     @Override
     public int getPriority() {
-        return 100; // 专用适配器，高优先级
+        return 80;
     }
 
     @Override
     public String getDisplayName() {
-        return "🎵 轨道编辑器";
+        return "🎵 轨道查看器";
     }
 
     @Override
     public String getDescription() {
-        return "用于编辑动画轨道的名称、目标绑定和关键帧信息";
+        return "查看轨道属性与关键帧分布。";
     }
 }
+
 

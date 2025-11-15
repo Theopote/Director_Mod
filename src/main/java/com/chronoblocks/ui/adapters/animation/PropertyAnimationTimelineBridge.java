@@ -1,5 +1,6 @@
 package com.chronoblocks.ui.adapters.animation;
 
+import com.chronoblocks.animation.integration.playback.ClipPlaybackRuntimeManager;
 import com.chronoblocks.ui.timeline.TimelineTrack;
 import com.chronoblocks.ui.timeline.TimelineClip;
 import org.slf4j.Logger;
@@ -223,6 +224,8 @@ public class PropertyAnimationTimelineBridge {
                 }
             }
         }
+
+        ClipPlaybackRuntimeManager.get().update(time);
     }
 
     /**

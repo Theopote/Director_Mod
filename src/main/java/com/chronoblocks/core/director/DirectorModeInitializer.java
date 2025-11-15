@@ -60,22 +60,16 @@ public class DirectorModeInitializer {
                 client.world.setTime(fixedTime, fixedTime, false);
                 LOGGER.debug("[ChronoBlocks] World time frozen (fixed at tick={})", fixedTime);
 
-                // 🔹 2️⃣ 冻结非玩家实体（动物、怪物等，但保留玩家移动）
-                client.world.getEntities().forEach(entity -> {
-                    try {
-                        // 不冻结玩家，让玩家可以移动摄像机
-                        if (!(entity instanceof net.minecraft.entity.player.PlayerEntity)) {
-                            entity.setFrozenTicks(Integer.MAX_VALUE);
-                        }
-                    } catch (Exception ignored) {}
-                });
-                LOGGER.debug("[ChronoBlocks] Non-player entities frozen, player can move freely");
+                // 🔹 2️⃣ 不冻结实体，让所有实体自由移动
+                // 注意：之前的实体冻结会导致颤抖和闪烁问题，已移除
+                // 实体冻结会与渲染系统冲突，导致Z-fighting和闪烁
+                LOGGER.debug("[ChronoBlocks] Entities remain free to move, avoiding jitter and flickering");
 
-                // 🔹 3️⃣ 启用 mixin 拦截（tickTime / tickEntities）
+                // 🔹 3️⃣ 启用 mixin 拦截（tickTime / doRandomBlockDisplayTicks）
                 // 注意：不再在这里激活ChronoBlocks模式，由ChronoBlocksScreen统一控制
                 LOGGER.debug("[ChronoBlocks] Director mode initialized (mode activation handled by Screen)");
 
-                LOGGER.info("[ChronoBlocks] 🌍 World freeze complete - entities, plants all frozen");
+                LOGGER.info("[ChronoBlocks] 🌍 World freeze complete - time frozen, entities free to move");
             }
         } catch (Exception e) {
             LOGGER.error("[ChronoBlocks] Failed to freeze world.", e);

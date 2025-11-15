@@ -22,11 +22,9 @@ public class DeleteContainerCommand implements ContainerCommand {
         this.parent = container.getParent();
         
         // 记录在父容器中的位置
-        if (parent != null) {
-            this.indexInParent = parent.getChildren().indexOf(container);
-        } else {
-            this.indexInParent = manager.getRootContainers().indexOf(container);
-        }
+        this.indexInParent = parent != null
+            ? parent.indexOfChild(container)
+            : manager.getRootContainersView().indexOf(container);
     }
     
     @Override
@@ -37,10 +35,7 @@ public class DeleteContainerCommand implements ContainerCommand {
     @Override
     public void undo() {
         manager.addContainer(container);
-        if (parent != null) {
-            manager.moveContainerToParent(container, parent);
-            // TODO: 恢复到原来的位置（需要在ContainerManager中添加支持）
-        }
+        manager.moveContainerToParent(container, parent, indexInParent);
     }
     
     @Override

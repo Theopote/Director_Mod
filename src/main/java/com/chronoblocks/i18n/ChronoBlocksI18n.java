@@ -11,8 +11,7 @@ import java.util.IllegalFormatException;
  * ChronoBlocks 国际化工具类
  * <p>
  * 提供便捷的翻译方法，支持格式化字符串和多语言切换。
- * 类似于 Axiom mod 的 AxiomI18n 类，为 ChronoBlocks 提供统一的翻译接口。
- * 
+ *
  * <h3>主要功能：</h3>
  * <ul>
  *   <li><strong>翻译获取</strong> - 获取指定键的翻译文本</li>

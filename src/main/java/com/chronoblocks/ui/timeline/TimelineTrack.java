@@ -19,6 +19,8 @@ public class TimelineTrack {
     private int zOrder = 0;  // Z轴排序
     private boolean muted = false;  // 静音（对音频轨道有效）
     private boolean solo = false;   // 独奏（只播放此轨道）
+    private String boundContainerName;
+    private String boundContainerId;
     
     /**
      * 构造函数（默认为容器轨道）
@@ -158,6 +160,26 @@ public class TimelineTrack {
     
     public void setSolo(boolean solo) {
         this.solo = solo;
+    }
+
+    public String getBoundContainerName() {
+        return boundContainerName;
+    }
+
+    public void setBoundContainerName(String boundContainerName) {
+        this.boundContainerName = (boundContainerName == null || boundContainerName.isBlank())
+            ? null
+            : boundContainerName.trim();
+    }
+
+    public String getBoundContainerId() {
+        return boundContainerId;
+    }
+
+    public void setBoundContainerId(String boundContainerId) {
+        this.boundContainerId = (boundContainerId == null || boundContainerId.isBlank())
+            ? null
+            : boundContainerId.trim();
     }
 }
 

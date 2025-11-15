@@ -1,8 +1,15 @@
 package com.chronoblocks.core.selection;
 
+import com.chronoblocks.client.renderer.SelectionRenderer;
+import com.chronoblocks.client.renderer.ToolPreviewManager;
 import com.chronoblocks.core.selection.events.*;
+import com.chronoblocks.core.selection.block_filters.BlockFilterPipeline;
+import com.chronoblocks.core.selection.block_filters.BlockFilters;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
+import com.chronoblocks.client.gizmo.Axis;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,9 +27,10 @@ import java.util.function.Consumer;
  * - 处理工具切换（来自 Toolbar）
  * - 转发鼠标事件至当前工具
  * - 发出选区变化事件给属性面板 / 时间线
+ * - 管理全局过滤管道（由 SelectionFilterPanel 配置）
  * 
  * @author ChronoBlocks Team
- * @version 1.0
+ * @version 2.0
  */
 public class SelectionManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(SelectionManager.class);
@@ -34,9 +42,26 @@ public class SelectionManager {
     
     /** 选区集合 */
     private final SelectionSet selectionSet = new SelectionSet();
+
+    // ===== 面拖拽实时预览状态 (v4.9) =====
+    private Box activeResizeBaseBounds = null;
+    private Box activeResizePreviewBounds = null;
+    private Integer activeResizeFaceIndex = null;
+    private double activeResizeOffset = 0.0;
     
     /** 事件处理器 */
     private SelectionToolEventProcessor eventProcessor;
+    
+    // ================================
+    // 🧩 实时预览同步配置 (v3.1)
+    // ================================
+    
+    /** 是否自动显示预览框 */
+    private boolean autoPreviewEnabled = true;
+    
+    /** 全局过滤管道（可由 SelectionFilterPanel 配置） */
+    private final BlockFilterPipeline globalPipeline = new BlockFilterPipeline()
+            .add(BlockFilters.nonAir());
 
     private SelectionManager() {
         registerDefaultTools();
@@ -67,22 +92,16 @@ public class SelectionManager {
     private void registerDefaultTools() {
         // 基础工具
         registry.register(new com.chronoblocks.core.selection.tools.ClickSelectTool());
-        registry.register(new com.chronoblocks.core.selection.tools.BoxSelectTool());
-        registry.register(new com.chronoblocks.core.selection.tools.MagicWandTool());
+        registry.register(new com.chronoblocks.core.selection.tools.magicwandtool.MagicWandTool());
         
         // 高级工具
-        registry.register(new com.chronoblocks.core.selection.tools.FaceSelectTool());
-        registry.register(new com.chronoblocks.core.selection.tools.SphereSelectTool());
-        registry.register(new com.chronoblocks.core.selection.tools.CylinderSelectTool());
-        registry.register(new com.chronoblocks.core.selection.tools.PyramidSelectTool());
-        registry.register(new com.chronoblocks.core.selection.tools.ConnectedSelectTool());
-        registry.register(new com.chronoblocks.core.selection.tools.InverseSelectTool());
-        registry.register(new com.chronoblocks.core.selection.tools.TypeFilterTool());
-        registry.register(new com.chronoblocks.core.selection.tools.BrushSelectTool());
-        registry.register(new com.chronoblocks.core.selection.tools.LassoSelectTool());
+        registry.register(new com.chronoblocks.core.selection.tools.faceselecttool.FaceSelectTool());
+        registry.register(new com.chronoblocks.core.selection.tools.geometryselecttool.GeometrySelectTool());
+        registry.register(new com.chronoblocks.core.selection.tools.brushselecttool.BrushSelectTool());
+        registry.register(new com.chronoblocks.core.selection.tools.lassoselecttool.LassoSelectTool());
         
         // 多模式选择工具
-        registry.register(new com.chronoblocks.core.selection.tools.BoxSelectTool_v2());
+        registry.register(new com.chronoblocks.core.selection.tools.boxselecttool.BoxSelectTool());
         
         LOGGER.info("[SelectionManager] 已注册 {} 个选择工具", registry.size());
     }
@@ -147,14 +166,30 @@ public class SelectionManager {
      * 清除选区
      */
     public void clearSelection() { 
-        selectionSet.clear(); 
+        selectionSet.clear();
+        
+        // 🚀 v2.0: 使网格缓存失效，强制下次渲染时重新计算
+        invalidateRendererCache();
+        
+        // 自动清除预览框
+        if (autoPreviewEnabled) {
+            try {
+                ToolPreviewManager.getInstance().clearPreview();
+            } catch (Exception e) {
+                LOGGER.debug("[SelectionManager] 清除预览框失败（可能不在客户端）: {}", e.getMessage());
+            }
+        }
     }
 
     /**
      * 添加到选区
      */
     public void addToSelection(BlockPos pos) { 
-        if (pos != null) selectionSet.add(pos); 
+        if (pos != null) {
+            selectionSet.add(pos);
+            // 🚀 v2.0: 使网格缓存失效
+            invalidateRendererCache();
+        }
     }
 
     /**
@@ -162,13 +197,31 @@ public class SelectionManager {
      */
     public void addAllToSelection(Collection<BlockPos> positions) {
         selectionSet.addAll(positions);
+        // 🚀 v2.0: 使网格缓存失效
+        invalidateRendererCache();
     }
 
     /**
      * 从选区移除
      */
     public void removeFromSelection(BlockPos pos) { 
-        if (pos != null) selectionSet.remove(pos); 
+        if (pos != null) {
+            selectionSet.remove(pos);
+            // 🚀 v2.0: 使网格缓存失效
+            invalidateRendererCache();
+        }
+    }
+    
+    /**
+     * 🚀 v2.0: 使渲染器缓存失效的辅助方法
+     */
+    private void invalidateRendererCache() {
+        try {
+            SelectionRenderer.getInstance().invalidateCache();
+        } catch (Exception e) {
+            // 如果 SelectionRenderer 不可用（服务器端），忽略错误
+            LOGGER.debug("[SelectionManager] 使网格缓存失效失败（可能不在客户端）: {}", e.getMessage());
+        }
     }
 
     /**
@@ -192,6 +245,27 @@ public class SelectionManager {
             notifySelectionChanged();
         } else {
             LOGGER.warn("[SelectionManager] 没有当前工具，无法处理点击事件");
+        }
+    }
+    
+    /**
+     * 处理右键点击事件
+     */
+    public void handleRightClick(World world, BlockPos pos) {
+        LOGGER.debug("[SelectionManager] 处理右键点击事件: pos={}, currentTool={}", 
+            pos, currentTool != null ? currentTool.getId() : "null");
+        
+        if (currentTool != null) {
+            // 发布工具右键点击事件
+            getEventProcessorInternal().processToolClick(world, pos, false, true);
+            
+            // 执行工具右键点击逻辑
+            currentTool.onRightClick(world, pos);
+            
+            // 通知选择变化
+            notifySelectionChanged();
+        } else {
+            LOGGER.debug("[SelectionManager] 没有当前工具，无法处理右键点击事件");
         }
     }
 
@@ -241,6 +315,9 @@ public class SelectionManager {
             // 结束工具预览
             com.chronoblocks.client.renderer.ToolPreviewManager.getInstance().endDragPreview();
             
+            // 🚀 v2.0: 使网格缓存失效（拖拽结束通常意味着选区改变）
+            invalidateRendererCache();
+            
             // 通知选择变化
             notifySelectionChanged();
         }
@@ -264,7 +341,11 @@ public class SelectionManager {
 
     /**
      * 移除选择变化监听器
+     * 
+     * @deprecated 当前未使用，保留用于未来扩展
      */
+    @Deprecated
+    @SuppressWarnings("unused")
     public void removeSelectionChangeListener(Consumer<SelectionState> listener) {
         selectionChangeListeners.remove(listener);
     }
@@ -303,6 +384,8 @@ public class SelectionManager {
     public void clearCurrentSelection() {
         if (currentTool != null) {
             currentTool.clearSelection();
+            // 🚀 v2.0: 使网格缓存失效
+            invalidateRendererCache();
             notifySelectionChanged();
         }
     }
@@ -346,5 +429,457 @@ public class SelectionManager {
      */
     public SelectionEventBus getEventBus() {
         return getEventProcessorInternal().getEventBus();
+    }
+    
+    /**
+     * 获取全局过滤管道
+     * 
+     * @return 全局过滤管道实例，可用于区域选择工具
+     */
+    public BlockFilterPipeline getPipeline() {
+        return globalPipeline;
+    }
+    
+    // =====================================================
+    // 🔄 面拖拽实时预览 (v4.9)
+    // =====================================================
+
+    public void beginFaceResize(Box baseBounds, int faceIndex) {
+        if (baseBounds == null) {
+            cancelFaceResize();
+            return;
+        }
+
+        activeResizeBaseBounds = copyBox(baseBounds);
+        activeResizePreviewBounds = activeResizeBaseBounds;
+        activeResizeFaceIndex = faceIndex;
+        activeResizeOffset = 0.0;
+        pushPreviewBox(activeResizePreviewBounds);
+    }
+
+    public void previewFaceResize(int faceIndex, double offset) {
+        if (activeResizeBaseBounds == null || activeResizeFaceIndex == null) {
+            Box currentBounds = getCurrentBounds();
+            if (currentBounds == null) {
+                return;
+            }
+            beginFaceResize(currentBounds, faceIndex);
+        }
+
+        if (activeResizeFaceIndex == null) {
+            return;
+        }
+
+        if (!activeResizeFaceIndex.equals(faceIndex)) {
+            beginFaceResize(activeResizeBaseBounds != null ? activeResizeBaseBounds : getCurrentBounds(), faceIndex);
+        }
+
+        activeResizeOffset = offset;
+        activeResizePreviewBounds = adjustBounds(activeResizeBaseBounds, activeResizeFaceIndex, activeResizeOffset);
+        pushPreviewBox(activeResizePreviewBounds);
+    }
+
+    public void applyFaceResize(int faceIndex, double offset) {
+        if (activeResizeBaseBounds == null || activeResizeFaceIndex == null) {
+            Box currentBounds = getCurrentBounds();
+            if (currentBounds == null) {
+                return;
+            }
+            beginFaceResize(currentBounds, faceIndex);
+        }
+
+        previewFaceResize(faceIndex, offset);
+
+        if (activeResizePreviewBounds == null) {
+            cancelFaceResize();
+            return;
+        }
+
+        rebuildSelectionFromBounds(activeResizePreviewBounds);
+        notifySelectionChanged();
+        
+        // 更新 Gizmo 位置以跟随新的选区中心
+        updateGizmoPosition();
+        
+        cancelFaceResize();
+    }
+
+    public void cancelFaceResize() {
+        activeResizeBaseBounds = null;
+        activeResizePreviewBounds = null;
+        activeResizeFaceIndex = null;
+        activeResizeOffset = 0.0;
+        clearPreviewBox();
+    }
+
+    public boolean isFaceResizeActive() {
+        return activeResizeBaseBounds != null;
+    }
+
+    public Box getResizePreviewBounds() {
+        return activeResizePreviewBounds;
+    }
+
+    public Box getResizeBaseBounds() {
+        return activeResizeBaseBounds;
+    }
+
+    public Integer getResizeFaceIndex() {
+        return activeResizeFaceIndex;
+    }
+
+    public double getResizeOffset() {
+        return activeResizeOffset;
+    }
+
+    private void rebuildSelectionFromBounds(Box bounds) {
+        if (bounds == null) {
+            return;
+        }
+
+        selectionSet.clear();
+
+        int minX = (int) Math.floor(bounds.minX);
+        int minY = (int) Math.floor(bounds.minY);
+        int minZ = (int) Math.floor(bounds.minZ);
+        int maxX = (int) Math.ceil(bounds.maxX) - 1;
+        int maxY = (int) Math.ceil(bounds.maxY) - 1;
+        int maxZ = (int) Math.ceil(bounds.maxZ) - 1;
+
+        if (maxX < minX || maxY < minY || maxZ < minZ) {
+            return;
+        }
+
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    selectionSet.add(new BlockPos(x, y, z));
+                }
+            }
+        }
+    }
+
+    private Box adjustBounds(Box base, int faceIndex, double offset) {
+        if (base == null) {
+            return null;
+        }
+
+        double minX = base.minX;
+        double minY = base.minY;
+        double minZ = base.minZ;
+        double maxX = base.maxX;
+        double maxY = base.maxY;
+        double maxZ = base.maxZ;
+
+        double minThickness = 0.01;
+
+        switch (faceIndex) {
+            case 0 -> maxX = Math.max(minX + minThickness, maxX + offset);
+            case 1 -> minX = Math.min(maxX - minThickness, minX - offset);
+            case 2 -> maxY = Math.max(minY + minThickness, maxY + offset);
+            case 3 -> minY = Math.min(maxY - minThickness, minY - offset);
+            case 4 -> maxZ = Math.max(minZ + minThickness, maxZ + offset);
+            case 5 -> minZ = Math.min(maxZ - minThickness, minZ - offset);
+            default -> {
+            }
+        }
+
+        if (maxX - minX < minThickness) {
+            double mid = (minX + maxX) * 0.5;
+            minX = mid - minThickness * 0.5;
+            maxX = mid + minThickness * 0.5;
+        }
+        if (maxY - minY < minThickness) {
+            double mid = (minY + maxY) * 0.5;
+            minY = mid - minThickness * 0.5;
+            maxY = mid + minThickness * 0.5;
+        }
+        if (maxZ - minZ < minThickness) {
+            double mid = (minZ + maxZ) * 0.5;
+            minZ = mid - minThickness * 0.5;
+            maxZ = mid + minThickness * 0.5;
+        }
+
+        return new Box(minX, minY, minZ, maxX, maxY, maxZ);
+    }
+
+    private void pushPreviewBox(Box box) {
+        try {
+            if (box != null) {
+                ToolPreviewManager.getInstance().setPreviewBox(box);
+            }
+        } catch (Exception e) {
+            LOGGER.debug("[SelectionManager] setPreviewBox failed: {}", e.getMessage());
+        }
+    }
+    
+    private void clearPreviewBox() {
+        try {
+            ToolPreviewManager.getInstance().clearPreview();
+        } catch (Exception e) {
+            LOGGER.debug("[SelectionManager] clearPreview failed: {}", e.getMessage());
+        }
+    }
+
+    private Box copyBox(Box source) {
+        return source == null ? null : new Box(source.minX, source.minY, source.minZ,
+                source.maxX, source.maxY, source.maxZ);
+    }
+    
+    /**
+     * 更新 Gizmo 位置以跟随选区中心
+     */
+    private void updateGizmoPosition() {
+        Box bounds = getCurrentBounds();
+        if (bounds == null || selectionSet.isEmpty()) {
+            return;
+        }
+        
+        // 计算新的几何中心
+        Vec3d newPivot = new Vec3d(
+            (bounds.minX + bounds.maxX) / 2.0,
+            (bounds.minY + bounds.maxY) / 2.0,
+            (bounds.minZ + bounds.maxZ) / 2.0
+        );
+        
+        try {
+            com.chronoblocks.client.gizmo.GizmoManager gizmoManager = com.chronoblocks.client.gizmo.GizmoManager.get();
+            if (gizmoManager != null && gizmoManager.isActive()) {
+                // 更新现有 Gizmo 的位置和边界
+                gizmoManager.activate(com.chronoblocks.client.gizmo.GizmoType.BOUNDS, bounds, newPivot);
+                LOGGER.debug("[SelectionManager] 更新 Gizmo 位置: pivot={}", newPivot);
+            }
+        } catch (Exception e) {
+            LOGGER.warn("[SelectionManager] 更新 Gizmo 位置失败", e);
+        }
+    }
+
+    // =====================================================
+    // 🧩 expandSelection — 选区缩放核心逻辑 (v3.0)
+    // =====================================================
+    
+    /**
+     * 沿指定轴扩展或收缩当前选区。
+     * 
+     * 支持功能：
+     * ✅ 正/负方向扩展选区
+     * ✅ 自动重新计算 Bounding Box
+     * ✅ 兼容 BoxSelectTool_v3 与 GizmoRenderer
+     * ✅ 实时预览刷新（预留）
+     * 
+     * @param axis  方向轴（X/Y/Z）
+     * @param delta 增量（>0 扩展，<0 收缩）
+     */
+    public void expandSelection(Axis axis, int delta) {
+        if (selectionSet.isEmpty()) {
+            LOGGER.warn("[SelectionManager] 当前无选区，无法扩展");
+            return;
+        }
+        
+        // 计算当前选区边界（使用 getCurrentBounds()）
+        Box bounds = getCurrentBounds();
+        if (bounds == null) {
+            LOGGER.warn("[SelectionManager] 无法计算选区边界");
+            return;
+        }
+        
+        int minX = (int) bounds.minX;
+        int minY = (int) bounds.minY;
+        int minZ = (int) bounds.minZ;
+        int maxX = (int) bounds.maxX - 1; // Box 的 max 是 exclusive，需要减 1
+        int maxY = (int) bounds.maxY - 1;
+        int maxZ = (int) bounds.maxZ - 1;
+        
+        // 基于方向扩展边界
+        switch (axis) {
+            case X -> {
+                if (delta > 0) {
+                    // 正向扩展：在 maxX 外侧添加方块
+                    for (int x = maxX + 1; x <= maxX + delta; x++) {
+                        for (int y = minY; y <= maxY; y++) {
+                            for (int z = minZ; z <= maxZ; z++) {
+                                selectionSet.add(new BlockPos(x, y, z));
+                            }
+                        }
+                    }
+                } else {
+                    // 负向收缩：移除 maxX 侧的外层方块
+                    for (int x = maxX; x > maxX + delta; x--) {
+                        final int removeX = x;
+                        selectionSet.removeIf(p -> p.getX() == removeX);
+                    }
+                }
+            }
+            case Y -> {
+                if (delta > 0) {
+                    // 正向扩展：在 maxY 外侧添加方块
+                    for (int y = maxY + 1; y <= maxY + delta; y++) {
+                        for (int x = minX; x <= maxX; x++) {
+                            for (int z = minZ; z <= maxZ; z++) {
+                                selectionSet.add(new BlockPos(x, y, z));
+                            }
+                        }
+                    }
+                } else {
+                    // 负向收缩：移除 maxY 侧的外层方块
+                    for (int y = maxY; y > maxY + delta; y--) {
+                        final int removeY = y;
+                        selectionSet.removeIf(p -> p.getY() == removeY);
+                    }
+                }
+            }
+            case Z -> {
+                if (delta > 0) {
+                    // 正向扩展：在 maxZ 外侧添加方块
+                    for (int z = maxZ + 1; z <= maxZ + delta; z++) {
+                        for (int x = minX; x <= maxX; x++) {
+                            for (int y = minY; y <= maxY; y++) {
+                                selectionSet.add(new BlockPos(x, y, z));
+                            }
+                        }
+                    }
+                } else {
+                    // 负向收缩：移除 maxZ 侧的外层方块
+                    for (int z = maxZ; z > maxZ + delta; z--) {
+                        final int removeZ = z;
+                        selectionSet.removeIf(p -> p.getZ() == removeZ);
+                    }
+                }
+            }
+        }
+        
+        LOGGER.info("[SelectionManager] 沿 {} 轴调整选区 Δ={}，当前方块数={}",
+                axis.name(), delta, selectionSet.size());
+        
+        // 通知选择变化（触发渲染更新）
+        notifySelectionChanged();
+        
+        // 🧩 实时同步预览框（如果启用）
+        if (autoPreviewEnabled) {
+            Box newBounds = getCurrentBounds();
+            if (newBounds != null) {
+                try {
+                    ToolPreviewManager.getInstance().setPreviewBox(newBounds);
+                } catch (Exception e) {
+                    LOGGER.debug("[SelectionManager] 设置预览框失败（可能不在客户端）: {}", e.getMessage());
+                }
+            }
+        }
+    }
+    
+    // =====================================================
+    // 📦 offsetSelection — 平移选区 (v3.0)
+    // =====================================================
+    
+    /**
+     * 平移选区
+     * 
+     * @param offset 偏移向量
+     */
+    public void offsetSelection(BlockPos offset) {
+        if (selectionSet.isEmpty()) {
+            LOGGER.debug("[SelectionManager] 选区为空，跳过平移");
+            return;
+        }
+        
+        Set<BlockPos> moved = new HashSet<>();
+        
+        // 计算新的位置
+        for (BlockPos pos : selectionSet.asUnmodifiableSet()) {
+            moved.add(pos.add(offset));
+        }
+        
+        // 清空旧选区，添加新位置
+        selectionSet.clear();
+        selectionSet.addAll(moved);
+        
+        LOGGER.debug("[SelectionManager] 平移选区: offset={}, 方块数={}", offset, selectionSet.size());
+        
+        // 通知选择变化（触发渲染更新）
+        notifySelectionChanged();
+        
+        // ✅ 更新 Gizmo 位置，跟随选区移动
+        updateGizmoPosition();
+        
+        // 🧩 实时同步预览框（如果启用）
+        if (autoPreviewEnabled) {
+            Box newBounds = getCurrentBounds();
+            if (newBounds != null) {
+                try {
+                    ToolPreviewManager.getInstance().setPreviewBox(newBounds);
+                } catch (Exception e) {
+                    LOGGER.debug("[SelectionManager] 设置预览框失败（可能不在客户端）: {}", e.getMessage());
+                }
+            }
+        }
+    }
+    
+    // =====================================================
+    // 📦 getCurrentBounds — 当前选区包围盒 (v3.1)
+    // =====================================================
+    
+    /**
+     * 获取当前选区的包围盒（Box）
+     * 
+     * 用于：
+     * - Gizmo 系统获取选区边界
+     * - SelectionRenderer 预览框同步
+     * - 其他需要选区边界的功能
+     * 
+     * @return 当前选区的包围盒，如果选区为空则返回 null
+     */
+    public Box getCurrentBounds() {
+        if (selectionSet.isEmpty()) {
+            return null;
+        }
+        
+        int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
+        
+        for (BlockPos pos : selectionSet.asUnmodifiableSet()) {
+            minX = Math.min(minX, pos.getX());
+            minY = Math.min(minY, pos.getY());
+            minZ = Math.min(minZ, pos.getZ());
+            maxX = Math.max(maxX, pos.getX());
+            maxY = Math.max(maxY, pos.getY());
+            maxZ = Math.max(maxZ, pos.getZ());
+        }
+        
+        // 返回 Box（包含 min 到 max+1 的范围，因为 BlockPos 是整数坐标）
+        return new Box(minX, minY, minZ, maxX + 1, maxY + 1, maxZ + 1);
+    }
+    
+    // =====================================================
+    // ⚙️ 配置控制 (v3.1)
+    // =====================================================
+    
+    /**
+     * 获取是否启用自动预览同步
+     * 
+     * @return true 如果启用自动预览同步
+     */
+    public boolean isAutoPreviewEnabled() {
+        return autoPreviewEnabled;
+    }
+    
+    /**
+     * 设置是否启用自动预览同步
+     * 
+     * 当启用时，每次调用 expandSelection() 或 offsetSelection() 会自动更新 SelectionRenderer 的预览框。
+     * 
+     * @param enabled true 启用自动预览同步，false 禁用
+     */
+    public void setAutoPreviewEnabled(boolean enabled) {
+        this.autoPreviewEnabled = enabled;
+        LOGGER.debug("[SelectionManager] 自动预览同步: {}", enabled ? "启用" : "关闭");
+        
+        // 如果禁用，清除当前预览框
+        if (!enabled) {
+            try {
+                ToolPreviewManager.getInstance().clearPreview();
+            } catch (Exception e) {
+                LOGGER.debug("[SelectionManager] 清除预览框失败（可能不在客户端）: {}", e.getMessage());
+            }
+        }
     }
 }

@@ -66,6 +66,10 @@ public class WorldBlockCollector {
         }
         
         container.addBlocks(blocks);
+        
+        // v5.2: 如果容器是隐藏状态，可见性由ContainerVisibilityService管理
+        // 新添加的方块会在下次状态切换时自动处理
+        
         LOGGER.info("[Collector] 采集 {} 个方块到容器: {}", blocks.size(), container.getName());
         
         return blocks.size();

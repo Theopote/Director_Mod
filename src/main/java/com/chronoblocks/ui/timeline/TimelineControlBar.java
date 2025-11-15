@@ -1,6 +1,6 @@
 package com.chronoblocks.ui.timeline;
 
-import com.chronoblocks.core.timeline.TimelineCommandHistory;
+import com.chronoblocks.ui.timeline.commands.TimelineCommandHistory;
 import com.chronoblocks.ui.theme.Icons;
 import com.chronoblocks.ui.theme.UITheme;
 import imgui.ImGui;

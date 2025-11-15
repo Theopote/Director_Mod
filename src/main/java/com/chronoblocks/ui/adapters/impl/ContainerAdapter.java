@@ -1,6 +1,7 @@
 package com.chronoblocks.ui.adapters.impl;
 
 import com.chronoblocks.core.container.Container;
+import com.chronoblocks.core.container.ContainerAnimationPreset;
 import com.chronoblocks.core.container.ContainerType;
 import com.chronoblocks.core.container.AnimationMode;
 import com.chronoblocks.ui.adapters.BasePropertyAdapter;
@@ -64,9 +65,12 @@ public class ContainerAdapter extends BasePropertyAdapter<Container> {
                 container::setOpacity,
                 0.01f, 0.0f, 1.0f);
         
+        // 可见性（使用容器状态）
         changed |= renderBoolProperty("可见",
-                container::isVisible,
-                container::setVisible);
+                () -> container.getState() == com.chronoblocks.core.container.ContainerState.VISIBLE,
+                visible -> container.setState(visible ? 
+                    com.chronoblocks.core.container.ContainerState.VISIBLE : 
+                    com.chronoblocks.core.container.ContainerState.HIDDEN));
         
         // 颜色（ARGB 格式）
         float[] color = intColorToFloat(container.getColor());
@@ -76,21 +80,56 @@ public class ContainerAdapter extends BasePropertyAdapter<Container> {
             changed = true;
         }
 
-        // ========== 动画属性 ==========
-        renderSectionHeader(Icons.ANIMATION + " 动画");
-        
-        // 动画模式
+        // ========== 动画默认预设 ==========
+        renderSectionHeader(Icons.ANIMATION + " 动画默认预设");
         AnimationMode[] modes = AnimationMode.values();
         String[] modeNames = new String[modes.length];
         for (int i = 0; i < modes.length; i++) {
             modeNames[i] = modes[i].name();
         }
-        
-        int currentModeIndex = getCurrentModeIndex(container.getAnimationMode(), modes);
-        changed |= renderComboProperty("动画模式",
-                () -> currentModeIndex,
-                index -> container.setAnimationMode(modes[index]),
+
+        changed |= renderComboProperty("默认动画模式",
+                () -> container.getDefaultAnimationPreset().getMode().ordinal(),
+                index -> {
+                    ContainerAnimationPreset updated = container.getDefaultAnimationPreset().copy();
+                    updated.setMode(modes[index]);
+                    container.setDefaultAnimationPreset(updated);
+                },
                 modeNames);
+
+        changed |= renderFloatProperty("建议时长 (秒)",
+                () -> container.getDefaultAnimationPreset().getSuggestedDuration(),
+                value -> {
+                    ContainerAnimationPreset updated = container.getDefaultAnimationPreset().copy();
+                    updated.setSuggestedDuration(value);
+                    container.setDefaultAnimationPreset(updated);
+                },
+                0.1f, 0.05f, 600.0f);
+
+        changed |= renderFloatProperty("默认延迟 (秒)",
+                () -> container.getDefaultAnimationPreset().getDelay(),
+                value -> {
+                    ContainerAnimationPreset updated = container.getDefaultAnimationPreset().copy();
+                    updated.setDelay(Math.max(0.0f, value));
+                    container.setDefaultAnimationPreset(updated);
+                },
+                0.05f, 0.0f, 120.0f);
+
+        changed |= renderTextProperty("默认 Easing",
+                () -> container.getDefaultAnimationPreset().getEasing(),
+                value -> {
+                    ContainerAnimationPreset updated = container.getDefaultAnimationPreset().copy();
+                    updated.setEasing(value);
+                    container.setDefaultAnimationPreset(updated);
+                });
+
+        changed |= renderTextProperty("默认排序",
+                () -> container.getDefaultAnimationPreset().getOrdering(),
+                value -> {
+                    ContainerAnimationPreset updated = container.getDefaultAnimationPreset().copy();
+                    updated.setOrdering(value);
+                    container.setDefaultAnimationPreset(updated);
+                });
         
         changed |= renderBoolProperty("锁定",
                 container::isLocked,
@@ -140,18 +179,6 @@ public class ContainerAdapter extends BasePropertyAdapter<Container> {
     private int getCurrentTypeIndex(ContainerType current, ContainerType[] types) {
         for (int i = 0; i < types.length; i++) {
             if (types[i] == current) {
-                return i;
-            }
-        }
-        return 0;
-    }
-
-    /**
-     * 获取当前动画模式的索引
-     */
-    private int getCurrentModeIndex(AnimationMode current, AnimationMode[] modes) {
-        for (int i = 0; i < modes.length; i++) {
-            if (modes[i] == current) {
                 return i;
             }
         }

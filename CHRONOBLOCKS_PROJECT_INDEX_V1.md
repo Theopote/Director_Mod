@@ -94,10 +94,8 @@
 - `com.chronoblocks.ui.adapters.animation.PropertyAnimationTimelineBridge`
 
 #### 播放同步（4个）
-- `com.chronoblocks.timeline.sync.TimelinePlaybackSynchronizer`
 - `com.chronoblocks.timeline.sync.TimelinePlaybackEvent`
 - `com.chronoblocks.timeline.sync.PlaybackState`
-- `com.chronoblocks.timeline.sync.PlaybackStateListener`
 
 #### 事件系统（3个）
 - `com.chronoblocks.timeline.event.TimelineEventBus`

@@ -1,5 +1,6 @@
 package com.chronoblocks.ui.adapters.animation;
 
+import com.chronoblocks.animation.integration.playback.ClipPlaybackRuntimeManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -128,6 +129,8 @@ public class PropertyAnimationController {
         for (AnimationChannel<?> channel : channels.values()) {
             channel.update(currentTime);
         }
+
+        ClipPlaybackRuntimeManager.get().update(currentTime);
     }
 
     // ===============================

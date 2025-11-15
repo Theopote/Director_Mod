@@ -1,9 +1,9 @@
 package com.chronoblocks.ui.di;
 
+import com.chronoblocks.animation.ui.AnimationInspectorPanel;
 import com.chronoblocks.ui.panels.*;
 import com.chronoblocks.core.container.ContainerManager;
-import com.chronoblocks.core.container.WorldBlockCollector;
-import com.chronoblocks.core.timeline.TimelineCommandHistory;
+import com.chronoblocks.ui.timeline.commands.TimelineCommandHistory;
 import net.minecraft.client.MinecraftClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,13 +82,11 @@ public class PanelFactory implements IPanelFactory {
                 minecraftClient != null ? "已注入" : "未注入");
             
             // 创建依赖对象
-            ContainerManager containerManager = new ContainerManager();
+            ContainerManager containerManager = ContainerManager.getInstance();
             TimelineCommandHistory commandHistory = new TimelineCommandHistory();
-            ContainerPropertiesPanel propertiesPanel = new ContainerPropertiesPanel(commandHistory);
-            WorldBlockCollector blockCollector = new WorldBlockCollector();
             
-            // 使用依赖注入构造函数
-            return new ContainerPanel(containerManager, commandHistory, propertiesPanel, blockCollector);
+            // 使用依赖注入构造函数（v5.0: 移除了WorldBlockCollector参数，propertiesPanel 在内部创建）
+            return new ContainerPanel(containerManager, commandHistory);
         });
         
         // 注册PropertiesPanel创建器
@@ -104,6 +102,13 @@ public class PanelFactory implements IPanelFactory {
                 minecraftClient != null ? "已注入" : "未注入");
             return new TimelinePanel();
         });
+
+        // 注册AnimationInspectorPanel创建器
+        registerPanelCreator(AnimationInspectorPanel.class, minecraftClient -> {
+            LOGGER.debug("[PanelFactory] 创建AnimationInspectorPanel (MinecraftClient: {})",
+                minecraftClient != null ? "已注入" : "未注入");
+            return new AnimationInspectorPanel();
+        });
         
         // 注册SelectionFilterPanel创建器
         registerPanelCreator(SelectionFilterPanel.class, minecraftClient -> {
@@ -112,25 +117,18 @@ public class PanelFactory implements IPanelFactory {
             return new SelectionFilterPanel();
         });
         
-        // 注册SelectionRenderSettingsPanel创建器
-        registerPanelCreator(SelectionRenderSettingsPanel.class, minecraftClient -> {
-            LOGGER.debug("[PanelFactory] 创建SelectionRenderSettingsPanel (MinecraftClient: {})", 
-                minecraftClient != null ? "已注入" : "未注入");
-            return new SelectionRenderSettingsPanel();
-        });
-        
-        // 注册ToolPropertiesPanel创建器
+        // 注册ToolPropertiesPanel创建器（现在包含SelectionRenderSettingsPanel的功能）
         registerPanelCreator(ToolPropertiesPanel.class, minecraftClient -> {
             LOGGER.debug("[PanelFactory] 创建ToolPropertiesPanel (MinecraftClient: {})", 
                 minecraftClient != null ? "已注入" : "未注入");
             return new ToolPropertiesPanel();
         });
         
-        // 注册RenderSettingsPanel创建器
-        registerPanelCreator(RenderSettingsPanel.class, minecraftClient -> {
-            LOGGER.debug("[PanelFactory] 创建RenderSettingsPanel (MinecraftClient: {})", 
+        // 注册SelectionRenderSettingsPanel创建器
+        registerPanelCreator(SelectionRenderSettingsPanel.class, minecraftClient -> {
+            LOGGER.debug("[PanelFactory] 创建SelectionRenderSettingsPanel (MinecraftClient: {})", 
                 minecraftClient != null ? "已注入" : "未注入");
-            return new RenderSettingsPanel();
+            return new SelectionRenderSettingsPanel();
         });
         
         // 注册SelectionHistoryPanel创建器

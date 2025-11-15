@@ -22,7 +22,7 @@ import com.chronoblocks.ui.theme.Icons;
  * <p>
  * 其他功能已模块化为独立面板：
  * - ToolPropertiesPanel - 工具属性
- * - RenderSettingsPanel - 渲染设置
+ * - SelectionRenderSettingsPanel - 选区渲染设置
  * - SelectionFilterPanel - 选择过滤器
  * - SelectionHistoryPanel - 选择历史
  * - HelpPanel - 帮助面板
@@ -31,10 +31,6 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
 
     private final SelectionManager selectionManager;
     private IPanelRegistry panelRegistry;
-
-    // 当前选择操作模式
-    private com.chronoblocks.core.selection.SelectionOperation currentOperation = com.chronoblocks.core.selection.SelectionOperation.ADD;
-
 
     /**
      * 构造函数 - 初始化选择管理器
@@ -117,19 +113,11 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
         checkWrap.accept(180f);
         UITheme.separator();
 
-        // 操作组
-        checkWrap.accept(120f);
-        renderSelectionOperations();
-        checkWrap.accept(160f);
-        UITheme.separator();
-
         // 面板切换按钮组
         checkWrap.accept(60f);
         renderPanelToggleButton(Icons.SETTINGS, "属性", ToolPropertiesPanel.class, "打开工具属性面板", ToolPropertiesPanel.PANEL_NAME);
         checkWrap.accept(60f);
         renderPanelToggleButton(Icons.HELP, "帮助", HelpPanel.class, "打开帮助面板", HelpPanel.PANEL_NAME);
-        checkWrap.accept(60f);
-        renderPanelToggleButton(Icons.COLOR, "渲染", RenderSettingsPanel.class, "打开渲染设置面板", RenderSettingsPanel.PANEL_NAME);
         checkWrap.accept(60f);
         renderPanelToggleButton(Icons.FILTER, "过滤", SelectionFilterPanel.class, "打开选择过滤器面板", SelectionFilterPanel.PANEL_NAME);
         checkWrap.accept(60f);
@@ -203,104 +191,9 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
         }
     }
 
-    /* ---------- 选择操作 ---------- */
-    private void renderSelectionOperations() {
-        // 选择操作模式 - 三个互斥的单选按钮（不调用sameLine，由外部管理换行）
-        UITheme.label(Icons.TOOLS + " 操作模式:", UITheme.DarkTheme.TEXT_SELECTED);
-
-        // 加选按钮
-        ImGui.sameLine();
-        boolean addSelected = currentOperation == com.chronoblocks.core.selection.SelectionOperation.ADD;
-        if (addSelected) {
-            float[] activeColor = UITheme.toFloatArrayPublic(UITheme.DarkTheme.TAB_ACTIVE);
-            ImGui.pushStyleColor(ImGuiCol.Button, activeColor[0], activeColor[1], activeColor[2], activeColor[3]);
-        }
-        if (ImGui.button(Icons.ADD + " 加选##addOp", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
-            setCurrentOperation(com.chronoblocks.core.selection.SelectionOperation.ADD);
-        }
-        if (addSelected) {
-            ImGui.popStyleColor();
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("将新选择的方块添加到现有选区");
-        }
-
-        // 减选按钮
-        ImGui.sameLine();
-        boolean subtractSelected = currentOperation == com.chronoblocks.core.selection.SelectionOperation.SUBTRACT;
-        if (subtractSelected) {
-            float[] activeColor = UITheme.toFloatArrayPublic(UITheme.DarkTheme.TAB_ACTIVE);
-            ImGui.pushStyleColor(ImGuiCol.Button, activeColor[0], activeColor[1], activeColor[2], activeColor[3]);
-        }
-        if (ImGui.button(Icons.MINUS + " 减选##subtractOp", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
-            setCurrentOperation(com.chronoblocks.core.selection.SelectionOperation.SUBTRACT);
-        }
-        if (subtractSelected) {
-            ImGui.popStyleColor();
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("从现有选区中移除新选择的方块");
-        }
-
-        // 交集按钮
-        ImGui.sameLine();
-        boolean intersectSelected = currentOperation == com.chronoblocks.core.selection.SelectionOperation.INTERSECT;
-        if (intersectSelected) {
-            float[] activeColor = UITheme.toFloatArrayPublic(UITheme.DarkTheme.TAB_ACTIVE);
-            ImGui.pushStyleColor(ImGuiCol.Button, activeColor[0], activeColor[1], activeColor[2], activeColor[3]);
-        }
-        if (ImGui.button(Icons.LINK + " 交集##intersectOp", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
-            setCurrentOperation(com.chronoblocks.core.selection.SelectionOperation.INTERSECT);
-        }
-        if (intersectSelected) {
-            ImGui.popStyleColor();
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("只保留现有选区和新选择方块的交集");
-        }
-
-        // 容器生成按钮
-        ImGui.sameLine();
-        if (ImGui.button(Icons.CONTAINER + " 生成容器")) {
-            generateContainerFromSelection();
-        }
-
-        // 选区到动画轨道按钮
-        ImGui.sameLine();
-        if (ImGui.button(Icons.ANIMATION  + "选区"+ Icons.ARROW_RIGHT + "轨道")) {
-            createAnimatedTrackFromSelection();
-        }
-    }
-
     /* ---------- 状态显示 ---------- */
     private void renderStatusIndicators() {
         float fps = ImGui.getIO().getFramerate();
-
-        // 显示当前选择工具和选择状态
-        if (selectionManager != null && selectionManager.hasCurrentTool()) {
-            String toolName = selectionManager.getCurrentToolDisplayName();
-            int selectionCount = selectionManager.getCurrentSelection().size();
-            String toolIcon = getToolIcon(selectionManager.getCurrentToolId());
-
-            // 使用不同颜色显示选择状态
-            if (selectionCount > 0) {
-                UITheme.label(toolIcon + " " + toolName + " (" + selectionCount + ")", UITheme.DarkTheme.TEXT_SELECTED);
-            } else {
-                UITheme.label(toolIcon + " " + toolName, UITheme.DarkTheme.TEXT);
-            }
-            ImGui.sameLine();
-
-            // 显示选择状态指示器
-            if (selectionCount > 0) {
-                ImGui.textColored(0.0f, 1.0f, 0.0f, 1.0f, "●"); // 绿色圆点表示有选择
-            } else {
-                ImGui.textColored(0.5f, 0.5f, 0.5f, 1.0f, "○"); // 灰色圆圈表示无选择
-            }
-            ImGui.sameLine();
-        } else {
-            UITheme.label(Icons.TOOLS + " 选择工具", UITheme.DarkTheme.TEXT);
-            ImGui.sameLine();
-        }
 
         // 显示FPS，使用不同颜色表示性能状态
         if (fps >= 60) {
@@ -366,78 +259,18 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
 
             // 高级工具
             case "face" -> Icons.COLOR;        // 面选择工具
+            case "geometry" -> Icons.GRID;     // 几何选择工具（球体/圆柱体/金字塔）
             case "sphere" -> Icons.SPHERE;     // 球体选择工具
             case "cylinder" -> Icons.CYLINDER; // 圆柱体选择工具
             case "pyramid" -> Icons.DIAMOND;   // 金字塔选择工具
-            case "connected" -> Icons.LINK;    // 关联选择工具
-            case "inverse" -> Icons.UNDO;      // 反向选择工具
-            case "typefilter" -> Icons.FILTER; // 按类型选择工具
             case "brush" -> Icons.BRUSH;       // 笔刷选择工具
             case "lasso" -> Icons.LASSO;       // 套索选择工具
 
             // 多模式选择工具
-            case "box_v2" -> Icons.BOX;        // 框选工具v2
+            case "box_v3" -> Icons.BOX;        // 框选工具v3
 
             default -> Icons.TOOLS;            // 默认工具图标
         };
-    }
-
-    /**
-     * 设置当前选择操作模式
-     */
-    private void setCurrentOperation(com.chronoblocks.core.selection.SelectionOperation operation) {
-        if (currentOperation != operation) {
-            currentOperation = operation;
-            logger.info("[ToolbarPanel] 设置选择操作模式: {}", operation.getDisplayName());
-
-            // 将操作模式传递给当前工具
-            var currentTool = selectionManager.getCurrentTool();
-            if (currentTool instanceof com.chronoblocks.core.selection.tools.BoxSelectTool_v2 boxTool) {
-                boxTool.setOperation(operation);
-            } else if (currentTool instanceof com.chronoblocks.core.selection.tools.BrushSelectTool brushTool) {
-                brushTool.setOperation(operation);
-            }
-        }
-    }
-
-    /**
-     * 从选区生成容器
-     */
-    private void generateContainerFromSelection() {
-        logger.info("[ToolbarPanel] 从选区生成容器");
-
-        try {
-            com.chronoblocks.core.actions.SelectionToContainerAction.execute();
-            logger.info("[ToolbarPanel] 容器生成成功");
-        } catch (Exception e) {
-            logger.error("[ToolbarPanel] 容器生成失败", e);
-        }
-    }
-
-    /**
-     * 从选区创建动画轨道
-     */
-    private void createAnimatedTrackFromSelection() {
-        logger.info("[ToolbarPanel] 从选区创建动画轨道");
-
-        try {
-            var defaults = new com.chronoblocks.core.bridge.SelectionAnimationBridge.Defaults()
-                    .range(0f, 2.0f)
-                    .fade(0.25f)
-                    .intro(new org.joml.Vector3f(0, 2, 0))
-                    .outro(new org.joml.Vector3f(0, -2, 0));
-
-            var result = com.chronoblocks.core.bridge.SelectionAnimationBridge
-                    .createAnimatedTrackFromSelection("Layer", new java.awt.Color(64, 160, 255), defaults);
-
-            if (!result.ok()) {
-                logger.warn("[ToolbarPanel] 创建动画轨道失败: {}", result.message());
-            } else {
-                logger.info("[ToolbarPanel] 成功创建动画轨道: {}", result.track().getName());
-            }
-        } catch (Exception e) {
-            logger.error("[ToolbarPanel] 创建动画轨道失败", e);
-        }
     }
 
     private void handleCloseWindow() {

@@ -189,7 +189,7 @@ public class PanelConfigurationLoader {
         
         // 添加新的模块化面板
         panels.add(new PanelConfiguration.PanelDefinition("ToolPropertiesPanel", true, 60));
-        panels.add(new PanelConfiguration.PanelDefinition("RenderSettingsPanel", true, 70));
+        panels.add(new PanelConfiguration.PanelDefinition("SelectionRenderSettingsPanel", true, 70));
         panels.add(new PanelConfiguration.PanelDefinition("SelectionFilterPanel", true, 80));
         panels.add(new PanelConfiguration.PanelDefinition("SelectionHistoryPanel", true, 90));
         panels.add(new PanelConfiguration.PanelDefinition("HelpPanel", true, 100));

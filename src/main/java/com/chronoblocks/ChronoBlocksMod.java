@@ -1,6 +1,7 @@
 package com.chronoblocks;
 
 import net.fabricmc.api.ModInitializer;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,6 +12,7 @@ import com.chronoblocks.command.ChronoBlocksCommands;
 import com.chronoblocks.compatibility.ModCompatibilityChecker;
 import com.chronoblocks.compatibility.VersionCompatibilityChecker;
 import com.chronoblocks.i18n.ChronoBlocksI18n;
+import com.chronoblocks.core.container.visibility.ContainerServices;
 
 import net.minecraft.util.Identifier;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -206,7 +208,10 @@ public class ChronoBlocksMod implements ModInitializer {
             // 步骤 6: 注册物品和方块
             registerItems();
             
-            // 步骤 7: 完成初始化
+            // 步骤 7: 注册服务器生命周期事件
+            registerServerLifecycleEvents();
+            
+            // 步骤 8: 完成初始化
             completeInitialization();
             
         } catch (Exception e) {
@@ -336,6 +341,29 @@ public class ChronoBlocksMod implements ModInitializer {
     }
     
     /**
+     * 注册服务器生命周期事件
+     */
+    private void registerServerLifecycleEvents() {
+        LOGGER.info("[ChronoBlocks] 注册服务器生命周期事件...");
+        
+        // 服务器启动时初始化ContainerVisibilityService
+        ServerLifecycleEvents.SERVER_STARTED.register(server -> {
+            ContainerServices.init(server);
+            LOGGER.debug("[ChronoBlocks] ContainerVisibilityService初始化完成");
+        });
+        
+        // 服务器停止时清理
+        ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+            var visibilityService = ContainerServices.visibility();
+            if (visibilityService != null) {
+                visibilityService.clearAll();
+            }
+        });
+        
+        LOGGER.info("[ChronoBlocks] 服务器生命周期事件注册完成");
+    }
+    
+    /**
      * 完成初始化
      */
     private void completeInitialization() {
@@ -447,32 +475,5 @@ public class ChronoBlocksMod implements ModInitializer {
      */
     public static boolean isInitialized() {
         return initialized.get();
-    }
-    
-    /**
-     * 检查初始化是否失败
-     */
-    public static boolean isInitializationFailed() {
-        return initFailed.get();
-    }
-    
-    /**
-     * 获取当前初始化步骤
-     */
-    public static int getInitializationStep() {
-        return initStep.get();
-    }
-    
-    /**
-     * 获取初始化状态摘要
-     */
-    public static String getInitializationStatus() {
-        if (initialized.get()) {
-            return "已初始化完成";
-        } else if (initFailed.get()) {
-            return String.format("初始化失败 (步骤 %d/%d)", initStep.get(), STEP_COMPLETE);
-        } else {
-            return String.format("初始化中 (步骤 %d/%d)", initStep.get(), STEP_COMPLETE);
-        }
     }
 }

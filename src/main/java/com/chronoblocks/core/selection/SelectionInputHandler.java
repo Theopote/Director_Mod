@@ -167,12 +167,40 @@ public class SelectionInputHandler {
         LOGGER.info("[Click] ✅ 点击选中: {}", pos);
         selectionManager.handleClick(client.world, pos, isShiftDown);
     }
+    
+    /**
+     * 处理右键点击事件（用于两点式建盒）
+     */
+    public void handleMouseRightClick() {
+        if (selectionManager == null || !selectionManager.hasCurrentTool()) return;
+        
+        BlockHitResult hit = raycastFromMouse();
+        if (hit == null) {
+            LOGGER.debug("[RightClick] 射线未命中方块");
+            return;
+        }
+        
+        BlockPos pos = hit.getBlockPos();
+        LOGGER.debug("[RightClick] ✅ 右键点击: {}", pos);
+        selectionManager.handleRightClick(client.world, pos);
+    }
 
     /* -------------------- 拖拽开始 / 更新 / 结束 -------------------- */
 
     public void handleMouseDragStart(boolean isLeftClick) {
         if (!isLeftClick) return;
         if (selectionManager == null || !selectionManager.hasCurrentTool()) return;
+        
+        // 检查当前工具是否是 BoxSelectTool，并且鼠标悬停在面中心小方块上
+        // 如果是，则不设置 dragStart，让面中心小方块的拖拽逻辑处理
+        if (selectionManager.getCurrentTool() instanceof com.chronoblocks.core.selection.tools.boxselecttool.BoxSelectTool boxTool) {
+            // 检查是否悬停在面中心小方块上
+            Integer hoveredFace = boxTool.getHoveredFaceIndex();
+            if (hoveredFace != null) {
+                LOGGER.debug("[Drag] 鼠标悬停在面中心小方块上，跳过框选拖拽开始");
+                return; // 阻止框选拖拽开始，让面中心小方块的拖拽逻辑处理
+            }
+        }
 
         BlockHitResult hit = raycastFromMouse();
         if (hit == null) {
@@ -188,6 +216,15 @@ public class SelectionInputHandler {
     public void handleMouseDragUpdate() {
         if (selectionManager == null || client.world == null) return;
         if (dragStart == null) return;
+        
+        // 检查当前工具是否是 BoxSelectTool，并且正在拖拽面中心小方块
+        // 如果是，则不处理框选拖拽，让面中心小方块的拖拽逻辑处理
+        if (selectionManager.getCurrentTool() instanceof com.chronoblocks.core.selection.tools.boxselecttool.BoxSelectTool boxTool) {
+            if (boxTool.isDraggingFaceHandle()) {
+                LOGGER.debug("[Drag] 正在拖拽面中心小方块，跳过框选拖拽");
+                return; // 阻止框选拖拽
+            }
+        }
 
         BlockHitResult hit = raycastFromMouse();
         if (hit == null) return;
@@ -252,6 +289,17 @@ public class SelectionInputHandler {
     public void tick() {
         if (selectionManager != null && client.world != null) {
             selectionManager.tick(client.world);
+            
+            // 更新魔棒工具的悬停预览
+            if (selectionManager.hasCurrentTool()) {
+                SelectionTool currentTool = selectionManager.getCurrentTool();
+                BlockHitResult hit = raycastFromMouse();
+                if (hit != null && hit.getType() == HitResult.Type.BLOCK) {
+                    currentTool.onHover(client.world, hit.getBlockPos());
+                } else {
+                    currentTool.onHover(client.world, null);
+                }
+            }
         }
     }
 

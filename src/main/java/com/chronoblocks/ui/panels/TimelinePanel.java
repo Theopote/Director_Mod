@@ -1,7 +1,6 @@
 package com.chronoblocks.ui.panels;
 
-import com.chronoblocks.core.timeline.TimelineCommandHistory;
-import com.chronoblocks.core.timeline.commands.*;
+import com.chronoblocks.ui.timeline.commands.*;
 import com.chronoblocks.core.container.Container;
 import com.chronoblocks.core.container.ContainerManager;
 import com.chronoblocks.ui.timeline.*;

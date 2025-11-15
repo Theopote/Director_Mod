@@ -115,10 +115,26 @@ public abstract class MouseMixin {
                         selectionInputHandler.handleMouseDragStart(true);
                     } else if (action == GLFW.GLFW_RELEASE) {
                         LOGGER.debug("[ChronoBlocks] 左键释放，拖拽状态={}", selectionInputHandler.isDragging());
-                        selectionInputHandler.handleMouseClick(true, shift);
+                        // 先检查是否在拖拽，如果在拖拽则先结束拖拽，否则处理点击
                         if (selectionInputHandler.isDragging()) {
                             selectionInputHandler.handleMouseDragEnd(true);
+                        } else {
+                            // 如果不在拖拽，先处理点击，然后清理拖拽状态（如果有）
+                            selectionInputHandler.handleMouseClick(true, shift);
+                            // 清理拖拽状态（如果 dragStart 被设置但没有真正拖拽）
+                            if (selectionInputHandler.getDragStart() != null) {
+                                selectionInputHandler.handleMouseDragEnd(true);
+                            }
                         }
+                    }
+                }
+            } else if (button == GLFW.GLFW_MOUSE_BUTTON_RIGHT) {
+                // 右键点击处理（用于两点式建盒）
+                synchronized (selectionInputHandler) {
+                    if (action == GLFW.GLFW_PRESS) {
+                        LOGGER.debug("[ChronoBlocks] 右键按下");
+                        // 右键点击事件在按下时立即处理
+                        selectionInputHandler.handleMouseRightClick();
                     }
                 }
             }
@@ -161,7 +177,9 @@ public abstract class MouseMixin {
         if (selectionInputHandler != null) {
             synchronized (selectionInputHandler) {
                 selectionInputHandler.tick();
-                if (selectionInputHandler.isDragging()) {
+                // 检查 dragStart 而不是 isDragging，因为 isDragging 是在 handleMouseDragUpdate 中设置的
+                // 这样可以检测到拖拽开始（鼠标移动到不同方块时）
+                if (selectionInputHandler.getDragStart() != null) {
                     selectionInputHandler.handleMouseDragUpdate();
                 }
             }

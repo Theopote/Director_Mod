@@ -1,172 +1,124 @@
 package com.chronoblocks.client.renderer;
 
 import com.chronoblocks.core.selection.SelectionManager;
-import com.chronoblocks.core.selection.SelectionSet;
+import com.mojang.blaze3d.systems.RenderSystem;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.*;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
-import net.minecraft.client.render.VertexConsumer;
-
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.World;
 import org.joml.Matrix4f;
 
 /**
- * 🖍 SelectionOverlayRenderer
- * 
- * 在世界中渲染：
- * - 选中方块轮廓（线框）
- * - 整体包围盒（透明轮廓）
- * - 中心锚点（十字或小立方体）
- * 
- * ⚙️ 性能：
- * - 渲染节流：仅在选区变化后一定时间内全速刷新
- * - 顶点批处理：使用 DebugRenderLayer 的 Lines / Quad 渲染
- * 
- * @author ChronoBlocks Team
- * @version 1.0
+ * 🟩 SelectionOverlayRenderer
+ * <p>
+ * ⭐ 重构后职责：只负责渲染附加的 UI 元素，不渲染选区几何体本身
+ * <p>
+ * 负责绘制选区的覆盖层元素，包括：
+ *  - 选区中心点 / 锚点（enableAnchor）
+ *  - 角点手柄（Ctrl 按下时显示，用于 Gizmo 编辑）
+ * <p>
+ * ⭐ 已移除的功能（避免与 SelectionRenderer 冲突）：
+ *  - 方块线框（由 SelectionRenderer.renderOutlineOnly 负责）
+ *  - 选区包围盒线框（由 SelectionRenderer.renderOutlineOnly 负责）
+ * <p>
+ * ✅ 特性：
+ *  - 与 Fabric 1.21.4 FrameGraph 完全兼容
+ *  - 使用 VertexConsumerProvider（由 FrameGraph 自动管理）
+ *  - 自动适配摄像机位置
+ *  - 与 SelectionRenderer 职责分离，避免重复渲染和闪烁问题
  */
-public class SelectionOverlayRenderer {
+@Environment(EnvType.CLIENT)
+public final class SelectionOverlayRenderer {
 
-    private static final SelectionOverlayRenderer INSTANCE = new SelectionOverlayRenderer();
+    private static SelectionOverlayRenderer INSTANCE;
 
-    public static SelectionOverlayRenderer get() { 
-        return INSTANCE; 
-    }
-
-    /** 渲染开关（Toolbar可切换） */
-    private volatile boolean enabled = true;
-
-    /** 线框颜色（RGBA） */
-    private float lineR = 0.2f, lineG = 0.8f, lineB = 1.0f, lineA = 0.95f;
-
-    /** BBox 颜色（RGBA） */
-    private float bboxR = 0.2f, bboxG = 1.0f, bboxB = 0.4f, bboxA = 0.35f;
-
-    /** 中心点颜色 */
-    private float pivotR = 1.0f, pivotG = 0.9f, pivotB = 0.2f, pivotA = 0.95f;
-
-    /** 渲染节流（纳秒） */
-    private static final long THROTTLE_NS = 10_000_000L; // 10ms
+    private float[] anchorColor = {1.0f, 1.0f, 1.0f, 1.0f};
 
     private SelectionOverlayRenderer() {}
 
-    public boolean isEnabled() { 
-        return enabled; 
-    }
-    
-    public void setEnabled(boolean enabled) { 
-        this.enabled = enabled; 
-    }
-
-    public void setLineColor(float r, float g, float b, float a) { 
-        lineR=r; lineG=g; lineB=b; lineA=a; 
-    }
-    
-    public void setBBoxColor(float r, float g, float b, float a) { 
-        bboxR=r; bboxG=g; bboxB=b; bboxA=a; 
-    }
-    
-    public void setPivotColor(float r, float g, float b, float a) { 
-        pivotR=r; pivotG=g; pivotB=b; pivotA=a; 
+    public static SelectionOverlayRenderer get() { 
+        if (INSTANCE == null)
+            INSTANCE = new SelectionOverlayRenderer();
+        return INSTANCE; 
     }
 
     /**
-     * 渲染入口（桥接 WorldRenderEvents.AFTER_ENTITIES）
+     * 主渲染入口。
+     *
+     * @param matrices MatrixStack
+     * @param tickDelta 当前 tick 差值
+     * @param camera 摄像机
+     * @param consumers VertexConsumerProvider（由 WorldRenderContext.consumers() 提供，FrameGraph 自动管理）
      */
-    public void render(MatrixStack matrices, float tickDelta, Camera camera, VertexConsumerProvider vcp) {
-        if (!enabled) return;
+    public void render(MatrixStack matrices, float tickDelta, Camera camera, VertexConsumerProvider consumers) {
+        // ✅ 选区交互元素（Gizmo、面中心小方块）不受 enabled 控制
+        // enabled 只用于控制其他覆盖层元素，交互元素始终显示
+        // if (!enabled) return; // 注释掉，确保交互元素始终显示
 
-        SelectionSet set = SelectionManager.get().getSelectionSet();
-        if (set == null || set.isEmpty()) return;
+        MinecraftClient client = MinecraftClient.getInstance();
+        World world = client.world;
+        if (world == null) return;
 
-        // 简单节流：上次变化超过阈值则正常渲染
-        long elapsed = System.nanoTime() - set.getLastChangeNanos();
-        if (elapsed < THROTTLE_NS && MinecraftClient.getInstance().isPaused()) {
-            return; // 暂停时进一步节流
+        var manager = SelectionManager.get();
+        if (manager == null || !manager.hasCurrentTool()) return;
+
+        var selection = manager.getCurrentSelection();
+        if (selection == null || selection.isEmpty()) return;
+
+        Vec3d camPos = camera.getPos();
+        Matrix4f matrix = matrices.peek().getPositionMatrix();
+
+        Box baseBox = manager.getCurrentBounds();
+        if (baseBox == null) {
+            return;
         }
 
-        // 相机偏移（视图空间）
-        double camX = camera.getPos().x;
-        double camY = camera.getPos().y;
-        double camZ = camera.getPos().z;
+        RenderSystem.enableBlend();
+        RenderSystem.defaultBlendFunc();
+        // Minecraft 1.21+ 的线宽受 GPU 限制，许多平台固定为 1.0
+        float outlineWidth = 1.2f;
+        RenderSystem.lineWidth(outlineWidth);
 
-        // 线框层（用于方块轮廓）
-        VertexConsumer lineConsumer = vcp.getBuffer(RenderLayer.getLines());
-        Matrix4f mat = matrices.peek().getPositionMatrix();
+        // === 绘制中心锚点 ===
+        selection.getBoundingBox().ifPresent(bbox -> {
+            Vec3d anchor = new Vec3d(
+                (bbox.getMinX() + bbox.getMaxX() + 1) / 2.0,
+                (bbox.getMinY() + bbox.getMaxY() + 1) / 2.0,
+                (bbox.getMinZ() + bbox.getMaxZ() + 1) / 2.0
+            );
+            drawAnchor(matrix, consumers.getBuffer(RenderLayer.getLines()), anchor.subtract(camPos), anchorColor);
+        });
 
-        // 1) 渲染每个方块的线框
-        for (BlockPos p : set.asUnmodifiableSet()) {
-            drawUnitBlockWireframe(mat, lineConsumer, p.getX() - camX, p.getY() - camY, p.getZ() - camZ, lineR, lineG, lineB, lineA);
-        }
-
-        // 2) 渲染整体包围盒
-        Box bbox = set.getBoundingBox().offset(-camX, -camY, -camZ);
-        // 使用简单的线框绘制包围盒
-        drawBoxWireframe(mat, vcp.getBuffer(RenderLayer.getLines()), bbox, bboxR, bboxG, bboxB, bboxA);
-
-        // 3) 渲染中心锚点十字
-        BlockPos c = set.getCenterBlock();
-        drawPivotCross(mat, lineConsumer, c.getX() + 0.5 - camX, c.getY() + 0.5 - camY, c.getZ() + 0.5 - camZ, pivotR, pivotG, pivotB, pivotA);
+        RenderSystem.disableBlend();
     }
 
-    // ---------- 绘制工具 ----------
+    // -------------------------------------------------------------
+    // 🔹 辅助方法：绘制线条
+    // -------------------------------------------------------------
 
-    private void drawUnitBlockWireframe(Matrix4f m, VertexConsumer consumer, double x, double y, double z,
-                                        float r, float g, float b, float a) {
-        // 用最小化版的 12 条边线（unit cube）
-        line(consumer, m, x, y, z, x+1, y, z, r,g,b,a);
-        line(consumer, m, x, y, z, x, y+1, z, r,g,b,a);
-        line(consumer, m, x, y, z, x, y, z+1, r,g,b,a);
-
-        line(consumer, m, x+1, y, z, x+1, y+1, z, r,g,b,a);
-        line(consumer, m, x+1, y, z, x+1, y, z+1, r,g,b,a);
-
-        line(consumer, m, x, y+1, z, x+1, y+1, z, r,g,b,a);
-        line(consumer, m, x, y+1, z, x, y+1, z+1, r,g,b,a);
-
-        line(consumer, m, x, y, z+1, x+1, y, z+1, r,g,b,a);
-        line(consumer, m, x, y, z+1, x, y+1, z+1, r,g,b,a);
-
-        line(consumer, m, x+1, y+1, z, x+1, y+1, z+1, r,g,b,a);
-        line(consumer, m, x+1, y, z+1, x+1, y+1, z+1, r,g,b,a);
-        line(consumer, m, x, y+1, z+1, x+1, y+1, z+1, r,g,b,a);
+    private void line(VertexConsumer c, Matrix4f matrix,
+                      double x1, double y1, double z1,
+                      double x2, double y2, double z2,
+                      float[] col) {
+        c.vertex(matrix, (float)x1, (float)y1, (float)z1).color(col[0], col[1], col[2], col[3]).normal(0, 1, 0);
+        c.vertex(matrix, (float)x2, (float)y2, (float)z2).color(col[0], col[1], col[2], col[3]).normal(0, 1, 0);
     }
 
-    private void drawPivotCross(Matrix4f m, VertexConsumer c, double x, double y, double z,
-                                float r, float g, float b, float a) {
-        double s = 0.35;
-        line(c, m, x - s, y, z, x + s, y, z, r,g,b,a);
-        line(c, m, x, y - s, z, x, y + s, z, r,g,b,a);
-        line(c, m, x, y, z - s, x, y, z + s, r,g,b,a);
+    // -------------------------------------------------------------
+    // 🔹 绘制中心锚点
+    // -------------------------------------------------------------
+
+    private void drawAnchor(Matrix4f matrix, VertexConsumer c, Vec3d pos, float[] color) {
+        double size = 0.05;
+        double x = pos.x, y = pos.y, z = pos.z;
+
+        line(c, matrix, x - size, y, z, x + size, y, z, color);
+        line(c, matrix, x, y - size, z, x, y + size, z, color);
+        line(c, matrix, x, y, z - size, x, y, z + size, color);
     }
 
-    private void drawBoxWireframe(Matrix4f m, VertexConsumer consumer, Box box, float r, float g, float b, float a) {
-        double minX = box.minX, minY = box.minY, minZ = box.minZ;
-        double maxX = box.maxX, maxY = box.maxY, maxZ = box.maxZ;
-        
-        // 绘制包围盒的12条边
-        line(consumer, m, minX, minY, minZ, maxX, minY, minZ, r, g, b, a);
-        line(consumer, m, minX, minY, minZ, minX, maxY, minZ, r, g, b, a);
-        line(consumer, m, minX, minY, minZ, minX, minY, maxZ, r, g, b, a);
-        
-        line(consumer, m, maxX, minY, minZ, maxX, maxY, minZ, r, g, b, a);
-        line(consumer, m, maxX, minY, minZ, maxX, minY, maxZ, r, g, b, a);
-        
-        line(consumer, m, minX, maxY, minZ, maxX, maxY, minZ, r, g, b, a);
-        line(consumer, m, minX, maxY, minZ, minX, maxY, maxZ, r, g, b, a);
-        
-        line(consumer, m, minX, minY, maxZ, maxX, minY, maxZ, r, g, b, a);
-        line(consumer, m, minX, minY, maxZ, minX, maxY, maxZ, r, g, b, a);
-        
-        line(consumer, m, maxX, maxY, minZ, maxX, maxY, maxZ, r, g, b, a);
-        line(consumer, m, maxX, minY, maxZ, maxX, maxY, maxZ, r, g, b, a);
-        line(consumer, m, minX, maxY, maxZ, maxX, maxY, maxZ, r, g, b, a);
-    }
-
-    private void line(VertexConsumer c, Matrix4f m, double x1, double y1, double z1, double x2, double y2, double z2,
-                      float r, float g, float b, float a) {
-        c.vertex(m, (float)x1, (float)y1, (float)z1).color(r,g,b,a).normal(0, 1, 0);
-        c.vertex(m, (float)x2, (float)y2, (float)z2).color(r,g,b,a).normal(0, 1, 0);
-    }
 }

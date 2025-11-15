@@ -1,7 +1,7 @@
 package com.chronoblocks.ui.timeline;
 
-import com.chronoblocks.core.timeline.TimelineCommand;
-import com.chronoblocks.core.timeline.TimelineCommandHistory;
+import com.chronoblocks.ui.timeline.commands.TimelineCommand;
+import com.chronoblocks.ui.timeline.commands.TimelineCommandHistory;
 
 /**
  * Timeline 上下文菜单构建器

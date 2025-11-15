@@ -3,7 +3,6 @@ package com.chronoblocks.ui.adapters;
 import com.chronoblocks.ui.adapters.examples.SimpleKeyframeAdapter;
 import com.chronoblocks.ui.adapters.impl.ContainerAdapter;
 import com.chronoblocks.ui.adapters.impl.TrackAdapter;
-import com.chronoblocks.ui.adapters.impl.SequenceAdapter;
 import com.chronoblocks.ui.adapters.impl.ProjectAdapter;
 import com.chronoblocks.ui.adapters.impl.EffectAdapter;
 import org.slf4j.Logger;
@@ -92,10 +91,6 @@ public class PropertyAdapterModule {
         // 轨道适配器
         registry.register(new TrackAdapter());
         LOGGER.debug("[PropertyAdapterModule] 已注册 TrackAdapter");
-
-        // 序列适配器
-        registry.register(new SequenceAdapter());
-        LOGGER.debug("[PropertyAdapterModule] 已注册 SequenceAdapter");
 
         // 项目适配器
         registry.register(new ProjectAdapter());

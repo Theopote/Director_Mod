@@ -427,7 +427,7 @@ public class ChronoBlocksUIManager {
      * 统一的动画更新循环，每帧调用：
      * - 计算帧间隔时间
      * - 驱动 PlaybackController 更新
-     * - 同步 AnimationState 状态
+     * - 同步时间线求值结果
      */
     private void updateAnimationSystem() {
         try {
