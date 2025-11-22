@@ -798,6 +798,9 @@ public class TimelineInteractionHandler {
         float clampedTime = Math.max(0f, Math.min(model.getDuration(), snap.snappedTime));
         model.setCurrentTime(clampedTime);
         
+        // ★ 功能：开始拖动播放头时，立即更新片段方块显示状态
+        com.chronoblocks.ui.timeline.playback.TimelineClipBlockController.getInstance().update();
+        
         // 开始拖动交互
         interactionManager.startInteraction(
                 InteractionMode.DRAG_PLAYHEAD,
@@ -817,6 +820,10 @@ public class TimelineInteractionHandler {
                 model, rawTime, null, null, 0f
         );
         model.setCurrentTime(Math.max(0f, snap.snappedTime));
+        
+        // ★ 功能：播放头拖动时，立即更新片段方块显示状态
+        com.chronoblocks.ui.timeline.playback.TimelineClipBlockController.getInstance().update();
+        
         if (callbacks != null) callbacks.onDataChanged();
     }
 

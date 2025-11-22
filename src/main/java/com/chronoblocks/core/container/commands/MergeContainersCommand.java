@@ -113,6 +113,16 @@ public class MergeContainersCommand implements ContainerCommand {
             removedContainers.add(container);
         }
 
+        // ★ 功能：容器合并时，删除被合并容器在时间线上的片段
+        var timelineService = com.chronoblocks.ui.timeline.container.ContainerTimelineService.getInstance();
+        for (Container container : removedContainers) {
+            int removedCount = timelineService.removeClipsForContainer(container.getId());
+            if (removedCount > 0) {
+                LOGGER.info("[MergeCommand] 容器 {} 在时间线上的 {} 个片段已删除（合并操作）", 
+                    container.getName(), removedCount);
+            }
+        }
+
         // 统一批量删除所有被合并的原容器（一次加锁、一次事件触发），删除前已在上方补齐快照
         manager.removeContainers(removedContainers);
 

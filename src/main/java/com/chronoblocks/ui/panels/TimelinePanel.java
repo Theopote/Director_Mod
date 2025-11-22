@@ -61,7 +61,8 @@ import java.util.UUID;
  */
 public class TimelinePanel extends AbstractPanel 
         implements TimelineInteractionHandler.InteractionCallbacks,
-                   TimelineControlBar.Callbacks {
+                   TimelineControlBar.Callbacks,
+                   ContainerManager.ContainerListener {
     private static final Logger LOGGER = LoggerFactory.getLogger(TimelinePanel.class);
     
     // ========== UI 布局常量（v9.0 优化：提取魔法数字）==========
@@ -144,6 +145,15 @@ public class TimelinePanel extends AbstractPanel
         // 初始化自动保存时间戳
         this.lastAutoSaveTime = System.currentTimeMillis();
         
+        // 注册容器-时间线关联服务
+        com.chronoblocks.ui.timeline.container.ContainerTimelineService.getInstance().setTimelineModel(model);
+        
+        // 注册片段方块控制器，根据播放头位置控制片段方块显示
+        com.chronoblocks.ui.timeline.playback.TimelineClipBlockController.getInstance().setTimelineModel(model);
+        
+        // 注册容器监听器，用于同步容器名称变化到时间线片段
+        ContainerManager.getInstance().addListener(this);
+        
         // 初始化对话框
         ClipRenameDialog.initialize(model, commandHistory);
         ClipLengthDialog.initialize(commandHistory, model);
@@ -197,7 +207,10 @@ public class TimelinePanel extends AbstractPanel
         // 1. 更新播放状态（每帧调用）
         updatePlayback();
         
-        // 2. 处理快捷键
+        // 2. 根据播放头位置更新片段方块显示状态（每帧调用）
+        com.chronoblocks.ui.timeline.playback.TimelineClipBlockController.getInstance().update();
+        
+        // 3. 处理快捷键
         shortcutManager.handle();
         
         // 3. 渲染控制栏（委托给专门的组件）
@@ -1056,5 +1069,47 @@ public class TimelinePanel extends AbstractPanel
     @Override
     public int getPriority() {
         return 200;
+    }
+
+    // ========== 容器监听器接口实现 ==========
+
+    @Override
+    public void onContainerAdded(Container container) {
+        // 容器添加时不需要特殊处理
+    }
+
+    @Override
+    public void onContainerRemoved(Container container) {
+        // 容器删除时已经在DeleteContainersCommand中删除了对应的片段
+    }
+
+    @Override
+    public void onContainerMoved(Container container, Container newParent) {
+        // 容器移动时不需要特殊处理
+    }
+
+    @Override
+    public void onSelectionChanged(java.util.Set<Container> selected) {
+        // 容器选择变化时不需要特殊处理
+    }
+
+    @Override
+    public void onContainerRenamed(Container container, String oldName, String newName) {
+        // ★ 功能：容器重命名时，同步到时间线上的片段
+        if (container == null || newName == null) {
+            return;
+        }
+        
+        var timelineService = com.chronoblocks.ui.timeline.container.ContainerTimelineService.getInstance();
+        timelineService.updateClipNamesForContainer(container.getId(), newName);
+        markDataChanged();
+        
+        LOGGER.info("[TimelinePanel] 容器 {} 重命名已同步到时间线片段: {} -> {}", 
+            container.getName(), oldName, newName);
+    }
+
+    @Override
+    public void onActiveContainerChanged(Container oldActive, Container newActive) {
+        // 激活容器变化时不需要特殊处理
     }
 }

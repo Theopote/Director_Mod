@@ -15,6 +15,7 @@ public class RenameClipCommand extends BaseTimelineCommand {
     private final TimelineClip clip;
     private final String newLabel;
     private String oldLabel;
+    private String oldContainerName; // 保存容器旧名称用于撤销
 
     public RenameClipCommand(TimelineModel model, TimelineClip clip, String newLabel) {
         super(model, "clip_renamed");
@@ -32,7 +33,24 @@ public class RenameClipCommand extends BaseTimelineCommand {
             return;
         }
         clip.setLabel(newLabel);
+        clip.setBoundContainerName(newLabel); // 同步更新绑定容器名称
         LOGGER.debug("[Timeline] 重命名片段: {} -> {}", oldLabel, newLabel);
+        
+        // ★ 功能：片段重命名时，同步到对应的容器
+        // 注意：需要检查片段名称是否与容器名称不同，避免循环更新
+        java.util.UUID containerId = clip.getBoundContainerId();
+        if (containerId != null) {
+            com.chronoblocks.core.container.Container container = 
+                com.chronoblocks.core.container.ContainerManager.getInstance().getContainer(containerId);
+            if (container != null && !newLabel.equals(container.getName())) {
+                // 保存容器旧名称用于撤销
+                oldContainerName = container.getName();
+                // 使用ContainerManager的方法重命名容器（会触发onContainerRenamed事件）
+                // 但我们在onContainerRenamed中会检查片段名称是否已更新，避免循环
+                com.chronoblocks.core.container.ContainerManager.getInstance().renameContainer(container, newLabel);
+                LOGGER.info("[Timeline] 片段重命名已同步到容器: {} -> {}", oldContainerName, newLabel);
+            }
+        }
     }
 
     @Override
@@ -41,7 +59,19 @@ public class RenameClipCommand extends BaseTimelineCommand {
             return;
         }
         clip.setLabel(oldLabel);
+        clip.setBoundContainerName(oldLabel); // 同步更新绑定容器名称
         LOGGER.debug("[Timeline] 撤销片段重命名: {} -> {}", newLabel, oldLabel);
+        
+        // ★ 功能：撤销时，同步恢复容器名称
+        java.util.UUID containerId = clip.getBoundContainerId();
+        if (containerId != null && oldContainerName != null) {
+            com.chronoblocks.core.container.Container container = 
+                com.chronoblocks.core.container.ContainerManager.getInstance().getContainer(containerId);
+            if (container != null && !oldContainerName.equals(container.getName())) {
+                com.chronoblocks.core.container.ContainerManager.getInstance().renameContainer(container, oldContainerName);
+                LOGGER.info("[Timeline] 撤销片段重命名已同步到容器: {} -> {}", newLabel, oldContainerName);
+            }
+        }
     }
 
     @Override

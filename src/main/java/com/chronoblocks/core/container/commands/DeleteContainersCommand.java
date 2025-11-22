@@ -32,6 +32,17 @@ public class DeleteContainersCommand implements ContainerCommand {
         parents.clear();
         indices.clear();
 
+        // ★ 功能：删除容器前，先删除时间线上的对应片段
+        var timelineService = com.chronoblocks.ui.timeline.container.ContainerTimelineService.getInstance();
+        for (Container container : targets) {
+            int removedCount = timelineService.removeClipsForContainer(container.getId());
+            if (removedCount > 0) {
+                org.slf4j.LoggerFactory.getLogger(DeleteContainersCommand.class)
+                    .info("[DeleteContainersCommand] 容器 {} 在时间线上的 {} 个片段已删除", 
+                        container.getName(), removedCount);
+            }
+        }
+
         // 在循环外获取一次根列表快照，避免多次复制/加锁
         java.util.List<Container> rootView = manager.getRootContainersView();
         for (Container container : targets) {

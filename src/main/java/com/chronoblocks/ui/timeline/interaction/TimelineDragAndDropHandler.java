@@ -115,6 +115,13 @@ public class TimelineDragAndDropHandler {
 
     /**
      * 处理容器拖放到轨道的具体逻辑
+     * 
+     * <p>规则：
+     * <ul>
+     *   <li>如果容器已经在时间线上有片段，则移动现有片段到新位置</li>
+     *   <li>如果容器还没有片段，则创建新片段</li>
+     *   <li>每个容器只能有一个片段</li>
+     * </ul>
      */
     private void handleContainerDropToTrack(String containerId, int trackIndex, float mouseX, float contentX) {
         try {
@@ -131,6 +138,52 @@ public class TimelineDragAndDropHandler {
                 return;
             }
             
+            // ★ 功能：检查容器是否已经在时间线上有片段
+            var timelineService = com.chronoblocks.ui.timeline.container.ContainerTimelineService.getInstance();
+            var existingClips = timelineService.findClipsForContainer(containerUuid);
+            
+            if (!existingClips.isEmpty()) {
+                // 容器已经有片段，移动现有片段到新位置
+                TimelineClip existingClip = existingClips.get(0); // 每个容器只有一个片段
+                TimelineTrack oldTrack = model.findTrackForClip(existingClip);
+                
+                // 计算新位置时间与吸附
+                float dropTime = model.screenToTime(mouseX, contentX);
+                if (model.isSnappingEnabled()) {
+                    TimelineSnapping.Result snap = TimelineSnapping.snapTime(model, dropTime, targetTrack, null, 0f);
+                    dropTime = snap.snappedTime;
+                }
+                dropTime = Math.max(0f, Math.min(dropTime, model.getDuration() - 1f));
+                
+                // 保持片段长度不变，只移动开始时间
+                float clipLength = existingClip.getEndTime() - existingClip.getStartTime();
+                existingClip.setStartTime(dropTime);
+                existingClip.setEndTime(dropTime + clipLength);
+                
+                // 如果目标轨道不同，需要移动片段到新轨道
+                if (oldTrack != null && oldTrack != targetTrack) {
+                    oldTrack.removeClip(existingClip);
+                    targetTrack.addClip(existingClip);
+                } else if (oldTrack == null) {
+                    // 片段没有父轨道，添加到目标轨道
+                    targetTrack.addClip(existingClip);
+                }
+                
+                // ★ 功能：标记时长需要重新计算（片段位置改变可能影响总时长）
+                model.markDurationDirty();
+                
+                // 选中移动的片段
+                model.setSelectedClip(existingClip);
+                
+                // 触发数据改变回调
+                onDataChangedCallback.run();
+                
+                LOGGER.info("[DragDrop] 容器 {} 的片段已移动到轨道 {}，新位置: {}s", 
+                    container.getName(), targetTrack.getName(), dropTime);
+                return;
+            }
+            
+            // 容器还没有片段，创建新片段
             // 计算时间与吸附
             float dropTime = model.screenToTime(mouseX, contentX);
             if (model.isSnappingEnabled()) {
@@ -155,6 +208,21 @@ public class TimelineDragAndDropHandler {
             
             // 添加到目标轨道
             targetTrack.addClip(clip);
+            
+            // ★ 功能：标记时长需要重新计算（新片段可能超过当前总时长）
+            model.markDurationDirty();
+            
+            // ★ 功能：容器拖到时间线时，自动隐藏容器（除非从时间线删除片段，否则不能显示）
+            try {
+                var visibilityService = com.chronoblocks.core.container.visibility.ContainerServices.visibility();
+                if (visibilityService != null && container.getState() != com.chronoblocks.core.container.ContainerState.HIDDEN) {
+                    visibilityService.hideContainer(container);
+                    container.setState(com.chronoblocks.core.container.ContainerState.HIDDEN);
+                    LOGGER.info("[DragDrop] 容器 {} 已隐藏（已添加到时间线）", container.getName());
+                }
+            } catch (Exception e) {
+                LOGGER.warn("[DragDrop] 隐藏容器失败: {}", container.getName(), e);
+            }
             
             // ★ 优化：自动选中新创建的片段，使其可以立即被拖动
             model.setSelectedClip(clip);

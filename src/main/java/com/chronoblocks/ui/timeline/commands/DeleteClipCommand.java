@@ -35,10 +35,29 @@ public class DeleteClipCommand extends BaseTimelineCommand {
         }
         removedIndex = clipList.indexOf(clip);
         if (removedIndex >= 0) {
+            // 记录容器ID（删除前）
+            java.util.UUID containerId = clip.getBoundContainerId();
+            
             clipList.remove(removedIndex);
             // 清理插值映射，避免内存泄漏
             ChangeKeyframeInterpolationCommand.clearInterpolationsForClip(clip);
             LOGGER.debug("[Timeline] 删除片段，索引: {}", removedIndex);
+            
+            // ★ 功能：删除片段后，如果这是该容器的最后一个片段，允许容器显示
+            if (containerId != null) {
+                var timelineService = com.chronoblocks.ui.timeline.container.ContainerTimelineService.getInstance();
+                boolean hasOtherClips = timelineService.isContainerOnTimeline(containerId);
+                
+                if (!hasOtherClips) {
+                    // 这是该容器的最后一个片段，允许容器显示
+                    com.chronoblocks.core.container.Container container = 
+                        com.chronoblocks.core.container.ContainerManager.getInstance().getContainer(containerId);
+                    if (container != null && container.getState() == com.chronoblocks.core.container.ContainerState.HIDDEN) {
+                        // 容器当前是隐藏状态，允许用户切换显示（但不在删除时自动显示）
+                        LOGGER.info("[Timeline] 容器 {} 的所有片段已删除，现在可以切换显示状态", container.getName());
+                    }
+                }
+            }
         } else {
             LOGGER.warn("[Timeline] 删除片段失败：片段不在列表中");
         }

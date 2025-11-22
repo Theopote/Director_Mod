@@ -1118,6 +1118,14 @@ public class ContainerManager {
             }
         }
         
+        // ★ 功能：释放容器时，删除时间线上的对应片段
+        var timelineService = com.chronoblocks.ui.timeline.container.ContainerTimelineService.getInstance();
+        int removedCount = timelineService.removeClipsForContainer(container.getId());
+        if (removedCount > 0) {
+            LOGGER.info("[ContainerManager] 释放容器 {} 时，已删除时间线上的 {} 个片段", 
+                container.getName(), removedCount);
+        }
+        
         // 删除容器
         removeContainer(container);
         

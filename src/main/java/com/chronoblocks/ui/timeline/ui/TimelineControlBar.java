@@ -232,6 +232,8 @@ public class TimelineControlBar {
         ImGui.pushItemWidth(UITheme.Spacing.INPUT_WIDTH_SMALL);
         if (ImGui.dragFloat("##currentTime", tempCurrentTime, TIME_JUMP_DRAG_STEP, 0, model.getDuration(), "%.2fs")) {
             model.setCurrentTime(tempCurrentTime[0]);
+            // ★ 功能：时间跳转时，立即更新片段方块显示状态
+            com.chronoblocks.ui.timeline.playback.TimelineClipBlockController.getInstance().update();
         }
         ImGui.popItemWidth();
 

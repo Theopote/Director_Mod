@@ -299,6 +299,15 @@ class ContainerTreeInteractionHandler {
             controller.setContainerLocked(container.getId(), !container.isLocked());
         }
         if (visibilityClicked) {
+            // ★ 功能：已拖动到时间线的容器，不能切换可见性
+            boolean isOnTimeline = com.chronoblocks.ui.timeline.container.ContainerTimelineService.getInstance()
+                .isContainerOnTimeline(container.getId());
+            
+            if (isOnTimeline) {
+                LOGGER.info("[ContainerTreeInteractionHandler] 容器 {} 在时间线上，无法切换可见性", container.getName());
+                return;
+            }
+            
             // 切换容器状态（HIDDEN/VISIBLE），这会控制 Minecraft 中方块的显示/隐藏
             controller.toggleContainerState(container.getId());
         }

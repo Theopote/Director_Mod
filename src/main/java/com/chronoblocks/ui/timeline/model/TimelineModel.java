@@ -566,14 +566,23 @@ public class TimelineModel {
      * 获取持续时间（取用户设定值和片段最大结束时间中的较大值）
      * 使用缓存机制避免频繁重新计算，提升性能。
      * 这样既能自动适应片段长度，又允许用户手动设置更长的时长
+     * 
+     * <p>★ 功能：当片段的长度超过预定义的时长时，总时长自动扩张到片段的末尾
      */
     public float getDuration() {
         if (isDurationDirty) {
             this.cachedDynamicDuration = calculateDynamicDuration();
             this.isDurationDirty = false;
+            
+            // ★ 功能：当动态时长超过用户设定的时长时，自动更新用户设定的时长
+            // 这样既能自动适应片段长度，又能保持用户设置
+            if (this.cachedDynamicDuration > this.duration) {
+                // 自动扩张总时长到片段的末尾
+                this.duration = this.cachedDynamicDuration;
+            }
         }
-        // 返回两者中的较大值
-        return Math.max(this.cachedDynamicDuration, this.duration); 
+        // 返回用户设定的时长（已经自动更新为较大的值）
+        return this.duration;
     }
     
     /**
@@ -594,16 +603,28 @@ public class TimelineModel {
     
     /**
      * 标记时长需要重新计算（当片段添加/删除/修改时调用）
+     * 
+     * <p>应该在以下情况下调用：
+     * <ul>
+     *   <li>片段添加/删除时</li>
+     *   <li>片段移动时</li>
+     *   <li>片段调整大小时（resize）</li>
+     *   <li>片段时间范围改变时</li>
+     * </ul>
      */
     public void markDurationDirty() {
         this.isDurationDirty = true;
     }
     
     /**
-     * 设置持续时间
+     * 设置持续时间（用户手动设置）
+     * 
+     * <p>注意：如果动态计算的时长大于此值，实际时长会使用动态值
      */
     public void setDuration(float duration) { 
         this.duration = Math.max(0.1f, duration); 
+        // 标记为需要重新计算，这样下次 getDuration() 时会重新计算并自动扩张
+        this.isDurationDirty = true;
     }
     
     public TimelineViewportState getViewportState() {

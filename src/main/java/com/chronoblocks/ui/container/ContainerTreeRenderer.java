@@ -67,6 +67,13 @@ class ContainerTreeRenderer {
             return;
         }
 
+        // 检查容器是否在时间线上
+        boolean isOnTimeline = com.chronoblocks.ui.timeline.container.ContainerTimelineService.getInstance()
+            .isContainerOnTimeline(container.getId());
+        
+        // ★ 功能：已拖动到时间线的容器，在容器名称前面显示圆点"·"
+        String timelineIndicator = isOnTimeline ? "· " : "";
+
         // 使用 pushID 隔离节点，避免拖拽、上下文菜单、内联重命名、图标按钮的 ID 冲突
         ImGui.pushID(container.getId().toString());
         try {
@@ -82,7 +89,7 @@ class ContainerTreeRenderer {
             
             // 使用稳定的 ID 与可读 Label 分离的模式
             String iconText = container.getType().getIcon();
-            String nameText = container.getName();
+            String nameText = timelineIndicator + container.getName();
             String label = iconText + " " + nameText;
             
             // 强制根据 state 控制展开/折叠（DefaultOpen 只影响首次出现，需 setNextItemOpen 每帧生效）
@@ -261,6 +268,10 @@ class ContainerTreeRenderer {
             // 可见性图标
             ImGui.sameLine();
             boolean isHidden = container.getState() == com.chronoblocks.core.container.ContainerState.HIDDEN;
+            boolean isOnTimeline = com.chronoblocks.ui.timeline.container.ContainerTimelineService.getInstance()
+                .isContainerOnTimeline(container.getId());
+            
+            // ★ 功能：已拖动到时间线的容器，可见性图标不能被点击（禁用切换）
             String visIcon = isHidden ? Icons.INVISIBLE : Icons.VISIBLE;
             int visColor = isHidden ? VISIBLE_DISABLED_COLOR : VISIBLE_COLOR;
 
@@ -269,17 +280,34 @@ class ContainerTreeRenderer {
 
             float visPosX = ImGui.getCursorScreenPosX();
             float visPosY = ImGui.getCursorScreenPosY();
+            
+            // 如果容器在时间线上，禁用可见性切换按钮
+            if (isOnTimeline) {
+                ImGui.beginDisabled();
+            }
+            
             if (ImGui.invisibleButton("vis_btn", visTextWidth, visTextHeight)) {
-                visibilityClicked = true;
+                if (!isOnTimeline) {  // 只有不在时间线上时才能切换
+                    visibilityClicked = true;
+                }
             }
             visibilityHovered = ImGui.isItemHovered();
+            
+            if (isOnTimeline) {
+                ImGui.endDisabled();
+            }
+            
             ImGui.setCursorScreenPos(visPosX, visPosY);
             ImGui.pushStyleColor(ImGuiCol.Text, visColor);
             ImGui.text(visIcon);
             ImGui.popStyleColor();
 
             if (visibilityHovered) {
-                ImGui.setTooltip(isHidden ? "显示容器（方块将在 Minecraft 中可见）" : "隐藏容器（方块将在 Minecraft 中不可见，看起来像被清除）");
+                if (isOnTimeline) {
+                    ImGui.setTooltip("容器在时间线上，无法切换可见性（请先从时间线删除片段）");
+                } else {
+                    ImGui.setTooltip(isHidden ? "显示容器（方块将在 Minecraft 中可见）" : "隐藏容器（方块将在 Minecraft 中不可见，看起来像被清除）");
+                }
             }
         } finally {
             ImGui.popID();
