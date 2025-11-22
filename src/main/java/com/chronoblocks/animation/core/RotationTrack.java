@@ -17,10 +17,10 @@ public class RotationTrack extends Track<Vec3d> {
             return null;
         }
         if (keyframes.size() == 1) {
-            return keyframes.get(0).value();
+            return keyframes.getFirst().value();
         }
 
-        Keyframe<Vec3d> previous = keyframes.get(0);
+        Keyframe<Vec3d> previous = keyframes.getFirst();
         for (int i = 1; i < keyframes.size(); i++) {
             Keyframe<Vec3d> next = keyframes.get(i);
             if (timeSec <= next.time()) {
@@ -31,7 +31,7 @@ public class RotationTrack extends Track<Vec3d> {
             }
             previous = next;
         }
-        return keyframes.get(keyframes.size() - 1).value();
+        return keyframes.getLast().value();
     }
 
     public EvaluatedPose evaluatePose(double timeSec) {

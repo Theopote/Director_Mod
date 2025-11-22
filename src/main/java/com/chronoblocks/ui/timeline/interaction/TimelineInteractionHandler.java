@@ -290,6 +290,10 @@ public class TimelineInteractionHandler {
 
         // 更新选中
         model.setSelectedClip(clip);
+        
+        // ★ 功能：选中片段时，同步到 SelectionManager，使属性面板显示片段属性
+        com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(clip);
+        
         if (callbacks != null) callbacks.onDataChanged();
         
         // ★ 优化：添加日志，便于调试

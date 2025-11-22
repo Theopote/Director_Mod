@@ -1,6 +1,5 @@
 package com.chronoblocks.animation.timeline;
 
-import com.chronoblocks.animation.core.Keyframe;
 import com.chronoblocks.animation.core.Track;
 
 import java.util.ArrayList;
@@ -21,25 +20,6 @@ public class ContainerVisibilityTrack extends Track<Boolean> {
     }
 
     /**
-     * 添加可见性关键帧
-     */
-    public void addKeyframe(float time, boolean visible) {
-        VisibilityKeyframe vkf = new VisibilityKeyframe(time, visible);
-        visibilityKeyframes.add(vkf);
-        visibilityKeyframes.sort((a, b) -> Float.compare(a.time, b.time));
-        
-        // 同时添加到基类的 keyframes 列表以保持兼容性
-        super.addKeyframe(new Keyframe<>((double) time, visible));
-    }
-
-    /**
-     * 获取可见性关键帧列表
-     */
-    public List<VisibilityKeyframe> getVisibilityKeyframes() {
-        return visibilityKeyframes;
-    }
-
-    /**
      * 取得当前时间是否应该可见
      */
     public boolean evaluate(float t) {
@@ -47,7 +27,7 @@ public class ContainerVisibilityTrack extends Track<Boolean> {
             return true;
         }
 
-        VisibilityKeyframe last = visibilityKeyframes.get(0);
+        VisibilityKeyframe last = visibilityKeyframes.getFirst();
 
         for (VisibilityKeyframe k : visibilityKeyframes) {
             if (k.time > t) {

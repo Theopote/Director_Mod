@@ -75,9 +75,4 @@ public final class ClipPlaybackRuntimeManager {
         }
     }
 
-    public EvaluatedPose getPose(UUID containerId) {
-        return evaluatedPoses.getOrDefault(containerId, EvaluatedPose.empty());
-    }
 }
-
-

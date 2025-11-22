@@ -72,35 +72,8 @@ public class AnimationClip {
         return boundContainerId;
     }
 
-    public void setBoundContainerId(UUID boundContainerId) {
-        this.boundContainerId = boundContainerId;
-    }
-
     public List<Track<?>> getTracks() {
         return tracks;
     }
 
-    public void addTrack(Track<?> track) {
-        if (track != null && !tracks.contains(track)) {
-            tracks.add(track);
-        }
-    }
-
-    public void removeTrack(Track<?> track) {
-        tracks.remove(track);
-    }
-
-    /**
-     * 获取可见性轨道（v5.3新增）
-     */
-    public com.chronoblocks.animation.timeline.ContainerVisibilityTrack getVisibilityTrack() {
-        for (Track<?> track : tracks) {
-            if (track instanceof com.chronoblocks.animation.timeline.ContainerVisibilityTrack) {
-                return (com.chronoblocks.animation.timeline.ContainerVisibilityTrack) track;
-            }
-        }
-        return null;
-    }
 }
-
-

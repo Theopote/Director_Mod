@@ -15,10 +15,10 @@ public class VisibilityTrack extends Track<Double> {
             return 1.0;
         }
         if (keyframes.size() == 1) {
-            return keyframes.get(0).value();
+            return keyframes.getFirst().value();
         }
 
-        Keyframe<Double> previous = keyframes.get(0);
+        Keyframe<Double> previous = keyframes.getFirst();
         for (int i = 1; i < keyframes.size(); i++) {
             Keyframe<Double> next = keyframes.get(i);
             if (timeSec <= next.time()) {
@@ -29,7 +29,7 @@ public class VisibilityTrack extends Track<Double> {
             }
             previous = next;
         }
-        return keyframes.get(keyframes.size() - 1).value();
+        return keyframes.getLast().value();
     }
 
     public EvaluatedPose evaluatePose(double timeSec) {

@@ -71,10 +71,4 @@ public class AnimationInspectorPanel extends AbstractPanel {
         }
         ImGui.popID();
     }
-
-    public void setFocusedClip(UUID clipId) {
-        this.focusedClipId = clipId;
-    }
 }
-
-

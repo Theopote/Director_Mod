@@ -1,7 +1,9 @@
 package com.chronoblocks.ui.timeline.persistence;
 
-import com.chronoblocks.animation.timeline.ClipAnimationConfig;
+import com.chronoblocks.core.animation.ClipAnimationConfig;
 import com.chronoblocks.core.container.AnimationMode;
+import com.chronoblocks.core.animation.sequence.SequenceMode;
+import com.chronoblocks.core.animation.sequence.SequenceParameters;
 import com.chronoblocks.ui.timeline.model.TimelineClip;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
@@ -90,6 +92,18 @@ public class TimelineModelPersistence {
         public String animationEasing = "Linear";
         public String animationOrdering = "Sequential";
         public Map<String, Object> animationParams = new HashMap<>();
+        // 序列策略配置（新增）
+        public String sequenceMode; // SequenceMode.name()
+        public Integer sequenceBatchSize;
+        public Long sequenceRandomSeed;
+        // 波浪模式参数
+        public String sequenceWaveDirection;
+        public Float sequenceWaveInterval;
+        public String sequenceWaveStart;
+        // 螺旋模式参数
+        public String sequenceSpiralStart;
+        public String sequenceSpiralDirection;
+        public Map<String, Object> sequenceParams = new HashMap<>();
         public String boundContainerId;
         public String boundContainerName;
     }
@@ -142,6 +156,21 @@ public class TimelineModelPersistence {
                 clipDTO.animationEasing = config.getEasing();
                 clipDTO.animationOrdering = config.getOrdering();
                 clipDTO.animationParams.putAll(config.getParams());
+                // 序列策略配置（新增）
+                clipDTO.sequenceMode = config.getSequenceMode().name();
+                SequenceParameters seqParams = config.getSequenceParameters();
+                if (seqParams != null) {
+                    clipDTO.sequenceBatchSize = seqParams.getBatchSize();
+                    clipDTO.sequenceRandomSeed = seqParams.getRandomSeed();
+                    // 波浪模式参数
+                    clipDTO.sequenceWaveDirection = seqParams.getWaveDirection();
+                    clipDTO.sequenceWaveInterval = seqParams.getWaveInterval();
+                    clipDTO.sequenceWaveStart = seqParams.getWaveStart();
+                    // 螺旋模式参数
+                    clipDTO.sequenceSpiralStart = seqParams.getSpiralStart();
+                    clipDTO.sequenceSpiralDirection = seqParams.getSpiralDirection();
+                    clipDTO.sequenceParams.putAll(seqParams.getExtraParams());
+                }
                 if (clip.getBoundContainerId() != null) {
                     clipDTO.boundContainerId = clip.getBoundContainerId().toString();
                 }
@@ -229,6 +258,43 @@ public class TimelineModelPersistence {
                 if (clipDTO.animationParams != null && !clipDTO.animationParams.isEmpty()) {
                     config.getParams().clear();
                     config.getParams().putAll(clipDTO.animationParams);
+                }
+                // 序列策略配置（新增）
+                if (clipDTO.sequenceMode != null) {
+                    try {
+                        config.setSequenceMode(SequenceMode.valueOf(clipDTO.sequenceMode));
+                    } catch (IllegalArgumentException e) {
+                        LOGGER.warn("[TimelineModelPersistence] 未知的序列模式: {}", clipDTO.sequenceMode);
+                    }
+                }
+                SequenceParameters seqParams = config.getSequenceParameters();
+                if (seqParams != null) {
+                    if (clipDTO.sequenceBatchSize != null) {
+                        seqParams.setBatchSize(clipDTO.sequenceBatchSize);
+                    }
+                    if (clipDTO.sequenceRandomSeed != null) {
+                        seqParams.setRandomSeed(clipDTO.sequenceRandomSeed);
+                    }
+                    // 波浪模式参数
+                    if (clipDTO.sequenceWaveDirection != null) {
+                        seqParams.setWaveDirection(clipDTO.sequenceWaveDirection);
+                    }
+                    if (clipDTO.sequenceWaveInterval != null) {
+                        seqParams.setWaveInterval(clipDTO.sequenceWaveInterval);
+                    }
+                    if (clipDTO.sequenceWaveStart != null) {
+                        seqParams.setWaveStart(clipDTO.sequenceWaveStart);
+                    }
+                    // 螺旋模式参数
+                    if (clipDTO.sequenceSpiralStart != null) {
+                        seqParams.setSpiralStart(clipDTO.sequenceSpiralStart);
+                    }
+                    if (clipDTO.sequenceSpiralDirection != null) {
+                        seqParams.setSpiralDirection(clipDTO.sequenceSpiralDirection);
+                    }
+                    if (clipDTO.sequenceParams != null && !clipDTO.sequenceParams.isEmpty()) {
+                        seqParams.getExtraParams().putAll(clipDTO.sequenceParams);
+                    }
                 }
 
                 if (clipDTO.boundContainerId != null && !clipDTO.boundContainerId.isBlank()) {

@@ -95,8 +95,7 @@ public class PlaybackController {
      */
     public void seek(float time) {
         double duration = computeDuration();
-        double clamped = duration > 0.0 ? Math.max(0.0, Math.min(time, duration)) : Math.max(0.0, time);
-        currentTimeSec = clamped;
+        currentTimeSec = duration > 0.0 ? Math.max(0.0, Math.min(time, duration)) : Math.max(0.0, time);
         ClipPlaybackRuntimeManager.get().update(currentTimeSec);
         LOGGER.trace("[Playback] Seeked to time: {}", currentTimeSec);
         notifyListeners();
@@ -192,16 +191,6 @@ public class PlaybackController {
                 LOGGER.warn("[Playback] Listener threw exception", e);
             }
         }
-    }
-
-    public void addListener(PlaybackListener listener) {
-        if (listener != null) {
-            listeners.add(listener);
-        }
-    }
-
-    public void removeListener(PlaybackListener listener) {
-        listeners.remove(listener);
     }
 
     public interface PlaybackListener {

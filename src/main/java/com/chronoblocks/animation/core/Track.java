@@ -32,10 +32,6 @@ public abstract class Track<T> {
         keyframes.sort(Comparator.comparingDouble(Keyframe::time));
     }
 
-    public void removeKeyframe(Keyframe<T> keyframe) {
-        keyframes.remove(keyframe);
-    }
-
     public abstract T evaluate(double timeSec);
 }
 

@@ -1,7 +1,6 @@
 package com.chronoblocks.animation.timeline;
 
 import com.chronoblocks.animation.core.AnimationClip;
-import com.chronoblocks.core.container.Container;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,24 +36,6 @@ public final class AnimationTimelineService {
         timelineController.setCurrentTime(timeSec);
     }
 
-    public ClipBinding createClipForContainer(Container container) {
-        if (container == null) {
-            throw new IllegalArgumentException("container cannot be null");
-        }
-        UUID containerId = container.getId();
-        return bindings.compute(containerId, (id, existing) -> {
-            if (existing != null) {
-                LOGGER.info("[TimelineService] 容器 {} 已存在绑定 Clip {}", container.getName(), existing.clip().getId());
-                return existing;
-            }
-            AnimationClip clip = timelineController.createClipFor(containerId, container.getName() + " Clip");
-            ClipBinding binding = new ClipBinding(clip, Instant.now());
-            LOGGER.info("[TimelineService] 已为容器 {} 创建占位 Clip {} ({}s-{}s)",
-                container.getName(), clip.getId(), clip.getStart(), clip.getEnd());
-            return binding;
-        });
-    }
-
     public Optional<ClipBinding> getBinding(UUID containerId) {
         if (containerId == null) {
             return Optional.empty();
@@ -79,17 +60,6 @@ public final class AnimationTimelineService {
             );
     }
 
-    public void removeBinding(UUID containerId) {
-        if (containerId == null) {
-            return;
-        }
-        ClipBinding removed = bindings.remove(containerId);
-        if (removed != null) {
-            timelineController.getPlayableGraph().removeClip(removed.clip());
-            LOGGER.info("[TimelineService] 已移除容器 {} 的 Clip 绑定 {}", containerId, removed.clip().getId());
-        }
-    }
-
     public record ClipBinding(AnimationClip clip, Instant createdAt) {
         public UUID containerId() {
             return clip.getBoundContainerId();
@@ -108,5 +78,3 @@ public final class AnimationTimelineService {
         }
     }
 }
-
-

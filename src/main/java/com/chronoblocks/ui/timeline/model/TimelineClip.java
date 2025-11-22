@@ -1,6 +1,6 @@
 package com.chronoblocks.ui.timeline.model;
 
-import com.chronoblocks.animation.timeline.ClipAnimationConfig;
+import com.chronoblocks.core.animation.ClipAnimationConfig;
 import com.chronoblocks.core.container.ContainerAnimationPreset;
 import com.chronoblocks.ui.util.UIUtils;
 

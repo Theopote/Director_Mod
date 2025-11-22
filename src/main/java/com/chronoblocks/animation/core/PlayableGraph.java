@@ -13,16 +13,6 @@ public class PlayableGraph {
 
     private final List<AnimationClip> clips = new ArrayList<>();
 
-    public void addClip(AnimationClip clip) {
-        if (clip != null && !clips.contains(clip)) {
-            clips.add(clip);
-        }
-    }
-
-    public void removeClip(AnimationClip clip) {
-        clips.remove(clip);
-    }
-
     public List<AnimationClip> getClips() {
         return clips;
     }
