@@ -72,6 +72,14 @@ public class ChronoBlocksClient implements ClientModInitializer {
         // 初始化容器实时接收订阅器 (v5.0)
         initializeContainerIntakeSystem();
         
+        // 初始化全局快捷键系统
+        try {
+            com.chronoblocks.ui.input.ShortcutInitializer.initialize();
+            LOGGER.info("[ChronoBlocks] 全局快捷键系统已初始化");
+        } catch (Exception e) {
+            LOGGER.error("[ChronoBlocks] 初始化全局快捷键系统失败", e);
+        }
+        
         // 注册客户端启动完成事件
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
             LOGGER.info("[ChronoBlocks] Minecraft client started, proceeding with ImGui initialization.");

@@ -1,13 +1,13 @@
 package com.chronoblocks.client.renderer;
-
+import com.chronoblocks.client.renderer.mesh.BlockOutlineMeshCache;
 import com.chronoblocks.core.container.Container;
 import com.chronoblocks.core.container.ContainerManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.*;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 import org.slf4j.Logger;
@@ -28,12 +28,10 @@ public final class ContainerHighlightRenderer {
     private static volatile ContainerHighlightRenderer INSTANCE;
     
     // 高亮颜色（使用容器的标记颜色，如果没有则使用默认颜色）
-    private final float[] defaultOutlineColor = {0.4f, 1.0f, 0.5f, 0.9f}; // 绿色边框
-    private float outlineWidth = 2.0f;
-    private boolean enabled = true;
-    
-    // 性能控制
-    private int maxRenderDistanceSq = 128 * 128; // 最大渲染距离（方块）
+    private final float[] defaultOutlineColor = {0.4f, 1.0f, 0.5f, 0.9f}; // 绿色边框（仅作为 fallback）
+
+    // 统一使用 BlockOutlineMeshCache（与选区/工具预览共享）
+    private final BlockOutlineMeshCache meshCache = new BlockOutlineMeshCache();
     
     private ContainerHighlightRenderer() {
     }
@@ -49,11 +47,15 @@ public final class ContainerHighlightRenderer {
         return INSTANCE;
     }
     
+    // 全局设置中心（新系统优先读取）
+    private final com.chronoblocks.client.settings.RenderSettings settings = com.chronoblocks.client.settings.RenderSettings.get();
+
     /**
      * 渲染选中容器的高亮边框
      */
     public void render(MatrixStack matrices, VertexConsumerProvider vertexConsumers, float tickDelta) {
-        if (!enabled) {
+        // ✅ 直接从全局设置读取（实时生效）
+        if (!settings.container_showOutline) {
             return;
         }
         
@@ -86,107 +88,100 @@ public final class ContainerHighlightRenderer {
             (int) Math.floor(cameraPos.z)
         );
         
-        // 获取容器的颜色（如果有标记颜色则使用，否则使用默认颜色）
-        int containerColor = selectedContainer.getColor();
-        float[] outlineColor = intColorToFloatArray(containerColor);
-        if (outlineColor == null) {
-            outlineColor = defaultOutlineColor.clone();
-        }
+        // ✅ 直接从全局设置读取颜色和线宽（实时生效）
+        float[] outlineColor = (settings.container_outlineColor != null && settings.container_outlineColor.length >= 4)
+            ? new float[]{settings.container_outlineColor[0], settings.container_outlineColor[1], settings.container_outlineColor[2], settings.container_outlineColor[3]}
+            : defaultOutlineColor.clone();
         
         // 设置渲染状态
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
         RenderSystem.enableDepthTest();
         RenderSystem.depthMask(false);
-        RenderSystem.lineWidth(Math.max(1.0f, Math.min(outlineWidth, 4.0f)));
+        float lw = settings.container_outlineWidth;
+        RenderSystem.lineWidth(Math.max(1.0f, Math.min(lw, 4.0f)));
         
         Matrix4f matrix = matrices.peek().getPositionMatrix();
         VertexConsumer lineConsumer = vertexConsumers.getBuffer(RenderLayer.getLines());
         
         try {
-            // 渲染每个方块的边框
-            int renderedCount = 0;
-            for (BlockPos pos : blocks) {
-                // 距离剔除
-                if (cameraBlock.getSquaredDistance(pos) > maxRenderDistanceSq) {
-                    continue;
+            // ✅ 直接从全局设置读取（实时生效）
+            int maxDistSq = settings.selection_maxRenderDistance * settings.selection_maxRenderDistance;
+            if (settings.container_enableGreedy) {
+                // 过滤可见方块（按距离）
+                java.util.ArrayList<BlockPos> visibleBlocks = new java.util.ArrayList<>();
+                for (BlockPos pos : blocks) {
+                    if (cameraBlock.getSquaredDistance(pos) <= maxDistSq) {
+                        visibleBlocks.add(pos);
+                    }
+                }
+                if (visibleBlocks.isEmpty()) {
+                    return;
+                }
+
+                // 基于方块集合构建贪婪网格，输出外轮廓线
+                BlockOutlineMeshCache.Mesh mesh = meshCache.getOrCreateMesh(visibleBlocks);
+                int renderedCount = 0;
+                float r = outlineColor[0], g = outlineColor[1], b = outlineColor[2], a = outlineColor[3];
+                for (BlockOutlineMeshCache.Line line : mesh.lines()) {
+                    drawLine(lineConsumer, matrix,
+                        (float) (line.x1() - cameraPos.x), (float) (line.y1() - cameraPos.y), (float) (line.z1() - cameraPos.z),
+                        (float) (line.x2() - cameraPos.x), (float) (line.y2() - cameraPos.y), (float) (line.z2() - cameraPos.z),
+                        r, g, b, a);
+                    renderedCount++;
+                }
+
+                if (renderedCount > 0) {
+                    LOGGER.debug("[ContainerHighlightRenderer] 使用贪婪合并渲染容器外轮廓 {} 条线段", renderedCount);
                 }
                 
-                renderBlockOutline(lineConsumer, matrix, pos, cameraPos, outlineColor);
-                renderedCount++;
-            }
-            
-            if (renderedCount > 0) {
-                LOGGER.debug("[ContainerHighlightRenderer] 渲染了 {} 个方块的高亮边框", renderedCount);
+                // ⭐ 贪婪模式下也支持包围盒渲染（如果设置开启）
+                if (settings.container_showBoundingBox) {
+                    Container.BoundingBox bbox = selectedContainer.getBoundingBox();
+                    if (bbox != null) {
+                        Box box = new Box(
+                            bbox.getMin().getX(), bbox.getMin().getY(), bbox.getMin().getZ(),
+                            bbox.getMax().getX() + 1.0, bbox.getMax().getY() + 1.0, bbox.getMax().getZ() + 1.0
+                        ).offset(-cameraPos.x, -cameraPos.y, -cameraPos.z);
+
+                        // 使用已有的 r, g, b, a 变量
+                        renderBoundingBoxLines(lineConsumer, matrix, box, r, g, b, a);
+                    }
+                }
+            } else {
+                // 非贪婪：使用逐方块渲染（与 SelectionRenderer 保持一致）
+                int rendered = 0;
+                float r = outlineColor[0], g = outlineColor[1], b = outlineColor[2], a = outlineColor[3];
+                for (BlockPos pos : blocks) {
+                    if (cameraBlock.getSquaredDistance(pos) > maxDistSq) {
+                        continue;
+                    }
+                    drawBlockOutline(lineConsumer, matrix, pos, r, g, b, a, cameraPos);
+                    rendered++;
+                }
+
+                if (rendered > 0 && LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("[ContainerHighlightRenderer] ✅ 逐方块渲染 {} 个方块线框", rendered);
+                }
+
+                // ⭐ 包围盒渲染（根据设置控制）
+                if (settings.container_showBoundingBox && blocks.size() > 1) {
+                    Container.BoundingBox bbox = selectedContainer.getBoundingBox();
+                    if (bbox != null) {
+                        Box box = new Box(
+                            bbox.getMin().getX(), bbox.getMin().getY(), bbox.getMin().getZ(),
+                            bbox.getMax().getX() + 1.0, bbox.getMax().getY() + 1.0, bbox.getMax().getZ() + 1.0
+                        ).offset(-cameraPos.x, -cameraPos.y, -cameraPos.z);
+
+                        // 使用已有的 r, g, b, a 变量
+                        renderBoundingBoxLines(lineConsumer, matrix, box, r, g, b, a);
+                    }
+                }
             }
         } finally {
             RenderSystem.depthMask(true);
             RenderSystem.lineWidth(1.0f);
         }
-    }
-    
-    /**
-     * 渲染单个方块的边框
-     */
-    private void renderBlockOutline(VertexConsumer consumer, Matrix4f matrix, BlockPos pos, Vec3d cameraPos, float[] color) {
-        // 计算相对于相机的偏移
-        double offsetX = pos.getX() - cameraPos.x;
-        double offsetY = pos.getY() - cameraPos.y;
-        double offsetZ = pos.getZ() - cameraPos.z;
-        
-        // 创建方块的边界框（稍微扩展以确保可见）
-        Box box = new Box(
-            offsetX - 0.001, offsetY - 0.001, offsetZ - 0.001,
-            offsetX + 1.001, offsetY + 1.001, offsetZ + 1.001
-        );
-        
-        float r = color[0];
-        float g = color[1];
-        float b = color[2];
-        float a = color[3];
-        
-        // 绘制边框的12条边
-        // 底部4条边
-        drawLine(consumer, matrix, 
-            (float) box.minX, (float) box.minY, (float) box.minZ,
-            (float) box.maxX, (float) box.minY, (float) box.minZ, r, g, b, a);
-        drawLine(consumer, matrix,
-            (float) box.maxX, (float) box.minY, (float) box.minZ,
-            (float) box.maxX, (float) box.minY, (float) box.maxZ, r, g, b, a);
-        drawLine(consumer, matrix,
-            (float) box.maxX, (float) box.minY, (float) box.maxZ,
-            (float) box.minX, (float) box.minY, (float) box.maxZ, r, g, b, a);
-        drawLine(consumer, matrix,
-            (float) box.minX, (float) box.minY, (float) box.maxZ,
-            (float) box.minX, (float) box.minY, (float) box.minZ, r, g, b, a);
-        
-        // 顶部4条边
-        drawLine(consumer, matrix,
-            (float) box.minX, (float) box.maxY, (float) box.minZ,
-            (float) box.maxX, (float) box.maxY, (float) box.minZ, r, g, b, a);
-        drawLine(consumer, matrix,
-            (float) box.maxX, (float) box.maxY, (float) box.minZ,
-            (float) box.maxX, (float) box.maxY, (float) box.maxZ, r, g, b, a);
-        drawLine(consumer, matrix,
-            (float) box.maxX, (float) box.maxY, (float) box.maxZ,
-            (float) box.minX, (float) box.maxY, (float) box.maxZ, r, g, b, a);
-        drawLine(consumer, matrix,
-            (float) box.minX, (float) box.maxY, (float) box.maxZ,
-            (float) box.minX, (float) box.maxY, (float) box.minZ, r, g, b, a);
-        
-        // 4条垂直边
-        drawLine(consumer, matrix,
-            (float) box.minX, (float) box.minY, (float) box.minZ,
-            (float) box.minX, (float) box.maxY, (float) box.minZ, r, g, b, a);
-        drawLine(consumer, matrix,
-            (float) box.maxX, (float) box.minY, (float) box.minZ,
-            (float) box.maxX, (float) box.maxY, (float) box.minZ, r, g, b, a);
-        drawLine(consumer, matrix,
-            (float) box.maxX, (float) box.minY, (float) box.maxZ,
-            (float) box.maxX, (float) box.maxY, (float) box.maxZ, r, g, b, a);
-        drawLine(consumer, matrix,
-            (float) box.minX, (float) box.minY, (float) box.maxZ,
-            (float) box.minX, (float) box.maxY, (float) box.maxZ, r, g, b, a);
     }
     
     /**
@@ -196,57 +191,91 @@ public final class ContainerHighlightRenderer {
                          float x1, float y1, float z1,
                          float x2, float y2, float z2,
                          float r, float g, float b, float a) {
+        float dx = x2 - x1;
+        float dy = y2 - y1;
+        float dz = z2 - z1;
+        float len = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
+        float nx = 0f, ny = 1f, nz = 0f;
+        if (len > 1.0e-6f) {
+            nx = dx / len;
+            ny = dy / len;
+            nz = dz / len;
+        }
         consumer.vertex(matrix, x1, y1, z1)
                 .color(r, g, b, a)
-                .normal(0, 1, 0);
+                .normal(nx, ny, nz);
         consumer.vertex(matrix, x2, y2, z2)
                 .color(r, g, b, a)
-                .normal(0, 1, 0);
+                .normal(nx, ny, nz);
     }
     
     /**
-     * 将整数颜色（ARGB）转换为浮点数组（RGBA）
+     * 绘制单个方块的线框（12条边）
+     * 与 SelectionRenderer 的 drawOutline 保持一致
      */
-    private float[] intColorToFloatArray(int color) {
-        if (color == 0xFFFFFFFF) { // 默认白色，使用默认颜色
-            return null;
-        }
+    private static final double OUTLINE_EXPAND = 0.001;
+    
+    private void drawBlockOutline(VertexConsumer consumer, Matrix4f matrix, BlockPos pos,
+                                  float r, float g, float b, float a, Vec3d cameraPos) {
+        double minX = pos.getX() - cameraPos.x - OUTLINE_EXPAND;
+        double minY = pos.getY() - cameraPos.y - OUTLINE_EXPAND;
+        double minZ = pos.getZ() - cameraPos.z - OUTLINE_EXPAND;
+        double maxX = pos.getX() - cameraPos.x + 1.0 + OUTLINE_EXPAND;
+        double maxY = pos.getY() - cameraPos.y + 1.0 + OUTLINE_EXPAND;
+        double maxZ = pos.getZ() - cameraPos.z + 1.0 + OUTLINE_EXPAND;
+
+        // 底部4条边
+        drawLine(consumer, matrix, (float) minX, (float) minY, (float) minZ, (float) maxX, (float) minY, (float) minZ, r, g, b, a);
+        drawLine(consumer, matrix, (float) maxX, (float) minY, (float) minZ, (float) maxX, (float) minY, (float) maxZ, r, g, b, a);
+        drawLine(consumer, matrix, (float) maxX, (float) minY, (float) maxZ, (float) minX, (float) minY, (float) maxZ, r, g, b, a);
+        drawLine(consumer, matrix, (float) minX, (float) minY, (float) maxZ, (float) minX, (float) minY, (float) minZ, r, g, b, a);
         
-        float a = ((color >> 24) & 0xFF) / 255.0f;
-        float r = ((color >> 16) & 0xFF) / 255.0f;
-        float g = ((color >> 8) & 0xFF) / 255.0f;
-        float b = (color & 0xFF) / 255.0f;
+        // 顶部4条边
+        drawLine(consumer, matrix, (float) minX, (float) maxY, (float) minZ, (float) maxX, (float) maxY, (float) minZ, r, g, b, a);
+        drawLine(consumer, matrix, (float) maxX, (float) maxY, (float) minZ, (float) maxX, (float) maxY, (float) maxZ, r, g, b, a);
+        drawLine(consumer, matrix, (float) maxX, (float) maxY, (float) maxZ, (float) minX, (float) maxY, (float) maxZ, r, g, b, a);
+        drawLine(consumer, matrix, (float) minX, (float) maxY, (float) maxZ, (float) minX, (float) maxY, (float) minZ, r, g, b, a);
         
-        // 如果 alpha 为 0，使用默认 alpha
-        if (a < 0.01f) {
-            a = defaultOutlineColor[3];
-        }
-        
-        return new float[]{r, g, b, a};
+        // 垂直4条边
+        drawLine(consumer, matrix, (float) minX, (float) minY, (float) minZ, (float) minX, (float) maxY, (float) minZ, r, g, b, a);
+        drawLine(consumer, matrix, (float) maxX, (float) minY, (float) minZ, (float) maxX, (float) maxY, (float) minZ, r, g, b, a);
+        drawLine(consumer, matrix, (float) maxX, (float) minY, (float) maxZ, (float) maxX, (float) maxY, (float) maxZ, r, g, b, a);
+        drawLine(consumer, matrix, (float) minX, (float) minY, (float) maxZ, (float) minX, (float) maxY, (float) maxZ, r, g, b, a);
     }
     
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
+    /**
+     * 渲染包围盒的12条边
+     */
+    private void renderBoundingBoxLines(VertexConsumer consumer, Matrix4f matrix, Box box, float r, float g, float b, float a) {
+        // 底部4条边
+        drawLine(consumer, matrix, (float) box.minX, (float) box.minY, (float) box.minZ,
+            (float) box.maxX, (float) box.minY, (float) box.minZ, r, g, b, a);
+        drawLine(consumer, matrix, (float) box.maxX, (float) box.minY, (float) box.minZ,
+            (float) box.maxX, (float) box.minY, (float) box.maxZ, r, g, b, a);
+        drawLine(consumer, matrix, (float) box.maxX, (float) box.minY, (float) box.maxZ,
+            (float) box.minX, (float) box.minY, (float) box.maxZ, r, g, b, a);
+        drawLine(consumer, matrix, (float) box.minX, (float) box.minY, (float) box.maxZ,
+            (float) box.minX, (float) box.minY, (float) box.minZ, r, g, b, a);
+        // 顶部4条边
+        drawLine(consumer, matrix, (float) box.minX, (float) box.maxY, (float) box.minZ,
+            (float) box.maxX, (float) box.maxY, (float) box.minZ, r, g, b, a);
+        drawLine(consumer, matrix, (float) box.maxX, (float) box.maxY, (float) box.minZ,
+            (float) box.maxX, (float) box.maxY, (float) box.maxZ, r, g, b, a);
+        drawLine(consumer, matrix, (float) box.maxX, (float) box.maxY, (float) box.maxZ,
+            (float) box.minX, (float) box.maxY, (float) box.maxZ, r, g, b, a);
+        drawLine(consumer, matrix, (float) box.minX, (float) box.maxY, (float) box.maxZ,
+            (float) box.minX, (float) box.maxY, (float) box.minZ, r, g, b, a);
+        // 垂直4条边
+        drawLine(consumer, matrix, (float) box.minX, (float) box.minY, (float) box.minZ,
+            (float) box.minX, (float) box.maxY, (float) box.minZ, r, g, b, a);
+        drawLine(consumer, matrix, (float) box.maxX, (float) box.minY, (float) box.minZ,
+            (float) box.maxX, (float) box.maxY, (float) box.minZ, r, g, b, a);
+        drawLine(consumer, matrix, (float) box.maxX, (float) box.minY, (float) box.maxZ,
+            (float) box.maxX, (float) box.maxY, (float) box.maxZ, r, g, b, a);
+        drawLine(consumer, matrix, (float) box.minX, (float) box.minY, (float) box.maxZ,
+            (float) box.minX, (float) box.maxY, (float) box.maxZ, r, g, b, a);
     }
     
-    public boolean isEnabled() {
-        return enabled;
-    }
-    
-    public void setOutlineWidth(float width) {
-        this.outlineWidth = Math.max(1.0f, Math.min(width, 4.0f));
-    }
-    
-    public float getOutlineWidth() {
-        return outlineWidth;
-    }
-    
-    public void setMaxRenderDistance(int distance) {
-        this.maxRenderDistanceSq = distance * distance;
-    }
-    
-    public int getMaxRenderDistance() {
-        return (int) Math.sqrt(maxRenderDistanceSq);
-    }
+    // 过时的本地配置接口已移除：运行期统一从 RenderSettings 读取配置
 }
 

@@ -22,7 +22,7 @@ import com.chronoblocks.ui.theme.Icons;
  * <p>
  * 其他功能已模块化为独立面板：
  * - ToolPropertiesPanel - 工具属性
- * - SelectionRenderSettingsPanel - 选区渲染设置
+ * - RenderSettingsPanel - 渲染设置
  * - SelectionFilterPanel - 选择过滤器
  * - SelectionHistoryPanel - 选择历史
  * - HelpPanel - 帮助面板

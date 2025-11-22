@@ -140,6 +140,10 @@ public class Container {
             LOGGER.warn("[Container] 组 {} 不支持存储方块，忽略 addBlock", name);
             return;
         }
+        if (locked) {
+            LOGGER.warn("[Container] 容器 {} 已锁定，禁止 addBlock 操作", name);
+            return;
+        }
         if (blocks.add(pos)) {
             cachedBounds = null;  // 清除边界框缓存
             updateCenter();
@@ -153,6 +157,10 @@ public class Container {
     public void addBlocks(Collection<BlockPos> positions) {
         if (isGroup()) {
             LOGGER.warn("[Container] 组 {} 不支持存储方块，忽略 addBlocks", name);
+            return;
+        }
+        if (locked) {
+            LOGGER.warn("[Container] 容器 {} 已锁定，禁止 addBlocks 操作", name);
             return;
         }
         if (blocks.addAll(positions)) {
@@ -169,6 +177,10 @@ public class Container {
         if (isGroup()) {
             return;
         }
+        if (locked) {
+            LOGGER.warn("[Container] 容器 {} 已锁定，禁止 removeBlock 操作", name);
+            return;
+        }
         if (blocks.remove(pos)) {
             cachedBounds = null;  // 清除边界框缓存
             blockStore.remove(pos);  // 同步移除快照
@@ -179,6 +191,10 @@ public class Container {
     
     public void clearBlocks() {
         if (isGroup()) {
+            return;
+        }
+        if (locked) {
+            LOGGER.warn("[Container] 容器 {} 已锁定，禁止 clearBlocks 操作", name);
             return;
         }
         blocks.clear();
@@ -385,6 +401,12 @@ public class Container {
     public void setLocked(boolean locked) { 
         this.locked = locked; 
         markModified();
+        // 组的锁定状态应级联到子容器
+        if (isGroup()) {
+            for (Container child : getChildrenInternal()) {
+                child.setLocked(locked);
+            }
+        }
     }
     
     public int getColor() { return color; }
@@ -434,6 +456,13 @@ public class Container {
             } catch (Exception e) {
                 LOGGER.error("[Container] 切换容器可见性失败: {}", e.getMessage(), e);
             }
+
+            // 组的可见性应级联到子容器
+            if (isGroup()) {
+                for (Container child : getChildrenInternal()) {
+                    child.setState(state);
+                }
+            }
         }
     }
     
@@ -448,6 +477,10 @@ public class Container {
     public void setIntakeEnabled(boolean enabled) {
         if (isGroup()) {
             enabled = false;
+        }
+        if (locked && enabled) {
+            LOGGER.warn("[Container] 容器 {} 已锁定，禁止开启实时接收", name);
+            return;
         }
         if (this.intakeEnabled != enabled) {
             this.intakeEnabled = enabled;

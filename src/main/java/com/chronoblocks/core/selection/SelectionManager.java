@@ -96,7 +96,8 @@ public class SelectionManager {
         
         // 高级工具
         registry.register(new com.chronoblocks.core.selection.tools.faceselecttool.FaceSelectTool());
-        registry.register(new com.chronoblocks.core.selection.tools.geometryselecttool.GeometrySelectTool());
+        // 几何选择工具已合并到刷选工具中，不再单独注册
+        // registry.register(new com.chronoblocks.core.selection.tools.geometry.GeometrySelectTool());
         registry.register(new com.chronoblocks.core.selection.tools.brushselecttool.BrushSelectTool());
         registry.register(new com.chronoblocks.core.selection.tools.lassoselecttool.LassoSelectTool());
         

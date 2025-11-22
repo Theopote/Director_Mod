@@ -1,6 +1,8 @@
 package com.chronoblocks.core.selection.tools.brushselecttool;
 
 import com.chronoblocks.core.selection.block_filters.BlockFilterPipeline;
+import com.chronoblocks.core.selection.tools.geometry.GeometryShape;
+import com.chronoblocks.core.selection.tools.geometry.GeometryShapeGenerator;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.BlockPos;
@@ -19,8 +21,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
 /**
  * 🧵 BrushSelectTask
  *
- * 基于球形区域的异步分帧刷选任务。
- * 按批次遍历球体内的方块并支持取消、错误回调。
+ * 基于几何形状的异步分帧刷选任务。
+ * 支持球体、圆柱体、金字塔、立方体等多种形状。
+ * 按批次遍历形状内的方块并支持取消、错误回调。
  */
 public final class BrushSelectTask implements Runnable {
 
@@ -48,7 +51,10 @@ public final class BrushSelectTask implements Runnable {
 
     private BrushSelectTask(World world,
                             BlockPos center,
+                            GeometryShape shape,
                             double radius,
+                            double height,
+                            boolean hollow,
                             BlockFilterPipeline pipeline,
                             int stepSize,
                             Callback callback) {
@@ -57,23 +63,38 @@ public final class BrushSelectTask implements Runnable {
         this.stepSize = stepSize > 0 ? stepSize : DEFAULT_STEP_SIZE;
         this.callback = callback != null ? callback : new Callback() {};
         BlockPos immutableCenter = center.toImmutable();
-        this.candidates = generateCandidates(immutableCenter, radius);
+        this.candidates = generateCandidates(immutableCenter, shape, radius, height, hollow);
 
-        LOGGER.info("[BrushSelectTask] 初始化：中心={}, 半径={}, 候选方块数={}",
-            immutableCenter, String.format("%.2f", radius), candidates.size());
+        LOGGER.info("[BrushSelectTask] 初始化：中心={}, 形状={}, 半径={}, 高度={}, 空心={}, 候选方块数={}",
+            immutableCenter, shape, String.format("%.2f", radius), String.format("%.2f", height), hollow, candidates.size());
     }
 
     public static BrushSelectTask start(World world,
                                         BlockPos center,
+                                        GeometryShape shape,
                                         double radius,
+                                        double height,
+                                        boolean hollow,
                                         BlockFilterPipeline pipeline,
                                         Callback callback) {
         if (world == null || center == null || radius <= 0.0) {
             return null;
         }
-        BrushSelectTask task = new BrushSelectTask(world, center, radius, pipeline, DEFAULT_STEP_SIZE, callback);
+        BrushSelectTask task = new BrushSelectTask(world, center, shape, radius, height, hollow, pipeline, DEFAULT_STEP_SIZE, callback);
         ForkJoinPool.commonPool().execute(task);
         return task;
+    }
+
+    /**
+     * 生成几何形状候选方块（供外部调用，用于预览等）
+     */
+    public static Set<BlockPos> generateGeometryCandidates(BlockPos center, GeometryShape shape, double radius, double height, boolean hollow) {
+        com.chronoblocks.core.selection.tools.geometry.GeometryConfig config = 
+            new com.chronoblocks.core.selection.tools.geometry.GeometryConfig();
+        config.setRadius(radius);
+        config.setHeight(height);
+        config.setHollow(hollow);
+        return GeometryShapeGenerator.generate(center, shape, config);
     }
 
     public void cancel() {
@@ -109,12 +130,20 @@ public final class BrushSelectTask implements Runnable {
                 BlockPos pos = candidates.get(index++);
                 processedThisRun++;
 
+                BlockState state = world.getBlockState(pos);
+                
+                // 默认过滤空气方块：所有选择工具都只能选中非空气方块
+                if (state.isAir()) {
+                    continue;
+                }
+
                 if (pipeline == null) {
+                    // 如果没有 pipeline，只检查非空气方块即可
                     result.add(pos);
                     continue;
                 }
 
-                BlockState state = world.getBlockState(pos);
+                // 如果有 pipeline，使用过滤器进一步筛选
                 if (pipeline.test(world, pos, state)) {
                     result.add(pos);
                 }
@@ -136,23 +165,10 @@ public final class BrushSelectTask implements Runnable {
         }
     }
 
-    private List<BlockPos> generateCandidates(BlockPos center, double radius) {
-        List<BlockPos> list = new ArrayList<>();
-        double clamped = Math.max(0.5, Math.min(radius, 64.0));
-        int intRadius = (int) Math.ceil(clamped);
-        double radiusSq = clamped * clamped;
-
-        for (int dx = -intRadius; dx <= intRadius; dx++) {
-            for (int dy = -intRadius; dy <= intRadius; dy++) {
-                for (int dz = -intRadius; dz <= intRadius; dz++) {
-                    double distSq = dx * dx + dy * dy + dz * dz;
-                    if (distSq <= radiusSq + 1e-4) {
-                        list.add(center.add(dx, dy, dz));
-                    }
-                }
-            }
-        }
-        return list;
+    private List<BlockPos> generateCandidates(BlockPos center, GeometryShape shape, double radius, double height, boolean hollow) {
+        // 使用 GeometryShapeGenerator 生成候选方块
+        Set<BlockPos> geometryBlocks = generateGeometryCandidates(center, shape, radius, height, hollow);
+        return new ArrayList<>(geometryBlocks);
     }
 
     private void notifyCompleted(Set<BlockPos> finalResult) {

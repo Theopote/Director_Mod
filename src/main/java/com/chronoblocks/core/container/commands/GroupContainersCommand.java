@@ -43,12 +43,13 @@ public class GroupContainersCommand implements ContainerCommand {
         originalParents.clear();
         originalIndices.clear();
 
-        // 记录原父级和顺序
+        // 记录原父级和顺序（一次获取根快照，避免循环内多次复制/加锁）
+        java.util.List<Container> rootView = manager.getRootContainersView();
         for (Container container : targets) {
             Container parent = container.getParent();
             int index = parent != null
                 ? parent.indexOfChild(container)
-                : manager.getRootContainersView().indexOf(container);
+                : rootView.indexOf(container);
             originalParents.add(parent);
             originalIndices.add(index);
         }
@@ -69,13 +70,12 @@ public class GroupContainersCommand implements ContainerCommand {
         groupContainer = manager.createContainer(uniqueName, ContainerType.GROUP);
         manager.moveContainerToParent(groupContainer, groupParent, groupInsertIndex);
 
-        int appendIndex = 0;
-        for (Container container : targets) {
-            if (container == groupContainer) {
-                continue;
-            }
-            manager.moveContainerToParent(container, groupContainer, appendIndex++);
+        // 批量移动到组内，单次加锁
+        java.util.ArrayList<Container> toMove = new java.util.ArrayList<>();
+        for (Container c : targets) {
+            if (c != groupContainer) toMove.add(c);
         }
+        manager.moveContainersToParent(toMove, groupContainer, 0);
 
         manager.selectContainer(groupContainer);
     }

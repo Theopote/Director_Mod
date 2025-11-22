@@ -1,5 +1,7 @@
 package com.chronoblocks.client.renderer;
 
+import com.chronoblocks.client.renderer.mesh.BlockOutlineMeshCache;
+import com.chronoblocks.client.settings.RenderSettings;
 import com.chronoblocks.core.selection.SelectionManager;
 import com.chronoblocks.core.selection.SelectionState;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -54,31 +56,21 @@ public final class SelectionRenderer {
     
     private static volatile SelectionRenderer INSTANCE;
     
+    // 全局设置中心（新系统优先读取）
+    private final RenderSettings settings = RenderSettings.get();
+    
     // ✅ 填充几何体稍微扩展，避免被方块本身遮挡
     // 注意：使用负值让填充稍微超出方块边界，确保可见性
     // 值太小可能仍被遮挡，增加扩展量
     private static final double FILL_SHRINK = -0.005;
     private static final double OUTLINE_EXPAND = 0.001;
     
-    // 渲染属性
+    // 渲染属性（已迁移到 RenderSettings，保留 enabled 用于总开关）
     private boolean enabled = true;
-    private boolean enableFill = true;
-    private boolean enableAnimations = false;
-    // ✅ 白色半透明填充：R=1.0(白), G=1.0(白), B=1.0(白), A=0.85(85%不透明，15%透明)
-    // 使用 NO_TEXTURE，直接使用顶点颜色实现白色半透明效果
-    // 注意：alpha 值会被 highlightIntensity 乘数影响（动画模式下在 0.8-1.0 之间）
-    private float[] selectionColor = {1.0f, 1.0f, 1.0f, 0.85f};
-    private float[] outlineColor = {0.05f, 0.7f, 1.0f, 0.95f};
-    private float[] bboxColor = {0.2f, 0.9f, 0.4f, 0.25f};
-    private float outlineWidth = 1.5f;
-    private int renderMode = 2;
-    private float animationTime = 0.0f;
-    private float highlightIntensity = 1.0f;
-    private float targetHighlightIntensity = 1.0f;
-    
-    
-    // 性能控制
-    private int maxRenderDistanceSq = 64 * 64;
+    private boolean enableAnimations = false; // 动画开关（暂未使用，保留用于未来扩展）
+    private float[] bboxColor = {0.2f, 0.9f, 0.4f, 0.25f}; // 包围盒颜色（仍在使用）
+    @SuppressWarnings("unused")
+    private float animationTime = 0.0f; // 动画时间（暂未使用，保留用于未来扩展）
 
     // ✅ v1.9.3: 防重入机制
     private static boolean rendering = false;
@@ -89,24 +81,12 @@ public final class SelectionRenderer {
     // ====================================================================
     
     /**
-     * 网格缓存系统。
-     * 键是 SelectionState 的哈希码，值是计算好的网格。
+     * 网格缓存系统（统一使用 BlockOutlineMeshCache）。
      * 当 SelectionManager 中的选区变化时，需要调用 invalidateCache()。
      */
-    private final SelectionMeshCache meshCache = new SelectionMeshCache();
+    private final BlockOutlineMeshCache meshCache = new BlockOutlineMeshCache();
     
-    /**
-     * 🚀 v2.0: 是否启用贪婪合并算法
-     * 默认启用，对于小选区（<100方块）可能略慢，但大型选区性能提升巨大
-     */
-    private boolean enableGreedyMeshing = true;
-    
-    /**
-     * 🚀 v2.0: 贪婪合并的阈值
-     * 当选区方块数小于此值时，使用逐方块渲染（更快）
-     * 当选区方块数大于等于此值时，使用贪婪合并（性能更好）
-     */
-    private int greedyMeshingThreshold = 100;
+    // ✅ 贪婪合并设置已迁移到 RenderSettings（settings.selection_enableGreedy, settings.selection_greedyThreshold）
     
     /**
      * ✅ 渲染上下文记录类，用于减少重复的前置检查代码
@@ -137,6 +117,50 @@ public final class SelectionRenderer {
     }
 
     // ================================
+    // 兼容层：将旧 setter 统一转发到 RenderSettings
+    // ================================
+    @Deprecated
+    public void setOutlineWidth(float width) {
+        if (width > 0) {
+            RenderSettings.get().selection_outlineWidth = width;
+        }
+    }
+
+    @Deprecated
+    public void setOutlineColor(float[] color) {
+        if (color != null && color.length >= 4) {
+            RenderSettings.get().selection_outlineColor = color.clone();
+        }
+    }
+
+    @Deprecated
+    public void setSelectionColor(float[] color) {
+        if (color != null && color.length >= 4) {
+            RenderSettings.get().selection_fillColor = color.clone();
+        }
+    }
+
+    @Deprecated
+    public void setHighlightIntensity(float intensity) {
+        RenderSettings.get().selection_highlightIntensity = intensity;
+    }
+
+    @Deprecated
+    public void setEnableGreedyMeshing(boolean enable) {
+        RenderSettings.get().selection_enableGreedy = enable;
+    }
+
+    @Deprecated
+    public void setGreedyMeshingThreshold(int threshold) {
+        RenderSettings.get().selection_greedyThreshold = Math.max(1, threshold);
+    }
+
+    @Deprecated
+    public void setMaxRenderDistance(int distance) {
+        RenderSettings.get().selection_maxRenderDistance = Math.max(1, distance);
+    }
+
+    // ================================
     // Outline Pass (AFTER_ENTITIES)
     // ================================
     
@@ -154,6 +178,8 @@ public final class SelectionRenderer {
 
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.gameRenderer == null || client.gameRenderer.getCamera() == null) return null;
+
+        // ✅ 不再同步到本地字段，渲染时直接从 settings 读取（实时生效）
         
         // ✅ 填充渲染需要额外的检查
         if (checkWorldAndPause) {
@@ -166,13 +192,11 @@ public final class SelectionRenderer {
         SelectionState state = manager.getCurrentSelection();
         if (state == null || state.isEmpty()) return null;
 
-        // 检查是否需要渲染（填充或线框）
+        // 检查是否需要渲染（填充或线框）- 直接从 settings 读取
         if (requireFill) {
-            boolean shouldFill = (renderMode == 1 || renderMode == 2);
-            if (!shouldFill) return null;
+            if (!settings.selection_showFill) return null;
         } else {
-            boolean shouldOutline = (renderMode == 0 || renderMode == 2);
-            if (!shouldOutline) return null;
+            if (!settings.selection_showOutline) return null;
         }
 
         net.minecraft.client.render.Camera camera = client.gameRenderer.getCamera();
@@ -196,11 +220,13 @@ public final class SelectionRenderer {
         Vec3d cam = ctx.camPos();
         Matrix4f m = ctx.matrix();
 
-        // ✅ 避免克隆，直接使用成员变量（setOutlineColor 已做克隆保护）
+        // ✅ 直接从全局设置读取（实时生效）
+        float[] outlineColor = settings.selection_outlineColor;
         float r = outlineColor[0];
         float g = outlineColor[1];
         float b = outlineColor[2];
-        float a = outlineColor[3] * highlightIntensity;
+        float baseA = outlineColor[3];
+        float a = baseA * settings.selection_highlightIntensity;
         float[] color = new float[]{r, g, b, a}; // 只在需要修改alpha时创建新数组
 
         Set<BlockPos> blocks = state.getSelectedBlocks();
@@ -212,73 +238,62 @@ public final class SelectionRenderer {
         RenderSystem.enableDepthTest();
         // Minecraft 1.21+ 的线宽受 GPU 限制，许多平台固定为 1.0
         // 注意：RenderSystem 没有 getLineWidth() 方法，默认线宽为 1.0
-        RenderSystem.lineWidth(Math.max(1.0f, Math.min(outlineWidth, 3.0f)));
+        float lw = settings.selection_outlineWidth;
+        RenderSystem.lineWidth(Math.max(1.0f, Math.min(lw, 3.0f)));
 
         try {
             VertexConsumer consumer = vcp.getBuffer(RenderLayers.getLineOverlay());
 
-            // 🚀 v2.0: 使用贪婪合并或逐方块渲染
-            if (enableGreedyMeshing && blocks.size() >= greedyMeshingThreshold) {
+            // 🚀 v2.0: 一律使用贪婪合并（当开启时且非空）
+            boolean greedy = settings.selection_enableGreedy;
+            if (greedy && !blocks.isEmpty()) {
                 // 使用贪婪合并算法
-                SelectionMeshCache.Mesh mesh = meshCache.getOrCreateMesh(state);
+                BlockOutlineMeshCache.Mesh mesh = meshCache.getOrCreateMesh(blocks);
                 
-                for (SelectionMeshCache.Line line : mesh.outlineLines()) {
+                for (BlockOutlineMeshCache.Line line : mesh.lines()) {
                     line(consumer, m,
                          line.x1() - cam.x, line.y1() - cam.y, line.z1() - cam.z,
                          line.x2() - cam.x, line.y2() - cam.y, line.z2() - cam.z,
                          r, g, b, a);
                 }
                 
-                if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("[SelectionRenderer] ✅ 贪婪合并渲染 {} 条线框 (模式: {})", mesh.outlineLines().size(), renderMode);
-                }
-                
-                // ⭐ BoxSelectTool → 整体包围盒线框（作为辅助视觉效果）
-                // 只在 BoxSelectTool 工具选中时才显示整体包围盒
-                SelectionManager manager = SelectionManager.get();
-                if (manager != null && manager.hasCurrentTool()) {
-                    var currentTool = manager.getCurrentTool();
-                    if (currentTool instanceof com.chronoblocks.core.selection.tools.boxselecttool.BoxSelectTool) {
-                        if (blocks.size() > 1 && state.getBoundingBox().isPresent()) {
-                            SelectionState.BoundingBox bbox = state.getBoundingBox().get();
-                            Box box = new Box(bbox.getMinX(), bbox.getMinY(), bbox.getMinZ(),
-                                              bbox.getMaxX() + 1, bbox.getMaxY() + 1, bbox.getMaxZ() + 1)
-                                              .offset(-cam.x, -cam.y, -cam.z);
-                            
-                            // 使用稍微扩展的线框，确保可见
-                            drawBoundingBoxOutline(consumer, m, box, color);
-                        }
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.debug("[SelectionRenderer] ✅ 贪婪合并渲染 {} 条线框", mesh.lines().size());
                     }
+                
+                // ⭐ 包围盒渲染（根据设置控制）
+                if (settings.selection_showBoundingBox && blocks.size() > 1 && state.getBoundingBox().isPresent()) {
+                    SelectionState.BoundingBox bbox = state.getBoundingBox().get();
+                    Box box = new Box(bbox.getMinX(), bbox.getMinY(), bbox.getMinZ(),
+                                      bbox.getMaxX() + 1, bbox.getMaxY() + 1, bbox.getMaxZ() + 1)
+                                      .offset(-cam.x, -cam.y, -cam.z);
+                    
+                    // 使用稍微扩展的线框，确保可见
+                    drawBoundingBoxOutline(consumer, m, box, color);
                 }
             } else {
                 // 使用逐方块渲染（小选区或未启用贪婪合并）
                 int rendered = 0;
+                int maxDistSq = settings.selection_maxRenderDistance * settings.selection_maxRenderDistance;
                 for (BlockPos pos : blocks) {
-                    if (pos.getSquaredDistance(camBlock) > maxRenderDistanceSq) continue;
+                    if (pos.getSquaredDistance(camBlock) > maxDistSq) continue;
                     drawOutline(consumer, m, pos, color, cam);
                     rendered++;
                 }
 
-                // ⭐ BoxSelectTool → 整体包围盒线框（作为辅助视觉效果）
-                // 只在 BoxSelectTool 工具选中时才显示整体包围盒
-                SelectionManager manager = SelectionManager.get();
-                if (manager != null && manager.hasCurrentTool()) {
-                    var currentTool = manager.getCurrentTool();
-                    if (currentTool instanceof com.chronoblocks.core.selection.tools.boxselecttool.BoxSelectTool) {
-                        if (blocks.size() > 1 && state.getBoundingBox().isPresent()) {
-                            SelectionState.BoundingBox bbox = state.getBoundingBox().get();
-                            Box box = new Box(bbox.getMinX(), bbox.getMinY(), bbox.getMinZ(),
-                                              bbox.getMaxX() + 1, bbox.getMaxY() + 1, bbox.getMaxZ() + 1)
-                                              .offset(-cam.x, -cam.y, -cam.z);
-                            
-                            // 使用稍微扩展的线框，确保可见
-                            drawBoundingBoxOutline(consumer, m, box, color);
-                        }
-                    }
+                // ⭐ 包围盒渲染（根据设置控制）
+                if (settings.selection_showBoundingBox && blocks.size() > 1 && state.getBoundingBox().isPresent()) {
+                    SelectionState.BoundingBox bbox = state.getBoundingBox().get();
+                    Box box = new Box(bbox.getMinX(), bbox.getMinY(), bbox.getMinZ(),
+                                      bbox.getMaxX() + 1, bbox.getMaxY() + 1, bbox.getMaxZ() + 1)
+                                      .offset(-cam.x, -cam.y, -cam.z);
+                    
+                    // 使用稍微扩展的线框，确保可见
+                    drawBoundingBoxOutline(consumer, m, box, color);
                 }
 
                 if (rendered > 0 && LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("[SelectionRenderer] ✅ 渲染 {} 个方块线框 (模式: {})", rendered, renderMode);
+                    LOGGER.debug("[SelectionRenderer] ✅ 渲染 {} 个方块线框", rendered);
                 }
             }
         } finally {
@@ -308,10 +323,10 @@ public final class SelectionRenderer {
         }
         
         try {
-            LOGGER.debug("[SelectionRenderer] 🔍 renderFillOnly 调用 - enabled: {}, enableFill: {}, renderMode: {}", 
-                         enabled, enableFill, renderMode);
+            LOGGER.debug("[SelectionRenderer] 🔍 renderFillOnly 调用 - enabled: {}, showFill: {}", 
+                         enabled, settings.selection_showFill);
             
-            if (!enabled || !enableFill) {
+            if (!enabled || !settings.selection_showFill) {
                 LOGGER.debug("[SelectionRenderer] ❌ 渲染器未启用或填充未启用，跳过");
                 return;
             }
@@ -326,13 +341,15 @@ public final class SelectionRenderer {
             Vec3d cam = ctx.camPos();
             Matrix4f posMat = ctx.matrix();
             
-            LOGGER.debug("[SelectionRenderer] ✅ 开始渲染填充 - 模式: {}, 方块数: {}", renderMode, state.getSelectedBlocks().size());
+            LOGGER.debug("[SelectionRenderer] ✅ 开始渲染填充 - 方块数: {}", state.getSelectedBlocks().size());
 
-            // ✅ 避免克隆，直接使用成员变量（setSelectionColor 已做克隆保护）
-            float fillR = selectionColor[0];
-            float fillG = selectionColor[1];
-            float fillB = selectionColor[2];
-            float fillA = selectionColor[3] * highlightIntensity;
+            // ✅ 直接从全局设置读取（实时生效）
+            float[] fillColorBase = settings.selection_fillColor;
+            float fillR = fillColorBase[0];
+            float fillG = fillColorBase[1];
+            float fillB = fillColorBase[2];
+            float baseFillA = fillColorBase[3];
+            float fillA = baseFillA * settings.selection_highlightIntensity;
             float[] fillColor = new float[]{fillR, fillG, fillB, fillA}; // 只在需要修改alpha时创建新数组
 
             Set<BlockPos> blocks = state.getSelectedBlocks();
@@ -359,50 +376,45 @@ public final class SelectionRenderer {
                 // 调试：记录颜色值（仅在debug模式下）
                 if (LOGGER.isDebugEnabled()) {
                     LOGGER.debug("[SelectionRenderer] 🎨 填充颜色: RGBA({}, {}, {}, {})", 
-                               selectionColor[0], selectionColor[1], selectionColor[2], selectionColor[3] * highlightIntensity);
+                               fillColorBase[0], fillColorBase[1], fillColorBase[2], fillA);
                 }
 
                 // 🚀 v2.0: 使用贪婪合并或逐方块渲染
-                if (enableGreedyMeshing && blocks.size() >= greedyMeshingThreshold) {
+                int greedyThreshold = Math.max(1, settings.selection_greedyThreshold);
+                if (settings.selection_enableGreedy && blocks.size() >= greedyThreshold) {
                     // 使用贪婪合并算法
-                    SelectionMeshCache.Mesh mesh = meshCache.getOrCreateMesh(state);
+                    BlockOutlineMeshCache.Mesh mesh = meshCache.getOrCreateMesh(blocks);
                     
-                    for (SelectionMeshCache.Quad quad : mesh.fillQuads()) {
+                    for (BlockOutlineMeshCache.Quad quad : mesh.quads()) {
                         emitMergedQuad(fill, posMat, quad, cam, fillR, fillG, fillB, fillA);
                     }
                     
                     if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("[SelectionRenderer] ✅ 贪婪合并渲染 {} 个填充面 (模式: {})", mesh.fillQuads().size(), renderMode);
+                        LOGGER.debug("[SelectionRenderer] ✅ 贪婪合并渲染 {} 个填充面", mesh.quads().size());
                     }
                     
-                    // ⭐ BoxSelectTool → 整体包围盒填充（作为辅助视觉效果）
-                    // 只在 BoxSelectTool 工具选中时才显示整体包围盒
-                    SelectionManager manager = SelectionManager.get();
-                    if (manager != null && manager.hasCurrentTool()) {
-                        var currentTool = manager.getCurrentTool();
-                        if (currentTool instanceof com.chronoblocks.core.selection.tools.boxselecttool.BoxSelectTool) {
-                            if (blocks.size() > 1 && state.getBoundingBox().isPresent()) {
-                                SelectionState.BoundingBox bbox = state.getBoundingBox().get();
-                                Box box = new Box(bbox.getMinX(), bbox.getMinY(), bbox.getMinZ(),
-                                                  bbox.getMaxX() + 1, bbox.getMaxY() + 1, bbox.getMaxZ() + 1)
-                                                  .offset(-cam.x, -cam.y, -cam.z);
-                                
-                                // 使用更淡的包围盒颜色，避免与内部填充重叠
-                                float boxR = bboxColor[0];
-                                float boxG = bboxColor[1];
-                                float boxB = bboxColor[2];
-                                float boxA = bboxColor[3] * (0.3f + 0.2f * highlightIntensity); // 更低的 alpha，避免与内部填充重叠
-                                float[] boxColor = new float[]{boxR, boxG, boxB, boxA};
-                                
-                                drawBoundingBoxFill(fill, posMat, box, boxColor);
-                            }
-                        }
+                    // ⭐ 包围盒填充（根据设置控制）
+                    if (settings.selection_showBoundingBox && blocks.size() > 1 && state.getBoundingBox().isPresent()) {
+                        SelectionState.BoundingBox bbox = state.getBoundingBox().get();
+                        Box box = new Box(bbox.getMinX(), bbox.getMinY(), bbox.getMinZ(),
+                                          bbox.getMaxX() + 1, bbox.getMaxY() + 1, bbox.getMaxZ() + 1)
+                                          .offset(-cam.x, -cam.y, -cam.z);
+                        
+                        // 使用更淡的包围盒颜色，避免与内部填充重叠
+                        float boxR = bboxColor[0];
+                        float boxG = bboxColor[1];
+                        float boxB = bboxColor[2];
+                        float boxA = bboxColor[3] * (0.3f + 0.2f * settings.selection_highlightIntensity); // 更低的 alpha
+                        float[] boxColor = new float[]{boxR, boxG, boxB, boxA};
+                        
+                        drawBoundingBoxFill(fill, posMat, box, boxColor);
                     }
                 } else {
                     // 使用逐方块渲染（小选区或未启用贪婪合并）
                     int rendered = 0;
+                    int maxDistSq = settings.selection_maxRenderDistance * settings.selection_maxRenderDistance;
                     for (BlockPos pos : blocks) {
-                        if (pos.getSquaredDistance(camBlock) > maxRenderDistanceSq) {
+                        if (pos.getSquaredDistance(camBlock) > maxDistSq) {
                             LOGGER.debug("[SelectionRenderer] 跳过方块 {} (距离超过)", pos);
                             continue;
                         }
@@ -412,7 +424,7 @@ public final class SelectionRenderer {
                     }
                     
                     if (rendered > 0 && LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("[SelectionRenderer] ✅ 渲染 {} 个方块填充 (模式: {})", rendered, renderMode);
+                        LOGGER.debug("[SelectionRenderer] ✅ 渲染 {} 个方块填充", rendered);
                     }
                     
                     // ⭐ BoxSelectTool → 整体包围盒填充（作为辅助视觉效果）
@@ -431,7 +443,7 @@ public final class SelectionRenderer {
                                 float boxR = bboxColor[0];
                                 float boxG = bboxColor[1];
                                 float boxB = bboxColor[2];
-                                float boxA = bboxColor[3] * (0.3f + 0.2f * highlightIntensity); // 更低的 alpha，避免与内部填充重叠
+                                float boxA = bboxColor[3] * (0.3f + 0.2f * settings.selection_highlightIntensity); // 更低的 alpha
                                 float[] boxColor = new float[]{boxR, boxG, boxB, boxA};
                                 
                                 drawBoundingBoxFill(fill, posMat, box, boxColor);
@@ -474,13 +486,10 @@ public final class SelectionRenderer {
     // ================================
     
     private void updateAnimation(float tickDelta) {
-        if (!enableAnimations) {
-            highlightIntensity = targetHighlightIntensity;
-            return;
+        // ✅ 动画功能已迁移到 RenderSettings，这里仅更新动画时间（如果将来需要）
+        if (enableAnimations) {
+            animationTime += tickDelta;
         }
-        animationTime += tickDelta;
-        float animFactor = 0.8f + 0.2f * (float) Math.sin(animationTime * 2.0f);
-        highlightIntensity = targetHighlightIntensity * animFactor;
     }
 
     // ======================== 几何渲染 ========================
@@ -525,9 +534,9 @@ public final class SelectionRenderer {
      * 🚀 v2.0: 专门用于渲染合并后的大四边形 (Quad)
      * 正确处理 FILL_SHRINK 和法线方向，确保渲染正确
      */
-    private void emitMergedQuad(VertexConsumer c, Matrix4f m, SelectionMeshCache.Quad quad, Vec3d cam,
+    private void emitMergedQuad(VertexConsumer c, Matrix4f m, BlockOutlineMeshCache.Quad quad, Vec3d cam,
                                 float r, float g, float b, float a) {
-        Direction dir = quad.direction();
+        Direction dir = quad.dir();
         
         // 顶点坐标（已应用相机偏移和 FILL_SHRINK）
         float nx = dir.getOffsetX();
@@ -681,7 +690,6 @@ public final class SelectionRenderer {
         line(c, mat, x1, y1, z2, x1, y2, z2, color);
     }
 
-    
     public boolean isEnabled() {
         return enabled;
     }
@@ -689,77 +697,5 @@ public final class SelectionRenderer {
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
         LOGGER.info("[SelectionRenderer] 渲染器{}", enabled ? "启用" : "禁用");
-    }
-
-    public void setSelectionColor(float[] color) {
-        this.selectionColor = color.clone();
-    }
-
-    public void setOutlineColor(float[] color) {
-        this.outlineColor = color.clone();
-    }
-
-    public void setOutlineWidth(float width) {
-        this.outlineWidth = width;
-    }
-
-    public void setEnableAnimations(boolean enable) {
-        this.enableAnimations = enable;
-        if (!enable) {
-            this.highlightIntensity = this.targetHighlightIntensity;
-        }
-    }
-
-    public void setRenderMode(int mode) {
-        if (mode >= 0 && mode <= 2) {
-            this.renderMode = mode;
-            LOGGER.info("[SelectionRenderer] 渲染模式设置为: {}", mode);
-        } else {
-            LOGGER.warn("[SelectionRenderer] 无效的渲染模式: {}，使用默认值2", mode);
-            this.renderMode = 2;
-        }
-    }
-
-    public void setHighlightIntensity(float intensity) {
-        this.targetHighlightIntensity = Math.max(0.1f, Math.min(2.0f, intensity));
-        if (!this.enableAnimations) {
-            this.highlightIntensity = this.targetHighlightIntensity;
-        }
-        LOGGER.debug("[SelectionRenderer] 高亮强度设置为: {}", this.targetHighlightIntensity);
-    }
-
-    public void setEnableFill(boolean enable) {
-        this.enableFill = enable;
-        LOGGER.info("[SelectionRenderer] 填充渲染{}", enable ? "启用" : "禁用");
-    }
-
-    public void setBboxColor(float[] color) {
-        this.bboxColor = color.clone();
-    }
-    
-    // ==================== 性能设置 ====================
-    
-    /**
-     * 设置最大渲染距离（方块数）
-     */
-    public void setMaxRenderDistance(int distance) {
-        this.maxRenderDistanceSq = distance * distance; // 存储平方值以避免开方运算
-        LOGGER.info("[SelectionRenderer] 最大渲染距离设置为: {} 方块 (距离平方: {})", distance, this.maxRenderDistanceSq);
-    }
-
-    /**
-     * 设置是否启用视锥剔除
-     * 注意：视锥剔除功能尚未实现，预留接口供后续开发
-     */
-    public void setEnableFrustumCulling(boolean enabled) {
-        LOGGER.info("[SelectionRenderer] 视锥剔除{}", enabled ? "启用" : "禁用");
-    }
-
-    /**
-     * 设置是否启用遮挡剔除
-     * 注意：遮挡剔除功能尚未实现，预留接口供后续开发
-     */
-    public void setEnableOcclusionCulling(boolean enabled) {
-        LOGGER.info("[SelectionRenderer] 遮挡剔除{}", enabled ? "启用" : "禁用");
     }
 }

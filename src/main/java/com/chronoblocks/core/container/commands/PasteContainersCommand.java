@@ -29,11 +29,8 @@ public class PasteContainersCommand implements ContainerCommand {
             : null;
         this.insertIndex = insertIndex;
         if (templates != null) {
-            for (Container template : manager.getTopLevelSelection(templates)) {
-                if (template != null) {
-                    this.templates.add(copyTemplate(template));
-                }
-            }
+            // 仅保存顶层模板的原始引用，实际克隆延迟到 execute()，避免重复拷贝
+            this.templates.addAll(manager.getTopLevelSelection(templates));
         }
     }
 
@@ -47,18 +44,17 @@ public class PasteContainersCommand implements ContainerCommand {
         int nextIndex = insertIndex;
         boolean append = nextIndex < 0;
 
+        // 批量克隆 -> 批量添加 -> 批量移动，减少锁竞争
+        java.util.ArrayList<Container> clones = new java.util.ArrayList<>(templates.size());
         for (Container template : templates) {
             Container clone = copyTemplate(template);
             clone.setName(manager.generateUniqueName(clone.getName()));
-            manager.addContainer(clone);
-
-            int appliedIndex = append ? -1 : nextIndex;
-            manager.moveContainerToParent(clone, targetParent, appliedIndex);
-            if (!append) {
-                nextIndex++;
-            }
-            pasted.add(clone);
+            clones.add(clone);
         }
+        manager.addContainers(clones);
+        int appliedIndex = append ? -1 : nextIndex;
+        manager.moveContainersToParent(clones, targetParent, appliedIndex);
+        pasted.addAll(clones);
 
         if (!pasted.isEmpty()) {
             manager.selectContainer(pasted.get(pasted.size() - 1));
@@ -67,9 +63,7 @@ public class PasteContainersCommand implements ContainerCommand {
 
     @Override
     public void undo() {
-        for (int i = pasted.size() - 1; i >= 0; i--) {
-            manager.removeContainer(pasted.get(i));
-        }
+        manager.removeContainers(pasted);
         pasted.clear();
     }
 

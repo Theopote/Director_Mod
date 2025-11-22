@@ -26,7 +26,6 @@ public class SetContainerLockedCommand implements ContainerCommand {
     public void execute() {
         Container container = manager.getContainer(containerId);
         if (container != null) {
-            oldLocked = container.isLocked();
             container.setLocked(newLocked);
         }
     }

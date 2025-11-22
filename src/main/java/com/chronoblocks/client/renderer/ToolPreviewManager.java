@@ -1,11 +1,9 @@
 package com.chronoblocks.client.renderer;
-
+import com.chronoblocks.client.renderer.mesh.BlockOutlineMeshCache;
 import com.chronoblocks.core.selection.SelectionManager;
 import com.chronoblocks.core.selection.SelectionTool;
-import com.chronoblocks.core.selection.tools.geometryselecttool.GeometryConfig;
-import com.chronoblocks.core.selection.tools.geometryselecttool.GeometrySelectTool;
-import com.chronoblocks.core.selection.tools.geometryselecttool.GeometryShape;
-import com.chronoblocks.core.selection.tools.geometryselecttool.GeometryShapeGenerator;
+import com.chronoblocks.core.selection.tools.geometry.GeometryConfig;
+import com.chronoblocks.core.selection.tools.geometry.GeometryShape;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
@@ -41,6 +39,8 @@ import java.util.Set;
  * @version 1.0
  */
 public class ToolPreviewManager {
+    // 全局设置中心（新系统优先读取）
+    private final com.chronoblocks.client.settings.RenderSettings settings = com.chronoblocks.client.settings.RenderSettings.get();
     
     private static final Logger LOGGER = LoggerFactory.getLogger(ToolPreviewManager.class);
     
@@ -54,21 +54,12 @@ public class ToolPreviewManager {
     private boolean isDragging = false;
     private BlockPos dragStartPos = null;
     private BlockPos dragCurrentPos = null;
-    
-    /** 预览颜色 (RGBA) */
-    private float[] previewColor = {1.0f, 1.0f, 0.0f, 0.3f}; // 黄色半透明
-    
-    /** 预览轮廓颜色 (RGBA) */
-    private float[] previewOutlineColor = {1.0f, 1.0f, 0.0f, 0.8f}; // 黄色轮廓
 
     /** 当前选区预览包围盒 */
     private boolean selectionPreviewActive = false;
     private Box selectionPreviewBox = null;
     private float[] selectionPreviewFillColor = {0.2f, 0.7f, 1.0f, 0.25f};
     private float[] selectionPreviewOutlineColor = {0.2f, 0.7f, 1.0f, 0.75f};
-    
-    /** 笔刷预览半径 */
-    private float brushPreviewRadius = 3.0f;
     
     /** 预览方块集合 */
     private final Set<BlockPos> previewBlocks = new HashSet<>();
@@ -86,12 +77,11 @@ public class ToolPreviewManager {
     private boolean magicWandPreviewActive = false;
 
     // ==================== 刷选工具（Brush）预览 ====================
-    /** 刷选预览是否激活 */
-    private boolean brushPreviewActive = false;
-    /** 刷选预览中心 */
-    private BlockPos brushPreviewCenter = null;
-    /** 刷选预览半径（世界单位） */
-    private double brushPreviewRadiusWorld = 0.0;
+    // ======================= 刷选 / 几何体积预览 =======================
+    /** 刷选/几何工具的"空间范围预览"方块集合（统一体积预览） */
+    private final Object brushVolumeLock = new Object();
+    private Set<BlockPos> brushVolumeBlocks = Set.of();
+    private boolean brushVolumeActive = false;
 
     // ======================= 面选择预览 =======================
     private Set<BlockPos> facePreviewBlocks = Set.of();
@@ -119,13 +109,16 @@ public class ToolPreviewManager {
     private GeometryConfig geometryPreviewConfig = null;
     private boolean geometryPreviewActive = false;
     private final float[] geometryLineColor = {0.1f, 0.65f, 1.0f, 0.9f};
+
+
+    /** 是否显示填充（统一控制预览盒/面预览/面 Hover 等的填充） */
+    // 预览默认轮廓颜色（作为 RenderSettings 缺省回退）
+    private static final float[] DEFAULT_PREVIEW_OUTLINE_COLOR = {1.0f, 1.0f, 0.0f, 0.8f};
+    private static final float[] DEFAULT_VOLUME_FILL_COLOR = {0.2f, 0.6f, 1.0f, 0.25f};
     
-    /** 是否显示边界框 */
-    private boolean showBoundingBox = true;
-    
-    /** 边界框颜色 */
-    private float[] boundingBoxColor = {1.0f, 0.8f, 0.0f, 1.0f}; // 金色
-    
+    // 通用贪婪网格缓存（基于方块集合，用于预览外轮廓线）
+    private final BlockOutlineMeshCache previewMeshCache = new BlockOutlineMeshCache();
+
     private ToolPreviewManager() {
         LOGGER.info("[ToolPreviewManager] 初始化工具预览管理器");
     }
@@ -218,42 +211,7 @@ public class ToolPreviewManager {
         LOGGER.debug("[ToolPreviewManager] 清除魔棒预览");
     }
 
-    /**
-     * 更新刷选笔刷悬停预览
-     */
-    public void updateBrushPreview(BlockPos center, double radius) {
-        if (center == null || radius <= 0.0) {
-            clearBrushPreview();
-            return;
-        }
 
-        double clampedRadius = MathHelper.clamp(radius, 0.5, 32.0);
-        this.brushPreviewActive = true;
-        this.brushPreviewCenter = center.toImmutable();
-        this.brushPreviewRadiusWorld = clampedRadius;
-        LOGGER.trace("[ToolPreviewManager] 更新刷选预览: center={}, radius={}", center, clampedRadius);
-    }
-
-    /**
-     * 清除刷选笔刷预览
-     */
-    public void clearBrushPreview() {
-        if (!brushPreviewActive && brushPreviewCenter == null) {
-            return;
-        }
-        this.brushPreviewActive = false;
-        this.brushPreviewCenter = null;
-        this.brushPreviewRadiusWorld = 0.0;
-        LOGGER.trace("[ToolPreviewManager] 清除刷选预览");
-    }
-    
-    /**
-     * 获取魔棒预览方块集合
-     */
-    public Set<BlockPos> getMagicWandPreviewBlocks() {
-        return magicWandHoverBlocks;
-    }
-    
     /**
      * 判断魔棒预览是否激活
      */
@@ -305,40 +263,12 @@ public class ToolPreviewManager {
                     }
                     break;
                 }
-                case "brush": {
-                    // 笔刷预览
-                    double radius = brushPreviewRadius;
-                    for (double x = dragCurrentPos.getX() - radius; x <= dragCurrentPos.getX() + radius; x++) {
-                        for (double y = dragCurrentPos.getY() - radius; y <= dragCurrentPos.getY() + radius; y++) {
-                            for (double z = dragCurrentPos.getZ() - radius; z <= dragCurrentPos.getZ() + radius; z++) {
-                                double distance = Math.sqrt(
-                                    Math.pow(x - dragCurrentPos.getX(), 2) +
-                                    Math.pow(y - dragCurrentPos.getY(), 2) +
-                                    Math.pow(z - dragCurrentPos.getZ(), 2)
-                                );
-                                if (distance <= radius) {
-                                    previewBlocks.add(new BlockPos((int)x, (int)y, (int)z));
-                                }
-                            }
-                        }
-                    }
-                    break;
-                }
                 case "sphere": {
                     populateSpherePreview(dragCurrentPos);
                     break;
                 }
-                case "geometry": {
-                    if (currentTool instanceof GeometrySelectTool geometryTool) {
-                        GeometryConfig cfg = geometryTool.getConfig();
-                        GeometryShape shape = geometryTool.getShape();
-                        Set<BlockPos> generated = GeometryShapeGenerator.generate(dragCurrentPos, shape, cfg);
-                        previewBlocks.addAll(generated);
-                    } else {
-                        previewBlocks.add(dragCurrentPos);
-                    }
-                    break;
-                }
+                // "geometry" 工具已合并到刷选工具中，不再单独处理
+                // case "geometry": 已移除
                 default: // 默认预览 - 单个方块
                     previewBlocks.add(dragCurrentPos);
                     break;
@@ -358,6 +288,8 @@ public class ToolPreviewManager {
         }
         
         try {
+            // ✅ 不再同步到本地字段，渲染时直接从 settings 读取（实时生效）
+
             Matrix4f matrix = matrices.peek().getPositionMatrix();
             Vec3d cameraPos = getCameraPosition();
 
@@ -381,10 +313,8 @@ public class ToolPreviewManager {
                 renderMagicWandPreview(matrix, vertexConsumers);
             }
 
-            // 3. 渲染刷选悬停预览（半透明球壳）
-            if (brushPreviewActive && brushPreviewCenter != null && brushPreviewRadiusWorld > 0.0) {
-                renderBrushPreview(matrix, vertexConsumers, tickDelta);
-            }
+            // 3. 渲染刷选/几何体积预览（统一空间范围）
+            renderBrushVolumePreview(matrix, vertexConsumers, cameraPos);
 
             renderGeometryPreview(matrix, vertexConsumers);
 
@@ -407,21 +337,7 @@ public class ToolPreviewManager {
             LOGGER.error("[ToolPreviewManager] 渲染预览效果失败", e);
         }
     }
-    
-    /**
-     * 设置是否显示边界框
-     */
-    public void setShowBoundingBox(boolean show) {
-        this.showBoundingBox = show;
-    }
-    
-    /**
-     * 是否显示边界框
-     */
-    public boolean isShowBoundingBox() {
-        return showBoundingBox;
-    }
-    
+
     /**
      * 渲染魔棒悬停预览（支持渐变效果）
      */
@@ -429,48 +345,102 @@ public class ToolPreviewManager {
         if (vertexConsumers == null || magicWandHoverBlocks.isEmpty()) {
             return;
         }
+        if (!settings.tool_showOutline) {
+            return;
+        }
 
-        float[] baseColor = {0.2f, 0.6f, 1.0f};
-        float baseAlpha = 0.35f;
+        // 颜色在本方法中统一通过 outlineBaseColor 控制
         float[] outlineBaseColor = {0.2f, 0.6f, 1.0f, 0.7f};
 
         VertexConsumer lineConsumer = vertexConsumers.getBuffer(RenderLayers.getLineOverlay());
 
         boolean useGradient = magicWandMaxDepth > 0 && !magicWandDepthMap.isEmpty();
 
-        for (BlockPos pos : magicWandHoverBlocks) {
-            float[] tintColor;
-
+        // 使用贪婪合并后的外轮廓线；填充可选，这里仅线框
+        float[] outlineColorBase = new float[]{outlineBaseColor[0], outlineBaseColor[1], outlineBaseColor[2], outlineBaseColor[3]};
+        BlockOutlineMeshCache.Mesh mesh = previewMeshCache.getOrCreateMesh(magicWandHoverBlocks);
+        for (BlockOutlineMeshCache.Line ln : mesh.lines()) {
             if (useGradient) {
-                int depth = magicWandDepthMap.getOrDefault(pos, 0);
-                float normalizedDepth = magicWandMaxDepth > 0 ? (float) depth / magicWandMaxDepth : 0.0f;
-
-                float intensityFactor = 1.0f - normalizedDepth * 0.6f;
-                float alphaFactor = 1.0f - normalizedDepth * 0.5f;
-
-                tintColor = new float[]{
-                    baseColor[0] * intensityFactor,
-                    baseColor[1] * intensityFactor,
-                    baseColor[2] * intensityFactor,
-                    baseAlpha * alphaFactor
-                };
-            } else {
-                tintColor = new float[]{baseColor[0], baseColor[1], baseColor[2], baseAlpha};
+                // 若需要基于深度渐变，可按端点临近方块的深度决定透明度；这里先保持统一色
             }
-
-            float[] outlineColor = new float[]{
-                tintColor[0],
-                tintColor[1],
-                tintColor[2],
-                Math.max(outlineBaseColor[3], tintColor[3])
-            };
-
-            renderBlockOutline(matrix, lineConsumer, pos, outlineColor);
+            renderLine(lineConsumer, matrix,
+                ln.x1(), ln.y1(), ln.z1(),
+                ln.x2(), ln.y2(), ln.z2(),
+                    outlineColorBase);
         }
 
-        if (showBoundingBox && !magicWandHoverBlocks.isEmpty()) {
-            renderBoundingBox(matrix, lineConsumer, magicWandHoverBlocks);
+        // 注意：工具预览不需要包围盒
+    }
+
+    /**
+     * 渲染刷选/几何体积预览（统一 3D 空间范围）
+     */
+    private void renderBrushVolumePreview(Matrix4f matrix, VertexConsumerProvider vertexConsumers, Vec3d cameraPos) {
+        if (vertexConsumers == null) {
+            return;
         }
+        if (!settings.tool_showFill && !settings.tool_showOutline) {
+            return;
+        }
+
+        Set<BlockPos> blocksSnapshot;
+        synchronized (brushVolumeLock) {
+            if (!brushVolumeActive || brushVolumeBlocks.isEmpty()) {
+                return;
+            }
+            blocksSnapshot = brushVolumeBlocks;
+        }
+
+        BlockOutlineMeshCache.Mesh mesh = previewMeshCache.getOrCreateMesh(blocksSnapshot);
+
+        if (settings.tool_showFill && !mesh.quads().isEmpty()) {
+            float[] base = settings.tool_fillColor != null ? settings.tool_fillColor : DEFAULT_VOLUME_FILL_COLOR;
+            VertexConsumer fillConsumer = vertexConsumers.getBuffer(RenderLayers.getSelectionFillLayer());
+            for (BlockOutlineMeshCache.Quad quad : mesh.quads()) {
+                renderVolumeQuad(fillConsumer, matrix, quad, base, cameraPos);
+            }
+        }
+
+        if (settings.tool_showOutline && !mesh.lines().isEmpty()) {
+            float[] outline = settings.tool_outlineColor != null ? settings.tool_outlineColor : DEFAULT_PREVIEW_OUTLINE_COLOR;
+            VertexConsumer lineConsumer = vertexConsumers.getBuffer(RenderLayers.getLineOverlay());
+            for (BlockOutlineMeshCache.Line ln : mesh.lines()) {
+                renderLine(lineConsumer, matrix,
+                    ln.x1() - cameraPos.x, ln.y1() - cameraPos.y, ln.z1() - cameraPos.z,
+                    ln.x2() - cameraPos.x, ln.y2() - cameraPos.y, ln.z2() - cameraPos.z,
+                    outline);
+            }
+        }
+    }
+
+    private void renderVolumeQuad(VertexConsumer consumer, Matrix4f matrix,
+                                  BlockOutlineMeshCache.Quad quad, float[] color, Vec3d cameraPos) {
+        if (consumer == null || quad == null || color == null || color.length < 4) {
+            return;
+        }
+
+        float nx = quad.dir() != null ? quad.dir().getOffsetX() : 0f;
+        float ny = quad.dir() != null ? quad.dir().getOffsetY() : 0f;
+        float nz = quad.dir() != null ? quad.dir().getOffsetZ() : 0f;
+
+        emitVolumeVertex(consumer, matrix, quad.p1(), color, nx, ny, nz, cameraPos);
+        emitVolumeVertex(consumer, matrix, quad.p2(), color, nx, ny, nz, cameraPos);
+        emitVolumeVertex(consumer, matrix, quad.p3(), color, nx, ny, nz, cameraPos);
+        emitVolumeVertex(consumer, matrix, quad.p4(), color, nx, ny, nz, cameraPos);
+    }
+
+    private void emitVolumeVertex(VertexConsumer consumer, Matrix4f matrix,
+                                  BlockPos pos, float[] color,
+                                  float nx, float ny, float nz, Vec3d cameraPos) {
+        consumer.vertex(matrix,
+                (float) (pos.getX() - cameraPos.x),
+                (float) (pos.getY() - cameraPos.y),
+                (float) (pos.getZ() - cameraPos.z))
+            .color(color[0], color[1], color[2], color[3])
+            .texture(0.5f, 0.5f)
+            .overlay(net.minecraft.client.render.OverlayTexture.DEFAULT_UV)
+            .light(net.minecraft.client.render.LightmapTextureManager.MAX_LIGHT_COORDINATE)
+            .normal(nx, ny, nz);
     }
 
     private void renderGeometryPreview(Matrix4f matrix, VertexConsumerProvider vertexConsumers) {
@@ -488,85 +458,22 @@ public class ToolPreviewManager {
 
         VertexConsumer lineConsumer = vertexConsumers.getBuffer(RenderLayers.getGeometryLineLayer());
 
-        for (BlockPos pos : blocksSnapshot) {
-            renderBlockOutline(matrix, lineConsumer, pos, geometryLineColor);
+        // 使用贪婪合并后的外轮廓线，替代逐方块线框
+        if (settings.tool_showOutline) {
+            BlockOutlineMeshCache.Mesh mesh = previewMeshCache.getOrCreateMesh(blocksSnapshot);
+            for (BlockOutlineMeshCache.Line ln : mesh.lines()) {
+                renderLine(lineConsumer, matrix,
+                    ln.x1(), ln.y1(), ln.z1(),
+                    ln.x2(), ln.y2(), ln.z2(),
+                    geometryLineColor);
+            }
         }
 
-        if (showBoundingBox && !blocksSnapshot.isEmpty()) {
-            renderBoundingBox(matrix, lineConsumer, blocksSnapshot);
-        }
+        // 注意：工具预览不需要包围盒
 
         if (shapeSnapshot != null && configSnapshot != null) {
             // 可选：未来根据形状类型渲染额外的轴向辅助线等，这里留作扩展钩子
         }
-    }
-
-    private void renderBrushPreview(Matrix4f matrix, VertexConsumerProvider vertexConsumers, float tickDelta) {
-        if (vertexConsumers == null || brushPreviewCenter == null || brushPreviewRadiusWorld <= 0.0) {
-            return;
-        }
-
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.world == null) {
-            return;
-        }
-
-        long worldTime = client.world.getTime();
-        float phase = (worldTime + tickDelta) * 0.12f;
-        float sin = MathHelper.sin(phase);
-
-        float alpha = MathHelper.clamp(0.35f + sin * 0.10f, 0.20f, 0.60f);
-        float scale = 1.0f + sin * 0.08f;
-
-        double animatedRadius = brushPreviewRadiusWorld * scale;
-
-        float[] ringColor = new float[]{0.20f, 0.80f, 1.00f, MathHelper.clamp(alpha * 1.2f, 0.0f, 1.0f)};
-
-        VertexConsumer ringConsumer = vertexConsumers.getBuffer(RenderLayers.getBrushPreviewLineLayer());
-        renderBrushGroundRing(matrix, ringConsumer, brushPreviewCenter, animatedRadius, ringColor);
-    }
-
-    private void renderBrushGroundRing(Matrix4f matrix,
-                                       VertexConsumer consumer,
-                                       BlockPos center,
-                                       double radius,
-                                       float[] color) {
-        if (consumer == null || center == null || radius <= 0.0) {
-            return;
-        }
-
-        float cx = center.getX() + 0.5f;
-        float cy = center.getY() + 0.01f;
-        float cz = center.getZ() + 0.5f;
-
-        int segments = MathHelper.clamp((int) (radius * 24), 24, 72);
-        double step = (Math.PI * 2.0) / segments;
-
-        double prevX = cx + radius;
-        double prevZ = cz;
-
-        for (int i = 1; i <= segments; i++) {
-            double angle = step * i;
-            double x = cx + radius * Math.cos(angle);
-            double z = cz + radius * Math.sin(angle);
-
-            consumer.vertex(matrix, (float) prevX, cy, (float) prevZ)
-                .color(color[0], color[1], color[2], color[3])
-                .normal(0, 1, 0);
-            consumer.vertex(matrix, (float) x, cy, (float) z)
-                .color(color[0], color[1], color[2], color[3])
-                .normal(0, 1, 0);
-
-            prevX = x;
-            prevZ = z;
-        }
-    }
-    
-    /**
-     * 渲染边界框
-     */
-    private void renderBoundingBox(Matrix4f matrix, VertexConsumer lineConsumer, Set<BlockPos> blocks) {
-        renderBoundingBox(matrix, lineConsumer, blocks, boundingBoxColor);
     }
 
     private void renderBoundingBox(Matrix4f matrix, VertexConsumer lineConsumer, Set<BlockPos> blocks, float[] color) {
@@ -628,9 +535,19 @@ public class ToolPreviewManager {
      */
     private void renderPreviewOutline(Matrix4f matrix, VertexConsumerProvider vertexConsumers) {
         VertexConsumer vertexConsumer = vertexConsumers.getBuffer(RenderLayers.getLineOverlay());
-        
-        for (BlockPos pos : previewBlocks) {
-            renderBlockOutline(matrix, vertexConsumer, pos, previewOutlineColor);
+
+        // 使用贪婪合并后的外轮廓线
+        if (!settings.tool_showOutline) {
+            return;
+        }
+        if (!previewBlocks.isEmpty()) {
+            BlockOutlineMeshCache.Mesh mesh = previewMeshCache.getOrCreateMesh(previewBlocks);
+            for (BlockOutlineMeshCache.Line ln : mesh.lines()) {
+                renderLine(vertexConsumer, matrix,
+                    ln.x1(), ln.y1(), ln.z1(),
+                    ln.x2(), ln.y2(), ln.z2(),
+                    (settings.tool_outlineColor != null ? settings.tool_outlineColor : DEFAULT_PREVIEW_OUTLINE_COLOR));
+            }
         }
     }
     
@@ -649,28 +566,6 @@ public class ToolPreviewManager {
         renderQuad(vertexConsumer, matrix, box, color, 1, 2, 6, 5); // 右面
     }
     
-    /**
-     * 渲染单个方块的轮廓
-     */
-    private void renderBlockOutline(Matrix4f matrix, VertexConsumer vertexConsumer, BlockPos pos, float[] color) {
-        Box box = new Box(pos);
-        
-        // 渲染方块的12条边
-        renderLine(vertexConsumer, matrix, box.minX, box.minY, box.minZ, box.maxX, box.minY, box.minZ, color);
-        renderLine(vertexConsumer, matrix, box.maxX, box.minY, box.minZ, box.maxX, box.maxY, box.minZ, color);
-        renderLine(vertexConsumer, matrix, box.maxX, box.maxY, box.minZ, box.minX, box.maxY, box.minZ, color);
-        renderLine(vertexConsumer, matrix, box.minX, box.maxY, box.minZ, box.minX, box.minY, box.minZ, color);
-        
-        renderLine(vertexConsumer, matrix, box.minX, box.minY, box.maxZ, box.maxX, box.minY, box.maxZ, color);
-        renderLine(vertexConsumer, matrix, box.maxX, box.minY, box.maxZ, box.maxX, box.maxY, box.maxZ, color);
-        renderLine(vertexConsumer, matrix, box.maxX, box.maxY, box.maxZ, box.minX, box.maxY, box.maxZ, color);
-        renderLine(vertexConsumer, matrix, box.minX, box.maxY, box.maxZ, box.minX, box.minY, box.maxZ, color);
-        
-        renderLine(vertexConsumer, matrix, box.minX, box.minY, box.minZ, box.minX, box.minY, box.maxZ, color);
-        renderLine(vertexConsumer, matrix, box.maxX, box.minY, box.minZ, box.maxX, box.minY, box.maxZ, color);
-        renderLine(vertexConsumer, matrix, box.maxX, box.maxY, box.minZ, box.maxX, box.maxY, box.maxZ, color);
-        renderLine(vertexConsumer, matrix, box.minX, box.maxY, box.minZ, box.minX, box.maxY, box.maxZ, color);
-    }
 
     private void renderFacePreview(Matrix4f matrix, VertexConsumerProvider vertexConsumers) {
         if (vertexConsumers == null || facePreviewBlocks.isEmpty()) {
@@ -683,9 +578,20 @@ public class ToolPreviewManager {
         VertexConsumer fillConsumer = vertexConsumers.getBuffer(RenderLayers.getPreviewLayer());
         VertexConsumer lineConsumer = vertexConsumers.getBuffer(RenderLayers.getLineOverlay());
 
-        for (BlockPos pos : facePreviewBlocks) {
-            renderBlockPreview(matrix, fillConsumer, pos, fillColor);
-            renderBlockOutline(matrix, lineConsumer, pos, outlineColor);
+        if (settings.tool_showFill) {
+            for (BlockPos pos : facePreviewBlocks) {
+                renderBlockPreview(matrix, fillConsumer, pos, fillColor);
+            }
+        }
+        // 使用贪婪合并生成的外轮廓线，避免内部线与公用边
+        if (settings.tool_showOutline) {
+            BlockOutlineMeshCache.Mesh mesh = previewMeshCache.getOrCreateMesh(facePreviewBlocks);
+            for (BlockOutlineMeshCache.Line ln : mesh.lines()) {
+                renderLine(lineConsumer, matrix,
+                    ln.x1(), ln.y1(), ln.z1(),
+                    ln.x2(), ln.y2(), ln.z2(),
+                    outlineColor);
+            }
         }
     }
 
@@ -735,31 +641,51 @@ public class ToolPreviewManager {
         }
         boolean useGradient = maxDepth > 0;
 
-        for (BlockPos pos : faceHoverBlocks) {
-            float intensity = 1.0f;
-            float alphaFactor = 1.0f;
-            if (useGradient) {
-                int depth = faceHoverDepthMap.getOrDefault(pos, 0);
-                float t = (float) depth / maxDepth;
-                intensity = 1.0f - t * 0.6f;
-                alphaFactor = 1.0f - t * 0.5f;
-            }
+        if (settings.tool_showFill) {
+            for (BlockPos pos : faceHoverBlocks) {
+                float intensity = 1.0f;
+                float alphaFactor = 1.0f;
+                if (useGradient) {
+                    int depth = faceHoverDepthMap.getOrDefault(pos, 0);
+                    float t = (float) depth / maxDepth;
+                    intensity = 1.0f - t * 0.6f;
+                    alphaFactor = 1.0f - t * 0.5f;
+                }
 
-            float[] color = new float[]{
-                baseR * intensity,
-                baseG * intensity,
-                baseB * intensity,
-                baseA * alphaFactor * alpha
-            };
-            renderBlockPreview(matrix, fillConsumer, pos, color);
+                float[] color = new float[]{
+                    baseR * intensity,
+                    baseG * intensity,
+                    baseB * intensity,
+                    baseA * alphaFactor * alpha
+                };
+                renderBlockPreview(matrix, fillConsumer, pos, color);
+            }
         }
 
-        renderBoundingBox(matrix, lineConsumer, faceHoverBlocks, new float[]{
-            outlineR,
-            outlineG,
-            outlineB,
-            outlineA * alpha
-        });
+        // 外轮廓线（贪婪合并结果）：更清晰的轮廓，不显示内部线
+        if (settings.tool_showOutline) {
+            BlockOutlineMeshCache.Mesh mesh = previewMeshCache.getOrCreateMesh(faceHoverBlocks);
+            for (BlockOutlineMeshCache.Line ln : mesh.lines()) {
+                renderLine(lineConsumer, matrix,
+                    ln.x1(), ln.y1(), ln.z1(),
+                    ln.x2(), ln.y2(), ln.z2(),
+                    new float[]{
+                        outlineR,
+                        outlineG,
+                        outlineB,
+                        outlineA * alpha
+                    });
+            }
+        }
+
+        if (settings.tool_showOutline) {
+            renderBoundingBox(matrix, lineConsumer, faceHoverBlocks, new float[]{
+                outlineR,
+                outlineG,
+                outlineB,
+                outlineA * alpha
+            });
+        }
 
         if (faceHoverCenter != null && faceHoverNormal != null) {
             renderFaceHoverNormalArrow(matrix, lineConsumer, faceHoverCenter, faceHoverNormal, new float[]{
@@ -781,8 +707,12 @@ public class ToolPreviewManager {
         VertexConsumer fillConsumer = vertexConsumers.getBuffer(RenderLayers.getPreviewLayer());
         VertexConsumer lineConsumer = vertexConsumers.getBuffer(RenderLayers.getLineOverlay());
 
-        drawSelectionPreviewFill(fillConsumer, matrix, adjusted, selectionPreviewFillColor);
-        drawSelectionPreviewEdges(lineConsumer, matrix, adjusted, selectionPreviewOutlineColor);
+        if (settings.tool_showFill) {
+            drawSelectionPreviewFill(fillConsumer, matrix, adjusted, selectionPreviewFillColor);
+        }
+        if (settings.tool_showOutline) {
+            drawSelectionPreviewEdges(lineConsumer, matrix, adjusted, selectionPreviewOutlineColor);
+        }
     }
 
     private void drawSelectionPreviewFill(VertexConsumer consumer, Matrix4f matrix, Box box, float[] color) {
@@ -1152,15 +1082,6 @@ public class ToolPreviewManager {
     /**
      * 设置笔刷预览半径
      */
-    public void setBrushPreviewRadius(float radius) {
-        float clamped = MathHelper.clamp(radius, 0.5f, 32.0f);
-        this.brushPreviewRadius = clamped;
-        this.brushPreviewRadiusWorld = clamped;
-        if (isDragging) {
-            updatePreviewBlocks();
-        }
-    }
-
     // ======================= 面选择 API =======================
 
     public void updateFacePreview(Set<BlockPos> blocks, FacePreviewTint tint) {
@@ -1282,15 +1203,32 @@ public class ToolPreviewManager {
         }
     }
 
-    public boolean isFaceHoverPreviewActive() {
-        return (faceHoverPreviewActive || faceHoverAlpha > 0.01f) && !faceHoverBlocks.isEmpty();
-    }
-    
+    // ======================= 刷选体积预览 API =======================
+
     /**
-     * 获取预览方块数量
+     * 更新刷选工具的体积预览。
+     * 这里的 blocks 只用于渲染，不会修改 SelectionSet。
      */
-    public int getPreviewBlockCount() {
-        return previewBlocks.size();
+    public void updateBrushVolumePreview(Set<BlockPos> blocks) {
+        synchronized (brushVolumeLock) {
+            if (blocks == null || blocks.isEmpty()) {
+                brushVolumeBlocks = Set.of();
+                brushVolumeActive = false;
+            } else {
+                // 使用有序集合，保证网格生成稳定（BlockOutlineMeshCache 内部也会去重）
+                brushVolumeBlocks = Collections.unmodifiableSet(new LinkedHashSet<>(blocks));
+                brushVolumeActive = true;
+            }
+        }
+        // 体积变化 => 让网格缓存失效
+        previewMeshCache.clear();
+    }
+
+    /**
+     * 清除刷选体积预览。
+     */
+    public void clearBrushVolumePreview() {
+        updateBrushVolumePreview(null);
     }
 
     private Vec3d getCameraPosition() {
@@ -1307,14 +1245,7 @@ public class ToolPreviewManager {
     public boolean isDragging() {
         return isDragging;
     }
-    
-    /**
-     * 获取拖拽起始位置
-     */
-    public BlockPos getDragStartPos() {
-        return dragStartPos;
-    }
-    
+
     /**
      * 获取当前拖拽位置
      */
@@ -1332,29 +1263,20 @@ public class ToolPreviewManager {
         this.enabled = enabled;
         LOGGER.info("[ToolPreviewManager] 预览管理器{}", enabled ? "启用" : "禁用");
     }
-    
-    public float[] getPreviewColor() {
-        return previewColor.clone();
-    }
-    
-    public void setPreviewColor(float[] color) {
-        this.previewColor = color.clone();
-        if (color.length >= 4) {
-            this.selectionPreviewFillColor = new float[]{
-                color[0], color[1], color[2], MathHelper.clamp(color[3] * 0.6f, 0.05f, 1.0f)
-            };
-            this.selectionPreviewOutlineColor = new float[]{
-                color[0], color[1], color[2], MathHelper.clamp(color[3] + 0.35f, 0.1f, 1.0f)
-            };
-        }
-    }
-    
+
+    // 兼容层：统一改写到 RenderSettings（过时）
+    @Deprecated
     public float[] getPreviewOutlineColor() {
-        return previewOutlineColor.clone();
+        return settings != null && settings.tool_outlineColor != null
+            ? settings.tool_outlineColor.clone()
+            : DEFAULT_PREVIEW_OUTLINE_COLOR.clone();
     }
     
+    @Deprecated
     public void setPreviewOutlineColor(float[] color) {
-        this.previewOutlineColor = color.clone();
+        if (settings != null && color != null && color.length >= 4) {
+            settings.tool_outlineColor = color.clone();
+        }
     }
 
     public void setPreviewBox(Box box) {
@@ -1371,18 +1293,10 @@ public class ToolPreviewManager {
         this.selectionPreviewActive = false;
     }
 
-    public Box getPreviewBox() {
-        return selectionPreviewBox;
-    }
-    
-    public float getBrushPreviewRadius() {
-        return brushPreviewRadius;
-    }
-    
     // ====================== 便捷方法（委托给 SelectionRenderer） ======================
 
     private void populateSpherePreview(BlockPos center) {
-        double effectiveRadius = Math.max(1.0, Math.min(2.0, 32.0));
+        double effectiveRadius = Math.min(2.0, 32.0);
         int radiusInt = (int) Math.ceil(effectiveRadius);
         for (int x = -radiusInt; x <= radiusInt; x++) {
             for (int y = -radiusInt; y <= radiusInt; y++) {

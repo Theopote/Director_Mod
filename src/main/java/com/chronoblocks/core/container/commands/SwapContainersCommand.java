@@ -13,7 +13,6 @@ public class SwapContainersCommand implements ContainerCommand {
     private final ContainerManager manager;
     private final UUID firstId;
     private final UUID secondId;
-    private boolean executed = false;
 
     public SwapContainersCommand(ContainerManager manager, UUID firstId, UUID secondId) {
         this.manager = manager;
@@ -29,14 +28,10 @@ public class SwapContainersCommand implements ContainerCommand {
             return;
         }
         manager.swapContainers(first, second);
-        executed = true;
     }
 
     @Override
     public void undo() {
-        if (!executed) {
-            return;
-        }
         Container first = manager.getContainer(firstId);
         Container second = manager.getContainer(secondId);
         if (first == null || second == null || first == second) {

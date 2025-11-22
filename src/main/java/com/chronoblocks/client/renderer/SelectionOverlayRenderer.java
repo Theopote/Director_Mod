@@ -11,6 +11,7 @@ import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.joml.Matrix4f;
+import com.chronoblocks.client.settings.RenderSettings;
 
 /**
  * 🟩 SelectionOverlayRenderer
@@ -36,7 +37,8 @@ public final class SelectionOverlayRenderer {
 
     private static SelectionOverlayRenderer INSTANCE;
 
-    private float[] anchorColor = {1.0f, 1.0f, 1.0f, 1.0f};
+    // 全局设置中心（新系统优先读取）
+    private final RenderSettings settings = RenderSettings.get();
 
     private SelectionOverlayRenderer() {}
 
@@ -79,11 +81,13 @@ public final class SelectionOverlayRenderer {
 
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
-        // Minecraft 1.21+ 的线宽受 GPU 限制，许多平台固定为 1.0
-        float outlineWidth = 1.2f;
-        RenderSystem.lineWidth(outlineWidth);
+        // ✅ 直接从全局设置读取线宽（实时生效）
+        float lw = settings.tool_outlineWidth;
+        RenderSystem.lineWidth(Math.max(1.0f, lw));
 
         // === 绘制中心锚点 ===
+        // ✅ 直接从全局设置读取颜色（实时生效）
+        float[] anchorColor = settings.tool_outlineColor;
         selection.getBoundingBox().ifPresent(bbox -> {
             Vec3d anchor = new Vec3d(
                 (bbox.getMinX() + bbox.getMaxX() + 1) / 2.0,

@@ -161,14 +161,10 @@ public class ConnectedSelectTool implements SelectionTool {
         }
         
         // 基础类型比较
-        if (!state1.getBlock().equals(state2.getBlock())) {
-            return false;
-        }
+        return state1.getBlock().equals(state2.getBlock());
         
         // 可以添加更复杂的关联逻辑
         // 例如：相同材质的方块、特定属性的方块等
-        
-        return true;
     }
 
     @Override

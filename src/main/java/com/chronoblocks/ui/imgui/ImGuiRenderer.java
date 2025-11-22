@@ -75,10 +75,8 @@ public class ImGuiRenderer {
             // 配置 ImGui IO
             ImGuiIO io = ImGui.getIO();
             
-            // 启用 ImGui 配置文件保存，用于持久化布局
-            String iniPath = "config/chronoblocks/imgui.ini";
-            io.setIniFilename(iniPath);
-            LOGGER.info("[ChronoBlocks] ImGui INI文件路径: {}", iniPath);
+            // 启用 ImGui 配置文件保存，用于持久化布局（按世界区分）
+            updateIniPath(io);
             
             io.setConfigFlags(ImGuiConfigFlags.NavEnableKeyboard | ImGuiConfigFlags.DockingEnable);  // 启用键盘导航和停靠功能
 
@@ -140,6 +138,9 @@ public class ImGuiRenderer {
 
             try {
                 LOGGER.debug("[ChronoBlocks] Beginning ImGui frame...");
+
+                // 检查并更新INI文件路径（如果世界已切换）
+                checkAndUpdateIniPath();
 
                 // 更新输入状态
                 updateInput();
@@ -307,5 +308,42 @@ public class ImGuiRenderer {
 
     public boolean isInitialized() {
         return initialized;
+    }
+    
+    /**
+     * 更新ImGui INI文件路径（按世界区分）
+     */
+    private void updateIniPath(ImGuiIO io) {
+        try {
+            com.chronoblocks.ui.layout.LayoutPersistenceManager layoutManager = 
+                com.chronoblocks.ui.layout.LayoutPersistenceManager.getInstance();
+            java.nio.file.Path iniPath = layoutManager.getImGuiIniPath();
+            String iniPathStr = iniPath.toString().replace('\\', '/');
+            io.setIniFilename(iniPathStr);
+            LOGGER.info("[ChronoBlocks] ImGui INI文件路径: {}", iniPathStr);
+        } catch (Exception e) {
+            LOGGER.warn("[ChronoBlocks] 无法获取世界特定的INI路径，使用默认路径: {}", e.getMessage());
+            io.setIniFilename("config/chronoblocks/imgui.ini");
+        }
+    }
+    
+    /**
+     * 检查并更新INI文件路径（如果世界已切换）
+     */
+    public void checkAndUpdateIniPath() {
+        if (!initialized) {
+            return;
+        }
+        
+        try {
+            if (com.chronoblocks.util.WorldIdentifier.hasWorldChanged()) {
+                LOGGER.info("[ChronoBlocks] 检测到世界切换，更新ImGui INI文件路径");
+                ImGuiIO io = ImGui.getIO();
+                updateIniPath(io);
+                com.chronoblocks.util.WorldIdentifier.clearCache();
+            }
+        } catch (Exception e) {
+            LOGGER.warn("[ChronoBlocks] 检查世界切换失败: {}", e.getMessage());
+        }
     }
 }

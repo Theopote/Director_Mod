@@ -2,6 +2,7 @@ package com.chronoblocks.core.container.commands;
 
 import com.chronoblocks.core.container.Container;
 import com.chronoblocks.core.container.ContainerManager;
+import com.chronoblocks.core.container.ContainerState;
 import com.chronoblocks.core.container.ContainerType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,37 +56,65 @@ public class MergeContainersCommand implements ContainerCommand {
 
         mergedParent = determineCommonParent();
         mergedInsertIndex = computeInsertIndex();
-        if (mergedParent != null && mergedParent.getType() != ContainerType.GROUP) {
-            LOGGER.warn("[MergeCommand] 原父级 {} 非组类型，合并结果将存放在顶层", mergedParent.getName());
-            mergedParent = null;
-            mergedInsertIndex = manager.getRootContainersView().size();
-        }
 
         String baseName = (preferredName == null || preferredName.isBlank())
             ? targets.get(0).getName() + "_合并"
             : preferredName.trim();
         String uniqueName = manager.generateUniqueName(baseName);
 
-        mergedContainer = manager.createContainer(uniqueName, ContainerType.GROUP);
+        // 合并后的容器类型：保持非组类型（如果首个为组则退回为 CUSTOM）
+        ContainerType resultType = targets.get(0).getType();
+        if (resultType == ContainerType.GROUP) {
+            resultType = ContainerType.CUSTOM;
+        }
+        mergedContainer = manager.createContainer(uniqueName, resultType);
         manager.moveContainerToParent(mergedContainer, mergedParent, mergedInsertIndex);
+
+        // 合并结果默认隐藏：先设置为 HIDDEN，再追加方块，确保可见性由服务统一管理
+        mergedContainer.setState(ContainerState.HIDDEN);
 
         for (Container container : targets) {
             if (container == mergedContainer) {
                 continue;
             }
 
+            // 并入方块集合
             mergedContainer.addBlocks(container.getBlocks());
-            
-            // v5.2: 如果合并后的容器是隐藏状态，可见性由ContainerVisibilityService管理
 
-            List<Container> childrenSnapshot = new ArrayList<>(container.getChildren());
-            for (Container child : childrenSnapshot) {
-                manager.moveContainerToParent(child, mergedContainer, mergedContainer.getChildCount());
+            // 同步方块快照与世界归属，使可见性服务能在显示时正确还原方块
+            if (mergedContainer.getLevelKey() == null && container.getLevelKey() != null) {
+                mergedContainer.setLevelKey(container.getLevelKey());
+            }
+            // 拷贝或补全方块快照：优先复用源容器快照，若缺失则尝试从当前世界读取补齐
+            net.minecraft.client.MinecraftClient mc = null;
+            net.minecraft.world.World world = null;
+            try {
+                mc = net.minecraft.client.MinecraftClient.getInstance();
+                world = mc != null ? mc.world : null;
+            } catch (Throwable ignored) {}
+            for (net.minecraft.util.math.BlockPos pos : container.getBlocks()) {
+                var entry = container.getBlockStore().get(pos);
+                if (entry != null) {
+                    mergedContainer.getBlockStore().add(pos, entry);
+                } else if (world != null) {
+                    // 回退方案：从世界捕获该方块的快照，避免合并后显示只剩线框
+                    mergedContainer.getBlockStore().addAllFromWorld(java.util.Collections.singleton(pos), world);
+                }
+            }
+            
+            // 仅当结果为组时才迁移子容器；否则合并仅包含方块
+            if (mergedContainer.getType() == ContainerType.GROUP) {
+                List<Container> childrenSnapshot = new ArrayList<>(container.getChildren());
+                for (Container child : childrenSnapshot) {
+                    manager.moveContainerToParent(child, mergedContainer, mergedContainer.getChildCount());
+                }
             }
 
             removedContainers.add(container);
-            manager.removeContainer(container);
         }
+
+        // 统一批量删除所有被合并的原容器（一次加锁、一次事件触发），删除前已在上方补齐快照
+        manager.removeContainers(removedContainers);
 
         manager.selectContainer(mergedContainer);
     }

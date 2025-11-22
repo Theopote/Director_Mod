@@ -11,6 +11,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
+import com.chronoblocks.client.settings.RenderSettings;
 
 /**
  * Interaction hint renderer for hover highlights (block outlines, breathing effects).
@@ -18,11 +19,18 @@ import org.joml.Matrix4f;
 public final class HoverHighlightRenderer {
 
     private static final MinecraftClient MC = MinecraftClient.getInstance();
+    // 全局设置中心（新系统优先读取）
+    private static final RenderSettings settings = RenderSettings.get();
 
     private HoverHighlightRenderer() {}
 
     public static void renderBlockOutline(MatrixStack matrices, VertexConsumerProvider vertexConsumers, BlockHitResult hit) {
         if (MC.world == null || hit == null || hit.getType() != net.minecraft.util.hit.HitResult.Type.BLOCK) {
+            return;
+        }
+
+        // ✅ 直接从全局设置读取（实时生效）
+        if (!settings.tool_showOutline) {
             return;
         }
 
@@ -49,16 +57,17 @@ public final class HoverHighlightRenderer {
         Matrix4f matrix = matrices.peek().getPositionMatrix();
 
         long time = System.currentTimeMillis();
-        float hue = (time % 5000L) / 5000.0f;
-        int rgb = java.awt.Color.HSBtoRGB(hue, 1.0f, 1.0f);
-        float r = ((rgb >> 16) & 0xFF) / 255.0f;
-        float g = ((rgb >> 8) & 0xFF) / 255.0f;
-        float b = (rgb & 0xFF) / 255.0f;
+        // ✅ 直接从全局设置读取颜色和线宽（实时生效）
+        float[] color = settings.tool_outlineColor;
+        float r = color[0];
+        float g = color[1];
+        float b = color[2];
 
         float alpha = 0.5f + 0.5f * (float) Math.sin(time / 400.0);
         alpha = 0.35f + alpha * 0.45f;
 
-        RenderSystem.lineWidth(1.5f + 0.5f * (float) Math.sin(time / 600.0));
+        float lw = settings.tool_outlineWidth;
+        RenderSystem.lineWidth(Math.max(1.0f, lw));
 
         drawBoxEdges(consumer, matrix, box, r, g, b, alpha);
 

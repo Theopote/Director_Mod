@@ -156,12 +156,35 @@ public class UITheme {
         public static final float INPUT_HEIGHT = 22.0f;
         public static final float INPUT_PADDING = 8.0f;
         
+        // 输入框宽度（常用尺寸）
+        public static final float INPUT_WIDTH_SMALL = 70.0f;    // 小输入框（如时间输入）
+        public static final float INPUT_WIDTH_MEDIUM = 100.0f; // 中等输入框（如时长输入）
+        public static final float INPUT_WIDTH_LARGE = 200.0f;  // 大输入框（如名称输入）
+        public static final float INPUT_WIDTH_AUTO = 0.0f;     // 自动宽度
+        
         // 标题栏
         public static final float TITLE_HEIGHT = 28.0f;
         
         // 分组
         public static final float GROUP_PADDING = 8.0f;
         public static final float GROUP_SPACING = 12.0f;
+        
+        // ========== 时间线轨道布局 ==========
+        /**
+         * 时间线轨道高度（像素）
+         * 
+         * <p>每条轨道的高度，用于渲染时间线面板中的轨道。
+         * 设置为24px，与按钮高度一致，保持UI视觉统一性。
+         */
+        public static final float TIMELINE_TRACK_HEIGHT = 24.0f;
+        
+        /**
+         * 时间线轨道间距（像素）
+         * 
+         * <p>相邻轨道之间的间距，用于分隔不同的轨道。
+         * 设置为4px，与标准元素间距一致，保持紧凑而清晰的视觉效果。
+         */
+        public static final float TIMELINE_TRACK_GAP = 4.0f;
     }
     
     // ==================== 圆角规范 ====================

@@ -1,6 +1,7 @@
 package com.chronoblocks.client.renderer;
 
 import com.chronoblocks.core.selection.SelectionManager;
+import com.chronoblocks.client.settings.RenderSettings;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.util.math.MatrixStack;
@@ -15,12 +16,19 @@ public final class InteractionHintRenderer {
 
     private InteractionHintRenderer() {}
 
+    // 全局设置中心（新系统优先读取）
+    private static final RenderSettings settings = RenderSettings.get();
+
     public static void render(MatrixStack matrices,
                               VertexConsumerProvider consumers,
                               Vec3d camPos,
                               SelectionManager manager,
                               float tickDelta) {
         if (manager == null || consumers == null || matrices == null) {
+            return;
+        }
+        // ✅ 直接从全局设置读取（实时生效）
+        if (!settings.tool_showOutline) {
             return;
         }
 
@@ -117,7 +125,8 @@ public final class InteractionHintRenderer {
             return;
         }
 
-        float[] color = {0.2f, 0.6f, 1.0f, 0.95f};
+        // ✅ 直接从全局设置读取颜色（实时生效）
+        float[] color = settings.tool_outlineColor;
         Vec3d startRel = start.subtract(camPos);
         Vec3d endRel = end.subtract(camPos);
         line(consumer, matrix, startRel, endRel, color);

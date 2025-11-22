@@ -78,12 +78,8 @@ public class SelectionToolKeyBindings {
             "key.categories.chronoblocks"
         ));
         
-        KEY_BINDINGS.put("geometry_tool", new KeyBinding(
-            "key.chronoblocks.selection.geometry",
-            InputUtil.Type.KEYSYM,
-            GLFW.GLFW_KEY_6,
-            "key.categories.chronoblocks"
-        ));
+        // 几何选择工具已合并到刷选工具中，不再需要独立的快捷键
+        // KEY_BINDINGS.put("geometry_tool", new KeyBinding(...));
         
         // 操作模式快捷键
         KEY_BINDINGS.put("add_mode", new KeyBinding(
@@ -150,9 +146,11 @@ public class SelectionToolKeyBindings {
                 switchToTool("brush");
             } else if (KEY_BINDINGS.get("face_tool").wasPressed()) {
                 switchToTool("face");
-            } else if (KEY_BINDINGS.get("geometry_tool").wasPressed()) {
-                switchToTool("geometry");
             }
+            // 几何选择工具已合并到刷选工具中
+            // else if (KEY_BINDINGS.get("geometry_tool").wasPressed()) {
+            //     switchToTool("geometry");
+            // }
             
             // 检查操作模式快捷键
             else if (KEY_BINDINGS.get("add_mode").wasPressed()) {

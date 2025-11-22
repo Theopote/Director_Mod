@@ -143,6 +143,16 @@ public abstract class AbstractPanel implements IPanel {
             this.visible = newVisible;
             this.hidden = newHidden;
             logger.debug("[{}] 可见性设置为: {}, Dock占位: {}", getPanelName(), newVisible, newHidden);
+            persistVisibilityState(newVisible);
+        }
+    }
+    
+    private void persistVisibilityState(boolean visible) {
+        try {
+            com.chronoblocks.ui.layout.LayoutPersistenceManager.getInstance()
+                    .updatePanelVisibility(getPanelName(), visible);
+        } catch (Exception e) {
+            logger.debug("[{}] 无法保存面板可见性状态: {}", getPanelName(), e.getMessage());
         }
     }
     

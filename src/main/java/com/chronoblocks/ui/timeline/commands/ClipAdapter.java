@@ -1,6 +1,6 @@
 package com.chronoblocks.ui.timeline.commands;
 
-import com.chronoblocks.ui.timeline.TimelineClip;
+import com.chronoblocks.ui.timeline.model.TimelineClip;
 
 /**
  * {@link TimelineClip} 到 {@link MoveClipCommand.Clip} 的适配器。

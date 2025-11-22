@@ -47,6 +47,12 @@ public class ClickSelectTool implements SelectionTool {
             return;
         }
 
+        // 检查是否为空气方块：所有选择工具都只能选中非空气方块
+        if (world.getBlockState(pos).isAir()) {
+            LOGGER.debug("[ClickSelectTool] 点击的是空气方块，忽略选择: {}", pos);
+            return;
+        }
+
         SelectionManager manager = SelectionManager.get();
         if (manager == null) {
             LOGGER.error("[ClickSelectTool] SelectionManager 为空！");

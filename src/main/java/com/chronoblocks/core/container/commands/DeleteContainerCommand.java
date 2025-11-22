@@ -29,7 +29,8 @@ public class DeleteContainerCommand implements ContainerCommand {
     
     @Override
     public void execute() {
-        manager.removeContainer(container);
+        java.util.Collections.singletonList(container); // no-op to keep context
+        manager.removeContainers(java.util.Collections.singletonList(container));
     }
     
     @Override

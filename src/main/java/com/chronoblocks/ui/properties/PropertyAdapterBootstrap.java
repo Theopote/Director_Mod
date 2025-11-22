@@ -5,7 +5,8 @@ import com.chronoblocks.animation.core.Keyframe;
 import com.chronoblocks.core.container.Container;
 import com.chronoblocks.ui.adapters.impl.TrackAdapter;
 import com.chronoblocks.ui.properties.adapters.*;
-import com.chronoblocks.ui.timeline.TimelineClip;
+import com.chronoblocks.ui.timeline.model.TimelineClip;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

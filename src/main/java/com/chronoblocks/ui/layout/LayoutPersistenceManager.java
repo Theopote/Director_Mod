@@ -1,5 +1,7 @@
 package com.chronoblocks.ui.layout;
 
+import com.chronoblocks.util.WorldIdentifier;
+import imgui.ImGui;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
@@ -32,7 +34,6 @@ public class LayoutPersistenceManager {
     
     // 布局配置文件路径
     private static final Path LAYOUT_DIR = Paths.get("config", "chronoblocks");
-    private static final Path LAYOUT_FILE = LAYOUT_DIR.resolve("ui_layout.json");
     
     // 布局版本
     private static final String LAYOUT_VERSION = "1.0";
@@ -42,6 +43,9 @@ public class LayoutPersistenceManager {
     
     // 当前布局数据
     private LayoutData currentLayout;
+    
+    // 当前世界标识
+    private String currentWorldId = null;
     
     // 布局变更检测
     private boolean layoutChanged = false;
@@ -74,12 +78,6 @@ public class LayoutPersistenceManager {
         public String panelName;
         public String windowName;
         public boolean visible = true;
-        public boolean docked = true;
-        public float posX = 0;
-        public float posY = 0;
-        public float sizeX = 0;
-        public float sizeY = 0;
-        public String dockNode = "";
         
         public PanelLayout() {}
         
@@ -119,8 +117,8 @@ public class LayoutPersistenceManager {
                 LOGGER.debug("[LayoutPersistence] 创建布局目录: {}", LAYOUT_DIR);
             }
             
-            // 加载现有布局或创建默认布局
-            loadLayout();
+            // 检测当前世界并加载对应布局
+            checkAndLoadWorldLayout();
             
             LOGGER.info("[LayoutPersistence] 布局持久化管理器初始化完成");
             
@@ -132,12 +130,114 @@ public class LayoutPersistenceManager {
     }
     
     /**
-     * 加载布局配置
+     * 检查并加载当前世界的布局
+     */
+    private void checkAndLoadWorldLayout() {
+        reloadForCurrentWorld("initialize");
+    }
+
+    /**
+     * 获取 layout 子目录（确保存在）
+     */
+    private Path getLayoutsDir() {
+        Path layoutsDir = LAYOUT_DIR.resolve("layouts");
+        try {
+            if (!Files.exists(layoutsDir)) {
+                Files.createDirectories(layoutsDir);
+                LOGGER.debug("[LayoutPersistence] 创建布局子目录: {}", layoutsDir);
+            }
+        } catch (IOException e) {
+            LOGGER.warn("[LayoutPersistence] 无法创建布局子目录: {}", e.getMessage(), e);
+        }
+        return layoutsDir;
+    }
+    
+    private String resolveWorldId(String suggestFallback) {
+        if (suggestFallback != null && !suggestFallback.isEmpty()) {
+            return suggestFallback;
+        }
+        String detected = WorldIdentifier.getCurrentWorldId();
+        return detected != null ? detected : "default";
+    }
+    
+    /**
+     * 获取指定世界的布局文件路径
+     */
+    private Path getLayoutFile(String worldId) {
+        return getLayoutsDir().resolve(worldId + "_ui_layout.json");
+    }
+    
+    /**
+     * 获取ImGui INI文件路径（按世界区分）
+     */
+    public Path getImGuiIniPath() {
+        return getImGuiIniPath(resolveWorldId(currentWorldId));
+    }
+    
+    public Path getImGuiIniPath(String worldId) {
+        Path iniFile = getLayoutsDir().resolve(worldId + "_imgui.ini");
+        Path parent = iniFile.getParent();
+        try {
+            if (parent != null && !Files.exists(parent)) {
+                Files.createDirectories(parent);
+            }
+        } catch (IOException e) {
+            LOGGER.warn("[LayoutPersistence] 无法创建ImGui配置目录: {}", e.getMessage(), e);
+        }
+        return iniFile;
+    }
+    
+    /**
+     * 手动同步当前世界的布局
+     * @param reason 触发原因
+     */
+    public void reloadForCurrentWorld(String reason) {
+        String nextWorldId = resolveWorldId(WorldIdentifier.getCurrentWorldId());
+        if (currentWorldId == null) {
+            currentWorldId = nextWorldId;
+            LOGGER.info("[LayoutPersistence] 初始化世界布局: {} (触发: {})", currentWorldId, reason);
+            loadLayoutInternal();
+            loadImGuiIniIfExists(currentWorldId);
+            return;
+        }
+        
+        if (!currentWorldId.equals(nextWorldId)) {
+            LOGGER.info("[LayoutPersistence] 检测到世界切换: {} -> {} (触发: {})", currentWorldId, nextWorldId, reason);
+            saveLayoutForWorld(currentWorldId);
+            saveImGuiIni(currentWorldId);
+            currentWorldId = nextWorldId;
+            loadLayoutInternal();
+            loadImGuiIniIfExists(currentWorldId);
+        } else {
+            LOGGER.debug("[LayoutPersistence] 世界未变化 ({})，保持当前布局", currentWorldId);
+        }
+    }
+    
+    /**
+     * 加载布局配置（按世界）
      */
     public void loadLayout() {
+        if (WorldIdentifier.hasWorldChanged()) {
+            reloadForCurrentWorld("loadLayout()");
+            return;
+        }
+        loadLayoutInternal();
+        loadImGuiIniIfExists();
+    }
+    
+    private void loadLayoutInternal() {
+        String worldId = resolveWorldId(currentWorldId);
+        currentWorldId = worldId;
         try {
-            if (Files.exists(LAYOUT_FILE)) {
-                String layoutContent = Files.readString(LAYOUT_FILE);
+            Path layoutFile = getLayoutFile(worldId);
+            
+            // 确保布局目录存在
+            if (!Files.exists(layoutFile.getParent())) {
+                Files.createDirectories(layoutFile.getParent());
+            }
+            
+            if (Files.exists(layoutFile)) {
+                String layoutContent = Files.readString(layoutFile);
                 JsonObject layoutJson = JsonParser.parseString(layoutContent).getAsJsonObject();
                 
                 // 检查布局版本
@@ -150,14 +250,16 @@ public class LayoutPersistenceManager {
                 } else {
                     currentLayout = GSON.fromJson(layoutJson, LayoutData.class);
                     if (currentLayout.isValid()) {
-                        LOGGER.info("[LayoutPersistence] 成功加载布局配置: {}", LAYOUT_FILE);
+                        LOGGER.info("[LayoutPersistence] 成功加载世界 {} 的布局配置: {}", 
+                            worldId, layoutFile);
                     } else {
                         LOGGER.warn("[LayoutPersistence] 布局配置无效，使用默认布局");
                         currentLayout = new LayoutData();
                     }
                 }
             } else {
-                LOGGER.info("[LayoutPersistence] 布局文件不存在，创建默认布局: {}", LAYOUT_FILE);
+                LOGGER.info("[LayoutPersistence] 世界 {} 的布局文件不存在，创建默认布局: {}", 
+                    worldId, layoutFile);
                 currentLayout = new LayoutData();
             }
         } catch (Exception e) {
@@ -167,23 +269,74 @@ public class LayoutPersistenceManager {
     }
     
     /**
-     * 保存布局配置
+     * 保存布局配置（按世界）
      */
     public void saveLayout() {
+        saveLayoutForWorld(resolveWorldId(currentWorldId));
+    }
+    
+    private void saveLayoutForWorld(String worldId) {
         if (currentLayout == null) {
             LOGGER.warn("[LayoutPersistence] 当前布局为空，跳过保存");
             return;
         }
         
         try {
+            Path layoutFile = getLayoutFile(worldId);
+            
+            if (!Files.exists(layoutFile.getParent())) {
+                Files.createDirectories(layoutFile.getParent());
+            }
+            
             currentLayout.timestamp = System.currentTimeMillis();
             String layoutJson = GSON.toJson(currentLayout);
-            Files.writeString(LAYOUT_FILE, layoutJson);
-            LOGGER.debug("[LayoutPersistence] 布局配置已保存: {}", LAYOUT_FILE);
+            Files.writeString(layoutFile, layoutJson);
+            LOGGER.debug("[LayoutPersistence] 世界 {} 的布局配置已保存: {}", 
+                worldId, layoutFile);
             layoutChanged = false;
             lastSaveTime = System.currentTimeMillis();
         } catch (IOException e) {
             LOGGER.error("[LayoutPersistence] 保存布局配置失败: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * 保存 ImGui ini 布局
+     */
+    public void saveImGuiIni() {
+        saveImGuiIni(resolveWorldId(currentWorldId));
+    }
+    
+    private void saveImGuiIni(String worldId) {
+        try {
+            Path iniPath = getImGuiIniPath(worldId);
+            String iniPathStr = iniPath.toString().replace('\\', '/');
+            ImGui.saveIniSettingsToDisk(iniPathStr);
+            LOGGER.info("[LayoutPersistence] ImGui 布局已保存: {}", iniPathStr);
+        } catch (Exception e) {
+            LOGGER.warn("[LayoutPersistence] 保存 ImGui 布局失败: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * 如果存在则加载 ImGui ini 布局
+     */
+    public void loadImGuiIniIfExists() {
+        loadImGuiIniIfExists(resolveWorldId(currentWorldId));
+    }
+    
+    private void loadImGuiIniIfExists(String worldId) {
+        try {
+            Path iniPath = getImGuiIniPath(worldId);
+            if (Files.exists(iniPath)) {
+                String iniPathStr = iniPath.toString().replace('\\', '/');
+                ImGui.loadIniSettingsFromDisk(iniPathStr);
+                LOGGER.info("[LayoutPersistence] 已加载世界 {} 的 ImGui 布局: {}", worldId, iniPathStr);
+            } else {
+                LOGGER.info("[LayoutPersistence] 世界 {} 尚无 ImGui 布局文件: {}", worldId, iniPath);
+            }
+        } catch (Exception e) {
+            LOGGER.warn("[LayoutPersistence] 加载 ImGui 布局失败: {}", e.getMessage(), e);
         }
     }
     
@@ -228,6 +381,34 @@ public class LayoutPersistenceManager {
     }
     
     /**
+     * 更新面板可见性状态
+     */
+    public void updatePanelVisibility(String panelName, boolean visible) {
+        if (panelName == null || panelName.isEmpty()) {
+            return;
+        }
+        if (currentLayout == null) {
+            currentLayout = new LayoutData();
+        }
+        if (currentLayout.panels == null) {
+            currentLayout.panels = new HashMap<>();
+        }
+        PanelLayout layout = currentLayout.panels.computeIfAbsent(panelName, n -> new PanelLayout(n, n));
+        if (layout.visible != visible) {
+            layout.visible = visible;
+            markLayoutChanged();
+        }
+    }
+    
+    /**
+     * 获取存储的面板可见性
+     */
+    public Boolean getStoredPanelVisibility(String panelName) {
+        PanelLayout layout = getPanelLayout(panelName);
+        return layout != null ? layout.visible : null;
+    }
+    
+    /**
      * 检查是否有自定义布局
      */
     public boolean hasCustomLayout() {
@@ -245,13 +426,84 @@ public class LayoutPersistenceManager {
     }
     
     /**
-     * 重置为默认布局
+     * 重置为默认布局（当前世界）
      */
     public void resetToDefault() {
-        LOGGER.info("[LayoutPersistence] 重置为默认布局");
+        LOGGER.info("[LayoutPersistence] 重置世界 {} 为默认布局", WorldIdentifier.getCurrentWorldId());
         currentLayout = new LayoutData();
         markLayoutChanged();
         saveLayout();
+    }
+    
+    /**
+     * 保存当前布局为预设
+     * 
+     * @param presetName 预设名称
+     */
+    public void saveLayoutPreset(String presetName) {
+        if (currentLayout == null) {
+            LOGGER.warn("[LayoutPersistence] 当前布局为空，无法保存预设");
+            return;
+        }
+        
+        try {
+            Path presetFile = LAYOUT_DIR.resolve("presets").resolve(sanitizePresetName(presetName) + ".json");
+            
+            // 确保预设目录存在
+            if (!Files.exists(presetFile.getParent())) {
+                Files.createDirectories(presetFile.getParent());
+            }
+            
+            currentLayout.timestamp = System.currentTimeMillis();
+            String layoutJson = GSON.toJson(currentLayout);
+            Files.writeString(presetFile, layoutJson);
+            LOGGER.info("[LayoutPersistence] 布局预设已保存: {}", presetFile);
+        } catch (IOException e) {
+            LOGGER.error("[LayoutPersistence] 保存布局预设失败: {}", e.getMessage(), e);
+        }
+    }
+    
+    /**
+     * 加载布局预设
+     * 
+     * @param presetName 预设名称
+     */
+    public boolean loadLayoutPreset(String presetName) {
+        try {
+            Path presetFile = LAYOUT_DIR.resolve("presets").resolve(sanitizePresetName(presetName) + ".json");
+            
+            if (!Files.exists(presetFile)) {
+                LOGGER.warn("[LayoutPersistence] 布局预设不存在: {}", presetFile);
+                return false;
+            }
+            
+            String layoutContent = Files.readString(presetFile);
+            JsonObject layoutJson = JsonParser.parseString(layoutContent).getAsJsonObject();
+            
+            currentLayout = GSON.fromJson(layoutJson, LayoutData.class);
+            if (currentLayout.isValid()) {
+                LOGGER.info("[LayoutPersistence] 成功加载布局预设: {}", presetName);
+                markLayoutChanged();
+                saveLayout(); // 保存到当前世界
+                return true;
+            } else {
+                LOGGER.warn("[LayoutPersistence] 布局预设无效");
+                return false;
+            }
+        } catch (Exception e) {
+            LOGGER.error("[LayoutPersistence] 加载布局预设失败: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+    
+    /**
+     * 清理预设名称，使其适合作为文件名
+     */
+    private String sanitizePresetName(String name) {
+        if (name == null || name.isEmpty()) {
+            return "default";
+        }
+        return name.replaceAll("[^a-zA-Z0-9_\\-]", "_").toLowerCase();
     }
     
     /**

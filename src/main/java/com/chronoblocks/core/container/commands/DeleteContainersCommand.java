@@ -32,29 +32,25 @@ public class DeleteContainersCommand implements ContainerCommand {
         parents.clear();
         indices.clear();
 
+        // 在循环外获取一次根列表快照，避免多次复制/加锁
+        java.util.List<Container> rootView = manager.getRootContainersView();
         for (Container container : targets) {
             Container parent = container.getParent();
             int index = parent != null
                 ? parent.indexOfChild(container)
-                : manager.getRootContainersView().indexOf(container);
+                : rootView.indexOf(container);
             parents.add(parent);
             indices.add(index);
         }
 
-        for (Container container : targets) {
-            manager.removeContainer(container);
-        }
+        // 一次性批量删除，降低加锁开销
+        manager.removeContainers(targets);
     }
 
     @Override
     public void undo() {
-        for (int i = targets.size() - 1; i >= 0; i--) {
-            Container container = targets.get(i);
-            Container parent = parents.get(i);
-            int index = indices.get(i);
-            manager.addContainer(container);
-            manager.moveContainerToParent(container, parent, index);
-        }
+        // 批量恢复到原位置（一次加锁）
+        manager.restoreContainersAtPositions(targets, parents, indices);
     }
 
     @Override
@@ -62,4 +58,3 @@ public class DeleteContainersCommand implements ContainerCommand {
         return "删除容器 (" + targets.size() + ")";
     }
 }
-

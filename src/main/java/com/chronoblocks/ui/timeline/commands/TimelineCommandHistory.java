@@ -3,6 +3,8 @@ package com.chronoblocks.ui.timeline.commands;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.chronoblocks.ui.timeline.model.TimelineModel;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -10,6 +12,13 @@ import java.util.List;
  * 时间轴命令历史管理器。
  * <p>
  * 提供撤销 / 重做栈，并负责命令执行的统一入口。
+ * 
+ * <p>功能：
+ * <ul>
+ *   <li>自动管理撤销/重做栈</li>
+ *   <li>自动触发模型更新事件（如果提供了 TimelineModel）</li>
+ *   <li>支持最大历史记录数量限制</li>
+ * </ul>
  */
 public class TimelineCommandHistory {
     private static final Logger LOGGER = LoggerFactory.getLogger(TimelineCommandHistory.class);
@@ -17,9 +26,28 @@ public class TimelineCommandHistory {
     private final List<TimelineCommand> undoStack = new ArrayList<>();
     private final List<TimelineCommand> redoStack = new ArrayList<>();
     private int maxHistorySize = 100;
+    
+    // 可选的 TimelineModel 引用（用于自动触发模型更新）
+    private TimelineModel model;
+    
+    /**
+     * 设置 TimelineModel（可选）
+     * 如果设置了，命令执行/撤销/重做后会自动调用 model.markDirty()
+     */
+    public void setModel(TimelineModel model) {
+        this.model = model;
+    }
+    
+    /**
+     * 获取关联的 TimelineModel
+     */
+    public TimelineModel getModel() {
+        return model;
+    }
 
     /**
      * 执行命令并加入撤销栈。
+     * 如果设置了 TimelineModel，会自动触发模型更新事件。
      */
     public void executeCommand(TimelineCommand command) {
         command.execute();
@@ -29,11 +57,14 @@ public class TimelineCommandHistory {
             redoStack.clear();
 
             if (undoStack.size() > maxHistorySize) {
-                undoStack.remove(0);
+                undoStack.removeFirst();
             }
 
             LOGGER.debug("[Timeline] 执行命令: {}", command.getDescription());
         }
+        
+        // 自动触发模型更新（如果命令不是 BaseTimelineCommand，它可能没有触发更新）
+        notifyModelChanged("command_executed");
     }
 
     /**
@@ -47,10 +78,13 @@ public class TimelineCommandHistory {
             return false;
         }
 
-        TimelineCommand command = undoStack.remove(undoStack.size() - 1);
+        TimelineCommand command = undoStack.removeLast();
         command.undo();
         redoStack.add(command);
         LOGGER.info("[Timeline] 撤销命令: {}", command.getDescription());
+        
+        // 自动触发模型更新
+        notifyModelChanged("command_undone");
         return true;
     }
 
@@ -65,11 +99,23 @@ public class TimelineCommandHistory {
             return false;
         }
 
-        TimelineCommand command = redoStack.remove(redoStack.size() - 1);
+        TimelineCommand command = redoStack.removeLast();
         command.execute();
         undoStack.add(command);
         LOGGER.info("[Timeline] 重做命令: {}", command.getDescription());
+        
+        // 自动触发模型更新
+        notifyModelChanged("command_redone");
         return true;
+    }
+    
+    /**
+     * 通知模型已变更（如果设置了 model）
+     */
+    private void notifyModelChanged(String changeType) {
+        if (model != null) {
+            model.markDirty();
+        }
     }
 
     /**

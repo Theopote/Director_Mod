@@ -2,6 +2,7 @@ package com.chronoblocks.ui.container;
 
 import com.chronoblocks.core.container.Container;
 import com.chronoblocks.ui.theme.Icons;
+import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiMouseButton;
@@ -18,6 +19,7 @@ class ContainerTreeRenderer {
     private static final float ICONS_REGION_WIDTH = 40.0f;
     private static final float ICON_RIGHT_MARGIN = 8.0f; // 图标右侧边距，避免被裁剪
     private static final float TREE_NODE_INNER_SPACING = 2.0f; // 树节点内部间距（箭头和文本之间），更紧凑
+    private static final float COLOR_TAG_BAR_WIDTH = 6.0f; // 颜色标签条宽度（4-6px，推荐6px）
     private static final int LOCKED_COLOR = 0xFFC8B464;
     private static final int LOCKED_DISABLED_COLOR = 0xB4787878;
     private static final int VISIBLE_COLOR = 0xFFB4B4B4;
@@ -43,8 +45,18 @@ class ContainerTreeRenderer {
             ImGui.textDisabled("(暂无容器)");
             return;
         }
+
         for (Container container : roots) {
             renderContainerNode(container);
+        }
+    }
+
+    private void collectAllContainerIds(List<Container> containers, java.util.Set<java.util.UUID> ids) {
+        for (Container container : containers) {
+            ids.add(container.getId());
+            if (!container.getChildren().isEmpty()) {
+                collectAllContainerIds(container.getChildren(), ids);
+            }
         }
     }
 
@@ -65,19 +77,44 @@ class ContainerTreeRenderer {
             // 移除 SpanAvailWidth，让树节点只占据它需要的宽度，为图标留出空间
             flags &= ~ImGuiTreeNodeFlags.SpanAvailWidth;
 
-            // 使用稳定的 ID 与可读 Label 分离的模式
-            String label = container.getType().getIcon() + " " + container.getName();
+            // 获取容器标签颜色（从metadata或默认值）
+            Integer tagColor = (Integer) container.getMetadata("tagColor", null);
             
+            // 使用稳定的 ID 与可读 Label 分离的模式
+            String iconText = container.getType().getIcon();
+            String nameText = container.getName();
+            String label = iconText + " " + nameText;
+            
+            // 强制根据 state 控制展开/折叠（DefaultOpen 只影响首次出现，需 setNextItemOpen 每帧生效）
+            boolean shouldBeOpen = state.isNodeExpanded(container.getId());
+            ImGui.setNextItemOpen(shouldBeOpen, imgui.flag.ImGuiCond.Always);
+
             // 记录展开前的状态，用于检测状态变化
             boolean wasExpanded = state.isNodeExpanded(container.getId());
+            
+            // 使用树节点渲染（包含图标和文本的完整 label）
             boolean nodeOpen = ImGui.treeNodeEx(label, flags);
+            
+            // 在树节点渲染后，绘制颜色标签条（在容器名称左侧）
+            if (tagColor != null && ImGui.isItemVisible()) {
+                drawColorTagBar(tagColor);
+            }
             
             // 恢复树节点内部间距
             ImGui.popStyleVar();
 
             // 同步展开状态到 state（用户点击箭头或双击时）
             if (nodeOpen != wasExpanded) {
-                state.toggleNode(container.getId());
+                if (state.isExpandAll()) {
+                    java.util.Set<java.util.UUID> nodesToKeepExpanded = new java.util.HashSet<>();
+                    collectAllContainerIds(controller.getRootContainers(), nodesToKeepExpanded);
+                    if (!nodeOpen) {
+                        nodesToKeepExpanded.remove(container.getId());
+                    }
+                    state.disableExpandAllWithState(nodesToKeepExpanded);
+                } else {
+                    state.toggleNode(container.getId());
+                }
             }
 
             boolean isHovered = ImGui.isItemHovered();
@@ -135,6 +172,48 @@ class ContainerTreeRenderer {
         }
     }
 
+
+    /**
+     * 绘制颜色标签条（Color Tag Bar）
+     * 在容器行的最左侧绘制一条竖直的颜色条，贯穿整行
+     * 
+     * @param tagColor 标签颜色（ARGB格式）
+     */
+    private void drawColorTagBar(Integer tagColor) {
+        if (tagColor == null) {
+            return;
+        }
+        
+        // 获取当前项的位置（整行）
+        imgui.ImVec2 itemMin = ImGui.getItemRectMin();
+        imgui.ImVec2 itemMax = ImGui.getItemRectMax();
+        
+        // 获取窗口位置，颜色条应该从窗口左边缘开始
+        float windowPosX = ImGui.getWindowPosX();
+        float barX2 = windowPosX + COLOR_TAG_BAR_WIDTH;
+        float barY1 = itemMin.y;
+        float barY2 = itemMax.y;
+        
+        // 使用 DrawList 绘制颜色标签条
+        ImDrawList drawList = ImGui.getWindowDrawList();
+        
+        // 转换为 ImGui 的 ABGR 格式 (A << 24 | B << 16 | G << 8 | R)
+        // tagColor 是 ARGB 格式：(A << 24) | (R << 16) | (G << 8) | B
+        int r = (tagColor >> 16) & 0xFF;
+        int g = (tagColor >> 8) & 0xFF;
+        int b = tagColor & 0xFF;
+        int a = (tagColor >> 24) & 0xFF;
+        // 如果 alpha 为 0 或未设置，使用完全不透明（255）
+        if (a == 0) {
+            a = 255;
+        }
+        // ImGui 使用 ABGR 格式：A << 24 | B << 16 | G << 8 | R
+        int colorInt = (a << 24) | (b << 16) | (g << 8) | r;
+        
+        // 绘制填充的矩形颜色条（竖直，贯穿整行）
+        drawList.addRectFilled(windowPosX, barY1, barX2, barY2, colorInt);
+    }
+
     private int buildNodeFlags(Container container) {
         int flags = ImGuiTreeNodeFlags.SpanAvailWidth | ImGuiTreeNodeFlags.OpenOnArrow;
         if (!container.hasChildren()) {
@@ -154,38 +233,61 @@ class ContainerTreeRenderer {
         ImGui.pushID("Icons");
         boolean lockClicked = false;
         boolean visibilityClicked = false;
+        boolean lockHovered;
+        boolean visibilityHovered;
         try {
-            // 锁定/解锁
+            // 锁定/解锁图标 - 使用 InvisibleButton 精确命中区域
             String lockIcon = container.isLocked() ? Icons.LOCK : Icons.UNLOCK;
             int lockColor = container.isLocked() ? LOCKED_COLOR : LOCKED_DISABLED_COLOR;
 
-            ImGui.pushStyleColor(ImGuiCol.Text, lockColor);
-            if (ImGui.smallButton(lockIcon + "##lock")) {
+            float lockTextWidth = ImGui.calcTextSize(lockIcon).x;
+            float lockTextHeight = ImGui.getTextLineHeight();
+
+            float lockPosX = ImGui.getCursorScreenPosX();
+            float lockPosY = ImGui.getCursorScreenPosY();
+            if (ImGui.invisibleButton("lock_btn", lockTextWidth, lockTextHeight)) {
                 lockClicked = true;
             }
+            lockHovered = ImGui.isItemHovered();
+            // 将光标回到同一位置绘制文本
+            ImGui.setCursorScreenPos(lockPosX, lockPosY);
+            ImGui.pushStyleColor(ImGuiCol.Text, lockColor);
+            ImGui.text(lockIcon);
             ImGui.popStyleColor();
-
-            if (ImGui.isItemHovered()) {
+            if (lockHovered) {
                 ImGui.setTooltip(container.isLocked() ? "解锁容器" : "锁定容器");
             }
 
-            // 可见性（基于容器状态，控制 Minecraft 中方块的显示/隐藏）
+            // 可见性图标
             ImGui.sameLine();
             boolean isHidden = container.getState() == com.chronoblocks.core.container.ContainerState.HIDDEN;
             String visIcon = isHidden ? Icons.INVISIBLE : Icons.VISIBLE;
             int visColor = isHidden ? VISIBLE_DISABLED_COLOR : VISIBLE_COLOR;
 
-            ImGui.pushStyleColor(ImGuiCol.Text, visColor);
-            if (ImGui.smallButton(visIcon + "##vis")) {
+            float visTextWidth = ImGui.calcTextSize(visIcon).x;
+            float visTextHeight = ImGui.getTextLineHeight();
+
+            float visPosX = ImGui.getCursorScreenPosX();
+            float visPosY = ImGui.getCursorScreenPosY();
+            if (ImGui.invisibleButton("vis_btn", visTextWidth, visTextHeight)) {
                 visibilityClicked = true;
             }
+            visibilityHovered = ImGui.isItemHovered();
+            ImGui.setCursorScreenPos(visPosX, visPosY);
+            ImGui.pushStyleColor(ImGuiCol.Text, visColor);
+            ImGui.text(visIcon);
             ImGui.popStyleColor();
 
-            if (ImGui.isItemHovered()) {
+            if (visibilityHovered) {
                 ImGui.setTooltip(isHidden ? "显示容器（方块将在 Minecraft 中可见）" : "隐藏容器（方块将在 Minecraft 中不可见，看起来像被清除）");
             }
         } finally {
             ImGui.popID();
+        }
+
+        // 在外层用于抑制节点事件：任一图标 hovered 都算图标区域悬停
+        if (lockHovered || visibilityHovered) {
+            // 标记最近一个 item 为 hovered，保持与原有逻辑兼容
         }
 
         return new IconClickState(lockClicked, visibilityClicked);

@@ -435,8 +435,8 @@ public class UIConfigurationBuilder {
             case "TimelinePanel" -> TimelinePanel.class;
             // 添加新的模块化面板
             case "ToolPropertiesPanel" -> ToolPropertiesPanel.class;
-            case "SelectionRenderSettingsPanel" -> SelectionRenderSettingsPanel.class;
-            case "RenderSettingsPanel" -> SelectionRenderSettingsPanel.class; // 向后兼容
+            case "SelectionRenderSettingsPanel" -> RenderSettingsPanel.class; // 向后兼容旧名称
+            case "RenderSettingsPanel" -> RenderSettingsPanel.class;
             case "SelectionFilterPanel" -> SelectionFilterPanel.class;
             case "SelectionHistoryPanel" -> SelectionHistoryPanel.class;
             case "HelpPanel" -> HelpPanel.class;
@@ -451,7 +451,7 @@ public class UIConfigurationBuilder {
      */
     private void addDefaultPanels(List<IPanel> panels, IPanelFactory factory) {
         // 默认面板类型（按优先级排序）
-        List<Class<? extends IPanel>> defaultTypes = Arrays.asList(
+            List<Class<? extends IPanel>> defaultTypes = Arrays.asList(
             MenuBarPanel.class,
             ToolbarPanel.class,
             ContainerPanel.class,
@@ -459,7 +459,7 @@ public class UIConfigurationBuilder {
             TimelinePanel.class,
             // 添加新的模块化面板
             ToolPropertiesPanel.class,
-            SelectionRenderSettingsPanel.class,
+            RenderSettingsPanel.class,
             SelectionFilterPanel.class,
             SelectionHistoryPanel.class,
             HelpPanel.class

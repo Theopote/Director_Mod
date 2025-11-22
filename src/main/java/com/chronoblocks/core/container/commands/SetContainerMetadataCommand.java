@@ -28,7 +28,6 @@ public class SetContainerMetadataCommand implements ContainerCommand {
     public void execute() {
         Container container = manager.getContainer(containerId);
         if (container != null) {
-            oldValue = container.getMetadata(key, null);
             container.setMetadata(key, newValue);
         }
     }

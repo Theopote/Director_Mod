@@ -27,7 +27,6 @@ public class SetContainerPresetCommand implements ContainerCommand {
     public void execute() {
         Container container = manager.getContainer(containerId);
         if (container != null) {
-            oldPreset = container.getDefaultAnimationPreset().copy();
             container.setDefaultAnimationPreset(newPreset);
         }
     }

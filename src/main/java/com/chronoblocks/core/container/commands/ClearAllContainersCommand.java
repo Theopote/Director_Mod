@@ -44,9 +44,8 @@ public class ClearAllContainersCommand implements ContainerCommand {
         if (!manager.getAllContainers().isEmpty()) {
             manager.clear();
         }
-        for (Container root : rootSnapshot) {
-            restoreHierarchy(root);
-        }
+        // 批量恢复整棵层级，提高性能与一致性
+        manager.restoreHierarchyBulk(rootSnapshot);
         restoreSelection();
     }
 
@@ -73,12 +72,7 @@ public class ClearAllContainersCommand implements ContainerCommand {
         }
     }
 
-    private void restoreHierarchy(Container container) {
-        manager.addContainer(container);
-        for (Container child : container.getChildren()) {
-            restoreHierarchy(child);
-        }
-    }
+    // 层级恢复逻辑已下沉到 manager.restoreHierarchyBulk
 
     private void restoreSelection() {
         manager.clearSelection();

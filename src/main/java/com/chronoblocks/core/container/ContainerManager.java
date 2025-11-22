@@ -4,9 +4,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
 
 /**
  * 容器管理器（v4.5 一体化交互系统）
@@ -29,11 +30,15 @@ public class ContainerManager {
     private final Map<UUID, Container> containers = new LinkedHashMap<>();
     private final Map<String, Container> containersByName = new HashMap<>();
     private final List<Container> rootContainers = new ArrayList<>();
-    private final Object containerLock = new Object();
+    // 读写锁：读多写少，提升并发性能
+    private final ReadWriteLock lock = new ReentrantReadWriteLock();
+    private final java.util.concurrent.locks.Lock readLock = lock.readLock();
+    private final java.util.concurrent.locks.Lock writeLock = lock.writeLock();
     
     // ========== 选中状态 ==========
     private Container selectedContainer = null;
     private final Set<Container> selectedContainers = new LinkedHashSet<>();
+    private Container lastSelectedContainer = null;  // 用于 Shift 范围选择
     
     // ========== 激活容器（v5.0 - 用于实时接收模式） ==========
     private Container activeContainer = null;
@@ -73,14 +78,12 @@ public class ContainerManager {
         return GLOBAL.get();
     }
     
-    // ========== 容器创建 ==========
-    
-    public Container createContainer(String name) {
-        return createContainer(name, ContainerType.CUSTOM);
-    }
-    
     public Container createContainer(String name, ContainerType type) {
         Container container = new Container(name, type);
+        // 组默认隐藏，子容器跟随（由 Container.setState 级联处理）
+        if (type == ContainerType.GROUP) {
+            container.setState(com.chronoblocks.core.container.ContainerState.HIDDEN);
+        }
         addContainer(container);
         LOGGER.info("[ContainerManager] 创建容器: {} ({})", name, type);
         return container;
@@ -94,19 +97,23 @@ public class ContainerManager {
      */
     public String generateUniqueName(String baseName) {
         String prefix = (baseName == null || baseName.isBlank()) ? "Container" : baseName.trim();
-        synchronized (containerLock) {
+        readLock.lock();
+        try {
             String candidate = prefix;
             int index = 1;
             while (containersByName.containsKey(candidate)) {
                 candidate = prefix + "_" + index++;
             }
             return candidate;
+        } finally {
+            readLock.unlock();
         }
     }
     
     public void addContainer(Container container) {
         if (container == null) return;
-        synchronized (containerLock) {
+        writeLock.lock();
+        try {
             containers.put(container.getId(), container);
             Container previous = containersByName.put(container.getName(), container);
             if (previous != null && previous != container) {
@@ -115,6 +122,8 @@ public class ContainerManager {
             if (container.getParent() == null) {
                 rootContainers.add(container);
             }
+        } finally {
+            writeLock.unlock();
         }
         
         // v5.2: 不再使用HiddenBlockRegistry，可见性由ContainerVisibilityService管理
@@ -122,48 +131,182 @@ public class ContainerManager {
         
         fireContainerAdded(container);
     }
+
+    /**
+     * 批量添加容器（一次加锁）。对于无父级的容器会暂时追加到根列表。
+     */
+    public void addContainers(java.util.Collection<Container> list) {
+        if (list == null || list.isEmpty()) return;
+        writeLock.lock();
+        try {
+            for (Container container : list) {
+                if (container == null) continue;
+                containers.put(container.getId(), container);
+                Container previous = containersByName.put(container.getName(), container);
+                if (previous != null && previous != container) {
+                    LOGGER.warn("[ContainerManager] 覆盖重复名称容器: {}", container.getName());
+                }
+                if (container.getParent() == null) {
+                    rootContainers.add(container);
+                } else {
+                    // 已有父级的，默认挂到父级末尾
+                    container.getParent().addChildAt(container, container.getParent().getChildCount());
+                }
+            }
+        } finally {
+            writeLock.unlock();
+        }
+        for (Container c : list) {
+            if (c != null) {
+                fireContainerAdded(c);
+            }
+        }
+    }
+
+    /**
+     * 批量恢复整棵层级（一次加锁，不触发中间事件）。
+     * 适用于 ClearAll 撤销、从快照恢复等场景。
+     */
+    public void restoreHierarchyBulk(java.util.Collection<Container> roots) {
+        if (roots == null || roots.isEmpty()) return;
+        java.util.ArrayList<Container> restored = new java.util.ArrayList<>();
+        writeLock.lock();
+        try {
+            for (Container root : roots) {
+                if (root == null) continue;
+                attachHierarchyInternal(root, null, restored);
+            }
+        } finally {
+            writeLock.unlock();
+        }
+        // 锁外统一触发 Added 事件（子先父后影响较小，这里按 DFS 顺序触发）
+        for (Container c : restored) {
+            fireContainerAdded(c);
+        }
+    }
+
+    // 递归将容器树挂入当前管理器（假定已持有写锁），并收集用于事件触发
+    private void attachHierarchyInternal(Container node, Container parent, java.util.List<Container> restored) {
+        containers.put(node.getId(), node);
+        containersByName.put(node.getName(), node);
+        if (parent == null) {
+            rootContainers.add(node);
+        } else {
+            parent.addChildAt(node, parent.getChildCount());
+        }
+        restored.add(node);
+        for (Container child : node.getChildrenInternal()) {
+            attachHierarchyInternal(child, node, restored);
+        }
+    }
+
+    /**
+     * 批量把若干容器恢复到指定父与索引位置（一次加锁，不触发中间事件）。
+     * 适用于 Delete 批量撤销等。
+     */
+    public void restoreContainersAtPositions(java.util.List<Container> items,
+                                             java.util.List<Container> parents,
+                                             java.util.List<Integer> indices) {
+        if (items == null || items.isEmpty()) return;
+        if (parents == null || indices == null) return;
+        if (parents.size() != items.size() || indices.size() != items.size()) return;
+        writeLock.lock();
+        try {
+            for (int i = 0; i < items.size(); i++) {
+                Container c = items.get(i);
+                if (c == null) continue;
+                Container parent = parents.get(i);
+                int index = indices.get(i) != null ? indices.get(i) : -1;
+                containers.put(c.getId(), c);
+                containersByName.put(c.getName(), c);
+                if (parent != null) {
+                    int applied = index < 0 ? parent.getChildCount() : Math.min(index, parent.getChildCount());
+                    parent.addChildAt(c, applied);
+                } else {
+                    int applied = index < 0 ? rootContainers.size() : Math.min(index, rootContainers.size());
+                    rootContainers.add(applied, c);
+                }
+            }
+        } finally {
+            writeLock.unlock();
+        }
+        // 统一触发 Added/Moved 事件
+        for (int i = 0; i < items.size(); i++) {
+            Container c = items.get(i);
+            if (c == null) continue;
+            fireContainerAdded(c);
+            fireContainerMoved(c, parents.get(i));
+        }
+    }
     
     public void removeContainer(Container container) {
         if (container == null) return;
-        
-        // 递归删除所有子容器
-        List<Container> children = new ArrayList<>(container.getChildren());
-        for (Container child : children) {
-            removeContainer(child);
+        if (container.isLocked()) {
+            LOGGER.warn("[ContainerManager] 无法删除容器 {}：容器已锁定", container.getName());
+            return;
         }
-        
-        // v5.2: 如果容器是隐藏状态，先恢复方块再删除
-        if (container.isHidden()) {
-            try {
-                var visibilityService = com.chronoblocks.core.container.visibility.ContainerServices.visibility();
-                if (visibilityService != null) {
-                    visibilityService.showContainer(container);
-                }
-            } catch (Exception e) {
-                LOGGER.warn("[ContainerManager] 删除容器 {} 时恢复方块失败: {}", 
-                    container.getName(), e.getMessage());
-            }
-        }
-        
-        boolean selectionChanged;
-        synchronized (containerLock) {
-            // 从父容器中移除
-            container.removeFromParent();
-            
-            // 从根列表中移除
-            rootContainers.remove(container);
-            
-            // 从总容器列表中移除
-            containers.remove(container.getId());
-            containersByName.remove(container.getName());
-            
-            selectionChanged = deselectInternal(container);
-        }
-        fireContainerRemoved(container);
-        LOGGER.info("[ContainerManager] 删除容器: {}", container.getName());
 
+        // 1) 收集要删除的所有容器（子到父的后序顺序）
+        List<Container> toRemove = new ArrayList<>();
+        collectAllDescendants(container, toRemove);
+        toRemove.add(container);
+
+        // 2) 在锁外处理可见性恢复（避免长时间持有锁）
+        try {
+            var visibilityService = com.chronoblocks.core.container.visibility.ContainerServices.visibility();
+            if (visibilityService != null) {
+                for (Container c : toRemove) {
+                    if (c.isHidden()) {
+                        try {
+                            visibilityService.showContainer(c);
+                        } catch (Exception visEx) {
+                            LOGGER.warn("[ContainerManager] 删除容器 {} 时恢复方块失败: {}", c.getName(), visEx.getMessage());
+                        }
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+
+        // 3) 一次性进入锁内进行结构与选择状态更新
+        boolean selectionChanged = false;
+        writeLock.lock();
+        try {
+            for (Container c : toRemove) {
+                // 从父容器断开或根列表移除
+                Container parent = c.getParent();
+                if (parent != null) {
+                    parent.removeChild(c);
+                } else {
+                    rootContainers.remove(c);
+                }
+                // 从总表移除
+                containers.remove(c.getId());
+                containersByName.remove(c.getName());
+                // 更新选择状态
+                if (deselectInternal(c)) {
+                    selectionChanged = true;
+                }
+            }
+        } finally {
+            writeLock.unlock();
+        }
+
+        // 4) 在锁外批量触发事件（自底向上）
+        for (Container c : toRemove) {
+            fireContainerRemoved(c);
+            LOGGER.info("[ContainerManager] 删除容器: {}", c.getName());
+        }
         if (selectionChanged) {
             fireSelectionChanged();
+        }
+    }
+
+    // 后序遍历收集所有子孙
+    private void collectAllDescendants(Container container, List<Container> list) {
+        for (Container child : container.getChildren()) {
+            collectAllDescendants(child, list);
+            list.add(child);
         }
     }
     
@@ -171,54 +314,166 @@ public class ContainerManager {
     
     public Container getContainer(UUID id) {
         if (id == null) return null;
-        synchronized (containerLock) {
+        readLock.lock();
+        try {
             return containers.get(id);
+        } finally {
+            readLock.unlock();
         }
     }
     
     public Container getContainer(String name) {
         if (name == null) return null;
-        synchronized (containerLock) {
+        readLock.lock();
+        try {
             return containersByName.get(name);
+        } finally {
+            readLock.unlock();
         }
     }
     
     public List<Container> getAllContainers() {
-        synchronized (containerLock) {
+        readLock.lock();
+        try {
             return new ArrayList<>(containers.values());
-        }
-    }
-    
-    public List<Container> getRootContainers() {
-        synchronized (containerLock) {
-            return new ArrayList<>(rootContainers);
+        } finally {
+            readLock.unlock();
         }
     }
 
     public List<Container> getRootContainersView() {
-        synchronized (containerLock) {
+        readLock.lock();
+        try {
             return List.copyOf(rootContainers);
+        } finally {
+            readLock.unlock();
         }
     }
-    
-    public List<Container> getContainersByType(ContainerType type) {
-        synchronized (containerLock) {
-            return containers.values().stream()
-                .filter(c -> c.getType() == type)
-                .collect(Collectors.toList());
-        }
-    }
-    
+
     public int getContainerCount() {
-        synchronized (containerLock) {
+        readLock.lock();
+        try {
             return containers.size();
+        } finally {
+            readLock.unlock();
         }
     }
     
     // ========== 容器层级操作 ==========
+    /**
+     * 批量删除多个容器（一次加锁、一次事件批量触发）。会自动展开并去重子孙集合。
+     */
+    public void removeContainers(Collection<Container> containersToDelete) {
+        if (containersToDelete == null || containersToDelete.isEmpty()) return;
+        // 收集所有需要删除的容器（包含其子孙），按出现顺序去重
+        java.util.LinkedHashSet<Container> all = new java.util.LinkedHashSet<>();
+        for (Container c : containersToDelete) {
+            if (c == null) continue;
+            java.util.ArrayList<Container> tmp = new java.util.ArrayList<>();
+            collectAllDescendants(c, tmp);
+            all.addAll(tmp);
+            all.add(c);
+        }
+        // 先在锁外处理可见性恢复，避免隐藏残留
+        var visibilityService = com.chronoblocks.core.container.visibility.ContainerServices.visibility();
+        if (visibilityService != null) {
+            for (Container c : all) {
+                try {
+                    if (c.isHidden()) {
+                        visibilityService.showContainer(c);
+                    }
+                } catch (Exception ignored) {}
+            }
+        }
+        // 锁内批量移除
+        boolean selectionChanged = false;
+        writeLock.lock();
+        try {
+            for (Container c : all) {
+                Container parent = c.getParent();
+                if (parent != null) {
+                    parent.removeChild(c);
+                } else {
+                    rootContainers.remove(c);
+                }
+                containers.remove(c.getId());
+                containersByName.remove(c.getName());
+                if (deselectInternal(c)) {
+                    selectionChanged = true;
+                }
+            }
+        } finally {
+            writeLock.unlock();
+        }
+        // 锁外批量事件
+        for (Container c : all) {
+            fireContainerRemoved(c);
+        }
+        if (selectionChanged) {
+            fireSelectionChanged();
+        }
+    }
     
     public void moveContainerToParent(Container container, Container newParent) {
         moveContainerToParent(container, newParent, -1);
+    }
+
+    /**
+     * 批量移动多个容器到同一父级（一次加锁），按提供顺序插入。
+     * @param containersToMove 需要移动的容器（将自动过滤循环、去重自身父子）
+     * @param newParent 目标父级（null 表示根）
+     * @param startIndex 起始插入索引（<0 追加到末尾）
+     */
+    public void moveContainersToParent(java.util.List<Container> containersToMove, Container newParent, int startIndex) {
+        if (containersToMove == null || containersToMove.isEmpty()) return;
+        // 过滤非法与循环引用
+        java.util.ArrayList<Container> list = new java.util.ArrayList<>();
+        for (Container c : containersToMove) {
+            if (c == null) continue;
+            if (newParent != null && (newParent == c || newParent.isDescendantOf(c))) continue;
+            list.add(c);
+        }
+        if (list.isEmpty()) return;
+        writeLock.lock();
+        try {
+            int insertIndex = startIndex < 0
+                ? (newParent != null ? newParent.getChildCount() : rootContainers.size())
+                : startIndex;
+            for (Container c : list) {
+                Container oldParent = c.getParent();
+                if (oldParent != null) {
+                    oldParent.removeChild(c);
+                } else {
+                    rootContainers.remove(c);
+                }
+                if (newParent != null) {
+                    int applied = Math.min(insertIndex, newParent.getChildCount());
+                    newParent.addChildAt(c, applied);
+                } else {
+                    int applied = Math.min(insertIndex, rootContainers.size());
+                    rootContainers.add(applied, c);
+                }
+                insertIndex++;
+            }
+        } finally {
+            writeLock.unlock();
+        }
+        // 继承组状态（锁外应用可见性/锁定），并逐个触发 moved 事件
+        for (Container c : list) {
+            if (newParent != null && newParent.isGroup()) {
+                try {
+                    if (newParent.isLocked() != c.isLocked()) {
+                        c.setLocked(newParent.isLocked());
+                    }
+                    if (newParent.getState() != c.getState()) {
+                        c.setState(newParent.getState());
+                    }
+                } catch (Exception e) {
+                    LOGGER.warn("[ContainerManager] 批量移动时应用组状态出错: {}", e.getMessage());
+                }
+            }
+            fireContainerMoved(c, newParent);
+        }
     }
 
     public void moveContainerToParent(Container container, Container newParent, int index) {
@@ -229,7 +484,8 @@ public class ContainerManager {
         }
 
         Container oldParent;
-        synchronized (containerLock) {
+        writeLock.lock();
+        try {
             oldParent = container.getParent();
             if (oldParent != null) {
                 oldParent.removeChild(container);
@@ -244,6 +500,21 @@ public class ContainerManager {
                 int insertIndex = index < 0 ? rootContainers.size() : Math.min(index, rootContainers.size());
                 rootContainers.add(insertIndex, container);
             }
+        } finally {
+            writeLock.unlock();
+        }
+        // 继承组状态：如果新父级是组，则子容器跟随组的锁定与可见性
+        if (newParent != null && newParent.isGroup()) {
+            try {
+                if (newParent.isLocked() != container.isLocked()) {
+                    container.setLocked(newParent.isLocked());
+                }
+                if (newParent.getState() != container.getState()) {
+                    container.setState(newParent.getState());
+                }
+            } catch (Exception e) {
+                LOGGER.warn("[ContainerManager] 应用组状态到子容器时出错: {}", e.getMessage());
+            }
         }
         fireContainerMoved(container, newParent);
     }
@@ -257,7 +528,8 @@ public class ContainerManager {
         Container parentB;
         int indexA;
         int indexB;
-        synchronized (containerLock) {
+        writeLock.lock();
+        try {
             parentA = first.getParent();
             parentB = second.getParent();
             List<Container> listA = parentA != null ? parentA.getChildrenInternal() : rootContainers;
@@ -292,48 +564,12 @@ public class ContainerManager {
                     rootContainers.add(Math.min(indexA, rootContainers.size()), second);
                 }
             }
+        } finally {
+            writeLock.unlock();
         }
 
         fireContainerMoved(first, parentB);
         fireContainerMoved(second, parentA);
-    }
-    
-    public void moveContainerUp(Container container) {
-        if (container == null) return;
-        
-        Container parent = container.getParent();
-        boolean moved = false;
-        synchronized (containerLock) {
-            List<Container> siblings = parent != null ?
-                parent.getChildrenInternal() : rootContainers;
-            int index = siblings.indexOf(container);
-            if (index > 0) {
-                Collections.swap(siblings, index, index - 1);
-                moved = true;
-            }
-        }
-        if (moved) {
-            fireContainerMoved(container, parent);
-        }
-    }
-    
-    public void moveContainerDown(Container container) {
-        if (container == null) return;
-        
-        Container parent = container.getParent();
-        boolean moved = false;
-        synchronized (containerLock) {
-            List<Container> siblings = parent != null ?
-                parent.getChildrenInternal() : rootContainers;
-            int index = siblings.indexOf(container);
-            if (index < siblings.size() - 1 && index >= 0) {
-                Collections.swap(siblings, index, index + 1);
-                moved = true;
-            }
-        }
-        if (moved) {
-            fireContainerMoved(container, parent);
-        }
     }
     
     // ========== 选中管理 ==========
@@ -343,49 +579,119 @@ public class ContainerManager {
     }
     
     public void selectContainer(Container container, boolean multiSelect) {
+        selectContainer(container, multiSelect, false);
+    }
+    
+    /**
+     * 选择容器
+     * @param container 要选择的容器
+     * @param multiSelect 是否为多选模式（Ctrl）
+     * @param rangeSelect 是否为范围选择模式（Shift）
+     */
+    public void selectContainer(Container container, boolean multiSelect, boolean rangeSelect) {
         boolean changed = false;
-        synchronized (containerLock) {
-            if (!multiSelect) {
-                if (!selectedContainers.isEmpty() || selectedContainer != null) {
-                    selectedContainers.clear();
-                    selectedContainer = null;
+        writeLock.lock();
+        try {
+            if (rangeSelect && lastSelectedContainer != null && container != null) {
+                // Shift 范围选择：选择从 lastSelectedContainer 到 container 之间的所有容器
+                List<Container> allContainers = getAllContainersInOrder();
+                int lastIndex = allContainers.indexOf(lastSelectedContainer);
+                int currentIndex = allContainers.indexOf(container);
+                
+                if (lastIndex >= 0 && currentIndex >= 0) {
+                    int start = Math.min(lastIndex, currentIndex);
+                    int end = Math.max(lastIndex, currentIndex);
+                    
+                    // 先清除非多选时的选中状态
+                    if (!multiSelect) {
+                        selectedContainers.clear();
+                        selectedContainer = null;
+                        changed = true;
+                    }
+                    
+                    // 选择范围内的所有容器
+                    for (int i = start; i <= end; i++) {
+                        Container c = allContainers.get(i);
+                        if (selectedContainers.add(c)) {
+                            changed = true;
+                        }
+                    }
+                    
+                    selectedContainer = container;
                     changed = true;
-                }
-            }
-
-            if (container != null) {
-                if (selectedContainers.add(container)) {
-                    changed = true;
-                }
-                if (selectedContainer != container) {
+                } else {
+                    // 如果找不到索引，回退到普通选择
+                    if (!multiSelect) {
+                        if (!selectedContainers.isEmpty() || selectedContainer != null) {
+                            selectedContainers.clear();
+                            selectedContainer = null;
+                            changed = true;
+                        }
+                    }
+                    if (selectedContainers.add(container)) {
+                        changed = true;
+                    }
                     selectedContainer = container;
                     changed = true;
                 }
+            } else {
+                // 普通选择或多选
+                if (!multiSelect && !rangeSelect) {
+                    if (!selectedContainers.isEmpty() || selectedContainer != null) {
+                        selectedContainers.clear();
+                        selectedContainer = null;
+                        changed = true;
+                    }
+                }
+
+                if (container != null) {
+                    if (selectedContainers.add(container)) {
+                        changed = true;
+                    }
+                    if (selectedContainer != container) {
+                        selectedContainer = container;
+                        changed = true;
+                    }
+                }
             }
+            
+            // 更新最后选中的容器（用于 Shift 范围选择）
+            if (container != null) {
+                lastSelectedContainer = container;
+            }
+        } finally {
+            writeLock.unlock();
         }
         if (changed) {
             fireSelectionChanged();
         }
     }
     
-    public void deselectContainer(Container container) {
-        boolean changed;
-        synchronized (containerLock) {
-            changed = deselectInternal(container);
+    /**
+     * 获取所有容器按显示顺序排列的列表（用于范围选择）
+     */
+    private List<Container> getAllContainersInOrder() {
+        List<Container> result = new ArrayList<>();
+        for (Container root : rootContainers) {
+            collectContainersInOrder(root, result);
         }
-        if (changed) {
-            fireSelectionChanged();
-        }
+        return result;
     }
     
+    private void collectContainersInOrder(Container container, List<Container> result) {
+        result.add(container);
+        for (Container child : container.getChildren()) {
+            collectContainersInOrder(child, result);
+        }
+    }
+
     public void clearSelection() {
-        boolean changed = false;
-        synchronized (containerLock) {
-            if (!selectedContainers.isEmpty() || selectedContainer != null) {
-                selectedContainers.clear();
-                selectedContainer = null;
-                changed = true;
-            }
+        boolean changed;
+        writeLock.lock();
+        try {
+            changed = clearSelectionInternal();
+        } finally {
+            writeLock.unlock();
         }
         if (changed) {
             fireSelectionChanged();
@@ -393,14 +699,20 @@ public class ContainerManager {
     }
     
     public Container getSelectedContainer() {
-        synchronized (containerLock) {
+        readLock.lock();
+        try {
             return selectedContainer;
+        } finally {
+            readLock.unlock();
         }
     }
     
     public Set<Container> getSelectedContainers() {
-        synchronized (containerLock) {
+        readLock.lock();
+        try {
             return new LinkedHashSet<>(selectedContainers);
+        } finally {
+            readLock.unlock();
         }
     }
 
@@ -409,8 +721,11 @@ public class ContainerManager {
     }
     
     public boolean isSelected(Container container) {
-        synchronized (containerLock) {
+        readLock.lock();
+        try {
             return selectedContainers.contains(container);
+        } finally {
+            readLock.unlock();
         }
     }
     
@@ -420,8 +735,11 @@ public class ContainerManager {
      * 获取当前激活的容器（用于实时接收模式）
      */
     public Container getActive() {
-        synchronized (containerLock) {
+        readLock.lock();
+        try {
             return activeContainer;
+        } finally {
+            readLock.unlock();
         }
     }
     
@@ -441,9 +759,12 @@ public class ContainerManager {
         }
         
         Container oldActive;
-        synchronized (containerLock) {
+        writeLock.lock();
+        try {
             oldActive = activeContainer;
             activeContainer = newActive;
+        } finally {
+            writeLock.unlock();
         }
         
         if (oldActive != newActive) {
@@ -461,29 +782,16 @@ public class ContainerManager {
     public void setActive(Container container) {
         setActive(container != null ? container.getId() : null);
     }
-    
-    /**
-     * 切换容器的激活状态
-     * <p>如果容器当前是激活的，则取消激活；否则激活该容器
-     */
-    public void toggleActive(Container container) {
-        if (container == null) {
-            return;
-        }
-        
-        if (activeContainer == container) {
-            setActive((UUID)null);
-        } else {
-            setActive(container);
-        }
-    }
-    
+
     /**
      * 检查容器是否是激活的
      */
     public boolean isActive(Container container) {
-        synchronized (containerLock) {
+        readLock.lock();
+        try {
             return activeContainer == container;
+        } finally {
+            readLock.unlock();
         }
     }
 
@@ -498,7 +806,8 @@ public class ContainerManager {
 
         String oldName;
         String appliedName = trimmed;
-        synchronized (containerLock) {
+        writeLock.lock();
+        try {
             oldName = container.getName();
             if (trimmed.equals(oldName)) {
                 return;
@@ -512,19 +821,130 @@ public class ContainerManager {
             }
             container.setName(appliedName);
             containersByName.put(appliedName, container);
+        } finally {
+            writeLock.unlock();
         }
         fireContainerRenamed(container, oldName, appliedName);
     }
 
+	/**
+	 * 批量重命名容器（一次加锁）。为避免冲突，必要时自动追加唯一后缀。
+	 * 逐个触发 fireContainerRenamed。
+	 */
+	public void renameContainers(java.util.List<Container> items, java.util.List<String> newNames) {
+		if (items == null || newNames == null) return;
+		if (items.size() != newNames.size()) return;
+		java.util.ArrayList<Container> toFire = new java.util.ArrayList<>();
+		java.util.ArrayList<String> oldNames = new java.util.ArrayList<>();
+		java.util.ArrayList<String> appliedNames = new java.util.ArrayList<>();
+		writeLock.lock();
+		try {
+			for (int i = 0; i < items.size(); i++) {
+				Container c = items.get(i);
+				String desired = newNames.get(i);
+				if (c == null || desired == null) continue;
+				String trimmed = desired.trim();
+				if (trimmed.isEmpty()) continue;
+				String old = c.getName();
+				if (trimmed.equals(old)) continue;
+				String applied = trimmed;
+				Container conflict = containersByName.get(trimmed);
+				if (conflict != null && conflict != c) {
+					applied = generateUniqueName(trimmed);
+				}
+				if (old != null) {
+					containersByName.remove(old);
+				}
+				c.setName(applied);
+				containersByName.put(applied, c);
+				toFire.add(c);
+				oldNames.add(old);
+				appliedNames.add(applied);
+			}
+		} finally {
+			writeLock.unlock();
+		}
+		for (int i = 0; i < toFire.size(); i++) {
+			fireContainerRenamed(toFire.get(i), oldNames.get(i), appliedNames.get(i));
+		}
+	}
+
+	/**
+	 * 批量设置不透明度（一次加锁）。输入数组长度需与 items 一致。
+	 */
+	public void setOpacities(java.util.List<Container> items, java.util.List<Float> opacities) {
+		if (items == null || opacities == null) return;
+		if (items.size() != opacities.size()) return;
+		writeLock.lock();
+		try {
+			for (int i = 0; i < items.size(); i++) {
+				Container c = items.get(i);
+				if (c == null) continue;
+				float v = opacities.get(i) != null ? opacities.get(i) : c.getOpacity();
+				c.setOpacity(v);
+			}
+		} finally {
+			writeLock.unlock();
+		}
+	}
+
+	/**
+	 * 批量设置颜色（一次加锁）。输入数组长度需与 items 一致。
+	 */
+	public void setColors(java.util.List<Container> items, java.util.List<Integer> colors) {
+		if (items == null || colors == null) return;
+		if (items.size() != colors.size()) return;
+		writeLock.lock();
+		try {
+			for (int i = 0; i < items.size(); i++) {
+				Container c = items.get(i);
+				if (c == null) continue;
+				Integer col = colors.get(i);
+				if (col != null) {
+					c.setColor(col);
+				}
+			}
+		} finally {
+			writeLock.unlock();
+		}
+	}
+
+	/**
+	 * 批量设置锁定状态（一次加锁）。
+	 */
+	public void setLockedBulk(java.util.List<Container> items, boolean lockedFlag) {
+		if (items == null || items.isEmpty()) return;
+		writeLock.lock();
+		try {
+			for (Container c : items) {
+				if (c == null) continue;
+				c.setLocked(lockedFlag);
+			}
+		} finally {
+			writeLock.unlock();
+		}
+	}
+
+	/**
+	 * 批量设置可见性状态（一次加锁），自动触发可见性服务。
+	 */
+	public void setStatesBulk(java.util.List<Container> items, com.chronoblocks.core.container.ContainerState state) {
+		if (items == null || items.isEmpty() || state == null) return;
+		writeLock.lock();
+		try {
+			for (Container c : items) {
+				if (c == null) continue;
+				c.setState(state);
+			}
+		} finally {
+			writeLock.unlock();
+		}
+	}
+
     private boolean deselectInternal(Container container) {
         boolean changed = false;
         if (container == null) {
-            if (!selectedContainers.isEmpty() || selectedContainer != null) {
-                selectedContainers.clear();
-                selectedContainer = null;
-                changed = true;
-            }
-            return changed;
+            return false;
         }
 
         if (selectedContainers.remove(container)) {
@@ -535,6 +955,15 @@ public class ContainerManager {
             changed = true;
         }
         return changed;
+    }
+
+    private boolean clearSelectionInternal() {
+        if (!selectedContainers.isEmpty() || selectedContainer != null) {
+            selectedContainers.clear();
+            selectedContainer = null;
+            return true;
+        }
+        return false;
     }
     
     // ========== 容器与选区交互（v5.0） ==========
@@ -562,18 +991,22 @@ public class ContainerManager {
         if (world != null) {
             container.setLevelKey(world.getRegistryKey());
         }
-        
-        // 添加方块
+
+        // 先添加方块，再设置状态：确保可见性服务能够正确处理所有方块
         Set<net.minecraft.util.math.BlockPos> blocks = sel.getSelectedBlocks();
         container.addBlocks(blocks);
         
-        // 捕获方块快照
+        // 捕获方块快照（必须在添加方块后、设置状态前完成）
         if (world != null) {
             container.getBlockStore().addAllFromWorld(blocks, world);
         }
         
-        // 设置状态（v5.2：不再使用HiddenBlockRegistry，由ContainerVisibilityService处理）
-        container.setState(hiddenDefault ? ContainerState.HIDDEN : ContainerState.VISIBLE);
+        // 设置状态（若需要隐藏）：此时方块已添加，可见性服务能正确处理
+        if (hiddenDefault) {
+            container.setState(ContainerState.HIDDEN);
+        } else {
+            container.setState(ContainerState.VISIBLE);
+        }
         
         LOGGER.info("[ContainerManager] 从选区创建容器: {} ({} 个方块)", 
             name, blocks.size());
@@ -613,83 +1046,46 @@ public class ContainerManager {
             container.getBlockStore().addAllFromWorld(positions, world);
         }
         
-        // v5.2: 如果容器是隐藏状态，Container.addBlocks()会自动处理可见性
+        // 若容器当前为隐藏状态，立刻应用可见性到新加入的方块，避免需手动切换一次才生效
+        if (container.isHidden()) {
+            try {
+                var visibilityService = com.chronoblocks.core.container.visibility.ContainerServices.visibility();
+                if (visibilityService != null) {
+                    visibilityService.hideContainer(container);
+                }
+            } catch (Exception e) {
+                LOGGER.warn("[ContainerManager] 隐藏新加入方块失败 (容器 {}): {}", 
+                    container.getName(), e.getMessage());
+            }
+        }
+        
+        // 从选区中移除已收纳的方块（如果它们在选区中的话）
+        try {
+            var selectionManager = com.chronoblocks.core.selection.SelectionManager.get();
+            if (selectionManager != null) {
+                var selectionSet = selectionManager.getSelectionSet();
+                if (selectionSet != null && !selectionSet.isEmpty()) {
+                    int removedCount = 0;
+                    for (net.minecraft.util.math.BlockPos pos : positions) {
+                        if (selectionSet.contains(pos)) {
+                            selectionManager.removeFromSelection(pos);
+                            removedCount++;
+                        }
+                    }
+                    if (removedCount > 0) {
+                        LOGGER.debug("[ContainerManager] 从选区中移除了 {} 个已收纳的方块", removedCount);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.warn("[ContainerManager] 从选区移除已收纳方块失败 (容器 {}): {}", 
+                container.getName(), e.getMessage());
+        }
         
         LOGGER.debug("[ContainerManager] 容器 {} 添加 {} 个方块", 
             container.getName(), positions.size());
     }
-    
-    /**
-     * 从容器移除方块
-     * 
-     * @param id 容器ID
-     * @param positions 方块位置集合
-     */
-    public void removeBlocks(UUID id, Collection<net.minecraft.util.math.BlockPos> positions) {
-        Container container = getContainer(id);
-        if (container == null) {
-            LOGGER.warn("[ContainerManager] 无法移除方块：容器 {} 不存在", id);
-            return;
-        }
-        
-        if (positions == null || positions.isEmpty()) {
-            return;
-        }
-        
-        // 从容器移除方块
-        for (net.minecraft.util.math.BlockPos pos : positions) {
-            container.removeBlock(pos);
-        }
-        
-        // v5.2: 如果容器是隐藏状态，需要先恢复这些方块，然后重新隐藏容器
-        // 由于方块已经是AIR，移除方块时不需要特别处理
-        // 如果容器仍然是隐藏状态，Container.setState() 会处理可见性
-        
-        LOGGER.debug("[ContainerManager] 容器 {} 移除 {} 个方块", 
-            container.getName(), positions.size());
-    }
-    
-    /**
-     * 合并两个容器
-     * <p>将容器B的所有方块合并到容器A，然后删除容器B
-     * 
-     * @param idA 目标容器ID（保留）
-     * @param idB 源容器ID（删除）
-     */
-    public void merge(UUID idA, UUID idB) {
-        if (idA == null || idB == null || idA.equals(idB)) {
-            LOGGER.warn("[ContainerManager] 合并失败：无效的容器ID");
-            return;
-        }
-        
-        Container containerA = getContainer(idA);
-        Container containerB = getContainer(idB);
-        
-        if (containerA == null || containerB == null) {
-            LOGGER.warn("[ContainerManager] 合并失败：容器不存在");
-            return;
-        }
-        
-        // 合并方块
-        Set<net.minecraft.util.math.BlockPos> blocksB = containerB.getBlocks();
-        containerA.addBlocks(blocksB);
-        
-        // 合并方块快照（v5.3: 使用新的 Entry 格式）
-        for (net.minecraft.util.math.BlockPos pos : blocksB) {
-            BlockStore.Entry entry = containerB.getBlockStore().get(pos);
-            if (entry != null) {
-                containerA.getBlockStore().add(pos, entry);
-            }
-        }
-        
-        // v5.2: 如果容器A是隐藏状态，新添加的方块会自动被隐藏（因为容器状态是HIDDEN）
-        // 删除容器B时，removeContainer() 会自动处理可见性
-        removeContainer(containerB);
-        
-        LOGGER.info("[ContainerManager] 合并容器: {} → {} ({} 个方块)", 
-            containerB.getName(), containerA.getName(), blocksB.size());
-    }
-    
+
     /**
      * 释放容器
      * <p>删除容器，并恢复方块在世界中的显示
@@ -702,6 +1098,10 @@ public class ContainerManager {
             LOGGER.warn("[ContainerManager] 无法释放容器：容器 {} 不存在", id);
             return;
         }
+        if (container.isLocked()) {
+            LOGGER.warn("[ContainerManager] 无法释放容器 {}：容器已锁定", container.getName());
+            return;
+        }
         
         // v5.2: 如果容器是隐藏状态，先恢复方块再释放
         if (container.isHidden()) {
@@ -710,6 +1110,8 @@ public class ContainerManager {
                 if (visibilityService != null) {
                     visibilityService.showContainer(container);
                 }
+                // 将容器状态同步为可见，避免后续删除时再次触发隐藏逻辑导致方块被清除
+                container.setState(com.chronoblocks.core.container.ContainerState.VISIBLE);
             } catch (Exception e) {
                 LOGGER.warn("[ContainerManager] 释放容器 {} 时恢复方块失败: {}", 
                     container.getName(), e.getMessage());
@@ -722,132 +1124,12 @@ public class ContainerManager {
         LOGGER.info("[ContainerManager] 释放容器: {} ({} 个方块)", 
             container.getName(), container.getBlockCount());
     }
-    
-    // ========== 批量操作 ==========
-    
-    public void deleteSelectedContainers() {
-        List<Container> toDelete = new ArrayList<>(selectedContainers);
-        for (Container container : toDelete) {
-            removeContainer(container);
-        }
-    }
-    
-    public List<Container> duplicateSelectedContainers() {
-        List<Container> duplicates = new ArrayList<>();
-        for (Container container : selectedContainers) {
-            Container duplicate = container.clone();
-            duplicate.setName(generateUniqueName(duplicate.getName()));
-            addContainer(duplicate);
-            Container parent = container.getParent();
-            if (parent != null) {
-                int insertIndex = parent.indexOfChild(container) + 1;
-                moveContainerToParent(duplicate, parent, insertIndex);
-            }
-            duplicates.add(duplicate);
-        }
-        return duplicates;
-    }
 
     /**
      * 当前选中容器数量是否满足合并条件
      */
     public boolean canMergeSelection() {
         return selectedContainers.size() >= 2;
-    }
-
-    /**
-     * 合并选中的容器，生成新的组合容器。
-     *
-     * @param preferredName 合并后的候选名称，允许为空
-     * @return 新建的容器，若合并失败则返回 null
-     */
-    public Container mergeSelectedContainers(String preferredName) {
-        if (!canMergeSelection()) {
-            LOGGER.warn("[ContainerManager] 合并失败：需要至少选择两个容器");
-            return null;
-        }
-
-        List<Container> toMerge = getTopLevelSelection(selectedContainers);
-        if (toMerge.isEmpty()) {
-            LOGGER.warn("[ContainerManager] 合并失败：无有效容器");
-            return null;
-        }
-        Container first = toMerge.get(0);
-        Container commonParent = first.getParent();
-        boolean sameParent = toMerge.stream().allMatch(c -> c.getParent() == commonParent);
-
-        String baseName = (preferredName == null || preferredName.isBlank())
-            ? first.getName() + "_合并"
-            : preferredName.trim();
-        String uniqueName = generateUniqueName(baseName);
-
-        Container merged = createContainer(uniqueName, ContainerType.GROUP);
-        moveContainerToParent(merged, sameParent ? commonParent : null);
-
-        for (Container container : toMerge) {
-            // 跳过刚创建的容器（防御性）
-            if (container == merged) {
-                continue;
-            }
-
-            merged.addBlocks(container.getBlocks());
-
-            for (Container child : container.getChildren()) {
-                moveContainerToParent(child, merged);
-            }
-        }
-
-        // 合并后移除原始容器
-        for (Container container : toMerge) {
-            if (container != merged) {
-                removeContainer(container);
-            }
-        }
-
-        selectContainer(merged);
-        LOGGER.info("[ContainerManager] 合并 {} 个容器为 {}", toMerge.size(), uniqueName);
-        return merged;
-    }
-
-    /**
-     * 将选中的容器放入一个新的组容器中。
-     *
-     * @param preferredName 新组名称候选，允许为空
-     * @return 新建的组容器，若没有选中容器则返回 null
-     */
-    public Container groupSelectedContainers(String preferredName) {
-        if (selectedContainers.isEmpty()) {
-            LOGGER.warn("[ContainerManager] 分组失败：没有选中的容器");
-            return null;
-        }
-
-        List<Container> selection = getTopLevelSelection(selectedContainers);
-        if (selection.isEmpty()) {
-            LOGGER.warn("[ContainerManager] 分组失败：无有效容器");
-            return null;
-        }
-        Container first = selection.get(0);
-        Container commonParent = first.getParent();
-        boolean sameParent = selection.stream().allMatch(c -> c.getParent() == commonParent);
-
-        String baseName = (preferredName == null || preferredName.isBlank())
-            ? "组"
-            : preferredName.trim();
-        String uniqueName = generateUniqueName(baseName);
-
-        Container group = createContainer(uniqueName, ContainerType.GROUP);
-        moveContainerToParent(group, sameParent ? commonParent : null);
-
-        for (Container container : selection) {
-            if (container == group) {
-                continue;
-            }
-            moveContainerToParent(container, group);
-        }
-
-        selectContainer(group);
-        LOGGER.info("[ContainerManager] 将 {} 个容器分组到 {}", selection.size(), uniqueName);
-        return group;
     }
 
     /**
@@ -895,7 +1177,8 @@ public class ContainerManager {
     public void clear() {
         List<Container> removedContainers;
         boolean selectionChanged;
-        synchronized (containerLock) {
+        writeLock.lock();
+        try {
             removedContainers = new ArrayList<>(containers.values());
             containers.clear();
             containersByName.clear();
@@ -903,6 +1186,8 @@ public class ContainerManager {
             selectionChanged = !selectedContainers.isEmpty() || selectedContainer != null;
             selectedContainers.clear();
             selectedContainer = null;
+        } finally {
+            writeLock.unlock();
         }
         LOGGER.info("[ContainerManager] 清空所有容器: {}", removedContainers.size());
         for (int i = removedContainers.size() - 1; i >= 0; i--) {
@@ -929,11 +1214,8 @@ public class ContainerManager {
             listeners.add(listener);
         }
     }
-    
-    public void removeListener(ContainerListener listener) {
-        listeners.remove(listener);
-    }
-    
+
+
     private void fireContainerAdded(Container container) {
         for (ContainerListener listener : listeners) {
             listener.onContainerAdded(container);

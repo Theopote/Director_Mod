@@ -8,9 +8,10 @@ import com.chronoblocks.core.selection.tools.*;
 import com.chronoblocks.core.selection.tools.boxselecttool.BoxSelectTool;
 import com.chronoblocks.core.selection.tools.brushselecttool.BrushSelectTool;
 import com.chronoblocks.core.selection.tools.faceselecttool.FaceSelectTool;
-import com.chronoblocks.core.selection.tools.geometryselecttool.GeometrySelectTool;
-import com.chronoblocks.core.selection.tools.geometryselecttool.GeometryConfig;
-import com.chronoblocks.core.selection.tools.geometryselecttool.GeometryShape;
+// 几何选择工具已合并到刷选工具中，不再需要导入
+// import com.chronoblocks.core.selection.tools.geometry.GeometrySelectTool;
+// import com.chronoblocks.core.selection.tools.geometry.GeometryConfig;
+import com.chronoblocks.core.selection.tools.geometry.GeometryShape;
 import com.chronoblocks.core.selection.tools.magicwandtool.MagicWandConfig;
 import com.chronoblocks.core.selection.tools.magicwandtool.MagicWandTask;
 import com.chronoblocks.core.selection.tools.magicwandtool.MagicWandTool;
@@ -67,7 +68,8 @@ public class ToolPropertiesPanel extends AbstractPanel {
     /** 静态初始化：注册所有渲染器 */
     static {
         registerRenderer(new BrushToolRenderer());
-        registerRenderer(new GeometryToolRenderer());
+        // 几何选择工具已合并到刷选工具中，移除独立渲染器
+        // registerRenderer(new GeometryToolRenderer());
         registerRenderer(new BoxV3ToolRenderer());
         registerRenderer(new FloodFillToolRenderer());
         registerRenderer(new FaceSelectToolRenderer());
@@ -394,15 +396,59 @@ public class ToolPropertiesPanel extends AbstractPanel {
             ImGui.separator();
             ImGui.text("🖌️ 刷选工具属性");
 
-            panel.floatBuffer[0] = (float) tool.getRadius();
-            if (ImGui.sliderFloat("笔刷半径##brushRadius", panel.floatBuffer, 0.5f, 20.0f, "%.1f")) {
-                tool.setRadius(panel.floatBuffer[0]);
+            // 形状选择
+            if (ImGui.collapsingHeader("几何形状", ImGuiTreeNodeFlags.DefaultOpen)) {
+                GeometryShape currentShape = tool.getShape();
+                String currentLabel = currentShape.getDisplayName();
+                
+                if (ImGui.beginCombo("形状##brushShape", currentLabel)) {
+                    for (GeometryShape shape : GeometryShape.values()) {
+                        boolean selected = shape == currentShape;
+                        if (ImGui.selectable(shape.getDisplayName(), selected)) {
+                            tool.setShape(shape);
+                        }
+                        if (selected) {
+                            ImGui.setItemDefaultFocus();
+                        }
+                    }
+                    ImGui.endCombo();
+                }
+
+                ImGui.spacing();
+                
+                // 半径参数
+                panel.floatBuffer[0] = (float) tool.getRadius();
+                if (ImGui.sliderFloat("半径 (方块)##brushRadius", panel.floatBuffer, 0.5f, 64.0f, "%.1f")) {
+                    tool.setRadius(panel.floatBuffer[0]);
+                }
+
+                // 高度参数（非球体形状）
+                if (currentShape != GeometryShape.SPHERE) {
+                    panel.floatBuffer[0] = (float) tool.getHeight();
+                    if (ImGui.sliderFloat("高度 (方块)##brushHeight", panel.floatBuffer, 1.0f, 128.0f, "%.1f")) {
+                        tool.setHeight(panel.floatBuffer[0]);
+                    }
+                }
+
+                // 空心选项
+                boolean hollow = tool.isHollow();
+                if (ImGui.checkbox("空心结构##brushHollow", hollow)) {
+                    tool.setHollow(!hollow);
+                }
+
+                ImGui.spacing();
+                UITheme.label("提示: 生成后可通过操作模式执行叠加/相减/交集等操作。", UITheme.DarkTheme.TEXT_DISABLED);
             }
 
             ImGui.spacing();
-            ImGui.text(String.format("过滤管线: %d 个过滤器", tool.getPipeline().size()));
-            if (ImGui.button("编辑过滤器##brushFilters")) {
-                LOGGER.info("[ToolPropertiesPanel] TODO: 打开刷选过滤器编辑器");
+            ImGui.separator();
+            
+            // 过滤器设置
+            if (ImGui.collapsingHeader("过滤器设置")) {
+                ImGui.text(String.format("过滤管线: %d 个过滤器", tool.getPipeline().size()));
+                if (ImGui.button("编辑过滤器##brushFilters")) {
+                    LOGGER.info("[ToolPropertiesPanel] TODO: 打开刷选过滤器编辑器");
+                }
             }
         }
         
@@ -626,66 +672,8 @@ public class ToolPropertiesPanel extends AbstractPanel {
     
     /**
      * 几何选择工具属性渲染器
+     * 已废弃并删除：几何选择工具已合并到刷选工具中，功能已整合到 BrushToolRenderer
      */
-    private static class GeometryToolRenderer implements ToolPropertyRenderer<GeometrySelectTool> {
-        @Override
-        public void render(GeometrySelectTool tool, ToolPropertiesPanel panel) {
-            GeometryShape currentShape = tool.getShape();
-            GeometryConfig cfg = tool.getConfig();
-
-            if (ImGui.collapsingHeader("几何形状")) {
-                String currentLabel = currentShape.getDisplayName();
-                if (ImGui.beginCombo("形状##geometryShape", currentLabel)) {
-                    for (GeometryShape shape : GeometryShape.values()) {
-                        boolean selected = shape == currentShape;
-                        if (ImGui.selectable(shape.getDisplayName(), selected)) {
-                            tool.setShape(shape);
-                            tool.refreshPreview();
-                            currentShape = shape;
-                        }
-                        if (selected) {
-                            ImGui.setItemDefaultFocus();
-                        }
-                    }
-                    ImGui.endCombo();
-                }
-
-                ImGui.spacing();
-                panel.floatBuffer[0] = (float) cfg.getRadius();
-                if (ImGui.sliderFloat("半径 (方块)##geometryRadius", panel.floatBuffer, 0.5f, 64.0f, "%.1f")) {
-                    cfg.setRadius(panel.floatBuffer[0]);
-                    tool.refreshPreview();
-                }
-
-                if (currentShape != GeometryShape.SPHERE) {
-                    panel.floatBuffer[0] = (float) cfg.getHeight();
-                    if (ImGui.sliderFloat("高度 (方块)##geometryHeight", panel.floatBuffer, 1.0f, 128.0f, "%.1f")) {
-                        cfg.setHeight(panel.floatBuffer[0]);
-                        tool.refreshPreview();
-                    }
-                }
-
-                boolean hollow = cfg.isHollow();
-                if (ImGui.checkbox("空心结构##geometryHollow", hollow)) {
-                    cfg.setHollow(!hollow);
-                    tool.refreshPreview();
-                }
-
-                boolean includeNonSolid = tool.isIncludeNonSolid();
-                if (ImGui.checkbox("包含非实体方块##geometryIncludeNonSolid", includeNonSolid)) {
-                    tool.setIncludeNonSolid(!includeNonSolid);
-                }
-
-                ImGui.spacing();
-                UITheme.label("提示: 生成后可通过操作模式执行叠加/相减/交集等操作。", UITheme.DarkTheme.TEXT_DISABLED);
-            }
-        }
-
-        @Override
-        public Class<GeometrySelectTool> getToolClass() {
-            return GeometrySelectTool.class;
-        }
-    }
     
     /**
      * 框选工具 v3 属性渲染器

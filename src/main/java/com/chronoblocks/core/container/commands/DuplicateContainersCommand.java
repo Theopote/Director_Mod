@@ -28,6 +28,7 @@ public class DuplicateContainersCommand implements ContainerCommand {
         }
         duplicates.clear();
 
+        java.util.List<Container> rootView = manager.getRootContainersView();
         for (Container source : sources) {
             Container clone = source.clone();
             clone.setName(manager.generateUniqueName(clone.getName()));
@@ -35,7 +36,7 @@ public class DuplicateContainersCommand implements ContainerCommand {
             Container parent = source.getParent();
             int insertIndex = parent != null
                 ? parent.indexOfChild(source) + 1
-                : manager.getRootContainersView().indexOf(source) + 1;
+                : rootView.indexOf(source) + 1;
             manager.moveContainerToParent(clone, parent, insertIndex);
             duplicates.add(clone);
         }
@@ -47,9 +48,8 @@ public class DuplicateContainersCommand implements ContainerCommand {
 
     @Override
     public void undo() {
-        for (Container duplicate : duplicates) {
-            manager.removeContainer(duplicate);
-        }
+        manager.removeContainers(duplicates);
+        duplicates.clear();
     }
 
     @Override

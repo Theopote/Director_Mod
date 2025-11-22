@@ -63,6 +63,7 @@ public class ContainerVisibilityService {
     
     /**
      * 隐藏容器：保存方块快照，然后将世界中的方块设置为AIR
+     * 如果容器已经有快照（已隐藏），则只处理新增的方块
      */
     public void hideContainer(Container container) {
         ServerWorld world = resolveWorld(container);
@@ -71,41 +72,78 @@ public class ContainerVisibilityService {
             return;
         }
         
-        if (snapshots.containsKey(container.getId())) {
-            LOGGER.debug("[Visibility] 容器 {} 已经隐藏，跳过", container.getName());
-            return;
-        }
+        BlockStore existingStore = snapshots.get(container.getId());
+        BlockStore store;
         
-        LOGGER.debug("[Visibility] 隐藏容器 {} (方块数 {})", container.getName(), container.getBlockCount());
-        
-        // 保存当前世界中的真实方块快照
-        BlockStore store = new BlockStore();
-        
-        for (BlockPos pos : container.getBlocks()) {
-            // 检查区块是否已加载（使用新方法避免弃用警告）
-            int chunkX = pos.getX() >> 4;
-            int chunkZ = pos.getZ() >> 4;
-            if (!world.getChunkManager().isChunkLoaded(chunkX, chunkZ)) {
-                continue;
+        if (existingStore != null) {
+            // 容器已经隐藏，只处理新增的方块
+            LOGGER.debug("[Visibility] 容器 {} 已隐藏，处理新增方块 (总方块数: {})", 
+                container.getName(), container.getBlockCount());
+            store = existingStore;
+            
+            // 找出新增的方块（在容器中但不在快照中）
+            java.util.Set<BlockPos> existingBlocks = new java.util.HashSet<>(existingStore.positions());
+            for (BlockPos pos : container.getBlocks()) {
+                if (existingBlocks.contains(pos)) {
+                    continue; // 已经在快照中，跳过
+                }
+                
+                // 检查区块是否已加载
+                int chunkX = pos.getX() >> 4;
+                int chunkZ = pos.getZ() >> 4;
+                if (!world.getChunkManager().isChunkLoaded(chunkX, chunkZ)) {
+                    continue;
+                }
+                
+                // 捕获方块状态和方块实体
+                store.capture(world, pos);
+                
+                // 移除方块实体（如果存在）
+                var blockEntity = world.getBlockEntity(pos);
+                if (blockEntity != null) {
+                    world.removeBlockEntity(pos);
+                }
+                
+                // 将方块设置为AIR
+                world.setBlockState(pos, Blocks.AIR.getDefaultState(), 
+                    net.minecraft.block.Block.NOTIFY_ALL | net.minecraft.block.Block.FORCE_STATE);
             }
             
-            // 捕获方块状态和方块实体
-            store.capture(world, pos);
+            LOGGER.debug("[Visibility] 容器 {} 新增方块已隐藏，快照总数: {}", 
+                container.getName(), store.size());
+        } else {
+            // 容器未隐藏，完整隐藏流程
+            LOGGER.debug("[Visibility] 隐藏容器 {} (方块数 {})", container.getName(), container.getBlockCount());
             
-            // 移除方块实体（如果存在）
-            var blockEntity = world.getBlockEntity(pos);
-            if (blockEntity != null) {
-                world.removeBlockEntity(pos);
+            // 保存当前世界中的真实方块快照
+            store = new BlockStore();
+            
+            for (BlockPos pos : container.getBlocks()) {
+                // 检查区块是否已加载（使用新方法避免弃用警告）
+                int chunkX = pos.getX() >> 4;
+                int chunkZ = pos.getZ() >> 4;
+                if (!world.getChunkManager().isChunkLoaded(chunkX, chunkZ)) {
+                    continue;
+                }
+                
+                // 捕获方块状态和方块实体
+                store.capture(world, pos);
+                
+                // 移除方块实体（如果存在）
+                var blockEntity = world.getBlockEntity(pos);
+                if (blockEntity != null) {
+                    world.removeBlockEntity(pos);
+                }
+                
+                // 将方块设置为AIR
+                world.setBlockState(pos, Blocks.AIR.getDefaultState(), 
+                    net.minecraft.block.Block.NOTIFY_ALL | net.minecraft.block.Block.FORCE_STATE);
             }
             
-            // 将方块设置为AIR
-            world.setBlockState(pos, Blocks.AIR.getDefaultState(), 
-                net.minecraft.block.Block.NOTIFY_ALL | net.minecraft.block.Block.FORCE_STATE);
+            snapshots.put(container.getId(), store);
+            LOGGER.debug("[Visibility] 容器 {} 隐藏完成，保存了 {} 个方块快照", 
+                container.getName(), store.size());
         }
-        
-        snapshots.put(container.getId(), store);
-        LOGGER.debug("[Visibility] 容器 {} 隐藏完成，保存了 {} 个方块快照", 
-            container.getName(), store.size());
     }
     
     /**

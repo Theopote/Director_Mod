@@ -12,6 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
+import java.util.function.Consumer;
 
 /**
  * 封装所有与容器编辑相关的业务操作，供 UI 控制层调用。
@@ -121,6 +122,13 @@ public class ContainerCommandService {
         if (selection.isEmpty()) {
             return null;
         }
+        // 锁定保护：任一容器被锁定则拒绝分组
+        for (Container c : selection) {
+            if (c != null && c.isLocked()) {
+                LOGGER.warn("[ContainerCommandService] 分组失败：存在被锁定的容器 {}", c.getName());
+                return null;
+            }
+        }
         GroupContainersCommand command = new GroupContainersCommand(containerManager, selection, null);
         execute(command);
         return command.getGroupContainer();
@@ -130,6 +138,13 @@ public class ContainerCommandService {
         Collection<Container> selection = containerManager.getSelectedContainersView();
         if (selection.isEmpty()) {
             return null;
+        }
+        // 锁定保护：任一容器被锁定则拒绝合并
+        for (Container c : selection) {
+            if (c != null && c.isLocked()) {
+                LOGGER.warn("[ContainerCommandService] 合并失败：存在被锁定的容器 {}", c.getName());
+                return null;
+            }
         }
         MergeContainersCommand command = new MergeContainersCommand(containerManager, selection, mergeName);
         execute(command);
@@ -284,6 +299,19 @@ public class ContainerCommandService {
         execute(new SetContainerOpacityCommand(containerManager, container, opacity));
     }
 
+    public void setContainerType(UUID containerId, ContainerType newType) {
+        Container container = containerManager.getContainer(containerId);
+        if (container == null || newType == null) {
+            return;
+        }
+        // 不允许将类型改为 GROUP
+        if (newType == ContainerType.GROUP) {
+            LOGGER.warn("[ContainerCommandService] 不允许将容器类型改为 GROUP: {}", container.getName());
+            return;
+        }
+        execute(new SetContainerTypeCommand(containerManager, container, newType));
+    }
+
     public void setContainerPreset(UUID containerId, ContainerAnimationPreset preset) {
         Container container = containerManager.getContainer(containerId);
         if (container == null) {
@@ -293,54 +321,40 @@ public class ContainerCommandService {
     }
 
     public void setPresetMode(UUID containerId, AnimationMode mode) {
-        Container container = containerManager.getContainer(containerId);
-        if (container == null) {
-            return;
-        }
-        ContainerAnimationPreset preset = container.getDefaultAnimationPreset().copy();
-        preset.setMode(mode);
-        execute(new SetContainerPresetCommand(containerManager, container, preset));
+		updatePreset(containerId, preset -> preset.setMode(mode));
     }
 
     public void setPresetDuration(UUID containerId, float duration) {
-        Container container = containerManager.getContainer(containerId);
-        if (container == null) {
-            return;
-        }
-        ContainerAnimationPreset preset = container.getDefaultAnimationPreset().copy();
-        preset.setSuggestedDuration(duration);
-        execute(new SetContainerPresetCommand(containerManager, container, preset));
+		updatePreset(containerId, preset -> preset.setSuggestedDuration(duration));
     }
 
     public void setPresetDelay(UUID containerId, float delay) {
-        Container container = containerManager.getContainer(containerId);
-        if (container == null) {
-            return;
-        }
-        ContainerAnimationPreset preset = container.getDefaultAnimationPreset().copy();
-        preset.setDelay(delay);
-        execute(new SetContainerPresetCommand(containerManager, container, preset));
+		updatePreset(containerId, preset -> preset.setDelay(delay));
     }
 
     public void setPresetEasing(UUID containerId, String easing) {
-        Container container = containerManager.getContainer(containerId);
-        if (container == null) {
-            return;
-        }
-        ContainerAnimationPreset preset = container.getDefaultAnimationPreset().copy();
-        preset.setEasing(easing);
-        execute(new SetContainerPresetCommand(containerManager, container, preset));
+		updatePreset(containerId, preset -> preset.setEasing(easing));
     }
 
     public void setPresetOrdering(UUID containerId, String ordering) {
-        Container container = containerManager.getContainer(containerId);
-        if (container == null) {
-            return;
-        }
-        ContainerAnimationPreset preset = container.getDefaultAnimationPreset().copy();
-        preset.setOrdering(ordering);
-        execute(new SetContainerPresetCommand(containerManager, container, preset));
+		updatePreset(containerId, preset -> preset.setOrdering(ordering));
     }
+
+	/**
+	 * 统一的预设更新入口：基于当前默认预设复制一份，应用修改函数后下发命令。
+	 */
+	public void updatePreset(UUID containerId, Consumer<ContainerAnimationPreset> operation) {
+		if (operation == null) {
+			return;
+		}
+		Container container = containerManager.getContainer(containerId);
+		if (container == null) {
+			return;
+		}
+		ContainerAnimationPreset preset = container.getDefaultAnimationPreset().copy();
+		operation.accept(preset);
+		execute(new SetContainerPresetCommand(containerManager, container, preset));
+	}
 
     public void setMetadata(UUID containerId, String key, Object value) {
         Container container = containerManager.getContainer(containerId);
@@ -348,6 +362,22 @@ public class ContainerCommandService {
             return;
         }
         execute(new SetContainerMetadataCommand(containerManager, container, key, value));
+    }
+    
+    /**
+     * 批量设置容器颜色（标题颜色和/或图标颜色）
+     * @param containers 要设置的容器集合
+     * @param titleColor 标题颜色（ARGB），null 表示不设置
+     * @param iconColor 图标颜色（ARGB），null 表示不设置
+     */
+    public void batchSetContainerColors(Collection<Container> containers, Integer titleColor, Integer iconColor) {
+        if (containers == null || containers.isEmpty()) {
+            return;
+        }
+        if (titleColor == null && iconColor == null) {
+            return;
+        }
+        execute(new BatchSetContainerColorsCommand(containerManager, containers, titleColor, iconColor));
     }
 
     public void setActiveContainer(UUID containerId) {

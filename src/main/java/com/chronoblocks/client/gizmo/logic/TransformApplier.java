@@ -32,6 +32,14 @@ public class TransformApplier {
     
     private final SelectionManager selectionManager;
     
+    // 拖拽过程中累积的小数部分，避免每帧舍入导致 0 位移
+    private double moveCarryX = 0.0;
+    private double moveCarryY = 0.0;
+    private double moveCarryZ = 0.0;
+    private double resizeCarryX = 0.0;
+    private double resizeCarryY = 0.0;
+    private double resizeCarryZ = 0.0;
+    
     // 动画管理器（未来扩展）
     // private final AnimationManager animationManager;
     
@@ -55,21 +63,26 @@ public class TransformApplier {
         }
         
         // 将 delta 转换为整数 BlockPos 增量
-        BlockPos offset = new BlockPos(
-            (int) Math.round(delta.x),
-            (int) Math.round(delta.y),
-            (int) Math.round(delta.z)
-        );
+        moveCarryX += delta.x;
+        moveCarryY += delta.y;
+        moveCarryZ += delta.z;
         
-        if (offset.getX() == 0 && offset.getY() == 0 && offset.getZ() == 0) {
-            LOGGER.debug("[TransformApplier] 偏移为零，跳过平移");
-            return; // 无变化
+        int stepX = extractStep(moveCarryX);
+        int stepY = extractStep(moveCarryY);
+        int stepZ = extractStep(moveCarryZ);
+        
+        if (stepX == 0 && stepY == 0 && stepZ == 0) {
+            LOGGER.debug("[TransformApplier] 偏移不足 1 方块，累积中...");
+            return;
         }
         
-        LOGGER.debug("[TransformApplier] 平移选区 Δ=({}, {}, {})", offset.getX(), offset.getY(), offset.getZ());
+        moveCarryX -= stepX;
+        moveCarryY -= stepY;
+        moveCarryZ -= stepZ;
         
-        // 使用 SelectionManager 的统一方法
-        selectionManager.offsetSelection(offset);
+        LOGGER.debug("[TransformApplier] 平移选区 Δ=({}, {}, {})", stepX, stepY, stepZ);
+        
+        selectionManager.offsetSelection(new BlockPos(stepX, stepY, stepZ));
         
         LOGGER.info("[TransformApplier] 选区已平移：{} 个方块", selectionManager.getSelectionSet().size());
     }
@@ -90,16 +103,30 @@ public class TransformApplier {
             return;
         }
         
-        int deltaInt = (int) Math.round(delta);
+        switch (axis) {
+            case X -> resizeCarryX += delta;
+            case Y -> resizeCarryY += delta;
+            case Z -> resizeCarryZ += delta;
+        }
+        
+        int deltaInt = switch (axis) {
+            case X -> extractStep(resizeCarryX);
+            case Y -> extractStep(resizeCarryY);
+            case Z -> extractStep(resizeCarryZ);
+        };
         
         if (deltaInt == 0) {
-            LOGGER.debug("[TransformApplier] 增量为零，跳过调整");
+            LOGGER.debug("[TransformApplier] 轴 {} 增量不足 1 方块，累积中...", axis);
             return;
         }
         
-        LOGGER.debug("[TransformApplier] 调整选区尺寸 轴={} Δ={}", axis, deltaInt);
+        switch (axis) {
+            case X -> resizeCarryX -= deltaInt;
+            case Y -> resizeCarryY -= deltaInt;
+            case Z -> resizeCarryZ -= deltaInt;
+        }
         
-        // 使用 SelectionManager 的统一方法
+        LOGGER.debug("[TransformApplier] 调整选区尺寸 轴={} Δ={}", axis, deltaInt);
         selectionManager.expandSelection(axis, deltaInt);
         
         LOGGER.info("[TransformApplier] 选区尺寸已调整：轴={}, 增量={}, 新选区大小={}", 
@@ -132,6 +159,24 @@ public class TransformApplier {
         if (Math.abs(delta.z) > 0.1) {
             applyResize(Axis.Z, delta.z);
         }
+    }
+
+    /**
+     * 重置所有累积的拖拽位移（在一次拖拽开始/结束时调用）。
+     */
+    public void resetAccumulators() {
+        moveCarryX = moveCarryY = moveCarryZ = 0.0;
+        resizeCarryX = resizeCarryY = resizeCarryZ = 0.0;
+    }
+
+    private int extractStep(double value) {
+        if (value >= 1.0) {
+            return (int) Math.floor(value);
+        }
+        if (value <= -1.0) {
+            return (int) Math.ceil(value);
+        }
+        return 0;
     }
     
     /**

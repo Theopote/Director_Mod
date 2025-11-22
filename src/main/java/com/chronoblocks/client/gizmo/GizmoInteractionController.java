@@ -140,6 +140,9 @@ public class GizmoInteractionController {
         // 检测普通 Handle
         if (hoveredHandle != null) {
             activeHandle = hoveredHandle;
+            if (transformApplier != null) {
+                transformApplier.resetAccumulators();
+            }
             activeHandle.onDragStart(rayOrigin, rayDir);
             context.setActiveHandle(activeHandle);
             state = GizmoState.DRAGGING;
@@ -200,6 +203,9 @@ public class GizmoInteractionController {
             activeHandle.onDragEnd();
             activeHandle = null;
             context.setActiveHandle(null);
+            if (transformApplier != null) {
+                transformApplier.resetAccumulators();
+            }
             state = GizmoState.IDLE;
             
             // 更新 Box（从 SelectionManager 同步，确保 Gizmo 与选区一致）

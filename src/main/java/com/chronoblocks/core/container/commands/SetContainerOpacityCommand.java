@@ -26,7 +26,6 @@ public class SetContainerOpacityCommand implements ContainerCommand {
     public void execute() {
         Container container = manager.getContainer(containerId);
         if (container != null) {
-            oldOpacity = container.getOpacity();
             container.setOpacity(newOpacity);
         }
     }

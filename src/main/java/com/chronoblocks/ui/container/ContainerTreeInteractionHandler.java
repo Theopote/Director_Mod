@@ -7,7 +7,6 @@ import imgui.flag.ImGuiMouseButton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -46,14 +45,34 @@ class ContainerTreeInteractionHandler {
 
         if (isLeftClicked) {
             boolean multiSelect = ImGui.getIO().getKeyCtrl();
-            controller.selectContainer(container.getId(), multiSelect);
+            boolean rangeSelect = ImGui.getIO().getKeyShift();
+            controller.selectContainer(container.getId(), multiSelect, rangeSelect);
         }
     }
 
     void setupDragAndDrop(Container container, boolean hovered) {
         if (hovered && ImGui.beginDragDropSource()) {
-            ImGui.setDragDropPayload(DND_PAYLOAD_TYPE, container.getId().toString());
-            ImGui.text("拖动容器: " + container.getName());
+            // 检查是否有多个容器被选中，如果拖拽的容器在选中列表中，则批量拖拽
+            java.util.Collection<Container> selectedContainers = controller.getSelectedContainers();
+            boolean isSelected = controller.isContainerSelected(container.getId());
+            boolean hasMultipleSelection = selectedContainers.size() > 1 && isSelected;
+            
+            if (hasMultipleSelection) {
+                // 批量拖拽：将选中的容器ID用逗号连接
+                StringBuilder payloadBuilder = new StringBuilder();
+                for (Container c : selectedContainers) {
+                    if (!payloadBuilder.isEmpty()) {
+                        payloadBuilder.append(",");
+                    }
+                    payloadBuilder.append(c.getId().toString());
+                }
+                ImGui.setDragDropPayload(DND_PAYLOAD_TYPE, payloadBuilder.toString());
+                ImGui.text(String.format("拖动 %d 个容器", selectedContainers.size()));
+            } else {
+                // 单个拖拽
+                ImGui.setDragDropPayload(DND_PAYLOAD_TYPE, container.getId().toString());
+                ImGui.text("拖动容器: " + container.getName());
+            }
             ImGui.endDragDropSource();
         }
 
@@ -70,15 +89,28 @@ class ContainerTreeInteractionHandler {
         if (!ImGui.isWindowHovered() || ImGui.isAnyItemHovered()) {
             return;
         }
+        
+        // 处理空白区域的左键点击：取消选中容器
+        if (ImGui.isMouseClicked(ImGuiMouseButton.Left) && !ImGui.isAnyItemHovered()) {
+            controller.clearSelection();
+            LOGGER.debug("[ContainerTreeInteractionHandler] 空白区域点击：已取消选中容器");
+        }
+        
         if (ImGui.beginDragDropTarget()) {
             Object payload = ImGui.acceptDragDropPayload(DND_PAYLOAD_TYPE);
             if (payload != null) {
-                try {
-                    UUID draggedId = UUID.fromString((String) payload);
-                    controller.moveContainer(draggedId, null, -1);
-                    LOGGER.info("[ContainerTreeInteractionHandler] 将容器 {} 移动到根目录", draggedId);
-                } catch (IllegalArgumentException e) {
-                    LOGGER.warn("[ContainerTreeInteractionHandler] 无法解析拖拽载荷为 UUID: {}", payload);
+                // 解析载荷：可能是单个UUID或多个UUID（逗号分隔）
+                String payloadStr = (String) payload;
+                String[] ids = payloadStr.split(",");
+                
+                for (String idStr : ids) {
+                    try {
+                        UUID draggedId = UUID.fromString(idStr.trim());
+                        controller.moveContainer(draggedId, null, -1);
+                        LOGGER.info("[ContainerTreeInteractionHandler] 将容器 {} 移动到根目录", draggedId);
+                    } catch (IllegalArgumentException e) {
+                        LOGGER.warn("[ContainerTreeInteractionHandler] 无法解析拖拽载荷为 UUID: {}", idStr);
+                    }
                 }
             }
             ImGui.endDragDropTarget();
@@ -107,18 +139,11 @@ class ContainerTreeInteractionHandler {
             }
 
             boolean hasSelection = controller.hasSelection();
-            if (!hasSelection) ImGui.beginDisabled();
-            if (ImGui.menuItem("将选中容器分组", "Ctrl+G")) {
-                controller.groupSelectedContainers();
-            }
-            if (!hasSelection) ImGui.endDisabled();
+            renderMenuItem("将选中容器分组", "Ctrl+G", !hasSelection, controller::groupSelectedContainers);
+            renderMenuItem("合并选中容器", "Ctrl+M", !controller.canMergeSelection(), () -> controller.mergeSelection(null));
 
             boolean clipboardEmpty = controller.isClipboardEmpty();
-            if (clipboardEmpty) ImGui.beginDisabled();
-            if (ImGui.menuItem("粘贴为根容器", "Ctrl+V")) {
-                controller.pasteClipboard(null, -1);
-            }
-            if (clipboardEmpty) ImGui.endDisabled();
+            renderMenuItem("粘贴为根容器", "Ctrl+V", clipboardEmpty, () -> controller.pasteClipboard(null, -1));
 
             ImGui.separator();
 
@@ -127,7 +152,8 @@ class ContainerTreeInteractionHandler {
             }
 
             if (ImGui.menuItem("清空所有容器...")) {
-                controller.clearAllContainers();
+                ImGui.openPopup("ConfirmClearAll");
+                ImGui.closeCurrentPopup();
             }
 
             ImGui.endPopup();
@@ -154,52 +180,26 @@ class ContainerTreeInteractionHandler {
         } else {
             renderContainerContextMenu(container);
         }
+        
+        ImGui.separator();
+        renderContextMenu_ColorActions(container);
     }
 
     private void renderGroupContextMenu(Container container) {
-        // 基本操作
-        if (ImGui.menuItem("重命名", "F2")) {
-            inlineRenamer.startRenaming(container);
-        }
+        renderContextMenu_CommonEditActions(container);
+        // 合并“复制容器/粘贴到此处”为单一操作仅针对普通容器，组不在此处提供“粘贴到此处”入口
 
+        // 组特有：粘贴为子容器
         boolean clipboardEmpty = controller.isClipboardEmpty();
-        if (clipboardEmpty) ImGui.beginDisabled();
-        if (ImGui.menuItem("粘贴到此处", "Ctrl+V")) {
-            Container parent = container.getParent();
-            UUID parentId = parent != null ? parent.getId() : null;
-            int insertIndex;
-            if (parent != null) {
-                insertIndex = parent.indexOfChild(container);
-            } else {
-                insertIndex = controller.getRootContainers().indexOf(container);
-            }
-            controller.pasteClipboard(parentId, insertIndex);
-        }
-        if (clipboardEmpty) ImGui.endDisabled();
-
         if (ImGui.menuItem("粘贴为子容器", "Ctrl+Shift+V", false, !clipboardEmpty)) {
             controller.pasteClipboard(container.getId(), -1);
         }
 
         ImGui.separator();
-
-        // 组织操作
-        Set<Container> selectedContainers = controller.getSelectedContainers();
-        boolean hasSelection = !selectedContainers.isEmpty();
-
-        if (!hasSelection) ImGui.beginDisabled();
-        if (ImGui.menuItem("将选中容器分组", "Ctrl+G")) {
-            controller.groupSelectedContainers();
-        }
-        if (!hasSelection) ImGui.endDisabled();
-
-        if (ImGui.menuItem("删除", "Del")) {
-            controller.deleteSelectedContainers();
-        }
+        renderContextMenu_CommonOrganizationActions();
 
         ImGui.separator();
-
-        // 新建子容器（组特有）
+        // 组特有：新建子容器
         if (ImGui.beginMenu("新建子容器")) {
             for (ContainerType type : ContainerType.values()) {
                 if (ImGui.menuItem(type.getDisplayName())) {
@@ -210,149 +210,84 @@ class ContainerTreeInteractionHandler {
         }
 
         ImGui.separator();
-
-        // 层级操作
-        if (ImGui.menuItem("移到顶层")) {
-            controller.moveContainer(container.getId(), null, -1);
-        }
-
-        if (ImGui.menuItem("上移", "Ctrl+Up")) {
-            controller.moveContainerByOffset(container.getId(), -1);
-        }
-
-        if (ImGui.menuItem("下移", "Ctrl+Down")) {
-            controller.moveContainerByOffset(container.getId(), 1);
-        }
+        renderContextMenu_CommonMovementActions(container);
 
         ImGui.separator();
-
-        // 显示/隐藏（切换容器状态）
-        boolean hidden = container.isHidden();
-        if (ImGui.menuItem(hidden ? "显示" : "隐藏", "V")) {
-            controller.toggleContainerState(container.getId());
-        }
-
-        // 锁定
-        boolean locked = container.isLocked();
-        if (ImGui.menuItem(locked ? "解锁" : "锁定", "L")) {
-            controller.setContainerLocked(container.getId(), !locked);
-        }
+        renderContextMenu_CommonStateActions(container, "隐藏");
     }
 
     private void renderContainerContextMenu(Container container) {
-        // 基本操作
-        if (ImGui.menuItem("重命名", "F2")) {
-            inlineRenamer.startRenaming(container);
-        }
-
+        renderContextMenu_CommonEditActions(container);
         if (ImGui.menuItem("复制容器", "Ctrl+C")) {
+            // 合并“复制容器 + 粘贴到此处”为一个动作：复制并立即粘贴到当前容器位置之后
             controller.copyContainerToClipboard(container.getId());
-        }
-
-        boolean clipboardEmpty = controller.isClipboardEmpty();
-        if (clipboardEmpty) ImGui.beginDisabled();
-        if (ImGui.menuItem("粘贴到此处", "Ctrl+V")) {
             Container parent = container.getParent();
-            UUID parentId = parent != null ? parent.getId() : null;
-            int insertIndex;
-            if (parent != null) {
-                insertIndex = parent.indexOfChild(container);
-            } else {
-                insertIndex = controller.getRootContainers().indexOf(container);
-            }
+            java.util.UUID parentId = parent != null ? parent.getId() : null;
+            int insertIndex = (parent != null
+                ? parent.indexOfChild(container)
+                : controller.getRootContainers().indexOf(container)) + 1;
             controller.pasteClipboard(parentId, insertIndex);
         }
-        if (clipboardEmpty) ImGui.endDisabled();
 
         ImGui.separator();
-
-        // 组织操作
-        Set<Container> selectedContainers = controller.getSelectedContainers();
-        boolean hasSelection = !selectedContainers.isEmpty();
-
-        if (!hasSelection) ImGui.beginDisabled();
-        if (ImGui.menuItem("将选中容器分组", "Ctrl+G")) {
-            controller.groupSelectedContainers();
-        }
-        if (!hasSelection) ImGui.endDisabled();
-
-        if (ImGui.menuItem("删除", "Del")) {
-            controller.deleteSelectedContainers();
-        }
+        renderContextMenu_CommonOrganizationActions();
 
         ImGui.separator();
-
-        // 层级操作
-        if (ImGui.menuItem("移到顶层")) {
-            controller.moveContainer(container.getId(), null, -1);
-        }
-
-        if (ImGui.menuItem("上移", "Ctrl+Up")) {
-            controller.moveContainerByOffset(container.getId(), -1);
-        }
-
-        if (ImGui.menuItem("下移", "Ctrl+Down")) {
-            controller.moveContainerByOffset(container.getId(), 1);
-        }
+        renderContextMenu_CommonMovementActions(container);
 
         ImGui.separator();
-
-        // 方块相关操作（容器特有）
-        boolean intakeEnabled = container.isIntakeEnabled();
-        if (ImGui.menuItem(intakeEnabled ? "停止实时接收" : "开启实时接收", "I")) {
+        // 容器特有：方块操作
+        if (ImGui.menuItem(container.isIntakeEnabled() ? "停止实时接收" : "开启实时接收", "I")) {
             controller.toggleIntake(container.getId());
         }
-
-        boolean hidden = container.isHidden();
-        if (ImGui.menuItem(hidden ? "显示方块" : "隐藏方块", "V")) {
-            controller.toggleContainerState(container.getId());
-        }
-
         if (ImGui.menuItem("释放容器", "R")) {
             controller.getState().setPendingReleaseContainerId(container.getId());
             ImGui.openPopup("ConfirmRelease");
+            ImGui.closeCurrentPopup();
         }
 
         ImGui.separator();
-
-        // 锁定
-        boolean locked = container.isLocked();
-        if (ImGui.menuItem(locked ? "解锁" : "锁定", "L")) {
-            controller.setContainerLocked(container.getId(), !locked);
-        }
+        renderContextMenu_CommonStateActions(container, "隐藏方块");
     }
 
     /**
      * 处理拖拽到某个目标 Container 上的行为：
      * - 目标是组：作为其子容器
      * - 否则：移动到目标节点之前（同级排序）
+     * 
+     * 支持批量拖拽：payloadId 可以是单个UUID或多个UUID（逗号分隔）
      */
     private void handleDropPayload(Container container, String payloadId) {
-        try {
-            UUID draggedId = UUID.fromString(payloadId);
-            Container draggedContainer = controller.getContainer(draggedId);
-            if (draggedContainer == null || draggedContainer == container) {
-                return;
-            }
+        // 解析载荷：可能是单个UUID或多个UUID（逗号分隔）
+        String[] ids = payloadId.split(",");
+        
+        for (String idStr : ids) {
+            try {
+                UUID draggedId = UUID.fromString(idStr.trim());
+                Container draggedContainer = controller.getContainer(draggedId);
+                if (draggedContainer == null || draggedContainer == container) {
+                    continue;
+                }
 
-            boolean targetIsGroup = container.getType() == ContainerType.GROUP;
-            boolean cyclic = container.isDescendantOf(draggedContainer);
-            if (cyclic) {
-                LOGGER.warn("[ContainerTreeInteractionHandler] 拖拽会造成循环引用，已忽略");
-                return;
-            }
+                boolean targetIsGroup = container.getType() == ContainerType.GROUP;
+                boolean cyclic = container.isDescendantOf(draggedContainer);
+                if (cyclic) {
+                    LOGGER.warn("[ContainerTreeInteractionHandler] 拖拽 {} 会造成循环引用，已忽略", draggedContainer.getName());
+                    continue;
+                }
 
-            if (targetIsGroup) {
-                // 组内：作为子节点追加
-                controller.moveContainerAsChild(draggedId, container.getId());
-                LOGGER.info("[ContainerTreeInteractionHandler] 移动 {} 到组 {}", draggedContainer.getName(), container.getName());
-            } else {
-                // 普通节点：移动到目标之前，利用 CommandService 内的相对排序逻辑
-                controller.moveContainerBefore(draggedId, container.getId());
-                LOGGER.info("[ContainerTreeInteractionHandler] 将 {} 移动到 {} 之前", draggedContainer.getName(), container.getName());
+                if (targetIsGroup) {
+                    // 组内：作为子节点追加
+                    controller.moveContainerAsChild(draggedId, container.getId());
+                    LOGGER.info("[ContainerTreeInteractionHandler] 移动 {} 到组 {}", draggedContainer.getName(), container.getName());
+                } else {
+                    // 普通节点：移动到目标之前，利用 CommandService 内的相对排序逻辑
+                    controller.moveContainerBefore(draggedId, container.getId());
+                    LOGGER.info("[ContainerTreeInteractionHandler] 将 {} 移动到 {} 之前", draggedContainer.getName(), container.getName());
+                }
+            } catch (IllegalArgumentException e) {
+                LOGGER.warn("[ContainerTreeInteractionHandler] 无法解析拖拽载荷为 UUID: {}", idStr);
             }
-        } catch (IllegalArgumentException e) {
-            LOGGER.warn("[ContainerTreeInteractionHandler] 无法解析拖拽载荷为 UUID: {}", payloadId);
         }
     }
 
@@ -366,6 +301,107 @@ class ContainerTreeInteractionHandler {
         if (visibilityClicked) {
             // 切换容器状态（HIDDEN/VISIBLE），这会控制 Minecraft 中方块的显示/隐藏
             controller.toggleContainerState(container.getId());
+        }
+    }
+
+    // ---------------------- 公共菜单渲染辅助 ----------------------
+
+    private void renderMenuItem(String label, String shortcut, boolean disabled, Runnable action) {
+        if (disabled) ImGui.beginDisabled();
+        if (ImGui.menuItem(label, shortcut)) {
+            action.run();
+        }
+        if (disabled) ImGui.endDisabled();
+    }
+
+    // 保留重载以便未来使用（当前未使用）
+    // private void renderMenuItem(String label, boolean disabled, Runnable action) {
+    //     renderMenuItem(label, "", disabled, action);
+    // }
+
+    private void renderContextMenu_CommonEditActions(Container container) {
+        if (ImGui.menuItem("重命名", "F2")) {
+            inlineRenamer.startRenaming(container);
+        }
+    }
+
+    private void renderContextMenu_CommonOrganizationActions() {
+        boolean hasSelection = controller.hasSelection();
+        renderMenuItem("将选中容器分组", "Ctrl+G", !hasSelection, controller::groupSelectedContainers);
+        renderMenuItem("合并选中容器", "Ctrl+M", !controller.canMergeSelection(), () -> controller.mergeSelection(null));
+        renderMenuItem("删除", "Del", false, () -> {
+            LOGGER.info("[ContainerTreeInteractionHandler] 点击删除，标记待打开删除确认弹窗");
+            controller.getState().setPendingDeletionRequested(true);
+            ImGui.closeCurrentPopup();
+        });
+    }
+
+    private void renderContextMenu_CommonMovementActions(Container container) {
+        renderMenuItem("移到顶层", "", false,
+            () -> controller.moveContainer(container.getId(), null, -1));
+        renderMenuItem("上移", "Ctrl+Up", false,
+            () -> controller.moveContainerByOffset(container.getId(), -1));
+        renderMenuItem("下移", "Ctrl+Down", false,
+            () -> controller.moveContainerByOffset(container.getId(), 1));
+    }
+
+    private void renderContextMenu_CommonStateActions(Container container, String visibilityLabel) {
+        boolean hidden = container.isHidden();
+        renderMenuItem(hidden ? "显示" : visibilityLabel, "V", false,
+            () -> controller.toggleContainerState(container.getId()));
+
+        boolean locked = container.isLocked();
+        renderMenuItem(locked ? "解锁" : "锁定", "L", false,
+            () -> controller.setContainerLocked(container.getId(), !locked));
+    }
+    
+    private void renderContextMenu_ColorActions(Container container) {
+        // 获取当前标签颜色（从metadata或默认值）
+        Integer tagColor = (Integer) container.getMetadata("tagColor", null);
+        
+        // 转换为 float 数组用于颜色选择器（如果没有标签色，使用白色作为默认值）
+        int defaultColor = tagColor != null ? tagColor : 0xFFFFFFFF;
+        float[] tagColorBuffer = ContainerColorPicker.colorIntToFloat(defaultColor);
+        
+        if (ImGui.beginMenu("设置标签颜色")) {
+            boolean hasSelection = controller.hasSelection();
+            int selectedCount = hasSelection ? controller.getSelectedContainers().size() : 1;
+            
+            ImGui.textDisabled(String.format("已选择 %d 个容器", selectedCount));
+            ImGui.separator();
+            
+            // 标签颜色
+            ImGui.text("标签颜色:");
+            ImGui.sameLine();
+            if (ContainerColorPicker.renderColorPicker("标签颜色", tagColorBuffer)) {
+                int newTagColor = ContainerColorPicker.colorFloatToInt(tagColorBuffer);
+                if (hasSelection && selectedCount > 1) {
+                    // 批量设置
+                    controller.batchSetContainerTagColors(newTagColor);
+                } else {
+                    // 单个设置
+                    controller.setMetadata(container.getId(), "tagColor", newTagColor);
+                }
+            }
+            
+            ImGui.separator();
+            
+            // 重置颜色
+            boolean hasTagColor = container.getMetadata("tagColor") != null;
+            if (ImGui.menuItem("重置标签颜色", null, false, hasTagColor)) {
+                if (hasSelection && selectedCount > 1) {
+                    // 批量重置
+                    for (Container c : controller.getSelectedContainers()) {
+                        if (c.getMetadata("tagColor") != null) {
+                            c.removeMetadata("tagColor");
+                        }
+                    }
+                } else {
+                    container.removeMetadata("tagColor");
+                }
+            }
+            
+            ImGui.endMenu();
         }
     }
 }

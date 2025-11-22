@@ -99,17 +99,24 @@ public class GizmoRenderer {
             RenderSystem.enableBlend();
             RenderSystem.defaultBlendFunc();
             
-            // ✅ 关键修复：禁用深度测试，让 Gizmo 始终显示在最前面
-            // 这样即使在半透明物体后面，Gizmo 也能正常显示
-            RenderSystem.disableDepthTest();
-            RenderSystem.depthMask(false); // 禁用深度写入
+            // ✅ 修复：启用深度测试，但使用PolygonOffset让Gizmo稍微靠近摄像机
+            // 这样Gizmo会有正确的前后关系，但仍能清晰可见
+            RenderSystem.enableDepthTest();
+            RenderSystem.depthMask(false); // 禁用深度写入，避免影响其他渲染
             
-            // ✅ 使用 PolygonOffset 让 Gizmo 更靠近摄像机，确保不被半透明填充遮挡
-            // 使用比 SelectionRenderer 更大的负值（SelectionRenderer 使用 -1.5）
+            // ✅ 使用 PolygonOffset 让 Gizmo 稍微靠近摄像机，确保不被半透明填充遮挡
+            // 使用适中的负值（-1.5f），与SelectionRenderer保持一致
             RenderSystem.enablePolygonOffset();
-            RenderSystem.polygonOffset(-3.0f, -3.0f); // 更靠近摄像机
+            RenderSystem.polygonOffset(-1.5f, -1.5f); // 稍微靠近摄像机
             
-            RenderSystem.lineWidth(3.0F); // 增大线条宽度到 3.0
+            // ✅ 线条宽度：使用2.0F以确保更好的兼容性（某些系统不支持>1.0的宽度）
+            try {
+                RenderSystem.lineWidth(2.0F);
+            } catch (Exception e) {
+                // 如果系统不支持，回退到默认宽度
+                LOGGER.warn("[GizmoRenderer] 系统不支持lineWidth 2.0，使用默认宽度");
+                RenderSystem.lineWidth(1.0F);
+            }
 
             // ✅ 重置着色器颜色为白色，确保顶点颜色正确显示
             RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
@@ -131,19 +138,16 @@ public class GizmoRenderer {
 
             // === 2️⃣ 渲染三轴线条（纯色，使用 VertexConsumerProvider） ===
             try {
-                // ✅ 使用 RenderLayer.getLines() 确保正确的着色器
                 VertexConsumer lineBuffer = vcp.getBuffer(RenderLayer.getLines());
 
-                // ✅ 从角点向外延伸（如果是角点 Gizmo）
-                // ✅ v4.9: 使用动态计算的轴长度
-                Vec3d axisEnd = getAxisEndPoint(pivot, Axis.X, axisLength);
-                drawLineToBuffer(lineBuffer, posMat, pivot, axisEnd, COLOR_X);
+                Vec3d xEnd = getAxisEndPoint(pivot, Axis.X, axisLength, cameraPos);
+                drawLineToBuffer(lineBuffer, posMat, pivot, xEnd, COLOR_X);
 
-                axisEnd = getAxisEndPoint(pivot, Axis.Y, axisLength);
-                drawLineToBuffer(lineBuffer, posMat, pivot, axisEnd, COLOR_Y);
+                Vec3d yEnd = getAxisEndPoint(pivot, Axis.Y, axisLength, cameraPos);
+                drawLineToBuffer(lineBuffer, posMat, pivot, yEnd, COLOR_Y);
 
-                axisEnd = getAxisEndPoint(pivot, Axis.Z, axisLength);
-                drawLineToBuffer(lineBuffer, posMat, pivot, axisEnd, COLOR_Z);
+                Vec3d zEnd = getAxisEndPoint(pivot, Axis.Z, axisLength, cameraPos);
+                drawLineToBuffer(lineBuffer, posMat, pivot, zEnd, COLOR_Z);
 
                 LOGGER.info("[GizmoRenderer] ✅ 轴手柄线条渲染完成: 3条轴 (X={}, Y={}, Z={})",
                         java.util.Arrays.toString(COLOR_X),
@@ -155,7 +159,7 @@ public class GizmoRenderer {
 
             // === 3️⃣ 渲染箭头（纯色三角锥，使用 VertexConsumerProvider） ===
             try {
-                renderAxisHandlesArrows(posMat, vcp, pivot, axisLength, arrowHeight, arrowRadius);
+                renderAxisHandlesArrows(posMat, vcp, pivot, axisLength, arrowHeight, arrowRadius, cameraPos);
                 LOGGER.debug("[GizmoRenderer] ✅ 轴手柄箭头渲染完成");
             } catch (Exception e) {
                 LOGGER.error("[GizmoRenderer] ❌ 渲染轴手柄箭头失败", e);
@@ -200,7 +204,8 @@ public class GizmoRenderer {
 
             // 渲染中心手柄
             try {
-                renderCenterHandle(posMat, vcp, pivot, time);
+                // ✅ 修复：传入距离缩放，使中心手柄大小随距离动态调整
+                renderCenterHandle(posMat, vcp, pivot, time, distanceMultiplier);
                 LOGGER.debug("[GizmoRenderer] ✅ 中心手柄渲染完成");
             } catch (Exception e) {
                 LOGGER.error("[GizmoRenderer] ❌ 渲染中心手柄失败", e);
@@ -213,10 +218,11 @@ public class GizmoRenderer {
             e.printStackTrace();
         } finally {
             // ✅ v4.8.1: 确保状态恢复，即使发生异常也恢复
+            // 注意：需要恢复lineWidth，但Minecraft通常不恢复它，所以我们也不恢复
             RenderSystem.disablePolygonOffset(); // 禁用 PolygonOffset
-            RenderSystem.enableDepthTest();
+            RenderSystem.enableDepthTest(); // 恢复深度测试（即使我们启用了它，也要确保恢复）
             RenderSystem.depthMask(true);   // 恢复深度写入
-            RenderSystem.disableBlend();
+            RenderSystem.disableBlend(); // 恢复混合状态
             RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f); // ✅ 重置着色器颜色
             matrices.pop();
             LOGGER.debug("[GizmoRenderer] ✅ 渲染状态已恢复");
@@ -282,27 +288,37 @@ public class GizmoRenderer {
      * @param axis 轴方向
      * @param axisLength 轴长度（已考虑距离缩放）
      */
-    private Vec3d getAxisEndPoint(Vec3d pivot, Axis axis, double axisLength) {
-        return switch (axis) {
-            case X -> pivot.add(axisLength, 0, 0);
-            case Y -> pivot.add(0, axisLength, 0);
-            case Z -> pivot.add(0, 0, axisLength);
-        };
+    private Vec3d getAxisEndPoint(Vec3d pivot, Axis axis, double axisLength, Vec3d cameraPos) {
+        double sign = axisFacingSign(axis, pivot, cameraPos);
+        Vec3d dir = getAxisDirection(axis).multiply(sign * axisLength);
+        return pivot.add(dir);
     }
 
     /**
      * ✅ v4.8: 渲染轴手柄箭头（纯色三角锥，使用独立的 Tessellator）
      * ✅ v4.9: 添加动态大小支持
      */
-    private void renderAxisHandlesArrows(Matrix4f posMat, VertexConsumerProvider vcp, Vec3d pivot, double axisLength, double arrowHeight, double arrowRadius) {
-        // X 轴箭头（红色）
-        drawArrowHead(posMat, vcp, getAxisEndPoint(pivot, Axis.X, axisLength), Axis.X, COLOR_X, arrowHeight, arrowRadius);
+    private void renderAxisHandlesArrows(Matrix4f posMat,
+                                         VertexConsumerProvider vcp,
+                                         Vec3d pivot,
+                                         double axisLength,
+                                         double arrowHeight,
+                                         double arrowRadius,
+                                         Vec3d cameraPos) {
+        drawArrowHead(posMat, vcp,
+                getAxisEndPoint(pivot, Axis.X, axisLength, cameraPos),
+                Axis.X, COLOR_X, arrowHeight, arrowRadius,
+                axisFacingSign(Axis.X, pivot, cameraPos));
 
-        // Y 轴箭头（绿色）
-        drawArrowHead(posMat, vcp, getAxisEndPoint(pivot, Axis.Y, axisLength), Axis.Y, COLOR_Y, arrowHeight, arrowRadius);
+        drawArrowHead(posMat, vcp,
+                getAxisEndPoint(pivot, Axis.Y, axisLength, cameraPos),
+                Axis.Y, COLOR_Y, arrowHeight, arrowRadius,
+                axisFacingSign(Axis.Y, pivot, cameraPos));
 
-        // Z 轴箭头（蓝色）
-        drawArrowHead(posMat, vcp, getAxisEndPoint(pivot, Axis.Z, axisLength), Axis.Z, COLOR_Z, arrowHeight, arrowRadius);
+        drawArrowHead(posMat, vcp,
+                getAxisEndPoint(pivot, Axis.Z, axisLength, cameraPos),
+                Axis.Z, COLOR_Z, arrowHeight, arrowRadius,
+                axisFacingSign(Axis.Z, pivot, cameraPos));
     }
 
     /**
@@ -310,40 +326,41 @@ public class GizmoRenderer {
      * ✅ v4.9: 添加动态大小支持
      * 修复：确保箭头使用正确的颜色（X=红，Y=绿，Z=蓝）
      */
-    private void drawArrowHead(Matrix4f matrix, VertexConsumerProvider vcp, Vec3d tip, Axis axis, float[] color, double arrowHeight, double arrowRadius) {
-        // ✅ 使用 RenderLayer.getLines() 绘制箭头的轮廓锥形，确保始终可见
+    private void drawArrowHead(Matrix4f matrix,
+                               VertexConsumerProvider vcp,
+                               Vec3d tip,
+                               Axis axis,
+                               float[] color,
+                               double arrowHeight,
+                               double arrowRadius,
+                               double directionSign) {
         VertexConsumer buffer = vcp.getBuffer(RenderLayer.getLines());
 
-        // 箭头底部中心（沿 axis 方向回退 arrowHeight）
-        Vec3d base = switch (axis) {
-            case X -> tip.add(-arrowHeight, 0, 0);
-            case Y -> tip.add(0, -arrowHeight, 0);
-            case Z -> tip.add(0, 0, -arrowHeight);
-        };
+        Vec3d axisDir = getAxisDirection(axis).multiply(directionSign).normalize();
+        Vec3d baseCenter = tip.subtract(axisDir.multiply(arrowHeight));
 
-        // ✅ 生成圆锥底部的多个点（8个点形成圆形底面）
+        Vec3d upReference = Math.abs(axisDir.dotProduct(new Vec3d(0, 1, 0))) < 0.9
+                ? new Vec3d(0, 1, 0)
+                : new Vec3d(1, 0, 0);
+        Vec3d tangent1 = axisDir.crossProduct(upReference).normalize();
+        Vec3d tangent2 = axisDir.crossProduct(tangent1).normalize();
+
         int segments = 8;
         Vec3d[] basePoints = new Vec3d[segments];
-        
+
         for (int i = 0; i < segments; i++) {
             double angle = 2.0 * Math.PI * i / segments;
             double cos = Math.cos(angle);
             double sin = Math.sin(angle);
-            
-            basePoints[i] = switch (axis) {
-                case X -> base.add(0, arrowRadius * cos, arrowRadius * sin);
-                case Y -> base.add(arrowRadius * cos, 0, arrowRadius * sin);
-                case Z -> base.add(arrowRadius * cos, arrowRadius * sin, 0);
-            };
+            basePoints[i] = baseCenter
+                    .add(tangent1.multiply(arrowRadius * cos))
+                    .add(tangent2.multiply(arrowRadius * sin));
         }
 
-        // 绘制从顶点到底部圆圈的线条（锥形边缘）
-        for (int i = 0; i < segments; i++) {
-            Vec3d p = basePoints[i];
+        for (Vec3d p : basePoints) {
             drawLineToBuffer(buffer, matrix, tip, p, color);
         }
-        
-        // 绘制底部圆圈
+
         for (int i = 0; i < segments; i++) {
             Vec3d p1 = basePoints[i];
             Vec3d p2 = basePoints[(i + 1) % segments];
@@ -397,8 +414,9 @@ public class GizmoRenderer {
 
     /**
      * 渲染中心手柄
+     * ✅ 修复：添加距离缩放参数，使中心手柄大小随距离动态调整
      */
-    private void renderCenterHandle(Matrix4f posMat, VertexConsumerProvider vcp, Vec3d center, double time) {
+    private void renderCenterHandle(Matrix4f posMat, VertexConsumerProvider vcp, Vec3d center, double time, double distanceMultiplier) {
         VertexConsumer consumer = vcp.getBuffer(RenderLayer.getLines());
 
         float[] color = COLOR_CENTER.clone();
@@ -407,7 +425,9 @@ public class GizmoRenderer {
             color[3] *= (1.0f + 0.3f * (float) Math.sin(System.currentTimeMillis() * 0.005)); // 脉冲效果
         }
 
-        drawCube(consumer, posMat, center, color);
+        // ✅ 使用动态计算的中心手柄大小
+        double centerSize = BASE_CENTER_RADIUS * distanceMultiplier;
+        drawCube(consumer, posMat, center, color, centerSize);
     }
 
     // ========== 辅助渲染方法 ==========
@@ -495,9 +515,24 @@ public class GizmoRenderer {
                 .normal(nx, ny, nz);
     }
 
+    /**
+     * 绘制立方体（中心手柄）
+     * ✅ 修复：添加size参数，支持动态大小
+     * @deprecated 使用带size参数的版本以获得正确的距离缩放
+     */
+    @Deprecated
+    @SuppressWarnings("unused") // 保留用于向后兼容
     private void drawCube(VertexConsumer consumer, Matrix4f posMat, Vec3d center, float[] color) {
-        // ✅ v4.9: 使用固定的中心手柄大小（保持兼容性）
-        double halfSize = BASE_CENTER_RADIUS / 2.0;
+        // 默认使用BASE_CENTER_RADIUS（保持向后兼容）
+        drawCube(consumer, posMat, center, color, BASE_CENTER_RADIUS);
+    }
+    
+    /**
+     * 绘制立方体（中心手柄）- 带大小参数
+     * ✅ 修复：支持动态大小
+     */
+    private void drawCube(VertexConsumer consumer, Matrix4f posMat, Vec3d center, float[] color, double size) {
+        double halfSize = size / 2.0;
         Vec3d min = center.add(-halfSize, -halfSize, -halfSize);
         Vec3d max = center.add(halfSize, halfSize, halfSize);
 
@@ -528,6 +563,18 @@ public class GizmoRenderer {
             case Y -> new Vec3d(0, 1, 0);
             case Z -> new Vec3d(0, 0, 1);
         };
+    }
+
+    private double axisFacingSign(Axis axis, Vec3d pivot, Vec3d cameraPos) {
+        double diff = switch (axis) {
+            case X -> cameraPos.x - pivot.x;
+            case Y -> cameraPos.y - pivot.y;
+            case Z -> cameraPos.z - pivot.z;
+        };
+        if (Math.abs(diff) < 1e-6) {
+            return 1.0;
+        }
+        return diff >= 0 ? 1.0 : -1.0;
     }
 
     /**
@@ -604,103 +651,6 @@ public class GizmoRenderer {
 
             // 绘制手柄（使用 SelectionRenderer 的统一方法）
             OverlayRenderHelper.drawHandle(lineConsumer, posMat, handle.getPosition(), color, handle.isDragging());
-        }
-    }
-
-    // =============================================================
-    // 📐 轴向 Gizmo (静态工具)
-    // =============================================================
-
-    /**
-     * 绘制红绿蓝三轴箭头，用于简单坐标指示。
-     */
-    public static void drawAxisGizmo(MatrixStack matrices, VertexConsumerProvider consumers,
-                                     Vec3d center, Vec3d camPos) {
-        VertexConsumer buffer = consumers.getBuffer(RenderLayer.getLines());
-        Matrix4f mat = matrices.peek().getPositionMatrix();
-
-        float cx = (float) (center.x - camPos.x);
-        float cy = (float) (center.y - camPos.y);
-        float cz = (float) (center.z - camPos.z);
-
-        float len = 0.8f;
-        float head = 0.15f;
-
-        // X 轴（红）
-        drawAxisArrow(buffer, mat, cx, cy, cz, len, 1, 0, 0, 1.0f, 0.2f, 0.2f, head);
-        // Y 轴（绿）
-        drawAxisArrow(buffer, mat, cx, cy, cz, len, 0, 1, 0, 0.2f, 1.0f, 0.2f, head);
-        // Z 轴（蓝）
-        drawAxisArrow(buffer, mat, cx, cy, cz, len, 0, 0, 1, 0.2f, 0.4f, 1.0f, head);
-    }
-
-    private static void drawAxisArrow(VertexConsumer buffer, Matrix4f mat,
-                                      float cx, float cy, float cz,
-                                      float length, int nx, int ny, int nz,
-                                      float r, float g, float b, float headSize) {
-        float endX = cx + length * nx;
-        float endY = cy + length * ny;
-        float endZ = cz + length * nz;
-
-        buffer.vertex(mat, cx, cy, cz).color(r, g, b, 1f).normal(0f, 0f, 0f);
-        buffer.vertex(mat, endX, endY, endZ).color(r, g, b, 1f).normal(0f, 0f, 0f);
-
-        drawArrowHead(buffer, mat, endX, endY, endZ, nx, ny, nz, headSize, r, g, b);
-    }
-
-    /**
-     * 简化箭头头部：沿轴方向退回一段并连三条辅助线形成 "燕尾"。
-     * v5.1: 优化为更简洁的固定方向，避免翻面
-     */
-    private static void drawArrowHead(VertexConsumer buffer, Matrix4f mat,
-                                       float x, float y, float z,
-                                       int nx, int ny, int nz,
-                                       float size, float r, float g, float b) {
-        float sx = x - nx * size;
-        float sy = y - ny * size;
-        float sz = z - nz * size;
-
-        float halfSize = size / 3f;
-
-        if (nx != 0) {
-            // X 轴箭头：在 YZ 平面形成三角
-            buffer.vertex(mat, x, y, z).color(r, g, b, 1f).normal(0f, 0f, 0f);
-            buffer.vertex(mat, sx, y + halfSize, z).color(r, g, b, 1f).normal(0f, 0f, 0f);
-
-            buffer.vertex(mat, x, y, z).color(r, g, b, 1f).normal(0f, 0f, 0f);
-            buffer.vertex(mat, sx, y - halfSize, z).color(r, g, b, 1f).normal(0f, 0f, 0f);
-
-            buffer.vertex(mat, x, y, z).color(r, g, b, 1f).normal(0f, 0f, 0f);
-            buffer.vertex(mat, sx, y, z + halfSize).color(r, g, b, 1f).normal(0f, 0f, 0f);
-
-            buffer.vertex(mat, x, y, z).color(r, g, b, 1f).normal(0f, 0f, 0f);
-            buffer.vertex(mat, sx, y, z - halfSize).color(r, g, b, 1f).normal(0f, 0f, 0f);
-        } else if (ny != 0) {
-            // Y 轴箭头：在 XZ 平面形成三角
-            buffer.vertex(mat, x, y, z).color(r, g, b, 1f).normal(0f, 0f, 0f);
-            buffer.vertex(mat, x + halfSize, sy, z).color(r, g, b, 1f).normal(0f, 0f, 0f);
-
-            buffer.vertex(mat, x, y, z).color(r, g, b, 1f).normal(0f, 0f, 0f);
-            buffer.vertex(mat, x - halfSize, sy, z).color(r, g, b, 1f).normal(0f, 0f, 0f);
-
-            buffer.vertex(mat, x, y, z).color(r, g, b, 1f).normal(0f, 0f, 0f);
-            buffer.vertex(mat, x, sy, z + halfSize).color(r, g, b, 1f).normal(0f, 0f, 0f);
-
-            buffer.vertex(mat, x, y, z).color(r, g, b, 1f).normal(0f, 0f, 0f);
-            buffer.vertex(mat, x, sy, z - halfSize).color(r, g, b, 1f).normal(0f, 0f, 0f);
-        } else if (nz != 0) {
-            // Z 轴箭头：在 XY 平面形成三角
-            buffer.vertex(mat, x, y, z).color(r, g, b, 1f).normal(0f, 0f, 0f);
-            buffer.vertex(mat, x + halfSize, y, sz).color(r, g, b, 1f).normal(0f, 0f, 0f);
-
-            buffer.vertex(mat, x, y, z).color(r, g, b, 1f).normal(0f, 0f, 0f);
-            buffer.vertex(mat, x - halfSize, y, sz).color(r, g, b, 1f).normal(0f, 0f, 0f);
-
-            buffer.vertex(mat, x, y, z).color(r, g, b, 1f).normal(0f, 0f, 0f);
-            buffer.vertex(mat, x, y + halfSize, sz).color(r, g, b, 1f).normal(0f, 0f, 0f);
-
-            buffer.vertex(mat, x, y, z).color(r, g, b, 1f).normal(0f, 0f, 0f);
-            buffer.vertex(mat, x, y - halfSize, sz).color(r, g, b, 1f).normal(0f, 0f, 0f);
         }
     }
 }

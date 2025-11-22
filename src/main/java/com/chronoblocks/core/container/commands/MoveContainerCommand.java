@@ -37,9 +37,10 @@ public class MoveContainerCommand implements ContainerCommand {
         }
 
         oldParent = container.getParent();
+        java.util.List<Container> rootView = manager.getRootContainersView();
         oldIndex = oldParent != null
             ? oldParent.indexOfChild(container)
-            : manager.getRootContainersView().indexOf(container);
+            : rootView.indexOf(container);
 
         manager.moveContainerToParent(container, targetParent, targetIndex);
     }

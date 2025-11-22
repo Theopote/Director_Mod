@@ -48,6 +48,9 @@ public class ContainerToolbar {
 
         ImGui.sameLine();
         boolean canIntake = hasSelection && !isGroup && hasMinecraftSelection;
+        if (hasSelection && selectedContainer.isLocked()) {
+            canIntake = false;
+        }
         if (!canIntake) ImGui.beginDisabled();
         if (ImGui.button(Icons.DOWNLOAD + " 收纳选区", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
             controller.intakeCurrentSelection();
@@ -66,15 +69,15 @@ public class ContainerToolbar {
         }
 
         ImGui.sameLine();
-        if (!hasSelection || isGroup) ImGui.beginDisabled();
-        boolean intakeEnabled = hasSelection && !isGroup && selectedContainer.isIntakeEnabled();
+        if (!hasSelection || isGroup || selectedContainer.isLocked()) ImGui.beginDisabled();
+        boolean intakeEnabled = hasSelection && !isGroup && selectedContainer.isIntakeEnabled() && !selectedContainer.isLocked();
         String intakeText = intakeEnabled ? Icons.PAUSE + " 停止接收" : Icons.PLAY + " 实时接收";
         if (ImGui.button(intakeText, 0, UITheme.Spacing.BUTTON_HEIGHT)) {
             if (selectedContainer != null) {
                 controller.toggleIntake(selectedContainer.getId());
             }
         }
-        if (!hasSelection || isGroup) ImGui.endDisabled();
+        if (!hasSelection || isGroup || selectedContainer.isLocked()) ImGui.endDisabled();
         if (ImGui.isItemHovered()) {
             if (!hasSelection) {
                 ImGui.setTooltip("请先选择一个容器");
@@ -87,20 +90,7 @@ public class ContainerToolbar {
             }
         }
 
-        ImGui.sameLine();
-        Container activeContainer = controller.getActiveContainer();
-        boolean hasActive = activeContainer != null;
-        if (!hasActive) ImGui.beginDisabled();
-        if (ImGui.button(Icons.DELETE + " 释放", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
-            if (activeContainer != null) {
-                controller.getState().setPendingReleaseContainerId(activeContainer.getId());
-                ImGui.openPopup("ConfirmRelease");
-            }
-        }
-        if (!hasActive) ImGui.endDisabled();
-        if (ImGui.isItemHovered() && hasActive) {
-            ImGui.setTooltip("删除激活容器并恢复方块显示");
-        }
+		// 顶部不再提供“释放”按钮，释放操作保留在右键菜单中
     }
 
     private void renderSelectionInfo() {

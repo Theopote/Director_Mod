@@ -1,9 +1,8 @@
 package com.chronoblocks.client.renderer.pipeline;
 
 import com.chronoblocks.client.ChronoBlocksClientController;
+import com.chronoblocks.client.gizmo.GizmoRenderEvents;
 import com.chronoblocks.client.renderer.ContainerHighlightRenderer;
-import com.chronoblocks.client.renderer.ContainerRenderer;
-import com.chronoblocks.client.renderer.GizmoRenderEvents;
 import com.chronoblocks.client.renderer.HoverHighlightRenderer;
 import com.chronoblocks.client.renderer.InteractionHintRenderer;
 import com.chronoblocks.client.renderer.SelectionOverlayRenderer;
@@ -27,7 +26,6 @@ import java.util.Comparator;
 import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -116,32 +114,6 @@ public final class ChronoBlocksRendererRegistry {
         LOGGER.info("[RendererRegistry] 注册渲染器: {} (stage={}, priority={})", name, stage, priority);
     }
 
-    public synchronized void unregisterRenderer(String name) {
-        stageMap.values().forEach(list -> list.removeIf(entry -> entry.getName().equalsIgnoreCase(name)));
-        LOGGER.info("[RendererRegistry] 卸载渲染器: {}", name);
-    }
-
-    public synchronized void clearAllRenderers() {
-        stageMap.values().forEach(List::clear);
-        defaultsRegistered.set(false);
-        LOGGER.info("[RendererRegistry] 已清空所有渲染器");
-    }
-
-    public synchronized Optional<RendererEntry> findRenderer(String name) {
-        return stageMap.values()
-            .stream()
-            .flatMap(List::stream)
-            .filter(entry -> entry.getName().equalsIgnoreCase(name))
-            .findFirst();
-    }
-
-    public synchronized void setRendererEnabled(String name, boolean enabled) {
-        findRenderer(name).ifPresent(entry -> {
-            entry.setEnabled(enabled);
-            LOGGER.info("[RendererRegistry] Renderer '{}' enabled={}", name, enabled);
-        });
-    }
-
     public void initialize() {
         hookFabricWorldEvents();
         registerDefaultRenderers();
@@ -155,13 +127,6 @@ public final class ChronoBlocksRendererRegistry {
         if (!isInitialized()) {
             initialize();
         }
-    }
-
-    public synchronized void reinitialize() {
-        LOGGER.warn("[RendererRegistry] ⚠️ 重新初始化渲染管线...");
-        stageMap.values().forEach(List::clear);
-        defaultsRegistered.set(false);
-        registerDefaultRenderers();
     }
 
     // ---------------------------------------------------------------------
@@ -238,11 +203,7 @@ public final class ChronoBlocksRendererRegistry {
                     RendererStage.GIZMO.getOrder());
             }
 
-            if (RendererStage.DEBUG_OVERLAY.isEnabled()) {
-                registerRenderer(RendererStage.DEBUG_OVERLAY, "ContainerOverlay",
-                    ChronoBlocksRendererRegistry::renderContainers,
-                    RendererStage.DEBUG_OVERLAY.getOrder());
-            }
+            // DEBUG_OVERLAY 阶段已移除（ContainerRenderer 已删除）
 
             LOGGER.info("[RendererRegistry] ✅ 默认渲染器注册完成");
         } catch (Exception e) {
@@ -398,21 +359,6 @@ public final class ChronoBlocksRendererRegistry {
             return;
         }
         ToolPreviewManager.getInstance().render(matrices, consumers, getTickDelta());
-    }
-
-    private static void renderContainers(WorldRenderContext context) {
-        if (!isChronoBlocksActive()) {
-            return;
-        }
-        if (!ContainerRenderer.get().isEnabled()) {
-            return;
-        }
-        MatrixStack matrices = context.matrixStack();
-        Camera camera = getCamera();
-        if (matrices == null || camera == null) {
-            return;
-        }
-        ContainerRenderer.get().renderAllContainers(matrices, camera, getTickDelta());
     }
 
     // ---------------------------------------------------------------------

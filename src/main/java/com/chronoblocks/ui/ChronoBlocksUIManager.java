@@ -309,6 +309,9 @@ public class ChronoBlocksUIManager {
         
         // 设置面板注册表引用（用于面板间通信）
         setupPanelRegistryReferences();
+        
+        // 根据当前世界的布局还原面板可见性
+        restorePanelVisibilityFromLayout();
 
         logInfo("UI Manager initialized with {} injected panels using modern IoC", panelRegistry.size());
         logDebugState(() -> "Panel registry: " + panelRegistry.getDebugInfo());
@@ -340,12 +343,20 @@ public class ChronoBlocksUIManager {
         // 初始化布局持久化管理器
         this.layoutManager = LayoutPersistenceManager.getInstance();
 
-        // 每次创建UI管理器时强制使用默认布局，确保面板按要求分布
+        // 检测并加载当前世界的布局（如果是新世界则使用默认布局，如果是同一世界则加载保存的布局）
         try {
-            this.layoutManager.resetToDefault();
-            LOGGER.info("[ChronoBlocks] 强制使用默认布局，确保中央空白区域正确显示");
+            this.layoutManager.reloadForCurrentWorld("ChronoBlocksUIManager.constructor");
+            String currentWorldId = com.chronoblocks.util.WorldIdentifier.getCurrentWorldId();
+            LOGGER.info("[ChronoBlocks] 已加载世界 {} 的布局配置", currentWorldId);
         } catch (Exception e) {
-            LOGGER.warn("[ChronoBlocks] 无法重置为默认布局: {}", e.getMessage(), e);
+            LOGGER.warn("[ChronoBlocks] 加载世界布局失败: {}", e.getMessage(), e);
+            // 如果加载失败，创建默认布局
+            try {
+                this.layoutManager.resetToDefault();
+                LOGGER.info("[ChronoBlocks] 已创建默认布局");
+            } catch (Exception resetException) {
+                LOGGER.warn("[ChronoBlocks] 无法创建默认布局: {}", resetException.getMessage(), resetException);
+            }
         }
 
         // 验证必需的面板是否存在
@@ -356,6 +367,9 @@ public class ChronoBlocksUIManager {
         
         // 设置面板注册表引用（用于面板间通信）
         setupPanelRegistryReferences();
+        
+        // 根据布局还原面板可见性
+        restorePanelVisibilityFromLayout();
 
         logInfo("UI Manager initialized with {} panels using advanced IoC", panelRegistry.size());
         logDebugState(() -> "Panel registry: " + panelRegistry.getDebugInfo());
@@ -415,6 +429,9 @@ public class ChronoBlocksUIManager {
         
         // 设置面板注册表引用（用于面板间通信）
         setupPanelRegistryReferences();
+        
+        // 根据布局还原面板可见性
+        restorePanelVisibilityFromLayout();
 
         logInfo("UI Manager initialized with {} panels using modern IoC", panelRegistry.size());
         logDebugState(() -> "Panel registry: " + panelRegistry.getDebugInfo());
@@ -423,7 +440,7 @@ public class ChronoBlocksUIManager {
 
     /**
      * 更新动画系统（v4.5 一体化交互系统）
-     * 
+     * <p>
      * 统一的动画更新循环，每帧调用：
      * - 计算帧间隔时间
      * - 驱动 PlaybackController 更新
@@ -621,19 +638,32 @@ public class ChronoBlocksUIManager {
                         
                         // 应用默认布局（仅在首次打开且无保存的布局时）
                         if (dockspaceId != -1 && isFirstLayout) {
-                            // 检查是否存在保存的布局文件
-                            java.nio.file.Path iniPath = java.nio.file.Paths.get("config/chronoblocks/imgui.ini");
+                            // 检查是否存在保存的布局文件（按世界区分）
+                            java.nio.file.Path iniPath = layoutManager.getImGuiIniPath();
                             boolean hasCustomLayout = java.nio.file.Files.exists(iniPath);
                             
                             if (!hasCustomLayout) {
                                 // 没有自定义布局，应用默认布局
-                                LOGGER.info("[ChronoBlocks] 未找到保存的布局，应用默认布局");
+                                LOGGER.info("[ChronoBlocks] 世界 {} 未找到保存的布局，应用默认布局", 
+                                    com.chronoblocks.util.WorldIdentifier.getCurrentWorldId());
                                 com.chronoblocks.ui.layout.DockSpaceLayoutBuilder.buildDefaultLayout(dockspaceId);
                             } else {
-                                LOGGER.info("[ChronoBlocks] 已加载保存的布局");
+                                LOGGER.info("[ChronoBlocks] 已加载世界 {} 的保存布局", 
+                                    com.chronoblocks.util.WorldIdentifier.getCurrentWorldId());
                             }
                             
                             isFirstLayout = false;
+                        }
+                        
+                        // 检查世界是否切换（每次渲染时检查）
+                        if (com.chronoblocks.util.WorldIdentifier.hasWorldChanged()) {
+                            LOGGER.info("[ChronoBlocks] 检测到世界切换，重新加载布局");
+                            // 使用 reloadForCurrentWorld 自动处理保存和加载
+                            layoutManager.reloadForCurrentWorld("render()");
+                            // 更新 ImGui INI 路径
+                            com.chronoblocks.ui.imgui.ImGuiRenderer.getInstance().checkAndUpdateIniPath();
+                            // 重置布局标志，以便在新世界中检查是否需要应用默认布局
+                            isFirstLayout = true;
                         }
                         
                         // 注意：面板渲染应该在 DockSpace 外部进行，而不是在内部
@@ -784,6 +814,30 @@ public class ChronoBlocksUIManager {
         
         logDebug("面板依赖引用设置完成 - PanelRegistry: {} 个面板, UIManager: {} 个面板", 
                 registryAwareCount, uiManagerAwareCount);
+    }
+    
+    /**
+     * 根据布局配置还原面板可见性
+     */
+    private void restorePanelVisibilityFromLayout() {
+        if (layoutManager == null || panelRegistry == null || panelRegistry.isEmpty()) {
+            return;
+        }
+        
+        panelRegistry.getAllPanels().forEach(panel -> {
+            if (panel == null) {
+                return;
+            }
+            Boolean storedVisibility = layoutManager.getStoredPanelVisibility(panel.getPanelName());
+            if (storedVisibility != null) {
+                try {
+                    panel.setVisible(storedVisibility);
+                    logDebug("面板 {} 应用可见性: {}", panel.getPanelName(), storedVisibility);
+                } catch (Exception e) {
+                    logWarn("面板 {} 应用可见性失败: {}", panel.getPanelName(), e.getMessage());
+                }
+            }
+        });
     }
 
     /**

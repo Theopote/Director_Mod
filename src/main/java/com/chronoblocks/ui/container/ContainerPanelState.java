@@ -20,6 +20,7 @@ public final class ContainerPanelState {
 
     private Container hoveredContainer;
     private UUID pendingReleaseContainerId;
+    private boolean pendingDeletionRequested;
 
     public float getLeftPanelWidthRatio() {
         return leftPanelWidthRatio;
@@ -35,6 +36,24 @@ public final class ContainerPanelState {
 
     public void setExpandAll(boolean expandAll) {
         this.expandAll = expandAll;
+    }
+
+    public void expandAllNodes() {
+        this.expandAll = true;
+        this.expandedNodes.clear();
+    }
+
+    public void collapseAllNodes() {
+        this.expandAll = false;
+        this.expandedNodes.clear();
+    }
+
+    public void disableExpandAllWithState(java.util.Collection<java.util.UUID> nodesToKeepExpanded) {
+        this.expandAll = false;
+        this.expandedNodes.clear();
+        if (nodesToKeepExpanded != null) {
+            this.expandedNodes.addAll(nodesToKeepExpanded);
+        }
     }
 
     public UUID getRenamingContainerId() {
@@ -71,6 +90,14 @@ public final class ContainerPanelState {
 
     public void setPendingReleaseContainerId(UUID pendingReleaseContainerId) {
         this.pendingReleaseContainerId = pendingReleaseContainerId;
+    }
+
+    public boolean isPendingDeletionRequested() {
+        return pendingDeletionRequested;
+    }
+
+    public void setPendingDeletionRequested(boolean pendingDeletionRequested) {
+        this.pendingDeletionRequested = pendingDeletionRequested;
     }
 
     public void toggleNode(UUID nodeId) {

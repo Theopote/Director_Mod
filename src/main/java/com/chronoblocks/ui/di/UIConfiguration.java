@@ -120,7 +120,7 @@ public class UIConfiguration {
             
             // 注册模块化的独立面板（ToolPropertiesPanel 现在包含渲染设置）
             panels.add(panelFactory.createPanel(ToolPropertiesPanel.class, minecraftClient));
-            panels.add(panelFactory.createPanel(SelectionRenderSettingsPanel.class, minecraftClient));
+            panels.add(panelFactory.createPanel(RenderSettingsPanel.class, minecraftClient));
             panels.add(panelFactory.createPanel(SelectionHistoryPanel.class, minecraftClient));
             panels.add(panelFactory.createPanel(HelpPanel.class, minecraftClient));
             

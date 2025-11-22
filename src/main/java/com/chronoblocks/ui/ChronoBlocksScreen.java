@@ -2,7 +2,6 @@ package com.chronoblocks.ui;
 
 import com.chronoblocks.client.ChronoBlocksClientController;
 import com.chronoblocks.client.gizmo.GizmoManager;
-import com.chronoblocks.client.renderer.ContainerRenderer;
 import com.chronoblocks.client.renderer.SelectionRenderer;
 import com.chronoblocks.client.renderer.ToolPreviewManager;
 import com.chronoblocks.client.renderer.pipeline.ChronoBlocksRendererRegistry;
@@ -91,6 +90,16 @@ public class ChronoBlocksScreen extends Screen {
             this.uiManager = config.createUIManager();
             this.isInitialized = true;
             LOGGER.info("[ChronoBlocks] UI 管理器初始化成功");
+            
+            // 确保加载当前世界的布局（在UI初始化后，此时世界已加载）
+            try {
+                com.chronoblocks.ui.layout.LayoutPersistenceManager layoutManager = 
+                    com.chronoblocks.ui.layout.LayoutPersistenceManager.getInstance();
+                layoutManager.reloadForCurrentWorld("ChronoBlocksScreen.init()");
+                LOGGER.info("[ChronoBlocks] 已同步当前世界的布局配置");
+            } catch (Exception e) {
+                LOGGER.warn("[ChronoBlocks] 同步世界布局失败: {}", e.getMessage(), e);
+            }
         } catch (Exception e) {
             LOGGER.error("[ChronoBlocks] UI 管理器初始化失败: {}", e.getMessage(), e);
             this.uiManager = null;
@@ -115,13 +124,13 @@ public class ChronoBlocksScreen extends Screen {
             LOGGER.warn("[ChronoBlocks] 渲染注册表未激活，尝试重新初始化");
             rendererRegistry.ensureInitialized();
         }
+        // ContainerRenderer 已删除
+        
+        // 激活 UI 相关快捷键上下文
         try {
-            ContainerRenderer.get().setEnabled(true);
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[ChronoBlocks] ContainerRenderer 已启用");
-            }
+            com.chronoblocks.ui.input.ShortcutInitializer.activateUIContexts();
         } catch (Exception e) {
-            LOGGER.error("[ChronoBlocks] 启用 ContainerRenderer 失败", e);
+            LOGGER.warn("[ChronoBlocks] 激活 UI 快捷键上下文失败", e);
         }
     }
 
@@ -206,15 +215,27 @@ public class ChronoBlocksScreen extends Screen {
     
     /**
      * 处理键盘输入事件
-     * 仅处理UI相关按键，其余交回游戏
+     * 使用全局快捷键管理器统一处理所有快捷键
      */
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         // 检查ImGui是否想要捕获键盘事件
         if (ImGui.getIO() != null && ImGui.getIO().getWantCaptureKeyboard()) {
+            // ImGui 捕获键盘时，使用 ImGui 输入处理
+            var shortcutManager = com.chronoblocks.ui.input.GlobalShortcutManager.getInstance();
+            if (shortcutManager.handleImGuiInput(ImGui.getIO())) {
+                return true; // 已处理
+            }
             return super.keyPressed(keyCode, scanCode, modifiers);
         }
-        return false; // 不拦截游戏按键，让游戏继续处理
+        
+        // ImGui 不捕获键盘时，使用 GLFW 输入处理
+        var shortcutManager = com.chronoblocks.ui.input.GlobalShortcutManager.getInstance();
+        boolean ctrlPressed = (modifiers & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL) != 0;
+        boolean shiftPressed = (modifiers & org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT) != 0;
+        boolean altPressed = (modifiers & org.lwjgl.glfw.GLFW.GLFW_MOD_ALT) != 0;
+        return shortcutManager.handleGLFWInput(keyCode, ctrlPressed, shiftPressed, altPressed); // 已处理，阻止游戏处理
+// 不拦截游戏按键，让游戏继续处理
     }
     
     /**
@@ -248,6 +269,14 @@ public class ChronoBlocksScreen extends Screen {
         exitDirectorMode();
         cleanupRenderSystems(false);
         InputFocusManager.getInstance().setChronoBlocksScreenActive(false);
+        
+        // 停用 UI 相关快捷键上下文
+        try {
+            com.chronoblocks.ui.input.ShortcutInitializer.deactivateUIContexts();
+        } catch (Exception e) {
+            LOGGER.warn("[ChronoBlocks] 停用 UI 快捷键上下文失败", e);
+        }
+        
         LOGGER.info("[ChronoBlocks] ChronoBlocksScreen 已关闭，恢复游戏输入模式");
     }
     
@@ -350,6 +379,17 @@ public class ChronoBlocksScreen extends Screen {
             LOGGER.info("[ChronoBlocks] 鼠标光标已锁定，恢复游戏状态");
         }
 
+        // 在关闭前保存当前世界的布局
+        try {
+            com.chronoblocks.ui.layout.LayoutPersistenceManager layoutManager = 
+                com.chronoblocks.ui.layout.LayoutPersistenceManager.getInstance();
+            layoutManager.saveLayout();
+            layoutManager.saveImGuiIni();
+            LOGGER.info("[ChronoBlocks] 已保存当前世界的布局配置");
+        } catch (Exception e) {
+            LOGGER.warn("[ChronoBlocks] 保存布局配置失败: {}", e.getMessage(), e);
+        }
+        
         if (uiManager != null) {
             try {
                 uiManager.dispose();
@@ -554,11 +594,7 @@ public class ChronoBlocksScreen extends Screen {
         } catch (Exception e) {
             LOGGER.warn("[ChronoBlocks] 清理工具预览失败", e);
         }
-        try {
-            ContainerRenderer.get().setEnabled(false);
-        } catch (Exception e) {
-            LOGGER.warn("[ChronoBlocks] 停用 ContainerRenderer 失败", e);
-        }
+        // ContainerRenderer 已删除
         try {
             GizmoManager.get().deactivate();
         } catch (Exception e) {

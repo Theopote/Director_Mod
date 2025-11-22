@@ -10,6 +10,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
+import com.chronoblocks.client.settings.RenderSettings;
 
 /**
  * 容器边界呼吸边框渲染器
@@ -30,13 +31,14 @@ import org.joml.Matrix4f;
 public final class ContainerBoundsRenderer {
     
     private static final MinecraftClient MC = MinecraftClient.getInstance();
+    // 全局设置中心（新系统优先读取）
+    private static final RenderSettings settings = RenderSettings.get();
     
     // ========== 渲染参数 ==========
     private static final float BASE_ALPHA = 0.6f;
     private static final float ALPHA_AMPLITUDE = 0.4f;
     private static final float BREATHING_SPEED = 0.05f; // 呼吸速度 (radians per tick)
-    private static final float RAINBOW_SPEED = 0.1f; // 彩虹变化速度
-    private static final float LINE_WIDTH = 2.0f;
+    // 已弃用：彩虹/固定线宽逻辑改由 RenderSettings 控制
     
     // ========== 时间追踪 ==========
     private static long lastUpdateTime = 0;
@@ -52,6 +54,9 @@ public final class ContainerBoundsRenderer {
      */
     public static void render(MatrixStack matrices, VertexConsumerProvider vertexConsumers) {
         if (MC.world == null || MC.player == null) {
+            return;
+        }
+        if (!settings.container_showOutline) {
             return;
         }
         
@@ -119,23 +124,25 @@ public final class ContainerBoundsRenderer {
     private static void renderAnimatedBox(MatrixStack matrices, 
                                          VertexConsumerProvider vertexConsumers,
                                          Box box) {
-        // 计算呼吸动画的alpha值
+        // 计算呼吸动画的alpha叠加值
         float breathingPhase = (float) Math.sin(animationTime * BREATHING_SPEED);
-        float alpha = BASE_ALPHA + ALPHA_AMPLITUDE * breathingPhase;
-        
-        // 计算彩虹颜色
-        float hue = (animationTime * RAINBOW_SPEED) % 1.0f;
-        int rgb = java.awt.Color.HSBtoRGB(hue, 0.8f, 1.0f);
-        float r = ((rgb >> 16) & 0xFF) / 255.0f;
-        float g = ((rgb >> 8) & 0xFF) / 255.0f;
-        float b = (rgb & 0xFF) / 255.0f;
+        float alphaMod = BASE_ALPHA + ALPHA_AMPLITUDE * breathingPhase;
+
+        // ✅ 直接从全局设置读取颜色和线宽（实时生效）
+        float[] color = settings.container_outlineColor;
+        float r = color[0];
+        float g = color[1];
+        float b = color[2];
+        float a = color[3];
+        float alpha = Math.max(0.0f, Math.min(1.0f, a * alphaMod));
         
         // 设置渲染状态
         RenderSystem.enableBlend();
         RenderSystem.defaultBlendFunc();
         RenderSystem.disableCull();
         RenderSystem.depthMask(false);
-        RenderSystem.lineWidth(LINE_WIDTH);
+        float lw = Math.max(1.0f, Math.min(settings.container_outlineWidth, 6.0f));
+        RenderSystem.lineWidth(lw);
         
         // 获取线条渲染层
         VertexConsumer consumer = vertexConsumers.getBuffer(RenderLayer.getLines());

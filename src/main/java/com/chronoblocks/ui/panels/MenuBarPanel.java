@@ -903,29 +903,82 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
     }
     
     private void handleSaveCurrentLayout() {
-        if (uiManager != null) {
-            // TODO: 调用 UIManager 的布局保存方法
-            logger.info("[MenuBar] Save Current Layout");
+        try {
+            com.chronoblocks.ui.layout.LayoutPersistenceManager layoutManager = 
+                com.chronoblocks.ui.layout.LayoutPersistenceManager.getInstance();
+            layoutManager.saveLayout();
+            logger.info("[MenuBar] 当前布局已保存");
+        } catch (Exception e) {
+            logger.error("[MenuBar] 保存布局失败: {}", e.getMessage(), e);
         }
     }
     
     private void handleResetLayout() {
-        if (uiManager != null) {
-            // TODO: 调用 UIManager 的布局重置方法
-            logger.info("[MenuBar] Reset Layout");
+        try {
+            com.chronoblocks.ui.layout.LayoutPersistenceManager layoutManager = 
+                com.chronoblocks.ui.layout.LayoutPersistenceManager.getInstance();
+            
+            // 删除ImGui INI文件
+            java.nio.file.Path iniPath = layoutManager.getImGuiIniPath();
+            if (java.nio.file.Files.exists(iniPath)) {
+                java.nio.file.Files.delete(iniPath);
+            }
+            
+            // 重置布局
+            layoutManager.resetToDefault();
+            
+            // 重置DockSpace布局状态
+            com.chronoblocks.ui.layout.DockSpaceLayoutBuilder.resetLayoutState();
+            
+            logger.info("[MenuBar] 布局已重置为默认");
+        } catch (Exception e) {
+            logger.error("[MenuBar] 重置布局失败: {}", e.getMessage(), e);
         }
     }
     
     private void handleCompactLayout() {
-        logger.info("[MenuBar] Compact Layout");
+        try {
+            com.chronoblocks.ui.layout.LayoutPersistenceManager layoutManager = 
+                com.chronoblocks.ui.layout.LayoutPersistenceManager.getInstance();
+            if (layoutManager.loadLayoutPreset("compact")) {
+                logger.info("[MenuBar] 已加载紧凑布局预设");
+            } else {
+                logger.warn("[MenuBar] 紧凑布局预设不存在，将创建默认紧凑布局");
+                // TODO: 创建紧凑布局预设
+            }
+        } catch (Exception e) {
+            logger.error("[MenuBar] 加载紧凑布局失败: {}", e.getMessage(), e);
+        }
     }
     
     private void handleWideLayout() {
-        logger.info("[MenuBar] Wide Layout");
+        try {
+            com.chronoblocks.ui.layout.LayoutPersistenceManager layoutManager = 
+                com.chronoblocks.ui.layout.LayoutPersistenceManager.getInstance();
+            if (layoutManager.loadLayoutPreset("wide")) {
+                logger.info("[MenuBar] 已加载宽屏布局预设");
+            } else {
+                logger.warn("[MenuBar] 宽屏布局预设不存在，将创建默认宽屏布局");
+                // TODO: 创建宽屏布局预设
+            }
+        } catch (Exception e) {
+            logger.error("[MenuBar] 加载宽屏布局失败: {}", e.getMessage(), e);
+        }
     }
     
     private void handleAnimationFocusLayout() {
-        logger.info("[MenuBar] Animation Focus Layout");
+        try {
+            com.chronoblocks.ui.layout.LayoutPersistenceManager layoutManager = 
+                com.chronoblocks.ui.layout.LayoutPersistenceManager.getInstance();
+            if (layoutManager.loadLayoutPreset("animation_focus")) {
+                logger.info("[MenuBar] 已加载动画焦点布局预设");
+            } else {
+                logger.warn("[MenuBar] 动画焦点布局预设不存在，将创建默认动画焦点布局");
+                // TODO: 创建动画焦点布局预设
+            }
+        } catch (Exception e) {
+            logger.error("[MenuBar] 加载动画焦点布局失败: {}", e.getMessage(), e);
+        }
     }
     
     private void handleToggleFullscreen() {

@@ -100,6 +100,10 @@ public class SelectionToContainerBridge {
             LOGGER.warn("[SelectionToContainerBridge] 目标容器为空");
             return false;
         }
+        if (container.isLocked()) {
+            LOGGER.warn("[SelectionToContainerBridge] 容器 {} 已锁定，禁止收纳选区", container.getName());
+            return false;
+        }
         
         SelectionState selection = selectionManager.getCurrentSelection();
         if (selection.isEmpty()) {
@@ -123,6 +127,10 @@ public class SelectionToContainerBridge {
     public boolean removeSelectionFromContainer(Container container) {
         if (container == null) {
             LOGGER.warn("[SelectionToContainerBridge] 目标容器为空");
+            return false;
+        }
+        if (container.isLocked()) {
+            LOGGER.warn("[SelectionToContainerBridge] 容器 {} 已锁定，禁止从容器移除选区", container.getName());
             return false;
         }
         

@@ -106,14 +106,11 @@ public final class ProjectIO {
         TrackDTO dto = new TrackDTO();
         dto.propertyPath = track.getPropertyPath();
 
-        if (track instanceof TransformTrack transformTrack) {
-            dto.type = transformTrack.isScaleTrack() ? "scale" : "position";
-        } else if (track instanceof RotationTrack) {
-            dto.type = "rotation";
-        } else if (track instanceof VisibilityTrack) {
-            dto.type = "visibility";
-        } else {
-            dto.type = "generic";
+        switch (track) {
+            case TransformTrack transformTrack -> dto.type = transformTrack.isScaleTrack() ? "scale" : "position";
+            case RotationTrack rotationTrack -> dto.type = "rotation";
+            case VisibilityTrack visibilityTrack -> dto.type = "visibility";
+            default -> dto.type = "generic";
         }
 
         for (Keyframe<?> keyframe : track.getKeyframes()) {
@@ -189,7 +186,6 @@ public final class ProjectIO {
                 case "scale" -> clip.addTrack(buildVecTrack(new TransformTrack(trackDTO.propertyPath, true), trackDTO));
                 case "position" -> clip.addTrack(buildVecTrack(new TransformTrack(trackDTO.propertyPath, false), trackDTO));
                 case "rotation" -> clip.addTrack(buildVecTrack(new RotationTrack(trackDTO.propertyPath), trackDTO));
-                case "visibility" -> clip.addTrack(buildScalarTrack(new VisibilityTrack(), trackDTO));
                 default -> clip.addTrack(buildScalarTrack(new VisibilityTrack(), trackDTO));
             }
         }
@@ -233,9 +229,9 @@ public final class ProjectIO {
 
         for (LegacyTrackDTO trackDTO : legacy.tracks) {
             for (LegacyKeyframeDTO k : trackDTO.keyframes) {
-                Vec3d pos = toVec(k.position, Vec3d.ZERO);
-                Vec3d rot = toVec(k.rotation, Vec3d.ZERO);
-                Vec3d scale = toVec(k.scale, Vec3d.ZERO);
+                Vec3d pos = toVec(k.position);
+                Vec3d rot = toVec(k.rotation);
+                Vec3d scale = toVec(k.scale);
                 double opacity = k.opacity;
 
                 positionTrack.addKeyframe(new Keyframe<>(k.time, pos));
@@ -252,9 +248,9 @@ public final class ProjectIO {
         return clip;
     }
 
-    private static Vec3d toVec(float[] raw, Vec3d fallback) {
+    private static Vec3d toVec(float[] raw) {
         if (raw == null || raw.length < 3) {
-            return fallback;
+            return Vec3d.ZERO;
         }
         return new Vec3d(raw[0], raw[1], raw[2]);
     }

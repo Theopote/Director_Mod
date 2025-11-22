@@ -1,8 +1,8 @@
 package com.chronoblocks.ui.panels;
 
 import com.chronoblocks.core.container.*;
+import com.chronoblocks.ui.container.ContainerColorPicker;
 import com.chronoblocks.ui.container.ContainerPanelController;
-import com.chronoblocks.ui.theme.UITheme;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiInputTextFlags;
@@ -25,8 +25,26 @@ public class ContainerPropertiesPanel {
     private final ImString descBuffer = new ImString(512);
     private final ImInt typeIndex = new ImInt(0);
     private final ImInt animModeIndex = new ImInt(0);
-    private final float[] colorBuffer = new float[4];
-    private final float[] opacityBuffer = new float[1];
+    private final float[] tagColorBuffer = new float[4];
+    
+    // 容器类型选项（排除 GROUP 类型）
+    private static final ContainerType[] AVAILABLE_TYPES;
+    private static final String[] TYPE_NAMES;
+    
+    static {
+        ContainerType[] allTypes = ContainerType.values();
+        java.util.List<ContainerType> available = new java.util.ArrayList<>();
+        for (ContainerType type : allTypes) {
+            if (type != ContainerType.GROUP) {
+                available.add(type);
+            }
+        }
+        AVAILABLE_TYPES = available.toArray(new ContainerType[0]);
+        TYPE_NAMES = new String[AVAILABLE_TYPES.length];
+        for (int i = 0; i < AVAILABLE_TYPES.length; i++) {
+            TYPE_NAMES[i] = AVAILABLE_TYPES[i].toString();
+        }
+    }
 
     // 缓存当前正在编辑的容器
     private UUID currentEditingContainerId = null;
@@ -92,16 +110,22 @@ public class ContainerPropertiesPanel {
         Object desc = container.getMetadata("description", "");
         descBuffer.set(desc != null ? desc.toString() : "");
 
-        typeIndex.set(container.getType().ordinal());
+        // 设置类型索引（从可用类型中找到当前类型的索引）
+        ContainerType currentType = container.getType();
+        int currentTypeIndex = 0;
+        for (int i = 0; i < AVAILABLE_TYPES.length; i++) {
+            if (AVAILABLE_TYPES[i] == currentType) {
+                currentTypeIndex = i;
+                break;
+            }
+        }
+        typeIndex.set(currentTypeIndex);
 
-        // color
-        int c = container.getColor();
-        colorBuffer[0] = ( c        & 0xFF) / 255.0f; // R
-        colorBuffer[1] = ((c >> 8 ) & 0xFF) / 255.0f; // G
-        colorBuffer[2] = ((c >> 16) & 0xFF) / 255.0f; // B
-        colorBuffer[3] = ((c >> 24) & 0xFF) / 255.0f; // A
-
-        opacityBuffer[0] = container.getOpacity();
+        // UI 标签颜色（从 metadata 读取）
+        Integer tagColor = (Integer) container.getMetadata("tagColor", null);
+        int defaultColor = tagColor != null ? tagColor : 0xFFFFFFFF;
+        float[] colorArray = ContainerColorPicker.colorIntToFloat(defaultColor);
+        System.arraycopy(colorArray, 0, tagColorBuffer, 0, 4);
 
         // 动画 preset
         animModeIndex.set(container.getDefaultAnimationPreset().getMode().ordinal());
@@ -140,8 +164,26 @@ public class ContainerPropertiesPanel {
             }
         }
 
-        // 类型（建议只读）
-        ImGui.textDisabled("类型: " + container.getType().getDisplayName());
+        // 类型（可选择）
+        int currentTypeIndex = 0;
+        ContainerType currentType = container.getType();
+        for (int i = 0; i < AVAILABLE_TYPES.length; i++) {
+            if (AVAILABLE_TYPES[i] == currentType) {
+                currentTypeIndex = i;
+                break;
+            }
+        }
+        typeIndex.set(currentTypeIndex);
+        
+        if (ImGui.combo("类型", typeIndex, TYPE_NAMES)) {
+            ContainerType newType = AVAILABLE_TYPES[typeIndex.get()];
+            if (newType != currentType) {
+                controller.setContainerType(container.getId(), newType);
+            }
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("容器的用途分类，用于标识和组织不同类型的容器");
+        }
 
         // 描述（用户自由填写）
         if (ImGui.inputTextMultiline("描述", descBuffer, 0, 70)) {
@@ -204,56 +246,58 @@ public class ContainerPropertiesPanel {
     }
 
     // ----------------------------------------------------------
-    // UI：外观属性
+    // UI：容器属性（非渲染相关）
     // ----------------------------------------------------------
     private void renderVisualProperties(Container container) {
-        if (!ImGui.collapsingHeader("视觉属性")) return;
+        if (!ImGui.collapsingHeader("容器属性")) return;
 
-        // 容器状态（显示/隐藏）
-        ContainerState currentState = container.getState();
-        boolean isHidden = currentState == ContainerState.HIDDEN;
+        // UI 标签颜色（用于容器树视图中的颜色标记，不影响渲染）
+        ImGui.text("UI 标签颜色:");
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("在容器树视图中显示的颜色标记，用于分类和识别，不影响 Minecraft 世界中的渲染效果");
+        }
         
-        ImGui.text("容器状态:");
+        if (ContainerColorPicker.renderColorPicker("标签颜色", tagColorBuffer)) {
+            int newTagColor = ContainerColorPicker.colorFloatToInt(tagColorBuffer);
+            controller.setMetadata(container.getId(), "tagColor", newTagColor);
+        }
+
         ImGui.sameLine();
-        String stateText = isHidden ? "隐藏" : "可见";
-        UITheme.label(stateText, isHidden ? 
-            UITheme.DarkTheme.TEXT_DISABLED : UITheme.DarkTheme.TEXT_SELECTED);
-        
-        ImGui.sameLine();
-        String toggleText = isHidden ? "显示容器" : "隐藏容器";
-        if (ImGui.button(toggleText)) {
-            controller.toggleContainerState(container.getId());
+        if (ImGui.button("清除##clearTagColor")) {
+            controller.setMetadata(container.getId(), "tagColor", null);
+            // 重置缓冲区为白色（默认）
+            float[] defaultColorArray = ContainerColorPicker.colorIntToFloat(0xFFFFFFFF);
+            System.arraycopy(defaultColorArray, 0, tagColorBuffer, 0, 4);
+            // 强制重新同步缓冲区（下次渲染时会从容器读取）
+            currentEditingContainerId = null;
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(isHidden ? 
-                "显示容器中的方块（方块将在 Minecraft 世界中可见）" :
-                "隐藏容器中的方块（方块将在 Minecraft 世界中不可见，看起来像被清除）");
+            ImGui.setTooltip("清除 UI 标签颜色");
         }
 
         ImGui.separator();
 
-        // 不透明度
-        if (ImGui.sliderFloat("不透明度", opacityBuffer, 0f, 1f, "%.2f")) {
-            controller.setContainerOpacity(container.getId(), opacityBuffer[0]);
-        }
-
-        // 颜色
-        if (ImGui.colorEdit4("标记颜色", colorBuffer)) {
-            int newColor =
-                    ((int)(colorBuffer[3] * 255) << 24) |
-                    ((int)(colorBuffer[2] * 255) << 16) |
-                    ((int)(colorBuffer[1] * 255) << 8)  |
-                    ((int)(colorBuffer[0] * 255));
-
-            controller.setContainerColor(container.getId(), newColor);
-        }
-
-        ImGui.spacing();
-
-        // 锁定
+        // 锁定和容器状态（同一行）
         boolean locked = container.isLocked();
         if (ImGui.checkbox("锁定", locked)) {
             controller.setContainerLocked(container.getId(), !locked);
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("锁定容器后，将无法修改容器的内容和属性");
+        }
+
+        ImGui.sameLine();
+        
+        // 容器状态（显示/隐藏）
+        ContainerState currentState = container.getState();
+        boolean isVisible = currentState == ContainerState.VISIBLE;
+        if (ImGui.checkbox("可见", isVisible)) {
+            controller.toggleContainerState(container.getId());
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(isVisible ? 
+                "隐藏容器中的方块（方块将在 Minecraft 世界中不可见，看起来像被清除）" :
+                "显示容器中的方块（方块将在 Minecraft 世界中可见）");
         }
     }
 

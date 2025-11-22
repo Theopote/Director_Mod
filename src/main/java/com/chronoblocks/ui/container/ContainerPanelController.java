@@ -19,6 +19,8 @@ public class ContainerPanelController {
     private final ContainerManager containerManager;
     private final ContainerPanelState state;
     private final ContainerCommandService commandService;
+		private final ContainerAnimationController animationController;
+		private final ContainerHierarchyController hierarchyController;
 
     public ContainerPanelController(ContainerManager containerManager,
                                     TimelineCommandHistory commandHistory,
@@ -26,6 +28,8 @@ public class ContainerPanelController {
         this.containerManager = containerManager;
         this.state = state;
         this.commandService = new ContainerCommandService(containerManager, commandHistory);
+			this.animationController = new ContainerAnimationController(commandService);
+			this.hierarchyController = new ContainerHierarchyController(commandService);
     }
 
     /* -------------------- 查询辅助 -------------------- */
@@ -60,9 +64,19 @@ public class ContainerPanelController {
     }
 
     public void selectContainer(UUID id, boolean multiSelect) {
+        selectContainer(id, multiSelect, false);
+    }
+    
+    public void selectContainer(UUID id, boolean multiSelect, boolean rangeSelect) {
         Container container = getContainer(id);
         if (container != null) {
-            containerManager.selectContainer(container, multiSelect);
+			Container active = containerManager.getActive();
+			if (!multiSelect && !rangeSelect && active != null && active.isIntakeEnabled() && active != container) {
+				org.slf4j.LoggerFactory.getLogger(ContainerPanelController.class)
+					.info("[ContainerPanelController] 选择其他容器 -> 结束激活容器的实时接收: {}", active.getName());
+				commandService.toggleIntake(active.getId());
+			}
+            containerManager.selectContainer(container, multiSelect, rangeSelect);
         }
     }
 
@@ -126,10 +140,12 @@ public class ContainerPanelController {
     }
 
     public void deleteSelectedContainers() {
+        org.slf4j.LoggerFactory.getLogger(ContainerPanelController.class).debug("[ContainerPanelController] 执行删除选中容器");
         commandService.deleteSelectedContainers();
     }
 
     public void clearAllContainers() {
+        org.slf4j.LoggerFactory.getLogger(ContainerPanelController.class).debug("[ContainerPanelController] 执行清空所有容器");
         commandService.clearAllContainers();
     }
 
@@ -178,33 +194,37 @@ public class ContainerPanelController {
     /* -------------------- 排序 / 拖拽 -------------------- */
 
     public void moveContainer(UUID containerId, UUID targetParentId, int index) {
-        commandService.moveContainer(containerId, targetParentId, index);
+		hierarchyController.moveContainer(containerId, targetParentId, index);
     }
 
     public void moveContainerAsChild(UUID draggedId, UUID parentId) {
-        commandService.moveContainerAsChild(draggedId, parentId);
+		hierarchyController.moveContainerAsChild(draggedId, parentId);
     }
 
     public void moveContainerBefore(UUID draggedId, UUID referenceId) {
-        commandService.moveContainerBefore(draggedId, referenceId);
+		hierarchyController.moveContainerBefore(draggedId, referenceId);
     }
 
     public void moveContainerAfter(UUID draggedId, UUID referenceId) {
-        commandService.moveContainerAfter(draggedId, referenceId);
+		hierarchyController.moveContainerAfter(draggedId, referenceId);
     }
 
     public void moveContainerByOffset(UUID containerId, int offset) {
-        commandService.moveContainerByOffset(containerId, offset);
+		hierarchyController.moveContainerByOffset(containerId, offset);
     }
 
     public void swapContainers(UUID firstId, UUID secondId) {
-        commandService.swapContainers(firstId, secondId);
+		hierarchyController.swapContainers(firstId, secondId);
     }
 
     /* -------------------- 属性变更 -------------------- */
 
     public void renameContainer(UUID containerId, String newName) {
         commandService.renameContainer(containerId, newName);
+    }
+
+    public void setContainerType(UUID containerId, com.chronoblocks.core.container.ContainerType newType) {
+        commandService.setContainerType(containerId, newType);
     }
 
     public void setContainerLocked(UUID containerId, boolean locked) {
@@ -222,29 +242,55 @@ public class ContainerPanelController {
     public void setContainerColor(UUID containerId, int color) {
         commandService.setContainerColor(containerId, color);
     }
+    
+    /**
+     * 批量设置选中容器的颜色（标题和/或图标）
+     * @param titleColor 标题颜色（ARGB），null 表示不设置
+     * @param iconColor 图标颜色（ARGB），null 表示不设置
+     */
+    public void batchSetContainerColors(Integer titleColor, Integer iconColor) {
+        Set<Container> selected = containerManager.getSelectedContainersView();
+        if (!selected.isEmpty()) {
+            commandService.batchSetContainerColors(selected, titleColor, iconColor);
+        }
+    }
+    
+    /**
+     * 批量设置选中容器的标签颜色
+     * @param tagColor 标签颜色（ARGB）
+     */
+    public void batchSetContainerTagColors(Integer tagColor) {
+        Set<Container> selected = containerManager.getSelectedContainersView();
+        if (!selected.isEmpty() && tagColor != null) {
+            // 批量设置标签颜色
+            for (Container container : selected) {
+                commandService.setMetadata(container.getId(), "tagColor", tagColor);
+            }
+        }
+    }
 
     public void setContainerOpacity(UUID containerId, float opacity) {
         commandService.setContainerOpacity(containerId, opacity);
     }
 
     public void setPresetMode(UUID containerId, com.chronoblocks.core.container.AnimationMode mode) {
-        commandService.setPresetMode(containerId, mode);
+		animationController.setPresetMode(containerId, mode);
     }
 
     public void setPresetDuration(UUID containerId, float duration) {
-        commandService.setPresetDuration(containerId, duration);
+		animationController.setPresetDuration(containerId, duration);
     }
 
     public void setPresetDelay(UUID containerId, float delay) {
-        commandService.setPresetDelay(containerId, delay);
+		animationController.setPresetDelay(containerId, delay);
     }
 
     public void setPresetEasing(UUID containerId, String easing) {
-        commandService.setPresetEasing(containerId, easing);
+		animationController.setPresetEasing(containerId, easing);
     }
 
     public void setPresetOrdering(UUID containerId, String ordering) {
-        commandService.setPresetOrdering(containerId, ordering);
+		animationController.setPresetOrdering(containerId, ordering);
     }
 
     public void setMetadata(UUID containerId, String key, Object value) {
@@ -272,7 +318,11 @@ public class ContainerPanelController {
     /* -------------------- 状态辅助 -------------------- */
 
     public void toggleExpandAll() {
-        state.setExpandAll(!state.isExpandAll());
+        if (state.isExpandAll()) {
+            state.collapseAllNodes();
+        } else {
+            state.expandAllNodes();
+        }
     }
 
     public void setRenamingContainer(UUID containerId) {
@@ -289,6 +339,20 @@ public class ContainerPanelController {
 
     public void clearContextMenuContainer() {
         state.setContextMenuContainerId(null);
+    }
+    
+    /**
+     * 取消选中所有容器（在空白区域点击时调用）
+     */
+    public void clearSelection() {
+        containerManager.clearSelection();
+    }
+    
+    /**
+     * 获取容器管理器（供交互处理器使用）
+     */
+    ContainerManager getContainerManager() {
+        return containerManager;
     }
 }
 
