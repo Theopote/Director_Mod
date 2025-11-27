@@ -5,6 +5,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.ChunkPos;
 import net.minecraft.world.World;
 import net.minecraft.world.chunk.Chunk;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -13,7 +14,7 @@ import java.util.Map;
 
 /**
  * 💾 Chunk 缓存系统
- * 
+ * <p>
  * 缓存已加载的 BlockState，减少 world.getBlockState() 调用次数，
  * 显著提升大范围泛洪填充的性能。
  * 
@@ -130,7 +131,7 @@ public class ChunkCache {
         }
         
         @Override
-        public String toString() {
+        public @NotNull String toString() {
             return String.format("命中率: %.2f%% (%d/%d), 缓存区块: %d", 
                 getHitRate() * 100, hits, hits + misses, cachedChunks);
         }

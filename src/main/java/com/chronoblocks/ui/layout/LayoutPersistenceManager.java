@@ -49,9 +49,7 @@ public class LayoutPersistenceManager {
     
     // 布局变更检测
     private boolean layoutChanged = false;
-    private long lastSaveTime = 0;
-    private static final long AUTO_SAVE_INTERVAL = 5000; // 5秒自动保存
-    
+
     /**
      * 布局数据结构
      */
@@ -59,9 +57,7 @@ public class LayoutPersistenceManager {
         public String version = LAYOUT_VERSION;
         public long timestamp = System.currentTimeMillis();
         public Map<String, PanelLayout> panels = new HashMap<>();
-        public String dockspaceConfig = "";
-        public boolean hasCustomLayout = false;
-        
+
         public LayoutData() {}
         
         public boolean isValid() {
@@ -78,9 +74,7 @@ public class LayoutPersistenceManager {
         public String panelName;
         public String windowName;
         public boolean visible = true;
-        
-        public PanelLayout() {}
-        
+
         public PanelLayout(String panelName, String windowName) {
             this.panelName = panelName;
             this.windowName = windowName;
@@ -212,19 +206,7 @@ public class LayoutPersistenceManager {
             LOGGER.debug("[LayoutPersistence] 世界未变化 ({})，保持当前布局", currentWorldId);
         }
     }
-    
-    /**
-     * 加载布局配置（按世界）
-     */
-    public void loadLayout() {
-        if (WorldIdentifier.hasWorldChanged()) {
-            reloadForCurrentWorld("loadLayout()");
-            return;
-        }
-        loadLayoutInternal();
-        loadImGuiIniIfExists();
-    }
-    
+
     private void loadLayoutInternal() {
         String worldId = resolveWorldId(currentWorldId);
         currentWorldId = worldId;
@@ -294,7 +276,7 @@ public class LayoutPersistenceManager {
             LOGGER.debug("[LayoutPersistence] 世界 {} 的布局配置已保存: {}", 
                 worldId, layoutFile);
             layoutChanged = false;
-            lastSaveTime = System.currentTimeMillis();
+            long lastSaveTime = System.currentTimeMillis();
         } catch (IOException e) {
             LOGGER.error("[LayoutPersistence] 保存布局配置失败: {}", e.getMessage(), e);
         }
@@ -317,14 +299,7 @@ public class LayoutPersistenceManager {
             LOGGER.warn("[LayoutPersistence] 保存 ImGui 布局失败: {}", e.getMessage(), e);
         }
     }
-    
-    /**
-     * 如果存在则加载 ImGui ini 布局
-     */
-    public void loadImGuiIniIfExists() {
-        loadImGuiIniIfExists(resolveWorldId(currentWorldId));
-    }
-    
+
     private void loadImGuiIniIfExists(String worldId) {
         try {
             Path iniPath = getImGuiIniPath(worldId);
@@ -339,16 +314,7 @@ public class LayoutPersistenceManager {
             LOGGER.warn("[LayoutPersistence] 加载 ImGui 布局失败: {}", e.getMessage(), e);
         }
     }
-    
-    /**
-     * 自动保存布局（如果已更改）
-     */
-    public void autoSaveIfChanged() {
-        if (layoutChanged && (System.currentTimeMillis() - lastSaveTime) > AUTO_SAVE_INTERVAL) {
-            saveLayout();
-        }
-    }
-    
+
     /**
      * 标记布局已更改
      */
@@ -364,20 +330,6 @@ public class LayoutPersistenceManager {
             return null;
         }
         return currentLayout.panels.get(panelName);
-    }
-    
-    /**
-     * 设置面板布局信息
-     */
-    public void setPanelLayout(String panelName, PanelLayout layout) {
-        if (currentLayout == null) {
-            currentLayout = new LayoutData();
-        }
-        if (currentLayout.panels == null) {
-            currentLayout.panels = new HashMap<>();
-        }
-        currentLayout.panels.put(panelName, layout);
-        markLayoutChanged();
     }
     
     /**
@@ -407,24 +359,7 @@ public class LayoutPersistenceManager {
         PanelLayout layout = getPanelLayout(panelName);
         return layout != null ? layout.visible : null;
     }
-    
-    /**
-     * 检查是否有自定义布局
-     */
-    public boolean hasCustomLayout() {
-        return currentLayout != null && currentLayout.hasCustomLayout;
-    }
-    
-    /**
-     * 设置自定义布局标志
-     */
-    public void setCustomLayout(boolean hasCustom) {
-        if (currentLayout != null) {
-            currentLayout.hasCustomLayout = hasCustom;
-            markLayoutChanged();
-        }
-    }
-    
+
     /**
      * 重置为默认布局（当前世界）
      */
@@ -434,35 +369,7 @@ public class LayoutPersistenceManager {
         markLayoutChanged();
         saveLayout();
     }
-    
-    /**
-     * 保存当前布局为预设
-     * 
-     * @param presetName 预设名称
-     */
-    public void saveLayoutPreset(String presetName) {
-        if (currentLayout == null) {
-            LOGGER.warn("[LayoutPersistence] 当前布局为空，无法保存预设");
-            return;
-        }
-        
-        try {
-            Path presetFile = LAYOUT_DIR.resolve("presets").resolve(sanitizePresetName(presetName) + ".json");
-            
-            // 确保预设目录存在
-            if (!Files.exists(presetFile.getParent())) {
-                Files.createDirectories(presetFile.getParent());
-            }
-            
-            currentLayout.timestamp = System.currentTimeMillis();
-            String layoutJson = GSON.toJson(currentLayout);
-            Files.writeString(presetFile, layoutJson);
-            LOGGER.info("[LayoutPersistence] 布局预设已保存: {}", presetFile);
-        } catch (IOException e) {
-            LOGGER.error("[LayoutPersistence] 保存布局预设失败: {}", e.getMessage(), e);
-        }
-    }
-    
+
     /**
      * 加载布局预设
      * 
@@ -505,31 +412,7 @@ public class LayoutPersistenceManager {
         }
         return name.replaceAll("[^a-zA-Z0-9_\\-]", "_").toLowerCase();
     }
-    
-    /**
-     * 获取当前布局数据
-     */
-    public LayoutData getCurrentLayout() {
-        return currentLayout;
-    }
-    
-    /**
-     * 设置DockSpace配置
-     */
-    public void setDockspaceConfig(String config) {
-        if (currentLayout != null) {
-            currentLayout.dockspaceConfig = config;
-            markLayoutChanged();
-        }
-    }
-    
-    /**
-     * 获取DockSpace配置
-     */
-    public String getDockspaceConfig() {
-        return currentLayout != null ? currentLayout.dockspaceConfig : "";
-    }
-    
+
     /**
      * 清理资源
      */

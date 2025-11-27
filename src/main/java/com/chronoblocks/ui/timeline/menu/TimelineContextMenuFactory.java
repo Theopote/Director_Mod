@@ -10,7 +10,6 @@ import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TrackType;
 
-import imgui.ImGui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,29 +83,6 @@ public class TimelineContextMenuFactory {
             TimelineModel model,
             TimelineCommandHistory commandHistory) {
         return new TimelineContextMenuFactory(commandHistory, model, panel);
-    }
-
-    /**
-     * 构造函数（向后兼容，不包含 panel 引用）
-     */
-    public TimelineContextMenuFactory(
-            TimelineCommandHistory commandHistory,
-            TimelineModel model) {
-        this(commandHistory, model, null);
-    }
-
-    // =========================================================
-    // 统一入口：根据 HitResult 构建菜单
-    // =========================================================
-
-    /**
-     * 根据命中结果构建上下文菜单（统一入口）
-     * 
-     * @param hit 命中检测结果
-     * @return 构建好的菜单，如果类型不支持则返回 null
-     */
-    public TimelineContextMenu createMenu(TimelineHitResult hit) {
-        return buildContextMenu(hit);
     }
 
     /**
@@ -554,8 +530,6 @@ public class TimelineContextMenuFactory {
                     .end();
             case CAMERA -> // 摄像机轨道特定菜单
                     builder.item("添加摄像机关键帧", () -> LOGGER.debug("[Timeline] 添加摄像机关键帧"));
-            case AUDIO -> // 音频轨道特定菜单
-                    builder.item("导入音频文件", () -> LOGGER.debug("[Timeline] 导入音频文件"));
             default -> {
                 // 其他类型轨道暂无特定菜单
             }
@@ -570,16 +544,5 @@ public class TimelineContextMenuFactory {
             return "<未命名>";
         }
         return name;
-    }
-
-    /**
-     * 检查是否有任何 Timeline 相关的弹窗正在打开
-     * 可用于防止多个 popup 冲突
-     */
-    public static boolean anyTimelinePopupOpen() {
-        return ImGui.isPopupOpen("ClipContextMenu")
-            || ImGui.isPopupOpen("KeyframeContextMenu")
-            || ImGui.isPopupOpen("TrackContextMenu")
-            || ImGui.isPopupOpen("TimelineEmptyAreaMenu");
     }
 }

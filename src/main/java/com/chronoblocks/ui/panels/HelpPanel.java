@@ -3,7 +3,6 @@ package com.chronoblocks.ui.panels;
 import com.chronoblocks.ui.theme.Icons;
 import com.chronoblocks.ui.theme.UITheme;
 import imgui.ImGui;
-import imgui.flag.ImGuiWindowFlags;
 
 /**
  * ❓ 帮助面板
@@ -42,7 +41,7 @@ public class HelpPanel extends AbstractPanel {
     
     @Override
     protected int getWindowFlags() {
-        return ImGuiWindowFlags.None;
+        return super.getWindowFlags();
     }
     
     @Override

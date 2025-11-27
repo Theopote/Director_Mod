@@ -186,21 +186,7 @@ public class TimelineContextMenu {
     public void addCommandItem(String label, TimelineCommand command, String shortcut) {
         menuItems.add(new MenuItem(label, () -> commandHistory.executeCommand(command), true, shortcut));
     }
-    
-    /**
-     * 添加命令菜单项（带启用状态，无快捷键）
-     */
-    public void addCommandItem(String label, TimelineCommand command, boolean enabled) {
-        menuItems.add(new MenuItem(label, () -> commandHistory.executeCommand(command), enabled, null));
-    }
-    
-    /**
-     * 添加命令菜单项（带快捷键和启用状态）
-     */
-    public void addCommandItem(String label, TimelineCommand command, String shortcut, boolean enabled) {
-        menuItems.add(new MenuItem(label, () -> commandHistory.executeCommand(command), enabled, shortcut));
-    }
-    
+
     /**
      * 添加禁用的菜单项
      */
@@ -296,28 +282,7 @@ public class TimelineContextMenu {
     public void addSubmenu(String label, TimelineContextMenu submenu) {
         menuItems.add(new MenuItem(label, null, true, null, false, false, false, false, null, submenu));
     }
-    
-    /**
-     * 添加带图标的菜单项
-     */
-    public void addItemWithIcon(String label, Runnable action, String icon) {
-        menuItems.add(new MenuItem(label, action, true, null, false, false, false, false, icon, null));
-    }
-    
-    /**
-     * 添加 checkbox 菜单项
-     */
-    public void addCheckboxItem(String label, Runnable action, boolean checked) {
-        menuItems.add(new MenuItem(label, action, true, null, true, checked, false, false, null, null));
-    }
-    
-    /**
-     * 添加 radio 菜单项
-     */
-    public void addRadioItem(String label, Runnable action, boolean selected) {
-        menuItems.add(new MenuItem(label, action, true, null, false, false, true, selected, null, null));
-    }
-    
+
     /**
      * 创建片段上下文菜单
      * @deprecated 请使用 {@link TimelineContextMenuFactory#createClipMenu(TimelineClip, TimelineTrack)}

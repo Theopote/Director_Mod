@@ -379,18 +379,6 @@ public class SelectionManager {
         }
     }
 
-    /**
-     * 清除当前选择
-     */
-    public void clearCurrentSelection() {
-        if (currentTool != null) {
-            currentTool.clearSelection();
-            // 🚀 v2.0: 使网格缓存失效
-            invalidateRendererCache();
-            notifySelectionChanged();
-        }
-    }
-
     // ========== Getters ==========
 
     public SelectionTool getCurrentTool() {
@@ -417,21 +405,7 @@ public class SelectionManager {
     public String getCurrentToolDisplayName() {
         return currentTool != null ? currentTool.getDisplayName() : "无工具";
     }
-    
-    /**
-     * 获取事件处理器
-     */
-    public SelectionToolEventProcessor getEventProcessor() {
-        return getEventProcessorInternal();
-    }
-    
-    /**
-     * 获取事件总线
-     */
-    public SelectionEventBus getEventBus() {
-        return getEventProcessorInternal().getEventBus();
-    }
-    
+
     /**
      * 获取全局过滤管道
      * 
@@ -523,14 +497,6 @@ public class SelectionManager {
 
     public Box getResizeBaseBounds() {
         return activeResizeBaseBounds;
-    }
-
-    public Integer getResizeFaceIndex() {
-        return activeResizeFaceIndex;
-    }
-
-    public double getResizeOffset() {
-        return activeResizeOffset;
     }
 
     private void rebuildSelectionFromBounds(Box bounds) {
@@ -848,39 +814,5 @@ public class SelectionManager {
         
         // 返回 Box（包含 min 到 max+1 的范围，因为 BlockPos 是整数坐标）
         return new Box(minX, minY, minZ, maxX + 1, maxY + 1, maxZ + 1);
-    }
-    
-    // =====================================================
-    // ⚙️ 配置控制 (v3.1)
-    // =====================================================
-    
-    /**
-     * 获取是否启用自动预览同步
-     * 
-     * @return true 如果启用自动预览同步
-     */
-    public boolean isAutoPreviewEnabled() {
-        return autoPreviewEnabled;
-    }
-    
-    /**
-     * 设置是否启用自动预览同步
-     * 
-     * 当启用时，每次调用 expandSelection() 或 offsetSelection() 会自动更新 SelectionRenderer 的预览框。
-     * 
-     * @param enabled true 启用自动预览同步，false 禁用
-     */
-    public void setAutoPreviewEnabled(boolean enabled) {
-        this.autoPreviewEnabled = enabled;
-        LOGGER.debug("[SelectionManager] 自动预览同步: {}", enabled ? "启用" : "关闭");
-        
-        // 如果禁用，清除当前预览框
-        if (!enabled) {
-            try {
-                ToolPreviewManager.getInstance().clearPreview();
-            } catch (Exception e) {
-                LOGGER.debug("[SelectionManager] 清除预览框失败（可能不在客户端）: {}", e.getMessage());
-            }
-        }
     }
 }

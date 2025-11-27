@@ -3,10 +3,14 @@ package com.chronoblocks.core.animation;
 import com.chronoblocks.core.container.AnimationMode;
 import com.chronoblocks.core.animation.sequence.SequenceMode;
 import com.chronoblocks.core.animation.sequence.SequenceParameters;
+import com.chronoblocks.core.animation.effect.EffectInstance;
 
 import java.io.Serial;
 import java.io.Serializable;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -36,14 +40,22 @@ public final class ClipAnimationConfig implements Serializable, Cloneable {
     private AnimationMode mode;
     private float duration;
     private float delay;
-    private String easing;
+    private String easing; // 缓动函数名称（如 "EASE_OUT_BOUNCE"）
     private String ordering; // 保留向后兼容，但建议使用 sequenceMode
     
     // ========== 序列策略配置（新增）==========
-    private SequenceMode sequenceMode = SequenceMode.ONE_BY_ONE;
-    private SequenceParameters sequenceParameters = new SequenceParameters();
-    
+    private SequenceMode sequenceMode;
+    private SequenceParameters sequenceParameters;
+
+    {
+        new SequenceParameters();
+    }
+
     private final Map<String, Object> params = new HashMap<>();
+    
+    // ========== 特效系统配置 ==========
+    /** 挂在此 Clip 上的所有特效实例 */
+    private final List<EffectInstance> effects = new ArrayList<>();
 
     private ClipAnimationConfig(AnimationMode mode,
                                 float duration,
@@ -55,7 +67,7 @@ public final class ClipAnimationConfig implements Serializable, Cloneable {
         this.delay = Math.max(0.0f, delay);
         this.easing = easing != null ? easing : "Linear";
         this.ordering = ordering != null ? ordering : "Sequential";
-        this.sequenceMode = SequenceMode.ONE_BY_ONE;
+        this.sequenceMode = SequenceMode.EVALUATOR_BASED;
         this.sequenceParameters = new SequenceParameters();
     }
 
@@ -87,7 +99,7 @@ public final class ClipAnimationConfig implements Serializable, Cloneable {
     }
 
     /**
-     * 复制配置
+     * 复制配置（包括特效列表）
      * 
      * @return 新的配置实例，包含相同的值
      */
@@ -96,6 +108,12 @@ public final class ClipAnimationConfig implements Serializable, Cloneable {
         clone.params.putAll(this.params);
         clone.sequenceMode = this.sequenceMode;
         clone.sequenceParameters = this.sequenceParameters != null ? this.sequenceParameters.copy() : new SequenceParameters();
+        
+        // 复制特效列表
+        for (EffectInstance effect : this.effects) {
+            clone.effects.add(effect.copy());
+        }
+        
         return clone;
     }
 
@@ -163,19 +181,19 @@ public final class ClipAnimationConfig implements Serializable, Cloneable {
     /**
      * 获取序列模式
      * 
-     * @return 序列模式
+     * @return 序列模式（始终为 EVALUATOR_BASED）
      */
     public SequenceMode getSequenceMode() {
-        return sequenceMode != null ? sequenceMode : SequenceMode.ONE_BY_ONE;
+        return sequenceMode != null ? sequenceMode : SequenceMode.EVALUATOR_BASED;
     }
     
     /**
      * 设置序列模式
      * 
-     * @param sequenceMode 序列模式
+     * @param sequenceMode 序列模式（只接受 EVALUATOR_BASED）
      */
     public void setSequenceMode(SequenceMode sequenceMode) {
-        this.sequenceMode = sequenceMode != null ? sequenceMode : SequenceMode.ONE_BY_ONE;
+        this.sequenceMode = sequenceMode != null ? sequenceMode : SequenceMode.EVALUATOR_BASED;
     }
     
     /**
@@ -199,9 +217,66 @@ public final class ClipAnimationConfig implements Serializable, Cloneable {
         this.sequenceParameters = sequenceParameters != null ? sequenceParameters.copy() : new SequenceParameters();
     }
     
+    // ========== 特效系统访问方法 ==========
+    
+    /**
+     * 获取特效列表
+     * 
+     * @return 特效实例列表
+     */
+    public List<EffectInstance> getEffects() {
+        return effects;
+    }
+    
+    /**
+     * 获取特效列表的只读视图
+     * 
+     * @return 不可修改的特效列表视图
+     */
+    public List<EffectInstance> getEffectsView() {
+        return Collections.unmodifiableList(effects);
+    }
+    
+    /**
+     * 添加特效实例
+     * 
+     * @param instance 特效实例
+     */
+    public void addEffect(EffectInstance instance) {
+        if (instance != null) {
+            effects.add(instance);
+        }
+    }
+    
+    /**
+     * 简单辅助方法，方便在代码 / 预设中挂特效（链式调用）
+     * 
+     * @param effect 特效实例
+     * @return this（用于链式调用）
+     */
+    public ClipAnimationConfig addEffectChain(EffectInstance effect) {
+        addEffect(effect);
+        return this;
+    }
+    
+    /**
+     * 移除特效实例
+     * 
+     * @param instance 要移除的特效实例
+     */
+    public void removeEffect(EffectInstance instance) {
+        effects.remove(instance);
+    }
+    
+    /**
+     * 清空所有特效
+     */
+    public void clearEffects() {
+        effects.clear();
+    }
+    
     @Override
     public ClipAnimationConfig clone() {
         return copy();
     }
 }
-

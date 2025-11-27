@@ -48,7 +48,7 @@ public class KeyframePropertyAdapter implements IPropertyAdapter<Keyframe> {
                 modified = true;
             }
         } else {
-            ImGui.text("值: " + String.valueOf(value));
+            ImGui.text("值: " + value);
         }
         UITheme.endGroup();
 

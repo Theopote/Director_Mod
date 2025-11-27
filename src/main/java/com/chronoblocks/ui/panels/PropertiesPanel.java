@@ -6,7 +6,6 @@ import com.chronoblocks.ui.selection.SelectionManager;
 import com.chronoblocks.ui.theme.UITheme;
 import com.chronoblocks.ui.theme.Icons;
 import imgui.ImGui;
-import imgui.flag.ImGuiWindowFlags;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.type.ImString;
@@ -141,7 +140,7 @@ public class PropertiesPanel extends AbstractPanel {
     
     @Override
     protected int getWindowFlags() {
-        return ImGuiWindowFlags.None;
+        return super.getWindowFlags();
     }
 
     @Override
@@ -188,7 +187,7 @@ public class PropertiesPanel extends AbstractPanel {
         renderToolbar();
         
         UITheme.separator();
-        UITheme.spacingSmall();
+        //UITheme.spacingSmall();
         
         // 渲染属性内容
         if (currentSelection == null) {
@@ -366,7 +365,7 @@ public class PropertiesPanel extends AbstractPanel {
         }
 
         UITheme.separator();
-        UITheme.spacingSmall();
+        //UITheme.spacingSmall();
 
         // 适配器信息
         String adapterName = currentAdapter.getAdapterName();
@@ -380,7 +379,7 @@ public class PropertiesPanel extends AbstractPanel {
      */
     private void renderStatistics() {
         UITheme.separator();
-        UITheme.spacingSmall();
+        //UITheme.spacingSmall();
 
         if (ImGui.collapsingHeader(Icons.STATS + " 性能统计")) {
             ImGui.indent();
@@ -448,20 +447,20 @@ public class PropertiesPanel extends AbstractPanel {
     private void renderNoSelectionMessage() {
         UITheme.spacingLarge();
         UITheme.title(Icons.CLIPBOARD + " 属性面板");
-        UITheme.spacingSmall();
+        //UITheme.spacingSmall();
         
         UITheme.label("未选择对象", UITheme.DarkTheme.TEXT_DISABLED);
-        UITheme.spacingSmall();
+        //UITheme.spacingSmall();
         
         ImGui.textWrapped("在时间线或场景中选择一个对象以查看和编辑其属性");
         
-        UITheme.spacing();
+        //UITheme.spacing();
         UITheme.separator();
-        UITheme.spacing();
+        //UITheme.spacing();
         
         // ========== 支持的对象类型（16+1种）==========
         UITheme.label(Icons.STAR + " 支持的对象类型（17种）", UITheme.DarkTheme.TEXT);
-        UITheme.spacingSmall();
+        //UITheme.spacingSmall();
         
         // 时间线系统（3个）
         if (ImGui.collapsingHeader(Icons.ANIMATION + " 时间线系统（3个）")) {
@@ -509,9 +508,9 @@ public class PropertiesPanel extends AbstractPanel {
             ImGui.unindent();
         }
         
-        UITheme.spacing();
+        //UITheme.spacing();
         UITheme.separator();
-        UITheme.spacing();
+        //UITheme.spacing();
         
         // 统计信息
         int adapterCount = PropertyAdapterRegistry.getAdapterCount();
@@ -531,9 +530,9 @@ public class PropertiesPanel extends AbstractPanel {
      * 渲染无适配器消息
      */
     private void renderNoAdapterMessage() {
-        UITheme.spacingLarge();
+        //UITheme.spacingLarge();
         UITheme.title(Icons.WARNING + " 无可用的属性编辑器");
-        UITheme.spacingSmall();
+        //UITheme.spacingSmall();
         
         String typeName = currentSelection.getClass().getSimpleName();
         String fullClassName = currentSelection.getClass().getName();
@@ -542,9 +541,9 @@ public class PropertiesPanel extends AbstractPanel {
         ImGui.textColored(1.0f, 0.8f, 0.2f, 1.0f, 
             String.format("对象类型 \"%s\" 没有注册属性适配器", typeName));
         
-        UITheme.spacing();
+        //UITheme.spacing();
         UITheme.separator();
-        UITheme.spacing();
+        //UITheme.spacing();
         
         // 对象信息
         ImGui.text(Icons.PACKAGE + " 对象信息:");
@@ -554,9 +553,9 @@ public class PropertiesPanel extends AbstractPanel {
         ImGui.bullet(); ImGui.text(String.format("包名: %s", currentSelection.getClass().getPackageName()));
         ImGui.unindent();
         
-        UITheme.spacing();
+        //UITheme.spacing();
         UITheme.separator();
-        UITheme.spacing();
+        //UITheme.spacing();
         
         // 解决方案
         ImGui.text(Icons.LIGHTBULB + " 解决方案:");
@@ -567,7 +566,7 @@ public class PropertiesPanel extends AbstractPanel {
         ImGui.bulletText("在 PropertyAdapterBootstrap 中注册");
         ImGui.unindent();
         
-        UITheme.spacingSmall();
+        //UITheme.spacingSmall();
         
         ImGui.text(Icons.SETTINGS + " 使用通用适配器:");
         ImGui.indent();
@@ -576,9 +575,9 @@ public class PropertiesPanel extends AbstractPanel {
         ImGui.unindent();
         ImGui.unindent();
         
-        UITheme.spacing();
+        //UITheme.spacing();
         UITheme.separator();
-        UITheme.spacing();
+        //UITheme.spacing();
         
         // 调试按钮
         if (ImGui.button(Icons.SEARCH + " 查看注册表详情", 200, 25)) {
@@ -594,16 +593,16 @@ public class PropertiesPanel extends AbstractPanel {
      * 渲染错误消息
      */
     private void renderErrorMessage(Exception e) {
-        UITheme.spacingLarge();
+        //UITheme.spacingLarge();
         UITheme.title(Icons.ERROR + " 渲染错误");
-        UITheme.spacingSmall();
+        //UITheme.spacingSmall();
         
         // 错误消息（红色）
         ImGui.textColored(1.0f, 0.4f, 0.4f, 1.0f, "渲染属性时发生错误");
         
-        UITheme.spacing();
+        //UITheme.spacing();
         UITheme.separator();
-        UITheme.spacing();
+        //UITheme.spacing();
         
         // 错误详情
         ImGui.text(Icons.CLIPBOARD + " 错误详情:");
@@ -612,7 +611,7 @@ public class PropertiesPanel extends AbstractPanel {
         ImGui.bullet(); ImGui.text(String.format("错误消息: %s", e.getMessage() != null ? e.getMessage() : "(无)"));
         ImGui.unindent();
         
-        UITheme.spacing();
+        //UITheme.spacing();
         
         // 堆栈跟踪（折叠）
         if (ImGui.collapsingHeader(Icons.SEARCH + " 堆栈跟踪")) {
@@ -627,9 +626,9 @@ public class PropertiesPanel extends AbstractPanel {
             ImGui.unindent();
         }
         
-        UITheme.spacing();
+        //UITheme.spacing();
         UITheme.separator();
-        UITheme.spacing();
+        //UITheme.spacing();
         
         // 建议操作
         ImGui.text(Icons.LIGHTBULB + " 建议操作:");
@@ -640,7 +639,7 @@ public class PropertiesPanel extends AbstractPanel {
         ImGui.bulletText("尝试重新选择对象");
         ImGui.unindent();
         
-        UITheme.spacing();
+        //UITheme.spacing();
         
         // 重新选择按钮
         if (ImGui.button(Icons.REFRESH + " 清除选择并重试", 150, 25)) {

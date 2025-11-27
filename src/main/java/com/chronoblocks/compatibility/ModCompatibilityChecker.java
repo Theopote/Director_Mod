@@ -326,21 +326,7 @@ public class ModCompatibilityChecker {
     public static CompatibilityStatus getModStatus(String modId) {
         return compatibilityStatus.getOrDefault(modId, CompatibilityStatus.UNKNOWN);
     }
-    
-    /**
-     * 检查模组是否兼容
-     */
-    public static boolean isModCompatible(String modId) {
-        return getModStatus(modId) == CompatibilityStatus.COMPATIBLE;
-    }
-    
-    /**
-     * 获取所有兼容性状态
-     */
-    public static Map<String, CompatibilityStatus> getAllCompatibilityStatus() {
-        return new HashMap<>(compatibilityStatus);
-    }
-    
+
     /**
      * 检查是否有不兼容的必需模组
      */

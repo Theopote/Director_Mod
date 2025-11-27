@@ -33,86 +33,14 @@ public class SelectionToolIntegration {
         }
         return INSTANCE;
     }
-    
-    /**
-     * 启用选择工具集成
-     */
-    public void enable() {
-        if (!isEnabled) {
-            isEnabled = true;
-            LOGGER.info("[SelectionToolIntegration] 选择工具集成已启用");
-        }
-    }
-    
-    /**
-     * 禁用选择工具集成
-     */
-    public void disable() {
-        if (isEnabled) {
-            isEnabled = false;
-            LOGGER.info("[SelectionToolIntegration] 选择工具集成已禁用");
-        }
-    }
-    
+
     /**
      * 检查是否启用
      */
     public boolean isEnabled() {
         return isEnabled;
     }
-    
-    /**
-     * 处理鼠标点击事件
-     */
-    public void handleMouseClick(boolean isLeftClick, boolean isShiftDown) {
-        if (!isEnabled) return;
-        
-        try {
-            inputHandler.handleMouseClick(isLeftClick, isShiftDown);
-        } catch (Exception e) {
-            LOGGER.warn("[SelectionToolIntegration] 处理鼠标点击事件失败", e);
-        }
-    }
-    
-    /**
-     * 处理鼠标拖拽开始
-     */
-    public void handleMouseDragStart(boolean isLeftClick) {
-        if (!isEnabled) return;
-        
-        try {
-            inputHandler.handleMouseDragStart(isLeftClick);
-        } catch (Exception e) {
-            LOGGER.warn("[SelectionToolIntegration] 处理鼠标拖拽开始事件失败", e);
-        }
-    }
-    
-    /**
-     * 处理鼠标拖拽更新
-     */
-    public void handleMouseDragUpdate() {
-        if (!isEnabled) return;
-        
-        try {
-            inputHandler.handleMouseDragUpdate();
-        } catch (Exception e) {
-            LOGGER.warn("[SelectionToolIntegration] 处理鼠标拖拽更新事件失败", e);
-        }
-    }
-    
-    /**
-     * 处理鼠标拖拽结束
-     */
-    public void handleMouseDragEnd(boolean isLeftClick) {
-        if (!isEnabled) return;
-        
-        try {
-            inputHandler.handleMouseDragEnd(isLeftClick);
-        } catch (Exception e) {
-            LOGGER.warn("[SelectionToolIntegration] 处理鼠标拖拽结束事件失败", e);
-        }
-    }
-    
+
     /**
      * 每帧更新
      */
@@ -132,11 +60,5 @@ public class SelectionToolIntegration {
     public SelectionManager getSelectionManager() {
         return selectionManager;
     }
-    
-    /**
-     * 获取输入处理器
-     */
-    public SelectionInputHandler getInputHandler() {
-        return inputHandler;
-    }
+
 }

@@ -446,9 +446,9 @@ public class UITheme {
      * <p>分隔符上下各留4px间距，与元素间距保持一致
      */
     public static void separator() {
-        spacing(Spacing.ELEMENT_SPACING);  // 上方间距4px
+        //spacing(Spacing.ELEMENT_SPACING);  // 上方间距4px
         ImGui.separator();
-        spacing(Spacing.ELEMENT_SPACING);  // 下方间距4px
+        //spacing(Spacing.ELEMENT_SPACING);  // 下方间距4px
     }
     
     /**

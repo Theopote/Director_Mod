@@ -45,7 +45,7 @@ public class ContainerTimelineService {
             return false;
         }
 
-        return findClipsForContainer(containerId).size() > 0;
+        return !findClipsForContainer(containerId).isEmpty();
     }
 
     /**

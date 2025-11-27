@@ -268,6 +268,19 @@ public class ContainerManager {
         } catch (Exception ignored) {
         }
 
+        // 2.5) 在锁外删除时间线上的对应片段（避免长时间持有锁）
+        try {
+            var timelineService = com.chronoblocks.ui.timeline.container.ContainerTimelineService.getInstance();
+            for (Container c : toRemove) {
+                int removedCount = timelineService.removeClipsForContainer(c.getId());
+                if (removedCount > 0) {
+                    LOGGER.info("[ContainerManager] 容器 {} 在时间线上的 {} 个片段已自动删除", c.getName(), removedCount);
+                }
+            }
+        } catch (Exception ex) {
+            LOGGER.warn("[ContainerManager] 删除容器时删除片段失败: {}", ex.getMessage());
+        }
+
         // 3) 一次性进入锁内进行结构与选择状态更新
         boolean selectionChanged = false;
         writeLock.lock();
@@ -384,6 +397,18 @@ public class ContainerManager {
                     }
                 } catch (Exception ignored) {}
             }
+        }
+        // 在锁外删除时间线上的对应片段（避免长时间持有锁）
+        try {
+            var timelineService = com.chronoblocks.ui.timeline.container.ContainerTimelineService.getInstance();
+            for (Container c : all) {
+                int removedCount = timelineService.removeClipsForContainer(c.getId());
+                if (removedCount > 0) {
+                    LOGGER.info("[ContainerManager] 容器 {} 在时间线上的 {} 个片段已自动删除", c.getName(), removedCount);
+                }
+            }
+        } catch (Exception ex) {
+            LOGGER.warn("[ContainerManager] 批量删除容器时删除片段失败: {}", ex.getMessage());
         }
         // 锁内批量移除
         boolean selectionChanged = false;
@@ -1197,6 +1222,22 @@ public class ContainerManager {
         } finally {
             writeLock.unlock();
         }
+        
+        // 在锁外删除所有容器在时间线上的片段
+        try {
+            var timelineService = com.chronoblocks.ui.timeline.container.ContainerTimelineService.getInstance();
+            int totalRemoved = 0;
+            for (Container c : removedContainers) {
+                int removedCount = timelineService.removeClipsForContainer(c.getId());
+                totalRemoved += removedCount;
+            }
+            if (totalRemoved > 0) {
+                LOGGER.info("[ContainerManager] 清空容器时，时间线上的 {} 个片段已自动删除", totalRemoved);
+            }
+        } catch (Exception ex) {
+            LOGGER.warn("[ContainerManager] 清空容器时删除片段失败: {}", ex.getMessage());
+        }
+        
         LOGGER.info("[ContainerManager] 清空所有容器: {}", removedContainers.size());
         for (int i = removedContainers.size() - 1; i >= 0; i--) {
             fireContainerRemoved(removedContainers.get(i));

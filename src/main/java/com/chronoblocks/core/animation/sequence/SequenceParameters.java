@@ -1,171 +1,243 @@
 package com.chronoblocks.core.animation.sequence;
 
+import com.chronoblocks.core.animation.sequence.evaluator.FillType;
+import com.chronoblocks.core.animation.sequence.evaluator.FlowType;
+import com.chronoblocks.core.animation.sequence.evaluator.FloodSeedMode;
+import com.chronoblocks.core.animation.sequence.evaluator.OriginType;
+
 import java.io.Serial;
 import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * 序列参数配置
- * 
- * <p>封装序列策略所需的各种参数。
- * 不同的策略使用不同的参数，通过 Map 存储以保持灵活性。
- * 
- * <p>常用参数：
- * <ul>
- *   <li>batchSize：批量模式下的每批方块数</li>
- *   <li>randomSeed：随机模式的随机种子</li>
- *   <li>waveDirection：波浪模式的方向（"X", "Y", "Z"）</li>
- *   <li>waveInterval：波浪模式的波幅间隔</li>
- *   <li>spiralStart：螺旋模式的起始方向</li>
- * </ul>
- * 
- * @author ChronoBlocks Team
- * @version 1.0
+ * 新版 Sequence 行为配置：Flow + Origin + Fill + Weight。
  */
 public class SequenceParameters implements Serializable, Cloneable {
-    
+
     @Serial
-    private static final long serialVersionUID = 1L;
+    private static final long serialVersionUID = 4L;
+
+    // --- Flow & Fill 基础字段 ---
+    private FlowType flowType = FlowType.PLANAR;
+    private FillType fillType = FillType.LINEAR_SCAN;
+    private OriginType originType = OriginType.BOTTOM_CENTER;
+
+    private float planeYaw = 0.0f;
+    private float planePitch = 90.0f;
     
-    // ========== 通用参数 ==========
-    
-    /** 批量模式：每批方块数（默认1，即一个接一个） */
-    private int batchSize = 1;
-    
-    /** 随机模式：随机种子（null表示使用系统时间） */
-    private Long randomSeed = null;
-    
-    // ========== 波浪模式参数 ==========
-    
-    /** 波浪方向：X, Y, Z 或组合（如 "XY"） */
-    private String waveDirection = "Y";
-    
-    /** 波浪间隔：波幅间隔（单位：方块） */
-    private float waveInterval = 1.0f;
-    
-    /** 波浪起始点：起始位置（"min", "max", "center"） */
-    private String waveStart = "min";
-    
-    // ========== 螺旋模式参数 ==========
-    
-    /** 螺旋起始方向：X, Y, Z */
-    private String spiralStart = "Y";
-    
-    /** 螺旋方向：顺时针（"clockwise"）或逆时针（"counterclockwise"） */
-    private String spiralDirection = "clockwise";
-    
-    // ========== 扩展参数（用于未来功能）==========
-    
+    // --- Flood Fill 参数 ---
+    private FloodSeedMode floodSeedMode = FloodSeedMode.LAYER_CENTER;
+
+    private int customX = 0;
+    private int customY = 0;
+    private int customZ = 0;
+
+    private float priorityWeight = 20.0f;
+    private boolean reverse = false;
+    private boolean alternating = false;
+
     private final Map<String, Object> extraParams = new HashMap<>();
-    
-    // ========== 构造函数 ==========
-    
+
+    // --- 并发和时间映射 ---
+    private ConcurrencyMode concurrencyMode = ConcurrencyMode.ONE_BY_ONE;
+    private int batchSize = 10;
+    private float batchInterval = 0.1f;
+    private TimeMappingStrategy timeMappingStrategy = TimeMappingStrategy.NORMALIZED_LINEAR;
+    private float perBlockDuration = 0.0f;
+    private float globalDelay = 0.0f;
+
     public SequenceParameters() {
     }
-    
-    public SequenceParameters(int batchSize) {
-        this.batchSize = batchSize;
+
+    // --- Flow / Origin / Fill ---
+    public FlowType getFlowType() {
+        return flowType != null ? flowType : FlowType.PLANAR;
     }
-    
-    // ========== Getters and Setters ==========
-    
-    public int getBatchSize() {
-        return batchSize;
+
+    public void setFlowType(FlowType flowType) {
+        this.flowType = flowType != null ? flowType : FlowType.PLANAR;
     }
-    
-    public void setBatchSize(int batchSize) {
-        this.batchSize = Math.max(1, batchSize);
+
+    public FillType getFillType() {
+        return fillType != null ? fillType : FillType.LINEAR_SCAN;
     }
-    
-    public Long getRandomSeed() {
-        return randomSeed;
+
+    public void setFillType(FillType fillType) {
+        this.fillType = fillType != null ? fillType : FillType.LINEAR_SCAN;
     }
-    
-    public void setRandomSeed(Long randomSeed) {
-        this.randomSeed = randomSeed;
+
+    public OriginType getOriginType() {
+        return originType != null ? originType : OriginType.BOTTOM_CENTER;
     }
-    
-    public String getWaveDirection() {
-        return waveDirection;
+
+    public void setOriginType(OriginType originType) {
+        this.originType = originType != null ? originType : OriginType.BOTTOM_CENTER;
     }
-    
-    public void setWaveDirection(String waveDirection) {
-        this.waveDirection = waveDirection != null ? waveDirection : "Y";
+
+    public float getPlaneYaw() {
+        return planeYaw;
     }
-    
-    public float getWaveInterval() {
-        return waveInterval;
+
+    public void setPlaneYaw(float planeYaw) {
+        this.planeYaw = planeYaw;
     }
-    
-    public void setWaveInterval(float waveInterval) {
-        this.waveInterval = Math.max(0.1f, waveInterval);
+
+    public float getPlanePitch() {
+        return planePitch;
     }
-    
-    public String getWaveStart() {
-        return waveStart;
+
+    public void setPlanePitch(float planePitch) {
+        this.planePitch = planePitch;
     }
-    
-    public void setWaveStart(String waveStart) {
-        this.waveStart = waveStart != null ? waveStart : "min";
+
+    public int getCustomX() {
+        return customX;
     }
-    
-    public String getSpiralStart() {
-        return spiralStart;
+
+    public int getCustomY() {
+        return customY;
     }
-    
-    public void setSpiralStart(String spiralStart) {
-        this.spiralStart = spiralStart != null ? spiralStart : "Y";
+
+    public int getCustomZ() {
+        return customZ;
     }
-    
-    public String getSpiralDirection() {
-        return spiralDirection;
+
+    public void setCustomXYZ(int x, int y, int z) {
+        this.customX = x;
+        this.customY = y;
+        this.customZ = z;
     }
-    
-    public void setSpiralDirection(String spiralDirection) {
-        this.spiralDirection = spiralDirection != null ? spiralDirection : "clockwise";
+
+    public float getPriorityWeight() {
+        return priorityWeight;
     }
-    
-    // ========== 扩展参数 ==========
-    
+
+    public void setPriorityWeight(float priorityWeight) {
+        this.priorityWeight = Math.max(0.0f, priorityWeight);
+    }
+
+    public boolean isReverse() {
+        return reverse;
+    }
+
+    public void setReverse(boolean reverse) {
+        this.reverse = reverse;
+    }
+
+    public boolean isAlternating() {
+        return alternating;
+    }
+
+    public void setAlternating(boolean alternating) {
+        this.alternating = alternating;
+    }
+
+    // --- Flood Fill ---
+    public FloodSeedMode getFloodSeedMode() {
+        return floodSeedMode != null ? floodSeedMode : FloodSeedMode.LAYER_CENTER;
+    }
+
+    public void setFloodSeedMode(FloodSeedMode floodSeedMode) {
+        this.floodSeedMode = floodSeedMode != null ? floodSeedMode : FloodSeedMode.LAYER_CENTER;
+    }
+
+    // --- Extra Params ---
     public Map<String, Object> getExtraParams() {
         return extraParams;
     }
-    
+
     public void setExtraParam(String key, Object value) {
-        if (key == null || key.isEmpty()) return;
+        if (key == null || key.isBlank()) {
+            return;
+        }
         if (value == null) {
             extraParams.remove(key);
         } else {
             extraParams.put(key, value);
         }
     }
-    
+
     public Object getExtraParam(String key) {
         return extraParams.get(key);
     }
-    
-    // ========== 工具方法 ==========
-    
-    /**
-     * 复制参数
-     */
+
+    // --- 并发 & 时间映射 ---
+    public ConcurrencyMode getConcurrencyMode() {
+        return concurrencyMode != null ? concurrencyMode : ConcurrencyMode.ONE_BY_ONE;
+    }
+
+    public void setConcurrencyMode(ConcurrencyMode concurrencyMode) {
+        this.concurrencyMode = concurrencyMode != null ? concurrencyMode : ConcurrencyMode.ONE_BY_ONE;
+    }
+
+    public int getBatchSize() {
+        return Math.max(1, batchSize);
+    }
+
+    public void setBatchSize(int batchSize) {
+        this.batchSize = Math.max(1, batchSize);
+    }
+
+    public float getBatchInterval() {
+        return Math.max(0.0f, batchInterval);
+    }
+
+    public void setBatchInterval(float batchInterval) {
+        this.batchInterval = Math.max(0.0f, batchInterval);
+    }
+
+    public TimeMappingStrategy getTimeMappingStrategy() {
+        return timeMappingStrategy != null ? timeMappingStrategy : TimeMappingStrategy.NORMALIZED_LINEAR;
+    }
+
+    public void setTimeMappingStrategy(TimeMappingStrategy timeMappingStrategy) {
+        this.timeMappingStrategy = timeMappingStrategy != null ? timeMappingStrategy : TimeMappingStrategy.NORMALIZED_LINEAR;
+    }
+
+    public float getPerBlockDuration() {
+        return Math.max(0.0f, perBlockDuration);
+    }
+
+    public void setPerBlockDuration(float perBlockDuration) {
+        this.perBlockDuration = Math.max(0.0f, perBlockDuration);
+    }
+
+    public float getGlobalDelay() {
+        return Math.max(0.0f, globalDelay);
+    }
+
+    public void setGlobalDelay(float globalDelay) {
+        this.globalDelay = Math.max(0.0f, globalDelay);
+    }
+
+    // --- 复制 ---
     public SequenceParameters copy() {
         SequenceParameters clone = new SequenceParameters();
-        clone.batchSize = this.batchSize;
-        clone.randomSeed = this.randomSeed;
-        clone.waveDirection = this.waveDirection;
-        clone.waveInterval = this.waveInterval;
-        clone.waveStart = this.waveStart;
-        clone.spiralStart = this.spiralStart;
-        clone.spiralDirection = this.spiralDirection;
+        clone.flowType = this.flowType;
+        clone.fillType = this.fillType;
+        clone.originType = this.originType;
+        clone.planeYaw = this.planeYaw;
+        clone.planePitch = this.planePitch;
+        clone.customX = this.customX;
+        clone.customY = this.customY;
+        clone.customZ = this.customZ;
+        clone.priorityWeight = this.priorityWeight;
+        clone.reverse = this.reverse;
+        clone.alternating = this.alternating;
+        clone.floodSeedMode = this.floodSeedMode;
         clone.extraParams.putAll(this.extraParams);
+        clone.concurrencyMode = this.concurrencyMode;
+        clone.batchSize = this.batchSize;
+        clone.batchInterval = this.batchInterval;
+        clone.timeMappingStrategy = this.timeMappingStrategy;
+        clone.perBlockDuration = this.perBlockDuration;
+        clone.globalDelay = this.globalDelay;
         return clone;
     }
-    
+
     @Override
     public SequenceParameters clone() {
         return copy();
     }
 }
-

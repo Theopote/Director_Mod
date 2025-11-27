@@ -176,7 +176,7 @@ public class TimelineClipBlockController {
                             LOGGER.debug("[TimelineClipBlockController] 容器 {} 不再在任何片段范围内，隐藏 (当前时间: {:.2f}s)",
                                 container.getName(), currentTime);
                         }
-                        updateContainerVisibility(container, false);
+                        updateContainerVisibilityWithAnimation(container, false, Collections.emptySet());
                         containerVisibilityCache.put(containerId, false);
                     }
                 }
@@ -348,28 +348,6 @@ public class TimelineClipBlockController {
     }
     
     /**
-     * 更新容器的可见性状态（简化版，用于向后兼容）
-     */
-    @Deprecated
-    private void updateContainerVisibility(Container container, boolean shouldShow) {
-        if (container == null) {
-            return;
-        }
-        
-        ContainerState targetState = shouldShow ? ContainerState.VISIBLE : ContainerState.HIDDEN;
-        
-        // 只有当状态需要改变时才更新（避免不必要的状态切换）
-        if (container.getState() != targetState) {
-            container.setState(targetState);
-            
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("[TimelineClipBlockController] 容器 {} 可见性更新: {} -> {}", 
-                    container.getName(), container.getState().getDisplayName(), targetState.getDisplayName());
-            }
-        }
-    }
-    
-    /**
      * 清理已删除容器的缓存
      */
     private void cleanupCache() {
@@ -379,12 +357,5 @@ public class TimelineClipBlockController {
             return container == null;
         });
     }
-    
-    /**
-     * 清除所有缓存（当时间线重置时调用）
-     */
-    public void clearCache() {
-        containerVisibilityCache.clear();
-    }
-}
 
+}

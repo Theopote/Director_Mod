@@ -521,31 +521,4 @@ public class ChronoBlocksClient implements ClientModInitializer {
             LOGGER.error("[ChronoBlocks] Error setting ChronoBlocks screen", e);
         }
     }
-
-    /**
-     * 获取性能统计信息
-     */
-    public static String getPerformanceStats() {
-        long currentTime = System.currentTimeMillis();
-        Item[] tools = getChronoBlocksTools();
-        
-        return String.format(
-                """
-                        ChronoBlocks Performance Stats:
-                        - ImGui Initialized: %s
-                        - Player Holding Tool: %s
-                        - Last Tool Check: %d ms ago
-                        - Last Item Use: %d ms ago
-                        - Cached Tools: %d items
-                        - Tools Cache Age: %d ms
-                        - Debounce Active: %s""",
-            com.chronoblocks.ui.imgui.ImGuiRenderer.getInstance().isInitialized(),
-            playerHoldingTool,
-            currentTime - lastToolCheckTime,
-            currentTime - lastItemUseTime,
-            tools != null ? tools.length : 0,
-            currentTime - lastToolsCacheTime,
-            (currentTime - lastItemUseTime) < ITEM_USE_DEBOUNCE ? "Yes" : "No"
-        );
-    }
 }

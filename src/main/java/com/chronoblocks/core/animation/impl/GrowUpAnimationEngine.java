@@ -49,9 +49,8 @@ public class GrowUpAnimationEngine implements BlockAnimationEngine {
         // 根据层比例计算出现时间
         // 底部（layerRatio = 0）在 clipStartTime 显示
         // 顶部（layerRatio = 1）在 clipStartTime + animationDuration 显示
-        float appearTime = clipStartTime + (layerRatio * animationDuration);
-        
-        return appearTime;
+
+        return clipStartTime + (layerRatio * animationDuration);
     }
     
     @Override

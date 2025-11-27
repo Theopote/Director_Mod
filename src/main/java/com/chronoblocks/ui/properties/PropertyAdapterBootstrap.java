@@ -3,7 +3,6 @@ package com.chronoblocks.ui.properties;
 import com.chronoblocks.animation.core.AnimationClip;
 import com.chronoblocks.animation.core.Keyframe;
 import com.chronoblocks.core.container.Container;
-import com.chronoblocks.ui.adapters.impl.TrackAdapter;
 import com.chronoblocks.ui.properties.adapters.*;
 import com.chronoblocks.ui.timeline.model.TimelineClip;
 
@@ -90,15 +89,15 @@ public final class PropertyAdapterBootstrap {
             LOGGER.info("  ========== 时间线系统适配器 ==========");
             
             // ✅ 时间线项目适配器
-            registerAdapter(Object.class, new TimelineProjectPropertyAdapter(), "TimelineProject");
+            registerAdapter(new TimelineProjectPropertyAdapter(), "TimelineProject");
             registeredCount++;
             
             // ✅ 时间线序列适配器
-            registerAdapter(Object.class, new TimelineSequencePropertyAdapter(), "TimelineSequence");
+            registerAdapter(new TimelineSequencePropertyAdapter(), "TimelineSequence");
             registeredCount++;
             
             // ✅ 时间线轨道适配器
-            registerAdapter(Object.class, new TimelineTrackPropertyAdapter(), "TimelineTrack");
+            registerAdapter(new TimelineTrackPropertyAdapter(), "TimelineTrack");
             registeredCount++;
             
             LOGGER.info("  ========== 核心对象适配器 ==========");
@@ -120,29 +119,29 @@ public final class PropertyAdapterBootstrap {
             LOGGER.info("  ========== 扩展系统适配器 ==========");
             
             // ✅ 特效适配器
-            registerAdapter(Object.class, new EffectPropertyAdapter(), "Effect");
+            registerAdapter(new EffectPropertyAdapter(), "Effect");
             registeredCount++;
             
             // ✅ 项目环境适配器
-            registerAdapter(Object.class, new ProjectEnvironmentPropertyAdapter(), "ProjectEnvironment");
+            registerAdapter(new ProjectEnvironmentPropertyAdapter(), "ProjectEnvironment");
             registeredCount++;
             
             // ✅ 材质库适配器
-            registerAdapter(Object.class, new MaterialLibraryPropertyAdapter(), "MaterialLibrary");
+            registerAdapter(new MaterialLibraryPropertyAdapter(), "MaterialLibrary");
             registeredCount++;
             
             LOGGER.info("  ========== 高级功能适配器 ==========");
             
             // ✅ 相机适配器
-            registerAdapter(Object.class, new CameraPropertyAdapter(), "Camera");
+            registerAdapter(new CameraPropertyAdapter(), "Camera");
             registeredCount++;
             
             // ✅ 后处理适配器
-            registerAdapter(Object.class, new PostProcessingPropertyAdapter(), "PostProcessing");
+            registerAdapter(new PostProcessingPropertyAdapter(), "PostProcessing");
             registeredCount++;
             
             // ✅ 物理环境适配器
-            registerAdapter(Object.class, new PhysicsEnvironmentPropertyAdapter(), "PhysicsEnvironment");
+            registerAdapter(new PhysicsEnvironmentPropertyAdapter(), "PhysicsEnvironment");
             registeredCount++;
             
             LOGGER.info("  ========== 扩展类型适配器 ==========");
@@ -205,22 +204,14 @@ public final class PropertyAdapterBootstrap {
     /**
      * 注册属性适配器（带自定义目标名称）
      */
-    private static <T> void registerAdapter(Class<T> type, IPropertyAdapter<T> adapter, String targetName) {
-        PropertyAdapterRegistry.registerAdapter(type, adapter);
+    @SuppressWarnings("unchecked")
+    private static <T> void registerAdapter(IPropertyAdapter<T> adapter, String targetName) {
+        PropertyAdapterRegistry.registerAdapter((Class<T>) Object.class, adapter);
         LOGGER.info("[PropertyAdapterBootstrap] ✅ 已注册: {} → {}", 
             adapter.getClass().getSimpleName(), 
             targetName);
     }
-    
-    /**
-     * 重置初始化状态（仅用于测试）
-     */
-    static void resetForTesting() {
-        initialized = false;
-        PropertyAdapterRegistry.clear();
-        LOGGER.warn("[PropertyAdapterBootstrap] 初始化状态已重置（测试模式）");
-    }
-    
+
     /**
      * 检查是否已初始化
      * 
@@ -230,4 +221,3 @@ public final class PropertyAdapterBootstrap {
         return initialized;
     }
 }
-

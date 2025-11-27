@@ -1,6 +1,6 @@
 package com.chronoblocks.core.animation.sequence;
 
-import com.chronoblocks.core.animation.sequence.impl.*;
+import com.chronoblocks.core.animation.sequence.impl.EvaluatorBasedStrategy;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -36,15 +36,8 @@ public class SequenceStrategyFactory {
      * 注册所有序列策略
      */
     private void registerStrategies() {
-        // 注册基础策略
-        registerStrategy(SequenceMode.ONE_BY_ONE, new OneByOneStrategy());
-        registerStrategy(SequenceMode.RANDOM, new RandomStrategy());
-        registerStrategy(SequenceMode.BATCH, new BatchStrategy());
-        
-        // 注册高级策略
-        registerStrategy(SequenceMode.WAVE, new WaveStrategy());
-        registerStrategy(SequenceMode.SPIRAL, new SpiralStrategy());
-        registerStrategy(SequenceMode.PARALLEL, new ParallelStrategy());
+        // 注册新排序系统策略
+        registerStrategy(SequenceMode.EVALUATOR_BASED, new EvaluatorBasedStrategy());
     }
     
     /**
@@ -60,17 +53,17 @@ public class SequenceStrategyFactory {
      * 根据序列模式获取对应的策略实例
      * 
      * @param mode 序列模式
-     * @return 序列策略实例，如果模式不支持则返回默认策略（ONE_BY_ONE）
+     * @return 序列策略实例，如果模式不支持则返回默认策略（EVALUATOR_BASED）
      */
     public SequenceStrategy getStrategy(SequenceMode mode) {
         if (mode == null) {
-            mode = SequenceMode.ONE_BY_ONE;
+            mode = SequenceMode.EVALUATOR_BASED;
         }
         
         SequenceStrategy strategy = strategyCache.get(mode);
         if (strategy == null) {
-            // 如果找不到对应的策略，返回默认策略
-            strategy = strategyCache.get(SequenceMode.ONE_BY_ONE);
+            // 如果找不到对应的策略，返回默认策略（新系统）
+            strategy = strategyCache.get(SequenceMode.EVALUATOR_BASED);
         }
         
         return strategy;

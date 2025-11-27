@@ -19,17 +19,12 @@ public class SelectionState {
     
     // ========== 选择属性 ==========
     private final String sourceToolId;
-    private final long timestamp;
     private int highlightColor = 0xFFFF0000; // 默认红色
     private String name = "Selection";
-    
-    // ========== 过滤器状态 ==========
-    private final Set<String> materialFilters = new HashSet<>();
-    private final Set<String> stateFilters = new HashSet<>();
-    
+
     public SelectionState(String sourceToolId) {
         this.sourceToolId = sourceToolId;
-        this.timestamp = System.currentTimeMillis();
+        long timestamp = System.currentTimeMillis();
     }
     
     // ========== 静态工厂方法 ==========
@@ -37,13 +32,7 @@ public class SelectionState {
     public static SelectionState empty() {
         return new SelectionState("empty");
     }
-    
-    public static SelectionState single(BlockPos pos, String toolId) {
-        SelectionState state = new SelectionState(toolId);
-        state.addBlock(pos);
-        return state;
-    }
-    
+
     public static SelectionState box(BlockPos start, BlockPos end, String toolId) {
         SelectionState state = new SelectionState(toolId);
         state.addBoxSelection(start, end);
@@ -74,24 +63,14 @@ public class SelectionState {
         selectedBlocks.add(pos);
         blockMetadata.put(pos, new SelectionMetadata());
     }
-    
-    public void addBlock(BlockPos pos, SelectionMetadata metadata) {
-        selectedBlocks.add(pos);
-        blockMetadata.put(pos, metadata);
-    }
-    
+
     public void addBlocks(Collection<BlockPos> blocks) {
         selectedBlocks.addAll(blocks);
         for (BlockPos pos : blocks) {
             blockMetadata.putIfAbsent(pos, new SelectionMetadata());
         }
     }
-    
-    public void removeBlock(BlockPos pos) {
-        selectedBlocks.remove(pos);
-        blockMetadata.remove(pos);
-    }
-    
+
     public void clear() {
         selectedBlocks.clear();
         blockMetadata.clear();
@@ -115,24 +94,6 @@ public class SelectionState {
         }
     }
     
-    // ========== 过滤器管理 ==========
-    
-    public void addMaterialFilter(String material) {
-        materialFilters.add(material);
-    }
-    
-    public void addStateFilter(String state) {
-        stateFilters.add(state);
-    }
-    
-    public void removeMaterialFilter(String material) {
-        materialFilters.remove(material);
-    }
-    
-    public void removeStateFilter(String state) {
-        stateFilters.remove(state);
-    }
-    
     // ========== 查询方法 ==========
     
     public boolean contains(BlockPos pos) {
@@ -150,19 +111,7 @@ public class SelectionState {
     public Set<BlockPos> getSelectedBlocks() {
         return new HashSet<>(selectedBlocks);
     }
-    
-    public SelectionMetadata getMetadata(BlockPos pos) {
-        return blockMetadata.get(pos);
-    }
-    
-    public Optional<BlockPos> getFirstBlock() {
-        return selectedBlocks.stream().findFirst();
-    }
-    
-    public Optional<BlockPos> getLastBlock() {
-        return selectedBlocks.stream().reduce((a, b) -> b);
-    }
-    
+
     // ========== 边界框计算 ==========
     
     public Optional<BoundingBox> getBoundingBox() {
@@ -190,15 +139,7 @@ public class SelectionState {
     public String getSourceToolId() {
         return sourceToolId;
     }
-    
-    public long getTimestamp() {
-        return timestamp;
-    }
-    
-    public int getHighlightColor() {
-        return highlightColor;
-    }
-    
+
     public void setHighlightColor(int color) {
         this.highlightColor = color;
     }
@@ -211,33 +152,19 @@ public class SelectionState {
         this.name = name;
     }
     
-    public Set<String> getMaterialFilters() {
-        return new HashSet<>(materialFilters);
-    }
-    
-    public Set<String> getStateFilters() {
-        return new HashSet<>(stateFilters);
-    }
-    
     // ========== 内部类 ==========
     
     /**
      * 选择元数据
      */
     public static class SelectionMetadata {
-        private final long selectedAt;
-        private String note = "";
-        private int priority = 0;
-        
+
         public SelectionMetadata() {
-            this.selectedAt = System.currentTimeMillis();
+            long selectedAt = System.currentTimeMillis();
         }
         
-        public long getSelectedAt() { return selectedAt; }
-        public String getNote() { return note; }
-        public void setNote(String note) { this.note = note; }
-        public int getPriority() { return priority; }
-        public void setPriority(int priority) { this.priority = priority; }
+        public int getPriority() {
+            return 0; }
     }
     
     /**
@@ -260,9 +187,7 @@ public class SelectionState {
         
         public int getWidth() { return maxX - minX + 1; }
         public int getHeight() { return maxY - minY + 1; }
-        public int getDepth() { return maxZ - minZ + 1; }
-        public int getVolume() { return getWidth() * getHeight() * getDepth(); }
-        
+
         public boolean contains(BlockPos pos) {
             return pos.getX() >= minX && pos.getX() <= maxX &&
                    pos.getY() >= minY && pos.getY() <= maxY &&

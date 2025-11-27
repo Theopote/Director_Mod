@@ -279,13 +279,6 @@ public class SelectionInputHandler {
         dragStart = null;
     }
 
-    /* -------------------- 键盘 / tick -------------------- */
-
-    public void handleKeyPress(int keyCode, boolean ctrl, boolean shift, boolean alt) {
-        LOGGER.debug("[SelectionInputHandler] key: code={}, ctrl={}, shift={}, alt={}", keyCode, ctrl, shift, alt);
-        // 可在此扩展快捷键
-    }
-
     public void tick() {
         if (selectionManager != null && client.world != null) {
             selectionManager.tick(client.world);

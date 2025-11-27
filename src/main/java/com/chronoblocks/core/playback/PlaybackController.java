@@ -12,14 +12,14 @@ import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * ChronoBlocks 播放控制器（v4.5 一体化交互系统）
- * 
+ * <p>
  * 动画播放的核心驱动引擎，负责：
  * - 播放控制（Play / Pause / Stop）
  * - 循环控制（Loop）
  * - 速度控制（Speed）
  * - 时间跳转（Seek）
  * - 帧驱动更新（Tick）
- * 
+ * <p>
  * 数据流：
  * Toolbar → PlaybackController → Timeline / Runtime → 容器渲染
  * 

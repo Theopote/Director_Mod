@@ -12,34 +12,18 @@ package com.chronoblocks.core.animation.sequence;
 public enum SequenceMode {
     
     /**
-     * 顺序执行：按照列表顺序一个接一个执行
+     * 基于排序算子：使用新的权重排序系统，支持参考系、主次排序、复合策略
+     * 
+     * <p>这是唯一的序列模式，通过组合不同的排序策略可以实现各种效果：
+     * <ul>
+     *   <li>顺序执行：主排序 NONE + 次排序 LINEAR</li>
+     *   <li>随机执行：主排序 NONE + 次排序 RANDOM</li>
+     *   <li>波浪式：主排序 LAYERED_Y + 次排序 RADIAL</li>
+     *   <li>螺旋式：主排序 NONE + 次排序 SPIRAL</li>
+     *   <li>并行执行：主排序 NONE + 次排序 NONE</li>
+     * </ul>
      */
-    ONE_BY_ONE("顺序执行", "按照列表顺序一个接一个执行"),
-    
-    /**
-     * 随机执行：随机打乱顺序执行
-     */
-    RANDOM("随机执行", "随机打乱顺序执行"),
-    
-    /**
-     * 批量执行：每批N个方块同时执行
-     */
-    BATCH("批量执行", "每批N个方块同时执行"),
-    
-    /**
-     * 波浪式执行：按行列或距离波浪式执行
-     */
-    WAVE("波浪式", "按行列或距离波浪式执行"),
-    
-    /**
-     * 螺旋式执行：从中心向外螺旋式执行
-     */
-    SPIRAL("螺旋式", "从中心向外螺旋式执行"),
-    
-    /**
-     * 并行执行：所有方块同时执行（用于瞬间出现等场景）
-     */
-    PARALLEL("并行执行", "所有方块同时执行");
+    EVALUATOR_BASED("基于排序算子", "使用新的权重排序系统，支持参考系、主次排序、复合策略");
     
     private final String displayName;
     private final String description;

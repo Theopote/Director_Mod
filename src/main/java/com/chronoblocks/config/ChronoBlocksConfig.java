@@ -58,35 +58,20 @@ public class ChronoBlocksConfig {
         public String configVersion = "1.0";
         
         public static class PerformanceSettings {
-            public int maxRenderDistance = 100;
-            public int maxParticles = 1000;
             public boolean enableOptimizations = true;
-            public int tickRate = 20;
         }
         
         public static class UISettings {
-            public boolean enableImGui = true;
             public String defaultTheme = "dark";
-            public int maxFPS = 60;
-            public boolean enableVSync = true;
-            public boolean enableDocking = true;
-            
-            // 布局持久化设置
-            public boolean enableLayoutPersistence = true;
-            public boolean autoSaveLayout = true;
-            public long layoutAutoSaveInterval = 5000; // 5秒
+
         }
         
         public static class DebugSettings {
             public boolean enableDebugMode = false;
-            public boolean enablePerformanceLogging = false;
-            public boolean enableErrorReporting = true;
-            public String logLevel = "INFO";
         }
         
         public static class CompatibilitySettings {
             public boolean checkModCompatibility = true;
-            public boolean enableModIntegration = true;
             public String[] requiredMods = {"fabric", "fabricloader"};
             public String[] optionalMods = {"jei", "wthit", "modmenu"};
         }
@@ -165,46 +150,14 @@ public class ChronoBlocksConfig {
     public static ConfigData getConfig() {
         return currentConfig;
     }
-    
-    /**
-     * 更新配置
-     */
-    public static void updateConfig(ConfigData newConfig) {
-        currentConfig = newConfig;
-        saveConfig();
-        LOGGER.info("[ChronoBlocks] 配置已更新");
-    }
-    
-    /**
-     * 重置为默认配置
-     */
-    public static void resetToDefault() {
-        currentConfig = DEFAULT_CONFIG;
-        saveConfig();
-        LOGGER.info("[ChronoBlocks] 配置已重置为默认值");
-    }
-    
+
     /**
      * 检查是否启用调试模式
      */
     public static boolean isDebugMode() {
         return currentConfig.debug.enableDebugMode;
     }
-    
-    /**
-     * 检查是否启用性能日志
-     */
-    public static boolean isPerformanceLoggingEnabled() {
-        return currentConfig.debug.enablePerformanceLogging;
-    }
-    
-    /**
-     * 获取最大渲染距离
-     */
-    public static int getMaxRenderDistance() {
-        return currentConfig.performance.maxRenderDistance;
-    }
-    
+
     /**
      * 检查是否启用模组兼容性检查
      */

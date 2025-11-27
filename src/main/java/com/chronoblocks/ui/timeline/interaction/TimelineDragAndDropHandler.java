@@ -105,11 +105,10 @@ public class TimelineDragAndDropHandler {
         if (track == null) return false;
         
         TrackType type = track.getType();
-        // 允许拖放到这些轨道类型
+        // 允许拖放到这些轨道类型：容器、摄像机、天气、标记
         return type == TrackType.CONTAINER 
             || type == TrackType.CAMERA 
             || type == TrackType.WEATHER 
-            || type == TrackType.LIGHTING 
             || type == TrackType.MARKER;
     }
 
@@ -144,7 +143,7 @@ public class TimelineDragAndDropHandler {
             
             if (!existingClips.isEmpty()) {
                 // 容器已经有片段，移动现有片段到新位置
-                TimelineClip existingClip = existingClips.get(0); // 每个容器只有一个片段
+                TimelineClip existingClip = existingClips.getFirst(); // 每个容器只有一个片段
                 TimelineTrack oldTrack = model.findTrackForClip(existingClip);
                 
                 // 计算新位置时间与吸附

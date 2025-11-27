@@ -188,14 +188,7 @@ public final class TimelineShortcutManager {
             }
         }
     }
-    
-    /**
-     * 获取所有已注册的快捷键（调试用）
-     */
-    public Map<String, Shortcut> getShortcuts() {
-        return new HashMap<>(shortcuts);
-    }
-    
+
     /**
      * 清空所有快捷键
      */

@@ -1003,12 +1003,4 @@ public class ChronoBlocksUIManager {
             LOGGER.warn("[ChronoBlocks] 面板释放失败率过高: {}/{}，可能存在严重问题", panelDisposalErrors, totalPanels);
         }
     }
-    
-    /**
-     * 获取面板注册表
-     * @return 面板注册表实例
-     */
-    public IPanelRegistry getPanelRegistry() {
-        return panelRegistry;
-    }
 }

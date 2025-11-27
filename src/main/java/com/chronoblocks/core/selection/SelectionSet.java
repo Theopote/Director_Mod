@@ -124,15 +124,6 @@ public class SelectionSet {
         return Collections.unmodifiableSet(all); 
     }
 
-    public Set<BlockPos> getLayer(String layerKey) {
-        Set<BlockPos> set = layers.get(layerKey);
-        return set == null ? Collections.emptySet() : Collections.unmodifiableSet(set);
-    }
-
-    public Set<String> getLayerKeys() { 
-        return Collections.unmodifiableSet(layers.keySet()); 
-    }
-
     public int size() { 
         return all.size(); 
     }
@@ -169,16 +160,6 @@ public class SelectionSet {
         );
     }
 
-    // ---------- 监听 ----------
-
-    public void addListener(SelectionSetListener l) {
-        if (l != null) listeners.add(l);
-    }
-
-    public void removeListener(SelectionSetListener l) {
-        if (l != null) listeners.remove(l);
-    }
-
     private void notifyChanged() {
         lastChangeNanos = System.nanoTime();
         for (SelectionSetListener l : listeners) {
@@ -190,7 +171,4 @@ public class SelectionSet {
         }
     }
 
-    public long getLastChangeNanos() { 
-        return lastChangeNanos; 
-    }
 }

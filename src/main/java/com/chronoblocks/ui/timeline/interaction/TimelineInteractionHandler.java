@@ -598,7 +598,7 @@ public class TimelineInteractionHandler {
         // 先检测目标轨道，再使用正确的轨道进行吸附计算
         // ★ 关键修复：使用片段当前所在的轨道，而不是 handle.track（可能已过时）
         if (currentTrack == null) {
-            currentTrack = handle.track; // 回退到原始轨道
+            // 回退到原始轨道
         }
         TimelineTrack targetTrack = currentTrack;
         

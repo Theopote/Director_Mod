@@ -73,18 +73,4 @@ public final class SelectionToContainerAction {
         Color defaultColor = new Color(0.2f, 0.8f, 1.0f, 1.0f);
         execute(name, defaultColor);
     }
-
-    /**
-     * 获取当前选区的统计信息
-     */
-    public static String getSelectionInfo() {
-        SelectionSet set = SelectionManager.get().getSelectionSet();
-        if (set.isEmpty()) {
-            return "选区为空";
-        }
-        
-        var centerPos = set.getCenterBlock();
-        return String.format("选区: %d 个方块，中心: (%d, %d, %d)", 
-                           set.size(), centerPos.getX(), centerPos.getY(), centerPos.getZ());
-    }
 }

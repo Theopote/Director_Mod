@@ -40,27 +40,6 @@ public class SelectionRegistry {
     }
 
     /**
-     * 按注册顺序获取所有工具
-     */
-    public List<SelectionTool> getToolsInOrder() {
-        List<SelectionTool> orderedTools = new ArrayList<>();
-        for (String toolId : toolOrder) {
-            SelectionTool tool = tools.get(toolId);
-            if (tool != null) {
-                orderedTools.add(tool);
-            }
-        }
-        return orderedTools;
-    }
-
-    /**
-     * 检查工具是否已注册
-     */
-    public boolean isRegistered(String id) {
-        return tools.containsKey(id);
-    }
-
-    /**
      * 获取工具数量
      */
     public int size() {
@@ -76,23 +55,16 @@ public class SelectionRegistry {
     }
 
     /**
-     * 获取工具ID列表
-     */
-    public Set<String> getToolIds() {
-        return new HashSet<>(tools.keySet());
-    }
-
-    /**
      * 获取下一个工具（循环）
      */
     public SelectionTool getNextTool(SelectionTool currentTool) {
         if (currentTool == null || toolOrder.isEmpty()) {
-            return toolOrder.isEmpty() ? null : tools.get(toolOrder.get(0));
+            return toolOrder.isEmpty() ? null : tools.get(toolOrder.getFirst());
         }
         
         int currentIndex = toolOrder.indexOf(currentTool.getId());
         if (currentIndex == -1) {
-            return tools.get(toolOrder.get(0));
+            return tools.get(toolOrder.getFirst());
         }
         
         int nextIndex = (currentIndex + 1) % toolOrder.size();
@@ -104,12 +76,12 @@ public class SelectionRegistry {
      */
     public SelectionTool getPreviousTool(SelectionTool currentTool) {
         if (currentTool == null || toolOrder.isEmpty()) {
-            return toolOrder.isEmpty() ? null : tools.get(toolOrder.get(0));
+            return toolOrder.isEmpty() ? null : tools.get(toolOrder.getFirst());
         }
         
         int currentIndex = toolOrder.indexOf(currentTool.getId());
         if (currentIndex == -1) {
-            return tools.get(toolOrder.get(0));
+            return tools.get(toolOrder.getFirst());
         }
         
         int prevIndex = (currentIndex - 1 + toolOrder.size()) % toolOrder.size();

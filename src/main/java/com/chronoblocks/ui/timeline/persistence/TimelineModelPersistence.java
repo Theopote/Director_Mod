@@ -4,6 +4,9 @@ import com.chronoblocks.core.animation.ClipAnimationConfig;
 import com.chronoblocks.core.container.AnimationMode;
 import com.chronoblocks.core.animation.sequence.SequenceMode;
 import com.chronoblocks.core.animation.sequence.SequenceParameters;
+import com.chronoblocks.core.animation.sequence.evaluator.FillType;
+import com.chronoblocks.core.animation.sequence.evaluator.FlowType;
+import com.chronoblocks.core.animation.sequence.evaluator.OriginType;
 import com.chronoblocks.ui.timeline.model.TimelineClip;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
@@ -23,6 +26,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -38,6 +42,20 @@ public class TimelineModelPersistence {
     
     // 配置文件路径
     private static final Path CONFIG_DIR = Paths.get("config", "chronoblocks");
+    private static final Set<String> RESERVED_SEQUENCE_KEYS = Set.of(
+        "flowType",
+        "fillType",
+        "originType",
+        "planeYaw",
+        "planePitch",
+        "customX",
+        "customY",
+        "customZ",
+        "priorityWeight",
+        "reverse",
+        "alternating",
+        "extraParams"
+    );
     
     /**
      * 获取当前世界的时间线文件路径
@@ -92,17 +110,9 @@ public class TimelineModelPersistence {
         public String animationEasing = "Linear";
         public String animationOrdering = "Sequential";
         public Map<String, Object> animationParams = new HashMap<>();
-        // 序列策略配置（新增）
-        public String sequenceMode; // SequenceMode.name()
-        public Integer sequenceBatchSize;
-        public Long sequenceRandomSeed;
-        // 波浪模式参数
-        public String sequenceWaveDirection;
-        public Float sequenceWaveInterval;
-        public String sequenceWaveStart;
-        // 螺旋模式参数
-        public String sequenceSpiralStart;
-        public String sequenceSpiralDirection;
+        // 序列策略配置
+        public String sequenceMode; // SequenceMode.name() (只支持 EVALUATOR_BASED)
+        // 新排序系统参数（通过 sequenceParams 存储）
         public Map<String, Object> sequenceParams = new HashMap<>();
         public String boundContainerId;
         public String boundContainerName;
@@ -156,20 +166,25 @@ public class TimelineModelPersistence {
                 clipDTO.animationEasing = config.getEasing();
                 clipDTO.animationOrdering = config.getOrdering();
                 clipDTO.animationParams.putAll(config.getParams());
-                // 序列策略配置（新增）
+                // 序列策略配置
                 clipDTO.sequenceMode = config.getSequenceMode().name();
                 SequenceParameters seqParams = config.getSequenceParameters();
                 if (seqParams != null) {
-                    clipDTO.sequenceBatchSize = seqParams.getBatchSize();
-                    clipDTO.sequenceRandomSeed = seqParams.getRandomSeed();
-                    // 波浪模式参数
-                    clipDTO.sequenceWaveDirection = seqParams.getWaveDirection();
-                    clipDTO.sequenceWaveInterval = seqParams.getWaveInterval();
-                    clipDTO.sequenceWaveStart = seqParams.getWaveStart();
-                    // 螺旋模式参数
-                    clipDTO.sequenceSpiralStart = seqParams.getSpiralStart();
-                    clipDTO.sequenceSpiralDirection = seqParams.getSpiralDirection();
-                    clipDTO.sequenceParams.putAll(seqParams.getExtraParams());
+                    clipDTO.sequenceParams.clear();
+                    clipDTO.sequenceParams.put("flowType", seqParams.getFlowType().name());
+                    clipDTO.sequenceParams.put("fillType", seqParams.getFillType().name());
+                    clipDTO.sequenceParams.put("originType", seqParams.getOriginType().name());
+                    clipDTO.sequenceParams.put("planeYaw", seqParams.getPlaneYaw());
+                    clipDTO.sequenceParams.put("planePitch", seqParams.getPlanePitch());
+                    clipDTO.sequenceParams.put("customX", seqParams.getCustomX());
+                    clipDTO.sequenceParams.put("customY", seqParams.getCustomY());
+                    clipDTO.sequenceParams.put("customZ", seqParams.getCustomZ());
+                    clipDTO.sequenceParams.put("priorityWeight", seqParams.getPriorityWeight());
+                    clipDTO.sequenceParams.put("reverse", seqParams.isReverse());
+                    clipDTO.sequenceParams.put("alternating", seqParams.isAlternating());
+                    if (!seqParams.getExtraParams().isEmpty()) {
+                        clipDTO.sequenceParams.put("extraParams", new HashMap<>(seqParams.getExtraParams()));
+                    }
                 }
                 if (clip.getBoundContainerId() != null) {
                     clipDTO.boundContainerId = clip.getBoundContainerId().toString();
@@ -259,42 +274,53 @@ public class TimelineModelPersistence {
                     config.getParams().clear();
                     config.getParams().putAll(clipDTO.animationParams);
                 }
-                // 序列策略配置（新增）
+                // 序列策略配置
                 if (clipDTO.sequenceMode != null) {
                     try {
-                        config.setSequenceMode(SequenceMode.valueOf(clipDTO.sequenceMode));
+                        SequenceMode loadedMode = SequenceMode.valueOf(clipDTO.sequenceMode);
+                        // 只接受 EVALUATOR_BASED，其他模式自动使用默认值
+                        if (loadedMode == SequenceMode.EVALUATOR_BASED) {
+                            config.setSequenceMode(loadedMode);
+                        } else {
+                            LOGGER.warn("[TimelineModelPersistence] 检测到废弃的序列模式: {}，已自动迁移到 EVALUATOR_BASED", clipDTO.sequenceMode);
+                            config.setSequenceMode(SequenceMode.EVALUATOR_BASED);
+                        }
                     } catch (IllegalArgumentException e) {
-                        LOGGER.warn("[TimelineModelPersistence] 未知的序列模式: {}", clipDTO.sequenceMode);
+                        LOGGER.warn("[TimelineModelPersistence] 未知的序列模式: {}，使用默认值", clipDTO.sequenceMode);
+                        config.setSequenceMode(SequenceMode.EVALUATOR_BASED);
                     }
+                } else {
+                    // 如果没有序列模式，使用新系统作为默认值
+                    config.setSequenceMode(SequenceMode.EVALUATOR_BASED);
                 }
                 SequenceParameters seqParams = config.getSequenceParameters();
-                if (seqParams != null) {
-                    if (clipDTO.sequenceBatchSize != null) {
-                        seqParams.setBatchSize(clipDTO.sequenceBatchSize);
+                if (seqParams != null && clipDTO.sequenceParams != null && !clipDTO.sequenceParams.isEmpty()) {
+                    Map<String, Object> raw = clipDTO.sequenceParams;
+                    seqParams.setFlowType(parseEnum(raw.get("flowType"), FlowType.class, seqParams.getFlowType()));
+                    seqParams.setFillType(parseEnum(raw.get("fillType"), FillType.class, seqParams.getFillType()));
+                    seqParams.setOriginType(parseEnum(raw.get("originType"), OriginType.class, seqParams.getOriginType()));
+                    seqParams.setPlaneYaw(asFloat(raw.get("planeYaw"), seqParams.getPlaneYaw()));
+                    seqParams.setPlanePitch(asFloat(raw.get("planePitch"), seqParams.getPlanePitch()));
+                    int customX = asInt(raw.get("customX"), seqParams.getCustomX());
+                    int customY = asInt(raw.get("customY"), seqParams.getCustomY());
+                    int customZ = asInt(raw.get("customZ"), seqParams.getCustomZ());
+                    seqParams.setCustomXYZ(customX, customY, customZ);
+                    seqParams.setPriorityWeight(asFloat(raw.get("priorityWeight"), seqParams.getPriorityWeight()));
+                    seqParams.setReverse(asBoolean(raw.get("reverse"), seqParams.isReverse()));
+                    seqParams.setAlternating(asBoolean(raw.get("alternating"), seqParams.isAlternating()));
+
+                    Map<String, Object> extras = new HashMap<>();
+                    Object extraObj = raw.get("extraParams");
+                    if (extraObj instanceof Map<?, ?> extraMap) {
+                        extras.putAll(toStringObjectMap(extraMap));
                     }
-                    if (clipDTO.sequenceRandomSeed != null) {
-                        seqParams.setRandomSeed(clipDTO.sequenceRandomSeed);
+                    for (Map.Entry<String, Object> entry : raw.entrySet()) {
+                        if (!RESERVED_SEQUENCE_KEYS.contains(entry.getKey())) {
+                            extras.put(entry.getKey(), entry.getValue());
+                        }
                     }
-                    // 波浪模式参数
-                    if (clipDTO.sequenceWaveDirection != null) {
-                        seqParams.setWaveDirection(clipDTO.sequenceWaveDirection);
-                    }
-                    if (clipDTO.sequenceWaveInterval != null) {
-                        seqParams.setWaveInterval(clipDTO.sequenceWaveInterval);
-                    }
-                    if (clipDTO.sequenceWaveStart != null) {
-                        seqParams.setWaveStart(clipDTO.sequenceWaveStart);
-                    }
-                    // 螺旋模式参数
-                    if (clipDTO.sequenceSpiralStart != null) {
-                        seqParams.setSpiralStart(clipDTO.sequenceSpiralStart);
-                    }
-                    if (clipDTO.sequenceSpiralDirection != null) {
-                        seqParams.setSpiralDirection(clipDTO.sequenceSpiralDirection);
-                    }
-                    if (clipDTO.sequenceParams != null && !clipDTO.sequenceParams.isEmpty()) {
-                        seqParams.getExtraParams().putAll(clipDTO.sequenceParams);
-                    }
+                    seqParams.getExtraParams().clear();
+                    seqParams.getExtraParams().putAll(extras);
                 }
 
                 if (clipDTO.boundContainerId != null && !clipDTO.boundContainerId.isBlank()) {
@@ -374,20 +400,61 @@ public class TimelineModelPersistence {
     public static boolean hasSavedData() {
         return Files.exists(getTimelineFile());
     }
-    
-    /**
-     * 删除保存的数据（当前世界）
-     */
-    public static void deleteSavedData() {
-        try {
-            Path timelineFile = getTimelineFile();
-            if (Files.exists(timelineFile)) {
-                Files.delete(timelineFile);
-                LOGGER.info("[TimelineModelPersistence] 世界 {} 的时间线数据已删除", 
-                    WorldIdentifier.getCurrentWorldId());
+
+    private static <E extends Enum<E>> E parseEnum(Object value, Class<E> type, E defaultValue) {
+        if (value instanceof String s) {
+            try {
+                return Enum.valueOf(type, s);
+            } catch (IllegalArgumentException ignored) {
             }
-        } catch (IOException e) {
-            LOGGER.error("[TimelineModelPersistence] 删除时间线数据失败: {}", e.getMessage(), e);
         }
+        return defaultValue;
+    }
+
+    private static float asFloat(Object value, float defaultValue) {
+        if (value instanceof Number number) {
+            return number.floatValue();
+        }
+        if (value instanceof String s) {
+            try {
+                return Float.parseFloat(s);
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return defaultValue;
+    }
+
+    private static int asInt(Object value, int defaultValue) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value instanceof String s) {
+            try {
+                return Integer.parseInt(s);
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return defaultValue;
+    }
+
+    private static boolean asBoolean(Object value, boolean defaultValue) {
+        if (value instanceof Boolean b) {
+            return b;
+        }
+        if (value instanceof Number number) {
+            return number.intValue() != 0;
+        }
+        if (value instanceof String s) {
+            return Boolean.parseBoolean(s);
+        }
+        return defaultValue;
+    }
+
+    private static Map<String, Object> toStringObjectMap(Map<?, ?> raw) {
+        Map<String, Object> result = new HashMap<>();
+        for (Map.Entry<?, ?> entry : raw.entrySet()) {
+            result.put(String.valueOf(entry.getKey()), entry.getValue());
+        }
+        return result;
     }
 }

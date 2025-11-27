@@ -233,11 +233,9 @@ public final class PropertyAdapterRegistry {
     public static String getDebugInfo() {
         StringBuilder sb = new StringBuilder();
         sb.append("PropertyAdapterRegistry [").append(adapters.size()).append(" adapters]:\n");
-        adapters.forEach((type, adapter) -> {
-            sb.append("  - ").append(type.getSimpleName())
-              .append(" → ").append(adapter.getClass().getSimpleName())
-              .append("\n");
-        });
+        adapters.forEach((type, adapter) -> sb.append("  - ").append(type.getSimpleName())
+          .append(" → ").append(adapter.getClass().getSimpleName())
+          .append("\n"));
         if (fallbackAdapter != null) {
             sb.append("  Fallback: ").append(fallbackAdapter.getClass().getSimpleName()).append("\n");
         }

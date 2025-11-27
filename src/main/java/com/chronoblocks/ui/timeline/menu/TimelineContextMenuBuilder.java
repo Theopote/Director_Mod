@@ -173,12 +173,7 @@ public class TimelineContextMenuBuilder {
             submenu.addItem(label, action);
             return this;
         }
-        
-        public SubMenuBuilder item(String label, Runnable action, String shortcut) {
-            submenu.addItem(label, action, shortcut);
-            return this;
-        }
-        
+
         public SubMenuBuilder command(String label, TimelineCommand command) {
             submenu.addCommandItem(label, command);
             return this;
@@ -193,12 +188,7 @@ public class TimelineContextMenuBuilder {
             submenu.addSeparator();
             return this;
         }
-        
-        public SubMenuBuilder disabledItem(String label) {
-            submenu.addDisabledItem(label);
-            return this;
-        }
-        
+
         public TimelineContextMenuBuilder end() {
             return parent;
         }

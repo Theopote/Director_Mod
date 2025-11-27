@@ -1,7 +1,6 @@
 package com.chronoblocks.animation.core;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -26,13 +25,5 @@ public abstract class Track<T> {
         return keyframes;
     }
 
-    public void addKeyframe(Keyframe<T> keyframe) {
-        if (keyframe == null) return;
-        keyframes.add(keyframe);
-        keyframes.sort(Comparator.comparingDouble(Keyframe::time));
-    }
-
     public abstract T evaluate(double timeSec);
 }
-
-

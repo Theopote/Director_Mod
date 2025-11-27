@@ -54,9 +54,6 @@ public final class SelectionManager {
     // 选择变化监听器
     private final List<Consumer<Object>> selectionListeners = new ArrayList<>();
     
-    // 多选变化监听器
-    private final List<Consumer<List<Object>>> multiSelectionListeners = new ArrayList<>();
-    
     // 私有构造函数
     private SelectionManager() {}
     
@@ -98,41 +95,7 @@ public final class SelectionManager {
     public Object getCurrentSelection() {
         return currentSelection;
     }
-    
-    /**
-     * 获取当前选择的对象（类型安全）
-     * 
-     * @param type 期望的类型
-     * @param <T> 类型参数
-     * @return 如果当前选择是指定类型则返回，否则返回 null
-     */
-    @SuppressWarnings("unchecked")
-    public <T> T getCurrentSelectionAs(Class<T> type) {
-        if (type.isInstance(currentSelection)) {
-            return (T) currentSelection;
-        }
-        return null;
-    }
-    
-    /**
-     * 检查是否有选择
-     * 
-     * @return 如果有选择则返回 true
-     */
-    public boolean hasSelection() {
-        return currentSelection != null;
-    }
-    
-    /**
-     * 检查当前选择是否是指定类型
-     * 
-     * @param type 要检查的类型
-     * @return 如果是指定类型则返回 true
-     */
-    public boolean isSelectionOfType(Class<?> type) {
-        return type.isInstance(currentSelection);
-    }
-    
+
     /**
      * 清除当前选择
      */
@@ -178,48 +141,6 @@ public final class SelectionManager {
         }
     }
     
-    // ==================== 多选支持 ====================
-    
-    /**
-     * 设置多选对象
-     * 
-     * @param selections 选择的对象列表
-     */
-    public void setMultiSelection(List<Object> selections) {
-        multiSelection.clear();
-        if (selections != null) {
-            multiSelection.addAll(selections);
-        }
-        
-        LOGGER.debug("[SelectionManager] Multi-selection changed: {} objects", multiSelection.size());
-        
-        // 通知多选监听器
-        notifyMultiSelectionChanged(multiSelection);
-    }
-    
-    /**
-     * 添加到多选
-     * 
-     * @param selection 要添加的对象
-     */
-    public void addToMultiSelection(Object selection) {
-        if (selection != null && !multiSelection.contains(selection)) {
-            multiSelection.add(selection);
-            notifyMultiSelectionChanged(multiSelection);
-        }
-    }
-    
-    /**
-     * 从多选中移除
-     * 
-     * @param selection 要移除的对象
-     */
-    public void removeFromMultiSelection(Object selection) {
-        if (multiSelection.remove(selection)) {
-            notifyMultiSelectionChanged(multiSelection);
-        }
-    }
-    
     /**
      * 获取多选对象列表
      * 
@@ -228,59 +149,7 @@ public final class SelectionManager {
     public List<Object> getMultiSelection() {
         return new ArrayList<>(multiSelection);
     }
-    
-    /**
-     * 检查是否有多选
-     * 
-     * @return 如果有多个对象被选择则返回 true
-     */
-    public boolean hasMultiSelection() {
-        return multiSelection.size() > 1;
-    }
-    
-    /**
-     * 清除多选
-     */
-    public void clearMultiSelection() {
-        multiSelection.clear();
-        notifyMultiSelectionChanged(multiSelection);
-    }
-    
-    /**
-     * 添加多选变化监听器
-     * 
-     * @param listener 监听器
-     */
-    public void addMultiSelectionChangedListener(Consumer<List<Object>> listener) {
-        if (listener != null && !multiSelectionListeners.contains(listener)) {
-            multiSelectionListeners.add(listener);
-        }
-    }
-    
-    /**
-     * 移除多选变化监听器
-     * 
-     * @param listener 要移除的监听器
-     */
-    public void removeMultiSelectionChangedListener(Consumer<List<Object>> listener) {
-        multiSelectionListeners.remove(listener);
-    }
-    
-    /**
-     * 通知所有监听器多选已变化
-     * 
-     * @param selections 新的多选列表
-     */
-    private void notifyMultiSelectionChanged(List<Object> selections) {
-        for (Consumer<List<Object>> listener : multiSelectionListeners) {
-            try {
-                listener.accept(new ArrayList<>(selections));
-            } catch (Exception e) {
-                LOGGER.error("[SelectionManager] Error notifying multi-selection listener: {}", 
-                    e.getMessage(), e);
-            }
-        }
-    }
+
     
     /**
      * 获取调试信息
@@ -294,4 +163,3 @@ public final class SelectionManager {
             selectionListeners.size());
     }
 }
-

@@ -312,14 +312,6 @@ public class ContainerCommandService {
         execute(new SetContainerTypeCommand(containerManager, container, newType));
     }
 
-    public void setContainerPreset(UUID containerId, ContainerAnimationPreset preset) {
-        Container container = containerManager.getContainer(containerId);
-        if (container == null) {
-            return;
-        }
-        execute(new SetContainerPresetCommand(containerManager, container, preset));
-    }
-
     public void setPresetMode(UUID containerId, AnimationMode mode) {
 		updatePreset(containerId, preset -> preset.setMode(mode));
     }

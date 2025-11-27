@@ -168,7 +168,7 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                 float currentFPS = getFloatProperty(project, "frameRate", "getFrameRate", 30.0f);
                 float[] fps = {currentFPS};
                 if (ImGui.dragFloat("帧率 (FPS)", fps, 1.0f, 1.0f, 240.0f, "%.0f")) {
-                    if (setFloatProperty(project, "frameRate", "setFrameRate", fps[0])) {
+                    if (setFloatProperty(project, fps[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineProjectPropertyAdapter] 帧率已更新: {}", fps[0]);
                     }
@@ -178,7 +178,7 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                 }
                 
                 // 时间单位
-                int currentTimeUnit = getIntProperty(project, "timeUnit", "getTimeUnit", 0);
+                int currentTimeUnit = getIntProperty(project, "timeUnit", "getTimeUnit");
                 ImInt timeUnitIdx = new ImInt(currentTimeUnit);
                 if (ImGui.combo("时间单位", timeUnitIdx, TIME_UNITS)) {
                     if (setIntProperty(project, "timeUnit", "setTimeUnit", timeUnitIdx.get())) {
@@ -331,7 +331,7 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
             // ========== 导出设置 ==========
             if (ImGui.collapsingHeader("📦 导出设置")) {
                 // 导出格式
-                int currentFormat = getIntProperty(project, "exportFormat", "getExportFormat", 0);
+                int currentFormat = getIntProperty(project, "exportFormat", "getExportFormat");
                 ImInt formatIdx = new ImInt(currentFormat);
                 if (ImGui.combo("导出格式", formatIdx, EXPORT_FORMATS)) {
                     if (setIntProperty(project, "exportFormat", "setExportFormat", formatIdx.get())) {
@@ -418,7 +418,7 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                             
                             // 统计关键帧
                             for (Object track : tracks) {
-                                int count = getIntProperty(track, "keyframeCount", "getKeyframeCount", 0);
+                                int count = getIntProperty(track, "keyframeCount", "getKeyframeCount");
                                 totalKeyframes += count;
                             }
                         }
@@ -435,14 +435,14 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                 UITheme.label("项目路径: " + projectPath, UITheme.DarkTheme.TEXT_DISABLED);
                 
                 // 创建时间
-                long createdTime = getLongProperty(project, "createdTime", "getCreatedTime", 0L);
+                long createdTime = getLongProperty(project, "createdTime", "getCreatedTime");
                 if (createdTime > 0) {
                     UITheme.label("创建时间: " + DATE_FORMAT.format(new Date(createdTime)), 
                         UITheme.DarkTheme.TEXT_DISABLED);
                 }
                 
                 // 修改时间
-                long modifiedTime = getLongProperty(project, "modifiedTime", "getModifiedTime", 0L);
+                long modifiedTime = getLongProperty(project, "modifiedTime", "getModifiedTime");
                 if (modifiedTime > 0) {
                     UITheme.label("修改时间: " + DATE_FORMAT.format(new Date(modifiedTime)), 
                         UITheme.DarkTheme.TEXT_DISABLED);
@@ -600,19 +600,19 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
         }
     }
     
-    private int getIntProperty(Object obj, String fieldName, String getterName, int defaultValue) {
+    private int getIntProperty(Object obj, String fieldName, String getterName) {
         try {
             var method = obj.getClass().getMethod(getterName);
             Object result = method.invoke(obj);
-            return result instanceof Integer ? (Integer) result : defaultValue;
+            return result instanceof Integer ? (Integer) result : 0;
         } catch (Exception e) {
             try {
                 var field = obj.getClass().getDeclaredField(fieldName);
                 field.setAccessible(true);
                 Object result = field.get(obj);
-                return result instanceof Integer ? (Integer) result : defaultValue;
+                return result instanceof Integer ? (Integer) result : 0;
             } catch (Exception ex) {
-                return defaultValue;
+                return 0;
             }
         }
     }
@@ -655,14 +655,14 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
         }
     }
     
-    private boolean setFloatProperty(Object obj, String fieldName, String setterName, float value) {
+    private boolean setFloatProperty(Object obj, float value) {
         try {
-            var method = obj.getClass().getMethod(setterName, float.class);
+            var method = obj.getClass().getMethod("setFrameRate", float.class);
             method.invoke(obj, value);
             return true;
         } catch (Exception e) {
             try {
-                var field = obj.getClass().getDeclaredField(fieldName);
+                var field = obj.getClass().getDeclaredField("frameRate");
                 field.setAccessible(true);
                 field.set(obj, value);
                 return true;
@@ -672,19 +672,19 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
         }
     }
     
-    private long getLongProperty(Object obj, String fieldName, String getterName, long defaultValue) {
+    private long getLongProperty(Object obj, String fieldName, String getterName) {
         try {
             var method = obj.getClass().getMethod(getterName);
             Object result = method.invoke(obj);
-            return result instanceof Long ? (Long) result : defaultValue;
+            return result instanceof Long ? (Long) result : 0L;
         } catch (Exception e) {
             try {
                 var field = obj.getClass().getDeclaredField(fieldName);
                 field.setAccessible(true);
                 Object result = field.get(obj);
-                return result instanceof Long ? (Long) result : defaultValue;
+                return result instanceof Long ? (Long) result : 0L;
             } catch (Exception ex) {
-                return defaultValue;
+                return 0L;
             }
         }
     }

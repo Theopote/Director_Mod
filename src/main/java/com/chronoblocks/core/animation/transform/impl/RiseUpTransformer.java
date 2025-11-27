@@ -1,0 +1,98 @@
+package com.chronoblocks.core.animation.transform.impl;
+
+import com.chronoblocks.core.animation.transform.IAnimationTransformer;
+import com.chronoblocks.core.animation.transform.ui.UIHelper;
+
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Random;
+
+/**
+ * 升起动画变换器
+ * 
+ * <p>方块从下方升起，模拟地形隆起或建筑物从地下升起的效果。
+ * 
+ * @author ChronoBlocks Team
+ * @version 1.0
+ */
+public class RiseUpTransformer implements IAnimationTransformer {
+    
+    @Override
+    public TransformResult transform(float progress, Map<String, Object> params, Random random) {
+        TransformResult result = new TransformResult();
+        
+        // 获取参数
+        float startDepth = getFloatParam(params, "riseHeight", 5.0f);
+        
+        // 计算 Y 位移：从 -startDepth 到 0
+        result.translateY = -startDepth * (1.0f - progress);
+        
+        // 可选：添加轻微的缩放效果（从下往上生长）
+        float scale = 0.8f + 0.2f * progress;
+        result.scaleY = scale;
+        
+        return result;
+    }
+    
+    @Override
+    public String getDisplayName() {
+        return "升起";
+    }
+    
+    @Override
+    public String getDescription() {
+        return "方块从下方升起，模拟地形隆起";
+    }
+    
+    @Override
+    public Map<String, Object> getDefaultParams() {
+        Map<String, Object> params = new HashMap<>();
+        params.put("riseHeight", 5.0f);
+        return params;
+    }
+    
+    @Override
+    public String getRecommendedEasing() {
+        return "EASE_OUT_QUAD"; // 平滑升起
+    }
+    
+    // ========== 工具方法 ==========
+    
+    private float getFloatParam(Map<String, Object> params, String key, float defaultValue) {
+        if (params == null) return defaultValue;
+        Object val = params.get(key);
+        if (val == null) return defaultValue;
+        if (val instanceof Number) return ((Number) val).floatValue();
+        if (val instanceof String) {
+            try {
+                return Float.parseFloat((String) val);
+            } catch (NumberFormatException e) {
+                return defaultValue;
+            }
+        }
+        return defaultValue;
+    }
+    
+    @Override
+    public boolean renderUI(Map<String, Object> params) {
+        if (!UIHelper.isUIAvailable()) {
+            return false;
+        }
+        
+        boolean modified = false;
+        
+        // 升起参数
+        UIHelper.label("升起参数");
+        
+        // 起始深度
+        float riseHeight = getFloatParam(params, "riseHeight", 5.0f);
+        float[] heightArray = {riseHeight};
+        if (UIHelper.dragFloat("起始深度", heightArray, 0.5f, 0.0f, 20.0f, "%.1f 格")) {
+            params.put("riseHeight", heightArray[0]);
+            modified = true;
+        }
+        
+        return modified;
+    }
+}
+
