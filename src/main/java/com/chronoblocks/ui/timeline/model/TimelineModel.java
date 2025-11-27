@@ -102,6 +102,8 @@ public class TimelineModel {
     public void markDirty() {
         markDurationDirty();
         notifyModelChanged("model_changed");
+        // 实时保存，确保当前存档的时间线始终落盘
+        save();
     }
     
     // ========== 构造函数 ==========
@@ -127,6 +129,36 @@ public class TimelineModel {
      */
     public void reload() {
         TimelineModelPersistence.loadFromFile(this, viewportState);
+    }
+
+    /**
+     * 重置为全新的空时间线（用于新存档或“新建动画”）。
+     */
+    public void resetToEmpty() {
+        playing = false;
+        loopEnabled = false;
+        currentTime = 0f;
+        duration = 20.0f;
+        cachedDynamicDuration = 0f;
+        isDurationDirty = true;
+        tracks.clear();
+        selectedItems.clear();
+        lastClickedItem = null;
+        multiSelectMode = false;
+
+        // 重置视图
+        viewportState.setPixelsPerSecond(80f);
+        viewportState.setScrollX(0f);
+        viewportState.setScrollY(0f);
+
+        // 重置吸附
+        snapSettings.setEnabled(true);
+        snapSettings.setGridInterval(0.1f);
+        snapSettings.setPixelThreshold(8f);
+
+        // 删除旧存档，随后保存全新状态
+        com.chronoblocks.ui.timeline.persistence.TimelineModelPersistence.resetForCurrentWorld();
+        save();
     }
     
     // ========== 播放控制（现在直接管理自己的状态）==========

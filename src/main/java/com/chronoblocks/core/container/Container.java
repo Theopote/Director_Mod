@@ -300,6 +300,11 @@ public class Container {
     
     private void markModified() {
         this.modifiedTime = System.currentTimeMillis();
+        try {
+            com.chronoblocks.core.container.persistence.ContainerPersistence.requestAutoSave();
+        } catch (Exception e) {
+            LOGGER.debug("[Container] auto-save skipped: {}", e.getMessage());
+        }
     }
     
     public Container clone() {

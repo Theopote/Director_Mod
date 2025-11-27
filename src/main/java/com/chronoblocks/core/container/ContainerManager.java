@@ -9,6 +9,8 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.chronoblocks.core.container.persistence.ContainerPersistence;
+
 /**
  * 容器管理器（v4.5 一体化交互系统）
  * <p>
@@ -25,6 +27,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class ContainerManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(ContainerManager.class);
     private static final AtomicReference<ContainerManager> GLOBAL = new AtomicReference<>();
+    private static volatile boolean initializing = false;  // 初始化标志，防止递归
     
     // ========== 容器存储 ==========
     private final Map<UUID, Container> containers = new LinkedHashMap<>();
@@ -51,12 +54,19 @@ public class ContainerManager {
     }
 
     private ContainerManager(boolean registerGlobal) {
-        createDefaultContainers();
-        if (registerGlobal) {
-            registerGlobalInstance(this);
+        initializing = true;  // 设置初始化标志
+        try {
+            createDefaultContainers();
+            if (registerGlobal) {
+                registerGlobalInstance(this);
+            }
+            // 加载当前存档的容器数据
+            ContainerPersistence.loadForCurrentWorld(this);
+            
+            LOGGER.info("[ContainerManager] Initialized");
+        } finally {
+            initializing = false;  // 清除初始化标志
         }
-        
-        LOGGER.info("[ContainerManager] Initialized");
     }
     
     private static void registerGlobalInstance(ContainerManager manager) {
@@ -70,12 +80,44 @@ public class ContainerManager {
         if (existing != null) {
             return existing;
         }
+        // 如果正在初始化，等待初始化完成
+        if (initializing) {
+            // 等待一小段时间，让初始化完成
+            int retries = 0;
+            while (initializing && retries < 100) {
+                try {
+                    Thread.sleep(10);
+                    retries++;
+                    existing = GLOBAL.get();
+                    if (existing != null) {
+                        return existing;
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
+            }
+            // 如果等待后仍然没有实例，返回null而不是创建新实例
+            existing = GLOBAL.get();
+            if (existing != null) {
+                return existing;
+            }
+            LOGGER.warn("[ContainerManager] 初始化超时，返回null");
+            return null;
+        }
         ContainerManager created = new ContainerManager(false);
         if (GLOBAL.compareAndSet(null, created)) {
             LOGGER.info("[ContainerManager] Global fallback instance created");
             return created;
         }
         return GLOBAL.get();
+    }
+    
+    /**
+     * 检查是否正在初始化
+     */
+    public static boolean isInitializing() {
+        return initializing;
     }
     
     public Container createContainer(String name, ContainerType type) {
@@ -130,6 +172,7 @@ public class ContainerManager {
         // 如果容器是隐藏状态，Container.setState()会自动调用ContainerVisibilityService.hideContainer()
         
         fireContainerAdded(container);
+        ContainerPersistence.requestAutoSave();
     }
 
     /**
@@ -161,6 +204,7 @@ public class ContainerManager {
                 fireContainerAdded(c);
             }
         }
+        ContainerPersistence.requestAutoSave();
     }
 
     /**
@@ -313,6 +357,7 @@ public class ContainerManager {
         if (selectionChanged) {
             fireSelectionChanged();
         }
+        ContainerPersistence.requestAutoSave();
     }
 
     // 后序遍历收集所有子孙
@@ -437,6 +482,7 @@ public class ContainerManager {
         if (selectionChanged) {
             fireSelectionChanged();
         }
+        ContainerPersistence.requestAutoSave();
     }
     
     public void moveContainerToParent(Container container, Container newParent) {

@@ -4,10 +4,12 @@ import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImBoolean;
 import com.chronoblocks.core.playback.PlaybackController;
+import com.chronoblocks.core.container.ContainerManager;
 import com.chronoblocks.ui.ChronoBlocksUIManager;
 import com.chronoblocks.ui.aware.IPanelRegistryAware;
 import com.chronoblocks.ui.aware.IUIManagerAware;
 import com.chronoblocks.ui.di.IPanelRegistry;
+import com.chronoblocks.ui.panels.TimelinePanel;
 import com.chronoblocks.ui.theme.UITheme;
 import com.chronoblocks.ui.theme.Icons;
 
@@ -40,6 +42,7 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
     private final ImBoolean showAboutDialog = new ImBoolean(false);
     private final ImBoolean showSettingsDialog = new ImBoolean(false);
     private final ImBoolean showShortcutsDialog = new ImBoolean(false);
+    private boolean showNewAnimationConfirm = false;
     
     // ==================== 依赖注入 ====================
     
@@ -621,6 +624,7 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
         if (showShortcutsDialog.get()) {
             renderShortcutsDialog();
         }
+        renderNewAnimationDialog();
     }
     
     /**
@@ -748,11 +752,57 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
         }
     }
 
+    /**
+     * “新建动画”确认弹窗，防止误操作清空当前工作区。
+     */
+    private void renderNewAnimationDialog() {
+        if (!showNewAnimationConfirm) {
+            return;
+        }
+        ImGui.openPopup("Reset Workspace");
+        ImGui.setNextWindowSize(420, 190);
+        if (ImGui.beginPopupModal("Reset Workspace", (imgui.type.ImBoolean) null, ImGuiWindowFlags.AlwaysAutoResize)) {
+            ImGui.textColored(1.0f, 0.47f, 0.31f, 1.0f, Icons.WARNING + " 警告：该操作会清空当前动画与容器！");
+            ImGui.spacing();
+            ImGui.textWrapped("将删除当前存档中的时间线、关键帧和容器引用，并写入全新的空白工程。请确认已备份重要内容。");
+            ImGui.spacing();
+
+            if (ImGui.button("确认重置", 150, UITheme.Spacing.BUTTON_HEIGHT)) {
+                performNewAnimationReset();
+                showNewAnimationConfirm = false;
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.sameLine();
+            if (ImGui.button("取消", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
+                showNewAnimationConfirm = false;
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.endPopup();
+        }
+    }
+
     // ==================== 事件处理方法 ====================
     
     // File 菜单
     private void handleNewAnimation() {
         logger.info("[MenuBar] New Animation");
+        showNewAnimationConfirm = true;
+    }
+    
+    private void performNewAnimationReset() {
+        logger.info("[MenuBar] Reset workspace and timeline for new animation");
+        try {
+            TimelinePanel timelinePanel = panelRegistry != null ? panelRegistry.getPanel(TimelinePanel.class) : null;
+            if (timelinePanel != null) {
+                timelinePanel.resetWorkspace(true);
+            } else {
+                // 兜底：清空容器并删除时间线存档
+                ContainerManager.getInstance().clear();
+                com.chronoblocks.ui.timeline.persistence.TimelineModelPersistence.resetForCurrentWorld();
+            }
+        } catch (Exception e) {
+            logger.error("[MenuBar] 新建动画重置失败: {}", e.getMessage(), e);
+        }
     }
     
     private void handleOpenAnimation() {

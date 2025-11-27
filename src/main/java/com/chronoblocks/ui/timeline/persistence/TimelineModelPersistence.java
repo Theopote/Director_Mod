@@ -75,6 +75,7 @@ public class TimelineModelPersistence {
         public boolean snapEnabled = true;
         public float snapInterval = 0.25f;
         public long timestamp;
+        public String worldFingerprint;
     }
     
     /**
@@ -135,6 +136,7 @@ public class TimelineModelPersistence {
         dto.snapEnabled = model.isSnappingEnabled();
         dto.snapInterval = model.getSnapSettings().getGridInterval();
         dto.timestamp = System.currentTimeMillis();
+        dto.worldFingerprint = getWorldFingerprint();
         
         // 保存所有轨道
         for (TimelineTrack track : model.getTracks()) {
@@ -380,6 +382,13 @@ public class TimelineModelPersistence {
             if (Files.exists(timelineFile)) {
                 String json = Files.readString(timelineFile);
                 TimelineDTO dto = GSON.fromJson(json, TimelineDTO.class);
+                
+                if (!isFingerprintMatch(dto.worldFingerprint)) {
+                    LOGGER.warn("[TimelineModelPersistence] 世界指纹不匹配，忽略旧时间线并删除文件: {}", timelineFile);
+                    Files.deleteIfExists(timelineFile);
+                    return;
+                }
+                
                 fromDTO(dto, model, viewportState);
                 LOGGER.info("[TimelineModelPersistence] 世界 {} 的时间线数据已加载: {}", 
                     WorldIdentifier.getCurrentWorldId(), timelineFile);
@@ -399,6 +408,41 @@ public class TimelineModelPersistence {
      */
     public static boolean hasSavedData() {
         return Files.exists(getTimelineFile());
+    }
+
+    private static String getWorldFingerprint() {
+        try {
+            java.nio.file.Path path = com.chronoblocks.util.WorldIdentifier.getWorldSavePath();
+            if (path != null && Files.exists(path)) {
+                long modified = Files.getLastModifiedTime(path).toMillis();
+                return path.toAbsolutePath().toString() + "#" + modified;
+            }
+        } catch (Exception e) {
+            LOGGER.warn("[TimelineModelPersistence] 获取世界指纹失败: {}", e.getMessage());
+        }
+        // 退化为 worldId，避免 null
+        return WorldIdentifier.getCurrentWorldId();
+    }
+
+    private static boolean isFingerprintMatch(String saved) {
+        String current = getWorldFingerprint();
+        return current != null && current.equals(saved);
+    }
+
+    /**
+     * 删除当前世界的时间线存档文件，用于“新建动画”或存档重置。
+     */
+    public static void resetForCurrentWorld() {
+        try {
+            Path file = getTimelineFile();
+            if (Files.exists(file)) {
+                Files.delete(file);
+                LOGGER.info("[TimelineModelPersistence] 已删除世界 {} 的时间线存档: {}", 
+                    WorldIdentifier.getCurrentWorldId(), file);
+            }
+        } catch (IOException e) {
+            LOGGER.warn("[TimelineModelPersistence] 删除时间线存档失败: {}", e.getMessage(), e);
+        }
     }
 
     private static <E extends Enum<E>> E parseEnum(Object value, Class<E> type, E defaultValue) {

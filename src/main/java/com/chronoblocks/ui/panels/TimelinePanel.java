@@ -353,6 +353,17 @@ public class TimelinePanel extends AbstractPanel
     private void markDataChanged() {
         autoSave.markDirty();
     }
+
+    /**
+     * 重置时间线与容器关联（供菜单“新建动画”调用）。
+     */
+    public void resetWorkspace(boolean clearContainers) {
+        model.resetToEmpty();
+        if (clearContainers) {
+            com.chronoblocks.core.container.ContainerManager.getInstance().clear();
+        }
+        autoSave.markDirty();
+    }
     
     /**
      * 渲染控制栏（委托给专门的组件）

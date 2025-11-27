@@ -38,6 +38,9 @@ public final class AutoSaveManager {
      */
     public void markDirty() {
         dirty = true;
+        // 立即保存一份，确保实时落盘；定时 tick 作为兜底。
+        model.save();
+        lastSaveTime = System.currentTimeMillis();
     }
 }
 

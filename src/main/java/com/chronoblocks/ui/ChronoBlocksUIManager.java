@@ -664,6 +664,8 @@ public class ChronoBlocksUIManager {
                             com.chronoblocks.ui.imgui.ImGuiRenderer.getInstance().checkAndUpdateIniPath();
                             // 重置布局标志，以便在新世界中检查是否需要应用默认布局
                             isFirstLayout = true;
+                            com.chronoblocks.core.container.persistence.ContainerPersistence.loadForCurrentWorld(
+                                com.chronoblocks.core.container.ContainerManager.getInstance());
                         }
                         
                         // 注意：面板渲染应该在 DockSpace 外部进行，而不是在内部
