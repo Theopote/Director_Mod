@@ -1,59 +1,60 @@
 package com.chronoblocks.ui.timeline.model;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
+import java.util.UUID;
 
 /**
- * 时间线轨道（专业级多类型支持）
- * 包含多个 TimelineClip，支持不同的轨道类型
- * 
- * @author ChronoBlocks Team
- * @version 7.0
+ * 时间线轨道（多类型支持）。
+ * 包含多个 TimelineClip，支持容器片段与轨道级关键帧。
  */
 public class TimelineTrack {
     private String name;
     private TrackType type;  // 轨道类型
     private final List<TimelineClip> clips = new ArrayList<>();
+    private final List<TimelineSelectable> automationKeyframes = new ArrayList<>();
     private boolean locked = false;
     private boolean visible = true;
-    private int zOrder = 0;  // Z轴排序
+    private int zOrder = 0;  // Z 轴排序
     private boolean muted = false;  // 静音（对音频轨道有效）
     private boolean solo = false;   // 独奏（只播放此轨道）
     private boolean collapsed = false;  // 折叠状态（用于 UI 显示）
     private String boundContainerName;
     private String boundContainerId;
-    
+
     /**
-     * 构造函数（默认为容器轨道）
+     * 构造函数（默认为容器轨道）。
      */
     public TimelineTrack(String name) {
         this(name, TrackType.CONTAINER);
     }
-    
+
     /**
-     * 构造函数（指定轨道类型）
+     * 构造函数（指定轨道类型）。
      */
     public TimelineTrack(String name, TrackType type) {
         this.name = name;
         this.type = type;
     }
-    
+
     // ========== Clip 管理 ==========
-    
+
     /**
-     * 添加片段到轨道，并自动设置父引用
+     * 添加片段到轨道，并自动设置父引用。
      */
     public void addClip(TimelineClip clip) {
         if (clip != null && !this.clips.contains(clip)) {
             this.clips.add(clip);
             clip.setParentTrack(this); // 设置父引用，实现 O(1) 反向查找
-            // 可选：排序（按开始时间）
-            clips.sort((a, b) -> Float.compare(a.getStartTime(), b.getStartTime()));
+            // 按开始时间排序，保持时间线有序
+            clips.sort(Comparator.comparing(TimelineClip::getStartTime));
         }
     }
-    
+
     /**
-     * 从轨道移除片段，并清除父引用
+     * 从轨道移除片段，并清除父引用。
      */
     public void removeClip(TimelineClip clip) {
         if (clip != null && this.clips.remove(clip)) {
@@ -61,14 +62,21 @@ public class TimelineTrack {
         }
     }
 
-    // ========== 语义方法（ChronoBlocks 风格：时间线语义 API）==========
+    /**
+     * 根据索引移除片段，并清除父引用。
+     */
+    public void removeClipAt(int index) {
+        if (index >= 0 && index < clips.size()) {
+            TimelineClip clip = clips.remove(index);
+            if (clip != null) {
+                clip.setParentTrack(null); // 清除父引用
+            }
+        }
+    }
 
     /**
-     * 查找指定时间点上的片段（语义方法）
-     * 
-     * <p>返回该时间点所在的片段，如果该时间点没有片段则返回 null。
-     * 用于命中检测和交互逻辑。
-     * 
+     * 查找指定时间点上的片段。
+     *
      * @param time 时间点（秒）
      * @return 该时间点上的片段，如果没有则返回 null
      */
@@ -80,25 +88,13 @@ public class TimelineTrack {
         }
         return null;
     }
-    
-    /**
-     * 根据索引移除片段，并清除父引用
-     */
-    public void removeClipAt(int index) {
-        if (index >= 0 && index < clips.size()) {
-            TimelineClip clip = clips.remove(index);
-            if (clip != null) {
-                clip.setParentTrack(null); // 清除父引用
-            }
-        }
-    }
-    
+
     public int getClipIndex(TimelineClip clip) {
         return clips.indexOf(clip);
     }
-    
+
     /**
-     * 查找指定时间范围内的片段
+     * 查找指定时间范围内的片段。
      */
     public List<TimelineClip> getClipsInRange(float startTime, float endTime) {
         List<TimelineClip> result = new ArrayList<>();
@@ -109,9 +105,9 @@ public class TimelineTrack {
         }
         return result;
     }
-    
+
     /**
-     * 检查时间范围是否有重叠的片段
+     * 检查时间范围是否有重叠的片段。
      */
     public boolean hasOverlap(float startTime, float endTime, TimelineClip exclude) {
         for (TimelineClip clip : clips) {
@@ -122,73 +118,120 @@ public class TimelineTrack {
         }
         return false;
     }
-    
+
+    // ========== 轨道级关键帧（摄像机、天气、标记等）==========
+
+    /**
+     * 添加轨道级关键帧。
+     */
+    public void addAutomationKeyframe(TimelineSelectable keyframe) {
+        if (keyframe == null) {
+            return;
+        }
+        automationKeyframes.removeIf(k -> k.getId().equals(keyframe.getId()));
+        automationKeyframes.add(keyframe);
+        automationKeyframes.sort(Comparator.comparing(TimelineSelectable::getStartTime));
+    }
+
+    /**
+     * 移除轨道级关键帧。
+     */
+    public boolean removeAutomationKeyframe(UUID keyframeId) {
+        if (keyframeId == null) {
+            return false;
+        }
+        return automationKeyframes.removeIf(k -> keyframeId.equals(k.getId()));
+    }
+
+    /**
+     * 获取轨道上的所有关键帧。
+     */
+    public List<TimelineSelectable> getAutomationKeyframes() {
+        return Collections.unmodifiableList(automationKeyframes);
+    }
+
+    /**
+     * 查找时间附近的关键帧，方便吸附或 UI 高亮。
+     */
+    public TimelineSelectable findAutomationKeyframeNear(float time, float tolerance) {
+        for (TimelineSelectable selectable : automationKeyframes) {
+            if (Math.abs(selectable.getStartTime() - time) <= tolerance) {
+                return selectable;
+            }
+        }
+        return null;
+    }
+
+    public boolean hasAutomationKeyframes() {
+        return !automationKeyframes.isEmpty();
+    }
+
     // ========== Getters & Setters ==========
-    
+
     public String getName() {
         return name;
     }
-    
+
     public void setName(String name) {
         this.name = name;
     }
-    
+
     public List<TimelineClip> getClips() {
         return clips;
     }
-    
+
     public boolean isLocked() {
         return locked;
     }
-    
+
     public void setLocked(boolean locked) {
         this.locked = locked;
     }
-    
+
     public boolean isVisible() {
         return visible;
     }
-    
+
     public void setVisible(boolean visible) {
         this.visible = visible;
     }
-    
+
     public int getZOrder() {
         return zOrder;
     }
-    
+
     public void setZOrder(int zOrder) {
         this.zOrder = zOrder;
     }
-    
+
     public TrackType getType() {
         return type;
     }
-    
+
     public void setType(TrackType type) {
         this.type = type;
     }
-    
+
     public boolean isMuted() {
         return muted;
     }
-    
+
     public void setMuted(boolean muted) {
         this.muted = muted;
     }
-    
+
     public boolean isSolo() {
         return solo;
     }
-    
+
     public void setSolo(boolean solo) {
         this.solo = solo;
     }
-    
+
     public boolean isCollapsed() {
         return collapsed;
     }
-    
+
     public void setCollapsed(boolean collapsed) {
         this.collapsed = collapsed;
     }

@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
+import com.chronoblocks.ui.timeline.model.weather.WeatherKeyframe;
 import com.chronoblocks.ui.timeline.persistence.TimelineModelPersistence;
 import com.chronoblocks.ui.timeline.snapping.TimelineSnapSettings;
 import com.chronoblocks.ui.timeline.snapping.TimelineSnapping;
@@ -412,6 +414,51 @@ public class TimelineModel {
      */
     public int getTrackCount() {
         return tracks.size();
+    }
+
+    /**
+     * 为摄像机轨道添加关键帧。
+     *
+     * @return 新建的摄像机关键帧，轨道类型不支持时返回 null。
+     */
+    public CameraKeyframe addCameraKeyframe(TimelineTrack track, float timeSeconds) {
+        if (track == null || track.getType() == null || !track.getType().supportsCameraPath()) {
+            return null;
+        }
+        float clamped = Math.max(0f, Math.min(timeSeconds, getDuration()));
+        CameraKeyframe keyframe = new CameraKeyframe("Camera Keyframe", clamped);
+        track.addAutomationKeyframe(keyframe);
+        markDirty();
+        return keyframe;
+    }
+
+    /**
+     * 为天气轨道添加关键帧。
+     */
+    public WeatherKeyframe addWeatherKeyframe(TimelineTrack track, float timeSeconds) {
+        if (track == null || track.getType() == null || !track.getType().supportsWeatherControl()) {
+            return null;
+        }
+        float clamped = Math.max(0f, Math.min(timeSeconds, getDuration()));
+        WeatherKeyframe keyframe = new WeatherKeyframe("Weather Keyframe", clamped);
+        track.addAutomationKeyframe(keyframe);
+        markDirty();
+        return keyframe;
+    }
+
+    /**
+     * 为标记轨道添加时间标记。
+     */
+    public TimelineMarker addMarker(TimelineTrack track, float timeSeconds, String label) {
+        if (track == null || track.getType() == null || !track.getType().supportsMarkers()) {
+            return null;
+        }
+        float clamped = Math.max(0f, Math.min(timeSeconds, getDuration()));
+        String markerLabel = (label == null || label.isBlank()) ? "Marker" : label.trim();
+        TimelineMarker marker = new TimelineMarker(markerLabel, clamped);
+        track.addAutomationKeyframe(marker);
+        markDirty();
+        return marker;
     }
 
     /**
