@@ -2,6 +2,8 @@ package com.chronoblocks.ui.adapters.impl;
 
 import com.chronoblocks.ui.adapters.BasePropertyAdapter;
 
+import java.util.Objects;
+
 /**
  * 📁 ProjectAdapter - 项目属性适配器
  *
@@ -62,11 +64,7 @@ public class ProjectAdapter extends BasePropertyAdapter<Object> {
         
         // 版本
         String version = getStringProperty(project, "version", "getVersion");
-        if (version != null) {
-            renderReadOnlyText("版本", version);
-        } else {
-            renderReadOnlyText("版本", "1.0.0");
-        }
+        renderReadOnlyText("版本", Objects.requireNonNullElse(version, "1.0.0"));
 
         // 创建时间
         Long createdTime = getLongProperty(project, "createdTime", "getCreatedTime");

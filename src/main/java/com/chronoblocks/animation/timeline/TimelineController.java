@@ -29,5 +29,3 @@ public class TimelineController {
         return playableGraph;
     }
 }
-
-

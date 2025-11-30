@@ -170,6 +170,19 @@ public class TimelineControlBar {
         }
         ImGui.sameLine();
         
+        // ========== 退出摄像机预览按钮 ==========
+        com.chronoblocks.ui.timeline.playback.camera.CameraRuntime cameraRuntime = 
+            com.chronoblocks.ui.timeline.playback.camera.CameraRuntime.getInstance();
+        if (cameraRuntime.isCinematicActive()) {
+            if (ImGui.button(Icons.CAMERA + " 退出预览", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
+                cameraRuntime.enterGameMode();
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("停止时间线对摄像机的控制，回到玩家视角");
+            }
+            ImGui.sameLine();
+        }
+        
         // 循环控制
         // 注意：无需再次 Push FramePadding，因为最外层已经 Push 过了
         boolean loopEnabled = model.isLoopEnabled();

@@ -144,7 +144,7 @@ public class PropertyChangeScheduler {
     private volatile long currentFrame = 0;
 
     /** 是否启用调试日志 */
-    private volatile boolean debug = false;
+    private volatile boolean debug;
 
     /** 是否启用节流机制 */
     private volatile boolean enableThrottle = true;

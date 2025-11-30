@@ -173,7 +173,8 @@ public class TimelineModel {
     }
     
     public void togglePlay() {
-        this.playing = !this.playing;
+        boolean newState = !this.playing;
+        setPlaying(newState);
     }
     
     public void jumpToStart() {
@@ -624,9 +625,30 @@ public class TimelineModel {
     
     /**
      * 设置播放状态
+     * 
+     * <p>⭐ 摄像机模式切换：
+     * <ul>
+     *   <li>播放开始时通知 TimelineCameraController 进入播放模式</li>
+     *   <li>播放停止时通知 TimelineCameraController 停止播放</li>
+     * </ul>
      */
-    public void setPlaying(boolean playing) { 
-        this.playing = playing; 
+    public void setPlaying(boolean playing) {
+        boolean wasPlaying = this.playing;
+        this.playing = playing;
+        
+        // ⭐ 关键修复：播放状态改变时通知摄像机控制器
+        if (wasPlaying != playing) {
+            com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController controller = 
+                com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance();
+            
+            if (playing) {
+                // 开始播放
+                controller.onPlaybackStarted();
+            } else {
+                // 停止播放
+                controller.onPlaybackStopped();
+            }
+        }
     }
     
     /**

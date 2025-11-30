@@ -86,7 +86,7 @@ public class ListPropertyAdapter implements IPropertyAdapter<Object> {
         UITheme.label("元素数量: " + size, UITheme.DarkTheme.TEXT);
         
         if (size > 0) {
-            Object firstElement = isArray ? Array.get(target, 0) : list.get(0);
+            Object firstElement = isArray ? Array.get(target, 0) : list.getFirst();
             if (firstElement != null) {
                 UITheme.label("元素类型: " + firstElement.getClass().getSimpleName(), 
                     UITheme.DarkTheme.TEXT_DISABLED);
@@ -99,7 +99,7 @@ public class ListPropertyAdapter implements IPropertyAdapter<Object> {
         // 空列表提示
         if (size == 0) {
             UITheme.label("列表为空", UITheme.DarkTheme.TEXT_DISABLED);
-            return modified;
+            return false;
         }
         
         // 元素列表
@@ -138,7 +138,7 @@ public class ListPropertyAdapter implements IPropertyAdapter<Object> {
                         modified = modified || elementModified;
                     } else {
                         UITheme.label("无可用适配器", UITheme.DarkTheme.TEXT_DISABLED);
-                        ImGui.text("toString: " + element.toString());
+                        ImGui.text("toString: " + element);
                     }
                 } else {
                     UITheme.label("null", UITheme.DarkTheme.TEXT_DISABLED);

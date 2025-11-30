@@ -1,8 +1,7 @@
 package com.chronoblocks.mixin;
 
-import com.chronoblocks.ui.timeline.playback.camera.CameraAccessor;
+import com.chronoblocks.ui.timeline.playback.camera.CameraSample;
 import com.chronoblocks.ui.timeline.playback.camera.CameraRuntime;
-import com.chronoblocks.ui.timeline.playback.camera.CinematicCamera;
 import net.minecraft.client.render.Camera;
 import net.minecraft.entity.Entity;
 import net.minecraft.world.BlockView;
@@ -15,10 +14,18 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.lang.reflect.Method;
 
 /**
- * Override the render camera pose when the timeline cinematic track is playing.
+ * CameraMixin v3.0
+ * 
+ * <p>在 Camera.update 之后覆盖位置/朝向，从 CameraRuntime 读取当前 sample。
+ * 
+ * <p>⭐ 重要变更：
+ * <ul>
+ *   <li>不再使用 CinematicCamera，直接使用 CameraSample</li>
+ *   <li>只从 CameraRuntime 读取状态，不再依赖 TimelineCameraController</li>
+ * </ul>
  */
 @Mixin(Camera.class)
-public abstract class CameraMixin implements CameraAccessor {
+public abstract class CameraMixin {
     
     @Unique
     private static Method setPosMethod;
@@ -37,10 +44,8 @@ public abstract class CameraMixin implements CameraAccessor {
     }
 
     /**
-     * CameraMixin v2
-     * <p>
-     * 在摄像机 update 时，如果处于 Cinematic 模式，则完全使用轨道摄像机的数据，
-     * 并取消原本的跟随实体逻辑。
+     * 在摄像机 update 时，如果处于 Cinematic 模式（PREVIEW 或 PLAYING），
+     * 则完全使用轨道摄像机的数据，并取消原本的跟随实体逻辑。
      */
     @Inject(
         method = "update",
@@ -53,23 +58,23 @@ public abstract class CameraMixin implements CameraAccessor {
             return;
         }
 
-        CinematicCamera cinematic = runtime.getCinematicCamera();
-        if (!cinematic.hasSample()) {
+        CameraSample sample = runtime.getActiveSample();
+        if (sample == null) {
             return;
         }
 
         // 位置
-        this.chronoblocks$setPos(cinematic.getX(), cinematic.getY(), cinematic.getZ());
+        this.chronoblocks$setPos(sample.position().x, sample.position().y, sample.position().z);
 
         // 旋转（Roll 需要在自定义矩阵阶段额外处理，这里先用 yaw/pitch）
-        this.chronoblocks$setRotation(cinematic.getYaw(), cinematic.getPitch());
+        this.chronoblocks$setRotation(sample.yaw(), sample.pitch());
 
         // 阻止原始 update 逻辑（不再跟随实体或受玩家输入影响）
         ci.cancel();
     }
     
-    @Override
-    public void chronoblocks$setPos(double x, double y, double z) {
+    @Unique
+    private void chronoblocks$setPos(double x, double y, double z) {
         try {
             setPosMethod.invoke(this, x, y, z);
         } catch (Exception e) {
@@ -77,8 +82,8 @@ public abstract class CameraMixin implements CameraAccessor {
         }
     }
     
-    @Override
-    public void chronoblocks$setRotation(float yaw, float pitch) {
+    @Unique
+    private void chronoblocks$setRotation(float yaw, float pitch) {
         try {
             setRotationMethod.invoke(this, yaw, pitch);
         } catch (Exception e) {

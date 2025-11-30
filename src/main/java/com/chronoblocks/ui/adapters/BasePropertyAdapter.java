@@ -65,7 +65,7 @@ public abstract class BasePropertyAdapter<T> implements PropertyAdapter<T> {
     protected final Logger logger;
 
     /** 是否显示调试信息 */
-    protected boolean debugMode = false;
+    protected boolean debugMode;
 
     /** 属性标签宽度 */
     protected float labelWidth = 120.0f;
@@ -118,7 +118,7 @@ public abstract class BasePropertyAdapter<T> implements PropertyAdapter<T> {
         }
         
         // 自动通知属性变更事件
-        notifyPropertyChange(target, "properties", null, target);
+        notifyPropertyChange(target, target);
         
         // 子类可覆写以添加自定义逻辑
     }
@@ -127,13 +127,11 @@ public abstract class BasePropertyAdapter<T> implements PropertyAdapter<T> {
      * 通知属性变更（立即）
      * <p>子类可以调用此方法发送详细的属性变更事件。
      *
-     * @param target       目标对象
-     * @param propertyName 属性名称
-     * @param oldValue     旧值
-     * @param newValue     新值
+     * @param target   目标对象
+     * @param newValue 新值
      */
-    protected void notifyPropertyChange(T target, String propertyName, Object oldValue, Object newValue) {
-        PropertyChangeNotifier.get().notifyChange(target, propertyName, oldValue, newValue);
+    protected void notifyPropertyChange(T target, Object newValue) {
+        PropertyChangeNotifier.get().notifyChange(target, "properties", null, newValue);
     }
     
     /**
@@ -195,11 +193,8 @@ public abstract class BasePropertyAdapter<T> implements PropertyAdapter<T> {
 
     @Override
     public boolean validate(T target) {
-        if (target == null) {
-            return false;
-        }
+        return target != null;
         // 子类可覆写以添加自定义验证
-        return true;
     }
 
     // ==================== UI 组件方法 ====================
@@ -380,19 +375,17 @@ public abstract class BasePropertyAdapter<T> implements PropertyAdapter<T> {
     /**
      * 渲染颜色属性（RGB）
      *
-     * @param label  标签
      * @param getter 获取颜色的方法（返回 float[3]）
      * @param setter 设置颜色的方法（接收 float[3]）
      * @return 是否有修改
      */
-    protected boolean renderColorProperty(String label,
-                                         ColorGetter getter,
-                                         ColorSetter setter) {
+    protected boolean renderColorProperty(ColorGetter getter,
+                                          ColorSetter setter) {
         float[] color = getter.get();
         
-        ImGui.text(label);
+        ImGui.text("颜色");
         ImGui.pushItemWidth(-1);
-        boolean changed = ImGui.colorEdit3("##" + label, color);
+        boolean changed = ImGui.colorEdit3("##" + "颜色", color);
         ImGui.popItemWidth();
         
         if (changed) {
@@ -405,19 +398,17 @@ public abstract class BasePropertyAdapter<T> implements PropertyAdapter<T> {
     /**
      * 渲染颜色属性（RGBA）
      *
-     * @param label  标签
      * @param getter 获取颜色的方法（返回 float[4]）
      * @param setter 设置颜色的方法（接收 float[4]）
      * @return 是否有修改
      */
-    protected boolean renderColorAlphaProperty(String label,
-                                              ColorAlphaGetter getter,
-                                              ColorAlphaSetter setter) {
+    protected boolean renderColorAlphaProperty(ColorAlphaGetter getter,
+                                               ColorAlphaSetter setter) {
         float[] color = getter.get();
         
-        ImGui.text(label);
+        ImGui.text("颜色");
         ImGui.pushItemWidth(-1);
-        boolean changed = ImGui.colorEdit4("##" + label, color);
+        boolean changed = ImGui.colorEdit4("##" + "颜色", color);
         ImGui.popItemWidth();
         
         if (changed) {

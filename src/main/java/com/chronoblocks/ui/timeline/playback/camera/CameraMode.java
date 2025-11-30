@@ -19,4 +19,8 @@ public enum CameraMode {
     public boolean isPlaying() {
         return this == PLAYING;
     }
+    
+    public boolean isGame() {
+        return this == GAME;
+    }
 }

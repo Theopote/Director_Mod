@@ -74,7 +74,7 @@ public class ContainerAdapter extends BasePropertyAdapter<Container> {
         
         // 颜色（ARGB 格式）
         float[] color = intColorToFloat(container.getColor());
-        if (renderColorAlphaProperty("颜色",
+        if (renderColorAlphaProperty(
                 () -> color,
                 newColor -> container.setColor(floatColorToInt(newColor)))) {
             changed = true;

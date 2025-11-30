@@ -37,7 +37,7 @@ public class EffectAdapter extends BasePropertyAdapter<Object> {
         if (name != null) {
             changed |= renderTextProperty("特效名称",
                     () -> name,
-                    value -> setStringProperty(effect, "name", "setName", value),
+                    value -> setStringProperty(effect, value),
                     128);
         } else {
             renderReadOnlyText("特效名称", "未命名特效");
@@ -91,16 +91,16 @@ public class EffectAdapter extends BasePropertyAdapter<Object> {
         renderSectionHeader("🎨 视觉属性");
         
         // 颜色
-        float[] color = getFloatArrayProperty(effect, "color", "getColor");
+        float[] color = getFloatArrayProperty(effect);
         if (color != null && color.length >= 3) {
             if (color.length == 3) {
-                changed |= renderColorProperty("颜色",
+                changed |= renderColorProperty(
                         () -> color,
-                        value -> setFloatArrayProperty(effect, "color", "setColor", value));
-            } else if (color.length >= 4) {
-                changed |= renderColorAlphaProperty("颜色",
+                        value -> setFloatArrayProperty(effect, value));
+            } else {
+                changed |= renderColorAlphaProperty(
                         () -> color,
-                        value -> setFloatArrayProperty(effect, "color", "setColor", value));
+                        value -> setFloatArrayProperty(effect, value));
             }
         }
 
@@ -185,7 +185,7 @@ public class EffectAdapter extends BasePropertyAdapter<Object> {
      */
     private void renderParticleParameters(Object effect) {
         // 粒子数量
-        Integer particleCount = getIntProperty(effect, "particleCount", "getParticleCount");
+        Integer particleCount = getIntProperty(effect);
         if (particleCount != null) {
             renderReadOnlyText("粒子数量", String.valueOf(particleCount));
         }
@@ -249,12 +249,12 @@ public class EffectAdapter extends BasePropertyAdapter<Object> {
         }
     }
 
-    private void setStringProperty(Object obj, String fieldName, String setterName, String value) {
+    private void setStringProperty(Object obj, String value) {
         try {
-            var method = obj.getClass().getMethod(setterName, String.class);
+            var method = obj.getClass().getMethod("setName", String.class);
             method.invoke(obj, value);
         } catch (Exception e) {
-            logger.trace("[EffectAdapter] 无法设置字符串属性: {}", fieldName);
+            logger.trace("[EffectAdapter] 无法设置字符串属性: {}", "name");
         }
     }
 
@@ -304,9 +304,9 @@ public class EffectAdapter extends BasePropertyAdapter<Object> {
         }
     }
 
-    private Integer getIntProperty(Object obj, String fieldName, String getterName) {
+    private Integer getIntProperty(Object obj) {
         try {
-            var method = obj.getClass().getMethod(getterName);
+            var method = obj.getClass().getMethod("getParticleCount");
             Object result = method.invoke(obj);
             if (result instanceof Integer) {
                 return (Integer) result;
@@ -319,9 +319,9 @@ public class EffectAdapter extends BasePropertyAdapter<Object> {
         return null;
     }
 
-    private float[] getFloatArrayProperty(Object obj, String fieldName, String getterName) {
+    private float[] getFloatArrayProperty(Object obj) {
         try {
-            var method = obj.getClass().getMethod(getterName);
+            var method = obj.getClass().getMethod("getColor");
             Object result = method.invoke(obj);
             return result instanceof float[] ? (float[]) result : null;
         } catch (Exception e) {
@@ -329,12 +329,12 @@ public class EffectAdapter extends BasePropertyAdapter<Object> {
         }
     }
 
-    private void setFloatArrayProperty(Object obj, String fieldName, String setterName, float[] value) {
+    private void setFloatArrayProperty(Object obj, float[] value) {
         try {
-            var method = obj.getClass().getMethod(setterName, float[].class);
-            method.invoke(obj, (Object) value);
+            var method = obj.getClass().getMethod("setColor", float[].class);
+            method.invoke(obj, value);
         } catch (Exception e) {
-            logger.trace("[EffectAdapter] 无法设置浮点数组属性: {}", fieldName);
+            logger.trace("[EffectAdapter] 无法设置浮点数组属性: {}", "color");
         }
     }
 

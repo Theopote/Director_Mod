@@ -58,7 +58,10 @@ public final class ClipPlaybackRuntimeManager {
      */
     private void syncVisibilityState(UUID containerId, EvaluatedPose pose) {
         ContainerManager manager = ContainerManager.getInstance();
-        Container container = manager.getContainer(containerId);
+        Container container = null;
+        if (manager != null) {
+            container = manager.getContainer(containerId);
+        }
         if (container == null) {
             return;
         }

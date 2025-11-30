@@ -33,8 +33,8 @@ public class TrackAdapter extends BasePropertyAdapter<Track> {
         if (keyframes.isEmpty()) {
             ImGui.textDisabled("暂无关键帧");
         } else {
-            Object firstObj = keyframes.get(0);
-            Object lastObj = keyframes.get(keyframes.size() - 1);
+            Object firstObj = keyframes.getFirst();
+            Object lastObj = keyframes.getLast();
             double first = firstObj instanceof Keyframe<?> kf ? kf.time() : 0.0;
             double last = lastObj instanceof Keyframe<?> kf ? kf.time() : first;
             ImGui.text(String.format("起始: %.3fs", first));
@@ -53,7 +53,7 @@ public class TrackAdapter extends BasePropertyAdapter<Track> {
                 if (entry instanceof Keyframe<?> kf) {
                     ImGui.text(String.format("[%d] t=%.3fs %s", i + 1, kf.time(), describeValue(kf.value())));
                 } else {
-                    ImGui.text(String.format("[%d] %s", i + 1, String.valueOf(entry)));
+                    ImGui.text(String.format("[%d] %s", i + 1, entry));
                 }
             }
             ImGui.endChild();

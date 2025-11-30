@@ -25,6 +25,11 @@ public class CinematicCamera {
     private float nearPlane = 0.05f;
     private float farPlane = 512.0f;
 
+    // 景深参数
+    private boolean depthOfFieldEnabled = false;
+    private float focusDistance = 10.0f;
+    private float aperture = 2.8f;
+
     // 是否有效采样数据
     private boolean hasSample = false;
 
@@ -66,6 +71,18 @@ public class CinematicCamera {
 
     public float getFarPlane() {
         return farPlane;
+    }
+
+    public boolean isDepthOfFieldEnabled() {
+        return depthOfFieldEnabled;
+    }
+
+    public float getFocusDistance() {
+        return focusDistance;
+    }
+
+    public float getAperture() {
+        return aperture;
     }
 
     public boolean hasSample() {
@@ -124,6 +141,18 @@ public class CinematicCamera {
         this.farPlane = farPlane;
     }
 
+    public void setDepthOfFieldEnabled(boolean enabled) {
+        this.depthOfFieldEnabled = enabled;
+    }
+
+    public void setFocusDistance(float focusDistance) {
+        this.focusDistance = focusDistance;
+    }
+
+    public void setAperture(float aperture) {
+        this.aperture = aperture;
+    }
+
     /**
      * 从一个「采样结果」复制数据。
      * 适配现有的 CameraSample record。
@@ -143,6 +172,9 @@ public class CinematicCamera {
         this.fov = sample.fov();
         this.nearPlane = sample.nearPlane();
         this.farPlane = sample.farPlane();
+        this.depthOfFieldEnabled = sample.depthOfFieldEnabled();
+        this.focusDistance = sample.focusDistance();
+        this.aperture = sample.aperture();
         this.hasSample = true;
     }
 
@@ -159,6 +191,9 @@ public class CinematicCamera {
         this.fov = other.fov;
         this.nearPlane = other.nearPlane;
         this.farPlane = other.farPlane;
+        this.depthOfFieldEnabled = other.depthOfFieldEnabled;
+        this.focusDistance = other.focusDistance;
+        this.aperture = other.aperture;
         this.hasSample = other.hasSample;
     }
 
@@ -172,6 +207,9 @@ public class CinematicCamera {
         this.fov = 70.0f;
         this.nearPlane = 0.05f;
         this.farPlane = 512.0f;
+        this.depthOfFieldEnabled = false;
+        this.focusDistance = 10.0f;
+        this.aperture = 2.8f;
         this.hasSample = false;
     }
 }

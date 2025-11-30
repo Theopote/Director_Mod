@@ -108,7 +108,7 @@ public class PropertyChangeNotifier {
             new ConcurrentHashMap<>();
 
     /** 是否启用调试日志 */
-    private boolean debugMode = false;
+    private boolean debugMode;
 
     /** 事件统计 */
     private long totalEvents = 0;

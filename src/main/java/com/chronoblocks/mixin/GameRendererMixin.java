@@ -2,7 +2,6 @@ package com.chronoblocks.mixin;
 
 import com.chronoblocks.client.ChronoBlocksClientController;
 import com.chronoblocks.ui.timeline.playback.camera.CameraRuntime;
-import com.chronoblocks.ui.timeline.playback.camera.CinematicCamera;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.RenderTickCounter;
@@ -60,20 +59,31 @@ public class GameRendererMixin {
 
     /**
      * Override FOV while the cinematic camera is driving the view.
-     * 修复：移除 method 中的硬编码描述符，解决 "Cannot resolve method" 警告
+     * 
+     * <p>v3.0: 使用 CameraSample 从 CameraRuntime 获取 FOV
      */
     @Inject(
         method = "getFov", // 只保留方法名，让 Mixin 自动推断描述符
         at = @At("HEAD"),
         cancellable = true
     )
-    private void chronoblocks$overrideFov(Camera camera, float tickDelta, boolean changingFov, CallbackInfoReturnable<Double> cir) {
-        if (!CameraRuntime.getInstance().isCinematicActive()) {
+    private void chronoblocks$overrideFov(Camera camera, float tickDelta, boolean changingFov, CallbackInfoReturnable<Float> cir) {
+        CameraRuntime runtime = CameraRuntime.getInstance();
+        if (!runtime.isCinematicActive()) {
             return;
         }
 
-        CinematicCamera cineCam = CameraRuntime.getInstance().getCinematicCamera();
-        double fov = (double) cineCam.getFov();
+        com.chronoblocks.ui.timeline.playback.camera.CameraSample sample = runtime.getActiveSample();
+        if (sample == null) {
+            return;
+        }
+
+        float fov = sample.fov();
+        if (Float.isNaN(fov) || fov <= 0) {
+            return;
+        }
+
+        // getFov 方法返回 float，直接设置
         cir.setReturnValue(fov);
     }
 }

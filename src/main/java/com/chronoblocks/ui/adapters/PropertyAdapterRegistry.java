@@ -303,7 +303,7 @@ public class PropertyAdapterRegistry {
     private <T> PropertyAdapter<T> findExactMatch(Class<T> type) {
         List<PropertyAdapter<?>> list = adapters.get(type);
         if (list != null && !list.isEmpty()) {
-            return (PropertyAdapter<T>) list.get(0); // 已按优先级排序
+            return (PropertyAdapter<T>) list.getFirst(); // 已按优先级排序
         }
         return null;
     }

@@ -1,6 +1,5 @@
 package com.chronoblocks.ui.adapters;
 
-import com.chronoblocks.ui.adapters.examples.SimpleKeyframeAdapter;
 import com.chronoblocks.ui.adapters.impl.ContainerAdapter;
 import com.chronoblocks.ui.adapters.impl.TrackAdapter;
 import com.chronoblocks.ui.adapters.impl.ProjectAdapter;
@@ -62,9 +61,6 @@ public class PropertyAdapterModule {
             // 注册核心适配器
             registerCoreAdapters(registry);
 
-            // 注册示例适配器（可选）
-            registerExampleAdapters(registry);
-
             // 显示统计信息
             logRegistryStatistics(registry);
 
@@ -101,16 +97,7 @@ public class PropertyAdapterModule {
         LOGGER.debug("[PropertyAdapterModule] 已注册 EffectAdapter");
     }
 
-    /**
-     * 注册示例适配器
-     */
-    private static void registerExampleAdapters(PropertyAdapterRegistry registry) {
-        LOGGER.debug("[PropertyAdapterModule] 正在注册示例适配器...");
 
-        // 关键帧适配器示例
-        registry.register(new SimpleKeyframeAdapter());
-        LOGGER.debug("[PropertyAdapterModule] 已注册 SimpleKeyframeAdapter");
-    }
 
     /**
      * 记录注册表统计信息
@@ -153,30 +140,6 @@ public class PropertyAdapterModule {
     }
 
     /**
-     * 注册自定义适配器
-     * <p>允许外部模块注册额外的适配器。
-     *
-     * @param adapter 要注册的适配器
-     * @return true 如果成功注册
-     */
-    public static boolean registerCustomAdapter(PropertyAdapter<?> adapter) {
-        if (!initialized) {
-            LOGGER.warn("[PropertyAdapterModule] 系统未初始化，先调用 initialize()");
-            return false;
-        }
-
-        try {
-            PropertyAdapterRegistry.get().register(adapter);
-            LOGGER.info("[PropertyAdapterModule] 已注册自定义适配器: {}",
-                    adapter.getDisplayName());
-            return true;
-        } catch (Exception e) {
-            LOGGER.error("[PropertyAdapterModule] 注册自定义适配器失败", e);
-            return false;
-        }
-    }
-
-    /**
      * 获取注册表实例
      *
      * @return 注册表实例
@@ -188,31 +151,4 @@ public class PropertyAdapterModule {
         return PropertyAdapterRegistry.get();
     }
 
-    /**
-     * 打印注册表状态（调试用）
-     */
-    public static void printStatus() {
-        if (!initialized) {
-            System.out.println("[PropertyAdapterModule] 未初始化");
-            return;
-        }
-
-        PropertyAdapterRegistry registry = PropertyAdapterRegistry.get();
-        var stats = registry.getStatistics();
-
-        System.out.println("════════════════════════════════════════");
-        System.out.println("  ChronoBlocks 属性适配器系统状态");
-        System.out.println("════════════════════════════════════════");
-        System.out.println("初始化状态: ✅ 已初始化");
-        System.out.println("总注册数:   " + stats.getTotalRegistrations());
-        System.out.println("活跃适配器: " + stats.getActiveAdapters());
-        System.out.println("支持类型:   " + registry.getSupportedTypes().size());
-        System.out.println("缓存命中率: " + String.format("%.1f%%", stats.getCacheHitRate()));
-        System.out.println("----------------------------------------");
-        System.out.println("支持的类型:");
-        registry.getSupportedTypes().forEach(type ->
-                System.out.println("  • " + type.getSimpleName()));
-        System.out.println("════════════════════════════════════════");
-    }
 }
-

@@ -31,6 +31,7 @@ public class UITheme {
         public static final int TEXT = rgba(220, 220, 220, 255);             // 主文本
         public static final int TEXT_DISABLED = rgba(128, 128, 128, 255);    // 禁用文本
         public static final int TEXT_SELECTED = rgba(255, 255, 255, 255);    // 选中文本
+        public static final int TEXT_WARNING = rgba(255, 200, 0, 255);        // 警告文本（黄色）
         
         // 边框色
         public static final int BORDER = rgba(48, 48, 48, 255);              // 边框

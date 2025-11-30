@@ -25,18 +25,18 @@ import org.slf4j.LoggerFactory;
 import java.util.Objects;
 
 /**
- * ChronoBlocks TimelineInteractionHandler锛圫napping + Renderer v2锛?
+ * ChronoBlocks TimelineInteractionHandler锛圫napping + Renderer v2�?
  *
- * <p>鑱岃矗锛氬皢 ImGui 杈撳叆杞崲涓哄 TimelineModel 鐨勪慨鏀癸紝鍚屾椂缁熶竴浣跨敤
- * TimelineRenderer 鐨勫潗鏍囩郴缁熶笌 TimelineSnapping 鐨勭鍚稿伐鍏枫€?/p>
+ * <p>鑱岃矗锛氬皢 ImGui 杈撳叆杞崲涓哄�?TimelineModel 鐨勪慨鏀癸紝鍚屾椂缁熶竴浣跨�?
+ * TimelineRenderer 鐨勫潗鏍囩郴缁熶�?TimelineSnapping 鐨勭鍚稿伐鍏枫�?/p>
  */
 public class TimelineInteractionHandler {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TimelineInteractionHandler.class);
 
-    private static final float DOUBLE_CLICK_THRESHOLD = 0.25f; // 秒
-    // ★ 优化：增大边缘检测范围，使拖拽调整宽度更容易触发
-    private static final float CLIP_EDGE_RESIZE_PIXEL = 8f;    // 判断靠近边缘进行缩放（从6f增加到8f）
+    private static final float DOUBLE_CLICK_THRESHOLD = 0.25f; // �?
+    // �?优化：增大边缘检测范围，使拖拽调整宽度更容易触发
+    private static final float CLIP_EDGE_RESIZE_PIXEL = 8f;    // 判断靠近边缘进行缩放（从6f增加�?f�?
     private static final float MIN_CLIP_LENGTH = 0.05f;
     
     private final TimelineModel model;
@@ -54,7 +54,7 @@ public class TimelineInteractionHandler {
     private float lastClickY = 0f;
 
     /**
-     * 浜や簰鍥炶皟鎺ュ彛锛岀敱 TimelinePanel 瀹炵幇銆?
+     * 浜や簰鍥炶皟鎺ュ彛锛岀�?TimelinePanel 瀹炵幇銆?
      */
     public interface InteractionCallbacks {
         void onKeyframeDoubleClick(TimelineClip clip, float mouseX, float contentX);
@@ -95,8 +95,8 @@ public class TimelineInteractionHandler {
     }
 
     /**
-     * @param contentX     轨道内容区域 X 起点（== winX + leftLabelWidth）
-     * @param trackAreaTop 轨道区域顶部 Y（== winY + headerHeight）
+     * @param contentX     轨道内容区域 X 起点�?= winX + leftLabelWidth�?
+     * @param trackAreaTop 轨道区域顶部 Y�?= winY + headerHeight�?
      * @param contentW     内容宽度
      * @param viewportH    内容高度
      * @param scrollY      垂直滚动
@@ -112,12 +112,12 @@ public class TimelineInteractionHandler {
         float mouseX = io.getMousePosX();
         float mouseY = io.getMousePosY();
 
-        // 1) 轨道头部控件命中（锁 / 眼睛）
+        // 1) 轨道头部控件命中（锁 / 眼睛�?
         TrackControlHitResult trackControlHit = TimelineTrackHitTest.hitTrackControls(
                 renderer, mouseX, mouseY
         );
 
-        // 2) 时间线内容命中（Clip / Keyframe / Empty）
+        // 2) 时间线内容命中（Clip / Keyframe / Empty�?
         TimelineHitResult hit = TimelineHitTest.compute(
                 renderer, model,
                 mouseX, mouseY,
@@ -135,14 +135,14 @@ public class TimelineInteractionHandler {
             }
         }
 
-        // ★ 优化：更新鼠标光标（边缘时显示调整光标，中间显示箭头）
+        // �?优化：更新鼠标光标（边缘时显示调整光标，中间显示箭头�?
         updateMouseCursor(hit, contentX, mouseX);
 
         // 鼠标事件
         handleMouseButtons(hit, trackControlHit, contentX, trackAreaTop, contentW, viewportH, scrollY, rightClickedOnCanvas);
         handleDrag(hit, contentX, trackAreaTop, contentW, viewportH, scrollY);
         
-        // 注意：容器拖放处理现在在 TimelinePanel 中直接处理（在 invisibleButton 之后）
+        // 注意：容器拖放处理现在在 TimelinePanel 中直接处理（�?invisibleButton 之后�?
         // 这样可以确保在正确的窗口上下文中设置拖放目标
     }
 
@@ -163,7 +163,7 @@ public class TimelineInteractionHandler {
         // 左键点击
         if (ImGui.isMouseClicked(ImGuiMouseButton.Left)) {
 
-            // 0) 优先处理轨道头部控件（锁 / 眼睛）
+            // 0) 优先处理轨道头部控件（锁 / 眼睛�?
             if (trackControlHit != null && trackControlHit.isHit() && callbacks != null) {
                 TimelineTrack track = trackControlHit.track();
                 TimelineTrackControlHit.TrackControlType type = trackControlHit.type();
@@ -173,7 +173,7 @@ public class TimelineInteractionHandler {
                     case LOCK -> callbacks.onToggleTrackLock(track);
                     case VISIBILITY -> callbacks.onToggleTrackVisible(track);
                 }
-                // 控件点击不再向下传递，不影响 Clip / Keyframe 选择
+                // 控件点击不再向下传递，不影�?Clip / Keyframe 选择
                 return;
             }
 
@@ -192,12 +192,12 @@ public class TimelineInteractionHandler {
                 case KEYFRAME -> onKeyframeClicked(hit, mouseX, contentX, isDoubleClick);
                 case AUTOMATION_KEYFRAME -> onAutomationKeyframeClicked(hit, mouseX, contentX, isDoubleClick);
                 case EMPTY -> onEmptyClicked(hit, mouseX, contentX);
-                default -> { /* NONE / TRACK_HEADER 在这里忽略 */ }
+                default -> { /* NONE / TRACK_HEADER 在这里忽�?*/ }
             }
         }
 
-        // 右键打开上下文菜单（如果不是点在轨道头控件上）
-        // 使用 rightClickedOnCanvas 参数，因为 invisibleButton 会拦截右键事件
+        // 右键打开上下文菜单（如果不是点在轨道头控件上�?
+        // 使用 rightClickedOnCanvas 参数，因�?invisibleButton 会拦截右键事�?
         if (rightClickedOnCanvas) {
             System.out.println("[TimelineInteractionHandler] 检测到右键点击，hit.type() = " + 
                     (hit != null ? hit.type() : "null") + 
@@ -225,15 +225,15 @@ public class TimelineInteractionHandler {
     }
 
     /**
-     * 更新鼠标光标（根据鼠标位置显示不同的光标）
+     * 更新鼠标光标（根据鼠标位置显示不同的光标�?
      * 
-     * <p>★ 优化：边缘时显示调整光标（ResizeEW），中间显示箭头（Arrow）
-     * 类似 Premiere 的行为，提供清晰的视觉反馈
+     * <p>�?优化：边缘时显示调整光标（ResizeEW），中间显示箭头（Arrow�?
+     * 类似 Premiere 的行为，提供清晰的视觉反�?
      * 
-     * <p>★ 轨道锁定功能：锁定轨道上的片段不显示调整光标
+     * <p>�?轨道锁定功能：锁定轨道上的片段不显示调整光标
      */
     private void updateMouseCursor(TimelineHitResult hit, float contentX, float mouseX) {
-        // 如果正在交互中，不更新光标（避免闪烁）
+        // 如果正在交互中，不更新光标（避免闪烁�?
         if (interactionManager.isInteracting()) {
             return;
         }
@@ -242,7 +242,7 @@ public class TimelineInteractionHandler {
             TimelineClip clip = hit.clip();
             TimelineTrack track = hit.track();
             if (clip != null) {
-                // ★ 轨道锁定功能：锁定轨道上的片段不显示调整光标
+                // �?轨道锁定功能：锁定轨道上的片段不显示调整光标
                 if (track != null && track.isLocked()) {
                     ImGui.setMouseCursor(ImGuiMouseCursor.Arrow);
                     return;
@@ -254,7 +254,7 @@ public class TimelineInteractionHandler {
                 boolean nearLeft = Math.abs(mouseX - startX) <= CLIP_EDGE_RESIZE_PIXEL;
                 boolean nearRight = Math.abs(mouseX - endX) <= CLIP_EDGE_RESIZE_PIXEL;
                 
-                // 对于小片段，扩大边缘检测范围
+                // 对于小片段，扩大边缘检测范�?
                 float clipWidth = endX - startX;
                 if (clipWidth < CLIP_EDGE_RESIZE_PIXEL * 3) {
                     nearLeft = mouseX <= startX + CLIP_EDGE_RESIZE_PIXEL * 1.5f;
@@ -282,7 +282,7 @@ public class TimelineInteractionHandler {
         TimelineClip clip = hit.clip();
         if (track == null || clip == null) return;
 
-        // ★ 轨道锁定功能：如果轨道锁定，禁止所有操作
+        // �?轨道锁定功能：如果轨道锁定，禁止所有操�?
         if (track.isLocked()) {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("[Timeline] 轨道已锁定，禁止操作片段: {} (轨道: {})", 
@@ -294,18 +294,18 @@ public class TimelineInteractionHandler {
         // 更新选中
         model.setSelectedClip(clip);
         
-        // ★ 功能：选中片段时，同步到 SelectionManager，使属性面板显示片段属性
+        // �?功能：选中片段时，同步�?SelectionManager，使属性面板显示片段属�?
         com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(clip);
         
         if (callbacks != null) callbacks.onDataChanged();
         
-        // ★ 优化：添加日志，便于调试
+        // �?优化：添加日志，便于调试
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("[Timeline] 点击片段: {} (时间: {:.2f}s - {:.2f}s)", 
                 clip.getLabel(), clip.getStartTime(), clip.getEndTime());
         }
 
-        // ★ 优化：判断是否靠近左右边缘 → Resize
+        // �?优化：判断是否靠近左右边�?�?Resize
         // 使用更大的检测范围，使边缘拖拽更容易触发
         float startX = renderer.timeToX(clip.getStartTime(), contentX);
         float endX = renderer.timeToX(clip.getEndTime(), contentX);
@@ -313,10 +313,10 @@ public class TimelineInteractionHandler {
         boolean nearLeft = Math.abs(mouseX - startX) <= CLIP_EDGE_RESIZE_PIXEL;
         boolean nearRight = Math.abs(mouseX - endX) <= CLIP_EDGE_RESIZE_PIXEL;
         
-        // ★ 优化：如果片段很小，优先检测边缘（避免小片段无法调整）
+        // �?优化：如果片段很小，优先检测边缘（避免小片段无法调整）
         float clipWidth = endX - startX;
         if (clipWidth < CLIP_EDGE_RESIZE_PIXEL * 3) {
-            // 对于很小的片段，扩大边缘检测范围
+            // 对于很小的片段，扩大边缘检测范�?
             nearLeft = mouseX <= startX + CLIP_EDGE_RESIZE_PIXEL * 1.5f;
             nearRight = mouseX >= endX - CLIP_EDGE_RESIZE_PIXEL * 1.5f;
         }
@@ -342,7 +342,7 @@ public class TimelineInteractionHandler {
                 LOGGER.debug("[Timeline] 开始调整片段右边缘: {}", clip.getLabel());
             }
         } else {
-            // 普通拖动
+            // 普通拖�?
             interactionManager.startInteraction(
                     InteractionMode.DRAG_CLIP,
                     new ClipHandle(track, clip),
@@ -350,7 +350,7 @@ public class TimelineInteractionHandler {
                     clip.getStartTime(), clip.getEndTime()
             );
             if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("[Timeline] 开始拖动片段: {} (从 {:.2f}s)", 
+                LOGGER.debug("[Timeline] 开始拖动片�? {} (�?{:.2f}s)", 
                     clip.getLabel(), clip.getStartTime());
             }
         }
@@ -364,17 +364,17 @@ public class TimelineInteractionHandler {
         TimelineClip clip = hit.clip();
         if (track == null || clip == null) return;
 
-        // ★ 轨道锁定功能：如果轨道锁定，禁止关键帧操作
+        // �?轨道锁定功能：如果轨道锁定，禁止关键帧操�?
         if (track.isLocked()) {
             if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("[Timeline] 轨道已锁定，禁止操作关键帧 (轨道: {})", track.getName());
+                LOGGER.debug("[Timeline] 轨道已锁定，禁止操作关键�?(轨道: {})", track.getName());
             }
             return;
         }
 
         float keyTime = hit.time();
 
-        // 双击：交给 Panel 处理添加/删除逻辑
+        // 双击：交�?Panel 处理添加/删除逻辑
         if (isDoubleClick && callbacks != null) {
             callbacks.onKeyframeDoubleClick(clip, mouseX, contentX);
             return;
@@ -391,7 +391,7 @@ public class TimelineInteractionHandler {
     }
 
     /**
-     * 处理自动化关键帧的点击（轨道级别的关键帧，如摄像机关键帧）
+     * 处理自动化关键帧的点击（轨道级别的关键帧，如摄像机关键帧�?
      */
     private void onAutomationKeyframeClicked(TimelineHitResult hit,
                                             float mouseX,
@@ -404,7 +404,7 @@ public class TimelineInteractionHandler {
             return;
         }
 
-        // ★ 轨道锁定功能：如果轨道锁定，禁止关键帧操作
+        // �?轨道锁定功能：如果轨道锁定，禁止关键帧操�?
         if (track.isLocked()) {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("[Timeline] 轨道已锁定，禁止操作自动化关键帧 (轨道: {})", track.getName());
@@ -412,7 +412,7 @@ public class TimelineInteractionHandler {
             return;
         }
 
-        // ★ 功能：选中自动化关键帧时，同步到 SelectionManager，使属性面板显示关键帧属性
+        // �?功能：选中自动化关键帧时，同步�?SelectionManager，使属性面板显示关键帧属�?
         com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(keyframe);
         
         if (LOGGER.isDebugEnabled()) {
@@ -420,14 +420,14 @@ public class TimelineInteractionHandler {
                 keyframe.getName(), keyframe.getStartTime());
         }
 
-        // 双击：可以在这里添加删除逻辑等
+        // 双击：可以在这里添加删除逻辑�?
         if (isDoubleClick && callbacks != null) {
             // TODO: 可以添加双击删除关键帧的逻辑
             LOGGER.debug("[Timeline] 双击自动化关键帧，但当前未实现删除功能");
         }
 
         // 单击：可以选择性地开始拖动关键帧（如果需要）
-        // 注意：自动化关键帧的拖动逻辑可能与片段内关键帧不同
+        // 注意：自动化关键帧的拖动逻辑可能与片段内关键帧不�?
         if (callbacks != null) {
             callbacks.onDataChanged();
         }
@@ -437,7 +437,7 @@ public class TimelineInteractionHandler {
                                 float mouseX,
                                 float contentX) {
         // 空白区域：不移动播放头，允许用户在轨道上操作片段或关键帧
-        // 只有点击顶部时间刻度尺时才会移动播放头（由 TimelinePanel.handleRulerInteractions 处理）
+        // 只有点击顶部时间刻度尺时才会移动播放头（�?TimelinePanel.handleRulerInteractions 处理�?
     }
 
     // ========================================================
@@ -468,8 +468,8 @@ public class TimelineInteractionHandler {
         activeContextMenu = menuFactory.buildContextMenu(hit);
         if (activeContextMenu != null) {
             activeContextMenu.open();
-            System.out.println("[TimelineInteractionHandler] 成功打开上下文菜单: " + hit.type());
-            LOGGER.info("[Timeline] 成功打开上下文菜单: {}", hit.type());
+            System.out.println("[TimelineInteractionHandler] 成功打开上下文菜�? " + hit.type());
+            LOGGER.info("[Timeline] 成功打开上下文菜�? {}", hit.type());
         } else {
             System.out.println("[TimelineInteractionHandler] ERROR: buildContextMenu 返回 null，hit.type() = " + hit.type());
             LOGGER.warn("[Timeline] buildContextMenu 返回 null，hit.type() = {}", hit.type());
@@ -477,9 +477,9 @@ public class TimelineInteractionHandler {
     }
 
     /**
-     * 结束交互（鼠标释放时调用）
+     * 结束交互（鼠标释放时调用�?
      * 
-     * <p>★ 优化：为所有操作添加 Undo 支持，使用命令模式
+     * <p>�?优化：为所有操作添�?Undo 支持，使用命令模�?
      */
     private void endInteractionIfNeeded() {
         InteractionMode mode = interactionManager.getCurrentMode();
@@ -488,7 +488,7 @@ public class TimelineInteractionHandler {
         Object obj = interactionManager.getActiveObject();
 
         if (mode == InteractionMode.DRAG_CLIP) {
-            // 拖动片段：使用 MoveClipCommand（已在 onClipInteractionFinished 中处理）
+            // 拖动片段：使�?MoveClipCommand（已�?onClipInteractionFinished 中处理）
             if (obj instanceof ClipHandle handle && callbacks != null) {
                 callbacks.onClipInteractionFinished(
                         handle.clip,
@@ -497,18 +497,18 @@ public class TimelineInteractionHandler {
                 );
             }
         } else if (mode == InteractionMode.RESIZE_CLIP_LEFT) {
-            // ★ 优化：调整左边缘，使用 ResizeClipCommand 支持 Undo
+            // �?优化：调整左边缘，使�?ResizeClipCommand 支持 Undo
             if (obj instanceof ClipHandle handle) {
                 float originalStart = interactionManager.getDragStartValue();
                 float currentStart = handle.clip.getStartTime();
                 
-                // 只有当位置真正改变时才创建命令
+                // 只有当位置真正改变时才创建命�?
                 if (Math.abs(currentStart - originalStart) > 0.001f) {
                     commandHistory.executeCommand(
                         new ResizeClipCommand(model, handle.clip, ResizeClipCommand.Edge.START, currentStart)
                     );
                     if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("[Timeline] 调整片段左边缘: {}s -> {}s (片段: {})", 
+                        LOGGER.debug("[Timeline] 调整片段左边�? {}s -> {}s (片段: {})", 
                             originalStart, currentStart, handle.clip.getLabel());
                     }
                 }
@@ -516,18 +516,18 @@ public class TimelineInteractionHandler {
                 if (callbacks != null) callbacks.onDataChanged();
             }
         } else if (mode == InteractionMode.RESIZE_CLIP_RIGHT) {
-            // ★ 优化：调整右边缘，使用 ResizeClipCommand 支持 Undo
+            // �?优化：调整右边缘，使�?ResizeClipCommand 支持 Undo
             if (obj instanceof ClipHandle handle) {
                 float originalEnd = interactionManager.getDragStartValue2();
                 float currentEnd = handle.clip.getEndTime();
                 
-                // 只有当位置真正改变时才创建命令
+                // 只有当位置真正改变时才创建命�?
                 if (Math.abs(currentEnd - originalEnd) > 0.001f) {
                     commandHistory.executeCommand(
                         new ResizeClipCommand(model, handle.clip, ResizeClipCommand.Edge.END, currentEnd)
                     );
                     if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("[Timeline] 调整片段右边缘: {}s -> {}s (片段: {})", 
+                        LOGGER.debug("[Timeline] 调整片段右边�? {}s -> {}s (片段: {})", 
                             originalEnd, currentEnd, handle.clip.getLabel());
                     }
                 }
@@ -547,14 +547,19 @@ public class TimelineInteractionHandler {
 
                 if (callbacks != null) callbacks.onDataChanged();
 
-                LOGGER.debug("[Timeline] 关键帧拖动完成: {} -> {}", originalTime, finalTime);
+                LOGGER.debug("[Timeline] 关键帧拖动完�? {} -> {}", originalTime, finalTime);
             }
+        }
+
+        
+        else if (mode == InteractionMode.DRAG_PLAYHEAD) {
+            com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance().setScrubbing(false);
         }
 
         interactionManager.endInteraction();
     }
 
-    // ========== 拖动处理（帧更新）==========
+    // ========== 拖动处理（帧更新�?=========
 
     private void handleDrag(TimelineHitResult hit,
                             float contentX,
@@ -582,7 +587,7 @@ public class TimelineInteractionHandler {
     /**
      * 拖动片段（移动位置，支持跨轨道）
      * 
-     * <p>★ 修复：确保跨轨道拖动时，X轴（时间）和Y轴（轨道）都能正常工作
+     * <p>�?修复：确保跨轨道拖动时，X轴（时间）和Y轴（轨道）都能正常工�?
      * 
      * @param mouseX 鼠标 X 坐标
      * @param contentX 内容区域 X 起点
@@ -595,21 +600,20 @@ public class TimelineInteractionHandler {
             return;
         }
 
-        // ★ 轨道锁定功能：如果轨道锁定，禁止拖动
+        // �?轨道锁定功能：如果轨道锁定，禁止拖动
         TimelineTrack currentTrack = model.findTrackForClip(handle.clip);
         if (currentTrack == null) {
             currentTrack = handle.track;
         }
         if (currentTrack != null && currentTrack.isLocked()) {
             // 如果轨道被锁定，结束交互
-            interactionManager.endInteraction();
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("[Timeline] 轨道已锁定，禁止拖动片段 (轨道: {})", currentTrack.getName());
             }
             return;
         }
 
-        // ★ 优化：确保片段被选中，这样拖动后可以继续拖动
+        // �?优化：确保片段被选中，这样拖动后可以继续拖动
         if (model.getSelectedClip() != handle.clip) {
             model.setSelectedClip(handle.clip);
         }
@@ -618,7 +622,7 @@ public class TimelineInteractionHandler {
         float end0 = interactionManager.getDragStartValue2();
         float length = end0 - start0;
 
-        // ★ 修复：先计算时间变化（X轴拖动）
+        // �?修复：先计算时间变化（X轴拖动）
         float startMouseX = interactionManager.getDragStartMouseX();
         float startMouseTime = renderer.xToTime(startMouseX, contentX);
         float currentMouseTime = renderer.xToTime(mouseX, contentX);
@@ -627,11 +631,11 @@ public class TimelineInteractionHandler {
         float candidateStart = start0 + delta;
         candidateStart = Math.max(0f, candidateStart);
 
-        // ★ 修复：支持跨轨道拖动（Y轴拖动）
+        // �?修复：支持跨轨道拖动（Y轴拖动）
         // 先检测目标轨道，再使用正确的轨道进行吸附计算
-        // ★ 关键修复：使用片段当前所在的轨道，而不是 handle.track（可能已过时）
+        // �?关键修复：使用片段当前所在的轨道，而不�?handle.track（可能已过时�?
         if (currentTrack == null) {
-            // 回退到原始轨道
+            // 回退到原始轨�?
         }
         TimelineTrack targetTrack = currentTrack;
         
@@ -641,17 +645,17 @@ public class TimelineInteractionHandler {
             int newTrackIndex = renderer.yToTrackIndex(relativeY, scrollY);
             if (newTrackIndex >= 0 && newTrackIndex < model.getTrackCount()) {
                 TimelineTrack newTrack = model.getTrackAt(newTrackIndex);
-                // ★ 关键修复：只在目标轨道与当前轨道不同时才移动，避免重复移动
+                // �?关键修复：只在目标轨道与当前轨道不同时才移动，避免重复移�?
                 if (newTrack != null && newTrack != currentTrack && !newTrack.isLocked()) {
                     // 检查轨道类型兼容性（可选，根据业务需求）
-                    // 如果允许跨轨道，则移动片段
+                    // 如果允许跨轨道，则移动片�?
 
-                    // ★ 关键修复：确保片段从旧轨道移除（即使它可能已经在其他轨道上）
+                    // �?关键修复：确保片段从旧轨道移除（即使它可能已经在其他轨道上）
                     if (currentTrack != null) {
                         currentTrack.removeClip(handle.clip);
                     }
                     
-                    // ★ 关键修复：确保片段不在新轨道上才添加（避免重复添加）
+                    // �?关键修复：确保片段不在新轨道上才添加（避免重复添加）
                     if (!newTrack.getClips().contains(handle.clip)) {
                         newTrack.addClip(handle.clip);
                     }
@@ -659,7 +663,7 @@ public class TimelineInteractionHandler {
                     targetTrack = newTrack; // 更新目标轨道用于吸附计算
                     
                     if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("[Timeline] 片段跨轨道移动: {} -> {} (片段: {})", 
+                        LOGGER.debug("[Timeline] 片段跨轨道移�? {} -> {} (片段: {})", 
                             currentTrack != null ? currentTrack.getName() : "null",
                             newTrack.getName(), handle.clip.getLabel());
                     }
@@ -667,14 +671,14 @@ public class TimelineInteractionHandler {
             }
         }
 
-        // ★ 修复：使用目标轨道进行吸附计算，确保跨轨道拖动时吸附正确
+        // �?修复：使用目标轨道进行吸附计算，确保跨轨道拖动时吸附正确
         TimelineSnapping.Result snap = TimelineSnapping.snapTime(
                 model, candidateStart, targetTrack, handle.clip, 0f
         );
         float snappedStart = Math.max(0f, snap.snappedTime);
         float snappedEnd = snappedStart + length;
 
-        // ★ 修复：确保片段时长保持不变，只移动位置（X轴和Y轴都更新）
+        // �?修复：确保片段时长保持不变，只移动位置（X轴和Y轴都更新�?
         handle.clip.setStartTime(snappedStart);
         handle.clip.setEndTime(snappedEnd);
         model.markDurationDirty();
@@ -683,9 +687,9 @@ public class TimelineInteractionHandler {
     }
 
     /**
-     * 调整片段左边缘（调整开始时间和时长）
+     * 调整片段左边缘（调整开始时间和时长�?
      * 
-     * <p>★ 优化：确保调整后片段可以被继续调整，不会被固定
+     * <p>�?优化：确保调整后片段可以被继续调整，不会被固�?
      */
     private void resizeClipLeft(float mouseX, float contentX) {
         Object active = interactionManager.getActiveObject();
@@ -693,16 +697,15 @@ public class TimelineInteractionHandler {
             return;
         }
 
-        // ★ 轨道锁定功能：如果轨道锁定，禁止调整宽度
+        // �?轨道锁定功能：如果轨道锁定，禁止调整宽度
         if (handle.track != null && handle.track.isLocked()) {
-            interactionManager.endInteraction();
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("[Timeline] 轨道已锁定，禁止调整片段宽度 (轨道: {})", handle.track.getName());
             }
             return;
         }
 
-        // ★ 优化：确保片段被选中
+        // �?优化：确保片段被选中
         if (model.getSelectedClip() != handle.clip) {
             model.setSelectedClip(handle.clip);
         }
@@ -726,7 +729,7 @@ public class TimelineInteractionHandler {
         float snappedStart = Math.min(snap.snappedTime, handle.clip.getEndTime() - minLength);
         snappedStart = Math.max(0f, snappedStart);
 
-        // ★ 优化：实时更新片段开始时间，保持结束时间不变（调整时长）
+        // �?优化：实时更新片段开始时间，保持结束时间不变（调整时长）
         handle.clip.setStartTime(snappedStart);
         model.markDurationDirty();
 
@@ -736,7 +739,7 @@ public class TimelineInteractionHandler {
     /**
      * 调整片段右边缘（调整结束时间和时长）
      * 
-     * <p>★ 优化：确保调整后片段可以被继续调整，不会被固定
+     * <p>�?优化：确保调整后片段可以被继续调整，不会被固�?
      */
     private void resizeClipRight(float mouseX, float contentX) {
         Object active = interactionManager.getActiveObject();
@@ -744,16 +747,15 @@ public class TimelineInteractionHandler {
             return;
         }
 
-        // ★ 轨道锁定功能：如果轨道锁定，禁止调整宽度
+        // �?轨道锁定功能：如果轨道锁定，禁止调整宽度
         if (handle.track != null && handle.track.isLocked()) {
-            interactionManager.endInteraction();
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("[Timeline] 轨道已锁定，禁止调整片段宽度 (轨道: {})", handle.track.getName());
             }
             return;
         }
 
-        // ★ 优化：确保片段被选中
+        // �?优化：确保片段被选中
         if (model.getSelectedClip() != handle.clip) {
             model.setSelectedClip(handle.clip);
         }
@@ -775,7 +777,7 @@ public class TimelineInteractionHandler {
         );
         float snappedEnd = Math.max(snap.snappedTime, handle.clip.getStartTime() + minLength);
 
-        // ★ 优化：实时更新片段结束时间，保持开始时间不变（调整时长）
+        // �?优化：实时更新片段结束时间，保持开始时间不变（调整时长�?
         handle.clip.setEndTime(snappedEnd);
         model.markDurationDirty();
 
@@ -788,11 +790,10 @@ public class TimelineInteractionHandler {
             return;
         }
 
-        // ★ 轨道锁定功能：如果轨道锁定，禁止拖动关键帧
+        // �?轨道锁定功能：如果轨道锁定，禁止拖动关键�?
         if (handle.track != null && handle.track.isLocked()) {
-            interactionManager.endInteraction();
             if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("[Timeline] 轨道已锁定，禁止拖动关键帧 (轨道: {})", handle.track.getName());
+                LOGGER.debug("[Timeline] 轨道已锁定，禁止拖动关键�?(轨道: {})", handle.track.getName());
             }
             return;
         }
@@ -803,7 +804,7 @@ public class TimelineInteractionHandler {
         );
         float newTime = snap.snappedTime;
 
-        // 限制在 clip 范围内
+        // 限制�?clip 范围�?
         float eps = 0.001f;
         newTime = Math.max(handle.clip.getStartTime() + eps, newTime);
         newTime = Math.min(handle.clip.getEndTime() - eps, newTime);
@@ -812,7 +813,7 @@ public class TimelineInteractionHandler {
             return;
         }
 
-        // 实时预览：直接修改 clip 的 keyframes（先删旧后加新）
+        // 实时预览：直接修�?clip �?keyframes（先删旧后加新）
         handle.clip.removeKeyframe(handle.currentTime);
         handle.clip.addKeyframe(newTime);
         handle.currentTime = newTime;
@@ -821,7 +822,7 @@ public class TimelineInteractionHandler {
     }
 
     /**
-     * 开始播放头拖动（由 TimelinePanel 调用，用于刻度尺交互）
+     * 开始播放头拖动（由 TimelinePanel 调用，用于刻度尺交互�?
      * 
      * @param mouseX 鼠标 X 坐标
      * @param contentX 内容区域 X 起点
@@ -835,16 +836,17 @@ public class TimelineInteractionHandler {
         float clampedTime = Math.max(0f, Math.min(model.getDuration(), snap.snappedTime));
         model.setCurrentTime(clampedTime);
         
-        // ★ 功能：开始拖动播放头时，立即更新片段方块显示状态
+        // �?功能：开始拖动播放头时，立即更新片段方块显示状�?
         com.chronoblocks.ui.timeline.playback.TimelineClipBlockController.getInstance().update();
         
-        // 开始拖动交互
+        // 开始拖动交�?
         interactionManager.startInteraction(
                 InteractionMode.DRAG_PLAYHEAD,
                 null,
                 mouseX, ImGui.getMousePosY(),
                 clampedTime, 0f
         );
+        com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance().setScrubbing(true);
         
         if (callbacks != null) {
             callbacks.onDataChanged();
@@ -858,7 +860,7 @@ public class TimelineInteractionHandler {
         );
         model.setCurrentTime(Math.max(0f, snap.snappedTime));
         
-        // ★ 功能：播放头拖动时，立即更新片段方块显示状态
+        // �?功能：播放头拖动时，立即更新片段方块显示状�?
         com.chronoblocks.ui.timeline.playback.TimelineClipBlockController.getInstance().update();
         
         if (callbacks != null) callbacks.onDataChanged();

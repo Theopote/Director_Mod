@@ -150,16 +150,4 @@ public final class SelectionManager {
         return new ArrayList<>(multiSelection);
     }
 
-    
-    /**
-     * 获取调试信息
-     * 
-     * @return 调试信息字符串
-     */
-    public String getDebugInfo() {
-        return String.format("SelectionManager [current=%s, multi=%d, listeners=%d]",
-            currentSelection != null ? currentSelection.getClass().getSimpleName() : "null",
-            multiSelection.size(),
-            selectionListeners.size());
-    }
 }

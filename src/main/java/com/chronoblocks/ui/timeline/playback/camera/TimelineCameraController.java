@@ -7,27 +7,39 @@ import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.option.KeyBinding;
-import net.minecraft.util.math.Vec3d;
 import org.joml.Vector3f;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Runtime controller for the cinematic camera track.
+ * TimelineCameraController v3.0
  *
- * <p>Responsibilities:
+ * <p>负责：
  * <ul>
- *     <li>Sample camera keyframes based on the current timeline time</li>
- *     <li>Lock player input while cinematic playback is active</li>
- *     <li>Push sampled pose to {@link CameraRuntime} for rendering</li>
+ *   <li>从时间线的摄像机轨道采样 CameraSample</li>
+ *   <li>根据播放/拖拽状态切换 CameraRuntime 模式</li>
+ *   <li>锁定玩家输入（播放时）</li>
+ * </ul>
+ *
+ * <p>⭐ 重要变更：
+ * <ul>
+ *   <li>不再直接持有 CameraMode / CinematicCamera 状态</li>
+ *   <li>所有运行时状态都交给 CameraRuntime</li>
+ *   <li>只负责采样和状态切换逻辑</li>
  * </ul>
  */
 public final class TimelineCameraController {
+    private static final Logger LOGGER = LoggerFactory.getLogger(TimelineCameraController.class);
     private static final TimelineCameraController INSTANCE = new TimelineCameraController();
 
     private final CameraTrackSampler sampler = new CameraTrackSampler();
     private TimelineModel timelineModel;
+    private boolean scrubbing = false; // 播放头是否正在被拖动
+    private boolean keyframesDirty = true;
+    private TimelineModel.ModelChangeListener modelChangeListener;
 
     private TimelineCameraController() {
     }
@@ -38,35 +50,135 @@ public final class TimelineCameraController {
 
     public void setTimelineModel(TimelineModel model) {
         this.timelineModel = model;
+        // ⭐ 初始化时设置一次 keyframes，之后只在 keyframe 变化时更新
+        if (model != null) {
+            sampler.setKeyframes(collectCameraKeyframes());
+        }
     }
 
     /**
-     * Advance the camera controller with the latest timeline time.
-     * Should be called once per frame from UI/update loop.
+     * 当关键帧发生变化时调用（添加/删除/移动关键帧时）
+     * 
+     * <p>⭐ 关键：不在每帧 update() 中调用 setKeyframes，避免每帧重新排序导致 prev/next 错误
+     */
+    public void onKeyframeChanged() {
+        if (timelineModel != null) {
+            sampler.setKeyframes(collectCameraKeyframes());
+            LOGGER.debug("[TimelineCameraController] 关键帧变化，更新采样器");
+        }
+    }
+
+    /**
+     * 设置播放头拖拽状态
+     * 
+     * <p>⭐ 关键：不在这里立即采样，让 update() 统一处理
+     * 这样可以确保时序正确，避免每帧 setKeyframes 导致的问题
+     */
+    public void setScrubbing(boolean scrubbing) {
+        this.scrubbing = scrubbing;
+        LOGGER.debug("[TimelineCameraController] scrubbing = {}", scrubbing);
+    }
+
+    /**
+     * 当播放开始时调用（由 TimelineModel 调用）
+     */
+    public void onPlaybackStarted() {
+        LOGGER.debug("[TimelineCameraController] 播放开始");
+        // 播放状态会在 update() 中处理，这里可以添加额外的初始化逻辑
+    }
+
+    /**
+     * 当播放停止时调用（由 TimelineModel 调用）
+     */
+    public void onPlaybackStopped() {
+        LOGGER.debug("[TimelineCameraController] 播放停止");
+        // 停止播放时，如果不在拖拽，切回游戏模式
+        if (!scrubbing) {
+            CameraRuntime.getInstance().enterGameMode();
+        }
+    }
+
+    /**
+     * TimelinePanel 每帧调用。
+     * 
+     * <p>⭐ 摄像机模式切换规则（完整版）：
+     * <ul>
+     *   <li>1. 没有相机关键帧 → 永远回 GAME</li>
+     *   <li>2. 播放中 + 有摄像机轨道 → PLAYING 模式</li>
+     *   <li>3. 非播放 + 拖拽播放头 + 有摄像机轨道 → PREVIEW 模式</li>
+     *   <li>4. 既不播放也不拖动 → GAME 模式</li>
+     * </ul>
+     * 
+     * <p>⭐ 关键修复：不在每帧 setKeyframes，避免每帧重新排序导致 prev/next 错误
      */
     public void update() {
-        CameraRuntime runtime = CameraRuntime.getInstance();
         if (timelineModel == null) {
-            runtime.exitToGame();
             return;
         }
 
-        List<CameraKeyframe> keyframes = collectCameraKeyframes();
-        sampler.setKeyframes(keyframes);
+        MinecraftClient client = MinecraftClient.getInstance();
+        CameraRuntime runtime = CameraRuntime.getInstance();
 
-        boolean shouldUseCinematic = timelineModel.isPlaying() && !sampler.isEmpty();
-        if (!shouldUseCinematic) {
-            runtime.exitToGame();
+        // ⭐ 规则 1：没有相机关键帧 → 永远回 GAME
+        // ⭐ 关键：不在这里调用 setKeyframes，只在 keyframe 变化时调用
+        if (sampler.isEmpty()) {
+            if (runtime.getMode().isCinematic()) {
+                runtime.requestGameMode();
+                LOGGER.debug("[TimelineCameraController] 没有摄像机关键帧，切回 GAME 模式");
+            }
             return;
         }
 
-        // 使用新的 API
-        runtime.enterPlayingMode(true);
-        CameraSample sample = sampler.sample(timelineModel.getCurrentTime()).orElse(null);
-        runtime.applySample(sample);
-        
-        if (runtime.isCinematicActive()) {
-            lockPlayerInput();
+        // ⭐ 获取播放和拖拽状态（统一来源）
+        boolean isPlaying = timelineModel.isPlaying();
+        boolean isScrubbing = this.scrubbing;
+        float currentTime = timelineModel.getCurrentTime();
+
+        // ⭐ 规则 2：播放优先级最高
+        if (isPlaying) {
+            CameraSample sample = sampler.sample(currentTime).orElse(null);
+            if (sample == null) {
+                LOGGER.warn("[TimelineCameraController] 播放时无法采样摄像机，切回 GAME");
+                runtime.requestGameMode();
+                return;
+            }
+
+            if (runtime.getMode() != CameraMode.PLAYING) {
+                runtime.enterPlayingMode(client, sample, true);
+                LOGGER.info("[TimelineCameraController] 进入 PLAYING 模式 (时间: {}s)", currentTime);
+            } else {
+                runtime.updateSample(sample);
+            }
+
+            // 播放时锁定玩家输入
+            if (runtime.isCinematicActive()) {
+                lockPlayerInput();
+            }
+            return;
+        }
+
+        // ⭐ 规则 3：停止播放，但正在拖动 → 预览
+        if (isScrubbing) {
+            CameraSample sample = sampler.sample(currentTime).orElse(null);
+            if (sample == null) {
+                LOGGER.warn("[TimelineCameraController] 拖拽时无法采样摄像机，切回 GAME");
+                runtime.requestGameMode();
+                return;
+            }
+
+            if (runtime.getMode() != CameraMode.PREVIEW) {
+                runtime.enterPreviewMode(client, sample, true);
+                LOGGER.debug("[TimelineCameraController] 进入 PREVIEW 模式 (时间: {}s)", currentTime);
+            } else {
+                runtime.updateSample(sample);
+            }
+            return;
+        }
+
+        // ⭐ 规则 4：既不播放也不拖动 → 回玩家视角
+        if (runtime.getMode().isCinematic()) {
+            runtime.requestGameMode();
+            LOGGER.debug("[TimelineCameraController] 既不播放也不拖动，切回 GAME 模式");
         }
     }
 
@@ -79,45 +191,55 @@ public final class TimelineCameraController {
         List<CameraKeyframe> keyframes = collectCameraKeyframes();
         sampler.setKeyframes(keyframes);
 
+        MinecraftClient client = MinecraftClient.getInstance();
         CameraRuntime runtime = CameraRuntime.getInstance();
         boolean hasTrack = !keyframes.isEmpty();
         
         if (!hasTrack) {
-            runtime.enterPreviewMode(false);
+            runtime.enterPreviewMode(client, null, false);
             return;
         }
 
         CameraSample sample = sampler.sample(timeSeconds).orElse(null);
         if (sample == null) {
-            runtime.enterPreviewMode(false);
+            runtime.enterPreviewMode(client, null, false);
             return;
         }
 
-        runtime.enterPreviewMode(true);
-        runtime.applySample(sample);
+        runtime.enterPreviewMode(client, sample, true);
     }
 
     /**
-     * Populate a keyframe using the current game (player) camera pose.
+     * 供 TimelinePanel.onAddKeyframeToTrack 使用：
+     * 从当前游戏摄像机填充一个 CameraKeyframe。
      */
-    public void captureFromGameCamera(CameraKeyframe target) {
-        if (target == null) {
+    public void captureFromGameCamera(CameraKeyframe keyframe) {
+        if (keyframe == null) {
             return;
         }
+
         MinecraftClient client = MinecraftClient.getInstance();
-        var camera = client.gameRenderer != null ? client.gameRenderer.getCamera() : null;
-        if (camera == null) {
-            return;
-        }
+        CameraSample sample = CameraAccessor.sampleGameCamera(client);
 
-        Vec3d pos = camera.getPos();
-        target.setPosition(new Vector3f((float) pos.x, (float) pos.y, (float) pos.z));
-        target.setRotation(new Vector3f(camera.getYaw(), camera.getPitch(), 0.0f));
+        keyframe.setPosition(new Vector3f(
+            (float) sample.position().x,
+            (float) sample.position().y,
+            (float) sample.position().z
+        ));
+        // ⭐ 正确 yaw/pitch 顺序（rotation.x=pitch, rotation.y=yaw, rotation.z=roll）
+        keyframe.setRotation(new Vector3f(
+            sample.pitch(),  // x = pitch
+            sample.yaw(),    // y = yaw
+            sample.roll()     // z = roll
+        ));
+        keyframe.setFov(sample.fov());
+        keyframe.setNearPlane(sample.nearPlane());
+        keyframe.setFarPlane(sample.farPlane());
+        keyframe.setDepthOfFieldEnabled(sample.depthOfFieldEnabled());
+        keyframe.setFocusDistance(sample.focusDistance());
+        keyframe.setAperture(sample.aperture());
 
-        if (client.options != null && client.options.getFov() != null) {
-            double fovValue = client.options.getFov().getValue();
-            target.setFov((float) fovValue);
-        }
+        LOGGER.info("[TimelineCameraController] 捕捉玩家视角到 CameraKeyframe@{}s", keyframe.getTime());
     }
 
     private void lockPlayerInput() {

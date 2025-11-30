@@ -1,6 +1,5 @@
 package com.chronoblocks.ui.di;
 
-import com.chronoblocks.animation.ui.AnimationInspectorPanel;
 import com.chronoblocks.ui.panels.*;
 import com.chronoblocks.core.container.ContainerManager;
 import com.chronoblocks.ui.timeline.commands.TimelineCommandHistory;
@@ -103,13 +102,6 @@ public class PanelFactory implements IPanelFactory {
             return new TimelinePanel();
         });
 
-        // 注册AnimationInspectorPanel创建器
-        registerPanelCreator(AnimationInspectorPanel.class, minecraftClient -> {
-            LOGGER.debug("[PanelFactory] 创建AnimationInspectorPanel (MinecraftClient: {})",
-                minecraftClient != null ? "已注入" : "未注入");
-            return new AnimationInspectorPanel();
-        });
-        
         // 注册SelectionFilterPanel创建器
         registerPanelCreator(SelectionFilterPanel.class, minecraftClient -> {
             LOGGER.debug("[PanelFactory] 创建SelectionFilterPanel (MinecraftClient: {})", 
