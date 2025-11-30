@@ -118,5 +118,39 @@ public class ShakerTransformer implements IAnimationTransformer {
         
         return modified;
     }
+    
+    /**
+     * 应用变换到参数 Map（新 API）
+     * 
+     * <p>颤动抖动效果：随机偏移，随着进度收敛到 0
+     */
+    @Override
+    public void apply(float easedT, Map<String, Object> params, Random random) {
+        float intensity = getFloatParam(params, "intensity", 0.1f);
+        float shakeDuration = getFloatParam(params, "shakeDuration", 1.0f);
+        
+        // 震动效果：使用 shakeDuration 控制震动持续时间
+        float shakeFactor = 0f;
+        if (easedT < shakeDuration) {
+            float shakeProgress = easedT / shakeDuration;
+            shakeFactor = (1.0f - shakeProgress) * intensity;
+        }
+        
+        // 抖动随着 t -> 1 收敛
+        float dx = (random.nextFloat() - 0.5f) * 2.0f * shakeFactor;
+        float dy = (random.nextFloat() - 0.5f) * 2.0f * shakeFactor;
+        float dz = (random.nextFloat() - 0.5f) * 2.0f * shakeFactor;
+        
+        params.put("dx", dx);
+        params.put("dy", dy);
+        params.put("dz", dz);
+        
+        params.put("yaw", 0f);
+        params.put("pitch", 0f);
+        params.put("roll", 0f);
+        
+        params.put("scale", 1f);
+        params.put("alpha", 1f);
+    }
 }
 

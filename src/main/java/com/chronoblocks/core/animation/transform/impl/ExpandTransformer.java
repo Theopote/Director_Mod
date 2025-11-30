@@ -113,5 +113,35 @@ public class ExpandTransformer implements IAnimationTransformer {
         
         return modified;
     }
+    
+    /**
+     * 应用变换到参数 Map（新 API）
+     * 
+     * <p>从中心扩散并放大：随机方向扩散 + 缩放
+     */
+    @Override
+    public void apply(float easedT, Map<String, Object> params, Random random) {
+        float radius = getFloatParam(params, "radius", 0.5f);
+        
+        // 如果参数中有 expandSpeed，调整扩散速度
+        float expandSpeed = getFloatParam(params, "expandSpeed", 1.0f);
+        float effectiveT = Math.min(1.0f, easedT * expandSpeed);
+        
+        // 随机方向（使用 sequenceEntry.seed，确保稳定）
+        float angle = random.nextFloat() * 360f;
+        float dx = (float) (Math.cos(Math.toRadians(angle)) * radius * (1.0f - effectiveT));
+        float dz = (float) (Math.sin(Math.toRadians(angle)) * radius * (1.0f - effectiveT));
+        
+        params.put("dx", dx);
+        params.put("dy", 0f);
+        params.put("dz", dz);
+        
+        params.put("yaw", 0f);
+        params.put("pitch", 0f);
+        params.put("roll", 0f);
+        
+        params.put("scale", effectiveT);      // 扩散过程中逐渐变大
+        params.put("alpha", effectiveT);      // 逐渐变清晰
+    }
 }
 

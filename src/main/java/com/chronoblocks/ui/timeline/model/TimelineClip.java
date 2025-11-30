@@ -41,6 +41,22 @@ public class TimelineClip {
     private ClipAnimationConfig animationConfig = ClipAnimationConfig.defaultConfig();
     private UUID boundContainerId = null;
     private String boundContainerName = null;
+    private boolean autoFadePreviousClips = true;
+    private float autoFadeOpacity = 0.35f;
+    
+    // ========== Post-Animation Fade 状态（问题2修复）==========
+    /** 动画结束后的淡化开始时间（相对于片段结束时间，秒）*/
+    private float postAnimationFadeStart = 0.0f;
+    
+    /** 动画结束后的淡化结束时间（相对于片段结束时间，秒）。超过此时间后，方块恢复为完全不透明 */
+    private float postAnimationFadeEnd = 2.0f; // 默认在片段结束后2秒恢复
+    
+    /** 片段恢复为最终状态的绝对时间（endTime + postAnimationFadeEnd），缓存计算 */
+    private transient Float cachedRestoreTime = null;
+    
+    // ========== 可见性关键帧（问题5修复）==========
+    /** 可见性关键帧集合（按时间排序） */
+    private final NavigableSet<VisibilityKeyframe> visibilityKeyframes = new TreeSet<>();
     
     // ========== 父引用（用于 O(1) 查找）==========
     private TimelineTrack parentTrack = null;
@@ -72,6 +88,10 @@ public class TimelineClip {
         this.animationConfig = other.animationConfig != null ? other.animationConfig.copy() : ClipAnimationConfig.defaultConfig();
         this.boundContainerId = other.boundContainerId;
         this.boundContainerName = other.boundContainerName;
+        this.autoFadePreviousClips = other.autoFadePreviousClips;
+        this.autoFadeOpacity = other.autoFadeOpacity;
+        this.postAnimationFadeStart = other.postAnimationFadeStart;
+        this.postAnimationFadeEnd = other.postAnimationFadeEnd;
     }
 
     // ========== 时间操作 ==========
@@ -237,6 +257,7 @@ public class TimelineClip {
         // 验证：确保 new endTime 不会小于 startTime
         this.endTime = Math.max(endTime, this.startTime + MINIMUM_LENGTH);
         pruneOrphanedKeyframes(); // 确保关键帧在范围内
+        invalidateRestoreTimeCache();
     }
 
     public int getColor() { return color; }
@@ -304,6 +325,10 @@ public class TimelineClip {
         copy.animationConfig = this.animationConfig != null ? this.animationConfig.copy() : ClipAnimationConfig.defaultConfig();
         copy.boundContainerId = this.boundContainerId;
         copy.boundContainerName = this.boundContainerName;
+        copy.autoFadePreviousClips = this.autoFadePreviousClips;
+        copy.autoFadeOpacity = this.autoFadeOpacity;
+        copy.postAnimationFadeStart = this.postAnimationFadeStart;
+        copy.postAnimationFadeEnd = this.postAnimationFadeEnd;
         // 复制关键帧
         copy.keyframes.addAll(this.keyframes);
         return copy;
@@ -338,6 +363,240 @@ public class TimelineClip {
         config.setOrdering(preset.getOrdering());
         config.getParams().clear();
         config.getParams().putAll(preset.getParams());
+    }
+
+    public boolean isAutoFadePreviousClips() {
+        return autoFadePreviousClips;
+    }
+
+    public void setAutoFadePreviousClips(boolean autoFadePreviousClips) {
+        this.autoFadePreviousClips = autoFadePreviousClips;
+    }
+
+    public float getAutoFadeOpacity() {
+        return autoFadeOpacity;
+    }
+
+    public void setAutoFadeOpacity(float autoFadeOpacity) {
+        this.autoFadeOpacity = UIUtils.clamp(autoFadeOpacity, 0f, 1f);
+        invalidateRestoreTimeCache();
+    }
+    
+    /**
+     * 获取 post-animation fade 开始时间（相对于片段结束时间）
+     * 
+     * @return 淡化开始时间（秒）
+     */
+    public float getPostAnimationFadeStart() {
+        return postAnimationFadeStart;
+    }
+    
+    /**
+     * 设置 post-animation fade 开始时间（相对于片段结束时间）
+     * 
+     * @param postAnimationFadeStart 淡化开始时间（秒），必须 >= 0
+     */
+    public void setPostAnimationFadeStart(float postAnimationFadeStart) {
+        this.postAnimationFadeStart = Math.max(0.0f, postAnimationFadeStart);
+        if (this.postAnimationFadeStart > this.postAnimationFadeEnd) {
+            this.postAnimationFadeEnd = this.postAnimationFadeStart;
+        }
+        invalidateRestoreTimeCache();
+    }
+    
+    /**
+     * 获取 post-animation fade 结束时间（相对于片段结束时间）
+     * 
+     * @return 淡化结束时间（秒），超过此时间后方块恢复为完全不透明
+     */
+    public float getPostAnimationFadeEnd() {
+        return postAnimationFadeEnd;
+    }
+    
+    /**
+     * 设置 post-animation fade 结束时间（相对于片段结束时间）
+     * 
+     * @param postAnimationFadeEnd 淡化结束时间（秒），必须 >= postAnimationFadeStart
+     */
+    public void setPostAnimationFadeEnd(float postAnimationFadeEnd) {
+        this.postAnimationFadeEnd = Math.max(this.postAnimationFadeStart, postAnimationFadeEnd);
+        invalidateRestoreTimeCache();
+    }
+    
+    /**
+     * 获取片段恢复为最终状态的绝对时间
+     * 
+     * <p>计算方式：endTime + postAnimationFadeEnd
+     * 
+     * @return 恢复时间（秒）
+     */
+    public float getRestoreTime() {
+        if (cachedRestoreTime == null) {
+            cachedRestoreTime = endTime + postAnimationFadeEnd;
+        }
+        return cachedRestoreTime;
+    }
+    
+    /**
+     * 检查指定时间是否在片段的 post-animation fade 阶段
+     * 
+     * @param time 时间（秒）
+     * @return 如果在淡化阶段返回 true
+     */
+    public boolean isInPostAnimationFade(float time) {
+        float fadeStart = endTime + postAnimationFadeStart;
+        float fadeEnd = endTime + postAnimationFadeEnd;
+        return time >= fadeStart && time <= fadeEnd;
+    }
+    
+    /**
+     * 检查指定时间片段是否已经完全恢复（超过 restoreTime）
+     * 
+     * @param time 时间（秒）
+     * @return 如果已经完全恢复返回 true
+     */
+    public boolean isFullyRestored(float time) {
+        return time >= getRestoreTime();
+    }
+    
+    /**
+     * 使 restoreTime 缓存失效（当 endTime 或 postAnimationFadeEnd 改变时调用）
+     */
+    private void invalidateRestoreTimeCache() {
+        cachedRestoreTime = null;
+    }
+    
+    // ========== 可见性关键帧管理（问题5修复）==========
+    
+    /**
+     * 获取所有可见性关键帧（只读视图）
+     * 
+     * @return 不可修改的关键帧集合
+     */
+    public NavigableSet<VisibilityKeyframe> getVisibilityKeyframes() {
+        return Collections.unmodifiableNavigableSet(visibilityKeyframes);
+    }
+    
+    /**
+     * 添加可见性关键帧
+     * 
+     * @param keyframe 关键帧
+     * @return 如果成功添加返回 true
+     */
+    public boolean addVisibilityKeyframe(VisibilityKeyframe keyframe) {
+        if (keyframe == null) {
+            return false;
+        }
+        // 确保关键帧时间在片段范围内
+        float clipLength = getLength();
+        if (keyframe.getTime() < 0 || keyframe.getTime() > clipLength) {
+            return false;
+        }
+        return visibilityKeyframes.add(keyframe);
+    }
+    
+    /**
+     * 移除可见性关键帧
+     * 
+     * @param keyframe 关键帧
+     * @return 如果成功移除返回 true
+     */
+    public boolean removeVisibilityKeyframe(VisibilityKeyframe keyframe) {
+        return keyframe != null && visibilityKeyframes.remove(keyframe);
+    }
+    
+    /**
+     * 移除指定时间的关键帧
+     * 
+     * @param time 关键帧时间（相对于片段开始时间）
+     * @return 如果找到并移除了关键帧返回 true
+     */
+    public boolean removeVisibilityKeyframeAt(float time) {
+        VisibilityKeyframe toRemove = null;
+        for (VisibilityKeyframe kf : visibilityKeyframes) {
+            if (Math.abs(kf.getTime() - time) < 0.001f) {
+                toRemove = kf;
+                break;
+            }
+        }
+        return toRemove != null && visibilityKeyframes.remove(toRemove);
+    }
+    
+    /**
+     * 清除所有可见性关键帧
+     */
+    public void clearVisibilityKeyframes() {
+        visibilityKeyframes.clear();
+    }
+    
+    /**
+     * 根据时间计算透明度（基于关键帧插值）
+     * 
+     * <p>使用线性插值在相邻关键帧之间计算透明度值
+     * 
+     * @param time 时间（相对于片段开始时间，秒）
+     * @return 计算出的透明度 [0..1]，如果无关键帧返回 1.0
+     */
+    public float computeAlphaAt(float time) {
+        if (visibilityKeyframes.isEmpty()) {
+            return 1.0f; // 无关键帧，默认完全不透明
+        }
+        
+        // 找到时间前后的关键帧
+        VisibilityKeyframe lower = visibilityKeyframes.floor(new VisibilityKeyframe(time, 1.0f, VisibilityKeyframe.VisibilityMode.NORMAL));
+        VisibilityKeyframe higher = visibilityKeyframes.ceiling(new VisibilityKeyframe(time, 1.0f, VisibilityKeyframe.VisibilityMode.NORMAL));
+        
+        if (lower == null && higher == null) {
+            return 1.0f;
+        }
+        
+        if (lower == null) {
+            // 时间在所有关键帧之前，使用第一个关键帧的值
+            return higher.getEffectiveAlpha();
+        }
+        
+        if (higher == null) {
+            // 时间在所有关键帧之后，使用最后一个关键帧的值
+            return lower.getEffectiveAlpha();
+        }
+        
+        if (lower == higher || Math.abs(lower.getTime() - higher.getTime()) < 0.001f) {
+            // 正好在关键帧上
+            return lower.getEffectiveAlpha();
+        }
+        
+        // 线性插值
+        float t = (time - lower.getTime()) / (higher.getTime() - lower.getTime());
+        float alpha1 = lower.getEffectiveAlpha();
+        float alpha2 = higher.getEffectiveAlpha();
+        return alpha1 + (alpha2 - alpha1) * t;
+    }
+    
+    /**
+     * 根据全局时间计算透明度
+     * 
+     * @param globalTime 全局时间（秒）
+     * @return 计算出的透明度 [0..1]
+     */
+    public float computeAlphaAtGlobalTime(float globalTime) {
+        float localTime = globalTime - startTime;
+        if (localTime < 0) {
+            return 0.0f; // 片段还没开始
+        }
+        if (localTime > getLength()) {
+            // 片段已结束，可能需要考虑 post-animation fade
+            if (isInPostAnimationFade(globalTime)) {
+                // 在淡化阶段，计算淡化透明度
+                float fadeStart = endTime + postAnimationFadeStart;
+                float fadeEnd = endTime + postAnimationFadeEnd;
+                float fadeT = (globalTime - fadeStart) / (fadeEnd - fadeStart);
+                // 从 1.0 淡出到 autoFadeOpacity
+                return 1.0f - (1.0f - autoFadeOpacity) * fadeT;
+            }
+            // 片段结束且已恢复
+            return computeAlphaAt(getLength());
+        }
+        return computeAlphaAt(localTime);
     }
     
     /**

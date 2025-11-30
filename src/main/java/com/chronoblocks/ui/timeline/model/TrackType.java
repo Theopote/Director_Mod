@@ -11,7 +11,8 @@ import java.util.EnumSet;
  * <ul>
  *   <li>📦 容器轨道 - 控制方块容器的显隐和动画</li>
  *   <li>📷 摄像机轨道 - 控制观察视角和镜头运动</li>
- *   <li>🌤️ 天气轨道 - 控制 Minecraft 天气和时间</li>
+ *   <li>🌤️ 天气轨道 - 控制 Minecraft 天气和光照</li>
+ *   <li>🕐 时间轨道 - 控制完整一天的时间变化</li>
  *   <li>📝 标记轨道 - 添加时间标记和注释</li>
  * </ul>
  */
@@ -41,15 +42,27 @@ public enum TrackType {
     ),
 
     /**
-     * 天气轨道 - 控制 Minecraft 天气和时间。
+     * 天气轨道 - 控制 Minecraft 天气和光照。
      */
     WEATHER(
         "天气轨道",
         Icons.TIME,
         rgba(120, 180, 220),
         rgba(80, 140, 180),
-        "控制 Minecraft 天气、时间与光照关键帧",
+        "控制 Minecraft 天气与光照关键帧",
         EnumSet.of(TrackFeature.KEYFRAMES, TrackFeature.WEATHER_AUTOMATION)
+    ),
+
+    /**
+     * 时间轨道 - 控制完整一天的时间变化。
+     */
+    TIME(
+        "时间轨道",
+        Icons.CLOCK,
+        rgba(240, 160, 60),
+        rgba(200, 120, 40),
+        "控制 Minecraft 世界时间，设置完整一天的时间变化",
+        EnumSet.of(TrackFeature.KEYFRAMES, TrackFeature.TIME_AUTOMATION)
     ),
 
     /**
@@ -113,6 +126,7 @@ public enum TrackType {
         return features.contains(TrackFeature.KEYFRAMES)
             || features.contains(TrackFeature.CAMERA_AUTOMATION)
             || features.contains(TrackFeature.WEATHER_AUTOMATION)
+            || features.contains(TrackFeature.TIME_AUTOMATION)
             || features.contains(TrackFeature.MARKERS);
     }
 
@@ -126,6 +140,10 @@ public enum TrackType {
 
     public boolean supportsWeatherControl() {
         return features.contains(TrackFeature.WEATHER_AUTOMATION);
+    }
+
+    public boolean supportsTimeControl() {
+        return features.contains(TrackFeature.TIME_AUTOMATION);
     }
 
     public boolean supportsMarkers() {
@@ -164,6 +182,7 @@ public enum TrackType {
         CONTAINER_PAYLOAD,
         CAMERA_AUTOMATION,
         WEATHER_AUTOMATION,
+        TIME_AUTOMATION,
         MARKERS
     }
 }

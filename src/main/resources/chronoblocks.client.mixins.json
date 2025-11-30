@@ -10,9 +10,11 @@
     "KeyboardInputMixin",
     "ClientPlayerInteractionManagerMixin",
     "GameRendererMixin",
+    "CameraMixin",
     "HotbarMixin",
     "DebugHudMixin",
     "WorldRendererMixin",
+    "BlockRenderManagerMixin",
     "ClientWorldMixin"
   ],
   "injectors": {

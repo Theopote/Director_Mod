@@ -117,6 +117,8 @@ public class TimelineModelPersistence {
         public Map<String, Object> sequenceParams = new HashMap<>();
         public String boundContainerId;
         public String boundContainerName;
+        public boolean autoFadePreviousClips = true;
+        public float autoFadeOpacity = 0.35f;
     }
     
     /**
@@ -192,6 +194,8 @@ public class TimelineModelPersistence {
                     clipDTO.boundContainerId = clip.getBoundContainerId().toString();
                 }
                 clipDTO.boundContainerName = clip.getBoundContainerName();
+                clipDTO.autoFadePreviousClips = clip.isAutoFadePreviousClips();
+                clipDTO.autoFadeOpacity = clip.getAutoFadeOpacity();
                 
                 trackDTO.clips.add(clipDTO);
             }
@@ -256,6 +260,8 @@ public class TimelineModelPersistence {
                 );
                 clip.setMuted(clipDTO.muted);
                 clip.setOpacity(clipDTO.opacity);
+                clip.setAutoFadePreviousClips(clipDTO.autoFadePreviousClips);
+                clip.setAutoFadeOpacity(clipDTO.autoFadeOpacity);
                 ClipAnimationConfig config = clip.getAnimationConfig();
                 if (clipDTO.animationMode != null) {
                     try {

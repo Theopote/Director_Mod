@@ -139,5 +139,43 @@ public class FallDownTransformer implements IAnimationTransformer {
         
         return modified;
     }
+    
+    /**
+     * 应用变换到参数 Map（新 API）
+     * 
+     * <p>从空中掉落：Y 位移 + 随机旋转（翻滚）
+     */
+    @Override
+    public void apply(float easedT, Map<String, Object> params, Random random) {
+        float height = getFloatParam(params, "height", 10.0f);
+        boolean tumble = getBooleanParam(params, "tumble", true);
+        float tumbleIntensity = getFloatParam(params, "tumbleIntensity", 1.0f);
+        
+        // 计算 Y 位移：从 height 到 0
+        float dy = height * (1.0f - easedT);
+        
+        params.put("dx", 0f);
+        params.put("dy", dy);
+        params.put("dz", 0f);
+        
+        // 随机旋转（翻滚效果）
+        if (tumble && easedT < 0.95f) { // 落地前旋转
+            float rotateAmount = (1.0f - easedT) * tumbleIntensity;
+            
+            params.put("yaw", rotateAmount * 360.0f * (0.5f + random.nextFloat()));
+            params.put("pitch", rotateAmount * 360.0f * (0.5f + random.nextFloat()));
+            params.put("roll", rotateAmount * 180.0f * (0.3f + random.nextFloat() * 0.4f));
+        } else {
+            params.put("yaw", 0f);
+            params.put("pitch", 0f);
+            params.put("roll", 0f);
+        }
+        
+        params.put("scale", 1f);
+        
+        // 透明度：如果启用了 fadeIn，边坠落边淡入
+        boolean fadeIn = getBooleanParam(params, "fadeIn", false);
+        params.put("alpha", fadeIn ? easedT : 1.0f);
+    }
 }
 

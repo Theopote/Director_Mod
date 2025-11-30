@@ -48,5 +48,24 @@ public class InstantTransformer implements IAnimationTransformer {
         // 瞬间出现模式无参数需要配置
         return false;
     }
+    
+    /**
+     * 应用变换到参数 Map（新 API）
+     * 
+     * <p>瞬间出现：所有变换参数为默认值（无变换）
+     */
+    @Override
+    public void apply(float easedT, Map<String, Object> params, Random random) {
+        params.put("dx", 0f);
+        params.put("dy", 0f);
+        params.put("dz", 0f);
+        
+        params.put("yaw", 0f);
+        params.put("pitch", 0f);
+        params.put("roll", 0f);
+        
+        params.put("scale", 1f);
+        params.put("alpha", 1f); // 直接显示
+    }
 }
 

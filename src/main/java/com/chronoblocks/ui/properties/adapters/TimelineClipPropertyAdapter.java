@@ -35,10 +35,8 @@ import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImInt;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+
+import java.util.*;
 
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -201,25 +199,21 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
      */
 
     private boolean renderBasicProperties(TimelineClip clip) {
-
         boolean modified = false;
-
-        // 时间控制（两列布局）
+        ClipAnimationConfig config = clip.getAnimationConfig();
 
         float contentWidth = ImGui.getContentRegionAvailX();
+        float labelWidth = 80.0f;
+        float inputWidth = (contentWidth - labelWidth * 2 - ImGui.getStyle().getItemSpacingX() * 2) / 2;
 
-        float labelWidth = 80.0f; // 标签宽度
-
-        float inputWidth = (contentWidth - labelWidth * 2 - ImGui.getStyle().getItemSpacingX() * 2) / 2; // 输入框宽度
-
-        // 起始时间：标签在前，输入框在后
+        // 起始时间
         ImGui.alignTextToFramePadding();
         ImGui.text("起始时间");
         ImGui.sameLine();
         ImGui.pushItemWidth(inputWidth);
-        float[] start = {clip.getStartTime()};
-        if (ImGui.dragFloat("##StartTime", start, 0.05f, 0f, 10000f, "%.2fs")) {
-            clip.setStartTime(Math.max(0f, start[0]));
+        float[] startVal = {clip.getStartTime()};
+        if (ImGui.dragFloat("##StartTime", startVal, 0.05f, 0f, 10000f, "%.2fs")) {
+            clip.setStartTime(Math.max(0f, startVal[0]));
             modified = true;
         }
         ImGui.popItemWidth();
@@ -229,19 +223,19 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
 
         ImGui.sameLine();
 
-        // 持续时长：标签在前，输入框在后
+        // 持续时长
         ImGui.alignTextToFramePadding();
         ImGui.text("持续时长");
         ImGui.sameLine();
         ImGui.pushItemWidth(inputWidth);
-        float[] length = {clip.getLength()};
-        if (ImGui.dragFloat("##Length", length, 0.05f, 0.05f, 10000f, "%.2fs")) {
-            clip.setLength(length[0]);
+        float[] lengthVal = {clip.getLength()};
+        if (ImGui.dragFloat("##Length", lengthVal, 0.05f, 0.05f, 10000f, "%.2fs")) {
+            clip.setLength(lengthVal[0]);
             modified = true;
         }
         ImGui.popItemWidth();
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("片段持续时长（方块从隐藏到完全出现的动画过程）");
+            ImGui.setTooltip("方块从隐藏到完全出现的持续时长");
         }
 
         // 片段颜色
@@ -259,14 +253,54 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
             ImGui.setTooltip("片段在轨道上显示的颜色");
         }
 
-        return modified;
+        ImGui.separator();
 
+        // 自动淡化之前片段
+        ImBoolean autoFade = new ImBoolean(clip.isAutoFadePreviousClips());
+        if (ImGui.checkbox("自动淡化之前片段", autoFade)) {
+            clip.setAutoFadePreviousClips(autoFade.get());
+            modified = true;
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("播放当前片段时，让更早的片段方块暂时半透明/隐藏以避免遮挡。");
+        }
+
+        // 淡化透明度控制
+        if (clip.isAutoFadePreviousClips()) {
+            ImGui.indent();
+            float[] opacity = {clip.getAutoFadeOpacity()};
+            if (ImGui.sliderFloat("淡化透明度", opacity, 0.05f, 0.95f, "%.2f")) {
+                clip.setAutoFadeOpacity(opacity[0]);
+                modified = true;
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("设置遮挡方块的透明度：\n- 0.05: 几乎透明\n- 0.35: 半透明（推荐）\n- 0.95: 几乎不透明");
+            }
+
+            if (opacity[0] < 0.15f) {
+                ImGui.textColored(0.8f, 0.8f, 0.2f, 1.0f, "  -> 遮挡方块将被完全隐藏");
+            } else if (opacity[0] < 0.5f) {
+                ImGui.textColored(0.6f, 0.8f, 1.0f, 1.0f, "  -> 遮挡方块将变为半透明");
+            } else {
+                ImGui.textColored(0.8f, 0.8f, 0.8f, 1.0f, "  -> 遮挡方块将轻微淡化");
+            }
+            ImGui.unindent();
+        }
+
+        // 遮挡时透明显示开关
+        ImBoolean occlusionTransparency = new ImBoolean(config.isOcclusionTransparencyEnabled());
+        if (ImGui.checkbox("遮挡时透明显示", occlusionTransparency)) {
+            config.setOcclusionTransparencyEnabled(occlusionTransparency.get());
+            modified = true;
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("勾选：遮挡后续片段时由系统接管并以半透明显示（隐藏原网格）。\n关闭：保持原样，不参与透明遮挡。");
+        }
+
+        return modified;
     }
 
-    /**
-     * 渲染动画设置
-     */
-    private boolean renderAnimationSettings(TimelineClip clip) {
+private boolean renderAnimationSettings(TimelineClip clip) {
         try {
             return renderAnimationSettingsInternal(clip);
         } catch (Exception e) {
@@ -1008,7 +1042,7 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
             return;
         }
 
-        Container container = ContainerManager.getInstance().getContainer(containerId);
+        Container container = Objects.requireNonNull(ContainerManager.getInstance()).getContainer(containerId);
         if (container == null) {
             ImGui.textDisabled("⚠ 容器不存在或已被删除");
             return;
@@ -1434,7 +1468,6 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
         if (valueRange < 0.0001f) {
             valueRange = 1.0f; // 如果值几乎不变，使用默认范围
             minValue = 0.0f;
-            maxValue = 1.0f;
         }
 
         // 绘制曲线预览区域
@@ -1445,16 +1478,14 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
         float padding = Math.min(totalWidth, totalHeight) * 0.05f; // 5% 边距
         float chartWidth = totalWidth - padding * 2;
         float chartHeight = totalHeight - padding * 2;
-        float chartX = padding;
-        float chartY = padding;
 
         ImVec2 cursor = ImGui.getCursorScreenPos();
         float x = cursor.x;
         float y = cursor.y;
         
         // 计算实际的绘制区域坐标
-        float chartStartX = x + chartX;
-        float chartStartY = y + chartY;
+        float chartStartX = x + padding;
+        float chartStartY = y + padding;
         float chartEndX = chartStartX + chartWidth;
         float chartEndY = chartStartY + chartHeight;
 

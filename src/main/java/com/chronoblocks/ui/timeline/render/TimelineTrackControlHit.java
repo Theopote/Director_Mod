@@ -1,6 +1,7 @@
 package com.chronoblocks.ui.timeline.render;
 
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
+import com.chronoblocks.ui.timeline.model.TrackType;
 import java.util.ArrayList;
 import java.util.List;
 import org.slf4j.Logger;
@@ -27,6 +28,7 @@ public final class TimelineTrackControlHit {
      * 轨道控制类型枚举
      */
     public enum TrackControlType {
+        ADD_KEYFRAME,
         LOCK,
         VISIBILITY
     }
@@ -95,12 +97,20 @@ public final class TimelineTrackControlHit {
      * @param leftLabelWidth 左侧标签宽度
      */
     public void registerTrackControlAreas(TimelineTrack track, float winX, float y, float leftLabelWidth) {
+        TrackType type = track != null ? track.getType() : null;
+        boolean supportsKeyframes = type != null && type.supportsKeyframes();
+
+        float keyframeX1 = winX + leftLabelWidth - 68f;
+        float keyframeX2 = keyframeX1 + CONTROL_ICON_SIZE;
         float lockX1 = winX + leftLabelWidth - 48f;
         float lockX2 = lockX1 + CONTROL_ICON_SIZE;
         float visibleX1 = winX + leftLabelWidth - 28f;
         float visibleX2 = visibleX1 + CONTROL_ICON_SIZE;
         float y2 = y + CONTROL_ICON_SIZE + 2f;
         
+        if (supportsKeyframes) {
+            addHitToPool(track, TrackControlType.ADD_KEYFRAME, keyframeX1, y + 2f, keyframeX2, y2);
+        }
         // 使用池化方法获取对象
         addHitToPool(track, TrackControlType.LOCK, lockX1, y + 2f, lockX2, y2);
         addHitToPool(track, TrackControlType.VISIBILITY, visibleX1, y + 2f, visibleX2, y2);

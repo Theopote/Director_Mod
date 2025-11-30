@@ -11,6 +11,7 @@ import com.chronoblocks.ui.timeline.model.weather.WeatherKeyframe;
 import com.chronoblocks.ui.timeline.persistence.TimelineModelPersistence;
 import com.chronoblocks.ui.timeline.snapping.TimelineSnapSettings;
 import com.chronoblocks.ui.timeline.snapping.TimelineSnapping;
+import com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController;
 
 /**
  * Timeline 数据模型（v7.4 统一真相源）
@@ -459,6 +460,7 @@ public class TimelineModel {
         }
         float clamped = Math.max(0f, Math.min(timeSeconds, getDuration()));
         CameraKeyframe keyframe = new CameraKeyframe("Camera Keyframe", clamped);
+        TimelineCameraController.getInstance().captureFromGameCamera(keyframe);
         track.addAutomationKeyframe(keyframe);
         markDirty();
         return keyframe;

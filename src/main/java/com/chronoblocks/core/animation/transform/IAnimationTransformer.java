@@ -114,5 +114,50 @@ public interface IAnimationTransformer {
         // 默认实现：不渲染任何UI
         return false;
     }
+    
+    /**
+     * 应用变换到参数 Map（新 API，用于 BlockAnimationEngine.sample()）
+     * 
+     * <p>此方法将变换结果写入 params Map，而不是返回 TransformResult。
+     * 这是为了支持新的采样架构。
+     * 
+     * <p>默认实现：调用 transform() 并将结果转换为 params。
+     * 子类可以重写此方法以直接写入 params（更高效）。
+     * 
+     * <p>写入的键名约定：
+     * <ul>
+     *   <li>dx, dy, dz: 平移偏移（float）</li>
+     *   <li>scale: 缩放比例（float，默认 1.0）</li>
+     *   <li>yaw, pitch, roll: 旋转角度（float，度）</li>
+     *   <li>alpha: 透明度（float [0..1]，默认 1.0）</li>
+     * </ul>
+     * 
+     * @param easedT 缓动后的进度 [0..1]
+     * @param params 参数配置 Map（将在此 Map 中写入变换参数）
+     * @param random 每个方块独立随机源
+     */
+    default void apply(float easedT, Map<String, Object> params, Random random) {
+        // 默认实现：调用 transform() 并将结果转换为 params
+        TransformResult result = transform(easedT, params, random);
+        
+        if (result != null) {
+            // 平移
+            params.put("dx", result.translateX);
+            params.put("dy", result.translateY);
+            params.put("dz", result.translateZ);
+            
+            // 缩放（统一缩放）
+            float avgScale = (result.scaleX + result.scaleY + result.scaleZ) / 3.0f;
+            params.put("scale", avgScale);
+            
+            // 旋转
+            params.put("yaw", result.rotateY);
+            params.put("pitch", result.rotateX);
+            params.put("roll", result.rotateZ);
+            
+            // 透明度
+            params.put("alpha", result.opacity);
+        }
+    }
 }
 

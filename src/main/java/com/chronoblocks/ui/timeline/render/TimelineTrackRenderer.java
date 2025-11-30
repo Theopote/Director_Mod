@@ -32,6 +32,7 @@ public final class TimelineTrackRenderer {
     private static final float TRACK_LABEL_ICON_SPACING = 6f;
     private static final float TRACK_LABEL_TEXT_OFFSET = 8f;
     private static final float TRACK_ICON_OFFSET_Y = 6f;
+    private static final float TRACK_KEYFRAME_OFFSET_X = -65f;
     private static final float TRACK_LOCK_OFFSET_X = -45f;
     private static final float TRACK_VISIBILITY_OFFSET_X = -25f;
 
@@ -96,9 +97,15 @@ public final class TimelineTrackRenderer {
         }
         drawList.addText(labelX, y + TRACK_ICON_OFFSET_Y, TimelineColors.COLOR_TEXT_LIGHT, track.getName());
 
-        // 7. 绘制控制图标（锁/可见性）
+        // 7. 绘制控制图标（关键帧 / 锁 / 可见性）
+        float keyframeX = winX + viewport.getLeftLabelWidth() + TRACK_KEYFRAME_OFFSET_X;
         float lockX = winX + viewport.getLeftLabelWidth() + TRACK_LOCK_OFFSET_X;
         float visibilityX = winX + viewport.getLeftLabelWidth() + TRACK_VISIBILITY_OFFSET_X;
+
+        boolean supportsKeyframes = type != null && type.supportsKeyframes();
+        int keyframeColor = supportsKeyframes ? TimelineColors.COLOR_KEYFRAME : TimelineColors.rgba(140, 140, 140, 100);
+        drawList.addText(keyframeX, y + TRACK_ICON_OFFSET_Y, keyframeColor, Icons.KEYFRAME);
+
         if (track.isLocked()) {
             drawList.addText(lockX, y + TRACK_ICON_OFFSET_Y, TimelineColors.rgba(200, 180, 100, 255), Icons.LOCK);
         } else {

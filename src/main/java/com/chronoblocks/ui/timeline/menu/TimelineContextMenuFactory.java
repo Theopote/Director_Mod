@@ -8,6 +8,7 @@ import com.chronoblocks.ui.timeline.commands.DeleteClipCommand;
 import com.chronoblocks.ui.timeline.commands.DeleteTrackCommand;
 import com.chronoblocks.ui.timeline.commands.DuplicateClipCommand;
 import com.chronoblocks.ui.timeline.commands.MoveTrackCommand;
+import com.chronoblocks.ui.timeline.commands.RemoveAutomationKeyframeCommand;
 import com.chronoblocks.ui.timeline.commands.RemoveKeyframeCommand;
 import com.chronoblocks.ui.timeline.commands.SetClipLengthCommand;
 import com.chronoblocks.ui.timeline.commands.TimelineCommandHistory;
@@ -71,6 +72,7 @@ public class TimelineContextMenuFactory {
             case TRACK_HEADER -> createTrackHeaderMenu(hit.track(), hit.trackIndex());
             case CLIP -> createClipMenu(hit.clip(), hit.track() != null ? hit.track() : model.findTrackForClip(hit.clip()));
             case KEYFRAME -> createKeyframeMenu(hit.clip(), hit.time());
+            case AUTOMATION_KEYFRAME -> createAutomationKeyframeMenu(hit.automationKeyframe(), hit.track());
             case EMPTY -> createEmptyAreaMenu(hit.time());
             default -> null;
         };
@@ -146,6 +148,39 @@ public class TimelineContextMenuFactory {
                     .command("阶梯（保持再跳变）",
                         new ChangeKeyframeInterpolationCommand(model, track, clip, keyframeTime, TimelineInterpolation.STEP))
                 .end()
+                .open();
+    }
+
+    /**
+     * 创建自动化关键帧的右键菜单（摄像机关键帧、天气关键帧等）
+     */
+    public TimelineContextMenu createAutomationKeyframeMenu(
+            com.chronoblocks.ui.timeline.model.TimelineSelectable keyframe,
+            com.chronoblocks.ui.timeline.model.TimelineTrack track) {
+        if (keyframe == null || track == null) {
+            LOGGER.warn("[Timeline] 创建自动化关键帧菜单失败：keyframe 或 track 为 null");
+            return TimelineContextMenuBuilder
+                    .custom(commandHistory, "AutomationKeyframeMenu")
+                    .disabledItem("无关键帧")
+                    .build();
+        }
+
+        String menuLabel = keyframe.getName();
+        if (keyframe instanceof CameraKeyframe) {
+            menuLabel = "摄像机关键帧";
+        } else if (keyframe instanceof WeatherKeyframe) {
+            menuLabel = "天气关键帧";
+        } else if (keyframe instanceof TimelineMarker) {
+            menuLabel = "标记";
+        }
+
+        return TimelineContextMenuBuilder
+                .custom(commandHistory, "AutomationKeyframeMenu")
+                .disabledItem(String.format("%s @ %.3fs", menuLabel, keyframe.getStartTime()))
+                .separator()
+                .command("删除关键帧",
+                        new RemoveAutomationKeyframeCommand(model, track, keyframe),
+                        "Del")
                 .open();
     }
 

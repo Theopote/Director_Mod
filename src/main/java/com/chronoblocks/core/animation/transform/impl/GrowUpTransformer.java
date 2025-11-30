@@ -128,5 +128,40 @@ public class GrowUpTransformer implements IAnimationTransformer {
         
         return modified;
     }
+    
+    /**
+     * 应用变换到参数 Map（新 API）
+     * 
+     * <p>从下往上生长：Y 轴缩放从 0 到 1，并调整位移使底部固定
+     */
+    @Override
+    public void apply(float easedT, Map<String, Object> params, Random random) {
+        String axis = getStringParam(params, "axis", "Y");
+        String pivot = getStringParam(params, "pivot", "BOTTOM");
+        
+        float scale = easedT;
+        
+        // 根据轴向应用缩放（统一使用 scale 参数，BlockAnimationEngine 会统一应用）
+        // 对于复杂的轴向缩放，可以使用 scaleX/scaleY/scaleZ，但当前约定是统一 scale
+        float finalScale = scale;
+        
+        // 根据锚点调整位移
+        float dy = 0f;
+        if ("BOTTOM".equalsIgnoreCase(pivot) && "Y".equalsIgnoreCase(axis)) {
+            // 从底部生长：需要向下偏移，使底部固定
+            dy = -0.5f * (1.0f - scale);
+        }
+        
+        params.put("dx", 0f);
+        params.put("dy", dy);
+        params.put("dz", 0f);
+        
+        params.put("yaw", 0f);
+        params.put("pitch", 0f);
+        params.put("roll", 0f);
+        
+        params.put("scale", finalScale);
+        params.put("alpha", easedT); // 慢慢出现
+    }
 }
 

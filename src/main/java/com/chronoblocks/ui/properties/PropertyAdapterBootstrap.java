@@ -5,6 +5,7 @@ import com.chronoblocks.animation.core.Keyframe;
 import com.chronoblocks.core.container.Container;
 import com.chronoblocks.ui.properties.adapters.*;
 import com.chronoblocks.ui.timeline.model.TimelineClip;
+import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,7 +32,7 @@ import org.slf4j.LoggerFactory;
  * }
  * }</pre>
  * 
- * <h3>已注册的适配器（16个）</h3>
+ * <h3>已注册的适配器（17个）</h3>
  * <ul>
  *   <li><b>时间线系统（3个）</b></li>
  *   <li>  - TimelineProjectPropertyAdapter - 项目编辑器</li>
@@ -41,11 +42,12 @@ import org.slf4j.LoggerFactory;
  *   <li>  - KeyframePropertyAdapter - 关键帧编辑器</li>
  *   <li>  - ContainerPropertyAdapter - 容器编辑器</li>
  *   <li>  - ClipPropertyAdapter - 片段编辑器</li>
- *   <li><b>扩展系统（5个）</b></li>
+ *   <li><b>扩展系统（6个）</b></li>
  *   <li>  - EffectPropertyAdapter - 特效编辑器</li>
  *   <li>  - ProjectEnvironmentPropertyAdapter - 环境编辑器</li>
  *   <li>  - MaterialLibraryPropertyAdapter - 材质库编辑器</li>
  *   <li>  - CameraPropertyAdapter - 相机编辑器</li>
+ *   <li>  - CameraKeyframePropertyAdapter - 摄像机关键帧编辑器</li>
  *   <li>  - PostProcessingPropertyAdapter - 后处理编辑器</li>
  *   <li>  - PhysicsEnvironmentPropertyAdapter - 物理编辑器</li>
  *   <li><b>扩展类型（3个）</b></li>
@@ -134,6 +136,10 @@ public final class PropertyAdapterBootstrap {
             
             // ✅ 相机适配器
             registerAdapter(new CameraPropertyAdapter(), "Camera");
+            registeredCount++;
+            
+            // ✅ 摄像机关键帧适配器
+            registerAdapter(CameraKeyframe.class, new CameraKeyframePropertyAdapter());
             registeredCount++;
             
             // ✅ 后处理适配器

@@ -46,6 +46,8 @@ public final class ClipAnimationConfig implements Serializable, Cloneable {
     // ========== 序列策略配置（新增）==========
     private SequenceMode sequenceMode;
     private SequenceParameters sequenceParameters;
+    // 遮挡时是否允许透明渲染（片段级开关）
+    private boolean occlusionTransparencyEnabled = true;
 
     {
         new SequenceParameters();
@@ -108,6 +110,7 @@ public final class ClipAnimationConfig implements Serializable, Cloneable {
         clone.params.putAll(this.params);
         clone.sequenceMode = this.sequenceMode;
         clone.sequenceParameters = this.sequenceParameters != null ? this.sequenceParameters.copy() : new SequenceParameters();
+        clone.occlusionTransparencyEnabled = this.occlusionTransparencyEnabled;
         
         // 复制特效列表
         for (EffectInstance effect : this.effects) {
@@ -215,6 +218,20 @@ public final class ClipAnimationConfig implements Serializable, Cloneable {
      */
     public void setSequenceParameters(SequenceParameters sequenceParameters) {
         this.sequenceParameters = sequenceParameters != null ? sequenceParameters.copy() : new SequenceParameters();
+    }
+
+    /**
+     * 是否启用遮挡时透明渲染（片段级）
+     */
+    public boolean isOcclusionTransparencyEnabled() {
+        return occlusionTransparencyEnabled;
+    }
+
+    /**
+     * 设置遮挡时透明渲染开关
+     */
+    public void setOcclusionTransparencyEnabled(boolean enabled) {
+        this.occlusionTransparencyEnabled = enabled;
     }
     
     // ========== 特效系统访问方法 ==========

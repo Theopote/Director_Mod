@@ -138,5 +138,68 @@ public class FlyInTransformer implements IAnimationTransformer {
         
         return modified;
     }
+    
+    /**
+     * 应用变换到参数 Map（新 API）
+     * 
+     * <p>从随机方向飞入：支持六个方向或随机方向
+     */
+    @Override
+    public void apply(float easedT, Map<String, Object> params, Random random) {
+        String direction = getStringParam(params, "direction", "RANDOM");
+        float flyDistance = getFloatParam(params, "flyDistance", 5.0f);
+        
+        float dx = 0f, dy = 0f, dz = 0f;
+        float offset = flyDistance * (1.0f - easedT);
+        
+        // 根据方向计算位移
+        if ("RANDOM".equalsIgnoreCase(direction)) {
+            // 随机方向飞入
+            float angle = random.nextFloat() * 360f;
+            dx = (float) (Math.cos(Math.toRadians(angle)) * offset);
+            dz = (float) (Math.sin(Math.toRadians(angle)) * offset);
+            dy = (random.nextFloat() - 0.5f) * offset; // 高度随机偏移
+        } else {
+            // 根据指定方向
+            switch (direction.toUpperCase()) {
+                case "X+":
+                    dx = -offset; // 从右侧飞入
+                    break;
+                case "X-":
+                    dx = offset; // 从左侧飞入
+                    break;
+                case "Y+":
+                    dy = -offset; // 从上方飞入
+                    break;
+                case "Y-":
+                    dy = offset; // 从下方飞入
+                    break;
+                case "Z+":
+                    dz = -offset; // 从前方飞入
+                    break;
+                case "Z-":
+                    dz = offset; // 从后方飞入
+                    break;
+                default:
+                    // 默认随机方向
+                    float angle = random.nextFloat() * 360f;
+                    dx = (float) (Math.cos(Math.toRadians(angle)) * offset);
+                    dz = (float) (Math.sin(Math.toRadians(angle)) * offset);
+                    dy = (random.nextFloat() - 0.5f) * offset;
+                    break;
+            }
+        }
+        
+        params.put("dx", dx);
+        params.put("dy", dy);
+        params.put("dz", dz);
+        
+        params.put("yaw", 0f);
+        params.put("pitch", 0f);
+        params.put("roll", 0f);
+        
+        params.put("scale", easedT);
+        params.put("alpha", easedT);
+    }
 }
 

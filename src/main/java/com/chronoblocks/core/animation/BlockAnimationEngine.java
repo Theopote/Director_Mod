@@ -1,58 +1,359 @@
 package com.chronoblocks.core.animation;
 
-import com.chronoblocks.core.container.Container;
+import com.chronoblocks.core.animation.effect.BlockEffectRegistry;
+import com.chronoblocks.core.animation.effect.EffectInstance;
+import com.chronoblocks.core.animation.effect.IBlockEffect;
+import com.chronoblocks.core.animation.easing.EasingFunction;
+import com.chronoblocks.core.animation.sequence.BlockSequenceEntry;
+import com.chronoblocks.core.animation.transform.AnimationTransformerFactory;
+import com.chronoblocks.core.animation.transform.IAnimationTransformer;
+import com.chronoblocks.core.container.AnimationMode;
+import net.minecraft.block.BlockState;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.random.Random;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.Collections;
+import java.util.Map;
 
 /**
- * 方块动画引擎接口
- * 
- * <p>定义容器中方块出现/消失的动画效果执行逻辑
- * 
- * <p>核心概念：
- * <ul>
- *   <li>片段的时长 = 方块从隐藏到完全出现的动画过程</li>
- *   <li>动画引擎根据片段的配置（AnimationMode、duration等）控制方块的出现时机</li>
- *   <li>每种动画模式有不同的算法来计算方块应该何时显示</li>
- * </ul>
- * 
+ * BlockAnimationEngine
+ * --------------------
+ * 负责把：
+ *   - 时间线时间 (now)
+ *   - 片段配置 ClipAnimationConfig（mode/duration/easing/params/effects）
+ *   - 序列行为 BlockSequenceEntry（seqNormalizedTime）
+ *
+ * 映射成单个方块在当前帧的动画采样结果 BlockAnimationSnapshot。
+ *
+ * 约定：
+ *   - 所有时间单位统一用秒（与 Timeline 一致）
+ *   - sequenceEntry.normalizedTime 为归一化 [0..1]，决定该方块在片段中的"出场顺序"
+ *   - Snapshot.transform 只保存"局部动画矩阵"（围绕方块中心），不包含世界坐标
+ *     世界坐标由 Renderer 统一负责：先 translate(pos)，再乘 transform
+ *
  * @author ChronoBlocks Team
- * @version 1.0
+ * @version 2.2
  */
-public interface BlockAnimationEngine {
-    
+public final class BlockAnimationEngine {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(BlockAnimationEngine.class);
+
+    private BlockAnimationEngine() {
+    }
+
     /**
-     * 计算指定方块在片段中的出现时间
-     * 
-     * <p>根据动画模式、动画时长、方块位置等信息，计算每个方块应该在哪一时刻显示
-     * 
-     * @param container 容器对象
-     * @param blockPos 方块位置
-     * @param clipStartTime 片段开始时间（秒）
-     * @param clipDuration 片段时长（秒）
-     * @param animationDuration 动画时长（秒，在片段时长内）
-     * @param params 额外的动画参数（如扩散方向、顺序等）
-     * @return 方块应该显示的时间（相对于片段开始时间，单位：秒），如果返回 0 或负数表示立即显示，如果返回 clipDuration 或更大值表示不显示
+     * 对单个方块进行采样，生成一帧的动画快照。
+     *
+     * @param pos        方块世界坐标
+     * @param state      方块状态
+     * @param config     片段动画配置（ClipAnimationConfig）
+     * @param seqEntry   序列条目（可为 null，此时 seqNormalizedTime=0）
+     * @param clipStart  片段开始时间（世界时间轴）
+     * @param clipEnd    片段结束时间（世界时间轴）
+     * @param now        当前时间（世界时间轴）
+     * @param randomSeed 本方块随机种子（建议 containerSeed ^ pos.asLong()）
      */
-    float calculateBlockAppearTime(
-        Container container,
-        BlockPos blockPos,
-        float clipStartTime,
-        float clipDuration,
-        float animationDuration,
-        java.util.Map<String, Object> params
-    );
-    
+    public static BlockAnimationSnapshot sample(BlockPos pos,
+                                                BlockState state,
+                                                ClipAnimationConfig config,
+                                                BlockSequenceEntry seqEntry,
+                                                float clipStart,
+                                                float clipEnd,
+                                                float now,
+                                                long randomSeed) {
+        BlockAnimationSnapshot snapshot = new BlockAnimationSnapshot(pos, state);
+
+        // ===== 0. 无配置：纯瞬时渲染 =====
+        if (config == null) {
+            if (now >= clipStart) {
+                snapshot.markFullyVisible();
+                snapshot.setTransform(identityTransform());
+            } else {
+                snapshot.markHidden();
+            }
+            // 没有 config 就没有 effect，直接返回
+            return snapshot;
+        }
+
+        AnimationMode mode = config.getMode();
+        if (mode == null) {
+            mode = AnimationMode.INSTANT;
+        }
+
+        float clipDuration = Math.max(0.0001f, clipEnd - clipStart);
+        float animDuration = Math.max(0.0001f, Math.min(config.getDuration(), clipDuration));
+        float delay = Math.max(0.0f, config.getDelay());
+        
+        LOGGER.info("[BlockAnimationEngine] sample: pos={} mode={} duration={} clipStart={} clipEnd={} now={}",
+            pos, mode, animDuration, clipStart, clipEnd, now);
+
+        // ===== 1. 序列归一化时间 =====
+        float seqNormalizedTime = (seqEntry != null)
+                ? MathHelper.clamp(seqEntry.getNormalizedTime(), 0.0f, 1.0f)
+                : 0.0f;
+
+        // ===== 2. 计算单个方块的动画时间窗口 =====
+        float blockBaseOffset = seqNormalizedTime * (clipDuration - animDuration);
+        float blockStartTime = clipStart + delay + blockBaseOffset;
+        float blockEndTime = blockStartTime + animDuration;
+
+        // 钳制到片段范围
+        if (blockStartTime < clipStart) blockStartTime = clipStart;
+        if (blockEndTime > clipEnd) blockEndTime = clipEnd;
+
+        if (blockEndTime <= blockStartTime) {
+            // 动画时间窗口无效：按瞬时处理，但仍然允许触发 effect
+            if (now >= blockStartTime) {
+                snapshot.markFullyVisible();
+                snapshot.setTransform(identityTransform());
+                snapshot.setSequenceNormalizedTime(seqNormalizedTime);
+                snapshot.setAlpha(1.0f);
+                applyEffectsSafe(snapshot, config, clipStart, clipEnd, now, clipDuration, randomSeed);
+            } else {
+                snapshot.markHidden();
+            }
+            return snapshot;
+        }
+
+        // ===== 3. 根据 now 与 [blockStartTime, blockEndTime] 判断可见性 =====
+        if (now < blockStartTime) {
+            snapshot.markHidden();
+            // 在出场前一般不触发 effect
+            return snapshot;
+        }
+
+        // 动画已结束 或 模式为 INSTANT：静态就位状态
+        if (now >= blockEndTime || mode == AnimationMode.INSTANT) {
+            LOGGER.info("[BlockAnimationEngine] INSTANT mode or animation finished: pos={} mode={} now={} blockEndTime={}",
+                pos, mode, now, blockEndTime);
+            snapshot.markFullyVisible();
+            snapshot.setSequenceNormalizedTime(seqNormalizedTime);
+            snapshot.setTransform(identityTransform());
+            snapshot.setAlpha(1.0f);
+            // ⚡ 关键：即使是 INSTANT 模式，也允许运行特效
+            applyEffectsSafe(snapshot, config, clipStart, clipEnd, now, clipDuration, randomSeed);
+            return snapshot;
+        }
+
+        // ===== 4. 计算归一化时间 t_raw, t_eased =====
+        float tRaw = (now - blockStartTime) / (blockEndTime - blockStartTime);
+        tRaw = MathHelper.clamp(tRaw, 0.0f, 1.0f);
+
+        EasingFunction easing = EasingFunction.LINEAR;
+        try {
+            easing = EasingFunction.fromString(config.getEasing());
+        } catch (Exception e) {
+            // 保持 LINEAR 即可，不需要打日志避免刷屏
+        }
+        float tEased = easing.apply(tRaw);
+
+        snapshot.setVisible(true);
+        snapshot.setRawProgress(tRaw);
+        snapshot.setEasedProgress(tEased);
+        snapshot.setSequenceNormalizedTime(seqNormalizedTime);
+        snapshot.setAlpha(1.0f); // 初始 alpha=1，后续由动画/特效调整
+        
+        LOGGER.info("[BlockAnimationEngine] animating: pos={} mode={} tRaw={} tEased={}", 
+            pos, mode, tRaw, tEased);
+
+        // ===== 5. 生成局部变换矩阵（调用 IAnimationTransformer） =====
+        MatrixStack matrices = new MatrixStack();
+        // 围绕方块中心做局部变换
+        matrices.translate(0.5f, 0.5f, 0.5f);
+
+        IAnimationTransformer transformer =
+                AnimationTransformerFactory.getInstance().getTransformer(mode);
+        
+        LOGGER.info("[BlockAnimationEngine] transformer lookup: mode={} transformer={}", 
+            mode, transformer != null ? transformer.getClass().getSimpleName() : "null");
+        
+        if (transformer != null) {
+            // ⚠️ 防御：config.getParams() 可能为 null
+            Map<String, Object> baseParams =
+                    config.getParams() != null ? config.getParams() : Collections.emptyMap();
+            Map<String, Object> tempParams = new java.util.HashMap<>(baseParams);
+
+            // 合并默认参数
+            Map<String, Object> defaultParams = transformer.getDefaultParams();
+            if (defaultParams != null) {
+                for (Map.Entry<String, Object> entry : defaultParams.entrySet()) {
+                    tempParams.putIfAbsent(entry.getKey(), entry.getValue());
+                }
+            }
+
+            Random rand = Random.create(randomSeed ^ pos.asLong());
+
+            try {
+                // Minecraft Random → java.util.Random
+                java.util.Random javaRandom = new java.util.Random(rand.nextLong());
+                transformer.apply(tEased, tempParams, javaRandom);
+
+                // 从 params 中提取变换参数并应用到 MatrixStack
+                applyTransformFromParams(matrices, tempParams);
+
+                // 更新 snapshot 的 alpha（如果 transformer 写入了 alpha）
+                Object alphaObj = tempParams.get("alpha");
+                if (alphaObj instanceof Number) {
+                    snapshot.setAlpha(((Number) alphaObj).floatValue());
+                }
+            } catch (Exception e) {
+                LOGGER.error("动画 transformer 应用失败: mode={} pos={} err={}",
+                        mode, pos, e.getMessage(), e);
+            }
+        }
+
+        // 回到方块左下角
+        matrices.translate(-0.5f, -0.5f, -0.5f);
+        snapshot.setTransform(matrices);
+
+        // ===== 6. 应用特效（粒子 / 其他可视效果） =====
+        applyEffectsSafe(snapshot, config, clipStart, clipEnd, now, clipDuration, randomSeed);
+
+        return snapshot;
+    }
+
     /**
-     * 获取该动画引擎支持的动画模式
-     * 
-     * @return 支持的 AnimationMode 数组
+     * 包一层 try-catch，避免特效抛异常把整个动画系统搞崩。
      */
-    com.chronoblocks.core.container.AnimationMode[] getSupportedModes();
-    
+    private static void applyEffectsSafe(BlockAnimationSnapshot snapshot,
+                                         ClipAnimationConfig config,
+                                         float clipStart,
+                                         float clipEnd,
+                                         float now,
+                                         float clipDuration,
+                                         long randomSeed) {
+        try {
+            applyEffects(snapshot, config, clipStart, clipEnd, now, clipDuration, randomSeed);
+        } catch (Exception e) {
+            LOGGER.error("应用特效时出现未捕获异常: pos={} err={}",
+                    snapshot != null ? snapshot.getPos() : "null", e.getMessage(), e);
+        }
+    }
+
     /**
-     * 获取动画引擎的名称（用于调试和日志）
-     * 
-     * @return 引擎名称
+     * 从 params Map 中提取变换参数并应用到 MatrixStack
      */
-    String getEngineName();
+    private static void applyTransformFromParams(MatrixStack matrices, Map<String, Object> params) {
+        if (params == null || params.isEmpty()) {
+            return;
+        }
+
+        // 位移
+        float dx = getFloat(params, "dx", 0.0f);
+        float dy = getFloat(params, "dy", 0.0f);
+        float dz = getFloat(params, "dz", 0.0f);
+        if (dx != 0.0f || dy != 0.0f || dz != 0.0f) {
+            matrices.translate(dx, dy, dz);
+        }
+
+        // 旋转
+        float yaw = getFloat(params, "yaw", 0.0f);
+        float pitch = getFloat(params, "pitch", 0.0f);
+        float roll = getFloat(params, "roll", 0.0f);
+
+        if (yaw != 0.0f) {
+            matrices.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_Y.rotationDegrees(yaw));
+        }
+        if (pitch != 0.0f) {
+            matrices.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_X.rotationDegrees(pitch));
+        }
+        if (roll != 0.0f) {
+            matrices.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_Z.rotationDegrees(roll));
+        }
+
+        // 缩放
+        float scale = getFloat(params, "scale", 1.0f);
+        if (scale != 1.0f) {
+            matrices.scale(scale, scale, scale);
+        }
+    }
+
+    private static float getFloat(Map<String, Object> map, String key, float defaultValue) {
+        if (map == null) {
+            return defaultValue;
+        }
+        Object v = map.get(key);
+        if (v instanceof Number) {
+            return ((Number) v).floatValue();
+        }
+        return defaultValue;
+    }
+
+    /**
+     * 单位变换矩阵。
+     */
+    private static MatrixStack identityTransform() {
+        return new MatrixStack();
+    }
+
+    /**
+     * 真正应用所有挂在 Clip 上的 EffectInstance。
+     *
+     * 注意：这里仅负责「触发」粒子等效果，不改变方块几何。
+     */
+    private static void applyEffects(BlockAnimationSnapshot snapshot,
+                                     ClipAnimationConfig config,
+                                     float clipStart,
+                                     float clipEnd,
+                                     float now,
+                                     float clipDuration,
+                                     long randomSeed) {
+
+        if (config == null || config.getEffects().isEmpty()) {
+            return;
+        }
+
+        for (EffectInstance inst : config.getEffects()) {
+            if (inst == null || !inst.isEnabled()) {
+                continue;
+            }
+
+            float startNorm = MathHelper.clamp(inst.getStartOffset(), 0.0f, 1.0f);
+            float durNorm = Math.max(0.0001f, inst.getDuration());
+            float effectStart = clipStart + startNorm * clipDuration;
+            float effectEnd = effectStart + durNorm * clipDuration;
+
+            if (now < effectStart || now > effectEnd) {
+                continue;
+            }
+
+            float effectT = MathHelper.clamp(
+                    (now - effectStart) / (effectEnd - effectStart),
+                    0.0f, 1.0f
+            );
+
+            IBlockEffect effectImpl = BlockEffectRegistry.get(inst.getType());
+            if (effectImpl == null) {
+                continue;
+            }
+
+            try {
+                net.minecraft.client.world.ClientWorld world =
+                        MinecraftClient.getInstance().world;
+                if (world != null && snapshot != null) {
+                    effectImpl.render(
+                            world,
+                            snapshot.getPos(),
+                            effectT,
+                            inst,
+                            new java.util.Random(
+                                    randomSeed
+                                            ^ snapshot.getPos().asLong()
+                                            ^ inst.getId().getLeastSignificantBits()
+                            )
+                    );
+                }
+            } catch (Exception e) {
+                LOGGER.error("应用特效失败: type={} pos={} err={}",
+                        inst.getType(),
+                        snapshot != null ? snapshot.getPos() : "null",
+                        e.getMessage(), e);
+            }
+        }
+    }
 }

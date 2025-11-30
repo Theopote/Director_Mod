@@ -94,5 +94,29 @@ public class RiseUpTransformer implements IAnimationTransformer {
         
         return modified;
     }
+    
+    /**
+     * 应用变换到参数 Map（新 API）
+     * 
+     * <p>从地下升起：Y 位移从 -depth 到 0 + 缩放
+     */
+    @Override
+    public void apply(float easedT, Map<String, Object> params, Random random) {
+        float depth = getFloatParam(params, "riseHeight", 2.0f);
+        
+        // 计算 Y 位移：从 -depth 到 0
+        float dy = -depth * (1.0f - easedT);
+        
+        params.put("dx", 0f);
+        params.put("dy", dy);
+        params.put("dz", 0f);
+        
+        params.put("yaw", 0f);
+        params.put("pitch", 0f);
+        params.put("roll", 0f);
+        
+        params.put("scale", easedT);
+        params.put("alpha", easedT);
+    }
 }
 

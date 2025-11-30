@@ -3,6 +3,7 @@ package com.chronoblocks.ui.timeline.interaction;
 import com.chronoblocks.ui.timeline.interaction.TimelineTrackHitTest.TrackControlHitResult;
 import com.chronoblocks.ui.timeline.model.TimelineClip;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
+import com.chronoblocks.ui.timeline.model.TimelineSelectable;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.render.TimelineRenderer;
 
@@ -277,6 +278,13 @@ public final class TimelineHitTest {
             return keyHit;
         }
 
+        // ★ 命中自动化关键帧（轨道级别的关键帧，如摄像机关键帧）
+        TimelineHitResult automationKeyHit = hitTestAutomationKeyframes(renderer, model, track, trackIndex,
+                mouseX, mouseY, contentX, trackY, trackBottom);
+        if (automationKeyHit.type() == TimelineHitResult.HitType.AUTOMATION_KEYFRAME) {
+            return automationKeyHit;
+        }
+
         // 命中 Clip
         TimelineHitResult clipHit = hitTestClip(renderer, model, track, trackIndex,
                 mouseX, mouseY, contentX, contentW, trackY, trackBottom, timeAtMouse);
@@ -381,6 +389,54 @@ public final class TimelineHitTest {
 
         if (bestClip != null) {
             return TimelineHitResult.keyframe(track, bestClip, bestTime, trackIndex, bestIndex);
+        }
+
+        return TimelineHitResult.none();
+    }
+
+    /**
+     * 检测轨道级自动化关键帧的命中（摄像机关键帧、天气关键帧等）
+     */
+    private static TimelineHitResult hitTestAutomationKeyframes(
+            TimelineRenderer renderer,
+            TimelineModel model,
+            TimelineTrack track,
+            int trackIndex,
+            float mouseX,
+            float mouseY,
+            float contentX,
+            float trackTop,
+            float trackBottom
+    ) {
+        if (track == null || !track.hasAutomationKeyframes()) {
+            return TimelineHitResult.none();
+        }
+
+        float pps = model.getPixelsPerSecond();
+        float scrollX = model.getScrollX();
+        float centerY = trackTop + (TimelineRenderer.getTrackHeight() / 2.0f);
+
+        float bestDistSq = Float.MAX_VALUE;
+        TimelineSelectable bestKeyframe = null;
+
+        for (TimelineSelectable keyframe : track.getAutomationKeyframes()) {
+            if (keyframe == null) continue;
+
+            float keyTime = keyframe.getStartTime();
+            float kx = contentX + (keyTime * pps) - scrollX;
+            float dx = mouseX - kx;
+            float dy = mouseY - centerY;
+            float distSq = dx * dx + dy * dy;
+
+            float r = TimelineRenderer.getKeyframeHitRadius();
+            if (distSq <= r * r && distSq < bestDistSq) {
+                bestDistSq = distSq;
+                bestKeyframe = keyframe;
+            }
+        }
+
+        if (bestKeyframe != null) {
+            return TimelineHitResult.automationKeyframe(track, bestKeyframe, trackIndex);
         }
 
         return TimelineHitResult.none();

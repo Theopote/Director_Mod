@@ -57,6 +57,7 @@ public class LayoutPersistenceManager {
         public String version = LAYOUT_VERSION;
         public long timestamp = System.currentTimeMillis();
         public Map<String, PanelLayout> panels = new HashMap<>();
+        public String worldFingerprint;
 
         public LayoutData() {}
         
@@ -152,6 +153,24 @@ public class LayoutPersistenceManager {
         }
         String detected = WorldIdentifier.getCurrentWorldId();
         return detected != null ? detected : "default";
+    }
+
+    private String getWorldFingerprint() {
+        try {
+            java.nio.file.Path path = com.chronoblocks.util.WorldIdentifier.getWorldSavePath();
+            if (path != null && Files.exists(path)) {
+                long modified = Files.getLastModifiedTime(path).toMillis();
+                return path.toAbsolutePath().toString() + "#" + modified;
+            }
+        } catch (Exception e) {
+            LOGGER.warn("[LayoutPersistence] 获取世界指纹失败: {}", e.getMessage());
+        }
+        return resolveWorldId(currentWorldId);
+    }
+
+    private boolean isFingerprintMatch(String saved) {
+        String current = getWorldFingerprint();
+        return current != null && current.equals(saved);
     }
     
     /**
@@ -271,6 +290,7 @@ public class LayoutPersistenceManager {
             }
             
             currentLayout.timestamp = System.currentTimeMillis();
+            currentLayout.worldFingerprint = getWorldFingerprint();
             String layoutJson = GSON.toJson(currentLayout);
             Files.writeString(layoutFile, layoutJson);
             LOGGER.debug("[LayoutPersistence] 世界 {} 的布局配置已保存: {}", 

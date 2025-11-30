@@ -322,5 +322,46 @@ public class ContainerVisibilityService {
         }
         return snapshots.containsKey(container.getId());
     }
+    
+    /**
+     * 从容器的 blockStore 创建快照（用于时间线播放）
+     * 
+     * <p>当容器已经被隐藏（方块已经是 AIR），但 ContainerVisibilityService 中没有快照时，
+     * 可以使用容器的 blockStore（创建容器时捕获的原始状态）来创建快照。
+     * 
+     * @param container 容器对象
+     * @return 如果成功创建快照返回 true，否则返回 false
+     */
+    public boolean createSnapshotFromBlockStore(Container container) {
+        if (container == null) {
+            return false;
+        }
+        
+        // 如果已经有快照，不需要创建
+        if (snapshots.containsKey(container.getId())) {
+            return true;
+        }
+        
+        // 检查容器的 blockStore 是否有数据
+        com.chronoblocks.core.container.BlockStore containerBlockStore = container.getBlockStore();
+        if (containerBlockStore == null || containerBlockStore.isEmpty()) {
+            return false;
+        }
+        
+        // 复制容器的 blockStore 到快照
+        BlockStore snapshot = new BlockStore();
+        for (Map.Entry<net.minecraft.util.math.BlockPos, com.chronoblocks.core.container.BlockStore.Entry> entry : containerBlockStore.raw().entrySet()) {
+            snapshot.add(entry.getKey(), new BlockStore.Entry(entry.getValue().state, entry.getValue().beNbt));
+        }
+        
+        snapshots.put(container.getId(), snapshot);
+        
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("[Visibility] 容器 {} 已从 blockStore 创建快照 (方块数: {})",
+                container.getName(), snapshot.size());
+        }
+        
+        return true;
+    }
 }
 

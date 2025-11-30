@@ -1,6 +1,8 @@
 package com.chronoblocks.mixin;
 
 import com.chronoblocks.client.ChronoBlocksClientController;
+import com.chronoblocks.ui.timeline.playback.camera.CameraRuntime;
+import com.chronoblocks.ui.timeline.playback.camera.CinematicCamera;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.RenderTickCounter;
@@ -8,6 +10,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * 🎬 GameRendererMixin - 阻止原版方块选取与玩家渲染
@@ -53,5 +56,24 @@ public class GameRendererMixin {
                 mc.player.setInvisible(false);
             }
         }
+    }
+
+    /**
+     * Override FOV while the cinematic camera is driving the view.
+     * 修复：移除 method 中的硬编码描述符，解决 "Cannot resolve method" 警告
+     */
+    @Inject(
+        method = "getFov", // 只保留方法名，让 Mixin 自动推断描述符
+        at = @At("HEAD"),
+        cancellable = true
+    )
+    private void chronoblocks$overrideFov(Camera camera, float tickDelta, boolean changingFov, CallbackInfoReturnable<Double> cir) {
+        if (!CameraRuntime.getInstance().isCinematicActive()) {
+            return;
+        }
+
+        CinematicCamera cineCam = CameraRuntime.getInstance().getCinematicCamera();
+        double fov = (double) cineCam.getFov();
+        cir.setReturnValue(fov);
     }
 }

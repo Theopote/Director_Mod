@@ -17,6 +17,7 @@ import net.minecraft.registry.Registries;
 import net.minecraft.state.property.Property;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.BlockPos;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -142,23 +143,7 @@ public final class ContainerPersistence {
     }
 
     private static NbtCompound encodeContainer(Container c) {
-        NbtCompound tag = new NbtCompound();
-        tag.putUuid("id", c.getId());
-        tag.putString("name", c.getName());
-        tag.putString("type", c.getType().name());
-        if (c.getParent() != null) {
-            tag.putUuid("parent", c.getParent().getId());
-        }
-        tag.putInt("color", c.getColor());
-        tag.putFloat("opacity", c.getOpacity());
-        tag.putBoolean("locked", c.isLocked());
-        tag.putString("state", c.getState().name());
-        tag.putBoolean("intake", c.isIntakeEnabled());
-        tag.putLong("created", c.getCreatedTime());
-        tag.putLong("modified", c.getModifiedTime());
-        if (c.getLevelKey() != null) {
-            tag.putString("level", c.getLevelKey().getValue().toString());
-        }
+        NbtCompound tag = getNbtCompound(c);
 
         // 坐标集合
         NbtList blocks = new NbtList();
@@ -183,6 +168,27 @@ public final class ContainerPersistence {
         return tag;
     }
 
+    private static @NotNull NbtCompound getNbtCompound(Container c) {
+        NbtCompound tag = new NbtCompound();
+        tag.putUuid("id", c.getId());
+        tag.putString("name", c.getName());
+        tag.putString("type", c.getType().name());
+        if (c.getParent() != null) {
+            tag.putUuid("parent", c.getParent().getId());
+        }
+        tag.putInt("color", c.getColor());
+        tag.putFloat("opacity", c.getOpacity());
+        tag.putBoolean("locked", c.isLocked());
+        tag.putString("state", c.getState().name());
+        tag.putBoolean("intake", c.isIntakeEnabled());
+        tag.putLong("created", c.getCreatedTime());
+        tag.putLong("modified", c.getModifiedTime());
+        if (c.getLevelKey() != null) {
+            tag.putString("level", c.getLevelKey().getValue().toString());
+        }
+        return tag;
+    }
+
     private static Container decodeContainer(NbtCompound tag) {
         UUID id = tag.getUuid("id");
         String name = tag.getString("name");
@@ -203,8 +209,8 @@ public final class ContainerPersistence {
         // blocks
         NbtList blocks = tag.getList("blocks", NbtElement.LONG_TYPE);
         List<BlockPos> positions = new ArrayList<>(blocks.size());
-        for (int i = 0; i < blocks.size(); i++) {
-            positions.add(BlockPos.fromLong(((net.minecraft.nbt.NbtLong) blocks.get(i)).longValue()));
+        for (NbtElement block : blocks) {
+            positions.add(BlockPos.fromLong(((NbtLong) block).longValue()));
         }
         c.addBlocks(positions);
 

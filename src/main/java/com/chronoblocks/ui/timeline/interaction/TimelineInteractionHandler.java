@@ -64,6 +64,7 @@ public class TimelineInteractionHandler {
         void setHoveredTrack(TimelineTrack track);
         void setDropTargetTrackIndex(int index);
         boolean isMouseHoveringRect(float x1, float y1, float x2, float y2);
+        void onAddKeyframeToTrack(TimelineTrack track);
         void onToggleTrackLock(TimelineTrack track);
         void onToggleTrackVisible(TimelineTrack track);
         void onContainerDropped(String containerId);
@@ -168,6 +169,7 @@ public class TimelineInteractionHandler {
                 TimelineTrackControlHit.TrackControlType type = trackControlHit.type();
 
                 switch (type) {
+                    case ADD_KEYFRAME -> callbacks.onAddKeyframeToTrack(track);
                     case LOCK -> callbacks.onToggleTrackLock(track);
                     case VISIBILITY -> callbacks.onToggleTrackVisible(track);
                 }
@@ -188,6 +190,7 @@ public class TimelineInteractionHandler {
             switch (hit.type()) {
                 case CLIP -> onClipClicked(hit, mouseX, contentX, isDoubleClick);
                 case KEYFRAME -> onKeyframeClicked(hit, mouseX, contentX, isDoubleClick);
+                case AUTOMATION_KEYFRAME -> onAutomationKeyframeClicked(hit, mouseX, contentX, isDoubleClick);
                 case EMPTY -> onEmptyClicked(hit, mouseX, contentX);
                 default -> { /* NONE / TRACK_HEADER 在这里忽略 */ }
             }
@@ -387,24 +390,54 @@ public class TimelineInteractionHandler {
         );
     }
 
+    /**
+     * 处理自动化关键帧的点击（轨道级别的关键帧，如摄像机关键帧）
+     */
+    private void onAutomationKeyframeClicked(TimelineHitResult hit,
+                                            float mouseX,
+                                            float contentX,
+                                            boolean isDoubleClick) {
+        TimelineTrack track = hit.track();
+        com.chronoblocks.ui.timeline.model.TimelineSelectable keyframe = hit.automationKeyframe();
+        
+        if (track == null || keyframe == null) {
+            return;
+        }
+
+        // ★ 轨道锁定功能：如果轨道锁定，禁止关键帧操作
+        if (track.isLocked()) {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("[Timeline] 轨道已锁定，禁止操作自动化关键帧 (轨道: {})", track.getName());
+            }
+            return;
+        }
+
+        // ★ 功能：选中自动化关键帧时，同步到 SelectionManager，使属性面板显示关键帧属性
+        com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(keyframe);
+        
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("[Timeline] 点击自动化关键帧: {} (时间: {:.2f}s)", 
+                keyframe.getName(), keyframe.getStartTime());
+        }
+
+        // 双击：可以在这里添加删除逻辑等
+        if (isDoubleClick && callbacks != null) {
+            // TODO: 可以添加双击删除关键帧的逻辑
+            LOGGER.debug("[Timeline] 双击自动化关键帧，但当前未实现删除功能");
+        }
+
+        // 单击：可以选择性地开始拖动关键帧（如果需要）
+        // 注意：自动化关键帧的拖动逻辑可能与片段内关键帧不同
+        if (callbacks != null) {
+            callbacks.onDataChanged();
+        }
+    }
+
     private void onEmptyClicked(TimelineHitResult hit,
                                 float mouseX,
                                 float contentX) {
-        // 空白区域：移动播放头（带吸附）
-        float rawTime = renderer.xToTime(mouseX, contentX);
-        TimelineSnapping.Result snap = TimelineSnapping.snapTime(
-                model, rawTime, null, null, 0f
-        );
-        model.setCurrentTime(Math.max(0f, snap.snappedTime));
-        if (callbacks != null) callbacks.onDataChanged();
-
-        // 同时开始 DRAG_PLAYHEAD，允许拖动
-        interactionManager.startInteraction(
-                InteractionMode.DRAG_PLAYHEAD,
-                null,
-                mouseX, ImGui.getMousePosY(),
-                model.getCurrentTime(), 0f
-        );
+        // 空白区域：不移动播放头，允许用户在轨道上操作片段或关键帧
+        // 只有点击顶部时间刻度尺时才会移动播放头（由 TimelinePanel.handleRulerInteractions 处理）
     }
 
     // ========================================================

@@ -3,6 +3,7 @@ package com.chronoblocks.ui.timeline.render;
 import com.chronoblocks.ui.theme.UITheme;
 import com.chronoblocks.ui.timeline.model.TimelineClip;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
+import com.chronoblocks.ui.timeline.model.TimelineSelectable;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TimelineViewportState;
 
@@ -238,11 +239,68 @@ public class TimelineRenderer {
                     clipRenderer.renderClip(drawList, clip, track, idx, contentX, trackY, TRACK_HEIGHT, contentW);
                 }
                 drawList.popClipRect();
+                
+                // ★ 渲染轨道级自动化关键帧（摄像机关键帧、天气关键帧等）
+                renderAutomationKeyframes(drawList, track, contentX, trackY, contentW);
             }
         }
 
     }
 
+    /**
+     * 渲染轨道级自动化关键帧（摄像机关键帧、天气关键帧等）
+     * 
+     * <p>参考 TimelineClipRenderer 中渲染关键帧的逻辑，但用于轨道级别的自动化关键帧。
+     */
+    private void renderAutomationKeyframes(ImDrawList drawList, TimelineTrack track,
+                                           float contentX, float y, float contentW) {
+        if (track == null || !track.hasAutomationKeyframes()) {
+            return;
+        }
+
+        syncViewportFromState();
+        float centerY = y + TimelineRenderer.TRACK_HEIGHT / 2.0f;
+        
+        // 获取可见时间范围（性能优化：只渲染可见的关键帧）
+        float[] visibleTimeRange = math.getVisibleTimeRange();
+        float visibleStart = visibleTimeRange[0];
+        float visibleEnd = visibleTimeRange[1];
+        
+        // 获取鼠标位置用于 hover 检测
+        float mouseX = ImGui.getMousePosX();
+        float mouseY = ImGui.getMousePosY();
+        
+        // 遍历轨道上的所有自动化关键帧
+        for (TimelineSelectable keyframe : track.getAutomationKeyframes()) {
+            if (keyframe == null) continue;
+            
+            float keyTime = keyframe.getStartTime();
+            
+            // ★ 优化：早期跳过不可见的关键帧
+            if (keyTime < visibleStart || keyTime > visibleEnd) {
+                continue;
+            }
+            
+            float kx = math.timeToX(keyTime);
+            if (kx < contentX || kx > contentX + contentW) continue;
+
+            // Hover 检测用圆形区域（与 KEYFRAME_HIT_RADIUS 一致）
+            float dx = mouseX - kx;
+            float dy = mouseY - centerY;
+            float distSq = dx * dx + dy * dy;
+            boolean hovering = distSq <= KEYFRAME_HIT_RADIUS * KEYFRAME_HIT_RADIUS;
+            int kfCol = hovering ? TimelineColors.COLOR_KEYFRAME_HOVER : TimelineColors.COLOR_KEYFRAME;
+
+            // 绘制垂直指示线（带阴影增强对比度）
+            drawList.addLine(kx, y + 4, kx, y + TimelineRenderer.TRACK_HEIGHT - 4, TimelineColors.rgba(0, 0, 0, 100), 3.0f); // 阴影/轮廓
+            drawList.addLine(kx, y + 4, kx, y + TimelineRenderer.TRACK_HEIGHT - 4, kfCol, 2.0f); // 主线
+
+            // 绘制关键帧点（带黑色描边，增强对比度）
+            float keyframeRadius = TimelineClipRenderer.KEYFRAME_RADIUS;
+            drawList.addCircleFilled(kx, centerY, keyframeRadius + 1.0f, TimelineColors.rgba(0, 0, 0, 180)); // 描边
+            drawList.addCircleFilled(kx, centerY, keyframeRadius, kfCol); // 填充
+        }
+    }
 
     /**
      * 渲染播放头（委托给 TimelinePlayheadRenderer）

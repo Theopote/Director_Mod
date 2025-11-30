@@ -2,12 +2,17 @@ package com.chronoblocks.ui.timeline.interaction;
 
 import com.chronoblocks.core.container.Container;
 import com.chronoblocks.core.container.ContainerManager;
+import com.chronoblocks.core.container.ContainerAnimationPreset;
+import com.chronoblocks.core.animation.ClipAnimationConfig;
 import com.chronoblocks.ui.timeline.model.TimelineClip;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.render.TimelineRenderer;
 import com.chronoblocks.ui.timeline.snapping.TimelineSnapping;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.registry.RegistryKey;
+import net.minecraft.world.World;
 import imgui.ImGui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -188,6 +193,10 @@ public class TimelineDragAndDropHandler {
 
             // 绑定容器 ID 和名称
             clip.bindToContainer(containerUuid, container.getName());
+            
+            // ★ 重要：从容器的动画预设初始化片段的动画配置
+            // 片段有独立的动画配置，不依赖容器的状态
+            initializeClipAnimationConfig(clip, container);
 
             // 添加到目标轨道
             targetTrack.addClip(clip);
@@ -197,6 +206,9 @@ public class TimelineDragAndDropHandler {
 
             // 容器拖到时间线时，自动隐藏容器（除非从时间线删除片段，否则不能显示）
             try {
+                // ★ 关键：确保容器绑定了世界，否则无法创建快照
+                ensureContainerWorldBinding(container);
+                
                 var visibilityService = com.chronoblocks.core.container.visibility.ContainerServices.visibility();
                 if (visibilityService != null && container.getState() != com.chronoblocks.core.container.ContainerState.HIDDEN) {
                     visibilityService.hideContainer(container);
@@ -217,6 +229,40 @@ public class TimelineDragAndDropHandler {
                 container.getName(), targetTrack.getName(), dropTime, duration);
         } catch (Exception e) {
             LOGGER.error("[DragDrop] 处理容器拖放失败", e);
+        }
+    }
+    
+    /**
+     * 确保容器绑定了世界
+     * 
+     * <p>如果容器没有绑定世界，尝试从客户端获取当前世界并绑定
+     * 
+     * @param container 容器对象
+     */
+    private void ensureContainerWorldBinding(Container container) {
+        if (container == null) {
+            return;
+        }
+        
+        if (container.getLevelKey() != null) {
+            return; // 已经绑定世界
+        }
+        
+        // 尝试从客户端获取当前世界
+        try {
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client != null && client.world != null) {
+                RegistryKey<World> worldKey = client.world.getRegistryKey();
+                container.setLevelKey(worldKey);
+                
+                LOGGER.info("[DragDrop] 容器 {} 已绑定世界: {}",
+                    container.getName(), worldKey.getValue());
+            } else {
+                LOGGER.warn("[DragDrop] 无法获取客户端世界，容器 {} 无法绑定世界",
+                    container.getName());
+            }
+        } catch (Exception e) {
+            LOGGER.error("[DragDrop] 绑定容器世界失败: {}", e.getMessage(), e);
         }
     }
 
@@ -244,5 +290,68 @@ public class TimelineDragAndDropHandler {
             container.getName(), blockCount, duration);
 
         return duration;
+    }
+    
+    /**
+     * 初始化片段的动画配置
+     * 
+     * <p>重要：片段有独立的动画配置，不依赖容器的状态。
+     * 当容器被拖动到时间线时，会从容器的默认动画预设中初始化片段的配置，
+     * 但之后片段的配置可以独立修改，不会影响容器，容器的状态也不会影响片段。
+     * 
+     * <p>流程：
+     * <ol>
+     *   <li>从容器的 {@link ContainerAnimationPreset} 获取默认配置</li>
+     *   <li>创建 {@link ClipAnimationConfig} 并设置动画模式、时长、缓动等</li>
+     *   <li>将配置应用到片段，使片段拥有独立的动画控制能力</li>
+     * </ol>
+     * 
+     * @param clip 时间线片段
+     * @param container 容器对象
+     */
+    private void initializeClipAnimationConfig(TimelineClip clip, Container container) {
+        if (clip == null || container == null) {
+            LOGGER.warn("[DragDrop] 无法初始化片段动画配置：clip 或 container 为空");
+            return;
+        }
+        
+        try {
+            // 获取容器的默认动画预设
+            ContainerAnimationPreset preset = container.getDefaultAnimationPreset();
+            if (preset == null) {
+                preset = ContainerAnimationPreset.defaultPreset();
+            }
+            
+            // 从预设创建动画配置
+            // 注意：使用片段的实际时长，而不是预设的建议时长
+            float clipDuration = clip.getLength();
+            float animationDuration = Math.min(preset.getSuggestedDuration(), clipDuration);
+            
+            ClipAnimationConfig config = ClipAnimationConfig.fromPreset(
+                preset.getMode(),
+                animationDuration,
+                preset.getDelay(),
+                preset.getEasing(),
+                preset.getOrdering()
+            );
+            
+            // 复制预设中的额外参数
+            if (preset.getParams() != null && !preset.getParams().isEmpty()) {
+                config.getParams().putAll(preset.getParams());
+            }
+            
+            // 应用配置到片段
+            clip.setAnimationConfig(config);
+            
+            LOGGER.info("[DragDrop] 片段 {} 动画配置已初始化：模式={}, 时长={}s, 缓动={}",
+                clip.getLabel(),
+                preset.getMode(),
+                animationDuration,
+                preset.getEasing());
+        } catch (Exception e) {
+            LOGGER.error("[DragDrop] 初始化片段动画配置失败，使用默认配置", e);
+            // 使用默认配置作为后备
+            clip.setAnimationConfig(ClipAnimationConfig.defaultConfig());
+        }
     }
 }

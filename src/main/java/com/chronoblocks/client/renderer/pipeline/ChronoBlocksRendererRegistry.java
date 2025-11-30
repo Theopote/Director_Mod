@@ -2,6 +2,7 @@ package com.chronoblocks.client.renderer.pipeline;
 
 import com.chronoblocks.client.ChronoBlocksClientController;
 import com.chronoblocks.client.gizmo.GizmoRenderEvents;
+import com.chronoblocks.client.renderer.BlockVisualOverlayRenderer;
 import com.chronoblocks.client.renderer.ContainerHighlightRenderer;
 import com.chronoblocks.client.renderer.HoverHighlightRenderer;
 import com.chronoblocks.client.renderer.InteractionHintRenderer;
@@ -9,6 +10,8 @@ import com.chronoblocks.client.renderer.SelectionOverlayRenderer;
 import com.chronoblocks.client.renderer.SelectionRenderer;
 import com.chronoblocks.client.renderer.ToolPreviewManager;
 import com.chronoblocks.client.input.ChronoBlocksInputSystem;
+import com.chronoblocks.core.animation.BlockAnimationRenderer;
+import com.chronoblocks.core.container.visibility.BlockVisualStateManager;
 import com.chronoblocks.core.selection.SelectionManager;
 import com.chronoblocks.ui.ChronoBlocksScreen;
 import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderContext;
@@ -16,6 +19,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.VertexConsumerProvider;
+import net.minecraft.client.world.ClientWorld;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.hit.BlockHitResult;
 import org.slf4j.Logger;
@@ -189,6 +193,12 @@ public final class ChronoBlocksRendererRegistry {
                 registerRenderer(RendererStage.SELECTION_OVERLAY, "SelectionOverlay",
                     ChronoBlocksRendererRegistry::renderSelectionOverlay,
                     overlayOrder + 5);
+                registerRenderer(RendererStage.SELECTION_OVERLAY, "BlockVisualOverlay",
+                    ChronoBlocksRendererRegistry::renderBlockVisualOverlay,
+                    overlayOrder + 10);
+                registerRenderer(RendererStage.SELECTION_OVERLAY, "BlockAnimations",
+                    ChronoBlocksRendererRegistry::renderBlockAnimations,
+                    overlayOrder + 15);
             }
 
             if (RendererStage.TOOL_PREVIEW.isEnabled()) {
@@ -359,6 +369,45 @@ public final class ChronoBlocksRendererRegistry {
             return;
         }
         ToolPreviewManager.getInstance().render(matrices, consumers, getTickDelta());
+    }
+
+    private static void renderBlockVisualOverlay(WorldRenderContext context) {
+        if (!isChronoBlocksActive()) {
+            return;
+        }
+        MatrixStack matrices = context.matrixStack();
+        VertexConsumerProvider consumers = context.consumers();
+        Camera camera = getCamera();
+        if (matrices == null || consumers == null || camera == null) {
+            return;
+        }
+        BlockVisualOverlayRenderer.getInstance().renderOverlays(
+            matrices, 
+            consumers, 
+            camera.getPos()
+        );
+    }
+
+    private static void renderBlockAnimations(WorldRenderContext context) {
+        if (!isChronoBlocksActive()) {
+            return;
+        }
+        MatrixStack matrices = context.matrixStack();
+        VertexConsumerProvider consumers = context.consumers();
+        if (matrices == null || consumers == null) {
+            return;
+        }
+        MinecraftClient client = MinecraftClient.getInstance();
+        ClientWorld world = client != null ? client.world : null;
+        if (world == null) {
+            return;
+        }
+        BlockVisualStateManager manager = BlockVisualStateManager.getInstance();
+        var entries = manager.getRenderEntries();
+        if (entries == null || entries.isEmpty()) {
+            return;
+        }
+        BlockAnimationRenderer.renderEntries(world, matrices, consumers, entries);
     }
 
     // ---------------------------------------------------------------------

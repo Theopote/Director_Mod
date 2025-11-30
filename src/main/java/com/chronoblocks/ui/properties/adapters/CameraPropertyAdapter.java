@@ -200,10 +200,10 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
                 }
                 
                 // 散景质量
-                int currentBokeh = getIntProperty(camera, "bokehQuality", "getBokehQuality", 2);
+                int currentBokeh = getIntProperty(camera);
                 int[] bokehQuality = {currentBokeh};
                 if (ImGui.dragInt("散景质量", bokehQuality, 1.0f, 0, 5)) {
-                    if (setIntProperty(camera, "bokehQuality", "setBokehQuality", bokehQuality[0])) {
+                    if (setIntProperty(camera, bokehQuality[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[CameraPropertyAdapter] 散景质量已更新: {}", bokehQuality[0]);
                     }
@@ -216,10 +216,10 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
             // ========== 动画控制 ==========
             if (ImGui.collapsingHeader("🎬 动画控制")) {
                 // 动画名称
-                String currentName = getStringProperty(camera, "animationName", "getAnimationName", "");
+                String currentName = getStringProperty(camera);
                 ImString nameBuffer = new ImString(currentName, 256);
                 if (ImGui.inputText("动画名称", nameBuffer, ImGuiInputTextFlags.EnterReturnsTrue)) {
-                    if (setStringProperty(camera, "animationName", "setAnimationName", nameBuffer.get())) {
+                    if (setStringProperty(camera, nameBuffer.get())) {
                         modifiedRef[0] = true;
                     }
                 }
@@ -309,31 +309,31 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
     
     // ========== 反射辅助方法 ==========
     
-    private String getStringProperty(Object obj, String fieldName, String getterName, String defaultValue) {
+    private String getStringProperty(Object obj) {
         try {
-            var method = obj.getClass().getMethod(getterName);
+            var method = obj.getClass().getMethod("getAnimationName");
             Object result = method.invoke(obj);
-            return result != null ? result.toString() : defaultValue;
+            return result != null ? result.toString() : "";
         } catch (Exception e) {
             try {
-                var field = obj.getClass().getDeclaredField(fieldName);
+                var field = obj.getClass().getDeclaredField("animationName");
                 field.setAccessible(true);
                 Object result = field.get(obj);
-                return result != null ? result.toString() : defaultValue;
+                return result != null ? result.toString() : "";
             } catch (Exception ex) {
-                return defaultValue;
+                return "";
             }
         }
     }
     
-    private boolean setStringProperty(Object obj, String fieldName, String setterName, String value) {
+    private boolean setStringProperty(Object obj, String value) {
         try {
-            var method = obj.getClass().getMethod(setterName, String.class);
+            var method = obj.getClass().getMethod("setAnimationName", String.class);
             method.invoke(obj, value);
             return true;
         } catch (Exception e) {
             try {
-                var field = obj.getClass().getDeclaredField(fieldName);
+                var field = obj.getClass().getDeclaredField("animationName");
                 field.setAccessible(true);
                 field.set(obj, value);
                 return true;
@@ -377,31 +377,31 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
         }
     }
     
-    private int getIntProperty(Object obj, String fieldName, String getterName, int defaultValue) {
+    private int getIntProperty(Object obj) {
         try {
-            var method = obj.getClass().getMethod(getterName);
+            var method = obj.getClass().getMethod("getBokehQuality");
             Object result = method.invoke(obj);
-            return result instanceof Integer ? (Integer) result : defaultValue;
+            return result instanceof Integer ? (Integer) result : 2;
         } catch (Exception e) {
             try {
-                var field = obj.getClass().getDeclaredField(fieldName);
+                var field = obj.getClass().getDeclaredField("bokehQuality");
                 field.setAccessible(true);
                 Object result = field.get(obj);
-                return result instanceof Integer ? (Integer) result : defaultValue;
+                return result instanceof Integer ? (Integer) result : 2;
             } catch (Exception ex) {
-                return defaultValue;
+                return 2;
             }
         }
     }
     
-    private boolean setIntProperty(Object obj, String fieldName, String setterName, int value) {
+    private boolean setIntProperty(Object obj, int value) {
         try {
-            var method = obj.getClass().getMethod(setterName, int.class);
+            var method = obj.getClass().getMethod("setBokehQuality", int.class);
             method.invoke(obj, value);
             return true;
         } catch (Exception e) {
             try {
-                var field = obj.getClass().getDeclaredField(fieldName);
+                var field = obj.getClass().getDeclaredField("bokehQuality");
                 field.setAccessible(true);
                 field.set(obj, value);
                 return true;

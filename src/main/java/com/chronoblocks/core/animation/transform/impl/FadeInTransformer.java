@@ -109,5 +109,30 @@ public class FadeInTransformer implements IAnimationTransformer {
         
         return modified;
     }
+    
+    /**
+     * 应用变换到参数 Map（新 API）
+     * 
+     * <p>透明度淡入：从 startAlpha 到 endAlpha
+     */
+    @Override
+    public void apply(float easedT, Map<String, Object> params, Random random) {
+        float startAlpha = getFloatParam(params, "startOpacity", 0.0f);
+        // 默认结束透明度为 1.0
+        float endAlpha = getFloatParam(params, "endOpacity", 1.0f);
+        
+        float alpha = startAlpha + (endAlpha - startAlpha) * easedT;
+        
+        params.put("dx", 0f);
+        params.put("dy", 0f);
+        params.put("dz", 0f);
+        
+        params.put("yaw", 0f);
+        params.put("pitch", 0f);
+        params.put("roll", 0f);
+        
+        params.put("scale", 1f);
+        params.put("alpha", alpha);
+    }
 }
 
