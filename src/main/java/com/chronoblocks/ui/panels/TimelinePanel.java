@@ -204,6 +204,21 @@ public class TimelinePanel extends AbstractPanel
         return "Timeline###TimelinePanel";
     }
 
+    /**
+     * ⭐ 统一摄像机系统 v2.1：重写 setVisible 以在 UI 关闭时释放电影模式
+     */
+    @Override
+    public void setVisible(boolean visible) {
+        boolean wasVisible = isVisible();
+        super.setVisible(visible);
+        
+        // UI 关闭时释放电影模式
+        if (wasVisible && !visible) {
+            TimelineCameraController.getInstance().onTimelineUiClosed();
+            LOGGER.debug("[TimelinePanel] 时间线 UI 关闭，释放电影模式");
+        }
+    }
+
     @Override
     protected int getWindowFlags() {
         return ImGuiWindowFlags.NoCollapse;
@@ -267,23 +282,19 @@ public class TimelinePanel extends AbstractPanel
      *   <li>参考 Premiere Pro 等专业视频编辑软件的行为</li>
      * </ul>
      *
-     * <p>⭐ 摄像机模式切换：
+     * <p>⭐ 关键修复 (v3.2)：
      * <ul>
-     *   <li>播放结束时自动通知 TimelineCameraController 切回游戏模式</li>
-     *   <li>非播放时支持预览模式（拖拽播放头时）</li>
+     *   <li>非播放状态下，不再自动调用 previewAt()</li>
+     *   <li>相机模式完全由 TimelineCameraController.update() 根据 scrubbing 状态控制</li>
+     *   <li>避免 previewAt 与状态机冲突，导致 FOV 闪动和镜头跳变</li>
      * </ul>
      */
     private void updatePlayback() {
-        // 非实时返回：不播放时直接返回，避免不必要的计算
+        // ⭐ 关键修复：非播放状态下直接返回，相机由 TimelineCameraController.update() 全权控制
+        // 不再调用 previewAt()，避免破坏相机状态机 (PREVIEW/GAME 来回切换)
         if (!model.isPlaying()) {
-            float t = model.getCurrentTime();
-            if (Math.abs(t - lastPreviewTime) > 1e-4f) {
-                com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance().previewAt(t);
-                lastPreviewTime = t;
-            }
             return;
         }
-        lastPreviewTime = -1f;
 
         // 使用固定时间步长，避免帧率波动导致时间不准
         // 实际应用中可根据需要选择使用固定时间步长或实时时间
@@ -327,7 +338,6 @@ public class TimelinePanel extends AbstractPanel
     private float cachedContentX = 0f;
     private float cachedContentW = 0f;
     private static final float PLAYHEAD_MARGIN = 50f; // 播放头距离可见区域边缘的最小距离（像素）
-    private float lastPreviewTime = -1f;
 
     /**
      * 确保播放头始终在可见区域内（自动跟随功能）
@@ -429,6 +439,11 @@ public class TimelinePanel extends AbstractPanel
      * - Shift + 滚动：水平滚动（scrollX）
      */
     private void renderTimelineCanvas() {
+        // ⭐ 统一摄像机系统 v2.1：检测鼠标是否在时间线窗口上
+        // 注意：mouseOverTimeline 不再用于触发 CINEMATIC，只用于判断玩家操作意图
+        boolean hovered = ImGui.isWindowHovered();
+        TimelineCameraController.getInstance().setMouseOverTimeline(hovered);
+
         ImDrawList drawList = ImGui.getWindowDrawList();
 
         float winX = ImGui.getCursorScreenPosX();
@@ -470,7 +485,7 @@ public class TimelinePanel extends AbstractPanel
         drawList.popClipRect();
 
         // 2.5) 处理刻度尺交互（点击跳转播放头，拖动播放头）
-        handleRulerInteractions(winX, winY, headerHeight, contentX, contentW);
+        handleRulerInteractions(winY, contentX, contentW);
 
         // 3) 处理滚动：缩放 / 水平滚动（委托给 NavigationHandler）
         navigationHandler.handleMouseWheel(winX, winY, winW, headerHeight, trackViewportHeight);
@@ -631,13 +646,18 @@ public class TimelinePanel extends AbstractPanel
      *   <li>拖动播放头：实时更新播放头位置</li>
      * </ul>
      *
-     * @param winX 窗口 X 坐标
+     * <p>⭐ 关键修复 (v3.2)：
+     * <ul>
+     *   <li>左键按下时：通知 TimelineCameraController.setScrubbing(true)</li>
+     *   <li>左键松开时：通知 TimelineCameraController.setScrubbing(false)</li>
+     *   <li>让"拖动播放头"状态与相机状态机同步，避免 PREVIEW/GAME 来回切换</li>
+     * </ul>
+     *
      * @param winY 窗口 Y 坐标
-     * @param headerHeight Header 高度（包含底部三角）
      * @param contentX 内容区域 X 起点（底部三角起点）
      * @param contentW 内容区域宽度
      */
-    private void handleRulerInteractions(float winX, float winY, float headerHeight, float contentX, float contentW) {
+    private void handleRulerInteractions(float winY, float contentX, float contentW) {
         // ⭐ v9.0 优化：添加可见性检查，防止布局异常
         // 如果内容区域宽度过小（可能窗口被压缩得很窄），不处理交互
         if (contentW < RULER_INTERACTION_MIN_WIDTH) {
@@ -662,66 +682,32 @@ public class TimelinePanel extends AbstractPanel
         boolean isInRulerArea = mouseX >= contentX && mouseX <= rulerX2 &&
                 mouseY >= winY && mouseY <= rulerBottom;
 
-        if (!isInRulerArea && !ImGui.isItemHovered()) {
-            return;
-        }
+        boolean hovered = ImGui.isItemHovered();
 
-        // 检查是否点击在播放头手柄上
-        boolean isClickingPlayheadHandle = isPointInPlayheadHandle(mouseX, mouseY, winY, contentX);
-
-        if (ImGui.isMouseClicked(ImGuiMouseButton.Left)) {
-            // 无论是否点击播放头手柄，都统一调用 startPlayheadDrag
-            // startPlayheadDrag 内部会处理位置更新和拖动开始
-            interactionHandler.startPlayheadDrag(mouseX, contentX);
-
-            if (isClickingPlayheadHandle) {
-                LOGGER.debug("[TimelinePanel] 开始拖动播放头手柄");
+        // ⭐ 关键修复 1: 左键按下时开始拖拽 + 进入 scrubbing 状态
+        if (ImGui.isMouseClicked(ImGuiMouseButton.Left) && (isInRulerArea || hovered)) {
+            float clickTime = renderer.xToTime(mouseX, contentX);
+            
+            // ⭐ 统一摄像机系统 v2.0：开始 scrubbing
+            TimelineCameraController.getInstance().setScrubbing(true);
+            
+            // ⭐ 新功能：如果正在播放，先暂停
+            if (model.isPlaying()) {
+                model.setPlaying(false);
+                LOGGER.debug("[TimelinePanel] 播放时点击刻度尺，暂停并跳转到 {:.2f}s", clickTime);
             } else {
-                LOGGER.debug("[TimelinePanel] 刻度尺点击跳转到时间: {:.2f}s", renderer.xToTime(mouseX, contentX));
+                LOGGER.debug("[TimelinePanel] 开始拖动播放头 (time = {:.2f}s)", clickTime);
             }
+            
+            // 调用 startPlayheadDrag 以跳转播放头（带吸附）并支持继续拖动
+            interactionHandler.startPlayheadDrag(mouseX, contentX);
         }
 
-        // 处理拖动（由 InteractionHandler 统一管理）
-        // 这里不需要额外处理，因为拖动状态已在 InteractionHandler 中管理
-    }
-
-    /**
-     * 检查点是否在播放头手柄区域内（性能优化版）
-     *
-     * <p>优化说明：
-     * <ul>
-     *   <li>移除了昂贵的重复坐标计算，改用简单的 AABB（轴对齐包围盒）检测</li>
-     *   <li>对于 UI 交互，矩形判定比精确的三角形判定体验更好（更大的点击容错率），而且性能更高</li>
-     *   <li>避免了大量浮点除法运算，提高了高频交互场景下的性能</li>
-     * </ul>
-     *
-     * <p>v9.0 更新：手柄现在在刻度尺内，顶部与底部三角对齐
-     *
-     * @param mouseX 鼠标 X 坐标
-     * @param mouseY 鼠标 Y 坐标
-     * @param rulerTop 刻度尺顶部 Y 坐标
-     * @param contentX 内容区域 X 起点
-     * @return 是否在播放头手柄内
-     */
-    private boolean isPointInPlayheadHandle(float mouseX, float mouseY, float rulerTop, float contentX) {
-        float currentTime = model.getCurrentTime();
-        float playheadX = renderer.timeToX(currentTime, contentX);
-
-        // ⭐ v9.0 更新：播放头手柄参数（与渲染代码保持一致）
-        // 手柄变小了（6.0f），顶部与底部三角对齐
-        float handleSize = 6.0f;
-        float handleHeight = handleSize * 1.5f; // 9.0f
-        // 手柄顶部位置：与刻度尺顶部对齐（三角的顶部点在刻度尺上边缘）
-        float handleBottom = rulerTop + handleHeight;
-
-        // 简单的矩形包围盒检测（AABB）
-        // X 轴范围：播放头中心左右各 handleSize
-        boolean insideX = (mouseX >= playheadX - handleSize) && (mouseX <= playheadX + handleSize);
-
-        // Y 轴范围：从底部三角到手柄底部（在底部三角内）
-        boolean insideY = (mouseY >= rulerTop) && (mouseY <= handleBottom);
-
-        return insideX && insideY;
+        // ⭐ 关键修复 2: 左键松开时结束 scrubbing
+        if (ImGui.isMouseReleased(ImGuiMouseButton.Left)) {
+            TimelineCameraController.getInstance().setScrubbing(false);
+            LOGGER.debug("[TimelinePanel] 停止拖动播放头");
+        }
     }
 
     /**

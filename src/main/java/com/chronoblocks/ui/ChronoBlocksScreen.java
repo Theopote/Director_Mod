@@ -270,6 +270,14 @@ public class ChronoBlocksScreen extends Screen {
         cleanupRenderSystems(false);
         InputFocusManager.getInstance().setChronoBlocksScreenActive(false);
         
+        // ⭐ 关键修复：关闭窗口时强制退出电影模式并恢复玩家控制
+        try {
+            com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance().onTimelineUiClosed();
+            LOGGER.info("[ChronoBlocks] 已通知 TimelineCameraController 关闭窗口");
+        } catch (Exception e) {
+            LOGGER.warn("[ChronoBlocks] 通知 TimelineCameraController 关闭窗口时出错", e);
+        }
+        
         // 停用 UI 相关快捷键上下文
         try {
             com.chronoblocks.ui.input.ShortcutInitializer.deactivateUIContexts();
@@ -372,6 +380,15 @@ public class ChronoBlocksScreen extends Screen {
     @Override
     public void close() {
         ChronoBlocksClientController.getInstance().deactivateChronoBlocksMode();
+        
+        // ⭐ 关键修复：关闭窗口时强制退出电影模式并恢复玩家控制
+        try {
+            com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance().onTimelineUiClosed();
+            LOGGER.info("[ChronoBlocks] 已通知 TimelineCameraController 关闭窗口");
+        } catch (Exception e) {
+            LOGGER.warn("[ChronoBlocks] 通知 TimelineCameraController 关闭窗口时出错", e);
+        }
+        
         cleanupRenderSystems(true);
 
         if (client != null && client.mouse != null) {

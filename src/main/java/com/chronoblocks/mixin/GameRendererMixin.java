@@ -2,6 +2,7 @@ package com.chronoblocks.mixin;
 
 import com.chronoblocks.client.ChronoBlocksClientController;
 import com.chronoblocks.ui.timeline.playback.camera.CameraRuntime;
+import com.chronoblocks.ui.timeline.playback.camera.CameraSample;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.RenderTickCounter;
@@ -12,78 +13,53 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * 🎬 GameRendererMixin - 阻止原版方块选取与玩家渲染
- * ==============================================
- * 在ChronoBlocks模式下：
- * - 隐藏第一人称手臂与物品渲染
+ * 🎬 GameRendererMixin - ChronoBlocks 相关渲染控制
+ *
+ * - 隐藏第一人称手臂与物品渲染（当需要时）
  * - 控制玩家模型可见性
- * - 阻止原版方块高亮更新
+ * - 在电影模式下覆盖 FOV
  */
 @Mixin(GameRenderer.class)
 public class GameRendererMixin {
 
-    /**
-     * 🚫 拦截第一人称物品（手臂、武器、工具等）渲染
-     * 在ChronoBlocks模式下完全隐藏玩家手臂
-     * 基于Minecraft 1.21.4源码：renderHand(Camera camera, float tickDelta, Matrix4f matrix4f)
-     */
     @Inject(method = "renderHand", at = @At("HEAD"), cancellable = true)
     private void onRenderHand(Camera camera, float tickDelta, org.joml.Matrix4f matrix4f, CallbackInfo ci) {
-        ChronoBlocksClientController controller = ChronoBlocksClientController.getInstance();
-        if (controller != null && controller.shouldHideCrosshair()) {
-            ci.cancel(); // 🚫 不渲染第一人称手
+        if (ChronoBlocksClientController.getInstance().shouldHideCrosshair()) {
+            ci.cancel();
         }
     }
 
-    /**
-     * 🎭 控制玩家模型可见性
-     * 在ChronoBlocks模式下可选择隐藏玩家模型实现"自由摄影"模式
-     * 基于Minecraft 1.21.4源码：renderWorld(RenderTickCounter renderTickCounter)
-     */
     @Inject(method = "renderWorld", at = @At("HEAD"))
-    private void onRenderWorldHead(RenderTickCounter renderTickCounter, CallbackInfo ci) {
-        ChronoBlocksClientController controller = ChronoBlocksClientController.getInstance();
-        if (controller != null && controller.shouldHideCrosshair()) {
-            // 可以通过隐藏玩家实体实现"自由摄影"模式
-            net.minecraft.client.MinecraftClient mc = net.minecraft.client.MinecraftClient.getInstance();
-            if (mc.player != null) {
-                mc.player.setInvisible(true);
-            }
-        } else {
-            net.minecraft.client.MinecraftClient mc = net.minecraft.client.MinecraftClient.getInstance();
-            if (mc.player != null) {
-                mc.player.setInvisible(false);
-            }
+    private void onRenderWorldHead(RenderTickCounter tickCounter, CallbackInfo ci) {
+        var mc = net.minecraft.client.MinecraftClient.getInstance();
+        var controller = ChronoBlocksClientController.getInstance();
+        if (mc.player != null) {
+            mc.player.setInvisible(controller.shouldHideCrosshair());
         }
     }
 
     /**
-     * Override FOV while the cinematic camera is driving the view.
-     * 
-     * <p>v3.0: 使用 CameraSample 从 CameraRuntime 获取 FOV
+     * ⭐ 统一摄像机系统 v2.2：仅在电影模式下覆盖 FOV
+     *
+     * - 电影模式：使用 sample 的 FOV（时间线定义）
+     * - 游戏模式：完全使用原版 FOV，不干预
      */
     @Inject(
-        method = "getFov", // 只保留方法名，让 Mixin 自动推断描述符
-        at = @At("HEAD"),
-        cancellable = true
+            method = "getFov",
+            at = @At("HEAD"),
+            cancellable = true
     )
-    private void chronoblocks$overrideFov(Camera camera, float tickDelta, boolean changingFov, CallbackInfoReturnable<Float> cir) {
+    private void chronoblocks$overrideFov(Camera camera, float tickDelta, boolean changingFov,
+                                          CallbackInfoReturnable<Float> cir) {
         CameraRuntime runtime = CameraRuntime.getInstance();
-        if (!runtime.isCinematicActive()) {
-            return;
+        // ✅ 只有电影模式才覆盖 FOV（使用统一的条件判断）
+        if (!runtime.isCinematicEnabled()) {
+            return; // 非电影模式 → 使用原版 FOV
         }
 
-        com.chronoblocks.ui.timeline.playback.camera.CameraSample sample = runtime.getActiveSample();
-        if (sample == null) {
-            return;
+        CameraSample sample = runtime.getActiveSample();
+        if (sample != null) {
+            cir.setReturnValue(sample.fov());
         }
-
-        float fov = sample.fov();
-        if (Float.isNaN(fov) || fov <= 0) {
-            return;
-        }
-
-        // getFov 方法返回 float，直接设置
-        cir.setReturnValue(fov);
     }
 }

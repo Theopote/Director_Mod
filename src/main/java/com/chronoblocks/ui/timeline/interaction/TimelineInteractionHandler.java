@@ -553,6 +553,9 @@ public class TimelineInteractionHandler {
 
         
         else if (mode == InteractionMode.DRAG_PLAYHEAD) {
+            // ⭐ 关键修复：结束拖动播放头时，将当前预览的 sample 烤进玩家视角
+            // 这样松手后玩家视角会跳到当前预览位置，而不是恢复拖动前的视角
+            com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance().bakeCurrentSampleIntoGameAndExit();
             com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance().setScrubbing(false);
         }
 

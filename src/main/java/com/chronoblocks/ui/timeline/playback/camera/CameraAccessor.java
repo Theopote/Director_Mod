@@ -63,4 +63,34 @@ public final class CameraAccessor {
             aperture
         );
     }
+
+    /**
+     * 将 CameraSample 应用到游戏摄像机（玩家视角）。
+     * ⭐ 用于"无缝衔接"场景：从时间线预览退出时，将预览的摄像机状态应用到玩家视角。
+     * 
+     * ⭐ 关键修复：不修改 FOV，因为 FOV 是通过 GameRendererMixin 覆盖的，不应该修改 client.options.getFov()
+     * 
+     * @param client MinecraftClient 实例
+     * @param sample 要应用的摄像机样本
+     */
+    public static void applySampleToGameCamera(MinecraftClient client, CameraSample sample) {
+        if (client == null || sample == null) {
+            return;
+        }
+
+        // 应用位置和角度：如果玩家存在，使用 setPos 和 setYaw/setPitch
+        if (client.player != null) {
+            client.player.setPos(sample.position().x, sample.position().y, sample.position().z);
+            client.player.setYaw(sample.yaw());
+            client.player.setPitch(sample.pitch());
+            // 注意：roll 在原版中不支持，跳过
+        }
+
+        // ⭐ 关键修复：不修改 FOV！
+        // 原因：
+        // 1. 在电影模式下，FOV 是通过 GameRendererMixin.getFov() 覆盖的，不会修改 client.options.getFov()
+        // 2. 如果修改 client.options.getFov()，会永久改变玩家的 FOV 设置
+        // 3. 退出电影模式时，GameRendererMixin 不再覆盖，应该使用玩家原始的 FOV（client.options.getFov()）
+        // 所以这里不应该修改 FOV
+    }
 }

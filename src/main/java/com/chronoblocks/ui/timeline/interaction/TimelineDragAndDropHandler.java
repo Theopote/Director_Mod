@@ -17,6 +17,7 @@ import imgui.ImGui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -114,7 +115,7 @@ public class TimelineDragAndDropHandler {
     private void handleContainerDropToTrack(String containerId, int trackIndex, float mouseX, float contentX) {
         try {
             UUID containerUuid = UUID.fromString(containerId);
-            Container container = ContainerManager.getInstance().getContainer(containerUuid);
+            Container container = Objects.requireNonNull(ContainerManager.getInstance()).getContainer(containerUuid);
             if (container == null) {
                 LOGGER.warn("[DragDrop] 容器不存在: {}", containerId);
                 return;
@@ -132,7 +133,7 @@ public class TimelineDragAndDropHandler {
 
             if (!existingClips.isEmpty()) {
                 // 容器已经有片段，移动现有片段到新位置
-                TimelineClip existingClip = existingClips.get(0); // 每个容器只有一个片段
+                TimelineClip existingClip = existingClips.getFirst(); // 每个容器只有一个片段
                 TimelineTrack oldTrack = model.findTrackForClip(existingClip);
 
                 // 计算新位置时间与吸附
@@ -336,7 +337,7 @@ public class TimelineDragAndDropHandler {
             );
             
             // 复制预设中的额外参数
-            if (preset.getParams() != null && !preset.getParams().isEmpty()) {
+            if (!preset.getParams().isEmpty()) {
                 config.getParams().putAll(preset.getParams());
             }
             

@@ -65,23 +65,7 @@ public class TimelineModel {
     }
     
     private final List<ModelChangeListener> listeners = new CopyOnWriteArrayList<>();
-    
-    /**
-     * 添加模型变更监听器
-     */
-    public void addModelChangeListener(ModelChangeListener listener) {
-        if (listener != null && !listeners.contains(listener)) {
-            listeners.add(listener);
-        }
-    }
-    
-    /**
-     * 移除模型变更监听器
-     */
-    public void removeModelChangeListener(ModelChangeListener listener) {
-        listeners.remove(listener);
-    }
-    
+
     /**
      * 通知所有监听器模型已变更
      * @param changeType 变更类型
@@ -541,9 +525,9 @@ public class TimelineModel {
 
     /**
      * 添加片段到轨道（语义方法）
-     * 
+     *
      * <p>将片段添加到指定轨道，并自动设置父引用。
-     * 
+     *
      * @param track 目标轨道
      * @param clip 要添加的片段
      */
@@ -554,60 +538,6 @@ public class TimelineModel {
         }
     }
 
-    /**
-     * 从轨道移除片段（语义方法）
-     * 
-     * <p>从指定轨道移除片段，并清除父引用。
-     * 
-     * @param track 目标轨道
-     * @param clip 要移除的片段
-     */
-    public void removeClip(TimelineTrack track, TimelineClip clip) {
-        if (track != null && clip != null) {
-            track.removeClip(clip);
-            markDurationDirty();
-        }
-    }
-
-    /**
-     * 在指定时间点分割片段（语义方法）
-     * 
-     * <p>将片段在指定时间点分割成两个片段。
-     * 原片段保留前半部分，新片段包含后半部分。
-     * 
-     * @param track 片段所在的轨道
-     * @param clip 要分割的片段
-     * @param time 分割时间点（必须在片段范围内）
-     */
-    public void splitClipAtTime(TimelineTrack track, TimelineClip clip, float time) {
-        if (track == null || clip == null) return;
-        
-        float clipStart = clip.getStartTime();
-        float clipEnd = clip.getEndTime();
-        
-        // 验证分割点是否在片段范围内
-        if (time <= clipStart || time >= clipEnd) {
-            return;
-        }
-
-        // 计算分割后的长度
-        float firstLength = time - clipStart;
-        float secondLength = clipEnd - time;
-
-        // 调整原片段的长度
-        clip.setLength(firstLength);
-
-        // 创建新片段（后半部分）
-        TimelineClip second = clip.duplicateShallow();
-        second.setStartTime(time);
-        second.setLength(secondLength);
-
-        // 将新片段添加到轨道
-        track.addClip(second);
-        
-        markDurationDirty();
-    }
-    
     // ========== 工具方法 ==========
     
     private float clamp(float v, float b) {

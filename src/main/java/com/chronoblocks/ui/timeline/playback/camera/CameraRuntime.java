@@ -1,230 +1,283 @@
 package com.chronoblocks.ui.timeline.playback.camera;
 
 import net.minecraft.client.MinecraftClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
- * CameraRuntime v2.0 - 摄像机运行时状态管理器（统一状态中枢）
- * 
- * <p>统一管理：
- * <ul>
- *   <li>当前摄像机模式（GAME / PREVIEW / PLAYING）</li>
- *   <li>当前电影摄像机 sample</li>
- *   <li>玩家原始摄像机 snapshot（用于从电影模式回到玩家模式）</li>
- * </ul>
- * 
- * <p>⭐ 关键变更：
- * <ul>
- *   <li>不再使用 CinematicCamera，直接使用 CameraSample</li>
- *   <li>Mixin 和 TimelineCameraController 都只跟它打交道</li>
- *   <li>统一的状态切换入口，避免状态不一致</li>
- * </ul>
+ * CameraRuntime v3.0 - 统一摄像机运行时状态管理器
+ *
+ * ⭐ 职责：维护"当前到底用哪台摄像机"和"当前 sample 是什么"，以及缓存/恢复玩家视角。
+ *
+ * - GAME 模式：完全不干预原版摄像机（CameraMixin / GameRendererMixin 都会直接 return）
+ * - CINEMATIC 模式：每帧由 mixin 从 activeSample 读取位置/旋转/FOV 覆盖原版摄像机
  */
 public final class CameraRuntime {
-    private static final Logger LOGGER = LoggerFactory.getLogger(CameraRuntime.class);
-    
     private static final CameraRuntime INSTANCE = new CameraRuntime();
 
-    private CameraMode mode = CameraMode.GAME;
-
-    /** 当前正在使用的电影摄像机 sample（PREVIEW / PLAYING 时不为 null） */
-    private CameraSample activeSample = null;
-
-    /** 记录进入电影模式前的玩家视角 snapshot，用于恢复 */
-    private CameraSample gameSnapshot = null;
-
-    /** 是否已经捕捉过玩家 snapshot */
-    private boolean hasGameSnapshot = false;
-
-    private CameraRuntime() {
+    /** 内部模式枚举 */
+    public enum Mode {
+        GAME,           // 默认玩家视角
+        CINEMATIC       // 时间线摄像机（播放 / 拖动 / 预览）
     }
 
+    /** 当前模式，默认 GAME */
+    private Mode mode = Mode.GAME;
+
+    /** 当前正在应用的镜头（位置、旋转、FOV 等） */
+    private CameraSample activeSample = null;
+
+    /** 缓存的玩家视角（进入 CINEMATIC 模式前保存） */
+    private CameraSample cachedPlayerView = null;
+
+    /** ⭐ 关键修复：保存玩家原始的 FOV（在第一次进入电影模式前） */
+    private Float originalPlayerFov = null;
+
+    /** 单例访问 */
     public static CameraRuntime getInstance() {
         return INSTANCE;
     }
 
-    // ========= 对外状态查询 =========
+    private CameraRuntime() {}
 
-    public CameraMode getMode() {
+    // ========================= 查询接口 =========================
+
+    /**
+     * 是否处于"电影模式"且有有效 sample。
+     * 
+     * ⭐ 统一命名：与 Mixin 中的判断条件保持一致。
+     * 🚩 注意：只有在返回 true 时，CameraMixin / GameRendererMixin 才会覆盖原版摄像机。
+     */
+    public boolean isCinematicEnabled() {
+        return mode == Mode.CINEMATIC && activeSample != null;
+    }
+
+    /**
+     * @deprecated 使用 isCinematicEnabled() 替代，保持向后兼容
+     */
+    @Deprecated
+    public boolean isCinematicActive() {
+        return isCinematicEnabled();
+    }
+
+    /** 是否是游戏模式（玩家视角） */
+    public boolean isGameMode() {
+        return mode == Mode.GAME || activeSample == null;
+    }
+
+    public Mode getMode() {
         return mode;
     }
 
-    public boolean isCinematicActive() {
-        return mode.isCinematic() && activeSample != null;
-    }
-
+    /**
+     * 获取当前 sample（供 mixin 使用）
+     */
     public CameraSample getActiveSample() {
         return activeSample;
     }
 
-    public CameraSample getGameSnapshot() {
-        return gameSnapshot;
-    }
-
-    public boolean hasGameSnapshot() {
-        return hasGameSnapshot;
-    }
-
-    // ========= 模式切换 =========
+    // ========================= 状态切换 =========================
 
     /**
-     * 统一的"请求回到游戏模式"入口（推荐使用）
-     * 
-     * <p>所有"回到玩家视角"的地方都应该调用这个方法，包括：
-     * <ul>
-     *   <li>时间线播放结束</li>
-     *   <li>用户点击"停止播放"按钮</li>
-     *   <li>用户停止 scrubbing</li>
-     *   <li>用户点击"退出摄像机预览"按钮</li>
-     * </ul>
+     * 进入电影模式，并应用指定 sample。
+     * ⭐ 关键：只在从 GAME 切换到 CINEMATIC 时缓存玩家视角。
+     *
+     * @param sample 要使用的镜头快照，如果为 null 则退回 GAME 模式
      */
-    public void requestGameMode() {
-        enterGameMode(null);
-    }
-
-    /**
-     * 进入 Game 模式：恢复玩家摄像机，停止所有时间线摄像机接管
-     */
-    public void enterGameMode() {
-        enterGameMode(null);
-    }
-
-    /**
-     * 进入 Game 模式：恢复玩家摄像机，停止所有时间线摄像机接管
-     */
-    public void enterGameMode(MinecraftClient client) {
-        if (mode == CameraMode.GAME) {
+    public void enterCinematic(CameraSample sample) {
+        if (sample == null) {
+            exitCinematicAndRestorePlayer();
             return;
         }
-
-        if (client == null) {
-            client = MinecraftClient.getInstance();
-        }
-
-        // ⭐ 空场景/玩家缺失保护
-        if (client == null || client.player == null || client.options == null) {
-            LOGGER.warn("[CameraRuntime] 无法恢复玩家视角：客户端或玩家为空");
-            mode = CameraMode.GAME;
-            activeSample = null;
-            return;
-        }
-
-        if (hasGameSnapshot && client.gameRenderer != null && client.gameRenderer.getCamera() != null) {
-            // 实际恢复交给 Mixin/FOV 覆盖逻辑，
-            // 这里只需要清除 activeSample，并标记模式。
-            LOGGER.info("[CameraRuntime] 恢复到玩家摄像机视角");
-        } else {
-            LOGGER.info("[CameraRuntime] 切回 GAME 模式，但没有可用玩家 snapshot，直接关闭电影摄像机");
-        }
-
-        mode = CameraMode.GAME;
-        activeSample = null;
-        // 不清除 gameSnapshot，保留以便下次使用
-    }
-
-    /**
-     * 进入电影模式（统一入口，避免重复缓存）
-     * 
-     * <p>⭐ 关键：同帧生效，强制刷新 Camera 使 Mixin 当帧读取 sample
-     * 
-     * @param targetMode 目标模式（PREVIEW 或 PLAYING）
-     * @param sample 摄像机采样数据
-     */
-    private void enterCinematicMode(CameraMode targetMode, CameraSample sample) {
-        if (targetMode == CameraMode.GAME) {
-            throw new IllegalArgumentException("使用 enterGameMode() 而不是 enterCinematicMode(GAME)");
-        }
-
-        MinecraftClient client = MinecraftClient.getInstance();
         
-        // ⭐ 空场景/玩家缺失保护
-        if (client == null || client.player == null || client.options == null) {
-            LOGGER.warn("[CameraRuntime] 无法进入电影模式：客户端或玩家为空");
-            return;
+        // ⭐ 关键修复：只在切换模式时缓存玩家视角，避免重复缓存
+        if (mode != Mode.CINEMATIC) {
+            cachePlayerView();
         }
-
-        // ⭐ 只在从 GAME → CINEMATIC 的那一刻缓存（避免 PREVIEW↔PLAYING 重复缓存）
-        if (!mode.isCinematic() && !hasGameSnapshot) {
-            gameSnapshot = CameraAccessor.sampleGameCamera(client);
-            hasGameSnapshot = true;
-            LOGGER.debug("[CameraRuntime] 捕捉玩家摄像机 snapshot (mode: {} → {})", mode, targetMode);
-        }
-
-        this.activeSample = sample != null ? sample : CameraSample.EMPTY;
-        this.mode = targetMode;
-
-        // ⭐ 关键：同帧生效 - 强制刷新 Camera，使 Mixin 当帧读取 sample 而不是 vanilla FOV
-        if (client.gameRenderer != null && client.gameRenderer.getCamera() != null) {
-            try {
-                // 强制更新 Camera，确保 Mixin 在同一帧应用 sample
-                client.gameRenderer.getCamera().update(
-                    client.world,
-                    client.player,
-                    false,
-                    false,
-                    0f
-                );
-            } catch (Exception e) {
-                // 如果 update 参数不匹配，至少确保 mode 和 sample 已设置
-                LOGGER.debug("[CameraRuntime] Camera.update() 调用失败，但模式已切换: {}", e.getMessage());
-            }
-        }
+        
+        this.mode = Mode.CINEMATIC;
+        this.activeSample = sample;
     }
 
     /**
-     * 进入预览模式（播放头拖动、选中关键帧预览）
-     */
-    public void enterPreviewMode(boolean hasTrack) {
-        enterPreviewMode(null, null, true);
-    }
-
-    /**
-     * 进入预览模式（播放头拖动、选中关键帧预览）
-     */
-    public void enterPreviewMode(MinecraftClient client, CameraSample previewSample, boolean captureGameSnapshotIfNeeded) {
-        enterCinematicMode(CameraMode.PREVIEW, previewSample);
-    }
-
-    /**
-     * 进入播放模式（时间线播放）
-     */
-    public void enterPlayingMode(boolean hasTrack) {
-        enterPlayingMode(null, null, true);
-    }
-
-    /**
-     * 进入播放模式（时间线播放）
-     */
-    public void enterPlayingMode(MinecraftClient client, CameraSample playingSample, boolean captureGameSnapshotIfNeeded) {
-        enterCinematicMode(CameraMode.PLAYING, playingSample);
-    }
-
-    /**
-     * 更新当前 sample（由 TimelineCameraController 每帧调用）
+     * 在已经处于 CINEMATIC 模式时，更新当前 sample。
+     * 一般由 TimelineCameraController.update() 每帧调用。
      */
     public void updateSample(CameraSample sample) {
-        if (!mode.isCinematic()) {
+        if (sample == null) {
+            // 没有可用 sample 了，自动退回游戏模式并恢复玩家视角
+            exitCinematicAndRestorePlayer();
             return;
         }
-        this.activeSample = sample != null ? sample : CameraSample.EMPTY;
+        if (mode != Mode.CINEMATIC) {
+            // 如果当前不是电影模式，直接切换过去（会触发缓存）
+            enterCinematic(sample);
+        } else {
+            this.activeSample = sample;
+        }
+    }
+
+    /**
+     * 完全退出电影模式，恢复玩家视角。
+     * 用于：停止播放、关闭 UI、用户主动退出预览等场景。
+     * 
+     * ⭐ 关键修复：确保 FOV 正确恢复
+     */
+    public void exitCinematicAndRestorePlayer() {
+        if (mode == Mode.GAME) {
+            // ⭐ 关键修复：即使已经是游戏模式，也要确保 FOV 是正确的
+            // 因为可能之前进入过电影模式，FOV 可能被修改了
+            if (originalPlayerFov != null) {
+                MinecraftClient client = MinecraftClient.getInstance();
+                if (client != null && client.options != null && client.options.getFov() != null) {
+                    client.options.getFov().setValue(originalPlayerFov.intValue());
+                }
+            }
+            return;
+        }
+        
+        restorePlayerView();
+        mode = Mode.GAME;
+        activeSample = null;
+    }
+
+    /**
+     * 只退出电影模式，不恢复玩家视角。
+     * 用于："无缝衔接"场景，将当前 sample 烤进玩家视角后退出。
+     */
+    public void exitCinematicWithoutRestore() {
+        mode = Mode.GAME;
+        activeSample = null;
+        // 注意：不调用 restorePlayerView()，保持当前摄像机状态
+    }
+
+    /**
+     * 回到原版相机模式（玩家视角）。
+     * mixin 不再覆盖 Camera / FOV。
+     * 
+     * @deprecated 使用 exitCinematicAndRestorePlayer() 替代，更明确语义
+     */
+    @Deprecated
+    public void enterGameMode() {
+        exitCinematicAndRestorePlayer();
+    }
+
+    /**
+     * 强制释放电影模式。
+     * 用于：
+     * - 时间线 UI 被关闭时
+     * - 世界卸载 / 游戏退出时
+     * - 任何"保险起见"的重置
+     */
+    public void forceReleaseCinematic() {
+        mode = Mode.GAME;
+        activeSample = null;
+        cachedPlayerView = null; // 清理缓存
+        originalPlayerFov = null; // 清理原始 FOV
     }
 
     /**
      * 在世界/游戏结束时清理（可选调用）
      */
     public void reset() {
-        mode = CameraMode.GAME;
-        activeSample = null;
-        gameSnapshot = null;
-        hasGameSnapshot = false;
+        forceReleaseCinematic();
+    }
+
+    // ========================= 内部工具 =========================
+
+    /**
+     * 缓存当前玩家视角（在进入 CINEMATIC 模式前调用）
+     * ⭐ 关键修复：确保保存玩家原始的 FOV，而不是被修改过的 FOV
+     * 
+     * 问题分析：
+     * - GameRendererMixin 在电影模式下直接覆盖 FOV，不会修改 client.options.getFov()
+     * - 所以 client.options.getFov() 应该始终是玩家的原始 FOV
+     * - 但为了保险起见，我们只在第一次进入电影模式时保存原始 FOV
+     * - 这样即使多次进入/退出电影模式，我们也能恢复玩家真正的原始 FOV
+     */
+    private void cachePlayerView() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null) {
+            return;
+        }
+        
+        // ⭐ 关键修复：只在第一次缓存时保存原始 FOV（当前是 GAME 模式，说明是第一次进入电影模式）
+        // 如果 originalPlayerFov 已经存在，说明之前已经保存过，不需要再次保存
+        // 注意：GameRendererMixin 不会修改 client.options.getFov()，所以这个值应该是正确的
+        if (originalPlayerFov == null && mode == Mode.GAME && client.options != null && client.options.getFov() != null) {
+            originalPlayerFov = client.options.getFov().getValue().floatValue();
+        }
+        
+        cachedPlayerView = CameraAccessor.sampleGameCamera(client);
+        
+        // ⭐ 关键修复：如果已经保存了原始 FOV，用原始 FOV 替换缓存 sample 中的 FOV
+        // 这样可以确保恢复时使用的是玩家真正的原始 FOV
+        if (originalPlayerFov != null && cachedPlayerView != null) {
+            // 创建一个新的 sample，使用原始 FOV
+            cachedPlayerView = new CameraSample(
+                cachedPlayerView.position(),
+                cachedPlayerView.yaw(),
+                cachedPlayerView.pitch(),
+                cachedPlayerView.roll(),
+                originalPlayerFov,  // ⭐ 使用原始 FOV
+                cachedPlayerView.nearPlane(),
+                cachedPlayerView.farPlane(),
+                cachedPlayerView.depthOfFieldEnabled(),
+                cachedPlayerView.focusDistance(),
+                cachedPlayerView.aperture()
+            );
+        }
     }
 
     /**
-     * 当 Timeline 完全停止时调用（比如停止按钮 / 播放到末尾）
+     * 恢复缓存的玩家视角到游戏摄像机
+     * ⭐ 关键修复：确保恢复玩家原始的 FOV
+     * 
+     * 注意：GameRendererMixin 在非电影模式下不会覆盖 FOV，所以只需要确保 client.options.getFov() 是正确的值即可
      */
-    public void onTimelineStopped() {
-        LOGGER.debug("[CameraRuntime] Timeline stopped, back to GAME mode");
-        enterGameMode();
+    private void restorePlayerView() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null) {
+            return;
+        }
+        
+        // ⭐ 关键修复：优先恢复原始 FOV（如果存在）
+        // 因为 GameRendererMixin 不会修改 client.options.getFov()，所以理论上不需要恢复
+        // 但为了保险起见，我们确保 FOV 是正确的
+        if (originalPlayerFov != null && client.options != null && client.options.getFov() != null) {
+            // 确保 FOV 恢复到原始值
+            client.options.getFov().setValue(originalPlayerFov.intValue());
+        }
+        
+        // 恢复位置和角度（如果有缓存的视角）
+        if (cachedPlayerView != null) {
+            // ⭐ 关键修复：恢复时使用保存的原始 FOV（如果存在）
+            CameraSample sampleToRestore = cachedPlayerView;
+            if (originalPlayerFov != null) {
+                // 创建一个新的 sample，使用原始 FOV
+                sampleToRestore = new CameraSample(
+                    cachedPlayerView.position(),
+                    cachedPlayerView.yaw(),
+                    cachedPlayerView.pitch(),
+                    cachedPlayerView.roll(),
+                    originalPlayerFov,  // ⭐ 使用原始 FOV
+                    cachedPlayerView.nearPlane(),
+                    cachedPlayerView.farPlane(),
+                    cachedPlayerView.depthOfFieldEnabled(),
+                    cachedPlayerView.focusDistance(),
+                    cachedPlayerView.aperture()
+                );
+            }
+            
+            // 只恢复位置和角度，FOV 已经在上面恢复了
+            if (client.player != null) {
+                client.player.setPos(sampleToRestore.position().x, sampleToRestore.position().y, sampleToRestore.position().z);
+                client.player.setYaw(sampleToRestore.yaw());
+                client.player.setPitch(sampleToRestore.pitch());
+            }
+            
+            cachedPlayerView = null; // 恢复后清理缓存
+        }
+        
+        // ⭐ 关键修复：不要清理 originalPlayerFov，因为可能还会再次进入电影模式
+        // 只有在 forceReleaseCinematic() 时才清理
     }
 }

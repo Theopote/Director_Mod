@@ -25,6 +25,7 @@ import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
 import com.chronoblocks.ui.timeline.model.weather.WeatherKeyframe;
+import com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -166,12 +167,12 @@ public class TimelineContextMenuFactory {
         }
 
         String menuLabel = keyframe.getName();
-        if (keyframe instanceof CameraKeyframe) {
-            menuLabel = "摄像机关键帧";
-        } else if (keyframe instanceof WeatherKeyframe) {
-            menuLabel = "天气关键帧";
-        } else if (keyframe instanceof TimelineMarker) {
-            menuLabel = "标记";
+        switch (keyframe) {
+            case CameraKeyframe cameraKeyframe -> menuLabel = "摄像机关键帧";
+            case WeatherKeyframe weatherKeyframe -> menuLabel = "天气关键帧";
+            case TimelineMarker timelineMarker -> menuLabel = "标记";
+            default -> {
+            }
         }
 
         return TimelineContextMenuBuilder
@@ -279,14 +280,15 @@ public class TimelineContextMenuFactory {
                     .end();
                 }
             }
-            case CAMERA -> builder
-                .submenu("摄像机关键帧")
-                    .command("添加摄像机关键帧",
-                        new AddAutomationKeyframeCommand(
-                            model,
-                            track,
-                            new CameraKeyframe("Camera @" + formatTime(time), time)))
-                .end();
+            case CAMERA -> {
+                CameraKeyframe keyframe = new CameraKeyframe("Camera @" + formatTime(time), time);
+                TimelineCameraController.getInstance().captureFromGameCamera(keyframe);
+                builder
+                    .submenu("摄像机关键帧")
+                        .command("添加摄像机关键帧",
+                            new AddAutomationKeyframeCommand(model, track, keyframe))
+                    .end();
+            }
             case WEATHER -> builder
                 .submenu("天气关键帧")
                     .command("添加天气关键帧",

@@ -14,80 +14,73 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.lang.reflect.Method;
 
 /**
- * CameraMixin v3.0
- * 
- * <p>在 Camera.update 之后覆盖位置/朝向，从 CameraRuntime 读取当前 sample。
- * 
- * <p>⭐ 重要变更：
- * <ul>
- *   <li>不再使用 CinematicCamera，直接使用 CameraSample</li>
- *   <li>只从 CameraRuntime 读取状态，不再依赖 TimelineCameraController</li>
- * </ul>
+ * CameraMixin v3.2
+ *
+ * 在 Camera.update 之后覆盖位置/朝向，从 CameraRuntime 读取当前 sample。
+ *
+ * ⭐ 关键修复：
+ * - 之前 isCinematicActive() 的判断反了，导致"有电影模式时不覆盖，没电影模式时反而覆盖"
+ * - 现在逻辑为：只有在 isCinematicActive() == true 时才覆盖 Camera
  */
 @Mixin(Camera.class)
 public abstract class CameraMixin {
-    
+
     @Unique
     private static Method setPosMethod;
     @Unique
     private static Method setRotationMethod;
-    
+
     static {
         try {
             setPosMethod = Camera.class.getDeclaredMethod("setPos", double.class, double.class, double.class);
             setPosMethod.setAccessible(true);
             setRotationMethod = Camera.class.getDeclaredMethod("setRotation", float.class, float.class);
             setRotationMethod.setAccessible(true);
-        } catch (NoSuchMethodException e) {
-            throw new RuntimeException("Failed to get Camera methods", e);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to reflection Camera methods", e);
         }
     }
 
     /**
-     * 在摄像机 update 时，如果处于 Cinematic 模式（PREVIEW 或 PLAYING），
-     * 则完全使用轨道摄像机的数据，并取消原本的跟随实体逻辑。
+     * ★★ 更新摄像机后，再覆盖位置和角度，而不是取消 update。
+     * 这样就不会破坏 FOV 计算、平滑等逻辑。
      */
-    @Inject(
-        method = "update",
-        at = @At("HEAD"),
-        cancellable = true
-    )
-    private void chronoblocks$overrideCamera(BlockView area, Entity focusedEntity, boolean thirdPerson, boolean inverseView, float tickDelta, CallbackInfo ci) {
+    @Inject(method = "update", at = @At("TAIL"))
+    private void chronoblocks$applyCinematicCamera(
+            BlockView area, Entity focusedEntity, boolean thirdPerson, boolean inverseView,
+            float tickDelta, CallbackInfo ci
+    ) {
         CameraRuntime runtime = CameraRuntime.getInstance();
-        if (!runtime.isCinematicActive()) {
+        // ✅ 只有在电影模式下才覆盖 Camera（使用统一的条件判断）
+        if (!runtime.isCinematicEnabled()) {
             return;
         }
 
         CameraSample sample = runtime.getActiveSample();
-        if (sample == null) {
-            return;
-        }
+        if (sample == null) return;
 
-        // 位置
-        this.chronoblocks$setPos(sample.position().x, sample.position().y, sample.position().z);
+        // overwrite camera pos
+        chronoblocks$setPos(sample.position().x, sample.position().y, sample.position().z);
 
-        // 旋转（Roll 需要在自定义矩阵阶段额外处理，这里先用 yaw/pitch）
-        this.chronoblocks$setRotation(sample.yaw(), sample.pitch());
-
-        // 阻止原始 update 逻辑（不再跟随实体或受玩家输入影响）
-        ci.cancel();
+        // overwrite yaw/pitch
+        chronoblocks$setRotation(sample.yaw(), sample.pitch());
     }
-    
+
     @Unique
     private void chronoblocks$setPos(double x, double y, double z) {
         try {
             setPosMethod.invoke(this, x, y, z);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to set camera position", e);
+            throw new RuntimeException(e);
         }
     }
-    
+
     @Unique
     private void chronoblocks$setRotation(float yaw, float pitch) {
         try {
             setRotationMethod.invoke(this, yaw, pitch);
         } catch (Exception e) {
-            throw new RuntimeException("Failed to set camera rotation", e);
+            throw new RuntimeException(e);
         }
     }
 }

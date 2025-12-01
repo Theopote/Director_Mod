@@ -1,215 +1,25 @@
 package com.chronoblocks.ui.timeline.playback.camera;
 
-import net.minecraft.util.math.Vec3d;
-import org.joml.Vector3f;
-
 /**
- * 独立于 Minecraft 默认 Camera 的「动画摄像机」实体。
+ * CinematicCamera v1.0 - 统一相机应用工具
+ *
+ * ⭐ 统一摄像机系统：单一相机实体
  * 
- * 渲染阶段通过 CameraRuntime 提供的数据覆盖 MC 的 Camera。
+ * 注意：实际的位置和旋转应用由 CameraMixin 处理。
+ * 这个类保留作为统一摄像机系统的接口定义。
+ * FOV 通过 GameRendererMixin 注入。
  */
-public class CinematicCamera {
-    private double x;
-    private double y;
-    private double z;
-
-    // yaw: 偏航，pitch: 俯仰，roll: 翻滚
-    private float yaw;
-    private float pitch;
-    private float roll;
-
-    // 视野
-    private float fov = 70.0f;
-
-    // 裁剪面，可选用于后处理或自定义投影
-    private float nearPlane = 0.05f;
-    private float farPlane = 512.0f;
-
-    // 景深参数
-    private boolean depthOfFieldEnabled = false;
-    private float focusDistance = 10.0f;
-    private float aperture = 2.8f;
-
-    // 是否有效采样数据
-    private boolean hasSample = false;
-
-    public double getX() {
-        return x;
-    }
-
-    public double getY() {
-        return y;
-    }
-
-    public double getZ() {
-        return z;
-    }
-
-    public Vec3d getPosition() {
-        return new Vec3d(x, y, z);
-    }
-
-    public float getYaw() {
-        return yaw;
-    }
-
-    public float getPitch() {
-        return pitch;
-    }
-
-    public float getRoll() {
-        return roll;
-    }
-
-    public float getFov() {
-        return fov;
-    }
-
-    public float getNearPlane() {
-        return nearPlane;
-    }
-
-    public float getFarPlane() {
-        return farPlane;
-    }
-
-    public boolean isDepthOfFieldEnabled() {
-        return depthOfFieldEnabled;
-    }
-
-    public float getFocusDistance() {
-        return focusDistance;
-    }
-
-    public float getAperture() {
-        return aperture;
-    }
-
-    public boolean hasSample() {
-        return hasSample;
-    }
-
-    public void setPosition(double x, double y, double z) {
-        this.x = x;
-        this.y = y;
-        this.z = z;
-        this.hasSample = true;
-    }
-
-    public void setPosition(Vec3d pos) {
-        if (pos != null) {
-            this.x = pos.x;
-            this.y = pos.y;
-            this.z = pos.z;
-            this.hasSample = true;
-        }
-    }
-
-    public void setPosition(Vector3f pos) {
-        if (pos != null) {
-            this.x = pos.x;
-            this.y = pos.y;
-            this.z = pos.z;
-            this.hasSample = true;
-        }
-    }
-
-    public void setRotation(float yaw, float pitch, float roll) {
-        this.yaw = yaw;
-        this.pitch = pitch;
-        this.roll = roll;
-    }
-
-    public void setRotation(Vector3f rot) {
-        // 约定 rot: (yaw, pitch, roll)
-        if (rot != null) {
-            this.yaw = rot.x;
-            this.pitch = rot.y;
-            this.roll = rot.z;
-        }
-    }
-
-    public void setFov(float fov) {
-        this.fov = fov;
-    }
-
-    public void setNearPlane(float nearPlane) {
-        this.nearPlane = nearPlane;
-    }
-
-    public void setFarPlane(float farPlane) {
-        this.farPlane = farPlane;
-    }
-
-    public void setDepthOfFieldEnabled(boolean enabled) {
-        this.depthOfFieldEnabled = enabled;
-    }
-
-    public void setFocusDistance(float focusDistance) {
-        this.focusDistance = focusDistance;
-    }
-
-    public void setAperture(float aperture) {
-        this.aperture = aperture;
-    }
-
-    /**
-     * 从一个「采样结果」复制数据。
-     * 适配现有的 CameraSample record。
+public final class CinematicCamera {
+    
+    /** 
+     * 将 sample 应用到 Minecraft 摄像机实例
+     * 
+     * 注意：由于 Camera.setPos() 和 setRotation() 是 protected 方法，
+     * 实际的位置和旋转应用由 CameraMixin 在 Camera.update() 之后处理。
+     * 这个方法保留作为接口定义，实际逻辑在 Mixin 中。
      */
-    public void applySample(CameraSample sample) {
-        if (sample == null) {
-            clear();
-            return;
-        }
-        Vec3d pos = sample.position();
-        this.x = pos.x;
-        this.y = pos.y;
-        this.z = pos.z;
-        this.yaw = sample.yaw();
-        this.pitch = sample.pitch();
-        this.roll = sample.roll();
-        this.fov = sample.fov();
-        this.nearPlane = sample.nearPlane();
-        this.farPlane = sample.farPlane();
-        this.depthOfFieldEnabled = sample.depthOfFieldEnabled();
-        this.focusDistance = sample.focusDistance();
-        this.aperture = sample.aperture();
-        this.hasSample = true;
-    }
-
-    public void copyFrom(CinematicCamera other) {
-        if (other == null) {
-            return;
-        }
-        this.x = other.x;
-        this.y = other.y;
-        this.z = other.z;
-        this.yaw = other.yaw;
-        this.pitch = other.pitch;
-        this.roll = other.roll;
-        this.fov = other.fov;
-        this.nearPlane = other.nearPlane;
-        this.farPlane = other.farPlane;
-        this.depthOfFieldEnabled = other.depthOfFieldEnabled;
-        this.focusDistance = other.focusDistance;
-        this.aperture = other.aperture;
-        this.hasSample = other.hasSample;
-    }
-
-    public void clear() {
-        this.x = 0.0;
-        this.y = 0.0;
-        this.z = 0.0;
-        this.yaw = 0.0f;
-        this.pitch = 0.0f;
-        this.roll = 0.0f;
-        this.fov = 70.0f;
-        this.nearPlane = 0.05f;
-        this.farPlane = 512.0f;
-        this.depthOfFieldEnabled = false;
-        this.focusDistance = 10.0f;
-        this.aperture = 2.8f;
-        this.hasSample = false;
+    public static void applySample(net.minecraft.client.render.Camera camera, CameraSample sample) {
+        // 实际应用由 CameraMixin.chronoblocks$applyCinematicCamera() 处理
+        // 这里保留作为统一摄像机系统的接口定义
     }
 }

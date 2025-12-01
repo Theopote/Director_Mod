@@ -60,22 +60,34 @@ public final class CameraTrackSampler {
             return Optional.of(toSample(keyframes.getFirst()));
         }
 
-        // ⭐ 有多帧 → 找到 prev / next 然后插值
+        // ⭐ 有多帧 → 使用二分搜索找到 prev / next（性能优化）
         // 初始化为首尾帧（这样即使时间在左侧/右侧溢出也有正确的回退值）
         CameraKeyframe prev = keyframes.getFirst();
         CameraKeyframe next = keyframes.getLast();
 
-        // 遍历找到最近的 prev 和 next
-        for (CameraKeyframe kf : keyframes) {
-            float kt = kf.getTime();
-
-            if (kt <= timeSeconds) {
-                prev = kf; // 更新为更靠近 currentTime 的前一帧
+        // ⭐ 性能优化：使用二分搜索（O(log n)）而不是线性搜索（O(n)）
+        int left = 0;
+        int right = keyframes.size() - 1;
+        int prevIndex = 0;
+        
+        while (left <= right) {
+            int mid = (left + right) / 2;
+            float midTime = keyframes.get(mid).getTime();
+            
+            if (midTime <= timeSeconds) {
+                prevIndex = mid;
+                prev = keyframes.get(mid);
+                left = mid + 1;
+            } else {
+                right = mid - 1;
             }
-            if (kt >= timeSeconds) {
-                next = kf; // 找到第一个 >= currentTime 的帧就是 next
-                break;
-            }
+        }
+        
+        // 找到 next（第一个 >= timeSeconds 的帧）
+        if (prevIndex + 1 < keyframes.size()) {
+            next = keyframes.get(prevIndex + 1);
+        } else {
+            next = prev; // 时间在所有关键帧右侧
         }
 
         // prev == next 说明：
@@ -134,8 +146,8 @@ public final class CameraTrackSampler {
         float far = MathHelper.lerp(t, safeFar(a.getNearPlane(), a.getFarPlane()), 
                                        safeFar(b.getNearPlane(), b.getFarPlane()));
 
-        // DOF: bool 直接取后一帧值，数值做插值
-        boolean dofEnabled = b.isDepthOfFieldEnabled();
+        // ⭐ DOF: bool 使用 t > 0.5 判断，数值做插值
+        boolean dofEnabled = t > 0.5f ? b.isDepthOfFieldEnabled() : a.isDepthOfFieldEnabled();
         float focus = MathHelper.lerp(t, a.getFocusDistance(), b.getFocusDistance());
         float aperture = MathHelper.lerp(t, a.getAperture(), b.getAperture());
 
