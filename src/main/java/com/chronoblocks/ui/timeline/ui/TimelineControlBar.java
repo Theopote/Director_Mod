@@ -177,7 +177,7 @@ public class TimelineControlBar {
             com.chronoblocks.ui.timeline.playback.camera.CameraRuntime.getInstance();
         
         // 检查是否在预览模式（非播放的 CINEMATIC 模式）
-        boolean isPreviewMode = cameraRuntime.isCinematicActive() && !model.isPlaying();
+        boolean isPreviewMode = cameraRuntime.isCinematicEnabled() && !model.isPlaying();
         if (isPreviewMode) {
             if (ImGui.button(Icons.CAMERA + " 退出预览", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
                 cameraController.exitPreviewMode();

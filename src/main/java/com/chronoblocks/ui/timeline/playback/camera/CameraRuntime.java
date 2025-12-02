@@ -58,11 +58,6 @@ public final class CameraRuntime {
         return isCinematicEnabled();
     }
 
-    /** 是否是游戏模式（玩家视角） */
-    public boolean isGameMode() {
-        return mode == Mode.GAME || activeSample == null;
-    }
-
     public Mode getMode() {
         return mode;
     }
@@ -250,23 +245,8 @@ public final class CameraRuntime {
         // 恢复位置和角度（如果有缓存的视角）
         if (cachedPlayerView != null) {
             // ⭐ 关键修复：恢复时使用保存的原始 FOV（如果存在）
-            CameraSample sampleToRestore = cachedPlayerView;
-            if (originalPlayerFov != null) {
-                // 创建一个新的 sample，使用原始 FOV
-                sampleToRestore = new CameraSample(
-                    cachedPlayerView.position(),
-                    cachedPlayerView.yaw(),
-                    cachedPlayerView.pitch(),
-                    cachedPlayerView.roll(),
-                    originalPlayerFov,  // ⭐ 使用原始 FOV
-                    cachedPlayerView.nearPlane(),
-                    cachedPlayerView.farPlane(),
-                    cachedPlayerView.depthOfFieldEnabled(),
-                    cachedPlayerView.focusDistance(),
-                    cachedPlayerView.aperture()
-                );
-            }
-            
+            CameraSample sampleToRestore = getCameraSample();
+
             // 只恢复位置和角度，FOV 已经在上面恢复了
             if (client.player != null) {
                 client.player.setPos(sampleToRestore.position().x, sampleToRestore.position().y, sampleToRestore.position().z);
@@ -279,5 +259,25 @@ public final class CameraRuntime {
         
         // ⭐ 关键修复：不要清理 originalPlayerFov，因为可能还会再次进入电影模式
         // 只有在 forceReleaseCinematic() 时才清理
+    }
+
+    private CameraSample getCameraSample() {
+        CameraSample sampleToRestore = cachedPlayerView;
+        if (originalPlayerFov != null) {
+            // 创建一个新的 sample，使用原始 FOV
+            sampleToRestore = new CameraSample(
+                cachedPlayerView.position(),
+                cachedPlayerView.yaw(),
+                cachedPlayerView.pitch(),
+                cachedPlayerView.roll(),
+                originalPlayerFov,  // ⭐ 使用原始 FOV
+                cachedPlayerView.nearPlane(),
+                cachedPlayerView.farPlane(),
+                cachedPlayerView.depthOfFieldEnabled(),
+                cachedPlayerView.focusDistance(),
+                cachedPlayerView.aperture()
+            );
+        }
+        return sampleToRestore;
     }
 }

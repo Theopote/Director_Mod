@@ -48,10 +48,6 @@ public final class TimelineCameraController {
 
     /** 预览模式：例如点击摄像机关键帧进行预览时启用 */
     private boolean previewMode = false;
-    
-    /** 预览模式超时计时器（秒），超过此时间自动退出预览 */
-    private static final float PREVIEW_TIMEOUT_SECONDS = 10.0f;
-    private float previewModeStartTime = -1f;
 
     private TimelineCameraController() {}
 
@@ -72,16 +68,6 @@ public final class TimelineCameraController {
             sampler.setKeyframes(collectCameraKeyframes());
         } else {
             sampler.setKeyframes(new ArrayList<>());
-        }
-    }
-
-    /**
-     * 当关键帧发生变化时可以显式调用（例如某些命令直接操作 keyframe 列表）
-     */
-    public void onKeyframeChanged() {
-        if (timelineModel != null) {
-            sampler.setKeyframes(collectCameraKeyframes());
-            LOGGER.debug("[TimelineCameraController] onKeyframeChanged()，刷新采样器");
         }
     }
 
@@ -131,7 +117,6 @@ public final class TimelineCameraController {
         this.scrubbing = false;
         this.mouseOverTimeline = false;
         this.previewMode = false;
-        this.previewModeStartTime = -1f;
         
         // ⭐ 关键修复：退出电影模式并恢复玩家视角
         CameraRuntime.getInstance().exitCinematicAndRestorePlayer();
@@ -167,16 +152,6 @@ public final class TimelineCameraController {
             return;
         }
 
-        // ⭐ 预览模式超时检查
-        if (previewMode && previewModeStartTime > 0) {
-            float currentTimeSeconds = (float) (System.currentTimeMillis() / 1000.0);
-            float elapsed = currentTimeSeconds - previewModeStartTime;
-            if (elapsed > PREVIEW_TIMEOUT_SECONDS) {
-                LOGGER.info("[TimelineCameraController] 预览模式超时 ({}s)，自动退出", elapsed);
-                exitPreviewMode();
-            }
-        }
-        
         // ⭐ 全局热键：ESC 键强制退出 CINEMATIC 模式
         MinecraftClient client = MinecraftClient.getInstance();
         if (client != null && client.options != null && client.options.inventoryKey != null) {
@@ -197,13 +172,50 @@ public final class TimelineCameraController {
             runtime.exitCinematicAndRestorePlayer();
             unlockPlayerInput();
             previewMode = false;
-            previewModeStartTime = -1f;
             return;
         }
 
         // ⭐ 关键修复：使用当前时间采样，确保拖动时显示的是当前时间点的插值镜头
         float currentTime = timelineModel.getCurrentTime();
+        
+        // ⭐ 关键修复：检查当前时间是否在关键帧范围内
+        // 如果时间超出关键帧范围，应该退出电影模式而不是使用最后一个关键帧
+        List<CameraKeyframe> keyframes = collectCameraKeyframes();
+        if (!keyframes.isEmpty()) {
+            float firstKeyframeTime = keyframes.stream()
+                .map(CameraKeyframe::getTime)
+                .min(Float::compareTo)
+                .orElse(0f);
+            float lastKeyframeTime = keyframes.stream()
+                .map(CameraKeyframe::getTime)
+                .max(Float::compareTo)
+                .orElse(0f);
+            
+            // ⭐ 关键修复：如果时间超出关键帧范围，退出电影模式
+            // 使用严格比较，避免在边界处频繁切换
+            // 只有当时间严格在 [firstKeyframeTime, lastKeyframeTime] 范围内时才使用电影模式
+            if (currentTime < firstKeyframeTime || currentTime > lastKeyframeTime) {
+                // ⭐ 关键修复：只有在当前处于电影模式时才退出，避免频繁调用
+                if (runtime.isCinematicEnabled()) {
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.debug("[TimelineCameraController] 时间 @ {}s 超出关键帧范围 [{}, {}]，退出电影模式", 
+                            currentTime, firstKeyframeTime, lastKeyframeTime);
+                    }
+                    runtime.exitCinematicAndRestorePlayer();
+                    unlockPlayerInput();
+                }
+                return;
+            }
+        }
+        
         CameraSample sample = sampler.sample(currentTime).orElse(null);
+        
+        // ⭐ 调试日志：帮助定位 FOV 问题
+        if (LOGGER.isDebugEnabled() && sample != null) {
+            LOGGER.debug("[TimelineCameraController] 采样 @ {}s: FOV={}, pos=({}, {}, {})", 
+                currentTime, sample.fov(), 
+                sample.position().x, sample.position().y, sample.position().z);
+        }
         
         if (sample == null) {
             // 采样失败，退出电影模式
@@ -246,44 +258,19 @@ public final class TimelineCameraController {
         // 只要在播 / 拖 / 手动预览，且 ChronoBlocks UI 还开着，就用时间线摄像机
         return hasTimelineFocus && (timelineModel.isPlaying() || scrubbing || previewMode);
     }
-
-    /**
-     * 当用户点击某个摄像机关键帧，希望预览画面时，可调用这个方法。
-     * 建议：点击 keyframe 时，TimelinePanel 调用：
-     *   TimelineCameraController.getInstance().previewAt(keyframe.getTime());
-     */
-    public void previewAt(float timeSeconds) {
-        if (timelineModel != null) {
-            timelineModel.setCurrentTime(timeSeconds);
-        }
-
-        sampler.setKeyframes(collectCameraKeyframes());
-        if (sampler.isEmpty()) {
-            previewMode = false;
-            CameraRuntime.getInstance().exitCinematicAndRestorePlayer();
-            return;
-        }
-
-        CameraSample sample = sampler.sample(timeSeconds).orElse(null);
-        if (sample == null) {
-            previewMode = false;
-            CameraRuntime.getInstance().exitCinematicAndRestorePlayer();
-            return;
-        }
-
-        // 进入预览模式：使用时间线摄像机，但不修改播放状态
-        previewMode = true;
-        previewModeStartTime = (float) (System.currentTimeMillis() / 1000.0); // 记录开始时间
-        CameraRuntime.getInstance().enterCinematic(sample);
-        LOGGER.info("[TimelineCameraController] 预览摄像机 @ {}s", timeSeconds);
-    }
     
     /**
      * 显式退出预览模式（供 UI 按钮调用）
+     * 
+     * <p>⭐ 移除自动超时：预览模式将一直保持，直到：
+     * <ul>
+     *   <li>用户显式按下 ESC 键或点击"退出预览"按钮</li>
+     *   <li>时间线 UI 关闭（onTimelineUiClosed()）</li>
+     *   <li>开始播放（播放会接管摄像机控制）</li>
+     * </ul>
      */
     public void exitPreviewMode() {
         previewMode = false;
-        previewModeStartTime = -1f;
         CameraRuntime.getInstance().exitCinematicAndRestorePlayer();
         unlockPlayerInput();
         LOGGER.info("[TimelineCameraController] 用户显式退出预览模式");
@@ -343,6 +330,20 @@ public final class TimelineCameraController {
 
         CameraSample sample = CameraAccessor.sampleGameCamera(client);
 
+        // ⭐ 关键修复：确保使用玩家真实的 FOV
+        // 直接从 options 获取玩家的 FOV，而不是从 sample 中获取
+        // 因为 sample 中的 FOV 可能已经被电影模式修改过
+        float capturedFov = 70.0f; // 默认值
+        if (client.options != null && client.options.getFov() != null) {
+            capturedFov = client.options.getFov().getValue().floatValue();
+        }
+        
+        // ⭐ 调试日志：记录玩家的实际 FOV
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("[TimelineCameraController] 捕捉关键帧: 玩家 FOV={}, 采样 FOV={}", 
+                capturedFov, sample.fov());
+        }
+
         keyframe.setPosition(new Vector3f(
                 (float) sample.position().x,
                 (float) sample.position().y,
@@ -354,7 +355,7 @@ public final class TimelineCameraController {
                 sample.yaw(),    // y = yaw
                 sample.roll()    // z = roll
         ));
-        keyframe.setFov(sample.fov());
+        keyframe.setFov(capturedFov);  // ⭐ 使用修正后的 FOV
         keyframe.setNearPlane(sample.nearPlane());
         keyframe.setFarPlane(sample.farPlane());
         keyframe.setDepthOfFieldEnabled(sample.depthOfFieldEnabled());
@@ -365,8 +366,10 @@ public final class TimelineCameraController {
         // 注意：由于用户可能想要继续预览，我们不在捕获后自动恢复
         // 让 update() 方法根据当前状态决定是否恢复 CINEMATIC
         
-        LOGGER.info("[TimelineCameraController] 捕捉玩家视角到 CameraKeyframe@{}s (wasCinematic: {})", 
-            keyframe.getTime(), wasCinematic);
+        LOGGER.info("[TimelineCameraController] 捕捉玩家视角到 CameraKeyframe@{}s: FOV={}, pos=({}, {}, {}), wasCinematic={}", 
+            keyframe.getTime(), capturedFov,
+            sample.position().x, sample.position().y, sample.position().z,
+            wasCinematic);
     }
 
     // ========================= 内部工具 =========================
@@ -432,55 +435,6 @@ public final class TimelineCameraController {
         if (key != null) {
             key.setPressed(false);
         }
-    }
-
-    /**
-     * 粗略判断"玩家是否正在试图控制角色/视角"
-     * - 检测 WASD、跳跃、潜行、冲刺等按键是否被按下
-     * - 不依赖鼠标 delta（ImGui 可能会吞掉鼠标事件）
-     */
-    private boolean isPlayerManipulatingCameraOrMoving() {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.options == null) {
-            return false;
-        }
-
-        return isKeyDown(client.options.forwardKey)
-                || isKeyDown(client.options.backKey)
-                || isKeyDown(client.options.leftKey)
-                || isKeyDown(client.options.rightKey)
-                || isKeyDown(client.options.jumpKey)
-                || isKeyDown(client.options.sneakKey)
-                || isKeyDown(client.options.sprintKey);
-    }
-
-    private boolean isKeyDown(KeyBinding key) {
-        return key != null && key.isPressed();
-    }
-
-    /**
-     * 从单个关键帧创建 CameraSample（用于无关键帧区域的回退）
-     */
-    private CameraSample createSampleFromKeyframe(CameraKeyframe kf) {
-        if (kf == null) {
-            return null;
-        }
-        
-        org.joml.Vector3f pos = kf.getPosition();
-        org.joml.Vector3f rot = kf.getRotation();
-        
-        return new CameraSample(
-            new net.minecraft.util.math.Vec3d(pos.x, pos.y, pos.z),
-            rot.y,   // yaw
-            rot.x,   // pitch
-            rot.z,   // roll
-            kf.getFov(),
-            kf.getNearPlane(),
-            kf.getFarPlane(),
-            kf.isDepthOfFieldEnabled(),
-            kf.getFocusDistance(),
-            kf.getAperture()
-        );
     }
 
     private List<CameraKeyframe> collectCameraKeyframes() {
