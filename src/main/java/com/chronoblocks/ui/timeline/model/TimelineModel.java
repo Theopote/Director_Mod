@@ -445,7 +445,8 @@ public class TimelineModel {
         }
         float clamped = Math.max(0f, Math.min(timeSeconds, getDuration()));
         CameraKeyframe keyframe = new CameraKeyframe("Camera Keyframe", clamped);
-        TimelineCameraController.getInstance().captureFromGameCamera(keyframe);
+        // ⭐ 只捕获位置，不捕获旋转（保持旋转为默认值0）
+        TimelineCameraController.getInstance().capturePositionFromGameCamera(keyframe);
         track.addAutomationKeyframe(keyframe);
         markDirty();
         return keyframe;

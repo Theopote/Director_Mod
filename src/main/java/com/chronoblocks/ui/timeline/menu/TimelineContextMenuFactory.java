@@ -282,7 +282,8 @@ public class TimelineContextMenuFactory {
             }
             case CAMERA -> {
                 CameraKeyframe keyframe = new CameraKeyframe("Camera @" + formatTime(time), time);
-                TimelineCameraController.getInstance().captureFromGameCamera(keyframe);
+                // ⭐ 只捕获位置，不捕获旋转（保持旋转为默认值0）
+                TimelineCameraController.getInstance().capturePositionFromGameCamera(keyframe);
                 builder
                     .submenu("摄像机关键帧")
                         .command("添加摄像机关键帧",

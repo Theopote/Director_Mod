@@ -954,7 +954,8 @@ public class TimelinePanel extends AbstractPanel
         if (type != null) {
             if (type.supportsCameraPath()) {
                 CameraKeyframe keyframe = new CameraKeyframe("Camera @" + timeLabel, time);
-                TimelineCameraController.getInstance().captureFromGameCamera(keyframe);
+                // ⭐ 只捕获位置，不捕获旋转（保持旋转为默认值0）
+                TimelineCameraController.getInstance().capturePositionFromGameCamera(keyframe);
                 commandHistory.executeCommand(new AddAutomationKeyframeCommand(
                         model,
                         track,

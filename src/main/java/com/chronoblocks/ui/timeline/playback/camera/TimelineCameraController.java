@@ -168,8 +168,32 @@ public final class TimelineCameraController {
         boolean useCinematic = shouldUseCinematic();
 
         if (!useCinematic) {
-            // 不再需要用时间线摄像机：退出并恢复玩家视角
-            runtime.exitCinematicAndRestorePlayer();
+            // 不再需要用时间线摄像机：无缝切换到游戏摄像机
+            // ⭐ 关键修复：用户感觉不到有两套摄像机，切换时无缝衔接（位置、FOV等，不包括旋转）
+            if (runtime.isCinematicEnabled()) {
+                CameraSample currentSample = runtime.getActiveSample();
+                if (currentSample != null && client != null) {
+                    // 将当前电影摄像机的位置和FOV应用到游戏摄像机（不包括旋转）
+                    if (client.player != null) {
+                        client.player.setPos(
+                            currentSample.position().x,
+                            currentSample.position().y,
+                            currentSample.position().z
+                        );
+                        // 注意：不设置 yaw/pitch，保持玩家当前视角（旋转是后期给关键帧设置的）
+                    }
+                    // ⭐ 关键修复：无缝切换FOV，让用户感觉不到有两套摄像机
+                    // 将电影摄像机的FOV应用到玩家设置，这样退出电影模式后FOV保持一致
+                    if (client.options != null && client.options.getFov() != null) {
+                        client.options.getFov().setValue((int) currentSample.fov());
+                    }
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.debug("[TimelineCameraController] 无缝切换：将电影摄像机位置和FOV应用到游戏摄像机");
+                    }
+                }
+            }
+            // 使用 exitCinematicWithoutRestore 因为我们已经手动应用了位置和FOV
+            runtime.exitCinematicWithoutRestore();
             unlockPlayerInput();
             previewMode = false;
             return;
@@ -370,6 +394,81 @@ public final class TimelineCameraController {
             keyframe.getTime(), capturedFov,
             sample.position().x, sample.position().y, sample.position().z,
             wasCinematic);
+    }
+
+    /**
+     * 从当前摄像机捕获位置和其他参数（但不捕获旋转）。
+     * ⭐ 用于创建新关键帧时，保持旋转为默认值0。
+     * 
+     * <p>⭐ 关键改进：画面不能动
+     * - 如果当前在电影模式下，从当前电影摄像机捕获（不退出电影模式，画面不动）
+     * - 如果当前不在电影模式下，从游戏摄像机捕获
+     * - 这样添加关键帧时画面不会变化，用户看到的就是保存的关键帧位置
+     * 
+     * <p>与 captureFromGameCamera 的区别：
+     * <ul>
+     *   <li>不设置旋转（保持为默认的0）</li>
+     *   <li>只捕获位置、FOV、裁剪面等参数</li>
+     * </ul>
+     * 
+     * <p>设计理由：
+     * - 默认情况下电影摄像机不应该有旋转，只有选中关键帧设置时玩家可以设置旋转
+     * - 符合专业动画软件的行为：创建关键帧时通常只设置位置，旋转需要手动调整
+     * - 用户调整好摄像机位置后，点击添加关键帧时画面不应该变化
+     * 
+     * @param keyframe 要更新的关键帧
+     */
+    public void capturePositionFromGameCamera(CameraKeyframe keyframe) {
+        if (keyframe == null) {
+            return;
+        }
+
+        MinecraftClient client = MinecraftClient.getInstance();
+        CameraRuntime runtime = CameraRuntime.getInstance();
+        
+        CameraSample sample;
+        
+        // ⭐ 关键修复：如果当前在电影模式下，从当前电影摄像机捕获（不退出，画面不动）
+        if (runtime.isCinematicEnabled()) {
+            sample = runtime.getActiveSample();
+            if (sample == null) {
+                // 如果电影模式下没有sample，回退到游戏摄像机
+                sample = CameraAccessor.sampleGameCamera(client);
+            } else {
+                LOGGER.debug("[TimelineCameraController] 从当前电影摄像机捕获位置（画面不动）");
+            }
+        } else {
+            // 不在电影模式下，从游戏摄像机捕获
+            sample = CameraAccessor.sampleGameCamera(client);
+        }
+
+        // ⭐ 关键修复：确保使用正确的 FOV
+        // 如果从电影摄像机捕获，使用电影摄像机的FOV
+        // 如果从游戏摄像机捕获，使用玩家设置的FOV
+        float capturedFov = sample.fov();
+        if (!runtime.isCinematicEnabled() && client.options != null && client.options.getFov() != null) {
+            // 从游戏摄像机捕获时，使用玩家设置的FOV
+            capturedFov = client.options.getFov().getValue().floatValue();
+        }
+
+        // ⭐ 只捕获位置和其他参数，不捕获旋转（保持旋转为0）
+        keyframe.setPosition(new Vector3f(
+                (float) sample.position().x,
+                (float) sample.position().y,
+                (float) sample.position().z
+        ));
+        // 注意：不设置旋转，保持默认值 (0, 0, 0)
+        keyframe.setFov(capturedFov);
+        keyframe.setNearPlane(sample.nearPlane());
+        keyframe.setFarPlane(sample.farPlane());
+        keyframe.setDepthOfFieldEnabled(sample.depthOfFieldEnabled());
+        keyframe.setFocusDistance(sample.focusDistance());
+        keyframe.setAperture(sample.aperture());
+
+        LOGGER.info("[TimelineCameraController] 捕捉位置到 CameraKeyframe@{}s: FOV={}, pos=({}, {}, {}), 旋转保持为(0,0,0), 从{}捕获", 
+            keyframe.getTime(), capturedFov,
+            sample.position().x, sample.position().y, sample.position().z,
+            runtime.isCinematicEnabled() ? "电影摄像机" : "游戏摄像机");
     }
 
     // ========================= 内部工具 =========================
