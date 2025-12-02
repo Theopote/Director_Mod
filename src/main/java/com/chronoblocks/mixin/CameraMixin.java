@@ -6,44 +6,29 @@ import net.minecraft.client.render.Camera;
 import net.minecraft.entity.Entity;
 import net.minecraft.world.BlockView;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.lang.reflect.Method;
-
 /**
- * CameraMixin v3.2
- *
- * 在 Camera.update 之后覆盖位置/朝向，从 CameraRuntime 读取当前 sample。
- *
- * ⭐ 关键修复：
- * - 之前 isCinematicActive() 的判断反了，导致"有电影模式时不覆盖，没电影模式时反而覆盖"
- * - 现在逻辑为：只有在 isCinematicActive() == true 时才覆盖 Camera
+ * CameraMixin v4.0 - 摄像机位置和旋转覆盖
+ * <p>
+ * ⭐ 优化：
+ * <ul>
+ *   <li>使用 @Invoker 替代反射，提高版本兼容性和安全性</li>
+ *   <li>在 Camera.update 之后覆盖位置和角度，不破坏原版逻辑</li>
+ *   <li>注意：Roll（侧倾角）在 GameRendererMixin 中通过 MatrixStack 应用</li>
+ * </ul>
  */
 @Mixin(Camera.class)
 public abstract class CameraMixin {
 
-    @Unique
-    private static Method setPosMethod;
-    @Unique
-    private static Method setRotationMethod;
-
-    static {
-        try {
-            setPosMethod = Camera.class.getDeclaredMethod("setPos", double.class, double.class, double.class);
-            setPosMethod.setAccessible(true);
-            setRotationMethod = Camera.class.getDeclaredMethod("setRotation", float.class, float.class);
-            setRotationMethod.setAccessible(true);
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to reflection Camera methods", e);
-        }
-    }
-
     /**
      * ★★ 更新摄像机后，再覆盖位置和角度，而不是取消 update。
      * 这样就不会破坏 FOV 计算、平滑等逻辑。
+     * <p>
+     * ⚠️ 注意：Roll（侧倾角）不支持在 Camera 中直接设置，
+     * 需要在 GameRendererMixin 中通过 MatrixStack 应用。
      */
     @Inject(method = "update", at = @At("TAIL"))
     private void chronoblocks$applyCinematicCamera(
@@ -60,27 +45,23 @@ public abstract class CameraMixin {
         if (sample == null) return;
 
         // overwrite camera pos
-        chronoblocks$setPos(sample.position().x, sample.position().y, sample.position().z);
+        chronoblocks$invokeSetPos(sample.position().x, sample.position().y, sample.position().z);
 
-        // overwrite yaw/pitch
-        chronoblocks$setRotation(sample.yaw(), sample.pitch());
+        // overwrite yaw/pitch (Roll 在 GameRendererMixin 中处理)
+        chronoblocks$invokeSetRotation(sample.yaw(), sample.pitch());
     }
 
-    @Unique
-    private void chronoblocks$setPos(double x, double y, double z) {
-        try {
-            setPosMethod.invoke(this, x, y, z);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
+    /**
+     * ⭐ 使用 @Invoker 安全地调用 Camera.setPos
+     * 这比反射更安全，且能被 Mixin 工具链检查
+     */
+    @org.spongepowered.asm.mixin.gen.Invoker("setPos")
+    public abstract void chronoblocks$invokeSetPos(double x, double y, double z);
 
-    @Unique
-    private void chronoblocks$setRotation(float yaw, float pitch) {
-        try {
-            setRotationMethod.invoke(this, yaw, pitch);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
+    /**
+     * ⭐ 使用 @Invoker 安全地调用 Camera.setRotation
+     * 这比反射更安全，且能被 Mixin 工具链检查
+     */
+    @org.spongepowered.asm.mixin.gen.Invoker("setRotation")
+    public abstract void chronoblocks$invokeSetRotation(float yaw, float pitch);
 }
