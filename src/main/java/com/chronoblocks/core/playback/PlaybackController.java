@@ -1,9 +1,9 @@
 package com.chronoblocks.core.playback;
 
-import com.chronoblocks.animation.integration.playback.ClipPlaybackRuntimeManager;
-import com.chronoblocks.animation.timeline.AnimationTimelineService;
-import com.chronoblocks.animation.timeline.TimelineController;
-import com.chronoblocks.animation.core.AnimationClip;
+import com.chronoblocks.core.animation.playback.ClipPlaybackRuntimeManager;
+import com.chronoblocks.core.animation.timeline.AnimationTimelineService;
+import com.chronoblocks.core.animation.timeline.TimelineController;
+import com.chronoblocks.core.animation.container.AnimationClip;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

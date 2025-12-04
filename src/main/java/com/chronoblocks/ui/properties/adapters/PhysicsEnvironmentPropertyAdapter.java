@@ -263,7 +263,7 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
             UITheme.beginGroup("快捷操作");
             
             if (ImGui.button("🔄 重置为默认", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
-                if (callMethod(physics, "resetToDefault")) {
+                if (callMethod(physics)) {
                     modifiedRef[0] = true;
                     LOGGER.info("[PhysicsEnvironmentPropertyAdapter] 物理环境已重置");
                 }
@@ -450,13 +450,13 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
         }
     }
     
-    private boolean callMethod(Object obj, String methodName) {
+    private boolean callMethod(Object obj) {
         try {
-            var method = obj.getClass().getMethod(methodName);
+            var method = obj.getClass().getMethod("resetToDefault");
             method.invoke(obj);
             return true;
         } catch (Exception e) {
-            LOGGER.debug("[PhysicsEnvironmentPropertyAdapter] 调用方法失败: {}", methodName);
+            LOGGER.debug("[PhysicsEnvironmentPropertyAdapter] 调用方法失败: {}", "resetToDefault");
             return false;
         }
     }

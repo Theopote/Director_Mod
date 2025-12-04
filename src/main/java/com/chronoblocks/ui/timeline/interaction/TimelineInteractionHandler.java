@@ -93,6 +93,19 @@ public class TimelineInteractionHandler {
     public TimelineContextMenu getActiveContextMenu() {
         return activeContextMenu;
     }
+    
+    /**
+     * ⭐ 静默取消所有交互（不触发任何回调，用于 UI 关闭时清理状态）
+     */
+    public void cancelAllInteractionsSilently() {
+        InteractionMode mode = interactionManager.getCurrentMode();
+        if (mode == InteractionMode.DRAG_PLAYHEAD) {
+            // 静默结束 scrubbing，不通知摄像机控制器
+            model.setScrubbing(false);
+        }
+        interactionManager.cancelAllInteractionsSilently();
+        LOGGER.debug("[TimelineInteractionHandler] 静默取消所有交互");
+    }
 
     /**
      * @param contentX     轨道内容区域 X 起点�?= winX + leftLabelWidth�?
@@ -420,6 +433,15 @@ public class TimelineInteractionHandler {
                 keyframe.getName(), keyframe.getStartTime());
         }
 
+        // ⭐ 如果是摄像机关键帧，单击时预览该机位
+        if (keyframe instanceof com.chronoblocks.ui.timeline.model.camera.CameraKeyframe cameraKeyframe) {
+            float timeSeconds = cameraKeyframe.getTime();
+            com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance().previewAt(timeSeconds);
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("[Timeline] 预览摄像机关键帧 @ {:.2f}s", timeSeconds);
+            }
+        }
+
         // 双击：可以在这里添加删除逻辑�?
         if (isDoubleClick && callbacks != null) {
             // TODO: 可以添加双击删除关键帧的逻辑
@@ -553,10 +575,11 @@ public class TimelineInteractionHandler {
 
         
         else if (mode == InteractionMode.DRAG_PLAYHEAD) {
-            // ⭐ 关键修复：结束拖动播放头时，将当前预览的 sample 烤进玩家视角
-            // 这样松手后玩家视角会跳到当前预览位置，而不是恢复拖动前的视角
-            com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance().bakeCurrentSampleIntoGameAndExit();
-            com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance().setScrubbing(false);
+            // ⭐ 拖动播放头结束：通知摄像机控制器结束 scrubbing
+            float finalTime = model.getCurrentTime();
+            model.setScrubbing(false);
+            com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance().endScrubbing(finalTime);
+            LOGGER.debug("[TimelineInteractionHandler] 拖动播放头结束 @ {:.2f}s", finalTime);
         }
 
         interactionManager.endInteraction();
@@ -849,11 +872,45 @@ public class TimelineInteractionHandler {
                 mouseX, ImGui.getMousePosY(),
                 clampedTime, 0f
         );
-        com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance().setScrubbing(true);
+        // ⭐ 通知摄像机控制器开始 scrubbing
+        com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance().beginScrubbing(clampedTime);
         
         if (callbacks != null) {
             callbacks.onDataChanged();
         }
+        
+        LOGGER.debug("[TimelineInteractionHandler] 开始拖动播放头 @ {:.2f}s", clampedTime);
+    }
+    
+    /**
+     * ⭐ 点击时间标尺（只跳转时间，不进入 scrubbing）
+     * 由 TimelinePanel 在检测到点击时间标尺时调用
+     * 
+     * @param mouseX 鼠标 X 坐标
+     * @param contentX 内容区域 X 起点
+     */
+    public void clickTimeRuler(float mouseX, float contentX) {
+        // 计算时间并应用吸附
+        float rawTime = renderer.xToTime(mouseX, contentX);
+        TimelineSnapping.Result snap = TimelineSnapping.snapTime(
+                model, rawTime, null, null, 0f
+        );
+        float clampedTime = Math.max(0f, Math.min(model.getDuration(), snap.snappedTime));
+        
+        // 只更新时间，不进入 scrubbing
+        model.setCurrentTime(clampedTime);
+        
+        // 可选：单帧预览（但不改变 owner）
+        com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance().previewAt(clampedTime);
+        
+        // 更新片段方块显示状态
+        com.chronoblocks.ui.timeline.playback.TimelineClipBlockController.getInstance().update();
+        
+        if (callbacks != null) {
+            callbacks.onDataChanged();
+        }
+        
+        LOGGER.debug("[TimelineInteractionHandler] 点击时间标尺，跳转到 {:.2f}s", clampedTime);
     }
 
     private void dragPlayhead(float mouseX, float contentX) {
@@ -861,7 +918,13 @@ public class TimelineInteractionHandler {
         TimelineSnapping.Result snap = TimelineSnapping.snapTime(
                 model, rawTime, null, null, 0f
         );
-        model.setCurrentTime(Math.max(0f, snap.snappedTime));
+        float clampedTime = Math.max(0f, Math.min(model.getDuration(), snap.snappedTime));
+        
+        // 更新模型时间
+        model.setCurrentTime(clampedTime);
+        
+        // ⭐ 通知摄像机控制器更新 scrubbing 位置
+        com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance().updateScrubbing(clampedTime);
         
         // �?功能：播放头拖动时，立即更新片段方块显示状�?
         com.chronoblocks.ui.timeline.playback.TimelineClipBlockController.getInstance().update();

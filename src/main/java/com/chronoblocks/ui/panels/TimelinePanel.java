@@ -104,6 +104,11 @@ public class TimelinePanel extends AbstractPanel
     private final ClipboardManager clipboard = ClipboardManager.getInstance();
     private final AutoSaveManager autoSave;
     private int dropTargetTrackIndex = -1;
+    
+    // ⭐ 时间标尺交互状态跟踪（用于区分点击和拖动）
+    private float rulerClickStartX = -1f;
+    private float rulerClickStartY = -1f;
+    private static final float DRAG_THRESHOLD = 5f; // 拖动阈值（像素）
 
     // ========== 性能优化：基于时间的定时器 ==========
     // 使用时间戳代替帧计数，避免受 FPS 波动影响
@@ -205,19 +210,43 @@ public class TimelinePanel extends AbstractPanel
     }
 
     /**
-     * ⭐ 统一摄像机系统 v2.1：重写 setVisible 以在 UI 关闭时释放电影模式
+     * ⭐ UI 生命周期管理：重写 setVisible 以在 UI 关闭时清理状态
      */
     @Override
     public void setVisible(boolean visible) {
         boolean wasVisible = isVisible();
         super.setVisible(visible);
         
-        // UI 关闭时释放电影模式
+        // UI 关闭时清理状态（但不通知 CameraController，由 ChronoBlocksScreen 统一处理）
         if (wasVisible && !visible) {
-            TimelineCameraController.getInstance().onTimelineUiClosed();
-            LOGGER.debug("[TimelinePanel] 时间线 UI 关闭，释放电影模式");
+            dispose();
         }
     }
+    
+    /**
+     * ⭐ UI 生命周期管理：清理面板资源
+     * 在 UI 关闭时调用，静默取消所有交互，不触发摄像机回调
+     */
+    @Override
+    public void dispose() {
+        if (disposed) {
+            return;
+        }
+        disposed = true;
+        
+        LOGGER.debug("[TimelinePanel] 开始清理面板资源");
+        
+        // 1. 静默取消所有交互（不通知 CameraController）
+        interactionHandler.cancelAllInteractionsSilently();
+        
+        // 2. 强制 UI 状态归零
+        model.setScrubbing(false);
+        // 不改 isPlaying，由上层控制
+        
+        LOGGER.debug("[TimelinePanel] 面板资源清理完成");
+    }
+    
+    private boolean disposed = false;
 
     @Override
     protected int getWindowFlags() {
@@ -439,10 +468,8 @@ public class TimelinePanel extends AbstractPanel
      * - Shift + 滚动：水平滚动（scrollX）
      */
     private void renderTimelineCanvas() {
-        // ⭐ 统一摄像机系统 v2.1：检测鼠标是否在时间线窗口上
-        // 注意：mouseOverTimeline 不再用于触发 CINEMATIC，只用于判断玩家操作意图
-        boolean hovered = ImGui.isWindowHovered();
-        TimelineCameraController.getInstance().setMouseOverTimeline(hovered);
+        // ⭐ 单一摄像机系统：不再需要检测鼠标悬停状态
+        // 时间线直接驱动游戏摄像机，不需要额外的状态管理
 
         ImDrawList drawList = ImGui.getWindowDrawList();
 
@@ -684,29 +711,45 @@ public class TimelinePanel extends AbstractPanel
 
         boolean hovered = ImGui.isItemHovered();
 
-        // ⭐ 关键修复 1: 左键按下时开始拖拽 + 进入 scrubbing 状态
+        // ⭐ 修复：区分点击时间标尺和拖动播放头
         if (ImGui.isMouseClicked(ImGuiMouseButton.Left) && (isInRulerArea || hovered)) {
-            float clickTime = renderer.xToTime(mouseX, contentX);
+            // 记录点击位置，用于后续判断是否真的拖动
+            rulerClickStartX = mouseX;
+            rulerClickStartY = mouseY;
             
-            // ⭐ 统一摄像机系统 v2.0：开始 scrubbing
-            TimelineCameraController.getInstance().setScrubbing(true);
-            
-            // ⭐ 新功能：如果正在播放，先暂停
+            // 如果正在播放，先暂停
             if (model.isPlaying()) {
                 model.setPlaying(false);
-                LOGGER.debug("[TimelinePanel] 播放时点击刻度尺，暂停并跳转到 {:.2f}s", clickTime);
-            } else {
-                LOGGER.debug("[TimelinePanel] 开始拖动播放头 (time = {:.2f}s)", clickTime);
             }
-            
-            // 调用 startPlayheadDrag 以跳转播放头（带吸附）并支持继续拖动
-            interactionHandler.startPlayheadDrag(mouseX, contentX);
         }
-
-        // ⭐ 关键修复 2: 左键松开时结束 scrubbing
+        
+        // 检测是否真的拖动（鼠标移动超过阈值）
+        if (ImGui.isMouseDown(ImGuiMouseButton.Left) && rulerClickStartX >= 0f) {
+            float deltaX = Math.abs(mouseX - rulerClickStartX);
+            float deltaY = Math.abs(mouseY - rulerClickStartY);
+            
+            // 如果移动距离超过阈值，认为是拖动
+            if (deltaX > DRAG_THRESHOLD || deltaY > DRAG_THRESHOLD) {
+                // 开始拖动播放头（scrubbing）
+                if (!model.isScrubbing()) {
+                    interactionHandler.startPlayheadDrag(rulerClickStartX, contentX);
+                }
+                // 已经在拖动时，位置更新由 TimelineInteractionHandler.handleDrag() 处理
+                rulerClickStartX = -1f; // 标记已进入拖动模式
+            }
+        }
+        
+        // 左键松开时处理
         if (ImGui.isMouseReleased(ImGuiMouseButton.Left)) {
-            TimelineCameraController.getInstance().setScrubbing(false);
-            LOGGER.debug("[TimelinePanel] 停止拖动播放头");
+            if (rulerClickStartX >= 0f) {
+                // 如果点击位置还在，说明是点击而不是拖动
+                float clickTime = renderer.xToTime(rulerClickStartX, contentX);
+                interactionHandler.clickTimeRuler(rulerClickStartX, contentX);
+                LOGGER.debug("[TimelinePanel] 点击时间标尺，跳转到 {:.2f}s", clickTime);
+            }
+            // 如果已经在拖动，endInteractionIfNeeded 会处理结束逻辑
+            rulerClickStartX = -1f;
+            rulerClickStartY = -1f;
         }
     }
 
@@ -954,8 +997,8 @@ public class TimelinePanel extends AbstractPanel
         if (type != null) {
             if (type.supportsCameraPath()) {
                 CameraKeyframe keyframe = new CameraKeyframe("Camera @" + timeLabel, time);
-                // ⭐ 只捕获位置，不捕获旋转（保持旋转为默认值0）
-                TimelineCameraController.getInstance().capturePositionFromGameCamera(keyframe);
+                // ⭐ 自动捕获完整的当前相机状态（位置、旋转、FOV等所有属性）
+                TimelineCameraController.getInstance().captureFromCurrentCamera(keyframe);
                 commandHistory.executeCommand(new AddAutomationKeyframeCommand(
                         model,
                         track,

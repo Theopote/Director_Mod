@@ -1,7 +1,7 @@
 package com.chronoblocks.ui.properties;
 
-import com.chronoblocks.animation.core.AnimationClip;
-import com.chronoblocks.animation.core.Keyframe;
+import com.chronoblocks.core.animation.container.AnimationClip;
+import com.chronoblocks.core.animation.container.Keyframe;
 import com.chronoblocks.core.container.Container;
 import com.chronoblocks.ui.properties.adapters.*;
 import com.chronoblocks.ui.timeline.model.TimelineClip;

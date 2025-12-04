@@ -1,7 +1,7 @@
 package com.chronoblocks.ui.properties.adapters;
 
-import com.chronoblocks.animation.core.Keyframe;
-import com.chronoblocks.animation.core.Keyframe.Easing;
+import com.chronoblocks.core.animation.container.Keyframe;
+import com.chronoblocks.core.animation.container.Keyframe.Easing;
 import com.chronoblocks.ui.properties.IPropertyAdapter;
 import com.chronoblocks.ui.theme.UITheme;
 import imgui.ImGui;

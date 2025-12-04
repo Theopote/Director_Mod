@@ -70,7 +70,7 @@ public class CameraKeyframePropertyAdapter implements IPropertyAdapter<CameraKey
             if (ImGui.button(Icons.CAMERA + " 从当前视角捕获", -1, 0)) {
                 com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController
                         .getInstance()
-                        .captureFromGameCamera(keyframe);
+                        .captureFromCurrentCamera(keyframe);
                 modified.set(true);
             }
             if (ImGui.isItemHovered()) {

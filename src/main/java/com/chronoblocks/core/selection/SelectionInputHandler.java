@@ -126,13 +126,6 @@ public class SelectionInputHandler {
                 player
         ));
 
-        if (hit != null && hit.getType() == HitResult.Type.BLOCK) {
-            LOGGER.info("[Raycast] ✅ 精确命中: {}", hit.getBlockPos());
-        } else {
-            // 使用 WARN 级别日志，方便在控制台快速定位未命中问题
-            LOGGER.warn("[Raycast] ❌ 未命中. Ray Dir: {}, Cam Pos: {}", rayDir, cameraPos);
-        }
-
         return (hit != null && hit.getType() == HitResult.Type.BLOCK) ? hit : null;
     }
 

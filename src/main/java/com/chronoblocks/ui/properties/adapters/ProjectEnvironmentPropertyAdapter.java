@@ -199,10 +199,10 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 }
                 
                 // 时间（Minecraft ticks）
-                int currentTime = getIntProperty(env, "timeOfDay", "getTimeOfDay", 6000);
+                int currentTime = getIntProperty(env);
                 int[] timeOfDay = {currentTime};
                 if (ImGui.dragInt("时间 (ticks)", timeOfDay, 100.0f, 0, 24000)) {
-                    if (setIntProperty(env, "timeOfDay", "setTimeOfDay", timeOfDay[0])) {
+                    if (setIntProperty(env, timeOfDay[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 时间已更新: {}", timeOfDay[0]);
                     }
@@ -218,7 +218,7 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 for (int i = 0; i < TIME_PRESETS.length; i++) {
                     ImGui.pushID(i);
                     if (ImGui.button(TIME_PRESET_NAMES[i], 100, UITheme.Spacing.BUTTON_HEIGHT)) {
-                        if (setIntProperty(env, "timeOfDay", "setTimeOfDay", TIME_PRESETS[i])) {
+                        if (setIntProperty(env, TIME_PRESETS[i])) {
                             modifiedRef[0] = true;
                             LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 时间预设已应用: {}", 
                                 TIME_PRESET_NAMES[i]);
@@ -353,7 +353,7 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
             UITheme.beginGroup("快捷操作");
             
             if (ImGui.button("🔄 重置为默认", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
-                if (callMethod(env, "resetToDefault")) {
+                if (callMethod(env)) {
                     modifiedRef[0] = true;
                     LOGGER.info("[ProjectEnvironmentPropertyAdapter] 环境已重置为默认值");
                 }
@@ -403,7 +403,7 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 setFloatArrayProperty(env, "skyColor", "setSkyColor", 
                     new float[]{0.5f, 0.7f, 1.0f, 1.0f});
                 setFloatProperty(env, "exposure", "setExposure", 1.2f);
-                setIntProperty(env, "timeOfDay", "setTimeOfDay", 6000);
+                setIntProperty(env, 6000);
             }
             case 1 -> { // 🌅 黄昏
                 setFloatArrayProperty(env, "ambientColor", "setAmbientColor", 
@@ -411,7 +411,7 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 setFloatArrayProperty(env, "skyColor", "setSkyColor", 
                     new float[]{1.0f, 0.5f, 0.3f, 1.0f});
                 setFloatProperty(env, "exposure", "setExposure", 0.9f);
-                setIntProperty(env, "timeOfDay", "setTimeOfDay", 12000);
+                setIntProperty(env, 12000);
             }
             case 2 -> { // 🌙 夜晚
                 setFloatArrayProperty(env, "ambientColor", "setAmbientColor", 
@@ -419,7 +419,7 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 setFloatArrayProperty(env, "skyColor", "setSkyColor", 
                     new float[]{0.1f, 0.1f, 0.2f, 1.0f});
                 setFloatProperty(env, "exposure", "setExposure", 0.5f);
-                setIntProperty(env, "timeOfDay", "setTimeOfDay", 18000);
+                setIntProperty(env, 18000);
             }
             case 3 -> { // ☁️ 阴天
                 setFloatArrayProperty(env, "ambientColor", "setAmbientColor", 
@@ -481,31 +481,31 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
         }
     }
     
-    private int getIntProperty(Object obj, String fieldName, String getterName, int defaultValue) {
+    private int getIntProperty(Object obj) {
         try {
-            var method = obj.getClass().getMethod(getterName);
+            var method = obj.getClass().getMethod("getTimeOfDay");
             Object result = method.invoke(obj);
-            return result instanceof Integer ? (Integer) result : defaultValue;
+            return result instanceof Integer ? (Integer) result : 6000;
         } catch (Exception e) {
             try {
-                var field = obj.getClass().getDeclaredField(fieldName);
+                var field = obj.getClass().getDeclaredField("timeOfDay");
                 field.setAccessible(true);
                 Object result = field.get(obj);
-                return result instanceof Integer ? (Integer) result : defaultValue;
+                return result instanceof Integer ? (Integer) result : 6000;
             } catch (Exception ex) {
-                return defaultValue;
+                return 6000;
             }
         }
     }
     
-    private boolean setIntProperty(Object obj, String fieldName, String setterName, int value) {
+    private boolean setIntProperty(Object obj, int value) {
         try {
-            var method = obj.getClass().getMethod(setterName, int.class);
+            var method = obj.getClass().getMethod("setTimeOfDay", int.class);
             method.invoke(obj, value);
             return true;
         } catch (Exception e) {
             try {
-                var field = obj.getClass().getDeclaredField(fieldName);
+                var field = obj.getClass().getDeclaredField("timeOfDay");
                 field.setAccessible(true);
                 field.set(obj, value);
                 return true;
@@ -573,7 +573,7 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
     private boolean setFloatArrayProperty(Object obj, String fieldName, String setterName, float[] value) {
         try {
             var method = obj.getClass().getMethod(setterName, float[].class);
-            method.invoke(obj, (Object) value);
+            method.invoke(obj, value);
             return true;
         } catch (Exception e) {
             try {
@@ -590,13 +590,13 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
     /**
      * 调用无参方法
      */
-    private boolean callMethod(Object obj, String methodName) {
+    private boolean callMethod(Object obj) {
         try {
-            var method = obj.getClass().getMethod(methodName);
+            var method = obj.getClass().getMethod("resetToDefault");
             method.invoke(obj);
             return true;
         } catch (Exception e) {
-            LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 调用方法失败: {}", methodName);
+            LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 调用方法失败: {}", "resetToDefault");
             return false;
         }
     }

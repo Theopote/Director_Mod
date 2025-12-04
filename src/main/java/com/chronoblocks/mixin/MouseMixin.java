@@ -72,7 +72,16 @@ public abstract class MouseMixin {
         lastX = x;
         lastY = y;
 
+        // ⭐ 关键修复：检查时间线是否在控制相机，如果是则不允许玩家移动视角
         if (!hover && chronoblocks$isDragging && client.player != null) {
+            com.chronoblocks.ui.timeline.playback.camera.CameraRuntime runtime = 
+                com.chronoblocks.ui.timeline.playback.camera.CameraRuntime.getInstance();
+            
+            // 如果时间线在控制相机，不允许玩家移动视角
+            if (runtime.isTimelineOwner()) {
+                return;
+            }
+            
             double baseSensitivity = client.options.getMouseSensitivity().getValue();
             double scale = baseSensitivity * 2.0; // ✅ 动态灵敏度系数
             client.player.changeLookDirection(dx * scale, dy * scale);

@@ -92,7 +92,7 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
                 String currentName = getStringProperty(effect, "name", "getName", "未命名特效");
                 ImString nameBuffer = new ImString(currentName, 256);
                 if (ImGui.inputText("特效名称", nameBuffer, ImGuiInputTextFlags.EnterReturnsTrue)) {
-                    if (setStringProperty(effect, "name", "setName", nameBuffer.get())) {
+                    if (setStringProperty(effect, nameBuffer.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[EffectPropertyAdapter] 特效名称已更新: {}", nameBuffer.get());
                     }
@@ -212,10 +212,10 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
                     }
                 } else {
                     // 尝试 float[] colorRGBA
-                    float[] colorRGBA = getFloatArrayProperty(effect, "colorRGBA", "getColorRGBA");
+                    float[] colorRGBA = getFloatArrayProperty(effect);
                     if (colorRGBA != null && colorRGBA.length >= 4) {
                         if (ImGui.colorEdit4("特效颜色 (RGBA)", colorRGBA)) {
-                            if (setFloatArrayProperty(effect, "colorRGBA", "setColorRGBA", colorRGBA)) {
+                            if (setFloatArrayProperty(effect, colorRGBA)) {
                                 modifiedRef[0] = true;
                                 LOGGER.debug("[EffectPropertyAdapter] 颜色已更新");
                             }
@@ -486,14 +486,14 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
         }
     }
     
-    private boolean setStringProperty(Object obj, String fieldName, String setterName, String value) {
+    private boolean setStringProperty(Object obj, String value) {
         try {
-            var method = obj.getClass().getMethod(setterName, String.class);
+            var method = obj.getClass().getMethod("setName", String.class);
             method.invoke(obj, value);
             return true;
         } catch (Exception e) {
             try {
-                var field = obj.getClass().getDeclaredField(fieldName);
+                var field = obj.getClass().getDeclaredField("name");
                 field.setAccessible(true);
                 field.set(obj, value);
                 return true;
@@ -624,14 +624,14 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
         }
     }
     
-    private float[] getFloatArrayProperty(Object obj, String fieldName, String getterName) {
+    private float[] getFloatArrayProperty(Object obj) {
         try {
-            var method = obj.getClass().getMethod(getterName);
+            var method = obj.getClass().getMethod("getColorRGBA");
             Object result = method.invoke(obj);
             return result instanceof float[] ? (float[]) result : null;
         } catch (Exception e) {
             try {
-                var field = obj.getClass().getDeclaredField(fieldName);
+                var field = obj.getClass().getDeclaredField("colorRGBA");
                 field.setAccessible(true);
                 Object result = field.get(obj);
                 return result instanceof float[] ? (float[]) result : null;
@@ -641,14 +641,14 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
         }
     }
     
-    private boolean setFloatArrayProperty(Object obj, String fieldName, String setterName, float[] value) {
+    private boolean setFloatArrayProperty(Object obj, float[] value) {
         try {
-            var method = obj.getClass().getMethod(setterName, float[].class);
-            method.invoke(obj, (Object) value);
+            var method = obj.getClass().getMethod("setColorRGBA", float[].class);
+            method.invoke(obj, value);
             return true;
         } catch (Exception e) {
             try {
-                var field = obj.getClass().getDeclaredField(fieldName);
+                var field = obj.getClass().getDeclaredField("colorRGBA");
                 field.setAccessible(true);
                 field.set(obj, value);
                 return true;

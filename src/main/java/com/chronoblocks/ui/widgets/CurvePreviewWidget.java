@@ -1,6 +1,6 @@
 package com.chronoblocks.ui.widgets;
 
-import com.chronoblocks.animation.core.Keyframe.Easing;
+import com.chronoblocks.core.animation.container.Keyframe.Easing;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;

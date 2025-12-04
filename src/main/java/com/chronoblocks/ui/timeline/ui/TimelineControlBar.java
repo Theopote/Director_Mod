@@ -170,24 +170,6 @@ public class TimelineControlBar {
         }
         ImGui.sameLine();
         
-        // ========== 退出预览按钮（仅在预览模式时显示）==========
-        com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController cameraController = 
-            com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance();
-        com.chronoblocks.ui.timeline.playback.camera.CameraRuntime cameraRuntime = 
-            com.chronoblocks.ui.timeline.playback.camera.CameraRuntime.getInstance();
-        
-        // 检查是否在预览模式（非播放的 CINEMATIC 模式）
-        boolean isPreviewMode = cameraRuntime.isCinematicEnabled() && !model.isPlaying();
-        if (isPreviewMode) {
-            if (ImGui.button(Icons.CAMERA + " 退出预览", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
-                cameraController.exitPreviewMode();
-            }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("退出摄像机预览，回到玩家视角");
-            }
-            ImGui.sameLine();
-        }
-        
         // 循环控制
         // 注意：无需再次 Push FramePadding，因为最外层已经 Push 过了
         boolean loopEnabled = model.isLoopEnabled();

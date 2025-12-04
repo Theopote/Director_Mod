@@ -1,10 +1,10 @@
 package com.chronoblocks.ui.adapters.impl;
 
-import com.chronoblocks.animation.core.Keyframe;
-import com.chronoblocks.animation.core.RotationTrack;
-import com.chronoblocks.animation.core.Track;
-import com.chronoblocks.animation.core.TransformTrack;
-import com.chronoblocks.animation.core.VisibilityTrack;
+import com.chronoblocks.core.animation.container.Keyframe;
+import com.chronoblocks.core.animation.container.RotationTrack;
+import com.chronoblocks.core.animation.container.Track;
+import com.chronoblocks.core.animation.container.TransformTrack;
+import com.chronoblocks.core.animation.container.VisibilityTrack;
 import com.chronoblocks.ui.adapters.BasePropertyAdapter;
 import com.chronoblocks.ui.theme.UITheme;
 import imgui.ImGui;

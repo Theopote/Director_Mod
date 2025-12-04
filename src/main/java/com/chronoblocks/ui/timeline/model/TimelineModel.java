@@ -33,6 +33,7 @@ public class TimelineModel {
     private float currentTime = 0f;
     private float duration = 20.0f; // 默认持续时间
     private boolean loopEnabled = false; // 循环播放
+    private boolean scrubbing = false; // 是否正在拖动播放头
     
     // ========== 视图状态（由外部注入）==========
     private final TimelineViewportState viewportState;
@@ -82,6 +83,26 @@ public class TimelineModel {
     }
     
     /**
+     * 添加模型变更监听器
+     * @param listener 要添加的监听器
+     */
+    public void addModelChangeListener(ModelChangeListener listener) {
+        if (listener != null && !listeners.contains(listener)) {
+            listeners.add(listener);
+        }
+    }
+    
+    /**
+     * 移除模型变更监听器
+     * @param listener 要移除的监听器
+     */
+    public void removeModelChangeListener(ModelChangeListener listener) {
+        if (listener != null) {
+            listeners.remove(listener);
+        }
+    }
+    
+    /**
      * 标记模型已变更（同时标记时长需要重新计算）
      */
     public void markDirty() {
@@ -121,6 +142,7 @@ public class TimelineModel {
      */
     public void resetToEmpty() {
         playing = false;
+        scrubbing = false;
         loopEnabled = false;
         currentTime = 0f;
         duration = 20.0f;
@@ -445,8 +467,8 @@ public class TimelineModel {
         }
         float clamped = Math.max(0f, Math.min(timeSeconds, getDuration()));
         CameraKeyframe keyframe = new CameraKeyframe("Camera Keyframe", clamped);
-        // ⭐ 只捕获位置，不捕获旋转（保持旋转为默认值0）
-        TimelineCameraController.getInstance().capturePositionFromGameCamera(keyframe);
+        // ⭐ 自动捕获完整的当前相机状态（位置、旋转、FOV等所有属性）
+        TimelineCameraController.getInstance().captureFromCurrentCamera(keyframe);
         track.addAutomationKeyframe(keyframe);
         markDirty();
         return keyframe;
@@ -573,11 +595,11 @@ public class TimelineModel {
                 com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance();
             
             if (playing) {
-                // 开始播放
-                controller.onPlaybackStarted();
+                // ⭐ UI 事件驱动：开始播放
+                controller.startPlayback();
             } else {
-                // 停止播放
-                controller.onPlaybackStopped();
+                // ⭐ UI 事件驱动：停止播放
+                controller.stopPlayback();
             }
         }
     }
@@ -594,6 +616,31 @@ public class TimelineModel {
      */
     public void setCurrentTime(float currentTime) { 
         this.currentTime = clamp(currentTime, getDuration());
+    }
+    
+    /**
+     * 获取是否正在拖动播放头（scrubbing）
+     */
+    public boolean isScrubbing() {
+        return this.scrubbing;
+    }
+    
+    /**
+     * 设置是否正在拖动播放头（scrubbing）
+     * 
+     * <p>⭐ UI 状态管理：
+     * <ul>
+     *   <li>scrubbing 和 playing 应该是互斥的</li>
+     *   <li>UI 层负责设置此状态，CameraController 根据此状态控制摄像机</li>
+     * </ul>
+     */
+    public void setScrubbing(boolean scrubbing) {
+        if (scrubbing && this.playing) {
+            // scrubbing 和 playing 互斥，如果开始 scrubbing，先停止播放
+            this.playing = false;
+            com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance().onPlaybackStopped();
+        }
+        this.scrubbing = scrubbing;
     }
     
     /**

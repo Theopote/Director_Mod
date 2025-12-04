@@ -1,63 +1,46 @@
 package com.chronoblocks.ui.timeline.playback.camera;
 
-import com.chronoblocks.ui.ChronoBlocksScreen;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.TimelineSelectable;
 import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.option.KeyBinding;
 import org.joml.Vector3f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 
 /**
- * TimelineCameraController v2.1 - 统一时间线摄像机控制器
+ * TimelineCameraController v3.0（统一相机系统版）
  *
- * ⭐ 设计目标：
- * - 仅负责：从时间线采样 CameraSample，喂给 CameraRuntime
- * - 不直接操作 Camera / GameRenderer（全部交给 mixin）
- *
- * ⭐ 模式逻辑（重点）：
- * - 使用时间线摄像机（CINEMATIC）当且仅当：
- *   1) timelineModel.isPlaying() == true
- *   2) 或 scrubbing == true（正在拖动播放头）
- *   3) 或 previewMode == true（点击关键帧预览）
- *
- * - 使用游戏摄像机（GAME）：
- *   1) 不播放 && 不拖动 && !previewMode
- *   2) 或 UI 通知"时间线关闭 / 离开时间线面板"
- *   3) 或 玩家在非时间线区域主动操作（键盘/鼠标），我们认为玩家要接管视角
+ * 职责：
+ * - 从 TimelineModel 收集摄像机关键帧，并交给 CameraTrackSampler 插值
+ * - 每帧根据 currentTime 采样 CameraSample，写入 CameraRuntime
+ * - 根据播放 / 拖动 / 预览状态，切换 CameraRuntime 的 owner（PLAYER / TIMELINE）
+ * - 捕捉关键帧时，从 CameraRuntime.currentSample 读取当前视角
  */
 public final class TimelineCameraController {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(TimelineCameraController.class);
     private static final TimelineCameraController INSTANCE = new TimelineCameraController();
 
+    /** 时间线数据模型（由 TimelinePanel 注入） */
     private TimelineModel timelineModel;
+
+    /** 负责摄像机关键帧插值的采样器 */
     private final CameraTrackSampler sampler = new CameraTrackSampler();
 
-    /** 是否正在拖动播放头（ruler dragging） */
-    private boolean scrubbing = false;
+    /** 是否处于"单帧预览关键帧"的状态 */
+    private boolean previewing = false;
+    private float previewTimeSeconds = 0f;
+    
+    // ⭐ 修复：scrubbing 状态完全由 TimelineModel.isScrubbing() 管理，不再使用内部变量
 
-    /** 鼠标是否悬停在时间线 UI 上（需要由 UI 通知） */
-    private boolean mouseOverTimeline = false;
-
-    /** 预览模式：例如点击摄像机关键帧进行预览时启用 */
-    private boolean previewMode = false;
-
-    private enum CinematicReason {
-        NONE,
-        PLAYBACK,
-        SCRUBBING,
-        PREVIEW
-    }
-
-    private CinematicReason activeReason = CinematicReason.NONE;
+    /** 监听模型变更，自动刷新摄像机关键帧列表 */
+    private TimelineModel.ModelChangeListener modelChangeListener;
 
     private TimelineCameraController() {}
 
@@ -65,446 +48,330 @@ public final class TimelineCameraController {
         return INSTANCE;
     }
 
-    // ========================= TimelineModel 绑定 =========================
+    // ================== 生命周期 / 绑定模型 ==================
 
     /**
      * 绑定 TimelineModel。
-     * 每帧在 update() 中重新收集关键帧，无需监听器。
+     * 会自动注册 ModelChangeListener，在模型变更时刷新摄像机关键帧。
      */
     public void setTimelineModel(TimelineModel model) {
+        // 解除旧监听
+        if (this.timelineModel != null && modelChangeListener != null) {
+            this.timelineModel.removeModelChangeListener(modelChangeListener);
+        }
+
         this.timelineModel = model;
+
         if (model != null) {
-            // 初始化一次
+            if (modelChangeListener == null) {
+                modelChangeListener = changeType -> {
+                    sampler.setKeyframes(collectCameraKeyframes());
+                    LOGGER.debug("[TimelineCameraController] 模型变更({})，刷新摄像机关键帧", changeType);
+                };
+            }
+            model.addModelChangeListener(modelChangeListener);
             sampler.setKeyframes(collectCameraKeyframes());
         } else {
             sampler.setKeyframes(new ArrayList<>());
         }
     }
 
-    // ========================= 状态由 UI / TimelinePanel 控制 =========================
-
-    /** 设置是否正在拖动播放头（由 TimelinePanel / InteractionHandler 在鼠标按下/抬起时调用） */
-    public void setScrubbing(boolean scrubbing) {
-        boolean wasScrubbing = this.scrubbing;
-        this.scrubbing = scrubbing;
-        
-        if (scrubbing && !wasScrubbing) {
-            LOGGER.debug("[TimelineCameraController] scrubbing 开始");
-        } else if (!scrubbing && wasScrubbing) {
-            LOGGER.debug("[TimelineCameraController] scrubbing 结束");
-            // ⭐ 关键修复：不再在这里直接退出 CINEMATIC，让 update() 统一处理
-            // 如果需要"无缝衔接"，在 InteractionHandler.endInteraction() 中调用 bakeCurrentSampleIntoGameAndExit()
+    /**
+     * 当关键帧发生变化时可以显式调用（例如某些命令直接操作 keyframe 列表）。
+     */
+    public void onKeyframeChanged() {
+        if (timelineModel != null) {
+            sampler.setKeyframes(collectCameraKeyframes());
+            LOGGER.debug("[TimelineCameraController] onKeyframeChanged()，刷新采样器");
         }
     }
 
-    /** 通知鼠标是否在时间线面板上（由 TimelinePanel 在进入/离开时调用） */
-    public void setMouseOverTimeline(boolean mouseOverTimeline) {
-        this.mouseOverTimeline = mouseOverTimeline;
+    // ================== 播放 / 拖动 / 预览 状态控制 ==================
+
+    /**
+     * ⭐ UI 事件驱动：开始拖动播放头（scrubbing）
+     * 由 TimelineInteractionHandler 在鼠标按下播放头时调用
+     * 
+     * <p>注意：scrubbing 状态由 TimelineModel.setScrubbing(true) 设置，这里只负责摄像机采样
+     */
+    public void beginScrubbing(float timeSeconds) {
+        this.previewing = false;
+        
+        // 立即采样并应用
+        sampler.setKeyframes(collectCameraKeyframes());
+        if (!sampler.isEmpty()) {
+            CameraSample sample = sampler.sample(timeSeconds).orElse(null);
+            if (sample != null) {
+                CameraRuntime runtime = CameraRuntime.getInstance();
+                runtime.applyTimelineSample(sample);
+                runtime.setOwner(CameraRuntime.Owner.TIMELINE);
+                LOGGER.debug("[TimelineCameraController] 开始 scrubbing @ {:.2f}s", timeSeconds);
+            }
+        }
     }
 
-    /** 播放开始（由 TimelineModel.setPlaying(true) 通知） */
+    /**
+     * ⭐ UI 事件驱动：更新拖动播放头位置
+     * 由 TimelineInteractionHandler 在鼠标拖动时调用
+     * 
+     * <p>注意：scrubbing 状态由 TimelineModel.isScrubbing() 检查
+     */
+    public void updateScrubbing(float timeSeconds) {
+        // 检查 model 的状态（单一真相源）
+        if (timelineModel == null || !timelineModel.isScrubbing()) {
+            // 如果不在 scrubbing 状态，忽略更新
+            return;
+        }
+        
+        sampler.setKeyframes(collectCameraKeyframes());
+        if (!sampler.isEmpty()) {
+            CameraSample sample = sampler.sample(timeSeconds).orElse(null);
+            if (sample != null) {
+                CameraRuntime runtime = CameraRuntime.getInstance();
+                runtime.applyTimelineSample(sample);
+                runtime.setOwner(CameraRuntime.Owner.TIMELINE);
+            }
+        }
+    }
+
+    /**
+     * ⭐ UI 事件驱动：结束拖动播放头
+     * 由 TimelineInteractionHandler 在鼠标释放时调用
+     * 
+     * <p>注意：scrubbing 状态由 TimelineModel.setScrubbing(false) 设置，这里只负责摄像机状态同步
+     */
+    public void endScrubbing(float timeSeconds) {
+        // 检查 model 的状态（单一真相源）
+        if (timelineModel == null || !timelineModel.isScrubbing()) {
+            return;
+        }
+        
+        this.previewing = false;
+        
+        // 将当前状态同步到玩家实体，然后释放控制权
+        bakeCurrentSampleIntoGameAndExit();
+        
+        LOGGER.debug("[TimelineCameraController] 结束 scrubbing @ {:.2f}s", timeSeconds);
+    }
+
+    /**
+     * ⭐ UI 事件驱动：开始播放
+     * 由 TimelineModel.setPlaying(true) 通过 startPlayback() 调用
+     */
+    public void startPlayback() {
+        this.previewing = false;
+        // scrubbing 状态由 TimelineModel 管理，这里不需要设置
+        // 播放状态由 TimelineModel.isPlaying() 控制，这里只负责摄像机
+        LOGGER.debug("[TimelineCameraController] 开始播放");
+    }
+
+    /**
+     * ⭐ UI 事件驱动：停止播放
+     * 由 TimelineModel.setPlaying(false) 通过 stopPlayback() 调用
+     */
+    public void stopPlayback() {
+        this.previewing = false;
+        // scrubbing 状态由 TimelineModel 管理，这里不需要设置
+        CameraRuntime.getInstance().setOwner(CameraRuntime.Owner.PLAYER);
+        LOGGER.debug("[TimelineCameraController] 停止播放");
+    }
+
+    /**
+     * @deprecated 使用 beginScrubbing/updateScrubbing/endScrubbing 代替
+     * scrubbing 状态现在完全由 TimelineModel 管理
+     */
+    @Deprecated
+    public void setScrubbing(boolean scrubbing) {
+        // 不再使用内部变量，状态由 TimelineModel 管理
+        if (timelineModel != null) {
+            timelineModel.setScrubbing(scrubbing);
+        }
+        if (!scrubbing) {
+            this.previewing = false;
+        }
+    }
+
+    /** 由 TimelineModel.setPlaying(true) 通知 */
     public void onPlaybackStarted() {
         LOGGER.debug("[TimelineCameraController] 播放开始");
-        // 播放开始时可以退出预览模式，由播放接管
-        this.previewMode = false;
+        startPlayback();
     }
 
-    /** 播放停止（由 TimelineModel.setPlaying(false) 通知） */
+    /** 由 TimelineModel.setPlaying(false) 通知 */
     public void onPlaybackStopped() {
         LOGGER.debug("[TimelineCameraController] 播放停止");
-        // 不强制退出预览模式，方便用户暂停后继续查看当前帧
+        stopPlayback();
     }
 
     /**
-     * 时间线 UI 被关闭 / 隐藏时调用。
-     * 建议在 Panel 被关闭时调用：
-     *   TimelineCameraController.getInstance().onTimelineUiClosed();
+     * UI 关闭时调用，彻底释放时间线对摄像机的控制，恢复玩家控制。
+     * 由 ChronoBlocksScreen.close() 统一调用一次。
      */
     public void onTimelineUiClosed() {
-        LOGGER.info("[TimelineCameraController] 时间线 UI 关闭，开始清理电影模式和输入锁定");
-        
-        // ⭐ 关键修复：重置所有状态
-        this.scrubbing = false;
-        this.mouseOverTimeline = false;
-        this.previewMode = false;
-        this.activeReason = CinematicReason.NONE;
-        
-        // ⭐ 关键修复：退出电影模式并恢复玩家视角
-        CameraRuntime.getInstance().exitCinematicAndRestorePlayer();
-        
-        // ⭐ 关键修复：解锁玩家输入
-        unlockPlayerInput();
-        
-        LOGGER.info("[TimelineCameraController] 时间线 UI 关闭，电影模式和输入锁定已清理");
+        this.previewing = false;
+        // scrubbing 状态由 TimelineModel 管理，这里不需要设置
+        if (timelineModel != null) {
+            timelineModel.setPlaying(false);
+            timelineModel.setScrubbing(false);
+        }
+        CameraRuntime.getInstance().reset();
+        LOGGER.debug("[TimelineCameraController] UI 关闭，释放摄像机控制权");
     }
 
-    // ========================= 主更新函数 =========================
+    // ================== 每帧更新（由 TimelinePanel 调用） ==================
 
     /**
-     * 主更新函数（TimelinePanel 每帧调用）
+     * 主更新函数（TimelinePanel 每帧调用）。
+     * ⭐ UI 状态驱动：完全根据 TimelineModel 的状态来决定摄像机控制权
      * 
-     * ⭐ v3.0 重构：统一状态机逻辑，确保采样时间正确，修复"突然放大"和"总是最后一帧"问题
+     * <p>更新逻辑：
+     * <ul>
+     *   <li>如果正在播放：采样当前时间点，时间线接管</li>
+     *   <li>如果正在 scrubbing：由 beginScrubbing/updateScrubbing 处理，这里不重复采样</li>
+     *   <li>如果只是预览：采样预览时间点</li>
+     *   <li>否则：玩家控制</li>
+     * </ul>
      */
     public void update() {
-        if (timelineModel == null) {
-            releaseToGame("no timeline model");
-            return;
-        }
-
-        List<CameraKeyframe> frames = collectCameraKeyframes();
-        frames.sort(Comparator.comparing(CameraKeyframe::getTime));
-        sampler.setKeyframes(frames);
-
-        if (frames.isEmpty()) {
-            releaseToGame("no camera keyframes");
-            return;
-        }
+        if (timelineModel == null) return;
 
         CameraRuntime runtime = CameraRuntime.getInstance();
-        if (handleEscape(runtime)) {
+        boolean playing = timelineModel.isPlaying();
+        boolean scrubbing = timelineModel.isScrubbing(); // ⭐ 使用 model 的状态作为单一真相源
+        boolean active = playing || scrubbing || previewing;
+
+        sampler.setKeyframes(collectCameraKeyframes());
+
+        // 没有摄像机关键帧 → 永远玩家控制
+        if (sampler.isEmpty()) {
+            runtime.setOwner(CameraRuntime.Owner.PLAYER);
             return;
         }
 
-        CinematicReason reason = resolveReason();
-        if (reason == CinematicReason.NONE) {
-            releaseToGame("timeline not requesting cinematic camera");
+        if (!active) {
+            // 不在播放、不在拖动、也没有预览 → 玩家控制
+            runtime.setOwner(CameraRuntime.Owner.PLAYER);
             return;
         }
 
-        float currentTime = clampTimeToKeyframes(timelineModel.getCurrentTime(), frames);
-        CameraSample sample = sampler.sample(currentTime).orElse(null);
-
-        if (sample == null) {
-            releaseToGame("failed to sample camera track");
-            return;
-        }
-
-        if (!runtime.isCinematicEnabled()) {
-            runtime.enterCinematic(sample);
-        } else {
-            runtime.updateSample(sample);
-        }
-
-        lockPlayerInput();
-        activeReason = reason;
-
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("[TimelineCameraController] {} @ {}s -> FOV={}, pos=({}, {}, {})",
-                reason, currentTime,
-                sample.fov(),
-                sample.position().x, sample.position().y, sample.position().z);
-        }
-    }
-
-    private CinematicReason resolveReason() {
-        if (timelineModel == null || sampler.isEmpty()) {
-            return CinematicReason.NONE;
-        }
-
-        MinecraftClient client = MinecraftClient.getInstance();
-        boolean hasTimelineFocus = client != null && client.currentScreen instanceof ChronoBlocksScreen;
-        if (!hasTimelineFocus) {
-            return CinematicReason.NONE;
-        }
-
-        if (timelineModel.isPlaying()) {
-            return CinematicReason.PLAYBACK;
-        }
+        // ⭐ 关键修复：scrubbing 状态由 beginScrubbing/updateScrubbing 处理，这里只处理播放和预览
         if (scrubbing) {
-            return CinematicReason.SCRUBBING;
+            // scrubbing 状态下的采样由 updateScrubbing() 处理，这里不需要重复采样
+            // 但需要确保 owner 是 TIMELINE（由 beginScrubbing/updateScrubbing 设置）
+            return;
         }
-        if (previewMode) {
-            return CinematicReason.PREVIEW;
+
+        float time;
+        if (playing) {
+            time = timelineModel.getCurrentTime();
+        } else {
+            // 纯预览模式（点击关键帧预览）
+            time = previewTimeSeconds;
         }
-        return CinematicReason.NONE;
+
+        CameraSample sample = sampler.sample(time).orElse(null);
+        if (sample == null) {
+            runtime.setOwner(CameraRuntime.Owner.PLAYER);
+            return;
+        }
+
+        // 时间线接管：写入 sample + 切 owner
+        runtime.applyTimelineSample(sample);
+        runtime.setOwner(CameraRuntime.Owner.TIMELINE);
     }
 
-    private float clampTimeToKeyframes(float timeSeconds, List<CameraKeyframe> frames) {
-        if (frames.isEmpty()) {
-            return timeSeconds;
-        }
-        float first = frames.get(0).getTime();
-        float last = frames.get(frames.size() - 1).getTime();
-        if (timeSeconds < first) {
-            return first;
-        }
-        if (timeSeconds > last) {
-            return last;
-        }
-        return timeSeconds;
-    }
+    // ================== 预览相关 ==================
 
-    private boolean handleEscape(CameraRuntime runtime) {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client != null && client.options != null && client.options.inventoryKey != null) {
-            if (client.options.inventoryKey.wasPressed() && runtime.isCinematicEnabled()) {
-                LOGGER.info("[TimelineCameraController] ESC pressed, releasing cinematic camera");
-                exitPreviewMode();
-                scrubbing = false;
-                activeReason = CinematicReason.NONE;
-                return true;
-            }
-        }
-        return false;
-    }
+    /**
+     * 当用户点击摄像机关键帧进行预览时调用。
+     */
+    public void previewAt(float timeSeconds) {
+        this.previewing = true;
+        this.previewTimeSeconds = timeSeconds;
 
-    private void releaseToGame(String reason) {
+        sampler.setKeyframes(collectCameraKeyframes());
+        if (sampler.isEmpty()) {
+            CameraRuntime.getInstance().setOwner(CameraRuntime.Owner.PLAYER);
+            return;
+        }
+
+        CameraSample sample = sampler.sample(timeSeconds).orElse(null);
+        if (sample == null) {
+            CameraRuntime.getInstance().setOwner(CameraRuntime.Owner.PLAYER);
+            return;
+        }
+
         CameraRuntime runtime = CameraRuntime.getInstance();
-        if (runtime.isCinematicEnabled() || activeReason != CinematicReason.NONE) {
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("[TimelineCameraController] Release camera: {} (activeReason={})", reason, activeReason);
-            }
-        }
-        runtime.exitCinematicAndRestorePlayer();
-        unlockPlayerInput();
-        previewMode = false;
-        activeReason = CinematicReason.NONE;
+        runtime.applyTimelineSample(sample);
+        runtime.setOwner(CameraRuntime.Owner.TIMELINE);
     }
 
-    public void exitPreviewMode() {
-        previewMode = false;
-        activeReason = CinematicReason.NONE;
-        CameraRuntime.getInstance().exitCinematicAndRestorePlayer();
-        unlockPlayerInput();
-        LOGGER.info("[TimelineCameraController] 用户显式退出预览模式");
+    public void clearPreview() {
+        this.previewing = false;
     }
 
     /**
-     * ⭐ 关键修复：将当前预览的 sample 烤进玩家视角，然后退出电影模式（不恢复旧视角）
-     * 
-     * 用于"无缝衔接"场景：拖动播放头松手后，玩家视角跳到当前预览位置。
+     * 拖动播放头结束时调用。
+     * 将当前摄像机状态同步到玩家实体，然后释放控制权给玩家。
+     * 确保玩家从当前位置继续移动，不会有跳变。
      */
     public void bakeCurrentSampleIntoGameAndExit() {
         CameraRuntime runtime = CameraRuntime.getInstance();
-        if (!runtime.isCinematicEnabled()) {
-            return;
-        }
-
-        CameraSample sample = runtime.getActiveSample();
-        if (sample == null) {
-            return;
-        }
-
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client != null) {
-            CameraAccessor.applySampleToGameCamera(client, sample);
-        }
-
-        // ⭐ 关键修复：不恢复旧视角，保持当前位置/FOV
-        runtime.exitCinematicWithoutRestore();
-        activeReason = CinematicReason.NONE;
-        unlockPlayerInput();
+        CameraSample currentSample = runtime.getCurrentSample();
         
-        LOGGER.debug("[TimelineCameraController] 将当前 sample 烤进玩家视角并退出电影模式");
+        if (currentSample != null) {
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client != null && client.player != null) {
+                // 将当前摄像机状态同步到玩家实体
+                client.player.setPos(currentSample.position().x, currentSample.position().y, currentSample.position().z);
+                client.player.setYaw(currentSample.yaw());
+                client.player.setPitch(currentSample.pitch());
+                LOGGER.debug("[TimelineCameraController] 将摄像机状态同步到玩家实体");
+            }
+        }
+        
+        // 释放控制权给玩家
+        runtime.setOwner(CameraRuntime.Owner.PLAYER);
+        // scrubbing 状态由 TimelineModel 管理，这里不需要设置
+        this.previewing = false;
+        LOGGER.debug("[TimelineCameraController] 释放摄像机控制权给玩家");
     }
 
+    // ================== 关键帧捕捉 ==================
+
     /**
-     * 供 TimelinePanel.onAddKeyframeToTrack 使用：
-     * 从当前游戏摄像机填充一个 CameraKeyframe。
-     * 
-     * <p>⭐ 关键修复：在 CINEMATIC 模式下，临时退出电影模式以捕获真实的玩家视角
-     * 而不是捕获被时间线覆盖的摄像机数据
+     * 捕捉关键帧：从“当前相机状态”采样。
+     * 无论此刻是玩家视角还是时间线播放中的视角，都会得到和之后播放一致的坐标系。
      */
-    public void captureFromGameCamera(CameraKeyframe keyframe) {
-        if (keyframe == null) {
-            return;
-        }
+    public void captureFromCurrentCamera(CameraKeyframe keyframe) {
+        if (keyframe == null) return;
 
-        MinecraftClient client = MinecraftClient.getInstance();
-        CameraRuntime runtime = CameraRuntime.getInstance();
-        
-        // ⭐ 关键修复：如果当前在 CINEMATIC 模式，临时退出以捕获真实玩家视角
-        boolean wasCinematic = runtime.isCinematicEnabled();
-        if (wasCinematic) {
-            runtime.exitCinematicAndRestorePlayer();
-            // 等待一帧让 Camera 更新到玩家视角（如果可能）
-            // 注意：由于这是同步调用，我们直接采样，Mixin 会在下一帧应用
-            LOGGER.debug("[TimelineCameraController] 临时退出 CINEMATIC 模式以捕获玩家视角");
-        }
-
-        CameraSample sample = CameraAccessor.sampleGameCamera(client);
-
-        // ⭐ 关键修复：确保使用玩家真实的 FOV
-        // 直接从 options 获取玩家的 FOV，而不是从 sample 中获取
-        // 因为 sample 中的 FOV 可能已经被电影模式修改过
-        float capturedFov = 70.0f; // 默认值
-        if (client.options != null && client.options.getFov() != null) {
-            capturedFov = client.options.getFov().getValue().floatValue();
-        }
-        
-        // ⭐ 调试日志：记录玩家的实际 FOV
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("[TimelineCameraController] 捕捉关键帧: 玩家 FOV={}, 采样 FOV={}", 
-                capturedFov, sample.fov());
-        }
+        CameraSample sample = CameraRuntime.getInstance().getCurrentSample();
+        if (sample == null) return;
 
         keyframe.setPosition(new Vector3f(
                 (float) sample.position().x,
                 (float) sample.position().y,
                 (float) sample.position().z
         ));
+
         // rotation.x = pitch, rotation.y = yaw, rotation.z = roll
         keyframe.setRotation(new Vector3f(
                 sample.pitch(),  // x = pitch
                 sample.yaw(),    // y = yaw
                 sample.roll()    // z = roll
         ));
-        keyframe.setFov(capturedFov);  // ⭐ 使用修正后的 FOV
+        keyframe.setFov(sample.fov());
         keyframe.setNearPlane(sample.nearPlane());
         keyframe.setFarPlane(sample.farPlane());
         keyframe.setDepthOfFieldEnabled(sample.depthOfFieldEnabled());
         keyframe.setFocusDistance(sample.focusDistance());
         keyframe.setAperture(sample.aperture());
 
-        // ⭐ 恢复之前的模式（如果需要）
-        // 注意：由于用户可能想要继续预览，我们不在捕获后自动恢复
-        // 让 update() 方法根据当前状态决定是否恢复 CINEMATIC
-        
-        LOGGER.info("[TimelineCameraController] 捕捉玩家视角到 CameraKeyframe@{}s: FOV={}, pos=({}, {}, {}), wasCinematic={}", 
-            keyframe.getTime(), capturedFov,
-            sample.position().x, sample.position().y, sample.position().z,
-            wasCinematic);
+        LOGGER.info("[TimelineCameraController] 捕捉当前视角到 CameraKeyframe@{}s", keyframe.getTime());
     }
 
-    /**
-     * 从当前摄像机捕获位置和其他参数（但不捕获旋转）。
-     * ⭐ 用于创建新关键帧时，保持旋转为默认值0。
-     * 
-     * <p>⭐ 关键改进：画面不能动
-     * - 如果当前在电影模式下，从当前电影摄像机捕获（不退出电影模式，画面不动）
-     * - 如果当前不在电影模式下，从游戏摄像机捕获
-     * - 这样添加关键帧时画面不会变化，用户看到的就是保存的关键帧位置
-     * 
-     * <p>与 captureFromGameCamera 的区别：
-     * <ul>
-     *   <li>不设置旋转（保持为默认的0）</li>
-     *   <li>只捕获位置、FOV、裁剪面等参数</li>
-     * </ul>
-     * 
-     * <p>设计理由：
-     * - 默认情况下电影摄像机不应该有旋转，只有选中关键帧设置时玩家可以设置旋转
-     * - 符合专业动画软件的行为：创建关键帧时通常只设置位置，旋转需要手动调整
-     * - 用户调整好摄像机位置后，点击添加关键帧时画面不应该变化
-     * 
-     * @param keyframe 要更新的关键帧
-     */
-    public void capturePositionFromGameCamera(CameraKeyframe keyframe) {
-        if (keyframe == null) {
-            return;
-        }
-
-        MinecraftClient client = MinecraftClient.getInstance();
-        CameraRuntime runtime = CameraRuntime.getInstance();
-        
-        CameraSample sample;
-        
-        // ⭐ 关键修复：如果当前在电影模式下，从当前电影摄像机捕获（不退出，画面不动）
-        if (runtime.isCinematicEnabled()) {
-            sample = runtime.getActiveSample();
-            if (sample == null) {
-                // 如果电影模式下没有sample，回退到游戏摄像机
-                sample = CameraAccessor.sampleGameCamera(client);
-            } else {
-                LOGGER.debug("[TimelineCameraController] 从当前电影摄像机捕获位置（画面不动）");
-            }
-        } else {
-            // 不在电影模式下，从游戏摄像机捕获
-            sample = CameraAccessor.sampleGameCamera(client);
-        }
-
-        // ⭐ 关键修复：确保使用正确的 FOV
-        // 如果从电影摄像机捕获，使用电影摄像机的FOV
-        // 如果从游戏摄像机捕获，使用玩家设置的FOV
-        float capturedFov = sample.fov();
-        if (!runtime.isCinematicEnabled() && client.options != null && client.options.getFov() != null) {
-            // 从游戏摄像机捕获时，使用玩家设置的FOV
-            capturedFov = client.options.getFov().getValue().floatValue();
-        }
-
-        // ⭐ 只捕获位置和其他参数，不捕获旋转（保持旋转为0）
-        keyframe.setPosition(new Vector3f(
-                (float) sample.position().x,
-                (float) sample.position().y,
-                (float) sample.position().z
-        ));
-        // 注意：不设置旋转，保持默认值 (0, 0, 0)
-        keyframe.setFov(capturedFov);
-        keyframe.setNearPlane(sample.nearPlane());
-        keyframe.setFarPlane(sample.farPlane());
-        keyframe.setDepthOfFieldEnabled(sample.depthOfFieldEnabled());
-        keyframe.setFocusDistance(sample.focusDistance());
-        keyframe.setAperture(sample.aperture());
-
-        LOGGER.info("[TimelineCameraController] 捕捉位置到 CameraKeyframe@{}s: FOV={}, pos=({}, {}, {}), 旋转保持为(0,0,0), 从{}捕获", 
-            keyframe.getTime(), capturedFov,
-            sample.position().x, sample.position().y, sample.position().z,
-            runtime.isCinematicEnabled() ? "电影摄像机" : "游戏摄像机");
-    }
-
-    // ========================= 内部工具 =========================
-
-    /**
-     * 锁定玩家输入（每帧调用，确保完全锁定）
-     * 
-     * <p>⭐ 关键修复：
-     * <ul>
-     *   <li>每帧清零移动输入，防止玩家按键干扰</li>
-     *   <li>清空所有键绑定状态</li>
-     *   <li>注意：鼠标旋转由 CameraMixin 覆盖，这里不需要额外处理</li>
-     * </ul>
-     */
-    private void lockPlayerInput() {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client.player != null && client.player.input != null) {
-            var input = client.player.input;
-            input.movementForward = 0.0f;
-            input.movementSideways = 0.0f;
-            // 注意：jumping 和 sneaking 通过 key bindings 处理
-        }
-
-        if (client.options != null) {
-            clearKey(client.options.forwardKey);
-            clearKey(client.options.backKey);
-            clearKey(client.options.leftKey);
-            clearKey(client.options.rightKey);
-            clearKey(client.options.jumpKey);
-            clearKey(client.options.sneakKey);
-            clearKey(client.options.sprintKey);
-        }
-    }
-
-    /**
-     * 解锁玩家输入（退出电影模式时调用）
-     * ⭐ 关键修复：确保所有键绑定状态被正确释放
-     */
-    private void unlockPlayerInput() {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null) {
-            return;
-        }
-
-        // ⭐ 关键修复：显式释放所有键绑定，确保输入不被锁定
-        if (client.options != null) {
-            clearKey(client.options.forwardKey);
-            clearKey(client.options.backKey);
-            clearKey(client.options.leftKey);
-            clearKey(client.options.rightKey);
-            clearKey(client.options.jumpKey);
-            clearKey(client.options.sneakKey);
-            clearKey(client.options.sprintKey);
-        }
-
-        // ⭐ 关键修复：恢复玩家输入状态（如果存在）
-        // 注意：不直接设置 movementForward/movementSideways，让玩家自然控制
-        // 这些值会在下一帧由玩家的按键输入更新
-        // 只需要确保键绑定被释放即可
-    }
-
-    private void clearKey(KeyBinding key) {
-        if (key != null) {
-            key.setPressed(false);
-        }
-    }
+    // ================== 内部工具：收集摄像机关键帧 ==================
 
     private List<CameraKeyframe> collectCameraKeyframes() {
         List<CameraKeyframe> list = new ArrayList<>();

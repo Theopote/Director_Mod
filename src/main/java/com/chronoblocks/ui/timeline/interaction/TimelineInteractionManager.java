@@ -79,6 +79,21 @@ public class TimelineInteractionManager {
         endInteraction();
     }
     
+    /**
+     * 静默取消所有交互（不触发任何回调，用于 UI 关闭时清理状态）
+     */
+    public void cancelAllInteractionsSilently() {
+        if (currentMode != InteractionMode.NONE) {
+            LOGGER.debug("[Timeline] 静默取消交互: {}", currentMode);
+        }
+        this.currentMode = InteractionMode.NONE;
+        this.activeObject = null;
+        this.dragStartMouseX = 0f;
+        this.dragStartMouseY = 0f;
+        this.dragStartValue = 0f;
+        this.dragStartValue2 = 0f;
+    }
+    
     // ========== Getters ==========
     
     public InteractionMode getCurrentMode() {

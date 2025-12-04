@@ -370,9 +370,6 @@ public class TimelineModelPersistence {
             TimelineDTO dto = toDTO(model, viewportState);
             String json = GSON.toJson(dto);
             Files.writeString(timelineFile, json);
-            
-            LOGGER.info("[TimelineModelPersistence] 世界 {} 的时间线数据已保存: {}", 
-                WorldIdentifier.getCurrentWorldId(), timelineFile);
         } catch (IOException e) {
             LOGGER.error("[TimelineModelPersistence] 保存时间线数据失败: {}", e.getMessage(), e);
         }

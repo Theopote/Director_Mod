@@ -280,16 +280,21 @@ public class TimelineContextMenuFactory {
                     .end();
                 }
             }
-            case CAMERA -> {
-                CameraKeyframe keyframe = new CameraKeyframe("Camera @" + formatTime(time), time);
-                // ⭐ 只捕获位置，不捕获旋转（保持旋转为默认值0）
-                TimelineCameraController.getInstance().capturePositionFromGameCamera(keyframe);
-                builder
-                    .submenu("摄像机关键帧")
-                        .command("添加摄像机关键帧",
-                            new AddAutomationKeyframeCommand(model, track, keyframe))
-                    .end();
-            }
+            case CAMERA -> // ⭐ 修复：在用户点击菜单项时才创建关键帧并捕获状态，而不是在菜单构建时
+                // 这样可以确保捕获的是用户点击时的当前视角，而不是菜单打开时的视角
+                    builder
+                        .submenu("摄像机关键帧")
+                            .item("添加摄像机关键帧", () -> {
+                                // 在执行时获取当前时间（可能是菜单打开后播放头移动了）
+                                float currentTime = model.getCurrentTime();
+                                String timeLabel = formatTime(currentTime);
+                                CameraKeyframe keyframe = new CameraKeyframe("Camera @" + timeLabel, currentTime);
+                                // 在执行时捕获当前相机状态
+                                TimelineCameraController.getInstance().captureFromCurrentCamera(keyframe);
+                                // 执行命令
+                                commandHistory.executeCommand(new AddAutomationKeyframeCommand(model, track, keyframe));
+                            })
+                        .end();
             case WEATHER -> builder
                 .submenu("天气关键帧")
                     .command("添加天气关键帧",

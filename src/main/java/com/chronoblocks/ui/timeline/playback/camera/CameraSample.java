@@ -3,8 +3,9 @@ package com.chronoblocks.ui.timeline.playback.camera;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * Immutable snapshot of a cinematic camera pose.
+ * 摄像机状态快照（位置/旋转/FOV/DOF等）。
  * 
+ * <p>⭐ 单一摄像机系统：用于存储游戏摄像机的状态快照。
  * <p>v2.0: 扩展了 DOF/光圈等参数，方便后期渲染或导出。
  */
 public record CameraSample(
@@ -31,20 +32,4 @@ public record CameraSample(
         10.0f,
         2.8f
     );
-
-    public CameraSample withPosition(Vec3d pos) {
-        return new CameraSample(
-            pos, yaw, pitch, roll, fov,
-            nearPlane, farPlane,
-            depthOfFieldEnabled, focusDistance, aperture
-        );
-    }
-
-    public CameraSample withFov(float newFov) {
-        return new CameraSample(
-            position, yaw, pitch, roll, newFov,
-            nearPlane, farPlane,
-            depthOfFieldEnabled, focusDistance, aperture
-        );
-    }
 }

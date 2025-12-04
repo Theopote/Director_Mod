@@ -82,7 +82,7 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
             // ========== Bloom 泛光 ==========
             if (ImGui.collapsingHeader("🌟 Bloom 泛光", ImGuiTreeNodeFlags.DefaultOpen)) {
                 // 启用 Bloom
-                boolean currentBloom = getBooleanProperty(profile, "bloomEnabled", "isBloomEnabled", false);
+                boolean currentBloom = getBooleanProperty(profile, "bloomEnabled", "isBloomEnabled");
                 ImBoolean enableBloom = new ImBoolean(currentBloom);
                 if (ImGui.checkbox("启用 Bloom", enableBloom)) {
                     if (setBooleanProperty(profile, "bloomEnabled", "setBloomEnabled", enableBloom.get())) {
@@ -123,7 +123,7 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
             // ========== 景深 DOF ==========
             if (ImGui.collapsingHeader("📷 景深 (Depth of Field)")) {
                 // 启用景深
-                boolean currentDOF = getBooleanProperty(profile, "depthOfField", "isDepthOfField", false);
+                boolean currentDOF = getBooleanProperty(profile, "depthOfField", "isDepthOfField");
                 ImBoolean enableDOF = new ImBoolean(currentDOF);
                 if (ImGui.checkbox("启用景深", enableDOF)) {
                     if (setBooleanProperty(profile, "depthOfField", "setDepthOfField", enableDOF.get())) {
@@ -148,10 +148,10 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
             // ========== 色调映射 ==========
             if (ImGui.collapsingHeader("🎨 色调映射", ImGuiTreeNodeFlags.DefaultOpen)) {
                 // 色调映射模式
-                int currentMode = getIntProperty(profile, "toneMapMode", "getToneMapMode", 0);
+                int currentMode = getIntProperty(profile);
                 ImInt modeIdx = new ImInt(currentMode);
                 if (ImGui.combo("色调映射模式", modeIdx, TONEMAP_MODES)) {
-                    if (setIntProperty(profile, "toneMapMode", "setToneMapMode", modeIdx.get())) {
+                    if (setIntProperty(profile, modeIdx.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[PostProcessingPropertyAdapter] 色调映射已更新: {}", 
                             TONEMAP_MODES[modeIdx.get()]);
@@ -205,7 +205,7 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
             // ========== 屏幕空间效果 ==========
             if (ImGui.collapsingHeader("✨ 屏幕空间效果")) {
                 // SSAO
-                boolean currentSSAO = getBooleanProperty(profile, "ssaoEnabled", "isSSAOEnabled", false);
+                boolean currentSSAO = getBooleanProperty(profile, "ssaoEnabled", "isSSAOEnabled");
                 ImBoolean enableSSAO = new ImBoolean(currentSSAO);
                 if (ImGui.checkbox("SSAO（环境光遮蔽）", enableSSAO)) {
                     if (setBooleanProperty(profile, "ssaoEnabled", "setSSAOEnabled", enableSSAO.get())) {
@@ -214,7 +214,7 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
                 }
                 
                 // SSR
-                boolean currentSSR = getBooleanProperty(profile, "ssrEnabled", "isSSREnabled", false);
+                boolean currentSSR = getBooleanProperty(profile, "ssrEnabled", "isSSREnabled");
                 ImBoolean enableSSR = new ImBoolean(currentSSR);
                 if (ImGui.checkbox("SSR（屏幕空间反射）", enableSSR)) {
                     if (setBooleanProperty(profile, "ssrEnabled", "setSSREnabled", enableSSR.get())) {
@@ -229,7 +229,7 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
             UITheme.beginGroup("快捷操作");
             
             if (ImGui.button("🔄 重置为默认", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
-                if (callMethod(profile, "resetToDefault")) {
+                if (callMethod(profile)) {
                     modifiedRef[0] = true;
                     LOGGER.info("[PostProcessingPropertyAdapter] 后处理已重置");
                 }
@@ -260,19 +260,19 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
     
     // ========== 反射辅助方法 ==========
     
-    private boolean getBooleanProperty(Object obj, String fieldName, String getterName, boolean defaultValue) {
+    private boolean getBooleanProperty(Object obj, String fieldName, String getterName) {
         try {
             var method = obj.getClass().getMethod(getterName);
             Object result = method.invoke(obj);
-            return result instanceof Boolean ? (Boolean) result : defaultValue;
+            return result instanceof Boolean ? (Boolean) result : false;
         } catch (Exception e) {
             try {
                 var field = obj.getClass().getDeclaredField(fieldName);
                 field.setAccessible(true);
                 Object result = field.get(obj);
-                return result instanceof Boolean ? (Boolean) result : defaultValue;
+                return result instanceof Boolean ? (Boolean) result : false;
             } catch (Exception ex) {
-                return defaultValue;
+                return false;
             }
         }
     }
@@ -294,31 +294,31 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
         }
     }
     
-    private int getIntProperty(Object obj, String fieldName, String getterName, int defaultValue) {
+    private int getIntProperty(Object obj) {
         try {
-            var method = obj.getClass().getMethod(getterName);
+            var method = obj.getClass().getMethod("getToneMapMode");
             Object result = method.invoke(obj);
-            return result instanceof Integer ? (Integer) result : defaultValue;
+            return result instanceof Integer ? (Integer) result : 0;
         } catch (Exception e) {
             try {
-                var field = obj.getClass().getDeclaredField(fieldName);
+                var field = obj.getClass().getDeclaredField("toneMapMode");
                 field.setAccessible(true);
                 Object result = field.get(obj);
-                return result instanceof Integer ? (Integer) result : defaultValue;
+                return result instanceof Integer ? (Integer) result : 0;
             } catch (Exception ex) {
-                return defaultValue;
+                return 0;
             }
         }
     }
     
-    private boolean setIntProperty(Object obj, String fieldName, String setterName, int value) {
+    private boolean setIntProperty(Object obj, int value) {
         try {
-            var method = obj.getClass().getMethod(setterName, int.class);
+            var method = obj.getClass().getMethod("setToneMapMode", int.class);
             method.invoke(obj, value);
             return true;
         } catch (Exception e) {
             try {
-                var field = obj.getClass().getDeclaredField(fieldName);
+                var field = obj.getClass().getDeclaredField("toneMapMode");
                 field.setAccessible(true);
                 field.set(obj, value);
                 return true;
@@ -366,13 +366,13 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
         }
     }
     
-    private boolean callMethod(Object obj, String methodName) {
+    private boolean callMethod(Object obj) {
         try {
-            var method = obj.getClass().getMethod(methodName);
+            var method = obj.getClass().getMethod("resetToDefault");
             method.invoke(obj);
             return true;
         } catch (Exception e) {
-            LOGGER.debug("[PostProcessingPropertyAdapter] 调用方法失败: {}", methodName);
+            LOGGER.debug("[PostProcessingPropertyAdapter] 调用方法失败: {}", "resetToDefault");
             return false;
         }
     }

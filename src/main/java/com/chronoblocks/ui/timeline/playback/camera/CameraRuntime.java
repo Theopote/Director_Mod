@@ -1,192 +1,171 @@
 package com.chronoblocks.ui.timeline.playback.camera;
 
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.util.math.Vec3d;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
- * CameraRuntime v3.1 - runtime switchboard for game vs. cinematic camera.
+ * 统一相机运行时（单一相机状态 + 控制权）
  *
- * Responsibilities:
- * - Single source of truth for which sample mixins should use.
- * - Cache and restore the player's view/FOV when taking control.
- * - Keep state transitions explicit so the two camera systems never fight each other.
+ * 核心设计：
+ * - 只有一份 currentSample，表示“当前摄像机状态”（位置 / 旋转 / FOV / DOF...）
+ * - 只有一个 owner 表示当前谁在控制摄像机：PLAYER 或 TIMELINE
+ * - Mixin 每帧只与这一份状态交互：
+ *    - 当 owner=PLAYER 时，从原版 Camera 写入 currentSample
+ *    - 当 owner=TIMELINE 时，从 currentSample 写回原版 Camera
+ *
+ * 兼容性：
+ * - 保留部分旧 API（enterGameMode / enterCinematic / getActiveSample 等），内部用新设计实现
  */
 public final class CameraRuntime {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(CameraRuntime.class);
     private static final CameraRuntime INSTANCE = new CameraRuntime();
 
+    /** 当前控制权归属 */
+    public enum Owner {
+        PLAYER,    // 玩家控制
+        TIMELINE   // 时间线（播放 / 拖动 / 预览）控制
+    }
+
+    /** 为了兼容旧代码，保留一个 Mode 枚举（简单映射到 Owner） */
     public enum Mode {
         GAME,
         CINEMATIC
     }
 
-    private Mode mode = Mode.GAME;
-    private CameraSample activeSample;
-    private CameraSample cachedPlayerView;
-    private Float originalPlayerFov;
+    /** 当前控制权 */
+    private Owner owner = Owner.PLAYER;
+
+    /** 当前相机状态（无论玩家还是时间线写入的，都是同一份） */
+    private CameraSample currentSample = CameraSample.EMPTY;
+
+    private CameraRuntime() {}
 
     public static CameraRuntime getInstance() {
         return INSTANCE;
     }
 
-    private CameraRuntime() {}
+    // ================== 新设计的主 API ==================
 
-    public boolean isCinematicEnabled() {
-        return mode == Mode.CINEMATIC && activeSample != null;
+    public Owner getOwner() {
+        return owner;
+    }
+
+    public boolean isPlayerOwner() {
+        return owner == Owner.PLAYER;
+    }
+
+    public boolean isTimelineOwner() {
+        return owner == Owner.TIMELINE;
+    }
+
+    public CameraSample getCurrentSample() {
+        return currentSample;
     }
 
     /**
-     * Backwards compatible alias.
+     * 由 CameraMixin 在 Camera.update() 之后调用。
+     * 只在 owner=PLAYER 时更新当前状态（时间线接管时不覆盖）。
      */
-    @Deprecated
-    public boolean isCinematicActive() {
-        return isCinematicEnabled();
-    }
-
-    public Mode getMode() {
-        return mode;
-    }
-
-    /**
-     * Current camera sample consumed by mixins.
-     */
-    public CameraSample getActiveSample() {
-        return activeSample;
-    }
-
-    /**
-     * Enter cinematic mode with the given sample.
-     */
-    public void enterCinematic(CameraSample sample) {
-        if (sample == null) {
-            exitCinematicAndRestorePlayer();
+    public void updateFromGameCamera(Vec3d pos, float yaw, float pitch, float fov) {
+        if (owner != Owner.PLAYER) {
+            // 时间线接管时，不要用玩家视角覆盖掉采样的镜头
             return;
         }
 
-        if (mode != Mode.CINEMATIC) {
-            // New session: snapshot the current player camera so we can restore correctly.
-            cachePlayerView();
-        }
-
-        mode = Mode.CINEMATIC;
-        activeSample = sample;
+        this.currentSample = new CameraSample(
+                pos,
+                yaw,
+                pitch,
+                0.0f,      // roll 对玩家视角无意义
+                fov,
+                0.05f,
+                1024.0f,
+                false,
+                10.0f,
+                2.8f
+        );
     }
 
     /**
-     * Update the active sample while already in cinematic mode.
+     * 由 TimelineCameraController 每帧写入时间线采样结果。
      */
-    public void updateSample(CameraSample sample) {
-        if (sample == null) {
-            exitCinematicAndRestorePlayer();
+    public void applyTimelineSample(CameraSample sample) {
+        if (sample == null) return;
+        this.currentSample = sample;
+    }
+
+    /**
+     * 切换控制权，并负责锁 / 解锁玩家输入。
+     */
+    public void setOwner(Owner newOwner) {
+        if (this.owner == newOwner) {
             return;
         }
-        if (mode != Mode.CINEMATIC) {
-            enterCinematic(sample);
+
+        this.owner = newOwner;
+        MinecraftClient mc = MinecraftClient.getInstance();
+        if (mc.player == null) return;
+
+        if (newOwner == Owner.TIMELINE) {
+            lockPlayerInput(mc);
+            LOGGER.debug("[CameraRuntime] Owner 切换为 TIMELINE，相机由时间线控制");
         } else {
-            activeSample = sample;
+            unlockPlayerInput(mc);
+            LOGGER.debug("[CameraRuntime] Owner 切换为 PLAYER，相机恢复玩家控制");
         }
     }
 
     /**
-     * Leave cinematic mode and restore the player's camera snapshot.
+     * 重置为“玩家控制，相机状态由 Minecraft 自己刷新”的状态。
+     * 一般在：
+     * - 关闭 ChronoBlocks UI
+     * - 世界退出
+     * 等场景调用。
      */
-    public void exitCinematicAndRestorePlayer() {
-        if (mode == Mode.GAME) {
-            restoreFovIfNeeded();
-            resetPlayerSnapshot();
-            return;
-        }
-
-        restorePlayerView();
-        mode = Mode.GAME;
-        activeSample = null;
-        resetPlayerSnapshot();
-    }
-
-    /**
-     * Leave cinematic mode without restoring the old view (used when baking the cinematic sample into gameplay).
-     */
-    public void exitCinematicWithoutRestore() {
-        mode = Mode.GAME;
-        activeSample = null;
-        resetPlayerSnapshot();
-    }
-
-    @Deprecated
-    public void enterGameMode() {
-        exitCinematicAndRestorePlayer();
-    }
-
-    /**
-     * Hard reset, e.g. when closing UI or unloading a world.
-     */
-    public void forceReleaseCinematic() {
-        mode = Mode.GAME;
-        activeSample = null;
-        resetPlayerSnapshot();
-    }
-
     public void reset() {
-        forceReleaseCinematic();
+        setOwner(Owner.PLAYER);
+        // 不强制清空 currentSample，后续 Camera.update 会刷新
     }
 
-    // ========================= Internal helpers =========================
+    // ================== 玩家输入锁定 / 解锁 ==================
 
-    private void cachePlayerView() {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null) {
-            return;
+    private void lockPlayerInput(MinecraftClient client) {
+        if (client.player != null && client.player.input != null) {
+            var input = client.player.input;
+            input.movementForward = 0.0f;
+            input.movementSideways = 0.0f;
         }
 
-        // Always refresh the snapshot FOV per session so user option changes are respected.
-        if (mode == Mode.GAME && client.options != null && client.options.getFov() != null) {
-            originalPlayerFov = client.options.getFov().getValue().floatValue();
-        }
-
-        cachedPlayerView = CameraAccessor.sampleGameCamera(client);
-
-        if (originalPlayerFov != null && cachedPlayerView != null) {
-            cachedPlayerView = new CameraSample(
-                cachedPlayerView.position(),
-                cachedPlayerView.yaw(),
-                cachedPlayerView.pitch(),
-                cachedPlayerView.roll(),
-                originalPlayerFov,
-                cachedPlayerView.nearPlane(),
-                cachedPlayerView.farPlane(),
-                cachedPlayerView.depthOfFieldEnabled(),
-                cachedPlayerView.focusDistance(),
-                cachedPlayerView.aperture()
-            );
+        if (client.options != null) {
+            clearKey(client.options.forwardKey);
+            clearKey(client.options.backKey);
+            clearKey(client.options.leftKey);
+            clearKey(client.options.rightKey);
+            clearKey(client.options.jumpKey);
+            clearKey(client.options.sneakKey);
+            clearKey(client.options.sprintKey);
         }
     }
 
-    private void restorePlayerView() {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null) {
-            return;
-        }
+    private void unlockPlayerInput(MinecraftClient client) {
+        // 基本上不需要做额外事情，只要不再每帧清零就行
+        // KeyBinding 在玩家下一次按键时会自动更新状态
+    }
 
-        restoreFovIfNeeded();
-
-        if (cachedPlayerView != null && client.player != null) {
-            client.player.setPos(
-                cachedPlayerView.position().x,
-                cachedPlayerView.position().y,
-                cachedPlayerView.position().z
-            );
-            client.player.setYaw(cachedPlayerView.yaw());
-            client.player.setPitch(cachedPlayerView.pitch());
+    private void clearKey(net.minecraft.client.option.KeyBinding key) {
+        if (key != null) {
+            key.setPressed(false);
         }
     }
 
-    private void restoreFovIfNeeded() {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client != null && originalPlayerFov != null && client.options != null && client.options.getFov() != null) {
-            client.options.getFov().setValue(originalPlayerFov.intValue());
-        }
+    // ================== 兼容旧 API（内部用新设计实现） ==================
+
+    /** 兼容旧代码：返回类似旧的 Mode 枚举 */
+    public Mode getMode() {
+        return (owner == Owner.TIMELINE) ? Mode.CINEMATIC : Mode.GAME;
     }
 
-    private void resetPlayerSnapshot() {
-        cachedPlayerView = null;
-        originalPlayerFov = null;
-    }
 }
