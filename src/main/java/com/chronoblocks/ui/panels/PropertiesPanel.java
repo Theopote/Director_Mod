@@ -3,6 +3,9 @@ package com.chronoblocks.ui.panels;
 import com.chronoblocks.ui.properties.IPropertyAdapter;
 import com.chronoblocks.ui.properties.PropertyAdapterRegistry;
 import com.chronoblocks.ui.selection.SelectionManager;
+import com.chronoblocks.ui.timeline.container.ContainerTimelineService;
+import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
+import com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController;
 import com.chronoblocks.ui.theme.UITheme;
 import com.chronoblocks.ui.theme.Icons;
 import imgui.ImGui;
@@ -210,6 +213,13 @@ public class PropertiesPanel extends AbstractPanel {
             boolean modified = currentAdapter.renderProperties(currentSelection);
             if (modified) {
                 isDirty = true; // 标记为已修改
+                if (currentSelection instanceof CameraKeyframe) {
+                    var timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+                    if (timelineModel != null) {
+                        timelineModel.markDirty();
+                    }
+                    TimelineCameraController.getInstance().onKeyframeChanged();
+                }
                 LOGGER.debug("[PropertiesPanel] 属性已修改: {}", 
                     currentSelection.getClass().getSimpleName());
                 // TODO: 可以在这里触发撤销/重做系统

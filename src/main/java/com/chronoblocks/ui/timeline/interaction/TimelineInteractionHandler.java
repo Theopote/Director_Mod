@@ -900,8 +900,9 @@ public class TimelineInteractionHandler {
         // 只更新时间，不进入 scrubbing
         model.setCurrentTime(clampedTime);
         
-        // 可选：单帧预览（但不改变 owner）
-        com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance().previewAt(clampedTime);
+        // ⭐ 修复：点击时间标尺不应该预览，因为这会改变 owner，导致玩家无法移动摄像机
+        // 如果用户想预览，应该点击关键帧，而不是点击时间标尺
+        // 注释掉 previewAt() 调用，保持 owner 为 PLAYER
         
         // 更新片段方块显示状态
         com.chronoblocks.ui.timeline.playback.TimelineClipBlockController.getInstance().update();

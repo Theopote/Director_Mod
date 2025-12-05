@@ -157,12 +157,19 @@ public final class TimelineCameraController {
     /**
      * ⭐ UI 事件驱动：开始播放
      * 由 TimelineModel.setPlaying(true) 通过 startPlayback() 调用
+     * 
+     * <p>⭐ 关键修复：在事件发生时设置 owner，而不是在 update() 中每帧设置
      */
     public void startPlayback() {
         this.previewing = false;
-        // scrubbing 状态由 TimelineModel 管理，这里不需要设置
-        // 播放状态由 TimelineModel.isPlaying() 控制，这里只负责摄像机
-        LOGGER.debug("[TimelineCameraController] 开始播放");
+        // ⭐ 关键修复：在事件发生时设置 owner
+        CameraRuntime runtime = CameraRuntime.getInstance();
+        sampler.setKeyframes(collectCameraKeyframes());
+        if (!sampler.isEmpty()) {
+            // 有摄像机关键帧时，设置为 TIMELINE owner
+            runtime.setOwner(CameraRuntime.Owner.TIMELINE);
+        }
+        LOGGER.debug("[TimelineCameraController] 开始播放，owner = {}", runtime.getOwner());
     }
 
     /**
@@ -222,14 +229,14 @@ public final class TimelineCameraController {
 
     /**
      * 主更新函数（TimelinePanel 每帧调用）。
-     * ⭐ UI 状态驱动：完全根据 TimelineModel 的状态来决定摄像机控制权
+     * ⭐ 关键修复：避免每帧切换 owner，只在必要时切换，防止闪跳
      * 
      * <p>更新逻辑：
      * <ul>
-     *   <li>如果正在播放：采样当前时间点，时间线接管</li>
-     *   <li>如果正在 scrubbing：由 beginScrubbing/updateScrubbing 处理，这里不重复采样</li>
-     *   <li>如果只是预览：采样预览时间点</li>
-     *   <li>否则：玩家控制</li>
+     *   <li>如果正在播放：采样当前时间点，应用 sample（owner 已在 startPlayback 时设置）</li>
+     *   <li>如果正在 scrubbing：由 beginScrubbing/updateScrubbing 处理，这里不处理</li>
+     *   <li>如果只是预览：采样预览时间点，应用 sample（owner 已在 previewAt 时设置）</li>
+     *   <li>否则：只在确实需要切换时才切回 PLAYER（避免每帧切换）</li>
      * </ul>
      */
     public void update() {
@@ -242,22 +249,26 @@ public final class TimelineCameraController {
 
         sampler.setKeyframes(collectCameraKeyframes());
 
-        // 没有摄像机关键帧 → 永远玩家控制
+        // 没有摄像机关键帧 → 只在确实需要切换时才切回 PLAYER
         if (sampler.isEmpty()) {
-            runtime.setOwner(CameraRuntime.Owner.PLAYER);
+            if (runtime.getOwner() == CameraRuntime.Owner.TIMELINE) {
+                runtime.setOwner(CameraRuntime.Owner.PLAYER);
+            }
             return;
         }
 
-        if (!active) {
-            // 不在播放、不在拖动、也没有预览 → 玩家控制
-            runtime.setOwner(CameraRuntime.Owner.PLAYER);
-            return;
-        }
-
-        // ⭐ 关键修复：scrubbing 状态由 beginScrubbing/updateScrubbing 处理，这里只处理播放和预览
+        // ⭐ 关键修复：scrubbing 状态由 beginScrubbing/updateScrubbing 处理，这里不处理
         if (scrubbing) {
             // scrubbing 状态下的采样由 updateScrubbing() 处理，这里不需要重复采样
-            // 但需要确保 owner 是 TIMELINE（由 beginScrubbing/updateScrubbing 设置）
+            // owner 已在 beginScrubbing 时设置为 TIMELINE，不需要每帧切换
+            return;
+        }
+
+        // 不在播放、不在拖动、也没有预览 → 只在确实需要切换时才切回 PLAYER
+        if (!active) {
+            if (runtime.getOwner() == CameraRuntime.Owner.TIMELINE) {
+                runtime.setOwner(CameraRuntime.Owner.PLAYER);
+            }
             return;
         }
 
@@ -271,39 +282,54 @@ public final class TimelineCameraController {
 
         CameraSample sample = sampler.sample(time).orElse(null);
         if (sample == null) {
-            runtime.setOwner(CameraRuntime.Owner.PLAYER);
+            // ⭐ 修复：只在确实需要切换时才切换
+            if (runtime.getOwner() == CameraRuntime.Owner.TIMELINE) {
+                runtime.setOwner(CameraRuntime.Owner.PLAYER);
+            }
             return;
         }
 
-        // 时间线接管：写入 sample + 切 owner
+        // ⭐ 关键修复：只应用 sample，不每帧切换 owner
+        // owner 已在 startPlayback() 或 previewAt() 时设置为 TIMELINE
+        // 这里只负责更新 sample，避免每帧切换导致闪跳
         runtime.applyTimelineSample(sample);
-        runtime.setOwner(CameraRuntime.Owner.TIMELINE);
+        // ❌ 不再调用 runtime.setOwner()，避免每帧切换导致闪跳
     }
 
     // ================== 预览相关 ==================
 
     /**
      * 当用户点击摄像机关键帧进行预览时调用。
+     * ⭐ 注意：预览会设置 owner = TIMELINE，如果用户想添加关键帧，需要先退出预览
      */
     public void previewAt(float timeSeconds) {
         this.previewing = true;
         this.previewTimeSeconds = timeSeconds;
 
         sampler.setKeyframes(collectCameraKeyframes());
+        CameraRuntime runtime = CameraRuntime.getInstance();
+        
         if (sampler.isEmpty()) {
-            CameraRuntime.getInstance().setOwner(CameraRuntime.Owner.PLAYER);
+            // ⭐ 修复：只在确实需要切换时才切换
+            if (runtime.getOwner() == CameraRuntime.Owner.TIMELINE) {
+                runtime.setOwner(CameraRuntime.Owner.PLAYER);
+            }
             return;
         }
 
         CameraSample sample = sampler.sample(timeSeconds).orElse(null);
         if (sample == null) {
-            CameraRuntime.getInstance().setOwner(CameraRuntime.Owner.PLAYER);
+            // ⭐ 修复：只在确实需要切换时才切换
+            if (runtime.getOwner() == CameraRuntime.Owner.TIMELINE) {
+                runtime.setOwner(CameraRuntime.Owner.PLAYER);
+            }
             return;
         }
 
-        CameraRuntime runtime = CameraRuntime.getInstance();
+        // ⭐ 关键修复：在事件发生时设置 owner，而不是在 update() 中每帧设置
         runtime.applyTimelineSample(sample);
         runtime.setOwner(CameraRuntime.Owner.TIMELINE);
+        LOGGER.debug("[TimelineCameraController] 预览 @ {:.2f}s，owner = TIMELINE", timeSeconds);
     }
 
     public void clearPreview() {
@@ -340,14 +366,46 @@ public final class TimelineCameraController {
     // ================== 关键帧捕捉 ==================
 
     /**
-     * 捕捉关键帧：从“当前相机状态”采样。
-     * 无论此刻是玩家视角还是时间线播放中的视角，都会得到和之后播放一致的坐标系。
+     * 捕捉关键帧：从"当前相机状态"采样。
+     * 
+     * ⭐ 关键修复：确保设置关键帧时 owner 是 PLAYER，这样：
+     * 1. 玩家可以继续移动摄像机设置下一个关键帧
+     * 2. 捕获的是玩家当前视角，与播放时使用的时间线插值结果一致
+     * 
+     * <p>工作流程：
+     * <ul>
+     *   <li>如果当前 owner 是 TIMELINE（预览/播放状态），先切回 PLAYER</li>
+     *   <li>等待一帧让 CameraMixin 更新 currentSample（从玩家摄像机）</li>
+     *   <li>然后捕获 currentSample</li>
+     * </ul>
+     * 
+     * <p>注意：如果时间线正在播放，捕获的是播放头当前位置的插值结果
+     * 如果时间线未播放，捕获的是玩家当前视角
      */
     public void captureFromCurrentCamera(CameraKeyframe keyframe) {
         if (keyframe == null) return;
 
-        CameraSample sample = CameraRuntime.getInstance().getCurrentSample();
-        if (sample == null) return;
+        CameraRuntime runtime = CameraRuntime.getInstance();
+        
+        // ⭐ 关键修复：如果当前是 TIMELINE owner（预览/播放状态），先切回 PLAYER
+        // 这样玩家可以继续移动摄像机，并且捕获的是玩家当前视角
+        boolean wasTimelineOwner = runtime.getOwner() == CameraRuntime.Owner.TIMELINE;
+        if (wasTimelineOwner) {
+            // 如果正在预览，清除预览状态
+            if (this.previewing) {
+                this.previewing = false;
+            }
+            // 切回 PLAYER owner，让玩家可以移动摄像机
+            runtime.setOwner(CameraRuntime.Owner.PLAYER);
+            LOGGER.debug("[TimelineCameraController] 设置关键帧：从 TIMELINE owner 切回 PLAYER，允许玩家移动摄像机");
+        }
+        
+        // 获取当前相机状态（现在应该是玩家视角）
+        CameraSample sample = runtime.getCurrentSample();
+        if (sample == null) {
+            LOGGER.warn("[TimelineCameraController] 无法获取当前相机状态，无法设置关键帧");
+            return;
+        }
 
         keyframe.setPosition(new Vector3f(
                 (float) sample.position().x,

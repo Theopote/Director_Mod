@@ -35,6 +35,13 @@ public class ContainerTimelineService {
     }
 
     /**
+     * 获取当前绑定的时间线模型（可能为 null）
+     */
+    public TimelineModel getTimelineModel() {
+        return timelineModel;
+    }
+
+    /**
      * 检查容器是否在时间线上（是否有对应的片段）
      * 
      * @param containerId 容器ID
