@@ -30,12 +30,6 @@ public final class CameraRuntime {
         TIMELINE   // 时间线（播放 / 拖动 / 预览）控制
     }
 
-    /** 为了兼容旧代码，保留一个 Mode 枚举（简单映射到 Owner） */
-    public enum Mode {
-        GAME,
-        CINEMATIC
-    }
-
     /** 当前控制权 */
     private Owner owner = Owner.PLAYER;
 
@@ -137,7 +131,7 @@ public final class CameraRuntime {
         CameraSample blended = lerpSamples(lerpStart, lerpTarget, t);
 
         MinecraftClient mc = MinecraftClient.getInstance();
-        CameraAccessor.applySampleToGameCamera(mc, blended);
+        CameraAccessor.applySampleToPlayerEntity(mc, blended);
         this.currentSample = blended;
 
         if (t >= 1f - EPSILON) {
@@ -207,13 +201,6 @@ public final class CameraRuntime {
         if (key != null) {
             key.setPressed(false);
         }
-    }
-
-    // ================== 兼容旧 API（内部用新设计实现） ==================
-
-    /** 兼容旧代码：返回类似旧的 Mode 枚举 */
-    public Mode getMode() {
-        return (owner == Owner.TIMELINE) ? Mode.CINEMATIC : Mode.GAME;
     }
 
     private CameraSample lerpSamples(CameraSample a, CameraSample b, float t) {

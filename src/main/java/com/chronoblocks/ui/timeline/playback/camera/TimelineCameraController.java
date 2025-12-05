@@ -16,7 +16,7 @@ import java.util.List;
 
 /**
  * TimelineCameraController v3.0（统一相机系统版）
- *
+ * <p>
  * 职责：
  * - 从 TimelineModel 收集摄像机关键帧，并交给 CameraTrackSampler 插值
  * - 每帧根据 currentTime 采样 CameraSample，写入 CameraRuntime
@@ -186,12 +186,6 @@ public final class TimelineCameraController {
         }
     }
 
-    /** 由 TimelineModel.setPlaying(true) 通知 */
-    public void onPlaybackStarted() {
-        LOGGER.debug("[TimelineCameraController] 播放开始");
-        startPlayback();
-    }
-
     /** 由 TimelineModel.setPlaying(false) 通知 */
     public void onPlaybackStopped() {
         LOGGER.debug("[TimelineCameraController] 播放停止");
@@ -232,17 +226,9 @@ public final class TimelineCameraController {
         boolean shouldTimeline = playing || scrubbing || previewActive;
 
         if (shouldTimeline && !runtime.isTimelineOwner()) {
-            // 接管前先用玩家当前位置作为锚点，弯折轨道避免跳变
-            CameraSample playerSample = runtime.getCurrentSample();
-            if (playerSample == null) {
-                playerSample = CameraAccessor.sampleFromGameCamera(MinecraftClient.getInstance());
-            }
-            float startTime = timelineModel.getCurrentTime();
-            sampler.ensureAnchorAt(startTime, playerSample);
-
             runtime.setOwner(CameraRuntime.Owner.TIMELINE);
             ChronoBlocksClientController.getInstance().setHideCrosshair(true);
-            LOGGER.debug("[CameraController] 接管相机 (时间: {}s)", String.format("%.2f", startTime));
+            LOGGER.debug("[CameraController] 接管相机");
         } else if (!shouldTimeline && runtime.isTimelineOwner()) {
             // 退出时轻微 lerp 回玩家相机，避免瞬移
             CameraSample lastSample = runtime.getCurrentSample();
@@ -254,6 +240,21 @@ public final class TimelineCameraController {
 
         if (runtime.isTimelineOwner()) {
             float time = playing || scrubbing ? timelineModel.getCurrentTime() : previewTimeSeconds;
+            float lastKey = sampler.getLastKeyTime();
+
+            // 超出最后关键帧：停止播放并恢复玩家控制，防止末尾闪烁/放大
+            if (lastKey >= 0f && time > lastKey + 1e-4f) {
+                if (timelineModel.isPlaying()) {
+                    timelineModel.setPlaying(false);
+                }
+                if (timelineModel.isScrubbing()) {
+                    timelineModel.setScrubbing(false);
+                }
+                runtime.setOwner(CameraRuntime.Owner.PLAYER);
+                ChronoBlocksClientController.getInstance().setHideCrosshair(false);
+                return;
+            }
+
             sampler.sample(time).ifPresent(runtime::applyTimelineSample);
         } else {
             updateFromGameCamera();
@@ -315,10 +316,6 @@ public final class TimelineCameraController {
         LOGGER.debug("[TimelineCameraController] 预览 @ {}s，准备接管相机", String.format("%.2f", timeSeconds));
     }
 
-    public void clearPreview() {
-        this.previewing = false;
-    }
-
     /**
      * 点击时间标尺时：只采样并把镜头落到玩家态，允许立即调整。
      */
@@ -334,43 +331,16 @@ public final class TimelineCameraController {
         CameraRuntime runtime = CameraRuntime.getInstance();
         runtime.applyTimelineSample(sample);
         // 将镜头位置直接写到玩家实体 / 相机
-        CameraAccessor.applySampleToGameCamera(MinecraftClient.getInstance(), sample);
+        CameraAccessor.applySampleToPlayerEntity(MinecraftClient.getInstance(), sample);
         // 保持玩家 owner，允许继续移动、录制下一帧
         runtime.setOwner(CameraRuntime.Owner.PLAYER);
-    }
-
-    /**
-     * 拖动播放头结束时调用。
-     * 将当前摄像机状态同步到玩家实体，然后释放控制权给玩家。
-     * 确保玩家从当前位置继续移动，不会有跳变。
-     */
-    public void bakeCurrentSampleIntoGameAndExit() {
-        CameraRuntime runtime = CameraRuntime.getInstance();
-        CameraSample currentSample = runtime.getCurrentSample();
-        
-        if (currentSample != null) {
-            MinecraftClient client = MinecraftClient.getInstance();
-            if (client != null && client.player != null) {
-                // 将当前摄像机状态同步到玩家实体
-                client.player.setPos(currentSample.position().x, currentSample.position().y, currentSample.position().z);
-                client.player.setYaw(currentSample.yaw());
-                client.player.setPitch(currentSample.pitch());
-                LOGGER.debug("[TimelineCameraController] 将摄像机状态同步到玩家实体");
-            }
-        }
-        
-        // 释放控制权给玩家
-        runtime.setOwner(CameraRuntime.Owner.PLAYER);
-        // scrubbing 状态由 TimelineModel 管理，这里不需要设置
-        this.previewing = false;
-        LOGGER.debug("[TimelineCameraController] 释放摄像机控制权给玩家");
     }
 
     // ================== 关键帧捕捉 ==================
 
     /**
      * 捕捉关键帧：从"当前相机状态"采样。
-     * 
+     * <p>
      * ⭐ 关键修复：确保设置关键帧时：
      * 1. owner 是 PLAYER，玩家可以继续移动摄像机设置下一个关键帧
      * 2. 立即从游戏摄像机读取，而不是等待下一帧更新 CameraRuntime

@@ -15,7 +15,8 @@
     "DebugHudMixin",
     "WorldRendererMixin",
     "BlockRenderManagerMixin",
-    "ClientWorldMixin"
+    "ClientWorldMixin",
+    "accessor.GameRendererAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

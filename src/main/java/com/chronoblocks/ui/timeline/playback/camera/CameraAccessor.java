@@ -31,10 +31,28 @@ public final class CameraAccessor {
         }
 
         if (client.player != null) {
+            // 直接写入玩家实体会叠加眼高，导致相机抬高；这里仅用于特殊场景，尽量避免。
             client.player.setPos(sample.position().x, sample.position().y, sample.position().z);
             client.player.setYaw(sample.yaw());
             client.player.setPitch(sample.pitch());
         }
+    }
+
+    /**
+     * 将 CameraSample 同步到玩家实体（补偿眼高），用于从时间线返回玩家控制时避免视角抬升。
+     */
+    public static void applySampleToPlayerEntity(MinecraftClient client, CameraSample sample) {
+        if (client == null || client.player == null || sample == null) {
+            return;
+        }
+        double eye = client.player.getStandingEyeHeight();
+        // 只补偿竖直方向的眼高（MC 相机在头部中心，默认无横向偏移）
+        double px = sample.position().x;
+        double py = sample.position().y - eye;
+        double pz = sample.position().z;
+        client.player.setPos(px, py, pz);
+        client.player.setYaw(sample.yaw());
+        client.player.setPitch(sample.pitch());
     }
 
     /**
@@ -89,8 +107,17 @@ public final class CameraAccessor {
         float yaw = camera.getYaw();
         float pitch = camera.getPitch();
 
-        // 从游戏摄像机获取 FOV（使用基础 FOV，避免动态 FOV 影响）
-        float baseFov = (float) client.options.getFov().getValue();
+        // 从 GameRenderer 获取当前渲染 FOV（包含动态 FOV），保持时间线与实时画面一致
+        float tickDelta = 0f;
+        if (client.getRenderTickCounter() != null) {
+            tickDelta = client.getRenderTickCounter().getTickDelta(false);
+        }
+        float baseFov;
+        if (client.gameRenderer instanceof com.chronoblocks.mixin.accessor.GameRendererAccessor accessor) {
+            baseFov = accessor.chronoblocks$invokeGetFov(camera, tickDelta, true);
+        } else {
+            baseFov = (float) client.options.getFov().getValue();
+        }
 
         // 创建 CameraSample（使用默认值填充其他参数）
         return new CameraSample(
