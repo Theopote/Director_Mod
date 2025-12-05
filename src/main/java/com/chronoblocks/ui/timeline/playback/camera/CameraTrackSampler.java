@@ -21,10 +21,15 @@ import java.util.Optional;
  */
 public final class CameraTrackSampler {
     private static final Logger LOGGER = LoggerFactory.getLogger(CameraTrackSampler.class);
+    private static final float ANCHOR_BLEND_T = 0.9f;
+    private static final float EPSILON = 1e-4f;
 
     private final List<CameraKeyframe> keyframes = new ArrayList<>();
+    /** 临时锚点关键帧（仅存在于采样器内部，不写回模型） */
+    private CameraKeyframe anchorKeyframe;
 
     public void setKeyframes(List<CameraKeyframe> source) {
+        clearAnchor();
         keyframes.clear();
         if (source != null) {
             keyframes.addAll(source);
@@ -34,6 +39,37 @@ public final class CameraTrackSampler {
 
     public boolean isEmpty() {
         return keyframes.isEmpty();
+    }
+
+    /**
+     * 在当前关键帧之间插入一个“临时锚点”，用于把轨道弯向玩家当前视角。
+     * <p>不会修改 TimelineModel，仅修改采样器内部列表，后续 setKeyframes 会清除锚点。</p>
+     */
+    public void ensureAnchorAt(float timeSeconds, CameraSample playerSample) {
+        clearAnchor();
+        if (playerSample == null || keyframes.isEmpty()) {
+            return;
+        }
+
+        // 先用当前轨道采样一次，得到原始轨道的镜头
+        CameraSample trackSample = sample(timeSeconds).orElse(null);
+        if (trackSample == null) {
+            trackSample = toSample(keyframes.getFirst());
+        }
+
+        // 按权重融合，向玩家视角弯折
+        CameraSample blended = lerpSamples(trackSample, playerSample, ANCHOR_BLEND_T);
+
+        CameraKeyframe anchor = new CameraKeyframe("CameraAnchor", timeSeconds);
+        applySampleToKeyframe(anchor, blended);
+
+        // 插入到有序列表（保持时间排序）
+        int insertIndex = 0;
+        while (insertIndex < keyframes.size() && keyframes.get(insertIndex).getTime() < timeSeconds - EPSILON) {
+            insertIndex++;
+        }
+        keyframes.add(insertIndex, anchor);
+        anchorKeyframe = anchor;
     }
 
     public Optional<CameraSample> sample(float timeSeconds) {
@@ -97,6 +133,39 @@ public final class CameraTrackSampler {
         CameraKeyframe p3 = (prevIndex + 2 < keyframes.size()) ? keyframes.get(prevIndex + 2) : next;
 
         return Optional.of(interpolate(p0, prev, next, p3, t));
+    }
+
+    /**
+     * 线性插值两个样本（用于锚点或退出 lerp）。
+     */
+    public CameraSample lerpSamples(CameraSample a, CameraSample b, float t) {
+        t = Math.max(0f, Math.min(1f, t));
+        Vec3d pa = a.position();
+        Vec3d pb = b.position();
+        Vec3d pos = new Vec3d(
+                lerp(pa.x, pb.x, t),
+                lerp(pa.y, pb.y, t),
+                lerp(pa.z, pb.z, t)
+        );
+
+        float yaw = lerpAngle(a.yaw(), b.yaw(), t);
+        float pitch = lerpAngle(a.pitch(), b.pitch(), t);
+        float roll = lerpAngle(a.roll(), b.roll(), t);
+        float fov = lerp(a.fov(), b.fov(), t);
+        float near = lerp(a.nearPlane(), b.nearPlane(), t);
+        float far = lerp(a.farPlane(), b.farPlane(), t);
+        boolean dof = t < 0.5f ? a.depthOfFieldEnabled() : b.depthOfFieldEnabled();
+        float focus = lerp(a.focusDistance(), b.focusDistance(), t);
+        float aperture = lerp(a.aperture(), b.aperture(), t);
+
+        return new CameraSample(pos, yaw, pitch, roll, fov, near, far, dof, focus, aperture);
+    }
+
+    private void clearAnchor() {
+        if (anchorKeyframe != null) {
+            keyframes.remove(anchorKeyframe);
+            anchorKeyframe = null;
+        }
     }
 
     private CameraSample interpolate(CameraKeyframe p0, CameraKeyframe p1,
@@ -310,6 +379,25 @@ public final class CameraTrackSampler {
         return new Vec3d(v.x, v.y, v.z);
     }
 
+    private void applySampleToKeyframe(CameraKeyframe kf, CameraSample sample) {
+        kf.setPosition(new Vector3f(
+                (float) sample.position().x,
+                (float) sample.position().y,
+                (float) sample.position().z
+        ));
+        kf.setRotation(new Vector3f(
+                sample.pitch(),
+                sample.yaw(),
+                sample.roll()
+        ));
+        kf.setFov(sample.fov());
+        kf.setNearPlane(sample.nearPlane());
+        kf.setFarPlane(sample.farPlane());
+        kf.setDepthOfFieldEnabled(sample.depthOfFieldEnabled());
+        kf.setFocusDistance(sample.focusDistance());
+        kf.setAperture(sample.aperture());
+    }
+
     private float safeFov(float fov) {
         return fov > 1f ? fov : 70f;
     }
@@ -322,11 +410,27 @@ public final class CameraTrackSampler {
         return f > n + 0.1f ? f : n + 1000f;
     }
 
-    private float lerp(float a, float b, float t) {
-        return a + (b - a) * Math.max(0f, Math.min(1f, t));
+    private float lerp(double a, double b, float t) {
+        return (float) (a + (b - a) * Math.max(0f, Math.min(1f, t)));
     }
 
     private float clamp(float v, float min, float max) {
         return Math.max(min, Math.min(max, v));
+    }
+
+    private float lerpAngle(float a, float b, float t) {
+        float delta = wrapDegrees(b - a);
+        return a + delta * Math.max(0f, Math.min(1f, t));
+    }
+
+    private float wrapDegrees(float degrees) {
+        degrees = degrees % 360f;
+        if (degrees >= 180f) {
+            degrees -= 360f;
+        }
+        if (degrees < -180f) {
+            degrees += 360f;
+        }
+        return degrees;
     }
 }

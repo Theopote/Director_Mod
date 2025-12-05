@@ -22,6 +22,7 @@ public final class CameraRuntime {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CameraRuntime.class);
     private static final CameraRuntime INSTANCE = new CameraRuntime();
+    private static final float EPSILON = 1e-4f;
 
     /** 当前控制权归属 */
     public enum Owner {
@@ -40,6 +41,13 @@ public final class CameraRuntime {
 
     /** 当前相机状态（无论玩家还是时间线写入的，都是同一份） */
     private CameraSample currentSample = CameraSample.EMPTY;
+
+    // 退出时间线时的轻微过渡（0.1s lerp）
+    private CameraSample lerpStart;
+    private CameraSample lerpTarget;
+    private float lerpElapsed = 0f;
+    private float lerpDuration = 0f;
+    private boolean lerpActive = false;
 
     private CameraRuntime() {}
 
@@ -95,6 +103,46 @@ public final class CameraRuntime {
     public void applyTimelineSample(CameraSample sample) {
         if (sample == null) return;
         this.currentSample = sample;
+    }
+
+    /**
+     * 请求一次玩家相机的平滑过渡，用于退出时间线时避免“瞬移”。
+     */
+    public void applyLerpToPlayer(CameraSample target, float durationSeconds) {
+        if (target == null || durationSeconds <= EPSILON) {
+            lerpActive = false;
+            return;
+        }
+        MinecraftClient mc = MinecraftClient.getInstance();
+        CameraSample start = CameraAccessor.sampleFromGameCamera(mc);
+        if (start == null) {
+            start = currentSample;
+        }
+        lerpStart = start;
+        lerpTarget = target;
+        lerpDuration = durationSeconds;
+        lerpElapsed = 0f;
+        lerpActive = true;
+    }
+
+    /**
+     * 在 PLAYER 模式下逐帧推进 lerp，将玩家实体轻微拉向时间线最后的样本。
+     */
+    public void tickPlayerLerp(float deltaSeconds) {
+        if (!lerpActive) {
+            return;
+        }
+        lerpElapsed += Math.max(0f, deltaSeconds);
+        float t = lerpDuration <= EPSILON ? 1f : Math.min(1f, lerpElapsed / lerpDuration);
+        CameraSample blended = lerpSamples(lerpStart, lerpTarget, t);
+
+        MinecraftClient mc = MinecraftClient.getInstance();
+        CameraAccessor.applySampleToGameCamera(mc, blended);
+        this.currentSample = blended;
+
+        if (t >= 1f - EPSILON) {
+            lerpActive = false;
+        }
     }
 
     /**
@@ -168,4 +216,46 @@ public final class CameraRuntime {
         return (owner == Owner.TIMELINE) ? Mode.CINEMATIC : Mode.GAME;
     }
 
+    private CameraSample lerpSamples(CameraSample a, CameraSample b, float t) {
+        t = Math.max(0f, Math.min(1f, t));
+        Vec3d pa = a.position();
+        Vec3d pb = b.position();
+        Vec3d pos = new Vec3d(
+                lerp(pa.x, pb.x, t),
+                lerp(pa.y, pb.y, t),
+                lerp(pa.z, pb.z, t)
+        );
+
+        float yaw = lerpAngle(a.yaw(), b.yaw(), t);
+        float pitch = lerpAngle(a.pitch(), b.pitch(), t);
+        float roll = lerpAngle(a.roll(), b.roll(), t);
+        float fov = lerp(a.fov(), b.fov(), t);
+        float near = lerp(a.nearPlane(), b.nearPlane(), t);
+        float far = lerp(a.farPlane(), b.farPlane(), t);
+        boolean dof = t < 0.5f ? a.depthOfFieldEnabled() : b.depthOfFieldEnabled();
+        float focus = lerp(a.focusDistance(), b.focusDistance(), t);
+        float aperture = lerp(a.aperture(), b.aperture(), t);
+
+        return new CameraSample(pos, yaw, pitch, roll, fov, near, far, dof, focus, aperture);
+    }
+
+    private float lerp(double a, double b, float t) {
+        return (float) (a + (b - a) * Math.max(0f, Math.min(1f, t)));
+    }
+
+    private float lerpAngle(float a, float b, float t) {
+        float delta = wrapDegrees(b - a);
+        return a + delta * Math.max(0f, Math.min(1f, t));
+    }
+
+    private float wrapDegrees(float degrees) {
+        degrees = degrees % 360f;
+        if (degrees >= 180f) {
+            degrees -= 360f;
+        }
+        if (degrees < -180f) {
+            degrees += 360f;
+        }
+        return degrees;
+    }
 }

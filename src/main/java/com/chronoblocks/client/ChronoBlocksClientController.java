@@ -111,4 +111,15 @@ public class ChronoBlocksClientController {
         return chronoBlocksModeActive;
     }
 
+    /**
+     * 外部开关：临时隐藏十字星/拦截交互（例如时间线接管相机时）。
+     */
+    public void setHideCrosshair(boolean hide) {
+        if (hide) {
+            activateChronoBlocksMode();
+        } else {
+            deactivateChronoBlocksMode();
+        }
+    }
+
 }

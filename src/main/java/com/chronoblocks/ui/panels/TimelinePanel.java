@@ -21,6 +21,7 @@ import com.chronoblocks.ui.timeline.ui.TimelineControlBar;
 import com.chronoblocks.ui.timeline.shortcuts.TimelineShortcutManager;
 import com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController;
 import com.chronoblocks.ui.theme.UITheme;
+import net.minecraft.client.MinecraftClient;
 import imgui.ImGui;
 import imgui.ImDrawList;
 import imgui.flag.ImGuiKey;
@@ -260,7 +261,8 @@ public class TimelinePanel extends AbstractPanel
 
         // 2. 根据播放头位置更新片段方块显示状态（每帧调用）
         com.chronoblocks.ui.timeline.playback.TimelineClipBlockController.getInstance().update();
-        TimelineCameraController.getInstance().update();
+        float delta = getRenderDelta();
+        TimelineCameraController.getInstance().updateOwnerAndSample(delta);
 
         // 3. 处理快捷键
         shortcutManager.handle();
@@ -358,6 +360,14 @@ public class TimelinePanel extends AbstractPanel
         // 在播放时，如果播放头超出可见范围，自动调整 scrollX 使播放头保持在可见区域内
         // 这确保播放时标记始终可见，用户可以随时查看当前位置
         ensurePlayheadVisible();
+    }
+
+    private float getRenderDelta() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client != null && client.getRenderTickCounter() != null) {
+            return client.getRenderTickCounter().getTickDelta(false);
+        }
+        return ImGui.getIO().getDeltaTime();
     }
 
     /**
@@ -996,6 +1006,10 @@ public class TimelinePanel extends AbstractPanel
 
         if (type != null) {
             if (type.supportsCameraPath()) {
+                if (!com.chronoblocks.ui.timeline.playback.camera.CameraRuntime.getInstance().isPlayerOwner()) {
+                    LOGGER.warn("[TimelinePanel] 当前非玩家模式，跳过摄像机关键帧捕捉");
+                    return;
+                }
                 CameraKeyframe keyframe = new CameraKeyframe("Camera @" + timeLabel, time);
                 // ⭐ 自动捕获完整的当前相机状态（位置、旋转、FOV等所有属性）
                 TimelineCameraController.getInstance().captureFromCurrentCamera(keyframe);
