@@ -150,14 +150,9 @@ public final class CameraTrackSampler {
 
         Vector3f rot1 = p1.getRotation();
         Vector3f rot2 = p2.getRotation();
-        float[] rotation = interpolateRotationSlerp(
-            rot1.x, rot1.y, rot1.z,
-            rot2.x, rot2.y, rot2.z,
-            t
-        );
-        float pitch = rotation[0];
-        float yaw = rotation[1];
-        float roll = rotation[2];
+        float pitch = lerpAngle(rot1.x, rot2.x, t);
+        float yaw = lerpAngle(rot1.y, rot2.y, t);
+        float roll = lerpAngle(rot1.z, rot2.z, t);
 
         float fov1 = safeFov(p1.getFov());
         float fov2 = safeFov(p2.getFov());
@@ -208,124 +203,14 @@ public final class CameraTrackSampler {
                 (-p0 + 3 * p1 - 3 * p2 + p3) * t3);
     }
 
-    private float[] interpolateRotationSlerp(
-            float pitch1, float yaw1, float roll1,
-            float pitch2, float yaw2, float roll2,
-            float t) {
-
-        Quaternion q1 = eulerToQuaternion(pitch1, yaw1, roll1);
-        Quaternion q2 = eulerToQuaternion(pitch2, yaw2, roll2);
-
-        Quaternion result = quaternionSlerp(q1, q2, t);
-        return quaternionToEuler(result);
-    }
-
-    private static class Quaternion {
-        float w, x, y, z;
-
-        Quaternion(float w, float x, float y, float z) {
-            this.w = w;
-            this.x = x;
-            this.y = y;
-            this.z = z;
-        }
-
-        Quaternion normalize() {
-            float len = (float) Math.sqrt(w * w + x * x + y * y + z * z);
-            if (len < 1e-6f) {
-                return new Quaternion(1, 0, 0, 0);
-            }
-            return new Quaternion(w / len, x / len, y / len, z / len);
-        }
-
-        float dot(Quaternion other) {
-            return w * other.w + x * other.x + y * other.y + z * other.z;
-        }
-    }
-
-    private Quaternion eulerToQuaternion(float pitchDeg, float yawDeg, float rollDeg) {
-        float pitch = (float) Math.toRadians(pitchDeg);
-        float yaw = (float) Math.toRadians(yawDeg);
-        float roll = (float) Math.toRadians(rollDeg);
-
-        float cy = (float) Math.cos(yaw * 0.5f);
-        float sy = (float) Math.sin(yaw * 0.5f);
-        float cp = (float) Math.cos(pitch * 0.5f);
-        float sp = (float) Math.sin(pitch * 0.5f);
-        float cr = (float) Math.cos(roll * 0.5f);
-        float sr = (float) Math.sin(roll * 0.5f);
-
-        float w = cr * cp * cy + sr * sp * sy;
-        float x = sr * cp * cy - cr * sp * sy;
-        float y = cr * sp * cy + sr * cp * sy;
-        float z = cr * cp * sy - sr * sp * cy;
-
-        return new Quaternion(w, x, y, z).normalize();
-    }
-
-    private float[] quaternionToEuler(Quaternion q) {
-        q = q.normalize();
-
-        float w = q.w, x = q.x, y = q.y, z = q.z;
-
-        float sinr_cosp = 2 * (w * z + x * y);
-        float cosr_cosp = 1 - 2 * (y * y + z * z);
-        float roll = (float) Math.atan2(sinr_cosp, cosr_cosp);
-
-        float sinp = 2 * (w * y - z * x);
-        float pitch;
-        if (Math.abs(sinp) >= 1) {
-            pitch = (float) Math.copySign(Math.PI / 2, sinp);
-        } else {
-            pitch = (float) Math.asin(sinp);
-        }
-
-        float siny_cosp = 2 * (w * x + y * z);
-        float cosy_cosp = 1 - 2 * (x * x + y * y);
-        float yaw = (float) Math.atan2(siny_cosp, cosy_cosp);
-
-        return new float[]{
-            (float) Math.toDegrees(pitch),
-            (float) Math.toDegrees(yaw),
-            (float) Math.toDegrees(roll)
-        };
-    }
-
-    private Quaternion quaternionSlerp(Quaternion q1, Quaternion q2, float t) {
-        q1 = q1.normalize();
-        q2 = q2.normalize();
-
-        float dot = q1.dot(q2);
-
-        if (dot < 0.0f) {
-            q2 = new Quaternion(-q2.w, -q2.x, -q2.y, -q2.z);
-            dot = -dot;
-        }
-
-        if (dot > 0.9995f) {
-            float w = q1.w + (q2.w - q1.w) * t;
-            float x = q1.x + (q2.x - q1.x) * t;
-            float y = q1.y + (q2.y - q1.y) * t;
-            float z = q1.z + (q2.z - q1.z) * t;
-            return new Quaternion(w, x, y, z).normalize();
-        }
-
-        float theta = (float) Math.acos(Math.max(-1.0f, Math.min(1.0f, dot)));
-        float sinTheta = (float) Math.sin(theta);
-        float w1 = (float) (Math.sin((1 - t) * theta) / sinTheta);
-        float w2 = (float) (Math.sin(t * theta) / sinTheta);
-
-        float w = q1.w * w1 + q2.w * w2;
-        float x = q1.x * w1 + q2.x * w2;
-        float y = q1.y * w1 + q2.y * w2;
-        float z = q1.z * w1 + q2.z * w2;
-
-        return new Quaternion(w, x, y, z).normalize();
-    }
-
     private CameraSample toSample(CameraKeyframe keyframe) {
         Vec3d position = vec(keyframe.getPosition());
         Vector3f rotation = keyframe.getRotation();
+
+        // 关键帧存储：rotation.x = pitch, rotation.y = yaw, rotation.z = roll
+        float pitch = rotation.x;
+        float yaw = rotation.y;
+        float roll = rotation.z;
 
         float fov = safeFov(keyframe.getFov());
         float near = safeNear(keyframe.getNearPlane());
@@ -333,9 +218,9 @@ public final class CameraTrackSampler {
 
         return new CameraSample(
             position,
-            rotation.y,
-            rotation.x,
-            rotation.z,
+            yaw,
+            pitch,
+            roll,
             fov,
             near,
             far,

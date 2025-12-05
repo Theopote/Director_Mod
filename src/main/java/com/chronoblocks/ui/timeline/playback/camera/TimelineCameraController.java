@@ -242,20 +242,12 @@ public final class TimelineCameraController {
             float time = playing || scrubbing ? timelineModel.getCurrentTime() : previewTimeSeconds;
             float lastKey = sampler.getLastKeyTime();
 
-            // 超出最后关键帧：停止播放并恢复玩家控制，防止末尾闪烁/放大
+            // 超出最后关键帧：保持最后帧的镜头，但继续播放其他轨道，owner 不切回玩家
             if (lastKey >= 0f && time > lastKey + 1e-4f) {
-                if (timelineModel.isPlaying()) {
-                    timelineModel.setPlaying(false);
-                }
-                if (timelineModel.isScrubbing()) {
-                    timelineModel.setScrubbing(false);
-                }
-                runtime.setOwner(CameraRuntime.Owner.PLAYER);
-                ChronoBlocksClientController.getInstance().setHideCrosshair(false);
-                return;
+                sampler.sample(lastKey).ifPresent(runtime::applyTimelineSample);
+            } else {
+                sampler.sample(time).ifPresent(runtime::applyTimelineSample);
             }
-
-            sampler.sample(time).ifPresent(runtime::applyTimelineSample);
         } else {
             updateFromGameCamera();
             runtime.tickPlayerLerp(deltaSeconds);
