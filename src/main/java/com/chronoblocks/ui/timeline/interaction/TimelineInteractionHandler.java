@@ -10,6 +10,7 @@ import com.chronoblocks.ui.timeline.menu.TimelineContextMenu;
 import com.chronoblocks.ui.timeline.menu.TimelineContextMenuFactory;
 import com.chronoblocks.ui.timeline.model.TimelineClip;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
+import com.chronoblocks.ui.timeline.model.TimelineSelectable;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.render.TimelineRenderer;
 import com.chronoblocks.ui.timeline.render.TimelineTrackControlHit;
@@ -463,6 +464,16 @@ public class TimelineInteractionHandler {
 
         // 单击：可以选择性地开始拖动关键帧（如果需要）
         // 注意：自动化关键帧的拖动逻辑可能与片段内关键帧不�?
+        // ⭐ 单击：开始拖动自动化关键帧
+        AutomationKeyframeHandle handle = new AutomationKeyframeHandle(track, keyframe);
+        float keyTime = keyframe.getStartTime();
+        interactionManager.startInteraction(
+                InteractionMode.DRAG_AUTOMATION_KEYFRAME,
+                handle,
+                mouseX, ImGui.getMousePosY(),
+                keyTime, 0f
+        );
+        
         if (callbacks != null) {
             callbacks.onDataChanged();
         }
@@ -594,10 +605,43 @@ public class TimelineInteractionHandler {
 
                 LOGGER.debug("[Timeline] 关键帧拖动完�? {} -> {}", originalTime, finalTime);
             }
-        }
+        } else if (mode == InteractionMode.DRAG_AUTOMATION_KEYFRAME) {
+            if (obj instanceof AutomationKeyframeHandle handle) {
+                float originalTime = interactionManager.getDragStartValue();
+                float finalTime = handle.currentTime;
 
-        
-        else if (mode == InteractionMode.DRAG_PLAYHEAD) {
+                // 恢复原始时间（用于命令模式）
+                if (handle.keyframe instanceof com.chronoblocks.ui.timeline.model.camera.CameraKeyframe cameraKeyframe) {
+                    cameraKeyframe.setTime(originalTime);
+                } else if (handle.keyframe instanceof com.chronoblocks.ui.timeline.model.TimelineMarker marker) {
+                    marker.setTime(originalTime);
+                }
+                handle.track.removeAutomationKeyframe(handle.keyframe.getId());
+                handle.track.addAutomationKeyframe(handle.keyframe);
+
+                // 执行命令：移除旧位置，添加新位置
+                commandHistory.executeCommand(
+                    new com.chronoblocks.ui.timeline.commands.RemoveAutomationKeyframeCommand(model, handle.track, handle.keyframe.getId())
+                );
+                if (handle.keyframe instanceof com.chronoblocks.ui.timeline.model.camera.CameraKeyframe cameraKeyframe) {
+                    cameraKeyframe.setTime(finalTime);
+                } else if (handle.keyframe instanceof com.chronoblocks.ui.timeline.model.TimelineMarker marker) {
+                    marker.setTime(finalTime);
+                }
+                commandHistory.executeCommand(
+                    new com.chronoblocks.ui.timeline.commands.AddAutomationKeyframeCommand(model, handle.track, handle.keyframe)
+                );
+
+                // 通知摄像机控制器关键帧已改变
+                if (handle.keyframe instanceof com.chronoblocks.ui.timeline.model.camera.CameraKeyframe) {
+                    com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance().onKeyframeChanged();
+                }
+
+                if (callbacks != null) callbacks.onDataChanged();
+
+                LOGGER.debug("[Timeline] 自动化关键帧拖动完成 {} -> {}", originalTime, finalTime);
+            }
+        } else if (mode == InteractionMode.DRAG_PLAYHEAD) {
             // ⭐ 拖动播放头结束：通知摄像机控制器结束 scrubbing
             float finalTime = model.getCurrentTime();
             model.setScrubbing(false);
@@ -628,6 +672,7 @@ public class TimelineInteractionHandler {
             case RESIZE_CLIP_LEFT -> resizeClipLeft(mouseX, contentX);
             case RESIZE_CLIP_RIGHT -> resizeClipRight(mouseX, contentX);
             case DRAG_KEYFRAME -> dragKeyframe(mouseX, contentX);
+            case DRAG_AUTOMATION_KEYFRAME -> dragAutomationKeyframe(mouseX, contentX);
             case DRAG_PLAYHEAD -> dragPlayhead(mouseX, contentX);
             default -> { /* 其他模式暂不处理 */ }
         }
@@ -871,6 +916,57 @@ public class TimelineInteractionHandler {
     }
 
     /**
+     * 拖动自动化关键帧（轨道级别的关键帧，如摄像机关键帧）
+     */
+    private void dragAutomationKeyframe(float mouseX, float contentX) {
+        Object active = interactionManager.getActiveObject();
+        if (!(active instanceof AutomationKeyframeHandle handle)) {
+            return;
+        }
+
+        // 轨道锁定功能：如果轨道锁定，禁止拖动关键帧
+        if (handle.track != null && handle.track.isLocked()) {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("[Timeline] 轨道已锁定，禁止拖动自动化关键帧(轨道: {})", handle.track.getName());
+            }
+            return;
+        }
+
+        float rawTime = renderer.xToTime(mouseX, contentX);
+        TimelineSnapping.Result snap = TimelineSnapping.snapTime(
+                model, rawTime, handle.track, null, 0f
+        );
+        float newTime = snap.snappedTime;
+
+        // 限制时间范围：不能小于0，不能超过时间线总长度
+        float eps = 0.001f;
+        newTime = Math.max(0f, newTime);
+        newTime = Math.min(model.getDuration(), newTime);
+
+        // 如果时间没有变化，不更新
+        if (Math.abs(newTime - handle.currentTime) < eps) {
+            return;
+        }
+
+        // 实时预览：直接修改关键帧时间（先移除旧位置，再添加到新位置）
+        handle.track.removeAutomationKeyframe(handle.keyframe.getId());
+        if (handle.keyframe instanceof com.chronoblocks.ui.timeline.model.camera.CameraKeyframe cameraKeyframe) {
+            cameraKeyframe.setTime(newTime);
+        } else if (handle.keyframe instanceof com.chronoblocks.ui.timeline.model.TimelineMarker marker) {
+            marker.setTime(newTime);
+        }
+        handle.track.addAutomationKeyframe(handle.keyframe);
+        handle.currentTime = newTime;
+
+        // 如果是摄像机关键帧，通知控制器更新
+        if (handle.keyframe instanceof com.chronoblocks.ui.timeline.model.camera.CameraKeyframe) {
+            com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance().onKeyframeChanged();
+        }
+
+        if (callbacks != null) callbacks.onDataChanged();
+    }
+
+    /**
      * 开始播放头拖动（由 TimelinePanel 调用，用于刻度尺交互�?
      * 
      * @param mouseX 鼠标 X 坐标
@@ -977,6 +1073,18 @@ public class TimelineInteractionHandler {
             this.track = track;
             this.clip = clip;
             this.currentTime = time;
+        }
+    }
+
+    private static final class AutomationKeyframeHandle {
+        final TimelineTrack track;
+        final TimelineSelectable keyframe;
+        float currentTime;
+
+        AutomationKeyframeHandle(TimelineTrack track, TimelineSelectable keyframe) {
+            this.track = track;
+            this.keyframe = keyframe;
+            this.currentTime = keyframe.getStartTime();
         }
     }
 }

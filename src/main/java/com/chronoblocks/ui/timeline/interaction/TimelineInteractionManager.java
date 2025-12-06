@@ -17,13 +17,14 @@ public class TimelineInteractionManager {
      * 交互模式枚举
      */
     public enum InteractionMode {
-        NONE,               // 无交互
-        DRAG_CLIP,          // 拖动片段
-        RESIZE_CLIP_LEFT,   // 调整片段左边缘
-        RESIZE_CLIP_RIGHT,  // 调整片段右边缘
-        DRAG_PLAYHEAD,      // 拖动播放头
-        DRAG_KEYFRAME,      // 拖动关键帧
-        BOX_SELECT          // 框选
+        NONE,                      // 无交互
+        DRAG_CLIP,                 // 拖动片段
+        RESIZE_CLIP_LEFT,          // 调整片段左边缘
+        RESIZE_CLIP_RIGHT,         // 调整片段右边缘
+        DRAG_PLAYHEAD,             // 拖动播放头
+        DRAG_KEYFRAME,             // 拖动关键帧（Clip 内的关键帧）
+        DRAG_AUTOMATION_KEYFRAME,  // 拖动自动化关键帧（轨道级别的关键帧）
+        BOX_SELECT                 // 框选
     }
     
     private InteractionMode currentMode = InteractionMode.NONE;
