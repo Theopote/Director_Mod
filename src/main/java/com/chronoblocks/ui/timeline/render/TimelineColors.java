@@ -18,12 +18,12 @@ public final class TimelineColors {
     // ========== 颜色常量 ==========
     
     // 关键帧颜色
-    public static final int COLOR_KEYFRAME = rgba(255, 220, 64, 255);
+    public static final int COLOR_KEYFRAME = rgba(255, 255, 255, 255); // 白色
     public static final int COLOR_KEYFRAME_HOVER = rgba(255, 240, 100, 255);
     /** 选中关键帧的颜色（高亮） */
-    public static final int COLOR_KEYFRAME_SELECTED = rgba(100, 200, 255, 255);
+    public static final int COLOR_KEYFRAME_SELECTED = rgba(255, 220, 64, 255); // 黄色
     /** 选中关键帧的外圈颜色 */
-    public static final int COLOR_KEYFRAME_SELECTED_RING = rgba(100, 200, 255, 200);
+    public static final int COLOR_KEYFRAME_SELECTED_RING = rgba(255, 220, 64, 200); // 黄色外圈
     
     // 播放头颜色
     public static final int COLOR_PLAYHEAD = rgba(255, 80, 80, 220);
