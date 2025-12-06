@@ -14,7 +14,6 @@ import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.util.math.MatrixStack;
-import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 import org.slf4j.Logger;
@@ -275,18 +274,21 @@ public final class CameraPathDebugRenderer {
 
             // 2. 画朝向短线（根据 pitch/yaw 计算前向向量）
             // Minecraft 的旋转：pitch (x), yaw (y), roll (z)
-            // 使用与 renderDirectionArrow 相同的计算方式
-            float yawDeg = rot.y;   // yaw
-            float pitchDeg = rot.x; // pitch
+            // 正确的 Minecraft yaw/pitch 到前向向量转换
+            float yawDeg = rot.y;   // yaw: 0度指向正Z方向（南方），逆时针为正
+            float pitchDeg = rot.x; // pitch: 0度为水平，向上为正（-90到90度）
             
-            // Minecraft 中 yaw/pitch 角度转换（与 renderDirectionArrow 保持一致）
-            float yawRad = (float) Math.toRadians(-yawDeg - 180.0f);
-            float pitchRad = (float) Math.toRadians(-pitchDeg);
+            // 转换为弧度
+            double yawRad = Math.toRadians(yawDeg);
+            double pitchRad = Math.toRadians(pitchDeg);
             
-            // 计算前向向量（Minecraft 的坐标系）
-            double dx = MathHelper.sin(yawRad) * MathHelper.cos(pitchRad);
-            double dy = MathHelper.sin(pitchRad);
-            double dz = MathHelper.cos(yawRad) * MathHelper.cos(pitchRad);
+            // 计算前向向量（Minecraft 标准坐标系）
+            // x = -sin(yaw) * cos(pitch)
+            // y = -sin(pitch)
+            // z = cos(yaw) * cos(pitch)
+            double dx = -Math.sin(yawRad) * Math.cos(pitchRad);
+            double dy = -Math.sin(pitchRad);
+            double dz = Math.cos(yawRad) * Math.cos(pitchRad);
             
             // 朝向线的终点
             double xEnd = x + dx * dirLen;
@@ -427,13 +429,19 @@ public final class CameraPathDebugRenderer {
         // 箭头长度
         double len = 0.8;
 
-        // Minecraft 中 yaw/pitch 角度转换
-        float yawRad   = (float) Math.toRadians(-yawDeg - 180.0f);
-        float pitchRad = (float) Math.toRadians(-pitchDeg);
+        // Minecraft 中 yaw/pitch 到前向向量的正确转换
+        // yaw: 0度指向正Z方向（南方），逆时针为正
+        // pitch: 0度为水平，向上为正（-90到90度）
+        double yawRad = Math.toRadians(yawDeg);
+        double pitchRad = Math.toRadians(pitchDeg);
 
-        double dx = MathHelper.sin(yawRad) * MathHelper.cos(pitchRad);
-        double dy = MathHelper.sin(pitchRad);
-        double dz = MathHelper.cos(yawRad) * MathHelper.cos(pitchRad);
+        // 计算前向向量（Minecraft 标准坐标系）
+        // x = -sin(yaw) * cos(pitch)
+        // y = -sin(pitch)
+        // z = cos(yaw) * cos(pitch)
+        double dx = -Math.sin(yawRad) * Math.cos(pitchRad);
+        double dy = -Math.sin(pitchRad);
+        double dz = Math.cos(yawRad) * Math.cos(pitchRad);
 
         double x2 = x + dx * len;
         double y2 = y + dy * len;
@@ -452,9 +460,9 @@ public final class CameraPathDebugRenderer {
         // 计算一个简单的侧向向量
         double sideLen = len * 0.25;
         // 使用 yaw + 90 度 生成一个侧向
-        float sideYaw = yawRad + (float) Math.toRadians(90.0f);
-        double sx = MathHelper.sin(sideYaw) * MathHelper.cos(pitchRad) * sideLen;
-        double sz = MathHelper.cos(sideYaw) * MathHelper.cos(pitchRad) * sideLen;
+        double sideYaw = yawRad + Math.toRadians(90.0);
+        double sx = -Math.sin(sideYaw) * Math.cos(pitchRad) * sideLen;
+        double sz = Math.cos(sideYaw) * Math.cos(pitchRad) * sideLen;
         double sy = 0; // 简化：忽略竖直方向偏移
 
         Vec3d tip = new Vec3d(x2, y2, z2);
