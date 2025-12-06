@@ -100,6 +100,18 @@ public final class CameraRuntime {
     }
 
     /**
+     * 仅更新 currentSample，不改变 owner。
+     * 用于捕获关键帧时同步状态，而不影响当前的 owner 状态。
+     * 
+     * @param sample 要同步的摄像机样本
+     */
+    public void updateCurrentSample(CameraSample sample) {
+        if (sample == null) return;
+        this.currentSample = sample;
+        // 不改变 owner，仅更新状态
+    }
+
+    /**
      * 请求一次玩家相机的平滑过渡，用于退出时间线时避免“瞬移”。
      */
     public void applyLerpToPlayer(CameraSample target, float durationSeconds) {

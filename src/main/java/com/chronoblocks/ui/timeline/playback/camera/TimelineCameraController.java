@@ -87,8 +87,19 @@ public final class TimelineCameraController {
             model.addModelChangeListener(modelChangeListener);
             
             // ⭐ v5.0：初始选中第一条 CAMERA 轨道（如果还没有 active）
+            // ⭐ 如果只有一个摄像机轨道，自动激活它
             if (activeCameraTrack == null || !isValidCameraTrack(activeCameraTrack)) {
-                activeCameraTrack = findFirstCameraTrack();
+                TimelineTrack firstCameraTrack = findFirstCameraTrack();
+                if (firstCameraTrack != null) {
+                    // 检查是否只有一个摄像机轨道
+                    int cameraTrackCount = countCameraTracks();
+                    if (cameraTrackCount == 1) {
+                        activeCameraTrack = firstCameraTrack;
+                        LOGGER.info("[TimelineCamera] 检测到只有一个摄像机轨道，自动激活: {}", firstCameraTrack.getName());
+                    } else {
+                        activeCameraTrack = firstCameraTrack;
+                    }
+                }
             }
             
             rebuildFromActiveTrack();
@@ -146,9 +157,29 @@ public final class TimelineCameraController {
             return;
         }
 
-        // 当前 active 轨道被删除或不再是 CAMERA？
-        if (!isValidCameraTrack(activeCameraTrack)) {
-            activeCameraTrack = findFirstCameraTrack();
+        // 统计当前摄像机轨道数量
+        int cameraTrackCount = countCameraTracks();
+        TimelineTrack firstCameraTrack = findFirstCameraTrack();
+        
+        // ⭐ 如果只有一个摄像机轨道，无论当前状态如何，都确保它是激活的
+        // 这包括：从0个变成1个、从多个变成1个、新建唯一轨道等情况
+        if (cameraTrackCount == 1 && firstCameraTrack != null) {
+            if (activeCameraTrack != firstCameraTrack) {
+                activeCameraTrack = firstCameraTrack;
+                LOGGER.info("[TimelineCamera] 模型变更：检测到只有一个摄像机轨道，自动激活: {}", firstCameraTrack.getName());
+            }
+        } else if (cameraTrackCount == 0) {
+            // 没有摄像机轨道时，清空激活轨道
+            activeCameraTrack = null;
+        } else {
+            // 有多个摄像机轨道时，检查当前激活轨道是否有效
+            if (!isValidCameraTrack(activeCameraTrack)) {
+                // 当前激活轨道无效，选择第一个作为激活轨道（但不强制，因为可能有多个）
+                activeCameraTrack = firstCameraTrack;
+                if (firstCameraTrack != null) {
+                    LOGGER.info("[TimelineCamera] 模型变更：当前激活轨道无效，切换到: {}", firstCameraTrack.getName());
+                }
+            }
         }
 
         rebuildFromActiveTrack();
@@ -353,8 +384,9 @@ public final class TimelineCameraController {
                 sampler.sample(time).ifPresent(runtime::applyTimelineSample);
             }
         } else {
-            // 玩家模式：从游戏摄像机采样，喂给 CameraRuntime 以便 UI / 捕捉使用
-            updateFromGameCamera();
+            // ⭐ 玩家模式：只负责处理平滑过渡
+            // 玩家真实相机位置由 CameraMixin → CameraRuntime.updateFromGameCamera() 维护
+            // Controller 这里只负责 lerp（如果正在进行平滑过渡）
             runtime.tickPlayerLerp(deltaSeconds);
         }
     }
@@ -369,13 +401,6 @@ public final class TimelineCameraController {
             delta = client.getRenderTickCounter().getTickDelta(false);
         }
         updateOwnerAndSample(delta);
-    }
-
-    private void updateFromGameCamera() {
-        CameraSample sample = CameraAccessor.sampleFromGameCamera(MinecraftClient.getInstance());
-        if (sample != null) {
-            CameraRuntime.getInstance().applyTimelineSample(sample);
-        }
     }
 
     // ================== 预览相关 ==================
@@ -503,9 +528,10 @@ public final class TimelineCameraController {
             }
             LOGGER.warn("[TimelineCameraController] 从游戏摄像机采样失败，使用 CameraRuntime 中的状态（可能不是最新）");
         } else {
-            // 将采样结果同步到 CameraRuntime，保持状态一致
-            runtime.applyTimelineSample(sample);
-            // 注意：这里不设置 owner，因为已经是 PLAYER 了
+            // ⭐ 将采样结果同步到 CameraRuntime，保持状态一致
+            // 使用 updateCurrentSample 而不是 applyTimelineSample，因为这是玩家摄像机采样
+            // updateCurrentSample 只更新状态，不改变 owner
+            runtime.updateCurrentSample(sample);
         }
 
         keyframe.setPosition(new Vector3f(
@@ -578,6 +604,20 @@ public final class TimelineCameraController {
             }
         }
         return null;
+    }
+
+    /**
+     * 统计当前模型中摄像机轨道的数量
+     */
+    private int countCameraTracks() {
+        if (timelineModel == null) return 0;
+        int count = 0;
+        for (TimelineTrack track : timelineModel.getTracks()) {
+            if (track.getType() == TrackType.CAMERA) {
+                count++;
+            }
+        }
+        return count;
     }
 
     /**

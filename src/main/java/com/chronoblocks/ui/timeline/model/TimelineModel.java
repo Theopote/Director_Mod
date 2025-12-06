@@ -418,11 +418,13 @@ public class TimelineModel {
     public void addTrack(TimelineTrack track) {
         tracks.add(track);
         markDurationDirty(); // 轨道添加可能影响总时长
+        notifyModelChanged("track_added"); // ⭐ 通知监听器（如 TimelineCameraController）轨道已添加
     }
     
     public void removeTrack(TimelineTrack track) {
         tracks.remove(track);
         markDurationDirty(); // 轨道移除可能影响总时长
+        notifyModelChanged("track_removed"); // ⭐ 通知监听器轨道已移除
     }
     
     public TimelineTrack getTrackAt(int index) {

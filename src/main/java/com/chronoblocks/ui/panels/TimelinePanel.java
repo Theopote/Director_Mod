@@ -1023,6 +1023,12 @@ public class TimelinePanel extends AbstractPanel
 
         if (type != null) {
             if (type.supportsCameraPath()) {
+                // ⭐ 检查轨道是否锁定
+                if (track.isLocked()) {
+                    LOGGER.warn("[TimelinePanel] 轨道已锁定，无法添加关键帧 (轨道: {})", track.getName());
+                    return;
+                }
+                
                 // ⭐ 检查是否是激活的摄像机轨道
                 com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController cameraController =
                         com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance();

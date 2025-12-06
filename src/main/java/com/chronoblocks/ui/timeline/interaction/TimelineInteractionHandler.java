@@ -591,6 +591,20 @@ public class TimelineInteractionHandler {
             return;
         }
 
+        // ⭐ v5.0：如果是摄像机轨道，检查是否是激活的轨道
+        if (track.getType() == com.chronoblocks.ui.timeline.model.TrackType.CAMERA) {
+            com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController controller =
+                    com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance();
+            com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
+            
+            if (activeTrack != track) {
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("[Timeline] 摄像机轨道未激活，禁止操作关键帧 (轨道: {})", track.getName());
+                }
+                return;
+            }
+        }
+
         // ⭐ 单击：选中关键帧（支持 Ctrl 多选）
         ImGuiIO io = ImGui.getIO();
         boolean addToSelection = io.getKeyCtrl();
@@ -698,7 +712,27 @@ public class TimelineInteractionHandler {
             }
             case AUTOMATION_KEYFRAME -> {
                 TimelineSelectable keyframe = hit.automationKeyframe();
-                if (keyframe != null) {
+                TimelineTrack track = hit.track();
+                
+                if (keyframe != null && track != null) {
+                    // ⭐ v5.0：检查轨道锁定和激活状态
+                    if (track.isLocked()) {
+                        LOGGER.debug("[Timeline] 轨道已锁定，禁止右键操作关键帧 (轨道: {})", track.getName());
+                        return; // 阻止打开菜单
+                    }
+                    
+                    // 如果是摄像机轨道，检查是否是激活的轨道
+                    if (track.getType() == com.chronoblocks.ui.timeline.model.TrackType.CAMERA) {
+                        com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController controller =
+                                com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance();
+                        com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
+                        
+                        if (activeTrack != track) {
+                            LOGGER.debug("[Timeline] 摄像机轨道未激活，禁止右键操作关键帧 (轨道: {})", track.getName());
+                            return; // 阻止打开菜单
+                        }
+                    }
+                    
                     // TimelineModel 内部选中
                     ImGuiIO io = ImGui.getIO();
                     boolean addToSelection = io.getKeyCtrl(); // 右键支持 Ctrl 多选也合理
@@ -1122,6 +1156,20 @@ public class TimelineInteractionHandler {
                 LOGGER.debug("[Timeline] 轨道已锁定，禁止拖动自动化关键帧(轨道: {})", handle.track.getName());
             }
             return;
+        }
+
+        // ⭐ v5.0：如果是摄像机轨道，检查是否是激活的轨道
+        if (handle.track != null && handle.track.getType() == com.chronoblocks.ui.timeline.model.TrackType.CAMERA) {
+            com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController controller =
+                    com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance();
+            com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
+            
+            if (activeTrack != handle.track) {
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("[Timeline] 摄像机轨道未激活，禁止拖动关键帧(轨道: {})", handle.track.getName());
+                }
+                return;
+            }
         }
 
         float rawTime = renderer.xToTime(mouseX, contentX);

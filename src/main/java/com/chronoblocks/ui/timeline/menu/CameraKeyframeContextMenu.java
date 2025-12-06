@@ -48,6 +48,27 @@ public class CameraKeyframeContextMenu extends TimelineContextMenu {
     private void buildMenu() {
         // 标题：显示关键帧信息
         addDisabledItem(String.format("摄像机关键帧 @ %.3fs", keyframe.getTime()));
+        
+        // ⭐ v5.0：检查轨道状态，如果锁定或未激活，禁用所有操作
+        boolean isLocked = track.isLocked();
+        boolean isActive = true;
+        if (track.getType() == com.chronoblocks.ui.timeline.model.TrackType.CAMERA) {
+            com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController controller =
+                    com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance();
+            com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
+            isActive = (activeTrack == track);
+        }
+        
+        if (isLocked) {
+            addDisabledItem("轨道已锁定，无法操作");
+            return; // 锁定状态下不显示任何操作菜单
+        }
+        
+        if (!isActive) {
+            addDisabledItem("轨道未激活，无法操作");
+            return; // 未激活状态下不显示任何操作菜单
+        }
+        
         addSeparator();
 
         // 关键帧类型菜单

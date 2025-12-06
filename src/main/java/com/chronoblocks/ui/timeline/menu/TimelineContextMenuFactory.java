@@ -272,6 +272,30 @@ public class TimelineContextMenuFactory {
 
         // ⭐ 摄像机关键帧：使用专门的 Mine-imator / Blender 风格菜单
         if (keyframe instanceof com.chronoblocks.ui.timeline.model.camera.CameraKeyframe cameraKeyframe) {
+            // ⭐ v5.0：检查轨道是否锁定或未激活
+            if (track.isLocked()) {
+                // 锁定的轨道：显示禁用菜单
+                return TimelineContextMenuBuilder
+                        .custom(commandHistory, "CameraKeyframeMenu")
+                        .disabledItem("摄像机关键帧 @ " + String.format("%.3fs", cameraKeyframe.getTime()))
+                        .disabledItem("轨道已锁定，无法操作")
+                        .build();
+            }
+            
+            // 检查是否是激活的摄像机轨道
+            com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController controller =
+                    com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance();
+            com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
+            
+            if (activeTrack != track) {
+                // 未激活的轨道：显示禁用菜单
+                return TimelineContextMenuBuilder
+                        .custom(commandHistory, "CameraKeyframeMenu")
+                        .disabledItem("摄像机关键帧 @ " + String.format("%.3fs", cameraKeyframe.getTime()))
+                        .disabledItem("轨道未激活，无法操作")
+                        .build();
+            }
+            
             return new CameraKeyframeContextMenu(commandHistory, cameraKeyframe, track, model);
         }
 
