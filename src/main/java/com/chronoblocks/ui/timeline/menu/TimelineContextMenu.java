@@ -146,6 +146,13 @@ public class TimelineContextMenu {
     }
     
     /**
+     * 获取弹出窗口ID
+     */
+    public String getPopupId() {
+        return popupId;
+    }
+    
+    /**
      * 清空菜单项
      */
     public void clear() {
@@ -215,17 +222,18 @@ public class TimelineContextMenu {
     
     /**
      * 渲染菜单（支持子菜单、checkbox、radio）
+     * 
+     * <p>⭐ 修复：添加自动关闭机制
+     * 当 popup 不再打开时，菜单会自动关闭，避免多次右键导致的问题。
      */
     public void render() {
-        // 检查 popup 是否应该打开
-        boolean shouldOpen = ImGui.isPopupOpen(popupId, ImGuiPopupFlags.None);
-        if (shouldOpen) {
-            System.out.println("[TimelineContextMenu] Popup 应该打开: " + popupId);
+        // ⭐ 修复：检查 popup 是否应该打开，如果没有打开则不需要渲染
+        if (!ImGui.isPopupOpen(popupId, ImGuiPopupFlags.None)) {
+            return;
         }
         
         boolean popupOpen = ImGui.beginPopup(popupId);
         if (popupOpen) {
-            System.out.println("[TimelineContextMenu] 菜单正在渲染: " + popupId);
             for (MenuItem item : menuItems) {
                 if (item.isSeparator()) {
                     ImGui.separator();

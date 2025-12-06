@@ -9,6 +9,7 @@ import com.chronoblocks.ui.timeline.menu.TimelineContextMenu;
 import com.chronoblocks.ui.timeline.menu.TimelineContextMenuFactory;
 import com.chronoblocks.ui.timeline.model.TimelineClip;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
+import com.chronoblocks.ui.timeline.model.TimelineSelectable;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.TimelineViewportState;
@@ -134,6 +135,19 @@ public class TimelinePanel extends AbstractPanel
         this.commandHistory = new TimelineCommandHistory();
         this.interactionManager = new TimelineInteractionManager();
         this.interactionHandler = new TimelineInteractionHandler(model, interactionManager, commandHistory, renderer);
+        
+        // ⭐ 设置拖动状态查询器（用于实时显示拖动中的关键帧位置）
+        renderer.setDragStateQuery(new TimelineRenderer.DragStateQuery() {
+            @Override
+            public float getDraggedAutomationKeyframeTime(TimelineSelectable keyframe) {
+                return interactionHandler.getDraggedAutomationKeyframeTime(keyframe);
+            }
+            
+            @Override
+            public float getDraggedClipKeyframeTime(TimelineClip clip, float keyframeTime) {
+                return interactionHandler.getDraggedClipKeyframeTime(clip, keyframeTime);
+            }
+        });
 
         // 配置历史管理
         commandHistory.setMaxHistorySize(MAX_HISTORY_SIZE);
@@ -629,7 +643,10 @@ public class TimelinePanel extends AbstractPanel
         // 8) 把几何信息传给交互处理器（命名 / 拖动 / 上下文菜单）
         interactionHandler.handleCanvasInteractions(contentX, trackRegionTop, contentW, trackViewportHeight, scrollY, rightClickedOnCanvas);
 
-        // 8.5) 在子窗口内画活动的上下文菜单（必须在 endChild 之前）
+        // 8.5) 更新菜单状态（检查是否已关闭）
+        interactionHandler.updateMenuState();
+        
+        // 8.6) 在子窗口内画活动的上下文菜单（必须在 endChild 之前）
         // 注意：ImGui popup 必须在调用 openPopup 的同一窗口上下文中渲染
         TimelineContextMenu menu = interactionHandler.getActiveContextMenu();
         if (menu != null) {

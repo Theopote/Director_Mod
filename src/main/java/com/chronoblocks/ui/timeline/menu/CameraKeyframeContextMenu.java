@@ -105,8 +105,14 @@ public class CameraKeyframeContextMenu extends TimelineContextMenu {
             
             handleMenu.addSeparator();
             handleMenu.addItem("清除控制柄", () -> {
-                keyframe.getBezierInHandle().set(0, 0, 0);
-                keyframe.getBezierOutHandle().set(0, 0, 0);
+                // ⭐ 修复：使用命令模式，支持 Undo/Redo
+                getCommandHistory().executeCommand(
+                    new com.chronoblocks.ui.timeline.commands.ChangeBezierHandleCommand(
+                        model, track, keyframe,
+                        new org.joml.Vector3f(0, 0, 0),  // 新的 In 控制柄
+                        new org.joml.Vector3f(0, 0, 0)   // 新的 Out 控制柄
+                    )
+                );
                 TimelineCameraController.getInstance().onKeyframeChanged();
                 LOGGER.debug("[Timeline] 清除摄像机关键帧控制柄");
             });

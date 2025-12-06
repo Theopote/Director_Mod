@@ -92,10 +92,33 @@ public class TimelineRenderer {
     private final TimelineDividerHandler dividerHandler;
     private final TimelineRulerRenderer rulerRenderer;
     private final TimelineTrackRenderer trackRenderer;
-    private final TimelineClipRenderer clipRenderer;
+    private TimelineClipRenderer clipRenderer;
     private final TimelinePlayheadRenderer playheadRenderer;
     private final TimelineTrackControlHit trackControlHit;
     private final TimelineRenderHitTest renderHitTest;
+
+    // ⭐ 拖动状态查询器（用于实时显示拖动中的关键帧位置）
+    private DragStateQuery dragStateQuery = null;
+
+    /**
+     * 拖动状态查询接口（用于渲染时获取拖动中的临时时间）
+     */
+    public interface DragStateQuery {
+        /**
+         * 获取正在拖动中的自动化关键帧的临时时间
+         * @param keyframe 关键帧
+         * @return 临时时间，如果没有拖动则返回 -1
+         */
+        float getDraggedAutomationKeyframeTime(TimelineSelectable keyframe);
+        
+        /**
+         * 获取正在拖动中的 Clip 关键帧的临时时间
+         * @param clip 片段
+         * @param keyframeTime 关键帧的原始时间
+         * @return 临时时间，如果没有拖动则返回 -1
+         */
+        float getDraggedClipKeyframeTime(TimelineClip clip, float keyframeTime);
+    }
 
     public TimelineRenderer(TimelineModel model, TimelineViewportState viewportState) {
         this.model = model;
@@ -120,6 +143,19 @@ public class TimelineRenderer {
         
         // 初始化命中检测组件
         this.renderHitTest = new TimelineRenderHitTest(math, viewport, model);
+    }
+
+    /**
+     * 设置拖动状态查询器（用于实时显示拖动中的关键帧位置）
+     * 
+     * @param dragStateQuery 拖动状态查询器，可以为 null
+     */
+    public void setDragStateQuery(DragStateQuery dragStateQuery) {
+        this.dragStateQuery = dragStateQuery;
+        // 同时传递给 clipRenderer
+        if (clipRenderer != null) {
+            clipRenderer.setDragStateQuery(dragStateQuery);
+        }
     }
 
     private void syncViewportFromState() {
@@ -275,7 +311,14 @@ public class TimelineRenderer {
         for (TimelineSelectable keyframe : track.getAutomationKeyframes()) {
             if (keyframe == null) continue;
             
+            // ⭐⭐ 修复：检查是否正在拖动中，如果是则使用临时时间
             float keyTime = keyframe.getStartTime();
+            if (dragStateQuery != null) {
+                float draggedTime = dragStateQuery.getDraggedAutomationKeyframeTime(keyframe);
+                if (draggedTime >= 0) {
+                    keyTime = draggedTime; // 使用拖动中的临时时间
+                }
+            }
             
             // ★ 优化：早期跳过不可见的关键帧
             if (keyTime < visibleStart || keyTime > visibleEnd) {

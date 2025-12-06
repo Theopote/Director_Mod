@@ -33,7 +33,10 @@ public class TimelineClip {
     private float endTime;
     private int color;
     // 使用 TreeSet 替代 ArrayList 以获得高效的排序和查找
-    private final NavigableSet<Float> keyframes = new TreeSet<>();
+    private final NavigableSet<Float> keyframes = new TreeSet<>(); // ⚠️ 保留用于向后兼容
+    
+    // ⭐ 新增：ClipKeyframe 对象列表（新架构）
+    private final java.util.List<com.chronoblocks.ui.timeline.model.clip.ClipKeyframe> clipKeyframes = new java.util.ArrayList<>();
 
     // ========== 额外属性 ==========
     private boolean muted = false;
@@ -306,6 +309,76 @@ public class TimelineClip {
      */
     public boolean removeKeyframeAt(float time) {
         return removeKeyframe(time);
+    }
+
+    // ========== ClipKeyframe 对象管理（新架构）==========
+
+    /**
+     * 获取所有 ClipKeyframe 对象列表（只读）
+     * 
+     * @return 关键帧对象列表（按时间排序）
+     */
+    public java.util.List<com.chronoblocks.ui.timeline.model.clip.ClipKeyframe> getClipKeyframes() {
+        return java.util.Collections.unmodifiableList(clipKeyframes);
+    }
+
+    /**
+     * 添加一个 ClipKeyframe 对象
+     * 
+     * @param keyframe 关键帧对象
+     */
+    public void addKeyframe(com.chronoblocks.ui.timeline.model.clip.ClipKeyframe keyframe) {
+        if (keyframe == null) {
+            return;
+        }
+        // 确保关键帧在片段范围内
+        if (containsTime(keyframe.getTime())) {
+            clipKeyframes.add(keyframe);
+            clipKeyframes.sort(java.util.Comparator.comparing(com.chronoblocks.ui.timeline.model.clip.ClipKeyframe::getTime));
+        }
+    }
+
+    /**
+     * 移除指定 ID 的关键帧
+     * 
+     * @param id 关键帧 ID
+     */
+    public void removeKeyframe(java.util.UUID id) {
+        clipKeyframes.removeIf(kf -> kf.getId().equals(id));
+    }
+
+    /**
+     * 查找指定时间点的 ClipKeyframe 对象
+     * 
+     * @param time 时间点（全局时间）
+     * @param epsilon 允许的误差范围
+     * @return 找到的关键帧对象，否则返回 null
+     */
+    public com.chronoblocks.ui.timeline.model.clip.ClipKeyframe findKeyframeAt(float time, float epsilon) {
+        for (com.chronoblocks.ui.timeline.model.clip.ClipKeyframe kf : clipKeyframes) {
+            if (Math.abs(kf.getTime() - time) <= epsilon) {
+                return kf;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 移动关键帧到新时间（保持插值等属性不变）
+     * 
+     * @param keyframe 关键帧对象
+     * @param newTime 新时间（全局时间）
+     */
+    public void moveKeyframe(com.chronoblocks.ui.timeline.model.clip.ClipKeyframe keyframe, float newTime) {
+        if (keyframe == null) {
+            return;
+        }
+        // 确保新时间在片段范围内
+        if (!containsTime(newTime)) {
+            newTime = Math.max(getStartTime(), Math.min(getEndTime(), newTime));
+        }
+        keyframe.setTime(newTime);
+        clipKeyframes.sort(java.util.Comparator.comparing(com.chronoblocks.ui.timeline.model.clip.ClipKeyframe::getTime));
     }
 
     // ========== 片段复制（语义方法，ChronoBlocks 风格）==========

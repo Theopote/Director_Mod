@@ -95,10 +95,22 @@ public final class TimelineClipRenderer {
     // ★ 性能优化：缓存鼠标位置，避免每关键帧调用 ImGui.getMousePosX/Y()
     private float cachedMouseX = -1f;
     private float cachedMouseY = -1f;
+    
+    // ⭐ 拖动状态查询器（用于实时显示拖动中的关键帧位置）
+    private com.chronoblocks.ui.timeline.render.TimelineRenderer.DragStateQuery dragStateQuery = null;
 
     public TimelineClipRenderer(TimelineModel model, TimelineRenderMath math) {
         this.model = model;
         this.math = math;
+    }
+    
+    /**
+     * 设置拖动状态查询器（用于实时显示拖动中的关键帧位置）
+     * 
+     * @param dragStateQuery 拖动状态查询器，可以为 null
+     */
+    public void setDragStateQuery(com.chronoblocks.ui.timeline.render.TimelineRenderer.DragStateQuery dragStateQuery) {
+        this.dragStateQuery = dragStateQuery;
     }
     
     /**
@@ -210,12 +222,21 @@ public final class TimelineClipRenderer {
         for (Float keyframe : clip.getKeyframes()) {
             if (keyframe == null) continue;
             
+            // ⭐⭐ 修复：检查是否正在拖动中，如果是则使用临时时间
+            float keyTime = keyframe;
+            if (dragStateQuery != null) {
+                float draggedTime = dragStateQuery.getDraggedClipKeyframeTime(clip, keyTime);
+                if (draggedTime >= 0) {
+                    keyTime = draggedTime; // 使用拖动中的临时时间
+                }
+            }
+            
             // ★ 优化：早期跳过不可见的关键帧
-            if (keyframe < visibleStart || keyframe > visibleEnd) {
+            if (keyTime < visibleStart || keyTime > visibleEnd) {
                 continue;
             }
             
-            float kx = math.timeToX(keyframe);
+            float kx = math.timeToX(keyTime);
             if (kx < contentX || kx > contentX + contentW) continue;
 
             // Hover 检测用圆形区域（与 KEYFRAME_HIT_RADIUS 一致）

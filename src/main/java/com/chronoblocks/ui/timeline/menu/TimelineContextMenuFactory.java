@@ -3,13 +3,10 @@ package com.chronoblocks.ui.timeline.menu;
 import com.chronoblocks.ui.panels.TimelinePanel;
 import com.chronoblocks.ui.timeline.commands.AddAutomationKeyframeCommand;
 import com.chronoblocks.ui.timeline.commands.BindClipToContainerCommand;
-import com.chronoblocks.ui.timeline.commands.ChangeKeyframeInterpolationCommand;
 import com.chronoblocks.ui.timeline.commands.DeleteClipCommand;
 import com.chronoblocks.ui.timeline.commands.DeleteTrackCommand;
 import com.chronoblocks.ui.timeline.commands.DuplicateClipCommand;
 import com.chronoblocks.ui.timeline.commands.MoveTrackCommand;
-import com.chronoblocks.ui.timeline.commands.RemoveAutomationKeyframeCommand;
-import com.chronoblocks.ui.timeline.commands.RemoveKeyframeCommand;
 import com.chronoblocks.ui.timeline.commands.SetClipLengthCommand;
 import com.chronoblocks.ui.timeline.commands.TimelineCommandHistory;
 import com.chronoblocks.ui.timeline.commands.ToggleTrackLockCommand;
@@ -133,22 +130,62 @@ public class TimelineContextMenuFactory {
                     .build();
         }
 
+        // ⭐ 从 Clip 内部查找真正的 ClipKeyframe 对象
+        final float EPS = 0.001f;
+        com.chronoblocks.ui.timeline.model.clip.ClipKeyframe kf =
+                clip.findKeyframeAt(keyframeTime, EPS);
+
+        if (kf == null) {
+            LOGGER.warn("[Timeline] 未找到时间 {:.3f}s 对应的 ClipKeyframe", keyframeTime);
+            return TimelineContextMenuBuilder
+                    .forKeyframe(commandHistory)
+                    .disabledItem(String.format("关键帧 @ %.3fs (未找到对象)", keyframeTime))
+                    .build();
+        }
+
+        TimelineInterpolation interp = kf.getInterpolation();
+
         return TimelineContextMenuBuilder
                 .forKeyframe(commandHistory)
-                .disabledItem(String.format("关键帧 @ %.3fs", keyframeTime))
+                .disabledItem(String.format("关键帧 @ %.3fs", kf.getTime()))
                 .separator()
+                // 删除关键帧
                 .command("删除关键帧",
-                        new RemoveKeyframeCommand(model, clip, keyframeTime),
+                        new com.chronoblocks.ui.timeline.commands.RemoveClipKeyframeCommand(model, track, clip, kf),
                         "Del")
                 .separator()
+                // 跳转到此关键帧（类似 Premiere / AE 的 "Reveal" / "Go To")
+                .item("跳转到此时间", () -> {
+                    model.setCurrentTime(kf.getTime());
+                    com.chronoblocks.ui.timeline.playback.TimelineClipBlockController
+                            .getInstance()
+                            .update();
+                })
+                .separator()
+                // 插值方式子菜单
                 .submenu("插值方式")
-                    .command("线性（匀速）",
-                        new ChangeKeyframeInterpolationCommand(model, track, clip, keyframeTime, TimelineInterpolation.LINEAR))
-                    .command("平滑（缓入缓出）",
-                        new ChangeKeyframeInterpolationCommand(model, track, clip, keyframeTime, TimelineInterpolation.SMOOTH))
-                    .command("阶梯（保持再跳变）",
-                        new ChangeKeyframeInterpolationCommand(model, track, clip, keyframeTime, TimelineInterpolation.STEP))
+                    .command(
+                        (interp == TimelineInterpolation.LINEAR ? "✓ " : "") + "线性（匀速）",
+                        new com.chronoblocks.ui.timeline.commands.ChangeClipKeyframeInterpolationCommand(
+                            model, track, clip, kf, TimelineInterpolation.LINEAR
+                        ))
+                    .command(
+                        (interp == TimelineInterpolation.SMOOTH ? "✓ " : "") + "平滑（缓入缓出）",
+                        new com.chronoblocks.ui.timeline.commands.ChangeClipKeyframeInterpolationCommand(
+                            model, track, clip, kf, TimelineInterpolation.SMOOTH
+                        ))
+                    .command(
+                        (interp == TimelineInterpolation.STEP ? "✓ " : "") + "阶梯（保持再跳变）",
+                        new com.chronoblocks.ui.timeline.commands.ChangeClipKeyframeInterpolationCommand(
+                            model, track, clip, kf, TimelineInterpolation.STEP
+                        ))
                 .end()
+                .separator()
+                // 重置插值（回到"轨道默认"或者"线性"，这里先用 LINEAR）
+                .command("重置插值为线性",
+                        new com.chronoblocks.ui.timeline.commands.ChangeClipKeyframeInterpolationCommand(
+                            model, track, clip, kf, TimelineInterpolation.LINEAR
+                        ))
                 .open();
     }
 

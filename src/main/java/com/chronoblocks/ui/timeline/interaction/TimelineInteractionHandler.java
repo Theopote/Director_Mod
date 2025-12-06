@@ -1,7 +1,5 @@
 package com.chronoblocks.ui.timeline.interaction;
 
-import com.chronoblocks.ui.timeline.commands.AddKeyframeCommand;
-import com.chronoblocks.ui.timeline.commands.RemoveKeyframeCommand;
 import com.chronoblocks.ui.timeline.commands.ResizeClipCommand;
 import com.chronoblocks.ui.timeline.commands.TimelineCommandHistory;
 import com.chronoblocks.ui.timeline.interaction.TimelineInteractionManager.InteractionMode;
@@ -15,6 +13,7 @@ import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.render.TimelineRenderer;
 import com.chronoblocks.ui.timeline.render.TimelineTrackControlHit;
 import com.chronoblocks.ui.timeline.snapping.TimelineSnapping;
+import com.chronoblocks.ui.timeline.commands.MoveAutomationKeyframeCommand;
 
 import imgui.ImGui;
 import imgui.ImGuiIO;
@@ -95,6 +94,84 @@ public class TimelineInteractionHandler {
         return activeContextMenu;
     }
     
+    /**
+     * ⭐ 修复：检查并清理已关闭的菜单
+     * 应该在每帧渲染时调用，确保菜单状态正确
+     */
+    public void updateMenuState() {
+        if (activeContextMenu != null) {
+            // 检查 popup 是否仍然打开
+            String popupId = activeContextMenu.getPopupId();
+            if (popupId != null && !imgui.ImGui.isPopupOpen(popupId, imgui.flag.ImGuiPopupFlags.None)) {
+                // Popup 已关闭，清理引用
+                activeContextMenu = null;
+                LOGGER.debug("[Timeline] 菜单已关闭，清理引用");
+            }
+        }
+    }
+    
+    /**
+     * 获取正在拖动中的自动化关键帧的临时时间（用于渲染系统）
+     * 
+     * <p>在拖动过程中，关键帧的实际时间不会改变，但 UI 需要显示拖动中的位置。
+     * 此方法返回拖动中的临时时间，如果没有拖动则返回 -1。
+     * 
+     * @param keyframe 关键帧
+     * @return 临时时间，如果没有拖动则返回 -1
+     */
+    public float getDraggedAutomationKeyframeTime(TimelineSelectable keyframe) {
+        if (keyframe == null) {
+            return -1f;
+        }
+        
+        InteractionMode mode = interactionManager.getCurrentMode();
+        if (mode == InteractionMode.DRAG_AUTOMATION_KEYFRAME) {
+            Object active = interactionManager.getActiveObject();
+            if (active instanceof AutomationKeyframeHandle handle) {
+                if (handle.keyframe == keyframe || 
+                    (handle.keyframe != null && handle.keyframe.getId().equals(keyframe.getId()))) {
+                    return handle.currentTime;
+                }
+            }
+        }
+        
+        return -1f;
+    }
+    
+    /**
+     * 获取正在拖动中的 Clip 关键帧的临时时间（用于渲染系统）
+     * 
+     * <p>在拖动过程中，关键帧的实际时间不会改变，但 UI 需要显示拖动中的位置。
+     * 此方法返回拖动中的临时时间，如果没有拖动则返回 -1。
+     * 
+     * @param clip 片段
+     * @param keyframeTime 关键帧的原始时间
+     * @return 临时时间，如果没有拖动则返回 -1
+     */
+    public float getDraggedClipKeyframeTime(TimelineClip clip, float keyframeTime) {
+        if (clip == null) {
+            return -1f;
+        }
+        
+        InteractionMode mode = interactionManager.getCurrentMode();
+        if (mode == InteractionMode.DRAG_KEYFRAME) {
+            Object active = interactionManager.getActiveObject();
+            if (active instanceof KeyframeHandle handle) {
+                // 检查是否是同一个 clip
+                if (handle.clip == clip) {
+                    // 检查是否是同一个关键帧
+                    // 使用拖动开始时的原始时间来匹配
+                    float originalTime = interactionManager.getDragStartValue();
+                    if (Math.abs(originalTime - keyframeTime) < 0.001f) {
+                        return handle.currentTime; // 返回拖动中的临时时间
+                    }
+                }
+            }
+        }
+        
+        return -1f;
+    }
+
     /**
      * ⭐ 静默取消所有交互（不触发任何回调，用于 UI 关闭时清理状态）
      */
@@ -405,13 +482,29 @@ public class TimelineInteractionHandler {
             return;
         }
 
-        // 单击：开始拖动关键帧
-        KeyframeHandle handle = new KeyframeHandle(track, clip, keyTime);
+        // ⭐ 从 Clip 中查找真正的 ClipKeyframe 对象
+        final float EPS = 0.001f;
+        com.chronoblocks.ui.timeline.model.clip.ClipKeyframe kf =
+                clip.findKeyframeAt(keyTime, EPS);
+        
+        if (kf == null) {
+            LOGGER.warn("[Timeline] onKeyframeClicked: 未找到关键帧对象 @ {}s", keyTime);
+            return;
+        }
+
+        // 单击：选中关键帧
+        imgui.ImGuiIO io = imgui.ImGui.getIO();
+        boolean addToSelection = io.getKeyCtrl();
+        model.selectItem(kf, addToSelection);
+        com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(kf);
+
+        // 启动拖动交互（交给 MoveClipKeyframeCommand 在结束时记录 Undo）
+        KeyframeHandle handle = new KeyframeHandle(track, clip, kf, kf.getTime());
         interactionManager.startInteraction(
                 InteractionMode.DRAG_KEYFRAME,
                 handle,
                 mouseX, ImGui.getMousePosY(),
-                keyTime, 0f
+                kf.getTime(), 0f
         );
     }
 
@@ -636,11 +729,12 @@ public class TimelineInteractionHandler {
                 float originalTime = interactionManager.getDragStartValue();
                 float finalTime = handle.currentTime;
 
-                handle.clip.removeKeyframe(handle.currentTime);
-                handle.clip.addKeyframe(originalTime);
-
-                commandHistory.executeCommand(new RemoveKeyframeCommand(model, handle.clip, originalTime));
-                commandHistory.executeCommand(new AddKeyframeCommand(model, handle.clip, finalTime));
+                // ⭐⭐ 修复：使用 MoveClipKeyframeCommand 而不是 Remove + Add
+                // 这样确保 Undo/Redo 正确工作，且不会导致数据结构混乱
+                commandHistory.executeCommand(
+                    new com.chronoblocks.ui.timeline.commands.MoveClipKeyframeCommand(
+                        model, handle.track, handle.clip, handle.keyframe, originalTime, finalTime)
+                );
 
                 if (callbacks != null) callbacks.onDataChanged();
 
@@ -651,32 +745,14 @@ public class TimelineInteractionHandler {
                 float originalTime = interactionManager.getDragStartValue();
                 float finalTime = handle.currentTime;
 
-                // 恢复原始时间（用于命令模式）
-                if (handle.keyframe instanceof com.chronoblocks.ui.timeline.model.camera.CameraKeyframe cameraKeyframe) {
-                    cameraKeyframe.setTime(originalTime);
-                } else if (handle.keyframe instanceof com.chronoblocks.ui.timeline.model.TimelineMarker marker) {
-                    marker.setTime(originalTime);
-                }
-                handle.track.removeAutomationKeyframe(handle.keyframe.getId());
-                handle.track.addAutomationKeyframe(handle.keyframe);
-
-                // 执行命令：移除旧位置，添加新位置
+                // ⭐⭐ 修复：改成单一命令处理
+                // 所有数据结构修改都在这里执行一次，拖动过程中不会修改模型
                 commandHistory.executeCommand(
-                    new com.chronoblocks.ui.timeline.commands.RemoveAutomationKeyframeCommand(model, handle.track, handle.keyframe.getId())
-                );
-                if (handle.keyframe instanceof com.chronoblocks.ui.timeline.model.camera.CameraKeyframe cameraKeyframe) {
-                    cameraKeyframe.setTime(finalTime);
-                } else if (handle.keyframe instanceof com.chronoblocks.ui.timeline.model.TimelineMarker marker) {
-                    marker.setTime(finalTime);
-                }
-                commandHistory.executeCommand(
-                    new com.chronoblocks.ui.timeline.commands.AddAutomationKeyframeCommand(model, handle.track, handle.keyframe)
+                    new com.chronoblocks.ui.timeline.commands.MoveAutomationKeyframeCommand(
+                        model, handle.track, handle.keyframe, originalTime, finalTime)
                 );
 
-                // 通知摄像机控制器关键帧已改变
-                if (handle.keyframe instanceof com.chronoblocks.ui.timeline.model.camera.CameraKeyframe) {
-                    com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance().onKeyframeChanged();
-                }
+                // MoveAutomationKeyframeCommand 内部已经调用了 onKeyframeChanged()，这里不需要再调用
 
                 if (callbacks != null) callbacks.onDataChanged();
 
@@ -949,15 +1025,28 @@ public class TimelineInteractionHandler {
         }
 
         // 实时预览：直接修�?clip �?keyframes（先删旧后加新）
-        handle.clip.removeKeyframe(handle.currentTime);
-        handle.clip.addKeyframe(newTime);
+        // ⭐⭐ 只更新 Handle 的临时时间，不修改模型
         handle.currentTime = newTime;
 
-        if (callbacks != null) callbacks.onDataChanged();
+        // ⭐⭐ 通知 UI 刷新（渲染系统会读取 handle.currentTime 来显示关键帧位置）
+        if (callbacks != null) {
+            callbacks.onDataChanged();
+        }
     }
 
     /**
      * 拖动自动化关键帧（轨道级别的关键帧，如摄像机关键帧）
+     * 
+     * <p>⭐ 修复：遵循专业软件（AE / Blender / Premiere）的拖动结构：
+     * <ul>
+     *   <li>在拖动过程中只更新 runtime 状态（handle.currentTime），不修改 model</li>
+     *   <li>UI 上显示关键帧移动位置（通过渲染系统），但不改 model</li>
+     *   <li>只做预览（TimelineCameraController.previewAt），不改变 track.keyframes 列表结构</li>
+     *   <li>不改变 keyframe.time（只暂存到 handle.currentTime）</li>
+     * </ul>
+     * 
+     * <p>所有数据结构修改（track.remove/add, keyframe.setTime）都留给
+     * {@link MoveAutomationKeyframeCommand} 在鼠标松开时统一处理。
      */
     private void dragAutomationKeyframe(float mouseX, float contentX) {
         Object active = interactionManager.getActiveObject();
@@ -977,34 +1066,25 @@ public class TimelineInteractionHandler {
         TimelineSnapping.Result snap = TimelineSnapping.snapTime(
                 model, rawTime, handle.track, null, 0f
         );
-        float newTime = snap.snappedTime;
+        float newTime = Math.max(0f, Math.min(model.getDuration(), snap.snappedTime));
 
-        // 限制时间范围：不能小于0，不能超过时间线总长度
-        float eps = 0.001f;
-        newTime = Math.max(0f, newTime);
-        newTime = Math.min(model.getDuration(), newTime);
-
-        // 如果时间没有变化，不更新
-        if (Math.abs(newTime - handle.currentTime) < eps) {
+        // 若变化太小，则不更新
+        if (Math.abs(newTime - handle.currentTime) < 0.0005f) {
             return;
         }
 
-        // 实时预览：直接修改关键帧时间（先移除旧位置，再添加到新位置）
-        handle.track.removeAutomationKeyframe(handle.keyframe.getId());
-        if (handle.keyframe instanceof com.chronoblocks.ui.timeline.model.camera.CameraKeyframe cameraKeyframe) {
-            cameraKeyframe.setTime(newTime);
-        } else if (handle.keyframe instanceof com.chronoblocks.ui.timeline.model.TimelineMarker marker) {
-            marker.setTime(newTime);
-        }
-        handle.track.addAutomationKeyframe(handle.keyframe);
+        // ⭐⭐ 只更新 Handle 的临时时间，不修改模型
         handle.currentTime = newTime;
 
-        // 如果是摄像机关键帧，通知控制器更新
+        // ⭐⭐ UI 预览：摄像机预览但不修改模型
         if (handle.keyframe instanceof com.chronoblocks.ui.timeline.model.camera.CameraKeyframe) {
-            com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance().onKeyframeChanged();
+            com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance().previewAt(newTime);
         }
 
-        if (callbacks != null) callbacks.onDataChanged();
+        // ⭐⭐ 通知 UI 刷新（渲染系统会读取 handle.currentTime 来显示关键帧位置）
+        if (callbacks != null) {
+            callbacks.onDataChanged();
+        }
     }
 
     /**
@@ -1108,11 +1188,16 @@ public class TimelineInteractionHandler {
     private static final class KeyframeHandle {
         final TimelineTrack track;
         final TimelineClip clip;
+        final com.chronoblocks.ui.timeline.model.clip.ClipKeyframe keyframe;
         float currentTime;
 
-        KeyframeHandle(TimelineTrack track, TimelineClip clip, float time) {
+        KeyframeHandle(TimelineTrack track,
+                       TimelineClip clip,
+                       com.chronoblocks.ui.timeline.model.clip.ClipKeyframe keyframe,
+                       float time) {
             this.track = track;
             this.clip = clip;
+            this.keyframe = keyframe;
             this.currentTime = time;
         }
     }
