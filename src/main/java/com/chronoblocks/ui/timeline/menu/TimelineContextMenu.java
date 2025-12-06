@@ -153,6 +153,15 @@ public class TimelineContextMenu {
     }
     
     /**
+     * 获取菜单项列表（用于子菜单渲染）
+     * 
+     * @return 菜单项列表
+     */
+    public List<MenuItem> getMenuItems() {
+        return menuItems;
+    }
+    
+    /**
      * 清空菜单项
      */
     public void clear() {
@@ -244,7 +253,12 @@ public class TimelineContextMenu {
                         displayLabel = item.getIcon() + " " + displayLabel;
                     }
                     if (ImGui.beginMenu(displayLabel, item.isEnabled())) {
-                        item.getSubmenu().render();
+                        // ⭐⭐ 修复：在 beginMenu() 块内直接渲染子菜单的菜单项，而不是调用 render()
+                        // 因为 render() 会创建新的 popup，而 beginMenu() 已经创建了子菜单上下文
+                        TimelineContextMenu submenu = item.getSubmenu();
+                        if (submenu != null) {
+                            renderMenuItems(submenu);
+                        }
                         ImGui.endMenu();
                     }
                 } else {
@@ -281,6 +295,66 @@ public class TimelineContextMenu {
                 }
             }
             ImGui.endPopup();
+        }
+    }
+    
+    /**
+     * 渲染菜单项列表（不创建 popup，用于子菜单内部渲染）
+     * 
+     * <p>这个方法用于在 ImGui.beginMenu() 块内渲染子菜单的菜单项。
+     * 与 render() 方法不同，它不会创建新的 popup，而是直接在当前的菜单上下文中渲染。
+     * 
+     * @param menu 菜单对象
+     */
+    private void renderMenuItems(TimelineContextMenu menu) {
+        // 使用反射或直接访问来获取 menuItems
+        // 为了简化，我们创建一个公共方法来获取菜单项
+        List<MenuItem> items = menu.getMenuItems();
+        for (MenuItem item : items) {
+            if (item.isSeparator()) {
+                ImGui.separator();
+            } else if (item.hasSubmenu()) {
+                // 递归处理嵌套子菜单
+                String displayLabel = item.getLabel();
+                if (item.getIcon() != null) {
+                    displayLabel = item.getIcon() + " " + displayLabel;
+                }
+                if (ImGui.beginMenu(displayLabel, item.isEnabled())) {
+                    renderMenuItems(item.getSubmenu());
+                    ImGui.endMenu();
+                }
+            } else {
+                // 普通菜单项或 checkbox/radio
+                String displayLabel = item.getLabel();
+                if (item.getIcon() != null) {
+                    displayLabel = item.getIcon() + " " + displayLabel;
+                }
+                
+                boolean selected;
+                String shortcut = item.getShortcut() != null ? item.getShortcut() : "";
+                
+                if (item.isCheckbox()) {
+                    // Checkbox 菜单项
+                    boolean[] checked = {item.getCheckboxState()};
+                    selected = ImGui.menuItem(displayLabel, shortcut, checked[0], item.isEnabled());
+                    if (selected && item.isEnabled()) {
+                        item.execute();
+                    }
+                } else if (item.isRadio()) {
+                    // Radio 菜单项
+                    selected = ImGui.menuItem(displayLabel, shortcut, item.isRadioSelected(), item.isEnabled());
+                    if (selected && item.isEnabled()) {
+                        item.execute();
+                    }
+                } else {
+                    // 普通菜单项
+                    selected = ImGui.menuItem(displayLabel, shortcut, false, item.isEnabled());
+                    if (selected && item.isEnabled()) {
+                        item.execute();
+                        LOGGER.debug("[Timeline] 执行菜单项: {}", item.getLabel());
+                    }
+                }
+            }
         }
     }
     
