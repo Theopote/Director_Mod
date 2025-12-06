@@ -471,6 +471,16 @@ public class TimelineInteractionHandler {
     private void onEmptyClicked(TimelineHitResult hit,
                                 float mouseX,
                                 float contentX) {
+        // 空白区域：清除选中状态
+        model.clearSelection();
+        
+        // 清除 SelectionManager 的选择，使属性面板恢复到默认状态
+        com.chronoblocks.ui.selection.SelectionManager.get().clearSelection();
+        
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("[Timeline] 点击空白区域，清除所有选中状态");
+        }
+        
         // 空白区域：不移动播放头，允许用户在轨道上操作片段或关键帧
         // 只有点击顶部时间刻度尺时才会移动播放头（�?TimelinePanel.handleRulerInteractions 处理�?
     }
