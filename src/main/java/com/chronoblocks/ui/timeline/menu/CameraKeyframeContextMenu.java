@@ -1,0 +1,176 @@
+package com.chronoblocks.ui.timeline.menu;
+
+import com.chronoblocks.ui.timeline.commands.RemoveAutomationKeyframeCommand;
+import com.chronoblocks.ui.timeline.commands.TimelineCommandHistory;
+import com.chronoblocks.ui.timeline.model.TimelineModel;
+import com.chronoblocks.ui.timeline.model.TimelineTrack;
+import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
+import com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * CameraKeyframeContextMenu v1.0
+ *
+ * <p>右键点击摄像机关键帧时弹出的菜单。
+ * 风格参考 Blender / Mine-imator：
+ * <ul>
+ *   <li>✓ 关键帧类型（Standard / Corner / Hold / Smooth / Manual Bezier）</li>
+ *   <li>✓ 位置插值类型（Linear / Catmull-Rom / Bezier / Step）</li>
+ *   <li>✓ 旋转插值类型（Default / Linear / Step）</li>
+ *   <li>✓ 控制柄（自动/自由/对齐，清除手柄）</li>
+ *   <li>✓ 实用功能：跳转到关键帧位置、删除、关闭菜单</li>
+ * </ul>
+ *
+ * @author ChronoBlocks Team
+ * @version 1.0
+ */
+public class CameraKeyframeContextMenu extends TimelineContextMenu {
+    private static final Logger LOGGER = LoggerFactory.getLogger(CameraKeyframeContextMenu.class);
+    
+    private final CameraKeyframe keyframe;
+    private final TimelineTrack track;
+    private final TimelineModel model;
+
+    public CameraKeyframeContextMenu(
+            TimelineCommandHistory commandHistory,
+            CameraKeyframe keyframe,
+            TimelineTrack track,
+            TimelineModel model) {
+        super(commandHistory);
+        this.keyframe = keyframe;
+        this.track = track;
+        this.model = model;
+        this.setPopupId("CameraKeyframeContextMenu");
+        buildMenu();
+    }
+
+    private void buildMenu() {
+        // 标题：显示关键帧信息
+        addDisabledItem(String.format("摄像机关键帧 @ %.3fs", keyframe.getTime()));
+        addSeparator();
+
+        // 关键帧类型菜单
+        TimelineContextMenu keyTypeMenu = new TimelineContextMenu(getCommandHistory());
+        keyTypeMenu.setPopupId("CameraKeyframeKeyTypeMenu");
+        
+        addKeyTypeItem(keyTypeMenu, "Standard（普通）", CameraKeyframe.KeyType.STANDARD);
+        addKeyTypeItem(keyTypeMenu, "Corner（锐角）", CameraKeyframe.KeyType.CORNER);
+        addKeyTypeItem(keyTypeMenu, "Hold（保持）", CameraKeyframe.KeyType.HOLD);
+        addKeyTypeItem(keyTypeMenu, "Smooth（平滑）", CameraKeyframe.KeyType.SMOOTH);
+        addKeyTypeItem(keyTypeMenu, "Manual Bezier（手动贝塞尔）", CameraKeyframe.KeyType.MANUAL_BEZIER);
+        
+        addSubmenu("关键帧类型", keyTypeMenu);
+
+        // 位置插值模式菜单
+        TimelineContextMenu segmentTypeMenu = new TimelineContextMenu(getCommandHistory());
+        segmentTypeMenu.setPopupId("CameraKeyframeSegmentTypeMenu");
+        
+        addSegmentTypeItem(segmentTypeMenu, "Default（轨道默认）", CameraKeyframe.SegmentPathType.DEFAULT);
+        addSegmentTypeItem(segmentTypeMenu, "Linear（线性）", CameraKeyframe.SegmentPathType.LINEAR);
+        addSegmentTypeItem(segmentTypeMenu, "Catmull-Rom（样条）", CameraKeyframe.SegmentPathType.CATMULL_ROM);
+        addSegmentTypeItem(segmentTypeMenu, "Bezier（贝塞尔）", CameraKeyframe.SegmentPathType.BEZIER);
+        addSegmentTypeItem(segmentTypeMenu, "Step（无插值）", CameraKeyframe.SegmentPathType.STEP);
+        addSegmentTypeItem(segmentTypeMenu, "Hold（保持）", CameraKeyframe.SegmentPathType.HOLD);
+        
+        addSubmenu("位置插值模式", segmentTypeMenu);
+
+        // 旋转插值模式菜单
+        TimelineContextMenu rotationTypeMenu = new TimelineContextMenu(getCommandHistory());
+        rotationTypeMenu.setPopupId("CameraKeyframeRotationTypeMenu");
+        
+        addRotationTypeItem(rotationTypeMenu, "Default（跟随位置曲线）", 
+                CameraKeyframe.RotationInterpolation.DEFAULT);
+        addRotationTypeItem(rotationTypeMenu, "Linear（Slerp）", 
+                CameraKeyframe.RotationInterpolation.LINEAR);
+        addRotationTypeItem(rotationTypeMenu, "Bezier（Slerp）", 
+                CameraKeyframe.RotationInterpolation.BEZIER);
+        addRotationTypeItem(rotationTypeMenu, "Catmull-Rom（Slerp）", 
+                CameraKeyframe.RotationInterpolation.CATMULL_ROM);
+        addRotationTypeItem(rotationTypeMenu, "Step（保持）", 
+                CameraKeyframe.RotationInterpolation.STEP);
+        
+        addSubmenu("旋转插值模式", rotationTypeMenu);
+
+        // Bezier 控制柄菜单（仅在需要时显示）
+        if (keyframe.getKeyType() == CameraKeyframe.KeyType.MANUAL_BEZIER ||
+            keyframe.getSegmentPathType() == CameraKeyframe.SegmentPathType.BEZIER) {
+            
+            TimelineContextMenu handleMenu = new TimelineContextMenu(getCommandHistory());
+            handleMenu.setPopupId("CameraKeyframeHandleMenu");
+            
+            addHandleModeItem(handleMenu, "自动 (Auto)", CameraKeyframe.HandleMode.AUTO);
+            addHandleModeItem(handleMenu, "自由 (Free)", CameraKeyframe.HandleMode.FREE);
+            addHandleModeItem(handleMenu, "对齐 (Aligned)", CameraKeyframe.HandleMode.ALIGNED);
+            
+            handleMenu.addSeparator();
+            handleMenu.addItem("清除控制柄", () -> {
+                keyframe.getBezierInHandle().set(0, 0, 0);
+                keyframe.getBezierOutHandle().set(0, 0, 0);
+                TimelineCameraController.getInstance().onKeyframeChanged();
+                LOGGER.debug("[Timeline] 清除摄像机关键帧控制柄");
+            });
+            
+            addSubmenu("Bezier 控制柄", handleMenu);
+        }
+
+        addSeparator();
+
+        // 实用功能
+        addItem("跳转到此关键帧", () -> {
+            TimelineCameraController.getInstance().previewAt(keyframe.getTime());
+            LOGGER.debug("[Timeline] 跳转到摄像机关键帧 @ {}s", keyframe.getTime());
+        });
+
+        addCommandItem("删除关键帧",
+                new RemoveAutomationKeyframeCommand(model, track, keyframe),
+                "Del");
+    }
+
+    // ------------------------------------------------
+    // Helper: 添加菜单项
+    // ------------------------------------------------
+
+    private void addKeyTypeItem(TimelineContextMenu menu, String label, CameraKeyframe.KeyType type) {
+        boolean isSelected = keyframe.getKeyType() == type;
+        // 使用 radio 样式显示选中状态（通过 ImGui.menuItem 的 selected 参数）
+        // 注意：我们需要在 label 中添加选中标记，因为 TimelineContextMenu 当前不支持 radio 参数
+        String displayLabel = isSelected ? "✓ " + label : label;
+        menu.addItem(displayLabel, () -> {
+            keyframe.setKeyType(type);
+            TimelineCameraController.getInstance().onKeyframeChanged();
+            LOGGER.debug("[Timeline] 设置摄像机关键帧类型: {}", type);
+        });
+    }
+
+    private void addSegmentTypeItem(TimelineContextMenu menu, String label, CameraKeyframe.SegmentPathType type) {
+        boolean isSelected = keyframe.getSegmentPathType() == type;
+        String displayLabel = isSelected ? "✓ " + label : label;
+        menu.addItem(displayLabel, () -> {
+            keyframe.setSegmentPathType(type);
+            TimelineCameraController.getInstance().onKeyframeChanged();
+            LOGGER.debug("[Timeline] 设置摄像机关键帧位置插值类型: {}", type);
+        });
+    }
+
+    private void addRotationTypeItem(TimelineContextMenu menu, String label, CameraKeyframe.RotationInterpolation type) {
+        boolean isSelected = keyframe.getRotationInterpolation() == type;
+        String displayLabel = isSelected ? "✓ " + label : label;
+        menu.addItem(displayLabel, () -> {
+            keyframe.setRotationInterpolation(type);
+            TimelineCameraController.getInstance().onKeyframeChanged();
+            LOGGER.debug("[Timeline] 设置摄像机关键帧旋转插值类型: {}", type);
+        });
+    }
+
+    private void addHandleModeItem(TimelineContextMenu menu, String label, CameraKeyframe.HandleMode mode) {
+        boolean isSelected = keyframe.getHandleMode() == mode;
+        String displayLabel = isSelected ? "✓ " + label : label;
+        menu.addItem(displayLabel, () -> {
+            keyframe.setHandleMode(mode);
+            TimelineCameraController.getInstance().onKeyframeChanged();
+            LOGGER.debug("[Timeline] 设置摄像机关键帧控制柄模式: {}", mode);
+        });
+    }
+}
+

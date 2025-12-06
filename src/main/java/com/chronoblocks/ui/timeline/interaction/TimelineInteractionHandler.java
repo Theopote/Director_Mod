@@ -212,23 +212,34 @@ public class TimelineInteractionHandler {
 
         // 右键打开上下文菜单（如果不是点在轨道头控件上�?
         // 使用 rightClickedOnCanvas 参数，因�?invisibleButton 会拦截右键事�?
-        if (rightClickedOnCanvas) {
-            System.out.println("[TimelineInteractionHandler] 检测到右键点击，hit.type() = " + 
-                    (hit != null ? hit.type() : "null") + 
-                    ", trackControlHit = " + (trackControlHit != null && trackControlHit.isHit()));
-            LOGGER.info("[Timeline] 检测到右键点击，hit.type() = {}, trackControlHit = {}", 
-                    hit != null ? hit.type() : "null", 
-                    trackControlHit != null && trackControlHit.isHit());
-            if (trackControlHit == null || !trackControlHit.isHit()) {
-                openContextMenuForHit(hit);
-            } else {
-                System.out.println("[TimelineInteractionHandler] 右键点击被轨道控件拦截");
-                LOGGER.info("[Timeline] 右键点击被轨道控件拦截");
+        // 右键：统一使用 ImGui 的点击检测
+        if (ImGui.isMouseClicked(ImGuiMouseButton.Right)) {
+            LOGGER.info("[Timeline] 右键点击: hit.type = {}, rightClickedOnCanvas = {}, trackControlHit = {}",
+                    hit != null ? hit.type() : "null",
+                    rightClickedOnCanvas,
+                    (trackControlHit != null && trackControlHit.isHit()));
+
+            // 1) 右键点击在轨道头控件上：预留给轨道头菜单（暂时拦截，不弹其他菜单）
+            if (trackControlHit != null && trackControlHit.isHit()) {
+                LOGGER.info("[Timeline] 右键点击被轨道头控件拦截");
+                // 未来可以在这里加"轨道菜单"（静音、复制轨道等）
+                return;
             }
-        } else {
-            // 调试：检查为什么没有检测到右键点击
-            if (ImGui.isMouseClicked(ImGuiMouseButton.Right)) {
-                System.out.println("[TimelineInteractionHandler] ImGui 检测到右键点击，但 rightClickedOnCanvas = false");
+
+            // 2) 命中 Clip / Keyframe / AutomationKeyframe：无论 rightClickedOnCanvas 是否为 true，都打开对应元素菜单
+            if (hit != null && (hit.type() == TimelineHitResult.HitType.KEYFRAME
+                             || hit.type() == TimelineHitResult.HitType.AUTOMATION_KEYFRAME
+                             || hit.type() == TimelineHitResult.HitType.CLIP)) {
+                openContextMenuForHit(hit);
+            }
+            // 3) 命中空白区域：只有在 rightClickedOnCanvas = true 时才弹"空白菜单"
+            else if (rightClickedOnCanvas) {
+                openContextMenuForHit(hit);
+            }
+            // 4) 其他情况：不弹菜单，但输出一点调试日志
+            else {
+                LOGGER.debug("[Timeline] 右键点击未匹配任何菜单区域 (hit = {}, rightClickedOnCanvas = {})",
+                        hit != null ? hit.type() : "null", rightClickedOnCanvas);
             }
         }
 
@@ -501,24 +512,55 @@ public class TimelineInteractionHandler {
     // ========================================================
 
     private void openContextMenuForHit(TimelineHitResult hit) {
-        System.out.println("[TimelineInteractionHandler] openContextMenuForHit 被调用，hit = " + 
-                (hit != null ? hit.type() : "null"));
-        
         if (menuFactory == null) {
-            System.out.println("[TimelineInteractionHandler] ERROR: menuFactory 为 null");
             LOGGER.warn("[Timeline] menuFactory 为 null，无法打开上下文菜单");
             return;
         }
 
         if (hit == null) {
-            System.out.println("[TimelineInteractionHandler] ERROR: hit 为 null");
             LOGGER.warn("[Timeline] hit 为 null，无法打开上下文菜单");
             return;
         }
 
-        System.out.println("[TimelineInteractionHandler] 尝试打开上下文菜单，hit.type() = " + hit.type() + 
-                ", track = " + hit.track() + ", clip = " + hit.clip());
-        LOGGER.info("[Timeline] 尝试打开上下文菜单，hit.type() = {}, track = {}, clip = {}", 
+        // ⭐ 右键时，先做"自动选中"，保证菜单操作对象和属性面板对象一致
+        switch (hit.type()) {
+            case CLIP -> {
+                TimelineClip clip = hit.clip();
+                if (clip != null) {
+                    model.setSelectedClip(clip);
+                    // 同步 SelectionManager
+                    com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(clip);
+                }
+            }
+            case KEYFRAME -> {
+                TimelineClip clip = hit.clip();
+                if (clip != null) {
+                    // 如果有 clip 内部 keyframe 的模型对象，可以在这里通过时间查找并选中
+                    // 这里先标记 clip 选中，属性面板可显示 clip 内关键帧列表
+                    model.setSelectedClip(clip);
+                    com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(clip);
+                }
+            }
+            case AUTOMATION_KEYFRAME -> {
+                TimelineSelectable keyframe = hit.automationKeyframe();
+                if (keyframe != null) {
+                    // TimelineModel 内部选中
+                    ImGuiIO io = ImGui.getIO();
+                    boolean addToSelection = io.getKeyCtrl(); // 右键支持 Ctrl 多选也合理
+                    model.selectItem(keyframe, addToSelection);
+                    // 同步 SelectionManager → 属性面板显示具体的 CameraKeyframe 属性
+                    com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(keyframe);
+                    if (keyframe instanceof com.chronoblocks.ui.timeline.model.camera.CameraKeyframe ck) {
+                        LOGGER.debug("[Timeline] 右键摄像机关键帧 @ {}s，准备弹出关键帧菜单", ck.getTime());
+                    }
+                }
+            }
+            case EMPTY, NONE, TRACK_HEADER -> {
+                // 空白区域右键：保持现有选择，很多软件右键空白也不清空
+            }
+        }
+
+        LOGGER.info("[Timeline] 尝试打开上下文菜单，hit.type = {}, track = {}, clip = {}",
                 hit.type(), hit.track(), hit.clip());
 
         activeContextMenu = menuFactory.buildContextMenu(hit);
@@ -527,7 +569,6 @@ public class TimelineInteractionHandler {
             System.out.println("[TimelineInteractionHandler] 成功打开上下文菜�? " + hit.type());
             LOGGER.info("[Timeline] 成功打开上下文菜�? {}", hit.type());
         } else {
-            System.out.println("[TimelineInteractionHandler] ERROR: buildContextMenu 返回 null，hit.type() = " + hit.type());
             LOGGER.warn("[Timeline] buildContextMenu 返回 null，hit.type() = {}", hit.type());
         }
     }

@@ -166,9 +166,14 @@ public class TimelineContextMenuFactory {
                     .build();
         }
 
+        // ⭐ 摄像机关键帧：使用专门的 Mine-imator / Blender 风格菜单
+        if (keyframe instanceof com.chronoblocks.ui.timeline.model.camera.CameraKeyframe cameraKeyframe) {
+            return new CameraKeyframeContextMenu(commandHistory, cameraKeyframe, track, model);
+        }
+
+        // 其他类型的自动化关键帧：使用通用菜单
         String menuLabel = keyframe.getName();
         switch (keyframe) {
-            case CameraKeyframe cameraKeyframe -> menuLabel = "摄像机关键帧";
             case WeatherKeyframe weatherKeyframe -> menuLabel = "天气关键帧";
             case TimelineMarker timelineMarker -> menuLabel = "标记";
             default -> {
@@ -180,7 +185,7 @@ public class TimelineContextMenuFactory {
                 .disabledItem(String.format("%s @ %.3fs", menuLabel, keyframe.getStartTime()))
                 .separator()
                 .command("删除关键帧",
-                        new RemoveAutomationKeyframeCommand(model, track, keyframe),
+                        new com.chronoblocks.ui.timeline.commands.RemoveAutomationKeyframeCommand(model, track, keyframe),
                         "Del")
                 .open();
     }
