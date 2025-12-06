@@ -6,6 +6,7 @@ import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineSelectable;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TimelineViewportState;
+import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
 
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -289,16 +290,119 @@ public class TimelineRenderer {
             float dy = mouseY - centerY;
             float distSq = dx * dx + dy * dy;
             boolean hovering = distSq <= KEYFRAME_HIT_RADIUS * KEYFRAME_HIT_RADIUS;
-            int kfCol = hovering ? TimelineColors.COLOR_KEYFRAME_HOVER : TimelineColors.COLOR_KEYFRAME;
+            
+            // 检查是否被选中
+            boolean isSelected = model != null && model.isSelected(keyframe);
+            
+            // 确定关键帧类型（如果是 CameraKeyframe）
+            CameraKeyframe.KeyType keyType = null;
+            if (keyframe instanceof CameraKeyframe) {
+                keyType = ((CameraKeyframe) keyframe).getKeyType();
+            }
+            
+            // 确定颜色：选中 > hover > 默认
+            int kfCol;
+            if (isSelected) {
+                kfCol = TimelineColors.COLOR_KEYFRAME_SELECTED;
+            } else if (hovering) {
+                kfCol = TimelineColors.COLOR_KEYFRAME_HOVER;
+            } else {
+                kfCol = TimelineColors.COLOR_KEYFRAME;
+            }
 
             // 绘制垂直指示线（带阴影增强对比度）
             drawList.addLine(kx, y + 4, kx, y + TimelineRenderer.TRACK_HEIGHT - 4, TimelineColors.rgba(0, 0, 0, 100), 3.0f); // 阴影/轮廓
             drawList.addLine(kx, y + 4, kx, y + TimelineRenderer.TRACK_HEIGHT - 4, kfCol, 2.0f); // 主线
 
-            // 绘制关键帧点（带黑色描边，增强对比度）
-            float keyframeRadius = TimelineClipRenderer.KEYFRAME_RADIUS;
-            drawList.addCircleFilled(kx, centerY, keyframeRadius + 1.0f, TimelineColors.rgba(0, 0, 0, 180)); // 描边
-            drawList.addCircleFilled(kx, centerY, keyframeRadius, kfCol); // 填充
+            // 绘制关键帧形状（根据 KeyType）
+            float keyframeSize = TimelineClipRenderer.KEYFRAME_RADIUS;
+            if (isSelected) {
+                // 选中时稍微放大
+                keyframeSize *= 1.3f;
+            }
+            
+            // 绘制选中外圈
+            if (isSelected) {
+                drawList.addCircle(kx, centerY, keyframeSize + 2.0f, TimelineColors.COLOR_KEYFRAME_SELECTED_RING, 0, 2.0f);
+            }
+            
+            // 根据 KeyType 绘制不同形状
+            if (keyType != null) {
+                drawKeyframeShape(drawList, kx, centerY, keyframeSize, kfCol, keyType);
+            } else {
+                // 默认圆形（非 CameraKeyframe 或其他类型）
+                drawList.addCircleFilled(kx, centerY, keyframeSize + 1.0f, TimelineColors.rgba(0, 0, 0, 180)); // 描边
+                drawList.addCircleFilled(kx, centerY, keyframeSize, kfCol); // 填充
+            }
+        }
+    }
+
+    /**
+     * 根据 KeyType 绘制关键帧形状
+     * 
+     * @param drawList ImDrawList 实例
+     * @param x 中心 X 坐标
+     * @param y 中心 Y 坐标
+     * @param size 形状大小（半径或边长的一半）
+     * @param color 填充颜色
+     * @param keyType 关键帧类型
+     */
+    private void drawKeyframeShape(ImDrawList drawList, float x, float y, float size, int color, CameraKeyframe.KeyType keyType) {
+        int outlineColor = TimelineColors.rgba(0, 0, 0, 180);
+        float outlineWidth = 1.5f;
+        
+        switch (keyType) {
+            case STANDARD -> {
+                // 菱形（Diamond）：4个顶点
+                float[] diamondX = {x, x + size, x, x - size};
+                float[] diamondY = {y - size, y, y + size, y};
+                // 绘制描边
+                for (int i = 0; i < 4; i++) {
+                    int next = (i + 1) % 4;
+                    drawList.addLine(diamondX[i], diamondY[i], diamondX[next], diamondY[next], outlineColor, outlineWidth);
+                }
+                // 绘制填充（使用两个三角形）
+                drawList.addTriangleFilled(x, y - size, x + size, y, x, y + size, color);
+                drawList.addTriangleFilled(x, y - size, x - size, y, x, y + size, color);
+            }
+            case CORNER -> {
+                // 三角形（Triangle）：向上指向
+                drawList.addTriangleFilled(x, y - size, x - size, y + size, x + size, y + size, color);
+                // 绘制描边
+                drawList.addTriangle(x, y - size, x - size, y + size, x + size, y + size, outlineColor, outlineWidth);
+            }
+            case HOLD -> {
+                // 方形（Square）
+                float halfSize = size * 0.8f; // 稍微小一点，看起来更协调
+                drawList.addRectFilled(x - halfSize, y - halfSize, x + halfSize, y + halfSize, color);
+                drawList.addRect(x - halfSize, y - halfSize, x + halfSize, y + halfSize, outlineColor, 0.0f, 0, outlineWidth);
+            }
+            case SMOOTH -> {
+                // 圆形（Circle）
+                drawList.addCircleFilled(x, y, size + outlineWidth, outlineColor); // 描边
+                drawList.addCircleFilled(x, y, size, color); // 填充
+            }
+            case MANUAL_BEZIER -> {
+                // 六边形（Hexagon）：6个顶点
+                int numPoints = 6;
+                float[] hexX = new float[numPoints];
+                float[] hexY = new float[numPoints];
+                for (int i = 0; i < numPoints; i++) {
+                    float angle = (float) (Math.PI / 3.0 * i - Math.PI / 2.0); // 从顶部开始
+                    hexX[i] = x + size * (float) Math.cos(angle);
+                    hexY[i] = y + size * (float) Math.sin(angle);
+                }
+                // 绘制描边
+                for (int i = 0; i < numPoints; i++) {
+                    int next = (i + 1) % numPoints;
+                    drawList.addLine(hexX[i], hexY[i], hexX[next], hexY[next], outlineColor, outlineWidth);
+                }
+                // 绘制填充（使用多个三角形，从中心点）
+                for (int i = 0; i < numPoints; i++) {
+                    int next = (i + 1) % numPoints;
+                    drawList.addTriangleFilled(x, y, hexX[i], hexY[i], hexX[next], hexY[next], color);
+                }
+            }
         }
     }
 
