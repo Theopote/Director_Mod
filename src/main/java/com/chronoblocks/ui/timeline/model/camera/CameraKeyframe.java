@@ -44,6 +44,23 @@ public class CameraKeyframe implements TimelineSelectable {
         ALIGNED    // 进出柄对齐（方向一致，长度可同）
     }
 
+    /**
+     * 旋转插值类型：控制「旋转」曲线
+     * 
+     * - DEFAULT   : 跟随 SegmentPathType（Linear/Bezier/CatmullRom → 使用 Slerp；Step/Hold → Step）
+     * - LINEAR    : 使用 Quaternion Slerp
+     * - BEZIER    : 预留（目前也是 Slerp，将来可升级为 Squad）
+     * - CATMULL_ROM: 预留（目前也是 Slerp，将来可升级为 Squad）
+     * - STEP      : 旋转不插值（保持上一帧）
+     */
+    public enum RotationInterpolation {
+        DEFAULT,
+        LINEAR,
+        BEZIER,
+        CATMULL_ROM,
+        STEP
+    }
+
     private final UUID id;
     private String name;
     private float time;
@@ -54,6 +71,7 @@ public class CameraKeyframe implements TimelineSelectable {
     private float farPlane;
     private KeyType keyType = KeyType.STANDARD;
     private SegmentPathType segmentType = SegmentPathType.DEFAULT;
+    private RotationInterpolation rotationInterpolation = RotationInterpolation.DEFAULT;
     private Vector3f bezierInHandle = new Vector3f(0, 0, 0);
     private Vector3f bezierOutHandle = new Vector3f(0, 0, 0);
     private HandleMode handleMode = HandleMode.AUTO;
@@ -148,6 +166,14 @@ public class CameraKeyframe implements TimelineSelectable {
 
     public void setSegmentPathType(SegmentPathType segmentPathType) {
         setSegmentType(segmentPathType);
+    }
+
+    public RotationInterpolation getRotationInterpolation() {
+        return rotationInterpolation;
+    }
+
+    public void setRotationInterpolation(RotationInterpolation rotationInterpolation) {
+        this.rotationInterpolation = rotationInterpolation == null ? RotationInterpolation.DEFAULT : rotationInterpolation;
     }
 
     public Vector3f getBezierIn() {

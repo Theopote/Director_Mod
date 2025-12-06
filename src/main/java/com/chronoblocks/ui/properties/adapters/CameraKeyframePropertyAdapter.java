@@ -107,6 +107,32 @@ Hold → 意味着此段保持当前关键帧（类似 Step，但与 UI keyType 
             }
 
             ImGui.spacing();
+
+            // —— 旋转插值方式 ——
+            CameraKeyframe.RotationInterpolation rType = keyframe.getRotationInterpolation();
+            String[] rLabels = {
+                    "Default (跟随位置曲线)",
+                    "Linear (Slerp)",
+                    "Bezier (Slerp, 预留 Squad)",
+                    "Catmull-Rom (Slerp, 预留 Squad)",
+                    "Step (保持上一帧)"
+            };
+            imgui.type.ImInt rIndex = new imgui.type.ImInt(rType.ordinal());
+            if (ImGui.combo("旋转插值方式", rIndex, rLabels, rLabels.length)) {
+                keyframe.setRotationInterpolation(CameraKeyframe.RotationInterpolation.values()[rIndex.get()]);
+                modified.set(true);
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("""
+                        控制摄像机"旋转"的插值方式：
+                        Default → 由 Segment Path 推导（线性/样条/贝塞尔 → Slerp）
+                        Linear → 使用 Quaternion Slerp
+                        Bezier/Catmull-Rom → 当前版本仍为 Slerp，后续可升级为 Squad
+                        Step → 旋转不插值，保持上一关键帧视角
+                        """);
+            }
+
+            ImGui.spacing();
         }
 
         // ========== 位置与旋转 ==========

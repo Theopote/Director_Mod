@@ -151,10 +151,10 @@ public final class CameraPathDebugRenderer {
         List<BezierDebugSegment> bezierSegments = pathManager.getBezierSegmentsForDebug();
 
         // 如果既没有路径点也没有关键帧，则不渲染
-        if ((pathPoints == null || pathPoints.size() < 2) && (keyframes == null || keyframes.isEmpty())) {
-            LOGGER.debug("[CameraPathDebugRenderer] 没有可渲染的数据（路径点: {}, 关键帧: {}）", 
-                    pathPoints != null ? pathPoints.size() : 0, 
-                    keyframes != null ? keyframes.size() : 0);
+        if (pathPoints.size() < 2 && keyframes.isEmpty()) {
+            LOGGER.debug("[CameraPathDebugRenderer] 没有可渲染的数据（路径点: {}, 关键帧: {}）",
+                    pathPoints.size(),
+                    0);
             return;
         }
 
@@ -167,12 +167,12 @@ public final class CameraPathDebugRenderer {
         RenderSystem.lineWidth(LINE_WIDTH);
 
         // 1. 渲染轨迹线（整体路径）- 至少需要2个点才能画线
-        if (pathPoints != null && pathPoints.size() >= 2) {
+        if (pathPoints.size() >= 2) {
             renderPathLine(consumers, matrix, cameraPos, pathPoints);
         }
 
         // 2. 渲染关键帧点（小十字 + 朝向短线）- 即使只有一个关键帧也渲染
-        if (keyframes != null && !keyframes.isEmpty()) {
+        if (!keyframes.isEmpty()) {
             renderKeyframePoints(consumers, matrix, cameraPos, keyframes);
         }
 

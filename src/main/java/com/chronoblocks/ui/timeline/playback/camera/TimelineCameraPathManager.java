@@ -2,6 +2,7 @@ package com.chronoblocks.ui.timeline.playback.camera;
 
 import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
 import net.minecraft.util.math.Vec3d;
+import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -79,11 +80,6 @@ public final class TimelineCameraPathManager {
             return -1f;
         }
         return keyframes.getLast().getTime();
-    }
-
-    /** 调试用：返回当前关键帧快照（只读）。 */
-    public List<CameraKeyframe> getDebugKeyframes() {
-        return Collections.unmodifiableList(keyframes);
     }
 
     public CameraPathType getPathType() {
@@ -195,11 +191,7 @@ public final class TimelineCameraPathManager {
         Vec3d p1 = vec(k1.getPosition());
         Vec3d pos = lerp(p0, p1, t);
 
-        Vector3f r0 = k0.getRotation();
-        Vector3f r1 = k1.getRotation();
-        float pitch = lerpAngle(r0.x, r1.x, t);
-        float yaw   = lerpAngle(r0.y, r1.y, t);
-        float roll  = lerpAngle(r0.z, r1.z, t);
+        Vector3f rot = interpolateRotation(k0, k1, t, resolveRotationInterpolation(k0), null, null);
 
         float fov0 = safeFov(k0.getFov());
         float fov1 = safeFov(k1.getFov());
@@ -216,7 +208,7 @@ public final class TimelineCameraPathManager {
         float focus = lerpFloat(k0.getFocusDistance(), k1.getFocusDistance(), t);
         float aperture = lerpFloat(k0.getAperture(), k1.getAperture(), t);
 
-        return new CameraSample(pos, yaw, pitch, roll, fov, near, far, dofEnabled, focus, aperture);
+        return new CameraSample(pos, rot.y, rot.x, rot.z, fov, near, far, dofEnabled, focus, aperture);
     }
 
     /**
@@ -248,11 +240,8 @@ public final class TimelineCameraPathManager {
         Vec3d pos3 = vec(p3.getPosition());
         Vec3d pos = catmullRom(pos0, pos1, pos2, pos3, t);
 
-        Vector3f r1 = p1.getRotation();
-        Vector3f r2 = p2.getRotation();
-        float pitch = lerpAngle(r1.x, r2.x, t);
-        float yaw   = lerpAngle(r1.y, r2.y, t);
-        float roll  = lerpAngle(r1.z, r2.z, t);
+        // 旋转：目前仍用 Slerp，只是多参考 p0/p3，可在未来升级 Squad
+        Vector3f rot = interpolateRotation(p1, p2, t, resolveRotationInterpolation(p1), p0, p3);
 
         float fov1 = safeFov(p1.getFov());
         float fov2 = safeFov(p2.getFov());
@@ -290,7 +279,7 @@ public final class TimelineCameraPathManager {
                 t
         );
 
-        return new CameraSample(pos, yaw, pitch, roll, fov, near, far, dofEnabled, focus, aperture);
+        return new CameraSample(pos, rot.y, rot.x, rot.z, fov, near, far, dofEnabled, focus, aperture);
     }
 
     /**
@@ -320,12 +309,8 @@ public final class TimelineCameraPathManager {
 
         Vec3d pos = cubicBezier(P0, C1, C2, P3, t);
 
-        // 旋转 / FOV / DOF 一律线性插值（与 LINEAR 保持一致）
-        Vector3f r0 = p1.getRotation();
-        Vector3f r1 = p2.getRotation();
-        float pitch = lerpAngle(r0.x, r1.x, t);
-        float yaw   = lerpAngle(r0.y, r1.y, t);
-        float roll  = lerpAngle(r0.z, r1.z, t);
+        // 旋转插值（使用四元数）
+        Vector3f rot = interpolateRotation(p1, p2, t, resolveRotationInterpolation(p1), p0, p3);
 
         float fov0 = safeFov(p1.getFov());
         float fov1 = safeFov(p2.getFov());
@@ -342,7 +327,7 @@ public final class TimelineCameraPathManager {
         float focus = lerpFloat(p1.getFocusDistance(), p2.getFocusDistance(), t);
         float aperture = lerpFloat(p1.getAperture(), p2.getAperture(), t);
 
-        return new CameraSample(pos, yaw, pitch, roll, fov, near, far, dofEnabled, focus, aperture);
+        return new CameraSample(pos, rot.y, rot.x, rot.z, fov, near, far, dofEnabled, focus, aperture);
     }
 
     // ======================= 调试轨迹采样 =======================
@@ -438,6 +423,30 @@ public final class TimelineCameraPathManager {
         }
     }
 
+    private CameraKeyframe.RotationInterpolation safeRotType(CameraKeyframe k) {
+        try {
+            CameraKeyframe.RotationInterpolation t = k.getRotationInterpolation();
+            return t != null ? t : CameraKeyframe.RotationInterpolation.DEFAULT;
+        } catch (Throwable ignored) {
+            return CameraKeyframe.RotationInterpolation.DEFAULT;
+        }
+    }
+
+    private CameraKeyframe.RotationInterpolation resolveRotationInterpolation(CameraKeyframe k0) {
+        CameraKeyframe.RotationInterpolation t = safeRotType(k0);
+        if (t != CameraKeyframe.RotationInterpolation.DEFAULT) {
+            return t;
+        }
+        // 默认行为：跟随位置段类型
+        CameraPathType seg = resolveSegmentType(k0);
+        return switch (seg) {
+            case STEP -> CameraKeyframe.RotationInterpolation.STEP;
+            case LINEAR -> CameraKeyframe.RotationInterpolation.LINEAR;
+            case CATMULL_ROM -> CameraKeyframe.RotationInterpolation.CATMULL_ROM;
+            case BEZIER -> CameraKeyframe.RotationInterpolation.BEZIER;
+        };
+    }
+
     private Vec3d computeAutoOutHandle(CameraKeyframe prev, CameraKeyframe self, CameraKeyframe next) {
         Vec3d p0 = vec(prev.getPosition());
         Vec3d p1 = vec(self.getPosition());
@@ -527,6 +536,74 @@ public final class TimelineCameraPathManager {
         return degrees;
     }
 
+    // ============= 旋转插值（四元数核心） =============
+
+    /**
+     * 统一的旋转插值入口。
+     * 目前实现：
+     *  - STEP        → 保持 k0.rotation
+     *  - 其他（LINEAR/BEZIER/CATMULL_ROM）→ 使用 Quaternion Slerp(k0, k1)
+     *    （未来可根据 neighbors 升级为 Squad）
+     */
+    private Vector3f interpolateRotation(CameraKeyframe k0,
+                                         CameraKeyframe k1,
+                                         float t,
+                                         CameraKeyframe.RotationInterpolation mode,
+                                         CameraKeyframe neighborPrev,
+                                         CameraKeyframe neighborNext) {
+        t = clamp01(t);
+
+        if (mode == CameraKeyframe.RotationInterpolation.STEP) {
+            return new Vector3f(k0.getRotation());
+        }
+
+        // 当前版本：统一使用 Slerp(k0, k1)
+        Quaternionf q0 = eulerToQuat(k0.getRotation());
+        Quaternionf q1 = eulerToQuat(k1.getRotation());
+        Quaternionf q = new Quaternionf(q0).slerp(q1, t);
+
+        // 未来可以在此使用 neighbors 做 Squad 插值
+        // if (mode == RotationInterpolation.BEZIER || mode == RotationInterpolation.CATMULL_ROM) { ... }
+
+        return quatToEuler(q);
+    }
+
+    private Quaternionf eulerToQuat(Vector3f rotDeg) {
+        // rot.x = pitch, rot.y = yaw, rot.z = roll
+        float pitchRad = (float) Math.toRadians(rotDeg.x);
+        float yawRad   = (float) Math.toRadians(rotDeg.y);
+        float rollRad  = (float) Math.toRadians(rotDeg.z);
+
+        // 按 yaw(Y) → pitch(X) → roll(Z) 顺序
+        return new Quaternionf()
+                .rotateY(yawRad)
+                .rotateX(pitchRad)
+                .rotateZ(rollRad);
+    }
+
+    private Vector3f quatToEuler(Quaternionf q) {
+        // 将四元数转换为欧拉角（pitch, yaw, roll），按 YXZ 近似 Minecraft，用常用公式
+        // 参考常见 yaw-pitch-roll 转换
+        float ysqr = q.y * q.y;
+
+        // roll (Z)
+        float t0 = +2.0f * (q.w * q.z + q.x * q.y);
+        float t1 = +1.0f - 2.0f * (q.y * q.y + q.z * q.z);
+        float roll = (float) Math.toDegrees(Math.atan2(t0, t1));
+
+        // pitch (X)
+        float t2 = +2.0f * (q.w * q.x - q.z * q.y);
+        t2 = Math.max(-1.0f, Math.min(1.0f, t2));
+        float pitch = (float) Math.toDegrees(Math.asin(t2));
+
+        // yaw (Y)
+        float t3 = +2.0f * (q.w * q.y + q.z * q.x);
+        float t4 = +1.0f - 2.0f * (q.x * q.x + ysqr);
+        float yaw = (float) Math.toDegrees(Math.atan2(t3, t4));
+
+        return new Vector3f(pitch, yaw, roll);
+    }
+
     private float catmullRomFloat(float p0, float p1, float p2, float p3, float t) {
         t = clamp01(t);
         float t2 = t * t;
@@ -610,8 +687,8 @@ public final class TimelineCameraPathManager {
                 Vec3d in = vec(self.getBezierIn());
                 if (in.lengthSquared() > 1e-6) {
                     double len = manual.length();
-                    Vec3d dir = in.normalize().multiply(-len); // 方向相反，长度对齐
-                    manual = dir;
+                    // 方向相反，长度对齐
+                    manual = in.normalize().multiply(-len);
                 }
             }
             return manual;
