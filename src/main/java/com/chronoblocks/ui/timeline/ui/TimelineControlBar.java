@@ -5,6 +5,7 @@ import com.chronoblocks.ui.timeline.interaction.TimelineNavigationHandler;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineViewportState;
 import com.chronoblocks.ui.timeline.render.TimelineRenderer; // 引入 Renderer 获取常量
+import com.chronoblocks.client.renderer.CameraPathDebugRenderer;
 import com.chronoblocks.ui.theme.Icons;
 import com.chronoblocks.ui.theme.UITheme;
 import imgui.ImGui;
@@ -46,6 +47,9 @@ public class TimelineControlBar {
     private final TimelineViewportState viewportState;
     private final Callbacks callbacks;
     private final TimelineNavigationHandler navigationHandler;
+
+    // 是否显示相机轨迹（调试用）
+    private boolean showCameraPath = false;
 
     // ========== 性能优化：复用数据容器，避免每帧 GC ==========
     // 这些数组在构造函数中分配一次，在 render() 方法中复用
@@ -167,6 +171,16 @@ public class TimelineControlBar {
         ImGui.sameLine();
         if (ImGui.button(Icons.SKIP_FORWARD, 0, UITheme.Spacing.BUTTON_HEIGHT)) {
             model.jumpToEnd();
+        }
+        ImGui.sameLine();
+        // 轨迹调试开关
+        imgui.type.ImBoolean pathFlag = new imgui.type.ImBoolean(showCameraPath);
+        if (ImGui.checkbox(Icons.CAMERA + " 轨迹", pathFlag)) {
+            showCameraPath = pathFlag.get();
+            CameraPathDebugRenderer.getInstance().setEnabled(showCameraPath);
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("在世界中显示摄像机路径（仅调试用）");
         }
         ImGui.sameLine();
         

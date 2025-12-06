@@ -1,6 +1,7 @@
 package com.chronoblocks.ui.timeline.playback.camera;
 
 import com.chronoblocks.client.ChronoBlocksClientController;
+import com.chronoblocks.client.renderer.CameraPathDebugRenderer;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TrackType;
@@ -15,13 +16,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * TimelineCameraController v3.0（统一相机系统版）
- * <p>
+ * TimelineCameraController v4.0 - 对接 TimelineCameraPathManager v2.0 版
+ *
  * 职责：
- * - 从 TimelineModel 收集摄像机关键帧，并交给 CameraTrackSampler 插值
- * - 每帧根据 currentTime 采样 CameraSample，写入 CameraRuntime
- * - 根据播放 / 拖动 / 预览状态，切换 CameraRuntime 的 owner（PLAYER / TIMELINE）
- * - 捕捉关键帧时，从 CameraRuntime.currentSample 读取当前视角
+ *  - 从 TimelineModel 收集摄像机关键帧，交给 TimelineCameraPathManager 生成轨迹
+ *  - 根据播放 / 拖动 / 预览状态采样 CameraSample，写入 CameraRuntime
+ *  - 在需要时接管/释放相机控制权（CameraRuntime.Owner）
+ *  - 提供「从当前视角捕捉关键帧」等高级操作
  */
 public final class TimelineCameraController {
 
@@ -31,19 +32,22 @@ public final class TimelineCameraController {
     /** 时间线数据模型（由 TimelinePanel 注入） */
     private TimelineModel timelineModel;
 
-    /** 负责摄像机关键帧插值的采样器 */
-    private final CameraTrackSampler sampler = new CameraTrackSampler();
+    /** v2.0：摄像机轨迹管理器（替代旧的 CameraTrackSampler） */
+    private final TimelineCameraPathManager pathManager = new TimelineCameraPathManager();
 
-    /** 是否处于"单帧预览关键帧"的状态 */
+    /** 是否处于「单帧预览关键帧」的状态 */
     private boolean previewing = false;
     private float previewTimeSeconds = 0f;
-    
-    // ⭐ 修复：scrubbing 状态完全由 TimelineModel.isScrubbing() 管理，不再使用内部变量
+
+    // ⭐ scrubbing 状态完全由 TimelineModel.isScrubbing() 管理，不再使用内部变量
 
     /** 监听模型变更，自动刷新摄像机关键帧列表 */
     private TimelineModel.ModelChangeListener modelChangeListener;
 
-    private TimelineCameraController() {}
+    private TimelineCameraController() {
+        // 把 pathManager 交给调试渲染器，用同一套轨迹数据
+        CameraPathDebugRenderer.getInstance().setPathManager(pathManager);
+    }
 
     public static TimelineCameraController getInstance() {
         return INSTANCE;
@@ -66,14 +70,14 @@ public final class TimelineCameraController {
         if (model != null) {
             if (modelChangeListener == null) {
                 modelChangeListener = changeType -> {
-                    sampler.setKeyframes(collectCameraKeyframes());
+                    refreshCameraPath();
                     LOGGER.debug("[TimelineCameraController] 模型变更({})，刷新摄像机关键帧", changeType);
                 };
             }
             model.addModelChangeListener(modelChangeListener);
-            sampler.setKeyframes(collectCameraKeyframes());
+            refreshCameraPath();
         } else {
-            sampler.setKeyframes(new ArrayList<>());
+            pathManager.setKeyframes(new ArrayList<>());
         }
     }
 
@@ -82,9 +86,15 @@ public final class TimelineCameraController {
      */
     public void onKeyframeChanged() {
         if (timelineModel != null) {
-            sampler.setKeyframes(collectCameraKeyframes());
-            LOGGER.debug("[TimelineCameraController] onKeyframeChanged()，刷新采样器");
+            refreshCameraPath();
+            LOGGER.debug("[TimelineCameraController] onKeyframeChanged()，刷新路径管理器");
         }
+    }
+
+    /** 收集 Timeline 上所有 camera 关键帧并更新 pathManager + 标记脏缓存 */
+    private void refreshCameraPath() {
+        pathManager.setKeyframes(collectCameraKeyframes());
+        pathManager.markPathDirty();
     }
 
     // ================== 播放 / 拖动 / 预览 状态控制 ==================
@@ -92,22 +102,21 @@ public final class TimelineCameraController {
     /**
      * ⭐ UI 事件驱动：开始拖动播放头（scrubbing）
      * 由 TimelineInteractionHandler 在鼠标按下播放头时调用
-     * 
+     *
      * <p>注意：scrubbing 状态由 TimelineModel.setScrubbing(true) 设置，这里只负责摄像机采样
-     * <p>⭐ 关键修复：即使没有关键帧，也要设置 owner = TIMELINE，确保 scrubbing 状态正确
+     * <p>⭐ 关键点：即使没有关键帧，也会在 updateOwnerAndSample 中正确切 owner
      */
     public void beginScrubbing(float timeSeconds) {
         this.previewing = false;
-        
-        sampler.setKeyframes(collectCameraKeyframes());
-        sampler.sample(timeSeconds).ifPresent(CameraRuntime.getInstance()::applyTimelineSample);
+        refreshCameraPath();
+        pathManager.sample(timeSeconds).ifPresent(CameraRuntime.getInstance()::applyTimelineSample);
         LOGGER.debug("[TimelineCameraController] 开始 scrubbing @ {}s", String.format("%.2f", timeSeconds));
     }
 
     /**
      * ⭐ UI 事件驱动：更新拖动播放头位置
      * 由 TimelineInteractionHandler 在鼠标拖动时调用
-     * 
+     *
      * <p>注意：scrubbing 状态由 TimelineModel.isScrubbing() 检查
      * <p>⭐ 关键修复：只更新 sample，不重复设置 owner（owner 已在 beginScrubbing 时设置）
      */
@@ -117,13 +126,12 @@ public final class TimelineCameraController {
             // 如果不在 scrubbing 状态，忽略更新
             return;
         }
-        
-        sampler.setKeyframes(collectCameraKeyframes());
-        if (!sampler.isEmpty()) {
-            CameraSample sample = sampler.sample(timeSeconds).orElse(null);
+
+        refreshCameraPath();
+        if (!pathManager.isEmpty()) {
+            CameraSample sample = pathManager.sample(timeSeconds).orElse(null);
             if (sample != null) {
                 // ⭐ 关键修复：只更新 sample，不重复设置 owner
-                // owner 已在 beginScrubbing() 时设置为 TIMELINE，这里不需要重复设置
                 CameraRuntime.getInstance().applyTimelineSample(sample);
             } else {
                 LOGGER.debug("[TimelineCameraController] updateScrubbing @ {}s: 采样失败", String.format("%.2f", timeSeconds));
@@ -153,12 +161,12 @@ public final class TimelineCameraController {
     /**
      * ⭐ UI 事件驱动：开始播放
      * 由 TimelineModel.setPlaying(true) 通过 startPlayback() 调用
-     * 
-     * <p>⭐ 关键修复：在事件发生时设置 owner，而不是在 update() 中每帧设置
+     *
+     * <p>⭐ 关键修复：在事件发生时更新轨迹，而不是在 update() 中每帧 setKeyframes
      */
     public void startPlayback() {
         this.previewing = false;
-        sampler.setKeyframes(collectCameraKeyframes());
+        refreshCameraPath();
         LOGGER.debug("[TimelineCameraController] 开始播放");
     }
 
@@ -207,22 +215,31 @@ public final class TimelineCameraController {
         LOGGER.debug("[TimelineCameraController] UI 关闭，释放摄像机控制权");
     }
 
+    /**
+     * 调试用：返回当前时间线时间（秒）。若模型为空则返回 0。
+     */
+    public float getCurrentTimeSeconds() {
+        if (timelineModel == null) {
+            return 0f;
+        }
+        return timelineModel.getCurrentTime();
+    }
+
     // ================== 每帧更新（由 TimelinePanel 调用） ==================
 
     /**
-     * TimelinePanel 每帧调用：根据播放/拖动状态切换 owner 并采样。
+     * TimelinePanel 每帧调用：根据播放/拖动/预览状态切换 owner 并采样。
      */
     public void updateOwnerAndSample(float deltaSeconds) {
         if (timelineModel == null) {
             return;
         }
 
-        sampler.setKeyframes(collectCameraKeyframes());
-
-        CameraRuntime runtime = CameraRuntime.getInstance();
+        // 先判断当前应该由谁控制相机：玩家 or 时间线
         boolean playing = timelineModel.isPlaying();
         boolean scrubbing = timelineModel.isScrubbing();
         boolean previewActive = previewing && !playing && !scrubbing;
+        CameraRuntime runtime = CameraRuntime.getInstance();
         boolean shouldTimeline = playing || scrubbing || previewActive;
 
         if (shouldTimeline && !runtime.isTimelineOwner()) {
@@ -238,17 +255,20 @@ public final class TimelineCameraController {
             LOGGER.debug("[CameraController] 恢复玩家控制");
         }
 
+        // 时间线模式：根据当前时间采样相机
         if (runtime.isTimelineOwner()) {
+            refreshCameraPath();
             float time = playing || scrubbing ? timelineModel.getCurrentTime() : previewTimeSeconds;
-            float lastKey = sampler.getLastKeyTime();
+            float lastKey = pathManager.getLastKeyTime();
 
             // 超出最后关键帧：保持最后帧的镜头，但继续播放其他轨道，owner 不切回玩家
             if (lastKey >= 0f && time > lastKey + 1e-4f) {
-                sampler.sample(lastKey).ifPresent(runtime::applyTimelineSample);
+                pathManager.sample(lastKey).ifPresent(runtime::applyTimelineSample);
             } else {
-                sampler.sample(time).ifPresent(runtime::applyTimelineSample);
+                pathManager.sample(time).ifPresent(runtime::applyTimelineSample);
             }
         } else {
+            // 玩家模式：从游戏摄像机采样，喂给 CameraRuntime 以便 UI / 捕捉使用
             updateFromGameCamera();
             runtime.tickPlayerLerp(deltaSeconds);
         }
@@ -283,10 +303,10 @@ public final class TimelineCameraController {
         this.previewing = true;
         this.previewTimeSeconds = timeSeconds;
 
-        sampler.setKeyframes(collectCameraKeyframes());
+        refreshCameraPath();
         CameraRuntime runtime = CameraRuntime.getInstance();
-        
-        if (sampler.isEmpty()) {
+
+        if (pathManager.isEmpty()) {
             // ⭐ 修复：只在确实需要切换时才切换
             if (runtime.getOwner() == CameraRuntime.Owner.TIMELINE) {
                 runtime.setOwner(CameraRuntime.Owner.PLAYER);
@@ -294,7 +314,7 @@ public final class TimelineCameraController {
             return;
         }
 
-        CameraSample sample = sampler.sample(timeSeconds).orElse(null);
+        CameraSample sample = pathManager.sample(timeSeconds).orElse(null);
         if (sample == null) {
             // ⭐ 修复：只在确实需要切换时才切换
             if (runtime.getOwner() == CameraRuntime.Owner.TIMELINE) {
@@ -313,9 +333,8 @@ public final class TimelineCameraController {
      */
     public void jumpToTimeAsPlayer(float timeSeconds) {
         this.previewing = false;
-
-        sampler.setKeyframes(collectCameraKeyframes());
-        CameraSample sample = sampler.sample(timeSeconds).orElse(null);
+        refreshCameraPath();
+        CameraSample sample = pathManager.sample(timeSeconds).orElse(null);
         if (sample == null) {
             return;
         }
@@ -331,22 +350,20 @@ public final class TimelineCameraController {
     // ================== 关键帧捕捉 ==================
 
     /**
-     * 捕捉关键帧：从"当前相机状态"采样。
-     * <p>
+     * 捕捉关键帧：从「当前相机状态」采样。
+     *
      * ⭐ 关键修复：确保设置关键帧时：
      * 1. owner 是 PLAYER，玩家可以继续移动摄像机设置下一个关键帧
      * 2. 立即从游戏摄像机读取，而不是等待下一帧更新 CameraRuntime
      * 3. 捕获的参数与播放时一致（使用同一套插值算法）
-     * 
-     * <p>工作流程（参考专业动画软件如 Blender、After Effects）：
-     * <ul>
-     *   <li>如果当前 owner 是 TIMELINE（预览/播放状态），先切回 PLAYER</li>
-     *   <li>立即从游戏摄像机直接采样（不等待 CameraMixin 更新）</li>
-     *   <li>如果 owner 已经是 PLAYER，也从游戏摄像机直接采样（确保是最新状态）</li>
-     *   <li>将采样结果同步到 CameraRuntime，然后设置关键帧属性</li>
-     * </ul>
-     * 
-     * <p>关键原则：
+     *
+     * 工作流程（参考专业动画软件如 Blender、After Effects）：
+     *  - 如果当前 owner 是 TIMELINE（预览/播放状态），先切回 PLAYER
+     *  - 立即从游戏摄像机直接采样（不等待 CameraMixin 更新）
+     *  - 如果 owner 已经是 PLAYER，也从游戏摄像机直接采样（确保是最新状态）
+     *  - 将采样结果同步到 CameraRuntime，然后设置关键帧属性
+     *
+     * 关键原则：
      * - 设置关键帧时：从游戏摄像机直接读取（玩家当前视角）
      * - 播放关键帧时：从关键帧插值得到 sample（时间线视角）
      * - 两者使用同一套数据源（CameraRuntime.currentSample）和插值算法

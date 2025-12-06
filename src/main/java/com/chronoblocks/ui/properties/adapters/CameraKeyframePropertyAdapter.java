@@ -13,7 +13,14 @@ import org.joml.Vector3f;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * 摄像机关键帧属性适配器。
+ * CameraKeyframePropertyAdapter v2.0
+ *
+ * 负责在属性面板中渲染 & 编辑摄像机关键帧的所有可调参数，包括：
+ *   - 时间、位置、旋转、FOV、DOF……
+ *   - KeyType（影响关键帧 UI + 曲线行为）
+ *   - SegmentPathType（从此关键帧 → 下一个关键帧的曲线模式）
+ *   - Bezier 控制柄
+ *
  * 优化版本：减少内存分配、添加工具提示、重置按钮、输入验证，提升用户体验和性能。
  */
 public class CameraKeyframePropertyAdapter implements IPropertyAdapter<CameraKeyframe> {
@@ -48,18 +55,56 @@ public class CameraKeyframePropertyAdapter implements IPropertyAdapter<CameraKey
         // ========== 基础信息 ==========
         if (ImGui.collapsingHeader("📋 基础信息", ImGuiTreeNodeFlags.DefaultOpen)) {
             timeFloat.set(keyframe.getTime());
-            if (ImGui.dragFloat("时间", timeFloat.getData(), 0.05f, 0.0f, 10_000f, "%.2fs")) {
+            if (ImGui.dragFloat("时间 (秒)", timeFloat.getData(), 0.02f, 0.0f, 10_000f, "%.2f")) {
                 keyframe.setTime(timeFloat.get());
                 modified.set(true);
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("关键帧在时间线上的位置 (秒)");
+                ImGui.setTooltip("关键帧在时间线中的位置");
             }
             addResetButton(() -> {
                 timeFloat.set(0.0f);
                 keyframe.setTime(0.0f);
                 modified.set(true);
             }, "重置时间");
+
+            ImGui.spacing();
+
+            // ⭐ 新增：关键帧类型
+            CameraKeyframe.KeyType currentType = keyframe.getKeyType();
+            String[] typeLabels = {"Standard", "Corner", "Hold", "Smooth", "Manual Bezier"};
+            imgui.type.ImInt typeIdx = new imgui.type.ImInt(currentType.ordinal());
+            if (ImGui.combo("关键帧类型 KeyType", typeIdx, typeLabels, typeLabels.length)) {
+                CameraKeyframe.KeyType newType = CameraKeyframe.KeyType.values()[typeIdx.get()];
+                keyframe.setKeyType(newType);
+                modified.set(true);
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("不同类型会显示不同关键帧图形并影响曲线插值逻辑");
+            }
+
+            ImGui.spacing();
+
+            // 段轨迹类型（出段）
+            CameraKeyframe.SegmentPathType segType = keyframe.getSegmentPathType();
+            String[] segLabels = {"Default", "Linear", "Catmull-Rom", "Bezier", "Step", "Hold"};
+            imgui.type.ImInt segIdx = new imgui.type.ImInt(segType.ordinal());
+            if (ImGui.combo("从此关键帧到下一关键帧的曲线", segIdx, segLabels, segLabels.length)) {
+                CameraKeyframe.SegmentPathType newType = CameraKeyframe.SegmentPathType.values()[segIdx.get()];
+                keyframe.setSegmentPathType(newType);
+                modified.set(true);
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("""
+Segment Path Type：
+Default → 使用轨道默认轨迹类型（TimelineCameraPathManager）
+Linear → 直线插值
+Catmull-Rom → 自然平滑样条
+Bezier → 贝塞尔曲线（可用控制柄）
+Step → 使用当前关键帧值，不进行插值
+Hold → 意味着此段保持当前关键帧（类似 Step，但与 UI keyType 更一致）
+""");
+            }
 
             ImGui.spacing();
         }
@@ -79,19 +124,63 @@ public class CameraKeyframePropertyAdapter implements IPropertyAdapter<CameraKey
 
             ImGui.spacing();
 
-            modified.set(modified.get() | renderVector3("位置 (XYZ)", keyframe.getPosition(), keyframe::setPosition, 0.1f, null, "世界坐标中的摄像机位置"));
+            modified.set(modified.get() | renderVector3("位置 Position", keyframe.getPosition(), keyframe::setPosition, 0.05f, null, "世界坐标中的摄像机位置"));
 
             ImGui.spacing();
 
-            modified.set(modified.get() | renderVector3("旋转 (偏航/俯仰/翻滚)", keyframe.getRotation(), keyframe::setRotation, 1.0f, new float[]{-180f, 180f}, "摄像机的欧拉角旋转 (度)"));
+            modified.set(modified.get() | renderVector3("旋转 Pitch/Yaw/Roll", keyframe.getRotation(), keyframe::setRotation, 0.1f, null, "摄像机的欧拉角旋转 (度)"));
 
             ImGui.spacing();
+        }
+
+        // ========== 贝塞尔控制柄（仅在 Bezier 或手动 Bezier 类型时显示） ==========
+        boolean showHandles = keyframe.getSegmentPathType() == CameraKeyframe.SegmentPathType.BEZIER
+                || keyframe.getKeyType() == CameraKeyframe.KeyType.MANUAL_BEZIER;
+        if (showHandles && ImGui.collapsingHeader("🎛 贝塞尔控制柄 (Bezier Handles)", ImGuiTreeNodeFlags.DefaultOpen)) {
+            Vector3f in = keyframe.getBezierInHandle();
+            Vector3f out = keyframe.getBezierOutHandle();
+            float[] inArr = {in.x, in.y, in.z};
+            float[] outArr = {out.x, out.y, out.z};
+
+            // 手柄模式
+            CameraKeyframe.HandleMode mode = keyframe.getHandleMode();
+            String[] modeLabels = {"自动", "自由", "对齐"};
+            imgui.type.ImInt modeIdx = new imgui.type.ImInt(mode.ordinal());
+            if (ImGui.combo("手柄模式", modeIdx, modeLabels, modeLabels.length)) {
+                keyframe.setHandleMode(CameraKeyframe.HandleMode.values()[modeIdx.get()]);
+                modified.set(true);
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("AUTO: 自动平滑；FREE: 独立控制；ALIGNED: 进出柄对齐方向");
+            }
+
+            ImGui.spacing();
+
+            if (ImGui.dragFloat3("进入控制柄 (In)", inArr, 0.05f)) {
+                keyframe.setBezierInHandle(new Vector3f(inArr[0], inArr[1], inArr[2]));
+                modified.set(true);
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("进入方向控制柄（相对坐标；全部为 0 则自动生成）");
+            }
+
+            if (ImGui.dragFloat3("离开控制柄 (Out)", outArr, 0.05f)) {
+                keyframe.setBezierOutHandle(new Vector3f(outArr[0], outArr[1], outArr[2]));
+                modified.set(true);
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("离开方向控制柄（相对坐标；全部为 0 则自动生成）");
+            }
+
+            ImGui.spacing();
+            ImGui.text("提示：控制柄为相对坐标（相对于关键帧本身的位置）");
+            ImGui.text("若为 (0,0,0)，则 TimelineCameraPathManager 会使用自动生成的控制柄");
         }
 
         // ========== 投影参数 ==========
         if (ImGui.collapsingHeader("🎥 投影参数", ImGuiTreeNodeFlags.DefaultOpen)) {
             fovFloat.set(keyframe.getFov());
-            if (ImGui.dragFloat("视野 (FOV)", fovFloat.getData(), 0.5f, 10.0f, 150.0f, "%.1f°")) {
+            if (ImGui.dragFloat("视野 FOV", fovFloat.getData(), 0.1f, 1.0f, 180.0f, "%.1f°")) {
                 keyframe.setFov(fovFloat.get());
                 modified.set(true);
             }
@@ -107,7 +196,7 @@ public class CameraKeyframePropertyAdapter implements IPropertyAdapter<CameraKey
             ImGui.spacing();
 
             nearFloat.set(keyframe.getNearPlane());
-            if (ImGui.dragFloat("近裁剪面", nearFloat.getData(), 0.01f, 0.01f, 100f, "%.2f")) {
+            if (ImGui.dragFloat("Near 平面", nearFloat.getData(), 0.001f, 0.001f, 10.0f, "%.3f")) {
                 keyframe.setNearPlane(nearFloat.get());
                 modified.set(true);
             }
@@ -121,7 +210,7 @@ public class CameraKeyframePropertyAdapter implements IPropertyAdapter<CameraKey
             }, "重置近面");
 
             farFloat.set(keyframe.getFarPlane());
-            if (ImGui.dragFloat("远裁剪面", farFloat.getData(), 1.0f, 1.0f, 10000f, "%.1f")) {
+            if (ImGui.dragFloat("Far 平面", farFloat.getData(), 0.1f, 1.0f, 10000.0f, "%.1f")) {
                 keyframe.setFarPlane(farFloat.get());
                 modified.set(true);
             }
@@ -157,7 +246,7 @@ public class CameraKeyframePropertyAdapter implements IPropertyAdapter<CameraKey
                 ImGui.indent();
 
                 focusFloat.set(keyframe.getFocusDistance());
-                if (ImGui.dragFloat("焦距", focusFloat.getData(), 0.5f, 0.1f, 1000.0f, "%.1f")) {
+                if (ImGui.dragFloat("焦距 Focus", focusFloat.getData(), 0.05f, 0.0f, 2000.0f, "%.2f")) {
                     keyframe.setFocusDistance(focusFloat.get());
                     modified.set(true);
                 }
@@ -166,7 +255,7 @@ public class CameraKeyframePropertyAdapter implements IPropertyAdapter<CameraKey
                 }
 
                 apertureFloat.set(keyframe.getAperture());
-                if (ImGui.dragFloat("光圈 (f-stop)", apertureFloat.getData(), 0.1f, 1.4f, 22.0f, "%.1f")) {
+                if (ImGui.dragFloat("光圈 Aperture", apertureFloat.getData(), 0.01f, 0.01f, 10.0f, "%.2f")) {
                     keyframe.setAperture(apertureFloat.get());
                     modified.set(true);
                 }
@@ -176,6 +265,16 @@ public class CameraKeyframePropertyAdapter implements IPropertyAdapter<CameraKey
 
                 ImGui.unindent();
             }
+        }
+
+        // ==============================================
+        // 修改触发 Timeline 刷新
+        // ==============================================
+        if (modified.get()) {
+            // 通知 TimelineCameraController 刷新路径管理器
+            com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController
+                    .getInstance()
+                    .onKeyframeChanged();
         }
 
         return modified.get();

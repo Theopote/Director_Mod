@@ -21,7 +21,29 @@ import java.util.UUID;
  * @version 1.0
  */
 public class CameraKeyframe implements TimelineSelectable {
-    
+    public enum KeyType {
+        STANDARD,   // 菱形
+        CORNER,     // 三角形（转折）
+        HOLD,       // 方形（停顿/保持）
+        SMOOTH,     // 圆形（自动平滑）
+        MANUAL_BEZIER // 六边形（手动贝塞尔）
+    }
+
+    public enum SegmentPathType {
+        DEFAULT,      // 使用全局路径类型
+        LINEAR,
+        CATMULL_ROM,
+        BEZIER,
+        STEP,
+        HOLD          // 等价 STEP（保持）
+    }
+
+    public enum HandleMode {
+        AUTO,      // 自动平滑
+        FREE,      // 独立自由控制
+        ALIGNED    // 进出柄对齐（方向一致，长度可同）
+    }
+
     private final UUID id;
     private String name;
     private float time;
@@ -30,6 +52,11 @@ public class CameraKeyframe implements TimelineSelectable {
     private float fov;
     private float nearPlane;
     private float farPlane;
+    private KeyType keyType = KeyType.STANDARD;
+    private SegmentPathType segmentType = SegmentPathType.DEFAULT;
+    private Vector3f bezierInHandle = new Vector3f(0, 0, 0);
+    private Vector3f bezierOutHandle = new Vector3f(0, 0, 0);
+    private HandleMode handleMode = HandleMode.AUTO;
     
     // 摄像机特效
     private boolean depthOfFieldEnabled;
@@ -97,6 +124,84 @@ public class CameraKeyframe implements TimelineSelectable {
     
     public float getFarPlane() { return farPlane; }
     public void setFarPlane(float farPlane) { this.farPlane = farPlane; }
+
+    public KeyType getKeyType() {
+        return keyType;
+    }
+
+    public void setKeyType(KeyType keyType) {
+        this.keyType = keyType == null ? KeyType.STANDARD : keyType;
+    }
+
+    public SegmentPathType getSegmentType() {
+        return segmentType;
+    }
+
+    public void setSegmentType(SegmentPathType segmentType) {
+        this.segmentType = segmentType == null ? SegmentPathType.DEFAULT : segmentType;
+    }
+
+    // === v2.0 兼容别名 ===
+    public SegmentPathType getSegmentPathType() {
+        return getSegmentType();
+    }
+
+    public void setSegmentPathType(SegmentPathType segmentPathType) {
+        setSegmentType(segmentPathType);
+    }
+
+    public Vector3f getBezierIn() {
+        return bezierInHandle;
+    }
+
+    public Vector3f getBezierOut() {
+        return bezierOutHandle;
+    }
+
+    public Vector3f getBezierInHandle() {
+        return bezierInHandle;
+    }
+
+    public Vector3f getBezierOutHandle() {
+        return bezierOutHandle;
+    }
+
+    public void setBezierIn(Vector3f v) {
+        if (v != null) {
+            this.bezierInHandle = new Vector3f(v);
+        }
+    }
+
+    public void setBezierOut(Vector3f v) {
+        if (v != null) {
+            this.bezierOutHandle = new Vector3f(v);
+        }
+    }
+
+    public void setBezierInHandle(Vector3f v) {
+        setBezierIn(v);
+    }
+
+    public void setBezierOutHandle(Vector3f v) {
+        setBezierOut(v);
+    }
+
+    public HandleMode getHandleMode() {
+        return handleMode;
+    }
+
+    public void setHandleMode(HandleMode mode) {
+        this.handleMode = mode == null ? HandleMode.AUTO : mode;
+    }
+
+    // === v2.0 辅助判断 ===
+    public boolean isManualBezier() {
+        return keyType == KeyType.MANUAL_BEZIER || segmentType == SegmentPathType.BEZIER;
+    }
+
+    public boolean hasControlHandles() {
+        return bezierInHandle.lengthSquared() > 1e-6f || bezierOutHandle.lengthSquared() > 1e-6f;
+    }
     
     public boolean isDepthOfFieldEnabled() { return depthOfFieldEnabled; }
     public void setDepthOfFieldEnabled(boolean enabled) { this.depthOfFieldEnabled = enabled; }

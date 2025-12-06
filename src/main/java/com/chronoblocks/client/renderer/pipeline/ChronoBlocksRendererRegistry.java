@@ -3,6 +3,7 @@ package com.chronoblocks.client.renderer.pipeline;
 import com.chronoblocks.client.ChronoBlocksClientController;
 import com.chronoblocks.client.gizmo.GizmoRenderEvents;
 import com.chronoblocks.client.renderer.BlockVisualOverlayRenderer;
+import com.chronoblocks.client.renderer.CameraPathDebugRenderer;
 import com.chronoblocks.client.renderer.ContainerHighlightRenderer;
 import com.chronoblocks.client.renderer.HoverHighlightRenderer;
 import com.chronoblocks.client.renderer.InteractionHintRenderer;
@@ -213,7 +214,10 @@ public final class ChronoBlocksRendererRegistry {
                     RendererStage.GIZMO.getOrder());
             }
 
-            // DEBUG_OVERLAY 阶段已移除（ContainerRenderer 已删除）
+            // 摄像机轨迹调试渲染（使用 DEBUG_OVERLAY 阶段）
+            registerRenderer(RendererStage.DEBUG_OVERLAY, "CameraPathDebug",
+                    ctx -> CameraPathDebugRenderer.getInstance().render(ctx),
+                    RendererStage.DEBUG_OVERLAY.getOrder());
 
             LOGGER.info("[RendererRegistry] ✅ 默认渲染器注册完成");
         } catch (Exception e) {
