@@ -646,11 +646,11 @@ public class TimelinePanel extends AbstractPanel
         // 8.5) 更新菜单状态（检查是否已关闭）
         interactionHandler.updateMenuState();
         
-        // 8.6) 在子窗口内画活动的上下文菜单（必须在 endChild 之前）
-        // 注意：ImGui popup 必须在调用 openPopup 的同一窗口上下文中渲染
-        TimelineContextMenu menu = interactionHandler.getActiveContextMenu();
-        if (menu != null) {
-            menu.render();
+        // 8.6) ⭐⭐ 渲染活动的上下文菜单（必须在 endChild 之前）
+        // ⚠️ 重要：只渲染一次，不要重复渲染！
+        TimelineContextMenu activeMenu = interactionHandler.getActiveContextMenu();
+        if (activeMenu != null) {
+            activeMenu.render();
         }
 
         ImGui.endChild();

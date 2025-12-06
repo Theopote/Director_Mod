@@ -69,7 +69,33 @@ public class TimelineContextMenuFactory {
         return switch (hit.type()) {
             case TRACK_HEADER -> createTrackHeaderMenu(hit.track(), hit.trackIndex());
             case CLIP -> createClipMenu(hit.clip(), hit.track() != null ? hit.track() : model.findTrackForClip(hit.clip()));
-            case KEYFRAME -> createKeyframeMenu(hit.clip(), hit.time());
+            // ⭐⭐ 修复 B、D：优先处理 KEYFRAME，使用 ClipKeyframe 对象
+            case KEYFRAME -> {
+                com.chronoblocks.ui.timeline.model.clip.ClipKeyframe clipKeyframe = hit.clipKeyframe();
+                if (clipKeyframe != null) {
+                    yield createClipKeyframeMenu(clipKeyframe, hit.clip(), hit.track());
+                }
+                // 回退：如果没有 ClipKeyframe 对象，尝试通过时间查找
+                TimelineClip clip = hit.clip();
+                TimelineTrack track = hit.track() != null ? hit.track() : model.findTrackForClip(clip);
+                if (clip != null) {
+                    final float EPS = 0.001f;
+                    com.chronoblocks.ui.timeline.model.clip.ClipKeyframe kf = clip.findKeyframeAt(hit.time(), EPS);
+                    if (kf != null) {
+                        yield createClipKeyframeMenu(kf, clip, track);
+                    }
+                    // 如果仍然找不到，返回错误菜单
+                    yield TimelineContextMenuBuilder
+                            .forKeyframe(commandHistory)
+                            .disabledItem(String.format("关键帧 @ %.3fs (未找到对象)", hit.time()))
+                            .build();
+                }
+                // 如果 clip 也为 null，返回空菜单
+                yield TimelineContextMenuBuilder
+                        .forKeyframe(commandHistory)
+                        .disabledItem("无关键帧")
+                        .build();
+            }
             case AUTOMATION_KEYFRAME -> createAutomationKeyframeMenu(hit.automationKeyframe(), hit.track());
             case EMPTY -> createEmptyAreaMenu(hit.time());
             default -> null;
@@ -114,12 +140,95 @@ public class TimelineContextMenuFactory {
                 null,
                 containerId != null);
 
-        return builder.open();
+        return builder.build();  // ⭐⭐ 修复：使用 build() 而不是 open()，由 openContextMenuForHit 统一打开
     }
 
     // =========================================================
     // Keyframe 菜单
     // =========================================================
+    
+    /**
+     * ⭐⭐ 修复 D：创建 ClipKeyframe 菜单（使用对象而不是时间）
+     * 
+     * @param clipKeyframe ClipKeyframe 对象（不能为 null）
+     * @param clip 片段
+     * @param track 轨道
+     * @return 上下文菜单
+     */
+    public TimelineContextMenu createClipKeyframeMenu(
+            com.chronoblocks.ui.timeline.model.clip.ClipKeyframe clipKeyframe,
+            TimelineClip clip,
+            TimelineTrack track) {
+        if (clipKeyframe == null || clip == null) {
+            LOGGER.warn("[Timeline] 创建 ClipKeyframe 菜单失败：clipKeyframe 或 clip 为 null");
+            return TimelineContextMenuBuilder
+                    .forKeyframe(commandHistory)
+                    .disabledItem("无关键帧")
+                    .build();
+        }
+        
+        if (track == null) {
+            track = model.findTrackForClip(clip);
+        }
+        
+        if (track == null) {
+            LOGGER.warn("[Timeline] 创建 ClipKeyframe 菜单失败：track 为 null");
+            return TimelineContextMenuBuilder
+                    .forKeyframe(commandHistory)
+                    .disabledItem("无轨道")
+                    .build();
+        }
+
+        TimelineInterpolation interp = clipKeyframe.getInterpolation();
+
+        return TimelineContextMenuBuilder
+                .forKeyframe(commandHistory)
+                .disabledItem(String.format("关键帧 @ %.3fs", clipKeyframe.getTime()))
+                .separator()
+                // 删除关键帧
+                .command("删除关键帧",
+                        new com.chronoblocks.ui.timeline.commands.RemoveClipKeyframeCommand(model, track, clip, clipKeyframe),
+                        "Del")
+                .separator()
+                // 跳转到此关键帧
+                .item("跳转到此时间", () -> {
+                    model.setCurrentTime(clipKeyframe.getTime());
+                    com.chronoblocks.ui.timeline.playback.TimelineClipBlockController
+                            .getInstance()
+                            .update();
+                })
+                .separator()
+                // 插值方式子菜单
+                .submenu("插值方式")
+                    .command(
+                        (interp == TimelineInterpolation.LINEAR ? "✓ " : "") + "线性（匀速）",
+                        new com.chronoblocks.ui.timeline.commands.ChangeClipKeyframeInterpolationCommand(
+                            model, track, clip, clipKeyframe, TimelineInterpolation.LINEAR
+                        ))
+                    .command(
+                        (interp == TimelineInterpolation.SMOOTH ? "✓ " : "") + "平滑（缓入缓出）",
+                        new com.chronoblocks.ui.timeline.commands.ChangeClipKeyframeInterpolationCommand(
+                            model, track, clip, clipKeyframe, TimelineInterpolation.SMOOTH
+                        ))
+                    .command(
+                        (interp == TimelineInterpolation.STEP ? "✓ " : "") + "阶梯（保持再跳变）",
+                        new com.chronoblocks.ui.timeline.commands.ChangeClipKeyframeInterpolationCommand(
+                            model, track, clip, clipKeyframe, TimelineInterpolation.STEP
+                        ))
+                .end()
+                .separator()
+                // 重置插值
+                .command("重置插值为线性",
+                        new com.chronoblocks.ui.timeline.commands.ChangeClipKeyframeInterpolationCommand(
+                            model, track, clip, clipKeyframe, TimelineInterpolation.LINEAR
+                        ))
+                .build();  // ⭐⭐ 修复：使用 build() 而不是 open()，由 openContextMenuForHit 统一打开
+    }
+    
+    /**
+     * @deprecated 使用 createClipKeyframeMenu(ClipKeyframe, Clip, Track) 代替
+     */
+    @Deprecated
     public TimelineContextMenu createKeyframeMenu(TimelineClip clip, float keyframeTime) {
         TimelineTrack track = model.findTrackForClip(clip);
         if (track == null || clip == null) {
@@ -143,50 +252,8 @@ public class TimelineContextMenuFactory {
                     .build();
         }
 
-        TimelineInterpolation interp = kf.getInterpolation();
-
-        return TimelineContextMenuBuilder
-                .forKeyframe(commandHistory)
-                .disabledItem(String.format("关键帧 @ %.3fs", kf.getTime()))
-                .separator()
-                // 删除关键帧
-                .command("删除关键帧",
-                        new com.chronoblocks.ui.timeline.commands.RemoveClipKeyframeCommand(model, track, clip, kf),
-                        "Del")
-                .separator()
-                // 跳转到此关键帧（类似 Premiere / AE 的 "Reveal" / "Go To")
-                .item("跳转到此时间", () -> {
-                    model.setCurrentTime(kf.getTime());
-                    com.chronoblocks.ui.timeline.playback.TimelineClipBlockController
-                            .getInstance()
-                            .update();
-                })
-                .separator()
-                // 插值方式子菜单
-                .submenu("插值方式")
-                    .command(
-                        (interp == TimelineInterpolation.LINEAR ? "✓ " : "") + "线性（匀速）",
-                        new com.chronoblocks.ui.timeline.commands.ChangeClipKeyframeInterpolationCommand(
-                            model, track, clip, kf, TimelineInterpolation.LINEAR
-                        ))
-                    .command(
-                        (interp == TimelineInterpolation.SMOOTH ? "✓ " : "") + "平滑（缓入缓出）",
-                        new com.chronoblocks.ui.timeline.commands.ChangeClipKeyframeInterpolationCommand(
-                            model, track, clip, kf, TimelineInterpolation.SMOOTH
-                        ))
-                    .command(
-                        (interp == TimelineInterpolation.STEP ? "✓ " : "") + "阶梯（保持再跳变）",
-                        new com.chronoblocks.ui.timeline.commands.ChangeClipKeyframeInterpolationCommand(
-                            model, track, clip, kf, TimelineInterpolation.STEP
-                        ))
-                .end()
-                .separator()
-                // 重置插值（回到"轨道默认"或者"线性"，这里先用 LINEAR）
-                .command("重置插值为线性",
-                        new com.chronoblocks.ui.timeline.commands.ChangeClipKeyframeInterpolationCommand(
-                            model, track, clip, kf, TimelineInterpolation.LINEAR
-                        ))
-                .open();
+        // 委托给新方法
+        return createClipKeyframeMenu(kf, clip, track);
     }
 
     /**
@@ -211,8 +278,8 @@ public class TimelineContextMenuFactory {
         // 其他类型的自动化关键帧：使用通用菜单
         String menuLabel = keyframe.getName();
         switch (keyframe) {
-            case WeatherKeyframe weatherKeyframe -> menuLabel = "天气关键帧";
-            case TimelineMarker timelineMarker -> menuLabel = "标记";
+            case WeatherKeyframe ignored -> menuLabel = "天气关键帧";
+            case TimelineMarker ignored -> menuLabel = "标记";
             default -> {
             }
         }
@@ -224,15 +291,7 @@ public class TimelineContextMenuFactory {
                 .command("删除关键帧",
                         new com.chronoblocks.ui.timeline.commands.RemoveAutomationKeyframeCommand(model, track, keyframe),
                         "Del")
-                .open();
-    }
-
-    // =========================================================
-    // Track 菜单
-    // =========================================================
-    public TimelineContextMenu createTrackHeaderMenu(TimelineTrack track) {
-        int trackIndex = model.getTracks().indexOf(track);
-        return createTrackHeaderMenu(track, trackIndex);
+                .build();  // ⭐⭐ 修复：使用 build() 而不是 open()，由 openContextMenuForHit 统一打开
     }
 
     private TimelineContextMenu createTrackHeaderMenu(TimelineTrack track, int trackIndex) {
@@ -279,7 +338,7 @@ public class TimelineContextMenuFactory {
                 .separator();
 
         addTrackTypeSpecificMenu(builder, track);
-        return builder.open();
+        return builder.build();  // ⭐⭐ 修复：使用 build() 而不是 open()，由 openContextMenuForHit 统一打开
     }
 
     // =========================================================
@@ -297,7 +356,7 @@ public class TimelineContextMenuFactory {
             }
         }, "Ctrl+T");
 
-        return builder.open();
+        return builder.build();  // ⭐⭐ 修复：使用 build() 而不是 open()，由 openContextMenuForHit 统一打开
     }
 
     // =========================================================

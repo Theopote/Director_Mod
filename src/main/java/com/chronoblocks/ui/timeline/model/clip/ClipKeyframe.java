@@ -2,6 +2,7 @@ package com.chronoblocks.ui.timeline.model.clip;
 
 import com.chronoblocks.ui.timeline.model.TimelineInterpolation;
 import com.chronoblocks.ui.timeline.model.TimelineSelectable;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.Objects;
 import java.util.UUID;
@@ -121,10 +122,7 @@ public class ClipKeyframe implements TimelineSelectable, Comparable<ClipKeyframe
     // ========== Comparable 实现（用于 TreeSet 排序）==========
     
     @Override
-    public int compareTo(ClipKeyframe other) {
-        if (other == null) {
-            return 1;
-        }
+    public int compareTo(@NotNull ClipKeyframe other) {
         int timeCompare = Float.compare(this.time, other.time);
         // 如果时间相同，使用 ID 作为次要排序键，确保 TreeSet 中不会出现重复
         if (timeCompare == 0) {

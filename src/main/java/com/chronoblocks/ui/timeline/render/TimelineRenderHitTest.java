@@ -203,6 +203,29 @@ public class TimelineRenderHitTest {
         float visibleStart = visibleTimeRange[0] - (KEYFRAME_HIT_RADIUS / math.getPixelsPerSecond());
         float visibleEnd = visibleTimeRange[1] + (KEYFRAME_HIT_RADIUS / math.getPixelsPerSecond());
         
+        // ⭐⭐ 修复：优先使用 ClipKeyframe 对象列表
+        java.util.List<com.chronoblocks.ui.timeline.model.clip.ClipKeyframe> clipKeyframes = 
+                clip.getClipKeyframes();
+        if (clipKeyframes != null && !clipKeyframes.isEmpty()) {
+            for (com.chronoblocks.ui.timeline.model.clip.ClipKeyframe kf : clipKeyframes) {
+                if (kf == null) continue;
+                
+                float kfTime = kf.getTime();
+                // ★ 优化：早期跳过不可见的关键帧
+                if (kfTime < visibleStart || kfTime > visibleEnd) {
+                    continue;
+                }
+                
+                float keyX = math.timeToX(kfTime);
+                // ★ 优化：使用平方距离比较，避免开方运算
+                float dx = mouseX - keyX;
+                if (Math.abs(dx) <= KEYFRAME_HIT_RADIUS) {
+                    return TimelineHitResult.keyframe(track, clip, kf, trackIndex);
+                }
+            }
+        }
+        
+        // 回退到旧的 Float 关键帧系统（向后兼容）
         int keyframeIdx = 0;
         for (Float kfTime : keyframeTimes) {
             if (kfTime == null) continue;
@@ -217,7 +240,16 @@ public class TimelineRenderHitTest {
             // ★ 优化：使用平方距离比较，避免开方运算
             float dx = mouseX - keyX;
             if (Math.abs(dx) <= KEYFRAME_HIT_RADIUS) {
-                return TimelineHitResult.keyframe(track, clip, kfTime, trackIndex, keyframeIdx);
+                // 尝试在 ClipKeyframe 列表中查找匹配的对象
+                final float EPS = 0.001f;
+                com.chronoblocks.ui.timeline.model.clip.ClipKeyframe found = clip.findKeyframeAt(kfTime, EPS);
+                if (found != null) {
+                    return TimelineHitResult.keyframe(track, clip, found, trackIndex);
+                }
+                // 如果没有找到，创建一个临时对象（向后兼容）
+                com.chronoblocks.ui.timeline.model.clip.ClipKeyframe temp = 
+                        new com.chronoblocks.ui.timeline.model.clip.ClipKeyframe(kfTime);
+                return TimelineHitResult.keyframe(track, clip, temp, trackIndex);
             }
             keyframeIdx++;
         }

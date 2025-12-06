@@ -92,19 +92,11 @@ public final class TimelineHitTest {
                 TimelineRenderer.Rect rect = renderer.getClipRect(track, clip, i);
 
                 if (rect.contains(mouseX, mouseY)) {
-                    // 是否命中关键帧（优先于 clip）
-                    int keyIndex = hitKeyframe(renderer, track, clip, mouseX, mouseY);
-                    if (keyIndex >= 0) {
-                        var keyframeTimes = clip.getKeyframes();
-                        if (keyframeTimes != null && !keyframeTimes.isEmpty()) {
-                            int idx = 0;
-                            for (Float kfTime : keyframeTimes) {
-                                if (idx == keyIndex && kfTime != null) {
-                                    return TimelineHitResult.keyframe(track, clip, kfTime, i, keyIndex);
-                                }
-                                idx++;
-                            }
-                        }
+                    // ⭐⭐ 修复：检查是否命中 ClipKeyframe（优先于 clip）
+                    com.chronoblocks.ui.timeline.model.clip.ClipKeyframe hitKeyframe = 
+                            hitClipKeyframe(renderer, track, clip, mouseX, mouseY);
+                    if (hitKeyframe != null) {
+                        return TimelineHitResult.keyframe(track, clip, hitKeyframe, i);
                     }
 
                     return TimelineHitResult.clip(track, clip, time, i);
@@ -127,18 +119,11 @@ public final class TimelineHitTest {
             }
 
             for (TimelineClip clip : clips) {
-                int kfIndex = hitKeyframe(renderer, track, clip, mouseX, mouseY);
-                if (kfIndex >= 0) {
-                    var keyframeTimes = clip.getKeyframes();
-                    if (keyframeTimes != null && !keyframeTimes.isEmpty()) {
-                        int idx = 0;
-                        for (Float kfTime : keyframeTimes) {
-                            if (idx == kfIndex && kfTime != null) {
-                                return TimelineHitResult.keyframe(track, clip, kfTime, i, kfIndex);
-                            }
-                            idx++;
-                        }
-                    }
+                // ⭐⭐ 修复：使用 ClipKeyframe 对象检测
+                com.chronoblocks.ui.timeline.model.clip.ClipKeyframe hitKeyframe = 
+                        hitClipKeyframe(renderer, track, clip, mouseX, mouseY);
+                if (hitKeyframe != null) {
+                    return TimelineHitResult.keyframe(track, clip, hitKeyframe, i);
                 }
             }
         }
@@ -149,6 +134,64 @@ public final class TimelineHitTest {
         return TimelineHitResult.empty(time);
     }
 
+    /**
+     * ⭐⭐ 修复：检测 ClipKeyframe 命中，返回 ClipKeyframe 对象
+     * 
+     * @param renderer 渲染器
+     * @param track 轨道
+     * @param clip 片段
+     * @param mouseX 鼠标 X 坐标
+     * @param mouseY 鼠标 Y 坐标
+     * @return 命中的 ClipKeyframe 对象，如果没有命中则返回 null
+     */
+    private static com.chronoblocks.ui.timeline.model.clip.ClipKeyframe hitClipKeyframe(
+            TimelineRenderer renderer,
+            TimelineTrack track,
+            TimelineClip clip,
+            float mouseX,
+            float mouseY
+    ) {
+        // 优先使用新的 ClipKeyframe 列表
+        java.util.List<com.chronoblocks.ui.timeline.model.clip.ClipKeyframe> clipKeyframes = 
+                clip.getClipKeyframes();
+        if (clipKeyframes != null && !clipKeyframes.isEmpty()) {
+            for (com.chronoblocks.ui.timeline.model.clip.ClipKeyframe kf : clipKeyframes) {
+                if (kf == null) continue;
+                
+                TimelineRenderer.Circle c = renderer.getKeyframeCircle(track, clip, kf.getTime());
+                if (c.contains(mouseX, mouseY)) {
+                    return kf;
+                }
+            }
+        }
+        
+        // 回退到旧的 Float 关键帧系统（向后兼容）
+        var kfs = clip.getKeyframes();
+        if (kfs != null && !kfs.isEmpty()) {
+            for (Float t : kfs) {
+                if (t == null || t < 0) continue;
+                
+                TimelineRenderer.Circle c = renderer.getKeyframeCircle(track, clip, t);
+                if (c.contains(mouseX, mouseY)) {
+                    // 尝试在 ClipKeyframe 列表中查找匹配的对象
+                    final float EPS = 0.001f;
+                    com.chronoblocks.ui.timeline.model.clip.ClipKeyframe found = clip.findKeyframeAt(t, EPS);
+                    if (found != null) {
+                        return found;
+                    }
+                    // 如果没有找到，创建一个临时对象（不建议，但为了向后兼容）
+                    return new com.chronoblocks.ui.timeline.model.clip.ClipKeyframe(t);
+                }
+            }
+        }
+        
+        return null;
+    }
+    
+    /**
+     * @deprecated 使用 hitClipKeyframe() 代替
+     */
+    @Deprecated
     private static int hitKeyframe(
             TimelineRenderer renderer,
             TimelineTrack track,
@@ -156,24 +199,15 @@ public final class TimelineHitTest {
             float mouseX,
             float mouseY
     ) {
-        var kfs = clip.getKeyframes();
-        if (kfs == null || kfs.isEmpty()) {
+        com.chronoblocks.ui.timeline.model.clip.ClipKeyframe kf = hitClipKeyframe(renderer, track, clip, mouseX, mouseY);
+        if (kf == null) {
             return -1;
         }
-
-        int index = 0;
-        for (Float t : kfs) {
-            if (t == null || t < 0) {
-                index++;
-                continue;
-            }
-
-            TimelineRenderer.Circle c = renderer.getKeyframeCircle(track, clip, t);
-
-            if (c.contains(mouseX, mouseY)) {
-                return index;
-            }
-            index++;
+        
+        // 查找索引（向后兼容）
+        java.util.List<com.chronoblocks.ui.timeline.model.clip.ClipKeyframe> clipKeyframes = clip.getClipKeyframes();
+        if (clipKeyframes != null) {
+            return clipKeyframes.indexOf(kf);
         }
         return -1;
     }
@@ -388,7 +422,16 @@ public final class TimelineHitTest {
         }
 
         if (bestClip != null) {
-            return TimelineHitResult.keyframe(track, bestClip, bestTime, trackIndex, bestIndex);
+            // ⭐⭐ 修复：查找 ClipKeyframe 对象
+            final float EPS = 0.001f;
+            com.chronoblocks.ui.timeline.model.clip.ClipKeyframe clipKeyframe = 
+                    bestClip.findKeyframeAt(bestTime, EPS);
+            if (clipKeyframe != null) {
+                return TimelineHitResult.keyframe(track, bestClip, clipKeyframe, trackIndex);
+            }
+            // 回退：如果没有找到，创建一个临时对象
+            clipKeyframe = new com.chronoblocks.ui.timeline.model.clip.ClipKeyframe(bestTime);
+            return TimelineHitResult.keyframe(track, bestClip, clipKeyframe, trackIndex);
         }
 
         return TimelineHitResult.none();

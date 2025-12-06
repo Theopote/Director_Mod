@@ -224,9 +224,10 @@ public class TimelineContextMenu {
     public void open() {
         // 使用 ImGui.openPopup() 打开菜单
         // 菜单会在下一帧通过 render() 方法显示
-        System.out.println("[TimelineContextMenu] 调用 ImGui.openPopup: " + popupId);
+        // ⭐⭐ 注意：此方法只应由 TimelineInteractionHandler.openContextMenuForHit() 调用
+        // 菜单工厂方法应使用 .build() 而不是 .open()，避免重复打开
         ImGui.openPopup(popupId, ImGuiPopupFlags.None);
-        LOGGER.info("[Timeline] 调用 ImGui.openPopup: {}", popupId);
+        LOGGER.debug("[Timeline] 调用 ImGui.openPopup: {}", popupId);
     }
     
     /**

@@ -128,8 +128,7 @@ public class TimelineInteractionHandler {
         if (mode == InteractionMode.DRAG_AUTOMATION_KEYFRAME) {
             Object active = interactionManager.getActiveObject();
             if (active instanceof AutomationKeyframeHandle handle) {
-                if (handle.keyframe == keyframe || 
-                    (handle.keyframe != null && handle.keyframe.getId().equals(keyframe.getId()))) {
+                if (handle.keyframe == keyframe || handle.keyframe.getId().equals(keyframe.getId())) {
                     return handle.currentTime;
                 }
             }
@@ -291,6 +290,9 @@ public class TimelineInteractionHandler {
         // 使用 rightClickedOnCanvas 参数，因�?invisibleButton 会拦截右键事�?
         // 右键：统一使用 ImGui 的点击检测
         if (ImGui.isMouseClicked(ImGuiMouseButton.Right)) {
+            // ⭐⭐ 修复 F：右键按下后阻止拖动行为
+            interactionManager.cancelAllInteractionsSilently();
+            
             LOGGER.info("[Timeline] 右键点击: hit.type = {}, rightClickedOnCanvas = {}, trackControlHit = {}",
                     hit != null ? hit.type() : "null",
                     rightClickedOnCanvas,
@@ -316,7 +318,7 @@ public class TimelineInteractionHandler {
             // 4) 其他情况：不弹菜单，但输出一点调试日志
             else {
                 LOGGER.debug("[Timeline] 右键点击未匹配任何菜单区域 (hit = {}, rightClickedOnCanvas = {})",
-                        hit != null ? hit.type() : "null", rightClickedOnCanvas);
+                        hit != null ? hit.type() : "null", false);
             }
         }
 
@@ -626,12 +628,21 @@ public class TimelineInteractionHandler {
                 }
             }
             case KEYFRAME -> {
-                TimelineClip clip = hit.clip();
-                if (clip != null) {
-                    // 如果有 clip 内部 keyframe 的模型对象，可以在这里通过时间查找并选中
-                    // 这里先标记 clip 选中，属性面板可显示 clip 内关键帧列表
-                    model.setSelectedClip(clip);
-                    com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(clip);
+                // ⭐⭐ 修复：正确选择 ClipKeyframe 对象
+                com.chronoblocks.ui.timeline.model.clip.ClipKeyframe clipKeyframe = hit.clipKeyframe();
+                if (clipKeyframe != null) {
+                    ImGuiIO io = ImGui.getIO();
+                    boolean addToSelection = io.getKeyCtrl();
+                    model.selectItem(clipKeyframe, addToSelection);
+                    com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(clipKeyframe);
+                    LOGGER.debug("[Timeline] 右键选择 ClipKeyframe @ {}s", clipKeyframe.getTime());
+                } else {
+                    // 回退：如果没有 ClipKeyframe 对象，选择 clip
+                    TimelineClip clip = hit.clip();
+                    if (clip != null) {
+                        model.setSelectedClip(clip);
+                        com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(clip);
+                    }
                 }
             }
             case AUTOMATION_KEYFRAME -> {
