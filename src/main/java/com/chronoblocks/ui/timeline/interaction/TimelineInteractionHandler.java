@@ -426,11 +426,24 @@ public class TimelineInteractionHandler {
         }
 
         // �?功能：选中自动化关键帧时，同步�?SelectionManager，使属性面板显示关键帧属�?
+        // 双击：可以在这里添加删除逻辑
+        if (isDoubleClick && callbacks != null) {
+            // TODO: 可以添加双击删除关键帧的逻辑
+            LOGGER.debug("[Timeline] 双击自动化关键帧，但当前未实现删除功能");
+            return;
+        }
+
+        // ⭐ 单击：选中关键帧（支持 Ctrl 多选）
+        ImGuiIO io = ImGui.getIO();
+        boolean addToSelection = io.getKeyCtrl();
+        model.selectItem(keyframe, addToSelection);
+        
+        // 同步到 SelectionManager，使属性面板显示关键帧属性
         com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(keyframe);
         
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("[Timeline] 点击自动化关键帧: {} (时间: {:.2f}s)", 
-                keyframe.getName(), keyframe.getStartTime());
+            LOGGER.debug("[Timeline] 点击自动化关键帧: {} (时间: {:.2f}s, 多选: {})", 
+                keyframe.getName(), keyframe.getStartTime(), addToSelection);
         }
 
         // ⭐ 如果是摄像机关键帧，单击时预览该机位
