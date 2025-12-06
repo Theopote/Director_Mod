@@ -1061,6 +1061,35 @@ public class TimelinePanel extends AbstractPanel
                         new WeatherKeyframe("Weather @" + timeLabel, time)
                 ));
                 handled = true;
+            } else if (type.supportsTimeControl()) {
+                // ⭐ 时间轨道：添加时间关键帧，捕获当前世界时间
+                if (track.isLocked()) {
+                    LOGGER.warn("[TimelinePanel] 轨道已锁定，无法添加关键帧 (轨道: {})", track.getName());
+                    return;
+                }
+                
+                // 获取当前 Minecraft 世界时间
+                net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
+                long currentWorldTime = 6000L; // 默认正午
+                if (client != null && client.world != null) {
+                    currentWorldTime = client.world.getTimeOfDay();
+                }
+                
+                com.chronoblocks.ui.timeline.model.time.TimeKeyframe timeKeyframe = 
+                    new com.chronoblocks.ui.timeline.model.time.TimeKeyframe("Time @" + timeLabel, time);
+                timeKeyframe.setWorldTimeTicks(currentWorldTime);
+                
+                commandHistory.executeCommand(new AddAutomationKeyframeCommand(
+                        model,
+                        track,
+                        timeKeyframe
+                ));
+                
+                // ⭐ 通知 TimelineWorldController 更新
+                com.chronoblocks.ui.timeline.playback.time.TimelineWorldController.getInstance()
+                        .rebuildFromActiveTrack();
+                
+                handled = true;
             } else if (type.supportsMarkers() && !type.supportsClips()) {
                 commandHistory.executeCommand(new AddAutomationKeyframeCommand(
                         model,
