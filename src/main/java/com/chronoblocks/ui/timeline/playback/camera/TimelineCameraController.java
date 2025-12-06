@@ -187,7 +187,13 @@ public final class TimelineCameraController {
     }
 
     /**
-     * ⭐ v5.0：基于当前 activeCameraTrack 重新构建：
+     * ⭐ v5.0：从当前激活轨道重建采样器和路径
+     * 在轨道切换、关键帧变化时调用
+     * 
+     * <p>重要：只收集 activeCameraTrack 的关键帧，其他摄像机轨道不参与当前播放路径。
+     * 每条摄像机轨道都有自己独立的轨迹，但只有激活轨道会被采样。
+     * 
+     * <p>基于当前 activeCameraTrack 重新构建：
      *  - CameraTrackSampler 的关键帧列表
      *  - TimelineCameraPathManager 的路径采样点
      */
@@ -561,12 +567,22 @@ public final class TimelineCameraController {
     /**
      * ⭐ v5.0：从指定 CAMERA 轨道中提取 CameraKeyframe，并按时间排序
      */
+    /**
+     * ⭐ v5.0：从指定轨道收集摄像机关键帧
+     * 
+     * <p>注意：此方法只收集传入 track 的关键帧，不会遍历所有摄像机轨道。
+     * 用于确保每条摄像机轨道有独立的路径（多机位系统）。
+     * 
+     * @param track 目标摄像机轨道（通常为 activeCameraTrack）
+     * @return 排序后的关键帧列表
+     */
     private List<CameraKeyframe> collectCameraKeyframes(TimelineTrack track) {
         List<CameraKeyframe> result = new ArrayList<>();
         if (track == null || track.getType() != TrackType.CAMERA) {
             return result;
         }
         
+        // 只收集该轨道上的关键帧，不混入其他轨道的关键帧
         for (TimelineSelectable selectable : track.getAutomationKeyframes()) {
             if (selectable instanceof CameraKeyframe ck) {
                 result.add(ck);

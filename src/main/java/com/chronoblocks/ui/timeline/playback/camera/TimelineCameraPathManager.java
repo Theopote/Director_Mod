@@ -145,14 +145,18 @@ public final class TimelineCameraPathManager {
         float localT = (timeSeconds - t0) / (t1 - t0);
         localT = clamp01(localT);
 
-        // 每段使用“起始”关键帧的 segmentType/keyType 语义（k0 -> k1）
+        // ⭐ 每段使用"起始"关键帧（k0）的 SegmentPathType 决定插值方式
+        // 每个关键帧可以独立设置插值类型（LINEAR / CATMULL_ROM / BEZIER / STEP / HOLD）
+        // 如果关键帧的 segmentType 为 DEFAULT，则使用全局 pathType（默认为 CATMULL_ROM）
         CameraPathType segmentType = resolveSegmentType(k0);
 
-        // HOLD：从当前关键帧起，强制阶梯
+        // HOLD：从当前关键帧起，强制阶梯（保持当前值）
         if (safeKeyType(k0) == CameraKeyframe.KeyType.HOLD || segmentType == CameraPathType.STEP) {
             return Optional.of(toSample(k0));
         }
 
+        // ⭐ 根据关键帧的 SegmentPathType 选择不同的插值方法
+        // 这确保了属性面板和右键菜单设置的插值类型会实际生效
         return switch (segmentType) {
             case LINEAR -> Optional.of(sampleLinear(k0, k1, localT));
             case CATMULL_ROM -> Optional.of(sampleCatmullRom(prevIndex, nextIndex, localT));
@@ -403,10 +407,21 @@ public final class TimelineCameraPathManager {
 
     // ======================= 辅助（段类型选择 & 手柄） =======================
 
+    /**
+     * ⭐ 解析关键帧的段类型
+     * 
+     * <p>关键帧的 SegmentPathType 优先于全局 pathType：
+     * <ul>
+     *   <li>如果关键帧设置了 LINEAR / CATMULL_ROM / BEZIER / STEP / HOLD，使用该设置</li>
+     *   <li>如果关键帧设置为 DEFAULT，则回退到全局 pathType（默认为 CATMULL_ROM）</li>
+     * </ul>
+     * 
+     * <p>这确保了属性面板和右键菜单对插值类型的修改会立即生效。
+     */
     private CameraPathType resolveSegmentType(CameraKeyframe k0) {
         if (k0 == null) return pathType;
         return switch (k0.getSegmentType()) {
-            case DEFAULT -> this.pathType;
+            case DEFAULT -> this.pathType; // 使用全局默认类型
             case LINEAR -> CameraPathType.LINEAR;
             case CATMULL_ROM -> CameraPathType.CATMULL_ROM;
             case BEZIER -> CameraPathType.BEZIER;
@@ -432,12 +447,23 @@ public final class TimelineCameraPathManager {
         }
     }
 
+    /**
+     * ⭐ 解析关键帧的旋转插值类型
+     * 
+     * <p>关键帧的 RotationInterpolation 优先：
+     * <ul>
+     *   <li>如果关键帧明确设置了旋转插值类型（LINEAR / BEZIER / CATMULL_ROM / STEP），使用该设置</li>
+     *   <li>如果关键帧设置为 DEFAULT，则根据位置段类型（SegmentPathType）自动推导</li>
+     * </ul>
+     * 
+     * <p>这确保了旋转插值与位置插值可以独立设置，也支持"跟随位置段类型"的默认行为。
+     */
     private CameraKeyframe.RotationInterpolation resolveRotationInterpolation(CameraKeyframe k0) {
         CameraKeyframe.RotationInterpolation t = safeRotType(k0);
         if (t != CameraKeyframe.RotationInterpolation.DEFAULT) {
-            return t;
+            return t; // 关键帧明确设置了旋转插值类型
         }
-        // 默认行为：跟随位置段类型
+        // 默认行为：跟随位置段类型（如位置用 LINEAR，旋转也用 LINEAR）
         CameraPathType seg = resolveSegmentType(k0);
         return switch (seg) {
             case STEP -> CameraKeyframe.RotationInterpolation.STEP;
