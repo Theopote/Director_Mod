@@ -1023,6 +1023,18 @@ public class TimelinePanel extends AbstractPanel
 
         if (type != null) {
             if (type.supportsCameraPath()) {
+                // ⭐ 检查是否是激活的摄像机轨道
+                com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController cameraController =
+                        com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance();
+                com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = cameraController.getActiveCameraTrack();
+                
+                if (activeTrack != track) {
+                    LOGGER.warn("[TimelinePanel] 只能在激活的摄像机轨道上添加关键帧，当前轨道：{}，激活轨道：{}",
+                            track != null ? track.getName() : "null",
+                            activeTrack != null ? activeTrack.getName() : "null");
+                    return;
+                }
+                
                 if (!com.chronoblocks.ui.timeline.playback.camera.CameraRuntime.getInstance().isPlayerOwner()) {
                     LOGGER.warn("[TimelinePanel] 当前非玩家模式，跳过摄像机关键帧捕捉");
                     return;

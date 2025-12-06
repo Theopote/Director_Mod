@@ -381,8 +381,15 @@ public class TimelineContextMenuFactory {
                     .end();
                 }
             }
-            case CAMERA -> // ⭐ 修复：在用户点击菜单项时才创建关键帧并捕获状态，而不是在菜单构建时
-                // 这样可以确保捕获的是用户点击时的当前视角，而不是菜单打开时的视角
+            case CAMERA -> {
+                // ⭐ v5.0：检查是否是激活的摄像机轨道
+                com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController controller =
+                        com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance();
+                com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
+                boolean isActiveTrack = (activeTrack == track);
+                
+                if (isActiveTrack) {
+                    // 激活轨道：可以添加关键帧
                     builder
                         .submenu("摄像机关键帧")
                             .item("添加摄像机关键帧", () -> {
@@ -396,6 +403,14 @@ public class TimelineContextMenuFactory {
                                 commandHistory.executeCommand(new AddAutomationKeyframeCommand(model, track, keyframe));
                             })
                         .end();
+                } else {
+                    // 非激活轨道：禁用添加关键帧选项
+                    builder
+                        .submenu("摄像机关键帧")
+                            .disabledItem("添加摄像机关键帧（仅激活轨道可用）")
+                        .end();
+                }
+            }
             case WEATHER -> builder
                 .submenu("天气关键帧")
                     .command("添加天气关键帧",

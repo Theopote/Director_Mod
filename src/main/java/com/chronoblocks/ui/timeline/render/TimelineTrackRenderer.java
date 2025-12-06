@@ -127,13 +127,34 @@ public final class TimelineTrackRenderer {
         drawList.addLine(separatorX, y, separatorX, y + TRACK_HEIGHT, 
                 TimelineColors.COLOR_SEPARATOR_LINE, 1.0f);
 
-        // 9. 绘制控制图标（关键帧 / 锁 / 可见性）
+        // 9. 绘制控制图标（关键帧 / 锁 / 激活摄像机）
         float keyframeX = winX + viewport.getLeftLabelWidth() + TRACK_KEYFRAME_OFFSET_X;
         float lockX = winX + viewport.getLeftLabelWidth() + TRACK_LOCK_OFFSET_X;
         float visibilityX = winX + viewport.getLeftLabelWidth() + TRACK_VISIBILITY_OFFSET_X;
+        
+        // ⭐ v5.0：激活摄像机按钮（仅 CAMERA 轨道，放在原来隐藏按钮的位置）
+        if (type == TrackType.CAMERA) {
+            boolean isActive = com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance()
+                    .getActiveCameraTrack() == track;
+            // 实心圆 = 激活，空心圆 = 未激活（使用 DOT 和 CHECK_CIRCLE）
+            String icon = isActive ? Icons.DOT : Icons.CHECK_CIRCLE;
+            int iconColor = isActive 
+                    ? TimelineColors.rgba(100, 200, 255, 255)  // 激活：亮蓝色
+                    : TimelineColors.rgba(140, 140, 140, 180); // 未激活：灰色
+            drawList.addText(visibilityX, y + TRACK_ICON_OFFSET_Y, iconColor, icon);
+        }
 
-        boolean supportsKeyframes = type != null && type.supportsKeyframes();
-        int keyframeColor = supportsKeyframes ? TimelineColors.COLOR_KEYFRAME : TimelineColors.rgba(140, 140, 140, 100);
+        // ⭐ v5.0：对于摄像机轨道，只有在激活状态下才显示可用的关键帧按钮
+        boolean keyframeEnabled = type != null && type.supportsKeyframes();
+        if (type == TrackType.CAMERA) {
+            com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController controller =
+                    com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance();
+            com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
+            keyframeEnabled = (activeTrack == track);  // 只有激活轨道才可用
+        }
+        int keyframeColor = keyframeEnabled 
+                ? TimelineColors.COLOR_KEYFRAME 
+                : TimelineColors.rgba(100, 100, 100, 100);  // 禁用状态：更暗的灰色
         drawList.addText(keyframeX, y + TRACK_ICON_OFFSET_Y, keyframeColor, Icons.KEYFRAME);
 
         if (track.isLocked()) {
@@ -141,10 +162,14 @@ public final class TimelineTrackRenderer {
         } else {
             drawList.addText(lockX, y + TRACK_ICON_OFFSET_Y, TimelineColors.rgba(120, 120, 120, 180), Icons.UNLOCK);
         }
-        if (!track.isVisible()) {
-            drawList.addText(visibilityX, y + TRACK_ICON_OFFSET_Y, TimelineColors.rgba(150, 150, 150, 255), Icons.INVISIBLE);
-        } else {
-            drawList.addText(visibilityX, y + TRACK_ICON_OFFSET_Y, TimelineColors.rgba(180, 180, 180, 200), Icons.VISIBLE);
+        
+        // ⭐ v5.0：摄像机轨道不显示隐藏/显示按钮
+        if (type != TrackType.CAMERA) {
+            if (!track.isVisible()) {
+                drawList.addText(visibilityX, y + TRACK_ICON_OFFSET_Y, TimelineColors.rgba(150, 150, 150, 255), Icons.INVISIBLE);
+            } else {
+                drawList.addText(visibilityX, y + TRACK_ICON_OFFSET_Y, TimelineColors.rgba(180, 180, 180, 200), Icons.VISIBLE);
+            }
         }
 
         // 注意：Clip 的渲染由 TimelineClipRenderer 负责，这里只需要设置裁剪区域

@@ -13,13 +13,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Optional;
+import org.jetbrains.annotations.Nullable;
 
 /**
- * TimelineCameraController v4.0 - 对接 TimelineCameraPathManager v2.0 版
+ * TimelineCameraController v5.0 (Multi-Camera Tracks)
  *
  * 职责：
- *  - 从 TimelineModel 收集摄像机关键帧，交给 TimelineCameraPathManager 生成轨迹
+ *  - 管理多条 CAMERA 轨道，但任意时刻只有一条为 active
+ *  - 从激活轨道收集摄像机关键帧，交给 TimelineCameraPathManager 生成轨迹
  *  - 根据播放 / 拖动 / 预览状态采样 CameraSample，写入 CameraRuntime
  *  - 在需要时接管/释放相机控制权（CameraRuntime.Owner）
  *  - 提供「从当前视角捕捉关键帧」等高级操作
@@ -32,8 +36,14 @@ public final class TimelineCameraController {
     /** 时间线数据模型（由 TimelinePanel 注入） */
     private TimelineModel timelineModel;
 
-    /** v2.0：摄像机轨迹管理器（替代旧的 CameraTrackSampler） */
+    /** ⭐ v5.0：每帧采样用的核心工具（仅对 activeCameraTrack 的关键帧生效） */
+    private final CameraTrackSampler sampler = new CameraTrackSampler();
+
+    /** ⭐ v5.0：用于 UI / 世界渲染的路径采样管理（同样基于 activeCameraTrack） */
     private final TimelineCameraPathManager pathManager = new TimelineCameraPathManager();
+
+    /** ⭐ v5.0：当前激活的摄像机轨道（可能为 null） */
+    private TimelineTrack activeCameraTrack;
 
     /** 是否处于「单帧预览关键帧」的状态 */
     private boolean previewing = false;
@@ -58,8 +68,9 @@ public final class TimelineCameraController {
     /**
      * 绑定 TimelineModel。
      * 会自动注册 ModelChangeListener，在模型变更时刷新摄像机关键帧。
+     * ⭐ v5.0：会自动初始化 activeCameraTrack（选择第一条 CAMERA 轨道）。
      */
-    public void setTimelineModel(TimelineModel model) {
+    public synchronized void setTimelineModel(TimelineModel model) {
         // 解除旧监听
         if (this.timelineModel != null && modelChangeListener != null) {
             this.timelineModel.removeModelChangeListener(modelChangeListener);
@@ -70,31 +81,101 @@ public final class TimelineCameraController {
         if (model != null) {
             if (modelChangeListener == null) {
                 modelChangeListener = changeType -> {
-                    refreshCameraPath();
-                    LOGGER.debug("[TimelineCameraController] 模型变更({})，刷新摄像机关键帧", changeType);
+                    onModelStructureChanged();
                 };
             }
             model.addModelChangeListener(modelChangeListener);
-            refreshCameraPath();
+            
+            // ⭐ v5.0：初始选中第一条 CAMERA 轨道（如果还没有 active）
+            if (activeCameraTrack == null || !isValidCameraTrack(activeCameraTrack)) {
+                activeCameraTrack = findFirstCameraTrack();
+            }
+            
+            rebuildFromActiveTrack();
         } else {
+            activeCameraTrack = null;
+            sampler.setKeyframes(new ArrayList<>());
             pathManager.setKeyframes(new ArrayList<>());
         }
     }
 
     /**
-     * 当关键帧发生变化时可以显式调用（例如某些命令直接操作 keyframe 列表）。
+     * ⭐ v5.0：当前激活的摄像机轨道
      */
-    public void onKeyframeChanged() {
-        if (timelineModel != null) {
-            refreshCameraPath();
-            LOGGER.debug("[TimelineCameraController] onKeyframeChanged()，刷新路径管理器");
-        }
+    @Nullable
+    public synchronized TimelineTrack getActiveCameraTrack() {
+        return activeCameraTrack;
     }
 
-    /** 收集 Timeline 上所有 camera 关键帧并更新 pathManager + 标记脏缓存 */
-    private void refreshCameraPath() {
-        pathManager.setKeyframes(collectCameraKeyframes());
+    /**
+     * ⭐ v5.0：设置当前激活的摄像机轨道
+     * - 仅允许 TrackType.CAMERA
+     * - 会立即重建采样器和路径数据
+     * - UI 只需要在轨道头"选择按钮"被点击时调用此方法即可
+     */
+    public synchronized void setActiveCameraTrack(@Nullable TimelineTrack track) {
+        if (track != null && track.getType() != TrackType.CAMERA) {
+            LOGGER.warn("[TimelineCamera] setActiveCameraTrack: 非 CAMERA 轨道被选中，忽略: {}", track.getName());
+            return;
+        }
+        if (track == activeCameraTrack) {
+            return;
+        }
+
+        this.activeCameraTrack = track;
+        LOGGER.info("[TimelineCamera] 激活摄像机轨道: {}",
+                track != null ? track.getName() : "<none>");
+
+        rebuildFromActiveTrack();
+    }
+
+    /**
+     * 当关键帧发生变化时可以显式调用（例如某些命令直接操作 keyframe 列表）。
+     * ⭐ v5.0：只刷新激活轨道的关键帧
+     */
+    public synchronized void onKeyframeChanged() {
+        rebuildFromActiveTrack();
+    }
+
+    /**
+     * ⭐ v5.0：当 TimelineModel 的结构发生变化（轨道增删、关键帧变动）时调用
+     * 尝试保持 activeCameraTrack 不变，若失效则自动选取新的摄像机轨道
+     */
+    private synchronized void onModelStructureChanged() {
+        if (timelineModel == null) {
+            return;
+        }
+
+        // 当前 active 轨道被删除或不再是 CAMERA？
+        if (!isValidCameraTrack(activeCameraTrack)) {
+            activeCameraTrack = findFirstCameraTrack();
+        }
+
+        rebuildFromActiveTrack();
+        LOGGER.debug("[TimelineCameraController] 模型变更，刷新摄像机关键帧");
+    }
+
+    /**
+     * ⭐ v5.0：基于当前 activeCameraTrack 重新构建：
+     *  - CameraTrackSampler 的关键帧列表
+     *  - TimelineCameraPathManager 的路径采样点
+     */
+    private synchronized void rebuildFromActiveTrack() {
+        if (!hasValidActiveTrack()) {
+            sampler.setKeyframes(new ArrayList<>());
+            pathManager.setKeyframes(new ArrayList<>());
+            return;
+        }
+
+        List<CameraKeyframe> kfs = collectCameraKeyframes(activeCameraTrack);
+        sampler.setKeyframes(kfs);
+        pathManager.setKeyframes(kfs);
         pathManager.markPathDirty();
+
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("[TimelineCamera] Rebuild from track '{}', keyframes = {}",
+                    activeCameraTrack.getName(), kfs.size());
+        }
     }
 
     // ================== 播放 / 拖动 / 预览 状态控制 ==================
@@ -108,8 +189,8 @@ public final class TimelineCameraController {
      */
     public void beginScrubbing(float timeSeconds) {
         this.previewing = false;
-        refreshCameraPath();
-        pathManager.sample(timeSeconds).ifPresent(CameraRuntime.getInstance()::applyTimelineSample);
+        rebuildFromActiveTrack();
+        sampler.sample(timeSeconds).ifPresent(CameraRuntime.getInstance()::applyTimelineSample);
         LOGGER.debug("[TimelineCameraController] 开始 scrubbing @ {}s", String.format("%.2f", timeSeconds));
     }
 
@@ -127,18 +208,11 @@ public final class TimelineCameraController {
             return;
         }
 
-        refreshCameraPath();
-        if (!pathManager.isEmpty()) {
-            CameraSample sample = pathManager.sample(timeSeconds).orElse(null);
-            if (sample != null) {
-                // ⭐ 关键修复：只更新 sample，不重复设置 owner
-                CameraRuntime.getInstance().applyTimelineSample(sample);
-            } else {
-                LOGGER.debug("[TimelineCameraController] updateScrubbing @ {}s: 采样失败", String.format("%.2f", timeSeconds));
-            }
-        } else {
-            LOGGER.debug("[TimelineCameraController] updateScrubbing @ {}s: 没有关键帧", String.format("%.2f", timeSeconds));
-        }
+        rebuildFromActiveTrack();
+        sampler.sample(timeSeconds).ifPresent(sample -> {
+            // ⭐ 关键修复：只更新 sample，不重复设置 owner
+            CameraRuntime.getInstance().applyTimelineSample(sample);
+        });
     }
 
     /**
@@ -166,7 +240,7 @@ public final class TimelineCameraController {
      */
     public void startPlayback() {
         this.previewing = false;
-        refreshCameraPath();
+        rebuildFromActiveTrack();
         LOGGER.debug("[TimelineCameraController] 开始播放");
     }
 
@@ -238,6 +312,14 @@ public final class TimelineCameraController {
         // 先判断当前应该由谁控制相机：玩家 or 时间线
         boolean playing = timelineModel.isPlaying();
         boolean scrubbing = timelineModel.isScrubbing();
+        
+        // ⭐ 修复：如果不在播放/scrubbing，自动清除 previewing 状态
+        // 这样当播放头静止时，玩家可以立即操作摄像机，无需先拖动播放头
+        if (!playing && !scrubbing && previewing) {
+            previewing = false;
+            LOGGER.debug("[CameraController] 自动清除预览状态（播放头静止）");
+        }
+        
         boolean previewActive = previewing && !playing && !scrubbing;
         CameraRuntime runtime = CameraRuntime.getInstance();
         boolean shouldTimeline = playing || scrubbing || previewActive;
@@ -257,15 +339,18 @@ public final class TimelineCameraController {
 
         // 时间线模式：根据当前时间采样相机
         if (runtime.isTimelineOwner()) {
-            refreshCameraPath();
+            rebuildFromActiveTrack();
             float time = playing || scrubbing ? timelineModel.getCurrentTime() : previewTimeSeconds;
-            float lastKey = pathManager.getLastKeyTime();
+            
+            // 获取最后关键帧时间
+            List<CameraKeyframe> kfs = sampler.getKeyframes();
+            float lastKey = kfs.isEmpty() ? -1f : kfs.get(kfs.size() - 1).getTime();
 
             // 超出最后关键帧：保持最后帧的镜头，但继续播放其他轨道，owner 不切回玩家
             if (lastKey >= 0f && time > lastKey + 1e-4f) {
-                pathManager.sample(lastKey).ifPresent(runtime::applyTimelineSample);
+                sampler.sample(lastKey).ifPresent(runtime::applyTimelineSample);
             } else {
-                pathManager.sample(time).ifPresent(runtime::applyTimelineSample);
+                sampler.sample(time).ifPresent(runtime::applyTimelineSample);
             }
         } else {
             // 玩家模式：从游戏摄像机采样，喂给 CameraRuntime 以便 UI / 捕捉使用
@@ -296,55 +381,83 @@ public final class TimelineCameraController {
     // ================== 预览相关 ==================
 
     /**
+     * 清除预览状态（供外部调用，例如检测到玩家输入时）
+     */
+    public synchronized void clearPreviewState() {
+        if (previewing) {
+            previewing = false;
+            LOGGER.debug("[TimelineCameraController] 清除预览状态");
+        }
+    }
+
+    /**
+     * 检查时间线是否真正在活动（播放或 scrubbing）
+     * 用于判断是否应该保持 TIMELINE owner
+     */
+    public synchronized boolean isTimelineActive() {
+        if (timelineModel == null) {
+            return false;
+        }
+        return timelineModel.isPlaying() || timelineModel.isScrubbing();
+    }
+
+    /**
      * 当用户点击摄像机关键帧进行预览时调用。
      * ⭐ 注意：预览会设置 owner = TIMELINE，如果用户想添加关键帧，需要先退出预览
      */
-    public void previewAt(float timeSeconds) {
+    public synchronized void previewAt(float timeSeconds) {
+        if (!hasValidActiveTrack()) {
+            LOGGER.warn("[TimelineCamera] previewAt({}) 但当前没有有效摄像机轨道", timeSeconds);
+            return;
+        }
+        
         this.previewing = true;
         this.previewTimeSeconds = timeSeconds;
 
-        refreshCameraPath();
+        rebuildFromActiveTrack();
+        applySampleAtTime(timeSeconds, false);
+        LOGGER.debug("[TimelineCameraController] 预览 @ {}s", String.format("%.2f", timeSeconds));
+    }
+    
+    /**
+     * ⭐ v5.0：对指定时间采样，并写入 CameraRuntime
+     */
+    private void applySampleAtTime(float timeSeconds, boolean allowFallback) {
+        Optional<CameraSample> opt = sampler.sample(timeSeconds);
         CameraRuntime runtime = CameraRuntime.getInstance();
 
-        if (pathManager.isEmpty()) {
-            // ⭐ 修复：只在确实需要切换时才切换
-            if (runtime.getOwner() == CameraRuntime.Owner.TIMELINE) {
+        if (opt.isPresent()) {
+            runtime.applyTimelineSample(opt.get());
+        } else if (allowFallback) {
+            // 当前轨道没有关键帧，回退到玩家视角
+            if (runtime.isTimelineOwner()) {
                 runtime.setOwner(CameraRuntime.Owner.PLAYER);
+                ChronoBlocksClientController.getInstance().setHideCrosshair(false);
             }
-            return;
         }
-
-        CameraSample sample = pathManager.sample(timeSeconds).orElse(null);
-        if (sample == null) {
-            // ⭐ 修复：只在确实需要切换时才切换
-            if (runtime.getOwner() == CameraRuntime.Owner.TIMELINE) {
-                runtime.setOwner(CameraRuntime.Owner.PLAYER);
-            }
-            return;
-        }
-
-        // ⭐ 关键修复：在事件发生时设置 owner，而不是在 update() 中每帧设置
-        runtime.applyTimelineSample(sample);
-        LOGGER.debug("[TimelineCameraController] 预览 @ {}s，准备接管相机", String.format("%.2f", timeSeconds));
     }
 
     /**
      * 点击时间标尺时：只采样并把镜头落到玩家态，允许立即调整。
      */
-    public void jumpToTimeAsPlayer(float timeSeconds) {
-        this.previewing = false;
-        refreshCameraPath();
-        CameraSample sample = pathManager.sample(timeSeconds).orElse(null);
-        if (sample == null) {
+    public synchronized void jumpToTimeAsPlayer(float timeSeconds) {
+        if (!hasValidActiveTrack()) {
             return;
         }
+        
+        this.previewing = true;
+        this.previewTimeSeconds = timeSeconds;
 
-        CameraRuntime runtime = CameraRuntime.getInstance();
-        runtime.applyTimelineSample(sample);
+        rebuildFromActiveTrack();
+        applySampleAtTime(timeSeconds, false);
         // 将镜头位置直接写到玩家实体 / 相机
-        CameraAccessor.applySampleToPlayerEntity(MinecraftClient.getInstance(), sample);
+        sampler.sample(timeSeconds).ifPresent(sample -> {
+            CameraAccessor.applySampleToPlayerEntity(MinecraftClient.getInstance(), sample);
+        });
         // 保持玩家 owner，允许继续移动、录制下一帧
-        runtime.setOwner(CameraRuntime.Owner.PLAYER);
+        CameraRuntime.getInstance().setOwner(CameraRuntime.Owner.PLAYER);
+        ChronoBlocksClientController.getInstance().setHideCrosshair(false);
+        LOGGER.debug("[TimelineCamera] jumpToTimeAsPlayer @ {}s", timeSeconds);
     }
 
     // ================== 关键帧捕捉 ==================
@@ -419,24 +532,59 @@ public final class TimelineCameraController {
 
     // ================== 内部工具：收集摄像机关键帧 ==================
 
-    private List<CameraKeyframe> collectCameraKeyframes() {
-        List<CameraKeyframe> list = new ArrayList<>();
-        if (timelineModel == null) return list;
-
-        for (TimelineTrack track : timelineModel.getAllTracks()) {
-            if (track == null) {
-                continue;
-            }
-            TrackType type = track.getType();
-            if (type == null || !type.supportsCameraPath() || track.isLocked() || !track.isVisible()) {
-                continue;
-            }
-            for (TimelineSelectable s : track.getAutomationKeyframes()) {
-                if (s instanceof CameraKeyframe ck) {
-                    list.add(ck);
-                }
+    /**
+     * ⭐ v5.0：从指定 CAMERA 轨道中提取 CameraKeyframe，并按时间排序
+     */
+    private List<CameraKeyframe> collectCameraKeyframes(TimelineTrack track) {
+        List<CameraKeyframe> result = new ArrayList<>();
+        if (track == null || track.getType() != TrackType.CAMERA) {
+            return result;
+        }
+        
+        for (TimelineSelectable selectable : track.getAutomationKeyframes()) {
+            if (selectable instanceof CameraKeyframe ck) {
+                result.add(ck);
             }
         }
-        return list;
+        result.sort(Comparator.comparing(CameraKeyframe::getTime));
+        return result;
+    }
+    
+    /**
+     * ⭐ v5.0：检查是否有有效的激活轨道
+     */
+    private boolean hasValidActiveTrack() {
+        return isValidCameraTrack(activeCameraTrack);
+    }
+
+    /**
+     * ⭐ v5.0：验证轨道是否是有效的摄像机轨道
+     */
+    private boolean isValidCameraTrack(@Nullable TimelineTrack track) {
+        return track != null && track.getType() == TrackType.CAMERA &&
+               timelineModel != null &&
+               timelineModel.getTracks().contains(track);
+    }
+
+    /**
+     * ⭐ v5.0：查找第一条 CAMERA 轨道
+     */
+    @Nullable
+    private TimelineTrack findFirstCameraTrack() {
+        if (timelineModel == null) return null;
+        for (TimelineTrack track : timelineModel.getTracks()) {
+            if (track.getType() == TrackType.CAMERA) {
+                return track;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * ⭐ v5.0：获取当前激活摄像机轨道的"可视化路径点"（世界坐标）
+     * 可用于时间线面板上的轨迹预览、世界中的 Debug 曲线渲染
+     */
+    public List<net.minecraft.util.math.Vec3d> getActiveTrackPathSamples() {
+        return pathManager.getPathPointsForDebug();
     }
 }

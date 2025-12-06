@@ -232,8 +232,54 @@ public class TimelineInteractionHandler {
         handleMouseButtons(hit, trackControlHit, contentX, trackAreaTop, contentW, viewportH, scrollY, rightClickedOnCanvas);
         handleDrag(hit, contentX, trackAreaTop, contentW, viewportH, scrollY);
         
+        // ⭐ v5.0：显示轨道控制按钮的 tooltip
+        renderTrackControlTooltips(trackControlHit);
+        
         // 注意：容器拖放处理现在在 TimelinePanel 中直接处理（�?invisibleButton 之后�?
         // 这样可以确保在正确的窗口上下文中设置拖放目标
+    }
+    
+    /**
+     * 为轨道控制按钮显示 tooltip（激活摄像机、关键帧、锁定）
+     */
+    private void renderTrackControlTooltips(TrackControlHitResult trackControlHit) {
+        if (trackControlHit == null || !trackControlHit.isHit()) {
+            return;
+        }
+        
+        TimelineTrack track = trackControlHit.track();
+        if (track == null) {
+            return;
+        }
+        
+        TimelineTrackControlHit.TrackControlType type = trackControlHit.type();
+        String tooltip = null;
+        
+        switch (type) {
+            case ACTIVE_CAMERA -> {
+                com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController controller =
+                        com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance();
+                boolean isActive = controller.getActiveCameraTrack() == track;
+                tooltip = isActive ? "当前激活的摄像机轨道（点击切换到其他轨道）" : "设为当前激活的摄像机轨道";
+            }
+            case ADD_KEYFRAME -> {
+                if (track.getType() == com.chronoblocks.ui.timeline.model.TrackType.CAMERA) {
+                    tooltip = "添加摄像机关键帧（仅激活轨道可用）";
+                } else {
+                    tooltip = "添加关键帧";
+                }
+            }
+            case LOCK -> {
+                tooltip = track.isLocked() ? "解锁轨道" : "锁定轨道";
+            }
+            case VISIBILITY -> {
+                tooltip = track.isVisible() ? "隐藏轨道" : "显示轨道";
+            }
+        }
+        
+        if (tooltip != null) {
+            ImGui.setTooltip(tooltip);
+        }
     }
 
     // ========== 鼠标按键处理 ==========
@@ -262,6 +308,11 @@ public class TimelineInteractionHandler {
                     case ADD_KEYFRAME -> callbacks.onAddKeyframeToTrack(track);
                     case LOCK -> callbacks.onToggleTrackLock(track);
                     case VISIBILITY -> callbacks.onToggleTrackVisible(track);
+                    case ACTIVE_CAMERA -> {
+                        // ⭐ v5.0：设置激活摄像机轨道
+                        com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance()
+                                .setActiveCameraTrack(track);
+                    }
                 }
                 // 控件点击不再向下传递，不影�?Clip / Keyframe 选择
                 return;

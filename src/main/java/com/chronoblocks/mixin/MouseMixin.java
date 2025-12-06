@@ -72,19 +72,34 @@ public abstract class MouseMixin {
         lastX = x;
         lastY = y;
 
-        // ⭐ 关键修复：检查时间线是否在控制相机，如果是则不允许玩家移动视角
-        if (!hover && chronoblocks$isDragging && client.player != null) {
+        // ⭐ 检测玩家鼠标输入：如果不在播放/scrubbing，立即切回玩家控制
+        if (!hover && client.player != null) {
             com.chronoblocks.ui.timeline.playback.camera.CameraRuntime runtime = 
                 com.chronoblocks.ui.timeline.playback.camera.CameraRuntime.getInstance();
             
-            // 如果时间线在控制相机，不允许玩家移动视角
-            if (runtime.isTimelineOwner()) {
-                return;
+            // 检测鼠标移动（表示玩家想要操作摄像机）
+            boolean hasMouseMovement = Math.abs(dx) > 0.001 || Math.abs(dy) > 0.001;
+            
+            if (hasMouseMovement && runtime.isTimelineOwner()) {
+                // 检查时间线是否真的在活动（播放或 scrubbing）
+                com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController controller =
+                    com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance();
+                
+                if (!controller.isTimelineActive()) {
+                    // ⭐ 播放头静止 + 玩家鼠标移动 = 立即切回玩家控制
+                    controller.clearPreviewState();
+                    runtime.setOwner(com.chronoblocks.ui.timeline.playback.camera.CameraRuntime.Owner.PLAYER);
+                    com.chronoblocks.client.ChronoBlocksClientController.getInstance().setHideCrosshair(false);
+                    LOGGER.debug("[MouseMixin] 检测到玩家鼠标输入，自动切换回玩家控制");
+                }
             }
             
-            double baseSensitivity = client.options.getMouseSensitivity().getValue();
-            double scale = baseSensitivity * 2.0; // ✅ 动态灵敏度系数
-            client.player.changeLookDirection(dx * scale, dy * scale);
+            // 中键拖拽时移动视角（仅在玩家控制时）
+            if (chronoblocks$isDragging && runtime.isPlayerOwner()) {
+                double baseSensitivity = client.options.getMouseSensitivity().getValue();
+                double scale = baseSensitivity * 2.0; // ✅ 动态灵敏度系数
+                client.player.changeLookDirection(dx * scale, dy * scale);
+            }
         }
     }
 

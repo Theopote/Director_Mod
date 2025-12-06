@@ -30,7 +30,8 @@ public final class TimelineTrackControlHit {
     public enum TrackControlType {
         ADD_KEYFRAME,
         LOCK,
-        VISIBILITY
+        VISIBILITY,
+        ACTIVE_CAMERA  // ⭐ v5.0：激活摄像机轨道按钮（仅 CAMERA 轨道）
     }
 
     /**
@@ -108,12 +109,35 @@ public final class TimelineTrackControlHit {
         float visibleX2 = visibleX1 + CONTROL_ICON_SIZE;
         float y2 = y + CONTROL_ICON_SIZE + 2f;
         
+        // ⭐ v5.0：仅对 CAMERA 轨道注册激活按钮（放在原来隐藏按钮的位置）
+        if (type == TrackType.CAMERA) {
+            addHitToPool(track, TrackControlType.ACTIVE_CAMERA, visibleX1, y + 2f, visibleX2, y2);
+        }
+        
+        // ⭐ v5.0：对于摄像机轨道，只有在激活状态下才允许添加关键帧
         if (supportsKeyframes) {
-            addHitToPool(track, TrackControlType.ADD_KEYFRAME, keyframeX1, y + 2f, keyframeX2, y2);
+            if (type == TrackType.CAMERA) {
+                // 检查是否是激活的摄像机轨道
+                com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController controller =
+                        com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance();
+                com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
+                
+                // 只有激活的摄像机轨道才注册关键帧按钮
+                if (activeTrack == track) {
+                    addHitToPool(track, TrackControlType.ADD_KEYFRAME, keyframeX1, y + 2f, keyframeX2, y2);
+                }
+            } else {
+                // 非摄像机轨道，正常注册
+                addHitToPool(track, TrackControlType.ADD_KEYFRAME, keyframeX1, y + 2f, keyframeX2, y2);
+            }
         }
         // 使用池化方法获取对象
         addHitToPool(track, TrackControlType.LOCK, lockX1, y + 2f, lockX2, y2);
-        addHitToPool(track, TrackControlType.VISIBILITY, visibleX1, y + 2f, visibleX2, y2);
+        
+        // ⭐ v5.0：摄像机轨道不注册隐藏/显示按钮
+        if (type != TrackType.CAMERA) {
+            addHitToPool(track, TrackControlType.VISIBILITY, visibleX1, y + 2f, visibleX2, y2);
+        }
     }
     
     /**

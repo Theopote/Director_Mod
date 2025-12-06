@@ -188,6 +188,11 @@ public class TimelineContextMenuBuilder {
             submenu.addSeparator();
             return this;
         }
+        
+        public SubMenuBuilder disabledItem(String label) {
+            submenu.addDisabledItem(label);
+            return this;
+        }
 
         public TimelineContextMenuBuilder end() {
             return parent;

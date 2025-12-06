@@ -465,6 +465,20 @@ public class TimelineModel {
         if (track == null || track.getType() == null || !track.getType().supportsCameraPath()) {
             return null;
         }
+        
+        // ⭐ v5.0：检查是否是激活的摄像机轨道
+        com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController controller =
+                com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance();
+        TimelineTrack activeTrack = controller.getActiveCameraTrack();
+        
+        if (activeTrack != track) {
+            org.slf4j.LoggerFactory.getLogger(TimelineModel.class)
+                    .warn("[TimelineModel] 只能在激活的摄像机轨道上添加关键帧，当前轨道：{}，激活轨道：{}",
+                            track != null ? track.getName() : "null",
+                            activeTrack != null ? activeTrack.getName() : "null");
+            return null;
+        }
+        
         float clamped = Math.max(0f, Math.min(timeSeconds, getDuration()));
         CameraKeyframe keyframe = new CameraKeyframe("Camera Keyframe", clamped);
         // ⭐ 自动捕获完整的当前相机状态（位置、旋转、FOV等所有属性）
