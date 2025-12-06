@@ -35,6 +35,8 @@ public final class TimelineTrackRenderer {
     private static final float TRACK_KEYFRAME_OFFSET_X = -65f;
     private static final float TRACK_LOCK_OFFSET_X = -45f;
     private static final float TRACK_VISIBILITY_OFFSET_X = -25f;
+    // 名称和按钮之间的分割位置（从右侧开始计算，相对于 leftLabelWidth）
+    private static final float TRACK_NAME_BUTTONS_SEPARATOR_OFFSET = -75f;
 
     private final TimelineRenderViewport viewport;
 
@@ -84,7 +86,10 @@ public final class TimelineTrackRenderer {
         drawList.addLine(winX, y + TRACK_HEIGHT, contentX + contentW, y + TRACK_HEIGHT,
                 TimelineColors.COLOR_SEPARATOR_LINE, 1.0f);
 
-        // 6. 绘制文字和图标
+        // 6. 计算分割位置（名称和按钮之间的分割线）
+        float separatorX = winX + viewport.getLeftLabelWidth() + TRACK_NAME_BUTTONS_SEPARATOR_OFFSET;
+        
+        // 7. 绘制文字和图标（名称会被裁剪到分割位置）
         float labelX = winX + TRACK_LABEL_TEXT_OFFSET;
         if (type != null) {
             String icon = type.getIcon();
@@ -95,9 +100,34 @@ public final class TimelineTrackRenderer {
                 logger.warn("Track type icon is null for track: {}", track.getName());
             }
         }
-        drawList.addText(labelX, y + TRACK_ICON_OFFSET_Y, TimelineColors.COLOR_TEXT_LIGHT, track.getName());
+        
+        // 计算名称的最大显示宽度（从 labelX 到分割线）
+        float maxNameWidth = separatorX - labelX - 4f; // 留4像素间距
+        if (maxNameWidth > 0) {
+            // 使用 ImDrawList 的裁剪功能来限制文本显示
+            String trackName = track.getName();
+            
+            // 设置裁剪区域：从 labelX 到 separatorX
+            drawList.pushClipRect(
+                labelX, y,
+                separatorX, y + TRACK_HEIGHT,
+                true  // 相交模式
+            );
+            
+            // 绘制文本（会被裁剪到分割线位置）
+            drawList.addText(labelX, y + TRACK_ICON_OFFSET_Y, TimelineColors.COLOR_TEXT_LIGHT, trackName);
+            
+            // 恢复裁剪区域
+            drawList.popClipRect();
+        } else {
+            // 如果空间不足，不绘制名称
+        }
+        
+        // 8. 绘制分割线（名称和按钮之间）
+        drawList.addLine(separatorX, y, separatorX, y + TRACK_HEIGHT, 
+                TimelineColors.COLOR_SEPARATOR_LINE, 1.0f);
 
-        // 7. 绘制控制图标（关键帧 / 锁 / 可见性）
+        // 9. 绘制控制图标（关键帧 / 锁 / 可见性）
         float keyframeX = winX + viewport.getLeftLabelWidth() + TRACK_KEYFRAME_OFFSET_X;
         float lockX = winX + viewport.getLeftLabelWidth() + TRACK_LOCK_OFFSET_X;
         float visibilityX = winX + viewport.getLeftLabelWidth() + TRACK_VISIBILITY_OFFSET_X;
