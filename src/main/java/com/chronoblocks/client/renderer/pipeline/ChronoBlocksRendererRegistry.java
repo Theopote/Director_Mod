@@ -214,10 +214,12 @@ public final class ChronoBlocksRendererRegistry {
                     RendererStage.GIZMO.getOrder());
             }
 
-            // 摄像机轨迹调试渲染（使用 DEBUG_OVERLAY 阶段）
-            registerRenderer(RendererStage.DEBUG_OVERLAY, "CameraPathDebug",
-                    ctx -> CameraPathDebugRenderer.getInstance().render(ctx),
-                    RendererStage.DEBUG_OVERLAY.getOrder());
+            // 摄像机轨迹调试渲染（使用 TOOL_PREVIEW 阶段，因为 DEBUG_OVERLAY 默认禁用）
+            if (RendererStage.TOOL_PREVIEW.isEnabled()) {
+                registerRenderer(RendererStage.TOOL_PREVIEW, "CameraPathDebug",
+                        ctx -> CameraPathDebugRenderer.getInstance().render(ctx),
+                        RendererStage.TOOL_PREVIEW.getOrder() + 10); // 在工具预览之后渲染
+            }
 
             LOGGER.info("[RendererRegistry] ✅ 默认渲染器注册完成");
         } catch (Exception e) {

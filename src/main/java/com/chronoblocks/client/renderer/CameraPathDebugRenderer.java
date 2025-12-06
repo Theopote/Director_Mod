@@ -1,5 +1,6 @@
 package com.chronoblocks.client.renderer;
 
+import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
 import com.chronoblocks.ui.timeline.playback.camera.CameraSample;
 import com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController;
 import com.chronoblocks.ui.timeline.playback.camera.TimelineCameraPathManager;
@@ -78,7 +79,10 @@ public final class CameraPathDebugRenderer {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
-        LOGGER.debug("[CameraPathDebugRenderer] 轨迹渲染开关: {}", enabled);
+        LOGGER.info("[CameraPathDebugRenderer] 轨迹渲染开关: {} (pathManager: {}, isEmpty: {})", 
+                enabled, 
+                pathManager != null, 
+                pathManager != null ? pathManager.isEmpty() : "N/A");
     }
 
     public boolean isEnabled() {
@@ -95,9 +99,18 @@ public final class CameraPathDebugRenderer {
      * @param context WorldRenderContext，包含所有渲染所需信息
      */
     public void render(WorldRenderContext context) {
-        if (!enabled || pathManager == null || pathManager.isEmpty()) {
+        if (!enabled) {
             return;
         }
+        if (pathManager == null) {
+            LOGGER.warn("[CameraPathDebugRenderer] pathManager 为 null，跳过渲染。请确保 TimelineCameraController 已初始化。");
+            return;
+        }
+        if (pathManager.isEmpty()) {
+            LOGGER.debug("[CameraPathDebugRenderer] pathManager 为空（没有关键帧），跳过渲染");
+            return;
+        }
+        LOGGER.debug("[CameraPathDebugRenderer] 开始渲染轨迹（关键帧数: {}）", pathManager.getKeyframes().size());
         MinecraftClient client = MinecraftClient.getInstance();
         float tickDelta = client != null && client.getRenderTickCounter() != null
                 ? client.getRenderTickCounter().getTickDelta(false)
@@ -135,13 +148,14 @@ public final class CameraPathDebugRenderer {
 
         // 采样路径点 / 关键帧点 / Bezier 调试段
         List<Vec3d> pathPoints = pathManager.getPathPointsForDebug();
-        // 从 keyframes 生成关键帧点列表
-        List<Vec3d> keyframePoints = pathManager.getKeyframes().stream()
-                .map(kf -> new Vec3d(kf.getPosition().x, kf.getPosition().y, kf.getPosition().z))
-                .toList();
+        List<CameraKeyframe> keyframes = pathManager.getKeyframes();
         List<BezierDebugSegment> bezierSegments = pathManager.getBezierSegmentsForDebug();
 
-        if (pathPoints.size() < 2 && keyframePoints.isEmpty()) {
+        // 如果既没有路径点也没有关键帧，则不渲染
+        if ((pathPoints == null || pathPoints.size() < 2) && (keyframes == null || keyframes.isEmpty())) {
+            LOGGER.debug("[CameraPathDebugRenderer] 没有可渲染的数据（路径点: {}, 关键帧: {}）", 
+                    pathPoints != null ? pathPoints.size() : 0, 
+                    keyframes != null ? keyframes.size() : 0);
             return;
         }
 
@@ -153,14 +167,14 @@ public final class CameraPathDebugRenderer {
         RenderSystem.enableDepthTest();
         RenderSystem.lineWidth(LINE_WIDTH);
 
-        // 1. 渲染轨迹线（整体路径）
-        if (pathPoints.size() >= 2) {
+        // 1. 渲染轨迹线（整体路径）- 至少需要2个点才能画线
+        if (pathPoints != null && pathPoints.size() >= 2) {
             renderPathLine(consumers, matrix, cameraPos, pathPoints);
         }
 
-        // 2. 渲染关键帧点（小十字）
-        if (!keyframePoints.isEmpty()) {
-            renderKeyframePoints(consumers, matrix, cameraPos, keyframePoints);
+        // 2. 渲染关键帧点（小十字 + 朝向短线）- 即使只有一个关键帧也渲染
+        if (keyframes != null && !keyframes.isEmpty()) {
+            renderKeyframePoints(consumers, matrix, cameraPos, keyframes);
         }
 
         // 3. 渲染 Bezier 控制柄线段（P0-C1-C2-P3）
@@ -222,32 +236,81 @@ public final class CameraPathDebugRenderer {
 
     // ============ 关键帧点渲染 ============
 
-    private void renderKeyframePoints(VertexConsumerProvider consumers, Matrix4f matrix, Vec3d cameraPos, List<Vec3d> points) {
+    private void renderKeyframePoints(VertexConsumerProvider consumers, Matrix4f matrix, Vec3d cameraPos, List<CameraKeyframe> keyframes) {
         VertexConsumer consumer = consumers.getBuffer(RenderLayer.getLines());
 
-        // 黄色
-        float r = 255 / 255.0f;
-        float g = 220 / 255.0f;
-        float b = 64 / 255.0f;
-        float a = 255 / 255.0f;
+        // 关键帧点颜色：黄色
+        float pointR = 255 / 255.0f;
+        float pointG = 220 / 255.0f;
+        float pointB = 64 / 255.0f;
+        float pointA = 255 / 255.0f;
+
+        // 朝向线颜色：橙色（更明显）
+        float dirR = 255 / 255.0f;
+        float dirG = 165 / 255.0f;
+        float dirB = 0 / 255.0f;
+        float dirA = 255 / 255.0f;
 
         double s = KEYFRAME_POINT_SIZE;
+        double dirLen = 0.5; // 朝向线长度
 
-        for (Vec3d p : points) {
-            double x = p.x - cameraPos.x;
-            double y = p.y - cameraPos.y;
-            double z = p.z - cameraPos.z;
+        for (CameraKeyframe kf : keyframes) {
+            org.joml.Vector3f pos = kf.getPosition();
+            org.joml.Vector3f rot = kf.getRotation();
+            
+            double x = pos.x - cameraPos.x;
+            double y = pos.y - cameraPos.y;
+            double z = pos.z - cameraPos.z;
 
-            // 画一个小十字（X/Y/Z 三个轴方向的线段）
+            // 1. 画关键帧位置点（小十字）
             // X 轴
-            consumer.vertex(matrix, (float) (x - s), (float) y, (float) z).color(r, g, b, a).normal(1f, 0f, 0f);
-            consumer.vertex(matrix, (float) (x + s), (float) y, (float) z).color(r, g, b, a).normal(1f, 0f, 0f);
+            consumer.vertex(matrix, (float) (x - s), (float) y, (float) z).color(pointR, pointG, pointB, pointA).normal(1f, 0f, 0f);
+            consumer.vertex(matrix, (float) (x + s), (float) y, (float) z).color(pointR, pointG, pointB, pointA).normal(1f, 0f, 0f);
             // Y 轴
-            consumer.vertex(matrix, (float) x, (float) (y - s), (float) z).color(r, g, b, a).normal(0f, 1f, 0f);
-            consumer.vertex(matrix, (float) x, (float) (y + s), (float) z).color(r, g, b, a).normal(0f, 1f, 0f);
+            consumer.vertex(matrix, (float) x, (float) (y - s), (float) z).color(pointR, pointG, pointB, pointA).normal(0f, 1f, 0f);
+            consumer.vertex(matrix, (float) x, (float) (y + s), (float) z).color(pointR, pointG, pointB, pointA).normal(0f, 1f, 0f);
             // Z 轴
-            consumer.vertex(matrix, (float) x, (float) y, (float) (z - s)).color(r, g, b, a).normal(0f, 0f, 1f);
-            consumer.vertex(matrix, (float) x, (float) y, (float) (z + s)).color(r, g, b, a).normal(0f, 0f, 1f);
+            consumer.vertex(matrix, (float) x, (float) y, (float) (z - s)).color(pointR, pointG, pointB, pointA).normal(0f, 0f, 1f);
+            consumer.vertex(matrix, (float) x, (float) y, (float) (z + s)).color(pointR, pointG, pointB, pointA).normal(0f, 0f, 1f);
+
+            // 2. 画朝向短线（根据 pitch/yaw 计算前向向量）
+            // Minecraft 的旋转：pitch (x), yaw (y), roll (z)
+            // 使用与 renderDirectionArrow 相同的计算方式
+            float yawDeg = rot.y;   // yaw
+            float pitchDeg = rot.x; // pitch
+            
+            // Minecraft 中 yaw/pitch 角度转换（与 renderDirectionArrow 保持一致）
+            float yawRad = (float) Math.toRadians(-yawDeg - 180.0f);
+            float pitchRad = (float) Math.toRadians(-pitchDeg);
+            
+            // 计算前向向量（Minecraft 的坐标系）
+            double dx = MathHelper.sin(yawRad) * MathHelper.cos(pitchRad);
+            double dy = MathHelper.sin(pitchRad);
+            double dz = MathHelper.cos(yawRad) * MathHelper.cos(pitchRad);
+            
+            // 朝向线的终点
+            double xEnd = x + dx * dirLen;
+            double yEnd = y + dy * dirLen;
+            double zEnd = z + dz * dirLen;
+            
+            // 计算朝向线的法线
+            float nx = (float) dx;
+            float ny = (float) dy;
+            float nz = (float) dz;
+            float len = (float) Math.sqrt(nx * nx + ny * ny + nz * nz);
+            if (len > 1e-6f) {
+                nx /= len;
+                ny /= len;
+                nz /= len;
+            } else {
+                nx = 0f;
+                ny = 1f;
+                nz = 0f;
+            }
+            
+            // 绘制朝向线
+            consumer.vertex(matrix, (float) x, (float) y, (float) z).color(dirR, dirG, dirB, dirA).normal(nx, ny, nz);
+            consumer.vertex(matrix, (float) xEnd, (float) yEnd, (float) zEnd).color(dirR, dirG, dirB, dirA).normal(nx, ny, nz);
         }
     }
 
