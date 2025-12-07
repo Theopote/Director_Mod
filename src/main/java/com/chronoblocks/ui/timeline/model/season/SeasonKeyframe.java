@@ -327,12 +327,13 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
                 humidity = 0.7f;
                 snowlineHeight = 80.0f;
                 
-                // 偏移值（0.0 = 无变化，0.05 = +5%，0.08 = +8%）
-                grassTint.set(0.05f, 0.08f, 0.0f);      // 增强绿色
-                foliageTint.set(0.0f, 0.10f, 0.0f);     // 增强绿色
-                skyTint.set(0.0f, 0.05f, 0.08f);        // 增强蓝色
-                fogTint.set(0.0f, 0.02f, 0.02f);        // 轻微增强
-                lightTint.set(0.0f, 0.02f, 0.0f);       // 轻微增强绿色
+                // 春天：清新、明亮、偏绿色调
+                // 偏移值语义：tint = 0.0 无变化，0.1 = +10%，-0.1 = -10%
+                grassTint.set(-0.05f, 0.15f, -0.10f);   // 增强绿色（G+15%），减弱红蓝
+                foliageTint.set(-0.05f, 0.20f, -0.10f);  // 增强绿色（G+20%），清新嫩绿
+                skyTint.set(-0.05f, 0.05f, 0.15f);      // 增强蓝色（B+15%），明亮天空
+                fogTint.set(-0.03f, 0.05f, 0.08f);      // 轻微增亮，清新
+                lightTint.set(0.05f, 0.10f, -0.05f);    // 暖绿色调，春日阳光
                 break;
                 
             case SUMMER:
@@ -340,11 +341,12 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
                 humidity = 0.6f;
                 snowlineHeight = 96.0f;
                 
-                grassTint.set(0.08f, 0.10f, 0.0f);      // 深绿色
-                foliageTint.set(0.05f, 0.10f, 0.0f);
-                skyTint.set(0.02f, 0.06f, 0.10f);       // 明亮蓝色
-                fogTint.set(0.0f, 0.0f, 0.0f);          // 保持原色
-                lightTint.set(0.02f, 0.02f, 0.0f);      // 暖黄色调
+                // 夏天：深绿色、明亮、饱和
+                grassTint.set(-0.10f, 0.20f, -0.15f);   // 深绿色（G+20%），减弱红蓝
+                foliageTint.set(-0.10f, 0.25f, -0.15f);  // 深绿色（G+25%），茂盛
+                skyTint.set(-0.05f, 0.08f, 0.20f);      // 明亮蓝色（B+20%），晴朗
+                fogTint.set(0.0f, 0.05f, 0.10f);        // 轻微增亮
+                lightTint.set(0.08f, 0.08f, -0.05f);    // 暖黄色调，夏日阳光
                 break;
                 
             case AUTUMN:
@@ -352,12 +354,12 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
                 humidity = 0.5f;
                 snowlineHeight = 88.0f;
                 
-                // 秋天：增强红/橙，减弱绿/蓝
-                grassTint.set(0.10f, 0.04f, -0.03f);    // 黄褐色
-                foliageTint.set(0.20f, 0.08f, -0.05f);  // 橙黄色
-                skyTint.set(0.03f, 0.02f, -0.02f);      // 暖色调
-                fogTint.set(0.04f, 0.03f, 0.0f);        // 暖色调
-                lightTint.set(0.04f, 0.03f, -0.01f);    // 金色调
+                // 秋天：红/橙/黄色，暖色调
+                grassTint.set(0.15f, 0.05f, -0.20f);   // 黄褐色（R+15%），减弱蓝
+                foliageTint.set(0.30f, 0.15f, -0.25f);  // 橙黄色（R+30%, G+15%），减弱蓝
+                skyTint.set(0.10f, 0.05f, -0.10f);      // 暖色调（R+10%），减弱蓝
+                fogTint.set(0.08f, 0.06f, -0.05f);      // 暖色调，金色雾
+                lightTint.set(0.12f, 0.10f, -0.08f);    // 金色调，秋日阳光
                 break;
                 
             case WINTER:
@@ -365,12 +367,12 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
                 humidity = 0.3f;
                 snowlineHeight = 72.0f;
                 
-                // 冬天：减弱绿/红，增强蓝，整体变冷
-                grassTint.set(-0.15f, -0.20f, -0.10f);  // 灰白色
-                foliageTint.set(-0.25f, -0.30f, -0.15f); // 灰白色
-                skyTint.set(-0.02f, 0.0f, 0.05f);       // 冷蓝色
-                fogTint.set(0.06f, 0.06f, 0.06f);       // 增白
-                lightTint.set(-0.02f, -0.02f, 0.0f);    // 冷色调
+                // 冬天：冷色调、灰白色、偏蓝
+                grassTint.set(-0.20f, -0.25f, -0.15f);  // 灰白色（所有通道减弱）
+                foliageTint.set(-0.30f, -0.35f, -0.20f); // 灰白色（大幅减弱）
+                skyTint.set(-0.10f, -0.05f, 0.10f);     // 冷蓝色（B+10%），减弱红绿
+                fogTint.set(0.0f, 0.0f, 0.15f);         // 增白（B+15%），冷色调
+                lightTint.set(-0.10f, -0.08f, 0.05f);   // 冷色调，冬日光线
                 break;
                 
             case CUSTOM:

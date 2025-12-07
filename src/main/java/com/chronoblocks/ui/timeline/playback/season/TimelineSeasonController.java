@@ -382,12 +382,29 @@ public final class TimelineSeasonController {
     private void setCurrentSample(SeasonSample sample) {
         this.currentSample = sample;
         
-        // 触发一次轻量更新（例如让客户端重算光照或刷新天空）
-        // 在这里暂时只做最小操作，详细的渲染 Mixin 可以根据需要自行触发
+        // 强制刷新渲染，让颜色变化立即生效
+        // 由于生物群系颜色可能被缓存，我们需要触发一次区域重渲染
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client != null && client.world != null) {
-            // 可以根据需要标记某些缓存失效，例如：
-            // client.worldRenderer.reload();  // 注意：过于重，慎用
+        if (client != null && client.world != null && client.worldRenderer != null && client.player != null) {
+            try {
+                // 获取玩家当前位置和视野范围
+                net.minecraft.util.math.BlockPos playerPos = client.player.getBlockPos();
+                int renderDistance = Math.max(client.options.getViewDistance().getValue(), 8); // 至少 8 区块
+                int chunkRadius = renderDistance * 16; // 转换为方块单位
+                
+                // 计算可见区域的边界（使用 Minecraft 1.21 的标准高度范围：-64 到 320）
+                int minX = playerPos.getX() - chunkRadius;
+                int minY = Math.max(playerPos.getY() - 64, -64);
+                int minZ = playerPos.getZ() - chunkRadius;
+                int maxX = playerPos.getX() + chunkRadius;
+                int maxY = Math.min(playerPos.getY() + 256, 320);
+                int maxZ = playerPos.getZ() + chunkRadius;
+                
+                // 调度可见区域的区块重渲染，强制重新计算生物群系颜色
+                client.worldRenderer.scheduleBlockRenders(minX, minY, minZ, maxX, maxY, maxZ);
+            } catch (Exception e) {
+                LOGGER.debug("[TimelineSeason] 调度区域重渲染失败: {}", e.getMessage());
+            }
         }
     }
     

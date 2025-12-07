@@ -161,7 +161,7 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
                 keyframe.setGrassTint(colorToTint(grassColor));
                 paramChanged.set(true);
             }
-            ImGui.textDisabled("• 与原始生物群系颜色相乘的趋势");
+            ImGui.textDisabled("• 颜色偏移趋势：0.5=无变化，<0.5=减弱，>0.5=增强");
             UITheme.spacingSmall();
 
             // 树叶
@@ -169,6 +169,7 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
                 keyframe.setFoliageTint(colorToTint(foliageColor));
                 paramChanged.set(true);
             }
+            ImGui.textDisabled("• 与原始生物群系颜色相乘：finalColor = original × (1 + tint)");
             UITheme.spacingSmall();
 
             // 天空
@@ -217,7 +218,8 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
         if (paramChanged.get()) {
             TimelineSeasonController c = TimelineSeasonController.getInstance();
             c.rebuildFromActiveTrack();
-            c.previewAtCurrentTime(); // 实时预览
+            // 预览被编辑的关键帧所在时间点的季节状态，而不是当前时间线时间
+            c.previewAtKeyframeTime(keyframe.getTime());
         }
 
         if (timeChanged.get()) {
@@ -236,20 +238,47 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
     // ===========================================================
     // 工具函数：Tint ↔ ColorEdit3 显示值
     // ===========================================================
+    
+    /**
+     * Tint 到显示颜色的映射范围
+     * 
+     * <p>tint 的有效范围是 [-0.99, +3.0]，但大部分实际值在 [-0.5, +0.5] 之间。
+     * 为了在 UI 上更好地显示和编辑，我们将显示范围限制为 [-0.5, +0.5]，
+     * 映射到颜色选择器的 [0, 1] 范围。
+     * 
+     * <p>映射公式：
+     * <ul>
+     *   <li>显示值 = (tint + 0.5) / 1.0 → [0, 1]</li>
+     *   <li>tint = 显示值 * 1.0 - 0.5 → [-0.5, +0.5]</li>
+     * </ul>
+     * 
+     * <p>这样：
+     * <ul>
+     *   <li>tint = -0.5 → 显示 = 0.0（黑色，表示 -50%）</li>
+     *   <li>tint = 0.0 → 显示 = 0.5（中性灰，表示无变化）</li>
+     *   <li>tint = +0.5 → 显示 = 1.0（白色，表示 +50%）</li>
+     * </ul>
+     */
+    private static final float TINT_DISPLAY_MIN = -0.5f;  // 显示范围最小值
+    private static final float TINT_DISPLAY_MAX = +0.5f;  // 显示范围最大值
+    private static final float TINT_DISPLAY_RANGE = TINT_DISPLAY_MAX - TINT_DISPLAY_MIN; // 1.0
 
-    /** 将 tint（-1~∞）转换为颜色显示值（0~1） */
+    /** 将 tint（偏移值）转换为颜色显示值（0~1） */
     private void tintToColor(Vector3f tint, float[] outColor) {
-        outColor[0] = clamp01(1f + tint.x);
-        outColor[1] = clamp01(1f + tint.y);
-        outColor[2] = clamp01(1f + tint.z);
+        // 将 tint 从 [-0.5, +0.5] 映射到 [0, 1]
+        // 超出范围的值会被 clamp
+        outColor[0] = clamp01((tint.x - TINT_DISPLAY_MIN) / TINT_DISPLAY_RANGE);
+        outColor[1] = clamp01((tint.y - TINT_DISPLAY_MIN) / TINT_DISPLAY_RANGE);
+        outColor[2] = clamp01((tint.z - TINT_DISPLAY_MIN) / TINT_DISPLAY_RANGE);
     }
 
-    /** 将 colorEdit3 的输出转换回 tint */
+    /** 将 colorEdit3 的输出转换回 tint（偏移值） */
     private Vector3f colorToTint(float[] color) {
+        // 将 [0, 1] 映射回 [-0.5, +0.5]
         return new Vector3f(
-                (color[0] - 1f),
-                (color[1] - 1f),
-                (color[2] - 1f)
+                color[0] * TINT_DISPLAY_RANGE + TINT_DISPLAY_MIN,
+                color[1] * TINT_DISPLAY_RANGE + TINT_DISPLAY_MIN,
+                color[2] * TINT_DISPLAY_RANGE + TINT_DISPLAY_MIN
         );
     }
 

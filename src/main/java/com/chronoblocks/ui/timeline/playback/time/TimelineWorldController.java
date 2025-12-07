@@ -145,7 +145,7 @@ public final class TimelineWorldController {
 
         // ⭐ v3.5：初始选中第一条 TIME 轨道（如果存在）
         // ⭐ 如果只有一个时间轨道，自动激活它
-        if (activeTimeTrack == null || !isValidTimeTrack(activeTimeTrack)) {
+        if (!isValidTimeTrack(activeTimeTrack)) {
             TimelineTrack firstTimeTrack = findFirstTimeTrack();
             if (firstTimeTrack != null) {
                 // 检查是否只有一个时间轨道

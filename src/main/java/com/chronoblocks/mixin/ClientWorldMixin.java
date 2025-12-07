@@ -61,22 +61,34 @@ public abstract class ClientWorldMixin {
         cancellable = true
     )
     private void tintSky(Vec3d pos, float tickDelta, CallbackInfoReturnable<Integer> cir) {
-        SeasonSample s = TimelineSeasonController.getInstance().getCurrentSample();
+        TimelineSeasonController controller = TimelineSeasonController.getInstance();
+        if (!controller.hasOverride()) {
+            return; // 没有季节覆盖，直接返回原始颜色
+        }
+        
+        SeasonSample s = controller.getCurrentSample();
         if (s == null) {
             return;
         }
         
-        int argb = cir.getReturnValue();
-        int a = (argb >> 24) & 0xFF;
-        int r = (argb >> 16) & 0xFF;
-        int g = (argb >> 8) & 0xFF;
-        int b = argb & 0xFF;
+        int color = cir.getReturnValue();
+        int r = (color >> 16) & 0xFF;
+        int g = (color >> 8) & 0xFF;
+        int b = color & 0xFF;
         
+        // 确保 Alpha 通道为 0xFF（天空颜色应该完全不透明）
+        int a = (color >> 24) & 0xFF;
+        if (a == 0) {
+            a = 0xFF;
+        }
+        
+        // 应用 tint 偏移：finalColor = originalColor * (1.0 + tint)
         float rf = clamp01((r / 255f) * (1f + clampTint(s.skyTint.x)));
         float gf = clamp01((g / 255f) * (1f + clampTint(s.skyTint.y)));
         float bf = clamp01((b / 255f) * (1f + clampTint(s.skyTint.z)));
         
-        cir.setReturnValue((a << 24)
+        // 重新打包为 ARGB 格式，确保 alpha = 0xFF
+        cir.setReturnValue((0xFF << 24)
                 | ((int) (rf * 255) << 16)
                 | ((int) (gf * 255) << 8)
                 | (int) (bf * 255));

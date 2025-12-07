@@ -45,7 +45,12 @@ public abstract class BiomeColorsMixin {
         cancellable = true
     )
     private static void modifyGrassColor(BlockRenderView world, BlockPos pos, CallbackInfoReturnable<Integer> cir) {
-        SeasonSample s = TimelineSeasonController.getInstance().getCurrentSample();
+        TimelineSeasonController controller = TimelineSeasonController.getInstance();
+        if (!controller.hasOverride()) {
+            return; // 没有季节覆盖，直接返回原始颜色
+        }
+        
+        SeasonSample s = controller.getCurrentSample();
         if (s == null) {
             return;
         }
@@ -61,7 +66,12 @@ public abstract class BiomeColorsMixin {
         cancellable = true
     )
     private static void modifyFoliageColor(BlockRenderView world, BlockPos pos, CallbackInfoReturnable<Integer> cir) {
-        SeasonSample s = TimelineSeasonController.getInstance().getCurrentSample();
+        TimelineSeasonController controller = TimelineSeasonController.getInstance();
+        if (!controller.hasOverride()) {
+            return; // 没有季节覆盖，直接返回原始颜色
+        }
+        
+        SeasonSample s = controller.getCurrentSample();
         if (s == null) {
             return;
         }
@@ -71,20 +81,30 @@ public abstract class BiomeColorsMixin {
     /**
      * 应用颜色 tint 到原始颜色（通用工具函数）
      * 
-     * <p>颜色格式：ARGB (0xAARRGGBB)
+     * <p>颜色格式：Minecraft 生物群系颜色通常是 RGB (0xRRGGBB)，但可能被解释为 ARGB (0xAARRGGBB)。
+     * 为了安全，我们确保 Alpha 通道总是 0xFF（完全不透明）。
      */
     @Unique
-    private static int applyTint(int argb, Vector3f tint) {
-        int a = (argb >> 24) & 0xFF;
-        int r = (argb >> 16) & 0xFF;
-        int g = (argb >> 8) & 0xFF;
-        int b = argb & 0xFF;
+    private static int applyTint(int color, Vector3f tint) {
+        // 提取 RGB 通道（Minecraft 颜色格式可能是 0xRRGGBB 或 0xFFRRGGBB）
+        int r = (color >> 16) & 0xFF;
+        int g = (color >> 8) & 0xFF;
+        int b = color & 0xFF;
         
+        // 确保 Alpha 通道为 0xFF（完全不透明）
+        // 如果原始颜色的 alpha 为 0，说明可能是 RGB 格式，需要设置 alpha = 0xFF
+        int a = (color >> 24) & 0xFF;
+        if (a == 0) {
+            a = 0xFF; // Minecraft 生物群系颜色应该是完全不透明的
+        }
+        
+        // 应用 tint 偏移：finalColor = originalColor * (1.0 + tint)
         float rf = clamp01((r / 255f) * (1f + clampTint(tint.x)));
         float gf = clamp01((g / 255f) * (1f + clampTint(tint.y)));
         float bf = clamp01((b / 255f) * (1f + clampTint(tint.z)));
         
-        return (a << 24)
+        // 重新打包为 ARGB 格式，确保 alpha = 0xFF
+        return (0xFF << 24)
                 | ((int) (rf * 255) << 16)
                 | ((int) (gf * 255) << 8)
                 | (int) (bf * 255);
