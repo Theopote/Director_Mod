@@ -282,6 +282,9 @@ public class TimelinePanel extends AbstractPanel
         com.chronoblocks.ui.timeline.playback.TimelineClipBlockController.getInstance().update();
         float delta = getRenderDelta();
         TimelineCameraController.getInstance().updateOwnerAndSample(delta);
+        
+        // ⭐ 时间轨道系统：每帧更新世界时间（播放/scrubbing时根据当前时间线时间插值）
+        TimelineWorldController.getInstance().update();
 
         // 3. 处理快捷键
         shortcutManager.handle();

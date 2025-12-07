@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * - 停止随机方块显示效果 (doRandomBlockDisplayTicks)
  * - 实体冻结通过setFrozenTicks机制控制（不拦截tickEntities）
  * - ⭐ 支持时间轨道系统的时间冻结
- * 
+ * <p>
  * ✅ 保持玩家移动能力，只冻结非玩家实体
  * 
  * @author ChronoBlocks Team
@@ -36,21 +36,47 @@ public abstract class ClientWorldMixin {
      */
     @Inject(method = "tickTime", at = @At("HEAD"), cancellable = true)
     private void onTickTime(CallbackInfo ci) {
+        // ⭐ DEBUG: 记录每次 tickTime 调用
+        org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger("ClientWorldMixin");
+        if (logger.isTraceEnabled()) {
+            logger.trace("[ClientWorldMixin] 🔔 tickTime() 被调用");
+        }
+        
         // 检查 ChronoBlocks 导演模式
         ChronoBlocksClientController controller = ChronoBlocksClientController.getInstance();
-        if (controller != null && controller.isChronoBlocksModeActive()) {
-            ci.cancel();
-            return;
-        }
+        boolean isDirectorMode = controller != null && controller.isChronoBlocksModeActive();
         
         // ⭐ v2.0：检查时间轨道系统是否需要冻结时间
         TimelineWorldController timeController = TimelineWorldController.getInstance();
-        if (timeController.isEnabled() && timeController.shouldFreezeTime()) {
+        boolean shouldFreezeTime = timeController.isEnabled() && timeController.shouldFreezeTime();
+        
+        // ⭐ v3.4 关键修复：即使导演模式激活，时间轨道系统也需要维持冻结时间
+        // 导演模式只是取消原版时间推进，但时间轨道系统需要每 tick 调用 maintainFrozenTime()
+        // 来确保设置的时间不被重置（防止世界时间被其他代码修改）
+        if (shouldFreezeTime) {
+            if (isDirectorMode) {
+                logger.info("[ClientWorldMixin] ❄️ tickTime() 被拦截 - ChronoBlocks 导演模式 + 时间轨道系统冻结 (enabled={}, shouldFreeze={})", 
+                        timeController.isEnabled(), timeController.shouldFreezeTime());
+            } else {
+                logger.info("[ClientWorldMixin] ❄️ tickTime() 被拦截 - 时间轨道系统冻结 (enabled={}, shouldFreeze={})", 
+                        timeController.isEnabled(), timeController.shouldFreezeTime());
+            }
+            
             ci.cancel();
             
             // ⭐ v2.0 核心改进：维持冻结时间
             // 在时间 tick 被取消后，立即维持冻结的时间值
+            // 这确保即使有其他代码试图修改世界时间，也会立即被恢复
             timeController.maintainFrozenTime((ClientWorld) (Object) this);
+        } else if (isDirectorMode) {
+            // 只有导演模式，没有时间轨道系统冻结
+            logger.info("[ClientWorldMixin] ❄️ tickTime() 被拦截 - ChronoBlocks 导演模式");
+            ci.cancel();
+        } else {
+            if (logger.isTraceEnabled()) {
+                logger.trace("[ClientWorldMixin] ✓ tickTime() 正常执行 - 不冻结 (导演模式={}, enabled={}, shouldFreeze={})",
+                        false, timeController.isEnabled(), timeController.shouldFreezeTime());
+            }
         }
     }
 

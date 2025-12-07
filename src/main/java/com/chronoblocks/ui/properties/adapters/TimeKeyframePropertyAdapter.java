@@ -129,15 +129,17 @@ public class TimeKeyframePropertyAdapter implements IPropertyAdapter<TimeKeyfram
                 // 这由 TimeTrackSampler.toSample() 处理，这里只需要设置模式
             }
             
-            // ⭐ v3.0：显示模式说明
+            // ⭐ v3.3：显示模式说明和使用指导
             if (keyframe.isUseNaturalTime()) {
                 ImGui.textDisabled("• 使用 Minecraft 原版世界时间");
                 ImGui.textDisabled("• 世界时间会自动流逝");
                 ImGui.textDisabled("• 太阳由 Minecraft 自动控制");
+                ImGui.textDisabled("• 推荐：创建自然时间流逝动画（如正午到日落）");
             } else {
                 ImGui.textDisabled("• 完全由时间轨道控制太阳轨迹");
                 ImGui.textDisabled("• 世界时间会被冻结");
                 ImGui.textDisabled("• 可以自定义太阳高度和方位角");
+                ImGui.textDisabled("• 推荐：创建自定义太阳路径（如倒放、加速）");
             }
             
             UITheme.spacingSmall();
@@ -146,7 +148,9 @@ public class TimeKeyframePropertyAdapter implements IPropertyAdapter<TimeKeyfram
             long worldTime = keyframe.getWorldTimeTicks();
             worldTimeFloat.set(worldTime);
             if (ImGui.dragFloat("世界时间（tick）", worldTimeFloat.getData(), 10f, 0f, 24000f, "%.0f")) {
-                keyframe.setWorldTimeTicks((long)worldTimeFloat.get());
+                long newWorldTime = (long)worldTimeFloat.get();
+                System.out.println("[TimeKeyframePropertyAdapter] 🎯 用户修改世界时间: " + worldTime + " -> " + newWorldTime);
+                keyframe.setWorldTimeTicks(newWorldTime);
                 parameterChanged.set(true);
             }
             
@@ -163,12 +167,14 @@ public class TimeKeyframePropertyAdapter implements IPropertyAdapter<TimeKeyfram
             
             // 第一行：日出前和正午
             if (ImGui.button("日出前")) {
+                System.out.println("[TimeKeyframePropertyAdapter] 🎯 用户点击'日出前'按钮，设置时间=0");
                 keyframe.setWorldTimeTicks(0L);
                 worldTimeFloat.set(0L); // 同步UI显示
                 parameterChanged.set(true);
             }
             ImGui.sameLine();
             if (ImGui.button("正午")) {
+                System.out.println("[TimeKeyframePropertyAdapter] 🎯 用户点击'正午'按钮，设置时间=6000");
                 keyframe.setWorldTimeTicks(6000L);
                 worldTimeFloat.set(6000L); // 同步UI显示
                 parameterChanged.set(true);
@@ -176,12 +182,14 @@ public class TimeKeyframePropertyAdapter implements IPropertyAdapter<TimeKeyfram
             
             // 第二行：日落和午夜
             if (ImGui.button("日落")) {
+                System.out.println("[TimeKeyframePropertyAdapter] 🎯 用户点击'日落'按钮，设置时间=12000");
                 keyframe.setWorldTimeTicks(12000L);
                 worldTimeFloat.set(12000L); // 同步UI显示
                 parameterChanged.set(true);
             }
             ImGui.sameLine();
             if (ImGui.button("午夜")) {
+                System.out.println("[TimeKeyframePropertyAdapter] 🎯 用户点击'午夜'按钮，设置时间=18000");
                 keyframe.setWorldTimeTicks(18000L);
                 worldTimeFloat.set(18000L); // 同步UI显示
                 parameterChanged.set(true);
@@ -254,14 +262,24 @@ public class TimeKeyframePropertyAdapter implements IPropertyAdapter<TimeKeyfram
             UITheme.spacingSmall();
         }
         
-        // ⭐ v3.2：修复问题2 - 参数变化时预览关键帧所在位置，而不是播放头位置
+        // ⭐ v3.3：修复问题1 - 参数变化时立即更新冻结状态并预览关键帧所在位置
         // 这样可以确保设置的时间能够持久显示，不会被播放头位置的采样结果覆盖
+        // 同时确保自定义太阳模式时立即冻结时间，防止原版时间推进覆盖设置
         if (parameterChanged.get()) {
+            System.out.println("[TimeKeyframePropertyAdapter] ✅ 检测到参数变化，准备应用 - 关键帧时间=" + keyframe.getTime() + 
+                    "s, 世界时间=" + keyframe.getWorldTimeTicks() + ", useNaturalTime=" + keyframe.isUseNaturalTime());
             TimelineWorldController controller = TimelineWorldController.getInstance();
+            
+            System.out.println("[TimeKeyframePropertyAdapter] 🔨 调用 rebuildFromActiveTrack()");
             controller.rebuildFromActiveTrack();
-            // ⭐ 关键修复：预览关键帧所在位置的时间，而不是当前播放头位置
-            // 这样修改世界时间、太阳高度、方位角等参数时，会立即看到关键帧所在位置的预览效果
+            
+            // ⭐ v3.3 关键修复：
+            // 1. previewAtKeyframeTime 内部会立即更新冻结状态（如果切换为自定义模式）
+            // 2. 预览关键帧所在位置的时间，而不是当前播放头位置
+            // 3. 应用采样后立即同步冻结时间快照，防止原版时间推进覆盖
+            System.out.println("[TimeKeyframePropertyAdapter] 🎯 调用 previewAtKeyframeTime(" + keyframe.getTime() + ")");
             controller.previewAtKeyframeTime(keyframe.getTime());
+            System.out.println("[TimeKeyframePropertyAdapter] ✅ 参数变化处理完成");
         }
         
         // ⭐ v3.0：时间变化只通知重建采样器，不触发预览

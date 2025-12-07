@@ -215,10 +215,19 @@ public final class TimelineWorldController {
         boolean scrubbing = timelineModel.isScrubbing();
 
         if (!playing && !scrubbing) {
+            // ⭐ DEBUG: 不在播放/scrubbing状态，不更新时间
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[TimelineWorld] update() - 不在播放/scrubbing状态，跳过");
+            }
             return;
         }
 
         float currentTime = timelineModel.getCurrentTime();
+        
+        // ⭐ DEBUG: 记录每次 update() 调用
+        LOGGER.info("[TimelineWorld] 🔄 update() 调用 - 播放中={}, scrubbing={}, 当前时间={}s, 冻结状态={}, frozenGameTime={}", 
+                playing, scrubbing, currentTime, freezeTimeActive, freezeTimeActive ? frozenGameTime : "N/A");
+        
         applyTimeSample(currentTime);
     }
 
@@ -254,18 +263,26 @@ public final class TimelineWorldController {
      * <p>v2.0：支持完整功能，包括自定义太阳模式和所有 TimeSample v3.0 参数
      */
     public synchronized void applyTimeSample(float timeSeconds) {
+        // ⭐ DEBUG: 记录调用来源
+        LOGGER.info("[TimelineWorld] 📍 applyTimeSample() 调用 - 时间={}s", timeSeconds);
+        
         if (!enabled || sampler.getKeyframes().isEmpty()) {
+            LOGGER.warn("[TimelineWorld] applyTimeSample() - 未启用或无关键帧，清除状态");
             clear(); // 没有关键帧时清除状态
             return;
         }
 
         Optional<TimeSample> sampleOpt = sampler.sample(timeSeconds);
         if (sampleOpt.isEmpty()) {
+            LOGGER.warn("[TimelineWorld] applyTimeSample() - 采样失败，清除状态");
             clear(); // 采样失败时清除状态
             return;
         }
 
         TimeSample sample = sampleOpt.get();
+        
+        LOGGER.info("[TimelineWorld] ✅ applyTimeSample() - 采样成功: worldTime={}, useWorldTime={}, freezeWorldTime={}", 
+                sample.getWorldTimeTicks(), sample.isUseWorldTime(), sample.isFreezeWorldTime());
         
         // ⭐ v2.0：应用采样到缓存（供 Mixin 读取），支持所有模式
         applySampleInternal(sample, false);
@@ -277,16 +294,24 @@ public final class TimelineWorldController {
      * <p>v2.0：支持完整功能，包括自定义太阳模式
      */
     public synchronized void previewAt(float timeSeconds) {
+        // ⭐ DEBUG: 记录预览调用
+        LOGGER.info("[TimelineWorld] 👁️ previewAt() 调用 - 时间={}s", timeSeconds);
+        
         if (!enabled || !hasValidActiveTrack()) {
+            LOGGER.warn("[TimelineWorld] previewAt() - 未启用或无有效轨道");
             return;
         }
 
         Optional<TimeSample> sampleOpt = sampler.sample(timeSeconds);
         if (sampleOpt.isEmpty()) {
+            LOGGER.warn("[TimelineWorld] previewAt() - 采样失败");
             return;
         }
 
         TimeSample sample = sampleOpt.get();
+        
+        LOGGER.info("[TimelineWorld] ✅ previewAt() - 采样成功: worldTime={}, useWorldTime={}, freezeWorldTime={}", 
+                sample.getWorldTimeTicks(), sample.isUseWorldTime(), sample.isFreezeWorldTime());
         
         // ⭐ v2.0：应用采样到缓存（供 Mixin 读取）
         applySampleInternal(sample, true);
@@ -308,16 +333,42 @@ public final class TimelineWorldController {
     /**
      * 预览指定关键帧所在位置的时间（用于属性面板实时预览）
      * 
-     * <p>v3.2 修复：当修改关键帧参数时，应该预览关键帧所在位置，而不是当前播放头位置
+     * <p>v3.3 修复：当修改关键帧参数时，应该预览关键帧所在位置，而不是当前播放头位置
      * 这样可以确保设置的时间能够持久，不会被播放头位置的采样结果覆盖
+     * 
+     * <p>⭐ 关键改进：
+     * <ul>
+     *   <li>预览前立即更新冻结状态，确保自定义太阳模式时立即冻结</li>
+     *   <li>应用采样后立即同步冻结时间快照，防止原版时间推进覆盖</li>
+     * </ul>
      * 
      * @param keyframeTime 关键帧在时间线上的位置（秒）
      */
     public synchronized void previewAtKeyframeTime(float keyframeTime) {
+        // ⭐ DEBUG: 记录关键帧预览调用
+        LOGGER.info("[TimelineWorld] 🎯 previewAtKeyframeTime() 调用 - 关键帧时间={}s, 当前冻结状态={}, frozenGameTime={}", 
+                keyframeTime, freezeTimeActive, freezeTimeActive ? frozenGameTime : "N/A");
+        
         if (!enabled) {
+            LOGGER.warn("[TimelineWorld] previewAtKeyframeTime() - 未启用");
             return;
         }
+        
+        // ⭐ v3.3 关键修复：预览前立即更新冻结状态
+        // 这样在属性面板修改参数时，如果切换为自定义模式，会立即冻结时间
+        LOGGER.info("[TimelineWorld] 🔄 previewAtKeyframeTime() - 预览前更新冻结状态");
+        updateTimeFreezeState();
+        
+        // 预览关键帧位置的时间
         previewAt(keyframeTime);
+        
+        // ⭐ v3.3 关键修复：预览后再次确保冻结状态正确
+        // 因为采样结果可能改变了冻结需求（例如切换模式）
+        LOGGER.info("[TimelineWorld] 🔄 previewAtKeyframeTime() - 预览后再次更新冻结状态");
+        updateTimeFreezeState();
+        
+        LOGGER.info("[TimelineWorld] ✅ previewAtKeyframeTime() - 完成，当前冻结状态={}, frozenGameTime={}", 
+                freezeTimeActive, freezeTimeActive ? frozenGameTime : "N/A");
     }
 
     // ============================================================
@@ -331,14 +382,26 @@ public final class TimelineWorldController {
      * @param quiet 是否静默（预览时不输出详细日志）
      */
     private void applySampleInternal(TimeSample newSample, boolean quiet) {
+        // ⭐ DEBUG: 记录应用采样
+        LOGGER.info("[TimelineWorld] 🔧 applySampleInternal() 调用 - worldTime={}, useWorldTime={}, freezeWorldTime={}, quiet={}", 
+                newSample != null ? newSample.getWorldTimeTicks() : "null",
+                newSample != null ? newSample.isUseWorldTime() : "N/A",
+                newSample != null ? newSample.isFreezeWorldTime() : "N/A",
+                quiet);
+        
         if (newSample == null) {
+            LOGGER.warn("[TimelineWorld] applySampleInternal() - 采样为null，清除状态");
             clear();
             return;
         }
 
         // ⭐ v2.0 核心：更新状态缓存（Mixin 的唯一真相源）
+        long oldWorldTime = currentSample != null ? currentSample.getWorldTimeTicks() : -1;
         this.hasCustomSample = true;
         this.currentSample = newSample; // TimeSample 是不可变的，直接赋值即可
+
+        LOGGER.info("[TimelineWorld] 📊 applySampleInternal() - 更新缓存: 旧时间={}, 新时间={}, 冻结状态={}", 
+                oldWorldTime, newSample.getWorldTimeTicks(), freezeTimeActive);
 
         // ⭐ v3.0：应用世界时间（根据模式不同处理）
         // 注意：时间冻结状态由 shouldFreezeTime() 基于关键帧类型决定，不需要在这里更新
@@ -346,7 +409,15 @@ public final class TimelineWorldController {
         
         // 应用世界时间（自然时间模式和自定义太阳模式都需要设置时间，用于月相等）
         long normalizedTicks = newSample.getWorldTimeTicks() % 24000L;
+        
+        LOGGER.info("[TimelineWorld] ⏰ applySampleInternal() - 准备应用世界时间: normalizedTicks={}, freezeTimeActive={}", 
+                normalizedTicks, freezeTimeActive);
+        
         applyWorldTime(normalizedTicks);
+        // ⭐ 注意：applyWorldTime() 内部已经会更新 frozenGameTime（如果 freezeTimeActive）
+        
+        LOGGER.info("[TimelineWorld] ✅ applySampleInternal() - 世界时间已应用，当前 frozenGameTime={}", 
+                freezeTimeActive ? frozenGameTime : "N/A");
         
         // ⭐ v3.0：对于自定义太阳模式，时间已被冻结，这里只是同步时间值（用于月相/光照一致性）
         // 对于自然时间模式，如果未冻结，setTime 会生效；如果已冻结（其他原因），Mixin 会维持冻结
@@ -423,14 +494,44 @@ public final class TimelineWorldController {
      */
     public synchronized void maintainFrozenTime(ClientWorld world) {
         if (!freezeTimeActive || world == null) {
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[TimelineWorld] maintainFrozenTime() - 跳过: freezeTimeActive={}, world={}", 
+                        freezeTimeActive, world != null);
+            }
             return;
         }
 
+        long currentWorldTime = world.getTimeOfDay();
+        long currentNormalized = currentWorldTime % 24000L;
+        
+        // ⭐ v3.5 关键优化：只在时间不一致时才调用 world.setTime()
+        // 避免每 tick 都触发渲染更新，导致"一闪一闪"的问题
+        if (currentNormalized == frozenGameTime) {
+            // 时间一致，不需要恢复，减少日志输出和渲染调用
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[TimelineWorld] ❄️ maintainFrozenTime() - 时间一致，跳过 (冻结时间={})", 
+                        frozenGameTime);
+            }
+            return;
+        }
+
+        // 时间不一致，需要恢复
+        LOGGER.warn("[TimelineWorld] ❄️ maintainFrozenTime() - 检测到时间不一致! 期望={}, 当前世界时间={} (归一化={}), 强制恢复", 
+                frozenGameTime, currentWorldTime, currentNormalized);
+        
         // 维持冻结的时间
         world.setTime(frozenGameTime, frozenGameTime, false);
         
-        if (LOGGER.isTraceEnabled()) {
-            LOGGER.trace("[TimelineWorld] Maintain frozen time: {} ticks", frozenGameTime);
+        // ⭐ DEBUG: 验证恢复是否成功
+        // 注意：getTimeOfDay() 可能返回总 tick 数，需要归一化后比较
+        long actualTime = world.getTimeOfDay();
+        long actualNormalized = actualTime % 24000L;
+        if (actualNormalized != frozenGameTime) {
+            LOGGER.error("[TimelineWorld] ❌ maintainFrozenTime() - 恢复失败! 期望={}, 实际={} (归一化={})", 
+                    frozenGameTime, actualTime, actualNormalized);
+        } else {
+            LOGGER.info("[TimelineWorld] ✅ maintainFrozenTime() - 恢复成功 (期望={}, 实际={}, 归一化={})", 
+                    frozenGameTime, actualTime, actualNormalized);
         }
     }
 
@@ -463,7 +564,12 @@ public final class TimelineWorldController {
      * <p>⭐ v3.0 改进：重建后立即更新冻结状态，确保关键帧变化时及时响应
      */
     public synchronized void rebuildFromActiveTrack() {
+        // ⭐ DEBUG: 记录重建采样器
+        LOGGER.info("[TimelineWorld] 🔨 rebuildFromActiveTrack() 调用 - 当前冻结状态={}, frozenGameTime={}", 
+                freezeTimeActive, freezeTimeActive ? frozenGameTime : "N/A");
+        
         if (!hasValidActiveTrack()) {
+            LOGGER.info("[TimelineWorld] rebuildFromActiveTrack() - 无效轨道，清除状态");
             sampler.setKeyframes(new ArrayList<>());
             clear(); // 清除状态缓存
             // ⭐ v3.0：轨道无效时也需要更新冻结状态（可能轨道被删除）
@@ -472,6 +578,15 @@ public final class TimelineWorldController {
         }
 
         List<TimeKeyframe> kfs = collectTimeKeyframes(activeTimeTrack);
+        
+        // ⭐ DEBUG: 记录关键帧信息
+        LOGGER.info("[TimelineWorld] 📋 rebuildFromActiveTrack() - 轨道'{}'，关键帧数量={}", 
+                activeTimeTrack.getName(), kfs.size());
+        for (TimeKeyframe kf : kfs) {
+            LOGGER.info("[TimelineWorld]   - 关键帧: 时间={}s, worldTime={}, useNaturalTime={}", 
+                    kf.getTime(), kf.getWorldTimeTicks(), kf.isUseNaturalTime());
+        }
+        
         sampler.setKeyframes(kfs);
 
         if (LOGGER.isDebugEnabled()) {
@@ -481,7 +596,10 @@ public final class TimelineWorldController {
         
         // ⭐ v3.0 核心改进：每次重建采样器后立即检查冻结状态
         // 这样在添加/删除/修改关键帧时，冻结状态会立即更新
+        LOGGER.info("[TimelineWorld] 🔄 rebuildFromActiveTrack() - 准备更新冻结状态");
         updateTimeFreezeState();
+        LOGGER.info("[TimelineWorld] ✅ rebuildFromActiveTrack() - 完成，当前冻结状态={}, frozenGameTime={}", 
+                freezeTimeActive, freezeTimeActive ? frozenGameTime : "N/A");
     }
 
     /**
@@ -537,18 +655,49 @@ public final class TimelineWorldController {
      * 应用世界时间（自然时间模式）
      */
     private void applyWorldTime(long ticks) {
+        // ⭐ DEBUG: 记录应用世界时间
+        long oldWorldTime = -1;
         MinecraftClient client = MinecraftClient.getInstance();
+        if (client != null && client.world != null) {
+            oldWorldTime = client.world.getTimeOfDay();
+        }
+        
+        LOGGER.info("[TimelineWorld] 🌍 applyWorldTime() 调用 - 新时间={}, 旧时间={} (归一化={}), freezeTimeActive={}, 当前frozenGameTime={}", 
+                ticks, oldWorldTime, oldWorldTime >= 0 ? oldWorldTime % 24000L : -1, freezeTimeActive, freezeTimeActive ? frozenGameTime : "N/A");
+        
         if (client == null || client.world == null) {
+            LOGGER.warn("[TimelineWorld] applyWorldTime() - 客户端或世界为null");
             return;
         }
 
         ClientWorld world = client.world;
         long normalizedTicks = ticks % 24000L;
+        
+        LOGGER.info("[TimelineWorld] 🔨 applyWorldTime() - 调用 world.setTime({}, {}, false)", 
+                normalizedTicks, normalizedTicks);
+        
         world.setTime(normalizedTicks, normalizedTicks, false);
         
         // 更新冻结时间快照
         if (freezeTimeActive) {
+            long oldFrozenTime = frozenGameTime;
             frozenGameTime = normalizedTicks;
+            LOGGER.info("[TimelineWorld] ❄️ applyWorldTime() - 更新冻结时间快照: {} -> {}", 
+                    oldFrozenTime, frozenGameTime);
+        } else {
+            LOGGER.info("[TimelineWorld] ⚠️ applyWorldTime() - 未冻结状态，不更新frozenGameTime");
+        }
+        
+        // ⭐ DEBUG: 验证设置是否成功
+        // 注意：getTimeOfDay() 可能返回总 tick 数，需要归一化后比较
+        long actualTime = world.getTimeOfDay();
+        long actualNormalized = actualTime % 24000L;
+        if (actualNormalized != normalizedTicks) {
+            LOGGER.warn("[TimelineWorld] ⚠️ applyWorldTime() - 设置后验证失败! 期望={}, 实际={} (归一化={})", 
+                    normalizedTicks, actualTime, actualNormalized);
+        } else {
+            LOGGER.info("[TimelineWorld] ✅ applyWorldTime() - 设置成功，验证通过 (实际值={}, 归一化={})", 
+                    actualTime, actualNormalized);
         }
     }
 
@@ -564,24 +713,38 @@ public final class TimelineWorldController {
      * </ul>
      */
     private synchronized void freezeMinecraftTime() {
+        // ⭐ DEBUG: 记录冻结调用
+        LOGGER.info("[TimelineWorld] ❄️ freezeMinecraftTime() 调用开始");
+        
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.world == null) {
+            LOGGER.warn("[TimelineWorld] freezeMinecraftTime() - 客户端或世界为null");
             return;
         }
 
         ClientWorld world = client.world;
+        long currentWorldTime = world.getTimeOfDay();
+        long currentNormalized = currentWorldTime % 24000L;
+        
+        LOGGER.info("[TimelineWorld] 🌍 freezeMinecraftTime() - 当前世界时间={} (归一化={}), hasOverride={}, currentSample={}", 
+                currentWorldTime, currentNormalized, hasOverride(), currentSample != null);
         
         // ⭐ v3.0：如果有活跃采样，使用采样时间作为冻结时间，避免跳变
         // 否则使用当前世界时间
-        if (hasOverride() && currentSample != null) {
+        if (hasOverride()) {
             frozenGameTime = currentSample.getWorldTimeTicks() % 24000L;
+            LOGGER.info("[TimelineWorld] ✅ freezeMinecraftTime() - 使用采样时间作为冻结时间: {}", frozenGameTime);
             // 立即同步到世界，确保一致性
             world.setTime(frozenGameTime, frozenGameTime, false);
+            LOGGER.info("[TimelineWorld] 🔨 freezeMinecraftTime() - 已设置世界时间到 {}", frozenGameTime);
         } else {
-            frozenGameTime = world.getTimeOfDay();
+            frozenGameTime = currentNormalized; // 使用归一化的时间
+            LOGGER.info("[TimelineWorld] ⚠️ freezeMinecraftTime() - 无活跃采样，使用当前世界时间: {} (原始={}, 归一化={})", 
+                    frozenGameTime, currentWorldTime, currentNormalized);
         }
         
         freezeTimeActive = true;
+        LOGGER.info("[TimelineWorld] ✅ freezeMinecraftTime() - 冻结完成: freezeTimeActive=true, frozenGameTime={}", frozenGameTime);
 
         // 在客户端，需要通过服务器来修改游戏规则
         MinecraftServer server = client.getServer();
@@ -665,14 +828,28 @@ public final class TimelineWorldController {
      * <p>v2.0 改进：根据 TimeSample 的 freezeWorldTime 标志决定是否冻结
      */
     private synchronized void updateTimeFreezeState() {
+        // ⭐ DEBUG: 记录冻结状态更新
+        boolean oldFreezeState = freezeTimeActive;
+        long oldFrozenTime = frozenGameTime;
+        
         // 检查是否应该冻结时间
         boolean shouldFreeze = shouldFreezeTime();
 
+        LOGGER.info("[TimelineWorld] 🔄 updateTimeFreezeState() - shouldFreeze={}, 当前freezeTimeActive={}", 
+                shouldFreeze, freezeTimeActive);
+
         if (shouldFreeze && !freezeTimeActive) {
+            LOGGER.info("[TimelineWorld] ❄️ updateTimeFreezeState() - 触发冻结");
             freezeMinecraftTime();
         } else if (!shouldFreeze && freezeTimeActive) {
+            LOGGER.info("[TimelineWorld] 🌊 updateTimeFreezeState() - 触发恢复");
             resumeMinecraftTime();
+        } else {
+            LOGGER.info("[TimelineWorld] ✓ updateTimeFreezeState() - 冻结状态无变化");
         }
+        
+        LOGGER.info("[TimelineWorld] ✅ updateTimeFreezeState() - 完成: {} -> {}, frozenTime: {} -> {}", 
+                oldFreezeState, freezeTimeActive, oldFrozenTime, freezeTimeActive ? frozenGameTime : "N/A");
     }
     
     /**
@@ -709,17 +886,13 @@ public final class TimelineWorldController {
         
         // ⭐ v3.0 核心逻辑：检查是否有"自定义太阳"关键帧
         // 如果有至少一个自定义太阳关键帧，就需要冻结
-        boolean hasCustomSunKeyframe = keyframes.stream()
+
+        // 有自定义太阳关键帧 → 需要冻结
+        return keyframes.stream()
                 .anyMatch(kf -> !kf.isUseNaturalTime());
-        
-        if (hasCustomSunKeyframe) {
-            // 有自定义太阳关键帧 → 需要冻结
-            return true;
-        }
         
         // 所有关键帧都是自然时间模式 → 不冻结
         // 这种情况下，原版时间系统可以正常运行，只需要在采样时同步时间即可
-        return false;
     }
 
     // ================== 兼容性方法 ==================
