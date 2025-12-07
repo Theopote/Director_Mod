@@ -1343,6 +1343,9 @@ public class TimelineInteractionHandler {
         // 只更新时间，不进入 scrubbing
         model.setCurrentTime(clampedTime);
         
+        // ⭐ 季节轨道系统：点击时间刻度时更新季节采样
+        com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController.getInstance().onTimelineTick(clampedTime);
+        
         // 点击时间刻度时跳转镜头到该时间并保持玩家态，便于继续微调
         com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance().jumpToTimeAsPlayer(clampedTime);
         
@@ -1365,6 +1368,9 @@ public class TimelineInteractionHandler {
         
         // 更新模型时间
         model.setCurrentTime(clampedTime);
+        
+        // ⭐ 季节轨道系统：拖动播放头时更新季节采样
+        com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController.getInstance().onTimelineTick(clampedTime);
         
         // ⭐ 通知摄像机控制器更新 scrubbing 位置
         com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance().updateScrubbing(clampedTime);

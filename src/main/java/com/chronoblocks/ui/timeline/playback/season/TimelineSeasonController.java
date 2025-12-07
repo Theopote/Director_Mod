@@ -198,12 +198,11 @@ public final class TimelineSeasonController {
     // ================== 播放 / 时间推进 ==================
     
     /**
-     * 每 tick 更新季节状态。
+     * 每 tick 更新季节状态（保留向后兼容）。
      * 
-     * <p>由时间线主循环调用（例如在 {@code TimelinePanel.update()} 或
-     * {@code ChronoBlocksClientController} 的 client tick 中），
-     * 根据当前的时间线播放时间对季节轨道进行采样。
+     * @deprecated 使用 {@link #onTimelineTick(float)} 代替
      */
+    @Deprecated
     public synchronized void update() {
         if (!enabled || timelineModel == null) {
             return;
@@ -222,20 +221,54 @@ public final class TimelineSeasonController {
         }
         
         float currentTime = timelineModel.getCurrentTime();
-        applySeasonSample(currentTime);
+        onTimelineTick(currentTime);
+    }
+    
+    /**
+     * 时间线在播放或拖动播放头时调用（v3.0 新 API）。
+     * 
+     * <p>这是季节系统的统一入口，所有季节相关的更新都通过这里。
+     * 内部会调用 {@link #propagateToWorld()} 推送到雪系统、天空、草色等。
+     * 
+     * @param timelineTime 当前时间线时间（秒）
+     */
+    public synchronized void onTimelineTick(float timelineTime) {
+        if (!enabled || timelineModel == null) {
+            // 没有启用或没有模型，清除状态
+            setCurrentSample(SeasonSample.defaultSample());
+            propagateToWorld();
+            return;
+        }
+        
+        if (!hasValidActiveTrack() || !sampler.hasKeyframes()) {
+            // 没有激活轨道或没有关键帧，清除状态
+            setCurrentSample(SeasonSample.defaultSample());
+            propagateToWorld();
+            return;
+        }
+        
+        // 从采样器获取当前时间的季节采样
+        Optional<SeasonSample> sampleOpt = sampler.sample(timelineTime);
+        if (sampleOpt.isPresent()) {
+            SeasonSample sample = sampleOpt.get();
+            setCurrentSample(sample);
+        } else {
+            // 采样失败，使用默认值
+            setCurrentSample(SeasonSample.defaultSample());
+        }
+        
+        // 推送到世界系统
+        propagateToWorld();
     }
     
     /**
      * 显式更新（带参数版本），便于从外部系统直接驱动。
+     * 
+     * @deprecated 使用 {@link #onTimelineTick(float)} 代替
      */
+    @Deprecated
     public synchronized void update(float currentTime) {
-        if (!enabled || timelineModel == null) {
-            return;
-        }
-        if (!hasValidActiveTrack()) {
-            return;
-        }
-        applySeasonSample(currentTime);
+        onTimelineTick(currentTime);
     }
     
     /**
@@ -282,6 +315,35 @@ public final class TimelineSeasonController {
     }
     
     // ================== 模型变更 / 关键帧刷新 ==================
+    
+    /**
+     * 属性面板修改关键帧时调用，或模型结构变更后重建。
+     * 
+     * <p>重新生成 SeasonTrackSampler 的内部缓存，并保持当前时间。
+     */
+    public synchronized void rebuildFromActiveTrack() {
+        if (!hasValidActiveTrack()) {
+            setCurrentSample(SeasonSample.defaultSample());
+            propagateToWorld();
+            return;
+        }
+        
+        // 重新收集关键帧并重建采样器
+        List<SeasonKeyframe> kfs = collectSeasonKeyframes(activeSeasonTrack);
+        sampler.setKeyframes(kfs);
+        
+        // 使用当前时间线时间重新采样并推送
+        if (timelineModel != null) {
+            float currentTime = timelineModel.getCurrentTime();
+            onTimelineTick(currentTime);
+            LOGGER.debug("[TimelineSeason] 重新构建轨道，已更新当前时间点的季节状态");
+        }
+        
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("[TimelineSeason] Rebuild from track '{}', keyframes = {}",
+                    activeSeasonTrack.getName(), kfs.size());
+        }
+    }
     
     /**
      * 处理时间线模型结构变更（轨道增删、关键帧变化等）。
@@ -335,65 +397,6 @@ public final class TimelineSeasonController {
                 sampler.hasKeyframes() ? "有" : "无");
     }
     
-    /**
-     * 从当前激活轨道重建采样器。
-     * 
-     * <p>公开方法，供属性面板等外部组件调用，用于在关键帧属性修改后刷新采样器。
-     */
-    public synchronized void rebuildFromActiveTrack() {
-        if (!hasValidActiveTrack()) {
-            // ⭐ 关键修复：先清空采样器，再设置默认样本，确保 hasOverride() 返回 false
-            sampler.setKeyframes(new ArrayList<>());
-            LOGGER.info("[TimelineSeason] 没有激活的季节轨道，恢复到默认渲染");
-            SeasonSample defaultSample = SeasonSample.defaultSample();
-            setCurrentSample(defaultSample);
-            
-            // ⭐ 验证恢复是否成功
-            boolean hasOverrideAfter = hasOverride();
-            LOGGER.info("[TimelineSeason] 恢复验证 - hasOverride() = {}, sampler.hasKeyframes() = {}, currentSample = {}",
-                    hasOverrideAfter, sampler.hasKeyframes(), currentSample != null ? currentSample.toString() : "null");
-            
-            if (hasOverrideAfter) {
-                LOGGER.warn("[TimelineSeason] ⚠️ 警告：恢复后 hasOverride() 仍为 true，可能有问题！");
-            }
-            return;
-        }
-        
-        List<SeasonKeyframe> kfs = collectSeasonKeyframes(activeSeasonTrack);
-        sampler.setKeyframes(kfs);
-        
-        // 如果没有关键帧，恢复到默认状态并刷新渲染
-        if (kfs.isEmpty()) {
-            LOGGER.info("[TimelineSeason] 季节轨道没有关键帧，恢复到默认渲染（轨道: {}）",
-                    activeSeasonTrack != null ? activeSeasonTrack.getName() : "<null>");
-            
-            // ⭐ 关键修复：先确保采样器已清空（上面已设置），再设置默认样本
-            SeasonSample defaultSample = SeasonSample.defaultSample();
-            setCurrentSample(defaultSample);
-            
-            // ⭐ 验证恢复是否成功
-            boolean hasOverrideAfter = hasOverride();
-            LOGGER.info("[TimelineSeason] 恢复验证 - hasOverride() = {}, sampler.hasKeyframes() = {}, currentSample = {}",
-                    hasOverrideAfter, sampler.hasKeyframes(), currentSample != null ? currentSample.toString() : "null");
-            
-            if (hasOverrideAfter) {
-                LOGGER.warn("[TimelineSeason] ⚠️ 警告：恢复后 hasOverride() 仍为 true，可能有问题！");
-            }
-        } else {
-            // ⭐ 关键修复：如果有关键帧，也需要更新当前样本（例如重新添加关键帧后）
-            // 根据当前时间线时间采样并更新，确保渲染立即生效
-            if (timelineModel != null) {
-                float currentTime = timelineModel.getCurrentTime();
-                applySeasonSample(currentTime);
-                LOGGER.debug("[TimelineSeason] 重新构建轨道，已更新当前时间点的季节状态");
-            }
-            
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("[TimelineSeason] Rebuild from track '{}', keyframes = {}",
-                        activeSeasonTrack.getName(), kfs.size());
-            }
-        }
-    }
     
     /**
      * 从指定轨道收集 SeasonKeyframe。
@@ -416,22 +419,48 @@ public final class TimelineSeasonController {
     // ================== 采样 / 应用 ==================
     
     /**
-     * 在给定时间进行采样并应用到当前季节状态。
+     * 将当前季节采样推送到世界系统（v3.0 新 API）。
+     * 
+     * <p>统一的数据流出口，所有依赖季节的系统都在这里接收更新：
+     * <ul>
+     *   <li>雪系统（SeasonSnowManager）</li>
+     *   <li>天空、雾、草色等通过 Mixin 读取 currentSample，无需显式推送</li>
+     * </ul>
      */
-    private void applySeasonSample(float timeSeconds) {
-        Optional<SeasonSample> sampleOpt = sampler.sample(timeSeconds);
-        if (sampleOpt.isEmpty()) {
-            return;
+    private synchronized void propagateToWorld() {
+        boolean hasOverride = hasOverride();
+        if (hasOverride && currentSample != null) {
+            // 雪系统
+            try {
+                com.chronoblocks.season.SeasonSnowManager.get().onSeasonSampleUpdated(currentSample);
+            } catch (Exception e) {
+                LOGGER.warn("[TimelineSeason] Failed to propagate to SeasonSnowManager", e);
+            }
+            
+            // 冰冻水面系统
+            try {
+                com.chronoblocks.season.WaterFreezeManager.get().onSeasonSampleUpdated(currentSample);
+            } catch (Exception e) {
+                LOGGER.warn("[TimelineSeason] Failed to propagate to WaterFreezeManager", e);
+            }
+            
+            // 天空、雾、草叶色已经在 mixin 通过 currentSample 读取，无需这里显式应用
+        } else {
+            // 没有覆盖时，通知所有系统清除
+            try {
+                com.chronoblocks.season.SeasonSnowManager.get().onSeasonSampleUpdated(null);
+            } catch (Exception e) {
+                LOGGER.warn("[TimelineSeason] Failed to clear SeasonSnowManager", e);
+            }
+            
+            try {
+                com.chronoblocks.season.WaterFreezeManager.get().onSeasonSampleUpdated(null);
+            } catch (Exception e) {
+                LOGGER.warn("[TimelineSeason] Failed to clear WaterFreezeManager", e);
+            }
         }
-        
-        SeasonSample sample = sampleOpt.get();
-        setCurrentSample(sample);
-        
-        // 这里不直接修改世界，只是更新"季节基线"，供渲染层使用
-        // 例如：Biome 颜色 / 雾颜色 / 叶子颜色 / 天空色调 等 Mixin 可以通过
-        // TimelineSeasonController.getInstance().getCurrentSample() 读取参数
     }
-    
+
     /**
      * 设置当前季节状态，并在必要时触发渲染更新。
      */

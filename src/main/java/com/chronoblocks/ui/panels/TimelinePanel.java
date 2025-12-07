@@ -15,6 +15,7 @@ import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.TimelineViewportState;
 import com.chronoblocks.ui.timeline.model.TimelineMarker;
 import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
+import com.chronoblocks.ui.timeline.model.time.TimeKeyframe;
 import com.chronoblocks.ui.timeline.model.weather.WeatherKeyframe;
 import com.chronoblocks.ui.timeline.render.TimelineRenderer;
 import com.chronoblocks.ui.timeline.state.*;
@@ -32,6 +33,7 @@ import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.flag.ImGuiInputTextFlags;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -290,7 +292,9 @@ public class TimelinePanel extends AbstractPanel
         TimelineWorldController.getInstance().update();
         
         // ⭐ 季节轨道系统：每帧更新季节参数（播放/scrubbing时根据当前时间线时间插值）
-        TimelineSeasonController.getInstance().update();
+        // 注意：update() 方法内部会根据播放状态决定是否更新
+        // 但为了统一数据流，我们改用 onTimelineTick() 在 setCurrentTime() 处统一调用
+        // TimelineSeasonController.getInstance().update(); // 已废弃，改为在 setCurrentTime 处调用
 
         // 3. 处理快捷键
         shortcutManager.handle();
@@ -383,6 +387,9 @@ public class TimelinePanel extends AbstractPanel
         }
 
         model.setCurrentTime(newTime);
+        
+        // ⭐ 季节轨道系统：播放时更新季节采样
+        TimelineSeasonController.getInstance().onTimelineTick(newTime);
 
         // ⭐ 自动跟随：确保播放头始终在可见区域内
         // 在播放时，如果播放头超出可见范围，自动调整 scrollX 使播放头保持在可见区域内
@@ -1050,7 +1057,7 @@ public class TimelinePanel extends AbstractPanel
                 
                 if (activeTrack != track) {
                     LOGGER.warn("[TimelinePanel] 只能在激活的摄像机轨道上添加关键帧，当前轨道：{}，激活轨道：{}",
-                            track != null ? track.getName() : "null",
+                            track.getName(),
                             activeTrack != null ? activeTrack.getName() : "null");
                     return;
                 }
@@ -1089,22 +1096,14 @@ public class TimelinePanel extends AbstractPanel
                 
                 if (activeTrack != track) {
                     LOGGER.warn("[TimelinePanel] 只能在激活的时间轨道上添加关键帧，当前轨道：{}，激活轨道：{}",
-                            track != null ? track.getName() : "null",
+                            track.getName(),
                             activeTrack != null ? activeTrack.getName() : "null");
                     return;
                 }
                 
                 // 获取当前 Minecraft 世界时间
-                net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
-                long currentWorldTime = 6000L; // 默认正午
-                if (client != null && client.world != null) {
-                    currentWorldTime = client.world.getTimeOfDay();
-                }
-                
-                com.chronoblocks.ui.timeline.model.time.TimeKeyframe timeKeyframe = 
-                    new com.chronoblocks.ui.timeline.model.time.TimeKeyframe("Time @" + timeLabel, time);
-                timeKeyframe.setWorldTimeTicks(currentWorldTime);
-                
+                TimeKeyframe timeKeyframe = getTimeKeyframe(timeLabel, time);
+
                 commandHistory.executeCommand(new AddAutomationKeyframeCommand(
                         model,
                         track,
@@ -1129,7 +1128,7 @@ public class TimelinePanel extends AbstractPanel
                 
                 if (activeTrack != track) {
                     LOGGER.warn("[TimelinePanel] 只能在激活的季节轨道上添加关键帧，当前轨道：{}，激活轨道：{}",
-                            track != null ? track.getName() : "null",
+                            track.getName(),
                             activeTrack != null ? activeTrack.getName() : "null");
                     return;
                 }
@@ -1177,6 +1176,19 @@ public class TimelinePanel extends AbstractPanel
         }
 
         markDataChanged();
+    }
+
+    private static @NotNull TimeKeyframe getTimeKeyframe(String timeLabel, float time) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        long currentWorldTime = 6000L; // 默认正午
+        if (client != null && client.world != null) {
+            currentWorldTime = client.world.getTimeOfDay();
+        }
+
+        TimeKeyframe timeKeyframe =
+            new TimeKeyframe("Time @" + timeLabel, time);
+        timeKeyframe.setWorldTimeTicks(currentWorldTime);
+        return timeKeyframe;
     }
 
     @Override

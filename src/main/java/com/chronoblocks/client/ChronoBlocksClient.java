@@ -18,6 +18,7 @@ import com.chronoblocks.registry.ModItems;
 import com.chronoblocks.client.debug.ChronoBlocksDebugger;
 import com.chronoblocks.client.renderer.pipeline.ChronoBlocksRendererRegistry;
 // ImGui 相关导入已移除，现在由 ImGuiRenderer 统一管理
+import net.minecraft.util.math.Vec3d;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.lwjgl.glfw.GLFW;
@@ -126,6 +127,9 @@ public class ChronoBlocksClient implements ClientModInitializer {
         // 注册键绑定事件处理器
         registerKeyBindingHandler();
         
+        // 注册季节积雪管理器 tick 事件
+        registerSeasonSnowManager();
+        
         // 注册优化的物品使用检测
         registerOptimizedItemUseHandler();
         
@@ -205,6 +209,28 @@ public class ChronoBlocksClient implements ClientModInitializer {
                 // 导演模式快捷键处理已移除（自动集成）
             }
         });
+    }
+    
+    /**
+     * 注册季节积雪管理器 tick 事件
+     */
+    private void registerSeasonSnowManager() {
+        ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (client.world != null && client.player != null) {
+                try {
+                    Vec3d pos = client.player.getPos();
+                    
+                    // ⭐ v3.0：使用新的 tick(world, cameraPos) API，传入摄像机位置
+                    com.chronoblocks.season.SeasonSnowManager.get().tick(client.world, pos);
+                    
+                    // ⭐ v1.0：冰冻水面系统
+                    com.chronoblocks.season.WaterFreezeManager.get().tick(client.world, pos);
+                } catch (Exception e) {
+                    LOGGER.error("[ChronoBlocks] Season system tick error", e);
+                }
+            }
+        });
+        LOGGER.info("[ChronoBlocks] Season system tick handlers registered (Snow + WaterFreeze)");
     }
     
     /**

@@ -84,7 +84,7 @@ public class SeasonTrackSampler {
         }
         
         if (frames.size() == 1) {
-            return sampleFromSingle(frames.get(0));
+            return sampleFromSingle(frames.getFirst());
         }
         
         // 找到前后关键帧
@@ -105,10 +105,8 @@ public class SeasonTrackSampler {
         Interpolation mode = k0.getInterpolation();
         
         return switch (mode) {
-            case DEFAULT -> {
-                // DEFAULT 使用轨道默认插值类型（这里使用 CATMULL_ROM）
-                yield catmullRom(frames, idx, t);
-            }
+            case DEFAULT -> // DEFAULT 使用轨道默认插值类型（这里使用 CATMULL_ROM）
+                    catmullRom(frames, idx, t);
             case LINEAR -> lerp(k0, k1, u);
             case SMOOTH -> smooth(k0, k1, u);
             case CATMULL_ROM -> catmullRom(frames, idx, t);
@@ -127,6 +125,7 @@ public class SeasonTrackSampler {
                 k.getTemperature(),
                 k.getHumidity(),
                 k.getSnowlineHeight(),
+                k.getSnowAmount(),
                 k.getGrassTint(),
                 k.getFoliageTint(),
                 k.getSkyTint(),
@@ -151,7 +150,7 @@ public class SeasonTrackSampler {
         int size = frames.size();
         
         // 如果时间在第一个关键帧之前，返回第一个
-        if (t <= frames.get(0).getTime()) {
+        if (t <= frames.getFirst().getTime()) {
             return 0;
         }
         
@@ -184,6 +183,7 @@ public class SeasonTrackSampler {
                 a.getTemperature() * iu + b.getTemperature() * u,
                 a.getHumidity() * iu + b.getHumidity() * u,
                 a.getSnowlineHeight() * iu + b.getSnowlineHeight() * u,
+                a.getSnowAmount() * iu + b.getSnowAmount() * u,
                 lerpVec(a.getGrassTint(), b.getGrassTint(), u),
                 lerpVec(a.getFoliageTint(), b.getFoliageTint(), u),
                 lerpVec(a.getSkyTint(), b.getSkyTint(), u),
@@ -227,6 +227,7 @@ public class SeasonTrackSampler {
                 catmull(p0.getTemperature(), p1.getTemperature(), p2.getTemperature(), p3.getTemperature(), u),
                 catmull(p0.getHumidity(), p1.getHumidity(), p2.getHumidity(), p3.getHumidity(), u),
                 catmull(p0.getSnowlineHeight(), p1.getSnowlineHeight(), p2.getSnowlineHeight(), p3.getSnowlineHeight(), u),
+                catmull(p0.getSnowAmount(), p1.getSnowAmount(), p2.getSnowAmount(), p3.getSnowAmount(), u),
                 catmullVec(p0.getGrassTint(), p1.getGrassTint(), p2.getGrassTint(), p3.getGrassTint(), u),
                 catmullVec(p0.getFoliageTint(), p1.getFoliageTint(), p2.getFoliageTint(), p3.getFoliageTint(), u),
                 catmullVec(p0.getSkyTint(), p1.getSkyTint(), p2.getSkyTint(), p3.getSkyTint(), u),

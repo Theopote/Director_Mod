@@ -46,6 +46,9 @@ public final class SeasonSample {
     /** 雪线 Y 坐标（高于该值可用于渲染冰冷效果） */
     public final float snowlineHeight;
     
+    /** 雪量 [0.0, 1.0]，用于控制地表的积雪层数（0.0 = 无雪，1.0 = 最大积雪） */
+    public final float snowAmount;
+    
     // ========== 颜色偏移（乘数值） ==========
     
     /** 草地颜色偏移（与生物群系颜色相乘） */
@@ -72,6 +75,7 @@ public final class SeasonSample {
             float temperature,
             float humidity,
             float snowlineHeight,
+            float snowAmount,
             Vector3f grassTint,
             Vector3f foliageTint,
             Vector3f skyTint,
@@ -80,6 +84,7 @@ public final class SeasonSample {
         this.temperature = temperature;
         this.humidity = humidity;
         this.snowlineHeight = snowlineHeight;
+        this.snowAmount = snowAmount;
         // 深复制，避免外部修改
         this.grassTint = new Vector3f(grassTint);
         this.foliageTint = new Vector3f(foliageTint);
@@ -102,6 +107,7 @@ public final class SeasonSample {
             0.0f,   // temperature
             0.5f,   // humidity
             90.0f,  // snowlineHeight
+            0.0f,   // snowAmount
             neutral, neutral, neutral, neutral, neutral
         );
     }
@@ -123,6 +129,7 @@ public final class SeasonSample {
         float temperature = a.temperature + (b.temperature - a.temperature) * t;
         float humidity = a.humidity + (b.humidity - a.humidity) * t;
         float snowlineHeight = a.snowlineHeight + (b.snowlineHeight - a.snowlineHeight) * t;
+        float snowAmount = a.snowAmount + (b.snowAmount - a.snowAmount) * t;
         
         Vector3f grassTint = new Vector3f(a.grassTint).lerp(b.grassTint, t);
         Vector3f foliageTint = new Vector3f(a.foliageTint).lerp(b.foliageTint, t);
@@ -131,7 +138,7 @@ public final class SeasonSample {
         Vector3f lightTint = new Vector3f(a.lightTint).lerp(b.lightTint, t);
         
         return new SeasonSample(
-            temperature, humidity, snowlineHeight,
+            temperature, humidity, snowlineHeight, snowAmount,
             grassTint, foliageTint, skyTint, fogTint, lightTint
         );
     }
@@ -152,6 +159,7 @@ public final class SeasonSample {
                 "temperature=" + temperature +
                 ", humidity=" + humidity +
                 ", snowlineHeight=" + snowlineHeight +
+                ", snowAmount=" + snowAmount +
                 ", grassTint=" + grassTint +
                 ", foliageTint=" + foliageTint +
                 ", skyTint=" + skyTint +

@@ -57,7 +57,7 @@ public class ChronoBlocksClientController {
     }
     
     /**
-     * 停用ChronoBlocks模式
+     * 停用ChronoBlocks模式（导演模式关闭时调用）
      */
     public void deactivateChronoBlocksMode() {
         if (!chronoBlocksModeActive) {
@@ -68,6 +68,18 @@ public class ChronoBlocksClientController {
             chronoBlocksModeActive = false;
             // 恢复输入系统默认状态
             ChronoBlocksInputSystem.restoreDefaults();
+            
+            // ⭐ 清除季节效果（导演模式关闭时）
+            if (client != null && client.world != null) {
+                try {
+                    com.chronoblocks.season.SeasonSnowManager.get().restoreAll(client.world);
+                    com.chronoblocks.season.WaterFreezeManager.get().restoreAll(client.world);
+                    ChronoBlocksMod.LOGGER.info("[ChronoBlocks] 导演模式关闭，已清除所有季节效果（积雪 + 冰冻水面）");
+                } catch (Exception e) {
+                    ChronoBlocksMod.LOGGER.warn("[ChronoBlocks] 清除季节效果时出错", e);
+                }
+            }
+            
             ChronoBlocksMod.LOGGER.info("ChronoBlocks模式已停用 - 十字星已恢复，游戏交互已启用");
             
         } catch (Exception e) {

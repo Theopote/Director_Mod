@@ -112,6 +112,12 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
      */
     private float snowlineHeight = 90.0f;
     
+    /**
+     * 雪量 [0.0, 1.0]，用于控制地表的积雪层数。
+     * 0.0 = 无雪，1.0 = 最大积雪（7层雪）。
+     */
+    private float snowAmount = 0.0f;
+    
     // ========== 颜色趋势（作为偏移值，使用公式：finalColor = originalColor * (1.0 + tint)） ==========
     
     /** 草地颜色偏移（0.0 = 无变化，0.1 = +10%，-0.1 = -10%） */
@@ -243,6 +249,17 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
         this.snowlineHeight = snowlineHeight;
     }
     
+    public float getSnowAmount() {
+        return snowAmount;
+    }
+    
+    /**
+     * 设置雪量 [0.0, 1.0]，用于控制地表的积雪层数。
+     */
+    public void setSnowAmount(float snowAmount) {
+        this.snowAmount = Math.max(0.0f, Math.min(1.0f, snowAmount));
+    }
+    
     // ========== 颜色偏移 Getter（返回引用，注意复制） ==========
     
     public Vector3f getGrassTint() {
@@ -326,6 +343,7 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
                 temperature = 0.0f;
                 humidity = 0.5f;
                 snowlineHeight = 90.0f;
+                snowAmount = 0.0f;
                 
                 // 所有 tint 为 0（无变化）
                 grassTint.set(0.0f, 0.0f, 0.0f);
@@ -339,6 +357,7 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
                 temperature = 0.2f;
                 humidity = 0.7f;
                 snowlineHeight = 80.0f;
+                snowAmount = 0.0f;  // 春天无雪
                 
                 // 春天：清新、明亮、偏绿色调
                 // 偏移值语义：tint = 0.0 无变化，0.1 = +10%，-0.1 = -10%
@@ -353,6 +372,7 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
                 temperature = 0.6f;
                 humidity = 0.6f;
                 snowlineHeight = 96.0f;
+                snowAmount = 0.0f;  // 夏天无雪
                 
                 // 夏天：深绿色、明亮、饱和
                 grassTint.set(-0.10f, 0.20f, -0.15f);   // 深绿色（G+20%），减弱红蓝
@@ -366,6 +386,7 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
                 temperature = -0.1f;
                 humidity = 0.5f;
                 snowlineHeight = 88.0f;
+                snowAmount = 0.1f;  // 秋天可能有少量雪
                 
                 // 秋天：红/橙/黄色，暖色调
                 grassTint.set(0.15f, 0.05f, -0.20f);   // 黄褐色（R+15%），减弱蓝
@@ -379,6 +400,7 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
                 temperature = -0.8f;
                 humidity = 0.3f;
                 snowlineHeight = 72.0f;
+                snowAmount = 0.9f;  // 冬天大量积雪
                 
                 // 冬天：冷色调、灰白色、偏蓝
                 grassTint.set(-0.20f, -0.25f, -0.15f);  // 灰白色（所有通道减弱）

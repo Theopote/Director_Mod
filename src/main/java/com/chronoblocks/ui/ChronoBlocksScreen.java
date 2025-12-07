@@ -400,6 +400,17 @@ public class ChronoBlocksScreen extends Screen {
             LOGGER.warn("[ChronoBlocks] 清理 TimelineSeasonController 状态时出错", e);
         }
         
+        // ⭐ 季节效果系统：关闭窗口时恢复所有季节效果（积雪 + 冰冻水面）
+        try {
+            if (client.world != null) {
+                com.chronoblocks.season.SeasonSnowManager.get().restoreAll(client.world);
+                com.chronoblocks.season.WaterFreezeManager.get().restoreAll(client.world);
+                LOGGER.info("[ChronoBlocks] 已恢复所有季节效果（积雪 + 冰冻水面）");
+            }
+        } catch (Exception e) {
+            LOGGER.warn("[ChronoBlocks] 恢复季节效果时出错", e);
+        }
+        
         cleanupRenderSystems(true);
 
         if (client != null && client.mouse != null) {
