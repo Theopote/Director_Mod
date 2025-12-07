@@ -326,12 +326,20 @@ public final class TimelineSeasonController {
     public synchronized void rebuildFromActiveTrack() {
         if (!hasValidActiveTrack()) {
             sampler.setKeyframes(new ArrayList<>());
-            currentSample = SeasonSample.defaultSample();
+            // 使用 setCurrentSample() 确保触发渲染刷新
+            setCurrentSample(SeasonSample.defaultSample());
+            LOGGER.debug("[TimelineSeason] 没有激活的季节轨道，已恢复默认渲染");
             return;
         }
         
         List<SeasonKeyframe> kfs = collectSeasonKeyframes(activeSeasonTrack);
         sampler.setKeyframes(kfs);
+        
+        // 如果没有关键帧，也恢复到默认状态并刷新渲染
+        if (kfs.isEmpty()) {
+            setCurrentSample(SeasonSample.defaultSample());
+            LOGGER.debug("[TimelineSeason] 季节轨道没有关键帧，已恢复默认渲染");
+        }
         
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("[TimelineSeason] Rebuild from track '{}', keyframes = {}",
@@ -472,17 +480,18 @@ public final class TimelineSeasonController {
      * <ul>
      *   <li>将 currentSample 重置为默认值（所有 tint = 0，无季节偏移）</li>
      *   <li>清空采样器的关键帧</li>
+     *   <li>强制刷新渲染，确保颜色立即恢复到默认</li>
      *   <li>确保 Mixin 不再应用季节颜色（hasOverride() 将返回 false）</li>
      * </ul>
      * 
      * <p>注意：此方法不会禁用季节控制，只是清除当前状态。如果需要禁用，请调用 {@link #setEnabled(boolean)}。
      */
     public synchronized void clear() {
-        // 重置为默认样本（所有 tint = 0，无季节偏移）
-        currentSample = SeasonSample.defaultSample();
-        
         // 清空采样器关键帧
         sampler.setKeyframes(new ArrayList<>());
+        
+        // 使用 setCurrentSample() 确保触发渲染刷新，立即恢复到默认颜色
+        setCurrentSample(SeasonSample.defaultSample());
         
         LOGGER.info("[TimelineSeason] Cleared season override state - 恢复游戏默认渲染");
     }
