@@ -48,6 +48,15 @@ public class SeasonTrackSampler {
     }
     
     /**
+     * 检查是否有关键帧。
+     * 
+     * <p>供 {@link TimelineSeasonController#hasOverride()} 使用，判断是否有季节覆盖。
+     */
+    public boolean hasKeyframes() {
+        return !keyframes.isEmpty();
+    }
+    
+    /**
      * 在指定时间采样季节参数
      * 
      * @param time 时间（秒）

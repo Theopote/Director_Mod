@@ -304,8 +304,13 @@ public final class TimelineSeasonController {
             // 没有季节轨道时，清空激活轨道
             activeSeasonTrack = null;
         } else {
-            // 有多个季节轨道时，检查当前激活轨道是否有效
-            if (!isValidSeasonTrack(activeSeasonTrack)) {
+            // 有多个季节轨道时，检查当前激活轨道是否仍然在模型中
+            // 如果当前激活轨道不在模型中（被删除），或者无效，切换到第一条轨道
+            if (activeSeasonTrack != null && !isSeasonTrackInModel(activeSeasonTrack)) {
+                LOGGER.info("[TimelineSeason] 模型变更：当前激活轨道已被删除，切换到: {}", 
+                        firstSeasonTrack != null ? firstSeasonTrack.getName() : "<none>");
+                activeSeasonTrack = firstSeasonTrack;
+            } else if (!isValidSeasonTrack(activeSeasonTrack)) {
                 activeSeasonTrack = firstSeasonTrack;
                 if (firstSeasonTrack != null) {
                     LOGGER.info("[TimelineSeason] 模型变更：当前激活轨道无效，切换到: {}", firstSeasonTrack.getName());
@@ -327,23 +332,36 @@ public final class TimelineSeasonController {
         if (!hasValidActiveTrack()) {
             sampler.setKeyframes(new ArrayList<>());
             // 使用 setCurrentSample() 确保触发渲染刷新
+            LOGGER.info("[TimelineSeason] 没有激活的季节轨道，恢复到默认渲染");
             setCurrentSample(SeasonSample.defaultSample());
-            LOGGER.debug("[TimelineSeason] 没有激活的季节轨道，已恢复默认渲染");
             return;
         }
         
         List<SeasonKeyframe> kfs = collectSeasonKeyframes(activeSeasonTrack);
         sampler.setKeyframes(kfs);
         
-        // 如果没有关键帧，也恢复到默认状态并刷新渲染
+        // 如果没有关键帧，恢复到默认状态并刷新渲染
         if (kfs.isEmpty()) {
+            LOGGER.info("[TimelineSeason] 季节轨道没有关键帧，恢复到默认渲染");
             setCurrentSample(SeasonSample.defaultSample());
-            LOGGER.debug("[TimelineSeason] 季节轨道没有关键帧，已恢复默认渲染");
-        }
-        
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("[TimelineSeason] Rebuild from track '{}', keyframes = {}",
-                    activeSeasonTrack.getName(), kfs.size());
+            // 记录日志（轨道一定不为 null，因为已经通过了 hasValidActiveTrack() 检查）
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("[TimelineSeason] Rebuild from track '{}', keyframes = 0 (已恢复默认)",
+                        activeSeasonTrack.getName());
+            }
+        } else {
+            // ⭐ 关键修复：如果有关键帧，也需要更新当前样本（例如重新添加关键帧后）
+            // 根据当前时间线时间采样并更新，确保渲染立即生效
+            if (timelineModel != null) {
+                float currentTime = timelineModel.getCurrentTime();
+                applySeasonSample(currentTime);
+                LOGGER.debug("[TimelineSeason] 重新构建轨道，已更新当前时间点的季节状态");
+            }
+            
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("[TimelineSeason] Rebuild from track '{}', keyframes = {}",
+                        activeSeasonTrack.getName(), kfs.size());
+            }
         }
     }
     
@@ -393,11 +411,16 @@ public final class TimelineSeasonController {
         // 强制刷新渲染，让颜色变化立即生效
         // 由于生物群系颜色可能被缓存，我们需要触发一次区域重渲染
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client != null && client.world != null && client.worldRenderer != null && client.player != null) {
+        if (client != null && client.world != null && client.worldRenderer != null) {
             try {
                 // 获取玩家当前位置和视野范围
-                net.minecraft.util.math.BlockPos playerPos = client.player.getBlockPos();
-                int renderDistance = Math.max(client.options.getViewDistance().getValue(), 8); // 至少 8 区块
+                net.minecraft.util.math.BlockPos playerPos = client.player != null 
+                        ? client.player.getBlockPos() 
+                        : new net.minecraft.util.math.BlockPos(0, 64, 0); // 如果没有玩家，使用默认位置
+                
+                int renderDistance = client.player != null 
+                        ? Math.max(client.options.getViewDistance().getValue(), 8) 
+                        : 8; // 至少 8 区块
                 int chunkRadius = renderDistance * 16; // 转换为方块单位
                 
                 // 计算可见区域的边界（使用 Minecraft 1.21 的标准高度范围：-64 到 320）
@@ -410,8 +433,17 @@ public final class TimelineSeasonController {
                 
                 // 调度可见区域的区块重渲染，强制重新计算生物群系颜色
                 client.worldRenderer.scheduleBlockRenders(minX, minY, minZ, maxX, maxY, maxZ);
+                
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("[TimelineSeason] 已调度区域重渲染: ({}, {}, {}) 到 ({}, {}, {})", 
+                            minX, minY, minZ, maxX, maxY, maxZ);
+                }
             } catch (Exception e) {
-                LOGGER.debug("[TimelineSeason] 调度区域重渲染失败: {}", e.getMessage());
+                LOGGER.warn("[TimelineSeason] 调度区域重渲染失败: {}", e.getMessage(), e);
+            }
+        } else {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("[TimelineSeason] 无法刷新渲染：客户端、世界或渲染器为 null");
             }
         }
     }
@@ -427,12 +459,27 @@ public final class TimelineSeasonController {
      * <ul>
      *   <li>季节控制已启用</li>
      *   <li>有有效的激活轨道</li>
+     *   <li>采样器中有关键帧（关键修复：没有关键帧时不应用覆盖）</li>
      *   <li>当前样本不为 null</li>
      *   <li>当前样本不是默认样本（所有 tint 为 0）</li>
      * </ul>
      */
     public synchronized boolean hasOverride() {
-        if (!enabled || !hasValidActiveTrack() || currentSample == null) {
+        if (!enabled) {
+            return false;
+        }
+        
+        // ⭐ 关键修复：如果没有激活轨道，直接返回 false（即使 currentSample 可能不为 null）
+        if (!hasValidActiveTrack()) {
+            return false;
+        }
+        
+        // ⭐ 关键修复：如果采样器中没有关键帧，也返回 false（没有关键帧意味着没有季节覆盖）
+        if (!sampler.hasKeyframes()) {
+            return false;
+        }
+        
+        if (currentSample == null) {
             return false;
         }
         
@@ -524,6 +571,16 @@ public final class TimelineSeasonController {
             }
         }
         return null;
+    }
+    
+    /**
+     * 检查轨道是否仍在模型中（未被删除）。
+     */
+    private boolean isSeasonTrackInModel(TimelineTrack track) {
+        if (track == null || timelineModel == null) {
+            return false;
+        }
+        return timelineModel.getTracks().contains(track);
     }
     
     /**
