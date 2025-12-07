@@ -21,6 +21,7 @@ import com.chronoblocks.ui.timeline.state.*;
 import com.chronoblocks.ui.timeline.ui.TimelineControlBar;
 import com.chronoblocks.ui.timeline.shortcuts.TimelineShortcutManager;
 import com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController;
+import com.chronoblocks.ui.timeline.playback.time.TimelineWorldController;
 import com.chronoblocks.ui.theme.UITheme;
 import net.minecraft.client.MinecraftClient;
 import imgui.ImGui;
@@ -177,6 +178,10 @@ public class TimelinePanel extends AbstractPanel
         // 注册片段方块控制器，根据播放头位置控制片段方块显示
         com.chronoblocks.ui.timeline.playback.TimelineClipBlockController.getInstance().setTimelineModel(model);
         TimelineCameraController.getInstance().setTimelineModel(model);
+        // ⭐ 注册时间轨道控制器，控制世界时间和太阳角度
+        TimelineWorldController.getInstance().setTimelineModel(model);
+        // ⭐ 注册时间轨道控制器，控制世界时间和太阳角度
+        com.chronoblocks.ui.timeline.playback.time.TimelineWorldController.getInstance().setTimelineModel(model);
 
         // 注册容器监听器，用于同步容器名称变更到时间线片段
         Objects.requireNonNull(ContainerManager.getInstance()).addListener(this);

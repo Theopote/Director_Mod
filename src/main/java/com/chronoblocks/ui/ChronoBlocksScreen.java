@@ -384,6 +384,14 @@ public class ChronoBlocksScreen extends Screen {
             LOGGER.warn("[ChronoBlocks] 通知 TimelineCameraController 关闭窗口时出错", e);
         }
         
+        // ⭐ 时间轨道系统：关闭窗口时清理时间控制器状态
+        try {
+            com.chronoblocks.ui.timeline.playback.time.TimelineWorldController.getInstance().clear();
+            LOGGER.info("[ChronoBlocks] 已清理 TimelineWorldController 状态");
+        } catch (Exception e) {
+            LOGGER.warn("[ChronoBlocks] 清理 TimelineWorldController 状态时出错", e);
+        }
+        
         cleanupRenderSystems(true);
 
         if (client != null && client.mouse != null) {

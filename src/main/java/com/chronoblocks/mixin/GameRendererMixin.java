@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * 🎬 GameRendererMixin - 统一相机系统版
- *
+ * <p>
  * - 继续隐藏手 / 玩家实体的逻辑（保持你原来的功能）
  * - 在 getFov(...) 时，如果当前 owner=TIMELINE，则使用 CameraRuntime.currentSample.fov
  */

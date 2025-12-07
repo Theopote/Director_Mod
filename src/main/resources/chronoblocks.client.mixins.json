@@ -16,7 +16,6 @@
     "WorldRendererMixin",
     "BlockRenderManagerMixin",
     "ClientWorldMixin",
-    "WorldTimeMixin",
     "accessor.GameRendererAccessor"
   ],
   "injectors": {

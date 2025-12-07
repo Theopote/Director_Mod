@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * - F3调试信息
  * - 性能图表
  * - 调试HUD
- * 
+ * <p>
  * 基于Minecraft 1.21.4源码中的DebugHud类
  */
 @Mixin(DebugHud.class)

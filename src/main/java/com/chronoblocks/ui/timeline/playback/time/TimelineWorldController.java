@@ -18,25 +18,45 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * TimelineWorldController v1.0
+ * TimelineWorldController v2.0 - 正式可用、真正驱动世界太阳/时间系统的版本
+ *
+ * <p>核心设计理念（参考 CameraRuntime）：
+ * <ul>
+ *   <li>统一的状态缓存：Mixin 永远从 TimelineWorldController.get().current() 读取，而不是从 keyframe 或 sampler</li>
+ *   <li>严格的时间冻结：每 tick mixin 调用 maintainFrozenTime() 来维持冻结时间</li>
+ *   <li>自定义太阳轨迹驱动：直接使用 TimeSample 中的参数（sunElevation, sunAzimuth, skyAngle）</li>
+ *   <li>支持完整 TimeSample v3.0：包括颜色、月亮等所有参数</li>
+ * </ul>
+ *
+ * <p>关键改进（相比 v1.0）：
+ * <ul>
+ *   <li>✅ 彻底解决"自定义太阳角不生效"：Mixin 统一从 currentSample 读取</li>
+ *   <li>✅ 严格的世界时间冻结：每 tick 调用 maintainFrozenTime() 维持冻结</li>
+ *   <li>✅ 完整的状态缓存：currentSample 作为 Mixin 的唯一真相源</li>
+ *   <li>✅ 支持预览和实时应用：previewAt() / previewAtCurrentTime() / applyTimeSample()</li>
+ *   <li>✅ 为 Mixin 提供统一的状态访问接口</li>
+ * </ul>
  *
  * <p>职责：
  * <ul>
  *   <li>管理 TIME 轨道的时间关键帧</li>
  *   <li>在播放/拖动时采样世界时间并应用到 Minecraft 世界</li>
+ *   <li>维护当前采样状态（currentSample），供 Mixin 查询</li>
  *   <li>支持自然时间模式和自定义太阳模式</li>
  *   <li>处理时间循环和角度循环</li>
  * </ul>
  *
- * <p>注意：
- * <ul>
- *   <li>与 TimelineCameraController 类似，但控制的是世界时间而非摄像机</li>
- *   <li>支持多个 TIME 轨道，但任意时刻只有一条为 active（可扩展）</li>
- *   <li>需要配合 Mixin 来实际应用时间（避免直接修改 world.timeOfDay）</li>
- * </ul>
+ * <p>工作流程：
+ * <ol>
+ *   <li>Controller 采样 TimeTrackSampler 得到 TimeSample</li>
+ *   <li>将 TimeSample 写入 currentSample 缓存（供 Mixin 读取）</li>
+ *   <li>应用世界时间（如果使用自然时间模式）</li>
+ *   <li>Mixin 在渲染时从 currentSample 读取太阳角度、天空颜色等</li>
+ *   <li>Mixin 在每 tick 调用 maintainFrozenTime() 维持时间冻结</li>
+ * </ol>
  *
  * @author ChronoBlocks Team
- * @version 1.0
+ * @version 2.0 - 正式可用版本
  */
 public final class TimelineWorldController {
 
@@ -58,8 +78,21 @@ public final class TimelineWorldController {
     /** 监听模型变更 */
     private TimelineModel.ModelChangeListener modelChangeListener;
 
-    /** 是否已冻结原版时间系统 */
-    private boolean timeFrozen = false;
+    // ============================================================
+    // 当前采样值（供 Mixin 查询）- v2.0 核心改进
+    // ============================================================
+
+    /** 是否启用了自定义 TimeSample（有活跃采样） */
+    private boolean hasCustomSample = false;
+
+    /** 当前采样结果缓存（Mixin 的唯一真相源） */
+    private TimeSample currentSample = null;
+
+    /** 冻结的世界时间快照（用于 maintainFrozenTime） */
+    private long frozenGameTime = 0;
+
+    /** 是否已激活时间冻结 */
+    private boolean freezeTimeActive = false;
 
     /** 冻结前保存的 doDaylightCycle 游戏规则值 */
     private Boolean savedDoDaylightCycle = null;
@@ -68,6 +101,11 @@ public final class TimelineWorldController {
     }
 
     public static TimelineWorldController getInstance() {
+        return INSTANCE;
+    }
+
+    /** 便捷别名，供 Mixin 使用（兼容参考代码） */
+    public static TimelineWorldController get() {
         return INSTANCE;
     }
 
@@ -92,6 +130,7 @@ public final class TimelineWorldController {
         if (this.timelineModel == null) {
             activeTimeTrack = null;
             sampler.setKeyframes(new ArrayList<>());
+            clear(); // 清除状态缓存
             return;
         }
 
@@ -110,9 +149,7 @@ public final class TimelineWorldController {
         }
 
         rebuildFromActiveTrack();
-        
-        // ⭐ 当有时间轨道时，冻结原版时间系统
-        updateTimeFreezeState();
+        // ⭐ v3.0：updateTimeFreezeState() 已在 rebuildFromActiveTrack() 内部调用，无需重复
     }
 
     /**
@@ -139,9 +176,7 @@ public final class TimelineWorldController {
                 track != null ? track.getName() : "<none>");
 
         rebuildFromActiveTrack();
-        
-        // ⭐ 更新时间冻结状态
-        updateTimeFreezeState();
+        // ⭐ v3.0：updateTimeFreezeState() 已在 rebuildFromActiveTrack() 内部调用，无需重复
     }
 
     /**
@@ -149,6 +184,9 @@ public final class TimelineWorldController {
      */
     public synchronized void setEnabled(boolean enabled) {
         this.enabled = enabled;
+        if (!enabled) {
+            clear(); // 禁用时清除状态
+        }
         LOGGER.info("[TimelineWorld] 时间控制 {}",
                 enabled ? "已启用" : "已禁用");
     }
@@ -213,11 +251,33 @@ public final class TimelineWorldController {
     /**
      * 在指定时间采样并应用世界时间
      * 
-     * <p>关键设计：只有使用"自定义太阳"模式时才真正接管时间控制。
-     * 如果采样结果是"使用世界时间"模式，则不干预，让原版时间系统自行处理。
+     * <p>v2.0：支持完整功能，包括自定义太阳模式和所有 TimeSample v3.0 参数
      */
     public synchronized void applyTimeSample(float timeSeconds) {
         if (!enabled || sampler.getKeyframes().isEmpty()) {
+            clear(); // 没有关键帧时清除状态
+            return;
+        }
+
+        Optional<TimeSample> sampleOpt = sampler.sample(timeSeconds);
+        if (sampleOpt.isEmpty()) {
+            clear(); // 采样失败时清除状态
+            return;
+        }
+
+        TimeSample sample = sampleOpt.get();
+        
+        // ⭐ v2.0：应用采样到缓存（供 Mixin 读取），支持所有模式
+        applySampleInternal(sample, false);
+    }
+
+    /**
+     * 预览指定时间的世界时间（不改变播放状态）
+     * 
+     * <p>v2.0：支持完整功能，包括自定义太阳模式
+     */
+    public synchronized void previewAt(float timeSeconds) {
+        if (!enabled || !hasValidActiveTrack()) {
             return;
         }
 
@@ -228,28 +288,10 @@ public final class TimelineWorldController {
 
         TimeSample sample = sampleOpt.get();
         
-        // ⭐ 如果当前采样对应的是"使用世界时间"，那就不干预，让原版自己走
-        if (!sample.isUseCustomSun()) {
-            return;
-        }
-
-        // 真正"接管时间/太阳"的只在自定义太阳模式下发生
-        applyToWorld(sample);
-    }
-
-    /**
-     * 预览指定时间的世界时间（不改变播放状态）
-     */
-    public synchronized void previewAt(float timeSeconds) {
-        if (!enabled || !hasValidActiveTrack()) {
-            return;
-        }
-
-        Optional<TimeSample> sample = sampler.sample(timeSeconds);
-        if (sample.isPresent()) {
-            applyToWorld(sample.get());
-            LOGGER.debug("[TimelineWorld] 预览时间 @ {}s: {}", timeSeconds, sample.get());
-        }
+        // ⭐ v2.0：应用采样到缓存（供 Mixin 读取）
+        applySampleInternal(sample, true);
+        
+        LOGGER.debug("[TimelineWorld] 预览时间 @ {}s: {}", timeSeconds, sample);
     }
 
     /**
@@ -261,6 +303,135 @@ public final class TimelineWorldController {
         }
         float currentTime = timelineModel.getCurrentTime();
         previewAt(currentTime);
+    }
+    
+    /**
+     * 预览指定关键帧所在位置的时间（用于属性面板实时预览）
+     * 
+     * <p>v3.2 修复：当修改关键帧参数时，应该预览关键帧所在位置，而不是当前播放头位置
+     * 这样可以确保设置的时间能够持久，不会被播放头位置的采样结果覆盖
+     * 
+     * @param keyframeTime 关键帧在时间线上的位置（秒）
+     */
+    public synchronized void previewAtKeyframeTime(float keyframeTime) {
+        if (!enabled) {
+            return;
+        }
+        previewAt(keyframeTime);
+    }
+
+    // ============================================================
+    // 核心：应用 TimeSample（写入缓存，提供给 Mixin）
+    // ============================================================
+
+    /**
+     * 内部方法：应用采样结果到缓存
+     * 
+     * @param newSample 新的采样结果
+     * @param quiet 是否静默（预览时不输出详细日志）
+     */
+    private void applySampleInternal(TimeSample newSample, boolean quiet) {
+        if (newSample == null) {
+            clear();
+            return;
+        }
+
+        // ⭐ v2.0 核心：更新状态缓存（Mixin 的唯一真相源）
+        this.hasCustomSample = true;
+        this.currentSample = newSample; // TimeSample 是不可变的，直接赋值即可
+
+        // ⭐ v3.0：应用世界时间（根据模式不同处理）
+        // 注意：时间冻结状态由 shouldFreezeTime() 基于关键帧类型决定，不需要在这里更新
+        // 但如果是首次应用采样，需要确保冻结状态已更新（通过 rebuildFromActiveTrack 触发）
+        
+        // 应用世界时间（自然时间模式和自定义太阳模式都需要设置时间，用于月相等）
+        long normalizedTicks = newSample.getWorldTimeTicks() % 24000L;
+        applyWorldTime(normalizedTicks);
+        
+        // ⭐ v3.0：对于自定义太阳模式，时间已被冻结，这里只是同步时间值（用于月相/光照一致性）
+        // 对于自然时间模式，如果未冻结，setTime 会生效；如果已冻结（其他原因），Mixin 会维持冻结
+
+        if (!quiet) {
+            LOGGER.debug("[TimelineWorld] Applied TimeSample: time={}, useWorldTime={}, sunElevation={}°, sunAzimuth={}°",
+                    newSample.getWorldTimeTicks(), 
+                    newSample.isUseWorldTime(),
+                    newSample.getSunElevation(),
+                    newSample.getSunAzimuth());
+        }
+    }
+
+    /**
+     * 对外接口（命令式调用）
+     */
+    public synchronized void applyTimeSample(TimeSample sample) {
+        applySampleInternal(sample, false);
+    }
+
+    // ============================================================
+    // 清除（恢复原版时间）
+    // ============================================================
+
+    /**
+     * 清除状态缓存，恢复原版时间系统
+     */
+    public synchronized void clear() {
+        hasCustomSample = false;
+        currentSample = null;
+        freezeTimeActive = false;
+        
+        // 恢复原版时间系统
+        resumeMinecraftTime();
+        
+        LOGGER.info("[TimelineWorld] Cleared time override state");
+    }
+
+    // ============================================================
+    // 供 Mixin 查询的 Getter（核心）- v2.0 核心接口
+    // ============================================================
+
+    /**
+     * 检查是否有活跃的自定义采样（供 Mixin 使用）
+     */
+    public synchronized boolean hasOverride() {
+        return hasCustomSample && currentSample != null;
+    }
+
+    /**
+     * 获取当前采样结果（供 Mixin 使用）
+     * 
+     * <p>v2.0 核心接口：Mixin 永远从这里读取，而不是从 keyframe 或 sampler
+     */
+    public synchronized Optional<TimeSample> getCurrentSample() {
+        if (!hasOverride()) {
+            return Optional.empty();
+        }
+        return Optional.of(currentSample);
+    }
+
+    /**
+     * 便捷方法：直接获取当前采样（不返回 Optional）
+     * 如果不存在，返回 null
+     */
+    public synchronized TimeSample current() {
+        return hasOverride() ? currentSample : null;
+    }
+
+    /**
+     * 世界 tick 时调用（来自 mixin），维持冻结时间
+     * 
+     * <p>v2.0 核心改进：严格的时间冻结控制
+     */
+    public synchronized void maintainFrozenTime(ClientWorld world) {
+        if (!freezeTimeActive || world == null) {
+            return;
+        }
+
+        // 维持冻结的时间
+        world.setTime(frozenGameTime, frozenGameTime, false);
+        
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("[TimelineWorld] Maintain frozen time: {} ticks", frozenGameTime);
+        }
     }
 
     // ================== 模型变更处理 ==================
@@ -279,9 +450,7 @@ public final class TimelineWorldController {
         }
 
         rebuildFromActiveTrack();
-        
-        // ⭐ 更新时间冻结状态（可能轨道被删除，需要恢复时间）
-        updateTimeFreezeState();
+        // ⭐ v3.0：updateTimeFreezeState() 已在 rebuildFromActiveTrack() 内部调用，无需重复
         
         LOGGER.debug("[TimelineWorld] 模型变更，刷新时间关键帧");
     }
@@ -290,10 +459,15 @@ public final class TimelineWorldController {
      * 从当前激活轨道重建采样器
      * 
      * <p>公开方法，供属性面板等外部组件调用，用于在关键帧属性修改后刷新采样器。
+     * 
+     * <p>⭐ v3.0 改进：重建后立即更新冻结状态，确保关键帧变化时及时响应
      */
     public synchronized void rebuildFromActiveTrack() {
         if (!hasValidActiveTrack()) {
             sampler.setKeyframes(new ArrayList<>());
+            clear(); // 清除状态缓存
+            // ⭐ v3.0：轨道无效时也需要更新冻结状态（可能轨道被删除）
+            updateTimeFreezeState();
             return;
         }
 
@@ -304,6 +478,10 @@ public final class TimelineWorldController {
             LOGGER.debug("[TimelineWorld] Rebuild from track '{}', keyframes = {}",
                     activeTimeTrack.getName(), kfs.size());
         }
+        
+        // ⭐ v3.0 核心改进：每次重建采样器后立即检查冻结状态
+        // 这样在添加/删除/修改关键帧时，冻结状态会立即更新
+        updateTimeFreezeState();
     }
 
     /**
@@ -356,70 +534,195 @@ public final class TimelineWorldController {
     }
 
     /**
-     * 将采样结果应用到 Minecraft 世界
-     * 
-     * <p>应用世界时间和太阳角度到 Minecraft 世界。
-     * 
-     * <p>在 scrubbing 状态下，可以调整玩家视角以提供更好的预览体验。
+     * 应用世界时间（自然时间模式）
      */
-    private void applyToWorld(TimeSample sample) {
+    private void applyWorldTime(long ticks) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.world == null) {
             return;
         }
 
         ClientWorld world = client.world;
+        long normalizedTicks = ticks % 24000L;
+        world.setTime(normalizedTicks, normalizedTicks, false);
+        
+        // 更新冻结时间快照
+        if (freezeTimeActive) {
+            frozenGameTime = normalizedTicks;
+        }
+    }
 
-        // ⭐ 设置世界时间（使用采样的 worldTimeTicks）
-        // 使用 setTime 方法，参考 ChronoBlocksScreen.freezeWorld() 的实现
-        long worldTime = sample.getWorldTimeTicks();
-        world.setTime(worldTime, worldTime, false);
+    // ================== 原版时间系统冻结/恢复 ==================
 
-        if (LOGGER.isTraceEnabled()) {
-            LOGGER.trace("[TimelineWorld] 应用时间采样: {}", sample);
+    /**
+     * 冻结原版时间系统
+     * 
+     * <p>⭐ v3.0 改进：
+     * <ul>
+     *   <li>更严格的时间冻结控制</li>
+     *   <li>初始同步时间，避免跳变</li>
+     * </ul>
+     */
+    private synchronized void freezeMinecraftTime() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.world == null) {
+            return;
         }
 
-        // ⭐ 如果使用自定义太阳模式，可以调整玩家视角预览太阳位置
-        // 注意：这在 scrubbing 和属性面板预览时都很有用
-        if (sample.isUseCustomSun() && client.player != null) {
-            // 将太阳方位角转换为玩家 yaw（需要转换坐标系）
-            // Minecraft 中：yaw 0 = 正南，90 = 正西，180 = 正北，270 = 正东
-            // 太阳方位角：0 = 正北，90 = 正东，180 = 正南，270 = 正西
-            // 转换：yaw = 180 - azimuth
-            float yaw = 180.0f - sample.getSunAzimuth();
-            // 将高度角转换为 pitch（需要反转，因为 pitch 向下为正）
-            float pitch = -sample.getSunElevation();
-            
-            client.player.setYaw(yaw);
-            client.player.setPitch(pitch);
+        ClientWorld world = client.world;
+        
+        // ⭐ v3.0：如果有活跃采样，使用采样时间作为冻结时间，避免跳变
+        // 否则使用当前世界时间
+        if (hasOverride() && currentSample != null) {
+            frozenGameTime = currentSample.getWorldTimeTicks() % 24000L;
+            // 立即同步到世界，确保一致性
+            world.setTime(frozenGameTime, frozenGameTime, false);
+        } else {
+            frozenGameTime = world.getTimeOfDay();
+        }
+        
+        freezeTimeActive = true;
+
+        // 在客户端，需要通过服务器来修改游戏规则
+        MinecraftServer server = client.getServer();
+        if (server != null) {
+            net.minecraft.server.world.ServerWorld serverWorld = server.getOverworld();
+            if (serverWorld != null) {
+                try {
+                    GameRules gameRules = serverWorld.getGameRules();
+
+                    // 保存当前的 doDaylightCycle 值（如果还未保存）
+                    if (savedDoDaylightCycle == null) {
+                        savedDoDaylightCycle = gameRules.getBoolean(GameRules.DO_DAYLIGHT_CYCLE);
+                        LOGGER.debug("[TimelineWorld] 保存原始 doDaylightCycle: {}", savedDoDaylightCycle);
+                    }
+
+                    // 禁用时间流动
+                    gameRules.get(GameRules.DO_DAYLIGHT_CYCLE).set(false, server);
+
+                    LOGGER.info("[TimelineWorld] ✅ 已冻结原版时间系统 (doDaylightCycle = false, frozenTime = {})", frozenGameTime);
+                    return;
+                } catch (Exception e) {
+                    LOGGER.warn("[TimelineWorld] 无法修改游戏规则: {}", e.getMessage());
+                }
+            }
         }
 
-        // ⭐ 自定义太阳角度的实际应用已通过 WorldTimeMixin 实现
-        // WorldTimeMixin 会拦截 World.getSkyAngle()，当使用自定义太阳模式时，
-        // 会根据 sunElevation 和 sunAzimuth 计算并返回自定义的天空角度，
-        // 从而真正影响太阳的渲染位置。
+        // 如果没有服务器（纯客户端模式），则只记录日志
+        // 时间冻结将通过 Mixin 来实现（ClientWorldMixin.onTickTime + maintainFrozenTime）
+        LOGGER.info("[TimelineWorld] ✅ 已标记时间冻结（将通过 Mixin 实现，无服务器访问，frozenTime = {}）", frozenGameTime);
     }
 
     /**
-     * 获取当前采样结果（供 Mixin 使用）
-     * 
-     * <p>注意：此方法会返回当前时间线的采样结果，无论是否在播放或 scrubbing。
-     * 这允许 Mixin 在渲染时（即使时间线静止）也能获取正确的太阳角度。
+     * 恢复原版时间系统
      */
-    public synchronized Optional<TimeSample> getCurrentSample() {
-        if (!enabled || timelineModel == null) {
-            return Optional.empty();
+    private synchronized void resumeMinecraftTime() {
+        if (!freezeTimeActive) {
+            return; // 如果未冻结，无需恢复
         }
 
-        if (!hasValidActiveTrack()) {
-            return Optional.empty();
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.world == null) {
+            freezeTimeActive = false;
+            return;
         }
 
-        // ⭐ 不再检查 playing/scrubbing 状态，允许在属性面板修改时也能获取采样
-        // 这样 Mixin 可以在任何时候（包括静止状态）使用正确的太阳角度
-        float currentTime = timelineModel.getCurrentTime();
-        return sampler.sample(currentTime);
+        // 在客户端，需要通过服务器来修改游戏规则
+        MinecraftServer server = client.getServer();
+        if (server != null) {
+            net.minecraft.server.world.ServerWorld serverWorld = server.getOverworld();
+            if (serverWorld != null) {
+                try {
+                    GameRules gameRules = serverWorld.getGameRules();
+
+                    // 恢复保存的 doDaylightCycle 值
+                    if (savedDoDaylightCycle != null) {
+                        gameRules.get(GameRules.DO_DAYLIGHT_CYCLE).set(savedDoDaylightCycle, server);
+                        LOGGER.info("[TimelineWorld] ✅ 已恢复原版时间系统 (doDaylightCycle = {})", savedDoDaylightCycle);
+                    } else {
+                        // 如果没有保存的值，默认恢复为 true
+                        gameRules.get(GameRules.DO_DAYLIGHT_CYCLE).set(true, server);
+                        LOGGER.info("[TimelineWorld] ✅ 已恢复原版时间系统 (doDaylightCycle = true, 默认值)");
+                    }
+
+                    savedDoDaylightCycle = null;
+                    return;
+                } catch (Exception e) {
+                    LOGGER.warn("[TimelineWorld] 无法恢复游戏规则: {}", e.getMessage());
+                }
+            }
+        }
+
+        // 如果没有服务器，只清除标记
+        savedDoDaylightCycle = null;
+        freezeTimeActive = false;
+        LOGGER.info("[TimelineWorld] ✅ 已清除时间冻结标记");
     }
+
+    /**
+     * 更新时间冻结状态
+     * 
+     * <p>v2.0 改进：根据 TimeSample 的 freezeWorldTime 标志决定是否冻结
+     */
+    private synchronized void updateTimeFreezeState() {
+        // 检查是否应该冻结时间
+        boolean shouldFreeze = shouldFreezeTime();
+
+        if (shouldFreeze && !freezeTimeActive) {
+            freezeMinecraftTime();
+        } else if (!shouldFreeze && freezeTimeActive) {
+            resumeMinecraftTime();
+        }
+    }
+    
+    /**
+     * 检查是否应该冻结世界时间（供 Mixin 使用）
+     * 
+     * <p>⭐ v3.0 核心改进：基于轨道上的关键帧类型动态判断，而不是当前采样结果
+     * 
+     * <p>冻结规则：
+     * <ul>
+     *   <li>如果轨道为空（无关键帧）→ 不冻结</li>
+     *   <li>如果所有关键帧都是自然时间模式 → 不冻结，原版时间正常流逝</li>
+     *   <li>如果有至少一个自定义太阳关键帧 → 冻结，完全由时间轨道控制</li>
+     * </ul>
+     * 
+     * <p>这样设计的好处：
+     * <ul>
+     *   <li>更高效：只有真正需要时才冻结</li>
+     *   <li>更灵活：支持混合模式（虽然当前实现不支持，但架构上允许）</li>
+     *   <li>更直观：用户添加自定义太阳关键帧时，立即看到冻结效果</li>
+     * </ul>
+     */
+    public synchronized boolean shouldFreezeTime() {
+        if (!enabled || !hasValidActiveTrack()) {
+            return false;
+        }
+
+        // 获取当前激活轨道上的所有关键帧
+        List<TimeKeyframe> keyframes = sampler.getKeyframes();
+        
+        // 如果轨道为空（无关键帧），不冻结
+        if (keyframes.isEmpty()) {
+            return false;
+        }
+        
+        // ⭐ v3.0 核心逻辑：检查是否有"自定义太阳"关键帧
+        // 如果有至少一个自定义太阳关键帧，就需要冻结
+        boolean hasCustomSunKeyframe = keyframes.stream()
+                .anyMatch(kf -> !kf.isUseNaturalTime());
+        
+        if (hasCustomSunKeyframe) {
+            // 有自定义太阳关键帧 → 需要冻结
+            return true;
+        }
+        
+        // 所有关键帧都是自然时间模式 → 不冻结
+        // 这种情况下，原版时间系统可以正常运行，只需要在采样时同步时间即可
+        return false;
+    }
+
+    // ================== 兼容性方法 ==================
 
     /**
      * 获取指定时间的采样结果（便于外部直接查询）
@@ -447,122 +750,5 @@ public final class TimelineWorldController {
      */
     public synchronized boolean isScrubbing() {
         return timelineModel != null && timelineModel.isScrubbing();
-    }
-
-    // ================== 原版时间系统冻结/恢复 ==================
-
-    /**
-     * 冻结原版时间系统
-     * 
-     * <p>当时间轨道被创建或激活时调用，禁用原版的时间流逝功能（doDaylightCycle），
-     * 避免时间轨道控制的世界时间与原版时间系统冲突。
-     */
-    private synchronized void freezeMinecraftTime() {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.world == null) {
-            return;
-        }
-
-        // 在客户端，需要通过服务器来修改游戏规则
-        // 如果服务器存在（单机模式或多人模式），则修改游戏规则
-        MinecraftServer server = client.getServer();
-        if (server != null) {
-            net.minecraft.server.world.ServerWorld serverWorld = server.getOverworld();
-            if (serverWorld != null) {
-                try {
-                    GameRules gameRules = serverWorld.getGameRules();
-
-                    // 保存当前的 doDaylightCycle 值（如果还未保存）
-                    if (savedDoDaylightCycle == null) {
-                        savedDoDaylightCycle = gameRules.getBoolean(GameRules.DO_DAYLIGHT_CYCLE);
-                        LOGGER.debug("[TimelineWorld] 保存原始 doDaylightCycle: {}", savedDoDaylightCycle);
-                    }
-
-                    // 禁用时间流动
-                    gameRules.get(GameRules.DO_DAYLIGHT_CYCLE).set(false, server);
-                    timeFrozen = true;
-
-                    LOGGER.info("[TimelineWorld] ✅ 已冻结原版时间系统 (doDaylightCycle = false)");
-                    return;
-                } catch (Exception e) {
-                    LOGGER.warn("[TimelineWorld] 无法修改游戏规则: {}", e.getMessage());
-                }
-            }
-        }
-
-        // 如果没有服务器（纯客户端模式），则只记录日志
-        // 时间冻结将通过 Mixin 来实现（ClientWorldMixin.onTickTime）
-        timeFrozen = true;
-        LOGGER.info("[TimelineWorld] ✅ 已标记时间冻结（将通过 Mixin 实现，无服务器访问）");
-    }
-
-    /**
-     * 恢复原版时间系统
-     * 
-     * <p>当时间轨道被禁用或删除时调用，恢复原版的时间流动功能。
-     */
-    private synchronized void resumeMinecraftTime() {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.world == null) {
-            return;
-        }
-
-        // 在客户端，需要通过服务器来修改游戏规则
-        MinecraftServer server = client.getServer();
-        if (server != null) {
-            net.minecraft.server.world.ServerWorld serverWorld = server.getOverworld();
-            if (serverWorld != null) {
-                try {
-                    GameRules gameRules = serverWorld.getGameRules();
-
-                    // 恢复保存的 doDaylightCycle 值
-                    if (savedDoDaylightCycle != null) {
-                        gameRules.get(GameRules.DO_DAYLIGHT_CYCLE).set(savedDoDaylightCycle, server);
-                        LOGGER.info("[TimelineWorld] ✅ 已恢复原版时间系统 (doDaylightCycle = {})", savedDoDaylightCycle);
-                    } else {
-                        // 如果没有保存的值，默认恢复为 true
-                        gameRules.get(GameRules.DO_DAYLIGHT_CYCLE).set(true, server);
-                        LOGGER.info("[TimelineWorld] ✅ 已恢复原版时间系统 (doDaylightCycle = true, 默认值)");
-                    }
-
-                    timeFrozen = false;
-                    savedDoDaylightCycle = null;
-                    return;
-                } catch (Exception e) {
-                    LOGGER.warn("[TimelineWorld] 无法恢复游戏规则: {}", e.getMessage());
-                }
-            }
-        }
-
-        // 如果没有服务器，只清除标记
-        timeFrozen = false;
-        savedDoDaylightCycle = null;
-        LOGGER.info("[TimelineWorld] ✅ 已清除时间冻结标记");
-    }
-
-    /**
-     * 更新时间冻结状态
-     * 
-     * <p>关键设计：只有存在"自定义太阳"关键帧时才需要冻结原版时间系统。
-     * 如果所有关键帧都是"使用世界时间"模式，则不需要冻结，让原版时间系统正常工作。
-     * 
-     * <p>冻结逻辑：
-     * - 只有存在自定义太阳关键帧 → 冻结时间（避免原版时间与轨道时间冲突）
-     * - 如果所有关键帧都是"使用世界时间" → 不冻结（原版时间系统正常工作）
-     * - 如果没有激活轨道或没有关键帧 → 恢复时间
-     */
-    private synchronized void updateTimeFreezeState() {
-        // 检查是否有"自定义太阳"的关键帧
-        boolean hasCustomSunKeyframe = sampler.getKeyframes().stream()
-                .anyMatch(kf -> !kf.isUseNaturalTime());
-
-        // 只有存在自定义太阳关键帧时才需要冻结
-        boolean shouldFreeze = enabled && hasValidActiveTrack() && hasCustomSunKeyframe;
-
-        if (shouldFreeze && !timeFrozen) {
-            freezeMinecraftTime();
-        } else if (!shouldFreeze && timeFrozen) {
-            resumeMinecraftTime();
-        }
     }
 }

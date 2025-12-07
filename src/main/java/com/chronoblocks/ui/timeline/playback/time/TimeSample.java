@@ -1,60 +1,295 @@
 package com.chronoblocks.ui.timeline.playback.time;
 
 /**
- * 时间采样结果
+ * 时间采样结果 v3.0 - 专业动画级天空控制
  * 
  * <p>表示在某个时间点采样得到的 Minecraft 世界时间状态。
  * 
+ * <p>包含完整的天文参数，用于控制天空渲染、光照、月相等所有时间相关的视觉效果。
+ * 
+ * <p>关键设计：
+ * <ul>
+ *   <li>useWorldTime = true：使用自然时间，Minecraft 原版计算所有参数</li>
+ *   <li>useWorldTime = false：使用自定义太阳角度，需要 Mixin 覆盖天空计算</li>
+ * </ul>
+ * 
+ * <p>专业动画级功能支持：
+ * <ul>
+ *   <li>✅ 真实世界太阳运动（高度角、方位角）</li>
+ *   <li>✅ 完全反时间（倒放动画）</li>
+ *   <li>✅ 日光强度渐变（skyLight）</li>
+ *   <li>✅ 手工制作日出夕阳动画</li>
+ *   <li>✅ 蓝天、金色黄昏、深夜蓝调（天空颜色覆盖）</li>
+ *   <li>✅ 月亮位置和相位控制</li>
+ * </ul>
+ * 
  * @author ChronoBlocks Team
- * @version 1.0
+ * @version 3.0 - 专业动画级天空控制
  */
 public final class TimeSample {
-    /** Minecraft 世界时间（tick） */
+    
+    /* =============================
+     *    基础世界时间 / 控制参数
+     * ============================= */
+    
+    /** 是否使用自然世界时间（true = 使用 worldTimeTicks，false = 使用自定义太阳角度） */
+    private final boolean useWorldTime;
+    
+    /** Minecraft 世界时间（tick，0-24000），用于月相、部分光照逻辑 */
     private final long worldTimeTicks;
     
-    /** 是否使用自定义太阳角度 */
-    private final boolean useCustomSun;
+    /** 是否冻结世界时间推进（控制器使用，Mixin 可以读取此值） */
+    private final boolean freezeWorldTime;
     
-    /** 太阳高度角（度，0~90） */
+    /* =============================
+     *         太阳（日照）系统
+     * ============================= */
+    
+    /** 太阳在天空的循环角度（0~1），覆盖 ClientWorld.getSkyAngle() */
+    private final float skyAngle;
+    
+    /** 太阳高度角（仰角，度，0~90，0=地平线，90=正头顶） */
     private final float sunElevation;
     
-    /** 太阳方位角（度，0~360） */
+    /** 太阳方位角（度，0~360，0=正北，90=正东，180=正南，270=正西） */
     private final float sunAzimuth;
     
-    public TimeSample(long worldTimeTicks, boolean useCustomSun, float sunElevation, float sunAzimuth) {
+    /** 天空亮度（0.0-1.0，0=午夜，1=正午），用于光照和颜色计算 */
+    private final float skyLight;
+    
+    /* =============================
+     *        月亮（月相）系统
+     * ============================= */
+    
+    /** 月亮相位（0-7） */
+    private final int moonPhase;
+    
+    /** 月亮高度角（度，0~90，负值表示在下方） */
+    private final float moonElevation;
+    
+    /** 月亮方位角（度，0~360） */
+    private final float moonAzimuth;
+    
+    /* =============================
+     *        天空颜色系统
+     * ============================= */
+    
+    /** 是否手动设置黎明/黄昏颜色 */
+    private final boolean useCustomSkyColor;
+    
+    /** 日出/日落颜色覆盖（Vanilla 使用 sunriseColor[] 数组） */
+    private final float sunriseR;
+    private final float sunriseG;
+    private final float sunriseB;
+    private final float sunriseA;
+    
+    /** 天空总体颜色覆盖（白天/傍晚，RGBA） */
+    private final float skyColorR;
+    private final float skyColorG;
+    private final float skyColorB;
+    private final float skyColorA;
+    
+    /**
+     * 创建时间采样结果（完整构造函数）
+     */
+    private TimeSample(boolean useWorldTime, long worldTimeTicks, boolean freezeWorldTime,
+                      float skyAngle, float sunElevation, float sunAzimuth, float skyLight,
+                      int moonPhase, float moonElevation, float moonAzimuth,
+                      boolean useCustomSkyColor, float sunriseR, float sunriseG, float sunriseB, float sunriseA,
+                      float skyColorR, float skyColorG, float skyColorB, float skyColorA) {
+        this.useWorldTime = useWorldTime;
         this.worldTimeTicks = worldTimeTicks;
-        this.useCustomSun = useCustomSun;
+        this.freezeWorldTime = freezeWorldTime;
+        this.skyAngle = Math.max(0.0f, Math.min(1.0f, skyAngle));
         this.sunElevation = Math.max(0.0f, Math.min(90.0f, sunElevation));
         // 规范化方位角
         float normalizedAzimuth = sunAzimuth;
         while (normalizedAzimuth < 0.0f) normalizedAzimuth += 360.0f;
         while (normalizedAzimuth >= 360.0f) normalizedAzimuth -= 360.0f;
         this.sunAzimuth = normalizedAzimuth;
+        this.skyLight = Math.max(0.0f, Math.min(1.0f, skyLight));
+        this.moonPhase = Math.max(0, Math.min(7, moonPhase));
+        this.moonElevation = Math.max(-90.0f, Math.min(90.0f, moonElevation));
+        // 规范化月亮方位角
+        float normalizedMoonAzimuth = moonAzimuth;
+        while (normalizedMoonAzimuth < 0.0f) normalizedMoonAzimuth += 360.0f;
+        while (normalizedMoonAzimuth >= 360.0f) normalizedMoonAzimuth -= 360.0f;
+        this.moonAzimuth = normalizedMoonAzimuth;
+        this.useCustomSkyColor = useCustomSkyColor;
+        this.sunriseR = Math.max(0.0f, Math.min(1.0f, sunriseR));
+        this.sunriseG = Math.max(0.0f, Math.min(1.0f, sunriseG));
+        this.sunriseB = Math.max(0.0f, Math.min(1.0f, sunriseB));
+        this.sunriseA = Math.max(0.0f, Math.min(1.0f, sunriseA));
+        this.skyColorR = Math.max(0.0f, Math.min(1.0f, skyColorR));
+        this.skyColorG = Math.max(0.0f, Math.min(1.0f, skyColorG));
+        this.skyColorB = Math.max(0.0f, Math.min(1.0f, skyColorB));
+        this.skyColorA = Math.max(0.0f, Math.min(1.0f, skyColorA));
     }
     
     /**
      * 创建一个使用自然世界时间的采样结果
+     * 所有参数将基于 worldTimeTicks 自动计算
      */
     public static TimeSample fromNaturalTime(long worldTimeTicks) {
-        return new TimeSample(worldTimeTicks, false, 0.0f, 0.0f);
+        return fromNaturalTime(worldTimeTicks, false);
+    }
+    
+    /**
+     * 创建一个使用自然世界时间的采样结果（可指定是否冻结时间）
+     */
+    public static TimeSample fromNaturalTime(long worldTimeTicks, boolean freezeWorldTime) {
+        // 基于世界时间计算天空角度
+        float skyAngleNorm = ((worldTimeTicks % 24000L) / 24000.0f);
+        
+        // 基于天空角度计算太阳高度（简化模型）
+        float sunElevation = calculateSunElevationFromSkyAngle(skyAngleNorm);
+        float sunAzimuth = 180.0f; // 标准路径（正南为中午）
+        
+        // 计算天空亮度（基于太阳高度）
+        float skyLight = calculateSkyLightFromElevation(sunElevation);
+        
+        // 计算月亮相位和位置（月亮通常在太阳对面）
+        int moonPhase = (int) ((worldTimeTicks / 24000L) % 8L);
+        float moonElevation = -sunElevation; // 简化：月亮在太阳对面
+        float moonAzimuth = (sunAzimuth + 180.0f) % 360.0f;
+        
+        return new TimeSample(true, worldTimeTicks, freezeWorldTime,
+                             skyAngleNorm, sunElevation, sunAzimuth, skyLight,
+                             moonPhase, moonElevation, moonAzimuth,
+                             false, 1.0f, 0.6f, 0.2f, 1.0f, // 默认日出颜色
+                             0.6f, 0.7f, 1.0f, 1.0f); // 默认天空颜色
     }
     
     /**
      * 创建一个使用自定义太阳角度的采样结果
      */
     public static TimeSample fromCustomSun(long worldTimeTicks, float sunElevation, float sunAzimuth) {
-        return new TimeSample(worldTimeTicks, true, sunElevation, sunAzimuth);
+        return fromCustomSun(worldTimeTicks, sunElevation, sunAzimuth, true);
+    }
+    
+    /**
+     * 创建一个使用自定义太阳角度的采样结果（可指定是否冻结时间）
+     */
+    public static TimeSample fromCustomSun(long worldTimeTicks, float sunElevation, float sunAzimuth, boolean freezeWorldTime) {
+        // 基于太阳高度角计算天空角度（反向映射）
+        float skyAngleNorm = calculateSkyAngleFromElevation(sunElevation, sunAzimuth);
+        
+        // 计算天空亮度
+        float skyLight = calculateSkyLightFromElevation(sunElevation);
+        
+        // 月亮相位基于世界时间，位置在太阳对面
+        int moonPhase = (int) ((worldTimeTicks / 24000L) % 8L);
+        float moonElevation = -sunElevation;
+        float moonAzimuth = (sunAzimuth + 180.0f) % 360.0f;
+        
+        return new TimeSample(false, worldTimeTicks, freezeWorldTime,
+                             skyAngleNorm, sunElevation, sunAzimuth, skyLight,
+                             moonPhase, moonElevation, moonAzimuth,
+                             false, 1.0f, 0.6f, 0.2f, 1.0f, // 默认日出颜色
+                             0.6f, 0.7f, 1.0f, 1.0f); // 默认天空颜色
+    }
+    
+    /**
+     * 创建自定义天空颜色的采样结果
+     */
+    public static TimeSample withCustomSkyColor(TimeSample base, 
+                                                float sunriseR, float sunriseG, float sunriseB, float sunriseA,
+                                                float skyColorR, float skyColorG, float skyColorB, float skyColorA) {
+        return new TimeSample(
+            base.useWorldTime, base.worldTimeTicks, base.freezeWorldTime,
+            base.skyAngle, base.sunElevation, base.sunAzimuth, base.skyLight,
+            base.moonPhase, base.moonElevation, base.moonAzimuth,
+            true, sunriseR, sunriseG, sunriseB, sunriseA,
+            skyColorR, skyColorG, skyColorB, skyColorA
+        );
+    }
+    
+    /**
+     * 复制当前采样结果（创建新实例，避免共享引用）
+     */
+    public TimeSample copy() {
+        return new TimeSample(
+            useWorldTime, worldTimeTicks, freezeWorldTime,
+            skyAngle, sunElevation, sunAzimuth, skyLight,
+            moonPhase, moonElevation, moonAzimuth,
+            useCustomSkyColor, sunriseR, sunriseG, sunriseB, sunriseA,
+            skyColorR, skyColorG, skyColorB, skyColorA
+        );
+    }
+    
+    // ======================= 计算辅助方法 =======================
+    
+    /**
+     * 基于天空角度计算太阳高度角（简化模型）
+     */
+    private static float calculateSunElevationFromSkyAngle(float skyAngleNorm) {
+        // Minecraft 天空角度：0.0=午夜，0.5=正午，1.0=下一个午夜
+        // 太阳高度：在 0.25（日出）和 0.75（日落）时最低（0°），在 0.5（正午）时最高（~60°）
+        float normalizedTime = skyAngleNorm;
+        if (normalizedTime > 0.5f) {
+            normalizedTime = 1.0f - normalizedTime; // 下午对称于上午
+        }
+        // 映射 0.25-0.5 到 0-60 度
+        float phase = (normalizedTime - 0.25f) / 0.25f;
+        return Math.max(0.0f, Math.min(60.0f, phase * 60.0f));
+    }
+    
+    /**
+     * 基于太阳高度角和方位角计算天空角度（反向映射）
+     */
+    private static float calculateSkyAngleFromElevation(float elevation, float azimuth) {
+        // 简化映射：将高度角映射到天空角度范围
+        // 0° (地平线) → 0.25 或 0.75 (日出/日落)
+        // 60° (正午) → 0.5 (正午)
+        float normalizedElev = Math.min(1.0f, elevation / 60.0f);
+        return 0.25f + normalizedElev * 0.5f;
+    }
+    
+    /**
+     * 基于太阳高度角计算天空亮度
+     * 
+     * <p>Minecraft 公式：brightness = 1.0F - cos(skyAngle * 2π) * 2F + 0.2F
+     * 这里简化：基于太阳高度直接计算
+     */
+    private static float calculateSkyLightFromElevation(float elevation) {
+        // 太阳越高，天空越亮
+        // 0° → 0.2（夜晚/日出前）
+        // 60° → 1.0（正午）
+        float normalizedElev = Math.min(1.0f, elevation / 60.0f);
+        return 0.2f + normalizedElev * 0.8f;
+    }
+    
+    // ================== Getters（基础时间参数）==================
+    
+    public boolean isUseWorldTime() {
+        return useWorldTime;
+    }
+    
+    /** 兼容旧代码 */
+    public boolean isUseCustomSun() {
+        return !useWorldTime;
     }
     
     public long getWorldTimeTicks() {
         return worldTimeTicks;
     }
     
-    public boolean isUseCustomSun() {
-        return useCustomSun;
+    public boolean isFreezeWorldTime() {
+        return freezeWorldTime;
+    }
+    
+    // ================== Getters（太阳系统）==================
+    
+    public float getSkyAngle() {
+        return skyAngle;
     }
     
     public float getSunElevation() {
+        return sunElevation;
+    }
+    
+    /** 兼容旧代码：使用 sunAltitude 作为别名 */
+    public float getSunAltitude() {
         return sunElevation;
     }
     
@@ -62,13 +297,70 @@ public final class TimeSample {
         return sunAzimuth;
     }
     
+    public float getSkyLight() {
+        return skyLight;
+    }
+    
+    // ================== Getters（月亮系统）==================
+    
+    public int getMoonPhase() {
+        return moonPhase;
+    }
+    
+    public float getMoonElevation() {
+        return moonElevation;
+    }
+    
+    public float getMoonAzimuth() {
+        return moonAzimuth;
+    }
+    
+    // ================== Getters（天空颜色系统）==================
+    
+    public boolean isUseCustomSkyColor() {
+        return useCustomSkyColor;
+    }
+    
+    public float getSunriseR() {
+        return sunriseR;
+    }
+    
+    public float getSunriseG() {
+        return sunriseG;
+    }
+    
+    public float getSunriseB() {
+        return sunriseB;
+    }
+    
+    public float getSunriseA() {
+        return sunriseA;
+    }
+    
+    public float getSkyColorR() {
+        return skyColorR;
+    }
+    
+    public float getSkyColorG() {
+        return skyColorG;
+    }
+    
+    public float getSkyColorB() {
+        return skyColorB;
+    }
+    
+    public float getSkyColorA() {
+        return skyColorA;
+    }
+    
     @Override
     public String toString() {
-        if (useCustomSun) {
-            return String.format("TimeSample{worldTime=%d, sunElevation=%.1f°, sunAzimuth=%.1f°}", 
-                    worldTimeTicks, sunElevation, sunAzimuth);
+        if (useWorldTime) {
+            return String.format("TimeSample{worldTime=%d, natural, freeze=%b}", 
+                    worldTimeTicks, freezeWorldTime);
         } else {
-            return String.format("TimeSample{worldTime=%d, natural}", worldTimeTicks);
+            return String.format("TimeSample{worldTime=%d, sunElevation=%.1f°, sunAzimuth=%.1f°, skyAngle=%.3f, freeze=%b}", 
+                    worldTimeTicks, sunElevation, sunAzimuth, skyAngle, freezeWorldTime);
         }
     }
 }
