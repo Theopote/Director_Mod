@@ -1,6 +1,7 @@
 package com.chronoblocks.ui.timeline.model.season;
 
 import com.chronoblocks.ui.timeline.model.TimelineSelectable;
+import org.jetbrains.annotations.NotNull;
 import org.joml.Vector3f;
 
 import java.util.Objects;
@@ -42,6 +43,7 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
      * 季节类型
      */
     public enum SeasonType {
+        DEFAULT("默认"),  // 默认（游戏原始状态）
         SPRING("春天"),
         SUMMER("夏天"),
         AUTUMN("秋天"),
@@ -84,7 +86,7 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
     private float time;  // 时间轴上的位置（秒）
     
     // ========== 季节类型 ==========
-    private SeasonType seasonType = SeasonType.SPRING;
+    private SeasonType seasonType = SeasonType.DEFAULT;
     
     // ========== 气候趋势参数（非即时天气） ==========
     
@@ -178,10 +180,7 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
     // ========== Comparable 实现（按时间排序） ==========
     
     @Override
-    public int compareTo(SeasonKeyframe other) {
-        if (other == null) {
-            return 1;
-        }
+    public int compareTo(@NotNull SeasonKeyframe other) {
         int timeCompare = Float.compare(this.time, other.time);
         if (timeCompare != 0) {
             return timeCompare;
@@ -322,6 +321,20 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
      */
     private void applySeasonDefaults() {
         switch (seasonType) {
+            case DEFAULT:
+                // 默认：所有值设为游戏原始状态（无季节偏移）
+                temperature = 0.0f;
+                humidity = 0.5f;
+                snowlineHeight = 90.0f;
+                
+                // 所有 tint 为 0（无变化）
+                grassTint.set(0.0f, 0.0f, 0.0f);
+                foliageTint.set(0.0f, 0.0f, 0.0f);
+                skyTint.set(0.0f, 0.0f, 0.0f);
+                fogTint.set(0.0f, 0.0f, 0.0f);
+                lightTint.set(0.0f, 0.0f, 0.0f);
+                break;
+                
             case SPRING:
                 temperature = 0.2f;
                 humidity = 0.7f;

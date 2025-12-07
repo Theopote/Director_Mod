@@ -117,6 +117,9 @@ public final class TimelineSeasonController {
         if (model != null) {
             if (modelChangeListener == null) {
                 modelChangeListener = changeType -> {
+                    // ⭐ 记录所有模型变更（使用 INFO 级别，确保能看到）
+                    LOGGER.info("[TimelineSeason] 收到模型变更通知: {}", changeType);
+                    // 立即处理模型变更，确保删除关键帧/轨道时立即恢复
                     onModelStructureChanged();
                 };
             }
@@ -287,12 +290,18 @@ public final class TimelineSeasonController {
      */
     private synchronized void onModelStructureChanged() {
         if (timelineModel == null) {
+            LOGGER.warn("[TimelineSeason] onModelStructureChanged() - timelineModel 为 null，跳过处理");
             return;
         }
+        
+        LOGGER.info("[TimelineSeason] onModelStructureChanged() - 开始处理模型结构变更");
         
         // 统计当前季节轨道数量
         int seasonTrackCount = countSeasonTracks();
         TimelineTrack firstSeasonTrack = findFirstSeasonTrack();
+        
+        LOGGER.info("[TimelineSeason] 当前季节轨道数量: {}, 激活轨道: {}", 
+                seasonTrackCount, activeSeasonTrack != null ? activeSeasonTrack.getName() : "<null>");
         
         // ⭐ v1.0：如果只有一个季节轨道，无论当前状态如何，都确保它是激活的
         if (seasonTrackCount == 1 && firstSeasonTrack != null) {
@@ -319,8 +328,11 @@ public final class TimelineSeasonController {
         }
         
         rebuildFromActiveTrack();
-        LOGGER.debug("[TimelineSeason] 模型变更，刷新季节关键帧（active = {}）",
-                activeSeasonTrack != null ? activeSeasonTrack.getName() : "<none>");
+        
+        // 记录模型变更后的状态，使用 info 级别以便调试
+        LOGGER.info("[TimelineSeason] 模型变更完成，激活轨道: {}, 关键帧数: {}",
+                activeSeasonTrack != null ? activeSeasonTrack.getName() : "<none>",
+                sampler.hasKeyframes() ? "有" : "无");
     }
     
     /**
@@ -330,10 +342,20 @@ public final class TimelineSeasonController {
      */
     public synchronized void rebuildFromActiveTrack() {
         if (!hasValidActiveTrack()) {
+            // ⭐ 关键修复：先清空采样器，再设置默认样本，确保 hasOverride() 返回 false
             sampler.setKeyframes(new ArrayList<>());
-            // 使用 setCurrentSample() 确保触发渲染刷新
             LOGGER.info("[TimelineSeason] 没有激活的季节轨道，恢复到默认渲染");
-            setCurrentSample(SeasonSample.defaultSample());
+            SeasonSample defaultSample = SeasonSample.defaultSample();
+            setCurrentSample(defaultSample);
+            
+            // ⭐ 验证恢复是否成功
+            boolean hasOverrideAfter = hasOverride();
+            LOGGER.info("[TimelineSeason] 恢复验证 - hasOverride() = {}, sampler.hasKeyframes() = {}, currentSample = {}",
+                    hasOverrideAfter, sampler.hasKeyframes(), currentSample != null ? currentSample.toString() : "null");
+            
+            if (hasOverrideAfter) {
+                LOGGER.warn("[TimelineSeason] ⚠️ 警告：恢复后 hasOverride() 仍为 true，可能有问题！");
+            }
             return;
         }
         
@@ -342,12 +364,20 @@ public final class TimelineSeasonController {
         
         // 如果没有关键帧，恢复到默认状态并刷新渲染
         if (kfs.isEmpty()) {
-            LOGGER.info("[TimelineSeason] 季节轨道没有关键帧，恢复到默认渲染");
-            setCurrentSample(SeasonSample.defaultSample());
-            // 记录日志（轨道一定不为 null，因为已经通过了 hasValidActiveTrack() 检查）
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("[TimelineSeason] Rebuild from track '{}', keyframes = 0 (已恢复默认)",
-                        activeSeasonTrack.getName());
+            LOGGER.info("[TimelineSeason] 季节轨道没有关键帧，恢复到默认渲染（轨道: {}）",
+                    activeSeasonTrack != null ? activeSeasonTrack.getName() : "<null>");
+            
+            // ⭐ 关键修复：先确保采样器已清空（上面已设置），再设置默认样本
+            SeasonSample defaultSample = SeasonSample.defaultSample();
+            setCurrentSample(defaultSample);
+            
+            // ⭐ 验证恢复是否成功
+            boolean hasOverrideAfter = hasOverride();
+            LOGGER.info("[TimelineSeason] 恢复验证 - hasOverride() = {}, sampler.hasKeyframes() = {}, currentSample = {}",
+                    hasOverrideAfter, sampler.hasKeyframes(), currentSample != null ? currentSample.toString() : "null");
+            
+            if (hasOverrideAfter) {
+                LOGGER.warn("[TimelineSeason] ⚠️ 警告：恢复后 hasOverride() 仍为 true，可能有问题！");
             }
         } else {
             // ⭐ 关键修复：如果有关键帧，也需要更新当前样本（例如重新添加关键帧后）
@@ -406,6 +436,7 @@ public final class TimelineSeasonController {
      * 设置当前季节状态，并在必要时触发渲染更新。
      */
     private void setCurrentSample(SeasonSample sample) {
+        // ⭐ 关键：先设置 currentSample，确保后续的 hasOverride() 检查能看到新值
         this.currentSample = sample;
         
         // 强制刷新渲染，让颜色变化立即生效
@@ -431,12 +462,13 @@ public final class TimelineSeasonController {
                 int maxY = Math.min(playerPos.getY() + 256, 320);
                 int maxZ = playerPos.getZ() + chunkRadius;
                 
+                // ⭐ 强制刷新：无论样本是否变化，都调度重渲染（特别是恢复默认时）
                 // 调度可见区域的区块重渲染，强制重新计算生物群系颜色
                 client.worldRenderer.scheduleBlockRenders(minX, minY, minZ, maxX, maxY, maxZ);
                 
                 if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("[TimelineSeason] 已调度区域重渲染: ({}, {}, {}) 到 ({}, {}, {})", 
-                            minX, minY, minZ, maxX, maxY, maxZ);
+                    LOGGER.debug("[TimelineSeason] 已调度区域重渲染: ({}, {}, {}) 到 ({}, {}, {}) - hasOverride() = {}", 
+                            minX, minY, minZ, maxX, maxY, maxZ, hasOverride());
                 }
             } catch (Exception e) {
                 LOGGER.warn("[TimelineSeason] 调度区域重渲染失败: {}", e.getMessage(), e);
@@ -471,11 +503,17 @@ public final class TimelineSeasonController {
         
         // ⭐ 关键修复：如果没有激活轨道，直接返回 false（即使 currentSample 可能不为 null）
         if (!hasValidActiveTrack()) {
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[TimelineSeason] hasOverride() = false (没有激活轨道)");
+            }
             return false;
         }
         
         // ⭐ 关键修复：如果采样器中没有关键帧，也返回 false（没有关键帧意味着没有季节覆盖）
         if (!sampler.hasKeyframes()) {
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[TimelineSeason] hasOverride() = false (采样器中没有关键帧)");
+            }
             return false;
         }
         
@@ -485,11 +523,18 @@ public final class TimelineSeasonController {
         
         // 检查是否有任何非零的 tint（使用偏移值语义）
         Vector3f zero = new Vector3f(0f, 0f, 0f);
-        return !currentSample.grassTint.equals(zero) ||
+        boolean result = !currentSample.grassTint.equals(zero) ||
                !currentSample.foliageTint.equals(zero) ||
                !currentSample.skyTint.equals(zero) ||
                !currentSample.fogTint.equals(zero) ||
                !currentSample.lightTint.equals(zero);
+        
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("[TimelineSeason] hasOverride() = {} (有激活轨道，有关键帧，tint检查: {})", 
+                    result, result ? "有非零tint" : "所有tint为零");
+        }
+        
+        return result;
     }
     
     /**

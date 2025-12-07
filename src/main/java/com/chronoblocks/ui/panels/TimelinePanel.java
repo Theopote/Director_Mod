@@ -183,6 +183,8 @@ public class TimelinePanel extends AbstractPanel
         TimelineWorldController.getInstance().setTimelineModel(model);
         // ⭐ 注册时间轨道控制器，控制世界时间和太阳角度
         com.chronoblocks.ui.timeline.playback.time.TimelineWorldController.getInstance().setTimelineModel(model);
+        // ⭐ 注册季节轨道控制器，控制季节颜色和气候
+        com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController.getInstance().init(model);
 
         // 注册容器监听器，用于同步容器名称变更到时间线片段
         Objects.requireNonNull(ContainerManager.getInstance()).addListener(this);
