@@ -118,6 +118,41 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
      */
     private float snowAmount = 0.0f;
     
+    /**
+     * 坡度影响因子 [0.0, 1.0]，控制陡坡上积雪的减少程度。
+     * 0.0 = 坡度不影响积雪，1.0 = 陡坡完全不积雪。
+     * v4.0 新增字段。
+     */
+    private float snowSlopeFactor = 0.5f;
+    
+    /**
+     * 积雪融化速度 [0.1, 5.0]，用于控制积雪融化的快慢。
+     * 1.0 = 正常速度，< 1.0 = 融化更慢，> 1.0 = 融化更快。
+     * v4.0 新增字段。
+     */
+    private float snowMeltSpeed = 1.0f;
+    
+    /**
+     * 冰冻强度 [0.0, 1.0]，控制水面冻结的程度和范围。
+     * 0.0 = 不冻结，1.0 = 最大冻结强度。
+     * v4.0 新增字段。
+     */
+    private float freezeStrength = 0.0f;
+    
+    /**
+     * 冻结温度阈值 [-1.0, 1.0]，低于此温度开始冻结。
+     * 默认 -0.2，表示温度低于 -0.2 时开始冻结水面。
+     * v4.0 新增字段。
+     */
+    private float freezeThreshold = -0.2f;
+    
+    /**
+     * 冰块融化速度 [0.1, 5.0]，用于控制冰块融化的快慢。
+     * 1.0 = 正常速度，< 1.0 = 融化更慢，> 1.0 = 融化更快。
+     * v4.0 新增字段。
+     */
+    private float freezeMeltSpeed = 1.0f;
+    
     // ========== 颜色趋势（作为偏移值，使用公式：finalColor = originalColor * (1.0 + tint)） ==========
     
     /** 草地颜色偏移（0.0 = 无变化，0.1 = +10%，-0.1 = -10%） */
@@ -260,6 +295,50 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
         this.snowAmount = Math.max(0.0f, Math.min(1.0f, snowAmount));
     }
     
+    // ========== v4.0 新增：积雪控制参数 ==========
+    
+    public float getSnowSlopeFactor() {
+        return snowSlopeFactor;
+    }
+    
+    public void setSnowSlopeFactor(float snowSlopeFactor) {
+        this.snowSlopeFactor = Math.max(0.0f, Math.min(1.0f, snowSlopeFactor));
+    }
+    
+    public float getSnowMeltSpeed() {
+        return snowMeltSpeed;
+    }
+    
+    public void setSnowMeltSpeed(float snowMeltSpeed) {
+        this.snowMeltSpeed = Math.max(0.1f, Math.min(5.0f, snowMeltSpeed));
+    }
+    
+    // ========== v4.0 新增：冰冻控制参数 ==========
+    
+    public float getFreezeStrength() {
+        return freezeStrength;
+    }
+    
+    public void setFreezeStrength(float freezeStrength) {
+        this.freezeStrength = Math.max(0.0f, Math.min(1.0f, freezeStrength));
+    }
+    
+    public float getFreezeThreshold() {
+        return freezeThreshold;
+    }
+    
+    public void setFreezeThreshold(float freezeThreshold) {
+        this.freezeThreshold = Math.max(-1.0f, Math.min(1.0f, freezeThreshold));
+    }
+    
+    public float getFreezeMeltSpeed() {
+        return freezeMeltSpeed;
+    }
+    
+    public void setFreezeMeltSpeed(float freezeMeltSpeed) {
+        this.freezeMeltSpeed = Math.max(0.1f, Math.min(5.0f, freezeMeltSpeed));
+    }
+    
     // ========== 颜色偏移 Getter（返回引用，注意复制） ==========
     
     public Vector3f getGrassTint() {
@@ -344,6 +423,11 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
                 humidity = 0.5f;
                 snowlineHeight = 90.0f;
                 snowAmount = 0.0f;
+                snowSlopeFactor = 0.5f;
+                snowMeltSpeed = 1.0f;
+                freezeStrength = 0.0f;
+                freezeThreshold = -0.2f;
+                freezeMeltSpeed = 1.0f;
                 
                 // 所有 tint 为 0（无变化）
                 grassTint.set(0.0f, 0.0f, 0.0f);
@@ -415,6 +499,62 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
                 // 交给用户在属性面板上手动调整
                 break;
         }
+    }
+    
+    // ========== v4.0 新增：电影预设 ==========
+    
+    /**
+     * 应用电影冷色调预设（整体偏蓝、低饱和度、清冷氛围）。
+     */
+    public void applyFilmPresetCold() {
+        this.seasonType = SeasonType.CUSTOM;
+        
+        // 冷色调：偏蓝、降低饱和度
+        grassTint.set(-0.15f, -0.10f, 0.20f);    // 偏蓝绿色，降低饱和度
+        foliageTint.set(-0.20f, -0.15f, 0.25f);  // 偏蓝绿色
+        skyTint.set(-0.10f, -0.05f, 0.30f);      // 强烈偏蓝
+        fogTint.set(0.0f, 0.05f, 0.25f);         // 冷色调雾
+        lightTint.set(-0.10f, -0.05f, 0.15f);    // 冷色调光照
+        
+        // 气候参数：稍微偏冷
+        temperature = -0.3f;
+        humidity = 0.6f;
+        
+        // 积雪和冰冻：中等强度
+        snowAmount = 0.3f;
+        snowlineHeight = 85.0f;
+        snowSlopeFactor = 0.5f;
+        snowMeltSpeed = 1.0f;
+        freezeStrength = 0.4f;
+        freezeThreshold = -0.2f;
+        freezeMeltSpeed = 1.0f;
+    }
+    
+    /**
+     * 应用电影暖色调预设（整体偏黄、暖光、金色氛围）。
+     */
+    public void applyFilmPresetWarm() {
+        this.seasonType = SeasonType.CUSTOM;
+        
+        // 暖色调：偏黄、金色
+        grassTint.set(0.20f, 0.15f, -0.15f);    // 暖黄色调
+        foliageTint.set(0.25f, 0.20f, -0.20f);  // 金黄色
+        skyTint.set(0.15f, 0.10f, -0.10f);      // 暖色调天空
+        fogTint.set(0.12f, 0.08f, -0.05f);      // 金色雾
+        lightTint.set(0.18f, 0.15f, -0.10f);    // 暖色调光照（金色阳光）
+        
+        // 气候参数：稍微偏暖
+        temperature = 0.3f;
+        humidity = 0.5f;
+        
+        // 积雪和冰冻：无
+        snowAmount = 0.0f;
+        snowlineHeight = 90.0f;
+        snowSlopeFactor = 0.5f;
+        snowMeltSpeed = 1.0f;
+        freezeStrength = 0.0f;
+        freezeThreshold = -0.2f;
+        freezeMeltSpeed = 1.0f;
     }
     
     // ========== 调试输出 ==========
