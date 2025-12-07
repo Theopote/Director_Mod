@@ -93,10 +93,11 @@ public final class SeasonSample {
     /**
      * 返回一个默认季节采样（无偏移，保持原色）。
      * 
-     * <p>所有颜色 tint 为 (1.0, 1.0, 1.0)，表示不改变原始颜色。
+     * <p>所有颜色 tint 为 (0.0, 0.0, 0.0)，表示相对偏移为 0，不改变原始颜色。
+     * <p>公式：finalColor = originalColor * (1.0 + 0.0) = originalColor
      */
     public static SeasonSample defaultSample() {
-        Vector3f neutral = new Vector3f(1.0f, 1.0f, 1.0f);
+        Vector3f neutral = new Vector3f(0.0f, 0.0f, 0.0f); // 偏移值为 0
         return new SeasonSample(
             0.0f,   // temperature
             0.5f,   // humidity

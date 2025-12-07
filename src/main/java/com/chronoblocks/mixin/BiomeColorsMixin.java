@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * BiomeColorsMixin v1.2
+ * BiomeColorsMixin v3.5
  * 
  * <p>拦截生物群系颜色获取，应用季节系统的颜色偏移。
  * 
@@ -31,93 +31,63 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * <p>例如：tint = 0.1 表示增加 10%，tint = -0.1 表示减少 10%
  * 
  * @author ChronoBlocks Team
- * @version 1.2 - 修复颜色打包顺序错误，提取通用函数
+ * @version 3.5 - 统一 tint 公式，添加 null check 和 tint 范围限制
  */
 @Mixin(BiomeColors.class)
 public abstract class BiomeColorsMixin {
     
     /**
      * 拦截草地颜色获取
-     * 
-     * <p>方法签名参考（Minecraft 1.21.4 Yarn）：
-     * <p>getGrassColor(BlockRenderView world, BlockPos pos)
      */
     @Inject(
         method = "getGrassColor(Lnet/minecraft/world/BlockRenderView;Lnet/minecraft/util/math/BlockPos;)I",
         at = @At("RETURN"),
         cancellable = true
     )
-    private static void chronoblocks$modifyGrassColor(
-            BlockRenderView world,
-            BlockPos pos,
-            CallbackInfoReturnable<Integer> cir
-    ) {
-        SeasonSample sample = TimelineSeasonController.getInstance().getCurrentSample();
-        int originalColor = cir.getReturnValue();
-        int tintedColor = tintColor(originalColor, sample.grassTint);
-        cir.setReturnValue(tintedColor);
+    private static void modifyGrassColor(BlockRenderView world, BlockPos pos, CallbackInfoReturnable<Integer> cir) {
+        SeasonSample s = TimelineSeasonController.getInstance().getCurrentSample();
+        if (s == null) {
+            return;
+        }
+        cir.setReturnValue(applyTint(cir.getReturnValue(), s.grassTint));
     }
     
     /**
      * 拦截树叶颜色获取
-     * 
-     * <p>方法签名参考（Minecraft 1.21.4 Yarn）：
-     * <p>getFoliageColor(BlockRenderView world, BlockPos pos)
      */
     @Inject(
         method = "getFoliageColor(Lnet/minecraft/world/BlockRenderView;Lnet/minecraft/util/math/BlockPos;)I",
         at = @At("RETURN"),
         cancellable = true
     )
-    private static void chronoblocks$modifyFoliageColor(
-            BlockRenderView world,
-            BlockPos pos,
-            CallbackInfoReturnable<Integer> cir
-    ) {
-        SeasonSample sample = TimelineSeasonController.getInstance().getCurrentSample();
-        int originalColor = cir.getReturnValue();
-        int tintedColor = tintColor(originalColor, sample.foliageTint);
-        cir.setReturnValue(tintedColor);
+    private static void modifyFoliageColor(BlockRenderView world, BlockPos pos, CallbackInfoReturnable<Integer> cir) {
+        SeasonSample s = TimelineSeasonController.getInstance().getCurrentSample();
+        if (s == null) {
+            return;
+        }
+        cir.setReturnValue(applyTint(cir.getReturnValue(), s.foliageTint));
     }
     
     /**
      * 应用颜色 tint 到原始颜色（通用工具函数）
      * 
      * <p>颜色格式：ARGB (0xAARRGGBB)
-     * <ul>
-     *   <li>提取：A = (color >> 24) & 0xFF, R = (color >> 16) & 0xFF, G = (color >> 8) & 0xFF, B = color & 0xFF</li>
-     *   <li>打包：ARGB = (A << 24) | (R << 16) | (G << 8) | B</li>
-     * </ul>
-     * 
-     * @param originalColor 原始颜色（ARGB 格式）
-     * @param tint 颜色偏移（Vector3f，x=R, y=G, z=B）
-     * @return 应用 tint 后的颜色（ARGB 格式）
      */
     @Unique
-    private static int tintColor(int originalColor, Vector3f tint) {
-        // 提取 ARGB 分量
-        int a = (originalColor >> 24) & 0xFF;
-        int r = (originalColor >> 16) & 0xFF;
-        int g = (originalColor >> 8) & 0xFF;
-        int b = originalColor & 0xFF;
+    private static int applyTint(int argb, Vector3f tint) {
+        int a = (argb >> 24) & 0xFF;
+        int r = (argb >> 16) & 0xFF;
+        int g = (argb >> 8) & 0xFF;
+        int b = argb & 0xFF;
         
-        // 转换为 [0, 1] 范围的浮点数
-        float rF = r / 255f;
-        float gF = g / 255f;
-        float bF = b / 255f;
+        float rf = clamp01((r / 255f) * (1f + clampTint(tint.x)));
+        float gf = clamp01((g / 255f) * (1f + clampTint(tint.y)));
+        float bf = clamp01((b / 255f) * (1f + clampTint(tint.z)));
         
-        // 应用 tint 偏移（tint 是相对偏移，例如 0.1 表示 +10%）
-        rF = clamp01(rF * (1f + tint.x));
-        gF = clamp01(gF * (1f + tint.y));
-        bF = clamp01(bF * (1f + tint.z));
-        
-        // 转换回整数并打包为 ARGB 格式
-        int newR = (int)(rF * 255);
-        int newG = (int)(gF * 255);
-        int newB = (int)(bF * 255);
-        
-        // ⚠️ 重要：打包顺序必须是 ARGB = (A << 24) | (R << 16) | (G << 8) | B
-        return (a << 24) | (newR << 16) | (newG << 8) | newB;
+        return (a << 24)
+                | ((int) (rf * 255) << 16)
+                | ((int) (gf * 255) << 8)
+                | (int) (bf * 255);
     }
     
     /**
@@ -126,6 +96,15 @@ public abstract class BiomeColorsMixin {
     @Unique
     private static float clamp01(float v) {
         return Math.max(0f, Math.min(1f, v));
+    }
+    
+    /**
+     * 限制 tint 范围，避免负值导致颜色突变或过度增强
+     * <p>tint ∈ [-0.99, +3]：允许最多 -99% 到 +300% 的偏移
+     */
+    @Unique
+    private static float clampTint(float v) {
+        return Math.max(-0.99f, Math.min(3f, v));
     }
 }
 

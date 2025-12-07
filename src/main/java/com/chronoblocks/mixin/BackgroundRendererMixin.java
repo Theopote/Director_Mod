@@ -7,12 +7,13 @@ import net.minecraft.client.render.Camera;
 import net.minecraft.client.world.ClientWorld;
 import org.joml.Vector4f;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * BackgroundRendererMixin v1.0
+ * BackgroundRendererMixin v3.5
  * 
  * <p>拦截 BackgroundRenderer.getFogColor() 方法，应用季节系统的雾颜色偏移。
  * 
@@ -28,7 +29,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * <p>注意：天空颜色在 {@link ClientWorldMixin} 中处理
  * 
  * @author ChronoBlocks Team
- * @version 1.0 - 直接注入 BackgroundRenderer.getFogColor()，提高稳定性
+ * @version 3.5 - 统一 tint 公式，添加 tint 范围限制
  */
 @Mixin(BackgroundRenderer.class)
 public abstract class BackgroundRendererMixin {
@@ -53,32 +54,39 @@ public abstract class BackgroundRendererMixin {
             CallbackInfoReturnable<Vector4f> cir
     ) {
         TimelineSeasonController controller = TimelineSeasonController.getInstance();
-        if (!controller.hasOverride()) {
+        SeasonSample sample = controller.getCurrentSample();
+        if (!controller.hasOverride() || sample == null) {
             return;
         }
         
-        SeasonSample sample = controller.getCurrentSample();
         Vector4f original = cir.getReturnValue();
-        
         if (original == null) {
             return;
         }
         
-        // tint 是相对偏移，比如 0.1 表示 +10%
-        float r = clamp01(original.x * (1f + sample.fogTint.x));
-        float g = clamp01(original.y * (1f + sample.fogTint.y));
-        float b = clamp01(original.z * (1f + sample.fogTint.z));
-        float a = original.w; // 保持 alpha 不变
+        // tint: 相对偏移（-0.99 ~ 3），限制范围避免负值或过度增强
+        float r = clamp01(original.x * (1f + clampTint(sample.fogTint.x)));
+        float g = clamp01(original.y * (1f + clampTint(sample.fogTint.y)));
+        float b = clamp01(original.z * (1f + clampTint(sample.fogTint.z)));
         
-        Vector4f modified = new Vector4f(r, g, b, a);
-        cir.setReturnValue(modified);
+        cir.setReturnValue(new Vector4f(r, g, b, original.w));
     }
     
     /**
      * 将值限制在 [0, 1] 范围内
      */
+    @Unique
     private static float clamp01(float v) {
         return Math.max(0f, Math.min(1f, v));
+    }
+    
+    /**
+     * 限制 tint 范围，避免负值导致颜色突变或过度增强
+     * <p>tint ∈ [-0.99, +3]：允许最多 -99% 到 +300% 的偏移
+     */
+    @Unique
+    private static float clampTint(float v) {
+        return Math.max(-0.99f, Math.min(3f, v));
     }
 }
 

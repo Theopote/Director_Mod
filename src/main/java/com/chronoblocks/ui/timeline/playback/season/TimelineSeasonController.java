@@ -6,6 +6,7 @@ import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.season.SeasonKeyframe;
 import net.minecraft.client.MinecraftClient;
+import org.joml.Vector3f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -396,10 +397,27 @@ public final class TimelineSeasonController {
      * 检查是否有季节覆盖。
      * 
      * <p>供 Mixin 使用，判断是否应该应用季节颜色。
+     * 
+     * <p>判断标准：
+     * <ul>
+     *   <li>季节控制已启用</li>
+     *   <li>有有效的激活轨道</li>
+     *   <li>当前样本不为 null</li>
+     *   <li>当前样本不是默认样本（所有 tint 为 0）</li>
+     * </ul>
      */
     public synchronized boolean hasOverride() {
-        return enabled && hasValidActiveTrack() && currentSample != null && 
-               !currentSample.equals(SeasonSample.defaultSample());
+        if (!enabled || !hasValidActiveTrack() || currentSample == null) {
+            return false;
+        }
+        
+        // 检查是否有任何非零的 tint（使用偏移值语义）
+        Vector3f zero = new Vector3f(0f, 0f, 0f);
+        return !currentSample.grassTint.equals(zero) ||
+               !currentSample.foliageTint.equals(zero) ||
+               !currentSample.skyTint.equals(zero) ||
+               !currentSample.fogTint.equals(zero) ||
+               !currentSample.lightTint.equals(zero);
     }
     
     /**
@@ -426,6 +444,30 @@ public final class TimelineSeasonController {
     @Deprecated
     public synchronized SeasonSample current() {
         return getCurrentSample();
+    }
+    
+    /**
+     * 清除季节覆盖状态，恢复游戏默认值。
+     * 
+     * <p>通常在关闭 ChronoBlocks 时调用，确保季节修改被清除，游戏恢复默认渲染。
+     * 
+     * <p>此方法会：
+     * <ul>
+     *   <li>将 currentSample 重置为默认值（所有 tint = 0，无季节偏移）</li>
+     *   <li>清空采样器的关键帧</li>
+     *   <li>确保 Mixin 不再应用季节颜色（hasOverride() 将返回 false）</li>
+     * </ul>
+     * 
+     * <p>注意：此方法不会禁用季节控制，只是清除当前状态。如果需要禁用，请调用 {@link #setEnabled(boolean)}。
+     */
+    public synchronized void clear() {
+        // 重置为默认样本（所有 tint = 0，无季节偏移）
+        currentSample = SeasonSample.defaultSample();
+        
+        // 清空采样器关键帧
+        sampler.setKeyframes(new ArrayList<>());
+        
+        LOGGER.info("[TimelineSeason] Cleared season override state - 恢复游戏默认渲染");
     }
     
     // ================== 辅助方法 ==================
