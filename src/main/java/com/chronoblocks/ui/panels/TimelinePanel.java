@@ -22,6 +22,7 @@ import com.chronoblocks.ui.timeline.ui.TimelineControlBar;
 import com.chronoblocks.ui.timeline.shortcuts.TimelineShortcutManager;
 import com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController;
 import com.chronoblocks.ui.timeline.playback.time.TimelineWorldController;
+import com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController;
 import com.chronoblocks.ui.theme.UITheme;
 import net.minecraft.client.MinecraftClient;
 import imgui.ImGui;
@@ -285,6 +286,9 @@ public class TimelinePanel extends AbstractPanel
         
         // ⭐ 时间轨道系统：每帧更新世界时间（播放/scrubbing时根据当前时间线时间插值）
         TimelineWorldController.getInstance().update();
+        
+        // ⭐ 季节轨道系统：每帧更新季节参数（播放/scrubbing时根据当前时间线时间插值）
+        TimelineSeasonController.getInstance().update();
 
         // 3. 处理快捷键
         shortcutManager.handle();
@@ -1107,6 +1111,27 @@ public class TimelinePanel extends AbstractPanel
                 
                 // ⭐ 通知 TimelineWorldController 更新
                 timeController.rebuildFromActiveTrack();
+                
+                handled = true;
+            } else if (type.supportsSeasonControl()) {
+                // ⭐ 季节轨道：添加季节关键帧
+                if (track.isLocked()) {
+                    LOGGER.warn("[TimelinePanel] 轨道已锁定，无法添加关键帧 (轨道: {})", track.getName());
+                    return;
+                }
+                
+                com.chronoblocks.ui.timeline.model.season.SeasonKeyframe seasonKeyframe = 
+                    new com.chronoblocks.ui.timeline.model.season.SeasonKeyframe("Season @" + timeLabel, time);
+                
+                commandHistory.executeCommand(new AddAutomationKeyframeCommand(
+                        model,
+                        track,
+                        seasonKeyframe
+                ));
+                
+                // ⭐ 通知 TimelineSeasonController 更新
+                com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController.getInstance()
+                        .rebuildFromActiveTrack();
                 
                 handled = true;
             } else if (type.supportsMarkers() && !type.supportsClips()) {

@@ -75,6 +75,18 @@ public enum TrackType {
         rgba(100, 100, 100),
         "添加时间标记和注释，组织剧情或分镜",
         EnumSet.of(TrackFeature.KEYFRAMES, TrackFeature.MARKERS)
+    ),
+
+    /**
+     * 季节轨道 - 控制长期气候趋势和颜色变化。
+     */
+    SEASON(
+        "季节轨道",
+        Icons.CALENDAR,
+        rgba(100, 200, 120),
+        rgba(60, 160, 80),
+        "控制长期气候趋势（温度、湿度、颜色等），实现春夏秋冬的自然过渡",
+        EnumSet.of(TrackFeature.KEYFRAMES, TrackFeature.SEASON_AUTOMATION)
     );
 
     private final String displayName;
@@ -127,6 +139,7 @@ public enum TrackType {
             || features.contains(TrackFeature.CAMERA_AUTOMATION)
             || features.contains(TrackFeature.WEATHER_AUTOMATION)
             || features.contains(TrackFeature.TIME_AUTOMATION)
+            || features.contains(TrackFeature.SEASON_AUTOMATION)
             || features.contains(TrackFeature.MARKERS);
     }
 
@@ -144,6 +157,10 @@ public enum TrackType {
 
     public boolean supportsTimeControl() {
         return features.contains(TrackFeature.TIME_AUTOMATION);
+    }
+
+    public boolean supportsSeasonControl() {
+        return features.contains(TrackFeature.SEASON_AUTOMATION);
     }
 
     public boolean supportsMarkers() {
@@ -183,6 +200,7 @@ public enum TrackType {
         CAMERA_AUTOMATION,
         WEATHER_AUTOMATION,
         TIME_AUTOMATION,
+        SEASON_AUTOMATION,
         MARKERS
     }
 }

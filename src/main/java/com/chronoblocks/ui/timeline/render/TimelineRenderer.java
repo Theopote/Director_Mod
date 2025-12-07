@@ -8,6 +8,7 @@ import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TimelineViewportState;
 import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
 import com.chronoblocks.ui.timeline.model.time.TimeKeyframe;
+import com.chronoblocks.ui.timeline.model.season.SeasonKeyframe;
 
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -347,18 +348,29 @@ public class TimelineRenderer {
             // ⭐ 时间关键帧使用特殊颜色（橙色系，与时间轨道颜色一致）
             boolean isTimeKeyframe = keyframe instanceof TimeKeyframe;
             
+            // ⭐ v1.0：季节关键帧使用特殊颜色（绿色系，与季节轨道颜色一致）
+            boolean isSeasonKeyframe = keyframe instanceof SeasonKeyframe;
+            
             // 确定颜色：选中 > hover > 默认
             int kfCol;
             if (isSelected) {
                 kfCol = TimelineColors.COLOR_KEYFRAME_SELECTED;
             } else if (hovering) {
-                kfCol = isTimeKeyframe 
-                    ? TimelineColors.rgba(255, 200, 100, 255)  // 时间关键帧 hover：亮橙色
-                    : TimelineColors.COLOR_KEYFRAME_HOVER;
+                if (isTimeKeyframe) {
+                    kfCol = TimelineColors.rgba(255, 200, 100, 255);  // 时间关键帧 hover：亮橙色
+                } else if (isSeasonKeyframe) {
+                    kfCol = TimelineColors.rgba(140, 220, 140, 255);  // 季节关键帧 hover：亮绿色
+                } else {
+                    kfCol = TimelineColors.COLOR_KEYFRAME_HOVER;
+                }
             } else {
-                kfCol = isTimeKeyframe 
-                    ? TimelineColors.rgba(240, 160, 60, 255)  // 时间关键帧默认：橙色（与 TrackType.TIME 颜色一致）
-                    : TimelineColors.COLOR_KEYFRAME;
+                if (isTimeKeyframe) {
+                    kfCol = TimelineColors.rgba(240, 160, 60, 255);  // 时间关键帧默认：橙色（与 TrackType.TIME 颜色一致）
+                } else if (isSeasonKeyframe) {
+                    kfCol = TimelineColors.rgba(100, 200, 120, 255);  // 季节关键帧默认：绿色（与 TrackType.SEASON 颜色一致）
+                } else {
+                    kfCol = TimelineColors.COLOR_KEYFRAME;
+                }
             }
 
             // 绘制垂直指示线（与轨道同高，带阴影增强对比度）
@@ -390,6 +402,17 @@ public class TimelineRenderer {
                     drawList.addCircle(kx, centerY, keyframeSize, kfCol, 0, 2.0f); // 空心
                 } else {
                     // 默认：填充圆形（橙色）
+                    drawList.addCircleFilled(kx, centerY, keyframeSize + 1.5f, TimelineColors.rgba(0, 0, 0, 180)); // 描边
+                    drawList.addCircleFilled(kx, centerY, keyframeSize, kfCol); // 填充
+                }
+            } else if (isSeasonKeyframe) {
+                // ⭐ v1.0：季节关键帧：使用填充圆形（绿色，与季节轨道颜色一致）
+                if (isSelected) {
+                    // 选中时绘制空心圆 + 外圈
+                    drawList.addCircle(kx, centerY, keyframeSize + 1.5f, TimelineColors.rgba(0, 0, 0, 180), 0, 1.5f); // 描边
+                    drawList.addCircle(kx, centerY, keyframeSize, kfCol, 0, 2.0f); // 空心
+                } else {
+                    // 默认：填充圆形（绿色）
                     drawList.addCircleFilled(kx, centerY, keyframeSize + 1.5f, TimelineColors.rgba(0, 0, 0, 180)); // 描边
                     drawList.addCircleFilled(kx, centerY, keyframeSize, kfCol); // 填充
                 }

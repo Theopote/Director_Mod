@@ -2,11 +2,15 @@ package com.chronoblocks.mixin;
 
 import com.chronoblocks.client.ChronoBlocksClientController;
 import com.chronoblocks.ui.timeline.playback.time.TimelineWorldController;
+import com.chronoblocks.ui.timeline.playback.season.SeasonSample;
+import com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController;
 import net.minecraft.client.world.ClientWorld;
+import net.minecraft.util.math.Vec3d;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * 🎬 ClientWorldMixin v2.5
@@ -54,12 +58,13 @@ public abstract class ClientWorldMixin {
         // 导演模式只是取消原版时间推进，但时间轨道系统需要每 tick 调用 maintainFrozenTime()
         // 来确保设置的时间不被重置（防止世界时间被其他代码修改）
         if (shouldFreezeTime) {
-            if (isDirectorMode) {
-                logger.info("[ClientWorldMixin] ❄️ tickTime() 被拦截 - ChronoBlocks 导演模式 + 时间轨道系统冻结 (enabled={}, shouldFreeze={})", 
-                        timeController.isEnabled(), timeController.shouldFreezeTime());
-            } else {
-                logger.info("[ClientWorldMixin] ❄️ tickTime() 被拦截 - 时间轨道系统冻结 (enabled={}, shouldFreeze={})", 
-                        timeController.isEnabled(), timeController.shouldFreezeTime());
+            // ⚠️ 只在首次进入冻结状态时打 info 日志，避免每 tick 刷屏
+            if (logger.isTraceEnabled()) {
+                if (isDirectorMode) {
+                    logger.trace("[ClientWorldMixin] ❄️ tickTime() 被拦截 - ChronoBlocks 导演模式 + 时间轨道系统冻结");
+                } else {
+                    logger.trace("[ClientWorldMixin] ❄️ tickTime() 被拦截 - 时间轨道系统冻结");
+                }
             }
             
             ci.cancel();
@@ -70,12 +75,13 @@ public abstract class ClientWorldMixin {
             timeController.maintainFrozenTime((ClientWorld) (Object) this);
         } else if (isDirectorMode) {
             // 只有导演模式，没有时间轨道系统冻结
-            logger.info("[ClientWorldMixin] ❄️ tickTime() 被拦截 - ChronoBlocks 导演模式");
+            if (logger.isTraceEnabled()) {
+                logger.trace("[ClientWorldMixin] ❄️ tickTime() 被拦截 - ChronoBlocks 导演模式");
+            }
             ci.cancel();
         } else {
             if (logger.isTraceEnabled()) {
-                logger.trace("[ClientWorldMixin] ✓ tickTime() 正常执行 - 不冻结 (导演模式={}, enabled={}, shouldFreeze={})",
-                        false, timeController.isEnabled(), timeController.shouldFreezeTime());
+                logger.trace("[ClientWorldMixin] ✓ tickTime() 正常执行 - 不冻结");
             }
         }
     }
@@ -129,4 +135,52 @@ public abstract class ClientWorldMixin {
     //     // 完整的太阳位置控制需要在 WorldRenderer 中修改旋转矩阵
     //     return sample.getSkyAngle();
     // }
+    
+    /**
+     * ⭐ v2.6：拦截天空颜色获取，应用季节系统的天空颜色偏移
+     * 
+     * <p>方法签名（Minecraft 1.21.4）：
+     * <p>getSkyColor(Vec3d pos, float tickDelta) -> int
+     * 
+     * <p>返回 ARGB 格式的颜色值
+     */
+    @Inject(
+        method = "getSkyColor(Lnet/minecraft/util/math/Vec3d;F)I",
+        at = @At("RETURN"),
+        cancellable = true
+    )
+    private void chronoblocks$modifySkyColor(Vec3d pos, float tickDelta, CallbackInfoReturnable<Integer> cir) {
+        TimelineSeasonController controller = TimelineSeasonController.getInstance();
+        if (!controller.hasOverride()) {
+            return;
+        }
+        
+        SeasonSample sample = controller.getCurrentSample();
+        int originalColor = cir.getReturnValue();
+        
+        // 提取 ARGB 分量
+        int a = (originalColor >> 24) & 0xFF;
+        int r = (originalColor >> 16) & 0xFF;
+        int g = (originalColor >> 8) & 0xFF;
+        int b = originalColor & 0xFF;
+        
+        // 转换为 [0, 1] 范围的浮点数
+        float rF = r / 255f;
+        float gF = g / 255f;
+        float bF = b / 255f;
+        
+        // 应用 tint 偏移（tint 是相对偏移，例如 0.1 表示 +10%）
+        rF = Math.max(0f, Math.min(1f, rF * (1f + sample.skyTint.x)));
+        gF = Math.max(0f, Math.min(1f, gF * (1f + sample.skyTint.y)));
+        bF = Math.max(0f, Math.min(1f, bF * (1f + sample.skyTint.z)));
+        
+        // 转换回整数并打包为 ARGB 格式
+        int newR = (int)(rF * 255);
+        int newG = (int)(gF * 255);
+        int newB = (int)(bF * 255);
+        
+        // ⚠️ 重要：打包顺序必须是 ARGB = (A << 24) | (R << 16) | (G << 8) | B
+        int newColor = (a << 24) | (newR << 16) | (newG << 8) | newB;
+        cir.setReturnValue(newColor);
+    }
 }

@@ -81,6 +81,13 @@ public class TimelineTrackController {
                     .setActiveTimeTrack(newTrack);
             LOGGER.info("[TrackController] 创建第一条时间轨道，自动激活: {}", trackName);
         }
+        
+        // ⭐ v1.0：如果是季节轨道且是第一条，自动激活
+        if (type == TrackType.SEASON && sameTypeCount == 0) {
+            com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController.getInstance()
+                    .setActiveSeasonTrack(newTrack);
+            LOGGER.info("[TrackController] 创建第一条季节轨道，自动激活: {}", trackName);
+        }
 
         onDataChangedCallback.run();
         LOGGER.info("[TrackController] 创建新轨道 {} (类型: {}, 同类型第 {} 个)",

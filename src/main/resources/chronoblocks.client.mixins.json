@@ -16,6 +16,8 @@
     "WorldRendererMixin",
     "BlockRenderManagerMixin",
     "ClientWorldMixin",
+    "BiomeColorsMixin",
+    "BackgroundRendererMixin",
     "accessor.GameRendererAccessor"
   ],
   "injectors": {

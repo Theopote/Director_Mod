@@ -1,0 +1,475 @@
+package com.chronoblocks.ui.timeline.playback.season;
+
+import com.chronoblocks.ui.timeline.model.TimelineModel;
+import com.chronoblocks.ui.timeline.model.TimelineSelectable;
+import com.chronoblocks.ui.timeline.model.TimelineTrack;
+import com.chronoblocks.ui.timeline.model.TrackType;
+import com.chronoblocks.ui.timeline.model.season.SeasonKeyframe;
+import net.minecraft.client.MinecraftClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * TimelineSeasonController v1.1
+ * 
+ * <p>负责驱动"季节轨道"（Season Track）的运行时逻辑：
+ * <ul>
+ *   <li>从激活的 SEASON 轨道收集 SeasonKeyframe</li>
+ *   <li>使用 SeasonTrackSampler 在当前时间线时间进行插值采样</li>
+ *   <li>将 SeasonSample 作为"当前季节状态"缓存，供渲染层 / Mixin 查询</li>
+ *   <li>不直接修改世界时间，也不冻结时间系统，只提供气候/光照等长期趋势基线</li>
+ * </ul>
+ * 
+ * <p>设计要点：
+ * <ul>
+ *   <li>支持多个 SEASON 轨道，但任意时刻只有一条为 active（与摄像机轨道类似）</li>
+ *   <li>季节只作为"环境基线"，短期天气仍由 Weather Track 控制</li>
+ *   <li>渲染层可通过 {@link #getCurrentSample()} 读取当前季节参数</li>
+ *   <li>自动激活单一季节轨道（如果只有一条）</li>
+ * </ul>
+ * 
+ * <p>与 Weather Track 的关系：
+ * <ul>
+ *   <li>季节轨道：控制长期趋势（渐变）</li>
+ *   <li>天气轨道：控制短期事件（下雨、雷暴等）</li>
+ *   <li>优先级：Weather Track > Season Track > Minecraft 原版</li>
+ * </ul>
+ * 
+ * @author ChronoBlocks Team
+ * @version 1.1 - 改进代码结构、添加 update(float) 重载、改进文档
+ */
+public final class TimelineSeasonController {
+    
+    private static final Logger LOGGER = LoggerFactory.getLogger(TimelineSeasonController.class);
+    private static final TimelineSeasonController INSTANCE = new TimelineSeasonController();
+    
+    /** 所属的时间线模型 */
+    private TimelineModel timelineModel;
+    
+    /** 当前激活的 SEASON 轨道（仅一条） */
+    private TimelineTrack activeSeasonTrack;
+    
+    /** 负责插值的采样器 */
+    private final SeasonTrackSampler sampler = new SeasonTrackSampler();
+    
+    /** 是否启用季节控制 */
+    private boolean enabled = true;
+    
+    /** 模型变更监听器 */
+    private TimelineModel.ModelChangeListener modelChangeListener;
+    
+    /** 最近一次采样到的季节状态（供渲染层 / Mixin 使用） */
+    private SeasonSample currentSample = SeasonSample.defaultSample();
+    
+    private TimelineSeasonController() {
+    }
+    
+    // ================== 单例访问 ==================
+    
+    public static TimelineSeasonController getInstance() {
+        return INSTANCE;
+    }
+    
+    /** 便捷别名，供 Mixin 使用 */
+    public static TimelineSeasonController get() {
+        return INSTANCE;
+    }
+    
+    // ================== 初始化 / 绑定模型 ==================
+    
+    /**
+     * 绑定 / 切换 TimelineModel。
+     * 
+     * <p>通常在时间线 UI 初始化或加载工程时调用。
+     * 会自动注册 ModelChangeListener，在模型变更时刷新季节关键帧。
+     * ⭐ v1.0：会自动初始化 activeSeasonTrack（选择第一条 SEASON 轨道）。
+     * 
+     * @deprecated 使用 {@link #init(TimelineModel)} 代替，但为了向后兼容保留
+     */
+    @Deprecated
+    public synchronized void setTimelineModel(TimelineModel model) {
+        init(model);
+    }
+    
+    /**
+     * 绑定 / 切换 TimelineModel。
+     * 
+     * <p>通常在时间线 UI 初始化或加载工程时调用。
+     */
+    public synchronized void init(TimelineModel model) {
+        if (this.timelineModel == model) {
+            return;
+        }
+        
+        // 解除旧模型监听
+        if (this.timelineModel != null && this.modelChangeListener != null) {
+            this.timelineModel.removeModelChangeListener(modelChangeListener);
+        }
+        
+        this.timelineModel = model;
+        
+        if (model != null) {
+            if (modelChangeListener == null) {
+                modelChangeListener = changeType -> {
+                    onModelStructureChanged();
+                };
+            }
+            model.addModelChangeListener(modelChangeListener);
+            
+            // 选择第一条 SEASON 轨道作为激活轨道
+            if (!isValidSeasonTrack(activeSeasonTrack)) {
+                activeSeasonTrack = findFirstSeasonTrack();
+                
+                // ⭐ v1.0：如果只有一个季节轨道，自动激活它
+                int seasonTrackCount = countSeasonTracks();
+                if (seasonTrackCount == 1 && activeSeasonTrack != null) {
+                    LOGGER.info("[TimelineSeason] 检测到只有一个季节轨道，自动激活: {}", activeSeasonTrack.getName());
+                }
+            }
+            
+            rebuildFromActiveTrack();
+            LOGGER.info("[TimelineSeason] init 完成，activeSeasonTrack = {}",
+                    activeSeasonTrack != null ? activeSeasonTrack.getName() : "<none>");
+        } else {
+            sampler.setKeyframes(new ArrayList<>());
+            activeSeasonTrack = null;
+            currentSample = SeasonSample.defaultSample();
+            LOGGER.info("[TimelineSeason] init(null) → 关闭季节控制");
+        }
+    }
+    
+    // ================== 轨道选择 / 管理 ==================
+    
+    /**
+     * 获取当前激活的季节轨道。
+     */
+    public synchronized TimelineTrack getActiveSeasonTrack() {
+        return activeSeasonTrack;
+    }
+    
+    /**
+     * 设置当前激活的季节轨道。
+     * 
+     * <p>通常由轨道头部的"选择季节轨道"按钮触发。
+     */
+    public synchronized void setActiveSeasonTrack(TimelineTrack track) {
+        if (track != null && track.getType() != TrackType.SEASON) {
+            LOGGER.warn("[TimelineSeason] setActiveSeasonTrack: 非 SEASON 轨道被选中，忽略: {}",
+                    track.getName());
+            return;
+        }
+        if (track == activeSeasonTrack) {
+            return;
+        }
+        
+        this.activeSeasonTrack = track;
+        LOGGER.info("[TimelineSeason] 激活季节轨道: {}",
+                track != null ? track.getName() : "<none>");
+        
+        rebuildFromActiveTrack();
+    }
+    
+    /**
+     * 启用/禁用季节控制。
+     * 
+     * <p>禁用时不会再从 SeasonTrack 采样，也不会更新 currentSample。
+     */
+    public synchronized void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+        if (!enabled) {
+            currentSample = SeasonSample.defaultSample();
+        }
+        LOGGER.info("[TimelineSeason] 季节控制 {}", enabled ? "已启用" : "已禁用");
+    }
+    
+    public synchronized boolean isEnabled() {
+        return enabled;
+    }
+    
+    // ================== 播放 / 时间推进 ==================
+    
+    /**
+     * 每 tick 更新季节状态。
+     * 
+     * <p>由时间线主循环调用（例如在 {@code TimelinePanel.update()} 或
+     * {@code ChronoBlocksClientController} 的 client tick 中），
+     * 根据当前的时间线播放时间对季节轨道进行采样。
+     */
+    public synchronized void update() {
+        if (!enabled || timelineModel == null) {
+            return;
+        }
+        
+        if (!hasValidActiveTrack()) {
+            return;
+        }
+        
+        // 只有在播放或 scrubbing 时才自动更新季节状态
+        boolean playing = timelineModel.isPlaying();
+        boolean scrubbing = timelineModel.isScrubbing();
+        
+        if (!playing && !scrubbing) {
+            return;
+        }
+        
+        float currentTime = timelineModel.getCurrentTime();
+        applySeasonSample(currentTime);
+    }
+    
+    /**
+     * 显式更新（带参数版本），便于从外部系统直接驱动。
+     */
+    public synchronized void update(float currentTime) {
+        if (!enabled || timelineModel == null) {
+            return;
+        }
+        if (!hasValidActiveTrack()) {
+            return;
+        }
+        applySeasonSample(currentTime);
+    }
+    
+    /**
+     * 在指定时间进行预览（不改变播放状态）。
+     * 
+     * <p>例如：右键季节关键帧菜单中的"跳转到此季节状态"
+     */
+    public synchronized void previewAt(float timeSeconds) {
+        if (!enabled || !hasValidActiveTrack()) {
+            return;
+        }
+        
+        Optional<SeasonSample> sample = sampler.sample(timeSeconds);
+        if (sample.isPresent()) {
+            setCurrentSample(sample.get());
+            LOGGER.debug("[TimelineSeason] 预览季节 @ {}s: {}", timeSeconds, sample.get());
+        }
+    }
+    
+    /**
+     * 在当前时间线时间进行预览（例如属性面板中点击"预览当前时间季节状态"）。
+     */
+    public synchronized void previewAtCurrentTime() {
+        if (timelineModel == null) {
+            return;
+        }
+        previewAt(timelineModel.getCurrentTime());
+    }
+    
+    /**
+     * 预览指定关键帧时间点的季节状态。
+     * 用于属性面板修改后立即预览
+     */
+    public synchronized void previewAtKeyframeTime(float keyframeTime) {
+        if (!enabled || !hasValidActiveTrack()) {
+            return;
+        }
+        
+        Optional<SeasonSample> sample = sampler.sample(keyframeTime);
+        if (sample.isPresent()) {
+            setCurrentSample(sample.get());
+            LOGGER.debug("[TimelineSeason] 预览关键帧季节 @ {}s: {}", keyframeTime, sample.get());
+        }
+    }
+    
+    // ================== 模型变更 / 关键帧刷新 ==================
+    
+    /**
+     * 处理时间线模型结构变更（轨道增删、关键帧变化等）。
+     * 
+     * <p>由 {@link TimelineModel.ModelChangeListener} 调用。
+     */
+    private synchronized void onModelStructureChanged() {
+        if (timelineModel == null) {
+            return;
+        }
+        
+        // 统计当前季节轨道数量
+        int seasonTrackCount = countSeasonTracks();
+        TimelineTrack firstSeasonTrack = findFirstSeasonTrack();
+        
+        // ⭐ v1.0：如果只有一个季节轨道，无论当前状态如何，都确保它是激活的
+        if (seasonTrackCount == 1 && firstSeasonTrack != null) {
+            if (activeSeasonTrack != firstSeasonTrack) {
+                activeSeasonTrack = firstSeasonTrack;
+                LOGGER.info("[TimelineSeason] 模型变更：检测到只有一个季节轨道，自动激活: {}", firstSeasonTrack.getName());
+            }
+        } else if (seasonTrackCount == 0) {
+            // 没有季节轨道时，清空激活轨道
+            activeSeasonTrack = null;
+        } else {
+            // 有多个季节轨道时，检查当前激活轨道是否有效
+            if (!isValidSeasonTrack(activeSeasonTrack)) {
+                activeSeasonTrack = firstSeasonTrack;
+                if (firstSeasonTrack != null) {
+                    LOGGER.info("[TimelineSeason] 模型变更：当前激活轨道无效，切换到: {}", firstSeasonTrack.getName());
+                }
+            }
+        }
+        
+        rebuildFromActiveTrack();
+        LOGGER.debug("[TimelineSeason] 模型变更，刷新季节关键帧（active = {}）",
+                activeSeasonTrack != null ? activeSeasonTrack.getName() : "<none>");
+    }
+    
+    /**
+     * 从当前激活轨道重建采样器。
+     * 
+     * <p>公开方法，供属性面板等外部组件调用，用于在关键帧属性修改后刷新采样器。
+     */
+    public synchronized void rebuildFromActiveTrack() {
+        if (!hasValidActiveTrack()) {
+            sampler.setKeyframes(new ArrayList<>());
+            currentSample = SeasonSample.defaultSample();
+            return;
+        }
+        
+        List<SeasonKeyframe> kfs = collectSeasonKeyframes(activeSeasonTrack);
+        sampler.setKeyframes(kfs);
+        
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("[TimelineSeason] Rebuild from track '{}', keyframes = {}",
+                    activeSeasonTrack.getName(), kfs.size());
+        }
+    }
+    
+    /**
+     * 从指定轨道收集 SeasonKeyframe。
+     */
+    private List<SeasonKeyframe> collectSeasonKeyframes(TimelineTrack track) {
+        List<SeasonKeyframe> result = new ArrayList<>();
+        if (track == null || track.getType() != TrackType.SEASON) {
+            return result;
+        }
+        
+        for (TimelineSelectable selectable : track.getAutomationKeyframes()) {
+            if (selectable instanceof SeasonKeyframe sk) {
+                result.add(sk);
+            }
+        }
+        result.sort(Comparator.comparing(SeasonKeyframe::getTime));
+        return result;
+    }
+    
+    // ================== 采样 / 应用 ==================
+    
+    /**
+     * 在给定时间进行采样并应用到当前季节状态。
+     */
+    private void applySeasonSample(float timeSeconds) {
+        Optional<SeasonSample> sampleOpt = sampler.sample(timeSeconds);
+        if (sampleOpt.isEmpty()) {
+            return;
+        }
+        
+        SeasonSample sample = sampleOpt.get();
+        setCurrentSample(sample);
+        
+        // 这里不直接修改世界，只是更新"季节基线"，供渲染层使用
+        // 例如：Biome 颜色 / 雾颜色 / 叶子颜色 / 天空色调 等 Mixin 可以通过
+        // TimelineSeasonController.getInstance().getCurrentSample() 读取参数
+    }
+    
+    /**
+     * 设置当前季节状态，并在必要时触发渲染更新。
+     */
+    private void setCurrentSample(SeasonSample sample) {
+        this.currentSample = sample;
+        
+        // 触发一次轻量更新（例如让客户端重算光照或刷新天空）
+        // 在这里暂时只做最小操作，详细的渲染 Mixin 可以根据需要自行触发
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client != null && client.world != null) {
+            // 可以根据需要标记某些缓存失效，例如：
+            // client.worldRenderer.reload();  // 注意：过于重，慎用
+        }
+    }
+    
+    // ================== 提供给渲染层 / Mixin 的接口 ==================
+    
+    /**
+     * 检查是否有季节覆盖。
+     * 
+     * <p>供 Mixin 使用，判断是否应该应用季节颜色。
+     */
+    public synchronized boolean hasOverride() {
+        return enabled && hasValidActiveTrack() && currentSample != null && 
+               !currentSample.equals(SeasonSample.defaultSample());
+    }
+    
+    /**
+     * 提供给渲染层 / Mixin 的当前季节采样结果。
+     * 
+     * <p>如果暂时没有任何季节轨道，则返回最后一次的 sample 或默认 sample。
+     * 
+     * <p>这是 Mixin 读取季节状态的主要接口。
+     */
+    public synchronized SeasonSample getCurrentSample() {
+        if (currentSample == null) {
+            currentSample = SeasonSample.defaultSample();
+        }
+        return currentSample;
+    }
+    
+    /**
+     * 直接获取当前采样（如果不存在则返回默认值）。
+     * 
+     * <p>便捷方法，供 Mixin 使用（兼容现有代码）。
+     * 
+     * @deprecated 使用 {@link #getCurrentSample()} 代替
+     */
+    @Deprecated
+    public synchronized SeasonSample current() {
+        return getCurrentSample();
+    }
+    
+    // ================== 辅助方法 ==================
+    
+    /**
+     * 检查是否有有效的激活季节轨道。
+     */
+    private boolean hasValidActiveTrack() {
+        return isValidSeasonTrack(activeSeasonTrack);
+    }
+    
+    /**
+     * 验证轨道是否是有效的 SEASON 轨道。
+     */
+    private boolean isValidSeasonTrack(TimelineTrack track) {
+        if (track == null) return false;
+        return track.getType() == TrackType.SEASON;
+    }
+    
+    /**
+     * 找到第一条 SEASON 轨道（用于默认激活）。
+     */
+    private TimelineTrack findFirstSeasonTrack() {
+        if (timelineModel == null) return null;
+        for (TimelineTrack track : timelineModel.getTracks()) {
+            if (track.getType() == TrackType.SEASON) {
+                return track;
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * 统计 SEASON 轨道数量。
+     */
+    private int countSeasonTracks() {
+        if (timelineModel == null) return 0;
+        int count = 0;
+        for (TimelineTrack track : timelineModel.getTracks()) {
+            if (track.getType() == TrackType.SEASON) {
+                count++;
+            }
+        }
+        return count;
+    }
+}
+

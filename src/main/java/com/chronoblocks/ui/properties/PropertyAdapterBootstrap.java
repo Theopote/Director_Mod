@@ -148,6 +148,11 @@ public final class PropertyAdapterBootstrap {
             registerAdapter(TimeKeyframe.class, new TimeKeyframePropertyAdapter());
             registeredCount++;
             
+            // ✅ 季节关键帧适配器
+            registerAdapter(com.chronoblocks.ui.timeline.model.season.SeasonKeyframe.class, 
+                    new SeasonKeyframePropertyAdapter());
+            registeredCount++;
+            
             // ✅ 后处理适配器
             registerAdapter(new PostProcessingPropertyAdapter(), "PostProcessing");
             registeredCount++;
