@@ -3,6 +3,9 @@ package com.chronoblocks.ui.properties.adapters;
 import com.chronoblocks.ui.properties.IPropertyAdapter;
 import com.chronoblocks.ui.theme.Icons;
 import com.chronoblocks.ui.theme.UITheme;
+import com.chronoblocks.ui.timeline.container.ContainerTimelineService;
+import com.chronoblocks.ui.timeline.model.TimelineModel;
+import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.season.SeasonKeyframe;
 import com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController;
 import imgui.ImGui;
@@ -68,6 +71,32 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
         if (keyframe == null) {
             UITheme.label("（没有选中关键帧）", UITheme.DarkTheme.TEXT_DISABLED);
             return false;
+        }
+
+        // ⭐ v1.1：检查关键帧是否属于激活的季节轨道
+        TimelineModel timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineTrack keyframeTrack = null;
+        if (timelineModel != null) {
+            keyframeTrack = timelineModel.findTrackForKeyframe(keyframe);
+        }
+        
+        TimelineSeasonController seasonController = TimelineSeasonController.getInstance();
+        TimelineTrack activeTrack = seasonController.getActiveSeasonTrack();
+        
+        boolean isTrackActive = (keyframeTrack != null && keyframeTrack == activeTrack);
+        
+        if (!isTrackActive) {
+            UITheme.title(Icons.CALENDAR + " " + TITLE);
+            UITheme.separator();
+            UITheme.label(Icons.WARNING + " 此关键帧不属于激活的季节轨道", UITheme.DarkTheme.TEXT_WARNING);
+            ImGui.textDisabled("当前激活轨道: " + (activeTrack != null ? activeTrack.getName() : "<无>"));
+            if (keyframeTrack != null) {
+                ImGui.textDisabled("关键帧所在轨道: " + keyframeTrack.getName());
+            }
+            UITheme.spacingMedium();
+            UITheme.label("提示：只有激活轨道上的关键帧才能被编辑和影响世界中的季节。", UITheme.DarkTheme.TEXT_DISABLED);
+            UITheme.label("请点击轨道头部的激活按钮来切换激活轨道。", UITheme.DarkTheme.TEXT_DISABLED);
+            return false; // 禁用编辑
         }
 
         AtomicBoolean timeChanged = new AtomicBoolean(false);

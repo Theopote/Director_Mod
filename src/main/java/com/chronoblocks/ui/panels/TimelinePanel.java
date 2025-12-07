@@ -1122,6 +1122,18 @@ public class TimelinePanel extends AbstractPanel
                     return;
                 }
                 
+                // ⭐ v1.1：检查是否是激活的季节轨道
+                com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController seasonController =
+                        com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController.getInstance();
+                com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = seasonController.getActiveSeasonTrack();
+                
+                if (activeTrack != track) {
+                    LOGGER.warn("[TimelinePanel] 只能在激活的季节轨道上添加关键帧，当前轨道：{}，激活轨道：{}",
+                            track != null ? track.getName() : "null",
+                            activeTrack != null ? activeTrack.getName() : "null");
+                    return;
+                }
+                
                 com.chronoblocks.ui.timeline.model.season.SeasonKeyframe seasonKeyframe = 
                     new com.chronoblocks.ui.timeline.model.season.SeasonKeyframe("Season @" + timeLabel, time);
                 

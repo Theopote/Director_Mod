@@ -268,6 +268,12 @@ public class TimelineInteractionHandler {
                 boolean isActive = controller.getActiveTimeTrack() == track;
                 tooltip = isActive ? "当前激活的时间轨道（点击切换到其他轨道）" : "设为当前激活的时间轨道";
             }
+            case ACTIVE_SEASON -> {
+                com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController controller =
+                        com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController.getInstance();
+                boolean isActive = controller.getActiveSeasonTrack() == track;
+                tooltip = isActive ? "当前激活的季节轨道（点击切换到其他轨道）" : "设为当前激活的季节轨道";
+            }
             case ADD_KEYFRAME -> {
                 if (track.getType() == com.chronoblocks.ui.timeline.model.TrackType.CAMERA) {
                     tooltip = "添加摄像机关键帧（仅激活轨道可用）";
@@ -310,12 +316,15 @@ public class TimelineInteractionHandler {
                     case ADD_KEYFRAME -> callbacks.onAddKeyframeToTrack(track);
                     case LOCK -> callbacks.onToggleTrackLock(track);
                     case VISIBILITY -> callbacks.onToggleTrackVisible(track);
-            case ACTIVE_CAMERA -> // ⭐ v5.0：设置激活摄像机轨道
+                    case ACTIVE_CAMERA -> // ⭐ v5.0：设置激活摄像机轨道
                     com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance()
                             .setActiveCameraTrack(track);
             case ACTIVE_TIME -> // ⭐ v3.5：设置激活时间轨道
                     com.chronoblocks.ui.timeline.playback.time.TimelineWorldController.getInstance()
                             .setActiveTimeTrack(track);
+            case ACTIVE_SEASON -> // ⭐ v1.1：设置激活季节轨道
+                    com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController.getInstance()
+                            .setActiveSeasonTrack(track);
                 }
                 // 控件点击不再向下传递，不影�?Clip / Keyframe 选择
                 return;
@@ -607,6 +616,34 @@ public class TimelineInteractionHandler {
                 return;
             }
         }
+        
+        // ⭐ v3.5：如果是时间轨道，检查是否是激活的轨道
+        if (track.getType() == com.chronoblocks.ui.timeline.model.TrackType.TIME) {
+            com.chronoblocks.ui.timeline.playback.time.TimelineWorldController controller =
+                    com.chronoblocks.ui.timeline.playback.time.TimelineWorldController.getInstance();
+            com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveTimeTrack();
+            
+            if (activeTrack != track) {
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("[Timeline] 时间轨道未激活，禁止操作关键帧 (轨道: {})", track.getName());
+                }
+                return;
+            }
+        }
+        
+        // ⭐ v1.1：如果是季节轨道，检查是否是激活的轨道
+        if (track.getType() == com.chronoblocks.ui.timeline.model.TrackType.SEASON) {
+            com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController controller =
+                    com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController.getInstance();
+            com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveSeasonTrack();
+            
+            if (activeTrack != track) {
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("[Timeline] 季节轨道未激活，禁止操作关键帧 (轨道: {})", track.getName());
+                }
+                return;
+            }
+        }
 
         // ⭐ 单击：选中关键帧（支持 Ctrl 多选）
         ImGuiIO io = ImGui.getIO();
@@ -732,6 +769,30 @@ public class TimelineInteractionHandler {
                         
                         if (activeTrack != track) {
                             LOGGER.debug("[Timeline] 摄像机轨道未激活，禁止右键操作关键帧 (轨道: {})", track.getName());
+                            return; // 阻止打开菜单
+                        }
+                    }
+                    
+                    // 如果是时间轨道，检查是否是激活的轨道
+                    if (track.getType() == com.chronoblocks.ui.timeline.model.TrackType.TIME) {
+                        com.chronoblocks.ui.timeline.playback.time.TimelineWorldController controller =
+                                com.chronoblocks.ui.timeline.playback.time.TimelineWorldController.getInstance();
+                        com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveTimeTrack();
+                        
+                        if (activeTrack != track) {
+                            LOGGER.debug("[Timeline] 时间轨道未激活，禁止右键操作关键帧 (轨道: {})", track.getName());
+                            return; // 阻止打开菜单
+                        }
+                    }
+                    
+                    // 如果是季节轨道，检查是否是激活的轨道
+                    if (track.getType() == com.chronoblocks.ui.timeline.model.TrackType.SEASON) {
+                        com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController controller =
+                                com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController.getInstance();
+                        com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveSeasonTrack();
+                        
+                        if (activeTrack != track) {
+                            LOGGER.debug("[Timeline] 季节轨道未激活，禁止右键操作关键帧 (轨道: {})", track.getName());
                             return; // 阻止打开菜单
                         }
                     }
@@ -1184,6 +1245,20 @@ public class TimelineInteractionHandler {
             if (activeTrack != handle.track) {
                 if (LOGGER.isDebugEnabled()) {
                     LOGGER.debug("[Timeline] 时间轨道未激活，禁止拖动关键帧(轨道: {})", handle.track.getName());
+                }
+                return;
+            }
+        }
+        
+        // ⭐ v1.1：如果是季节轨道，检查是否是激活的轨道
+        if (handle.track != null && handle.track.getType() == com.chronoblocks.ui.timeline.model.TrackType.SEASON) {
+            com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController controller =
+                    com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController.getInstance();
+            com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveSeasonTrack();
+            
+            if (activeTrack != handle.track) {
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("[Timeline] 季节轨道未激活，禁止拖动关键帧(轨道: {})", handle.track.getName());
                 }
                 return;
             }

@@ -559,6 +559,28 @@ public class TimelineModel {
         if (clip == null) return null;
         return clip.getParentTrack(); // O(1) 超高效！
     }
+    
+    /**
+     * 查找自动化关键帧所在的轨道。
+     * 遍历所有轨道查找包含该关键帧的轨道。
+     * @param keyframe 要查找的关键帧
+     * @return 关键帧所属的轨道，如果未找到则返回 null
+     */
+    public TimelineTrack findTrackForKeyframe(TimelineSelectable keyframe) {
+        if (keyframe == null) {
+            return null;
+        }
+        
+        for (TimelineTrack track : tracks) {
+            for (TimelineSelectable kf : track.getAutomationKeyframes()) {
+                if (kf != null && kf.getId().equals(keyframe.getId())) {
+                    return track;
+                }
+            }
+        }
+        
+        return null;
+    }
 
     // ========== Clip 管理（语义方法，ChronoBlocks 风格）==========
 
