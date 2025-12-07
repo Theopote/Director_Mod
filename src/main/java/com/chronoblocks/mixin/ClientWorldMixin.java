@@ -97,4 +97,36 @@ public abstract class ClientWorldMixin {
     // 注意：getBlockState 方法在 World 基类中，已移至 WorldMixin
     // 注意：tickWeather和tickLighting方法在ClientWorld中不存在
     // 天气和光照处理在更高层级，通过tickTime和tickEntities已经可以拦截大部分功能
+    
+    /**
+     * ⚠️ 备选方案：通过覆盖 getSkyAngle() 来影响太阳高度
+     * 
+     * 限制：这种方式只能控制太阳高度，无法控制方位角
+     * 因为原版只使用 skyAngle 来计算太阳高度，不涉及方位角
+     * 
+     * 如果需要完整的太阳位置控制（高度+方位），需要在 WorldRenderer.renderSky() 中
+     * 修改旋转矩阵（见 SkyRendererMixin）
+     * 
+     * 当前先通过这种方式实现基本的高度控制
+     */
+    // TODO: 如果能够找到正确的方法签名，取消下面的注释
+    // @ModifyReturnValue(
+    //     method = "getSkyAngle", // 需要确认方法签名，可能是 getSkyAngle(F)F 或其他
+    //     at = @At("RETURN")
+    // )
+    // private float chronoblocks$modifySkyAngle(float original, float tickDelta) {
+    //     TimelineWorldController controller = TimelineWorldController.getInstance();
+    //     if (controller == null || !controller.hasOverride()) {
+    //         return original;
+    //     }
+    // 
+    //     TimeSample sample = controller.current();
+    //     if (sample == null || sample.isUseWorldTime()) {
+    //         return original;
+    //     }
+    // 
+    //     // ⚠️ 限制：只能返回自定义的天空角度，无法控制方位角
+    //     // 完整的太阳位置控制需要在 WorldRenderer 中修改旋转矩阵
+    //     return sample.getSkyAngle();
+    // }
 }

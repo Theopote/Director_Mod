@@ -4,8 +4,6 @@ import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -24,8 +22,6 @@ import java.util.Optional;
  *  - 作为 Timeline / Renderer / DebugRenderer 之间的“相机轨迹单一真相源”
  */
 public final class TimelineCameraPathManager {
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(TimelineCameraPathManager.class);
 
     /** 轨迹类型（整条轨道共用） */
     public enum CameraPathType {
@@ -72,29 +68,6 @@ public final class TimelineCameraPathManager {
 
     public boolean isEmpty() {
         return keyframes.isEmpty();
-    }
-
-    /** 获取最后一个关键帧的时间；为空时返回 -1。 */
-    public float getLastKeyTime() {
-        if (keyframes.isEmpty()) {
-            return -1f;
-        }
-        return keyframes.getLast().getTime();
-    }
-
-    public CameraPathType getPathType() {
-        return pathType;
-    }
-
-    public void setPathType(CameraPathType pathType) {
-        if (pathType == null) {
-            pathType = CameraPathType.CATMULL_ROM;
-        }
-        if (this.pathType != pathType) {
-            this.pathType = pathType;
-            pathDirty = true;
-            LOGGER.debug("[TimelineCameraPathManager] 切换轨迹类型为 {}", pathType);
-        }
     }
 
     // ======================= 采样主入口 =======================
@@ -544,22 +517,6 @@ public final class TimelineCameraPathManager {
                 a.y + (b.y - a.y) * t,
                 a.z + (b.z - a.z) * t
         );
-    }
-
-    private float lerpAngle(float a, float b, float t) {
-        float delta = wrapDegrees(b - a);
-        return a + delta * clamp01(t);
-    }
-
-    private float wrapDegrees(float degrees) {
-        degrees = degrees % 360f;
-        if (degrees >= 180f) {
-            degrees -= 360f;
-        }
-        if (degrees < -180f) {
-            degrees += 360f;
-        }
-        return degrees;
     }
 
     // ============= 旋转插值（四元数核心） =============

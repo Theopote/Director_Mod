@@ -49,12 +49,6 @@ public final class CameraRuntime {
         return INSTANCE;
     }
 
-    // ================== 新设计的主 API ==================
-
-    public Owner getOwner() {
-        return owner;
-    }
-
     public boolean isPlayerOwner() {
         return owner == Owner.PLAYER;
     }

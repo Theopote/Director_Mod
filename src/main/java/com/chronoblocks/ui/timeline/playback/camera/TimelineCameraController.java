@@ -80,24 +80,20 @@ public final class TimelineCameraController {
 
         if (model != null) {
             if (modelChangeListener == null) {
-                modelChangeListener = changeType -> {
-                    onModelStructureChanged();
-                };
+                modelChangeListener = changeType -> onModelStructureChanged();
             }
             model.addModelChangeListener(modelChangeListener);
             
             // ⭐ v5.0：初始选中第一条 CAMERA 轨道（如果还没有 active）
             // ⭐ 如果只有一个摄像机轨道，自动激活它
-            if (activeCameraTrack == null || !isValidCameraTrack(activeCameraTrack)) {
+            if (!isValidCameraTrack(activeCameraTrack)) {
                 TimelineTrack firstCameraTrack = findFirstCameraTrack();
                 if (firstCameraTrack != null) {
                     // 检查是否只有一个摄像机轨道
                     int cameraTrackCount = countCameraTracks();
+                    activeCameraTrack = firstCameraTrack;
                     if (cameraTrackCount == 1) {
-                        activeCameraTrack = firstCameraTrack;
                         LOGGER.info("[TimelineCamera] 检测到只有一个摄像机轨道，自动激活: {}", firstCameraTrack.getName());
-                    } else {
-                        activeCameraTrack = firstCameraTrack;
                     }
                 }
             }
@@ -381,7 +377,7 @@ public final class TimelineCameraController {
             
             // 获取最后关键帧时间
             List<CameraKeyframe> kfs = sampler.getKeyframes();
-            float lastKey = kfs.isEmpty() ? -1f : kfs.get(kfs.size() - 1).getTime();
+            float lastKey = kfs.isEmpty() ? -1f : kfs.getLast().getTime();
 
             // 超出最后关键帧：保持最后帧的镜头，但继续播放其他轨道，owner 不切回玩家
             if (lastKey >= 0f && time > lastKey + 1e-4f) {
@@ -446,20 +442,20 @@ public final class TimelineCameraController {
         this.previewTimeSeconds = timeSeconds;
 
         rebuildFromActiveTrack();
-        applySampleAtTime(timeSeconds, false);
+        applySampleAtTime(timeSeconds);
         LOGGER.debug("[TimelineCameraController] 预览 @ {}s", String.format("%.2f", timeSeconds));
     }
     
     /**
      * ⭐ v5.0：对指定时间采样，并写入 CameraRuntime
      */
-    private void applySampleAtTime(float timeSeconds, boolean allowFallback) {
+    private void applySampleAtTime(float timeSeconds) {
         Optional<CameraSample> opt = sampler.sample(timeSeconds);
         CameraRuntime runtime = CameraRuntime.getInstance();
 
         if (opt.isPresent()) {
             runtime.applyTimelineSample(opt.get());
-        } else if (allowFallback) {
+        } else if (false) {
             // 当前轨道没有关键帧，回退到玩家视角
             if (runtime.isTimelineOwner()) {
                 runtime.setOwner(CameraRuntime.Owner.PLAYER);
@@ -480,11 +476,9 @@ public final class TimelineCameraController {
         this.previewTimeSeconds = timeSeconds;
 
         rebuildFromActiveTrack();
-        applySampleAtTime(timeSeconds, false);
+        applySampleAtTime(timeSeconds);
         // 将镜头位置直接写到玩家实体 / 相机
-        sampler.sample(timeSeconds).ifPresent(sample -> {
-            CameraAccessor.applySampleToPlayerEntity(MinecraftClient.getInstance(), sample);
-        });
+        sampler.sample(timeSeconds).ifPresent(sample -> CameraAccessor.applySampleToPlayerEntity(MinecraftClient.getInstance(), sample));
         // 保持玩家 owner，允许继续移动、录制下一帧
         CameraRuntime.getInstance().setOwner(CameraRuntime.Owner.PLAYER);
         ChronoBlocksClientController.getInstance().setHideCrosshair(false);
@@ -634,13 +628,5 @@ public final class TimelineCameraController {
             }
         }
         return count;
-    }
-
-    /**
-     * ⭐ v5.0：获取当前激活摄像机轨道的"可视化路径点"（世界坐标）
-     * 可用于时间线面板上的轨迹预览、世界中的 Debug 曲线渲染
-     */
-    public List<net.minecraft.util.math.Vec3d> getActiveTrackPathSamples() {
-        return pathManager.getPathPointsForDebug();
     }
 }

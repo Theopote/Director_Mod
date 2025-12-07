@@ -143,13 +143,31 @@ public final class TimelineTrackRenderer {
                     : TimelineColors.rgba(140, 140, 140, 180); // 未激活：灰色
             drawList.addText(visibilityX, y + TRACK_ICON_OFFSET_Y, iconColor, icon);
         }
+        
+        // ⭐ v3.5：激活时间按钮（仅 TIME 轨道，放在原来隐藏按钮的位置）
+        if (type == TrackType.TIME) {
+            boolean isActive = com.chronoblocks.ui.timeline.playback.time.TimelineWorldController.getInstance()
+                    .getActiveTimeTrack() == track;
+            // 实心圆 = 激活，空心圆 = 未激活（使用 DOT 和 CHECK_CIRCLE）
+            String icon = isActive ? Icons.DOT : Icons.CHECK_CIRCLE;
+            int iconColor = isActive 
+                    ? TimelineColors.rgba(240, 160, 60, 255)  // 激活：橙色（与时间轨道颜色一致）
+                    : TimelineColors.rgba(140, 140, 140, 180); // 未激活：灰色
+            drawList.addText(visibilityX, y + TRACK_ICON_OFFSET_Y, iconColor, icon);
+        }
 
         // ⭐ v5.0：对于摄像机轨道，只有在激活状态下才显示可用的关键帧按钮
+        // ⭐ v3.5：对于时间轨道，只有在激活状态下才显示可用的关键帧按钮
         boolean keyframeEnabled = type != null && type.supportsKeyframes();
         if (type == TrackType.CAMERA) {
             com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController controller =
                     com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance();
             com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
+            keyframeEnabled = (activeTrack == track);  // 只有激活轨道才可用
+        } else if (type == TrackType.TIME) {
+            com.chronoblocks.ui.timeline.playback.time.TimelineWorldController controller =
+                    com.chronoblocks.ui.timeline.playback.time.TimelineWorldController.getInstance();
+            com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveTimeTrack();
             keyframeEnabled = (activeTrack == track);  // 只有激活轨道才可用
         }
         int keyframeColor = keyframeEnabled 
@@ -164,7 +182,8 @@ public final class TimelineTrackRenderer {
         }
         
         // ⭐ v5.0：摄像机轨道不显示隐藏/显示按钮
-        if (type != TrackType.CAMERA) {
+        // ⭐ v3.5：时间轨道不显示隐藏/显示按钮
+        if (type != TrackType.CAMERA && type != TrackType.TIME) {
             if (!track.isVisible()) {
                 drawList.addText(visibilityX, y + TRACK_ICON_OFFSET_Y, TimelineColors.rgba(150, 150, 150, 255), Icons.INVISIBLE);
             } else {

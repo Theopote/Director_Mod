@@ -63,6 +63,8 @@ public class TimelineTrackController {
 
     /**
      * 创建新轨道。
+     * 
+     * <p>⭐ v3.5：如果是时间轨道且是第一条，自动激活
      */
     private void createNewTrack(TrackType type) {
         long sameTypeCount = model.getTracks().stream()
@@ -72,6 +74,13 @@ public class TimelineTrackController {
         String trackName = type.getDisplayName() + " " + (sameTypeCount + 1);
         TimelineTrack newTrack = new TimelineTrack(trackName, type);
         model.addTrack(newTrack);
+
+        // ⭐ v3.5：如果是时间轨道且是第一条（创建后只有一条），自动激活
+        if (type == TrackType.TIME && sameTypeCount == 0) {
+            com.chronoblocks.ui.timeline.playback.time.TimelineWorldController.getInstance()
+                    .setActiveTimeTrack(newTrack);
+            LOGGER.info("[TrackController] 创建第一条时间轨道，自动激活: {}", trackName);
+        }
 
         onDataChangedCallback.run();
         LOGGER.info("[TrackController] 创建新轨道 {} (类型: {}, 同类型第 {} 个)",

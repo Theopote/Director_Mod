@@ -143,9 +143,18 @@ public final class TimelineWorldController {
         };
         this.timelineModel.addModelChangeListener(this.modelChangeListener);
 
-        // 初始选中第一条 TIME 轨道（如果存在）
-        if (!isValidTimeTrack(activeTimeTrack)) {
-            activeTimeTrack = findFirstTimeTrack();
+        // ⭐ v3.5：初始选中第一条 TIME 轨道（如果存在）
+        // ⭐ 如果只有一个时间轨道，自动激活它
+        if (activeTimeTrack == null || !isValidTimeTrack(activeTimeTrack)) {
+            TimelineTrack firstTimeTrack = findFirstTimeTrack();
+            if (firstTimeTrack != null) {
+                // 检查是否只有一个时间轨道
+                int timeTrackCount = countTimeTracks();
+                activeTimeTrack = firstTimeTrack;
+                if (timeTrackCount == 1) {
+                    LOGGER.info("[TimelineWorld] 检测到只有一个时间轨道，自动激活: {}", firstTimeTrack.getName());
+                }
+            }
         }
 
         rebuildFromActiveTrack();
@@ -539,15 +548,37 @@ public final class TimelineWorldController {
 
     /**
      * 处理模型结构变更（轨道增删、关键帧变化等）
+     * 
+     * <p>⭐ v3.5：如果只有一个时间轨道，自动激活它
      */
     private synchronized void onModelStructureChanged() {
         if (timelineModel == null) {
             return;
         }
 
-        // 如果当前激活轨道无效，重新选择
-        if (!isValidTimeTrack(activeTimeTrack)) {
-            activeTimeTrack = findFirstTimeTrack();
+        // 统计当前时间轨道数量
+        int timeTrackCount = countTimeTracks();
+        TimelineTrack firstTimeTrack = findFirstTimeTrack();
+        
+        // ⭐ v3.5：如果只有一个时间轨道，无论当前状态如何，都确保它是激活的
+        // 这包括：从0个变成1个、从多个变成1个、新建唯一轨道等情况
+        if (timeTrackCount == 1 && firstTimeTrack != null) {
+            if (activeTimeTrack != firstTimeTrack) {
+                activeTimeTrack = firstTimeTrack;
+                LOGGER.info("[TimelineWorld] 模型变更：检测到只有一个时间轨道，自动激活: {}", firstTimeTrack.getName());
+            }
+        } else if (timeTrackCount == 0) {
+            // 没有时间轨道时，清空激活轨道
+            activeTimeTrack = null;
+        } else {
+            // 有多个时间轨道时，检查当前激活轨道是否有效
+            if (!isValidTimeTrack(activeTimeTrack)) {
+                // 当前激活轨道无效，选择第一个作为激活轨道（但不强制，因为可能有多个）
+                activeTimeTrack = firstTimeTrack;
+                if (firstTimeTrack != null) {
+                    LOGGER.info("[TimelineWorld] 模型变更：当前激活轨道无效，切换到: {}", firstTimeTrack.getName());
+                }
+            }
         }
 
         rebuildFromActiveTrack();
@@ -649,6 +680,22 @@ public final class TimelineWorldController {
             }
         }
         return null;
+    }
+
+    /**
+     * 统计 TIME 轨道数量
+     * 
+     * <p>⭐ v3.5：用于判断是否只有一个时间轨道，如果是则自动激活
+     */
+    private int countTimeTracks() {
+        if (timelineModel == null) return 0;
+        int count = 0;
+        for (TimelineTrack track : timelineModel.getTracks()) {
+            if (track.getType() == TrackType.TIME) {
+                count++;
+            }
+        }
+        return count;
     }
 
     /**

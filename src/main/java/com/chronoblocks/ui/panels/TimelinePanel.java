@@ -1076,6 +1076,18 @@ public class TimelinePanel extends AbstractPanel
                     return;
                 }
                 
+                // ⭐ v3.5：检查是否是激活的时间轨道
+                com.chronoblocks.ui.timeline.playback.time.TimelineWorldController timeController =
+                        com.chronoblocks.ui.timeline.playback.time.TimelineWorldController.getInstance();
+                com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = timeController.getActiveTimeTrack();
+                
+                if (activeTrack != track) {
+                    LOGGER.warn("[TimelinePanel] 只能在激活的时间轨道上添加关键帧，当前轨道：{}，激活轨道：{}",
+                            track != null ? track.getName() : "null",
+                            activeTrack != null ? activeTrack.getName() : "null");
+                    return;
+                }
+                
                 // 获取当前 Minecraft 世界时间
                 net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
                 long currentWorldTime = 6000L; // 默认正午
@@ -1094,8 +1106,7 @@ public class TimelinePanel extends AbstractPanel
                 ));
                 
                 // ⭐ 通知 TimelineWorldController 更新
-                com.chronoblocks.ui.timeline.playback.time.TimelineWorldController.getInstance()
-                        .rebuildFromActiveTrack();
+                timeController.rebuildFromActiveTrack();
                 
                 handled = true;
             } else if (type.supportsMarkers() && !type.supportsClips()) {
