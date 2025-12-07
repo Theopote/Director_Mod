@@ -327,17 +327,6 @@ public final class TimelineWorldController {
         
         LOGGER.debug("[TimelineWorld] 预览时间 @ {}s: {}", timeSeconds, sample);
     }
-
-    /**
-     * 预览当前时间线时间的世界时间（用于属性面板实时预览）
-     */
-    public synchronized void previewAtCurrentTime() {
-        if (!enabled || timelineModel == null) {
-            return;
-        }
-        float currentTime = timelineModel.getCurrentTime();
-        previewAt(currentTime);
-    }
     
     /**
      * 预览指定关键帧所在位置的时间（用于属性面板实时预览）
@@ -440,13 +429,6 @@ public final class TimelineWorldController {
         }
     }
 
-    /**
-     * 对外接口（命令式调用）
-     */
-    public synchronized void applyTimeSample(TimeSample sample) {
-        applySampleInternal(sample, false);
-    }
-
     // ============================================================
     // 清除（恢复原版时间）
     // ============================================================
@@ -477,71 +459,11 @@ public final class TimelineWorldController {
     }
 
     /**
-     * 获取当前采样结果（供 Mixin 使用）
-     * 
-     * <p>v2.0 核心接口：Mixin 永远从这里读取，而不是从 keyframe 或 sampler
-     */
-    public synchronized Optional<TimeSample> getCurrentSample() {
-        if (!hasOverride()) {
-            return Optional.empty();
-        }
-        return Optional.of(currentSample);
-    }
-
-    /**
      * 便捷方法：直接获取当前采样（不返回 Optional）
      * 如果不存在，返回 null
      */
     public synchronized TimeSample current() {
         return hasOverride() ? currentSample : null;
-    }
-
-    /**
-     * 世界 tick 时调用（来自 mixin），维持冻结时间
-     * 
-     * <p>v2.0 核心改进：严格的时间冻结控制
-     */
-    public synchronized void maintainFrozenTime(ClientWorld world) {
-        if (!freezeTimeActive || world == null) {
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[TimelineWorld] maintainFrozenTime() - 跳过: freezeTimeActive={}, world={}", 
-                        freezeTimeActive, world != null);
-            }
-            return;
-        }
-
-        long currentWorldTime = world.getTimeOfDay();
-        long currentNormalized = currentWorldTime % 24000L;
-        
-        // ⭐ v3.5 关键优化：只在时间不一致时才调用 world.setTime()
-        // 避免每 tick 都触发渲染更新，导致"一闪一闪"的问题
-        if (currentNormalized == frozenGameTime) {
-            // 时间一致，不需要恢复，减少日志输出和渲染调用
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[TimelineWorld] ❄️ maintainFrozenTime() - 时间一致，跳过 (冻结时间={})", 
-                        frozenGameTime);
-            }
-            return;
-        }
-
-        // 时间不一致，需要恢复
-        LOGGER.warn("[TimelineWorld] ❄️ maintainFrozenTime() - 检测到时间不一致! 期望={}, 当前世界时间={} (归一化={}), 强制恢复", 
-                frozenGameTime, currentWorldTime, currentNormalized);
-        
-        // 维持冻结的时间
-        world.setTime(frozenGameTime, frozenGameTime, false);
-        
-        // ⭐ DEBUG: 验证恢复是否成功
-        // 注意：getTimeOfDay() 可能返回总 tick 数，需要归一化后比较
-        long actualTime = world.getTimeOfDay();
-        long actualNormalized = actualTime % 24000L;
-        if (actualNormalized != frozenGameTime) {
-            LOGGER.error("[TimelineWorld] ❌ maintainFrozenTime() - 恢复失败! 期望={}, 实际={} (归一化={})", 
-                    frozenGameTime, actualTime, actualNormalized);
-        } else {
-            LOGGER.info("[TimelineWorld] ✅ maintainFrozenTime() - 恢复成功 (期望={}, 实际={}, 归一化={})", 
-                    frozenGameTime, actualTime, actualNormalized);
-        }
     }
 
     // ================== 模型变更处理 ==================
@@ -942,22 +864,6 @@ public final class TimelineWorldController {
         // 这种情况下，原版时间系统可以正常运行，只需要在采样时同步时间即可
     }
 
-    // ================== 兼容性方法 ==================
-
-    /**
-     * 获取指定时间的采样结果（便于外部直接查询）
-     * 
-     * @param currentTime 时间线时间（秒）
-     * @return 采样结果，如果无法采样则返回 empty
-     */
-    public synchronized Optional<TimeSample> getCurrentSample(float currentTime) {
-        if (!enabled || !hasValidActiveTrack()) {
-            return Optional.empty();
-        }
-
-        return sampler.sample(currentTime);
-    }
-
     /**
      * 检查采样器是否为空（没有关键帧）
      */
@@ -965,10 +871,4 @@ public final class TimelineWorldController {
         return sampler.getKeyframes().isEmpty();
     }
 
-    /**
-     * 检查是否处于 scrubbing 状态
-     */
-    public synchronized boolean isScrubbing() {
-        return timelineModel != null && timelineModel.isScrubbing();
-    }
 }
