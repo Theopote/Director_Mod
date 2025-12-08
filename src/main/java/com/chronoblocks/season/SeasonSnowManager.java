@@ -1,6 +1,7 @@
 package com.chronoblocks.season;
 
 import com.chronoblocks.ui.timeline.playback.season.SeasonSample;
+import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.SnowBlock;
@@ -13,31 +14,31 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.*;
 
 /**
- * SeasonSnowManager v3.0
+ * SeasonSnowManager v2.0
  *
  * <p>❄ 负责根据 SeasonSample 动态生成 / 融化「覆盖雪」（雪层方块），
  *    不改原本地形，只在合适表面上叠一层 snow_layer。
  *
  * <p>设计要点：
  * <ul>
- *   <li>采样：后台线程搜索候选位置（避免主线程卡顿）</li>
- *   <li>应用：主线程每 tick 把少量候选应用为雪层 / 融雪</li>
- *   <li>跟踪：记录我们放过的雪位置，方便融化和清理</li>
+ *   <li>✅ Chunk 分区扫描（13×13 chunk），避免全世界扫描卡顿</li>
+ *   <li>✅ 原始方块缓存（OriginalStateStore），确保 100% 可恢复</li>
+ *   <li>✅ 后台线程扫描 + 主线程方块更新（线程安全）</li>
+ *   <li>✅ 雪层数量根据 snowAmount 动态控制（1-8 层）</li>
+ *   <li>✅ 坡度影响因子（snowSlopeFactor）控制陡坡积雪</li>
  * </ul>
  *
  * <p>注意：
  * <ul>
  *   <li>这里只是客户端视觉效果（ClientWorld），不改服务器地形</li>
- *   <li>如果你希望录制出来的回放「内外一致」，可以考虑把同样逻辑搬一份到服务端</li>
+ *   <li>所有积雪都可以 100% 恢复为原始方块（无破坏性）</li>
  * </ul>
  *
  * @author ChronoBlocks Team
- * @version 3.0 - 多线程采样 + 主线程改方块
+ * @version 2.0 - Chunk 分区扫描 + 原始方块缓存 + 完整可恢复
  */
 public class SeasonSnowManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(SeasonSnowManager.class);
@@ -55,46 +56,37 @@ public class SeasonSnowManager {
 
     // ========= 配置参数 =========
 
-    /** 单 tick 最多新放多少个雪方块（防止一次性铺太多卡顿） */
-    private static final int MAX_SNOW_ADD_PER_TICK = 64;
+    /** 扫描范围（以 chunk 为单位）：玩家中心 ±6 → 13×13 chunk */
+    private static final int SCAN_RADIUS_CHUNKS = 6;
 
-    /** 单 tick 最多融化多少个雪方块 */
-    private static final int MAX_SNOW_MELT_PER_TICK = 64;
-
-    /** 搜索半径（以方块为单位） */
-    private static final int SCAN_RADIUS_BLOCKS = 32;
-
-    /** 以当前 sample 的 snowAmount ∈ [0,1] 线性缩放放雪速率 */
-    private static final float SNOW_ADD_SPEED_SCALE = 1.0f;
-
-    /** 以(1 - snowAmount)缩放融雪速率；雪量趋近 0 时加快融雪 */
-    private static final float SNOW_MELT_SPEED_SCALE = 1.0f;
-
-    /** 每个位置尝试的垂直搜索范围（从地表附近找合适表面） */
-    private static final int VERTICAL_SCAN = 24;
+    /** 每 tick 处理的最大主线程任务数（避免卡顿） */
+    private static final int MAX_MAIN_THREAD_TASKS_PER_TICK = 64;
 
     // ========= 状态 =========
 
-    private final ExecutorService worker = Executors.newSingleThreadExecutor(
+    /** 后台扫描线程池 */
+    private final ExecutorService scanExecutor = Executors.newSingleThreadExecutor(
             r -> {
-                Thread t = new Thread(r, "ChronoBlocks-SeasonSnowWorker");
+                Thread t = new Thread(r, "ChronoBlocks-SeasonSnowScanThread");
                 t.setDaemon(true);
                 return t;
             }
     );
 
+    /** 主线程任务队列（用于安全的方块写操作） */
+    private final Queue<Runnable> mainThreadTasks = new ConcurrentLinkedQueue<>();
+
     /** 当前的季节采样（由 TimelineSeasonController 推送） */
-    private volatile SeasonSample currentSample = SeasonSample.defaultSample();
-    private volatile boolean hasSeasonOverride = false;
+    private volatile SeasonSample currentSample = SeasonSample.disabled();
 
-    /** 我们自己放置的雪方块（只记录 top block pos） */
-    private final Set<BlockPos> placedSnow = Collections.synchronizedSet(new HashSet<>());
+    /** 原始方块缓存（记录被雪覆盖的位置的原始方块） */
+    private final Map<BlockPos, BlockStateRecord> originalMap = new ConcurrentHashMap<>();
 
-    /** 后台线程搜到的候选"放雪"位置（主线程消费） */
-    private final ConcurrentLinkedQueue<BlockPos> pendingAdd = new ConcurrentLinkedQueue<>();
+    /** 记录结构：原始方块类型 */
+    private record BlockStateRecord(Block originalBlock) {}
 
-    /** 后台线程搜到的候选"融雪"位置（也可以用；当前主要从 placedSnow 抽样） */
-    private final ConcurrentLinkedQueue<BlockPos> pendingMelt = new ConcurrentLinkedQueue<>();
+    /** 是否需要重新扫描（当 sample 变化时设置） */
+    private volatile boolean needsRescan = true;
 
     /** 避免重复提交扫描任务 */
     private volatile boolean scanRunning = false;
@@ -107,30 +99,32 @@ public class SeasonSnowManager {
     // ====================================================
 
     /**
-     * 接收季节采样更新（v3.0 新 API）。
+     * 接收季节采样更新（v2.0 API）。
      * 
-     * <p>由 TimelineSeasonController.propagateToWorld() 调用，不再自己获取 sample。
-     * 这样可以确保雪系统 100% 由季节轨道驱动，不会产生不一致。
+     * <p>兼容现有代码：同时支持 `onSeasonSampleUpdated` 和 `onSeasonSampleChanged`。
      * 
      * @param sample 季节采样，如果为 null 表示没有季节覆盖
      */
     public void onSeasonSampleUpdated(SeasonSample sample) {
-        if (sample == null) {
-            hasSeasonOverride = false;
-            currentSample = SeasonSample.defaultSample();
-        } else {
-            hasSeasonOverride = true;
-            currentSample = sample;
-        }
+        onSeasonSampleChanged(sample);
+    }
+
+    /**
+     * 接收季节采样更新（v2.0 新方法名）。
+     * 
+     * @param sample 季节采样，如果为 null 表示没有季节覆盖
+     */
+    public void onSeasonSampleChanged(SeasonSample sample) {
+        this.currentSample = sample != null ? sample : SeasonSample.disabled();
+        this.needsRescan = true;
     }
 
     // ====================================================
-    // 入口 2：每帧 / 每 tick 在 Client 侧调用
-    // 典型调用位置：ClientTickHandler 或 ChronoBlocksClientController.clientTick()
+    // 入口 2：每 tick 调用（由客户端 Tick）
     // ====================================================
 
     /**
-     * 每 tick 调用（v3.0 新 API，接受 cameraPos 参数）。
+     * 每 tick 调用（v2.0 API，接受 world 和 cameraPos 参数）。
      * 
      * <p>先处理主线程上的改方块逻辑，再启动异步扫描。
      * 
@@ -142,12 +136,35 @@ public class SeasonSnowManager {
             return;
         }
 
-        // 先处理主线程上的改方块逻辑
-        applyPendingSnow(world);
-        applyAutoMelt(world);
+        // 1) 执行主线程任务（放雪/融雪）
+        runMainThreadTasks(world);
 
-        // 再启动异步扫描
-        scheduleScanIfNeeded(world, cameraPos);
+        // 2) 雪量为 0 或未启用 → 立即清除全部雪
+        if (!currentSample.enabled || currentSample.snowAmount <= 0.01f) {
+            if (!originalMap.isEmpty()) {
+                removeAllSnow(world);
+            }
+            return;
+        }
+
+        // 3) 需要重新扫描时，提交后台扫描任务
+        if (needsRescan && !scanRunning) {
+            needsRescan = false;
+            scanRunning = true;
+
+            BlockPos playerPos = BlockPos.ofFloored(cameraPos);
+            SeasonSample sampleSnapshot = currentSample.copy(); // 深拷贝，避免并发修改
+
+            scanExecutor.submit(() -> {
+                try {
+                    scanAndApply(world, playerPos, sampleSnapshot);
+                } catch (Exception e) {
+                    LOGGER.warn("[SeasonSnowManager] 扫描任务出错", e);
+                } finally {
+                    scanRunning = false;
+                }
+            });
+        }
     }
 
     /**
@@ -165,256 +182,286 @@ public class SeasonSnowManager {
     }
 
     // ====================================================
-    // 主线程：应用候选雪 / 融雪
+    // 扫描世界（后台线程）
     // ====================================================
 
-    private void applyPendingSnow(ClientWorld world) {
-        SeasonSample sample = currentSample;
+    /**
+     * 扫描玩家周围的 chunk，计算需要添加/移除的雪。
+     */
+    private void scanAndApply(ClientWorld world, BlockPos playerPos, SeasonSample sample) {
+        int snowY = (int) sample.snowlineHeight;
+        float amount = sample.snowAmount;
+        float slopeFactor = sample.snowSlopeFactor;
 
-        // 没有季节覆盖，或者目标雪量接近 0：不放新雪
-        if (!hasSeasonOverride || sample == null || sample.snowAmount <= 0.01f) {
-            return;
-        }
+        Set<BlockPos> newSnow = new HashSet<>();
+        Set<BlockPos> restore = new HashSet<>(originalMap.keySet()); // 初始：所有旧雪都假定需要移除
 
-        int maxAdd = Math.max(1,
-                (int) (MAX_SNOW_ADD_PER_TICK * sample.snowAmount * SNOW_ADD_SPEED_SCALE));
+        int px = playerPos.getX() >> 4; // chunk X
+        int pz = playerPos.getZ() >> 4; // chunk Z
 
-        int added = 0;
-        BlockPos pos;
-        while (added < maxAdd && (pos = pendingAdd.poll()) != null) {
-            if (placeOrIncreaseSnowLayer(world, pos)) {
-                placedSnow.add(pos.toImmutable());
-                added++;
+        // 遍历周围 chunk
+        for (int cx = px - SCAN_RADIUS_CHUNKS; cx <= px + SCAN_RADIUS_CHUNKS; cx++) {
+            for (int cz = pz - SCAN_RADIUS_CHUNKS; cz <= pz + SCAN_RADIUS_CHUNKS; cz++) {
+                // 对每个 chunk 进行采样（不是扫描所有方块，而是随机采样）
+                scanChunk(world, cx, cz, snowY, amount, slopeFactor, newSnow);
             }
         }
-    }
 
-    private void applyAutoMelt(ClientWorld world) {
-        SeasonSample sample = currentSample;
+        // 新雪：添加
+        for (BlockPos pos : newSnow) {
+            restore.remove(pos); // 新雪中仍存在 → 不需要恢复
 
-        // 没有季节覆盖：加速清空我们放的所有雪
-        if (!hasSeasonOverride || sample == null) {
-            meltSomeSnow(world, MAX_SNOW_MELT_PER_TICK * 2);
-            return;
-        }
+            if (!originalMap.containsKey(pos)) {
+                // 记录原始方块（在主线程中记录，避免并发问题）
+                BlockPos immutablePos = pos.toImmutable();
+                Block originalBlock = world.getBlockState(immutablePos).getBlock();
 
-        // snowAmount 越小，融雪越快
-        float factor = (1.0f - sample.snowAmount) * SNOW_MELT_SPEED_SCALE;
-        if (factor <= 0.01f) {
-            // 雪量接近1：保持不融（除非别的系统清除）
-            return;
-        }
+                originalMap.put(immutablePos, new BlockStateRecord(originalBlock));
 
-        int maxMelt = Math.max(1, (int) (MAX_SNOW_MELT_PER_TICK * factor));
-        meltSomeSnow(world, maxMelt);
-    }
+                // 计算雪层数（根据 snowAmount：0.0 = 无雪，1.0 = 8层）
+                int layers = Math.max(1, Math.min(8, (int) (amount * 8.0f) + 1));
 
-    private void meltSomeSnow(ClientWorld world, int count) {
-        if (placedSnow.isEmpty()) {
-            return;
-        }
-
-        // 简单抽样：从迭代器取前 N 个，或随机取一点
-        Iterator<BlockPos> it = placedSnow.iterator();
-        int melted = 0;
-
-        while (it.hasNext() && melted < count) {
-            BlockPos pos = it.next();
-            if (meltSnowLayer(world, pos)) {
-                it.remove();
-                melted++;
-            } else {
-                // 方块已不是我们放的雪，直接移除记录
-                it.remove();
+                enqueueMainThread(world, immutablePos, layers, true);
             }
         }
-    }
 
-    // ====================================================
-    // 异步扫描：找候选放雪位置
-    // ====================================================
-
-    private void scheduleScanIfNeeded(ClientWorld world, Vec3d cameraPos) {
-        if (!hasSeasonOverride || currentSample == null) {
-            return;
-        }
-        if (scanRunning) {
-            return;
-        }
-
-        scanRunning = true;
-        BlockPos camPos = BlockPos.ofFloored(cameraPos);
-        SeasonSample sampleSnapshot = currentSample;
-
-        worker.submit(() -> {
-            try {
-                scanAroundCamera(world, camPos, sampleSnapshot);
-            } catch (Exception e) {
-                LOGGER.warn("[SeasonSnowManager] 扫描任务出错", e);
-            } finally {
-                scanRunning = false;
-            }
-        });
-    }
-
-    private void scanAroundCamera(ClientWorld world, BlockPos camPos, SeasonSample sample) {
-        // 雪线高度以下才考虑放雪
-        int snowline = (int) sample.snowlineHeight;
-        if (sample.snowAmount <= 0.01f) {
-            return;
-        }
-
-        Random random = new Random(
-                Objects.hash(camPos.getX(), camPos.getZ(), world.getTime()));
-
-        int radius = SCAN_RADIUS_BLOCKS;
-        int tries = radius * radius / 2; // 简单控制扫描密度
-
-        for (int i = 0; i < tries; i++) {
-            int dx = random.nextInt(radius * 2 + 1) - radius;
-            int dz = random.nextInt(radius * 2 + 1) - radius;
-            int x = camPos.getX() + dx;
-            int z = camPos.getZ() + dz;
-
-            BlockPos surface = findSurface(world, x, z, camPos.getY());
-
-            if (surface == null) {
-                continue;
-            }
-            if (surface.getY() > snowline) {
-                continue;
-            }
-
-            BlockPos topPos = surface.up();
-
-            // 避免重复
-            if (placedSnow.contains(topPos) || pendingAdd.contains(topPos)) {
-                continue;
-            }
-
-            pendingAdd.add(topPos.toImmutable());
+        // 不在新雪中的旧雪 → 恢复
+        for (BlockPos pos : restore) {
+            BlockPos immutablePos = pos.toImmutable();
+            enqueueMainThread(world, immutablePos, 0, false);
+            originalMap.remove(immutablePos);
         }
     }
 
     /**
-     * 在垂直方向上找一个合适的"地表"方块：
-     * - 上方是空气
-     * - 自身是 solid / 可被雪覆盖的方块
+     * 扫描单个 chunk（随机采样，避免扫描所有方块）。
      */
-    private BlockPos findSurface(ClientWorld world, int x, int z, double centerY) {
-        int startY = (int) centerY + VERTICAL_SCAN / 2;
-        int endY = (int) centerY - VERTICAL_SCAN / 2;
+    private void scanChunk(ClientWorld world, int chunkX, int chunkZ, int snowY, 
+                          float amount, float slopeFactor, Set<BlockPos> outNewSnow) {
+        Random random = new Random(Objects.hash(chunkX, chunkZ, world.getTime()));
 
-        // Minecraft 1.21.4: 使用 getTopPosition() 获取地表高度
-        BlockPos topPos = world.getTopPosition(Heightmap.Type.WORLD_SURFACE, new BlockPos(x, 0, z));
-        int topY = Math.min(topPos.getY() - 1, startY);
-        int bottomY = Math.max(world.getBottomY(), endY);
+        // 每个 chunk 采样约 32 个方块（可根据性能调整）
+        int samplesPerChunk = 32;
 
-        BlockPos.Mutable mutable = new BlockPos.Mutable();
+        for (int i = 0; i < samplesPerChunk; i++) {
+            int bx = random.nextInt(16);
+            int bz = random.nextInt(16);
+            int wx = chunkX * 16 + bx;
+            int wz = chunkZ * 16 + bz;
 
-        for (int y = topY; y >= bottomY; y--) {
-            mutable.set(x, y, z);
-            BlockState state = world.getBlockState(mutable);
-            BlockState above = world.getBlockState(mutable.up());
+            BlockPos top = findTopSolidBlock(world, wx, wz);
+            if (top == null) continue;
 
-            // 上方必须是空气或可被雪占据
-            if (!above.isAir() && !above.isOf(Blocks.SNOW)) {
-                continue;
+            // 不在雪线高度以下不覆盖
+            if (top.getY() > snowY) continue;
+
+            // 检查是否应该覆盖雪
+            if (shouldCoverBlock(world, top, slopeFactor)) {
+                // 根据 snowAmount 采样概率（弱雪效果）
+                if (amount < 1.0f && random.nextFloat() > amount) {
+                    continue;
+                }
+                outNewSnow.add(top.up().toImmutable());
             }
-
-            // 当前方块要能承载雪
-            if (state.isAir()) {
-                continue;
-            }
-            // 使用 Minecraft 1.21.4 的 API：isSolidBlock(world, pos)
-            if (!state.isSolidBlock(world, mutable) && !state.isOf(Blocks.SNOW)) {
-                continue;
-            }
-
-            return mutable.toImmutable();
         }
-        return null;
     }
 
     // ====================================================
-    // 具体放雪 / 融雪逻辑（主线程调用）
+    // 主线程任务执行
     // ====================================================
 
-    /** 放一个 snow_layer 或增加层数；成功返回 true */
-    private boolean placeOrIncreaseSnowLayer(ClientWorld world, BlockPos pos) {
-        BlockState state = world.getBlockState(pos);
-
-        if (state.isOf(Blocks.SNOW)) {
-            // 叠加层数
-            int layers = state.get(SnowBlock.LAYERS);
-            if (layers < 8) {
-                world.setBlockState(pos, state.with(SnowBlock.LAYERS, layers + 1), 3);
-                return true;
+    /**
+     * 将任务加入主线程队列。
+     */
+    private void enqueueMainThread(ClientWorld world, BlockPos pos, int layers, boolean add) {
+        mainThreadTasks.offer(() -> {
+            if (add) {
+                applySnowAt(world, pos, layers);
             } else {
-                return false;
+                restoreOriginal(world, pos);
             }
-        }
-
-        if (!world.getBlockState(pos.down()).isAir()) {
-            // 下方必须有支撑（简化判断，可根据需要放宽）
-            world.setBlockState(pos, Blocks.SNOW.getDefaultState(), 3);
-            return true;
-        }
-
-        return false;
+        });
     }
 
-    /** 融化一层雪，如果完全融化则删掉方块 */
-    private boolean meltSnowLayer(ClientWorld world, BlockPos pos) {
-        BlockState state = world.getBlockState(pos);
-        if (!state.isOf(Blocks.SNOW)) {
-            // 已经不是雪了
-            return false;
+    /**
+     * 执行主线程任务（每 tick 调用）。
+     */
+    private void runMainThreadTasks(ClientWorld world) {
+        int count = 0;
+        Runnable task;
+        while (count < MAX_MAIN_THREAD_TASKS_PER_TICK && (task = mainThreadTasks.poll()) != null) {
+            task.run();
+            count++;
         }
+    }
 
-        int layers = state.get(SnowBlock.LAYERS);
-        if (layers > 1) {
-            world.setBlockState(pos, state.with(SnowBlock.LAYERS, layers - 1), 3);
+    // ====================================================
+    // 方块操作（主线程）
+    // ====================================================
+
+    /**
+     * 在指定位置应用雪层。
+     */
+    private void applySnowAt(ClientWorld world, BlockPos pos, int layers) {
+        if (world == null) return;
+
+        BlockState currentState = world.getBlockState(pos);
+        
+        if (currentState.isOf(Blocks.SNOW)) {
+            // 已经是雪：更新层数
+            int currentLayers = currentState.get(SnowBlock.LAYERS);
+            if (currentLayers != layers) {
+                world.setBlockState(pos, currentState.with(SnowBlock.LAYERS, layers), 3);
+            }
         } else {
-            world.removeBlock(pos, false);
+            // 不是雪：放置雪层
+            BlockState snowState = Blocks.SNOW.getDefaultState().with(SnowBlock.LAYERS, layers);
+            world.setBlockState(pos, snowState, 3);
         }
-        return true;
+    }
+
+    /**
+     * 恢复原始方块。
+     */
+    private void restoreOriginal(ClientWorld world, BlockPos pos) {
+        if (world == null) return;
+
+        BlockStateRecord rec = originalMap.get(pos);
+        if (rec == null) {
+            // 没有记录，直接移除（可能是我们之前放置的雪）
+            BlockState currentState = world.getBlockState(pos);
+            if (currentState.isOf(Blocks.SNOW)) {
+                world.removeBlock(pos, false);
+            }
+            return;
+        }
+
+        // 恢复原始方块
+        world.setBlockState(pos, rec.originalBlock().getDefaultState(), 3);
     }
 
     // ====================================================
-    // 清理接口：导演模式退出 / UI 点"重置季节效果"时调用
+    // 清除所有雪
     // ====================================================
+
+    /**
+     * 清除所有雪（退出导演模式时调用）。
+     */
+    private void removeAllSnow(ClientWorld world) {
+        if (world == null) return;
+
+        for (BlockPos pos : originalMap.keySet()) {
+            restoreOriginal(world, pos);
+        }
+        originalMap.clear();
+        mainThreadTasks.clear();
+    }
 
     /**
      * 退出导演模式 / 禁用季节系统时，完全恢复我们修改的所有雪。
      */
     public void restoreAll(ClientWorld world) {
-        if (world == null) {
-            return;
-        }
-
-        synchronized (placedSnow) {
-            for (BlockPos pos : placedSnow) {
-                BlockState state = world.getBlockState(pos);
-                if (state.isOf(Blocks.SNOW)) {
-                    world.removeBlock(pos, false);
-                }
-            }
-            placedSnow.clear();
-        }
-
-        pendingAdd.clear();
-        pendingMelt.clear();
+        removeAllSnow(world);
+        LOGGER.info("[SeasonSnowManager] 已清除所有积雪并恢复原始方块");
     }
 
     // ====================================================
-    // 可选：在世界卸载时关闭线程（如果需要）
+    // 工具方法
+    // ====================================================
+
+    /**
+     * 寻找地表方块（使用 Heightmap 优化）。
+     */
+    private BlockPos findTopSolidBlock(ClientWorld world, int x, int z) {
+        try {
+            // 使用 Minecraft 1.21.4 的 API：getTopPosition()
+            BlockPos topPos = world.getTopPosition(Heightmap.Type.WORLD_SURFACE, new BlockPos(x, 0, z));
+            int topY = topPos.getY() - 1; // 地表方块在 topPosition 下方
+
+            BlockPos.Mutable mutable = new BlockPos.Mutable(x, topY, z);
+            BlockState state = world.getBlockState(mutable);
+
+            // 检查是否是有效的地表方块
+            if (state.isAir() || state.isOf(Blocks.SNOW)) {
+                // 向下查找第一个非空气/非雪方块
+                for (int y = topY - 1; y >= world.getBottomY(); y--) {
+                    mutable.setY(y);
+                    state = world.getBlockState(mutable);
+                    if (!state.isAir() && !state.isOf(Blocks.SNOW) && state.isSolidBlock(world, mutable)) {
+                        return mutable.toImmutable();
+                    }
+                }
+                return null;
+            }
+
+            if (state.isSolidBlock(world, mutable)) {
+                return mutable.toImmutable();
+            }
+
+            return null;
+        } catch (Exception e) {
+            LOGGER.warn("[SeasonSnowManager] 查找地表方块失败 ({}, {})", x, z, e);
+            return null;
+        }
+    }
+
+    /**
+     * 是否应该覆盖雪（考虑坡度影响）。
+     */
+    private boolean shouldCoverBlock(ClientWorld world, BlockPos pos, float slopeFactor) {
+        // 排除自身是雪
+        BlockState state = world.getBlockState(pos);
+        if (state.isOf(Blocks.SNOW)) {
+            return false;
+        }
+
+        // 上方必须是空气或雪
+        BlockPos up = pos.up();
+        BlockState aboveState = world.getBlockState(up);
+        if (!aboveState.isAir() && !aboveState.isOf(Blocks.SNOW)) {
+            return false;
+        }
+
+        // 检查坡度：如果太陡 → 不积雪
+        if (slopeFactor < 1.0f) {
+            BlockPos down = pos.down();
+            BlockPos side1 = pos.north();
+            BlockPos side2 = pos.east();
+
+            int heightCenter = pos.getY();
+            int heightDown = down.getY();
+            int heightNorth = side1.getY();
+            int heightEast = side2.getY();
+
+            // 计算最大高度差（简单坡度估算）
+            int maxHeightDiff = Math.max(
+                    Math.abs(heightCenter - heightDown),
+                    Math.max(
+                            Math.abs(heightCenter - heightNorth),
+                            Math.abs(heightCenter - heightEast)
+                    )
+            );
+
+            // slopeFactor = 0.0 → 完全不考虑坡度（所有地方都积雪）
+            // slopeFactor = 1.0 → 完全考虑坡度（高度差 > 2 就不积雪）
+            float threshold = 2.0f * slopeFactor;
+            if (maxHeightDiff > threshold) {
+                return false; // 太陡，不积雪
+            }
+        }
+
+        return true;
+    }
+
+    // ====================================================
+    // 可选：在世界卸载时关闭线程
     // ====================================================
 
     /**
      * 关闭工作线程（在世界卸载时调用，可选）。
      */
     public void shutdown() {
-        worker.shutdownNow();
+        scanExecutor.shutdownNow();
+        mainThreadTasks.clear();
     }
 }

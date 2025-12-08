@@ -13,7 +13,6 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Optional;
 
 /**
  * TimelineSeasonController v1.1
@@ -65,7 +64,7 @@ public final class TimelineSeasonController {
     private TimelineModel.ModelChangeListener modelChangeListener;
     
     /** 最近一次采样到的季节状态（供渲染层 / Mixin 使用） */
-    private SeasonSample currentSample = SeasonSample.defaultSample();
+    private SeasonSample currentSample = SeasonSample.disabled();
     
     private TimelineSeasonController() {
     }
@@ -140,9 +139,9 @@ public final class TimelineSeasonController {
             LOGGER.info("[TimelineSeason] init 完成，activeSeasonTrack = {}",
                     activeSeasonTrack != null ? activeSeasonTrack.getName() : "<none>");
         } else {
-            sampler.setKeyframes(new ArrayList<>());
+            sampler.clear();
             activeSeasonTrack = null;
-            currentSample = SeasonSample.defaultSample();
+            currentSample = SeasonSample.disabled();
             LOGGER.info("[TimelineSeason] init(null) → 关闭季节控制");
         }
     }
@@ -186,7 +185,7 @@ public final class TimelineSeasonController {
     public synchronized void setEnabled(boolean enabled) {
         this.enabled = enabled;
         if (!enabled) {
-            currentSample = SeasonSample.defaultSample();
+            currentSample = SeasonSample.disabled();
         }
         LOGGER.info("[TimelineSeason] 季节控制 {}", enabled ? "已启用" : "已禁用");
     }
@@ -235,27 +234,21 @@ public final class TimelineSeasonController {
     public synchronized void onTimelineTick(float timelineTime) {
         if (!enabled || timelineModel == null) {
             // 没有启用或没有模型，清除状态
-            setCurrentSample(SeasonSample.defaultSample());
+            setCurrentSample(SeasonSample.disabled());
             propagateToWorld();
             return;
         }
         
-        if (!hasValidActiveTrack() || !sampler.hasKeyframes()) {
+        if (!hasValidActiveTrack() || sampler.isEmpty()) {
             // 没有激活轨道或没有关键帧，清除状态
-            setCurrentSample(SeasonSample.defaultSample());
+            setCurrentSample(SeasonSample.disabled());
             propagateToWorld();
             return;
         }
         
-        // 从采样器获取当前时间的季节采样
-        Optional<SeasonSample> sampleOpt = sampler.sample(timelineTime);
-        if (sampleOpt.isPresent()) {
-            SeasonSample sample = sampleOpt.get();
-            setCurrentSample(sample);
-        } else {
-            // 采样失败，使用默认值
-            setCurrentSample(SeasonSample.defaultSample());
-        }
+        // 从采样器获取当前时间的季节采样（使用 v3.0 API）
+        SeasonSample sample = sampler.sampleAt(timelineTime);
+        setCurrentSample(sample);
         
         // 推送到世界系统
         propagateToWorld();
@@ -281,10 +274,11 @@ public final class TimelineSeasonController {
             return;
         }
         
-        Optional<SeasonSample> sample = sampler.sample(timeSeconds);
-        if (sample.isPresent()) {
-            setCurrentSample(sample.get());
-            LOGGER.debug("[TimelineSeason] 预览季节 @ {}s: {}", timeSeconds, sample.get());
+        SeasonSample sample = sampler.sampleAt(timeSeconds);
+        if (sample.enabled) {
+            setCurrentSample(sample);
+            propagateToWorld();
+            LOGGER.debug("[TimelineSeason] 预览季节 @ {}s: {}", timeSeconds, sample);
         }
     }
     
@@ -307,10 +301,11 @@ public final class TimelineSeasonController {
             return;
         }
         
-        Optional<SeasonSample> sample = sampler.sample(keyframeTime);
-        if (sample.isPresent()) {
-            setCurrentSample(sample.get());
-            LOGGER.debug("[TimelineSeason] 预览关键帧季节 @ {}s: {}", keyframeTime, sample.get());
+        SeasonSample sample = sampler.sampleAt(keyframeTime);
+        if (sample.enabled) {
+            setCurrentSample(sample);
+            propagateToWorld();
+            LOGGER.debug("[TimelineSeason] 预览关键帧季节 @ {}s: {}", keyframeTime, sample);
         }
     }
     
@@ -323,25 +318,31 @@ public final class TimelineSeasonController {
      */
     public synchronized void rebuildFromActiveTrack() {
         if (!hasValidActiveTrack()) {
-            setCurrentSample(SeasonSample.defaultSample());
+            sampler.clear();
+            setCurrentSample(SeasonSample.disabled());
             propagateToWorld();
             return;
         }
         
-        // 重新收集关键帧并重建采样器
-        List<SeasonKeyframe> kfs = collectSeasonKeyframes(activeSeasonTrack);
-        sampler.setKeyframes(kfs);
+        // 使用 v3.0 API：直接从轨道设置
+        sampler.setFromTrack(activeSeasonTrack);
         
         // 使用当前时间线时间重新采样并推送
-        if (timelineModel != null) {
+        if (timelineModel != null && !sampler.isEmpty()) {
             float currentTime = timelineModel.getCurrentTime();
-            onTimelineTick(currentTime);
+            SeasonSample sample = sampler.sampleAt(currentTime);
+            setCurrentSample(sample);
+            propagateToWorld();
             LOGGER.debug("[TimelineSeason] 重新构建轨道，已更新当前时间点的季节状态");
+        } else {
+            // 没有关键帧，恢复到默认
+            setCurrentSample(SeasonSample.disabled());
+            propagateToWorld();
         }
         
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("[TimelineSeason] Rebuild from track '{}', keyframes = {}",
-                    activeSeasonTrack.getName(), kfs.size());
+                    activeSeasonTrack.getName(), sampler.getKeyframes().size());
         }
     }
     
@@ -399,8 +400,11 @@ public final class TimelineSeasonController {
     
     
     /**
-     * 从指定轨道收集 SeasonKeyframe。
+     * 从指定轨道收集 SeasonKeyframe（向后兼容方法）。
+     * 
+     * @deprecated 使用 sampler.setFromTrack() 代替
      */
+    @Deprecated
     private List<SeasonKeyframe> collectSeasonKeyframes(TimelineTrack track) {
         List<SeasonKeyframe> result = new ArrayList<>();
         if (track == null || track.getType() != TrackType.SEASON) {
@@ -414,6 +418,13 @@ public final class TimelineSeasonController {
         }
         result.sort(Comparator.comparing(SeasonKeyframe::getTime));
         return result;
+    }
+    
+    /**
+     * 绑定 TimelineModel（v4.0 API，别名）。
+     */
+    public void bindTimelineModel(TimelineModel model) {
+        init(model);
     }
     
     // ================== 采样 / 应用 ==================
@@ -575,7 +586,7 @@ public final class TimelineSeasonController {
      */
     public synchronized SeasonSample getCurrentSample() {
         if (currentSample == null) {
-            currentSample = SeasonSample.defaultSample();
+            currentSample = SeasonSample.disabled();
         }
         return currentSample;
     }
@@ -609,10 +620,11 @@ public final class TimelineSeasonController {
      */
     public synchronized void clear() {
         // 清空采样器关键帧
-        sampler.setKeyframes(new ArrayList<>());
+        sampler.clear();
         
         // 使用 setCurrentSample() 确保触发渲染刷新，立即恢复到默认颜色
-        setCurrentSample(SeasonSample.defaultSample());
+        setCurrentSample(SeasonSample.disabled());
+        propagateToWorld();
         
         LOGGER.info("[TimelineSeason] Cleared season override state - 恢复游戏默认渲染");
     }

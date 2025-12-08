@@ -72,22 +72,9 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
     private final float[] fogTintArr = new float[3];
     private final float[] lightTintArr = new float[3];
 
-    private static final String[] SEASON_TYPE_LABELS = buildSeasonTypeLabels();
-    private static final String[] INTERPOLATION_LABELS = buildInterpolationLabels();
-
-    private static String[] buildSeasonTypeLabels() {
-        SeasonKeyframe.SeasonType[] t = SeasonKeyframe.SeasonType.values();
-        String[] arr = new String[t.length];
-        for (int i = 0; i < t.length; i++) arr[i] = t[i].getDisplayName();
-        return arr;
-    }
-
-    private static String[] buildInterpolationLabels() {
-        SeasonKeyframe.Interpolation[] t = SeasonKeyframe.Interpolation.values();
-        String[] arr = new String[t.length];
-        for (int i = 0; i < t.length; i++) arr[i] = t[i].getDisplayName();
-        return arr;
-    }
+    // 使用 SeasonKeyframe 提供的静态标签数组（v4.0）
+    private static final String[] SEASON_TYPE_LABELS = SeasonKeyframe.SEASON_TYPE_LABELS;
+    private static final String[] INTERPOLATION_LABELS = SeasonKeyframe.INTERPOLATION_LABELS;
 
     @Override
     public boolean renderProperties(SeasonKeyframe keyframe) {
@@ -397,7 +384,7 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
      * </ul>
      */
     private static final float TINT_DISPLAY_MIN = -0.5f;  // 显示范围最小值
-    private static final float TINT_DISPLAY_MAX = +0.5f;  // 显示范围最大值
+    private static final float TINT_DISPLAY_MAX = 0.5f;  // 显示范围最大值
     private static final float TINT_DISPLAY_RANGE = TINT_DISPLAY_MAX - TINT_DISPLAY_MIN; // 1.0
 
     /** 将 tint（偏移值）转换为颜色显示值（0~1） */

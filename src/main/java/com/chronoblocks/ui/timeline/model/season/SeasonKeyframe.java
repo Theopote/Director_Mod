@@ -44,10 +44,10 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
      */
     public enum SeasonType {
         DEFAULT("默认"),  // 默认（游戏原始状态）
-        SPRING("春天"),
-        SUMMER("夏天"),
-        AUTUMN("秋天"),
-        WINTER("冬天"),
+        SPRING("春季"),
+        SUMMER("夏季"),
+        AUTUMN("秋季"),
+        WINTER("冬季"),
         CUSTOM("自定义");
         
         private final String displayName;
@@ -68,7 +68,7 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
         DEFAULT("默认"),      // 使用 SeasonTrack 默认插值类型
         LINEAR("线性"),       // 线性插值
         SMOOTH("平滑"),       // 缓入缓出（平滑插值）
-        CATMULL_ROM("曲线");  // Catmull-Rom 样条插值
+        CATMULL_ROM("曲线 (Catmull-Rom)");  // Catmull-Rom 样条插值
         
         private final String displayName;
         
@@ -79,6 +79,28 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
         public String getDisplayName() {
             return displayName;
         }
+    }
+    
+    // 给 UI 用的 label 数组（在 adapter 中直接引用）
+    public static final String[] SEASON_TYPE_LABELS = buildSeasonTypeLabels();
+    public static final String[] INTERPOLATION_LABELS = buildInterpolationLabels();
+    
+    private static String[] buildSeasonTypeLabels() {
+        SeasonType[] types = SeasonType.values();
+        String[] labels = new String[types.length];
+        for (int i = 0; i < types.length; i++) {
+            labels[i] = types[i].getDisplayName();
+        }
+        return labels;
+    }
+    
+    private static String[] buildInterpolationLabels() {
+        Interpolation[] types = Interpolation.values();
+        String[] labels = new String[types.length];
+        for (int i = 0; i < types.length; i++) {
+            labels[i] = types[i].getDisplayName();
+        }
+        return labels;
     }
     
     private final UUID id;
@@ -171,7 +193,7 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
     private final Vector3f lightTint = new Vector3f(0.0f, 0.0f, 0.0f);
     
     // ========== 插值设置 ==========
-    private Interpolation interpolation = Interpolation.CATMULL_ROM;
+    private Interpolation interpolation = Interpolation.SMOOTH;  // v4.0 默认改为平滑
     
     // ========== 构造函数 ==========
     
@@ -180,11 +202,7 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
         this.name = name;
         this.time = time;
     }
-    
-    public SeasonKeyframe(float time) {
-        this("Season @" + String.format("%.2fs", time), time);
-    }
-    
+
     @Override
     public UUID getId() {
         return id;
@@ -249,11 +267,7 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
     public SeasonType getSeasonType() {
         return seasonType;
     }
-    
-    public void setSeasonType(SeasonType seasonType) {
-        this.seasonType = Objects.requireNonNull(seasonType, "seasonType");
-    }
-    
+
     public float getTemperature() {
         return temperature;
     }
@@ -421,12 +435,12 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
                 // 默认：所有值设为游戏原始状态（无季节偏移）
                 temperature = 0.0f;
                 humidity = 0.5f;
-                snowlineHeight = 90.0f;
+                snowlineHeight = 200f;  // v4.0 默认值
                 snowAmount = 0.0f;
-                snowSlopeFactor = 0.5f;
+                snowSlopeFactor = 0.6f;
                 snowMeltSpeed = 1.0f;
                 freezeStrength = 0.0f;
-                freezeThreshold = -0.2f;
+                freezeThreshold = -0.4f;  // v4.0 默认值
                 freezeMeltSpeed = 1.0f;
                 
                 // 所有 tint 为 0（无变化）
@@ -438,60 +452,79 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
                 break;
                 
             case SPRING:
-                temperature = 0.2f;
+                temperature = 0.1f;  // v4.0 值
                 humidity = 0.7f;
-                snowlineHeight = 80.0f;
-                snowAmount = 0.0f;  // 春天无雪
+                snowlineHeight = 170f;
+                snowAmount = 0.1f;
+                snowSlopeFactor = 0.7f;
+                snowMeltSpeed = 1.5f;
+                freezeStrength = 0.0f;
+                freezeThreshold = -0.3f;
+                freezeMeltSpeed = 1.5f;
                 
                 // 春天：清新、明亮、偏绿色调
-                // 偏移值语义：tint = 0.0 无变化，0.1 = +10%，-0.1 = -10%
-                grassTint.set(-0.05f, 0.15f, -0.10f);   // 增强绿色（G+15%），减弱红蓝
-                foliageTint.set(-0.05f, 0.20f, -0.10f);  // 增强绿色（G+20%），清新嫩绿
-                skyTint.set(-0.05f, 0.05f, 0.15f);      // 增强蓝色（B+15%），明亮天空
-                fogTint.set(-0.03f, 0.05f, 0.08f);      // 轻微增亮，清新
-                lightTint.set(0.05f, 0.10f, -0.05f);    // 暖绿色调，春日阳光
+                grassTint.set(0.1f, 0.15f, 0.05f);
+                foliageTint.set(0.1f, 0.1f, 0.0f);
+                skyTint.set(0.05f, 0.05f, 0.0f);
+                fogTint.set(0.0f, 0.05f, 0.0f);
+                lightTint.set(0.05f, 0.05f, 0.0f);
                 break;
                 
             case SUMMER:
                 temperature = 0.6f;
                 humidity = 0.6f;
-                snowlineHeight = 96.0f;
-                snowAmount = 0.0f;  // 夏天无雪
+                snowlineHeight = 256f;
+                snowAmount = 0.0f;
+                snowSlopeFactor = 0.5f;
+                snowMeltSpeed = 2.0f;
+                freezeStrength = 0.0f;
+                freezeThreshold = -0.2f;
+                freezeMeltSpeed = 2.0f;
                 
                 // 夏天：深绿色、明亮、饱和
-                grassTint.set(-0.10f, 0.20f, -0.15f);   // 深绿色（G+20%），减弱红蓝
-                foliageTint.set(-0.10f, 0.25f, -0.15f);  // 深绿色（G+25%），茂盛
-                skyTint.set(-0.05f, 0.08f, 0.20f);      // 明亮蓝色（B+20%），晴朗
-                fogTint.set(0.0f, 0.05f, 0.10f);        // 轻微增亮
-                lightTint.set(0.08f, 0.08f, -0.05f);    // 暖黄色调，夏日阳光
+                grassTint.set(0.15f, 0.2f, 0.05f);
+                foliageTint.set(0.15f, 0.2f, 0.05f);
+                skyTint.set(0.0f, 0.05f, 0.1f);
+                fogTint.set(0.0f, 0.0f, 0.0f);
+                lightTint.set(0.1f, 0.08f, 0.0f);
                 break;
                 
             case AUTUMN:
                 temperature = -0.1f;
                 humidity = 0.5f;
-                snowlineHeight = 88.0f;
-                snowAmount = 0.1f;  // 秋天可能有少量雪
+                snowlineHeight = 220f;
+                snowAmount = 0.0f;
+                snowSlopeFactor = 0.6f;
+                snowMeltSpeed = 1.2f;
+                freezeStrength = 0.0f;
+                freezeThreshold = -0.4f;
+                freezeMeltSpeed = 1.2f;
                 
                 // 秋天：红/橙/黄色，暖色调
-                grassTint.set(0.15f, 0.05f, -0.20f);   // 黄褐色（R+15%），减弱蓝
-                foliageTint.set(0.30f, 0.15f, -0.25f);  // 橙黄色（R+30%, G+15%），减弱蓝
-                skyTint.set(0.10f, 0.05f, -0.10f);      // 暖色调（R+10%），减弱蓝
-                fogTint.set(0.08f, 0.06f, -0.05f);      // 暖色调，金色雾
-                lightTint.set(0.12f, 0.10f, -0.08f);    // 金色调，秋日阳光
+                grassTint.set(0.0f, -0.05f, -0.1f);
+                foliageTint.set(0.1f, -0.05f, -0.15f);  // 偏黄偏橙
+                skyTint.set(0.05f, 0.0f, -0.05f);
+                fogTint.set(0.05f, 0.02f, 0.0f);
+                lightTint.set(0.1f, 0.05f, -0.02f);
                 break;
                 
             case WINTER:
-                temperature = -0.8f;
-                humidity = 0.3f;
-                snowlineHeight = 72.0f;
-                snowAmount = 0.9f;  // 冬天大量积雪
+                temperature = -0.7f;  // v4.0 值
+                humidity = 0.4f;
+                snowlineHeight = 80f;
+                snowAmount = 1.0f;
+                snowSlopeFactor = 0.3f;
+                snowMeltSpeed = 0.6f;
+                freezeStrength = 0.8f;
+                freezeThreshold = -0.2f;
+                freezeMeltSpeed = 0.6f;
                 
                 // 冬天：冷色调、灰白色、偏蓝
-                grassTint.set(-0.20f, -0.25f, -0.15f);  // 灰白色（所有通道减弱）
-                foliageTint.set(-0.30f, -0.35f, -0.20f); // 灰白色（大幅减弱）
-                skyTint.set(-0.10f, -0.05f, 0.10f);     // 冷蓝色（B+10%），减弱红绿
-                fogTint.set(0.0f, 0.0f, 0.15f);         // 增白（B+15%），冷色调
-                lightTint.set(-0.10f, -0.08f, 0.05f);   // 冷色调，冬日光线
+                grassTint.set(-0.2f, -0.2f, -0.2f);
+                foliageTint.set(-0.3f, -0.3f, -0.3f);
+                skyTint.set(0.0f, 0.0f, 0.1f);
+                fogTint.set(0.0f, 0.05f, 0.1f);
+                lightTint.set(-0.05f, -0.05f, 0.05f);
                 break;
                 
             case CUSTOM:
@@ -510,24 +543,9 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
         this.seasonType = SeasonType.CUSTOM;
         
         // 冷色调：偏蓝、降低饱和度
-        grassTint.set(-0.15f, -0.10f, 0.20f);    // 偏蓝绿色，降低饱和度
-        foliageTint.set(-0.20f, -0.15f, 0.25f);  // 偏蓝绿色
-        skyTint.set(-0.10f, -0.05f, 0.30f);      // 强烈偏蓝
-        fogTint.set(0.0f, 0.05f, 0.25f);         // 冷色调雾
-        lightTint.set(-0.10f, -0.05f, 0.15f);    // 冷色调光照
-        
-        // 气候参数：稍微偏冷
-        temperature = -0.3f;
-        humidity = 0.6f;
-        
-        // 积雪和冰冻：中等强度
-        snowAmount = 0.3f;
-        snowlineHeight = 85.0f;
-        snowSlopeFactor = 0.5f;
-        snowMeltSpeed = 1.0f;
-        freezeStrength = 0.4f;
-        freezeThreshold = -0.2f;
-        freezeMeltSpeed = 1.0f;
+        skyTint.set(0.0f, 0.0f, 0.15f);      // 强烈偏蓝
+        fogTint.set(0.0f, 0.05f, 0.15f);     // 冷色调雾
+        lightTint.set(-0.05f, -0.05f, 0.1f); // 冷色调光照
     }
     
     /**
@@ -537,24 +555,9 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
         this.seasonType = SeasonType.CUSTOM;
         
         // 暖色调：偏黄、金色
-        grassTint.set(0.20f, 0.15f, -0.15f);    // 暖黄色调
-        foliageTint.set(0.25f, 0.20f, -0.20f);  // 金黄色
-        skyTint.set(0.15f, 0.10f, -0.10f);      // 暖色调天空
-        fogTint.set(0.12f, 0.08f, -0.05f);      // 金色雾
-        lightTint.set(0.18f, 0.15f, -0.10f);    // 暖色调光照（金色阳光）
-        
-        // 气候参数：稍微偏暖
-        temperature = 0.3f;
-        humidity = 0.5f;
-        
-        // 积雪和冰冻：无
-        snowAmount = 0.0f;
-        snowlineHeight = 90.0f;
-        snowSlopeFactor = 0.5f;
-        snowMeltSpeed = 1.0f;
-        freezeStrength = 0.0f;
-        freezeThreshold = -0.2f;
-        freezeMeltSpeed = 1.0f;
+        skyTint.set(0.1f, 0.05f, -0.05f);     // 暖色调天空
+        fogTint.set(0.1f, 0.05f, -0.05f);     // 金色雾
+        lightTint.set(0.15f, 0.1f, 0.0f);     // 暖色调光照（金色阳光）
     }
     
     // ========== 调试输出 ==========
