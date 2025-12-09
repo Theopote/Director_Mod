@@ -113,16 +113,6 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
     // ========== 气候趋势参数（非即时天气） ==========
     
     /**
-     * 温度趋势 [-1.0, +1.0]，仅作为"抽象参数"提供给渲染/天气系统使用。
-     * 例如：
-     *  - 冬天 ≈ -0.8
-     *  - 秋天 ≈ -0.2
-     *  - 春天 ≈ +0.2
-     *  - 夏天 ≈ +0.6
-     */
-    private float temperature = 0.0f;
-    
-    /**
      * 湿度趋势 [0.0, 1.0]。
      * 可以影响雾气、云量、天气概率等，但不直接触发下雨。
      */
@@ -135,17 +125,10 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
     private float snowlineHeight = 90.0f;
     
     /**
-     * 雪量 [0.0, 1.0]，用于控制地表的积雪层数。
-     * 0.0 = 无雪，1.0 = 最大积雪（7层雪）。
+     * 雪覆盖度 [0.0, 1.0]，表示覆盖的概率。
+     * 0.0 = 没有覆盖，1.0 = 几乎全覆盖。
      */
-    private float snowAmount = 0.0f;
-    
-    /**
-     * 坡度影响因子 [0.0, 1.0]，控制陡坡上积雪的减少程度。
-     * 0.0 = 坡度不影响积雪，1.0 = 陡坡完全不积雪。
-     * v4.0 新增字段。
-     */
-    private float snowSlopeFactor = 0.5f;
+    private float snowAmount = 0.65f;
     
     /**
      * 积雪融化速度 [0.1, 5.0]，用于控制积雪融化的快慢。
@@ -155,18 +138,16 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
     private float snowMeltSpeed = 1.0f;
     
     /**
-     * 冰冻强度 [0.0, 1.0]，控制水面冻结的程度和范围。
-     * 0.0 = 不冻结，1.0 = 最大冻结强度。
-     * v4.0 新增字段。
+     * 积雪厚度 [0, 10]，用于控制积雪的厚度（层数）。
+     * 0 = 无厚度，10 = 最大厚度（8层雪+2层）。
      */
-    private float freezeStrength = 0.0f;
+    private int snowThickness = 0;
     
     /**
-     * 冻结温度阈值 [-1.0, 1.0]，低于此温度开始冻结。
-     * 默认 -0.2，表示温度低于 -0.2 时开始冻结水面。
-     * v4.0 新增字段。
+     * 冰覆盖度 [0.0, 1.0]，表示覆盖的概率。
+     * 0.0 = 没有覆盖，1.0 = 几乎全覆盖。
      */
-    private float freezeThreshold = -0.2f;
+    private float freezeStrength = 0.65f;
     
     /**
      * 冰块融化速度 [0.1, 5.0]，用于控制冰块融化的快慢。
@@ -268,17 +249,6 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
         return seasonType;
     }
 
-    public float getTemperature() {
-        return temperature;
-    }
-    
-    /**
-     * 设置温度趋势（建议范围 [-1, 1]，但不强制）。
-     */
-    public void setTemperature(float temperature) {
-        this.temperature = temperature;
-    }
-    
     public float getHumidity() {
         return humidity;
     }
@@ -303,21 +273,13 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
     }
     
     /**
-     * 设置雪量 [0.0, 1.0]，用于控制地表的积雪层数。
+     * 设置雪覆盖度 [0.0, 1.0]，表示覆盖的概率。
      */
     public void setSnowAmount(float snowAmount) {
         this.snowAmount = Math.max(0.0f, Math.min(1.0f, snowAmount));
     }
     
     // ========== v4.0 新增：积雪控制参数 ==========
-    
-    public float getSnowSlopeFactor() {
-        return snowSlopeFactor;
-    }
-    
-    public void setSnowSlopeFactor(float snowSlopeFactor) {
-        this.snowSlopeFactor = Math.max(0.0f, Math.min(1.0f, snowSlopeFactor));
-    }
     
     public float getSnowMeltSpeed() {
         return snowMeltSpeed;
@@ -327,22 +289,25 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
         this.snowMeltSpeed = Math.max(0.1f, Math.min(5.0f, snowMeltSpeed));
     }
     
+    public int getSnowThickness() {
+        return snowThickness;
+    }
+    
+    public void setSnowThickness(int snowThickness) {
+        this.snowThickness = Math.max(0, Math.min(10, snowThickness));
+    }
+    
     // ========== v4.0 新增：冰冻控制参数 ==========
     
     public float getFreezeStrength() {
         return freezeStrength;
     }
     
+    /**
+     * 设置冰覆盖度 [0.0, 1.0]，表示覆盖的概率。
+     */
     public void setFreezeStrength(float freezeStrength) {
         this.freezeStrength = Math.max(0.0f, Math.min(1.0f, freezeStrength));
-    }
-    
-    public float getFreezeThreshold() {
-        return freezeThreshold;
-    }
-    
-    public void setFreezeThreshold(float freezeThreshold) {
-        this.freezeThreshold = Math.max(-1.0f, Math.min(1.0f, freezeThreshold));
     }
     
     public float getFreezeMeltSpeed() {
@@ -433,14 +398,12 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
         switch (seasonType) {
             case DEFAULT:
                 // 默认：所有值设为游戏原始状态（无季节偏移）
-                temperature = 0.0f;
                 humidity = 0.5f;
                 snowlineHeight = 200f;  // v4.0 默认值
-                snowAmount = 0.0f;
-                snowSlopeFactor = 0.6f;
+                snowAmount = 0.65f;
                 snowMeltSpeed = 1.0f;
-                freezeStrength = 0.0f;
-                freezeThreshold = -0.4f;  // v4.0 默认值
+                snowThickness = 0;
+                freezeStrength = 0.65f;
                 freezeMeltSpeed = 1.0f;
                 
                 // 所有 tint 为 0（无变化）
@@ -452,14 +415,12 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
                 break;
                 
             case SPRING:
-                temperature = 0.1f;  // v4.0 值
                 humidity = 0.7f;
                 snowlineHeight = 170f;
-                snowAmount = 0.1f;
-                snowSlopeFactor = 0.7f;
+                snowAmount = 0.3f;
                 snowMeltSpeed = 1.5f;
-                freezeStrength = 0.0f;
-                freezeThreshold = -0.3f;
+                snowThickness = 2;
+                freezeStrength = 0.2f;
                 freezeMeltSpeed = 1.5f;
                 
                 // 春天：清新、明亮、偏绿色调
@@ -471,14 +432,12 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
                 break;
                 
             case SUMMER:
-                temperature = 0.6f;
                 humidity = 0.6f;
                 snowlineHeight = 256f;
                 snowAmount = 0.0f;
-                snowSlopeFactor = 0.5f;
                 snowMeltSpeed = 2.0f;
+                snowThickness = 0;
                 freezeStrength = 0.0f;
-                freezeThreshold = -0.2f;
                 freezeMeltSpeed = 2.0f;
                 
                 // 夏天：深绿色、明亮、饱和
@@ -490,14 +449,12 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
                 break;
                 
             case AUTUMN:
-                temperature = -0.1f;
                 humidity = 0.5f;
                 snowlineHeight = 220f;
-                snowAmount = 0.0f;
-                snowSlopeFactor = 0.6f;
+                snowAmount = 0.2f;
                 snowMeltSpeed = 1.2f;
-                freezeStrength = 0.0f;
-                freezeThreshold = -0.4f;
+                snowThickness = 1;
+                freezeStrength = 0.3f;
                 freezeMeltSpeed = 1.2f;
                 
                 // 秋天：红/橙/黄色，暖色调
@@ -509,14 +466,12 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
                 break;
                 
             case WINTER:
-                temperature = -0.7f;  // v4.0 值
                 humidity = 0.4f;
                 snowlineHeight = 80f;
-                snowAmount = 1.0f;
-                snowSlopeFactor = 0.3f;
+                snowAmount = 0.9f;
                 snowMeltSpeed = 0.6f;
-                freezeStrength = 0.8f;
-                freezeThreshold = -0.2f;
+                snowThickness = 8;
+                freezeStrength = 0.9f;
                 freezeMeltSpeed = 0.6f;
                 
                 // 冬天：冷色调、灰白色、偏蓝
@@ -568,7 +523,6 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
                 "id=" + id +
                 ", time=" + String.format("%.3f", time) +
                 ", seasonType=" + seasonType +
-                ", temperature=" + temperature +
                 ", humidity=" + humidity +
                 ", snowlineHeight=" + snowlineHeight +
                 '}';

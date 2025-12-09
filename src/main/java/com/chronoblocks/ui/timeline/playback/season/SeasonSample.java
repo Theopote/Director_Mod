@@ -23,18 +23,16 @@ public class SeasonSample {
     public boolean enabled = false;
 
     // 气候参数
-    public float temperature;        // [-1, 1]
     public float humidity;           // [0, 1]
 
     // 积雪控制
-    public float snowAmount;         // [0, 1]
-    public float snowSlopeFactor;    // [0, 1]
+    public float snowAmount;         // [0, 1] 覆盖概率
     public float snowlineHeight;     // 世界高度
+    public int snowThickness;        // [0, 10] 积雪厚度（层数）
     public float snowMeltSpeed;      // ≥ 0
 
     // 冰冻控制
-    public float freezeStrength;     // [0, 1]
-    public float freezeThreshold;    // [-1, 1]
+    public float freezeStrength;     // [0, 1] 覆盖概率
     public float freezeMeltSpeed;    // ≥ 0
 
     // 颜色 Tint（相对偏移，0=无，0.1=+10%）
@@ -85,16 +83,14 @@ public class SeasonSample {
         SeasonSample s = new SeasonSample();
         s.enabled = this.enabled;
 
-        s.temperature = this.temperature;
         s.humidity = this.humidity;
 
         s.snowAmount = this.snowAmount;
-        s.snowSlopeFactor = this.snowSlopeFactor;
         s.snowlineHeight = this.snowlineHeight;
+        s.snowThickness = this.snowThickness;
         s.snowMeltSpeed = this.snowMeltSpeed;
 
         s.freezeStrength = this.freezeStrength;
-        s.freezeThreshold = this.freezeThreshold;
         s.freezeMeltSpeed = this.freezeMeltSpeed;
 
         s.grassTint.set(this.grassTint);
@@ -117,16 +113,14 @@ public class SeasonSample {
         s.enabled = true;
 
         float iu = 1f - t;
-        s.temperature = a.temperature * iu + b.temperature * t;
         s.humidity = a.humidity * iu + b.humidity * t;
 
         s.snowAmount = a.snowAmount * iu + b.snowAmount * t;
-        s.snowSlopeFactor = a.snowSlopeFactor * iu + b.snowSlopeFactor * t;
         s.snowlineHeight = a.snowlineHeight * iu + b.snowlineHeight * t;
+        s.snowThickness = Math.round(a.snowThickness * iu + b.snowThickness * t);
         s.snowMeltSpeed = a.snowMeltSpeed * iu + b.snowMeltSpeed * t;
 
         s.freezeStrength = a.freezeStrength * iu + b.freezeStrength * t;
-        s.freezeThreshold = a.freezeThreshold * iu + b.freezeThreshold * t;
         s.freezeMeltSpeed = a.freezeMeltSpeed * iu + b.freezeMeltSpeed * t;
 
         s.grassTint.set(
@@ -172,9 +166,9 @@ public class SeasonSample {
     public String toString() {
         return "SeasonSample{" +
                 "enabled=" + enabled +
-                ", temperature=" + temperature +
                 ", humidity=" + humidity +
                 ", snowAmount=" + snowAmount +
+                ", snowThickness=" + snowThickness +
                 ", freezeStrength=" + freezeStrength +
                 '}';
     }
@@ -186,14 +180,12 @@ public class SeasonSample {
         SeasonSample that = (SeasonSample) obj;
         
         if (enabled != that.enabled) return false;
-        if (Float.compare(that.temperature, temperature) != 0) return false;
         if (Float.compare(that.humidity, humidity) != 0) return false;
         if (Float.compare(that.snowAmount, snowAmount) != 0) return false;
-        if (Float.compare(that.snowSlopeFactor, snowSlopeFactor) != 0) return false;
         if (Float.compare(that.snowlineHeight, snowlineHeight) != 0) return false;
+        if (Float.compare(that.snowThickness, snowThickness) != 0) return false;
         if (Float.compare(that.snowMeltSpeed, snowMeltSpeed) != 0) return false;
         if (Float.compare(that.freezeStrength, freezeStrength) != 0) return false;
-        if (Float.compare(that.freezeThreshold, freezeThreshold) != 0) return false;
         if (Float.compare(that.freezeMeltSpeed, freezeMeltSpeed) != 0) return false;
         
         return grassTint.equals(that.grassTint) &&
@@ -206,14 +198,12 @@ public class SeasonSample {
     @Override
     public int hashCode() {
         int result = (enabled ? 1 : 0);
-        result = 31 * result + Float.hashCode(temperature);
         result = 31 * result + Float.hashCode(humidity);
         result = 31 * result + Float.hashCode(snowAmount);
-        result = 31 * result + Float.hashCode(snowSlopeFactor);
         result = 31 * result + Float.hashCode(snowlineHeight);
+        result = 31 * result + Float.hashCode(snowThickness);
         result = 31 * result + Float.hashCode(snowMeltSpeed);
         result = 31 * result + Float.hashCode(freezeStrength);
-        result = 31 * result + Float.hashCode(freezeThreshold);
         result = 31 * result + Float.hashCode(freezeMeltSpeed);
         result = 31 * result + grassTint.hashCode();
         result = 31 * result + foliageTint.hashCode();

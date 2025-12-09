@@ -22,10 +22,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * <p>新增功能：
  * <ul>
- *   <li>✔ 完整积雪控制（雪量/坡度影响/雪线高度/融化速度）</li>
- *   <li>✔ 冰冻控制（冰冻强度/阈值/融化速度）</li>
+ *   <li>✔ 完整积雪控制（雪覆盖度/雪线高度/积雪厚度/融化速度）</li>
+ *   <li>✔ 冰冻控制（冰覆盖度/融冰速度）</li>
  *   <li>✔ 颜色 Tint 完整编辑（草、树叶、天空、雾、光照）</li>
- *   <li>✔ 气候参数（温度/湿度）</li>
  *   <li>✔ 插值方式（线性/平滑/曲线）</li>
  *   <li>✔ 季节预设按钮（春/夏/秋/冬/电影效果）</li>
  * </ul>
@@ -50,19 +49,14 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
     private final ImInt seasonTypeIndex = new ImInt();
     private final ImInt interpolationIndex = new ImInt();
     
-    // 气候参数
-    private final ImFloat temperatureFloat = new ImFloat();
-    private final ImFloat humidityFloat = new ImFloat();
-    
     // 积雪参数
     private final ImFloat snowAmountFloat = new ImFloat();
-    private final ImFloat snowSlopeFactorFloat = new ImFloat();
     private final ImFloat snowlineFloat = new ImFloat();
+    private final ImInt snowThicknessInt = new ImInt();
     private final ImFloat snowMeltFloat = new ImFloat();
     
     // 冰冻参数
     private final ImFloat freezeStrengthFloat = new ImFloat();
-    private final ImFloat freezeThresholdFloat = new ImFloat();
     private final ImFloat freezeMeltSpeedFloat = new ImFloat();
 
     // Tint 颜色缓存 [0..1]
@@ -140,7 +134,7 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
                 paramChanged.set(true);
             }
 
-            ImGui.textDisabled("• 选择季节会自动设置对应的温度/湿度/颜色趋势");
+            ImGui.textDisabled("• 选择季节会自动设置对应的颜色趋势");
             UITheme.spacingSmall();
 
             // ---------- 一键预设按钮 ----------
@@ -178,44 +172,15 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
         }
 
         // ===========================================================
-        // 3. 气候参数（温度、湿度）
-        // ===========================================================
-        if (ImGui.collapsingHeader(Icons.CHART + " 气候参数", ImGuiTreeNodeFlags.DefaultOpen)) {
-            temperatureFloat.set(keyframe.getTemperature());
-            if (ImGui.sliderFloat("温度", temperatureFloat.getData(), -1.0f, 1.0f, "%.2f")) {
-                keyframe.setTemperature(temperatureFloat.get());
-                paramChanged.set(true);
-            }
-            ImGui.textDisabled("• -1.0 极冷（更易结冰/积雪），0 正常，+1.0 极热");
-            UITheme.spacingSmall();
-
-            humidityFloat.set(keyframe.getHumidity());
-            if (ImGui.sliderFloat("湿度", humidityFloat.getData(), 0f, 1f, "%.2f")) {
-                keyframe.setHumidity(humidityFloat.get());
-                paramChanged.set(true);
-            }
-            ImGui.textDisabled("• 0 = 干燥，1 = 湿润");
-            UITheme.spacingSmall();
-        }
-
-        // ===========================================================
-        // 4. 积雪控制（v4.0 新增）
+        // 3. 积雪控制（v4.0 新增）
         // ===========================================================
         if (ImGui.collapsingHeader("❄ 积雪控制", ImGuiTreeNodeFlags.DefaultOpen)) {
             snowAmountFloat.set(keyframe.getSnowAmount());
-            if (ImGui.sliderFloat("积雪量", snowAmountFloat.getData(), 0f, 1f, "%.2f")) {
+            if (ImGui.sliderFloat("雪覆盖度", snowAmountFloat.getData(), 0f, 1f, "%.2f")) {
                 keyframe.setSnowAmount(snowAmountFloat.get());
                 paramChanged.set(true);
             }
-            ImGui.textDisabled("• 0.0 = 无雪，1.0 = 最大积雪（7层）");
-            UITheme.spacingSmall();
-
-            snowSlopeFactorFloat.set(keyframe.getSnowSlopeFactor());
-            if (ImGui.sliderFloat("坡度影响", snowSlopeFactorFloat.getData(), 0f, 1f, "%.2f")) {
-                keyframe.setSnowSlopeFactor(snowSlopeFactorFloat.get());
-                paramChanged.set(true);
-            }
-            ImGui.textDisabled("• 0.0 = 坡度不影响积雪，1.0 = 陡坡完全不积雪");
+            ImGui.textDisabled("• 0.0 = 没有覆盖，1.0 = 几乎全覆盖（表示覆盖概率）");
             UITheme.spacingSmall();
 
             snowlineFloat.set(keyframe.getSnowlineHeight());
@@ -223,7 +188,15 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
                 keyframe.setSnowlineHeight(snowlineFloat.get());
                 paramChanged.set(true);
             }
-            ImGui.textDisabled("• 控制雪覆盖的最大高度");
+            ImGui.textDisabled("• 大部分积雪在雪线高度以上生成，小部分在雪线以下附近生成");
+            UITheme.spacingSmall();
+
+            snowThicknessInt.set(keyframe.getSnowThickness());
+            if (ImGui.sliderInt("积雪厚度", snowThicknessInt.getData(), 0, 10)) {
+                keyframe.setSnowThickness(snowThicknessInt.get());
+                paramChanged.set(true);
+            }
+            ImGui.textDisabled("• 0 = 无厚度，10 = 最大厚度（8层雪+2层，带大小扰动）");
             UITheme.spacingSmall();
 
             snowMeltFloat.set(keyframe.getSnowMeltSpeed());
@@ -236,23 +209,15 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
         }
 
         // ===========================================================
-        // 5. 冰冻控制（v4.0 新增）
+        // 4. 冰冻控制（v4.0 新增）
         // ===========================================================
         if (ImGui.collapsingHeader("🧊 冰冻控制", ImGuiTreeNodeFlags.DefaultOpen)) {
             freezeStrengthFloat.set(keyframe.getFreezeStrength());
-            if (ImGui.sliderFloat("冰冻强度", freezeStrengthFloat.getData(), 0f, 1f, "%.2f")) {
+            if (ImGui.sliderFloat("冰覆盖度", freezeStrengthFloat.getData(), 0f, 1f, "%.2f")) {
                 keyframe.setFreezeStrength(freezeStrengthFloat.get());
                 paramChanged.set(true);
             }
-            ImGui.textDisabled("• 0.0 = 不冻结，1.0 = 最大冻结强度");
-            UITheme.spacingSmall();
-
-            freezeThresholdFloat.set(keyframe.getFreezeThreshold());
-            if (ImGui.sliderFloat("冻结阈值（温度）", freezeThresholdFloat.getData(), -1f, 1f, "%.2f")) {
-                keyframe.setFreezeThreshold(freezeThresholdFloat.get());
-                paramChanged.set(true);
-            }
-            ImGui.textDisabled("• 温度低于此值开始冻结（默认 -0.2）");
+            ImGui.textDisabled("• 0.0 = 没有覆盖，1.0 = 几乎全覆盖（表示覆盖概率）");
             UITheme.spacingSmall();
 
             freezeMeltSpeedFloat.set(keyframe.getFreezeMeltSpeed());
@@ -265,7 +230,7 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
         }
 
         // ===========================================================
-        // 6. 颜色 Tint 控制
+        // 5. 颜色 Tint 控制
         // ===========================================================
         if (ImGui.collapsingHeader(Icons.PALETTE + " 颜色与光照", ImGuiTreeNodeFlags.DefaultOpen)) {
             int flags = ImGuiColorEditFlags.DisplayRGB
@@ -319,7 +284,7 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
         }
 
         // ===========================================================
-        // 7. 插值方式
+        // 6. 插值方式
         // ===========================================================
         if (ImGui.collapsingHeader(Icons.INTERPOLATION + " 插值设置", ImGuiTreeNodeFlags.DefaultOpen)) {
             SeasonKeyframe.Interpolation[] types = SeasonKeyframe.Interpolation.values();

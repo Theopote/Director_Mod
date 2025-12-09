@@ -1,18 +1,12 @@
 package com.chronoblocks.ui.timeline.playback.season;
 
 import com.chronoblocks.ui.timeline.model.TimelineModel;
-import com.chronoblocks.ui.timeline.model.TimelineSelectable;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TrackType;
-import com.chronoblocks.ui.timeline.model.season.SeasonKeyframe;
 import net.minecraft.client.MinecraftClient;
 import org.joml.Vector3f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
 
 /**
  * TimelineSeasonController v1.1
@@ -281,7 +275,7 @@ public final class TimelineSeasonController {
             LOGGER.debug("[TimelineSeason] 预览季节 @ {}s: {}", timeSeconds, sample);
         }
     }
-    
+
     /**
      * 在当前时间线时间进行预览（例如属性面板中点击"预览当前时间季节状态"）。
      */
@@ -291,7 +285,7 @@ public final class TimelineSeasonController {
         }
         previewAt(timelineModel.getCurrentTime());
     }
-    
+
     /**
      * 预览指定关键帧时间点的季节状态。
      * 用于属性面板修改后立即预览
@@ -321,6 +315,8 @@ public final class TimelineSeasonController {
             sampler.clear();
             setCurrentSample(SeasonSample.disabled());
             propagateToWorld();
+            // 立即清理积雪和冰块（没有激活轨道时）
+            cleanupSeasonEffects();
             return;
         }
         
@@ -335,14 +331,16 @@ public final class TimelineSeasonController {
             propagateToWorld();
             LOGGER.debug("[TimelineSeason] 重新构建轨道，已更新当前时间点的季节状态");
         } else {
-            // 没有关键帧，恢复到默认
+            // 没有关键帧，恢复到默认并立即清理积雪和冰块
             setCurrentSample(SeasonSample.disabled());
             propagateToWorld();
+            cleanupSeasonEffects();
         }
         
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("[TimelineSeason] Rebuild from track '{}', keyframes = {}",
-                    activeSeasonTrack.getName(), sampler.getKeyframes().size());
+                    activeSeasonTrack != null ? activeSeasonTrack.getName() : "<none>", 
+                    sampler.getKeyframes().size());
         }
     }
     
@@ -398,35 +396,13 @@ public final class TimelineSeasonController {
                 sampler.hasKeyframes() ? "有" : "无");
     }
     
-    
-    /**
-     * 从指定轨道收集 SeasonKeyframe（向后兼容方法）。
-     * 
-     * @deprecated 使用 sampler.setFromTrack() 代替
-     */
-    @Deprecated
-    private List<SeasonKeyframe> collectSeasonKeyframes(TimelineTrack track) {
-        List<SeasonKeyframe> result = new ArrayList<>();
-        if (track == null || track.getType() != TrackType.SEASON) {
-            return result;
-        }
-        
-        for (TimelineSelectable selectable : track.getAutomationKeyframes()) {
-            if (selectable instanceof SeasonKeyframe sk) {
-                result.add(sk);
-            }
-        }
-        result.sort(Comparator.comparing(SeasonKeyframe::getTime));
-        return result;
-    }
-    
     /**
      * 绑定 TimelineModel（v4.0 API，别名）。
      */
     public void bindTimelineModel(TimelineModel model) {
         init(model);
     }
-    
+
     // ================== 采样 / 应用 ==================
     
     /**
@@ -626,7 +602,27 @@ public final class TimelineSeasonController {
         setCurrentSample(SeasonSample.disabled());
         propagateToWorld();
         
+        // 立即清理所有积雪和冰块
+        cleanupSeasonEffects();
+        
         LOGGER.info("[TimelineSeason] Cleared season override state - 恢复游戏默认渲染");
+    }
+    
+    /**
+     * 清理所有季节效果（积雪和冰块）。
+     * 在删除关键帧、删除轨道或关闭 ChronoBlocks 时调用。
+     */
+    private void cleanupSeasonEffects() {
+        try {
+            net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
+            if (client != null && client.world != null) {
+                com.chronoblocks.season.SeasonSnowManager.get().restoreAll(client.world);
+                com.chronoblocks.season.WaterFreezeManager.get().restoreAll(client.world);
+                LOGGER.info("[TimelineSeason] 已清理所有季节效果（积雪 + 冰冻水面）");
+            }
+        } catch (Exception e) {
+            LOGGER.warn("[TimelineSeason] 清理季节效果时出错", e);
+        }
     }
     
     // ================== 辅助方法 ==================
@@ -683,4 +679,3 @@ public final class TimelineSeasonController {
         return count;
     }
 }
-

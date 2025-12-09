@@ -94,12 +94,12 @@ public class SeasonTrackSampler {
         }
 
         if (keyframes.size() == 1) {
-            return toSample(keyframes.get(0));
+            return toSample(keyframes.getFirst());
         }
 
         // 左右关键帧查找
-        SeasonKeyframe left = keyframes.get(0);
-        SeasonKeyframe right = keyframes.get(keyframes.size() - 1);
+        SeasonKeyframe left = keyframes.getFirst();
+        SeasonKeyframe right = keyframes.getLast();
 
         if (timeSeconds <= left.getTime()) {
             return toSample(left);
@@ -144,16 +144,14 @@ public class SeasonTrackSampler {
         SeasonSample s = new SeasonSample();
         s.enabled = true;
 
-        s.temperature = kf.getTemperature();
         s.humidity = kf.getHumidity();
 
         s.snowAmount = kf.getSnowAmount();
-        s.snowSlopeFactor = kf.getSnowSlopeFactor();
         s.snowlineHeight = kf.getSnowlineHeight();
+        s.snowThickness = kf.getSnowThickness();
         s.snowMeltSpeed = kf.getSnowMeltSpeed();
 
         s.freezeStrength = kf.getFreezeStrength();
-        s.freezeThreshold = kf.getFreezeThreshold();
         s.freezeMeltSpeed = kf.getFreezeMeltSpeed();
 
         s.grassTint.set(kf.getGrassTint());
@@ -174,26 +172,22 @@ public class SeasonTrackSampler {
         // 使用左侧关键帧的插值模式
         SeasonKeyframe.Interpolation mode = a.getInterpolation();
         float wt = switch (mode) {
-            case DEFAULT -> {
-                // DEFAULT 使用 SMOOTH
-                yield smoothStep(t);
-            }
+            case DEFAULT -> // DEFAULT 使用 SMOOTH
+                    smoothStep(t);
             case LINEAR -> t;
             case SMOOTH -> smoothStep(t);
             case CATMULL_ROM -> smoothStep(t); // 这里预留给未来的真正 Catmull-Rom 曲线
         };
 
         // 标量线性插值
-        s.temperature = lerp(a.getTemperature(), b.getTemperature(), wt);
         s.humidity = lerp(a.getHumidity(), b.getHumidity(), wt);
 
         s.snowAmount = lerp(a.getSnowAmount(), b.getSnowAmount(), wt);
-        s.snowSlopeFactor = lerp(a.getSnowSlopeFactor(), b.getSnowSlopeFactor(), wt);
         s.snowlineHeight = lerp(a.getSnowlineHeight(), b.getSnowlineHeight(), wt);
+        s.snowThickness = Math.round(lerp(a.getSnowThickness(), b.getSnowThickness(), wt));
         s.snowMeltSpeed = lerp(a.getSnowMeltSpeed(), b.getSnowMeltSpeed(), wt);
 
         s.freezeStrength = lerp(a.getFreezeStrength(), b.getFreezeStrength(), wt);
-        s.freezeThreshold = lerp(a.getFreezeThreshold(), b.getFreezeThreshold(), wt);
         s.freezeMeltSpeed = lerp(a.getFreezeMeltSpeed(), b.getFreezeMeltSpeed(), wt);
 
         // 向量插值

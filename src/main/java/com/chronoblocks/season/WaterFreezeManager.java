@@ -25,15 +25,14 @@ import java.util.concurrent.*;
  *   <li>✅ Chunk 分区扫描（13×13 chunk），避免全世界扫描卡顿</li>
  *   <li>✅ 原始方块缓存（记录原始水方块），确保 100% 可恢复</li>
  *   <li>✅ 后台线程扫描 + 主线程方块更新（线程安全）</li>
- *   <li>✅ 使用 freezeStrength 控制冰冻强度/密度</li>
- *   <li>✅ 使用 freezeThreshold 控制冻结温度阈值</li>
+ *   <li>✅ 使用 freezeStrength 控制冰冻覆盖概率（0.0 = 没有覆盖，1.0 = 几乎全覆盖）</li>
  * </ul>
  *
  * <p>冻结逻辑：
  * <ul>
- *   <li>温度低于 freezeThreshold 时开始冻结</li>
- *   <li>freezeStrength 控制冰冻密度（0.0 = 不冻结，1.0 = 完全冻结）</li>
- *   <li>温度回升后逐步融化</li>
+ *   <li>freezeStrength 控制冰冻覆盖概率（0.0 = 不冻结，1.0 = 几乎全覆盖）</li>
+ *   <li>使用随机采样决定每个水面是否冻结</li>
+ *   <li>freezeStrength 降低后逐步融化</li>
  * </ul>
  *
  * <p>注意：
@@ -146,8 +145,7 @@ public class WaterFreezeManager {
         runMainThreadTasks(world);
 
         // 2) 冰冻强度为 0 或未启用 → 立即清除全部冰
-        if (!currentSample.enabled || currentSample.freezeStrength <= 0.01f || 
-            currentSample.temperature > currentSample.freezeThreshold) {
+        if (!currentSample.enabled || currentSample.freezeStrength <= 0.01f) {
             if (!originalWater.isEmpty()) {
                 removeAllIce(world);
             }
@@ -196,20 +194,7 @@ public class WaterFreezeManager {
      * 扫描玩家周围的 chunk，计算需要冻结/解冻的水。
      */
     private void scanAndApply(ClientWorld world, BlockPos playerPos, SeasonSample sample) {
-        float strength = sample.freezeStrength;
-        float threshold = sample.freezeThreshold;
-        float temperature = sample.temperature;
-
-        // 温度必须低于阈值才考虑冻结
-        if (temperature > threshold) {
-            // 温度高于阈值，恢复所有冰
-            Set<BlockPos> toRestore = new HashSet<>(originalWater.keySet());
-            for (BlockPos pos : toRestore) {
-                enqueueMainThread(world, pos, false);
-                originalWater.remove(pos);
-            }
-            return;
-        }
+        float strength = sample.freezeStrength;  // 覆盖概率 [0, 1]
 
         Set<BlockPos> newIce = new HashSet<>();
         Set<BlockPos> restore = new HashSet<>(originalWater.keySet()); // 初始：所有旧冰都假定需要恢复
@@ -255,8 +240,8 @@ public class WaterFreezeManager {
                                    float strength, Set<BlockPos> outNewIce) {
         Random random = new Random(Objects.hash(chunkX, chunkZ, world.getTime()));
 
-        // 每个 chunk 采样约 16 个方块（可根据性能调整）
-        int samplesPerChunk = 16;
+        // 每个 chunk 采样约 32 个方块（增加采样以提高覆盖效果）
+        int samplesPerChunk = 32;
 
         for (int i = 0; i < samplesPerChunk; i++) {
             int bx = random.nextInt(16);
@@ -272,12 +257,13 @@ public class WaterFreezeManager {
                 continue;
             }
 
-            // 按 freezeStrength 采样概率（弱冰效果）
-            if (strength < 1.0f && random.nextFloat() > strength) {
-                continue;
+            // 按 freezeStrength 采样概率
+            // 当 strength = 1.0 时，几乎完全覆盖（99.9%概率）
+            // 当 strength = 0.0 时，完全不覆盖
+            float threshold = Math.min(strength, 0.999f);
+            if (random.nextFloat() < threshold) {
+                outNewIce.add(waterPos.toImmutable());
             }
-
-            outNewIce.add(waterPos.toImmutable());
         }
     }
 
