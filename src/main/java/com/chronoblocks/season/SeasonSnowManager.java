@@ -5,6 +5,7 @@ import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.FluidBlock;
+import net.minecraft.block.PlantBlock;
 import net.minecraft.block.SnowBlock;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
@@ -16,6 +17,8 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.Queue;
+import java.util.ArrayDeque;
 
 /**
  * SeasonSnowManager v3.0
@@ -70,14 +73,9 @@ public class SeasonSnowManager {
     /** 最大总层数（8层雪+2层） */
     private static final int MAX_TOTAL_LAYERS = 10;
 
-    /** 动画更新间隔（每 N tick 更新一次雪层） */
-    private static final int ANIMATION_TICK_INTERVAL = 2;
 
     /** 每 tick 处理的最大主线程任务数（避免卡顿） */
     private static final int MAX_MAIN_THREAD_TASKS_PER_TICK = 64;
-
-    /** 每个 chunk 采样方块数（避免扫描所有方块，增加采样以提高覆盖效果） */
-    private static final int SAMPLES_PER_CHUNK = 64;
 
     // ========= 状态 =========
 
@@ -157,8 +155,73 @@ public class SeasonSnowManager {
      * @param sample 季节采样，如果为 null 表示没有季节覆盖
      */
     public void onSeasonSampleChanged(SeasonSample sample) {
-        this.currentSample = sample != null ? sample : SeasonSample.disabled();
+        SeasonSample newSample = sample != null ? sample : SeasonSample.disabled();
+        
+        // 如果参数没有变化，不触发重新扫描
+        if (newSample.equals(this.currentSample)) {
+            return;
+        }
+        
+        // 检查关键参数是否变化
+        boolean snowAmountChanged = Math.abs(newSample.snowAmount - this.currentSample.snowAmount) > 0.01f;
+        boolean snowThicknessChanged = newSample.snowThickness != this.currentSample.snowThickness;
+        boolean snowlineHeightChanged = Math.abs(newSample.snowlineHeight - this.currentSample.snowlineHeight) > 0.1f;
+        
+        this.currentSample = newSample;
         this.needsRescan = true;
+        
+        // 如果只是 snowThickness 变化（snowAmount 和 snowlineHeight 不变），
+        // 可以立即更新已有记录的 targetLayers，而不需要等待重新扫描
+        // 这样调整积雪厚度时，可以立即看到效果
+        if (snowThicknessChanged && !snowAmountChanged && !snowlineHeightChanged) {
+            updateExistingTargetLayers(newSample.snowThickness);
+        }
+        
+        // 如果 snowAmount 变小，立即清除所有位置的延迟，让它们能够快速响应重新扫描的结果
+        if (snowAmountChanged && newSample.snowAmount < this.currentSample.snowAmount) {
+            // 雪覆盖度变小，需要等待重新扫描来确定哪些位置应该保留
+            // 但我们可以先清除所有位置的延迟，让它们能够立即响应
+            for (SnowRecord rec : snowMap.values()) {
+                rec.meltDelay = 0; // 清除延迟，让动画更快响应
+            }
+        }
+        
+        // 注意：snowAmount 或 snowlineHeight 变化时，需要重新扫描来确定哪些位置应该有积雪
+        // 这会在下一次 tick() 时异步执行，但动画系统会立即开始响应新的 targetLayers
+    }
+    
+    /**
+     * 立即更新已有积雪记录的目标层数（用于快速响应 snowThickness 参数变化）。
+     * 
+     * <p>使用位置作为随机种子，确保每个位置的扰动值保持一致。
+     * 
+     * @param newSnowThickness 新的积雪厚度
+     */
+    private void updateExistingTargetLayers(int newSnowThickness) {
+        // 如果厚度为0，直接设置所有目标层数为0，并清除延迟以立即响应
+        if (newSnowThickness <= 0) {
+            for (SnowRecord rec : snowMap.values()) {
+                rec.targetLayers = 0;
+                rec.meltDelay = 0; // 清除延迟，立即开始融化
+            }
+            return;
+        }
+        
+        for (Map.Entry<BlockPos, SnowRecord> entry : snowMap.entrySet()) {
+            BlockPos pos = entry.getKey();
+            SnowRecord rec = entry.getValue();
+            
+            // 使用位置作为随机种子，确保每个位置的扰动值保持一致
+            Random random = new Random(Objects.hash(pos.getX(), pos.getZ()));
+            
+            // 重新计算目标层数（带大小扰动）
+            float mean = (float) newSnowThickness;
+            float stdDev = Math.max(0.8f, Math.min(1.5f, mean * 0.3f + 0.5f));
+            float noise = (float) (random.nextGaussian() * stdDev);
+            int targetLayers = Math.round(mean + noise);
+            targetLayers = Math.max(0, Math.min(MAX_TOTAL_LAYERS, targetLayers));
+            rec.targetLayers = targetLayers;
+        }
     }
 
     // ====================================================
@@ -182,7 +245,7 @@ public class SeasonSnowManager {
         runMainThreadTasks(world);
 
         tickCounter++;
-        boolean shouldAnimate = (tickCounter % ANIMATION_TICK_INTERVAL == 0);
+        boolean shouldAnimate = true;
 
         // 2) 雪量为 0 或未启用 → 清除全部雪
         if (!currentSample.enabled || currentSample.snowAmount <= 0.01f) {
@@ -212,9 +275,7 @@ public class SeasonSnowManager {
         }
 
         // 4) 动画更新（每 ANIMATION_TICK_INTERVAL tick 更新一次）
-        if (shouldAnimate) {
-            animateSnowLayers(world);
-        }
+        animateSnowLayers(world);
     }
 
     /**
@@ -243,61 +304,109 @@ public class SeasonSnowManager {
         int snowThickness = sample.snowThickness;  // 积雪厚度 [0, 10]
         int snowY = (int) sample.snowlineHeight;
 
-        Set<BlockPos> found = new HashSet<>();
-
         int px = playerPos.getX() >> 4; // chunk X
         int pz = playerPos.getZ() >> 4; // chunk Z
 
-        Random random = new Random(Objects.hash(px, pz, world.getTime()));
-
-        // 遍历周围 chunk
+        // 第一轮：使用噪声场决定初始覆盖位置（密集采样）
+        Set<BlockPos> initialCoverage = new HashSet<>();
+        Map<BlockPos, Float> noiseValueMap = new HashMap<>(); // 缓存噪声值，避免重复计算
+        
         for (int cx = px - SCAN_RADIUS_CHUNKS; cx <= px + SCAN_RADIUS_CHUNKS; cx++) {
             for (int cz = pz - SCAN_RADIUS_CHUNKS; cz <= pz + SCAN_RADIUS_CHUNKS; cz++) {
-                // 对每个 chunk 进行采样
-                for (int i = 0; i < SAMPLES_PER_CHUNK; i++) {
-                    int bx = random.nextInt(16);
-                    int bz = random.nextInt(16);
-                    int wx = cx * 16 + bx;
-                    int wz = cz * 16 + bz;
+                // 密集采样：每 1x1 方块采样一次
+                for (int bx = 0; bx < 16; bx++) {
+                    for (int bz = 0; bz < 16; bz++) {
+                        int wx = cx * 16 + bx;
+                        int wz = cz * 16 + bz;
 
-                    BlockPos snowPlacePos = findSnowPlacePosition(world, wx, wz);
-                    if (snowPlacePos == null) continue;
+                        // 查找所有可以放置积雪的位置（不仅仅是顶部）
+                        // 只要方块能放置积雪，并且方块上面是空气或雪，就会检查
+                        List<BlockPos> snowPlacePositions = findAllSnowPlacePositions(world, wx, wz);
+                        
+                        for (BlockPos snowPlacePos : snowPlacePositions) {
+                            int blockY = snowPlacePos.getY();
+                            int heightDiff = blockY - snowY;
+                            
+                            // 雪线高度逻辑
+                            float snowlineProbability = 1.0f;
+                            if (heightDiff < 0) {
+                                if (heightDiff < -10) {
+                                    continue; // 太远，不生成
+                                }
+                                snowlineProbability = Math.max(0.0f, 0.1f * (1.0f + heightDiff / 10.0f));
+                            }
 
-                    int blockY = snowPlacePos.getY();
-                    int heightDiff = blockY - snowY; // 高度差（正数表示在雪线以上，负数表示在雪线以下）
-                    
-                    // 雪线高度逻辑：
-                    // - 大部分积雪在雪线高度以上生成（高度差 >= 0）
-                    // - 只有很小一部分在雪线以下附近生成（高度差在 -10 到 0 之间，概率递减）
-                    // - 雪线以下太远的地方不生成积雪（高度差 < -10）
-                    
-                    float snowlineProbability = 1.0f;
-                    if (heightDiff < 0) {
-                        // 在雪线以下：根据距离雪线的距离计算概率
-                        // 距离雪线越远，概率越小
-                        // 高度差在 -10 到 0 之间：概率从 0.1 线性递减到 0
-                        // 高度差 < -10：概率为 0（不生成）
-                        if (heightDiff < -10) {
-                            continue; // 太远，不生成
+                            // 使用噪声场决定是否覆盖雪
+                            float noiseValue = NoiseField.snowCoverage(snowPlacePos);
+                            noiseValueMap.put(snowPlacePos.toImmutable(), noiseValue);
+                            
+                            float threshold = snowAmount * snowlineProbability;
+                            
+                            // 如果噪声值小于阈值，则应该被覆盖
+                            if (noiseValue < threshold) {
+                                initialCoverage.add(snowPlacePos.toImmutable());
+                            }
                         }
-                        // 在 -10 到 0 之间：概率从 0.1 线性递减到 0
-                        snowlineProbability = Math.max(0.0f, 0.1f * (1.0f + heightDiff / 10.0f));
-                    }
-                    // 在雪线以上：概率为 1.0（完全生成）
-
-                    // 根据覆盖概率和雪线概率决定是否覆盖雪
-                    // 当 snowAmount = 1.0 时，几乎完全覆盖（99.9%概率）
-                    // 当 snowAmount = 0.0 时，完全不覆盖
-                    float threshold = Math.min(snowAmount, 0.999f);
-                    float finalProbability = threshold * snowlineProbability;
-                    if (random.nextFloat() < finalProbability) {
-                        found.add(snowPlacePos.toImmutable());
                     }
                 }
             }
         }
+        
+        // 第二轮：邻接传播，填补凹陷和缺口
+        // 对于每个已覆盖的位置，检查其4个水平邻居，如果邻居也满足阈值，则也标记为覆盖
+        Set<BlockPos> propagated = new HashSet<>(initialCoverage);
+        Queue<BlockPos> toCheck = new ArrayDeque<>(initialCoverage);
+        Set<BlockPos> checked = new HashSet<>(initialCoverage);
+        
+        while (!toCheck.isEmpty()) {
+            BlockPos pos = toCheck.poll();
+            
+            // 检查4个水平邻居（north, south, east, west）
+            BlockPos[] neighbors = {
+                pos.north(),
+                pos.south(),
+                pos.east(),
+                pos.west()
+            };
+            
+            for (BlockPos neighbor : neighbors) {
+                if (checked.contains(neighbor)) continue;
+                checked.add(neighbor);
+                
+                // 检查邻居是否可以放置积雪
+                BlockPos neighborPlacePos = findSnowPlacePosition(world, neighbor.getX(), neighbor.getZ());
+                if (neighborPlacePos == null) continue;
+                
+                // 检查邻居是否在合理的高度范围内
+                int neighborY = neighborPlacePos.getY();
+                int neighborHeightDiff = neighborY - snowY;
+                float neighborSnowlineProbability = 1.0f;
+                if (neighborHeightDiff < 0) {
+                    if (neighborHeightDiff < -10) {
+                        continue; // 太远，不生成
+                    }
+                    neighborSnowlineProbability = Math.max(0.0f, 0.1f * (1.0f + neighborHeightDiff / 10.0f));
+                }
+                
+                // 获取邻居的噪声值（如果已缓存则使用，否则计算）
+                float neighborNoiseValue = noiseValueMap.getOrDefault(neighborPlacePos, 
+                    NoiseField.snowCoverage(neighborPlacePos));
+                noiseValueMap.put(neighborPlacePos.toImmutable(), neighborNoiseValue);
+                
+                float neighborThreshold = snowAmount * neighborSnowlineProbability;
+                
+                // 如果邻居也满足阈值，则标记为覆盖并继续传播
+                if (neighborNoiseValue < neighborThreshold) {
+                    propagated.add(neighborPlacePos.toImmutable());
+                    toCheck.add(neighborPlacePos.toImmutable());
+                }
+            }
+        }
+
+        Set<BlockPos> found = new HashSet<>(propagated);
 
         // 更新目标层数（带大小扰动）
+        // 对于所有在 found 中的位置，更新或创建记录
         for (BlockPos pos : found) {
             snowMap.compute(pos, (p, rec) -> {
                 if (rec == null) {
@@ -319,7 +428,9 @@ public class SeasonSnowManager {
                         rec.currentLayers = 0; // 0 表示无雪
                     }
                     // 随机延迟（0~12 tick），使融雪更自然
-                    rec.meltDelay = random.nextInt(13);
+                    // 使用位置作为随机种子，确保每个位置的延迟保持一致
+                    Random posRandom = new Random(Objects.hash(p.getX(), p.getZ(), world.getTime()));
+                    rec.meltDelay = posRandom.nextInt(13);
                 } else {
                     // 已有记录：确保原始方块已记录（防止并发问题）
                     if (rec.originalBlock == null) {
@@ -339,11 +450,12 @@ public class SeasonSnowManager {
                 }
                 
                 // 计算目标层数（带大小扰动）
-                // 使用正态分布（近似）来生成围绕snowThickness的扰动值
-                // 标准差约为1.5，使得多数值在snowThickness附近
+                // 使用位置作为随机种子，确保每个位置的扰动值保持一致
+                // 这样当 snowThickness 变化时，每个位置的相对厚度关系保持不变
+                Random posRandom = new Random(Objects.hash(p.getX(), p.getZ()));
                 float mean = (float) snowThickness;
-                float stdDev = 1.5f;
-                float noise = (float) (random.nextGaussian() * stdDev);
+                float stdDev = Math.max(0.8f, Math.min(1.5f, mean * 0.3f + 0.5f));
+                float noise = (float) (posRandom.nextGaussian() * stdDev);
                 int targetLayers = Math.round(mean + noise);
                 // 限制在 [0, 10] 范围内
                 targetLayers = Math.max(0, Math.min(MAX_TOTAL_LAYERS, targetLayers));
@@ -354,10 +466,13 @@ public class SeasonSnowManager {
         }
 
         // 不在 found 中的位置 → 设置目标层数为 0（逐渐融化）
+        // 这样当 snowAmount 变小时，这些位置会逐渐消失
         for (Map.Entry<BlockPos, SnowRecord> entry : snowMap.entrySet()) {
             BlockPos pos = entry.getKey();
             if (!found.contains(pos)) {
-                entry.getValue().targetLayers = 0;
+                SnowRecord rec = entry.getValue();
+                rec.targetLayers = 0;
+                rec.meltDelay = 0; // 清除延迟，立即开始融化
             }
         }
     }
@@ -380,7 +495,10 @@ public class SeasonSnowManager {
             SnowRecord rec = entry.getValue();
 
             // 处理延迟（避免所有雪同步变化）
-            if (rec.meltDelay > 0) {
+            // 注意：当 targetLayers = 0 时，跳过延迟以立即开始融化
+            if (rec.targetLayers == 0) {
+                rec.meltDelay = 0; // 清除延迟，立即开始融化
+            } else if (rec.meltDelay > 0) {
                 rec.meltDelay--;
                 continue;
             }
@@ -390,15 +508,8 @@ public class SeasonSnowManager {
                 continue;
             }
 
-            // 根据 snowMeltSpeed 决定更新速度
-            float meltSpeed = currentSample.snowMeltSpeed;
-            boolean shouldUpdate = !(meltSpeed < 1.0f) || tickCounter % Math.max(1, (int) (ANIMATION_TICK_INTERVAL / meltSpeed)) == 0;
-            
-            // 如果融化速度较慢，增加更新间隔
-
-            if (!shouldUpdate) {
-                continue;
-            }
+            // 季节过渡通过关键帧插值实现，无需单独的融化速度控制
+            // 动画更新速度由 ANIMATION_TICK_INTERVAL 控制
 
             // 更新层数（逐层变化）
             // 注意：Minecraft的SnowBlock只支持1~8层，超过8层需要特殊处理
@@ -480,10 +591,48 @@ public class SeasonSnowManager {
 
     /**
      * 退出导演模式 / 禁用季节系统时，完全恢复我们修改的所有雪。
+     * 
+     * <p>此方法会立即执行清理，不等待下一次 tick。
      */
     public void restoreAll(ClientWorld world) {
-        meltAllSnow(world, false);
-        LOGGER.info("[SeasonSnowManager] 已清除所有积雪并恢复原始方块");
+        if (world == null) {
+            LOGGER.warn("[SeasonSnowManager] restoreAll: world 为 null，跳过清理");
+            return;
+        }
+        
+        // 立即禁用季节采样，避免后续 tick 重新生成雪
+        this.currentSample = SeasonSample.disabled();
+        this.needsRescan = false;
+        
+        // 立即恢复所有原始方块（不通过队列，直接执行）
+        int restoredCount = 0;
+        for (Map.Entry<BlockPos, SnowRecord> entry : snowMap.entrySet()) {
+            BlockPos pos = entry.getKey();
+            SnowRecord rec = entry.getValue();
+            final Block originalBlock = rec.originalBlock;
+            
+            try {
+                if (originalBlock != null) {
+                    world.setBlockState(pos, originalBlock.getDefaultState(), 3);
+                } else {
+                    BlockState currentState = world.getBlockState(pos);
+                    if (currentState.isOf(Blocks.SNOW)) {
+                        world.removeBlock(pos, false);
+                    }
+                }
+                restoredCount++;
+            } catch (Exception e) {
+                LOGGER.warn("[SeasonSnowManager] 恢复方块失败: {}", pos, e);
+            }
+        }
+        
+        // 清空所有记录
+        snowMap.clear();
+        
+        // 清空主线程任务队列（避免执行已过期的任务）
+        mainThreadTasks.clear();
+        
+        LOGGER.info("[SeasonSnowManager] 已立即清除所有积雪并恢复原始方块，共恢复 {} 个位置", restoredCount);
     }
 
     // ====================================================
@@ -524,18 +673,21 @@ public class SeasonSnowManager {
      * 2. 某些透明方块上（如树叶、玻璃等），如果这些方块支持积雪
      * 3. 不能放置在空气、水、岩浆等上
      * 
+     * <p>修改：现在会检查所有可以放置积雪的方块，而不仅仅是顶部。
+     * 只要方块能放置积雪，并且方块上面是空气或雪，就会返回该位置。
+     * 
      * @return 可以放置积雪的位置（雪层的位置），如果找不到则返回null
      */
     private BlockPos findSnowPlacePosition(ClientWorld world, int x, int z) {
         try {
-            // 使用 Minecraft 1.21.4 的 API：getTopPosition()
+            // 使用 Minecraft 1.21.4 的 API：getTopPosition() 作为起始点
             BlockPos topPos = world.getTopPosition(Heightmap.Type.WORLD_SURFACE, new BlockPos(x, 0, z));
-            int startY = Math.min(topPos.getY(), 256);
+            int startY = Math.min(topPos.getY() + 10, 256); // 从顶部向下检查，允许检查上方10格
             int endY = Math.max(world.getBottomY(), -64);
 
             BlockPos.Mutable mutable = new BlockPos.Mutable(x, startY, z);
 
-            // 从顶部向下查找
+            // 从顶部向下查找所有可以放置积雪的位置
             for (int y = startY; y >= endY; y--) {
                 mutable.setY(y);
                 BlockState state = world.getBlockState(mutable);
@@ -550,6 +702,11 @@ public class SeasonSnowManager {
                     continue;
                 }
 
+                // 检查这个方块是否可以放置积雪
+                if (!canPlaceSnowOn(state, world, mutable)) {
+                    continue;
+                }
+
                 // 检查上方是否可以放置积雪（必须是空气或雪）
                 BlockPos abovePos = mutable.up();
                 BlockState aboveState = world.getBlockState(abovePos);
@@ -558,18 +715,8 @@ public class SeasonSnowManager {
                     continue;
                 }
 
-                // 检查这个方块是否可以放置积雪
-                // 在Minecraft中，积雪可以放置在：
-                // 1. 固体方块上
-                // 2. 某些透明方块上（如树叶、玻璃等），如果这些方块支持积雪
-                // 我们使用一个简化的检查：方块不是空气、不是流体、不是雪本身
-                // 并且上方是空气或雪
-                
-                // 检查方块是否支持积雪（固体方块或某些透明方块）
-                if (canPlaceSnowOn(state, world, mutable)) {
-                    // 返回积雪应该放置的位置（上方）
-                    return abovePos.toImmutable();
-                }
+                // 找到可以放置积雪的位置，返回积雪应该放置的位置（上方）
+                return abovePos.toImmutable();
             }
 
             return null;
@@ -578,9 +725,61 @@ public class SeasonSnowManager {
             return null;
         }
     }
+    
+    /**
+     * 查找所有可以放置积雪的位置（用于更全面的检查）。
+     * 
+     * @return 所有可以放置积雪的位置列表
+     */
+    private List<BlockPos> findAllSnowPlacePositions(ClientWorld world, int x, int z) {
+        List<BlockPos> positions = new ArrayList<>();
+        try {
+            BlockPos topPos = world.getTopPosition(Heightmap.Type.WORLD_SURFACE, new BlockPos(x, 0, z));
+            int startY = Math.min(topPos.getY() + 10, 256);
+            int endY = Math.max(world.getBottomY(), -64);
+
+            BlockPos.Mutable mutable = new BlockPos.Mutable(x, startY, z);
+
+            for (int y = startY; y >= endY; y--) {
+                mutable.setY(y);
+                BlockState state = world.getBlockState(mutable);
+
+                if (state.isAir() || state.isOf(Blocks.SNOW)) {
+                    continue;
+                }
+
+                if (state.getBlock() instanceof FluidBlock) {
+                    continue;
+                }
+
+                if (!canPlaceSnowOn(state, world, mutable)) {
+                    continue;
+                }
+
+                BlockPos abovePos = mutable.up();
+                BlockState aboveState = world.getBlockState(abovePos);
+                if (!aboveState.isAir() && !aboveState.isOf(Blocks.SNOW)) {
+                    continue;
+                }
+
+                positions.add(abovePos.toImmutable());
+            }
+        } catch (Exception e) {
+            LOGGER.warn("[SeasonSnowManager] 查找所有积雪放置位置失败 ({}, {})", x, z, e);
+        }
+        return positions;
+    }
 
     /**
      * 检查方块是否可以放置积雪（符合Minecraft原版逻辑）。
+     * 
+     * <p>规则：
+     * <ul>
+     *   <li>✅ 实体方块（草方块、石头、建筑方块等）可以放置积雪</li>
+     *   <li>✅ 某些透明方块（如树叶、玻璃等）可以放置积雪</li>
+     *   <li>❌ 植物方块（如竹子、草、花等）不能放置积雪（太细）</li>
+     *   <li>❌ 流体、空气、雪本身不能放置积雪</li>
+     * </ul>
      * 
      * @param state 方块状态
      * @param world 世界
@@ -603,30 +802,52 @@ public class SeasonSnowManager {
             return false;
         }
 
-        // 固体方块可以放置积雪
+        // 排除植物方块（如竹子、草、花等），因为它们太细，不适合放置积雪
+        Block block = state.getBlock();
+        if (block instanceof PlantBlock) {
+            return false;
+        }
+        
+        // 特别排除竹子（BambooBlock）
+        if (block == Blocks.BAMBOO) {
+            return false;
+        }
+        
+        // 排除其他细小的植物方块（如草、花、蕨类等）
+        // 这些方块通常不是固体，但有碰撞箱，我们需要排除它们
+        // 注意：Blocks.GRASS_BLOCK 是草方块（实体方块），应该允许放置积雪
+        // 这里排除的是植物（如高草、花等）
+        if (block == Blocks.FERN || 
+            block == Blocks.LARGE_FERN ||
+            block == Blocks.TALL_GRASS ||
+            block == Blocks.DANDELION ||
+            block == Blocks.POPPY ||
+            block == Blocks.BLUE_ORCHID ||
+            block == Blocks.ALLIUM ||
+            block == Blocks.AZURE_BLUET ||
+            block == Blocks.RED_TULIP ||
+            block == Blocks.ORANGE_TULIP ||
+            block == Blocks.WHITE_TULIP ||
+            block == Blocks.PINK_TULIP ||
+            block == Blocks.OXEYE_DAISY ||
+            block == Blocks.CORNFLOWER ||
+            block == Blocks.LILY_OF_THE_VALLEY ||
+            block == Blocks.SUNFLOWER ||
+            block == Blocks.LILAC ||
+            block == Blocks.ROSE_BUSH ||
+            block == Blocks.PEONY) {
+            return false;
+        }
+
+        // 固体方块可以放置积雪（草方块、石头、建筑方块等）
         if (state.isSolidBlock(world, pos)) {
             return true;
         }
 
         // 某些透明方块也可以放置积雪（如树叶、玻璃等）
-        // 在Minecraft中，这些方块通常有特殊的逻辑
-        // 我们检查方块是否不是完全透明的，或者是否有特殊的积雪支持
-        
-        // 检查方块是否是完全透明的（如空气、水等已经排除）
-        // 对于树叶等方块，它们通常不是完全透明的，可以放置积雪
-        // 这里使用一个简化的判断：如果方块不是完全透明，就可以放置积雪
-        
-        // 更准确的方法是检查方块的形状，但为了简化，我们使用以下规则：
-        // 1. 固体方块 -> 可以
-        // 2. 非固体但非完全透明的方块（如树叶）-> 可以
-        // 3. 完全透明的方块（如空气、水）-> 不可以（已经排除）
-        
-        // 对于树叶等方块，它们通常有碰撞箱，可以放置积雪
-        // 我们检查方块是否有碰撞箱（不是完全透明）
+        // 这些方块有碰撞箱，可以支撑积雪
+        // 但我们已经排除了植物方块，所以这里主要是树叶、玻璃等
         return !state.getCollisionShape(world, pos).isEmpty();
-
-        // 其他情况：如果方块有特殊的积雪支持（如某些装饰性方块）
-        // 这里可以添加更多检查，但为了简化，我们只处理常见情况
     }
 
 

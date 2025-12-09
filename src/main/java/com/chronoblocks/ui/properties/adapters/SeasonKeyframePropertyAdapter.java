@@ -22,10 +22,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *
  * <p>新增功能：
  * <ul>
- *   <li>✔ 完整积雪控制（雪覆盖度/雪线高度/积雪厚度/融化速度）</li>
- *   <li>✔ 冰冻控制（冰覆盖度/融冰速度）</li>
+ *   <li>✔ 完整积雪控制（雪覆盖度/雪线高度/积雪厚度）</li>
+ *   <li>✔ 冰冻控制（冰覆盖度）</li>
  *   <li>✔ 颜色 Tint 完整编辑（草、树叶、天空、雾、光照）</li>
- *   <li>✔ 插值方式（线性/平滑/曲线）</li>
+ *   <li>✔ 插值方式（线性/平滑/曲线）- 实现季节过渡动画</li>
  *   <li>✔ 季节预设按钮（春/夏/秋/冬/电影效果）</li>
  * </ul>
  *
@@ -53,11 +53,9 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
     private final ImFloat snowAmountFloat = new ImFloat();
     private final ImFloat snowlineFloat = new ImFloat();
     private final ImInt snowThicknessInt = new ImInt();
-    private final ImFloat snowMeltFloat = new ImFloat();
     
     // 冰冻参数
     private final ImFloat freezeStrengthFloat = new ImFloat();
-    private final ImFloat freezeMeltSpeedFloat = new ImFloat();
 
     // Tint 颜色缓存 [0..1]
     private final float[] grassTintArr = new float[3];
@@ -180,7 +178,7 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
                 keyframe.setSnowAmount(snowAmountFloat.get());
                 paramChanged.set(true);
             }
-            ImGui.textDisabled("• 0.0 = 没有覆盖，1.0 = 几乎全覆盖（表示覆盖概率）");
+            ImGui.textDisabled("• 0.0 = 没有覆盖，1.0 = 几乎全覆盖（区域内的占比概率）");
             UITheme.spacingSmall();
 
             snowlineFloat.set(keyframe.getSnowlineHeight());
@@ -196,15 +194,8 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
                 keyframe.setSnowThickness(snowThicknessInt.get());
                 paramChanged.set(true);
             }
-            ImGui.textDisabled("• 0 = 无厚度，10 = 最大厚度（8层雪+2层，带大小扰动）");
-            UITheme.spacingSmall();
-
-            snowMeltFloat.set(keyframe.getSnowMeltSpeed());
-            if (ImGui.sliderFloat("融化速度", snowMeltFloat.getData(), 0.1f, 5f, "%.2f")) {
-                keyframe.setSnowMeltSpeed(snowMeltFloat.get());
-                paramChanged.set(true);
-            }
-            ImGui.textDisabled("• 1.0 = 正常速度，> 1.0 = 融化更快，< 1.0 = 融化更慢");
+            ImGui.textDisabled("• 0 = 无厚度，10 = 最大厚度（大多数区域覆盖此层数，使用正态分布扰动）");
+            ImGui.textDisabled("• 季节过渡通过关键帧之间的插值自动实现");
             UITheme.spacingSmall();
         }
 
@@ -217,15 +208,8 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
                 keyframe.setFreezeStrength(freezeStrengthFloat.get());
                 paramChanged.set(true);
             }
-            ImGui.textDisabled("• 0.0 = 没有覆盖，1.0 = 几乎全覆盖（表示覆盖概率）");
-            UITheme.spacingSmall();
-
-            freezeMeltSpeedFloat.set(keyframe.getFreezeMeltSpeed());
-            if (ImGui.sliderFloat("融冰速度", freezeMeltSpeedFloat.getData(), 0.1f, 5f, "%.2f")) {
-                keyframe.setFreezeMeltSpeed(freezeMeltSpeedFloat.get());
-                paramChanged.set(true);
-            }
-            ImGui.textDisabled("• 1.0 = 正常速度，> 1.0 = 融化更快，< 1.0 = 融化更慢");
+            ImGui.textDisabled("• 0.0 = 没有覆盖，1.0 = 几乎全覆盖（区域内的占比概率）");
+            ImGui.textDisabled("• 季节过渡通过关键帧之间的插值自动实现");
             UITheme.spacingSmall();
         }
 
@@ -302,12 +286,13 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
         }
 
         // ===========================================================
-        // 参数更新触发 Season 系统
+        // 参数更新触发 Season 系统（实时更新）
         // ===========================================================
         if (paramChanged.get()) {
             TimelineSeasonController c = TimelineSeasonController.getInstance();
+            // 先重建轨道（更新关键帧数据）
             c.rebuildFromActiveTrack();
-            // 预览被编辑的关键帧所在时间点的季节状态，而不是当前时间线时间
+            // 然后预览被编辑的关键帧所在时间点的季节状态，立即更新积雪和冰冻效果
             c.previewAtKeyframeTime(keyframe.getTime());
         }
 

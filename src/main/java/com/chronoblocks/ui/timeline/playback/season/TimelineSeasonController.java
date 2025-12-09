@@ -609,15 +609,35 @@ public final class TimelineSeasonController {
     }
     
     /**
-     * 清理所有季节效果（积雪和冰块）。
-     * 在删除关键帧、删除轨道或关闭 ChronoBlocks 时调用。
+     * 清理所有季节效果（积雪和冰块），恢复游戏默认状态。
+     * 
+     * <p>调用时机：
+     * <ul>
+     *   <li>删除关键帧后，如果轨道上没有剩余关键帧</li>
+     *   <li>删除季节轨道后</li>
+     *   <li>关闭 ChronoBlocks 时（通过 clear() 方法）</li>
+     *   <li>没有激活的季节轨道时</li>
+     * </ul>
+     * 
+     * <p>此方法会立即清除所有由 ChronoBlocks 生成的积雪和冰块，
+     * 恢复 Minecraft 原版的默认状态。
+     * 
+     * <p>注意：此方法会先通知 SeasonSnowManager 和 WaterFreezeManager 清除状态，
+     * 然后立即执行清理，确保清理操作立即生效。
      */
     private void cleanupSeasonEffects() {
         try {
             net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
             if (client != null && client.world != null) {
+                // 先通知管理器清除状态（设置 currentSample 为 disabled）
+                // 这样可以避免后续 tick 重新生成雪
+                com.chronoblocks.season.SeasonSnowManager.get().onSeasonSampleUpdated(null);
+                com.chronoblocks.season.WaterFreezeManager.get().onSeasonSampleUpdated(null);
+                
+                // 然后立即执行清理（不等待下一次 tick）
                 com.chronoblocks.season.SeasonSnowManager.get().restoreAll(client.world);
                 com.chronoblocks.season.WaterFreezeManager.get().restoreAll(client.world);
+                
                 LOGGER.info("[TimelineSeason] 已清理所有季节效果（积雪 + 冰冻水面）");
             }
         } catch (Exception e) {

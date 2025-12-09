@@ -16,13 +16,14 @@ import java.util.List;
  * <ul>
  *   <li>从 Season 轨道（TimelineTrack）中收集 SeasonKeyframe</li>
  *   <li>按时间排序</li>
- *   <li>在任意时间 t 采样出 SeasonSample</li>
+ *   <li>在任意时间 t 采样出 SeasonSample（通过关键帧插值）</li>
  * </ul>
  *
  * <p>支持：
  * <ul>
  *   <li>多关键帧线性 / 平滑 / 曲线插值</li>
  *   <li>雪参数 / 冰冻参数 / 颜色 Tint / 气候 全部插值</li>
+ *   <li>季节过渡动画：从秋季到冬季逐渐出现积雪和冰，从冬季到春季逐渐消失</li>
  * </ul>
  * 
  * @author ChronoBlocks Team
@@ -149,10 +150,8 @@ public class SeasonTrackSampler {
         s.snowAmount = kf.getSnowAmount();
         s.snowlineHeight = kf.getSnowlineHeight();
         s.snowThickness = kf.getSnowThickness();
-        s.snowMeltSpeed = kf.getSnowMeltSpeed();
 
         s.freezeStrength = kf.getFreezeStrength();
-        s.freezeMeltSpeed = kf.getFreezeMeltSpeed();
 
         s.grassTint.set(kf.getGrassTint());
         s.foliageTint.set(kf.getFoliageTint());
@@ -185,10 +184,8 @@ public class SeasonTrackSampler {
         s.snowAmount = lerp(a.getSnowAmount(), b.getSnowAmount(), wt);
         s.snowlineHeight = lerp(a.getSnowlineHeight(), b.getSnowlineHeight(), wt);
         s.snowThickness = Math.round(lerp(a.getSnowThickness(), b.getSnowThickness(), wt));
-        s.snowMeltSpeed = lerp(a.getSnowMeltSpeed(), b.getSnowMeltSpeed(), wt);
 
         s.freezeStrength = lerp(a.getFreezeStrength(), b.getFreezeStrength(), wt);
-        s.freezeMeltSpeed = lerp(a.getFreezeMeltSpeed(), b.getFreezeMeltSpeed(), wt);
 
         // 向量插值
         lerpVec(a.getGrassTint(), b.getGrassTint(), wt, s.grassTint);

@@ -29,11 +29,9 @@ public class SeasonSample {
     public float snowAmount;         // [0, 1] 覆盖概率
     public float snowlineHeight;     // 世界高度
     public int snowThickness;        // [0, 10] 积雪厚度（层数）
-    public float snowMeltSpeed;      // ≥ 0
 
     // 冰冻控制
     public float freezeStrength;     // [0, 1] 覆盖概率
-    public float freezeMeltSpeed;    // ≥ 0
 
     // 颜色 Tint（相对偏移，0=无，0.1=+10%）
     public final Vector3f grassTint   = new Vector3f(0f, 0f, 0f);
@@ -88,10 +86,8 @@ public class SeasonSample {
         s.snowAmount = this.snowAmount;
         s.snowlineHeight = this.snowlineHeight;
         s.snowThickness = this.snowThickness;
-        s.snowMeltSpeed = this.snowMeltSpeed;
 
         s.freezeStrength = this.freezeStrength;
-        s.freezeMeltSpeed = this.freezeMeltSpeed;
 
         s.grassTint.set(this.grassTint);
         s.foliageTint.set(this.foliageTint);
@@ -118,10 +114,8 @@ public class SeasonSample {
         s.snowAmount = a.snowAmount * iu + b.snowAmount * t;
         s.snowlineHeight = a.snowlineHeight * iu + b.snowlineHeight * t;
         s.snowThickness = Math.round(a.snowThickness * iu + b.snowThickness * t);
-        s.snowMeltSpeed = a.snowMeltSpeed * iu + b.snowMeltSpeed * t;
 
         s.freezeStrength = a.freezeStrength * iu + b.freezeStrength * t;
-        s.freezeMeltSpeed = a.freezeMeltSpeed * iu + b.freezeMeltSpeed * t;
 
         s.grassTint.set(
                 a.grassTint.x * iu + b.grassTint.x * t,
@@ -183,10 +177,8 @@ public class SeasonSample {
         if (Float.compare(that.humidity, humidity) != 0) return false;
         if (Float.compare(that.snowAmount, snowAmount) != 0) return false;
         if (Float.compare(that.snowlineHeight, snowlineHeight) != 0) return false;
-        if (Float.compare(that.snowThickness, snowThickness) != 0) return false;
-        if (Float.compare(that.snowMeltSpeed, snowMeltSpeed) != 0) return false;
+        if (that.snowThickness != snowThickness) return false;
         if (Float.compare(that.freezeStrength, freezeStrength) != 0) return false;
-        if (Float.compare(that.freezeMeltSpeed, freezeMeltSpeed) != 0) return false;
         
         return grassTint.equals(that.grassTint) &&
                foliageTint.equals(that.foliageTint) &&
@@ -201,10 +193,8 @@ public class SeasonSample {
         result = 31 * result + Float.hashCode(humidity);
         result = 31 * result + Float.hashCode(snowAmount);
         result = 31 * result + Float.hashCode(snowlineHeight);
-        result = 31 * result + Float.hashCode(snowThickness);
-        result = 31 * result + Float.hashCode(snowMeltSpeed);
+        result = 31 * result + Integer.hashCode(snowThickness);
         result = 31 * result + Float.hashCode(freezeStrength);
-        result = 31 * result + Float.hashCode(freezeMeltSpeed);
         result = 31 * result + grassTint.hashCode();
         result = 31 * result + foliageTint.hashCode();
         result = 31 * result + skyTint.hashCode();

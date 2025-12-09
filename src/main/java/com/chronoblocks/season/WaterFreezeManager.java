@@ -120,7 +120,14 @@ public class WaterFreezeManager {
      * @param sample 季节采样，如果为 null 表示没有季节覆盖
      */
     public void onSeasonSampleChanged(SeasonSample sample) {
-        this.currentSample = sample != null ? sample : SeasonSample.disabled();
+        SeasonSample newSample = sample != null ? sample : SeasonSample.disabled();
+        
+        // 如果参数没有变化，不触发重新扫描
+        if (newSample.equals(this.currentSample)) {
+            return;
+        }
+        
+        this.currentSample = newSample;
         this.needsRescan = true;
     }
 
@@ -234,37 +241,80 @@ public class WaterFreezeManager {
     }
 
     /**
-     * 扫描单个 chunk 寻找水面（随机采样）。
+     * 扫描单个 chunk 寻找水面（密集采样 + 邻接传播，确保连续性）。
      */
     private void scanChunkForWater(ClientWorld world, int chunkX, int chunkZ, 
                                    float strength, Set<BlockPos> outNewIce) {
-        Random random = new Random(Objects.hash(chunkX, chunkZ, world.getTime()));
+        // 第一轮：密集采样，使用噪声场决定初始覆盖位置
+        Set<BlockPos> initialCoverage = new HashSet<>();
+        Map<BlockPos, Float> noiseValueMap = new HashMap<>(); // 缓存噪声值
+        
+        for (int bx = 0; bx < 16; bx++) {
+            for (int bz = 0; bz < 16; bz++) {
+                int wx = chunkX * 16 + bx;
+                int wz = chunkZ * 16 + bz;
 
-        // 每个 chunk 采样约 32 个方块（增加采样以提高覆盖效果）
-        int samplesPerChunk = 32;
+                BlockPos waterPos = findTopWater(world, wx, wz);
+                if (waterPos == null) continue;
 
-        for (int i = 0; i < samplesPerChunk; i++) {
-            int bx = random.nextInt(16);
-            int bz = random.nextInt(16);
-            int wx = chunkX * 16 + bx;
-            int wz = chunkZ * 16 + bz;
+                // 避免重复
+                if (originalWater.containsKey(waterPos) || outNewIce.contains(waterPos)) {
+                    continue;
+                }
 
-            BlockPos waterPos = findTopWater(world, wx, wz);
-            if (waterPos == null) continue;
+                // 使用噪声场决定是否覆盖冰
+                float noiseValue = com.chronoblocks.season.NoiseField.iceCoverage(waterPos);
+                noiseValueMap.put(waterPos.toImmutable(), noiseValue);
 
-            // 避免重复
-            if (originalWater.containsKey(waterPos) || outNewIce.contains(waterPos)) {
-                continue;
-            }
-
-            // 按 freezeStrength 采样概率
-            // 当 strength = 1.0 时，几乎完全覆盖（99.9%概率）
-            // 当 strength = 0.0 时，完全不覆盖
-            float threshold = Math.min(strength, 0.999f);
-            if (random.nextFloat() < threshold) {
-                outNewIce.add(waterPos.toImmutable());
+                if (noiseValue < strength) {
+                    initialCoverage.add(waterPos.toImmutable());
+                }
             }
         }
+        
+        // 第二轮：邻接传播，填补凹陷和缺口
+        Set<BlockPos> propagated = new HashSet<>(initialCoverage);
+        Queue<BlockPos> toCheck = new ArrayDeque<>(initialCoverage);
+        Set<BlockPos> checked = new HashSet<>(initialCoverage);
+        
+        while (!toCheck.isEmpty()) {
+            BlockPos pos = toCheck.poll();
+            
+            // 检查4个水平邻居
+            BlockPos[] neighbors = {
+                pos.north(),
+                pos.south(),
+                pos.east(),
+                pos.west()
+            };
+            
+            for (BlockPos neighbor : neighbors) {
+                if (checked.contains(neighbor)) continue;
+                checked.add(neighbor);
+                
+                // 检查邻居是否是水面
+                BlockPos neighborWaterPos = findTopWater(world, neighbor.getX(), neighbor.getZ());
+                if (neighborWaterPos == null) continue;
+                
+                // 避免重复
+                if (originalWater.containsKey(neighborWaterPos) || outNewIce.contains(neighborWaterPos)) {
+                    continue;
+                }
+                
+                // 获取邻居的噪声值
+                float neighborNoiseValue = noiseValueMap.getOrDefault(neighborWaterPos, 
+                    com.chronoblocks.season.NoiseField.iceCoverage(neighborWaterPos));
+                noiseValueMap.put(neighborWaterPos.toImmutable(), neighborNoiseValue);
+
+                // 如果邻居也满足阈值，则标记为覆盖并继续传播
+                if (neighborNoiseValue < strength) {
+                    propagated.add(neighborWaterPos.toImmutable());
+                    toCheck.add(neighborWaterPos.toImmutable());
+                }
+            }
+        }
+        
+        outNewIce.addAll(propagated);
     }
 
     // ================================================
