@@ -5,6 +5,7 @@ import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.block.FluidBlock;
+import net.minecraft.block.LeavesBlock;
 import net.minecraft.block.PlantBlock;
 import net.minecraft.block.SnowBlock;
 import net.minecraft.client.MinecraftClient;
@@ -72,6 +73,7 @@ public class SeasonSnowManager {
     private static final int MAX_LAYERS = 8;
     /** 最大总层数（8层雪+2层） */
     private static final int MAX_TOTAL_LAYERS = 10;
+    private static final float MAX_EFFECTIVE_COVERAGE = 0.97f;
 
 
     /** 每 tick 处理的最大主线程任务数（避免卡顿） */
@@ -124,10 +126,14 @@ public class SeasonSnowManager {
         /** 融雪延迟（tick 数，用于随机偏移，避免所有雪同步变化） */
         int meltDelay;
 
+        /** 是否仅允许单层（用于树叶等需要保持单层效果的方块） */
+        boolean singleLayerOnly;
+
         SnowRecord() {
             this.currentLayers = 0;
             this.targetLayers = 0;
             this.meltDelay = 0;
+            this.singleLayerOnly = false;
         }
     }
 
@@ -210,17 +216,18 @@ public class SeasonSnowManager {
         for (Map.Entry<BlockPos, SnowRecord> entry : snowMap.entrySet()) {
             BlockPos pos = entry.getKey();
             SnowRecord rec = entry.getValue();
-            
+
+            if (rec.singleLayerOnly) {
+                rec.targetLayers = 1;
+                rec.meltDelay = 0;
+                continue;
+            }
+
             // 使用位置作为随机种子，确保每个位置的扰动值保持一致
             Random random = new Random(Objects.hash(pos.getX(), pos.getZ()));
-            
+
             // 重新计算目标层数（带大小扰动）
-            float mean = (float) newSnowThickness;
-            float stdDev = Math.max(0.8f, Math.min(1.5f, mean * 0.3f + 0.5f));
-            float noise = (float) (random.nextGaussian() * stdDev);
-            int targetLayers = Math.round(mean + noise);
-            targetLayers = Math.max(0, Math.min(MAX_TOTAL_LAYERS, targetLayers));
-            rec.targetLayers = targetLayers;
+            rec.targetLayers = computeTargetLayers(newSnowThickness, random, false);
         }
     }
 
@@ -248,7 +255,7 @@ public class SeasonSnowManager {
         boolean shouldAnimate = true;
 
         // 2) 雪量为 0 或未启用 → 清除全部雪
-        if (!currentSample.enabled || currentSample.snowAmount <= 0.01f) {
+        if (!currentSample.enabled || currentSample.snowAmount <= 0.01f || currentSample.snowThickness <= 0) {
             if (!snowMap.isEmpty()) {
                 meltAllSnow(world, shouldAnimate);
             }
@@ -300,9 +307,13 @@ public class SeasonSnowManager {
      * 扫描玩家周围的 chunk，确定每个位置的目标雪层数。
      */
     private void scanAndDetermineTargets(ClientWorld world, BlockPos playerPos, SeasonSample sample) {
-        float snowAmount = sample.snowAmount;  // 覆盖概率
+        float snowAmount = applyCoverageLimit(sample.snowAmount);  // 覆盖概率
         int snowThickness = sample.snowThickness;  // 积雪厚度 [0, 10]
         int snowY = (int) sample.snowlineHeight;
+
+        if (snowAmount <= 0f || snowThickness <= 0) {
+            return;
+        }
 
         int px = playerPos.getX() >> 4; // chunk X
         int pz = playerPos.getZ() >> 4; // chunk Z
@@ -340,7 +351,7 @@ public class SeasonSnowManager {
                             float noiseValue = NoiseField.snowCoverage(snowPlacePos);
                             noiseValueMap.put(snowPlacePos.toImmutable(), noiseValue);
                             
-                            float threshold = snowAmount * snowlineProbability;
+                            float threshold = applyCoverageLimit(snowAmount * snowlineProbability);
                             
                             // 如果噪声值小于阈值，则应该被覆盖
                             if (noiseValue < threshold) {
@@ -393,7 +404,7 @@ public class SeasonSnowManager {
                     NoiseField.snowCoverage(neighborPlacePos));
                 noiseValueMap.put(neighborPlacePos.toImmutable(), neighborNoiseValue);
                 
-                float neighborThreshold = snowAmount * neighborSnowlineProbability;
+                float neighborThreshold = applyCoverageLimit(snowAmount * neighborSnowlineProbability);
                 
                 // 如果邻居也满足阈值，则标记为覆盖并继续传播
                 if (neighborNoiseValue < neighborThreshold) {
@@ -409,6 +420,7 @@ public class SeasonSnowManager {
         // 对于所有在 found 中的位置，更新或创建记录
         for (BlockPos pos : found) {
             snowMap.compute(pos, (p, rec) -> {
+                boolean singleLayerOnly = isLeafSurface(world, p);
                 if (rec == null) {
                     // 新位置：创建记录
                     rec = new SnowRecord();
@@ -448,18 +460,14 @@ public class SeasonSnowManager {
                         }
                     }
                 }
+
+                rec.singleLayerOnly = singleLayerOnly;
                 
                 // 计算目标层数（带大小扰动）
                 // 使用位置作为随机种子，确保每个位置的扰动值保持一致
                 // 这样当 snowThickness 变化时，每个位置的相对厚度关系保持不变
                 Random posRandom = new Random(Objects.hash(p.getX(), p.getZ()));
-                float mean = (float) snowThickness;
-                float stdDev = Math.max(0.8f, Math.min(1.5f, mean * 0.3f + 0.5f));
-                float noise = (float) (posRandom.nextGaussian() * stdDev);
-                int targetLayers = Math.round(mean + noise);
-                // 限制在 [0, 10] 范围内
-                targetLayers = Math.max(0, Math.min(MAX_TOTAL_LAYERS, targetLayers));
-                rec.targetLayers = targetLayers;
+                rec.targetLayers = computeTargetLayers(snowThickness, posRandom, singleLayerOnly);
                 
                 return rec;
             });
@@ -660,6 +668,47 @@ public class SeasonSnowManager {
             task.run();
             count++;
         }
+    }
+
+    /**
+     * 将覆盖度限制在安全范围内，保证即便参数为 1 也会保留少量未覆盖区域。
+     */
+    private float applyCoverageLimit(float coverage) {
+        if (coverage <= 0f) {
+            return 0f;
+        }
+        return Math.min(MAX_EFFECTIVE_COVERAGE, Math.min(1f, coverage));
+    }
+
+    /**
+     * 根据基准厚度和位置噪声计算目标雪层数，并可选强制为单层。
+     */
+    private int computeTargetLayers(int baseThickness, Random random, boolean singleLayerOnly) {
+        if (baseThickness <= 0) {
+            return 0;
+        }
+
+        float mean = (float) baseThickness;
+        float stdDev = Math.max(0.8f, Math.min(1.5f, mean * 0.3f + 0.5f));
+        float noise = (float) (random.nextGaussian() * stdDev);
+        int targetLayers = Math.round(mean + noise);
+        targetLayers = Math.max(0, Math.min(MAX_TOTAL_LAYERS, targetLayers));
+
+        if (singleLayerOnly && targetLayers > 0) {
+            return 1;
+        }
+        return targetLayers;
+    }
+
+    /**
+     * 判断当前雪面下方是否为树叶，用于强制只铺一层。
+     */
+    private boolean isLeafSurface(ClientWorld world, BlockPos snowPos) {
+        if (world == null) {
+            return false;
+        }
+        BlockState below = world.getBlockState(snowPos.down());
+        return below.getBlock() instanceof LeavesBlock;
     }
 
     // ====================================================

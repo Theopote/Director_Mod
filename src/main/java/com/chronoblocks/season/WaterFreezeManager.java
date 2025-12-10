@@ -66,6 +66,8 @@ public class WaterFreezeManager {
 
     /** 每 tick 处理的最大主线程任务数（避免卡顿） */
     private static final int MAX_MAIN_THREAD_TASKS_PER_TICK = 64;
+    /** 最大有效覆盖度，确保始终留有未冻结的空白区域 */
+    private static final float MAX_EFFECTIVE_COVERAGE = 0.97f;
 
     // ========= 状态 =========
 
@@ -201,7 +203,10 @@ public class WaterFreezeManager {
      * 扫描玩家周围的 chunk，计算需要冻结/解冻的水。
      */
     private void scanAndApply(ClientWorld world, BlockPos playerPos, SeasonSample sample) {
-        float strength = sample.freezeStrength;  // 覆盖概率 [0, 1]
+        float strength = applyCoverageLimit(sample.freezeStrength);  // 覆盖概率 [0, 1]
+        if (strength <= 0f) {
+            return;
+        }
 
         Set<BlockPos> newIce = new HashSet<>();
         Set<BlockPos> restore = new HashSet<>(originalWater.keySet()); // 初始：所有旧冰都假定需要恢复
@@ -344,6 +349,16 @@ public class WaterFreezeManager {
             task.run();
             count++;
         }
+    }
+
+    /**
+     * 将覆盖度限制在安全范围内，保证始终留有少量未冻结区域。
+     */
+    private float applyCoverageLimit(float coverage) {
+        if (coverage <= 0f) {
+            return 0f;
+        }
+        return Math.min(MAX_EFFECTIVE_COVERAGE, Math.min(1f, coverage));
     }
 
     // ================================================
