@@ -13,7 +13,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * ClientWorldMixin v3.5
+ * ClientWorldMixin v4.0
  * 
  * <p>在 ChronoBlocks 导演模式下实现选择性冻结：
  * <ul>
@@ -25,7 +25,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * <p>注意：时间轨道系统的时间冻结由服务器端 GameRule 控制，客户端不负责冻结逻辑。
  * 
  * @author ChronoBlocks Team
- * @version 3.5 - 简化时间冻结逻辑，统一 tint 公式
+ * @version 4.0 - 添加天气系统支持
  */
 @Mixin(ClientWorld.class)
 public abstract class ClientWorldMixin {
@@ -110,4 +110,7 @@ public abstract class ClientWorldMixin {
     private static float clampTint(float v) {
         return Math.max(-0.99f, Math.min(3f, v));
     }
+    
+    // 注意：天气相关的方法（getRainGradient, getThunderGradient, isRaining, isThundering）
+    // 已移至 WorldMixin，因为这些方法在 World 基类中定义，而不是 ClientWorld 中。
 }
