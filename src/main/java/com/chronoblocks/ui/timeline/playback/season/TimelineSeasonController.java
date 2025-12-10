@@ -424,9 +424,9 @@ public final class TimelineSeasonController {
                 LOGGER.warn("[TimelineSeason] Failed to propagate to SeasonSnowManager", e);
             }
             
-            // 冰冻水面系统
+            // 冰冻水面系统（v3.5：使用新的 applySeasonSample API）
             try {
-                com.chronoblocks.season.WaterFreezeManager.get().onSeasonSampleUpdated(currentSample);
+                com.chronoblocks.season.WaterFreezeManager.get().applySeasonSample(currentSample);
             } catch (Exception e) {
                 LOGGER.warn("[TimelineSeason] Failed to propagate to WaterFreezeManager", e);
             }
@@ -441,7 +441,7 @@ public final class TimelineSeasonController {
             }
             
             try {
-                com.chronoblocks.season.WaterFreezeManager.get().onSeasonSampleUpdated(null);
+                com.chronoblocks.season.WaterFreezeManager.get().applySeasonSample(null);
             } catch (Exception e) {
                 LOGGER.warn("[TimelineSeason] Failed to clear WaterFreezeManager", e);
             }
@@ -632,11 +632,11 @@ public final class TimelineSeasonController {
                 // 先通知管理器清除状态（设置 currentSample 为 disabled）
                 // 这样可以避免后续 tick 重新生成雪
                 com.chronoblocks.season.SeasonSnowManager.get().onSeasonSampleUpdated(null);
-                com.chronoblocks.season.WaterFreezeManager.get().onSeasonSampleUpdated(null);
+                com.chronoblocks.season.WaterFreezeManager.get().applySeasonSample(null);
                 
                 // 然后立即执行清理（不等待下一次 tick）
                 com.chronoblocks.season.SeasonSnowManager.get().restoreAll(client.world);
-                com.chronoblocks.season.WaterFreezeManager.get().restoreAll(client.world);
+                com.chronoblocks.season.WaterFreezeManager.get().clearAll();
                 
                 LOGGER.info("[TimelineSeason] 已清理所有季节效果（积雪 + 冰冻水面）");
             }

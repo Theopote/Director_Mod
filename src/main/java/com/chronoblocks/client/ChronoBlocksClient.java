@@ -223,7 +223,7 @@ public class ChronoBlocksClient implements ClientModInitializer {
                     // ⭐ v3.0：使用新的 tick(world, cameraPos) API，传入摄像机位置
                     com.chronoblocks.season.SeasonSnowManager.get().tick(client.world, pos);
                     
-                    // ⭐ v1.0：冰冻水面系统
+                    // ⭐ v3.6：WaterFreezeManager 需要 tick 来检测玩家位置变化，动态更新冰冻效果
                     com.chronoblocks.season.WaterFreezeManager.get().tick(client.world, pos);
                 } catch (Exception e) {
                     LOGGER.error("[ChronoBlocks] Season system tick error", e);

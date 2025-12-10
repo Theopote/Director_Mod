@@ -73,7 +73,7 @@ public class ChronoBlocksClientController {
             if (client != null && client.world != null) {
                 try {
                     com.chronoblocks.season.SeasonSnowManager.get().restoreAll(client.world);
-                    com.chronoblocks.season.WaterFreezeManager.get().restoreAll(client.world);
+                    com.chronoblocks.season.WaterFreezeManager.get().clearAll();
                     ChronoBlocksMod.LOGGER.info("[ChronoBlocks] 导演模式关闭，已清除所有季节效果（积雪 + 冰冻水面）");
                 } catch (Exception e) {
                     ChronoBlocksMod.LOGGER.warn("[ChronoBlocks] 清除季节效果时出错", e);

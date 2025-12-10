@@ -404,7 +404,7 @@ public class ChronoBlocksScreen extends Screen {
         try {
             if (client.world != null) {
                 com.chronoblocks.season.SeasonSnowManager.get().restoreAll(client.world);
-                com.chronoblocks.season.WaterFreezeManager.get().restoreAll(client.world);
+                com.chronoblocks.season.WaterFreezeManager.get().clearAll();
                 LOGGER.info("[ChronoBlocks] 已恢复所有季节效果（积雪 + 冰冻水面）");
             }
         } catch (Exception e) {

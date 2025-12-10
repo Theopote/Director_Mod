@@ -248,14 +248,7 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
     public float getHumidity() {
         return humidity;
     }
-    
-    /**
-     * 设置湿度趋势（建议范围 [0, 1]，但不强制）。
-     */
-    public void setHumidity(float humidity) {
-        this.humidity = humidity;
-    }
-    
+
     public float getSnowlineHeight() {
         return snowlineHeight;
     }

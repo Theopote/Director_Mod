@@ -1,56 +1,90 @@
 package com.chronoblocks.season;
 
 import com.chronoblocks.ui.timeline.playback.season.SeasonSample;
-import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
-import net.minecraft.block.FluidBlock;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.Heightmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.*;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.Map;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * WaterFreezeManager v2.0
+ * WaterFreezeManager v3.6
  *
- * <p>🧊 基于季节 + 温度采样，对玩家周围的水进行"可逆冻结"。
- *
- * <p>设计要点：
+ * <p>负责基于季节轨道的采样结果，在玩家周围区域：
  * <ul>
- *   <li>✅ Chunk 分区扫描（13×13 chunk），避免全世界扫描卡顿</li>
- *   <li>✅ 原始方块缓存（记录原始水方块），确保 100% 可恢复</li>
- *   <li>✅ 后台线程扫描 + 主线程方块更新（线程安全）</li>
- *   <li>✅ 使用 freezeStrength 控制冰冻覆盖概率（0.0 = 没有覆盖，1.0 = 几乎全覆盖）</li>
+ *   <li>将水面按「冰覆盖度 + 噪声场」转为冰块</li>
+ *   <li>将不再需要的冰块恢复为原始水状态</li>
+ *   <li>保证可以在删除轨道 / 关闭 ChronoBlocks 时完全恢复世界</li>
+ *   <li>⭐ v3.6：支持动态扫描，随镜头/玩家移动持续更新冰冻效果</li>
  * </ul>
  *
- * <p>冻结逻辑：
+ * <p>核心设计：
  * <ul>
- *   <li>freezeStrength 控制冰冻覆盖概率（0.0 = 不冻结，1.0 = 几乎全覆盖）</li>
- *   <li>使用随机采样决定每个水面是否冻结</li>
- *   <li>freezeStrength 降低后逐步融化</li>
- * </ul>
- *
- * <p>注意：
- * <ul>
- *   <li>仅客户端视觉，不会污染世界存档</li>
- *   <li>必须在导演模式或季节轨道激活时运行</li>
- *   <li>所有冻结都可以 100% 恢复为原始水方块</li>
+ *   <li>使用 {@link NoiseField#iceCoverage(BlockPos)} 生成 0~1 连续噪声值</li>
+ *   <li>通过 freezeStrength（0~1）作为阈值：noise < strength → 结冰</li>
+ *   <li>异步扫描 + 主线程应用 blockState，避免卡顿 & 线程问题</li>
+ *   <li>⭐ v3.6：每 tick 检测玩家位置变化，移动超过阈值时重新扫描</li>
  * </ul>
  *
  * @author ChronoBlocks Team
- * @version 2.0 - Chunk 分区扫描 + 原始方块缓存 + 完整可恢复
+ * @version 3.6 - 动态扫描支持
  */
 public class WaterFreezeManager {
+
     private static final Logger LOGGER = LoggerFactory.getLogger(WaterFreezeManager.class);
 
-    // === 单例 ===
-
+    /** 单例 */
     private static WaterFreezeManager INSTANCE;
+
+    /** 冻结作用半径（以方块为单位） */
+    private static final int FREEZE_RADIUS = 48;
+
+    /** 最小覆盖度阈值，低于此值视为不需要结冰 */
+    private static final float MIN_COVERAGE_EPS = 0.01f;
+
+    /** 异步线程池：只做「扫描 + 计算」，不直接改方块 */
+    private final ExecutorService executor = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "ChronoBlocks-WaterFreeze");
+        t.setDaemon(true);
+        return t;
+    });
+
+    /**
+     * 记录已经被我们替换成冰的方块位置。
+     * <p>注意：不代表所有冰块，只代表「由本系统生成的冰」。
+     */
+    private final Set<BlockPos> currentIcePositions =
+            Collections.newSetFromMap(new ConcurrentHashMap<>());
+
+    /**
+     * 记录每个被替换位置的「原始水 BlockState」，用于恢复。
+     */
+    private final Map<BlockPos, BlockState> originalWaterStates =
+            new ConcurrentHashMap<>();
+
+    /** 最近一次应用的 sample（用于动态扫描） */
+    private volatile SeasonSample lastSample;
+
+    /** 当前是否正在异步扫描（防止堆积过多任务） */
+    private final AtomicBoolean scanning = new AtomicBoolean(false);
+
+    /** 上次扫描时的玩家位置（用于检测移动） */
+    private BlockPos lastScanPos = null;
+
+    /** 位置变化阈值：玩家移动超过此距离时重新扫描（以方块为单位） */
+    private static final int POSITION_CHANGE_THRESHOLD = 16;
+
+    private WaterFreezeManager() {}
 
     public static WaterFreezeManager get() {
         if (INSTANCE == null) {
@@ -59,140 +93,80 @@ public class WaterFreezeManager {
         return INSTANCE;
     }
 
-    // ========= 配置参数 =========
-
-    /** 扫描范围（以 chunk 为单位）：玩家中心 ±6 → 13×13 chunk */
-    private static final int SCAN_RADIUS_CHUNKS = 6;
-
-    /** 每 tick 处理的最大主线程任务数（避免卡顿） */
-    private static final int MAX_MAIN_THREAD_TASKS_PER_TICK = 64;
-    /** 最大有效覆盖度，确保始终留有未冻结的空白区域 */
-    private static final float MAX_EFFECTIVE_COVERAGE = 0.9f;
-    private static final float STRENGTH_EPSILON = 0.01f;
-
-    // ========= 状态 =========
-
-    /** 后台扫描线程池 */
-    private final ExecutorService scanExecutor = Executors.newSingleThreadExecutor(
-            r -> {
-                Thread t = new Thread(r, "ChronoBlocks-WaterFreezeScanThread");
-                t.setDaemon(true);
-                return t;
-            }
-    );
-
-    /** 主线程任务队列（用于安全的方块写操作） */
-    private final Queue<Runnable> mainThreadTasks = new ConcurrentLinkedQueue<>();
-
-    /** 当前采样（从 SeasonController 推送） */
-    private volatile SeasonSample currentSample = SeasonSample.disabled();
-
-    /** 冰冻缓存（记录被冻结的水方块的原始类型） */
-    private final Map<BlockPos, BlockStateRecord> originalWater = new ConcurrentHashMap<>();
-
-    /** 记录结构：原始方块类型 */
-    private record BlockStateRecord(Block originalBlock) {}
-
-    /** 是否需要重新扫描（当 sample 变化时设置） */
-    private volatile boolean needsRescan = true;
-
-    /** 避免重复提交扫描任务 */
-    private volatile boolean scanRunning = false;
-
-    private WaterFreezeManager() {
-    }
-
-    // ================================================
-    // 入口 1：季节 Sample 更新（由 TimelineSeasonController 调用）
-    // ================================================
+    // ========================================================================
+    // 对外 API（兼容旧接口）
+    // ========================================================================
 
     /**
-     * 接收季节采样更新（v2.0 API）。
+     * 兼容旧接口：onSeasonSampleUpdated
      * 
-     * <p>兼容现有代码：同时支持 `onSeasonSampleUpdated` 和 `onSeasonSampleChanged`。
-     * 
-     * @param sample 季节采样，如果为 null 表示没有季节覆盖
+     * @deprecated 使用 {@link #applySeasonSample(SeasonSample)} 代替
      */
+    @Deprecated
     public void onSeasonSampleUpdated(SeasonSample sample) {
-        onSeasonSampleChanged(sample);
+        applySeasonSample(sample);
     }
 
     /**
-     * 接收季节采样更新（v2.0 新方法名）。
+     * 兼容旧接口：onSeasonSampleChanged
      * 
-     * @param sample 季节采样，如果为 null 表示没有季节覆盖
+     * @deprecated 使用 {@link #applySeasonSample(SeasonSample)} 代替
      */
+    @Deprecated
     public void onSeasonSampleChanged(SeasonSample sample) {
-        SeasonSample newSample = sample != null ? sample : SeasonSample.disabled();
-        SeasonSample oldSample = this.currentSample;
-
-        // 如果参数没有变化，不触发重新扫描
-        if (newSample.equals(oldSample)) {
-            return;
-        }
-
-        this.currentSample = newSample;
-
-        boolean enabledChanged = newSample.enabled != oldSample.enabled;
-        boolean freezeChanged = Math.abs(newSample.freezeStrength - oldSample.freezeStrength) > STRENGTH_EPSILON;
-
-        if (enabledChanged || freezeChanged) {
-            this.needsRescan = true;
-        }
+        applySeasonSample(sample);
     }
 
-    // ================================================
-    // 入口 2：每 tick 调用（由客户端 Tick）
-    // ================================================
+    /**
+     * 兼容旧接口：restoreAll
+     */
+    public void restoreAll(ClientWorld world) {
+        clearAll();
+    }
 
     /**
-     * 每 tick 调用（v2.0 API，接受 world 和 cameraPos 参数）。
+     * 每 tick 调用：检查玩家位置变化，如果移动超过阈值则重新扫描。
      * 
-     * <p>先处理主线程上的改方块逻辑，再启动异步扫描。
+     * <p>v3.6：恢复 tick 机制以支持动态扫描，但只用于检测位置变化。
      * 
      * @param world 客户端世界
      * @param cameraPos 摄像机位置（用于确定扫描中心）
      */
-    public void tick(ClientWorld world, Vec3d cameraPos) {
+    public void tick(ClientWorld world, net.minecraft.util.math.Vec3d cameraPos) {
         if (world == null) {
             return;
         }
 
-        // 1) 执行主线程任务（冻结/解冻）
-        runMainThreadTasks(world);
-
-        // 2) 冰冻强度为 0 或未启用 → 立即清除全部冰
-        if (!currentSample.enabled || currentSample.freezeStrength <= 0.01f) {
-            if (!originalWater.isEmpty()) {
-                removeAllIce(world);
-            }
+        // 如果没有有效的季节采样，不需要扫描
+        if (lastSample == null || !lastSample.enabled || lastSample.freezeStrength <= MIN_COVERAGE_EPS) {
             return;
         }
 
-        // 3) 需要重新扫描时，提交后台扫描任务
-        if (needsRescan && !scanRunning) {
-            needsRescan = false;
-            scanRunning = true;
+        // 检查玩家位置变化
+        BlockPos currentPos = BlockPos.ofFloored(cameraPos);
+        if (lastScanPos == null) {
+            // 首次扫描
+            lastScanPos = currentPos;
+            scheduleScanAndApply(lastSample);
+            return;
+        }
 
-            BlockPos playerPos = BlockPos.ofFloored(cameraPos);
-            SeasonSample sampleSnapshot = currentSample.copy(); // 深拷贝，避免并发修改
+        // 计算位置变化距离
+        int dx = Math.abs(currentPos.getX() - lastScanPos.getX());
+        int dz = Math.abs(currentPos.getZ() - lastScanPos.getZ());
+        int distance = Math.max(dx, dz);
 
-            scanExecutor.submit(() -> {
-                try {
-                    scanAndApply(world, playerPos, sampleSnapshot);
-                } catch (Exception e) {
-                    LOGGER.warn("[WaterFreezeManager] 扫描任务出错", e);
-                } finally {
-                    scanRunning = false;
-                }
-            });
+        // 如果移动超过阈值，重新扫描
+        if (distance >= POSITION_CHANGE_THRESHOLD) {
+            lastScanPos = currentPos;
+            scheduleScanAndApply(lastSample);
         }
     }
 
     /**
      * 每 tick 调用（向后兼容，自动获取玩家位置）。
      * 
-     * @deprecated 使用 {@link #tick(ClientWorld, Vec3d)} 代替
+     * @deprecated 使用 {@link #tick(ClientWorld, net.minecraft.util.math.Vec3d)} 代替
      */
     @Deprecated
     public void tick() {
@@ -203,251 +177,263 @@ public class WaterFreezeManager {
         tick(mc.world, mc.player.getPos());
     }
 
-    // ================================================
-    // 扫描世界（后台线程）
-    // ================================================
+    // ========================================================================
+    // 新 API（v3.5）
+    // ========================================================================
 
     /**
-     * 扫描玩家周围的 chunk，计算需要冻结/解冻的水。
+     * 由 TimelineSeasonController 调用：
+     * <p>每当 SeasonSample 更新时（Timeline 播放 / 拖动 / 预览），调用一次。
+     *
+     * @param sample 当前时间点的季节采样结果
      */
-    private void scanAndApply(ClientWorld world, BlockPos playerPos, SeasonSample sample) {
-        float coverage = applyCoverageLimit(sample.freezeStrength);  // 覆盖概率 [0, 1]
-        if (coverage <= STRENGTH_EPSILON) {
+    public void applySeasonSample(SeasonSample sample) {
+        this.lastSample = sample;
+        
+        // 重置扫描位置，确保下次 tick 时会立即扫描新位置
+        if (sample != null && sample.enabled && sample.freezeStrength > MIN_COVERAGE_EPS) {
+            lastScanPos = null;
+        }
+        
+        if (sample == null || !sample.enabled) {
+            // 没有季节数据 → 解冻所有我们修改过的冰
+            lastScanPos = null;
+            scheduleFullClear();
             return;
         }
 
-        Set<BlockPos> newIce = new HashSet<>();
-        Set<BlockPos> restore = new HashSet<>(originalWater.keySet()); // 初始：所有旧冰都假定需要恢复
-
-        int px = playerPos.getX() >> 4; // chunk X
-        int pz = playerPos.getZ() >> 4; // chunk Z
-
-        // 随机化 chunk 扫描顺序，避免扫描线效果
-        List<int[]> chunkOrder = new ArrayList<>();
-        for (int cx = px - SCAN_RADIUS_CHUNKS; cx <= px + SCAN_RADIUS_CHUNKS; cx++) {
-            for (int cz = pz - SCAN_RADIUS_CHUNKS; cz <= pz + SCAN_RADIUS_CHUNKS; cz++) {
-                chunkOrder.add(new int[]{cx, cz});
-            }
-        }
-        Collections.shuffle(chunkOrder, new Random(Objects.hash(px, pz, 1337)));
-
-        for (int[] chunk : chunkOrder) {
-            scanChunkForWater(world, chunk[0], chunk[1], coverage, newIce);
+        // 如果覆盖度非常低，只做"解冻"操作即可
+        // 注意：使用 freezeStrength 而不是 iceCoverageStrength（保持兼容性）
+        if (sample.freezeStrength <= MIN_COVERAGE_EPS) {
+            lastScanPos = null;
+            scheduleMeltOnly();
+            return;
         }
 
-        // 按随机顺序应用新冰，避免线性铺开
-        List<BlockPos> newIceList = new ArrayList<>(newIce);
-        Collections.shuffle(newIceList, new Random(Objects.hash(px, pz, 2333)));
-
-        for (BlockPos pos : newIceList) {
-            restore.remove(pos); // 新冰中仍存在 → 不需要恢复
-
-            if (!originalWater.containsKey(pos)) {
-                // 记录原始方块（在主线程中记录，避免并发问题）
-                BlockPos immutablePos = pos.toImmutable();
-                Block originalBlock = world.getBlockState(immutablePos).getBlock();
-
-                originalWater.put(immutablePos, new BlockStateRecord(originalBlock));
-
-                enqueueMainThread(world, immutablePos, true);
-            }
-        }
-
-        // 不在新冰中的旧冰 → 恢复（同样随机顺序，减少条带感）
-        List<BlockPos> restoreList = new ArrayList<>(restore);
-        Collections.shuffle(restoreList, new Random(Objects.hash(px, pz, 3223)));
-        for (BlockPos pos : restoreList) {
-            BlockPos immutablePos = pos.toImmutable();
-            enqueueMainThread(world, immutablePos, false);
-            originalWater.remove(immutablePos);
-        }
+        scheduleScanAndApply(sample);
     }
 
     /**
-     * 扫描单个 chunk 寻找水面（基于噪声场的覆盖度判断）。
+     * 删除季节轨道 / 删除所有关键帧 / 关闭 ChronoBlocks 时调用：
+     * <p>完全恢复世界（所有由本系统生成的冰块都恢复为原始水）。
      */
-    private void scanChunkForWater(ClientWorld world, int chunkX, int chunkZ,
-                                   float coverage, Set<BlockPos> outNewIce) {
-        // 遍历 chunk 中的所有方块，使用噪声场决定是否冻结
-        for (int bx = 0; bx < 16; bx++) {
-            for (int bz = 0; bz < 16; bz++) {
-                int wx = chunkX * 16 + bx;
-                int wz = chunkZ * 16 + bz;
+    public void clearAll() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        ClientWorld world = client.world;
+        if (world == null) {
+            currentIcePositions.clear();
+            originalWaterStates.clear();
+            lastScanPos = null;
+            return;
+        }
 
-                BlockPos waterPos = findTopWater(world, wx, wz);
-                if (waterPos == null) continue;
-
-                // 避免重复
-                if (originalWater.containsKey(waterPos) || outNewIce.contains(waterPos)) {
-                    continue;
-                }
-
-                // 使用噪声场决定是否覆盖冰
-                // 噪声值 < coverage 的位置会被冻结，这样 coverage 越大，冻结的区域越多
-                float noiseValue = com.chronoblocks.season.NoiseField.iceCoverage(waterPos);
-                if (com.chronoblocks.season.NoiseField.shouldCover(waterPos, coverage, noiseValue)) {
-                    outNewIce.add(waterPos.toImmutable());
+        client.execute(() -> {
+            int restored = 0;
+            for (BlockPos pos : new HashSet<>(currentIcePositions)) {
+                BlockState original = originalWaterStates.remove(pos);
+                if (original != null) {
+                    world.setBlockState(pos, original);
+                    restored++;
                 }
             }
-        }
-    }
+            currentIcePositions.clear();
+            lastScanPos = null;
 
-    // ================================================
-    // 主线程任务执行
-    // ================================================
-
-    /**
-     * 将任务加入主线程队列。
-     */
-    private void enqueueMainThread(ClientWorld world, BlockPos pos, boolean freeze) {
-        mainThreadTasks.offer(() -> {
-            if (freeze) {
-                applyFrozen(world, pos);
-            } else {
-                restoreOriginal(world, pos);
+            if (restored > 0) {
+                LOGGER.info("[WaterFreezeManager] 恢复 {} 个冰块为原始水状态（clearAll）", restored);
             }
         });
     }
 
     /**
-     * 执行主线程任务（每 tick 调用）。
-     */
-    private void runMainThreadTasks(ClientWorld world) {
-        int count = 0;
-        Runnable task;
-        while (count < MAX_MAIN_THREAD_TASKS_PER_TICK && (task = mainThreadTasks.poll()) != null) {
-            task.run();
-            count++;
-        }
-    }
-
-    /**
-     * 将覆盖度限制在安全范围内，保证始终留有少量未冻结区域。
-     */
-    private float applyCoverageLimit(float coverage) {
-        if (coverage <= 0f) {
-            return 0f;
-        }
-        return Math.min(MAX_EFFECTIVE_COVERAGE, Math.min(1f, coverage));
-    }
-
-    // ================================================
-    // 方块操作（主线程）
-    // ================================================
-
-    /**
-     * 应用冰冻（将水替换为冰）。
-     */
-    private void applyFrozen(ClientWorld world, BlockPos pos) {
-        if (world == null) return;
-
-        BlockState state = world.getBlockState(pos);
-
-        // 仅冻结水源（Flowing 也可支持）
-        if (state.isOf(Blocks.WATER) || state.getBlock() instanceof FluidBlock) {
-            // 使用 FROSTED_ICE（霜冰）作为视觉效果，比普通 ICE 更明显
-            world.setBlockState(pos, Blocks.FROSTED_ICE.getDefaultState(), 3);
-        }
-    }
-
-    /**
-     * 恢复原始方块（将冰恢复为水）。
-     */
-    private void restoreOriginal(ClientWorld world, BlockPos pos) {
-        if (world == null) return;
-
-        BlockStateRecord rec = originalWater.get(pos);
-        if (rec == null) {
-            // 没有记录，但可能是冰 → 恢复为水
-            BlockState currentState = world.getBlockState(pos);
-            if (currentState.isOf(Blocks.ICE) || currentState.isOf(Blocks.FROSTED_ICE)) {
-                world.setBlockState(pos, Blocks.WATER.getDefaultState(), 3);
-            }
-            return;
-        }
-
-        // 恢复原始方块
-        world.setBlockState(pos, rec.originalBlock().getDefaultState(), 3);
-    }
-
-    // ================================================
-    // 清除所有冰
-    // ================================================
-
-    /**
-     * 清除所有冰（退出导演模式时调用）。
-     */
-    private void removeAllIce(ClientWorld world) {
-        if (world == null) return;
-
-        for (BlockPos pos : originalWater.keySet()) {
-            restoreOriginal(world, pos);
-        }
-        originalWater.clear();
-        mainThreadTasks.clear();
-    }
-
-    /**
-     * 退出导演模式 / 禁用季节系统时，完全恢复我们修改的所有冰块。
-     */
-    public void restoreAll(ClientWorld world) {
-        removeAllIce(world);
-        LOGGER.info("[WaterFreezeManager] 已清除所有冰块并恢复原始水方块");
-    }
-
-    // ================================================
-    // 工具方法
-    // ================================================
-
-    /**
-     * 在垂直方向上找一个合适的水面方块。
-     */
-    private BlockPos findTopWater(ClientWorld world, int x, int z) {
-        try {
-            // 从顶部向下查找（从地表附近开始）
-            // 使用 Heightmap 获取地表高度（Minecraft 1.21.4 API）
-            BlockPos topPos = world.getTopPosition(net.minecraft.world.Heightmap.Type.WORLD_SURFACE, new BlockPos(x, 0, z));
-            int startY = Math.min(topPos.getY(), 256);
-            int endY = Math.max(world.getBottomY(), -64);
-
-            BlockPos.Mutable mutable = new BlockPos.Mutable(x, startY, z);
-
-            for (int y = startY; y >= endY; y--) {
-                mutable.setY(y);
-                BlockState state = world.getBlockState(mutable);
-
-                if (state.isOf(Blocks.WATER) || state.getBlock() instanceof FluidBlock) {
-                    // 水上方必须是空气
-                    BlockPos above = mutable.up();
-                    if (world.isAir(above)) {
-                        return mutable.toImmutable();
-                    }
-                }
-
-                // 如果遇到非空气、非水的固体方块，停止向下搜索（水面应该在上方）
-                if (!state.isAir() && !state.isOf(Blocks.WATER) && 
-                    !(state.getBlock() instanceof FluidBlock) && 
-                    state.isSolidBlock(world, mutable)) {
-                    break;
-                }
-            }
-
-            return null;
-        } catch (Exception e) {
-            LOGGER.warn("[WaterFreezeManager] 查找水面失败 ({}, {})", x, z, e);
-            return null;
-        }
-    }
-
-    // ================================================
-    // 可选：在世界卸载时关闭线程
-    // ================================================
-
-    /**
      * 关闭工作线程（在世界卸载时调用，可选）。
      */
     public void shutdown() {
-        scanExecutor.shutdownNow();
-        mainThreadTasks.clear();
+        executor.shutdownNow();
+        currentIcePositions.clear();
+        originalWaterStates.clear();
+    }
+
+    // ========================================================================
+    // 调度逻辑
+    // ========================================================================
+
+    /**
+     * 安排一次完整扫描：根据 sample 对玩家周围区域「结冰 + 解冻」。
+     */
+    private void scheduleScanAndApply(SeasonSample sample) {
+        if (!scanning.compareAndSet(false, true)) {
+            // 已有扫描任务在执行，略过这次，避免堆积
+            return;
+        }
+
+        executor.submit(() -> {
+            try {
+                scanAndApplyFrozenField(sample);
+            } catch (Throwable t) {
+                LOGGER.error("[WaterFreezeManager] 扫描/应用冰冻区域时出错", t);
+            } finally {
+                scanning.set(false);
+            }
+        });
+    }
+
+    /**
+     * 覆盖度接近 0 时，只需融化我们之前冻住的冰块。
+     */
+    private void scheduleMeltOnly() {
+        if (!scanning.compareAndSet(false, true)) {
+            return;
+        }
+        executor.submit(() -> {
+            try {
+                meltAllCurrentIce();
+            } catch (Throwable t) {
+                LOGGER.error("[WaterFreezeManager] 融化冰块时出错", t);
+            } finally {
+                scanning.set(false);
+            }
+        });
+    }
+
+    /**
+     * 没有 sample 时（轨道被清空），完全恢复所有冰块。
+     */
+    private void scheduleFullClear() {
+        if (!scanning.compareAndSet(false, true)) {
+            return;
+        }
+        executor.submit(() -> {
+            try {
+                meltAllCurrentIce();
+            } catch (Throwable t) {
+                LOGGER.error("[WaterFreezeManager] 完全清除冰块时出错", t);
+            } finally {
+                scanning.set(false);
+            }
+        });
+    }
+
+    // ========================================================================
+    // 核心：扫描 + 计算 + 主线程应用
+    // ========================================================================
+
+    /**
+     * 扫描玩家周围区域，根据：
+     * <ul>
+     *   <li>SeasonSample.freezeStrength</li>
+     *   <li>{@link NoiseField#iceCoverage(BlockPos)}</li>
+     * </ul>
+     * 计算出需要结冰 / 解冻的方块，然后在主线程应用。
+     */
+    private void scanAndApplyFrozenField(SeasonSample sample) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        ClientWorld world = client.world;
+        if (world == null || client.player == null) {
+            return;
+        }
+
+        BlockPos playerPos = client.player.getBlockPos();
+        // 使用 freezeStrength（保持与现有 SeasonSample 兼容）
+        float coverage = sample.freezeStrength; // [0,1]
+
+        // 收集需要结冰 / 解冻的方块
+        Set<BlockPos> toFreeze = new HashSet<>();
+        Set<BlockPos> toMelt = new HashSet<>();
+
+        // 1. 遍历玩家周围的水面（简化为以地表高度为准）
+        for (int dx = -FREEZE_RADIUS; dx <= FREEZE_RADIUS; dx++) {
+            for (int dz = -FREEZE_RADIUS; dz <= FREEZE_RADIUS; dz++) {
+
+                BlockPos surface = world.getTopPosition(
+                        Heightmap.Type.WORLD_SURFACE,
+                        playerPos.add(dx, 0, dz)
+                ).down();
+
+                BlockState state = world.getBlockState(surface);
+
+                boolean isWater = state.getBlock() == Blocks.WATER;
+                boolean isIce = state.getBlock() == Blocks.ICE || state.getBlock() == Blocks.FROSTED_ICE;
+
+                // 计算噪声场值（0~1）
+                float noise = NoiseField.iceCoverage(surface);
+
+                // 使用 coverage 作为阈值：noise < coverage → 该位置「应该结冰」
+                boolean shouldBeFrozen = noise < coverage;
+
+                if (isWater && shouldBeFrozen) {
+                    toFreeze.add(surface);
+                } else if (isIce && !shouldBeFrozen && currentIcePositions.contains(surface)) {
+                    // 只对「由本系统生成」的冰块做解冻
+                    toMelt.add(surface);
+                }
+            }
+        }
+
+        if (toFreeze.isEmpty() && toMelt.isEmpty()) {
+            return;
+        }
+
+        // 2. 在主线程应用方块状态修改
+        client.execute(() -> applyFreezeChanges(world, toFreeze, toMelt));
+    }
+
+    /**
+     * 只做"融化所有当前冰块"。
+     */
+    private void meltAllCurrentIce() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        ClientWorld world = client.world;
+        if (world == null) {
+            currentIcePositions.clear();
+            originalWaterStates.clear();
+            return;
+        }
+
+        Set<BlockPos> toMelt = new HashSet<>(currentIcePositions);
+        if (toMelt.isEmpty()) {
+            return;
+        }
+
+        client.execute(() -> applyFreezeChanges(world, Collections.emptySet(), toMelt));
+    }
+
+    /**
+     * 真正执行方块替换的地方（必须在客户端主线程调用）。
+     */
+    private void applyFreezeChanges(ClientWorld world,
+                                    Set<BlockPos> toFreeze,
+                                    Set<BlockPos> toMelt) {
+
+        int freezeCount = 0;
+        int meltCount = 0;
+
+        // 先融化不需要的冰
+        for (BlockPos pos : toMelt) {
+            BlockState original = originalWaterStates.remove(pos);
+            if (original != null) {
+                world.setBlockState(pos, original);
+                meltCount++;
+            }
+            currentIcePositions.remove(pos);
+        }
+
+        // 再冻结需要的水
+        for (BlockPos pos : toFreeze) {
+            BlockState state = world.getBlockState(pos);
+            if (state.getBlock() == Blocks.WATER) {
+                // 如果之前没记录过原始状态，则记录一次
+                originalWaterStates.putIfAbsent(pos, state);
+                // 使用 FROSTED_ICE（霜冰）作为视觉效果，比普通 ICE 更明显
+                world.setBlockState(pos, Blocks.FROSTED_ICE.getDefaultState());
+                currentIcePositions.add(pos);
+                freezeCount++;
+            }
+        }
+
+        if (freezeCount > 0 || meltCount > 0) {
+            LOGGER.debug("[WaterFreezeManager] 冻结 {}，融化 {}（当前冰块总数={}）",
+                    freezeCount, meltCount, currentIcePositions.size());
+        }
     }
 }
