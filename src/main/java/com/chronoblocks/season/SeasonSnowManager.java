@@ -66,8 +66,8 @@ public class SeasonSnowManager {
 
     // ========= 配置参数 =========
 
-    /** 扫描范围（以 chunk 为单位）：玩家中心 ±6 → 13×13 chunk */
-    private static final int SCAN_RADIUS_CHUNKS = 6;
+    /** 扫描范围（以 chunk 为单位）：玩家中心 ±10 → 21×21 chunk */
+    private static final int SCAN_RADIUS_CHUNKS = 10;
 
     /** 最大雪层数（SnowBlock LAYERS 支持 1~8 层，但可以叠加到10层） */
     private static final int MAX_LAYERS = 8;
