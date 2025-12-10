@@ -351,9 +351,14 @@ public class SeasonSnowManager {
                             float noiseValue = NoiseField.snowCoverage(snowPlacePos);
                             noiseValueMap.put(snowPlacePos.toImmutable(), noiseValue);
                             
-                            float threshold = applyCoverageLimit(snowAmount * snowlineProbability);
+                            // 计算阈值：snowAmount 已经经过 applyCoverageLimit，这里只需要乘以高度修正因子
+                            // 注意：snowAmount 已经在第 310 行被限制在 [0, 0.97] 范围内
+                            float threshold = snowAmount * snowlineProbability;
                             
                             // 如果噪声值小于阈值，则应该被覆盖
+                            // 噪声值范围 [0, 1]，阈值范围 [0, 0.97]
+                            // 当 snowAmount = 0.97, snowlineProbability = 1.0 时，threshold = 0.97，约 97% 区域覆盖
+                            // 当 snowAmount = 0.5, snowlineProbability = 1.0 时，threshold = 0.5，约 50% 区域覆盖
                             if (noiseValue < threshold) {
                                 initialCoverage.add(snowPlacePos.toImmutable());
                             }
@@ -404,7 +409,8 @@ public class SeasonSnowManager {
                     NoiseField.snowCoverage(neighborPlacePos));
                 noiseValueMap.put(neighborPlacePos.toImmutable(), neighborNoiseValue);
                 
-                float neighborThreshold = applyCoverageLimit(snowAmount * neighborSnowlineProbability);
+                // 计算邻居阈值：snowAmount 已经经过 applyCoverageLimit，这里只需要乘以高度修正因子
+                float neighborThreshold = snowAmount * neighborSnowlineProbability;
                 
                 // 如果邻居也满足阈值，则标记为覆盖并继续传播
                 if (neighborNoiseValue < neighborThreshold) {
@@ -828,6 +834,7 @@ public class SeasonSnowManager {
      *   <li>✅ 某些透明方块（如树叶、玻璃等）可以放置积雪</li>
      *   <li>❌ 植物方块（如竹子、草、花等）不能放置积雪（太细）</li>
      *   <li>❌ 流体、空气、雪本身不能放置积雪</li>
+     *   <li>❌ 冰面（ICE、FROSTED_ICE）不能放置积雪</li>
      * </ul>
      * 
      * @param state 方块状态
@@ -848,6 +855,11 @@ public class SeasonSnowManager {
 
         // 不能是雪本身
         if (state.isOf(Blocks.SNOW)) {
+            return false;
+        }
+
+        // ⭐ 不能是冰面（ICE、FROSTED_ICE）
+        if (state.isOf(Blocks.ICE) || state.isOf(Blocks.FROSTED_ICE)) {
             return false;
         }
 
