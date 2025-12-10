@@ -13,7 +13,6 @@ import java.util.EnumSet;
  *   <li>📷 摄像机轨道 - 控制观察视角和镜头运动</li>
  *   <li>🌤️ 天气轨道 - 控制 Minecraft 天气和光照</li>
  *   <li>🕐 时间轨道 - 控制完整一天的时间变化</li>
- *   <li>📝 标记轨道 - 添加时间标记和注释</li>
  * </ul>
  */
 public enum TrackType {
@@ -63,18 +62,6 @@ public enum TrackType {
         rgba(200, 120, 40),
         "控制 Minecraft 世界时间，设置完整一天的时间变化",
         EnumSet.of(TrackFeature.KEYFRAMES, TrackFeature.TIME_AUTOMATION)
-    ),
-
-    /**
-     * 标记轨道 - 添加时间标记和注释。
-     */
-    MARKER(
-        "标记轨道",
-        Icons.TAG,
-        rgba(180, 180, 180),
-        rgba(100, 100, 100),
-        "添加时间标记和注释，组织剧情或分镜",
-        EnumSet.of(TrackFeature.KEYFRAMES, TrackFeature.MARKERS)
     ),
 
     /**

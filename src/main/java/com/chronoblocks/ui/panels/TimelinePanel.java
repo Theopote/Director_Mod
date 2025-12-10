@@ -13,7 +13,6 @@ import com.chronoblocks.ui.timeline.model.TimelineSelectable;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.TimelineViewportState;
-import com.chronoblocks.ui.timeline.model.TimelineMarker;
 import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
 import com.chronoblocks.ui.timeline.model.time.TimeKeyframe;
 import com.chronoblocks.ui.timeline.model.weather.WeatherKeyframe;
@@ -1146,13 +1145,6 @@ public class TimelinePanel extends AbstractPanel
                 com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController.getInstance()
                         .rebuildFromActiveTrack();
                 
-                handled = true;
-            } else if (type.supportsMarkers() && !type.supportsClips()) {
-                commandHistory.executeCommand(new AddAutomationKeyframeCommand(
-                        model,
-                        track,
-                        new TimelineMarker("Marker @" + timeLabel, time)
-                ));
                 handled = true;
             }
         }

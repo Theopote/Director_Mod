@@ -505,7 +505,7 @@ public class TimelineModel {
     }
 
     /**
-     * 为标记轨道添加时间标记。
+     * 为支持标记的轨道添加时间标记。
      */
     public TimelineMarker addMarker(TimelineTrack track, float timeSeconds, String label) {
         if (track == null || track.getType() == null || !track.getType().supportsMarkers()) {

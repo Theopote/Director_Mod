@@ -443,14 +443,6 @@ public class TimelineContextMenuFactory {
                             track,
                             new WeatherKeyframe("Weather @" + formatTime(time), time)))
                 .end();
-            case MARKER -> builder
-                .submenu("标记")
-                    .command("添加标记",
-                        new AddAutomationKeyframeCommand(
-                            model,
-                            track,
-                            new TimelineMarker("Marker @" + formatTime(time), time)))
-                .end();
             default -> { /* no-op */ }
         }
     }
