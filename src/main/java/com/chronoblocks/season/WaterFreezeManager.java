@@ -67,7 +67,8 @@ public class WaterFreezeManager {
     /** 每 tick 处理的最大主线程任务数（避免卡顿） */
     private static final int MAX_MAIN_THREAD_TASKS_PER_TICK = 64;
     /** 最大有效覆盖度，确保始终留有未冻结的空白区域 */
-    private static final float MAX_EFFECTIVE_COVERAGE = 0.97f;
+    private static final float MAX_EFFECTIVE_COVERAGE = 0.9f;
+    private static final float STRENGTH_EPSILON = 0.01f;
 
     // ========= 状态 =========
 
@@ -123,14 +124,21 @@ public class WaterFreezeManager {
      */
     public void onSeasonSampleChanged(SeasonSample sample) {
         SeasonSample newSample = sample != null ? sample : SeasonSample.disabled();
-        
+        SeasonSample oldSample = this.currentSample;
+
         // 如果参数没有变化，不触发重新扫描
-        if (newSample.equals(this.currentSample)) {
+        if (newSample.equals(oldSample)) {
             return;
         }
-        
+
         this.currentSample = newSample;
-        this.needsRescan = true;
+
+        boolean enabledChanged = newSample.enabled != oldSample.enabled;
+        boolean freezeChanged = Math.abs(newSample.freezeStrength - oldSample.freezeStrength) > STRENGTH_EPSILON;
+
+        if (enabledChanged || freezeChanged) {
+            this.needsRescan = true;
+        }
     }
 
     // ================================================
@@ -203,8 +211,8 @@ public class WaterFreezeManager {
      * 扫描玩家周围的 chunk，计算需要冻结/解冻的水。
      */
     private void scanAndApply(ClientWorld world, BlockPos playerPos, SeasonSample sample) {
-        float strength = applyCoverageLimit(sample.freezeStrength);  // 覆盖概率 [0, 1]
-        if (strength <= 0f) {
+        float coverage = applyCoverageLimit(sample.freezeStrength);  // 覆盖概率 [0, 1]
+        if (coverage <= STRENGTH_EPSILON) {
             return;
         }
 
@@ -214,16 +222,24 @@ public class WaterFreezeManager {
         int px = playerPos.getX() >> 4; // chunk X
         int pz = playerPos.getZ() >> 4; // chunk Z
 
-        // 遍历周围 chunk
+        // 随机化 chunk 扫描顺序，避免扫描线效果
+        List<int[]> chunkOrder = new ArrayList<>();
         for (int cx = px - SCAN_RADIUS_CHUNKS; cx <= px + SCAN_RADIUS_CHUNKS; cx++) {
             for (int cz = pz - SCAN_RADIUS_CHUNKS; cz <= pz + SCAN_RADIUS_CHUNKS; cz++) {
-                // 对每个 chunk 进行采样
-                scanChunkForWater(world, cx, cz, strength, newIce);
+                chunkOrder.add(new int[]{cx, cz});
             }
         }
+        Collections.shuffle(chunkOrder, new Random(Objects.hash(px, pz, 1337)));
 
-        // 新冰：添加
-        for (BlockPos pos : newIce) {
+        for (int[] chunk : chunkOrder) {
+            scanChunkForWater(world, chunk[0], chunk[1], coverage, newIce);
+        }
+
+        // 按随机顺序应用新冰，避免线性铺开
+        List<BlockPos> newIceList = new ArrayList<>(newIce);
+        Collections.shuffle(newIceList, new Random(Objects.hash(px, pz, 2333)));
+
+        for (BlockPos pos : newIceList) {
             restore.remove(pos); // 新冰中仍存在 → 不需要恢复
 
             if (!originalWater.containsKey(pos)) {
@@ -237,8 +253,10 @@ public class WaterFreezeManager {
             }
         }
 
-        // 不在新冰中的旧冰 → 恢复
-        for (BlockPos pos : restore) {
+        // 不在新冰中的旧冰 → 恢复（同样随机顺序，减少条带感）
+        List<BlockPos> restoreList = new ArrayList<>(restore);
+        Collections.shuffle(restoreList, new Random(Objects.hash(px, pz, 3223)));
+        for (BlockPos pos : restoreList) {
             BlockPos immutablePos = pos.toImmutable();
             enqueueMainThread(world, immutablePos, false);
             originalWater.remove(immutablePos);
@@ -246,14 +264,11 @@ public class WaterFreezeManager {
     }
 
     /**
-     * 扫描单个 chunk 寻找水面（密集采样 + 邻接传播，确保连续性）。
+     * 扫描单个 chunk 寻找水面（基于噪声场的覆盖度判断）。
      */
-    private void scanChunkForWater(ClientWorld world, int chunkX, int chunkZ, 
-                                   float strength, Set<BlockPos> outNewIce) {
-        // 第一轮：密集采样，使用噪声场决定初始覆盖位置
-        Set<BlockPos> initialCoverage = new HashSet<>();
-        Map<BlockPos, Float> noiseValueMap = new HashMap<>(); // 缓存噪声值
-        
+    private void scanChunkForWater(ClientWorld world, int chunkX, int chunkZ,
+                                   float coverage, Set<BlockPos> outNewIce) {
+        // 遍历 chunk 中的所有方块，使用噪声场决定是否冻结
         for (int bx = 0; bx < 16; bx++) {
             for (int bz = 0; bz < 16; bz++) {
                 int wx = chunkX * 16 + bx;
@@ -268,58 +283,13 @@ public class WaterFreezeManager {
                 }
 
                 // 使用噪声场决定是否覆盖冰
+                // 噪声值 < coverage 的位置会被冻结，这样 coverage 越大，冻结的区域越多
                 float noiseValue = com.chronoblocks.season.NoiseField.iceCoverage(waterPos);
-                noiseValueMap.put(waterPos.toImmutable(), noiseValue);
-
-                if (noiseValue < strength) {
-                    initialCoverage.add(waterPos.toImmutable());
+                if (com.chronoblocks.season.NoiseField.shouldCover(waterPos, coverage, noiseValue)) {
+                    outNewIce.add(waterPos.toImmutable());
                 }
             }
         }
-        
-        // 第二轮：邻接传播，填补凹陷和缺口
-        Set<BlockPos> propagated = new HashSet<>(initialCoverage);
-        Queue<BlockPos> toCheck = new ArrayDeque<>(initialCoverage);
-        Set<BlockPos> checked = new HashSet<>(initialCoverage);
-        
-        while (!toCheck.isEmpty()) {
-            BlockPos pos = toCheck.poll();
-            
-            // 检查4个水平邻居
-            BlockPos[] neighbors = {
-                pos.north(),
-                pos.south(),
-                pos.east(),
-                pos.west()
-            };
-            
-            for (BlockPos neighbor : neighbors) {
-                if (checked.contains(neighbor)) continue;
-                checked.add(neighbor);
-                
-                // 检查邻居是否是水面
-                BlockPos neighborWaterPos = findTopWater(world, neighbor.getX(), neighbor.getZ());
-                if (neighborWaterPos == null) continue;
-                
-                // 避免重复
-                if (originalWater.containsKey(neighborWaterPos) || outNewIce.contains(neighborWaterPos)) {
-                    continue;
-                }
-                
-                // 获取邻居的噪声值
-                float neighborNoiseValue = noiseValueMap.getOrDefault(neighborWaterPos, 
-                    com.chronoblocks.season.NoiseField.iceCoverage(neighborWaterPos));
-                noiseValueMap.put(neighborWaterPos.toImmutable(), neighborNoiseValue);
-
-                // 如果邻居也满足阈值，则标记为覆盖并继续传播
-                if (neighborNoiseValue < strength) {
-                    propagated.add(neighborWaterPos.toImmutable());
-                    toCheck.add(neighborWaterPos.toImmutable());
-                }
-            }
-        }
-        
-        outNewIce.addAll(propagated);
     }
 
     // ================================================
