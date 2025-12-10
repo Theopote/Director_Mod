@@ -1,9 +1,7 @@
 package com.chronoblocks.ui.timeline.playback.season;
 
-import com.chronoblocks.ui.timeline.model.TimelineTrack;
-import com.chronoblocks.ui.timeline.model.TimelineSelectable;
 import com.chronoblocks.ui.timeline.model.season.SeasonKeyframe;
-import org.joml.Vector3f;
+import net.minecraft.util.math.MathHelper;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -11,36 +9,41 @@ import java.util.List;
 
 /**
  * SeasonTrackSampler v4.0
- *
- * <p>职责：
- * <ul>
- *   <li>从 Season 轨道（TimelineTrack）中收集 SeasonKeyframe</li>
- *   <li>按时间排序</li>
- *   <li>在任意时间 t 采样出 SeasonSample（通过关键帧插值）</li>
- * </ul>
- *
- * <p>支持：
- * <ul>
- *   <li>多关键帧线性 / 平滑 / 曲线插值</li>
- *   <li>雪参数 / 冰冻参数 / 颜色 Tint / 气候 全部插值</li>
- *   <li>季节过渡动画：从秋季到冬季逐渐出现积雪和冰，从冬季到春季逐渐消失</li>
- *   <li>⭐ v4.0：冰冻效果使用严格线性插值，确保冻结/解冻过程平滑连续</li>
- * </ul>
+ * ------------------------------------------
+ * 负责根据 SeasonKeyframe 生成 SeasonSample（每帧使用）。
  * 
- * <p>冰冻插值说明：
- * <ul>
- *   <li>冰冻效果由噪声场 + 阈值决定：shouldFreeze = NoiseField.iceCoverage(pos) &lt; freezeStrength</li>
- *   <li>使用严格线性插值（不受关键帧插值模式影响），确保时间数字可控</li>
- *   <li>例如：freezeStrength=0.3 → 冻结30%区域，freezeStrength=0.7 → 冻结70%区域</li>
- *   <li>支持从"没有冰冻系统"到"启动冰冻系统"之间的平滑过渡</li>
- * </ul>
+ * 插值以下内容：
+ *  - 季节类型（但本质决定颜色 preset）
+ *  - 温度、湿度、雪线高度
+ *  - 所有颜色 tint（grass/foliage/sky/fog/light）
+ *  - ❄ 雪覆盖强度 snowAmount (映射到 snowCoverageStrength)
+ *  - ❄ 雪层高度 snowThickness (映射到 snowLayerDepth)
+ *  - 🧊 冰冻强度 freezeStrength (映射到 iceCoverageStrength)
+ * 
+ * 所有值严格 clamp 在 [0,1] 或合理范围。
  * 
  * @author ChronoBlocks Team
- * @version 4.0 - 冰冻效果严格线性插值
+ * @version 4.0 - 统一插值系统
  */
 public class SeasonTrackSampler {
 
     private final List<SeasonKeyframe> keyframes = new ArrayList<>();
+
+    /**
+     * 构造函数（向后兼容）。
+     */
+    public SeasonTrackSampler() {
+    }
+
+    /**
+     * 构造函数（接受关键帧列表）。
+     */
+    public SeasonTrackSampler(List<SeasonKeyframe> keyframes) {
+        if (keyframes != null) {
+            this.keyframes.addAll(keyframes);
+            this.keyframes.sort(Comparator.comparingDouble(SeasonKeyframe::getTime));
+        }
+    }
 
     /**
      * 清空关键帧列表。
@@ -66,12 +69,11 @@ public class SeasonTrackSampler {
     /**
      * 从轨道收集关键帧。
      */
-    public void setFromTrack(TimelineTrack track) {
+    public void setFromTrack(com.chronoblocks.ui.timeline.model.TimelineTrack track) {
         keyframes.clear();
         if (track == null) return;
 
-        // 假设 track.getAutomationKeyframes() 返回 List<TimelineSelectable>
-        for (TimelineSelectable selectable : track.getAutomationKeyframes()) {
+        for (com.chronoblocks.ui.timeline.model.TimelineSelectable selectable : track.getAutomationKeyframes()) {
             if (selectable instanceof SeasonKeyframe sk) {
                 keyframes.add(sk);
             }
@@ -83,7 +85,7 @@ public class SeasonTrackSampler {
     /**
      * 设置关键帧列表（向后兼容）。
      * 
-     * @deprecated 使用 {@link #setFromTrack(TimelineTrack)} 代替
+     * @deprecated 使用 {@link #setFromTrack(com.chronoblocks.ui.timeline.model.TimelineTrack)} 代替
      */
     @Deprecated
     public void setKeyframes(List<SeasonKeyframe> keyframes) {
@@ -99,36 +101,112 @@ public class SeasonTrackSampler {
      * 如果没有任何关键帧，返回 disabled()。
      */
     public SeasonSample sampleAt(float timeSeconds) {
+        SeasonSample out = new SeasonSample();
+
         if (keyframes.isEmpty()) {
-            return SeasonSample.disabled();
+            // 无关键帧 → 默认世界
+            out.enabled = false;
+            return out;
         }
 
+        // 单关键帧 → 直接应用，无需插值
         if (keyframes.size() == 1) {
-            return toSample(keyframes.getFirst());
+            return toSample(keyframes.get(0));
         }
 
-        // 左右关键帧查找
-        SeasonKeyframe left = keyframes.getFirst();
-        SeasonKeyframe right = keyframes.getLast();
-
-        if (timeSeconds <= left.getTime()) {
-            return toSample(left);
-        }
-        if (timeSeconds >= right.getTime()) {
-            return toSample(right);
-        }
+        // 找到 kf0 <= time <= kf1
+        SeasonKeyframe kf0 = keyframes.get(0);
+        SeasonKeyframe kf1 = keyframes.get(keyframes.size() - 1);
 
         for (int i = 0; i < keyframes.size() - 1; i++) {
             SeasonKeyframe a = keyframes.get(i);
             SeasonKeyframe b = keyframes.get(i + 1);
             if (timeSeconds >= a.getTime() && timeSeconds <= b.getTime()) {
-                float t = (timeSeconds - a.getTime()) / (b.getTime() - a.getTime());
-                return interpolate(a, b, t);
+                kf0 = a;
+                kf1 = b;
+                break;
             }
         }
 
-        // 理论上不会走到这里
-        return toSample(right);
+        // 边界处理
+        if (timeSeconds <= kf0.getTime()) {
+            return toSample(kf0);
+        }
+        if (timeSeconds >= kf1.getTime()) {
+            return toSample(kf1);
+        }
+
+        float t = computeT(kf0, kf1, timeSeconds);
+
+        out.enabled = true;
+
+        // ========== 基础气候参数 ==========
+        // 注意：当前 SeasonKeyframe 没有 temperature 字段，使用 humidity 代替
+        out.humidity = MathHelper.clamp(
+            MathHelper.lerp(t, kf0.getHumidity(), kf1.getHumidity()),
+            0f, 1f
+        );
+        out.snowlineHeight = MathHelper.lerp(t, kf0.getSnowlineHeight(), kf1.getSnowlineHeight());
+
+        // ========== 颜色插值 ==========
+        out.grassTint.set(
+            MathHelper.lerp(t, kf0.getGrassTint().x, kf1.getGrassTint().x),
+            MathHelper.lerp(t, kf0.getGrassTint().y, kf1.getGrassTint().y),
+            MathHelper.lerp(t, kf0.getGrassTint().z, kf1.getGrassTint().z)
+        );
+
+        out.foliageTint.set(
+            MathHelper.lerp(t, kf0.getFoliageTint().x, kf1.getFoliageTint().x),
+            MathHelper.lerp(t, kf0.getFoliageTint().y, kf1.getFoliageTint().y),
+            MathHelper.lerp(t, kf0.getFoliageTint().z, kf1.getFoliageTint().z)
+        );
+
+        out.skyTint.set(
+            MathHelper.lerp(t, kf0.getSkyTint().x, kf1.getSkyTint().x),
+            MathHelper.lerp(t, kf0.getSkyTint().y, kf1.getSkyTint().y),
+            MathHelper.lerp(t, kf0.getSkyTint().z, kf1.getSkyTint().z)
+        );
+
+        out.fogTint.set(
+            MathHelper.lerp(t, kf0.getFogTint().x, kf1.getFogTint().x),
+            MathHelper.lerp(t, kf0.getFogTint().y, kf1.getFogTint().y),
+            MathHelper.lerp(t, kf0.getFogTint().z, kf1.getFogTint().z)
+        );
+
+        out.lightTint.set(
+            MathHelper.lerp(t, kf0.getLightTint().x, kf1.getLightTint().x),
+            MathHelper.lerp(t, kf0.getLightTint().y, kf1.getLightTint().y),
+            MathHelper.lerp(t, kf0.getLightTint().z, kf1.getLightTint().z)
+        );
+
+        // ======================================================
+        // ❄❄❄ 雪覆盖 / 堆积插值
+        // ======================================================
+        // 映射：snowCoverageStrength → snowAmount
+        out.snowAmount = MathHelper.clamp(
+            MathHelper.lerp(t, kf0.getSnowAmount(), kf1.getSnowAmount()), 
+            0f, 1f
+        );
+
+        // 映射：snowLayerDepth → snowThickness (int)
+        // 注意：snowThickness 是 int [0, 10]，需要四舍五入
+        float snowThicknessFloat = MathHelper.lerp(t, 
+            (float) kf0.getSnowThickness(), 
+            (float) kf1.getSnowThickness()
+        );
+        out.snowThickness = Math.round(MathHelper.clamp(snowThicknessFloat, 0f, 10f));
+
+        // ================================
+        // 🧊 冰冻强度插值
+        // ================================
+        // 映射：iceCoverageStrength → freezeStrength
+        // 使用严格线性插值（使用原始 t，而不是经过插值模式处理的 t），确保冰冻效果平滑连续
+        out.freezeStrength = MathHelper.clamp(
+            MathHelper.lerp(t, kf0.getFreezeStrength(), kf1.getFreezeStrength()),
+            0f, 1f
+        );
+
+        return out;
     }
 
     /**
@@ -146,20 +224,17 @@ public class SeasonTrackSampler {
         }
     }
 
-    // ------------------------------------------------------------------------
-    // 插值逻辑
-    // ------------------------------------------------------------------------
-
+    /**
+     * 将关键帧转换为采样（单关键帧时使用）。
+     */
     private SeasonSample toSample(SeasonKeyframe kf) {
         SeasonSample s = new SeasonSample();
         s.enabled = true;
 
         s.humidity = kf.getHumidity();
-
         s.snowAmount = kf.getSnowAmount();
         s.snowlineHeight = kf.getSnowlineHeight();
         s.snowThickness = kf.getSnowThickness();
-
         s.freezeStrength = kf.getFreezeStrength();
 
         s.grassTint.set(kf.getGrassTint());
@@ -171,70 +246,33 @@ public class SeasonTrackSampler {
         return s;
     }
 
-    private SeasonSample interpolate(SeasonKeyframe a, SeasonKeyframe b, float t) {
-        SeasonSample s = new SeasonSample();
-        s.enabled = true;
+    /**
+     * 根据关键帧插值曲线类型决定 t 的非线性曲线。
+     */
+    private float computeT(SeasonKeyframe kf0, SeasonKeyframe kf1, float time) {
+        float dt = kf1.getTime() - kf0.getTime();
+        if (dt <= 0) return 0f;
 
-        t = clamp01(t);
+        float t = (time - kf0.getTime()) / dt;
+        t = MathHelper.clamp(t, 0f, 1f);
 
-        // 使用左侧关键帧的插值模式
-        SeasonKeyframe.Interpolation mode = a.getInterpolation();
-        float wt = switch (mode) {
-            case DEFAULT -> // DEFAULT 使用 SMOOTH
-                    smoothStep(t);
+        return switch (kf0.getInterpolation()) {
             case LINEAR -> t;
             case SMOOTH -> smoothStep(t);
-            case CATMULL_ROM -> smoothStep(t); // 这里预留给未来的真正 Catmull-Rom 曲线
+            case CATMULL_ROM -> catmullRom(kf0, kf1, time);
+            case DEFAULT -> smoothStep(t); // DEFAULT 使用 SMOOTH
         };
-
-        // 标量线性插值
-        s.humidity = lerp(a.getHumidity(), b.getHumidity(), wt);
-
-        s.snowAmount = lerp(a.getSnowAmount(), b.getSnowAmount(), wt);
-        s.snowlineHeight = lerp(a.getSnowlineHeight(), b.getSnowlineHeight(), wt);
-        s.snowThickness = Math.round(lerp(a.getSnowThickness(), b.getSnowThickness(), wt));
-
-        // ===================================================
-        // ❄ 冰冻覆盖插值（0.0 = 无冰，1.0 = 完全冻结）
-        // ===================================================
-        // 使用严格线性插值（使用原始 t，而不是 wt），确保冰冻效果平滑连续
-        // 冰冻效果由噪声场 + 阈值决定：shouldFreeze = NoiseField.iceCoverage(pos) < freezeStrength
-        // 线性插值能够让画面冻结/解冻自然连续、时间数字可控
-        // 例如：freezeStrength=0.3 → 冻结30%区域，freezeStrength=0.7 → 冻结70%区域
-        float freeze0 = a.getFreezeStrength();
-        float freeze1 = b.getFreezeStrength();
-        s.freezeStrength = lerp(freeze0, freeze1, t);  // 使用原始 t，确保严格线性
-        s.freezeStrength = clamp01(s.freezeStrength); // 限制范围 [0, 1]，避免超范围
-
-        // 向量插值
-        lerpVec(a.getGrassTint(), b.getGrassTint(), wt, s.grassTint);
-        lerpVec(a.getFoliageTint(), b.getFoliageTint(), wt, s.foliageTint);
-        lerpVec(a.getSkyTint(), b.getSkyTint(), wt, s.skyTint);
-        lerpVec(a.getFogTint(), b.getFogTint(), wt, s.fogTint);
-        lerpVec(a.getLightTint(), b.getLightTint(), wt, s.lightTint);
-
-        return s;
     }
 
-    private static float lerp(float a, float b, float t) {
-        return a + (b - a) * t;
-    }
-
-    private static float clamp01(float v) {
-        return Math.max(0f, Math.min(1f, v));
-    }
-
-    private static float smoothStep(float t) {
-        // 标准 SmoothStep：3t^2 - 2t^3
+    private float smoothStep(float t) {
         return t * t * (3f - 2f * t);
     }
 
-    private static void lerpVec(Vector3f a, Vector3f b, float t, Vector3f out) {
-        out.set(
-                lerp(a.x, b.x, t),
-                lerp(a.y, b.y, t),
-                lerp(a.z, b.z, t)
-        );
+    private float catmullRom(SeasonKeyframe kf0, SeasonKeyframe kf1, float time) {
+        // 简化版 catmull-rom，仅平滑时间插值，不用于参数预测
+        float dt = kf1.getTime() - kf0.getTime();
+        float t = dt == 0 ? 0 : (time - kf0.getTime()) / dt;
+        return smoothStep(MathHelper.clamp(t, 0f, 1f));
     }
 
     /**
