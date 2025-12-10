@@ -10,7 +10,7 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * SeasonTrackSampler v3.0
+ * SeasonTrackSampler v4.0
  *
  * <p>职责：
  * <ul>
@@ -24,10 +24,19 @@ import java.util.List;
  *   <li>多关键帧线性 / 平滑 / 曲线插值</li>
  *   <li>雪参数 / 冰冻参数 / 颜色 Tint / 气候 全部插值</li>
  *   <li>季节过渡动画：从秋季到冬季逐渐出现积雪和冰，从冬季到春季逐渐消失</li>
+ *   <li>⭐ v4.0：冰冻效果使用严格线性插值，确保冻结/解冻过程平滑连续</li>
+ * </ul>
+ * 
+ * <p>冰冻插值说明：
+ * <ul>
+ *   <li>冰冻效果由噪声场 + 阈值决定：shouldFreeze = NoiseField.iceCoverage(pos) &lt; freezeStrength</li>
+ *   <li>使用严格线性插值（不受关键帧插值模式影响），确保时间数字可控</li>
+ *   <li>例如：freezeStrength=0.3 → 冻结30%区域，freezeStrength=0.7 → 冻结70%区域</li>
+ *   <li>支持从"没有冰冻系统"到"启动冰冻系统"之间的平滑过渡</li>
  * </ul>
  * 
  * @author ChronoBlocks Team
- * @version 3.0
+ * @version 4.0 - 冰冻效果严格线性插值
  */
 public class SeasonTrackSampler {
 
@@ -185,7 +194,17 @@ public class SeasonTrackSampler {
         s.snowlineHeight = lerp(a.getSnowlineHeight(), b.getSnowlineHeight(), wt);
         s.snowThickness = Math.round(lerp(a.getSnowThickness(), b.getSnowThickness(), wt));
 
-        s.freezeStrength = lerp(a.getFreezeStrength(), b.getFreezeStrength(), wt);
+        // ===================================================
+        // ❄ 冰冻覆盖插值（0.0 = 无冰，1.0 = 完全冻结）
+        // ===================================================
+        // 使用严格线性插值（使用原始 t，而不是 wt），确保冰冻效果平滑连续
+        // 冰冻效果由噪声场 + 阈值决定：shouldFreeze = NoiseField.iceCoverage(pos) < freezeStrength
+        // 线性插值能够让画面冻结/解冻自然连续、时间数字可控
+        // 例如：freezeStrength=0.3 → 冻结30%区域，freezeStrength=0.7 → 冻结70%区域
+        float freeze0 = a.getFreezeStrength();
+        float freeze1 = b.getFreezeStrength();
+        s.freezeStrength = lerp(freeze0, freeze1, t);  // 使用原始 t，确保严格线性
+        s.freezeStrength = clamp01(s.freezeStrength); // 限制范围 [0, 1]，避免超范围
 
         // 向量插值
         lerpVec(a.getGrassTint(), b.getGrassTint(), wt, s.grassTint);
