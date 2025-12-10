@@ -152,12 +152,11 @@ public class NoiseField {
         
         // 将覆盖概率映射到阈值：coverageProbability = 1.0 -> threshold = 1.0
         // coverageProbability = 0.0 -> threshold = 0.0
-        float threshold = coverageProbability;
-        
+
         // 如果噪声值小于阈值，则应该被覆盖
         // 这样，噪声值小的区域（低地）更容易被覆盖，噪声值大的区域（高地）不容易被覆盖
         // 但由于噪声是连续的，相邻位置的值也接近，所以会形成成片的覆盖区域
-        return noiseValue < threshold;
+        return noiseValue < coverageProbability;
     }
 }
 
