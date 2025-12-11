@@ -13,6 +13,7 @@ import java.util.EnumSet;
  *   <li>📷 摄像机轨道 - 控制观察视角和镜头运动</li>
  *   <li>🌤️ 天气轨道 - 控制 Minecraft 天气和光照</li>
  *   <li>🕐 时间轨道 - 控制完整一天的时间变化</li>
+ *   <li>🔊 音频轨道 - 事件驱动型音频，自动同步动画声音</li>
  * </ul>
  */
 public enum TrackType {
@@ -74,6 +75,21 @@ public enum TrackType {
         rgba(60, 160, 80),
         "控制长期气候趋势（温度、湿度、颜色等），实现春夏秋冬的自然过渡",
         EnumSet.of(TrackFeature.KEYFRAMES, TrackFeature.SEASON_AUTOMATION)
+    ),
+
+    /**
+     * 音频轨道 - 事件驱动型音频轨道。
+     * 
+     * <p>自动收集容器动画中的声音事件（方块放置/移除等），
+     * 并自动同步到时间线上。导出动画时自动合成声音。
+     */
+    AUDIO(
+        "音频轨道",
+        Icons.VOLUME,
+        rgba(180, 100, 220),
+        rgba(140, 70, 180),
+        "事件驱动型音频轨道，自动收集动画声音事件并同步到时间线",
+        EnumSet.of(TrackFeature.AUDIO_EVENTS)
     );
 
     private final String displayName;
@@ -154,6 +170,10 @@ public enum TrackType {
         return features.contains(TrackFeature.MARKERS);
     }
 
+    public boolean supportsAudioEvents() {
+        return features.contains(TrackFeature.AUDIO_EVENTS);
+    }
+
     /**
      * 获取带图标的显示名称。
      */
@@ -188,6 +208,7 @@ public enum TrackType {
         WEATHER_AUTOMATION,
         TIME_AUTOMATION,
         SEASON_AUTOMATION,
-        MARKERS
+        MARKERS,
+        AUDIO_EVENTS
     }
 }

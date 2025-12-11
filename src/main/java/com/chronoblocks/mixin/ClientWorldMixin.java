@@ -3,6 +3,8 @@ package com.chronoblocks.mixin;
 import com.chronoblocks.client.ChronoBlocksClientController;
 import com.chronoblocks.ui.timeline.playback.season.SeasonSample;
 import com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController;
+import com.chronoblocks.ui.timeline.playback.weather.WeatherSample;
+import com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.math.Vec3d;
 import org.spongepowered.asm.mixin.Mixin;
@@ -53,7 +55,9 @@ public abstract class ClientWorldMixin {
     }
 
     /**
-     * Season：天空 tint
+     * Season + Weather：天空颜色和暗度
+     * 
+     * <p>优先级：Weather Track > Season Track > Minecraft 原版
      */
     @Inject(
         method = "getSkyColor(Lnet/minecraft/util/math/Vec3d;F)I",
@@ -61,16 +65,6 @@ public abstract class ClientWorldMixin {
         cancellable = true
     )
     private void tintSky(Vec3d pos, float tickDelta, CallbackInfoReturnable<Integer> cir) {
-        TimelineSeasonController controller = TimelineSeasonController.getInstance();
-        if (!controller.hasOverride()) {
-            return; // 没有季节覆盖，直接返回原始颜色
-        }
-        
-        SeasonSample s = controller.getCurrentSample();
-        if (s == null) {
-            return;
-        }
-        
         int color = cir.getReturnValue();
         int r = (color >> 16) & 0xFF;
         int g = (color >> 8) & 0xFF;
@@ -82,10 +76,50 @@ public abstract class ClientWorldMixin {
             a = 0xFF;
         }
         
-        // 应用 tint 偏移：finalColor = originalColor * (1.0 + tint)
-        float rf = clamp01((r / 255f) * (1f + clampTint(s.skyTint.x)));
-        float gf = clamp01((g / 255f) * (1f + clampTint(s.skyTint.y)));
-        float bf = clamp01((b / 255f) * (1f + clampTint(s.skyTint.z)));
+        float rf = r / 255f;
+        float gf = g / 255f;
+        float bf = b / 255f;
+        
+        // ⭐ 天气系统：优先级最高，应用天空暗度和雷暴暗度
+        TimelineWeatherController weatherController = TimelineWeatherController.getInstance();
+        if (weatherController.hasOverride()) {
+            WeatherSample weatherSample = weatherController.getCurrentSample();
+            if (weatherSample != null && weatherSample.enabled) {
+                // 应用天空暗度
+                float dark = weatherSample.skyDarkness; // Use skyDarkness from WeatherSample
+                float factor = Math.max(0f, 1f - dark);
+                rf *= factor;
+                gf *= factor;
+                bf *= factor;
+                
+                // 雷暴会进一步降低亮度
+                if (weatherSample.thunderIntensity > 0.01f) {
+                    float thunderFactor = 1f - (weatherSample.thunderIntensity * 0.6f);
+                    rf *= thunderFactor;
+                    gf *= thunderFactor;
+                    bf *= thunderFactor;
+                }
+                
+                // 天气系统覆盖，不再应用季节系统
+                cir.setReturnValue((0xFF << 24)
+                        | ((int) (clamp01(rf) * 255) << 16)
+                        | ((int) (clamp01(gf) * 255) << 8)
+                        | (int) (clamp01(bf) * 255));
+                return;
+            }
+        }
+        
+        // ⭐ 季节系统：应用天空 tint 偏移（如果天气系统没有覆盖）
+        TimelineSeasonController seasonController = TimelineSeasonController.getInstance();
+        if (seasonController.hasOverride()) {
+            SeasonSample seasonSample = seasonController.getCurrentSample();
+            if (seasonSample != null) {
+                // 应用 tint 偏移：finalColor = originalColor * (1.0 + tint)
+                rf = clamp01(rf * (1f + clampTint(seasonSample.skyTint.x)));
+                gf = clamp01(gf * (1f + clampTint(seasonSample.skyTint.y)));
+                bf = clamp01(bf * (1f + clampTint(seasonSample.skyTint.z)));
+            }
+        }
         
         // 重新打包为 ARGB 格式，确保 alpha = 0xFF
         cir.setReturnValue((0xFF << 24)

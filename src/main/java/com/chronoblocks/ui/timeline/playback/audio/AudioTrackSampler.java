@@ -1,0 +1,251 @@
+package com.chronoblocks.ui.timeline.playback.audio;
+
+import com.chronoblocks.ui.timeline.model.audio.AudioEvent;
+import com.chronoblocks.ui.timeline.model.audio.AudioTrack;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.sound.PositionedSoundInstance;
+import net.minecraft.sound.SoundCategory;
+import net.minecraft.sound.SoundEvent;
+import net.minecraft.util.Identifier;
+import net.minecraft.util.registry.Registry;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.*;
+
+/**
+ * AudioTrackSampler v1.0
+ *
+ * <p>时间线上用于"实时输出声音事件"的采样器。
+ *
+ * <p>功能：
+ * <ul>
+ *   <li>根据当前时间触发 AudioEvent</li>
+ *   <li>避免重复触发</li>
+ *   <li>处理 seek（跳转）逻辑</li>
+ *   <li>支持轨道静音</li>
+ *   <li>支持全局暂停/播放控制</li>
+ * </ul>
+ *
+ * <p>这是一个轻量的事件触发器，不做混音。
+ * 
+ * <p>设计特点：
+ * <ul>
+ *   <li>事件只触发一次 - 通过 playedEvents 记录已经播放过的事件</li>
+ *   <li>倒放也能触发（可选）- 如果 lastTime > time，表示用户拖动时间轴回去了，也能触发事件</li>
+ *   <li>支持静音轨道 - 检查 track.isMuted() 来避免发声</li>
+ *   <li>支持暂停 / 重置 - 暂停播放时不会持续触发事件，Reset 时重置播放状态</li>
+ *   <li>与 Minecraft 声音引擎直接集成 - 使用 PositionedSoundInstance.master() 作为全局 UI 声音处理方案</li>
+ * </ul>
+ * 
+ * @author ChronoBlocks Team
+ * @version 1.0
+ */
+public class AudioTrackSampler {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(AudioTrackSampler.class);
+
+    private final AudioTrack track;
+
+    /** 已触发过的事件 ID（避免重复播放） */
+    private final Set<UUID> playedEvents = new HashSet<>();
+
+    /** 当前时间（用于判断是否跳转） */
+    private float lastTime = -1f;
+
+    /** 是否正在播放（由 Timeline 控制） */
+    private boolean playing = false;
+
+    /**
+     * 构造函数
+     * 
+     * @param track 音频轨道
+     */
+    public AudioTrackSampler(AudioTrack track) {
+        this.track = track;
+    }
+
+    // =====================================================================
+    // Playback Control
+    // =====================================================================
+
+    /**
+     * 设置播放状态
+     * 
+     * @param playing 是否正在播放
+     */
+    public void setPlaying(boolean playing) {
+        this.playing = playing;
+        if (!playing) {
+            playedEvents.clear(); // 暂停后重置，避免乱序
+        }
+    }
+
+    /**
+     * 重置采样器状态
+     */
+    public void reset() {
+        playedEvents.clear();
+        lastTime = -1f;
+    }
+
+    /**
+     * 获取关联的音频轨道
+     * 
+     * @return 音频轨道
+     */
+    public AudioTrack getTrack() {
+        return track;
+    }
+
+    // =====================================================================
+    // Main sampling function
+    // =====================================================================
+
+    /**
+     * 在时间线上每一帧调用。
+     *
+     * <p>根据当前时间检测并触发需要播放的音频事件。
+     * 
+     * @param time 当前播放时间（秒）
+     */
+    public void sample(float time) {
+        if (!playing) {
+            lastTime = time;
+            return;
+        }
+
+        boolean isReverse = lastTime > time; // 是否倒放
+        lastTime = time;
+
+        // 检查轨道是否静音
+        if (track.isMuted()) {
+            return;
+        }
+
+        List<AudioEvent> events = track.getEvents();
+        if (events.isEmpty()) {
+            return;
+        }
+
+        // 正放方向
+        if (!isReverse) {
+            for (AudioEvent ev : events) {
+                if (ev == null) {
+                    continue;
+                }
+                
+                // 如果事件时间已经超过当前时间，后面的都不会触发
+                if (ev.getStartTime() > time) {
+                    break;
+                }
+
+                // 检查是否已经播放过，且事件时间在当前时间之前或等于
+                if (!playedEvents.contains(ev.getId()) &&
+                    ev.getStartTime() <= time) {
+
+                    triggerEvent(ev);
+                    playedEvents.add(ev.getId());
+                }
+            }
+        }
+        // 倒放方向（用户拖动时间轴回去）
+        else {
+            // 倒放时，需要从后往前遍历
+            // 这里简化处理：清空已播放事件，让所有在当前时间之后的事件可以重新触发
+            // 实际应用中，倒放可能需要更复杂的逻辑
+            for (AudioEvent ev : events) {
+                if (ev == null) {
+                    continue;
+                }
+                
+                // 倒放时，移除当前时间之后的事件标记，允许重新触发
+                if (ev.getStartTime() > time) {
+                    playedEvents.remove(ev.getId());
+                }
+                // 如果事件在当前时间或之前，且未播放过，则触发
+                else if (!playedEvents.contains(ev.getId()) &&
+                         ev.getStartTime() <= time) {
+                    triggerEvent(ev);
+                    playedEvents.add(ev.getId());
+                }
+            }
+        }
+    }
+
+    // =====================================================================
+    // Play Minecraft sound
+    // =====================================================================
+
+    /**
+     * 触发音频事件，播放 Minecraft 声音
+     * 
+     * @param ev 音频事件
+     */
+    private void triggerEvent(AudioEvent ev) {
+        if (ev == null || !ev.isEnabled()) {
+            return;
+        }
+
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.getSoundManager() == null) {
+            return;
+        }
+
+        try {
+            // 解析声音ID
+            String soundId = ev.getSoundId();
+            if (soundId == null || soundId.isEmpty()) {
+                return;
+            }
+
+            Identifier soundIdentifier = Identifier.tryParse(soundId);
+            if (soundIdentifier == null) {
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("[AudioTrackSampler] 无效的声音ID: {}", soundId);
+                }
+                return;
+            }
+
+            // 从注册表获取声音事件
+            SoundEvent soundEvent = Registry.SOUND_EVENT.get(soundIdentifier);
+            if (soundEvent == null) {
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("[AudioTrackSampler] 未找到声音: {}", soundId);
+                }
+                return;
+            }
+
+            // 计算最终音量（应用轨道音量）
+            float volume = ev.getVolume() * track.getTrackVolume();
+            float pitch = ev.getPitch();
+
+            // 使用 PositionedSoundInstance 创建全局 UI 声音
+            // 使用 NONE 衰减类型实现全局声音效果（不受距离影响）
+            PositionedSoundInstance soundInstance = new PositionedSoundInstance(
+                    soundEvent,
+                    SoundCategory.MASTER,  // 使用 MASTER 类别，适合 UI 声音
+                    volume,                // 应用了轨道音量的最终音量
+                    pitch,
+                    false,                 // 不循环
+                    0,                     // 延迟
+                    net.minecraft.client.sound.SoundInstance.AttenuationType.NONE,  // 无衰减，全局声音
+                    0.0,                   // X（不使用，因为无衰减）
+                    0.0,                   // Y（不使用，因为无衰减）
+                    0.0,                   // Z（不使用，因为无衰减）
+                    false                  // 相对位置
+            );
+            
+            // 播放声音
+            client.getSoundManager().play(soundInstance);
+
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[AudioTrackSampler] 触发声音事件: {} at {:.2f}s (音量: {:.2f}, 音调: {:.2f})",
+                        soundId, ev.getTime(), volume, pitch);
+            }
+
+        } catch (Exception e) {
+            LOGGER.error("[AudioTrackSampler] 播放声音失败: {}", e.getMessage(), e);
+        }
+    }
+}

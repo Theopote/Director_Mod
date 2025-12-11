@@ -6,6 +6,7 @@ import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineSelectable;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TimelineViewportState;
+import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
 import com.chronoblocks.ui.timeline.model.time.TimeKeyframe;
 import com.chronoblocks.ui.timeline.model.season.SeasonKeyframe;
@@ -98,6 +99,7 @@ public class TimelineRenderer {
     private final TimelinePlayheadRenderer playheadRenderer;
     private final TimelineTrackControlHit trackControlHit;
     private final TimelineRenderHitTest renderHitTest;
+    private final TimelineAudioRenderer audioRenderer;
 
     // ⭐ 拖动状态查询器（用于实时显示拖动中的关键帧位置）
     private DragStateQuery dragStateQuery = null;
@@ -142,6 +144,7 @@ public class TimelineRenderer {
         this.clipRenderer = new TimelineClipRenderer(model, math);
         this.playheadRenderer = new TimelinePlayheadRenderer(model, math);
         this.trackControlHit = new TimelineTrackControlHit();
+        this.audioRenderer = new TimelineAudioRenderer(viewport);
         
         // 初始化命中检测组件
         this.renderHitTest = new TimelineRenderHitTest(math, viewport, model);
@@ -281,6 +284,11 @@ public class TimelineRenderer {
                 
                 // ★ 渲染轨道级自动化关键帧（摄像机关键帧、天气关键帧等）
                 renderAutomationKeyframes(drawList, track, contentX, trackY, contentW);
+                
+                // ★ 渲染音频轨道的事件点（如果是音频轨道）
+                if (track.getType() == TrackType.AUDIO) {
+                    audioRenderer.renderAudioEvents(drawList, track, contentX, trackY, contentW);
+                }
             }
         }
 

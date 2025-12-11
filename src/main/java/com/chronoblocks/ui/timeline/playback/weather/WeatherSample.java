@@ -58,6 +58,18 @@ public class WeatherSample {
     /** 当前天气 preset（用于 UI 或 debug） */
     public WeatherKeyframe.WeatherType type = WeatherKeyframe.WeatherType.CLEAR;
 
+    /** 天空暗度：0 = 正常, 1 = 完全黑 */
+    public float skyDarkness = 0f;
+
+    /** 云量：0 = 无云，1 = 满天云 */
+    public float cloudAmount = 0f;
+
+    /** 云亮度：0 = 暗，1 = 亮 */
+    public float cloudBrightness = 1f;
+
+    /** 雾暗度：0 = 正常，1 = 完全黑 */
+    public float fogDarkness = 0f;
+
     // ========== 扩展属性（保持向后兼容） ==========
 
     /** 是否启用天气覆盖（false 表示完全使用原版行为） */
@@ -154,6 +166,12 @@ public class WeatherSample {
         fogTint.z = lerp(a.fogTint.z, b.fogTint.z, t);
         type = t < 0.5f ? a.type : b.type;
 
+        // 新增渲染控制字段
+        skyDarkness = lerp(a.skyDarkness, b.skyDarkness, t);
+        cloudAmount = lerp(a.cloudAmount, b.cloudAmount, t);
+        cloudBrightness = lerp(a.cloudBrightness, b.cloudBrightness, t);
+        fogDarkness = lerp(a.fogDarkness, b.fogDarkness, t);
+
         // 扩展参数插值
         rainStrength = lerp(a.rainStrength, b.rainStrength, t); // 同步 rainIntensity
         rainParticleDensity = lerp(a.rainParticleDensity, b.rainParticleDensity, t);
@@ -194,6 +212,11 @@ public class WeatherSample {
         wetness = s.wetness;
         fogTint.set(s.fogTint);
         type = s.type;
+
+        skyDarkness = s.skyDarkness;
+        cloudAmount = s.cloudAmount;
+        cloudBrightness = s.cloudBrightness;
+        fogDarkness = s.fogDarkness;
 
         rainStrength = s.rainStrength;
         rainType = s.rainType;

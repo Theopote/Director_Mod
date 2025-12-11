@@ -419,12 +419,18 @@ public class TimelineModel {
         tracks.add(track);
         markDurationDirty(); // 轨道添加可能影响总时长
         notifyModelChanged("track_added"); // ⭐ 通知监听器（如 TimelineCameraController）轨道已添加
+        
+        // ⭐ 通知音频控制器轨道已添加
+        com.chronoblocks.ui.timeline.playback.TimelineAudioController.getInstance().onTrackAdded(track);
     }
     
     public void removeTrack(TimelineTrack track) {
         tracks.remove(track);
         markDurationDirty(); // 轨道移除可能影响总时长
         notifyModelChanged("track_removed"); // ⭐ 通知监听器轨道已移除
+        
+        // ⭐ 通知音频控制器轨道已删除
+        com.chronoblocks.ui.timeline.playback.TimelineAudioController.getInstance().onTrackRemoved(track);
     }
     
     public TimelineTrack getTrackAt(int index) {

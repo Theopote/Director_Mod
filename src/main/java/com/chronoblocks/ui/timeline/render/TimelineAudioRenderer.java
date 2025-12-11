@@ -1,0 +1,182 @@
+package com.chronoblocks.ui.timeline.render;
+
+import com.chronoblocks.ui.timeline.model.TimelineTrack;
+import com.chronoblocks.ui.timeline.model.TrackType;
+import com.chronoblocks.ui.timeline.model.audio.AudioEvent;
+import imgui.ImDrawList;
+import imgui.ImGui;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * 时间线音频轨道渲染器
+ * 
+ * <p>负责渲染音频轨道上的声音事件点。
+ * 音频轨道不像其他轨道那样显示片段，而是显示事件点（标记）。
+ * 
+ * <p>渲染特点：
+ * <ul>
+ *   <li>事件点以小圆点或标记的形式显示</li>
+ *   <li>悬停时显示事件详情（时间、声音ID）</li>
+ *   <li>不同事件类型使用不同颜色</li>
+ * </ul>
+ * 
+ * @author ChronoBlocks Team
+ * @version 1.0
+ */
+public class TimelineAudioRenderer {
+    private static final Logger LOGGER = LoggerFactory.getLogger(TimelineAudioRenderer.class);
+    
+    // 事件点大小
+    private static final float EVENT_POINT_SIZE = 6.0f;
+    private static final float EVENT_POINT_HOVER_SIZE = 8.0f;
+    
+    // 事件点颜色（根据事件类型）
+    private static final int COLOR_BLOCK_PLACE = TimelineColors.rgba(100, 200, 100, 255);  // 绿色
+    private static final int COLOR_BLOCK_BREAK = TimelineColors.rgba(200, 100, 100, 255);  // 红色
+    private static final int COLOR_CAMERA_WHOOSH = TimelineColors.rgba(100, 150, 255, 255); // 蓝色
+    private static final int COLOR_CUSTOM = TimelineColors.rgba(200, 200, 200, 255);        // 灰色
+    
+    private final TimelineRenderViewport viewport;
+    
+    public TimelineAudioRenderer(TimelineRenderViewport viewport) {
+        this.viewport = viewport;
+    }
+    
+    /**
+     * 渲染音频轨道上的所有事件点
+     * 
+     * @param drawList ImGui 绘制列表
+     * @param track 音频轨道
+     * @param contentX 内容区域起始X坐标
+     * @param y 轨道Y坐标
+     * @param contentW 内容区域宽度
+     */
+    public void renderAudioEvents(ImDrawList drawList, TimelineTrack track, 
+                                  float contentX, float y, float contentW) {
+        if (track == null || track.getType() != TrackType.AUDIO) {
+            return;
+        }
+        
+        if (!track.isVisible() || track.isLocked()) {
+            return;
+        }
+        
+        // 转换为 AudioTrack
+        if (!(track instanceof com.chronoblocks.ui.timeline.model.audio.AudioTrack)) {
+            return;
+        }
+        
+        com.chronoblocks.ui.timeline.model.audio.AudioTrack audioTrack = 
+            (com.chronoblocks.ui.timeline.model.audio.AudioTrack) track;
+        
+        // 检查轨道是否静音
+        if (audioTrack.isMuted()) {
+            return;
+        }
+        
+        float trackCenterY = y + com.chronoblocks.ui.theme.UITheme.Spacing.TIMELINE_TRACK_HEIGHT / 2.0f;
+        float pixelsPerSecond = viewport.getPixelsPerSecond();
+        float scrollX = viewport.getScrollX();
+        
+        // 计算可见时间范围
+        float startTime = scrollX / pixelsPerSecond;
+        float endTime = startTime + (contentW / pixelsPerSecond);
+        
+        // 获取可见范围内的音频事件
+        var events = audioTrack.getEventsInRange(startTime, endTime);
+        
+        // 获取鼠标位置（用于悬停检测）
+        float mouseX = ImGui.getMousePosX();
+        float mouseY = ImGui.getMousePosY();
+        
+        AudioEvent hoveredEvent = null;
+        
+        // 绘制所有事件点
+        for (AudioEvent event : events) {
+            // 跳过未启用的事件
+            if (!event.isEnabled()) {
+                continue;
+            }
+            
+            float eventTime = event.getTime();
+            float eventX = contentX + (eventTime * pixelsPerSecond) - scrollX;
+            
+            // 检查是否在可见范围内
+            if (eventX < contentX || eventX > contentX + contentW) {
+                continue;
+            }
+            
+            // 获取事件颜色（根据声音ID推断类型）
+            int eventColor = getEventColor(event);
+            
+            // 检查鼠标悬停
+            float pointSize = EVENT_POINT_SIZE;
+            float distance = (float) Math.sqrt(
+                Math.pow(mouseX - eventX, 2) + Math.pow(mouseY - trackCenterY, 2)
+            );
+            
+            if (distance < EVENT_POINT_HOVER_SIZE) {
+                pointSize = EVENT_POINT_HOVER_SIZE;
+                hoveredEvent = event;
+            }
+            
+            // 绘制事件点（小圆点）
+            drawList.addCircleFilled(eventX, trackCenterY, pointSize, eventColor);
+            
+            // 绘制外圈（增强可见性）
+            drawList.addCircle(eventX, trackCenterY, pointSize + 1.0f, 
+                             TimelineColors.adjustAlpha(eventColor, 0.5f), 1.0f);
+        }
+        
+        // 显示悬停提示
+        if (hoveredEvent != null) {
+            showEventTooltip(hoveredEvent);
+        }
+    }
+    
+    /**
+     * 根据声音ID推断事件类型并返回颜色
+     */
+    private int getEventColor(AudioEvent event) {
+        if (event == null) {
+            return COLOR_CUSTOM;
+        }
+        
+        String soundId = event.getSoundId();
+        if (soundId == null) {
+            return COLOR_CUSTOM;
+        }
+        
+        // 根据声音ID推断类型
+        if (soundId.contains("place")) {
+            return COLOR_BLOCK_PLACE;
+        } else if (soundId.contains("break")) {
+            return COLOR_BLOCK_BREAK;
+        } else if (soundId.contains("camera") || soundId.contains("whoosh")) {
+            return COLOR_CAMERA_WHOOSH;
+        } else {
+            return COLOR_CUSTOM;
+        }
+    }
+    
+    /**
+     * 显示事件提示信息
+     */
+    private void showEventTooltip(AudioEvent event) {
+        if (event == null) {
+            return;
+        }
+        
+        if (ImGui.beginTooltip()) {
+            ImGui.text(String.format("标签: %s", event.getLabel()));
+            ImGui.text(String.format("时间: %.2fs", event.getTime()));
+            ImGui.text(String.format("声音: %s", event.getSoundId()));
+            ImGui.text(String.format("音量: %.1f", event.getVolume()));
+            ImGui.text(String.format("音调: %.1f", event.getPitch()));
+            ImGui.text(String.format("启用: %s", event.isEnabled() ? "是" : "否"));
+            
+            ImGui.endTooltip();
+        }
+    }
+}

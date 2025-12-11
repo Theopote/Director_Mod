@@ -1,5 +1,7 @@
 package com.chronoblocks.ui.timeline.model;
 
+import com.chronoblocks.ui.timeline.model.audio.AudioEvent;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -23,6 +25,9 @@ public class TimelineTrack {
     private boolean collapsed = false;  // 折叠状态（用于 UI 显示）
     private String boundContainerName;
     private String boundContainerId;
+    
+    // ========== 音频事件（仅对音频轨道有效）==========
+    private final List<AudioEvent> audioEvents = new ArrayList<>();
 
     /**
      * 构造函数（默认为容器轨道）。
@@ -254,5 +259,125 @@ public class TimelineTrack {
         this.boundContainerId = (boundContainerId == null || boundContainerId.isBlank())
             ? null
             : boundContainerId.trim();
+    }
+
+    // ========== 音频事件管理（向后兼容，推荐使用 AudioTrack）==========
+
+    /**
+     * 添加音频事件到轨道（向后兼容方法）
+     * 
+     * @deprecated 推荐使用 AudioTrack.addEvent() 方法
+     */
+    @Deprecated
+    public void addAudioEvent(AudioEvent event) {
+        // 如果这是 AudioTrack，使用 AudioTrack 的方法
+        if (this instanceof com.chronoblocks.ui.timeline.model.audio.AudioTrack) {
+            ((com.chronoblocks.ui.timeline.model.audio.AudioTrack) this).addEvent(event);
+            return;
+        }
+        
+        // 向后兼容：对于普通 TimelineTrack，使用旧的方式
+        if (event != null && !audioEvents.contains(event)) {
+            audioEvents.add(event);
+            audioEvents.sort(Comparator.comparing(AudioEvent::getTime));
+        }
+    }
+
+    /**
+     * 移除音频事件（向后兼容方法）
+     * 
+     * @deprecated 推荐使用 AudioTrack.removeEvent() 方法
+     */
+    @Deprecated
+    public boolean removeAudioEvent(UUID eventId) {
+        // 如果这是 AudioTrack，使用 AudioTrack 的方法
+        if (this instanceof com.chronoblocks.ui.timeline.model.audio.AudioTrack) {
+            com.chronoblocks.ui.timeline.model.audio.AudioTrack audioTrack = 
+                (com.chronoblocks.ui.timeline.model.audio.AudioTrack) this;
+            AudioEvent event = audioTrack.getEventById(eventId);
+            if (event != null) {
+                audioTrack.removeEvent(event);
+                return true;
+            }
+            return false;
+        }
+        
+        // 向后兼容
+        if (eventId == null) {
+            return false;
+        }
+        return audioEvents.removeIf(e -> e != null && e.getId().equals(eventId));
+    }
+
+    /**
+     * 获取所有音频事件（向后兼容方法）
+     * 
+     * @deprecated 推荐使用 AudioTrack.getEvents() 方法
+     */
+    @Deprecated
+    public List<AudioEvent> getAudioEvents() {
+        // 如果这是 AudioTrack，使用 AudioTrack 的方法
+        if (this instanceof com.chronoblocks.ui.timeline.model.audio.AudioTrack) {
+            return ((com.chronoblocks.ui.timeline.model.audio.AudioTrack) this).getEvents();
+        }
+        
+        // 向后兼容
+        return Collections.unmodifiableList(audioEvents);
+    }
+
+    /**
+     * 查找指定时间范围内的音频事件（向后兼容方法）
+     * 
+     * @deprecated 推荐使用 AudioTrack.getEventsInRange() 方法
+     */
+    @Deprecated
+    public List<AudioEvent> getAudioEventsInRange(float startTime, float endTime) {
+        // 如果这是 AudioTrack，使用 AudioTrack 的方法
+        if (this instanceof com.chronoblocks.ui.timeline.model.audio.AudioTrack) {
+            return ((com.chronoblocks.ui.timeline.model.audio.AudioTrack) this).getEventsInRange(startTime, endTime);
+        }
+        
+        // 向后兼容
+        List<AudioEvent> result = new ArrayList<>();
+        for (AudioEvent event : audioEvents) {
+            float eventTime = event.getTime();
+            if (eventTime >= startTime && eventTime <= endTime) {
+                result.add(event);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 清空所有音频事件（向后兼容方法）
+     * 
+     * @deprecated 推荐使用 AudioTrack.clearEvents() 方法
+     */
+    @Deprecated
+    public void clearAudioEvents() {
+        // 如果这是 AudioTrack，使用 AudioTrack 的方法
+        if (this instanceof com.chronoblocks.ui.timeline.model.audio.AudioTrack) {
+            ((com.chronoblocks.ui.timeline.model.audio.AudioTrack) this).clearEvents();
+            return;
+        }
+        
+        // 向后兼容
+        audioEvents.clear();
+    }
+
+    /**
+     * 检查是否有音频事件（向后兼容方法）
+     * 
+     * @deprecated 推荐使用 AudioTrack.hasEvents() 方法
+     */
+    @Deprecated
+    public boolean hasAudioEvents() {
+        // 如果这是 AudioTrack，使用 AudioTrack 的方法
+        if (this instanceof com.chronoblocks.ui.timeline.model.audio.AudioTrack) {
+            return ((com.chronoblocks.ui.timeline.model.audio.AudioTrack) this).hasEvents();
+        }
+        
+        // 向后兼容
+        return !audioEvents.isEmpty();
     }
 }

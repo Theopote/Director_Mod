@@ -176,6 +176,9 @@ public class TimelinePanel extends AbstractPanel
 
         // 注册容器-时间线关联服务
         com.chronoblocks.ui.timeline.container.ContainerTimelineService.getInstance().setTimelineModel(model);
+        
+        // 初始化音频控制器
+        com.chronoblocks.ui.timeline.playback.TimelineAudioController.getInstance().setTimelineModel(model);
 
         // 注册片段方块控制器，根据播放头位置控制片段方块显示
         com.chronoblocks.ui.timeline.playback.TimelineClipBlockController.getInstance().setTimelineModel(model);
@@ -296,6 +299,9 @@ public class TimelinePanel extends AbstractPanel
         
         // ⭐ 时间轨道系统：每帧更新世界时间（播放/scrubbing时根据当前时间线时间插值）
         TimelineWorldController.getInstance().update();
+        
+        // ⭐ 音频轨道系统：每帧更新音频播放
+        com.chronoblocks.ui.timeline.playback.TimelineAudioController.getInstance().update();
         
         // ⭐ 季节轨道系统：每帧更新季节参数（播放/scrubbing时根据当前时间线时间插值）
         // 注意：update() 方法内部会根据播放状态决定是否更新

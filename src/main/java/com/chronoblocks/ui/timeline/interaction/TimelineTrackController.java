@@ -6,6 +6,7 @@ import com.chronoblocks.ui.timeline.model.TimelineClip;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TrackType;
+import com.chronoblocks.ui.timeline.model.audio.AudioTrack;
 import imgui.ImGui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,6 +66,7 @@ public class TimelineTrackController {
      * 创建新轨道。
      * 
      * <p>⭐ v3.5：如果是时间轨道且是第一条，自动激活
+     * <p>⭐ v1.0：如果是音频轨道，使用 AudioTrack 类
      */
     private void createNewTrack(TrackType type) {
         long sameTypeCount = model.getTracks().stream()
@@ -72,7 +74,15 @@ public class TimelineTrackController {
                 .count();
 
         String trackName = type.getDisplayName() + " " + (sameTypeCount + 1);
-        TimelineTrack newTrack = new TimelineTrack(trackName, type);
+        TimelineTrack newTrack;
+        
+        // 如果是音频轨道，使用 AudioTrack 类
+        if (type == TrackType.AUDIO) {
+            newTrack = new AudioTrack(trackName);
+        } else {
+            newTrack = new TimelineTrack(trackName, type);
+        }
+        
         model.addTrack(newTrack);
 
         // ⭐ v3.5：如果是时间轨道且是第一条（创建后只有一条），自动激活

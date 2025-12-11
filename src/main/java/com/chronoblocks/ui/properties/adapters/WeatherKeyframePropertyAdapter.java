@@ -79,22 +79,22 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
 
     @Override
     public boolean renderProperties(WeatherKeyframe kf) {
-
         if (kf == null) {
             UITheme.label("(未选中天气关键帧)", UITheme.DarkTheme.TEXT_DISABLED);
             return false;
         }
 
-        // ⭐ v1.0：检查关键帧是否属于激活的天气轨道
+        // ⭐ v1.1：提取公共对象，减少重复获取
+        TimelineWeatherController weatherController = TimelineWeatherController.getInstance();
         TimelineModel timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+        
+        // ⭐ v1.0：检查关键帧是否属于激活的天气轨道
         TimelineTrack keyframeTrack = null;
         if (timelineModel != null) {
             keyframeTrack = timelineModel.findTrackForKeyframe(kf);
         }
         
-        TimelineWeatherController weatherController = TimelineWeatherController.getInstance();
         TimelineTrack activeTrack = weatherController.getActiveWeatherTrack();
-        
         boolean isTrackActive = (keyframeTrack != null && keyframeTrack == activeTrack);
         
         if (!isTrackActive) {
@@ -266,13 +266,19 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
         // 触发天气控制器刷新
         // ==========================================================
 
-        if (parameterChanged.get() || timeChanged.get()) {
-            TimelineWeatherController controller = TimelineWeatherController.getInstance();
-            controller.rebuildFromActiveTrack();
-            
-            // 获取当前时间并预览
-            float currentTime = timelineModel.getCurrentTime();
-            controller.previewAt(currentTime);
+        // ⭐ v1.1：参数变化时预览关键帧所在位置（与其他适配器保持一致）
+        // 这样可以确保设置的值能够立即显示，不会被播放头位置的采样结果覆盖
+        if (parameterChanged.get()) {
+            weatherController.rebuildFromActiveTrack();
+            // 预览关键帧所在位置，而不是当前播放头位置
+            weatherController.previewAt(kf.getTime());
+        }
+        
+        // ⭐ v1.1：时间变化只重建采样器，不触发预览
+        // 这样拖动关键帧时间时，世界不会错误地跟随变化（与 TimeKeyframePropertyAdapter 保持一致）
+        if (timeChanged.get()) {
+            weatherController.rebuildFromActiveTrack();
+            // 不调用预览，因为播放头位置没有改变
         }
 
         return parameterChanged.get() || timeChanged.get();

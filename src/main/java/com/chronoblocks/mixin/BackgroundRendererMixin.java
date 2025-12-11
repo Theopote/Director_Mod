@@ -72,9 +72,17 @@ public abstract class BackgroundRendererMixin {
             WeatherSample weatherSample = weatherController.getCurrentSample();
             if (weatherSample != null && weatherSample.enabled && weatherSample.fogDensity > 0.01f) {
                 // 使用天气系统的雾颜色
-                r = weatherSample.fogColor.x;
+                r = weatherSample.fogColor.x; // Use fogColor from WeatherSample
                 g = weatherSample.fogColor.y;
                 b = weatherSample.fogColor.z;
+                
+                // 应用雾暗度
+                float fogDarkness = weatherSample.fogDarkness; // Use fogDarkness from WeatherSample
+                float darkFactor = Math.max(0f, 1f - fogDarkness);
+                r *= darkFactor;
+                g *= darkFactor;
+                b *= darkFactor;
+                
                 // 雾密度影响 alpha（透明度）
                 a = Math.max(0f, Math.min(1f, weatherSample.fogDensity));
                 cir.setReturnValue(new Vector4f(r, g, b, a));

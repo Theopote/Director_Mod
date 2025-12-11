@@ -192,6 +192,12 @@ public class WeatherTrackSampler {
 
         out.type = kf.getWeatherType();
 
+        // 渲染控制字段：从现有字段映射
+        out.skyDarkness = kf.getStormDarkness(); // 天空暗度 = 风暴暗度
+        out.cloudAmount = kf.getCloudDensity(); // 云量 = 云密度
+        out.cloudBrightness = 1f - (kf.getCloudDensity() * 0.3f); // 云越密越暗
+        out.fogDarkness = kf.getFogDensity() * 0.3f; // 雾暗度 = 雾密度 * 0.3
+
         // ========== 扩展参数（向后兼容） ==========
         out.rainStrength = kf.getRainStrength();
         out.rainType = kf.getRainType();
@@ -233,6 +239,10 @@ public class WeatherTrackSampler {
         s.windStrength = 0.05f;
         s.wetness = 0f;
         s.fogTint.set(1f, 1f, 1f);
+        s.skyDarkness = 0f;
+        s.cloudAmount = 0.1f;
+        s.cloudBrightness = 1f;
+        s.fogDarkness = 0f;
         return s;
     }
 

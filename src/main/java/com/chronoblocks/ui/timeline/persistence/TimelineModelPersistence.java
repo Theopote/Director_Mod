@@ -12,6 +12,7 @@ import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TimelineViewportState;
 import com.chronoblocks.ui.timeline.model.TrackType;
+import com.chronoblocks.ui.timeline.model.audio.AudioTrack;
 import com.chronoblocks.util.WorldIdentifier;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -241,7 +242,13 @@ public class TimelineModelPersistence {
                 }
             }
             
-            TimelineTrack track = new TimelineTrack(trackDTO.name, type);
+            // 根据轨道类型创建正确的轨道实例
+            TimelineTrack track;
+            if (type == TrackType.AUDIO) {
+                track = new AudioTrack(trackDTO.name);
+            } else {
+                track = new TimelineTrack(trackDTO.name, type);
+            }
             track.setLocked(trackDTO.locked);
             track.setVisible(trackDTO.visible);
             track.setZOrder(trackDTO.zOrder);
