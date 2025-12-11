@@ -274,6 +274,12 @@ public class TimelineInteractionHandler {
                 boolean isActive = controller.getActiveSeasonTrack() == track;
                 tooltip = isActive ? "当前激活的季节轨道（点击切换到其他轨道）" : "设为当前激活的季节轨道";
             }
+            case ACTIVE_WEATHER -> {
+                com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController controller =
+                        com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController.getInstance();
+                boolean isActive = controller.getActiveWeatherTrack() == track;
+                tooltip = isActive ? "当前激活的天气轨道（点击切换到其他轨道）" : "设为当前激活的天气轨道";
+            }
             case ADD_KEYFRAME -> {
                 if (track.getType() == com.chronoblocks.ui.timeline.model.TrackType.CAMERA) {
                     tooltip = "添加摄像机关键帧（仅激活轨道可用）";
@@ -325,6 +331,9 @@ public class TimelineInteractionHandler {
             case ACTIVE_SEASON -> // ⭐ v1.1：设置激活季节轨道
                     com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController.getInstance()
                             .setActiveSeasonTrack(track);
+            case ACTIVE_WEATHER -> // ⭐ v1.0：设置激活天气轨道
+                    com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController.getInstance()
+                            .bindActiveTrack(track);
                 }
                 // 控件点击不再向下传递，不影�?Clip / Keyframe 选择
                 return;
@@ -1346,6 +1355,9 @@ public class TimelineInteractionHandler {
         // ⭐ 季节轨道系统：点击时间刻度时更新季节采样
         com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController.getInstance().onTimelineTick(clampedTime);
         
+        // ⭐ 天气轨道系统：点击时间刻度时更新天气采样（预览模式）
+        com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController.getInstance().previewAt(clampedTime);
+        
         // 点击时间刻度时跳转镜头到该时间并保持玩家态，便于继续微调
         com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance().jumpToTimeAsPlayer(clampedTime);
         
@@ -1371,6 +1383,9 @@ public class TimelineInteractionHandler {
         
         // ⭐ 季节轨道系统：拖动播放头时更新季节采样
         com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController.getInstance().onTimelineTick(clampedTime);
+        
+        // ⭐ 天气轨道系统：拖动播放头时更新天气采样（预览模式）
+        com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController.getInstance().previewAt(clampedTime);
         
         // ⭐ 通知摄像机控制器更新 scrubbing 位置
         com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance().updateScrubbing(clampedTime);

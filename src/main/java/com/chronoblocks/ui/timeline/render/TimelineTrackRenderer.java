@@ -167,10 +167,23 @@ public final class TimelineTrackRenderer {
                     : TimelineColors.rgba(140, 140, 140, 180); // 未激活：灰色
             drawList.addText(visibilityX, y + TRACK_ICON_OFFSET_Y, iconColor, icon);
         }
+        
+        // ⭐ v1.0：激活天气按钮（仅 WEATHER 轨道，放在原来隐藏按钮的位置）
+        if (type == TrackType.WEATHER) {
+            boolean isActive = com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController.getInstance()
+                    .getActiveWeatherTrack() == track;
+            // 实心圆 = 激活，空心圆 = 未激活（使用 DOT 和 CHECK_CIRCLE）
+            String icon = isActive ? Icons.DOT : Icons.CHECK_CIRCLE;
+            int iconColor = isActive 
+                    ? TimelineColors.rgba(80, 140, 180, 255)  // 激活：蓝色（与天气轨道颜色一致）
+                    : TimelineColors.rgba(140, 140, 140, 180); // 未激活：灰色
+            drawList.addText(visibilityX, y + TRACK_ICON_OFFSET_Y, iconColor, icon);
+        }
 
         // ⭐ v5.0：对于摄像机轨道，只有在激活状态下才显示可用的关键帧按钮
         // ⭐ v3.5：对于时间轨道，只有在激活状态下才显示可用的关键帧按钮
         // ⭐ v1.1：对于季节轨道，只有在激活状态下才显示可用的关键帧按钮
+        // ⭐ v1.0：对于天气轨道，只有在激活状态下才显示可用的关键帧按钮
         boolean keyframeEnabled = type != null && type.supportsKeyframes();
         if (type == TrackType.CAMERA) {
             com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController controller =
@@ -187,6 +200,11 @@ public final class TimelineTrackRenderer {
                     com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController.getInstance();
             com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveSeasonTrack();
             keyframeEnabled = (activeTrack == track);  // 只有激活轨道才可用
+        } else if (type == TrackType.WEATHER) {
+            com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController controller =
+                    com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController.getInstance();
+            com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveWeatherTrack();
+            keyframeEnabled = (activeTrack == track);  // 只有激活轨道才可用
         }
         int keyframeColor = keyframeEnabled 
                 ? TimelineColors.COLOR_KEYFRAME 
@@ -202,7 +220,8 @@ public final class TimelineTrackRenderer {
         // ⭐ v5.0：摄像机轨道不显示隐藏/显示按钮
         // ⭐ v3.5：时间轨道不显示隐藏/显示按钮
         // ⭐ v1.1：季节轨道不显示隐藏/显示按钮
-        if (type != TrackType.CAMERA && type != TrackType.TIME && type != TrackType.SEASON) {
+        // ⭐ v1.0：天气轨道不显示隐藏/显示按钮
+        if (type != TrackType.CAMERA && type != TrackType.TIME && type != TrackType.SEASON && type != TrackType.WEATHER) {
             if (!track.isVisible()) {
                 drawList.addText(visibilityX, y + TRACK_ICON_OFFSET_Y, TimelineColors.rgba(150, 150, 150, 255), Icons.INVISIBLE);
             } else {

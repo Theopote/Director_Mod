@@ -53,6 +53,8 @@ public class WaterFreezeManager {
 
     /** 最小覆盖度阈值，低于此值视为不需要结冰 */
     private static final float MIN_COVERAGE_EPS = 0.01f;
+    /** 最大有效覆盖度，限制到<1 确保留白，并避免异常值导致全覆盖 */
+    private static final float MAX_EFFECTIVE_COVERAGE = 0.92f;
 
     /** 异步线程池：只做「扫描 + 计算」，不直接改方块 */
     private final ExecutorService executor = Executors.newSingleThreadExecutor(r -> {
@@ -136,7 +138,7 @@ public class WaterFreezeManager {
         }
 
         // 如果没有有效的季节采样，不需要扫描
-        if (lastSample == null || !lastSample.enabled || lastSample.freezeStrength <= MIN_COVERAGE_EPS) {
+        if (lastSample == null || !lastSample.enabled || lastCoverage <= MIN_COVERAGE_EPS) {
             return;
         }
 
@@ -186,13 +188,14 @@ public class WaterFreezeManager {
      * @param sample 当前时间点的季节采样结果
      */
     public void applySeasonSample(SeasonSample sample) {
-        float newCoverage = sample != null && sample.enabled ? sample.freezeStrength : 0f;
-        boolean coverageChanged = Math.abs(newCoverage - lastCoverage) > 0.01f;
+        float rawCoverage = sample != null && sample.enabled ? sample.freezeStrength : 0f;
+        float clampedCoverage = Math.max(0f, Math.min(MAX_EFFECTIVE_COVERAGE, rawCoverage));
+        boolean coverageChanged = Math.abs(clampedCoverage - lastCoverage) > 0.01f;
         
         this.lastSample = sample;
         
         // 重置扫描位置，确保下次 tick 时会立即扫描新位置
-        if (sample != null && sample.enabled && sample.freezeStrength > MIN_COVERAGE_EPS) {
+        if (sample != null && sample.enabled && clampedCoverage > MIN_COVERAGE_EPS) {
             lastScanPos = null;
         }
         
@@ -206,7 +209,7 @@ public class WaterFreezeManager {
 
         // 如果覆盖度非常低，只做"解冻"操作即可
         // 注意：使用 freezeStrength 而不是 iceCoverageStrength（保持兼容性）
-        if (sample.freezeStrength <= MIN_COVERAGE_EPS) {
+        if (clampedCoverage <= MIN_COVERAGE_EPS) {
             lastCoverage = 0f;
             lastScanPos = null;
             scheduleMeltOnly();
@@ -222,7 +225,7 @@ public class WaterFreezeManager {
             scheduleScanAndApply(sample);
         }
         
-        lastCoverage = newCoverage;
+        lastCoverage = clampedCoverage;
     }
 
     /**
@@ -370,8 +373,11 @@ public class WaterFreezeManager {
         }
 
         BlockPos playerPos = client.player.getBlockPos();
-        // 使用 freezeStrength（保持与现有 SeasonSample 兼容）
-        float coverage = sample.freezeStrength; // [0,1]
+        // 使用 freezeStrength（保持与现有 SeasonSample 兼容），并做有效范围限制
+        float coverage = Math.max(0f, Math.min(MAX_EFFECTIVE_COVERAGE, sample.freezeStrength)); // [0,1]
+        if (coverage <= MIN_COVERAGE_EPS) {
+            return;
+        }
 
         // 收集需要结冰 / 解冻的方块
         Set<BlockPos> toFreeze = new HashSet<>();
@@ -426,7 +432,12 @@ public class WaterFreezeManager {
             return;
         }
 
-        float coverage = sample.freezeStrength; // [0,1]
+        float coverage = Math.max(0f, Math.min(MAX_EFFECTIVE_COVERAGE, sample.freezeStrength)); // [0,1]
+        if (coverage <= MIN_COVERAGE_EPS) {
+            // 覆盖度极低时，交给 meltOnly 处理
+            scheduleMeltOnly();
+            return;
+        }
 
         // 收集需要结冰 / 解冻的方块
         Set<BlockPos> toFreeze = new HashSet<>();
@@ -535,8 +546,8 @@ public class WaterFreezeManager {
             if (state.getBlock() == Blocks.WATER) {
                 // 如果之前没记录过原始状态，则记录一次
                 originalWaterStates.putIfAbsent(pos, state);
-                // 使用 FROSTED_ICE（霜冰）作为视觉效果，比普通 ICE 更明显
-                world.setBlockState(pos, Blocks.FROSTED_ICE.getDefaultState());
+                // 使用 ICE，避免 FROSTED_ICE 的天然融化行为导致覆盖度失效
+                world.setBlockState(pos, Blocks.ICE.getDefaultState());
                 currentIcePositions.add(pos);
                 freezeCount++;
             }

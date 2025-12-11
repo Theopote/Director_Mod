@@ -16,6 +16,7 @@
     "WorldRendererMixin",
     "BlockRenderManagerMixin",
     "ClientWorldMixin",
+    "WorldMixin",
     "BiomeColorsMixin",
     "BackgroundRendererMixin",
     "accessor.GameRendererAccessor"

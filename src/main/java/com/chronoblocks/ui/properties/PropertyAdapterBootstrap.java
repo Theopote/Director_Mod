@@ -33,7 +33,7 @@ import org.slf4j.LoggerFactory;
  * }
  * }</pre>
  * 
- * <h3>已注册的适配器（18个）</h3>
+ * <h3>已注册的适配器（19个）</h3>
  * <ul>
  *   <li><b>时间线系统（3个）</b></li>
  *   <li>  - TimelineProjectPropertyAdapter - 项目编辑器</li>
@@ -50,6 +50,8 @@ import org.slf4j.LoggerFactory;
  *   <li>  - CameraPropertyAdapter - 相机编辑器</li>
  *   <li>  - CameraKeyframePropertyAdapter - 摄像机关键帧编辑器</li>
  *   <li>  - TimeKeyframePropertyAdapter - 时间关键帧编辑器</li>
+ *   <li>  - SeasonKeyframePropertyAdapter - 季节关键帧编辑器</li>
+ *   <li>  - WeatherKeyframePropertyAdapter - 天气关键帧编辑器</li>
  *   <li>  - PostProcessingPropertyAdapter - 后处理编辑器</li>
  *   <li>  - PhysicsEnvironmentPropertyAdapter - 物理编辑器</li>
  *   <li><b>扩展类型（3个）</b></li>
@@ -151,6 +153,11 @@ public final class PropertyAdapterBootstrap {
             // ✅ 季节关键帧适配器
             registerAdapter(com.chronoblocks.ui.timeline.model.season.SeasonKeyframe.class, 
                     new SeasonKeyframePropertyAdapter());
+            registeredCount++;
+            
+            // ✅ 天气关键帧适配器
+            registerAdapter(com.chronoblocks.ui.timeline.model.weather.WeatherKeyframe.class, 
+                    new WeatherKeyframePropertyAdapter());
             registeredCount++;
             
             // ✅ 后处理适配器

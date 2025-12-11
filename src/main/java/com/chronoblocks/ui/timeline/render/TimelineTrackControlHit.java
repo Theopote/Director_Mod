@@ -33,7 +33,8 @@ public final class TimelineTrackControlHit {
         VISIBILITY,
         ACTIVE_CAMERA,  // ⭐ v5.0：激活摄像机轨道按钮（仅 CAMERA 轨道）
         ACTIVE_TIME,    // ⭐ v3.5：激活时间轨道按钮（仅 TIME 轨道）
-        ACTIVE_SEASON   // ⭐ v1.1：激活季节轨道按钮（仅 SEASON 轨道）
+        ACTIVE_SEASON,  // ⭐ v1.1：激活季节轨道按钮（仅 SEASON 轨道）
+        ACTIVE_WEATHER  // ⭐ v1.0：激活天气轨道按钮（仅 WEATHER 轨道）
     }
 
     /**
@@ -126,9 +127,15 @@ public final class TimelineTrackControlHit {
             addHitToPool(track, TrackControlType.ACTIVE_SEASON, visibleX1, y + 2f, visibleX2, y2);
         }
         
+        // ⭐ v1.0：仅对 WEATHER 轨道注册激活按钮（放在原来隐藏按钮的位置）
+        if (type == TrackType.WEATHER) {
+            addHitToPool(track, TrackControlType.ACTIVE_WEATHER, visibleX1, y + 2f, visibleX2, y2);
+        }
+        
         // ⭐ v5.0：对于摄像机轨道，只有在激活状态下才允许添加关键帧
         // ⭐ v3.5：对于时间轨道，只有在激活状态下才允许添加关键帧
         // ⭐ v1.1：对于季节轨道，只有在激活状态下才允许添加关键帧
+        // ⭐ v1.0：对于天气轨道，只有在激活状态下才允许添加关键帧
         if (supportsKeyframes) {
             if (type == TrackType.CAMERA) {
                 // 检查是否是激活的摄像机轨道
@@ -160,6 +167,16 @@ public final class TimelineTrackControlHit {
                 if (activeTrack == track) {
                     addHitToPool(track, TrackControlType.ADD_KEYFRAME, keyframeX1, y + 2f, keyframeX2, y2);
                 }
+            } else if (type == TrackType.WEATHER) {
+                // 检查是否是激活的天气轨道
+                com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController controller =
+                        com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController.getInstance();
+                com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveWeatherTrack();
+                
+                // 只有激活的天气轨道才注册关键帧按钮
+                if (activeTrack == track) {
+                    addHitToPool(track, TrackControlType.ADD_KEYFRAME, keyframeX1, y + 2f, keyframeX2, y2);
+                }
             } else {
                 // 非摄像机/时间/季节轨道，正常注册
                 addHitToPool(track, TrackControlType.ADD_KEYFRAME, keyframeX1, y + 2f, keyframeX2, y2);
@@ -171,7 +188,8 @@ public final class TimelineTrackControlHit {
         // ⭐ v5.0：摄像机轨道不注册隐藏/显示按钮
         // ⭐ v3.5：时间轨道不注册隐藏/显示按钮
         // ⭐ v1.1：季节轨道不注册隐藏/显示按钮
-        if (type != TrackType.CAMERA && type != TrackType.TIME && type != TrackType.SEASON) {
+        // ⭐ v1.0：天气轨道不注册隐藏/显示按钮
+        if (type != TrackType.CAMERA && type != TrackType.TIME && type != TrackType.SEASON && type != TrackType.WEATHER) {
             addHitToPool(track, TrackControlType.VISIBILITY, visibleX1, y + 2f, visibleX2, y2);
         }
     }

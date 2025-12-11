@@ -177,7 +177,7 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
             // ========== 混合与权重 ==========
             if (ImGui.collapsingHeader("🎨 混合与权重", ImGuiTreeNodeFlags.DefaultOpen)) {
                 // 混合模式
-                int currentBlendMode = getIntProperty(track, "blendMode", "getBlendMode", 0);
+                int currentBlendMode = getIntProperty(track, "blendMode", "getBlendMode");
                 ImInt blendModeIdx = new ImInt(currentBlendMode);
                 if (ImGui.combo("混合模式", blendModeIdx, BLEND_MODES)) {
                     if (setIntProperty(track, "blendMode", "setBlendMode", blendModeIdx.get())) {
@@ -226,7 +226,7 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
             // ========== 对齐与范围 ==========
             if (ImGui.collapsingHeader("⏱ 对齐与范围", ImGuiTreeNodeFlags.DefaultOpen)) {
                 // 对齐模式
-                int currentAlignment = getIntProperty(track, "alignmentMode", "getAlignmentMode", 0);
+                int currentAlignment = getIntProperty(track, "alignmentMode", "getAlignmentMode");
                 ImInt alignmentIdx = new ImInt(currentAlignment);
                 if (ImGui.combo("对齐模式", alignmentIdx, ALIGNMENT_MODES)) {
                     if (setIntProperty(track, "alignmentMode", "setAlignmentMode", alignmentIdx.get())) {
@@ -276,13 +276,13 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
             // ========== 可视化参数 ==========
             if (ImGui.collapsingHeader("👁 可视化参数")) {
                 // 轨道颜色
-                float[] colorRGBA = getFloatArrayProperty(track, "colorRGBA", "getColorRGBA");
+                float[] colorRGBA = getFloatArrayProperty(track);
                 if (colorRGBA == null || colorRGBA.length < 4) {
                     colorRGBA = new float[]{0.4f, 0.8f, 1.0f, 1.0f};
                 }
                 
                 if (ImGui.colorEdit4("轨道颜色", colorRGBA)) {
-                    if (setFloatArrayProperty(track, "colorRGBA", "setColorRGBA", colorRGBA)) {
+                    if (setFloatArrayProperty(track, colorRGBA)) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineTrackPropertyAdapter] 轨道颜色已更新");
                     }
@@ -294,7 +294,7 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
                 UITheme.spacingSmall();
                 
                 // 可视化偏移（使用 Vector3fPropertyAdapter）
-                Object visualOffset = getObjectProperty(track, "visualOffset", "getVisualOffset");
+                Object visualOffset = getObjectProperty(track);
                 if (visualOffset != null) {
                     var vector3fAdapter = PropertyAdapterRegistry.getAdapterFor(visualOffset);
                     if (vector3fAdapter != null) {
@@ -309,10 +309,10 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
             // ========== 统计信息 ==========
             if (ImGui.collapsingHeader("📊 统计信息")) {
                 // 关键帧统计
-                int keyframeCount = getIntProperty(track, "keyframeCount", "getKeyframeCount", 0);
+                int keyframeCount = getIntProperty(track, "keyframeCount", "getKeyframeCount");
                 UITheme.label("关键帧总数: " + keyframeCount, UITheme.DarkTheme.TEXT);
                 
-                int enabledCount = getIntProperty(track, "enabledKeyframeCount", "countEnabledKeyframes", 0);
+                int enabledCount = getIntProperty(track, "enabledKeyframeCount", "countEnabledKeyframes");
                 UITheme.label("已启用关键帧: " + enabledCount, UITheme.DarkTheme.TEXT);
                 
                 // 持续时间统计
@@ -474,19 +474,19 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
         }
     }
     
-    private int getIntProperty(Object obj, String fieldName, String getterName, int defaultValue) {
+    private int getIntProperty(Object obj, String fieldName, String getterName) {
         try {
             var method = obj.getClass().getMethod(getterName);
             Object result = method.invoke(obj);
-            return result instanceof Integer ? (Integer) result : defaultValue;
+            return result instanceof Integer ? (Integer) result : 0;
         } catch (Exception e) {
             try {
                 var field = obj.getClass().getDeclaredField(fieldName);
                 field.setAccessible(true);
                 Object result = field.get(obj);
-                return result instanceof Integer ? (Integer) result : defaultValue;
+                return result instanceof Integer ? (Integer) result : 0;
             } catch (Exception ex) {
-                return defaultValue;
+                return 0;
             }
         }
     }
@@ -546,13 +546,13 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
         }
     }
     
-    private Object getObjectProperty(Object obj, String fieldName, String getterName) {
+    private Object getObjectProperty(Object obj) {
         try {
-            var method = obj.getClass().getMethod(getterName);
+            var method = obj.getClass().getMethod("getVisualOffset");
             return method.invoke(obj);
         } catch (Exception e) {
             try {
-                var field = obj.getClass().getDeclaredField(fieldName);
+                var field = obj.getClass().getDeclaredField("visualOffset");
                 field.setAccessible(true);
                 return field.get(obj);
             } catch (Exception ex) {
@@ -561,14 +561,14 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
         }
     }
     
-    private float[] getFloatArrayProperty(Object obj, String fieldName, String getterName) {
+    private float[] getFloatArrayProperty(Object obj) {
         try {
-            var method = obj.getClass().getMethod(getterName);
+            var method = obj.getClass().getMethod("getColorRGBA");
             Object result = method.invoke(obj);
             return result instanceof float[] ? (float[]) result : null;
         } catch (Exception e) {
             try {
-                var field = obj.getClass().getDeclaredField(fieldName);
+                var field = obj.getClass().getDeclaredField("colorRGBA");
                 field.setAccessible(true);
                 Object result = field.get(obj);
                 return result instanceof float[] ? (float[]) result : null;
@@ -578,14 +578,14 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
         }
     }
     
-    private boolean setFloatArrayProperty(Object obj, String fieldName, String setterName, float[] value) {
+    private boolean setFloatArrayProperty(Object obj, float[] value) {
         try {
-            var method = obj.getClass().getMethod(setterName, float[].class);
+            var method = obj.getClass().getMethod("setColorRGBA", float[].class);
             method.invoke(obj, value);
             return true;
         } catch (Exception e) {
             try {
-                var field = obj.getClass().getDeclaredField(fieldName);
+                var field = obj.getClass().getDeclaredField("colorRGBA");
                 field.setAccessible(true);
                 field.set(obj, value);
                 return true;

@@ -1,0 +1,315 @@
+package com.chronoblocks.ui.timeline.playback.weather;
+
+import com.chronoblocks.ui.timeline.model.TimelineTrack;
+import com.chronoblocks.ui.timeline.model.TrackType;
+import com.chronoblocks.ui.timeline.model.weather.WeatherKeyframe;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.world.ClientWorld;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * TimelineWeatherController v1.0
+ * -------------------------------------------------------
+ * 负责在"导演模式 + 天气轨道启用"时，用 WeatherTrackSampler
+ * 驱动 Minecraft 客户端的天气表现：
+ * <p>
+ *  - 雨 / 雪 / 雷暴 强度（雨滴、粒子、天空暗度）
+ *  - 云量 / 雾密度（可交给渲染 Mixin 使用 WeatherSample）
+ *  - 湿度 / 风力（可用于粒子 / 叶子摆动等二期扩展）
+ * <p>
+ * 设计要点：
+ *  - 单例（与 TimelineSeasonController / TimelineWorldController 风格一致）
+ *  - 不主动"创造天气 Mixin"，只是提供 hasOverride() + current()
+ *    供其他渲染/粒子 Mixin 查询。
+ *  - 通过 applyToWorld(...) 尽量利用 Vanilla 提供的雨/雷接口。
+ * <p>
+ * 使用方式（典型调用链）：
+ *  - 时间线播放： updateForPlayback(currentTimeSeconds)
+ *  - 拖动时间标尺： previewAt(currentTimeSeconds)
+ *  - UI 切换激活轨道： bindActiveTrack(track) / clearActiveTrack()
+ *  - 关闭导演模式 / 删除天气轨道： disableAndReset()
+ *
+ * @author ChronoBlocks
+ * @version 1.0
+ */
+public final class TimelineWeatherController {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(TimelineWeatherController.class);
+
+    // ========= 单例 =========
+
+    private static final TimelineWeatherController INSTANCE = new TimelineWeatherController();
+
+    public static TimelineWeatherController getInstance() {
+        return INSTANCE;
+    }
+
+    /** 便捷别名，供 Mixin 使用 */
+    public static TimelineWeatherController get() {
+        return INSTANCE;
+    }
+
+    // ========= 状态字段 =========
+
+    /** 当前是否启用"天气轨道接管" */
+    private boolean enabled = false;
+
+    /** 当前绑定的天气轨道（可能为 null） */
+    private TimelineTrack activeTrack;
+
+    /** 采样器：负责从 WeatherKeyframe 列表插值出 WeatherSample */
+    private WeatherTrackSampler sampler;
+
+    /** 当前采样结果，供渲染 / 粒子 Mixin 查询 */
+    private WeatherSample currentSample;
+
+    /** 当前是否有有效 override（enabled + sampler + sample） */
+    private boolean hasOverride = false;
+
+    private TimelineWeatherController() {
+    }
+
+    // ==========================================================
+    // 基本控制 API（给 UI / TimelinePanel 调用）
+    // ==========================================================
+
+    /**
+     * 是否启用天气轨道接管。
+     * 通常由 UI 的"启用天气轨道"按钮控制。
+     */
+    public void setEnabled(boolean enabled) {
+        if (this.enabled == enabled) return;
+        this.enabled = enabled;
+
+        if (!enabled) {
+            // 关闭时：清理 override，尽量恢复原版天气
+            clearOverrideAndResetWorld();
+        } else {
+            LOGGER.info("[WeatherController] 天气轨道接管已启用");
+        }
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    /**
+     * 绑定/切换当前激活的天气轨道。
+     * 一般在 TimelinePanel 用户选中某条 Weather 轨道时调用。
+     */
+    public void bindActiveTrack(TimelineTrack track) {
+        if (track != null && track.getType() != TrackType.WEATHER) {
+            LOGGER.warn("[WeatherController] 试图绑定非天气轨道: {}", track.getType());
+        }
+        this.activeTrack = track;
+        rebuildFromActiveTrack();
+    }
+
+    /**
+     * 设置激活的天气轨道（向后兼容方法）。
+     * 
+     * @deprecated 使用 {@link #bindActiveTrack(TimelineTrack)} 代替
+     */
+    @Deprecated
+    public void setActiveWeatherTrack(TimelineTrack track) {
+        bindActiveTrack(track);
+    }
+
+    /**
+     * 获取当前激活的天气轨道。
+     */
+    public TimelineTrack getActiveWeatherTrack() {
+        return activeTrack;
+    }
+
+    /**
+     * 当轨道上的关键帧发生变化（添加/删除/移动）时调用。
+     * 例如：
+     *  - WeatherKeyframe 命令执行完成后
+     *  - 撤销/重做
+     */
+    public void rebuildFromActiveTrack() {
+        if (activeTrack == null) {
+            sampler = null;
+            currentSample = null;
+            hasOverride = false;
+            return;
+        }
+
+        sampler = new WeatherTrackSampler(activeTrack);
+        sampler.rebuildKeyframeList();
+        
+        // 统计关键帧数量
+        int keyframeCount = 0;
+        for (com.chronoblocks.ui.timeline.model.TimelineSelectable selectable : activeTrack.getAutomationKeyframes()) {
+            if (selectable instanceof WeatherKeyframe) {
+                keyframeCount++;
+            }
+        }
+        LOGGER.debug("[WeatherController] 重建 WeatherTrackSampler。关键帧数 = {}", keyframeCount);
+    }
+
+    // ==========================================================
+    // 调用链入口（时间线驱动）
+    // ==========================================================
+
+    /**
+     * 时间线播放 / 拖动时调用，传入当前时间，刷新天气状态。
+     * <p>
+     * 一般由 TimelinePanel / 播放控制中心 调用：
+     *  - 播放时每 tick 调用
+     *  - 拖动时间尺 / Scrubbing 时调用
+     */
+    public void updateForPlayback(float timelineTimeSeconds) {
+        if (!enabled || activeTrack == null || sampler == null) {
+            // 当未启用或无轨道时，不 override
+            clearOverride();  // NOTE: 不强制恢复原版，只是停止覆盖。
+            return;
+        }
+
+        // 采样当前时间的天气
+        WeatherSample sample = sampler.sample(timelineTimeSeconds);
+        this.currentSample = sample;
+        this.hasOverride = true;
+
+        // 应用到世界（雨/雷等即时效果）
+        applyToWorld(sample);
+    }
+
+    /**
+     * 仅用于"预览"（例如拖动时间标尺时预览，但不一定处于播放态）。
+     * 和 updateForPlayback 基本一致，只是语义上给 UI 看得更清楚。
+     */
+    public void previewAt(float timelineTimeSeconds) {
+        updateForPlayback(timelineTimeSeconds);
+    }
+
+    /**
+     * 时间线播放时调用（向后兼容方法）。
+     * 
+     * @deprecated 使用 {@link #updateForPlayback(float)} 代替
+     */
+    @Deprecated
+    public void onTimelineTick(float timelineTime) {
+        updateForPlayback(timelineTime);
+    }
+
+    /**
+     * 初始化控制器（向后兼容方法）。
+     * 
+     * <p>注意：v1.0 版本不再需要绑定 TimelineModel，改为直接使用 bindActiveTrack()。
+     * 此方法保留仅为向后兼容，实际不做任何操作。
+     * 
+     * @deprecated 使用 {@link #bindActiveTrack(TimelineTrack)} 代替
+     */
+    @Deprecated
+    public void init(com.chronoblocks.ui.timeline.model.TimelineModel model) {
+        // v1.0 不再需要绑定模型，改为直接绑定轨道
+        LOGGER.debug("[WeatherController] init() 已弃用，请使用 bindActiveTrack()");
+    }
+
+    /**
+     * 外部系统（例如季节 / 天气混合 Mixin）需要知道：
+     * 当前是否有天气 override。
+     */
+    public boolean hasOverride() {
+        return hasOverride && currentSample != null && enabled;
+    }
+
+    /**
+     * 当前天气采样结果（给 Mixin / 渲染层调用）。
+     */
+    public WeatherSample getCurrentSample() {
+        return currentSample;
+    }
+
+    // ==========================================================
+    // 将 WeatherSample 应用到 Minecraft 世界
+    // ==========================================================
+
+    private void applyToWorld(WeatherSample sample) {
+        if (sample == null || !sample.enabled) {
+            return;
+        }
+
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null) {
+            return;
+        }
+        ClientWorld world = client.world;
+        if (world == null) {
+            return;
+        }
+
+        // -------------------------------
+        // 1) 雨 / 雪 / 雷暴：通过 WorldMixin 注入
+        // -------------------------------
+        // 注意：world.setRainGradient() 和 world.setThunderGradient() 方法不存在，
+        // 这些应该通过 WorldMixin 来覆盖 getRainGradient() 和 getThunderGradient() 方法。
+        // 这里只需要确保 currentSample 保持最新，Mixin 会自动读取。
+
+        // -------------------------------
+        // 2) 通知 WeatherRenderer 更新
+        // -------------------------------
+        try {
+            com.chronoblocks.client.renderer.weather.WeatherRenderer.get().onWeatherSampleUpdated(sample);
+        } catch (Exception e) {
+            LOGGER.debug("[WeatherController] 无法更新 WeatherRenderer", e);
+        }
+
+        // -------------------------------
+        // 3) 云量 / 雾密度 / 湿度 / 风力
+        // -------------------------------
+        // 这部分通常不在这里直接操作，而是：
+        //   - 在 SkyRendererMixin / BackgroundRendererMixin 中
+        //     读取 TimelineWeatherController.getInstance().getCurrentSample()
+        //   - 根据 sample.cloudCoverage / fogDensity / wetness / windStrength
+        //     调整云层透明度、雾距离、粒子数量等。
+        //
+        // 因此，这里必须保证 currentSample 始终保持最新即可。
+    }
+
+    // ==========================================================
+    // 清理 / 重置逻辑
+    // ==========================================================
+
+    /**
+     * 清除 override 状态（但不强制恢复 Vanilla 雨量）。
+     * 一般用于：
+     *  - 停止播放但仍在导演模式中
+     *  - 暂停天气轨道接管
+     */
+    public void clearOverride() {
+        this.hasOverride = false;
+        this.currentSample = null;
+        
+        // 通知 WeatherRenderer 清除
+        try {
+            com.chronoblocks.client.renderer.weather.WeatherRenderer.get().onWeatherSampleUpdated(null);
+        } catch (Exception e) {
+            LOGGER.debug("[WeatherController] 无法清除 WeatherRenderer", e);
+        }
+    }
+
+    /**
+     * 清空 override，并尝试恢复世界天气到"正常状态"：
+     *  - 雨强度/雷暴强度 重置为 0（晴天）
+     *  - 其他视觉效果（云/雾）由 Vanilla 自己随时间驱动
+     */
+    private void clearOverrideAndResetWorld() {
+        this.hasOverride = false;
+        this.currentSample = null;
+
+        // 通知 WeatherRenderer 清除
+        try {
+            com.chronoblocks.client.renderer.weather.WeatherRenderer.get().onWeatherSampleUpdated(null);
+        } catch (Exception e) {
+            LOGGER.debug("[WeatherController] 无法清除 WeatherRenderer", e);
+        }
+
+        // 注意：雨/雷的恢复由 WorldMixin 自动处理（当 hasOverride() 返回 false 时）
+        LOGGER.info("[WeatherController] 清除天气 override，并尝试恢复 Vanilla 晴天状态");
+    }
+
+}

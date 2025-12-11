@@ -1,35 +1,64 @@
 package com.chronoblocks.ui.properties.adapters;
 
 import com.chronoblocks.ui.properties.IPropertyAdapter;
-import com.chronoblocks.ui.theme.UITheme;
-import com.chronoblocks.ui.timeline.model.weather.WeatherKeyframe;
 import com.chronoblocks.ui.theme.Icons;
+import com.chronoblocks.ui.theme.UITheme;
+import com.chronoblocks.ui.timeline.container.ContainerTimelineService;
+import com.chronoblocks.ui.timeline.model.TimelineModel;
+import com.chronoblocks.ui.timeline.model.TimelineTrack;
+import com.chronoblocks.ui.timeline.model.weather.WeatherKeyframe;
+import com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController;
 import imgui.ImGui;
+import imgui.flag.ImGuiColorEditFlags;
 import imgui.flag.ImGuiTreeNodeFlags;
+import imgui.type.ImFloat;
 import imgui.type.ImInt;
+import org.joml.Vector3f;
+
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * 天气关键帧属性适配器
- * 
- * <p>为时间线上的天气关键帧提供属性编辑界面。
- * 
- * <p>支持的属性：
- * <ul>
- *   <li>天气类型（晴天、雨天、雪天等）</li>
- *   <li>强度和时间</li>
- *   <li>风速和风向</li>
- *   <li>云密度和降水量</li>
- * </ul>
- * 
- * @author ChronoBlocks Team
- * @version 1.0
+ * WeatherKeyframePropertyAdapter v1.0
+ * <p>
+ * 提供天气关键帧属性编辑界面，包括：
+ *  - 雨量
+ *  - 雪量
+ *  - 雷暴强度
+ *  - 云量
+ *  - 雾浓度
+ *  - 湿度（地面积水）
+ *  - 风力
+ *  - 雾颜色 Tint
+ *  - 天气预设（晴天/雨/雪/雷暴/雾）
+ *  - 插值方式（步进/线性/平滑）
+ * <p>
+ * 改动后自动触发 TimelineWeatherController 刷新采样器 + 预览
+ *
+ * @author ChronoBlocks
  */
 public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherKeyframe> {
-    
-    private final ImInt weatherTypeIndex = new ImInt();
-    private static final String[] WEATHER_TYPE_LABELS = buildWeatherTypeLabels();
-    
-    private static String[] buildWeatherTypeLabels() {
+
+    private static final String TITLE = "☁ 天气关键帧";
+
+    // ImGui 临时对象
+    private final ImFloat timeFloat = new ImFloat();
+    private final ImFloat rainFloat = new ImFloat();
+    private final ImFloat snowFloat = new ImFloat();
+    private final ImFloat thunderFloat = new ImFloat();
+    private final ImFloat cloudFloat = new ImFloat();
+    private final ImFloat fogFloat = new ImFloat();
+    private final ImFloat wetFloat = new ImFloat();
+    private final ImFloat windFloat = new ImFloat();
+
+    private final float[] fogTintArr = new float[3];
+
+    private final ImInt weatherPresetIndex = new ImInt();
+    private final ImInt interpolationIndex = new ImInt();
+
+    private static final String[] PRESET_LABELS = buildPresetLabels();
+    private static final String[] INTERPOLATION_LABELS = buildInterpolationLabels();
+
+    private static String[] buildPresetLabels() {
         WeatherKeyframe.WeatherType[] types = WeatherKeyframe.WeatherType.values();
         String[] labels = new String[types.length];
         for (int i = 0; i < types.length; i++) {
@@ -37,90 +66,220 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
         }
         return labels;
     }
-    
+
+    private static String[] buildInterpolationLabels() {
+        com.chronoblocks.ui.timeline.model.TimelineInterpolation[] types = 
+            com.chronoblocks.ui.timeline.model.TimelineInterpolation.values();
+        String[] labels = new String[types.length];
+        for (int i = 0; i < types.length; i++) {
+            labels[i] = types[i].getDisplayName();
+        }
+        return labels;
+    }
+
     @Override
-    public boolean renderProperties(WeatherKeyframe keyframe) {
-        if (keyframe == null) {
-            UITheme.label("天气关键帧为 null", UITheme.DarkTheme.TEXT_DISABLED);
+    public boolean renderProperties(WeatherKeyframe kf) {
+
+        if (kf == null) {
+            UITheme.label("(未选中天气关键帧)", UITheme.DarkTheme.TEXT_DISABLED);
             return false;
         }
+
+        // ⭐ v1.0：检查关键帧是否属于激活的天气轨道
+        TimelineModel timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineTrack keyframeTrack = null;
+        if (timelineModel != null) {
+            keyframeTrack = timelineModel.findTrackForKeyframe(kf);
+        }
         
-        boolean modified = false;
+        TimelineWeatherController weatherController = TimelineWeatherController.getInstance();
+        TimelineTrack activeTrack = weatherController.getActiveWeatherTrack();
         
-        // 标题
-        UITheme.title(Icons.CLIPBOARD + " 天气关键帧");
+        boolean isTrackActive = (keyframeTrack != null && keyframeTrack == activeTrack);
         
-        // ========== 基础信息 ==========
-        if (ImGui.collapsingHeader("📋 基础信息", ImGuiTreeNodeFlags.DefaultOpen)) {
-            float[] time = {keyframe.getTime()};
-            if (ImGui.dragFloat("时间", time, 0.05f, 0.0f, 10_000f, "%.2fs")) {
-                keyframe.setTime(time[0]);
-                modified = true;
+        if (!isTrackActive) {
+            UITheme.title(TITLE);
+            UITheme.separator();
+            UITheme.label(Icons.WARNING + " 此关键帧不属于激活的天气轨道", UITheme.DarkTheme.TEXT_WARNING);
+            ImGui.textDisabled("当前激活轨道: " + (activeTrack != null ? activeTrack.getName() : "<无>"));
+            if (keyframeTrack != null) {
+                ImGui.textDisabled("关键帧所在轨道: " + keyframeTrack.getName());
             }
-            
+            UITheme.spacingMedium();
+            UITheme.label("提示：只有激活轨道上的关键帧才能被编辑和影响世界中的天气。", UITheme.DarkTheme.TEXT_DISABLED);
+            UITheme.label("请点击轨道头部的激活按钮来切换激活轨道。", UITheme.DarkTheme.TEXT_DISABLED);
+            return false; // 禁用编辑
+        }
+
+        AtomicBoolean timeChanged = new AtomicBoolean(false);
+        AtomicBoolean parameterChanged = new AtomicBoolean(false);
+
+        UITheme.title(TITLE);
+
+        // ==========================================================
+        // 基础信息
+        // ==========================================================
+        if (ImGui.collapsingHeader(Icons.INFO + " 基础信息", ImGuiTreeNodeFlags.DefaultOpen)) {
+            timeFloat.set(kf.getTime());
+            if (ImGui.dragFloat("时间 (秒)", timeFloat.getData(), 0.02f, 0, 10_000f, "%.2f")) {
+                kf.setTime(timeFloat.get());
+                timeChanged.set(true);
+            }
             UITheme.spacingSmall();
-            
+        }
+
+        // ==========================================================
+        // 天气预设
+        // ==========================================================
+        if (ImGui.collapsingHeader("☁ 天气预设", ImGuiTreeNodeFlags.DefaultOpen)) {
+
+            weatherPresetIndex.set(kf.getWeatherType().ordinal());
             WeatherKeyframe.WeatherType[] types = WeatherKeyframe.WeatherType.values();
-            weatherTypeIndex.set(keyframe.getWeatherType().ordinal());
-            if (ImGui.combo("天气类型", weatherTypeIndex, WEATHER_TYPE_LABELS)) {
-                keyframe.setWeatherType(types[weatherTypeIndex.get()]);
-                modified = true;
+
+            if (ImGui.combo("模式", weatherPresetIndex, PRESET_LABELS)) {
+                WeatherKeyframe.WeatherType newType = types[weatherPresetIndex.get()];
+                kf.applyWeatherPreset(newType); // 自动写入默认雨量/云量等
+                parameterChanged.set(true);
             }
-            
-            UITheme.spacingSmall();
-            
-            float[] intensity = {keyframe.getIntensity()};
-            if (ImGui.dragFloat("强度", intensity, 0.01f, 0.0f, 1.0f, "%.2f")) {
-                keyframe.setIntensity(intensity[0]);
-                modified = true;
-            }
-            
-            float[] duration = {keyframe.getDuration()};
-            if (ImGui.dragFloat("持续时间", duration, 0.1f, 0.0f, 600f, "%.1fs")) {
-                keyframe.setDuration(duration[0]);
-                modified = true;
-            }
-            
+
+            ImGui.textDisabled("• 选择一个天气模式并自动应用参数");
+            ImGui.textDisabled("• 可在下方手动微调");
             UITheme.spacingSmall();
         }
-        
-        // ========== 天气特效 ==========
-        if (ImGui.collapsingHeader("🌦️ 天气特效", ImGuiTreeNodeFlags.DefaultOpen)) {
-            float[] windSpeed = {keyframe.getWindSpeed()};
-            if (ImGui.dragFloat("风速", windSpeed, 0.1f, 0.0f, 100f, "%.1f m/s")) {
-                keyframe.setWindSpeed(windSpeed[0]);
-                modified = true;
+
+        // ==========================================================
+        // 天气强度参数
+        // ==========================================================
+        if (ImGui.collapsingHeader("🌧 天气强度", ImGuiTreeNodeFlags.DefaultOpen)) {
+
+            // 雨（通过 rainStrength + rainType 控制）
+            rainFloat.set(kf.getRainIntensity());
+            if (ImGui.sliderFloat("雨量", rainFloat.getData(), 0.0f, 1.0f, "%.2f")) {
+                float value = rainFloat.get();
+                if (value > 0.01f) {
+                    kf.setRainType(WeatherKeyframe.RainType.RAIN);
+                    kf.setRainStrength(value);
+                } else {
+                    kf.setRainStrength(0f);
+                }
+                parameterChanged.set(true);
             }
-            
-            float[] windDirection = {keyframe.getWindDirection()};
-            if (ImGui.dragFloat("风向", windDirection, 1.0f, 0.0f, 360f, "%.1f°")) {
-                keyframe.setWindDirection(windDirection[0]);
-                modified = true;
+            ImGui.textDisabled("• 0 = 无雨，1 = 暴雨");
+
+            // 雪（通过 rainStrength + rainType 控制）
+            snowFloat.set(kf.getSnowIntensity());
+            if (ImGui.sliderFloat("雪量", snowFloat.getData(), 0.0f, 1.0f, "%.2f")) {
+                float value = snowFloat.get();
+                if (value > 0.01f) {
+                    kf.setRainType(WeatherKeyframe.RainType.SNOW);
+                    kf.setRainStrength(value);
+                } else {
+                    kf.setRainStrength(0f);
+                }
+                parameterChanged.set(true);
             }
-            
-            UITheme.spacingSmall();
-            
-            float[] cloudDensity = {keyframe.getCloudDensity()};
-            if (ImGui.dragFloat("云密度", cloudDensity, 0.01f, 0.0f, 1.0f, "%.2f")) {
-                keyframe.setCloudDensity(cloudDensity[0]);
-                modified = true;
+            ImGui.textDisabled("• 0 = 无雪，1 = 暴雪");
+
+            // 雷暴（通过 thunderStrength 控制）
+            thunderFloat.set(kf.getThunderIntensity());
+            if (ImGui.sliderFloat("雷暴", thunderFloat.getData(), 0.0f, 1.0f, "%.2f")) {
+                kf.setThunderStrength(thunderFloat.get());
+                parameterChanged.set(true);
             }
-            
-            float[] precipitation = {keyframe.getPrecipitationAmount()};
-            if (ImGui.dragFloat("降水量", precipitation, 0.01f, 0.0f, 10f, "%.2f mm/h")) {
-                keyframe.setPrecipitationAmount(precipitation[0]);
-                modified = true;
-            }
-            
+            ImGui.textDisabled("• 0 = 无雷，1 = 频繁闪电");
+
             UITheme.spacingSmall();
         }
-        
-        return modified;
+
+        // ==========================================================
+        // 云 / 雾 / 湿度 / 风力
+        // ==========================================================
+        if (ImGui.collapsingHeader("🌫 云雾与环境", ImGuiTreeNodeFlags.DefaultOpen)) {
+
+            // 云（通过 cloudDensity 控制）
+            cloudFloat.set(kf.getCloudCoverage());
+            if (ImGui.sliderFloat("云量", cloudFloat.getData(), 0.0f, 1.0f, "%.2f")) {
+                kf.setCloudDensity(cloudFloat.get());
+                parameterChanged.set(true);
+            }
+
+            // 雾
+            fogFloat.set(kf.getFogDensity());
+            if (ImGui.sliderFloat("雾浓度", fogFloat.getData(), 0.0f, 1.0f, "%.2f")) {
+                kf.setFogDensity(fogFloat.get());
+                parameterChanged.set(true);
+            }
+
+            // 湿度（通过 puddleLevel 控制）
+            wetFloat.set(kf.getWetness());
+            if (ImGui.sliderFloat("地面湿度", wetFloat.getData(), 0.0f, 1.0f, "%.2f")) {
+                kf.setPuddleLevel(wetFloat.get());
+                parameterChanged.set(true);
+            }
+
+            // 风
+            windFloat.set(kf.getWindStrength());
+            if (ImGui.sliderFloat("风力", windFloat.getData(), 0.0f, 1.0f, "%.2f")) {
+                kf.setWindStrength(windFloat.get());
+                parameterChanged.set(true);
+            }
+
+            UITheme.spacingSmall();
+
+            // 雾颜色（使用 fogColor，不是 fogTint）
+            Vector3f fogColor = kf.getFogColor();
+            fogTintArr[0] = fogColor.x;
+            fogTintArr[1] = fogColor.y;
+            fogTintArr[2] = fogColor.z;
+
+            int flags = ImGuiColorEditFlags.DisplayRGB | ImGuiColorEditFlags.InputRGB | ImGuiColorEditFlags.NoAlpha;
+            if (ImGui.colorEdit3("雾颜色", fogTintArr, flags)) {
+                kf.setFogColor(fogTintArr[0], fogTintArr[1], fogTintArr[2]);
+                parameterChanged.set(true);
+            }
+            ImGui.textDisabled("• 雾的绝对颜色值");
+
+            UITheme.spacingSmall();
+        }
+
+        // ==========================================================
+        // 插值方式
+        // ==========================================================
+        if (ImGui.collapsingHeader(Icons.INTERPOLATION + " 插值方式", ImGuiTreeNodeFlags.DefaultOpen)) {
+
+            interpolationIndex.set(kf.getInterpolation().ordinal());
+            com.chronoblocks.ui.timeline.model.TimelineInterpolation[] types = 
+                com.chronoblocks.ui.timeline.model.TimelineInterpolation.values();
+
+            if (ImGui.combo("插值模式", interpolationIndex, INTERPOLATION_LABELS)) {
+                kf.setInterpolation(types[interpolationIndex.get()]);
+                parameterChanged.set(true);
+            }
+
+            ImGui.textDisabled("• 线性：匀速变化");
+            ImGui.textDisabled("• 平滑：缓入缓出");
+            ImGui.textDisabled("• 步进：瞬间切换");
+            UITheme.spacingSmall();
+        }
+
+        // ==========================================================
+        // 触发天气控制器刷新
+        // ==========================================================
+
+        if (parameterChanged.get() || timeChanged.get()) {
+            TimelineWeatherController controller = TimelineWeatherController.getInstance();
+            controller.rebuildFromActiveTrack();
+            
+            // 获取当前时间并预览
+            float currentTime = timelineModel.getCurrentTime();
+            controller.previewAt(currentTime);
+        }
+
+        return parameterChanged.get() || timeChanged.get();
     }
-    
+
     @Override
     public Class<WeatherKeyframe> getTargetType() {
         return WeatherKeyframe.class;
     }
 }
-
