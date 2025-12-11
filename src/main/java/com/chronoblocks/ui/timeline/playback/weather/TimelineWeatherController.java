@@ -150,6 +150,64 @@ public final class TimelineWeatherController {
         LOGGER.debug("[WeatherController] 重建 WeatherTrackSampler。关键帧数 = {}", keyframeCount);
     }
 
+    /**
+     * ⭐ v1.0：检查并自动激活唯一的天气轨道。
+     * 当模型结构变更时调用此方法，如果只有一个天气轨道，自动激活它。
+     * 
+     * <p>此方法通过 ContainerTimelineService 获取 TimelineModel，不直接绑定模型。
+     */
+    public void checkAndAutoActivate() {
+        com.chronoblocks.ui.timeline.container.ContainerTimelineService service = 
+            com.chronoblocks.ui.timeline.container.ContainerTimelineService.getInstance();
+        if (service == null) {
+            return;
+        }
+        
+        com.chronoblocks.ui.timeline.model.TimelineModel model = service.getTimelineModel();
+        if (model == null) {
+            return;
+        }
+        
+        // 统计当前天气轨道数量
+        int weatherTrackCount = 0;
+        TimelineTrack firstWeatherTrack = null;
+        for (TimelineTrack track : model.getTracks()) {
+            if (track.getType() == TrackType.WEATHER) {
+                weatherTrackCount++;
+                if (firstWeatherTrack == null) {
+                    firstWeatherTrack = track;
+                }
+            }
+        }
+        
+        // ⭐ v1.0：如果只有一个天气轨道，无论当前状态如何，都确保它是激活的
+        // 这包括：从0个变成1个、从多个变成1个、新建唯一轨道等情况
+        if (weatherTrackCount == 1) {
+            if (activeTrack != firstWeatherTrack) {
+                activeTrack = firstWeatherTrack;
+                LOGGER.info("[WeatherController] 检测到只有一个天气轨道，自动激活: {}", firstWeatherTrack.getName());
+                rebuildFromActiveTrack();
+            }
+        } else if (weatherTrackCount == 0) {
+            // 没有天气轨道时，清空激活轨道
+            if (activeTrack != null) {
+                activeTrack = null;
+                sampler = null;
+                currentSample = null;
+                hasOverride = false;
+                LOGGER.info("[WeatherController] 没有天气轨道，清空激活轨道");
+            }
+        } else {
+            // 有多个天气轨道时，检查当前激活轨道是否仍然在模型中
+            if (activeTrack != null && !model.getTracks().contains(activeTrack)) {
+                // 当前激活轨道已被删除，切换到第一条轨道（但不强制，因为可能有多个）
+                activeTrack = firstWeatherTrack;
+                LOGGER.info("[WeatherController] 当前激活轨道已被删除，切换到: {}", firstWeatherTrack.getName());
+                rebuildFromActiveTrack();
+            }
+        }
+    }
+
     // ==========================================================
     // 调用链入口（时间线驱动）
     // ==========================================================
@@ -259,7 +317,16 @@ public final class TimelineWeatherController {
         }
 
         // -------------------------------
-        // 3) 云量 / 雾密度 / 湿度 / 风力
+        // 3) 更新天气粒子（雨滴/雪花）
+        // -------------------------------
+        try {
+            WeatherParticleController.getInstance().updateParticles(sample);
+        } catch (Exception e) {
+            LOGGER.debug("[WeatherController] 无法更新天气粒子", e);
+        }
+
+        // -------------------------------
+        // 4) 云量 / 雾密度 / 湿度 / 风力
         // -------------------------------
         // 这部分通常不在这里直接操作，而是：
         //   - 在 SkyRendererMixin / BackgroundRendererMixin 中

@@ -476,7 +476,7 @@ public class TimelineModel {
         if (activeTrack != track) {
             org.slf4j.LoggerFactory.getLogger(TimelineModel.class)
                     .warn("[TimelineModel] 只能在激活的摄像机轨道上添加关键帧，当前轨道：{}，激活轨道：{}",
-                            track != null ? track.getName() : "null",
+                            track.getName(),
                             activeTrack != null ? activeTrack.getName() : "null");
             return null;
         }
