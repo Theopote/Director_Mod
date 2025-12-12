@@ -177,7 +177,10 @@ public class TimelinePanel extends AbstractPanel
         // 注册容器-时间线关联服务
         com.chronoblocks.ui.timeline.container.ContainerTimelineService.getInstance().setTimelineModel(model);
         
-        // 初始化音频控制器
+        // 初始化音频服务（自动收集声音事件）
+        com.chronoblocks.ui.timeline.audio.TimelineAudioService.getInstance().setTimelineModel(model);
+        
+        // 初始化音频控制器（播放时触发声音）
         com.chronoblocks.ui.timeline.playback.TimelineAudioController.getInstance().setTimelineModel(model);
 
         // 注册片段方块控制器，根据播放头位置控制片段方块显示

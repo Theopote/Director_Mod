@@ -587,6 +587,7 @@ public class TimelineModel {
         if (track != null && clip != null) {
             track.addClip(clip);
             markDurationDirty();
+            // 注意：声音事件收集在 TimelineTrack.addClip() 中自动处理
         }
     }
 

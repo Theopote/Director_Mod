@@ -175,7 +175,7 @@ public final class BlockAnimationEngine {
         if (transformer != null) {
             // ⚠️ 防御：config.getParams() 可能为 null
             Map<String, Object> baseParams =
-                    config.getParams() != null ? config.getParams() : Collections.emptyMap();
+                    config.getParams();
             Map<String, Object> tempParams = new java.util.HashMap<>(baseParams);
 
             // 合并默认参数

@@ -15,7 +15,9 @@ import com.chronoblocks.ui.timeline.model.audio.AudioTrack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -76,7 +78,7 @@ public class TimelineAudioService {
             return;
         }
         
-        Container container = ContainerManager.getInstance().getContainer(containerId);
+        Container container = Objects.requireNonNull(ContainerManager.getInstance()).getContainer(containerId);
         if (container == null) {
             return;
         }
@@ -93,8 +95,9 @@ public class TimelineAudioService {
             config = ClipAnimationConfig.defaultConfig();
         }
         
+        // 将 Set<BlockPos> 转换为 List<BlockPos>
         List<BlockSequenceEntry> sequenceEntries = BlockSequenceGenerator.generate(
-                container.getBlocks(),
+                new ArrayList<>(container.getBlocks()),
                 container,
                 config.getSequenceParameters()
         );
@@ -167,9 +170,19 @@ public class TimelineAudioService {
         audioTrack.setCollapsed(track.isCollapsed());
         audioTrack.setZOrder(track.getZOrder());
         
-        // 迁移事件
-        for (AudioEvent event : track.getAudioEvents()) {
-            audioTrack.addEvent(event);
+        // 迁移事件：先转换为 AudioTrack，然后使用新方法
+        // 如果 track 不是 AudioTrack，先转换为 AudioTrack 以访问新方法
+        if (track instanceof AudioTrack sourceTrack) {
+            for (AudioEvent event : sourceTrack.getEvents()) {
+                audioTrack.addEvent(event);
+            }
+        } else {
+            // 对于旧的 TimelineTrack，使用已弃用方法进行迁移（这是最后一次使用）
+            @SuppressWarnings("deprecation")
+            List<AudioEvent> oldEvents = track.getAudioEvents();
+            for (AudioEvent event : oldEvents) {
+                audioTrack.addEvent(event);
+            }
         }
         
         // 替换轨道
@@ -201,21 +214,8 @@ public class TimelineAudioService {
                 if (track instanceof AudioTrack) {
                     audioTrack = (AudioTrack) track;
                 } else {
-                    // 向后兼容：使用旧的方法
-                    List<AudioEvent> eventsToRemove = track.getAudioEventsInRange(
-                            clip.getStartTime(),
-                            clip.getEndTime()
-                    );
-                    
-                    for (AudioEvent event : eventsToRemove) {
-                        track.removeAudioEvent(event.getId());
-                    }
-                    
-                    if (LOGGER.isDebugEnabled() && !eventsToRemove.isEmpty()) {
-                        LOGGER.debug("[TimelineAudioService] 移除了片段 {} 的 {} 个声音事件",
-                                clip.getLabel(), eventsToRemove.size());
-                    }
-                    continue;
+                    // 向后兼容：先转换为 AudioTrack，然后使用新方法
+                    audioTrack = convertToAudioTrack(track);
                 }
                 
                 // 移除该片段时间范围内的所有事件

@@ -168,9 +168,11 @@ public class AudioTrack extends TimelineTrack {
      * 完美兼容自动化轨道的渲染逻辑。
      */
     @Override
-    public List<? extends TimelineSelectable> getAutomationKeyframes() {
-        // AudioEvent 实现了 TimelineSelectable，可以直接返回
-        return new ArrayList<>(events);
+    public List<TimelineSelectable> getAutomationKeyframes() {
+        // AudioEvent 实现了 TimelineSelectable，需要显式转换为 List<TimelineSelectable>
+        List<TimelineSelectable> result = new ArrayList<>();
+        result.addAll(events);
+        return result;
     }
 
     // =====================================================================

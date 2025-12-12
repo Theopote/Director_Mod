@@ -5,8 +5,6 @@ import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.audio.AudioEvent;
 import imgui.ImDrawList;
 import imgui.ImGui;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * 时间线音频轨道渲染器
@@ -25,8 +23,7 @@ import org.slf4j.LoggerFactory;
  * @version 1.0
  */
 public class TimelineAudioRenderer {
-    private static final Logger LOGGER = LoggerFactory.getLogger(TimelineAudioRenderer.class);
-    
+
     // 事件点大小
     private static final float EVENT_POINT_SIZE = 6.0f;
     private static final float EVENT_POINT_HOVER_SIZE = 8.0f;
@@ -63,13 +60,10 @@ public class TimelineAudioRenderer {
         }
         
         // 转换为 AudioTrack
-        if (!(track instanceof com.chronoblocks.ui.timeline.model.audio.AudioTrack)) {
+        if (!(track instanceof com.chronoblocks.ui.timeline.model.audio.AudioTrack audioTrack)) {
             return;
         }
-        
-        com.chronoblocks.ui.timeline.model.audio.AudioTrack audioTrack = 
-            (com.chronoblocks.ui.timeline.model.audio.AudioTrack) track;
-        
+
         // 检查轨道是否静音
         if (audioTrack.isMuted()) {
             return;
@@ -125,8 +119,9 @@ public class TimelineAudioRenderer {
             drawList.addCircleFilled(eventX, trackCenterY, pointSize, eventColor);
             
             // 绘制外圈（增强可见性）
-            drawList.addCircle(eventX, trackCenterY, pointSize + 1.0f, 
-                             TimelineColors.adjustAlpha(eventColor, 0.5f), 1.0f);
+            // 将 0.5f (50% 透明度) 转换为 0-255 范围：255 * 0.5 = 127
+            int outerColor = TimelineColors.adjustAlpha(eventColor, 127);
+            drawList.addCircle(eventX, trackCenterY, pointSize + 1.0f, outerColor, 12);
         }
         
         // 显示悬停提示
@@ -168,15 +163,13 @@ public class TimelineAudioRenderer {
             return;
         }
         
-        if (ImGui.beginTooltip()) {
-            ImGui.text(String.format("标签: %s", event.getLabel()));
-            ImGui.text(String.format("时间: %.2fs", event.getTime()));
-            ImGui.text(String.format("声音: %s", event.getSoundId()));
-            ImGui.text(String.format("音量: %.1f", event.getVolume()));
-            ImGui.text(String.format("音调: %.1f", event.getPitch()));
-            ImGui.text(String.format("启用: %s", event.isEnabled() ? "是" : "否"));
-            
-            ImGui.endTooltip();
-        }
+        ImGui.beginTooltip();
+        ImGui.text(String.format("标签: %s", event.getLabel()));
+        ImGui.text(String.format("时间: %.2fs", event.getTime()));
+        ImGui.text(String.format("声音: %s", event.getSoundId()));
+        ImGui.text(String.format("音量: %.1f", event.getVolume()));
+        ImGui.text(String.format("音调: %.1f", event.getPitch()));
+        ImGui.text(String.format("启用: %s", event.isEnabled() ? "是" : "否"));
+        ImGui.endTooltip();
     }
 }

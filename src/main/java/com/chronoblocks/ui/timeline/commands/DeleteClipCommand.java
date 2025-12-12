@@ -38,6 +38,12 @@ public class DeleteClipCommand extends BaseTimelineCommand {
             // 记录容器ID（删除前）
             java.util.UUID containerId = clip.getBoundContainerId();
             
+            // 移除片段关联的声音事件（在删除片段前）
+            if (containerId != null) {
+                com.chronoblocks.ui.timeline.audio.TimelineAudioService.getInstance()
+                        .removeSoundEventsForClip(clip);
+            }
+            
             clipList.remove(removedIndex);
             // 清理插值映射，避免内存泄漏
             ChangeKeyframeInterpolationCommand.clearInterpolationsForClip(clip);

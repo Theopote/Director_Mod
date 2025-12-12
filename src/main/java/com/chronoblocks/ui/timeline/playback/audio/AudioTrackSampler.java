@@ -4,10 +4,9 @@ import com.chronoblocks.ui.timeline.model.audio.AudioEvent;
 import com.chronoblocks.ui.timeline.model.audio.AudioTrack;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.sound.PositionedSoundInstance;
-import net.minecraft.sound.SoundCategory;
+import net.minecraft.registry.Registries;
 import net.minecraft.sound.SoundEvent;
 import net.minecraft.util.Identifier;
-import net.minecraft.util.registry.Registry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -207,8 +206,9 @@ public class AudioTrackSampler {
                 return;
             }
 
-            // 从注册表获取声音事件
-            SoundEvent soundEvent = Registry.SOUND_EVENT.get(soundIdentifier);
+            // 从注册表获取声音事件（直接使用 Registries 静态访问）
+            SoundEvent soundEvent = Registries.SOUND_EVENT.get(soundIdentifier);
+            
             if (soundEvent == null) {
                 if (LOGGER.isDebugEnabled()) {
                     LOGGER.debug("[AudioTrackSampler] 未找到声音: {}", soundId);
@@ -222,18 +222,10 @@ public class AudioTrackSampler {
 
             // 使用 PositionedSoundInstance 创建全局 UI 声音
             // 使用 NONE 衰减类型实现全局声音效果（不受距离影响）
-            PositionedSoundInstance soundInstance = new PositionedSoundInstance(
+            PositionedSoundInstance soundInstance = PositionedSoundInstance.master(
                     soundEvent,
-                    SoundCategory.MASTER,  // 使用 MASTER 类别，适合 UI 声音
-                    volume,                // 应用了轨道音量的最终音量
                     pitch,
-                    false,                 // 不循环
-                    0,                     // 延迟
-                    net.minecraft.client.sound.SoundInstance.AttenuationType.NONE,  // 无衰减，全局声音
-                    0.0,                   // X（不使用，因为无衰减）
-                    0.0,                   // Y（不使用，因为无衰减）
-                    0.0,                   // Z（不使用，因为无衰减）
-                    false                  // 相对位置
+                    volume
             );
             
             // 播放声音

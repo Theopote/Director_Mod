@@ -90,9 +90,21 @@ public class AudioEvent implements TimelineSelectable {
         return time; // AudioEvent 是点事件
     }
 
-    @Override
+    /**
+     * 设置事件时间（TimelineSelectable 接口不要求此方法，但提供便利方法）
+     */
     public void setStartTime(float newTime) {
         this.time = newTime;
+    }
+
+    @Override
+    public String getName() {
+        return label != null ? label : "音频事件";
+    }
+
+    @Override
+    public String getType() {
+        return "AudioEvent";
     }
 
     // ================================

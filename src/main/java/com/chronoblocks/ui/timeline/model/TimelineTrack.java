@@ -55,6 +55,17 @@ public class TimelineTrack {
             clip.setParentTrack(this); // 设置父引用，实现 O(1) 反向查找
             // 按开始时间排序，保持时间线有序
             clips.sort(Comparator.comparing(TimelineClip::getStartTime));
+            
+            // 如果片段绑定了容器，自动收集声音事件
+            if (clip.getBoundContainerId() != null) {
+                try {
+                    com.chronoblocks.ui.timeline.audio.TimelineAudioService.getInstance()
+                            .collectAndAddSoundEvents(clip);
+                } catch (Exception e) {
+                    // 如果服务未初始化，忽略错误（向后兼容）
+                    // 正常情况下服务应该在 TimelinePanel 初始化时注册
+                }
+            }
         }
     }
 

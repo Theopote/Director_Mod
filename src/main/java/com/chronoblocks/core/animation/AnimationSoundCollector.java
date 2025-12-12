@@ -128,13 +128,11 @@ public class AnimationSoundCollector {
             TimelineClip clip,
             Container container,
             List<BlockSequenceEntry> sequenceEntries) {
-        
-        List<AudioEvent> events = new ArrayList<>();
-        
+
         // TODO: 实现方块移除声音事件收集
         // 这需要跟踪哪些方块在片段结束时被移除
         
-        return events;
+        return new ArrayList<>();
     }
     
     /**
@@ -177,7 +175,7 @@ public class AnimationSoundCollector {
         // 根据方块类型返回对应的声音
         // 这里简化处理，实际应该根据 Minecraft 的方块声音组来获取
         net.minecraft.block.Block block = blockState.getBlock();
-        String blockName = net.minecraft.util.registry.Registry.BLOCK.getId(block).toString();
+        String blockName = net.minecraft.registry.Registries.BLOCK.getId(block).toString();
         
         // 简化映射：根据方块名称推断声音
         if (blockName.contains("stone") || blockName.contains("cobblestone")) {
