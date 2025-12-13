@@ -1,6 +1,7 @@
 package com.chronoblocks.mixin;
 
 import com.chronoblocks.core.selection.SelectionInputHandler;
+import com.chronoblocks.export.video.VideoExportManager;
 import com.chronoblocks.ui.ChronoBlocksScreen;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.Mouse;
@@ -64,6 +65,13 @@ public abstract class MouseMixin {
     private void onCursorPos(long window, double x, double y, CallbackInfo ci) {
         if (!(client.currentScreen instanceof ChronoBlocksScreen screen)) return;
 
+        // 🎥 导出期间：锁定镜头控制（不允许鼠标移动把 owner 切回玩家，也不允许中键拖拽改视角）
+        if (VideoExportManager.getInstance().isExporting()) {
+            lastX = x;
+            lastY = y;
+            return;
+        }
+
         boolean hover = isHoveringChronoBlocksUI(screen);
 
         // 更新位移记录
@@ -123,6 +131,12 @@ public abstract class MouseMixin {
         // 仅在 ChronoBlocks 打开时拦截
         if (client.currentScreen instanceof ChronoBlocksScreen screen) {
             boolean hover = isHoveringChronoBlocksUI(screen);
+
+            // 🎥 导出期间：允许 UI 点击（hover==true），禁止 UI 外对场景/选择的点击
+            if (VideoExportManager.getInstance().isExporting() && !hover) {
+                ci.cancel();
+                return;
+            }
 
             if (hover) {
                 // 🧱 在 ImGui 面板上点击：拦截事件

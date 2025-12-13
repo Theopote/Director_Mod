@@ -1,5 +1,6 @@
 package com.chronoblocks.mixin;
 
+import com.chronoblocks.export.video.VideoExportManager;
 import com.chronoblocks.ui.ChronoBlocksScreen;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.input.Input;
@@ -25,6 +26,15 @@ public class KeyboardInputMixin extends Input {
         MinecraftClient client = MinecraftClient.getInstance();
         
         if (client.currentScreen instanceof ChronoBlocksScreen screen) {
+            // 🎥 导出期间：锁定玩家移动输入（省资源模式下屏幕镜头会跟随导出，禁止误操作干扰帧内容）
+            if (VideoExportManager.getInstance().isExporting()) {
+                this.movementForward = 0.0F;
+                this.movementSideways = 0.0F;
+                this.playerInput = new PlayerInput(false, false, false, false, false, false, false);
+                ci.cancel();
+                return;
+            }
+
             // 直接检查鼠标是否在UI上
             boolean mouseOverGui = screen.isMouseOverChronoBlocksGui(client.mouse.getX(), client.mouse.getY());
             

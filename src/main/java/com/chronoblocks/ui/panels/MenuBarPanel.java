@@ -9,7 +9,6 @@ import com.chronoblocks.ui.ChronoBlocksUIManager;
 import com.chronoblocks.ui.aware.IPanelRegistryAware;
 import com.chronoblocks.ui.aware.IUIManagerAware;
 import com.chronoblocks.ui.di.IPanelRegistry;
-import com.chronoblocks.ui.panels.TimelinePanel;
 import com.chronoblocks.ui.theme.UITheme;
 import com.chronoblocks.ui.theme.Icons;
 
@@ -150,6 +149,9 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
                     }
             if (ImGui.menuItem("Export Animation...", "Ctrl+E")) {
                         handleExportAnimation();
+                    }
+            if (ImGui.menuItem(Icons.VIDEO + " Export Video...")) {
+                        handleExportVideo();
                     }
             
                     ImGui.separator();
@@ -823,6 +825,15 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
     
     private void handleExportAnimation() {
         logger.info("[MenuBar] Export Animation");
+    }
+
+    private void handleExportVideo() {
+        logger.info("[MenuBar] Export Video");
+        if (uiManager != null) {
+            uiManager.openVideoExportDialog();
+        } else {
+            logger.warn("[MenuBar] UIManager 未注入，无法打开视频导出对话框");
+        }
     }
     
     private void handleExit() {

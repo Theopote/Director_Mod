@@ -19,7 +19,8 @@
     "WorldMixin",
     "BiomeColorsMixin",
     "BackgroundRendererMixin",
-    "accessor.GameRendererAccessor"
+    "accessor.GameRendererAccessor",
+    "accessor.MinecraftClientAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -1,6 +1,7 @@
 package com.chronoblocks.mixin;
 
 import com.chronoblocks.client.ChronoBlocksClientController;
+import com.chronoblocks.export.video.VideoRenderPipeline;
 import com.chronoblocks.ui.timeline.playback.camera.CameraRuntime;
 import com.chronoblocks.ui.timeline.playback.camera.CameraSample;
 import net.minecraft.client.render.Camera;
@@ -30,11 +31,20 @@ public class GameRendererMixin {
 
     @Inject(method = "renderWorld", at = @At("HEAD"))
     private void chronoblocks$onRenderWorldHead(RenderTickCounter tickCounter, CallbackInfo ci) {
+        // 🎥 视频导出：在世界渲染开始前驱动时间线/相机（避免额外 renderWorld）
+        VideoRenderPipeline.getInstance().onRenderWorldHead(tickCounter);
+
         var mc = net.minecraft.client.MinecraftClient.getInstance();
         var controller = ChronoBlocksClientController.getInstance();
         if (mc.player != null) {
             mc.player.setInvisible(controller.shouldHideCrosshair());
         }
+    }
+
+    @Inject(method = "renderWorld", at = @At("TAIL"))
+    private void chronoblocks$onRenderWorldTail(RenderTickCounter tickCounter, CallbackInfo ci) {
+        // 🎥 视频导出：在世界渲染结束后（HUD 之前）抓取画面到指定分辨率 offscreen framebuffer
+        VideoRenderPipeline.getInstance().onRenderWorldTail();
     }
 
     /**

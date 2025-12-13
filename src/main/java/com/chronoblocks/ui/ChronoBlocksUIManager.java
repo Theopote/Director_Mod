@@ -16,6 +16,11 @@ import com.chronoblocks.ui.aware.IUIManagerAware;
 import com.chronoblocks.ui.imgui.ImGuiUtils;
 import com.chronoblocks.ui.theme.UITheme;
 import com.chronoblocks.ui.properties.PropertyAdapterBootstrap;
+import com.chronoblocks.export.video.VideoExportManager;
+import com.chronoblocks.export.video.VideoExportSettings;
+import com.chronoblocks.export.video.VideoRenderPipeline;
+import com.chronoblocks.ui.video.VideoExportDialog;
+import com.chronoblocks.ui.video.VideoExportProgressOverlay;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -225,6 +230,9 @@ public class ChronoBlocksUIManager {
     private long renderCount = 0;
     private long lastPerformanceLog = 0;
     private static final long PERFORMANCE_LOG_INTERVAL = 60000; // 1分钟
+
+    // ========== 视频导出 UI（v5.2）==========
+    private final VideoExportProgressOverlay videoExportProgressOverlay = new VideoExportProgressOverlay();
     
     // ========== 动画系统更新（v4.5）==========
     private long lastUpdateTime = System.currentTimeMillis();
@@ -492,6 +500,11 @@ public class ChronoBlocksUIManager {
         // 🔄 系统级更新循环 - 驱动动画播放
         updateAnimationSystem();
 
+        // 🎥 视频导出：
+        // 目前的抓帧与缩放发生在 GameRenderer.renderWorld 的 HEAD/Tail 钩子中，
+        // 这里保留 no-op 调用用于向后兼容（不会触发重复渲染）。
+        VideoRenderPipeline.getInstance().processPendingCaptures();
+
         // 预检查：验证必需的面板是否存在
         if (!validateRequiredPanelsForRender()) {
             logWarn("⚠️ 必需面板缺失，渲染降级UI提示");
@@ -552,6 +565,10 @@ public class ChronoBlocksUIManager {
                     return false;
                 })
                 .forEach(this::renderPanelSafe);
+
+            // 4) 全局弹窗/Overlay（不属于某个 Dock 面板）
+            VideoExportDialog.renderIfNeeded(this);
+            videoExportProgressOverlay.render(this);
             
             // ❌ 暂时禁用中央保护区域渲染 - 这会导致ImGui认为鼠标在UI上
             // renderCentralProtectionArea();
@@ -591,6 +608,58 @@ public class ChronoBlocksUIManager {
                 }
             }
         }
+    }
+
+    // =========================================================
+    // Video Export API（给 MenuBarPanel / Dialog 调用）
+    // =========================================================
+
+    /**
+     * 打开“视频导出”对话框（由 MenuBarPanel 调用）。
+     */
+    public void openVideoExportDialog() {
+        VideoExportDialog.open();
+    }
+
+    /**
+     * 启动导出任务（由 VideoExportDialog 调用）。
+     *
+     * <p>当前为任务骨架：先跑通 UI + 进度回调，后续替换为真实离屏渲染与编码器。</p>
+     */
+    public void startVideoExport(VideoExportSettings settings) {
+        if (settings == null) {
+            return;
+        }
+
+        videoExportProgressOverlay.show();
+
+        VideoExportManager.getInstance().start(settings, new VideoExportManager.ProgressListener() {
+            @Override
+            public void onProgress(float progress01, String message) {
+                videoExportProgressOverlay.setProgress(progress01, message);
+            }
+
+            @Override
+            public void onCompleted(boolean success, String errorMessage) {
+                if (success) {
+                    videoExportProgressOverlay.setProgress(1f, "导出完成");
+                    videoExportProgressOverlay.hide();
+                    LOGGER.info("[VideoExport] 导出完成: {}", settings.outputPath);
+                } else {
+                    String msg = errorMessage != null ? errorMessage : "导出失败";
+                    videoExportProgressOverlay.setProgress(0f, msg);
+                    videoExportProgressOverlay.hide();
+                    LOGGER.warn("[VideoExport] {}", msg);
+                }
+            }
+        });
+    }
+
+    /**
+     * 请求取消导出（由 Overlay 的“取消导出”按钮调用）。
+     */
+    public void requestCancelVideoExport() {
+        VideoExportManager.getInstance().requestCancel();
     }
 
     /**
