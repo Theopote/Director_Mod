@@ -215,9 +215,11 @@ public class ContainerVisibilityService {
             return;
         }
         
-        if (blocksToShow == null || blocksToShow.isEmpty()) {
-            // 没有方块要显示，保持隐藏
-            return;
+        // blocksToShow 为空：表示“全部隐藏”（用于时间线播放/清除轨道）
+        // 之前版本直接 return 会导致：当容器在世界中仍可见时，无法将其清空。
+        // 因此这里统一走“隐藏不应显示的方块”的分支，实现全部置 AIR。
+        if (blocksToShow == null) {
+            blocksToShow = java.util.Collections.emptySet();
         }
         
         // 获取容器的所有方块

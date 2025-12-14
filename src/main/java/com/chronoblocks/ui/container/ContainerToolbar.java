@@ -37,6 +37,11 @@ public class ContainerToolbar {
         if (ImGui.button(Icons.CONTAINER + " 生成容器", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
             controller.generateContainerFromSelection();
         }
+
+        ImGui.sameLine();
+        if (ImGui.button(Icons.ERASER + " 生成拆除容器", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
+            controller.generateDemolitionContainerFromSelection();
+        }
     }
 
     private void renderContainerControlButtons() {

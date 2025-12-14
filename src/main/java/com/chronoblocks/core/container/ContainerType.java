@@ -55,6 +55,11 @@ public enum ContainerType {
     LOGIC("逻辑控制", Icons.SETTINGS),
 
     /**
+     * 拆除/清除容器 - 用于“清除轨道”逐步破坏方块（不用于建造/显隐）
+     */
+    DEMOLITION("拆除", Icons.ERASER),
+
+    /**
      * 自定义容器 - 供拓展或插件使用
      */
     CUSTOM("自定义", Icons.CONTAINER);

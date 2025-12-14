@@ -30,6 +30,20 @@ public enum TrackType {
     ),
 
     /**
+     * 清除轨道 - 控制方块逐步被破坏/清除（反向序列：从全量到空）。
+     *
+     * <p>与容器轨道不同：清除轨道不会在拖入时隐藏容器，而是在播放时按片段配置逐步将方块置为 AIR。
+     */
+    ERASE(
+        "清除轨道",
+        Icons.ERASER,
+        rgba(220, 90, 70),
+        rgba(170, 60, 50),
+        "控制选区方块的逐步清除/破坏（可设置序列与动画）",
+        EnumSet.of(TrackFeature.CLIPS, TrackFeature.CONTAINER_PAYLOAD, TrackFeature.MARKERS)
+    ),
+
+    /**
      * 摄像机轨道 - 控制观察视角和镜头运动。
      */
     CAMERA(

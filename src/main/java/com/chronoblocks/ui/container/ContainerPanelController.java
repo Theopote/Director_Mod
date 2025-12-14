@@ -139,6 +139,10 @@ public class ContainerPanelController {
         commandService.generateContainerFromSelection();
     }
 
+    public void generateDemolitionContainerFromSelection() {
+        commandService.generateDemolitionContainerFromSelection();
+    }
+
     public void deleteSelectedContainers() {
         org.slf4j.LoggerFactory.getLogger(ContainerPanelController.class).debug("[ContainerPanelController] 执行删除选中容器");
         commandService.deleteSelectedContainers();

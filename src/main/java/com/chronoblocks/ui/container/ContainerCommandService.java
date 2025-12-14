@@ -1,6 +1,7 @@
 package com.chronoblocks.ui.container;
 
 import com.chronoblocks.core.actions.SelectionToContainerAction;
+import com.chronoblocks.core.actions.SelectionToDemolitionContainerAction;
 import com.chronoblocks.core.container.Container;
 import com.chronoblocks.core.container.ContainerAnimationPreset;
 import com.chronoblocks.core.container.ContainerManager;
@@ -61,6 +62,17 @@ public class ContainerCommandService {
             SelectionToContainerAction.execute();
         } catch (Exception ex) {
             LOGGER.error("[ContainerCommandService] 从选区生成容器失败", ex);
+        }
+    }
+
+    /**
+     * 从当前选区生成“拆除容器”（用于清除轨道）。
+     */
+    public void generateDemolitionContainerFromSelection() {
+        try {
+            SelectionToDemolitionContainerAction.execute();
+        } catch (Exception ex) {
+            LOGGER.error("[ContainerCommandService] 从选区生成拆除容器失败", ex);
         }
     }
 

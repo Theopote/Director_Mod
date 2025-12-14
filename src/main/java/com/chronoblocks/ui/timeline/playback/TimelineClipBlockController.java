@@ -10,6 +10,7 @@ import com.chronoblocks.core.container.ContainerManager;
 import com.chronoblocks.ui.timeline.model.TimelineClip;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
+import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.core.container.visibility.BlockVisualStateManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.block.BlockState;
@@ -128,6 +129,7 @@ public class TimelineClipBlockController {
             }
             
             boolean trackEnabled = !track.isLocked() && track.isVisible();
+            TrackType trackType = track.getType();
             
             for (TimelineClip clip : track.getClips()) {
                 if (clip == null || clip.getBoundContainerId() == null) {
@@ -151,7 +153,7 @@ public class TimelineClipBlockController {
                 
                 // ◆ 根据播放头位置和片段配置计算应该显示的方块
                 // 完全基于片段的ClipAnimationConfig，不依赖容器状态
-                VisibleBlocksResult result = calculateVisibleBlocks(clip, track, currentTime, trackEnabled, container, config);
+                VisibleBlocksResult result = calculateVisibleBlocks(clip, trackType, currentTime, trackEnabled, container, config);
                 Set<BlockPos> visibleBlocks = result.visibleBlocks();
                 currentFrameVisibleBlocks.put(containerId, visibleBlocks);
                 currentFrameOpacity.put(containerId, clip.getOpacity()); // 使用片段的透明度
@@ -213,16 +215,16 @@ public class TimelineClipBlockController {
                 ensureContainerWorldBinding(container);
                 
                 // ◆ 步骤2：确保容器有快照（如果没有，先创建快照）
-                ensureContainerSnapshot(container, visibilityService);
+                TimelineClip boundClip = containerToClipMap.get(containerId);
+                TrackType boundType = boundClip != null && boundClip.getParentTrack() != null
+                        ? boundClip.getParentTrack().getType()
+                        : TrackType.CONTAINER;
+                ensureContainerSnapshot(container, visibilityService, boundType);
                 
                 if (blocks.isEmpty()) {
-                    // 如果没有方块可见，确保所有方块都被隐藏（通过 ContainerVisibilityService）
-                    // 注意：如果容器已经有快照，方块应该已经是 AIR 了
-                    // 这里不需要额外操作，因为容器已经是 HIDDEN 状态
-                    if (LOGGER.isTraceEnabled()) {
-                        LOGGER.trace("[TimelineClipBlockController] 容器 {} 所有方块隐藏(时间: {:.2f}s)",
-                            container.getName(), currentTime);
-                    }
+                    // 如果没有方块可见：需要确保容器在世界中被清空（置 AIR）
+                    // （清除轨道必须执行这一点；容器轨道也允许显式清空）
+                    visibilityService.showContainerBlocks(container, java.util.Collections.emptySet());
                 } else {
                     // 有方块应该显示，使用 showContainerBlocks 恢复这些方块
                     // 即使容器状态是 HIDDEN，这个方法也能部分显示方块
@@ -406,6 +408,122 @@ public class TimelineClipBlockController {
 
         if (currentTime > clipEnd) {
             visibleBlocks.addAll(container.getBlocks());
+        }
+
+        return new VisibleBlocksResult(visibleBlocks, sequenceEntries);
+    }
+
+    /**
+     * 计算片段中在当前时间应该“保留/显示”的方块集合（支持容器轨道与清除轨道）。
+     *
+     * <p>容器轨道（CONTAINER）规则：
+     * <ul>
+     *   <li>片段左侧：空（全部隐藏）</li>
+     *   <li>片段范围：逐步显示</li>
+     *   <li>片段右侧：全量显示</li>
+     * </ul>
+     *
+     * <p>清除轨道（ERASE）规则（反向）：
+     * <ul>
+     *   <li>片段左侧：全量保留（不清除）</li>
+     *   <li>片段范围：逐步清除（从全量到空）</li>
+     *   <li>片段右侧：空（全部清除）</li>
+     * </ul>
+     *
+     * <p>轨道锁定/隐藏处理：
+     * <ul>
+     *   <li>容器轨道：强制隐藏</li>
+     *   <li>清除轨道：强制不清除（保留全量）</li>
+     * </ul>
+     */
+    private VisibleBlocksResult calculateVisibleBlocks(TimelineClip clip,
+                                                       TrackType trackType,
+                                                       float currentTime,
+                                                       boolean trackEnabled,
+                                                       Container container,
+                                                       ClipAnimationConfig config) {
+        Set<BlockPos> visibleBlocks = new HashSet<>();
+        List<BlockSequenceEntry> sequenceEntries = new ArrayList<>();
+
+        TrackType type = trackType != null ? trackType : TrackType.CONTAINER;
+
+        List<BlockPos> allBlocks = new ArrayList<>(container.getBlocks());
+        if (allBlocks.isEmpty()) {
+            return new VisibleBlocksResult(visibleBlocks, sequenceEntries);
+        }
+
+        // 轨道禁用：容器轨道 => 隐藏；清除轨道 => 不清除（保留全量）
+        if (!trackEnabled) {
+            if (type == TrackType.ERASE) {
+                visibleBlocks.addAll(allBlocks);
+            }
+            return new VisibleBlocksResult(visibleBlocks, sequenceEntries);
+        }
+
+        float clipStart = clip.getStartTime();
+        float clipEnd = clip.getEndTime();
+
+        // 片段左侧
+        if (currentTime < clipStart) {
+            if (type == TrackType.ERASE) {
+                visibleBlocks.addAll(allBlocks);
+            }
+            return new VisibleBlocksResult(visibleBlocks, sequenceEntries);
+        }
+
+        // 片段范围内：按序列推进
+        if (currentTime >= clipStart && currentTime <= clipEnd) {
+            float clipDuration = clipEnd - clipStart;
+            List<BlockSequenceEntry> generated = BlockSequenceGenerator.generate(
+                allBlocks, container, config != null ? config.getSequenceParameters() : null
+            );
+            if (generated != null) {
+                sequenceEntries.addAll(generated);
+            }
+            if (sequenceEntries.isEmpty()) {
+                // 后备：序列为空时，直接视为全量
+                if (type == TrackType.ERASE) {
+                    visibleBlocks.addAll(allBlocks);
+                } else {
+                    visibleBlocks.addAll(allBlocks);
+                }
+                return new VisibleBlocksResult(visibleBlocks, sequenceEntries);
+            }
+
+            if (type == TrackType.CONTAINER) {
+                // 逐步显示
+                for (BlockSequenceEntry entry : sequenceEntries) {
+                    float normalizedTime = entry.getNormalizedTime();
+                    float blockAppearTime = clipStart + normalizedTime * clipDuration;
+                    if (currentTime >= blockAppearTime) {
+                        visibleBlocks.add(entry.getPos());
+                    }
+                }
+            } else if (type == TrackType.ERASE) {
+                // 逐步清除：开始时全部可见，达到该方块“清除时刻”后移除
+                visibleBlocks.addAll(allBlocks);
+                for (BlockSequenceEntry entry : sequenceEntries) {
+                    float normalizedTime = entry.getNormalizedTime();
+                    float blockRemoveTime = clipStart + normalizedTime * clipDuration;
+                    if (currentTime >= blockRemoveTime) {
+                        visibleBlocks.remove(entry.getPos());
+                    }
+                }
+            } else {
+                // 其他类型（理论上不会到这里）：默认全量
+                visibleBlocks.addAll(allBlocks);
+            }
+
+            return new VisibleBlocksResult(visibleBlocks, sequenceEntries);
+        }
+
+        // 片段右侧
+        if (currentTime > clipEnd) {
+            if (type == TrackType.CONTAINER) {
+                visibleBlocks.addAll(allBlocks);
+            } else if (type == TrackType.ERASE) {
+                // 全清除 => 保持空集合
+            }
         }
 
         return new VisibleBlocksResult(visibleBlocks, sequenceEntries);
@@ -759,8 +877,9 @@ public class TimelineClipBlockController {
      * @param container 容器对象
      * @param visibilityService 可见性服务
      */
-    private void ensureContainerSnapshot(Container container, 
-                                         com.chronoblocks.core.container.visibility.ContainerVisibilityService visibilityService) {
+    private void ensureContainerSnapshot(Container container,
+                                         com.chronoblocks.core.container.visibility.ContainerVisibilityService visibilityService,
+                                         TrackType trackType) {
         if (container == null || visibilityService == null) {
             return;
         }
@@ -798,9 +917,14 @@ public class TimelineClipBlockController {
                 }
             }
             
-            // 确保容器状态是 HIDDEN（因为容器在时间线上应该是隐藏的）
-            if (container.getState() != com.chronoblocks.core.container.ContainerState.HIDDEN) {
-                container.setState(com.chronoblocks.core.container.ContainerState.HIDDEN);
+            // 轨道差异：
+            // - 容器轨道：容器应保持 HIDDEN（世界方块由 showContainerBlocks 控制出现）
+            // - 清除轨道：容器不应被强制隐藏，否则会改变编辑预期
+            TrackType type = trackType != null ? trackType : TrackType.CONTAINER;
+            if (type == TrackType.CONTAINER) {
+                if (container.getState() != com.chronoblocks.core.container.ContainerState.HIDDEN) {
+                    container.setState(com.chronoblocks.core.container.ContainerState.HIDDEN);
+                }
             }
         }
     }
