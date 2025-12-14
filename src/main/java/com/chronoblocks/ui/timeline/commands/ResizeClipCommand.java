@@ -15,15 +15,11 @@ import com.chronoblocks.ui.timeline.model.TimelineModel;
 public class ResizeClipCommand extends BaseTimelineCommand {
     private static final Logger LOGGER = LoggerFactory.getLogger(ResizeClipCommand.class);
 
-    public enum Edge {
-        START,  // 调整开始边缘
-        END     // 调整结束边缘
-    }
-
     private final TimelineClip clip;
-    private final Edge edge;
-    private final float newTime;
-    private float oldTime;
+    private final float oldStartTime;
+    private final float oldEndTime;
+    private final float newStartTime;
+    private final float newEndTime;
 
     /**
      * 构造函数
@@ -32,11 +28,19 @@ public class ResizeClipCommand extends BaseTimelineCommand {
      * @param edge 要调整的边缘（START 或 END）
      * @param newTime 新的时间位置
      */
-    public ResizeClipCommand(TimelineModel model, TimelineClip clip, Edge edge, float newTime) {
+    public ResizeClipCommand(
+            TimelineModel model,
+            TimelineClip clip,
+            float oldStartTime,
+            float oldEndTime,
+            float newStartTime,
+            float newEndTime) {
         super(model, "clip_resized");
         this.clip = clip;
-        this.edge = edge;
-        this.newTime = newTime;
+        this.oldStartTime = oldStartTime;
+        this.oldEndTime = oldEndTime;
+        this.newStartTime = newStartTime;
+        this.newEndTime = newEndTime;
     }
 
     @Override
@@ -44,22 +48,11 @@ public class ResizeClipCommand extends BaseTimelineCommand {
         if (clip == null) {
             return;
         }
-
-        if (edge == Edge.START) {
-            oldTime = clip.getStartTime();
-            float endTime = clip.getEndTime();
-            // 确保开始时间不超过结束时间
-            float clampedNewTime = Math.min(newTime, endTime - 0.05f);
-            clip.setTimeRange(clampedNewTime, endTime);
-            LOGGER.debug("[Timeline] 调整片段开始边缘: {:.2f} -> {:.2f}", oldTime, clampedNewTime);
-        } else {
-            oldTime = clip.getEndTime();
-            float startTime = clip.getStartTime();
-            // 确保结束时间不小于开始时间
-            float clampedNewTime = Math.max(newTime, startTime + 0.05f);
-            clip.setTimeRange(startTime, clampedNewTime);
-            LOGGER.debug("[Timeline] 调整片段结束边缘: {:.2f} -> {:.2f}", oldTime, clampedNewTime);
-        }
+        clip.setTimeRange(newStartTime, newEndTime);
+        com.chronoblocks.ui.timeline.audio.TimelineAudioService.getInstance()
+                .onClipTimeRangeChanged(clip, oldStartTime, oldEndTime, newStartTime, newEndTime);
+        LOGGER.debug("[Timeline] 调整片段范围: {:.2f}-{:.2f} -> {:.2f}-{:.2f}",
+                oldStartTime, oldEndTime, newStartTime, newEndTime);
     }
 
     @Override
@@ -67,22 +60,16 @@ public class ResizeClipCommand extends BaseTimelineCommand {
         if (clip == null) {
             return;
         }
-
-        if (edge == Edge.START) {
-            float endTime = clip.getEndTime();
-            clip.setTimeRange(oldTime, endTime);
-            LOGGER.debug("[Timeline] 撤销调整片段开始边缘: {:.2f}", oldTime);
-        } else {
-            float startTime = clip.getStartTime();
-            clip.setTimeRange(startTime, oldTime);
-            LOGGER.debug("[Timeline] 撤销调整片段结束边缘: {:.2f}", oldTime);
-        }
+        clip.setTimeRange(oldStartTime, oldEndTime);
+        com.chronoblocks.ui.timeline.audio.TimelineAudioService.getInstance()
+                .onClipTimeRangeChanged(clip, newStartTime, newEndTime, oldStartTime, oldEndTime);
+        LOGGER.debug("[Timeline] 撤销调整片段范围");
     }
 
     @Override
     public String getDescription() {
-        String edgeName = edge == Edge.START ? "开始" : "结束";
-        return String.format("调整片段%s边缘: %.2fs -> %.2fs", edgeName, oldTime, newTime);
+        return String.format("调整片段范围: %.2fs-%.2fs -> %.2fs-%.2fs",
+                oldStartTime, oldEndTime, newStartTime, newEndTime);
     }
 }
 

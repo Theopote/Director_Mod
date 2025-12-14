@@ -161,6 +161,10 @@ public class TimelineRenderer {
         if (clipRenderer != null) {
             clipRenderer.setDragStateQuery(dragStateQuery);
         }
+        // 同时传递给 audioRenderer（用于音频点实时预览）
+        if (audioRenderer != null) {
+            audioRenderer.setDragStateQuery(dragStateQuery);
+        }
     }
 
     private void syncViewportFromState() {

@@ -35,9 +35,14 @@ public class TimelineAudioRenderer {
     private static final int COLOR_CUSTOM = TimelineColors.rgba(200, 200, 200, 255);        // 灰色
     
     private final TimelineRenderViewport viewport;
+    private com.chronoblocks.ui.timeline.render.TimelineRenderer.DragStateQuery dragStateQuery;
     
     public TimelineAudioRenderer(TimelineRenderViewport viewport) {
         this.viewport = viewport;
+    }
+
+    public void setDragStateQuery(com.chronoblocks.ui.timeline.render.TimelineRenderer.DragStateQuery dragStateQuery) {
+        this.dragStateQuery = dragStateQuery;
     }
     
     /**
@@ -94,6 +99,12 @@ public class TimelineAudioRenderer {
             }
             
             float eventTime = event.getTime();
+            if (dragStateQuery != null) {
+                float previewTime = dragStateQuery.getDraggedAutomationKeyframeTime(event);
+                if (previewTime >= 0f) {
+                    eventTime = previewTime;
+                }
+            }
             float eventX = contentX + (eventTime * pixelsPerSecond) - scrollX;
             
             // 检查是否在可见范围内

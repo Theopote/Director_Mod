@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.chronoblocks.ui.timeline.model.TimelineModel;
+import com.chronoblocks.ui.timeline.model.TimelineClip;
 
 /**
  * 移动片段命令。
@@ -74,8 +75,14 @@ public class MoveClipCommand extends BaseTimelineCommand {
             LOGGER.warn("[Timeline] 移动片段失败：clip 为 null");
             return;
         }
+        TimelineClip timelineClip = (clip instanceof ClipAdapter adapter) ? adapter.getTimelineClip() : null;
         clip.setStartTime(newStartTime);
         clip.setEndTime(newEndTime);
+        // 同步：自动生成的音频事件默认跟随片段移动（可对单个事件取消链接）
+        if (timelineClip != null) {
+            com.chronoblocks.ui.timeline.audio.TimelineAudioService.getInstance()
+                    .onClipTimeRangeChanged(timelineClip, oldStartTime, oldEndTime, newStartTime, newEndTime);
+        }
         LOGGER.debug("[Timeline] 移动片段: {:.2f}-{:.2f} -> {:.2f}-{:.2f}",
                 oldStartTime, oldEndTime, newStartTime, newEndTime);
     }
@@ -86,8 +93,13 @@ public class MoveClipCommand extends BaseTimelineCommand {
             LOGGER.warn("[Timeline] 撤销移动片段失败：clip 为 null");
             return;
         }
+        TimelineClip timelineClip = (clip instanceof ClipAdapter adapter) ? adapter.getTimelineClip() : null;
         clip.setStartTime(oldStartTime);
         clip.setEndTime(oldEndTime);
+        if (timelineClip != null) {
+            com.chronoblocks.ui.timeline.audio.TimelineAudioService.getInstance()
+                    .onClipTimeRangeChanged(timelineClip, newStartTime, newEndTime, oldStartTime, oldEndTime);
+        }
         LOGGER.debug("[Timeline] 撤销移动片段");
     }
 

@@ -123,6 +123,15 @@ public class TimelineInteractionHandler {
         if (keyframe == null) {
             return -1f;
         }
+
+        // ⭐ 音频事件：支持片段拖动/缩放时的实时预览时间（不改数据，仅渲染使用）
+        if (keyframe instanceof com.chronoblocks.ui.timeline.model.audio.AudioEvent audioEvent) {
+            float preview = com.chronoblocks.ui.timeline.audio.TimelineAudioService.getInstance()
+                    .getPreviewTimeForEvent(audioEvent);
+            if (preview >= 0f) {
+                return preview;
+            }
+        }
         
         InteractionMode mode = interactionManager.getCurrentMode();
         if (mode == InteractionMode.DRAG_AUTOMATION_KEYFRAME) {
@@ -180,6 +189,8 @@ public class TimelineInteractionHandler {
             // 静默结束 scrubbing，不通知摄像机控制器
             model.setScrubbing(false);
         }
+        // 清理音频实时预览（避免右键取消交互后预览残留）
+        com.chronoblocks.ui.timeline.audio.TimelineAudioService.getInstance().endAllClipTimeRangePreviews();
         interactionManager.cancelAllInteractionsSilently();
         LOGGER.debug("[TimelineInteractionHandler] 静默取消所有交互");
     }
@@ -498,6 +509,9 @@ public class TimelineInteractionHandler {
         }
 
         if (nearLeft) {
+            // ⭐ 音频事件实时预览：开始缩放预览（拖动过程中不改事件真实时间）
+            com.chronoblocks.ui.timeline.audio.TimelineAudioService.getInstance()
+                    .beginClipTimeRangePreview(clip, clip.getStartTime(), clip.getEndTime());
             interactionManager.startInteraction(
                     InteractionMode.RESIZE_CLIP_LEFT,
                     new ClipHandle(track, clip),
@@ -508,6 +522,8 @@ public class TimelineInteractionHandler {
                 LOGGER.debug("[Timeline] 开始调整片段左边缘: {}", clip.getLabel());
             }
         } else if (nearRight) {
+            com.chronoblocks.ui.timeline.audio.TimelineAudioService.getInstance()
+                    .beginClipTimeRangePreview(clip, clip.getStartTime(), clip.getEndTime());
             interactionManager.startInteraction(
                     InteractionMode.RESIZE_CLIP_RIGHT,
                     new ClipHandle(track, clip),
@@ -519,6 +535,8 @@ public class TimelineInteractionHandler {
             }
         } else {
             // 普通拖�?
+            com.chronoblocks.ui.timeline.audio.TimelineAudioService.getInstance()
+                    .beginClipTimeRangePreview(clip, clip.getStartTime(), clip.getEndTime());
             interactionManager.startInteraction(
                     InteractionMode.DRAG_CLIP,
                     new ClipHandle(track, clip),
@@ -854,17 +872,22 @@ public class TimelineInteractionHandler {
                         interactionManager.getDragStartValue(),
                         interactionManager.getDragStartValue2()
                 );
+                // 清理音频预览状态（提交后不再需要）
+                com.chronoblocks.ui.timeline.audio.TimelineAudioService.getInstance()
+                        .endClipTimeRangePreview(handle.clip);
             }
         } else if (mode == InteractionMode.RESIZE_CLIP_LEFT) {
             // �?优化：调整左边缘，使�?ResizeClipCommand 支持 Undo
             if (obj instanceof ClipHandle handle) {
                 float originalStart = interactionManager.getDragStartValue();
+                float originalEnd = interactionManager.getDragStartValue2();
                 float currentStart = handle.clip.getStartTime();
+                float currentEnd = handle.clip.getEndTime();
                 
                 // 只有当位置真正改变时才创建命�?
                 if (Math.abs(currentStart - originalStart) > 0.001f) {
                     commandHistory.executeCommand(
-                        new ResizeClipCommand(model, handle.clip, ResizeClipCommand.Edge.START, currentStart)
+                        new ResizeClipCommand(model, handle.clip, originalStart, originalEnd, currentStart, currentEnd)
                     );
                     if (LOGGER.isDebugEnabled()) {
                         LOGGER.debug("[Timeline] 调整片段左边�? {}s -> {}s (片段: {})", 
@@ -872,18 +895,24 @@ public class TimelineInteractionHandler {
                     }
                 }
                 
+                // 清理音频预览状态（提交后不再需要）
+                com.chronoblocks.ui.timeline.audio.TimelineAudioService.getInstance()
+                        .endClipTimeRangePreview(handle.clip);
+
                 if (callbacks != null) callbacks.onDataChanged();
             }
         } else if (mode == InteractionMode.RESIZE_CLIP_RIGHT) {
             // �?优化：调整右边缘，使�?ResizeClipCommand 支持 Undo
             if (obj instanceof ClipHandle handle) {
                 float originalEnd = interactionManager.getDragStartValue2();
+                float originalStart = interactionManager.getDragStartValue();
                 float currentEnd = handle.clip.getEndTime();
+                float currentStart = handle.clip.getStartTime();
                 
                 // 只有当位置真正改变时才创建命�?
                 if (Math.abs(currentEnd - originalEnd) > 0.001f) {
                     commandHistory.executeCommand(
-                        new ResizeClipCommand(model, handle.clip, ResizeClipCommand.Edge.END, currentEnd)
+                        new ResizeClipCommand(model, handle.clip, originalStart, originalEnd, currentStart, currentEnd)
                     );
                     if (LOGGER.isDebugEnabled()) {
                         LOGGER.debug("[Timeline] 调整片段右边�? {}s -> {}s (片段: {})", 
@@ -891,6 +920,9 @@ public class TimelineInteractionHandler {
                     }
                 }
                 
+                com.chronoblocks.ui.timeline.audio.TimelineAudioService.getInstance()
+                        .endClipTimeRangePreview(handle.clip);
+
                 if (callbacks != null) callbacks.onDataChanged();
             }
         } else if (mode == InteractionMode.DRAG_KEYFRAME) {
@@ -1063,6 +1095,10 @@ public class TimelineInteractionHandler {
         handle.clip.setEndTime(snappedEnd);
         model.markDurationDirty();
 
+        // ⭐ 音频事件实时预览：随片段拖动同步预览
+        com.chronoblocks.ui.timeline.audio.TimelineAudioService.getInstance()
+                .updateClipTimeRangePreview(handle.clip, handle.clip.getStartTime(), handle.clip.getEndTime());
+
         if (callbacks != null) callbacks.onDataChanged();
     }
 
@@ -1113,6 +1149,10 @@ public class TimelineInteractionHandler {
         handle.clip.setStartTime(snappedStart);
         model.markDurationDirty();
 
+        // ⭐ 音频事件实时预览：随边缘拖动同步缩放/拉伸预览
+        com.chronoblocks.ui.timeline.audio.TimelineAudioService.getInstance()
+                .updateClipTimeRangePreview(handle.clip, handle.clip.getStartTime(), handle.clip.getEndTime());
+
         if (callbacks != null) callbacks.onDataChanged();
     }
 
@@ -1160,6 +1200,9 @@ public class TimelineInteractionHandler {
         // �?优化：实时更新片段结束时间，保持开始时间不变（调整时长�?
         handle.clip.setEndTime(snappedEnd);
         model.markDurationDirty();
+
+        com.chronoblocks.ui.timeline.audio.TimelineAudioService.getInstance()
+                .updateClipTimeRangePreview(handle.clip, handle.clip.getStartTime(), handle.clip.getEndTime());
 
         if (callbacks != null) callbacks.onDataChanged();
     }

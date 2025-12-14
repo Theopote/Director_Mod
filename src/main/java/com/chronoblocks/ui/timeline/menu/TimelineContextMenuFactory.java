@@ -21,6 +21,7 @@ import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
+import com.chronoblocks.ui.timeline.model.audio.AudioEvent;
 import com.chronoblocks.ui.timeline.model.weather.WeatherKeyframe;
 import com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController;
 import org.slf4j.Logger;
@@ -268,6 +269,36 @@ public class TimelineContextMenuFactory {
                     .custom(commandHistory, "AutomationKeyframeMenu")
                     .disabledItem("无关键帧")
                     .build();
+        }
+
+        // ⭐ 音频事件：提供“取消链接（不再跟随片段移动）”
+        if (keyframe instanceof AudioEvent audioEvent) {
+            var audioService = com.chronoblocks.ui.timeline.audio.TimelineAudioService.getInstance();
+            boolean linked = audioService.isEventLinked(audioEvent);
+            String linkedInfo = linked
+                    ? audioService.getLinkedClip(audioEvent)
+                        .map(c -> "已链接到片段: " + (c.getLabel() != null ? c.getLabel() : "(未命名)"))
+                        .orElse("已链接到片段")
+                    : "未链接（独立事件）";
+
+            TimelineContextMenuBuilder builder = TimelineContextMenuBuilder
+                    .custom(commandHistory, "AudioEventMenu")
+                    .disabledItem(String.format("音频事件 @ %.3fs", audioEvent.getStartTime()))
+                    .disabledItem(linkedInfo)
+                    .separator();
+
+            if (linked) {
+                builder.item("取消与片段链接（不再跟随移动）", () -> audioService.unlinkEvent(audioEvent));
+            } else {
+                builder.disabledItem("取消与片段链接（当前已是独立事件）");
+            }
+
+            builder.separator()
+                    .command("删除音频事件",
+                            new com.chronoblocks.ui.timeline.commands.RemoveAutomationKeyframeCommand(model, track, audioEvent),
+                            "Del");
+
+            return builder.build();
         }
 
         // ⭐ 摄像机关键帧：使用专门的 Mine-imator / Blender 风格菜单

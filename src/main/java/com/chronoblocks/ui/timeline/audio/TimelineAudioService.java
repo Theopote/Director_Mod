@@ -16,8 +16,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -40,6 +44,38 @@ public class TimelineAudioService {
     
     private static TimelineAudioService instance;
     private TimelineModel timelineModel;
+
+    /**
+     * 自动生成音频事件与其所属 Clip 的链接关系（内存态）。
+     *
+     * <p>需求：容器片段移动时，自动生成的音频默认应跟随片段整体平移；用户可对单个事件“取消链接”。</p>
+     *
+     * <p>注意：当前时间线持久化未保存 AudioEvent，因此该链接关系也只在本次运行期间有效。</p>
+     */
+    private final Map<TimelineClip, List<UUID>> linkedEventIdsByClip = new IdentityHashMap<>();
+
+    // =========================
+    // 实时预览（拖动/缩放时）
+    // =========================
+
+    private static final class ClipAudioPreviewState {
+        final float oldStart;
+        final float oldEnd;
+        final Map<UUID, Float> originalTimesByEventId;
+        final Map<UUID, Float> previewTimesByEventId = new java.util.HashMap<>();
+
+        ClipAudioPreviewState(float oldStart, float oldEnd, Map<UUID, Float> originalTimesByEventId) {
+            this.oldStart = oldStart;
+            this.oldEnd = oldEnd;
+            this.originalTimesByEventId = originalTimesByEventId;
+        }
+    }
+
+    /**
+     * 当前正在预览的 clip -> 预览状态。
+     * 只用于 UI 拖动时的实时显示，不落盘、不改变事件真实时间。
+     */
+    private final Map<TimelineClip, ClipAudioPreviewState> clipPreviewStates = new IdentityHashMap<>();
     
     private TimelineAudioService() {
     }
@@ -113,12 +149,214 @@ public class TimelineAudioService {
         // 添加到音频轨道
         for (AudioEvent event : events) {
             audioTrack.addEvent(event);
+            linkEventToClip(clip, event);
         }
         
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("[TimelineAudioService] 为片段 {} 收集并添加了 {} 个声音事件",
                     clip.getLabel(), events.size());
         }
+    }
+
+    /**
+     * 当片段发生“整体平移”时调用：将仍保持链接的事件整体平移同样的 delta。
+     *
+     * <p>用于：片段左右拖动；Undo/Redo 同样需要调用。</p>
+     */
+    public void onClipMoved(TimelineClip clip, float oldStartTime, float newStartTime) {
+        // 兼容旧调用：移动本质就是 timeRange 变化且长度不变
+        float len = clip != null ? (clip.getEndTime() - clip.getStartTime()) : 0f;
+        onClipTimeRangeChanged(clip, oldStartTime, oldStartTime + len, newStartTime, newStartTime + len);
+    }
+
+    /**
+     * 当片段时间范围变化（移动/拉伸/压缩）时调用：将仍保持链接的事件按片段范围做仿射映射。
+     *
+     * <p>映射规则：保持每个事件在片段内的归一化位置 u 不变，事件新时间 = newStart + u * newLength。</p>
+     */
+    public void onClipTimeRangeChanged(TimelineClip clip, float oldStartTime, float oldEndTime, float newStartTime, float newEndTime) {
+        if (clip == null) {
+            return;
+        }
+
+        float oldLen = oldEndTime - oldStartTime;
+        float newLen = newEndTime - newStartTime;
+        if (oldLen < 0.0005f || newLen < 0.0005f) {
+            return;
+        }
+
+        List<UUID> ids = linkedEventIdsByClip.getOrDefault(clip, Collections.emptyList());
+        if (ids.isEmpty()) {
+            return;
+        }
+
+        AudioTrack audioTrack = findAudioTrack();
+        if (audioTrack == null) {
+            return;
+        }
+
+        for (UUID id : ids) {
+            AudioEvent ev = audioTrack.getEventById(id);
+            if (ev == null) {
+                continue;
+            }
+            float t = ev.getTime();
+            float u = (t - oldStartTime) / oldLen; // 归一化位置
+            // 允许少量超出范围（例如极端情况下事件在 clip 外），但仍尽量保持相对位置
+            u = Math.max(0f, Math.min(1f, u));
+            ev.setTime(newStartTime + u * newLen);
+        }
+
+        audioTrack.sortEvents();
+    }
+
+    // =========================
+    // Preview API
+    // =========================
+
+    public void beginClipTimeRangePreview(TimelineClip clip, float oldStartTime, float oldEndTime) {
+        if (clip == null) {
+            return;
+        }
+        if (clipPreviewStates.containsKey(clip)) {
+            return;
+        }
+
+        List<UUID> ids = linkedEventIdsByClip.getOrDefault(clip, Collections.emptyList());
+        if (ids.isEmpty()) {
+            return;
+        }
+
+        AudioTrack audioTrack = findAudioTrack();
+        if (audioTrack == null) {
+            return;
+        }
+
+        Map<UUID, Float> original = new java.util.HashMap<>();
+        for (UUID id : ids) {
+            AudioEvent ev = audioTrack.getEventById(id);
+            if (ev != null) {
+                original.put(id, ev.getTime());
+            }
+        }
+
+        if (original.isEmpty()) {
+            return;
+        }
+
+        clipPreviewStates.put(clip, new ClipAudioPreviewState(oldStartTime, oldEndTime, original));
+        updateClipTimeRangePreview(clip, clip.getStartTime(), clip.getEndTime());
+    }
+
+    public void updateClipTimeRangePreview(TimelineClip clip, float newStartTime, float newEndTime) {
+        if (clip == null) {
+            return;
+        }
+        ClipAudioPreviewState state = clipPreviewStates.get(clip);
+        if (state == null) {
+            return;
+        }
+
+        float oldLen = state.oldEnd - state.oldStart;
+        float newLen = newEndTime - newStartTime;
+        if (oldLen < 0.0005f || newLen < 0.0005f) {
+            state.previewTimesByEventId.clear();
+            return;
+        }
+
+        state.previewTimesByEventId.clear();
+        for (Map.Entry<UUID, Float> e : state.originalTimesByEventId.entrySet()) {
+            float t0 = e.getValue();
+            float u = (t0 - state.oldStart) / oldLen;
+            u = Math.max(0f, Math.min(1f, u));
+            state.previewTimesByEventId.put(e.getKey(), newStartTime + u * newLen);
+        }
+    }
+
+    public void endClipTimeRangePreview(TimelineClip clip) {
+        if (clip == null) {
+            return;
+        }
+        clipPreviewStates.remove(clip);
+    }
+
+    public void endAllClipTimeRangePreviews() {
+        clipPreviewStates.clear();
+    }
+
+    /**
+     * 获取某个音频事件的“预览时间”，用于拖动/缩放过程中实时渲染。
+     * @return 预览时间；若当前未处于预览，则返回 -1。
+     */
+    public float getPreviewTimeForEvent(AudioEvent event) {
+        if (event == null || event.getId() == null) {
+            return -1f;
+        }
+        UUID id = event.getId();
+        for (ClipAudioPreviewState state : clipPreviewStates.values()) {
+            Float t = state.previewTimesByEventId.get(id);
+            if (t != null) {
+                return t;
+            }
+        }
+        return -1f;
+    }
+
+    /**
+     * 取消某个事件与片段的链接：之后片段移动不再影响该事件。
+     */
+    public void unlinkEvent(AudioEvent event) {
+        if (event == null) {
+            return;
+        }
+        UUID id = event.getId();
+        if (id == null) {
+            return;
+        }
+
+        // 从所有 clip 的映射中移除该事件
+        for (Map.Entry<TimelineClip, List<UUID>> e : linkedEventIdsByClip.entrySet()) {
+            e.getValue().removeIf(id::equals);
+        }
+    }
+
+    public boolean isEventLinked(AudioEvent event) {
+        return getLinkedClip(event).isPresent();
+    }
+
+    public Optional<TimelineClip> getLinkedClip(AudioEvent event) {
+        if (event == null || event.getId() == null) {
+            return Optional.empty();
+        }
+        UUID id = event.getId();
+        for (Map.Entry<TimelineClip, List<UUID>> e : linkedEventIdsByClip.entrySet()) {
+            if (e.getValue().contains(id)) {
+                return Optional.ofNullable(e.getKey());
+            }
+        }
+        return Optional.empty();
+    }
+
+    private void linkEventToClip(TimelineClip clip, AudioEvent event) {
+        if (clip == null || event == null || event.getId() == null) {
+            return;
+        }
+        linkedEventIdsByClip.computeIfAbsent(clip, c -> new ArrayList<>()).add(event.getId());
+    }
+
+    private AudioTrack findAudioTrack() {
+        if (timelineModel == null) {
+            return null;
+        }
+        for (TimelineTrack track : timelineModel.getAllTracks()) {
+            if (track != null && track.getType() == TrackType.AUDIO) {
+                if (track instanceof AudioTrack at) {
+                    return at;
+                }
+                return convertToAudioTrack(track);
+            }
+        }
+        return null;
     }
     
     /**
@@ -206,33 +444,34 @@ public class TimelineAudioService {
         if (clip == null || timelineModel == null) {
             return;
         }
-        
-        // 查找音频轨道
-        for (TimelineTrack track : timelineModel.getAllTracks()) {
-            if (track != null && track.getType() == TrackType.AUDIO) {
-                AudioTrack audioTrack;
-                if (track instanceof AudioTrack) {
-                    audioTrack = (AudioTrack) track;
-                } else {
-                    // 向后兼容：先转换为 AudioTrack，然后使用新方法
-                    audioTrack = convertToAudioTrack(track);
-                }
-                
-                // 移除该片段时间范围内的所有事件
-                List<AudioEvent> eventsToRemove = audioTrack.getEventsInRange(
-                        clip.getStartTime(),
-                        clip.getEndTime()
-                );
-                
-                for (AudioEvent event : eventsToRemove) {
-                    audioTrack.removeEvent(event);
-                }
-                
-                if (LOGGER.isDebugEnabled() && !eventsToRemove.isEmpty()) {
-                    LOGGER.debug("[TimelineAudioService] 移除了片段 {} 的 {} 个声音事件",
-                            clip.getLabel(), eventsToRemove.size());
+
+        AudioTrack audioTrack = findAudioTrack();
+        if (audioTrack == null) {
+            return;
+        }
+
+        // 优先：按“链接关系”精确移除（避免仅靠时间范围误删/漏删）
+        List<UUID> linked = linkedEventIdsByClip.remove(clip);
+        int removed = 0;
+        if (linked != null && !linked.isEmpty()) {
+            for (UUID id : linked) {
+                AudioEvent ev = audioTrack.getEventById(id);
+                if (ev != null) {
+                    audioTrack.removeEvent(ev);
+                    removed++;
                 }
             }
+        } else {
+            // 向后兼容：如果没有建立链接关系（旧数据），回退到按时间范围移除
+            List<AudioEvent> eventsToRemove = audioTrack.getEventsInRange(clip.getStartTime(), clip.getEndTime());
+            for (AudioEvent event : eventsToRemove) {
+                audioTrack.removeEvent(event);
+                removed++;
+            }
+        }
+
+        if (LOGGER.isDebugEnabled() && removed > 0) {
+            LOGGER.debug("[TimelineAudioService] 移除了片段 {} 的 {} 个声音事件", clip.getLabel(), removed);
         }
     }
 }

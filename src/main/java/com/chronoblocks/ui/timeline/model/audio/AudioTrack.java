@@ -175,6 +175,41 @@ public class AudioTrack extends TimelineTrack {
         return result;
     }
 
+    /**
+     * 让 TimelineHitTest / 交互系统能正确识别音频事件“存在自动化关键帧”。
+     * 否则 hitTestAutomationKeyframes 会因为父类的 automationKeyframes 为空而无法命中音频点。
+     */
+    @Override
+    public boolean hasAutomationKeyframes() {
+        return !events.isEmpty();
+    }
+
+    /**
+     * 兼容 Timeline 命令系统：把 AudioEvent 当作轨道级 keyframe 进行 add/remove/move。
+     * 这样 RemoveAutomationKeyframeCommand / MoveAutomationKeyframeCommand 才能对音频事件生效。
+     */
+    @Override
+    public void addAutomationKeyframe(TimelineSelectable keyframe) {
+        if (keyframe instanceof AudioEvent ae) {
+            addEvent(ae);
+            return;
+        }
+        super.addAutomationKeyframe(keyframe);
+    }
+
+    @Override
+    public boolean removeAutomationKeyframe(UUID keyframeId) {
+        if (keyframeId == null) {
+            return false;
+        }
+        AudioEvent ev = getEventById(keyframeId);
+        if (ev != null) {
+            removeEvent(ev);
+            return true;
+        }
+        return super.removeAutomationKeyframe(keyframeId);
+    }
+
     // =====================================================================
     // Track-level controls
     // =====================================================================

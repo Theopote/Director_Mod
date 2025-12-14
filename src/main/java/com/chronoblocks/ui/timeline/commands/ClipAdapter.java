@@ -12,6 +12,10 @@ public class ClipAdapter implements MoveClipCommand.Clip {
         this.clip = clip;
     }
 
+    public TimelineClip getTimelineClip() {
+        return clip;
+    }
+
     @Override
     public float getStartTime() {
         return clip.getStartTime();

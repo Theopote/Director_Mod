@@ -3,6 +3,7 @@ package com.chronoblocks.ui.timeline.commands;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineSelectable;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
+import com.chronoblocks.ui.timeline.model.audio.AudioEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -101,6 +102,8 @@ public class MoveAutomationKeyframeCommand extends BaseTimelineCommand {
             marker.setTime(time);
         } else if (keyframe instanceof com.chronoblocks.ui.timeline.model.weather.WeatherKeyframe weatherKeyframe) {
             weatherKeyframe.setTime(time);
+        } else if (keyframe instanceof AudioEvent audioEvent) {
+            audioEvent.setTime(time);
         } else {
             LOGGER.warn("[Timeline] 不支持的关键帧类型: {}", keyframe.getClass().getSimpleName());
         }
