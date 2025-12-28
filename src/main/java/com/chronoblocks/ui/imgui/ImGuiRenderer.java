@@ -10,6 +10,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.Window;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL12;
 import org.lwjgl.opengl.GL20;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -108,6 +109,11 @@ public class ImGuiRenderer {
             // 如果这里写死过高的版本（例如 410），在只支持 150/330 的环境会直接导致 ImGui shader 编译失败 → 画面“什么都没有”。
             String glsl = pickGlslVersionString();
             LOGGER.info("[ChronoBlocks] Initializing ImGui GL3 backend with {}", glsl);
+            // 关键修复（1.21.x 常见坑）：
+            // Minecraft 渲染/截图/纹理上传流程可能遗留 GL_UNPACK_* 状态（尤其 UNPACK_ROW_LENGTH），
+            // 会直接把 ImGui 的 font atlas 上传“写花”，表现为文字/图标像二维码碎片。
+            // 在创建 ImGui device objects（包含 fonts texture）前强制重置像素存储参数。
+            resetPixelStoreStateForImGuiTextureUpload();
             imGuiGl3.init(glsl);
 
             // 标记初始化完成
@@ -225,7 +231,7 @@ public class ImGuiRenderer {
             try {
                 RenderSystem.assertOnRenderThread();
                 // 避免被 Minecraft 的 RenderType scissor 影响
-                RenderSystem.disableScissorForRenderTypeDraws();
+                GL11.glDisable(GL11.GL_SCISSOR_TEST);
                 imGuiGl3.renderDrawData(ImGui.getDrawData());
             } catch (Exception e) {
                 LOGGER.error("[ChronoBlocks] Failed to render pending ImGui draw data", e);
@@ -409,5 +415,30 @@ public class ImGuiRenderer {
         }
         // 最保守 fallback
         return "#version 150";
+    }
+
+    /**
+     * 重置像素存储（pack/unpack）参数，避免 font atlas 上传受 Minecraft 残留状态影响。
+     *
+     * <p>症状：ImGui 面板正常，但所有文字/图标呈现“二维码/乱码碎片”。</p>
+     */
+    private static void resetPixelStoreStateForImGuiTextureUpload() {
+        try {
+            RenderSystem.assertOnRenderThread();
+            // unpack
+            GL11.glPixelStorei(GL11.GL_UNPACK_ALIGNMENT, 1);
+            GL11.glPixelStorei(GL12.GL_UNPACK_ROW_LENGTH, 0);
+            GL11.glPixelStorei(GL12.GL_UNPACK_SKIP_PIXELS, 0);
+            GL11.glPixelStorei(GL12.GL_UNPACK_SKIP_ROWS, 0);
+            // pack（顺手统一一下，避免后续 readPixels/截图互相污染）
+            GL11.glPixelStorei(GL11.GL_PACK_ALIGNMENT, 1);
+            GL11.glPixelStorei(GL12.GL_PACK_ROW_LENGTH, 0);
+            GL11.glPixelStorei(GL12.GL_PACK_SKIP_PIXELS, 0);
+            GL11.glPixelStorei(GL12.GL_PACK_SKIP_ROWS, 0);
+            LOGGER.debug("[ChronoBlocks] Reset GL pixel store state for ImGui texture upload");
+        } catch (Throwable t) {
+            // 不要因为这里失败导致整个 UI 初始化失败（某些极端环境可能缺 GL12 常量/路径）
+            LOGGER.warn("[ChronoBlocks] Failed to reset GL pixel store state (continuing anyway): {}", t.toString());
+        }
     }
 }
