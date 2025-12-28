@@ -45,6 +45,13 @@ public final class TimelineCameraController {
     /** ⭐ v5.0：当前激活的摄像机轨道（可能为 null） */
     private TimelineTrack activeCameraTrack;
 
+    /**
+     * 性能优化：摄像机轨道数据是否需要重建（keyframes/path）。
+     *
+     * <p>之前在 updateOwnerAndSample() 中每帧 rebuildFromActiveTrack()，会频繁分配/排序，导致播放掉帧。</p>
+     */
+    private boolean cameraDataDirty = true;
+
     /** 是否处于「单帧预览关键帧」的状态 */
     private boolean previewing = false;
     private float previewTimeSeconds = 0f;
@@ -77,6 +84,7 @@ public final class TimelineCameraController {
         }
 
         this.timelineModel = model;
+        cameraDataDirty = true;
 
         if (model != null) {
             if (modelChangeListener == null) {
@@ -103,6 +111,7 @@ public final class TimelineCameraController {
             activeCameraTrack = null;
             sampler.setKeyframes(new ArrayList<>());
             pathManager.setKeyframes(new ArrayList<>());
+            cameraDataDirty = false;
         }
     }
 
@@ -130,6 +139,7 @@ public final class TimelineCameraController {
         }
 
         this.activeCameraTrack = track;
+        cameraDataDirty = true;
         LOGGER.info("[TimelineCamera] 激活摄像机轨道: {}",
                 track != null ? track.getName() : "<none>");
 
@@ -141,6 +151,7 @@ public final class TimelineCameraController {
      * ⭐ v5.0：只刷新激活轨道的关键帧
      */
     public synchronized void onKeyframeChanged() {
+        cameraDataDirty = true;
         rebuildFromActiveTrack();
     }
 
@@ -178,6 +189,7 @@ public final class TimelineCameraController {
             }
         }
 
+        cameraDataDirty = true;
         rebuildFromActiveTrack();
         LOGGER.debug("[TimelineCameraController] 模型变更，刷新摄像机关键帧");
     }
@@ -197,6 +209,7 @@ public final class TimelineCameraController {
         if (!hasValidActiveTrack()) {
             sampler.setKeyframes(new ArrayList<>());
             pathManager.setKeyframes(new ArrayList<>());
+            cameraDataDirty = false;
             return;
         }
 
@@ -208,6 +221,16 @@ public final class TimelineCameraController {
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("[TimelineCamera] Rebuild from track '{}', keyframes = {}",
                     activeCameraTrack.getName(), kfs.size());
+        }
+        cameraDataDirty = false;
+    }
+
+    /**
+     * 在真正需要时才重建（避免播放时每帧 rebuild 造成 FPS 大幅下降）。
+     */
+    private synchronized void ensureCameraDataBuilt() {
+        if (cameraDataDirty) {
+            rebuildFromActiveTrack();
         }
     }
 
@@ -222,7 +245,7 @@ public final class TimelineCameraController {
      */
     public void beginScrubbing(float timeSeconds) {
         this.previewing = false;
-        rebuildFromActiveTrack();
+        ensureCameraDataBuilt();
         sampler.sample(timeSeconds).ifPresent(CameraRuntime.getInstance()::applyTimelineSample);
         LOGGER.debug("[TimelineCameraController] 开始 scrubbing @ {}s", String.format("%.2f", timeSeconds));
     }
@@ -241,7 +264,7 @@ public final class TimelineCameraController {
             return;
         }
 
-        rebuildFromActiveTrack();
+        ensureCameraDataBuilt();
         sampler.sample(timeSeconds).ifPresent(sample -> {
             // ⭐ 关键修复：只更新 sample，不重复设置 owner
             CameraRuntime.getInstance().applyTimelineSample(sample);
@@ -273,7 +296,7 @@ public final class TimelineCameraController {
      */
     public void startPlayback() {
         this.previewing = false;
-        rebuildFromActiveTrack();
+        ensureCameraDataBuilt();
         LOGGER.debug("[TimelineCameraController] 开始播放");
     }
 
@@ -372,7 +395,8 @@ public final class TimelineCameraController {
 
         // 时间线模式：根据当前时间采样相机
         if (runtime.isTimelineOwner()) {
-            rebuildFromActiveTrack();
+            // ✅ 性能关键：播放时不要每帧 rebuild（会导致 FPS 大幅下降）
+            ensureCameraDataBuilt();
             float time = playing || scrubbing ? timelineModel.getCurrentTime() : previewTimeSeconds;
             
             // 获取最后关键帧时间
@@ -438,7 +462,7 @@ public final class TimelineCameraController {
         this.previewing = true;
         this.previewTimeSeconds = timeSeconds;
 
-        rebuildFromActiveTrack();
+        ensureCameraDataBuilt();
         applySampleAtTime(timeSeconds);
         LOGGER.debug("[TimelineCameraController] 预览 @ {}s", String.format("%.2f", timeSeconds));
     }
@@ -492,7 +516,7 @@ public final class TimelineCameraController {
         this.previewing = true;
         this.previewTimeSeconds = timeSeconds;
 
-        rebuildFromActiveTrack();
+        ensureCameraDataBuilt();
         applySampleAtTime(timeSeconds);
         // 将镜头位置直接写到玩家实体 / 相机
         sampler.sample(timeSeconds).ifPresent(sample -> CameraAccessor.applySampleToPlayerEntity(MinecraftClient.getInstance(), sample));
@@ -517,7 +541,7 @@ public final class TimelineCameraController {
         if (!hasValidActiveTrack()) {
             return;
         }
-        rebuildFromActiveTrack();
+        ensureCameraDataBuilt();
         CameraRuntime runtime = CameraRuntime.getInstance();
         sampler.sample(timeSeconds).ifPresent(runtime::applyTimelineSample);
         if (!runtime.isTimelineOwner()) {

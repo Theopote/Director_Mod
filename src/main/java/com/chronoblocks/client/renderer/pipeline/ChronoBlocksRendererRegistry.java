@@ -14,7 +14,9 @@ import com.chronoblocks.client.input.ChronoBlocksInputSystem;
 import com.chronoblocks.core.animation.BlockAnimationRenderer;
 import com.chronoblocks.core.container.visibility.BlockVisualStateManager;
 import com.chronoblocks.core.selection.SelectionManager;
+import com.chronoblocks.export.video.VideoExportManager;
 import com.chronoblocks.ui.ChronoBlocksScreen;
+import com.chronoblocks.ui.timeline.container.ContainerTimelineService;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;
@@ -248,13 +250,44 @@ public final class ChronoBlocksRendererRegistry {
         if (entries == null || entries.isEmpty()) {
             return;
         }
+        boolean perfMode = isPlaybackOrExportPerfMode();
         for (RendererEntry entry : List.copyOf(entries)) {
             try {
+                if (perfMode && shouldSkipInPerfMode(entry.getName())) {
+                    continue;
+                }
                 entry.invoke(ctx);
             } catch (Exception ex) {
                 LOGGER.warn("[RendererRegistry] Renderer '{}' 在阶段 {} 渲染异常: {}", entry.getName(), stage, ex.getMessage(), ex);
             }
         }
+    }
+
+    /**
+     * 播放/导出时自动进入性能模式：关闭重渲染负担大的“装饰性”渲染器，保持 FPS。
+     */
+    private static boolean isPlaybackOrExportPerfMode() {
+        try {
+            // 1) 导出时必然开启（截图/编码本身很吃性能）
+            if (VideoExportManager.getInstance().isExporting()) {
+                return true;
+            }
+            // 2) 时间线播放时开启（避免额外 debug/overlay renderer 抢占帧时间）
+            var model = ContainerTimelineService.getInstance().getTimelineModel();
+            return model != null && model.isPlaying();
+        } catch (Throwable ignored) {
+            return false;
+        }
+    }
+
+    private static boolean shouldSkipInPerfMode(String rendererName) {
+        if (rendererName == null) return false;
+        // 这些项对“播放/导出结果”不是必需，但很吃 GPU/CPU：
+        return rendererName.equalsIgnoreCase("CameraPathDebug")
+                || rendererName.equalsIgnoreCase("SelectionFill")
+                || rendererName.equalsIgnoreCase("BlockAnimations")
+                || rendererName.equalsIgnoreCase("ToolPreview")
+                || rendererName.equalsIgnoreCase("Gizmo");
     }
 
     // ---------------------------------------------------------------------
