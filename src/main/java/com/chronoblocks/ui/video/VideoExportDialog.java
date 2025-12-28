@@ -25,6 +25,7 @@ import org.lwjgl.util.tinyfd.TinyFileDialogs;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.concurrent.TimeUnit;
 import java.util.Locale;
 import java.util.ArrayList;
@@ -54,6 +55,11 @@ public final class VideoExportDialog {
     private static final ImInt renderDistanceInt = new ImInt(settings.renderDistance);
     private static final ImBoolean audioEnabledBool = new ImBoolean(settings.enableAudio);
     private static String lastError = null;
+
+    // 覆盖确认弹窗状态
+    private static final String OVERWRITE_POPUP_ID = "##ChronoBlocksVideoExportOverwriteConfirm";
+    private static VideoExportSettings pendingStartSettings = null;
+    private static String pendingOverwriteWarning = null;
 
     // FFmpeg 状态缓存（仅用于 UI 展示/校验）
     private static boolean ffmpegChecked = false;
@@ -265,6 +271,9 @@ public final class VideoExportDialog {
         // =============================
         ImGui.separator();
 
+        // 覆盖确认弹窗（嵌套在导出对话框内部）
+        renderOverwriteConfirmPopupIfNeeded(uiManager);
+
         if (ImGui.button(Icons.EXPORT + " 开始导出", 160, UITheme.Spacing.BUTTON_HEIGHT)) {
             settings.outputPath = outputPathBuffer.get().trim();
             if (!settings.validate()) {
@@ -274,9 +283,18 @@ public final class VideoExportDialog {
             } else if (uiManager == null) {
                 lastError = "UIManager 未注入，无法启动导出任务。";
             } else {
-                lastError = null;
-                ImGui.closeCurrentPopup();
-                uiManager.startVideoExport(settings);
+                // 目标存在性检查：同名文件/目录应提示用户
+                ExistingTarget existing = findExistingOutputTarget(settings);
+                if (existing != null) {
+                    pendingStartSettings = copySettings(settings);
+                    pendingOverwriteWarning = existing.warningMessage;
+                    // 打开确认弹窗
+                    ImGui.openPopup(OVERWRITE_POPUP_ID);
+                } else {
+                    lastError = null;
+                    ImGui.closeCurrentPopup();
+                    uiManager.startVideoExport(settings);
+                }
             }
         }
 
@@ -286,6 +304,156 @@ public final class VideoExportDialog {
             lastError = null;
             ImGui.closeCurrentPopup();
         }
+    }
+
+    private static void renderOverwriteConfirmPopupIfNeeded(ChronoBlocksUIManager uiManager) {
+        if (ImGui.beginPopupModal(Icons.WARNING + " 文件已存在" + OVERWRITE_POPUP_ID, ImGuiWindowFlags.AlwaysAutoResize)) {
+            ImGui.text("检测到输出路径下已有同名文件/目录。");
+            if (pendingOverwriteWarning != null) {
+                UITheme.spacingSmall();
+                ImGui.textWrapped(pendingOverwriteWarning);
+            }
+
+            UITheme.spacingSmall();
+            ImGui.separator();
+
+            boolean canStart = (pendingStartSettings != null && uiManager != null);
+
+            if (!canStart) {
+                ImGui.textDisabled("无法继续：导出设置或 UIManager 缺失。");
+            }
+
+            if (ImGui.button(Icons.EXPORT + " 覆盖并导出", 160, UITheme.Spacing.BUTTON_HEIGHT) && canStart) {
+                try {
+                    // PNG 序列：尝试清空目标目录，避免旧帧混入
+                    maybeClearPngSequenceDir(pendingStartSettings);
+                } catch (Exception e) {
+                    lastError = "清理输出目录失败：" + e.getMessage();
+                    // 保持弹窗打开，让用户看到错误
+                    ImGui.endPopup();
+                    return;
+                }
+
+                lastError = null;
+                ImGui.closeCurrentPopup(); // 关闭覆盖确认弹窗
+                ImGui.closeCurrentPopup(); // 关闭导出设置弹窗
+                uiManager.startVideoExport(pendingStartSettings);
+                pendingStartSettings = null;
+                pendingOverwriteWarning = null;
+            }
+
+            ImGui.sameLine();
+
+            if (ImGui.button("取消", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
+                pendingStartSettings = null;
+                pendingOverwriteWarning = null;
+                ImGui.closeCurrentPopup();
+            }
+
+            ImGui.endPopup();
+        }
+    }
+
+    private static final class ExistingTarget {
+        final String warningMessage;
+
+        ExistingTarget(String warningMessage) {
+            this.warningMessage = warningMessage;
+        }
+    }
+
+    private static ExistingTarget findExistingOutputTarget(VideoExportSettings s) {
+        if (s == null || s.outputPath == null || s.outputPath.isBlank()) {
+            return null;
+        }
+
+        try {
+            if (s.format == VideoExportSettings.FORMAT_H264_MP4) {
+                Path out = s.getOutputPathAsPath();
+                if (out != null && Files.exists(out)) {
+                    return new ExistingTarget("输出文件已存在：\n" + out.toAbsolutePath());
+                }
+                return null;
+            }
+
+            // PNG 序列：输出目录为 parent/<basename>/
+            Path outPath = Paths.get(s.outputPath.trim());
+            Path parent = outPath.getParent();
+            if (parent == null) {
+                parent = Paths.get(".");
+            }
+            String baseName = stripExtension(outPath.getFileName() != null ? outPath.getFileName().toString() : "export");
+            Path dir = parent.resolve(baseName);
+            if (Files.exists(dir)) {
+                String msg = "PNG 序列输出目录已存在：\n" + dir.toAbsolutePath()
+                        + "\n\n覆盖导出建议清空目录，避免旧帧混入。";
+                return new ExistingTarget(msg);
+            }
+        } catch (Exception ignore) {
+            // ignore
+        }
+
+        return null;
+    }
+
+    private static void maybeClearPngSequenceDir(VideoExportSettings s) throws Exception {
+        if (s == null || s.format != VideoExportSettings.FORMAT_PNG_SEQUENCE) {
+            return;
+        }
+        if (s.outputPath == null || s.outputPath.isBlank()) {
+            return;
+        }
+
+        Path outPath = Paths.get(s.outputPath.trim());
+        Path parent = outPath.getParent();
+        if (parent == null) {
+            parent = Paths.get(".");
+        }
+        String baseName = stripExtension(outPath.getFileName() != null ? outPath.getFileName().toString() : "export");
+        Path dir = parent.resolve(baseName);
+        if (!Files.exists(dir) || !Files.isDirectory(dir)) {
+            return;
+        }
+
+        // 只删除目录下的文件（不递归删除子目录），避免误伤太多；如果需要可再扩展递归清理
+        try (var stream = Files.list(dir)) {
+            stream.forEach(p -> {
+                try {
+                    Files.deleteIfExists(p);
+                } catch (Exception ignore) {
+                    // ignore
+                }
+            });
+        }
+    }
+
+    private static String stripExtension(String name) {
+        if (name == null) {
+            return "export";
+        }
+        int idx = name.lastIndexOf('.');
+        return idx >= 0 ? name.substring(0, idx) : name;
+    }
+
+    private static VideoExportSettings copySettings(VideoExportSettings src) {
+        VideoExportSettings dst = new VideoExportSettings();
+        dst.outputPath = src.outputPath;
+        dst.width = src.width;
+        dst.height = src.height;
+        dst.fps = src.fps;
+        dst.rangeMode = src.rangeMode;
+        dst.customStartTime = src.customStartTime;
+        dst.customEndTime = src.customEndTime;
+        dst.cameraMode = src.cameraMode;
+        dst.cameraTrackIndex = src.cameraTrackIndex;
+        dst.cameraTrackName = src.cameraTrackName;
+        dst.format = src.format;
+        dst.renderDistance = src.renderDistance;
+        dst.useAntiAliasing = src.useAntiAliasing;
+        dst.enableAudio = src.enableAudio;
+        dst.audioSampleRate = src.audioSampleRate;
+        dst.audioChannels = src.audioChannels;
+        return dst;
     }
 
     private static List<TimelineTrack> getCameraTracks() {

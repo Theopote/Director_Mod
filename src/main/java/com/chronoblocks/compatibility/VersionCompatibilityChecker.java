@@ -24,11 +24,11 @@ public class VersionCompatibilityChecker {
     
     // 支持的版本范围
     private static final String MINECRAFT_MIN_VERSION = "1.21.0";
-    private static final String MINECRAFT_MAX_VERSION = "1.21.4";
-    private static final String MINECRAFT_RECOMMENDED_VERSION = "1.21.4";
+    private static final String MINECRAFT_MAX_VERSION = "1.21.10";
+    private static final String MINECRAFT_RECOMMENDED_VERSION = "1.21.10";
     
-    private static final String FABRIC_MIN_VERSION = "0.119.4";
-    private static final String FABRIC_RECOMMENDED_VERSION = "0.119.4+1.21.4";
+    private static final String FABRIC_MIN_VERSION = "0.138.4";
+    private static final String FABRIC_RECOMMENDED_VERSION = "0.138.4+1.21.10";
     
     private static final int JAVA_MIN_VERSION = 21;
     private static final int JAVA_RECOMMENDED_VERSION = 21;

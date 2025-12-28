@@ -82,14 +82,14 @@ public class ModCompatibilityChecker {
     private static void initializeKnownMods() {
         // 必需模组
         knownMods.put("fabric", new ModInfo(
-            "fabric", "Fabric API", "0.119.4+", true,
-            new String[]{"0.119.4+", "0.128.2+", "0.17.0+"},
+            "fabric", "Fabric API", "0.138.4+", true,
+            new String[]{"0.138.4+", "0.140.0+"},
             "Fabric API - 模组开发的核心 API"
         ));
         
         knownMods.put("fabricloader", new ModInfo(
-            "fabricloader", "Fabric Loader", "0.17.0+", true,
-            new String[]{"0.17.0+", "0.18.0+", "0.19.0+"},
+            "fabricloader", "Fabric Loader", "0.18.4+", true,
+            new String[]{"0.18.4+", "0.19.0+"},
             "Fabric Loader - 模组加载器"
         ));
         
@@ -238,7 +238,7 @@ public class ModCompatibilityChecker {
                 String minVersion = supportedVersion.substring(0, supportedVersion.length() - 1);
                 return compareVersions(currentVersion, minVersion) >= 0;
             } else if (supportedVersion.contains("+") && supportedVersion.contains(".")) {
-                // Handle format like "0.119.4+1.21.4" - extract base version
+                // Handle format like "0.138.4+1.21.10" - extract base version
                 String baseVersion = supportedVersion.split("\\+")[0];
                 return compareVersions(currentVersion, baseVersion) >= 0;
             } else if (supportedVersion.contains("-")) {

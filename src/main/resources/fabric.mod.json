@@ -33,10 +33,10 @@
 		}
 	],
 	"depends": {
-		"fabricloader": ">=0.16.10",
-		"minecraft": "~1.21.4",
+		"fabricloader": ">=0.18.4",
+		"minecraft": "~1.21.10",
 		"java": ">=21",
-		"fabric-api": ">=0.119.4"
+		"fabric-api": ">=0.138.4"
 	},
 	"suggests": {
 		"modmenu": ">=4.0.0",
@@ -59,12 +59,12 @@
 		"compatibility": {
 			"minecraft": {
 				"min": "1.21.0",
-				"max": "1.21.4",
-				"recommended": "1.21.4"
+				"max": "1.21.10",
+				"recommended": "1.21.10"
 			},
 			"fabric": {
-				"min": "0.119.4",
-				"recommended": "0.119.4+1.21.4"
+				"min": "0.138.4",
+				"recommended": "0.138.4+1.21.10"
 			},
 			"java": {
 				"min": "21",

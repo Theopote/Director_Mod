@@ -27,7 +27,7 @@ import com.chronoblocks.client.settings.RenderSettings;
  *  - 选区包围盒线框（由 SelectionRenderer.renderOutlineOnly 负责）
  * <p>
  * ✅ 特性：
- *  - 与 Fabric 1.21.4 FrameGraph 完全兼容
+ *  - 与 Fabric 1.21.x FrameGraph 完全兼容
  *  - 使用 VertexConsumerProvider（由 FrameGraph 自动管理）
  *  - 自动适配摄像机位置
  *  - 与 SelectionRenderer 职责分离，避免重复渲染和闪烁问题

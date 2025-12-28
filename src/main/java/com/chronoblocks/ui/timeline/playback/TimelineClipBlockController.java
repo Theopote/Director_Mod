@@ -66,6 +66,14 @@ public class TimelineClipBlockController {
 
     // 简化遮挡检测器
     private final BlockOcclusionResolver occlusionResolver = new BlockOcclusionResolver();
+
+    /**
+     * 记录每个容器上一帧“应当显示/保留”的方块集合。
+     *
+     * <p>用于推导本帧世界方块状态的变化量，并触发区块重建，
+     * 避免在逐步清除时出现“黑洞/虚空（区块未及时重渲染）”的视觉问题。
+     */
+    private final Map<UUID, Set<BlockPos>> lastFrameVisibleBlocks = new HashMap<>();
     
     private TimelineClipBlockController() {
     }
@@ -117,6 +125,9 @@ public class TimelineClipBlockController {
         Map<UUID, Float> currentFrameOpacity = new HashMap<>();
         Map<UUID, List<BlockSequenceEntry>> currentFrameSequences = new HashMap<>();
         Map<UUID, ClipAnimationConfig> currentFrameConfigs = new HashMap<>();
+
+        // 本帧世界方块（AIR/恢复）变化导致的重渲染位置（与视觉覆盖层无关）
+        Set<BlockPos> worldStateChangedBlocksForRerender = new HashSet<>();
         
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("[TimelineClipBlockController] 开始更新 (当前时间: {:.2f}s)", currentTime);
@@ -162,6 +173,49 @@ public class TimelineClipBlockController {
                 if (LOGGER.isTraceEnabled() && !visibleBlocks.isEmpty()) {
                     LOGGER.trace("[TimelineClipBlockController] 片段 {} (容器: {}) 计算得到 {} 个可见方块(时间: {:.2f}s, 片段范围: [{:.2f}s, {:.2f}s])",
                         clip.getLabel(), container.getName(), visibleBlocks.size(), currentTime, clip.getStartTime(), clip.getEndTime());
+                }
+            }
+        }
+
+        // ✅ 步骤1.5：根据“上一帧可见集 vs 当前帧可见集”推导世界方块变化量，提前为区块重建收集 pos
+        // 说明：showContainerBlocks 会真实修改世界方块（置 AIR / 从快照恢复），但客户端区块重建可能滞后。
+        // 这里通过 scheduleBlockRenders 主动触发重渲染，避免清除过程出现“黑洞/虚空”。
+        for (Map.Entry<UUID, Set<BlockPos>> entry : currentFrameVisibleBlocks.entrySet()) {
+            UUID containerId = entry.getKey();
+            Set<BlockPos> now = entry.getValue() != null ? entry.getValue() : java.util.Collections.emptySet();
+            Set<BlockPos> prev = lastFrameVisibleBlocks.get(containerId);
+            if (prev == null) {
+                // 第一次看到该容器：保守起见，认为整组都可能变化
+                Container container = Objects.requireNonNull(ContainerManager.getInstance()).getContainer(containerId);
+                if (container != null) {
+                    worldStateChangedBlocksForRerender.addAll(container.getBlocks());
+                } else {
+                    worldStateChangedBlocksForRerender.addAll(now);
+                }
+                continue;
+            }
+            // 计算对称差（发生显示/隐藏切换的 pos）
+            for (BlockPos p : prev) {
+                if (!now.contains(p)) {
+                    worldStateChangedBlocksForRerender.add(p);
+                    // 邻居面也会被暴露/遮挡，加入 6 邻居以提高稳定性
+                    worldStateChangedBlocksForRerender.add(p.up());
+                    worldStateChangedBlocksForRerender.add(p.down());
+                    worldStateChangedBlocksForRerender.add(p.north());
+                    worldStateChangedBlocksForRerender.add(p.south());
+                    worldStateChangedBlocksForRerender.add(p.east());
+                    worldStateChangedBlocksForRerender.add(p.west());
+                }
+            }
+            for (BlockPos p : now) {
+                if (!prev.contains(p)) {
+                    worldStateChangedBlocksForRerender.add(p);
+                    worldStateChangedBlocksForRerender.add(p.up());
+                    worldStateChangedBlocksForRerender.add(p.down());
+                    worldStateChangedBlocksForRerender.add(p.north());
+                    worldStateChangedBlocksForRerender.add(p.south());
+                    worldStateChangedBlocksForRerender.add(p.east());
+                    worldStateChangedBlocksForRerender.add(p.west());
                 }
             }
         }
@@ -286,8 +340,29 @@ public class TimelineClipBlockController {
             );
         }
 
-        // 触发需要的区块重渲染，确保suppressWorldRendering 变化立即生效
-        scheduleBlockRerender(visualStateManager.getChangedBlocks());
+        // 触发需要的区块重渲染：
+        // 1) visualState 的 suppressWorldRendering/overlay 变化
+        // 2) 世界方块真实变化（AIR/恢复）导致的面更新（防止“黑洞/虚空”）
+        Set<BlockPos> rerender = new HashSet<>();
+        try {
+            Set<BlockPos> vsChanged = visualStateManager.getChangedBlocks();
+            if (vsChanged != null && !vsChanged.isEmpty()) {
+                rerender.addAll(vsChanged);
+            }
+        } catch (Exception ignored) {
+        }
+        if (!worldStateChangedBlocksForRerender.isEmpty()) {
+            rerender.addAll(worldStateChangedBlocksForRerender);
+        }
+        scheduleBlockRerender(rerender);
+
+        // 更新 lastFrameVisibleBlocks（并清理已不存在的容器）
+        lastFrameVisibleBlocks.keySet().retainAll(currentFrameVisibleBlocks.keySet());
+        for (Map.Entry<UUID, Set<BlockPos>> e : currentFrameVisibleBlocks.entrySet()) {
+            UUID id = e.getKey();
+            Set<BlockPos> s = e.getValue();
+            lastFrameVisibleBlocks.put(id, s != null ? new HashSet<>(s) : java.util.Collections.emptySet());
+        }
         visualStateManager.finishFrame();
     }
 
@@ -322,97 +397,6 @@ public class TimelineClipBlockController {
         }
     }
     
-    /**
-     * 计算片段中在当前时间应该显示的方块集合
-     * 
-     * <p>规则：
-     * <ul>
-     *   <li>轨道锁定或隐藏 → 返回空集合（所有方块隐藏）</li>
-     *   <li>播放头在片段左侧 → 返回空集合（所有方块隐藏）</li>
-     *   <li>播放头在片段范围内 → 根据动画引擎计算应该显示的方块</li>
-     *   <li>播放头在片段右侧 → 返回所有方块（完全显示）</li>
-     * </ul>
-     * 
-     * @param clip 片段
-     * @param track 轨道
-     * @param currentTime 当前播放头时间
-     * @param trackEnabled 轨道是否启用（未锁定且可见）
-     * @param container 容器对象
-     * @return 应该显示的方块位置集合
-     */
-    private VisibleBlocksResult calculateVisibleBlocks(TimelineClip clip, TimelineTrack track, 
-                                                       float currentTime, boolean trackEnabled,
-                                                       Container container, ClipAnimationConfig config) {
-        Set<BlockPos> visibleBlocks = new HashSet<>();
-        List<BlockSequenceEntry> sequenceEntries = new ArrayList<>();
-
-        if (!trackEnabled) {
-            return new VisibleBlocksResult(visibleBlocks, sequenceEntries);
-        }
-
-        float clipStart = clip.getStartTime();
-        float clipEnd = clip.getEndTime();
-
-        if (currentTime < clipStart) {
-            return new VisibleBlocksResult(visibleBlocks, sequenceEntries);
-        }
-
-        List<BlockPos> allBlocks = new ArrayList<>(container.getBlocks());
-        if (allBlocks.isEmpty()) {
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("[TimelineClipBlockController] Container {} has no blocks", container.getName());
-            }
-            return new VisibleBlocksResult(visibleBlocks, sequenceEntries);
-        }
-
-        if (currentTime >= clipStart && currentTime <= clipEnd) {
-            com.chronoblocks.core.container.AnimationMode mode = config != null ? config.getMode() : com.chronoblocks.core.container.AnimationMode.INSTANT;
-            if (mode == null) {
-                mode = com.chronoblocks.core.container.AnimationMode.INSTANT;
-                if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("[TimelineClipBlockController] Clip {} animation mode missing, using INSTANT", clip.getLabel());
-                }
-            }
-
-            float clipDuration = clipEnd - clipStart;
-
-            List<BlockSequenceEntry> generated = BlockSequenceGenerator.generate(
-                    allBlocks, container, config != null ? config.getSequenceParameters() : null
-            );
-            if (generated != null) {
-                sequenceEntries.addAll(generated);
-            }
-
-            if (sequenceEntries.isEmpty()) {
-                LOGGER.warn("[TimelineClipBlockController] Sequence generator returned empty list, using all blocks");
-                visibleBlocks.addAll(allBlocks);
-                return new VisibleBlocksResult(visibleBlocks, sequenceEntries);
-            }
-
-            for (BlockSequenceEntry entry : sequenceEntries) {
-                float normalizedTime = entry.getNormalizedTime(); // 0..1
-                float blockAppearTime = clipStart + normalizedTime * clipDuration;
-
-                if (currentTime >= blockAppearTime) {
-                    visibleBlocks.add(entry.getPos());
-                }
-            }
-
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[TimelineClipBlockController] Clip {} result: {} blocks visible (total: {}, mode: {}, time: {:.2f}s)",
-                        clip.getLabel(), visibleBlocks.size(), allBlocks.size(), mode, currentTime);
-            }
-
-            return new VisibleBlocksResult(visibleBlocks, sequenceEntries);
-        }
-
-        if (currentTime > clipEnd) {
-            visibleBlocks.addAll(container.getBlocks());
-        }
-
-        return new VisibleBlocksResult(visibleBlocks, sequenceEntries);
-    }
-
     /**
      * 计算片段中在当前时间应该“保留/显示”的方块集合（支持容器轨道与清除轨道）。
      *
