@@ -16,7 +16,7 @@ public final class ImGuiCursorController {
         DEFAULT,
         RESIZE_X,   // 水平双箭头 (X 轴)
         RESIZE_Y,   // 垂直双箭头 (Y 轴)
-        RESIZE_Z    // 对角双箭头 (Z 轴)
+        RESIZE_Z    // Z 轴（在某些平台/后端对角光标不稳定，统一回退到双向箭头）
     }
     
     private static final ImGuiCursorController INSTANCE = new ImGuiCursorController();
@@ -61,7 +61,9 @@ public final class ImGuiCursorController {
         int imguiCursor = switch (currentType) {
             case RESIZE_X -> ImGuiMouseCursor.ResizeEW;   // 水平双箭头
             case RESIZE_Y -> ImGuiMouseCursor.ResizeNS;   // 垂直双箭头
-            case RESIZE_Z -> ImGuiMouseCursor.ResizeNESW; // 对角双箭头
+            // ✅ Windows + 部分 ImGui 后端对 ResizeNESW/ResizeNWSE 的系统光标支持不一致，
+            // 为了“蓝轴也稳定出现双向箭头”，这里统一回退到 ResizeEW（双向箭头）。
+            case RESIZE_Z -> ImGuiMouseCursor.ResizeEW;
             default -> ImGuiMouseCursor.Arrow;
         };
         
