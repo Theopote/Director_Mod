@@ -96,12 +96,11 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
         // 工具按钮组（组级换行优先，组内再换行）
         renderSelectionToolButtons();
 
-        // 4 个区块：工具区 / 面板快捷区 / 状态区 / 关闭区
+        // 工具栏主体只保留：工具区 + 面板快捷区
+        // FPS/关闭已迁移到 MenuBarPanel 右侧（全局状态/窗口级操作）
         boolean firstSection = false; // 工具区已渲染
 
-        firstSection = renderPanelShortcutsSection(firstSection);
-        firstSection = renderStatusSection(firstSection);
-        renderCloseSection(firstSection);
+        renderPanelShortcutsSection(firstSection);
 
         // 移除集成的面板渲染，现在使用独立面板
         // 这些面板现在通过Window菜单的Toggle Panels来管理
@@ -129,20 +128,6 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
         renderPanelToggleButtonWrapped(Icons.UNDO, "历史", SelectionHistoryPanel.class, "打开选择历史面板", SelectionHistoryPanel.PANEL_NAME);
 
         return false;
-    }
-
-    private boolean renderStatusSection(boolean firstSection) {
-        // status 是纯文本，宽度难精确；用一个保守估计即可
-        float minW = ImGui.calcTextSize("FPS: 999").x + ImGui.getStyle().getFramePadding().x * 2.0f;
-        beginSection(firstSection, minW);
-        renderStatusIndicators();
-        return false;
-    }
-
-    private void renderCloseSection(boolean firstSection) {
-        float closeW = estimateButtonWidth("关闭");
-        beginSection(firstSection, closeW);
-        renderCloseButton();
     }
 
     /**
@@ -380,49 +365,7 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
         ImGui.endTooltip();
     }
 
-    /* ---------- 状态显示 ---------- */
-    private void renderStatusIndicators() {
-        float fps = ImGui.getIO().getFramerate();
-
-        // 显示FPS，使用不同颜色表示性能状态
-        if (fps >= 60) {
-            float[] color = UITheme.toFloatArrayPublic(UITheme.DarkTheme.FPS_GOOD);
-            ImGui.textColored(color[0], color[1], color[2], color[3], String.format("FPS: %.0f", fps));
-        } else if (fps >= 30) {
-            float[] color = UITheme.toFloatArrayPublic(UITheme.DarkTheme.FPS_WARN);
-            ImGui.textColored(color[0], color[1], color[2], color[3], String.format("FPS: %.0f", fps));
-        } else {
-            float[] color = UITheme.toFloatArrayPublic(UITheme.DarkTheme.FPS_BAD);
-            ImGui.textColored(color[0], color[1], color[2], color[3], String.format("FPS: %.0f", fps));
-        }
-        // 渲染开关已移除 - 功能在容器面板中实现
-    }
-
-    /* ---------- 关闭按钮 ---------- */
-    private void renderCloseButton() {
-        UITheme.pushDangerButtonColors();
-
-        // 使用自动宽度
-        if (ImGui.button("关闭##close", 0, UITheme.Spacing.BUTTON_HEIGHT)) handleCloseWindow();
-        if (ImGui.isItemHovered()) ImGui.setTooltip("关闭 ChronoBlocks 窗口");
-
-        ImGui.popStyleColor(3);
-    }
-
     // 工具切换与图标映射已统一交由 ToolRegistry/SelectionTool 自身提供（避免 ToolbarPanel 硬编码）
-
-    private void handleCloseWindow() {
-        logger.info("[ChronoBlocks] Closing ChronoBlocks window...");
-        try {
-            var client = net.minecraft.client.MinecraftClient.getInstance();
-            if (client != null && client.currentScreen instanceof com.chronoblocks.ui.ChronoBlocksScreen screen) {
-                screen.close();
-                client.setScreen(null);
-            }
-        } catch (Exception e) {
-            logger.error("[ChronoBlocks] Failed to close ChronoBlocks window", e);
-        }
-    }
 
     // 移除不再使用的方法，现在使用独立面板
 

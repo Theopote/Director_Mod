@@ -11,6 +11,7 @@ import com.chronoblocks.ui.aware.IUIManagerAware;
 import com.chronoblocks.ui.di.IPanelRegistry;
 import com.chronoblocks.ui.theme.UITheme;
 import com.chronoblocks.ui.theme.Icons;
+import net.minecraft.client.MinecraftClient;
 
 /**
  * ChronoBlocks MenuBar v4.5 - 企业级菜单栏 + 状态栏系统
@@ -100,11 +101,70 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
                     renderWindowMenu();
                     renderToolsMenu();
                     renderHelpMenu();
+
+                    // 右侧：全局状态 + 窗口级操作（FPS + 关闭）
+                    renderRightSideControls();
                 } catch (Exception e) {
                 logger.error("[MenuBar] 菜单渲染错误: {}", e.getMessage(), e);
         } finally {
                     ImGui.endMainMenuBar();
             }
+        }
+    }
+
+    /**
+     * 菜单栏右侧控件：FPS + 关闭按钮
+     *
+     * <p>说明：ToolbarPanel 中的 FPS/关闭已迁移到这里，避免工具栏布局被分割线/换行干扰。</p>
+     */
+    private void renderRightSideControls() {
+        // 估算宽度并把光标移动到右侧
+        float spacing = ImGui.getStyle().getItemSpacing().x;
+        float paddingX = ImGui.getStyle().getFramePadding().x * 2.0f;
+
+        float fpsValue = ImGui.getIO().getFramerate();
+        String fpsText = String.format("FPS: %.0f", fpsValue);
+        float fpsW = ImGui.calcTextSize(fpsText).x;
+
+        String closeIcon = Icons.CLOSE;
+        float closeW = ImGui.calcTextSize(closeIcon).x + paddingX;
+
+        float totalW = fpsW + spacing + closeW;
+        float rightEdge = ImGui.getWindowWidth() - ImGui.getStyle().getWindowPadding().x;
+        float targetX = Math.max(0.0f, rightEdge - totalW);
+        ImGui.sameLine(Math.max(ImGui.getCursorPosX(), targetX));
+
+        // FPS：按性能用颜色区分
+        int fpsColor = fpsValue >= 60 ? UITheme.DarkTheme.FPS_GOOD
+                : (fpsValue >= 30 ? UITheme.DarkTheme.FPS_WARN : UITheme.DarkTheme.FPS_BAD);
+        float[] col = UITheme.toFloatArrayPublic(fpsColor);
+        ImGui.textColored(col[0], col[1], col[2], col[3], fpsText);
+
+        ImGui.sameLine();
+
+        // 关闭：用危险按钮颜色
+        UITheme.pushDangerButtonColors();
+        try {
+            if (ImGui.button(closeIcon + "##closeChronoBlocks")) {
+                closeChronoBlocksWindow();
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("关闭 ChronoBlocks 窗口");
+            }
+        } finally {
+            ImGui.popStyleColor(3);
+        }
+    }
+
+    private void closeChronoBlocksWindow() {
+        try {
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client != null && client.currentScreen instanceof com.chronoblocks.ui.ChronoBlocksScreen screen) {
+                screen.close();
+                client.setScreen(null);
+            }
+        } catch (Exception e) {
+            logger.error("[MenuBar] 关闭 ChronoBlocks 窗口失败: {}", e.getMessage(), e);
         }
     }
 
