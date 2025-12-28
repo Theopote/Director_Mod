@@ -142,13 +142,13 @@ public class GizmoRenderer {
                 VertexConsumer lineBuffer = vcp.getBuffer(RenderLayer.getLines());
 
                 Vec3d xEnd = getAxisEndPoint(pivot, Axis.X, axisLength, cameraPos);
-                drawLineToBuffer(lineBuffer, posMat, pivot, xEnd, COLOR_X);
+                drawLineToBuffer(lineBuffer, posMat, pivot, xEnd, axisColor(Axis.X, time));
 
                 Vec3d yEnd = getAxisEndPoint(pivot, Axis.Y, axisLength, cameraPos);
-                drawLineToBuffer(lineBuffer, posMat, pivot, yEnd, COLOR_Y);
+                drawLineToBuffer(lineBuffer, posMat, pivot, yEnd, axisColor(Axis.Y, time));
 
                 Vec3d zEnd = getAxisEndPoint(pivot, Axis.Z, axisLength, cameraPos);
-                drawLineToBuffer(lineBuffer, posMat, pivot, zEnd, COLOR_Z);
+                drawLineToBuffer(lineBuffer, posMat, pivot, zEnd, axisColor(Axis.Z, time));
 
                 LOGGER.info("[GizmoRenderer] ✅ 轴手柄线条渲染完成: 3条轴 (X={}, Y={}, Z={})",
                         java.util.Arrays.toString(COLOR_X),
@@ -160,7 +160,7 @@ public class GizmoRenderer {
 
             // === 3️⃣ 渲染箭头（纯色三角锥，使用 VertexConsumerProvider） ===
             try {
-                renderAxisHandlesArrows(posMat, vcp, pivot, axisLength, arrowHeight, arrowRadius, cameraPos);
+                renderAxisHandlesArrows(posMat, vcp, pivot, axisLength, arrowHeight, arrowRadius, cameraPos, time);
                 LOGGER.debug("[GizmoRenderer] ✅ 轴手柄箭头渲染完成");
             } catch (Exception e) {
                 LOGGER.error("[GizmoRenderer] ❌ 渲染轴手柄箭头失败", e);
@@ -304,21 +304,45 @@ public class GizmoRenderer {
                                          double axisLength,
                                          double arrowHeight,
                                          double arrowRadius,
-                                         Vec3d cameraPos) {
+                                         Vec3d cameraPos,
+                                         double time) {
         drawArrowHead(posMat, vcp,
                 getAxisEndPoint(pivot, Axis.X, axisLength, cameraPos),
-                Axis.X, COLOR_X, arrowHeight, arrowRadius,
+                Axis.X, axisColor(Axis.X, time), arrowHeight, arrowRadius,
                 axisFacingSign(Axis.X, pivot, cameraPos));
 
         drawArrowHead(posMat, vcp,
                 getAxisEndPoint(pivot, Axis.Y, axisLength, cameraPos),
-                Axis.Y, COLOR_Y, arrowHeight, arrowRadius,
+                Axis.Y, axisColor(Axis.Y, time), arrowHeight, arrowRadius,
                 axisFacingSign(Axis.Y, pivot, cameraPos));
 
         drawArrowHead(posMat, vcp,
                 getAxisEndPoint(pivot, Axis.Z, axisLength, cameraPos),
-                Axis.Z, COLOR_Z, arrowHeight, arrowRadius,
+                Axis.Z, axisColor(Axis.Z, time), arrowHeight, arrowRadius,
                 axisFacingSign(Axis.Z, pivot, cameraPos));
+    }
+
+    private float[] axisColor(Axis axis, double time) {
+        GizmoHandle hovered = controller.getHoveredHandle();
+        GizmoHandle active = controller.getActiveHandle();
+
+        boolean hot = false;
+        if (active instanceof AxisHandle ah && ah.getAxis() == axis) {
+            hot = true;
+        } else if (hovered instanceof AxisHandle hh && hh.getAxis() == axis) {
+            hot = true;
+        }
+
+        if (hot) {
+            float pulse = (float) (0.85 + 0.15 * Math.sin(time * 10.0));
+            return new float[]{COLOR_HOVER[0], COLOR_HOVER[1], COLOR_HOVER[2], pulse};
+        }
+
+        return switch (axis) {
+            case X -> COLOR_X;
+            case Y -> COLOR_Y;
+            case Z -> COLOR_Z;
+        };
     }
 
     /**

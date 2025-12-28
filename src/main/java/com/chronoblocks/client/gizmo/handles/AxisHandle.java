@@ -19,6 +19,10 @@ public class AxisHandle extends AbstractGizmoHandle {
     private final double length;
     private final double radius;
     private final Vec3d axisDirection;
+
+    // 与 GizmoRenderer 的距离缩放保持一致（避免“看得见箭头但点不到/拖不动”）
+    private static final double MIN_DISTANCE_MULTIPLIER = 8.0;
+    private static final double DISTANCE_SCALE_DIVISOR = 15.0;
     
     public AxisHandle(String id, Vec3d position, Axis axis, double length, double radius) {
         super(id, position);
@@ -36,16 +40,24 @@ public class AxisHandle extends AbstractGizmoHandle {
     
     @Override
     public HitResult intersectRay(Vec3d rayOrigin, Vec3d rayDir) {
-        // 计算轴线的边界盒（简化为圆柱）
+        if (rayOrigin == null || rayDir == null) {
+            return HitResult.miss();
+        }
+
+        Vec3d dir = signedAxisDirection(rayOrigin);
+        double effectiveLength = length * distanceMultiplier(rayOrigin);
+        double effectiveRadius = Math.max(radius, Math.min(0.6, Math.max(radius, position.distanceTo(rayOrigin) * 0.02)));
+
+        // 计算轴线的边界盒（简化为圆柱 → AABB）
         Vec3d start = position;
-        Vec3d end = position.add(axisDirection.multiply(length));
+        Vec3d end = position.add(dir.multiply(effectiveLength));
         Box axisBox = new Box(
-            Math.min(start.x, end.x) - radius,
-            Math.min(start.y, end.y) - radius,
-            Math.min(start.z, end.z) - radius,
-            Math.max(start.x, end.x) + radius,
-            Math.max(start.y, end.y) + radius,
-            Math.max(start.z, end.z) + radius
+            Math.min(start.x, end.x) - effectiveRadius,
+            Math.min(start.y, end.y) - effectiveRadius,
+            Math.min(start.z, end.z) - effectiveRadius,
+            Math.max(start.x, end.x) + effectiveRadius,
+            Math.max(start.y, end.y) + effectiveRadius,
+            Math.max(start.z, end.z) + effectiveRadius
         );
         
         double distance = RaycastUtil.rayToBoxDistance(rayOrigin, rayDir, axisBox);
@@ -62,6 +74,9 @@ public class AxisHandle extends AbstractGizmoHandle {
         if (!dragging || dragStartHitPoint == null) {
             return Vec3d.ZERO;
         }
+        if (rayOrigin == null || rayDir == null) {
+            return Vec3d.ZERO;
+        }
         
         // 计算当前射线与轴线的最近点
         Vec3d currentHit = calculateAxisProjection(rayOrigin, rayDir);
@@ -73,11 +88,14 @@ public class AxisHandle extends AbstractGizmoHandle {
         Vec3d delta = currentHit.subtract(dragStartHitPoint);
         
         // 投影到轴上
-        double deltaScalar = delta.dotProduct(axisDirection);
-        Vec3d projectedDelta = axisDirection.multiply(deltaScalar);
+        Vec3d dir = signedAxisDirection(rayOrigin);
+        double deltaScalar = delta.dotProduct(dir);
+        Vec3d projectedDelta = dir.multiply(deltaScalar);
         
         // 更新拖拽起点（用于下一次计算）
-        dragStartHitPoint = currentHit;
+        // 将起点钉在轴线上，避免漂移
+        double s = currentHit.subtract(position).dotProduct(dir);
+        dragStartHitPoint = position.add(dir.multiply(s));
         
         return projectedDelta;
     }
@@ -86,30 +104,36 @@ public class AxisHandle extends AbstractGizmoHandle {
      * 计算射线与轴线的最近点（投影）
      */
     private Vec3d calculateAxisProjection(Vec3d rayOrigin, Vec3d rayDir) {
-        Vec3d axisStart = position;
-        Vec3d axisEnd = position.add(axisDirection.multiply(length));
-        
-        // 计算射线到轴线的最近点
-        Vec3d axisVec = axisEnd.subtract(axisStart);
-        Vec3d toRay = rayOrigin.subtract(axisStart);
-        
-        double axisLenSq = axisVec.lengthSquared();
-        if (axisLenSq < 1e-6) {
-            return axisStart;
+        Vec3d dir = signedAxisDirection(rayOrigin).normalize();
+
+        // 用“垂直于轴的平面”做稳定投影：平面过当前拖拽点（或起点），法线=轴方向
+        Vec3d planePoint = dragStartHitPoint != null ? dragStartHitPoint : position;
+        Vec3d intersection = RaycastUtil.rayToPlaneIntersection(rayOrigin, rayDir, planePoint, dir);
+        if (intersection == null) {
+            return planePoint;
         }
-        
-        double t = toRay.dotProduct(axisVec) / axisLenSq;
-        t = Math.max(0, Math.min(1, t)); // 限制在轴线段内
-        
-        Vec3d axisPoint = axisStart.add(axisVec.multiply(t));
-        
-        // 计算射线与通过 axisPoint 且垂直于轴线的平面的交点
-        Vec3d planeNormal = axisDirection;
-        Vec3d planePoint = axisPoint;
-        
-        Vec3d intersection = RaycastUtil.rayToPlaneIntersection(rayOrigin, rayDir, planePoint, planeNormal);
-        
-        return intersection != null ? intersection : axisPoint;
+
+        // 将交点投影回轴线（无限轴），避免漂移
+        double s = intersection.subtract(position).dotProduct(dir);
+        return position.add(dir.multiply(s));
+    }
+
+    private Vec3d signedAxisDirection(Vec3d cameraPos) {
+        double diff = switch (axis) {
+            case X -> cameraPos.x - position.x;
+            case Y -> cameraPos.y - position.y;
+            case Z -> cameraPos.z - position.z;
+        };
+        double sign = (Math.abs(diff) < 1e-6) ? 1.0 : (diff >= 0 ? 1.0 : -1.0);
+        return axisDirection.multiply(sign);
+    }
+
+    private double distanceMultiplier(Vec3d cameraPos) {
+        double d = position.distanceTo(cameraPos);
+        if (d < MIN_DISTANCE_MULTIPLIER) {
+            d = MIN_DISTANCE_MULTIPLIER;
+        }
+        return d / DISTANCE_SCALE_DIVISOR;
     }
     
     public Axis getAxis() {

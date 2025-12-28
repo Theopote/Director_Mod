@@ -47,6 +47,7 @@ public class GizmoManager {
     private static final double AXIS_ARROW_LENGTH = 1.5;
     private static final double AXIS_ARROW_RADIUS = 0.08;
     private static final double PLANE_SIZE = 0.5;
+    @SuppressWarnings("unused")
     private static final double CORNER_RADIUS = 0.12;
     private static final double CENTER_RADIUS = 0.15;
     
@@ -106,9 +107,10 @@ public class GizmoManager {
         
         // 创建 ResizeHandle（BOUNDS 类型使用）
         if (type == GizmoType.BOUNDS) {
-            List<com.chronoblocks.client.gizmo.handles.ResizeHandle> resizeHandles = 
-                createResizeHandles(context);
-            controller.setResizeHandles(resizeHandles);
+            // ⚠️ 注意：框选工具（BoxSelectTool）的“缩放/改包围盒”由 FaceHandleManager 负责；
+            // Gizmo 这里主要用于“整体移动”，因此不要注册不可见的 ResizeHandle，
+            // 否则它们会在拾取优先级上抢占 AxisHandle，导致箭头 hover/拖拽失效。
+            controller.setResizeHandles(java.util.List.of());
         }
         
         LOGGER.info("[GizmoManager] ✅ Gizmo 已激活：类型={}, Box={}, Pivot={}, Context={}, Renderer={}", 
@@ -333,10 +335,7 @@ public class GizmoManager {
             }
         }
         
-        // 更新 ResizeHandle 位置（根据新的 Box）
-        if (context.getType() == GizmoType.BOUNDS) {
-            updateResizeHandlePositions();
-        }
+        // BOUNDS：不使用 ResizeHandle（避免和 BoxSelectTool 的 FaceHandleManager 冲突）
     }
     
     /**
@@ -345,6 +344,7 @@ public class GizmoManager {
      * 简化实现：如果 Box 改变，重新创建 ResizeHandle 列表
      * （更简单可靠，避免位置不匹配问题）
      */
+    @SuppressWarnings("unused")
     private void updateResizeHandlePositions() {
         Box box = context.getTargetBox();
         if (box == null) {
