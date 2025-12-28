@@ -1,0 +1,346 @@
+package com.chronoblocks.ui.tools;
+
+import com.chronoblocks.core.selection.SelectionManager;
+import com.chronoblocks.core.selection.SelectionTool;
+import com.chronoblocks.ui.theme.Icons;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.world.World;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
+
+/**
+ * ToolRegistry（UI Facade）
+ *
+ * <p>目标：让 UI 面板（尤其 ToolbarPanel / KeyBindings）不再直接依赖具体业务 Manager，
+ * 而是统一通过 ToolRegistry 进行“查询当前工具 / 切换工具 / 判断可用性”。</p>
+ *
+ * <p>注意：当前阶段的工具仍以 core 的 SelectionTool 为主；本类通过适配器把它们提升为 EditorTool。</p>
+ */
+public final class ToolRegistry {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ToolRegistry.class);
+    private static final ToolRegistry INSTANCE = new ToolRegistry();
+
+    private static final String WORLD_PLACEHOLDER_ID = "__world_placeholder__";
+    private static final String TIMELINE_PLACEHOLDER_ID = "__timeline_placeholder__";
+
+    private final SelectionManager selectionManager = SelectionManager.get();
+
+    private final List<EditorTool> selectionTools = new ArrayList<>();
+    private final List<EditorTool> extraTools = new ArrayList<>();
+    private volatile boolean initialized = false;
+
+    /**
+     * 工具 UI 元数据表（集中管理：分组/排序/教学提示）。
+     * key: toolId
+     */
+    private static final Map<String, ToolMetadata> META = new ConcurrentHashMap<>();
+    static {
+        // Selection 工具（稳定排序）
+        META.put("click", ToolMetadata.of(
+                ToolGroup.SELECTION, 10,
+                "单击方块以选择",
+                "Shift+单击：加选/减选"
+        ));
+        META.put("box", ToolMetadata.of(
+                ToolGroup.SELECTION, 20,
+                "拖拽以框选一个区域",
+                "Shift：叠加到当前选区（取决于当前操作模式）"
+        ));
+        META.put("wand", ToolMetadata.of(
+                ToolGroup.SELECTION, 30,
+                "选择相邻/相似的方块区域",
+                "可在工具属性中调整比较规则与性能限制"
+        ));
+        META.put("brush", ToolMetadata.of(
+                ToolGroup.SELECTION, 40,
+                "生成几何体/刷选区域加入选区",
+                "可在工具属性中调整形状/半径/高度"
+        ));
+        META.put("face", ToolMetadata.of(
+                ToolGroup.SELECTION, 50,
+                "按面扩散选择",
+                "可在工具属性中调整匹配规则/步数"
+        ));
+        META.put("lasso", ToolMetadata.of(
+                ToolGroup.SELECTION, 60,
+                "绘制套索路径进行选择",
+                "可在工具属性中查看采样点与状态"
+        ));
+
+        // World 工具（如果未来注册进 SelectionRegistry 也能自动归类）
+        META.put("container_cull", ToolMetadata.of(
+                ToolGroup.WORLD, 10,
+                "从当前激活容器中剔除方块",
+                "右键确认剔除，ESC 取消"
+        ));
+
+        // 占位工具（让 World/Timeline 架子先完整，后续直接替换/追加真实工具）
+        META.put(WORLD_PLACEHOLDER_ID, ToolMetadata.of(
+                ToolGroup.WORLD, 9999,
+                "World 工具系统：开发中",
+                "这里将承载容器/场景/渲染等工具"
+        ));
+        META.put(TIMELINE_PLACEHOLDER_ID, ToolMetadata.of(
+                ToolGroup.TIMELINE, 9999,
+                "时间线工具系统：开发中",
+                "这里将承载时间线编辑/剪辑/标记等工具"
+        ));
+    }
+
+    private ToolRegistry() {}
+
+    public static ToolRegistry get() {
+        return INSTANCE;
+    }
+
+    public synchronized void initializeIfNeeded() {
+        if (initialized) return;
+
+        selectionTools.clear();
+
+        // 1) Selection 工具：来自 SelectionRegistry（保持现状，不改现有工具）
+        for (SelectionTool tool : selectionManager.getRegistry().getAllTools()) {
+            if (tool == null) continue;
+            selectionTools.add(new SelectionToolAdapter(tool, selectionManager));
+        }
+
+        // 2) Extra 工具：World/Timeline 占位（disabled）
+        ensurePlaceholders();
+
+        initialized = true;
+        LOGGER.info("[ToolRegistry] 初始化完成，Selection={}，Extra={}",
+                selectionTools.size(), extraTools.size());
+    }
+
+    public List<EditorTool> getAllTools() {
+        initializeIfNeeded();
+        List<EditorTool> out = new ArrayList<>(selectionTools.size() + extraTools.size());
+        out.addAll(selectionTools);
+        out.addAll(extraTools);
+        return Collections.unmodifiableList(out);
+    }
+
+    public List<EditorTool> getToolsByGroup(ToolGroup group) {
+        initializeIfNeeded();
+        if (group == null) return getAllTools();
+        List<EditorTool> out = new ArrayList<>();
+        for (EditorTool tool : getAllTools()) {
+            if (tool != null && group == tool.getGroup()) {
+                out.add(tool);
+            }
+        }
+        // 稳定排序：先按 metadata.order，再按 displayName
+        out.sort(Comparator
+                .comparingInt((EditorTool t) -> getMetadataOrDefault(t.getId()).getOrder())
+                .thenComparing(EditorTool::getDisplayName, Comparator.nullsLast(String::compareTo)));
+        return out;
+    }
+
+    public String getActiveToolId() {
+        return selectionManager.getCurrentToolId();
+    }
+
+    public EditorTool getActiveTool() {
+        String activeId = getActiveToolId();
+        if (activeId == null) return null;
+        for (EditorTool tool : getAllTools()) {
+            if (tool != null && Objects.equals(activeId, tool.getId())) {
+                return tool;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 确保存在默认工具（仅在当前没有工具时才设置）。
+     */
+    public void ensureDefaultTool(String toolId) {
+        if (selectionManager.hasCurrentTool()) return;
+        activate(toolId);
+    }
+
+    /**
+     * 激活指定工具（统一入口）。
+     *
+     * @return true 表示已尝试切换（world!=null 且 toolId 合法），false 表示因环境不足跳过
+     */
+    public boolean activate(String toolId) {
+        if (toolId == null || toolId.isBlank()) return false;
+        World world = MinecraftClient.getInstance().world;
+        if (world == null) {
+            return false;
+        }
+        selectionManager.setCurrentTool(toolId, world);
+        return true;
+    }
+
+    public boolean activate(EditorTool tool) {
+        if (tool == null) return false;
+        if (!tool.isEnabled()) return false;
+        return activate(tool.getId());
+    }
+
+    public ToolMetadata getMetadata(String toolId) {
+        if (toolId == null) return null;
+        return META.get(toolId);
+    }
+
+    public ToolMetadata getMetadataOrDefault(String toolId) {
+        ToolMetadata meta = getMetadata(toolId);
+        return meta != null ? meta : ToolMetadata.of(ToolGroup.SELECTION, 1000);
+    }
+
+    /**
+     * 注册非 Selection 工具（World/Timeline 等）。
+     * <p>当前 Toolbar 已能渲染，但激活逻辑仍以 Selection 为主；后续引入真正的 World/Timeline 工具时，
+     * 可在这里扩展 activate(EditorTool) 的分发策略。</p>
+     */
+    public synchronized void registerExtraTool(EditorTool tool) {
+        if (tool == null) return;
+        initializeIfNeeded();
+        for (EditorTool existing : extraTools) {
+            if (existing != null && Objects.equals(existing.getId(), tool.getId())) {
+                return; // 去重
+            }
+        }
+        extraTools.add(tool);
+    }
+
+    private synchronized void ensurePlaceholders() {
+        // World placeholder
+        if (extraTools.stream().noneMatch(t -> t != null && Objects.equals(t.getId(), WORLD_PLACEHOLDER_ID))) {
+            extraTools.add(new PlaceholderTool(
+                    WORLD_PLACEHOLDER_ID,
+                    Icons.WRENCH,
+                    "世界工具(开发中)",
+                    "World 工具系统尚未接入，敬请期待。"
+            ));
+        }
+
+        // Timeline placeholder
+        if (extraTools.stream().noneMatch(t -> t != null && Objects.equals(t.getId(), TIMELINE_PLACEHOLDER_ID))) {
+            extraTools.add(new PlaceholderTool(
+                    TIMELINE_PLACEHOLDER_ID,
+                    Icons.TIME,
+                    "时间线工具(开发中)",
+                    "时间线工具系统尚未接入，敬请期待。"
+            ));
+        }
+    }
+
+    // =========================================================
+    // Adapters
+    // =========================================================
+
+    private static final class PlaceholderTool implements EditorTool {
+        private final String id;
+        private final String icon;
+        private final String displayName;
+        private final String description;
+
+        private PlaceholderTool(String id, String icon, String displayName, String description) {
+            this.id = id;
+            this.icon = icon;
+            this.displayName = displayName;
+            this.description = description;
+        }
+
+        @Override
+        public String getId() {
+            return id;
+        }
+
+        @Override
+        public String getDisplayName() {
+            return displayName;
+        }
+
+        @Override
+        public String getIcon() {
+            return icon;
+        }
+
+        @Override
+        public String getDescription() {
+            return description;
+        }
+
+        @Override
+        public ToolGroup getGroup() {
+            ToolMetadata meta = META.get(id);
+            return meta != null ? meta.getGroup() : ToolGroup.SELECTION;
+        }
+
+        @Override
+        public boolean isEnabled() {
+            return false;
+        }
+
+        @Override
+        public boolean isActive() {
+            return false;
+        }
+    }
+
+    private static final class SelectionToolAdapter implements EditorTool {
+        private final SelectionTool tool;
+        private final SelectionManager selectionManager;
+
+        private SelectionToolAdapter(SelectionTool tool, SelectionManager selectionManager) {
+            this.tool = Objects.requireNonNull(tool, "tool");
+            this.selectionManager = Objects.requireNonNull(selectionManager, "selectionManager");
+        }
+
+        @Override
+        public String getId() {
+            return tool.getId();
+        }
+
+        @Override
+        public String getDisplayName() {
+            return tool.getDisplayName();
+        }
+
+        @Override
+        public String getIcon() {
+            return tool.getIcon();
+        }
+
+        @Override
+        public String getDescription() {
+            String desc = tool.getDescription();
+            return desc != null ? desc : "";
+        }
+
+        @Override
+        public ToolGroup getGroup() {
+            ToolMetadata meta = META.get(getId());
+            if (meta != null) return meta.getGroup();
+            // 默认：Selection
+            return ToolGroup.SELECTION;
+        }
+
+        @Override
+        public boolean isEnabled() {
+            // world 为空时禁用；部分工具可在此追加更严格的启用条件
+            if (MinecraftClient.getInstance().world == null) return false;
+            return selectionManager.getRegistry().getTool(getId()) != null;
+        }
+
+        @Override
+        public boolean isActive() {
+            String activeId = selectionManager.getCurrentToolId();
+            return Objects.equals(activeId, getId());
+        }
+    }
+}
+
+

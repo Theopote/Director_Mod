@@ -1,8 +1,8 @@
 package com.chronoblocks.ui.input;
 
-import com.chronoblocks.core.selection.SelectionManager;
 import com.chronoblocks.core.selection.SelectionOperationSupport;
 import com.chronoblocks.client.input.ChronoKeyCategories;
+import com.chronoblocks.ui.tools.ToolRegistry;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import org.lwjgl.glfw.GLFW;
@@ -27,9 +27,6 @@ public class SelectionToolKeyBindings {
     
     /** 快捷键绑定映射表 */
     private static final Map<String, KeyBinding> KEY_BINDINGS = new HashMap<>();
-    
-    /** 选择管理器 */
-    private static final SelectionManager selectionManager = SelectionManager.get();
     
     /** 是否启用快捷键 */
     private static boolean enabled = true;
@@ -180,9 +177,8 @@ public class SelectionToolKeyBindings {
      * 切换到指定工具
      */
     private static void switchToTool(String toolId) {
-        var world = net.minecraft.client.MinecraftClient.getInstance().world;
-        if (world != null) {
-            selectionManager.setCurrentTool(toolId, world);
+        boolean ok = ToolRegistry.get().activate(toolId);
+        if (ok) {
             LOGGER.info("[SelectionToolKeyBindings] 快捷键切换到工具: {}", toolId);
         }
     }
@@ -191,7 +187,7 @@ public class SelectionToolKeyBindings {
      * 设置操作模式
      */
     private static void setOperationMode(com.chronoblocks.core.selection.SelectionOperation operation) {
-        var currentTool = selectionManager.getCurrentTool();
+        var currentTool = com.chronoblocks.core.selection.SelectionManager.get().getCurrentTool();
         if (currentTool instanceof SelectionOperationSupport operationSupport) {
             operationSupport.setOperation(operation);
             LOGGER.info("[SelectionToolKeyBindings] 快捷键设置操作模式: {}", operation.getDisplayName());
@@ -204,7 +200,7 @@ public class SelectionToolKeyBindings {
      * 清除选择
      */
     private static void clearSelection() {
-        selectionManager.clearSelection();
+        com.chronoblocks.core.selection.SelectionManager.get().clearSelection();
         LOGGER.info("[SelectionToolKeyBindings] 快捷键清除选择");
     }
     
@@ -214,7 +210,7 @@ public class SelectionToolKeyBindings {
     private static void switchToNextTool() {
         var world = net.minecraft.client.MinecraftClient.getInstance().world;
         if (world != null) {
-            selectionManager.switchToNextTool(world);
+            com.chronoblocks.core.selection.SelectionManager.get().switchToNextTool(world);
             LOGGER.info("[SelectionToolKeyBindings] 快捷键切换到下一个工具");
         }
     }
@@ -225,9 +221,37 @@ public class SelectionToolKeyBindings {
     private static void switchToPreviousTool() {
         var world = net.minecraft.client.MinecraftClient.getInstance().world;
         if (world != null) {
-            selectionManager.switchToPreviousTool(world);
+            com.chronoblocks.core.selection.SelectionManager.get().switchToPreviousTool(world);
             LOGGER.info("[SelectionToolKeyBindings] 快捷键切换到上一个工具");
         }
+    }
+
+    /**
+     * 获取工具切换快捷键文本（用于 Toolbar Tooltip）。
+     *
+     * <p>若当前工具未绑定切换键，返回 null。</p>
+     */
+    public static String getToolSwitchShortcut(String toolId) {
+        KeyBinding binding = getToolBindingForToolId(toolId);
+        if (binding == null) return null;
+        try {
+            // 1.20+：getBoundKeyLocalizedText() 返回 Text
+            return binding.getBoundKeyLocalizedText().getString();
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    private static KeyBinding getToolBindingForToolId(String toolId) {
+        if (toolId == null) return null;
+        return switch (toolId) {
+            case "click" -> KEY_BINDINGS.get("click_tool");
+            case "box" -> KEY_BINDINGS.get("box_tool");
+            case "wand" -> KEY_BINDINGS.get("wand_tool");
+            case "brush" -> KEY_BINDINGS.get("brush_tool");
+            case "face" -> KEY_BINDINGS.get("face_tool");
+            default -> null;
+        };
     }
     
     /**

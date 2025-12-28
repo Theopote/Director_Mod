@@ -3,12 +3,15 @@ package com.chronoblocks.ui.panels;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
-import com.chronoblocks.core.selection.SelectionManager;
-import com.chronoblocks.core.selection.SelectionTool;
 import com.chronoblocks.ui.aware.IPanelRegistryAware;
 import com.chronoblocks.ui.di.IPanelRegistry;
 import com.chronoblocks.ui.theme.UITheme;
 import com.chronoblocks.ui.theme.Icons;
+import com.chronoblocks.ui.tools.EditorTool;
+import com.chronoblocks.ui.tools.ToolGroup;
+import com.chronoblocks.ui.tools.ToolRegistry;
+
+import java.util.List;
 
 /**
  * ChronoBlocks Toolbar v6.0 - 模块化重构版
@@ -29,17 +32,22 @@ import com.chronoblocks.ui.theme.Icons;
  */
 public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
 
-    private final SelectionManager selectionManager;
+    private final ToolRegistry toolRegistry;
     private IPanelRegistry panelRegistry;
+
+    /**
+     * 工具按钮是否显示文字（默认：图标模式，更紧凑）
+     *
+     * <p>说明：这里先用静态字段做会话级别开关；如果你希望跨存档/跨会话持久化，
+     * 后续可以把它接入 UI 配置系统或布局持久化。</p>
+     */
+    private static boolean SHOW_TOOL_TEXT = false;
 
     /**
      * 构造函数 - 初始化选择管理器
      */
     public ToolbarPanel() {
-        this.selectionManager = SelectionManager.get();
-        if (this.selectionManager == null) {
-            logger.error("[ToolbarPanel] 严重: SelectionManager.get() 返回 null，工具栏将无法工作！");
-        }
+        this.toolRegistry = ToolRegistry.get();
     }
 
     @Override
@@ -70,25 +78,9 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
 
     @Override
     protected void doRender() {
-        // 关键依赖检查
-        if (selectionManager == null) {
-            ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, "严重错误: SelectionManager 未初始化!");
-            return; // 提前退出，防止NPE
-        }
-
-        // 确保选择管理器状态是最新的
-        if (!selectionManager.hasCurrentTool()) {
-            logger.debug("[ToolbarPanel] 没有当前工具，尝试设置默认工具");
-            try {
-                var world = net.minecraft.client.MinecraftClient.getInstance().world;
-                if (world != null) {
-                    // 尝试设置默认工具
-                    selectionManager.setCurrentTool("click", world);
-                }
-            } catch (Exception e) {
-                logger.warn("[ToolbarPanel] 设置默认工具失败", e);
-            }
-        }
+        // 统一入口：确保 ToolRegistry 已初始化且存在默认工具（避免 UI “无工具”状态漂移）
+        toolRegistry.initializeIfNeeded();
+        toolRegistry.ensureDefaultTool("click");
 
         // 使用统一的元素间距（6px）和按钮内边距（6px, 3px）
         ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, UITheme.Spacing.ELEMENT_SPACING, UITheme.Spacing.ELEMENT_SPACING);
@@ -143,42 +135,73 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
 
     /* ---------- 选择工具按钮 ---------- */
     private void renderSelectionToolButtons() {
-        if (selectionManager == null) return;
+        renderToolGroup(ToolGroup.SELECTION, Icons.TOOLS);
 
-        // 选择工具图标（不调用sameLine，由外部管理换行）
-        UITheme.label(Icons.TOOLS, UITheme.DarkTheme.TEXT_SELECTED);
+        // 预留：未来工具系统扩展（World/Timeline）
+        List<EditorTool> worldTools = toolRegistry.getToolsByGroup(ToolGroup.WORLD);
+        if (!worldTools.isEmpty()) {
+            ImGui.sameLine();
+            UITheme.separator();
+            ImGui.sameLine();
+            renderToolGroup(ToolGroup.WORLD, Icons.CONTAINER);
+        }
 
-        // 获取实时的当前工具ID
-        String currentToolId = selectionManager.getCurrentToolId();
+        List<EditorTool> timelineTools = toolRegistry.getToolsByGroup(ToolGroup.TIMELINE);
+        if (!timelineTools.isEmpty()) {
+            ImGui.sameLine();
+            UITheme.separator();
+            ImGui.sameLine();
+            renderToolGroup(ToolGroup.TIMELINE, Icons.TIMELINE);
+        }
 
-        // 渲染所有注册的选择工具
-        for (SelectionTool tool : selectionManager.getRegistry().getAllTools()) {
-            // 在循环内管理换行
+        // 工具栏显示选项：图标/文字切换（放在工具组末尾，且保持紧凑）
+        ImGui.sameLine();
+        UITheme.separator();
+        ImGui.sameLine();
+        renderToolTextToggleButton();
+    }
+
+    private void renderToolGroup(ToolGroup group, String groupIcon) {
+        // 分组图标（不调用sameLine，由外部管理换行）
+        UITheme.label(groupIcon, UITheme.DarkTheme.TEXT_SELECTED);
+
+        for (EditorTool tool : toolRegistry.getToolsByGroup(group)) {
             ImGui.sameLine();
 
-            boolean active = tool.getId().equals(currentToolId);
+            boolean active = tool != null && tool.isActive();
+            boolean enabled = tool != null && tool.isEnabled();
 
             if (active) {
-                // 使用主题高亮色
                 float[] highlightColor = UITheme.toFloatArrayPublic(UITheme.DarkTheme.TAB_ACTIVE);
                 ImGui.pushStyleColor(ImGuiCol.Button, highlightColor[0], highlightColor[1], highlightColor[2], highlightColor[3]);
             }
 
-            // 使用更唯一的按钮ID，避免冲突
-            String icon = getToolIcon(tool.getId());
-            String buttonLabel = icon + " " + tool.getDisplayName();
-            String buttonId = "ToolbarPanel_tool_" + tool.getId() + "_" + System.identityHashCode(tool);
+            if (!enabled) {
+                ImGui.pushStyleVar(ImGuiStyleVar.Alpha, 0.45f);
+            }
 
-            // 使用更明确的按钮样式
-            if (ImGui.button(buttonLabel + "##" + buttonId, 0, UITheme.Spacing.BUTTON_HEIGHT)) {
-                logger.info("[ToolbarPanel] 按钮被点击: {} (ID: {})", tool.getDisplayName(), tool.getId());
+            String toolId = tool != null ? tool.getId() : "null";
+            String icon = tool != null ? tool.getIcon() : groupIcon;
+            String buttonLabel = null;
+            if (tool != null) {
+                buttonLabel = SHOW_TOOL_TEXT
+                        ? (icon + " " + tool.getDisplayName())
+                        : icon;
+            }
+            String buttonId = "ToolbarPanel_tool_" + toolId;
 
-                // 立即更新UI状态，避免延迟
-                try {
-                    setCurrentSelectionTool(tool);
-                } catch (Exception e) {
-                    logger.error("[ToolbarPanel] 设置选择工具失败", e);
+            float buttonW = SHOW_TOOL_TEXT ? 0 : UITheme.Spacing.BUTTON_HEIGHT; // 图标模式：方形按钮
+            if (ImGui.button(buttonLabel + "##" + buttonId, buttonW, UITheme.Spacing.BUTTON_HEIGHT)) {
+                if (enabled) {
+                    logger.info("[ToolbarPanel] 工具按钮点击: {} (ID: {})",
+                            tool.getDisplayName(),
+                            toolId);
+                    toolRegistry.activate(tool);
                 }
+            }
+
+            if (!enabled) {
+                ImGui.popStyleVar();
             }
 
             if (active) {
@@ -186,9 +209,58 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
             }
 
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(tool.getDisplayName() + "\n" + tool.getDescription());
+                renderToolTooltip(tool);
             }
         }
+    }
+
+    private void renderToolTextToggleButton() {
+        String icon = SHOW_TOOL_TEXT ? Icons.TOOLS : Icons.TAG;
+        String label = icon + "##toggleToolText";
+
+        // 这里也用方形按钮，保持一致
+        if (ImGui.button(label, UITheme.Spacing.BUTTON_HEIGHT, UITheme.Spacing.BUTTON_HEIGHT)) {
+            SHOW_TOOL_TEXT = !SHOW_TOOL_TEXT;
+        }
+
+        if (ImGui.isItemHovered()) {
+            ImGui.beginTooltip();
+            ImGui.text("工具按钮显示");
+            ImGui.separator();
+            ImGui.text(SHOW_TOOL_TEXT ? "当前：图标 + 文字" : "当前：仅图标");
+            ImGui.text("点击切换显示方式");
+            ImGui.endTooltip();
+        }
+    }
+
+    private void renderToolTooltip(EditorTool tool) {
+        if (tool == null) return;
+        ImGui.beginTooltip();
+        ImGui.text(tool.getDisplayName());
+        ImGui.separator();
+        String desc = tool.getDescription();
+        if (desc != null && !desc.isBlank()) {
+            ImGui.textWrapped(desc);
+        }
+
+        // 教学提示（来自 ToolRegistry 元数据）
+        var meta = toolRegistry.getMetadata(tool.getId());
+        if (meta != null && !meta.getTooltipLines().isEmpty()) {
+            ImGui.separator();
+            for (String line : meta.getTooltipLines()) {
+                if (line != null && !line.isBlank()) {
+                    ImGui.textWrapped(line);
+                }
+            }
+        }
+
+        // 快捷键：从 KeyBindings 系统读取（若存在）
+        String shortcut = com.chronoblocks.ui.input.SelectionToolKeyBindings.getToolSwitchShortcut(tool.getId());
+        if (shortcut != null && !shortcut.isBlank()) {
+            ImGui.separator();
+            ImGui.text("快捷键: " + shortcut);
+        }
+        ImGui.endTooltip();
     }
 
     /* ---------- 状态显示 ---------- */
@@ -220,58 +292,7 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
         ImGui.popStyleColor(3);
     }
 
-    private void setCurrentSelectionTool(SelectionTool tool) {
-        if (selectionManager != null && tool != null) {
-            var world = net.minecraft.client.MinecraftClient.getInstance().world;
-            if (world != null) {
-                try {
-                    // 确保工具切换是原子操作
-                    String previousToolId = selectionManager.getCurrentToolId();
-                    selectionManager.setCurrentTool(tool.getId(), world);
-
-                    // 验证切换是否成功
-                    String newToolId = selectionManager.getCurrentToolId();
-                    if (newToolId.equals(tool.getId())) {
-                        logger.info("[ChronoBlocks] Selection tool switched from {} to {}", previousToolId, tool.getDisplayName());
-                    } else {
-                        logger.warn("[ChronoBlocks] Tool switch failed: expected {}, got {}", tool.getId(), newToolId);
-                    }
-                } catch (Exception e) {
-                    logger.error("[ChronoBlocks] Failed to switch tool to {}", tool.getDisplayName(), e);
-                }
-            } else {
-                logger.warn("[ChronoBlocks] World is null, cannot switch tool");
-            }
-        } else {
-            logger.warn("[ChronoBlocks] SelectionManager or tool is null");
-        }
-    }
-
-    /**
-     * 根据工具ID获取对应的自定义图标
-     */
-    private String getToolIcon(String toolId) {
-        return switch (toolId) {
-            // 基础工具
-            case "click" -> Icons.SELECT;      // 点击选择工具
-            case "box" -> Icons.BOX;           // 框选工具
-            case "wand" -> Icons.MAGIC;        // 魔棒工具
-
-            // 高级工具
-            case "face" -> Icons.COLOR;        // 面选择工具
-            case "geometry" -> Icons.GRID;     // 几何选择工具（球体/圆柱体/金字塔）
-            case "sphere" -> Icons.SPHERE;     // 球体选择工具
-            case "cylinder" -> Icons.CYLINDER; // 圆柱体选择工具
-            case "pyramid" -> Icons.DIAMOND;   // 金字塔选择工具
-            case "brush" -> Icons.BRUSH;       // 笔刷选择工具
-            case "lasso" -> Icons.LASSO;       // 套索选择工具
-
-            // 多模式选择工具
-            case "box_v3" -> Icons.BOX;        // 框选工具v3
-
-            default -> Icons.TOOLS;            // 默认工具图标
-        };
-    }
+    // 工具切换与图标映射已统一交由 ToolRegistry/SelectionTool 自身提供（避免 ToolbarPanel 硬编码）
 
     private void handleCloseWindow() {
         logger.info("[ChronoBlocks] Closing ChronoBlocks window...");

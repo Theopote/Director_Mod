@@ -358,7 +358,8 @@ public class ChronoBlocksScreen extends Screen {
         }
 
         if (!selectionManager.hasCurrentTool() && client.world != null) {
-            selectionManager.setCurrentTool("box", client.world);
+            // 统一入口：通过 ToolRegistry 激活默认工具，避免多处直接 setCurrentTool
+            com.chronoblocks.ui.tools.ToolRegistry.get().activate("box");
             if (selectionManager.hasCurrentTool()) {
                 LOGGER.info("[ChronoBlocks] ✅ 当前工具: {}",
                     selectionManager.getCurrentToolDisplayName());
