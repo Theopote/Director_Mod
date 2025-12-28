@@ -561,18 +561,40 @@ public final class SelectionRenderer {
         float y4 = (float)(quad.p4().getY() - cam.y + ny * FILL_SHRINK);
         float z4 = (float)(quad.p4().getZ() - cam.z + nz * FILL_SHRINK);
 
-        c.vertex(m, x1, y1, z1).color(r, g, b, a);
-        c.vertex(m, x2, y2, z2).color(r, g, b, a);
-        c.vertex(m, x3, y3, z3).color(r, g, b, a);
-        c.vertex(m, x4, y4, z4).color(r, g, b, a);
+        // 1.21.x：EntityTranslucent 顶点格式需要完整写入 UV/Overlay/Light/Normal。
+        // 若只写 position+color，部分实现会复用“上一顶点”的 UV/Light，导致填充看起来被拉扯到某个面/三角。
+        fullBrightVertex(c, m, x1, y1, z1, r, g, b, a, nx, ny, nz);
+        fullBrightVertex(c, m, x2, y2, z2, r, g, b, a, nx, ny, nz);
+        fullBrightVertex(c, m, x3, y3, z3, r, g, b, a, nx, ny, nz);
+        fullBrightVertex(c, m, x4, y4, z4, r, g, b, a, nx, ny, nz);
     }
     
     private void emitQuad(VertexConsumer c, Matrix4f m, float[][] v, float[] color,
                           int v1, int v2, int v3, int v4) {
-        c.vertex(m, v[v1][0], v[v1][1], v[v1][2]).color(color[0], color[1], color[2], color[3]);
-        c.vertex(m, v[v2][0], v[v2][1], v[v2][2]).color(color[0], color[1], color[2], color[3]);
-        c.vertex(m, v[v3][0], v[v3][1], v[v3][2]).color(color[0], color[1], color[2], color[3]);
-        c.vertex(m, v[v4][0], v[v4][1], v[v4][2]).color(color[0], color[1], color[2], color[3]);
+        // 不显式提供法线时用一个稳定值即可（我们使用 full-bright，所以不会受光照影响）
+        fullBrightVertex(c, m, v[v1][0], v[v1][1], v[v1][2], color[0], color[1], color[2], color[3], 0, 1, 0);
+        fullBrightVertex(c, m, v[v2][0], v[v2][1], v[v2][2], color[0], color[1], color[2], color[3], 0, 1, 0);
+        fullBrightVertex(c, m, v[v3][0], v[v3][1], v[v3][2], color[0], color[1], color[2], color[3], 0, 1, 0);
+        fullBrightVertex(c, m, v[v4][0], v[v4][1], v[v4][2], color[0], color[1], color[2], color[3], 0, 1, 0);
+    }
+
+    /**
+     * 统一写入 selection fill 顶点（固定采样白纹理中心点 + full-bright）。
+     *
+     * <p>这能避免 1.21.x 下 VertexConsumer 在未写入 UV/Light/Overlay 时出现的“顶点属性复用”伪影。</p>
+     */
+    private static void fullBrightVertex(VertexConsumer c, Matrix4f m,
+                                         float x, float y, float z,
+                                         float r, float g, float b, float a,
+                                         float nx, float ny, float nz) {
+        c.vertex(m, x, y, z)
+                .color(r, g, b, a)
+                // 固定采样白纹理中心点，避免边缘采样/过滤导致的意外颜色
+                .texture(0.5f, 0.5f)
+                .overlay(OverlayTexture.DEFAULT_UV)
+                // full-bright（15,15）
+                .light(LightmapTextureManager.MAX_LIGHT_COORDINATE)
+                .normal(nx, ny, nz);
     }
 
     private void drawOutline(VertexConsumer c, Matrix4f m, BlockPos pos, float[] color, Vec3d cam) {
