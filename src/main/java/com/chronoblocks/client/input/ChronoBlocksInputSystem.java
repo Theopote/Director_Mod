@@ -1,6 +1,6 @@
 package com.chronoblocks.client.input;
 
-import com.mojang.blaze3d.systems.RenderSystem;
+import com.chronoblocks.mixin.accessor.GameRendererAccessor;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.GameRenderer;
@@ -103,11 +103,13 @@ public final class ChronoBlocksInputSystem {
         double ndcY = 1.0 - (mouseY / (double) fbh) * 2.0; // Y轴翻转（屏幕Y向下，NDC Y向上）
 
         // 3. 获取FOV
-        // 使用当前帧投影矩阵，无需单独读取 FOV
+        // 关键：必须使用“当前帧真实 FOV”（包含动态 FOV、疾跑/速度效果、以及 ChronoBlocks 时间线接管的覆盖 FOV），
+        // 否则会出现：屏幕中心基本对齐，但越靠近屏幕边缘偏移越大的现象。
 
         // 4. 使用与 Minecraft 一致的基础投影矩阵（1.21.10+ RenderSystem.getProjectionMatrix() 已不再暴露）
         GameRenderer gr = MC.gameRenderer;
-        float fov = MC.options.getFov().getValue().floatValue();
+        float tickDelta = getRenderTickDeltaSafe();
+        float fov = ((GameRendererAccessor) gr).chronoblocks$invokeGetFov(camera, tickDelta, true);
         Matrix4f projMatrix = new Matrix4f(gr.getBasicProjectionMatrix(fov));
 
         // 5. 使用当前帧的 modelView（取自传入矩阵栈的 positionMatrix）
@@ -199,5 +201,42 @@ public final class ChronoBlocksInputSystem {
         clearCache();
         long windowHandle = MC.getWindow().getHandle();
         org.lwjgl.glfw.GLFW.glfwSetInputMode(windowHandle, org.lwjgl.glfw.GLFW.GLFW_CURSOR, org.lwjgl.glfw.GLFW.GLFW_CURSOR_NORMAL);
+    }
+
+    /**
+     * 取当前渲染 tickDelta（partialTicks）。
+     *
+     * <p>说明：不同 Yarn/IDE 索引偶尔会把 {@code RenderTickCounter} 的方法签名解析错，导致编辑器报错但 Gradle 能编译。
+     * 这里用反射拿值，保证源码在 IDE/编译环境都稳定。</p>
+     */
+    private static float getRenderTickDeltaSafe() {
+        try {
+            Object rtc = MC.getRenderTickCounter();
+            if (rtc == null) return 0.0f;
+
+            // 1.21.x（首选）
+            try {
+                var m = rtc.getClass().getMethod("getTickProgress", boolean.class);
+                Object v = m.invoke(rtc, false);
+                if (v instanceof Float f) return f;
+            } catch (ReflectiveOperationException ignored) {}
+
+            // 兜底：有些版本/实现提供动态 delta ticks
+            try {
+                var m = rtc.getClass().getMethod("getDynamicDeltaTicks");
+                Object v = m.invoke(rtc);
+                if (v instanceof Float f) return f;
+            } catch (ReflectiveOperationException ignored) {}
+
+            // 最后兜底：固定 delta ticks
+            try {
+                var m = rtc.getClass().getMethod("getFixedDeltaTicks");
+                Object v = m.invoke(rtc);
+                if (v instanceof Float f) return f;
+            } catch (ReflectiveOperationException ignored) {}
+        } catch (Throwable ignored) {
+            // ignore
+        }
+        return 0.0f;
     }
 }
