@@ -92,16 +92,33 @@ public class BlockStore {
         if (world == null) {
             return;
         }
-        
+
+        // 缓存已处理的区块，避免重复加载造成卡顿放大
+        java.util.Set<Long> ensuredChunks = new java.util.HashSet<>();
+
         for (Map.Entry<BlockPos, Entry> e : data.entrySet()) {
             BlockPos pos = e.getKey();
             Entry entry = e.getValue();
 
-            // 检查区块是否已加载
+            // 确保区块已加载：容器在隐藏状态下会把世界方块写成 AIR 并落盘；
+            // 若重启后直接“显示/释放”，这些区块可能尚未加载，若跳过就会导致方块无法归还。
             int chunkX = pos.getX() >> 4;
             int chunkZ = pos.getZ() >> 4;
+            long chunkKey = (((long) chunkX) << 32) ^ (chunkZ & 0xffffffffL);
+            if (!ensuredChunks.contains(chunkKey)) {
+                ensuredChunks.add(chunkKey);
+                try {
+                    if (!world.getChunkManager().isChunkLoaded(chunkX, chunkZ)) {
+                        // 强制加载（同步）
+                        world.getChunk(chunkX, chunkZ);
+                    }
+                } catch (Exception ignored) {
+                    // 若区块加载失败，则后续 setBlockState 也很可能无效，直接继续下一块
+                }
+            }
+
             if (!world.getChunkManager().isChunkLoaded(chunkX, chunkZ)) {
-                continue;
+                continue; // 确实无法加载时，保底跳过
             }
 
             // 写回方块

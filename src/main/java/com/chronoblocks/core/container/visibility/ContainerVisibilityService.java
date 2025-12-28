@@ -158,8 +158,15 @@ public class ContainerVisibilityService {
         
         BlockStore store = snapshots.get(container.getId());
         if (store == null) {
-            LOGGER.warn("[Visibility] 容器 {} 无快照可恢复，跳过", container.getName());
-            return;
+            // ⭐ 关键修复：重启游戏后 snapshots 是纯内存，会丢失。
+            // 若容器处于隐藏状态，我们可以用 container.blockStore（持久化的原始快照）重建快照并恢复。
+            if (container.isHidden() && createSnapshotFromBlockStore(container)) {
+                store = snapshots.get(container.getId());
+            }
+            if (store == null) {
+                LOGGER.warn("[Visibility] 容器 {} 无快照可恢复，跳过", container.getName());
+                return;
+            }
         }
         
         LOGGER.debug("[Visibility] 显示容器 {} (恢复 {} 个方块)", 

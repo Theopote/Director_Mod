@@ -14,6 +14,7 @@ import com.chronoblocks.ui.timeline.model.TimelineInterpolation;
 import com.chronoblocks.ui.timeline.model.TimelineViewportState;
 import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.audio.AudioTrack;
+import com.chronoblocks.ui.timeline.model.audio.AudioEvent;
 import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
 import com.chronoblocks.ui.timeline.model.clip.ClipKeyframe;
 import com.chronoblocks.ui.timeline.model.season.SeasonKeyframe;
@@ -210,6 +211,13 @@ public class TimelineModelPersistence {
         public String name;
         public float time;
 
+        // ===== AudioEvent =====
+        public String audioLabel;
+        public String audioSoundId;
+        public float audioVolume = 1.0f;
+        public float audioPitch = 1.0f;
+        public boolean audioEnabled = true;
+
         // ===== CameraKeyframe =====
         public Vec3DTO position;
         public Vec3DTO rotation;
@@ -361,6 +369,12 @@ public class TimelineModelPersistence {
                     kdto.fogTint = Vec3DTO.from(sk.getFogTint());
                     kdto.lightTint = Vec3DTO.from(sk.getLightTint());
                     kdto.seasonInterpolation = sk.getInterpolation() != null ? sk.getInterpolation().name() : null;
+                } else if (selectable instanceof AudioEvent ae) {
+                    kdto.audioLabel = ae.getLabel();
+                    kdto.audioSoundId = ae.getSoundId();
+                    kdto.audioVolume = ae.getVolume();
+                    kdto.audioPitch = ae.getPitch();
+                    kdto.audioEnabled = ae.isEnabled();
                 }
 
                 trackDTO.automationKeyframes.add(kdto);
@@ -584,6 +598,17 @@ public class TimelineModelPersistence {
                                     try { sk.setInterpolation(SeasonKeyframe.Interpolation.valueOf(kdto.seasonInterpolation)); } catch (Exception ignored) {}
                                 }
                                 track.addAutomationKeyframe(sk);
+                            }
+                            case "AudioEvent" -> {
+                                String label = (kdto.audioLabel != null && !kdto.audioLabel.isBlank())
+                                        ? kdto.audioLabel
+                                        : (kdto.name != null ? kdto.name : "音频事件");
+                                String soundId = kdto.audioSoundId != null ? kdto.audioSoundId : "";
+                                AudioEvent ae = new AudioEvent(label, soundId, kdto.time);
+                                ae.setVolume(kdto.audioVolume);
+                                ae.setPitch(kdto.audioPitch);
+                                ae.setEnabled(kdto.audioEnabled);
+                                track.addAutomationKeyframe(ae);
                             }
                             default -> {
                                 // 未知类型：忽略，避免加载失败
