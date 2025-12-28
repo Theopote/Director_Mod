@@ -228,14 +228,19 @@ public abstract class MouseMixin {
      */
     @Inject(method = "tick", at = @At("HEAD"))
     private void onTick(CallbackInfo ci) {
-        if (selectionInputHandler != null) {
-            synchronized (selectionInputHandler) {
-                selectionInputHandler.tick();
-                // 检查 dragStart 而不是 isDragging，因为 isDragging 是在 handleMouseDragUpdate 中设置的
-                // 这样可以检测到拖拽开始（鼠标移动到不同方块时）
-                if (selectionInputHandler.getDragStart() != null) {
-                    selectionInputHandler.handleMouseDragUpdate();
-                }
+        // ✅ 保证只要 ChronoBlocksScreen 打开，就会初始化 SelectionInputHandler（hover/面手柄箭头依赖 tick 实时更新）
+        if (selectionInputHandler == null && client != null && client.currentScreen instanceof ChronoBlocksScreen) {
+            selectionInputHandler = new SelectionInputHandler();
+        }
+
+        if (selectionInputHandler == null) return;
+
+        synchronized (selectionInputHandler) {
+            selectionInputHandler.tick();
+            // 检查 dragStart 而不是 isDragging，因为 isDragging 是在 handleMouseDragUpdate 中设置的
+            // 这样可以检测到拖拽开始（鼠标移动到不同方块时）
+            if (selectionInputHandler.getDragStart() != null) {
+                selectionInputHandler.handleMouseDragUpdate();
             }
         }
     }

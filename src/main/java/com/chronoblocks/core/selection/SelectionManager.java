@@ -438,7 +438,6 @@ public class SelectionManager {
         activeResizePreviewBounds = activeResizeBaseBounds;
         activeResizeFaceIndex = faceIndex;
         activeResizeOffset = 0.0;
-        pushPreviewBox(activeResizePreviewBounds);
     }
 
     public void previewFaceResize(int faceIndex, double offset) {
@@ -460,7 +459,6 @@ public class SelectionManager {
 
         activeResizeOffset = offset;
         activeResizePreviewBounds = adjustBounds(activeResizeBaseBounds, activeResizeFaceIndex, activeResizeOffset);
-        pushPreviewBox(activeResizePreviewBounds);
     }
 
     public void applyFaceResize(int faceIndex, double offset) {
@@ -493,7 +491,6 @@ public class SelectionManager {
         activeResizePreviewBounds = null;
         activeResizeFaceIndex = null;
         activeResizeOffset = 0.0;
-        clearPreviewBox();
     }
 
     public boolean isFaceResizeActive() {
@@ -526,10 +523,33 @@ public class SelectionManager {
             return;
         }
 
+        // ✅ 使用全局过滤管道（默认包含 nonAir）来重建选区，避免“包围盒里全是空气但选区为空/混乱”的体验
+        World world = null;
+        try {
+            world = net.minecraft.client.MinecraftClient.getInstance().world;
+        } catch (Throwable ignored) {
+        }
+
+        if (world == null) {
+            // 兜底：无 world 时按坐标填充（至少不丢选区）
+            for (int x = minX; x <= maxX; x++) {
+                for (int y = minY; y <= maxY; y++) {
+                    for (int z = minZ; z <= maxZ; z++) {
+                        selectionSet.add(new BlockPos(x, y, z));
+                    }
+                }
+            }
+            return;
+        }
+
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
                 for (int z = minZ; z <= maxZ; z++) {
-                    selectionSet.add(new BlockPos(x, y, z));
+                    BlockPos p = new BlockPos(x, y, z);
+                    var state = world.getBlockState(p);
+                    if (globalPipeline == null || globalPipeline.isEmpty() || globalPipeline.test(world, p, state)) {
+                        selectionSet.add(p);
+                    }
                 }
             }
         }
@@ -577,24 +597,6 @@ public class SelectionManager {
         }
 
         return new Box(minX, minY, minZ, maxX, maxY, maxZ);
-    }
-
-    private void pushPreviewBox(Box box) {
-        try {
-            if (box != null) {
-                ToolPreviewManager.getInstance().setPreviewBox(box);
-            }
-        } catch (Exception e) {
-            LOGGER.debug("[SelectionManager] setPreviewBox failed: {}", e.getMessage());
-        }
-    }
-    
-    private void clearPreviewBox() {
-        try {
-            ToolPreviewManager.getInstance().clearPreview();
-        } catch (Exception e) {
-            LOGGER.debug("[SelectionManager] clearPreview failed: {}", e.getMessage());
-        }
     }
 
     private Box copyBox(Box source) {
