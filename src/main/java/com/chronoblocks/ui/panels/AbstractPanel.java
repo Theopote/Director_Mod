@@ -1,6 +1,7 @@
 package com.chronoblocks.ui.panels;
 
 import imgui.ImGui;
+import imgui.type.ImBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -21,6 +22,18 @@ public abstract class AbstractPanel implements IPanel {
 
     // 面板隐藏状态管理
     private boolean hidden = false;
+
+    /**
+     * 用于 ImGui.begin(name, open, flags) 的可关闭状态。
+     * 仅在“游离窗口”时传入，从而显示标题栏关闭按钮“×”。
+     */
+    private final ImBoolean closeOpen = new ImBoolean(true);
+
+    /**
+     * 上一帧该窗口是否处于停靠状态（用于在 begin() 之前决定是否显示“×”）。
+     * 注意：当前帧的停靠状态只有在 begin() 之后才能查询到，因此用上一帧状态即可。
+     */
+    private boolean wasDockedLastFrame = false;
 
     @Override
     public final void render() {
@@ -55,11 +68,37 @@ public abstract class AbstractPanel implements IPanel {
                 
                 boolean windowStarted;
                 try {
+                    // 仅在“游离窗口”显示关闭按钮“×”（停靠时不显示）
+                    final boolean shouldShowCloseButton = shouldShowCloseButtonWhenFloating()
+                            && renderContent
+                            && !renderPlaceholder
+                            && !hidden
+                            && !wasDockedLastFrame;
+
                     // 添加ImGui状态检查，防止嵌套调用问题
-                    windowStarted = ImGui.begin(getWindowName(), windowFlags);
+                    if (shouldShowCloseButton) {
+                        // 每次开始渲染时重置为 true；点击“×”会被 begin() 改写为 false
+                        closeOpen.set(true);
+                        windowStarted = ImGui.begin(getWindowName(), closeOpen, windowFlags);
+
+                        // 若用户点击了“×”，立即关闭（隐藏）面板
+                        if (!closeOpen.get()) {
+                            setVisible(false);
+                        }
+                    } else {
+                        windowStarted = ImGui.begin(getWindowName(), windowFlags);
+                    }
+
+                    // 更新停靠状态缓存（供下一帧决定是否显示“×”）
+                    try {
+                        wasDockedLastFrame = ImGui.isWindowDocked();
+                    } catch (Throwable ignored) {
+                        // 兼容性兜底：若运行环境不支持 docking API，默认按“游离”处理
+                        wasDockedLastFrame = false;
+                    }
+
                     if (windowStarted) {
                         try {
-                            // 检查是否点击了关闭按钮
                             if (ImGui.isWindowAppearing()) {
                                 // 设置窗口默认大小（高度为80%）
                                 setDefaultWindowSize();
@@ -232,6 +271,15 @@ public abstract class AbstractPanel implements IPanel {
     protected int getWindowFlags() {
         // 默认添加关闭按钮，但允许子类重写
         return imgui.flag.ImGuiWindowFlags.None;
+    }
+
+    /**
+     * 当面板处于“游离（未停靠）”状态时，是否显示标题栏关闭按钮“×”。
+     * <p>
+     * 默认返回 true；若某些面板不希望用户通过“×”关闭，可在子类中返回 false。
+     */
+    protected boolean shouldShowCloseButtonWhenFloating() {
+        return true;
     }
 
     /**
