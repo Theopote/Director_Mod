@@ -608,6 +608,15 @@ public class SelectionManager {
      * 更新 Gizmo 位置以跟随选区中心
      */
     private void updateGizmoPosition() {
+        // Gizmo 用于“整体移动包围盒/选区”，只有在显示包围盒时才启用，避免与拖拽建盒产生概念/交互冲突
+        if (!com.chronoblocks.client.settings.RenderSettings.get().selection_showBoundingBox) {
+            try {
+                com.chronoblocks.client.gizmo.GizmoManager.get().deactivate();
+            } catch (Exception ignored) {
+            }
+            return;
+        }
+
         Box bounds = getCurrentBounds();
         if (bounds == null || selectionSet.isEmpty()) {
             return;

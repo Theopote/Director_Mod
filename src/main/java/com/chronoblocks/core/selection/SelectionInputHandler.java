@@ -189,6 +189,15 @@ public class SelectionInputHandler {
         // 检查当前工具是否是 BoxSelectTool，并且鼠标悬停在面中心小方块上
         // 如果是，则不设置 dragStart，让面中心小方块的拖拽逻辑处理
         if (selectionManager.getCurrentTool() instanceof com.chronoblocks.core.selection.tools.boxselecttool.BoxSelectTool boxTool) {
+            // ✅ Gizmo 优先：当鼠标在 Gizmo 轴/平面/中心手柄上时，左键按下应进入 Gizmo 拖拽，不进入框选拖拽
+            try {
+                if (com.chronoblocks.client.gizmo.GizmoManager.get().isHot()) {
+                    LOGGER.debug("[Drag] 鼠标命中 Gizmo 手柄，跳过框选拖拽开始");
+                    return;
+                }
+            } catch (Exception ignored) {
+            }
+
             // 检查是否悬停在面中心小方块上
             Integer hoveredFace = boxTool.getHoveredFaceIndex();
             if (hoveredFace != null) {

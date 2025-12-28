@@ -232,8 +232,12 @@ public class GizmoManager {
      */
     public void deactivate() {
         if (context != null) {
-            // 应用当前状态
-            apply();
+            // ✅ BOUNDS Gizmo（用于移动选区整体）不应在停用时“体素化 box 并重建选区”，
+            // 否则会把包围盒内空气也选中，改变框选工具语义。
+            // 移动本身已由 TransformApplier.applyMove → SelectionManager.offsetSelection 实时写回。
+            if (context.getType() != GizmoType.BOUNDS) {
+                apply();
+            }
             
             context.setActive(false);
             context = null;
@@ -366,6 +370,11 @@ public class GizmoManager {
         if (context == null || !context.isActive()) {
             return;
         }
+
+        // ✅ BOUNDS Gizmo 不做“用 Box 重建选区”的 apply（避免选中空气）。
+        if (context.getType() == GizmoType.BOUNDS) {
+            return;
+        }
         
         Box newBox = context.getTargetBox();
         
@@ -402,6 +411,26 @@ public class GizmoManager {
     
     public GizmoContext getContext() {
         return context;
+    }
+
+    /**
+     * 是否正在悬停/拖拽 Gizmo 的可交互手柄（用于输入层屏蔽“框选拖拽/点击”）。
+     */
+    public boolean isHot() {
+        if (controller == null || context == null || !context.isActive()) {
+            return false;
+        }
+        return controller.getHoveredHandle() != null || controller.getActiveHandle() != null;
+    }
+
+    /**
+     * 是否正在拖拽 Gizmo 手柄。
+     */
+    public boolean isDraggingHandle() {
+        if (controller == null || context == null || !context.isActive()) {
+            return false;
+        }
+        return controller.getActiveHandle() != null;
     }
     
     public GizmoType getType() {
