@@ -27,6 +27,15 @@ public final class InteractionHintRenderer {
         if (manager == null || consumers == null || matrices == null) {
             return;
         }
+        // 该渲染器绘制的是“包围盒交互手柄/箭头”，应受“显示包围盒”开关控制
+        if (!settings.selection_showBoundingBox) {
+            // 如果用户关闭包围盒显示，确保面缩放预览状态也被取消，避免“关闭不了”的错觉
+            if (manager.isFaceResizeActive()) {
+                manager.cancelFaceResize();
+            }
+            return;
+        }
+
         // ✅ 直接从全局设置读取（实时生效）
         if (!settings.tool_showOutline) {
             return;

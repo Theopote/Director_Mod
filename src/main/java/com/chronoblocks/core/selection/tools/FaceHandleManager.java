@@ -19,7 +19,10 @@ public class FaceHandleManager {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FaceHandleManager.class);
 
-    private static final double HANDLE_HALF_SIZE = 0.25;
+    // 拾取半径：支持“按距离自适应”，避免远处/小目标难以命中
+    private static final double HANDLE_HALF_SIZE_MIN = 0.25;
+    private static final double HANDLE_HALF_SIZE_MAX = 0.65;
+    private static final double HANDLE_HALF_SIZE_DISTANCE_SCALE = 0.02; // halfSize ≈ distance * scale
     private static final double PARALLEL_EPSILON = 1e-6;
 
     private Integer hoveredFaceIndex;
@@ -51,7 +54,7 @@ public class FaceHandleManager {
 
         for (int face = 0; face < 6; face++) {
             Vec3d center = faceCenter(box, face);
-            Double t = rayIntersectAABB(rayOrigin, dir, createHandleBox(center));
+            Double t = rayIntersectAABB(rayOrigin, dir, createHandleBox(center, rayOrigin));
             if (t != null && t > 0 && t < closestT) {
                 closestT = t;
                 closestFace = face;
@@ -106,7 +109,8 @@ public class FaceHandleManager {
             return;
         }
 
-        liveOffset = offset;
+        // ✅ 修正方向：当前解算得到的 offset 与“面法线正方向”相反，统一取反
+        liveOffset = -offset;
 
         SelectionManager manager = SelectionManager.get();
         if (manager != null) {
@@ -133,6 +137,26 @@ public class FaceHandleManager {
         liveOffset = 0.0;
         
         // 清除悬停状态，强制重新检测（鼠标可能已经不在小方块上了）
+        clearHover();
+    }
+
+    /**
+     * 取消拖拽（不应用修改）。用于用户关闭包围盒显示、或交互中断时的兜底。
+     */
+    public void cancelDrag() {
+        if (draggingFaceIndex == null) {
+            clearHover();
+            return;
+        }
+        SelectionManager manager = SelectionManager.get();
+        if (manager != null) {
+            manager.cancelFaceResize();
+        }
+        draggingFaceIndex = null;
+        dragStartBox = null;
+        dragAxisOrigin = null;
+        dragAxisDir = null;
+        liveOffset = 0.0;
         clearHover();
     }
 
@@ -179,9 +203,15 @@ public class FaceHandleManager {
         };
     }
 
-    private Box createHandleBox(Vec3d center) {
-        return new Box(center.x - HANDLE_HALF_SIZE, center.y - HANDLE_HALF_SIZE, center.z - HANDLE_HALF_SIZE,
-                center.x + HANDLE_HALF_SIZE, center.y + HANDLE_HALF_SIZE, center.z + HANDLE_HALF_SIZE);
+    private Box createHandleBox(Vec3d center, Vec3d rayOrigin) {
+        double half = HANDLE_HALF_SIZE_MIN;
+        if (rayOrigin != null) {
+            double dist = center.distanceTo(rayOrigin);
+            half = Math.max(HANDLE_HALF_SIZE_MIN,
+                    Math.min(HANDLE_HALF_SIZE_MAX, dist * HANDLE_HALF_SIZE_DISTANCE_SCALE));
+        }
+        return new Box(center.x - half, center.y - half, center.z - half,
+                center.x + half, center.y + half, center.z + half);
     }
 
     private Box copyBox(Box original) {

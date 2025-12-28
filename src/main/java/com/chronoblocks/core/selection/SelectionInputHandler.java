@@ -192,8 +192,10 @@ public class SelectionInputHandler {
             // 检查是否悬停在面中心小方块上
             Integer hoveredFace = boxTool.getHoveredFaceIndex();
             if (hoveredFace != null) {
-                LOGGER.debug("[Drag] 鼠标悬停在面中心小方块上，跳过框选拖拽开始");
-                return; // 阻止框选拖拽开始，让面中心小方块的拖拽逻辑处理
+                // ✅ 直接启动面手柄拖拽（按下即开始），避免依赖 “BlockPos 变化才触发拖拽” 的框选逻辑
+                boolean started = boxTool.tryBeginFaceHandleDrag();
+                LOGGER.debug("[Drag] 鼠标悬停在面中心小方块上，启动面拖拽: {}", started);
+                return; // 阻止框选拖拽开始
             }
         }
 

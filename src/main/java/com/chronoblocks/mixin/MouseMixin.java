@@ -155,6 +155,19 @@ public abstract class MouseMixin {
                         LOGGER.debug("[ChronoBlocks] 左键按下（shift={}）", shift);
                         selectionInputHandler.handleMouseDragStart(true);
                     } else if (action == GLFW.GLFW_RELEASE) {
+                        // ✅ 如果 BoxSelectTool 正在拖拽面中心小方块：不触发 click/框选拖拽结束
+                        // 面手柄拖拽的结束由 BoxSelectTool.tick() 轮询鼠标释放并调用 faceHandleManager.endDrag() 完成。
+                        try {
+                            var sm = com.chronoblocks.core.selection.SelectionManager.get();
+                            if (sm != null && sm.getCurrentTool() instanceof com.chronoblocks.core.selection.tools.boxselecttool.BoxSelectTool boxTool) {
+                                if (boxTool.isDraggingFaceHandle()) {
+                                    LOGGER.debug("[ChronoBlocks] 左键释放：面手柄拖拽中，跳过 click/dragEnd");
+                                    return;
+                                }
+                            }
+                        } catch (Exception ignored) {
+                        }
+
                         LOGGER.debug("[ChronoBlocks] 左键释放，拖拽状态={}", selectionInputHandler.isDragging());
                         // 先检查是否在拖拽，如果在拖拽则先结束拖拽，否则处理点击
                         if (selectionInputHandler.isDragging()) {

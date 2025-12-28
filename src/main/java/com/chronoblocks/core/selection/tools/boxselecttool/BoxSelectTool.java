@@ -4,6 +4,7 @@ import com.chronoblocks.client.gizmo.Axis;
 import com.chronoblocks.client.gizmo.GizmoManager;
 import com.chronoblocks.client.gizmo.GizmoType;
 import com.chronoblocks.client.renderer.ToolPreviewManager;
+import com.chronoblocks.client.settings.RenderSettings;
 import com.chronoblocks.core.selection.*;
 import com.chronoblocks.core.selection.algorithms.RegionSelectors;
 import com.chronoblocks.core.selection.events.SelectionEvents;
@@ -280,6 +281,14 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
     @Override
     public void tick(World world) {
         // 实时预览渲染由 ToolPreviewManager 管理
+        boolean bboxVisible = RenderSettings.get().selection_showBoundingBox;
+
+        // 如果用户关闭“显示包围盒”，立即取消面手柄拖拽/预览，避免继续渲染/误应用 resize
+        if (!bboxVisible && faceHandleManager.isDragging()) {
+            faceHandleManager.cancelDrag();
+            phase = SelectionPhase.IDLE;
+            updateMouseCursor(false);
+        }
 
         // ✅ 两点式建盒：实时预览（参考 formacraft 的做法：选点后持续更新 end）
         // 当第一角点已设置且还未右键确认时，使用当前鼠标指向的方块作为临时第二角点更新预览框。
@@ -299,10 +308,56 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
             rayOrigin = ray[0];
             rayDir = ray[1];
         }
+
+        // =====================================================
+        // ✅ 面中心小方块拖拽：改为 tick 驱动（不依赖 BlockPos 变化）
+        // =====================================================
+        // 说明：之前依赖 onDragUpdate/onDragEnd，很多输入实现只会在 BlockPos 变化时触发更新，导致“能变光标但拖不动”。
+        // 这里改为每帧根据射线更新 offset，并用 GLFW 轮询鼠标释放来结束拖拽，确保拖拽必然生效且能正确退出。
+        if (faceHandleManager.isDragging()) {
+            try {
+                // 1) 每帧更新拖拽 offset（实时预览）
+                if (rayOrigin != null && rayDir != null) {
+                    faceHandleManager.updateDrag(rayOrigin, rayDir);
+                }
+
+                // 2) 轮询鼠标左键：释放则结束拖拽并应用 resize
+                MinecraftClient client = MinecraftClient.getInstance();
+                if (client != null && client.getWindow() != null) {
+                    long window = client.getWindow().getHandle();
+                    boolean mouseDown = org.lwjgl.glfw.GLFW.glfwGetMouseButton(window, org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT)
+                            == org.lwjgl.glfw.GLFW.GLFW_PRESS;
+                    if (!mouseDown) {
+                        faceHandleManager.endDrag();
+                        phase = SelectionPhase.IDLE;
+
+                        // 结束后立即重新检测 hover（可能鼠标已经离开）并刷新光标
+                        Integer hoveredFace = null;
+                        Box bounds = SelectionManager.get().getCurrentBounds();
+                        if (bounds != null && rayOrigin != null && rayDir != null) {
+                            hoveredFace = faceHandleManager.detectHover(bounds, rayOrigin, rayDir);
+                        }
+                        updateMouseCursor(bboxVisible && hoveredFace != null);
+                    } else {
+                        // 拖拽中始终保持 resize 光标
+                        updateMouseCursor(true);
+                    }
+                }
+            } catch (Exception e) {
+                // 拖拽异常时兜底：取消拖拽并恢复光标，避免卡住
+                try {
+                    faceHandleManager.cancelDrag();
+                } catch (Exception ignored) {}
+                phase = SelectionPhase.IDLE;
+                updateMouseCursor(false);
+            }
+            // 拖拽面手柄时不再继续 hover/gizmo 检测，避免干扰
+            return;
+        }
         
         // 检测面中心小方块的鼠标悬停
         Integer hoveredFace = null;
-        if (world != null && !SelectionManager.get().getSelectionSet().isEmpty()) {
+        if (bboxVisible && world != null && !SelectionManager.get().getSelectionSet().isEmpty()) {
             Box bounds = SelectionManager.get().getCurrentBounds();
             if (bounds != null && rayOrigin != null && rayDir != null) {
                 // 检测悬停
@@ -316,7 +371,7 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
         }
         
         // 更新光标
-        boolean shouldShowResizeCursor = faceHandleManager.isDragging() || hoveredFace != null;
+        boolean shouldShowResizeCursor = bboxVisible && (faceHandleManager.isDragging() || hoveredFace != null);
         updateMouseCursor(shouldShowResizeCursor);
         
         // 更新 Gizmo 交互（悬停高亮和拖动）
@@ -703,6 +758,41 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
      */
     public boolean isDraggingFaceHandle() {
         return faceHandleManager.isDragging();
+    }
+
+    /**
+     * 输入层入口：当鼠标已悬停在“面中心小方块”上时，尝试立即开始面拖拽。
+     *
+     * <p>原因：SelectionInputHandler 的“框选拖拽”只会在 BlockPos 变化后才触发 handleDragStart，
+     * 这会导致面手柄拖拽无法启动。这里提供一个“按下即开始”的入口。</p>
+     */
+    public boolean tryBeginFaceHandleDrag() {
+        try {
+            if (!RenderSettings.get().selection_showBoundingBox) {
+                return false;
+            }
+            Box bounds = SelectionManager.get().getCurrentBounds();
+            if (bounds == null) {
+                return false;
+            }
+            Vec3d[] ray = getMouseRay();
+            if (ray == null || ray.length != 2) {
+                return false;
+            }
+            Integer hoveredFace = faceHandleManager.detectHover(bounds, ray[0], ray[1]);
+            if (hoveredFace == null) {
+                return false;
+            }
+            if (faceHandleManager.startDrag(bounds, ray[0], ray[1])) {
+                phase = SelectionPhase.GIZMO_EDIT;
+                updateMouseCursor(true);
+                LOGGER.info("[BoxSelectTool] ✅ 输入层触发：开始拖拽面中心小方块 face={}", hoveredFace);
+                return true;
+            }
+            return false;
+        } catch (Exception e) {
+            return false;
+        }
     }
     
     /**
