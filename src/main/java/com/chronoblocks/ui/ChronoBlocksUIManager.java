@@ -326,6 +326,13 @@ public class ChronoBlocksUIManager {
     }
 
     /**
+     * 获取面板注册表（供外部在关闭/保存时访问关键面板）。
+     */
+    public IPanelRegistry getPanelRegistry() {
+        return panelRegistry;
+    }
+
+    /**
      * 高级依赖注入构造函数 - 直接使用面板注册表
      * @param panelRegistry 面板注册表
      * @throws IllegalArgumentException 如果面板注册表为null或为空
@@ -736,6 +743,17 @@ public class ChronoBlocksUIManager {
                             isFirstLayout = true;
                             com.chronoblocks.core.container.persistence.ContainerPersistence.loadForCurrentWorld(
                                 com.chronoblocks.core.container.ContainerManager.getInstance());
+
+                            // ⭐ 同步时间线：切档时不能把上一个存档的轨道/关键帧带过来
+                            try {
+                                TimelinePanel timelinePanel = panelRegistry.getPanel(TimelinePanel.class);
+                                if (timelinePanel != null) {
+                                    timelinePanel.reloadForCurrentWorld();
+                                    LOGGER.info("[ChronoBlocks] 已按新世界重新加载时间线数据");
+                                }
+                            } catch (Exception e) {
+                                LOGGER.warn("[ChronoBlocks] 切档时重新加载时间线失败: {}", e.getMessage(), e);
+                            }
                         }
                         
                         // 注意：面板渲染应该在 DockSpace 外部进行，而不是在内部

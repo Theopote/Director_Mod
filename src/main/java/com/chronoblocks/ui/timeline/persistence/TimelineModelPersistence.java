@@ -10,9 +10,16 @@ import com.chronoblocks.core.animation.sequence.evaluator.OriginType;
 import com.chronoblocks.ui.timeline.model.TimelineClip;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
+import com.chronoblocks.ui.timeline.model.TimelineInterpolation;
 import com.chronoblocks.ui.timeline.model.TimelineViewportState;
 import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.audio.AudioTrack;
+import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
+import com.chronoblocks.ui.timeline.model.clip.ClipKeyframe;
+import com.chronoblocks.ui.timeline.model.season.SeasonKeyframe;
+import com.chronoblocks.ui.timeline.model.time.TimeKeyframe;
+import com.chronoblocks.ui.timeline.model.weather.WeatherKeyframe;
+import com.chronoblocks.ui.timeline.model.VisibilityKeyframe;
 import com.chronoblocks.util.WorldIdentifier;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -86,6 +93,7 @@ public class TimelineModelPersistence {
         public String name;
         public String typeName;  // TrackType 的名称
         public List<ClipDTO> clips = new ArrayList<>();
+        public List<AutomationKeyframeDTO> automationKeyframes = new ArrayList<>();
         public boolean locked = false;
         public boolean visible = true;
         public int zOrder = 0;
@@ -103,7 +111,12 @@ public class TimelineModelPersistence {
         public float startTime;
         public float endTime;
         public int color;
+        /** 旧版（向后兼容）：仅保存关键帧时间点 */
         public List<Float> keyframes = new ArrayList<>();
+        /** 新版：ClipKeyframe 对象（支持插值/选择/属性面板/UndoRedo） */
+        public List<ClipKeyframeDTO> clipKeyframes = new ArrayList<>();
+        /** 可见性关键帧（淡入淡出/隐藏显示等） */
+        public List<VisibilityKeyframeDTO> visibilityKeyframes = new ArrayList<>();
         public boolean muted = false;
         public float opacity = 1.0f;
         public String animationMode;
@@ -120,6 +133,111 @@ public class TimelineModelPersistence {
         public String boundContainerName;
         public boolean autoFadePreviousClips = true;
         public float autoFadeOpacity = 0.35f;
+    }
+
+    /**
+     * 三维向量 DTO（避免直接序列化 JOML Vector3f）
+     */
+    public static final class Vec3DTO {
+        public float x;
+        public float y;
+        public float z;
+
+        public Vec3DTO() {}
+
+        public Vec3DTO(float x, float y, float z) {
+            this.x = x;
+            this.y = y;
+            this.z = z;
+        }
+
+        public static Vec3DTO from(org.joml.Vector3f v) {
+            if (v == null) return null;
+            return new Vec3DTO(v.x, v.y, v.z);
+        }
+    }
+
+    /**
+     * ClipKeyframe DTO（新版片段关键帧）
+     */
+    public static final class ClipKeyframeDTO {
+        public float time;
+        public String interpolation; // TimelineInterpolation.name()
+    }
+
+    /**
+     * VisibilityKeyframe DTO
+     */
+    public static final class VisibilityKeyframeDTO {
+        public float time; // 相对 clip 开始时间（秒）
+        public float alpha;
+        public String mode; // VisibilityMode.name()
+    }
+
+    /**
+     * 轨道级自动化关键帧 DTO（相机/时间/天气/季节等）
+     */
+    public static final class AutomationKeyframeDTO {
+        public String type; // CameraKeyframe / TimeKeyframe / WeatherKeyframe / SeasonKeyframe
+        public String name;
+        public float time;
+
+        // ===== CameraKeyframe =====
+        public Vec3DTO position;
+        public Vec3DTO rotation;
+        public float fov;
+        public float nearPlane;
+        public float farPlane;
+        public String cameraKeyType;
+        public String cameraSegmentType;
+        public String cameraRotationInterpolation;
+        public Vec3DTO bezierInHandle;
+        public Vec3DTO bezierOutHandle;
+        public String cameraHandleMode;
+        public boolean dofEnabled;
+        public float focusDistance;
+        public float aperture;
+
+        // ===== TimeKeyframe =====
+        public long worldTimeTicks;
+        public boolean useNaturalTime;
+        public float sunElevation;
+        public float sunAzimuth;
+        public String timePathInterpolation;
+        public String timeAngleInterpolation;
+
+        // ===== WeatherKeyframe =====
+        public String weatherType;
+        public String weatherInterpolation;
+        public float rainStrength;
+        public String rainType;
+        public float rainParticleDensity;
+        public float puddleLevel;
+        public float thunderStrength;
+        public float lightningFrequency;
+        public float windStrength;
+        public float stormDarkness;
+        public float cloudDensity;
+        public float cloudSpeed;
+        public float fogDensity;
+        public Vec3DTO fogColor;
+        public float tempBias;
+        public float humidityBias;
+        public String specialWeatherType;
+        public float specialWeatherIntensity;
+
+        // ===== SeasonKeyframe =====
+        public String seasonType;
+        public float snowlineHeight;
+        public float snowAmount;
+        public int snowThickness;
+        public float freezeStrength;
+        public Vec3DTO grassTint;
+        public Vec3DTO foliageTint;
+        public Vec3DTO skyTint;
+        public Vec3DTO fogTint;
+        public Vec3DTO lightTint;
+        public String seasonInterpolation;
     }
     
     /**
@@ -153,6 +271,72 @@ public class TimelineModelPersistence {
             trackDTO.solo = track.isSolo();
             trackDTO.boundContainerName = track.getBoundContainerName();
             trackDTO.boundContainerId = track.getBoundContainerId();
+
+            // 保存轨道级自动化关键帧（相机/时间/天气/季节等）
+            for (var selectable : track.getAutomationKeyframes()) {
+                if (selectable == null) continue;
+                AutomationKeyframeDTO kdto = new AutomationKeyframeDTO();
+                kdto.type = selectable.getType();
+                kdto.name = selectable.getName();
+                kdto.time = selectable.getStartTime();
+
+                if (selectable instanceof CameraKeyframe ck) {
+                    kdto.position = Vec3DTO.from(ck.getPosition());
+                    kdto.rotation = Vec3DTO.from(ck.getRotation());
+                    kdto.fov = ck.getFov();
+                    kdto.nearPlane = ck.getNearPlane();
+                    kdto.farPlane = ck.getFarPlane();
+                    kdto.cameraKeyType = ck.getKeyType() != null ? ck.getKeyType().name() : null;
+                    kdto.cameraSegmentType = ck.getSegmentType() != null ? ck.getSegmentType().name() : null;
+                    kdto.cameraRotationInterpolation = ck.getRotationInterpolation() != null ? ck.getRotationInterpolation().name() : null;
+                    kdto.bezierInHandle = Vec3DTO.from(ck.getBezierInHandle());
+                    kdto.bezierOutHandle = Vec3DTO.from(ck.getBezierOutHandle());
+                    kdto.cameraHandleMode = ck.getHandleMode() != null ? ck.getHandleMode().name() : null;
+                    kdto.dofEnabled = ck.isDepthOfFieldEnabled();
+                    kdto.focusDistance = ck.getFocusDistance();
+                    kdto.aperture = ck.getAperture();
+                } else if (selectable instanceof TimeKeyframe tk) {
+                    kdto.worldTimeTicks = tk.getWorldTimeTicks();
+                    kdto.useNaturalTime = tk.isUseNaturalTime();
+                    kdto.sunElevation = tk.getSunElevation();
+                    kdto.sunAzimuth = tk.getSunAzimuth();
+                    kdto.timePathInterpolation = tk.getPathInterpolation() != null ? tk.getPathInterpolation().name() : null;
+                    kdto.timeAngleInterpolation = tk.getAngleInterpolation() != null ? tk.getAngleInterpolation().name() : null;
+                } else if (selectable instanceof WeatherKeyframe wk) {
+                    kdto.weatherType = wk.getWeatherType() != null ? wk.getWeatherType().name() : null;
+                    kdto.weatherInterpolation = wk.getInterpolation() != null ? wk.getInterpolation().name() : null;
+                    kdto.rainStrength = wk.getRainStrength();
+                    kdto.rainType = wk.getRainType() != null ? wk.getRainType().name() : null;
+                    kdto.rainParticleDensity = wk.getRainParticleDensity();
+                    kdto.puddleLevel = wk.getPuddleLevel();
+                    kdto.thunderStrength = wk.getThunderStrength();
+                    kdto.lightningFrequency = wk.getLightningFrequency();
+                    kdto.windStrength = wk.getWindStrength();
+                    kdto.stormDarkness = wk.getStormDarkness();
+                    kdto.cloudDensity = wk.getCloudDensity();
+                    kdto.cloudSpeed = wk.getCloudSpeed();
+                    kdto.fogDensity = wk.getFogDensity();
+                    kdto.fogColor = Vec3DTO.from(wk.getFogColor());
+                    kdto.tempBias = wk.getTempBias();
+                    kdto.humidityBias = wk.getHumidityBias();
+                    kdto.specialWeatherType = wk.getSpecialWeatherType() != null ? wk.getSpecialWeatherType().name() : null;
+                    kdto.specialWeatherIntensity = wk.getSpecialWeatherIntensity();
+                } else if (selectable instanceof SeasonKeyframe sk) {
+                    kdto.seasonType = sk.getSeasonType() != null ? sk.getSeasonType().name() : null;
+                    kdto.snowlineHeight = sk.getSnowlineHeight();
+                    kdto.snowAmount = sk.getSnowAmount();
+                    kdto.snowThickness = sk.getSnowThickness();
+                    kdto.freezeStrength = sk.getFreezeStrength();
+                    kdto.grassTint = Vec3DTO.from(sk.getGrassTint());
+                    kdto.foliageTint = Vec3DTO.from(sk.getFoliageTint());
+                    kdto.skyTint = Vec3DTO.from(sk.getSkyTint());
+                    kdto.fogTint = Vec3DTO.from(sk.getFogTint());
+                    kdto.lightTint = Vec3DTO.from(sk.getLightTint());
+                    kdto.seasonInterpolation = sk.getInterpolation() != null ? sk.getInterpolation().name() : null;
+                }
+
+                trackDTO.automationKeyframes.add(kdto);
+            }
             
             // 保存轨道的所有片段
             for (TimelineClip clip : track.getClips()) {
@@ -163,7 +347,28 @@ public class TimelineModelPersistence {
                 clipDTO.color = clip.getColor();
                 clipDTO.muted = clip.isMuted();
                 clipDTO.opacity = clip.getOpacity();
+                // 旧版：float 时间点关键帧（向后兼容）
                 clipDTO.keyframes.addAll(clip.getKeyframes());
+
+                // 新版：ClipKeyframe 对象关键帧
+                for (ClipKeyframe ckf : clip.getClipKeyframes()) {
+                    if (ckf == null) continue;
+                    ClipKeyframeDTO ckfdto = new ClipKeyframeDTO();
+                    ckfdto.time = ckf.getTime();
+                    ckfdto.interpolation = ckf.getInterpolation() != null ? ckf.getInterpolation().name() : TimelineInterpolation.LINEAR.name();
+                    clipDTO.clipKeyframes.add(ckfdto);
+                }
+
+                // 可见性关键帧
+                for (VisibilityKeyframe vkf : clip.getVisibilityKeyframes()) {
+                    if (vkf == null) continue;
+                    VisibilityKeyframeDTO vdto = new VisibilityKeyframeDTO();
+                    vdto.time = vkf.getTime();
+                    vdto.alpha = vkf.getAlpha();
+                    vdto.mode = vkf.getMode() != null ? vkf.getMode().name() : VisibilityKeyframe.VisibilityMode.NORMAL.name();
+                    clipDTO.visibilityKeyframes.add(vdto);
+                }
+
                 ClipAnimationConfig config = clip.getAnimationConfig();
                 clipDTO.animationMode = config.getMode().name();
                 clipDTO.animationDuration = config.getDuration();
@@ -256,6 +461,112 @@ public class TimelineModelPersistence {
             track.setSolo(trackDTO.solo);
             track.setBoundContainerName(trackDTO.boundContainerName);
             track.setBoundContainerId(trackDTO.boundContainerId);
+
+            // 恢复轨道级自动化关键帧
+            if (trackDTO.automationKeyframes != null) {
+                for (AutomationKeyframeDTO kdto : trackDTO.automationKeyframes) {
+                    if (kdto == null || kdto.type == null) continue;
+                    try {
+                        switch (kdto.type) {
+                            case "CameraKeyframe" -> {
+                                CameraKeyframe ck = new CameraKeyframe(kdto.name != null ? kdto.name : "Camera Keyframe", kdto.time);
+                                if (kdto.position != null) ck.setPosition(new org.joml.Vector3f(kdto.position.x, kdto.position.y, kdto.position.z));
+                                if (kdto.rotation != null) ck.setRotation(new org.joml.Vector3f(kdto.rotation.x, kdto.rotation.y, kdto.rotation.z));
+                                ck.setFov(kdto.fov);
+                                ck.setNearPlane(kdto.nearPlane);
+                                ck.setFarPlane(kdto.farPlane);
+                                if (kdto.cameraKeyType != null) {
+                                    try { ck.setKeyType(CameraKeyframe.KeyType.valueOf(kdto.cameraKeyType)); } catch (Exception ignored) {}
+                                }
+                                if (kdto.cameraSegmentType != null) {
+                                    try { ck.setSegmentType(CameraKeyframe.SegmentPathType.valueOf(kdto.cameraSegmentType)); } catch (Exception ignored) {}
+                                }
+                                if (kdto.cameraRotationInterpolation != null) {
+                                    try { ck.setRotationInterpolation(CameraKeyframe.RotationInterpolation.valueOf(kdto.cameraRotationInterpolation)); } catch (Exception ignored) {}
+                                }
+                                if (kdto.bezierInHandle != null) ck.setBezierInHandle(new org.joml.Vector3f(kdto.bezierInHandle.x, kdto.bezierInHandle.y, kdto.bezierInHandle.z));
+                                if (kdto.bezierOutHandle != null) ck.setBezierOutHandle(new org.joml.Vector3f(kdto.bezierOutHandle.x, kdto.bezierOutHandle.y, kdto.bezierOutHandle.z));
+                                if (kdto.cameraHandleMode != null) {
+                                    try { ck.setHandleMode(CameraKeyframe.HandleMode.valueOf(kdto.cameraHandleMode)); } catch (Exception ignored) {}
+                                }
+                                ck.setDepthOfFieldEnabled(kdto.dofEnabled);
+                                ck.setFocusDistance(kdto.focusDistance);
+                                ck.setAperture(kdto.aperture);
+                                track.addAutomationKeyframe(ck);
+                            }
+                            case "TimeKeyframe" -> {
+                                TimeKeyframe tk = new TimeKeyframe(kdto.name != null ? kdto.name : "Time Keyframe", kdto.time);
+                                tk.setWorldTimeTicks(kdto.worldTimeTicks);
+                                tk.setUseNaturalTime(kdto.useNaturalTime);
+                                tk.setSunElevation(kdto.sunElevation);
+                                tk.setSunAzimuth(kdto.sunAzimuth);
+                                if (kdto.timePathInterpolation != null) {
+                                    try { tk.setPathInterpolation(TimeKeyframe.SegmentInterpolation.valueOf(kdto.timePathInterpolation)); } catch (Exception ignored) {}
+                                }
+                                if (kdto.timeAngleInterpolation != null) {
+                                    try { tk.setAngleInterpolation(TimeKeyframe.AngleInterpolation.valueOf(kdto.timeAngleInterpolation)); } catch (Exception ignored) {}
+                                }
+                                track.addAutomationKeyframe(tk);
+                            }
+                            case "WeatherKeyframe" -> {
+                                WeatherKeyframe wk = new WeatherKeyframe(kdto.name != null ? kdto.name : "Weather Keyframe", kdto.time);
+                                if (kdto.weatherType != null) {
+                                    try { wk.setWeatherType(WeatherKeyframe.WeatherType.valueOf(kdto.weatherType)); } catch (Exception ignored) {}
+                                }
+                                if (kdto.weatherInterpolation != null) {
+                                    try { wk.setInterpolation(TimelineInterpolation.valueOf(kdto.weatherInterpolation)); } catch (Exception ignored) {}
+                                }
+                                wk.setRainStrength(kdto.rainStrength);
+                                if (kdto.rainType != null) {
+                                    try { wk.setRainType(WeatherKeyframe.RainType.valueOf(kdto.rainType)); } catch (Exception ignored) {}
+                                }
+                                wk.setRainParticleDensity(kdto.rainParticleDensity);
+                                wk.setPuddleLevel(kdto.puddleLevel);
+                                wk.setThunderStrength(kdto.thunderStrength);
+                                wk.setLightningFrequency(kdto.lightningFrequency);
+                                wk.setWindStrength(kdto.windStrength);
+                                wk.setStormDarkness(kdto.stormDarkness);
+                                wk.setCloudDensity(kdto.cloudDensity);
+                                wk.setCloudSpeed(kdto.cloudSpeed);
+                                wk.setFogDensity(kdto.fogDensity);
+                                if (kdto.fogColor != null) wk.setFogColor(kdto.fogColor.x, kdto.fogColor.y, kdto.fogColor.z);
+                                wk.setTempBias(kdto.tempBias);
+                                wk.setHumidityBias(kdto.humidityBias);
+                                if (kdto.specialWeatherType != null) {
+                                    try { wk.setSpecialWeatherType(WeatherKeyframe.SpecialWeatherType.valueOf(kdto.specialWeatherType)); } catch (Exception ignored) {}
+                                }
+                                wk.setSpecialWeatherIntensity(kdto.specialWeatherIntensity);
+                                track.addAutomationKeyframe(wk);
+                            }
+                            case "SeasonKeyframe" -> {
+                                SeasonKeyframe sk = new SeasonKeyframe(kdto.name != null ? kdto.name : "Season Keyframe", kdto.time);
+                                if (kdto.seasonType != null) {
+                                    try { sk.applySeasonPreset(SeasonKeyframe.SeasonType.valueOf(kdto.seasonType)); } catch (Exception ignored) {}
+                                }
+                                sk.setSnowlineHeight(kdto.snowlineHeight);
+                                sk.setSnowAmount(kdto.snowAmount);
+                                sk.setSnowThickness(kdto.snowThickness);
+                                sk.setFreezeStrength(kdto.freezeStrength);
+                                if (kdto.grassTint != null) sk.setGrassTint(new org.joml.Vector3f(kdto.grassTint.x, kdto.grassTint.y, kdto.grassTint.z));
+                                if (kdto.foliageTint != null) sk.setFoliageTint(new org.joml.Vector3f(kdto.foliageTint.x, kdto.foliageTint.y, kdto.foliageTint.z));
+                                if (kdto.skyTint != null) sk.setSkyTint(new org.joml.Vector3f(kdto.skyTint.x, kdto.skyTint.y, kdto.skyTint.z));
+                                if (kdto.fogTint != null) sk.setFogTint(new org.joml.Vector3f(kdto.fogTint.x, kdto.fogTint.y, kdto.fogTint.z));
+                                if (kdto.lightTint != null) sk.setLightTint(new org.joml.Vector3f(kdto.lightTint.x, kdto.lightTint.y, kdto.lightTint.z));
+                                if (kdto.seasonInterpolation != null) {
+                                    try { sk.setInterpolation(SeasonKeyframe.Interpolation.valueOf(kdto.seasonInterpolation)); } catch (Exception ignored) {}
+                                }
+                                track.addAutomationKeyframe(sk);
+                            }
+                            default -> {
+                                // 未知类型：忽略，避免加载失败
+                            }
+                        }
+                    } catch (Exception e) {
+                        LOGGER.warn("[TimelineModelPersistence] 恢复自动化关键帧失败: {} @ {}s ({})",
+                                kdto.type, kdto.time, e.getMessage());
+                    }
+                }
+            }
             
             // 恢复所有片段
             for (ClipDTO clipDTO : trackDTO.clips) {
@@ -350,6 +661,35 @@ public class TimelineModelPersistence {
                 // 恢复关键帧
                 for (Float keyframe : clipDTO.keyframes) {
                     clip.addKeyframe(keyframe);
+                }
+
+                // 恢复新版 ClipKeyframe
+                if (clipDTO.clipKeyframes != null) {
+                    for (ClipKeyframeDTO ckfdto : clipDTO.clipKeyframes) {
+                        if (ckfdto == null) continue;
+                        TimelineInterpolation interp = TimelineInterpolation.LINEAR;
+                        if (ckfdto.interpolation != null) {
+                            try { interp = TimelineInterpolation.valueOf(ckfdto.interpolation); } catch (Exception ignored) {}
+                        }
+                        ClipKeyframe ckf = new ClipKeyframe(ckfdto.time, interp);
+                        clip.addKeyframe(ckf);
+                    }
+                }
+
+                // 恢复可见性关键帧
+                if (clipDTO.visibilityKeyframes != null) {
+                    for (VisibilityKeyframeDTO vdto : clipDTO.visibilityKeyframes) {
+                        if (vdto == null) continue;
+                        VisibilityKeyframe.VisibilityMode mode = VisibilityKeyframe.VisibilityMode.NORMAL;
+                        if (vdto.mode != null) {
+                            try { mode = VisibilityKeyframe.VisibilityMode.valueOf(vdto.mode); } catch (Exception ignored) {}
+                        }
+                        try {
+                            clip.addVisibilityKeyframe(new VisibilityKeyframe(vdto.time, vdto.alpha, mode));
+                        } catch (Exception ignored) {
+                            // 保持加载流程不中断
+                        }
+                    }
                 }
                 
                 track.addClip(clip);

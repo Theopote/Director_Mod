@@ -496,6 +496,20 @@ public class TimelinePanel extends AbstractPanel
     }
 
     /**
+     * 存档切换时调用：清空并加载“当前存档”的时间线数据（如无存档则保持空白）。
+     */
+    public void reloadForCurrentWorld() {
+        model.reloadForCurrentWorld();
+    }
+
+    /**
+     * 立即落盘一次（用于关闭 ChronoBlocks 界面前的兜底保存）。
+     */
+    public void saveNow() {
+        model.save();
+    }
+
+    /**
      * 渲染控制栏（优先给专职的组件）
      */
     private void renderControlBar() {

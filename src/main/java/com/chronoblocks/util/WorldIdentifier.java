@@ -164,19 +164,19 @@ public class WorldIdentifier {
      */
     public static boolean hasWorldChanged() {
         try {
-            String currentWorldId = getCurrentWorldId();
-            
-            // 如果是首次调用，还没有缓存
-            if (cachedWorldId == null) {
-                cachedWorldId = currentWorldId;
-                return false; // 首次检测不算切换
+            // 关键修复：getCurrentWorldId() 内部会更新 cachedWorldId，
+            // 如果直接用 cachedWorldId 比较，会导致“永远相等”，从而检测不到切档。
+            String previousWorldId = cachedWorldId;
+            String currentWorldId = getCurrentWorldId(); // 可能会更新 cachedWorldId
+
+            // 首次检测：不算切换
+            if (previousWorldId == null) {
+                return false;
             }
-            
-            // 比较当前世界ID和缓存的世界ID
-            boolean changed = !currentWorldId.equals(cachedWorldId);
-            if (changed && LOGGER.isDebugEnabled()) {
-                LOGGER.debug("[WorldIdentifier] 检测到存档切换: {} -> {}", 
-                    cachedWorldId, currentWorldId);
+
+            boolean changed = !currentWorldId.equals(previousWorldId);
+            if (changed) {
+                LOGGER.info("[WorldIdentifier] 检测到存档切换: {} -> {}", previousWorldId, currentWorldId);
             }
             return changed;
             

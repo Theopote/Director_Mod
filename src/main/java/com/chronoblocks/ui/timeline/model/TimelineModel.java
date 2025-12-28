@@ -138,9 +138,23 @@ public class TimelineModel {
     }
 
     /**
-     * 重置为全新的空时间线（用于新存档或“新建动画”）。
+     * ⭐ 按“当前存档”重新加载（用于存档切换时：新存档为空；老存档恢复上次工程）。
+     * <p>
+     * 注意：如果当前存档没有任何保存文件，本方法会清空内存并保持空工程，避免把上一个存档的数据带过来。
+     * </p>
      */
-    public void resetToEmpty() {
+    public void reloadForCurrentWorld() {
+        resetInMemoryToDefaults();
+        if (TimelineModelPersistence.hasSavedData()) {
+            TimelineModelPersistence.loadFromFile(this, viewportState);
+        }
+    }
+
+    /**
+     * 仅重置内存状态（不删除/写入任何持久化文件）。
+     * 用于“切换世界”这类场景：让 UI 从干净状态开始，然后再选择性加载该世界的存档。
+     */
+    private void resetInMemoryToDefaults() {
         playing = false;
         scrubbing = false;
         loopEnabled = false;
@@ -162,6 +176,18 @@ public class TimelineModel {
         snapSettings.setEnabled(true);
         snapSettings.setGridInterval(0.1f);
         snapSettings.setPixelThreshold(8f);
+
+        // 断开摄像机驱动（避免切档瞬间残留状态）
+        try {
+            TimelineCameraController.getInstance().onTimelineUiClosed();
+        } catch (Exception ignored) {}
+    }
+
+    /**
+     * 重置为全新的空时间线（用于新存档或“新建动画”）。
+     */
+    public void resetToEmpty() {
+        resetInMemoryToDefaults();
 
         // 删除旧存档，随后保存全新状态
         com.chronoblocks.ui.timeline.persistence.TimelineModelPersistence.resetForCurrentWorld();

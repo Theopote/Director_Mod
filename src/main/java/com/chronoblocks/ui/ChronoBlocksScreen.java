@@ -433,6 +433,26 @@ public class ChronoBlocksScreen extends Screen {
         } catch (Exception e) {
             LOGGER.warn("[ChronoBlocks] 保存布局配置失败: {}", e.getMessage(), e);
         }
+
+        // ⭐ 关闭前兜底保存：确保“关 UI / 关游戏”都能恢复到上次工作区
+        try {
+            com.chronoblocks.core.container.persistence.ContainerPersistence.saveForCurrentWorld(
+                com.chronoblocks.core.container.ContainerManager.getInstance()
+            );
+        } catch (Exception e) {
+            LOGGER.warn("[ChronoBlocks] 保存容器数据失败: {}", e.getMessage(), e);
+        }
+        try {
+            if (uiManager != null) {
+                com.chronoblocks.ui.panels.TimelinePanel timelinePanel =
+                    uiManager.getPanelRegistry().getPanel(com.chronoblocks.ui.panels.TimelinePanel.class);
+                if (timelinePanel != null) {
+                    timelinePanel.saveNow();
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.warn("[ChronoBlocks] 保存时间线数据失败: {}", e.getMessage(), e);
+        }
         
         if (uiManager != null) {
             try {
