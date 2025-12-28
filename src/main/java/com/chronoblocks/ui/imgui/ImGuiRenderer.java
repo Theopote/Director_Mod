@@ -5,9 +5,12 @@ import imgui.ImGuiIO;
 import imgui.flag.ImGuiConfigFlags;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.Window;
 import org.lwjgl.glfw.GLFW;
+import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL20;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -100,7 +103,11 @@ public class ImGuiRenderer {
             // 初始化 OpenGL3 实现
             LOGGER.debug("[ChronoBlocks] Initializing OpenGL3 implementation...");
             imGuiGl3 = new ImGuiImplGl3();
-            imGuiGl3.init("#version 410 core");  // 使用OpenGL 4.1核心配置，兼容新版本Minecraft
+            // 关键：Minecraft 1.21.x 使用 Core Profile，但实际 GLSL 版本取决于显卡/驱动。
+            // 如果这里写死过高的版本（例如 410），在只支持 150/330 的环境会直接导致 ImGui shader 编译失败 → 画面“什么都没有”。
+            String glsl = pickGlslVersionString();
+            LOGGER.info("[ChronoBlocks] Initializing ImGui GL3 backend with {}", glsl);
+            imGuiGl3.init(glsl);
 
             // 标记初始化完成
             initialized = true;
@@ -142,9 +149,6 @@ public class ImGuiRenderer {
                 // 检查并更新INI文件路径（如果世界已切换）
                 checkAndUpdateIniPath();
 
-                // 更新输入状态
-                updateInput();
-
                 imGuiGlfw.newFrame();
                 ImGui.newFrame();
                 
@@ -171,22 +175,10 @@ public class ImGuiRenderer {
                 GLFW.glfwGetCursorPos(windowHandle, mouseX, mouseY);
 
                 ImGuiIO io = ImGui.getIO();
-
-                // 获取窗口的缩放因子
-                float scaleX = (float)window.getScaleFactor();
-                float scaleY = (float)window.getScaleFactor();
-
-                // 计算正确的鼠标位置
-                float scaledMouseX = (float)mouseX[0] / scaleX;
-                float scaledMouseY = (float)mouseY[0] / scaleY;
-
-                // 更新鼠标位置
-                io.setMousePos(scaledMouseX, scaledMouseY);
-
-                // 更新鼠标按钮状态
-                io.setMouseDown(0, GLFW.glfwGetMouseButton(windowHandle, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS);
-                io.setMouseDown(1, GLFW.glfwGetMouseButton(windowHandle, GLFW.GLFW_MOUSE_BUTTON_RIGHT) == GLFW.GLFW_PRESS);
-                io.setMouseDown(2, GLFW.glfwGetMouseButton(windowHandle, GLFW.GLFW_MOUSE_BUTTON_MIDDLE) == GLFW.GLFW_PRESS);
+                // 注意：在 1.21.x 中尽量不要“手动覆盖” ImGuiImplGlfw 已维护的输入状态，
+                // 以免出现坐标/缩放不一致导致 UI 被裁剪或绘制到屏幕外。
+                // 这个方法保留但不再主动调用（见 beginFrame）。
+                io.setMousePos((float) mouseX[0], (float) mouseY[0]);
             }
         } catch (Exception e) {
             LOGGER.error("[ChronoBlocks] Failed to update input", e);
@@ -209,6 +201,9 @@ public class ImGuiRenderer {
                 // 合并模式：不需要弹出字体
                 
                 ImGui.render();
+                RenderSystem.assertOnRenderThread();
+                // 1.21.x：Minecraft 的 RenderType 绘制会使用内部 scissor；若遗留 scissor 状态可能导致 ImGui 全部被裁掉
+                RenderSystem.disableScissorForRenderTypeDraws();
                 imGuiGl3.renderDrawData(ImGui.getDrawData());
                 
                 LOGGER.debug("[ChronoBlocks] ImGui frame ended successfully");
@@ -294,12 +289,17 @@ public class ImGuiRenderer {
                 LOGGER.info("[ChronoBlocks] ImGui GLFW callbacks reinstalled");
             }
 
-            // 更新显示尺寸
-            int scaledWidth = window.getScaledWidth();
-            int scaledHeight = window.getScaledHeight();
-            ImGui.getIO().setDisplaySize(scaledWidth, scaledHeight);
+            // 1.21.x：不要使用 getScaledWidth/Height（GUI 缩放），那会导致 ImGui DisplaySize 与 framebuffer 不一致，
+            // 进而出现“绘制了但全在屏幕外/被裁剪”的典型现象。
+            int winW = Math.max(1, window.getWidth());
+            int winH = Math.max(1, window.getHeight());
+            int fbW = Math.max(1, window.getFramebufferWidth());
+            int fbH = Math.max(1, window.getFramebufferHeight());
+            ImGuiIO io = ImGui.getIO();
+            io.setDisplaySize(winW, winH);
+            io.setDisplayFramebufferScale((float) fbW / winW, (float) fbH / winH);
 
-            LOGGER.debug("[ChronoBlocks] Updated display size: {}x{}", scaledWidth, scaledHeight);
+            LOGGER.debug("[ChronoBlocks] Updated display size win={}x{} fb={}x{}", winW, winH, fbW, fbH);
         } catch (Exception e) {
             LOGGER.error("[ChronoBlocks] Failed to update display size", e);
         }
@@ -345,5 +345,45 @@ public class ImGuiRenderer {
         } catch (Exception e) {
             LOGGER.warn("[ChronoBlocks] 检查世界切换失败: {}", e.getMessage());
         }
+    }
+
+    /**
+     * 根据当前 OpenGL/GLSL 能力选择 ImGui GL3 backend 的 shader version 字符串。
+     * 这是解决“升级后 UI 不显示”的高频原因：shader 版本写死过高/过低导致编译失败。
+     */
+    private static String pickGlslVersionString() {
+        try {
+            String glVersion = GL11.glGetString(GL11.GL_VERSION);
+            String slVersion = GL11.glGetString(GL20.GL_SHADING_LANGUAGE_VERSION);
+            LOGGER.info("[ChronoBlocks] OpenGL={}, GLSL={}", glVersion, slVersion);
+
+            // 粗略提取 GLSL 主版本（如 "4.60" / "3.30" / "1.50"）
+            int major = 0;
+            int minor = 0;
+            if (slVersion != null) {
+                String[] parts = slVersion.trim().split("[^0-9.]+")[0].split("\\.");
+                if (parts.length >= 1) major = Integer.parseInt(parts[0]);
+                if (parts.length >= 2) minor = Integer.parseInt(parts[1]);
+            }
+
+            // GLSL 1.50 ~ OpenGL 3.2 core（Minecraft 常见下限）
+            if (major <= 1) {
+                return "#version 150";
+            }
+            // 3.30+ 更常见（现代驱动）
+            if (major == 3) {
+                return "#version 330 core";
+            }
+            // 4.x
+            if (major >= 4) {
+                // 4.10+ 用 410，否则用 330 core
+                if (major > 4 || minor >= 10) return "#version 410 core";
+                return "#version 330 core";
+            }
+        } catch (Throwable t) {
+            // ignore
+        }
+        // 最保守 fallback
+        return "#version 150";
     }
 }
