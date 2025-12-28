@@ -44,6 +44,13 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
     private static boolean SHOW_TOOL_TEXT = false;
 
     /**
+     * 工具分组“图标列”的固定宽度。
+     *
+     * <p>用于解决窄窗口时不同组图标字符宽度不一致导致的缩进对齐问题。</p>
+     */
+    private static final float GROUP_ICON_COLUMN_WIDTH = UITheme.Spacing.BUTTON_HEIGHT; // 24px：与按钮高度一致，视觉统一
+
+    /**
      * 构造函数 - 初始化选择管理器
      */
     public ToolbarPanel() {
@@ -86,42 +93,15 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
         ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, UITheme.Spacing.ELEMENT_SPACING, UITheme.Spacing.ELEMENT_SPACING);
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, UITheme.Spacing.BUTTON_PADDING_X, UITheme.Spacing.BUTTON_PADDING_Y);
 
-        // 获取可用宽度，用于自动换行判断
-        float availWidth = ImGui.getContentRegionAvailX();
-        float spacing = UITheme.Spacing.ELEMENT_SPACING;
-
-        // 定义一个用于检查是否需要换行的lambda函数
-        java.util.function.Consumer<Float> checkWrap = (Float nextWidth) -> {
-            float xNext = ImGui.getCursorPosX() + nextWidth + spacing;
-            if (xNext > availWidth) {
-                ImGui.newLine();
-            } else {
-                ImGui.sameLine();
-            }
-        };
-
-        // 工具按钮组
+        // 工具按钮组（组级换行优先，组内再换行）
         renderSelectionToolButtons();
-        checkWrap.accept(180f);
-        UITheme.separator();
 
-        // 面板切换按钮组
-        checkWrap.accept(60f);
-        renderPanelToggleButton(Icons.SETTINGS, "属性", ToolPropertiesPanel.class, "打开工具属性面板", ToolPropertiesPanel.PANEL_NAME);
-        checkWrap.accept(60f);
-        renderPanelToggleButton(Icons.HELP, "帮助", HelpPanel.class, "打开帮助面板", HelpPanel.PANEL_NAME);
-        checkWrap.accept(60f);
-        renderPanelToggleButton(Icons.FILTER, "过滤", SelectionFilterPanel.class, "打开选择过滤器面板", SelectionFilterPanel.PANEL_NAME);
-        checkWrap.accept(60f);
-        renderPanelToggleButton(Icons.UNDO, "历史", SelectionHistoryPanel.class, "打开选择历史面板", SelectionHistoryPanel.PANEL_NAME);
-        checkWrap.accept(60f);
-        UITheme.separator();
+        // 4 个区块：工具区 / 面板快捷区 / 状态区 / 关闭区
+        boolean firstSection = false; // 工具区已渲染
 
-        // 状态与关闭
-        checkWrap.accept(120f);
-        renderStatusIndicators();
-        checkWrap.accept(100f);
-        renderCloseButton();
+        firstSection = renderPanelShortcutsSection(firstSection);
+        firstSection = renderStatusSection(firstSection);
+        renderCloseSection(firstSection);
 
         // 移除集成的面板渲染，现在使用独立面板
         // 这些面板现在通过Window菜单的Toggle Panels来管理
@@ -133,69 +113,159 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
         ImGui.popStyleVar(2);
     }
 
-    /* ---------- 选择工具按钮 ---------- */
-    private void renderSelectionToolButtons() {
-        renderToolGroup(ToolGroup.SELECTION, Icons.TOOLS);
+    /**
+     * 面板快捷按钮区块（属性/帮助/过滤/历史）
+     *
+     * <p>规则：先区块换行，再区块内按钮换行。</p>
+     */
+    private boolean renderPanelShortcutsSection(boolean firstSection) {
+        // 区块总宽估算（用于决定“区块整体是否换行”）
+        float totalW = estimatePanelShortcutsTotalWidth();
+        beginSection(firstSection, totalW);
 
-        // 预留：未来工具系统扩展（World/Timeline）
-        List<EditorTool> worldTools = toolRegistry.getToolsByGroup(ToolGroup.WORLD);
-        if (!worldTools.isEmpty()) {
-            ImGui.sameLine();
-            UITheme.separator();
-            ImGui.sameLine();
-            renderToolGroup(ToolGroup.WORLD, Icons.CONTAINER);
-        }
+        renderPanelToggleButtonWrapped(Icons.SETTINGS, "属性", ToolPropertiesPanel.class, "打开工具属性面板", ToolPropertiesPanel.PANEL_NAME);
+        renderPanelToggleButtonWrapped(Icons.HELP, "帮助", HelpPanel.class, "打开帮助面板", HelpPanel.PANEL_NAME);
+        renderPanelToggleButtonWrapped(Icons.FILTER, "过滤", SelectionFilterPanel.class, "打开选择过滤器面板", SelectionFilterPanel.PANEL_NAME);
+        renderPanelToggleButtonWrapped(Icons.UNDO, "历史", SelectionHistoryPanel.class, "打开选择历史面板", SelectionHistoryPanel.PANEL_NAME);
 
-        List<EditorTool> timelineTools = toolRegistry.getToolsByGroup(ToolGroup.TIMELINE);
-        if (!timelineTools.isEmpty()) {
-            ImGui.sameLine();
-            UITheme.separator();
-            ImGui.sameLine();
-            renderToolGroup(ToolGroup.TIMELINE, Icons.TIMELINE);
-        }
-
-        // 工具栏显示选项：图标/文字切换（放在工具组末尾，且保持紧凑）
-        ImGui.sameLine();
-        UITheme.separator();
-        ImGui.sameLine();
-        renderToolTextToggleButton();
+        return false;
     }
 
-    private void renderToolGroup(ToolGroup group, String groupIcon) {
-        // 分组图标（不调用sameLine，由外部管理换行）
-        UITheme.label(groupIcon, UITheme.DarkTheme.TEXT_SELECTED);
+    private boolean renderStatusSection(boolean firstSection) {
+        // status 是纯文本，宽度难精确；用一个保守估计即可
+        float minW = ImGui.calcTextSize("FPS: 999").x + ImGui.getStyle().getFramePadding().x * 2.0f;
+        beginSection(firstSection, minW);
+        renderStatusIndicators();
+        return false;
+    }
 
-        for (EditorTool tool : toolRegistry.getToolsByGroup(group)) {
+    private void renderCloseSection(boolean firstSection) {
+        float closeW = estimateButtonWidth("关闭");
+        beginSection(firstSection, closeW);
+        renderCloseButton();
+    }
+
+    /**
+     * 区块级换行优先：如果当前行剩余宽度不够，则整块换行；否则同一行继续。
+     */
+    private void beginSection(boolean firstSection, float minSectionWidth) {
+        if (firstSection) {
+            return;
+        }
+        // 留一点间距，避免紧贴
+        float required = minSectionWidth + UITheme.Spacing.ELEMENT_SPACING;
+        if (required > ImGui.getContentRegionAvailX()) {
+            ImGui.newLine();
+        } else {
             ImGui.sameLine();
+        }
+    }
 
-            boolean active = tool != null && tool.isActive();
-            boolean enabled = tool != null && tool.isEnabled();
+    private float estimatePanelShortcutsTotalWidth() {
+        // 估算四个按钮在同一行时的总宽（用来决定是否整块换行）
+        float spacing = UITheme.Spacing.ELEMENT_SPACING;
+        float w1 = estimatePanelButtonWidth(Icons.SETTINGS, "属性");
+        float w2 = estimatePanelButtonWidth(Icons.HELP, "帮助");
+        float w3 = estimatePanelButtonWidth(Icons.FILTER, "过滤");
+        float w4 = estimatePanelButtonWidth(Icons.UNDO, "历史");
+        return w1 + w2 + w3 + w4 + spacing * 3;
+    }
+
+    private float estimatePanelButtonWidth(String icon, String label) {
+        return estimateButtonWidth(icon + " " + label);
+    }
+
+    private float estimateButtonWidth(String visibleText) {
+        float textW = ImGui.calcTextSize(visibleText).x;
+        float paddingX = ImGui.getStyle().getFramePadding().x * 2.0f;
+        return textW + paddingX;
+    }
+
+    /**
+     * 面板按钮：区块内换行版本。
+     */
+    private void renderPanelToggleButtonWrapped(String icon, String label, Class<? extends IPanel> panelClass,
+                                                String tooltip, String... fallbackPanelNames) {
+        float btnW = estimatePanelButtonWidth(icon, label);
+        if (btnW + UITheme.Spacing.ELEMENT_SPACING > ImGui.getContentRegionAvailX()) {
+            ImGui.newLine();
+        } else {
+            ImGui.sameLine();
+        }
+        renderPanelToggleButton(icon, label, panelClass, tooltip, fallbackPanelNames);
+    }
+
+    /* ---------- 选择工具按钮 ---------- */
+    private void renderSelectionToolButtons() {
+        // 组级换行优先：先决定“下一组是否换行”，再进入组内渲染并对工具按钮进行换行
+        boolean firstGroup = true;
+
+        firstGroup = renderToolGroupWrapped(ToolGroup.SELECTION, Icons.TOOLS, firstGroup);
+        firstGroup = renderToolGroupWrapped(ToolGroup.WORLD, Icons.CONTAINER, firstGroup);
+        firstGroup = renderToolGroupWrapped(ToolGroup.TIMELINE, Icons.TIMELINE, firstGroup);
+
+        // “图标/文字切换”也视为一个小组：窄时允许它整体换行
+        renderToolTextToggleWrapped(firstGroup);
+    }
+
+    /**
+     * 组级换行优先：
+     * - 先决定“下一组是否整体换行”
+     * - 进入组内后，再对工具按钮做自动换行（换行时保持按钮对齐，不把下一组挤进来）
+     *
+     * @return false 表示已经渲染过至少一个组；true 表示仍然是第一个组（通常只会发生在 group 为空时）
+     */
+    private boolean renderToolGroupWrapped(ToolGroup group, String groupIcon, boolean firstGroup) {
+        List<EditorTool> tools = toolRegistry.getToolsByGroup(group);
+        if (tools.isEmpty()) {
+            return firstGroup;
+        }
+
+        float minGroupWidth = estimateMinGroupWidth(groupIcon, tools.getFirst());
+        if (!firstGroup) {
+            if (minGroupWidth > ImGui.getContentRegionAvailX()) {
+                ImGui.newLine();
+            } else {
+                ImGui.sameLine();
+            }
+        }
+
+        // 组图标（只绘制一次），并使用“固定图标列宽”保证所有组按钮起始 X 一致
+        float groupStartX = ImGui.getCursorPosX();
+        UITheme.label(groupIcon, UITheme.DarkTheme.TEXT_SELECTED);
+        ImGui.sameLine();
+        ImGui.setCursorPosX(groupStartX + GROUP_ICON_COLUMN_WIDTH);
+        float buttonsStartX = ImGui.getCursorPosX();
+
+        for (int i = 0; i < tools.size(); i++) {
+            EditorTool tool = tools.get(i);
+            if (tool == null) continue;
+
+            float buttonW = getToolButtonWidth(tool);
+
+            // 组内换行：如果当前行容不下按钮，则换行并把 X 对齐到 buttonsStartX
+            if (buttonW > ImGui.getContentRegionAvailX()) {
+                ImGui.newLine();
+                ImGui.setCursorPosX(buttonsStartX);
+            }
+
+            boolean active = tool.isActive();
+            boolean enabled = tool.isEnabled();
 
             if (active) {
                 float[] highlightColor = UITheme.toFloatArrayPublic(UITheme.DarkTheme.TAB_ACTIVE);
                 ImGui.pushStyleColor(ImGuiCol.Button, highlightColor[0], highlightColor[1], highlightColor[2], highlightColor[3]);
             }
-
             if (!enabled) {
                 ImGui.pushStyleVar(ImGuiStyleVar.Alpha, 0.45f);
             }
 
-            String toolId = tool != null ? tool.getId() : "null";
-            String icon = tool != null ? tool.getIcon() : groupIcon;
-            String buttonLabel = null;
-            if (tool != null) {
-                buttonLabel = SHOW_TOOL_TEXT
-                        ? (icon + " " + tool.getDisplayName())
-                        : icon;
-            }
-            String buttonId = "ToolbarPanel_tool_" + toolId;
-
-            float buttonW = SHOW_TOOL_TEXT ? 0 : UITheme.Spacing.BUTTON_HEIGHT; // 图标模式：方形按钮
-            if (ImGui.button(buttonLabel + "##" + buttonId, buttonW, UITheme.Spacing.BUTTON_HEIGHT)) {
+            String label = getToolButtonLabel(tool);
+            String buttonId = "ToolbarPanel_tool_" + tool.getId();
+            float drawW = SHOW_TOOL_TEXT ? 0 : UITheme.Spacing.BUTTON_HEIGHT;
+            if (ImGui.button(label + "##" + buttonId, drawW, UITheme.Spacing.BUTTON_HEIGHT)) {
                 if (enabled) {
-                    logger.info("[ToolbarPanel] 工具按钮点击: {} (ID: {})",
-                            tool.getDisplayName(),
-                            toolId);
+                    logger.info("[ToolbarPanel] 工具按钮点击: {} (ID: {})", tool.getDisplayName(), tool.getId());
                     toolRegistry.activate(tool);
                 }
             }
@@ -203,15 +273,62 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
             if (!enabled) {
                 ImGui.popStyleVar();
             }
-
             if (active) {
                 ImGui.popStyleColor();
             }
-
             if (ImGui.isItemHovered()) {
                 renderToolTooltip(tool);
             }
+
+            // 下一个按钮：能放下才 sameLine，否则让下次循环触发 newLine+对齐
+            if (i < tools.size() - 1) {
+                float nextW = getToolButtonWidth(tools.get(i + 1));
+                if (nextW <= ImGui.getContentRegionAvailX()) {
+                    ImGui.sameLine();
+                }
+            }
         }
+
+        return false;
+    }
+
+    private void renderToolTextToggleWrapped(boolean firstGroup) {
+        float toggleW = UITheme.Spacing.BUTTON_HEIGHT;
+        float minW = toggleW + UITheme.Spacing.ELEMENT_SPACING;
+
+        if (!firstGroup) {
+            if (minW > ImGui.getContentRegionAvailX()) {
+                ImGui.newLine();
+            } else {
+                ImGui.sameLine();
+            }
+        }
+
+        renderToolTextToggleButton();
+    }
+
+    private float estimateMinGroupWidth(String groupIcon, EditorTool firstTool) {
+        // 使用固定图标列宽（不要用 calcTextSize，否则不同图标宽度会导致对齐漂移）
+        float iconW = GROUP_ICON_COLUMN_WIDTH;
+        float minBtnW = firstTool != null ? getToolButtonWidth(firstTool) : UITheme.Spacing.BUTTON_HEIGHT;
+        return iconW + UITheme.Spacing.ELEMENT_SPACING + minBtnW;
+    }
+
+    private float getToolButtonWidth(EditorTool tool) {
+        if (tool == null) return UITheme.Spacing.BUTTON_HEIGHT;
+        if (!SHOW_TOOL_TEXT) {
+            return UITheme.Spacing.BUTTON_HEIGHT;
+        }
+        String label = getToolButtonLabel(tool);
+        float textW = ImGui.calcTextSize(label).x;
+        float paddingX = ImGui.getStyle().getFramePadding().x * 2.0f;
+        return textW + paddingX;
+    }
+
+    private String getToolButtonLabel(EditorTool tool) {
+        if (tool == null) return Icons.TOOLS;
+        String icon = tool.getIcon();
+        return SHOW_TOOL_TEXT ? (icon + " " + tool.getDisplayName()) : icon;
     }
 
     private void renderToolTextToggleButton() {
