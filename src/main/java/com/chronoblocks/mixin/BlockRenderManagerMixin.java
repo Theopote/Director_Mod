@@ -6,18 +6,19 @@ import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.block.BlockRenderManager;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.random.Random;
 import net.minecraft.world.BlockRenderView;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.List;
+
 /**
  * 🔥 BlockRenderManagerMixin - 拦截世界方块渲染，隐藏被标记为 suppressWorldRendering 的方块
  * <p>
- * 适配 Minecraft 1.21.4:
- *  - 目标方法签名为 void renderBlock(...)
+ * 适配 Minecraft 1.21.10:
+ *  - 目标方法签名为 void renderBlock(..., List<BlockModelPart> parts)
  *  - 因此这里必须使用 CallbackInfo 而不是 CallbackInfoReturnable
  *  - 参数列表必须完全匹配目标方法（除了最后的 CallbackInfo）
  */
@@ -27,7 +28,7 @@ public class BlockRenderManagerMixin {
     /**
      * 拦截区块构建阶段的方块渲染调用。
      * <p>
-     * 方法签名（1.21.4 Yarn）：
+     * 方法签名（1.21.10 Yarn）：
      * <p>
      *   void renderBlock(
      *       BlockState state,
@@ -36,7 +37,7 @@ public class BlockRenderManagerMixin {
      *       MatrixStack matrices,
      *       VertexConsumer vertexConsumer,
      *       boolean cull,
-     *       Random random
+     *       List<BlockModelPart> parts
      *   )
      */
     @Inject(
@@ -46,7 +47,7 @@ public class BlockRenderManagerMixin {
                  "Lnet/minecraft/client/util/math/MatrixStack;" +
                  "Lnet/minecraft/client/render/VertexConsumer;" +
                  "Z" +
-                 "Lnet/minecraft/util/math/random/Random;)V",
+                 "Ljava/util/List;)V",
         at = @At("HEAD"),
         cancellable = true
     )
@@ -57,7 +58,7 @@ public class BlockRenderManagerMixin {
             MatrixStack matrices,
             VertexConsumer vertexConsumer,
             boolean cull,
-            Random random,
+            List<?> parts,
             CallbackInfo ci
     ) {
         BlockVisualStateManager visualStateManager = BlockVisualStateManager.getInstance();

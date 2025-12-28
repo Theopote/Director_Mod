@@ -50,32 +50,6 @@ public class HotbarMixin {
     }
 
     /**
-     * 🚫 拦截经验条渲染
-     * 在ChronoBlocks模式下隐藏经验条
-     * 基于Minecraft 1.21.x源码：renderExperienceBar(DrawContext context, int x)
-     */
-    @Inject(method = "renderExperienceBar", at = @At("HEAD"), cancellable = true)
-    private void onRenderExperienceBar(DrawContext context, int x, CallbackInfo ci) {
-        ChronoBlocksClientController controller = ChronoBlocksClientController.getInstance();
-        if (controller != null && controller.shouldHideCrosshair()) {
-            ci.cancel(); // 🚫 不渲染经验条
-        }
-    }
-
-    /**
-     * 🚫 拦截经验等级渲染
-     * 在ChronoBlocks模式下隐藏经验等级显示
-     * 基于Minecraft 1.21.x源码：renderExperienceLevel(DrawContext context, RenderTickCounter tickCounter)
-     */
-    @Inject(method = "renderExperienceLevel", at = @At("HEAD"), cancellable = true)
-    private void onRenderExperienceLevel(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
-        ChronoBlocksClientController controller = ChronoBlocksClientController.getInstance();
-        if (controller != null && controller.shouldHideCrosshair()) {
-            ci.cancel(); // 🚫 不渲染经验等级
-        }
-    }
-
-    /**
      * 🚫 拦截聊天消息渲染
      * 在ChronoBlocks模式下可选择隐藏聊天消息
      * 基于Minecraft 1.21.x源码：renderChat(DrawContext context, RenderTickCounter tickCounter)
