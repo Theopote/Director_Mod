@@ -280,9 +280,12 @@ public class SelectionManager {
             
             // 执行工具拖拽开始逻辑
             currentTool.onDragStart(world, start);
-            
-            // 开始工具预览
-            com.chronoblocks.client.renderer.ToolPreviewManager.getInstance().startDragPreview(start);
+
+            // 开始工具预览（框选工具自己负责 setPreviewBox 实时预览，避免双重预览与 O(n^3) 预览计算）
+            String toolId = currentTool.getId();
+            if (!"box".equalsIgnoreCase(toolId) && !"box_v3".equalsIgnoreCase(toolId)) {
+                com.chronoblocks.client.renderer.ToolPreviewManager.getInstance().startDragPreview(start);
+            }
         }
     }
 
@@ -296,9 +299,12 @@ public class SelectionManager {
             
             // 执行工具拖拽更新逻辑
             currentTool.onDragUpdate(world, current);
-            
-            // 更新工具预览
-            com.chronoblocks.client.renderer.ToolPreviewManager.getInstance().updateDragPreview(current);
+
+            // 更新工具预览（框选工具自己负责 setPreviewBox 实时预览）
+            String toolId = currentTool.getId();
+            if (!"box".equalsIgnoreCase(toolId) && !"box_v3".equalsIgnoreCase(toolId)) {
+                com.chronoblocks.client.renderer.ToolPreviewManager.getInstance().updateDragPreview(current);
+            }
         }
     }
 
@@ -312,9 +318,12 @@ public class SelectionManager {
             
             // 执行工具拖拽结束逻辑
             currentTool.onDragEnd(world, end);
-            
-            // 结束工具预览
-            com.chronoblocks.client.renderer.ToolPreviewManager.getInstance().endDragPreview();
+
+            // 结束工具预览（框选工具自己负责 clearPreview）
+            String toolId = currentTool.getId();
+            if (!"box".equalsIgnoreCase(toolId) && !"box_v3".equalsIgnoreCase(toolId)) {
+                com.chronoblocks.client.renderer.ToolPreviewManager.getInstance().endDragPreview();
+            }
             
             // 🚀 v2.0: 使网格缓存失效（拖拽结束通常意味着选区改变）
             invalidateRendererCache();

@@ -245,22 +245,9 @@ public class ToolPreviewManager {
             switch (toolId) {
                 case "box":
                 case "box_v3": {
-                    // 框选预览
-                    Box border = new Box(
-                        Math.min(dragStartPos.getX(), dragCurrentPos.getX()),
-                        Math.min(dragStartPos.getY(), dragCurrentPos.getY()),
-                        Math.min(dragStartPos.getZ(), dragCurrentPos.getZ()),
-                        Math.max(dragStartPos.getX(), dragCurrentPos.getX()) + 1,
-                        Math.max(dragStartPos.getY(), dragCurrentPos.getY()) + 1,
-                        Math.max(dragStartPos.getZ(), dragCurrentPos.getZ()) + 1
-                    );
-                    for (double x = border.minX; x <= border.maxX; x++) {
-                        for (double y = border.minY; y <= border.maxY; y++) {
-                            for (double z = border.minZ; z <= border.maxZ; z++) {
-                                previewBlocks.add(new BlockPos((int)x, (int)y, (int)z));
-                            }
-                        }
-                    }
+                    // 框选工具的实时预览由 BoxSelectTool 通过 setPreviewBox() 管理，避免这里 O(n^3) 扫描体积方块
+                    // （SelectionManager 已对 box/box_v3 跳过 start/update/endDragPreview 调用）
+                    previewBlocks.clear();
                     break;
                 }
                 case "sphere": {

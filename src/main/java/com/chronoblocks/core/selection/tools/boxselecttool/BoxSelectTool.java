@@ -14,6 +14,8 @@ import com.chronoblocks.core.selection.tools.FaceHandleManager;
 import com.chronoblocks.core.selection.tools.SelectionPhase;
 import com.chronoblocks.core.util.SnapUtil;
 import com.chronoblocks.ui.cursor.ImGuiCursorController;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
@@ -61,6 +63,7 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
     private boolean isDragging = false;
 
     // ====================== Gizmo 编辑状态 ======================
+    @SuppressWarnings("unused")
     private boolean gizmoActive = false;
     
     // ====================== 面中心小方块管理器 ======================
@@ -137,7 +140,7 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
         clearPreview(); // 清除之前的预览
         
         // 显示第一角点的预览（单个方块）
-        Box previewBox = makeInclusiveBlockBox(firstCorner, firstCorner);
+        Box previewBox = makeInclusiveBlockBox(firstCorner, firstCorner).expand(0.01);
         ToolPreviewManager.get().setPreviewBox(previewBox);
         
         LOGGER.info("[BoxSelectTool] ✅ 第一角点已设置: {} (现在右键点击第二角点完成选择)", firstCorner);
@@ -206,7 +209,7 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
         phase = SelectionPhase.DRAGGING;
         
         // 预览：单层最小高度=1方块
-        Box preview = makeDragBoxWithMinHeight(dragStart, dragCurrent);
+        Box preview = makeDragBoxWithMinHeight(dragStart, dragCurrent).expand(0.01);
         ToolPreviewManager.get().setPreviewBox(preview);
         
         LOGGER.info("[BoxSelectTool] ✅ 拖拽开始: {} (拖拽模式)", start);
@@ -228,7 +231,7 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
         
         if (phase == SelectionPhase.DRAGGING && dragStart != null) {
             dragCurrent = current.toImmutable();
-            Box preview = makeDragBoxWithMinHeight(dragStart, dragCurrent);
+            Box preview = makeDragBoxWithMinHeight(dragStart, dragCurrent).expand(0.01);
             ToolPreviewManager.get().setPreviewBox(preview);
         }
         
@@ -277,6 +280,16 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
     @Override
     public void tick(World world) {
         // 实时预览渲染由 ToolPreviewManager 管理
+
+        // ✅ 两点式建盒：实时预览（参考 formacraft 的做法：选点后持续更新 end）
+        // 当第一角点已设置且还未右键确认时，使用当前鼠标指向的方块作为临时第二角点更新预览框。
+        if (phase == SelectionPhase.FIRST_POINT_SET && firstCorner != null && !faceHandleManager.isDragging()) {
+            BlockPos hovered = getHoveredBlockPos();
+            if (hovered != null) {
+                Box preview = makeDragBoxWithMinHeight(firstCorner, hovered).expand(0.01);
+                ToolPreviewManager.get().setPreviewBox(preview);
+            }
+        }
         
         // 获取鼠标射线（面手柄和 Gizmo 都需要）
         Vec3d[] ray = getMouseRay();
@@ -438,6 +451,21 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
 
         Axis axis = FaceHandleManager.getFaceAxis(targetFace);
         cursor.setCursorByAxis(axis);
+    }
+
+    private BlockPos getHoveredBlockPos() {
+        try {
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client == null || client.crosshairTarget == null) {
+                return null;
+            }
+            if (client.crosshairTarget instanceof BlockHitResult hit) {
+                return hit.getBlockPos();
+            }
+            return null;
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     @Override
