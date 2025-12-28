@@ -57,11 +57,6 @@ public final class VideoRenderPipeline {
 
     private final ConcurrentLinkedQueue<CaptureRequest> queue = new ConcurrentLinkedQueue<>();
 
-    // v1：复用一个离屏 framebuffer，把主 framebuffer 的内容缩放/拷贝到导出分辨率后再截图
-    private Framebuffer exportFramebuffer;
-    private int exportW = -1;
-    private int exportH = -1;
-
     private VideoRenderPipeline() {}
 
     /**
@@ -202,33 +197,28 @@ public final class VideoRenderPipeline {
         }
 
         // 关键：主 framebuffer 尺寸取决于窗口（你的日志里就是 1920x1017），不一定等于导出目标尺寸（1920x1080）。
-        // 因此先把主 framebuffer 的颜色附件 drawBlit 到一个“导出分辨率”的离屏 framebuffer，再对离屏 framebuffer 截图。
+        // “严格不拉伸”要求：不能用 GPU 直接缩放铺满（会改变宽高比）。
+        // 这里改为：先截图主 framebuffer，再在 CPU 侧做 letterbox/pillarbox（保持比例 + 黑边），保证最终帧严格为目标尺寸。
         int targetW = Math.max(1, req.settings.width);
         int targetH = Math.max(1, req.settings.height);
-        if (INSTANCE.exportFramebuffer == null || INSTANCE.exportW != targetW || INSTANCE.exportH != targetH) {
-            if (INSTANCE.exportFramebuffer != null) {
+
+        java.util.function.Consumer<NativeImage> consumer = (NativeImage img) -> {
+            try {
+                NativeImage out = img;
+                if (img.getWidth() != targetW || img.getHeight() != targetH) {
+                    out = letterboxToTarget(img, targetW, targetH);
+                    img.close();
+                }
+                req.future.complete(out);
+            } catch (Throwable t) {
                 try {
-                    INSTANCE.exportFramebuffer.delete();
-                } catch (Exception ignore) {
+                    img.close();
+                } catch (Throwable ignore) {
                     // ignore
                 }
+                req.future.completeExceptionally(t);
             }
-            // 注意：部分 IDE/索引可能解析不到 SimpleFramebuffer 构造器签名；这里用反射创建，避免“IDE 报错但运行正常”。
-            INSTANCE.exportFramebuffer = newExportFramebuffer(targetW, targetH);
-            INSTANCE.exportW = targetW;
-            INSTANCE.exportH = targetH;
-            LOGGER.info("[VideoExport] Created export framebuffer {}x{} (main framebuffer {}x{})",
-                    targetW, targetH, main.textureWidth, main.textureHeight);
-        }
-
-        // 将主 framebuffer 的颜色贴图按导出分辨率绘制到离屏 framebuffer（会发生缩放）
-        // 同理：getColorAttachmentView / drawBlit 在某些索引下不可见，统一用反射调用。
-        Object colorView = invokeNoThrow(main, "getColorAttachmentView");
-        if (colorView == null) {
-            throw new IllegalStateException("main.getColorAttachmentView() returned null");
-        }
-        invokeBlit(INSTANCE.exportFramebuffer, colorView);
-        Framebuffer toCapture = INSTANCE.exportFramebuffer;
+        };
 
         // 1.21.10+：ScreenshotRecorder 为异步回调形式。
         // 这里使用“以 Framebuffer.class 作为参数类型”的反射调用：
@@ -236,45 +226,51 @@ public final class VideoRenderPipeline {
         // - 同时避免 IDE/索引把 overload 解析错导致的编译器/检查器误报
         try {
             var m = ScreenshotRecorder.class.getMethod("takeScreenshot", Framebuffer.class, java.util.function.Consumer.class);
-            m.invoke(null, toCapture, (java.util.function.Consumer<NativeImage>) req.future::complete);
+            m.invoke(null, main, consumer);
         } catch (ReflectiveOperationException e) {
             // fallback overload: takeScreenshot(Framebuffer, int, Consumer)
             try {
                 var m = ScreenshotRecorder.class.getMethod("takeScreenshot", Framebuffer.class, int.class, java.util.function.Consumer.class);
-                m.invoke(null, toCapture, 0, (java.util.function.Consumer<NativeImage>) req.future::complete);
+                m.invoke(null, main, 0, consumer);
             } catch (ReflectiveOperationException e2) {
                 throw new IllegalStateException("ScreenshotRecorder.takeScreenshot overload not found", e);
             }
         }
     }
 
-    private static Framebuffer newExportFramebuffer(int w, int h) {
-        try {
-            Class<?> clazz = Class.forName("net.minecraft.client.gl.SimpleFramebuffer");
-            var ctor = clazz.getConstructor(String.class, int.class, int.class, boolean.class);
-            return (Framebuffer) ctor.newInstance("video_export", w, h, true);
-        } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("Failed to create SimpleFramebuffer via reflection", e);
-        }
-    }
+    /**
+     * “严格不拉伸”缩放策略：保持源画面宽高比，居中绘制到目标尺寸，多余区域填充黑边。
+     * 采样方式：最近邻（更快，离线导出可接受）。
+     */
+    private static NativeImage letterboxToTarget(NativeImage src, int targetW, int targetH) {
+        int srcW = src.getWidth();
+        int srcH = src.getHeight();
+        NativeImage dst = new NativeImage(targetW, targetH, true);
+        dst.fillRect(0, 0, targetW, targetH, 0xFF000000);
 
-    private static Object invokeNoThrow(Object target, String method) {
-        try {
-            var m = target.getClass().getMethod(method);
-            return m.invoke(target);
-        } catch (ReflectiveOperationException e) {
-            return null;
+        if (srcW <= 0 || srcH <= 0) {
+            return dst;
         }
-    }
 
-    private static void invokeBlit(Framebuffer dst, Object gpuTextureView) {
-        try {
-            Class<?> viewClass = Class.forName("com.mojang.blaze3d.textures.GpuTextureView");
-            var m = Framebuffer.class.getMethod("drawBlit", viewClass);
-            m.invoke(dst, gpuTextureView);
-        } catch (ReflectiveOperationException e) {
-            throw new IllegalStateException("Failed to blit main framebuffer into export framebuffer", e);
+        float scale = Math.min(targetW / (float) srcW, targetH / (float) srcH);
+        int drawW = Math.max(1, Math.round(srcW * scale));
+        int drawH = Math.max(1, Math.round(srcH * scale));
+        int offX = (targetW - drawW) / 2;
+        int offY = (targetH - drawH) / 2;
+
+        for (int y = 0; y < drawH; y++) {
+            int sy = Math.min(srcH - 1, (int) (y / scale));
+            int dy = offY + y;
+            if (dy < 0 || dy >= targetH) continue;
+            for (int x = 0; x < drawW; x++) {
+                int sx = Math.min(srcW - 1, (int) (x / scale));
+                int dx = offX + x;
+                if (dx < 0 || dx >= targetW) continue;
+                dst.setColorArgb(dx, dy, src.getColorArgb(sx, sy));
+            }
         }
+
+        return dst;
     }
 }
 
