@@ -185,7 +185,7 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
         // 组级换行优先：先决定“下一组是否换行”，再进入组内渲染并对工具按钮进行换行
         boolean firstGroup = true;
 
-        firstGroup = renderToolGroupWrapped(ToolGroup.SELECTION, Icons.TOOLS, firstGroup);
+        firstGroup = renderToolGroupWrapped(ToolGroup.SELECTION, Icons.TOOLS, true);
         firstGroup = renderToolGroupWrapped(ToolGroup.WORLD, Icons.CONTAINER, firstGroup);
         firstGroup = renderToolGroupWrapped(ToolGroup.TIMELINE, Icons.TIMELINE, firstGroup);
 
@@ -294,9 +294,8 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
 
     private float estimateMinGroupWidth(String groupIcon, EditorTool firstTool) {
         // 使用固定图标列宽（不要用 calcTextSize，否则不同图标宽度会导致对齐漂移）
-        float iconW = GROUP_ICON_COLUMN_WIDTH;
         float minBtnW = firstTool != null ? getToolButtonWidth(firstTool) : UITheme.Spacing.BUTTON_HEIGHT;
-        return iconW + UITheme.Spacing.ELEMENT_SPACING + minBtnW;
+        return GROUP_ICON_COLUMN_WIDTH + UITheme.Spacing.ELEMENT_SPACING + minBtnW;
     }
 
     private float getToolButtonWidth(EditorTool tool) {
