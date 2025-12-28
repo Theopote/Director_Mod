@@ -23,7 +23,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public class GameRendererMixin {
 
     @Inject(method = "renderHand", at = @At("HEAD"), cancellable = true)
-    private void chronoblocks$onRenderHand(Camera camera, float tickDelta, org.joml.Matrix4f matrix4f, CallbackInfo ci) {
+    private void chronoblocks$onRenderHand(float tickDelta, boolean renderEntity, org.joml.Matrix4f matrix4f, CallbackInfo ci) {
         if (ChronoBlocksClientController.getInstance().shouldHideCrosshair()) {
             ci.cancel();
         }

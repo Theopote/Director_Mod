@@ -2,6 +2,8 @@ package com.chronoblocks.mixin;
 
 import com.chronoblocks.ui.input.InputFocusManager;
 import net.minecraft.client.Keyboard;
+import net.minecraft.client.input.CharInput;
+import net.minecraft.client.input.KeyInput;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -30,13 +32,14 @@ public class KeyboardMixin {
      * 注意：ImGui 通过 GLFW 回调直接接收输入，不需要我们转发
      */
     @Inject(method = "onKey", at = @At("HEAD"), cancellable = true)
-    private void onKey(long window, int key, int scancode, int action, int modifiers, CallbackInfo ci) {
+    private void onKey(long window, int scanCode, KeyInput input, CallbackInfo ci) {
         InputFocusManager focusManager = InputFocusManager.getInstance();
 
         // 如果ChronoBlocks窗口激活且应该捕获键盘
         if (focusManager.shouldCaptureKeyboard()) {
             if (DEBUG) {
-                LOGGER.debug("[KeyboardMixin] 拦截键盘事件: key={}, action={} (阻止游戏处理，ImGui通过GLFW回调接收)", key, action);
+                LOGGER.debug("[KeyboardMixin] 拦截键盘事件: key={}, scancode={}, mods={} (阻止游戏处理，ImGui通过GLFW回调接收)",
+                        input.key(), input.scancode(), input.modifiers());
             }
             // 取消Minecraft的处理，但ImGui已经通过GLFW回调接收到了输入
             ci.cancel();
@@ -50,13 +53,14 @@ public class KeyboardMixin {
      * 注意：ImGui 通过 GLFW 回调直接接收输入，不需要我们转发
      */
     @Inject(method = "onChar", at = @At("HEAD"), cancellable = true)
-    private void onChar(long window, int codePoint, int modifiers, CallbackInfo ci) {
+    private void onChar(long window, CharInput input, CallbackInfo ci) {
         InputFocusManager focusManager = InputFocusManager.getInstance();
 
         // 如果ChronoBlocks窗口激活且应该捕获键盘
         if (focusManager.shouldCaptureKeyboard()) {
             if (DEBUG) {
-                LOGGER.debug("[KeyboardMixin] 拦截字符输入事件: codePoint={} (阻止游戏处理，ImGui通过GLFW回调接收)", codePoint);
+                LOGGER.debug("[KeyboardMixin] 拦截字符输入事件: codePoint={} (阻止游戏处理，ImGui通过GLFW回调接收)",
+                        input.codepoint());
             }
             // 取消Minecraft的处理，但ImGui已经通过GLFW回调接收到了输入
             ci.cancel();

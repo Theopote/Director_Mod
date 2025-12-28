@@ -28,6 +28,7 @@ public class ImGuiRenderer {
     private long windowHandle;
     private boolean initialized;
     private boolean frameInProgress;
+    private boolean drawDataReady;
 
     private ImGuiRenderer() {}
 
@@ -201,10 +202,7 @@ public class ImGuiRenderer {
                 // 合并模式：不需要弹出字体
                 
                 ImGui.render();
-                RenderSystem.assertOnRenderThread();
-                // 1.21.x：Minecraft 的 RenderType 绘制会使用内部 scissor；若遗留 scissor 状态可能导致 ImGui 全部被裁掉
-                RenderSystem.disableScissorForRenderTypeDraws();
-                imGuiGl3.renderDrawData(ImGui.getDrawData());
+                drawDataReady = true;
                 
                 LOGGER.debug("[ChronoBlocks] ImGui frame ended successfully");
             } catch (Exception e) {
@@ -213,6 +211,32 @@ public class ImGuiRenderer {
                 frameInProgress = false;
             }
         }
+    }
+
+    /**
+     * 在“帧末 swap 前”绘制 ImGui（1.21.x 新渲染管线下更稳定）。
+     * 典型调用点：注入到 RenderSystem.flipFrame(HEAD)。
+     */
+    public void renderPendingDrawData() {
+        synchronized (LOCK) {
+            if (!initialized || !drawDataReady || imGuiGl3 == null) {
+                return;
+            }
+            try {
+                RenderSystem.assertOnRenderThread();
+                // 避免被 Minecraft 的 RenderType scissor 影响
+                RenderSystem.disableScissorForRenderTypeDraws();
+                imGuiGl3.renderDrawData(ImGui.getDrawData());
+            } catch (Exception e) {
+                LOGGER.error("[ChronoBlocks] Failed to render pending ImGui draw data", e);
+            } finally {
+                drawDataReady = false;
+            }
+        }
+    }
+
+    public boolean hasPendingDrawData() {
+        return drawDataReady;
     }
     
     /**

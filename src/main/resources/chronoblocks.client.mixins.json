@@ -10,6 +10,7 @@
     "KeyboardInputMixin",
     "ClientPlayerInteractionManagerMixin",
     "GameRendererMixin",
+    "RenderSystemMixin",
     "CameraMixin",
     "HotbarMixin",
     "DebugHudMixin",

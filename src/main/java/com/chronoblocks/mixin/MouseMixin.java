@@ -5,6 +5,7 @@ import com.chronoblocks.export.video.VideoExportManager;
 import com.chronoblocks.ui.ChronoBlocksScreen;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.Mouse;
+import net.minecraft.client.input.MouseInput;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -117,7 +118,9 @@ public abstract class MouseMixin {
      * - 左键触发选择逻辑
      */
     @Inject(method = "onMouseButton", at = @At("HEAD"), cancellable = true)
-    private void onMouseButton(long window, int button, int action, int mods, CallbackInfo ci) {
+    private void onMouseButton(long window, MouseInput input, int action, CallbackInfo ci) {
+        int button = input.button();
+        int mods = input.modifiers();
         if (selectionInputHandler == null) {
             selectionInputHandler = new SelectionInputHandler();
         }

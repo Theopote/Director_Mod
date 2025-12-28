@@ -1,10 +1,10 @@
 package com.chronoblocks.mixin;
 
 import com.chronoblocks.client.ChronoBlocksClientController;
-import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.client.render.state.WorldRenderState;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -35,8 +35,11 @@ public abstract class WorldRendererMixin {
      * 基于Minecraft 1.21.4源码：使用renderTargetBlockOutline方法拦截
      */
     @Inject(method = "renderTargetBlockOutline", at = @At("HEAD"), cancellable = true)
-    private void onRenderTargetBlockOutline(Camera camera, VertexConsumerProvider.Immediate vertexConsumers, 
-                                           MatrixStack matrices, boolean translucent, CallbackInfo ci) {
+    private void onRenderTargetBlockOutline(VertexConsumerProvider.Immediate vertexConsumers,
+                                           MatrixStack matrices,
+                                           boolean translucent,
+                                           WorldRenderState renderState,
+                                           CallbackInfo ci) {
         ChronoBlocksClientController controller = ChronoBlocksClientController.getInstance();
         if (controller != null && controller.shouldHideCrosshair()) {
             // 🚫 在ChronoBlocks模式下完全取消原版方块边框渲染
