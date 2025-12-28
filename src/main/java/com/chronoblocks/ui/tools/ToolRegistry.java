@@ -38,6 +38,12 @@ public final class ToolRegistry {
     private volatile boolean initialized = false;
 
     /**
+     * 当前激活的“非 Selection”工具（World/Timeline 等）。
+     * <p>当该值非空时：Toolbar 高亮该工具，Selection 工具高亮会被抑制，避免“双高亮”。</p>
+     */
+    private volatile String activeNonSelectionToolId = null;
+
+    /**
      * 工具 UI 元数据表（集中管理：分组/排序/教学提示）。
      * key: toolId
      */
@@ -145,7 +151,7 @@ public final class ToolRegistry {
     }
 
     public String getActiveToolId() {
-        return selectionManager.getCurrentToolId();
+        return activeNonSelectionToolId != null ? activeNonSelectionToolId : selectionManager.getCurrentToolId();
     }
 
     public EditorTool getActiveTool() {
@@ -159,10 +165,42 @@ public final class ToolRegistry {
         return null;
     }
 
+    public boolean hasNonSelectionActiveTool() {
+        return activeNonSelectionToolId != null;
+    }
+
+    public String getActiveNonSelectionToolId() {
+        return activeNonSelectionToolId;
+    }
+
+    public void clearNonSelectionActiveTool() {
+        EditorTool prev = getToolById(activeNonSelectionToolId);
+        activeNonSelectionToolId = null;
+        if (prev instanceof ToolLifecycle lifecycle) {
+            try {
+                lifecycle.onDeactivate();
+            } catch (Exception e) {
+                LOGGER.debug("[ToolRegistry] onDeactivate failed: {}", e.getMessage());
+            }
+        }
+    }
+
+    public EditorTool getToolById(String toolId) {
+        if (toolId == null) return null;
+        for (EditorTool t : getAllTools()) {
+            if (t != null && Objects.equals(toolId, t.getId())) {
+                return t;
+            }
+        }
+        return null;
+    }
+
     /**
      * 确保存在默认工具（仅在当前没有工具时才设置）。
      */
     public void ensureDefaultTool(String toolId) {
+        // 如果用户当前处于非 Selection 工具模式，不要强行切换 Selection 默认工具
+        if (activeNonSelectionToolId != null) return;
         if (selectionManager.hasCurrentTool()) return;
         activate(toolId);
     }
@@ -174,10 +212,23 @@ public final class ToolRegistry {
      */
     public boolean activate(String toolId) {
         if (toolId == null || toolId.isBlank()) return false;
+
+        // 优先：如果是 extra 工具，走 editor-level 激活
+        EditorTool extra = findExtraTool(toolId);
+        if (extra != null) {
+            return activateNonSelection(extra);
+        }
+
         World world = MinecraftClient.getInstance().world;
         if (world == null) {
             return false;
         }
+
+        // 切回 Selection 工具：清除非 Selection 高亮（并触发 onDeactivate 钩子）
+        if (activeNonSelectionToolId != null) {
+            clearNonSelectionActiveTool();
+        }
+
         selectionManager.setCurrentTool(toolId, world);
         return true;
     }
@@ -185,7 +236,50 @@ public final class ToolRegistry {
     public boolean activate(EditorTool tool) {
         if (tool == null) return false;
         if (!tool.isEnabled()) return false;
-        return activate(tool.getId());
+
+        // Selection vs Non-Selection 分发
+        if (tool.getGroup() == ToolGroup.SELECTION) {
+            return activate(tool.getId());
+        }
+        return activateNonSelection(tool);
+    }
+
+    private EditorTool findExtraTool(String toolId) {
+        if (toolId == null) return null;
+        for (EditorTool t : extraTools) {
+            if (t != null && Objects.equals(toolId, t.getId())) {
+                return t;
+            }
+        }
+        return null;
+    }
+
+    private boolean activateNonSelection(EditorTool tool) {
+        if (tool == null) return false;
+        if (!tool.isEnabled()) return false;
+
+        // 切换前停用旧的 non-selection
+        EditorTool prev = getToolById(activeNonSelectionToolId);
+        if (prev instanceof ToolLifecycle prevLifecycle) {
+            try {
+                prevLifecycle.onDeactivate();
+            } catch (Exception e) {
+                LOGGER.debug("[ToolRegistry] prev.onDeactivate failed: {}", e.getMessage());
+            }
+        }
+
+        activeNonSelectionToolId = tool.getId();
+
+        if (tool instanceof ToolLifecycle lifecycle) {
+            try {
+                lifecycle.onActivate();
+            } catch (Exception e) {
+                LOGGER.debug("[ToolRegistry] tool.onActivate failed: {}", e.getMessage());
+            }
+        }
+
+        LOGGER.info("[ToolRegistry] Activated non-selection tool: {} ({})", tool.getDisplayName(), tool.getId());
+        return true;
     }
 
     public ToolMetadata getMetadata(String toolId) {
@@ -286,11 +380,12 @@ public final class ToolRegistry {
 
         @Override
         public boolean isActive() {
+            // 占位工具默认不可用，因此不会被激活；保持 false
             return false;
         }
     }
 
-    private static final class SelectionToolAdapter implements EditorTool {
+    private final class SelectionToolAdapter implements EditorTool {
         private final SelectionTool tool;
         private final SelectionManager selectionManager;
 
@@ -337,6 +432,10 @@ public final class ToolRegistry {
 
         @Override
         public boolean isActive() {
+            // 非 Selection 工具激活时，抑制 Selection 高亮（避免双高亮）
+            if (activeNonSelectionToolId != null) {
+                return false;
+            }
             String activeId = selectionManager.getCurrentToolId();
             return Objects.equals(activeId, getId());
         }
