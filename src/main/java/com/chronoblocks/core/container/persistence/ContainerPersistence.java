@@ -39,8 +39,28 @@ public final class ContainerPersistence {
     private ContainerPersistence() {}
 
     private static Path getContainerFile() {
+        Path worldDir = getWorldChronoBlocksDir();
+        if (worldDir != null) {
+            return worldDir.resolve("containers.dat");
+        }
         String worldId = WorldIdentifier.getCurrentWorldId();
         return CONFIG_DIR.resolve(worldId + "_containers.dat");
+    }
+
+    private static Path getLegacyContainerFile() {
+        String worldId = WorldIdentifier.getCurrentWorldId();
+        return CONFIG_DIR.resolve(worldId + "_containers.dat");
+    }
+
+    private static Path getWorldChronoBlocksDir() {
+        try {
+            Path savePath = WorldIdentifier.getWorldSavePath();
+            if (savePath != null) {
+                return savePath.resolve("chronoblocks");
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
     }
 
     public static void saveForCurrentWorld(ContainerManager manager) {
@@ -71,6 +91,20 @@ public final class ContainerPersistence {
             return;
         }
         Path file = getContainerFile();
+        Path legacy = getLegacyContainerFile();
+
+        // 自动迁移：世界目录优先；若世界目录没有但旧 config 存在，迁移一次
+        if (!Files.exists(file) && legacy != null && Files.exists(legacy) && !legacy.equals(file)) {
+            try {
+                if (!Files.exists(file.getParent())) {
+                    Files.createDirectories(file.getParent());
+                }
+                Files.copy(legacy, file);
+                LOGGER.info("[ContainerPersistence] 已迁移容器存档到世界目录: {} -> {}", legacy, file);
+            } catch (Exception e) {
+                LOGGER.warn("[ContainerPersistence] 迁移容器存档失败: {}", e.getMessage(), e);
+            }
+        }
         if (!Files.exists(file)) {
             LOGGER.info("[ContainerPersistence] 未找到容器存档，使用默认容器 (世界: {})", WorldIdentifier.getCurrentWorldId());
             return;
@@ -122,6 +156,12 @@ public final class ContainerPersistence {
             if (Files.exists(file)) {
                 Files.delete(file);
                 LOGGER.info("[ContainerPersistence] 删除容器存档: {}", file);
+            }
+
+            Path legacy = getLegacyContainerFile();
+            if (legacy != null && Files.exists(legacy) && !legacy.equals(file)) {
+                Files.delete(legacy);
+                LOGGER.info("[ContainerPersistence] 删除旧位置容器存档: {}", legacy);
             }
         } catch (IOException e) {
             LOGGER.warn("[ContainerPersistence] 删除容器存档失败: {}", e.getMessage(), e);

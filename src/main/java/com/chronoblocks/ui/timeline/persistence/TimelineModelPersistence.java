@@ -69,8 +69,36 @@ public class TimelineModelPersistence {
      * 获取当前世界的时间线文件路径
      */
     private static Path getTimelineFile() {
+        Path worldDir = getWorldChronoBlocksDir();
+        if (worldDir != null) {
+            // ✅ 最佳实践：把工程文件写进世界存档目录，天然“仅绑定当前存档”
+            return worldDir.resolve("timeline_model.json");
+        }
+        // 兜底：写入 config（用于无法获取世界目录的场景）
         String worldId = WorldIdentifier.getCurrentWorldId();
         return CONFIG_DIR.resolve("timelines").resolve(worldId + "_timeline_model.json");
+    }
+
+    /**
+     * 旧版（config/chronoblocks/timelines）路径：用于迁移。
+     */
+    private static Path getLegacyTimelineFile() {
+        String worldId = WorldIdentifier.getCurrentWorldId();
+        return CONFIG_DIR.resolve("timelines").resolve(worldId + "_timeline_model.json");
+    }
+
+    /**
+     * 获取当前世界的 ChronoBlocks 工作目录（saves/<world>/chronoblocks），不存在则返回 null。
+     */
+    private static Path getWorldChronoBlocksDir() {
+        try {
+            Path savePath = WorldIdentifier.getWorldSavePath();
+            if (savePath != null) {
+                return savePath.resolve("chronoblocks");
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
     }
     
     /**
@@ -728,15 +756,29 @@ public class TimelineModelPersistence {
     public static void loadFromFile(TimelineModel model, TimelineViewportState viewportState) {
         try {
             Path timelineFile = getTimelineFile();
+            Path legacy = getLegacyTimelineFile();
+
+            // 自动迁移：优先使用世界目录；若世界目录没有但旧 config 存在，则迁移一次
+            if (!Files.exists(timelineFile) && legacy != null && Files.exists(legacy) && !legacy.equals(timelineFile)) {
+                try {
+                    if (!Files.exists(timelineFile.getParent())) {
+                        Files.createDirectories(timelineFile.getParent());
+                    }
+                    Files.copy(legacy, timelineFile);
+                    LOGGER.info("[TimelineModelPersistence] 已迁移时间线存档到世界目录: {} -> {}", legacy, timelineFile);
+                } catch (Exception e) {
+                    LOGGER.warn("[TimelineModelPersistence] 迁移时间线存档失败: {}", e.getMessage());
+                }
+            }
             
             if (Files.exists(timelineFile)) {
                 String json = Files.readString(timelineFile);
                 TimelineDTO dto = GSON.fromJson(json, TimelineDTO.class);
-                
-                if (!isFingerprintMatch(dto.worldFingerprint)) {
-                    LOGGER.warn("[TimelineModelPersistence] 世界指纹不匹配，忽略旧时间线并删除文件: {}", timelineFile);
-                    Files.deleteIfExists(timelineFile);
-                    return;
+
+                // ⚠️ 历史问题修复：之前把 “目录修改时间” 放进 fingerprint，会导致关游戏/自动保存后指纹改变，误判并删档。
+                // 现在仅做“软校验”：不匹配也不删除，最多记录警告并继续加载（因为文件本身已经按世界隔离）。
+                if (dto != null && dto.worldFingerprint != null && !isFingerprintMatch(dto.worldFingerprint)) {
+                    LOGGER.warn("[TimelineModelPersistence] 世界指纹不匹配（将继续尝试加载，不删除文件）: {}", timelineFile);
                 }
                 
                 fromDTO(dto, model, viewportState);
@@ -757,15 +799,21 @@ public class TimelineModelPersistence {
      * 检查是否存在保存的数据（当前世界）
      */
     public static boolean hasSavedData() {
-        return Files.exists(getTimelineFile());
+        Path primary = getTimelineFile();
+        if (Files.exists(primary)) {
+            return true;
+        }
+        // 兼容旧位置（用于升级迁移的首次启动）
+        Path legacy = getLegacyTimelineFile();
+        return legacy != null && Files.exists(legacy);
     }
 
     private static String getWorldFingerprint() {
         try {
             java.nio.file.Path path = com.chronoblocks.util.WorldIdentifier.getWorldSavePath();
             if (path != null && Files.exists(path)) {
-                long modified = Files.getLastModifiedTime(path).toMillis();
-                return path.toAbsolutePath().toString() + "#" + modified;
+                // ✅ 仅使用绝对路径作为稳定指纹（目录 mtime 会频繁变化，不适合作为身份）
+                return path.toAbsolutePath().toString();
             }
         } catch (Exception e) {
             LOGGER.warn("[TimelineModelPersistence] 获取世界指纹失败: {}", e.getMessage());
@@ -787,8 +835,15 @@ public class TimelineModelPersistence {
             Path file = getTimelineFile();
             if (Files.exists(file)) {
                 Files.delete(file);
-                LOGGER.info("[TimelineModelPersistence] 已删除世界 {} 的时间线存档: {}", 
-                    WorldIdentifier.getCurrentWorldId(), file);
+                LOGGER.info("[TimelineModelPersistence] 已删除世界 {} 的时间线存档: {}",
+                        WorldIdentifier.getCurrentWorldId(), file);
+            }
+
+            // 兼容：同时删除旧位置的存档，避免“新建动画”后旧文件又被迁移回来
+            Path legacy = getLegacyTimelineFile();
+            if (legacy != null && Files.exists(legacy) && !legacy.equals(file)) {
+                Files.delete(legacy);
+                LOGGER.info("[TimelineModelPersistence] 已删除旧位置时间线存档: {}", legacy);
             }
         } catch (IOException e) {
             LOGGER.warn("[TimelineModelPersistence] 删除时间线存档失败: {}", e.getMessage(), e);
