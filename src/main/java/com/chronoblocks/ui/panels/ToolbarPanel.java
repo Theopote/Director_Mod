@@ -183,7 +183,7 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
     /* ---------- 选择工具按钮 ---------- */
     private void renderSelectionToolButtons() {
         // 组级换行优先：先决定“下一组是否换行”，再进入组内渲染并对工具按钮进行换行
-        boolean firstGroup = true;
+        boolean firstGroup;
 
         firstGroup = renderToolGroupWrapped(ToolGroup.SELECTION, Icons.TOOLS, true);
         firstGroup = renderToolGroupWrapped(ToolGroup.WORLD, Icons.CONTAINER, firstGroup);
