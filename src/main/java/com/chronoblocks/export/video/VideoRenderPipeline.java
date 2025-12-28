@@ -9,6 +9,7 @@ import com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gl.Framebuffer;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.util.ScreenshotRecorder;
@@ -22,6 +23,8 @@ import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * 离屏渲染管线（v1：基于主 Framebuffer 抓帧）
@@ -54,6 +57,11 @@ public final class VideoRenderPipeline {
 
     private final ConcurrentLinkedQueue<CaptureRequest> queue = new ConcurrentLinkedQueue<>();
 
+    // v1：复用一个离屏 framebuffer，把主 framebuffer 的内容缩放/拷贝到导出分辨率后再截图
+    private Framebuffer exportFramebuffer;
+    private int exportW = -1;
+    private int exportH = -1;
+
     private VideoRenderPipeline() {}
 
     /**
@@ -74,7 +82,16 @@ public final class VideoRenderPipeline {
         // - TAIL: blit 主 framebuffer -> offscreen 并截图
         req.armed = true;
 
-        return req.future.get();
+        try {
+            // 重要：不要无限等待，否则用户看到的就是“点了开始导出没反应 / 没进度条”。
+            // 如果渲染钩子（GameRendererMixin.renderWorld HEAD/TAIL）未生效，这里会永远卡住。
+            return req.future.get(10, TimeUnit.SECONDS);
+        } catch (TimeoutException te) {
+            String msg = "渲染抓帧超时（10s）。可能原因：renderWorld 钩子未触发 / 客户端线程卡住 / 导出被其他逻辑阻断。";
+            LOGGER.error("[VideoExport] {}", msg);
+            req.future.completeExceptionally(new IllegalStateException(msg, te));
+            throw new ExecutionException(msg, te);
+        }
     }
 
     /**
@@ -179,12 +196,85 @@ public final class VideoRenderPipeline {
         RenderSystem.assertOnRenderThread();
 
         MinecraftClient client = MinecraftClient.getInstance();
-        var fb = client.getFramebuffer();
-        if (fb == null) {
+        Framebuffer main = client.getFramebuffer();
+        if (main == null) {
             throw new IllegalStateException("client.getFramebuffer() == null");
         }
-        // 1.21.10+：ScreenshotRecorder 改为异步回调形式；这里直接回填 future。
-        ScreenshotRecorder.takeScreenshot(fb, req.future::complete);
+
+        // 关键：主 framebuffer 尺寸取决于窗口（你的日志里就是 1920x1017），不一定等于导出目标尺寸（1920x1080）。
+        // 因此先把主 framebuffer 的颜色附件 drawBlit 到一个“导出分辨率”的离屏 framebuffer，再对离屏 framebuffer 截图。
+        int targetW = Math.max(1, req.settings.width);
+        int targetH = Math.max(1, req.settings.height);
+        if (INSTANCE.exportFramebuffer == null || INSTANCE.exportW != targetW || INSTANCE.exportH != targetH) {
+            if (INSTANCE.exportFramebuffer != null) {
+                try {
+                    INSTANCE.exportFramebuffer.delete();
+                } catch (Exception ignore) {
+                    // ignore
+                }
+            }
+            // 注意：部分 IDE/索引可能解析不到 SimpleFramebuffer 构造器签名；这里用反射创建，避免“IDE 报错但运行正常”。
+            INSTANCE.exportFramebuffer = newExportFramebuffer(targetW, targetH);
+            INSTANCE.exportW = targetW;
+            INSTANCE.exportH = targetH;
+            LOGGER.info("[VideoExport] Created export framebuffer {}x{} (main framebuffer {}x{})",
+                    targetW, targetH, main.textureWidth, main.textureHeight);
+        }
+
+        // 将主 framebuffer 的颜色贴图按导出分辨率绘制到离屏 framebuffer（会发生缩放）
+        // 同理：getColorAttachmentView / drawBlit 在某些索引下不可见，统一用反射调用。
+        Object colorView = invokeNoThrow(main, "getColorAttachmentView");
+        if (colorView == null) {
+            throw new IllegalStateException("main.getColorAttachmentView() returned null");
+        }
+        invokeBlit(INSTANCE.exportFramebuffer, colorView);
+        Framebuffer toCapture = INSTANCE.exportFramebuffer;
+
+        // 1.21.10+：ScreenshotRecorder 为异步回调形式。
+        // 这里使用“以 Framebuffer.class 作为参数类型”的反射调用：
+        // - 避免 Java 反射 getMethod 不能用子类参数匹配（WindowFramebuffer）的坑
+        // - 同时避免 IDE/索引把 overload 解析错导致的编译器/检查器误报
+        try {
+            var m = ScreenshotRecorder.class.getMethod("takeScreenshot", Framebuffer.class, java.util.function.Consumer.class);
+            m.invoke(null, toCapture, (java.util.function.Consumer<NativeImage>) req.future::complete);
+        } catch (ReflectiveOperationException e) {
+            // fallback overload: takeScreenshot(Framebuffer, int, Consumer)
+            try {
+                var m = ScreenshotRecorder.class.getMethod("takeScreenshot", Framebuffer.class, int.class, java.util.function.Consumer.class);
+                m.invoke(null, toCapture, 0, (java.util.function.Consumer<NativeImage>) req.future::complete);
+            } catch (ReflectiveOperationException e2) {
+                throw new IllegalStateException("ScreenshotRecorder.takeScreenshot overload not found", e);
+            }
+        }
+    }
+
+    private static Framebuffer newExportFramebuffer(int w, int h) {
+        try {
+            Class<?> clazz = Class.forName("net.minecraft.client.gl.SimpleFramebuffer");
+            var ctor = clazz.getConstructor(String.class, int.class, int.class, boolean.class);
+            return (Framebuffer) ctor.newInstance("video_export", w, h, true);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Failed to create SimpleFramebuffer via reflection", e);
+        }
+    }
+
+    private static Object invokeNoThrow(Object target, String method) {
+        try {
+            var m = target.getClass().getMethod(method);
+            return m.invoke(target);
+        } catch (ReflectiveOperationException e) {
+            return null;
+        }
+    }
+
+    private static void invokeBlit(Framebuffer dst, Object gpuTextureView) {
+        try {
+            Class<?> viewClass = Class.forName("com.mojang.blaze3d.textures.GpuTextureView");
+            var m = Framebuffer.class.getMethod("drawBlit", viewClass);
+            m.invoke(dst, gpuTextureView);
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("Failed to blit main framebuffer into export framebuffer", e);
+        }
     }
 }
 

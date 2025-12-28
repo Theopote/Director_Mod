@@ -632,6 +632,8 @@ public class ChronoBlocksUIManager {
         }
 
         videoExportProgressOverlay.show();
+        videoExportProgressOverlay.setProgress(0f, "已提交导出任务，准备中...");
+        LOGGER.info("[VideoExport] 用户请求开始导出：{}", settings.outputPath);
 
         VideoExportManager.getInstance().start(settings, new VideoExportManager.ProgressListener() {
             @Override
@@ -642,13 +644,12 @@ public class ChronoBlocksUIManager {
             @Override
             public void onCompleted(boolean success, String errorMessage) {
                 if (success) {
-                    videoExportProgressOverlay.setProgress(1f, "导出完成");
-                    videoExportProgressOverlay.hide();
+                    videoExportProgressOverlay.setFinished(true, "导出完成");
                     LOGGER.info("[VideoExport] 导出完成: {}", settings.outputPath);
                 } else {
                     String msg = errorMessage != null ? errorMessage : "导出失败";
-                    videoExportProgressOverlay.setProgress(0f, msg);
-                    videoExportProgressOverlay.hide();
+                    // 失败时不要立刻 hide，否则用户会感觉“点了没反应”
+                    videoExportProgressOverlay.setFinished(false, msg);
                     LOGGER.warn("[VideoExport] {}", msg);
                 }
             }

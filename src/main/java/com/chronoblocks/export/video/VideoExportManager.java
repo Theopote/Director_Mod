@@ -70,6 +70,8 @@ public final class VideoExportManager {
 
         if (exporting.get()) {
             LOGGER.warn("[VideoExport] 已有导出任务在运行，忽略 start()");
+            // 重要：不要“静默忽略”，否则 UI 看起来像“点了没反应”
+            listener.onCompleted(false, "已有导出任务正在运行，请先取消或等待完成。");
             return;
         }
         if (!settings.validate()) {
@@ -82,6 +84,8 @@ public final class VideoExportManager {
 
         workerThread = new Thread(() -> {
             try {
+                LOGGER.info("[VideoExport] 开始导出任务：{}x{} @{}fps, format={}, output={}",
+                        settings.width, settings.height, settings.fps, settings.format, settings.outputPath);
                 VideoExportTask task = new VideoExportTask(settings, listener, this);
                 task.run();
             } catch (Exception e) {
