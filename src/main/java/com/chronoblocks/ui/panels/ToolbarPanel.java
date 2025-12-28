@@ -206,7 +206,7 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
             return firstGroup;
         }
 
-        float minGroupWidth = estimateMinGroupWidth(groupIcon, tools.getFirst());
+        float minGroupWidth = estimateMinGroupWidth(tools.getFirst());
         if (!firstGroup) {
             if (minGroupWidth > ImGui.getContentRegionAvailX()) {
                 ImGui.newLine();
@@ -292,7 +292,7 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
         renderToolTextToggleButton();
     }
 
-    private float estimateMinGroupWidth(String groupIcon, EditorTool firstTool) {
+    private float estimateMinGroupWidth(EditorTool firstTool) {
         // 使用固定图标列宽（不要用 calcTextSize，否则不同图标宽度会导致对齐漂移）
         float minBtnW = firstTool != null ? getToolButtonWidth(firstTool) : UITheme.Spacing.BUTTON_HEIGHT;
         return GROUP_ICON_COLUMN_WIDTH + UITheme.Spacing.ELEMENT_SPACING + minBtnW;

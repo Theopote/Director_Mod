@@ -245,6 +245,23 @@ public class RenderSettingsPanel extends AbstractPanel {
 
         ImGui.separator();
 
+        // ================= 包围盒样式（独立于选区） =================
+        UITheme.label("包围盒样式：", UITheme.DarkTheme.TEXT_SELECTED);
+        {
+            boolean cur = rs.selection_bboxShowFill;
+            if (ImGui.checkbox("包围盒显示填充（面）##selectionBBoxFill", cur)) {
+                rs.selection_bboxShowFill = !cur;
+            }
+        }
+        ImGui.colorEdit4("包围盒线颜色##selectionBBoxOutlineColor", rs.selection_bboxOutlineColor);
+        ImGui.colorEdit4("包围盒面颜色##selectionBBoxFillColor", rs.selection_bboxFillColor);
+        float[] bboxWidth = {rs.selection_bboxOutlineWidth};
+        if (ImGui.sliderFloat("包围盒线宽##selectionBBoxOutlineWidth", bboxWidth, 0.5f, 6.0f, "%.1f")) {
+            rs.selection_bboxOutlineWidth = bboxWidth[0];
+        }
+
+        ImGui.separator();
+
         // 预设（可选）
         UITheme.label("预设：", UITheme.DarkTheme.TEXT_SELECTED);
 
@@ -407,6 +424,7 @@ public class RenderSettingsPanel extends AbstractPanel {
         rs.selection_showFill         = true;
         rs.selection_showOutline      = true;
         rs.selection_showBoundingBox  = false;
+        rs.selection_bboxShowFill     = true;
         rs.selection_enableGreedy     = true;
         rs.selection_greedyThreshold  = 1;
         rs.selection_maxRenderDistance = 64;
@@ -416,6 +434,9 @@ public class RenderSettingsPanel extends AbstractPanel {
         rs.selection_fillColor        = new float[]{1.0f, 1.0f, 1.0f, 0.35f};
         rs.selection_outlineWidth     = 2.0f;
         rs.selection_highlightIntensity = 1.0f;
+        rs.selection_bboxOutlineColor = new float[]{0.20f, 0.90f, 0.40f, 0.90f};
+        rs.selection_bboxFillColor    = new float[]{0.20f, 0.90f, 0.40f, 0.18f};
+        rs.selection_bboxOutlineWidth = 1.6f;
 
         // === 工具预览 ===
         rs.tool_showFill              = true;

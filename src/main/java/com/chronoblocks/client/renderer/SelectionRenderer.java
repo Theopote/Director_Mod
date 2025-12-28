@@ -70,7 +70,7 @@ public final class SelectionRenderer {
     // 渲染属性（已迁移到 RenderSettings，保留 enabled 用于总开关）
     private boolean enabled = true;
     private boolean enableAnimations = false; // 动画开关（暂未使用，保留用于未来扩展）
-    private float[] bboxColor = {0.2f, 0.9f, 0.4f, 0.25f}; // 包围盒颜色（仍在使用）
+    // 包围盒颜色/线宽已迁移到 RenderSettings（settings.selection_bbox*）
     @SuppressWarnings("unused")
     private float animationTime = 0.0f; // 动画时间（暂未使用，保留用于未来扩展）
 
@@ -271,7 +271,11 @@ public final class SelectionRenderer {
                                       .offset(-cam.x, -cam.y, -cam.z);
                     
                     // 使用稍微扩展的线框，确保可见
-                    drawBoundingBoxOutline(consumer, m, box, color);
+                    float[] bboxOutline = settings.selection_bboxOutlineColor;
+                    float lwBox = Math.max(1.0f, Math.min(settings.selection_bboxOutlineWidth, 6.0f));
+                    RenderSystem.lineWidth(lwBox);
+                    drawBoundingBoxOutline(consumer, m, box, bboxOutline);
+                    RenderSystem.lineWidth(Math.max(1.0f, Math.min(lw, 3.0f)));
                 }
             } else {
                 // 使用逐方块渲染（小选区或未启用贪婪合并）
@@ -291,7 +295,11 @@ public final class SelectionRenderer {
                                       .offset(-cam.x, -cam.y, -cam.z);
                     
                     // 使用稍微扩展的线框，确保可见
-                    drawBoundingBoxOutline(consumer, m, box, color);
+                    float[] bboxOutline = settings.selection_bboxOutlineColor;
+                    float lwBox = Math.max(1.0f, Math.min(settings.selection_bboxOutlineWidth, 6.0f));
+                    RenderSystem.lineWidth(lwBox);
+                    drawBoundingBoxOutline(consumer, m, box, bboxOutline);
+                    RenderSystem.lineWidth(Math.max(1.0f, Math.min(lw, 3.0f)));
                 }
 
                 if (rendered > 0 && LOGGER.isDebugEnabled()) {
@@ -396,19 +404,16 @@ public final class SelectionRenderer {
                     }
                     
                     // ⭐ 包围盒填充（根据设置控制）
-                    if (settings.selection_showBoundingBox && blocks.size() > 1 && state.getBoundingBox().isPresent()) {
+                    if (settings.selection_showBoundingBox && settings.selection_bboxShowFill
+                        && blocks.size() > 1 && state.getBoundingBox().isPresent()) {
                         SelectionState.BoundingBox bbox = state.getBoundingBox().get();
                         Box box = new Box(bbox.getMinX(), bbox.getMinY(), bbox.getMinZ(),
                                           bbox.getMaxX() + 1, bbox.getMaxY() + 1, bbox.getMaxZ() + 1)
                                           .offset(-cam.x, -cam.y, -cam.z);
                         
-                        // 使用更淡的包围盒颜色，避免与内部填充重叠
-                        float boxR = bboxColor[0];
-                        float boxG = bboxColor[1];
-                        float boxB = bboxColor[2];
-                        float boxA = bboxColor[3] * (0.3f + 0.2f * settings.selection_highlightIntensity); // 更低的 alpha
-                        float[] boxColor = new float[]{boxR, boxG, boxB, boxA};
-                        
+                        float[] base = settings.selection_bboxFillColor;
+                        float a2 = base[3] * Math.min(1.0f, settings.selection_highlightIntensity);
+                        float[] boxColor = new float[]{base[0], base[1], base[2], a2};
                         drawBoundingBoxFill(fill, posMat, box, boxColor);
                     }
                 } else {
@@ -435,18 +440,16 @@ public final class SelectionRenderer {
                     if (manager != null && manager.hasCurrentTool()) {
                         var currentTool = manager.getCurrentTool();
                         if (currentTool instanceof com.chronoblocks.core.selection.tools.boxselecttool.BoxSelectTool) {
-                            if (blocks.size() > 1 && state.getBoundingBox().isPresent()) {
+                            if (settings.selection_showBoundingBox && settings.selection_bboxShowFill
+                                && blocks.size() > 1 && state.getBoundingBox().isPresent()) {
                                 SelectionState.BoundingBox bbox = state.getBoundingBox().get();
                                 Box box = new Box(bbox.getMinX(), bbox.getMinY(), bbox.getMinZ(),
                                                   bbox.getMaxX() + 1, bbox.getMaxY() + 1, bbox.getMaxZ() + 1)
                                                   .offset(-cam.x, -cam.y, -cam.z);
                                 
-                                // 使用更淡的包围盒颜色，避免与内部填充重叠
-                                float boxR = bboxColor[0];
-                                float boxG = bboxColor[1];
-                                float boxB = bboxColor[2];
-                                float boxA = bboxColor[3] * (0.3f + 0.2f * settings.selection_highlightIntensity); // 更低的 alpha
-                                float[] boxColor = new float[]{boxR, boxG, boxB, boxA};
+                                float[] base = settings.selection_bboxFillColor;
+                                float a2 = base[3] * Math.min(1.0f, settings.selection_highlightIntensity);
+                                float[] boxColor = new float[]{base[0], base[1], base[2], a2};
                                 
                                 drawBoundingBoxFill(fill, posMat, box, boxColor);
                             }

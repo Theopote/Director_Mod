@@ -26,6 +26,7 @@ public final class RenderSettings {
     public boolean selection_showFill = true;          // 显示填充
     public boolean selection_enableGreedy = true;     // 贪婪合并（同时控制填充和线框）
     public boolean selection_showBoundingBox = false;  // 显示包围盒
+    public boolean selection_bboxShowFill = true;      // 包围盒是否显示半透明填充（面）
     public int selection_greedyThreshold = 1;
     public int selection_maxRenderDistance = 64;
     public boolean selection_enableFrustumCull = true;
@@ -35,6 +36,10 @@ public final class RenderSettings {
     public float[] selection_fillColor = new float[]{1.0f, 1.0f, 1.0f, 0.85f};
     public float selection_outlineWidth = 1.5f;
     public float selection_highlightIntensity = 1.0f;
+    // 包围盒样式（独立于选区线框/填充）
+    public float[] selection_bboxOutlineColor = new float[]{0.20f, 0.90f, 0.40f, 0.90f};
+    public float[] selection_bboxFillColor = new float[]{0.20f, 0.90f, 0.40f, 0.18f};
+    public float selection_bboxOutlineWidth = 1.6f;
 
     // ================= Tool Preview (工具预览) =================
     public boolean tool_showOutline = true;      // 显示线框
