@@ -3,6 +3,7 @@ package com.chronoblocks.client.input;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.Camera;
+import net.minecraft.client.render.GameRenderer;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.RaycastContext;
@@ -50,7 +51,7 @@ public final class ChronoBlocksInputSystem {
      * - 完全符合OpenGL渲染管线
      */
     public static BlockHitResult raycastFromImGui() {
-        if (MC.world == null || MC.player == null || MC.cameraEntity == null) {
+        if (MC.world == null || MC.player == null || MC.getCameraEntity() == null) {
             return null;
         }
 
@@ -104,8 +105,10 @@ public final class ChronoBlocksInputSystem {
         // 3. 获取FOV
         // 使用当前帧投影矩阵，无需单独读取 FOV
 
-        // 4. 使用当前帧投影矩阵，确保与渲染一致
-        Matrix4f projMatrix = new Matrix4f(RenderSystem.getProjectionMatrix());
+        // 4. 使用与 Minecraft 一致的基础投影矩阵（1.21.10+ RenderSystem.getProjectionMatrix() 已不再暴露）
+        GameRenderer gr = MC.gameRenderer;
+        float fov = MC.options.getFov().getValue().floatValue();
+        Matrix4f projMatrix = new Matrix4f(gr.getBasicProjectionMatrix(fov));
 
         // 5. 使用当前帧的 modelView（取自传入矩阵栈的 positionMatrix）
         // 注意：matrices 在世界渲染回调中已包含相机视图变换

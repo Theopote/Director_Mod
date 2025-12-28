@@ -2,6 +2,7 @@ package com.chronoblocks.ui.input;
 
 import com.chronoblocks.core.selection.SelectionManager;
 import com.chronoblocks.core.selection.SelectionOperationSupport;
+import com.chronoblocks.client.input.ChronoKeyCategories;
 import net.minecraft.client.option.KeyBinding;
 import net.minecraft.client.util.InputUtil;
 import org.lwjgl.glfw.GLFW;
@@ -46,28 +47,28 @@ public class SelectionToolKeyBindings {
             "key.chronoblocks.selection.click",
             InputUtil.Type.KEYSYM,
             GLFW.GLFW_KEY_1,
-            "key.categories.chronoblocks"
+            ChronoKeyCategories.SELECTION
         ));
         
         KEY_BINDINGS.put("box_tool", new KeyBinding(
             "key.chronoblocks.selection.box",
             InputUtil.Type.KEYSYM,
             GLFW.GLFW_KEY_2,
-            "key.categories.chronoblocks"
+            ChronoKeyCategories.SELECTION
         ));
         
         KEY_BINDINGS.put("wand_tool", new KeyBinding(
             "key.chronoblocks.selection.wand",
             InputUtil.Type.KEYSYM,
             GLFW.GLFW_KEY_3,
-            "key.categories.chronoblocks"
+            ChronoKeyCategories.SELECTION
         ));
         
         KEY_BINDINGS.put("brush_tool", new KeyBinding(
             "key.chronoblocks.selection.brush",
             InputUtil.Type.KEYSYM,
             GLFW.GLFW_KEY_4,
-            "key.categories.chronoblocks"
+            ChronoKeyCategories.SELECTION
         ));
         
         // 高级工具快捷键
@@ -75,7 +76,7 @@ public class SelectionToolKeyBindings {
             "key.chronoblocks.selection.face",
             InputUtil.Type.KEYSYM,
             GLFW.GLFW_KEY_5,
-            "key.categories.chronoblocks"
+            ChronoKeyCategories.SELECTION
         ));
         
         // 几何选择工具已合并到刷选工具中，不再需要独立的快捷键
@@ -86,21 +87,21 @@ public class SelectionToolKeyBindings {
             "key.chronoblocks.selection.add",
             InputUtil.Type.KEYSYM,
             GLFW.GLFW_KEY_EQUAL, // + 键
-            "key.categories.chronoblocks"
+            ChronoKeyCategories.SELECTION
         ));
         
         KEY_BINDINGS.put("subtract_mode", new KeyBinding(
             "key.chronoblocks.selection.subtract",
             InputUtil.Type.KEYSYM,
             GLFW.GLFW_KEY_MINUS, // - 键
-            "key.categories.chronoblocks"
+            ChronoKeyCategories.SELECTION
         ));
         
         KEY_BINDINGS.put("intersect_mode", new KeyBinding(
             "key.chronoblocks.selection.intersect",
             InputUtil.Type.KEYSYM,
             GLFW.GLFW_KEY_0,
-            "key.categories.chronoblocks"
+            ChronoKeyCategories.SELECTION
         ));
         
         // 选择操作快捷键
@@ -108,21 +109,21 @@ public class SelectionToolKeyBindings {
             "key.chronoblocks.selection.clear",
             InputUtil.Type.KEYSYM,
             GLFW.GLFW_KEY_DELETE,
-            "key.categories.chronoblocks"
+            ChronoKeyCategories.SELECTION
         ));
         
         KEY_BINDINGS.put("next_tool", new KeyBinding(
             "key.chronoblocks.selection.next",
             InputUtil.Type.KEYSYM,
             GLFW.GLFW_KEY_TAB,
-            "key.categories.chronoblocks"
+            ChronoKeyCategories.SELECTION
         ));
         
         KEY_BINDINGS.put("previous_tool", new KeyBinding(
             "key.chronoblocks.selection.previous",
             InputUtil.Type.KEYSYM,
             GLFW.GLFW_KEY_LEFT_SHIFT,
-            "key.categories.chronoblocks"
+            ChronoKeyCategories.SELECTION
         ));
         
         LOGGER.info("[SelectionToolKeyBindings] 初始化了 {} 个快捷键绑定", KEY_BINDINGS.size());

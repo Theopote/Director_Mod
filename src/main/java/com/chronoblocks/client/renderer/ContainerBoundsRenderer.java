@@ -2,6 +2,7 @@ package com.chronoblocks.client.renderer;
 
 import com.chronoblocks.core.container.Container;
 import com.chronoblocks.core.container.ContainerManager;
+import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.*;
@@ -11,6 +12,7 @@ import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 import com.chronoblocks.client.settings.RenderSettings;
+import org.lwjgl.opengl.GL11;
 
 /**
  * 容器边界呼吸边框渲染器
@@ -137,10 +139,10 @@ public final class ContainerBoundsRenderer {
         float alpha = Math.max(0.0f, Math.min(1.0f, a * alphaMod));
         
         // 设置渲染状态
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        RenderSystem.disableCull();
-        RenderSystem.depthMask(false);
+        GlStateManager._enableBlend();
+        GlStateManager._blendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GlStateManager._disableCull();
+        GlStateManager._depthMask(false);
         float lw = Math.max(1.0f, Math.min(settings.container_outlineWidth, 6.0f));
         RenderSystem.lineWidth(lw);
         
@@ -153,9 +155,9 @@ public final class ContainerBoundsRenderer {
         
         // 恢复渲染状态
         RenderSystem.lineWidth(1.0f);
-        RenderSystem.depthMask(true);
-        RenderSystem.enableCull();
-        RenderSystem.disableBlend();
+        GlStateManager._depthMask(true);
+        GlStateManager._enableCull();
+        GlStateManager._disableBlend();
     }
     
     /**

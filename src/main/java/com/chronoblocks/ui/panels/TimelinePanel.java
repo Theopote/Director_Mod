@@ -421,7 +421,7 @@ public class TimelinePanel extends AbstractPanel
     private float getRenderDelta() {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client != null && client.getRenderTickCounter() != null) {
-            return client.getRenderTickCounter().getTickDelta(false);
+            return client.getRenderTickCounter().getTickProgress(false);
         }
         return ImGui.getIO().getDeltaTime();
     }

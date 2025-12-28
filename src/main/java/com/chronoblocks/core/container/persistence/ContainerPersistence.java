@@ -16,6 +16,7 @@ import net.minecraft.nbt.NbtLong;
 import net.minecraft.registry.Registries;
 import net.minecraft.state.property.Property;
 import net.minecraft.util.Identifier;
+import net.minecraft.util.Uuids;
 import net.minecraft.util.math.BlockPos;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -77,7 +78,7 @@ public final class ContainerPersistence {
         loading = true;
         try {
             NbtCompound root = NbtIo.readCompressed(file, net.minecraft.nbt.NbtSizeTracker.ofUnlimitedBytes());
-            NbtList list = root.getList("containers", NbtCompound.COMPOUND_TYPE);
+            NbtList list = root.getList("containers").orElseGet(NbtList::new);
             Map<UUID, Container> map = new HashMap<>();
             Map<UUID, UUID> parentMap = new HashMap<>();
 
@@ -85,12 +86,11 @@ public final class ContainerPersistence {
             manager.clear();
 
             for (int i = 0; i < list.size(); i++) {
-                NbtCompound tag = list.getCompound(i);
+                NbtCompound tag = list.getCompound(i).orElse(null);
+                if (tag == null) continue;
                 Container c = decodeContainer(tag);
                 map.put(c.getId(), c);
-                if (tag.containsUuid("parent")) {
-                    parentMap.put(c.getId(), tag.getUuid("parent"));
-                }
+                tag.getIntArray("parent").ifPresent(arr -> parentMap.put(c.getId(), Uuids.toUuid(arr)));
             }
 
             // 建立层级
@@ -170,11 +170,11 @@ public final class ContainerPersistence {
 
     private static @NotNull NbtCompound getNbtCompound(Container c) {
         NbtCompound tag = new NbtCompound();
-        tag.putUuid("id", c.getId());
+        tag.putIntArray("id", Uuids.toIntArray(c.getId()));
         tag.putString("name", c.getName());
         tag.putString("type", c.getType().name());
         if (c.getParent() != null) {
-            tag.putUuid("parent", c.getParent().getId());
+            tag.putIntArray("parent", Uuids.toIntArray(c.getParent().getId()));
         }
         tag.putInt("color", c.getColor());
         tag.putFloat("opacity", c.getOpacity());
@@ -190,38 +190,51 @@ public final class ContainerPersistence {
     }
 
     private static Container decodeContainer(NbtCompound tag) {
-        UUID id = tag.getUuid("id");
-        String name = tag.getString("name");
-        ContainerType type = ContainerType.valueOf(tag.getString("type"));
+        UUID id = tag.getIntArray("id").map(Uuids::toUuid).orElseGet(UUID::randomUUID);
+        String name = tag.getString("name", "Container");
+        String typeStr = tag.getString("type", ContainerType.CUSTOM.name());
+        ContainerType type;
+        try {
+            type = ContainerType.valueOf(typeStr);
+        } catch (Exception e) {
+            type = ContainerType.CUSTOM;
+        }
         Container c = new Container(id, name, type);
-        c.setColor(tag.getInt("color"));
-        c.setOpacity(tag.getFloat("opacity"));
-        c.setLocked(tag.getBoolean("locked"));
-        c.setState(ContainerState.valueOf(tag.getString("state")));
-        c.setIntakeEnabled(tag.getBoolean("intake"));
-        if (tag.contains("level")) {
+        c.setColor(tag.getInt("color", c.getColor()));
+        c.setOpacity(tag.getFloat("opacity", c.getOpacity()));
+        c.setLocked(tag.getBoolean("locked", c.isLocked()));
+        String stateStr = tag.getString("state", c.getState().name());
+        try {
+            c.setState(ContainerState.valueOf(stateStr));
+        } catch (Exception ignored) {}
+        c.setIntakeEnabled(tag.getBoolean("intake", c.isIntakeEnabled()));
+        String levelStr = tag.getString("level", "");
+        if (!levelStr.isEmpty()) {
             try {
-                Identifier levelId = Identifier.of(tag.getString("level"));
+                Identifier levelId = Identifier.of(levelStr);
                 c.setLevelKey(net.minecraft.registry.RegistryKey.of(net.minecraft.registry.RegistryKeys.WORLD, levelId));
             } catch (Exception ignored) {}
         }
 
         // blocks
-        NbtList blocks = tag.getList("blocks", NbtElement.LONG_TYPE);
+        NbtList blocks = tag.getList("blocks").orElseGet(NbtList::new);
         List<BlockPos> positions = new ArrayList<>(blocks.size());
         for (NbtElement block : blocks) {
-            positions.add(BlockPos.fromLong(((NbtLong) block).longValue()));
+            if (block instanceof NbtLong nl) {
+                positions.add(BlockPos.fromLong(nl.longValue()));
+            }
         }
         c.addBlocks(positions);
 
         // blockStore snapshots
-        NbtList snaps = tag.getList("snapshots", NbtCompound.COMPOUND_TYPE);
+        NbtList snaps = tag.getList("snapshots").orElseGet(NbtList::new);
         Map<BlockPos, BlockStore.Entry> store = c.getBlockStore().raw();
         for (int i = 0; i < snaps.size(); i++) {
-            NbtCompound snap = snaps.getCompound(i);
-            BlockPos pos = BlockPos.fromLong(snap.getLong("pos"));
-            BlockState state = decodeBlockState(snap.getCompound("state"));
-            NbtCompound be = snap.contains("be") ? snap.getCompound("be") : null;
+            NbtCompound snap = snaps.getCompound(i).orElse(null);
+            if (snap == null) continue;
+            BlockPos pos = BlockPos.fromLong(snap.getLong("pos", 0L));
+            BlockState state = decodeBlockState(snap.getCompound("state").orElseGet(NbtCompound::new));
+            NbtCompound be = snap.getCompound("be").orElse(null);
             store.put(pos, new BlockStore.Entry(state, be));
         }
         return c;
@@ -240,14 +253,14 @@ public final class ContainerPersistence {
     }
 
     private static BlockState decodeBlockState(NbtCompound tag) {
-        Identifier id = Identifier.tryParse(tag.getString("name"));
+        Identifier id = Identifier.tryParse(tag.getString("name", "minecraft:air"));
         Block block = id != null ? Registries.BLOCK.get(id) : net.minecraft.block.Blocks.AIR;
         BlockState state = block.getDefaultState();
-        NbtCompound props = tag.getCompound("properties");
+        NbtCompound props = tag.getCompound("properties").orElseGet(NbtCompound::new);
         for (String key : props.getKeys()) {
             Property<?> property = block.getStateManager().getProperty(key);
             if (property != null) {
-                state = applyProperty(state, property, props.getString(key));
+                state = applyProperty(state, property, props.getString(key, ""));
             }
         }
         return state;

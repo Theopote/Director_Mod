@@ -1,6 +1,7 @@
 package com.chronoblocks.client.renderer;
 
 import com.chronoblocks.core.selection.SelectionManager;
+import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -12,6 +13,7 @@ import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.joml.Matrix4f;
 import com.chronoblocks.client.settings.RenderSettings;
+import org.lwjgl.opengl.GL11;
 
 /**
  * 🟩 SelectionOverlayRenderer
@@ -79,8 +81,8 @@ public final class SelectionOverlayRenderer {
             return;
         }
 
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
+        GlStateManager._enableBlend();
+        GlStateManager._blendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
         // ✅ 直接从全局设置读取线宽（实时生效）
         float lw = settings.tool_outlineWidth;
         RenderSystem.lineWidth(Math.max(1.0f, lw));
@@ -97,7 +99,7 @@ public final class SelectionOverlayRenderer {
             drawAnchor(matrix, consumers.getBuffer(RenderLayer.getLines()), anchor.subtract(camPos), anchorColor);
         });
 
-        RenderSystem.disableBlend();
+        GlStateManager._disableBlend();
     }
 
     // -------------------------------------------------------------

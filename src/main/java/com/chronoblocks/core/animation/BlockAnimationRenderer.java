@@ -15,9 +15,11 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
+import com.mojang.blaze3d.opengl.GlStateManager;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.lwjgl.opengl.GL11;
 
 import java.util.Collection;
 import java.util.Random;
@@ -243,11 +245,7 @@ public class BlockAnimationRenderer {
             return;
         }
 
-        // 4. 选择 RenderLayer（目前统一使用 translucent，未来可挂自定义 layer）
-        RenderLayer layer = RenderLayer.getTranslucent();
-        VertexConsumer buffer = provider.getBuffer(layer);
-
-        // 5. 应用世界平移 + 局部动画矩阵并渲染
+        // 4. 应用世界平移 + 局部动画矩阵并渲染
         matrices.push();
 
         // 5.1 平移到方块世界坐标
@@ -257,15 +255,7 @@ public class BlockAnimationRenderer {
         applyAnimationTransformFromSnapshot(matrices, snapshot);
 
         // 5.3 渲染方块（带 alpha 和深度控制）
-        renderBlockWithAlphaAndDepth(
-                matrices,
-                buffer,
-                world,
-                pos,
-                state,
-                finalAlpha,
-                depthWrite
-        );
+        renderBlockWithAlphaAndDepth(matrices, provider, state, finalAlpha, depthWrite);
 
         matrices.pop();
     }
@@ -366,9 +356,7 @@ public class BlockAnimationRenderer {
      */
     private static void renderBlockWithAlphaAndDepth(
             @NotNull MatrixStack matrices,
-            @NotNull VertexConsumer buffer,
-            @NotNull ClientWorld world,
-            @NotNull BlockPos pos,
+            @NotNull VertexConsumerProvider provider,
             @NotNull BlockState state,
             float alpha,
             boolean depthWrite
@@ -378,35 +366,31 @@ public class BlockAnimationRenderer {
             return;
         }
 
-        float[] previousColor = com.mojang.blaze3d.systems.RenderSystem.getShaderColor();
         try {
             if (alpha < 0.999f) {
-                com.mojang.blaze3d.systems.RenderSystem.enableBlend();
-                com.mojang.blaze3d.systems.RenderSystem.defaultBlendFunc();
+                GlStateManager._enableBlend();
+                GlStateManager._blendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
             }
 
-            com.mojang.blaze3d.systems.RenderSystem.depthMask(depthWrite);
-            com.mojang.blaze3d.systems.RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, alpha);
+            GlStateManager._depthMask(depthWrite);
 
-            manager.getModelRenderer().render(
-                    world,
-                    manager.getModel(state),
+            // 1.21.10+：使用 BlockRenderManager#renderBlockAsEntity（避免底层 model renderer 签名变化）
+            // 这里使用 MAX_LIGHT_COORDINATE 作为默认亮度（动画预览/覆盖层用途）
+            manager.renderBlockAsEntity(
                     state,
-                    pos,
                     matrices,
-                    buffer,
-                    false,
-                    world.getRandom(),
-                    0L,
+                    provider,
+                    LightmapTextureManager.MAX_LIGHT_COORDINATE,
                     OverlayTexture.DEFAULT_UV
             );
 
         } catch (Exception e) {
             LOGGER.error("渲染方块失败: {}", e.getMessage(), e);
         } finally {
-            com.mojang.blaze3d.systems.RenderSystem.setShaderColor(
-                    previousColor[0], previousColor[1], previousColor[2], previousColor[3]);
-            com.mojang.blaze3d.systems.RenderSystem.depthMask(true);
+            GlStateManager._depthMask(true);
+            if (alpha < 0.999f) {
+                GlStateManager._disableBlend();
+            }
         }
     }
 

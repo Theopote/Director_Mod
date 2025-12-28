@@ -39,7 +39,8 @@ public class GizmoRenderEvents {
         try {
             // ✅ 注册 Gizmo 渲染事件 - 在透明渲染后（AFTER_TRANSLUCENT）
             // Gizmo 需要在线框和填充之后渲染，确保可见
-            WorldRenderEvents.AFTER_TRANSLUCENT.register(GizmoRenderEvents::onWorldRenderAfterTranslucent);
+            // 1.21.10+：使用 END_MAIN 作为“主世界渲染结束”的时机（替代旧的 AFTER_TRANSLUCENT）
+            WorldRenderEvents.END_MAIN.register(GizmoRenderEvents::onWorldRenderAfterTranslucent);
             
             registered = true;
             LOGGER.info("[GizmoRenderEvents] Gizmo 渲染事件已注册 (AFTER_TRANSLUCENT)");
@@ -116,7 +117,7 @@ public class GizmoRenderEvents {
             
             // 渲染 Gizmo
             LOGGER.debug("[GizmoRenderEvents] 调用 gm.render()");
-            gm.render(time, cameraPos, context.matrixStack(), vcp);
+            gm.render(time, cameraPos, context.matrices(), vcp);
             LOGGER.debug("[GizmoRenderEvents] gm.render() 调用完成");
             
         } catch (Exception e) {
@@ -141,8 +142,8 @@ public class GizmoRenderEvents {
             }
             
             // 回退：使用相机方向
-            if (client.cameraEntity != null) {
-                return client.cameraEntity.getRotationVecClient();
+            if (client.getCameraEntity() != null) {
+                return client.getCameraEntity().getRotationVecClient();
             }
             
             // 最后回退：默认方向

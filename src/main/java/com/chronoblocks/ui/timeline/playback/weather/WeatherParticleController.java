@@ -86,7 +86,7 @@ public class WeatherParticleController {
         }
 
         ClientWorld world = client.world;
-        Vec3d playerPos = client.player.getPos();
+        Vec3d playerPos = client.player.getEntityPos();
 
         // 计算与天气强度相关的生成数量
         float rainIntensity = sample.rainIntensity;
@@ -140,7 +140,7 @@ public class WeatherParticleController {
                 continue;
             }
 
-            world.addParticle(
+            world.addParticleClient(
                     ParticleTypes.RAIN,
                     x, y, z,
                     windX,
@@ -188,7 +188,7 @@ public class WeatherParticleController {
                 continue;
             }
 
-            world.addParticle(
+            world.addParticleClient(
                     ParticleTypes.SNOWFLAKE,
                     x, y, z,
                     windX,

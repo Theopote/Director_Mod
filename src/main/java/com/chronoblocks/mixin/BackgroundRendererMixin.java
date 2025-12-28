@@ -4,8 +4,9 @@ import com.chronoblocks.ui.timeline.playback.season.SeasonSample;
 import com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController;
 import com.chronoblocks.ui.timeline.playback.weather.WeatherSample;
 import com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController;
-import net.minecraft.client.render.BackgroundRenderer;
 import net.minecraft.client.render.Camera;
+import net.minecraft.client.render.RenderTickCounter;
+import net.minecraft.client.render.fog.FogRenderer;
 import net.minecraft.client.world.ClientWorld;
 import org.joml.Vector4f;
 import org.spongepowered.asm.mixin.Mixin;
@@ -34,26 +35,27 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * @author ChronoBlocks Team
  * @version 4.0 - 添加天气系统支持
  */
-@Mixin(BackgroundRenderer.class)
+@Mixin(FogRenderer.class)
 public abstract class BackgroundRendererMixin {
     
     /**
      * 拦截雾颜色获取，应用季节系统的雾颜色偏移
      * 
-     * <p>方法签名（Minecraft 1.21.4）：
-     * <p>getFogColor(Camera camera, float tickDelta, ClientWorld world, int clampedViewDistance, float skyDarkness) -> Vector4f
+     * <p>方法签名（Minecraft 1.21.10）：
+     * <p>applyFog(Camera camera, int viewDistance, boolean thickFog, RenderTickCounter tickCounter, float skyDarkness, ClientWorld world) -> Vector4f
      */
     @Inject(
-        method = "getFogColor(Lnet/minecraft/client/render/Camera;FLnet/minecraft/client/world/ClientWorld;IF)Lorg/joml/Vector4f;",
+        method = "applyFog(Lnet/minecraft/client/render/Camera;IZLnet/minecraft/client/render/RenderTickCounter;FLnet/minecraft/client/world/ClientWorld;)Lorg/joml/Vector4f;",
         at = @At("RETURN"),
         cancellable = true
     )
-    private static void chronoblocks$modifyFogColor(
+    private void chronoblocks$modifyFogColor(
             Camera camera,
-            float tickDelta,
-            ClientWorld world,
-            int clampedViewDistance,
+            int viewDistance,
+            boolean thickFog,
+            RenderTickCounter tickCounter,
             float skyDarkness,
+            ClientWorld world,
             CallbackInfoReturnable<Vector4f> cir
     ) {
         Vector4f original = cir.getReturnValue();

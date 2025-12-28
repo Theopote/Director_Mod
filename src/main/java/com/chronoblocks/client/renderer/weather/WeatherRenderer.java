@@ -65,7 +65,7 @@ public class WeatherRenderer {
         
         ClientWorld world = client.world;
         ParticleManager particleManager = client.particleManager;
-        Vec3d playerPos = client.player.getPos();
+        Vec3d playerPos = client.player.getEntityPos();
         BlockPos playerBlockPos = client.player.getBlockPos();
         
         particleTickCounter++;

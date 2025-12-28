@@ -50,7 +50,7 @@ public class FlashWhiteEffect implements IBlockEffect {
             double oz = pos.getZ() + 0.5 + (random.nextDouble() - 0.5) * 0.6;
             
             // 使用 END_ROD 粒子来模拟小光点
-            world.addParticle(
+            world.addParticleClient(
                     ParticleTypes.END_ROD,
                     ox, oy, oz,
                     0.0, 0.02, 0.0

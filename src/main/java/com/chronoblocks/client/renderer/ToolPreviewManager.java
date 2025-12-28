@@ -1051,7 +1051,7 @@ public class ToolPreviewManager {
         Matrix4f matrix = matrices.peek().getPositionMatrix();
 
         if (!fillCopy.isEmpty()) {
-            VertexConsumer fillConsumer = vertexConsumers.getBuffer(RenderLayer.getTranslucent());
+            VertexConsumer fillConsumer = vertexConsumers.getBuffer(RenderLayers.getPreviewLayer());
             for (BlockPos pos : fillCopy) {
                 renderBlockPreview(matrix, fillConsumer, pos, fillColor);
             }

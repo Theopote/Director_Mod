@@ -143,7 +143,8 @@ public final class ChronoBlocksRendererRegistry {
             LOGGER.info("[RendererRegistry] 挂载 Fabric WorldRenderEvents...");
             WorldRenderEvents.BEFORE_ENTITIES.register(ctx -> renderPhase(RendererStage.WorldRenderPhase.BEFORE_ENTITIES, ctx));
             WorldRenderEvents.AFTER_ENTITIES.register(ctx -> renderPhase(RendererStage.WorldRenderPhase.AFTER_ENTITIES, ctx));
-            WorldRenderEvents.AFTER_TRANSLUCENT.register(ctx -> renderPhase(RendererStage.WorldRenderPhase.AFTER_TRANSLUCENT, ctx));
+            // 1.21.10+：使用 END_MAIN 作为“透明层等主渲染结束”的阶段（替代旧 AFTER_TRANSLUCENT）
+            WorldRenderEvents.END_MAIN.register(ctx -> renderPhase(RendererStage.WorldRenderPhase.AFTER_TRANSLUCENT, ctx));
             LOGGER.info("[RendererRegistry] ✅ 渲染事件挂载完成");
         } else {
             LOGGER.debug("[RendererRegistry] 渲染事件已挂载，跳过");
@@ -166,7 +167,7 @@ public final class ChronoBlocksRendererRegistry {
                 int baseOrder = RendererStage.SELECTION_BASE.getOrder();
                 registerRenderer(RendererStage.SELECTION_BASE, "SelectionOutline",
                     ctx -> SelectionRenderer.getInstance()
-                        .renderOutlineOnly(ctx.matrixStack(), ctx.consumers(), getTickDelta()),
+                        .renderOutlineOnly(ctx.matrices(), ctx.consumers(), getTickDelta()),
                     baseOrder);
             }
 
@@ -264,7 +265,7 @@ public final class ChronoBlocksRendererRegistry {
         if (!isChronoBlocksActive()) {
             return;
         }
-        MatrixStack matrices = context.matrixStack();
+        MatrixStack matrices = context.matrices();
         VertexConsumerProvider consumers = context.consumers();
         if (matrices == null || consumers == null) {
             return;
@@ -293,7 +294,7 @@ public final class ChronoBlocksRendererRegistry {
         if (!isChronoBlocksActive()) {
             return;
         }
-        MatrixStack matrices = context.matrixStack();
+        MatrixStack matrices = context.matrices();
         VertexConsumerProvider consumers = context.consumers();
         if (matrices == null || consumers == null) {
             return;
@@ -320,7 +321,7 @@ public final class ChronoBlocksRendererRegistry {
         if (!isChronoBlocksActive()) {
             return;
         }
-        MatrixStack matrices = context.matrixStack();
+        MatrixStack matrices = context.matrices();
         VertexConsumerProvider consumers = context.consumers();
         if (matrices == null || consumers == null) {
             return;
@@ -332,7 +333,7 @@ public final class ChronoBlocksRendererRegistry {
         if (!isChronoBlocksActive()) {
             return;
         }
-        MatrixStack matrices = context.matrixStack();
+        MatrixStack matrices = context.matrices();
         VertexConsumerProvider consumers = context.consumers();
         if (matrices == null || consumers == null) {
             return;
@@ -344,7 +345,7 @@ public final class ChronoBlocksRendererRegistry {
         if (!hasRenderableSelection()) {
             return;
         }
-        MatrixStack matrices = context.matrixStack();
+        MatrixStack matrices = context.matrices();
         VertexConsumerProvider consumers = context.consumers();
         if (matrices == null || consumers == null) {
             return;
@@ -356,7 +357,7 @@ public final class ChronoBlocksRendererRegistry {
         if (!hasRenderableSelection()) {
             return;
         }
-        MatrixStack matrices = context.matrixStack();
+        MatrixStack matrices = context.matrices();
         VertexConsumerProvider consumers = context.consumers();
         if (matrices == null || consumers == null) {
             return;
@@ -369,7 +370,7 @@ public final class ChronoBlocksRendererRegistry {
     }
 
     private static void renderToolPreview(WorldRenderContext context) {
-        MatrixStack matrices = context.matrixStack();
+        MatrixStack matrices = context.matrices();
         VertexConsumerProvider consumers = context.consumers();
         if (matrices == null || consumers == null) {
             return;
@@ -381,7 +382,7 @@ public final class ChronoBlocksRendererRegistry {
         if (!isChronoBlocksActive()) {
             return;
         }
-        MatrixStack matrices = context.matrixStack();
+        MatrixStack matrices = context.matrices();
         VertexConsumerProvider consumers = context.consumers();
         Camera camera = getCamera();
         if (matrices == null || consumers == null || camera == null) {
@@ -398,7 +399,7 @@ public final class ChronoBlocksRendererRegistry {
         if (!isChronoBlocksActive()) {
             return;
         }
-        MatrixStack matrices = context.matrixStack();
+        MatrixStack matrices = context.matrices();
         VertexConsumerProvider consumers = context.consumers();
         if (matrices == null || consumers == null) {
             return;
@@ -449,7 +450,7 @@ public final class ChronoBlocksRendererRegistry {
         if (client == null) {
             return 0.0f;
         }
-        return client.getRenderTickCounter().getTickDelta(false);
+        return client.getRenderTickCounter().getTickProgress(false);
     }
 
     private static Camera getCamera() {

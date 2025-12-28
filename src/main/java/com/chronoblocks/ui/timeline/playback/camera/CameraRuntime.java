@@ -183,8 +183,7 @@ public final class CameraRuntime {
     private void lockPlayerInput(MinecraftClient client) {
         if (client.player != null && client.player.input != null) {
             var input = client.player.input;
-            input.movementForward = 0.0f;
-            input.movementSideways = 0.0f;
+            input.playerInput = new net.minecraft.util.PlayerInput(false, false, false, false, false, false, false);
         }
 
         if (client.options != null) {

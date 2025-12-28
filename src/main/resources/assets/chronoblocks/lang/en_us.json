@@ -2,6 +2,8 @@
   "key.chronoblocks.open_ui": "Open ChronoBlocks UI",
   "key.chronoblocks.close_ui": "Close ChronoBlocks UI",
   "key.chronoblocks.toggle_ui": "Toggle ChronoBlocks UI",
+  "key.category.chronoblocks.general": "ChronoBlocks",
+  "key.category.chronoblocks.selection": "ChronoBlocks Selection",
   "category.chronoblocks.general": "ChronoBlocks",
   "category.chronoblocks.ui": "ChronoBlocks UI",
   "category.chronoblocks.tools": "ChronoBlocks Tools",

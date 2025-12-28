@@ -2,6 +2,7 @@ package com.chronoblocks.client.renderer;
 import com.chronoblocks.client.renderer.mesh.BlockOutlineMeshCache;
 import com.chronoblocks.core.container.Container;
 import com.chronoblocks.core.container.ContainerManager;
+import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.*;
@@ -12,6 +13,7 @@ import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.lwjgl.opengl.GL11;
 
 import java.util.Collection;
 
@@ -94,10 +96,10 @@ public final class ContainerHighlightRenderer {
             : defaultOutlineColor.clone();
         
         // 设置渲染状态
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        RenderSystem.enableDepthTest();
-        RenderSystem.depthMask(false);
+        GlStateManager._enableBlend();
+        GlStateManager._blendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GlStateManager._enableDepthTest();
+        GlStateManager._depthMask(false);
         float lw = settings.container_outlineWidth;
         RenderSystem.lineWidth(Math.max(1.0f, Math.min(lw, 4.0f)));
         
@@ -179,7 +181,7 @@ public final class ContainerHighlightRenderer {
                 }
             }
         } finally {
-            RenderSystem.depthMask(true);
+            GlStateManager._depthMask(true);
             RenderSystem.lineWidth(1.0f);
         }
     }

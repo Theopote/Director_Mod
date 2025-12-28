@@ -296,7 +296,7 @@ public class SeasonSnowManager {
         if (mc.world == null || mc.player == null) {
             return;
         }
-        tick(mc.world, mc.player.getPos());
+        tick(mc.world, mc.player.getEntityPos());
     }
 
     // ====================================================

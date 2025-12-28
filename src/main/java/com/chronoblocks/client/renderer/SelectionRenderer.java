@@ -4,6 +4,7 @@ import com.chronoblocks.client.renderer.mesh.BlockOutlineMeshCache;
 import com.chronoblocks.client.settings.RenderSettings;
 import com.chronoblocks.core.selection.SelectionManager;
 import com.chronoblocks.core.selection.SelectionState;
+import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.*;
@@ -12,6 +13,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.Vec3d;
+import org.lwjgl.opengl.GL11;
 import org.joml.Matrix4f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -233,9 +235,9 @@ public final class SelectionRenderer {
         BlockPos camBlock = new BlockPos((int) Math.floor(cam.x), (int) Math.floor(cam.y), (int) Math.floor(cam.z));
 
         // ✅ 线框渲染状态设置（独立于填充，使用 try-finally 确保状态恢复）
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        RenderSystem.enableDepthTest();
+        GlStateManager._enableBlend();
+        GlStateManager._blendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GlStateManager._enableDepthTest();
         // Minecraft 1.21+ 的线宽受 GPU 限制，许多平台固定为 1.0
         // 注意：RenderSystem 没有 getLineWidth() 方法，默认线宽为 1.0
         float lw = settings.selection_outlineWidth;
@@ -298,7 +300,7 @@ public final class SelectionRenderer {
             }
         } finally {
             // ✅ 保证状态恢复，不影响后续渲染
-            RenderSystem.disableBlend();
+            GlStateManager._disableBlend();
             RenderSystem.lineWidth(1.0f); // 恢复默认线宽
         }
 
@@ -356,16 +358,16 @@ public final class SelectionRenderer {
             BlockPos camBlock = new BlockPos((int) Math.floor(cam.x), (int) Math.floor(cam.y), (int) Math.floor(cam.z));
 
             // ✅ 填充渲染状态设置（使用 try-finally 确保恢复）
-            RenderSystem.enableBlend();
-            RenderSystem.defaultBlendFunc();
-            RenderSystem.disableCull(); // 透明渲染需要禁用背面剔除
-            RenderSystem.depthMask(false); // 透明渲染必需
-            RenderSystem.enableDepthTest(); // 确保深度测试启用
+            GlStateManager._enableBlend();
+            GlStateManager._blendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
+            GlStateManager._disableCull(); // 透明渲染需要禁用背面剔除
+            GlStateManager._depthMask(false); // 透明渲染必需
+            GlStateManager._enableDepthTest(); // 确保深度测试启用
             
             // ✅ 启用 PolygonOffset 让填充稍微靠近摄像机，避免被方块本身遮挡
             // 注意：负值让几何体靠近摄像机（更靠近屏幕）
-            RenderSystem.enablePolygonOffset();
-            RenderSystem.polygonOffset(-1.5f, -1.5f); // 增加偏移量，确保填充可见
+            GlStateManager._enablePolygonOffset();
+            GlStateManager._polygonOffset(-1.5f, -1.5f); // 增加偏移量，确保填充可见
 
             try {
                 // ✅ 使用白色纹理的半透明图层
@@ -454,10 +456,10 @@ public final class SelectionRenderer {
                 
             } finally {
                 // ✅ 保证状态恢复，不影响后续渲染
-                RenderSystem.disablePolygonOffset();
-                RenderSystem.depthMask(true);
-                RenderSystem.enableCull();
-                RenderSystem.disableBlend();
+                GlStateManager._disablePolygonOffset();
+                GlStateManager._depthMask(true);
+                GlStateManager._enableCull();
+                GlStateManager._disableBlend();
             }
             
         } catch (Exception e) {

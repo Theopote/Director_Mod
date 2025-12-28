@@ -13,7 +13,9 @@ import com.chronoblocks.ui.input.InputFocusManager;
 import com.chronoblocks.world.snapshot.WorldSnapshotManager;
 import imgui.ImGui;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.Click;
 import net.minecraft.client.gui.DrawContext;
+import net.minecraft.client.input.KeyInput;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
 import org.slf4j.Logger;
@@ -218,7 +220,10 @@ public class ChronoBlocksScreen extends Screen {
      * 使用全局快捷键管理器统一处理所有快捷键
      */
     @Override
-    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+    public boolean keyPressed(KeyInput input) {
+        int keyCode = input.key();
+        int scanCode = input.scancode();
+        int modifiers = input.modifiers();
         // 检查ImGui是否想要捕获键盘事件
         if (ImGui.getIO() != null && ImGui.getIO().getWantCaptureKeyboard()) {
             // ImGui 捕获键盘时，使用 ImGui 输入处理
@@ -226,7 +231,7 @@ public class ChronoBlocksScreen extends Screen {
             if (shortcutManager.handleImGuiInput(ImGui.getIO())) {
                 return true; // 已处理
             }
-            return super.keyPressed(keyCode, scanCode, modifiers);
+            return super.keyPressed(input);
         }
         
         // ImGui 不捕获键盘时，使用 GLFW 输入处理
@@ -243,10 +248,10 @@ public class ChronoBlocksScreen extends Screen {
      * 根据鼠标位置决定是否处理UI事件
      */
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+    public boolean mouseClicked(Click click, boolean doubleClick) {
         // 检查ImGui是否想要捕获鼠标事件
         if (ImGui.getIO() != null && ImGui.getIO().getWantCaptureMouse()) {
-            return super.mouseClicked(mouseX, mouseY, button);
+            return super.mouseClicked(click, doubleClick);
         }
         return false; // 不拦截游戏鼠标事件
     }
@@ -284,11 +289,11 @@ public class ChronoBlocksScreen extends Screen {
     }
     
     @Override
-    public boolean mouseDragged(double mouseX, double mouseY, int button, double deltaX, double deltaY) {
+    public boolean mouseDragged(Click click, double deltaX, double deltaY) {
         if (ImGui.getIO().getWantCaptureMouse()) {
             return true;
         }
-        return super.mouseDragged(mouseX, mouseY, button, deltaX, deltaY);
+        return super.mouseDragged(click, deltaX, deltaY);
     }
 
     @Override

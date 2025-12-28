@@ -7,6 +7,7 @@ import net.minecraft.client.input.Input;
 import net.minecraft.client.input.KeyboardInput;
 import net.minecraft.client.util.InputUtil;
 import net.minecraft.util.PlayerInput;
+import net.minecraft.util.math.Vec2f;
 import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -28,8 +29,7 @@ public class KeyboardInputMixin extends Input {
         if (client.currentScreen instanceof ChronoBlocksScreen screen) {
             // 🎥 导出期间：锁定玩家移动输入（省资源模式下屏幕镜头会跟随导出，禁止误操作干扰帧内容）
             if (VideoExportManager.getInstance().isExporting()) {
-                this.movementForward = 0.0F;
-                this.movementSideways = 0.0F;
+                this.movementVector = Vec2f.ZERO;
                 this.playerInput = new PlayerInput(false, false, false, false, false, false, false);
                 ci.cancel();
                 return;
@@ -40,17 +40,15 @@ public class KeyboardInputMixin extends Input {
             
             // 如果鼠标在UI外，允许移动输入
             if (!mouseOverGui) {
-                long window = client.getWindow().getHandle();
-                
-                // 直接设置移动状态
-                this.movementForward = 0.0F;
-                this.movementSideways = 0.0F;
+                var window = client.getWindow();
+                float forwardAmt = 0.0F;
+                float sidewaysAmt = 0.0F;
                 
                 // 检查按键并更新移动
-                if (InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_W)) this.movementForward += 1.0F;
-                if (InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_S)) this.movementForward -= 1.0F;
-                if (InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_D)) this.movementSideways -= 1.0F;
-                if (InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_A)) this.movementSideways += 1.0F;
+                if (InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_W)) forwardAmt += 1.0F;
+                if (InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_S)) forwardAmt -= 1.0F;
+                if (InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_D)) sidewaysAmt -= 1.0F;
+                if (InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_A)) sidewaysAmt += 1.0F;
                 
                 // 更新玩家输入状态
                 boolean forward = InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_W);
@@ -63,11 +61,11 @@ public class KeyboardInputMixin extends Input {
                 
                 // 更新 PlayerInput
                 this.playerInput = new PlayerInput(forward, backward, left, right, jump, sneak, sprint);
+                this.movementVector = new Vec2f(sidewaysAmt, forwardAmt);
                 
                 // 处理慢速移动（潜行）
                 if (sneak) {
-                    this.movementSideways *= 0.3F;
-                    this.movementForward *= 0.3F;
+                    this.movementVector = this.movementVector.multiply(0.3F);
                 }
                 
                 ci.cancel(); // 阻止原版处理

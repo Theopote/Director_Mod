@@ -110,7 +110,7 @@ public final class CameraAccessor {
         // 从 GameRenderer 获取当前渲染 FOV（包含动态 FOV），保持时间线与实时画面一致
         float tickDelta = 0f;
         if (client.getRenderTickCounter() != null) {
-            tickDelta = client.getRenderTickCounter().getTickDelta(false);
+            tickDelta = client.getRenderTickCounter().getTickProgress(false);
         }
         float baseFov;
         if (client.gameRenderer instanceof com.chronoblocks.mixin.accessor.GameRendererAccessor accessor) {

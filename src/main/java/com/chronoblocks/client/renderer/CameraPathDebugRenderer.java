@@ -5,6 +5,7 @@ import com.chronoblocks.ui.timeline.playback.camera.CameraSample;
 import com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController;
 import com.chronoblocks.ui.timeline.playback.camera.TimelineCameraPathManager;
 import com.chronoblocks.ui.timeline.playback.camera.TimelineCameraPathManager.BezierDebugSegment;
+import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -18,6 +19,7 @@ import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.lwjgl.opengl.GL11;
 
 import java.util.List;
 import java.util.Optional;
@@ -112,10 +114,10 @@ public final class CameraPathDebugRenderer {
         LOGGER.debug("[CameraPathDebugRenderer] 开始渲染轨迹（关键帧数: {}）", pathManager.getKeyframes().size());
         MinecraftClient client = MinecraftClient.getInstance();
         float tickDelta = client != null && client.getRenderTickCounter() != null
-                ? client.getRenderTickCounter().getTickDelta(false)
+                ? client.getRenderTickCounter().getTickProgress(false)
                 : 0.0f;
         float currentTimeSeconds = TimelineCameraController.getInstance().getCurrentTimeSeconds();
-        render(context.matrixStack(), context.consumers(), tickDelta, currentTimeSeconds);
+        render(context.matrices(), context.consumers(), tickDelta, currentTimeSeconds);
     }
 
     /**
@@ -161,9 +163,9 @@ public final class CameraPathDebugRenderer {
         matrices.push();
         Matrix4f matrix = matrices.peek().getPositionMatrix();
 
-        RenderSystem.enableBlend();
-        RenderSystem.defaultBlendFunc();
-        RenderSystem.enableDepthTest();
+        GlStateManager._enableBlend();
+        GlStateManager._blendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GlStateManager._enableDepthTest();
         RenderSystem.lineWidth(LINE_WIDTH);
 
         // 1. 渲染轨迹线（整体路径）- 至少需要2个点才能画线
@@ -187,7 +189,7 @@ public final class CameraPathDebugRenderer {
         if (consumers instanceof VertexConsumerProvider.Immediate immediate) {
             immediate.draw();
         }
-        RenderSystem.disableBlend();
+        GlStateManager._disableBlend();
 
         matrices.pop();
     }

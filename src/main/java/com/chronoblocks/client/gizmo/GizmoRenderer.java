@@ -1,6 +1,7 @@
 package com.chronoblocks.client.gizmo;
 
 import com.chronoblocks.client.renderer.OverlayRenderHelper;
+import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.render.*;
 import net.minecraft.client.render.Camera;
@@ -11,6 +12,7 @@ import com.chronoblocks.client.gizmo.handles.*;
 import org.joml.Matrix4f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.lwjgl.opengl.GL11;
 
 import java.util.List;
 
@@ -96,18 +98,18 @@ public class GizmoRenderer {
         matrices.push();
         try {
             // ✅ v4.8.1: 设置独立的渲染状态
-            RenderSystem.enableBlend();
-            RenderSystem.defaultBlendFunc();
+            GlStateManager._enableBlend();
+            GlStateManager._blendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
             
             // ✅ 修复：启用深度测试，但使用PolygonOffset让Gizmo稍微靠近摄像机
             // 这样Gizmo会有正确的前后关系，但仍能清晰可见
-            RenderSystem.enableDepthTest();
-            RenderSystem.depthMask(false); // 禁用深度写入，避免影响其他渲染
+            GlStateManager._enableDepthTest();
+            GlStateManager._depthMask(false); // 禁用深度写入，避免影响其他渲染
             
             // ✅ 使用 PolygonOffset 让 Gizmo 稍微靠近摄像机，确保不被半透明填充遮挡
             // 使用适中的负值（-1.5f），与SelectionRenderer保持一致
-            RenderSystem.enablePolygonOffset();
-            RenderSystem.polygonOffset(-1.5f, -1.5f); // 稍微靠近摄像机
+            GlStateManager._enablePolygonOffset();
+            GlStateManager._polygonOffset(-1.5f, -1.5f); // 稍微靠近摄像机
             
             // ✅ 线条宽度：使用2.0F以确保更好的兼容性（某些系统不支持>1.0的宽度）
             try {
@@ -118,8 +120,7 @@ public class GizmoRenderer {
                 RenderSystem.lineWidth(1.0F);
             }
 
-            // ✅ 重置着色器颜色为白色，确保顶点颜色正确显示
-            RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f);
+            // 1.21.10+：RenderSystem.setShaderColor 已不再暴露；这里不强制重置 shader color
 
             matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
 
@@ -219,11 +220,10 @@ public class GizmoRenderer {
         } finally {
             // ✅ v4.8.1: 确保状态恢复，即使发生异常也恢复
             // 注意：需要恢复lineWidth，但Minecraft通常不恢复它，所以我们也不恢复
-            RenderSystem.disablePolygonOffset(); // 禁用 PolygonOffset
-            RenderSystem.enableDepthTest(); // 恢复深度测试（即使我们启用了它，也要确保恢复）
-            RenderSystem.depthMask(true);   // 恢复深度写入
-            RenderSystem.disableBlend(); // 恢复混合状态
-            RenderSystem.setShaderColor(1.0f, 1.0f, 1.0f, 1.0f); // ✅ 重置着色器颜色
+            GlStateManager._disablePolygonOffset(); // 禁用 PolygonOffset
+            GlStateManager._enableDepthTest(); // 恢复深度测试（即使我们启用了它，也要确保恢复）
+            GlStateManager._depthMask(true);   // 恢复深度写入
+            GlStateManager._disableBlend(); // 恢复混合状态
             matrices.pop();
             LOGGER.debug("[GizmoRenderer] ✅ 渲染状态已恢复");
         }

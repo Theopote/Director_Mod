@@ -18,6 +18,7 @@ import com.chronoblocks.registry.ModItems;
 import com.chronoblocks.client.debug.ChronoBlocksDebugger;
 import com.chronoblocks.client.renderer.pipeline.ChronoBlocksRendererRegistry;
 // ImGui 相关导入已移除，现在由 ImGuiRenderer 统一管理
+import com.chronoblocks.client.input.ChronoKeyCategories;
 import net.minecraft.util.math.Vec3d;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -115,7 +116,7 @@ public class ChronoBlocksClient implements ClientModInitializer {
             "key.chronoblocks.open_ui", // 翻译键
             InputUtil.Type.KEYSYM,
             GLFW.GLFW_KEY_C, // 默认按键 C
-            "category.chronoblocks.general" // 分类键
+            ChronoKeyCategories.GENERAL // 分类
         ));
         LOGGER.info("[ChronoBlocks] Key binding registered: C key for opening UI");
     }
@@ -218,7 +219,7 @@ public class ChronoBlocksClient implements ClientModInitializer {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.world != null && client.player != null) {
                 try {
-                    Vec3d pos = client.player.getPos();
+                    Vec3d pos = client.player.getEntityPos();
                     
                     // ⭐ v3.0：使用新的 tick(world, cameraPos) API，传入摄像机位置
                     com.chronoblocks.season.SeasonSnowManager.get().tick(client.world, pos);

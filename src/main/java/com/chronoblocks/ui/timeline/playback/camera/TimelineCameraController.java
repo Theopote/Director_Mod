@@ -400,7 +400,7 @@ public final class TimelineCameraController {
         MinecraftClient client = MinecraftClient.getInstance();
         float delta = 0f;
         if (client != null && client.getRenderTickCounter() != null) {
-            delta = client.getRenderTickCounter().getTickDelta(false);
+            delta = client.getRenderTickCounter().getTickProgress(false);
         }
         updateOwnerAndSample(delta);
     }

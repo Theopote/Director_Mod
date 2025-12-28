@@ -9,7 +9,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.RaycastContext;
 import net.minecraft.world.World;
-import com.mojang.blaze3d.systems.RenderSystem;
+import net.minecraft.client.render.GameRenderer;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 import org.lwjgl.glfw.GLFW;
@@ -89,8 +89,10 @@ public class SelectionInputHandler {
         // 4. 获取相机参数
         Camera camera = client.gameRenderer.getCamera();
         Vec3d cameraPos = camera.getPos();
-        // 3) 使用当前帧投影矩阵进行反投影到视空间，再用相机旋转到世界
-        Matrix4f invProj = new Matrix4f(RenderSystem.getProjectionMatrix()).invert();
+        // 3) 1.21.10+：使用 GameRenderer 的基础投影矩阵（替代 RenderSystem.getProjectionMatrix）
+        GameRenderer gr = client.gameRenderer;
+        float fov = client.options.getFov().getValue().floatValue();
+        Matrix4f invProj = new Matrix4f(gr.getBasicProjectionMatrix(fov)).invert();
         Vector4f nearClip = new Vector4f(ndcX, ndcY, -1.0f, 1.0f).mul(invProj);
         Vector4f farClip  = new Vector4f(ndcX, ndcY,  1.0f, 1.0f).mul(invProj);
         if (nearClip.w != 0.0f) nearClip.div(nearClip.w);

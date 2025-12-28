@@ -9,15 +9,12 @@ import com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.gl.SimpleFramebuffer;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.util.ScreenshotRecorder;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL30;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -56,9 +53,6 @@ public final class VideoRenderPipeline {
     }
 
     private final ConcurrentLinkedQueue<CaptureRequest> queue = new ConcurrentLinkedQueue<>();
-
-    /** 复用的离屏 framebuffer（按设置 resize）。 */
-    private SimpleFramebuffer offscreen;
 
     private VideoRenderPipeline() {}
 
@@ -122,13 +116,12 @@ public final class VideoRenderPipeline {
         }
 
         try {
-            NativeImage image = blitMainFramebufferToOffscreenAndCapture(head.settings);
-            head.future.complete(image);
+            captureMainFramebuffer(head);
         } catch (Exception e) {
             head.future.completeExceptionally(e);
         } finally {
             if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("[VideoExport] frame captured via blit -> offscreen ({}x{})",
+                LOGGER.debug("[VideoExport] frame captured from main framebuffer ({}x{})",
                         head.settings.width, head.settings.height);
             }
             queue.poll();
@@ -182,49 +175,16 @@ public final class VideoRenderPipeline {
         return result;
     }
 
-    private NativeImage blitMainFramebufferToOffscreenAndCapture(VideoExportSettings settings) {
+    private static void captureMainFramebuffer(CaptureRequest req) {
         RenderSystem.assertOnRenderThread();
 
         MinecraftClient client = MinecraftClient.getInstance();
-        var src = client.getFramebuffer();
-        if (src == null) {
+        var fb = client.getFramebuffer();
+        if (fb == null) {
             throw new IllegalStateException("client.getFramebuffer() == null");
         }
-
-        int targetW = Math.max(16, settings.width);
-        int targetH = Math.max(16, settings.height);
-        ensureOffscreen(targetW, targetH);
-
-        // 绑定并 blit（缩放）主 framebuffer -> offscreen
-        int prev = GL11.glGetInteger(GL30.GL_FRAMEBUFFER_BINDING);
-        try {
-            GL30.glBindFramebuffer(GL30.GL_READ_FRAMEBUFFER, src.fbo);
-            GL30.glBindFramebuffer(GL30.GL_DRAW_FRAMEBUFFER, offscreen.fbo);
-
-            GL30.glBlitFramebuffer(
-                    0, 0, src.viewportWidth, src.viewportHeight,
-                    0, 0, targetW, targetH,
-                    GL11.GL_COLOR_BUFFER_BIT,
-                    GL11.GL_LINEAR
-            );
-        } finally {
-            GL30.glBindFramebuffer(GL30.GL_FRAMEBUFFER, prev);
-        }
-
-        // 从 offscreen framebuffer 抓帧（此帧不包含 HUD，因为发生在 renderWorld(TAIL)，HUD 尚未绘制）
-        NativeImage image = ScreenshotRecorder.takeScreenshot(offscreen);
-        if (image == null) {
-            throw new IllegalStateException("ScreenshotRecorder.takeScreenshot returned null");
-        }
-        return image;
-    }
-
-    private void ensureOffscreen(int width, int height) {
-        if (offscreen == null) {
-            offscreen = new SimpleFramebuffer(width, height, true);
-            return;
-        }
-        offscreen.resize(width, height);
+        // 1.21.10+：ScreenshotRecorder 改为异步回调形式；这里直接回填 future。
+        ScreenshotRecorder.takeScreenshot(fb, req.future::complete);
     }
 }
 

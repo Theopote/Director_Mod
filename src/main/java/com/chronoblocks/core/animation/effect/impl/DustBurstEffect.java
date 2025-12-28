@@ -80,7 +80,7 @@ public class DustBurstEffect implements IBlockEffect {
             double vy = 0.1 + random.nextDouble() * 0.1;
             double vz = (oz - baseZ) * 0.15;
             
-            world.addParticle(effect, ox, oy, oz, vx, vy, vz);
+            world.addParticleClient(effect, ox, oy, oz, vx, vy, vz);
         }
     }
     
