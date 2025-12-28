@@ -173,8 +173,9 @@ public final class VideoRenderPipeline {
         TimelineCameraController cameraController = TimelineCameraController.getInstance();
         cameraController.setTimelineModel(model); // 确保已绑定（重复调用安全）
         cameraController.setActiveCameraTrack(track);
-        // 使用 jumpToTimeAsPlayer：把采样结果写入玩家实体，确保 renderWorld 使用该视角
-        cameraController.jumpToTimeAsPlayer(timeSeconds);
+        // 导出模式必须“严格确定”：不能把采样写到 player 实体上让渲染用 tickDelta 插值，否则会出现逐帧抖动。
+        // 这里让 CameraRuntime 进入 TIMELINE owner，由 CameraMixin 在 Camera.update(TAIL) 直接覆盖相机位置/旋转/FOV。
+        cameraController.applySampleForExport(timeSeconds);
     }
 
     private static List<TimelineTrack> getCameraTracks(TimelineModel model) {

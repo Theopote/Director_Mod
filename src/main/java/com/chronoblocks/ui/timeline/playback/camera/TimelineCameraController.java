@@ -398,10 +398,7 @@ public final class TimelineCameraController {
      */
     public void update() {
         MinecraftClient client = MinecraftClient.getInstance();
-        float delta = 0f;
-        if (client != null && client.getRenderTickCounter() != null) {
-            delta = client.getRenderTickCounter().getTickProgress(false);
-        }
+        float delta = getRenderTickDeltaSafe(client);
         updateOwnerAndSample(delta);
     }
 
@@ -455,13 +452,33 @@ public final class TimelineCameraController {
 
         if (opt.isPresent()) {
             runtime.applyTimelineSample(opt.get());
-        } else if (false) {
-            // 当前轨道没有关键帧，回退到玩家视角
-            if (runtime.isTimelineOwner()) {
-                runtime.setOwner(CameraRuntime.Owner.PLAYER);
-                ChronoBlocksClientController.getInstance().setHideCrosshair(false);
-            }
         }
+    }
+
+    /**
+     * 取当前渲染 tickDelta（partialTicks），用反射避免 IDE/映射漂移导致的解析报错。
+     */
+    private static float getRenderTickDeltaSafe(MinecraftClient client) {
+        try {
+            if (client == null) return 0.0f;
+            Object rtc = client.getRenderTickCounter();
+            if (rtc == null) return 0.0f;
+
+            try {
+                var m = rtc.getClass().getMethod("getTickProgress", boolean.class);
+                Object v = m.invoke(rtc, false);
+                if (v instanceof Float f) return f;
+            } catch (ReflectiveOperationException ignored) {}
+
+            try {
+                var m = rtc.getClass().getMethod("getDynamicDeltaTicks");
+                Object v = m.invoke(rtc);
+                if (v instanceof Float f) return f;
+            } catch (ReflectiveOperationException ignored) {}
+        } catch (Throwable ignored) {
+            // ignore
+        }
+        return 0.0f;
     }
 
     /**
@@ -483,6 +500,31 @@ public final class TimelineCameraController {
         CameraRuntime.getInstance().setOwner(CameraRuntime.Owner.PLAYER);
         ChronoBlocksClientController.getInstance().setHideCrosshair(false);
         LOGGER.debug("[TimelineCamera] jumpToTimeAsPlayer @ {}s", timeSeconds);
+    }
+
+    /**
+     * 🎥 导出专用：将指定时间点的 CameraSample 应用到 {@link CameraRuntime}，并强制 owner=TIMELINE。
+     *
+     * <p>为什么要这样做？</p>
+     * <ul>
+     *   <li>如果把采样写到 player 实体上（{@link #jumpToTimeAsPlayer(float)}），渲染会使用 tickDelta 对实体做插值，
+     *   只要 prev/lastRender 没同步，就会产生“每帧跳一下”的抖动。</li>
+     *   <li>导出时我们需要每一帧完全确定：由 {@code CameraMixin} 在 {@code Camera.update(TAIL)} 直接覆盖 Camera 的 pos/rot，
+     *   不走实体插值路径，从而避免 jitter。</li>
+     * </ul>
+     */
+    public synchronized void applySampleForExport(float timeSeconds) {
+        if (!hasValidActiveTrack()) {
+            return;
+        }
+        rebuildFromActiveTrack();
+        CameraRuntime runtime = CameraRuntime.getInstance();
+        sampler.sample(timeSeconds).ifPresent(runtime::applyTimelineSample);
+        if (!runtime.isTimelineOwner()) {
+            runtime.setOwner(CameraRuntime.Owner.TIMELINE);
+        }
+        // 导出期间保持隐藏十字星（避免 UI/输入干扰），可按需调整
+        ChronoBlocksClientController.getInstance().setHideCrosshair(true);
     }
 
     // ================== 关键帧捕捉 ==================
