@@ -101,9 +101,9 @@ public class GizmoRenderer {
             GlStateManager._enableBlend();
             GlStateManager._blendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
             
-            // ✅ 修复：启用深度测试，但使用PolygonOffset让Gizmo稍微靠近摄像机
-            // 这样Gizmo会有正确的前后关系，但仍能清晰可见
-            GlStateManager._enableDepthTest();
+            // ✅ 需求：无论包围盒是否填充，Gizmo 箭头都必须可见
+            // 这里直接禁用深度测试，让 Gizmo 永远绘制在最前面（不被半透明填充遮挡）。
+            GlStateManager._disableDepthTest();
             GlStateManager._depthMask(false); // 禁用深度写入，避免影响其他渲染
             
             // ✅ 使用 PolygonOffset 让 Gizmo 稍微靠近摄像机，确保不被半透明填充遮挡
@@ -221,7 +221,7 @@ public class GizmoRenderer {
             // ✅ v4.8.1: 确保状态恢复，即使发生异常也恢复
             // 注意：需要恢复lineWidth，但Minecraft通常不恢复它，所以我们也不恢复
             GlStateManager._disablePolygonOffset(); // 禁用 PolygonOffset
-            GlStateManager._enableDepthTest(); // 恢复深度测试（即使我们启用了它，也要确保恢复）
+            GlStateManager._enableDepthTest(); // 恢复深度测试
             GlStateManager._depthMask(true);   // 恢复深度写入
             GlStateManager._disableBlend(); // 恢复混合状态
             matrices.pop();

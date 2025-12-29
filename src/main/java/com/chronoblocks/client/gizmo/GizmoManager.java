@@ -470,6 +470,15 @@ public class GizmoManager {
     public void setTargetBox(Box box) {
         if (context != null) {
             context.setTargetBox(box);
+            // ✅ BOUNDS Gizmo：永远以 targetBox 的几何中心作为 pivot
+            if (context.getType() == GizmoType.BOUNDS && box != null) {
+                Vec3d center = new Vec3d(
+                    (box.minX + box.maxX) / 2.0,
+                    (box.minY + box.maxY) / 2.0,
+                    (box.minZ + box.maxZ) / 2.0
+                );
+                context.setPivot(center);
+            }
         }
     }
     

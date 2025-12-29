@@ -392,6 +392,16 @@ public class GizmoInteractionController {
         
         Box newBox = new Box(minX, minY, minZ, maxX + 1, maxY + 1, maxZ + 1);
         context.setTargetBox(newBox);
+
+        // ✅ BOUNDS Gizmo：pivot 永远是包围盒几何中心
+        if (context != null && context.getType() == GizmoType.BOUNDS) {
+            Vec3d center = new Vec3d(
+                (newBox.minX + newBox.maxX) / 2.0,
+                (newBox.minY + newBox.maxY) / 2.0,
+                (newBox.minZ + newBox.maxZ) / 2.0
+            );
+            context.setPivot(center);
+        }
     }
     
     // ========== Getters & Setters ==========
