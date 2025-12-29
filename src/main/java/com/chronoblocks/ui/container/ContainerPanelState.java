@@ -22,6 +22,13 @@ public final class ContainerPanelState {
     private UUID pendingReleaseContainerId;
     private boolean pendingDeletionRequested;
 
+    /**
+     * 顶部按钮显示模式：
+     * - false：仅图标（更紧凑）
+     * - true：图标 + 文字（更易读）
+     */
+    private boolean showToolbarText = false;
+
     public float getLeftPanelWidthRatio() {
         return leftPanelWidthRatio;
     }
@@ -98,6 +105,14 @@ public final class ContainerPanelState {
 
     public void setPendingDeletionRequested(boolean pendingDeletionRequested) {
         this.pendingDeletionRequested = pendingDeletionRequested;
+    }
+
+    public boolean isShowToolbarText() {
+        return showToolbarText;
+    }
+
+    public void setShowToolbarText(boolean showToolbarText) {
+        this.showToolbarText = showToolbarText;
     }
 
     public void toggleNode(UUID nodeId) {

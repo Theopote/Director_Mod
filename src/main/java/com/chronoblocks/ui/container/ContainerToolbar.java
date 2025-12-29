@@ -23,23 +23,42 @@ public class ContainerToolbar {
         renderSelectionInfo();
     }
 
+    private boolean showText() {
+        try {
+            return controller != null && controller.getState() != null && controller.getState().isShowToolbarText();
+        } catch (Exception ignored) {
+            return true;
+        }
+    }
+
+    private boolean toolbarButton(String id, String icon, String text, String tooltip) {
+        boolean showText = showText();
+        String label = showText ? (icon + " " + text + "##" + id) : (icon + "##" + id);
+        float w = showText ? 0 : UITheme.Spacing.BUTTON_HEIGHT;
+        boolean clicked = ImGui.button(label, w, UITheme.Spacing.BUTTON_HEIGHT);
+        if (ImGui.isItemHovered() && tooltip != null && !tooltip.isBlank()) {
+            ImGui.setTooltip(tooltip);
+        }
+        return clicked;
+    }
+
     private void renderCreationButtons() {
-        if (ImGui.button(Icons.ADD + " 新建容器", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
+        if (toolbarButton("container_create", Icons.ADD, "新建容器", "创建一个新的容器")) {
             controller.createNewContainer();
         }
 
         ImGui.sameLine();
-        if (ImGui.button(Icons.FOLDER + " 新建分组", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
+        if (toolbarButton("group_create", Icons.FOLDER, "新建分组", "创建一个新的分组（仅用于组织容器）")) {
             controller.createNewGroupContainer();
         }
 
         ImGui.sameLine();
-        if (ImGui.button(Icons.CONTAINER + " 生成容器", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
+        if (toolbarButton("container_generate", Icons.CONTAINER, "生成容器", "用当前 Minecraft 选区生成容器")) {
             controller.generateContainerFromSelection();
         }
 
         ImGui.sameLine();
-        if (ImGui.button(Icons.ERASER + " 生成拆除容器", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
+        if (toolbarButton("container_generate_demolition", Icons.ERASER, "生成拆除容器", "用当前 Minecraft 选区生成拆除容器")) {
             controller.generateDemolitionContainerFromSelection();
         }
     }
@@ -57,7 +76,7 @@ public class ContainerToolbar {
             canIntake = false;
         }
         if (!canIntake) ImGui.beginDisabled();
-        if (ImGui.button(Icons.DOWNLOAD + " 收纳选区", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
+        if (toolbarButton("intake_selection", Icons.DOWNLOAD, "收纳选区", "将当前选区添加到选中的容器")) {
             controller.intakeCurrentSelection();
         }
         if (!canIntake) ImGui.endDisabled();
@@ -76,22 +95,21 @@ public class ContainerToolbar {
         ImGui.sameLine();
         if (!hasSelection || isGroup || selectedContainer.isLocked()) ImGui.beginDisabled();
         boolean intakeEnabled = hasSelection && !isGroup && selectedContainer.isIntakeEnabled() && !selectedContainer.isLocked();
-        String intakeText = intakeEnabled ? Icons.PAUSE + " 停止接收" : Icons.PLAY + " 实时接收";
-        if (ImGui.button(intakeText, 0, UITheme.Spacing.BUTTON_HEIGHT)) {
+        String intakeIcon = intakeEnabled ? Icons.PAUSE : Icons.PLAY;
+        String intakeLabel = intakeEnabled ? "停止接收" : "实时接收";
+        if (toolbarButton("toggle_intake", intakeIcon, intakeLabel,
+            intakeEnabled ? "停止实时接收选中的方块" : "开启实时接收模式：每次选中方块时自动收纳到此容器")) {
             if (selectedContainer != null) {
                 controller.toggleIntake(selectedContainer.getId());
             }
         }
         if (!hasSelection || isGroup || selectedContainer.isLocked()) ImGui.endDisabled();
+        // tooltip 已在 toolbarButton() 中设置；这里保留原逻辑的特殊提示（覆盖更精准）
         if (ImGui.isItemHovered()) {
             if (!hasSelection) {
                 ImGui.setTooltip("请先选择一个容器");
             } else if (isGroup) {
                 ImGui.setTooltip("组无法开启实时接收");
-            } else if (intakeEnabled) {
-                ImGui.setTooltip("停止实时接收选中的方块");
-            } else {
-                ImGui.setTooltip("开启实时接收模式：每次选中方块时自动收纳到此容器");
             }
         }
 

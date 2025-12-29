@@ -100,34 +100,72 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
         ImGui.sameLine();
         ImGui.textDisabled(String.format("分割: %.0f%%", state.getLeftPanelWidthRatio() * 100));
         ImGui.sameLine();
-        if (ImGui.smallButton("重置分割")) {
+        if (ImGui.smallButton(headerButtonLabel(Icons.REFRESH, "重置分割", "resetSplitter"))) {
             state.setLeftPanelWidthRatio(0.5f);
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("重置左右面板分割比例");
         }
         ImGui.sameLine();
         renderHeaderControls();
     }
 
     private void renderHeaderControls() {
+        boolean showText = state.isShowToolbarText();
+
         boolean canUndo = controller.canUndo();
         if (!canUndo) ImGui.beginDisabled();
-        if (ImGui.smallButton(Icons.UNDO + " 撤销")) {
+        if (ImGui.smallButton(headerButtonLabel(Icons.UNDO, "撤销", "undo"))) {
             controller.undo();
         }
         if (!canUndo) ImGui.endDisabled();
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("撤销");
+        }
 
         ImGui.sameLine();
         boolean canRedo = controller.canRedo();
         if (!canRedo) ImGui.beginDisabled();
-        if (ImGui.smallButton(Icons.REDO + " 重做")) {
+        if (ImGui.smallButton(headerButtonLabel(Icons.REDO, "重做", "redo"))) {
             controller.redo();
         }
         if (!canRedo) ImGui.endDisabled();
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("重做");
+        }
 
         ImGui.sameLine();
         String expandLabel = state.isExpandAll() ? "折叠全部" : "展开全部";
-        if (ImGui.smallButton(expandLabel)) {
+        String expandIcon = state.isExpandAll() ? Icons.MINIMIZE_2 : Icons.MAXIMIZE_2;
+        if (ImGui.smallButton(headerButtonLabel(expandIcon, expandLabel, "expandAll"))) {
             controller.toggleExpandAll();
         }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(expandLabel);
+        }
+
+        // 图标/文字显示切换（与 ToolbarPanel 类似）
+        ImGui.sameLine();
+        String toggleIcon = showText ? Icons.TOOLS : Icons.TAG;
+        if (ImGui.smallButton(toggleIcon + "##containerHeaderToggleText")) {
+            state.setShowToolbarText(!showText);
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.beginTooltip();
+            ImGui.text("按钮显示");
+            ImGui.separator();
+            ImGui.text(showText ? "当前：图标 + 文字" : "当前：仅图标");
+            ImGui.text("点击切换显示方式");
+            ImGui.endTooltip();
+        }
+    }
+
+    private String headerButtonLabel(String icon, String text, String id) {
+        // smallButton 只能接收 label，所以用“##id”隔离 ID
+        if (state.isShowToolbarText()) {
+            return icon + " " + text + "##" + id;
+        }
+        return icon + "##" + id;
     }
 
     private void renderResizableLayout() {
