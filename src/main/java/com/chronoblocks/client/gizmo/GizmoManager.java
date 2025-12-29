@@ -44,8 +44,9 @@ public class GizmoManager {
     private Vec3d lastDragWorldPos = null;
     
     // 渲染配置
-    private static final double AXIS_ARROW_LENGTH = 1.5;
-    private static final double AXIS_ARROW_RADIUS = 0.08;
+    // 与 GizmoRenderer 的可见尺寸对齐（避免“箭头看得见但点不到/范围短”）
+    private static final double AXIS_ARROW_LENGTH = 2.0;
+    private static final double AXIS_ARROW_RADIUS = 0.15;
     private static final double PLANE_SIZE = 0.5;
     @SuppressWarnings("unused")
     private static final double CORNER_RADIUS = 0.12;

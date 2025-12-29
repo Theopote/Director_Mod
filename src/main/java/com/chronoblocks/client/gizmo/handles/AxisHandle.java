@@ -23,6 +23,9 @@ public class AxisHandle extends AbstractGizmoHandle {
     // 与 GizmoRenderer 的距离缩放保持一致（避免“看得见箭头但点不到/拖不动”）
     private static final double MIN_DISTANCE_MULTIPLIER = 8.0;
     private static final double DISTANCE_SCALE_DIVISOR = 15.0;
+
+    // 与 GizmoRenderer 的可见箭头半径对齐（圆锥体底面半径）
+    private static final double VISUAL_ARROW_RADIUS_BASE = 0.15;
     
     public AxisHandle(String id, Vec3d position, Axis axis, double length, double radius) {
         super(id, position);
@@ -45,8 +48,18 @@ public class AxisHandle extends AbstractGizmoHandle {
         }
 
         Vec3d dir = signedAxisDirection(rayOrigin);
-        double effectiveLength = length * distanceMultiplier(rayOrigin);
-        double effectiveRadius = Math.max(radius, Math.min(0.6, Math.max(radius, position.distanceTo(rayOrigin) * 0.02)));
+        double dm = distanceMultiplier(rayOrigin);
+        // 覆盖渲染可见轴长度（GizmoRenderer 的 axisLength 也是按距离缩放）
+        double effectiveLength = length * dm;
+        // 覆盖圆锥体的“视觉半径”，并适当放大容错
+        double dist = position.distanceTo(rayOrigin);
+        double effectiveRadius = Math.max(
+            radius * dm,
+            Math.max(
+                VISUAL_ARROW_RADIUS_BASE * dm,
+                Math.min(0.8, Math.max(0.12, dist * 0.025))
+            )
+        );
 
         // 计算轴线的边界盒（简化为圆柱 → AABB）
         Vec3d start = position;

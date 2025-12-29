@@ -129,12 +129,15 @@ public class GizmoRenderer {
             LOGGER.info("[GizmoRenderer] 🧩 开始渲染: Box={}, Pivot={}, Type={}, Visible={}",
                     box, pivot, context.getType(), context.isActive());
 
-            // === 1️⃣ 绘制 Gizmo 中心点（白色立方体） ===
-            try {
-                drawPivotCube(posMat, vcp, pivot, pivotSize);
-                LOGGER.debug("[GizmoRenderer] ✅ 中心点立方体渲染完成");
-            } catch (Exception e) {
-                LOGGER.error("[GizmoRenderer] ❌ 渲染中心点立方体失败", e);
+            // === 1️⃣ 绘制 Gizmo 中心点 ===
+            // BOUNDS Gizmo：中心只保留一个简单的立方体（由 renderCenterHandle 负责），避免重复渲染导致视觉杂乱
+            if (context.getType() != GizmoType.BOUNDS) {
+                try {
+                    drawPivotCube(posMat, vcp, pivot, pivotSize);
+                    LOGGER.debug("[GizmoRenderer] ✅ 中心点立方体渲染完成");
+                } catch (Exception e) {
+                    LOGGER.error("[GizmoRenderer] ❌ 渲染中心点立方体失败", e);
+                }
             }
 
             // === 2️⃣ 渲染三轴线条（纯色，使用 VertexConsumerProvider） ===
@@ -166,12 +169,15 @@ public class GizmoRenderer {
                 LOGGER.error("[GizmoRenderer] ❌ 渲染轴手柄箭头失败", e);
             }
 
-            // 渲染平面手柄
-            try {
-                renderPlaneHandles(posMat, vcp, pivot, time, planeSize);
-                LOGGER.debug("[GizmoRenderer] ✅ 平面手柄渲染完成");
-            } catch (Exception e) {
-                LOGGER.error("[GizmoRenderer] ❌ 渲染平面手柄失败", e);
+            // 渲染平面手柄（XY/XZ/YZ 半透明平面）
+            // BOUNDS Gizmo：禁用平面手柄，避免中心出现“多片相交的面”的视觉效果；该 Gizmo 主要用于移动包围盒。
+            if (context.getType() != GizmoType.BOUNDS) {
+                try {
+                    renderPlaneHandles(posMat, vcp, pivot, time, planeSize);
+                    LOGGER.debug("[GizmoRenderer] ✅ 平面手柄渲染完成");
+                } catch (Exception e) {
+                    LOGGER.error("[GizmoRenderer] ❌ 渲染平面手柄失败", e);
+                }
             }
 
             // ✅ v4.8: 角点手柄已移至 SelectionOverlayRenderer，不再在此处渲染
