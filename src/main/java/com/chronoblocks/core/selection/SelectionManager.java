@@ -48,6 +48,9 @@ public class SelectionManager {
     private Box activeResizePreviewBounds = null;
     private Integer activeResizeFaceIndex = null;
     private double activeResizeOffset = 0.0;
+
+    // ===== BOUNDS Gizmo（移动包围盒）实时预览状态 =====
+    private Box activeBoundsGizmoMovePreviewBounds = null;
     
     /** 事件处理器 */
     private SelectionToolEventProcessor eventProcessor;
@@ -501,6 +504,22 @@ public class SelectionManager {
         return activeResizePreviewBounds;
     }
 
+    public boolean isBoundsGizmoMoveActive() {
+        return activeBoundsGizmoMovePreviewBounds != null;
+    }
+
+    public Box getBoundsGizmoMovePreviewBounds() {
+        return activeBoundsGizmoMovePreviewBounds;
+    }
+
+    public void setBoundsGizmoMovePreviewBounds(Box box) {
+        activeBoundsGizmoMovePreviewBounds = box;
+    }
+
+    public void clearBoundsGizmoMovePreviewBounds() {
+        activeBoundsGizmoMovePreviewBounds = null;
+    }
+
     public Box getResizeBaseBounds() {
         return activeResizeBaseBounds;
     }
@@ -553,6 +572,68 @@ public class SelectionManager {
                 }
             }
         }
+    }
+
+    /**
+     * ✅ 供 BOUNDS Gizmo 使用：把一个“体积包围盒”转为选区（默认过滤掉空气）。
+     *
+     * <p>注意：这里<strong>不</strong>调用 {@link #updateGizmoPosition()}，否则拖拽过程中会反复重建 Gizmo，
+     * 导致每次最多移动一格/拖拽中断。</p>
+     */
+    public void rebuildSelectionFromBoundsForBoundsGizmo(Box bounds) {
+        if (bounds == null) {
+            return;
+        }
+
+        World world;
+        try {
+            world = net.minecraft.client.MinecraftClient.getInstance().world;
+        } catch (Throwable t) {
+            world = null;
+        }
+
+        if (world == null) {
+            // ✅ 没有 world 时不做“坐标填充”，避免把空气也选中。
+            return;
+        }
+
+        selectionSet.clear();
+
+        int minX = (int) Math.floor(bounds.minX);
+        int minY = (int) Math.floor(bounds.minY);
+        int minZ = (int) Math.floor(bounds.minZ);
+        int maxX = (int) Math.ceil(bounds.maxX) - 1;
+        int maxY = (int) Math.ceil(bounds.maxY) - 1;
+        int maxZ = (int) Math.ceil(bounds.maxZ) - 1;
+
+        if (maxX < minX || maxY < minY || maxZ < minZ) {
+            SelectionEvents.fireChanged(SelectionChangeType.SELECTION_CLEARED);
+            return;
+        }
+
+        for (int x = minX; x <= maxX; x++) {
+            for (int y = minY; y <= maxY; y++) {
+                for (int z = minZ; z <= maxZ; z++) {
+                    BlockPos p = new BlockPos(x, y, z);
+                    var state = world.getBlockState(p);
+                    if (globalPipeline == null || globalPipeline.isEmpty() || globalPipeline.test(world, p, state)) {
+                        selectionSet.add(p);
+                    }
+                }
+            }
+        }
+
+        // ✅ 选区重建后需要让渲染缓存失效，否则可能出现“选区没更新/不稳定”的视觉表现
+        invalidateRendererCache();
+
+        if (selectionSet.isEmpty()) {
+            SelectionEvents.fireChanged(SelectionChangeType.SELECTION_CLEARED);
+        } else {
+            SelectionEvents.fireChanged(SelectionChangeType.SELECTION_UPDATED);
+        }
+
+        // 让面板/监听器也能收到变化（不触发 updateGizmoPosition，避免拖拽中断）
+        notifySelectionChanged();
     }
 
     private Box adjustBounds(Box base, int faceIndex, double offset) {
@@ -632,9 +713,10 @@ public class SelectionManager {
         try {
             com.chronoblocks.client.gizmo.GizmoManager gizmoManager = com.chronoblocks.client.gizmo.GizmoManager.get();
             if (gizmoManager != null && gizmoManager.isActive()) {
-                // 更新现有 Gizmo 的位置和边界
-                gizmoManager.activate(com.chronoblocks.client.gizmo.GizmoType.BOUNDS, bounds, newPivot);
-                LOGGER.debug("[SelectionManager] 更新 Gizmo 位置: pivot={}", newPivot);
+                // ✅ 不要在选区变化时反复 activate()（会重建 controller/handles，导致“拖拽只能动一格/不稳定”）
+                gizmoManager.setPivot(newPivot);
+                gizmoManager.setTargetBox(bounds);
+                LOGGER.debug("[SelectionManager] 更新 Gizmo 位置(无重建): pivot={}", newPivot);
             }
         } catch (Exception e) {
             LOGGER.warn("[SelectionManager] 更新 Gizmo 位置失败", e);

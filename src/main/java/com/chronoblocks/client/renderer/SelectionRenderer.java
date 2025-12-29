@@ -267,7 +267,9 @@ public final class SelectionRenderer {
                 if (settings.selection_showBoundingBox && blocks.size() > 1 && state.getBoundingBox().isPresent()) {
                     SelectionManager mgr = SelectionManager.get();
                     Box worldBox;
-                    if (mgr != null && mgr.isFaceResizeActive() && mgr.getResizePreviewBounds() != null) {
+                    if (mgr != null && mgr.isBoundsGizmoMoveActive() && mgr.getBoundsGizmoMovePreviewBounds() != null) {
+                        worldBox = mgr.getBoundsGizmoMovePreviewBounds();
+                    } else if (mgr != null && mgr.isFaceResizeActive() && mgr.getResizePreviewBounds() != null) {
                         worldBox = mgr.getResizePreviewBounds();
                     } else {
                         SelectionState.BoundingBox bbox = state.getBoundingBox().get();
@@ -297,7 +299,9 @@ public final class SelectionRenderer {
                 if (settings.selection_showBoundingBox && blocks.size() > 1 && state.getBoundingBox().isPresent()) {
                     SelectionManager mgr = SelectionManager.get();
                     Box worldBox;
-                    if (mgr != null && mgr.isFaceResizeActive() && mgr.getResizePreviewBounds() != null) {
+                    if (mgr != null && mgr.isBoundsGizmoMoveActive() && mgr.getBoundsGizmoMovePreviewBounds() != null) {
+                        worldBox = mgr.getBoundsGizmoMovePreviewBounds();
+                    } else if (mgr != null && mgr.isFaceResizeActive() && mgr.getResizePreviewBounds() != null) {
                         worldBox = mgr.getResizePreviewBounds();
                     } else {
                         SelectionState.BoundingBox bbox = state.getBoundingBox().get();

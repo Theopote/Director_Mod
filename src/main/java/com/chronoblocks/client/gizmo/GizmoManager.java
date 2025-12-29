@@ -461,6 +461,17 @@ public class GizmoManager {
             LOGGER.warn("[GizmoManager] ⚠️ 无法设置 Pivot：Gizmo 未激活");
         }
     }
+
+    /**
+     * 设置 Gizmo 的目标包围盒（不重建 Gizmo / 不重建 handles）。
+     * <p>
+     * 重要：用于选区变化或 Gizmo 拖拽过程中同步 Box，避免频繁 {@link #activate} 导致拖拽中断。
+     */
+    public void setTargetBox(Box box) {
+        if (context != null) {
+            context.setTargetBox(box);
+        }
+    }
     
     /**
      * 设置 Gizmo 可见性

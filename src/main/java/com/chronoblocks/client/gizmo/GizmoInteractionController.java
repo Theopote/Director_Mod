@@ -28,6 +28,11 @@ public class GizmoInteractionController {
     private List<RotationHandle> rotationHandles = new ArrayList<>();
     private List<com.chronoblocks.client.gizmo.handles.ResizeHandle> resizeHandles = new ArrayList<>();
     private TransformApplier transformApplier;
+
+    // BOUNDS Gizmo：移动“包围盒(区域)”预览，松手后按过滤器重建选区
+    private final com.chronoblocks.core.selection.SelectionManager selectionManager =
+        com.chronoblocks.core.selection.SelectionManager.get();
+    private Vec3d boundsMoveCarry = Vec3d.ZERO;
     
     public GizmoInteractionController(GizmoContext context) {
         this.context = context;
@@ -143,6 +148,10 @@ public class GizmoInteractionController {
             if (transformApplier != null) {
                 transformApplier.resetAccumulators();
             }
+            if (context != null && context.getType() == GizmoType.BOUNDS && isMoveHandle(activeHandle)) {
+                boundsMoveCarry = Vec3d.ZERO;
+                selectionManager.setBoundsGizmoMovePreviewBounds(context.getTargetBox());
+            }
             activeHandle.onDragStart(rayOrigin, rayDir);
             context.setActiveHandle(activeHandle);
             state = GizmoState.DRAGGING;
@@ -181,8 +190,11 @@ public class GizmoInteractionController {
             // - AxisHandle/PlaneHandle → applyMove() → offsetSelection() → 自动更新预览框
             applyTransform(delta);
             
-            // 更新 Box（从 SelectionManager 同步）
-            updateBoxFromSelection();
+            // ✅ BOUNDS Gizmo（移动包围盒）拖拽中不要用“当前选区 bounds”覆盖 targetBox，
+            // 否则会出现“Gizmo 能动但包围盒不动”的现象（因为选区此时还没重建）。
+            if (!(context != null && context.getType() == GizmoType.BOUNDS && isMoveHandle(activeHandle))) {
+                updateBoxFromSelection();
+            }
         }
     }
     
@@ -201,6 +213,11 @@ public class GizmoInteractionController {
             state = GizmoState.IDLE;
         } else if (activeHandle != null) {
             activeHandle.onDragEnd();
+            if (context != null && context.getType() == GizmoType.BOUNDS && isMoveHandle(activeHandle)) {
+                Box moved = context.getTargetBox();
+                selectionManager.clearBoundsGizmoMovePreviewBounds();
+                selectionManager.rebuildSelectionFromBoundsForBoundsGizmo(moved);
+            }
             activeHandle = null;
             context.setActiveHandle(null);
             if (transformApplier != null) {
@@ -237,6 +254,12 @@ public class GizmoInteractionController {
             applyTransformLegacy(delta);
             return;
         }
+
+        // ✅ BOUNDS Gizmo：轴/平面/中心手柄移动“包围盒预览”，不平移 selectionSet
+        if (context != null && context.getType() == GizmoType.BOUNDS && isMoveHandle(activeHandle)) {
+            applyBoundsMove(delta);
+            return;
+        }
         
         // 使用 TransformApplier 应用变换
         if (activeHandle instanceof com.chronoblocks.client.gizmo.handles.ResizeHandle) {
@@ -266,6 +289,51 @@ public class GizmoInteractionController {
         
         // 更新 Box（从 SelectionManager 同步）
         updateBoxFromSelection();
+    }
+
+    private boolean isMoveHandle(GizmoHandle handle) {
+        return handle instanceof com.chronoblocks.client.gizmo.handles.AxisHandle
+            || handle instanceof com.chronoblocks.client.gizmo.handles.PlaneHandle
+            || handle instanceof com.chronoblocks.client.gizmo.handles.CenterHandle;
+    }
+
+    private int extractStep(double carry) {
+        if (carry >= 1.0) return (int) Math.floor(carry);
+        if (carry <= -1.0) return (int) Math.ceil(carry);
+        return 0;
+    }
+
+    private void applyBoundsMove(Vec3d delta) {
+        if (context == null) return;
+
+        // 吸附保持一致
+        if (context.getSnapStep() > 0) {
+            delta = SnapUtil.snapVec(delta, context.getSnapStep(), null);
+        }
+
+        boundsMoveCarry = boundsMoveCarry.add(delta);
+
+        int stepX = extractStep(boundsMoveCarry.x);
+        int stepY = extractStep(boundsMoveCarry.y);
+        int stepZ = extractStep(boundsMoveCarry.z);
+        if (stepX == 0 && stepY == 0 && stepZ == 0) {
+            return;
+        }
+
+        boundsMoveCarry = new Vec3d(boundsMoveCarry.x - stepX, boundsMoveCarry.y - stepY, boundsMoveCarry.z - stepZ);
+
+        Box box = context.getTargetBox();
+        Vec3d pivot = context.getPivot();
+        if (box == null || pivot == null) return;
+
+        Box moved = box.offset(stepX, stepY, stepZ);
+        Vec3d movedPivot = pivot.add(stepX, stepY, stepZ);
+
+        context.setTargetBox(moved);
+        context.setPivot(movedPivot);
+
+        // 只更新“包围盒预览”，重建选区在松手时做
+        selectionManager.setBoundsGizmoMovePreviewBounds(moved);
     }
     
     /**
