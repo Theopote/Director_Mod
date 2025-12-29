@@ -72,7 +72,7 @@ public class FaceSelectTool implements SelectionTool {
             return;
         }
 
-        Direction face = getClickedFace();
+        Direction face = resolvePlaneFace(getClickedFace());
         if (face == null) {
             clearHoverPreview();
             LOGGER.warn("[FaceSelectTool] 未能确定点击面");
@@ -121,7 +121,7 @@ public class FaceSelectTool implements SelectionTool {
             return;
         }
 
-        Direction face = getClickedFace();
+        Direction face = resolvePlaneFace(getClickedFace());
         if (face == null) {
             clearHoverPreview();
             return;
@@ -239,6 +239,24 @@ public class FaceSelectTool implements SelectionTool {
         return null;
     }
 
+    /**
+     * 根据配置将“面选择”约束到指定平面。
+     * AUTO：保持现有逻辑，使用鼠标命中面
+     * XY/XZ/YZ：忽略命中面，固定为指定平面（通过选择一个对应轴的 Direction 实现）
+     */
+    private Direction resolvePlaneFace(Direction clickedFace) {
+        FaceSelectConfig.PlaneMode mode = config.getPlaneMode();
+        if (mode == null || mode == FaceSelectConfig.PlaneMode.AUTO) {
+            return clickedFace;
+        }
+        return switch (mode) {
+            case XY -> Direction.NORTH; // Axis.Z
+            case XZ -> Direction.UP;    // Axis.Y
+            case YZ -> Direction.EAST;  // Axis.X
+            case AUTO -> clickedFace;
+        };
+    }
+
     private void clearHoverPreview() {
         synchronized (hoverLock) {
             if (currentHoverTask != null) {
@@ -262,6 +280,17 @@ public class FaceSelectTool implements SelectionTool {
         ToolPreviewManager.get().clearFacePreview();
         clearHoverPreview();
         LOGGER.debug("[FaceSelectTool] 清除选择");
+    }
+
+    // ====================== FaceSelectConfig 代理（用于 ToolPropertiesPanel） ======================
+    // 说明：本类底部已存在 max/step/规则相关的 getter/setter，这里只补充 planeMode 接口，避免重复定义。
+
+    public FaceSelectConfig.PlaneMode getPlaneMode() {
+        return config.getPlaneMode();
+    }
+
+    public void setPlaneMode(FaceSelectConfig.PlaneMode mode) {
+        config.setPlaneMode(mode);
     }
 
     @Override

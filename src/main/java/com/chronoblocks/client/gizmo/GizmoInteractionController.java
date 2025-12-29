@@ -1,14 +1,17 @@
 package com.chronoblocks.client.gizmo;
 
+import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import com.chronoblocks.client.gizmo.handles.GizmoHandle;
 import com.chronoblocks.client.gizmo.handles.RotationHandle;
 import com.chronoblocks.client.gizmo.logic.TransformApplier;
 import com.chronoblocks.client.gizmo.util.SnapUtil;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  * 🧭 GizmoInteractionController - Gizmo 交互控制器
@@ -219,7 +222,9 @@ public class GizmoInteractionController {
                 selectionManager.rebuildSelectionFromBoundsForBoundsGizmo(moved);
             }
             activeHandle = null;
-            context.setActiveHandle(null);
+            if (context != null) {
+                context.setActiveHandle(null);
+            }
             if (transformApplier != null) {
                 transformApplier.resetAccumulators();
             }
@@ -262,10 +267,8 @@ public class GizmoInteractionController {
         }
         
         // 使用 TransformApplier 应用变换
-        if (activeHandle instanceof com.chronoblocks.client.gizmo.handles.ResizeHandle) {
+        if (activeHandle instanceof com.chronoblocks.client.gizmo.handles.ResizeHandle resizeHandle) {
             // ResizeHandle：应用缩放
-            com.chronoblocks.client.gizmo.handles.ResizeHandle resizeHandle = 
-                (com.chronoblocks.client.gizmo.handles.ResizeHandle) activeHandle;
             Vec3d axisDelta = resizeHandle.getAxisDelta(delta);
             transformApplier.applyResize(axisDelta);
         } else if (activeHandle instanceof com.chronoblocks.client.gizmo.handles.AxisHandle) {
@@ -274,10 +277,8 @@ public class GizmoInteractionController {
         } else if (activeHandle instanceof com.chronoblocks.client.gizmo.handles.PlaneHandle) {
             // 平面手柄：在平面上平移选区
             transformApplier.applyMove(delta);
-        } else if (activeHandle instanceof com.chronoblocks.client.gizmo.handles.CornerHandle) {
+        } else if (activeHandle instanceof com.chronoblocks.client.gizmo.handles.CornerHandle corner) {
             // 角点手柄：从角点调整选区大小
-            com.chronoblocks.client.gizmo.handles.CornerHandle corner = 
-                (com.chronoblocks.client.gizmo.handles.CornerHandle) activeHandle;
             transformApplier.applyResizeFromCorner(delta, corner.getCornerSign());
         } else if (activeHandle instanceof com.chronoblocks.client.gizmo.handles.CenterHandle) {
             // 中心手柄：平移选区（移动轴心点会同时平移选区）
@@ -347,9 +348,7 @@ public class GizmoInteractionController {
             newBox = com.chronoblocks.client.gizmo.util.TransformUtil.translateBox(currentBox, delta);
         } else if (activeHandle instanceof com.chronoblocks.client.gizmo.handles.PlaneHandle) {
             newBox = com.chronoblocks.client.gizmo.util.TransformUtil.translateBox(currentBox, delta);
-        } else if (activeHandle instanceof com.chronoblocks.client.gizmo.handles.CornerHandle) {
-            com.chronoblocks.client.gizmo.handles.CornerHandle corner = 
-                (com.chronoblocks.client.gizmo.handles.CornerHandle) activeHandle;
+        } else if (activeHandle instanceof com.chronoblocks.client.gizmo.handles.CornerHandle corner) {
             newBox = com.chronoblocks.client.gizmo.util.TransformUtil.resizeBoxFromCorner(
                 currentBox, delta, corner.getCornerSign()
             );
@@ -377,20 +376,8 @@ public class GizmoInteractionController {
         if (blocks.isEmpty()) {
             return;
         }
-        
-        int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
-        int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
-        
-        for (net.minecraft.util.math.BlockPos pos : blocks) {
-            minX = Math.min(minX, pos.getX());
-            minY = Math.min(minY, pos.getY());
-            minZ = Math.min(minZ, pos.getZ());
-            maxX = Math.max(maxX, pos.getX());
-            maxY = Math.max(maxY, pos.getY());
-            maxZ = Math.max(maxZ, pos.getZ());
-        }
-        
-        Box newBox = new Box(minX, minY, minZ, maxX + 1, maxY + 1, maxZ + 1);
+
+        Box newBox = getBox(blocks);
         context.setTargetBox(newBox);
 
         // ✅ BOUNDS Gizmo：pivot 永远是包围盒几何中心
@@ -403,7 +390,23 @@ public class GizmoInteractionController {
             context.setPivot(center);
         }
     }
-    
+
+    private static @NotNull Box getBox(Set<BlockPos> blocks) {
+        int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
+        int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
+
+        for (BlockPos pos : blocks) {
+            minX = Math.min(minX, pos.getX());
+            minY = Math.min(minY, pos.getY());
+            minZ = Math.min(minZ, pos.getZ());
+            maxX = Math.max(maxX, pos.getX());
+            maxY = Math.max(maxY, pos.getY());
+            maxZ = Math.max(maxZ, pos.getZ());
+        }
+
+        return new Box(minX, minY, minZ, maxX + 1, maxY + 1, maxZ + 1);
+    }
+
     // ========== Getters & Setters ==========
     
     public void setHandles(List<GizmoHandle> handles) {

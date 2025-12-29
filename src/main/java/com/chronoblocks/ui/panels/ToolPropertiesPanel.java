@@ -21,6 +21,7 @@ import com.chronoblocks.ui.theme.UITheme;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiTreeNodeFlags;
+import imgui.type.ImInt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,6 +91,33 @@ public class ToolPropertiesPanel extends AbstractPanel {
         @Override
         public void render(FaceSelectTool tool, ToolPropertiesPanel panel) {
             if (ImGui.collapsingHeader("传播设置", ImGuiTreeNodeFlags.DefaultOpen)) {
+                // 平面模式
+                int planeIndex = switch (tool.getPlaneMode()) {
+                    case AUTO -> 0;
+                    case XY -> 1;
+                    case XZ -> 2;
+                    case YZ -> 3;
+                };
+                ImInt planeIdx = new ImInt(planeIndex);
+                String[] planeItems = new String[]{
+                    "自动（跟随鼠标命中面）",
+                    "XY 平面（法线 Z）",
+                    "XZ 平面（法线 Y）",
+                    "YZ 平面（法线 X）"
+                };
+                if (ImGui.combo("平面模式##facePlaneMode", planeIdx, planeItems)) {
+                    com.chronoblocks.core.selection.tools.faceselecttool.FaceSelectConfig.PlaneMode mode = switch (planeIdx.get()) {
+                        case 1 -> com.chronoblocks.core.selection.tools.faceselecttool.FaceSelectConfig.PlaneMode.XY;
+                        case 2 -> com.chronoblocks.core.selection.tools.faceselecttool.FaceSelectConfig.PlaneMode.XZ;
+                        case 3 -> com.chronoblocks.core.selection.tools.faceselecttool.FaceSelectConfig.PlaneMode.YZ;
+                        default -> com.chronoblocks.core.selection.tools.faceselecttool.FaceSelectConfig.PlaneMode.AUTO;
+                    };
+                    tool.setPlaneMode(mode);
+                }
+                if (ImGui.isItemHovered()) {
+                    ImGui.setTooltip("面选择会在指定平面内扩散（一层方块）。自动模式下使用鼠标命中的方块面来决定平面。");
+                }
+
                 panel.intBuffer1[0] = tool.getMaxSelectionSize();
                 if (ImGui.sliderInt("最大方块数##faceMaxBlocks", panel.intBuffer1, 100, 500_000)) {
                     tool.setMaxSelectionSize(panel.intBuffer1[0]);

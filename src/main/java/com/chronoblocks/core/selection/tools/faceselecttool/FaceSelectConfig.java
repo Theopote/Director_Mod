@@ -29,6 +29,22 @@ public final class FaceSelectConfig {
     /** 是否要求方块状态完全一致 */
     private boolean strictBlockState = false;
 
+    /**
+     * 平面模式：决定“面选择”固定在哪个平面扩散。
+     * - AUTO：跟随鼠标命中的方块面（保持现有逻辑）
+     * - XY：固定 XY 平面（法线 Z）
+     * - XZ：固定 XZ 平面（法线 Y）
+     * - YZ：固定 YZ 平面（法线 X）
+     */
+    public enum PlaneMode {
+        AUTO,
+        XY,
+        XZ,
+        YZ
+    }
+
+    private PlaneMode planeMode = PlaneMode.AUTO;
+
     /** 每帧最大处理步数 */
     private int stepSize = DEFAULT_STEP_SIZE;
 
@@ -65,6 +81,14 @@ public final class FaceSelectConfig {
 
     public void setStrictBlockState(boolean strictBlockState) {
         this.strictBlockState = strictBlockState;
+    }
+
+    public PlaneMode getPlaneMode() {
+        return planeMode;
+    }
+
+    public void setPlaneMode(PlaneMode planeMode) {
+        this.planeMode = planeMode == null ? PlaneMode.AUTO : planeMode;
     }
 
     public int getStepSize() {
