@@ -160,6 +160,8 @@ public class TimelineClipBlockController {
                         LOGGER.debug("[TimelineClipBlockController] Clip {} animation config missing, using default", clip.getLabel());
                     }
                 }
+                // ✅ 兼容旧模式：把“随机/螺旋/切片/波浪/扩散/向下生长”等迁移到 SequenceParameters
+                com.chronoblocks.core.animation.LegacyAnimationModeMigrator.migrateIfNeeded(config);
                 currentFrameConfigs.put(containerId, config);
                 
                 // ◆ 根据播放头位置和片段配置计算应该显示的方块
@@ -458,6 +460,12 @@ public class TimelineClipBlockController {
         // 片段范围内：按序列推进
         if (currentTime >= clipStart && currentTime <= clipEnd) {
             float clipDuration = clipEnd - clipStart;
+            float animDuration = clipDuration;
+            float delay = 0.0f;
+            if (config != null) {
+                animDuration = Math.min(Math.max(0.05f, config.getDuration()), clipDuration);
+                delay = Math.max(0.0f, config.getDelay());
+            }
             List<BlockSequenceEntry> generated = BlockSequenceGenerator.generate(
                 allBlocks, container, config != null ? config.getSequenceParameters() : null
             );
@@ -478,18 +486,22 @@ public class TimelineClipBlockController {
                 // 逐步显示
                 for (BlockSequenceEntry entry : sequenceEntries) {
                     float normalizedTime = entry.getNormalizedTime();
-                    float blockAppearTime = clipStart + normalizedTime * clipDuration;
-                    if (currentTime >= blockAppearTime) {
+                    // 与 BlockAnimationEngine 的 ENTER 时间窗口对齐：让方块从动画开始时刻进入世界
+                    float blockStartTime = clipStart + delay + normalizedTime * (clipDuration - animDuration);
+                    if (currentTime >= blockStartTime) {
                         visibleBlocks.add(entry.getPos());
                     }
                 }
             } else if (type == TrackType.ERASE) {
-                // 逐步清除：开始时全部可见，达到该方块“清除时刻”后移除
-                visibleBlocks.addAll(allBlocks);
+                // 逐步清除（带退出动画窗口）：
+                // - 每个方块在自己的 EXIT 动画结束时刻被移除（即从世界中消失/置 AIR）
+                // - 在此之前一直保留在 visible 集合中，供 BlockAnimationEngine 采样退出动画
+                visibleBlocks.addAll(allBlocks); // 先全量保留，再按“结束时刻”移除
                 for (BlockSequenceEntry entry : sequenceEntries) {
                     float normalizedTime = entry.getNormalizedTime();
-                    float blockRemoveTime = clipStart + normalizedTime * clipDuration;
-                    if (currentTime >= blockRemoveTime) {
+                    // 与 BlockAnimationEngine 的 EXIT 时间窗口对齐：结束时刻分布在 [clipStart+delay+animDuration, clipEnd]
+                    float blockEndTime = clipStart + delay + animDuration + normalizedTime * (clipDuration - animDuration);
+                    if (currentTime >= blockEndTime) {
                         visibleBlocks.remove(entry.getPos());
                     }
                 }

@@ -38,6 +38,17 @@ public final class ClipAnimationConfig implements Serializable, Cloneable {
     private static final long serialVersionUID = 1L;
 
     private AnimationMode mode;
+    /**
+     * 动画阶段：
+     * - ENTER：出现片段（默认，向后兼容旧存档）
+     * - EXIT：擦除片段（方块先执行退出动画，再被移除/置 AIR）
+     */
+    public enum AnimationPhase {
+        ENTER,
+        EXIT
+    }
+
+    private AnimationPhase phase = AnimationPhase.ENTER;
     private float duration;
     private float delay;
     private String easing; // 缓动函数名称（如 "EASE_OUT_BOUNCE"）
@@ -65,6 +76,7 @@ public final class ClipAnimationConfig implements Serializable, Cloneable {
                                 String easing,
                                 String ordering) {
         this.mode = Objects.requireNonNullElse(mode, AnimationMode.INSTANT);
+        this.phase = AnimationPhase.ENTER;
         this.duration = Math.max(0.05f, duration);
         this.delay = Math.max(0.0f, delay);
         this.easing = easing != null ? easing : "Linear";
@@ -108,6 +120,7 @@ public final class ClipAnimationConfig implements Serializable, Cloneable {
     public ClipAnimationConfig copy() {
         ClipAnimationConfig clone = new ClipAnimationConfig(mode, duration, delay, easing, ordering);
         clone.params.putAll(this.params);
+        clone.phase = this.phase;
         clone.sequenceMode = this.sequenceMode;
         clone.sequenceParameters = this.sequenceParameters != null ? this.sequenceParameters.copy() : new SequenceParameters();
         clone.occlusionTransparencyEnabled = this.occlusionTransparencyEnabled;
@@ -128,6 +141,14 @@ public final class ClipAnimationConfig implements Serializable, Cloneable {
 
     public void setMode(AnimationMode mode) {
         this.mode = Objects.requireNonNullElse(mode, AnimationMode.INSTANT);
+    }
+
+    public AnimationPhase getPhase() {
+        return phase != null ? phase : AnimationPhase.ENTER;
+    }
+
+    public void setPhase(AnimationPhase phase) {
+        this.phase = phase != null ? phase : AnimationPhase.ENTER;
     }
 
     public float getDuration() {

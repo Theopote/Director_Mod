@@ -232,6 +232,7 @@ public class TimelineDragAndDropHandler {
                 // 清除轨道默认使用“淡出”更符合直觉（不强制，用户可改）
                 if (trackType == TrackType.ERASE) {
                     ClipAnimationConfig cfg = clip.getAnimationConfig();
+                    cfg.setPhase(ClipAnimationConfig.AnimationPhase.EXIT);
                     cfg.setMode(com.chronoblocks.core.container.AnimationMode.FADE_OUT);
                     clip.setAnimationConfig(cfg);
                 }
@@ -381,6 +382,9 @@ public class TimelineDragAndDropHandler {
                 preset.getEasing(),
                 preset.getOrdering()
             );
+
+            // ✅ 兼容旧预设：把“随机/螺旋/切片/波浪/扩散/向下生长”等迁移到 SequenceParameters
+            com.chronoblocks.core.animation.LegacyAnimationModeMigrator.migrateIfNeeded(config);
             
             // 复制预设中的额外参数
             if (!preset.getParams().isEmpty()) {

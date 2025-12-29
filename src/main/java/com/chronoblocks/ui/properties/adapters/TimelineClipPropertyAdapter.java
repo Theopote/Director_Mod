@@ -79,7 +79,8 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
     private EasingFunction cachedEasingFunction = null;
 
     // 静态缓存标签数组 (减少GC)
-    private static final String[] ANIMATION_MODE_LABELS = buildEnumLabels(AnimationMode.values());
+    // 旧：曾用于直接显示 AnimationMode.values() 的下拉。
+    // 现在改为按 Enter/Exit 阶段过滤可用模式，因此不再需要全量 labels。
     private static String[] EASING_FUNCTION_LABELS = null;
 
     /**
@@ -331,6 +332,9 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             return false;
         }
 
+        // ✅ 进入 UI 就做一次旧模式迁移，避免“旧的 AnimationMode=随机/切片”等仍占用 mode 下拉
+        com.chronoblocks.core.animation.LegacyAnimationModeMigrator.migrateIfNeeded(config);
+
         // ===== 0. 防御式初始化 =====
         AnimationMode currentMode = config.getMode();
         if (currentMode == null) {
@@ -345,23 +349,61 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             config.setEasing(currentEasing);
         }
 
-        // ===== 1. 总体节奏：模式 + 时长 =====
+        // ===== 1. 总体节奏：阶段(Enter/Exit) + 模式 + 时长 =====
         UITheme.label("动画模式与节奏", UITheme.DarkTheme.TEXT_SELECTED);
 
-            // 模式选择
-            int modeOrdinal = currentMode.ordinal();
-            if (modeOrdinal >= ANIMATION_MODE_LABELS.length) {
-                modeOrdinal = 0;
+            // 片段阶段：根据轨道类型自动锁定（出现轨道=ENTER，擦除轨道=EXIT）
+            com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase desiredPhase =
+                    com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase.ENTER;
+            try {
+                if (clip.getParentTrack() != null && clip.getParentTrack().getType() == com.chronoblocks.ui.timeline.model.TrackType.ERASE) {
+                    desiredPhase = com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase.EXIT;
+                }
+            } catch (Exception ignored) {
             }
-            animationModeIndex.set(modeOrdinal);
+            if (config.getPhase() != desiredPhase) {
+                config.setPhase(desiredPhase);
+                modified = true;
+            }
+
+            // 模式选择（按阶段过滤）
+            AnimationMode[] availableModes = (desiredPhase == com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase.EXIT)
+                    ? new AnimationMode[]{AnimationMode.INSTANT, AnimationMode.FADE_OUT, AnimationMode.EXPAND, AnimationMode.FALL_DOWN, AnimationMode.RISE_UP, AnimationMode.FLY_IN, AnimationMode.SHAKER}
+                    : new AnimationMode[]{AnimationMode.INSTANT, AnimationMode.FADE_IN, AnimationMode.GROW_UP, AnimationMode.EXPAND, AnimationMode.FALL_DOWN, AnimationMode.RISE_UP, AnimationMode.FLY_IN, AnimationMode.SHAKER};
+
+            String[] availableLabels = java.util.Arrays.stream(availableModes).map(AnimationMode::getDisplayName).toArray(String[]::new);
+            int selectedIdx = 0;
+            for (int i = 0; i < availableModes.length; i++) {
+                if (availableModes[i] == currentMode) {
+                    selectedIdx = i;
+                    break;
+                }
+            }
+            // 当前 mode 不在可选列表：自动纠正到更合理的默认值
+            if (selectedIdx == 0 && currentMode != availableModes[0]) {
+                AnimationMode fallback = (desiredPhase == com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase.EXIT)
+                        ? AnimationMode.FADE_OUT
+                        : AnimationMode.FADE_IN;
+                config.setMode(fallback);
+                currentMode = fallback;
+                selectedIdx = 0;
+                for (int i = 0; i < availableModes.length; i++) {
+                    if (availableModes[i] == currentMode) {
+                        selectedIdx = i;
+                        break;
+                    }
+                }
+                modified = true;
+            }
+            animationModeIndex.set(selectedIdx);
 
             ImGui.pushItemWidth(ImGui.getContentRegionAvailX());
-            if (ImGui.combo("##AnimMode", animationModeIndex, ANIMATION_MODE_LABELS)) {
+            if (ImGui.combo("##AnimMode", animationModeIndex, availableLabels)) {
                 int newIndex = animationModeIndex.get();
-                if (newIndex < 0 || newIndex >= AnimationMode.values().length) {
+                if (newIndex < 0 || newIndex >= availableModes.length) {
                     newIndex = 0;
                 }
-                AnimationMode newMode = AnimationMode.values()[newIndex];
+                AnimationMode newMode = availableModes[newIndex];
                 config.setMode(newMode);
                 currentMode = newMode;
 
@@ -383,7 +425,9 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             }
             ImGui.popItemWidth();
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("选择动画入场方式");
+                ImGui.setTooltip(desiredPhase == com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase.EXIT
+                        ? "选择擦除片段的退出方式（方块先播放退出动画，再被清除）"
+                        : "选择出现片段的入场方式");
             }
 
             // 模式描述（来自 AnimationMode 描述）
@@ -408,6 +452,72 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             }
 
             UITheme.separator();
+
+            // ✅ 快捷预设：把“排序策略”从旧 AnimationMode 中解耦出来（Enter/Exit 共享）
+            UITheme.label("排序策略预设（Sequence）", UITheme.DarkTheme.TEXT_SELECTED);
+            com.chronoblocks.core.animation.sequence.SequenceParameters seqParams = config.getSequenceParameters();
+            if (seqParams == null) {
+                seqParams = new com.chronoblocks.core.animation.sequence.SequenceParameters();
+                config.setSequenceParameters(seqParams);
+                modified = true;
+            }
+
+            if (ImGui.button("顺序(默认)")) {
+                seqParams.setFlowType(FlowType.PLANAR);
+                seqParams.setOriginType(OriginType.BOTTOM_CENTER);
+                seqParams.setFillType(FillType.LINEAR_SCAN);
+                seqParams.setReverse(false);
+                seqParams.setAlternating(false);
+                modified = true;
+            }
+            ImGui.sameLine();
+            if (ImGui.button("随机")) {
+                seqParams.setFlowType(FlowType.RANDOM);
+                seqParams.setFillType(FillType.LINEAR_SCAN);
+                seqParams.setReverse(false);
+                seqParams.setAlternating(false);
+                modified = true;
+            }
+            ImGui.sameLine();
+            if (ImGui.button("扩散(中心→外)")) {
+                seqParams.setFlowType(FlowType.SPHERICAL);
+                seqParams.setOriginType(OriginType.CENTER);
+                seqParams.setFillType(FillType.RADIAL);
+                seqParams.setReverse(false);
+                seqParams.setAlternating(false);
+                modified = true;
+            }
+            if (ImGui.button("螺旋")) {
+                seqParams.setFlowType(FlowType.PLANAR);
+                seqParams.setOriginType(OriginType.CENTER);
+                seqParams.setFillType(FillType.SPIRAL);
+                seqParams.setReverse(false);
+                seqParams.setAlternating(false);
+                modified = true;
+            }
+            ImGui.sameLine();
+            if (ImGui.button("切片(逐层)")) {
+                seqParams.setFlowType(FlowType.PLANAR);
+                seqParams.setOriginType(OriginType.BOTTOM_CENTER);
+                seqParams.setFillType(FillType.LINEAR_SCAN);
+                seqParams.setReverse(false);
+                seqParams.setAlternating(false);
+                modified = true;
+            }
+            ImGui.sameLine();
+            if (ImGui.button("波浪")) {
+                seqParams.setFlowType(FlowType.PLANAR);
+                seqParams.setOriginType(OriginType.BOTTOM_CENTER);
+                seqParams.setFillType(FillType.LINEAR_SCAN);
+                seqParams.setReverse(false);
+                seqParams.setAlternating(true);
+                modified = true;
+            }
+
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("这些预设等价于旧的“随机/扩散/螺旋/切片/波浪”等模式，但现在它们属于排序策略。\n" +
+                        "入场(出现)与退场(擦除)都可以复用同一套排序。");
+            }
 
             // ===== 2. 缓动曲线：枚举 + 曲线预览 =====
             UITheme.label("缓动曲线 (Easing)", UITheme.DarkTheme.TEXT_SELECTED);

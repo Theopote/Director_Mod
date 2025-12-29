@@ -17,7 +17,6 @@ import net.minecraft.util.math.random.Random;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
 import java.util.Map;
 
 /**
@@ -84,6 +83,7 @@ public final class BlockAnimationEngine {
         if (mode == null) {
             mode = AnimationMode.INSTANT;
         }
+        ClipAnimationConfig.AnimationPhase phase = config.getPhase();
 
         float clipDuration = Math.max(0.0001f, clipEnd - clipStart);
         float animDuration = Math.max(0.0001f, Math.min(config.getDuration(), clipDuration));
@@ -98,9 +98,20 @@ public final class BlockAnimationEngine {
                 : 0.0f;
 
         // ===== 2. 计算单个方块的动画时间窗口 =====
-        float blockBaseOffset = seqNormalizedTime * (clipDuration - animDuration);
-        float blockStartTime = clipStart + delay + blockBaseOffset;
-        float blockEndTime = blockStartTime + animDuration;
+        // ENTER：方块从自己的 startTime 起进入世界并播放，endTime 后静态就位
+        // EXIT ：方块在自己的 startTime 起开始退出动画，endTime 后应当被移除（由上层负责从世界中移除）
+        float blockStartTime;
+        float blockEndTime;
+        if (phase == ClipAnimationConfig.AnimationPhase.EXIT) {
+            // 结束时刻分布在 [clipStart+delay+animDuration, clipEnd]
+            blockEndTime = clipStart + delay + animDuration + seqNormalizedTime * (clipDuration - animDuration);
+            blockStartTime = blockEndTime - animDuration;
+        } else {
+            // ENTER：开始时刻分布在 [clipStart+delay, clipEnd-animDuration]
+            float blockBaseOffset = seqNormalizedTime * (clipDuration - animDuration);
+            blockStartTime = clipStart + delay + blockBaseOffset;
+            blockEndTime = blockStartTime + animDuration;
+        }
 
         // 钳制到片段范围
         if (blockStartTime < clipStart) blockStartTime = clipStart;
@@ -120,24 +131,41 @@ public final class BlockAnimationEngine {
             return snapshot;
         }
 
-        // ===== 3. 根据 now 与 [blockStartTime, blockEndTime] 判断可见性 =====
-        if (now < blockStartTime) {
-            snapshot.markHidden();
-            // 在出场前一般不触发 effect
-            return snapshot;
+        // ===== 3. 根据 phase 与 [blockStartTime, blockEndTime] 判断可见性 =====
+        if (phase == ClipAnimationConfig.AnimationPhase.EXIT) {
+            // EXIT：动画开始前应当完全可见（由上层控制“仍在 visibleBlocks”）
+            if (now < blockStartTime) {
+                snapshot.markFullyVisible();
+                snapshot.setSequenceNormalizedTime(seqNormalizedTime);
+                snapshot.setTransform(identityTransform());
+                snapshot.setAlpha(1.0f);
+                return snapshot;
+            }
+        } else {
+            // ENTER：动画开始前隐藏
+            if (now < blockStartTime) {
+                snapshot.markHidden();
+                return snapshot;
+            }
         }
 
-        // 动画已结束 或 模式为 INSTANT：静态就位状态
+        // 动画已结束 或 模式为 INSTANT：端点状态
         if (now >= blockEndTime || mode == AnimationMode.INSTANT) {
             LOGGER.info("[BlockAnimationEngine] INSTANT mode or animation finished: pos={} mode={} now={} blockEndTime={}",
                 pos, mode, now, blockEndTime);
-            snapshot.markFullyVisible();
-            snapshot.setSequenceNormalizedTime(seqNormalizedTime);
-            snapshot.setTransform(identityTransform());
-            snapshot.setAlpha(1.0f);
-            // ⚡ 关键：即使是 INSTANT 模式，也允许运行特效
-            applyEffectsSafe(snapshot, config, clipStart, clipEnd, now, clipDuration, randomSeed);
-            return snapshot;
+            if (phase == ClipAnimationConfig.AnimationPhase.EXIT && mode != AnimationMode.INSTANT) {
+                // EXIT：动画结束后应当隐藏（上层会在同一时刻把方块从世界中移除）
+                snapshot.markHidden();
+                return snapshot;
+            } else {
+                snapshot.markFullyVisible();
+                snapshot.setSequenceNormalizedTime(seqNormalizedTime);
+                snapshot.setTransform(identityTransform());
+                snapshot.setAlpha(1.0f);
+                // ⚡ 关键：即使是 INSTANT 模式，也允许运行特效
+                applyEffectsSafe(snapshot, config, clipStart, clipEnd, now, clipDuration, randomSeed);
+                return snapshot;
+            }
         }
 
         // ===== 4. 计算归一化时间 t_raw, t_eased =====
@@ -151,6 +179,13 @@ public final class BlockAnimationEngine {
             // 保持 LINEAR 即可，不需要打日志避免刷屏
         }
         float tEased = easing.apply(tRaw);
+
+        // EXIT 阶段默认反向播放（让“入场变换器”自动变成“退场变换器”）
+        // 但某些 mode 本身就是退场语义（如 FADE_OUT），则不反转。
+        float tForTransformer = tEased;
+        if (phase == ClipAnimationConfig.AnimationPhase.EXIT && mode != AnimationMode.FADE_OUT) {
+            tForTransformer = 1.0f - tEased;
+        }
 
         snapshot.setVisible(true);
         snapshot.setRawProgress(tRaw);
@@ -191,7 +226,7 @@ public final class BlockAnimationEngine {
             try {
                 // Minecraft Random → java.util.Random
                 java.util.Random javaRandom = new java.util.Random(rand.nextLong());
-                transformer.apply(tEased, tempParams, javaRandom);
+                transformer.apply(tForTransformer, tempParams, javaRandom);
 
                 // 从 params 中提取变换参数并应用到 MatrixStack
                 applyTransformFromParams(matrices, tempParams);

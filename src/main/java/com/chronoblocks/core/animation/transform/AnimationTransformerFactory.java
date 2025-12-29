@@ -39,6 +39,7 @@ public class AnimationTransformerFactory {
         // 注册所有变换器
         register(AnimationMode.INSTANT, new InstantTransformer());
         register(AnimationMode.FADE_IN, new FadeInTransformer());
+        register(AnimationMode.FADE_OUT, new FadeOutTransformer());
         register(AnimationMode.GROW_UP, new GrowUpTransformer());
         register(AnimationMode.EXPAND, new ExpandTransformer());
         register(AnimationMode.FALL_DOWN, new FallDownTransformer());
