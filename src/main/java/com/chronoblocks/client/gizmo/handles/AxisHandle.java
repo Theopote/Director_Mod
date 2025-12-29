@@ -104,18 +104,41 @@ public class AxisHandle extends AbstractGizmoHandle {
      * 计算射线与轴线的最近点（投影）
      */
     private Vec3d calculateAxisProjection(Vec3d rayOrigin, Vec3d rayDir) {
-        Vec3d dir = signedAxisDirection(rayOrigin).normalize();
+        Vec3d axisDir = signedAxisDirection(rayOrigin).normalize();
+        Vec3d rd = rayDir.normalize();
 
-        // 用“垂直于轴的平面”做稳定投影：平面过当前拖拽点（或起点），法线=轴方向
+        // ✅ 计算“射线 vs 无限轴线”的最近点（稳定、可产生真实轴向位移）
+        // Ray:  P(t) = rayOrigin + t * rd,   t >= 0
+        // Axis: A(s) = position  + s * axisDir, s ∈ R
+        Vec3d r = rayOrigin.subtract(position);
+        double b = rd.dotProduct(axisDir);
+        double denom = 1.0 - b * b; // 因为 rd·rd = axisDir·axisDir = 1
+
+        if (denom > 1e-6) {
+            double d = rd.dotProduct(r);
+            double e = axisDir.dotProduct(r);
+
+            // 最小二乘解（两条直线最近点的参数）
+            double s = (e - b * d) / denom;
+            return position.add(axisDir.multiply(s));
+        }
+
+        // ✅ 近似平行时回退：用“包含轴线、且尽量朝向相机”的平面做交点，再投影回轴线
+        Vec3d n = rd.crossProduct(axisDir);
+        if (n.lengthSquared() < 1e-10) {
+            return dragStartHitPoint != null ? dragStartHitPoint : position;
+        }
+
+        // 这个法线保证平面包含 axisDir（因为 planeNormal ⟂ axisDir）
+        Vec3d planeNormal = n.crossProduct(axisDir).normalize();
         Vec3d planePoint = dragStartHitPoint != null ? dragStartHitPoint : position;
-        Vec3d intersection = RaycastUtil.rayToPlaneIntersection(rayOrigin, rayDir, planePoint, dir);
+        Vec3d intersection = RaycastUtil.rayToPlaneIntersection(rayOrigin, rd, planePoint, planeNormal);
         if (intersection == null) {
             return planePoint;
         }
 
-        // 将交点投影回轴线（无限轴），避免漂移
-        double s = intersection.subtract(position).dotProduct(dir);
-        return position.add(dir.multiply(s));
+        double s = intersection.subtract(position).dotProduct(axisDir);
+        return position.add(axisDir.multiply(s));
     }
 
     private Vec3d signedAxisDirection(Vec3d cameraPos) {
