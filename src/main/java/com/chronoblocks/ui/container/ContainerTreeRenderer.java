@@ -16,8 +16,9 @@ import java.util.List;
  */
 class ContainerTreeRenderer {
 
-    private static final float ICONS_REGION_WIDTH = 40.0f;
-    private static final float ICON_RIGHT_MARGIN = 8.0f; // 图标右侧边距，避免被裁剪
+    // 右侧“锁/隐藏”图标区域：更紧凑一些，让按钮更靠近右侧边缘（同时保留少量安全边距避免裁剪）
+    private static final float ICONS_REGION_WIDTH = 32.0f;
+    private static final float ICON_RIGHT_MARGIN = 6.0f; // 图标右侧边距（越小越靠右）
     private static final float TREE_NODE_INNER_SPACING = 2.0f; // 树节点内部间距（箭头和文本之间），更紧凑
     private static final float COLOR_TAG_BAR_WIDTH = 6.0f; // 颜色标签条宽度（4-6px，推荐6px）
     private static final float NAME_BUTTONS_SEPARATOR_PADDING = 6.0f; // 名称与按钮之间的留白
@@ -104,7 +105,13 @@ class ContainerTreeRenderer {
             boolean wasExpanded = state.isNodeExpanded(container.getId());
             
             // 使用树节点渲染（包含图标和文本的完整 label）
+            // ✅ 让文字在“行背景/按钮”中看起来更垂直居中
+            ImGui.alignTextToFramePadding();
             boolean nodeOpen = ImGui.treeNodeEx(label, flags);
+
+            // 记录这一行的矩形（用于让右侧按钮/分割线与背景垂直居中对齐）
+            imgui.ImVec2 rowMin = ImGui.getItemRectMin();
+            imgui.ImVec2 rowMax = ImGui.getItemRectMax();
             
             // 在树节点渲染后，绘制颜色标签条（在容器名称左侧）
             if (tagColor != null && ImGui.isItemVisible()) {
@@ -145,10 +152,10 @@ class ContainerTreeRenderer {
 
             // ✅ 名称文字后、锁/隐藏按钮前的竖向分割线（类似时间线轨道的样式）
             if (ImGui.isItemVisible()) {
-                drawNameButtonsSeparator(iconRegionStart);
+                drawNameButtonsSeparator(iconRegionStart, rowMin, rowMax);
             }
             ImGui.sameLine(iconRegionStart);
-            IconClickState iconClickState = renderContainerControlIcons(container);
+            IconClickState iconClickState = renderContainerControlIcons(container, rowMin, rowMax);
 
             // 检测图标是否被点击（在节点点击检测之前）
             boolean iconClicked = iconClickState.lockClicked || iconClickState.visibilityClicked;
@@ -234,11 +241,7 @@ class ContainerTreeRenderer {
      * 在“名称”和“右侧控制按钮（锁定/可见性）”之间绘制竖向分割线。
      * 视觉目标：类似时间线轨道左侧名称与按钮区的分割线。
      */
-    private void drawNameButtonsSeparator(float iconRegionStartLocalX) {
-        // node item 的 rect（上一项 treeNodeEx）的屏幕坐标
-        imgui.ImVec2 itemMin = ImGui.getItemRectMin();
-        imgui.ImVec2 itemMax = ImGui.getItemRectMax();
-
+    private void drawNameButtonsSeparator(float iconRegionStartLocalX, imgui.ImVec2 itemMin, imgui.ImVec2 itemMax) {
         // iconRegionStartLocalX 是窗口局部坐标，转换为屏幕坐标
         float windowX = ImGui.getWindowPosX();
         float separatorX = windowX + iconRegionStartLocalX - NAME_BUTTONS_SEPARATOR_PADDING;
@@ -267,7 +270,7 @@ class ContainerTreeRenderer {
         return flags;
     }
 
-    private IconClickState renderContainerControlIcons(Container container) {
+    private IconClickState renderContainerControlIcons(Container container, imgui.ImVec2 rowMin, imgui.ImVec2 rowMax) {
         // 使用局部 pushID 确保图标按钮 ID 唯一
         ImGui.pushID("Icons");
         boolean lockClicked = false;
@@ -275,6 +278,11 @@ class ContainerTreeRenderer {
         boolean lockHovered;
         boolean visibilityHovered;
         try {
+            // ✅ 行内垂直居中（名称/按钮/分割线统一观感）
+            float rowHeight = rowMax.y - rowMin.y;
+            float textHeight = ImGui.getTextLineHeight();
+            float centerY = rowMin.y + Math.max(0.0f, (rowHeight - textHeight) * 0.5f);
+
             // 锁定/解锁图标 - 使用 InvisibleButton 精确命中区域
             String lockIcon = container.isLocked() ? Icons.LOCK : Icons.UNLOCK;
             int lockColor = container.isLocked() ? LOCKED_COLOR : LOCKED_DISABLED_COLOR;
@@ -283,7 +291,7 @@ class ContainerTreeRenderer {
             float lockTextHeight = ImGui.getTextLineHeight();
 
             float lockPosX = ImGui.getCursorScreenPosX();
-            float lockPosY = ImGui.getCursorScreenPosY();
+            float lockPosY = centerY;
             if (ImGui.invisibleButton("lock_btn", lockTextWidth, lockTextHeight)) {
                 lockClicked = true;
             }
@@ -311,7 +319,7 @@ class ContainerTreeRenderer {
             float visTextHeight = ImGui.getTextLineHeight();
 
             float visPosX = ImGui.getCursorScreenPosX();
-            float visPosY = ImGui.getCursorScreenPosY();
+            float visPosY = centerY;
             
             // 如果容器在时间线上，禁用可见性切换按钮
             if (isOnTimeline) {
