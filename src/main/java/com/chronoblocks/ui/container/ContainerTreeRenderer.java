@@ -20,6 +20,10 @@ class ContainerTreeRenderer {
     private static final float ICON_RIGHT_MARGIN = 8.0f; // 图标右侧边距，避免被裁剪
     private static final float TREE_NODE_INNER_SPACING = 2.0f; // 树节点内部间距（箭头和文本之间），更紧凑
     private static final float COLOR_TAG_BAR_WIDTH = 6.0f; // 颜色标签条宽度（4-6px，推荐6px）
+    private static final float NAME_BUTTONS_SEPARATOR_PADDING = 6.0f; // 名称与按钮之间的留白
+    private static final float NAME_BUTTONS_SEPARATOR_THICKNESS = 1.0f;
+    // 参考 TimelineTrackRenderer 的分割线风格：半透明白色
+    private static final int NAME_BUTTONS_SEPARATOR_COLOR = 0x40FFFFFF;
     private static final int LOCKED_COLOR = 0xFFC8B464;
     private static final int LOCKED_DISABLED_COLOR = 0xB4787878;
     private static final int VISIBLE_COLOR = 0xFFB4B4B4;
@@ -138,6 +142,11 @@ class ContainerTreeRenderer {
             float cursorStartX = ImGui.getCursorStartPosX();
             float iconRegionStart = contentMaxX - cursorStartX - ICONS_REGION_WIDTH - ICON_RIGHT_MARGIN;
             iconRegionStart = Math.max(0, iconRegionStart); // 确保不为负
+
+            // ✅ 名称文字后、锁/隐藏按钮前的竖向分割线（类似时间线轨道的样式）
+            if (ImGui.isItemVisible()) {
+                drawNameButtonsSeparator(iconRegionStart);
+            }
             ImGui.sameLine(iconRegionStart);
             IconClickState iconClickState = renderContainerControlIcons(container);
 
@@ -219,6 +228,29 @@ class ContainerTreeRenderer {
         
         // 绘制填充的矩形颜色条（竖直，贯穿整行）
         drawList.addRectFilled(windowPosX, barY1, barX2, barY2, colorInt);
+    }
+
+    /**
+     * 在“名称”和“右侧控制按钮（锁定/可见性）”之间绘制竖向分割线。
+     * 视觉目标：类似时间线轨道左侧名称与按钮区的分割线。
+     */
+    private void drawNameButtonsSeparator(float iconRegionStartLocalX) {
+        // node item 的 rect（上一项 treeNodeEx）的屏幕坐标
+        imgui.ImVec2 itemMin = ImGui.getItemRectMin();
+        imgui.ImVec2 itemMax = ImGui.getItemRectMax();
+
+        // iconRegionStartLocalX 是窗口局部坐标，转换为屏幕坐标
+        float windowX = ImGui.getWindowPosX();
+        float separatorX = windowX + iconRegionStartLocalX - NAME_BUTTONS_SEPARATOR_PADDING;
+
+        // 防止极端窄窗口导致分割线跑到左边去
+        float minX = itemMin.x + 8.0f;
+        if (separatorX < minX) {
+            return;
+        }
+
+        ImDrawList dl = ImGui.getWindowDrawList();
+        dl.addLine(separatorX, itemMin.y, separatorX, itemMax.y, NAME_BUTTONS_SEPARATOR_COLOR, NAME_BUTTONS_SEPARATOR_THICKNESS);
     }
 
     private int buildNodeFlags(Container container) {
