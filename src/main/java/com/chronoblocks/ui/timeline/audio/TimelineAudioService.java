@@ -130,12 +130,25 @@ public class TimelineAudioService {
         if (config == null) {
             config = ClipAnimationConfig.defaultConfig();
         }
+
+        float clipDuration = Math.max(0.05f, clip.getLength());
+        float animDuration = Math.max(0.05f, Math.min(config.getDuration(), clipDuration));
+        float totalDelay = Math.max(0.0f, config.getDelay());
+        try {
+            if (config.getSequenceParameters() != null) {
+                totalDelay += Math.max(0.0f, config.getSequenceParameters().getGlobalDelay());
+            }
+        } catch (Exception ignored) {
+        }
         
         // 将 Set<BlockPos> 转换为 List<BlockPos>
         List<BlockSequenceEntry> sequenceEntries = BlockSequenceGenerator.generate(
                 new ArrayList<>(container.getBlocks()),
                 container,
-                config.getSequenceParameters()
+                config.getSequenceParameters(),
+                clipDuration,
+                animDuration,
+                totalDelay
         );
         
         if (sequenceEntries == null || sequenceEntries.isEmpty()) {

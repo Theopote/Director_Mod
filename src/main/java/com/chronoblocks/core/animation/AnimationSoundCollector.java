@@ -50,7 +50,7 @@ public class AnimationSoundCollector {
     /**
      * 从容器片段收集声音事件
      * 
-     * <p>根据片段的动画配置和序列条目，生成所有方块放置的声音事件。
+     * <p>根据片段的动画配置（Enter/Exit）和序列条目，生成方块放置/破坏的声音事件。
      * 
      * @param clip 时间线片段
      * @param container 容器对象
@@ -70,8 +70,26 @@ public class AnimationSoundCollector {
         
         float clipStart = clip.getStartTime();
         float clipDuration = clip.getLength();
-        
-        // 遍历序列条目，为每个方块生成放置声音事件
+
+        ClipAnimationConfig config = clip.getAnimationConfig();
+        if (config == null) {
+            config = ClipAnimationConfig.defaultConfig();
+        }
+
+        float animDuration = Math.max(0.05f, Math.min(config.getDuration(), clipDuration));
+        float totalDelay = Math.max(0.0f, config.getDelay());
+        try {
+            if (config.getSequenceParameters() != null) {
+                totalDelay += Math.max(0.0f, config.getSequenceParameters().getGlobalDelay());
+            }
+        } catch (Exception ignored) {
+        }
+
+        float availableSpan = Math.max(0.0001f, clipDuration - animDuration - totalDelay);
+
+        boolean isExit = config.getPhase() == ClipAnimationConfig.AnimationPhase.EXIT;
+
+        // 遍历序列条目，为每个方块生成声音事件
         for (BlockSequenceEntry entry : sequenceEntries) {
             if (entry == null) {
                 continue;
@@ -82,27 +100,35 @@ public class AnimationSoundCollector {
                 continue;
             }
             
-            // 计算方块出现的时间（全局时间）
+            // 计算方块事件时间（全局时间）
             float normalizedTime = entry.getNormalizedTime(); // 0..1
-            float blockAppearTime = clipStart + normalizedTime * clipDuration;
+            float eventTime;
+            if (isExit) {
+                // EXIT：事件在“方块被移除”时刻触发（动画结束端点）
+                eventTime = clipStart + totalDelay + animDuration + normalizedTime * availableSpan;
+            } else {
+                // ENTER：事件在“方块进入世界/开始出现”时刻触发（动画起点）
+                eventTime = clipStart + totalDelay + normalizedTime * availableSpan;
+            }
             
             // 获取方块状态
             BlockState blockState = getBlockState(container, pos);
             
-            // 获取方块放置声音ID
-            String soundId = getBlockPlaceSound(blockState);
+            // 获取声音ID
+            String soundId = isExit ? getBlockBreakSound(blockState) : getBlockPlaceSound(blockState);
             
-            // 生成方块放置声音事件
-            String label = String.format("方块放置 @ %.2fs", blockAppearTime);
-            AudioEvent placeEvent = new AudioEvent(label, soundId, blockAppearTime);
-            placeEvent.setVolume(1.0f);
-            placeEvent.setPitch(1.0f);
-            
-            events.add(placeEvent);
+            // 生成声音事件
+            String label = isExit
+                    ? String.format("方块破坏 @ %.2fs", eventTime)
+                    : String.format("方块放置 @ %.2fs", eventTime);
+            AudioEvent ev = new AudioEvent(label, soundId, eventTime);
+            ev.setVolume(1.0f);
+            ev.setPitch(1.0f);
+            events.add(ev);
             
             if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[AnimationSoundCollector] 生成方块放置声音: {} at {:.2f}s (片段: {})",
-                        pos, blockAppearTime, clip.getLabel());
+                LOGGER.trace("[AnimationSoundCollector] 生成方块声音: {} at {:.2f}s (片段: {} phase={})",
+                        pos, eventTime, clip.getLabel(), isExit ? "EXIT" : "ENTER");
             }
         }
         
@@ -114,26 +140,7 @@ public class AnimationSoundCollector {
         return events;
     }
     
-    /**
-     * 收集方块移除声音事件（当片段结束时，如果方块被移除）
-     * 
-     * <p>注意：当前实现主要关注方块放置声音，移除声音可以在后续版本中添加。
-     * 
-     * @param clip 时间线片段
-     * @param container 容器对象
-     * @param sequenceEntries 方块序列条目列表
-     * @return 收集到的声音事件列表
-     */
-    public List<AudioEvent> collectBlockBreakEvents(
-            TimelineClip clip,
-            Container container,
-            List<BlockSequenceEntry> sequenceEntries) {
-
-        // TODO: 实现方块移除声音事件收集
-        // 这需要跟踪哪些方块在片段结束时被移除
-        
-        return new ArrayList<>();
-    }
+    // 旧的 collectBlockBreakEvents 已并入 collectFromClip（根据 config.phase 自动选择放置/破坏语义）
     
     /**
      * 获取方块状态
@@ -190,6 +197,32 @@ public class AnimationSoundCollector {
             return "minecraft:block.sand.place";
         } else {
             return "minecraft:block.stone.place"; // 默认声音
+        }
+    }
+
+    /**
+     * 根据方块状态获取破坏声音
+     */
+    private String getBlockBreakSound(BlockState blockState) {
+        if (blockState == null) {
+            return "minecraft:block.stone.break";
+        }
+
+        net.minecraft.block.Block block = blockState.getBlock();
+        String blockName = net.minecraft.registry.Registries.BLOCK.getId(block).toString();
+
+        if (blockName.contains("stone") || blockName.contains("cobblestone")) {
+            return "minecraft:block.stone.break";
+        } else if (blockName.contains("wood") || blockName.contains("log") || blockName.contains("planks")) {
+            return "minecraft:block.wood.break";
+        } else if (blockName.contains("grass") || blockName.contains("dirt")) {
+            return "minecraft:block.grass.break";
+        } else if (blockName.contains("gravel")) {
+            return "minecraft:block.gravel.break";
+        } else if (blockName.contains("sand")) {
+            return "minecraft:block.sand.break";
+        } else {
+            return "minecraft:block.stone.break";
         }
     }
 }
