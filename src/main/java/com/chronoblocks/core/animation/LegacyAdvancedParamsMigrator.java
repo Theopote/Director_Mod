@@ -38,6 +38,8 @@ public final class LegacyAdvancedParamsMigrator {
             if (inst == null) {
                 inst = new EffectInstance(EffectType.FLASH_WHITE);
                 inst.setEnabled(true);
+                inst.setPhase(EffectInstance.EffectPhase.ENTER);
+                inst.setTriggerMode(EffectInstance.TriggerMode.ONE_SHOT);
                 inst.setStartOffset(0.0f);
                 inst.setDuration(0.30f); // 单块动画前 30%
                 config.addEffect(inst);

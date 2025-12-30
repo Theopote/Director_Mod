@@ -46,6 +46,47 @@ public final class BlockAnimationEngine {
     }
 
     /**
+     * 运行时特效触发状态（用于 ONE_SHOT 等跨帧门控）。
+     *
+     * <p>键：pos + effectId
+     * 值：上一帧该方块在单块动画窗口内的 t_raw（0..1），以及最近一次 seen 时间用于清理。
+     */
+    private static final class EffectRuntimeGate {
+        private static final class State {
+            float lastTRaw;
+            float lastSeenNow;
+            boolean initialized;
+        }
+
+        private static final java.util.Map<Key, State> STATES = new java.util.HashMap<>();
+        private static float lastCleanupNow = Float.NEGATIVE_INFINITY;
+
+        private record Key(long posLong, java.util.UUID effectId) {
+        }
+
+        static State get(long posLong, java.util.UUID effectId, float now) {
+            Key k = new Key(posLong, effectId);
+            State s = STATES.get(k);
+            if (s == null) {
+                s = new State();
+                s.initialized = false;
+                s.lastTRaw = 0.0f;
+                s.lastSeenNow = now;
+                STATES.put(k, s);
+            } else {
+                s.lastSeenNow = now;
+            }
+            // 简单清理：每 2s 扫一次，移除 10s 没见到的 key
+            if (now - lastCleanupNow > 2.0f) {
+                lastCleanupNow = now;
+                float expire = now - 10.0f;
+                STATES.entrySet().removeIf(e -> e.getValue() == null || e.getValue().lastSeenNow < expire);
+            }
+            return s;
+        }
+    }
+
+    /**
      * 对单个方块进行采样，生成一帧的动画快照。
      *
      * @param pos        方块世界坐标
@@ -377,6 +418,23 @@ public final class BlockAnimationEngine {
                 continue;
             }
 
+            // ✅ 作用阶段过滤：让特效也遵守 Enter/Exit 语义
+            try {
+                var clipPhase = config.getPhase();
+                var effectPhase = inst.getPhase();
+                if (effectPhase != null && effectPhase != com.chronoblocks.core.animation.effect.EffectInstance.EffectPhase.BOTH) {
+                    if (clipPhase == ClipAnimationConfig.AnimationPhase.ENTER
+                            && effectPhase != com.chronoblocks.core.animation.effect.EffectInstance.EffectPhase.ENTER) {
+                        continue;
+                    }
+                    if (clipPhase == ClipAnimationConfig.AnimationPhase.EXIT
+                            && effectPhase != com.chronoblocks.core.animation.effect.EffectInstance.EffectPhase.EXIT) {
+                        continue;
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+
             float startNorm = MathHelper.clamp(inst.getStartOffset(), 0.0f, 1.0f);
             float durNorm = inst.getDuration();
             if (durNorm <= 0.0f) {
@@ -401,16 +459,46 @@ public final class BlockAnimationEngine {
                 net.minecraft.client.world.ClientWorld world =
                         MinecraftClient.getInstance().world;
                 if (world != null && snapshot != null) {
+                    // ONE_SHOT：只在进入时间窗口时触发一次（支持回放/拖动倒退时再次触发）
+                    if (inst.getTriggerMode() == com.chronoblocks.core.animation.effect.EffectInstance.TriggerMode.ONE_SHOT) {
+                        var gate = EffectRuntimeGate.get(snapshot.getPos().asLong(), inst.getId(), now);
+                        if (!gate.initialized) {
+                            gate.initialized = true;
+                            gate.lastTRaw = tRaw;
+                            // 首次看到该方块：
+                            // - 默认不触发，避免在片段中途开始渲染时“突然爆一堆”
+                            // - 但如果特效窗口从 0 开始，且当前正处于动画刚起步（tRaw 非常小），允许触发一次
+                            //   这样 startOffset=0 的 ONE_SHOT（如闪白光）不会永远不触发。
+                            if (!(startNorm <= 1e-4f && tRaw <= 1e-3f)) {
+                                continue;
+                            }
+                            // 触发一次：用 effectT=0 作为起点
+                            effectT = 0.0f;
+                        }
+                        // 如果时间倒退（拖动播放头/循环），允许重新触发
+                        if (tRaw + 1e-4f < gate.lastTRaw) {
+                            gate.lastTRaw = tRaw;
+                            continue;
+                        }
+                        boolean crossed = gate.lastTRaw + 1e-4f < startNorm && tRaw + 1e-4f >= startNorm;
+                        gate.lastTRaw = tRaw;
+                        if (!crossed) {
+                            continue;
+                        }
+                        // 触发一次：用 effectT=0 作为起点
+                        effectT = 0.0f;
+                    }
+
                     effectImpl.render(
-                            world,
-                            snapshot.getPos(),
-                            effectT,
-                            inst,
-                            new java.util.Random(
-                                    randomSeed
-                                            ^ snapshot.getPos().asLong()
-                                            ^ inst.getId().getLeastSignificantBits()
-                            )
+                        world,
+                        snapshot.getPos(),
+                        effectT,
+                        inst,
+                        new java.util.Random(
+                            randomSeed
+                                ^ snapshot.getPos().asLong()
+                                ^ inst.getId().getLeastSignificantBits()
+                        )
                     );
                 }
             } catch (Exception e) {

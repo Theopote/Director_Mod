@@ -1537,6 +1537,12 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             inst.setStartOffset(0.2f);
             inst.setDuration(0.3f);
             inst.setEnabled(true);
+            inst.setPhase(config.getPhase() == com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase.EXIT
+                    ? EffectInstance.EffectPhase.EXIT
+                    : EffectInstance.EffectPhase.ENTER);
+            if (type == EffectType.FLASH_WHITE || type == EffectType.DUST_BURST) {
+                inst.setTriggerMode(EffectInstance.TriggerMode.ONE_SHOT);
+            }
 
             // 初始化参数为特效默认配置
             IBlockEffect impl = BlockEffectRegistry.get(type);
@@ -1593,6 +1599,13 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         }
         EffectInstance inst = new EffectInstance(type);
         inst.setEnabled(true);
+        inst.setPhase(config.getPhase() == com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase.EXIT
+                ? EffectInstance.EffectPhase.EXIT
+                : EffectInstance.EffectPhase.ENTER);
+        // 粒子类特效默认 one-shot，更符合“到点爆一下”的预期
+        if (type == EffectType.FLASH_WHITE || type == EffectType.DUST_BURST) {
+            inst.setTriggerMode(EffectInstance.TriggerMode.ONE_SHOT);
+        }
         inst.setStartOffset(startOffset);
         inst.setDuration(duration);
 
@@ -1623,41 +1636,81 @@ private boolean renderAnimationSettings(TimelineClip clip) {
 
         UITheme.label("时间轴", UITheme.DarkTheme.TEXT_SELECTED);
 
+        // ✅ 特效时间轴是“相对于单块动画窗口”的归一化（0..1），而不是相对于片段长度
+        ClipAnimationConfig cfg = clip.getAnimationConfig();
         float clipLength = Math.max(clip.getLength(), 0.0001f);
+        float animLen = 0.05f;
+        if (cfg != null) {
+            animLen = Math.max(0.05f, Math.min(cfg.getDuration(), clipLength));
+        }
+
+        // 作用阶段
+        EffectInstance.EffectPhase[] phases = EffectInstance.EffectPhase.values();
+        String[] phaseLabels = new String[]{"出现(Enter)", "擦除(Exit)", "两者(Both)"};
+        int phaseIdx = inst.getPhase().ordinal();
+        if (phaseIdx < 0 || phaseIdx >= phases.length) phaseIdx = 2;
+        ImInt phaseIdxIm = new ImInt(phaseIdx);
+        ImGui.pushItemWidth(ImGui.getContentRegionAvailX());
+        if (ImGui.combo("作用阶段", phaseIdxIm, phaseLabels)) {
+            int ni = Math.max(0, Math.min(phaseIdxIm.get(), phases.length - 1));
+            inst.setPhase(phases[ni]);
+            modified = true;
+        }
+        ImGui.popItemWidth();
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("控制该特效在哪种片段阶段生效：出现片段 / 擦除片段 / 两者都生效。");
+        }
+
+        // 触发模式
+        EffectInstance.TriggerMode[] triggerModes = EffectInstance.TriggerMode.values();
+        String[] triggerLabels = new String[]{"连续(每帧)", "一次(One-shot)"};
+        int trigIdx = inst.getTriggerMode().ordinal();
+        if (trigIdx < 0 || trigIdx >= triggerModes.length) trigIdx = 0;
+        ImInt trigIdxIm = new ImInt(trigIdx);
+        ImGui.pushItemWidth(ImGui.getContentRegionAvailX());
+        if (ImGui.combo("触发方式", trigIdxIm, triggerLabels)) {
+            int ni = Math.max(0, Math.min(trigIdxIm.get(), triggerModes.length - 1));
+            inst.setTriggerMode(triggerModes[ni]);
+            modified = true;
+        }
+        ImGui.popItemWidth();
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("连续：窗口内每帧触发（适合持续光效）。\n一次：进入窗口时只触发一次（适合爆裂/闪白光，性能更稳）。");
+        }
 
         // startOffset 和 duration 都是归一化的 [0..1]
         float startNorm = inst.getStartOffset();
         float durNorm = inst.getDuration();
 
-        // 转换为实际秒数显示
-        float startSec = startNorm * clipLength;
-        float durSec = durNorm > 0.0f ? durNorm * clipLength : clipLength;
+        // 转换为实际秒数显示（相对于单块动画窗口）
+        float startSec = startNorm * animLen;
+        float durSec = durNorm > 0.0f ? durNorm * animLen : animLen;
 
         float[] startBuf = { startSec };
         float[] durBuf = { durSec };
 
         ImGui.pushItemWidth(ImGui.getContentRegionAvailX() * 0.45f);
-        if (ImGui.dragFloat("开始时间 (秒)", startBuf, 0.02f, 0.0f, clipLength, "%.2f")) {
-            startBuf[0] = Math.max(0f, Math.min(startBuf[0], clipLength));
-            inst.setStartOffset(startBuf[0] / clipLength);
+        if (ImGui.dragFloat("开始时间 (秒)", startBuf, 0.02f, 0.0f, animLen, "%.2f")) {
+            startBuf[0] = Math.max(0f, Math.min(startBuf[0], animLen));
+            inst.setStartOffset(startBuf[0] / animLen);
             modified = true;
         }
         ImGui.popItemWidth();
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("相对于片段开始的时间偏移。");
+            ImGui.setTooltip("相对于“单个方块动画起点”的时间偏移。");
         }
 
         ImGui.sameLine();
 
         ImGui.pushItemWidth(ImGui.getContentRegionAvailX() * 0.45f);
-        if (ImGui.dragFloat("持续时长 (秒)", durBuf, 0.02f, 0.0f, clipLength, "%.2f")) {
-            durBuf[0] = Math.max(0.0f, Math.min(durBuf[0], clipLength));
-            inst.setDuration(durBuf[0] / clipLength);
+        if (ImGui.dragFloat("持续时长 (秒)", durBuf, 0.02f, 0.0f, animLen, "%.2f")) {
+            durBuf[0] = Math.max(0.0f, Math.min(durBuf[0], animLen));
+            inst.setDuration(durBuf[0] / animLen);
             modified = true;
         }
         ImGui.popItemWidth();
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("特效从开始到结束的持续时间。");
+            ImGui.setTooltip("特效从开始到结束的持续时间（相对于单块动画窗口）。");
         }
 
         // 简单的时间条预览 [====effect====]
@@ -1690,9 +1743,9 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(String.format(
                 "开始: %.2fs (%.0f%%)\n结束: %.2fs (%.0f%%)",
-                actualStartNorm * clipLength,
+                actualStartNorm * animLen,
                 actualStartNorm * 100f,
-                (actualStartNorm + actualDurNorm) * clipLength,
+                (actualStartNorm + actualDurNorm) * animLen,
                 (actualStartNorm + actualDurNorm) * 100f
             ));
         }

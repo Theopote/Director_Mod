@@ -41,11 +41,17 @@ public class MagicSummonPreset implements EffectPreset {
     
     @Override
     public void applyTo(ClipAnimationConfig config) {
+        EffectInstance.EffectPhase phase = config != null && config.getPhase() == ClipAnimationConfig.AnimationPhase.EXIT
+                ? EffectInstance.EffectPhase.EXIT
+                : EffectInstance.EffectPhase.ENTER;
+
         // 1. 召唤粒子（蓝色/魔法粒子效果，用小半径烟尘模拟）
         EffectInstance conjure = new EffectInstance(EffectType.DUST_BURST);
         conjure.setStartOffset(0.0f);
         conjure.setDuration(0.25f);
         conjure.setEnabled(true);
+        conjure.setTriggerMode(EffectInstance.TriggerMode.ONE_SHOT);
+        conjure.setPhase(phase);
         // 设置默认参数
         IBlockEffect conjureImpl = BlockEffectRegistry.get(EffectType.DUST_BURST);
         if (conjureImpl != null) {
@@ -61,6 +67,8 @@ public class MagicSummonPreset implements EffectPreset {
         flash.setStartOffset(0.05f);
         flash.setDuration(0.20f);
         flash.setEnabled(true);
+        flash.setTriggerMode(EffectInstance.TriggerMode.ONE_SHOT);
+        flash.setPhase(phase);
         // 设置默认参数
         IBlockEffect flashImpl = BlockEffectRegistry.get(EffectType.FLASH_WHITE);
         if (flashImpl != null) {

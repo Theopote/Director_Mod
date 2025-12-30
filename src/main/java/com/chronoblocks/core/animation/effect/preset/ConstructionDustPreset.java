@@ -45,6 +45,10 @@ public class ConstructionDustPreset implements EffectPreset {
         burst.setStartOffset(0.05f);
         burst.setDuration(0.2f);
         burst.setEnabled(true);
+        burst.setTriggerMode(EffectInstance.TriggerMode.ONE_SHOT);
+        burst.setPhase(config != null && config.getPhase() == ClipAnimationConfig.AnimationPhase.EXIT
+                ? EffectInstance.EffectPhase.EXIT
+                : EffectInstance.EffectPhase.ENTER);
         IBlockEffect burstImpl = BlockEffectRegistry.get(EffectType.DUST_BURST);
         if (burstImpl != null) {
             burst.getParams().putAll(burstImpl.getDefaultParams());

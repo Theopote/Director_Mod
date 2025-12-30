@@ -41,11 +41,17 @@ public class SciFiAssemblePreset implements EffectPreset {
     
     @Override
     public void applyTo(ClipAnimationConfig config) {
+        EffectInstance.EffectPhase phase = config != null && config.getPhase() == ClipAnimationConfig.AnimationPhase.EXIT
+                ? EffectInstance.EffectPhase.EXIT
+                : EffectInstance.EffectPhase.ENTER;
+
         // 扫描线：用 DustBurst 半径非常小模拟点亮
         EffectInstance scan = new EffectInstance(EffectType.DUST_BURST);
         scan.setStartOffset(0.0f);
         scan.setDuration(0.15f);
         scan.setEnabled(true);
+        scan.setTriggerMode(EffectInstance.TriggerMode.ONE_SHOT);
+        scan.setPhase(phase);
         IBlockEffect scanImpl = BlockEffectRegistry.get(EffectType.DUST_BURST);
         if (scanImpl != null) {
             scan.getParams().putAll(scanImpl.getDefaultParams());
@@ -59,6 +65,8 @@ public class SciFiAssemblePreset implements EffectPreset {
         flash.setStartOffset(0.05f);
         flash.setDuration(0.15f);
         flash.setEnabled(true);
+        flash.setTriggerMode(EffectInstance.TriggerMode.ONE_SHOT);
+        flash.setPhase(phase);
         IBlockEffect flashImpl = BlockEffectRegistry.get(EffectType.FLASH_WHITE);
         if (flashImpl != null) {
             flash.getParams().putAll(flashImpl.getDefaultParams());

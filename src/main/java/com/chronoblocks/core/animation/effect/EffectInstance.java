@@ -40,6 +40,32 @@ public class EffectInstance {
     
     /** 参数字典，用于不同 EffectType 自己解析 */
     private final Map<String, Object> params = new HashMap<>();
+
+    /**
+     * 特效作用阶段：
+     * - ENTER：仅在“出现片段”生效
+     * - EXIT：仅在“擦除片段”生效
+     * - BOTH：两者都生效（默认，保持旧存档行为）
+     */
+    public enum EffectPhase {
+        ENTER,
+        EXIT,
+        BOTH
+    }
+
+    private EffectPhase phase = EffectPhase.BOTH;
+
+    /**
+     * 触发模式：
+     * - CONTINUOUS：时间窗口内每帧都会调用（适合持续光效/持续粒子）
+     * - ONE_SHOT：进入时间窗口时只触发一次（适合爆裂/闪白光等）
+     */
+    public enum TriggerMode {
+        CONTINUOUS,
+        ONE_SHOT
+    }
+
+    private TriggerMode triggerMode = TriggerMode.CONTINUOUS;
     
     public EffectInstance(@NotNull EffectType type) {
         this.id = UUID.randomUUID();
@@ -91,6 +117,24 @@ public class EffectInstance {
     
     public void setDuration(float duration) {
         this.duration = duration;
+    }
+
+    @NotNull
+    public EffectPhase getPhase() {
+        return phase != null ? phase : EffectPhase.BOTH;
+    }
+
+    public void setPhase(@Nullable EffectPhase phase) {
+        this.phase = phase != null ? phase : EffectPhase.BOTH;
+    }
+
+    @NotNull
+    public TriggerMode getTriggerMode() {
+        return triggerMode != null ? triggerMode : TriggerMode.CONTINUOUS;
+    }
+
+    public void setTriggerMode(@Nullable TriggerMode triggerMode) {
+        this.triggerMode = triggerMode != null ? triggerMode : TriggerMode.CONTINUOUS;
     }
     
     @NotNull
@@ -153,6 +197,8 @@ public class EffectInstance {
         copy.enabled = this.enabled;
         copy.startOffset = this.startOffset;
         copy.duration = this.duration;
+        copy.phase = this.phase;
+        copy.triggerMode = this.triggerMode;
         copy.params.putAll(this.params);
         return copy;
     }
