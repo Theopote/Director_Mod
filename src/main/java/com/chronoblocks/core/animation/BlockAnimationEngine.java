@@ -88,6 +88,13 @@ public final class BlockAnimationEngine {
         float clipDuration = Math.max(0.0001f, clipEnd - clipStart);
         float animDuration = Math.max(0.0001f, Math.min(config.getDuration(), clipDuration));
         float delay = Math.max(0.0f, config.getDelay());
+        try {
+            var seq = config.getSequenceParameters();
+            if (seq != null) {
+                delay += Math.max(0.0f, seq.getGlobalDelay());
+            }
+        } catch (Exception ignored) {
+        }
         
         LOGGER.info("[BlockAnimationEngine] sample: pos={} mode={} duration={} clipStart={} clipEnd={} now={}",
             pos, mode, animDuration, clipStart, clipEnd, now);
@@ -102,13 +109,14 @@ public final class BlockAnimationEngine {
         // EXIT ：方块在自己的 startTime 起开始退出动画，endTime 后应当被移除（由上层负责从世界中移除）
         float blockStartTime;
         float blockEndTime;
+        float availableSpan = Math.max(0.0001f, clipDuration - animDuration - delay);
         if (phase == ClipAnimationConfig.AnimationPhase.EXIT) {
             // 结束时刻分布在 [clipStart+delay+animDuration, clipEnd]
-            blockEndTime = clipStart + delay + animDuration + seqNormalizedTime * (clipDuration - animDuration);
+            blockEndTime = clipStart + delay + animDuration + seqNormalizedTime * availableSpan;
             blockStartTime = blockEndTime - animDuration;
         } else {
             // ENTER：开始时刻分布在 [clipStart+delay, clipEnd-animDuration]
-            float blockBaseOffset = seqNormalizedTime * (clipDuration - animDuration);
+            float blockBaseOffset = seqNormalizedTime * availableSpan;
             blockStartTime = clipStart + delay + blockBaseOffset;
             blockEndTime = blockStartTime + animDuration;
         }
@@ -124,7 +132,7 @@ public final class BlockAnimationEngine {
                 snapshot.setTransform(identityTransform());
                 snapshot.setSequenceNormalizedTime(seqNormalizedTime);
                 snapshot.setAlpha(1.0f);
-                applyEffectsSafe(snapshot, config, clipStart, clipEnd, now, clipDuration, randomSeed);
+                applyEffectsSafe(snapshot, config, now, randomSeed);
             } else {
                 snapshot.markHidden();
             }
@@ -149,8 +157,8 @@ public final class BlockAnimationEngine {
             }
         }
 
-        // 动画已结束 或 模式为 INSTANT：端点状态
-        if (now >= blockEndTime || mode == AnimationMode.INSTANT) {
+        // 动画已结束：端点状态
+        if (now >= blockEndTime) {
             LOGGER.info("[BlockAnimationEngine] INSTANT mode or animation finished: pos={} mode={} now={} blockEndTime={}",
                 pos, mode, now, blockEndTime);
             if (phase == ClipAnimationConfig.AnimationPhase.EXIT && mode != AnimationMode.INSTANT) {
@@ -162,8 +170,6 @@ public final class BlockAnimationEngine {
                 snapshot.setSequenceNormalizedTime(seqNormalizedTime);
                 snapshot.setTransform(identityTransform());
                 snapshot.setAlpha(1.0f);
-                // ⚡ 关键：即使是 INSTANT 模式，也允许运行特效
-                applyEffectsSafe(snapshot, config, clipStart, clipEnd, now, clipDuration, randomSeed);
                 return snapshot;
             }
         }
@@ -250,7 +256,7 @@ public final class BlockAnimationEngine {
         snapshot.setTransform(matrices);
 
         // ===== 6. 应用特效（粒子 / 其他可视效果） =====
-        applyEffectsSafe(snapshot, config, clipStart, clipEnd, now, clipDuration, randomSeed);
+        applyEffectsSafe(snapshot, config, now, randomSeed);
 
         return snapshot;
     }
@@ -260,13 +266,10 @@ public final class BlockAnimationEngine {
      */
     private static void applyEffectsSafe(BlockAnimationSnapshot snapshot,
                                          ClipAnimationConfig config,
-                                         float clipStart,
-                                         float clipEnd,
                                          float now,
-                                         float clipDuration,
                                          long randomSeed) {
         try {
-            applyEffects(snapshot, config, clipStart, clipEnd, now, clipDuration, randomSeed);
+            applyEffects(snapshot, config, now, randomSeed);
         } catch (Exception e) {
             LOGGER.error("应用特效时出现未捕获异常: pos={} err={}",
                     snapshot != null ? snapshot.getPos() : "null", e.getMessage(), e);
@@ -336,15 +339,16 @@ public final class BlockAnimationEngine {
      */
     private static void applyEffects(BlockAnimationSnapshot snapshot,
                                      ClipAnimationConfig config,
-                                     float clipStart,
-                                     float clipEnd,
                                      float now,
-                                     float clipDuration,
                                      long randomSeed) {
 
         if (config == null || config.getEffects().isEmpty()) {
             return;
         }
+
+        // ✅ EffectInstance 的时间轴是“相对于单个方块动画起点的偏移（归一化 0..1）”
+        // 因此我们用 snapshot.rawProgress（未 easing 的 t_raw）来驱动特效。
+        float tRaw = snapshot != null ? MathHelper.clamp(snapshot.getRawProgress(), 0.0f, 1.0f) : 0.0f;
 
         for (EffectInstance inst : config.getEffects()) {
             if (inst == null || !inst.isEnabled()) {
@@ -352,18 +356,19 @@ public final class BlockAnimationEngine {
             }
 
             float startNorm = MathHelper.clamp(inst.getStartOffset(), 0.0f, 1.0f);
-            float durNorm = Math.max(0.0001f, inst.getDuration());
-            float effectStart = clipStart + startNorm * clipDuration;
-            float effectEnd = effectStart + durNorm * clipDuration;
+            float durNorm = inst.getDuration();
+            if (durNorm <= 0.0f) {
+                // <=0 表示继承“单块动画窗口全长”
+                durNorm = 1.0f;
+            }
+            durNorm = MathHelper.clamp(durNorm, 0.0001f, 1.0f);
+            float endNorm = startNorm + durNorm;
 
-            if (now < effectStart || now > effectEnd) {
+            if (tRaw < startNorm || tRaw > endNorm) {
                 continue;
             }
 
-            float effectT = MathHelper.clamp(
-                    (now - effectStart) / (effectEnd - effectStart),
-                    0.0f, 1.0f
-            );
+            float effectT = MathHelper.clamp((tRaw - startNorm) / durNorm, 0.0f, 1.0f);
 
             IBlockEffect effectImpl = BlockEffectRegistry.get(inst.getType());
             if (effectImpl == null) {

@@ -1,8 +1,5 @@
 package com.chronoblocks.core.animation;
 
-import com.chronoblocks.core.animation.effect.BlockEffectRegistry;
-import com.chronoblocks.core.animation.effect.EffectInstance;
-import com.chronoblocks.core.animation.effect.IBlockEffect;
 import com.chronoblocks.core.animation.sequence.BlockSequenceEntry;
 import com.chronoblocks.core.container.visibility.BlockVisualStateManager;
 import com.chronoblocks.core.visual.BlockRenderMode;
@@ -22,7 +19,6 @@ import org.slf4j.LoggerFactory;
 import org.lwjgl.opengl.GL11;
 
 import java.util.Collection;
-import java.util.Random;
 
 /**
  * BlockAnimationRenderer v3.1 - 重构版
@@ -111,10 +107,6 @@ public class BlockAnimationRenderer {
                     visualState,
                     world.getBlockState(pos)
             );
-
-            // ========== Layer 6: 派发特效 ==========
-            Random rand = ctx.getSequenceEntry().getSeedRandom();
-            dispatchEffects(world, pos, ctx, rand);
 
         } catch (Exception e) {
             LOGGER.error("渲染动画方块时出错: {}", e.getMessage(), e);
@@ -291,65 +283,9 @@ public class BlockAnimationRenderer {
         currentMatrix.mul(snapshotMatrix);
     }
 
-    /**
-     * 派发特效（粒子、光效等）
-     *
-     * 时间轴基于 clip 内归一化时间，而不是单个方块的 animDuration。
-     */
-    private static void dispatchEffects(
-            @NotNull ClientWorld world,
-            @NotNull BlockPos pos,
-            @NotNull BlockAnimationContext ctx,
-            @NotNull Random rand
-    ) {
-        ClipAnimationConfig config = ctx.getConfig();
-        if (config.getEffects().isEmpty()) {
-            return;
-        }
-
-        double clipLength = ctx.getClip().getLength();
-        if (clipLength <= 0.0001) {
-            return;
-        }
-
-        float blockLocalNorm = (float) (ctx.getClipLocalTime() / clipLength);
-        if (blockLocalNorm < 0.0f) blockLocalNorm = 0.0f;
-        if (blockLocalNorm > 1.0f) blockLocalNorm = 1.0f;
-
-        for (EffectInstance effectInstance : config.getEffects()) {
-            if (!effectInstance.isEnabled()) {
-                continue;
-            }
-
-            IBlockEffect effect = BlockEffectRegistry.get(effectInstance.getType());
-            if (effect == null) {
-                continue;
-            }
-
-            float effectStartOffset = effectInstance.getStartOffset();
-            float effectDuration = effectInstance.getDuration();
-
-            if (effectDuration <= 0.0f) {
-                effectDuration = 1.0f;
-            }
-
-            float effectEnd = effectStartOffset + effectDuration;
-
-            if (blockLocalNorm < effectStartOffset || blockLocalNorm > effectEnd) {
-                continue;
-            }
-
-            float effectT = (blockLocalNorm - effectStartOffset) / effectDuration;
-            if (effectT < 0.0f) effectT = 0.0f;
-            if (effectT > 1.0f) effectT = 1.0f;
-
-            try {
-                effect.render(world, pos, effectT, effectInstance, rand);
-            } catch (Exception e) {
-                LOGGER.error("BlockEffect 执行错误 type={}: {}", effectInstance.getType(), e.getMessage(), e);
-            }
-        }
-    }
+    // 特效触发已统一由 BlockAnimationEngine.sample() 内部负责：
+    // - 时间线主通路（RenderEntry overrideSnapshot）也会走 sample() 采样并触发一次
+    // - 避免在 Renderer 再额外派发造成双触发/刷屏
 
     /**
      * 底层工具：真正和 Minecraft 渲染管线打交道的地方

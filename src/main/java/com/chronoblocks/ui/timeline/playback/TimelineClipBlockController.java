@@ -465,9 +465,19 @@ public class TimelineClipBlockController {
             if (config != null) {
                 animDuration = Math.min(Math.max(0.05f, config.getDuration()), clipDuration);
                 delay = Math.max(0.0f, config.getDelay());
+                try {
+                    var seq = config.getSequenceParameters();
+                    if (seq != null) {
+                        delay += Math.max(0.0f, seq.getGlobalDelay());
+                    }
+                } catch (Exception ignored) {
+                }
             }
+            float availableSpan = Math.max(0.0001f, clipDuration - animDuration - delay);
             List<BlockSequenceEntry> generated = BlockSequenceGenerator.generate(
-                allBlocks, container, config != null ? config.getSequenceParameters() : null
+                allBlocks, container,
+                config != null ? config.getSequenceParameters() : null,
+                clipDuration, animDuration, delay
             );
             if (generated != null) {
                 sequenceEntries.addAll(generated);
@@ -487,7 +497,7 @@ public class TimelineClipBlockController {
                 for (BlockSequenceEntry entry : sequenceEntries) {
                     float normalizedTime = entry.getNormalizedTime();
                     // 与 BlockAnimationEngine 的 ENTER 时间窗口对齐：让方块从动画开始时刻进入世界
-                    float blockStartTime = clipStart + delay + normalizedTime * (clipDuration - animDuration);
+                    float blockStartTime = clipStart + delay + normalizedTime * availableSpan;
                     if (currentTime >= blockStartTime) {
                         visibleBlocks.add(entry.getPos());
                     }
@@ -500,7 +510,7 @@ public class TimelineClipBlockController {
                 for (BlockSequenceEntry entry : sequenceEntries) {
                     float normalizedTime = entry.getNormalizedTime();
                     // 与 BlockAnimationEngine 的 EXIT 时间窗口对齐：结束时刻分布在 [clipStart+delay+animDuration, clipEnd]
-                    float blockEndTime = clipStart + delay + animDuration + normalizedTime * (clipDuration - animDuration);
+                    float blockEndTime = clipStart + delay + animDuration + normalizedTime * availableSpan;
                     if (currentTime >= blockEndTime) {
                         visibleBlocks.remove(entry.getPos());
                     }

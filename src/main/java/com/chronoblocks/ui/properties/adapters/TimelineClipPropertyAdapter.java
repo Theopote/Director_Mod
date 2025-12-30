@@ -16,9 +16,11 @@ import com.chronoblocks.core.container.Container;
 import com.chronoblocks.core.container.ContainerManager;
 import com.chronoblocks.core.animation.sequence.BlockSequenceGenerator;
 import com.chronoblocks.core.animation.sequence.BlockSequenceEntry;
+import com.chronoblocks.core.animation.sequence.ConcurrencyMode;
 import net.minecraft.util.math.BlockPos;
 import com.chronoblocks.core.animation.sequence.SequenceMode;
 import com.chronoblocks.core.animation.sequence.SequenceParameters;
+import com.chronoblocks.core.animation.sequence.TimeMappingStrategy;
 import com.chronoblocks.core.animation.sequence.evaluator.FillType;
 import com.chronoblocks.core.animation.sequence.evaluator.FlowType;
 import com.chronoblocks.core.animation.sequence.evaluator.FloodSeedMode;
@@ -823,6 +825,95 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         // ---------- 4. 层级分离度 + 修饰 ----------
         modified |= renderSequenceWeightAndModifiers(params);
 
+        // ---------- 5. 节奏/并发（决定“同时/批次/分组推进”等时间映射） ----------
+        UITheme.separator();
+        modified |= renderSequenceTimingSection(clip, config, params);
+
+        return modified;
+    }
+
+    private boolean renderSequenceTimingSection(TimelineClip clip, ClipAnimationConfig config, SequenceParameters params) {
+        boolean modified = false;
+
+        UITheme.label("5. 节奏/并发 (Timing)", UITheme.DarkTheme.TEXT_SELECTED);
+
+        // 并发模式
+        ConcurrencyMode[] conc = ConcurrencyMode.values();
+        int concIdxVal = params.getConcurrencyMode().ordinal();
+        ImInt concIdx = new ImInt(Math.max(0, Math.min(concIdxVal, conc.length - 1)));
+        ImGui.pushItemWidth(ImGui.getContentRegionAvailX());
+        if (ImGui.combo("并发模式", concIdx, getAllEnumDisplayNames(conc))) {
+            params.setConcurrencyMode(conc[concIdx.get()]);
+            modified = true;
+        }
+        ImGui.popItemWidth();
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(params.getConcurrencyMode().getDescription());
+        }
+
+        // 时间映射策略
+        TimeMappingStrategy[] maps = TimeMappingStrategy.values();
+        int mapIdxVal = params.getTimeMappingStrategy().ordinal();
+        ImInt mapIdx = new ImInt(Math.max(0, Math.min(mapIdxVal, maps.length - 1)));
+        ImGui.pushItemWidth(ImGui.getContentRegionAvailX());
+        if (ImGui.combo("时间映射", mapIdx, getAllEnumDisplayNames(maps))) {
+            params.setTimeMappingStrategy(maps[mapIdx.get()]);
+            modified = true;
+        }
+        ImGui.popItemWidth();
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(params.getTimeMappingStrategy().getDescription());
+        }
+
+        // 全局延迟（叠加到 ClipAnimationConfig.delay 上）
+        float[] globalDelay = {params.getGlobalDelay()};
+        if (ImGui.dragFloat("序列全局延迟 (秒)", globalDelay, 0.05f, 0.0f, 30.0f, "%.2fs")) {
+            params.setGlobalDelay(globalDelay[0]);
+            modified = true;
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("在片段自身 delay 基础上，再额外延迟“整套序列”的启动时间。");
+        }
+
+        // 批次参数：用于 IN_BATCHES / BATCH_MAPPING / GROUP_FIRST 的间隔
+        boolean needsBatch = params.getConcurrencyMode() == ConcurrencyMode.IN_BATCHES
+                || params.getTimeMappingStrategy() == TimeMappingStrategy.BATCH_MAPPING;
+        boolean needsGroupGap = params.getTimeMappingStrategy() == TimeMappingStrategy.GROUP_FIRST
+                || params.getTimeMappingStrategy() == TimeMappingStrategy.STAGGERED;
+
+        if (needsBatch) {
+            int[] bs = {params.getBatchSize()};
+            if (ImGui.dragInt("批次大小 (batchSize)", bs, 1, 1, 10_000)) {
+                params.setBatchSize(bs[0]);
+                modified = true;
+            }
+            float[] bi = {params.getBatchInterval()};
+            if (ImGui.dragFloat("批次间隔 (秒)", bi, 0.01f, 0.0f, 10.0f, "%.2fs")) {
+                params.setBatchInterval(bi[0]);
+                modified = true;
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("批与批之间的间隔时间。实际播放会根据片段时长自动缩放/裁剪，避免排不下。");
+            }
+        } else if (needsGroupGap) {
+            float[] gi = {params.getBatchInterval()};
+            if (ImGui.dragFloat("组间隔 (秒)", gi, 0.01f, 0.0f, 10.0f, "%.2fs")) {
+                // 复用 batchInterval 作为组间隔（避免新增字段破坏存档）
+                params.setBatchInterval(gi[0]);
+                modified = true;
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("组与组之间的间隔时间（复用 batchInterval 字段）。");
+            }
+        }
+
+        // 轻提示：这些字段现在已在运行时生效
+        ImGui.textDisabled(String.format("片段长度 %.2fs / 动画时长 %.2fs / delay(含序列) %.2fs",
+                clip.getLength(),
+                config != null ? config.getDuration() : 0.0f,
+                (config != null ? Math.max(0.0f, config.getDelay()) : 0.0f) + Math.max(0.0f, params.getGlobalDelay())
+        ));
+
         return modified;
     }
 
@@ -1179,7 +1270,17 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                 return;
             }
 
-            List<BlockSequenceEntry> entries = BlockSequenceGenerator.generate(blocks, container, params);
+            // 用片段时长做一次“带时间上下文”的序列生成，保证预览与实际播放一致（批次/并发/延迟等）
+            float clipDuration = Math.max(0.05f, clip.getLength());
+            float animDuration = Math.min(Math.max(0.05f, clip.getAnimationConfig().getDuration()), clipDuration);
+            float delay = Math.max(0.0f, clip.getAnimationConfig().getDelay());
+            try {
+                if (params != null) {
+                    delay += Math.max(0.0f, params.getGlobalDelay());
+                }
+            } catch (Exception ignored) {
+            }
+            List<BlockSequenceEntry> entries = BlockSequenceGenerator.generate(blocks, container, params, clipDuration, animDuration, delay);
 
             // 显示预览信息
             UITheme.label("序列预览", UITheme.DarkTheme.TEXT_SELECTED);
