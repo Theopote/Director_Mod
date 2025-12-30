@@ -64,8 +64,6 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
 
     private final ImBoolean opacityFade = new ImBoolean(false);
 
-    private final ImBoolean flashWhite = new ImBoolean(false);
-
     // 序列行为预览状态
     private final ImBoolean showSequencePreview = new ImBoolean(false);
     
@@ -336,6 +334,8 @@ private boolean renderAnimationSettings(TimelineClip clip) {
 
         // ✅ 进入 UI 就做一次旧模式迁移，避免“旧的 AnimationMode=随机/切片”等仍占用 mode 下拉
         com.chronoblocks.core.animation.LegacyAnimationModeMigrator.migrateIfNeeded(config);
+        // ✅ 旧高级参数迁移：例如 flashWhite -> EffectInstance（防止开关“看起来有用但实际不生效”）
+        com.chronoblocks.core.animation.LegacyAdvancedParamsMigrator.migrateIfNeeded(config);
 
         // ===== 0. 防御式初始化 =====
         AnimationMode currentMode = config.getMode();
@@ -468,72 +468,6 @@ private boolean renderAnimationSettings(TimelineClip clip) {
 
             UITheme.separator();
 
-            // ✅ 快捷预设：把“排序策略”从旧 AnimationMode 中解耦出来（Enter/Exit 共享）
-            UITheme.label("排序策略预设（Sequence）", UITheme.DarkTheme.TEXT_SELECTED);
-            com.chronoblocks.core.animation.sequence.SequenceParameters seqParams = config.getSequenceParameters();
-            if (seqParams == null) {
-                seqParams = new com.chronoblocks.core.animation.sequence.SequenceParameters();
-                config.setSequenceParameters(seqParams);
-                modified = true;
-            }
-
-            if (ImGui.button("顺序(默认)")) {
-                seqParams.setFlowType(FlowType.PLANAR);
-                seqParams.setOriginType(OriginType.BOTTOM_CENTER);
-                seqParams.setFillType(FillType.LINEAR_SCAN);
-                seqParams.setReverse(false);
-                seqParams.setAlternating(false);
-                modified = true;
-            }
-            ImGui.sameLine();
-            if (ImGui.button("随机")) {
-                seqParams.setFlowType(FlowType.RANDOM);
-                seqParams.setFillType(FillType.LINEAR_SCAN);
-                seqParams.setReverse(false);
-                seqParams.setAlternating(false);
-                modified = true;
-            }
-            ImGui.sameLine();
-            if (ImGui.button("扩散(中心→外)")) {
-                seqParams.setFlowType(FlowType.SPHERICAL);
-                seqParams.setOriginType(OriginType.CENTER);
-                seqParams.setFillType(FillType.RADIAL);
-                seqParams.setReverse(false);
-                seqParams.setAlternating(false);
-                modified = true;
-            }
-            if (ImGui.button("螺旋")) {
-                seqParams.setFlowType(FlowType.PLANAR);
-                seqParams.setOriginType(OriginType.CENTER);
-                seqParams.setFillType(FillType.SPIRAL);
-                seqParams.setReverse(false);
-                seqParams.setAlternating(false);
-                modified = true;
-            }
-            ImGui.sameLine();
-            if (ImGui.button("切片(逐层)")) {
-                seqParams.setFlowType(FlowType.PLANAR);
-                seqParams.setOriginType(OriginType.BOTTOM_CENTER);
-                seqParams.setFillType(FillType.LINEAR_SCAN);
-                seqParams.setReverse(false);
-                seqParams.setAlternating(false);
-                modified = true;
-            }
-            ImGui.sameLine();
-            if (ImGui.button("波浪")) {
-                seqParams.setFlowType(FlowType.PLANAR);
-                seqParams.setOriginType(OriginType.BOTTOM_CENTER);
-                seqParams.setFillType(FillType.LINEAR_SCAN);
-                seqParams.setReverse(false);
-                seqParams.setAlternating(true);
-                modified = true;
-            }
-
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("这些预设等价于旧的“随机/扩散/螺旋/切片/波浪”等模式，但现在它们属于排序策略。\n" +
-                        "入场(出现)与退场(擦除)都可以复用同一套排序。");
-            }
-
             // ===== 2. 缓动曲线：枚举 + 曲线预览 =====
             UITheme.label("缓动曲线 (Easing)", UITheme.DarkTheme.TEXT_SELECTED);
 
@@ -605,7 +539,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             UITheme.label("高级修饰 (Advanced)", UITheme.DarkTheme.TEXT_SELECTED);
 
             // 透明度淡入
-            opacityFade.set(getBooleanParam(params, "opacityFade"));
+            opacityFade.set(getBooleanParam(params));
             if (ImGui.checkbox("透明度淡入", opacityFade)) {
                 params.put("opacityFade", opacityFade.get());
                 modified = true;
@@ -617,7 +551,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             // 强度（仅在开启时显示）
             if (opacityFade.get()) {
                 ImGui.sameLine();
-                float fadeIntensity = getFloatParam(params, "opacityFadeIntensity");
+                float fadeIntensity = getFloatParam(params);
                 float[] fadeArr = {fadeIntensity};
                 ImGui.pushItemWidth(100.0f);
                 if (ImGui.dragFloat("##FadeIntensity", fadeArr, 0.05f, 0.1f, 2.0f, "强度: %.2f")) {
@@ -631,32 +565,8 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                 }
             }
 
-            // 闪白光
-            ImGui.sameLine();
-            flashWhite.set(getBooleanParam(params, "flashWhite"));
-            if (ImGui.checkbox("出场闪白光", flashWhite)) {
-                params.put("flashWhite", flashWhite.get());
-                modified = true;
-            }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("勾选后，方块在出现瞬间会闪一下白光。");
-            }
-
-            if (flashWhite.get()) {
-                ImGui.sameLine();
-                float flashIntensity = getFloatParam(params, "flashWhiteIntensity");
-                float[] flashArr = {flashIntensity};
-                ImGui.pushItemWidth(100.0f);
-                if (ImGui.dragFloat("##FlashIntensity", flashArr, 0.1f, 0.5f, 3.0f, "强度: %.1f")) {
-                    flashIntensity = flashArr[0];
-                    params.put("flashWhiteIntensity", flashIntensity);
-                    modified = true;
-                }
-                ImGui.popItemWidth();
-                if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("控制闪白光的亮度。");
-                }
-            }
+            // 闪白光已归入「特效系统」（EffectInstance: FLASH_WHITE），避免“UI 有开关但运行时不生效”的情况。
+            ImGui.textDisabled("提示：闪白光请在下方「特效」面板添加 FLASH_WHITE（或使用特效预设包）。");
 
             //UITheme.spacingSmall();
             if (ImGui.button("恢复当前模式默认参数")) {
@@ -669,11 +579,8 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                             params.putAll(defaultParams);
                             // 高级修饰默认关闭
                             params.put("opacityFade", false);
-                            params.put("flashWhite", false);
                             params.put("opacityFadeIntensity", 1.0f);
-                            params.put("flashWhiteIntensity", 1.0f);
                             opacityFade.set(false);
-                            flashWhite.set(false);
                             modified = true;
                         }
                     }
@@ -696,12 +603,11 @@ private boolean renderAnimationSettings(TimelineClip clip) {
      * 安全获取浮点参数（改进类型安全）
      *
      * @param params 参数Map
-     * @param key    参数键
      * @return 参数值或默认值
      */
-    private float getFloatParam(Map<String, Object> params, String key) {
+    private float getFloatParam(Map<String, Object> params) {
         if (params == null) return (float) 1.0;
-        Object val = params.get(key);
+        Object val = params.get("opacityFadeIntensity");
         switch (val) {
             case null -> {
                 return (float) 1.0;
@@ -713,7 +619,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                 try {
                     return Float.parseFloat(s);
                 } catch (NumberFormatException e) {
-                    LOGGER.warn("参数 {} 无法解析为浮点数: {}", key, s);
+                    LOGGER.warn("参数 {} 无法解析为浮点数: {}", "opacityFadeIntensity", s);
                     return (float) 1.0;
                 }
             }
@@ -721,7 +627,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             }
         }
 
-        LOGGER.warn("参数 {} 类型不匹配，期望 Number 或 String，实际: {}", key, val.getClass().getSimpleName());
+        LOGGER.warn("参数 {} 类型不匹配，期望 Number 或 String，实际: {}", "opacityFadeIntensity", val.getClass().getSimpleName());
         return (float) 1.0;
     }
 
@@ -729,12 +635,11 @@ private boolean renderAnimationSettings(TimelineClip clip) {
      * 安全获取布尔参数
      *
      * @param params 参数Map
-     * @param key    参数键
      * @return 参数值或默认值
      */
-    private boolean getBooleanParam(Map<String, Object> params, String key) {
+    private boolean getBooleanParam(Map<String, Object> params) {
         if (params == null) return false;
-        Object val = params.get(key);
+        Object val = params.get("opacityFade");
         if (val == null) {
             return false;
         }
@@ -742,7 +647,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             case Boolean b -> b;
             case String s -> Boolean.parseBoolean(s);
             default -> {
-                LOGGER.warn("参数 {} 类型不匹配，期望 Boolean 或 String，实际: {}", key, val.getClass().getSimpleName());
+                LOGGER.warn("参数 {} 类型不匹配，期望 Boolean 或 String，实际: {}", "opacityFade", val.getClass().getSimpleName());
                 yield false;
             }
         };
@@ -781,6 +686,66 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             config.setSequenceMode(SequenceMode.EVALUATOR_BASED);
             modified = true;
         }
+
+        // ✅ 快捷预设：排序策略（Sequence）属于“序列层”，从动画设置面板移到这里
+        UITheme.label("排序策略预设（Sequence）", UITheme.DarkTheme.TEXT_SELECTED);
+        if (ImGui.button("顺序(默认)")) {
+            params.setFlowType(FlowType.PLANAR);
+            params.setOriginType(OriginType.BOTTOM_CENTER);
+            params.setFillType(FillType.LINEAR_SCAN);
+            params.setReverse(false);
+            params.setAlternating(false);
+            modified = true;
+        }
+        ImGui.sameLine();
+        if (ImGui.button("随机")) {
+            params.setFlowType(FlowType.RANDOM);
+            params.setFillType(FillType.LINEAR_SCAN);
+            params.setReverse(false);
+            params.setAlternating(false);
+            modified = true;
+        }
+        ImGui.sameLine();
+        if (ImGui.button("扩散(中心→外)")) {
+            params.setFlowType(FlowType.SPHERICAL);
+            params.setOriginType(OriginType.CENTER);
+            params.setFillType(FillType.RADIAL);
+            params.setReverse(false);
+            params.setAlternating(false);
+            modified = true;
+        }
+        if (ImGui.button("螺旋")) {
+            params.setFlowType(FlowType.PLANAR);
+            params.setOriginType(OriginType.CENTER);
+            params.setFillType(FillType.SPIRAL);
+            params.setReverse(false);
+            params.setAlternating(false);
+            modified = true;
+        }
+        ImGui.sameLine();
+        if (ImGui.button("切片(逐层)")) {
+            params.setFlowType(FlowType.PLANAR);
+            params.setOriginType(OriginType.BOTTOM_CENTER);
+            params.setFillType(FillType.LINEAR_SCAN);
+            params.setReverse(false);
+            params.setAlternating(false);
+            modified = true;
+        }
+        ImGui.sameLine();
+        if (ImGui.button("波浪")) {
+            params.setFlowType(FlowType.PLANAR);
+            params.setOriginType(OriginType.BOTTOM_CENTER);
+            params.setFillType(FillType.LINEAR_SCAN);
+            params.setReverse(false);
+            params.setAlternating(true);
+            modified = true;
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("这些预设等价于旧的“随机/扩散/螺旋/切片/波浪”等模式，但现在它们属于排序策略。\n" +
+                    "入场(出现)与退场(擦除)都可以复用同一套排序。");
+        }
+
+        UITheme.separator();
 
         // ========================= 预览按钮 =========================
         String previewLabel = showSequencePreview.get()
@@ -1366,6 +1331,43 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             return false;
         }
 
+        // ✅ 旧高级参数迁移（保证旧片段“闪白光”等效果不会丢）
+        com.chronoblocks.core.animation.LegacyAdvancedParamsMigrator.migrateIfNeeded(config);
+
+        // ========== 0. 快捷开关（本质也是在操作 EffectInstance 列表） ==========
+        UITheme.label("快捷特效", UITheme.DarkTheme.TEXT_SELECTED);
+        boolean hasFlash = hasEffectType(config, EffectType.FLASH_WHITE);
+        boolean hasDust = hasEffectType(config, EffectType.DUST_BURST);
+
+        ImBoolean flash = new ImBoolean(hasFlash);
+        if (ImGui.checkbox("闪白光 (FLASH_WHITE)", flash)) {
+            if (flash.get()) {
+                ensureEffect(config, EffectType.FLASH_WHITE, 0.0f, 0.30f);
+            } else {
+                removeEffects(config, EffectType.FLASH_WHITE);
+            }
+            modified = true;
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("在单块动画开始的前 30% 内闪一下白光（粒子）。");
+        }
+
+        ImGui.sameLine();
+        ImBoolean dust = new ImBoolean(hasDust);
+        if (ImGui.checkbox("烟尘爆裂 (DUST_BURST)", dust)) {
+            if (dust.get()) {
+                ensureEffect(config, EffectType.DUST_BURST, 0.85f, 0.25f);
+            } else {
+                removeEffects(config, EffectType.DUST_BURST);
+            }
+            modified = true;
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("适合坠落/收缩等结束时落地扬尘（默认在动画后段触发）。");
+        }
+
+        UITheme.separator();
+
         // ========== 1. 预设特效包区域 ==========
         UITheme.label("特效预设包", UITheme.DarkTheme.TEXT_SELECTED);
         ImGui.textDisabled("一键应用一组常用特效组合");
@@ -1568,6 +1570,45 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         }
 
         return modified;
+    }
+
+    private static boolean hasEffectType(ClipAnimationConfig config, EffectType type) {
+        if (config == null || type == null) return false;
+        List<EffectInstance> effects = config.getEffects();
+        for (EffectInstance e : effects) {
+            if (e != null && e.getType() == type && e.isEnabled()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void ensureEffect(ClipAnimationConfig config, EffectType type, float startOffset, float duration) {
+        if (config == null || type == null) return;
+        for (EffectInstance e : config.getEffects()) {
+            if (e != null && e.getType() == type) {
+                e.setEnabled(true);
+                return;
+            }
+        }
+        EffectInstance inst = new EffectInstance(type);
+        inst.setEnabled(true);
+        inst.setStartOffset(startOffset);
+        inst.setDuration(duration);
+
+        IBlockEffect impl = BlockEffectRegistry.get(type);
+        if (impl != null) {
+            Map<String, Object> defaults = impl.getDefaultParams();
+            if (defaults != null) {
+                inst.getParams().putAll(defaults);
+            }
+        }
+        config.addEffect(inst);
+    }
+
+    private static void removeEffects(ClipAnimationConfig config, EffectType type) {
+        if (config == null || type == null) return;
+        config.getEffects().removeIf(e -> e != null && e.getType() == type);
     }
 
     /**

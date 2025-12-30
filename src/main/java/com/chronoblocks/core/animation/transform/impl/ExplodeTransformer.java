@@ -22,17 +22,16 @@ public class ExplodeTransformer implements IAnimationTransformer {
         float scaleMin = getFloatParam(params, "scaleMin", 0.7f);
 
         Vec3 dir = randomUnit(random, upBias);
-        float t = progress;
-        result.translateX = dir.x * radius * t;
-        result.translateY = dir.y * radius * t;
-        result.translateZ = dir.z * radius * t;
+        result.translateX = dir.x * radius * progress;
+        result.translateY = dir.y * radius * progress;
+        result.translateZ = dir.z * radius * progress;
 
-        float scale = 1.0f - (1.0f - clamp01(scaleMin)) * t;
+        float scale = 1.0f - (1.0f - clamp01(scaleMin)) * progress;
         result.scaleX = scale;
         result.scaleY = scale;
         result.scaleZ = scale;
 
-        result.opacity = 1.0f - t;
+        result.opacity = 1.0f - progress;
         return result;
     }
 
@@ -98,31 +97,38 @@ public class ExplodeTransformer implements IAnimationTransformer {
         float scaleMin = getFloatParam(params, "scaleMin", 0.7f);
 
         Vec3 dir = randomUnit(random, upBias);
-        float t = easedT;
 
-        params.put("dx", dir.x * radius * t);
-        params.put("dy", dir.y * radius * t);
-        params.put("dz", dir.z * radius * t);
+        params.put("dx", dir.x * radius * easedT);
+        params.put("dy", dir.y * radius * easedT);
+        params.put("dz", dir.z * radius * easedT);
 
         params.put("yaw", 0f);
         params.put("pitch", 0f);
         params.put("roll", 0f);
 
-        float scale = 1.0f - (1.0f - clamp01(scaleMin)) * t;
+        float scale = 1.0f - (1.0f - clamp01(scaleMin)) * easedT;
         params.put("scale", scale);
-        params.put("alpha", 1.0f - t);
+        params.put("alpha", 1.0f - easedT);
     }
 
     private float getFloatParam(Map<String, Object> params, String key, float defaultValue) {
         if (params == null) return defaultValue;
         Object val = params.get(key);
-        if (val == null) return defaultValue;
-        if (val instanceof Number) return ((Number) val).floatValue();
-        if (val instanceof String) {
-            try {
-                return Float.parseFloat((String) val);
-            } catch (NumberFormatException e) {
+        switch (val) {
+            case null -> {
                 return defaultValue;
+            }
+            case Number number -> {
+                return number.floatValue();
+            }
+            case String s -> {
+                try {
+                    return Float.parseFloat(s);
+                } catch (NumberFormatException e) {
+                    return defaultValue;
+                }
+            }
+            default -> {
             }
         }
         return defaultValue;

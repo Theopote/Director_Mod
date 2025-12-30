@@ -160,10 +160,10 @@ public final class BlockSequenceGenerator {
         float groupGap = groupCount > 1 ? Math.min(batchInterval, maxTotalGaps / (groupCount - 1)) : 0.0f;
 
         float batchWindow = Math.max(0.0f, availableSpan - (batchCount - 1) * batchGap);
-        float batchDuration = batchCount > 0 ? (batchWindow / (float) batchCount) : availableSpan;
+        float batchDuration = batchWindow / (float) batchCount;
 
         float groupWindow = Math.max(0.0f, availableSpan - (groupCount - 1) * groupGap);
-        float groupDuration = groupCount > 0 ? (groupWindow / (float) groupCount) : availableSpan;
+        float groupDuration = groupWindow / (float) groupCount;
 
         for (int i = 0; i < n; i++) {
             BlockSequenceItem item = items.get(i);

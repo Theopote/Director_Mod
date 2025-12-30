@@ -251,6 +251,28 @@ public final class BlockAnimationEngine {
             }
         }
 
+        // ===== 5.1 动画修饰（属于“动画层”，不是特效层）=====
+        // 旧 UI 中的“透明度淡入(opacityFade)”此前只是写入 params，但运行时不生效；
+        // 这里把它落地：在 ENTER 阶段按 t_raw 做一个额外的 alpha 渐入乘法。
+        try {
+            if (phase == ClipAnimationConfig.AnimationPhase.ENTER) {
+                Map<String, Object> p = config.getParams();
+                if (p != null) {
+                    Object enabledObj = p.get("opacityFade");
+                    boolean enabled = (enabledObj instanceof Boolean b) ? b
+                            : (enabledObj instanceof String s && Boolean.parseBoolean(s));
+                    if (enabled) {
+                        float intensity = getFloat(p, "opacityFadeIntensity", 1.0f);
+                        intensity = Math.max(0.0001f, intensity);
+                        // 约定：>1 更慢，<1 更快
+                        float fade = MathHelper.clamp(tRaw / intensity, 0.0f, 1.0f);
+                        snapshot.setAlpha(snapshot.getAlpha() * fade);
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+
         // 回到方块左下角
         matrices.translate(-0.5f, -0.5f, -0.5f);
         snapshot.setTransform(matrices);

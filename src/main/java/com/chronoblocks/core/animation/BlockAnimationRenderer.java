@@ -146,7 +146,7 @@ public class BlockAnimationRenderer {
             @NotNull VertexConsumerProvider consumers,
             @NotNull Collection<BlockVisualStateManager.RenderEntry> entries
     ) {
-        if (entries == null || entries.isEmpty()) {
+        if (entries.isEmpty()) {
             return;
         }
 

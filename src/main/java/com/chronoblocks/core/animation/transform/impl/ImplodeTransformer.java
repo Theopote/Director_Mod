@@ -20,14 +20,13 @@ public class ImplodeTransformer implements IAnimationTransformer {
         float sink = getFloatParam(params, "sink", 0.35f);
         float scaleMin = getFloatParam(params, "scaleMin", 0.0f);
 
-        float t = progress;
-        float scale = 1.0f - (1.0f - clamp01(scaleMin)) * t;
+        float scale = 1.0f - (1.0f - clamp01(scaleMin)) * progress;
 
         result.scaleX = scale;
         result.scaleY = scale;
         result.scaleZ = scale;
-        result.translateY = -sink * t;
-        result.opacity = 1.0f - t;
+        result.translateY = -sink * progress;
+        result.opacity = 1.0f - progress;
         return result;
     }
 
@@ -83,11 +82,10 @@ public class ImplodeTransformer implements IAnimationTransformer {
         float sink = getFloatParam(params, "sink", 0.35f);
         float scaleMin = getFloatParam(params, "scaleMin", 0.0f);
 
-        float t = easedT;
-        float scale = 1.0f - (1.0f - clamp01(scaleMin)) * t;
+        float scale = 1.0f - (1.0f - clamp01(scaleMin)) * easedT;
 
         params.put("dx", 0f);
-        params.put("dy", -sink * t);
+        params.put("dy", -sink * easedT);
         params.put("dz", 0f);
 
         params.put("yaw", 0f);
@@ -95,19 +93,27 @@ public class ImplodeTransformer implements IAnimationTransformer {
         params.put("roll", 0f);
 
         params.put("scale", scale);
-        params.put("alpha", 1.0f - t);
+        params.put("alpha", 1.0f - easedT);
     }
 
     private float getFloatParam(Map<String, Object> params, String key, float defaultValue) {
         if (params == null) return defaultValue;
         Object val = params.get(key);
-        if (val == null) return defaultValue;
-        if (val instanceof Number) return ((Number) val).floatValue();
-        if (val instanceof String) {
-            try {
-                return Float.parseFloat((String) val);
-            } catch (NumberFormatException e) {
+        switch (val) {
+            case null -> {
                 return defaultValue;
+            }
+            case Number number -> {
+                return number.floatValue();
+            }
+            case String s -> {
+                try {
+                    return Float.parseFloat(s);
+                } catch (NumberFormatException e) {
+                    return defaultValue;
+                }
+            }
+            default -> {
             }
         }
         return defaultValue;
