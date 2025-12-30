@@ -366,12 +366,22 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                 modified = true;
             }
 
+            final com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase finalPhase = desiredPhase;
+
             // 模式选择（按阶段过滤）
             AnimationMode[] availableModes = (desiredPhase == com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase.EXIT)
-                    ? new AnimationMode[]{AnimationMode.INSTANT, AnimationMode.FADE_OUT, AnimationMode.EXPAND, AnimationMode.FALL_DOWN, AnimationMode.RISE_UP, AnimationMode.FLY_IN, AnimationMode.SHAKER}
-                    : new AnimationMode[]{AnimationMode.INSTANT, AnimationMode.FADE_IN, AnimationMode.GROW_UP, AnimationMode.EXPAND, AnimationMode.FALL_DOWN, AnimationMode.RISE_UP, AnimationMode.FLY_IN, AnimationMode.SHAKER};
+                    ? new AnimationMode[]{AnimationMode.INSTANT, AnimationMode.FADE_OUT, AnimationMode.EXPLODE, AnimationMode.IMPLODE, AnimationMode.ASSEMBLE, AnimationMode.EXPAND, AnimationMode.SHAKER}
+                    : new AnimationMode[]{AnimationMode.INSTANT, AnimationMode.FADE_IN, AnimationMode.GROW_UP, AnimationMode.ASSEMBLE, AnimationMode.EXPAND, AnimationMode.FALL_DOWN, AnimationMode.RISE_UP, AnimationMode.FLY_IN, AnimationMode.SHAKER};
 
-            String[] availableLabels = java.util.Arrays.stream(availableModes).map(AnimationMode::getDisplayName).toArray(String[]::new);
+            String[] availableLabels = java.util.Arrays.stream(availableModes)
+                    .map(m -> {
+                        // 同一个 mode 在 Exit/Enter 阶段语义可能相反：显示名做一次用户友好化
+                        if (finalPhase == com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase.EXIT && m == AnimationMode.ASSEMBLE) {
+                            return "碎片散射";
+                        }
+                        return m.getDisplayName();
+                    })
+                    .toArray(String[]::new);
             int selectedIdx = 0;
             for (int i = 0; i < availableModes.length; i++) {
                 if (availableModes[i] == currentMode) {
@@ -386,7 +396,6 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                         : AnimationMode.FADE_IN;
                 config.setMode(fallback);
                 currentMode = fallback;
-                selectedIdx = 0;
                 for (int i = 0; i < availableModes.length; i++) {
                     if (availableModes[i] == currentMode) {
                         selectedIdx = i;
@@ -430,10 +439,14 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                         : "选择出现片段的入场方式");
             }
 
-            // 模式描述（来自 AnimationMode 描述）
+            // 模式描述（来自 AnimationMode 描述，个别 Exit 模式做友好化）
             //UITheme.spacingSmall();
             try {
-                drawHelpBox(currentMode.getDescription());
+                if (desiredPhase == com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase.EXIT && currentMode == AnimationMode.ASSEMBLE) {
+                    drawHelpBox("方块向外散射并淡出（由“碎片聚合”自动反向播放得到），适合擦除片段的碎片效果");
+                } else {
+                    drawHelpBox(currentMode.getDescription());
+                }
             } catch (Exception e) {
                 LOGGER.error("显示模式描述时出错: {}", e.getMessage(), e);
             }

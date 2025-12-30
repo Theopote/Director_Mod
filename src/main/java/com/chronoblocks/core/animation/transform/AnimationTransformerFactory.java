@@ -42,6 +42,9 @@ public class AnimationTransformerFactory {
         register(AnimationMode.FADE_OUT, new FadeOutTransformer());
         register(AnimationMode.GROW_UP, new GrowUpTransformer());
         register(AnimationMode.EXPAND, new ExpandTransformer());
+        register(AnimationMode.EXPLODE, new ExplodeTransformer());
+        register(AnimationMode.IMPLODE, new ImplodeTransformer());
+        register(AnimationMode.ASSEMBLE, new AssembleTransformer());
         register(AnimationMode.FALL_DOWN, new FallDownTransformer());
         register(AnimationMode.RISE_UP, new RiseUpTransformer());
         register(AnimationMode.FLY_IN, new FlyInTransformer());

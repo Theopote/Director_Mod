@@ -183,7 +183,10 @@ public final class BlockAnimationEngine {
         // EXIT 阶段默认反向播放（让“入场变换器”自动变成“退场变换器”）
         // 但某些 mode 本身就是退场语义（如 FADE_OUT），则不反转。
         float tForTransformer = tEased;
-        if (phase == ClipAnimationConfig.AnimationPhase.EXIT && mode != AnimationMode.FADE_OUT) {
+        if (phase == ClipAnimationConfig.AnimationPhase.EXIT
+                && mode != AnimationMode.FADE_OUT
+                && mode != AnimationMode.EXPLODE
+                && mode != AnimationMode.IMPLODE) {
             tForTransformer = 1.0f - tEased;
         }
 
