@@ -58,8 +58,10 @@ public class SciFiAssemblePreset implements EffectPreset {
         }
         scan.setFloat("intensity", 1.2f);
         scan.setFloat("radius", 0.1f);
-        config.addEffect(scan);
-        
+        if (config != null) {
+            config.addEffect(scan);
+        }
+
         // 微光闪烁（直接用 FlashWhite）
         EffectInstance flash = new EffectInstance(EffectType.FLASH_WHITE);
         flash.setStartOffset(0.05f);
@@ -72,7 +74,9 @@ public class SciFiAssemblePreset implements EffectPreset {
             flash.getParams().putAll(flashImpl.getDefaultParams());
         }
         flash.setFloat("intensity", 0.8f);
-        config.addEffect(flash);
+        if (config != null) {
+            config.addEffect(flash);
+        }
     }
 }
 

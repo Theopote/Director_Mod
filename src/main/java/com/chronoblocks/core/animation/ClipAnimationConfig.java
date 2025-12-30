@@ -48,7 +48,7 @@ public final class ClipAnimationConfig implements Serializable, Cloneable {
         EXIT
     }
 
-    private AnimationPhase phase = AnimationPhase.ENTER;
+    private AnimationPhase phase;
     private float duration;
     private float delay;
     private String easing; // 缓动函数名称（如 "EASE_OUT_BOUNCE"）
@@ -60,7 +60,7 @@ public final class ClipAnimationConfig implements Serializable, Cloneable {
     // 遮挡时是否允许透明渲染（片段级开关）
     private boolean occlusionTransparencyEnabled = true;
 
-    {
+    static {
         new SequenceParameters();
     }
 

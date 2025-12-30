@@ -25,7 +25,6 @@ public final class LegacyAdvancedParamsMigrator {
     public static void migrateIfNeeded(ClipAnimationConfig config) {
         if (config == null) return;
         Map<String, Object> params = config.getParams();
-        if (params == null) return;
         if (Boolean.TRUE.equals(params.get(KEY_DONE))) return;
 
         boolean migrated = false;
@@ -34,7 +33,7 @@ public final class LegacyAdvancedParamsMigrator {
         boolean flashWhite = getBoolean(params.get("flashWhite"));
         if (flashWhite) {
             // 确保存在一个 FLASH_WHITE 特效
-            EffectInstance inst = findFirstEffect(config.getEffects(), EffectType.FLASH_WHITE);
+            EffectInstance inst = findFirstEffect(config.getEffects());
             if (inst == null) {
                 inst = new EffectInstance(EffectType.FLASH_WHITE);
                 inst.setEnabled(true);
@@ -45,7 +44,7 @@ public final class LegacyAdvancedParamsMigrator {
                 config.addEffect(inst);
             }
 
-            float intensity = getFloat(params.get("flashWhiteIntensity"), 1.0f);
+            float intensity = getFloat(params.get("flashWhiteIntensity"));
             inst.getParams().putIfAbsent("intensity", intensity);
 
             // 清理旧字段（避免 UI/用户困惑）
@@ -59,10 +58,10 @@ public final class LegacyAdvancedParamsMigrator {
         }
     }
 
-    private static EffectInstance findFirstEffect(List<EffectInstance> effects, EffectType type) {
-        if (effects == null || effects.isEmpty() || type == null) return null;
+    private static EffectInstance findFirstEffect(List<EffectInstance> effects) {
+        if (effects == null || effects.isEmpty()) return null;
         for (EffectInstance e : effects) {
-            if (e != null && e.getType() == type) {
+            if (e != null && e.getType() == EffectType.FLASH_WHITE) {
                 return e;
             }
         }
@@ -75,7 +74,7 @@ public final class LegacyAdvancedParamsMigrator {
         return false;
     }
 
-    private static float getFloat(Object v, float defaultValue) {
+    private static float getFloat(Object v) {
         if (v instanceof Number n) return n.floatValue();
         if (v instanceof String s) {
             try {
@@ -83,7 +82,7 @@ public final class LegacyAdvancedParamsMigrator {
             } catch (NumberFormatException ignored) {
             }
         }
-        return defaultValue;
+        return (float) 1.0;
     }
 }
 

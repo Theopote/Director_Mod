@@ -60,8 +60,10 @@ public class MagicSummonPreset implements EffectPreset {
         // 覆盖预设特定参数
         conjure.setFloat("intensity", 1.5f);
         conjure.setFloat("radius", 0.3f);
-        config.addEffect(conjure);
-        
+        if (config != null) {
+            config.addEffect(conjure);
+        }
+
         // 2. 出场闪白光
         EffectInstance flash = new EffectInstance(EffectType.FLASH_WHITE);
         flash.setStartOffset(0.05f);
@@ -76,8 +78,10 @@ public class MagicSummonPreset implements EffectPreset {
         }
         // 覆盖预设特定参数
         flash.setFloat("intensity", 1.2f);
-        config.addEffect(flash);
-        
+        if (config != null) {
+            config.addEffect(flash);
+        }
+
         // 未来可以加：
         // - ArcaneCircleEffect
         // - SparkleRingEffect
