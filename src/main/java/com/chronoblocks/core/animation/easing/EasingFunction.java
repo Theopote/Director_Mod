@@ -29,6 +29,8 @@ public enum EasingFunction {
      */
     EASE_OUT_QUAD("缓出（二次）", "开始快，逐渐减速"),
     EASE_OUT_CUBIC("缓出（三次）", "开始很快，逐渐减速"),
+    EASE_OUT_QUART("缓出（四次）", "开始快，后段更柔和地减速"),
+    EASE_OUT_QUINT("缓出（五次）", "开始快，后段非常柔和地减速"),
     EASE_OUT_BOUNCE("缓出（弹跳）", "结束时弹跳，适合坠落动画"),
     EASE_OUT_BACK("缓出（回弹）", "结束时略微超过目标再回来"),
     EASE_OUT_ELASTIC("缓出（弹性）", "结束时弹性振荡，适合生长动画"),
@@ -73,6 +75,8 @@ public enum EasingFunction {
             
             case EASE_OUT_QUAD -> 1.0f - (1.0f - t) * (1.0f - t);
             case EASE_OUT_CUBIC -> 1.0f - (float) Math.pow(1.0 - t, 3);
+            case EASE_OUT_QUART -> 1.0f - (float) Math.pow(1.0 - t, 4);
+            case EASE_OUT_QUINT -> 1.0f - (float) Math.pow(1.0 - t, 5);
             case EASE_OUT_BOUNCE -> easeOutBounce(t);
             case EASE_OUT_BACK -> easeOutBack(t);
             case EASE_OUT_ELASTIC -> easeOutElastic(t);

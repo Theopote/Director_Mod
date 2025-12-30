@@ -25,7 +25,7 @@ public final class ContainerAnimationPreset implements Serializable, Cloneable {
     private final Map<String, Object> params = new HashMap<>();
 
     public ContainerAnimationPreset() {
-        this(AnimationMode.INSTANT, 2.0f, 0.0f, "Linear", "Sequential");
+        this(AnimationMode.INSTANT, 2.0f, 0.0f, com.chronoblocks.core.animation.easing.EasingFunction.LINEAR.name(), "Sequential");
     }
 
     public ContainerAnimationPreset(AnimationMode mode,
@@ -36,7 +36,7 @@ public final class ContainerAnimationPreset implements Serializable, Cloneable {
         this.mode = Objects.requireNonNullElse(mode, AnimationMode.INSTANT);
         this.suggestedDuration = Math.max(0.05f, suggestedDuration);
         this.delay = Math.max(0.0f, delay);
-        this.easing = easing != null ? easing : "Linear";
+        this.easing = easing != null ? easing : com.chronoblocks.core.animation.easing.EasingFunction.LINEAR.name();
         this.ordering = ordering != null ? ordering : "Sequential";
     }
 
@@ -79,7 +79,7 @@ public final class ContainerAnimationPreset implements Serializable, Cloneable {
     }
 
     public void setEasing(String easing) {
-        this.easing = easing != null ? easing : "Linear";
+        this.easing = easing != null ? easing : com.chronoblocks.core.animation.easing.EasingFunction.LINEAR.name();
     }
 
     public String getOrdering() {

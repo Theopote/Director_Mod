@@ -656,9 +656,9 @@ private boolean renderAnimationSettings(TimelineClip clip) {
 
     /**
      * 渲染「序列行为」面板
-     *
+     * <p>
      * 新版 UI 采用 Flow + Fill + Origin + Weight + Modifiers 的 3 步流水线：
-     *
+     * <p>
      * 1. 切分方式 (Flow)  —— 决定整体波浪的方向/形状（按层、球形、柱形、随机）
      * 2. 起始锚点 (Origin) —— 决定从哪里开始（底部中心、几何中心、自定义）
      * 3. 内部填充 (Fill)  —— 决定局部纹理（线性扫描、径向、螺旋、噪点）
@@ -884,7 +884,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
 
     /**
      * 1. 切分方式 Flow（两级选择：切分方式 + 平面方向）
-     *
+     * <p>
      * NONE       - 不切分（整体）
      * PLANAR     - 平面切分（X/Y/Z/自定义角度）
      * SPHERICAL  - 球形扩散
@@ -976,7 +976,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
 
     /**
      * 2. 起始锚点 Origin
-     *
+     * <p>
      * 决定"第一个方块"从哪里开始出现。
      * 根据FlowType限制选项：
      * - SPHERICAL：强制使用中心
@@ -1067,7 +1067,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
 
     /**
      * 3. 内部填充 Fill
-     *
+     * <p>
      * 在线条/切片内部，决定"谁先谁后"。
      * 支持 FLOOD（泛洪蔓延）和 FloodSeedMode 选择。
      */
@@ -1128,7 +1128,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
 
     /**
      * 4. 层级分离度 + 修饰
-     *
+     * <p>
      * priorityWeight 控制 Flow 与 Fill 的"软硬程度"；
      * reverse / alternating 作为全局修饰符。
      */
@@ -1532,17 +1532,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             int idx = Math.max(0, Math.min(addEffectSelectedIndex.get(), allTypes.size() - 1));
             EffectType type = allTypes.get(idx);
 
-            EffectInstance inst = new EffectInstance(type);
-            // 默认时间：入场中段触发，持续 0.3（归一化）
-            inst.setStartOffset(0.2f);
-            inst.setDuration(0.3f);
-            inst.setEnabled(true);
-            inst.setPhase(config.getPhase() == com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase.EXIT
-                    ? EffectInstance.EffectPhase.EXIT
-                    : EffectInstance.EffectPhase.ENTER);
-            if (type == EffectType.FLASH_WHITE || type == EffectType.DUST_BURST) {
-                inst.setTriggerMode(EffectInstance.TriggerMode.ONE_SHOT);
-            }
+            EffectInstance inst = getEffectInstance(type, config);
 
             // 初始化参数为特效默认配置
             IBlockEffect impl = BlockEffectRegistry.get(type);
@@ -1576,6 +1566,21 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         }
 
         return modified;
+    }
+
+    private static @NotNull EffectInstance getEffectInstance(EffectType type, ClipAnimationConfig config) {
+        EffectInstance inst = new EffectInstance(type);
+        // 默认时间：入场中段触发，持续 0.3（归一化）
+        inst.setStartOffset(0.2f);
+        inst.setDuration(0.3f);
+        inst.setEnabled(true);
+        inst.setPhase(config.getPhase() == ClipAnimationConfig.AnimationPhase.EXIT
+                ? EffectInstance.EffectPhase.EXIT
+                : EffectInstance.EffectPhase.ENTER);
+        if (type == EffectType.FLASH_WHITE || type == EffectType.DUST_BURST) {
+            inst.setTriggerMode(EffectInstance.TriggerMode.ONE_SHOT);
+        }
+        return inst;
     }
 
     private static boolean hasEffectType(ClipAnimationConfig config, EffectType type) {
@@ -1648,7 +1653,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         EffectInstance.EffectPhase[] phases = EffectInstance.EffectPhase.values();
         String[] phaseLabels = new String[]{"出现(Enter)", "擦除(Exit)", "两者(Both)"};
         int phaseIdx = inst.getPhase().ordinal();
-        if (phaseIdx < 0 || phaseIdx >= phases.length) phaseIdx = 2;
+        if (phaseIdx >= phases.length) phaseIdx = 2;
         ImInt phaseIdxIm = new ImInt(phaseIdx);
         ImGui.pushItemWidth(ImGui.getContentRegionAvailX());
         if (ImGui.combo("作用阶段", phaseIdxIm, phaseLabels)) {
@@ -1665,7 +1670,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         EffectInstance.TriggerMode[] triggerModes = EffectInstance.TriggerMode.values();
         String[] triggerLabels = new String[]{"连续(每帧)", "一次(One-shot)"};
         int trigIdx = inst.getTriggerMode().ordinal();
-        if (trigIdx < 0 || trigIdx >= triggerModes.length) trigIdx = 0;
+        if (trigIdx >= triggerModes.length) trigIdx = 0;
         ImInt trigIdxIm = new ImInt(trigIdx);
         ImGui.pushItemWidth(ImGui.getContentRegionAvailX());
         if (ImGui.combo("触发方式", trigIdxIm, triggerLabels)) {

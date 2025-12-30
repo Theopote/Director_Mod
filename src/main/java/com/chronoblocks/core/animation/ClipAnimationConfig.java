@@ -79,7 +79,8 @@ public final class ClipAnimationConfig implements Serializable, Cloneable {
         this.phase = AnimationPhase.ENTER;
         this.duration = Math.max(0.05f, duration);
         this.delay = Math.max(0.0f, delay);
-        this.easing = easing != null ? easing : "Linear";
+        // 统一内部存储为 EasingFunction 枚举名（仍然兼容旧存档 "Linear"）
+        this.easing = easing != null ? easing : com.chronoblocks.core.animation.easing.EasingFunction.LINEAR.name();
         this.ordering = ordering != null ? ordering : "Sequential";
         this.sequenceMode = SequenceMode.EVALUATOR_BASED;
         this.sequenceParameters = new SequenceParameters();
@@ -91,7 +92,7 @@ public final class ClipAnimationConfig implements Serializable, Cloneable {
      * @return 默认配置实例（瞬间出现，时长2秒）
      */
     public static ClipAnimationConfig defaultConfig() {
-        return new ClipAnimationConfig(AnimationMode.INSTANT, 2.0f, 0.0f, "Linear", "Sequential");
+        return new ClipAnimationConfig(AnimationMode.INSTANT, 2.0f, 0.0f, com.chronoblocks.core.animation.easing.EasingFunction.LINEAR.name(), "Sequential");
     }
 
     /**
@@ -172,7 +173,7 @@ public final class ClipAnimationConfig implements Serializable, Cloneable {
     }
 
     public void setEasing(String easing) {
-        this.easing = easing != null ? easing : "Linear";
+        this.easing = easing != null ? easing : com.chronoblocks.core.animation.easing.EasingFunction.LINEAR.name();
     }
 
     public String getOrdering() {

@@ -26,9 +26,9 @@ import java.util.Map;
  *   - 时间线时间 (now)
  *   - 片段配置 ClipAnimationConfig（mode/duration/easing/params/effects）
  *   - 序列行为 BlockSequenceEntry（seqNormalizedTime）
- *
+ * <p>
  * 映射成单个方块在当前帧的动画采样结果 BlockAnimationSnapshot。
- *
+ * <p>
  * 约定：
  *   - 所有时间单位统一用秒（与 Timeline 一致）
  *   - sequenceEntry.normalizedTime 为归一化 [0..1]，决定该方块在片段中的"出场顺序"
@@ -205,14 +205,13 @@ public final class BlockAnimationEngine {
             if (phase == ClipAnimationConfig.AnimationPhase.EXIT && mode != AnimationMode.INSTANT) {
                 // EXIT：动画结束后应当隐藏（上层会在同一时刻把方块从世界中移除）
                 snapshot.markHidden();
-                return snapshot;
             } else {
                 snapshot.markFullyVisible();
                 snapshot.setSequenceNormalizedTime(seqNormalizedTime);
                 snapshot.setTransform(identityTransform());
                 snapshot.setAlpha(1.0f);
-                return snapshot;
             }
+            return snapshot;
         }
 
         // ===== 4. 计算归一化时间 t_raw, t_eased =====
@@ -298,17 +297,15 @@ public final class BlockAnimationEngine {
         try {
             if (phase == ClipAnimationConfig.AnimationPhase.ENTER) {
                 Map<String, Object> p = config.getParams();
-                if (p != null) {
-                    Object enabledObj = p.get("opacityFade");
-                    boolean enabled = (enabledObj instanceof Boolean b) ? b
-                            : (enabledObj instanceof String s && Boolean.parseBoolean(s));
-                    if (enabled) {
-                        float intensity = getFloat(p, "opacityFadeIntensity", 1.0f);
-                        intensity = Math.max(0.0001f, intensity);
-                        // 约定：>1 更慢，<1 更快
-                        float fade = MathHelper.clamp(tRaw / intensity, 0.0f, 1.0f);
-                        snapshot.setAlpha(snapshot.getAlpha() * fade);
-                    }
+                Object enabledObj = p.get("opacityFade");
+                boolean enabled = (enabledObj instanceof Boolean b) ? b
+                        : (enabledObj instanceof String s && Boolean.parseBoolean(s));
+                if (enabled) {
+                    float intensity = getFloat(p, "opacityFadeIntensity", 1.0f);
+                    intensity = Math.max(0.0001f, intensity);
+                    // 约定：>1 更慢，<1 更快
+                    float fade = MathHelper.clamp(tRaw / intensity, 0.0f, 1.0f);
+                    snapshot.setAlpha(snapshot.getAlpha() * fade);
                 }
             }
         } catch (Exception ignored) {
@@ -397,7 +394,7 @@ public final class BlockAnimationEngine {
 
     /**
      * 真正应用所有挂在 Clip 上的 EffectInstance。
-     *
+     * <p>
      * 注意：这里仅负责「触发」粒子等效果，不改变方块几何。
      */
     private static void applyEffects(BlockAnimationSnapshot snapshot,
@@ -422,7 +419,7 @@ public final class BlockAnimationEngine {
             try {
                 var clipPhase = config.getPhase();
                 var effectPhase = inst.getPhase();
-                if (effectPhase != null && effectPhase != com.chronoblocks.core.animation.effect.EffectInstance.EffectPhase.BOTH) {
+                if (effectPhase != EffectInstance.EffectPhase.BOTH) {
                     if (clipPhase == ClipAnimationConfig.AnimationPhase.ENTER
                             && effectPhase != com.chronoblocks.core.animation.effect.EffectInstance.EffectPhase.ENTER) {
                         continue;
@@ -473,7 +470,6 @@ public final class BlockAnimationEngine {
                                 continue;
                             }
                             // 触发一次：用 effectT=0 作为起点
-                            effectT = 0.0f;
                         }
                         // 如果时间倒退（拖动播放头/循环），允许重新触发
                         if (tRaw + 1e-4f < gate.lastTRaw) {
