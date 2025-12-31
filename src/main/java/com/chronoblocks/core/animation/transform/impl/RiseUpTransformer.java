@@ -22,14 +22,13 @@ public class RiseUpTransformer implements IAnimationTransformer {
         TransformResult result = new TransformResult();
         
         // 获取参数
-        float startDepth = getFloatParam(params, "riseHeight", 5.0f);
+        float startDepth = getFloatParam(params, 5.0f);
         
         // 计算 Y 位移：从 -startDepth 到 0
         result.translateY = -startDepth * (1.0f - progress);
         
         // 可选：添加轻微的缩放效果（从下往上生长）
-        float scale = 0.8f + 0.2f * progress;
-        result.scaleY = scale;
+        result.scaleY = 0.8f + 0.2f * progress;
         
         return result;
     }
@@ -58,16 +57,24 @@ public class RiseUpTransformer implements IAnimationTransformer {
     
     // ========== 工具方法 ==========
     
-    private float getFloatParam(Map<String, Object> params, String key, float defaultValue) {
+    private float getFloatParam(Map<String, Object> params, float defaultValue) {
         if (params == null) return defaultValue;
-        Object val = params.get(key);
-        if (val == null) return defaultValue;
-        if (val instanceof Number) return ((Number) val).floatValue();
-        if (val instanceof String) {
-            try {
-                return Float.parseFloat((String) val);
-            } catch (NumberFormatException e) {
+        Object val = params.get("riseHeight");
+        switch (val) {
+            case null -> {
                 return defaultValue;
+            }
+            case Number number -> {
+                return number.floatValue();
+            }
+            case String s -> {
+                try {
+                    return Float.parseFloat(s);
+                } catch (NumberFormatException e) {
+                    return defaultValue;
+                }
+            }
+            default -> {
             }
         }
         return defaultValue;
@@ -85,7 +92,7 @@ public class RiseUpTransformer implements IAnimationTransformer {
         UIHelper.label("升起参数");
         
         // 起始深度
-        float riseHeight = getFloatParam(params, "riseHeight", 5.0f);
+        float riseHeight = getFloatParam(params, 5.0f);
         float[] heightArray = {riseHeight};
         if (UIHelper.dragFloat("起始深度", heightArray, 0.5f, 0.0f, 20.0f, "%.1f 格")) {
             params.put("riseHeight", heightArray[0]);
@@ -102,7 +109,7 @@ public class RiseUpTransformer implements IAnimationTransformer {
      */
     @Override
     public void apply(float easedT, Map<String, Object> params, Random random) {
-        float depth = getFloatParam(params, "riseHeight", 2.0f);
+        float depth = getFloatParam(params, 2.0f);
         
         // 计算 Y 位移：从 -depth 到 0
         float dy = -depth * (1.0f - easedT);

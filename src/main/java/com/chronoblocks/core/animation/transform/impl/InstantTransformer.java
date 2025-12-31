@@ -18,9 +18,8 @@ public class InstantTransformer implements IAnimationTransformer {
     
     @Override
     public TransformResult transform(float progress, Map<String, Object> params, Random random) {
-        TransformResult result = new TransformResult();
         // 所有值保持默认（无变换）
-        return result;
+        return new TransformResult();
     }
     
     @Override

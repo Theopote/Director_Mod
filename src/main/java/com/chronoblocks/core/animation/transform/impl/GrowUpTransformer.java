@@ -27,31 +27,30 @@ public class GrowUpTransformer implements IAnimationTransformer {
         String pivot = getStringParam(params, "pivot", "CENTER"); // CENTER, BOTTOM
         
         // 计算缩放：从 0 到 1
-        float scale = progress;
-        
+
         // 根据轴向应用缩放
         switch (axis.toUpperCase()) {
             case "X":
-                result.scaleX = scale;
+                result.scaleX = progress;
                 break;
             case "Y":
-                result.scaleY = scale;
+                result.scaleY = progress;
                 break;
             case "Z":
-                result.scaleZ = scale;
+                result.scaleZ = progress;
                 break;
             case "XYZ":
             default:
-                result.scaleX = scale;
-                result.scaleY = scale;
-                result.scaleZ = scale;
+                result.scaleX = progress;
+                result.scaleY = progress;
+                result.scaleZ = progress;
                 break;
         }
         
         // 根据锚点调整位移（Minecraft 方块原点在左下角）
         if ("BOTTOM".equalsIgnoreCase(pivot) && "Y".equalsIgnoreCase(axis)) {
             // 从底部生长：需要向下偏移，使底部固定
-            result.translateY = -0.5f * (1.0f - scale);
+            result.translateY = -0.5f * (1.0f - progress);
         }
         
         return result;
@@ -138,18 +137,15 @@ public class GrowUpTransformer implements IAnimationTransformer {
     public void apply(float easedT, Map<String, Object> params, Random random) {
         String axis = getStringParam(params, "axis", "Y");
         String pivot = getStringParam(params, "pivot", "BOTTOM");
-        
-        float scale = easedT;
-        
+
         // 根据轴向应用缩放（统一使用 scale 参数，BlockAnimationEngine 会统一应用）
         // 对于复杂的轴向缩放，可以使用 scaleX/scaleY/scaleZ，但当前约定是统一 scale
-        float finalScale = scale;
-        
+
         // 根据锚点调整位移
         float dy = 0f;
         if ("BOTTOM".equalsIgnoreCase(pivot) && "Y".equalsIgnoreCase(axis)) {
             // 从底部生长：需要向下偏移，使底部固定
-            dy = -0.5f * (1.0f - scale);
+            dy = -0.5f * (1.0f - easedT);
         }
         
         params.put("dx", 0f);
@@ -160,7 +156,7 @@ public class GrowUpTransformer implements IAnimationTransformer {
         params.put("pitch", 0f);
         params.put("roll", 0f);
         
-        params.put("scale", finalScale);
+        params.put("scale", easedT);
         params.put("alpha", easedT); // 慢慢出现
     }
 }

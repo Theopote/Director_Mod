@@ -26,10 +26,9 @@ public class ExpandTransformer implements IAnimationTransformer {
         // 这里只提供基础的缩放或位移效果
         
         // 可以添加从中心点的缩放效果
-        float scale = progress;
-        result.scaleX = scale;
-        result.scaleY = scale;
-        result.scaleZ = scale;
+        result.scaleX = progress;
+        result.scaleY = progress;
+        result.scaleZ = progress;
         
         return result;
     }
@@ -62,25 +61,34 @@ public class ExpandTransformer implements IAnimationTransformer {
     private float getFloatParam(Map<String, Object> params, String key, float defaultValue) {
         if (params == null) return defaultValue;
         Object val = params.get(key);
-        if (val == null) return defaultValue;
-        if (val instanceof Number) return ((Number) val).floatValue();
-        if (val instanceof String) {
-            try {
-                return Float.parseFloat((String) val);
-            } catch (NumberFormatException e) {
+        switch (val) {
+            case null -> {
                 return defaultValue;
+            }
+            case Number number -> {
+                return number.floatValue();
+            }
+            case String s -> {
+                try {
+                    return Float.parseFloat(s);
+                } catch (NumberFormatException e) {
+                    return defaultValue;
+                }
+            }
+            default -> {
             }
         }
         return defaultValue;
     }
     
-    private boolean getBooleanParam(Map<String, Object> params, String key, boolean defaultValue) {
-        if (params == null) return defaultValue;
-        Object val = params.get(key);
-        if (val == null) return defaultValue;
-        if (val instanceof Boolean) return (Boolean) val;
-        if (val instanceof String) return Boolean.parseBoolean((String) val);
-        return defaultValue;
+    private boolean getBooleanParam(Map<String, Object> params) {
+        if (params == null) return true;
+        Object val = params.get("useDistance");
+        return switch (val) {
+            case Boolean b -> b;
+            case String s -> Boolean.parseBoolean(s);
+            case null, default -> true;
+        };
     }
     
     @Override
@@ -103,7 +111,7 @@ public class ExpandTransformer implements IAnimationTransformer {
         }
         
         // 基于距离
-        boolean useDistance = getBooleanParam(params, "useDistance", true);
+        boolean useDistance = getBooleanParam(params);
         boolean[] useDistanceArray = {useDistance};
         if (UIHelper.checkbox("基于距离", useDistanceArray)) {
             params.put("useDistance", useDistanceArray[0]);

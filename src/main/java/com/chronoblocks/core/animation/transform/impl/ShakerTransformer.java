@@ -77,13 +77,21 @@ public class ShakerTransformer implements IAnimationTransformer {
     private float getFloatParam(Map<String, Object> params, String key, float defaultValue) {
         if (params == null) return defaultValue;
         Object val = params.get(key);
-        if (val == null) return defaultValue;
-        if (val instanceof Number) return ((Number) val).floatValue();
-        if (val instanceof String) {
-            try {
-                return Float.parseFloat((String) val);
-            } catch (NumberFormatException e) {
+        switch (val) {
+            case null -> {
                 return defaultValue;
+            }
+            case Number number -> {
+                return number.floatValue();
+            }
+            case String s -> {
+                try {
+                    return Float.parseFloat(s);
+                } catch (NumberFormatException e) {
+                    return defaultValue;
+                }
+            }
+            default -> {
             }
         }
         return defaultValue;

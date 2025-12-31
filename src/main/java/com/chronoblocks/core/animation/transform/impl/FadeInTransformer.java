@@ -23,7 +23,7 @@ public class FadeInTransformer implements IAnimationTransformer {
         
         // 获取参数
         float startOpacity = getFloatParam(params, "startOpacity", 0.0f);
-        boolean flashWhite = getBooleanParam(params, "flashWhite", false);
+        boolean flashWhite = getBooleanParam(params);
         
         // 计算透明度：从 startOpacity 到 1.0
         result.opacity = startOpacity + (1.0f - startOpacity) * progress;
@@ -67,25 +67,34 @@ public class FadeInTransformer implements IAnimationTransformer {
     private float getFloatParam(Map<String, Object> params, String key, float defaultValue) {
         if (params == null) return defaultValue;
         Object val = params.get(key);
-        if (val == null) return defaultValue;
-        if (val instanceof Number) return ((Number) val).floatValue();
-        if (val instanceof String) {
-            try {
-                return Float.parseFloat((String) val);
-            } catch (NumberFormatException e) {
+        switch (val) {
+            case null -> {
                 return defaultValue;
+            }
+            case Number number -> {
+                return number.floatValue();
+            }
+            case String s -> {
+                try {
+                    return Float.parseFloat(s);
+                } catch (NumberFormatException e) {
+                    return defaultValue;
+                }
+            }
+            default -> {
             }
         }
         return defaultValue;
     }
     
-    private boolean getBooleanParam(Map<String, Object> params, String key, boolean defaultValue) {
-        if (params == null) return defaultValue;
-        Object val = params.get(key);
-        if (val == null) return defaultValue;
-        if (val instanceof Boolean) return (Boolean) val;
-        if (val instanceof String) return Boolean.parseBoolean((String) val);
-        return defaultValue;
+    private boolean getBooleanParam(Map<String, Object> params) {
+        if (params == null) return false;
+        Object val = params.get("flashWhite");
+        return switch (val) {
+            case Boolean b -> b;
+            case String s -> Boolean.parseBoolean(s);
+            case null, default -> false;
+        };
     }
     
     @Override
