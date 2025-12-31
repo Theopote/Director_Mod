@@ -172,17 +172,6 @@ public class TimelineAudioService {
     }
 
     /**
-     * 当片段发生“整体平移”时调用：将仍保持链接的事件整体平移同样的 delta。
-     *
-     * <p>用于：片段左右拖动；Undo/Redo 同样需要调用。</p>
-     */
-    public void onClipMoved(TimelineClip clip, float oldStartTime, float newStartTime) {
-        // 兼容旧调用：移动本质就是 timeRange 变化且长度不变
-        float len = clip != null ? (clip.getEndTime() - clip.getStartTime()) : 0f;
-        onClipTimeRangeChanged(clip, oldStartTime, oldStartTime + len, newStartTime, newStartTime + len);
-    }
-
-    /**
      * 当片段时间范围变化（移动/拉伸/压缩）时调用：将仍保持链接的事件按片段范围做仿射映射。
      *
      * <p>映射规则：保持每个事件在片段内的归一化位置 u 不变，事件新时间 = newStart + u * newLength。</p>
