@@ -979,10 +979,11 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                 modified = true;
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("控制 Flow 的“层”有多厚：\n"
-                        + "1.0 = 每 1 格一个层（更细）\n"
-                        + "2.0 = 每 2 格一个层（更粗、更有片状推进感）\n"
-                        + "自定义角度时建议适当调大，避免层级被切得过碎。");
+                ImGui.setTooltip("""
+                        控制 Flow 的“层”有多厚：
+                        1.0 = 每 1 格一个层（更细）
+                        2.0 = 每 2 格一个层（更粗、更有片状推进感）
+                        自定义角度时建议适当调大，避免层级被切得过碎。""");
             }
 
             // 视线对齐：将 Flow 方向对齐到当前摄像机视线（用于减少“先出现遮挡后出现”）
@@ -1008,9 +1009,10 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                 }
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("将 Flow 的推进方向对齐到当前摄像机视线。\n"
-                        + "排序会倾向于从远处开始出现、逐步向近处推进，减少“前面先出现把后面遮住”。\n"
-                        + "提示：这会把 Flow 变成“按深度切片”，更适合镜头演示建造过程。");
+                ImGui.setTooltip("""
+                        将 Flow 的推进方向对齐到当前摄像机视线。
+                        排序会倾向于从远处开始出现、逐步向近处推进，减少“前面先出现把后面遮住”。
+                        提示：这会把 Flow 变成“按深度切片”，更适合镜头演示建造过程。""");
             }
         }
 
@@ -1146,42 +1148,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             UITheme.label("打印机扫描设置", UITheme.DarkTheme.TEXT_SELECTED);
 
             // 根据当前 PLANAR 的“层平面”动态给出轴名；非轴对齐时退化为 U/V
-            String axisU = "U";
-            String axisV = "V";
-            try {
-                if (params.getFlowType() == FlowType.PLANAR) {
-                    // 这里用与 SequenceEvaluator 一致的“是否轴对齐”判断阈值
-                    float yawDeg = params.getPlaneYaw();
-                    float pitchDeg = params.getPlanePitch();
-                    double yaw = Math.toRadians(yawDeg);
-                    double pitch = Math.toRadians(pitchDeg);
-                    double ny = Math.sin(pitch);
-                    double horiz = Math.cos(pitch);
-                    double nx = horiz * Math.sin(yaw);
-                    double nz = horiz * Math.cos(yaw);
-                    double ax = Math.abs(nx), ay = Math.abs(ny), az = Math.abs(nz);
-
-                    if (az > 0.999) {
-                        // XY 层
-                        axisU = "X";
-                        axisV = "Y";
-                    } else if (ay > 0.999) {
-                        // XZ 层
-                        axisU = "X";
-                        axisV = "Z";
-                    } else if (ax > 0.999) {
-                        // YZ 层
-                        axisU = "Y";
-                        axisV = "Z";
-                    }
-                }
-            } catch (Exception ignored) {
-            }
-
-            String[] scanAxisLabels = new String[]{
-                    "行内扫描方向：" + axisU,
-                    "行内扫描方向：" + axisV
-            };
+            String[] scanAxisLabels = getStrings(params);
             String current = params.getRasterScanAxis(); // U/V
             int scanIdxVal = current.equals("V") ? 1 : 0;
             ImInt scanIdx = new ImInt(scanIdxVal);
@@ -1242,6 +1209,45 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         }
 
         return modified;
+    }
+
+    private static String @NotNull [] getStrings(SequenceParameters params) {
+        String axisU = "U";
+        String axisV = "V";
+        try {
+            if (params.getFlowType() == FlowType.PLANAR) {
+                // 这里用与 SequenceEvaluator 一致的“是否轴对齐”判断阈值
+                float yawDeg = params.getPlaneYaw();
+                float pitchDeg = params.getPlanePitch();
+                double yaw = Math.toRadians(yawDeg);
+                double pitch = Math.toRadians(pitchDeg);
+                double ny = Math.sin(pitch);
+                double horiz = Math.cos(pitch);
+                double nx = horiz * Math.sin(yaw);
+                double nz = horiz * Math.cos(yaw);
+                double ax = Math.abs(nx), ay = Math.abs(ny), az = Math.abs(nz);
+
+                if (az > 0.999) {
+                    // XY 层
+                    axisU = "X";
+                    axisV = "Y";
+                } else if (ay > 0.999) {
+                    // XZ 层
+                    axisU = "X";
+                    axisV = "Z";
+                } else if (ax > 0.999) {
+                    // YZ 层
+                    axisU = "Y";
+                    axisV = "Z";
+                }
+            }
+        } catch (Exception ignored) {
+        }
+
+        return new String[]{
+                "行内扫描方向：" + axisU,
+                "行内扫描方向：" + axisV
+        };
     }
 
     /**

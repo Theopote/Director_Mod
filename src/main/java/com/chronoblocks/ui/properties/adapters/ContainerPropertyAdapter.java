@@ -331,7 +331,7 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
         // 当前预设可能来自旧版本（例如 RANDOM/SLICE/WAVE/SPIRAL/GROW_DOWN/EXPAND），为了不“看不见”，把它临时塞回列表
         java.util.List<AnimationMode> modeList = new java.util.ArrayList<>(java.util.List.of(baseModes));
         if (currentMode != null && !modeList.contains(currentMode)) {
-            modeList.add(0, currentMode);
+            modeList.addFirst(currentMode);
         }
         AnimationMode[] modes = modeList.toArray(new AnimationMode[0]);
 
@@ -372,7 +372,9 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
         }
 
         UITheme.spacingSmall();
-        UITheme.label(preset.getMode().getDescription(), UITheme.DarkTheme.TEXT_DISABLED);
+        if (preset != null) {
+            UITheme.label(preset.getMode().getDescription(), UITheme.DarkTheme.TEXT_DISABLED);
+        }
         if (!java.util.List.of(baseModes).contains(currentMode)) {
             UITheme.spacingSmall();
             UITheme.label("提示：该模式属于旧版本的“排序策略”，拖到时间线后会自动迁移到「序列行为」面板。", UITheme.DarkTheme.TEXT_DISABLED);

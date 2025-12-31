@@ -64,7 +64,7 @@ public class GlowPulseEffect implements IBlockEffect {
 
         // 额外雾化：非常克制
         if (cloud && pulse > 0.55) {
-            int cloudCount = Math.max(0, Math.min(1, (int) Math.round(intensity)));
+            int cloudCount = Math.max(0, Math.min(1, Math.round(intensity)));
             for (int i = 0; i < cloudCount; i++) {
                 double ox = cx + (random.nextDouble() - 0.5) * 0.3;
                 double oy = cy + (random.nextDouble() - 0.5) * 0.3;
