@@ -8,6 +8,8 @@ import com.chronoblocks.core.selection.SelectionSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Objects;
+
 /**
  * 将当前选区生成“拆除容器”的操作：
  * - 捕获选区方块快照（用于可逆清除/回放）
@@ -36,7 +38,7 @@ public final class SelectionToDemolitionContainerAction {
 
             // ★ 关键：拆除容器默认不隐藏世界方块，否则会立刻清空选区
             boolean hiddenDefault = false;
-            Container container = ContainerManager.getInstance().createFromSelection(selectionState, world, hiddenDefault);
+            Container container = Objects.requireNonNull(ContainerManager.getInstance()).createFromSelection(selectionState, world, hiddenDefault);
             if (container != null) {
                 container.setType(ContainerType.DEMOLITION);
                 // 清空选区（创建成功后清除）

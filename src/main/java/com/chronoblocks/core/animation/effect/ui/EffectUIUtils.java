@@ -30,20 +30,26 @@ public final class EffectUIUtils {
     public static float getFloat(Map<String, Object> params, String key, float def) {
         if (params == null) return def;
         Object v = params.get(key);
-        if (v == null) return def;
-        
-        if (v instanceof Number n) {
-            return n.floatValue();
-        }
-        if (v instanceof String s) {
-            try {
-                return Float.parseFloat(s);
-            } catch (NumberFormatException e) {
-                LOGGER.warn("Effect param {} parse float failed: {}", key, s);
+        switch (v) {
+            case null -> {
                 return def;
             }
+            case Number n -> {
+                return n.floatValue();
+            }
+            case String s -> {
+                try {
+                    return Float.parseFloat(s);
+                } catch (NumberFormatException e) {
+                    LOGGER.warn("Effect param {} parse float failed: {}", key, s);
+                    return def;
+                }
+            }
+            default -> {
+            }
         }
-        LOGGER.warn("Effect param {} type mismatch, expected Number or String, got: {}", 
+
+        LOGGER.warn("Effect param {} type mismatch, expected Number or String, got: {}",
                    key, v.getClass().getSimpleName());
         return def;
     }
@@ -59,15 +65,21 @@ public final class EffectUIUtils {
     public static boolean getBoolean(Map<String, Object> params, String key, boolean def) {
         if (params == null) return def;
         Object v = params.get(key);
-        if (v == null) return def;
-        
-        if (v instanceof Boolean b) {
-            return b;
+        switch (v) {
+            case null -> {
+                return def;
+            }
+            case Boolean b -> {
+                return b;
+            }
+            case String s -> {
+                return Boolean.parseBoolean(s);
+            }
+            default -> {
+            }
         }
-        if (v instanceof String s) {
-            return Boolean.parseBoolean(s);
-        }
-        LOGGER.warn("Effect param {} type mismatch, expected Boolean or String, got: {}", 
+
+        LOGGER.warn("Effect param {} type mismatch, expected Boolean or String, got: {}",
                    key, v.getClass().getSimpleName());
         return def;
     }
@@ -83,20 +95,26 @@ public final class EffectUIUtils {
     public static int getInt(Map<String, Object> params, String key, int def) {
         if (params == null) return def;
         Object v = params.get(key);
-        if (v == null) return def;
-        
-        if (v instanceof Number n) {
-            return n.intValue();
-        }
-        if (v instanceof String s) {
-            try {
-                return Integer.parseInt(s);
-            } catch (NumberFormatException e) {
-                LOGGER.warn("Effect param {} parse int failed: {}", key, s);
+        switch (v) {
+            case null -> {
                 return def;
             }
+            case Number n -> {
+                return n.intValue();
+            }
+            case String s -> {
+                try {
+                    return Integer.parseInt(s);
+                } catch (NumberFormatException e) {
+                    LOGGER.warn("Effect param {} parse int failed: {}", key, s);
+                    return def;
+                }
+            }
+            default -> {
+            }
         }
-        LOGGER.warn("Effect param {} type mismatch, expected Number or String, got: {}", 
+
+        LOGGER.warn("Effect param {} type mismatch, expected Number or String, got: {}",
                    key, v.getClass().getSimpleName());
         return def;
     }

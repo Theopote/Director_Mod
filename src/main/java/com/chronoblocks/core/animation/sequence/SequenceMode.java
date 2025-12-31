@@ -4,7 +4,8 @@ package com.chronoblocks.core.animation.sequence;
  * 序列模式枚举
  * 
  * <p>定义不同的方块执行顺序模式。
- * 每种模式对应一个 SequenceStrategy 实现。
+ * 目前运行时统一使用 {@link com.chronoblocks.core.animation.sequence.BlockSequenceGenerator}
+ * 与 {@link com.chronoblocks.core.animation.sequence.SequenceParameters} 生成序列。
  * 
  * @author ChronoBlocks Team
  * @version 1.0

@@ -128,7 +128,7 @@ public final class ContainerIntakeSubscriber {
             SelectionManager selectionManager = SelectionManager.get();
             if (selectionManager != null) {
                 // 延迟清空,避免在回调中修改选区导致问题
-                MC.execute(() -> selectionManager.clearSelection());
+                MC.execute(selectionManager::clearSelection);
             }
         }
         

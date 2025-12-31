@@ -94,7 +94,7 @@ public final class ContainerPersistence {
         Path legacy = getLegacyContainerFile();
 
         // 自动迁移：世界目录优先；若世界目录没有但旧 config 存在，迁移一次
-        if (!Files.exists(file) && legacy != null && Files.exists(legacy) && !legacy.equals(file)) {
+        if (!Files.exists(file) && Files.exists(legacy) && !legacy.equals(file)) {
             try {
                 if (!Files.exists(file.getParent())) {
                     Files.createDirectories(file.getParent());
@@ -159,7 +159,7 @@ public final class ContainerPersistence {
             }
 
             Path legacy = getLegacyContainerFile();
-            if (legacy != null && Files.exists(legacy) && !legacy.equals(file)) {
+            if (Files.exists(legacy) && !legacy.equals(file)) {
                 Files.delete(legacy);
                 LOGGER.info("[ContainerPersistence] 删除旧位置容器存档: {}", legacy);
             }

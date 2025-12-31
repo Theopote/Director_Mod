@@ -56,7 +56,9 @@ public class EarthRisePreset implements EffectPreset {
         }
         burst.setFloat("intensity", 2.5f);
         burst.setFloat("radius", 0.8f);
-        config.addEffect(burst);
+        if (config != null) {
+            config.addEffect(burst);
+        }
     }
 }
 

@@ -146,29 +146,37 @@ public class EffectInstance {
     
     public float getFloat(String key, float defaultValue) {
         Object v = params.get(key);
-        if (v == null) return defaultValue;
-        
-        if (v instanceof Number n) {
-            return n.floatValue();
-        }
-        if (v instanceof String s) {
-            try {
-                return Float.parseFloat(s);
-            } catch (NumberFormatException e) {
-                LOGGER.warn("Effect param [{}] parseFloat 失败: {}", key, s);
+        switch (v) {
+            case null -> {
                 return defaultValue;
             }
+            case Number n -> {
+                return n.floatValue();
+            }
+            case String s -> {
+                try {
+                    return Float.parseFloat(s);
+                } catch (NumberFormatException e) {
+                    LOGGER.warn("Effect param [{}] parseFloat 失败: {}", key, s);
+                    return defaultValue;
+                }
+            }
+            default -> {
+            }
         }
+
         LOGGER.warn("Effect param [{}] 类型不匹配: {}", key, v.getClass().getSimpleName());
         return defaultValue;
     }
     
     public boolean getBoolean(String key, boolean defaultValue) {
         Object v = params.get(key);
-        if (v == null) return defaultValue;
-        if (v instanceof Boolean b) return b;
-        if (v instanceof String s) return Boolean.parseBoolean(s);
-        return defaultValue;
+        return switch (v) {
+            case null -> defaultValue;
+            case Boolean b -> b;
+            case String s -> Boolean.parseBoolean(s);
+            default -> defaultValue;
+        };
     }
     
     @Nullable

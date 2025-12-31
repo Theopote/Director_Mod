@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.awt.Color;
+import java.util.Objects;
 
 /**
  * 将当前选区生成新容器的操作
@@ -40,7 +41,7 @@ public final class SelectionToContainerAction {
             }
 
             boolean hiddenDefault = true;
-            Container container = ContainerManager.getInstance().createFromSelection(selectionState, world, hiddenDefault);
+            Container container = Objects.requireNonNull(ContainerManager.getInstance()).createFromSelection(selectionState, world, hiddenDefault);
             if (container != null) {
                 if (color != null) {
                     // 如需设置颜色，可在此处调用 container.setColor(...)

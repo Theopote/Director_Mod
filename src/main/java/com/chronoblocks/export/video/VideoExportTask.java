@@ -127,7 +127,6 @@ public final class VideoExportTask implements Runnable {
     private float resolveStartTime() {
         return switch (settings.rangeMode) {
             case VideoExportSettings.RANGE_CUSTOM -> settings.customStartTime;
-            case VideoExportSettings.RANGE_PROJECT, VideoExportSettings.RANGE_TIMELINE -> 0f;
             default -> 0f;
         };
     }
@@ -151,7 +150,6 @@ public final class VideoExportTask implements Runnable {
         return switch (settings.rangeMode) {
             case VideoExportSettings.RANGE_CUSTOM -> settings.customEndTime;
             case VideoExportSettings.RANGE_TIMELINE -> uiTimelineDuration > 0f ? uiTimelineDuration : best;
-            case VideoExportSettings.RANGE_PROJECT -> best;
             default -> best;
         };
     }

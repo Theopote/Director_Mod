@@ -687,9 +687,7 @@ public class ContainerManager {
                             changed = true;
                         }
                     }
-                    
-                    selectedContainer = container;
-                    changed = true;
+
                 } else {
                     // 如果找不到索引，回退到普通选择
                     if (!multiSelect) {
@@ -702,9 +700,9 @@ public class ContainerManager {
                     if (selectedContainers.add(container)) {
                         changed = true;
                     }
-                    selectedContainer = container;
-                    changed = true;
                 }
+                selectedContainer = container;
+                changed = true;
             } else {
                 // 普通选择或多选
                 if (!multiSelect && !rangeSelect) {

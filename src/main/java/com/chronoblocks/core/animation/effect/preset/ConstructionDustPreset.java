@@ -55,7 +55,9 @@ public class ConstructionDustPreset implements EffectPreset {
         }
         burst.setFloat("intensity", 1.0f);
         burst.setFloat("radius", 0.4f);
-        config.addEffect(burst);
+        if (config != null) {
+            config.addEffect(burst);
+        }
     }
 }
 

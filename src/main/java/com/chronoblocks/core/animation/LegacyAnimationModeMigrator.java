@@ -23,7 +23,7 @@ public final class LegacyAnimationModeMigrator {
 
     public static void migrateIfNeeded(ClipAnimationConfig config) {
         if (config == null) return;
-        if (config.getParams() != null && Boolean.TRUE.equals(config.getParams().get(KEY_DONE))) {
+        if (Boolean.TRUE.equals(config.getParams().get(KEY_DONE))) {
             return;
         }
 

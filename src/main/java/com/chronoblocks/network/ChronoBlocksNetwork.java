@@ -12,7 +12,7 @@ import org.slf4j.LoggerFactory;
  * - 客户端到服务器的数据包
  * - 服务器到客户端的数据包
  * - 网络事件处理
- * 
+ * <p>
  * 注意：由于 Fabric API 1.21+ 的网络系统有重大变化，
  * 这里提供简化的网络管理实现，专注于数据包标识符定义。
  * 
@@ -53,33 +53,5 @@ public class ChronoBlocksNetwork {
         // 注意：在 Fabric API 1.21+ 中，数据包处理器的注册方式发生了变化
         // 这里只注册标识符，实际的数据包处理需要在客户端和服务器端分别实现
         LOGGER.info("[ChronoBlocks] 数据包标识符注册完成");
-    }
-    
-    /**
-     * 获取 UI 打开数据包标识符
-     */
-    public static Identifier getUIOpenPacketId() {
-        return UI_OPEN_PACKET;
-    }
-    
-    /**
-     * 获取 UI 关闭数据包标识符
-     */
-    public static Identifier getUIClosePacketId() {
-        return UI_CLOSE_PACKET;
-    }
-    
-    /**
-     * 获取配置同步数据包标识符
-     */
-    public static Identifier getConfigSyncPacketId() {
-        return CONFIG_SYNC_PACKET;
-    }
-    
-    /**
-     * 获取项目数据数据包标识符
-     */
-    public static Identifier getProjectDataPacketId() {
-        return PROJECT_DATA_PACKET;
     }
 }

@@ -14,6 +14,7 @@ import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.util.ScreenshotRecorder;
 
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,6 +26,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Consumer;
 
 /**
  * 离屏渲染管线（v1：基于主 Framebuffer 抓帧）
@@ -193,33 +195,7 @@ public final class VideoRenderPipeline {
 
         MinecraftClient client = MinecraftClient.getInstance();
         Framebuffer main = client.getFramebuffer();
-        if (main == null) {
-            throw new IllegalStateException("client.getFramebuffer() == null");
-        }
-
-        // 关键：主 framebuffer 尺寸取决于窗口（你的日志里就是 1920x1017），不一定等于导出目标尺寸（1920x1080）。
-        // “严格不拉伸”要求：不能用 GPU 直接缩放铺满（会改变宽高比）。
-        // 这里改为：先截图主 framebuffer，再在 CPU 侧做 letterbox/pillarbox（保持比例 + 黑边），保证最终帧严格为目标尺寸。
-        int targetW = Math.max(1, req.settings.width);
-        int targetH = Math.max(1, req.settings.height);
-
-        java.util.function.Consumer<NativeImage> consumer = (NativeImage img) -> {
-            try {
-                NativeImage out = img;
-                if (img.getWidth() != targetW || img.getHeight() != targetH) {
-                    out = letterboxToTarget(img, targetW, targetH);
-                    img.close();
-                }
-                req.future.complete(out);
-            } catch (Throwable t) {
-                try {
-                    img.close();
-                } catch (Throwable ignore) {
-                    // ignore
-                }
-                req.future.completeExceptionally(t);
-            }
-        };
+        Consumer<NativeImage> consumer = getNativeImageConsumer(req, main);
 
         // 1.21.10+：ScreenshotRecorder 为异步回调形式。
         // 这里使用“以 Framebuffer.class 作为参数类型”的反射调用：
@@ -237,6 +213,37 @@ public final class VideoRenderPipeline {
                 throw new IllegalStateException("ScreenshotRecorder.takeScreenshot overload not found", e);
             }
         }
+    }
+
+    private static @NotNull Consumer<NativeImage> getNativeImageConsumer(CaptureRequest req, Framebuffer main) {
+        if (main == null) {
+            throw new IllegalStateException("client.getFramebuffer() == null");
+        }
+
+        // 关键：主 framebuffer 尺寸取决于窗口（你的日志里就是 1920x1017），不一定等于导出目标尺寸（1920x1080）。
+        // “严格不拉伸”要求：不能用 GPU 直接缩放铺满（会改变宽高比）。
+        // 这里改为：先截图主 framebuffer，再在 CPU 侧做 letterbox/pillarbox（保持比例 + 黑边），保证最终帧严格为目标尺寸。
+        int targetW = Math.max(1, req.settings.width);
+        int targetH = Math.max(1, req.settings.height);
+
+        // ignore
+        return (NativeImage img) -> {
+            try {
+                NativeImage out = img;
+                if (img.getWidth() != targetW || img.getHeight() != targetH) {
+                    out = letterboxToTarget(img, targetW, targetH);
+                    img.close();
+                }
+                req.future.complete(out);
+            } catch (Throwable t) {
+                try {
+                    img.close();
+                } catch (Throwable ignore) {
+                    // ignore
+                }
+                req.future.completeExceptionally(t);
+            }
+        };
     }
 
     /**

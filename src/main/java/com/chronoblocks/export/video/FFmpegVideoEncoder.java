@@ -32,8 +32,6 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
 
     private int width;
     private int height;
-    private int fps;
-    private Path outputPath;
     private Path audioWavPath;
 
     /** 复用的帧缓冲（RGBA bytes） */
@@ -50,8 +48,8 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
     public void init(VideoExportSettings settings, int totalFrames) throws IOException {
         this.width = settings.width;
         this.height = settings.height;
-        this.fps = settings.fps;
-        this.outputPath = settings.getOutputPathAsPath();
+        int fps = settings.fps;
+        Path outputPath = settings.getOutputPathAsPath();
 
         if (outputPath == null) {
             throw new IOException("outputPath 无效");

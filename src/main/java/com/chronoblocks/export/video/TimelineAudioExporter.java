@@ -155,7 +155,7 @@ public final class TimelineAudioExporter implements AudioExporter {
             float l = clamp11(left[i]);
             writeSample16le(out, l);
             if (channels >= 2) {
-                float r = clamp11(right != null ? right[i] : l);
+                float r = clamp11(right[i]);
                 writeSample16le(out, r);
             }
         }
