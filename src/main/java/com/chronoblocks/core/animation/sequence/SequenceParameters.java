@@ -25,6 +25,16 @@ public class SequenceParameters implements Serializable, Cloneable {
 
     private float planeYaw = 0.0f;
     private float planePitch = 90.0f;
+
+    /**
+     * Flow 层级量化步长（单位：方块）。
+     *
+     * <p>用于解决 PLANAR 自定义角度时 flowScore 过于“碎”的问题：
+     * layerIndex = floor(flowScore / layerStep)。
+     *
+     * <p>默认 1.0 = 每 1 格一个层；设为 2.0 则每 2 格一个层，更粗、更有“片”感。
+     */
+    private float layerStep = 1.0f;
     
     // --- Flood Fill 参数 ---
     private FloodSeedMode floodSeedMode = FloodSeedMode.LAYER_CENTER;
@@ -38,6 +48,11 @@ public class SequenceParameters implements Serializable, Cloneable {
     private boolean alternating = false;
 
     private final Map<String, Object> extraParams = new HashMap<>();
+
+    // ===== Raster Fill (打印机扫描) 额外参数 key =====
+    public static final String EXTRA_RASTER_SCAN_AXIS = "raster_scan_axis"; // "U" | "V"（行内扫描方向）
+    public static final String EXTRA_RASTER_ROW_STEP = "raster_row_step";   // Float（换行步长，单位：方块）
+    public static final String EXTRA_RASTER_ZIGZAG = "raster_zigzag";       // Boolean（行内蛇形往返）
 
     // --- 并发和时间映射 ---
     private ConcurrencyMode concurrencyMode = ConcurrencyMode.ONE_BY_ONE;
@@ -89,6 +104,15 @@ public class SequenceParameters implements Serializable, Cloneable {
 
     public void setPlanePitch(float planePitch) {
         this.planePitch = planePitch;
+    }
+
+    public float getLayerStep() {
+        // 避免除零；允许很小但不为 0
+        return Math.max(0.0001f, layerStep);
+    }
+
+    public void setLayerStep(float layerStep) {
+        this.layerStep = Math.max(0.0001f, layerStep);
     }
 
     public int getCustomX() {
@@ -162,6 +186,44 @@ public class SequenceParameters implements Serializable, Cloneable {
         return extraParams.get(key);
     }
 
+    // ===== Raster Fill helpers =====
+    public String getRasterScanAxis() {
+        Object v = extraParams.get(EXTRA_RASTER_SCAN_AXIS);
+        if (v instanceof String s && (s.equalsIgnoreCase("U") || s.equalsIgnoreCase("V"))) {
+            return s.equalsIgnoreCase("U") ? "U" : "V";
+        }
+        return "U";
+    }
+
+    public void setRasterScanAxis(String axis) {
+        String a = (axis != null && axis.equalsIgnoreCase("V")) ? "V" : "U";
+        extraParams.put(EXTRA_RASTER_SCAN_AXIS, a);
+    }
+
+    public float getRasterRowStep() {
+        Object v = extraParams.get(EXTRA_RASTER_ROW_STEP);
+        if (v instanceof Number n) {
+            return Math.max(0.1f, n.floatValue());
+        }
+        return 1.0f;
+    }
+
+    public void setRasterRowStep(float step) {
+        extraParams.put(EXTRA_RASTER_ROW_STEP, Math.max(0.1f, step));
+    }
+
+    public boolean isRasterZigZag() {
+        Object v = extraParams.get(EXTRA_RASTER_ZIGZAG);
+        if (v instanceof Boolean b) {
+            return b;
+        }
+        return true;
+    }
+
+    public void setRasterZigZag(boolean zigzag) {
+        extraParams.put(EXTRA_RASTER_ZIGZAG, zigzag);
+    }
+
     // --- 并发 & 时间映射 ---
     public ConcurrencyMode getConcurrencyMode() {
         return concurrencyMode != null ? concurrencyMode : ConcurrencyMode.ONE_BY_ONE;
@@ -219,6 +281,7 @@ public class SequenceParameters implements Serializable, Cloneable {
         clone.originType = this.originType;
         clone.planeYaw = this.planeYaw;
         clone.planePitch = this.planePitch;
+        clone.layerStep = this.layerStep;
         clone.customX = this.customX;
         clone.customY = this.customY;
         clone.customZ = this.customZ;

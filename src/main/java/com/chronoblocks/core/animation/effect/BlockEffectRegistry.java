@@ -2,6 +2,8 @@ package com.chronoblocks.core.animation.effect;
 
 import com.chronoblocks.core.animation.effect.impl.DustBurstEffect;
 import com.chronoblocks.core.animation.effect.impl.FlashWhiteEffect;
+import com.chronoblocks.core.animation.effect.impl.GlowPulseEffect;
+import com.chronoblocks.core.animation.effect.impl.MagicFlareEffect;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.EnumMap;
@@ -24,6 +26,8 @@ public final class BlockEffectRegistry {
         // 在这里注册内建特效
         register(EffectType.FLASH_WHITE, new FlashWhiteEffect());
         register(EffectType.DUST_BURST, new DustBurstEffect());
+        register(EffectType.MAGIC_FLARE, new MagicFlareEffect());
+        register(EffectType.GLOW_PULSE, new GlowPulseEffect());
     }
     
     private BlockEffectRegistry() {}

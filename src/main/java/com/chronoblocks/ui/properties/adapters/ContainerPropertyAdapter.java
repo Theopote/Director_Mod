@@ -314,28 +314,69 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
     private boolean renderAnimationSection(Container container) {
         boolean modified = false;
         ContainerAnimationPreset preset = container.getDefaultAnimationPreset();
-        AnimationMode[] modes = AnimationMode.values();
-        int currentIdx = preset.getMode().ordinal();
+        AnimationMode currentMode = preset != null ? preset.getMode() : AnimationMode.INSTANT;
+
+        // ✅ 统一语义：容器预设只提供“单块动画(How)”，排序/切片/随机等属于片段的“序列行为(Who comes first)”
+        // 拆除容器（DEMOLITION）默认用于擦除轨道：更合理只暴露 EXIT 类动画。
+        boolean isDemolition = false;
+        try {
+            isDemolition = container.getType() == ContainerType.DEMOLITION;
+        } catch (Exception ignored) {
+        }
+
+        AnimationMode[] baseModes = isDemolition
+                ? new AnimationMode[]{AnimationMode.INSTANT, AnimationMode.FADE_OUT, AnimationMode.EXPLODE, AnimationMode.IMPLODE, AnimationMode.ASSEMBLE}
+                : new AnimationMode[]{AnimationMode.INSTANT, AnimationMode.FADE_IN, AnimationMode.GROW_UP, AnimationMode.ASSEMBLE, AnimationMode.FALL_DOWN, AnimationMode.RISE_UP, AnimationMode.FLY_IN, AnimationMode.SHAKER};
+
+        // 当前预设可能来自旧版本（例如 RANDOM/SLICE/WAVE/SPIRAL/GROW_DOWN/EXPAND），为了不“看不见”，把它临时塞回列表
+        java.util.List<AnimationMode> modeList = new java.util.ArrayList<>(java.util.List.of(baseModes));
+        if (currentMode != null && !modeList.contains(currentMode)) {
+            modeList.add(0, currentMode);
+        }
+        AnimationMode[] modes = modeList.toArray(new AnimationMode[0]);
+
+        int currentIdx = 0;
+        for (int i = 0; i < modes.length; i++) {
+            if (modes[i] == currentMode) {
+                currentIdx = i;
+                break;
+            }
+        }
 
         ImInt selectedIdx = new ImInt(currentIdx);
         String[] modeNames = new String[modes.length];
         for (int i = 0; i < modes.length; i++) {
-            modeNames[i] = modes[i].getDisplayName();
+            AnimationMode m = modes[i];
+            // 旧模式提示
+            if (i == 0 && m == currentMode && !java.util.List.of(baseModes).contains(m)) {
+                modeNames[i] = m.getDisplayName() + "（旧/将迁移为序列）";
+            } else if (isDemolition && m == AnimationMode.ASSEMBLE) {
+                modeNames[i] = "碎片散射";
+            } else {
+                modeNames[i] = m.getDisplayName();
+            }
         }
 
         if (ImGui.combo("默认动画效果", selectedIdx, modeNames)) {
-            ContainerAnimationPreset updated = preset.copy();
-            updated.setMode(modes[selectedIdx.get()]);
+            int idx = Math.max(0, Math.min(selectedIdx.get(), modes.length - 1));
+            ContainerAnimationPreset updated = preset != null ? preset.copy() : ContainerAnimationPreset.defaultPreset();
+            updated.setMode(modes[idx]);
             container.setDefaultAnimationPreset(updated);
             modified = true;
             LOGGER.debug("[ContainerPropertyAdapter] 默认动画预设已更新: {}", updated.getMode());
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("作为新建片段初始值的默认动画方式");
+            ImGui.setTooltip(isDemolition
+                    ? "拆除容器：作为“擦除片段”的默认退出动画（方块会在退出动画结束后被清除）"
+                    : "作为新建片段初始值的默认入场动画（排序请在片段的“序列行为”里设置）");
         }
 
         UITheme.spacingSmall();
         UITheme.label(preset.getMode().getDescription(), UITheme.DarkTheme.TEXT_DISABLED);
+        if (!java.util.List.of(baseModes).contains(currentMode)) {
+            UITheme.spacingSmall();
+            UITheme.label("提示：该模式属于旧版本的“排序策略”，拖到时间线后会自动迁移到「序列行为」面板。", UITheme.DarkTheme.TEXT_DISABLED);
+        }
 
         float[] duration = {preset.getSuggestedDuration()};
         if (ImGui.dragFloat("建议时长", duration, 0.1f, 0.05f, 120.0f, "%.2fs")) {

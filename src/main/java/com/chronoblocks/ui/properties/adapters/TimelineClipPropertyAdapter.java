@@ -17,7 +17,9 @@ import com.chronoblocks.core.container.ContainerManager;
 import com.chronoblocks.core.animation.sequence.BlockSequenceGenerator;
 import com.chronoblocks.core.animation.sequence.BlockSequenceEntry;
 import com.chronoblocks.core.animation.sequence.ConcurrencyMode;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 import com.chronoblocks.core.animation.sequence.SequenceMode;
 import com.chronoblocks.core.animation.sequence.SequenceParameters;
 import com.chronoblocks.core.animation.sequence.TimeMappingStrategy;
@@ -372,8 +374,8 @@ private boolean renderAnimationSettings(TimelineClip clip) {
 
             // 模式选择（按阶段过滤）
             AnimationMode[] availableModes = (desiredPhase == com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase.EXIT)
-                    ? new AnimationMode[]{AnimationMode.INSTANT, AnimationMode.FADE_OUT, AnimationMode.EXPLODE, AnimationMode.IMPLODE, AnimationMode.ASSEMBLE, AnimationMode.EXPAND, AnimationMode.SHAKER}
-                    : new AnimationMode[]{AnimationMode.INSTANT, AnimationMode.FADE_IN, AnimationMode.GROW_UP, AnimationMode.ASSEMBLE, AnimationMode.EXPAND, AnimationMode.FALL_DOWN, AnimationMode.RISE_UP, AnimationMode.FLY_IN, AnimationMode.SHAKER};
+                    ? new AnimationMode[]{AnimationMode.INSTANT, AnimationMode.FADE_OUT, AnimationMode.EXPLODE, AnimationMode.IMPLODE, AnimationMode.ASSEMBLE}
+                    : new AnimationMode[]{AnimationMode.INSTANT, AnimationMode.FADE_IN, AnimationMode.GROW_UP, AnimationMode.ASSEMBLE, AnimationMode.FALL_DOWN, AnimationMode.RISE_UP, AnimationMode.FLY_IN, AnimationMode.SHAKER};
 
             String[] availableLabels = java.util.Arrays.stream(availableModes)
                     .map(m -> {
@@ -969,6 +971,47 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                         """);
                 }
             }
+
+            // Flow 层厚度（量化）：避免自定义角度时“层太碎”，让过程更像“盖一片片”
+            float[] layerStep = { params.getLayerStep() };
+            if (ImGui.dragFloat("层厚度 (layerStep)", layerStep, 0.1f, 0.1f, 32.0f, "%.1f")) {
+                params.setLayerStep(layerStep[0]);
+                modified = true;
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("控制 Flow 的“层”有多厚：\n"
+                        + "1.0 = 每 1 格一个层（更细）\n"
+                        + "2.0 = 每 2 格一个层（更粗、更有片状推进感）\n"
+                        + "自定义角度时建议适当调大，避免层级被切得过碎。");
+            }
+
+            // 视线对齐：将 Flow 方向对齐到当前摄像机视线（用于减少“先出现遮挡后出现”）
+            if (ImGui.button("对齐到摄像机视线（远→近）")) {
+                Vec3d dir = null;
+                try {
+                    MinecraftClient client = MinecraftClient.getInstance();
+                    if (client != null && client.player != null) {
+                        dir = client.player.getRotationVec(1.0f);
+                    }
+                } catch (Exception ignored) {
+                }
+
+                if (dir != null && dir.lengthSquared() > 1.0e-6) {
+                    dir = dir.normalize();
+                    // 与 SequenceEvaluator.getNormalFromAngles 的参数约定一致：
+                    // x = cos(pitch)*sin(yaw), z = cos(pitch)*cos(yaw), y = sin(pitch)
+                    float yaw = (float) Math.toDegrees(Math.atan2(dir.x, dir.z));
+                    float pitch = (float) Math.toDegrees(Math.asin(dir.y));
+                    params.setPlaneYaw(yaw);
+                    params.setPlanePitch(pitch);
+                    modified = true;
+                }
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("将 Flow 的推进方向对齐到当前摄像机视线。\n"
+                        + "排序会倾向于从远处开始出现、逐步向近处推进，减少“前面先出现把后面遮住”。\n"
+                        + "提示：这会把 Flow 变成“按深度切片”，更适合镜头演示建造过程。");
+            }
         }
 
         return modified;
@@ -1090,11 +1133,86 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             ImGui.setTooltip("""
                 决定每一片区域内部的填充轨迹：
                 • 线性扫描：像打印机/扫描仪一样一行行扫过去
+                • 打印机扫描：先分行，再行内逐个（支持蛇形往返）
                 • 径向扩散：从切片中心向两边扩散
                 • 螺旋：绕中心画圈推进
                 • 平滑噪声：Perlin噪声，适合自然碎块/云状效果
                 • 泛洪蔓延：从起点沿相邻方块蔓延（BFS），适合火焰/藤蔓/生长感
                 """);
+        }
+
+        // RASTER 专属参数：行内扫描方向 / 换行步长 / 蛇形
+        if (params.getFillType() == FillType.RASTER) {
+            UITheme.label("打印机扫描设置", UITheme.DarkTheme.TEXT_SELECTED);
+
+            // 根据当前 PLANAR 的“层平面”动态给出轴名；非轴对齐时退化为 U/V
+            String axisU = "U";
+            String axisV = "V";
+            try {
+                if (params.getFlowType() == FlowType.PLANAR) {
+                    // 这里用与 SequenceEvaluator 一致的“是否轴对齐”判断阈值
+                    float yawDeg = params.getPlaneYaw();
+                    float pitchDeg = params.getPlanePitch();
+                    double yaw = Math.toRadians(yawDeg);
+                    double pitch = Math.toRadians(pitchDeg);
+                    double ny = Math.sin(pitch);
+                    double horiz = Math.cos(pitch);
+                    double nx = horiz * Math.sin(yaw);
+                    double nz = horiz * Math.cos(yaw);
+                    double ax = Math.abs(nx), ay = Math.abs(ny), az = Math.abs(nz);
+
+                    if (az > 0.999) {
+                        // XY 层
+                        axisU = "X";
+                        axisV = "Y";
+                    } else if (ay > 0.999) {
+                        // XZ 层
+                        axisU = "X";
+                        axisV = "Z";
+                    } else if (ax > 0.999) {
+                        // YZ 层
+                        axisU = "Y";
+                        axisV = "Z";
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+
+            String[] scanAxisLabels = new String[]{
+                    "行内扫描方向：" + axisU,
+                    "行内扫描方向：" + axisV
+            };
+            String current = params.getRasterScanAxis(); // U/V
+            int scanIdxVal = current.equals("V") ? 1 : 0;
+            ImInt scanIdx = new ImInt(scanIdxVal);
+            ImGui.pushItemWidth(ImGui.getContentRegionAvailX());
+            if (ImGui.combo("##RasterScanAxis", scanIdx, scanAxisLabels)) {
+                params.setRasterScanAxis(scanIdx.get() == 1 ? "V" : "U");
+                modified = true;
+            }
+            ImGui.popItemWidth();
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("选择“行内扫描”沿哪条轴推进；另一条轴会作为“换行方向”。\n" +
+                        "例如：XY 层里选 X，则每行沿 X 扫，按 Y 换行；选 Y 则反之。");
+            }
+
+            float[] rowStep = { params.getRasterRowStep() };
+            if (ImGui.dragFloat("换行步长 (rowStep)", rowStep, 0.1f, 0.1f, 64.0f, "%.1f")) {
+                params.setRasterRowStep(rowStep[0]);
+                modified = true;
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("每换一行跨越多少格。\n1.0=每1格换行；2.0=每2格换行（更粗的“行”）。");
+            }
+
+            ImBoolean zig = new ImBoolean(params.isRasterZigZag());
+            if (ImGui.checkbox("行内蛇形往返 (ZigZag)", zig)) {
+                params.setRasterZigZag(zig.get());
+                modified = true;
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("开启后：第1行从左到右，第2行从右到左……类似打印机回车换行的蛇形路径。");
+            }
         }
 
         // FLOOD 专属参数：FloodSeedMode
@@ -1570,9 +1688,25 @@ private boolean renderAnimationSettings(TimelineClip clip) {
 
     private static @NotNull EffectInstance getEffectInstance(EffectType type, ClipAnimationConfig config) {
         EffectInstance inst = new EffectInstance(type);
-        // 默认时间：入场中段触发，持续 0.3（归一化）
-        inst.setStartOffset(0.2f);
-        inst.setDuration(0.3f);
+        // 默认时间（更克制）：尽量缩短窗口，避免大量方块时“屏幕充满粒子”
+        // 注意：特效时间轴相对“单块动画窗口”（0..1）
+        float start = 0.15f;
+        float dur = 0.22f;
+        if (type == EffectType.FLASH_WHITE) {
+            start = 0.0f;
+            dur = 0.12f;
+        } else if (type == EffectType.DUST_BURST) {
+            start = 0.85f;
+            dur = 0.12f;
+        } else if (type == EffectType.MAGIC_FLARE) {
+            start = 0.10f;
+            dur = 0.25f;
+        } else if (type == EffectType.GLOW_PULSE) {
+            start = 0.10f;
+            dur = 0.25f;
+        }
+        inst.setStartOffset(start);
+        inst.setDuration(dur);
         inst.setEnabled(true);
         inst.setPhase(config.getPhase() == ClipAnimationConfig.AnimationPhase.EXIT
                 ? EffectInstance.EffectPhase.EXIT

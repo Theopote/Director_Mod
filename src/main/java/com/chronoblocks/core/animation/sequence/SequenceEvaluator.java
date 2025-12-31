@@ -12,6 +12,8 @@ import net.minecraft.util.math.Vec3d;
  */
 public final class SequenceEvaluator {
 
+    private static final float RASTER_ROW_SCALE = 1_000_000.0f;
+
     public record Evaluation(float flowScore, float fillScore, float finalScore, int layerIndex) {
     }
 
@@ -31,8 +33,16 @@ public final class SequenceEvaluator {
         Vec3d point = new Vec3d(pos.getX(), pos.getY(), pos.getZ());
         Vec3d rel = point.subtract(origin);
 
-        float flowScore = computeFlowScore(rel, flow, params);
-        float fillScore = computeFillScore(rel, fill);
+        // Flow score 先算连续值，再按 layerStep 做量化（解决 PLANAR 自定义角度“层太碎”）
+        float flowScoreRaw = computeFlowScore(rel, flow, params);
+        float layerStep = params.getLayerStep();
+        float flowScore = flowScoreRaw / layerStep;
+        float fillScore;
+        if (fill == FillType.RASTER) {
+            fillScore = computeRasterFillScore(pos, bounds, params, rel);
+        } else {
+            fillScore = computeFillScore(rel, fill);
+        }
 
         int layerIndex = (int) Math.floor(flowScore);
         if (params.isAlternating() && (layerIndex & 1) != 0) {
@@ -101,6 +111,10 @@ public final class SequenceEvaluator {
             case LINEAR_SCAN -> {
                 return (float) (rel.x + rel.z);
             }
+            case RASTER -> {
+                // Raster 依赖 bounds/params/pos 的稳定坐标，因此这里不实现；由 evaluate(...) 走专用分支。
+                return 0f;
+            }
             case RADIAL -> {
                 return (float) (Math.abs(rel.x) + Math.abs(rel.z));
             }
@@ -114,6 +128,102 @@ public final class SequenceEvaluator {
                 return 0f;
             }
         }
+    }
+
+    private float computeRasterFillScore(BlockPos pos, Container.BoundingBox bounds, SequenceParameters params, Vec3d rel) {
+        if (pos == null || bounds == null || params == null) {
+            return 0f;
+        }
+
+        // 行内扫描方向：U 或 V（U/V 是“层平面上的两条基向量”）
+        String scanAxis = params.getRasterScanAxis();
+        float rowStep = params.getRasterRowStep();
+        boolean zigzag = params.isRasterZigZag();
+
+        // 仅对 PLANAR Flow 做“与层切片一致”的行方向；其他 flow 暂用 rel 的 XZ 投影退化
+        Vec3d normal = null;
+        try {
+            normal = getNormalFromAngles(params.getPlaneYaw(), params.getPlanePitch());
+        } catch (Exception ignored) {
+        }
+        if (normal == null || normal.lengthSquared() < 1.0e-6) {
+            normal = new Vec3d(0, 1, 0);
+        }
+
+        // 1) 优先处理轴对齐的切片：这样“XY 层 → 行方向 X/Y”这类语义最直观且坐标稳定（相对 min）。
+        Vec3d n = normal.normalize();
+        double ax = Math.abs(n.x), ay = Math.abs(n.y), az = Math.abs(n.z);
+        BlockPos min = bounds.getMin();
+
+        // XY 平面（法线≈Z）
+        if (az > 0.999) {
+            int x = pos.getX() - min.getX();
+            int y = pos.getY() - min.getY();
+            int scan = scanAxis.equals("U") ? x : y;       // U=X, V=Y
+            int rowCoord = scanAxis.equals("U") ? y : x;   // 换行方向是另一个轴
+            int row = (int) Math.floor(rowCoord / Math.max(0.1f, rowStep));
+            float col = scan;
+            if (zigzag && (row & 1) != 0) {
+                col = -col;
+            }
+            return row * RASTER_ROW_SCALE + col;
+        }
+
+        // XZ 平面（法线≈Y）
+        if (ay > 0.999) {
+            int x = pos.getX() - min.getX();
+            int z = pos.getZ() - min.getZ();
+            int scan = scanAxis.equals("U") ? x : z;       // U=X, V=Z
+            int rowCoord = scanAxis.equals("U") ? z : x;
+            int row = (int) Math.floor(rowCoord / Math.max(0.1f, rowStep));
+            float col = scan;
+            if (zigzag && (row & 1) != 0) {
+                col = -col;
+            }
+            return row * RASTER_ROW_SCALE + col;
+        }
+
+        // YZ 平面（法线≈X）
+        if (ax > 0.999) {
+            int y = pos.getY() - min.getY();
+            int z = pos.getZ() - min.getZ();
+            int scan = scanAxis.equals("U") ? y : z;       // U=Y, V=Z
+            int rowCoord = scanAxis.equals("U") ? z : y;
+            int row = (int) Math.floor(rowCoord / Math.max(0.1f, rowStep));
+            float col = scan;
+            if (zigzag && (row & 1) != 0) {
+                col = -col;
+            }
+            return row * RASTER_ROW_SCALE + col;
+        }
+
+        // 2) 自定义角度：构造层平面基向量 U/V，使用投影坐标做栅格扫描（不如轴对齐稳定，但符合“与切片一致”）。
+        Vec3d up = Math.abs(n.y) < 0.9 ? new Vec3d(0, 1, 0) : new Vec3d(1, 0, 0);
+        Vec3d u = up.crossProduct(n);
+        if (u.lengthSquared() < 1.0e-6) {
+            u = new Vec3d(1, 0, 0);
+        } else {
+            u = u.normalize();
+        }
+        Vec3d v = n.crossProduct(u);
+        if (v.lengthSquared() < 1.0e-6) {
+            v = new Vec3d(0, 0, 1);
+        } else {
+            v = v.normalize();
+        }
+
+        double uCoord = rel.dotProduct(u);
+        double vCoord = rel.dotProduct(v);
+
+        double scanCoord = scanAxis.equals("U") ? uCoord : vCoord;
+        double rowCoord = scanAxis.equals("U") ? vCoord : uCoord;
+
+        int row = (int) Math.floor(rowCoord / Math.max(0.1f, rowStep));
+        float col = (float) scanCoord;
+        if (zigzag && (row & 1) != 0) {
+            col = -col;
+        }
+        return row * RASTER_ROW_SCALE + col;
     }
 
     private Vec3d getNormalFromAngles(float yawDeg, float pitchDeg) {

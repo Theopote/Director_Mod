@@ -5,6 +5,7 @@ package com.chronoblocks.core.animation.sequence.evaluator;
  */
 public enum FillType {
     LINEAR_SCAN("线性扫描 (Linear)"),
+    RASTER("打印机扫描 (Raster)"),
     RADIAL("径向扩散 (Radial)"),
     SPIRAL("螺旋 (Spiral)"),
     NOISE("平滑噪声 (Perlin)"),
