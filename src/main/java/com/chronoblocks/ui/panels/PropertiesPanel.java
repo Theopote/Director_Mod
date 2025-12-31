@@ -9,9 +9,6 @@ import com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController;
 import com.chronoblocks.ui.theme.UITheme;
 import com.chronoblocks.ui.theme.Icons;
 import imgui.ImGui;
-import imgui.flag.ImGuiStyleVar;
-import imgui.flag.ImGuiInputTextFlags;
-import imgui.type.ImString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -112,22 +109,7 @@ public class PropertiesPanel extends AbstractPanel {
     /** 更新间隔（毫秒） */
     private static final long UPDATE_INTERVAL = 100;
     
-    // ==================== 现代化功能特性 ====================
-    
-    /** 是否显示统计信息 */
-    private boolean showStatistics = false;
-    
-    /** 搜索过滤文本 */
-    private final ImString searchText = new ImString(256);
-    
-    /** 搜索关键词（简化版，不依赖 PropertySearchFilter） */
-    private String searchQuery = "";
-    
-    /** 是否展开所有组 */
-    private boolean expandAll = false;
-    
-    /** 是否有未保存的修改 */
-    private boolean isDirty = false;
+    // ==================== UI 状态（精简版） ====================
     
     // ==================== 面板配置 ====================
 
@@ -186,12 +168,6 @@ public class PropertiesPanel extends AbstractPanel {
             lastUpdateTime = currentTime;
         }
         
-        // 渲染工具栏（搜索 + 展开控制 + 工具按钮）
-        renderToolbar();
-        
-        UITheme.separator();
-        //UITheme.spacingSmall();
-        
         // 渲染属性内容
         if (currentSelection == null) {
             renderNoSelectionMessage();
@@ -212,7 +188,6 @@ public class PropertiesPanel extends AbstractPanel {
         try {
             boolean modified = currentAdapter.renderProperties(currentSelection);
             if (modified) {
-                isDirty = true; // 标记为已修改
                 if (currentSelection instanceof CameraKeyframe) {
                     var timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
                     if (timelineModel != null) {
@@ -239,13 +214,6 @@ public class PropertiesPanel extends AbstractPanel {
             }
         }
         
-        // 渲染状态栏
-        renderStatusBar();
-        
-        // 渲染统计信息（可选）
-        if (showStatistics) {
-            renderStatistics();
-        }
     }
     
     /**
@@ -286,136 +254,6 @@ public class PropertiesPanel extends AbstractPanel {
     }
     
     /**
-     * 渲染工具栏（搜索 + 展开控制 + 工具按钮）
-     */
-    private void renderToolbar() {
-        // 搜索框使用统一的圆角样式（不再单独设置）
-        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, 4.0f, 4.0f);
-
-        // 搜索框
-        ImGui.pushItemWidth(-100);
-        if (ImGui.inputTextWithHint("##search", Icons.SEARCH + " 搜索属性...", searchText, ImGuiInputTextFlags.None)) {
-            // 更新搜索关键词
-            searchQuery = searchText.get().toLowerCase().trim();
-            LOGGER.trace("[PropertiesPanel] 搜索更新: {}", searchQuery);
-        }
-        ImGui.popItemWidth();
-        
-        if (ImGui.isItemHovered()) {
-            ImGui.beginTooltip();
-            ImGui.text("搜索属性名称（支持模糊匹配）");
-            ImGui.endTooltip();
-        }
-
-        ImGui.sameLine();
-
-        // 展开/折叠按钮（使用自动宽度和统一圆角）
-        if (ImGui.button(expandAll ? "折叠" : "展开", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
-            expandAll = !expandAll;
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(expandAll ? "折叠所有组" : "展开所有组");
-        }
-
-        ImGui.popStyleVar();
-
-        // 第二行：工具按钮 + 状态指示器
-        UITheme.spacingSmall();
-
-        // 刷新按钮（改用普通按钮，使用自动宽度）
-        if (ImGui.button(Icons.REFRESH, 0, UITheme.Spacing.BUTTON_HEIGHT)) {
-            updateSelection(currentSelection); // 刷新适配器
-            LOGGER.debug("[PropertiesPanel] 已刷新适配器");
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("刷新适配器");
-        }
-
-        ImGui.sameLine();
-
-        // 统计信息开关（改用普通按钮，使用自动宽度）
-        if (ImGui.button(showStatistics ? Icons.STATS : Icons.CHART, 0, UITheme.Spacing.BUTTON_HEIGHT)) {
-            showStatistics = !showStatistics;
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(showStatistics ? "隐藏统计信息" : "显示统计信息");
-        }
-
-        ImGui.sameLine();
-        ImGui.textDisabled("|");
-        ImGui.sameLine();
-
-        // 保存状态指示器
-        if (isDirty) {
-            ImGui.textColored(1.0f, 0.8f, 0.0f, 1.0f, Icons.DOT + " 未保存");
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("有未保存的修改");
-            }
-
-            ImGui.sameLine();
-            // 保存按钮（改用普通按钮，使用自动宽度）
-            if (ImGui.button(Icons.SAVE, 0, UITheme.Spacing.BUTTON_HEIGHT)) {
-                isDirty = false;
-                LOGGER.debug("[PropertiesPanel] 已标记为已保存");
-            }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("标记为已保存");
-            }
-        } else if (currentSelection != null) {
-            ImGui.textColored(0.4f, 1.0f, 0.5f, 1.0f, Icons.CHECK + " 已保存");
-        }
-    }
-    
-    /**
-     * 渲染状态栏
-     */
-    private void renderStatusBar() {
-        if (currentAdapter == null || currentSelection == null) {
-            return;
-        }
-
-        UITheme.separator();
-        //UITheme.spacingSmall();
-
-        // 适配器信息
-        String adapterName = currentAdapter.getAdapterName();
-        String typeName = currentSelection.getClass().getSimpleName();
-        
-        ImGui.textDisabled(String.format("适配器: %s | 类型: %s", adapterName, typeName));
-    }
-    
-    /**
-     * 渲染统计信息
-     */
-    private void renderStatistics() {
-        UITheme.separator();
-        //UITheme.spacingSmall();
-
-        if (ImGui.collapsingHeader(Icons.STATS + " 性能统计")) {
-            ImGui.indent();
-
-            ImGui.text("注册信息:");
-            int adapterCount = PropertyAdapterRegistry.getAdapterCount();
-            boolean hasFallback = PropertyAdapterRegistry.hasFallbackAdapter();
-            
-            ImGui.bulletText(String.format("已注册适配器: %d 个", adapterCount));
-            ImGui.bulletText(String.format("回退适配器: %s", hasFallback ? "✓ 已启用" : "✗ 未启用"));
-
-            UITheme.spacingSmall();
-
-            ImGui.text("当前状态:");
-            ImGui.bulletText(String.format("当前对象: %s", 
-                currentSelection != null ? currentSelection.getClass().getSimpleName() : "无"));
-            ImGui.bulletText(String.format("当前适配器: %s", 
-                currentAdapter != null ? currentAdapter.getAdapterName() : "无"));
-            ImGui.bulletText(String.format("修改状态: %s", isDirty ? (Icons.DOT + " 未保存") : (Icons.CHECK + " 已保存")));
-            ImGui.bulletText(String.format("搜索查询: %s", searchQuery.isEmpty() ? "(无)" : searchQuery));
-
-            ImGui.unindent();
-        }
-    }
-
-    /**
      * 渲染对象类型标题
      */
     private void renderObjectTypeHeader() {
@@ -423,28 +261,6 @@ public class PropertiesPanel extends AbstractPanel {
             // 适配器名称（带图标）
             String adapterName = currentAdapter.getAdapterName();
             UITheme.title(adapterName);
-            
-            // 对象类型信息
-            String typeName = currentSelection.getClass().getSimpleName();
-            String packageName = currentSelection.getClass().getPackageName();
-            UITheme.label(String.format("类型: %s", typeName), UITheme.DarkTheme.TEXT);
-            
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(String.format("完整类名: %s.%s", packageName, typeName));
-            }
-            
-            // 调试信息按钮（改用普通按钮，使用自动宽度）
-            ImGui.sameLine();
-            if (ImGui.button(Icons.SEARCH + " 调试", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
-                LOGGER.info("[PropertiesPanel] 调试信息:\n{}", 
-                    currentAdapter.getDebugInfo(currentSelection));
-                LOGGER.info("[PropertiesPanel] 注册表状态:\n{}", 
-                    PropertyAdapterRegistry.getDebugInfo());
-            }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("输出适配器和注册表的调试信息到日志");
-            }
-            
         } else if (currentSelection != null) {
             String typeName = currentSelection.getClass().getSimpleName();
             UITheme.label("对象: " + typeName, UITheme.DarkTheme.TEXT);

@@ -69,11 +69,7 @@ public abstract class AbstractPanel implements IPanel {
                 boolean windowStarted;
                 try {
                     // 仅在“游离窗口”显示关闭按钮“×”（停靠时不显示）
-                    final boolean shouldShowCloseButton = shouldShowCloseButtonWhenFloating()
-                            && renderContent
-                            && !renderPlaceholder
-                            && !hidden
-                            && !wasDockedLastFrame;
+                    final boolean shouldShowCloseButton = shouldShowCloseButtonWhenFloating() && renderContent && !hidden && !wasDockedLastFrame;
 
                     // 添加ImGui状态检查，防止嵌套调用问题
                     if (shouldShowCloseButton) {
@@ -176,13 +172,12 @@ public abstract class AbstractPanel implements IPanel {
     
     @Override
     public void setVisible(boolean visible) {
-        boolean newVisible = visible;
         boolean newHidden = !visible && shouldReserveDockSpaceWhenHidden();
-        if (this.visible != newVisible || this.hidden != newHidden) {
-            this.visible = newVisible;
+        if (this.visible != visible || this.hidden != newHidden) {
+            this.visible = visible;
             this.hidden = newHidden;
-            logger.debug("[{}] 可见性设置为: {}, Dock占位: {}", getPanelName(), newVisible, newHidden);
-            persistVisibilityState(newVisible);
+            logger.debug("[{}] 可见性设置为: {}, Dock占位: {}", getPanelName(), visible, newHidden);
+            persistVisibilityState(visible);
         }
     }
     

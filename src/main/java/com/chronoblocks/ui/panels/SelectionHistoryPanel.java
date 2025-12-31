@@ -233,7 +233,7 @@ public class SelectionHistoryPanel extends AbstractPanel {
                     
                     if (isCurrent && settings.isBreathingAnimationEnabled()) {
                         float breathingAlpha = (float) (Math.sin(ImGui.getTime() * 5.0) * 0.3 + 0.7);
-                        int outlineColor = adjustColorAlpha(0xFFFFFFFF, breathingAlpha);
+                        int outlineColor = adjustColorAlpha(breathingAlpha);
                         drawList.addCircle(cx, y, radius + 2, outlineColor, 0, 2f);
                     } else if (isCurrent) {
                         drawList.addCircle(cx, y, radius + 2, 0xFFFFFFFF, 0, 2f);
@@ -424,10 +424,10 @@ public class SelectionHistoryPanel extends AbstractPanel {
         return TIME_FORMATTER.format(new Date(timestamp));
     }
     
-    private int adjustColorAlpha(int color, float alpha) {
-        int r = (color >> 16) & 0xFF;
-        int g = (color >> 8) & 0xFF;
-        int b = color & 0xFF;
+    private int adjustColorAlpha(float alpha) {
+        int r = (-1 >> 16) & 0xFF;
+        int g = (-1 >> 8) & 0xFF;
+        int b = 0xFF;
         int a = (int) (alpha * 255);
         return (a << 24) | (r << 16) | (g << 8) | b;
     }

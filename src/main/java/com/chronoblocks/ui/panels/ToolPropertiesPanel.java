@@ -30,10 +30,10 @@ import java.util.Map;
 
 /**
  * 🛠️ 动态工具属性面板 v3.1
- * 
+ * <p>
  * 根据当前激活的选择工具动态显示对应的属性配置。
  * 支持所有13种选择工具的自动适配和属性编辑。
- * 
+ * <p>
  * 特性：
  * - ✅ 模块化渲染器架构（ToolPropertyRenderer）
  * - ✅ 折叠分组（CollapsingHeader）提升可读性
@@ -719,20 +719,5 @@ public class ToolPropertiesPanel extends AbstractPanel {
             return BoxSelectTool.class;
         }
     }
-    
-    // ==================== Getter/Setter ====================
-    
-    /**
-     * 获取当前工具
-     */
-    public SelectionTool getCurrentTool() {
-        return selectionManager.getCurrentTool();
-    }
-    
-    /**
-     * 获取当前工具ID
-     */
-    public String getCurrentToolId() {
-        return selectionManager.getCurrentToolId();
-    }
+
 }

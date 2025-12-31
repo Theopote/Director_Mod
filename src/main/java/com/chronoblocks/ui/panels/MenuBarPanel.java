@@ -13,6 +13,8 @@ import com.chronoblocks.ui.theme.UITheme;
 import com.chronoblocks.ui.theme.Icons;
 import net.minecraft.client.MinecraftClient;
 
+import java.util.Objects;
+
 /**
  * ChronoBlocks MenuBar v4.5 - 企业级菜单栏 + 状态栏系统
  * 
@@ -823,7 +825,7 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
         }
         ImGui.openPopup("Reset Workspace");
         ImGui.setNextWindowSize(420, 190);
-        if (ImGui.beginPopupModal("Reset Workspace", (imgui.type.ImBoolean) null, ImGuiWindowFlags.AlwaysAutoResize)) {
+        if (ImGui.beginPopupModal("Reset Workspace", null, ImGuiWindowFlags.AlwaysAutoResize)) {
             ImGui.textColored(1.0f, 0.47f, 0.31f, 1.0f, Icons.WARNING + " 警告：该操作会清空当前动画与容器！");
             ImGui.spacing();
             ImGui.textWrapped("将删除当前存档中的时间线、关键帧和容器引用，并写入全新的空白工程。请确认已备份重要内容。");
@@ -859,7 +861,7 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
                 timelinePanel.resetWorkspace(true);
             } else {
                 // 兜底：清空容器并删除时间线存档
-                ContainerManager.getInstance().clear();
+                Objects.requireNonNull(ContainerManager.getInstance()).clear();
                 com.chronoblocks.ui.timeline.persistence.TimelineModelPersistence.resetForCurrentWorld();
             }
         } catch (Exception e) {
