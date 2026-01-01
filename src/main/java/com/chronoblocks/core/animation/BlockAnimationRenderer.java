@@ -56,7 +56,10 @@ public class BlockAnimationRenderer {
             @NotNull TimelineClip clip,
             double globalTimeSec
     ) {
-        LOGGER.info("[BlockAnimationRenderer] renderBlock called for pos={} time={}", pos, globalTimeSec);
+        // 性能敏感：renderBlock 可能在调试时被高频调用，避免 info 刷屏。
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("[BlockAnimationRenderer] renderBlock called for pos={} time={}", pos, globalTimeSec);
+        }
         try {
             // ========== Layer 1: 构建动画上下文 ==========
             ClipAnimationConfig config = clip.getAnimationConfig();
@@ -150,7 +153,10 @@ public class BlockAnimationRenderer {
             return;
         }
 
-        LOGGER.info("[BlockAnimationRenderer] renderEntries called with {} entries", entries.size());
+        // 性能敏感：时间线渲染每帧都会调用，禁止 info 刷屏。
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("[BlockAnimationRenderer] renderEntries called with {} entries", entries.size());
+        }
 
         Vec3d cameraPos = MinecraftClient.getInstance().gameRenderer != null
                 && MinecraftClient.getInstance().gameRenderer.getCamera() != null
@@ -171,8 +177,10 @@ public class BlockAnimationRenderer {
 
                 BlockAnimationSnapshot snapshot = entry.overrideSnapshot();
                 if (snapshot == null) {
-                    LOGGER.warn("[BlockAnimationRenderer] renderEntries: missing snapshot for pos={} clip={}",
-                            entry.pos(), entry.clip());
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.debug("[BlockAnimationRenderer] renderEntries: missing snapshot for pos={} clip={}",
+                                entry.pos(), entry.clip());
+                    }
                     continue;
                 }
 
@@ -263,13 +271,17 @@ public class BlockAnimationRenderer {
      */
     private static void applyAnimationTransformFromSnapshot(MatrixStack matrices, BlockAnimationSnapshot snapshot) {
         if (snapshot == null) {
-            LOGGER.warn("[BlockAnimationRenderer] applyAnimationTransformFromSnapshot: snapshot is null");
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("[BlockAnimationRenderer] applyAnimationTransformFromSnapshot: snapshot is null");
+            }
             return;
         }
         MatrixStack snapshotStack = snapshot.getTransform();
         if (snapshotStack == null) {
-            LOGGER.warn("[BlockAnimationRenderer] applyAnimationTransformFromSnapshot: snapshot.getTransform() is null for pos={}", 
-                snapshot.getPos());
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("[BlockAnimationRenderer] applyAnimationTransformFromSnapshot: snapshot.getTransform() is null for pos={}",
+                        snapshot.getPos());
+            }
             return;
         }
 
@@ -277,8 +289,10 @@ public class BlockAnimationRenderer {
         var snapshotMatrix = snapshotStack.peek().getPositionMatrix();
         var currentMatrix = matrices.peek().getPositionMatrix();
         
-        LOGGER.info("[BlockAnimationRenderer] applyAnimationTransformFromSnapshot: pos={} matrix={}", 
-            snapshot.getPos(), snapshotMatrix);
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("[BlockAnimationRenderer] applyAnimationTransformFromSnapshot: pos={} matrix={}",
+                    snapshot.getPos(), snapshotMatrix);
+        }
         
         currentMatrix.mul(snapshotMatrix);
     }

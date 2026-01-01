@@ -67,6 +67,136 @@ public class TimelineClipBlockController {
     // 简化遮挡检测器
     private final BlockOcclusionResolver occlusionResolver = new BlockOcclusionResolver();
 
+    // =====================================================================
+    // Perf caches (播放性能关键)
+    // =====================================================================
+
+    /**
+     * 容器方块列表缓存：避免每帧调用 {@code container.getBlocks()} 造成全量复制与分配。
+     * 以 container.modifiedTime 作为版本号，变化时才重建 List。
+     */
+    private static final class ContainerBlocksCache {
+        long modifiedTime;
+        List<BlockPos> blocks = List.of();
+    }
+
+    /**
+     * 片段序列缓存：避免在播放时每帧重新 generate + sort。
+     */
+    private static final class ClipSequenceCache {
+        long containerModifiedTime;
+        int containerBlockCount;
+        int sequenceParamsHash;
+        float clipDuration;
+        float animDuration;
+        float totalDelay;
+        List<BlockSequenceEntry> entries = List.of();
+    }
+
+    private final Map<Container, ContainerBlocksCache> blocksCacheByContainer = new IdentityHashMap<>();
+    private final Map<TimelineClip, ClipSequenceCache> sequenceCacheByClip = new IdentityHashMap<>();
+
+    private List<BlockPos> getCachedContainerBlocks(Container container) {
+        if (container == null) {
+            return List.of();
+        }
+        long mod = container.getModifiedTime();
+        ContainerBlocksCache cache = blocksCacheByContainer.get(container);
+        if (cache == null) {
+            cache = new ContainerBlocksCache();
+            blocksCacheByContainer.put(container, cache);
+        }
+        if (cache.blocks == null
+                || cache.modifiedTime != mod
+                || (cache.blocks.isEmpty() && container.getBlockCount() > 0)) {
+            cache.modifiedTime = mod;
+            // container.getBlocks() 本身会复制一次 set；这里保证只在容器变更时做。
+            cache.blocks = new ArrayList<>(container.getBlocks());
+        }
+        return cache.blocks != null ? cache.blocks : List.of();
+    }
+
+    private static int hashSequenceParameters(com.chronoblocks.core.animation.sequence.SequenceParameters p) {
+        if (p == null) {
+            return 0;
+        }
+        int h = 1;
+        h = 31 * h + (p.getFlowType() != null ? p.getFlowType().name().hashCode() : 0);
+        h = 31 * h + (p.getFillType() != null ? p.getFillType().name().hashCode() : 0);
+        h = 31 * h + (p.getOriginType() != null ? p.getOriginType().name().hashCode() : 0);
+        h = 31 * h + Float.floatToIntBits(p.getPlaneYaw());
+        h = 31 * h + Float.floatToIntBits(p.getPlanePitch());
+        h = 31 * h + Float.floatToIntBits(p.getLayerStep());
+        h = 31 * h + p.getCustomX();
+        h = 31 * h + p.getCustomY();
+        h = 31 * h + p.getCustomZ();
+        h = 31 * h + Float.floatToIntBits(p.getPriorityWeight());
+        h = 31 * h + (p.isReverse() ? 1 : 0);
+        h = 31 * h + (p.isAlternating() ? 1 : 0);
+        h = 31 * h + (p.getFloodSeedMode() != null ? p.getFloodSeedMode().name().hashCode() : 0);
+        h = 31 * h + (p.getConcurrencyMode() != null ? p.getConcurrencyMode().name().hashCode() : 0);
+        h = 31 * h + p.getBatchSize();
+        h = 31 * h + Float.floatToIntBits(p.getBatchInterval());
+        h = 31 * h + (p.getTimeMappingStrategy() != null ? p.getTimeMappingStrategy().name().hashCode() : 0);
+        h = 31 * h + Float.floatToIntBits(p.getPerBlockDuration());
+        h = 31 * h + Float.floatToIntBits(p.getGlobalDelay());
+        h = 31 * h + (p.getRasterScanAxis() != null ? p.getRasterScanAxis().hashCode() : 0);
+        h = 31 * h + Float.floatToIntBits(p.getRasterRowStep());
+        h = 31 * h + (p.isRasterZigZag() ? 1 : 0);
+        return h;
+    }
+
+    private List<BlockSequenceEntry> getOrGenerateSequenceEntries(TimelineClip clip,
+                                                                  Container container,
+                                                                  ClipAnimationConfig config,
+                                                                  float clipDuration,
+                                                                  float animDuration,
+                                                                  float totalDelay) {
+        if (clip == null || container == null) {
+            return List.of();
+        }
+
+        long containerMod = container.getModifiedTime();
+        int blockCount = container.getBlockCount();
+        var params = (config != null) ? config.getSequenceParameters() : null;
+        int paramsHash = hashSequenceParameters(params);
+
+        ClipSequenceCache cache = sequenceCacheByClip.get(clip);
+        if (cache != null
+                && cache.containerModifiedTime == containerMod
+                && cache.containerBlockCount == blockCount
+                && cache.sequenceParamsHash == paramsHash
+                && Math.abs(cache.clipDuration - clipDuration) < 1e-4f
+                && Math.abs(cache.animDuration - animDuration) < 1e-4f
+                && Math.abs(cache.totalDelay - totalDelay) < 1e-4f
+                && cache.entries != null
+                && !cache.entries.isEmpty()) {
+            return cache.entries;
+        }
+
+        List<BlockPos> allBlocks = getCachedContainerBlocks(container);
+        List<BlockSequenceEntry> generated = BlockSequenceGenerator.generate(
+                allBlocks,
+                container,
+                params,
+                clipDuration,
+                animDuration,
+                totalDelay
+        );
+
+        ClipSequenceCache next = (cache != null) ? cache : new ClipSequenceCache();
+        next.containerModifiedTime = containerMod;
+        next.containerBlockCount = blockCount;
+        next.sequenceParamsHash = paramsHash;
+        next.clipDuration = clipDuration;
+        next.animDuration = animDuration;
+        next.totalDelay = totalDelay;
+        next.entries = (generated != null) ? generated : List.of();
+        sequenceCacheByClip.put(clip, next);
+
+        return next.entries;
+    }
+
     /**
      * 记录每个容器上一帧“应当显示/保留”的方块集合。
      *
@@ -192,7 +322,7 @@ public class TimelineClipBlockController {
                 // 第一次看到该容器：保守起见，认为整组都可能变化
                 Container container = Objects.requireNonNull(ContainerManager.getInstance()).getContainer(containerId);
                 if (container != null) {
-                    worldStateChangedBlocksForRerender.addAll(container.getBlocks());
+                    worldStateChangedBlocksForRerender.addAll(getCachedContainerBlocks(container));
                 } else {
                     worldStateChangedBlocksForRerender.addAll(now);
                 }
@@ -301,7 +431,7 @@ public class TimelineClipBlockController {
             // ◆ 然后设置视觉状态（用于半透明效果和遮挡淡化）
             if (blocks.isEmpty()) {
                 // 如果没有方块可见，则完全隐藏
-                visualStateManager.setBlocksState(container.getBlocks(), BlockVisualStateManager.BlockVisualState.hidden());
+                visualStateManager.setBlocksState(getCachedContainerBlocks(container), BlockVisualStateManager.BlockVisualState.hidden());
             } else {
                 // 设置可见方块的视觉状态
                 // 🔹 关键逻辑：如果容器被遮挡，使用ghost模式并隐藏世界方块
@@ -323,7 +453,7 @@ public class TimelineClipBlockController {
                 }
                 
                 // 对于容器中不属于当前可见集的方块，也设置为隐藏
-                Set<BlockPos> hiddenBlocks = new HashSet<>(container.getBlocks());
+                Set<BlockPos> hiddenBlocks = new HashSet<>(getCachedContainerBlocks(container));
                 hiddenBlocks.removeAll(blocks);
                 if (!hiddenBlocks.isEmpty()) {
                     visualStateManager.setBlocksState(hiddenBlocks, BlockVisualStateManager.BlockVisualState.hidden());
@@ -382,19 +512,58 @@ public class TimelineClipBlockController {
             if (client == null || client.worldRenderer == null) {
                 return;
             }
-            int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
-            int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
+
+            // 性能关键：用“全局包围盒”会把大量无关区块也重建，逐帧播放时极易导致 FPS 跌到个位数。
+            // 改为按 chunk 分组调度：只重建实际受影响的 chunk 区域。
+            final class ChunkBox {
+                int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;
+                int maxX = Integer.MIN_VALUE, maxY = Integer.MIN_VALUE, maxZ = Integer.MIN_VALUE;
+                void include(BlockPos p) {
+                    minX = Math.min(minX, p.getX());
+                    minY = Math.min(minY, p.getY());
+                    minZ = Math.min(minZ, p.getZ());
+                    maxX = Math.max(maxX, p.getX());
+                    maxY = Math.max(maxY, p.getY());
+                    maxZ = Math.max(maxZ, p.getZ());
+                }
+                boolean valid() {
+                    return minX <= maxX && minY <= maxY && minZ <= maxZ;
+                }
+            }
+
+            Map<Long, ChunkBox> byChunk = new HashMap<>();
             for (BlockPos pos : changedBlocks) {
                 if (pos == null) continue;
-                minX = Math.min(minX, pos.getX());
-                minY = Math.min(minY, pos.getY());
-                minZ = Math.min(minZ, pos.getZ());
-                maxX = Math.max(maxX, pos.getX());
-                maxY = Math.max(maxY, pos.getY());
-                maxZ = Math.max(maxZ, pos.getZ());
+                int cx = pos.getX() >> 4;
+                int cz = pos.getZ() >> 4;
+                long key = (((long) cx) << 32) ^ (cz & 0xffffffffL);
+                ChunkBox box = byChunk.computeIfAbsent(key, k -> new ChunkBox());
+                box.include(pos);
             }
-            if (minX <= maxX && minY <= maxY && minZ <= maxZ) {
-                client.worldRenderer.scheduleBlockRenders(minX, minY, minZ, maxX, maxY, maxZ);
+
+            // 每个 chunk 单独调度（把范围扩到 chunk 边界，避免边缘面不刷新）
+            for (Map.Entry<Long, ChunkBox> e : byChunk.entrySet()) {
+                ChunkBox box = e.getValue();
+                if (box == null || !box.valid()) continue;
+
+                int minChunkX = box.minX >> 4;
+                int maxChunkX = box.maxX >> 4;
+                int minChunkZ = box.minZ >> 4;
+                int maxChunkZ = box.maxZ >> 4;
+
+                // 受影响的范围通常在单个 chunk 内；保险起见支持跨 chunk
+                for (int x = minChunkX; x <= maxChunkX; x++) {
+                    for (int z = minChunkZ; z <= maxChunkZ; z++) {
+                        int x0 = (x << 4);
+                        int z0 = (z << 4);
+                        int x1 = x0 + 15;
+                        int z1 = z0 + 15;
+                        // Y 仅取本 chunk 内受影响的局部范围，并上下扩 1 格避免面刷新缺失
+                        int y0 = Math.max(-64, box.minY - 1);
+                        int y1 = Math.min(319, box.maxY + 1);
+                        client.worldRenderer.scheduleBlockRenders(x0, y0, z0, x1, y1, z1);
+                    }
+                }
             }
         } catch (Exception e) {
             LOGGER.warn("[TimelineClipBlockController] 调度区块重渲染失败: {}", e.getMessage());
@@ -431,11 +600,11 @@ public class TimelineClipBlockController {
                                                        Container container,
                                                        ClipAnimationConfig config) {
         Set<BlockPos> visibleBlocks = new HashSet<>();
-        List<BlockSequenceEntry> sequenceEntries = new ArrayList<>();
+        List<BlockSequenceEntry> sequenceEntries = List.of();
 
         TrackType type = trackType != null ? trackType : TrackType.CONTAINER;
 
-        List<BlockPos> allBlocks = new ArrayList<>(container.getBlocks());
+        List<BlockPos> allBlocks = getCachedContainerBlocks(container);
         if (allBlocks.isEmpty()) {
             return new VisibleBlocksResult(visibleBlocks, sequenceEntries);
         }
@@ -476,15 +645,17 @@ public class TimelineClipBlockController {
                 }
             }
             float availableSpan = Math.max(0.0001f, clipDuration - animDuration - delay);
-            List<BlockSequenceEntry> generated = BlockSequenceGenerator.generate(
-                allBlocks, container,
-                config != null ? config.getSequenceParameters() : null,
-                clipDuration, animDuration, delay
+
+            sequenceEntries = getOrGenerateSequenceEntries(
+                    clip,
+                    container,
+                    config,
+                    clipDuration,
+                    animDuration,
+                    delay
             );
-            if (generated != null) {
-                sequenceEntries.addAll(generated);
-            }
-            if (sequenceEntries.isEmpty()) {
+
+            if (sequenceEntries == null || sequenceEntries.isEmpty()) {
                 // 后备：序列为空时，直接视为全量
                 if (type == TrackType.ERASE) {
                     visibleBlocks.addAll(allBlocks);
@@ -910,7 +1081,7 @@ public class TimelineClipBlockController {
         }
         
         // 如果容器没有快照，但有方块，需要创建快照
-        if (!container.getBlocks().isEmpty()) {
+        if (container.getBlockCount() > 0) {
             // 检查容器是否绑定了世界
             if (container.getLevelKey() == null) {
                 LOGGER.warn("[TimelineClipBlockController] 容器 {} 未绑定世界，无法创建快照",
