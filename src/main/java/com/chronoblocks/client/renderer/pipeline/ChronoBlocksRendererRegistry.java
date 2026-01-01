@@ -351,9 +351,17 @@ public final class ChronoBlocksRendererRegistry {
             if (VideoExportManager.getInstance().isExporting()) {
                 return true;
             }
-            // 2) 时间线播放时开启（避免额外 debug/overlay renderer 抢占帧时间）
-            var model = ContainerTimelineService.getInstance().getTimelineModel();
-            return model != null && model.isPlaying();
+            // 2) 时间线播放/拖动播放头时开启（避免额外 debug/overlay renderer 抢占帧时间）
+            // 说明：ContainerTimelineService 的 model 绑定可能在某些 UI 生命周期下为 null 或不同步。
+            // TimelineCameraController 绑定 TimelineModel 更早、更稳定，因此以它为真相源。
+            try {
+                return com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController
+                        .getInstance()
+                        .isTimelineActive();
+            } catch (Throwable ignored) {
+                var model = ContainerTimelineService.getInstance().getTimelineModel();
+                return model != null && (model.isPlaying() || model.isScrubbing());
+            }
         } catch (Throwable ignored) {
             return false;
         }
