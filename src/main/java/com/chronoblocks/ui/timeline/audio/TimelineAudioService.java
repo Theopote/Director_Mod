@@ -32,7 +32,7 @@ import java.util.UUID;
  * <p>核心功能：
  * <ul>
  *   <li>当容器片段添加到时间线时，自动收集声音事件</li>
- *   <li>将声音事件添加到音频轨道（如果存在）</li>
+ *   <li>将声音事件添加到音频轨道（仅当音频轨道已存在）</li>
  *   <li>当片段移动或调整时，自动更新声音事件的时间</li>
  * </ul>
  * 
@@ -119,8 +119,10 @@ public class TimelineAudioService {
             return;
         }
         
-        // 获取或创建音频轨道
-        AudioTrack audioTrack = getOrCreateAudioTrack();
+        // 仅当音频轨道已存在时才注入事件：
+        // - 没有音频轨道：播放应静音（不自动创建音频轨道）
+        // - 音频轨道上没有该片段对应事件：播放也应静音
+        AudioTrack audioTrack = findAudioTrack();
         if (audioTrack == null) {
             return;
         }
@@ -359,38 +361,6 @@ public class TimelineAudioService {
             }
         }
         return null;
-    }
-    
-    /**
-     * 获取或创建音频轨道
-     * 
-     * @return 音频轨道，如果无法创建则返回 null
-     */
-    private AudioTrack getOrCreateAudioTrack() {
-        if (timelineModel == null) {
-            return null;
-        }
-        
-        // 查找现有的音频轨道
-        for (TimelineTrack track : timelineModel.getAllTracks()) {
-            if (track != null && track.getType() == TrackType.AUDIO) {
-                if (track instanceof AudioTrack) {
-                    return (AudioTrack) track;
-                }
-                // 如果是旧的 TimelineTrack，转换为 AudioTrack
-                return convertToAudioTrack(track);
-            }
-        }
-        
-        // 如果没有找到，创建新的音频轨道
-        AudioTrack audioTrack = new AudioTrack("音频轨道");
-        timelineModel.addTrack(audioTrack);
-        
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("[TimelineAudioService] 创建了新的音频轨道");
-        }
-        
-        return audioTrack;
     }
     
     /**

@@ -167,11 +167,6 @@ public class LayoutPersistenceManager {
         }
         return resolveWorldId(currentWorldId);
     }
-
-    private boolean isFingerprintMatch(String saved) {
-        String current = getWorldFingerprint();
-        return current.equals(saved);
-    }
     
     /**
      * 获取指定世界的布局文件路径

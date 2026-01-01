@@ -56,7 +56,8 @@ public class TimelineTrack {
             // 按开始时间排序，保持时间线有序
             clips.sort(Comparator.comparing(TimelineClip::getStartTime));
             
-            // 如果片段绑定了容器，自动收集声音事件
+            // 如果片段绑定了容器：仅当时间线已存在音频轨道时才自动收集声音事件。
+            // 没有音频轨道/没有对应事件时，播放应保持静音（由音频轨道事件驱动）。
             if (clip.getBoundContainerId() != null) {
                 try {
                     com.chronoblocks.ui.timeline.audio.TimelineAudioService.getInstance()

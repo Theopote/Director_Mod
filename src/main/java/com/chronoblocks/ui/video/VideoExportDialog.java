@@ -213,11 +213,7 @@ public final class VideoExportDialog {
                         .map(t -> t.getName() != null ? t.getName() : "(未命名轨道)")
                         .toArray(String[]::new);
                 cameraTrackIndexInt.set(Math.max(0, Math.min(settings.cameraTrackIndex, trackNames.length - 1)));
-                if (ImGui.combo("轨道", cameraTrackIndexInt, trackNames, trackNames.length)) {
-                    settings.cameraTrackIndex = cameraTrackIndexInt.get();
-                } else {
-                    settings.cameraTrackIndex = cameraTrackIndexInt.get();
-                }
+                settings.cameraTrackIndex = cameraTrackIndexInt.get();
                 settings.cameraTrackName = trackNames[settings.cameraTrackIndex];
             }
         }
@@ -247,11 +243,7 @@ public final class VideoExportDialog {
             UITheme.title("音频");
             ImGui.separator();
 
-            if (ImGui.checkbox("导出音频并混入 MP4（当前为事件提示音占位）", audioEnabledBool)) {
-                settings.enableAudio = audioEnabledBool.get();
-            } else {
-                settings.enableAudio = audioEnabledBool.get();
-            }
+            settings.enableAudio = audioEnabledBool.get();
 
             ImGui.textDisabled("采样率: " + settings.audioSampleRate + " Hz | 声道: " + settings.audioChannels);
             UITheme.spacingSmall();
@@ -284,9 +276,9 @@ public final class VideoExportDialog {
                 lastError = "UIManager 未注入，无法启动导出任务。";
             } else {
                 // 目标存在性检查：同名文件/目录应提示用户
-                ExistingTarget existing = findExistingOutputTarget(settings);
+                ExistingTarget existing = findExistingOutputTarget();
                 if (existing != null) {
-                    pendingStartSettings = copySettings(settings);
+                    pendingStartSettings = copySettings();
                     pendingOverwriteWarning = existing.warningMessage;
                     // 打开确认弹窗
                     ImGui.openPopup(OVERWRITE_POPUP_ID);
@@ -354,22 +346,17 @@ public final class VideoExportDialog {
         }
     }
 
-    private static final class ExistingTarget {
-        final String warningMessage;
-
-        ExistingTarget(String warningMessage) {
-            this.warningMessage = warningMessage;
-        }
+    private record ExistingTarget(String warningMessage) {
     }
 
-    private static ExistingTarget findExistingOutputTarget(VideoExportSettings s) {
-        if (s == null || s.outputPath == null || s.outputPath.isBlank()) {
+    private static ExistingTarget findExistingOutputTarget() {
+        if (VideoExportDialog.settings.outputPath == null || VideoExportDialog.settings.outputPath.isBlank()) {
             return null;
         }
 
         try {
-            if (s.format == VideoExportSettings.FORMAT_H264_MP4) {
-                Path out = s.getOutputPathAsPath();
+            if (VideoExportDialog.settings.format == VideoExportSettings.FORMAT_H264_MP4) {
+                Path out = VideoExportDialog.settings.getOutputPathAsPath();
                 if (out != null && Files.exists(out)) {
                     return new ExistingTarget("输出文件已存在：\n" + out.toAbsolutePath());
                 }
@@ -377,7 +364,7 @@ public final class VideoExportDialog {
             }
 
             // PNG 序列：输出目录为 parent/<basename>/
-            Path outPath = Paths.get(s.outputPath.trim());
+            Path outPath = Paths.get(VideoExportDialog.settings.outputPath.trim());
             Path parent = outPath.getParent();
             if (parent == null) {
                 parent = Paths.get(".");
@@ -435,24 +422,24 @@ public final class VideoExportDialog {
         return idx >= 0 ? name.substring(0, idx) : name;
     }
 
-    private static VideoExportSettings copySettings(VideoExportSettings src) {
+    private static VideoExportSettings copySettings() {
         VideoExportSettings dst = new VideoExportSettings();
-        dst.outputPath = src.outputPath;
-        dst.width = src.width;
-        dst.height = src.height;
-        dst.fps = src.fps;
-        dst.rangeMode = src.rangeMode;
-        dst.customStartTime = src.customStartTime;
-        dst.customEndTime = src.customEndTime;
-        dst.cameraMode = src.cameraMode;
-        dst.cameraTrackIndex = src.cameraTrackIndex;
-        dst.cameraTrackName = src.cameraTrackName;
-        dst.format = src.format;
-        dst.renderDistance = src.renderDistance;
-        dst.useAntiAliasing = src.useAntiAliasing;
-        dst.enableAudio = src.enableAudio;
-        dst.audioSampleRate = src.audioSampleRate;
-        dst.audioChannels = src.audioChannels;
+        dst.outputPath = VideoExportDialog.settings.outputPath;
+        dst.width = VideoExportDialog.settings.width;
+        dst.height = VideoExportDialog.settings.height;
+        dst.fps = VideoExportDialog.settings.fps;
+        dst.rangeMode = VideoExportDialog.settings.rangeMode;
+        dst.customStartTime = VideoExportDialog.settings.customStartTime;
+        dst.customEndTime = VideoExportDialog.settings.customEndTime;
+        dst.cameraMode = VideoExportDialog.settings.cameraMode;
+        dst.cameraTrackIndex = VideoExportDialog.settings.cameraTrackIndex;
+        dst.cameraTrackName = VideoExportDialog.settings.cameraTrackName;
+        dst.format = VideoExportDialog.settings.format;
+        dst.renderDistance = VideoExportDialog.settings.renderDistance;
+        dst.useAntiAliasing = VideoExportDialog.settings.useAntiAliasing;
+        dst.enableAudio = VideoExportDialog.settings.enableAudio;
+        dst.audioSampleRate = VideoExportDialog.settings.audioSampleRate;
+        dst.audioChannels = VideoExportDialog.settings.audioChannels;
         return dst;
     }
 
@@ -559,8 +546,7 @@ public final class VideoExportDialog {
     }
 
     private static void openOutputPathDialog() {
-        String current = outputPathBuffer.get() != null ? outputPathBuffer.get().trim() : "";
-        String defaultPath = current;
+        String defaultPath = outputPathBuffer.get() != null ? outputPathBuffer.get().trim() : "";
 
         if (defaultPath.isBlank()) {
             try {
