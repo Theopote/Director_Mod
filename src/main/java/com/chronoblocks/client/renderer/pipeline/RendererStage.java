@@ -56,7 +56,10 @@ public enum RendererStage {
         300,
         0x47D97C,
         true,
-        WorldRenderPhase.AFTER_TRANSLUCENT
+        // ToolPreview 需要往 VertexConsumer 写入几何；在 1.21.10 的 END_MAIN(AfterTranslucent) 阶段
+        // consumers 可能已被 flush/结束，容易触发 BufferBuilder "Not building!"。
+        // 因此挪到 AFTER_ENTITIES，保证渲染管线仍处于可写入状态。
+        WorldRenderPhase.AFTER_ENTITIES
     ),
 
     // === 🟧 交互提示（Hover 高亮 + Hint 文本） ===

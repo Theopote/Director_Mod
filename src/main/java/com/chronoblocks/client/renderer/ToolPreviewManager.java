@@ -43,6 +43,10 @@ public class ToolPreviewManager {
     private final com.chronoblocks.client.settings.RenderSettings settings = com.chronoblocks.client.settings.RenderSettings.get();
     
     private static final Logger LOGGER = LoggerFactory.getLogger(ToolPreviewManager.class);
+
+    // 防刷屏：同类渲染异常在低 FPS 场景下会被每帧触发，必须节流
+    private long lastPreviewRenderErrorLogTime = 0;
+    private static final long PREVIEW_RENDER_ERROR_LOG_INTERVAL_MS = 5000;
     
     /** 单例实例 */
     private static volatile ToolPreviewManager INSTANCE;
@@ -321,7 +325,11 @@ public class ToolPreviewManager {
             }
             
         } catch (Exception e) {
-            LOGGER.error("[ToolPreviewManager] 渲染预览效果失败", e);
+            long now = System.currentTimeMillis();
+            if (now - lastPreviewRenderErrorLogTime >= PREVIEW_RENDER_ERROR_LOG_INTERVAL_MS) {
+                lastPreviewRenderErrorLogTime = now;
+                LOGGER.error("[ToolPreviewManager] 渲染预览效果失败", e);
+            }
         }
     }
 
