@@ -565,18 +565,24 @@ public class TimelineClipBlockController {
             return;
         }
         if (visibleBlocks == null || visibleBlocks.isEmpty()) {
-            LOGGER.info("[TimelineClipBlockController] registerRenderEntries: visibleBlocks is empty for container {}", 
-                container.getName());
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[TimelineClipBlockController] registerRenderEntries: visibleBlocks is empty for container {}",
+                        container.getName());
+            }
             return;
         }
         if (sequenceEntries == null || sequenceEntries.isEmpty()) {
-            LOGGER.info("[TimelineClipBlockController] registerRenderEntries: sequenceEntries is empty for container {}", 
-                container.getName());
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[TimelineClipBlockController] registerRenderEntries: sequenceEntries is empty for container {}",
+                        container.getName());
+            }
             return;
         }
 
-        LOGGER.info("[TimelineClipBlockController] registerRenderEntries: container={} visibleBlocks={} entries={}", 
-            container.getName(), visibleBlocks.size(), sequenceEntries.size());
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("[TimelineClipBlockController] registerRenderEntries: container={} visibleBlocks={} entries={}",
+                    container.getName(), visibleBlocks.size(), sequenceEntries.size());
+        }
 
         float clipStart = clip.getStartTime();
         float clipLength = clip.getLength();
@@ -617,10 +623,12 @@ public class TimelineClipBlockController {
                     randomSeed
             );
             
-            LOGGER.info("[TimelineClipBlockController] temp snapshot: pos={} visible={} alpha={} hasTransform={}", 
-                pos, snapshot.isVisible(),
-                    snapshot.getAlpha(),
-                    snapshot.getTransform() != null);
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[TimelineClipBlockController] temp snapshot: pos={} visible={} alpha={} hasTransform={}",
+                        pos, snapshot.isVisible(),
+                        snapshot.getAlpha(),
+                        snapshot.getTransform() != null);
+            }
             
             if (!snapshot.isVisible() || snapshot.getAlpha() <= 0.0f) {
                 continue;
@@ -645,8 +653,10 @@ public class TimelineClipBlockController {
                 visualStateManager.setBlockState(pos, visualState);
             }
 
-            LOGGER.info("[TimelineClipBlockController] Adding render entry 2.0: pos={} alpha={}",
-                pos, snapshot.getAlpha());
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[TimelineClipBlockController] Adding render entry: pos={} alpha={}",
+                        pos, snapshot.getAlpha());
+            }
 
             // 🔥 步骤 7：创建 RenderEntry 2.0 并加入 BlockVisualStateManager
             // 关键：传入使用时间线时间采样好的 snapshot，避免渲染时用世界时间重采样
@@ -662,8 +672,10 @@ public class TimelineClipBlockController {
             );
         }
         
-        LOGGER.info("[TimelineClipBlockController] registerRenderEntries completed: {} entries added", 
-            sequenceEntries.stream().filter(e -> e != null && visibleBlocks.contains(e.getPos())).count());
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("[TimelineClipBlockController] registerRenderEntries completed: {} entries added",
+                    sequenceEntries.stream().filter(e -> e != null && visibleBlocks.contains(e.getPos())).count());
+        }
     }
 
     /**

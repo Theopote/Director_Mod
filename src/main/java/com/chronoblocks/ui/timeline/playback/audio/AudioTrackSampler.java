@@ -46,9 +46,6 @@ public class AudioTrackSampler {
 
     private final AudioTrack track;
 
-    /** 已触发过的事件 ID（避免重复播放） */
-    private final Set<UUID> playedEvents = new HashSet<>();
-
     /** 当前时间（用于判断是否跳转） */
     private float lastTime = -1f;
 
@@ -75,16 +72,12 @@ public class AudioTrackSampler {
      */
     public void setPlaying(boolean playing) {
         this.playing = playing;
-        if (!playing) {
-            playedEvents.clear(); // 暂停后重置，避免乱序
-        }
     }
 
     /**
      * 重置采样器状态
      */
     public void reset() {
-        playedEvents.clear();
         lastTime = -1f;
     }
 
@@ -114,7 +107,9 @@ public class AudioTrackSampler {
             return;
         }
 
-        boolean isReverse = lastTime > time; // 是否倒放
+        boolean hasLast = lastTime >= 0f;
+        boolean isReverse = hasLast && lastTime > time; // 是否倒放
+        float prevTime = lastTime;
         lastTime = time;
 
         // 检查轨道是否静音
@@ -127,49 +122,75 @@ public class AudioTrackSampler {
             return;
         }
 
-        // 正放方向
+        // 性能关键：事件数量可能极大（每个方块一个音频事件）。
+        // 这里用“时间窗口 + 二分查找”只触发本帧跨过的事件，避免每帧从头扫描 O(N)。
+        if (!hasLast) {
+            // 首帧：不补触发，避免在中途开始播放时瞬间爆发大量声音
+            return;
+        }
+
+        final float eps = 1e-5f;
         if (!isReverse) {
-            for (AudioEvent ev : events) {
-                if (ev == null) {
-                    continue;
-                }
-                
-                // 如果事件时间已经超过当前时间，后面的都不会触发
-                if (ev.getStartTime() > time) {
-                    break;
-                }
-
-                // 检查是否已经播放过，且事件时间在当前时间之前或等于
-                if (!playedEvents.contains(ev.getId()) &&
-                    ev.getStartTime() <= time) {
-
-                    triggerEvent(ev);
-                    playedEvents.add(ev.getId());
-                }
+            // (prevTime, time] 的事件触发
+            if (time <= prevTime + eps) {
+                return;
+            }
+            int from = upperBound(events, prevTime + eps);
+            int to = upperBound(events, time + eps);
+            for (int i = from; i < to; i++) {
+                AudioEvent ev = events.get(i);
+                if (ev == null) continue;
+                triggerEvent(ev);
+            }
+        } else {
+            // 倒放：[time, prevTime) 的事件也触发（从后往前）
+            if (prevTime <= time + eps) {
+                return;
+            }
+            int from = lowerBound(events, time - eps);
+            int to = lowerBound(events, prevTime - eps);
+            for (int i = to - 1; i >= from; i--) {
+                AudioEvent ev = events.get(i);
+                if (ev == null) continue;
+                triggerEvent(ev);
             }
         }
-        // 倒放方向（用户拖动时间轴回去）
-        else {
-            // 倒放时，需要从后往前遍历
-            // 这里简化处理：清空已播放事件，让所有在当前时间之后的事件可以重新触发
-            // 实际应用中，倒放可能需要更复杂的逻辑
-            for (AudioEvent ev : events) {
-                if (ev == null) {
-                    continue;
-                }
-                
-                // 倒放时，移除当前时间之后的事件标记，允许重新触发
-                if (ev.getStartTime() > time) {
-                    playedEvents.remove(ev.getId());
-                }
-                // 如果事件在当前时间或之前，且未播放过，则触发
-                else if (!playedEvents.contains(ev.getId()) &&
-                         ev.getStartTime() <= time) {
-                    triggerEvent(ev);
-                    playedEvents.add(ev.getId());
-                }
+    }
+
+    /**
+     * 返回第一个 event.time >= t 的索引。
+     */
+    private static int lowerBound(List<AudioEvent> events, float t) {
+        int lo = 0, hi = events.size();
+        while (lo < hi) {
+            int mid = (lo + hi) >>> 1;
+            AudioEvent ev = events.get(mid);
+            float mt = ev != null ? ev.getStartTime() : Float.NEGATIVE_INFINITY;
+            if (mt < t) {
+                lo = mid + 1;
+            } else {
+                hi = mid;
             }
         }
+        return lo;
+    }
+
+    /**
+     * 返回第一个 event.time > t 的索引。
+     */
+    private static int upperBound(List<AudioEvent> events, float t) {
+        int lo = 0, hi = events.size();
+        while (lo < hi) {
+            int mid = (lo + hi) >>> 1;
+            AudioEvent ev = events.get(mid);
+            float mt = ev != null ? ev.getStartTime() : Float.NEGATIVE_INFINITY;
+            if (mt <= t) {
+                lo = mid + 1;
+            } else {
+                hi = mid;
+            }
+        }
+        return lo;
     }
 
     // =====================================================================

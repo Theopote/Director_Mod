@@ -22,6 +22,10 @@ public class ImGuiStateChecker {
     private static boolean enableStateChecking = true; // 默认启用
     private static long lastCheckTime = 0;
     private static final long CHECK_INTERVAL = 1000; // 1秒检查一次
+
+    // 低帧率日志节流（避免刷屏）
+    private static long lastLowFpsLogTime = 0;
+    private static final long LOW_FPS_LOG_INTERVAL = 5000; // 5秒最多提示一次
     
     // Begin/End调用栈跟踪
     private static final ThreadLocal<Deque<String>> imguiStack = ThreadLocal.withInitial(ConcurrentLinkedDeque::new);
@@ -51,12 +55,18 @@ public class ImGuiStateChecker {
             // 检查帧率是否正常
             float framerate = ImGui.getIO().getFramerate();
             if (framerate < 10.0f) {
-                LOGGER.warn("[ImGuiStateChecker] {}: 帧率过低: {:.1f} FPS", context, framerate);
+                // SLF4J 不支持 "{:.1f}" 这种格式化，占位符会原样输出；这里用节流 + 轻量格式化。
+                if (currentTime - lastLowFpsLogTime >= LOW_FPS_LOG_INTERVAL) {
+                    lastLowFpsLogTime = currentTime;
+                    LOGGER.warn("[ImGuiStateChecker] {}: 帧率过低: {} FPS", context,
+                            String.format(java.util.Locale.ROOT, "%.1f", framerate));
+                }
             }
             
             // 记录当前状态信息
             if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("[ImGuiStateChecker] {}: 状态检查完成，帧率: {:.1f} FPS", context, framerate);
+                LOGGER.debug("[ImGuiStateChecker] {}: 状态检查完成，帧率: {} FPS", context,
+                        String.format(java.util.Locale.ROOT, "%.1f", framerate));
             }
             
         } catch (Exception e) {

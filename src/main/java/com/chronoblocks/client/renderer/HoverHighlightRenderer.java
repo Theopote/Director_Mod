@@ -47,9 +47,12 @@ public final class HoverHighlightRenderer {
 
         Vec3d camPos = MC.gameRenderer.getCamera().getPos();
 
-        Box box = MC.world.getBlockState(pos)
-                .getOutlineShape(MC.world, pos)
-                .getBoundingBox()
+        var shape = MC.world.getBlockState(pos).getOutlineShape(MC.world, pos);
+        if (shape == null || shape.isEmpty()) {
+            // 空形状（例如空气/部分特殊方块）会在 getBoundingBox() 处抛异常，必须跳过。
+            return;
+        }
+        Box box = shape.getBoundingBox()
                 .offset(pos)
                 .offset(-camPos.x, -camPos.y, -camPos.z);
 

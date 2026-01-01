@@ -137,8 +137,12 @@ public final class BlockAnimationEngine {
         } catch (Exception ignored) {
         }
         
-        LOGGER.info("[BlockAnimationEngine] sample: pos={} mode={} duration={} clipStart={} clipEnd={} now={}",
-            pos, mode, animDuration, clipStart, clipEnd, now);
+        // 性能敏感：sample() 会被每帧对大量方块调用，禁止使用 info 级日志刷屏。
+        // 如需调试请改用 trace 并自行开启日志级别。
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("[BlockAnimationEngine] sample: pos={} mode={} duration={} clipStart={} clipEnd={} now={}",
+                    pos, mode, animDuration, clipStart, clipEnd, now);
+        }
 
         // ===== 1. 序列归一化时间 =====
         float seqNormalizedTime = (seqEntry != null)
@@ -200,8 +204,10 @@ public final class BlockAnimationEngine {
 
         // 动画已结束：端点状态
         if (now >= blockEndTime) {
-            LOGGER.info("[BlockAnimationEngine] INSTANT mode or animation finished: pos={} mode={} now={} blockEndTime={}",
-                pos, mode, now, blockEndTime);
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[BlockAnimationEngine] finished: pos={} mode={} now={} blockEndTime={}",
+                        pos, mode, now, blockEndTime);
+            }
             if (phase == ClipAnimationConfig.AnimationPhase.EXIT && mode != AnimationMode.INSTANT) {
                 // EXIT：动画结束后应当隐藏（上层会在同一时刻把方块从世界中移除）
                 snapshot.markHidden();
@@ -242,8 +248,10 @@ public final class BlockAnimationEngine {
         snapshot.setSequenceNormalizedTime(seqNormalizedTime);
         snapshot.setAlpha(1.0f); // 初始 alpha=1，后续由动画/特效调整
         
-        LOGGER.info("[BlockAnimationEngine] animating: pos={} mode={} tRaw={} tEased={}", 
-            pos, mode, tRaw, tEased);
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("[BlockAnimationEngine] animating: pos={} mode={} tRaw={} tEased={}",
+                    pos, mode, tRaw, tEased);
+        }
 
         // ===== 5. 生成局部变换矩阵（调用 IAnimationTransformer） =====
         MatrixStack matrices = new MatrixStack();
@@ -253,8 +261,10 @@ public final class BlockAnimationEngine {
         IAnimationTransformer transformer =
                 AnimationTransformerFactory.getInstance().getTransformer(mode);
         
-        LOGGER.info("[BlockAnimationEngine] transformer lookup: mode={} transformer={}", 
-            mode, transformer != null ? transformer.getClass().getSimpleName() : "null");
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("[BlockAnimationEngine] transformer: mode={} transformer={}",
+                    mode, transformer != null ? transformer.getClass().getSimpleName() : "null");
+        }
         
         if (transformer != null) {
             // ⚠️ 防御：config.getParams() 可能为 null
