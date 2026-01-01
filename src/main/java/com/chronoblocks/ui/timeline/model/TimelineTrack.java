@@ -303,9 +303,7 @@ public class TimelineTrack {
     @Deprecated
     public boolean removeAudioEvent(UUID eventId) {
         // 如果这是 AudioTrack，使用 AudioTrack 的方法
-        if (this instanceof com.chronoblocks.ui.timeline.model.audio.AudioTrack) {
-            com.chronoblocks.ui.timeline.model.audio.AudioTrack audioTrack = 
-                (com.chronoblocks.ui.timeline.model.audio.AudioTrack) this;
+        if (this instanceof com.chronoblocks.ui.timeline.model.audio.AudioTrack audioTrack) {
             AudioEvent event = audioTrack.getEventById(eventId);
             if (event != null) {
                 audioTrack.removeEvent(event);
@@ -334,6 +332,21 @@ public class TimelineTrack {
         }
         
         // 向后兼容
+        return Collections.unmodifiableList(audioEvents);
+    }
+
+    /**
+     * 获取旧版 TimelineTrack 内部维护的音频事件列表（仅用于数据迁移/向后兼容）。
+     *
+     * <p>注意：当轨道为 {@code AudioTrack} 时，应使用 {@code AudioTrack.getEvents()}。
+     * 此方法仅用于在“尚未转换为 AudioTrack”的旧数据上读取事件，避免外部代码调用已弃用的 {@link #getAudioEvents()}。
+     *
+     * @return 不可修改的旧音频事件列表
+     */
+    public List<AudioEvent> getLegacyAudioEventsForMigration() {
+        if (this instanceof com.chronoblocks.ui.timeline.model.audio.AudioTrack at) {
+            return at.getEvents();
+        }
         return Collections.unmodifiableList(audioEvents);
     }
 

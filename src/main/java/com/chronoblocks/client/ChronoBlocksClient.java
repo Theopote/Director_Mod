@@ -1,7 +1,7 @@
 package com.chronoblocks.client;
 
 import com.chronoblocks.i18n.LanguageChangeListener;
-import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
+import net.fabricmc.fabric.api.resource.v1.ResourceLoader;
 import net.minecraft.resource.ResourceType;
 
 import net.fabricmc.api.ClientModInitializer;
@@ -187,8 +187,9 @@ public class ChronoBlocksClient implements ClientModInitializer {
      */
     private void registerLanguageChangeListener() {
         try {
-            ResourceManagerHelper.get(ResourceType.CLIENT_RESOURCES)
-                .registerReloadListener(new LanguageChangeListener());
+            LanguageChangeListener listener = new LanguageChangeListener();
+            ResourceLoader.get(ResourceType.CLIENT_RESOURCES)
+                .registerReloader(listener.getFabricId(), listener);
             LOGGER.info("[ChronoBlocks] 语言切换监听器已注册");
         } catch (Exception e) {
             LOGGER.error("[ChronoBlocks] 注册语言切换监听器失败", e);

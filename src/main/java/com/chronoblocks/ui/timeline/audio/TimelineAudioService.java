@@ -387,9 +387,8 @@ public class TimelineAudioService {
                 audioTrack.addEvent(event);
             }
         } else {
-            // 对于旧的 TimelineTrack，使用已弃用方法进行迁移（这是最后一次使用）
-            @SuppressWarnings("deprecation")
-            List<AudioEvent> oldEvents = track.getAudioEvents();
+            // 对于旧的 TimelineTrack，使用迁移方法读取事件（避免调用已弃用的 getAudioEvents）
+            List<AudioEvent> oldEvents = track.getLegacyAudioEventsForMigration();
             for (AudioEvent event : oldEvents) {
                 audioTrack.addEvent(event);
             }
