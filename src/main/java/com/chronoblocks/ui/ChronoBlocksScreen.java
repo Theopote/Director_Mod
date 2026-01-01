@@ -37,6 +37,7 @@ public class ChronoBlocksScreen extends Screen {
     private boolean initializationFailed = false;
     private boolean isInitialized = false;
     private boolean directorModeActive = false;
+    private long lastModeResyncMs = 0L;
     private WorldSnapshotManager snapshotManager;
 
     public ChronoBlocksScreen() {
@@ -222,7 +223,6 @@ public class ChronoBlocksScreen extends Screen {
     @Override
     public boolean keyPressed(KeyInput input) {
         int keyCode = input.key();
-        int scanCode = input.scancode();
         int modifiers = input.modifiers();
         // 检查ImGui是否想要捕获键盘事件
         if (ImGui.getIO() != null && ImGui.getIO().getWantCaptureKeyboard()) {
@@ -380,7 +380,8 @@ public class ChronoBlocksScreen extends Screen {
     
     @Override
     public void close() {
-        ChronoBlocksClientController.getInstance().deactivateChronoBlocksMode();
+        // 关闭 UI：必须强制停用（否则 controller 会因 UI 打开而忽略 soft-deactivate）
+        ChronoBlocksClientController.getInstance().forceDeactivateChronoBlocksMode();
         
         // ⭐ 单一摄像机系统：关闭窗口时通知时间线控制器停止驱动摄像机
         try {
@@ -406,16 +407,7 @@ public class ChronoBlocksScreen extends Screen {
             LOGGER.warn("[ChronoBlocks] 清理 TimelineSeasonController 状态时出错", e);
         }
         
-        // ⭐ 季节效果系统：关闭窗口时恢复所有季节效果（积雪 + 冰冻水面）
-        try {
-            if (client.world != null) {
-                com.chronoblocks.season.SeasonSnowManager.get().restoreAll(client.world);
-                com.chronoblocks.season.WaterFreezeManager.get().clearAll();
-                LOGGER.info("[ChronoBlocks] 已恢复所有季节效果（积雪 + 冰冻水面）");
-            }
-        } catch (Exception e) {
-            LOGGER.warn("[ChronoBlocks] 恢复季节效果时出错", e);
-        }
+        // 季节效果恢复已由 forceDeactivateChronoBlocksMode 统一负责，避免重复执行
         
         cleanupRenderSystems(true);
 
@@ -581,7 +573,8 @@ public class ChronoBlocksScreen extends Screen {
                     LOGGER.trace("[ChronoBlocks] 实体保持自由移动");
                 }
 
-                ChronoBlocksClientController.getInstance().deactivateChronoBlocksMode();
+                // 真正退出导演模式：强制停用（恢复输入/清季节效果）
+                ChronoBlocksClientController.getInstance().forceDeactivateChronoBlocksMode();
                 if (LOGGER.isTraceEnabled()) {
                     LOGGER.trace("[ChronoBlocks] 时间流动恢复");
                 }
@@ -635,10 +628,15 @@ public class ChronoBlocksScreen extends Screen {
     @Override
     public void tick() {
         super.tick();
-        
+
+        // failsafe：节流，避免异常状态下每 tick 打日志/反复激活
         if (directorModeActive && !ChronoBlocksClientController.getInstance().isChronoBlocksModeActive()) {
-            LOGGER.warn("[ChronoBlocks] 检测到模式状态不同步，重新激活 ChronoBlocks 模式");
-            ChronoBlocksClientController.getInstance().activateChronoBlocksMode();
+            long now = System.currentTimeMillis();
+            if (now - lastModeResyncMs > 2000L) {
+                lastModeResyncMs = now;
+                LOGGER.warn("[ChronoBlocks] 检测到模式状态不同步，重新激活 ChronoBlocks 模式");
+                ChronoBlocksClientController.getInstance().activateChronoBlocksMode();
+            }
         }
 
         ChronoBlocksRendererRegistry registry = ChronoBlocksRendererRegistry.get();

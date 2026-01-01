@@ -112,7 +112,7 @@ public final class BlockAnimationEngine {
         if (config == null) {
             if (now >= clipStart) {
                 snapshot.markFullyVisible();
-                snapshot.setTransform(identityTransform());
+                snapshot.setTransform(null); // null = identity
             } else {
                 snapshot.markHidden();
             }
@@ -174,7 +174,7 @@ public final class BlockAnimationEngine {
             // 动画时间窗口无效：按瞬时处理，但仍然允许触发 effect
             if (now >= blockStartTime) {
                 snapshot.markFullyVisible();
-                snapshot.setTransform(identityTransform());
+                snapshot.setTransform(null); // null = identity
                 snapshot.setSequenceNormalizedTime(seqNormalizedTime);
                 snapshot.setAlpha(1.0f);
                 applyEffectsSafe(snapshot, config, now, randomSeed);
@@ -190,7 +190,7 @@ public final class BlockAnimationEngine {
             if (now < blockStartTime) {
                 snapshot.markFullyVisible();
                 snapshot.setSequenceNormalizedTime(seqNormalizedTime);
-                snapshot.setTransform(identityTransform());
+                snapshot.setTransform(null); // null = identity
                 snapshot.setAlpha(1.0f);
                 return snapshot;
             }
@@ -214,7 +214,7 @@ public final class BlockAnimationEngine {
             } else {
                 snapshot.markFullyVisible();
                 snapshot.setSequenceNormalizedTime(seqNormalizedTime);
-                snapshot.setTransform(identityTransform());
+                snapshot.setTransform(null); // null = identity
                 snapshot.setAlpha(1.0f);
             }
             return snapshot;
@@ -398,9 +398,7 @@ public final class BlockAnimationEngine {
     /**
      * 单位变换矩阵。
      */
-    private static MatrixStack identityTransform() {
-        return new MatrixStack();
-    }
+    // identityTransform 已不再需要：约定 snapshot.transform == null 表示单位矩阵
 
     /**
      * 真正应用所有挂在 Clip 上的 EffectInstance。

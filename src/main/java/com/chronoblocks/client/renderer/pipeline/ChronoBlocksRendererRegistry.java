@@ -58,6 +58,36 @@ public final class ChronoBlocksRendererRegistry {
     private final AtomicBoolean defaultsRegistered = new AtomicBoolean(false);
     private final Map<RendererStage, List<RendererEntry>> stageMap = new EnumMap<>(RendererStage.class);
 
+    // ---------------------------------------------------------------------
+    // Lightweight render profiler (throttled logging)
+    // ---------------------------------------------------------------------
+
+    private static final class ProfStat {
+        long count;
+        long sumNs;
+        long maxNs;
+        long lastNs;
+        void add(long ns) {
+            count++;
+            sumNs += ns;
+            lastNs = ns;
+            if (ns > maxNs) maxNs = ns;
+        }
+        double avgMs() {
+            return count == 0 ? 0.0 : (sumNs / 1_000_000.0) / (double) count;
+        }
+        double maxMs() {
+            return maxNs / 1_000_000.0;
+        }
+        double lastMs() {
+            return lastNs / 1_000_000.0;
+        }
+    }
+
+    private final Map<String, ProfStat> rendererPerf = new java.util.HashMap<>();
+    private final Map<RendererStage, ProfStat> stagePerf = new EnumMap<>(RendererStage.class);
+    private long lastPerfLogMs = 0L;
+
     public interface IRenderer {
         void render(WorldRenderContext ctx) throws Exception;
     }
@@ -251,7 +281,13 @@ public final class ChronoBlocksRendererRegistry {
             return;
         }
         boolean perfMode = isPlaybackOrExportPerfMode();
+
+        final long stageStart = System.nanoTime();
         for (RendererEntry entry : List.copyOf(entries)) {
+            if (entry == null || !entry.isEnabled()) {
+                continue;
+            }
+            final long t0 = System.nanoTime();
             try {
                 if (perfMode && shouldSkipInPerfMode(entry.getName())) {
                     continue;
@@ -259,6 +295,49 @@ public final class ChronoBlocksRendererRegistry {
                 entry.invoke(ctx);
             } catch (Exception ex) {
                 LOGGER.warn("[RendererRegistry] Renderer '{}' 在阶段 {} 渲染异常: {}", entry.getName(), stage, ex.getMessage(), ex);
+            } finally {
+                long dt = System.nanoTime() - t0;
+                String key = stage.name() + "/" + entry.getName();
+                rendererPerf.computeIfAbsent(key, k -> new ProfStat()).add(dt);
+            }
+        }
+        long stageDt = System.nanoTime() - stageStart;
+        stagePerf.computeIfAbsent(stage, k -> new ProfStat()).add(stageDt);
+
+        // Throttled dump: every 5s, log top offenders (by last)
+        long nowMs = System.currentTimeMillis();
+        if (nowMs - lastPerfLogMs > 5000L) {
+            lastPerfLogMs = nowMs;
+            try {
+                var top = rendererPerf.entrySet().stream()
+                        .sorted((a, b) -> Long.compare(b.getValue().lastNs, a.getValue().lastNs))
+                        .limit(6)
+                        .toList();
+                StringBuilder sb = new StringBuilder();
+                for (var e : top) {
+                    ProfStat s = e.getValue();
+                    sb.append(e.getKey())
+                            .append(" last=").append(String.format("%.2f", s.lastMs())).append("ms")
+                            .append(" avg=").append(String.format("%.2f", s.avgMs())).append("ms")
+                            .append(" max=").append(String.format("%.2f", s.maxMs())).append("ms")
+                            .append(" | ");
+                }
+
+                var topStages = stagePerf.entrySet().stream()
+                        .sorted((a, b) -> Long.compare(b.getValue().lastNs, a.getValue().lastNs))
+                        .limit(4)
+                        .toList();
+                StringBuilder sbStage = new StringBuilder();
+                for (var e : topStages) {
+                    ProfStat s = e.getValue();
+                    sbStage.append(e.getKey().name())
+                            .append(" last=").append(String.format("%.2f", s.lastMs())).append("ms")
+                            .append(" avg=").append(String.format("%.2f", s.avgMs())).append("ms")
+                            .append(" | ");
+                }
+
+                LOGGER.warn("[Perf][RendererRegistry] topRenderers: {} topStages: {}", sb.toString(), sbStage.toString());
+            } catch (Exception ignored) {
             }
         }
     }

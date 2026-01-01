@@ -10,6 +10,8 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 
 import java.util.*;
 
@@ -43,6 +45,16 @@ public class ContainerVisibilityService {
     
     // 每个容器对应一个快照（隐藏时使用，显示时恢复）
     private final Map<UUID, BlockStore> snapshots = new HashMap<>();
+
+    /**
+     * 上一帧 showContainerBlocks() 的目标显示集合（posLong）。
+     *
+     * <p>性能关键：时间线播放会每帧调用 showContainerBlocks，原实现每次都遍历 container.getBlocks()
+     * 并全量检查/置 AIR/恢复，导致 30~200ms 的主线程开销和大量区块重建，FPS 会掉到个位数。
+     *
+     * <p>这里改为 delta：只对 “新增显示” 与 “新增隐藏” 的少量方块做 setBlockState。
+     */
+    private final Map<UUID, LongSet> lastShownBlocks = new HashMap<>();
     
     public ContainerVisibilityService(MinecraftServer server) {
         this.server = server;
@@ -141,6 +153,7 @@ public class ContainerVisibilityService {
             }
             
             snapshots.put(container.getId(), store);
+            lastShownBlocks.remove(container.getId());
             LOGGER.debug("[Visibility] 容器 {} 隐藏完成，保存了 {} 个方块快照", 
                 container.getName(), store.size());
         }
@@ -176,6 +189,7 @@ public class ContainerVisibilityService {
         store.apply(world);
         
         snapshots.remove(container.getId());
+        lastShownBlocks.remove(container.getId());
         LOGGER.debug("[Visibility] 容器 {} 显示完成", container.getName());
     }
     
@@ -184,6 +198,7 @@ public class ContainerVisibilityService {
      */
     public void clearSnapshot(Container container) {
         snapshots.remove(container.getId());
+        lastShownBlocks.remove(container.getId());
     }
     
     /**
@@ -198,6 +213,7 @@ public class ContainerVisibilityService {
      */
     public void clearAll() {
         snapshots.clear();
+        lastShownBlocks.clear();
         LOGGER.debug("[ContainerVisibilityService] 清除所有快照");
     }
     
@@ -228,44 +244,80 @@ public class ContainerVisibilityService {
         if (blocksToShow == null) {
             blocksToShow = java.util.Collections.emptySet();
         }
-        
-        // 获取容器的所有方块
-        java.util.Set<net.minecraft.util.math.BlockPos> allBlocks = new java.util.HashSet<>(container.getBlocks());
-        
-        // 显示应该显示的方块
-        int shownCount = 0;
-        for (net.minecraft.util.math.BlockPos pos : blocksToShow) {
-            if (!allBlocks.contains(pos)) {
-                continue; // 不是容器中的方块，跳过
+
+        // ===== 性能关键：delta 更新（只处理新增显示/新增隐藏）=====
+        LongSet last = lastShownBlocks.computeIfAbsent(container.getId(), k -> new LongOpenHashSet());
+
+        LongOpenHashSet now = new LongOpenHashSet(Math.max(16, blocksToShow.size() * 2));
+        for (BlockPos p : blocksToShow) {
+            if (p != null) {
+                now.add(p.asLong());
             }
-            
-            BlockStore.Entry entry = store.get(pos);
-            if (entry == null) {
-                continue; // 没有快照，跳过
+        }
+
+        // 1) 隐藏：last - now
+        int hiddenCount = 0;
+        for (var it = last.iterator(); it.hasNext(); ) {
+            long posLong = it.nextLong();
+            if (now.contains(posLong)) {
+                continue;
             }
-            
-            // 检查区块是否已加载
+            BlockPos pos = BlockPos.fromLong(posLong);
             int chunkX = pos.getX() >> 4;
             int chunkZ = pos.getZ() >> 4;
             if (!world.getChunkManager().isChunkLoaded(chunkX, chunkZ)) {
                 continue;
             }
-            
-            // 检查当前世界中的方块状态
+            net.minecraft.block.BlockState currentState = world.getBlockState(pos);
+            if (!currentState.isAir()) {
+                // 确保快照存在（防止外部系统把方块改成非 AIR 后丢失恢复数据）
+                if (!store.contains(pos)) {
+                    store.capture(world, pos);
+                }
+
+                net.minecraft.block.entity.BlockEntity be = world.getBlockEntity(pos);
+                if (be != null) {
+                    world.removeBlockEntity(pos);
+                }
+                world.setBlockState(pos, Blocks.AIR.getDefaultState(),
+                        net.minecraft.block.Block.NOTIFY_ALL | net.minecraft.block.Block.FORCE_STATE);
+                hiddenCount++;
+            }
+        }
+
+        // 2) 显示：now - last
+        int shownCount = 0;
+        for (var it = now.iterator(); it.hasNext(); ) {
+            long posLong = it.nextLong();
+            if (last.contains(posLong)) {
+                continue;
+            }
+            BlockPos pos = BlockPos.fromLong(posLong);
+
+            BlockStore.Entry entry = store.get(pos);
+            if (entry == null) {
+                continue;
+            }
+
+            int chunkX = pos.getX() >> 4;
+            int chunkZ = pos.getZ() >> 4;
+            if (!world.getChunkManager().isChunkLoaded(chunkX, chunkZ)) {
+                continue;
+            }
+
             net.minecraft.block.BlockState currentState = world.getBlockState(pos);
             if (currentState.isAir()) {
-                // 方块当前是 AIR，需要恢复
-                world.setBlockState(pos, entry.state, 
-                    net.minecraft.block.Block.NOTIFY_ALL | net.minecraft.block.Block.FORCE_STATE);
-                
-                // 恢复 BlockEntity
+                world.setBlockState(pos, entry.state,
+                        net.minecraft.block.Block.NOTIFY_ALL | net.minecraft.block.Block.FORCE_STATE);
+
+                // 恢复 BlockEntity（沿用原逻辑的反射方式）
                 if (entry.beNbt != null) {
                     net.minecraft.block.entity.BlockEntity be = world.getBlockEntity(pos);
                     if (be != null) {
                         try {
                             java.lang.reflect.Method loadMethod = be.getClass()
-                                .getMethod("loadWithComponents", net.minecraft.nbt.NbtCompound.class, 
-                                    net.minecraft.registry.RegistryWrapper.WrapperLookup.class);
+                                    .getMethod("loadWithComponents", net.minecraft.nbt.NbtCompound.class,
+                                            net.minecraft.registry.RegistryWrapper.WrapperLookup.class);
                             loadMethod.invoke(be, entry.beNbt, world.getRegistryManager());
                             be.markDirty();
                         } catch (Exception e) {
@@ -276,46 +328,14 @@ public class ContainerVisibilityService {
                 shownCount++;
             }
         }
-        
-        // 隐藏不应该显示的方块
-        int hiddenCount = 0;
-        for (net.minecraft.util.math.BlockPos pos : allBlocks) {
-            if (blocksToShow.contains(pos)) {
-                continue; // 应该显示，跳过
-            }
-            
-            // 检查区块是否已加载
-            int chunkX = pos.getX() >> 4;
-            int chunkZ = pos.getZ() >> 4;
-            if (!world.getChunkManager().isChunkLoaded(chunkX, chunkZ)) {
-                continue;
-            }
-            
-            // 检查当前世界中的方块状态
-            net.minecraft.block.BlockState currentState = world.getBlockState(pos);
-            if (!currentState.isAir()) {
-                // 方块当前不是 AIR，需要隐藏
-                // 确保快照存在
-                if (!store.contains(pos)) {
-                    store.capture(world, pos);
-                }
-                
-                // 移除方块实体
-                net.minecraft.block.entity.BlockEntity be = world.getBlockEntity(pos);
-                if (be != null) {
-                    world.removeBlockEntity(pos);
-                }
-                
-                // 设置为 AIR
-                world.setBlockState(pos, Blocks.AIR.getDefaultState(), 
-                    net.minecraft.block.Block.NOTIFY_ALL | net.minecraft.block.Block.FORCE_STATE);
-                hiddenCount++;
-            }
-        }
-        
+
+        // 更新 last（复用对象避免分配）
+        last.clear();
+        last.addAll(now);
+
         if (LOGGER.isDebugEnabled() && (shownCount > 0 || hiddenCount > 0)) {
-            LOGGER.debug("[Visibility] 容器 {} 部分方块更新: 显示 {} 个，隐藏 {} 个", 
-                container.getName(), shownCount, hiddenCount);
+            LOGGER.debug("[Visibility] 容器 {} 部分方块更新(delta): +{} -{} (目标显示 {})",
+                    container.getName(), shownCount, hiddenCount, now.size());
         }
     }
     

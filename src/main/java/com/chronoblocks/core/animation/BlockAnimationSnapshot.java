@@ -32,6 +32,12 @@ public final class BlockAnimationSnapshot {
      *   1) 先平移到方块世界坐标
      *   2) 再将该矩阵乘到当前 MatrixStack 上
      */
+    /**
+     * 局部动画矩阵。
+     *
+     * <p>性能约定：transform == null 表示单位矩阵（无局部变换）。
+     * 这样可以避免在大量静态方块上分配 MatrixStack / 做矩阵比较。
+     */
     private MatrixStack transform;
 
     /** 当前是否需要渲染（false 直接跳过） */
@@ -58,7 +64,7 @@ public final class BlockAnimationSnapshot {
     public BlockAnimationSnapshot(BlockPos pos, BlockState blockState) {
         this.pos = pos;
         this.blockState = blockState;
-        this.transform = new MatrixStack(); // 默认单位矩阵（无局部变换）
+        this.transform = null; // 默认单位矩阵（无局部变换）
         this.visible = false;
     }
 
@@ -77,7 +83,8 @@ public final class BlockAnimationSnapshot {
     }
 
     public void setTransform(MatrixStack transform) {
-        this.transform = transform != null ? transform : new MatrixStack();
+        // 允许 null：代表单位矩阵
+        this.transform = transform;
     }
 
     public boolean isVisible() {

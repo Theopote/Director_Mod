@@ -8,7 +8,6 @@ import imgui.glfw.ImGuiImplGlfw;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.Window;
-import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
 import org.lwjgl.opengl.GL20;
@@ -30,6 +29,10 @@ public class ImGuiRenderer {
     private boolean initialized;
     private boolean frameInProgress;
     private boolean drawDataReady;
+
+    // perf (throttled)
+    private long lastPerfLogMs = 0L;
+    private long lastRenderNs = 0L;
 
     private ImGuiRenderer() {}
 
@@ -172,25 +175,7 @@ public class ImGuiRenderer {
         }
     }
 
-    private void updateInput() {
-        try {
-            MinecraftClient client = MinecraftClient.getInstance();
-            if (client != null && client.getWindow() != null) {
-                Window window = client.getWindow();
-                double[] mouseX = new double[1];
-                double[] mouseY = new double[1];
-                GLFW.glfwGetCursorPos(windowHandle, mouseX, mouseY);
-
-                ImGuiIO io = ImGui.getIO();
-                // 注意：在 1.21.x 中尽量不要“手动覆盖” ImGuiImplGlfw 已维护的输入状态，
-                // 以免出现坐标/缩放不一致导致 UI 被裁剪或绘制到屏幕外。
-                // 这个方法保留但不再主动调用（见 beginFrame）。
-                io.setMousePos((float) mouseX[0], (float) mouseY[0]);
-            }
-        } catch (Exception e) {
-            LOGGER.error("[ChronoBlocks] Failed to update input", e);
-        }
-    }
+    // updateInput 已废弃：输入由 ImGuiImplGlfw 维护，手动覆盖易导致 1.21.x 坐标/缩放不一致问题。
 
     /**
      * 结束ImGui帧并渲染
@@ -230,13 +215,20 @@ public class ImGuiRenderer {
             }
             try {
                 RenderSystem.assertOnRenderThread();
+                final long t0 = System.nanoTime();
                 // 避免被 Minecraft 的 RenderType scissor 影响
                 GL11.glDisable(GL11.GL_SCISSOR_TEST);
                 imGuiGl3.renderDrawData(ImGui.getDrawData());
+                lastRenderNs = System.nanoTime() - t0;
             } catch (Exception e) {
                 LOGGER.error("[ChronoBlocks] Failed to render pending ImGui draw data", e);
             } finally {
                 drawDataReady = false;
+                long nowMs = System.currentTimeMillis();
+                if (nowMs - lastPerfLogMs > 5000L) {
+                    lastPerfLogMs = nowMs;
+                    LOGGER.warn("[Perf][ImGui] renderDrawData last={}ms", String.format("%.2f", lastRenderNs / 1_000_000.0));
+                }
             }
         }
     }
