@@ -57,13 +57,15 @@ public final class BlockOutlineMeshCache {
             return new Mesh(Collections.emptyList(), Collections.emptyList());
         }
 
-        // 计算基础哈希（数量 + 内容）
-        int hash = Objects.hash(blocks.size(), blocks.hashCode());
+        // ✅ 命中时零分配：先用“稳定哈希”快速判断是否命中缓存；只有 miss 才构建 solid set 并生成网格。
+        // 重要：blocks 在我们体系中通常是 Set<BlockPos>（无重复），因此可直接用 asLong 的 xor/sum 计算稳定哈希。
+        int hash = computeStableHash(blocks);
         if (cachedMesh != null && cachedHash == hash) {
             return cachedMesh;
         }
 
-        Mesh mesh = generateMeshInternal(toSolidSet(blocks));
+        Set<Long> solid = toSolidSet(blocks);
+        Mesh mesh = generateMeshInternal(solid);
         cachedMesh = mesh;
         cachedHash = hash;
 
@@ -76,8 +78,24 @@ public final class BlockOutlineMeshCache {
     }
 
     /* -------------------------------------------------------------------
-     * 内部：将 Collection 转成 HashSet<Long>
+     * 内部：将 Collection 转成 HashSet<Long> 并计算稳定哈希
      * ------------------------------------------------------------------- */
+    private int computeStableHash(Collection<BlockPos> blocks) {
+        // 对于 Set<BlockPos>，blocks.size() 稳定且无重复；xor+sum 对迭代顺序不敏感。
+        int xor = 0;
+        long sum = 0L;
+        for (BlockPos p : blocks) {
+            long l = p.asLong();
+            xor ^= Long.hashCode(l);
+            sum += l;
+        }
+        int hash = 1;
+        hash = 31 * hash + blocks.size();
+        hash = 31 * hash + xor;
+        hash = 31 * hash + Long.hashCode(sum);
+        return hash;
+    }
+
     private Set<Long> toSolidSet(Collection<BlockPos> blocks) {
         Set<Long> solid = new HashSet<>(blocks.size() * 2);
         for (BlockPos p : blocks) {

@@ -232,10 +232,12 @@ public final class TimelineWorldController {
         }
 
         float currentTime = timelineModel.getCurrentTime();
-        
-        // ⭐ DEBUG: 记录每次 update() 调用
-        LOGGER.info("[TimelineWorld] 🔄 update() 调用 - 播放中={}, scrubbing={}, 当前时间={}s, 冻结状态={}, frozenGameTime={}", 
-                playing, scrubbing, currentTime, freezeTimeActive, freezeTimeActive ? frozenGameTime : "N/A");
+
+        // 性能关键：update() 在播放/拖动时每帧调用，禁止使用 info 刷屏。
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("[TimelineWorld] update: playing={} scrubbing={} t={} freezeActive={} frozenGameTime={}",
+                    playing, scrubbing, currentTime, freezeTimeActive, freezeTimeActive ? frozenGameTime : "N/A");
+        }
         
         applyTimeSample(currentTime);
     }
@@ -272,26 +274,34 @@ public final class TimelineWorldController {
      * <p>v2.0：支持完整功能，包括自定义太阳模式和所有 TimeSample v3.0 参数
      */
     public synchronized void applyTimeSample(float timeSeconds) {
-        // ⭐ DEBUG: 记录调用来源
-        LOGGER.info("[TimelineWorld] 📍 applyTimeSample() 调用 - 时间={}s", timeSeconds);
+        // 性能关键：applyTimeSample 在播放/拖动时每帧调用，禁止使用 info/warn 刷屏。
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("[TimelineWorld] applyTimeSample: t={}s", timeSeconds);
+        }
         
+        // 没启用/没关键帧：不要每帧 clear + warn（会导致 FPS 掉个位数），只在必要时清一次。
         if (!enabled || sampler.getKeyframes().isEmpty()) {
-            LOGGER.warn("[TimelineWorld] applyTimeSample() - 未启用或无关键帧，清除状态");
-            clear(); // 没有关键帧时清除状态
+            if (hasCustomSample || currentSample != null || freezeTimeActive) {
+                clear();
+            }
             return;
         }
 
         Optional<TimeSample> sampleOpt = sampler.sample(timeSeconds);
         if (sampleOpt.isEmpty()) {
-            LOGGER.warn("[TimelineWorld] applyTimeSample() - 采样失败，清除状态");
-            clear(); // 采样失败时清除状态
+            // 采样失败：同样避免刷屏，只在有状态时清一次
+            if (hasCustomSample || currentSample != null || freezeTimeActive) {
+                clear();
+            }
             return;
         }
 
         TimeSample sample = sampleOpt.get();
         
-        LOGGER.info("[TimelineWorld] ✅ applyTimeSample() - 采样成功: worldTime={}, useWorldTime={}, freezeWorldTime={}", 
-                sample.getWorldTimeTicks(), sample.isUseWorldTime(), sample.isFreezeWorldTime());
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("[TimelineWorld] applyTimeSample ok: worldTime={} useWorldTime={} freezeWorldTime={}",
+                    sample.getWorldTimeTicks(), sample.isUseWorldTime(), sample.isFreezeWorldTime());
+        }
         
         // ⭐ v2.0：应用采样到缓存（供 Mixin 读取），支持所有模式
         applySampleInternal(sample, false);
@@ -303,8 +313,9 @@ public final class TimelineWorldController {
      * <p>v2.0：支持完整功能，包括自定义太阳模式
      */
     public synchronized void previewAt(float timeSeconds) {
-        // ⭐ DEBUG: 记录预览调用
-        LOGGER.info("[TimelineWorld] 👁️ previewAt() 调用 - 时间={}s", timeSeconds);
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("[TimelineWorld] previewAt: t={}s", timeSeconds);
+        }
         
         if (!enabled || !hasValidActiveTrack()) {
             LOGGER.warn("[TimelineWorld] previewAt() - 未启用或无有效轨道");
@@ -319,8 +330,10 @@ public final class TimelineWorldController {
 
         TimeSample sample = sampleOpt.get();
         
-        LOGGER.info("[TimelineWorld] ✅ previewAt() - 采样成功: worldTime={}, useWorldTime={}, freezeWorldTime={}", 
-                sample.getWorldTimeTicks(), sample.isUseWorldTime(), sample.isFreezeWorldTime());
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("[TimelineWorld] previewAt ok: worldTime={} useWorldTime={} freezeWorldTime={}",
+                    sample.getWorldTimeTicks(), sample.isUseWorldTime(), sample.isFreezeWorldTime());
+        }
         
         // ⭐ v2.0：应用采样到缓存（供 Mixin 读取）
         applySampleInternal(sample, true);
@@ -380,12 +393,13 @@ public final class TimelineWorldController {
      * @param quiet 是否静默（预览时不输出详细日志）
      */
     private void applySampleInternal(TimeSample newSample, boolean quiet) {
-        // ⭐ DEBUG: 记录应用采样
-        LOGGER.info("[TimelineWorld] 🔧 applySampleInternal() 调用 - worldTime={}, useWorldTime={}, freezeWorldTime={}, quiet={}", 
-                newSample != null ? newSample.getWorldTimeTicks() : "null",
-                newSample != null ? newSample.isUseWorldTime() : "N/A",
-                newSample != null ? newSample.isFreezeWorldTime() : "N/A",
-                quiet);
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("[TimelineWorld] applySampleInternal: worldTime={} useWorldTime={} freezeWorldTime={} quiet={}",
+                    newSample != null ? newSample.getWorldTimeTicks() : "null",
+                    newSample != null ? newSample.isUseWorldTime() : "N/A",
+                    newSample != null ? newSample.isFreezeWorldTime() : "N/A",
+                    quiet);
+        }
         
         if (newSample == null) {
             LOGGER.warn("[TimelineWorld] applySampleInternal() - 采样为null，清除状态");
@@ -398,8 +412,10 @@ public final class TimelineWorldController {
         this.hasCustomSample = true;
         this.currentSample = newSample; // TimeSample 是不可变的，直接赋值即可
 
-        LOGGER.info("[TimelineWorld] 📊 applySampleInternal() - 更新缓存: 旧时间={}, 新时间={}, 冻结状态={}", 
-                oldWorldTime, newSample.getWorldTimeTicks(), freezeTimeActive);
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("[TimelineWorld] applySampleInternal cache: old={} new={} freezeActive={}",
+                    oldWorldTime, newSample.getWorldTimeTicks(), freezeTimeActive);
+        }
 
         // ⭐ v3.0：应用世界时间（根据模式不同处理）
         // 注意：时间冻结状态由 shouldFreezeTime() 基于关键帧类型决定，不需要在这里更新
@@ -408,14 +424,18 @@ public final class TimelineWorldController {
         // 应用世界时间（自然时间模式和自定义太阳模式都需要设置时间，用于月相等）
         long normalizedTicks = newSample.getWorldTimeTicks() % 24000L;
         
-        LOGGER.info("[TimelineWorld] ⏰ applySampleInternal() - 准备应用世界时间: normalizedTicks={}, freezeTimeActive={}", 
-                normalizedTicks, freezeTimeActive);
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("[TimelineWorld] applySampleInternal applyWorldTime: normalizedTicks={} freezeActive={}",
+                    normalizedTicks, freezeTimeActive);
+        }
         
         applyWorldTime(normalizedTicks);
         // ⭐ 注意：applyWorldTime() 内部已经会更新 frozenGameTime（如果 freezeTimeActive）
         
-        LOGGER.info("[TimelineWorld] ✅ applySampleInternal() - 世界时间已应用，当前 frozenGameTime={}", 
-                freezeTimeActive ? frozenGameTime : "N/A");
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("[TimelineWorld] applySampleInternal applied, frozenGameTime={}",
+                    freezeTimeActive ? frozenGameTime : "N/A");
+        }
         
         // ⭐ v3.0：对于自定义太阳模式，时间已被冻结，这里只是同步时间值（用于月相/光照一致性）
         // 对于自然时间模式，如果未冻结，setTime 会生效；如果已冻结（其他原因），Mixin 会维持冻结
@@ -624,15 +644,21 @@ public final class TimelineWorldController {
      * 应用世界时间（自然时间模式）
      */
     private void applyWorldTime(long ticks) {
-        // ⭐ DEBUG: 记录应用世界时间
+        // 性能关键：播放时每帧可能调用，禁止 info 刷屏。
         long oldWorldTime = -1;
         MinecraftClient client = MinecraftClient.getInstance();
         if (client != null && client.world != null) {
             oldWorldTime = client.world.getTimeOfDay();
         }
-        
-        LOGGER.info("[TimelineWorld] 🌍 applyWorldTime() 调用 - 新时间={}, 旧时间={} (归一化={}), freezeTimeActive={}, 当前frozenGameTime={}", 
-                ticks, oldWorldTime, oldWorldTime >= 0 ? oldWorldTime % 24000L : -1, freezeTimeActive, freezeTimeActive ? frozenGameTime : "N/A");
+
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("[TimelineWorld] applyWorldTime: new={} old={} normOld={} freezeActive={} frozenGameTime={}",
+                    ticks,
+                    oldWorldTime,
+                    oldWorldTime >= 0 ? oldWorldTime % 24000L : -1,
+                    freezeTimeActive,
+                    freezeTimeActive ? frozenGameTime : "N/A");
+        }
         
         if (client == null || client.world == null) {
             LOGGER.warn("[TimelineWorld] applyWorldTime() - 客户端或世界为null");
@@ -641,20 +667,17 @@ public final class TimelineWorldController {
 
         ClientWorld world = client.world;
         long normalizedTicks = ticks % 24000L;
-        
-        LOGGER.info("[TimelineWorld] 🔨 applyWorldTime() - 调用 world.setTime({}, {}, false)", 
-                normalizedTicks, normalizedTicks);
+
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("[TimelineWorld] applyWorldTime: world.setTime({}, {}, false)", normalizedTicks, normalizedTicks);
+        }
         
         world.setTime(normalizedTicks, normalizedTicks, false);
         
         // 更新冻结时间快照
         if (freezeTimeActive) {
-            long oldFrozenTime = frozenGameTime;
             frozenGameTime = normalizedTicks;
-            LOGGER.info("[TimelineWorld] ❄️ applyWorldTime() - 更新冻结时间快照: {} -> {}", 
-                    oldFrozenTime, frozenGameTime);
         } else {
-            LOGGER.info("[TimelineWorld] ⚠️ applyWorldTime() - 未冻结状态，不更新frozenGameTime");
         }
         
         // ⭐ DEBUG: 验证设置是否成功
@@ -665,8 +688,9 @@ public final class TimelineWorldController {
             LOGGER.warn("[TimelineWorld] ⚠️ applyWorldTime() - 设置后验证失败! 期望={}, 实际={} (归一化={})", 
                     normalizedTicks, actualTime, actualNormalized);
         } else {
-            LOGGER.info("[TimelineWorld] ✅ applyWorldTime() - 设置成功，验证通过 (实际值={}, 归一化={})", 
-                    actualTime, actualNormalized);
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[TimelineWorld] applyWorldTime ok: actual={} norm={}", actualTime, actualNormalized);
+            }
         }
     }
 

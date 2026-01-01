@@ -362,11 +362,22 @@ public final class ChronoBlocksRendererRegistry {
     private static boolean shouldSkipInPerfMode(String rendererName) {
         if (rendererName == null) return false;
         // 这些项对“播放/导出结果”不是必需，但很吃 GPU/CPU：
+        // 播放时优先保证“时间线动画本体”的流畅度：选择/交互提示/工具预览全部属于编辑辅助，可跳过。
         return rendererName.equalsIgnoreCase("CameraPathDebug")
-                || rendererName.equalsIgnoreCase("SelectionFill")
-                || rendererName.equalsIgnoreCase("BlockAnimations")
+                || rendererName.equalsIgnoreCase("Gizmo")
                 || rendererName.equalsIgnoreCase("ToolPreview")
-                || rendererName.equalsIgnoreCase("Gizmo");
+                // Selection（大量线段/填充会触发 GPU 顶点压力，导致 FPS 极低，但 CPU 计时未必能反映）
+                || rendererName.equalsIgnoreCase("SelectionOutline")
+                || rendererName.equalsIgnoreCase("SelectionFill")
+                || rendererName.equalsIgnoreCase("SelectionOverlay")
+                // Interaction hints / container overlays（同样属于编辑辅助）
+                || rendererName.equalsIgnoreCase("HoverHighlight")
+                || rendererName.equalsIgnoreCase("InteractionHints")
+                || rendererName.equalsIgnoreCase("ContainerBounds")
+                || rendererName.equalsIgnoreCase("ContainerHighlight")
+                // Block overlays（非动画本体，可视需要再开；默认播放先关掉保 FPS）
+                || rendererName.equalsIgnoreCase("BlockVisualOverlay")
+                || rendererName.equalsIgnoreCase("BlockAnimations");
     }
 
     // ---------------------------------------------------------------------
