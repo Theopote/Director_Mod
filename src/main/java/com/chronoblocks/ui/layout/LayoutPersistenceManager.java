@@ -160,7 +160,7 @@ public class LayoutPersistenceManager {
             java.nio.file.Path path = com.chronoblocks.util.WorldIdentifier.getWorldSavePath();
             if (path != null && Files.exists(path)) {
                 long modified = Files.getLastModifiedTime(path).toMillis();
-                return path.toAbsolutePath().toString() + "#" + modified;
+                return path.toAbsolutePath() + "#" + modified;
             }
         } catch (Exception e) {
             LOGGER.warn("[LayoutPersistence] 获取世界指纹失败: {}", e.getMessage());
@@ -170,7 +170,7 @@ public class LayoutPersistenceManager {
 
     private boolean isFingerprintMatch(String saved) {
         String current = getWorldFingerprint();
-        return current != null && current.equals(saved);
+        return current.equals(saved);
     }
     
     /**
@@ -296,7 +296,6 @@ public class LayoutPersistenceManager {
             LOGGER.debug("[LayoutPersistence] 世界 {} 的布局配置已保存: {}", 
                 worldId, layoutFile);
             layoutChanged = false;
-            long lastSaveTime = System.currentTimeMillis();
         } catch (IOException e) {
             LOGGER.error("[LayoutPersistence] 保存布局配置失败: {}", e.getMessage(), e);
         }

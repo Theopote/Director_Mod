@@ -23,7 +23,7 @@ import java.util.Set;
 
 /**
  * SelectionHistoryPanel v2.0
- * 
+ * <p>
  * 模块化架构 + 增强的时间线视图 + 完整的状态应用 + 精美的交互
  * ------------------------------------------------
  * 特性：
@@ -35,7 +35,7 @@ import java.util.Set;
  * - 完整的 applyState：健壮的状态应用逻辑
  * - 管理器集成：使用 SelectionHistoryManager
  * - 设置联动：分组管理，统一配置
- *
+ * <p>
  * 作者：ChronoBlocks Team
  * 版本：2.0
  */

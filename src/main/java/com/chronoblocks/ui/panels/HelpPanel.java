@@ -6,7 +6,7 @@ import imgui.ImGui;
 
 /**
  * ❓ 帮助面板
- * 
+ * <p>
  * 提供ChronoBlocks的使用帮助和快捷键信息：
  * - 快捷键列表
  * - 使用指南
