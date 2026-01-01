@@ -378,7 +378,12 @@ public final class TimelineCameraController {
         
         boolean previewActive = previewing && !playing && !scrubbing;
         CameraRuntime runtime = CameraRuntime.getInstance();
-        boolean shouldTimeline = playing || scrubbing || previewActive;
+        boolean wantsTimeline = playing || scrubbing || previewActive;
+        if (wantsTimeline) {
+            ensureCameraDataBuilt();
+        }
+        boolean hasCameraData = hasValidActiveTrack() && !sampler.getKeyframes().isEmpty();
+        boolean shouldTimeline = wantsTimeline && hasCameraData;
 
         if (shouldTimeline && !runtime.isTimelineOwner()) {
             runtime.setOwner(CameraRuntime.Owner.TIMELINE);

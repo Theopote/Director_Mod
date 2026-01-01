@@ -284,7 +284,7 @@ public final class ChronoBlocksRendererRegistry {
 
         final long stageStart = System.nanoTime();
         for (RendererEntry entry : List.copyOf(entries)) {
-            if (entry == null || !entry.isEnabled()) {
+            if (!entry.isEnabled()) {
                 continue;
             }
             final long t0 = System.nanoTime();
@@ -336,7 +336,7 @@ public final class ChronoBlocksRendererRegistry {
                             .append(" | ");
                 }
 
-                LOGGER.warn("[Perf][RendererRegistry] topRenderers: {} topStages: {}", sb.toString(), sbStage.toString());
+                LOGGER.warn("[Perf][RendererRegistry] topRenderers: {} topStages: {}", sb, sbStage);
             } catch (Exception ignored) {
             }
         }

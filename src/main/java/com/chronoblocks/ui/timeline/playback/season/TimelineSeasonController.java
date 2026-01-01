@@ -227,23 +227,32 @@ public final class TimelineSeasonController {
      */
     public synchronized void onTimelineTick(float timelineTime) {
         if (!enabled || timelineModel == null) {
-            // 没有启用或没有模型，清除状态
+            if (currentSample == null || !currentSample.enabled) {
+                return;
+            }
+            // 没有启用或没有模型，清除状态（只做一次）
             setCurrentSample(SeasonSample.disabled());
             propagateToWorld();
             return;
         }
-        
+
         if (!hasValidActiveTrack() || sampler.isEmpty()) {
-            // 没有激活轨道或没有关键帧，清除状态
+            if (currentSample == null || !currentSample.enabled) {
+                return;
+            }
+            // 没有激活轨道或没有关键帧，清除状态（只做一次）
             setCurrentSample(SeasonSample.disabled());
             propagateToWorld();
             return;
         }
-        
+
         // 从采样器获取当前时间的季节采样（使用 v3.0 API）
         SeasonSample sample = sampler.sampleAt(timelineTime);
+        if (currentSample != null && currentSample.equals(sample)) {
+            return;
+        }
         setCurrentSample(sample);
-        
+
         // 推送到世界系统
         propagateToWorld();
     }
