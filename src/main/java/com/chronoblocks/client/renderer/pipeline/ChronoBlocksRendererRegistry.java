@@ -384,8 +384,7 @@ public final class ChronoBlocksRendererRegistry {
                 || rendererName.equalsIgnoreCase("ContainerBounds")
                 || rendererName.equalsIgnoreCase("ContainerHighlight")
                 // Block overlays（非动画本体，可视需要再开；默认播放先关掉保 FPS）
-                || rendererName.equalsIgnoreCase("BlockVisualOverlay")
-                || rendererName.equalsIgnoreCase("BlockAnimations");
+                || rendererName.equalsIgnoreCase("BlockVisualOverlay");
     }
 
     // ---------------------------------------------------------------------
