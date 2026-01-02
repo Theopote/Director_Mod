@@ -14,6 +14,7 @@ import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.audio.AudioClipKeyframe;
 import com.chronoblocks.ui.timeline.model.audio.AudioEvent;
 import com.chronoblocks.ui.timeline.model.audio.AudioTrack;
+import com.chronoblocks.ui.timeline.model.audio.AudioTimelineClip;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -463,12 +464,14 @@ public class TimelineAudioService {
 
         TimelineClip linked = linkedAudioClipsByClip.get(containerClip);
         if (linked != null) {
+            linked = upgradeToAudioTimelineClipIfNeeded(audioTrack, linked);
             syncAudioClipRange(linked, containerClip);
             return linked;
         }
 
         TimelineClip existing = findAudioClipForContainerClip(audioTrack, containerClip);
         if (existing != null) {
+            existing = upgradeToAudioTimelineClipIfNeeded(audioTrack, existing);
             linkAudioClip(containerClip, existing);
             syncAudioClipRange(existing, containerClip);
             return existing;
@@ -479,8 +482,8 @@ public class TimelineAudioService {
         }
 
         int clipColor = TrackType.AUDIO.getClipColor();
-        TimelineClip audioClip = new TimelineClip(
-                containerClip.getLabel(),
+        TimelineClip audioClip = new AudioTimelineClip(
+                formatAudioClipLabel(containerClip.getLabel()),
                 containerClip.getStartTime(),
                 containerClip.getEndTime(),
                 clipColor
@@ -489,6 +492,43 @@ public class TimelineAudioService {
         audioTrack.addClip(audioClip);
         linkAudioClip(containerClip, audioClip);
         return audioClip;
+    }
+
+    /**
+     * 生成音频片段的显示名称（避免与容器片段混淆）。
+     */
+    private String formatAudioClipLabel(String containerLabel) {
+        String base = (containerLabel == null || containerLabel.isBlank()) ? "Audio" : containerLabel.trim();
+        String prefix = TrackType.AUDIO.getIcon() + " ";
+        if (base.startsWith(prefix)) {
+            return base;
+        }
+        return prefix + base;
+    }
+
+    /**
+     * 当容器重命名时，同步更新其关联的音频片段标题（保留音频前缀）。
+     */
+    public void updateLinkedAudioClipLabel(UUID containerId, String containerName) {
+        if (containerId == null || containerName == null || containerName.isBlank()) {
+            return;
+        }
+        if (timelineModel == null) {
+            return;
+        }
+        AudioTrack audioTrack = findAudioTrack();
+        if (audioTrack == null) {
+            return;
+        }
+        for (TimelineClip clip : audioTrack.getClips()) {
+            if (clip == null) {
+                continue;
+            }
+            if (containerId.equals(clip.getBoundContainerId())) {
+                clip.setLabel(formatAudioClipLabel(containerName));
+                clip.setBoundContainerName(containerName);
+            }
+        }
     }
 
     private TimelineClip findAudioClipForContainerClip(AudioTrack audioTrack, TimelineClip containerClip) {
@@ -527,6 +567,38 @@ public class TimelineAudioService {
         }
 
         return null;
+    }
+
+    /**
+     * 兼容旧数据：如果音频轨道上历史上创建的是普通 TimelineClip，这里将其升级为 AudioTimelineClip。
+     */
+    private TimelineClip upgradeToAudioTimelineClipIfNeeded(AudioTrack audioTrack, TimelineClip clip) {
+        if (audioTrack == null || clip == null) {
+            return clip;
+        }
+        if (clip instanceof AudioTimelineClip) {
+            return clip;
+        }
+        try {
+            AudioTimelineClip upgraded = new AudioTimelineClip(clip);
+            // 保留“音频前缀”显示
+            upgraded.setLabel(formatAudioClipLabel(clip.getLabel()));
+            // 维护绑定信息（拷贝构造已复制，但这里再确保一次）
+            upgraded.bindToContainer(clip.getBoundContainerId(), clip.getBoundContainerName());
+
+            TimelineTrack parent = clip.getParentTrack();
+            if (parent != null) {
+                parent.removeClip(clip);
+                parent.addClip(upgraded);
+            } else {
+                // 回退：仅在 audioTrack 中替换
+                audioTrack.removeClip(clip);
+                audioTrack.addClip(upgraded);
+            }
+            return upgraded;
+        } catch (Exception ignored) {
+            return clip;
+        }
     }
 
     private void linkAudioClip(TimelineClip containerClip, TimelineClip audioClip) {

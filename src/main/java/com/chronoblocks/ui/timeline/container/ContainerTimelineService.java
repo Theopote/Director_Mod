@@ -124,6 +124,11 @@ public class ContainerTimelineService {
             if (track == null) {
                 continue;
             }
+            TrackType type = track.getType();
+            if (type != TrackType.CONTAINER && type != TrackType.ERASE) {
+                // 音频轨道等不直接按 containerId 清理 clip：由 TimelineAudioService.onClipRemoved(containerClip) 统一处理
+                continue;
+            }
             for (TimelineClip clip : track.getClips()) {
                 if (containerId.equals(clip.getBoundContainerId())) {
                     clipsToRemove.add(clip);
@@ -159,6 +164,11 @@ public class ContainerTimelineService {
             if (track == null) {
                 continue;
             }
+            TrackType type = track.getType();
+            if (type != TrackType.CONTAINER && type != TrackType.ERASE) {
+                // 音频轨道的“音频片段”会有独立的显示名（例如带 🔊 前缀），不应被容器重命名逻辑覆盖
+                continue;
+            }
             for (TimelineClip clip : track.getClips()) {
                 if (!containerId.equals(clip.getBoundContainerId())) {
                     continue;
@@ -170,6 +180,9 @@ public class ContainerTimelineService {
                 }
             }
         }
+
+        // 同步更新关联的音频片段标题（保留音频前缀）
+        TimelineAudioService.getInstance().updateLinkedAudioClipLabel(containerId, newName);
 
         if (changed) {
             timelineModel.markDirty();

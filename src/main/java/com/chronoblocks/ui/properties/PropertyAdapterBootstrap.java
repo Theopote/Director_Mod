@@ -7,6 +7,7 @@ import com.chronoblocks.ui.properties.adapters.*;
 import com.chronoblocks.ui.timeline.model.TimelineClip;
 import com.chronoblocks.ui.timeline.model.audio.AudioEvent;
 import com.chronoblocks.ui.timeline.model.audio.AudioClipKeyframe;
+import com.chronoblocks.ui.timeline.model.audio.AudioTimelineClip;
 import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
 import com.chronoblocks.ui.timeline.model.time.TimeKeyframe;
 
@@ -122,6 +123,8 @@ public final class PropertyAdapterBootstrap {
             registerAdapter(AnimationClip.class, new ClipPropertyAdapter());
             registeredCount++;
             registerAdapter(TimelineClip.class, new TimelineClipPropertyAdapter());
+            registeredCount++;
+            registerAdapter(AudioTimelineClip.class, new AudioTimelineClipPropertyAdapter());
             registeredCount++;
             registerAdapter(AudioClipKeyframe.class, new AudioClipKeyframePropertyAdapter());
             registeredCount++;
