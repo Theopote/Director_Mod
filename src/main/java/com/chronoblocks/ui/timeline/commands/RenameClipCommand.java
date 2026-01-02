@@ -1,10 +1,13 @@
 package com.chronoblocks.ui.timeline.commands;
 
+import com.chronoblocks.core.container.ContainerManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.chronoblocks.ui.timeline.model.TimelineClip;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
+
+import java.util.Objects;
 
 /**
  * 重命名片段命令（支持撤销）。
@@ -41,7 +44,7 @@ public class RenameClipCommand extends BaseTimelineCommand {
         java.util.UUID containerId = clip.getBoundContainerId();
         if (containerId != null) {
             com.chronoblocks.core.container.Container container = 
-                com.chronoblocks.core.container.ContainerManager.getInstance().getContainer(containerId);
+                Objects.requireNonNull(ContainerManager.getInstance()).getContainer(containerId);
             if (container != null && !newLabel.equals(container.getName())) {
                 // 保存容器旧名称用于撤销
                 oldContainerName = container.getName();
@@ -66,7 +69,7 @@ public class RenameClipCommand extends BaseTimelineCommand {
         java.util.UUID containerId = clip.getBoundContainerId();
         if (containerId != null && oldContainerName != null) {
             com.chronoblocks.core.container.Container container = 
-                com.chronoblocks.core.container.ContainerManager.getInstance().getContainer(containerId);
+                Objects.requireNonNull(ContainerManager.getInstance()).getContainer(containerId);
             if (container != null && !oldContainerName.equals(container.getName())) {
                 com.chronoblocks.core.container.ContainerManager.getInstance().renameContainer(container, oldContainerName);
                 LOGGER.info("[Timeline] 撤销片段重命名已同步到容器: {} -> {}", newLabel, oldContainerName);

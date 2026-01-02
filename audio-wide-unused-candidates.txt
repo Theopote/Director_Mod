@@ -1,0 +1,13 @@
+﻿Audio-wide private-method reference report
+2026-01-02 22:05:37Z
+Files scanned for symbol extraction: 0
+Symbols extracted: 0
+---
+All (Count asc):
+
+---
+Likely-unused (Count == 1):
+
+---
+Zero (Count == 0):
+

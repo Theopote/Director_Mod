@@ -1,5 +1,6 @@
 package com.chronoblocks.ui.timeline.commands;
 
+import com.chronoblocks.core.container.ContainerManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -7,6 +8,7 @@ import com.chronoblocks.ui.timeline.model.TimelineClip;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  * 删除片段命令。
@@ -55,7 +57,7 @@ public class DeleteClipCommand extends BaseTimelineCommand {
                 if (!hasOtherClips) {
                     // 这是该容器的最后一个片段，允许容器显示
                     com.chronoblocks.core.container.Container container = 
-                        com.chronoblocks.core.container.ContainerManager.getInstance().getContainer(containerId);
+                        Objects.requireNonNull(ContainerManager.getInstance()).getContainer(containerId);
                     if (container != null && container.getState() == com.chronoblocks.core.container.ContainerState.HIDDEN) {
                         // 容器当前是隐藏状态，允许用户切换显示（但不在删除时自动显示）
                         LOGGER.info("[Timeline] 容器 {} 的所有片段已删除，现在可以切换显示状态", container.getName());
