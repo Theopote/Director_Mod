@@ -174,15 +174,20 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
             //UITheme.spacing();
         }
 
+        boolean sequenceModified = false;
+        boolean animationModified = false;
+
         // 2. 序列行为组 - 默认展开
         if (ImGui.collapsingHeader(Icons.LAYERS + " 序列行为", ImGuiTreeNodeFlags.DefaultOpen)) {
-            modified |= renderSequenceBehavior(clip);
+            sequenceModified = renderSequenceBehavior(clip);
+            modified |= sequenceModified;
             //UITheme.spacing();
         }
 
         // 3. 动画设置组 - 默认展开
         if (ImGui.collapsingHeader(Icons.ANIMATION + " 动画设置", ImGuiTreeNodeFlags.DefaultOpen)) {
-            modified |= renderAnimationSettings(clip);
+            animationModified = renderAnimationSettings(clip);
+            modified |= animationModified;
             //UITheme.spacing();
         }
 
@@ -196,6 +201,22 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
         if (ImGui.collapsingHeader(effectsHeader, ImGuiTreeNodeFlags.DefaultOpen)) {
             modified |= renderEffectsSection(clip);
             //UITheme.spacing();
+        }
+
+        // ======= 动画配置联动：修改动画/序列设置后，自动刷新音效事件 =======
+        // 需求：音效时机应随着“是否有动画/动画时长/序列延迟”等变化而变化
+        try {
+            TimelineTrack parent = clip.getParentTrack();
+            TrackType type = parent != null ? parent.getType() : null;
+            boolean isBlockClip = type == TrackType.CONTAINER || type == TrackType.ERASE;
+            if (isBlockClip && (sequenceModified || animationModified)) {
+                // 避免拖动 slider 时每帧重建：仅在用户停止编辑后触发一次（服务端也有签名缓存兜底）
+                if (!ImGui.isAnyItemActive()) {
+                    com.chronoblocks.ui.timeline.audio.TimelineAudioService.getInstance()
+                            .refreshAutoSoundEventsIfNeeded(clip);
+                }
+            }
+        } catch (Exception ignored) {
         }
 
         // ======= 时间范围联动：容器片段 -> 音频片段 =======
@@ -546,7 +567,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             // ===== 动画模式特定参数（显示在"动画模式与节奏"部分内）=====
             UITheme.spacingSmall();
             Map<String, Object> params = config.getParams();
-            
+
             // 填入默认值，避免 NPE
             try {
                 IAnimationTransformer transformer = AnimationTransformerFactory.getInstance().getTransformer(currentMode);

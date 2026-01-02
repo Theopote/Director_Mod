@@ -61,6 +61,11 @@ public class TimelineAudioService {
     private final Map<UUID, TimelineClip> linkedClipByEventId = new HashMap<>();
     private final Map<TimelineClip, TimelineClip> linkedAudioClipsByClip = new IdentityHashMap<>();
     private final Map<TimelineClip, TimelineClip> linkedContainerClipsByAudioClip = new IdentityHashMap<>();
+    /**
+     * 自动音效生成签名：用于避免属性面板每帧刷新时重复重建事件。
+     * key = 容器片段（CONTAINER/ERASE），value = 与动画/序列相关的 hash。
+     */
+    private final Map<TimelineClip, Integer> autoSoundSignatureByClip = new IdentityHashMap<>();
 
     // =========================
     // 实时预览（拖动/缩放时）
@@ -120,6 +125,7 @@ public class TimelineAudioService {
         linkedAudioClipsByClip.clear();
         linkedContainerClipsByAudioClip.clear();
         clipPreviewStates.clear();
+        autoSoundSignatureByClip.clear();
 
         if (timelineModel == null) {
             return;
@@ -847,6 +853,7 @@ public class TimelineAudioService {
         }
 
         clipPreviewStates.remove(clip);
+        autoSoundSignatureByClip.remove(clip);
 
         if (isAudioClip(clip)) {
             TimelineClip containerClip = linkedContainerClipsByAudioClip.remove(clip);
@@ -871,6 +878,133 @@ public class TimelineAudioService {
         }
 
         removeSoundEventsForClip(clip);
+    }
+
+    /**
+     * 当属性面板修改了动画/序列设置后，刷新该容器片段自动生成的音效事件。
+     *
+     * <p>目标：音效时机始终与“方块出现在目标位置/到位”的时刻一致，避免配置修改后音效仍停留在旧时间。</p>
+     */
+    public void refreshAutoSoundEventsIfNeeded(TimelineClip clip) {
+        if (clip == null || timelineModel == null) {
+            return;
+        }
+        if (suppressAutoCreate) {
+            return;
+        }
+        if (!isContainerClip(clip)) {
+            return;
+        }
+        UUID containerId = clip.getBoundContainerId();
+        if (containerId == null) {
+            return;
+        }
+
+        int sig = computeAutoSoundSignature(clip);
+        Integer last = autoSoundSignatureByClip.get(clip);
+        if (last != null && last == sig) {
+            return;
+        }
+
+        // 只重建“自动生成并仍然链接”的事件；若用户对单个事件取消链接，它会保留在轨道上（不被此处删除）。
+        removeSoundEventsForClip(clip);
+        collectAndAddSoundEvents(clip, true);
+        autoSoundSignatureByClip.put(clip, sig);
+    }
+
+    /**
+     * 获取某个音频片段绑定的“容器片段”。
+     *
+     * <p>用于：在音频片段属性面板中修改音效时机/偏移，并刷新自动生成的音效事件。</p>
+     */
+    public Optional<TimelineClip> getContainerClipForAudioClip(TimelineClip audioClip) {
+        if (audioClip == null) {
+            return Optional.empty();
+        }
+        TimelineClip container = linkedContainerClipsByAudioClip.get(audioClip);
+        if (container != null) {
+            return Optional.of(container);
+        }
+        // 回退：如果是同一个 boundContainerId，也尝试从已链接的容器片段中找一个
+        try {
+            UUID id = audioClip.getBoundContainerId();
+            if (id != null) {
+                for (TimelineClip c : linkedAudioClipsByClip.keySet()) {
+                    if (c != null && id.equals(c.getBoundContainerId())) {
+                        return Optional.of(c);
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return Optional.empty();
+    }
+
+    private int computeAutoSoundSignature(TimelineClip clip) {
+        ClipAnimationConfig cfg = clip != null ? clip.getAnimationConfig() : null;
+        if (cfg == null) {
+            return 0;
+        }
+        // 注：此签名只用于“避免重复重建”；不要求完美覆盖所有字段，但必须覆盖影响 blockStartTime/blockEndTime/序列分布的关键字段。
+        com.chronoblocks.core.animation.sequence.SequenceParameters sp = null;
+        try {
+            sp = cfg.getSequenceParameters();
+        } catch (Exception ignored) {
+        }
+
+        int h = 17;
+        h = 31 * h + Float.floatToIntBits(clip.getStartTime());
+        h = 31 * h + Float.floatToIntBits(clip.getEndTime());
+        h = 31 * h + (cfg.getPhase() != null ? cfg.getPhase().ordinal() : 0);
+        h = 31 * h + (cfg.getMode() != null ? cfg.getMode().ordinal() : 0);
+        h = 31 * h + Float.floatToIntBits(cfg.getDuration());
+        h = 31 * h + Float.floatToIntBits(cfg.getDelay());
+        h = 31 * h + (cfg.getEasing() != null ? cfg.getEasing().hashCode() : 0);
+        h = 31 * h + (cfg.getSequenceMode() != null ? cfg.getSequenceMode().ordinal() : 0);
+        // 放置音效时机（ENTER）：属于“音效派生结果”，改了需要重建事件
+        try {
+            Object t = cfg.getParams() != null ? cfg.getParams().get("enterSoundTiming") : null;
+            h = 31 * h + (t != null ? t.toString().hashCode() : 0);
+        } catch (Exception ignored) {
+        }
+        // 音效偏移（ENTER/EXIT）
+        try {
+            Object t = cfg.getParams() != null ? cfg.getParams().get("enterSoundOffsetSeconds") : null;
+            h = 31 * h + (t != null ? t.toString().hashCode() : 0);
+        } catch (Exception ignored) {
+        }
+        try {
+            Object t = cfg.getParams() != null ? cfg.getParams().get("exitSoundOffsetSeconds") : null;
+            h = 31 * h + (t != null ? t.toString().hashCode() : 0);
+        } catch (Exception ignored) {
+        }
+        // 序列参数：至少包含会影响 BlockSequenceGenerator.generate() 的字段
+        if (sp != null) {
+            h = 31 * h + (sp.getFlowType() != null ? sp.getFlowType().ordinal() : 0);
+            h = 31 * h + (sp.getFillType() != null ? sp.getFillType().ordinal() : 0);
+            h = 31 * h + (sp.getOriginType() != null ? sp.getOriginType().ordinal() : 0);
+            h = 31 * h + Float.floatToIntBits(sp.getPlaneYaw());
+            h = 31 * h + Float.floatToIntBits(sp.getPlanePitch());
+            h = 31 * h + Float.floatToIntBits(sp.getLayerStep());
+            h = 31 * h + sp.getCustomX();
+            h = 31 * h + sp.getCustomY();
+            h = 31 * h + sp.getCustomZ();
+            h = 31 * h + Float.floatToIntBits(sp.getPriorityWeight());
+            h = 31 * h + (sp.isReverse() ? 1 : 0);
+            h = 31 * h + (sp.isAlternating() ? 1 : 0);
+            h = 31 * h + (sp.getFloodSeedMode() != null ? sp.getFloodSeedMode().ordinal() : 0);
+            h = 31 * h + (sp.getConcurrencyMode() != null ? sp.getConcurrencyMode().ordinal() : 0);
+            h = 31 * h + sp.getBatchSize();
+            h = 31 * h + Float.floatToIntBits(sp.getBatchInterval());
+            h = 31 * h + (sp.getTimeMappingStrategy() != null ? sp.getTimeMappingStrategy().ordinal() : 0);
+            h = 31 * h + Float.floatToIntBits(sp.getPerBlockDuration());
+            h = 31 * h + Float.floatToIntBits(sp.getGlobalDelay());
+            try {
+                h = 31 * h + sp.getExtraParams().hashCode();
+            } catch (Exception ignored) {
+            }
+        }
+        return h;
     }
 
     public void removeSoundEventsForClip(TimelineClip clip) {

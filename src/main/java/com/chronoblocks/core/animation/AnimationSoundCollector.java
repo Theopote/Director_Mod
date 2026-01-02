@@ -93,21 +93,36 @@ public class AnimationSoundCollector {
         boolean isExit = config.getPhase() == ClipAnimationConfig.AnimationPhase.EXIT;
         boolean isInstant = config.getMode() == com.chronoblocks.core.container.AnimationMode.INSTANT;
 
+        // 音效偏移（秒）：允许用户在音频片段属性面板中做“更符合现实”的微调
+        float enterSoundOffsetSeconds = 0.0f;
+        float exitSoundOffsetSeconds = 0.0f;
+        try {
+            Object v = config.getParams().get("enterSoundOffsetSeconds");
+            if (v instanceof Number n) enterSoundOffsetSeconds = n.floatValue();
+            else if (v != null) enterSoundOffsetSeconds = Float.parseFloat(v.toString());
+        } catch (Exception ignored) {}
+        try {
+            Object v = config.getParams().get("exitSoundOffsetSeconds");
+            if (v instanceof Number n) exitSoundOffsetSeconds = n.floatValue();
+            else if (v != null) exitSoundOffsetSeconds = Float.parseFloat(v.toString());
+        } catch (Exception ignored) {}
+
         // ENTER 音效触发时机：
         // - START    : 动画开始
         // - IMPACT   : 第一次到达目标位置（对某些弹性曲线可能过早）
         // - PRE_LAND : 在落地/归位前一帧触发（更贴近“看到真方块落地前那一下”）
         // - END      : 动画完全结束（归位/回弹结束）
         //
-        // 默认使用 PRE_LAND：避免弹性曲线“很早就第一次触碰到位”造成音频超前，
-        // 同时又比 END 更靠前一点点，贴近你的“归位前一帧/差不多在动画时长附近”的体感。
+        // 默认使用 END：与 TimelineClipBlockController 的“真实方块落地/出现在目标格（worldBlocks）”严格对齐。
+        // 这能避免：方块还没出现，音频已经提前出现；或方块已落地很久音频仍未出现。
+        // 如果希望“动画过程中第一次到达目标位置就响”，可设置 enterSoundTiming=IMPACT。
         String enterTiming = null;
         try {
             Object t = config.getParams().get("enterSoundTiming");
             if (t != null) enterTiming = t.toString();
         } catch (Exception ignored) {}
         if (enterTiming == null || enterTiming.isBlank()) {
-            enterTiming = "PRE_LAND";
+            enterTiming = "END";
         }
 
         float impactT = 1.0f;
@@ -133,6 +148,9 @@ public class AnimationSoundCollector {
             if (isExit) {
                 // EXIT：事件在“方块被移除”时刻触发（动画结束端点）
                 eventTime = clipStart + totalDelay + (fullWindow ? animDuration : 0.0f) + normalizedTime * availableSpan;
+                if (exitSoundOffsetSeconds != 0f) {
+                    eventTime += exitSoundOffsetSeconds;
+                }
             } else {
                 float blockStartTime = clipStart + totalDelay + normalizedTime * availableSpan;
                 float blockEndTime = Math.min(clipStart + clipDuration, blockStartTime + animDuration);
@@ -154,6 +172,15 @@ public class AnimationSoundCollector {
                     if (impactTime > blockEndTime) impactTime = blockEndTime;
                     eventTime = impactTime;
                 }
+
+                if (enterSoundOffsetSeconds != 0f) {
+                    eventTime += enterSoundOffsetSeconds;
+                }
+            }
+
+            // clamp：不允许负时间
+            if (eventTime < 0.0f) {
+                eventTime = 0.0f;
             }
             
             // 获取方块状态
