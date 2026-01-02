@@ -49,6 +49,11 @@ public class AnimationTransformerFactory {
         register(AnimationMode.RISE_UP, new RiseUpTransformer());
         register(AnimationMode.FLY_IN, new FlyInTransformer());
         register(AnimationMode.SHAKER, new ShakerTransformer());
+        // 新增动画模式
+        register(AnimationMode.POP_IN, new PopInTransformer());
+        register(AnimationMode.SHRINK_OUT, new ShrinkOutTransformer());
+        register(AnimationMode.GRAVITY_FALL, new GravityFallTransformer());
+        register(AnimationMode.FLY_OUT, new FlyOutTransformer());
     }
     
     /**
