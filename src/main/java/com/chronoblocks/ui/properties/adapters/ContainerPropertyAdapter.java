@@ -380,10 +380,18 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
             UITheme.label("提示：该模式属于旧版本的“排序策略”，拖到时间线后会自动迁移到「序列行为」面板。", UITheme.DarkTheme.TEXT_DISABLED);
         }
 
-        float[] duration = {preset.getSuggestedDuration()};
+        float[] duration = null;
+        if (preset != null) {
+            duration = new float[]{preset.getSuggestedDuration()};
+        }
         if (ImGui.dragFloat("建议时长", duration, 0.1f, 0.05f, 120.0f, "%.2fs")) {
-            ContainerAnimationPreset updated = preset.copy();
-            updated.setSuggestedDuration(duration[0]);
+            ContainerAnimationPreset updated = null;
+            if (preset != null) {
+                updated = preset.copy();
+            }
+            if (duration != null) {
+                updated.setSuggestedDuration(duration[0]);
+            }
             container.setDefaultAnimationPreset(updated);
             modified = true;
         }
@@ -391,10 +399,18 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
             ImGui.setTooltip("用于初始化片段长度，实际片段仍可单独调整");
         }
 
-        float[] delay = {preset.getDelay()};
+        float[] delay = null;
+        if (preset != null) {
+            delay = new float[]{preset.getDelay()};
+        }
         if (ImGui.dragFloat("默认延迟", delay, 0.05f, 0.0f, 30.0f, "%.2fs")) {
-            ContainerAnimationPreset updated = preset.copy();
-            updated.setDelay(delay[0]);
+            ContainerAnimationPreset updated = null;
+            if (preset != null) {
+                updated = preset.copy();
+            }
+            if (updated != null) {
+                updated.setDelay(delay[0]);
+            }
             container.setDefaultAnimationPreset(updated);
             modified = true;
         }

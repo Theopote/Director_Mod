@@ -360,10 +360,9 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
      * 如果控件未激活，它会使用我们传入的新值更新显示。
      */
     private boolean dragFloat(String label, ImFloat value, float speed, float min, float max, String fmt) {
-        boolean changed = ImGui.dragFloat(label, value.getData(), speed, min, max, fmt);
         // 返回 changed，让调用者决定何时更新 keyframe
         // 如果 changed 为 true，说明值已经被修改了（无论是拖动还是输入）
-        return changed;
+        return ImGui.dragFloat(label, value.getData(), speed, min, max, fmt);
     }
 
     /**

@@ -573,7 +573,7 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
     private boolean setFloatArrayProperty(Object obj, String fieldName, String setterName, float[] value) {
         try {
             var method = obj.getClass().getMethod(setterName, float[].class);
-            method.invoke(obj, value);
+            method.invoke(obj, (Object) value);
             return true;
         } catch (Exception e) {
             try {
