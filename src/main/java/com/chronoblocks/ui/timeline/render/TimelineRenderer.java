@@ -290,7 +290,11 @@ public class TimelineRenderer {
                 renderAutomationKeyframes(drawList, track, contentX, trackY, contentW);
                 
                 // ★ 渲染音频轨道的事件点（如果是音频轨道）
-}
+                if (track.getType() == TrackType.AUDIO) {
+                    // 音频轨道使用点事件渲染（AudioEvent），而不是复用普通自动化关键帧渲染
+                    audioRenderer.renderAudioEvents(drawList, track, contentX, trackY, contentW);
+                }
+            }
         }
 
     }

@@ -5,7 +5,6 @@ import com.chronoblocks.ui.timeline.model.TimelineClip;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineSelectable;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
-import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.render.TimelineRenderer;
 
 import java.util.List;
@@ -288,7 +287,9 @@ public final class TimelineHitTest {
             float trackTop,
             float trackBottom
     ) {
-        if (track == null || track.getType() == TrackType.AUDIO || !track.hasAutomationKeyframes()) {
+        // ✅ 允许 AUDIO：AudioTrack 把 AudioEvent 暴露为 automationKeyframes（TimelineSelectable），
+        // 这样点击音频事件点应命中 AUTOMATION_KEYFRAME 并进入对应属性面板。
+        if (track == null || !track.hasAutomationKeyframes()) {
             return TimelineHitResult.none();
         }
 
