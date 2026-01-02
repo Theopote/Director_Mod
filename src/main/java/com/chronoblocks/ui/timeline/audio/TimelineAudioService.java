@@ -776,7 +776,7 @@ public class TimelineAudioService {
                 audioTrack.addEvent(event);
             }
         } else {
-            // 对于旧的 TimelineTrack，使用迁移方法读取事件（避免调用已弃用的 getAudioEvents）
+            // 对于旧的 TimelineTrack，使用迁移方法读取事件（旧存储位于 TimelineTrack.audioEvents）
             List<AudioEvent> oldEvents = track.getLegacyAudioEventsForMigration();
             for (AudioEvent event : oldEvents) {
                 audioTrack.addEvent(event);
