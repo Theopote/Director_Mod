@@ -2285,7 +2285,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                 }
                 
                 // 翻滚旋转（两个模式都有）
-                boolean tumble = getBooleanParam(params, "tumble", true);
+                boolean tumble = getBooleanParam(params, true);
                 ImBoolean tumbleBool = new ImBoolean(tumble);
                 if (ImGui.checkbox("翻滚旋转", tumbleBool)) {
                     params.put("tumble", tumbleBool.get());
@@ -2363,7 +2363,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                 String paramKey = mode == AnimationMode.IMPLODE ? "scale" : "targetScale";
                 float scale = getFloatParam(params, paramKey, 0.0f);
                 float[] scaleArray = {scale};
-                String label = mode == AnimationMode.IMPLODE ? "目标比例" : "目标比例";
+                String label = "目标比例";
                 if (ImGui.dragFloat(label, scaleArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
                     params.put(paramKey, scaleArray[0]);
                     modified = true;
@@ -2457,15 +2457,21 @@ private boolean renderAnimationSettings(TimelineClip clip) {
     private float getFloatParam(Map<String, Object> params, String key, float defaultValue) {
         if (params == null || key == null) return defaultValue;
         Object val = params.get(key);
-        if (val == null) return defaultValue;
-        if (val instanceof Number) {
-            return ((Number) val).floatValue();
-        }
-        if (val instanceof String) {
-            try {
-                return Float.parseFloat((String) val);
-            } catch (NumberFormatException e) {
+        switch (val) {
+            case null -> {
                 return defaultValue;
+            }
+            case Number number -> {
+                return number.floatValue();
+            }
+            case String s -> {
+                try {
+                    return Float.parseFloat(s);
+                } catch (NumberFormatException e) {
+                    return defaultValue;
+                }
+            }
+            default -> {
             }
         }
         return defaultValue;
@@ -2474,17 +2480,15 @@ private boolean renderAnimationSettings(TimelineClip clip) {
     /**
      * 从 params Map 中安全获取布尔参数
      */
-    private boolean getBooleanParam(Map<String, Object> params, String key, boolean defaultValue) {
-        if (params == null || key == null) return defaultValue;
-        Object val = params.get(key);
-        if (val == null) return defaultValue;
-        if (val instanceof Boolean) {
-            return (Boolean) val;
-        }
-        if (val instanceof String) {
-            return Boolean.parseBoolean((String) val);
-        }
-        return defaultValue;
+    private boolean getBooleanParam(Map<String, Object> params, boolean defaultValue) {
+        if (params == null || "tumble" == null) return defaultValue;
+        Object val = params.get("tumble");
+        return switch (val) {
+            case null -> defaultValue;
+            case Boolean b -> b;
+            case String s -> Boolean.parseBoolean(s);
+            default -> defaultValue;
+        };
     }
     
     /**

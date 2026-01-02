@@ -210,6 +210,17 @@ public class TimelineClipBlockController {
      */
     private final Map<UUID, Set<BlockPos>> lastFrameVisibleBlocks = new HashMap<>();
 
+    /**
+     * 上一帧“世界中真实存在”的方块集合（用于驱动 showContainerBlocks 与区块重渲染）。
+     *
+     * <p>与 {@link #lastFrameVisibleBlocks} 的语义不同：
+     * <ul>
+     *   <li>lastFrameVisibleBlocks：用于渲染/视觉（包含 ENTER 动画窗口内的 overlay 方块）</li>
+     *   <li>lastFrameWorldBlocks：用于世界落地（ENTER 仅在动画结束后才进入世界，避免与动画重叠）</li>
+     * </ul>
+     */
+    private final Map<UUID, Set<BlockPos>> lastFrameWorldBlocks = new HashMap<>();
+
     /** 上一帧该容器的视觉参数（用于避免每帧全量 setBlocksState） */
     private static final class LastVisualParams {
         float opacity;
@@ -270,7 +281,10 @@ public class TimelineClipBlockController {
         // 🔥 步骤 0：清空上一帧的 renderEntries（确保每帧都是全新的）
         visualStateManager.clearFrame(); // 这会清空 visualOverrides 和 renderEntries
         
+        // currentFrameVisibleBlocks：保持为“渲染可见集合”（用于遮挡/overlay/视觉状态）
         Map<UUID, Set<BlockPos>> currentFrameVisibleBlocks = new HashMap<>();
+        // currentFrameWorldBlocks：用于真实世界方块落地（showContainerBlocks）
+        Map<UUID, Set<BlockPos>> currentFrameWorldBlocks = new HashMap<>();
         Map<UUID, Float> currentFrameOpacity = new HashMap<>();
         Map<UUID, List<BlockSequenceEntry>> currentFrameSequences = new HashMap<>();
         Map<UUID, ClipAnimationConfig> currentFrameConfigs = new HashMap<>();
@@ -323,14 +337,16 @@ public class TimelineClipBlockController {
                 // ◆ 根据播放头位置和片段配置计算应该显示的方块
                 // 完全基于片段的ClipAnimationConfig，不依赖容器状态
                 VisibleBlocksResult result = calculateVisibleBlocks(clip, trackType, currentTime, trackEnabled, container, config);
-                Set<BlockPos> visibleBlocks = result.visibleBlocks();
-                currentFrameVisibleBlocks.put(containerId, visibleBlocks);
+                Set<BlockPos> renderBlocks = result.renderBlocks();
+                Set<BlockPos> worldBlocks = result.worldBlocks();
+                currentFrameVisibleBlocks.put(containerId, renderBlocks);
+                currentFrameWorldBlocks.put(containerId, worldBlocks);
                 currentFrameOpacity.put(containerId, clip.getOpacity()); // 使用片段的透明度
                 currentFrameSequences.put(containerId, result.sequenceEntries());
                 
-                if (LOGGER.isTraceEnabled() && !visibleBlocks.isEmpty()) {
-                    LOGGER.trace("[TimelineClipBlockController] 片段 {} (容器: {}) 计算得到 {} 个可见方块(时间: {:.2f}s, 片段范围: [{:.2f}s, {:.2f}s])",
-                        clip.getLabel(), container.getName(), visibleBlocks.size(), currentTime, clip.getStartTime(), clip.getEndTime());
+                if (LOGGER.isTraceEnabled() && !renderBlocks.isEmpty()) {
+                    LOGGER.trace("[TimelineClipBlockController] 片段 {} (容器: {}) render={} world={} (时间: {:.2f}s, 片段范围: [{:.2f}s, {:.2f}s])",
+                        clip.getLabel(), container.getName(), renderBlocks.size(), worldBlocks.size(), currentTime, clip.getStartTime(), clip.getEndTime());
                 }
             }
         }
@@ -339,14 +355,15 @@ public class TimelineClipBlockController {
         // ✅ 步骤1.5：根据“上一帧可见集 vs 当前帧可见集”推导世界方块变化量，提前为区块重建收集 pos
         // 说明：showContainerBlocks 会真实修改世界方块（置 AIR / 从快照恢复），但客户端区块重建可能滞后。
         // 这里通过 scheduleBlockRenders 主动触发重渲染，避免清除过程出现“黑洞/虚空”。
-        Map<UUID, Boolean> visibleSetChangedByContainer = new HashMap<>();
-        for (Map.Entry<UUID, Set<BlockPos>> entry : currentFrameVisibleBlocks.entrySet()) {
+        // 世界落地集合变化（用于 showContainerBlocks 与区块重渲染）
+        Map<UUID, Boolean> worldSetChangedByContainer = new HashMap<>();
+        for (Map.Entry<UUID, Set<BlockPos>> entry : currentFrameWorldBlocks.entrySet()) {
             UUID containerId = entry.getKey();
             Set<BlockPos> now = entry.getValue() != null ? entry.getValue() : java.util.Collections.emptySet();
-            Set<BlockPos> prev = lastFrameVisibleBlocks.get(containerId);
+            Set<BlockPos> prev = lastFrameWorldBlocks.get(containerId);
             if (prev == null) {
                 // 第一次看到该容器：保守起见，认为整组都可能变化
-                visibleSetChangedByContainer.put(containerId, true);
+                worldSetChangedByContainer.put(containerId, true);
                 Container container = Objects.requireNonNull(ContainerManager.getInstance()).getContainer(containerId);
                 if (container != null) {
                     worldStateChangedBlocksForRerender.addAll(getCachedContainerBlocks(container));
@@ -382,8 +399,37 @@ public class TimelineClipBlockController {
                     worldStateChangedBlocksForRerender.add(p.west());
                 }
             }
-            visibleSetChangedByContainer.put(containerId, changed);
+            worldSetChangedByContainer.put(containerId, changed);
         }
+        // 渲染可见集合变化（用于 BlockVisualStateManager 的增量更新）
+        Map<UUID, Boolean> renderSetChangedByContainer = new HashMap<>();
+        for (Map.Entry<UUID, Set<BlockPos>> entry : currentFrameVisibleBlocks.entrySet()) {
+            UUID containerId = entry.getKey();
+            Set<BlockPos> now = entry.getValue() != null ? entry.getValue() : java.util.Collections.emptySet();
+            Set<BlockPos> prev = lastFrameVisibleBlocks.get(containerId);
+            if (prev == null) {
+                renderSetChangedByContainer.put(containerId, true);
+                continue;
+            }
+
+            boolean changed = false;
+            for (BlockPos p : prev) {
+                if (!now.contains(p)) {
+                    changed = true;
+                    break;
+                }
+            }
+            if (!changed) {
+                for (BlockPos p : now) {
+                    if (!prev.contains(p)) {
+                        changed = true;
+                        break;
+                    }
+                }
+            }
+            renderSetChangedByContainer.put(containerId, changed);
+        }
+
         final long tAfterDiff = System.nanoTime();
         
         // ◆ 步骤2：应用遮挡覆盖规则，调整透明度并标记需要隐藏世界方块的容器
@@ -414,7 +460,10 @@ public class TimelineClipBlockController {
 
         for (Map.Entry<UUID, Set<BlockPos>> entry : currentFrameVisibleBlocks.entrySet()) {
             UUID containerId = entry.getKey();
-            Set<BlockPos> blocks = entry.getValue();
+            // renderBlocks：用于视觉状态/overlay/动画采样
+            Set<BlockPos> renderBlocks = entry.getValue();
+            // worldBlocks：用于真实世界方块落地（ENTER 延后到动画结束）
+            Set<BlockPos> worldBlocks = currentFrameWorldBlocks.getOrDefault(containerId, java.util.Collections.emptySet());
             float opacity = currentFrameOpacity.getOrDefault(containerId, 1.0f);
             
             Container container = Objects.requireNonNull(ContainerManager.getInstance()).getContainer(containerId);
@@ -422,7 +471,8 @@ public class TimelineClipBlockController {
                 continue;
             }
 
-            boolean visibleSetChanged = visibleSetChangedByContainer.getOrDefault(containerId, true);
+            boolean worldSetChanged = worldSetChangedByContainer.getOrDefault(containerId, true);
+            boolean renderSetChanged = renderSetChangedByContainer.getOrDefault(containerId, true);
             long containerMod = container.getModifiedTime();
             LastVisualParams lastParams = lastVisualParamsByContainerId.get(containerId);
             boolean containerStructureChanged = (lastParams == null) || (lastParams.containerModifiedTime != containerMod);
@@ -457,8 +507,8 @@ public class TimelineClipBlockController {
                 
                 // 性能关键：只有“可见集合发生变化”时才去真正修改世界方块（置 AIR / 恢复）。
                 // 否则每帧调用 showContainerBlocks 会导致大量区块重建与 CPU 开销。
-                if (visibleSetChanged || containerStructureChanged) {
-                    if (blocks.isEmpty()) {
+                if (worldSetChanged || containerStructureChanged) {
+                    if (worldBlocks.isEmpty()) {
                         // 如果没有方块可见：需要确保容器在世界中被清空（置 AIR）
                         // （清除轨道必须执行这一点；容器轨道也允许显式清空）
                         visibilityService.showContainerBlocks(container, java.util.Collections.emptySet());
@@ -466,11 +516,11 @@ public class TimelineClipBlockController {
                         // 有方块应该显示，使用 showContainerBlocks 恢复这些方块
                         // 即使容器状态是 HIDDEN，这个方法也能部分显示方块
                         // 🔹 注意：对于被遮挡的容器，方块会恢复存在，但通过 Mixin 阻止 Minecraft 渲染
-                        visibilityService.showContainerBlocks(container, blocks);
+                        visibilityService.showContainerBlocks(container, worldBlocks);
 
                         if (LOGGER.isTraceEnabled()) {
                             LOGGER.trace("[TimelineClipBlockController] 容器 {} 显示 {} 个方块(时间: {:.2f}s, 遮挡: {})",
-                                    container.getName(), blocks.size(), currentTime, isOccluded);
+                                    container.getName(), worldBlocks.size(), currentTime, isOccluded);
                         }
                     }
                 }
@@ -487,7 +537,7 @@ public class TimelineClipBlockController {
             if (containerStructureChanged) {
                 // 容器本身被编辑过：做一次全量同步（但仍避免每帧做）
                 List<BlockPos> all = getCachedContainerBlocks(container);
-                if (blocks.isEmpty()) {
+                if (renderBlocks == null || renderBlocks.isEmpty()) {
                     visualStateManager.setBlocksState(all, BlockVisualStateManager.BlockVisualState.hidden());
                 } else {
                     // 先把所有设为隐藏，再把可见集覆盖为目标状态（减少漏网）
@@ -498,15 +548,15 @@ public class TimelineClipBlockController {
                                     : (opacity < 1.0f
                                         ? BlockVisualStateManager.BlockVisualState.translucent(opacity).withSuppressWorldRendering(true)
                                         : BlockVisualStateManager.BlockVisualState.normal());
-                    visualStateManager.setBlocksState(blocks, visibleState);
+                    visualStateManager.setBlocksState(renderBlocks, visibleState);
                 }
             } else {
-                if (visibleSetChanged) {
+                if (renderSetChanged) {
                     // removed = prev - now
                     if (prevVisible != null && !prevVisible.isEmpty()) {
                         Set<BlockPos> removed = new HashSet<>(prevVisible);
-                        if (!blocks.isEmpty()) {
-                            removed.removeAll(blocks);
+                        if (renderBlocks != null && !renderBlocks.isEmpty()) {
+                            removed.removeAll(renderBlocks);
                         }
                         if (!removed.isEmpty()) {
                             visualStateManager.setBlocksState(removed, BlockVisualStateManager.BlockVisualState.hidden());
@@ -514,8 +564,8 @@ public class TimelineClipBlockController {
                     }
 
                     // added = now - prev
-                    if (!blocks.isEmpty()) {
-                        Set<BlockPos> added = new HashSet<>(blocks);
+                    if (renderBlocks != null && !renderBlocks.isEmpty()) {
+                        Set<BlockPos> added = new HashSet<>(renderBlocks);
                         if (prevVisible != null && !prevVisible.isEmpty()) {
                             added.removeAll(prevVisible);
                         }
@@ -533,14 +583,14 @@ public class TimelineClipBlockController {
 
                 if (visualParamsChanged) {
                     // 参数变化：把当前可见集整体更新一次
-                    if (!blocks.isEmpty()) {
+                    if (renderBlocks != null && !renderBlocks.isEmpty()) {
                         BlockVisualStateManager.BlockVisualState visibleState =
                                 (isOccluded && opacity < 1.0f)
                                         ? BlockVisualStateManager.BlockVisualState.ghost(opacity, false, true).withSuppressWorldRendering(true)
                                         : (opacity < 1.0f
                                             ? BlockVisualStateManager.BlockVisualState.translucent(opacity).withSuppressWorldRendering(true)
                                             : BlockVisualStateManager.BlockVisualState.normal());
-                        visualStateManager.setBlocksState(blocks, visibleState);
+                        visualStateManager.setBlocksState(renderBlocks, visibleState);
                     }
                 }
             }
@@ -564,7 +614,7 @@ public class TimelineClipBlockController {
                     playbackConfig,
                     sequenceEntries,
                     currentTime,
-                    blocks
+                    renderBlocks
             );
         }
         final long tAfterEntries = System.nanoTime();
@@ -586,14 +636,20 @@ public class TimelineClipBlockController {
         scheduleBlockRerender(rerender);
         final long tAfterRerender = System.nanoTime();
 
-        // 更新 lastFrameVisibleBlocks（并清理已不存在的容器）
+        // 更新 lastFrameVisibleBlocks（渲染可见集）与 lastFrameWorldBlocks（世界落地集），并清理已不存在的容器
         lastFrameVisibleBlocks.keySet().retainAll(currentFrameVisibleBlocks.keySet());
+        lastFrameWorldBlocks.keySet().retainAll(currentFrameWorldBlocks.keySet());
         lastVisualParamsByContainerId.keySet().retainAll(currentFrameVisibleBlocks.keySet());
         for (Map.Entry<UUID, Set<BlockPos>> e : currentFrameVisibleBlocks.entrySet()) {
             UUID id = e.getKey();
             Set<BlockPos> s = e.getValue();
             // 性能关键：避免每帧复制大 Set；该 Set 在本帧之后不再被修改，直接复用引用即可。
             lastFrameVisibleBlocks.put(id, s != null ? s : java.util.Collections.emptySet());
+        }
+        for (Map.Entry<UUID, Set<BlockPos>> e : currentFrameWorldBlocks.entrySet()) {
+            UUID id = e.getKey();
+            Set<BlockPos> s = e.getValue();
+            lastFrameWorldBlocks.put(id, s != null ? s : java.util.Collections.emptySet());
         }
         visualStateManager.finishFrame();
 
@@ -750,22 +806,26 @@ public class TimelineClipBlockController {
                                                        boolean trackEnabled,
                                                        Container container,
                                                        ClipAnimationConfig config) {
-        Set<BlockPos> visibleBlocks = new HashSet<>();
+        // renderBlocks：用于“视觉可见”（overlay/动画采样/遮挡）
+        Set<BlockPos> renderBlocks = new HashSet<>();
+        // worldBlocks：用于“真实落地到世界”（showContainerBlocks）
+        Set<BlockPos> worldBlocks = new HashSet<>();
         List<BlockSequenceEntry> sequenceEntries = List.of();
 
         TrackType type = trackType != null ? trackType : TrackType.CONTAINER;
 
         List<BlockPos> allBlocks = getCachedContainerBlocks(container);
         if (allBlocks.isEmpty()) {
-            return new VisibleBlocksResult(visibleBlocks, sequenceEntries);
+            return new VisibleBlocksResult(worldBlocks, renderBlocks, sequenceEntries);
         }
 
         // 轨道禁用：容器轨道 => 隐藏；清除轨道 => 不清除（保留全量）
         if (!trackEnabled) {
             if (type == TrackType.ERASE) {
-                visibleBlocks.addAll(allBlocks);
+                renderBlocks.addAll(allBlocks);
+                worldBlocks.addAll(allBlocks);
             }
-            return new VisibleBlocksResult(visibleBlocks, sequenceEntries);
+            return new VisibleBlocksResult(worldBlocks, renderBlocks, sequenceEntries);
         }
 
         float clipStart = clip.getStartTime();
@@ -774,9 +834,10 @@ public class TimelineClipBlockController {
         // 片段左侧
         if (currentTime < clipStart) {
             if (type == TrackType.ERASE) {
-                visibleBlocks.addAll(allBlocks);
+                renderBlocks.addAll(allBlocks);
+                worldBlocks.addAll(allBlocks);
             }
-            return new VisibleBlocksResult(visibleBlocks, sequenceEntries);
+            return new VisibleBlocksResult(worldBlocks, renderBlocks, sequenceEntries);
         }
 
         // 片段范围内：按序列推进
@@ -810,55 +871,74 @@ public class TimelineClipBlockController {
 
             if (sequenceEntries == null || sequenceEntries.isEmpty()) {
                 // 后备：序列为空时，直接视为全量
-                if (type == TrackType.ERASE) {
-                    visibleBlocks.addAll(allBlocks);
-                } else {
-                    visibleBlocks.addAll(allBlocks);
-                }
-                return new VisibleBlocksResult(visibleBlocks, sequenceEntries);
+                renderBlocks.addAll(allBlocks);
+                worldBlocks.addAll(allBlocks);
+                return new VisibleBlocksResult(worldBlocks, renderBlocks, sequenceEntries);
             }
 
             if (type == TrackType.CONTAINER) {
-                // 逐步显示
+                // 逐步显示（ENTER）：
+                // - renderBlocks：从 blockStartTime 起可见（用于 overlay 动画）
+                // - worldBlocks ：到 blockEndTime 才落地（避免真方块提前出现在目标格）
+                boolean isInstant = false;
+                try {
+                    isInstant = config != null
+                            && config.getMode() == com.chronoblocks.core.container.AnimationMode.INSTANT;
+                } catch (Exception ignored) {
+                }
                 for (BlockSequenceEntry entry : sequenceEntries) {
                     float normalizedTime = entry.getNormalizedTime();
-                    // 与 BlockAnimationEngine 的 ENTER 时间窗口对齐：让方块从动画开始时刻进入世界
                     float blockStartTime = clipStart + delay + normalizedTime * sequenceSpan;
+                    float blockEndTime = Math.min(clipEnd, blockStartTime + animDuration);
+
                     if (currentTime >= blockStartTime) {
-                        visibleBlocks.add(entry.getPos());
+                        renderBlocks.add(entry.getPos());
+                    }
+                    if (isInstant) {
+                        if (currentTime >= blockStartTime) {
+                            worldBlocks.add(entry.getPos());
+                        }
+                    } else {
+                        if (currentTime >= blockEndTime) {
+                            worldBlocks.add(entry.getPos());
+                        }
                     }
                 }
             } else if (type == TrackType.ERASE) {
                 // 逐步清除（带退出动画窗口）：
                 // - 每个方块在自己的 EXIT 动画结束时刻被移除（即从世界中消失/置 AIR）
                 // - 在此之前一直保留在 visible 集合中，供 BlockAnimationEngine 采样退出动画
-                visibleBlocks.addAll(allBlocks); // 先全量保留，再按“结束时刻”移除
+                renderBlocks.addAll(allBlocks); // 先全量保留，再按“结束时刻”移除
+                worldBlocks.addAll(allBlocks);
                 for (BlockSequenceEntry entry : sequenceEntries) {
                     float normalizedTime = entry.getNormalizedTime();
                     // 与 BlockAnimationEngine 的 EXIT 时间窗口对齐：结束时刻分布在 [clipStart+delay+animDuration, clipEnd]
                     float blockEndTime = clipStart + delay + (fullWindow ? animDuration : 0.0f) + normalizedTime * sequenceSpan;
                     if (currentTime >= blockEndTime) {
-                        visibleBlocks.remove(entry.getPos());
+                        renderBlocks.remove(entry.getPos());
+                        worldBlocks.remove(entry.getPos());
                     }
                 }
             } else {
                 // 其他类型（理论上不会到这里）：默认全量
-                visibleBlocks.addAll(allBlocks);
+                renderBlocks.addAll(allBlocks);
+                worldBlocks.addAll(allBlocks);
             }
 
-            return new VisibleBlocksResult(visibleBlocks, sequenceEntries);
+            return new VisibleBlocksResult(worldBlocks, renderBlocks, sequenceEntries);
         }
 
         // 片段右侧
         if (currentTime > clipEnd) {
             if (type == TrackType.CONTAINER) {
-                visibleBlocks.addAll(allBlocks);
+                renderBlocks.addAll(allBlocks);
+                worldBlocks.addAll(allBlocks);
             } else if (type == TrackType.ERASE) {
                 // 全清除 => 保持空集合
             }
         }
 
-        return new VisibleBlocksResult(visibleBlocks, sequenceEntries);
+        return new VisibleBlocksResult(worldBlocks, renderBlocks, sequenceEntries);
     }
 
     /**
@@ -1093,7 +1173,7 @@ public class TimelineClipBlockController {
         return null;
     }
 
-    private record VisibleBlocksResult(Set<BlockPos> visibleBlocks, List<BlockSequenceEntry> sequenceEntries) { }
+    private record VisibleBlocksResult(Set<BlockPos> worldBlocks, Set<BlockPos> renderBlocks, List<BlockSequenceEntry> sequenceEntries) { }
     private void applyOcclusionOverrides(float currentTime,
                                          Map<UUID, Set<BlockPos>> currentFrameVisibleBlocks,
                                          Map<UUID, Float> currentFrameOpacity,

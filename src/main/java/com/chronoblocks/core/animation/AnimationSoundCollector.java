@@ -1,6 +1,7 @@
 package com.chronoblocks.core.animation;
 
 import com.chronoblocks.core.animation.sequence.BlockSequenceEntry;
+import com.chronoblocks.core.animation.easing.EasingFunction;
 import com.chronoblocks.core.container.Container;
 import com.chronoblocks.ui.timeline.model.TimelineClip;
 import com.chronoblocks.ui.timeline.model.audio.AudioEvent;
@@ -90,6 +91,30 @@ public class AnimationSoundCollector {
         float availableSpan = fullWindow ? baseSpan : Math.max(0.0001f, clipDuration - totalDelay);
 
         boolean isExit = config.getPhase() == ClipAnimationConfig.AnimationPhase.EXIT;
+        boolean isInstant = config.getMode() == com.chronoblocks.core.container.AnimationMode.INSTANT;
+
+        // ENTER 音效触发时机：
+        // - START    : 动画开始
+        // - IMPACT   : 第一次到达目标位置（对某些弹性曲线可能过早）
+        // - PRE_LAND : 在落地/归位前一帧触发（更贴近“看到真方块落地前那一下”）
+        // - END      : 动画完全结束（归位/回弹结束）
+        //
+        // 默认使用 PRE_LAND：避免弹性曲线“很早就第一次触碰到位”造成音频超前，
+        // 同时又比 END 更靠前一点点，贴近你的“归位前一帧/差不多在动画时长附近”的体感。
+        String enterTiming = null;
+        try {
+            Object t = config.getParams().get("enterSoundTiming");
+            if (t != null) enterTiming = t.toString();
+        } catch (Exception ignored) {}
+        if (enterTiming == null || enterTiming.isBlank()) {
+            enterTiming = "PRE_LAND";
+        }
+
+        float impactT = 1.0f;
+        if (!isExit && !isInstant && "IMPACT".equalsIgnoreCase(enterTiming)) {
+            // 从 easing 曲线中找“第一次到达 1.0”的时刻（数值扫描）
+            impactT = findFirstReachOne(config.getEasing());
+        }
 
         // 遍历序列条目，为每个方块生成声音事件
         for (BlockSequenceEntry entry : sequenceEntries) {
@@ -109,9 +134,26 @@ public class AnimationSoundCollector {
                 // EXIT：事件在“方块被移除”时刻触发（动画结束端点）
                 eventTime = clipStart + totalDelay + (fullWindow ? animDuration : 0.0f) + normalizedTime * availableSpan;
             } else {
-                // ENTER：事件在“方块开始出现/进入世界”时刻触发（动画起点）
-                // 与 TimelineClipBlockController 的 blockStartTime 对齐：currentTime >= blockStartTime 时方块进入 visible 集合
-                eventTime = clipStart + totalDelay + normalizedTime * availableSpan;
+                float blockStartTime = clipStart + totalDelay + normalizedTime * availableSpan;
+                float blockEndTime = Math.min(clipStart + clipDuration, blockStartTime + animDuration);
+                if (isInstant) {
+                    eventTime = blockStartTime;
+                } else if ("START".equalsIgnoreCase(enterTiming)) {
+                    eventTime = blockStartTime;
+                } else if ("END".equalsIgnoreCase(enterTiming)) {
+                    eventTime = blockEndTime;
+                } else if ("PRE_LAND".equalsIgnoreCase(enterTiming)) {
+                    // 取“归位前一帧”：用 60FPS 的 1 帧作为经验值（比 END 早一点点）
+                    float pre = blockEndTime - (1.0f / 60.0f);
+                    if (pre < blockStartTime) pre = blockStartTime;
+                    eventTime = pre;
+                } else {
+                    // IMPACT：第一下到位（通常 <= blockEndTime）
+                    float impactTime = blockStartTime + impactT * animDuration;
+                    if (impactTime < blockStartTime) impactTime = blockStartTime;
+                    if (impactTime > blockEndTime) impactTime = blockEndTime;
+                    eventTime = impactTime;
+                }
             }
             
             // 获取方块状态
@@ -141,6 +183,37 @@ public class AnimationSoundCollector {
         }
         
         return events;
+    }
+
+    /**
+     * 对给定 easing 名称，数值扫描找出 t_raw∈[0,1] 内第一次达到 1.0 的位置。
+     * <p>
+     * 对于有 overshoot 的曲线（如 EaseOutBack/EaseOutElastic），该值通常 < 1；
+     * 对于不 overshoot 的曲线，结果为 1。
+     */
+    private float findFirstReachOne(String easingName) {
+        EasingFunction easing = EasingFunction.LINEAR;
+        try {
+            easing = EasingFunction.fromString(easingName);
+        } catch (Exception ignored) {
+        }
+
+        // 轻量扫描：步数越大越精确，但也更耗；这里足够用
+        final int steps = 200;
+        final float threshold = 0.9995f;
+        for (int i = 0; i <= steps; i++) {
+            float t = i / (float) steps;
+            float v;
+            try {
+                v = easing.apply(t);
+            } catch (Exception e) {
+                return 1.0f;
+            }
+            if (v >= threshold) {
+                return t;
+            }
+        }
+        return 1.0f;
     }
     
     // 旧的 collectBlockBreakEvents 已并入 collectFromClip（根据 config.phase 自动选择放置/破坏语义）
