@@ -48,7 +48,7 @@ public class GrowUpTransformer implements IAnimationTransformer {
         }
         
         // 获取升起距离参数
-        float distance = getFloatParam(params, "distance", 0.0f);
+        float distance = getFloatParam(params);
         
         // 根据锚点调整位移（Minecraft 方块原点在左下角）
         if ("BOTTOM".equalsIgnoreCase(pivot) && "Y".equalsIgnoreCase(axis)) {
@@ -88,12 +88,12 @@ public class GrowUpTransformer implements IAnimationTransformer {
     
     // ========== 工具方法 ==========
     
-    private float getFloatParam(Map<String, Object> params, String key, float defaultValue) {
-        if (params == null) return defaultValue;
-        Object val = params.get(key);
+    private float getFloatParam(Map<String, Object> params) {
+        if (params == null) return (float) 0.0;
+        Object val = params.get("distance");
         switch (val) {
             case null -> {
-                return defaultValue;
+                return (float) 0.0;
             }
             case Number number -> {
                 return number.floatValue();
@@ -102,13 +102,13 @@ public class GrowUpTransformer implements IAnimationTransformer {
                 try {
                     return Float.parseFloat(s);
                 } catch (NumberFormatException e) {
-                    return defaultValue;
+                    return (float) 0.0;
                 }
             }
             default -> {
             }
         }
-        return defaultValue;
+        return (float) 0.0;
     }
     
     private String getStringParam(Map<String, Object> params, String key, String defaultValue) {
@@ -156,7 +156,7 @@ public class GrowUpTransformer implements IAnimationTransformer {
         }
         
         // 升起距离
-        float distance = getFloatParam(params, "distance", 0.0f);
+        float distance = getFloatParam(params);
         float[] distanceArray = {distance};
         if (UIHelper.dragFloat("升起距离", distanceArray, 0.1f, 0.0f, 10.0f, "%.1f 格")) {
             params.put("distance", distanceArray[0]);
@@ -175,7 +175,7 @@ public class GrowUpTransformer implements IAnimationTransformer {
     public void apply(float easedT, Map<String, Object> params, Random random) {
         String axis = getStringParam(params, "axis", "Y");
         String pivot = getStringParam(params, "pivot", "BOTTOM");
-        float distance = getFloatParam(params, "distance", 0.0f);
+        float distance = getFloatParam(params);
 
         // 根据轴向应用缩放（统一使用 scale 参数，BlockAnimationEngine 会统一应用）
         // 对于复杂的轴向缩放，可以使用 scaleX/scaleY/scaleZ，但当前约定是统一 scale

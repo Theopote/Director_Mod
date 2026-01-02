@@ -398,11 +398,6 @@ public final class BlockAnimationEngine {
     }
 
     /**
-     * 单位变换矩阵。
-     */
-    // identityTransform 已不再需要：约定 snapshot.transform == null 表示单位矩阵
-
-    /**
      * 真正应用所有挂在 Clip 上的 EffectInstance。
      * <p>
      * 注意：这里仅负责「触发」粒子等效果，不改变方块几何。
