@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 容器属性适配器 v4.7 - ChronoBlocks Properties System
@@ -377,8 +378,39 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
         }
         if (!java.util.List.of(baseModes).contains(currentMode)) {
             UITheme.spacingSmall();
-            UITheme.label("提示：该模式属于旧版本的“排序策略”，拖到时间线后会自动迁移到「序列行为」面板。", UITheme.DarkTheme.TEXT_DISABLED);
+            UITheme.label("提示：该模式属于旧版本的\"排序策略\"，拖到时间线后会自动迁移到「序列行为」面板。", UITheme.DarkTheme.TEXT_DISABLED);
         }
+
+        // ===== 动画模式参数 =====
+        UITheme.separator();
+        UITheme.label("动画细节参数", UITheme.DarkTheme.TEXT_SELECTED);
+        
+        // 获取参数 Map
+        Map<String, Object> params = preset != null ? preset.getParams() : new java.util.HashMap<>();
+        
+        // 填入默认值，避免 NPE
+        try {
+            com.chronoblocks.core.animation.transform.IAnimationTransformer transformer = 
+                com.chronoblocks.core.animation.transform.AnimationTransformerFactory.getInstance().getTransformer(currentMode);
+            if (transformer != null) {
+                Map<String, Object> defaultParams = transformer.getDefaultParams();
+                if (defaultParams != null) {
+                    defaultParams.forEach(params::putIfAbsent);
+                }
+                
+                // 调用 Transformer 的 renderUI 方法（由每个 Transformer 自己负责渲染UI）
+                try {
+                    modified |= transformer.renderUI(params);
+                } catch (Exception e) {
+                    LOGGER.warn("Transformer.renderUI() 失败，使用默认参数渲染: {}", e.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.error("渲染动画参数时出错: {}", e.getMessage(), e);
+            imgui.ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, "错误: " + e.getMessage());
+        }
+
+        UITheme.separator();
 
         float[] duration = null;
         if (preset != null) {
