@@ -23,7 +23,7 @@ public class ShrinkOutTransformer implements IAnimationTransformer {
         TransformResult result = new TransformResult();
         
         // 获取参数
-        float targetScale = getFloatParam(params, "targetScale", 0.0f);
+        float targetScale = getFloatParam(params);
         
         // 计算缩放：从 1.0 到 targetScale
         float scale = 1.0f - (1.0f - targetScale) * progress;
@@ -62,12 +62,12 @@ public class ShrinkOutTransformer implements IAnimationTransformer {
     
     // ========== 工具方法 ==========
     
-    private float getFloatParam(Map<String, Object> params, String key, float defaultValue) {
-        if (params == null) return defaultValue;
-        Object val = params.get(key);
+    private float getFloatParam(Map<String, Object> params) {
+        if (params == null) return (float) 0.0;
+        Object val = params.get("targetScale");
         switch (val) {
             case null -> {
-                return defaultValue;
+                return (float) 0.0;
             }
             case Number number -> {
                 return number.floatValue();
@@ -76,13 +76,13 @@ public class ShrinkOutTransformer implements IAnimationTransformer {
                 try {
                     return Float.parseFloat(s);
                 } catch (NumberFormatException e) {
-                    return defaultValue;
+                    return (float) 0.0;
                 }
             }
             default -> {
             }
         }
-        return defaultValue;
+        return (float) 0.0;
     }
     
     @Override
@@ -96,7 +96,7 @@ public class ShrinkOutTransformer implements IAnimationTransformer {
         UIHelper.label("皱缩消失参数");
         
         // 目标缩放
-        float targetScale = getFloatParam(params, "targetScale", 0.0f);
+        float targetScale = getFloatParam(params);
         float[] scaleArray = {targetScale};
         if (UIHelper.dragFloat("目标缩放", scaleArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
             params.put("targetScale", scaleArray[0]);
@@ -113,7 +113,7 @@ public class ShrinkOutTransformer implements IAnimationTransformer {
      */
     @Override
     public void apply(float easedT, Map<String, Object> params, Random random) {
-        float targetScale = getFloatParam(params, "targetScale", 0.0f);
+        float targetScale = getFloatParam(params);
         
         // 计算缩放：从 1.0 到 targetScale
         float scale = 1.0f - (1.0f - targetScale) * easedT;

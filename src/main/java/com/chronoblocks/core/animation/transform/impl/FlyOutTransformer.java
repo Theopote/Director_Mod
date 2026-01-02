@@ -23,8 +23,8 @@ public class FlyOutTransformer implements IAnimationTransformer {
         TransformResult result = new TransformResult();
         
         // 获取参数
-        String direction = getStringParam(params, "direction", "Y+");
-        float flyDistance = getFloatParam(params, "flyDistance", 10.0f);
+        String direction = getStringParam(params);
+        float flyDistance = getFloatParam(params);
         
         // 计算飞行偏移：从 0 到 flyDistance
         float offset = flyDistance * progress;
@@ -88,12 +88,12 @@ public class FlyOutTransformer implements IAnimationTransformer {
     
     // ========== 工具方法 ==========
     
-    private float getFloatParam(Map<String, Object> params, String key, float defaultValue) {
-        if (params == null) return defaultValue;
-        Object val = params.get(key);
+    private float getFloatParam(Map<String, Object> params) {
+        if (params == null) return (float) 10.0;
+        Object val = params.get("flyDistance");
         switch (val) {
             case null -> {
-                return defaultValue;
+                return (float) 10.0;
             }
             case Number number -> {
                 return number.floatValue();
@@ -102,19 +102,19 @@ public class FlyOutTransformer implements IAnimationTransformer {
                 try {
                     return Float.parseFloat(s);
                 } catch (NumberFormatException e) {
-                    return defaultValue;
+                    return (float) 10.0;
                 }
             }
             default -> {
             }
         }
-        return defaultValue;
+        return (float) 10.0;
     }
     
-    private String getStringParam(Map<String, Object> params, String key, String defaultValue) {
-        if (params == null) return defaultValue;
-        Object val = params.get(key);
-        if (val == null) return defaultValue;
+    private String getStringParam(Map<String, Object> params) {
+        if (params == null) return "Y+";
+        Object val = params.get("direction");
+        if (val == null) return "Y+";
         return val.toString();
     }
     
@@ -129,7 +129,7 @@ public class FlyOutTransformer implements IAnimationTransformer {
         UIHelper.label("飞离参数");
         
         // 飞离方向
-        String direction = getStringParam(params, "direction", "Y+");
+        String direction = getStringParam(params);
         String[] directions = {"X+", "X-", "Y+", "Y-", "Z+", "Z-"};
         int dirIndex = 0;
         for (int i = 0; i < directions.length; i++) {
@@ -145,7 +145,7 @@ public class FlyOutTransformer implements IAnimationTransformer {
         }
         
         // 飞行距离
-        float flyDistance = getFloatParam(params, "flyDistance", 10.0f);
+        float flyDistance = getFloatParam(params);
         float[] distanceArray = {flyDistance};
         if (UIHelper.dragFloat("飞行距离", distanceArray, 1.0f, 5.0f, 50.0f, "%.0f 格")) {
             params.put("flyDistance", distanceArray[0]);
@@ -162,8 +162,8 @@ public class FlyOutTransformer implements IAnimationTransformer {
      */
     @Override
     public void apply(float easedT, Map<String, Object> params, Random random) {
-        String direction = getStringParam(params, "direction", "Y+");
-        float flyDistance = getFloatParam(params, "flyDistance", 10.0f);
+        String direction = getStringParam(params);
+        float flyDistance = getFloatParam(params);
         
         float dx = 0f, dy = 0f, dz = 0f;
         float offset = flyDistance * easedT;

@@ -24,7 +24,7 @@ public class GravityFallTransformer implements IAnimationTransformer {
         
         // 获取参数
         float fallSpeed = getFloatParam(params, "fallSpeed", 5.0f);
-        boolean tumble = getBooleanParam(params, "tumble", true);
+        boolean tumble = getBooleanParam(params);
         float tumbleIntensity = getFloatParam(params, "tumbleIntensity", 1.0f);
         
         // 计算下落距离：使用重力加速度公式（简化）
@@ -94,13 +94,13 @@ public class GravityFallTransformer implements IAnimationTransformer {
         return defaultValue;
     }
     
-    private boolean getBooleanParam(Map<String, Object> params, String key, boolean defaultValue) {
-        if (params == null) return defaultValue;
-        Object val = params.get(key);
+    private boolean getBooleanParam(Map<String, Object> params) {
+        if (params == null) return true;
+        Object val = params.get("tumble");
         return switch (val) {
             case Boolean b -> b;
             case String s -> Boolean.parseBoolean(s);
-            case null, default -> defaultValue;
+            case null, default -> true;
         };
     }
     
@@ -123,7 +123,7 @@ public class GravityFallTransformer implements IAnimationTransformer {
         }
         
         // 翻滚效果
-        boolean tumble = getBooleanParam(params, "tumble", true);
+        boolean tumble = getBooleanParam(params);
         boolean[] tumbleArray = {tumble};
         if (UIHelper.checkbox("启用翻滚", tumbleArray)) {
             params.put("tumble", tumbleArray[0]);
@@ -150,7 +150,7 @@ public class GravityFallTransformer implements IAnimationTransformer {
     @Override
     public void apply(float easedT, Map<String, Object> params, Random random) {
         float fallSpeed = getFloatParam(params, "fallSpeed", 5.0f);
-        boolean tumble = getBooleanParam(params, "tumble", true);
+        boolean tumble = getBooleanParam(params);
         float tumbleIntensity = getFloatParam(params, "tumbleIntensity", 1.0f);
         
         // 计算下落距离（使用 easedT，已经应用了缓动函数）
