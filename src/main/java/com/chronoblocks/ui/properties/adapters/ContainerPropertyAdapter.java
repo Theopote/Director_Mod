@@ -385,8 +385,15 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
         UITheme.separator();
         UITheme.label("动画细节参数", UITheme.DarkTheme.TEXT_SELECTED);
         
-        // 获取参数 Map
-        Map<String, Object> params = preset != null ? preset.getParams() : new java.util.HashMap<>();
+        // 确保 preset 存在
+        if (preset == null) {
+            preset = ContainerAnimationPreset.defaultPreset();
+            container.setDefaultAnimationPreset(preset);
+            modified = true;
+        }
+        
+        // 获取参数 Map（确保从实际的 preset 获取）
+        Map<String, Object> params = preset.getParams();
         
         // 填入默认值，避免 NPE
         try {
@@ -400,7 +407,12 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
                 
                 // 调用 Transformer 的 renderUI 方法（由每个 Transformer 自己负责渲染UI）
                 try {
-                    modified |= transformer.renderUI(params);
+                    boolean paramsModified = transformer.renderUI(params);
+                    if (paramsModified) {
+                        modified = true;
+                        // 确保参数修改后保存到容器
+                        container.setDefaultAnimationPreset(preset);
+                    }
                 } catch (Exception e) {
                     LOGGER.warn("Transformer.renderUI() 失败，使用默认参数渲染: {}", e.getMessage());
                 }
@@ -412,18 +424,12 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
 
         UITheme.separator();
 
-        float[] duration = null;
-        if (preset != null) {
-            duration = new float[]{preset.getSuggestedDuration()};
-        }
+        float[] duration;
+        duration = new float[]{preset.getSuggestedDuration()};
         if (ImGui.dragFloat("建议时长", duration, 0.1f, 0.05f, 120.0f, "%.2fs")) {
-            ContainerAnimationPreset updated = null;
-            if (preset != null) {
-                updated = preset.copy();
-            }
-            if (duration != null) {
-                updated.setSuggestedDuration(duration[0]);
-            }
+            ContainerAnimationPreset updated;
+            updated = preset.copy();
+            updated.setSuggestedDuration(duration[0]);
             container.setDefaultAnimationPreset(updated);
             modified = true;
         }
@@ -431,18 +437,12 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
             ImGui.setTooltip("用于初始化片段长度，实际片段仍可单独调整");
         }
 
-        float[] delay = null;
-        if (preset != null) {
-            delay = new float[]{preset.getDelay()};
-        }
+        float[] delay;
+        delay = new float[]{preset.getDelay()};
         if (ImGui.dragFloat("默认延迟", delay, 0.05f, 0.0f, 30.0f, "%.2fs")) {
-            ContainerAnimationPreset updated = null;
-            if (preset != null) {
-                updated = preset.copy();
-            }
-            if (updated != null) {
-                updated.setDelay(delay[0]);
-            }
+            ContainerAnimationPreset updated;
+            updated = preset.copy();
+            updated.setDelay(delay[0]);
             container.setDefaultAnimationPreset(updated);
             modified = true;
         }

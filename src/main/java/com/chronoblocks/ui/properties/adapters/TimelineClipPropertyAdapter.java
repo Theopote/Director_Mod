@@ -532,6 +532,38 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                                  "建议不超过片段总时长。");
             }
 
+            // ===== 动画模式特定参数（显示在"动画模式与节奏"部分内）=====
+            UITheme.spacingSmall();
+            Map<String, Object> params = config.getParams();
+            
+            // 填入默认值，避免 NPE
+            try {
+                IAnimationTransformer transformer = AnimationTransformerFactory.getInstance().getTransformer(currentMode);
+                if (transformer != null) {
+                    Map<String, Object> defaultParams = transformer.getDefaultParams();
+                    if (defaultParams != null) {
+                        defaultParams.forEach(params::putIfAbsent);
+                    }
+                    
+                    // 直接使用 ImGui 渲染参数（不依赖 UIHelper 的反射）
+                    try {
+                        boolean paramsModified = renderAnimationParamsDirectly(currentMode, params);
+                        if (paramsModified) {
+                            modified = true;
+                        }
+                    } catch (Exception e) {
+                        LOGGER.warn("渲染动画参数时出错: {}", e.getMessage(), e);
+                        ImGui.textColored(1.0f, 0.5f, 0.0f, 1.0f, "⚠ 参数渲染失败: " + e.getMessage());
+                    }
+                } else {
+                    LOGGER.warn("未找到动画模式 {} 对应的 Transformer", currentMode);
+                    ImGui.textDisabled("⚠ 未找到动画模式实现");
+                }
+            } catch (Exception e) {
+                LOGGER.error("渲染动画参数时出错: {}", e.getMessage(), e);
+                ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, "错误: " + e.getMessage());
+            }
+
             UITheme.separator();
 
             // ===== 2. 缓动曲线：枚举 + 曲线预览 =====
@@ -571,33 +603,6 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             //UITheme.spacingSmall();
             // 可视化曲线预览（你已经实现了）
             renderEasingCurvePreview(currentEasingFunc);
-
-            UITheme.separator();
-
-            // ===== 3. 模式特定参数 =====
-            UITheme.label("动画细节参数", UITheme.DarkTheme.TEXT_SELECTED);
-            Map<String, Object> params = config.getParams();
-
-            // 填入默认值，避免 NPE
-            try {
-                IAnimationTransformer transformer = AnimationTransformerFactory.getInstance().getTransformer(currentMode);
-                if (transformer != null) {
-                    Map<String, Object> defaultParams = transformer.getDefaultParams();
-                    if (defaultParams != null) {
-                        defaultParams.forEach(params::putIfAbsent);
-                    }
-                    
-                    // 调用 Transformer 的 renderUI 方法（由每个 Transformer 自己负责渲染UI）
-                    try {
-                        modified |= transformer.renderUI(params);
-                    } catch (Exception e) {
-                        LOGGER.warn("Transformer.renderUI() 失败，使用默认参数渲染: {}", e.getMessage());
-                    }
-                }
-            } catch (Exception e) {
-                LOGGER.error("渲染动画参数时出错: {}", e.getMessage(), e);
-                ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, "错误: " + e.getMessage());
-            }
 
             UITheme.separator();
 
@@ -2204,5 +2209,235 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         final float EPSILON = 0.01f;
         return Math.abs(currentYaw - targetYaw) < EPSILON &&
                 Math.abs(currentPitch - targetPitch) < EPSILON;
+    }
+    
+    /**
+     * 直接使用 ImGui 渲染动画参数（不依赖 UIHelper 的反射）
+     */
+    private boolean renderAnimationParamsDirectly(AnimationMode mode, Map<String, Object> params) {
+        boolean modified = false;
+        
+        switch (mode) {
+            case FLY_IN:
+            case FLY_OUT: {
+                // 飞入/飞离方向
+                String direction = getStringParam(params, "direction", "X+");
+                String[] directions = {"X+", "X-", "Y+", "Y-", "Z+", "Z-"};
+                int dirIndex = 0;
+                for (int i = 0; i < directions.length; i++) {
+                    if (directions[i].equals(direction)) {
+                        dirIndex = i;
+                        break;
+                    }
+                }
+                ImInt dirIdx = new ImInt(dirIndex);
+                if (ImGui.combo("飞入方向", dirIdx, directions)) {
+                    params.put("direction", directions[dirIdx.get()]);
+                    modified = true;
+                }
+                
+                // 飞行距离
+                float flyDistance = getFloatParam(params, "flyDistance", 10.0f);
+                float[] distanceArray = {flyDistance};
+                if (ImGui.dragFloat("飞行距离", distanceArray, 1.0f, 5.0f, 50.0f, "%.0f 格")) {
+                    params.put("flyDistance", distanceArray[0]);
+                    modified = true;
+                }
+                break;
+            }
+            case FALL_DOWN:
+            case GRAVITY_FALL: {
+                if (mode == AnimationMode.FALL_DOWN) {
+                    // 下落高度
+                    float height = getFloatParam(params, "height", 10.0f);
+                    float[] heightArray = {height};
+                    if (ImGui.dragFloat("下落高度", heightArray, 0.5f, 0.0f, 50.0f, "%.1f 格")) {
+                        params.put("height", heightArray[0]);
+                        modified = true;
+                    }
+                    
+                    // 回弹力度
+                    float bounciness = getFloatParam(params, "bounciness", 0.3f);
+                    float[] bouncinessArray = {bounciness};
+                    if (ImGui.dragFloat("回弹力度", bouncinessArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
+                        params.put("bounciness", bouncinessArray[0]);
+                        modified = true;
+                    }
+                } else {
+                    // 重力坍塌：下落速度
+                    float fallSpeed = getFloatParam(params, "fallSpeed", 5.0f);
+                    float[] speedArray = {fallSpeed};
+                    if (ImGui.dragFloat("下落速度", speedArray, 0.5f, 1.0f, 20.0f, "%.1f 格/秒")) {
+                        params.put("fallSpeed", speedArray[0]);
+                        modified = true;
+                    }
+                }
+                
+                // 翻滚旋转（两个模式都有）
+                boolean tumble = getBooleanParam(params, "tumble", true);
+                ImBoolean tumbleBool = new ImBoolean(tumble);
+                if (ImGui.checkbox("翻滚旋转", tumbleBool)) {
+                    params.put("tumble", tumbleBool.get());
+                    modified = true;
+                }
+                
+                // 旋转强度（仅在启用翻滚时显示）
+                if (tumbleBool.get()) {
+                    float tumbleIntensity = getFloatParam(params, "tumbleIntensity", 1.0f);
+                    float[] intensityArray = {tumbleIntensity};
+                    if (ImGui.dragFloat("旋转强度", intensityArray, 0.1f, 0.0f, 3.0f, "%.1f")) {
+                        params.put("tumbleIntensity", intensityArray[0]);
+                        modified = true;
+                    }
+                }
+                break;
+            }
+            case GROW_UP: {
+                // 生长轴向
+                String axis = getStringParam(params, "axis", "Y");
+                String[] axes = {"X", "Y", "Z", "XYZ"};
+                int axisIndex = 0;
+                for (int i = 0; i < axes.length; i++) {
+                    if (axes[i].equals(axis)) {
+                        axisIndex = i;
+                        break;
+                    }
+                }
+                ImInt axisIdx = new ImInt(axisIndex);
+                if (ImGui.combo("生长轴向", axisIdx, axes)) {
+                    params.put("axis", axes[axisIdx.get()]);
+                    modified = true;
+                }
+                
+                // 缩放锚点
+                String pivot = getStringParam(params, "pivot", "BOTTOM");
+                String[] pivots = {"CENTER", "BOTTOM"};
+                int pivotIndex = pivot.equals("BOTTOM") ? 1 : 0;
+                ImInt pivotIdx = new ImInt(pivotIndex);
+                if (ImGui.combo("缩放锚点", pivotIdx, pivots)) {
+                    params.put("pivot", pivots[pivotIdx.get()]);
+                    modified = true;
+                }
+                
+                // 升起距离
+                float distance = getFloatParam(params, "distance", 0.0f);
+                float[] distanceArray = {distance};
+                if (ImGui.dragFloat("升起距离", distanceArray, 0.5f, 0.0f, 20.0f, "%.1f 格")) {
+                    params.put("distance", distanceArray[0]);
+                    modified = true;
+                }
+                break;
+            }
+            case SHAKER: {
+                // 震动幅度
+                float intensity = getFloatParam(params, "intensity", 0.5f);
+                float[] intensityArray = {intensity};
+                if (ImGui.dragFloat("震动幅度", intensityArray, 0.05f, 0.0f, 2.0f, "%.2f")) {
+                    params.put("intensity", intensityArray[0]);
+                    modified = true;
+                }
+                
+                // 衰减速度
+                float decay = getFloatParam(params, "decay", 0.8f);
+                float[] decayArray = {decay};
+                if (ImGui.dragFloat("衰减速度", decayArray, 0.05f, 0.1f, 1.0f, "%.2f")) {
+                    params.put("decay", decayArray[0]);
+                    modified = true;
+                }
+                break;
+            }
+            case IMPLODE:
+            case SHRINK_OUT: {
+                // 目标比例
+                String paramKey = mode == AnimationMode.IMPLODE ? "scale" : "targetScale";
+                float scale = getFloatParam(params, paramKey, 0.0f);
+                float[] scaleArray = {scale};
+                String label = mode == AnimationMode.IMPLODE ? "目标比例" : "目标比例";
+                if (ImGui.dragFloat(label, scaleArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
+                    params.put(paramKey, scaleArray[0]);
+                    modified = true;
+                }
+                break;
+            }
+            case ASSEMBLE: {
+                // 散开半径
+                float spread = getFloatParam(params, "spread", 5.0f);
+                float[] spreadArray = {spread};
+                if (ImGui.dragFloat("散开半径", spreadArray, 0.5f, 1.0f, 20.0f, "%.1f 格")) {
+                    params.put("spread", spreadArray[0]);
+                    modified = true;
+                }
+                break;
+            }
+            case POP_IN: {
+                // 初始缩放
+                float initialScale = getFloatParam(params, "initialScale", 0.0f);
+                float[] scaleArray = {initialScale};
+                if (ImGui.dragFloat("初始缩放", scaleArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
+                    params.put("initialScale", scaleArray[0]);
+                    modified = true;
+                }
+                
+                // 弹性程度
+                float elasticity = getFloatParam(params, "elasticity", 1.5f);
+                float[] elasticityArray = {elasticity};
+                if (ImGui.dragFloat("弹性程度", elasticityArray, 0.1f, 0.5f, 3.0f, "%.1f")) {
+                    params.put("elasticity", elasticityArray[0]);
+                    modified = true;
+                }
+                break;
+            }
+            default:
+                // 其他模式可能没有参数或使用默认渲染
+                break;
+        }
+        
+        return modified;
+    }
+    
+    /**
+     * 从 params Map 中安全获取浮点参数
+     */
+    private float getFloatParam(Map<String, Object> params, String key, float defaultValue) {
+        if (params == null || key == null) return defaultValue;
+        Object val = params.get(key);
+        if (val == null) return defaultValue;
+        if (val instanceof Number) {
+            return ((Number) val).floatValue();
+        }
+        if (val instanceof String) {
+            try {
+                return Float.parseFloat((String) val);
+            } catch (NumberFormatException e) {
+                return defaultValue;
+            }
+        }
+        return defaultValue;
+    }
+    
+    /**
+     * 从 params Map 中安全获取布尔参数
+     */
+    private boolean getBooleanParam(Map<String, Object> params, String key, boolean defaultValue) {
+        if (params == null || key == null) return defaultValue;
+        Object val = params.get(key);
+        if (val == null) return defaultValue;
+        if (val instanceof Boolean) {
+            return (Boolean) val;
+        }
+        if (val instanceof String) {
+            return Boolean.parseBoolean((String) val);
+        }
+        return defaultValue;
+    }
+    
+    /**
+     * 从 params Map 中安全获取字符串参数
+     */
+    private String getStringParam(Map<String, Object> params, String key, String defaultValue) {
+        if (params == null || key == null) return defaultValue;
+        Object val = params.get(key);
+        if (val == null) return defaultValue;
+        return val.toString();
     }
 }
