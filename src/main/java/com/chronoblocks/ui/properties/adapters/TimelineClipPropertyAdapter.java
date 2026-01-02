@@ -511,7 +511,6 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                                     try {
                                         opacityFadeIntensity = Float.parseFloat(str);
                                     } catch (NumberFormatException e) {
-                                        opacityFadeIntensity = 1.0f;
                                     }
                                 }
                             }

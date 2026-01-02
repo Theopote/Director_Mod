@@ -542,12 +542,12 @@ public class TimelineClipBlockController {
                 } else {
                     // 先把所有设为隐藏，再把可见集覆盖为目标状态（减少漏网）
                     visualStateManager.setBlocksState(all, BlockVisualStateManager.BlockVisualState.hidden());
+                    // 说明：当半透明且不写深度时，方块自身的前后面会叠加绘制，视觉上容易“更深/更暗”。
+                    // 这里统一改为写深度（GHOST_WITH_DEPTH），让动画/遮挡期间的颜色更接近最终落地后的世界渲染。
                     BlockVisualStateManager.BlockVisualState visibleState =
-                            (isOccluded && opacity < 1.0f)
-                                    ? BlockVisualStateManager.BlockVisualState.ghost(opacity, false, true).withSuppressWorldRendering(true)
-                                    : (opacity < 1.0f
-                                        ? BlockVisualStateManager.BlockVisualState.translucent(opacity).withSuppressWorldRendering(true)
-                                        : BlockVisualStateManager.BlockVisualState.normal());
+                            (opacity < 1.0f)
+                                    ? BlockVisualStateManager.BlockVisualState.ghost(opacity, true, true).withSuppressWorldRendering(true)
+                                    : BlockVisualStateManager.BlockVisualState.normal();
                     visualStateManager.setBlocksState(renderBlocks, visibleState);
                 }
             } else {
@@ -571,11 +571,9 @@ public class TimelineClipBlockController {
                         }
                         if (!added.isEmpty()) {
                             BlockVisualStateManager.BlockVisualState visibleState =
-                                    (isOccluded && opacity < 1.0f)
-                                            ? BlockVisualStateManager.BlockVisualState.ghost(opacity, false, true).withSuppressWorldRendering(true)
-                                            : (opacity < 1.0f
-                                                ? BlockVisualStateManager.BlockVisualState.translucent(opacity).withSuppressWorldRendering(true)
-                                                : BlockVisualStateManager.BlockVisualState.normal());
+                                    (opacity < 1.0f)
+                                            ? BlockVisualStateManager.BlockVisualState.ghost(opacity, true, true).withSuppressWorldRendering(true)
+                                            : BlockVisualStateManager.BlockVisualState.normal();
                             visualStateManager.setBlocksState(added, visibleState);
                         }
                     }
@@ -585,11 +583,9 @@ public class TimelineClipBlockController {
                     // 参数变化：把当前可见集整体更新一次
                     if (renderBlocks != null && !renderBlocks.isEmpty()) {
                         BlockVisualStateManager.BlockVisualState visibleState =
-                                (isOccluded && opacity < 1.0f)
-                                        ? BlockVisualStateManager.BlockVisualState.ghost(opacity, false, true).withSuppressWorldRendering(true)
-                                        : (opacity < 1.0f
-                                            ? BlockVisualStateManager.BlockVisualState.translucent(opacity).withSuppressWorldRendering(true)
-                                            : BlockVisualStateManager.BlockVisualState.normal());
+                                (opacity < 1.0f)
+                                        ? BlockVisualStateManager.BlockVisualState.ghost(opacity, true, true).withSuppressWorldRendering(true)
+                                        : BlockVisualStateManager.BlockVisualState.normal();
                         visualStateManager.setBlocksState(renderBlocks, visibleState);
                     }
                 }
