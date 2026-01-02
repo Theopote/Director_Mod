@@ -112,6 +112,7 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
 
                         var params = cfg.getParams();
                         boolean changed = false;
+                        boolean requestRefresh = false;
 
                         if (!isErase) {
                             // ===== 放置音效（ENTER）=====
@@ -145,14 +146,16 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
                                 };
                                 params.put("enterSoundTiming", newTiming);
                                 changed = true;
+                                requestRefresh = true; // combo 选择完成即可刷新
                             }
                             ImGui.popItemWidth();
                             if (ImGui.isItemHovered()) {
                                 ImGui.setTooltip(
-                                        "落地同步：与真实方块在目标格出现的瞬间对齐（默认推荐）\n" +
-                                        "第一次到位：适合部分有弹性/回弹的动画，但可能偏早\n" +
-                                        "开始：动画一开始就播放\n" +
-                                        "归位前一帧：比落地同步略早（约 1/60s）"
+                                        """
+                                                落地同步：与真实方块在目标格出现的瞬间对齐（默认推荐）
+                                                第一次到位：适合部分有弹性/回弹的动画，但可能偏早
+                                                开始：动画一开始就播放
+                                                归位前一帧：比落地同步略早（约 1/60s）"""
                                 );
                             }
 
@@ -166,6 +169,10 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
                             if (ImGui.dragFloat("放置音效偏移(秒)", offArr, 0.01f, -2.0f, 2.0f, "%+.2fs")) {
                                 params.put("enterSoundOffsetSeconds", offArr[0]);
                                 changed = true;
+                            }
+                            // ✅ 关键：松开滑条（结束编辑）时刷新，避免“拖动过程中一直 active 导致不刷新”
+                            if (ImGui.isItemDeactivatedAfterEdit()) {
+                                requestRefresh = true;
                             }
                             if (ImGui.isItemHovered()) {
                                 ImGui.setTooltip("对所有自动“放置音效”整体做时间偏移（正值=更晚，负值=更早）。");
@@ -183,12 +190,16 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
                                 params.put("exitSoundOffsetSeconds", offArr[0]);
                                 changed = true;
                             }
+                            if (ImGui.isItemDeactivatedAfterEdit()) {
+                                requestRefresh = true;
+                            }
                             if (ImGui.isItemHovered()) {
                                 ImGui.setTooltip("对所有自动“破坏音效”整体做时间偏移（正值=更晚，负值=更早）。");
                             }
                         }
 
-                        if (changed && !ImGui.isAnyItemActive()) {
+                        // 只有在用户结束编辑时才重建（避免拖动时每帧重建）
+                        if ((requestRefresh || (changed && !ImGui.isAnyItemActive()))) {
                             audioService.refreshAutoSoundEventsIfNeeded(containerClip);
                             modified = true;
                         }

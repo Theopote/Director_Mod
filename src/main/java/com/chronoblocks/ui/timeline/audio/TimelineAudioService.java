@@ -963,18 +963,18 @@ public class TimelineAudioService {
         h = 31 * h + (cfg.getSequenceMode() != null ? cfg.getSequenceMode().ordinal() : 0);
         // 放置音效时机（ENTER）：属于“音效派生结果”，改了需要重建事件
         try {
-            Object t = cfg.getParams() != null ? cfg.getParams().get("enterSoundTiming") : null;
+            Object t = cfg.getParams().get("enterSoundTiming");
             h = 31 * h + (t != null ? t.toString().hashCode() : 0);
         } catch (Exception ignored) {
         }
         // 音效偏移（ENTER/EXIT）
         try {
-            Object t = cfg.getParams() != null ? cfg.getParams().get("enterSoundOffsetSeconds") : null;
+            Object t = cfg.getParams().get("enterSoundOffsetSeconds");
             h = 31 * h + (t != null ? t.toString().hashCode() : 0);
         } catch (Exception ignored) {
         }
         try {
-            Object t = cfg.getParams() != null ? cfg.getParams().get("exitSoundOffsetSeconds") : null;
+            Object t = cfg.getParams().get("exitSoundOffsetSeconds");
             h = 31 * h + (t != null ? t.toString().hashCode() : 0);
         } catch (Exception ignored) {
         }

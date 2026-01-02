@@ -2502,13 +2502,12 @@ private boolean renderAnimationSettings(TimelineClip clip) {
      * 从 params Map 中安全获取布尔参数
      */
     private boolean getBooleanParam(Map<String, Object> params, boolean defaultValue) {
-        if (params == null || "tumble" == null) return defaultValue;
+        if (params == null) return defaultValue;
         Object val = params.get("tumble");
         return switch (val) {
-            case null -> defaultValue;
             case Boolean b -> b;
             case String s -> Boolean.parseBoolean(s);
-            default -> defaultValue;
+            case null, default -> defaultValue;
         };
     }
     
