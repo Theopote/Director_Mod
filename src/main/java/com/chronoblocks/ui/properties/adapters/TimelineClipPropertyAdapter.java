@@ -452,14 +452,46 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                 config.setMode(newMode);
                 currentMode = newMode;
 
-                // 智能默认缓动函数
+                // 智能默认缓动函数和参数重置
                 try {
                     IAnimationTransformer transformer = AnimationTransformerFactory.getInstance().getTransformer(newMode);
                     if (transformer != null) {
+                        // 设置推荐的缓动函数
                         String recommended = transformer.getRecommendedEasing();
                         if (recommended != null && !recommended.isEmpty()) {
                             config.setEasing(recommended);
                             currentEasing = recommended;
+                        }
+                        
+                        // 重置参数：清除旧参数，填充新模式的默认参数
+                        Map<String, Object> params = config.getParams();
+                        Map<String, Object> defaultParams = transformer.getDefaultParams();
+                        if (defaultParams != null) {
+                            // 清除所有旧参数（但保留高级修饰参数）
+                            boolean opacityFadeValue = params.containsKey("opacityFade") && 
+                                (params.get("opacityFade") instanceof Boolean b ? b : false);
+                            float opacityFadeIntensity = 1.0f;
+                            if (params.containsKey("opacityFadeIntensity")) {
+                                Object intensityObj = params.get("opacityFadeIntensity");
+                                if (intensityObj instanceof Number num) {
+                                    opacityFadeIntensity = num.floatValue();
+                                } else if (intensityObj instanceof String str) {
+                                    try {
+                                        opacityFadeIntensity = Float.parseFloat(str);
+                                    } catch (NumberFormatException e) {
+                                        opacityFadeIntensity = 1.0f;
+                                    }
+                                }
+                            }
+                            
+                            params.clear();
+                            
+                            // 填充新模式的默认参数
+                            params.putAll(defaultParams);
+                            
+                            // 恢复高级修饰参数
+                            params.put("opacityFade", opacityFadeValue);
+                            params.put("opacityFadeIntensity", opacityFadeIntensity);
                         }
                     }
                 } catch (Exception e) {
