@@ -30,7 +30,9 @@ import com.chronoblocks.core.animation.sequence.evaluator.OriginType;
 import com.chronoblocks.ui.properties.IPropertyAdapter;
 import com.chronoblocks.ui.theme.UITheme;
 import com.chronoblocks.ui.timeline.model.TimelineClip;
+import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.theme.Icons;
+import com.chronoblocks.ui.timeline.model.TrackType;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
@@ -162,6 +164,10 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
     private boolean renderPropertiesInternal(TimelineClip clip) {
         boolean modified = false;
 
+        // ⭐ 用于音频联动：属性面板中修改容器片段时间范围时，同步更新关联的音频片段
+        final float oldStartTime = clip.getStartTime();
+        final float oldEndTime = clip.getEndTime();
+
         // 1. 基础设置组 - 默认展开
         if (ImGui.collapsingHeader(Icons.SETTINGS + " 基础设置", ImGuiTreeNodeFlags.DefaultOpen)) {
             modified |= renderBasicProperties(clip);
@@ -190,6 +196,32 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
         if (ImGui.collapsingHeader(effectsHeader, ImGuiTreeNodeFlags.DefaultOpen)) {
             modified |= renderEffectsSection(clip);
             //UITheme.spacing();
+        }
+
+        // ======= 时间范围联动：容器片段 -> 音频片段 =======
+        // 要求：无论在时间线拖动/缩放还是在属性面板修改时，音频片段都要跟随容器片段范围变化
+        try {
+            TimelineTrack parent = clip.getParentTrack();
+            TrackType type = parent != null ? parent.getType() : null;
+            boolean isBlockClip = type == TrackType.CONTAINER || type == TrackType.ERASE;
+            if (isBlockClip) {
+                float newStart = clip.getStartTime();
+                float newEnd = clip.getEndTime();
+                boolean timeChanged = Math.abs(newStart - oldStartTime) > 0.0005f
+                        || Math.abs(newEnd - oldEndTime) > 0.0005f;
+                if (timeChanged) {
+                    com.chronoblocks.ui.timeline.audio.TimelineAudioService.getInstance()
+                            .onClipTimeRangeChanged(clip, oldStartTime, oldEndTime, newStart, newEnd);
+
+                    // 标记时间线变更：更新总时长 + 自动保存（与拖动/命令路径一致）
+                    var timelineModel = com.chronoblocks.ui.timeline.container.ContainerTimelineService.getInstance()
+                            .getTimelineModel();
+                    if (timelineModel != null) {
+                        timelineModel.markDirty();
+                    }
+                }
+            }
+        } catch (Exception ignored) {
         }
 
         return modified;

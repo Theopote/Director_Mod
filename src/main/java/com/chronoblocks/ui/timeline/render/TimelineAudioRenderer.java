@@ -25,8 +25,9 @@ import imgui.ImGui;
 public class TimelineAudioRenderer {
 
     // 事件点大小
-    private static final float EVENT_POINT_SIZE = 6.0f;
-    private static final float EVENT_POINT_HOVER_SIZE = 8.0f;
+    // 需求：点更小，不显示文字
+    private static final float EVENT_POINT_SIZE = 3.0f;
+    private static final float EVENT_POINT_HOVER_SIZE = 4.5f;
     
     // 事件点颜色（根据事件类型）
     private static final int COLOR_BLOCK_PLACE = TimelineColors.rgba(100, 200, 100, 255);  // 绿色
@@ -89,8 +90,6 @@ public class TimelineAudioRenderer {
         float mouseX = ImGui.getMousePosX();
         float mouseY = ImGui.getMousePosY();
         
-        AudioEvent hoveredEvent = null;
-        
         // 绘制所有事件点
         for (AudioEvent event : events) {
             // 跳过未启用的事件
@@ -123,7 +122,6 @@ public class TimelineAudioRenderer {
             
             if (distance < EVENT_POINT_HOVER_SIZE) {
                 pointSize = EVENT_POINT_HOVER_SIZE;
-                hoveredEvent = event;
             }
             
             // 绘制事件点（小圆点）
@@ -135,10 +133,7 @@ public class TimelineAudioRenderer {
             drawList.addCircle(eventX, trackCenterY, pointSize + 1.0f, outerColor, 12);
         }
         
-        // 显示悬停提示
-        if (hoveredEvent != null) {
-            showEventTooltip(hoveredEvent);
-        }
+        // 需求：不需要文字（包括 tooltip 文本），因此不显示 tooltip
     }
     
     /**
@@ -166,21 +161,4 @@ public class TimelineAudioRenderer {
         }
     }
     
-    /**
-     * 显示事件提示信息
-     */
-    private void showEventTooltip(AudioEvent event) {
-        if (event == null) {
-            return;
-        }
-        
-        ImGui.beginTooltip();
-        ImGui.text(String.format("标签: %s", event.getLabel()));
-        ImGui.text(String.format("时间: %.2fs", event.getTime()));
-        ImGui.text(String.format("声音: %s", event.getSoundId()));
-        ImGui.text(String.format("音量: %.1f", event.getVolume()));
-        ImGui.text(String.format("音调: %.1f", event.getPitch()));
-        ImGui.text(String.format("启用: %s", event.isEnabled() ? "是" : "否"));
-        ImGui.endTooltip();
-    }
 }

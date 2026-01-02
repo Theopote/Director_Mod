@@ -109,7 +109,8 @@ public class AnimationSoundCollector {
                 // EXIT：事件在“方块被移除”时刻触发（动画结束端点）
                 eventTime = clipStart + totalDelay + (fullWindow ? animDuration : 0.0f) + normalizedTime * availableSpan;
             } else {
-                // ENTER：事件在“方块进入世界/开始出现”时刻触发（动画起点）
+                // ENTER：事件在“方块开始出现/进入世界”时刻触发（动画起点）
+                // 与 TimelineClipBlockController 的 blockStartTime 对齐：currentTime >= blockStartTime 时方块进入 visible 集合
                 eventTime = clipStart + totalDelay + normalizedTime * availableSpan;
             }
             

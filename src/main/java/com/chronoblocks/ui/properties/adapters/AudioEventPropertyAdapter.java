@@ -45,9 +45,22 @@ public class AudioEventPropertyAdapter implements IPropertyAdapter<AudioEvent> {
         }
 
         float[] time = { event.getTime() };
-        if (ImGui.dragFloat("时间(秒)", time, 0.01f, 0.0f, 100000f, "%.2fs")) {
-            event.setTime(Math.max(0.0f, time[0]));
-            modified = true;
+        boolean isLinked = false;
+        try {
+            isLinked = TimelineAudioService.getInstance().isEventLinked(event);
+        } catch (Exception ignored) {
+        }
+
+        if (isLinked) {
+            ImGui.textDisabled(String.format("时间(秒): %.2fs", time[0]));
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("该事件已与容器片段链接，时间由方块序列决定，不能手动修改。");
+            }
+        } else {
+            if (ImGui.dragFloat("时间(秒)", time, 0.01f, 0.0f, 100000f, "%.2fs")) {
+                event.setTime(Math.max(0.0f, time[0]));
+                modified = true;
+            }
         }
 
         float[] volume = { event.getVolume() };
@@ -70,9 +83,9 @@ public class AudioEventPropertyAdapter implements IPropertyAdapter<AudioEvent> {
 
         // 链接信息（可选）
         try {
-            var linked = TimelineAudioService.getInstance().getLinkedClip(event);
-            if (linked.isPresent()) {
-                TimelineClip clip = linked.get();
+            var linkedClip = TimelineAudioService.getInstance().getLinkedClip(event);
+            if (linkedClip.isPresent()) {
+                TimelineClip clip = linkedClip.get();
                 UITheme.separator();
                 UITheme.label("链接", UITheme.DarkTheme.TEXT_SELECTED);
                 ImGui.textDisabled(String.format("跟随片段: %s [%.2fs - %.2fs]",

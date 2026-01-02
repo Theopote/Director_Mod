@@ -61,7 +61,7 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
                 ImGui.textDisabled("容器ID: " + clip.getBoundContainerId());
             }
 
-            float t = 0.0f;
+            float t;
             try {
                 // 这里不依赖 TimelineModel；仅用于给用户一个“当前时间点的音量倍率”参考。
                 float now = com.chronoblocks.ui.timeline.container.ContainerTimelineService.getInstance()

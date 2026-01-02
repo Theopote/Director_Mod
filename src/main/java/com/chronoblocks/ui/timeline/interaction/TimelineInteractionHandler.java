@@ -690,6 +690,15 @@ public class TimelineInteractionHandler {
         
         // 同步到 SelectionManager，使属性面板显示关键帧属性
         com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(keyframe);
+
+        // 🔒 音频事件点：不允许鼠标拖动改变时间（它应与容器方块时刻严格对应）
+        if (track.getType() == com.chronoblocks.ui.timeline.model.TrackType.AUDIO
+                && keyframe instanceof com.chronoblocks.ui.timeline.model.audio.AudioEvent) {
+            if (callbacks != null) {
+                callbacks.onDataChanged();
+            }
+            return;
+        }
         
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("[Timeline] 点击自动化关键帧: {} (时间: {:.2f}s, 多选: {})", 
@@ -1274,6 +1283,13 @@ public class TimelineInteractionHandler {
     private void dragAutomationKeyframe(float mouseX, float contentX) {
         Object active = interactionManager.getActiveObject();
         if (!(active instanceof AutomationKeyframeHandle handle)) {
+            return;
+        }
+
+        // 🔒 音频事件点：禁止拖动（时间严格由容器动画决定）
+        if (handle.track != null
+                && handle.track.getType() == com.chronoblocks.ui.timeline.model.TrackType.AUDIO
+                && handle.keyframe instanceof com.chronoblocks.ui.timeline.model.audio.AudioEvent) {
             return;
         }
 

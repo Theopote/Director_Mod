@@ -123,14 +123,25 @@ public class AudioTrackSampler {
             return;
         }
 
+        final float eps = 1e-5f;
+
         // 性能关键：事件数量可能极大（每个方块一个音频事件）。
         // 这里用“时间窗口 + 二分查找”只触发本帧跨过的事件，避免每帧从头扫描 O(N)。
         if (!hasLast) {
-            // 首帧：不补触发，避免在中途开始播放时瞬间爆发大量声音
+            // 首帧：补触发一个很小窗口内的事件，避免“片段开头声音全丢导致明显滞后”，同时避免中途开始时爆音
+            // 经验值：50ms 内的事件听感上属于“立刻发生”，且数量通常可控
+            final float warmupWindow = 0.05f;
+            float fromTime = Math.max(0f, time - warmupWindow);
+            int from = upperBound(events, fromTime - eps);
+            int to = upperBound(events, time + eps);
+            for (int i = from; i < to; i++) {
+                AudioEvent ev = events.get(i);
+                if (ev == null) continue;
+                triggerEvent(ev);
+            }
             return;
         }
 
-        final float eps = 1e-5f;
         if (!isReverse) {
             // (prevTime, time] 的事件触发
             if (time <= prevTime + eps) {
