@@ -207,6 +207,7 @@ public class BlockStore {
     /**
      * 添加方块快照（兼容旧代码）
      */
+    @Deprecated
     public void add(BlockPos pos, BlockSnapshot snapshot) {
         if (pos == null || snapshot == null) {
             return;

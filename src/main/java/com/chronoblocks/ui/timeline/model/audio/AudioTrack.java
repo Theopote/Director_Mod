@@ -170,9 +170,7 @@ public class AudioTrack extends TimelineTrack {
     @Override
     public List<TimelineSelectable> getAutomationKeyframes() {
         // AudioEvent 实现了 TimelineSelectable，需要显式转换为 List<TimelineSelectable>
-        List<TimelineSelectable> result = new ArrayList<>();
-        result.addAll(events);
-        return result;
+        return new ArrayList<>(events);
     }
 
     /**
