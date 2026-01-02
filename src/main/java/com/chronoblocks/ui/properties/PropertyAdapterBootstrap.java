@@ -5,6 +5,7 @@ import com.chronoblocks.core.animation.container.Keyframe;
 import com.chronoblocks.core.container.Container;
 import com.chronoblocks.ui.properties.adapters.*;
 import com.chronoblocks.ui.timeline.model.TimelineClip;
+import com.chronoblocks.ui.timeline.model.audio.AudioClipKeyframe;
 import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
 import com.chronoblocks.ui.timeline.model.time.TimeKeyframe;
 
@@ -120,6 +121,8 @@ public final class PropertyAdapterBootstrap {
             registerAdapter(AnimationClip.class, new ClipPropertyAdapter());
             registeredCount++;
             registerAdapter(TimelineClip.class, new TimelineClipPropertyAdapter());
+            registeredCount++;
+            registerAdapter(AudioClipKeyframe.class, new AudioClipKeyframePropertyAdapter());
             registeredCount++;
             
             LOGGER.info("  ========== 扩展系统适配器 ==========");

@@ -246,13 +246,104 @@ public class ContainerVisibilityService {
         }
 
         // ===== 性能关键：delta 更新（只处理新增显示/新增隐藏）=====
-        LongSet last = lastShownBlocks.computeIfAbsent(container.getId(), k -> new LongOpenHashSet());
+        // 但需要处理一个关键边界：第一次进入时间线控制时，世界里可能已经存在“全量方块”。
+        // 若直接从 last=空 开始做 delta，则不会把“非目标方块”置 AIR，表现为“一碰到片段全出来”。
+        // 因此首次调用做一次全量对齐：按 store.positions() 把不在 blocksToShow 的方块强制置 AIR。
+        LongSet last = lastShownBlocks.get(container.getId());
+        boolean firstCall = (last == null);
+        if (firstCall) {
+            last = new LongOpenHashSet();
+            lastShownBlocks.put(container.getId(), last);
+        }
 
         LongOpenHashSet now = new LongOpenHashSet(Math.max(16, blocksToShow.size() * 2));
         for (BlockPos p : blocksToShow) {
             if (p != null) {
                 now.add(p.asLong());
             }
+        }
+
+        // 0) 首次调用：全量对齐（把非目标方块清空为 AIR）
+        if (firstCall) {
+            int hiddenCount = 0;
+            int shownCount = 0;
+
+            // hide: allSnapshotPositions - now
+            // 注意：这里遍历 store.positions()，不要在循环里修改 store（否则可能触发并发修改异常）。
+            for (BlockPos pos : store.positions()) {
+                if (pos == null) continue;
+                long posLong = pos.asLong();
+                if (now.contains(posLong)) {
+                    continue;
+                }
+
+                int chunkX = pos.getX() >> 4;
+                int chunkZ = pos.getZ() >> 4;
+                if (!world.getChunkManager().isChunkLoaded(chunkX, chunkZ)) {
+                    continue;
+                }
+
+                net.minecraft.block.BlockState currentState = world.getBlockState(pos);
+                if (!currentState.isAir()) {
+                    net.minecraft.block.entity.BlockEntity be = world.getBlockEntity(pos);
+                    if (be != null) {
+                        world.removeBlockEntity(pos);
+                    }
+                    world.setBlockState(pos, Blocks.AIR.getDefaultState(),
+                            net.minecraft.block.Block.NOTIFY_ALL | net.minecraft.block.Block.FORCE_STATE);
+                    hiddenCount++;
+                }
+            }
+
+            // show: now (from snapshot)
+            for (var it = now.iterator(); it.hasNext(); ) {
+                long posLong = it.nextLong();
+                BlockPos pos = BlockPos.fromLong(posLong);
+
+                BlockStore.Entry entry = store.get(pos);
+                if (entry == null) {
+                    continue;
+                }
+
+                int chunkX = pos.getX() >> 4;
+                int chunkZ = pos.getZ() >> 4;
+                if (!world.getChunkManager().isChunkLoaded(chunkX, chunkZ)) {
+                    continue;
+                }
+
+                net.minecraft.block.BlockState currentState = world.getBlockState(pos);
+                if (currentState.isAir()) {
+                    world.setBlockState(pos, entry.state,
+                            net.minecraft.block.Block.NOTIFY_ALL | net.minecraft.block.Block.FORCE_STATE);
+
+                    // 恢复 BlockEntity（沿用原逻辑的反射方式）
+                    if (entry.beNbt != null) {
+                        net.minecraft.block.entity.BlockEntity be = world.getBlockEntity(pos);
+                        if (be != null) {
+                            try {
+                                java.lang.reflect.Method loadMethod = be.getClass()
+                                        .getMethod("loadWithComponents", net.minecraft.nbt.NbtCompound.class,
+                                                net.minecraft.registry.RegistryWrapper.WrapperLookup.class);
+                                loadMethod.invoke(be, entry.beNbt, world.getRegistryManager());
+                                be.markDirty();
+                            } catch (Exception e) {
+                                // 忽略恢复失败
+                            }
+                        }
+                    }
+                    shownCount++;
+                }
+            }
+
+            // 更新 last（复用对象避免分配）
+            last.clear();
+            last.addAll(now);
+
+            if (LOGGER.isDebugEnabled() && (shownCount > 0 || hiddenCount > 0)) {
+                LOGGER.debug("[Visibility] 容器 {} 部分方块更新(first-sync): +{} -{} (目标显示 {})",
+                        container.getName(), shownCount, hiddenCount, now.size());
+            }
+            return;
         }
 
         // 1) 隐藏：last - now

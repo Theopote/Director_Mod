@@ -428,6 +428,10 @@ public class TimelineInteractionHandler {
         if (hit.type() == TimelineHitResult.HitType.CLIP) {
             TimelineClip clip = hit.clip();
             TimelineTrack track = hit.track();
+            if (track != null && track.getType() == com.chronoblocks.ui.timeline.model.TrackType.AUDIO) {
+                ImGui.setMouseCursor(ImGuiMouseCursor.Arrow);
+                return;
+            }
             if (clip != null) {
                 // �?轨道锁定功能：锁定轨道上的片段不显示调整光标
                 if (track != null && track.isLocked()) {
@@ -485,6 +489,13 @@ public class TimelineInteractionHandler {
         com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(clip);
         
         if (callbacks != null) callbacks.onDataChanged();
+        
+        if (track.getType() == com.chronoblocks.ui.timeline.model.TrackType.AUDIO) {
+            if (isDoubleClick && callbacks != null) {
+                callbacks.onKeyframeDoubleClick(clip, mouseX, contentX);
+            }
+            return;
+        }
         
         // �?优化：添加日志，便于调试
         if (LOGGER.isDebugEnabled()) {

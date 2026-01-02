@@ -5,6 +5,7 @@ import com.chronoblocks.ui.timeline.model.TimelineClip;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineSelectable;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
+import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.render.TimelineRenderer;
 
 import java.util.List;
@@ -204,19 +205,42 @@ public final class TimelineHitTest {
 
         float bestDistSq = Float.MAX_VALUE;
         TimelineClip bestClip = null;
+        com.chronoblocks.ui.timeline.model.clip.ClipKeyframe bestClipKeyframe = null;
         float bestTime = -1f;
-        int bestIndex = -1;
 
         for (TimelineClip clip : clips) {
-            if (clip.getKeyframes().isEmpty()) continue;
-
             float centerY = trackTop + (TimelineRenderer.getTrackHeight() / 2.0f);
 
-            int idx = 0;
+            List<com.chronoblocks.ui.timeline.model.clip.ClipKeyframe> clipKeyframes = clip.getClipKeyframes();
+            if (clipKeyframes != null && !clipKeyframes.isEmpty()) {
+                for (com.chronoblocks.ui.timeline.model.clip.ClipKeyframe kf : clipKeyframes) {
+                    if (kf == null) {
+                        continue;
+                    }
+                    float kfTime = kf.getTime();
+                    float kx = contentX + (kfTime * pps) - scrollX;
+                    float dx = mouseX - kx;
+                    float dy = mouseY - centerY;
+                    float distSq = dx * dx + dy * dy;
+
+                    float r = TimelineRenderer.getKeyframeHitRadius();
+                    if (distSq <= r * r && distSq < bestDistSq) {
+                        bestDistSq = distSq;
+                        bestClip = clip;
+                        bestTime = kfTime;
+                        bestClipKeyframe = kf;
+                    }
+                }
+                continue;
+            }
+
+            if (clip.getKeyframes().isEmpty()) {
+                continue;
+            }
+
             for (Float kf : clip.getKeyframes()) {
                 if (kf == null) {
-                    idx++;
-                    continue;
+                        continue;
                 }
 
                 float kx = contentX + (kf * pps) - scrollX;
@@ -229,31 +253,30 @@ public final class TimelineHitTest {
                     bestDistSq = distSq;
                     bestClip = clip;
                     bestTime = kf;
-                    bestIndex = idx;
+                    bestClipKeyframe = null;
                 }
-                idx++;
             }
         }
 
         if (bestClip != null) {
-            // ⭐⭐ 修复：查找 ClipKeyframe 对象
-            final float EPS = 0.001f;
-            com.chronoblocks.ui.timeline.model.clip.ClipKeyframe clipKeyframe = 
-                    bestClip.findKeyframeAt(bestTime, EPS);
-            if (clipKeyframe != null) {
+            if (bestClipKeyframe != null) {
+                return TimelineHitResult.keyframe(track, bestClip, bestClipKeyframe, trackIndex);
+            }
+            if (bestTime >= 0f) {
+                final float EPS = 0.001f;
+                com.chronoblocks.ui.timeline.model.clip.ClipKeyframe clipKeyframe =
+                        bestClip.findKeyframeAt(bestTime, EPS);
+                if (clipKeyframe != null) {
+                    return TimelineHitResult.keyframe(track, bestClip, clipKeyframe, trackIndex);
+                }
+                clipKeyframe = new com.chronoblocks.ui.timeline.model.clip.ClipKeyframe(bestTime);
                 return TimelineHitResult.keyframe(track, bestClip, clipKeyframe, trackIndex);
             }
-            // 回退：如果没有找到，创建一个临时对象
-            clipKeyframe = new com.chronoblocks.ui.timeline.model.clip.ClipKeyframe(bestTime);
-            return TimelineHitResult.keyframe(track, bestClip, clipKeyframe, trackIndex);
         }
 
         return TimelineHitResult.none();
     }
 
-    /**
-     * 检测轨道级自动化关键帧的命中（摄像机关键帧、天气关键帧等）
-     */
     private static TimelineHitResult hitTestAutomationKeyframes(
             TimelineRenderer renderer,
             TimelineModel model,
@@ -265,7 +288,7 @@ public final class TimelineHitTest {
             float trackTop,
             float trackBottom
     ) {
-        if (track == null || !track.hasAutomationKeyframes()) {
+        if (track == null || track.getType() == TrackType.AUDIO || !track.hasAutomationKeyframes()) {
             return TimelineHitResult.none();
         }
 

@@ -7,14 +7,16 @@ import com.chronoblocks.core.animation.sequence.SequenceParameters;
 import com.chronoblocks.core.animation.sequence.evaluator.FillType;
 import com.chronoblocks.core.animation.sequence.evaluator.FlowType;
 import com.chronoblocks.core.animation.sequence.evaluator.OriginType;
+import com.chronoblocks.ui.timeline.audio.TimelineAudioService;
 import com.chronoblocks.ui.timeline.model.TimelineClip;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TimelineInterpolation;
 import com.chronoblocks.ui.timeline.model.TimelineViewportState;
 import com.chronoblocks.ui.timeline.model.TrackType;
-import com.chronoblocks.ui.timeline.model.audio.AudioTrack;
+import com.chronoblocks.ui.timeline.model.audio.AudioClipKeyframe;
 import com.chronoblocks.ui.timeline.model.audio.AudioEvent;
+import com.chronoblocks.ui.timeline.model.audio.AudioTrack;
 import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
 import com.chronoblocks.ui.timeline.model.clip.ClipKeyframe;
 import com.chronoblocks.ui.timeline.model.season.SeasonKeyframe;
@@ -193,6 +195,7 @@ public class TimelineModelPersistence {
     public static final class ClipKeyframeDTO {
         public float time;
         public String interpolation; // TimelineInterpolation.name()
+        public Float audioVolume;
     }
 
     /**
@@ -407,6 +410,9 @@ public class TimelineModelPersistence {
                     ClipKeyframeDTO ckfdto = new ClipKeyframeDTO();
                     ckfdto.time = ckf.getTime();
                     ckfdto.interpolation = ckf.getInterpolation() != null ? ckf.getInterpolation().name() : TimelineInterpolation.LINEAR.name();
+                    if (ckf instanceof AudioClipKeyframe audioKeyframe) {
+                        ckfdto.audioVolume = audioKeyframe.getVolume();
+                    }
                     clipDTO.clipKeyframes.add(ckfdto);
                 }
 
@@ -471,6 +477,12 @@ public class TimelineModelPersistence {
             LOGGER.warn("[TimelineModelPersistence] DTO 为空，跳过恢复");
             return;
         }
+
+        TimelineAudioService audioService = TimelineAudioService.getInstance();
+        boolean prevSuppress = audioService.isSuppressAutoCreate();
+        boolean loaded = false;
+        audioService.setSuppressAutoCreate(true);
+        try {
         
         // 恢复视图状态
         if (viewportState != null) {
@@ -489,14 +501,7 @@ public class TimelineModelPersistence {
         // 恢复所有轨道
         for (TrackDTO trackDTO : dto.tracks) {
             // 创建轨道
-            TrackType type = null;
-            if (trackDTO.typeName != null) {
-                try {
-                    type = TrackType.valueOf(trackDTO.typeName);
-                } catch (IllegalArgumentException e) {
-                    LOGGER.warn("[TimelineModelPersistence] 未知的轨道类型: {}", trackDTO.typeName);
-                }
-            }
+            TrackType type = resolveTrackType(trackDTO);
             
             // 根据轨道类型创建正确的轨道实例
             TimelineTrack track = getTimelineTrack(trackDTO, type);
@@ -714,7 +719,13 @@ public class TimelineModelPersistence {
                         if (ckfdto.interpolation != null) {
                             try { interp = TimelineInterpolation.valueOf(ckfdto.interpolation); } catch (Exception ignored) {}
                         }
-                        ClipKeyframe ckf = new ClipKeyframe(ckfdto.time, interp);
+                        ClipKeyframe ckf;
+                        if (track.getType() == TrackType.AUDIO || ckfdto.audioVolume != null) {
+                            float volume = ckfdto.audioVolume != null ? ckfdto.audioVolume : 1.0f;
+                            ckf = new AudioClipKeyframe(ckfdto.time, interp, volume);
+                        } else {
+                            ckf = new ClipKeyframe(ckfdto.time, interp);
+                        }
                         clip.addKeyframe(ckf);
                     }
                 }
@@ -742,6 +753,61 @@ public class TimelineModelPersistence {
         }
         
         LOGGER.info("[TimelineModelPersistence] 成功恢复 {} 条轨道", dto.tracks.size());
+        loaded = true;
+    
+        } finally {
+            audioService.setSuppressAutoCreate(prevSuppress);
+        }
+        if (loaded) {
+            audioService.setTimelineModel(model);
+        }
+}
+
+    private static TrackType resolveTrackType(TrackDTO trackDTO) {
+        if (trackDTO == null) {
+            return TrackType.CONTAINER;
+        }
+        TrackType type = null;
+        if (trackDTO.typeName != null) {
+            try {
+                type = TrackType.valueOf(trackDTO.typeName);
+            } catch (IllegalArgumentException e) {
+                LOGGER.warn("[TimelineModelPersistence] 未知的轨道类型: {}", trackDTO.typeName);
+            }
+        }
+        if (type != null) {
+            return type;
+        }
+        if (looksLikeAudioTrack(trackDTO)) {
+            return TrackType.AUDIO;
+        }
+        return TrackType.CONTAINER;
+    }
+
+    private static boolean looksLikeAudioTrack(TrackDTO trackDTO) {
+        if (trackDTO == null) {
+            return false;
+        }
+        if (trackDTO.automationKeyframes != null) {
+            for (AutomationKeyframeDTO kdto : trackDTO.automationKeyframes) {
+                if (kdto != null && "AudioEvent".equals(kdto.type)) {
+                    return true;
+                }
+            }
+        }
+        if (trackDTO.clips != null) {
+            for (ClipDTO clipDTO : trackDTO.clips) {
+                if (clipDTO == null || clipDTO.clipKeyframes == null) {
+                    continue;
+                }
+                for (ClipKeyframeDTO ckf : clipDTO.clipKeyframes) {
+                    if (ckf != null && ckf.audioVolume != null) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     private static @NotNull AudioEvent getAudioEvent(AutomationKeyframeDTO kdto) {

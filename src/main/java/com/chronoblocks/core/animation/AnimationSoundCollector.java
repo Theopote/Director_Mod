@@ -85,7 +85,9 @@ public class AnimationSoundCollector {
         } catch (Exception ignored) {
         }
 
-        float availableSpan = Math.max(0.0001f, clipDuration - animDuration - totalDelay);
+        float baseSpan = clipDuration - animDuration - totalDelay;
+        boolean fullWindow = baseSpan > 0.0001f;
+        float availableSpan = fullWindow ? baseSpan : Math.max(0.0001f, clipDuration - totalDelay);
 
         boolean isExit = config.getPhase() == ClipAnimationConfig.AnimationPhase.EXIT;
 
@@ -105,7 +107,7 @@ public class AnimationSoundCollector {
             float eventTime;
             if (isExit) {
                 // EXIT：事件在“方块被移除”时刻触发（动画结束端点）
-                eventTime = clipStart + totalDelay + animDuration + normalizedTime * availableSpan;
+                eventTime = clipStart + totalDelay + (fullWindow ? animDuration : 0.0f) + normalizedTime * availableSpan;
             } else {
                 // ENTER：事件在“方块进入世界/开始出现”时刻触发（动画起点）
                 eventTime = clipStart + totalDelay + normalizedTime * availableSpan;

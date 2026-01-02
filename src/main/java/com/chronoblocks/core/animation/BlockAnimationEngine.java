@@ -154,14 +154,16 @@ public final class BlockAnimationEngine {
         // EXIT ：方块在自己的 startTime 起开始退出动画，endTime 后应当被移除（由上层负责从世界中移除）
         float blockStartTime;
         float blockEndTime;
-        float availableSpan = Math.max(0.0001f, clipDuration - animDuration - delay);
+        float baseSpan = clipDuration - animDuration - delay;
+        boolean fullWindow = baseSpan > 0.0001f;
+        float sequenceSpan = fullWindow ? baseSpan : Math.max(0.0001f, clipDuration - delay);
         if (phase == ClipAnimationConfig.AnimationPhase.EXIT) {
             // 结束时刻分布在 [clipStart+delay+animDuration, clipEnd]
-            blockEndTime = clipStart + delay + animDuration + seqNormalizedTime * availableSpan;
+            blockEndTime = clipStart + delay + (fullWindow ? animDuration : 0.0f) + seqNormalizedTime * sequenceSpan;
             blockStartTime = blockEndTime - animDuration;
         } else {
             // ENTER：开始时刻分布在 [clipStart+delay, clipEnd-animDuration]
-            float blockBaseOffset = seqNormalizedTime * availableSpan;
+            float blockBaseOffset = seqNormalizedTime * sequenceSpan;
             blockStartTime = clipStart + delay + blockBaseOffset;
             blockEndTime = blockStartTime + animDuration;
         }

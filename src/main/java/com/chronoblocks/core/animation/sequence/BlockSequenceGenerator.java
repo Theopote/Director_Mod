@@ -140,7 +140,11 @@ public final class BlockSequenceGenerator {
 
         float delay = Math.max(0.0f, totalDelaySeconds);
         float ad = Math.max(0.0001f, Math.min(animDuration, clipDuration));
-        float availableSpan = Math.max(0.0001f, clipDuration - ad - delay);
+        float baseSpan = clipDuration - ad - delay;
+        // Preserve sequence ordering when the animation window consumes the clip.
+        float availableSpan = baseSpan > 0.0001f
+                ? baseSpan
+                : Math.max(0.0001f, clipDuration - delay);
 
         ConcurrencyMode concurrency = params.getConcurrencyMode();
         TimeMappingStrategy mapping = params.getTimeMappingStrategy();

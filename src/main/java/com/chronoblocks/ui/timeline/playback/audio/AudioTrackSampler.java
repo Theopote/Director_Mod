@@ -1,5 +1,6 @@
 package com.chronoblocks.ui.timeline.playback.audio;
 
+import com.chronoblocks.ui.timeline.audio.TimelineAudioService;
 import com.chronoblocks.ui.timeline.model.audio.AudioEvent;
 import com.chronoblocks.ui.timeline.model.audio.AudioTrack;
 import net.minecraft.client.MinecraftClient;
@@ -239,6 +240,8 @@ public class AudioTrackSampler {
 
             // 计算最终音量（应用轨道音量）
             float volume = ev.getVolume() * track.getTrackVolume();
+            float volumeMultiplier = TimelineAudioService.getInstance().getVolumeMultiplierForEvent(ev);
+            volume *= volumeMultiplier;
             float pitch = ev.getPitch();
 
             // 使用 PositionedSoundInstance 创建全局 UI 声音

@@ -8,11 +8,13 @@ import com.chronoblocks.ui.timeline.interaction.*;
 import com.chronoblocks.ui.timeline.menu.TimelineContextMenu;
 import com.chronoblocks.ui.timeline.menu.TimelineContextMenuFactory;
 import com.chronoblocks.ui.timeline.model.TimelineClip;
+import com.chronoblocks.ui.timeline.model.TimelineInterpolation;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineSelectable;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.TimelineViewportState;
+import com.chronoblocks.ui.timeline.model.audio.AudioClipKeyframe;
 import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
 import com.chronoblocks.ui.timeline.model.time.TimeKeyframe;
 import com.chronoblocks.ui.timeline.model.weather.WeatherKeyframe;
@@ -845,19 +847,40 @@ public class TimelinePanel extends AbstractPanel
      */
     private void handleKeyframeDoubleClick(TimelineClip clip, float mouseX, float contentX) {
         if (clip == null) {
-            LOGGER.warn("[TimelinePanel] 尝试在空片段上添加关键帧");
+            LOGGER.warn("[TimelinePanel] ????????????????????????????????????");
             return;
         }
 
-        // 检查轨道是否锁定
         TimelineTrack track = model.findTrackForClip(clip);
         if (track != null && track.isLocked()) {
-            LOGGER.debug("[TimelinePanel] 轨道已锁定，无法修改关键帧 {}", track.getName());
+            LOGGER.debug("[TimelinePanel] ??????????????????????????????????????? {}", track.getName());
             return;
         }
 
         final float clickTime = clamp(model.screenToTime(mouseX, contentX),
                 clip.getStartTime(), clip.getEndTime());
+
+        if (track != null && track.getType() == TrackType.AUDIO) {
+            com.chronoblocks.ui.timeline.model.clip.ClipKeyframe existing =
+                    clip.findKeyframeAt(clickTime, KEYFRAME_TOLERANCE);
+            if (existing != null) {
+                RemoveClipKeyframeCommand cmd = new RemoveClipKeyframeCommand(model, track, clip, existing);
+                commandHistory.executeCommand(cmd);
+                markDataChanged();
+                LOGGER.debug("[TimelinePanel] ????????????????????? at {}s (??????: {})",
+                        String.format("%.2f", existing.getTime()), clip.getLabel());
+            } else {
+                float volume = com.chronoblocks.ui.timeline.audio.TimelineAudioService.getInstance()
+                        .getVolumeAtTimeForClip(clip, clickTime);
+                AudioClipKeyframe audioKeyframe = new AudioClipKeyframe(clickTime, TimelineInterpolation.LINEAR, volume);
+                AddClipKeyframeCommand cmd = new AddClipKeyframeCommand(model, track, clip, audioKeyframe);
+                commandHistory.executeCommand(cmd);
+                markDataChanged();
+                LOGGER.debug("[TimelinePanel] ????????????????????? at {}s (??????: {})",
+                        String.format("%.2f", clickTime), clip.getLabel());
+            }
+            return;
+        }
 
         Float existingKf = clip.getKeyframeAt(clickTime, KEYFRAME_TOLERANCE);
 
@@ -865,20 +888,17 @@ public class TimelinePanel extends AbstractPanel
             RemoveKeyframeCommand cmd = new RemoveKeyframeCommand(model, clip, existingKf);
             commandHistory.executeCommand(cmd);
             markDataChanged();
-            LOGGER.debug("[TimelinePanel] 删除关键帧 at {}s (片段: {})",
+            LOGGER.debug("[TimelinePanel] ???????????????at {}s (??????: {})",
                     String.format("%.2f", existingKf), clip.getLabel());
         } else {
             AddKeyframeCommand cmd = new AddKeyframeCommand(model, clip, clickTime);
             commandHistory.executeCommand(cmd);
             markDataChanged();
-            LOGGER.debug("[TimelinePanel] 添加关键帧 at {}s (片段: {})",
+            LOGGER.debug("[TimelinePanel] ???????????????at {}s (??????: {})",
                     String.format("%.2f", clickTime), clip.getLabel());
         }
     }
 
-    /**
-     * 原位编辑轨道名称（已兼容 scrollY）
-     */
     private void renderInlineEdit(float winX, float trackRegionTop, float scrollY) {
         if (!TrackRenameDialog.isEditingAny()) {
             return;

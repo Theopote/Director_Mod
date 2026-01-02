@@ -1,8 +1,10 @@
 package com.chronoblocks.ui.timeline.container;
 
+import com.chronoblocks.ui.timeline.audio.TimelineAudioService;
 import com.chronoblocks.ui.timeline.model.TimelineClip;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
+import com.chronoblocks.ui.timeline.model.TrackType;
 
 import java.util.*;
 
@@ -63,13 +65,19 @@ public class ContainerTimelineService {
      */
     public List<TimelineClip> findClipsForContainer(UUID containerId) {
         List<TimelineClip> clips = new ArrayList<>();
-        
+
         if (timelineModel == null || containerId == null) {
             return clips;
         }
 
-        // 遍历所有轨道和片段
         for (TimelineTrack track : timelineModel.getAllTracks()) {
+            if (track == null) {
+                continue;
+            }
+            TrackType type = track.getType();
+            if (type != TrackType.CONTAINER && type != TrackType.ERASE) {
+                continue;
+            }
             for (TimelineClip clip : track.getClips()) {
                 if (containerId.equals(clip.getBoundContainerId())) {
                     clips.add(clip);
@@ -80,25 +88,25 @@ public class ContainerTimelineService {
         return clips;
     }
 
-    /**
-     * 查找包含指定容器ID片段的所有轨道
-     * 
-     * @param containerId 容器ID
-     * @return 包含该容器片段的轨道集合
-     */
     public Set<TimelineTrack> findTracksForContainer(UUID containerId) {
         Set<TimelineTrack> tracks = new HashSet<>();
-        
+
         if (timelineModel == null || containerId == null) {
             return tracks;
         }
 
-        // 遍历所有轨道和片段
         for (TimelineTrack track : timelineModel.getAllTracks()) {
+            if (track == null) {
+                continue;
+            }
+            TrackType type = track.getType();
+            if (type != TrackType.CONTAINER && type != TrackType.ERASE) {
+                continue;
+            }
             for (TimelineClip clip : track.getClips()) {
                 if (containerId.equals(clip.getBoundContainerId())) {
                     tracks.add(track);
-                    break; // 该轨道已包含该容器，继续下一个轨道
+                    break;
                 }
             }
         }
@@ -106,26 +114,32 @@ public class ContainerTimelineService {
         return tracks;
     }
 
-    /**
-     * 删除容器在时间线上的所有片段
-     * 
-     * @param containerId 容器ID
-     * @return 被删除的片段数量
-     */
     public int removeClipsForContainer(UUID containerId) {
         if (timelineModel == null || containerId == null) {
             return 0;
         }
 
-        List<TimelineClip> clipsToRemove = findClipsForContainer(containerId);
-        int count = 0;
+        List<TimelineClip> clipsToRemove = new ArrayList<>();
+        for (TimelineTrack track : timelineModel.getAllTracks()) {
+            if (track == null) {
+                continue;
+            }
+            for (TimelineClip clip : track.getClips()) {
+                if (containerId.equals(clip.getBoundContainerId())) {
+                    clipsToRemove.add(clip);
+                }
+            }
+        }
 
+        TimelineAudioService audioService = TimelineAudioService.getInstance();
+        int count = 0;
         for (TimelineClip clip : clipsToRemove) {
+            audioService.onClipRemoved(clip);
             TimelineTrack track = timelineModel.findTrackForClip(clip);
             if (track != null) {
                 track.removeClip(clip);
-                count++;
             }
+            count++;
         }
 
         if (count > 0) {
@@ -135,29 +149,30 @@ public class ContainerTimelineService {
         return count;
     }
 
-    /**
-     * 更新容器在时间线上的所有片段的名称
-     * 
-     * @param containerId 容器ID
-     * @param newName 新的容器名称
-     */
     public void updateClipNamesForContainer(UUID containerId, String newName) {
         if (timelineModel == null || containerId == null || newName == null) {
             return;
         }
 
-        List<TimelineClip> clips = findClipsForContainer(containerId);
-        for (TimelineClip clip : clips) {
-            // 只有当片段名称与容器名称不一致时才更新，避免循环更新
-            if (!newName.equals(clip.getLabel())) {
-                clip.setLabel(newName);
-                clip.setBoundContainerName(newName);
+        boolean changed = false;
+        for (TimelineTrack track : timelineModel.getAllTracks()) {
+            if (track == null) {
+                continue;
+            }
+            for (TimelineClip clip : track.getClips()) {
+                if (!containerId.equals(clip.getBoundContainerId())) {
+                    continue;
+                }
+                if (!newName.equals(clip.getLabel())) {
+                    clip.setLabel(newName);
+                    clip.setBoundContainerName(newName);
+                    changed = true;
+                }
             }
         }
 
-        if (!clips.isEmpty()) {
+        if (changed) {
             timelineModel.markDirty();
         }
     }
 }
-

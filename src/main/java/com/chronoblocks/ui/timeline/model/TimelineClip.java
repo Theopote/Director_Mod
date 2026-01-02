@@ -86,6 +86,11 @@ public class TimelineClip {
         this.endTime = other.endTime;
         this.color = other.color;
         this.keyframes.addAll(other.keyframes);
+        for (com.chronoblocks.ui.timeline.model.clip.ClipKeyframe kf : other.clipKeyframes) {
+            if (kf != null) {
+                this.clipKeyframes.add(kf.copy());
+            }
+        }
         this.muted = other.muted;
         this.opacity = other.opacity;
         this.animationConfig = other.animationConfig != null ? other.animationConfig.copy() : ClipAnimationConfig.defaultConfig();
@@ -137,6 +142,15 @@ public class TimelineClip {
         
         this.keyframes.clear();
         this.keyframes.addAll(movedKeyframes);
+
+        if (!this.clipKeyframes.isEmpty()) {
+            for (com.chronoblocks.ui.timeline.model.clip.ClipKeyframe kf : this.clipKeyframes) {
+                if (kf != null) {
+                    kf.setTime(kf.getTime() + delta);
+                }
+            }
+            this.clipKeyframes.sort(java.util.Comparator.comparing(com.chronoblocks.ui.timeline.model.clip.ClipKeyframe::getTime));
+        }
     }
 
     public boolean containsTime(float time) {
@@ -404,6 +418,11 @@ public class TimelineClip {
         copy.postAnimationFadeEnd = this.postAnimationFadeEnd;
         // 复制关键帧
         copy.keyframes.addAll(this.keyframes);
+        for (com.chronoblocks.ui.timeline.model.clip.ClipKeyframe kf : this.clipKeyframes) {
+            if (kf != null) {
+                copy.clipKeyframes.add(kf.copy());
+            }
+        }
         return copy;
     }
 

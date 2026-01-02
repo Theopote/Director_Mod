@@ -7,6 +7,7 @@ import imgui.ImDrawList;
 import imgui.ImGui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.util.List;
 
 /**
  * 时间线 Clip 渲染器（v9.0）
@@ -219,38 +220,63 @@ public final class TimelineClipRenderer {
         float visibleStart = visibleTimeRange[0];
         float visibleEnd = visibleTimeRange[1];
         
-        for (Float keyframe : clip.getKeyframes()) {
-            if (keyframe == null) continue;
-            
-            // ⭐⭐ 修复：检查是否正在拖动中，如果是则使用临时时间
-            float keyTime = keyframe;
-            if (dragStateQuery != null) {
-                float draggedTime = dragStateQuery.getDraggedClipKeyframeTime(clip, keyTime);
-                if (draggedTime >= 0) {
-                    keyTime = draggedTime; // 使用拖动中的临时时间
+        List<com.chronoblocks.ui.timeline.model.clip.ClipKeyframe> clipKeyframes = clip.getClipKeyframes();
+        if (clipKeyframes != null && !clipKeyframes.isEmpty()) {
+            for (com.chronoblocks.ui.timeline.model.clip.ClipKeyframe keyframe : clipKeyframes) {
+                if (keyframe == null) {
+                    continue;
                 }
+
+                float keyTime = keyframe.getTime();
+                if (dragStateQuery != null) {
+                    float draggedTime = dragStateQuery.getDraggedClipKeyframeTime(clip, keyTime);
+                    if (draggedTime >= 0) {
+                        keyTime = draggedTime;
+                    }
+                }
+
+                if (keyTime < visibleStart || keyTime > visibleEnd) {
+                    continue;
+                }
+
+                float kx = math.timeToX(keyTime);
+                if (kx < contentX || kx > contentX + contentW) continue;
+
+                boolean hovering = isMouseHoveringCircle(kx, centerY);
+                int kfCol = hovering ? TimelineColors.COLOR_KEYFRAME_HOVER : TimelineColors.COLOR_KEYFRAME;
+
+                drawList.addLine(kx, y + 4, kx, y + trackH - 4, TimelineColors.rgba(0, 0, 0, 100), 3.0f);
+                drawList.addLine(kx, y + 4, kx, y + trackH - 4, kfCol, 2.0f);
+                drawList.addCircleFilled(kx, centerY, KEYFRAME_RADIUS + 1.0f, TimelineColors.rgba(0, 0, 0, 180));
+                drawList.addCircleFilled(kx, centerY, KEYFRAME_RADIUS, kfCol);
             }
-            
-            // ★ 优化：早期跳过不可见的关键帧
-            if (keyTime < visibleStart || keyTime > visibleEnd) {
-                continue;
+        } else {
+            for (Float keyframe : clip.getKeyframes()) {
+                if (keyframe == null) continue;
+
+                float keyTime = keyframe;
+                if (dragStateQuery != null) {
+                    float draggedTime = dragStateQuery.getDraggedClipKeyframeTime(clip, keyTime);
+                    if (draggedTime >= 0) {
+                        keyTime = draggedTime;
+                    }
+                }
+
+                if (keyTime < visibleStart || keyTime > visibleEnd) {
+                    continue;
+                }
+
+                float kx = math.timeToX(keyTime);
+                if (kx < contentX || kx > contentX + contentW) continue;
+
+                boolean hovering = isMouseHoveringCircle(kx, centerY);
+                int kfCol = hovering ? TimelineColors.COLOR_KEYFRAME_HOVER : TimelineColors.COLOR_KEYFRAME;
+
+                drawList.addLine(kx, y + 4, kx, y + trackH - 4, TimelineColors.rgba(0, 0, 0, 100), 3.0f);
+                drawList.addLine(kx, y + 4, kx, y + trackH - 4, kfCol, 2.0f);
+                drawList.addCircleFilled(kx, centerY, KEYFRAME_RADIUS + 1.0f, TimelineColors.rgba(0, 0, 0, 180));
+                drawList.addCircleFilled(kx, centerY, KEYFRAME_RADIUS, kfCol);
             }
-            
-            float kx = math.timeToX(keyTime);
-            if (kx < contentX || kx > contentX + contentW) continue;
-
-            // Hover 检测用圆形区域（与 KEYFRAME_HIT_RADIUS 一致）
-            boolean hovering = isMouseHoveringCircle(kx, centerY);
-            int kfCol = hovering ? TimelineColors.COLOR_KEYFRAME_HOVER : TimelineColors.COLOR_KEYFRAME;
-
-            // 绘制垂直指示线（带阴影增强对比度）
-            drawList.addLine(kx, y + 4, kx, y + trackH - 4, TimelineColors.rgba(0, 0, 0, 100), 3.0f); // 阴影/轮廓
-            drawList.addLine(kx, y + 4, kx, y + trackH - 4, kfCol, 2.0f); // 主线
-
-            // 绘制关键帧点（带黑色描边，增强对比度）
-            // 在浅色片段上也能清楚看到关键帧
-            drawList.addCircleFilled(kx, centerY, KEYFRAME_RADIUS + 1.0f, TimelineColors.rgba(0, 0, 0, 180)); // 描边
-            drawList.addCircleFilled(kx, centerY, KEYFRAME_RADIUS, kfCol); // 填充
         }
     }
 

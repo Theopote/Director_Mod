@@ -197,6 +197,11 @@ public class TimelineClipBlockController {
         return next.entries;
     }
 
+    private static boolean isBlockTrackType(TrackType trackType) {
+        return trackType == TrackType.CONTAINER
+                || trackType == TrackType.ERASE;
+    }
+
     /**
      * 记录每个容器上一帧“应当显示/保留”的方块集合。
      *
@@ -287,6 +292,9 @@ public class TimelineClipBlockController {
             
             boolean trackEnabled = !track.isLocked() && track.isVisible();
             TrackType trackType = track.getType();
+            if (!isBlockTrackType(trackType)) {
+                continue;
+            }
             
             for (TimelineClip clip : track.getClips()) {
                 if (clip == null || clip.getBoundContainerId() == null) {
@@ -383,6 +391,9 @@ public class TimelineClipBlockController {
         Map<UUID, TimelineClip> containerToClipMap = new HashMap<>();
         for (TimelineTrack track : timelineModel.getAllTracks()) {
             if (track == null) continue;
+            if (!isBlockTrackType(track.getType())) {
+                continue;
+            }
             for (TimelineClip clip : track.getClips()) {
                 if (clip != null && clip.getBoundContainerId() != null) {
                     containerToClipMap.put(clip.getBoundContainerId(), clip);
@@ -784,7 +795,9 @@ public class TimelineClipBlockController {
                 } catch (Exception ignored) {
                 }
             }
-            float availableSpan = Math.max(0.0001f, clipDuration - animDuration - delay);
+            float baseSpan = clipDuration - animDuration - delay;
+            boolean fullWindow = baseSpan > 0.0001f;
+            float sequenceSpan = fullWindow ? baseSpan : Math.max(0.0001f, clipDuration - delay);
 
             sequenceEntries = getOrGenerateSequenceEntries(
                     clip,
@@ -810,7 +823,7 @@ public class TimelineClipBlockController {
                 for (BlockSequenceEntry entry : sequenceEntries) {
                     float normalizedTime = entry.getNormalizedTime();
                     // 与 BlockAnimationEngine 的 ENTER 时间窗口对齐：让方块从动画开始时刻进入世界
-                    float blockStartTime = clipStart + delay + normalizedTime * availableSpan;
+                    float blockStartTime = clipStart + delay + normalizedTime * sequenceSpan;
                     if (currentTime >= blockStartTime) {
                         visibleBlocks.add(entry.getPos());
                     }
@@ -823,7 +836,7 @@ public class TimelineClipBlockController {
                 for (BlockSequenceEntry entry : sequenceEntries) {
                     float normalizedTime = entry.getNormalizedTime();
                     // 与 BlockAnimationEngine 的 EXIT 时间窗口对齐：结束时刻分布在 [clipStart+delay+animDuration, clipEnd]
-                    float blockEndTime = clipStart + delay + animDuration + normalizedTime * availableSpan;
+                    float blockEndTime = clipStart + delay + (fullWindow ? animDuration : 0.0f) + normalizedTime * sequenceSpan;
                     if (currentTime >= blockEndTime) {
                         visibleBlocks.remove(entry.getPos());
                     }
@@ -911,7 +924,9 @@ public class TimelineClipBlockController {
             }
         } catch (Exception ignored) {
         }
-        float availableSpan = Math.max(0.0001f, clipDuration - animDuration - delay);
+        float baseSpan = clipDuration - animDuration - delay;
+        boolean fullWindow = baseSpan > 0.0001f;
+        float sequenceSpan = fullWindow ? baseSpan : Math.max(0.0001f, clipDuration - delay);
 
         // 🔥 步骤 1：遍历当前片段的所有 BlockSequenceEntry
         for (BlockSequenceEntry entry : sequenceEntries) {
@@ -934,10 +949,10 @@ public class TimelineClipBlockController {
             float blockStartTime;
             float blockEndTime;
             if (phase == ClipAnimationConfig.AnimationPhase.EXIT) {
-                blockEndTime = clipStart + delay + animDuration + seqNormalizedTime * availableSpan;
+                blockEndTime = clipStart + delay + (fullWindow ? animDuration : 0.0f) + seqNormalizedTime * sequenceSpan;
                 blockStartTime = blockEndTime - animDuration;
             } else {
-                blockStartTime = clipStart + delay + seqNormalizedTime * availableSpan;
+                blockStartTime = clipStart + delay + seqNormalizedTime * sequenceSpan;
                 blockEndTime = blockStartTime + animDuration;
             }
             if (blockStartTime < clipStart) blockStartTime = clipStart;
@@ -1152,6 +1167,9 @@ public class TimelineClipBlockController {
             if (track == null || track.isLocked() || !track.isVisible()) {
                 continue;
             }
+            if (!isBlockTrackType(track.getType())) {
+                continue;
+            }
             for (TimelineClip clip : track.getClips()) {
                 if (clip == null || !clip.isAutoFadePreviousClips()) {
                     continue;
@@ -1170,6 +1188,9 @@ public class TimelineClipBlockController {
 
         for (TimelineTrack track : timelineModel.getAllTracks()) {
             if (track == null || track.isLocked() || !track.isVisible()) {
+                continue;
+            }
+            if (!isBlockTrackType(track.getType())) {
                 continue;
             }
             for (TimelineClip clip : track.getClips()) {

@@ -41,7 +41,7 @@ public class TimelineTrack {
      */
     public TimelineTrack(String name, TrackType type) {
         this.name = name;
-        this.type = type;
+        this.type = type != null ? type : TrackType.CONTAINER;
     }
 
     // ========== Clip 管理 ==========
@@ -58,7 +58,8 @@ public class TimelineTrack {
             
             // 如果片段绑定了容器：仅当时间线已存在音频轨道时才自动收集声音事件。
             // 没有音频轨道/没有对应事件时，播放应保持静音（由音频轨道事件驱动）。
-            if (clip.getBoundContainerId() != null) {
+            if (clip.getBoundContainerId() != null
+                    && (type == TrackType.CONTAINER || type == TrackType.ERASE)) {
                 try {
                     com.chronoblocks.ui.timeline.audio.TimelineAudioService.getInstance()
                             .collectAndAddSoundEvents(clip);
@@ -226,7 +227,7 @@ public class TimelineTrack {
     }
 
     public void setType(TrackType type) {
-        this.type = type;
+        this.type = type != null ? type : TrackType.CONTAINER;
     }
 
     public boolean isMuted() {
