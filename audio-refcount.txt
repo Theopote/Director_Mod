@@ -1,0 +1,88 @@
+﻿Audio reference count report (src/main/java)
+2026-01-02 21:55:14Z
+---
+All (sorted by Count asc):
+
+Symbol                                 Count
+------                                 -----
+addAudioEvent                              1
+clearAudioEvents                           1
+getAudioEventsInRange                      1
+hasAudioEvents                             1
+ensureAudioClipForContainerClip            2
+getLegacyAudioEventsForMigration           2
+getVolumeMultiplierForEvent                2
+updateLinkedAudioClipLabel                 2
+getAudioEvents                             3
+getVolumeAtTimeForClip                     3
+isEventLinked                              3
+unlinkEvent                                3
+getLinkedClip                              4
+hasAutomationKeyframes                     4
+rebuildSamplers                            4
+sortEvents                                 4
+TimelineAudioRenderer                      4
+triggerEvent                               4
+AddClipKeyframeCommand                     5
+collectAndAddSoundEvents                   5
+getEventsInRange                           6
+MoveClipKeyframeCommand                    6
+onClipTimeRangeChanged                     6
+RemoveClipKeyframeCommand                  6
+ChangeClipKeyframeInterpolationCommand     7
+getEvents                                  7
+removeEvent                                7
+addEvent                                   8
+TimelineAudioController                   11
+AnimationSoundCollector                   12
+setPlaying                                16
+AudioTrackSampler                         17
+AudioTimelineClip                         18
+reset                                     23
+AudioClipKeyframe                         27
+TimelineAudioService                      45
+AudioEvent                               114
+AudioTrack                               155
+sample                                   218
+
+
+
+Zero references:
+
+Top references:
+
+Symbol                                 Count
+------                                 -----
+sample                                   218
+AudioTrack                               155
+AudioEvent                               114
+TimelineAudioService                      45
+AudioClipKeyframe                         27
+reset                                     23
+AudioTimelineClip                         18
+AudioTrackSampler                         17
+setPlaying                                16
+AnimationSoundCollector                   12
+TimelineAudioController                   11
+addEvent                                   8
+getEvents                                  7
+ChangeClipKeyframeInterpolationCommand     7
+removeEvent                                7
+RemoveClipKeyframeCommand                  6
+onClipTimeRangeChanged                     6
+getEventsInRange                           6
+MoveClipKeyframeCommand                    6
+collectAndAddSoundEvents                   5
+AddClipKeyframeCommand                     5
+TimelineAudioRenderer                      4
+hasAutomationKeyframes                     4
+sortEvents                                 4
+triggerEvent                               4
+rebuildSamplers                            4
+getLinkedClip                              4
+unlinkEvent                                3
+isEventLinked                              3
+getVolumeAtTimeForClip                     3
+
+
+
