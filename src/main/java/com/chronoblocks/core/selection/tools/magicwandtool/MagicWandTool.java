@@ -382,9 +382,7 @@ public class MagicWandTool implements SelectionTool, SelectionOperationSupport {
                         LOGGER.error("[MagicWandTool] 预览失败", ex);
                     }
                     // 清除预览也要在主线程执行
-                    net.minecraft.client.MinecraftClient.getInstance().execute(() -> {
-                        ToolPreviewManager.get().clearMagicWandPreview();
-                    });
+                    net.minecraft.client.MinecraftClient.getInstance().execute(() -> ToolPreviewManager.get().clearMagicWandPreview());
                     return null;
                 });
             }

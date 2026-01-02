@@ -96,16 +96,14 @@ public class MoveAutomationKeyframeCommand extends BaseTimelineCommand {
      * 设置关键帧的时间（支持不同类型的自动化关键帧）
      */
     private void setKeyframeTime(TimelineSelectable keyframe, float time) {
-        if (keyframe instanceof com.chronoblocks.ui.timeline.model.camera.CameraKeyframe cameraKeyframe) {
-            cameraKeyframe.setTime(time);
-        } else if (keyframe instanceof com.chronoblocks.ui.timeline.model.TimelineMarker marker) {
-            marker.setTime(time);
-        } else if (keyframe instanceof com.chronoblocks.ui.timeline.model.weather.WeatherKeyframe weatherKeyframe) {
-            weatherKeyframe.setTime(time);
-        } else if (keyframe instanceof AudioEvent audioEvent) {
-            audioEvent.setTime(time);
-        } else {
-            LOGGER.warn("[Timeline] 不支持的关键帧类型: {}", keyframe.getClass().getSimpleName());
+        switch (keyframe) {
+            case com.chronoblocks.ui.timeline.model.camera.CameraKeyframe cameraKeyframe ->
+                    cameraKeyframe.setTime(time);
+            case com.chronoblocks.ui.timeline.model.TimelineMarker marker -> marker.setTime(time);
+            case com.chronoblocks.ui.timeline.model.weather.WeatherKeyframe weatherKeyframe ->
+                    weatherKeyframe.setTime(time);
+            case AudioEvent audioEvent -> audioEvent.setTime(time);
+            default -> LOGGER.warn("[Timeline] 不支持的关键帧类型: {}", keyframe.getClass().getSimpleName());
         }
     }
 

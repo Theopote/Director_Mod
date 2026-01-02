@@ -147,7 +147,7 @@ public final class LassoSelectTool implements SelectionTool, SelectionOperationS
             return;
         }
 
-        BlockPos last = currentPath.get(currentPath.size() - 1);
+        BlockPos last = currentPath.getLast();
         if (last.getSquaredDistance(current) < MIN_SAMPLE_DISTANCE_SQ) {
             return;
         }
@@ -169,7 +169,7 @@ public final class LassoSelectTool implements SelectionTool, SelectionOperationS
         }
 
         if (currentPath.isEmpty() ||
-            currentPath.get(currentPath.size() - 1).getSquaredDistance(end) >= MIN_SAMPLE_DISTANCE_SQ) {
+            currentPath.getLast().getSquaredDistance(end) >= MIN_SAMPLE_DISTANCE_SQ) {
             if (currentPath.size() < MAX_PATH_POINTS) {
                 currentPath.add(end.toImmutable());
             }

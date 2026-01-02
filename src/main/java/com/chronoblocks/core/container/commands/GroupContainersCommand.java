@@ -107,7 +107,7 @@ public class GroupContainersCommand implements ContainerCommand {
     }
 
     private Container determineCommonParent() {
-        Container firstParent = targets.get(0).getParent();
+        Container firstParent = targets.getFirst().getParent();
         boolean sameParent = targets.stream().allMatch(c -> c.getParent() == firstParent);
         return sameParent ? firstParent : null;
     }

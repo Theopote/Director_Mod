@@ -194,9 +194,7 @@ public class TimelinePanel extends AbstractPanel
         com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController.getInstance().init(model);
         // ⭐ 天气轨道控制器：v1.0 不再需要 init()，改为通过 bindActiveTrack() 绑定轨道
         // 注册模型变更监听器，用于自动激活唯一的天气轨道
-        model.addModelChangeListener(changeType -> {
-            com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController.getInstance().checkAndAutoActivate();
-        });
+        model.addModelChangeListener(changeType -> com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController.getInstance().checkAndAutoActivate());
         // 初始化时检查并自动激活唯一的天气轨道
         com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController.getInstance().checkAndAutoActivate();
 

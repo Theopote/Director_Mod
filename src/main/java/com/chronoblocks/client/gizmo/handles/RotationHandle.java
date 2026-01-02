@@ -8,15 +8,15 @@ import org.slf4j.LoggerFactory;
 
 /**
  * 🎯 RotationHandle - 旋转手柄
- * 
+ * <p>
  * 提供 Gizmo 旋转手柄的射线检测与角度计算逻辑。
  * 可用于动画目标旋转或角度可视化。
- * 
+ * <p>
  * 工作原理：
  * - 定义一个旋转圆环（以中心点和法线轴为特征）
  * - 射线检测环所在平面
  * - 计算起始角与当前角的差值
- * 
+ * <p>
  * 注意：Minecraft 方块不可旋转（除非方向方块或 NBT 控制），
  * 所以旋转 Gizmo 仅用于计算动画旋转目标（非即时方块旋转）。
  * 
@@ -146,18 +146,12 @@ public class RotationHandle {
         
         // 根据旋转轴选择投影平面
         return switch (axis) {
-            case X -> {
-                // 绕 X 轴旋转：投影到 YZ 平面
-                yield Math.atan2(local.z, local.y);
-            }
-            case Y -> {
-                // 绕 Y 轴旋转：投影到 XZ 平面
-                yield Math.atan2(local.x, local.z);
-            }
-            case Z -> {
-                // 绕 Z 轴旋转：投影到 XY 平面
-                yield Math.atan2(local.y, local.x);
-            }
+            case X -> // 绕 X 轴旋转：投影到 YZ 平面
+                    Math.atan2(local.z, local.y);
+            case Y -> // 绕 Y 轴旋转：投影到 XZ 平面
+                    Math.atan2(local.x, local.z);
+            case Z -> // 绕 Z 轴旋转：投影到 XY 平面
+                    Math.atan2(local.y, local.x);
         };
     }
     

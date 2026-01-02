@@ -42,7 +42,7 @@ public class DuplicateContainersCommand implements ContainerCommand {
         }
 
         if (!duplicates.isEmpty()) {
-            manager.selectContainer(duplicates.get(duplicates.size() - 1));
+            manager.selectContainer(duplicates.getLast());
         }
     }
 

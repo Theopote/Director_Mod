@@ -57,7 +57,7 @@ public class PasteContainersCommand implements ContainerCommand {
         pasted.addAll(clones);
 
         if (!pasted.isEmpty()) {
-            manager.selectContainer(pasted.get(pasted.size() - 1));
+            manager.selectContainer(pasted.getLast());
         }
     }
 

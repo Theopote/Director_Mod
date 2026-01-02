@@ -109,26 +109,22 @@ public class WeatherRenderer {
             
             // 根据降水类型选择粒子
             switch (currentSample.rainType) {
-                case RAIN -> {
-                    // 雨粒子
-                    particleManager.addParticle(
-                        ParticleTypes.RAIN,
-                        x, y, z,
-                        (world.random.nextDouble() - 0.5) * 0.1,
-                        -0.5 - world.random.nextDouble() * 0.5,
-                        (world.random.nextDouble() - 0.5) * 0.1
-                    );
-                }
-                case SNOW -> {
-                    // 雪粒子
-                    particleManager.addParticle(
-                        ParticleTypes.SNOWFLAKE,
-                        x, y, z,
-                        (world.random.nextDouble() - 0.5) * 0.05,
-                        -0.1 - world.random.nextDouble() * 0.2,
-                        (world.random.nextDouble() - 0.5) * 0.05
-                    );
-                }
+                case RAIN -> // 雨粒子
+                        particleManager.addParticle(
+                            ParticleTypes.RAIN,
+                            x, y, z,
+                            (world.random.nextDouble() - 0.5) * 0.1,
+                            -0.5 - world.random.nextDouble() * 0.5,
+                            (world.random.nextDouble() - 0.5) * 0.1
+                        );
+                case SNOW -> // 雪粒子
+                        particleManager.addParticle(
+                            ParticleTypes.SNOWFLAKE,
+                            x, y, z,
+                            (world.random.nextDouble() - 0.5) * 0.05,
+                            -0.1 - world.random.nextDouble() * 0.2,
+                            (world.random.nextDouble() - 0.5) * 0.05
+                        );
                 case SLEET -> {
                     // 夹雪：混合雨和雪
                     if (world.random.nextBoolean()) {

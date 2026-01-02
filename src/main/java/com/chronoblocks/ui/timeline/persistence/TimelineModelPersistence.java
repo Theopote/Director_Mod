@@ -24,6 +24,7 @@ import com.chronoblocks.ui.timeline.model.VisibilityKeyframe;
 import com.chronoblocks.util.WorldIdentifier;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -316,65 +317,73 @@ public class TimelineModelPersistence {
                 kdto.name = selectable.getName();
                 kdto.time = selectable.getStartTime();
 
-                if (selectable instanceof CameraKeyframe ck) {
-                    kdto.position = Vec3DTO.from(ck.getPosition());
-                    kdto.rotation = Vec3DTO.from(ck.getRotation());
-                    kdto.fov = ck.getFov();
-                    kdto.nearPlane = ck.getNearPlane();
-                    kdto.farPlane = ck.getFarPlane();
-                    kdto.cameraKeyType = ck.getKeyType() != null ? ck.getKeyType().name() : null;
-                    kdto.cameraSegmentType = ck.getSegmentType() != null ? ck.getSegmentType().name() : null;
-                    kdto.cameraRotationInterpolation = ck.getRotationInterpolation() != null ? ck.getRotationInterpolation().name() : null;
-                    kdto.bezierInHandle = Vec3DTO.from(ck.getBezierInHandle());
-                    kdto.bezierOutHandle = Vec3DTO.from(ck.getBezierOutHandle());
-                    kdto.cameraHandleMode = ck.getHandleMode() != null ? ck.getHandleMode().name() : null;
-                    kdto.dofEnabled = ck.isDepthOfFieldEnabled();
-                    kdto.focusDistance = ck.getFocusDistance();
-                    kdto.aperture = ck.getAperture();
-                } else if (selectable instanceof TimeKeyframe tk) {
-                    kdto.worldTimeTicks = tk.getWorldTimeTicks();
-                    kdto.useNaturalTime = tk.isUseNaturalTime();
-                    kdto.sunElevation = tk.getSunElevation();
-                    kdto.sunAzimuth = tk.getSunAzimuth();
-                    kdto.timePathInterpolation = tk.getPathInterpolation() != null ? tk.getPathInterpolation().name() : null;
-                    kdto.timeAngleInterpolation = tk.getAngleInterpolation() != null ? tk.getAngleInterpolation().name() : null;
-                } else if (selectable instanceof WeatherKeyframe wk) {
-                    kdto.weatherType = wk.getWeatherType() != null ? wk.getWeatherType().name() : null;
-                    kdto.weatherInterpolation = wk.getInterpolation() != null ? wk.getInterpolation().name() : null;
-                    kdto.rainStrength = wk.getRainStrength();
-                    kdto.rainType = wk.getRainType() != null ? wk.getRainType().name() : null;
-                    kdto.rainParticleDensity = wk.getRainParticleDensity();
-                    kdto.puddleLevel = wk.getPuddleLevel();
-                    kdto.thunderStrength = wk.getThunderStrength();
-                    kdto.lightningFrequency = wk.getLightningFrequency();
-                    kdto.windStrength = wk.getWindStrength();
-                    kdto.stormDarkness = wk.getStormDarkness();
-                    kdto.cloudDensity = wk.getCloudDensity();
-                    kdto.cloudSpeed = wk.getCloudSpeed();
-                    kdto.fogDensity = wk.getFogDensity();
-                    kdto.fogColor = Vec3DTO.from(wk.getFogColor());
-                    kdto.tempBias = wk.getTempBias();
-                    kdto.humidityBias = wk.getHumidityBias();
-                    kdto.specialWeatherType = wk.getSpecialWeatherType() != null ? wk.getSpecialWeatherType().name() : null;
-                    kdto.specialWeatherIntensity = wk.getSpecialWeatherIntensity();
-                } else if (selectable instanceof SeasonKeyframe sk) {
-                    kdto.seasonType = sk.getSeasonType() != null ? sk.getSeasonType().name() : null;
-                    kdto.snowlineHeight = sk.getSnowlineHeight();
-                    kdto.snowAmount = sk.getSnowAmount();
-                    kdto.snowThickness = sk.getSnowThickness();
-                    kdto.freezeStrength = sk.getFreezeStrength();
-                    kdto.grassTint = Vec3DTO.from(sk.getGrassTint());
-                    kdto.foliageTint = Vec3DTO.from(sk.getFoliageTint());
-                    kdto.skyTint = Vec3DTO.from(sk.getSkyTint());
-                    kdto.fogTint = Vec3DTO.from(sk.getFogTint());
-                    kdto.lightTint = Vec3DTO.from(sk.getLightTint());
-                    kdto.seasonInterpolation = sk.getInterpolation() != null ? sk.getInterpolation().name() : null;
-                } else if (selectable instanceof AudioEvent ae) {
-                    kdto.audioLabel = ae.getLabel();
-                    kdto.audioSoundId = ae.getSoundId();
-                    kdto.audioVolume = ae.getVolume();
-                    kdto.audioPitch = ae.getPitch();
-                    kdto.audioEnabled = ae.isEnabled();
+                switch (selectable) {
+                    case CameraKeyframe ck -> {
+                        kdto.position = Vec3DTO.from(ck.getPosition());
+                        kdto.rotation = Vec3DTO.from(ck.getRotation());
+                        kdto.fov = ck.getFov();
+                        kdto.nearPlane = ck.getNearPlane();
+                        kdto.farPlane = ck.getFarPlane();
+                        kdto.cameraKeyType = ck.getKeyType() != null ? ck.getKeyType().name() : null;
+                        kdto.cameraSegmentType = ck.getSegmentType() != null ? ck.getSegmentType().name() : null;
+                        kdto.cameraRotationInterpolation = ck.getRotationInterpolation() != null ? ck.getRotationInterpolation().name() : null;
+                        kdto.bezierInHandle = Vec3DTO.from(ck.getBezierInHandle());
+                        kdto.bezierOutHandle = Vec3DTO.from(ck.getBezierOutHandle());
+                        kdto.cameraHandleMode = ck.getHandleMode() != null ? ck.getHandleMode().name() : null;
+                        kdto.dofEnabled = ck.isDepthOfFieldEnabled();
+                        kdto.focusDistance = ck.getFocusDistance();
+                        kdto.aperture = ck.getAperture();
+                    }
+                    case TimeKeyframe tk -> {
+                        kdto.worldTimeTicks = tk.getWorldTimeTicks();
+                        kdto.useNaturalTime = tk.isUseNaturalTime();
+                        kdto.sunElevation = tk.getSunElevation();
+                        kdto.sunAzimuth = tk.getSunAzimuth();
+                        kdto.timePathInterpolation = tk.getPathInterpolation() != null ? tk.getPathInterpolation().name() : null;
+                        kdto.timeAngleInterpolation = tk.getAngleInterpolation() != null ? tk.getAngleInterpolation().name() : null;
+                    }
+                    case WeatherKeyframe wk -> {
+                        kdto.weatherType = wk.getWeatherType() != null ? wk.getWeatherType().name() : null;
+                        kdto.weatherInterpolation = wk.getInterpolation() != null ? wk.getInterpolation().name() : null;
+                        kdto.rainStrength = wk.getRainStrength();
+                        kdto.rainType = wk.getRainType() != null ? wk.getRainType().name() : null;
+                        kdto.rainParticleDensity = wk.getRainParticleDensity();
+                        kdto.puddleLevel = wk.getPuddleLevel();
+                        kdto.thunderStrength = wk.getThunderStrength();
+                        kdto.lightningFrequency = wk.getLightningFrequency();
+                        kdto.windStrength = wk.getWindStrength();
+                        kdto.stormDarkness = wk.getStormDarkness();
+                        kdto.cloudDensity = wk.getCloudDensity();
+                        kdto.cloudSpeed = wk.getCloudSpeed();
+                        kdto.fogDensity = wk.getFogDensity();
+                        kdto.fogColor = Vec3DTO.from(wk.getFogColor());
+                        kdto.tempBias = wk.getTempBias();
+                        kdto.humidityBias = wk.getHumidityBias();
+                        kdto.specialWeatherType = wk.getSpecialWeatherType() != null ? wk.getSpecialWeatherType().name() : null;
+                        kdto.specialWeatherIntensity = wk.getSpecialWeatherIntensity();
+                    }
+                    case SeasonKeyframe sk -> {
+                        kdto.seasonType = sk.getSeasonType() != null ? sk.getSeasonType().name() : null;
+                        kdto.snowlineHeight = sk.getSnowlineHeight();
+                        kdto.snowAmount = sk.getSnowAmount();
+                        kdto.snowThickness = sk.getSnowThickness();
+                        kdto.freezeStrength = sk.getFreezeStrength();
+                        kdto.grassTint = Vec3DTO.from(sk.getGrassTint());
+                        kdto.foliageTint = Vec3DTO.from(sk.getFoliageTint());
+                        kdto.skyTint = Vec3DTO.from(sk.getSkyTint());
+                        kdto.fogTint = Vec3DTO.from(sk.getFogTint());
+                        kdto.lightTint = Vec3DTO.from(sk.getLightTint());
+                        kdto.seasonInterpolation = sk.getInterpolation() != null ? sk.getInterpolation().name() : null;
+                    }
+                    case AudioEvent ae -> {
+                        kdto.audioLabel = ae.getLabel();
+                        kdto.audioSoundId = ae.getSoundId();
+                        kdto.audioVolume = ae.getVolume();
+                        kdto.audioPitch = ae.getPitch();
+                        kdto.audioEnabled = ae.isEnabled();
+                    }
+                    default -> {
+                    }
                 }
 
                 trackDTO.automationKeyframes.add(kdto);
@@ -490,19 +499,7 @@ public class TimelineModelPersistence {
             }
             
             // 根据轨道类型创建正确的轨道实例
-            TimelineTrack track;
-            if (type == TrackType.AUDIO) {
-                track = new AudioTrack(trackDTO.name);
-            } else {
-                track = new TimelineTrack(trackDTO.name, type);
-            }
-            track.setLocked(trackDTO.locked);
-            track.setVisible(trackDTO.visible);
-            track.setZOrder(trackDTO.zOrder);
-            track.setMuted(trackDTO.muted);
-            track.setSolo(trackDTO.solo);
-            track.setBoundContainerName(trackDTO.boundContainerName);
-            track.setBoundContainerId(trackDTO.boundContainerId);
+            TimelineTrack track = getTimelineTrack(trackDTO, type);
 
             // 恢复轨道级自动化关键帧
             if (trackDTO.automationKeyframes != null) {
@@ -600,14 +597,7 @@ public class TimelineModelPersistence {
                                 track.addAutomationKeyframe(sk);
                             }
                             case "AudioEvent" -> {
-                                String label = (kdto.audioLabel != null && !kdto.audioLabel.isBlank())
-                                        ? kdto.audioLabel
-                                        : (kdto.name != null ? kdto.name : "音频事件");
-                                String soundId = kdto.audioSoundId != null ? kdto.audioSoundId : "";
-                                AudioEvent ae = new AudioEvent(label, soundId, kdto.time);
-                                ae.setVolume(kdto.audioVolume);
-                                ae.setPitch(kdto.audioPitch);
-                                ae.setEnabled(kdto.audioEnabled);
+                                AudioEvent ae = getAudioEvent(kdto);
                                 track.addAutomationKeyframe(ae);
                             }
                             default -> {
@@ -753,7 +743,36 @@ public class TimelineModelPersistence {
         
         LOGGER.info("[TimelineModelPersistence] 成功恢复 {} 条轨道", dto.tracks.size());
     }
-    
+
+    private static @NotNull AudioEvent getAudioEvent(AutomationKeyframeDTO kdto) {
+        String label = (kdto.audioLabel != null && !kdto.audioLabel.isBlank())
+                ? kdto.audioLabel
+                : (kdto.name != null ? kdto.name : "音频事件");
+        String soundId = kdto.audioSoundId != null ? kdto.audioSoundId : "";
+        AudioEvent ae = new AudioEvent(label, soundId, kdto.time);
+        ae.setVolume(kdto.audioVolume);
+        ae.setPitch(kdto.audioPitch);
+        ae.setEnabled(kdto.audioEnabled);
+        return ae;
+    }
+
+    private static @NotNull TimelineTrack getTimelineTrack(TrackDTO trackDTO, TrackType type) {
+        TimelineTrack track;
+        if (type == TrackType.AUDIO) {
+            track = new AudioTrack(trackDTO.name);
+        } else {
+            track = new TimelineTrack(trackDTO.name, type);
+        }
+        track.setLocked(trackDTO.locked);
+        track.setVisible(trackDTO.visible);
+        track.setZOrder(trackDTO.zOrder);
+        track.setMuted(trackDTO.muted);
+        track.setSolo(trackDTO.solo);
+        track.setBoundContainerName(trackDTO.boundContainerName);
+        track.setBoundContainerId(trackDTO.boundContainerId);
+        return track;
+    }
+
     /**
      * 保存 TimelineModel 到文件（按世界）
      */
@@ -784,7 +803,7 @@ public class TimelineModelPersistence {
             Path legacy = getLegacyTimelineFile();
 
             // 自动迁移：优先使用世界目录；若世界目录没有但旧 config 存在，则迁移一次
-            if (!Files.exists(timelineFile) && legacy != null && Files.exists(legacy) && !legacy.equals(timelineFile)) {
+            if (!Files.exists(timelineFile) && Files.exists(legacy) && !legacy.equals(timelineFile)) {
                 try {
                     if (!Files.exists(timelineFile.getParent())) {
                         Files.createDirectories(timelineFile.getParent());
@@ -830,7 +849,7 @@ public class TimelineModelPersistence {
         }
         // 兼容旧位置（用于升级迁移的首次启动）
         Path legacy = getLegacyTimelineFile();
-        return legacy != null && Files.exists(legacy);
+        return Files.exists(legacy);
     }
 
     private static String getWorldFingerprint() {
@@ -866,7 +885,7 @@ public class TimelineModelPersistence {
 
             // 兼容：同时删除旧位置的存档，避免“新建动画”后旧文件又被迁移回来
             Path legacy = getLegacyTimelineFile();
-            if (legacy != null && Files.exists(legacy) && !legacy.equals(file)) {
+            if (Files.exists(legacy) && !legacy.equals(file)) {
                 Files.delete(legacy);
                 LOGGER.info("[TimelineModelPersistence] 已删除旧位置时间线存档: {}", legacy);
             }

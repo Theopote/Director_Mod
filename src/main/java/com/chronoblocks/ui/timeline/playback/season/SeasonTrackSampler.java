@@ -111,12 +111,12 @@ public class SeasonTrackSampler {
 
         // 单关键帧 → 直接应用，无需插值
         if (keyframes.size() == 1) {
-            return toSample(keyframes.get(0));
+            return toSample(keyframes.getFirst());
         }
 
         // 找到 kf0 <= time <= kf1
-        SeasonKeyframe kf0 = keyframes.get(0);
-        SeasonKeyframe kf1 = keyframes.get(keyframes.size() - 1);
+        SeasonKeyframe kf0 = keyframes.getFirst();
+        SeasonKeyframe kf1 = keyframes.getLast();
 
         for (int i = 0; i < keyframes.size() - 1; i++) {
             SeasonKeyframe a = keyframes.get(i);

@@ -125,11 +125,8 @@ public class BlockVisualStateManager {
          * @return 是否应该写入深度
          */
         public boolean shouldWriteDepth() {
-            if (depthWriteOverride != null) {
-                return depthWriteOverride;
-            }
+            return Objects.requireNonNullElseGet(depthWriteOverride, () -> (mode == BlockRenderMode.SOLID || mode == BlockRenderMode.GHOST_WITH_DEPTH));
             // 默认策略：SOLID / GHOST_WITH_DEPTH 写深度；GHOST_NO_DEPTH / HIDDEN 不写
-            return (mode == BlockRenderMode.SOLID || mode == BlockRenderMode.GHOST_WITH_DEPTH);
         }
         
         /**

@@ -1,8 +1,6 @@
 package com.chronoblocks.core.selection.history;
 
 import com.chronoblocks.core.selection.SelectionState;
-import net.minecraft.util.math.BlockPos;
-import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -250,11 +248,7 @@ public class SelectionHistoryManager {
         
         // 检查时间窗口
         long timeDiff = newEntry.getTimestamp() - lastEntry.getTimestamp();
-        if (timeDiff > mergeTimeWindow) {
-            return false;
-        }
-        
-        return true;
+        return timeDiff <= mergeTimeWindow;
     }
     
     /**

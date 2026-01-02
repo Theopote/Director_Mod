@@ -75,11 +75,8 @@ public final class VideoExportTask implements Runnable {
 
                 float t = startTime + (frameIndex / (float) settings.fps);
 
-                NativeImage image = pipeline.renderFrame(t, settings);
-                try {
+                try (NativeImage image = pipeline.renderFrame(t, settings)) {
                     encoder.encodeFrame(image, frameIndex);
-                } finally {
-                    image.close();
                 }
 
                 float progress = (frameIndex + 1) / (float) totalFrames;

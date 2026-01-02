@@ -58,12 +58,12 @@ public class MergeContainersCommand implements ContainerCommand {
         mergedInsertIndex = computeInsertIndex();
 
         String baseName = (preferredName == null || preferredName.isBlank())
-            ? targets.get(0).getName() + "_合并"
+            ? targets.getFirst().getName() + "_合并"
             : preferredName.trim();
         String uniqueName = manager.generateUniqueName(baseName);
 
         // 合并后的容器类型：保持非组类型（如果首个为组则退回为 CUSTOM）
-        ContainerType resultType = targets.get(0).getType();
+        ContainerType resultType = targets.getFirst().getType();
         if (resultType == ContainerType.GROUP) {
             resultType = ContainerType.CUSTOM;
         }
@@ -86,7 +86,7 @@ public class MergeContainersCommand implements ContainerCommand {
                 mergedContainer.setLevelKey(container.getLevelKey());
             }
             // 拷贝或补全方块快照：优先复用源容器快照，若缺失则尝试从当前世界读取补齐
-            net.minecraft.client.MinecraftClient mc = null;
+            net.minecraft.client.MinecraftClient mc;
             net.minecraft.world.World world = null;
             try {
                 mc = net.minecraft.client.MinecraftClient.getInstance();
@@ -169,7 +169,7 @@ public class MergeContainersCommand implements ContainerCommand {
     }
 
     private Container determineCommonParent() {
-        Container firstParent = targets.get(0).getParent();
+        Container firstParent = targets.getFirst().getParent();
         boolean sameParent = targets.stream().allMatch(c -> c.getParent() == firstParent);
         return sameParent ? firstParent : null;
     }
