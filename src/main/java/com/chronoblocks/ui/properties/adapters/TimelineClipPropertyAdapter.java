@@ -386,17 +386,28 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         }
 
         // ===== 1. 总体节奏：阶段(Enter/Exit) + 模式 + 时长 =====
-        UITheme.label("动画模式与节奏", UITheme.DarkTheme.TEXT_SELECTED);
+        // 判断是否为擦除轨道
+        boolean isEraseTrack = false;
+        try {
+            if (clip.getParentTrack() != null && clip.getParentTrack().getType() == com.chronoblocks.ui.timeline.model.TrackType.ERASE) {
+                isEraseTrack = true;
+            }
+        } catch (Exception ignored) {
+        }
+        
+        String sectionTitle = isEraseTrack ? "清除动画模式与节奏" : "动画模式与节奏";
+        UITheme.label(sectionTitle, UITheme.DarkTheme.TEXT_SELECTED);
+        
+        if (isEraseTrack) {
+            UITheme.label("拆除容器片段：方块会先播放退出动画，然后在动画结束后被清除", UITheme.DarkTheme.TEXT_DISABLED);
+            UITheme.spacingSmall();
+        }
 
             // 片段阶段：根据轨道类型自动锁定（出现轨道=ENTER，擦除轨道=EXIT）
             com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase desiredPhase =
-                    com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase.ENTER;
-            try {
-                if (clip.getParentTrack() != null && clip.getParentTrack().getType() == com.chronoblocks.ui.timeline.model.TrackType.ERASE) {
-                    desiredPhase = com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase.EXIT;
-                }
-            } catch (Exception ignored) {
-            }
+                    isEraseTrack 
+                    ? com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase.EXIT
+                    : com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase.ENTER;
             if (config.getPhase() != desiredPhase) {
                 config.setPhase(desiredPhase);
                 modified = true;
@@ -2360,11 +2371,56 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                 break;
             }
             case ASSEMBLE: {
-                // 散开半径
+                // 散开半径（用于 ENTER 阶段的碎片聚合）
                 float spread = getFloatParam(params, "spread", 5.0f);
                 float[] spreadArray = {spread};
                 if (ImGui.dragFloat("散开半径", spreadArray, 0.5f, 1.0f, 20.0f, "%.1f 格")) {
                     params.put("spread", spreadArray[0]);
+                    modified = true;
+                }
+                break;
+            }
+            case EXPLODE: {
+                // 爆炸参数（用于 EXIT 阶段的碎片散射）
+                // 散射半径
+                float radius = getFloatParam(params, "radius", 2.0f);
+                float[] radiusArray = {radius};
+                if (ImGui.dragFloat("散射半径", radiusArray, 0.1f, 0.1f, 20.0f, "%.1f 格")) {
+                    params.put("radius", radiusArray[0]);
+                    modified = true;
+                }
+                
+                // 上抛偏置
+                float upBias = getFloatParam(params, "upBias", 0.25f);
+                float[] upBiasArray = {upBias};
+                if (ImGui.dragFloat("上抛偏置", upBiasArray, 0.05f, -1.0f, 2.0f, "%.2f")) {
+                    params.put("upBias", upBiasArray[0]);
+                    modified = true;
+                }
+                
+                // 最小缩放
+                float scaleMin = getFloatParam(params, "scaleMin", 0.7f);
+                float[] scaleMinArray = {scaleMin};
+                if (ImGui.dragFloat("最小缩放", scaleMinArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
+                    params.put("scaleMin", scaleMinArray[0]);
+                    modified = true;
+                }
+                break;
+            }
+            case FADE_OUT: {
+                // 起始透明度
+                float startOpacity = getFloatParam(params, "startOpacity", 1.0f);
+                float[] startArray = {startOpacity};
+                if (ImGui.dragFloat("起始透明度", startArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
+                    params.put("startOpacity", startArray[0]);
+                    modified = true;
+                }
+                
+                // 结束透明度
+                float endOpacity = getFloatParam(params, "endOpacity", 0.0f);
+                float[] endArray = {endOpacity};
+                if (ImGui.dragFloat("结束透明度", endArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
+                    params.put("endOpacity", endArray[0]);
                     modified = true;
                 }
                 break;

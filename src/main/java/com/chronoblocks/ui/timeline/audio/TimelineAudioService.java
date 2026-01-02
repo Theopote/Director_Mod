@@ -197,7 +197,17 @@ public class TimelineAudioService {
             return;
         }
 
-        TimelineClip audioClip = ensureAudioClipForContainerClip(clip, audioTrack, allowCreate);
+        // 判断是否为擦除轨道
+        boolean isEraseTrack = false;
+        try {
+            TimelineTrack track = clip.getParentTrack();
+            if (track != null && track.getType() == TrackType.ERASE) {
+                isEraseTrack = true;
+            }
+        } catch (Exception ignored) {
+        }
+        
+        TimelineClip audioClip = ensureAudioClipForContainerClip(clip, audioTrack, allowCreate, isEraseTrack);
         if (audioClip == null) {
             return;
         }
@@ -205,6 +215,11 @@ public class TimelineAudioService {
         ClipAnimationConfig config = clip.getAnimationConfig();
         if (config == null) {
             config = ClipAnimationConfig.defaultConfig();
+        }
+        
+        // 确保擦除轨道的片段使用 EXIT 阶段
+        if (isEraseTrack && config.getPhase() != ClipAnimationConfig.AnimationPhase.EXIT) {
+            config.setPhase(ClipAnimationConfig.AnimationPhase.EXIT);
         }
 
         float clipDuration = Math.max(0.05f, clip.getLength());
@@ -457,7 +472,7 @@ public class TimelineAudioService {
         return created;
     }
 
-    private TimelineClip ensureAudioClipForContainerClip(TimelineClip containerClip, AudioTrack audioTrack, boolean allowCreate) {
+    private TimelineClip ensureAudioClipForContainerClip(TimelineClip containerClip, AudioTrack audioTrack, boolean allowCreate, boolean isEraseTrack) {
         if (containerClip == null || audioTrack == null) {
             return null;
         }
@@ -466,6 +481,10 @@ public class TimelineAudioService {
         if (linked != null) {
             linked = upgradeToAudioTimelineClipIfNeeded(audioTrack, linked);
             syncAudioClipRange(linked, containerClip);
+            // 更新标签以反映擦除状态
+            if (isEraseTrack) {
+                linked.setLabel(formatAudioClipLabel(containerClip.getLabel(), true));
+            }
             return linked;
         }
 
@@ -474,6 +493,10 @@ public class TimelineAudioService {
             existing = upgradeToAudioTimelineClipIfNeeded(audioTrack, existing);
             linkAudioClip(containerClip, existing);
             syncAudioClipRange(existing, containerClip);
+            // 更新标签以反映擦除状态
+            if (isEraseTrack) {
+                existing.setLabel(formatAudioClipLabel(containerClip.getLabel(), true));
+            }
             return existing;
         }
 
@@ -483,7 +506,7 @@ public class TimelineAudioService {
 
         int clipColor = TrackType.AUDIO.getClipColor();
         TimelineClip audioClip = new AudioTimelineClip(
-                formatAudioClipLabel(containerClip.getLabel()),
+                formatAudioClipLabel(containerClip.getLabel(), isEraseTrack),
                 containerClip.getStartTime(),
                 containerClip.getEndTime(),
                 clipColor
@@ -496,14 +519,31 @@ public class TimelineAudioService {
 
     /**
      * 生成音频片段的显示名称（避免与容器片段混淆）。
+     * 
+     * @param containerLabel 容器片段标签
+     * @param isEraseTrack 是否为擦除轨道
      */
-    private String formatAudioClipLabel(String containerLabel) {
-        String base = (containerLabel == null || containerLabel.isBlank()) ? "Audio" : containerLabel.trim();
+    private String formatAudioClipLabel(String containerLabel, boolean isEraseTrack) {
+        String base = (containerLabel == null || containerLabel.isBlank()) 
+                ? (isEraseTrack ? "清除音频" : "Audio") 
+                : containerLabel.trim();
         String prefix = TrackType.AUDIO.getIcon() + " ";
         if (base.startsWith(prefix)) {
             return base;
         }
+        // 如果是擦除轨道，添加"清除"标识
+        if (isEraseTrack && !base.contains("清除") && !base.contains("擦除")) {
+            base = "清除: " + base;
+        }
         return prefix + base;
+    }
+    
+    /**
+     * 生成音频片段的显示名称（避免与容器片段混淆）。
+     * 兼容旧版本调用（默认非擦除轨道）。
+     */
+    private String formatAudioClipLabel(String containerLabel) {
+        return formatAudioClipLabel(containerLabel, false);
     }
 
     /**
