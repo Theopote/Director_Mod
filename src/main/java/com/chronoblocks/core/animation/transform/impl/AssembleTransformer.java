@@ -18,11 +18,11 @@ public class AssembleTransformer implements IAnimationTransformer {
     @Override
     public TransformResult transform(float progress, Map<String, Object> params, Random random) {
         TransformResult result = new TransformResult();
-        float radius = getFloatParam(params, "radius", 2.5f);
+        float spread = getFloatParam(params, "spread", 2.5f); // 散开半径
         float vertical = getFloatParam(params, "vertical", 1.0f);
 
         Vec3 dir = randomUnit(random);
-        float offset = radius * (1.0f - progress);
+        float offset = spread * (1.0f - progress);
 
         result.translateX = dir.x * offset;
         result.translateY = dir.y * offset * vertical;
@@ -50,7 +50,7 @@ public class AssembleTransformer implements IAnimationTransformer {
     @Override
     public Map<String, Object> getDefaultParams() {
         Map<String, Object> params = new HashMap<>();
-        params.put("radius", 2.5f);
+        params.put("spread", 2.5f); // 散开半径
         params.put("vertical", 1.0f);
         return params;
     }
@@ -67,10 +67,10 @@ public class AssembleTransformer implements IAnimationTransformer {
 
         UIHelper.label("碎片聚合参数");
 
-        float radius = getFloatParam(params, "radius", 2.5f);
-        float[] radiusArr = {radius};
-        if (UIHelper.dragFloat("偏移半径", radiusArr, 0.1f, 0.1f, 20.0f, "%.1f")) {
-            params.put("radius", radiusArr[0]);
+        float spread = getFloatParam(params, "spread", 2.5f);
+        float[] spreadArr = {spread};
+        if (UIHelper.dragFloat("散开半径", spreadArr, 0.1f, 0.1f, 20.0f, "%.1f")) {
+            params.put("spread", spreadArr[0]);
             modified = true;
         }
 
@@ -86,11 +86,11 @@ public class AssembleTransformer implements IAnimationTransformer {
 
     @Override
     public void apply(float easedT, Map<String, Object> params, Random random) {
-        float radius = getFloatParam(params, "radius", 2.5f);
+        float spread = getFloatParam(params, "spread", 2.5f);
         float vertical = getFloatParam(params, "vertical", 1.0f);
 
         Vec3 dir = randomUnit(random);
-        float offset = radius * (1.0f - easedT);
+        float offset = spread * (1.0f - easedT);
 
         params.put("dx", dir.x * offset);
         params.put("dy", dir.y * offset * vertical);

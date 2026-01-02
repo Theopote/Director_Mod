@@ -47,10 +47,16 @@ public class GrowUpTransformer implements IAnimationTransformer {
                 break;
         }
         
+        // 获取升起距离参数
+        float distance = getFloatParam(params, "distance", 0.0f);
+        
         // 根据锚点调整位移（Minecraft 方块原点在左下角）
         if ("BOTTOM".equalsIgnoreCase(pivot) && "Y".equalsIgnoreCase(axis)) {
             // 从底部生长：需要向下偏移，使底部固定
-            result.translateY = -0.5f * (1.0f - progress);
+            result.translateY = -0.5f * (1.0f - progress) - distance * (1.0f - progress);
+        } else if (distance > 0.0f && "Y".equalsIgnoreCase(axis)) {
+            // 如果有升起距离，从下方升起
+            result.translateY = -distance * (1.0f - progress);
         }
         
         return result;
@@ -71,6 +77,7 @@ public class GrowUpTransformer implements IAnimationTransformer {
         Map<String, Object> params = new HashMap<>();
         params.put("axis", "Y");
         params.put("pivot", "BOTTOM");
+        params.put("distance", 0.0f); // 升起距离（从底部向上的额外偏移）
         return params;
     }
     
@@ -80,6 +87,29 @@ public class GrowUpTransformer implements IAnimationTransformer {
     }
     
     // ========== 工具方法 ==========
+    
+    private float getFloatParam(Map<String, Object> params, String key, float defaultValue) {
+        if (params == null) return defaultValue;
+        Object val = params.get(key);
+        switch (val) {
+            case null -> {
+                return defaultValue;
+            }
+            case Number number -> {
+                return number.floatValue();
+            }
+            case String s -> {
+                try {
+                    return Float.parseFloat(s);
+                } catch (NumberFormatException e) {
+                    return defaultValue;
+                }
+            }
+            default -> {
+            }
+        }
+        return defaultValue;
+    }
     
     private String getStringParam(Map<String, Object> params, String key, String defaultValue) {
         if (params == null) return defaultValue;
@@ -125,6 +155,14 @@ public class GrowUpTransformer implements IAnimationTransformer {
             modified = true;
         }
         
+        // 升起距离
+        float distance = getFloatParam(params, "distance", 0.0f);
+        float[] distanceArray = {distance};
+        if (UIHelper.dragFloat("升起距离", distanceArray, 0.1f, 0.0f, 10.0f, "%.1f 格")) {
+            params.put("distance", distanceArray[0]);
+            modified = true;
+        }
+        
         return modified;
     }
     
@@ -137,6 +175,7 @@ public class GrowUpTransformer implements IAnimationTransformer {
     public void apply(float easedT, Map<String, Object> params, Random random) {
         String axis = getStringParam(params, "axis", "Y");
         String pivot = getStringParam(params, "pivot", "BOTTOM");
+        float distance = getFloatParam(params, "distance", 0.0f);
 
         // 根据轴向应用缩放（统一使用 scale 参数，BlockAnimationEngine 会统一应用）
         // 对于复杂的轴向缩放，可以使用 scaleX/scaleY/scaleZ，但当前约定是统一 scale
@@ -145,7 +184,10 @@ public class GrowUpTransformer implements IAnimationTransformer {
         float dy = 0f;
         if ("BOTTOM".equalsIgnoreCase(pivot) && "Y".equalsIgnoreCase(axis)) {
             // 从底部生长：需要向下偏移，使底部固定
-            dy = -0.5f * (1.0f - easedT);
+            dy = -0.5f * (1.0f - easedT) - distance * (1.0f - easedT);
+        } else if (distance > 0.0f && "Y".equalsIgnoreCase(axis)) {
+            // 如果有升起距离，从下方升起
+            dy = -distance * (1.0f - easedT);
         }
         
         params.put("dx", 0f);

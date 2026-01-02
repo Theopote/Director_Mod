@@ -63,6 +63,7 @@ public class FallDownTransformer implements IAnimationTransformer {
     public Map<String, Object> getDefaultParams() {
         Map<String, Object> params = new HashMap<>();
         params.put("height", 10.0f);
+        params.put("bounciness", 0.3f); // 回弹力度（0.0-1.0）
         params.put("tumble", true);
         params.put("tumbleIntensity", 1.0f);
         params.put("fadeIn", false);
@@ -120,11 +121,19 @@ public class FallDownTransformer implements IAnimationTransformer {
         // 坠落参数
         UIHelper.label("坠落参数");
         
-        // 起始高度
+        // 下落高度
         float height = getFloatParam(params, "height", 10.0f);
         float[] heightArray = {height};
-        if (UIHelper.dragFloat("起始高度", heightArray, 0.5f, 0.0f, 50.0f, "%.1f 格")) {
+        if (UIHelper.dragFloat("下落高度", heightArray, 0.5f, 0.0f, 50.0f, "%.1f 格")) {
             params.put("height", heightArray[0]);
+            modified = true;
+        }
+        
+        // 回弹力度
+        float bounciness = getFloatParam(params, "bounciness", 0.3f);
+        float[] bouncinessArray = {bounciness};
+        if (UIHelper.dragFloat("回弹力度", bouncinessArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
+            params.put("bounciness", bouncinessArray[0]);
             modified = true;
         }
         

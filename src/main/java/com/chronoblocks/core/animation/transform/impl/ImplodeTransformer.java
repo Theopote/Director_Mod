@@ -18,13 +18,13 @@ public class ImplodeTransformer implements IAnimationTransformer {
     public TransformResult transform(float progress, Map<String, Object> params, Random random) {
         TransformResult result = new TransformResult();
         float sink = getFloatParam(params, "sink", 0.35f);
-        float scaleMin = getFloatParam(params, "scaleMin", 0.0f);
+        float scale = getFloatParam(params, "scale", 0.0f); // 目标比例
 
-        float scale = 1.0f - (1.0f - clamp01(scaleMin)) * progress;
+        float currentScale = 1.0f - (1.0f - clamp01(scale)) * progress;
 
-        result.scaleX = scale;
-        result.scaleY = scale;
-        result.scaleZ = scale;
+        result.scaleX = currentScale;
+        result.scaleY = currentScale;
+        result.scaleZ = currentScale;
         result.translateY = -sink * progress;
         result.opacity = 1.0f - progress;
         return result;
@@ -44,7 +44,7 @@ public class ImplodeTransformer implements IAnimationTransformer {
     public Map<String, Object> getDefaultParams() {
         Map<String, Object> params = new HashMap<>();
         params.put("sink", 0.35f);
-        params.put("scaleMin", 0.0f);
+        params.put("scale", 0.0f); // 目标比例
         return params;
     }
 
@@ -67,10 +67,10 @@ public class ImplodeTransformer implements IAnimationTransformer {
             modified = true;
         }
 
-        float scaleMin = getFloatParam(params, "scaleMin", 0.0f);
-        float[] scaleMinArr = {scaleMin};
-        if (UIHelper.dragFloat("最小缩放", scaleMinArr, 0.05f, 0.0f, 1.0f, "%.2f")) {
-            params.put("scaleMin", scaleMinArr[0]);
+        float scale = getFloatParam(params, "scale", 0.0f);
+        float[] scaleArr = {scale};
+        if (UIHelper.dragFloat("目标比例", scaleArr, 0.05f, 0.0f, 1.0f, "%.2f")) {
+            params.put("scale", scaleArr[0]);
             modified = true;
         }
 
@@ -80,9 +80,9 @@ public class ImplodeTransformer implements IAnimationTransformer {
     @Override
     public void apply(float easedT, Map<String, Object> params, Random random) {
         float sink = getFloatParam(params, "sink", 0.35f);
-        float scaleMin = getFloatParam(params, "scaleMin", 0.0f);
+        float targetScale = getFloatParam(params, "scale", 0.0f);
 
-        float scale = 1.0f - (1.0f - clamp01(scaleMin)) * easedT;
+        float currentScale = 1.0f - (1.0f - clamp01(targetScale)) * easedT;
 
         params.put("dx", 0f);
         params.put("dy", -sink * easedT);
@@ -92,7 +92,7 @@ public class ImplodeTransformer implements IAnimationTransformer {
         params.put("pitch", 0f);
         params.put("roll", 0f);
 
-        params.put("scale", scale);
+        params.put("scale", currentScale);
         params.put("alpha", 1.0f - easedT);
     }
 

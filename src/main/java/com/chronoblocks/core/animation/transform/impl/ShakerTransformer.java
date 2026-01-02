@@ -23,15 +23,17 @@ public class ShakerTransformer implements IAnimationTransformer {
         TransformResult result = new TransformResult();
         
         // 获取参数
-        float shakeIntensity = getFloatParam(params, "shakeIntensity", 0.5f);
+        float intensity = getFloatParam(params, "intensity", 0.5f); // 震动幅度
+        float decay = getFloatParam(params, "decay", 1.0f); // 衰减速度（值越大衰减越快）
         float shakeDuration = getFloatParam(params, "shakeDuration", 0.3f);
         
         // 震动发生在动画开始阶段
         if (progress < shakeDuration) {
             float shakeProgress = progress / shakeDuration;
             
-            // 震动效果：使用随机偏移，但逐渐减小
-            float shakeAmount = shakeIntensity * (1.0f - shakeProgress);
+            // 震动效果：使用随机偏移，但逐渐减小（衰减速度由 decay 控制）
+            float decayFactor = (float) Math.pow(1.0f - shakeProgress, decay);
+            float shakeAmount = intensity * decayFactor;
             
             // 使用随机数生成器产生震动偏移（但保持一致）
             random.setSeed((long) (shakeProgress * 1000));
@@ -62,7 +64,8 @@ public class ShakerTransformer implements IAnimationTransformer {
     @Override
     public Map<String, Object> getDefaultParams() {
         Map<String, Object> params = new HashMap<>();
-        params.put("shakeIntensity", 0.5f);
+        params.put("intensity", 0.5f); // 震动幅度
+        params.put("decay", 1.0f); // 衰减速度
         params.put("shakeDuration", 0.3f);
         return params;
     }
@@ -108,11 +111,19 @@ public class ShakerTransformer implements IAnimationTransformer {
         // 震动参数
         UIHelper.label("震动参数");
         
-        // 震动强度
-        float shakeIntensity = getFloatParam(params, "shakeIntensity", 0.5f);
-        float[] intensityArray = {shakeIntensity};
-        if (UIHelper.dragFloat("震动强度", intensityArray, 0.05f, 0.1f, 2.0f, "%.2f")) {
-            params.put("shakeIntensity", intensityArray[0]);
+        // 震动幅度
+        float intensity = getFloatParam(params, "intensity", 0.5f);
+        float[] intensityArray = {intensity};
+        if (UIHelper.dragFloat("震动幅度", intensityArray, 0.05f, 0.1f, 2.0f, "%.2f")) {
+            params.put("intensity", intensityArray[0]);
+            modified = true;
+        }
+        
+        // 衰减速度
+        float decay = getFloatParam(params, "decay", 1.0f);
+        float[] decayArray = {decay};
+        if (UIHelper.dragFloat("衰减速度", decayArray, 0.1f, 0.1f, 5.0f, "%.1f")) {
+            params.put("decay", decayArray[0]);
             modified = true;
         }
         
@@ -134,14 +145,16 @@ public class ShakerTransformer implements IAnimationTransformer {
      */
     @Override
     public void apply(float easedT, Map<String, Object> params, Random random) {
-        float intensity = getFloatParam(params, "intensity", 0.1f);
-        float shakeDuration = getFloatParam(params, "shakeDuration", 1.0f);
+        float intensity = getFloatParam(params, "intensity", 0.5f);
+        float decay = getFloatParam(params, "decay", 1.0f);
+        float shakeDuration = getFloatParam(params, "shakeDuration", 0.3f);
         
-        // 震动效果：使用 shakeDuration 控制震动持续时间
+        // 震动效果：使用 shakeDuration 控制震动持续时间，decay 控制衰减速度
         float shakeFactor = 0f;
         if (easedT < shakeDuration) {
             float shakeProgress = easedT / shakeDuration;
-            shakeFactor = (1.0f - shakeProgress) * intensity;
+            float decayFactor = (float) Math.pow(1.0f - shakeProgress, decay);
+            shakeFactor = intensity * decayFactor;
         }
         
         // 抖动随着 t -> 1 收敛
