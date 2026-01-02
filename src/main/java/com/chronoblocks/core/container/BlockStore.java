@@ -13,7 +13,7 @@ import java.util.Map;
  * BlockStore：用于存储一个容器中的全部原始方块快照：
  * - BlockState
  * - BlockEntity（NBT）
- * 
+ * <p>
  * 可被 ContainerVisibilityService 与动画系统调用。
  * 
  * @author ChronoBlocks Team
@@ -205,17 +205,6 @@ public class BlockStore {
     }
 
     /**
-     * 添加方块快照（兼容旧代码）
-     */
-    @Deprecated
-    public void add(BlockPos pos, BlockSnapshot snapshot) {
-        if (pos == null || snapshot == null) {
-            return;
-        }
-        data.put(pos.toImmutable(), new Entry(snapshot.getBlockState(), snapshot.getBlockEntityNbt()));
-    }
-
-    /**
      * 添加方块快照（v5.3新增，使用 Entry）
      */
     public void add(BlockPos pos, Entry entry) {
@@ -226,93 +215,9 @@ public class BlockStore {
     }
 
     /**
-     * 从世界中抓取方块快照并添加（兼容旧代码）
-     */
-    public void addFromWorld(BlockPos pos, World world) {
-        capture(world, pos);
-    }
-
-    /**
-     * 批量移除方块（兼容旧代码）
-     */
-    public int removeAll(java.util.Collection<BlockPos> positions) {
-        if (positions == null) {
-            return 0;
-        }
-        int count = 0;
-        for (BlockPos pos : positions) {
-            if (data.remove(pos) != null) {
-                count++;
-            }
-        }
-        return count;
-    }
-
-    /**
      * 是否包含指定方块（兼容旧代码）
      */
     public boolean contains(BlockPos pos) {
         return data.containsKey(pos);
-    }
-
-    /**
-     * 方块快照（兼容旧代码）
-     * @deprecated 使用 Entry 替代
-     */
-    @Deprecated
-    public static class BlockSnapshot {
-        private final BlockState blockState;
-        private final NbtCompound blockEntityNbt;
-        private final int lightLevel;
-        private final long captureTime;
-        
-        public BlockSnapshot(BlockState blockState, NbtCompound blockEntityNbt, int lightLevel) {
-            this.blockState = blockState;
-            this.blockEntityNbt = blockEntityNbt;
-            this.lightLevel = lightLevel;
-            this.captureTime = System.currentTimeMillis();
-        }
-        
-        public static BlockSnapshot capture(BlockPos pos, World world) {
-            if (pos == null || world == null) {
-                return null;
-            }
-            
-            BlockState state = world.getBlockState(pos);
-            NbtCompound nbt = null;
-            
-            var blockEntity = world.getBlockEntity(pos);
-            if (blockEntity != null) {
-                try {
-                    nbt = blockEntity.createNbt(world.getRegistryManager());
-                } catch (Exception e) {
-                    // 忽略
-                }
-            }
-            
-            int lightLevel = world.getLightLevel(pos);
-            
-            return new BlockSnapshot(state, nbt, lightLevel);
-        }
-        
-        public BlockState getBlockState() {
-            return blockState;
-        }
-        
-        public NbtCompound getBlockEntityNbt() {
-            return blockEntityNbt;
-        }
-        
-        public int getLightLevel() {
-            return lightLevel;
-        }
-        
-        public long getCaptureTime() {
-            return captureTime;
-        }
-        
-        public boolean hasBlockEntity() {
-            return blockEntityNbt != null;
-        }
     }
 }

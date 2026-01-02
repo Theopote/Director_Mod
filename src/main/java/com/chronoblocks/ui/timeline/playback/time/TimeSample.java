@@ -266,10 +266,7 @@ public final class TimeSample {
     }
     
     /** 兼容旧代码 */
-    public boolean isUseCustomSun() {
-        return !useWorldTime;
-    }
-    
+
     public long getWorldTimeTicks() {
         return worldTimeTicks;
     }
@@ -289,17 +286,11 @@ public final class TimeSample {
     }
     
     /** 兼容旧代码：使用 sunAltitude 作为别名 */
-    public float getSunAltitude() {
-        return sunElevation;
-    }
     
     public float getSunAzimuth() {
         return sunAzimuth;
     }
-    
-    public float getSkyLight() {
-        return skyLight;
-    }
+
     
     // ================== Getters（月亮系统）==================
     
