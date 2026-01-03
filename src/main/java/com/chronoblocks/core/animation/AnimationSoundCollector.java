@@ -131,6 +131,24 @@ public class AnimationSoundCollector {
             impactT = findFirstReachOne(config.getEasing());
         }
 
+        // EXIT 音效触发时机：与 ENTER 保持同样的参数语义，参数名为 exitSoundTiming
+        // - START    : 动画开始
+        // - IMPACT   : 第一次到达 1.0（多数曲线等价于 END）
+        // - PRE_LAND : 在结束前一帧触发（更“提前一点点”的破坏感）
+        // - END      : 动画结束（默认推荐：与真实方块从世界移除对齐）
+        String exitTiming = null;
+        try {
+            Object t = config.getParams().get("exitSoundTiming");
+            if (t != null) exitTiming = t.toString();
+        } catch (Exception ignored) {}
+        if (exitTiming == null || exitTiming.isBlank()) {
+            exitTiming = "END";
+        }
+        float exitImpactT = 1.0f;
+        if (isExit && !isInstant && "IMPACT".equalsIgnoreCase(exitTiming)) {
+            exitImpactT = findFirstReachOne(config.getEasing());
+        }
+
         // 遍历序列条目，为每个方块生成声音事件
         for (BlockSequenceEntry entry : sequenceEntries) {
             if (entry == null) {
@@ -146,8 +164,25 @@ public class AnimationSoundCollector {
             float normalizedTime = entry.getNormalizedTime(); // 0..1
             float eventTime;
             if (isExit) {
-                // EXIT：事件在“方块被移除”时刻触发（动画结束端点）
-                eventTime = clipStart + totalDelay + (fullWindow ? animDuration : 0.0f) + normalizedTime * availableSpan;
+                float blockStartTime = clipStart + totalDelay + normalizedTime * availableSpan;
+                float blockEndTime = Math.min(clipStart + clipDuration, blockStartTime + animDuration);
+
+                if (isInstant) {
+                    eventTime = blockStartTime;
+                } else if ("START".equalsIgnoreCase(exitTiming)) {
+                    eventTime = blockStartTime;
+                } else if ("END".equalsIgnoreCase(exitTiming)) {
+                    eventTime = blockEndTime;
+                } else if ("PRE_LAND".equalsIgnoreCase(exitTiming)) {
+                    float pre = blockEndTime - (1.0f / 60.0f);
+                    if (pre < blockStartTime) pre = blockStartTime;
+                    eventTime = pre;
+                } else {
+                    float impactTime = blockStartTime + exitImpactT * animDuration;
+                    if (impactTime < blockStartTime) impactTime = blockStartTime;
+                    if (impactTime > blockEndTime) impactTime = blockEndTime;
+                    eventTime = impactTime;
+                }
                 if (exitSoundOffsetSeconds != 0f) {
                     eventTime += exitSoundOffsetSeconds;
                 }

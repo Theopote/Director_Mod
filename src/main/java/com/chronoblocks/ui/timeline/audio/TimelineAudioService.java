@@ -967,6 +967,12 @@ public class TimelineAudioService {
             h = 31 * h + (t != null ? t.toString().hashCode() : 0);
         } catch (Exception ignored) {
         }
+        // 破坏音效时机（EXIT）
+        try {
+            Object t = cfg.getParams().get("exitSoundTiming");
+            h = 31 * h + (t != null ? t.toString().hashCode() : 0);
+        } catch (Exception ignored) {
+        }
         // 音效偏移（ENTER/EXIT）
         try {
             Object t = cfg.getParams().get("enterSoundOffsetSeconds");

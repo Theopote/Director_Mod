@@ -58,7 +58,19 @@ public class TimelineTrack {
             // - 非 DEMOLITION 容器不能进 ERASE 轨道
             // 说明：这里做成“模型层硬规则”，避免任何交互路径（拖拽/粘贴/命令）绕过限制。
             // 注意：该约束只应作用于“容器类轨道”（CONTAINER/ERASE），不能误伤 AUDIO 轨道上的 AudioTimelineClip。
-            if ((this.type == TrackType.CONTAINER || this.type == TrackType.ERASE) && clip.getBoundContainerId() != null) {
+            // 额外规则：普通容器片段只能在 CONTAINER 轨道，拆除容器片段只能在 ERASE 轨道；
+            // 且“容器片段”不允许被拖到其它轨道（相机/天气/时间等）。
+            //
+            // 重要：AudioTimelineClip 也可能绑定容器（用于音效同步），不能被当成容器片段处理。
+            boolean isAudioClip = clip instanceof com.chronoblocks.ui.timeline.model.audio.AudioTimelineClip;
+            if (!isAudioClip && clip.getBoundContainerId() != null) {
+                // 容器片段只允许出现在 CONTAINER/ERASE 两类轨道
+                if (this.type != TrackType.CONTAINER && this.type != TrackType.ERASE) {
+                    return;
+                }
+            }
+
+            if ((this.type == TrackType.CONTAINER || this.type == TrackType.ERASE) && !isAudioClip && clip.getBoundContainerId() != null) {
                 try {
                     Container c = ContainerManager.getInstance() != null
                             ? ContainerManager.getInstance().getContainer(clip.getBoundContainerId())

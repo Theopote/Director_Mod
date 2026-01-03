@@ -179,6 +179,49 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
                             }
                         } else {
                             // ===== 破坏音效（EXIT）=====
+                            String[] timingLabels = new String[] {
+                                    "消失同步（推荐）",   // END
+                                    "第一次到位（IMPACT）",
+                                    "开始（START）",
+                                    "消失前一帧（PRE_LAND）"
+                            };
+                            String cur = "END";
+                            try {
+                                Object t = params.get("exitSoundTiming");
+                                if (t != null && !t.toString().isBlank()) {
+                                    cur = t.toString();
+                                }
+                            } catch (Exception ignored) {}
+                            int idx = switch (cur.toUpperCase()) {
+                                case "IMPACT" -> 1;
+                                case "START" -> 2;
+                                case "PRE_LAND" -> 3;
+                                default -> 0;
+                            };
+                            ImInt buf = new ImInt(idx);
+                            ImGui.pushItemWidth(ImGui.getContentRegionAvailX());
+                            if (ImGui.combo("破坏音效时机", buf, timingLabels)) {
+                                String newTiming = switch (buf.get()) {
+                                    case 1 -> "IMPACT";
+                                    case 2 -> "START";
+                                    case 3 -> "PRE_LAND";
+                                    default -> "END";
+                                };
+                                params.put("exitSoundTiming", newTiming);
+                                changed = true;
+                                requestRefresh = true;
+                            }
+                            ImGui.popItemWidth();
+                            if (ImGui.isItemHovered()) {
+                                ImGui.setTooltip(
+                                        """
+                                                消失同步：与真实方块从世界中移除的瞬间对齐（默认推荐）
+                                                第一次到位：对某些曲线可能偏早（通常等价于同步）
+                                                开始：动画一开始就播放
+                                                消失前一帧：比同步略早（约 1/60s）"""
+                                );
+                            }
+
                             float offset = 0.0f;
                             try {
                                 Object o = params.get("exitSoundOffsetSeconds");

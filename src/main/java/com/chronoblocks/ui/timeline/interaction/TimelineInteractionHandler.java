@@ -1339,16 +1339,22 @@ public class TimelineInteractionHandler {
             return true;
         }
 
+        // ✅ AudioTimelineClip：只允许在 AUDIO 轨道（它的 boundContainerId 用于音效同步，不是“容器片段”）
+        if (clip instanceof com.chronoblocks.ui.timeline.model.audio.AudioTimelineClip) {
+            return tt == TrackType.AUDIO;
+        }
+
         try {
             Container c = ContainerManager.getInstance() != null
                     ? ContainerManager.getInstance().getContainer(clip.getBoundContainerId())
                     : null;
             if (c == null) return true;
             boolean isDemolition = (c.getType() == com.chronoblocks.core.container.ContainerType.DEMOLITION);
-            // 该规则只针对“容器类轨道”（CONTAINER/ERASE）；AUDIO 等其它轨道不在这里做拦截（避免误伤音频片段面板）
+
+            // ✅ 容器片段：只能在 CONTAINER/ERASE 两类轨道，且 DEMOLITION ↔ ERASE 强绑定
             if (tt == TrackType.ERASE) return isDemolition;
             if (tt == TrackType.CONTAINER) return !isDemolition;
-            return true;
+            return false; // 其它轨道一律不允许容器片段进入
         } catch (Exception ignored) {
             return true;
         }
