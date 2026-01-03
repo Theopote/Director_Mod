@@ -131,17 +131,17 @@ public class TimelineAudioService {
             return;
         }
 
-        for (TimelineTrack track : timelineModel.getAllTracks()) {
-            if (track instanceof AudioTrack at) {
-                at.clearEvents();
-            }
-        }
-
         AudioTrack audioTrack = findAudioTrack();
         if (audioTrack == null) {
             // å¦‚æžœè¿˜æ²¡æœ‰éŸ³é¢‘è½¨é“ï¼Œä¸è‡ªåŠ¨åˆ›å»ºï¼Œä¿æŒç”¨æˆ·æ‰‹åŠ¨åˆ†é…è¯­ä¹‰
             return;
         }
+
+        // ✅ 关键修复：不要在 setTimelineModel() 时无条件清空已加载的音频事件。
+        // 旧逻辑假设“AudioEvent 不落盘”，但现在我们会从持久化中恢复 AudioEvent。
+        // - 如果 events 已存在：只重建链接关系（用于跟随/颜色/属性面板）
+        // - 如果 events 为空：才从容器片段自动重建（保底）
+        boolean hasPersistedEvents = audioTrack.hasEvents();
 
         for (TimelineTrack track : timelineModel.getAllTracks()) {
             if (track == null) {
@@ -152,7 +152,73 @@ public class TimelineAudioService {
                 continue;
             }
             for (TimelineClip clip : track.getClips()) {
-                collectAndAddSoundEvents(clip, false);
+                // 1) 建立“容器片段 -> 音频片段”的绑定关系（不生成事件也要建立）
+                if (clip != null) {
+                    TimelineClip audioClip = null;
+                    // 只在允许创建时才补齐音频片段；否则仅尝试查找现有绑定
+                    if (!suppressAutoCreate) {
+                        try {
+                            boolean isEraseTrack = false;
+                            TimelineTrack pt = clip.getParentTrack();
+                            if (pt != null && pt.getType() == TrackType.ERASE) {
+                                isEraseTrack = true;
+                            }
+                            audioClip = ensureAudioClipForContainerClip(clip, audioTrack, !hasPersistedEvents, isEraseTrack);
+                        } catch (Exception ignored) {}
+                    }
+                    if (audioClip != null) {
+                        linkedAudioClipsByClip.put(clip, audioClip);
+                        linkedContainerClipsByAudioClip.put(audioClip, clip);
+                    }
+                }
+
+                // 2) 如果没有任何事件，则从容器片段重建（保底：重启后也能看到音频）
+                if (!hasPersistedEvents) {
+                    collectAndAddSoundEvents(clip, true);
+                }
+            }
+        }
+
+        // 3) 如果事件是从持久化恢复的：按“音频片段时间范围”把事件重新链接到容器片段
+        // 这样容器片段移动/缩放时，音频点能正确跟随；清除轨道的点也能正确染色。
+        if (hasPersistedEvents) {
+            // 先收集所有 audioClip -> containerClip 的已知映射
+            List<TimelineClip> audioClips = audioTrack.getClips();
+            if (audioClips != null && !audioClips.isEmpty()) {
+                for (TimelineClip ac : audioClips) {
+                    TimelineClip cc = linkedContainerClipsByAudioClip.get(ac);
+                    if (cc == null) {
+                        // 兜底：按 boundContainerId 匹配
+                        UUID bid = ac != null ? ac.getBoundContainerId() : null;
+                        if (bid != null) {
+                            for (TimelineTrack t : timelineModel.getAllTracks()) {
+                                if (t == null) continue;
+                                TrackType tt = t.getType();
+                                if (tt != TrackType.CONTAINER && tt != TrackType.ERASE) continue;
+                                for (TimelineClip c : t.getClips()) {
+                                    if (c != null && bid.equals(c.getBoundContainerId())) {
+                                        cc = c;
+                                        linkedAudioClipsByClip.put(c, ac);
+                                        linkedContainerClipsByAudioClip.put(ac, c);
+                                        break;
+                                    }
+                                }
+                                if (cc != null) break;
+                            }
+                        }
+                    }
+                    if (cc == null) continue;
+
+                    float a0 = ac.getStartTime();
+                    float a1 = ac.getEndTime();
+                    for (AudioEvent ev : audioTrack.getEvents()) {
+                        if (ev == null) continue;
+                        float t = ev.getTime();
+                        if (t >= a0 - 0.0005f && t <= a1 + 0.0005f) {
+                            linkEventToClip(cc, ev);
+                        }
+                    }
+                }
             }
         }
     }

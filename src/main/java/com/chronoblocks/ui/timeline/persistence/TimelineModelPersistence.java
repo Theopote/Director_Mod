@@ -17,6 +17,7 @@ import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.audio.AudioClipKeyframe;
 import com.chronoblocks.ui.timeline.model.audio.AudioEvent;
 import com.chronoblocks.ui.timeline.model.audio.AudioTrack;
+import com.chronoblocks.ui.timeline.model.audio.AudioTimelineClip;
 import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
 import com.chronoblocks.ui.timeline.model.clip.ClipKeyframe;
 import com.chronoblocks.ui.timeline.model.season.SeasonKeyframe;
@@ -618,12 +619,10 @@ public class TimelineModelPersistence {
             
             // 恢复所有片段
             for (ClipDTO clipDTO : trackDTO.clips) {
-                TimelineClip clip = new TimelineClip(
-                    clipDTO.label,
-                    clipDTO.startTime,
-                    clipDTO.endTime,
-                    clipDTO.color
-                );
+                // ✅ AUDIO 轨道上的片段必须是 AudioTimelineClip，否则会被轨道约束误判并拒绝加入轨道，导致“重启后音频面板丢失”。
+                TimelineClip clip = (track.getType() == TrackType.AUDIO)
+                        ? new AudioTimelineClip(clipDTO.label, clipDTO.startTime, clipDTO.endTime, clipDTO.color)
+                        : new TimelineClip(clipDTO.label, clipDTO.startTime, clipDTO.endTime, clipDTO.color);
                 clip.setMuted(clipDTO.muted);
                 clip.setOpacity(clipDTO.opacity);
                 clip.setAutoFadePreviousClips(clipDTO.autoFadePreviousClips);
