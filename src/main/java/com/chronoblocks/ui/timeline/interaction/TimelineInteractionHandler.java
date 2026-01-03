@@ -622,44 +622,44 @@ public class TimelineInteractionHandler {
         if (interactionManager.isInteracting()) {
             return;
         }
-        
-        if (hit.type() == TimelineHitResult.HitType.CLIP) {
-            TimelineClip clip = hit.clip();
-            TimelineTrack track = hit.track();
-            if (track != null && track.getType() == com.chronoblocks.ui.timeline.model.TrackType.AUDIO) {
-                ImGui.setMouseCursor(ImGuiMouseCursor.Arrow);
+
+        // 关键修复：不要在“非可调整区域”强行设置 Arrow。
+        // 否则会覆盖 ImGui 内置的 dock 分割线/窗口边缘等系统光标反馈，导致“能拖拽但光标不变”。
+        if (hit == null || hit.type() != TimelineHitResult.HitType.CLIP) {
+            return;
+        }
+
+        TimelineClip clip = hit.clip();
+        if (clip == null) {
+            return;
+        }
+
+        TimelineTrack track = hit.track();
+        // 音频轨/锁定轨：不显示调整光标（但也不要强行覆盖成 Arrow）
+        if (track != null) {
+            if (track.getType() == com.chronoblocks.ui.timeline.model.TrackType.AUDIO) {
                 return;
             }
-            if (clip != null) {
-                // �?轨道锁定功能：锁定轨道上的片段不显示调整光标
-                if (track != null && track.isLocked()) {
-                    ImGui.setMouseCursor(ImGuiMouseCursor.Arrow);
-                    return;
-                }
-                
-                float startX = renderer.timeToX(clip.getStartTime(), contentX);
-                float endX = renderer.timeToX(clip.getEndTime(), contentX);
-                
-                boolean nearLeft = Math.abs(mouseX - startX) <= CLIP_EDGE_RESIZE_PIXEL;
-                boolean nearRight = Math.abs(mouseX - endX) <= CLIP_EDGE_RESIZE_PIXEL;
-                
-                // 对于小片段，扩大边缘检测范�?
-                float clipWidth = endX - startX;
-                if (clipWidth < CLIP_EDGE_RESIZE_PIXEL * 3) {
-                    nearLeft = mouseX <= startX + CLIP_EDGE_RESIZE_PIXEL * 1.5f;
-                    nearRight = mouseX >= endX - CLIP_EDGE_RESIZE_PIXEL * 1.5f;
-                }
-                
-                if (nearLeft || nearRight) {
-                    ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
-                } else {
-                    ImGui.setMouseCursor(ImGuiMouseCursor.Arrow);
-                }
-            } else {
-                ImGui.setMouseCursor(ImGuiMouseCursor.Arrow);
+            if (track.isLocked()) {
+                return;
             }
-        } else {
-            ImGui.setMouseCursor(ImGuiMouseCursor.Arrow);
+        }
+
+        float startX = renderer.timeToX(clip.getStartTime(), contentX);
+        float endX = renderer.timeToX(clip.getEndTime(), contentX);
+
+        boolean nearLeft = Math.abs(mouseX - startX) <= CLIP_EDGE_RESIZE_PIXEL;
+        boolean nearRight = Math.abs(mouseX - endX) <= CLIP_EDGE_RESIZE_PIXEL;
+
+        // 对于小片段，扩大边缘检测范围
+        float clipWidth = endX - startX;
+        if (clipWidth < CLIP_EDGE_RESIZE_PIXEL * 3) {
+            nearLeft = mouseX <= startX + CLIP_EDGE_RESIZE_PIXEL * 1.5f;
+            nearRight = mouseX >= endX - CLIP_EDGE_RESIZE_PIXEL * 1.5f;
+        }
+
+        if (nearLeft || nearRight) {
+            ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
         }
     }
 
