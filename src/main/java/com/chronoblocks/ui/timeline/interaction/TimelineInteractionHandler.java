@@ -17,11 +17,14 @@ import com.chronoblocks.ui.timeline.commands.MoveAutomationKeyframeCommand;
 
 import imgui.ImGui;
 import imgui.ImGuiIO;
+import imgui.ImDrawList;
 import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiMouseCursor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -52,6 +55,14 @@ public class TimelineInteractionHandler {
     private float lastClickTime = 0f;
     private float lastClickX = 0f;
     private float lastClickY = 0f;
+
+    // ===================== 框选（Marquee Select）=====================
+    private boolean marqueeCandidate = false; // 左键按下在空白处：候选（可能是点击清空，也可能是框选）
+    private boolean marqueeActive = false;    // 进入拖拽阈值后：真正框选
+    private float marqueeStartX = 0f;
+    private float marqueeStartY = 0f;
+    private float marqueeCurX = 0f;
+    private float marqueeCurY = 0f;
 
     /**
      * 浜や簰鍥炶皟鎺ュ彛锛岀�?TimelinePanel 瀹炵幇銆?
@@ -242,12 +253,30 @@ public class TimelineInteractionHandler {
         // 鼠标事件
         handleMouseButtons(hit, trackControlHit, contentX, trackAreaTop, contentW, viewportH, scrollY, rightClickedOnCanvas);
         handleDrag(hit, contentX, trackAreaTop, contentW, viewportH, scrollY);
+        updateMarquee(contentX, trackAreaTop, contentW, viewportH, scrollY);
         
         // ⭐ v5.0：显示轨道控制按钮的 tooltip
         renderTrackControlTooltips(trackControlHit);
         
         // 注意：容器拖放处理现在在 TimelinePanel 中直接处理（�?invisibleButton 之后�?
         // 这样可以确保在正确的窗口上下文中设置拖放目标
+    }
+
+    /**
+     * 渲染框选矩形（在 TimelinePanel 里调用，确保在正确的 drawList/clipRect 下绘制）
+     */
+    public void renderMarqueeOverlay(ImDrawList drawList) {
+        if (!marqueeActive) return;
+
+        float x1 = Math.min(marqueeStartX, marqueeCurX);
+        float y1 = Math.min(marqueeStartY, marqueeCurY);
+        float x2 = Math.max(marqueeStartX, marqueeCurX);
+        float y2 = Math.max(marqueeStartY, marqueeCurY);
+
+        int fill = com.chronoblocks.ui.timeline.render.TimelineColors.rgba(80, 160, 255, 35);
+        int border = com.chronoblocks.ui.timeline.render.TimelineColors.rgba(80, 160, 255, 180);
+        drawList.addRectFilled(x1, y1, x2, y2, fill, 2.0f);
+        drawList.addRect(x1, y1, x2, y2, border, 2.0f, 0, 1.5f);
     }
     
     /**
@@ -364,7 +393,7 @@ public class TimelineInteractionHandler {
                 case CLIP -> onClipClicked(hit, mouseX, contentX, isDoubleClick);
                 case KEYFRAME -> onKeyframeClicked(hit, mouseX, contentX, isDoubleClick);
                 case AUTOMATION_KEYFRAME -> onAutomationKeyframeClicked(hit, mouseX, contentX, isDoubleClick);
-                case EMPTY -> onEmptyClicked(hit, mouseX, contentX);
+                case EMPTY -> startMarqueeCandidate(mouseX, mouseY, trackAreaTop, scrollY);
                 default -> { /* NONE / TRACK_HEADER 在这里忽�?*/ }
             }
         }
@@ -408,6 +437,137 @@ public class TimelineInteractionHandler {
         // 鼠标释放结束交互
         if (ImGui.isMouseReleased(ImGuiMouseButton.Left)) {
             endInteractionIfNeeded();
+        }
+    }
+
+    private void startMarqueeCandidate(float mouseX, float mouseY, float trackAreaTop, float scrollY) {
+        // 如果当前正在进行其他交互（拖片段/拖关键帧/拖播放头），不启动框选
+        if (interactionManager.isInteracting()) {
+            return;
+        }
+        marqueeCandidate = true;
+        marqueeActive = false;
+        marqueeStartX = mouseX;
+        marqueeStartY = mouseY;
+        marqueeCurX = mouseX;
+        marqueeCurY = mouseY;
+    }
+
+    private void updateMarquee(float contentX,
+                               float trackAreaTop,
+                               float contentW,
+                               float viewportH,
+                               float scrollY) {
+        if (!marqueeCandidate) {
+            return;
+        }
+
+        // 若鼠标仍按下：更新当前框
+        if (ImGui.isMouseDown(ImGuiMouseButton.Left)) {
+            marqueeCurX = ImGui.getMousePosX();
+            marqueeCurY = ImGui.getMousePosY();
+
+            // 进入框选阈值
+            if (!marqueeActive) {
+                float dx = marqueeCurX - marqueeStartX;
+                float dy = marqueeCurY - marqueeStartY;
+                final float THRESHOLD_PX = 4.0f;
+                if ((dx * dx + dy * dy) >= (THRESHOLD_PX * THRESHOLD_PX)) {
+                    marqueeActive = true;
+                }
+            }
+            return;
+        }
+
+        // 鼠标已松开：如果未进入框选，则视为“空白点击清空”；否则应用框选
+        if (!marqueeActive) {
+            // 复用原有清空逻辑
+            model.clearSelection();
+            com.chronoblocks.ui.selection.SelectionManager.get().clearSelection();
+        } else {
+            applyMarqueeSelection(contentX, trackAreaTop, scrollY);
+        }
+
+        marqueeCandidate = false;
+        marqueeActive = false;
+    }
+
+    private void applyMarqueeSelection(float contentX, float trackAreaTop, float scrollY) {
+        float x1 = Math.min(marqueeStartX, marqueeCurX);
+        float y1 = Math.min(marqueeStartY, marqueeCurY);
+        float x2 = Math.max(marqueeStartX, marqueeCurX);
+        float y2 = Math.max(marqueeStartY, marqueeCurY);
+
+        ImGuiIO io = ImGui.getIO();
+        boolean additive = io.getKeyCtrl();
+
+        float pps = model.getPixelsPerSecond();
+        float scrollX = model.getScrollX();
+        float rowHeight = TimelineRenderer.getTrackHeight() + TimelineRenderer.getTrackGap();
+
+        int startIdx = renderer.yToTrackIndex(y1 - trackAreaTop, scrollY);
+        int endIdx = renderer.yToTrackIndex(y2 - trackAreaTop, scrollY);
+        if (startIdx < 0) startIdx = 0;
+        if (endIdx < 0) endIdx = 0;
+        int maxIdx = model.getTrackCount() - 1;
+        startIdx = Math.max(0, Math.min(maxIdx, startIdx));
+        endIdx = Math.max(0, Math.min(maxIdx, endIdx));
+        if (endIdx < startIdx) {
+            int tmp = startIdx;
+            startIdx = endIdx;
+            endIdx = tmp;
+        }
+
+        List<Object> selected = new ArrayList<>();
+
+        for (int idx = startIdx; idx <= endIdx; idx++) {
+            TimelineTrack track = model.getTrackAt(idx);
+            if (track == null || !track.isVisible()) continue;
+
+            float trackTop = trackAreaTop + (idx * rowHeight - scrollY);
+            float centerY = trackTop + (TimelineRenderer.getTrackHeight() / 2.0f);
+            if (centerY < y1 || centerY > y2) {
+                continue;
+            }
+
+            // Clip 内关键帧（ClipKeyframe）
+            List<TimelineClip> clips = track.getClips();
+            if (clips != null) {
+                for (TimelineClip clip : clips) {
+                    if (clip == null) continue;
+                    List<com.chronoblocks.ui.timeline.model.clip.ClipKeyframe> kfs = clip.getClipKeyframes();
+                    if (kfs == null || kfs.isEmpty()) continue;
+                    for (com.chronoblocks.ui.timeline.model.clip.ClipKeyframe kf : kfs) {
+                        if (kf == null) continue;
+                        float kx = contentX + (kf.getTime() * pps) - scrollX;
+                        if (kx >= x1 && kx <= x2) {
+                            selected.add(kf);
+                        }
+                    }
+                }
+            }
+
+            // 轨道级自动化关键帧（TimelineSelectable）
+            if (track.hasAutomationKeyframes()) {
+                for (TimelineSelectable kf : track.getAutomationKeyframes()) {
+                    if (kf == null) continue;
+                    float kx = contentX + (kf.getStartTime() * pps) - scrollX;
+                    if (kx >= x1 && kx <= x2) {
+                        selected.add(kf);
+                    }
+                }
+            }
+        }
+
+        model.addItemsToSelection(selected, !additive);
+        if (!selected.isEmpty()) {
+            Object last = selected.getLast();
+            if (last instanceof TimelineSelectable selectable) {
+                com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(selectable);
+            }
+        }
+        if (callbacks != null) {
+            callbacks.onDataChanged();
         }
     }
 
@@ -737,22 +897,6 @@ public class TimelineInteractionHandler {
         }
     }
 
-    private void onEmptyClicked(TimelineHitResult hit,
-                                float mouseX,
-                                float contentX) {
-        // 空白区域：清除选中状态
-        model.clearSelection();
-        
-        // 清除 SelectionManager 的选择，使属性面板恢复到默认状态
-        com.chronoblocks.ui.selection.SelectionManager.get().clearSelection();
-        
-        if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("[Timeline] 点击空白区域，清除所有选中状态");
-        }
-        
-        // 空白区域：不移动播放头，允许用户在轨道上操作片段或关键帧
-        // 只有点击顶部时间刻度尺时才会移动播放头（�?TimelinePanel.handleRulerInteractions 处理�?
-    }
 
     // ========================================================
     // 鍙抽敭鑿滃崟

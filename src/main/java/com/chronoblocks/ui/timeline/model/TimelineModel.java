@@ -843,6 +843,41 @@ public class TimelineModel {
         
         lastClickedItem = item;
     }
+
+    /**
+     * 仅添加到选择（不会切换/移除），用于框选等批量选择场景。
+     */
+    public void addItemToSelection(Object item) {
+        if (item == null) return;
+        selectedItems.add(item);
+        lastClickedItem = item;
+    }
+
+    /**
+     * 批量添加到选择。
+     * @param items 要添加的项目
+     * @param clearFirst 是否先清空现有选择（框选默认会清空，按住 Ctrl 则不清空）
+     */
+    public void addItemsToSelection(java.util.Collection<?> items, boolean clearFirst) {
+        if (clearFirst) {
+            selectedItems.clear();
+        }
+        if (items == null || items.isEmpty()) {
+            if (clearFirst) {
+                lastClickedItem = null;
+            }
+            return;
+        }
+        Object last = null;
+        for (Object it : items) {
+            if (it == null) continue;
+            selectedItems.add(it);
+            last = it;
+        }
+        if (last != null) {
+            lastClickedItem = last;
+        }
+    }
     
     /**
      * 范围选择（Shift键）

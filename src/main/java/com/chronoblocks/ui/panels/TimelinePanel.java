@@ -699,6 +699,11 @@ public class TimelinePanel extends AbstractPanel
         // 8) 把几何信息传给交互处理器（命名 / 拖动 / 上下文菜单）
         interactionHandler.handleCanvasInteractions(contentX, trackRegionTop, contentW, trackViewportHeight, scrollY, rightClickedOnCanvas);
 
+        // 8.2) 框选覆盖层（多选关键帧）
+        pushClipRectSafe(drawList, winX, trackRegionTop, winX + winW, trackRegionTop + trackViewportHeight);
+        interactionHandler.renderMarqueeOverlay(drawList);
+        drawList.popClipRect();
+
         // 8.5) 更新菜单状态（检查是否已关闭）
         interactionHandler.updateMenuState();
         
@@ -989,17 +994,107 @@ public class TimelinePanel extends AbstractPanel
      * 删除选中的片段
      */
     private void deleteSelectedClip() {
-        TimelineClip selectedClip = model.getSelectedClip();
-        if (selectedClip == null) return;
-
-        // ⭐ 轨道锁定功能：如果轨道锁定，禁止删除片段
-        TimelineTrack track = model.findTrackForClip(selectedClip);
-        if (track != null && track.isLocked()) {
-            LOGGER.info("[TimelinePanel] 轨道已锁定，禁止删除片段 (轨道: {})", track.getName());
+        java.util.List<Object> items = model.getSelectedItems();
+        if (items == null || items.isEmpty()) {
             return;
         }
 
-        clipboard.deleteSelected(model, commandHistory);
+        java.util.Set<TimelineClip> clipsToDelete = new java.util.HashSet<>();
+        java.util.List<com.chronoblocks.ui.timeline.model.clip.ClipKeyframe> clipKeyframesToDelete = new java.util.ArrayList<>();
+        java.util.List<com.chronoblocks.ui.timeline.model.TimelineSelectable> automationKeyframesToDelete = new java.util.ArrayList<>();
+
+        for (Object it : items) {
+            if (it instanceof TimelineClip clip) {
+                clipsToDelete.add(clip);
+            } else if (it instanceof com.chronoblocks.ui.timeline.model.clip.ClipKeyframe kf) {
+                clipKeyframesToDelete.add(kf);
+            } else if (it instanceof com.chronoblocks.ui.timeline.model.TimelineSelectable selectable) {
+                automationKeyframesToDelete.add(selectable);
+            }
+        }
+
+        // 1) 删除 Clip（优先）
+        for (TimelineClip clip : clipsToDelete) {
+            TimelineTrack track = model.findTrackForClip(clip);
+            if (track != null && track.isLocked()) {
+                LOGGER.info("[TimelinePanel] 轨道已锁定，禁止删除片段 (轨道: {})", track.getName());
+                continue;
+            }
+            if (track != null) {
+                com.chronoblocks.ui.timeline.commands.DeleteClipCommand cmd =
+                        new com.chronoblocks.ui.timeline.commands.DeleteClipCommand(model, clip, track.getClips());
+                commandHistory.executeCommand(cmd);
+            }
+        }
+
+        // 2) 删除 ClipKeyframe（如果其所属 clip 已被删除，则跳过）
+        if (!clipKeyframesToDelete.isEmpty()) {
+            for (com.chronoblocks.ui.timeline.model.clip.ClipKeyframe kf : clipKeyframesToDelete) {
+                if (kf == null) continue;
+
+                TimelineTrack ownerTrack = null;
+                TimelineClip ownerClip = null;
+                for (TimelineTrack t : model.getTracks()) {
+                    if (t == null) continue;
+                    for (TimelineClip c : t.getClips()) {
+                        if (c == null) continue;
+                        if (clipsToDelete.contains(c)) continue;
+                        // equals/hashCode 基于 keyframe.id，contains 判断可靠
+                        if (c.getClipKeyframes().contains(kf)) {
+                            ownerTrack = t;
+                            ownerClip = c;
+                            break;
+                        }
+                    }
+                    if (ownerClip != null) break;
+                }
+
+                if (ownerClip == null || ownerTrack == null) {
+                    continue;
+                }
+                if (ownerTrack.isLocked()) {
+                    LOGGER.info("[TimelinePanel] 轨道已锁定，禁止删除关键帧 (轨道: {})", ownerTrack.getName());
+                    continue;
+                }
+
+                commandHistory.executeCommand(
+                        new com.chronoblocks.ui.timeline.commands.RemoveClipKeyframeCommand(model, ownerTrack, ownerClip, kf)
+                );
+            }
+        }
+
+        // 3) 删除自动化关键帧（轨道级）
+        if (!automationKeyframesToDelete.isEmpty()) {
+            for (com.chronoblocks.ui.timeline.model.TimelineSelectable kf : automationKeyframesToDelete) {
+                if (kf == null) continue;
+                // 保护：音频事件点通常是派生结果，不建议直接 Del 删除
+                if (kf instanceof com.chronoblocks.ui.timeline.model.audio.AudioEvent) {
+                    continue;
+                }
+
+                TimelineTrack ownerTrack = null;
+                for (TimelineTrack t : model.getTracks()) {
+                    if (t == null || !t.hasAutomationKeyframes()) continue;
+                    boolean contains = t.getAutomationKeyframes().stream()
+                            .anyMatch(x -> x != null && kf.getId().equals(x.getId()));
+                    if (contains) {
+                        ownerTrack = t;
+                        break;
+                    }
+                }
+                if (ownerTrack == null) continue;
+                if (ownerTrack.isLocked()) {
+                    LOGGER.info("[TimelinePanel] 轨道已锁定，禁止删除自动化关键帧 (轨道: {})", ownerTrack.getName());
+                    continue;
+                }
+                commandHistory.executeCommand(
+                        new com.chronoblocks.ui.timeline.commands.RemoveAutomationKeyframeCommand(model, ownerTrack, kf)
+                );
+            }
+        }
+
+        model.clearSelection();
+        com.chronoblocks.ui.selection.SelectionManager.get().clearSelection();
         markDataChanged();
     }
 
