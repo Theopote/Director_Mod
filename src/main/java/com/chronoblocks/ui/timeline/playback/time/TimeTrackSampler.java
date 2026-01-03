@@ -168,7 +168,7 @@ public final class TimeTrackSampler {
         // 1. 基础世界时间参数
         boolean useWorldTime = a.isUseWorldTime() || b.isUseWorldTime();
         boolean freezeWorldTime = a.isFreezeWorldTime() || b.isFreezeWorldTime();
-        long worldTime = lerpTime(a.getWorldTimeTicks(), b.getWorldTimeTicks(), t);
+        double worldTimeOfDay = lerpTime(a.getWorldTimeOfDay(), b.getWorldTimeOfDay(), t);
         
         // 2. 太阳轨迹参数
         float sunElevation = lerpFloat(a.getSunElevation(), b.getSunElevation(), t);
@@ -192,9 +192,9 @@ public final class TimeTrackSampler {
         
         TimeSample base;
         if (useWorldTime) {
-            base = TimeSample.fromNaturalTime(worldTime, freezeWorldTime);
+            base = TimeSample.fromNaturalTime(worldTimeOfDay, freezeWorldTime);
         } else {
-            base = TimeSample.fromCustomSun(worldTime, sunElevation, sunAzimuth, freezeWorldTime);
+            base = TimeSample.fromCustomSun(worldTimeOfDay, sunElevation, sunAzimuth, freezeWorldTime);
         }
         
         // 如果使用自定义天空颜色，应用颜色覆盖
@@ -217,28 +217,29 @@ public final class TimeTrackSampler {
     /**
      * 线性插值世界时间（处理 24000 → 0 的循环）
      */
-    private long lerpTime(long t0, long t1, float t) {
+    private double lerpTime(double t0, double t1, float t) {
         // 安全归一化：关键帧可能来自旧数据/外部导入，存在超出 day-length 的值
-        t0 = t0 % DAY_LENGTH_TICKS;
-        t1 = t1 % DAY_LENGTH_TICKS;
-        if (t0 < 0) t0 += DAY_LENGTH_TICKS;
-        if (t1 < 0) t1 += DAY_LENGTH_TICKS;
+        double dayLength = (double) DAY_LENGTH_TICKS;
+        t0 = t0 % dayLength;
+        t1 = t1 % dayLength;
+        if (t0 < 0.0) t0 += dayLength;
+        if (t1 < 0.0) t1 += dayLength;
 
         // 计算差值，处理循环
-        long diff = t1 - t0;
-        long halfCycle = DAY_LENGTH_TICKS / 2;
+        double diff = t1 - t0;
+        double halfCycle = dayLength / 2.0;
         
         // 如果差值大于半天，可能走反向更短
         if (diff > halfCycle) {
-            diff -= DAY_LENGTH_TICKS;
+            diff -= dayLength;
         } else if (diff < -halfCycle) {
-            diff += DAY_LENGTH_TICKS;
+            diff += dayLength;
         }
         
-        long result = t0 + (long)(diff * t);
+        double result = t0 + diff * t;
         // 规范化到 0~24000 范围
-        while (result < 0) result += DAY_LENGTH_TICKS;
-        while (result >= DAY_LENGTH_TICKS) result -= DAY_LENGTH_TICKS;
+        while (result < 0.0) result += dayLength;
+        while (result >= dayLength) result -= dayLength;
         
         return result;
     }

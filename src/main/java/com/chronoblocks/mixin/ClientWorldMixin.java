@@ -3,9 +3,12 @@ package com.chronoblocks.mixin;
 import com.chronoblocks.client.ChronoBlocksClientController;
 import com.chronoblocks.ui.timeline.playback.season.SeasonSample;
 import com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController;
+import com.chronoblocks.ui.timeline.playback.time.TimeSample;
+import com.chronoblocks.ui.timeline.playback.time.TimelineWorldController;
 import com.chronoblocks.ui.timeline.playback.weather.WeatherSample;
 import com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController;
 import net.minecraft.client.world.ClientWorld;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -52,6 +55,47 @@ public abstract class ClientWorldMixin {
         if (c != null && c.isChronoBlocksModeActive()) {
             ci.cancel();
         }
+    }
+
+    @Inject(method = "getSkyBrightness(F)F", at = @At("HEAD"), cancellable = true)
+    private void overrideSkyBrightness(float tickDelta, CallbackInfoReturnable<Float> cir) {
+        TimelineWorldController controller = TimelineWorldController.getInstance();
+        if (!controller.hasOverride()) {
+            return;
+        }
+        TimeSample sample = controller.current();
+        if (sample == null) {
+            return;
+        }
+
+        float skyAngle = sample.getSkyAngle();
+        float brightness = 1.0f - (MathHelper.cos(skyAngle * 6.2831855f) * 2.0f + 0.2f);
+        brightness = MathHelper.clamp(brightness, 0.0f, 1.0f);
+        brightness = 1.0f - brightness;
+
+        ClientWorld world = (ClientWorld) (Object) this;
+        brightness *= 1.0f - world.getRainGradient(tickDelta) * 5.0f / 16.0f;
+        brightness *= 1.0f - world.getThunderGradient(tickDelta) * 5.0f / 16.0f;
+        brightness = brightness * 0.8f + 0.2f;
+
+        cir.setReturnValue(brightness);
+    }
+
+    @Inject(method = "getStarBrightness(F)F", at = @At("HEAD"), cancellable = true)
+    private void overrideStarBrightness(float tickDelta, CallbackInfoReturnable<Float> cir) {
+        TimelineWorldController controller = TimelineWorldController.getInstance();
+        if (!controller.hasOverride()) {
+            return;
+        }
+        TimeSample sample = controller.current();
+        if (sample == null) {
+            return;
+        }
+
+        float skyAngle = sample.getSkyAngle();
+        float brightness = 1.0f - (MathHelper.cos(skyAngle * 6.2831855f) * 2.0f + 0.25f);
+        brightness = MathHelper.clamp(brightness, 0.0f, 1.0f);
+        cir.setReturnValue(brightness * brightness * 0.5f);
     }
 
     /**

@@ -27,6 +27,8 @@ package com.chronoblocks.ui.timeline.playback.time;
  * @version 3.0 - 专业动画级天空控制
  */
 public final class TimeSample {
+
+    private static final double DAY_LENGTH_TICKS = 24000.0;
     
     /* =============================
      *    基础世界时间 / 控制参数
@@ -37,6 +39,7 @@ public final class TimeSample {
     
     /** Minecraft 世界时间（tick，0-24000），用于月相、部分光照逻辑 */
     private final long worldTimeTicks;
+    private final double worldTimeOfDay;
     
     /** 是否冻结世界时间推进（控制器使用，Mixin 可以读取此值） */
     private final boolean freezeWorldTime;
@@ -92,13 +95,14 @@ public final class TimeSample {
     /**
      * 创建时间采样结果（完整构造函数）
      */
-    private TimeSample(boolean useWorldTime, long worldTimeTicks, boolean freezeWorldTime,
+    private TimeSample(boolean useWorldTime, long worldTimeTicks, double worldTimeOfDay, boolean freezeWorldTime,
                       float skyAngle, float sunElevation, float sunAzimuth, float skyLight,
                       int moonPhase, float moonElevation, float moonAzimuth,
                       boolean useCustomSkyColor, float sunriseR, float sunriseG, float sunriseB, float sunriseA,
                       float skyColorR, float skyColorG, float skyColorB, float skyColorA) {
         this.useWorldTime = useWorldTime;
         this.worldTimeTicks = worldTimeTicks;
+        this.worldTimeOfDay = normalizeTimeOfDay(worldTimeOfDay);
         this.freezeWorldTime = freezeWorldTime;
         this.skyAngle = Math.max(0.0f, Math.min(1.0f, skyAngle));
         this.sunElevation = Math.max(0.0f, Math.min(90.0f, sunElevation));
@@ -125,13 +129,51 @@ public final class TimeSample {
         this.skyColorB = Math.max(0.0f, Math.min(1.0f, skyColorB));
         this.skyColorA = Math.max(0.0f, Math.min(1.0f, skyColorA));
     }
+
+    public static TimeSample fromNaturalTime(double worldTimeOfDay, boolean freezeWorldTime) {
+        double normalizedTime = normalizeTimeOfDay(worldTimeOfDay);
+        long worldTimeTicks = (long) Math.floor(normalizedTime);
+
+        float skyAngleNorm = (float) (normalizedTime / DAY_LENGTH_TICKS);
+        float sunElevation = calculateSunElevationFromSkyAngle(skyAngleNorm);
+        float sunAzimuth = 180.0f;
+        float skyLight = calculateSkyLightFromElevation(sunElevation);
+
+        int moonPhase = (int) ((worldTimeTicks / 24000L) % 8L);
+        float moonElevation = -sunElevation;
+        float moonAzimuth = (sunAzimuth + 180.0f) % 360.0f;
+
+        return new TimeSample(true, worldTimeTicks, normalizedTime, freezeWorldTime,
+                             skyAngleNorm, sunElevation, sunAzimuth, skyLight,
+                             moonPhase, moonElevation, moonAzimuth,
+                             false, 1.0f, 0.6f, 0.2f, 1.0f,
+                             0.6f, 0.7f, 1.0f, 1.0f);
+    }
+
+    public static TimeSample fromCustomSun(double worldTimeOfDay, float sunElevation, float sunAzimuth, boolean freezeWorldTime) {
+        double normalizedTime = normalizeTimeOfDay(worldTimeOfDay);
+        long worldTimeTicks = (long) Math.floor(normalizedTime);
+
+        float skyAngleNorm = calculateSkyAngleFromElevation(sunElevation, sunAzimuth);
+        float skyLight = calculateSkyLightFromElevation(sunElevation);
+
+        int moonPhase = (int) ((worldTimeTicks / 24000L) % 8L);
+        float moonElevation = -sunElevation;
+        float moonAzimuth = (sunAzimuth + 180.0f) % 360.0f;
+
+        return new TimeSample(false, worldTimeTicks, normalizedTime, freezeWorldTime,
+                             skyAngleNorm, sunElevation, sunAzimuth, skyLight,
+                             moonPhase, moonElevation, moonAzimuth,
+                             false, 1.0f, 0.6f, 0.2f, 1.0f,
+                             0.6f, 0.7f, 1.0f, 1.0f);
+    }
     
     /**
      * 创建一个使用自然世界时间的采样结果
      * 所有参数将基于 worldTimeTicks 自动计算
      */
     public static TimeSample fromNaturalTime(long worldTimeTicks) {
-        return fromNaturalTime(worldTimeTicks, false);
+        return fromNaturalTime((double) worldTimeTicks, false);
     }
     
     /**
@@ -153,7 +195,7 @@ public final class TimeSample {
         float moonElevation = -sunElevation; // 简化：月亮在太阳对面
         float moonAzimuth = (sunAzimuth + 180.0f) % 360.0f;
         
-        return new TimeSample(true, worldTimeTicks, freezeWorldTime,
+        return new TimeSample(true, worldTimeTicks, (double) worldTimeTicks, freezeWorldTime,
                              skyAngleNorm, sunElevation, sunAzimuth, skyLight,
                              moonPhase, moonElevation, moonAzimuth,
                              false, 1.0f, 0.6f, 0.2f, 1.0f, // 默认日出颜色
@@ -164,7 +206,7 @@ public final class TimeSample {
      * 创建一个使用自定义太阳角度的采样结果
      */
     public static TimeSample fromCustomSun(long worldTimeTicks, float sunElevation, float sunAzimuth) {
-        return fromCustomSun(worldTimeTicks, sunElevation, sunAzimuth, true);
+        return fromCustomSun((double) worldTimeTicks, sunElevation, sunAzimuth, true);
     }
     
     /**
@@ -182,7 +224,7 @@ public final class TimeSample {
         float moonElevation = -sunElevation;
         float moonAzimuth = (sunAzimuth + 180.0f) % 360.0f;
         
-        return new TimeSample(false, worldTimeTicks, freezeWorldTime,
+        return new TimeSample(false, worldTimeTicks, (double) worldTimeTicks, freezeWorldTime,
                              skyAngleNorm, sunElevation, sunAzimuth, skyLight,
                              moonPhase, moonElevation, moonAzimuth,
                              false, 1.0f, 0.6f, 0.2f, 1.0f, // 默认日出颜色
@@ -196,7 +238,7 @@ public final class TimeSample {
                                                 float sunriseR, float sunriseG, float sunriseB, float sunriseA,
                                                 float skyColorR, float skyColorG, float skyColorB, float skyColorA) {
         return new TimeSample(
-            base.useWorldTime, base.worldTimeTicks, base.freezeWorldTime,
+            base.useWorldTime, base.worldTimeTicks, base.worldTimeOfDay, base.freezeWorldTime,
             base.skyAngle, base.sunElevation, base.sunAzimuth, base.skyLight,
             base.moonPhase, base.moonElevation, base.moonAzimuth,
             true, sunriseR, sunriseG, sunriseB, sunriseA,
@@ -209,7 +251,7 @@ public final class TimeSample {
      */
     public TimeSample copy() {
         return new TimeSample(
-            useWorldTime, worldTimeTicks, freezeWorldTime,
+            useWorldTime, worldTimeTicks, worldTimeOfDay, freezeWorldTime,
             skyAngle, sunElevation, sunAzimuth, skyLight,
             moonPhase, moonElevation, moonAzimuth,
             useCustomSkyColor, sunriseR, sunriseG, sunriseB, sunriseA,
@@ -258,6 +300,14 @@ public final class TimeSample {
         float normalizedElev = Math.min(1.0f, elevation / 60.0f);
         return 0.2f + normalizedElev * 0.8f;
     }
+
+    private static double normalizeTimeOfDay(double timeOfDay) {
+        double result = timeOfDay % DAY_LENGTH_TICKS;
+        if (result < 0.0) {
+            result += DAY_LENGTH_TICKS;
+        }
+        return result;
+    }
     
     // ================== Getters（基础时间参数）==================
     
@@ -269,6 +319,10 @@ public final class TimeSample {
 
     public long getWorldTimeTicks() {
         return worldTimeTicks;
+    }
+
+    public double getWorldTimeOfDay() {
+        return worldTimeOfDay;
     }
     
     public boolean isFreezeWorldTime() {

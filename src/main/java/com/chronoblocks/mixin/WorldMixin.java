@@ -3,6 +3,7 @@ package com.chronoblocks.mixin;
 import com.chronoblocks.ui.timeline.model.weather.WeatherKeyframe;
 import com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController;
 import com.chronoblocks.ui.timeline.playback.weather.WeatherSample;
+import com.chronoblocks.ui.timeline.playback.time.TimeSample;
 import com.chronoblocks.ui.timeline.playback.time.TimelineWorldController;
 import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.Mixin;
@@ -42,7 +43,7 @@ public abstract class WorldMixin {
         if (!controller.hasOverride()) {
             return;
         }
-        com.chronoblocks.ui.timeline.playback.time.TimeSample sample = controller.current();
+        TimeSample sample = controller.current();
         if (sample == null) {
             return;
         }
@@ -52,6 +53,33 @@ public abstract class WorldMixin {
         long tod = sample.getWorldTimeTicks() % 24000L;
         if (tod < 0) tod += 24000L;
         cir.setReturnValue(day * 24000L + tod);
+    }
+
+    @SuppressWarnings("UnresolvedMixinReference")
+    @Inject(method = "getSkyAngle(F)F", at = @At("HEAD"), cancellable = true)
+    private void overrideSkyAngle(float tickDelta, CallbackInfoReturnable<Float> cir) {
+        TimelineWorldController controller = TimelineWorldController.getInstance();
+        if (!controller.hasOverride()) {
+            return;
+        }
+        TimeSample sample = controller.current();
+        if (sample == null) {
+            return;
+        }
+        cir.setReturnValue(sample.getSkyAngle());
+    }
+
+    @Inject(method = "getSkyAngleRadians(F)F", at = @At("HEAD"), cancellable = true)
+    private void overrideSkyAngleRadians(float tickDelta, CallbackInfoReturnable<Float> cir) {
+        TimelineWorldController controller = TimelineWorldController.getInstance();
+        if (!controller.hasOverride()) {
+            return;
+        }
+        TimeSample sample = controller.current();
+        if (sample == null) {
+            return;
+        }
+        cir.setReturnValue(sample.getSkyAngle() * (float) (Math.PI * 2.0));
     }
 
     /**
