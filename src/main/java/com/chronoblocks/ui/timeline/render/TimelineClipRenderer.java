@@ -246,8 +246,12 @@ public final class TimelineClipRenderer {
                 boolean hovering = isMouseHoveringCircle(kxAligned, centerY);
                 int kfCol = hovering ? TimelineColors.COLOR_KEYFRAME_HOVER : TimelineColors.COLOR_KEYFRAME;
 
-                drawList.addLine(kxAligned, y + 4, kxAligned, y + trackH - 4, TimelineColors.rgba(0, 0, 0, 100), 3.0f);
-                drawList.addLine(kxAligned, y + 4, kxAligned, y + trackH - 4, kfCol, 2.0f);
+                // ✅ 像素级对齐：不要用粗线 addLine（会出现“看起来偏左/偏右”的抗锯齿错觉）
+                // 改为明确宽度的填充矩形：1px 主线 + 3px 阴影，中心都严格对齐 kxAligned。
+                float lineTop = y + 4;
+                float lineBottom = y + trackH - 4;
+                drawList.addRectFilled(kxAligned - 1.5f, lineTop, kxAligned + 1.5f, lineBottom, TimelineColors.rgba(0, 0, 0, 80));
+                drawList.addRectFilled(kxAligned - 0.5f, lineTop, kxAligned + 0.5f, lineBottom, kfCol);
                 drawList.addCircleFilled(kxAligned, centerY, KEYFRAME_RADIUS + 1.0f, TimelineColors.rgba(0, 0, 0, 180));
                 drawList.addCircleFilled(kxAligned, centerY, KEYFRAME_RADIUS, kfCol);
             }
@@ -274,8 +278,11 @@ public final class TimelineClipRenderer {
                 boolean hovering = isMouseHoveringCircle(kxAligned, centerY);
                 int kfCol = hovering ? TimelineColors.COLOR_KEYFRAME_HOVER : TimelineColors.COLOR_KEYFRAME;
 
-                drawList.addLine(kxAligned, y + 4, kxAligned, y + trackH - 4, TimelineColors.rgba(0, 0, 0, 100), 3.0f);
-                drawList.addLine(kxAligned, y + 4, kxAligned, y + trackH - 4, kfCol, 2.0f);
+                // ✅ 同上：用矩形绘制竖线，保证与圆点严格同心
+                float lineTop = y + 4;
+                float lineBottom = y + trackH - 4;
+                drawList.addRectFilled(kxAligned - 1.5f, lineTop, kxAligned + 1.5f, lineBottom, TimelineColors.rgba(0, 0, 0, 80));
+                drawList.addRectFilled(kxAligned - 0.5f, lineTop, kxAligned + 0.5f, lineBottom, kfCol);
                 drawList.addCircleFilled(kxAligned, centerY, KEYFRAME_RADIUS + 1.0f, TimelineColors.rgba(0, 0, 0, 180));
                 drawList.addCircleFilled(kxAligned, centerY, KEYFRAME_RADIUS, kfCol);
             }

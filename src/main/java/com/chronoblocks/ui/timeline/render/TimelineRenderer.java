@@ -388,9 +388,12 @@ public class TimelineRenderer {
                 }
             }
 
-            // 绘制垂直指示线（与轨道同高，带阴影增强对比度）
-            drawList.addLine(kxAligned, y, kxAligned, y + TimelineRenderer.TRACK_HEIGHT, TimelineColors.rgba(0, 0, 0, 100), 3.0f); // 阴影/轮廓
-            drawList.addLine(kxAligned, y, kxAligned, y + TimelineRenderer.TRACK_HEIGHT, kfCol, 2.0f); // 主线
+            // ✅ 像素级对齐：不要用粗线 addLine（容易出现视觉偏移）
+            // 改为明确宽度的填充矩形：1px 主线 + 3px 阴影，中心严格对齐 kxAligned。
+            float lineTop = y;
+            float lineBottom = y + TimelineRenderer.TRACK_HEIGHT;
+            drawList.addRectFilled(kxAligned - 1.5f, lineTop, kxAligned + 1.5f, lineBottom, TimelineColors.rgba(0, 0, 0, 80));
+            drawList.addRectFilled(kxAligned - 0.5f, lineTop, kxAligned + 0.5f, lineBottom, kfCol);
 
             // 绘制关键帧形状（根据 KeyType）
             // 增大关键帧尺寸
