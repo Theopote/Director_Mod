@@ -124,12 +124,12 @@ public class TimelineControlBar {
 
         ImGui.sameLine();
 
-        boolean hasSelection = model.getSelectedClip() != null;
-        if (!hasSelection) ImGui.beginDisabled();
+        boolean canDelete = canDeleteSelection();
+        if (!canDelete) ImGui.beginDisabled();
         if (ImGui.button(Icons.DELETE + " 删除", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
             callbacks.onDeleteSelectedClicked();
         }
-        if (!hasSelection) ImGui.endDisabled();
+        if (!canDelete) ImGui.endDisabled();
 
         renderSeparator();
 
@@ -365,6 +365,25 @@ public class TimelineControlBar {
         }
 
         ImGui.popStyleVar(2);
+    }
+
+    private boolean canDeleteSelection() {
+        // 工具栏删除应支持：片段、关键帧、自动化关键帧等
+        if (model == null) return false;
+        if (model.getSelectedCount() <= 0) return false;
+
+        for (Object it : model.getSelectedItems()) {
+            if (it == null) continue;
+            if (it instanceof com.chronoblocks.ui.timeline.model.TimelineClip) return true;
+            if (it instanceof com.chronoblocks.ui.timeline.model.clip.ClipKeyframe) return true;
+            if (it instanceof com.chronoblocks.ui.timeline.model.TimelineSelectable selectable) {
+                // 与 TimelinePanel.deleteSelectedClip 行为保持一致：AudioEvent 默认不走工具栏批量删除
+                if (!(selectable instanceof com.chronoblocks.ui.timeline.model.audio.AudioEvent)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
     
     /**

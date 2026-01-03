@@ -182,6 +182,15 @@ public class TimelineContextMenuFactory {
 
         TimelineInterpolation interp = clipKeyframe.getInterpolation();
 
+        // 多选：收集当前选中的 ClipKeyframe（用于批量操作）
+        java.util.List<com.chronoblocks.ui.timeline.model.clip.ClipKeyframe> selectedClipKeyframes =
+                model.getSelectedItems().stream()
+                        .filter(com.chronoblocks.ui.timeline.model.clip.ClipKeyframe.class::isInstance)
+                        .map(com.chronoblocks.ui.timeline.model.clip.ClipKeyframe.class::cast)
+                        .toList();
+
+        boolean hasMultiClipKeyframes = selectedClipKeyframes.size() > 1;
+
         TimelineContextMenuBuilder builder = TimelineContextMenuBuilder
                 .forKeyframe(commandHistory)
                 .disabledItem(String.format("关键帧 @ %.3fs", clipKeyframe.getTime()))
@@ -233,6 +242,23 @@ public class TimelineContextMenuFactory {
                             model, track, clip, clipKeyframe, TimelineInterpolation.LINEAR
                         ))
                 ;
+
+        // 多选：批量插值（SubMenuBuilder 不支持 enabled 参数，这里用禁用项占位）
+        TimelineContextMenuBuilder.SubMenuBuilder sub = builder.submenu("批量插值");
+        if (hasMultiClipKeyframes) {
+            sub.command("线性（Linear）",
+                    new com.chronoblocks.ui.timeline.commands.BatchChangeClipKeyframeInterpolationCommand(
+                            model, selectedClipKeyframes, TimelineInterpolation.LINEAR));
+            sub.command("平滑（Smooth）",
+                    new com.chronoblocks.ui.timeline.commands.BatchChangeClipKeyframeInterpolationCommand(
+                            model, selectedClipKeyframes, TimelineInterpolation.SMOOTH));
+            sub.command("阶梯（Step）",
+                    new com.chronoblocks.ui.timeline.commands.BatchChangeClipKeyframeInterpolationCommand(
+                            model, selectedClipKeyframes, TimelineInterpolation.STEP));
+        } else {
+            sub.disabledItem("（请先选中多个关键帧）");
+        }
+        sub.end();
 
         return builder.build();  // ⭐⭐ 修复：使用 build() 而不是 open()，由 openContextMenuForHit 统一打开
     }

@@ -10,6 +10,7 @@ import com.chronoblocks.ui.timeline.model.TimelineClip;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineSelectable;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
+import com.chronoblocks.ui.timeline.model.selection.TimelineKeyframeMultiSelection;
 import com.chronoblocks.ui.timeline.render.TimelineRenderer;
 import com.chronoblocks.ui.timeline.render.TimelineTrackControlHit;
 import com.chronoblocks.ui.timeline.snapping.TimelineSnapping;
@@ -277,6 +278,43 @@ public class TimelineInteractionHandler {
         int border = com.chronoblocks.ui.timeline.render.TimelineColors.rgba(80, 160, 255, 180);
         drawList.addRectFilled(x1, y1, x2, y2, fill, 2.0f);
         drawList.addRect(x1, y1, x2, y2, border, 2.0f, 0, 1.5f);
+    }
+
+    /**
+     * 关键帧多选时，属性面板不应显示某一个关键帧的属性，否则会造成误解。
+     * 这里根据 TimelineModel 的 selectedItems 决定提交给属性面板的对象：
+     * - 单选：提交该对象本身
+     * - 多选关键帧：提交 TimelineKeyframeMultiSelection（占位对象）
+     */
+    private void syncPropertiesSelection(Object lastFocused) {
+        int count = model.getSelectedCount();
+        if (count <= 0) {
+            com.chronoblocks.ui.selection.SelectionManager.get().clearSelection();
+            return;
+        }
+        if (count == 1) {
+            com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(lastFocused);
+            return;
+        }
+
+        List<com.chronoblocks.ui.timeline.model.clip.ClipKeyframe> clipKeyframes = new ArrayList<>();
+        List<TimelineSelectable> automationKeyframes = new ArrayList<>();
+
+        for (Object it : model.getSelectedItems()) {
+            if (it instanceof com.chronoblocks.ui.timeline.model.clip.ClipKeyframe ckf) {
+                clipKeyframes.add(ckf);
+            } else if (it instanceof TimelineSelectable selectable && !(it instanceof TimelineClip)) {
+                automationKeyframes.add(selectable);
+            }
+        }
+
+        if (!clipKeyframes.isEmpty() || !automationKeyframes.isEmpty()) {
+            com.chronoblocks.ui.selection.SelectionManager.get()
+                    .setCurrentSelection(new TimelineKeyframeMultiSelection(clipKeyframes, automationKeyframes));
+        } else {
+            // 多选但不是关键帧（例如多选片段）：保持 lastFocused
+            com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(lastFocused);
+        }
     }
     
     /**
@@ -564,9 +602,7 @@ public class TimelineInteractionHandler {
         model.addItemsToSelection(selected, !additive);
         if (!selected.isEmpty()) {
             Object last = selected.getLast();
-            if (last instanceof TimelineSelectable selectable) {
-                com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(selectable);
-            }
+            syncPropertiesSelection(last);
         }
         if (callbacks != null) {
             callbacks.onDataChanged();
@@ -761,7 +797,7 @@ public class TimelineInteractionHandler {
         imgui.ImGuiIO io = imgui.ImGui.getIO();
         boolean addToSelection = io.getKeyCtrl();
         model.selectItem(kf, addToSelection);
-        com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(kf);
+        syncPropertiesSelection(kf);
 
         // 启动拖动交互（交给 MoveClipKeyframeCommand 在结束时记录 Undo）
         KeyframeHandle handle = new KeyframeHandle(track, clip, kf, kf.getTime());
@@ -850,8 +886,8 @@ public class TimelineInteractionHandler {
         boolean addToSelection = io.getKeyCtrl();
         model.selectItem(keyframe, addToSelection);
         
-        // 同步到 SelectionManager，使属性面板显示关键帧属性
-        com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(keyframe);
+        // 同步到属性面板：多选关键帧时显示“多选关键帧”占位，避免显示单个对象属性
+        syncPropertiesSelection(keyframe);
 
         // 🔒 音频事件点：不允许鼠标拖动改变时间（它应与容器方块时刻严格对应）
         if (track.getType() == com.chronoblocks.ui.timeline.model.TrackType.AUDIO
@@ -932,7 +968,7 @@ public class TimelineInteractionHandler {
                     ImGuiIO io = ImGui.getIO();
                     boolean addToSelection = io.getKeyCtrl();
                     model.selectItem(clipKeyframe, addToSelection);
-                    com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(clipKeyframe);
+                    syncPropertiesSelection(clipKeyframe);
                     LOGGER.debug("[Timeline] 右键选择 ClipKeyframe @ {}s", clipKeyframe.getTime());
                 } else {
                     // 回退：如果没有 ClipKeyframe 对象，选择 clip
@@ -994,8 +1030,8 @@ public class TimelineInteractionHandler {
                     ImGuiIO io = ImGui.getIO();
                     boolean addToSelection = io.getKeyCtrl(); // 右键支持 Ctrl 多选也合理
                     model.selectItem(keyframe, addToSelection);
-                    // 同步 SelectionManager → 属性面板显示具体的 CameraKeyframe 属性
-                    com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(keyframe);
+                    // 同步属性面板：多选关键帧时显示“多选关键帧”占位
+                    syncPropertiesSelection(keyframe);
                     if (keyframe instanceof com.chronoblocks.ui.timeline.model.camera.CameraKeyframe ck) {
                         LOGGER.debug("[Timeline] 右键摄像机关键帧 @ {}s，准备弹出关键帧菜单", ck.getTime());
                     }

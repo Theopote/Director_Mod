@@ -10,6 +10,7 @@ import com.chronoblocks.ui.timeline.model.audio.AudioClipKeyframe;
 import com.chronoblocks.ui.timeline.model.audio.AudioTimelineClip;
 import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
 import com.chronoblocks.ui.timeline.model.time.TimeKeyframe;
+import com.chronoblocks.ui.timeline.model.selection.TimelineKeyframeMultiSelection;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -129,6 +130,10 @@ public final class PropertyAdapterBootstrap {
             registerAdapter(AudioClipKeyframe.class, new AudioClipKeyframePropertyAdapter());
             registeredCount++;
             registerAdapter(AudioEvent.class, new AudioEventPropertyAdapter());
+            registeredCount++;
+
+            // ✅ 时间线关键帧多选占位适配器（避免多选时显示单个关键帧属性）
+            registerAdapter(TimelineKeyframeMultiSelection.class, new TimelineKeyframeMultiSelectionPropertyAdapter());
             registeredCount++;
             
             LOGGER.info("  ========== 扩展系统适配器 ==========");
