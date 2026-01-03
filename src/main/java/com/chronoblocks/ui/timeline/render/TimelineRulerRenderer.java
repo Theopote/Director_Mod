@@ -78,7 +78,9 @@ public final class TimelineRulerRenderer {
             float x = math.timeToX(t);
             if (x < contentX || x > contentX + contentW) continue;
 
-            boolean isMajor = Math.abs(t % majorStep) < 0.001f;
+            // 避免浮点取模在大步长/小步长时抖动，用“接近整数倍”判断主刻度
+            float ratio = t / majorStep;
+            boolean isMajor = Math.abs(ratio - Math.round(ratio)) < 0.001f;
             if (!isMajor) {
                 drawList.addLine(x, topY + rulerHeight - 6, x, topY + rulerHeight,
                         TimelineColors.rgba(100,100,100,150), 1.0f);
@@ -130,15 +132,11 @@ public final class TimelineRulerRenderer {
             return cached;
         }
         
-        // 计算步长
-        float step;
-        if (pps >= 400) step = 0.1f;
-        else if (pps >= 200) step = 0.25f;
-        else if (pps >= 100) step = 0.5f;
-        else if (pps >= 50) step = 1.0f;
-        else if (pps >= 25) step = 2.0f;
-        else if (pps >= 15) step = 5.0f;
-        else step = 10.0f;
+        // 计算步长（自适应：避免缩放很小时标签重叠）
+        // 目标：主刻度之间至少有足够像素间距容纳 “12.34s” 这类文本
+        final float MIN_MAJOR_LABEL_SPACING_PX = 72f;
+        float desiredSeconds = MIN_MAJOR_LABEL_SPACING_PX / Math.max(0.001f, pps);
+        float step = pickNiceStepSeconds(desiredSeconds);
         
         // 缓存结果（限制缓存大小）
         if (majorStepCache.size() >= MAX_CACHE_SIZE) {
@@ -169,15 +167,19 @@ public final class TimelineRulerRenderer {
             return cached;
         }
         
-        // 计算步长
-        float step;
-        if (pps >= 400) step = 0.02f;
-        else if (pps >= 200) step = 0.05f;
-        else if (pps >= 100) step = 0.1f;
-        else if (pps >= 50) step = 0.25f;
-        else if (pps >= 25) step = 0.5f;
-        else if (pps >= 15) step = 1.0f;
-        else step = 2.0f;
+        // 计算步长（次刻度跟随主刻度，避免过密）
+        float major = getMajorStep(pps);
+        float step = major / 5f;
+
+        // 如果次刻度在屏幕上过密（比如 < 6px），就减少次刻度数量
+        final float MIN_MINOR_TICK_SPACING_PX = 6f;
+        if (step * pps < MIN_MINOR_TICK_SPACING_PX) {
+            // 尝试 major/4 或 major/2，直到不那么密
+            float s4 = major / 4f;
+            float s2 = major / 2f;
+            if (s4 * pps >= MIN_MINOR_TICK_SPACING_PX) step = s4;
+            else step = s2;
+        }
         
         // 缓存结果（限制缓存大小）
         if (minorStepCache.size() >= MAX_CACHE_SIZE) {
@@ -189,6 +191,36 @@ public final class TimelineRulerRenderer {
         minorStepCache.put(key, step);
         
         return step;
+    }
+
+    /**
+     * 从“漂亮步长”序列中选取 >= desiredSeconds 的值。
+     * 使用 1/2/5 * 10^n 的经典刻度体系，并额外补充 15/30/60 等更符合时间语义的步长。
+     */
+    private static float pickNiceStepSeconds(float desiredSeconds) {
+        if (desiredSeconds <= 0) return 0.1f;
+
+        // 常用的“时间感”步长（秒）
+        final float[] steps = new float[] {
+                0.02f, 0.05f, 0.1f, 0.2f, 0.25f, 0.5f,
+                1f, 2f, 5f, 10f, 15f, 20f, 30f,
+                60f, 120f, 300f, 600f, 900f,
+                1200f, 1800f, 3600f
+        };
+
+        for (float s : steps) {
+            if (s >= desiredSeconds) return s;
+        }
+
+        // 再大就按 1/2/5 * 10^n 继续扩展（以秒为单位）
+        double exp = Math.floor(Math.log10(desiredSeconds));
+        double base = Math.pow(10.0, exp);
+        double[] muls = new double[] {1, 2, 5, 10};
+        for (double m : muls) {
+            double candidate = m * base;
+            if (candidate >= desiredSeconds) return (float) candidate;
+        }
+        return (float) (10.0 * base);
     }
 }
 

@@ -33,6 +33,7 @@ public class TimelineModel {
     private float currentTime = 0f;
     private float duration = 20.0f; // 默认持续时间
     private boolean loopEnabled = false; // 循环播放
+    private float playbackSpeed = 1.0f; // 播放速度倍率（0.5x/1x/2x/3x...）
     private boolean scrubbing = false; // 是否正在拖动播放头
     
     // ========== 视图状态（由外部注入）==========
@@ -224,6 +225,15 @@ public class TimelineModel {
     
     public void setLoopEnabled(boolean loopEnabled) {
         this.loopEnabled = loopEnabled;
+    }
+
+    public float getPlaybackSpeed() {
+        return playbackSpeed;
+    }
+
+    public void setPlaybackSpeed(float playbackSpeed) {
+        // 合理范围：防止 0 或负数导致卡死/倒放（如需倒放以后再单独实现）
+        this.playbackSpeed = Math.max(0.1f, Math.min(8.0f, playbackSpeed));
     }
     
     // ========== 缩放控制 ==========

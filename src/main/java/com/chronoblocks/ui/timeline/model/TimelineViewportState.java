@@ -9,7 +9,8 @@ package com.chronoblocks.ui.timeline.model;
 public class TimelineViewportState {
 
     private float pixelsPerSecond = 80f;
-    private float minPixelsPerSecond = 5f;
+    // 允许更小的缩放：用于查看很长的时间线（用户希望小于 5）
+    private float minPixelsPerSecond = 1f;
     private float maxPixelsPerSecond = 800f;
     private float scrollX = 0f;
     private float scrollY = 0f;

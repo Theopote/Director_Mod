@@ -384,7 +384,7 @@ public class TimelinePanel extends AbstractPanel
         // float deltaTime = FIXED_DELTA_TIME;
 
         // 更新当前时间
-        float newTime = model.getCurrentTime() + deltaTime;
+        float newTime = model.getCurrentTime() + deltaTime * model.getPlaybackSpeed();
         float duration = model.getDuration();
 
         // 处理超出范围

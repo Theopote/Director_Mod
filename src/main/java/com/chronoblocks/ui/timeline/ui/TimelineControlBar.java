@@ -184,14 +184,6 @@ public class TimelineControlBar {
         }
         ImGui.sameLine();
         
-        // 循环控制
-        // 注意：无需再次 Push FramePadding，因为最外层已经 Push 过了
-        boolean loopEnabled = model.isLoopEnabled();
-        if (ImGui.checkbox(Icons.LOOP + " 循环", loopEnabled)) {
-            model.setLoopEnabled(!loopEnabled);
-        }
-        ImGui.sameLine();
-        
         ImGui.alignTextToFramePadding();
         ImGui.text("时间:");
 
@@ -306,9 +298,12 @@ public class TimelineControlBar {
         // 我们只在有足够剩余空间时显示它。
         
         float remainingForScrubber = ImGui.getContentRegionAvailX();
+        // 在最右侧预留“播放速度”下拉的空间
+        final float speedSectionWidth = 130f; // 文本 + 下拉宽度的经验值
+        float remainingForScrubberAfterReserve = Math.max(0f, remainingForScrubber - speedSectionWidth);
         
         // 阈值：如果剩余空间小于最小阈值，就不显示这个长滑块了，避免挤压
-        if (remainingForScrubber > SCRUBBER_MIN_REMAINING_WIDTH) {
+        if (remainingForScrubberAfterReserve > SCRUBBER_MIN_REMAINING_WIDTH) {
             ImGui.alignTextToFramePadding();
             ImGui.textDisabled("定位:");
             ImGui.sameLine();
@@ -317,7 +312,7 @@ public class TimelineControlBar {
             tempCurrentTime[0] = Math.max(0f, Math.min(duration, model.getCurrentTime()));
             
             // 占满剩余空间，但留一点右边距以防 ImGui 计算误差导致换行
-            float scrubberWidth = Math.min(remainingForScrubber - SCRUBBER_RIGHT_MARGIN, SCRUBBER_MAX_WIDTH); 
+            float scrubberWidth = Math.min(remainingForScrubberAfterReserve - SCRUBBER_RIGHT_MARGIN, SCRUBBER_MAX_WIDTH); 
             
             ImGui.pushItemWidth(scrubberWidth);
             
@@ -335,6 +330,38 @@ public class TimelineControlBar {
             }
             
             ImGui.popItemWidth();
+        }
+
+        // ===== 播放速度预设（最右侧）=====
+        ImGui.sameLine();
+        renderSeparator();
+        ImGui.sameLine();
+        ImGui.alignTextToFramePadding();
+        ImGui.textDisabled("速度:");
+        ImGui.sameLine();
+
+        String[] speedLabels = new String[] { "0.5x", "1x", "2x", "3x" };
+        float currentSpeed = model.getPlaybackSpeed();
+        int speedIdx = (Math.abs(currentSpeed - 0.5f) < 0.001f) ? 0
+                : (Math.abs(currentSpeed - 1.0f) < 0.001f) ? 1
+                : (Math.abs(currentSpeed - 2.0f) < 0.001f) ? 2
+                : (Math.abs(currentSpeed - 3.0f) < 0.001f) ? 3
+                : 1; // 默认回到 1x
+
+        imgui.type.ImInt speedBuf = new imgui.type.ImInt(speedIdx);
+        ImGui.pushItemWidth(70f);
+        if (ImGui.combo("##playSpeedPreset", speedBuf, speedLabels)) {
+            float newSpeed = switch (speedBuf.get()) {
+                case 0 -> 0.5f;
+                case 2 -> 2.0f;
+                case 3 -> 3.0f;
+                default -> 1.0f;
+            };
+            model.setPlaybackSpeed(newSpeed);
+        }
+        ImGui.popItemWidth();
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("设置播放速度倍率（影响时间线播放推进速度）");
         }
 
         ImGui.popStyleVar(2);
