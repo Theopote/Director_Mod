@@ -241,14 +241,15 @@ public final class TimelineClipRenderer {
 
                 float kx = math.timeToX(keyTime);
                 if (kx < contentX || kx > contentX + contentW) continue;
+                float kxAligned = (float) Math.floor(kx) + 0.5f;
 
-                boolean hovering = isMouseHoveringCircle(kx, centerY);
+                boolean hovering = isMouseHoveringCircle(kxAligned, centerY);
                 int kfCol = hovering ? TimelineColors.COLOR_KEYFRAME_HOVER : TimelineColors.COLOR_KEYFRAME;
 
-                drawList.addLine(kx, y + 4, kx, y + trackH - 4, TimelineColors.rgba(0, 0, 0, 100), 3.0f);
-                drawList.addLine(kx, y + 4, kx, y + trackH - 4, kfCol, 2.0f);
-                drawList.addCircleFilled(kx, centerY, KEYFRAME_RADIUS + 1.0f, TimelineColors.rgba(0, 0, 0, 180));
-                drawList.addCircleFilled(kx, centerY, KEYFRAME_RADIUS, kfCol);
+                drawList.addLine(kxAligned, y + 4, kxAligned, y + trackH - 4, TimelineColors.rgba(0, 0, 0, 100), 3.0f);
+                drawList.addLine(kxAligned, y + 4, kxAligned, y + trackH - 4, kfCol, 2.0f);
+                drawList.addCircleFilled(kxAligned, centerY, KEYFRAME_RADIUS + 1.0f, TimelineColors.rgba(0, 0, 0, 180));
+                drawList.addCircleFilled(kxAligned, centerY, KEYFRAME_RADIUS, kfCol);
             }
         } else {
             for (Float keyframe : clip.getKeyframes()) {
@@ -268,14 +269,15 @@ public final class TimelineClipRenderer {
 
                 float kx = math.timeToX(keyTime);
                 if (kx < contentX || kx > contentX + contentW) continue;
+                float kxAligned = (float) Math.floor(kx) + 0.5f;
 
-                boolean hovering = isMouseHoveringCircle(kx, centerY);
+                boolean hovering = isMouseHoveringCircle(kxAligned, centerY);
                 int kfCol = hovering ? TimelineColors.COLOR_KEYFRAME_HOVER : TimelineColors.COLOR_KEYFRAME;
 
-                drawList.addLine(kx, y + 4, kx, y + trackH - 4, TimelineColors.rgba(0, 0, 0, 100), 3.0f);
-                drawList.addLine(kx, y + 4, kx, y + trackH - 4, kfCol, 2.0f);
-                drawList.addCircleFilled(kx, centerY, KEYFRAME_RADIUS + 1.0f, TimelineColors.rgba(0, 0, 0, 180));
-                drawList.addCircleFilled(kx, centerY, KEYFRAME_RADIUS, kfCol);
+                drawList.addLine(kxAligned, y + 4, kxAligned, y + trackH - 4, TimelineColors.rgba(0, 0, 0, 100), 3.0f);
+                drawList.addLine(kxAligned, y + 4, kxAligned, y + trackH - 4, kfCol, 2.0f);
+                drawList.addCircleFilled(kxAligned, centerY, KEYFRAME_RADIUS + 1.0f, TimelineColors.rgba(0, 0, 0, 180));
+                drawList.addCircleFilled(kxAligned, centerY, KEYFRAME_RADIUS, kfCol);
             }
         }
     }

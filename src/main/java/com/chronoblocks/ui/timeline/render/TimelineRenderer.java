@@ -342,6 +342,8 @@ public class TimelineRenderer {
             
             float kx = math.timeToX(keyTime);
             if (kx < contentX || kx > contentX + contentW) continue;
+            // ✅ 像素对齐：让“竖线”和“形状”使用同一个像素中心，避免看起来左右不对齐
+            float kxAligned = snapToPixelCenter(kx);
 
             // Hover 检测用圆形区域（与 KEYFRAME_HIT_RADIUS 一致）
             float dx = mouseX - kx;
@@ -387,8 +389,8 @@ public class TimelineRenderer {
             }
 
             // 绘制垂直指示线（与轨道同高，带阴影增强对比度）
-            drawList.addLine(kx, y, kx, y + TimelineRenderer.TRACK_HEIGHT, TimelineColors.rgba(0, 0, 0, 100), 3.0f); // 阴影/轮廓
-            drawList.addLine(kx, y, kx, y + TimelineRenderer.TRACK_HEIGHT, kfCol, 2.0f); // 主线
+            drawList.addLine(kxAligned, y, kxAligned, y + TimelineRenderer.TRACK_HEIGHT, TimelineColors.rgba(0, 0, 0, 100), 3.0f); // 阴影/轮廓
+            drawList.addLine(kxAligned, y, kxAligned, y + TimelineRenderer.TRACK_HEIGHT, kfCol, 2.0f); // 主线
 
             // 绘制关键帧形状（根据 KeyType）
             // 增大关键帧尺寸
@@ -400,47 +402,54 @@ public class TimelineRenderer {
             
             // 绘制选中外圈
             if (isSelected) {
-                drawList.addCircle(kx, centerY, keyframeSize + 3.0f, TimelineColors.COLOR_KEYFRAME_SELECTED_RING, 0, 2.5f);
+                drawList.addCircle(kxAligned, centerY, keyframeSize + 3.0f, TimelineColors.COLOR_KEYFRAME_SELECTED_RING, 0, 2.5f);
             }
             
             // 根据关键帧类型绘制不同形状
             if (keyType != null) {
                 // CameraKeyframe：根据 KeyType 绘制不同形状
-                drawKeyframeShape(drawList, kx, centerY, keyframeSize, kfCol, keyType, isSelected);
+                drawKeyframeShape(drawList, kxAligned, centerY, keyframeSize, kfCol, keyType, isSelected);
             } else if (isTimeKeyframe) {
                 // ⭐ 时间关键帧：使用填充圆形（橙色，与时间轨道颜色一致）
                 if (isSelected) {
                     // 选中时绘制空心圆 + 外圈
-                    drawList.addCircle(kx, centerY, keyframeSize + 1.5f, TimelineColors.rgba(0, 0, 0, 180), 0, 1.5f); // 描边
-                    drawList.addCircle(kx, centerY, keyframeSize, kfCol, 0, 2.0f); // 空心
+                    drawList.addCircle(kxAligned, centerY, keyframeSize + 1.5f, TimelineColors.rgba(0, 0, 0, 180), 0, 1.5f); // 描边
+                    drawList.addCircle(kxAligned, centerY, keyframeSize, kfCol, 0, 2.0f); // 空心
                 } else {
                     // 默认：填充圆形（橙色）
-                    drawList.addCircleFilled(kx, centerY, keyframeSize + 1.5f, TimelineColors.rgba(0, 0, 0, 180)); // 描边
-                    drawList.addCircleFilled(kx, centerY, keyframeSize, kfCol); // 填充
+                    drawList.addCircleFilled(kxAligned, centerY, keyframeSize + 1.5f, TimelineColors.rgba(0, 0, 0, 180)); // 描边
+                    drawList.addCircleFilled(kxAligned, centerY, keyframeSize, kfCol); // 填充
                 }
             } else if (isSeasonKeyframe) {
                 // ⭐ v1.0：季节关键帧：使用填充圆形（绿色，与季节轨道颜色一致）
                 if (isSelected) {
                     // 选中时绘制空心圆 + 外圈
-                    drawList.addCircle(kx, centerY, keyframeSize + 1.5f, TimelineColors.rgba(0, 0, 0, 180), 0, 1.5f); // 描边
-                    drawList.addCircle(kx, centerY, keyframeSize, kfCol, 0, 2.0f); // 空心
+                    drawList.addCircle(kxAligned, centerY, keyframeSize + 1.5f, TimelineColors.rgba(0, 0, 0, 180), 0, 1.5f); // 描边
+                    drawList.addCircle(kxAligned, centerY, keyframeSize, kfCol, 0, 2.0f); // 空心
                 } else {
                     // 默认：填充圆形（绿色）
-                    drawList.addCircleFilled(kx, centerY, keyframeSize + 1.5f, TimelineColors.rgba(0, 0, 0, 180)); // 描边
-                    drawList.addCircleFilled(kx, centerY, keyframeSize, kfCol); // 填充
+                    drawList.addCircleFilled(kxAligned, centerY, keyframeSize + 1.5f, TimelineColors.rgba(0, 0, 0, 180)); // 描边
+                    drawList.addCircleFilled(kxAligned, centerY, keyframeSize, kfCol); // 填充
                 }
             } else {
                 // 默认圆形（其他类型的自动化关键帧，如 WeatherKeyframe）
                 if (isSelected) {
                     // 选中时绘制空心
-                    drawList.addCircle(kx, centerY, keyframeSize + 1.5f, TimelineColors.rgba(0, 0, 0, 180), 0, 1.5f); // 描边
-                    drawList.addCircle(kx, centerY, keyframeSize, kfCol, 0, 2.0f); // 空心
+                    drawList.addCircle(kxAligned, centerY, keyframeSize + 1.5f, TimelineColors.rgba(0, 0, 0, 180), 0, 1.5f); // 描边
+                    drawList.addCircle(kxAligned, centerY, keyframeSize, kfCol, 0, 2.0f); // 空心
                 } else {
-                    drawList.addCircleFilled(kx, centerY, keyframeSize + 1.5f, TimelineColors.rgba(0, 0, 0, 180)); // 描边
-                    drawList.addCircleFilled(kx, centerY, keyframeSize, kfCol); // 填充
+                    drawList.addCircleFilled(kxAligned, centerY, keyframeSize + 1.5f, TimelineColors.rgba(0, 0, 0, 180)); // 描边
+                    drawList.addCircleFilled(kxAligned, centerY, keyframeSize, kfCol); // 填充
                 }
             }
         }
+    }
+
+    /**
+     * 将 X 坐标对齐到像素中心（+0.5），避免线条/形状在亚像素时出现“看起来偏左/偏右”的错觉。
+     */
+    private static float snapToPixelCenter(float x) {
+        return (float) Math.floor(x) + 0.5f;
     }
 
     /**

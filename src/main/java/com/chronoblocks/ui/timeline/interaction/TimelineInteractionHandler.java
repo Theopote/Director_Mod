@@ -956,8 +956,11 @@ public class TimelineInteractionHandler {
             case CLIP -> {
                 TimelineClip clip = hit.clip();
                 if (clip != null) {
-                    model.setSelectedClip(clip);
-                    // 同步 SelectionManager
+                    // ✅ 右键命中已选中的对象时，不要破坏当前多选（否则无法批量操作）
+                    if (!model.isSelected(clip)) {
+                        model.setSelectedClip(clip);
+                    }
+                    // 同步到属性面板（单选 clip）
                     com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(clip);
                 }
             }
@@ -967,14 +970,19 @@ public class TimelineInteractionHandler {
                 if (clipKeyframe != null) {
                     ImGuiIO io = ImGui.getIO();
                     boolean addToSelection = io.getKeyCtrl();
-                    model.selectItem(clipKeyframe, addToSelection);
+                    // ✅ 右键点在已选中的关键帧上：保持现有选择（不清空多选）
+                    if (!model.isSelected(clipKeyframe)) {
+                        model.selectItem(clipKeyframe, addToSelection);
+                    }
                     syncPropertiesSelection(clipKeyframe);
                     LOGGER.debug("[Timeline] 右键选择 ClipKeyframe @ {}s", clipKeyframe.getTime());
                 } else {
                     // 回退：如果没有 ClipKeyframe 对象，选择 clip
                     TimelineClip clip = hit.clip();
                     if (clip != null) {
-                        model.setSelectedClip(clip);
+                        if (!model.isSelected(clip)) {
+                            model.setSelectedClip(clip);
+                        }
                         com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(clip);
                     }
                 }
@@ -1029,7 +1037,10 @@ public class TimelineInteractionHandler {
                     // TimelineModel 内部选中
                     ImGuiIO io = ImGui.getIO();
                     boolean addToSelection = io.getKeyCtrl(); // 右键支持 Ctrl 多选也合理
-                    model.selectItem(keyframe, addToSelection);
+                    // ✅ 右键点在已选中的关键帧上：保持现有选择（不清空多选）
+                    if (!model.isSelected(keyframe)) {
+                        model.selectItem(keyframe, addToSelection);
+                    }
                     // 同步属性面板：多选关键帧时显示“多选关键帧”占位
                     syncPropertiesSelection(keyframe);
                     if (keyframe instanceof com.chronoblocks.ui.timeline.model.camera.CameraKeyframe ck) {
