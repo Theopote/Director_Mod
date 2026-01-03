@@ -1,6 +1,8 @@
 package com.chronoblocks.ui.timeline.model;
 
 import com.chronoblocks.ui.timeline.model.audio.AudioEvent;
+import com.chronoblocks.core.container.Container;
+import com.chronoblocks.core.container.ContainerManager;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -51,6 +53,29 @@ public class TimelineTrack {
      */
     public void addClip(TimelineClip clip) {
         if (clip != null && !this.clips.contains(clip)) {
+            // ✅ 轨道类型约束（防止“拆除容器/清除片段”被拖到其他轨道）
+            // - DEMOLITION 容器只能在 ERASE 轨道
+            // - 非 DEMOLITION 容器不能进 ERASE 轨道
+            // 说明：这里做成“模型层硬规则”，避免任何交互路径（拖拽/粘贴/命令）绕过限制。
+            // 注意：该约束只应作用于“容器类轨道”（CONTAINER/ERASE），不能误伤 AUDIO 轨道上的 AudioTimelineClip。
+            if ((this.type == TrackType.CONTAINER || this.type == TrackType.ERASE) && clip.getBoundContainerId() != null) {
+                try {
+                    Container c = ContainerManager.getInstance() != null
+                            ? ContainerManager.getInstance().getContainer(clip.getBoundContainerId())
+                            : null;
+                    if (c != null) {
+                        boolean isDemolition = (c.getType() == com.chronoblocks.core.container.ContainerType.DEMOLITION);
+                        if (this.type == TrackType.ERASE && !isDemolition) {
+                            return; // 拒绝：清除轨道只允许拆除容器
+                        }
+                        if (this.type != TrackType.ERASE && isDemolition) {
+                            return; // 拒绝：拆除容器只能在清除轨道
+                        }
+                    }
+                } catch (Exception ignored) {
+                    // 如果容器系统不可用，宁可不拦截（保持向后兼容）
+                }
+            }
             this.clips.add(clip);
             clip.setParentTrack(this); // 设置父引用，实现 O(1) 反向查找
             // 按开始时间排序，保持时间线有序

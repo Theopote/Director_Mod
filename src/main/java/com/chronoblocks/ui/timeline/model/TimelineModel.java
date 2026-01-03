@@ -740,8 +740,37 @@ public class TimelineModel {
         float maxEndTime = 0f;
         
         for (TimelineTrack track : tracks) {
+            // 轨道级关键帧（摄像机/天气/时间/季节等）
+            if (track != null) {
+                for (TimelineSelectable kf : track.getAutomationKeyframes()) {
+                    if (kf == null) continue;
+                    maxEndTime = Math.max(maxEndTime, kf.getStartTime());
+                }
+                // 音频事件（音频轨道）
+                if (track instanceof com.chronoblocks.ui.timeline.model.audio.AudioTrack at) {
+                    for (com.chronoblocks.ui.timeline.model.audio.AudioEvent e : at.getEvents()) {
+                        if (e == null) continue;
+                        maxEndTime = Math.max(maxEndTime, e.getStartTime());
+                    }
+                } else {
+                    for (com.chronoblocks.ui.timeline.model.audio.AudioEvent e : track.getLegacyAudioEventsForMigration()) {
+                        if (e == null) continue;
+                        maxEndTime = Math.max(maxEndTime, e.getStartTime());
+                    }
+                }
+            }
+
             for (TimelineClip clip : track.getClips()) {
                 maxEndTime = Math.max(maxEndTime, clip.getEndTime());
+                // clip 内关键帧（理论上应在 clip 范围内，但这里做兜底）
+                for (com.chronoblocks.ui.timeline.model.clip.ClipKeyframe kf : clip.getClipKeyframes()) {
+                    if (kf == null) continue;
+                    maxEndTime = Math.max(maxEndTime, kf.getTime());
+                }
+                for (Float t : clip.getKeyframes()) {
+                    if (t == null) continue;
+                    maxEndTime = Math.max(maxEndTime, t);
+                }
             }
         }
         

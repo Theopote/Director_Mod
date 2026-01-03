@@ -10,11 +10,14 @@ import com.chronoblocks.ui.timeline.model.TimelineClip;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineSelectable;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
+import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.selection.TimelineKeyframeMultiSelection;
 import com.chronoblocks.ui.timeline.render.TimelineRenderer;
 import com.chronoblocks.ui.timeline.render.TimelineTrackControlHit;
 import com.chronoblocks.ui.timeline.snapping.TimelineSnapping;
 import com.chronoblocks.ui.timeline.commands.MoveAutomationKeyframeCommand;
+import com.chronoblocks.core.container.Container;
+import com.chronoblocks.core.container.ContainerManager;
 
 import imgui.ImGui;
 import imgui.ImGuiIO;
@@ -1272,25 +1275,36 @@ public class TimelineInteractionHandler {
                 TimelineTrack newTrack = model.getTrackAt(newTrackIndex);
                 // �?关键修复：只在目标轨道与当前轨道不同时才移动，避免重复移�?
                 if (newTrack != null && newTrack != currentTrack && !newTrack.isLocked()) {
-                    // 检查轨道类型兼容性（可选，根据业务需求）
-                    // 如果允许跨轨道，则移动片�?
+                    // ✅ 轨道类型兼容性：清除轨道片段不能跨轨道；拆除容器只能在清除轨道
+                    if (currentTrack != null && currentTrack.getType() == TrackType.ERASE && newTrack.getType() != TrackType.ERASE) {
+                        // 清除轨道上的片段禁止移到其他轨道
+                        newTrack = null;
+                    } else if (!isClipAllowedOnTrack(handle.clip, newTrack)) {
+                        // 拆除/非拆除容器的轨道约束（模型层也会拦截，这里提前判断避免“先移除导致消失”）
+                        newTrack = null;
+                    }
+                    if (newTrack == null) {
+                        // 不允许跨轨道移动：保持在当前轨道
+                        targetTrack = currentTrack;
+                    } else {
 
-                    // �?关键修复：确保片段从旧轨道移除（即使它可能已经在其他轨道上）
-                    if (currentTrack != null) {
-                        currentTrack.removeClip(handle.clip);
-                    }
-                    
-                    // �?关键修复：确保片段不在新轨道上才添加（避免重复添加）
-                    if (!newTrack.getClips().contains(handle.clip)) {
-                        newTrack.addClip(handle.clip);
-                    }
-                    
-                    targetTrack = newTrack; // 更新目标轨道用于吸附计算
-                    
-                    if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("[Timeline] 片段跨轨道移�? {} -> {} (片段: {})", 
-                            currentTrack != null ? currentTrack.getName() : "null",
-                            newTrack.getName(), handle.clip.getLabel());
+                        // �?关键修复：确保片段从旧轨道移除（即使它可能已经在其他轨道上）
+                        if (currentTrack != null) {
+                            currentTrack.removeClip(handle.clip);
+                        }
+                        
+                        // �?关键修复：确保片段不在新轨道上才添加（避免重复添加）
+                        if (!newTrack.getClips().contains(handle.clip)) {
+                            newTrack.addClip(handle.clip);
+                        }
+                        
+                        targetTrack = newTrack; // 更新目标轨道用于吸附计算
+                        
+                        if (LOGGER.isDebugEnabled()) {
+                            LOGGER.debug("[Timeline] 片段跨轨道移�? {} -> {} (片段: {})", 
+                                currentTrack != null ? currentTrack.getName() : "null",
+                                newTrack.getName(), handle.clip.getLabel());
+                        }
                     }
                 }
             }
@@ -1313,6 +1327,31 @@ public class TimelineInteractionHandler {
                 .updateClipTimeRangePreview(handle.clip, handle.clip.getStartTime(), handle.clip.getEndTime());
 
         if (callbacks != null) callbacks.onDataChanged();
+    }
+
+    private boolean isClipAllowedOnTrack(TimelineClip clip, TimelineTrack track) {
+        if (clip == null || track == null) return false;
+        TrackType tt = track.getType();
+        if (tt == null) return true;
+
+        // 只对“绑定容器”的片段做强约束（防止误伤其他类型片段）
+        if (clip.getBoundContainerId() == null) {
+            return true;
+        }
+
+        try {
+            Container c = ContainerManager.getInstance() != null
+                    ? ContainerManager.getInstance().getContainer(clip.getBoundContainerId())
+                    : null;
+            if (c == null) return true;
+            boolean isDemolition = (c.getType() == com.chronoblocks.core.container.ContainerType.DEMOLITION);
+            // 该规则只针对“容器类轨道”（CONTAINER/ERASE）；AUDIO 等其它轨道不在这里做拦截（避免误伤音频片段面板）
+            if (tt == TrackType.ERASE) return isDemolition;
+            if (tt == TrackType.CONTAINER) return !isDemolition;
+            return true;
+        } catch (Exception ignored) {
+            return true;
+        }
     }
 
     /**

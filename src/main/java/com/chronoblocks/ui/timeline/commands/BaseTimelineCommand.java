@@ -72,6 +72,9 @@ public abstract class BaseTimelineCommand implements TimelineCommand {
     protected void notifyModelChanged() {
         if (model != null) {
             model.markDirty();
+            // ✅ 让“时间线总时长”自动跟随内容扩张：任何命令造成时间分布变化时，都需要重新评估动态时长。
+            // 代价很低：仅在下一次 getDuration() 时重算一次缓存。
+            model.markDurationDirty();
             LOGGER.debug("[{}] 命令执行完成，通知模型变更", changeType);
         }
     }

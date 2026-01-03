@@ -3,6 +3,8 @@ package com.chronoblocks.ui.timeline.render;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.audio.AudioEvent;
+import com.chronoblocks.ui.timeline.audio.TimelineAudioService;
+import com.chronoblocks.ui.timeline.model.TimelineClip;
 import imgui.ImDrawList;
 import imgui.ImGui;
 
@@ -143,6 +145,18 @@ public class TimelineAudioRenderer {
         if (event == null) {
             return COLOR_CUSTOM;
         }
+
+        // ✅ 规则：清除轨道上的“清除片段”对应的音频点也使用绿色圆点（与放置一致）
+        // 通过 TimelineAudioService 的“事件-片段链接关系”判断来源轨道类型。
+        try {
+            TimelineClip linked = TimelineAudioService.getInstance().getLinkedClip(event).orElse(null);
+            if (linked != null) {
+                var pt = linked.getParentTrack();
+                if (pt != null && pt.getType() == TrackType.ERASE) {
+                    return COLOR_BLOCK_PLACE;
+                }
+            }
+        } catch (Exception ignored) {}
         
         String soundId = event.getSoundId();
         if (soundId == null) {
