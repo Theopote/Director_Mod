@@ -28,14 +28,16 @@ public final class TimelineShortcutManager {
         private final boolean ctrl;
         private final boolean shift;
         private final boolean alt;
+        private final boolean allowExtraModifiers;
         private final Runnable action;
         private final String description;
         
-        public Shortcut(int key, boolean ctrl, boolean shift, boolean alt, Runnable action, String description) {
+        public Shortcut(int key, boolean ctrl, boolean shift, boolean alt, boolean allowExtraModifiers, Runnable action, String description) {
             this.key = key;
             this.ctrl = ctrl;
             this.shift = shift;
             this.alt = alt;
+            this.allowExtraModifiers = allowExtraModifiers;
             this.action = action;
             this.description = description;
         }
@@ -45,9 +47,13 @@ public final class TimelineShortcutManager {
             if (ctrl && !io.getKeyCtrl()) return false;
             if (shift && !io.getKeyShift()) return false;
             if (alt && !io.getKeyAlt()) return false;
-            if (!ctrl && io.getKeyCtrl()) return false;  // 精确匹配
-            if (!shift && io.getKeyShift()) return false;
-            return alt || !io.getKeyAlt();
+            if (!allowExtraModifiers) {
+                if (!ctrl && io.getKeyCtrl()) return false;  // 精确匹配
+                if (!shift && io.getKeyShift()) return false;
+                return alt || !io.getKeyAlt();
+            }
+            // 宽松匹配：允许用户仍按住 Ctrl/Shift/Alt 时触发（例如框选多选后直接按 Del）
+            return true;
         }
         
         public void execute() {
@@ -118,8 +124,16 @@ public final class TimelineShortcutManager {
      */
     private void register(String id, int key, boolean ctrl,
                           Runnable action, String description) {
-        shortcuts.put(id, new Shortcut(key, ctrl, false, false, action, description));
+        shortcuts.put(id, new Shortcut(key, ctrl, false, false, false, action, description));
         LOGGER.debug("[TimelineShortcutManager] 注册快捷键: {} -> {}", id, description);
+    }
+
+    /**
+     * 注册单键快捷键（允许额外修饰键）
+     */
+    private void registerKeyLoose(String id, int key, Runnable action, String description) {
+        shortcuts.put(id, new Shortcut(key, false, false, false, true, action, description));
+        LOGGER.debug("[TimelineShortcutManager] 注册快捷键(宽松): {} -> {}", id, description);
     }
     
     /**
@@ -147,8 +161,9 @@ public final class TimelineShortcutManager {
                 commandHistory::redo, "重做");
         
         // 删除
-        registerKey("delete", ImGuiKey.Delete, 
-            callbacks::deleteSelectedClip, "删除选中片段");
+        // ✅ 删除应允许带修饰键触发（例如 Ctrl 多选后，Ctrl 还没松开就按 Del）
+        registerKeyLoose("delete", ImGuiKey.Delete,
+            callbacks::deleteSelectedClip, "删除选中内容");
         
         // 剪切/复制/粘贴
         registerCtrl("cut", ImGuiKey.X,
