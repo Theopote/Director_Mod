@@ -158,31 +158,6 @@ public class PropertyAdapterRegistry {
     }
 
     /**
-     * 批量注册适配器
-     *
-     * @param adapters 适配器数组
-     * @return 当前注册表实例（支持链式调用）
-     */
-    @SafeVarargs
-    public final PropertyAdapterRegistry registerAll(PropertyAdapter<?>... adapters) {
-        for (PropertyAdapter<?> adapter : adapters) {
-            register(adapter);
-        }
-        return this;
-    }
-
-    /**
-     * 批量注册适配器
-     *
-     * @param adapters 适配器集合
-     * @return 当前注册表实例（支持链式调用）
-     */
-    public PropertyAdapterRegistry registerAll(Collection<? extends PropertyAdapter<?>> adapters) {
-        adapters.forEach(this::register);
-        return this;
-    }
-
-    /**
      * 注销适配器
      * <p>自动调用适配器的 {@link PropertyAdapter#dispose()} 方法。
      *
@@ -283,20 +258,6 @@ public class PropertyAdapterRegistry {
     }
 
     /**
-     * 根据对象实例查找适配器
-     *
-     * @param obj 对象实例
-     * @return 适配器，如果没有找到则返回 null
-     */
-    @SuppressWarnings("unchecked")
-    public <T> PropertyAdapter<T> findAdapter(T obj) {
-        if (obj == null) {
-            return null;
-        }
-        return (PropertyAdapter<T>) findAdapter(obj.getClass());
-    }
-
-    /**
      * 精确匹配查找
      */
     @SuppressWarnings("unchecked")
@@ -355,42 +316,12 @@ public class PropertyAdapterRegistry {
     }
 
     /**
-     * 获取指定类型的所有适配器
-     *
-     * @param type 类型
-     * @return 适配器列表（按优先级排序）
-     */
-    public List<PropertyAdapter<?>> getAllAdapters(Class<?> type) {
-        List<PropertyAdapter<?>> list = adapters.get(type);
-        return list != null ? new ArrayList<>(list) : Collections.emptyList();
-    }
-
-    /**
-     * 获取所有已注册的适配器
-     *
-     * @return 适配器列表
-     */
-    public List<PropertyAdapter<?>> getAllAdapters() {
-        return new ArrayList<>(allAdapters);
-    }
-
-    /**
      * 获取所有支持的类型
      *
      * @return 类型集合
      */
     public Set<Class<?>> getSupportedTypes() {
         return new HashSet<>(adapters.keySet());
-    }
-
-    /**
-     * 检查是否有指定类型的适配器
-     *
-     * @param type 类型
-     * @return true 如果有适配器
-     */
-    public boolean hasAdapter(Class<?> type) {
-        return findAdapter(type) != null;
     }
 
     /**
@@ -421,15 +352,6 @@ public class PropertyAdapterRegistry {
         // 同时清除可能相关的子类缓存
         adapterCache.keySet().removeIf(cachedType -> 
                 type.isAssignableFrom(cachedType) || cachedType.isAssignableFrom(type));
-    }
-
-    /**
-     * 清除所有缓存
-     */
-    public void clearCache() {
-        adapterCache.clear();
-        statistics.resetCacheStats();
-        LOGGER.debug("[PropertyAdapterRegistry] 缓存已清除");
     }
 
     /**
@@ -508,11 +430,6 @@ public class PropertyAdapterRegistry {
             cacheMisses++;
         }
 
-        void resetCacheStats() {
-            cacheHits = 0;
-            cacheMisses = 0;
-        }
-
         void reset() {
             registrationCounts.clear();
             totalRegistrations = 0;
@@ -525,20 +442,8 @@ public class PropertyAdapterRegistry {
             return totalRegistrations;
         }
 
-        public int getTotalUnregistrations() {
-            return totalUnregistrations;
-        }
-
         public int getActiveAdapters() {
             return totalRegistrations - totalUnregistrations;
-        }
-
-        public int getCacheHits() {
-            return cacheHits;
-        }
-
-        public int getCacheMisses() {
-            return cacheMisses;
         }
 
         public double getCacheHitRate() {
@@ -546,9 +451,6 @@ public class PropertyAdapterRegistry {
             return total > 0 ? (double) cacheHits / total * 100.0 : 0.0;
         }
 
-        public Map<Class<?>, Integer> getRegistrationCounts() {
-            return new HashMap<>(registrationCounts);
-        }
 
         @Override
         public String toString() {

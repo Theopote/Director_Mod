@@ -132,7 +132,7 @@ public class TimeKeyframePropertyAdapter implements IPropertyAdapter<TimeKeyfram
             // ⭐ v3.3：显示模式说明和使用指导
             if (keyframe.isUseNaturalTime()) {
                 ImGui.textDisabled("• 使用 Minecraft 原版世界时间");
-                ImGui.textDisabled("• 世界时间会自动流逝");
+                ImGui.textDisabled("• 播放/拖动时：原版时间推进会被冻结（避免日夜闪烁）");
                 ImGui.textDisabled("• 太阳由 Minecraft 自动控制");
                 ImGui.textDisabled("• 推荐：创建自然时间流逝动画（如正午到日落）");
             } else {

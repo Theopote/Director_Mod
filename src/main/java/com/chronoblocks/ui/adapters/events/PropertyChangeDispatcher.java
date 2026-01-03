@@ -101,7 +101,7 @@ public class PropertyChangeDispatcher {
     private volatile boolean batchMode = true;
 
     /** 是否启用调试日志 */
-    private volatile boolean debug = false;
+    private volatile boolean debug;
 
     /** 统计：总派发次数 */
     private final AtomicLong totalDispatched = new AtomicLong(0);
@@ -234,27 +234,6 @@ public class PropertyChangeDispatcher {
         }
     }
 
-    // ==================== 配置接口 ====================
-
-    /**
-     * 设置批量模式
-     * <p>true：事件会缓存到下一帧；false：立即派发
-     *
-     * @param enabled 是否启用批量模式
-     */
-    public void setBatchMode(boolean enabled) {
-        this.batchMode = enabled;
-        LOGGER.info("[PropertyChangeDispatcher] 批量模式: {}", enabled ? "开启" : "关闭");
-    }
-
-    /**
-     * 获取批量模式状态
-     *
-     * @return true 如果启用批量模式
-     */
-    public boolean isBatchMode() {
-        return batchMode;
-    }
 
     /**
      * 启用/禁用调试日志
@@ -266,52 +245,6 @@ public class PropertyChangeDispatcher {
         LOGGER.info("[PropertyChangeDispatcher] 调试模式: {}", enabled ? "开启" : "关闭");
     }
 
-    /**
-     * 获取调试模式状态
-     *
-     * @return true 如果启用调试
-     */
-    public boolean isDebugMode() {
-        return debug;
-    }
-
-    /**
-     * 获取当前待派发事件数量
-     *
-     * @return 待派发事件数
-     */
-    public int getPendingCount() {
-        return pendingQueue.size();
-    }
-
-    // ==================== 统计信息 ====================
-
-    /**
-     * 获取调度统计信息
-     *
-     * @return 统计信息
-     */
-    public DispatcherStatistics getStatistics() {
-        return new DispatcherStatistics(
-                totalDispatched.get(),
-                immediateDispatches.get(),
-                deferredDispatches.get(),
-                flushCount.get(),
-                pendingQueue.size()
-        );
-    }
-
-    /**
-     * 重置统计信息
-     */
-    public void resetStatistics() {
-        totalDispatched.set(0);
-        immediateDispatches.set(0);
-        deferredDispatches.set(0);
-        flushCount.set(0);
-        
-        LOGGER.info("[PropertyChangeDispatcher] 统计信息已重置");
-    }
 
     // ==================== 内部类 ====================
 
@@ -332,65 +265,5 @@ public class PropertyChangeDispatcher {
         }
     }
 
-    /**
-     * 调度器统计信息
-     */
-    public static class DispatcherStatistics {
-        private final long totalDispatched;
-        private final long immediateDispatches;
-        private final long deferredDispatches;
-        private final long flushCount;
-        private final int pendingCount;
-
-        DispatcherStatistics(long totalDispatched,
-                            long immediateDispatches,
-                            long deferredDispatches,
-                            long flushCount,
-                            int pendingCount) {
-            this.totalDispatched = totalDispatched;
-            this.immediateDispatches = immediateDispatches;
-            this.deferredDispatches = deferredDispatches;
-            this.flushCount = flushCount;
-            this.pendingCount = pendingCount;
-        }
-
-        public long getTotalDispatched() {
-            return totalDispatched;
-        }
-
-        public long getImmediateDispatches() {
-            return immediateDispatches;
-        }
-
-        public long getDeferredDispatches() {
-            return deferredDispatches;
-        }
-
-        public long getFlushCount() {
-            return flushCount;
-        }
-
-        public int getPendingCount() {
-            return pendingCount;
-        }
-
-        public double getAverageEventsPerFlush() {
-            return flushCount > 0 ? (double) deferredDispatches / flushCount : 0.0;
-        }
-
-        @Override
-        public String toString() {
-            return String.format(
-                    "DispatcherStatistics{total=%d, immediate=%d, deferred=%d, " +
-                    "flushes=%d, pending=%d, avgPerFlush=%.2f}",
-                    totalDispatched,
-                    immediateDispatches,
-                    deferredDispatches,
-                    flushCount,
-                    pendingCount,
-                    getAverageEventsPerFlush()
-            );
-        }
-    }
 }
 

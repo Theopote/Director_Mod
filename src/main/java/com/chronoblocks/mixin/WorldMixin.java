@@ -3,6 +3,7 @@ package com.chronoblocks.mixin;
 import com.chronoblocks.ui.timeline.model.weather.WeatherKeyframe;
 import com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController;
 import com.chronoblocks.ui.timeline.playback.weather.WeatherSample;
+import com.chronoblocks.ui.timeline.playback.time.TimelineWorldController;
 import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -29,6 +30,29 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  */
 @Mixin(World.class)
 public abstract class WorldMixin {
+
+    /**
+     * Time Track：覆盖世界时间读取，避免服务端/原版每 tick 同步把时间写回导致“闪回当前世界时间”。
+     *
+     * <p>注意：我们尽量保留原始 day 计数，仅替换 time-of-day（0~23999）。
+     */
+    @Inject(method = "getTimeOfDay()J", at = @At("RETURN"), cancellable = true)
+    private void overrideTimeOfDay(CallbackInfoReturnable<Long> cir) {
+        TimelineWorldController controller = TimelineWorldController.getInstance();
+        if (!controller.hasOverride()) {
+            return;
+        }
+        com.chronoblocks.ui.timeline.playback.time.TimeSample sample = controller.current();
+        if (sample == null) {
+            return;
+        }
+
+        long base = cir.getReturnValue();
+        long day = Math.floorDiv(base, 24000L);
+        long tod = sample.getWorldTimeTicks() % 24000L;
+        if (tod < 0) tod += 24000L;
+        cir.setReturnValue(day * 24000L + tod);
+    }
 
     /**
      * Weather：覆盖雨强度

@@ -120,6 +120,7 @@ public final class TimeTrackSampler {
         switch (interpolation) {
             // DEFAULT 应该已经在上面的逻辑中处理，这里不应该到达
             // 如果到达，使用平滑插值作为默认
+            case DEFAULT:
             case STEP:
             case HOLD:
                 t = 0f; // 保持 a 值
@@ -217,6 +218,12 @@ public final class TimeTrackSampler {
      * 线性插值世界时间（处理 24000 → 0 的循环）
      */
     private long lerpTime(long t0, long t1, float t) {
+        // 安全归一化：关键帧可能来自旧数据/外部导入，存在超出 day-length 的值
+        t0 = t0 % DAY_LENGTH_TICKS;
+        t1 = t1 % DAY_LENGTH_TICKS;
+        if (t0 < 0) t0 += DAY_LENGTH_TICKS;
+        if (t1 < 0) t1 += DAY_LENGTH_TICKS;
+
         // 计算差值，处理循环
         long diff = t1 - t0;
         long halfCycle = DAY_LENGTH_TICKS / 2;

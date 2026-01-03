@@ -1312,7 +1312,8 @@ public class TimelinePanel extends AbstractPanel
 
         TimeKeyframe timeKeyframe =
             new TimeKeyframe("Time @" + timeLabel, time);
-        timeKeyframe.setWorldTimeTicks(currentWorldTime);
+        // 只记录时间-of-day（0~23999），避免保存世界总 tick 导致插值 diff 巨大引发闪烁
+        timeKeyframe.setWorldTimeTicks(currentWorldTime % 24000L);
         return timeKeyframe;
     }
 

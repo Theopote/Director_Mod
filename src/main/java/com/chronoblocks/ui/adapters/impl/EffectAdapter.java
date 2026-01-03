@@ -332,7 +332,7 @@ public class EffectAdapter extends BasePropertyAdapter<Object> {
     private void setFloatArrayProperty(Object obj, float[] value) {
         try {
             var method = obj.getClass().getMethod("setColor", float[].class);
-            method.invoke(obj, (Object) value);
+            method.invoke(obj, value);
         } catch (Exception e) {
             logger.trace("[EffectAdapter] 无法设置浮点数组属性: {}", "color");
         }

@@ -125,7 +125,11 @@ public class TimeKeyframe implements TimelineSelectable {
     }
     
     public void setWorldTimeTicks(long worldTimeTicks) {
-        this.worldTimeTicks = Math.max(0L, worldTimeTicks);
+        // 时间轨道当前以“时间-of-day（0~23999）”为语义单位进行控制与插值。
+        // 关键点：如果保存为世界总 tick（可能非常大），采样插值会出现巨大 diff，导致日夜闪烁/跳变。
+        long t = worldTimeTicks % 24000L;
+        if (t < 0L) t += 24000L;
+        this.worldTimeTicks = t;
     }
     
     public boolean isUseNaturalTime() {

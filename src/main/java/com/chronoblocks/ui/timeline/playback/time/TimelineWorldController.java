@@ -219,26 +219,15 @@ public final class TimelineWorldController {
             return;
         }
 
-        // 只有在播放或 scrubbing 时才应用时间控制
-        boolean playing = timelineModel.isPlaying();
-        boolean scrubbing = timelineModel.isScrubbing();
-
-        if (!playing && !scrubbing) {
-            // ⭐ DEBUG: 不在播放/scrubbing状态，不更新时间
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[TimelineWorld] update() - 不在播放/scrubbing状态，跳过");
-            }
-            return;
-        }
-
         float currentTime = timelineModel.getCurrentTime();
 
         // 性能关键：update() 在播放/拖动时每帧调用，禁止使用 info 刷屏。
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("[TimelineWorld] update: playing={} scrubbing={} t={} freezeActive={} frozenGameTime={}",
-                    playing, scrubbing, currentTime, freezeTimeActive, freezeTimeActive ? frozenGameTime : "N/A");
+                    timelineModel.isPlaying(), timelineModel.isScrubbing(), currentTime, freezeTimeActive, freezeTimeActive ? frozenGameTime : "N/A");
         }
         
+        // ⭐ 关键修复：时间轨道面板打开时，即使暂停也应维持预览（否则会立刻回到世界时间）
         applyTimeSample(currentTime);
     }
 
@@ -257,14 +246,7 @@ public final class TimelineWorldController {
             return;
         }
 
-        // 只有在播放或 scrubbing 时才应用时间控制
-        boolean playing = timelineModel.isPlaying();
-        boolean scrubbing = timelineModel.isScrubbing();
-
-        if (!playing && !scrubbing) {
-            return;
-        }
-
+        // ⭐ 与无参 update() 保持一致：面板驱动时暂停也维持预览
         applyTimeSample(currentTime);
     }
 
@@ -459,10 +441,12 @@ public final class TimelineWorldController {
     public synchronized void clear() {
         hasCustomSample = false;
         currentSample = null;
-        freezeTimeActive = false;
-        
-        // 恢复原版时间系统
+
+        // 恢复原版时间系统（注意：必须在清除 freezeTimeActive 前执行，否则 resume 会被短路）
         resumeMinecraftTime();
+
+        freezeTimeActive = false;
+        savedDoDaylightCycle = null;
         
         LOGGER.info("[TimelineWorld] Cleared time override state");
     }
@@ -667,6 +651,18 @@ public final class TimelineWorldController {
 
         ClientWorld world = client.world;
         long normalizedTicks = ticks % 24000L;
+        if (normalizedTicks < 0) normalizedTicks += 24000L;
+
+        // ⭐ v3.6：避免每帧重复 setTime() 触发天空/光照抖动（用户体感为“闪一下”）
+        long actualTime = world.getTimeOfDay();
+        long actualNormalized = actualTime % 24000L;
+        if (actualNormalized < 0) actualNormalized += 24000L;
+        if (actualNormalized == normalizedTicks) {
+            if (freezeTimeActive) {
+                frozenGameTime = normalizedTicks;
+            }
+            return;
+        }
 
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("[TimelineWorld] applyWorldTime: world.setTime({}, {}, false)", normalizedTicks, normalizedTicks);
@@ -682,8 +678,9 @@ public final class TimelineWorldController {
         
         // ⭐ DEBUG: 验证设置是否成功
         // 注意：getTimeOfDay() 可能返回总 tick 数，需要归一化后比较
-        long actualTime = world.getTimeOfDay();
-        long actualNormalized = actualTime % 24000L;
+        actualTime = world.getTimeOfDay();
+        actualNormalized = actualTime % 24000L;
+        if (actualNormalized < 0) actualNormalized += 24000L;
         if (actualNormalized != normalizedTicks) {
             LOGGER.warn("[TimelineWorld] ⚠️ applyWorldTime() - 设置后验证失败! 期望={}, 实际={} (归一化={})", 
                     normalizedTicks, actualTime, actualNormalized);
@@ -773,8 +770,9 @@ public final class TimelineWorldController {
      * 恢复原版时间系统
      */
     private synchronized void resumeMinecraftTime() {
-        if (!freezeTimeActive) {
-            return; // 如果未冻结，无需恢复
+        // 即使 freezeTimeActive 标记不同步，只要保存过 gamerule，也应尝试恢复
+        if (!freezeTimeActive && savedDoDaylightCycle == null) {
+            return;
         }
 
         MinecraftClient client = MinecraftClient.getInstance();
@@ -802,6 +800,7 @@ public final class TimelineWorldController {
                     }
 
                     savedDoDaylightCycle = null;
+                    freezeTimeActive = false;
                     return;
                 } catch (Exception e) {
                     LOGGER.warn("[TimelineWorld] 无法恢复游戏规则: {}", e.getMessage());
@@ -821,28 +820,14 @@ public final class TimelineWorldController {
      * <p>v2.0 改进：根据 TimeSample 的 freezeWorldTime 标志决定是否冻结
      */
     private synchronized void updateTimeFreezeState() {
-        // ⭐ DEBUG: 记录冻结状态更新
-        boolean oldFreezeState = freezeTimeActive;
-        long oldFrozenTime = frozenGameTime;
-        
         // 检查是否应该冻结时间
         boolean shouldFreeze = shouldFreezeTime();
 
-        LOGGER.info("[TimelineWorld] 🔄 updateTimeFreezeState() - shouldFreeze={}, 当前freezeTimeActive={}", 
-                shouldFreeze, freezeTimeActive);
-
         if (shouldFreeze && !freezeTimeActive) {
-            LOGGER.info("[TimelineWorld] ❄️ updateTimeFreezeState() - 触发冻结");
             freezeMinecraftTime();
         } else if (!shouldFreeze && freezeTimeActive) {
-            LOGGER.info("[TimelineWorld] 🌊 updateTimeFreezeState() - 触发恢复");
             resumeMinecraftTime();
-        } else {
-            LOGGER.info("[TimelineWorld] ✓ updateTimeFreezeState() - 冻结状态无变化");
         }
-        
-        LOGGER.info("[TimelineWorld] ✅ updateTimeFreezeState() - 完成: {} -> {}, frozenTime: {} -> {}", 
-                oldFreezeState, freezeTimeActive, oldFrozenTime, freezeTimeActive ? frozenGameTime : "N/A");
     }
     
     /**
@@ -877,12 +862,9 @@ public final class TimelineWorldController {
             return false;
         }
         
-        // ⭐ v3.0 核心逻辑：检查是否有"自定义太阳"关键帧
-        // 如果有至少一个自定义太阳关键帧，就需要冻结
-
-        // 有自定义太阳关键帧 → 需要冻结
-        return keyframes.stream()
-                .anyMatch(kf -> !kf.isUseNaturalTime());
+        // ⭐ v3.6：只要时间轨道存在关键帧，就冻结原版时间推进（doDaylightCycle = false）。
+        // 否则会出现“原版时间推进 + 时间轨道不断写回”的来回拉扯，体感为日夜闪烁/抖动。
+        return true;
         
         // 所有关键帧都是自然时间模式 → 不冻结
         // 这种情况下，原版时间系统可以正常运行，只需要在采样时同步时间即可

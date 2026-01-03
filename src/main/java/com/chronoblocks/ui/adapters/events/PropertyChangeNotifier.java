@@ -110,12 +110,6 @@ public class PropertyChangeNotifier {
     /** 是否启用调试日志 */
     private boolean debugMode;
 
-    /** 事件统计 */
-    private long totalEvents = 0;
-    private long globalDispatches = 0;
-    private long typeDispatches = 0;
-    private long objectDispatches = 0;
-
     /**
      * 私有构造函数
      */
@@ -123,119 +117,6 @@ public class PropertyChangeNotifier {
         this.debugMode = Boolean.getBoolean("chronoblocks.debug.events");
     }
 
-    // ==================== 注册监听器 ====================
-
-    /**
-     * 添加全局监听器
-     * <p>监听所有对象的所有属性变化。
-     *
-     * @param listener 监听器
-     */
-    public void addGlobalListener(Consumer<PropertyChangeEvent> listener) {
-        if (listener == null) {
-            return;
-        }
-
-        globalListeners.add(new WeakReference<>(listener));
-        LOGGER.debug("[PropertyChangeNotifier] 已添加全局监听器: {}", listener.getClass().getSimpleName());
-    }
-
-    /**
-     * 为某一类型注册监听器
-     * <p>只监听指定类型对象的属性变化。
-     *
-     * @param targetType 目标类型
-     * @param listener   监听器
-     * @param <T>        类型参数
-     */
-    public <T> void addTypeListener(Class<T> targetType, Consumer<PropertyChangeEvent> listener) {
-        if (targetType == null || listener == null) {
-            return;
-        }
-
-        typeListeners
-                .computeIfAbsent(targetType, k -> Collections.newSetFromMap(new ConcurrentHashMap<>()))
-                .add(new WeakReference<>(listener));
-
-        LOGGER.debug("[PropertyChangeNotifier] 已添加类型监听器: {} -> {}",
-                targetType.getSimpleName(), listener.getClass().getSimpleName());
-    }
-
-    /**
-     * 为某个对象注册监听器
-     * <p>只监听特定对象实例的属性变化。
-     *
-     * @param target   目标对象
-     * @param listener 监听器
-     */
-    public void addObjectListener(Object target, Consumer<PropertyChangeEvent> listener) {
-        if (target == null || listener == null) {
-            return;
-        }
-
-        int id = System.identityHashCode(target);
-        objectListeners
-                .computeIfAbsent(id, k -> Collections.newSetFromMap(new ConcurrentHashMap<>()))
-                .add(new WeakReference<>(listener));
-
-        LOGGER.debug("[PropertyChangeNotifier] 已添加对象监听器: {} ({})",
-                target.getClass().getSimpleName(), Integer.toHexString(id));
-    }
-
-    // ==================== 移除监听器 ====================
-
-    /**
-     * 移除全局监听器
-     *
-     * @param listener 要移除的监听器
-     */
-    public void removeGlobalListener(Consumer<PropertyChangeEvent> listener) {
-        if (listener == null) {
-            return;
-        }
-
-        globalListeners.removeIf(ref -> ref.get() == null || ref.get() == listener);
-        LOGGER.debug("[PropertyChangeNotifier] 已移除全局监听器");
-    }
-
-    /**
-     * 移除类型监听器
-     *
-     * @param targetType 目标类型
-     * @param listener   要移除的监听器
-     */
-    public void removeTypeListener(Class<?> targetType, Consumer<PropertyChangeEvent> listener) {
-        if (targetType == null || listener == null) {
-            return;
-        }
-
-        Set<WeakReference<Consumer<PropertyChangeEvent>>> set = typeListeners.get(targetType);
-        if (set != null) {
-            set.removeIf(ref -> ref.get() == null || ref.get() == listener);
-        }
-
-        LOGGER.debug("[PropertyChangeNotifier] 已移除类型监听器: {}", targetType.getSimpleName());
-    }
-
-    /**
-     * 移除对象监听器
-     *
-     * @param target   目标对象
-     * @param listener 要移除的监听器
-     */
-    public void removeObjectListener(Object target, Consumer<PropertyChangeEvent> listener) {
-        if (target == null || listener == null) {
-            return;
-        }
-
-        int id = System.identityHashCode(target);
-        Set<WeakReference<Consumer<PropertyChangeEvent>>> set = objectListeners.get(id);
-        if (set != null) {
-            set.removeIf(ref -> ref.get() == null || ref.get() == listener);
-        }
-
-        LOGGER.debug("[PropertyChangeNotifier] 已移除对象监听器");
-    }
 
     /**
      * 清理失效引用
@@ -279,15 +160,12 @@ public class PropertyChangeNotifier {
         // 清理失效引用
         cleanup();
 
-        totalEvents++;
-
         // 派发给全局监听器
         for (WeakReference<Consumer<PropertyChangeEvent>> ref : globalListeners) {
             Consumer<PropertyChangeEvent> listener = ref.get();
             if (listener != null) {
                 try {
                     listener.accept(event);
-                    globalDispatches++;
                 } catch (Exception e) {
                     LOGGER.error("[PropertyChangeNotifier] 全局监听器异常", e);
                 }
@@ -302,7 +180,6 @@ public class PropertyChangeNotifier {
                     if (listener != null) {
                         try {
                             listener.accept(event);
-                            typeDispatches++;
                         } catch (Exception e) {
                             LOGGER.error("[PropertyChangeNotifier] 类型监听器异常", e);
                         }
@@ -320,69 +197,12 @@ public class PropertyChangeNotifier {
                 if (listener != null) {
                     try {
                         listener.accept(event);
-                        objectDispatches++;
                     } catch (Exception e) {
                         LOGGER.error("[PropertyChangeNotifier] 对象监听器异常", e);
                     }
                 }
             }
         }
-    }
-
-    // ==================== 统计信息 ====================
-
-    /**
-     * 获取事件统计信息
-     *
-     * @return 统计信息
-     */
-    public EventStatistics getStatistics() {
-        return new EventStatistics(
-                totalEvents,
-                globalDispatches,
-                typeDispatches,
-                objectDispatches,
-                globalListeners.size(),
-                typeListeners.size(),
-                objectListeners.size()
-        );
-    }
-
-    /**
-     * 重置统计信息
-     */
-    public void resetStatistics() {
-        totalEvents = 0;
-        globalDispatches = 0;
-        typeDispatches = 0;
-        objectDispatches = 0;
-    }
-
-    /**
-     * 启用/禁用调试模式
-     *
-     * @param enabled 是否启用
-     */
-    public void setDebugMode(boolean enabled) {
-        this.debugMode = enabled;
-    }
-
-    /**
-     * 清除所有监听器
-     */
-    public void clearAll() {
-        globalListeners.clear();
-        typeListeners.clear();
-        objectListeners.clear();
-        LOGGER.info("[PropertyChangeNotifier] 已清除所有监听器");
-    }
-
-    /**
-     * 手动触发清理
-     */
-    public void performCleanup() {
-        cleanup();
-        LOGGER.debug("[PropertyChangeNotifier] 已清理失效引用");
     }
 
     // ==================== 事件类型定义 ====================
@@ -422,65 +242,6 @@ public class PropertyChangeNotifier {
             return target;
         }
 
-        /**
-         * 获取目标对象（类型安全）
-         *
-         * @param type 期望类型
-         * @param <T>  类型参数
-         * @return 如果类型匹配则返回，否则返回 null
-         */
-        @SuppressWarnings("unchecked")
-        public <T> T getTargetAs(Class<T> type) {
-            if (type.isInstance(target)) {
-                return (T) target;
-            }
-            return null;
-        }
-
-        /**
-         * 获取属性名称
-         *
-         * @return 属性名称
-         */
-        public String getPropertyName() {
-            return propertyName;
-        }
-
-        /**
-         * 获取旧值
-         *
-         * @return 旧值
-         */
-        public Object getOldValue() {
-            return oldValue;
-        }
-
-        /**
-         * 获取新值
-         *
-         * @return 新值
-         */
-        public Object getNewValue() {
-            return newValue;
-        }
-
-        /**
-         * 获取时间戳
-         *
-         * @return 时间戳（毫秒）
-         */
-        public long getTimestamp() {
-            return timestamp;
-        }
-
-        /**
-         * 检查属性是否真的变化了
-         *
-         * @return true 如果新旧值不同
-         */
-        public boolean hasRealChange() {
-            return !Objects.equals(oldValue, newValue);
-        }
 
         @Override
         public String toString() {
@@ -493,84 +254,5 @@ public class PropertyChangeNotifier {
         }
     }
 
-    // ==================== 统计信息类 ====================
-
-    /**
-     * 事件统计信息
-     */
-    public static class EventStatistics {
-        private final long totalEvents;
-        private final long globalDispatches;
-        private final long typeDispatches;
-        private final long objectDispatches;
-        private final int globalListenerCount;
-        private final int typeListenerCount;
-        private final int objectListenerCount;
-
-        EventStatistics(long totalEvents,
-                       long globalDispatches,
-                       long typeDispatches,
-                       long objectDispatches,
-                       int globalListenerCount,
-                       int typeListenerCount,
-                       int objectListenerCount) {
-            this.totalEvents = totalEvents;
-            this.globalDispatches = globalDispatches;
-            this.typeDispatches = typeDispatches;
-            this.objectDispatches = objectDispatches;
-            this.globalListenerCount = globalListenerCount;
-            this.typeListenerCount = typeListenerCount;
-            this.objectListenerCount = objectListenerCount;
-        }
-
-        public long getTotalEvents() {
-            return totalEvents;
-        }
-
-        public long getGlobalDispatches() {
-            return globalDispatches;
-        }
-
-        public long getTypeDispatches() {
-            return typeDispatches;
-        }
-
-        public long getObjectDispatches() {
-            return objectDispatches;
-        }
-
-        public int getGlobalListenerCount() {
-            return globalListenerCount;
-        }
-
-        public int getTypeListenerCount() {
-            return typeListenerCount;
-        }
-
-        public int getObjectListenerCount() {
-            return objectListenerCount;
-        }
-
-        public long getTotalDispatches() {
-            return globalDispatches + typeDispatches + objectDispatches;
-        }
-
-        @Override
-        public String toString() {
-            return String.format(
-                    "EventStatistics{events=%d, dispatches=%d (global=%d, type=%d, object=%d), " +
-                    "listeners=%d (global=%d, type=%d, object=%d)}",
-                    totalEvents,
-                    getTotalDispatches(),
-                    globalDispatches,
-                    typeDispatches,
-                    objectDispatches,
-                    globalListenerCount + typeListenerCount + objectListenerCount,
-                    globalListenerCount,
-                    typeListenerCount,
-                    objectListenerCount
-            );
-        }
-    }
 }
 

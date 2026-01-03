@@ -177,19 +177,6 @@ public class PropertyChangeScheduler {
         this.debug = Boolean.getBoolean("chronoblocks.debug.scheduler");
     }
 
-    // ==================== 核心接口 ====================
-
-    /**
-     * 调度一个属性变更事件（默认优先级NORMAL，无延迟）
-     *
-     * @param target   目标对象
-     * @param property 属性名称
-     * @param oldValue 旧值
-     * @param newValue 新值
-     */
-    public void schedule(Object target, String property, Object oldValue, Object newValue) {
-        schedule(target, property, oldValue, newValue, Priority.NORMAL, 0);
-    }
 
     /**
      * 调度一个属性变更事件
@@ -298,13 +285,6 @@ public class PropertyChangeScheduler {
         }
     }
 
-    /**
-     * 重置帧计数器
-     */
-    public void resetFrameCounter() {
-        currentFrame = 0;
-        LOGGER.info("[PropertyChangeScheduler] 帧计数器已重置");
-    }
 
     // ==================== 内部逻辑 ====================
 
@@ -394,64 +374,6 @@ public class PropertyChangeScheduler {
                 .findFirst();
     }
 
-    // ==================== 配置接口 ====================
-
-    /**
-     * 设置是否启用节流机制
-     *
-     * @param enable true 启用，false 禁用
-     */
-    public void setThrottleEnabled(boolean enable) {
-        this.enableThrottle = enable;
-        LOGGER.info("[PropertyChangeScheduler] 节流机制: {}", enable ? "开启" : "关闭");
-    }
-
-    /**
-     * 获取节流启用状态
-     *
-     * @return true 如果启用节流
-     */
-    public boolean isThrottleEnabled() {
-        return enableThrottle;
-    }
-
-    /**
-     * 设置节流间隔
-     *
-     * @param intervalMs 间隔时间（毫秒）
-     */
-    public void setThrottleIntervalMs(long intervalMs) {
-        this.throttleIntervalMs = Math.max(0, intervalMs);
-        LOGGER.info("[PropertyChangeScheduler] 节流间隔: {}ms", this.throttleIntervalMs);
-    }
-
-    /**
-     * 获取节流间隔
-     *
-     * @return 间隔时间（毫秒）
-     */
-    public long getThrottleIntervalMs() {
-        return throttleIntervalMs;
-    }
-
-    /**
-     * 设置是否合并相同属性的变更
-     *
-     * @param merge true 启用合并，false 禁用
-     */
-    public void setMergeSameProperties(boolean merge) {
-        this.mergeSameProperties = merge;
-        LOGGER.info("[PropertyChangeScheduler] 属性合并: {}", merge ? "开启" : "关闭");
-    }
-
-    /**
-     * 获取属性合并状态
-     *
-     * @return true 如果启用合并
-     */
-    public boolean isMergeSameProperties() {
-        return mergeSameProperties;
-    }
 
     /**
      * 设置调试模式
@@ -463,62 +385,7 @@ public class PropertyChangeScheduler {
         LOGGER.info("[PropertyChangeScheduler] 调试模式: {}", enabled ? "开启" : "关闭");
     }
 
-    /**
-     * 获取调试模式状态
-     *
-     * @return true 如果启用调试
-     */
-    public boolean isDebugMode() {
-        return debug;
-    }
 
-    /**
-     * 获取当前待派发事件数量
-     *
-     * @return 待派发事件数
-     */
-    public int getPendingCount() {
-        return pendingQueue.size();
-    }
-
-    /**
-     * 获取当前帧索引
-     *
-     * @return 帧索引
-     */
-    public long getFrameIndex() {
-        return currentFrame;
-    }
-
-    // ==================== 统计信息 ====================
-
-    /**
-     * 获取调度统计信息
-     *
-     * @return 统计信息
-     */
-    public SchedulerStatistics getStatistics() {
-        return new SchedulerStatistics(
-                totalScheduled.get(),
-                totalDispatched.get(),
-                throttleBlocked.get(),
-                mergedCount.get(),
-                pendingQueue.size(),
-                currentFrame
-        );
-    }
-
-    /**
-     * 重置统计信息
-     */
-    public void resetStatistics() {
-        totalScheduled.set(0);
-        totalDispatched.set(0);
-        throttleBlocked.set(0);
-        mergedCount.set(0);
-
-        LOGGER.info("[PropertyChangeScheduler] 统计信息已重置");
-    }
 
     // ==================== 内部类 ====================
 
@@ -547,84 +414,4 @@ public class PropertyChangeScheduler {
         }
     }
 
-    /**
-     * 调度器统计信息
-     */
-    public static class SchedulerStatistics {
-        private final long totalScheduled;
-        private final long totalDispatched;
-        private final long throttleBlocked;
-        private final long mergedCount;
-        private final int pendingCount;
-        private final long currentFrame;
-
-        SchedulerStatistics(long totalScheduled,
-                          long totalDispatched,
-                          long throttleBlocked,
-                          long mergedCount,
-                          int pendingCount,
-                          long currentFrame) {
-            this.totalScheduled = totalScheduled;
-            this.totalDispatched = totalDispatched;
-            this.throttleBlocked = throttleBlocked;
-            this.mergedCount = mergedCount;
-            this.pendingCount = pendingCount;
-            this.currentFrame = currentFrame;
-        }
-
-        public long getTotalScheduled() {
-            return totalScheduled;
-        }
-
-        public long getTotalDispatched() {
-            return totalDispatched;
-        }
-
-        public long getThrottleBlocked() {
-            return throttleBlocked;
-        }
-
-        public long getMergedCount() {
-            return mergedCount;
-        }
-
-        public int getPendingCount() {
-            return pendingCount;
-        }
-
-        public long getCurrentFrame() {
-            return currentFrame;
-        }
-
-        public double getDispatchRate() {
-            return totalScheduled > 0 ? (double) totalDispatched / totalScheduled : 0.0;
-        }
-
-        public double getThrottleRate() {
-            return totalScheduled > 0 ? (double) throttleBlocked / totalScheduled : 0.0;
-        }
-
-        public double getMergeRate() {
-            return totalScheduled > 0 ? (double) mergedCount / totalScheduled : 0.0;
-        }
-
-        @Override
-        public String toString() {
-            return String.format(
-                    "SchedulerStatistics{scheduled=%d, dispatched=%d, " +
-                    "throttled=%d, merged=%d, pending=%d, frame=%d, " +
-                    "dispatchRate=%.2f%%, throttleRate=%.2f%%, mergeRate=%.2f%%}",
-                    totalScheduled,
-                    totalDispatched,
-                    throttleBlocked,
-                    mergedCount,
-                    pendingCount,
-                    currentFrame,
-                    getDispatchRate() * 100,
-                    getThrottleRate() * 100,
-                    getMergeRate() * 100
-            );
-        }
-    }
 }
-
