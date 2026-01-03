@@ -1,9 +1,9 @@
 package com.chronoblocks.i18n;
 
 import com.chronoblocks.ChronoBlocksMod;
-import net.fabricmc.fabric.api.resource.SimpleSynchronousResourceReloadListener;
+import net.fabricmc.fabric.api.resource.v1.reloader.SimpleResourceReloader;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.resource.ResourceManager;
+import net.minecraft.resource.ResourceReloader;
 import net.minecraft.util.Identifier;
 
 /**
@@ -14,7 +14,7 @@ import net.minecraft.util.Identifier;
  * @author ChronoBlocks Team
  * @version 1.0
  */
-public class LanguageChangeListener implements SimpleSynchronousResourceReloadListener {
+public class LanguageChangeListener extends SimpleResourceReloader<Void> {
     
     /** 监听器标识符 */
     private static final Identifier ID = Identifier.of("chronoblocks", "language_change");
@@ -22,13 +22,17 @@ public class LanguageChangeListener implements SimpleSynchronousResourceReloadLi
     /** 上一次的语言代码 */
     private String lastLanguage = "";
     
-    @Override
     public Identifier getFabricId() {
         return ID;
     }
     
     @Override
-    public void reload(ResourceManager manager) {
+    protected Void prepare(ResourceReloader.Store store) {
+        return null;
+    }
+
+    @Override
+    protected void apply(Void prepared, ResourceReloader.Store store) {
         try {
             // 获取当前Minecraft语言设置
             MinecraftClient client = MinecraftClient.getInstance();
