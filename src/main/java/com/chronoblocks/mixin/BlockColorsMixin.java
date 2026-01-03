@@ -9,6 +9,7 @@ import net.minecraft.util.collection.IdList;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.BlockRenderView;
 import org.jetbrains.annotations.Nullable;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -26,6 +27,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 @Mixin(BlockColors.class)
 public class BlockColorsMixin {
 
+    @Final
     @Shadow
     private IdList<BlockColorProvider> providers;
 
@@ -48,7 +50,7 @@ public class BlockColorsMixin {
             return;
         }
 
-        BlockColorProvider provider = (BlockColorProvider) this.providers.get(Registries.BLOCK.getRawId(state.getBlock()));
+        BlockColorProvider provider = this.providers.get(Registries.BLOCK.getRawId(state.getBlock()));
         if (provider == null) {
             cir.setReturnValue(-1);
             return;

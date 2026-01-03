@@ -1047,7 +1047,7 @@ public class TimelineClipBlockController {
                 continue;
             }
 
-            BlockState blockState = null;
+            BlockState blockState;
             BlockAnimationSnapshot snapshot;
             if (!inAnimWindow) {
                 // 静态块：如果视觉状态是 NORMAL 且不抑制世界渲染，完全不需要 overlay / snapshot

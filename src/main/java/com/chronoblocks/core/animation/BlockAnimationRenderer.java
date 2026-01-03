@@ -16,7 +16,6 @@ import com.mojang.blaze3d.opengl.GlStateManager;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.lwjgl.opengl.GL11;
 
 import java.util.Collection;
 
@@ -319,11 +318,6 @@ public class BlockAnimationRenderer {
         }
 
         try {
-            if (alpha < 0.999f) {
-                GlStateManager._enableBlend();
-                GlStateManager._blendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
-            }
-
             GlStateManager._depthMask(depthWrite);
 
             // ✅ biome tint 修复（草/树叶等）：renderBlockAsEntity 会调用 BlockColors#getColor，
@@ -347,9 +341,6 @@ public class BlockAnimationRenderer {
             LOGGER.error("渲染方块失败: {}", e.getMessage(), e);
         } finally {
             GlStateManager._depthMask(true);
-            if (alpha < 0.999f) {
-                GlStateManager._disableBlend();
-            }
         }
     }
 
