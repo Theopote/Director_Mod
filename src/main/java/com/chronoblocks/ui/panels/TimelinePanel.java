@@ -25,6 +25,7 @@ import com.chronoblocks.ui.timeline.shortcuts.TimelineShortcutManager;
 import com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController;
 import com.chronoblocks.ui.timeline.playback.time.TimelineWorldController;
 import com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController;
+import com.chronoblocks.ui.input.GlobalShortcutManager;
 import com.chronoblocks.ui.theme.UITheme;
 import net.minecraft.client.MinecraftClient;
 import imgui.ImGui;
@@ -34,9 +35,11 @@ import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiWindowFlags;
 import imgui.flag.ImGuiInputTextFlags;
+import imgui.flag.ImGuiFocusedFlags;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.Objects;
 import java.util.UUID;
@@ -101,6 +104,7 @@ public class TimelinePanel extends AbstractPanel
     private final TimelineInteractionHandler interactionHandler;
     private final TimelineControlBar controlBar;
     private final TimelineShortcutManager shortcutManager;
+    private boolean globalTimelineShortcutsActive = false;
 
     // ========== 新的拆分组件 (Controllers/Handlers) ==========
     private final TimelineDragAndDropHandler dragDropHandler;
@@ -234,6 +238,67 @@ public class TimelinePanel extends AbstractPanel
                     }
                 }
         );
+
+        // ✅ 全局快捷键（GLFW）兜底：避免 ImGui KeyState/回调异常时，时间线快捷键完全不可用
+        registerGlobalTimelineShortcuts();
+    }
+
+    private void registerGlobalTimelineShortcuts() {
+        GlobalShortcutManager manager = GlobalShortcutManager.getInstance();
+
+        manager.registerCtrlGLFW(
+                "timeline.undo.glfw",
+                "时间线：撤销",
+                GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
+                200,
+                GLFW.GLFW_KEY_Z,
+                () -> commandHistory.undo()
+        );
+        manager.registerCtrlGLFW(
+                "timeline.redo.glfw",
+                "时间线：重做",
+                GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
+                200,
+                GLFW.GLFW_KEY_Y,
+                () -> commandHistory.redo()
+        );
+
+        // Delete：注册多个变体，允许用户仍按住 Ctrl/Shift/Alt 时也能删除（多选习惯）
+        manager.registerKeyGLFW(
+                "timeline.delete.glfw",
+                "时间线：删除选中",
+                GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
+                200,
+                GLFW.GLFW_KEY_DELETE,
+                this::deleteSelectedClip
+        );
+        manager.registerGLFW(
+                "timeline.delete.ctrl.glfw",
+                "时间线：删除选中（Ctrl+Del）",
+                GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
+                200,
+                GLFW.GLFW_KEY_DELETE,
+                true, false, false,
+                this::deleteSelectedClip
+        );
+        manager.registerGLFW(
+                "timeline.delete.shift.glfw",
+                "时间线：删除选中（Shift+Del）",
+                GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
+                200,
+                GLFW.GLFW_KEY_DELETE,
+                false, true, false,
+                this::deleteSelectedClip
+        );
+        manager.registerGLFW(
+                "timeline.delete.alt.glfw",
+                "时间线：删除选中（Alt+Del）",
+                GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
+                200,
+                GLFW.GLFW_KEY_DELETE,
+                false, false, true,
+                this::deleteSelectedClip
+        );
     }
 
     @Override
@@ -292,6 +357,16 @@ public class TimelinePanel extends AbstractPanel
 
     @Override
     protected void doRender() {
+        // ✅ 只有时间线面板聚焦时才启用时间线快捷键上下文，避免影响其他面板输入
+        boolean focused = ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
+        if (focused != globalTimelineShortcutsActive) {
+            globalTimelineShortcutsActive = focused;
+            GlobalShortcutManager.getInstance().setContextEnabled(
+                    GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
+                    globalTimelineShortcutsActive
+            );
+        }
+
         // 1. 更新播放状态（每帧调用）
         updatePlayback();
 

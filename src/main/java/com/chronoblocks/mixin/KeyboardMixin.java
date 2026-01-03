@@ -37,6 +37,17 @@ public class KeyboardMixin {
 
         // 如果ChronoBlocks窗口激活且应该捕获键盘
         if (focusManager.shouldCaptureKeyboard()) {
+            // ✅ 即使拦截了 Minecraft 的键盘事件，也要让 ChronoBlocks 的快捷键系统能收到（否则会出现“所有快捷键都失效”）
+            try {
+                var mgr = com.chronoblocks.ui.input.GlobalShortcutManager.getInstance();
+                int keyCode = input.key();
+                int mods = input.modifiers();
+                boolean ctrl = (mods & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL) != 0;
+                boolean shift = (mods & org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT) != 0;
+                boolean alt = (mods & org.lwjgl.glfw.GLFW.GLFW_MOD_ALT) != 0;
+                mgr.handleGLFWInput(keyCode, ctrl, shift, alt);
+            } catch (Exception ignored) {}
+
             if (DEBUG) {
                 LOGGER.debug("[KeyboardMixin] 拦截键盘事件: key={}, scancode={}, mods={} (阻止游戏处理，ImGui通过GLFW回调接收)",
                         input.key(), input.scancode(), input.modifiers());
