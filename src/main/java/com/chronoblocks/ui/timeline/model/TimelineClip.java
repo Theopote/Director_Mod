@@ -160,6 +160,26 @@ public class TimelineClip {
     // ========== 关键帧管理 (基于 TreeSet 优化) ==========
 
     /**
+     * 将 legacy 的 Float keyframes 同步为 ClipKeyframe 对象（只做一次）。
+     * <p>
+     * 说明：历史代码仍可能通过 {@link #addKeyframe(float)} 写入 TreeSet<Float>，
+     * 但交互系统（点击/框选/右键菜单/属性面板）需要稳定的对象（ClipKeyframe）来做 selection/undo/redo。
+     */
+    private void ensureClipKeyframesFromLegacy() {
+        if (!clipKeyframes.isEmpty()) {
+            return;
+        }
+        if (keyframes.isEmpty()) {
+            return;
+        }
+        for (Float t : keyframes) {
+            if (t == null) continue;
+            clipKeyframes.add(new com.chronoblocks.ui.timeline.model.clip.ClipKeyframe(t));
+        }
+        clipKeyframes.sort(java.util.Comparator.comparing(com.chronoblocks.ui.timeline.model.clip.ClipKeyframe::getTime));
+    }
+
+    /**
      * 添加一个关键帧。操作是 O(log n) 复杂度。
      * @param time 关键帧的时间点
      */
@@ -167,6 +187,20 @@ public class TimelineClip {
         // 确保关键帧在片段范围内
         if (containsTime(time)) {
             keyframes.add(time);
+            // 同步到对象关键帧列表，保证 selection 可用
+            ensureClipKeyframesFromLegacy();
+            final float EPS = 0.0001f;
+            boolean exists = false;
+            for (com.chronoblocks.ui.timeline.model.clip.ClipKeyframe kf : clipKeyframes) {
+                if (kf != null && Math.abs(kf.getTime() - time) <= EPS) {
+                    exists = true;
+                    break;
+                }
+            }
+            if (!exists) {
+                clipKeyframes.add(new com.chronoblocks.ui.timeline.model.clip.ClipKeyframe(time));
+                clipKeyframes.sort(java.util.Comparator.comparing(com.chronoblocks.ui.timeline.model.clip.ClipKeyframe::getTime));
+            }
         }
     }
     
@@ -214,7 +248,14 @@ public class TimelineClip {
      * @return 如果成功移除返回 true
      */
     public boolean removeKeyframe(float time) {
-        return keyframes.remove(time);
+        boolean removed = keyframes.remove(time);
+        // 同步删除对象关键帧（按时间近似匹配）
+        if (removed) {
+            ensureClipKeyframesFromLegacy();
+            final float EPS = 0.0001f;
+            clipKeyframes.removeIf(kf -> kf != null && Math.abs(kf.getTime() - time) <= EPS);
+        }
+        return removed;
     }
 
     /**
@@ -247,6 +288,7 @@ public class TimelineClip {
 
     public void clearKeyframes() {
         keyframes.clear();
+        clipKeyframes.clear();
     }
 
     /**
@@ -333,6 +375,7 @@ public class TimelineClip {
      * @return 关键帧对象列表（按时间排序）
      */
     public java.util.List<com.chronoblocks.ui.timeline.model.clip.ClipKeyframe> getClipKeyframes() {
+        ensureClipKeyframesFromLegacy();
         return java.util.Collections.unmodifiableList(clipKeyframes);
     }
 
@@ -369,6 +412,7 @@ public class TimelineClip {
      * @return 找到的关键帧对象，否则返回 null
      */
     public com.chronoblocks.ui.timeline.model.clip.ClipKeyframe findKeyframeAt(float time, float epsilon) {
+        ensureClipKeyframesFromLegacy();
         for (com.chronoblocks.ui.timeline.model.clip.ClipKeyframe kf : clipKeyframes) {
             if (Math.abs(kf.getTime() - time) <= epsilon) {
                 return kf;

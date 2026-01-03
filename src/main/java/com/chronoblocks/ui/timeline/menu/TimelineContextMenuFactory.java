@@ -182,10 +182,19 @@ public class TimelineContextMenuFactory {
 
         TimelineInterpolation interp = clipKeyframe.getInterpolation();
 
-        return TimelineContextMenuBuilder
+        TimelineContextMenuBuilder builder = TimelineContextMenuBuilder
                 .forKeyframe(commandHistory)
                 .disabledItem(String.format("关键帧 @ %.3fs", clipKeyframe.getTime()))
                 .separator()
+                // 多选：删除选中（工具栏 Delete/Del 键同一入口）
+                .item("删除选中",
+                        () -> {
+                            if (panel != null) {
+                                panel.onDeleteSelectedClicked();
+                            }
+                        },
+                        "Del",
+                        panel != null && model.getSelectedCount() > 1)
                 // 删除关键帧
                 .command("删除关键帧",
                         new com.chronoblocks.ui.timeline.commands.RemoveClipKeyframeCommand(model, track, clip, clipKeyframe),
@@ -223,7 +232,9 @@ public class TimelineContextMenuFactory {
                         new com.chronoblocks.ui.timeline.commands.ChangeClipKeyframeInterpolationCommand(
                             model, track, clip, clipKeyframe, TimelineInterpolation.LINEAR
                         ))
-                .build();  // ⭐⭐ 修复：使用 build() 而不是 open()，由 openContextMenuForHit 统一打开
+                ;
+
+        return builder.build();  // ⭐⭐ 修复：使用 build() 而不是 open()，由 openContextMenuForHit 统一打开
     }
     
     /**
@@ -294,6 +305,14 @@ public class TimelineContextMenuFactory {
             }
 
             builder.separator()
+                    .item("删除选中",
+                            () -> {
+                                if (panel != null) {
+                                    panel.onDeleteSelectedClicked();
+                                }
+                            },
+                            "Del",
+                            panel != null && model.getSelectedCount() > 1)
                     .command("删除音频事件",
                             new com.chronoblocks.ui.timeline.commands.RemoveAutomationKeyframeCommand(model, track, audioEvent),
                             "Del");

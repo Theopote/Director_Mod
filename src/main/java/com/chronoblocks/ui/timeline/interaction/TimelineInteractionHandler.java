@@ -504,6 +504,7 @@ public class TimelineInteractionHandler {
         float pps = model.getPixelsPerSecond();
         float scrollX = model.getScrollX();
         float rowHeight = TimelineRenderer.getTrackHeight() + TimelineRenderer.getTrackGap();
+        float r = TimelineRenderer.getKeyframeHitRadius();
 
         int startIdx = renderer.yToTrackIndex(y1 - trackAreaTop, scrollY);
         int endIdx = renderer.yToTrackIndex(y2 - trackAreaTop, scrollY);
@@ -526,7 +527,8 @@ public class TimelineInteractionHandler {
 
             float trackTop = trackAreaTop + (idx * rowHeight - scrollY);
             float centerY = trackTop + (TimelineRenderer.getTrackHeight() / 2.0f);
-            if (centerY < y1 || centerY > y2) {
+            // 用“矩形与关键帧点的半径范围相交”判断，避免用户框选没覆盖到中心线就选不中
+            if (centerY < (y1 - r) || centerY > (y2 + r)) {
                 continue;
             }
 
@@ -540,7 +542,7 @@ public class TimelineInteractionHandler {
                     for (com.chronoblocks.ui.timeline.model.clip.ClipKeyframe kf : kfs) {
                         if (kf == null) continue;
                         float kx = contentX + (kf.getTime() * pps) - scrollX;
-                        if (kx >= x1 && kx <= x2) {
+                        if (kx >= (x1 - r) && kx <= (x2 + r)) {
                             selected.add(kf);
                         }
                     }
@@ -552,7 +554,7 @@ public class TimelineInteractionHandler {
                 for (TimelineSelectable kf : track.getAutomationKeyframes()) {
                     if (kf == null) continue;
                     float kx = contentX + (kf.getStartTime() * pps) - scrollX;
-                    if (kx >= x1 && kx <= x2) {
+                    if (kx >= (x1 - r) && kx <= (x2 + r)) {
                         selected.add(kf);
                     }
                 }
