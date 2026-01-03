@@ -255,7 +255,7 @@ public class BlockAnimationRenderer {
         applyAnimationTransformFromSnapshot(matrices, snapshot);
 
         // 5.3 渲染方块（带 alpha 和深度控制）
-        renderBlockWithAlphaAndDepth(matrices, provider, state, finalAlpha, depthWrite);
+        renderBlockWithAlphaAndDepth(matrices, provider, world, pos, state, finalAlpha, depthWrite);
 
         matrices.pop();
     }
@@ -307,6 +307,8 @@ public class BlockAnimationRenderer {
     private static void renderBlockWithAlphaAndDepth(
             @NotNull MatrixStack matrices,
             @NotNull VertexConsumerProvider provider,
+            @NotNull ClientWorld world,
+            @NotNull BlockPos pos,
             @NotNull BlockState state,
             float alpha,
             boolean depthWrite
@@ -324,15 +326,22 @@ public class BlockAnimationRenderer {
 
             GlStateManager._depthMask(depthWrite);
 
-            // 1.21.10+：使用 BlockRenderManager#renderBlockAsEntity（避免底层 model renderer 签名变化）
-            // 这里使用 MAX_LIGHT_COORDINATE 作为默认亮度（动画预览/覆盖层用途）
-            manager.renderBlockAsEntity(
-                    state,
-                    matrices,
-                    provider,
-                    LightmapTextureManager.MAX_LIGHT_COORDINATE,
-                    OverlayTexture.DEFAULT_UV
-            );
+            // ✅ biome tint 修复（草/树叶等）：renderBlockAsEntity 会调用 BlockColors#getColor，
+            // 但其 world/pos 可能为 null，导致使用默认颜色（看起来偏深/偏灰）。
+            // 我们用 ThreadLocal 暂存 world+pos，让 BlockColorsMixin 在 world/pos 为空时回退到这里的上下文。
+            com.chronoblocks.client.renderer.BlockColorRenderContext.push(world, pos);
+            try {
+                // 1.21.10+：使用 BlockRenderManager#renderBlockAsEntity（避免底层 model renderer 签名变化）
+                manager.renderBlockAsEntity(
+                        state,
+                        matrices,
+                        provider,
+                        LightmapTextureManager.MAX_LIGHT_COORDINATE,
+                        OverlayTexture.DEFAULT_UV
+                );
+            } finally {
+                com.chronoblocks.client.renderer.BlockColorRenderContext.pop();
+            }
 
         } catch (Exception e) {
             LOGGER.error("渲染方块失败: {}", e.getMessage(), e);
