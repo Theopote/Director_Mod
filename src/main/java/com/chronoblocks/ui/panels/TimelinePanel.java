@@ -252,7 +252,7 @@ public class TimelinePanel extends AbstractPanel
                 GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
                 200,
                 GLFW.GLFW_KEY_Z,
-                () -> commandHistory.undo()
+                commandHistory::undo
         );
         manager.registerCtrlGLFW(
                 "timeline.redo.glfw",
@@ -260,7 +260,7 @@ public class TimelinePanel extends AbstractPanel
                 GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
                 200,
                 GLFW.GLFW_KEY_Y,
-                () -> commandHistory.redo()
+                commandHistory::redo
         );
 
         // Delete：注册多个变体，允许用户仍按住 Ctrl/Shift/Alt 时也能删除（多选习惯）
