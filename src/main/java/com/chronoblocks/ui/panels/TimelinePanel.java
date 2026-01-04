@@ -391,6 +391,9 @@ public class TimelinePanel extends AbstractPanel
         
         // ⭐ 天气粒子控制器：每帧持续生成雨雪粒子（修复只出现一瞬间的问题）
         com.chronoblocks.ui.timeline.playback.weather.WeatherParticleController.getInstance().tick();
+        
+        // ⭐ v1.1 架构：天气事件子系统（雷暴、闪电、声音）- 每帧调用
+        com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController.getInstance().tickEvents(model.getCurrentTime());
 
         // 3. 处理快捷键
         shortcutManager.handle();

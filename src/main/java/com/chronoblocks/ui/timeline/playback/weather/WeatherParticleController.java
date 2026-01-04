@@ -3,233 +3,221 @@ package com.chronoblocks.ui.timeline.playback.weather;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.particle.ParticleTypes;
-import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.Heightmap;
 
 import java.util.Random;
 
 /**
- * WeatherParticleController v1.0
- * -----------------------------------------
- * ChronoBlocks 天气轨道：雨滴/雪花粒子生成控制器
- *
- * <p>核心能力：
- * <ul>
- *   <li>禁用原版随机雨雪粒子（通过 Mixin 实现）</li>
- *   <li>根据 WeatherSample 控制粒子数量（雨量、雪量）</li>
- *   <li>根据风力为粒子添加水平速度</li>
- *   <li>根据雷暴强度增加雨滴密度</li>
- *   <li>自动限制粒子数量避免卡顿</li>
- * </ul>
- *
- * <p>高度轻量，tick 驱动，无阻塞
- *
- * @author ChronoBlocks Team
- * @version 1.0
+ * WeatherParticleController v1.2
+ * ------------------------------------------------------------
+ * 目标：
+ * 1) 雨/雪强度变化"肉眼明显"
+ * 2) 生成高度更高（结合 Heightmap），更像从天空落下并能落地
+ * 3) 风有方向且可见（降水偏斜）
+ * 4) 发射率按"每秒粒子数"驱动，避免 FPS/每帧调用导致的密度漂移
  */
 public class WeatherParticleController {
 
-    // --------- Singleton ---------
     private static final WeatherParticleController INSTANCE = new WeatherParticleController();
-    
-    public static WeatherParticleController getInstance() { 
-        return INSTANCE; 
+
+    public static WeatherParticleController getInstance() {
+        return INSTANCE;
     }
 
     private WeatherParticleController() {}
 
-    // --------- Configurable Limits ---------
-    /** 屏幕可见区域的最大雨滴数量（增大以支持更强的雨量） */
-    private static final int MAX_RAIN_PARTICLES = 800;
+    // ---------------- Config ----------------
 
-    /** 最大雪花粒子数量（比雨大一些） */
-    private static final int MAX_SNOW_PARTICLES = 500;
+    /** 以"每秒"为单位的最大雨滴发射率（强度=1） */
+    private static final float MAX_RAIN_PPS = 4200f;
+
+    /** 最大雪花发射率（强度=1） */
+    private static final float MAX_SNOW_PPS = 2400f;
+
+    /** 粒子生成半径（格） */
+    private static final int BASE_RADIUS_RAIN = 42;
+    private static final int BASE_RADIUS_SNOW = 48;
+
+    /** 至少高于摄像机/玩家多少格开始生成（避免贴脸） */
+    private static final int MIN_ABOVE_CAMERA_RAIN = 26;
+    private static final int MIN_ABOVE_CAMERA_SNOW = 22;
+
+    /** 在地形顶部再抬高多少格，确保"从天落下"的感觉 */
+    private static final int ABOVE_SURFACE_PADDING = 14;
+
+    /** 每 tick 允许生成的最大粒子数（硬限，防止卡顿） */
+    private static final int HARD_CAP_PER_TICK = 900;
+
+    /** 雨下落速度范围 */
+    private static final float RAIN_FALL_MIN = 0.9f;
+    private static final float RAIN_FALL_MAX = 1.4f;
+
+    /** 雪下落速度范围 */
+    private static final float SNOW_FALL_MIN = 0.12f;
+    private static final float SNOW_FALL_MAX = 0.22f;
+
+    /** 风对水平速度的放大（可见性关键） */
+    private static final float WIND_HORIZONTAL_SCALE_RAIN = 0.55f;
+    private static final float WIND_HORIZONTAL_SCALE_SNOW = 0.85f;
+
+    // ---------------- State ----------------
 
     private final Random random = new Random();
 
-    /** 当前是否启用天气粒子系统 */
     private boolean enabled = true;
+    private WeatherSample currentSample;
 
-    /**
-     * 设置是否启用粒子系统。
-     */
-    public void setEnabled(boolean v) { 
-        this.enabled = v; 
+    /** 发射率累加器（以粒子数为单位） */
+    private float rainAcc = 0f;
+    private float snowAcc = 0f;
+
+    public void setEnabled(boolean v) {
+        this.enabled = v;
     }
 
-    /**
-     * 检查是否启用。
-     */
     public boolean isEnabled() {
         return enabled;
     }
 
-    // ============================================================
-    // 主入口：每 tick 调用一次（TimelineWeatherController -> update()）
-    // ============================================================
-    
-    /** 当前天气采样（缓存，供每tick使用） */
-    private WeatherSample currentSample = null;
-    
-    /**
-     * 更新当前天气采样（由 TimelineWeatherController 调用）。
-     * 这个方法只更新缓存，不生成粒子。
-     */
     public void updateSample(WeatherSample sample) {
         this.currentSample = sample;
     }
-    
+
     /**
-     * 每 tick 调用，持续生成粒子。
-     * 由 TimelinePanel 在 doRender() 中每帧调用。
+     * 每 tick 调用一次（建议挂到 ClientTickEvents.END_CLIENT_TICK）。
      */
     public void tick() {
-        if (!enabled || currentSample == null || !currentSample.enabled) {
-            return;
-        }
+        if (!enabled || currentSample == null || !currentSample.enabled) return;
 
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.world == null || client.player == null) {
-            return;
-        }
+        if (client == null || client.world == null || client.player == null) return;
 
         ClientWorld world = client.world;
-        Vec3d playerPos = client.player.getEntityPos();
+        Vec3d camPos = client.player.getCameraPosVec(1.0f);
 
-        // 计算与天气强度相关的生成数量
-        float rainIntensity = currentSample.rainIntensity;
-        float snowIntensity = currentSample.snowIntensity;
-        float thunderBoost = currentSample.thunderIntensity * 0.6f;
+        // 强度
+        float rainI = clamp01(currentSample.rainIntensity);
+        float snowI = clamp01(currentSample.snowIntensity);
 
-        // 最终雨滴强度（雷暴时增强）
-        float finalRainIntensity = Math.min(1f, rainIntensity + thunderBoost);
+        // 雷暴增强雨幕（让 storm 的"雨更大"直观）
+        float thunderBoost = clamp01(currentSample.thunderIntensity) * 0.65f;
+        float finalRainI = clamp01(rainI + thunderBoost);
 
-        // 每 tick 生成粒子数量（动态）
-        int targetRain = (int) (MAX_RAIN_PARTICLES * finalRainIntensity);
-        int targetSnow = (int) (MAX_SNOW_PARTICLES * snowIntensity);
+        // 发射率（每秒粒子数）
+        float rainPps = MAX_RAIN_PPS * finalRainI;
+        float snowPps = MAX_SNOW_PPS * snowI;
 
-        spawnRain(world, playerPos, targetRain, currentSample);
-        spawnSnow(world, playerPos, targetSnow, currentSample);
-    }
-    
-    /**
-     * 根据 WeatherSample 更新粒子生成（向后兼容方法）。
-     * 
-     * <p>由 TimelineWeatherController 在 applyToWorld() 中调用。
-     * 现在只更新缓存，实际粒子生成由 tick() 方法每帧执行。
-     * 
-     * @param sample 当前天气采样
-     */
-    public void updateParticles(WeatherSample sample) {
-        updateSample(sample);
-    }
+        // accumulator：每 tick（20Hz）增加 pps/20
+        rainAcc += rainPps / 20f;
+        snowAcc += snowPps / 20f;
 
-    // ============================================================
-    // 雨粒子生成
-    // ============================================================
-    
-    /**
-     * 生成雨滴粒子。
-     * 
-     * @param world 客户端世界
-     * @param playerPos 玩家位置
-     * @param count 目标粒子数量
-     * @param sample 天气采样
-     */
-    private void spawnRain(ClientWorld world, Vec3d playerPos, int count, WeatherSample sample) {
-        if (count <= 0) {
-            return;
+        int rainToSpawn = (int) rainAcc;
+        int snowToSpawn = (int) snowAcc;
+
+        if (rainToSpawn > 0) rainAcc -= rainToSpawn;
+        if (snowToSpawn > 0) snowAcc -= snowToSpawn;
+
+        int total = rainToSpawn + snowToSpawn;
+        if (total <= 0) return;
+
+        // 硬限：避免强度过高时瞬间爆量
+        if (total > HARD_CAP_PER_TICK) {
+            float scale = (float) HARD_CAP_PER_TICK / (float) total;
+            rainToSpawn = Math.max(0, (int) (rainToSpawn * scale));
+            snowToSpawn = Math.max(0, (int) (snowToSpawn * scale));
         }
 
-        float wind = sample.windStrength;
-        // 风力影响：强风时粒子会有水平偏移（增强风力效果）
-        float windX = (random.nextFloat() - 0.5f) * 1.5f * wind;
-        float windZ = (random.nextFloat() - 0.5f) * 1.5f * wind;
+        if (rainToSpawn > 0) spawnRain(world, camPos, rainToSpawn, currentSample);
+        if (snowToSpawn > 0) spawnSnow(world, camPos, snowToSpawn, currentSample);
+    }
 
-        // 生成范围（半径）- 增大范围，避免看起来像一圈实体
-        int radius = 32;
+    // ---------------- Spawn ----------------
 
+    private void spawnRain(ClientWorld world, Vec3d camPos, int count, WeatherSample sample) {
+        if (count <= 0) return;
+
+        // 风方向：用时间做一个缓慢旋转 + 小噪声（你后续可以替换为 keyframe windDir）
+        float wind = clamp01(sample.windStrength);
+        Vec3d windVec = computeWindVector(world.getTime(), wind);
+
+        int radius = BASE_RADIUS_RAIN;
         for (int i = 0; i < count; i++) {
-            double x = playerPos.x + randomSpread(radius);
-            double y = playerPos.y + 8 + random.nextDouble() * 3; // 从头顶高处落下
-            double z = playerPos.z + randomSpread(radius);
+            double x = camPos.x + spread(radius);
+            double z = camPos.z + spread(radius);
 
-            BlockPos pos = BlockPos.ofFloored(x, y, z);
-            // 简单检查：如果位置太低（在基岩层以下），跳过
-            if (pos.getY() < -64) {
-                continue;
-            }
+            int topY = world.getTopY(Heightmap.Type.MOTION_BLOCKING, MathHelper.floor(x), MathHelper.floor(z));
+            double yFromSurface = topY + ABOVE_SURFACE_PADDING + random.nextDouble() * 18.0;
+            double yFromCamera = camPos.y + MIN_ABOVE_CAMERA_RAIN + random.nextDouble() * 10.0;
+            double y = Math.max(yFromSurface, yFromCamera);
 
-            world.addParticleClient(
-                    ParticleTypes.RAIN,
-                    x, y, z,
-                    windX,
-                    -0.7 - random.nextDouble() * 0.3, // 雨滴下落速度
-                    windZ
-            );
+            // 垂直速度：下落更快更像雨
+            double vy = -(RAIN_FALL_MIN + random.nextDouble() * (RAIN_FALL_MAX - RAIN_FALL_MIN));
+
+            // 水平速度：风主导 + 少量抖动
+            double vx = windVec.x + (random.nextDouble() - 0.5) * 0.08;
+            double vz = windVec.z + (random.nextDouble() - 0.5) * 0.08;
+
+            world.addParticleClient(ParticleTypes.RAIN, x, y, z, vx, vy, vz);
         }
     }
 
-    // ============================================================
-    // 雪粒子生成（更大、更轻、更受风力影响）
-    // ============================================================
-    
-    /**
-     * 生成雪花粒子。
-     * 
-     * <p>雪花比雨滴更大、更轻、更受风力影响，下落速度更慢。
-     * 
-     * @param world 客户端世界
-     * @param playerPos 玩家位置
-     * @param count 目标粒子数量
-     * @param sample 天气采样
-     */
-    private void spawnSnow(ClientWorld world, Vec3d playerPos, int count, WeatherSample sample) {
-        if (count <= 0) {
-            return;
-        }
+    private void spawnSnow(ClientWorld world, Vec3d camPos, int count, WeatherSample sample) {
+        if (count <= 0) return;
 
-        float wind = sample.windStrength;
-        // 雪花更受风力影响（水平偏移更大，增强风力效果）
-        float windX = (random.nextFloat() - 0.5f) * 0.8f * wind;
-        float windZ = (random.nextFloat() - 0.5f) * 0.8f * wind;
+        float wind = clamp01(sample.windStrength);
+        Vec3d windVec = computeWindVector(world.getTime() + 200, wind); // 稍微错相位
 
-        // 雪花生成范围稍大一些 - 增大范围，避免看起来像一圈实体
-        int radius = 36;
-
+        int radius = BASE_RADIUS_SNOW;
         for (int i = 0; i < count; i++) {
-            double x = playerPos.x + randomSpread(radius);
-            double y = playerPos.y + 8 + random.nextDouble() * 3;
-            double z = playerPos.z + randomSpread(radius);
+            double x = camPos.x + spread(radius);
+            double z = camPos.z + spread(radius);
 
-            BlockPos pos = BlockPos.ofFloored(x, y, z);
-            // 简单检查：如果位置太低（在基岩层以下），跳过
-            if (pos.getY() < -64) {
-                continue;
-            }
+            int topY = world.getTopY(Heightmap.Type.MOTION_BLOCKING, MathHelper.floor(x), MathHelper.floor(z));
+            double yFromSurface = topY + (ABOVE_SURFACE_PADDING + 6) + random.nextDouble() * 14.0;
+            double yFromCamera = camPos.y + MIN_ABOVE_CAMERA_SNOW + random.nextDouble() * 10.0;
+            computeWindVector(world.getTime() + 200, wind); // 稍微错相位
+            double y = Math.max(yFromSurface, yFromCamera);
 
-            world.addParticleClient(
-                    ParticleTypes.SNOWFLAKE,
-                    x, y, z,
-                    windX,
-                    -0.5 - random.nextDouble() * 0.3, // 雪花下落速度加快，确保能落地
-                    windZ
-            );
+            // 雪更慢、更飘
+            double vy = -(SNOW_FALL_MIN + random.nextDouble() * (SNOW_FALL_MAX - SNOW_FALL_MIN));
+
+            // 风更明显
+            double vx = windVec.x + (random.nextDouble() - 0.5) * 0.04;
+            double vz = windVec.z + (random.nextDouble() - 0.5) * 0.04;
+
+            world.addParticleClient(ParticleTypes.SNOWFLAKE, x, y, z, vx, vy, vz);
         }
     }
 
-    // ============================================================
-    // 工具方法
-    // ============================================================
-    
-    /**
-     * 生成半径范围内的随机偏移。
-     * 
-     * @param radius 半径
-     * @return 随机偏移值
-     */
-    private double randomSpread(int radius) {
-        return (random.nextDouble() - 0.5) * radius * 2;
+    // ---------------- Wind model ----------------
+
+    private Vec3d computeWindVector(long worldTime, float windStrength01) {
+        if (windStrength01 <= 0.001f) return Vec3d.ZERO;
+
+        // 方向随时间缓慢变化（你后续可以用 keyframe 固定 direction）
+        double t = worldTime * 0.015;
+        double angle = t * 0.35 + Math.sin(t * 0.17) * 0.6;
+
+        double dirX = Math.cos(angle);
+        double dirZ = Math.sin(angle);
+
+        // 速度大小（关键：让肉眼看得见）
+        double speedRain = windStrength01 * WIND_HORIZONTAL_SCALE_RAIN;
+        return new Vec3d(dirX * speedRain, 0.0, dirZ * speedRain);
+    }
+
+    // ---------------- Utils ----------------
+
+    private double spread(int radius) {
+        // 使用近远混合：大多数点较近，少数点更远，视觉更自然
+        double u = random.nextDouble();
+        double r = (u < 0.75) ? (radius * 0.55) : radius;
+        return (random.nextDouble() - 0.5) * 2.0 * r;
+    }
+
+    private static float clamp01(float v) {
+        return Math.max(0f, Math.min(1f, v));
     }
 }
-

@@ -224,11 +224,18 @@ public final class TimelineWeatherController {
     // ==========================================================
 
     /**
-     * 时间线播放 / 拖动时调用，传入当前时间，刷新天气状态。
+     * ⭐ v1.1 重构：时间线播放 / 拖动时调用，传入当前时间，刷新天气状态。
      * <p>
      * 一般由 TimelinePanel / 播放控制中心 调用：
      *  - 播放时每 tick 调用
      *  - 拖动时间尺 / Scrubbing 时调用
+     * 
+     * <p>架构：
+     * <ul>
+     *   <li>采样 WeatherSample</li>
+     *   <li>分发到各个子系统（粒子、雾、天空）</li>
+     *   <li>事件子系统使用 tickEvents() 方法，需要在每 tick 循环中单独调用</li>
+     * </ul>
      */
     public void updateForPlayback(float timelineTimeSeconds) {
         if (!enabled || activeTrack == null || sampler == null) {
@@ -242,8 +249,36 @@ public final class TimelineWeatherController {
         this.currentSample = sample;
         this.hasOverride = true;
 
-        // 应用到世界（雨/雷等即时效果）
+        // ✅ 关键：驱动雷暴事件（闪白 + 雷声 + 粒子）- 必须在 applyToWorld 之前调用
+        // 这样同一 tick 的天空亮度 Mixin 能读到 flashBrightness
+        try {
+            WeatherEventController.getInstance().tick(sample, timelineTimeSeconds);
+        } catch (Exception e) {
+            LOGGER.debug("[WeatherController] WeatherEventController tick failed", e);
+        }
+
+        // 分发到各个子系统
         applyToWorld(sample);
+    }
+    
+    /**
+     * ⭐ v1.1 新增：每 tick 调用事件子系统。
+     * 
+     * <p>事件子系统（雷暴、闪电、声音）需要在每 tick 调用，而不是仅在采样时调用。
+     * 此方法应该由 TimelinePanel 的每 tick 循环调用。
+     * 
+     * @param timelineTimeSeconds 时间线时间（秒）
+     */
+    public void tickEvents(float timelineTimeSeconds) {
+        if (!enabled || !hasOverride || currentSample == null) {
+            return;
+        }
+        
+        try {
+            WeatherEventController.getInstance().tick(currentSample, timelineTimeSeconds);
+        } catch (Exception e) {
+            LOGGER.debug("[WeatherController] 无法更新事件子系统", e);
+        }
     }
 
     /**
@@ -297,6 +332,20 @@ public final class TimelineWeatherController {
     // 将 WeatherSample 应用到 Minecraft 世界
     // ==========================================================
 
+    /**
+     * ⭐ v1.1 重构：将 WeatherSample 分发到各个天气子系统。
+     * 
+     * <p>架构设计：
+     * <ul>
+     *   <li>1️⃣ WeatherParticleController - 粒子层（雨/雪粒子）</li>
+     *   <li>2️⃣ WeatherFogController - 雾控制（指数雾、雾密度）</li>
+     *   <li>3️⃣ WeatherSkyController - 天空/光照（天空亮度、云层）</li>
+     *   <li>4️⃣ WeatherEventController - 事件（雷暴、闪电、声音）</li>
+     * </ul>
+     * 
+     * <p>注意：雨/雷的梯度（WorldMixin）和雾/天空（Mixin）通过直接读取 getCurrentSample() 实现，
+     * 这里只需要确保 currentSample 保持最新。
+     */
     private void applyToWorld(WeatherSample sample) {
         if (sample == null || !sample.enabled) {
             return;
@@ -312,23 +361,7 @@ public final class TimelineWeatherController {
         }
 
         // -------------------------------
-        // 1) 雨 / 雪 / 雷暴：通过 WorldMixin 注入
-        // -------------------------------
-        // 注意：world.setRainGradient() 和 world.setThunderGradient() 方法不存在，
-        // 这些应该通过 WorldMixin 来覆盖 getRainGradient() 和 getThunderGradient() 方法。
-        // 这里只需要确保 currentSample 保持最新，Mixin 会自动读取。
-
-        // -------------------------------
-        // 2) 通知 WeatherRenderer 更新
-        // -------------------------------
-        try {
-            com.chronoblocks.client.renderer.weather.WeatherRenderer.get().onWeatherSampleUpdated(sample);
-        } catch (Exception e) {
-            LOGGER.debug("[WeatherController] 无法更新 WeatherRenderer", e);
-        }
-
-        // -------------------------------
-        // 3) 更新天气粒子（雨滴/雪花）- 只更新采样，实际生成由每tick调用
+        // 1️⃣ 粒子子系统：雨/雪粒子生成
         // -------------------------------
         try {
             WeatherParticleController.getInstance().updateSample(sample);
@@ -337,15 +370,44 @@ public final class TimelineWeatherController {
         }
 
         // -------------------------------
-        // 4) 云量 / 雾密度 / 湿度 / 风力
+        // 2️⃣ 雾子系统：指数雾、雾密度、雾颜色
         // -------------------------------
-        // 这部分通常不在这里直接操作，而是：
-        //   - 在 SkyRendererMixin / BackgroundRendererMixin 中
-        //     读取 TimelineWeatherController.getInstance().getCurrentSample()
-        //   - 根据 sample.cloudCoverage / fogDensity / wetness / windStrength
-        //     调整云层透明度、雾距离、粒子数量等。
-        //
-        // 因此，这里必须保证 currentSample 始终保持最新即可。
+        try {
+            WeatherFogController.getInstance().apply(sample);
+        } catch (Exception e) {
+            LOGGER.debug("[WeatherController] 无法应用雾控制", e);
+        }
+
+        // -------------------------------
+        // 3️⃣ 天空子系统：天空亮度、云层
+        // -------------------------------
+        try {
+            WeatherSkyController.getInstance().apply(sample);
+        } catch (Exception e) {
+            LOGGER.debug("[WeatherController] 无法应用天空控制", e);
+        }
+
+        // -------------------------------
+        // 4️⃣ 事件子系统：雷暴、闪电、声音
+        // -------------------------------
+        // 注意：事件子系统使用 tick() 方法，需要在每 tick 调用（而不是这里）
+        // 这里只做初始化，实际事件逻辑在 TimelinePanel 的每 tick 循环中调用
+
+        // -------------------------------
+        // 5) 向后兼容：通知 WeatherRenderer 更新（未来可能迁移到事件子系统）
+        // -------------------------------
+        try {
+            com.chronoblocks.client.renderer.weather.WeatherRenderer.get().onWeatherSampleUpdated(sample);
+        } catch (Exception e) {
+            LOGGER.debug("[WeatherController] 无法更新 WeatherRenderer", e);
+        }
+
+        // -------------------------------
+        // 注意：以下效果通过 Mixin 直接读取 getCurrentSample() 实现：
+        //   - 雨/雷梯度（WorldMixin.getRainGradient / getThunderGradient）
+        //   - 雾颜色/密度（BackgroundRendererMixin.applyFog）
+        //   - 天空亮度（ClientWorldMixin.getSkyBrightness / getStarBrightness）
+        // 因此，这里必须保证 currentSample 始终保持最新。
     }
 
     // ==========================================================
@@ -371,7 +433,9 @@ public final class TimelineWeatherController {
     }
 
     /**
-     * 清空 override，并尝试恢复世界天气到"正常状态"：
+     * ⭐ v1.1 重构：清空 override，并尝试恢复世界天气到"正常状态"。
+     * 
+     * <p>清理所有子系统状态：
      *  - 雨强度/雷暴强度 重置为 0（晴天）
      *  - 其他视觉效果（云/雾）由 Vanilla 自己随时间驱动
      */
@@ -379,18 +443,39 @@ public final class TimelineWeatherController {
         this.hasOverride = false;
         this.currentSample = null;
 
-        // 通知 WeatherRenderer 清除
-        try {
-            com.chronoblocks.client.renderer.weather.WeatherRenderer.get().onWeatherSampleUpdated(null);
-        } catch (Exception e) {
-            LOGGER.debug("[WeatherController] 无法清除 WeatherRenderer", e);
-        }
-
-        // 通知 WeatherParticleController 清除
+        // 1️⃣ 清除粒子子系统
         try {
             WeatherParticleController.getInstance().updateSample(null);
         } catch (Exception e) {
             LOGGER.debug("[WeatherController] 无法清除 WeatherParticleController", e);
+        }
+
+        // 2️⃣ 清除雾子系统
+        try {
+            WeatherFogController.getInstance().clear();
+        } catch (Exception e) {
+            LOGGER.debug("[WeatherController] 无法清除 WeatherFogController", e);
+        }
+
+        // 3️⃣ 清除天空子系统
+        try {
+            WeatherSkyController.getInstance().clear();
+        } catch (Exception e) {
+            LOGGER.debug("[WeatherController] 无法清除 WeatherSkyController", e);
+        }
+
+        // 4️⃣ 清除事件子系统
+        try {
+            WeatherEventController.getInstance().clear();
+        } catch (Exception e) {
+            LOGGER.debug("[WeatherController] 无法清除 WeatherEventController", e);
+        }
+
+        // 5️⃣ 向后兼容：清除 WeatherRenderer
+        try {
+            com.chronoblocks.client.renderer.weather.WeatherRenderer.get().onWeatherSampleUpdated(null);
+        } catch (Exception e) {
+            LOGGER.debug("[WeatherController] 无法清除 WeatherRenderer", e);
         }
 
         // 注意：雨/雷的恢复由 WorldMixin 自动处理（当 hasOverride() 返回 false 时）
@@ -399,7 +484,7 @@ public final class TimelineWeatherController {
     }
 
     /**
-     * 清除天气覆盖状态，恢复游戏默认值。
+     * ⭐ v1.1 重构：清除天气覆盖状态，恢复游戏默认值。
      * 
      * <p>通常在关闭 ChronoBlocks 时调用，确保天气修改被清除，游戏恢复默认渲染。
      * 
@@ -407,7 +492,7 @@ public final class TimelineWeatherController {
      * <ul>
      *   <li>禁用天气控制器</li>
      *   <li>清除所有 override 状态</li>
-     *   <li>通知 WeatherRenderer 和 WeatherParticleController 清除</li>
+     *   <li>清理所有子系统（粒子、雾、天空、事件）</li>
      *   <li>确保 Mixin 不再应用天气效果（hasOverride() 将返回 false）</li>
      * </ul>
      */
@@ -421,18 +506,39 @@ public final class TimelineWeatherController {
         this.activeTrack = null;
         this.sampler = null;
 
-        // 通知 WeatherRenderer 清除
-        try {
-            com.chronoblocks.client.renderer.weather.WeatherRenderer.get().onWeatherSampleUpdated(null);
-        } catch (Exception e) {
-            LOGGER.debug("[WeatherController] 无法清除 WeatherRenderer", e);
-        }
-
-        // 通知 WeatherParticleController 清除
+        // 1️⃣ 清除粒子子系统
         try {
             WeatherParticleController.getInstance().updateSample(null);
         } catch (Exception e) {
             LOGGER.debug("[WeatherController] 无法清除 WeatherParticleController", e);
+        }
+
+        // 2️⃣ 清除雾子系统
+        try {
+            WeatherFogController.getInstance().clear();
+        } catch (Exception e) {
+            LOGGER.debug("[WeatherController] 无法清除 WeatherFogController", e);
+        }
+
+        // 3️⃣ 清除天空子系统
+        try {
+            WeatherSkyController.getInstance().clear();
+        } catch (Exception e) {
+            LOGGER.debug("[WeatherController] 无法清除 WeatherSkyController", e);
+        }
+
+        // 4️⃣ 清除事件子系统
+        try {
+            WeatherEventController.getInstance().clear();
+        } catch (Exception e) {
+            LOGGER.debug("[WeatherController] 无法清除 WeatherEventController", e);
+        }
+
+        // 5️⃣ 向后兼容：清除 WeatherRenderer
+        try {
+            com.chronoblocks.client.renderer.weather.WeatherRenderer.get().onWeatherSampleUpdated(null);
+        } catch (Exception e) {
+            LOGGER.debug("[WeatherController] 无法清除 WeatherRenderer", e);
         }
 
         LOGGER.info("[WeatherController] Cleared weather override state - 恢复游戏默认天气状态");

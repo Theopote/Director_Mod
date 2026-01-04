@@ -94,10 +94,19 @@ public abstract class ClientWorldMixin {
         TimelineWeatherController weatherController = TimelineWeatherController.getInstance();
         if (weatherController.hasOverride()) {
             WeatherSample weatherSample = weatherController.getCurrentSample();
-            if (weatherSample != null && weatherSample.enabled && weatherSample.cloudCoverage > 0.01f) {
-                // 云量越高，天空越暗（最多降低50%亮度）
-                float cloudDarkness = weatherSample.cloudCoverage * 0.5f;
-                brightness *= (1.0f - cloudDarkness);
+            if (weatherSample != null && weatherSample.enabled) {
+                // 云量影响：云越多，天空越暗（最多降低50%亮度）
+                if (weatherSample.cloudCoverage > 0.01f) {
+                    float cloudDarkness = weatherSample.cloudCoverage * 0.5f;
+                    brightness *= (1.0f - cloudDarkness);
+                }
+                
+                // ⭐ v1.1 架构：闪电闪白效果（通过 WeatherEventController 控制）
+                float flashBrightness = com.chronoblocks.ui.timeline.playback.weather.WeatherEventController.getInstance().getCurrentFlashBrightness();
+                if (flashBrightness > 0.01f) {
+                    // 闪白时提高天空亮度（最多提高 80%）
+                    brightness = Math.min(1f, brightness + flashBrightness * 0.8f);
+                }
             }
         }
 
