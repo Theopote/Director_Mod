@@ -407,6 +407,14 @@ public class ChronoBlocksScreen extends Screen {
             LOGGER.warn("[ChronoBlocks] 清理 TimelineSeasonController 状态时出错", e);
         }
         
+        // ⭐ 天气轨道系统：关闭窗口时清理天气控制器状态
+        try {
+            com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController.getInstance().clear();
+            LOGGER.info("[ChronoBlocks] 已清理 TimelineWeatherController 状态");
+        } catch (Exception e) {
+            LOGGER.warn("[ChronoBlocks] 清理 TimelineWeatherController 状态时出错", e);
+        }
+        
         // 季节效果恢复已由 forceDeactivateChronoBlocksMode 统一负责，避免重复执行
         
         cleanupRenderSystems(true);

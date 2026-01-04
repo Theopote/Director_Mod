@@ -386,8 +386,56 @@ public final class TimelineWeatherController {
             LOGGER.debug("[WeatherController] 无法清除 WeatherRenderer", e);
         }
 
+        // 通知 WeatherParticleController 清除
+        try {
+            WeatherParticleController.getInstance().updateSample(null);
+        } catch (Exception e) {
+            LOGGER.debug("[WeatherController] 无法清除 WeatherParticleController", e);
+        }
+
         // 注意：雨/雷的恢复由 WorldMixin 自动处理（当 hasOverride() 返回 false 时）
+        // 雾和云的恢复由 BackgroundRendererMixin 和 ClientWorldMixin 自动处理（当 hasOverride() 返回 false 时）
         LOGGER.info("[WeatherController] 清除天气 override，并尝试恢复 Vanilla 晴天状态");
+    }
+
+    /**
+     * 清除天气覆盖状态，恢复游戏默认值。
+     * 
+     * <p>通常在关闭 ChronoBlocks 时调用，确保天气修改被清除，游戏恢复默认渲染。
+     * 
+     * <p>此方法会：
+     * <ul>
+     *   <li>禁用天气控制器</li>
+     *   <li>清除所有 override 状态</li>
+     *   <li>通知 WeatherRenderer 和 WeatherParticleController 清除</li>
+     *   <li>确保 Mixin 不再应用天气效果（hasOverride() 将返回 false）</li>
+     * </ul>
+     */
+    public void clear() {
+        // 禁用控制器
+        this.enabled = false;
+        
+        // 清空所有状态
+        this.hasOverride = false;
+        this.currentSample = null;
+        this.activeTrack = null;
+        this.sampler = null;
+
+        // 通知 WeatherRenderer 清除
+        try {
+            com.chronoblocks.client.renderer.weather.WeatherRenderer.get().onWeatherSampleUpdated(null);
+        } catch (Exception e) {
+            LOGGER.debug("[WeatherController] 无法清除 WeatherRenderer", e);
+        }
+
+        // 通知 WeatherParticleController 清除
+        try {
+            WeatherParticleController.getInstance().updateSample(null);
+        } catch (Exception e) {
+            LOGGER.debug("[WeatherController] 无法清除 WeatherParticleController", e);
+        }
+
+        LOGGER.info("[WeatherController] Cleared weather override state - 恢复游戏默认天气状态");
     }
 
 }
