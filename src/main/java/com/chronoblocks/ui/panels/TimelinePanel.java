@@ -636,24 +636,49 @@ public class TimelinePanel extends AbstractPanel
         float winW = ImGui.getContentRegionAvailX();
         float availH = ImGui.getContentRegionAvailY();
 
-        // ============================================================
-        // ⭐ v9.0 修复 1：先处理布局调整逻辑
-        // ============================================================
-        // 必须在计算 contentX 之前调用，因为如果用户正在拖动，
-        // leftLabelWidth 会更新，后面计算的 contentX 才是当前帧正确的数值。
-        renderer.updateLeftSectionWidth(winX, winY, availH);
-
         float headerHeight = TimelineRenderer.getHeaderHeight();
         // 确保高度不为负，最小高度为 10px 以避免画布问题
         float trackViewportHeight = Math.max(10f, availH - headerHeight);
 
         // ============================================================
-        // ⭐ v9.0 修复 2：基于更新后的宽度计算坐标
+        // ⭐ v9.0 修复 2：基于当前宽度计算坐标（用于关键帧检测）
         // ============================================================
-        // 此时 TimelineRenderer.getLeftLabelWidth() 返回的是最新值
         float contentX = winX + TimelineRenderer.getLeftLabelWidth();
         float contentW = winW - TimelineRenderer.getLeftLabelWidth();
         float trackRegionTop = winY + headerHeight;
+
+        // ⭐ 修复：先快速检测关键帧，如果命中关键帧则跳过分割线拖动（避免冲突）
+        boolean shouldSkipDividerDrag = false;
+        float mouseX = ImGui.getMousePosX();
+        float mouseY = ImGui.getMousePosY();
+        float dividerX = winX + TimelineRenderer.getLeftLabelWidth();
+        float DIVIDER_HIT_WIDTH = 4f; // 与 TimelineDividerHandler 中的常量一致
+        
+        // 只检测分割线附近的关键帧（避免全量检测影响性能）
+        if (mouseX >= dividerX - DIVIDER_HIT_WIDTH && mouseX <= dividerX + DIVIDER_HIT_WIDTH
+                && mouseY >= trackRegionTop && mouseY <= trackRegionTop + trackViewportHeight) {
+            // 快速检测：只检测时间接近0的关键帧（在分割线附近）
+            float scrollY = viewportState.getScrollY();
+            TimelineHitResult quickHit = com.chronoblocks.ui.timeline.interaction.TimelineHitTest.compute(
+                    renderer, model,
+                    mouseX, mouseY,
+                    contentX, trackRegionTop,
+                    contentW, trackViewportHeight,
+                    scrollY,
+                    null // trackControlHit 可以为 null，因为我们只关心关键帧
+            );
+            // 如果命中关键帧，跳过分割线拖动
+            if (quickHit.type() == com.chronoblocks.ui.timeline.interaction.TimelineHitResult.HitType.KEYFRAME
+                    || quickHit.type() == com.chronoblocks.ui.timeline.interaction.TimelineHitResult.HitType.AUTOMATION_KEYFRAME) {
+                shouldSkipDividerDrag = true;
+            }
+        }
+
+        // ============================================================
+        // ⭐ v9.0 修复 1：处理布局调整逻辑（带跳过标志）
+        // ============================================================
+        // 必须在计算 contentX 之后调用，因为我们需要先检测关键帧
+        renderer.updateLeftSectionWidth(winX, winY, availH, shouldSkipDividerDrag);
 
         // ⭐ 缓存可视区域参数（用于自动跟随功能）
         // 确保使用的是最新值

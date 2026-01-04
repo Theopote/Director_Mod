@@ -49,6 +49,13 @@ public final class TimelineDividerHandler {
     }
 
     /**
+     * 更新左侧轨道标签区域宽度（重载方法，向后兼容）
+     */
+    public void updateLeftSectionWidth(float winX, float winY, float totalHeight) {
+        updateLeftSectionWidth(winX, winY, totalHeight, false);
+    }
+
+    /**
      * 更新左侧轨道标签区域宽度
      * 
      * <p>检测鼠标是否在分隔线上，如果是则：
@@ -61,8 +68,9 @@ public final class TimelineDividerHandler {
      * @param winX 窗口 X 坐标
      * @param winY 窗口 Y 坐标
      * @param totalHeight 总高度（用于检测范围）
+     * @param shouldSkipDividerDrag 如果为 true，则跳过分割线拖动处理（例如鼠标在关键帧上时）
      */
-    public void updateLeftSectionWidth(float winX, float winY, float totalHeight) {
+    public void updateLeftSectionWidth(float winX, float winY, float totalHeight, boolean shouldSkipDividerDrag) {
         // ★ 优化：使用统一的 clamp 方法
         leftLabelWidth = clampWidth(leftLabelWidth);
 
@@ -73,6 +81,14 @@ public final class TimelineDividerHandler {
         // ★ 优化：使用常量替换硬编码的 hover 检测范围
         boolean hoveringDivider = mouseX >= dividerX - DIVIDER_HIT_WIDTH && mouseX <= dividerX + DIVIDER_HIT_WIDTH
                 && mouseY >= winY && mouseY <= winY + totalHeight;
+        
+        // ⭐ 修复：如果鼠标在关键帧上，不处理分割线拖动（避免冲突）
+        if (shouldSkipDividerDrag && hoveringDivider) {
+            // 如果正在拖动中，继续拖动（避免拖动中断）
+            if (!resizingLeftSection) {
+                return; // 跳过分割线拖动处理
+            }
+        }
         
         if (hoveringDivider || resizingLeftSection) {
             ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);

@@ -206,7 +206,17 @@ public class TimelineRenderer {
      * 更新左侧轨道标签区域宽度（委托给 TimelineDividerHandler）
      */
     public void updateLeftSectionWidth(float winX, float winY, float totalHeight) {
-        dividerHandler.updateLeftSectionWidth(winX, winY, totalHeight);
+        dividerHandler.updateLeftSectionWidth(winX, winY, totalHeight, false);
+        // 同步静态变量（向后兼容）
+        leftLabelWidth = dividerHandler.getLeftLabelWidth();
+        viewport.setLeftLabelWidth(leftLabelWidth);
+    }
+
+    /**
+     * 更新左侧轨道标签区域宽度（带跳过标志）
+     */
+    public void updateLeftSectionWidth(float winX, float winY, float totalHeight, boolean shouldSkipDividerDrag) {
+        dividerHandler.updateLeftSectionWidth(winX, winY, totalHeight, shouldSkipDividerDrag);
         // 同步静态变量（向后兼容）
         leftLabelWidth = dividerHandler.getLeftLabelWidth();
         viewport.setLeftLabelWidth(leftLabelWidth);
