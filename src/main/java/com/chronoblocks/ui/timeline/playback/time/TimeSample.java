@@ -134,7 +134,7 @@ public final class TimeSample {
         double normalizedTime = normalizeTimeOfDay(worldTimeOfDay);
         long worldTimeTicks = (long) Math.floor(normalizedTime);
 
-        float skyAngleNorm = (float) (normalizedTime / DAY_LENGTH_TICKS);
+        float skyAngleNorm = calculateVanillaSkyAngle(normalizedTime);
         float sunElevation = calculateSunElevationFromSkyAngle(skyAngleNorm);
         float sunAzimuth = 180.0f;
         float skyLight = calculateSkyLightFromElevation(sunElevation);
@@ -180,26 +180,7 @@ public final class TimeSample {
      * 创建一个使用自然世界时间的采样结果（可指定是否冻结时间）
      */
     public static TimeSample fromNaturalTime(long worldTimeTicks, boolean freezeWorldTime) {
-        // 基于世界时间计算天空角度
-        float skyAngleNorm = ((worldTimeTicks % 24000L) / 24000.0f);
-        
-        // 基于天空角度计算太阳高度（简化模型）
-        float sunElevation = calculateSunElevationFromSkyAngle(skyAngleNorm);
-        float sunAzimuth = 180.0f; // 标准路径（正南为中午）
-        
-        // 计算天空亮度（基于太阳高度）
-        float skyLight = calculateSkyLightFromElevation(sunElevation);
-        
-        // 计算月亮相位和位置（月亮通常在太阳对面）
-        int moonPhase = (int) ((worldTimeTicks / 24000L) % 8L);
-        float moonElevation = -sunElevation; // 简化：月亮在太阳对面
-        float moonAzimuth = (sunAzimuth + 180.0f) % 360.0f;
-        
-        return new TimeSample(true, worldTimeTicks, (double) worldTimeTicks, freezeWorldTime,
-                             skyAngleNorm, sunElevation, sunAzimuth, skyLight,
-                             moonPhase, moonElevation, moonAzimuth,
-                             false, 1.0f, 0.6f, 0.2f, 1.0f, // 默认日出颜色
-                             0.6f, 0.7f, 1.0f, 1.0f); // 默认天空颜色
+        return fromNaturalTime((double) worldTimeTicks, freezeWorldTime);
     }
     
     /**
@@ -301,6 +282,20 @@ public final class TimeSample {
         return 0.2f + normalizedElev * 0.8f;
     }
 
+    private static float calculateVanillaSkyAngle(double timeOfDay) {
+        double f = (timeOfDay / DAY_LENGTH_TICKS) - 0.25;
+        if (f < 0.0) {
+            f += 1.0;
+        }
+        if (f > 1.0) {
+            f -= 1.0;
+        }
+        double g = f;
+        f = 1.0 - (Math.cos(f * Math.PI) + 1.0) / 2.0;
+        f = g + (f - g) / 3.0;
+        return (float) f;
+    }
+
     private static double normalizeTimeOfDay(double timeOfDay) {
         double result = timeOfDay % DAY_LENGTH_TICKS;
         if (result < 0.0) {
@@ -333,6 +328,14 @@ public final class TimeSample {
     
     public float getSkyAngle() {
         return skyAngle;
+    }
+
+    public float getSkyLight() {
+        return skyLight;
+    }
+
+    public float getLightingSkyAngle() {
+        return calculateVanillaSkyAngle(worldTimeOfDay);
     }
     
     public float getSunElevation() {

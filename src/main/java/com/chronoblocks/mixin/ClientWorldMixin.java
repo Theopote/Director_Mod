@@ -57,6 +57,18 @@ public abstract class ClientWorldMixin {
         }
     }
 
+    @Inject(method = "setTime(JJZ)V", at = @At("HEAD"), cancellable = true)
+    private void blockExternalTimeUpdate(long time, long timeOfDay, boolean doDaylightCycle, CallbackInfo ci) {
+        TimelineWorldController controller = TimelineWorldController.getInstance();
+        if (!controller.hasOverride()) {
+            return;
+        }
+        if (controller.isInternalTimeUpdate()) {
+            return;
+        }
+        ci.cancel();
+    }
+
     @Inject(method = "getSkyBrightness(F)F", at = @At("HEAD"), cancellable = true)
     private void overrideSkyBrightness(float tickDelta, CallbackInfoReturnable<Float> cir) {
         TimelineWorldController controller = TimelineWorldController.getInstance();
@@ -68,7 +80,7 @@ public abstract class ClientWorldMixin {
             return;
         }
 
-        float skyAngle = sample.getSkyAngle();
+        float skyAngle = sample.getLightingSkyAngle();
         float brightness = 1.0f - (MathHelper.cos(skyAngle * 6.2831855f) * 2.0f + 0.2f);
         brightness = MathHelper.clamp(brightness, 0.0f, 1.0f);
         brightness = 1.0f - brightness;
@@ -92,7 +104,7 @@ public abstract class ClientWorldMixin {
             return;
         }
 
-        float skyAngle = sample.getSkyAngle();
+        float skyAngle = sample.getLightingSkyAngle();
         float brightness = 1.0f - (MathHelper.cos(skyAngle * 6.2831855f) * 2.0f + 0.25f);
         brightness = MathHelper.clamp(brightness, 0.0f, 1.0f);
         cir.setReturnValue(brightness * brightness * 0.5f);
