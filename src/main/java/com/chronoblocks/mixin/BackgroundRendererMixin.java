@@ -91,8 +91,7 @@ public abstract class BackgroundRendererMixin {
                 // 这里我们通过 alpha 通道传递密度信息，但实际的距离控制需要在 shader 层面实现
                 // 注意：当前版本限制，fogStart/fogEnd 无法在 applyFog 中直接设置
                 // 作为临时方案，alpha 通道存储密度值（0=无雾，1=浓雾）
-                float density = MathHelper.clamp(weatherSample.fogDensity, 0f, 1f);
-                a = density;
+                a = MathHelper.clamp(weatherSample.fogDensity, 0f, 1f);
                 
                 cir.setReturnValue(new Vector4f(r, g, b, a));
                 return; // 天气系统覆盖，不再应用季节系统
