@@ -39,11 +39,11 @@ public class WeatherParticleController {
     private WeatherParticleController() {}
 
     // --------- Configurable Limits ---------
-    /** 屏幕可见区域的最大雨滴数量 */
-    private static final int MAX_RAIN_PARTICLES = 250;
+    /** 屏幕可见区域的最大雨滴数量（增大以支持更强的雨量） */
+    private static final int MAX_RAIN_PARTICLES = 800;
 
     /** 最大雪花粒子数量（比雨大一些） */
-    private static final int MAX_SNOW_PARTICLES = 350;
+    private static final int MAX_SNOW_PARTICLES = 500;
 
     private final Random random = new Random();
 
@@ -212,7 +212,7 @@ public class WeatherParticleController {
                     ParticleTypes.SNOWFLAKE,
                     x, y, z,
                     windX,
-                    -0.2 - random.nextDouble() * 0.15, // 雪花下落速度更慢
+                    -0.5 - random.nextDouble() * 0.3, // 雪花下落速度加快，确保能落地
                     windZ
             );
         }
