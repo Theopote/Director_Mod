@@ -8,6 +8,7 @@ import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.render.fog.FogRenderer;
 import net.minecraft.client.world.ClientWorld;
+import net.minecraft.util.math.MathHelper;
 import org.joml.Vector4f;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -73,20 +74,26 @@ public abstract class BackgroundRendererMixin {
         if (weatherController.hasOverride()) {
             WeatherSample weatherSample = weatherController.getCurrentSample();
             if (weatherSample != null && weatherSample.enabled && weatherSample.fogDensity > 0.01f) {
-                // 使用天气系统的雾颜色
-                r = weatherSample.fogColor.x; // Use fogColor from WeatherSample
+                // ✅ 1️⃣ 颜色：使用天气系统的雾颜色
+                r = weatherSample.fogColor.x;
                 g = weatherSample.fogColor.y;
                 b = weatherSample.fogColor.z;
                 
                 // 应用雾暗度
-                float fogDarkness = weatherSample.fogDarkness; // Use fogDarkness from WeatherSample
+                float fogDarkness = weatherSample.fogDarkness;
                 float darkFactor = Math.max(0f, 1f - fogDarkness);
                 r *= darkFactor;
                 g *= darkFactor;
                 b *= darkFactor;
                 
-                // 雾密度影响 alpha（透明度）
-                a = Math.max(0f, Math.min(1f, weatherSample.fogDensity));
+                // ✅ 2️⃣ 距离：根据 WeatherSample.fogDensity 计算 fogStart/fogEnd
+                // 关键：Minecraft 1.21 的 applyFog 返回 Vector4f (颜色)，fogStart/fogEnd 需要通过其他方式控制
+                // 这里我们通过 alpha 通道传递密度信息，但实际的距离控制需要在 shader 层面实现
+                // 注意：当前版本限制，fogStart/fogEnd 无法在 applyFog 中直接设置
+                // 作为临时方案，alpha 通道存储密度值（0=无雾，1=浓雾）
+                float density = MathHelper.clamp(weatherSample.fogDensity, 0f, 1f);
+                a = density;
+                
                 cir.setReturnValue(new Vector4f(r, g, b, a));
                 return; // 天气系统覆盖，不再应用季节系统
             }

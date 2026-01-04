@@ -9,19 +9,20 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 
 /**
- * WeatherRenderer v1.0
+ * WeatherRenderer v1.1
  * 
- * <p>负责渲染天气特效（雨雪粒子、雾、风等）。
+ * <p>负责渲染特殊天气特效（沙暴、暴雪等特殊效果）。
  * 
  * <p>设计要点：
  * <ul>
- *   <li>根据 WeatherSample 渲染雨雪粒子</li>
- *   <li>处理特殊天气事件（沙暴、暴雪等）</li>
- *   <li>与 Minecraft 原版天气系统兼容</li>
+ *   <li>⚠️ 普通降水（雨/雪）已由 WeatherParticleController 统一处理，此处不再生成</li>
+ *   <li>⚠️ 雷暴/闪电效果已由 WeatherEventController 统一处理，此处不再生成</li>
+ *   <li>处理特殊天气事件（沙暴、暴雪、浓雾、热浪等）</li>
+ *   <li>可选：地面湿度效果（未来可能迁移到 WeatherParticleController）</li>
  * </ul>
  * 
  * @author ChronoBlocks Team
- * @version 1.0
+ * @version 1.1 - 移除重复的降水/闪电逻辑
  */
 public class WeatherRenderer {
     
@@ -76,23 +77,25 @@ public class WeatherRenderer {
         
         particleTickCounter++;
         
-        // 渲染降水粒子
-        if (currentSample.rainStrength > 0.01f) {
-            renderPrecipitation(world, particleManager, playerPos, playerBlockPos);
-        }
+        // ⚠️ 禁用降水粒子渲染（已由 WeatherParticleController 统一处理）
+        // renderPrecipitation() 与 WeatherParticleController 重复，会导致粒子密度不一致
+        // if (currentSample.rainStrength > 0.01f) {
+        //     renderPrecipitation(world, particleManager, playerPos, playerBlockPos);
+        // }
         
-        // 渲染特殊天气事件
+        // 渲染特殊天气事件（沙暴、暴雪等特殊效果）
         if (currentSample.specialWeatherType != com.chronoblocks.ui.timeline.model.weather.WeatherKeyframe.SpecialWeatherType.NONE
             && currentSample.specialWeatherIntensity > 0.01f) {
             renderSpecialWeather(world, particleManager, playerPos, playerBlockPos);
         }
         
-        // ⭐ 渲染雷暴/闪电效果
-        if (currentSample.thunderIntensity > 0.01f) {
-            renderLightning(world, playerPos, playerBlockPos);
-        }
+        // ⚠️ 禁用雷暴/闪电效果（已由 WeatherEventController 统一处理）
+        // renderLightning() 与 WeatherEventController 重复
+        // if (currentSample.thunderIntensity > 0.01f) {
+        //     renderLightning(world, playerPos, playerBlockPos);
+        // }
         
-        // ⭐ 渲染地面湿度效果（通过粒子模拟水坑/湿润效果）
+        // ⚠️ 保留地面湿度效果（可选：未来可以迁移到 WeatherParticleController）
         if (currentSample.wetness > 0.01f) {
             renderWetness(world, particleManager, playerPos, playerBlockPos);
         }

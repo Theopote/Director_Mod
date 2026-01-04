@@ -102,10 +102,13 @@ public abstract class ClientWorldMixin {
                 }
                 
                 // ⭐ v1.1 架构：闪电闪白效果（通过 WeatherEventController 控制）
-                float flashBrightness = com.chronoblocks.ui.timeline.playback.weather.WeatherEventController.getInstance().getCurrentFlashBrightness();
-                if (flashBrightness > 0.01f) {
-                    // 闪白时提高天空亮度（最多提高 80%）
-                    brightness = Math.min(1f, brightness + flashBrightness * 0.8f);
+                // ✅ 修复：使用乘数而不是直接加法，让闪白更明显
+                float flashFactor = com.chronoblocks.ui.timeline.playback.weather.WeatherEventController.getInstance().getCurrentFlashBrightness();
+                if (flashFactor > 0.01f) {
+                    // 闪白时：brightness = base * (1.0 - stormDark) + flashFactor（瞬时增益）
+                    // 使用混合方式：mix(skyColor, WHITE, flashFactor)
+                    brightness = brightness * (1.0f - flashFactor * 0.3f) + flashFactor * 0.7f;
+                    brightness = MathHelper.clamp(brightness, 0f, 1f);
                 }
             }
         }

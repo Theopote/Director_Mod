@@ -249,14 +249,6 @@ public final class TimelineWeatherController {
         this.currentSample = sample;
         this.hasOverride = true;
 
-        // ✅ 关键：驱动雷暴事件（闪白 + 雷声 + 粒子）- 必须在 applyToWorld 之前调用
-        // 这样同一 tick 的天空亮度 Mixin 能读到 flashBrightness
-        try {
-            WeatherEventController.getInstance().tick(sample, timelineTimeSeconds);
-        } catch (Exception e) {
-            LOGGER.debug("[WeatherController] WeatherEventController tick failed", e);
-        }
-
         // 分发到各个子系统
         applyToWorld(sample);
     }

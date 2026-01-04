@@ -167,7 +167,7 @@ public class WeatherParticleController {
         if (count <= 0) return;
 
         float wind = clamp01(sample.windStrength);
-        Vec3d windVec = computeWindVector(world.getTime() + 200, wind); // 稍微错相位
+        Vec3d windVec = computeWindVectorSnow(world.getTime(), wind);
 
         int radius = BASE_RADIUS_SNOW;
         for (int i = 0; i < count; i++) {
@@ -177,7 +177,6 @@ public class WeatherParticleController {
             int topY = world.getTopY(Heightmap.Type.MOTION_BLOCKING, MathHelper.floor(x), MathHelper.floor(z));
             double yFromSurface = topY + (ABOVE_SURFACE_PADDING + 6) + random.nextDouble() * 14.0;
             double yFromCamera = camPos.y + MIN_ABOVE_CAMERA_SNOW + random.nextDouble() * 10.0;
-            computeWindVector(world.getTime() + 200, wind); // 稍微错相位
             double y = Math.max(yFromSurface, yFromCamera);
 
             // 雪更慢、更飘
@@ -203,9 +202,27 @@ public class WeatherParticleController {
         double dirX = Math.cos(angle);
         double dirZ = Math.sin(angle);
 
-        // 速度大小（关键：让肉眼看得见）
-        double speedRain = windStrength01 * WIND_HORIZONTAL_SCALE_RAIN;
-        return new Vec3d(dirX * speedRain, 0.0, dirZ * speedRain);
+        // 速度大小（关键：让肉眼看得见）- 使用雨的风速作为基础
+        double speed = windStrength01 * WIND_HORIZONTAL_SCALE_RAIN;
+        return new Vec3d(dirX * speed, 0.0, dirZ * speed);
+    }
+    
+    /**
+     * 计算雪的风向量（使用更大的风速比例）。
+     */
+    private Vec3d computeWindVectorSnow(long worldTime, float windStrength01) {
+        if (windStrength01 <= 0.001f) return Vec3d.ZERO;
+
+        // 方向随时间缓慢变化（稍微错相位，与雨不同）
+        double t = (worldTime + 200) * 0.015;
+        double angle = t * 0.35 + Math.sin(t * 0.17) * 0.6;
+
+        double dirX = Math.cos(angle);
+        double dirZ = Math.sin(angle);
+
+        // 雪的风速更大（更明显）
+        double speed = windStrength01 * WIND_HORIZONTAL_SCALE_SNOW;
+        return new Vec3d(dirX * speed, 0.0, dirZ * speed);
     }
 
     // ---------------- Utils ----------------
