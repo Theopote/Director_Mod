@@ -400,10 +400,9 @@ public class TimelineRenderer {
 
             // ✅ 像素级对齐：不要用粗线 addLine（容易出现视觉偏移）
             // 改为明确宽度的填充矩形：1px 主线 + 3px 阴影，中心严格对齐 kxAligned。
-            float lineTop = y;
             float lineBottom = y + TimelineRenderer.TRACK_HEIGHT;
-            drawList.addRectFilled(kxAligned - 1.5f, lineTop, kxAligned + 1.5f, lineBottom, TimelineColors.rgba(0, 0, 0, 80));
-            drawList.addRectFilled(kxAligned - 0.5f, lineTop, kxAligned + 0.5f, lineBottom, kfCol);
+            drawList.addRectFilled(kxAligned - 1.5f, y, kxAligned + 1.5f, lineBottom, TimelineColors.rgba(0, 0, 0, 80));
+            drawList.addRectFilled(kxAligned - 0.5f, y, kxAligned + 0.5f, lineBottom, kfCol);
 
             // 绘制关键帧形状（根据 KeyType）
             // 增大关键帧尺寸
@@ -737,34 +736,6 @@ public class TimelineRenderer {
         public static Circle from(TimelineRenderHitTest.Circle circle) {
             return new Circle(circle.x(), circle.y(), circle.radius());
         }
-    }
-
-    /**
-     * 获取指定轨道的头部边界矩形（简化版本，使用当前视口状态）
-     * 
-     * <p>⚠️ 警告：此方法使用了简化的坐标计算，可能不准确。
-     * 建议使用完整版本 {@link #getTrackHeaderBounds(int, float, float, float)}。
-     * 
-     * <p>★ v9.0 重构：委托给 TimelineRenderHitTest
-     * 
-     * @param trackIndex 轨道索引
-     * @return 轨道头部边界矩形（可能不准确，因为缺少 winX 参数）
-     */
-    public Rect getTrackHeaderBounds(int trackIndex) {
-        if (trackIndex < 0 || trackIndex >= model.getTrackCount()) {
-            return new Rect(0, 0, 0, 0);
-        }
-
-        syncViewportFromState();
-        // ★ 修复：无法确定 winX 的准确值，返回一个边界为 0 的矩形
-        // 调用方应该使用完整版本的 getTrackHeaderBounds
-        float x1 = 0;
-        float x2 = viewport.getLeftLabelWidth();
-        float rowHeight = TRACK_HEIGHT + TRACK_GAP;
-        float y1 = trackAreaTop + (trackIndex * rowHeight - viewport.getScrollY());
-        float y2 = y1 + TRACK_HEIGHT;
-
-        return new Rect(x1, y1, x2, y2);
     }
 
     /**
