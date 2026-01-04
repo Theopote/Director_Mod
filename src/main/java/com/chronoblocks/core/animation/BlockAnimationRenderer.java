@@ -325,12 +325,15 @@ public class BlockAnimationRenderer {
             // 我们用 ThreadLocal 暂存 world+pos，让 BlockColorsMixin 在 world/pos 为空时回退到这里的上下文。
             com.chronoblocks.client.renderer.BlockColorRenderContext.push(world, pos);
             try {
+                // ✅ 使用世界实时光照（否则动画方块会“永远全亮”，夜晚也不变暗）
+                int light = net.minecraft.client.render.WorldRenderer.getLightmapCoordinates(world, pos);
+
                 // 1.21.10+：使用 BlockRenderManager#renderBlockAsEntity（避免底层 model renderer 签名变化）
                 manager.renderBlockAsEntity(
                         state,
                         matrices,
                         provider,
-                        LightmapTextureManager.MAX_LIGHT_COORDINATE,
+                        light,
                         OverlayTexture.DEFAULT_UV
                 );
             } finally {
