@@ -188,14 +188,21 @@ public final class TimelineWeatherController {
                 LOGGER.info("[WeatherController] 检测到只有一个天气轨道，自动激活: {}", firstWeatherTrack.getName());
                 rebuildFromActiveTrack();
             }
+            // ⭐ 自动启用天气控制器（如果有激活轨道）
+            if (!enabled) {
+                setEnabled(true);
+            }
         } else if (weatherTrackCount == 0) {
-            // 没有天气轨道时，清空激活轨道
+            // 没有天气轨道时，清空激活轨道并禁用控制器
             if (activeTrack != null) {
                 activeTrack = null;
                 sampler = null;
                 currentSample = null;
                 hasOverride = false;
                 LOGGER.info("[WeatherController] 没有天气轨道，清空激活轨道");
+            }
+            if (enabled) {
+                setEnabled(false);
             }
         } else {
             // 有多个天气轨道时，检查当前激活轨道是否仍然在模型中
@@ -204,6 +211,10 @@ public final class TimelineWeatherController {
                 activeTrack = firstWeatherTrack;
                 LOGGER.info("[WeatherController] 当前激活轨道已被删除，切换到: {}", firstWeatherTrack.getName());
                 rebuildFromActiveTrack();
+            }
+            // ⭐ 如果有激活轨道，确保控制器启用
+            if (activeTrack != null && !enabled) {
+                setEnabled(true);
             }
         }
     }
