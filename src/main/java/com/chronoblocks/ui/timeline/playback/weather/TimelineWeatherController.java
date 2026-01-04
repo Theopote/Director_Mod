@@ -328,10 +328,10 @@ public final class TimelineWeatherController {
         }
 
         // -------------------------------
-        // 3) 更新天气粒子（雨滴/雪花）
+        // 3) 更新天气粒子（雨滴/雪花）- 只更新采样，实际生成由每tick调用
         // -------------------------------
         try {
-            WeatherParticleController.getInstance().updateParticles(sample);
+            WeatherParticleController.getInstance().updateSample(sample);
         } catch (Exception e) {
             LOGGER.debug("[WeatherController] 无法更新天气粒子", e);
         }

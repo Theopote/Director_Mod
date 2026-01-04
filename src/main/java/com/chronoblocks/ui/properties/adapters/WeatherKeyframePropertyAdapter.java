@@ -38,7 +38,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherKeyframe> {
 
-    private static final String TITLE = "☁ 天气关键帧";
+    private static final String TITLE = Icons.LIGHTNING + " 天气关键帧";
 
     // ImGui 临时对象
     private final ImFloat timeFloat = new ImFloat();
@@ -131,7 +131,7 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
         // ==========================================================
         // 天气预设
         // ==========================================================
-        if (ImGui.collapsingHeader("☁ 天气预设", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(Icons.SETTINGS + " 天气预设", ImGuiTreeNodeFlags.DefaultOpen)) {
 
             weatherPresetIndex.set(kf.getWeatherType().ordinal());
             WeatherKeyframe.WeatherType[] types = WeatherKeyframe.WeatherType.values();
@@ -150,7 +150,7 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
         // ==========================================================
         // 天气强度参数
         // ==========================================================
-        if (ImGui.collapsingHeader("🌧 天气强度", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(Icons.PARTICLE + " 天气强度", ImGuiTreeNodeFlags.DefaultOpen)) {
 
             // 雨（通过 rainStrength + rainType 控制）
             rainFloat.set(kf.getRainIntensity());
@@ -194,11 +194,15 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
         // ==========================================================
         // 云 / 雾 / 湿度 / 风力
         // ==========================================================
-        if (ImGui.collapsingHeader("🌫 云雾与环境", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(Icons.FILTER + " 云雾与环境", ImGuiTreeNodeFlags.DefaultOpen)) {
 
             // 云（通过 cloudDensity 控制）
             cloudFloat.set(kf.getCloudCoverage());
             if (ImGui.sliderFloat("云量", cloudFloat.getData(), 0.0f, 1.0f, "%.2f")) {
+                // ⭐ 如果当前不是自定义模式，切换到自定义模式，避免预设覆盖手动调整
+                if (kf.getWeatherType() != WeatherKeyframe.WeatherType.CUSTOM) {
+                    kf.setWeatherType(WeatherKeyframe.WeatherType.CUSTOM);
+                }
                 kf.setCloudDensity(cloudFloat.get());
                 parameterChanged.set(true);
             }
@@ -206,6 +210,10 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
             // 雾
             fogFloat.set(kf.getFogDensity());
             if (ImGui.sliderFloat("雾浓度", fogFloat.getData(), 0.0f, 1.0f, "%.2f")) {
+                // ⭐ 如果当前不是自定义模式，切换到自定义模式
+                if (kf.getWeatherType() != WeatherKeyframe.WeatherType.CUSTOM) {
+                    kf.setWeatherType(WeatherKeyframe.WeatherType.CUSTOM);
+                }
                 kf.setFogDensity(fogFloat.get());
                 parameterChanged.set(true);
             }
@@ -213,6 +221,10 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
             // 湿度（通过 puddleLevel 控制）
             wetFloat.set(kf.getWetness());
             if (ImGui.sliderFloat("地面湿度", wetFloat.getData(), 0.0f, 1.0f, "%.2f")) {
+                // ⭐ 如果当前不是自定义模式，切换到自定义模式
+                if (kf.getWeatherType() != WeatherKeyframe.WeatherType.CUSTOM) {
+                    kf.setWeatherType(WeatherKeyframe.WeatherType.CUSTOM);
+                }
                 kf.setPuddleLevel(wetFloat.get());
                 parameterChanged.set(true);
             }
@@ -220,6 +232,10 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
             // 风
             windFloat.set(kf.getWindStrength());
             if (ImGui.sliderFloat("风力", windFloat.getData(), 0.0f, 1.0f, "%.2f")) {
+                // ⭐ 如果当前不是自定义模式，切换到自定义模式
+                if (kf.getWeatherType() != WeatherKeyframe.WeatherType.CUSTOM) {
+                    kf.setWeatherType(WeatherKeyframe.WeatherType.CUSTOM);
+                }
                 kf.setWindStrength(windFloat.get());
                 parameterChanged.set(true);
             }

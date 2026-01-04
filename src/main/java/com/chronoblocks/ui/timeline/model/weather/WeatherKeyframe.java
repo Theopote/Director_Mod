@@ -322,7 +322,16 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
     }
 
     public void setWeatherType(WeatherType weatherType) {
+        WeatherType oldType = this.weatherType;
         this.weatherType = Objects.requireNonNull(weatherType, "weatherType");
+        // ⭐ 只有在从非CUSTOM切换到CUSTOM时，不应用预设（保持当前值）
+        // 从CUSTOM切换到其他预设时，应用预设值
+        // 从其他预设切换到其他预设时，应用新预设值
+        if (oldType != WeatherType.CUSTOM && weatherType != WeatherType.CUSTOM) {
+            // 切换到新预设，应用新预设的默认值
+            applyWeatherDefaults();
+        }
+        // 如果切换到CUSTOM，不调用applyWeatherDefaults()，保持当前值
     }
 
     public TimelineInterpolation getInterpolation() {

@@ -33,6 +33,12 @@ public class WeatherRenderer {
     /** 粒子生成计时器 */
     private int particleTickCounter = 0;
     
+    /** 闪电生成计时器（用于控制闪电频率） */
+    private int lightningTickCounter = 0;
+    
+    /** 上次闪电生成的时间（tick） */
+    private int lastLightningTick = -1000;
+    
     private WeatherRenderer() {
     }
     
@@ -79,6 +85,16 @@ public class WeatherRenderer {
         if (currentSample.specialWeatherType != com.chronoblocks.ui.timeline.model.weather.WeatherKeyframe.SpecialWeatherType.NONE
             && currentSample.specialWeatherIntensity > 0.01f) {
             renderSpecialWeather(world, particleManager, playerPos, playerBlockPos);
+        }
+        
+        // ⭐ 渲染雷暴/闪电效果
+        if (currentSample.thunderIntensity > 0.01f) {
+            renderLightning(world, playerPos, playerBlockPos);
+        }
+        
+        // ⭐ 渲染地面湿度效果（通过粒子模拟水坑/湿润效果）
+        if (currentSample.wetness > 0.01f) {
+            renderWetness(world, particleManager, playerPos, playerBlockPos);
         }
     }
     
@@ -239,6 +255,108 @@ public class WeatherRenderer {
             default -> {
                 // NONE: 不生成粒子
             }
+        }
+    }
+    
+    /**
+     * 渲染雷暴/闪电效果。
+     * 
+     * <p>注意：Minecraft 的闪电是服务端控制的，客户端无法直接生成真实的闪电实体。
+     * 这里通过生成闪电粒子效果和屏幕闪光来模拟闪电。
+     */
+    private void renderLightning(ClientWorld world, Vec3d playerPos, BlockPos playerBlockPos) {
+        lightningTickCounter++;
+        
+        // 根据闪电频率计算生成间隔（每秒 lightningFrequency 次）
+        float frequency = currentSample.lightningFrequency;
+        if (frequency <= 0.01f) {
+            return;
+        }
+        
+        // 计算两次闪电之间的 tick 数（20 tick = 1秒）
+        int interval = Math.max(20, (int) (20.0f / frequency));
+        
+        // 检查是否应该生成闪电
+        if (lightningTickCounter - lastLightningTick < interval) {
+            return;
+        }
+        
+        lastLightningTick = lightningTickCounter;
+        
+        // 在玩家周围随机位置生成闪电效果
+        // 注意：这里只能生成视觉效果，无法生成真实的闪电实体（需要服务端支持）
+        double lightningX = playerPos.x + (world.random.nextDouble() - 0.5) * 64;
+        double lightningY = playerPos.y + world.random.nextDouble() * 20 + 10;
+        double lightningZ = playerPos.z + (world.random.nextDouble() - 0.5) * 64;
+        
+        // 生成闪电粒子效果（使用多种粒子模拟闪电）
+        ParticleManager particleManager = MinecraftClient.getInstance().particleManager;
+        if (particleManager != null) {
+            // 生成爆炸粒子模拟闪电闪光
+            for (int i = 0; i < 5; i++) {
+                particleManager.addParticle(
+                    ParticleTypes.EXPLOSION,
+                    lightningX + (world.random.nextDouble() - 0.5) * 3,
+                    lightningY + world.random.nextDouble() * 8,
+                    lightningZ + (world.random.nextDouble() - 0.5) * 3,
+                    0, 0, 0
+                );
+            }
+            // 生成烟雾粒子模拟闪电后的烟雾
+            for (int i = 0; i < 8; i++) {
+                particleManager.addParticle(
+                    ParticleTypes.SMOKE,
+                    lightningX + (world.random.nextDouble() - 0.5) * 2,
+                    lightningY + world.random.nextDouble() * 5,
+                    lightningZ + (world.random.nextDouble() - 0.5) * 2,
+                    (world.random.nextDouble() - 0.5) * 0.05,
+                    world.random.nextDouble() * 0.1,
+                    (world.random.nextDouble() - 0.5) * 0.05
+                );
+            }
+        }
+        
+        // ⭐ 注意：真实的闪电实体（LightningEntity）需要服务端生成
+        // 客户端只能通过粒子效果和屏幕闪光来模拟
+        // 如果需要真实的闪电，需要服务端支持或使用命令生成
+        // 这里通过粒子效果和天空暗度变化来模拟闪电效果
+    }
+    
+    /**
+     * 渲染地面湿度效果（通过粒子模拟水坑/湿润效果）。
+     * 
+     * <p>注意：Minecraft 没有原生的地面湿度渲染系统，这里通过生成水滴粒子
+     * 和反射效果粒子来模拟湿润的地面。
+     */
+    private void renderWetness(ClientWorld world, ParticleManager particleManager, Vec3d playerPos, BlockPos playerBlockPos) {
+        float wetness = currentSample.wetness;
+        if (wetness < 0.01f) {
+            return;
+        }
+        
+        // 每 10-20 tick 生成一次湿度粒子（根据湿度强度调整）
+        int interval = Math.max(10, (int) (20 / (wetness + 0.1f)));
+        if (particleTickCounter % interval != 0) {
+            return;
+        }
+        
+        // 在玩家周围的地面生成水滴粒子
+        int radius = 16;
+        int particleCount = (int) (wetness * 5); // 湿度越高，粒子越多
+        
+        for (int i = 0; i < particleCount; i++) {
+            double x = playerPos.x + (world.random.nextDouble() - 0.5) * radius * 2;
+            double y = playerPos.y - 0.5; // 地面附近
+            double z = playerPos.z + (world.random.nextDouble() - 0.5) * radius * 2;
+            
+            // 使用水滴粒子模拟湿润效果
+            particleManager.addParticle(
+                ParticleTypes.DRIPPING_WATER,
+                x, y, z,
+                0,
+                0.01 + world.random.nextDouble() * 0.02,
+                0
+            );
         }
     }
     

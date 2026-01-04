@@ -89,6 +89,17 @@ public abstract class ClientWorldMixin {
         brightness *= 1.0f - world.getRainGradient(tickDelta) * 5.0f / 16.0f;
         brightness *= 1.0f - world.getThunderGradient(tickDelta) * 5.0f / 16.0f;
         brightness = brightness * 0.8f + 0.2f;
+        
+        // ⭐ 天气系统：应用云量影响天空亮度（云越多，天空越暗）
+        TimelineWeatherController weatherController = TimelineWeatherController.getInstance();
+        if (weatherController.hasOverride()) {
+            WeatherSample weatherSample = weatherController.getCurrentSample();
+            if (weatherSample != null && weatherSample.enabled && weatherSample.cloudCoverage > 0.01f) {
+                // 云量越高，天空越暗（最多降低50%亮度）
+                float cloudDarkness = weatherSample.cloudCoverage * 0.5f;
+                brightness *= (1.0f - cloudDarkness);
+            }
+        }
 
         cir.setReturnValue(brightness);
     }
