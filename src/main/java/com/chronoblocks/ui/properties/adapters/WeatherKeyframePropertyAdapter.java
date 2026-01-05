@@ -11,6 +11,7 @@ import com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController;
 import imgui.ImGui;
 import imgui.flag.ImGuiColorEditFlags;
 import imgui.flag.ImGuiTreeNodeFlags;
+import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 import imgui.type.ImInt;
 import org.joml.Vector3f;
@@ -62,6 +63,7 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
     private final ImFloat cloudSpeedFloat = new ImFloat();
     private final ImFloat cloudBrightnessFloat = new ImFloat();
     private final ImFloat windDirectionFloat = new ImFloat();
+    private final ImBoolean visualOnlyThunderBool = new ImBoolean();
 
     private final float[] fogTintArr = new float[3];
 
@@ -426,6 +428,26 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
             if (ImGui.isItemHovered()) {
                 ImGui.beginTooltip();
                 ImGui.text("每秒可能触发闪电的概率因子，值越高闪电越频繁");
+                ImGui.endTooltip();
+            }
+
+            UITheme.spacingSmall();
+            ImGui.separator();
+            UITheme.spacingSmall();
+
+            // ✅ 新增：只视觉雷暴（导演安全模式）开关
+            visualOnlyThunderBool.set(kf.isVisualOnlyThunder());
+            if (ImGui.checkbox("只视觉雷暴（导演安全模式）", visualOnlyThunderBool)) {
+                if (kf.getWeatherType() != WeatherKeyframe.WeatherType.CUSTOM) {
+                    kf.setWeatherType(WeatherKeyframe.WeatherType.CUSTOM);
+                }
+                kf.setVisualOnlyThunder(visualOnlyThunderBool.get());
+                parameterChanged.set(true);
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.beginTooltip();
+                ImGui.textWrapped("开启：只播放闪白和雷声，不会生成真实闪电或破坏世界（推荐）\n" +
+                        "关闭：生成真实 LightningEntity，可能点火、影响世界（慎用）");
                 ImGui.endTooltip();
             }
 

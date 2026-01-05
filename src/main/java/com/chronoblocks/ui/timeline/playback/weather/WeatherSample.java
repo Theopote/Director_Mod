@@ -96,6 +96,9 @@ public class WeatherSample {
     /** 闪电频率（每秒） */
     public float lightningFrequency = 0.0f;
 
+    /** 只视觉雷暴（导演安全模式）：true = 只视觉效果，false = 生成真实闪电实体 */
+    public boolean visualOnlyThunder = true;
+
     /** 天空变暗程度 [0-1] */
     public float stormDarkness = 0.0f;
 
@@ -196,6 +199,9 @@ public class WeatherSample {
         rainType = (t < 0.5f) ? a.rainType : b.rainType;
         specialWeatherType = (t < 0.5f) ? a.specialWeatherType : b.specialWeatherType;
 
+        // ✅ 布尔值：取最近关键帧的值（不插值）
+        visualOnlyThunder = (t < 0.5f) ? a.visualOnlyThunder : b.visualOnlyThunder;
+
         enabled = true;
     }
 
@@ -229,6 +235,7 @@ public class WeatherSample {
         puddleLevel = s.puddleLevel;
         thunderStrength = s.thunderStrength;
         lightningFrequency = s.lightningFrequency;
+        visualOnlyThunder = s.visualOnlyThunder;
         stormDarkness = s.stormDarkness;
         cloudDensity = s.cloudDensity;
         cloudSpeed = s.cloudSpeed;

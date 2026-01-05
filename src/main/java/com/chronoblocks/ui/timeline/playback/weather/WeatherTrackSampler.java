@@ -207,6 +207,7 @@ public class WeatherTrackSampler {
 
         out.thunderStrength = kf.getThunderStrength();
         out.lightningFrequency = kf.getLightningFrequency();
+        out.visualOnlyThunder = kf.isVisualOnlyThunder();
         out.stormDarkness = kf.getStormDarkness();
 
         out.cloudDensity = kf.getCloudDensity();

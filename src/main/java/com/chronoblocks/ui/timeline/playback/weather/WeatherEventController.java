@@ -3,9 +3,12 @@ package com.chronoblocks.ui.timeline.playback.weather;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.sound.PositionedSoundInstance;
 import net.minecraft.client.world.ClientWorld;
+import net.minecraft.entity.EntityType;
+import net.minecraft.entity.LightningEntity;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.sound.SoundEvents;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.world.Heightmap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -125,7 +128,15 @@ public class WeatherEventController {
     }
     
     /**
-     * 触发闪电事件（雷声 + 闪白 + 粒子效果）。
+     * ✅ 重构：触发闪电事件（雷声 + 闪白 + 可选真实闪电实体）。
+     * 
+     * <p>核心逻辑：
+     * <ul>
+     *   <li>1️⃣ 屏幕/天空闪白（永远触发）</li>
+     *   <li>2️⃣ 雷声音效（永远触发）</li>
+     *   <li>3️⃣ 真实闪电实体（仅非导演模式）</li>
+     *   <li>4️⃣ 视觉粒子效果（永远触发）</li>
+     * </ul>
      */
     private void triggerLightning(ClientWorld world, MinecraftClient client, WeatherSample sample, float thunderIntensity) {
         Vec3d playerPos = null;
@@ -133,16 +144,54 @@ public class WeatherEventController {
             playerPos = client.player.getEntityPos();
         }
 
-        // 1. 播放雷声音效
-        playThunderSound(world, playerPos, thunderIntensity);
-        
-        // 2. 触发屏幕闪白（通过提高天空亮度）
+        // === 1️⃣ 屏幕/天空闪白（永远触发） ===
         // 闪白强度基于 thunderIntensity
         currentFlashBrightness = 0.3f + thunderIntensity * 0.5f; // 0.3 ~ 0.8
         
-        // 3. 生成闪电粒子效果（在远处）
+        // === 2️⃣ 雷声音效（永远触发） ===
+        playThunderSound(world, playerPos, thunderIntensity);
+        
+        // === 3️⃣ 真实闪电实体（仅非导演模式） ===
+        if (!sample.visualOnlyThunder && playerPos != null) {
+            spawnRealLightning(world, playerPos);
+        }
+        
+        // === 4️⃣ 视觉粒子效果（永远触发） ===
         if (playerPos != null) {
             spawnLightningParticles(world, playerPos);
+        }
+    }
+    
+    /**
+     * ✅ 新增：生成真实闪电实体（会破坏世界）。
+     * 
+     * <p>⚠️ 警告：此方法会生成真实的 LightningEntity，可能：
+     * <ul>
+     *   <li>点燃方块</li>
+     *   <li>伤害实体</li>
+     *   <li>影响世界状态</li>
+     * </ul>
+     * 
+     * <p>仅在 visualOnlyThunder = false 时调用。
+     */
+    private void spawnRealLightning(ClientWorld world, Vec3d playerPos) {
+        try {
+            // 在玩家周围随机位置生成闪电
+            int offsetX = random.nextInt(32) - 16;
+            int offsetZ = random.nextInt(32) - 16;
+            
+            // 获取地面高度
+            int x = (int) Math.floor(playerPos.x) + offsetX;
+            int z = (int) Math.floor(playerPos.z) + offsetZ;
+            int y = world.getTopY(Heightmap.Type.MOTION_BLOCKING, x, z);
+            
+            // 创建闪电实体（使用构造函数）
+            LightningEntity lightning = new LightningEntity(EntityType.LIGHTNING_BOLT, world);
+            lightning.refreshPositionAfterTeleport(x, y, z);
+            world.spawnEntity(lightning);
+            LOGGER.debug("[WeatherEventController] 生成真实闪电实体 @ ({}, {}, {})", x, y, z);
+        } catch (Exception e) {
+            LOGGER.debug("[WeatherEventController] 生成真实闪电失败", e);
         }
     }
     

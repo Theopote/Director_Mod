@@ -256,6 +256,7 @@ public class TimelineModelPersistence {
         public float puddleLevel;
         public float thunderStrength;
         public float lightningFrequency;
+        public boolean visualOnlyThunder;
         public float windStrength;
         public float windDirectionDegrees;
         public float stormDarkness;
@@ -357,6 +358,7 @@ public class TimelineModelPersistence {
                         kdto.puddleLevel = wk.getPuddleLevel();
                         kdto.thunderStrength = wk.getThunderStrength();
                         kdto.lightningFrequency = wk.getLightningFrequency();
+                        kdto.visualOnlyThunder = wk.isVisualOnlyThunder();
                         kdto.windStrength = wk.getWindStrength();
                         kdto.windDirectionDegrees = wk.getWindDirectionDegrees();
                         kdto.stormDarkness = wk.getStormDarkness();
@@ -573,6 +575,8 @@ public class TimelineModelPersistence {
                                 wk.setPuddleLevel(kdto.puddleLevel);
                                 wk.setThunderStrength(kdto.thunderStrength);
                                 wk.setLightningFrequency(kdto.lightningFrequency);
+                                // ✅ 新增：只视觉雷暴（如果不存在则使用默认值 true）
+                                wk.setVisualOnlyThunder(kdto.visualOnlyThunder);
                                 wk.setWindStrength(kdto.windStrength);
                                 // ✅ 新增：风方向（如果不存在则使用默认值 0°）
                                 if (kdto.windDirectionDegrees >= 0f && kdto.windDirectionDegrees < 360f) {

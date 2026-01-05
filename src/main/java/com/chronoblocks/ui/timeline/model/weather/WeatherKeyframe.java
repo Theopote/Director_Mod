@@ -139,6 +139,9 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
     /** 闪电频率（每秒） */
     private float lightningFrequency = 0.0f;
 
+    /** 只视觉雷暴（导演安全模式）：true = 只视觉效果，false = 生成真实闪电实体 */
+    private boolean visualOnlyThunder = true;
+
     /** 风强度 [0-1]（吹动树叶、粒子方向） */
     private float windStrength = 0.0f;
 
@@ -396,6 +399,23 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
 
     public void setLightningFrequency(float lightningFrequency) {
         this.lightningFrequency = Math.max(0.0f, lightningFrequency);
+    }
+
+    /**
+     * 获取是否只使用视觉雷暴（导演安全模式）。
+     * true = 只视觉效果（闪白、雷声、天空亮度变化），不生成真实闪电实体
+     * false = 生成真实 LightningEntity（可能破坏世界）
+     */
+    public boolean isVisualOnlyThunder() {
+        return visualOnlyThunder;
+    }
+
+    /**
+     * 设置是否只使用视觉雷暴（导演安全模式）。
+     * 默认 true（导演友好、安全）
+     */
+    public void setVisualOnlyThunder(boolean visualOnlyThunder) {
+        this.visualOnlyThunder = visualOnlyThunder;
     }
 
     public float getWindStrength() {
