@@ -84,6 +84,10 @@ public abstract class WorldMixin {
 
     /**
      * Weather：覆盖雨强度
+     * 
+     * ✅ 修复：当存在天气轨道时，完全禁止原版天气事件
+     * - 如果轨道有降水，使用轨道的值
+     * - 如果轨道没有降水，强制返回 0（禁止原版下雨）
      */
     @Inject(
         method = "getRainGradient(F)F",
@@ -92,23 +96,32 @@ public abstract class WorldMixin {
     )
     private void overrideRainGradient(float delta, CallbackInfoReturnable<Float> cir) {
         TimelineWeatherController controller = TimelineWeatherController.getInstance();
-        if (!controller.hasOverride()) {
+        if (!controller.hasWeatherTrack()) {
             return;
         }
 
         WeatherSample sample = controller.getCurrentSample();
         if (sample == null || !sample.enabled) {
+            // ✅ 天气轨道启用但 sample 无效，禁止原版天气
+            cir.setReturnValue(0.0f);
             return;
         }
 
-        // 如果天气系统有降水，覆盖原版雨强度
+        // ✅ 如果天气系统有降水，使用轨道的值；否则强制返回 0（禁止原版下雨）
         if (sample.rainStrength > 0.01f && sample.rainType != WeatherKeyframe.RainType.NONE) {
             cir.setReturnValue(sample.rainStrength);
+        } else {
+            // 轨道没有设置降水，完全禁止原版下雨
+            cir.setReturnValue(0.0f);
         }
     }
 
     /**
      * Weather：覆盖雷暴强度
+     * 
+     * ✅ 修复：当存在天气轨道时，完全禁止原版天气事件
+     * - 如果轨道有雷暴，使用轨道的值
+     * - 如果轨道没有雷暴，强制返回 0（禁止原版雷暴）
      */
     @Inject(
         method = "getThunderGradient(F)F",
@@ -117,23 +130,32 @@ public abstract class WorldMixin {
     )
     private void overrideThunderGradient(float delta, CallbackInfoReturnable<Float> cir) {
         TimelineWeatherController controller = TimelineWeatherController.getInstance();
-        if (!controller.hasOverride()) {
+        if (!controller.hasWeatherTrack()) {
             return;
         }
 
         WeatherSample sample = controller.getCurrentSample();
         if (sample == null || !sample.enabled) {
+            // ✅ 天气轨道启用但 sample 无效，禁止原版天气
+            cir.setReturnValue(0.0f);
             return;
         }
 
-        // 如果天气系统有雷暴，覆盖原版雷暴强度
+        // ✅ 如果天气系统有雷暴，使用轨道的值；否则强制返回 0（禁止原版雷暴）
         if (sample.thunderStrength > 0.01f) {
             cir.setReturnValue(sample.thunderStrength);
+        } else {
+            // 轨道没有设置雷暴，完全禁止原版雷暴
+            cir.setReturnValue(0.0f);
         }
     }
 
     /**
      * Weather：覆盖是否下雨
+     * 
+     * ✅ 修复：当存在天气轨道时，完全禁止原版天气事件
+     * - 如果轨道有降水，返回 true
+     * - 如果轨道没有降水，强制返回 false（禁止原版下雨）
      */
     @Inject(
         method = "isRaining()Z",
@@ -142,23 +164,32 @@ public abstract class WorldMixin {
     )
     private void overrideIsRaining(CallbackInfoReturnable<Boolean> cir) {
         TimelineWeatherController controller = TimelineWeatherController.getInstance();
-        if (!controller.hasOverride()) {
+        if (!controller.hasWeatherTrack()) {
             return;
         }
 
         WeatherSample sample = controller.getCurrentSample();
         if (sample == null || !sample.enabled) {
+            // ✅ 天气轨道启用但 sample 无效，禁止原版天气
+            cir.setReturnValue(false);
             return;
         }
 
-        // 如果天气系统有降水，覆盖原版下雨状态
+        // ✅ 如果天气系统有降水，返回 true；否则强制返回 false（禁止原版下雨）
         if (sample.rainStrength > 0.01f && sample.rainType != WeatherKeyframe.RainType.NONE) {
             cir.setReturnValue(true);
+        } else {
+            // 轨道没有设置降水，完全禁止原版下雨
+            cir.setReturnValue(false);
         }
     }
 
     /**
      * Weather：覆盖是否打雷
+     * 
+     * ✅ 修复：当存在天气轨道时，完全禁止原版天气事件
+     * - 如果轨道有雷暴，返回 true
+     * - 如果轨道没有雷暴，强制返回 false（禁止原版雷暴）
      */
     @Inject(
         method = "isThundering()Z",
@@ -167,18 +198,23 @@ public abstract class WorldMixin {
     )
     private void overrideIsThundering(CallbackInfoReturnable<Boolean> cir) {
         TimelineWeatherController controller = TimelineWeatherController.getInstance();
-        if (!controller.hasOverride()) {
+        if (!controller.hasWeatherTrack()) {
             return;
         }
 
         WeatherSample sample = controller.getCurrentSample();
         if (sample == null || !sample.enabled) {
+            // ✅ 天气轨道启用但 sample 无效，禁止原版天气
+            cir.setReturnValue(false);
             return;
         }
 
-        // 如果天气系统有雷暴，覆盖原版雷暴状态
+        // ✅ 如果天气系统有雷暴，返回 true；否则强制返回 false（禁止原版雷暴）
         if (sample.thunderStrength > 0.01f) {
             cir.setReturnValue(true);
+        } else {
+            // 轨道没有设置雷暴，完全禁止原版雷暴
+            cir.setReturnValue(false);
         }
     }
 }

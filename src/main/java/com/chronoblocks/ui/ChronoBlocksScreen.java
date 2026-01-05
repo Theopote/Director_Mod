@@ -637,6 +637,9 @@ public class ChronoBlocksScreen extends Screen {
     public void tick() {
         super.tick();
 
+        com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController.getInstance()
+            .forceDisableVanillaWeather();
+
         // failsafe：节流，避免异常状态下每 tick 打日志/反复激活
         if (directorModeActive && !ChronoBlocksClientController.getInstance().isChronoBlocksModeActive()) {
             long now = System.currentTimeMillis();

@@ -124,6 +124,33 @@ public final class TimelineWeatherController {
     }
 
     /**
+     * 是否存在天气轨道（无论是否已激活）。
+     */
+    public boolean hasWeatherTrack() {
+        if (com.chronoblocks.client.ChronoBlocksClientController.getInstance().isChronoBlocksModeActive()) {
+            return true;
+        }
+        if (activeTrack != null) {
+            return true;
+        }
+        com.chronoblocks.ui.timeline.container.ContainerTimelineService service =
+            com.chronoblocks.ui.timeline.container.ContainerTimelineService.getInstance();
+        if (service == null) {
+            return false;
+        }
+        com.chronoblocks.ui.timeline.model.TimelineModel model = service.getTimelineModel();
+        if (model == null) {
+            return false;
+        }
+        for (TimelineTrack track : model.getTracks()) {
+            if (track.getType() == TrackType.WEATHER) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
      * 当轨道上的关键帧发生变化（添加/删除/移动）时调用。
      * 例如：
      *  - WeatherKeyframe 命令执行完成后
@@ -318,6 +345,20 @@ public final class TimelineWeatherController {
      */
     public WeatherSample getCurrentSample() {
         return currentSample;
+    }
+
+    /**
+     * Force-disable vanilla precipitation while ChronoBlocks is active.
+     */
+    public void forceDisableVanillaWeather() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.world == null) {
+            return;
+        }
+        ClientWorld world = client.world;
+        world.setRainGradient(0.0f);
+        world.setThunderGradient(0.0f);
+        world.getLevelProperties().setRaining(false);
     }
 
     // ==========================================================

@@ -86,12 +86,30 @@ public abstract class ClientWorldMixin {
         brightness = 1.0f - brightness;
 
         ClientWorld world = (ClientWorld) (Object) this;
-        brightness *= 1.0f - world.getRainGradient(tickDelta) * 5.0f / 16.0f;
-        brightness *= 1.0f - world.getThunderGradient(tickDelta) * 5.0f / 16.0f;
+        
+        // ✅ 修复：当天气轨道启用时，禁止原版天气影响天空亮度
+        // 原版天气的雨/雷暴梯度已经被 WorldMixin 覆盖，这里使用轨道系统的值
+        TimelineWeatherController weatherController = TimelineWeatherController.getInstance();
+        if (weatherController.hasOverride()) {
+            WeatherSample weatherSample = weatherController.getCurrentSample();
+            if (weatherSample != null && weatherSample.enabled) {
+                // 使用轨道系统的雨/雷暴强度影响天空亮度
+                float rainGradient = weatherSample.rainStrength;
+                float thunderGradient = weatherSample.thunderStrength;
+                brightness *= 1.0f - rainGradient * 5.0f / 16.0f;
+                brightness *= 1.0f - thunderGradient * 5.0f / 16.0f;
+            } else {
+                // 天气轨道启用但 sample 无效，禁止原版天气影响
+                // 不应用任何雨/雷暴暗度
+            }
+        } else {
+            // 天气轨道未启用，使用原版天气
+            brightness *= 1.0f - world.getRainGradient(tickDelta) * 5.0f / 16.0f;
+            brightness *= 1.0f - world.getThunderGradient(tickDelta) * 5.0f / 16.0f;
+        }
         brightness = brightness * 0.8f + 0.2f;
         
         // ⭐ 天气系统：应用云量影响天空亮度（云越多，天空越暗）
-        TimelineWeatherController weatherController = TimelineWeatherController.getInstance();
         if (weatherController.hasOverride()) {
             WeatherSample weatherSample = weatherController.getCurrentSample();
             if (weatherSample != null && weatherSample.enabled) {
