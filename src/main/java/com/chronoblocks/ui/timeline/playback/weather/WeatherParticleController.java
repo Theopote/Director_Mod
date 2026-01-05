@@ -75,6 +75,7 @@ public class WeatherParticleController {
     private float rainAcc = 0f;
     private float snowAcc = 0f;
 
+    /** 上次更新的时间戳（纳秒），用于计算实际时间差 */
     private long lastUpdateNanos = -1L;
 
     public void setEnabled(boolean v) {
@@ -144,13 +145,13 @@ public class WeatherParticleController {
             snowToSpawn = Math.max(0, (int) (snowToSpawn * scale));
         }
 
-        if (rainToSpawn > 0) spawnRain(world, camPos, rainRadius, rainToSpawn, currentSample);
+        if (rainToSpawn > 0) spawnRain(world, camPos, rainRadius, rainToSpawn, currentSample, finalRainI);
         if (snowToSpawn > 0) spawnSnow(world, camPos, snowRadius, snowToSpawn, currentSample);
     }
 
     // ---------------- Spawn ----------------
 
-    private void spawnRain(ClientWorld world, Vec3d camPos, int radius, int count, WeatherSample sample) {
+    private void spawnRain(ClientWorld world, Vec3d camPos, int radius, int count, WeatherSample sample, float intensity) {
         if (count <= 0) return;
 
         // 风方向：用时间做一个缓慢旋转 + 小噪声（你后续可以替换为 keyframe windDir）
@@ -173,7 +174,14 @@ public class WeatherParticleController {
             double vx = windVec.x + (random.nextDouble() - 0.5) * 0.08;
             double vz = windVec.z + (random.nextDouble() - 0.5) * 0.08;
 
-            world.addParticleClient(ParticleTypes.RAIN, x, y, z, vx, vy, vz);
+            world.addParticleClient(ParticleTypes.FALLING_WATER, x, y, z, vx, vy, vz);
+
+            if (intensity > 0.25f && random.nextFloat() < intensity * 0.18f) {
+                double splashX = x + (random.nextDouble() - 0.5) * 0.6;
+                double splashZ = z + (random.nextDouble() - 0.5) * 0.6;
+                double splashY = topY + 0.05;
+                world.addParticleClient(ParticleTypes.RAIN, splashX, splashY, splashZ, 0, 0, 0);
+            }
         }
     }
 
@@ -240,15 +248,30 @@ public class WeatherParticleController {
 
     // ---------------- Utils ----------------
 
+    /**
+     * ✅ 修复：计算实际时间差，但确保最小值为游戏 tick 时间（0.05秒）。
+     * 
+     * <p>原因：此方法在 UI 渲染循环中调用，UI 帧率可能很高（60fps+），
+     * 导致 deltaSeconds 很小（如 0.016秒），进而限制了粒子生成。
+     * 
+     * <p>解决方案：
+     * - 使用实际时间差，但设置最小值为游戏 tick 时间（0.05秒）
+     * - 这样可以确保粒子生成率稳定，不受 UI 帧率影响
+     * - 同时避免在 UI 帧率很高时过度生成粒子
+     */
     private float computeDeltaSeconds() {
         long now = System.nanoTime();
         if (lastUpdateNanos <= 0L) {
             lastUpdateNanos = now;
-            return 1f / 20f;
+            return 1f / 20f; // 首次调用返回一个 tick 时间
         }
         float delta = (now - lastUpdateNanos) / 1_000_000_000f;
         lastUpdateNanos = now;
-        return MathHelper.clamp(delta, 0f, 0.2f);
+        
+        // ✅ 关键修复：确保最小值为游戏 tick 时间（0.05秒）
+        // 这样可以避免 UI 高帧率时 delta 太小导致粒子生成受限
+        // 同时限制最大值为 0.2 秒，避免长时间暂停后突然生成大量粒子
+        return MathHelper.clamp(Math.max(delta, 1f / 20f), 1f / 20f, 0.2f);
     }
 
     private int resolveRadius(int viewDistanceChunks, int baseRadius, int maxRadius) {
@@ -262,9 +285,17 @@ public class WeatherParticleController {
         return MathHelper.clamp(Math.round(baseRadius * scale), minRadius, maxRadius);
     }
 
+    /**
+     * ✅ 修复：基于实际时间差计算硬限。
+     * 
+     * <p>硬限应该基于实际时间差，但确保最小值为基于游戏 tick 时间的硬限。
+     * 这样可以避免在 UI 高帧率时过度生成粒子。
+     */
     private int computeHardCap(float deltaSeconds) {
+        // 基于实际时间差计算，但确保最小值为基于游戏 tick 时间的硬限
         float scaled = HARD_CAP_PER_TICK * deltaSeconds * 20f;
-        return Math.max(1, Math.round(scaled));
+        int minCap = HARD_CAP_PER_TICK; // 最小硬限（基于一个游戏 tick）
+        return Math.max(minCap, Math.round(scaled));
     }
 
     private double spread(int radius) {
