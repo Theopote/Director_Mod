@@ -128,8 +128,11 @@ public class WeatherEventController {
      * 触发闪电事件（雷声 + 闪白 + 粒子效果）。
      */
     private void triggerLightning(ClientWorld world, MinecraftClient client, WeatherSample sample, float thunderIntensity) {
-        Vec3d playerPos = client.player.getEntityPos();
-        
+        Vec3d playerPos = null;
+        if (client.player != null) {
+            playerPos = client.player.getEntityPos();
+        }
+
         // 1. 播放雷声音效
         playThunderSound(world, playerPos, thunderIntensity);
         
@@ -138,7 +141,9 @@ public class WeatherEventController {
         currentFlashBrightness = 0.3f + thunderIntensity * 0.5f; // 0.3 ~ 0.8
         
         // 3. 生成闪电粒子效果（在远处）
-        spawnLightningParticles(world, playerPos);
+        if (playerPos != null) {
+            spawnLightningParticles(world, playerPos);
+        }
     }
     
     /**

@@ -31,36 +31,38 @@ public class WeatherParticleController {
     // ---------------- Config ----------------
 
     /** 以"每秒"为单位的最大雨滴发射率（强度=1） */
-    private static final float MAX_RAIN_PPS = 4200f;
+    private static final float MAX_RAIN_PPS = 8000f;
 
     /** 最大雪花发射率（强度=1） */
-    private static final float MAX_SNOW_PPS = 2400f;
+    private static final float MAX_SNOW_PPS = 4800f;
 
     /** 粒子生成半径（格） */
     private static final int BASE_RADIUS_RAIN = 42;
     private static final int BASE_RADIUS_SNOW = 48;
+    private static final int MAX_RADIUS_RAIN = 96;
+    private static final int MAX_RADIUS_SNOW = 112;
 
     /** 至少高于摄像机/玩家多少格开始生成（避免贴脸） */
-    private static final int MIN_ABOVE_CAMERA_RAIN = 26;
-    private static final int MIN_ABOVE_CAMERA_SNOW = 22;
+    private static final int MIN_ABOVE_CAMERA_RAIN = 32;
+    private static final int MIN_ABOVE_CAMERA_SNOW = 28;
 
     /** 在地形顶部再抬高多少格，确保"从天落下"的感觉 */
-    private static final int ABOVE_SURFACE_PADDING = 14;
+    private static final int ABOVE_SURFACE_PADDING = 24;
 
     /** 每 tick 允许生成的最大粒子数（硬限，防止卡顿） */
-    private static final int HARD_CAP_PER_TICK = 900;
+    private static final int HARD_CAP_PER_TICK = 1200;
 
     /** 雨下落速度范围 */
-    private static final float RAIN_FALL_MIN = 0.9f;
-    private static final float RAIN_FALL_MAX = 1.4f;
+    private static final float RAIN_FALL_MIN = 1.6f;
+    private static final float RAIN_FALL_MAX = 2.6f;
 
     /** 雪下落速度范围 */
-    private static final float SNOW_FALL_MIN = 0.12f;
-    private static final float SNOW_FALL_MAX = 0.22f;
+    private static final float SNOW_FALL_MIN = 0.16f;
+    private static final float SNOW_FALL_MAX = 0.30f;
 
     /** 风对水平速度的放大（可见性关键） */
-    private static final float WIND_HORIZONTAL_SCALE_RAIN = 0.55f;
-    private static final float WIND_HORIZONTAL_SCALE_SNOW = 0.85f;
+    private static final float WIND_HORIZONTAL_SCALE_RAIN = 0.80f;
+    private static final float WIND_HORIZONTAL_SCALE_SNOW = 1.05f;
 
     // ---------------- State ----------------
 
@@ -72,6 +74,8 @@ public class WeatherParticleController {
     /** 发射率累加器（以粒子数为单位） */
     private float rainAcc = 0f;
     private float snowAcc = 0f;
+
+    private long lastUpdateNanos = -1L;
 
     public void setEnabled(boolean v) {
         this.enabled = v;
@@ -96,6 +100,14 @@ public class WeatherParticleController {
 
         ClientWorld world = client.world;
         Vec3d camPos = client.player.getCameraPosVec(1.0f);
+        float deltaSeconds = computeDeltaSeconds();
+        if (deltaSeconds <= 0f) {
+            return;
+        }
+
+        int viewDistance = Math.max(2, client.options.getViewDistance().getValue());
+        int rainRadius = resolveRadius(viewDistance, BASE_RADIUS_RAIN, MAX_RADIUS_RAIN);
+        int snowRadius = resolveRadius(viewDistance, BASE_RADIUS_SNOW, MAX_RADIUS_SNOW);
 
         // 强度
         float rainI = clamp01(currentSample.rainIntensity);
@@ -108,10 +120,9 @@ public class WeatherParticleController {
         // 发射率（每秒粒子数）
         float rainPps = MAX_RAIN_PPS * finalRainI;
         float snowPps = MAX_SNOW_PPS * snowI;
-
-        // accumulator：每 tick（20Hz）增加 pps/20
-        rainAcc += rainPps / 20f;
-        snowAcc += snowPps / 20f;
+        // accumulator: integrate by deltaSeconds for stable PPS
+        rainAcc += rainPps * deltaSeconds;
+        snowAcc += snowPps * deltaSeconds;
 
         int rainToSpawn = (int) rainAcc;
         int snowToSpawn = (int) snowAcc;
@@ -123,33 +134,33 @@ public class WeatherParticleController {
         if (total <= 0) return;
 
         // 硬限：避免强度过高时瞬间爆量
-        if (total > HARD_CAP_PER_TICK) {
-            float scale = (float) HARD_CAP_PER_TICK / (float) total;
+        int hardCap = computeHardCap(deltaSeconds);
+        if (total > hardCap) {
+            float scale = (float) hardCap / (float) total;
             rainToSpawn = Math.max(0, (int) (rainToSpawn * scale));
             snowToSpawn = Math.max(0, (int) (snowToSpawn * scale));
         }
 
-        if (rainToSpawn > 0) spawnRain(world, camPos, rainToSpawn, currentSample);
-        if (snowToSpawn > 0) spawnSnow(world, camPos, snowToSpawn, currentSample);
+        if (rainToSpawn > 0) spawnRain(world, camPos, rainRadius, rainToSpawn, currentSample);
+        if (snowToSpawn > 0) spawnSnow(world, camPos, snowRadius, snowToSpawn, currentSample);
     }
 
     // ---------------- Spawn ----------------
 
-    private void spawnRain(ClientWorld world, Vec3d camPos, int count, WeatherSample sample) {
+    private void spawnRain(ClientWorld world, Vec3d camPos, int radius, int count, WeatherSample sample) {
         if (count <= 0) return;
 
         // 风方向：用时间做一个缓慢旋转 + 小噪声（你后续可以替换为 keyframe windDir）
         float wind = clamp01(sample.windStrength);
         Vec3d windVec = computeWindVector(world.getTime(), wind);
 
-        int radius = BASE_RADIUS_RAIN;
         for (int i = 0; i < count; i++) {
             double x = camPos.x + spread(radius);
             double z = camPos.z + spread(radius);
 
             int topY = world.getTopY(Heightmap.Type.MOTION_BLOCKING, MathHelper.floor(x), MathHelper.floor(z));
-            double yFromSurface = topY + ABOVE_SURFACE_PADDING + random.nextDouble() * 18.0;
-            double yFromCamera = camPos.y + MIN_ABOVE_CAMERA_RAIN + random.nextDouble() * 10.0;
+            double yFromSurface = topY + ABOVE_SURFACE_PADDING + random.nextDouble() * 32.0;
+            double yFromCamera = camPos.y + MIN_ABOVE_CAMERA_RAIN + random.nextDouble() * 18.0;
             double y = Math.max(yFromSurface, yFromCamera);
 
             // 垂直速度：下落更快更像雨
@@ -163,20 +174,19 @@ public class WeatherParticleController {
         }
     }
 
-    private void spawnSnow(ClientWorld world, Vec3d camPos, int count, WeatherSample sample) {
+    private void spawnSnow(ClientWorld world, Vec3d camPos, int radius, int count, WeatherSample sample) {
         if (count <= 0) return;
 
         float wind = clamp01(sample.windStrength);
         Vec3d windVec = computeWindVectorSnow(world.getTime(), wind);
 
-        int radius = BASE_RADIUS_SNOW;
         for (int i = 0; i < count; i++) {
             double x = camPos.x + spread(radius);
             double z = camPos.z + spread(radius);
 
             int topY = world.getTopY(Heightmap.Type.MOTION_BLOCKING, MathHelper.floor(x), MathHelper.floor(z));
-            double yFromSurface = topY + (ABOVE_SURFACE_PADDING + 6) + random.nextDouble() * 14.0;
-            double yFromCamera = camPos.y + MIN_ABOVE_CAMERA_SNOW + random.nextDouble() * 10.0;
+            double yFromSurface = topY + (ABOVE_SURFACE_PADDING + 6) + random.nextDouble() * 28.0;
+            double yFromCamera = camPos.y + MIN_ABOVE_CAMERA_SNOW + random.nextDouble() * 14.0;
             double y = Math.max(yFromSurface, yFromCamera);
 
             // 雪更慢、更飘
@@ -226,6 +236,28 @@ public class WeatherParticleController {
     }
 
     // ---------------- Utils ----------------
+
+    private float computeDeltaSeconds() {
+        long now = System.nanoTime();
+        if (lastUpdateNanos <= 0L) {
+            lastUpdateNanos = now;
+            return 1f / 20f;
+        }
+        float delta = (now - lastUpdateNanos) / 1_000_000_000f;
+        lastUpdateNanos = now;
+        return MathHelper.clamp(delta, 0f, 0.2f);
+    }
+
+    private int resolveRadius(int viewDistanceChunks, int baseRadius, int maxRadius) {
+        int view = Math.max(2, viewDistanceChunks);
+        int scaled = view * 8;
+        return MathHelper.clamp(scaled, baseRadius, maxRadius);
+    }
+
+    private int computeHardCap(float deltaSeconds) {
+        float scaled = HARD_CAP_PER_TICK * deltaSeconds * 20f;
+        return Math.max(1, Math.round(scaled));
+    }
 
     private double spread(int radius) {
         // 使用近远混合：大多数点较近，少数点更远，视觉更自然

@@ -134,10 +134,82 @@ public abstract class ClientWorldMixin {
     }
 
     /**
+     * Weather：云颜色控制
+     * 
+     * <p>方法签名（Minecraft 1.21）：getCloudsColor(float tickProgress) -> int (ARGB)
+     * 
+     * <p>根据提供的 ClientWorld 源码，该方法返回 int (ARGB 格式)，而不是 Vec3d
+     */
+    @Inject(
+        method = "getCloudsColor(F)I",
+        at = @At("RETURN"),
+        cancellable = true
+    )
+    private void tintClouds(float tickDelta, CallbackInfoReturnable<Integer> cir) {
+        int originalColor = cir.getReturnValue();
+
+        TimelineWeatherController weatherController = TimelineWeatherController.getInstance();
+        if (!weatherController.hasOverride()) {
+            return;
+        }
+        WeatherSample weatherSample = weatherController.getCurrentSample();
+        if (weatherSample == null || !weatherSample.enabled) {
+            return;
+        }
+
+        float coverage = clamp01(weatherSample.cloudCoverage);
+        if (coverage <= 0.01f) {
+            return;
+        }
+
+        // 从 ARGB int 提取 RGB 分量
+        int r = (originalColor >> 16) & 0xFF;
+        int g = (originalColor >> 8) & 0xFF;
+        int b = originalColor & 0xFF;
+        int a = (originalColor >> 24) & 0xFF;
+        if (a == 0) {
+            a = 0xFF; // 确保 alpha 通道有效
+        }
+
+        // 转换为 float [0-1]
+        float rf = r / 255f;
+        float gf = g / 255f;
+        float bf = b / 255f;
+
+        // 应用云量、亮度和雾颜色混合
+        float cloudBrightness = MathHelper.clamp(weatherSample.cloudBrightness, 0.3f, 1.2f);
+        float darkFactor = 1.0f - coverage * 0.6f;
+        float mix = MathHelper.clamp(coverage * 0.35f, 0f, 0.6f);
+
+        // 应用暗度和亮度
+        rf *= darkFactor * cloudBrightness;
+        gf *= darkFactor * cloudBrightness;
+        bf *= darkFactor * cloudBrightness;
+
+        // 与雾颜色混合
+        rf = rf * (1.0f - mix) + weatherSample.fogColor.x * mix;
+        gf = gf * (1.0f - mix) + weatherSample.fogColor.y * mix;
+        bf = bf * (1.0f - mix) + weatherSample.fogColor.z * mix;
+
+        // 限制范围并转换回 ARGB int
+        rf = clamp01(rf);
+        gf = clamp01(gf);
+        bf = clamp01(bf);
+
+        int newColor = (a << 24)
+                | ((int) (rf * 255) << 16)
+                | ((int) (gf * 255) << 8)
+                | (int) (bf * 255);
+
+        cir.setReturnValue(newColor);
+    }
+
+    /**
      * Season + Weather：天空颜色和暗度
      * 
      * <p>优先级：Weather Track > Season Track > Minecraft 原版
      */
+
     @Inject(
         method = "getSkyColor(Lnet/minecraft/util/math/Vec3d;F)I",
         at = @At("RETURN"),

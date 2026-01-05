@@ -51,12 +51,15 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
     private final ImFloat timeFloat = new ImFloat();
     private final ImFloat rainFloat = new ImFloat();
     private final ImFloat snowFloat = new ImFloat();
+    private final ImFloat wetnessFloat = new ImFloat();
     private final ImFloat thunderFloat = new ImFloat();
     private final ImFloat fogFloat = new ImFloat();
     private final ImFloat windFloat = new ImFloat();
     private final ImFloat lightningFloat = new ImFloat();
     private final ImFloat skyDarknessFloat = new ImFloat();
     private final ImFloat stormDarknessFloat = new ImFloat();
+    private final ImFloat cloudDensityFloat = new ImFloat();
+    private final ImFloat cloudSpeedFloat = new ImFloat();
 
     private final float[] fogTintArr = new float[3];
 
@@ -220,6 +223,24 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
             }
 
             UITheme.spacingSmall();
+            UITheme.spacingSmall();
+
+            // 地面湿度
+            wetnessFloat.set(kf.getWetness());
+            if (ImGui.sliderFloat("地面湿度", wetnessFloat.getData(), 0.0f, 1.0f, "%.2f")) {
+                if (kf.getWeatherType() != WeatherKeyframe.WeatherType.CUSTOM) {
+                    kf.setWeatherType(WeatherKeyframe.WeatherType.CUSTOM);
+                }
+                kf.setPuddleLevel(wetnessFloat.get());
+                parameterChanged.set(true);
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.beginTooltip();
+                ImGui.text("控制地面潮湿感和水滴效果，0 = 干燥，1 = 很湿");
+                ImGui.endTooltip();
+            }
+
+            UITheme.spacingSmall();
         }
 
         // ==========================================================
@@ -266,9 +287,47 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
         }
 
         // ==========================================================
-        // 🌬 风 (Wind)
+        // 云层 (Clouds)
         // ==========================================================
-        if (ImGui.collapsingHeader("风 (Wind)")) {
+        if (ImGui.collapsingHeader(Icons.LAYERS + " 云层 (Clouds)", ImGuiTreeNodeFlags.DefaultOpen)) {
+
+            cloudDensityFloat.set(kf.getCloudDensity());
+            if (ImGui.sliderFloat("云量", cloudDensityFloat.getData(), 0.0f, 1.0f, "%.2f")) {
+                if (kf.getWeatherType() != WeatherKeyframe.WeatherType.CUSTOM) {
+                    kf.setWeatherType(WeatherKeyframe.WeatherType.CUSTOM);
+                }
+                kf.setCloudDensity(cloudDensityFloat.get());
+                parameterChanged.set(true);
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.beginTooltip();
+                ImGui.text("控制云层覆盖度和天空阴影感，0 = 晴朗，1 = 厚云");
+                ImGui.endTooltip();
+            }
+
+            UITheme.spacingSmall();
+
+            cloudSpeedFloat.set(kf.getCloudSpeed());
+            if (ImGui.sliderFloat("云速", cloudSpeedFloat.getData(), 0.0f, 3.0f, "%.2f")) {
+                if (kf.getWeatherType() != WeatherKeyframe.WeatherType.CUSTOM) {
+                    kf.setWeatherType(WeatherKeyframe.WeatherType.CUSTOM);
+                }
+                kf.setCloudSpeed(cloudSpeedFloat.get());
+                parameterChanged.set(true);
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.beginTooltip();
+                ImGui.text("控制云层移动速度倍数");
+                ImGui.endTooltip();
+            }
+
+            UITheme.spacingSmall();
+        }
+
+        // ==========================================================
+        // Wind
+        // ==========================================================
+        if (ImGui.collapsingHeader("\u98ce (Wind)")) {
 
             // 风强度
             windFloat.set(kf.getWindStrength());

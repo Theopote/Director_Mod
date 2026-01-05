@@ -4,6 +4,7 @@ import com.chronoblocks.ui.timeline.playback.season.SeasonSample;
 import com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController;
 import com.chronoblocks.ui.timeline.playback.weather.WeatherSample;
 import com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController;
+import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.render.fog.FogRenderer;
@@ -86,12 +87,26 @@ public abstract class BackgroundRendererMixin {
                 g *= darkFactor;
                 b *= darkFactor;
                 
-                // ✅ 2️⃣ 距离：根据 WeatherSample.fogDensity 计算 fogStart/fogEnd
-                // 关键：Minecraft 1.21 的 applyFog 返回 Vector4f (颜色)，fogStart/fogEnd 需要通过其他方式控制
-                // 这里我们通过 alpha 通道传递密度信息，但实际的距离控制需要在 shader 层面实现
-                // 注意：当前版本限制，fogStart/fogEnd 无法在 applyFog 中直接设置
-                // 作为临时方案，alpha 通道存储密度值（0=无雾，1=浓雾）
-                a = MathHelper.clamp(weatherSample.fogDensity, 0f, 1f);
+                // ✅ 2️⃣ 雾密度：通过 alpha 通道控制雾的强度
+                // 注意：Minecraft 1.21 的 applyFog 返回 Vector4f (r, g, b, a)
+                // - RGB: 雾颜色
+                // - Alpha: 雾的强度/密度（0=无雾，1=浓雾）
+                // 
+                // ⚠️ 关于雾距离渐变（fogStart/fogEnd）：
+                // - Vector4f 不包含 fogStart/fogEnd 参数
+                // - 雾的距离渐变由 Minecraft 的 shader 根据 viewDistance 和雾密度自动计算
+                // - 如果雾看起来像"一圈颜色围挡"而不是渐变，可能的原因：
+                //   1. 雾密度设置过高，导致雾在很近的距离就完全遮挡
+                //   2. 雾颜色与背景色对比太强烈
+                //   3. Minecraft 的雾渲染算法本身的特性
+                // 
+                // 改进建议：
+                // - 调整 fogDensity 值，使用较小的值（如 0.3-0.6）以获得更平滑的渐变
+                // - 确保雾颜色与天空颜色有适当的过渡
+                // - 如果需要更精确的距离控制，需要修改 Minecraft 的 shader 或通过 RenderSystem.setShaderFog() 的 buffer
+                float density = MathHelper.clamp(weatherSample.fogDensity, 0f, 1f);
+                // 使用平方根使雾的过渡更平滑（非线性映射）
+                a = MathHelper.sqrt(density);
                 
                 cir.setReturnValue(new Vector4f(r, g, b, a));
                 return; // 天气系统覆盖，不再应用季节系统
