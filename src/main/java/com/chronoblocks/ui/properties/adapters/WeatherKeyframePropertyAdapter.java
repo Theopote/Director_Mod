@@ -60,6 +60,7 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
     private final ImFloat stormDarknessFloat = new ImFloat();
     private final ImFloat cloudDensityFloat = new ImFloat();
     private final ImFloat cloudSpeedFloat = new ImFloat();
+    private final ImFloat cloudBrightnessFloat = new ImFloat();
 
     private final float[] fogTintArr = new float[3];
 
@@ -318,6 +319,23 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
             if (ImGui.isItemHovered()) {
                 ImGui.beginTooltip();
                 ImGui.text("控制云层移动速度倍数");
+                ImGui.endTooltip();
+            }
+
+            UITheme.spacingSmall();
+
+            // ✅ 新增：云亮度参数
+            cloudBrightnessFloat.set(kf.getCloudBrightness());
+            if (ImGui.sliderFloat("云亮度", cloudBrightnessFloat.getData(), 0.3f, 1.2f, "%.2f")) {
+                if (kf.getWeatherType() != WeatherKeyframe.WeatherType.CUSTOM) {
+                    kf.setWeatherType(WeatherKeyframe.WeatherType.CUSTOM);
+                }
+                kf.setCloudBrightness(cloudBrightnessFloat.get());
+                parameterChanged.set(true);
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.beginTooltip();
+                ImGui.text("控制云的颜色亮度，0.3 = 很暗，1.0 = 正常，1.2 = 很亮");
                 ImGui.endTooltip();
             }
 

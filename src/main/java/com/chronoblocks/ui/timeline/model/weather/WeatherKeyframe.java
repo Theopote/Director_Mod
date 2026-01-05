@@ -153,6 +153,9 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
     /** 云移动速度（倍数） */
     private float cloudSpeed = 1.0f;
 
+    /** 云亮度 [0.3-1.2]：控制云的颜色亮度，0.3 = 很暗，1.0 = 正常，1.2 = 很亮 */
+    private float cloudBrightness = 1.0f;
+
     /** 大气雾浓度 [0-1] */
     private float fogDensity = 0.0f;
 
@@ -424,6 +427,22 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
         this.cloudSpeed = Math.max(0.0f, cloudSpeed);
     }
 
+    /**
+     * 获取云亮度（用于 WeatherSample.cloudBrightness）。
+     * 范围：[0.3, 1.2]，默认 1.0
+     */
+    public float getCloudBrightness() {
+        return cloudBrightness;
+    }
+
+    /**
+     * 设置云亮度。
+     * 范围：[0.3, 1.2]，0.3 = 很暗，1.0 = 正常，1.2 = 很亮
+     */
+    public void setCloudBrightness(float cloudBrightness) {
+        this.cloudBrightness = Math.max(0.3f, Math.min(1.2f, cloudBrightness));
+    }
+
     public float getFogDensity() {
         return fogDensity;
     }
@@ -566,6 +585,7 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
                 stormDarkness = 0.0f;
                 cloudDensity = 0.2f;
                 cloudSpeed = 1.0f;
+                cloudBrightness = 1.0f;
                 fogDensity = 0.0f;
                 fogColor.set(0.7f, 0.7f, 0.8f);
                 tempBias = 0.0f;
@@ -584,6 +604,7 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
                 stormDarkness = 0.2f;
                 cloudDensity = 0.7f;
                 cloudSpeed = 1.2f;
+                cloudBrightness = 0.8f;
                 fogDensity = 0.2f;
                 fogColor.set(0.65f, 0.65f, 0.75f);
                 tempBias = 0.0f;
@@ -602,6 +623,7 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
                 stormDarkness = 0.5f;
                 cloudDensity = 1.0f;
                 cloudSpeed = 1.5f;
+                cloudBrightness = 0.6f;
                 fogDensity = 0.4f;
                 fogColor.set(0.6f, 0.6f, 0.7f);
                 tempBias = -0.1f;
@@ -620,6 +642,7 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
                 stormDarkness = 0.8f;
                 cloudDensity = 1.0f;
                 cloudSpeed = 2.0f;
+                cloudBrightness = 0.5f;
                 fogDensity = 0.6f;
                 fogColor.set(0.5f, 0.5f, 0.6f);
                 tempBias = -0.2f;
@@ -638,6 +661,7 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
                 stormDarkness = 0.3f;
                 cloudDensity = 0.9f;
                 cloudSpeed = 0.8f;
+                cloudBrightness = 0.7f;
                 fogDensity = 0.4f;
                 fogColor.set(0.75f, 0.75f, 0.85f);
                 tempBias = -0.5f;
@@ -656,6 +680,7 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
                 stormDarkness = 0.1f;
                 cloudDensity = 0.8f;
                 cloudSpeed = 0.3f;
+                cloudBrightness = 0.9f;
                 fogDensity = 0.9f;
                 fogColor.set(0.6f, 0.6f, 0.65f);
                 tempBias = 0.0f;

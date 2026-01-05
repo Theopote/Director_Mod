@@ -260,6 +260,7 @@ public class TimelineModelPersistence {
         public float stormDarkness;
         public float cloudDensity;
         public float cloudSpeed;
+        public float cloudBrightness;
         public float fogDensity;
         public Vec3DTO fogColor;
         public float tempBias;
@@ -359,6 +360,7 @@ public class TimelineModelPersistence {
                         kdto.stormDarkness = wk.getStormDarkness();
                         kdto.cloudDensity = wk.getCloudDensity();
                         kdto.cloudSpeed = wk.getCloudSpeed();
+                        kdto.cloudBrightness = wk.getCloudBrightness();
                         kdto.fogDensity = wk.getFogDensity();
                         kdto.fogColor = Vec3DTO.from(wk.getFogColor());
                         kdto.tempBias = wk.getTempBias();
@@ -573,6 +575,12 @@ public class TimelineModelPersistence {
                                 wk.setStormDarkness(kdto.stormDarkness);
                                 wk.setCloudDensity(kdto.cloudDensity);
                                 wk.setCloudSpeed(kdto.cloudSpeed);
+                                // ✅ 新增：云亮度（如果不存在则使用默认值 1.0）
+                                if (kdto.cloudBrightness > 0f) {
+                                    wk.setCloudBrightness(kdto.cloudBrightness);
+                                } else {
+                                    wk.setCloudBrightness(1.0f); // 默认值
+                                }
                                 wk.setFogDensity(kdto.fogDensity);
                                 if (kdto.fogColor != null) wk.setFogColor(kdto.fogColor.x, kdto.fogColor.y, kdto.fogColor.z);
                                 wk.setTempBias(kdto.tempBias);
