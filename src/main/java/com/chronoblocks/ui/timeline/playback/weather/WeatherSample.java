@@ -44,6 +44,9 @@ public class WeatherSample {
     /** 风力：0 = 无风，1 = 狂风 */
     public float windStrength = 0f;
 
+    /** 风方向（角度，度）：0° = +X（东），90° = +Z（南），180° = -X（西），270° = -Z（北） */
+    public float windDirectionDegrees = 0f;
+
     /** 地面湿度：0 = 干燥，1 = 很湿（用于反光/水坑） */
     public float wetness = 0f;
 
@@ -160,6 +163,7 @@ public class WeatherSample {
         cloudCoverage = lerp(a.cloudCoverage, b.cloudCoverage, t);
         fogDensity = lerp(a.fogDensity, b.fogDensity, t);
         windStrength = lerp(a.windStrength, b.windStrength, t);
+        windDirectionDegrees = lerpAngle(a.windDirectionDegrees, b.windDirectionDegrees, t);
         wetness = lerp(a.wetness, b.wetness, t);
         fogTint.x = lerp(a.fogTint.x, b.fogTint.x, t);
         fogTint.y = lerp(a.fogTint.y, b.fogTint.y, t);
@@ -209,6 +213,7 @@ public class WeatherSample {
         cloudCoverage = s.cloudCoverage;
         fogDensity = s.fogDensity;
         windStrength = s.windStrength;
+        windDirectionDegrees = s.windDirectionDegrees;
         wetness = s.wetness;
         fogTint.set(s.fogTint);
         type = s.type;
@@ -236,6 +241,32 @@ public class WeatherSample {
 
     private float lerp(float a, float b, float t) {
         return a + (b - a) * t;
+    }
+
+    /**
+     * 角度插值（处理 360° 环绕，选择最短路径）。
+     * 例如：350° 到 10° 会插值到 0° 而不是 180°
+     */
+    private float lerpAngle(float a, float b, float t) {
+        // 归一化到 [0, 360)
+        while (a < 0f) a += 360f;
+        while (a >= 360f) a -= 360f;
+        while (b < 0f) b += 360f;
+        while (b >= 360f) b -= 360f;
+
+        // 计算两个方向的距离
+        float diff = b - a;
+        if (diff > 180f) {
+            diff -= 360f; // 走反向更短
+        } else if (diff < -180f) {
+            diff += 360f; // 走反向更短
+        }
+
+        float result = a + diff * t;
+        // 归一化结果
+        while (result < 0f) result += 360f;
+        while (result >= 360f) result -= 360f;
+        return result;
     }
 
     /**

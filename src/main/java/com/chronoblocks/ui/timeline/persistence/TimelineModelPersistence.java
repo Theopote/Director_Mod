@@ -257,6 +257,7 @@ public class TimelineModelPersistence {
         public float thunderStrength;
         public float lightningFrequency;
         public float windStrength;
+        public float windDirectionDegrees;
         public float stormDarkness;
         public float cloudDensity;
         public float cloudSpeed;
@@ -357,6 +358,7 @@ public class TimelineModelPersistence {
                         kdto.thunderStrength = wk.getThunderStrength();
                         kdto.lightningFrequency = wk.getLightningFrequency();
                         kdto.windStrength = wk.getWindStrength();
+                        kdto.windDirectionDegrees = wk.getWindDirectionDegrees();
                         kdto.stormDarkness = wk.getStormDarkness();
                         kdto.cloudDensity = wk.getCloudDensity();
                         kdto.cloudSpeed = wk.getCloudSpeed();
@@ -572,6 +574,12 @@ public class TimelineModelPersistence {
                                 wk.setThunderStrength(kdto.thunderStrength);
                                 wk.setLightningFrequency(kdto.lightningFrequency);
                                 wk.setWindStrength(kdto.windStrength);
+                                // ✅ 新增：风方向（如果不存在则使用默认值 0°）
+                                if (kdto.windDirectionDegrees >= 0f && kdto.windDirectionDegrees < 360f) {
+                                    wk.setWindDirectionDegrees(kdto.windDirectionDegrees);
+                                } else {
+                                    wk.setWindDirectionDegrees(0.0f); // 默认向东
+                                }
                                 wk.setStormDarkness(kdto.stormDarkness);
                                 wk.setCloudDensity(kdto.cloudDensity);
                                 wk.setCloudSpeed(kdto.cloudSpeed);

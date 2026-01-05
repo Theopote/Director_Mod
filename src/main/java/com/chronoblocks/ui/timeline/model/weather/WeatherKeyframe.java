@@ -142,6 +142,9 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
     /** 风强度 [0-1]（吹动树叶、粒子方向） */
     private float windStrength = 0.0f;
 
+    /** 风方向（角度，度）：0° = +X（东），90° = +Z（南），180° = -X（西），270° = -Z（北） */
+    private float windDirectionDegrees = 0.0f;
+
     /** 天空变暗程度 [0-1] */
     private float stormDarkness = 0.0f;
 
@@ -403,6 +406,25 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
         this.windStrength = clamp01(windStrength);
     }
 
+    /**
+     * 获取风方向（角度，度）。
+     * 范围：[0, 360)，0° = +X（东），90° = +Z（南），180° = -X（西），270° = -Z（北）
+     */
+    public float getWindDirectionDegrees() {
+        return windDirectionDegrees;
+    }
+
+    /**
+     * 设置风方向（角度，度）。
+     * 范围：[0, 360)，会自动归一化到该范围
+     */
+    public void setWindDirectionDegrees(float windDirectionDegrees) {
+        // 归一化到 [0, 360)
+        while (windDirectionDegrees < 0f) windDirectionDegrees += 360f;
+        while (windDirectionDegrees >= 360f) windDirectionDegrees -= 360f;
+        this.windDirectionDegrees = windDirectionDegrees;
+    }
+
     public float getStormDarkness() {
         return stormDarkness;
     }
@@ -601,6 +623,7 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
                 thunderStrength = 0.0f;
                 lightningFrequency = 0.0f;
                 windStrength = 0.3f;
+                windDirectionDegrees = 45.0f; // 默认东南风
                 stormDarkness = 0.2f;
                 cloudDensity = 0.7f;
                 cloudSpeed = 1.2f;
@@ -620,6 +643,7 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
                 thunderStrength = 0.3f;
                 lightningFrequency = 0.5f;
                 windStrength = 0.6f;
+                windDirectionDegrees = 90.0f; // 默认南风
                 stormDarkness = 0.5f;
                 cloudDensity = 1.0f;
                 cloudSpeed = 1.5f;
@@ -639,6 +663,7 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
                 thunderStrength = 1.0f;
                 lightningFrequency = 2.0f;
                 windStrength = 1.0f;
+                windDirectionDegrees = 135.0f; // 默认西南风（暴风）
                 stormDarkness = 0.8f;
                 cloudDensity = 1.0f;
                 cloudSpeed = 2.0f;
@@ -658,6 +683,7 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
                 thunderStrength = 0.0f;
                 lightningFrequency = 0.0f;
                 windStrength = 0.3f;
+                windDirectionDegrees = 270.0f; // 默认北风（雪）
                 stormDarkness = 0.3f;
                 cloudDensity = 0.9f;
                 cloudSpeed = 0.8f;
@@ -677,6 +703,7 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
                 thunderStrength = 0.0f;
                 lightningFrequency = 0.0f;
                 windStrength = 0.1f;
+                windDirectionDegrees = 0.0f; // 默认无风
                 stormDarkness = 0.1f;
                 cloudDensity = 0.8f;
                 cloudSpeed = 0.3f;

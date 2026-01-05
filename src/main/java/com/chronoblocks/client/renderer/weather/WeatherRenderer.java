@@ -88,7 +88,7 @@ public class WeatherRenderer {
     private void renderSpecialWeather(ClientWorld world, ParticleManager particleManager, Vec3d playerPos) {
         float intensity = currentSample.specialWeatherIntensity;
         float windStrength = MathHelper.clamp(currentSample.windStrength, 0f, 1f);
-        Vec3d windVec = resolveWindVec(world, windStrength);
+        Vec3d windVec = resolveWindVec(currentSample, windStrength);
 
         switch (currentSample.specialWeatherType) {
             case SANDSTORM -> {
@@ -169,15 +169,19 @@ public class WeatherRenderer {
         }
     }
 
-    private Vec3d resolveWindVec(ClientWorld world, float windStrength) {
+    /**
+     * ✅ 修复：使用 WeatherSample 中的风方向，而不是时间变化的风。
+     */
+    private Vec3d resolveWindVec(WeatherSample sample, float windStrength) {
         if (windStrength <= 0.001f) {
             return Vec3d.ZERO;
         }
 
-        double t = world.getTime() * 0.02;
-        double angle = t * 0.4 + Math.sin(t * 0.15) * 0.4;
+        // ✅ 使用 WeatherSample 中的风方向（度）
+        // 0° = +X（东），90° = +Z（南），180° = -X（西），270° = -Z（北）
+        double angleRad = Math.toRadians(sample.windDirectionDegrees);
         double speed = windStrength * 0.6;
-        return new Vec3d(Math.cos(angle) * speed, 0.0, Math.sin(angle) * speed);
+        return new Vec3d(Math.cos(angleRad) * speed, 0.0, Math.sin(angleRad) * speed);
     }
 
     /**

@@ -184,6 +184,7 @@ public class WeatherTrackSampler {
         out.cloudCoverage = kf.getCloudCoverage();
         out.fogDensity = kf.getFogDensity();
         out.windStrength = kf.getWindStrength();
+        out.windDirectionDegrees = kf.getWindDirectionDegrees();
         out.wetness = kf.getWetness();
 
         // fogTint: 从 fogColor 计算（简化映射，保持原色）

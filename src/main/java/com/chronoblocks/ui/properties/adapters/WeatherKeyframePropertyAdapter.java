@@ -61,6 +61,7 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
     private final ImFloat cloudDensityFloat = new ImFloat();
     private final ImFloat cloudSpeedFloat = new ImFloat();
     private final ImFloat cloudBrightnessFloat = new ImFloat();
+    private final ImFloat windDirectionFloat = new ImFloat();
 
     private final float[] fogTintArr = new float[3];
 
@@ -343,9 +344,9 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
         }
 
         // ==========================================================
-        // Wind
+        // 🌬 风 (Wind)
         // ==========================================================
-        if (ImGui.collapsingHeader("\u98ce (Wind)")) {
+        if (ImGui.collapsingHeader("\uD83C\uDF2C 风 (Wind)", ImGuiTreeNodeFlags.DefaultOpen)) {
 
             // 风强度
             windFloat.set(kf.getWindStrength());
@@ -360,6 +361,37 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
             if (ImGui.isItemHovered()) {
                 ImGui.beginTooltip();
                 ImGui.text("影响雨雪的偏斜程度与飘动感，0 = 无风，1 = 狂风");
+                ImGui.endTooltip();
+            }
+
+            UITheme.spacingSmall();
+
+            // ✅ 新增：风方向可视化控件（方向盘）
+            windDirectionFloat.set(kf.getWindDirectionDegrees());
+            float[] windDirArr = { windDirectionFloat.get() };
+            drawWindDirectionDial("风方向", windDirArr);
+            if (Math.abs(windDirArr[0] - windDirectionFloat.get()) > 0.1f) {
+                if (kf.getWeatherType() != WeatherKeyframe.WeatherType.CUSTOM) {
+                    kf.setWeatherType(WeatherKeyframe.WeatherType.CUSTOM);
+                }
+                kf.setWindDirectionDegrees(windDirArr[0]);
+                windDirectionFloat.set(windDirArr[0]);
+                parameterChanged.set(true);
+            }
+
+            UITheme.spacingSmall();
+
+            // 角度数值滑块（精确调整）
+            if (ImGui.sliderFloat("方向角 (°)", windDirectionFloat.getData(), 0.0f, 360.0f, "%.0f°")) {
+                if (kf.getWeatherType() != WeatherKeyframe.WeatherType.CUSTOM) {
+                    kf.setWeatherType(WeatherKeyframe.WeatherType.CUSTOM);
+                }
+                kf.setWindDirectionDegrees(windDirectionFloat.get());
+                parameterChanged.set(true);
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.beginTooltip();
+                ImGui.text("0° = 东（+X），90° = 南（+Z），180° = 西（-X），270° = 北（-Z）");
                 ImGui.endTooltip();
             }
 
@@ -445,6 +477,89 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
         }
 
         return parameterChanged.get() || timeChanged.get();
+    }
+
+    /**
+     * ✅ 绘制风方向可视化控件（方向盘）。
+     * 
+     * <p>使用 ImGui 的绘制 API 创建一个可交互的方向盘：
+     * - 圆形表示方向环
+     * - 指针表示当前风向
+     * - 鼠标拖拽可调整方向
+     * 
+     * @param label 控件标签
+     * @param angleDeg 角度值（度），会被修改
+     */
+    private void drawWindDirectionDial(String label, float[] angleDeg) {
+        final float radius = 40.0f;
+        final float diameter = radius * 2.0f;
+
+        ImGui.text(label);
+
+        ImGui.pushID(label);
+        
+        // 创建一个不可见按钮作为交互区域
+        ImGui.invisibleButton("##wind_dir", diameter, diameter);
+
+        // 获取绘制位置中心点
+        float cx = ImGui.getItemRectMinX() + radius;
+        float cy = ImGui.getItemRectMinY() + radius;
+
+        var drawList = ImGui.getWindowDrawList();
+
+        // 绘制圆盘背景
+        drawList.addCircle(cx, cy, radius, 0xFFAAAAAA, 32, 2.0f);
+
+        // 绘制方向标记（东、南、西、北）
+        float markerLength = 8.0f;
+        // 东（0°）
+        drawList.addLine(cx + radius - markerLength, cy, cx + radius, cy, 0xFF888888, 1.5f);
+        // 南（90°）
+        drawList.addLine(cx, cy + radius - markerLength, cx, cy + radius, 0xFF888888, 1.5f);
+        // 西（180°）
+        drawList.addLine(cx - radius + markerLength, cy, cx - radius, cy, 0xFF888888, 1.5f);
+        // 北（270°）
+        drawList.addLine(cx, cy - radius + markerLength, cx, cy - radius, 0xFF888888, 1.5f);
+
+        // 当前角度 → 方向向量
+        // 注意：ImGui 的 Y 轴向下，所以需要调整
+        double rad = Math.toRadians(angleDeg[0] - 90.0); // -90° 让 0° 指向右（东）
+        float dx = (float) Math.cos(rad);
+        float dy = (float) Math.sin(rad);
+
+        // 绘制指针（从中心指向方向）
+        drawList.addLine(
+                cx,
+                cy,
+                cx + dx * (radius - 5.0f),
+                cy + dy * (radius - 5.0f),
+                0xFF00CCFF,
+                3.0f
+        );
+
+        // 绘制中心点
+        drawList.addCircleFilled(cx, cy, 3.0f, 0xFF00CCFF, 8);
+
+        // 鼠标交互：拖拽调整方向
+        if (ImGui.isItemActive()) {
+            float mx = ImGui.getIO().getMousePosX();
+            float my = ImGui.getIO().getMousePosY();
+
+            float vx = mx - cx;
+            float vy = my - cy;
+
+            // 计算角度（注意：ImGui Y 轴向下，所以 atan2 的参数顺序）
+            float newAngle = (float) Math.toDegrees(Math.atan2(vy, vx));
+            // 转换为我们的坐标系（0° = 东，顺时针为正）
+            newAngle = newAngle + 90.0f;
+            // 归一化到 [0, 360)
+            while (newAngle < 0f) newAngle += 360f;
+            while (newAngle >= 360f) newAngle -= 360f;
+
+            angleDeg[0] = newAngle;
+        }
+
+        ImGui.popID();
     }
 
     @Override

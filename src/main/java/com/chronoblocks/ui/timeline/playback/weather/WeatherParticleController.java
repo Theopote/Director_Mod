@@ -156,9 +156,9 @@ public class WeatherParticleController {
     private void spawnRain(ClientWorld world, Vec3d camPos, int radius, int count, WeatherSample sample, float intensity) {
         if (count <= 0) return;
 
-        // 风方向：用时间做一个缓慢旋转 + 小噪声（你后续可以替换为 keyframe windDir）
+        // ✅ 修复：使用 WeatherSample 中的风方向和强度
         float wind = clamp01(sample.windStrength);
-        Vec3d windVec = computeWindVector(world.getTime(), wind);
+        Vec3d windVec = computeWindVector(sample, wind);
 
         for (int i = 0; i < count; i++) {
             double x = camPos.x + spread(radius);
@@ -198,8 +198,9 @@ public class WeatherParticleController {
     private void spawnSnow(ClientWorld world, Vec3d camPos, int radius, int count, WeatherSample sample) {
         if (count <= 0) return;
 
+        // ✅ 修复：使用 WeatherSample 中的风方向和强度
         float wind = clamp01(sample.windStrength);
-        Vec3d windVec = computeWindVectorSnow(world.getTime(), wind);
+        Vec3d windVec = computeWindVectorSnow(sample, wind);
 
         for (int i = 0; i < count; i++) {
             double x = camPos.x + spread(radius);
@@ -221,15 +222,22 @@ public class WeatherParticleController {
 
     // ---------------- Wind model ----------------
 
-    private Vec3d computeWindVector(long worldTime, float windStrength01) {
+    /**
+     * ✅ 修复：使用 WeatherSample 中的风方向，而不是时间变化的风。
+     * 
+     * <p>现在风方向由导演在时间线上控制，可以实现：
+     * - 固定风向
+     * - 风向随时间轴动画
+     * - 镜头级导演控制
+     */
+    private Vec3d computeWindVector(WeatherSample sample, float windStrength01) {
         if (windStrength01 <= 0.001f) return Vec3d.ZERO;
 
-        // 方向随时间缓慢变化（你后续可以用 keyframe 固定 direction）
-        double t = worldTime * 0.015;
-        double angle = t * 0.35 + Math.sin(t * 0.17) * 0.6;
-
-        double dirX = Math.cos(angle);
-        double dirZ = Math.sin(angle);
+        // ✅ 使用 WeatherSample 中的风方向（度）
+        // 0° = +X（东），90° = +Z（南），180° = -X（西），270° = -Z（北）
+        double angleRad = Math.toRadians(sample.windDirectionDegrees);
+        double dirX = Math.cos(angleRad);
+        double dirZ = Math.sin(angleRad);
 
         // 速度大小（关键：让肉眼看得见）- 使用雨的风速作为基础
         double speed = windStrength01 * WIND_HORIZONTAL_SCALE_RAIN;
@@ -237,17 +245,16 @@ public class WeatherParticleController {
     }
     
     /**
-     * 计算雪的风向量（使用更大的风速比例）。
+     * ✅ 修复：使用 WeatherSample 中的风方向，而不是时间变化的风。
+     * 雪使用与雨相同的风向，但风速比例更大。
      */
-    private Vec3d computeWindVectorSnow(long worldTime, float windStrength01) {
+    private Vec3d computeWindVectorSnow(WeatherSample sample, float windStrength01) {
         if (windStrength01 <= 0.001f) return Vec3d.ZERO;
 
-        // 方向随时间缓慢变化（稍微错相位，与雨不同）
-        double t = (worldTime + 200) * 0.015;
-        double angle = t * 0.35 + Math.sin(t * 0.17) * 0.6;
-
-        double dirX = Math.cos(angle);
-        double dirZ = Math.sin(angle);
+        // ✅ 使用 WeatherSample 中的风方向（与雨相同）
+        double angleRad = Math.toRadians(sample.windDirectionDegrees);
+        double dirX = Math.cos(angleRad);
+        double dirZ = Math.sin(angleRad);
 
         // 雪的风速更大（更明显）
         double speed = windStrength01 * WIND_HORIZONTAL_SCALE_SNOW;
