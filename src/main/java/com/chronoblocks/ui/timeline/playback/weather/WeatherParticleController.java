@@ -47,15 +47,15 @@ public class WeatherParticleController {
 
     /** 在地形顶部再抬高多少格，确保"从天落下"的感觉 */
     private static final int ABOVE_SURFACE_PADDING = 24;
-    private static final int ABOVE_SURFACE_PADDING_SNOW = 16;
+    private static final int ABOVE_SURFACE_PADDING_SNOW = 2;
     private static final int SNOW_SURFACE_EXTRA = 26;
 
     /** 每 tick 允许生成的最大粒子数（硬限，防止卡顿） */
     private static final int HARD_CAP_PER_TICK = 8000;
 
     /** 雨下落速度范围 */
-    private static final float RAIN_FALL_MIN = 2.4f;
-    private static final float RAIN_FALL_MAX = 4.2f;
+    private static final float RAIN_FALL_MIN = 3.4f;
+    private static final float RAIN_FALL_MAX = 6.2f;
 
     /** 雪下落速度范围 */
     private static final float SNOW_FALL_MIN = 0.45f;

@@ -181,7 +181,13 @@ public class WeatherRenderer {
     }
 
     /**
-     * Renders ground wetness particles around the player.
+     * ✅ 修复：增强地面湿度效果，使其更明显可见。
+     * 
+     * <p>改进：
+     * - 增加粒子数量（从最多18个增加到最多60个）
+     * - 减少生成间隔（从每4-12 tick改为每1-3 tick）
+     * - 增加生成半径（从24格增加到32格）
+     * - 使用多种粒子类型（水滴、雨滴、水花）增强视觉效果
      */
     private void renderWetness(ClientWorld world, ParticleManager particleManager, Vec3d playerPos) {
         float wetness = currentSample.wetness;
@@ -189,27 +195,54 @@ public class WeatherRenderer {
             return;
         }
 
-        int interval = Math.max(4, (int) (12 / (wetness + 0.05f)));
+        // ✅ 修复：减少生成间隔，让效果更连续
+        // 湿度越高，生成越频繁（每1-3 tick生成一次）
+        int interval = Math.max(1, (int) (3 / (wetness + 0.1f)));
         if (particleTickCounter % interval != 0) {
             return;
         }
 
-        int radius = 24;
-        int particleCount = Math.max(1, Math.round(wetness * 18f));
+        // ✅ 修复：增加生成半径和粒子数量
+        int radius = 32; // 从24增加到32
+        int baseParticleCount = Math.max(3, Math.round(wetness * 60f)); // 从18增加到60
 
-        for (int i = 0; i < particleCount; i++) {
+        for (int i = 0; i < baseParticleCount; i++) {
             double x = playerPos.x + (world.random.nextDouble() - 0.5) * radius * 2;
             double z = playerPos.z + (world.random.nextDouble() - 0.5) * radius * 2;
             int topY = world.getTopY(Heightmap.Type.MOTION_BLOCKING, MathHelper.floor(x), MathHelper.floor(z));
-            double y = topY + 0.02 + world.random.nextDouble() * 0.06;
+            double y = topY + 0.02 + world.random.nextDouble() * 0.08;
 
-            particleManager.addParticle(
-                ParticleTypes.DRIPPING_WATER,
-                x, y, z,
-                0,
-                0.02 + world.random.nextDouble() * 0.03,
-                0
-            );
+            // ✅ 修复：根据湿度使用不同的粒子类型，增强视觉效果
+            float rand = world.random.nextFloat();
+            if (rand < 0.4f) {
+                // 40% 概率：水滴粒子（地面上的水滴）
+                particleManager.addParticle(
+                    ParticleTypes.DRIPPING_WATER,
+                    x, y, z,
+                    0,
+                    0.02 + world.random.nextDouble() * 0.04,
+                    0
+                );
+            } else if (rand < 0.7f) {
+                // 30% 概率：雨滴粒子（从上方滴落）
+                particleManager.addParticle(
+                    ParticleTypes.RAIN,
+                    x, y + 0.5 + world.random.nextDouble() * 1.5,
+                    z,
+                    (world.random.nextDouble() - 0.5) * 0.1,
+                    -0.1 - world.random.nextDouble() * 0.2,
+                    (world.random.nextDouble() - 0.5) * 0.1
+                );
+            } else {
+                // 30% 概率：水花粒子（地面上的水花效果）
+                particleManager.addParticle(
+                    ParticleTypes.SPLASH,
+                    x, y, z,
+                    (world.random.nextDouble() - 0.5) * 0.05,
+                    0.01 + world.random.nextDouble() * 0.02,
+                    (world.random.nextDouble() - 0.5) * 0.05
+                );
+            }
         }
     }
 
