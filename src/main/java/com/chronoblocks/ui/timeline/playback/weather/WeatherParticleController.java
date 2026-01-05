@@ -31,34 +31,35 @@ public class WeatherParticleController {
     // ---------------- Config ----------------
 
     /** 以"每秒"为单位的最大雨滴发射率（强度=1） */
-    private static final float MAX_RAIN_PPS = 20000f;
+    private static final float MAX_RAIN_PPS = 80000f;
 
     /** 最大雪花发射率（强度=1） */
-    private static final float MAX_SNOW_PPS = 12000f;
+    private static final float MAX_SNOW_PPS = 80000f;
 
     /** 粒子生成半径（格） */
     private static final int BASE_RADIUS_RAIN = 42;
-    private static final int BASE_RADIUS_SNOW = 48;
+    private static final int BASE_RADIUS_SNOW = 64;
     private static final int MAX_RADIUS_RAIN = 96;
-    private static final int MAX_RADIUS_SNOW = 112;
+    private static final int MAX_RADIUS_SNOW = 180;
 
     /** 至少高于摄像机/玩家多少格开始生成（避免贴脸） */
     private static final int MIN_ABOVE_CAMERA_RAIN = 32;
-    private static final int MIN_ABOVE_CAMERA_SNOW = 28;
 
     /** 在地形顶部再抬高多少格，确保"从天落下"的感觉 */
     private static final int ABOVE_SURFACE_PADDING = 24;
+    private static final int ABOVE_SURFACE_PADDING_SNOW = 16;
+    private static final int SNOW_SURFACE_EXTRA = 26;
 
     /** 每 tick 允许生成的最大粒子数（硬限，防止卡顿） */
-    private static final int HARD_CAP_PER_TICK = 3000;
+    private static final int HARD_CAP_PER_TICK = 8000;
 
     /** 雨下落速度范围 */
     private static final float RAIN_FALL_MIN = 2.4f;
     private static final float RAIN_FALL_MAX = 4.2f;
 
     /** 雪下落速度范围 */
-    private static final float SNOW_FALL_MIN = 0.22f;
-    private static final float SNOW_FALL_MAX = 0.50f;
+    private static final float SNOW_FALL_MIN = 0.45f;
+    private static final float SNOW_FALL_MAX = 0.90f;
 
     /** 风对水平速度的放大（可见性关键） */
     private static final float WIND_HORIZONTAL_SCALE_RAIN = 0.80f;
@@ -124,6 +125,7 @@ public class WeatherParticleController {
 
         rainRadius = resolveIntensityRadius(rainRadius, BASE_RADIUS_RAIN, MAX_RADIUS_RAIN, finalRainI);
         snowRadius = resolveIntensityRadius(snowRadius, BASE_RADIUS_SNOW, MAX_RADIUS_SNOW, snowI);
+        snowRadius = MathHelper.clamp(Math.round(snowRadius * (1.0f + snowI * 0.8f)), BASE_RADIUS_SNOW, MAX_RADIUS_SNOW);
         // accumulator: integrate by deltaSeconds for stable PPS
         rainAcc += rainPps * deltaSeconds;
         snowAcc += snowPps * deltaSeconds;
@@ -174,7 +176,15 @@ public class WeatherParticleController {
             double vx = windVec.x + (random.nextDouble() - 0.5) * 0.08;
             double vz = windVec.z + (random.nextDouble() - 0.5) * 0.08;
 
-            world.addParticleClient(ParticleTypes.FALLING_WATER, x, y, z, vx, vy, vz);
+            int streakSegments = intensity >= 0.85f ? 4 : (intensity >= 0.65f ? 3 : (intensity >= 0.35f ? 2 : 1));
+            double segStep = intensity >= 0.85f ? 1.4 : (intensity >= 0.65f ? 1.7 : 2.2);
+            for (int s = 0; s < streakSegments; s++) {
+                double segY = y - s * segStep;
+                if (segY <= topY + 0.3) {
+                    break;
+                }
+                world.addImportantParticleClient(ParticleTypes.FALLING_WATER, x, segY, z, vx, vy, vz);
+            }
 
             if (intensity > 0.25f && random.nextFloat() < intensity * 0.18f) {
                 double splashX = x + (random.nextDouble() - 0.5) * 0.6;
@@ -196,9 +206,7 @@ public class WeatherParticleController {
             double z = camPos.z + spread(radius);
 
             int topY = world.getTopY(Heightmap.Type.MOTION_BLOCKING, MathHelper.floor(x), MathHelper.floor(z));
-            double yFromSurface = topY + (ABOVE_SURFACE_PADDING + 6) + random.nextDouble() * 28.0;
-            double yFromCamera = camPos.y + MIN_ABOVE_CAMERA_SNOW + random.nextDouble() * 14.0;
-            double y = Math.max(yFromSurface, yFromCamera);
+            double y = topY + ABOVE_SURFACE_PADDING_SNOW + random.nextDouble() * SNOW_SURFACE_EXTRA;
 
             // 雪更慢、更飘
             double vy = -(SNOW_FALL_MIN + random.nextDouble() * (SNOW_FALL_MAX - SNOW_FALL_MIN));
