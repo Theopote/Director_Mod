@@ -176,20 +176,19 @@ public abstract class ClientWorldMixin {
         float gf = g / 255f;
         float bf = b / 255f;
 
-        // 应用云量、亮度和雾颜色混合
+        // 应用云亮度（1.0 = Minecraft 默认）
         float cloudBrightness = MathHelper.clamp(weatherSample.cloudBrightness, 0.3f, 1.2f);
-        float darkFactor = 1.0f - coverage * 0.6f;
-        float mix = MathHelper.clamp(coverage * 0.35f, 0f, 0.6f);
+        rf *= cloudBrightness;
+        gf *= cloudBrightness;
+        bf *= cloudBrightness;
 
-        // 应用暗度和亮度
-        rf *= darkFactor * cloudBrightness;
-        gf *= darkFactor * cloudBrightness;
-        bf *= darkFactor * cloudBrightness;
-
-        // 与雾颜色混合
-        rf = rf * (1.0f - mix) + weatherSample.fogColor.x * mix;
-        gf = gf * (1.0f - mix) + weatherSample.fogColor.y * mix;
-        bf = bf * (1.0f - mix) + weatherSample.fogColor.z * mix;
+        // 与雾颜色混合（仅当雾密度生效时）
+        float fogMix = MathHelper.clamp(weatherSample.fogDensity * 0.6f, 0f, 0.6f);
+        if (fogMix > 0.001f) {
+            rf = rf * (1.0f - fogMix) + weatherSample.fogColor.x * fogMix;
+            gf = gf * (1.0f - fogMix) + weatherSample.fogColor.y * fogMix;
+            bf = bf * (1.0f - fogMix) + weatherSample.fogColor.z * fogMix;
+        }
 
         // 限制范围并转换回 ARGB int
         rf = clamp01(rf);
