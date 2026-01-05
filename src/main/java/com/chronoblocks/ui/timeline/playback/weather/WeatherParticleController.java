@@ -31,10 +31,10 @@ public class WeatherParticleController {
     // ---------------- Config ----------------
 
     /** 以"每秒"为单位的最大雨滴发射率（强度=1） */
-    private static final float MAX_RAIN_PPS = 8000f;
+    private static final float MAX_RAIN_PPS = 20000f;
 
     /** 最大雪花发射率（强度=1） */
-    private static final float MAX_SNOW_PPS = 4800f;
+    private static final float MAX_SNOW_PPS = 12000f;
 
     /** 粒子生成半径（格） */
     private static final int BASE_RADIUS_RAIN = 42;
@@ -50,15 +50,15 @@ public class WeatherParticleController {
     private static final int ABOVE_SURFACE_PADDING = 24;
 
     /** 每 tick 允许生成的最大粒子数（硬限，防止卡顿） */
-    private static final int HARD_CAP_PER_TICK = 1200;
+    private static final int HARD_CAP_PER_TICK = 3000;
 
     /** 雨下落速度范围 */
-    private static final float RAIN_FALL_MIN = 1.6f;
-    private static final float RAIN_FALL_MAX = 2.6f;
+    private static final float RAIN_FALL_MIN = 2.4f;
+    private static final float RAIN_FALL_MAX = 4.2f;
 
     /** 雪下落速度范围 */
-    private static final float SNOW_FALL_MIN = 0.16f;
-    private static final float SNOW_FALL_MAX = 0.30f;
+    private static final float SNOW_FALL_MIN = 0.22f;
+    private static final float SNOW_FALL_MAX = 0.50f;
 
     /** 风对水平速度的放大（可见性关键） */
     private static final float WIND_HORIZONTAL_SCALE_RAIN = 0.80f;
@@ -120,6 +120,9 @@ public class WeatherParticleController {
         // 发射率（每秒粒子数）
         float rainPps = MAX_RAIN_PPS * finalRainI;
         float snowPps = MAX_SNOW_PPS * snowI;
+
+        rainRadius = resolveIntensityRadius(rainRadius, BASE_RADIUS_RAIN, MAX_RADIUS_RAIN, finalRainI);
+        snowRadius = resolveIntensityRadius(snowRadius, BASE_RADIUS_SNOW, MAX_RADIUS_SNOW, snowI);
         // accumulator: integrate by deltaSeconds for stable PPS
         rainAcc += rainPps * deltaSeconds;
         snowAcc += snowPps * deltaSeconds;
@@ -252,6 +255,11 @@ public class WeatherParticleController {
         int view = Math.max(2, viewDistanceChunks);
         int scaled = view * 8;
         return MathHelper.clamp(scaled, baseRadius, maxRadius);
+    }
+
+    private int resolveIntensityRadius(int baseRadius, int minRadius, int maxRadius, float intensity) {
+        float scale = 0.75f + intensity * 0.55f;
+        return MathHelper.clamp(Math.round(baseRadius * scale), minRadius, maxRadius);
     }
 
     private int computeHardCap(float deltaSeconds) {
