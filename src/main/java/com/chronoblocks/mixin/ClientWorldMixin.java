@@ -182,13 +182,15 @@ public abstract class ClientWorldMixin {
         gf *= cloudBrightness;
         bf *= cloudBrightness;
 
-        // 与雾颜色混合（仅当雾密度生效时）
+        // ⚠️ 雾功能已禁用：与雾颜色混合（仅当雾密度生效时）
+        /*
         float fogMix = MathHelper.clamp(weatherSample.fogDensity * 0.6f, 0f, 0.6f);
         if (fogMix > 0.001f) {
             rf = rf * (1.0f - fogMix) + weatherSample.fogColor.x * fogMix;
             gf = gf * (1.0f - fogMix) + weatherSample.fogColor.y * fogMix;
             bf = bf * (1.0f - fogMix) + weatherSample.fogColor.z * fogMix;
         }
+        */
 
         // 限制范围并转换回 ARGB int
         rf = clamp01(rf);

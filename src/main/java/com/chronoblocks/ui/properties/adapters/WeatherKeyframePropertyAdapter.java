@@ -57,7 +57,6 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
     private final ImFloat fogFloat = new ImFloat();
     private final ImFloat windFloat = new ImFloat();
     private final ImFloat lightningFloat = new ImFloat();
-    private final ImFloat skyDarknessFloat = new ImFloat();
     private final ImFloat stormDarknessFloat = new ImFloat();
     private final ImFloat cloudDensityFloat = new ImFloat();
     private final ImFloat cloudSpeedFloat = new ImFloat();
@@ -248,8 +247,9 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
         }
 
         // ==========================================================
-        // 🌫 雾 (Fog)
+        // 🌫 雾 (Fog) - ⚠️ 已禁用：雾功能无法实现理想效果
         // ==========================================================
+        /*
         if (ImGui.collapsingHeader(Icons.FILTER + " 雾 (Fog)", ImGuiTreeNodeFlags.DefaultOpen)) {
 
             // 雾密度
@@ -289,6 +289,7 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
 
             UITheme.spacingSmall();
         }
+        */
 
         // ==========================================================
         // 云层 (Clouds)

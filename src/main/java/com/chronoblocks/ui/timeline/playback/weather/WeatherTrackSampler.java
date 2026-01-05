@@ -182,14 +182,18 @@ public class WeatherTrackSampler {
         out.snowIntensity = kf.getSnowIntensity();
         out.thunderIntensity = kf.getThunderIntensity();
         out.cloudCoverage = kf.getCloudCoverage();
-        out.fogDensity = kf.getFogDensity();
+        // ⚠️ 雾功能已禁用
+        // out.fogDensity = kf.getFogDensity();
+        out.fogDensity = 0f; // 始终设为 0，禁用雾效果
         out.windStrength = kf.getWindStrength();
         out.windDirectionDegrees = kf.getWindDirectionDegrees();
         out.wetness = kf.getWetness();
 
+        // ⚠️ 雾功能已禁用
         // fogTint: 从 fogColor 计算（简化映射，保持原色）
-        out.fogTint.set(1f, 1f, 1f); // 默认不改变，实际使用 fogColor
-        out.fogColor.set(kf.getFogColor());
+        out.fogTint.set(1f, 1f, 1f); // 默认不改变
+        // out.fogColor.set(kf.getFogColor());
+        out.fogColor.set(0.7f, 0.7f, 0.8f); // 使用默认值，禁用雾颜色
 
         out.type = kf.getWeatherType();
 
@@ -197,7 +201,9 @@ public class WeatherTrackSampler {
         out.skyDarkness = kf.getStormDarkness(); // 天空暗度 = 风暴暗度
         out.cloudAmount = kf.getCloudDensity(); // 云量 = 云密度
         out.cloudBrightness = kf.getCloudBrightness(); // ✅ 修复：使用关键帧中的云亮度参数，而不是自动计算
-        out.fogDarkness = kf.getFogDensity() * 0.3f; // 雾暗度 = 雾密度 * 0.3
+        // ⚠️ 雾功能已禁用
+        // out.fogDarkness = kf.getFogDensity() * 0.3f; // 雾暗度 = 雾密度 * 0.3
+        out.fogDarkness = 0f; // 始终设为 0，禁用雾暗度
 
         // ========== 扩展参数（向后兼容） ==========
         out.rainStrength = kf.getRainStrength();

@@ -365,6 +365,7 @@ public class TimelineModelPersistence {
                         kdto.cloudDensity = wk.getCloudDensity();
                         kdto.cloudSpeed = wk.getCloudSpeed();
                         kdto.cloudBrightness = wk.getCloudBrightness();
+                        // ⚠️ 雾功能已禁用：保留序列化以向后兼容，但值不会被使用
                         kdto.fogDensity = wk.getFogDensity();
                         kdto.fogColor = Vec3DTO.from(wk.getFogColor());
                         kdto.tempBias = wk.getTempBias();
@@ -593,6 +594,7 @@ public class TimelineModelPersistence {
                                 } else {
                                     wk.setCloudBrightness(1.0f); // 默认值
                                 }
+                                // ⚠️ 雾功能已禁用：保留反序列化以向后兼容，但值不会被使用
                                 wk.setFogDensity(kdto.fogDensity);
                                 if (kdto.fogColor != null) wk.setFogColor(kdto.fogColor.x, kdto.fogColor.y, kdto.fogColor.z);
                                 wk.setTempBias(kdto.tempBias);

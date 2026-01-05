@@ -2,14 +2,13 @@ package com.chronoblocks.mixin;
 
 import com.chronoblocks.ui.timeline.playback.season.SeasonSample;
 import com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController;
-import com.chronoblocks.ui.timeline.playback.weather.WeatherSample;
-import com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController;
-import com.mojang.blaze3d.systems.RenderSystem;
+// ⚠️ 雾功能已禁用，以下导入暂时保留以备将来使用
+// import com.chronoblocks.ui.timeline.playback.weather.WeatherSample;
+// import com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.render.fog.FogRenderer;
 import net.minecraft.client.world.ClientWorld;
-import net.minecraft.util.math.MathHelper;
 import org.joml.Vector4f;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -70,7 +69,9 @@ public abstract class BackgroundRendererMixin {
         float b = original.z;
         float a = original.w;
         
+        // ⚠️ 雾功能已禁用：由于雾效果无法实现理想效果，已注释掉所有雾相关代码
         // ⭐ 天气系统：优先级最高，直接覆盖雾颜色和密度
+        /*
         TimelineWeatherController weatherController = TimelineWeatherController.getInstance();
         if (weatherController.hasOverride()) {
             WeatherSample weatherSample = weatherController.getCurrentSample();
@@ -88,22 +89,6 @@ public abstract class BackgroundRendererMixin {
                 b *= darkFactor;
                 
                 // ✅ 2️⃣ 雾密度：通过 alpha 通道控制雾的强度
-                // 注意：Minecraft 1.21 的 applyFog 返回 Vector4f (r, g, b, a)
-                // - RGB: 雾颜色
-                // - Alpha: 雾的强度/密度（0=无雾，1=浓雾）
-                // 
-                // ⚠️ 关于雾距离渐变（fogStart/fogEnd）：
-                // - Vector4f 不包含 fogStart/fogEnd 参数
-                // - 雾的距离渐变由 Minecraft 的 shader 根据 viewDistance 和雾密度自动计算
-                // - 如果雾看起来像"一圈颜色围挡"而不是渐变，可能的原因：
-                //   1. 雾密度设置过高，导致雾在很近的距离就完全遮挡
-                //   2. 雾颜色与背景色对比太强烈
-                //   3. Minecraft 的雾渲染算法本身的特性
-                // 
-                // 改进建议：
-                // - 调整 fogDensity 值，使用较小的值（如 0.3-0.6）以获得更平滑的渐变
-                // - 确保雾颜色与天空颜色有适当的过渡
-                // - 如果需要更精确的距离控制，需要修改 Minecraft 的 shader 或通过 RenderSystem.setShaderFog() 的 buffer
                 float density = MathHelper.clamp(weatherSample.fogDensity, 0f, 1f);
                 // 使用平方根使雾的过渡更平滑（非线性映射）
                 a = MathHelper.sqrt(density);
@@ -112,6 +97,7 @@ public abstract class BackgroundRendererMixin {
                 return; // 天气系统覆盖，不再应用季节系统
             }
         }
+        */
         
         // ⭐ 季节系统：应用雾颜色偏移（如果天气系统没有覆盖）
         TimelineSeasonController seasonController = TimelineSeasonController.getInstance();

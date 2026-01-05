@@ -330,7 +330,7 @@ public final class TimelineWeatherController {
      * <p>架构设计：
      * <ul>
      *   <li>1️⃣ WeatherParticleController - 粒子层（雨/雪粒子）</li>
-     *   <li>2️⃣ WeatherFogController - 雾控制（指数雾、雾密度）</li>
+     *   <li>2️⃣ WeatherFogController - 雾控制（指数雾、雾密度）⚠️ 已禁用</li>
      *   <li>3️⃣ WeatherSkyController - 天空/光照（天空亮度、云层）</li>
      *   <li>4️⃣ WeatherEventController - 事件（雷暴、闪电、声音）</li>
      * </ul>
@@ -365,7 +365,8 @@ public final class TimelineWeatherController {
         // 2️⃣ 雾子系统：指数雾、雾密度、雾颜色
         // -------------------------------
         try {
-            WeatherFogController.getInstance().apply(sample);
+            // ⚠️ 雾功能已禁用
+            // WeatherFogController.getInstance().apply(sample);
         } catch (Exception e) {
             LOGGER.debug("[WeatherController] 无法应用雾控制", e);
         }
@@ -444,7 +445,8 @@ public final class TimelineWeatherController {
 
         // 2️⃣ 清除雾子系统
         try {
-            WeatherFogController.getInstance().clear();
+            // ⚠️ 雾功能已禁用
+            // WeatherFogController.getInstance().clear();
         } catch (Exception e) {
             LOGGER.debug("[WeatherController] 无法清除 WeatherFogController", e);
         }
@@ -507,7 +509,8 @@ public final class TimelineWeatherController {
 
         // 2️⃣ 清除雾子系统
         try {
-            WeatherFogController.getInstance().clear();
+            // ⚠️ 雾功能已禁用
+            // WeatherFogController.getInstance().clear();
         } catch (Exception e) {
             LOGGER.debug("[WeatherController] 无法清除 WeatherFogController", e);
         }

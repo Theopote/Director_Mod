@@ -309,8 +309,8 @@ public class WeatherParticleController {
     private int computeHardCap(float deltaSeconds) {
         // 基于实际时间差计算，但确保最小值为基于游戏 tick 时间的硬限
         float scaled = HARD_CAP_PER_TICK * deltaSeconds * 20f;
-        int minCap = HARD_CAP_PER_TICK; // 最小硬限（基于一个游戏 tick）
-        return Math.max(minCap, Math.round(scaled));
+        // 最小硬限（基于一个游戏 tick）
+        return Math.max(HARD_CAP_PER_TICK, Math.round(scaled));
     }
 
     private double spread(int radius) {

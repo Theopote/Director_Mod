@@ -497,16 +497,6 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
         return fogColor;
     }
 
-    public void setFogColor(Vector3f fogColor) {
-        if (fogColor != null) {
-            this.fogColor.set(
-                    Math.max(0.0f, Math.min(1.0f, fogColor.x)),
-                    Math.max(0.0f, Math.min(1.0f, fogColor.y)),
-                    Math.max(0.0f, Math.min(1.0f, fogColor.z))
-            );
-        }
-    }
-
     public void setFogColor(float r, float g, float b) {
         this.fogColor.set(
                 Math.max(0.0f, Math.min(1.0f, r)),
@@ -587,17 +577,6 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
      */
     public float getWetness() {
         return puddleLevel;
-    }
-
-    /**
-     * 获取雾颜色 tint（用于 WeatherSample.fogTint）。
-     * 默认返回 (1,1,1)，表示不改变颜色。
-     * 注意：WeatherKeyframe 使用 fogColor（绝对颜色），而 WeatherSample 使用 fogTint（相对偏移）。
-     * 这里返回默认值，实际颜色通过 fogColor 传递。
-     */
-    public Vector3f getFogTint() {
-        // 默认不改变颜色（tint = 1,1,1）
-        return new Vector3f(1f, 1f, 1f);
     }
 
     // ========== 预设逻辑 ==========

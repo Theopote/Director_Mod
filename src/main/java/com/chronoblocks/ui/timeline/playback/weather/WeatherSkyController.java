@@ -35,8 +35,7 @@ import org.slf4j.LoggerFactory;
  */
 public class WeatherSkyController {
     
-    private static final Logger LOGGER = LoggerFactory.getLogger(WeatherSkyController.class);
-    
+
     private static final WeatherSkyController INSTANCE = new WeatherSkyController();
     
     public static WeatherSkyController getInstance() {
