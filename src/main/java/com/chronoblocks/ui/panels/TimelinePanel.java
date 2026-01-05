@@ -1277,6 +1277,38 @@ public class TimelinePanel extends AbstractPanel
                 timeController.rebuildFromActiveTrack();
                 
                 handled = true;
+            } else if (type.supportsEntityControl()) {
+                // ⭐ 实体轨道：添加实体关键帧
+                if (track.isLocked()) {
+                    LOGGER.warn("[TimelinePanel] 轨道已锁定，无法添加关键帧 (轨道: {})", track.getName());
+                    return;
+                }
+                
+                // ⭐ v1.0：检查是否是激活的实体轨道
+                com.chronoblocks.ui.timeline.playback.entity.TimelineEntityController entityController =
+                        com.chronoblocks.ui.timeline.playback.entity.TimelineEntityController.getInstance();
+                com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = entityController.getActiveEntityTrack();
+                
+                if (activeTrack != track) {
+                    LOGGER.warn("[TimelinePanel] 只能在激活的实体轨道上添加关键帧，当前轨道：{}，激活轨道：{}",
+                            track.getName(),
+                            activeTrack != null ? activeTrack.getName() : "null");
+                    return;
+                }
+                
+                com.chronoblocks.ui.timeline.model.entity.EntityKeyframe entityKeyframe = 
+                        new com.chronoblocks.ui.timeline.model.entity.EntityKeyframe("Entity @" + timeLabel, time);
+                
+                commandHistory.executeCommand(new AddAutomationKeyframeCommand(
+                        model,
+                        track,
+                        entityKeyframe
+                ));
+                
+                // ⭐ 通知 TimelineEntityController 更新
+                entityController.rebuildFromActiveTrack();
+                
+                handled = true;
             } else if (type.supportsSeasonControl()) {
                 // ⭐ 季节轨道：添加季节关键帧
                 if (track.isLocked()) {

@@ -174,6 +174,11 @@ public final class PropertyAdapterBootstrap {
                     new WeatherKeyframePropertyAdapter());
             registeredCount++;
             
+            // ✅ 实体关键帧适配器
+            registerAdapter(com.chronoblocks.ui.timeline.model.entity.EntityKeyframe.class, 
+                    new EntityKeyframePropertyAdapter());
+            registeredCount++;
+            
             // ✅ 后处理适配器
             registerAdapter(new PostProcessingPropertyAdapter(), "PostProcessing");
             registeredCount++;

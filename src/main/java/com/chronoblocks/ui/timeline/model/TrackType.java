@@ -14,6 +14,7 @@ import java.util.EnumSet;
  *   <li>🌤️ 天气轨道 - 控制 Minecraft 天气和光照</li>
  *   <li>🕐 时间轨道 - 控制完整一天的时间变化</li>
  *   <li>🔊 音频轨道 - 事件驱动型音频，自动同步动画声音</li>
+ *   <li>🎭 实体轨道 - 在时间线上"导演"会动、会演戏的角色（NPC/玩家/动物/模型）</li>
  * </ul>
  */
 public enum TrackType {
@@ -104,6 +105,29 @@ public enum TrackType {
         rgba(140, 70, 180),
         "事件驱动型音频轨道，自动收集动画声音事件并同步到时间线",
         EnumSet.of(TrackFeature.AUDIO_EVENTS)
+    ),
+
+    /**
+     * 实体轨道 - 在时间线上"导演"一个会动、会演戏的角色。
+     * 
+     * <p>实体轨道用于持续调度、表演和控制实体（NPC/玩家/动物/模型）的状态与动作。
+     * 与容器轨道不同，实体轨道不是"被生成一次"，而是被持续调度、被表演、被控制状态与动作。
+     * 可以理解为 Actor Track（演员轨道）。
+     * 
+     * <p>支持的功能：
+     * <ul>
+     *   <li>关键帧控制 - 设置实体的位置、旋转、动作等关键帧</li>
+     *   <li>动作片段 - 定义实体的动作序列和表演片段</li>
+     *   <li>状态控制 - 控制实体的状态、动画、行为等</li>
+     * </ul>
+     */
+    ENTITY(
+        "实体轨道",
+        Icons.SMILE,
+        rgba(220, 120, 180),
+        rgba(180, 80, 140),
+        "在时间线上导演会动、会演戏的角色，持续调度和控制实体的状态与动作",
+        EnumSet.of(TrackFeature.CLIPS, TrackFeature.KEYFRAMES, TrackFeature.ENTITY_AUTOMATION)
     );
 
     private final String displayName;
@@ -157,6 +181,7 @@ public enum TrackType {
             || features.contains(TrackFeature.WEATHER_AUTOMATION)
             || features.contains(TrackFeature.TIME_AUTOMATION)
             || features.contains(TrackFeature.SEASON_AUTOMATION)
+            || features.contains(TrackFeature.ENTITY_AUTOMATION)
             || features.contains(TrackFeature.MARKERS);
     }
 
@@ -186,6 +211,10 @@ public enum TrackType {
 
     public boolean supportsAudioEvents() {
         return features.contains(TrackFeature.AUDIO_EVENTS);
+    }
+
+    public boolean supportsEntityControl() {
+        return features.contains(TrackFeature.ENTITY_AUTOMATION);
     }
 
     /**
@@ -222,6 +251,7 @@ public enum TrackType {
         WEATHER_AUTOMATION,
         TIME_AUTOMATION,
         SEASON_AUTOMATION,
+        ENTITY_AUTOMATION,
         MARKERS,
         AUDIO_EVENTS
     }

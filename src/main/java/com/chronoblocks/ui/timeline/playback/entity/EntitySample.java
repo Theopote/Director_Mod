@@ -1,0 +1,221 @@
+package com.chronoblocks.ui.timeline.playback.entity;
+
+import com.chronoblocks.ui.timeline.model.TimelineInterpolation;
+import com.chronoblocks.ui.timeline.model.entity.EntityKeyframe;
+import org.joml.Vector3f;
+
+/**
+ * EntitySample v1.0
+ *
+ * <p>由 EntityTrackSampler 在某一时间采样得到的实体状态。
+ * 用于驱动 Minecraft 世界中实体的位置、旋转、动作、状态等。
+ *
+ * <p>设计原则：
+ * - 所有参数标准化为合理范围，方便插值
+ * - 不负责逻辑，纯数据结构
+ * - 用于实体控制系统的运行时采样
+ *
+ * <p>用于：
+ * - TimelineEntityController.apply(sample)
+ * - 实体渲染系统：位置、旋转、动作、可见性等
+ *
+ * @author ChronoBlocks
+ * @version 1.0
+ */
+public class EntitySample {
+
+    // ========== 核心实体参数 ==========
+
+    /** 实体位置（世界坐标） */
+    public final Vector3f position = new Vector3f(0, 0, 0);
+
+    /** 实体旋转（偏航、俯仰、翻滚，度） */
+    public final Vector3f rotation = new Vector3f(0, 0, 0);
+
+    /** 实体缩放（X, Y, Z） */
+    public final Vector3f scale = new Vector3f(1, 1, 1);
+
+    /** 当前动作类型 */
+    public EntityKeyframe.ActionType actionType = EntityKeyframe.ActionType.IDLE;
+
+    /** 动作速度 [0-2]：0 = 静止，1 = 正常，2 = 快速 */
+    public float actionSpeed = 1.0f;
+
+    /** 动作循环：true = 循环播放，false = 播放一次 */
+    public boolean actionLoop = true;
+
+    /** 实体可见性 [0-1]：0 = 完全隐藏，1 = 完全可见 */
+    public float visibility = 1.0f;
+
+    /** 实体是否激活（是否参与场景） */
+    public boolean active = true;
+
+    /** 实体名称标签（显示在实体上方） */
+    public String displayName;
+
+    /** 实体是否显示名称标签 */
+    public boolean showNameTag = false;
+
+    /** 实体类型预设 */
+    public EntityKeyframe.EntityType entityType = EntityKeyframe.EntityType.CUSTOM;
+
+    /** 是否启用实体覆盖（false 表示完全使用原版行为） */
+    public boolean enabled = false;
+
+    // ==========================================================
+    // 工具方法
+    // ==========================================================
+
+    /**
+     * 在两个采样之间插值。
+     * 
+     * @param a 起始采样
+     * @param b 结束采样
+     * @param t 插值系数 [0,1]
+     * @param interpolation 插值类型
+     */
+    public void lerpFrom(EntitySample a, EntitySample b, float t, TimelineInterpolation interpolation) {
+        if (a == null || !a.enabled) {
+            if (b != null && b.enabled) {
+                copyFrom(b);
+            } else {
+                copyFrom(disabled());
+            }
+            return;
+        }
+        if (b == null || !b.enabled) {
+            copyFrom(a);
+            return;
+        }
+
+        if (interpolation == TimelineInterpolation.STEP) {
+            copyFrom(t < 0.5f ? a : b);
+            return;
+        }
+
+        if (interpolation == TimelineInterpolation.SMOOTH) {
+            // Smoothstep
+            t = t * t * (3f - 2f * t);
+        }
+
+        // 位置插值（线性）
+        position.x = lerp(a.position.x, b.position.x, t);
+        position.y = lerp(a.position.y, b.position.y, t);
+        position.z = lerp(a.position.z, b.position.z, t);
+
+        // 旋转插值（角度插值，处理 360° 环绕）
+        rotation.x = lerpAngle(a.rotation.x, b.rotation.x, t);
+        rotation.y = lerpAngle(a.rotation.y, b.rotation.y, t);
+        rotation.z = lerpAngle(a.rotation.z, b.rotation.z, t);
+
+        // 缩放插值（线性）
+        scale.x = lerp(a.scale.x, b.scale.x, t);
+        scale.y = lerp(a.scale.y, b.scale.y, t);
+        scale.z = lerp(a.scale.z, b.scale.z, t);
+
+        // 动作速度插值
+        actionSpeed = lerp(a.actionSpeed, b.actionSpeed, t);
+
+        // 可见性插值
+        visibility = lerp(a.visibility, b.visibility, t);
+
+        // 枚举类型：根据 t 选择
+        actionType = (t < 0.5f) ? a.actionType : b.actionType;
+        entityType = (t < 0.5f) ? a.entityType : b.entityType;
+
+        // 布尔值：取最近关键帧的值（不插值）
+        actionLoop = (t < 0.5f) ? a.actionLoop : b.actionLoop;
+        active = (t < 0.5f) ? a.active : b.active;
+        showNameTag = (t < 0.5f) ? a.showNameTag : b.showNameTag;
+
+        // 字符串：取最近关键帧的值
+        displayName = (t < 0.5f) ? a.displayName : b.displayName;
+
+        enabled = true;
+    }
+
+    /** 复制所有字段 */
+    public void copyFrom(EntitySample s) {
+        if (s == null) {
+            copyFrom(disabled());
+            return;
+        }
+
+        enabled = s.enabled;
+        position.set(s.position);
+        rotation.set(s.rotation);
+        scale.set(s.scale);
+        actionType = s.actionType;
+        actionSpeed = s.actionSpeed;
+        actionLoop = s.actionLoop;
+        visibility = s.visibility;
+        active = s.active;
+        displayName = s.displayName;
+        showNameTag = s.showNameTag;
+        entityType = s.entityType;
+    }
+
+    private float lerp(float a, float b, float t) {
+        return a + (b - a) * t;
+    }
+
+    /**
+     * 角度插值（处理 360° 环绕，选择最短路径）。
+     * 例如：350° 到 10° 会插值到 0° 而不是 180°
+     */
+    private float lerpAngle(float a, float b, float t) {
+        // 归一化到 [0, 360)
+        while (a < 0f) a += 360f;
+        while (a >= 360f) a -= 360f;
+        while (b < 0f) b += 360f;
+        while (b >= 360f) b -= 360f;
+
+        // 计算两个方向的距离
+        float diff = b - a;
+        if (diff > 180f) {
+            diff -= 360f; // 走反向更短
+        } else if (diff < -180f) {
+            diff += 360f; // 走反向更短
+        }
+
+        float result = a + diff * t;
+        // 归一化结果
+        while (result < 0f) result += 360f;
+        while (result >= 360f) result -= 360f;
+        return result;
+    }
+
+    /**
+     * 创建一个禁用状态的采样（不应用任何实体效果）。
+     */
+    public static EntitySample disabled() {
+        EntitySample s = new EntitySample();
+        s.enabled = false;
+        return s;
+    }
+
+    /**
+     * 深拷贝当前采样。
+     */
+    public EntitySample copy() {
+        EntitySample s = new EntitySample();
+        s.copyFrom(this);
+        return s;
+    }
+
+    @Override
+    public String toString() {
+        return "EntitySample{" +
+                "enabled=" + enabled +
+                ", position=" + position +
+                ", rotation=" + rotation +
+                ", scale=" + scale +
+                ", actionType=" + actionType +
+                ", actionSpeed=" + actionSpeed +
+                ", visibility=" + visibility +
+                ", active=" + active +
+                ", entityType=" + entityType +
+                '}';
+    }
+}
+

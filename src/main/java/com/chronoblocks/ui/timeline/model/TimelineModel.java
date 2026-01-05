@@ -547,6 +547,37 @@ public class TimelineModel {
     }
 
     /**
+     * 为实体轨道添加关键帧。
+     *
+     * @return 新建的实体关键帧，轨道类型不支持时返回 null。
+     */
+    public com.chronoblocks.ui.timeline.model.entity.EntityKeyframe addEntityKeyframe(TimelineTrack track, float timeSeconds) {
+        if (track == null || track.getType() == null || !track.getType().supportsEntityControl()) {
+            return null;
+        }
+
+        // ⭐ v1.0：检查是否是激活的实体轨道
+        com.chronoblocks.ui.timeline.playback.entity.TimelineEntityController controller =
+                com.chronoblocks.ui.timeline.playback.entity.TimelineEntityController.getInstance();
+        TimelineTrack activeTrack = controller.getActiveEntityTrack();
+
+        if (activeTrack != track) {
+            org.slf4j.LoggerFactory.getLogger(TimelineModel.class)
+                    .warn("[TimelineModel] 只能在激活的实体轨道上添加关键帧，当前轨道：{}，激活轨道：{}",
+                            track.getName(),
+                            activeTrack != null ? activeTrack.getName() : "null");
+            return null;
+        }
+
+        float clamped = Math.max(0f, Math.min(timeSeconds, getDuration()));
+        com.chronoblocks.ui.timeline.model.entity.EntityKeyframe keyframe = 
+                new com.chronoblocks.ui.timeline.model.entity.EntityKeyframe("Entity Keyframe", clamped);
+        track.addAutomationKeyframe(keyframe);
+        markDirty();
+        return keyframe;
+    }
+
+    /**
      * 在指定轨道上方插入新轨道（语义方法）
      * 
      * @param target 目标轨道
