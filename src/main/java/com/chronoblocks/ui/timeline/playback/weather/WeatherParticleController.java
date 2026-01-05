@@ -31,16 +31,16 @@ public class WeatherParticleController {
     // ---------------- Config ----------------
 
     /** 以"每秒"为单位的最大雨滴发射率（强度=1） */
-    private static final float MAX_RAIN_PPS = 80000f;
+    private static final float MAX_RAIN_PPS = 120000f;
 
     /** 最大雪花发射率（强度=1） */
     private static final float MAX_SNOW_PPS = 80000f;
 
     /** 粒子生成半径（格） */
-    private static final int BASE_RADIUS_RAIN = 42;
+    private static final int BASE_RADIUS_RAIN = 72;
     private static final int BASE_RADIUS_SNOW = 64;
-    private static final int MAX_RADIUS_RAIN = 96;
-    private static final int MAX_RADIUS_SNOW = 180;
+    private static final int MAX_RADIUS_RAIN = 200;
+    private static final int MAX_RADIUS_SNOW = 200;
 
     /** 至少高于摄像机/玩家多少格开始生成（避免贴脸） */
     private static final int MIN_ABOVE_CAMERA_RAIN = 32;
