@@ -519,6 +519,83 @@ public class TimelineContextMenuFactory {
                             track,
                             new WeatherKeyframe("Weather @" + formatTime(time), time)))
                 .end();
+            case ENTITY -> {
+                // 实体轨道：添加 EntityClip 创建菜单
+                builder
+                    .submenu("创建实体片段")
+                        .item("出现/绑定 (Spawn)", () -> {
+                            float currentTime = model.getCurrentTime();
+                            com.chronoblocks.ui.timeline.model.entity.EntityTrack entityTrack = 
+                                track.getOrCreateEntityTrackPayload();
+                            com.chronoblocks.ui.timeline.model.entity.EntitySpawnClip clip = 
+                                new com.chronoblocks.ui.timeline.model.entity.EntitySpawnClip(
+                                    "出现", currentTime, currentTime + 1.0f);
+                            entityTrack.addClip(clip);
+                            model.markDirty();
+                        })
+                        .item("位移/旋转 (Transform)", () -> {
+                            float currentTime = model.getCurrentTime();
+                            com.chronoblocks.ui.timeline.model.entity.EntityTrack entityTrack = 
+                                track.getOrCreateEntityTrackPayload();
+                            com.chronoblocks.ui.timeline.model.entity.EntityTransformClip clip = 
+                                new com.chronoblocks.ui.timeline.model.entity.EntityTransformClip(
+                                    "移动", currentTime, currentTime + 2.0f);
+                            entityTrack.addClip(clip);
+                            model.markDirty();
+                        })
+                        .item("动画 (Animation)", () -> {
+                            float currentTime = model.getCurrentTime();
+                            com.chronoblocks.ui.timeline.model.entity.EntityTrack entityTrack = 
+                                track.getOrCreateEntityTrackPayload();
+                            com.chronoblocks.ui.timeline.model.entity.EntityAnimationClip clip = 
+                                new com.chronoblocks.ui.timeline.model.entity.EntityAnimationClip(
+                                    "动画", currentTime, currentTime + 2.0f);
+                            entityTrack.addClip(clip);
+                            model.markDirty();
+                        })
+                        .separator()
+                        .item("行为 (Action)", () -> {
+                            float currentTime = model.getCurrentTime();
+                            com.chronoblocks.ui.timeline.model.entity.EntityTrack entityTrack = 
+                                track.getOrCreateEntityTrackPayload();
+                            com.chronoblocks.ui.timeline.model.entity.EntityActionClip clip = 
+                                new com.chronoblocks.ui.timeline.model.entity.EntityActionClip(
+                                    "行为", currentTime, currentTime + 0.5f);
+                            entityTrack.addClip(clip);
+                            model.markDirty();
+                        })
+                        .item("状态 (State)", () -> {
+                            float currentTime = model.getCurrentTime();
+                            com.chronoblocks.ui.timeline.model.entity.EntityTrack entityTrack = 
+                                track.getOrCreateEntityTrackPayload();
+                            com.chronoblocks.ui.timeline.model.entity.EntityStateClip clip = 
+                                new com.chronoblocks.ui.timeline.model.entity.EntityStateClip(
+                                    "状态", currentTime, currentTime + 2.0f);
+                            entityTrack.addClip(clip);
+                            model.markDirty();
+                        })
+                        .item("看向 (LookAt)", () -> {
+                            float currentTime = model.getCurrentTime();
+                            com.chronoblocks.ui.timeline.model.entity.EntityTrack entityTrack = 
+                                track.getOrCreateEntityTrackPayload();
+                            com.chronoblocks.ui.timeline.model.entity.EntityLookAtClip clip = 
+                                new com.chronoblocks.ui.timeline.model.entity.EntityLookAtClip(
+                                    "看向", currentTime, currentTime + 2.0f);
+                            entityTrack.addClip(clip);
+                            model.markDirty();
+                        })
+                        .item("离场 (Despawn)", () -> {
+                            float currentTime = model.getCurrentTime();
+                            com.chronoblocks.ui.timeline.model.entity.EntityTrack entityTrack = 
+                                track.getOrCreateEntityTrackPayload();
+                            com.chronoblocks.ui.timeline.model.entity.EntityDespawnClip clip = 
+                                new com.chronoblocks.ui.timeline.model.entity.EntityDespawnClip(
+                                    "离场", currentTime, currentTime + 1.0f);
+                            entityTrack.addClip(clip);
+                            model.markDirty();
+                        })
+                    .end();
+            }
             default -> { /* no-op */ }
         }
     }

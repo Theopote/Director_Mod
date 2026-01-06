@@ -111,6 +111,8 @@ public class TimelineModel {
         notifyModelChanged("model_changed");
         // 实时保存，确保当前存档的时间线始终落盘
         save();
+        // 同时保存 ActorRegistry
+        com.chronoblocks.actor.ActorRegistryManager.save();
     }
     
     // ========== 构造函数 ==========
@@ -129,6 +131,8 @@ public class TimelineModel {
      */
     public void save() {
         TimelineModelPersistence.saveToFile(this, viewportState);
+        // 同时保存 ActorRegistry
+        com.chronoblocks.actor.ActorRegistryManager.save();
     }
     
     /**
@@ -136,6 +140,10 @@ public class TimelineModel {
      */
     public void reload() {
         TimelineModelPersistence.loadFromFile(this, viewportState);
+        // 同时重新加载 ActorRegistry
+        com.chronoblocks.actor.ActorRegistry registry = 
+            com.chronoblocks.actor.ActorRegistryManager.getInstance();
+        com.chronoblocks.actor.persistence.ActorRegistryPersistence.loadFromFile(registry);
     }
 
     /**

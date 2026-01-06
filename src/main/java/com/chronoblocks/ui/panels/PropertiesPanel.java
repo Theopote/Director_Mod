@@ -1,9 +1,13 @@
 package com.chronoblocks.ui.panels;
 
+import com.chronoblocks.actor.ActorRegistry;
+import com.chronoblocks.actor.ActorRegistryManager;
+import com.chronoblocks.ui.actor.ActorSelectorPanel;
 import com.chronoblocks.ui.properties.IPropertyAdapter;
 import com.chronoblocks.ui.properties.PropertyAdapterRegistry;
 import com.chronoblocks.ui.selection.SelectionManager;
 import com.chronoblocks.ui.timeline.container.ContainerTimelineService;
+import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
 import com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController;
 import com.chronoblocks.ui.theme.UITheme;
@@ -109,6 +113,9 @@ public class PropertiesPanel extends AbstractPanel {
     /** 更新间隔（毫秒） */
     private static final long UPDATE_INTERVAL = 100;
     
+    /** Actor Selector Panel（演员管理器） */
+    private ActorSelectorPanel actorSelectorPanel;
+    
     // ==================== UI 状态（精简版） ====================
     
     // ==================== 面板配置 ====================
@@ -154,7 +161,28 @@ public class PropertiesPanel extends AbstractPanel {
         // 注册选择变化监听器
         SelectionManager.get().addSelectionChangedListener(this::onSelectionChanged);
         
+        // 初始化 Actor Selector Panel（延迟初始化，需要 TimelineModel）
+        // actorSelectorPanel 将在首次渲染时初始化
+        
         LOGGER.info("[PropertiesPanel] 已初始化智能属性面板");
+    }
+    
+    /**
+     * 初始化 Actor Selector Panel（延迟初始化）
+     */
+    private void ensureActorSelectorInitialized() {
+        if (actorSelectorPanel != null) {
+            return;
+        }
+        
+        TimelineModel timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+        if (timelineModel == null) {
+            return; // TimelineModel 尚未初始化，稍后重试
+        }
+        
+        ActorRegistry actorRegistry = ActorRegistryManager.getInstance();
+        actorSelectorPanel = new ActorSelectorPanel(actorRegistry, timelineModel);
+        LOGGER.debug("[PropertiesPanel] Actor Selector Panel 已初始化");
     }
 
     // ==================== 主渲染方法 ====================
@@ -282,6 +310,14 @@ public class PropertiesPanel extends AbstractPanel {
         
         //UITheme.spacing();
         UITheme.separator();
+        
+        // ========== 🎭 Actors 区块（始终显示）==========
+        ensureActorSelectorInitialized();
+        if (actorSelectorPanel != null) {
+            UITheme.spacing();
+            actorSelectorPanel.render();
+            UITheme.separator();
+        }
         //UITheme.spacing();
         
         // ========== 支持的对象类型（16+1种）==========

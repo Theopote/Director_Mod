@@ -198,6 +198,11 @@ public class TimelinePanel extends AbstractPanel
         com.chronoblocks.ui.timeline.playback.time.TimelineWorldController.getInstance().setTimelineModel(model);
         // ⭐ 注册季节轨道控制器，控制季节颜色和气候
         com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController.getInstance().init(model);
+        // ⭐ 实体轨道控制器 v2：绑定 TimelineModel 和 ActorRegistry
+        com.chronoblocks.actor.ActorRegistry actorRegistry = 
+            com.chronoblocks.actor.ActorRegistryManager.getInstance();
+        com.chronoblocks.actor.runtime.ActorRuntimeController.getInstance().bind(model, actorRegistry);
+
         // ⭐ 天气轨道控制器：v1.0 不再需要 init()，改为通过 bindActiveTrack() 绑定轨道
         // 注册模型变更监听器，用于自动激活唯一的天气轨道
         model.addModelChangeListener(changeType -> com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController.getInstance().checkAndAutoActivate());
@@ -380,6 +385,12 @@ public class TimelinePanel extends AbstractPanel
         
         // ⭐ 音频轨道系统：每帧更新音频播放
         com.chronoblocks.ui.timeline.playback.TimelineAudioController.getInstance().update();
+        
+        // ⭐ 实体轨道系统 v2：每帧更新实体状态
+        com.chronoblocks.actor.runtime.ActorRuntimeController.getInstance().update();
+        
+        // ⚠️ 旧版本 EntityRuntimeController（已迁移到 ActorRuntimeController v2，待移除）
+        // com.chronoblocks.ui.timeline.playback.entity.EntityRuntimeController.getInstance().update();
         
         // ⭐ 季节轨道系统：每帧更新季节参数（播放/scrubbing时根据当前时间线时间插值）
         // 注意：update() 方法内部会根据播放状态决定是否更新

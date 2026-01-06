@@ -41,6 +41,9 @@ public class TimelineTrack {
     /** 是否跨剪辑存在（persistent = true 表示实体在轨道外的时间段也存在） */
     private boolean actorPersistent = false;
     
+    /** EntityTrack payload（仅对实体轨道有效，用于存储 EntityClip 系统） */
+    private com.chronoblocks.ui.timeline.model.entity.EntityTrack entityTrackPayload;
+    
     // ========== 音频事件（仅对音频轨道有效）==========
     private final List<AudioEvent> audioEvents = new ArrayList<>();
 
@@ -422,5 +425,59 @@ public class TimelineTrack {
      */
     public boolean hasBoundActor() {
         return boundActorId != null;
+    }
+
+    // ========== EntityTrack payload getter/setter（仅对实体轨道有效）==========
+
+    /**
+     * 获取 EntityTrack payload。
+     *
+     * @return EntityTrack，如果未设置则返回 null
+     */
+    public com.chronoblocks.ui.timeline.model.entity.EntityTrack getEntityTrackPayload() {
+        return entityTrackPayload;
+    }
+
+    /**
+     * 设置 EntityTrack payload。
+     *
+     * @param entityTrack EntityTrack
+     */
+    public void setEntityTrackPayload(com.chronoblocks.ui.timeline.model.entity.EntityTrack entityTrack) {
+        this.entityTrackPayload = entityTrack;
+    }
+
+    /**
+     * 获取或创建 EntityTrack payload（如果不存在则创建）。
+     *
+     * @return EntityTrack
+     */
+    public com.chronoblocks.ui.timeline.model.entity.EntityTrack getOrCreateEntityTrackPayload() {
+        if (entityTrackPayload == null) {
+            String displayName = actorDisplayName != null ? actorDisplayName : name;
+            entityTrackPayload = new com.chronoblocks.ui.timeline.model.entity.EntityTrack(displayName);
+            // 同步绑定信息
+            if (boundActorId != null) {
+                // 注意：EntityTrack 的 actorId 是自动生成的，这里只同步显示名称
+            }
+            if (boundEntityType != null) {
+                // 可以在这里设置 EntityBinding
+                com.chronoblocks.ui.timeline.model.entity.EntityBinding binding = 
+                    new com.chronoblocks.ui.timeline.model.entity.EntityBinding();
+                // 根据 boundEntityType 设置 entityTypeId（简化处理）
+                binding.setEntityTypeId("minecraft:villager"); // 默认值
+                entityTrackPayload.setBinding(binding);
+            }
+        }
+        return entityTrackPayload;
+    }
+
+    /**
+     * 检查是否有 EntityTrack payload。
+     *
+     * @return 如果有 EntityTrack payload 则返回 true
+     */
+    public boolean hasEntityTrackPayload() {
+        return entityTrackPayload != null;
     }
 }

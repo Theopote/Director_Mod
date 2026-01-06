@@ -175,8 +175,31 @@ public final class PropertyAdapterBootstrap {
             registeredCount++;
             
             // ✅ 实体关键帧适配器
-            registerAdapter(com.chronoblocks.ui.timeline.model.entity.EntityKeyframe.class, 
+            registerAdapter(com.chronoblocks.ui.timeline.model.entity.EntityKeyframe.class,
                     new EntityKeyframePropertyAdapter());
+            registeredCount++;
+
+            // ✅ 实体片段适配器
+            registerAdapter(com.chronoblocks.ui.timeline.model.entity.EntitySpawnClip.class,
+                    new com.chronoblocks.ui.properties.adapters.EntitySpawnClipPropertyAdapter());
+            registeredCount++;
+            registerAdapter(com.chronoblocks.ui.timeline.model.entity.EntityTransformClip.class,
+                    new com.chronoblocks.ui.properties.adapters.EntityTransformClipPropertyAdapter());
+            registeredCount++;
+            registerAdapter(com.chronoblocks.ui.timeline.model.entity.EntityAnimationClip.class,
+                    new com.chronoblocks.ui.properties.adapters.EntityAnimationClipPropertyAdapter());
+            registeredCount++;
+            registerAdapter(com.chronoblocks.ui.timeline.model.entity.EntityActionClip.class,
+                    new com.chronoblocks.ui.properties.adapters.EntityActionClipPropertyAdapter());
+            registeredCount++;
+            registerAdapter(com.chronoblocks.ui.timeline.model.entity.EntityStateClip.class,
+                    new com.chronoblocks.ui.properties.adapters.EntityStateClipPropertyAdapter());
+            registeredCount++;
+            registerAdapter(com.chronoblocks.ui.timeline.model.entity.EntityLookAtClip.class,
+                    new com.chronoblocks.ui.properties.adapters.EntityLookAtClipPropertyAdapter());
+            registeredCount++;
+            registerAdapter(com.chronoblocks.ui.timeline.model.entity.EntityDespawnClip.class,
+                    new com.chronoblocks.ui.properties.adapters.EntityDespawnClipPropertyAdapter());
             registeredCount++;
             
             // ✅ 后处理适配器

@@ -85,8 +85,11 @@ public class EntitySample {
     /** LookAt 目标实体UUID（来自 EntityLookAtClip） */
     public java.util.UUID lookAtEntityUuid;
 
+    /** LookAt 是否启用（来自 EntityLookAtClip） */
+    public boolean lookAtEnabled = false;
+
     /** LookAt 强度（来自 EntityLookAtClip） */
-    public float lookAtStrength = 1.0f;
+    public float lookAtStrength = 0.0f;
 
     /** 状态：潜行（来自 EntityStateClip） */
     public boolean sneaking = false;
@@ -99,6 +102,9 @@ public class EntitySample {
 
     /** 状态：无敌（来自 EntityStateClip） */
     public boolean invulnerable = false;
+
+    /** Action 事件列表（本帧触发的事件） */
+    public final java.util.List<EntityActionEvent> actionEvents = new java.util.ArrayList<>();
 
     // ==========================================================
     // 工具方法
@@ -200,11 +206,14 @@ public class EntitySample {
         lookAtMode = s.lookAtMode;
         lookAtPoint.set(s.lookAtPoint);
         lookAtEntityUuid = s.lookAtEntityUuid;
+        lookAtEnabled = s.lookAtEnabled;
         lookAtStrength = s.lookAtStrength;
         sneaking = s.sneaking;
         sprinting = s.sprinting;
         glowing = s.glowing;
         invulnerable = s.invulnerable;
+        actionEvents.clear();
+        actionEvents.addAll(s.actionEvents);
     }
 
     private float lerp(float a, float b, float t) {

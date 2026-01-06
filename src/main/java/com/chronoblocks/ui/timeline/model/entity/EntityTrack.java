@@ -1,5 +1,7 @@
 package com.chronoblocks.ui.timeline.model.entity;
 
+import com.chronoblocks.actor.ActorRef;
+
 import java.util.*;
 
 /**
@@ -11,6 +13,13 @@ import java.util.*;
  * <ul>
  *   <li>轨道级：演员是谁、如何绑定、轨道显示信息</li>
  *   <li>片段级：表演段落 EntityClip 列表</li>
+ * </ul>
+ *
+ * <p>核心原则：
+ * <ul>
+ *   <li>Timeline 永远不直接持有 Actor，只持有 ActorRef</li>
+ *   <li>Actor 由 ActorRegistry 管理（Project 层）</li>
+ *   <li>EntityTrack 通过 ActorRef 引用 Actor</li>
  * </ul>
  *
  * <p>与 {@link com.chronoblocks.ui.timeline.model.TimelineTrack} 的关系：
@@ -31,10 +40,10 @@ import java.util.*;
  */
 public class EntityTrack {
 
-    /** 演员ID（唯一标识） */
-    private final UUID actorId = UUID.randomUUID();
+    /** Actor 引用（Timeline 只持有 ActorRef，不直接持有 Actor） */
+    private ActorRef actorRef;
 
-    /** UI 显示名：主角 Steve / 守卫A */
+    /** UI 显示名：主角 Steve / 守卫A（如果 actorRef 为 null 时使用） */
     private String displayName = "Actor";
 
     /** 绑定信息：生成/绑定已有 */
@@ -67,12 +76,30 @@ public class EntityTrack {
     // ========== 基础属性 ==========
 
     /**
-     * 获取演员ID
+     * 获取 Actor 引用
+     *
+     * @return ActorRef，如果未设置则返回 null
+     */
+    public ActorRef getActorRef() {
+        return actorRef;
+    }
+
+    /**
+     * 设置 Actor 引用
+     *
+     * @param actorRef ActorRef
+     */
+    public void setActorRef(ActorRef actorRef) {
+        this.actorRef = actorRef;
+    }
+
+    /**
+     * 获取演员ID（从 ActorRef 获取，如果 ActorRef 为 null 则返回 null）
      *
      * @return 演员ID
      */
     public UUID getActorId() {
-        return actorId;
+        return actorRef != null ? actorRef.getActorId() : null;
     }
 
     /**
@@ -249,6 +276,26 @@ public class EntityTrack {
      */
     public int getClipCount() {
         return clips.size();
+    }
+
+    /**
+     * 添加默认的 SpawnClip（在当前时间点）
+     * <p>这是一个便利方法，用于快速创建演员的入场片段
+     *
+     * @param time 时间（秒）
+     */
+    public void addDefaultSpawnClip(float time) {
+        EntitySpawnClip clip = new EntitySpawnClip(
+                "Spawn",
+                time,
+                time + 0.01f  // 极短的片段，表示"瞬间生成"
+        );
+        // 默认位置在原点（0, 0, 0），导演可以在属性面板中调整
+        clip.setPosition(0f, 0f, 0f);
+        clip.setYawDeg(0f);
+        clip.setPitchDeg(0f);
+        clip.setVisibleOnSpawn(true);
+        addClip(clip);
     }
 }
 
