@@ -7,7 +7,6 @@ import com.chronoblocks.ui.timeline.model.entity.EntityStateClip;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;
-import imgui.type.ImFloat;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -27,7 +26,6 @@ public class EntityStateClipPropertyAdapter implements IPropertyAdapter<EntitySt
     private final ImBoolean sprintingBoolean = new ImBoolean();
     private final ImBoolean glowingBoolean = new ImBoolean();
     private final ImBoolean invulnerableBoolean = new ImBoolean();
-    private final ImFloat visibilityFloat = new ImFloat();
 
     @Override
     public Class<EntityStateClip> getTargetType() {

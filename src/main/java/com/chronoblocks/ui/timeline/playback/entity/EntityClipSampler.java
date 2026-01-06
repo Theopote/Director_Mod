@@ -146,7 +146,7 @@ public class EntityClipSampler {
         // ========== 处理 Spawn Clip（优先级最高，作为基础）==========
         if (!spawnClips.isEmpty()) {
             // 使用最后一个 Spawn Clip（如果有多个重叠）
-            EntitySpawnClip spawnClip = spawnClips.get(spawnClips.size() - 1);
+            EntitySpawnClip spawnClip = spawnClips.getLast();
             applySpawnClip(result, spawnClip, timeSeconds);
         }
 
@@ -169,7 +169,7 @@ public class EntityClipSampler {
         // ========== 处理 Despawn Clip（离场）==========
         if (!despawnClips.isEmpty()) {
             // 如果有多个 Despawn Clip，使用最后一个
-            EntityDespawnClip despawnClip = despawnClips.get(despawnClips.size() - 1);
+            EntityDespawnClip despawnClip = despawnClips.getLast();
             applyDespawnClip(result, despawnClip, timeSeconds);
         }
 

@@ -7,7 +7,6 @@ import com.chronoblocks.ui.timeline.model.entity.EntityAnimationClip;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;
-import imgui.type.ImFloat;
 import imgui.type.ImInt;
 import imgui.type.ImString;
 
@@ -28,7 +27,6 @@ public class EntityAnimationClipPropertyAdapter implements IPropertyAdapter<Enti
     private final ImString animationIdString = new ImString("", 256);
     private final ImInt sourceIndex = new ImInt();
     private final ImBoolean loopBoolean = new ImBoolean();
-    private final ImFloat speedFloat = new ImFloat();
 
     @Override
     public Class<EntityAnimationClip> getTargetType() {

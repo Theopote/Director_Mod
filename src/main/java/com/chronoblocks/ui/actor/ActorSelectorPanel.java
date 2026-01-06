@@ -235,5 +235,165 @@ public final class ActorSelectorPanel {
             // TODO: 如果实现了撤销/重做系统，这里应该回滚所有操作
         }
     }
+
+    // =========================================================
+    // Edit Actor Name Popup
+    // =========================================================
+
+    private void openEditActorNamePopup(Actor actor) {
+        editingActor = actor;
+        editingActorName.set(actor.getName());
+        editNamePopupOpen = true;
+        ImGui.openPopup("Edit Actor Name");
+    }
+
+    private void renderEditNamePopup() {
+        if (!editNamePopupOpen || editingActor == null) return;
+
+        if (ImGui.beginPopupModal("Edit Actor Name", ImGuiCond.Always)) {
+            ImGui.text("Actor Name:");
+            ImGui.sameLine();
+            ImGui.inputText("##EditActorName", editingActorName);
+
+            ImGui.separator();
+
+            if (ImGui.button("Save")) {
+                String newName = editingActorName.get();
+                if (newName != null && !newName.trim().isEmpty()) {
+                    editingActor.setName(newName.trim());
+                    // 同步更新关联的 EntityTrack 显示名称
+                    updateEntityTrackDisplayName(editingActor);
+                    timelineModel.markDirty();
+                    LOGGER.info("[ActorSelector] 已更新 Actor 名称: {}", newName);
+                }
+                ImGui.closeCurrentPopup();
+                editNamePopupOpen = false;
+                editingActor = null;
+            }
+
+            ImGui.sameLine();
+
+            if (ImGui.button("Cancel")) {
+                ImGui.closeCurrentPopup();
+                editNamePopupOpen = false;
+                editingActor = null;
+            }
+
+            ImGui.endPopup();
+        }
+    }
+
+    // =========================================================
+    // Delete Actor Confirm Popup
+    // =========================================================
+
+    private void openDeleteActorConfirmPopup(Actor actor) {
+        deletingActor = actor;
+        deleteConfirmPopupOpen = true;
+        ImGui.openPopup("Delete Actor");
+    }
+
+    private void renderDeleteConfirmPopup() {
+        if (!deleteConfirmPopupOpen || deletingActor == null) return;
+
+        if (ImGui.beginPopupModal("Delete Actor", ImGuiCond.Always)) {
+            ImGui.text("确定要删除 Actor 吗？");
+            ImGui.text("名称: " + deletingActor.getName());
+            ImGui.text("类型: " + deletingActor.getType().name());
+            ImGui.textColored(1.0f, 0.4f, 0.4f, 1.0f, "警告：此操作无法撤销！");
+
+            ImGui.separator();
+
+            if (ImGui.button("删除", 100, 0)) {
+                deleteActor(deletingActor);
+                ImGui.closeCurrentPopup();
+                deleteConfirmPopupOpen = false;
+                deletingActor = null;
+            }
+
+            ImGui.sameLine();
+
+            if (ImGui.button("取消", 100, 0)) {
+                ImGui.closeCurrentPopup();
+                deleteConfirmPopupOpen = false;
+                deletingActor = null;
+            }
+
+            ImGui.endPopup();
+        }
+    }
+
+    // =========================================================
+    // Actor Management
+    // =========================================================
+
+    /**
+     * 删除 Actor（同时清理关联的 EntityTrack）
+     */
+    private void deleteActor(Actor actor) {
+        if (actor == null) return;
+
+        try {
+            // 1️⃣ 删除关联的 EntityTrack
+            removeEntityTracksForActor(actor.getActorId());
+
+            // 2️⃣ 从 ActorRegistry 删除 Actor
+            actorRegistry.removeActor(actor.getActorId());
+
+            // 3️⃣ 标记模型为 dirty
+            timelineModel.markDirty();
+
+            LOGGER.info("[ActorSelector] 已删除 Actor: {} ({})", actor.getName(), actor.getType());
+
+        } catch (Exception e) {
+            LOGGER.error("[ActorSelector] 删除 Actor 失败", e);
+        }
+    }
+
+    /**
+     * 移除与指定 Actor 关联的所有 EntityTrack
+     */
+    private void removeEntityTracksForActor(java.util.UUID actorId) {
+        if (actorId == null || timelineModel == null) return;
+
+        java.util.List<com.chronoblocks.ui.timeline.model.TimelineTrack> tracksToRemove = new java.util.ArrayList<>();
+
+        for (com.chronoblocks.ui.timeline.model.TimelineTrack track : timelineModel.getAllTracks()) {
+            if (track.getType() == com.chronoblocks.ui.timeline.model.TrackType.ENTITY) {
+                com.chronoblocks.ui.timeline.model.entity.EntityTrack entityTrack = track.getEntityTrackPayload();
+                if (entityTrack != null) {
+                    com.chronoblocks.actor.ActorRef ref = entityTrack.getActorRef();
+                    if (ref != null && actorId.equals(ref.getActorId())) {
+                        tracksToRemove.add(track);
+                    }
+                }
+            }
+        }
+
+        for (com.chronoblocks.ui.timeline.model.TimelineTrack track : tracksToRemove) {
+            timelineModel.removeTrack(track);
+            LOGGER.debug("[ActorSelector] 已移除关联的 EntityTrack: {}", track.getName());
+        }
+    }
+
+    /**
+     * 更新 EntityTrack 的显示名称以匹配 Actor 名称
+     */
+    private void updateEntityTrackDisplayName(Actor actor) {
+        if (actor == null || timelineModel == null) return;
+
+        for (com.chronoblocks.ui.timeline.model.TimelineTrack track : timelineModel.getAllTracks()) {
+            if (track.getType() == com.chronoblocks.ui.timeline.model.TrackType.ENTITY) {
+                com.chronoblocks.ui.timeline.model.entity.EntityTrack entityTrack = track.getEntityTrackPayload();
+                if (entityTrack != null) {
+                    com.chronoblocks.actor.ActorRef ref = entityTrack.getActorRef();
+                    if (ref != null && actor.getActorId().equals(ref.getActorId())) {
+                        entityTrack.setDisplayName(actor.getName());
+                        track.setName(actor.getName()); // 同时更新 TimelineTrack 名称
+                    }
+                }
+            }
+        }
+    }
 }
 

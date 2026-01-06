@@ -29,7 +29,6 @@ public class EntityLookAtClipPropertyAdapter implements IPropertyAdapter<EntityL
     private final ImFloat worldPointX = new ImFloat();
     private final ImFloat worldPointY = new ImFloat();
     private final ImFloat worldPointZ = new ImFloat();
-    private final ImFloat strengthFloat = new ImFloat();
 
     @Override
     public Class<EntityLookAtClip> getTargetType() {
