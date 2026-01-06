@@ -46,6 +46,9 @@ public final class ActorPreviewManager {
     /** Actor ID 到 PreviewEntity 的映射 */
     private final Map<UUID, PreviewActorEntity> previews = new HashMap<>();
 
+    /** Entity ID 到 Actor ID 的反向映射（用于点击检测） */
+    private final Map<Integer, UUID> entityToActor = new HashMap<>();
+
     private ActorPreviewManager() {
     }
 
@@ -81,6 +84,8 @@ public final class ActorPreviewManager {
         PreviewActorEntity entity = previews.remove(actorId);
         if (entity != null) {
             try {
+                // 清理反向映射
+                entityToActor.remove(entity.getId());
                 entity.discard();
                 LOGGER.debug("[ActorPreviewManager] 移除预览实体: {}", actorId);
             } catch (Throwable e) {
@@ -127,7 +132,32 @@ public final class ActorPreviewManager {
             }
         }
         previews.clear();
+        entityToActor.clear();
         LOGGER.debug("[ActorPreviewManager] 清空所有预览实体");
+    }
+
+    /**
+     * 根据 PreviewActorEntity 获取对应的 Actor ID
+     * <p>用于点击检测：从实体反查 Actor
+     *
+     * @param entity PreviewActorEntity
+     * @return Actor ID，如果不存在则返回 null
+     */
+    public UUID getActorId(PreviewActorEntity entity) {
+        if (entity == null) {
+            return null;
+        }
+        return entityToActor.get(entity.getId());
+    }
+
+    /**
+     * 根据实体 ID 获取对应的 Actor ID
+     *
+     * @param entityId 实体 ID
+     * @return Actor ID，如果不存在则返回 null
+     */
+    public UUID getActorIdByEntityId(int entityId) {
+        return entityToActor.get(entityId);
     }
 
     /**
@@ -187,6 +217,9 @@ public final class ActorPreviewManager {
 
             // 添加到世界（仅客户端）
             world.addEntity(entity);
+
+            // 建立反向映射（entityId -> actorId）
+            entityToActor.put(entity.getId(), actor.getActorId());
 
             LOGGER.debug("[ActorPreviewManager] 创建预览实体: {} ({})", actor.getName(), actor.getType());
             return entity;

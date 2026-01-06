@@ -108,6 +108,26 @@ public class TimelineInteractionHandler {
     public TimelineContextMenu getActiveContextMenu() {
         return activeContextMenu;
     }
+
+    /**
+     * 外部选中 Track（用于世界点击选中 Actor 时调用）
+     * <p>避免重复逻辑，统一入口
+     *
+     * @param track TimelineTrack
+     */
+    public void selectTrackFromExternal(TimelineTrack track) {
+        if (track == null) {
+            model.setSelectedTrack(null);
+            return;
+        }
+
+        model.setSelectedTrack(track);
+        
+        // 同步到 UI SelectionManager
+        com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(track);
+        
+        LOGGER.debug("[TimelineInteractionHandler] 外部选中 Track: {}", track.getName());
+    }
     
     /**
      * ⭐ 修复：检查并清理已关闭的菜单

@@ -484,6 +484,33 @@ public class TimelineModel {
         return null;
     }
 
+    /**
+     * 根据 Actor ID 查找对应的 EntityTrack
+     * <p>用于世界点击选中演员时，自动定位到时间线上的对应轨道
+     *
+     * @param actorId Actor ID
+     * @return TimelineTrack，如果未找到则返回 null
+     */
+    public TimelineTrack findEntityTrackByActorId(java.util.UUID actorId) {
+        if (actorId == null) {
+            return null;
+        }
+
+        for (TimelineTrack track : tracks) {
+            if (track.getType() == TrackType.ENTITY) {
+                com.chronoblocks.ui.timeline.model.entity.EntityTrack entityTrack = track.getEntityTrackPayload();
+                if (entityTrack != null) {
+                    com.chronoblocks.actor.ActorRef ref = entityTrack.getActorRef();
+                    if (ref != null && actorId.equals(ref.getActorId())) {
+                        return track;
+                    }
+                }
+            }
+        }
+
+        return null;
+    }
+
     // ========== 轨道管理（语义方法，ChronoBlocks 风格）==========
 
     /**
