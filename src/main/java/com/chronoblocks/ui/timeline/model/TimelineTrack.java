@@ -28,6 +28,19 @@ public class TimelineTrack {
     private String boundContainerName;
     private String boundContainerId;
     
+    // ========== 实体绑定信息（仅对实体轨道有效）==========
+    /** 绑定的演员ID（用于标识这个轨道控制的是哪个演员） */
+    private java.util.UUID boundActorId;
+    
+    /** 实体类型（仅对实体轨道有效） */
+    private com.chronoblocks.ui.timeline.model.entity.EntityKeyframe.EntityType boundEntityType;
+    
+    /** 演员显示名称（如 "主角 Steve", "守卫 A"） */
+    private String actorDisplayName;
+    
+    /** 是否跨剪辑存在（persistent = true 表示实体在轨道外的时间段也存在） */
+    private boolean actorPersistent = false;
+    
     // ========== 音频事件（仅对音频轨道有效）==========
     private final List<AudioEvent> audioEvents = new ArrayList<>();
 
@@ -315,7 +328,7 @@ public class TimelineTrack {
      * 获取旧版 TimelineTrack 内部维护的音频事件列表（仅用于数据迁移/向后兼容）。
      *
      * <p>注意：当轨道为 {@code AudioTrack} 时，应使用 {@code AudioTrack.getEvents()}。
-     * 此方法仅用于在“尚未转换为 AudioTrack”的旧数据上读取事件。
+     * 此方法仅用于在"尚未转换为 AudioTrack"的旧数据上读取事件。
      *
      * @return 不可修改的旧音频事件列表
      */
@@ -324,5 +337,90 @@ public class TimelineTrack {
             return at.getEvents();
         }
         return Collections.unmodifiableList(audioEvents);
+    }
+
+    // ========== 实体绑定信息 getter/setter（仅对实体轨道有效）==========
+
+    /**
+     * 获取绑定的演员ID。
+     *
+     * @return 演员ID，如果未绑定则返回 null
+     */
+    public java.util.UUID getBoundActorId() {
+        return boundActorId;
+    }
+
+    /**
+     * 设置绑定的演员ID。
+     *
+     * @param boundActorId 演员ID
+     */
+    public void setBoundActorId(java.util.UUID boundActorId) {
+        this.boundActorId = boundActorId;
+    }
+
+    /**
+     * 获取实体类型。
+     *
+     * @return 实体类型，如果未设置则返回 null
+     */
+    public com.chronoblocks.ui.timeline.model.entity.EntityKeyframe.EntityType getBoundEntityType() {
+        return boundEntityType;
+    }
+
+    /**
+     * 设置实体类型。
+     *
+     * @param boundEntityType 实体类型
+     */
+    public void setBoundEntityType(com.chronoblocks.ui.timeline.model.entity.EntityKeyframe.EntityType boundEntityType) {
+        this.boundEntityType = boundEntityType;
+    }
+
+    /**
+     * 获取演员显示名称。
+     *
+     * @return 显示名称，如果未设置则返回 null
+     */
+    public String getActorDisplayName() {
+        return actorDisplayName;
+    }
+
+    /**
+     * 设置演员显示名称。
+     *
+     * @param actorDisplayName 显示名称
+     */
+    public void setActorDisplayName(String actorDisplayName) {
+        this.actorDisplayName = (actorDisplayName == null || actorDisplayName.isBlank())
+            ? null
+            : actorDisplayName.trim();
+    }
+
+    /**
+     * 检查演员是否跨剪辑存在。
+     *
+     * @return 如果 persistent 则返回 true
+     */
+    public boolean isActorPersistent() {
+        return actorPersistent;
+    }
+
+    /**
+     * 设置演员是否跨剪辑存在。
+     *
+     * @param actorPersistent 是否跨剪辑存在
+     */
+    public void setActorPersistent(boolean actorPersistent) {
+        this.actorPersistent = actorPersistent;
+    }
+
+    /**
+     * 检查是否绑定了演员。
+     *
+     * @return 如果绑定了演员则返回 true
+     */
+    public boolean hasBoundActor() {
+        return boundActorId != null;
     }
 }

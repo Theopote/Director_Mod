@@ -1,0 +1,254 @@
+package com.chronoblocks.ui.timeline.model.entity;
+
+import java.util.*;
+
+/**
+ * EntityTrack v1.0
+ *
+ * <p>一个"演员"（Actor）轨道。
+ *
+ * <p>设计理念：
+ * <ul>
+ *   <li>轨道级：演员是谁、如何绑定、轨道显示信息</li>
+ *   <li>片段级：表演段落 EntityClip 列表</li>
+ * </ul>
+ *
+ * <p>与 {@link com.chronoblocks.ui.timeline.model.TimelineTrack} 的关系：
+ * <ul>
+ *   <li>EntityTrack 是独立的实体轨道数据结构</li>
+ *   <li>可以与 TimelineTrack 并存，用于不同的使用场景</li>
+ *   <li>未来可以让 TimelineTrack (type=ENTITY) 的 payload 是 EntityTrack</li>
+ * </ul>
+ *
+ * <p>使用方式：
+ * <ul>
+ *   <li>作为独立数据结构，先把 UI / 序列化 / 编辑跑通</li>
+ *   <li>未来集成到 TimelineTrack 系统中</li>
+ * </ul>
+ *
+ * @author ChronoBlocks Team
+ * @version 1.0
+ */
+public class EntityTrack {
+
+    /** 演员ID（唯一标识） */
+    private final UUID actorId = UUID.randomUUID();
+
+    /** UI 显示名：主角 Steve / 守卫A */
+    private String displayName = "Actor";
+
+    /** 绑定信息：生成/绑定已有 */
+    private EntityBinding binding = new EntityBinding();
+
+    /** 轨道开关 */
+    private boolean enabled = true;
+
+    /** 轨道颜色（可选，UI 用） */
+    private int colorRgba = 0xFF66CCFF;
+
+    /** 轨道片段（按时间排序） */
+    private final NavigableSet<EntityClip> clips = new TreeSet<>();
+
+    /**
+     * 默认构造函数
+     */
+    public EntityTrack() {
+    }
+
+    /**
+     * 构造函数（带显示名称）
+     *
+     * @param displayName 显示名称
+     */
+    public EntityTrack(String displayName) {
+        this.displayName = (displayName == null || displayName.isBlank()) ? "Actor" : displayName;
+    }
+
+    // ========== 基础属性 ==========
+
+    /**
+     * 获取演员ID
+     *
+     * @return 演员ID
+     */
+    public UUID getActorId() {
+        return actorId;
+    }
+
+    /**
+     * 获取显示名称
+     *
+     * @return 显示名称
+     */
+    public String getDisplayName() {
+        return displayName;
+    }
+
+    /**
+     * 设置显示名称
+     *
+     * @param displayName 显示名称
+     */
+    public void setDisplayName(String displayName) {
+        this.displayName = (displayName == null || displayName.isBlank()) ? "Actor" : displayName;
+    }
+
+    /**
+     * 获取绑定信息
+     *
+     * @return 绑定信息
+     */
+    public EntityBinding getBinding() {
+        return binding;
+    }
+
+    /**
+     * 设置绑定信息
+     *
+     * @param binding 绑定信息
+     */
+    public void setBinding(EntityBinding binding) {
+        this.binding = (binding == null) ? new EntityBinding() : binding;
+    }
+
+    /**
+     * 检查是否启用
+     *
+     * @return 如果启用则返回 true
+     */
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    /**
+     * 设置是否启用
+     *
+     * @param enabled 是否启用
+     */
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
+
+    /**
+     * 获取轨道颜色
+     *
+     * @return 颜色（RGBA）
+     */
+    public int getColorRgba() {
+        return colorRgba;
+    }
+
+    /**
+     * 设置轨道颜色
+     *
+     * @param colorRgba 颜色（RGBA）
+     */
+    public void setColorRgba(int colorRgba) {
+        this.colorRgba = colorRgba;
+    }
+
+    // ========== Clip 管理 ==========
+
+    /**
+     * 获取所有片段（按时间排序）
+     *
+     * @return 不可修改的片段列表
+     */
+    public List<EntityClip> getClips() {
+        return Collections.unmodifiableList(new ArrayList<>(clips));
+    }
+
+    /**
+     * 添加片段
+     *
+     * @param clip 片段
+     */
+    public void addClip(EntityClip clip) {
+        if (clip != null) {
+            clips.add(clip);
+        }
+    }
+
+    /**
+     * 移除片段
+     *
+     * @param clipId 片段ID
+     * @return 如果成功移除则返回 true
+     */
+    public boolean removeClip(UUID clipId) {
+        if (clipId == null) {
+            return false;
+        }
+        EntityClip target = null;
+        for (EntityClip c : clips) {
+            if (clipId.equals(c.getId())) {
+                target = c;
+                break;
+            }
+        }
+        return target != null && clips.remove(target);
+    }
+
+    /**
+     * 清空所有片段
+     */
+    public void clearClips() {
+        clips.clear();
+    }
+
+    /**
+     * 查找片段
+     *
+     * @param clipId 片段ID
+     * @return 片段，如果未找到则返回 empty
+     */
+    public Optional<EntityClip> findClip(UUID clipId) {
+        if (clipId == null) {
+            return Optional.empty();
+        }
+        for (EntityClip c : clips) {
+            if (clipId.equals(c.getId())) {
+                return Optional.of(c);
+            }
+        }
+        return Optional.empty();
+    }
+
+    /**
+     * 找到 timeSeconds 覆盖到的 clip（可能有多个；比如 Action 与 Transform 重叠）
+     *
+     * @param timeSeconds 时间（秒）
+     * @return 覆盖该时间的片段列表
+     */
+    public List<EntityClip> findClipsAt(float timeSeconds) {
+        if (clips.isEmpty()) {
+            return List.of();
+        }
+        List<EntityClip> out = new ArrayList<>();
+        for (EntityClip c : clips) {
+            if (timeSeconds >= c.getStartTime() && timeSeconds <= c.getEndTime()) {
+                out.add(c);
+            }
+        }
+        return out;
+    }
+
+    /**
+     * 检查是否有片段
+     *
+     * @return 如果有片段则返回 true
+     */
+    public boolean hasClips() {
+        return !clips.isEmpty();
+    }
+
+    /**
+     * 获取片段数量
+     *
+     * @return 片段数量
+     */
+    public int getClipCount() {
+        return clips.size();
+    }
+}
+

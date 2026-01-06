@@ -62,6 +62,44 @@ public class EntitySample {
     /** 是否启用实体覆盖（false 表示完全使用原版行为） */
     public boolean enabled = false;
 
+    // ========== Clip 系统扩展字段 ==========
+
+    /** 动画ID（来自 EntityAnimationClip） */
+    public String animationId;
+
+    /** 动画源类型（来自 EntityAnimationClip） */
+    public EntityKeyframe.EntityType animationSource; // 临时复用，未来可扩展
+
+    /** 动画循环（来自 EntityAnimationClip） */
+    public boolean animationLoop = true;
+
+    /** 动画速度（来自 EntityAnimationClip） */
+    public float animationSpeed = 1.0f;
+
+    /** LookAt 目标模式（来自 EntityLookAtClip） */
+    public String lookAtMode; // "WORLD_POINT", "ENTITY_UUID", "CAMERA"
+
+    /** LookAt 世界坐标点（来自 EntityLookAtClip） */
+    public final Vector3f lookAtPoint = new Vector3f();
+
+    /** LookAt 目标实体UUID（来自 EntityLookAtClip） */
+    public java.util.UUID lookAtEntityUuid;
+
+    /** LookAt 强度（来自 EntityLookAtClip） */
+    public float lookAtStrength = 1.0f;
+
+    /** 状态：潜行（来自 EntityStateClip） */
+    public boolean sneaking = false;
+
+    /** 状态：冲刺（来自 EntityStateClip） */
+    public boolean sprinting = false;
+
+    /** 状态：发光（来自 EntityStateClip） */
+    public boolean glowing = false;
+
+    /** 状态：无敌（来自 EntityStateClip） */
+    public boolean invulnerable = false;
+
     // ==========================================================
     // 工具方法
     // ==========================================================
@@ -153,6 +191,20 @@ public class EntitySample {
         displayName = s.displayName;
         showNameTag = s.showNameTag;
         entityType = s.entityType;
+
+        // Clip 系统扩展字段
+        animationId = s.animationId;
+        animationSource = s.animationSource;
+        animationLoop = s.animationLoop;
+        animationSpeed = s.animationSpeed;
+        lookAtMode = s.lookAtMode;
+        lookAtPoint.set(s.lookAtPoint);
+        lookAtEntityUuid = s.lookAtEntityUuid;
+        lookAtStrength = s.lookAtStrength;
+        sneaking = s.sneaking;
+        sprinting = s.sprinting;
+        glowing = s.glowing;
+        invulnerable = s.invulnerable;
     }
 
     private float lerp(float a, float b, float t) {
