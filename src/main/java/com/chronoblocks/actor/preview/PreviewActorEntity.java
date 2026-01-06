@@ -6,6 +6,8 @@ import net.minecraft.entity.EntityType;
 import net.minecraft.entity.MovementType;
 import net.minecraft.entity.damage.DamageSource;
 import net.minecraft.server.world.ServerWorld;
+import net.minecraft.storage.ReadView;
+import net.minecraft.storage.WriteView;
 import net.minecraft.util.math.Vec3d;
 
 /**
@@ -60,20 +62,16 @@ public class PreviewActorEntity extends Entity {
     // ======================
     // 序列化（不保存预览实体）
     // ======================
-    //
-    // ⚠️ 需要实现以下抽象方法（使用 IDE 自动生成）：
-    // 1. 在类名上按 Alt+Enter（或右键菜单）
-    // 2. 选择 "Implement methods" 或 "实现抽象方法"
-    // 3. IDE 会自动生成正确的方法签名
-    // 4. 在方法体中添加注释即可：
-    //    - readCustomData: // 不读取（预览实体不保存）
-    //    - writeCustomData: // 不写入（不进存档）
-    //
-    // 如果 IDE 无法自动生成，请查看 net.minecraft.entity.Entity 类的实际抽象方法定义
-    // 可能的类型：
-    // - Entity.ReadView / Entity.WriteView
-    // - net.minecraft.entity.data.DataTracker.ReadView / WriteView
-    // - 或其他类型（取决于 Minecraft 1.21 的实际 API）
+
+    @Override
+    protected void readCustomData(ReadView readView) {
+        // 不读取（预览实体不保存）
+    }
+
+    @Override
+    protected void writeCustomData(WriteView writeView) {
+        // 不写入（不进存档）
+    }
 
     @Override
     public boolean damage(ServerWorld world, DamageSource source, float amount) {

@@ -3,6 +3,8 @@ package com.chronoblocks.ui.properties.adapters;
 import com.chronoblocks.ui.properties.IPropertyAdapter;
 import com.chronoblocks.ui.properties.PropertyAdapterRegistry;
 import com.chronoblocks.ui.theme.UITheme;
+import com.chronoblocks.ui.timeline.model.TrackType;
+import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiTreeNodeFlags;
@@ -334,6 +336,42 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
             }
             
             UITheme.separator();
+            
+            // ========== 实体轨道快捷操作 ==========
+            // 检查是否是 ENTITY 类型的轨道
+            if (track instanceof TimelineTrack timelineTrack) {
+                if (timelineTrack.getType() == TrackType.ENTITY) {
+                    var entityTrack = timelineTrack.getEntityTrackPayload();
+                    if (entityTrack != null) {
+                        var actorRef = entityTrack.getActorRef();
+                        if (actorRef != null) {
+                            var actorId = actorRef.getActorId();
+                            if (actorId != null) {
+                                UITheme.beginGroup("🎭 演员快捷操作");
+                                
+                                if (ImGui.button("👁 Look At Camera", -1, UITheme.Spacing.BUTTON_HEIGHT)) {
+                                    // 调用 ActorLookAtGizmoController 创建 Camera LookAtClip
+                                    try {
+                                        var lookAtController = com.chronoblocks.ui.actor.lookat.ActorLookAtGizmoController.getInstance();
+                                        lookAtController.setTargetActor(actorId);
+                                        lookAtController.createCameraLookAtClip();
+                                        modifiedRef[0] = true; // 标记为已修改（创建了新 Clip）
+                                        LOGGER.info("[TimelineTrackPropertyAdapter] 已创建 Camera LookAtClip for Actor: {}", actorId);
+                                    } catch (Exception e) {
+                                        LOGGER.error("[TimelineTrackPropertyAdapter] 创建 Camera LookAtClip 失败", e);
+                                    }
+                                }
+                                if (ImGui.isItemHovered()) {
+                                    ImGui.setTooltip("在当前时间创建一个看向摄像机的 LookAtClip");
+                                }
+                                
+                                UITheme.endGroup();
+                                UITheme.separator();
+                            }
+                        }
+                    }
+                }
+            }
             
             // ========== 快捷操作 ==========
             UITheme.beginGroup("快捷操作");

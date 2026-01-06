@@ -161,7 +161,18 @@ public final class ActorRuntimeController {
 
         for (TimelineTrack track : timelineModel.getTracks()) {
             if (isEntityTrack(track)) {
-                runtimes.put(track, new TrackRuntime(track));
+                // 检查是否有 EntityTrack payload
+                EntityTrack entityTrack = track.getEntityTrackPayload();
+                if (entityTrack != null) {
+                    try {
+                        runtimes.put(track, new TrackRuntime(track));
+                    } catch (IllegalArgumentException e) {
+                        // 如果轨道没有有效的 EntityTrack payload，跳过它
+                        LOGGER.warn("[ActorRuntime] 跳过无效的实体轨道: {} - {}", track.getName(), e.getMessage());
+                    }
+                } else {
+                    LOGGER.warn("[ActorRuntime] 跳过没有 EntityTrack payload 的轨道: {}", track.getName());
+                }
             }
         }
     }
@@ -213,6 +224,7 @@ public final class ActorRuntimeController {
          * 构造函数
          *
          * @param track TimelineTrack
+         * @throws IllegalArgumentException 如果轨道没有 EntityTrack payload
          */
         TrackRuntime(TimelineTrack track) {
             this.entityTrack = track.getEntityTrackPayload();

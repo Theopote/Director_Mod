@@ -254,6 +254,16 @@ public final class ChronoBlocksRendererRegistry {
                         RendererStage.TOOL_PREVIEW.getOrder() + 10); // 在工具预览之后渲染
             }
 
+            // Actor LookAt 可视化（使用 INTERACTION_HINT 阶段，在实体渲染后显示视线和 Marker）
+            if (RendererStage.INTERACTION_HINT.isEnabled()) {
+                registerRenderer(RendererStage.INTERACTION_HINT, "ActorLookAtVisualizer",
+                        ctx -> {
+                            var visualizer = com.chronoblocks.actor.visualizer.ActorLookAtVisualizer.getInstance();
+                            visualizer.render(ctx.matrices(), getTickDelta(), ctx.consumers());
+                        },
+                        RendererStage.INTERACTION_HINT.getOrder() + 20); // 在交互提示之后渲染
+            }
+
             LOGGER.info("[RendererRegistry] ✅ 默认渲染器注册完成");
         } catch (Exception e) {
             LOGGER.error("[RendererRegistry] 注册默认渲染器失败", e);

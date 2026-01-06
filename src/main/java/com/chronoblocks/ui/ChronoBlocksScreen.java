@@ -661,6 +661,9 @@ public class ChronoBlocksScreen extends Screen {
 
         // ⭐ Actor LookAt Gizmo 系统：每帧更新（LOOK_AT 模式下处理世界点击）
         com.chronoblocks.ui.actor.lookat.ActorLookAtGizmoController.getInstance().update();
+
+        // ⭐ Marker 拖拽系统：每帧更新（LOOK_AT 模式下拖拽 Marker）
+        com.chronoblocks.ui.actor.lookat.MarkerDragController.getInstance().update();
     }
 
     private void cleanupRenderSystems(boolean full) {

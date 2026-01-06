@@ -1,6 +1,7 @@
 package com.chronoblocks.ui.timeline.playback.entity;
 
 import com.chronoblocks.actor.Actor;
+import com.chronoblocks.actor.ActorType;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.Entity;
@@ -170,21 +171,22 @@ public class PreviewEntity {
 
         // 从注册表获取实体类型
         try {
-            return switch (actor.getType()) {
+            ActorType type = actor.getType();
+            if (type == null) {
+                return EntityType.VILLAGER; // 默认
+            }
+            
+            return switch (type) {
                 case VILLAGER -> EntityType.VILLAGER;
                 case COW -> EntityType.COW;
                 case ZOMBIE -> EntityType.ZOMBIE;
                 case SKELETON -> EntityType.SKELETON;
                 case PLAYER -> null; // 玩家需要特殊处理
-                case CUSTOM -> {
-                    // 自定义类型：从 modelId 解析
-                    String modelId = actor.getModelId();
-                    if (modelId != null && modelId.startsWith("minecraft:")) {
-                        // TODO: 从注册表查找实体类型
-                        yield EntityType.VILLAGER; // 默认
-                    }
-                    yield EntityType.VILLAGER;
-                }
+                case CUSTOM -> // 自定义类型：默认使用村民
+                    // TODO: 未来可以从 Actor 的扩展字段中获取 modelId
+                    // 默认
+                        EntityType.VILLAGER;
+                case SHEEP -> EntityType.SHEEP; // 添加 SHEEP 类型支持
             };
         } catch (Throwable e) {
             LOGGER.warn("[PreviewEntity] 获取实体类型失败: {}", actor.getType(), e);

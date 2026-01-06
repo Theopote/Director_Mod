@@ -44,6 +44,9 @@ public final class ActorSelectionHub {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ActorSelectionHub.class);
 
+    /** 当前选中的 Actor ID（只读，供 Visualizer 使用） */
+    private static UUID currentActorId = null;
+
     private ActorSelectionHub() {
         // 静态工具类
     }
@@ -106,7 +109,20 @@ public final class ActorSelectionHub {
             lookAtController.setTargetActor(actorId);
         }
 
+        // 6️⃣ 更新当前选中的 Actor ID（供 Visualizer 使用）
+        currentActorId = actorId;
+
         LOGGER.debug("[ActorSelectionHub] 已选中 Actor: {} (Track: {})", actorId, track.getName());
+    }
+
+    /**
+     * 获取当前选中的 Actor ID（只读）
+     * <p>供 Visualizer 等只读组件使用
+     *
+     * @return 当前选中的 Actor ID，如果未选中则返回 null
+     */
+    public static UUID getSelectedActorId() {
+        return currentActorId;
     }
 
     /**
@@ -135,6 +151,12 @@ public final class ActorSelectionHub {
         if (lookAtController != null) {
             lookAtController.clearTarget();
         }
+
+        // 清除 LookAt 选择上下文
+        com.chronoblocks.ui.actor.lookat.ActorLookAtSelectionContext.setActiveLookAtClip(null);
+
+        // 清除当前选中的 Actor ID
+        currentActorId = null;
 
         LOGGER.debug("[ActorSelectionHub] 已清除 Actor 选择");
     }

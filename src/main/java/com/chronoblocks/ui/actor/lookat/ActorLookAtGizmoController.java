@@ -214,6 +214,9 @@ public final class ActorLookAtGizmoController {
         clip.setMode(EntityLookAtClip.TargetMode.CAMERA);
         clip.setStrength(1.0f);
 
+        // 更新选择上下文（供 Drag Controller 使用）
+        ActorLookAtSelectionContext.setActiveLookAtClip(clip);
+
         // 标记模型为 dirty
         model.markDirty();
 
@@ -255,6 +258,9 @@ public final class ActorLookAtGizmoController {
             );
         }
         clip.setStrength(1.0f);
+
+        // 更新选择上下文（供 Drag Controller 使用）
+        ActorLookAtSelectionContext.setActiveLookAtClip(clip);
 
         // 标记模型为 dirty
         model.markDirty();
