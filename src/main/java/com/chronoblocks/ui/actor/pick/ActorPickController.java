@@ -8,133 +8,134 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.hit.HitResult;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.lwjgl.glfw.GLFW;
 
 import java.util.UUID;
 
 /**
  * ActorPickController v1.0
  *
- * <p>世界点击 → 选中演员
- * <p>职责：监听鼠标点击，raycast 到实体，如果点中 PreviewActorEntity 就选中它，并同步 Timeline。
- *
- * <p>使用方式：
+ * <p>职责：
  * <ul>
- *   <li>在每帧/tick 调用 update()</li>
- *   <li>检查鼠标点击和交叉目标</li>
- *   <li>如果点中 PreviewActorEntity，调用 ActorSelectionHub.selectActor()</li>
+ *   <li>监听鼠标点击</li>
+ *   <li>Raycast 到世界</li>
+ *   <li>如果点中 PreviewActorEntity：
+ *       → 解析 actorId
+ *       → 通知 ActorSelectionHub</li>
  * </ul>
+ *
+ * <p>⚠️ 设计原则：
+ * <ul>
+ *   <li>不直接操作 TimelineModel</li>
+ *   <li>不直接操作 Gizmo</li>
+ *   <li>不维护 selection 状态</li>
+ * </ul>
+ *
+ * <p>这是一个"输入适配器"，不是状态管理器。
  *
  * @author ChronoBlocks Team
  * @version 1.0
  */
 public final class ActorPickController {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(ActorPickController.class);
     private static final ActorPickController INSTANCE = new ActorPickController();
 
     public static ActorPickController getInstance() {
         return INSTANCE;
     }
 
-    /** 是否启用点击检测 */
-    private boolean enabled = true;
-
-    /** 上次点击时间（用于防抖） */
-    private long lastClickTime = 0;
-    private static final long CLICK_DEBOUNCE_MS = 100; // 100ms 防抖
-
-    /** 上次鼠标状态（用于检测点击事件） */
+    /** 上一帧鼠标左键状态，用于 edge-trigger */
     private boolean lastLeftMouseDown = false;
 
     private ActorPickController() {
     }
 
-    /**
-     * 设置是否启用
-     *
-     * @param enabled 是否启用
-     */
-    public void setEnabled(boolean enabled) {
-        this.enabled = enabled;
-    }
-
-    /**
-     * 检查是否启用
-     *
-     * @return 如果启用则返回 true
-     */
-    public boolean isEnabled() {
-        return enabled;
-    }
+    // =========================================================
+    // Update（每帧调用）
+    // =========================================================
 
     /**
      * 更新（每帧调用）
      * <p>检查鼠标点击，如果点中 PreviewActorEntity 则选中它
      */
     public void update() {
-        if (!enabled) {
-            return;
-        }
-
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.world == null) {
+        if (client == null || client.player == null || client.world == null) {
+            lastLeftMouseDown = false;
             return;
         }
 
-        // 检查 ImGui 是否捕获了鼠标（如果 UI 正在交互，不处理世界点击）
+        // ImGui 正在使用鼠标（拖 UI / Gizmo / Timeline），不要抢输入
         if (ImGui.getIO().getWantCaptureMouse()) {
+            lastLeftMouseDown = isLeftMouseDown(client);
             return;
         }
 
-        // 检查鼠标左键点击（使用 GLFW 直接检测，避免与 Minecraft 输入系统冲突）
-        boolean leftMouseDown = org.lwjgl.glfw.GLFW.glfwGetMouseButton(
-                client.getWindow().getHandle(), 
-                org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT) == org.lwjgl.glfw.GLFW.GLFW_PRESS;
+        boolean leftDown = isLeftMouseDown(client);
 
-        // 检查是否是新的点击（不是持续按住）
-        boolean isNewClick = leftMouseDown && !lastLeftMouseDown;
-        lastLeftMouseDown = leftMouseDown;
+        // 只在"刚按下"的那一帧处理（edge trigger）
+        if (leftDown && !lastLeftMouseDown) {
+            handleClick(client);
+        }
 
-        if (!isNewClick) {
+        lastLeftMouseDown = leftDown;
+    }
+
+    // =========================================================
+    // Click Handling
+    // =========================================================
+
+    /**
+     * 处理点击事件
+     *
+     * @param client MinecraftClient
+     */
+    private void handleClick(MinecraftClient client) {
+        HitResult hit = client.crosshairTarget;
+        if (hit == null || hit.getType() != HitResult.Type.ENTITY) {
             return;
         }
 
-        // 防抖：避免重复点击
-        long currentTime = System.currentTimeMillis();
-        if (currentTime - lastClickTime < CLICK_DEBOUNCE_MS) {
+        EntityHitResult ehr = (EntityHitResult) hit;
+        Entity entity = ehr.getEntity();
+
+        if (!(entity instanceof PreviewActorEntity preview)) {
             return;
         }
 
-        // 获取交叉目标
-        HitResult hitResult = client.crosshairTarget;
-        if (hitResult == null || hitResult.getType() != HitResult.Type.ENTITY) {
+        // 从 PreviewActorEntity 反查 actorId
+        ActorPreviewManager previewManager = ActorPreviewManager.getInstance();
+        if (previewManager == null) {
             return;
         }
 
-        EntityHitResult entityHit = (EntityHitResult) hitResult;
-        Entity entity = entityHit.getEntity();
-
-        // 检查是否是 PreviewActorEntity
-        if (!(entity instanceof PreviewActorEntity)) {
-            return;
-        }
-
-        PreviewActorEntity previewEntity = (PreviewActorEntity) entity;
-
-        // 反查 Actor ID
-        UUID actorId = ActorPreviewManager.getInstance().getActorId(previewEntity);
+        UUID actorId = previewManager.getActorId(preview);
         if (actorId == null) {
-            LOGGER.warn("[ActorPickController] 无法找到 PreviewEntity 对应的 Actor ID");
             return;
         }
 
-        // 选中 Actor
+        // 🔥 统一入口：ActorSelectionHub
         ActorSelectionHub.selectActor(actorId);
-        lastClickTime = currentTime;
+    }
 
-        LOGGER.debug("[ActorPickController] 点击选中 Actor: {}", actorId);
+    // =========================================================
+    // Utils
+    // =========================================================
+
+    /**
+     * 检查鼠标左键是否按下
+     *
+     * @param client MinecraftClient
+     * @return 如果按下则返回 true
+     */
+    private boolean isLeftMouseDown(MinecraftClient client) {
+        if (client.getWindow() == null) {
+            return false;
+        }
+        // GLFW_MOUSE_BUTTON_LEFT == 0
+        return GLFW.glfwGetMouseButton(
+                client.getWindow().getHandle(),
+                GLFW.GLFW_MOUSE_BUTTON_LEFT
+        ) == GLFW.GLFW_PRESS;
     }
 }
-

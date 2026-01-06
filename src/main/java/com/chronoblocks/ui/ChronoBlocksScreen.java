@@ -655,6 +655,12 @@ public class ChronoBlocksScreen extends Screen {
             LOGGER.warn("[ChronoBlocks] 渲染注册表失效，尝试补挂载");
             registry.ensureInitialized();
         }
+
+        // ⭐ Actor 选择系统：每帧更新点击检测
+        com.chronoblocks.ui.actor.pick.ActorPickController.getInstance().update();
+
+        // ⭐ Actor LookAt Gizmo 系统：每帧更新（LOOK_AT 模式下处理世界点击）
+        com.chronoblocks.ui.actor.lookat.ActorLookAtGizmoController.getInstance().update();
     }
 
     private void cleanupRenderSystems(boolean full) {

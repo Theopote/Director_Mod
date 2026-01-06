@@ -117,11 +117,12 @@ public class TimelineInteractionHandler {
      */
     public void selectTrackFromExternal(TimelineTrack track) {
         if (track == null) {
-            model.setSelectedTrack(null);
+            model.selectItem(null, false);
             return;
         }
 
-        model.setSelectedTrack(track);
+        // 选中 Track（单选模式）
+        model.selectItem(track, false);
         
         // 同步到 UI SelectionManager
         com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(track);

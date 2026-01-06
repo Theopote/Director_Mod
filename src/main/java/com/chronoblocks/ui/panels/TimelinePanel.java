@@ -389,8 +389,8 @@ public class TimelinePanel extends AbstractPanel
         // ⭐ 实体轨道系统 v2：每帧更新实体状态
         com.chronoblocks.actor.runtime.ActorRuntimeController.getInstance().update();
 
-        // ⭐ Actor 选择与 Gizmo 系统：每帧更新
-        com.chronoblocks.ui.actor.pick.ActorPickController.getInstance().update();
+        // ⭐ Actor Gizmo 系统：每帧更新（跟随实体位置）
+        // 注意：ActorPickController.update() 已移到 ChronoBlocksScreen.tick() 中（世界输入处理）
         com.chronoblocks.ui.actor.gizmo.ActorGizmoController.getInstance().update();
         
         // ⚠️ 旧版本 EntityRuntimeController（已迁移到 ActorRuntimeController v2，待移除）

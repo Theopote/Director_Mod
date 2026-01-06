@@ -445,6 +445,26 @@ public class GizmoManager {
     public Vec3d getPivot() {
         return context != null ? context.getPivot() : null;
     }
+
+    /**
+     * 获取当前 Gizmo 模式
+     *
+     * @return GizmoMode，如果未激活则返回 TRANSLATE
+     */
+    public GizmoMode getMode() {
+        return context != null && context.getMode() != null ? context.getMode() : GizmoMode.TRANSLATE;
+    }
+
+    /**
+     * 设置当前 Gizmo 模式
+     *
+     * @param mode GizmoMode，如果为 null 则使用 TRANSLATE
+     */
+    public void setMode(GizmoMode mode) {
+        if (context != null) {
+            context.setMode(mode);
+        }
+    }
     
     // ===========================================================
     // ✅ v2.3: 基础控制接口（与 SelectionManager v3.0 衔接）

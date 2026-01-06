@@ -14,6 +14,7 @@ import com.chronoblocks.client.gizmo.handles.GizmoHandle;
  */
 public class GizmoContext {
     private GizmoType type;
+    private GizmoMode mode = GizmoMode.TRANSLATE; // 默认平移模式
     private Box targetBox;
     private Vec3d pivot;
     private boolean isActive;
@@ -76,6 +77,14 @@ public class GizmoContext {
     
     public void setSnapStep(double snapStep) {
         this.snapStep = snapStep;
+    }
+
+    public GizmoMode getMode() {
+        return mode;
+    }
+
+    public void setMode(GizmoMode mode) {
+        this.mode = mode != null ? mode : GizmoMode.TRANSLATE;
     }
 }
 
