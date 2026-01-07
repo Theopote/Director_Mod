@@ -148,11 +148,13 @@ public final class PropertyAdapterBootstrap {
             
             // ✅ Actor 项目适配器（Project-level Actor 管理）
             // 注册为支持 Actor 类（通过 supports() 方法）
-            registerAdapter(new ActorProjectPropertyAdapter(), "ActorProject");
+            ActorProjectPropertyAdapter actorAdapter = new ActorProjectPropertyAdapter();
+            registerAdapter(actorAdapter, "ActorProject");
             // 同时注册为支持 Actor 类（用于直接选择 Actor 对象时）
             try {
-                Class<?> actorClass = Class.forName("com.chronoblocks.actor.Actor");
-                registerAdapter(actorClass, new ActorProjectPropertyAdapter());
+                @SuppressWarnings("unchecked")
+                Class<Object> actorClass = (Class<Object>) Class.forName("com.chronoblocks.actor.Actor");
+                registerAdapter(actorClass, actorAdapter);
                 LOGGER.info("[PropertyAdapterBootstrap] ✅ 已注册: ActorProjectPropertyAdapter → Actor");
             } catch (ClassNotFoundException e) {
                 LOGGER.warn("[PropertyAdapterBootstrap] Actor 类未找到，跳过 Actor 类注册");

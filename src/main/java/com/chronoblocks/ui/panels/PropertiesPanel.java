@@ -18,6 +18,8 @@ import imgui.ImGui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.UUID;
+
 /**
  * 🎨 智能动态属性面板 v5.0 (现代化增强版) - ChronoBlocks Properties System
  * <p>

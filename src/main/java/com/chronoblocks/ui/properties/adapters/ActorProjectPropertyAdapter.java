@@ -5,6 +5,7 @@ import com.chronoblocks.actor.ActorRef;
 import com.chronoblocks.actor.ActorRegistry;
 import com.chronoblocks.actor.ActorRegistryManager;
 import com.chronoblocks.actor.ActorType;
+import com.chronoblocks.actor.query.ActorUsageQuery;
 import com.chronoblocks.ui.actor.selection.ActorSelectionHub;
 import com.chronoblocks.ui.properties.IPropertyAdapter;
 import com.chronoblocks.ui.selection.SelectionManager;
@@ -245,6 +246,9 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             openDeleteConfirm(actor.getActorId());
         }
         
+        // ---- Usage Information (只读) ----
+        renderActorUsage(actor);
+        
         return modified;
     }
     
@@ -345,11 +349,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
      */
     private void createActorAndTrack(String actorName, ActorType actorType) {
         ActorRegistry actorRegistry = ActorRegistryManager.getInstance();
-        if (actorRegistry == null) {
-            LOGGER.error("[ActorProjectPropertyAdapter] ActorRegistry 未初始化");
-            return;
-        }
-        
+
         try {
             // 1️⃣ Create Actor
             Actor actor = actorRegistry.createActor(actorName.trim(), actorType);
@@ -391,6 +391,106 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             LOGGER.error("[ActorProjectPropertyAdapter] 创建 Actor 失败", e);
             // TODO: 如果实现了撤销/重做系统，这里应该回滚所有操作
         }
+    }
+    
+    // =========================================================
+    // Actor Usage (只读查询)
+    // =========================================================
+    
+    /**
+     * 渲染 Actor 使用情况（只读）
+     * <p>显示该 Actor 在哪些 Timeline/Track 中被使用
+     *
+     * @param actor Actor 实例
+     */
+    private void renderActorUsage(Actor actor) {
+        if (actor == null) {
+            return;
+        }
+        
+        UITheme.separator();
+        UITheme.label("Used In", UITheme.DarkTheme.TEXT);
+        
+        TimelineModel timeline = ContainerTimelineService.getInstance().getTimelineModel();
+        if (timeline == null) {
+            ImGui.textDisabled("No active timeline.");
+            return;
+        }
+        
+        // 查询使用该 Actor 的所有 EntityTrack
+        List<EntityTrack> entityTracks = ActorUsageQuery.findTracksUsingActor(
+                timeline,
+                actor.getActorId()
+        );
+        
+        if (entityTracks.isEmpty()) {
+            ImGui.textDisabled("This actor is not used in the current timeline.");
+            ImGui.sameLine();
+            if (ImGui.smallButton("Delete Actor##unused")) {
+                openDeleteConfirm(actor.getActorId());
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("This actor is not used in any track. Click to delete it.");
+            }
+            return;
+        }
+        
+        // 查询对应的 TimelineTrack（用于 Focus Track 功能）
+        List<TimelineTrack> timelineTracks = ActorUsageQuery.findTimelineTracksUsingActor(
+                timeline,
+                actor.getActorId()
+        );
+        
+        // 显示 Timeline 名称（目前只有一个 Timeline，未来可扩展）
+        String timelineName = "Current Timeline";
+        // 如果 TimelineModel 有 getName() 方法，可以使用它
+        // timelineName = timeline.getName() != null ? timeline.getName() : "Unnamed Timeline";
+        
+        ImGui.bulletText(String.format("Timeline: %s", timelineName));
+        
+        // 显示每个 Track
+        ImGui.indent();
+        for (int i = 0; i < entityTracks.size(); i++) {
+            EntityTrack entityTrack = entityTracks.get(i);
+            TimelineTrack timelineTrack = i < timelineTracks.size() ? timelineTracks.get(i) : null;
+            
+            String trackDisplayName = entityTrack.getDisplayName();
+            if (trackDisplayName == null || trackDisplayName.isBlank()) {
+                trackDisplayName = timelineTrack != null && timelineTrack.getName() != null
+                        ? timelineTrack.getName()
+                        : "Entity Track";
+            }
+            
+            ImGui.text(String.format("- Track: %s", trackDisplayName));
+            
+            // Focus Track 按钮
+            if (timelineTrack != null) {
+                // 使用 track 的 hashCode 作为唯一标识符
+                String buttonId = "Focus Track##" + timelineTrack.hashCode();
+                if (ImGui.smallButton(buttonId)) {
+                    focusTrack(timelineTrack);
+                }
+            }
+        }
+        ImGui.unindent();
+    }
+    
+    /**
+     * 聚焦到指定的 Track
+     * <p>选中该 Track，并切换到 Track 面板
+     *
+     * @param track TimelineTrack 实例
+     */
+    private void focusTrack(TimelineTrack track) {
+        if (track == null) {
+            return;
+        }
+        
+        // 使用 SelectionManager 选中 Track
+        SelectionManager selectionManager = SelectionManager.get();
+        selectionManager.selectTrack(track);
+        
+        LOGGER.debug("[ActorProjectPropertyAdapter] Focused track: {}", track.getName());
     }
     
     // =========================================================
