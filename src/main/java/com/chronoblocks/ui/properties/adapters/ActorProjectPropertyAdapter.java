@@ -15,7 +15,6 @@ import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.entity.EntityTrack;
-import net.minecraft.client.MinecraftClient;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiTreeNodeFlags;
@@ -554,7 +553,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         }
         
         // 使用第一个 Track（通常只有一个）
-        TimelineTrack timelineTrack = timelineTracks.get(0);
+        TimelineTrack timelineTrack = timelineTracks.getFirst();
         EntityTrack entityTrack = timelineTrack.getEntityTrackPayload();
         if (entityTrack == null) {
             LOGGER.warn("[ActorProjectPropertyAdapter] EntityTrack payload 为空");

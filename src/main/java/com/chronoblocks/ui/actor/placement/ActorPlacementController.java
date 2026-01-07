@@ -5,6 +5,7 @@ import com.chronoblocks.actor.ActorRef;
 import com.chronoblocks.actor.ActorRegistry;
 import com.chronoblocks.actor.ActorRegistryManager;
 import com.chronoblocks.actor.ActorType;
+import com.chronoblocks.actor.preview.ActorPreviewManager;
 import com.chronoblocks.actor.preview.PreviewActorEntity;
 import com.chronoblocks.ui.timeline.container.ContainerTimelineService;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
@@ -15,8 +16,6 @@ import com.chronoblocks.ui.timeline.model.entity.EntityTrack;
 import com.chronoblocks.ui.timeline.playback.camera.CameraAccessor;
 import imgui.ImGui;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.client.world.ClientWorld;
-import net.minecraft.entity.EntityType;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.Vec3d;
@@ -107,22 +106,14 @@ public final class ActorPlacementController {
             // 1. 创建临时 Actor（不保存到 Registry，只是预览）
             pendingActor = new Actor(actorName.trim(), actorType);
             
-            // 2. 创建临时 PreviewEntity 并附着到鼠标
-            ClientWorld world = client.world;
-            EntityType<?> entityType = mapActorType(actorType);
-            if (entityType == null) {
-                LOGGER.warn("[ActorPlacement] 无法映射 ActorType: {}", actorType);
+            // 2. 使用 ActorPreviewManager 创建临时 PreviewEntity（避免渲染系统类型错误）
+            ActorPreviewManager previewManager = ActorPreviewManager.getInstance();
+            
+            previewEntity = previewManager.ensurePreview(pendingActor);
+            if (previewEntity == null) {
+                LOGGER.warn("[ActorPlacement] 无法创建预览实体");
                 return false;
             }
-
-            previewEntity = new PreviewActorEntity(entityType, world);
-            previewEntity.setCustomNameVisible(true);
-            if (pendingActor.getName() != null) {
-                previewEntity.setCustomName(net.minecraft.text.Text.literal(pendingActor.getName()));
-            }
-
-            // 添加到世界（仅客户端）
-            world.addEntity(previewEntity);
 
             isPlacing = true;
             LOGGER.info("[ActorPlacement] 开始放置 Actor: {} ({})", actorName, actorType);
@@ -140,12 +131,10 @@ public final class ActorPlacementController {
      * <p>清理临时 Actor 和 PreviewEntity
      */
     public void cancelPlacement() {
-        if (previewEntity != null) {
-            try {
-                previewEntity.discard();
-            } catch (Throwable e) {
-                LOGGER.warn("[ActorPlacement] 清理 PreviewEntity 失败", e);
-            }
+        if (previewEntity != null && pendingActor != null) {
+            // 使用 ActorPreviewManager 清理（确保正确清理映射）
+            ActorPreviewManager previewManager = ActorPreviewManager.getInstance();
+            previewManager.removePreview(pendingActor.getActorId());
             previewEntity = null;
         }
 
@@ -345,8 +334,9 @@ public final class ActorPlacementController {
             // 6. 标记为 dirty（触发保存）
             timelineModel.markDirty();
 
-            // 7. 清理临时预览实体
-            previewEntity.discard();
+            // 7. 清理临时预览实体（使用 ActorPreviewManager）
+            ActorPreviewManager previewManager = ActorPreviewManager.getInstance();
+            previewManager.removePreview(pendingActor.getActorId());
             previewEntity = null;
             pendingActor = null;
             isPlacing = false;
@@ -360,20 +350,5 @@ public final class ActorPlacementController {
         }
     }
 
-    /**
-     * ActorType → EntityType 映射
-     */
-    private EntityType<?> mapActorType(ActorType type) {
-        return switch (type) {
-            case VILLAGER -> EntityType.VILLAGER;
-            case COW -> EntityType.COW;
-            case SHEEP -> EntityType.SHEEP;
-            case ZOMBIE -> EntityType.ZOMBIE;
-            case SKELETON -> EntityType.SKELETON;
-            case PLAYER -> EntityType.PLAYER;
-            case CUSTOM -> EntityType.VILLAGER; // 自定义类型默认使用村民
-            default -> EntityType.VILLAGER; // 默认村民
-        };
-    }
 }
 
