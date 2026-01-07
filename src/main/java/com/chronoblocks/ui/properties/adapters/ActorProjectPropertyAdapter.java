@@ -83,23 +83,16 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         if (obj == null) {
             return false; // null 由 PropertiesPanel 的 renderNoSelectionMessage 处理
         }
-        if (obj instanceof String && "ACTOR_PROJECT".equals(obj)) {
+        if ("ACTOR_PROJECT".equals(obj)) {
             return true;
         }
-        if (obj instanceof Actor) {
-            return true;
-        }
-        return false;
+        return obj instanceof Actor;
     }
     
     @Override
     public boolean renderProperties(Object obj) {
         ActorRegistry actorRegistry = ActorRegistryManager.getInstance();
-        if (actorRegistry == null) {
-            UITheme.label("ActorRegistry not available.", UITheme.DarkTheme.TEXT_DISABLED);
-            return false;
-        }
-        
+
         boolean modified = false;
         
         // 如果传入的是 Actor 对象，直接选中它
@@ -143,7 +136,9 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     // =========================================================
     
     private boolean renderActorList(ActorRegistry actorRegistry) {
-        UITheme.separatorText("Actor List");
+        // 使用 UITheme 的方式显示分隔符文本
+        UITheme.label("Actor List", UITheme.DarkTheme.TEXT);
+        UITheme.separator();
         
         List<Actor> actors = actorRegistry.getAllActors();
         if (actors.isEmpty()) {
@@ -262,11 +257,9 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         
         // 通知全局 Selection（Project-level selection）
         SelectionManager selectionManager = SelectionManager.get();
-        if (selectionManager != null) {
-            // 设置 Actor 对象作为 Selection
-            selectionManager.setCurrentSelection(actor);
-        }
-        
+        // 设置 Actor 对象作为 Selection
+        selectionManager.setCurrentSelection(actor);
+
         LOGGER.debug("[ActorProjectPropertyAdapter] Selected actor: {}", actor.getActorId());
     }
     
@@ -408,10 +401,8 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             
             // 清空全局 Selection
             SelectionManager selectionManager = SelectionManager.get();
-            if (selectionManager != null) {
-                selectionManager.clearSelection();
-            }
-            
+            selectionManager.clearSelection();
+
             // 标记需要保存（通过 TimelineModel）
             var timelineModel = com.chronoblocks.ui.timeline.container.ContainerTimelineService.getInstance().getTimelineModel();
             if (timelineModel != null) {
