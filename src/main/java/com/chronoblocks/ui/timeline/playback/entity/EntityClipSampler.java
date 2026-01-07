@@ -46,6 +46,9 @@ public class EntityClipSampler {
     /** 用于 Action Clip 的"已触发记录"（防止重复触发） */
     private final ActionTriggerCache actionCache = new ActionTriggerCache();
 
+    /** 用于 AnimationEvent 的"已触发记录"（防止重复触发） */
+    private final AnimationEventTriggerCache animationEventCache = new AnimationEventTriggerCache();
+
     /**
      * 构造函数（接受实体轨道）。
      *
@@ -156,7 +159,7 @@ public class EntityClipSampler {
 
         // ========== 处理 Animation Clip（动画）==========
         // 规则：last-wins（最后一个生效，按时间排序）
-        applyAnimation(result, animationClips);
+        applyAnimation(result, animationClips, timeSeconds);
 
         // ========== 处理 State Clip（状态）==========
         // 规则：last-wins（最后一个生效，按时间排序）
@@ -269,8 +272,12 @@ public class EntityClipSampler {
     /**
      * 应用 Animation Clip（动画）。
      * 规则：last-wins（最后一个生效，按时间排序）
+     *
+     * @param result EntitySample
+     * @param clips Animation Clips
+     * @param timeSeconds 当前时间（秒）
      */
-    private void applyAnimation(EntitySample result, List<EntityAnimationClip> clips) {
+    private void applyAnimation(EntitySample result, List<EntityAnimationClip> clips, float timeSeconds) {
         EntityAnimationClip active = null;
 
         // 找到最后一个（按开始时间排序）
@@ -286,9 +293,28 @@ public class EntityClipSampler {
             return;
         }
 
+        // 应用动画信息
         result.animationId = active.getAnimationId();
         result.animationLoop = active.isLoop();
         result.animationSpeed = active.getSpeed();
+
+        // 处理 AnimationEvent（动画事件）
+        if (active.hasEvents()) {
+            // 计算归一化时间
+            float clipDuration = active.getEndTime() - active.getStartTime();
+            if (clipDuration > 0.01f) {
+                float normalizedTime = (timeSeconds - active.getStartTime()) / clipDuration;
+                normalizedTime = Math.max(0.0f, Math.min(1.0f, normalizedTime));
+
+                // 检查并触发事件
+                for (com.chronoblocks.ui.timeline.model.entity.AnimationEvent event : active.getEvents()) {
+                    if (animationEventCache.shouldTrigger(active, event, normalizedTime)) {
+                        // 触发 Action 事件
+                        result.actionEvents.add(event.getAction());
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -404,6 +430,21 @@ public class EntityClipSampler {
      */
     public void clearActionCache() {
         actionCache.clear();
+    }
+
+    /**
+     * 清除 AnimationEvent 触发缓存（用于重置/跳转时间）。
+     */
+    public void clearAnimationEventCache() {
+        animationEventCache.clear();
+    }
+
+    /**
+     * 清除所有触发缓存（用于重置/跳转时间）。
+     */
+    public void clearAllCaches() {
+        actionCache.clear();
+        animationEventCache.clear();
     }
 
     /**
