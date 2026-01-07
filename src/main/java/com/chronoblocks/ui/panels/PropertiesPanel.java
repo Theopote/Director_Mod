@@ -1,11 +1,13 @@
 package com.chronoblocks.ui.panels;
 
+import com.chronoblocks.actor.Actor;
 import com.chronoblocks.actor.ActorRegistry;
 import com.chronoblocks.actor.ActorRegistryManager;
 import com.chronoblocks.ui.actor.ActorSelectorPanel;
 import com.chronoblocks.ui.properties.IPropertyAdapter;
 import com.chronoblocks.ui.properties.PropertyAdapterRegistry;
 import com.chronoblocks.ui.selection.SelectionManager;
+import com.chronoblocks.ui.selection.SelectionType;
 import com.chronoblocks.ui.timeline.container.ContainerTimelineService;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
@@ -196,44 +198,36 @@ public class PropertiesPanel extends AbstractPanel {
             lastUpdateTime = currentTime;
         }
         
-        // 渲染属性内容
-        if (currentSelection == null) {
-            renderNoSelectionMessage();
-            return;
-        }
+        // =========================
+        // SelectionType 驱动的精确切换（v5.0）
+        // =========================
+        SelectionManager selectionManager = SelectionManager.get();
+        SelectionType selectionType = selectionManager.getSelectionType();
         
-        if (currentAdapter == null) {
-            renderNoAdapterMessage();
-            return;
-        }
-        
-        // 渲染对象类型标题
-        renderObjectTypeHeader();
-        
-        UITheme.separator();
-        
-        // 渲染属性
-        try {
-            boolean modified = currentAdapter.renderProperties(currentSelection);
-            if (modified) {
-                if (currentSelection instanceof CameraKeyframe) {
-                    var timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
-                    if (timelineModel != null) {
-                        timelineModel.markDirty();
-                    }
-                    TimelineCameraController.getInstance().onKeyframeChanged();
-                }
-                LOGGER.debug("[PropertiesPanel] 属性已修改: {}", 
-                    currentSelection.getClass().getSimpleName());
-                // TODO: 可以在这里触发撤销/重做系统
+        switch (selectionType) {
+            case PROJECT -> {
+                // Project 面板（含 Actor 列表）
+                renderProjectPanel();
             }
-        } catch (Exception e) {
-            LOGGER.error("[PropertiesPanel] 渲染属性时出错: {}", e.getMessage(), e);
-            renderErrorMessage(e);
+            
+            case ACTOR -> {
+                // Actor 面板（ActorProjectPropertyAdapter）
+                renderActorPanel(selectionManager);
+            }
+            
+            case TRACK -> {
+                // Track 面板（TimelineTrackPropertyAdapter）
+                renderTrackPanel(selectionManager);
+            }
+            
+            case CLIP -> {
+                // Clip 面板（Entity*ClipPropertyAdapter）
+                renderClipPanel(selectionManager);
+            }
         }
         
         // 多选提示
-        var multiSelection = SelectionManager.get().getMultiSelection();
+        var multiSelection = selectionManager.getMultiSelection();
         if (multiSelection.size() > 1) {
             UITheme.separator();
             ImGui.textDisabled(String.format("多选 (%d 个对象)", multiSelection.size()));
@@ -241,7 +235,127 @@ public class PropertiesPanel extends AbstractPanel {
                 ImGui.setTooltip("当前选择了多个对象，只显示第一个对象的属性");
             }
         }
+    }
+    
+    /**
+     * 渲染 Project 面板（含 Actor 列表）
+     */
+    private void renderProjectPanel() {
+        renderNoSelectionMessage();
+    }
+    
+    /**
+     * 渲染 Actor 面板
+     */
+    private void renderActorPanel(SelectionManager selectionManager) {
+        UUID actorId = selectionManager.getSelectedActorId();
+        if (actorId == null) {
+            // 如果没有 actorId，回退到 Project 面板
+            renderProjectPanel();
+            return;
+        }
         
+        // 获取 Actor 对象
+        var actorRegistry = ActorRegistryManager.getInstance();
+        if (actorRegistry == null) {
+            UITheme.label("ActorRegistry not available.", UITheme.DarkTheme.TEXT_DISABLED);
+            return;
+        }
+        
+        var actorOpt = actorRegistry.getActor(actorId);
+        if (actorOpt.isEmpty()) {
+            // Actor 不存在，回退到 Project 面板
+            selectionManager.clearSelection();
+            renderProjectPanel();
+            return;
+        }
+        
+        Actor actor = actorOpt.get();
+        
+        // 使用 ActorProjectPropertyAdapter
+        var adapter = PropertyAdapterRegistry.getAdapterFor(actor);
+        if (adapter != null) {
+            try {
+                UITheme.title("🎭 Actor Properties");
+                UITheme.separator();
+                boolean modified = adapter.renderProperties(actor);
+                if (modified) {
+                    var timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+                    if (timelineModel != null) {
+                        timelineModel.markDirty();
+                    }
+                }
+            } catch (Exception e) {
+                LOGGER.error("[PropertiesPanel] 渲染 Actor 面板时出错", e);
+                renderErrorMessage(e);
+            }
+        } else {
+            UITheme.label("No adapter for Actor", UITheme.DarkTheme.TEXT_DISABLED);
+        }
+    }
+    
+    /**
+     * 渲染 Track 面板
+     */
+    private void renderTrackPanel(SelectionManager selectionManager) {
+        var track = selectionManager.getSelectedTrack();
+        if (track == null) {
+            renderProjectPanel();
+            return;
+        }
+        
+        // 使用 TimelineTrackPropertyAdapter
+        var adapter = PropertyAdapterRegistry.getAdapterFor(track);
+        if (adapter != null) {
+            try {
+                renderObjectTypeHeader();
+                UITheme.separator();
+                boolean modified = adapter.renderProperties(track);
+                if (modified) {
+                    var timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+                    if (timelineModel != null) {
+                        timelineModel.markDirty();
+                    }
+                }
+            } catch (Exception e) {
+                LOGGER.error("[PropertiesPanel] 渲染 Track 面板时出错", e);
+                renderErrorMessage(e);
+            }
+        } else {
+            renderNoAdapterMessage();
+        }
+    }
+    
+    /**
+     * 渲染 Clip 面板
+     */
+    private void renderClipPanel(SelectionManager selectionManager) {
+        var clip = selectionManager.getSelectedClip();
+        if (clip == null) {
+            renderProjectPanel();
+            return;
+        }
+        
+        // 使用对应的 Entity*ClipPropertyAdapter
+        var adapter = PropertyAdapterRegistry.getAdapterFor(clip);
+        if (adapter != null) {
+            try {
+                renderObjectTypeHeader();
+                UITheme.separator();
+                boolean modified = adapter.renderProperties(clip);
+                if (modified) {
+                    var timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+                    if (timelineModel != null) {
+                        timelineModel.markDirty();
+                    }
+                }
+            } catch (Exception e) {
+                LOGGER.error("[PropertiesPanel] 渲染 Clip 面板时出错", e);
+                renderErrorMessage(e);
+            }
+        } else {
+            renderNoAdapterMessage();
+        }
     }
     
     /**
@@ -267,13 +381,15 @@ public class PropertiesPanel extends AbstractPanel {
     
     /**
      * 更新当前选择和适配器
+     * <p>注意：v5.0 后，此方法主要用于向后兼容。
+     * 新的 SelectionType 系统在 doRender() 中直接处理。
      */
     private void updateSelection(Object newSelection) {
         currentSelection = newSelection;
         currentAdapter = PropertyAdapterRegistry.getAdapterFor(newSelection);
         
         if (newSelection != null) {
-            LOGGER.info("[PropertiesPanel] 选中对象: {} ({})", 
+            LOGGER.debug("[PropertiesPanel] 选中对象: {} ({})", 
                 newSelection.getClass().getSimpleName(),
                 currentAdapter != null ? "有适配器" : "无适配器");
         } else {

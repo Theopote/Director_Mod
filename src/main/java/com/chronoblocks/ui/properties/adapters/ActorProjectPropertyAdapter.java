@@ -1,6 +1,7 @@
 package com.chronoblocks.ui.properties.adapters;
 
 import com.chronoblocks.actor.Actor;
+import com.chronoblocks.actor.ActorRef;
 import com.chronoblocks.actor.ActorRegistry;
 import com.chronoblocks.actor.ActorRegistryManager;
 import com.chronoblocks.actor.ActorType;
@@ -8,6 +9,11 @@ import com.chronoblocks.ui.actor.selection.ActorSelectionHub;
 import com.chronoblocks.ui.properties.IPropertyAdapter;
 import com.chronoblocks.ui.selection.SelectionManager;
 import com.chronoblocks.ui.theme.UITheme;
+import com.chronoblocks.ui.timeline.container.ContainerTimelineService;
+import com.chronoblocks.ui.timeline.model.TimelineModel;
+import com.chronoblocks.ui.timeline.model.TimelineTrack;
+import com.chronoblocks.ui.timeline.model.TrackType;
+import com.chronoblocks.ui.timeline.model.entity.EntityTrack;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiTreeNodeFlags;
@@ -60,7 +66,6 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     
     // Edit state
     private final ImString editingActorName = new ImString("", 256);
-    private ActorType editingActorType = ActorType.VILLAGER;
     
     // Delete confirm state
     private UUID deletingActorId = null;
@@ -255,10 +260,10 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         
         this.selectedActorId = actor.getActorId();
         
-        // 通知全局 Selection（Project-level selection）
+        // 通知全局 Selection（明确设置为 ACTOR 类型）
         SelectionManager selectionManager = SelectionManager.get();
-        // 设置 Actor 对象作为 Selection
-        selectionManager.setCurrentSelection(actor);
+        // ⭐ 关键：使用 selectActor() 明确设置 SelectionType.ACTOR
+        selectionManager.selectActor(actor.getActorId());
 
         LOGGER.debug("[ActorProjectPropertyAdapter] Selected actor: {}", actor.getActorId());
     }
@@ -309,16 +314,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             if (ImGui.button("Create")) {
                 String name = newActorName.get();
                 if (name != null && !name.isBlank()) {
-                    Actor actor = actorRegistry.createActor(name, newActorType);
-                    selectActor(actor);
-                    
-                    // 标记需要保存（通过 TimelineModel）
-                    var timelineModel = com.chronoblocks.ui.timeline.container.ContainerTimelineService.getInstance().getTimelineModel();
-                    if (timelineModel != null) {
-                        timelineModel.markDirty();
-                    }
-                    
-                    LOGGER.info("[ActorProjectPropertyAdapter] Created actor: {} ({})", name, newActorType);
+                    createActorAndTrack(name, newActorType);
                 }
                 
                 ImGui.closeCurrentPopup();
@@ -333,6 +329,67 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             }
             
             ImGui.endPopup();
+        }
+    }
+    
+    // =========================================================
+    // Create Actor and Track（原子性操作）
+    // =========================================================
+    
+    /**
+     * 创建 Actor 和 Track（原子性操作）
+     * <p>与 ActorSelectorPanel.createActorAndTrack() 保持一致
+     *
+     * @param actorName Actor 名称
+     * @param actorType Actor 类型
+     */
+    private void createActorAndTrack(String actorName, ActorType actorType) {
+        ActorRegistry actorRegistry = ActorRegistryManager.getInstance();
+        if (actorRegistry == null) {
+            LOGGER.error("[ActorProjectPropertyAdapter] ActorRegistry 未初始化");
+            return;
+        }
+        
+        try {
+            // 1️⃣ Create Actor
+            Actor actor = actorRegistry.createActor(actorName.trim(), actorType);
+            ActorRef ref = new ActorRef(actor.getActorId());
+
+            // 2️⃣ Create EntityTrack
+            EntityTrack entityTrack = new EntityTrack();
+            entityTrack.setActorRef(ref);
+            entityTrack.setDisplayName(actor.getName());
+
+            // 3️⃣ Create TimelineTrack with EntityTrack payload
+            TimelineModel timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+            if (timelineModel == null) {
+                LOGGER.warn("[ActorProjectPropertyAdapter] TimelineModel 未初始化，无法创建 Track");
+                // 即使没有 TimelineModel，也选中 Actor
+                selectActor(actor);
+                return;
+            }
+
+            TimelineTrack timelineTrack = new TimelineTrack(actor.getName(), TrackType.ENTITY);
+            timelineTrack.setEntityTrackPayload(entityTrack);
+
+            // 4️⃣ Add to TimelineModel
+            timelineModel.addTrack(timelineTrack);
+
+            // 5️⃣ Insert SpawnClip at current time
+            float currentTime = timelineModel.getCurrentTime();
+            entityTrack.addDefaultSpawnClip(currentTime);
+
+            // 6️⃣ Mark model as dirty (trigger save)
+            timelineModel.markDirty();
+
+            // 7️⃣ Select Actor（这会触发 PropertiesPanel 切换到 Actor 面板）
+            selectActor(actor);
+
+            LOGGER.info("[ActorProjectPropertyAdapter] 成功创建 Actor: {} ({}), EntityTrack 已添加到时间线",
+                    actor.getName(), actorType);
+        } catch (Exception e) {
+            LOGGER.error("[ActorProjectPropertyAdapter] 创建 Actor 失败", e);
+            // TODO: 如果实现了撤销/重做系统，这里应该回滚所有操作
         }
     }
     

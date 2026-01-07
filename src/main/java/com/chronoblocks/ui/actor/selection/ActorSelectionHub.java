@@ -89,12 +89,10 @@ public final class ActorSelectionHub {
         // 如果未来需要更复杂的选中逻辑，可以通过服务注入 TimelineInteractionHandler
         model.selectItem(track, false); // false = 单选模式，清空后选中
 
-        // 3️⃣ SelectionManager：同步 selection（属性面板等）
+        // 3️⃣ SelectionManager：明确设置为 ACTOR 类型
         SelectionManager selectionManager = SelectionManager.get();
-        if (selectionManager != null) {
-            // 直接设置 track，让属性面板显示轨道属性
-            selectionManager.setCurrentSelection(track);
-        }
+        // ⭐ 关键：使用 selectActor() 明确设置 SelectionType.ACTOR
+        selectionManager.selectActor(actorId);
 
         // 4️⃣ Gizmo：设置目标 Actor
         ActorGizmoController gizmoController = ActorGizmoController.getInstance();
