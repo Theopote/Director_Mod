@@ -10,8 +10,6 @@ import com.chronoblocks.ui.selection.SelectionManager;
 import com.chronoblocks.ui.selection.SelectionType;
 import com.chronoblocks.ui.timeline.container.ContainerTimelineService;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
-import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
-import com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController;
 import com.chronoblocks.ui.theme.UITheme;
 import com.chronoblocks.ui.theme.Icons;
 import imgui.ImGui;
@@ -207,25 +205,17 @@ public class PropertiesPanel extends AbstractPanel {
         SelectionType selectionType = selectionManager.getSelectionType();
         
         switch (selectionType) {
-            case PROJECT -> {
-                // Project 面板（含 Actor 列表）
-                renderProjectPanel();
-            }
+            case PROJECT -> // Project 面板（含 Actor 列表）
+                    renderProjectPanel();
             
-            case ACTOR -> {
-                // Actor 面板（ActorProjectPropertyAdapter）
-                renderActorPanel(selectionManager);
-            }
+            case ACTOR -> // Actor 面板（ActorProjectPropertyAdapter）
+                    renderActorPanel(selectionManager);
             
-            case TRACK -> {
-                // Track 面板（TimelineTrackPropertyAdapter）
-                renderTrackPanel(selectionManager);
-            }
+            case TRACK -> // Track 面板（TimelineTrackPropertyAdapter）
+                    renderTrackPanel(selectionManager);
             
-            case CLIP -> {
-                // Clip 面板（Entity*ClipPropertyAdapter）
-                renderClipPanel(selectionManager);
-            }
+            case CLIP -> // Clip 面板（Entity*ClipPropertyAdapter）
+                    renderClipPanel(selectionManager);
         }
         
         // 多选提示
@@ -259,11 +249,7 @@ public class PropertiesPanel extends AbstractPanel {
         
         // 获取 Actor 对象
         var actorRegistry = ActorRegistryManager.getInstance();
-        if (actorRegistry == null) {
-            UITheme.label("ActorRegistry not available.", UITheme.DarkTheme.TEXT_DISABLED);
-            return;
-        }
-        
+
         var actorOpt = actorRegistry.getActor(actorId);
         if (actorOpt.isEmpty()) {
             // Actor 不存在，回退到 Project 面板

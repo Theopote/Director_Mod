@@ -31,6 +31,11 @@ public class EntityActionClip extends EntityClip {
         BREAK_BLOCK("破坏方块"),
         PLAY_SOUND("播放声音"),
         SAY_LINE("对话"),
+        // Prop 相关 Action（v1.0 新增）
+        ATTACH_PROP("装备道具"),
+        DETACH_PROP("卸下道具"),
+        SWITCH_PROP("切换道具"),
+        THROW_PROP("投掷道具"),  // v1.1 新增：投掷道具
         CUSTOM("自定义");
 
         private final String displayName;
