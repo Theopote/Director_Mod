@@ -813,3 +813,422 @@ ChronoBlocks 的 Actor System 是一个**完整的导演级角色表演系统**�
 
 **这就是 ChronoBlocks 的"导演级 Actor System"！** 🎬
 
+---
+
+## 🎨 九、Actor 面板在 ChronoBlocks 属性编辑体系中的工作机制
+
+### 9.1 四层属性编辑体系
+
+ChronoBlocks 已经形成了一个清晰的 **4 层属性编辑体系**：
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  第 1 层：Selection（选择层）                            │
+│  SelectionManager.getCurrentSelection()                 │
+│  - 管理当前选中的对象（Object）                          │
+│  - 触发选择变化事件                                      │
+└─────────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────────┐
+│  第 2 层：PropertyAdapter（适配器层）                    │
+│  PropertyAdapterRegistry.getAdapterFor(selection)       │
+│  - 根据选择对象类型，自动匹配对应的 PropertyAdapter      │
+│  - 支持 4 级查找：精确 → 继承 → supports → fallback     │
+└─────────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────────┐
+│  第 3 层：数据对象（Data Layer）                         │
+│  Actor / EntityTrack / EntityClip / TimelineTrack       │
+│  - 纯数据对象，可序列化                                  │
+│  - 不包含 UI 逻辑                                        │
+└─────────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────────┐
+│  第 4 层：Runtime / Sampler（运行时层）                  │
+│  ActorRuntimeController / EntityClipSampler             │
+│  - 根据数据对象，生成运行时状态                          │
+│  - 驱动 PreviewActorEntity 更新                         │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 9.2 Actor 面板的定位
+
+**核心结论**：
+
+```
+Actor 面板 ≠ Clip 面板的升级版
+Actor 面板 = Project 级 PropertyAdapter
+```
+
+**Actor 面板在整个体系中的位置**：
+
+| 层级 | 选择类型 | PropertyAdapter | 编辑内容 | 不编辑内容 |
+|------|---------|----------------|---------|-----------|
+| **Project** | `Selection = null` | `ActorSelectorPanel` | Actor 列表、创建/删除 | Transform / LookAt / Animation |
+| **Track** | `Selection = TimelineTrack` | `TimelineTrackPropertyAdapter` | Track 开关、混合、颜色 | Actor 基础信息 |
+| **Clip** | `Selection = EntityClip` | `Entity*ClipPropertyAdapter` | 精确表演参数 | Actor / Track |
+
+---
+
+### 9.3 Selection 驱动的面板切换规则
+
+**PropertiesPanel 的切换逻辑**：
+
+```java
+if (Selection == null) {
+    // 无选择 → 显示 ActorSelectorPanel（项目级入口）
+    renderNoSelectionMessage();
+    actorSelectorPanel.render();  // 🎭 Actors 列表
+}
+else if (Selection instanceof TimelineTrack) {
+    // 选中轨道 → TimelineTrackPropertyAdapter
+    TimelineTrackPropertyAdapter.render(track);
+    if (track.getType() == ENTITY) {
+        // 额外显示 Actor 快捷操作（如 "Look At Camera"）
+    }
+}
+else if (Selection instanceof EntityClip) {
+    // 选中 Clip → 对应的 Entity*ClipPropertyAdapter
+    EntityTransformClipPropertyAdapter.render(clip);
+    // 或 EntityLookAtClipPropertyAdapter
+    // 或 EntityAnimationClipPropertyAdapter
+    // ...
+}
+```
+
+---
+
+### 9.4 Actor 面板的打开时机
+
+#### 时机 1：默认打开（第一次进 ChronoBlocks）
+
+```
+用户打开 ChronoBlocks UI
+    ↓
+SelectionManager.getCurrentSelection() == null
+    ↓
+PropertiesPanel.renderNoSelectionMessage()
+    ↓
+显示 ActorSelectorPanel
+    ├─ 🎭 Actors 列表
+    ├─ "+ Add Actor" 按钮
+    └─ 支持的对象类型列表
+```
+
+**这是引导演员创建的入口**。
+
+---
+
+#### 时机 2：点击 Actor 列表中的 Actor
+
+```
+用户点击 ActorSelectorPanel 中的 Actor 项
+    ↓
+（当前实现：TODO - 选择 Actor 后可以显示其详细信息）
+    ↓
+未来实现：
+    SelectionManager.setCurrentSelection(actor)
+    ↓
+PropertiesPanel 切换到 ActorPropertyAdapter
+    ├─ Actor 基础信息（name, type）
+    ├─ 关联的 EntityTrack 列表
+    └─ 删除 Actor 按钮
+```
+
+**⚠️ 注意**：
+- 这一步不会选中 Track，也不会选中 Clip
+- Actor 面板只显示 Actor 的基础信息
+- 要编辑表演参数，需要选中对应的 Clip
+
+---
+
+#### 时机 3：在世界中点击演员（PreviewActorEntity）
+
+**这是系统中最完整的一条链路**：
+
+```
+用户点击世界中的 PreviewActorEntity
+    ↓
+ActorPickController.update()
+    ├─ 检测鼠标点击
+    ├─ 射线检测
+    └─ 找到 PreviewActorEntity
+    ↓
+ActorPreviewManager.getActorId(entity)
+    ↓
+ActorSelectionHub.selectActor(actorId)
+    ↓
+┌─────────────────────────────────────┐
+│ 1. TimelineModel.findEntityTrackByActorId()│
+│    → 找到对应的 EntityTrack         │
+│    ↓                                │
+│ 2. TimelineModel.selectItem(track)  │
+│    → 时间线选中该轨道               │
+│    ↓                                │
+│ 3. SelectionManager.setCurrentSelection(track)│
+│    → 属性面板显示轨道属性           │
+│    ↓                                │
+│ 4. ActorGizmoController.setTargetActor(actorId)│
+│    → Gizmo 激活                     │
+│    ↓                                │
+│ 5. ActorLookAtGizmoController.setTargetActor(actorId)│
+│    → LookAt Gizmo 激活              │
+└─────────────────────────────────────┘
+    ↓
+PropertiesPanel 显示 TimelineTrackPropertyAdapter
+    ├─ 轨道基础属性
+    ├─ Actor 快捷操作（"Look At Camera"）
+    └─ 如果选中 Clip，切换到 Clip PropertyAdapter
+```
+
+**👉 Actor 面板是"世界选中演员"的第一反馈**。
+
+---
+
+### 9.5 Actor 面板 vs Clip 面板的职责边界
+
+**对照表**：
+
+| 面板 | 编辑什么 | 不编辑什么 | 何时显示 |
+|------|---------|-----------|---------|
+| **🎭 Actor 面板** | Actor 基础信息（name, type）、创建/删除 Actor | Transform / LookAt / Animation | `Selection == null` 或 `Selection == Actor` |
+| **Track 面板** | Track 开关、混合模式、轨道颜色 | Actor 基础信息、Clip 参数 | `Selection == TimelineTrack` |
+| **Clip 面板** | 精确表演参数（position, rotation, lookAt, animation） | Actor / Track | `Selection == EntityClip` |
+
+**为什么要这样拆？**
+
+因为所有"表演参数"都已经放进 Clip 里了：
+- `EntityTransformClip` → 位置/旋转/缩放
+- `EntityLookAtClip` → 看向目标
+- `EntityAnimationClip` → 动画播放
+- `EntityStateClip` → 持续状态
+- `EntityActionClip` → 一次性事件
+
+所以 Actor 面板不应该重复这些能力，它只负责：
+- **管理演员列表**（创建、删除、重命名）
+- **显示 Actor 基础信息**（name, type）
+
+---
+
+### 9.6 完整协作流程示例
+
+**🎬 导演真实操作流程（系统内部发生的事）**
+
+#### Step 1：创建演员
+
+```
+用户点击 "+ Add Actor"
+    ↓
+ActorSelectorPanel.createActorAndTrack()
+    ├─ ActorRegistry.createActor() → actor_registry.json
+    ├─ TimelineModel.addTrack() → timeline_model.json
+    └─ EntityTrack.addDefaultSpawnClip()
+    ↓
+Selection = null（保持）
+    ↓
+PropertiesPanel 继续显示 ActorSelectorPanel
+    ├─ Actor 列表更新（新增一个 Actor）
+    └─ Clip 面板还没出现
+```
+
+**此时状态**：
+- ✅ Actor 已创建
+- ✅ EntityTrack 已创建
+- ✅ SpawnClip 已创建
+- ✅ Gizmo 已经可用（因为 Track 已创建）
+- ❌ Clip 面板还没出现（因为还没有选中 Clip）
+
+---
+
+#### Step 2：拖动演员（Translate Gizmo）
+
+```
+用户拖动 Gizmo（Translate 模式）
+    ↓
+ActorGizmoController.handleGizmoDragStart()
+    ├─ 找到或创建 EntityTransformClip（覆盖当前时间）
+    ├─ 设置 fromPos = 当前采样位置
+    └─ 设置 toPos = 拖拽后的位置
+    ↓
+TimelineModel.markDirty()
+    ↓
+SelectionManager.setCurrentSelection(transformClip)
+    ↓
+PropertiesPanel 自动切换
+    ├─ TimelineTrackPropertyAdapter 退场
+    └─ EntityTransformClipPropertyAdapter 接管
+        ├─ fromPos / toPos 编辑
+        ├─ interpolation 选择
+        └─ fromRot / toRot / fromScale / toScale
+```
+
+**👉 Actor 面板自动"退场"，Clip 面板接管**。
+
+---
+
+#### Step 3：切换到 LookAt，点击目标
+
+```
+用户切换到 LookAt 模式，点击世界中的点
+    ↓
+ActorLookAtGizmoController.createOrUpdateLookAtClip()
+    ├─ 创建 EntityLookAtClip
+    ├─ mode = WORLD_POINT
+    └─ worldPoint = 点击位置
+    ↓
+SelectionManager.setCurrentSelection(lookAtClip)
+    ↓
+PropertiesPanel 自动切换
+    ├─ EntityTransformClipPropertyAdapter 退场
+    └─ EntityLookAtClipPropertyAdapter 接管
+        ├─ mode 选择（WORLD_POINT / CAMERA / ENTITY_UUID）
+        ├─ worldPoint 编辑
+        └─ strength 滑块
+```
+
+---
+
+#### Step 4：点击回演员
+
+```
+用户在世界中点击 PreviewActorEntity
+    ↓
+ActorSelectionHub.selectActor(actorId)
+    ├─ TimelineModel.selectItem(track)
+    └─ SelectionManager.setCurrentSelection(track)
+    ↓
+PropertiesPanel 自动切换
+    ├─ EntityLookAtClipPropertyAdapter 退场
+    └─ TimelineTrackPropertyAdapter 接管
+        ├─ 轨道基础属性
+        └─ Actor 快捷操作（"Look At Camera"）
+```
+
+**👉 这就是"流畅"的本质：Selection 驱动**。
+
+---
+
+### 9.7 为什么 Actor 面板必须基于 Project 级
+
+**关键原因**：
+
+```
+Actor 的生命周期 > Timeline
+```
+
+**未来扩展场景**：
+
+1. **一个 Actor 出现在多个 Timeline**
+   ```
+   Actor "商人A"
+   ├─ Timeline "场景1" → EntityTrack1
+   └─ Timeline "场景2" → EntityTrack2
+   ```
+
+2. **切换 Timeline 不丢演员**
+   ```
+   切换到 Timeline "场景2"
+   → Actor "商人A" 仍然存在
+   → 只是 EntityTrack2 被激活
+   ```
+
+3. **复制 Timeline 不复制 Actor**
+   ```
+   复制 Timeline "场景1"
+   → 创建新的 Timeline "场景1_copy"
+   → EntityTrack1_copy 引用同一个 Actor "商人A"
+   → Actor 不会被复制
+   ```
+
+**如果 Actor 面板挂在 Track / Clip 下，这一切都会被破坏**。
+
+---
+
+### 9.8 系统级真相
+
+**ChronoBlocks 的实体轨道系统不是**：
+```
+"选中实体 → 改参数"
+```
+
+**而是**：
+```
+"选中演员 → 安排表演 → 运行时投影"
+```
+
+**Actor 面板，正是这个系统的导演入口**。
+
+---
+
+### 9.9 完整的数据流图
+
+```
+┌─────────────────────────────────────────────────────────┐
+│                   用户交互层                             │
+│                                                          │
+│  世界点击 / UI 点击 / 时间线点击                          │
+└─────────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────────┐
+│                   Selection 层                          │
+│                                                          │
+│  SelectionManager.getCurrentSelection()                  │
+│  ├─ null → ActorSelectorPanel                          │
+│  ├─ Actor → ActorPropertyAdapter（未来）                │
+│  ├─ TimelineTrack → TimelineTrackPropertyAdapter        │
+│  └─ EntityClip → Entity*ClipPropertyAdapter             │
+└─────────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────────┐
+│                 PropertyAdapter 层                       │
+│                                                          │
+│  PropertiesPanel.render()                                │
+│  ├─ 根据 Selection 类型，自动匹配 Adapter               │
+│  ├─ 渲染对应的属性编辑 UI                               │
+│  └─ 属性修改 → 直接更新数据对象                          │
+└─────────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────────┐
+│                   数据对象层                             │
+│                                                          │
+│  Actor / EntityTrack / EntityClip                        │
+│  ├─ 纯数据，可序列化                                    │
+│  ├─ 不包含 UI 逻辑                                      │
+│  └─ TimelineModel.markDirty()                           │
+└─────────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────────┐
+│                  Runtime / Sampler 层                    │
+│                                                          │
+│  ActorRuntimeController.update()                        │
+│  ├─ EntityClipSampler.sampleAt(time)                    │
+│  ├─ EntitySample                                        │
+│  └─ PreviewActorEntity 更新                             │
+└─────────────────────────────────────────────────────────┘
+                        ↓
+┌─────────────────────────────────────────────────────────┐
+│                   呈现层                                 │
+│                                                          │
+│  Minecraft World（渲染）                                 │
+│  ├─ PreviewActorEntity 显示                             │
+│  ├─ ActorLookAtVisualizer 显示                          │
+│  └─ Gizmo 显示                                          │
+└─────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 9.10 总结
+
+**Actor 面板在 ChronoBlocks 属性编辑体系中的核心价值**：
+
+1. **🎭 项目级入口** - 管理整个项目的演员列表
+2. **🔄 Selection 驱动** - 与 Clip 面板无缝切换
+3. **🎬 导演入口** - "选中演员 → 安排表演 → 运行时投影"
+4. **🧩 职责清晰** - 只管理 Actor，不编辑表演参数
+5. **🌍 世界反馈** - 世界选中演员的第一反馈
+
+**这就是 ChronoBlocks 的"Selection → PropertyAdapter → 数据对象 → Runtime"完整体系！** 🎨
+

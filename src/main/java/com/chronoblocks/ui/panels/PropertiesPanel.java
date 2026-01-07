@@ -311,12 +311,26 @@ public class PropertiesPanel extends AbstractPanel {
         //UITheme.spacing();
         UITheme.separator();
         
-        // ========== 🎭 Actors 区块（始终显示）==========
-        ensureActorSelectorInitialized();
-        if (actorSelectorPanel != null) {
+        // ========== 🎭 Actors 区块（使用 ActorProjectPropertyAdapter）==========
+        // 使用 PropertyAdapter 系统，而不是直接使用 ActorSelectorPanel
+        Object actorProjectMarker = "ACTOR_PROJECT";
+        var actorAdapter = com.chronoblocks.ui.properties.PropertyAdapterRegistry.getAdapterFor(actorProjectMarker);
+        if (actorAdapter != null && actorAdapter.supports(actorProjectMarker)) {
             UITheme.spacing();
-            actorSelectorPanel.render();
+            try {
+                actorAdapter.renderProperties(actorProjectMarker);
+            } catch (Exception e) {
+                LOGGER.error("[PropertiesPanel] 渲染 Actor 面板时出错", e);
+            }
             UITheme.separator();
+        } else {
+            // 回退到旧的 ActorSelectorPanel（兼容性）
+            ensureActorSelectorInitialized();
+            if (actorSelectorPanel != null) {
+                UITheme.spacing();
+                actorSelectorPanel.render();
+                UITheme.separator();
+            }
         }
         //UITheme.spacing();
         

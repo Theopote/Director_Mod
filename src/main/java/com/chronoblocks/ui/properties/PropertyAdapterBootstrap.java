@@ -146,6 +146,10 @@ public final class PropertyAdapterBootstrap {
             registerAdapter(new ProjectEnvironmentPropertyAdapter(), "ProjectEnvironment");
             registeredCount++;
             
+            // ✅ Actor 项目适配器（Project-level Actor 管理）
+            registerAdapter(new ActorProjectPropertyAdapter(), "ActorProject");
+            registeredCount++;
+            
             // ✅ 材质库适配器
             registerAdapter(new MaterialLibraryPropertyAdapter(), "MaterialLibrary");
             registeredCount++;
