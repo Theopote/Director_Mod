@@ -51,8 +51,22 @@ public class EntitySpawnClipPropertyAdapter implements IPropertyAdapter<EntitySp
         if (ImGui.collapsingHeader("⏱ 基础信息", ImGuiTreeNodeFlags.DefaultOpen)) {
             UITheme.beginGroup("时间范围");
             ImGui.text(String.format("开始: %.2fs", clip.getStartTime()));
-            ImGui.text(String.format("结束: %.2fs", clip.getEndTime()));
-            ImGui.text(String.format("时长: %.2fs", clip.getLength()));
+            
+            // 可编辑的结束时间和时长
+            ImFloat endTimeFloat = new ImFloat(clip.getEndTime());
+            if (ImGui.inputFloat("结束时间 (秒)", endTimeFloat)) {
+                float newEndTime = Math.max(clip.getStartTime() + 0.1f, endTimeFloat.get());
+                clip.setTimeRange(clip.getStartTime(), newEndTime);
+                changed.set(true);
+            }
+            
+            ImFloat durationFloat = new ImFloat(clip.getLength());
+            if (ImGui.inputFloat("时长 (秒)", durationFloat)) {
+                float newDuration = Math.max(0.1f, durationFloat.get());
+                clip.setTimeRange(clip.getStartTime(), clip.getStartTime() + newDuration);
+                changed.set(true);
+            }
+            
             UITheme.endGroup();
         }
 

@@ -329,7 +329,15 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             if (ImGui.button("Create")) {
                 String name = newActorName.get();
                 if (name != null && !name.isBlank()) {
-                    createActorAndTrack(name, newActorType);
+                    // 使用新的放置系统
+                    com.chronoblocks.ui.actor.placement.ActorPlacementController placementController =
+                            com.chronoblocks.ui.actor.placement.ActorPlacementController.getInstance();
+                    
+                    if (placementController.startPlacement(name, newActorType)) {
+                        LOGGER.info("[ActorProjectPropertyAdapter] 开始放置 Actor: {} ({})", name, newActorType);
+                    } else {
+                        LOGGER.warn("[ActorProjectPropertyAdapter] 无法开始放置 Actor");
+                    }
                 }
                 
                 ImGui.closeCurrentPopup();
