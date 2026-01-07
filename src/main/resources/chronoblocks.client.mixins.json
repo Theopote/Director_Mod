@@ -22,6 +22,7 @@
     "WorldMixin",
     "BiomeColorsMixin",
     "BackgroundRendererMixin",
+    "LivingEntityRendererMixin",
     "accessor.GameRendererAccessor",
     "accessor.MinecraftClientAccessor"
   ],
