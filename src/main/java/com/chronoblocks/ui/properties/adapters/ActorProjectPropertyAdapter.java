@@ -15,6 +15,7 @@ import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.entity.EntityTrack;
+import net.minecraft.client.MinecraftClient;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiTreeNodeFlags;
@@ -242,9 +243,19 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         
         ImGui.sameLine();
         
+        if (ImGui.button("Place at Camera")) {
+            placeActorAtCamera(actor);
+            LOGGER.debug("[ActorProjectPropertyAdapter] Place actor at camera: {}", actor.getActorId());
+        }
+        
+        ImGui.sameLine();
+        
         if (ImGui.button("Delete Actor")) {
             openDeleteConfirm(actor.getActorId());
         }
+        
+        // 提示信息
+        ImGui.textDisabled("💡 Tip: Right-click in world to place actor (coming soon)");
         
         // ---- Usage Information (只读) ----
         renderActorUsage(actor);
@@ -491,6 +502,97 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         selectionManager.selectTrack(track);
         
         LOGGER.debug("[ActorProjectPropertyAdapter] Focused track: {}", track.getName());
+    }
+    
+    // =========================================================
+    // Place Actor at Camera
+    // =========================================================
+    
+    /**
+     * 将 Actor 放置到当前摄像机位置
+     * <p>创建或更新 EntitySpawnClip，将位置设置为当前摄像机位置
+     *
+     * @param actor Actor 实例
+     */
+    private void placeActorAtCamera(Actor actor) {
+        if (actor == null) {
+            return;
+        }
+        
+        net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
+        if (client == null || client.world == null) {
+            LOGGER.warn("[ActorProjectPropertyAdapter] MinecraftClient 未初始化");
+            return;
+        }
+        
+        // 获取当前摄像机位置
+        var cameraSample = com.chronoblocks.ui.timeline.playback.camera.CameraAccessor.sampleFromGameCamera(client);
+        if (cameraSample == null) {
+            LOGGER.warn("[ActorProjectPropertyAdapter] 无法获取摄像机位置");
+            return;
+        }
+        
+        var timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+        if (timelineModel == null) {
+            LOGGER.warn("[ActorProjectPropertyAdapter] TimelineModel 未初始化");
+            return;
+        }
+        
+        // 查找该 Actor 的 EntityTrack
+        var timelineTracks = ActorUsageQuery.findTimelineTracksUsingActor(timelineModel, actor.getActorId());
+        if (timelineTracks.isEmpty()) {
+            LOGGER.warn("[ActorProjectPropertyAdapter] 未找到 Actor 对应的 Track");
+            return;
+        }
+        
+        // 使用第一个 Track（通常只有一个）
+        TimelineTrack timelineTrack = timelineTracks.get(0);
+        EntityTrack entityTrack = timelineTrack.getEntityTrackPayload();
+        if (entityTrack == null) {
+            LOGGER.warn("[ActorProjectPropertyAdapter] EntityTrack payload 为空");
+            return;
+        }
+        
+        float currentTime = timelineModel.getCurrentTime();
+        org.joml.Vector3f cameraPos = new org.joml.Vector3f(
+                (float) cameraSample.position().x,
+                (float) cameraSample.position().y,
+                (float) cameraSample.position().z
+        );
+        
+        // 查找当前时间是否有 EntitySpawnClip
+        var clipsAtTime = entityTrack.findClipsAt(currentTime);
+        com.chronoblocks.ui.timeline.model.entity.EntitySpawnClip spawnClip = null;
+        for (var clip : clipsAtTime) {
+            if (clip instanceof com.chronoblocks.ui.timeline.model.entity.EntitySpawnClip) {
+                spawnClip = (com.chronoblocks.ui.timeline.model.entity.EntitySpawnClip) clip;
+                break;
+            }
+        }
+        
+        if (spawnClip != null) {
+            // 更新现有的 SpawnClip
+            spawnClip.setPosition(cameraPos.x, cameraPos.y, cameraPos.z);
+            spawnClip.setYawDeg(cameraSample.yaw());
+            spawnClip.setPitchDeg(cameraSample.pitch());
+            LOGGER.info("[ActorProjectPropertyAdapter] 更新 SpawnClip 位置到摄像机: ({}, {}, {})",
+                    cameraPos.x, cameraPos.y, cameraPos.z);
+        } else {
+            // 创建新的 SpawnClip
+            spawnClip = new com.chronoblocks.ui.timeline.model.entity.EntitySpawnClip("Spawn", currentTime, currentTime + 0.01f);
+            spawnClip.setPosition(cameraPos.x, cameraPos.y, cameraPos.z);
+            spawnClip.setYawDeg(cameraSample.yaw());
+            spawnClip.setPitchDeg(cameraSample.pitch());
+            spawnClip.setVisibleOnSpawn(true);
+            entityTrack.addClip(spawnClip);
+            LOGGER.info("[ActorProjectPropertyAdapter] 创建 SpawnClip 在摄像机位置: ({}, {}, {})",
+                    cameraPos.x, cameraPos.y, cameraPos.z);
+        }
+        
+        timelineModel.markDirty();
+        
+        // 选中 Actor，激活 Gizmo
+        ActorSelectionHub.selectActor(actor.getActorId());
     }
     
     // =========================================================
