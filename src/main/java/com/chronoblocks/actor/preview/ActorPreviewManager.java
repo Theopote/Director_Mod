@@ -234,23 +234,34 @@ public final class ActorPreviewManager {
      * ActorType → EntityType 映射
      * （导演语义 → Minecraft 表现）
      *
+     * <p>⚠️ 重要：由于 PreviewActorEntity 继承自 Entity 而不是 LivingEntity，
+     * 使用特定的生物类型（如 VILLAGER、COW）会导致 ClassCastException。
+     * 因此，所有预览实体都使用 ARMOR_STAND 类型，这是一个更通用的实体类型。
+     *
+     * <p>未来改进：可以创建自定义渲染器来根据 ActorType 显示不同的模型。
+     *
      * @param type ActorType
      * @return EntityType，如果无法映射则返回 null
      */
     private EntityType<?> mapActorType(ActorType type) {
         if (type == null) {
-            return null;
+            return EntityType.ARMOR_STAND; // 默认使用 ARMOR_STAND
         }
 
-        return switch (type) {
-            case PLAYER -> EntityType.PLAYER;
-            case VILLAGER -> EntityType.VILLAGER;
-            case COW -> EntityType.COW;
-            case SHEEP -> EntityType.SHEEP;
-            case ZOMBIE -> EntityType.ZOMBIE;
-            case SKELETON -> EntityType.SKELETON;
-            case CUSTOM -> EntityType.ARMOR_STAND; // 临时占位，后续可扩展
-        };
+        // ⚠️ 临时方案：所有类型都使用 ARMOR_STAND，避免类型转换错误
+        // 未来可以通过自定义渲染器来显示不同的模型
+        return EntityType.ARMOR_STAND;
+
+        // 原始映射（已禁用，因为会导致 ClassCastException）：
+        // return switch (type) {
+        //     case PLAYER -> EntityType.PLAYER;
+        //     case VILLAGER -> EntityType.VILLAGER;
+        //     case COW -> EntityType.COW;
+        //     case SHEEP -> EntityType.SHEEP;
+        //     case ZOMBIE -> EntityType.ZOMBIE;
+        //     case SKELETON -> EntityType.SKELETON;
+        //     case CUSTOM -> EntityType.ARMOR_STAND;
+        // };
     }
 }
 
