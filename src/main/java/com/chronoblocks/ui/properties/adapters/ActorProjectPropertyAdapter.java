@@ -254,7 +254,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         }
         
         // 提示信息
-        ImGui.textDisabled("💡 Tip: Right-click in world to place actor (coming soon)");
+        ImGui.textDisabled("💡 Tip: Right-click in world to place actor");
         
         // ---- Usage Information (只读) ----
         renderActorUsage(actor);

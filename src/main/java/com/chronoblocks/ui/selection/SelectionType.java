@@ -46,6 +46,11 @@ public enum SelectionType {
      * 片段选择
      * <p>显示 Clip 面板（Entity*ClipPropertyAdapter）
      */
-    CLIP
+    CLIP,
+
+    /**
+     * Keyframe selection.
+     */
+    KEYFRAME
 }
 

@@ -7,6 +7,7 @@ import com.chronoblocks.actor.ActorRegistryManager;
 import com.chronoblocks.actor.ActorType;
 import com.chronoblocks.actor.preview.ActorPreviewManager;
 import com.chronoblocks.actor.preview.PreviewActorEntity;
+import com.chronoblocks.client.input.ChronoBlocksInputSystem;
 import com.chronoblocks.ui.timeline.container.ContainerTimelineService;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
@@ -116,6 +117,7 @@ public final class ActorPlacementController {
             }
 
             isPlacing = true;
+            lastRightMouseDown = false;
             LOGGER.info("[ActorPlacement] 开始放置 Actor: {} ({})", actorName, actorType);
             return true;
 
@@ -185,7 +187,34 @@ public final class ActorPlacementController {
     // Private Methods
     // =========================================================
 
+    private boolean isRightMouseDown(MinecraftClient client) {
+        return GLFW.glfwGetMouseButton(
+                client.getWindow().getHandle(),
+                GLFW.GLFW_MOUSE_BUTTON_RIGHT
+        ) == GLFW.GLFW_PRESS;
+    }
+
+    private boolean isMouseOverUi() {
+        return ImGui.isAnyItemHovered() || ImGui.isAnyItemActive();
+    }
+
+    private BlockHitResult resolvePlacementHit(MinecraftClient client) {
+        BlockHitResult hit = ChronoBlocksInputSystem.getCurrentRay();
+        if (hit == null) {
+            hit = ChronoBlocksInputSystem.raycastFromImGui();
+        }
+        if (hit == null && client.crosshairTarget instanceof BlockHitResult crosshairHit
+                && crosshairHit.getType() == HitResult.Type.BLOCK) {
+            hit = crosshairHit;
+        }
+        if (hit != null && hit.getType() == HitResult.Type.BLOCK) {
+            return hit;
+        }
+        return null;
+    }
+
     /**
+ /**
      * 更新预览实体位置（跟随鼠标/摄像机视线）
      */
     private void updatePreviewPosition(MinecraftClient client) {
@@ -199,24 +228,27 @@ public final class ActorPlacementController {
             return;
         }
 
-        Vec3d cameraPos = cameraSample.position();
-        Vec3d cameraDir = getCameraDirection(cameraSample.yaw(), cameraSample.pitch());
+        Vec3d previewPos = null;
+        BlockHitResult blockHit = resolvePlacementHit(client);
+        if (blockHit != null) {
+            previewPos = blockHit.getPos();
+        } else {
+            Vec3d cameraPos = cameraSample.position();
+            Vec3d cameraDir = getCameraDirection(cameraSample.yaw(), cameraSample.pitch());
 
-        // 将预览实体放在摄像机前方 3 格处
-        Vec3d previewPos = cameraPos.add(cameraDir.multiply(3.0));
-        
-        // 确保在地面上方
-        if (client.world != null) {
-            double groundY = client.world.getTopY(
-                    net.minecraft.world.Heightmap.Type.WORLD_SURFACE,
-                    (int) previewPos.x,
-                    (int) previewPos.z
-            );
-            if (previewPos.y < groundY + 1.0) {
-                previewPos = new Vec3d(previewPos.x, groundY + 1.0, previewPos.z);
+            previewPos = cameraPos.add(cameraDir.multiply(3.0));
+
+            if (client.world != null) {
+                double groundY = client.world.getTopY(
+                        net.minecraft.world.Heightmap.Type.WORLD_SURFACE,
+                        (int) previewPos.x,
+                        (int) previewPos.z
+                );
+                if (previewPos.y < groundY + 1.0) {
+                    previewPos = new Vec3d(previewPos.x, groundY + 1.0, previewPos.z);
+                }
             }
         }
-
         previewEntity.refreshPositionAndAngles(
                 previewPos.x,
                 previewPos.y,
@@ -247,6 +279,22 @@ public final class ActorPlacementController {
         if (client.getWindow() == null) {
             return;
         }
+
+        boolean rightDown = isRightMouseDown(client);
+        if (isMouseOverUi()) {
+            lastRightMouseDown = rightDown;
+            return;
+        }
+
+        if (rightDown && !lastRightMouseDown) {
+            BlockHitResult blockHit = resolvePlacementHit(client);
+            if (blockHit != null) {
+                placeActorAt(blockHit.getPos());
+            }
+        }
+
+        lastRightMouseDown = rightDown;
+    }
 
         // 检查右键是否刚按下（edge trigger）
         int rightButtonState = GLFW.glfwGetMouseButton(

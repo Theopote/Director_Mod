@@ -1,10 +1,8 @@
 package com.chronoblocks.ui.actor;
 
 import com.chronoblocks.actor.*;
+import com.chronoblocks.ui.actor.placement.ActorPlacementController;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
-import com.chronoblocks.ui.timeline.model.TimelineTrack;
-import com.chronoblocks.ui.timeline.model.TrackType;
-import com.chronoblocks.ui.timeline.model.entity.EntityTrack;
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;
 import imgui.type.ImString;
@@ -22,7 +20,7 @@ import java.util.List;
  * <p>核心功能：
  * <ul>
  *   <li>显示 Actor 列表</li>
- *   <li>创建新 Actor（原子性：Actor + EntityTrack + SpawnClip）</li>
+ *   <li>创建新 Actor（原子性：Actor placement preview）</li>
  *   <li>选择 ActorType</li>
  * </ul>
  *
@@ -154,6 +152,8 @@ public final class ActorSelectorPanel {
             ImGui.sameLine();
             renderActorTypeCombo();
 
+            ImGui.textDisabled("Right-click in world to place actor.");
+
             ImGui.separator();
 
             if (ImGui.button("Create")) {
@@ -194,8 +194,7 @@ public final class ActorSelectorPanel {
     // =========================================================
 
     /**
-     * 创建 Actor 并关联 EntityTrack（原子性事务）
-     * <p>如果任何一步失败，全部回滚
+     * Start actor placement (preview + right-click to place).
      */
     private void createActorAndTrack() {
         String actorName = newActorName.get();
@@ -203,36 +202,11 @@ public final class ActorSelectorPanel {
             actorName = "Actor";
         }
 
-        try {
-            // 1️⃣ Create Actor
-            Actor actor = actorRegistry.createActor(actorName.trim(), newActorType);
-            ActorRef ref = new ActorRef(actor.getActorId());
-
-            // 2️⃣ Create EntityTrack
-            EntityTrack entityTrack = new EntityTrack();
-            entityTrack.setActorRef(ref);
-            entityTrack.setDisplayName(actor.getName());
-
-            // 3️⃣ Create TimelineTrack with EntityTrack payload
-            TimelineTrack timelineTrack = new TimelineTrack(actor.getName(), TrackType.ENTITY);
-            timelineTrack.setEntityTrackPayload(entityTrack);
-
-            // 4️⃣ Add to TimelineModel
-            timelineModel.addTrack(timelineTrack);
-
-            // 5️⃣ Insert SpawnClip at current time
-            float currentTime = timelineModel.getCurrentTime();
-            entityTrack.addDefaultSpawnClip(currentTime);
-
-            // 6️⃣ Mark model as dirty (trigger save)
-            timelineModel.markDirty();
-
-            LOGGER.info("[ActorSelector] 成功创建 Actor: {} ({}), EntityTrack 已添加到时间线", 
-                    actor.getName(), actor.getType());
-
-        } catch (Exception e) {
-            LOGGER.error("[ActorSelector] 创建 Actor 失败，已回滚", e);
-            // TODO: 如果实现了撤销/重做系统，这里应该回滚所有操作
+        ActorPlacementController placementController = ActorPlacementController.getInstance();
+        if (placementController.startPlacement(actorName.trim(), newActorType)) {
+            LOGGER.info("[ActorSelector] Start placement: {} ({})", actorName, newActorType);
+        } else {
+            LOGGER.warn("[ActorSelector] Failed to start placement for actor: {}", actorName);
         }
     }
 

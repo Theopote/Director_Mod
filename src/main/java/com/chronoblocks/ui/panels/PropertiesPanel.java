@@ -216,6 +216,9 @@ public class PropertiesPanel extends AbstractPanel {
             
             case CLIP -> // Clip 面板（Entity*ClipPropertyAdapter）
                     renderClipPanel(selectionManager);
+
+            case KEYFRAME -> // Keyframe panel (KeyframePropertyAdapter)
+                    renderKeyframePanel(selectionManager);
         }
         
         // 多选提示
@@ -318,7 +321,7 @@ public class PropertiesPanel extends AbstractPanel {
      * 渲染 Clip 面板
      */
     private void renderClipPanel(SelectionManager selectionManager) {
-        var clip = selectionManager.getSelectedClip();
+        Object clip = selectionManager.getSelectionPayload();
         if (clip == null) {
             renderProjectPanel();
             return;
@@ -347,7 +350,38 @@ public class PropertiesPanel extends AbstractPanel {
     }
     
     /**
-     * 选择变化回调
+     * Render Keyframe panel.
+     */
+    private void renderKeyframePanel(SelectionManager selectionManager) {
+        Object keyframe = selectionManager.getSelectionPayload();
+        if (keyframe == null) {
+            renderProjectPanel();
+            return;
+        }
+
+        var adapter = PropertyAdapterRegistry.getAdapterFor(keyframe);
+        if (adapter != null) {
+            try {
+                renderObjectTypeHeader();
+                UITheme.separator();
+                boolean modified = adapter.renderProperties(keyframe);
+                if (modified) {
+                    var timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+                    if (timelineModel != null) {
+                        timelineModel.markDirty();
+                    }
+                }
+            } catch (Exception e) {
+                LOGGER.error("[PropertiesPanel] Failed to render Keyframe panel", e);
+                renderErrorMessage(e);
+            }
+        } else {
+            renderNoAdapterMessage();
+        }
+    }
+
+    /**
+     * Selection change callback.
      */
     private void onSelectionChanged(Object newSelection) {
         LOGGER.debug("[PropertiesPanel] Selection changed event: {} → {}",

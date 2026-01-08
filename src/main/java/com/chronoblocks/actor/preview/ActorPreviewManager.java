@@ -5,6 +5,7 @@ import com.chronoblocks.actor.ActorType;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.EntityType;
+import net.minecraft.entity.decoration.ArmorStandEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -198,7 +199,7 @@ public final class ActorPreviewManager {
         ClientWorld world = client.world;
 
         try {
-            EntityType<?> type = mapActorType(actor.getType());
+            EntityType<? extends ArmorStandEntity> type = mapActorType(actor.getType());
             if (type == null) {
                 LOGGER.warn("[ActorPreviewManager] 无法映射 ActorType: {}", actor.getType());
                 return null;
@@ -243,7 +244,7 @@ public final class ActorPreviewManager {
      * @param type ActorType
      * @return EntityType，如果无法映射则返回 null
      */
-    private EntityType<?> mapActorType(ActorType type) {
+    private EntityType<? extends ArmorStandEntity> mapActorType(ActorType type) {
         if (type == null) {
             return EntityType.ARMOR_STAND; // 默认使用 ARMOR_STAND
         }

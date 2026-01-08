@@ -5,6 +5,7 @@ import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.MovementType;
 import net.minecraft.entity.damage.DamageSource;
+import net.minecraft.entity.decoration.ArmorStandEntity;
 import net.minecraft.server.world.ServerWorld;
 import net.minecraft.storage.ReadView;
 import net.minecraft.storage.WriteView;
@@ -37,7 +38,7 @@ import net.minecraft.util.math.Vec3d;
  * @author ChronoBlocks Team
  * @version 1.0
  */
-public class PreviewActorEntity extends Entity {
+public class PreviewActorEntity extends ArmorStandEntity {
 
     /**
      * 构造函数
@@ -45,7 +46,7 @@ public class PreviewActorEntity extends Entity {
      * @param type 实体类型
      * @param world 客户端世界
      */
-    public PreviewActorEntity(EntityType<?> type, ClientWorld world) {
+    public PreviewActorEntity(EntityType<? extends ArmorStandEntity> type, ClientWorld world) {
         super(type, world);
         this.noClip = true; // 无碰撞
     }
@@ -56,7 +57,7 @@ public class PreviewActorEntity extends Entity {
 
     @Override
     protected void initDataTracker(net.minecraft.entity.data.DataTracker.Builder builder) {
-        // 不需要 DataTracker（预览实体不需要同步数据）
+        super.initDataTracker(builder);
     }
 
     // ======================

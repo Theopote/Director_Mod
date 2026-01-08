@@ -1,7 +1,11 @@
 package com.chronoblocks.ui.selection;
 
+import com.chronoblocks.ui.timeline.model.TimelineClip;
+import com.chronoblocks.ui.timeline.model.TimelineSelectable;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
+import com.chronoblocks.ui.timeline.model.clip.ClipKeyframe;
 import com.chronoblocks.ui.timeline.model.entity.EntityClip;
+import com.chronoblocks.ui.timeline.model.selection.TimelineKeyframeMultiSelection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -206,11 +210,8 @@ public final class SelectionManager {
      * 
      * @return EntityClip，如果未选中 Clip 则返回 null
      */
-    @SuppressWarnings("unchecked")
-    public EntityClip getSelectedClip() {
-        return selectionType == SelectionType.CLIP && selectionPayload instanceof EntityClip
-                ? (EntityClip) selectionPayload
-                : null;
+    public Object getSelectedClip() {
+        return selectionType == SelectionType.CLIP ? selectionPayload : null;
     }
     
     // =========================
@@ -280,8 +281,15 @@ public final class SelectionManager {
         }
         
         // 检查是否是 EntityClip
-        if (obj instanceof EntityClip) {
+        if (obj instanceof TimelineClip || obj instanceof EntityClip) {
             return SelectionType.CLIP;
+        }
+
+        if (obj instanceof ClipKeyframe
+                || obj instanceof TimelineKeyframeMultiSelection
+                || obj instanceof com.chronoblocks.core.animation.container.Keyframe
+                || obj instanceof TimelineSelectable) {
+            return SelectionType.KEYFRAME;
         }
         
         // 检查是否是 Actor（通过类名，避免直接 import）
