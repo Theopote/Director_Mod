@@ -39,6 +39,7 @@ public abstract class EntityClip implements TimelineSelectable, Comparable<Entit
 
     private boolean muted = false;
     private float weight = 1.0f; // 预留：叠加/混合权重
+    private transient EntityTimelineClip timelineClip;
 
     /**
      * 构造函数
@@ -112,6 +113,7 @@ public abstract class EntityClip implements TimelineSelectable, Comparable<Entit
      */
     public void setName(String name) {
         this.name = (name == null || name.isBlank()) ? getType() : name;
+        syncTimelineClip();
     }
 
     /**
@@ -126,6 +128,7 @@ public abstract class EntityClip implements TimelineSelectable, Comparable<Entit
         }
         this.startTime = startTime;
         this.endTime = endTime;
+        syncTimelineClip();
     }
 
     /**
@@ -181,6 +184,21 @@ public abstract class EntityClip implements TimelineSelectable, Comparable<Entit
     public void offsetTime(float delta) {
         this.startTime += delta;
         this.endTime += delta;
+        syncTimelineClip();
+    }
+
+    public EntityTimelineClip getTimelineClip() {
+        return timelineClip;
+    }
+
+    public void setTimelineClip(EntityTimelineClip timelineClip) {
+        this.timelineClip = timelineClip;
+    }
+
+    private void syncTimelineClip() {
+        if (timelineClip != null) {
+            timelineClip.syncFromEntityClip(this);
+        }
     }
 
     // ========== Comparable 实现 ==========

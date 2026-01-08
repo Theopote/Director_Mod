@@ -11,6 +11,7 @@ import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineSelectable;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TrackType;
+import com.chronoblocks.ui.timeline.model.entity.EntityTimelineClip;
 import com.chronoblocks.ui.timeline.model.selection.TimelineKeyframeMultiSelection;
 import com.chronoblocks.ui.timeline.render.TimelineRenderer;
 import com.chronoblocks.ui.timeline.render.TimelineTrackControlHit;
@@ -317,7 +318,8 @@ public class TimelineInteractionHandler {
             return;
         }
         if (count == 1) {
-            com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(lastFocused);
+            com.chronoblocks.ui.selection.SelectionManager.get()
+                    .setCurrentSelection(resolveSelectionTarget(lastFocused));
             return;
         }
 
@@ -337,8 +339,24 @@ public class TimelineInteractionHandler {
                     .setCurrentSelection(new TimelineKeyframeMultiSelection(clipKeyframes, automationKeyframes));
         } else {
             // 多选但不是关键帧（例如多选片段）：保持 lastFocused
-            com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(lastFocused);
+            com.chronoblocks.ui.selection.SelectionManager.get()
+                    .setCurrentSelection(resolveSelectionTarget(lastFocused));
         }
+    }
+
+    private Object resolveSelectionTarget(Object selection) {
+        if (selection instanceof EntityTimelineClip entityTimelineClip) {
+            return entityTimelineClip.getEntityClip();
+        }
+        return selection;
+    }
+
+    private void syncClipSelection(TimelineClip clip) {
+        if (clip == null) {
+            return;
+        }
+        com.chronoblocks.ui.selection.SelectionManager.get()
+                .setCurrentSelection(resolveSelectionTarget(clip));
     }
     
     /**
@@ -708,7 +726,7 @@ public class TimelineInteractionHandler {
         model.setSelectedClip(clip);
         
         // �?功能：选中片段时，同步�?SelectionManager，使属性面板显示片段属�?
-        com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(clip);
+        syncClipSelection(clip);
         
         if (callbacks != null) callbacks.onDataChanged();
         
@@ -1011,7 +1029,7 @@ public class TimelineInteractionHandler {
                         model.setSelectedClip(clip);
                     }
                     // 同步到属性面板（单选 clip）
-                    com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(clip);
+                    syncClipSelection(clip);
                 }
             }
             case KEYFRAME -> {
@@ -1045,7 +1063,7 @@ public class TimelineInteractionHandler {
                         if (!model.isSelected(clip)) {
                             model.setSelectedClip(clip);
                         }
-                        com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(clip);
+                        syncClipSelection(clip);
                     }
                 }
             }

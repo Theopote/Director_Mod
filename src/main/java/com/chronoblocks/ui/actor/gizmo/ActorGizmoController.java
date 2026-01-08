@@ -12,6 +12,7 @@ import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.entity.EntityClip;
 import com.chronoblocks.ui.timeline.model.entity.EntityTrack;
+import com.chronoblocks.ui.timeline.model.entity.EntityTimelineClip;
 import com.chronoblocks.ui.timeline.model.entity.EntityTransformClip;
 import com.chronoblocks.ui.timeline.playback.entity.EntityClipSampler;
 import com.chronoblocks.ui.timeline.playback.entity.EntitySample;
@@ -65,6 +66,7 @@ public final class ActorGizmoController {
 
     /** 当前编辑的 EntityTrack（缓存，避免重复查找） */
     private EntityTrack entityTrack;
+    private TimelineTrack timelineTrack;
 
     /** 当前 Gizmo 模式 */
     private GizmoMode currentMode = GizmoMode.TRANSLATE;
@@ -112,6 +114,7 @@ public final class ActorGizmoController {
     public void clearTarget() {
         this.targetActorId = null;
         this.entityTrack = null;
+        this.timelineTrack = null;
         this.dragging = false;
         this.editingClip = null;
         clearDragBases();
@@ -545,6 +548,10 @@ public final class ActorGizmoController {
 
         // 添加到轨道
         track.addClip(clip);
+        if (timelineTrack != null) {
+            EntityTimelineClip timelineClip = new EntityTimelineClip(clip, track.getColorRgba());
+            timelineTrack.addClip(timelineClip);
+        }
 
         // 通知时间线数据已变
         TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
@@ -564,6 +571,7 @@ public final class ActorGizmoController {
      */
     private void resolveTargetTrack() {
         this.entityTrack = null;
+        this.timelineTrack = null;
 
         if (targetActorId == null) {
             return;
@@ -587,6 +595,7 @@ public final class ActorGizmoController {
             ActorRef ref = et.getActorRef();
             if (ref != null && Objects.equals(ref.getActorId(), targetActorId)) {
                 this.entityTrack = et;
+                this.timelineTrack = track;
                 return;
             }
         }

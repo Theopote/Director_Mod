@@ -14,6 +14,8 @@ import com.chronoblocks.ui.timeline.container.ContainerTimelineService;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TrackType;
+import com.chronoblocks.ui.timeline.model.entity.EntitySpawnClip;
+import com.chronoblocks.ui.timeline.model.entity.EntityTimelineClip;
 import com.chronoblocks.ui.timeline.model.entity.EntityTrack;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
@@ -56,6 +58,7 @@ import java.util.UUID;
 public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     
     private static final Logger LOGGER = LoggerFactory.getLogger(ActorProjectPropertyAdapter.class);
+    private static final float DEFAULT_CLIP_DURATION = 5.0f;
     
     // UI state
     private UUID selectedActorId;
@@ -395,7 +398,15 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
 
             // 5️⃣ Insert SpawnClip at current time
             float currentTime = timelineModel.getCurrentTime();
-            entityTrack.addDefaultSpawnClip(currentTime);
+            EntitySpawnClip spawnClip = new EntitySpawnClip(
+                    "Spawn",
+                    currentTime,
+                    currentTime + DEFAULT_CLIP_DURATION
+            );
+            spawnClip.setVisibleOnSpawn(true);
+            entityTrack.addClip(spawnClip);
+            EntityTimelineClip timelineClip = new EntityTimelineClip(spawnClip, entityTrack.getColorRgba());
+            timelineTrack.addClip(timelineClip);
 
             // 6️⃣ Mark model as dirty (trigger save)
             timelineModel.markDirty();
@@ -569,10 +580,10 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         
         // 查找当前时间是否有 EntitySpawnClip
         var clipsAtTime = entityTrack.findClipsAt(currentTime);
-        com.chronoblocks.ui.timeline.model.entity.EntitySpawnClip spawnClip = null;
+        EntitySpawnClip spawnClip = null;
         for (var clip : clipsAtTime) {
-            if (clip instanceof com.chronoblocks.ui.timeline.model.entity.EntitySpawnClip) {
-                spawnClip = (com.chronoblocks.ui.timeline.model.entity.EntitySpawnClip) clip;
+            if (clip instanceof EntitySpawnClip) {
+                spawnClip = (EntitySpawnClip) clip;
                 break;
             }
         }
@@ -586,7 +597,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                     cameraPos.x, cameraPos.y, cameraPos.z);
         } else {
             // 创建新的 SpawnClip
-            spawnClip = new com.chronoblocks.ui.timeline.model.entity.EntitySpawnClip("Spawn", currentTime, currentTime + 0.01f);
+            spawnClip = new EntitySpawnClip("Spawn", currentTime, currentTime + DEFAULT_CLIP_DURATION);
             spawnClip.setPosition(cameraPos.x, cameraPos.y, cameraPos.z);
             spawnClip.setYawDeg(cameraSample.yaw());
             spawnClip.setPitchDeg(cameraSample.pitch());
@@ -596,6 +607,10 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                     cameraPos.x, cameraPos.y, cameraPos.z);
         }
         
+        if (spawnClip.getTimelineClip() == null) {
+            EntityTimelineClip timelineClip = new EntityTimelineClip(spawnClip, entityTrack.getColorRgba());
+            timelineTrack.addClip(timelineClip);
+        }
         timelineModel.markDirty();
         
         // 选中 Actor，激活 Gizmo

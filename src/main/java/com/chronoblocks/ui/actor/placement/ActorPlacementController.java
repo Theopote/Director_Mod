@@ -14,6 +14,7 @@ import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.entity.EntitySpawnClip;
 import com.chronoblocks.ui.timeline.model.entity.EntityTrack;
+import com.chronoblocks.ui.timeline.model.entity.EntityTimelineClip;
 import com.chronoblocks.ui.timeline.playback.camera.CameraAccessor;
 import imgui.ImGui;
 import net.minecraft.client.MinecraftClient;
@@ -66,6 +67,9 @@ public final class ActorPlacementController {
 
     /** 临时 PreviewEntity（附着到鼠标的） */
     private PreviewActorEntity previewEntity = null;
+
+    /** Last right-click state for edge trigger. */
+    private boolean lastRightMouseDown = false;
 
     /** 默认片段长度（秒） */
     private static final float DEFAULT_CLIP_DURATION = 5.0f;
@@ -142,6 +146,7 @@ public final class ActorPlacementController {
 
         pendingActor = null;
         isPlacing = false;
+        lastRightMouseDown = false;
         LOGGER.debug("[ActorPlacement] 取消放置");
     }
 
@@ -168,19 +173,17 @@ public final class ActorPlacementController {
             return;
         }
 
-        // 1. 更新预览实体位置（跟随鼠标/摄像机视线）
+        // 1. Update preview position from mouse raycast.
         updatePreviewPosition(client);
 
-        // 2. 检查 ESC 键取消
+        // 2. Cancel on ESC.
         if (GLFW.glfwGetKey(client.getWindow().getHandle(), GLFW.GLFW_KEY_ESCAPE) == GLFW.GLFW_PRESS) {
             cancelPlacement();
             return;
         }
 
-        // 3. 检查右键点击（不在 ImGui 区域）
-        if (!ImGui.getIO().getWantCaptureMouse()) {
-            checkRightClick(client);
-        }
+        // 3. Check right-click placement.
+        checkRightClick(client);
     }
 
     // =========================================================
@@ -214,15 +217,14 @@ public final class ActorPlacementController {
     }
 
     /**
- /**
-     * 更新预览实体位置（跟随鼠标/摄像机视线）
+     * Update preview position based on mouse raycast.
      */
     private void updatePreviewPosition(MinecraftClient client) {
         if (previewEntity == null) {
             return;
         }
 
-        // 获取摄像机位置和方向
+        // Sample camera state.
         var cameraSample = CameraAccessor.sampleFromGameCamera(client);
         if (cameraSample == null) {
             return;
@@ -259,21 +261,21 @@ public final class ActorPlacementController {
     }
 
     /**
-     * 获取摄像机方向向量
+     * Build camera forward direction.
      */
     private Vec3d getCameraDirection(float yaw, float pitch) {
         double yawRad = Math.toRadians(yaw);
         double pitchRad = Math.toRadians(pitch);
-        
+
         double x = -Math.sin(yawRad) * Math.cos(pitchRad);
         double y = -Math.sin(pitchRad);
         double z = Math.cos(yawRad) * Math.cos(pitchRad);
-        
+
         return new Vec3d(x, y, z).normalize();
     }
 
     /**
-     * 检查右键点击
+     * Handle right-click placement.
      */
     private void checkRightClick(MinecraftClient client) {
         if (client.getWindow() == null) {
@@ -296,30 +298,6 @@ public final class ActorPlacementController {
         lastRightMouseDown = rightDown;
     }
 
-        // 检查右键是否刚按下（edge trigger）
-        int rightButtonState = GLFW.glfwGetMouseButton(
-                client.getWindow().getHandle(),
-                GLFW.GLFW_MOUSE_BUTTON_RIGHT
-        );
-
-        if (rightButtonState == GLFW.GLFW_PRESS) {
-            // 获取射线命中结果
-            HitResult hit = client.crosshairTarget;
-            if (hit != null && hit.getType() == HitResult.Type.BLOCK) {
-                BlockHitResult blockHit = (BlockHitResult) hit;
-                Vec3d placePos = blockHit.getPos();
-                
-                // 放置 Actor
-                placeActorAt(placePos);
-            }
-        }
-    }
-
-    /**
-     * 在指定位置放置 Actor
-     *
-     * @param position 放置位置
-     */
     private void placeActorAt(Vec3d position) {
         if (pendingActor == null || previewEntity == null) {
             return;
@@ -378,6 +356,8 @@ public final class ActorPlacementController {
 
             spawnClip.setVisibleOnSpawn(true);
             entityTrack.addClip(spawnClip);
+            EntityTimelineClip timelineClip = new EntityTimelineClip(spawnClip, entityTrack.getColorRgba());
+            timelineModel.addClip(timelineTrack, timelineClip);
 
             // 6. 标记为 dirty（触发保存）
             timelineModel.markDirty();

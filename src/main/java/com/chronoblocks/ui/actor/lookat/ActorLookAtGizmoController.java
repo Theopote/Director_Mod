@@ -10,6 +10,7 @@ import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.entity.EntityClip;
 import com.chronoblocks.ui.timeline.model.entity.EntityLookAtClip;
 import com.chronoblocks.ui.timeline.model.entity.EntityTrack;
+import com.chronoblocks.ui.timeline.model.entity.EntityTimelineClip;
 import imgui.ImGui;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.hit.BlockHitResult;
@@ -64,6 +65,7 @@ public final class ActorLookAtGizmoController {
 
     /** 当前编辑的 EntityTrack（缓存，避免重复查找） */
     private EntityTrack entityTrack;
+    private TimelineTrack timelineTrack;
 
     /** 上次点击时间（用于防抖） */
     private long lastClickTime = 0;
@@ -98,6 +100,7 @@ public final class ActorLookAtGizmoController {
     public void clearTarget() {
         this.targetActorId = null;
         this.entityTrack = null;
+        this.timelineTrack = null;
     }
 
     // =========================================================
@@ -314,6 +317,10 @@ public final class ActorLookAtGizmoController {
 
         // 添加到轨道
         entityTrack.addClip(clip);
+        if (timelineTrack != null) {
+            EntityTimelineClip timelineClip = new EntityTimelineClip(clip, entityTrack.getColorRgba());
+            timelineTrack.addClip(timelineClip);
+        }
 
         // 标记模型为 dirty
         TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
@@ -333,6 +340,7 @@ public final class ActorLookAtGizmoController {
      */
     private void resolveEntityTrack() {
         this.entityTrack = null;
+        this.timelineTrack = null;
 
         if (targetActorId == null) {
             return;
@@ -356,6 +364,7 @@ public final class ActorLookAtGizmoController {
             ActorRef ref = et.getActorRef();
             if (ref != null && Objects.equals(ref.getActorId(), targetActorId)) {
                 this.entityTrack = et;
+                this.timelineTrack = track;
                 return;
             }
         }

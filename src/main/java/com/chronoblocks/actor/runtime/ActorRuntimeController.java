@@ -75,6 +75,7 @@ public final class ActorRuntimeController {
 
     private TimelineModel timelineModel;
     private ActorRegistry actorRegistry;
+    private TimelineModel.ModelChangeListener modelChangeListener;
 
     /** 每条 EntityTrack 一个 Sampler Runtime */
     private final Map<TimelineTrack, TrackRuntime> runtimes = new IdentityHashMap<>();
@@ -105,8 +106,21 @@ public final class ActorRuntimeController {
      * @param registry ActorRegistry
      */
     public void bind(TimelineModel model, ActorRegistry registry) {
+        if (this.timelineModel != null && modelChangeListener != null) {
+            this.timelineModel.removeModelChangeListener(modelChangeListener);
+        }
         this.timelineModel = model;
         this.actorRegistry = registry;
+        if (this.timelineModel != null) {
+            modelChangeListener = changeType -> {
+                if ("track_added".equals(changeType) || "track_removed".equals(changeType)) {
+                    rebuildRuntimes();
+                }
+            };
+            this.timelineModel.addModelChangeListener(modelChangeListener);
+        } else {
+            modelChangeListener = null;
+        }
         rebuildRuntimes();
         LOGGER.info("[ActorRuntime] 绑定 TimelineModel 和 ActorRegistry，runtimes={}", runtimes.size());
     }

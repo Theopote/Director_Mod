@@ -6,6 +6,10 @@ import org.slf4j.LoggerFactory;
 
 import com.chronoblocks.ui.timeline.model.TimelineClip;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
+import com.chronoblocks.ui.timeline.model.TimelineTrack;
+import com.chronoblocks.ui.timeline.model.entity.EntityClip;
+import com.chronoblocks.ui.timeline.model.entity.EntityTimelineClip;
+import com.chronoblocks.ui.timeline.model.entity.EntityTrack;
 
 import java.util.List;
 import java.util.Objects;
@@ -22,6 +26,8 @@ public class DeleteClipCommand extends BaseTimelineCommand {
     private final TimelineClip clip;
     private final List<TimelineClip> clipList;
     private int removedIndex = -1;
+    private EntityClip linkedEntityClip;
+    private EntityTrack linkedEntityTrack;
 
     public DeleteClipCommand(TimelineModel model, TimelineClip clip, List<TimelineClip> clipList) {
         super(model, "clip_deleted");
@@ -35,6 +41,8 @@ public class DeleteClipCommand extends BaseTimelineCommand {
             LOGGER.warn("[Timeline] 删除片段失败：clip 或 clipList 为 null");
             return;
         }
+        linkedEntityClip = null;
+        linkedEntityTrack = null;
         removedIndex = clipList.indexOf(clip);
         if (removedIndex >= 0) {
             // 记录容器ID（删除前）
@@ -43,6 +51,15 @@ public class DeleteClipCommand extends BaseTimelineCommand {
             // 移除片段关联的声音事件（在删除片段前）
             com.chronoblocks.ui.timeline.audio.TimelineAudioService.getInstance()
                     .onClipRemoved(clip);
+
+            if (clip instanceof EntityTimelineClip entityTimelineClip) {
+                linkedEntityClip = entityTimelineClip.getEntityClip();
+                TimelineTrack parentTrack = clip.getParentTrack();
+                linkedEntityTrack = parentTrack != null ? parentTrack.getEntityTrackPayload() : null;
+                if (linkedEntityTrack != null) {
+                    linkedEntityTrack.removeClip(linkedEntityClip.getId());
+                }
+            }
 
             clipList.remove(removedIndex);
             // 清理插值映射，避免内存泄漏
@@ -77,6 +94,9 @@ public class DeleteClipCommand extends BaseTimelineCommand {
         }
         if (removedIndex >= 0 && removedIndex <= clipList.size()) {
             clipList.add(removedIndex, clip);
+            if (linkedEntityTrack != null && linkedEntityClip != null) {
+                linkedEntityTrack.addClip(linkedEntityClip);
+            }
             LOGGER.debug("[Timeline] 恢复片段到索引: {}", removedIndex);
         }
     }
