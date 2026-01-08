@@ -18,6 +18,7 @@ import com.chronoblocks.ui.timeline.playback.entity.EntityClipSampler;
 import com.chronoblocks.ui.timeline.playback.entity.EntitySample;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -431,9 +432,9 @@ public final class ActorGizmoController {
                 );
                 // 限制缩放范围
                 newScale = new Vec3d(
-                        clamp(newScale.x, MIN_SCALE, MAX_SCALE),
-                        clamp(newScale.y, MIN_SCALE, MAX_SCALE),
-                        clamp(newScale.z, MIN_SCALE, MAX_SCALE)
+                        clamp(newScale.x),
+                        clamp(newScale.y),
+                        clamp(newScale.z)
                 );
                 editingClip.setToScale(
                         (float) newScale.x,
@@ -515,12 +516,33 @@ public final class ActorGizmoController {
      * @return 新创建的 TransformClip
      */
     private EntityTransformClip createTransformClip(EntityTrack track, float time, Vec3d pos) {
-        float duration = DEFAULT_CLIP_DURATION;
 
+        EntityTransformClip clip = getEntityTransformClip(time, pos);
+
+        // 默认插值类型为 SMOOTH
+        clip.setInterpolation(com.chronoblocks.ui.timeline.model.TimelineInterpolation.SMOOTH);
+
+        // 添加到轨道
+        track.addClip(clip);
+        if (timelineTrack != null) {
+            EntityTimelineClip timelineClip = new EntityTimelineClip(clip, track.getColorRgba());
+            timelineTrack.addClip(timelineClip);
+        }
+
+        // 通知时间线数据已变
+        TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
+        if (model != null) {
+            model.markDirty();
+        }
+
+        return clip;
+    }
+
+    private static @NotNull EntityTransformClip getEntityTransformClip(float time, Vec3d pos) {
         EntityTransformClip clip = new EntityTransformClip(
                 "Transform",
                 time,
-                time + duration
+                time + DEFAULT_CLIP_DURATION
         );
 
         // 初始化所有变换属性
@@ -542,23 +564,6 @@ public final class ActorGizmoController {
         // 缩放默认为 1
         clip.setFromScale(1, 1, 1);
         clip.setToScale(1, 1, 1);
-
-        // 默认插值类型为 SMOOTH
-        clip.setInterpolation(com.chronoblocks.ui.timeline.model.TimelineInterpolation.SMOOTH);
-
-        // 添加到轨道
-        track.addClip(clip);
-        if (timelineTrack != null) {
-            EntityTimelineClip timelineClip = new EntityTimelineClip(clip, track.getColorRgba());
-            timelineTrack.addClip(timelineClip);
-        }
-
-        // 通知时间线数据已变
-        TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
-        if (model != null) {
-            model.markDirty();
-        }
-
         return clip;
     }
 
@@ -618,11 +623,9 @@ public final class ActorGizmoController {
      * 限制值在指定范围内
      *
      * @param value 值
-     * @param min 最小值
-     * @param max 最大值
      * @return 限制后的值
      */
-    private static double clamp(double value, double min, double max) {
-        return Math.max(min, Math.min(max, value));
+    private static double clamp(double value) {
+        return Math.max(ActorGizmoController.MIN_SCALE, Math.min(ActorGizmoController.MAX_SCALE, value));
     }
 }

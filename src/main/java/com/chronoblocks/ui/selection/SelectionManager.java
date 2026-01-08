@@ -189,7 +189,6 @@ public final class SelectionManager {
      * 
      * @return TimelineTrack，如果未选中 Track 则返回 null
      */
-    @SuppressWarnings("unchecked")
     public TimelineTrack getSelectedTrack() {
         return selectionType == SelectionType.TRACK && selectionPayload instanceof TimelineTrack
                 ? (TimelineTrack) selectionPayload
@@ -264,22 +263,30 @@ public final class SelectionManager {
      * @return 推断的 SelectionType
      */
     private SelectionType inferSelectionType(Object obj) {
-        if (obj == null) {
-            return SelectionType.PROJECT;
+        switch (obj) {
+            case null -> {
+                return SelectionType.PROJECT;
+            }
+
+
+            // 检查是否是 Actor（通过 UUID 或 Actor 对象）
+            case UUID ignored -> {
+                // 可能是 Actor ID，但无法确定，默认返回 PROJECT
+                // 实际使用时应该明确调用 selectActor()
+                return SelectionType.PROJECT;
+                // 可能是 Actor ID，但无法确定，默认返回 PROJECT
+                // 实际使用时应该明确调用 selectActor()
+            }
+
+
+            // 检查是否是 TimelineTrack
+            case TimelineTrack ignored -> {
+                return SelectionType.TRACK;
+            }
+            default -> {
+            }
         }
-        
-        // 检查是否是 Actor（通过 UUID 或 Actor 对象）
-        if (obj instanceof UUID) {
-            // 可能是 Actor ID，但无法确定，默认返回 PROJECT
-            // 实际使用时应该明确调用 selectActor()
-            return SelectionType.PROJECT;
-        }
-        
-        // 检查是否是 TimelineTrack
-        if (obj instanceof TimelineTrack) {
-            return SelectionType.TRACK;
-        }
-        
+
         // 检查是否是 EntityClip
         if (obj instanceof TimelineClip || obj instanceof EntityClip) {
             return SelectionType.CLIP;

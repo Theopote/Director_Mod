@@ -102,10 +102,6 @@ public final class ActorPlacementController {
         }
 
         ActorRegistry actorRegistry = ActorRegistryManager.getInstance();
-        if (actorRegistry == null) {
-            LOGGER.warn("[ActorPlacement] ActorRegistry 未初始化");
-            return false;
-        }
 
         try {
             // 1. 创建临时 Actor（不保存到 Registry，只是预览）
@@ -230,7 +226,7 @@ public final class ActorPlacementController {
             return;
         }
 
-        Vec3d previewPos = null;
+        Vec3d previewPos;
         BlockHitResult blockHit = resolvePlacementHit(client);
         if (blockHit != null) {
             previewPos = blockHit.getPos();
@@ -311,7 +307,7 @@ public final class ActorPlacementController {
         ActorRegistry actorRegistry = ActorRegistryManager.getInstance();
         TimelineModel timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
         
-        if (actorRegistry == null || timelineModel == null) {
+        if (timelineModel == null) {
             LOGGER.warn("[ActorPlacement] ActorRegistry 或 TimelineModel 未初始化");
             cancelPlacement();
             return;
