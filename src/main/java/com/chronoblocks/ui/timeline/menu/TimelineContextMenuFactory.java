@@ -529,69 +529,67 @@ public class TimelineContextMenuFactory {
                             track,
                             new WeatherKeyframe("Weather @" + formatTime(time), time)))
                 .end();
-            case ENTITY -> {
-                // 实体轨道：添加 EntityClip 创建菜单
-                builder
-                    .submenu("创建实体片段")
-                        .item("出现/绑定 (Spawn)", () -> {
-                            float currentTime = model.getCurrentTime();
-                            EntitySpawnClip clip =
-                                new EntitySpawnClip(
-                                    "出现", currentTime, currentTime + 1.0f);
-                            addEntityClip(track, clip);
-                            model.markDirty();
-                        })
-                        .item("位移/旋转 (Transform)", () -> {
-                            float currentTime = model.getCurrentTime();
-                            EntityTransformClip clip =
-                                new EntityTransformClip(
-                                    "移动", currentTime, currentTime + 2.0f);
-                            addEntityClip(track, clip);
-                            model.markDirty();
-                        })
-                        .item("动画 (Animation)", () -> {
-                            float currentTime = model.getCurrentTime();
-                            EntityAnimationClip clip =
-                                new EntityAnimationClip(
-                                    "动画", currentTime, currentTime + 2.0f);
-                            addEntityClip(track, clip);
-                            model.markDirty();
-                        })
-                        .separator()
-                        .item("行为 (Action)", () -> {
-                            float currentTime = model.getCurrentTime();
-                            EntityActionClip clip =
-                                new EntityActionClip(
-                                    "行为", currentTime, currentTime + 0.5f);
-                            addEntityClip(track, clip);
-                            model.markDirty();
-                        })
-                        .item("状态 (State)", () -> {
-                            float currentTime = model.getCurrentTime();
-                            EntityStateClip clip =
-                                new EntityStateClip(
-                                    "状态", currentTime, currentTime + 2.0f);
-                            addEntityClip(track, clip);
-                            model.markDirty();
-                        })
-                        .item("看向 (LookAt)", () -> {
-                            float currentTime = model.getCurrentTime();
-                            EntityLookAtClip clip =
-                                new EntityLookAtClip(
-                                    "看向", currentTime, currentTime + 2.0f);
-                            addEntityClip(track, clip);
-                            model.markDirty();
-                        })
-                        .item("离场 (Despawn)", () -> {
-                            float currentTime = model.getCurrentTime();
-                            EntityDespawnClip clip =
-                                new EntityDespawnClip(
-                                    "离场", currentTime, currentTime + 1.0f);
-                            addEntityClip(track, clip);
-                            model.markDirty();
-                        })
-                    .end();
-            }
+            case ENTITY -> // 实体轨道：添加 EntityClip 创建菜单
+                    builder
+                        .submenu("创建实体片段")
+                            .item("出现/绑定 (Spawn)", () -> {
+                                float currentTime = model.getCurrentTime();
+                                EntitySpawnClip clip =
+                                    new EntitySpawnClip(
+                                        "出现", currentTime, currentTime + 1.0f);
+                                addEntityClip(track, clip);
+                                model.markDirty();
+                            })
+                            .item("位移/旋转 (Transform)", () -> {
+                                float currentTime = model.getCurrentTime();
+                                EntityTransformClip clip =
+                                    new EntityTransformClip(
+                                        "移动", currentTime, currentTime + 2.0f);
+                                addEntityClip(track, clip);
+                                model.markDirty();
+                            })
+                            .item("动画 (Animation)", () -> {
+                                float currentTime = model.getCurrentTime();
+                                EntityAnimationClip clip =
+                                    new EntityAnimationClip(
+                                        "动画", currentTime, currentTime + 2.0f);
+                                addEntityClip(track, clip);
+                                model.markDirty();
+                            })
+                            .separator()
+                            .item("行为 (Action)", () -> {
+                                float currentTime = model.getCurrentTime();
+                                EntityActionClip clip =
+                                    new EntityActionClip(
+                                        "行为", currentTime, currentTime + 0.5f);
+                                addEntityClip(track, clip);
+                                model.markDirty();
+                            })
+                            .item("状态 (State)", () -> {
+                                float currentTime = model.getCurrentTime();
+                                EntityStateClip clip =
+                                    new EntityStateClip(
+                                        "状态", currentTime, currentTime + 2.0f);
+                                addEntityClip(track, clip);
+                                model.markDirty();
+                            })
+                            .item("看向 (LookAt)", () -> {
+                                float currentTime = model.getCurrentTime();
+                                EntityLookAtClip clip =
+                                    new EntityLookAtClip(
+                                        "看向", currentTime, currentTime + 2.0f);
+                                addEntityClip(track, clip);
+                                model.markDirty();
+                            })
+                            .item("离场 (Despawn)", () -> {
+                                float currentTime = model.getCurrentTime();
+                                EntityDespawnClip clip =
+                                    new EntityDespawnClip(
+                                        "离场", currentTime, currentTime + 1.0f);
+                                addEntityClip(track, clip);
+                                model.markDirty();
+                            })
+                        .end();
             default -> { /* no-op */ }
         }
     }
