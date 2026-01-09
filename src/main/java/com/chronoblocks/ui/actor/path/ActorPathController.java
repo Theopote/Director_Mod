@@ -143,7 +143,7 @@ public final class ActorPathController {
 
         pathPoints.add(pos);
         drawing = true;
-        refreshPreview(false);
+        refreshPreview();
     }
 
     private void handleFinalizePath() {
@@ -232,7 +232,7 @@ public final class ActorPathController {
         previewManager.updateLassoFill(Collections.emptyList());
     }
 
-    private void refreshPreview(boolean closed) {
+    private void refreshPreview() {
         if (pathPoints.isEmpty()) {
             previewManager.updateLassoPath(Collections.emptyList(), false);
             previewManager.updateLassoFill(Collections.emptyList());
@@ -243,7 +243,7 @@ public final class ActorPathController {
         for (Vec3d pos : pathPoints) {
             pathBlocks.add(BlockPos.ofFloored(pos));
         }
-        previewManager.updateLassoPath(pathBlocks, closed);
+        previewManager.updateLassoPath(pathBlocks, false);
     }
 
     private BlockHitResult resolvePlacementHit(MinecraftClient client) {

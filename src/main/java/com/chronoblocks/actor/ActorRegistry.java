@@ -64,10 +64,9 @@ public final class ActorRegistry {
      * @return 如果成功移除则返回 true
      */
     public boolean removeActor(UUID actorId) {
-        boolean removed = actors.remove(actorId) != null;
         // 自动保存（可选）
         // if (removed) ActorRegistryManager.save();
-        return removed;
+        return actors.remove(actorId) != null;
     }
 
     /**

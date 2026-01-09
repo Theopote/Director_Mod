@@ -96,16 +96,12 @@ public final class ActorSelectionHub {
 
         // 4️⃣ Gizmo：设置目标 Actor
         ActorGizmoController gizmoController = ActorGizmoController.getInstance();
-        if (gizmoController != null) {
-            gizmoController.setTargetActor(actorId);
-        }
+        gizmoController.setTargetActor(actorId);
 
         // 5️⃣ LookAt Gizmo：设置目标 Actor
         com.chronoblocks.ui.actor.lookat.ActorLookAtGizmoController lookAtController =
                 com.chronoblocks.ui.actor.lookat.ActorLookAtGizmoController.getInstance();
-        if (lookAtController != null) {
-            lookAtController.setTargetActor(actorId);
-        }
+        lookAtController.setTargetActor(actorId);
 
         // 6️⃣ 更新当前选中的 Actor ID（供 Visualizer 使用）
         currentActorId = actorId;
@@ -135,20 +131,14 @@ public final class ActorSelectionHub {
         }
 
         SelectionManager selectionManager = SelectionManager.get();
-        if (selectionManager != null) {
-            selectionManager.clearSelection();
-        }
+        selectionManager.clearSelection();
 
         ActorGizmoController gizmoController = ActorGizmoController.getInstance();
-        if (gizmoController != null) {
-            gizmoController.clearTarget();
-        }
+        gizmoController.clearTarget();
 
         com.chronoblocks.ui.actor.lookat.ActorLookAtGizmoController lookAtController =
                 com.chronoblocks.ui.actor.lookat.ActorLookAtGizmoController.getInstance();
-        if (lookAtController != null) {
-            lookAtController.clearTarget();
-        }
+        lookAtController.clearTarget();
 
         // 清除 LookAt 选择上下文
         com.chronoblocks.ui.actor.lookat.ActorLookAtSelectionContext.setActiveLookAtClip(null);

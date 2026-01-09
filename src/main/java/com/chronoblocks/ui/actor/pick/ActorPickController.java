@@ -111,9 +111,6 @@ public final class ActorPickController {
 
         // 从 PreviewActorEntity 反查 actorId
         ActorPreviewManager previewManager = ActorPreviewManager.getInstance();
-        if (previewManager == null) {
-            return;
-        }
 
         UUID actorId = previewManager.getActorId(preview);
         if (actorId == null) {

@@ -201,10 +201,8 @@ public final class ActorLookAtVisualizer {
                 }
                 yield null;
             }
-            case ENTITY_UUID -> {
-                // TODO: 未来实现实体目标
-                yield null;
-            }
+            case ENTITY_UUID -> // TODO: 未来实现实体目标
+                    null;
         };
     }
 

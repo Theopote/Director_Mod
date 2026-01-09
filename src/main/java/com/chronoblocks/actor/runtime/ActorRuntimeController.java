@@ -484,7 +484,7 @@ public final class ActorRuntimeController {
          * @param prev 上一帧 Sample
          */
         private void applyActionEvents(EntitySample s, EntitySample prev) {
-            if (s.actionEvents == null || s.actionEvents.isEmpty()) {
+            if (s.actionEvents.isEmpty()) {
                 return;
             }
 

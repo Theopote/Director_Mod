@@ -9,6 +9,7 @@ import com.google.gson.GsonBuilder;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -86,20 +87,7 @@ public class ActorRegistryPersistence {
                 Files.createDirectories(parent);
             }
 
-            JsonObject root = new JsonObject();
-            root.addProperty("version", "1.0");
-            root.addProperty("actorCount", registry.size());
-
-            JsonArray actorsArray = new JsonArray();
-            for (Actor actor : registry.getAllActors()) {
-                JsonObject actorObj = new JsonObject();
-                actorObj.addProperty("actorId", actor.getActorId().toString());
-                actorObj.addProperty("name", actor.getName());
-                actorObj.addProperty("type", actor.getType().name());
-                // 未来可以扩展更多字段（如 modelId）
-                actorsArray.add(actorObj);
-            }
-            root.add("actors", actorsArray);
+            JsonObject root = getJsonObject(registry);
 
             String json = GSON.toJson(root);
             Files.writeString(file, json);
@@ -109,6 +97,24 @@ public class ActorRegistryPersistence {
         } catch (IOException e) {
             LOGGER.error("[ActorRegistryPersistence] 保存 ActorRegistry 失败", e);
         }
+    }
+
+    private static @NotNull JsonObject getJsonObject(ActorRegistry registry) {
+        JsonObject root = new JsonObject();
+        root.addProperty("version", "1.0");
+        root.addProperty("actorCount", registry.size());
+
+        JsonArray actorsArray = new JsonArray();
+        for (Actor actor : registry.getAllActors()) {
+            JsonObject actorObj = new JsonObject();
+            actorObj.addProperty("actorId", actor.getActorId().toString());
+            actorObj.addProperty("name", actor.getName());
+            actorObj.addProperty("type", actor.getType().name());
+            // 未来可以扩展更多字段（如 modelId）
+            actorsArray.add(actorObj);
+        }
+        root.add("actors", actorsArray);
+        return root;
     }
 
     /**
@@ -173,7 +179,7 @@ public class ActorRegistryPersistence {
      */
     public static boolean hasSavedData() {
         Path file = getActorRegistryFile();
-        return file != null && Files.exists(file);
+        return Files.exists(file);
     }
 }
 

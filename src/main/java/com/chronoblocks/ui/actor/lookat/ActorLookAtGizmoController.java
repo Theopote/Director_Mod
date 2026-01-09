@@ -179,7 +179,7 @@ public final class ActorLookAtGizmoController {
         if (hit.getType() == HitResult.Type.BLOCK) {
             BlockHitResult bhr = (BlockHitResult) hit;
             Vec3d point = bhr.getPos();
-            createOrUpdateLookAtClip(point, EntityLookAtClip.TargetMode.WORLD_POINT);
+            createOrUpdateLookAtClip(point);
             LOGGER.debug("[ActorLookAtGizmoController] 点击世界点创建 LookAtClip: ({}, {}, {})",
                     point.x, point.y, point.z);
         }
@@ -235,9 +235,8 @@ public final class ActorLookAtGizmoController {
      * 创建或更新 LookAtClip
      *
      * @param worldPoint 世界坐标点
-     * @param mode 目标模式
      */
-    private void createOrUpdateLookAtClip(Vec3d worldPoint, EntityLookAtClip.TargetMode mode) {
+    private void createOrUpdateLookAtClip(Vec3d worldPoint) {
         TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
         if (model == null) {
             return;
@@ -252,14 +251,12 @@ public final class ActorLookAtGizmoController {
         }
 
         // 设置目标
-        clip.setMode(mode);
-        if (mode == EntityLookAtClip.TargetMode.WORLD_POINT) {
-            clip.setWorldPoint(
-                    (float) worldPoint.x,
-                    (float) worldPoint.y,
-                    (float) worldPoint.z
-            );
-        }
+        clip.setMode(EntityLookAtClip.TargetMode.WORLD_POINT);
+        clip.setWorldPoint(
+                (float) worldPoint.x,
+                (float) worldPoint.y,
+                (float) worldPoint.z
+        );
         clip.setStrength(1.0f);
 
         // 更新选择上下文（供 Drag Controller 使用）
@@ -303,12 +300,11 @@ public final class ActorLookAtGizmoController {
      * @return 新创建的 LookAtClip
      */
     private EntityLookAtClip createLookAtClip(float time) {
-        float duration = DEFAULT_CLIP_DURATION;
 
         EntityLookAtClip clip = new EntityLookAtClip(
                 "LookAt",
                 time,
-                time + duration
+                time + DEFAULT_CLIP_DURATION
         );
 
         // 默认模式为 CAMERA，strength 为 1.0

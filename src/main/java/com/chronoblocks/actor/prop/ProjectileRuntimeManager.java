@@ -88,9 +88,7 @@ public final class ProjectileRuntimeManager {
      */
     public void clear() {
         for (RuntimeProjectile p : projectiles) {
-            if (p.prop != null) {
-                p.prop.dispose();
-            }
+            p.prop.dispose();
         }
         projectiles.clear();
         LOGGER.debug("[ProjectileRuntimeManager] 清空所有投掷物");
