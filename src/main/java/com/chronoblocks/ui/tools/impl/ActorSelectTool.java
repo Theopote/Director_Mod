@@ -4,11 +4,12 @@ import com.chronoblocks.client.gizmo.GizmoMode;
 import com.chronoblocks.ui.actor.gizmo.ActorGizmoController;
 import com.chronoblocks.ui.theme.Icons;
 import com.chronoblocks.ui.tools.ToolLifecycle;
+import com.chronoblocks.ui.tools.ToolRegistry;
 
-public final class ActorMoveTool extends AbstractWorldTool implements ToolLifecycle {
+public final class ActorSelectTool extends AbstractWorldTool implements ToolLifecycle {
 
-    public ActorMoveTool() {
-        super("actor_move", "演员移动", Icons.MOVE, "移动演员位置并生成 Transform 片段。");
+    public ActorSelectTool() {
+        super(ToolRegistry.ACTOR_SELECT_TOOL_ID, "Actor Select", Icons.SELECT, "Select actor and show Gizmo");
     }
 
     @Override

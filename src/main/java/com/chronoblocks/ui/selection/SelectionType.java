@@ -26,7 +26,7 @@ package com.chronoblocks.ui.selection;
 public enum SelectionType {
     /**
      * 项目级选择（默认）
-     * <p>显示 Project 面板（含 Actor 列表）
+     * <p>Show Project panel
      */
     PROJECT,
     

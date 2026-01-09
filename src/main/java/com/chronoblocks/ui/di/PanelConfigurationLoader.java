@@ -180,6 +180,9 @@ public class PanelConfigurationLoader {
         
         // ContainerPanel
         panels.add(new PanelConfiguration.PanelDefinition("ContainerPanel", true, 30));
+
+        // ActorsPanel
+        panels.add(new PanelConfiguration.PanelDefinition("ActorsPanel", true, 35));
         
         // PropertiesPanel
         panels.add(new PanelConfiguration.PanelDefinition("PropertiesPanel", true, 40));

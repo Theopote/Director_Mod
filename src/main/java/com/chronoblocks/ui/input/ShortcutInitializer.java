@@ -1,5 +1,9 @@
 package com.chronoblocks.ui.input;
 
+import imgui.ImGui;
+import com.chronoblocks.ui.tools.ToolRegistry;
+import com.chronoblocks.ui.actor.gizmo.ActorGizmoController;
+import com.chronoblocks.client.gizmo.GizmoMode;
 import imgui.flag.ImGuiKey;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
@@ -56,11 +60,14 @@ public class ShortcutInitializer {
                         selectionManager.clearSelection();
                         LOGGER.info("[ShortcutInitializer] Esc 键：已清除选区");
                     }
+
                 } catch (Exception e) {
                     LOGGER.warn("[ShortcutInitializer] 处理 Esc 键清除选区失败", e);
                 }
             }
         );
+
+        registerActorGizmoShortcuts(manager);
         
         // ========== 选择工具快捷键 ==========
         // 这些快捷键在选择工具模式时可用
@@ -114,8 +121,56 @@ public class ShortcutInitializer {
             manager.getActiveShortcuts().size());
     }
     
+    // Actor gizmo mode shortcuts (W/E/R)
+
+    private static void registerActorGizmoShortcuts(GlobalShortcutManager manager) {
+        if (manager == null) {
+            return;
+        }
+
+        manager.registerGLFW(
+            "actor.gizmo.translate",
+            "Actor Gizmo: Move",
+            GlobalShortcutManager.ShortcutContext.UI_PANEL,
+            90,
+            GLFW.GLFW_KEY_W,
+            false, false, false,
+            () -> setActorGizmoMode(GizmoMode.TRANSLATE)
+        );
+
+        manager.registerGLFW(
+            "actor.gizmo.rotate",
+            "Actor Gizmo: Rotate",
+            GlobalShortcutManager.ShortcutContext.UI_PANEL,
+            90,
+            GLFW.GLFW_KEY_E,
+            false, false, false,
+            () -> setActorGizmoMode(GizmoMode.ROTATE)
+        );
+
+        manager.registerGLFW(
+            "actor.gizmo.scale",
+            "Actor Gizmo: Scale",
+            GlobalShortcutManager.ShortcutContext.UI_PANEL,
+            90,
+            GLFW.GLFW_KEY_R,
+            false, false, false,
+            () -> setActorGizmoMode(GizmoMode.SCALE)
+        );
+    }
+
+    private static void setActorGizmoMode(GizmoMode mode) {
+        if (ImGui.getIO() != null && ImGui.getIO().getWantTextInput()) {
+            return;
+        }
+        if (!ToolRegistry.ACTOR_SELECT_TOOL_ID.equals(ToolRegistry.get().getActiveNonSelectionToolId())) {
+            return;
+        }
+        ActorGizmoController.getInstance().setPreferredMode(mode);
+    }
+
     /**
-     * 在 ChronoBlocksScreen 打开时调用，激活 UI 相关上下文
+     * Activate UI shortcut contexts when ChronoBlocksScreen opens.
      */
     public static void activateUIContexts() {
         GlobalShortcutManager manager = GlobalShortcutManager.getInstance();

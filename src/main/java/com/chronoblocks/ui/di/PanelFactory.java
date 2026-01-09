@@ -43,6 +43,7 @@ public class PanelFactory implements IPanelFactory {
         DEFAULT_PANEL_TYPES.put(MenuBarPanel.class, MenuBarPanel.class);
         DEFAULT_PANEL_TYPES.put(ToolbarPanel.class, ToolbarPanel.class);
         DEFAULT_PANEL_TYPES.put(ContainerPanel.class, ContainerPanel.class);
+        DEFAULT_PANEL_TYPES.put(ActorsPanel.class, ActorsPanel.class);
         DEFAULT_PANEL_TYPES.put(PropertiesPanel.class, PropertiesPanel.class);
         DEFAULT_PANEL_TYPES.put(TimelinePanel.class, TimelinePanel.class);
     }
@@ -86,6 +87,13 @@ public class PanelFactory implements IPanelFactory {
             
             // 使用依赖注入构造函数（v5.0: 移除了WorldBlockCollector参数，propertiesPanel 在内部创建）
             return new ContainerPanel(containerManager, commandHistory);
+        });
+
+        // Register ActorsPanel creator
+        registerPanelCreator(ActorsPanel.class, minecraftClient -> {
+            LOGGER.debug("[PanelFactory] Create ActorsPanel (MinecraftClient: {})", 
+                minecraftClient != null ? "injected" : "not injected");
+            return new ActorsPanel();
         });
         
         // 注册PropertiesPanel创建器

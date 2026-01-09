@@ -3,11 +3,8 @@ package com.chronoblocks.ui.tools;
 import com.chronoblocks.core.selection.SelectionManager;
 import com.chronoblocks.core.selection.SelectionTool;
 import com.chronoblocks.ui.theme.Icons;
-import com.chronoblocks.ui.tools.impl.ActorLookAtTool;
-import com.chronoblocks.ui.tools.impl.ActorMoveTool;
 import com.chronoblocks.ui.tools.impl.ActorPathTool;
-import com.chronoblocks.ui.tools.impl.ActorRotateTool;
-import com.chronoblocks.ui.tools.impl.ActorScaleTool;
+import com.chronoblocks.ui.tools.impl.ActorSelectTool;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
@@ -35,6 +32,8 @@ public final class ToolRegistry {
 
     private static final String WORLD_PLACEHOLDER_ID = "__world_placeholder__";
     private static final String TIMELINE_PLACEHOLDER_ID = "__timeline_placeholder__";
+
+    public static final String ACTOR_SELECT_TOOL_ID = "actor_select";
 
     private final SelectionManager selectionManager = SelectionManager.get();
 
@@ -92,25 +91,10 @@ public final class ToolRegistry {
                 "从当前激活容器中剔除方块",
                 "右键确认剔除，ESC 取消"
         ));
-        META.put("actor_move", ToolMetadata.of(
+        META.put(ACTOR_SELECT_TOOL_ID, ToolMetadata.of(
                 ToolGroup.WORLD, 20,
-                "移动演员并生成 Transform 片段",
-                "拖拽 Gizmo 进行移动"
-        ));
-        META.put("actor_rotate", ToolMetadata.of(
-                ToolGroup.WORLD, 30,
-                "旋转演员朝向并生成 Transform 片段",
-                "拖拽旋转环进行旋转"
-        ));
-        META.put("actor_scale", ToolMetadata.of(
-                ToolGroup.WORLD, 40,
-                "缩放演员并生成 Transform 片段",
-                "拖拽缩放手柄进行缩放"
-        ));
-        META.put("actor_lookat", ToolMetadata.of(
-                ToolGroup.WORLD, 50,
-                "设置演员注视目标",
-                "点击世界点或切换到摄像机"
+                "Select actor and show Gizmo",
+                "W/E/R: Move/Rotate/Scale"
         ));
         META.put("actor_path", ToolMetadata.of(
                 ToolGroup.WORLD, 60,
@@ -335,10 +319,7 @@ public final class ToolRegistry {
     }
 
     private void registerBuiltInExtraTools() {
-        addExtraToolIfMissing(new ActorMoveTool());
-        addExtraToolIfMissing(new ActorRotateTool());
-        addExtraToolIfMissing(new ActorScaleTool());
-        addExtraToolIfMissing(new ActorLookAtTool());
+        addExtraToolIfMissing(new ActorSelectTool());
         addExtraToolIfMissing(new ActorPathTool());
     }
 

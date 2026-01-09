@@ -3,6 +3,7 @@ package com.chronoblocks.ui.actor.pick;
 import com.chronoblocks.actor.preview.ActorPreviewManager;
 import com.chronoblocks.actor.preview.PreviewActorEntity;
 import com.chronoblocks.ui.actor.selection.ActorSelectionHub;
+import com.chronoblocks.ui.tools.ToolRegistry;
 import imgui.ImGui;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.Entity;
@@ -70,6 +71,11 @@ public final class ActorPickController {
             lastLeftMouseDown = isLeftMouseDown(client);
             return;
         }
+        if (!ToolRegistry.ACTOR_SELECT_TOOL_ID.equals(ToolRegistry.get().getActiveNonSelectionToolId())) {
+            lastLeftMouseDown = isLeftMouseDown(client);
+            return;
+        }
+
 
         boolean leftDown = isLeftMouseDown(client);
 
