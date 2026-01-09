@@ -3,6 +3,7 @@ package com.chronoblocks.mixin;
 import com.chronoblocks.core.selection.SelectionInputHandler;
 import com.chronoblocks.export.video.VideoExportManager;
 import com.chronoblocks.ui.ChronoBlocksScreen;
+import com.chronoblocks.ui.tools.ToolRegistry;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.Mouse;
 import net.minecraft.client.input.MouseInput;
@@ -146,6 +147,10 @@ public abstract class MouseMixin {
                 ci.cancel();
                 return;
             }
+            if (ToolRegistry.get().hasNonSelectionActiveTool()) {
+                return;
+            }
+
 
             // 🧭 不在 UI 上：交给方块选择逻辑处理
             if (button == GLFW.GLFW_MOUSE_BUTTON_LEFT) {
@@ -243,6 +248,10 @@ public abstract class MouseMixin {
         }
 
         if (selectionInputHandler == null) return;
+        if (ToolRegistry.get().hasNonSelectionActiveTool()) {
+            return;
+        }
+
 
         synchronized (selectionInputHandler) {
             selectionInputHandler.tick();

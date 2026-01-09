@@ -662,6 +662,9 @@ public class ChronoBlocksScreen extends Screen {
         // ⭐ Actor 放置系统：每帧更新（鼠标附着预览和右键放置）
         com.chronoblocks.ui.actor.placement.ActorPlacementController.getInstance().update();
 
+        // ⭐ Actor 路径工具：每帧更新（路径点采集与预览）
+        com.chronoblocks.ui.actor.path.ActorPathController.getInstance().update();
+
         // ⭐ Actor LookAt Gizmo 系统：每帧更新（LOOK_AT 模式下处理世界点击）
         com.chronoblocks.ui.actor.lookat.ActorLookAtGizmoController.getInstance().update();
 

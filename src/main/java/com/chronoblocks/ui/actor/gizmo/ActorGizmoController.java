@@ -141,6 +141,13 @@ public final class ActorGizmoController {
         return editingClip != null;
     }
 
+    public void setPreferredMode(GizmoMode mode) {
+        this.currentMode = mode != null ? mode : GizmoMode.TRANSLATE;
+        if (GizmoManager.get().getContext() != null) {
+            GizmoManager.get().getContext().setMode(this.currentMode);
+        }
+    }
+
     // =========================================================
     // Update Loop（每帧调用）
     // =========================================================

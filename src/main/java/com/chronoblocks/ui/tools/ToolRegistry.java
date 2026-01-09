@@ -3,6 +3,11 @@ package com.chronoblocks.ui.tools;
 import com.chronoblocks.core.selection.SelectionManager;
 import com.chronoblocks.core.selection.SelectionTool;
 import com.chronoblocks.ui.theme.Icons;
+import com.chronoblocks.ui.tools.impl.ActorLookAtTool;
+import com.chronoblocks.ui.tools.impl.ActorMoveTool;
+import com.chronoblocks.ui.tools.impl.ActorPathTool;
+import com.chronoblocks.ui.tools.impl.ActorRotateTool;
+import com.chronoblocks.ui.tools.impl.ActorScaleTool;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
@@ -87,6 +92,31 @@ public final class ToolRegistry {
                 "从当前激活容器中剔除方块",
                 "右键确认剔除，ESC 取消"
         ));
+        META.put("actor_move", ToolMetadata.of(
+                ToolGroup.WORLD, 20,
+                "移动演员并生成 Transform 片段",
+                "拖拽 Gizmo 进行移动"
+        ));
+        META.put("actor_rotate", ToolMetadata.of(
+                ToolGroup.WORLD, 30,
+                "旋转演员朝向并生成 Transform 片段",
+                "拖拽旋转环进行旋转"
+        ));
+        META.put("actor_scale", ToolMetadata.of(
+                ToolGroup.WORLD, 40,
+                "缩放演员并生成 Transform 片段",
+                "拖拽缩放手柄进行缩放"
+        ));
+        META.put("actor_lookat", ToolMetadata.of(
+                ToolGroup.WORLD, 50,
+                "设置演员注视目标",
+                "点击世界点或切换到摄像机"
+        ));
+        META.put("actor_path", ToolMetadata.of(
+                ToolGroup.WORLD, 60,
+                "绘制路径并生成移动片段",
+                "左键加点，右键完成"
+        ));
 
         // 占位工具（让 World/Timeline 架子先完整，后续直接替换/追加真实工具）
         META.put(WORLD_PLACEHOLDER_ID, ToolMetadata.of(
@@ -118,7 +148,8 @@ public final class ToolRegistry {
             selectionTools.add(new SelectionToolAdapter(tool, selectionManager));
         }
 
-        // 2) Extra 工具：World/Timeline 占位（disabled）
+        // 2) Extra 工具：World/Timeline（Actor 工具 + 占位）
+        registerBuiltInExtraTools();
         ensurePlaceholders();
 
         initialized = true;
@@ -300,17 +331,41 @@ public final class ToolRegistry {
     public synchronized void registerExtraTool(EditorTool tool) {
         if (tool == null) return;
         initializeIfNeeded();
+        addExtraToolIfMissing(tool);
+    }
+
+    private void registerBuiltInExtraTools() {
+        addExtraToolIfMissing(new ActorMoveTool());
+        addExtraToolIfMissing(new ActorRotateTool());
+        addExtraToolIfMissing(new ActorScaleTool());
+        addExtraToolIfMissing(new ActorLookAtTool());
+        addExtraToolIfMissing(new ActorPathTool());
+    }
+
+    private void addExtraToolIfMissing(EditorTool tool) {
+        if (tool == null) return;
         for (EditorTool existing : extraTools) {
             if (existing != null && Objects.equals(existing.getId(), tool.getId())) {
-                return; // 去重
+                return;
             }
         }
         extraTools.add(tool);
+        removePlaceholderForGroup(tool.getGroup());
+    }
+
+    private void removePlaceholderForGroup(ToolGroup group) {
+        String placeholderId = group == ToolGroup.WORLD ? WORLD_PLACEHOLDER_ID
+                : group == ToolGroup.TIMELINE ? TIMELINE_PLACEHOLDER_ID
+                : null;
+        if (placeholderId == null) {
+            return;
+        }
+        extraTools.removeIf(t -> t != null && Objects.equals(t.getId(), placeholderId));
     }
 
     private synchronized void ensurePlaceholders() {
-        // World placeholder
-        if (extraTools.stream().noneMatch(t -> t != null && Objects.equals(t.getId(), WORLD_PLACEHOLDER_ID))) {
+        if (!hasExtraToolInGroup(ToolGroup.WORLD)
+                && extraTools.stream().noneMatch(t -> t != null && Objects.equals(t.getId(), WORLD_PLACEHOLDER_ID))) {
             extraTools.add(new PlaceholderTool(
                     WORLD_PLACEHOLDER_ID,
                     Icons.WRENCH,
@@ -319,8 +374,8 @@ public final class ToolRegistry {
             ));
         }
 
-        // Timeline placeholder
-        if (extraTools.stream().noneMatch(t -> t != null && Objects.equals(t.getId(), TIMELINE_PLACEHOLDER_ID))) {
+        if (!hasExtraToolInGroup(ToolGroup.TIMELINE)
+                && extraTools.stream().noneMatch(t -> t != null && Objects.equals(t.getId(), TIMELINE_PLACEHOLDER_ID))) {
             extraTools.add(new PlaceholderTool(
                     TIMELINE_PLACEHOLDER_ID,
                     Icons.TIME,
@@ -328,6 +383,20 @@ public final class ToolRegistry {
                     "时间线工具系统尚未接入，敬请期待。"
             ));
         }
+    }
+
+    private boolean hasExtraToolInGroup(ToolGroup group) {
+        for (EditorTool tool : extraTools) {
+            if (tool == null) {
+                continue;
+            }
+            if (tool.getGroup() == group
+                    && !Objects.equals(tool.getId(), WORLD_PLACEHOLDER_ID)
+                    && !Objects.equals(tool.getId(), TIMELINE_PLACEHOLDER_ID)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     // =========================================================
