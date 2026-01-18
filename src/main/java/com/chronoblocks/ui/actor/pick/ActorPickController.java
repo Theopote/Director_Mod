@@ -238,9 +238,6 @@ public final class ActorPickController {
 
         // 如果没有直接命中，尝试从摄像机射线计算
         ChronoBlocksInputSystem.ImGuiRay ray = ChronoBlocksInputSystem.computeImGuiRay();
-        if (ray == null) {
-            return null;
-        }
 
         // 简单的射线检测（可以改进为更精确的方块检测）
         // TODO: 实现更精确的方块射线检测

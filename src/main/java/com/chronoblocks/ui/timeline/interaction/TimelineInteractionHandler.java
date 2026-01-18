@@ -851,7 +851,7 @@ public class TimelineInteractionHandler {
         // ⭐ 功能：选中单个关键帧时，播放头自动跳转到该关键帧的时间位置
         if (!addToSelection && model.getSelectedCount() == 1) {
             // 确保选中的确实是关键帧（不是 Clip 或其他类型）
-            Object selected = model.getSelectedItems().get(0);
+            Object selected = model.getSelectedItems().getFirst();
             if (selected instanceof com.chronoblocks.ui.timeline.model.clip.ClipKeyframe) {
                 float keyframeTime = kf.getTime();
                 model.setCurrentTime(keyframeTime);
