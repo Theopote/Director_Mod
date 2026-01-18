@@ -591,7 +591,7 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
      * 渲染底部状态栏
      */
     private void renderStatusBar() {
-        // 计算 FPS（平滑处理）
+        // 计算 FPS（平滑处理）- 每帧实时更新
         long currentTime = System.nanoTime();
         float deltaTime = (currentTime - lastFrameTime) / 1_000_000_000f;
         lastFrameTime = currentTime;
@@ -601,9 +601,10 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
             fps = fps * fpsSmoothing + currentFps * (1.0f - fpsSmoothing);
         }
         
-        // 获取状态信息
+        // 获取状态信息 - 每帧实时获取最新状态
         PlaybackController pc = PlaybackController.get();
         
+        // 实时统计面板数量
         int visiblePanels = 0;
         int totalPanels = 0;
         if (panelRegistry != null) {
@@ -615,6 +616,10 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
             }
         }
         
+        // 实时获取播放状态和时间信息
+        boolean isPlaying = pc.isPlaying();
+        boolean isLoop = pc.isLoop();
+        float playbackSpeed = pc.getSpeed();
         float currentTimeline = pc.getCurrentTime();
         float totalDuration = pc.getDuration();
         
@@ -630,40 +635,53 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
                   | ImGuiWindowFlags.NoScrollWithMouse
                   | ImGuiWindowFlags.NoCollapse;
         
+        // 保存并设置窗口样式：内边距为0，圆角为0（无圆角）
+        float[] oldPadding = new float[2];
+        oldPadding[0] = ImGui.getStyle().getWindowPadding().x;
+        oldPadding[1] = ImGui.getStyle().getWindowPadding().y;
+        ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.WindowPadding, 0.0f, 0.0f);
+        ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.WindowRounding, 0.0f);
+        
         if (ImGui.begin("##StatusBar", flags)) {
             try {
-                // 使用垂直居中对齐
-                ImGui.alignTextToFramePadding();
+                // 计算垂直居中位置：状态栏高度的一半减去文字高度的一半
+                float textHeight = ImGui.getTextLineHeight();
+                float centerY = (statusBarHeight - textHeight) * 0.5f;
+                ImGui.setCursorPosY(centerY);
                 
-                // 1. FPS显示（左侧）
-                UITheme.label(String.format("FPS: %.0f", fps), UITheme.DarkTheme.TEXT_DISABLED);
+                // 添加左侧内边距
+                ImGui.setCursorPosX(ImGui.getStyle().getFramePadding().x);
+                
+                // 1. FPS显示（左侧）- 实时更新
+                int fpsColor = fps >= 60 ? rgba(51, 204, 51)  // 绿色（高FPS）
+                        : (fps >= 30 ? rgba(255, 204, 51)     // 黄色（中等FPS）
+                        : rgba(255, 102, 102));                // 红色（低FPS）
+                UITheme.label(String.format("FPS: %.0f", fps), fpsColor);
                 ImGui.sameLine();
                 ImGui.text("|");
                 ImGui.sameLine();
                 
-                // 2. 播放状态
-                ImGui.alignTextToFramePadding();
-                String playStatus = pc.isPlaying() ? (Icons.PLAY + " Playing") : (Icons.PAUSE + " Paused");
-                int statusColor = pc.isPlaying() 
-                    ? rgba(51, 204, 51)  // 绿色
-                    : UITheme.DarkTheme.TEXT;
+                // 2. 播放状态 - 实时更新
+                String playStatus = isPlaying ? (Icons.PLAY + " Playing") : (Icons.PAUSE + " Paused");
+                int statusColor = isPlaying 
+                    ? rgba(51, 204, 51)  // 绿色（播放中）
+                    : UITheme.DarkTheme.TEXT;  // 灰色（暂停）
                 UITheme.label(playStatus, statusColor);
                 ImGui.sameLine();
                 ImGui.text("|");
                 ImGui.sameLine();
                 
-                // 3. 时间轴信息
-                ImGui.alignTextToFramePadding();
-                UITheme.label(String.format("Time: %.2fs / %.2fs", currentTimeline, totalDuration), 
+                // 3. 时间轴信息 - 实时更新（显示更精确的时间）
+                // 格式化时间：如果总时长小于60秒，显示到小数点后2位；否则显示到整数秒
+                String timeFormat = totalDuration < 60.0f ? "%.2fs / %.2fs" : "%.0fs / %.0fs";
+                UITheme.label(String.format("Time: " + timeFormat, currentTimeline, totalDuration), 
                     UITheme.DarkTheme.TEXT);
                 ImGui.sameLine();
                 ImGui.text("|");
                 ImGui.sameLine();
                 
-                // 4. 播放速度（如果非1.0x）
-                float playbackSpeed = pc.getSpeed();
+                // 4. 播放速度（如果非1.0x）- 实时更新
                 if (Math.abs(playbackSpeed - 1.0f) > 0.01f) {
-                    ImGui.alignTextToFramePadding();
                     UITheme.label(String.format("Speed: %.2fx", playbackSpeed), 
                         UITheme.DarkTheme.TEXT);
                     ImGui.sameLine();
@@ -671,9 +689,8 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
                     ImGui.sameLine();
                 }
                 
-                // 5. 循环状态
-                if (pc.isLoop()) {
-                    ImGui.alignTextToFramePadding();
+                // 5. 循环状态 - 实时更新
+                if (isLoop) {
                     UITheme.label(Icons.LOOP + " Loop", rgba(61, 133, 224));
                     ImGui.sameLine();
                     ImGui.text("|");
@@ -681,7 +698,6 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
                 }
                 
                 // 6. 面板数量
-                ImGui.alignTextToFramePadding();
                 UITheme.label(String.format("Panels: %d/%d", visiblePanels, totalPanels), 
                     UITheme.DarkTheme.TEXT_DISABLED);
                 
@@ -694,7 +710,6 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
                             ImGui.sameLine();
                             ImGui.text("|");
                             ImGui.sameLine();
-                            ImGui.alignTextToFramePadding();
                             UITheme.label(String.format("Containers: %d", containerCount), 
                                 UITheme.DarkTheme.TEXT_DISABLED);
                         }
@@ -707,7 +722,14 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
                 logger.error("[StatusBar] 渲染错误: {}", e.getMessage());
             } finally {
                 ImGui.end();
+                // 恢复窗口样式（圆角和内边距）
+                ImGui.popStyleVar(); // WindowRounding
+                ImGui.popStyleVar(); // WindowPadding
             }
+        } else {
+            // 如果窗口未开始，也要恢复样式
+            ImGui.popStyleVar(); // WindowRounding
+            ImGui.popStyleVar(); // WindowPadding
         }
     }
     
