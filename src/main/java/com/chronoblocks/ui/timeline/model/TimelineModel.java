@@ -45,6 +45,9 @@ public class TimelineModel {
     // ========== 轨道数据 ==========
     private final List<TimelineTrack> tracks = new ArrayList<>();
     
+    // ========== 标记数据（全局标记，不属于任何轨道）==========
+    private final List<TimelineMarker> markers = new ArrayList<>();
+    
     // ========== 性能优化：缓存动态时长 ==========
     private float cachedDynamicDuration = 0f;
     private boolean isDurationDirty = true; // 初始时需要计算
@@ -480,6 +483,46 @@ public class TimelineModel {
     public TimelineTrack getTrackAt(int index) {
         if (index >= 0 && index < tracks.size()) {
             return tracks.get(index);
+        }
+        return null;
+    }
+    
+    // ========== 标记管理 ==========
+    
+    /**
+     * 添加标记（全局标记，不属于任何轨道）
+     */
+    public void addMarker(TimelineMarker marker) {
+        if (marker == null) {
+            return;
+        }
+        markers.add(marker);
+        notifyModelChanged("marker_added");
+    }
+    
+    /**
+     * 移除标记
+     */
+    public void removeMarker(java.util.UUID markerId) {
+        markers.removeIf(m -> m.getId().equals(markerId));
+        notifyModelChanged("marker_removed");
+    }
+    
+    /**
+     * 获取所有标记
+     */
+    public List<TimelineMarker> getMarkers() {
+        return new ArrayList<>(markers);
+    }
+    
+    /**
+     * 查找指定时间点的标记
+     */
+    public TimelineMarker findMarkerAt(float time, float epsilon) {
+        for (TimelineMarker marker : markers) {
+            if (Math.abs(marker.getTime() - time) < epsilon) {
+                return marker;
+            }
         }
         return null;
     }

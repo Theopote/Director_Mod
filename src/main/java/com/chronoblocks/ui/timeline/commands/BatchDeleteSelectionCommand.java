@@ -70,10 +70,21 @@ public class BatchDeleteSelectionCommand extends BaseTimelineCommand {
             executed.add(cmd);
         }
 
-        // 3) 自动化关键帧删除（轨道级）
+        // 3) 标记删除（全局标记，不属于轨道）
+        for (Object it : selectionSnapshot) {
+            if (it instanceof com.chronoblocks.ui.timeline.model.TimelineMarker marker) {
+                TimelineCommand cmd = new DeleteMarkerCommand(model, marker);
+                cmd.execute();
+                executed.add(cmd);
+            }
+        }
+
+        // 4) 自动化关键帧删除（轨道级）
         for (Object it : selectionSnapshot) {
             if (!(it instanceof TimelineSelectable selectable)) continue;
             if (it instanceof TimelineClip) continue;
+            // 跳过标记（已在步骤3处理）
+            if (it instanceof com.chronoblocks.ui.timeline.model.TimelineMarker) continue;
             // 与现有删除逻辑一致：音频事件点默认不通过工具栏/Del 批量删除
             if (it instanceof com.chronoblocks.ui.timeline.model.audio.AudioEvent) continue;
 

@@ -27,7 +27,8 @@ public record TimelineHitResult(
         TRACK_HEADER,
         CLIP,
         KEYFRAME,
-        AUTOMATION_KEYFRAME
+        AUTOMATION_KEYFRAME,
+        MARKER  // ⭐ 标记（在时间标尺上）
     }
 
     public static TimelineHitResult none() {
@@ -68,5 +69,13 @@ public record TimelineHitResult(
     public static TimelineHitResult automationKeyframe(TimelineTrack track, TimelineSelectable keyframe, int trackIndex) {
         return new TimelineHitResult(HitType.AUTOMATION_KEYFRAME, track, null, null, keyframe, 
                 keyframe != null ? keyframe.getStartTime() : -1f, trackIndex, -1);
+    }
+    
+    /**
+     * 创建标记的命中结果（时间标尺上的标记）
+     */
+    public static TimelineHitResult marker(com.chronoblocks.ui.timeline.model.TimelineMarker marker) {
+        return new TimelineHitResult(HitType.MARKER, null, null, null, marker,
+                marker != null ? marker.getTime() : -1f, -1, -1);
     }
 }

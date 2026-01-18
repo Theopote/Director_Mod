@@ -24,6 +24,7 @@ public class TimelineInteractionManager {
         DRAG_PLAYHEAD,             // 拖动播放头
         DRAG_KEYFRAME,             // 拖动关键帧（Clip 内的关键帧）
         DRAG_AUTOMATION_KEYFRAME,  // 拖动自动化关键帧（轨道级别的关键帧）
+        DRAG_MARKER,               // ⭐ 拖动标记（时间标尺上的标记）
         BOX_SELECT,                // 框选
         PAINT_ACTION               // ⭐ 涂抹 Action（Action 区间编辑）
     }

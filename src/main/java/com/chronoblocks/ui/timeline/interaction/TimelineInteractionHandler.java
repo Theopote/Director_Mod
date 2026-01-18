@@ -191,6 +191,33 @@ public class TimelineInteractionHandler {
     }
     
     /**
+     * ⭐ 获取正在拖动中的标记的临时时间（用于渲染系统）
+     * 
+     * <p>在拖动过程中，标记的实际时间不会改变，但 UI 需要显示拖动中的位置。
+     * 此方法返回拖动中的临时时间，如果没有拖动则返回 -1。
+     * 
+     * @param marker 标记
+     * @return 临时时间，如果没有拖动则返回 -1
+     */
+    public float getDraggedMarkerTime(com.chronoblocks.ui.timeline.model.TimelineMarker marker) {
+        if (marker == null) {
+            return -1f;
+        }
+        
+        InteractionMode mode = interactionManager.getCurrentMode();
+        if (mode == InteractionMode.DRAG_MARKER) {
+            Object active = interactionManager.getActiveObject();
+            if (active instanceof MarkerHandle handle) {
+                if (handle.marker == marker || handle.marker.getId().equals(marker.getId())) {
+                    return handle.currentTime;
+                }
+            }
+        }
+        
+        return -1f;
+    }
+    
+    /**
      * 获取正在拖动中的 Clip 关键帧的临时时间（用于渲染系统）
      * 
      * <p>在拖动过程中，关键帧的实际时间不会改变，但 UI 需要显示拖动中的位置。
@@ -480,6 +507,15 @@ public class TimelineInteractionHandler {
                 case CLIP -> onClipClicked(hit, mouseX, contentX, isDoubleClick);
                 case KEYFRAME -> onKeyframeClicked(hit, mouseX, contentX, isDoubleClick);
                 case AUTOMATION_KEYFRAME -> onAutomationKeyframeClicked(hit, mouseX, contentX, isDoubleClick);
+                case MARKER -> {
+                    // ⭐ 标记左键点击：选择标记（右键拖动在 TimelinePanel.handleRulerInteractions 中处理）
+                    com.chronoblocks.ui.timeline.model.TimelineMarker marker = 
+                        (com.chronoblocks.ui.timeline.model.TimelineMarker) hit.automationKeyframe();
+                    if (marker != null) {
+                        model.selectItem(marker, false);
+                        syncPropertiesSelection(marker);
+                    }
+                }
                 case EMPTY -> startMarqueeCandidate(mouseX, mouseY, trackAreaTop, scrollY);
                 default -> { /* NONE / TRACK_HEADER 在这里忽�?*/ }
             }
@@ -1147,6 +1183,17 @@ public class TimelineInteractionHandler {
                     }
                 }
             }
+            case MARKER -> {
+                // ⭐ 标记右键：选择标记并打开属性面板（已在 TimelinePanel.handleRulerInteractions 中处理）
+                com.chronoblocks.ui.timeline.model.TimelineMarker marker = 
+                    (com.chronoblocks.ui.timeline.model.TimelineMarker) hit.automationKeyframe();
+                if (marker != null) {
+                    if (!model.isSelected(marker)) {
+                        model.selectItem(marker, false);
+                    }
+                    syncPropertiesSelection(marker);
+                }
+            }
             case EMPTY, NONE, TRACK_HEADER -> {
                 // 空白区域右键：保持现有选择，很多软件右键空白也不清空
             }
@@ -1276,6 +1323,21 @@ public class TimelineInteractionHandler {
 
                 LOGGER.debug("[Timeline] 自动化关键帧拖动完成 {} -> {}", originalTime, finalTime);
             }
+        } else if (mode == InteractionMode.DRAG_MARKER) {
+            if (obj instanceof MarkerHandle handle) {
+                float originalTime = interactionManager.getDragStartValue();
+                float finalTime = handle.currentTime;
+
+                // ⭐ 使用 MoveMarkerCommand 处理标记移动（支持撤销/重做）
+                commandHistory.executeCommand(
+                    new com.chronoblocks.ui.timeline.commands.MoveMarkerCommand(
+                        model, handle.marker, originalTime, finalTime)
+                );
+
+                if (callbacks != null) callbacks.onDataChanged();
+
+                LOGGER.debug("[Timeline] 标记拖动完成 {} -> {}", originalTime, finalTime);
+            }
         } else if (mode == InteractionMode.DRAG_PLAYHEAD) {
             // ⭐ 拖动播放头结束：通知摄像机控制器结束 scrubbing
             float finalTime = model.getCurrentTime();
@@ -1295,8 +1357,16 @@ public class TimelineInteractionHandler {
                             float contentW,
                             float viewportH,
                             float scrollY) {
-        if (!ImGui.isMouseDown(ImGuiMouseButton.Left)) return;
+        // ⭐ 支持右键拖动标记
+        boolean isLeftMouseDown = ImGui.isMouseDown(ImGuiMouseButton.Left);
+        boolean isRightMouseDown = ImGui.isMouseDown(ImGuiMouseButton.Right);
+        if (!isLeftMouseDown && !isRightMouseDown) return;
         if (!interactionManager.isInteracting()) return;
+        
+        // 右键拖动只支持标记
+        if (isRightMouseDown && !interactionManager.isInteracting(InteractionMode.DRAG_MARKER)) {
+            return;
+        }
 
         InteractionMode mode = interactionManager.getCurrentMode();
         float mouseX = ImGui.getMousePosX();
@@ -1308,6 +1378,7 @@ public class TimelineInteractionHandler {
             case RESIZE_CLIP_RIGHT -> resizeClipRight(mouseX, contentX);
             case DRAG_KEYFRAME -> dragKeyframe(mouseX, contentX);
             case DRAG_AUTOMATION_KEYFRAME -> dragAutomationKeyframe(mouseX, contentX);
+            case DRAG_MARKER -> dragMarker(mouseX, contentX);  // ⭐ 拖动标记
             case DRAG_PLAYHEAD -> dragPlayhead(mouseX, contentX);
             case PAINT_ACTION -> paintAction(mouseX, contentX); // ⭐ Action 涂抹
             default -> { /* 其他模式暂不处理 */ }
@@ -1780,6 +1851,134 @@ public class TimelineInteractionHandler {
         
         LOGGER.debug("[TimelineInteractionHandler] 点击时间标尺，跳转到 {:.2f}s", clampedTime);
     }
+    
+    /**
+     * ⭐ 开始拖动标记（右键拖动）
+     * 
+     * @param marker 要拖动的标记
+     * @param mouseX 鼠标 X 坐标
+     * @param contentX 内容区域 X 起点
+     */
+    public void startMarkerDrag(com.chronoblocks.ui.timeline.model.TimelineMarker marker, float mouseX, float contentX) {
+        if (marker == null) {
+            LOGGER.warn("[Timeline] 开始拖动标记失败：marker 为 null");
+            return;
+        }
+        
+        // 开始拖动交互
+        MarkerHandle handle = new MarkerHandle(marker);
+        interactionManager.startInteraction(
+                InteractionMode.DRAG_MARKER,
+                handle,
+                mouseX, ImGui.getMousePosY(),
+                marker.getTime(), 0f
+        );
+        
+        if (callbacks != null) {
+            callbacks.onDataChanged();
+        }
+        
+        LOGGER.debug("[TimelineInteractionHandler] 开始拖动标记 @ {:.2f}s", marker.getTime());
+    }
+    
+    /**
+     * ⭐ 更新标记拖动位置
+     * 
+     * @param mouseX 鼠标 X 坐标
+     * @param contentX 内容区域 X 起点
+     */
+    public void updateMarkerDrag(float mouseX, float contentX) {
+        if (!interactionManager.isInteracting(InteractionMode.DRAG_MARKER)) {
+            return;
+        }
+        
+        Object active = interactionManager.getActiveObject();
+        if (!(active instanceof MarkerHandle handle)) {
+            return;
+        }
+        
+        float rawTime = renderer.xToTime(mouseX, contentX);
+        TimelineSnapping.Result snap = TimelineSnapping.snapTime(
+                model, rawTime, null, null, 0f
+        );
+        float newTime = Math.max(0f, Math.min(model.getDuration(), snap.snappedTime));
+        
+        float eps = 0.001f;
+        if (Math.abs(newTime - handle.currentTime) < eps) {
+            return;
+        }
+        
+        // 实时预览：只更新 Handle 的临时时间，不修改模型
+        handle.currentTime = newTime;
+        
+        // 通知 UI 刷新（渲染系统会读取 handle.currentTime 来显示标记位置）
+        if (callbacks != null) {
+            callbacks.onDataChanged();
+        }
+    }
+    
+    /**
+     * ⭐ 结束标记拖动
+     */
+    public void endMarkerDrag() {
+        if (!interactionManager.isInteracting(InteractionMode.DRAG_MARKER)) {
+            return;
+        }
+        
+        Object active = interactionManager.getActiveObject();
+        if (active instanceof MarkerHandle handle) {
+            float originalTime = interactionManager.getDragStartValue();
+            float finalTime = handle.currentTime;
+
+            // 使用 MoveMarkerCommand 处理标记移动（支持撤销/重做）
+            commandHistory.executeCommand(
+                new com.chronoblocks.ui.timeline.commands.MoveMarkerCommand(
+                    model, handle.marker, originalTime, finalTime)
+            );
+
+            if (callbacks != null) callbacks.onDataChanged();
+
+            LOGGER.debug("[Timeline] 标记拖动完成 {} -> {}", originalTime, finalTime);
+        }
+        
+        interactionManager.endInteraction();
+    }
+    
+    /**
+     * ⭐ 检查是否正在拖动标记
+     */
+    public boolean isDraggingMarker() {
+        return interactionManager.isInteracting(InteractionMode.DRAG_MARKER);
+    }
+    
+    /**
+     * ⭐ 拖动标记（内部方法，由 handleDrag 调用）
+     */
+    private void dragMarker(float mouseX, float contentX) {
+        Object active = interactionManager.getActiveObject();
+        if (!(active instanceof MarkerHandle handle)) {
+            return;
+        }
+        
+        float rawTime = renderer.xToTime(mouseX, contentX);
+        TimelineSnapping.Result snap = TimelineSnapping.snapTime(
+                model, rawTime, null, null, 0f
+        );
+        float newTime = Math.max(0f, Math.min(model.getDuration(), snap.snappedTime));
+        
+        float eps = 0.001f;
+        if (Math.abs(newTime - handle.currentTime) < eps) {
+            return;
+        }
+        
+        // 实时预览：只更新 Handle 的临时时间，不修改模型
+        handle.currentTime = newTime;
+        
+        // 通知 UI 刷新
+        if (callbacks != null) {
+            callbacks.onDataChanged();
+        }
+    }
 
     private void dragPlayhead(float mouseX, float contentX) {
         float rawTime = renderer.xToTime(mouseX, contentX);
@@ -1844,6 +2043,19 @@ public class TimelineInteractionHandler {
             this.track = track;
             this.keyframe = keyframe;
             this.currentTime = keyframe.getStartTime();
+        }
+    }
+    
+    /**
+     * 标记拖动 Handle（用于存储拖动状态）
+     */
+    private static final class MarkerHandle {
+        final com.chronoblocks.ui.timeline.model.TimelineMarker marker;
+        float currentTime;
+
+        MarkerHandle(com.chronoblocks.ui.timeline.model.TimelineMarker marker) {
+            this.marker = marker;
+            this.currentTime = marker.getTime();
         }
     }
 

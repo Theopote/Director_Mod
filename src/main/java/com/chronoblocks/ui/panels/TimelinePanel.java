@@ -120,6 +120,10 @@ public class TimelinePanel extends AbstractPanel
     private float rulerClickStartX = -1f;
     private float rulerClickStartY = -1f;
     private static final float DRAG_THRESHOLD = 5f; // 拖动阈值（像素）
+    
+    // ⭐ 标记拖动状态跟踪（右键拖动标记）
+    private com.chronoblocks.ui.timeline.model.TimelineMarker draggedMarker = null;
+    private float markerDragStartX = -1f;
 
     // ========== 性能优化：基于时间的定时器 ==========
     // 使用时间戳代替帧计数，避免受 FPS 波动影响
@@ -155,6 +159,11 @@ public class TimelinePanel extends AbstractPanel
             @Override
             public float getDraggedClipKeyframeTime(TimelineClip clip, float keyframeTime) {
                 return interactionHandler.getDraggedClipKeyframeTime(clip, keyframeTime);
+            }
+            
+            @Override
+            public float getDraggedMarkerTime(com.chronoblocks.ui.timeline.model.TimelineMarker marker) {
+                return interactionHandler.getDraggedMarkerTime(marker);
             }
         });
 
@@ -960,6 +969,97 @@ public class TimelinePanel extends AbstractPanel
             rulerClickStartX = -1f;
             rulerClickStartY = -1f;
         }
+        
+        // ⭐ 右键点击时间标尺：检测标记或打开空白菜单
+        if (ImGui.isMouseClicked(ImGuiMouseButton.Right) && (isInRulerArea || hovered)) {
+            // 先检测是否点击了标记
+            com.chronoblocks.ui.timeline.model.TimelineMarker clickedMarker = hitTestMarker(mouseX, mouseY, contentX, winY, rulerHeight);
+            if (clickedMarker != null) {
+                // 点击了标记：开始拖动（右键按住拖动）
+                draggedMarker = clickedMarker;
+                markerDragStartX = mouseX;
+                // 选择标记
+                model.selectItem(clickedMarker, false);  // 单选标记
+                // 同步到属性面板
+                com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(clickedMarker);
+                LOGGER.debug("[TimelinePanel] 右键点击标记，开始拖动: {}", clickedMarker.getName());
+            } else {
+                // 没有点击标记：打开空白菜单（可以添加标记）
+                float clickTime = renderer.xToTime(mouseX, contentX);
+                // 创建并打开空白菜单
+                TimelineContextMenuFactory menuFactory = TimelineContextMenuFactory.forPanel(this, model, commandHistory);
+                TimelineContextMenu menu = menuFactory.createEmptyAreaMenu(clickTime);
+                if (menu != null) {
+                    menu.open();
+                }
+            }
+        }
+        
+        // ⭐ 右键拖动标记
+        if (ImGui.isMouseDown(ImGuiMouseButton.Right) && draggedMarker != null) {
+            // 检测是否真的拖动（移动距离超过阈值）
+            float deltaX = Math.abs(mouseX - markerDragStartX);
+            if (deltaX > DRAG_THRESHOLD) {
+                // 开始拖动标记
+                if (!interactionHandler.isDraggingMarker()) {
+                    interactionHandler.startMarkerDrag(draggedMarker, markerDragStartX, contentX);
+                }
+                // 更新拖动位置
+                interactionHandler.updateMarkerDrag(mouseX, contentX);
+            }
+        }
+        
+        // ⭐ 右键松开：结束拖动或打开属性面板
+        if (ImGui.isMouseReleased(ImGuiMouseButton.Right)) {
+            if (draggedMarker != null) {
+                float deltaX = Math.abs(mouseX - markerDragStartX);
+                if (deltaX > DRAG_THRESHOLD) {
+                    // 是拖动：结束拖动
+                    interactionHandler.endMarkerDrag();
+                } else {
+                    // 是点击：打开属性面板（已在点击时处理）
+                }
+                draggedMarker = null;
+                markerDragStartX = -1f;
+            }
+        }
+    }
+    
+    /**
+     * 检测鼠标是否点击了标记
+     */
+    private com.chronoblocks.ui.timeline.model.TimelineMarker hitTestMarker(
+            float mouseX, float mouseY, float contentX, float rulerTop, float rulerHeight) {
+        if (model == null) {
+            return null;
+        }
+        
+        float centerY = rulerTop + rulerHeight * 0.5f;
+        float hitRadius = 6.0f;  // 6px 半径
+        
+        java.util.List<com.chronoblocks.ui.timeline.model.TimelineMarker> markers = model.getMarkers();
+        if (markers == null || markers.isEmpty()) {
+            return null;
+        }
+        
+        for (com.chronoblocks.ui.timeline.model.TimelineMarker marker : markers) {
+            if (marker == null) continue;
+            
+            float markerTime = marker.getTime();
+            float mx = renderer.timeToX(markerTime, contentX);  // ⭐ 修复：应该是 timeToX 而不是 xToTime
+            float mxAligned = (float) Math.floor(mx) + 0.5f;
+            
+            // 计算距离
+            float dx = mouseX - mxAligned;
+            float dy = mouseY - centerY;
+            float distSq = dx * dx + dy * dy;
+            
+            if (distSq <= hitRadius * hitRadius) {
+                return marker;  // 命中标记
+            }
+        }
+        
+        return null;
     }
 
     /**

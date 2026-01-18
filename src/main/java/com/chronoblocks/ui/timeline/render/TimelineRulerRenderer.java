@@ -1,6 +1,7 @@
 package com.chronoblocks.ui.timeline.render;
 
 import imgui.ImDrawList;
+import imgui.ImGui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,6 +30,8 @@ public final class TimelineRulerRenderer {
     private final TimelineRenderMath math;
     private final TimelineRenderViewport viewport;
     private final TimelineTimeFormatter timeFormatter;
+    private com.chronoblocks.ui.timeline.model.TimelineModel model;
+    private TimelineRenderer.DragStateQuery dragStateQuery;  // ⭐ 拖动状态查询器（用于显示拖动中的标记位置）
     
     // ★ 性能优化：使用 Map 缓存步长计算，避免重复计算
     // 由于 pps 值可能很多，使用缓存可以显著提升性能
@@ -44,6 +47,20 @@ public final class TimelineRulerRenderer {
         if (logger.isTraceEnabled()) {
             logger.trace("TimelineRulerRenderer initialized");
         }
+    }
+    
+    /**
+     * 设置 TimelineModel（用于渲染标记）
+     */
+    public void setModel(com.chronoblocks.ui.timeline.model.TimelineModel model) {
+        this.model = model;
+    }
+    
+    /**
+     * ⭐ 设置拖动状态查询器（用于显示拖动中的标记位置）
+     */
+    public void setDragStateQuery(TimelineRenderer.DragStateQuery dragStateQuery) {
+        this.dragStateQuery = dragStateQuery;
     }
 
     /**
@@ -112,6 +129,120 @@ public final class TimelineRulerRenderer {
 
         // ★ v9.0 优化：移除播放头顶部的水平横短线
         // 播放头的手柄现在放在刻度尺上方，不再需要这条横短线
+        
+        // ⭐ 渲染标记（在时间标尺上）
+        if (model != null) {
+            renderMarkers(drawList, contentX, topY, contentW, rulerHeight, timeStart, timeEnd);
+        }
+    }
+    
+    /**
+     * 渲染标记（轻量化的标签样式）
+     */
+    private void renderMarkers(ImDrawList drawList, float contentX, float topY, float contentW, 
+                               float rulerHeight, float timeStart, float timeEnd) {
+        if (model == null) {
+            return;
+        }
+        
+        java.util.List<com.chronoblocks.ui.timeline.model.TimelineMarker> markers = model.getMarkers();
+        if (markers == null || markers.isEmpty()) {
+            return;
+        }
+        
+        // ⭐ 标记贴着时间刻度上边缘
+        float markerY = topY + 2.0f;  // 距离上边缘 2px
+        float centerY = topY + rulerHeight * 0.5f;  // 保留用于 hover 检测
+        float mouseX = ImGui.getIO().getMousePosX();
+        float mouseY = ImGui.getIO().getMousePosY();
+        
+        for (com.chronoblocks.ui.timeline.model.TimelineMarker marker : markers) {
+            if (marker == null) continue;
+            
+            // ⭐ 检查是否正在拖动此标记（使用拖动中的临时时间）
+            float markerTime = marker.getTime();
+            if (dragStateQuery != null) {
+                float draggedTime = dragStateQuery.getDraggedMarkerTime(marker);
+                if (draggedTime >= 0f) {
+                    markerTime = draggedTime;  // 使用拖动中的临时时间
+                }
+            }
+            
+            // 跳过不可见的标记
+            if (markerTime < timeStart || markerTime > timeEnd) {
+                continue;
+            }
+            
+            float mx = math.timeToX(markerTime);
+            if (mx < contentX || mx > contentX + contentW) continue;
+            
+            float mxAligned = (float) Math.floor(mx) + 0.5f;
+            
+            // Hover 检测
+            float dx = mouseX - mxAligned;
+            float dy = mouseY - centerY;
+            float distSq = dx * dx + dy * dy;
+            boolean hovering = distSq <= 6.0f * 6.0f; // 6px 半径
+            
+            // 检查是否被选中
+            boolean isSelected = model.isSelected(marker);
+            
+            // 获取标记颜色
+            // ⭐ 修复：marker.getColor() 是 ARGB 格式，需要转换为 ImGui 使用的 ABGR 格式
+            int markerColor = marker.getColor();
+            int a = (markerColor >> 24) & 0xFF;
+            int r = (markerColor >> 16) & 0xFF;
+            int g = (markerColor >> 8) & 0xFF;
+            int b = markerColor & 0xFF;
+            
+            int kfCol;
+            if (isSelected) {
+                // 选中时使用高亮颜色，并稍微变大
+                kfCol = com.chronoblocks.ui.timeline.render.TimelineColors.COLOR_KEYFRAME_SELECTED;
+            } else if (hovering) {
+                // 标记 hover 时稍微变亮
+                kfCol = com.chronoblocks.ui.timeline.render.TimelineColors.rgba(
+                    Math.min(255, r + 40),
+                    Math.min(255, g + 40),
+                    Math.min(255, b + 40),
+                    255
+                );
+            } else {
+                // 正常状态：将 ARGB 转换为 ABGR（ImGui 格式）
+                kfCol = com.chronoblocks.ui.timeline.render.TimelineColors.rgba(r, g, b, a);
+            }
+            
+            // 绘制小三角形（向下指向，看起来像标签）
+            float markerSize = 4.0f;  // 标记更小
+            if (isSelected) {
+                markerSize = 5.0f;  // 选中时变大
+                // ⭐ 移除高亮圈，只保留标记变大和高亮
+            }
+            
+            // 绘制小三角形（向下指向，看起来像标签）
+            // ⭐ 标记贴着上边缘，三角形从上边缘开始
+            float triTop = markerY;
+            float triBottom = markerY + markerSize * 1.4f;
+            float triWidth = markerSize * 0.8f;
+            
+            // 绘制填充三角形（向下指向）
+            drawList.addTriangleFilled(
+                mxAligned, triTop,  // 顶点
+                mxAligned - triWidth, triBottom,  // 左下
+                mxAligned + triWidth, triBottom,  // 右下
+                kfCol
+            );
+            
+            // 绘制三角形边框（选中时更明显）
+            if (isSelected) {
+                drawList.addTriangle(
+                    mxAligned, triTop,
+                    mxAligned - triWidth, triBottom,
+                    mxAligned + triWidth, triBottom,
+                    com.chronoblocks.ui.timeline.render.TimelineColors.rgba(0, 0, 0, 200), 1.0f
+                );
+            }
+        }
     }
 
     /**

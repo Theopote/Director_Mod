@@ -6,6 +6,7 @@ import com.chronoblocks.ui.timeline.model.TimelineClip;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 
 import imgui.ImGui;
+import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiPopupFlags;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -235,12 +236,58 @@ public class TimelineContextMenu {
      * 
      * <p>⭐ 修复：添加自动关闭机制
      * 当 popup 不再打开时，菜单会自动关闭，避免多次右键导致的问题。
+     * 
+     * <p>⭐ 修复：确保菜单不会超出屏幕边界
+     * 在打开菜单时，计算并调整位置，确保菜单完全可见。
      */
     public void render() {
         // ⭐ 修复：检查 popup 是否应该打开，如果没有打开则不需要渲染
         if (!ImGui.isPopupOpen(popupId, ImGuiPopupFlags.None)) {
             return;
         }
+        
+        // ⭐ 修复：设置菜单位置，确保不会超出屏幕边界
+        // 使用鼠标位置作为基准，但会由 ImGui 自动调整到屏幕内
+        float mouseX = ImGui.getMousePosX();
+        float mouseY = ImGui.getMousePosY();
+        
+        // 获取视口信息，用于边界检查
+        imgui.ImGuiViewport viewport = ImGui.getMainViewport();
+        float viewportX = viewport.getWorkPosX();
+        float viewportY = viewport.getWorkPosY();
+        float viewportW = viewport.getWorkSizeX();
+        float viewportH = viewport.getWorkSizeY();
+        
+        // 估算菜单大小（可以根据实际菜单项数量调整）
+        // 假设每个菜单项高度约 20px，加上一些边距
+        float estimatedMenuHeight = Math.min(menuItems.size() * 20f + 20f, viewportH * 0.8f);
+        float estimatedMenuWidth = 200f; // 估算菜单宽度
+        
+        // 计算菜单位置，确保不超出屏幕
+        float menuX = mouseX;
+        float menuY = mouseY;
+        
+        // 如果菜单会超出右边界，则向左调整
+        if (menuX + estimatedMenuWidth > viewportX + viewportW) {
+            menuX = viewportX + viewportW - estimatedMenuWidth;
+            // 确保不会超出左边界
+            if (menuX < viewportX) {
+                menuX = viewportX + 10f; // 留一些边距
+            }
+        }
+        
+        // 如果菜单会超出下边界，则向上调整
+        if (menuY + estimatedMenuHeight > viewportY + viewportH) {
+            menuY = viewportY + viewportH - estimatedMenuHeight;
+            // 确保不会超出上边界
+            if (menuY < viewportY) {
+                menuY = viewportY + 10f; // 留一些边距
+            }
+        }
+        
+        // 设置菜单位置（使用 ImGuiCond.Appearing 只在首次出现时设置）
+        // 注意：对于 popup，我们不需要设置 pivot，因为 popup 默认从左上角定位
+        ImGui.setNextWindowPos(menuX, menuY, ImGuiCond.Appearing);
         
         boolean popupOpen = ImGui.beginPopup(popupId);
         if (popupOpen) {

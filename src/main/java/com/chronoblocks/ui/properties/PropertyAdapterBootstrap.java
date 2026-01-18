@@ -189,6 +189,11 @@ public final class PropertyAdapterBootstrap {
                     new WeatherKeyframePropertyAdapter());
             registeredCount++;
             
+            // ✅ 标记适配器
+            registerAdapter(com.chronoblocks.ui.timeline.model.TimelineMarker.class,
+                    new com.chronoblocks.ui.properties.adapters.TimelineMarkerPropertyAdapter());
+            registeredCount++;
+            
             // ✅ 实体关键帧适配器
             registerAdapter(com.chronoblocks.ui.timeline.model.entity.EntityKeyframe.class,
                     new EntityKeyframePropertyAdapter());

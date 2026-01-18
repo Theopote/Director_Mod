@@ -10,6 +10,8 @@ import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
 import com.chronoblocks.ui.timeline.model.time.TimeKeyframe;
 import com.chronoblocks.ui.timeline.model.season.SeasonKeyframe;
+// ⚠️ TimelineMarker 已移至时间标尺渲染，不再在轨道上渲染
+// import com.chronoblocks.ui.timeline.model.TimelineMarker;
 
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -122,6 +124,13 @@ public class TimelineRenderer {
          * @return 临时时间，如果没有拖动则返回 -1
          */
         float getDraggedClipKeyframeTime(TimelineClip clip, float keyframeTime);
+        
+        /**
+         * ⭐ 获取正在拖动中的标记的临时时间
+         * @param marker 标记
+         * @return 临时时间，如果没有拖动则返回 -1
+         */
+        float getDraggedMarkerTime(com.chronoblocks.ui.timeline.model.TimelineMarker marker);
     }
 
     public TimelineRenderer(TimelineModel model, TimelineViewportState viewportState) {
@@ -140,6 +149,7 @@ public class TimelineRenderer {
         // 初始化拆分后的渲染组件
         this.dividerHandler = new TimelineDividerHandler(viewport);
         this.rulerRenderer = new TimelineRulerRenderer(math, viewport);
+        this.rulerRenderer.setModel(model);  // ⭐ 设置 model 用于渲染标记
         this.trackRenderer = new TimelineTrackRenderer(viewport);
         this.clipRenderer = new TimelineClipRenderer(model, math);
         this.playheadRenderer = new TimelinePlayheadRenderer(model, math);
@@ -164,6 +174,10 @@ public class TimelineRenderer {
         // 同时传递给 audioRenderer（用于音频点实时预览）
         if (audioRenderer != null) {
             audioRenderer.setDragStateQuery(dragStateQuery);
+        }
+        // ⭐ 同时传递给 rulerRenderer（用于标记拖动实时预览）
+        if (rulerRenderer != null) {
+            rulerRenderer.setDragStateQuery(dragStateQuery);
         }
     }
 
@@ -374,6 +388,9 @@ public class TimelineRenderer {
                 keyType = ((CameraKeyframe) keyframe).getKeyType();
             }
             
+            // ⚠️ 标记已移至时间标尺渲染，不再在轨道上渲染
+            // boolean isMarker = keyframe instanceof TimelineMarker;
+            
             // ⭐ 时间关键帧使用特殊颜色（橙色系，与时间轨道颜色一致）
             boolean isTimeKeyframe = keyframe instanceof TimeKeyframe;
             
@@ -402,11 +419,14 @@ public class TimelineRenderer {
                 }
             }
 
-            // ✅ 像素级对齐：不要用粗线 addLine（容易出现视觉偏移）
-            // 改为明确宽度的填充矩形：1px 主线 + 3px 阴影，中心严格对齐 kxAligned。
-            float lineBottom = y + TimelineRenderer.TRACK_HEIGHT;
-            drawList.addRectFilled(kxAligned - 1.5f, y, kxAligned + 1.5f, lineBottom, TimelineColors.rgba(0, 0, 0, 80));
-            drawList.addRectFilled(kxAligned - 0.5f, y, kxAligned + 0.5f, lineBottom, kfCol);
+            // ⚠️ 标记已移至时间标尺渲染，不再在轨道上渲染
+            {
+                // ✅ 像素级对齐：不要用粗线 addLine（容易出现视觉偏移）
+                // 改为明确宽度的填充矩形：1px 主线 + 3px 阴影，中心严格对齐 kxAligned。
+                float lineBottom = y + TimelineRenderer.TRACK_HEIGHT;
+                drawList.addRectFilled(kxAligned - 1.5f, y, kxAligned + 1.5f, lineBottom, TimelineColors.rgba(0, 0, 0, 80));
+                drawList.addRectFilled(kxAligned - 0.5f, y, kxAligned + 0.5f, lineBottom, kfCol);
+            }
 
             // 绘制关键帧形状（根据 KeyType）
             // 增大关键帧尺寸

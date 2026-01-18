@@ -10,8 +10,9 @@ import com.chronoblocks.ui.timeline.commands.MoveTrackCommand;
 import com.chronoblocks.ui.timeline.commands.SetClipLengthCommand;
 import com.chronoblocks.ui.timeline.commands.TimelineCommandHistory;
 import com.chronoblocks.ui.timeline.commands.ToggleTrackLockCommand;
-import com.chronoblocks.ui.timeline.commands.ToggleTrackMuteCommand;
-import com.chronoblocks.ui.timeline.commands.ToggleTrackSoloCommand;
+// ⚠️ 独奏和静音选项已删除，导入已注释
+// import com.chronoblocks.ui.timeline.commands.ToggleTrackMuteCommand;
+// import com.chronoblocks.ui.timeline.commands.ToggleTrackSoloCommand;
 import com.chronoblocks.ui.timeline.dialog.TrackRenameDialog;
 import com.chronoblocks.ui.timeline.interaction.TimelineHitResult;
 import com.chronoblocks.ui.timeline.model.TimelineClip;
@@ -424,12 +425,13 @@ public class TimelineContextMenuFactory {
                 .disabledItem(String.format("轨道: %s", trackName))
                 .disabledItem(String.format("类型: %s", track.getType().getDisplayName()))
                 .separator()
-                .command(track.isMuted() ? "取消静音" : "静音",
-                    new ToggleTrackMuteCommand(model, track),
-                    "M")
-                .command(track.isSolo() ? "取消独奏" : "独奏",
-                    new ToggleTrackSoloCommand(model, track),
-                    "S")
+                // ⚠️ 独奏和静音选项已删除（暂时不需要）
+                // .command(track.isMuted() ? "取消静音" : "静音",
+                //     new ToggleTrackMuteCommand(model, track),
+                //     "M")
+                // .command(track.isSolo() ? "取消独奏" : "独奏",
+                //     new ToggleTrackSoloCommand(model, track),
+                //     "S")
                 .command(track.isLocked() ? "解锁轨道" : "锁定轨道",
                     new ToggleTrackLockCommand(model, track))
                 .separator()
@@ -460,13 +462,99 @@ public class TimelineContextMenuFactory {
                 .disabledItem(String.format("时间: %.3fs", time))
                 .separator();
 
-        builder.item("新增轨道", () -> {
-            if (panel != null) {
-                panel.onAddTrackClicked();
+        // ⭐ 新建轨道：改为子菜单，包含所有轨道类型选项
+        TimelineContextMenuBuilder.SubMenuBuilder addTrackSubmenu = builder.submenu("新建轨道");
+        for (com.chronoblocks.ui.timeline.model.TrackType type : com.chronoblocks.ui.timeline.model.TrackType.values()) {
+            // ⚠️ EntityTrack 已隐藏，等待下一版本
+            if (type == com.chronoblocks.ui.timeline.model.TrackType.ENTITY) {
+                continue;
             }
-        }, "Ctrl+T");
+            
+            // 为每个轨道类型创建菜单项
+            addTrackSubmenu.item(type.getIconAndName(), () -> {
+                createNewTrack(type);
+            });
+        }
+        addTrackSubmenu.end();
+        
+        builder.separator();
+        
+        // ⭐ 标记：在时间标尺上右键添加标记
+        builder.command("在当前位置添加标记",
+                new com.chronoblocks.ui.timeline.commands.AddMarkerCommand(
+                        model,
+                        new TimelineMarker("Marker @" + formatTime(time), time)));
 
         return builder.build();  // ⭐⭐ 修复：使用 build() 而不是 open()，由 openContextMenuForHit 统一打开
+    }
+    
+    /**
+     * ⭐ 创建新轨道的辅助方法（支持撤销/重做）
+     * 
+     * <p>包含自动激活第一条轨道的逻辑，与 TimelineTrackController.createNewTrack() 保持一致
+     */
+    private void createNewTrack(com.chronoblocks.ui.timeline.model.TrackType type) {
+        if (model == null) {
+            LOGGER.warn("[Timeline] 创建轨道失败：model 为 null");
+            return;
+        }
+        
+        // 计算同类型轨道数量
+        long sameTypeCount = model.getTracks().stream()
+                .filter(t -> t.getType() == type)
+                .count();
+        
+        String trackName = type.getDisplayName() + " " + (sameTypeCount + 1);
+        com.chronoblocks.ui.timeline.model.TimelineTrack newTrack;
+        
+        // 如果是音频轨道，使用 AudioTrack 类
+        if (type == com.chronoblocks.ui.timeline.model.TrackType.AUDIO) {
+            newTrack = new com.chronoblocks.ui.timeline.model.audio.AudioTrack(trackName);
+        } else {
+            newTrack = new com.chronoblocks.ui.timeline.model.TimelineTrack(trackName, type);
+        }
+        
+        // 使用 AddTrackCommand 添加轨道（支持撤销/重做）
+        com.chronoblocks.ui.timeline.commands.AddTrackCommand cmd = 
+            new com.chronoblocks.ui.timeline.commands.AddTrackCommand(model, newTrack);
+        commandHistory.executeCommand(cmd);
+        
+        // ⭐ v3.5：如果是时间轨道且是第一条（创建后只有一条），自动激活
+        if (type == com.chronoblocks.ui.timeline.model.TrackType.TIME && sameTypeCount == 0) {
+            com.chronoblocks.ui.timeline.playback.time.TimelineWorldController.getInstance()
+                    .setActiveTimeTrack(newTrack);
+            LOGGER.info("[TimelineContextMenuFactory] 创建第一条时间轨道，自动激活: {}", trackName);
+        }
+        
+        // ⭐ v1.0：如果是季节轨道且是第一条，自动激活
+        if (type == com.chronoblocks.ui.timeline.model.TrackType.SEASON && sameTypeCount == 0) {
+            com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController.getInstance()
+                    .setActiveSeasonTrack(newTrack);
+            LOGGER.info("[TimelineContextMenuFactory] 创建第一条季节轨道，自动激活: {}", trackName);
+        }
+        
+        // ⭐ v1.0：如果是天气轨道且是第一条，自动激活
+        if (type == com.chronoblocks.ui.timeline.model.TrackType.WEATHER && sameTypeCount == 0) {
+            com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController.getInstance()
+                    .bindActiveTrack(newTrack);
+            LOGGER.info("[TimelineContextMenuFactory] 创建第一条天气轨道，自动激活: {}", trackName);
+        }
+        
+        // ⭐ v1.0：如果是实体轨道且是第一条，自动激活
+        if (type == com.chronoblocks.ui.timeline.model.TrackType.ENTITY && sameTypeCount == 0) {
+            com.chronoblocks.ui.timeline.playback.entity.TimelineEntityController.getInstance()
+                    .bindActiveTrack(newTrack);
+            LOGGER.info("[TimelineContextMenuFactory] 创建第一条实体轨道，自动激活: {}", trackName);
+        }
+        
+        // 通知面板数据变化（如果有面板引用）
+        if (panel != null) {
+            // 面板可能有 onDataChanged 回调
+            // 这里我们依赖命令历史触发模型更新
+        }
+        
+        LOGGER.info("[TimelineContextMenuFactory] 创建新轨道 {} (类型: {}, 同类型第 {} 个)",
+                trackName, type.getDisplayName(), sameTypeCount + 1);
     }
 
     // =========================================================
@@ -481,15 +569,16 @@ public class TimelineContextMenuFactory {
         float time = model.getCurrentTime();
         switch (type) {
             case CONTAINER -> {
-                if (type.supportsMarkers()) {
-                    builder.submenu("标记")
-                        .command("在当前位置添加标记",
-                            new AddAutomationKeyframeCommand(
-                                model,
-                                track,
-                                new TimelineMarker("Marker @" + formatTime(time), time)))
-                    .end();
-                }
+                // ⚠️ 标记已移至时间标尺右键菜单，不再在轨道右键菜单中显示
+                // if (type.supportsMarkers()) {
+                //     builder.submenu("标记")
+                //         .command("在当前位置添加标记",
+                //             new AddAutomationKeyframeCommand(
+                //                 model,
+                //                 track,
+                //                 new TimelineMarker("Marker @" + formatTime(time), time)))
+                //     .end();
+                // }
             }
             case CAMERA -> {
                 // ⭐ v5.0：检查是否是激活的摄像机轨道
