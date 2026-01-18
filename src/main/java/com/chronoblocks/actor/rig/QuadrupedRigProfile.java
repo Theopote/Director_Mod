@@ -82,4 +82,52 @@ public final class QuadrupedRigProfile implements ActorRigProfile {
     public RigProfileStyle getStyle() {
         return style;
     }
+
+    @Override
+    public RigPoseResult buildPose(
+            ActorActionType action,
+            float intensity,
+            float time
+    ) {
+        Pose pose = new Pose();
+        PoseMask mask = PoseMask.full();
+
+        // 应用风格系数
+        float motion = intensity * style.motionScale;
+        float tempo = style.tempo;
+        float step = time * (2.5f + intensity) * tempo;
+
+        switch (action) {
+            case IDLE -> {
+                // 轻微头部摆动
+                pose.headPitch = (float) Math.sin(time * 0.8f) * 0.1f;
+            }
+
+            case WALK -> {
+                pose.bodyPitch = 0.05f * style.leanBias;
+                // 四足动物的腿交替（对角）
+                pose.leftLegPitch = (float) Math.sin(step) * 0.4f * motion * style.legExpressiveness;
+                pose.rightLegPitch = (float) Math.sin(step + Math.PI) * 0.4f * motion * style.legExpressiveness;
+            }
+
+            case RUN -> {
+                pose.bodyPitch = 0.2f * style.leanBias;
+                // 四足动物的腿交替（对角）
+                pose.leftLegPitch = (float) Math.sin(step * 2f) * 0.8f * style.legExpressiveness;
+                pose.rightLegPitch = (float) Math.sin(step * 2f + Math.PI) * 0.8f * style.legExpressiveness;
+            }
+
+            case GRAZE -> {
+                pose.headPitch = 0.5f; // 头部向下
+                pose.bodyPitch = 0.1f;
+            }
+
+            default -> {
+                // 默认站姿
+                pose.reset();
+            }
+        }
+
+        return new RigPoseResult(pose, mask);
+    }
 }

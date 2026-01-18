@@ -58,4 +58,23 @@ public interface ActorRigProfile {
      * @return RigProfileStyle，如果此 RigProfile 不支持风格调节则返回 null
      */
     RigProfileStyle getStyle();
+
+    /**
+     * 构建姿态（用于 Animation ↔ RigProfile 混合）。
+     *
+     * <p>RigProfile 不再直接写 ActorRuntime 的字段，
+     * 而是生成一个"语义 Pose" + Mask（通常是全身）。
+     *
+     * <p>注意：此方法用于混合系统，原有的 applyAction 方法仍然保留用于向后兼容。
+     *
+     * @param action 动作类型
+     * @param intensity 动作强度 [0.0-1.0]
+     * @param time 当前时间（秒，用于周期性动画）
+     * @return RigPoseResult，包含姿态和控制掩码
+     */
+    RigPoseResult buildPose(
+            ActorActionType action,
+            float intensity,
+            float time
+    );
 }

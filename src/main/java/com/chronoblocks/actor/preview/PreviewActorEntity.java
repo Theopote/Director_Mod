@@ -1,5 +1,6 @@
 package com.chronoblocks.actor.preview;
 
+import com.chronoblocks.actor.rig.Pose;
 import com.chronoblocks.actor.runtime.ActorRuntime;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.Entity;
@@ -44,6 +45,9 @@ public class PreviewActorEntity extends ArmorStandEntity {
     /** ActorRuntime（身体控制参数，由 Renderer 读取） */
     private ActorRuntime actorRuntime;
 
+    /** 最终混合姿态（由 ActorRuntimeController 设置，Renderer 读取） */
+    private Pose finalPose;
+
     /**
      * 构造函数
      *
@@ -71,6 +75,24 @@ public class PreviewActorEntity extends ArmorStandEntity {
      */
     public ActorRuntime getActorRuntime() {
         return actorRuntime;
+    }
+
+    /**
+     * 设置最终混合姿态（由 ActorRuntimeController 调用）。
+     *
+     * @param pose 最终姿态
+     */
+    public void setFinalPose(Pose pose) {
+        this.finalPose = pose;
+    }
+
+    /**
+     * 获取最终混合姿态（由 Renderer / Mixin 调用）。
+     *
+     * @return 最终姿态，如果未设置则返回 null
+     */
+    public Pose getFinalPose() {
+        return finalPose;
     }
 
     // ======================

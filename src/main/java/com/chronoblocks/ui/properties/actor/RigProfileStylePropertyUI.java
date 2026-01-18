@@ -2,6 +2,7 @@ package com.chronoblocks.ui.properties.actor;
 
 import com.chronoblocks.actor.rig.RigProfileStyle;
 import imgui.ImGui;
+import imgui.flag.ImGuiTreeNodeFlags;
 
 /**
  * RigProfileStylePropertyUI v1.0
@@ -33,7 +34,8 @@ public final class RigProfileStylePropertyUI {
             return;
         }
 
-        ImGui.separatorText("🎭 Performance Style");
+        // 使用 collapsingHeader 显示风格设置
+        if (ImGui.collapsingHeader("🎭 Performance Style", ImGuiTreeNodeFlags.DefaultOpen)) {
 
         // Motion Scale：整体动作幅度
         slider("Motion Scale", style, "motionScale", 0.5f, 1.5f, "整体动作幅度（0.5 保守 → 1.5 夸张）");
@@ -54,6 +56,7 @@ public final class RigProfileStylePropertyUI {
         ImGui.textDisabled("These settings affect all actions globally.");
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("这些设置会影响该演员的所有动作，不是 Clip 级的时间变化。");
+        }
         }
     }
 

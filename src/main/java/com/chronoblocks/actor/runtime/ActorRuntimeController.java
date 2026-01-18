@@ -5,7 +5,7 @@ import com.chronoblocks.actor.ActorRegistry;
 import com.chronoblocks.actor.ActorRef;
 import com.chronoblocks.actor.action.ActorActionType;
 import com.chronoblocks.actor.preview.ActorPreviewManager;
-import com.chronoblocks.actor.rig.ActorRigProfile;
+import com.chronoblocks.actor.rig.*;
 import net.minecraft.entity.Entity;
 import com.chronoblocks.actor.prop.*;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
@@ -457,6 +457,13 @@ public final class ActorRuntimeController {
          *
          * <p>这是整个"多物种统一导演系统"的核心。
          *
+         * <p>现在支持 Animation ↔ RigProfile 混合：
+         * <ul>
+         *   <li>有 Animation → 使用 Animation 的姿态（按部位）</li>
+         *   <li>无 Animation → 使用 RigProfile 的姿态</li>
+         *   <li>两者可混合 → Animation 覆盖它控制的部位</li>
+         * </ul>
+         *
          * @param s 当前 Sample
          * @param deltaTime 时间增量（秒）
          */
@@ -482,16 +489,100 @@ public final class ActorRuntimeController {
                 return;
             }
 
-            // 应用动作语义到 Runtime 表现
+            // ========== 分层动画混合系统 ==========
+
+            // 1️⃣ Base pose（默认站姿）
+            Pose base = new Pose();
+            base.reset();
+
+            // 2️⃣ Rig pose（语义驱动）
+            RigPoseResult rigPose = rig.buildPose(
+                    action,
+                    s.actionIntensity,
+                    actorRuntime.getTime()
+            );
+
+            // 3️⃣ Animation pose（明确动画，可能为 null）
+            AnimationPoseResult animPose = getAnimationPose(s);
+
+            // 4️⃣ Blend（混合）
+            Pose finalPose;
+            if (animPose != null) {
+                // 有动画时，按部位混合
+                finalPose = PoseBlender.blend(base, rigPose, animPose);
+            } else {
+                // 无动画时，直接使用 Rig
+                finalPose = rigPose.pose;
+            }
+
+            // 5️⃣ 将最终姿态应用到 ActorRuntime（向后兼容）
+            applyPoseToRuntime(finalPose);
+
+            // 6️⃣ 将最终姿态传递给 PreviewEntity（供 Renderer 使用）
+            Entity entity = ActorPreviewManager.getInstance().getPreview(actor.getActorId());
+            if (entity instanceof com.chronoblocks.actor.preview.PreviewActorEntity previewEntity) {
+                previewEntity.setFinalPose(finalPose);
+            }
+
+            // 同时保留原有的 applyAction 调用（向后兼容）
             rig.applyAction(
                     actorRuntime,
                     action,
                     s.actionIntensity,
                     deltaTime
             );
+        }
 
-            // 注意：actorRuntime 的参数会通过 PreviewActorEntity.getActorRuntime() 传递给 Renderer
-            // Renderer 层负责将这些抽象参数映射到具体的 ModelPart（参见 Renderer Mixin 示例）
+        /**
+         * 获取当前动画姿态结果。
+         *
+         * <p>TODO: 未来这里需要从实际的动画播放系统获取姿态。
+         * 目前暂时返回 null（表示没有动画）。
+         *
+         * @param s 当前 Sample
+         * @return AnimationPoseResult，如果没有动画则返回 null
+         */
+        private AnimationPoseResult getAnimationPose(EntitySample s) {
+            // 如果 Sample 中有动画信息，尝试获取动画姿态
+            if (s.animationId == null || s.animationId.isBlank()) {
+                return null;
+            }
+
+            // TODO: 未来实现实际的动画播放器
+            // 例如：
+            // AnimationPlayer player = getAnimationPlayer(s.animationId);
+            // if (player != null) {
+            //     return player.getCurrentPose();
+            // }
+
+            // 目前暂时返回 null（表示没有动画，使用 RigProfile）
+            return null;
+        }
+
+        /**
+         * 将 Pose 应用到 ActorRuntime（向后兼容）。
+         *
+         * <p>注意：这是临时方案，用于保持向后兼容。
+         * 未来可以直接将 Pose 传递给 PreviewEntity，由 Renderer 直接读取。
+         *
+         * @param pose 最终姿态
+         */
+        private void applyPoseToRuntime(Pose pose) {
+            if (pose == null) {
+                return;
+            }
+
+            // 将 Pose 映射到 ActorRuntime 的字段（用于向后兼容）
+            actorRuntime.setBodyLean(pose.bodyPitch);
+            actorRuntime.setBodyTwist(pose.bodyYaw);
+            actorRuntime.setHeadPitch(pose.headPitch);
+            actorRuntime.setHeadYaw(pose.headYaw);
+
+            // 手臂和腿的摆动幅度（简化处理）
+            float armSwing = Math.max(Math.abs(pose.leftArmPitch), Math.abs(pose.rightArmPitch));
+            float legSwing = Math.max(Math.abs(pose.leftLegPitch), Math.abs(pose.rightLegPitch));
+            actorRuntime.setArmSwing(armSwing);
+            actorRuntime.setLegSwing(legSwing);
         }
 
         /**

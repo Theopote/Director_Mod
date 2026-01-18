@@ -266,6 +266,21 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         // 提示信息
         ImGui.textDisabled("💡 Tip: Right-click in world to place actor");
         
+        ImGui.spacing();
+        
+        // ---- Performance Style (风格滑条) ----
+        ActorRigProfile rigProfile = actor.getRigProfile();
+        if (rigProfile != null) {
+            RigProfileStyle style = rigProfile.getStyle();
+            if (style != null) {
+                RigProfileStylePropertyUI.render(style);
+                // Style 的修改会立即生效，因为 RigProfile 在 Runtime 中会读取 style 的值
+                modified = true; // 标记为已修改（即使只是 UI 交互）
+            }
+        }
+        
+        ImGui.spacing();
+        
         // ---- Usage Information (只读) ----
         renderActorUsage(actor);
         

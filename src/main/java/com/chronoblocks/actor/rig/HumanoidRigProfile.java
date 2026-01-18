@@ -100,4 +100,72 @@ public final class HumanoidRigProfile implements ActorRigProfile {
     public RigProfileStyle getStyle() {
         return style;
     }
+
+    @Override
+    public RigPoseResult buildPose(
+            ActorActionType action,
+            float intensity,
+            float time
+    ) {
+        Pose pose = new Pose();
+        PoseMask mask = PoseMask.full();
+
+        // 应用风格系数
+        float motion = intensity * style.motionScale;
+        float tempo = style.tempo;
+        float step = time * (2.0f + intensity) * tempo;
+
+        switch (action) {
+            case IDLE -> {
+                pose.bodyPitch = 0f;
+                pose.leftArmPitch = 0.1f * style.armExpressiveness;
+                pose.rightArmPitch = 0.1f * style.armExpressiveness;
+                pose.leftLegPitch = 0.05f * style.legExpressiveness;
+                pose.rightLegPitch = 0.05f * style.legExpressiveness;
+            }
+
+            case WALK -> {
+                pose.bodyPitch = 0.05f * style.leanBias;
+                pose.leftArmPitch = (float) Math.sin(step) * 0.6f * motion * style.armExpressiveness;
+                pose.rightArmPitch = (float) Math.sin(step + Math.PI) * 0.6f * motion * style.armExpressiveness;
+                pose.leftLegPitch = (float) Math.sin(step + Math.PI) * 0.5f * motion * style.legExpressiveness;
+                pose.rightLegPitch = (float) Math.sin(step) * 0.5f * motion * style.legExpressiveness;
+            }
+
+            case RUN -> {
+                pose.bodyPitch = 0.15f * style.leanBias;
+                pose.leftArmPitch = (float) Math.sin(step * 2f) * 1.2f * motion * style.armExpressiveness;
+                pose.rightArmPitch = (float) Math.sin(step * 2f + Math.PI) * 1.2f * motion * style.armExpressiveness;
+                pose.leftLegPitch = (float) Math.sin(step * 2f + Math.PI) * 1.0f * motion * style.legExpressiveness;
+                pose.rightLegPitch = (float) Math.sin(step * 2f) * 1.0f * motion * style.legExpressiveness;
+            }
+
+            case DANCE -> {
+                pose.bodyYaw = (float) Math.sin(time * 6f) * 0.3f;
+                pose.leftArmPitch = (float) Math.sin(time * 6f) * 1.5f;
+                pose.rightArmPitch = (float) Math.sin(time * 6f + Math.PI) * 1.5f;
+                pose.leftLegPitch = (float) Math.sin(time * 4f) * 1.0f;
+                pose.rightLegPitch = (float) Math.sin(time * 4f + Math.PI) * 1.0f;
+            }
+
+            case CARRY -> {
+                pose.bodyPitch = 0.1f;
+                pose.leftArmPitch = 0.5f; // 向前
+                pose.rightArmPitch = 0.5f; // 向前
+            }
+
+            case THROW_PREPARE -> {
+                pose.bodyPitch = 0.05f;
+                pose.leftArmPitch = 0.8f; // 向后准备
+                pose.rightArmPitch = 0.8f; // 向后准备
+            }
+
+            default -> {
+                // 默认站姿
+                pose.reset();
+            }
+        }
+
+        return new RigPoseResult(pose, mask);
+    }
 }
