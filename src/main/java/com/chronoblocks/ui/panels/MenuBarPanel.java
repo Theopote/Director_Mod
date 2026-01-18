@@ -632,36 +632,75 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
         
         if (ImGui.begin("##StatusBar", flags)) {
             try {
+                // 使用垂直居中对齐
+                ImGui.alignTextToFramePadding();
                 
-                // 播放状态
+                // 1. FPS显示（左侧）
+                UITheme.label(String.format("FPS: %.0f", fps), UITheme.DarkTheme.TEXT_DISABLED);
+                ImGui.sameLine();
+                ImGui.text("|");
+                ImGui.sameLine();
+                
+                // 2. 播放状态
+                ImGui.alignTextToFramePadding();
                 String playStatus = pc.isPlaying() ? (Icons.PLAY + " Playing") : (Icons.PAUSE + " Paused");
                 int statusColor = pc.isPlaying() 
                     ? rgba(51, 204, 51)  // 绿色
                     : UITheme.DarkTheme.TEXT;
                 UITheme.label(playStatus, statusColor);
-                ImGui.sameLine(150);
+                ImGui.sameLine();
+                ImGui.text("|");
+                ImGui.sameLine();
                 
-                // 时间轴
+                // 3. 时间轴信息
+                ImGui.alignTextToFramePadding();
                 UITheme.label(String.format("Time: %.2fs / %.2fs", currentTimeline, totalDuration), 
                     UITheme.DarkTheme.TEXT);
-                ImGui.sameLine(350);
+                ImGui.sameLine();
+                ImGui.text("|");
+                ImGui.sameLine();
                 
-                // 面板数量
-                UITheme.label(String.format("Panels: %d/%d visible", visiblePanels, totalPanels), 
-                    UITheme.DarkTheme.TEXT_DISABLED);
-                ImGui.sameLine(550);
-                
-                // 循环状态
-                if (pc.isLoop()) {
-                    UITheme.label(Icons.LOOP + " Loop", rgba(61, 133, 224));
-                    ImGui.sameLine(750);
-                }
-                
-                // 播放速度
+                // 4. 播放速度（如果非1.0x）
                 float playbackSpeed = pc.getSpeed();
                 if (Math.abs(playbackSpeed - 1.0f) > 0.01f) {
+                    ImGui.alignTextToFramePadding();
                     UITheme.label(String.format("Speed: %.2fx", playbackSpeed), 
                         UITheme.DarkTheme.TEXT);
+                    ImGui.sameLine();
+                    ImGui.text("|");
+                    ImGui.sameLine();
+                }
+                
+                // 5. 循环状态
+                if (pc.isLoop()) {
+                    ImGui.alignTextToFramePadding();
+                    UITheme.label(Icons.LOOP + " Loop", rgba(61, 133, 224));
+                    ImGui.sameLine();
+                    ImGui.text("|");
+                    ImGui.sameLine();
+                }
+                
+                // 6. 面板数量
+                ImGui.alignTextToFramePadding();
+                UITheme.label(String.format("Panels: %d/%d", visiblePanels, totalPanels), 
+                    UITheme.DarkTheme.TEXT_DISABLED);
+                
+                // 7. 容器信息（如果有容器管理器）
+                try {
+                    ContainerManager containerManager = ContainerManager.getInstance();
+                    if (containerManager != null) {
+                        int containerCount = containerManager.getContainerCount();
+                        if (containerCount > 0) {
+                            ImGui.sameLine();
+                            ImGui.text("|");
+                            ImGui.sameLine();
+                            ImGui.alignTextToFramePadding();
+                            UITheme.label(String.format("Containers: %d", containerCount), 
+                                UITheme.DarkTheme.TEXT_DISABLED);
+                        }
+                    }
+                } catch (Exception ignored) {
+                    // 忽略容器管理器获取失败
                 }
                 
             } catch (Exception e) {

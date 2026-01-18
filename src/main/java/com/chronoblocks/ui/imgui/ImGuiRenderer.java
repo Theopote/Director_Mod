@@ -86,7 +86,17 @@ public class ImGuiRenderer {
             // 启用 ImGui 配置文件保存，用于持久化布局（按世界区分）
             updateIniPath(io);
             
-            io.setConfigFlags(ImGuiConfigFlags.NavEnableKeyboard | ImGuiConfigFlags.DockingEnable);  // 启用键盘导航和停靠功能
+            // 启用键盘导航和停靠功能
+            // ⚠️ 多视口支持（ViewportsEnable）暂时禁用
+            // 原因：在Minecraft环境中，多视口功能不稳定，会导致：
+            // 1. UI闪烁（OpenGL上下文切换冲突）
+            // 2. 鼠标输入失效（输入事件被Minecraft拦截）
+            // 3. 渲染错误（OpenGL状态不一致）
+            // 
+            // 如果需要启用多视口，取消下面的注释，但请注意可能存在的问题
+            int configFlags = ImGuiConfigFlags.NavEnableKeyboard | ImGuiConfigFlags.DockingEnable;
+            // configFlags |= ImGuiConfigFlags.ViewportsEnable;  // 多视口支持（暂时禁用）
+            io.setConfigFlags(configFlags);
 
             // 初始化字体
             initializeFonts(io);
@@ -162,6 +172,17 @@ public class ImGuiRenderer {
                 imGuiGlfw.newFrame();
                 ImGui.newFrame();
                 
+                // 多视口支持：在newFrame之后更新平台窗口
+                // 注意：在Minecraft环境中，多视口可能不稳定，因为Minecraft完全控制OpenGL上下文
+                // 如果遇到闪烁或输入问题，建议禁用多视口功能
+                if ((ImGui.getIO().getConfigFlags() & ImGuiConfigFlags.ViewportsEnable) != 0) {
+                    try {
+                        ImGui.updatePlatformWindows();
+                    } catch (Exception e) {
+                        LOGGER.warn("[ChronoBlocks] 多视口更新失败，可能由于OpenGL上下文冲突: {}", e.getMessage());
+                    }
+                }
+                
                 // 合并模式：不需要推送字体，ImGui自动使用默认字体（已包含中文）
                 // 之前的pushFont逻辑已移除，因为使用合并模式
 
@@ -216,10 +237,58 @@ public class ImGuiRenderer {
             try {
                 RenderSystem.assertOnRenderThread();
                 final long t0 = System.nanoTime();
+                
+                // 保存当前OpenGL状态（多视口会切换上下文）
+                int[] viewport = new int[4];
+                GL11.glGetIntegerv(GL11.GL_VIEWPORT, viewport);
+                boolean scissorEnabled = GL11.glIsEnabled(GL11.GL_SCISSOR_TEST);
+                
                 // 避免被 Minecraft 的 RenderType scissor 影响
                 GL11.glDisable(GL11.GL_SCISSOR_TEST);
                 imGuiGl3.renderDrawData(ImGui.getDrawData());
                 lastRenderNs = System.nanoTime() - t0;
+                
+                // 多视口支持：渲染额外的平台窗口（拖出主窗口的面板）
+                // ⚠️ 警告：在Minecraft环境中，多视口功能可能不稳定
+                // 原因：Minecraft完全控制OpenGL上下文，多视口需要切换上下文，可能导致：
+                // 1. UI闪烁（上下文切换冲突）
+                // 2. 鼠标输入失效（输入事件被Minecraft拦截）
+                // 3. 渲染错误（OpenGL状态不一致）
+                // 
+                // 如果遇到这些问题，建议暂时禁用多视口功能（移除ViewportsEnable标志）
+                if ((ImGui.getIO().getConfigFlags() & ImGuiConfigFlags.ViewportsEnable) != 0) {
+                    try {
+                        // 恢复主窗口的OpenGL状态（为上下文切换做准备）
+                        GL11.glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+                        if (scissorEnabled) {
+                            GL11.glEnable(GL11.GL_SCISSOR_TEST);
+                        }
+                        
+                        // 渲染所有额外的视口窗口
+                        // 注意：这会切换OpenGL上下文，可能与Minecraft的渲染系统冲突
+                        ImGui.renderPlatformWindowsDefault();
+                        
+                        // 恢复主窗口的OpenGL上下文和状态
+                        // renderPlatformWindowsDefault应该会自动恢复，但为了安全起见手动恢复
+                        GL11.glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+                        if (scissorEnabled) {
+                            GL11.glEnable(GL11.GL_SCISSOR_TEST);
+                        } else {
+                            GL11.glDisable(GL11.GL_SCISSOR_TEST);
+                        }
+                    } catch (Exception viewportException) {
+                        LOGGER.error("[ChronoBlocks] 多视口渲染失败，可能由于OpenGL上下文冲突。建议禁用多视口功能。", viewportException);
+                        // 恢复基本状态
+                        try {
+                            GL11.glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
+                            if (scissorEnabled) {
+                                GL11.glEnable(GL11.GL_SCISSOR_TEST);
+                            } else {
+                                GL11.glDisable(GL11.GL_SCISSOR_TEST);
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                }
             } catch (Exception e) {
                 LOGGER.error("[ChronoBlocks] Failed to render pending ImGui draw data", e);
             } finally {
