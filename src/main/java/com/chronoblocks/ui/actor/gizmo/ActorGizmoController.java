@@ -370,11 +370,30 @@ public final class ActorGizmoController {
         // 2️⃣ 找到当前时间覆盖的 TransformClip（last-wins）
         editingClip = findActiveTransformClip(entityTrack, time);
 
-        // 3️⃣ 如果没有，则自动创建一个
+        // 3️⃣ 如果没有，尝试扩展现有的 TransformClip 或创建新的
         if (editingClip == null) {
-            editingClip = createTransformClip(entityTrack, time, sampledPos);
-            LOGGER.debug("[ActorGizmoController] 创建新的 TransformClip: start={}, end={}",
-                    editingClip.getStartTime(), editingClip.getEndTime());
+            // ⭐ 检查是否有相邻的 TransformClip 可以扩展
+            editingClip = findNearestTransformClipForExtension(entityTrack, time);
+            
+            if (editingClip != null) {
+                // 扩展现有 clip 的时间范围，使其包含当前时间
+                float newStart = Math.min(editingClip.getStartTime(), time);
+                float newEnd = Math.max(editingClip.getEndTime(), time + DEFAULT_CLIP_DURATION);
+                editingClip.setTimeRange(newStart, newEnd);
+                LOGGER.debug("[ActorGizmoController] 扩展现有 TransformClip: start={}, end={}",
+                        editingClip.getStartTime(), editingClip.getEndTime());
+            } else {
+                // 没有可以扩展的 clip，创建新的
+                editingClip = createTransformClip(entityTrack, time, sampledPos);
+                LOGGER.debug("[ActorGizmoController] 创建新的 TransformClip: start={}, end={}",
+                        editingClip.getStartTime(), editingClip.getEndTime());
+            }
+        } else {
+            // ⭐ 如果找到了现有 clip，确保其时间范围包含当前时间（必要时扩展）
+            if (time > editingClip.getEndTime()) {
+                editingClip.setTimeRange(editingClip.getStartTime(), time + DEFAULT_CLIP_DURATION);
+                LOGGER.debug("[ActorGizmoController] 扩展 TransformClip 结束时间: {}", editingClip.getEndTime());
+            }
         }
 
         // 4️⃣ 按 Gizmo 模式缓存 base 值
@@ -610,6 +629,49 @@ public final class ActorGizmoController {
         }
 
         return result;
+    }
+
+    /**
+     * 查找最近的 TransformClip（用于扩展）
+     * <p>如果当前时间没有 TransformClip，尝试找到最近的（可以扩展以覆盖当前时间）
+     * <p>只在距离很近时返回（避免扩展太远的 clip）
+     *
+     * @param track EntityTrack
+     * @param time 时间（秒）
+     * @return TransformClip，如果未找到合适的则返回 null
+     */
+    private EntityTransformClip findNearestTransformClipForExtension(EntityTrack track, float time) {
+        if (track == null) {
+            return null;
+        }
+
+        float maxDistance = DEFAULT_CLIP_DURATION; // 最多扩展到 1 秒内的 clip
+        EntityTransformClip nearest = null;
+        float minDistance = Float.MAX_VALUE;
+
+        List<EntityClip> clips = track.getClips();
+        for (EntityClip c : clips) {
+            if (c instanceof EntityTransformClip tc && !tc.isMuted()) {
+                float distance;
+                if (time < tc.getStartTime()) {
+                    // 时间在 clip 之前
+                    distance = tc.getStartTime() - time;
+                } else if (time > tc.getEndTime()) {
+                    // 时间在 clip 之后
+                    distance = time - tc.getEndTime();
+                } else {
+                    // 时间在 clip 范围内（不应该到这里，因为 findActiveTransformClip 已经找过了）
+                    continue;
+                }
+
+                if (distance < maxDistance && distance < minDistance) {
+                    minDistance = distance;
+                    nearest = tc;
+                }
+            }
+        }
+
+        return nearest;
     }
 
     /**

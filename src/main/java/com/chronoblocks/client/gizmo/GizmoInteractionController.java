@@ -195,7 +195,10 @@ public class GizmoInteractionController {
             
             // ✅ BOUNDS Gizmo（移动包围盒）拖拽中不要用“当前选区 bounds”覆盖 targetBox，
             // 否则会出现“Gizmo 能动但包围盒不动”的现象（因为选区此时还没重建）。
-            if (!(context != null && context.getType() == GizmoType.BOUNDS && isMoveHandle(activeHandle))) {
+            // ⭐ TRANSFORM Gizmo（Actor 编辑）不应该从方块选区更新 Box
+            if (context != null && context.getType() == GizmoType.TRANSFORM) {
+                // TRANSFORM Gizmo：Box 由 ActorGizmoController.updateGizmoPosition() 管理，不从选区更新
+            } else if (!(context != null && context.getType() == GizmoType.BOUNDS && isMoveHandle(activeHandle))) {
                 updateBoxFromSelection();
             }
         }
