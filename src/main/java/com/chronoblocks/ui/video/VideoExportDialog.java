@@ -9,6 +9,7 @@ import com.chronoblocks.ui.timeline.container.ContainerTimelineService;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TrackType;
+import com.chronoblocks.ui.timeline.model.camera.CameraViewportProfile;
 
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;
@@ -55,6 +56,9 @@ public final class VideoExportDialog {
     private static final ImInt renderDistanceInt = new ImInt(settings.renderDistance);
     private static final ImBoolean audioEnabledBool = new ImBoolean(settings.enableAudio);
     private static String lastError = null;
+    
+    // 用于跟踪摄像机轨道选择变化，自动填充分辨率
+    private static int lastCameraTrackIndex = -1;
 
     // 覆盖确认弹窗状态
     private static final String OVERWRITE_POPUP_ID = "##ChronoBlocksVideoExportOverwriteConfirm";
@@ -82,6 +86,8 @@ public final class VideoExportDialog {
         } else {
             outputPathBuffer.set("");
         }
+        // ⭐ 重置摄像机轨道索引跟踪，确保首次打开时也会自动填充分辨率
+        lastCameraTrackIndex = -1;
     }
 
     public static void renderIfNeeded(ChronoBlocksUIManager uiManager) {
@@ -107,8 +113,7 @@ public final class VideoExportDialog {
 
     private static void renderBody(ChronoBlocksUIManager uiManager) {
         // 每帧将 settings 同步到 Im*，确保 UI 切换时值正确
-        widthInt.set(settings.width);
-        heightInt.set(settings.height);
+        // 注意：分辨率会在摄像机选择变化时自动更新，这里先同步当前值
         fpsInt.set(settings.fps);
         formatInt.set(settings.format);
         rangeModeInt.set(settings.rangeMode);
@@ -143,6 +148,10 @@ public final class VideoExportDialog {
         UITheme.title("视频参数");
         ImGui.separator();
 
+        // 同步分辨率到 ImInt（在摄像机选择变化后，这里的值会被自动更新）
+        widthInt.set(settings.width);
+        heightInt.set(settings.height);
+        
         ImGui.inputInt("宽度", widthInt);
         ImGui.inputInt("高度", heightInt);
         ImGui.sliderInt("FPS", fpsInt.getData(), 1, 240);
@@ -208,14 +217,35 @@ public final class VideoExportDialog {
                         Icons.WARNING + " 当前工程没有摄像机轨道（TrackType.CAMERA）");
                 settings.cameraTrackIndex = 0;
                 settings.cameraTrackName = "";
+                lastCameraTrackIndex = -1;
             } else {
                 String[] trackNames = cameraTracks.stream()
                         .map(t -> t.getName() != null ? t.getName() : "(未命名轨道)")
                         .toArray(String[]::new);
+                
+                // 确保索引有效
                 cameraTrackIndexInt.set(Math.max(0, Math.min(settings.cameraTrackIndex, trackNames.length - 1)));
-                settings.cameraTrackIndex = cameraTrackIndexInt.get();
-                settings.cameraTrackName = trackNames[settings.cameraTrackIndex];
+                
+                // 使用下拉框选择摄像机轨道
+                if (ImGui.combo("摄像机轨道", cameraTrackIndexInt, trackNames, trackNames.length)) {
+                    // 下拉框选择变化时，更新设置并触发自动填充分辨率
+                    settings.cameraTrackIndex = cameraTrackIndexInt.get();
+                    settings.cameraTrackName = trackNames[settings.cameraTrackIndex];
+                    autoFillResolutionFromCamera(cameraTracks, settings.cameraTrackIndex);
+                    lastCameraTrackIndex = settings.cameraTrackIndex;
+                } else {
+                    // 下拉框未变化，但如果是首次选择（lastCameraTrackIndex == -1），也要填充
+                    settings.cameraTrackIndex = cameraTrackIndexInt.get();
+                    settings.cameraTrackName = trackNames[settings.cameraTrackIndex];
+                    if (lastCameraTrackIndex != settings.cameraTrackIndex) {
+                        autoFillResolutionFromCamera(cameraTracks, settings.cameraTrackIndex);
+                        lastCameraTrackIndex = settings.cameraTrackIndex;
+                    }
+                }
             }
+        } else {
+            // 切换到玩家摄像机时，重置跟踪索引
+            lastCameraTrackIndex = -1;
         }
 
         UITheme.spacingSmall();
@@ -455,6 +485,72 @@ public final class VideoExportDialog {
             }
         }
         return result;
+    }
+    
+    /**
+     * ⭐ 从摄像机属性自动填充导出分辨率
+     * 
+     * <p>当用户选择摄像机轨道时，自动读取摄像机的 CameraViewportProfile，
+     * 如果有预览分辨率则直接使用，否则根据画幅比例计算推荐分辨率。
+     * 
+     * @param cameraTracks 摄像机轨道列表
+     * @param trackIndex 选中的摄像机轨道索引
+     */
+    private static void autoFillResolutionFromCamera(List<TimelineTrack> cameraTracks, int trackIndex) {
+        if (cameraTracks == null || trackIndex < 0 || trackIndex >= cameraTracks.size()) {
+            return;
+        }
+        
+        TimelineTrack selectedTrack = cameraTracks.get(trackIndex);
+        if (selectedTrack == null) {
+            return;
+        }
+        
+        CameraViewportProfile profile = selectedTrack.getCameraViewportProfile();
+        if (profile == null) {
+            return;
+        }
+        
+        // 根据画幅比例计算推荐分辨率（画幅比例是摄像机属性的核心）
+        // 即使有预览分辨率，也优先使用画幅比例来推荐分辨率，因为画幅比例才是"摄像机实际导出的画幅"
+        float aspectRatio = profile.getAspectRatio();
+        int recommendedWidth, recommendedHeight;
+        
+        // 根据常见的画幅比例，提供标准分辨率推荐
+        if (Math.abs(aspectRatio - 16f / 9f) < 0.01f) {
+            // 16:9
+            recommendedWidth = 1920;
+            recommendedHeight = 1080;
+        } else if (Math.abs(aspectRatio - 9f / 16f) < 0.01f) {
+            // 9:16 (竖屏)
+            recommendedWidth = 1080;
+            recommendedHeight = 1920;
+        } else if (Math.abs(aspectRatio - 1f) < 0.01f) {
+            // 1:1 (方形)
+            recommendedWidth = 1080;
+            recommendedHeight = 1080;
+        } else if (Math.abs(aspectRatio - 21f / 9f) < 0.01f) {
+            // 21:9 (超宽屏)
+            recommendedWidth = 2560;
+            recommendedHeight = 1080;
+        } else if (Math.abs(aspectRatio - 4f / 3f) < 0.01f) {
+            // 4:3
+            recommendedWidth = 1920;
+            recommendedHeight = 1440;
+        } else {
+            // 自定义画幅比例：以宽度 1920 为基准，按比例计算高度
+            recommendedWidth = 1920;
+            recommendedHeight = Math.round(1920f / aspectRatio);
+            // 确保高度是偶数（视频编码通常要求）
+            if (recommendedHeight % 2 != 0) {
+                recommendedHeight++;
+            }
+        }
+        
+        settings.width = recommendedWidth;
+        settings.height = recommendedHeight;
+        widthInt.set(settings.width);
+        heightInt.set(settings.height);
     }
 
     private static void renderFFmpegStatus() {
