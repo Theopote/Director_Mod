@@ -1,5 +1,10 @@
 package com.chronoblocks.ui.timeline.interaction;
 
+import com.chronoblocks.actor.Actor;
+import com.chronoblocks.actor.ActorRegistry;
+import com.chronoblocks.actor.ActorRegistryManager;
+import com.chronoblocks.actor.action.ActorActionType;
+import com.chronoblocks.actor.rig.ActorRigProfile;
 import com.chronoblocks.ui.timeline.commands.ResizeClipCommand;
 import com.chronoblocks.ui.timeline.commands.TimelineCommandHistory;
 import com.chronoblocks.ui.timeline.interaction.TimelineInteractionManager.InteractionMode;
@@ -11,7 +16,9 @@ import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineSelectable;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TrackType;
+import com.chronoblocks.ui.timeline.model.entity.ActorActionClip;
 import com.chronoblocks.ui.timeline.model.entity.EntityTimelineClip;
+import com.chronoblocks.ui.timeline.model.entity.EntityTrack;
 import com.chronoblocks.ui.timeline.model.selection.TimelineKeyframeMultiSelection;
 import com.chronoblocks.ui.timeline.render.TimelineRenderer;
 import com.chronoblocks.ui.timeline.render.TimelineTrackControlHit;
@@ -1246,6 +1253,11 @@ public class TimelineInteractionHandler {
 
                 LOGGER.debug("[Timeline] 关键帧拖动完�? {} -> {}", originalTime, finalTime);
             }
+        } else if (mode == InteractionMode.PAINT_ACTION) {
+            // ⭐ Action 涂抹：应用涂抹结果
+            if (obj instanceof ActionPaintHandle handle) {
+                applyActionPaint(handle);
+            }
         } else if (mode == InteractionMode.DRAG_AUTOMATION_KEYFRAME) {
             if (obj instanceof AutomationKeyframeHandle handle) {
                 float originalTime = interactionManager.getDragStartValue();
@@ -1297,6 +1309,7 @@ public class TimelineInteractionHandler {
             case DRAG_KEYFRAME -> dragKeyframe(mouseX, contentX);
             case DRAG_AUTOMATION_KEYFRAME -> dragAutomationKeyframe(mouseX, contentX);
             case DRAG_PLAYHEAD -> dragPlayhead(mouseX, contentX);
+            case PAINT_ACTION -> paintAction(mouseX, contentX); // ⭐ Action 涂抹
             default -> { /* 其他模式暂不处理 */ }
         }
     }
@@ -1831,6 +1844,189 @@ public class TimelineInteractionHandler {
             this.track = track;
             this.keyframe = keyframe;
             this.currentTime = keyframe.getStartTime();
+        }
+    }
+
+    /**
+     * Action 涂抹 Handle（用于存储涂抹状态）
+     */
+    private static final class ActionPaintHandle {
+        final TimelineTrack track;
+        final EntityTrack entityTrack;
+        final ActorActionType actionType;
+        float startTime;
+        float currentEndTime;
+
+        ActionPaintHandle(TimelineTrack track, EntityTrack entityTrack, ActorActionType actionType, float startTime) {
+            this.track = track;
+            this.entityTrack = entityTrack;
+            this.actionType = actionType;
+            this.startTime = startTime;
+            this.currentEndTime = startTime; // 初始时结束时间等于开始时间
+        }
+    }
+
+    // ========== Action 涂抹逻辑 ==========
+
+    /**
+     * 检查是否可以开始 Action 涂抹
+     * <p>条件：
+     * <ul>
+     *   <li>轨道必须是 EntityTrack</li>
+     *   <li>必须有 EntityTrackPayload</li>
+     *   <li>当前 Brush Action 必须被 RigProfile 支持</li>
+     * </ul>
+     *
+     * @param track TimelineTrack
+     * @return 如果可以涂抹则返回 true
+     */
+    private boolean canStartActionPaint(TimelineTrack track) {
+        if (track == null || track.getType() != TrackType.ENTITY) {
+            return false;
+        }
+
+        EntityTrack entityTrack = track.getEntityTrackPayload();
+        if (entityTrack == null) {
+            return false;
+        }
+
+        // 检查当前 Brush Action 是否被 RigProfile 支持
+        ActorActionType brushAction = ActionBrushState.get();
+        if (brushAction == null) {
+            return false;
+        }
+
+        // 检查 RigProfile 支持（通过 ActorRef）
+        com.chronoblocks.actor.ActorRef actorRef = entityTrack.getActorRef();
+        if (actorRef == null) {
+            return true; // 如果没有 ActorRef，允许涂抹（让导演先创建 Clip）
+        }
+
+        // 尝试获取 Actor 和 RigProfile
+        ActorRegistry actorRegistry = ActorRegistryManager.getInstance();
+        if (actorRegistry == null) {
+            return true; // 如果没有 Registry，允许涂抹
+        }
+
+        java.util.Optional<Actor> actorOpt = actorRegistry.getActor(actorRef.getActorId());
+        if (actorOpt.isEmpty()) {
+            return true; // 如果找不到 Actor，允许涂抹
+        }
+
+        Actor actor = actorOpt.get();
+        ActorRigProfile rig = actor.getRigProfile();
+        if (rig == null) {
+            return true; // 如果没有 RigProfile，允许涂抹
+        }
+
+        // 检查 RigProfile 是否支持当前 Action
+        return rig.supports(brushAction);
+    }
+
+    /**
+     * 开始 Action 涂抹
+     */
+    private void startActionPaint(TimelineHitResult hit, float mouseX, float contentX) {
+        TimelineTrack track = hit.track();
+        if (track == null || track.getType() != TrackType.ENTITY) {
+            return;
+        }
+
+        EntityTrack entityTrack = track.getEntityTrackPayload();
+        if (entityTrack == null) {
+            // 如果 EntityTrackPayload 不存在，创建它
+            entityTrack = track.getOrCreateEntityTrackPayload();
+        }
+
+        ActorActionType actionType = ActionBrushState.get();
+        if (actionType == null) {
+            return;
+        }
+
+        // 计算开始时间
+        float startTime = renderer.xToTime(mouseX, contentX);
+        startTime = Math.max(0f, startTime);
+
+        // 创建 Handle
+        ActionPaintHandle handle = new ActionPaintHandle(track, entityTrack, actionType, startTime);
+        handle.currentEndTime = startTime; // 初始时结束时间等于开始时间
+
+        // 开始交互
+        interactionManager.startInteraction(
+            InteractionMode.PAINT_ACTION,
+            handle,
+            mouseX, ImGui.getMousePosY(),
+            startTime, startTime
+        );
+
+        LOGGER.debug("[Timeline] 开始 Action 涂抹: Action={}, StartTime={:.2f}s", actionType, startTime);
+    }
+
+    /**
+     * Action 涂抹拖拽（更新结束时间）
+     */
+    private void paintAction(float mouseX, float contentX) {
+        Object active = interactionManager.getActiveObject();
+        if (!(active instanceof ActionPaintHandle handle)) {
+            return;
+        }
+
+        // 计算当前结束时间
+        float endTime = renderer.xToTime(mouseX, contentX);
+        endTime = Math.max(0f, endTime);
+
+        // 确保结束时间不小于开始时间（最小长度为 0.1 秒）
+        if (endTime < handle.startTime) {
+            endTime = handle.startTime;
+        }
+        if (endTime - handle.startTime < 0.1f) {
+            endTime = handle.startTime + 0.1f;
+        }
+
+        handle.currentEndTime = endTime;
+
+        // TODO: 这里可以添加预览渲染（拖拽过程中显示半透明色块）
+    }
+
+    /**
+     * 应用 Action 涂抹结果（鼠标释放时调用）
+     */
+    private void applyActionPaint(ActionPaintHandle handle) {
+        EntityTrack entityTrack = handle.entityTrack;
+        ActorActionType actionType = handle.actionType;
+        float startTime = handle.startTime;
+        float endTime = handle.currentEndTime;
+
+        if (endTime <= startTime) {
+            // 如果结束时间不大于开始时间，不创建 Clip
+            LOGGER.debug("[Timeline] Action 涂抹取消: 时间段过短 ({}s -> {}s)", startTime, endTime);
+            return;
+        }
+
+        // 获取现有的 ActionClips
+        java.util.List<ActorActionClip> existingClips = entityTrack.getActionClips();
+
+        // 使用 ActionClipIntervalResolver 解析区间
+        java.util.List<ActorActionClip> newClips = ActionClipIntervalResolver.resolve(
+            existingClips,
+            startTime,
+            endTime,
+            actionType
+        );
+
+        // 替换 ActionClips
+        entityTrack.replaceActionClips(newClips);
+
+        // 同步到 TimelineTrack（需要重新创建 EntityTimelineClip）
+        // TODO: 这里需要确保 EntityTimelineClip 与 EntityClip 同步
+        // 目前暂时依赖现有的同步机制
+
+        LOGGER.info("[Timeline] Action 涂抹完成: Action={}, Time=[{:.2f}s, {:.2f}s], Clips={}",
+            actionType, startTime, endTime, newClips.size());
+
+        // 通知数据变化
+        if (callbacks != null) {
+            callbacks.onDataChanged();
         }
     }
 }

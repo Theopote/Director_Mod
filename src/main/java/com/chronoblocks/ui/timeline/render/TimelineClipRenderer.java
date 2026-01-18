@@ -1,8 +1,12 @@
 package com.chronoblocks.ui.timeline.render;
 
+import com.chronoblocks.actor.action.ActorActionType;
 import com.chronoblocks.ui.timeline.model.TimelineClip;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
+import com.chronoblocks.ui.timeline.model.entity.ActorActionClip;
+import com.chronoblocks.ui.timeline.model.entity.EntityTimelineClip;
+import com.chronoblocks.ui.timeline.model.entity.TimelineClipVisualType;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import org.slf4j.Logger;
@@ -127,7 +131,7 @@ public final class TimelineClipRenderer {
     }
 
     /**
-     * 渲染单个 Clip
+     * 渲染单个 Clip（v2.0：支持视觉类型分支）
      */
     public void renderClip(ImDrawList drawList, TimelineClip clip, TimelineTrack track, int trackIndex,
                            float contentX, float y, float trackH, float contentW) {
@@ -139,14 +143,32 @@ public final class TimelineClipRenderer {
             return;
         }
         
+        // ========== 视觉类型分支（v2.0 新增）==========
+        TimelineClipVisualType visualType = TimelineClipVisualType.CURVE; // 默认
+        if (clip instanceof EntityTimelineClip entityTimelineClip) {
+            visualType = entityTimelineClip.getVisualType();
+        }
+
+        // 根据视觉类型分支绘制
+        switch (visualType) {
+            case BLOCK -> renderBlockClip(drawList, clip, track, trackIndex, contentX, y, trackH, contentW);
+            case EVENT -> renderEventClip(drawList, clip, track, trackIndex, contentX, y, trackH, contentW);
+            case CURVE -> renderCurveClip(drawList, clip, track, trackIndex, contentX, y, trackH, contentW);
+        }
+    }
+
+    /**
+     * 渲染曲线类型 Clip（TransformClip 等）
+     * <p>显示关键帧和插值曲线
+     */
+    private void renderCurveClip(ImDrawList drawList, TimelineClip clip, TimelineTrack track, int trackIndex,
+                                  float contentX, float y, float trackH, float contentW) {
         float x1 = math.timeToX(clip.getStartTime());
         float x2 = math.timeToX(clip.getEndTime());
         float maxX = contentX + contentW;
 
         if (x2 < contentX || x1 > maxX) return;
         
-        // ★ 关键：限制片段坐标在内容区域内，防止溢出到轨道标签区域或右侧边界
-        // 虽然已经设置了裁剪区域，但显式限制坐标可以确保选择边框等装饰元素也不会溢出
         float clampedX1 = Math.max(contentX, x1);
         float clampedX2 = Math.min(maxX, x2);
 
@@ -158,20 +180,16 @@ public final class TimelineClipRenderer {
         }
 
         if (clip == model.getSelectedClip()) {
-            // 选择边框需要限制在内容区域内（但允许稍微超出以显示选中状态）
             float borderX1 = Math.max(contentX, x1 - CLIP_SELECTED_BORDER_OFFSET);
             float borderX2 = Math.min(maxX, x2 + CLIP_SELECTED_BORDER_OFFSET);
-            if (borderX2 > borderX1) {
-                // ★ 轨道锁定功能：锁定轨道上的片段，即使被选中也不显示选中边框
-                if (!isTrackLocked) {
-                    drawList.addRect(borderX1, y + 1, borderX2, y + trackH - 1, TimelineColors.COLOR_SELECTED_BORDER, 0.0f, 0, 2.0f);
-                }
+            if (borderX2 > borderX1 && !isTrackLocked) {
+                drawList.addRect(borderX1, y + 1, borderX2, y + trackH - 1, TimelineColors.COLOR_SELECTED_BORDER, 0.0f, 0, 2.0f);
             }
         }
 
-        // 使用限制后的坐标绘制片段
-        float clipTop = y + CLIP_VERT_PADDING;
-        float clipBottom = y + trackH - CLIP_VERT_PADDING;
+        // 使用限制后的坐标绘制片段（曲线类型：线条更细）
+        float clipTop = y + CLIP_VERT_PADDING + 1.0f; // 稍微细一点
+        float clipBottom = y + trackH - CLIP_VERT_PADDING - 1.0f;
         drawList.addRectFilled(clampedX1, clipTop, clampedX2, clipBottom, col);
         int highlightCol = TimelineColors.lighten(col);
         drawList.addRectFilledMultiColor(
@@ -185,37 +203,29 @@ public final class TimelineClipRenderer {
         float textWidth = ImGui.calcTextSize(clip.getLabel()).x;
         float clipWidth = clampedX2 - clampedX1;
         float textX = clampedX1 + Math.max(CLIP_TEXT_OFFSET_X, (clipWidth - textWidth) * 0.5f);
-        // 确保文本也在内容区域内
         if (textX + textWidth <= maxX && textX >= contentX) {
             drawList.addText(textX, y + CLIP_TEXT_OFFSET_Y, TimelineColors.COLOR_TEXT_DARK, clip.getLabel());
         }
 
         // ★ 轨道锁定功能：锁定轨道上的片段不显示调整手柄
         if (!isTrackLocked) {
-            // ★ 优化：绘制调整手柄，使用更明显的颜色和更大的尺寸，便于用户识别可拖拽区域
             float controlWidth = RESIZE_HANDLE_WIDTH;
             float handleRightX = x2 - controlWidth;
             
-            // 左边缘手柄
             drawList.addRectFilled(x1, clipTop, x1 + controlWidth, clipBottom, TimelineColors.COLOR_RESIZE_HANDLE);
-            // 右边缘手柄
             drawList.addRectFilled(handleRightX, clipTop, handleRightX + controlWidth, clipBottom, TimelineColors.COLOR_RESIZE_HANDLE);
             
-            // ★ 优化：在边缘手柄上绘制指示线，提示用户可以拖拽
-            // 左边缘指示线
             float leftHandleCenterX = x1 + controlWidth * 0.5f;
             drawList.addLine(leftHandleCenterX, clipTop + 2, leftHandleCenterX, clipBottom - 2, 
                             TimelineColors.rgba(255, 255, 255, 200), 1.5f);
-            // 右边缘指示线
             float rightHandleCenterX = handleRightX + controlWidth * 0.5f;
             drawList.addLine(rightHandleCenterX, clipTop + 2, rightHandleCenterX, clipBottom - 2, 
                             TimelineColors.rgba(255, 255, 255, 200), 1.5f);
         }
 
-        // ========= 关键帧渲染：与 Hit 半径统一 =========
+        // ========= 关键帧渲染（曲线类型显示关键帧）=========
         float centerY = y + trackH / 2.0f;
         
-        // ★ 性能优化：获取可见时间范围，只渲染可见区域内的关键帧
         float[] visibleTimeRange = math.getVisibleTimeRange();
         float visibleStart = visibleTimeRange[0];
         float visibleEnd = visibleTimeRange[1];
@@ -287,6 +297,126 @@ public final class TimelineClipRenderer {
                 drawList.addCircleFilled(kxAligned, centerY, KEYFRAME_RADIUS, kfCol);
             }
         }
+    }
+
+    /**
+     * 渲染区块类型 Clip（ActorActionClip 等）
+     * <p>实心区块，不显示关键帧，使用 ActionType 颜色
+     */
+    private void renderBlockClip(ImDrawList drawList, TimelineClip clip, TimelineTrack track, int trackIndex,
+                                 float contentX, float y, float trackH, float contentW) {
+        float x1 = math.timeToX(clip.getStartTime());
+        float x2 = math.timeToX(clip.getEndTime());
+        float maxX = contentX + contentW;
+
+        if (x2 < contentX || x1 > maxX) return;
+        
+        float clampedX1 = Math.max(contentX, x1);
+        float clampedX2 = Math.min(maxX, x2);
+
+        // 获取 ActionType 颜色（如果是 ActorActionClip）
+        int col = clip.getColor();
+        String actionLabel = clip.getLabel();
+        
+        if (clip instanceof EntityTimelineClip entityTimelineClip) {
+            var entityClip = entityTimelineClip.getEntityClip();
+            if (entityClip instanceof ActorActionClip actionClip) {
+                ActorActionType actionType = actionClip.getActionType();
+                col = ActionTypeColors.getColorForActionType(actionType);
+                actionLabel = actionType.name(); // 使用 ActionType 名称作为标签
+            }
+        }
+
+        boolean isTrackLocked = track != null && track.isLocked();
+        if (isTrackLocked) {
+            col = TimelineColors.grayscale(col);
+        }
+
+        // 选中边框
+        if (clip == model.getSelectedClip()) {
+            float borderX1 = Math.max(contentX, x1 - CLIP_SELECTED_BORDER_OFFSET);
+            float borderX2 = Math.min(maxX, x2 + CLIP_SELECTED_BORDER_OFFSET);
+            if (borderX2 > borderX1 && !isTrackLocked) {
+                drawList.addRect(borderX1, y + 1, borderX2, y + trackH - 1, TimelineColors.COLOR_SELECTED_BORDER, 0.0f, 0, 2.0f);
+            }
+        }
+
+        // Block Clip：实心区块，高度略大于 Curve
+        float blockPadding = 0.5f; // Block 比 Curve 稍微高一点
+        float clipTop = y + CLIP_VERT_PADDING - blockPadding;
+        float clipBottom = y + trackH - CLIP_VERT_PADDING + blockPadding;
+
+        // 绘制实心区块（使用普通矩形，未来可以改进为圆角）
+        drawList.addRectFilled(clampedX1, clipTop, clampedX2, clipBottom, col);
+        
+        // 边框（稍微内缩，营造"区块感"）
+        drawList.addRect(clampedX1 + 1, clipTop + 1, clampedX2 - 1, clipBottom - 1, TimelineColors.rgba(0, 0, 0, 200));
+
+        // 文本标签（中央显示 Action 名称）
+        float textWidth = ImGui.calcTextSize(actionLabel).x;
+        float clipWidth = clampedX2 - clampedX1;
+        if (clipWidth > textWidth + 12.0f) { // 只有足够宽时才显示文本
+            float textX = clampedX1 + (clipWidth - textWidth) * 0.5f;
+            if (textX + textWidth <= maxX && textX >= contentX) {
+                drawList.addText(textX, y + CLIP_TEXT_OFFSET_Y, TimelineColors.COLOR_TEXT_DARK, actionLabel);
+            }
+        }
+
+        // Block Clip 不显示调整手柄（状态区间，通常不需要频繁调整）
+        // 如果需要，可以保留，但建议禁用
+
+        // ⚠️ Block Clip 不显示关键帧（这是底线）
+        // 不渲染任何关键帧点或线条
+    }
+
+    /**
+     * 渲染事件类型 Clip（ActionEvent / AnimationEvent 等）
+     * <p>点 / 标记形态
+     */
+    private void renderEventClip(ImDrawList drawList, TimelineClip clip, TimelineTrack track, int trackIndex,
+                                 float contentX, float y, float trackH, float contentW) {
+        float x1 = math.timeToX(clip.getStartTime());
+        float centerX = x1; // 事件在开始时间位置
+        float maxX = contentX + contentW;
+
+        if (centerX < contentX || centerX > maxX) return;
+
+        int col = clip.getColor();
+        boolean isTrackLocked = track != null && track.isLocked();
+        if (isTrackLocked) {
+            col = TimelineColors.grayscale(col);
+        }
+
+        float centerY = y + trackH / 2.0f;
+        float eventRadius = 4.0f; // 事件点半径
+
+        // 绘制事件点（菱形 ◆）
+        // 使用两个三角形绘制菱形
+        drawList.addTriangleFilled(
+            centerX, centerY - eventRadius,
+            centerX + eventRadius, centerY,
+            centerX, centerY + eventRadius,
+            col
+        );
+        drawList.addTriangleFilled(
+            centerX, centerY - eventRadius,
+            centerX - eventRadius, centerY,
+            centerX, centerY + eventRadius,
+            col
+        );
+
+        // 边框
+        drawList.addLine(centerX, centerY - eventRadius, centerX + eventRadius, centerY, TimelineColors.rgba(0, 0, 0, 200), 1.0f);
+        drawList.addLine(centerX + eventRadius, centerY, centerX, centerY + eventRadius, TimelineColors.rgba(0, 0, 0, 200), 1.0f);
+        drawList.addLine(centerX, centerY + eventRadius, centerX - eventRadius, centerY, TimelineColors.rgba(0, 0, 0, 200), 1.0f);
+        drawList.addLine(centerX - eventRadius, centerY, centerX, centerY - eventRadius, TimelineColors.rgba(0, 0, 0, 200), 1.0f);
+
+        // 选中时显示外圈
+        if (clip == model.getSelectedClip() && !isTrackLocked) {
+            drawList.addCircle(centerX, centerY, eventRadius + 2.0f, TimelineColors.COLOR_SELECTED_BORDER, 0, 2.0f);
+        }
+
+        // 事件不显示调整手柄和关键帧
     }
 
     /**

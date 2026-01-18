@@ -70,6 +70,11 @@ public final class ActorActionClip extends EntityClip {
         return EntityClipType.ACTOR_ACTION;
     }
 
+    @Override
+    public TimelineClipVisualType getVisualType() {
+        return TimelineClipVisualType.BLOCK;
+    }
+
     // =================================================
     // Getters / Setters
     // =================================================

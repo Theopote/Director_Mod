@@ -5,6 +5,8 @@ import com.chronoblocks.actor.ActorRef;
 import com.chronoblocks.actor.ActorRegistry;
 import com.chronoblocks.actor.ActorRegistryManager;
 import com.chronoblocks.actor.ActorType;
+import com.chronoblocks.actor.action.ActorActionType;
+import com.chronoblocks.ui.timeline.interaction.ActionBrushState;
 import com.chronoblocks.actor.preview.ActorPreviewManager;
 import com.chronoblocks.actor.query.ActorUsageQuery;
 import com.chronoblocks.actor.rig.ActorRigProfile;
@@ -180,10 +182,29 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                 modified = true;
             }
             
+            // Place 按钮（在同一行）
+            ImGui.sameLine();
+            float itemWidth = ImGui.getItemRectSizeX();
+            float buttonWidth = 60.0f;
+            ImGui.setCursorPosX(ImGui.getCursorPosX() + ImGui.getContentRegionAvailX() - buttonWidth);
+            
+            if (ImGui.smallButton("Place")) {
+                // 开始放置模式
+                com.chronoblocks.ui.actor.selection.ActorSelectionHub.beginPlace(actor);
+                LOGGER.debug("[ActorProjectPropertyAdapter] 开始放置 Actor: {}", actor.getName());
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("在世界中放置此 Actor\n右键点击世界中的位置来放置");
+            }
+            
             // 右键菜单：编辑/删除
             if (ImGui.beginPopupContextItem("ActorContextMenu_" + actor.getActorId())) {
                 if (ImGui.selectable("Edit")) {
                     selectActor(actor);
+                    ImGui.closeCurrentPopup();
+                }
+                if (ImGui.selectable("Place")) {
+                    com.chronoblocks.ui.actor.selection.ActorSelectionHub.beginPlace(actor);
                     ImGui.closeCurrentPopup();
                 }
                 if (ImGui.selectable("Delete")) {
@@ -265,6 +286,11 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         
         // 提示信息
         ImGui.textDisabled("💡 Tip: Right-click in world to place actor");
+        
+        ImGui.spacing();
+        
+        // ---- Action Brush (动作涂抹笔刷) ----
+        renderActionBrushSelector();
         
         ImGui.spacing();
         
@@ -801,6 +827,41 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             
             LOGGER.info("[ActorProjectPropertyAdapter] 已删除演员 {} 及其所有轨道、片段、预览实体和选区", actorId);
         }
+    }
+    
+    // =========================================================
+    // Action Brush Selector
+    // =========================================================
+    
+    /**
+     * 渲染 Action Brush 选择器（用于涂抹式编辑）
+     * <p>导演在这里选择当前绘制动作（RUN / DANCE / CARRY 等）
+     */
+    private void renderActionBrushSelector() {
+        UITheme.label("🎨 Action Brush", UITheme.DarkTheme.TEXT);
+        
+        ActorActionType currentBrush = ActionBrushState.get();
+        String currentLabel = currentBrush != null ? currentBrush.name() : "NONE";
+        
+        if (ImGui.beginCombo("Current Brush", currentLabel)) {
+            for (ActorActionType type : ActorActionType.values()) {
+                boolean selected = type == currentBrush;
+                if (ImGui.selectable(type.name(), selected)) {
+                    ActionBrushState.set(type);
+                    LOGGER.debug("[ActorProjectPropertyAdapter] Action Brush 设置为: {}", type);
+                }
+                if (selected) {
+                    ImGui.setItemDefaultFocus();
+                }
+            }
+            ImGui.endCombo();
+        }
+        
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("选择当前绘制动作\\n在 Timeline 的 EntityTrack 上拖拽即可创建 ActionClip");
+        }
+        
+        ImGui.textDisabled("💡 在 Timeline 的 EntityTrack 上拖拽一段，即可创建 " + currentLabel + " 动作区间");
     }
 }
 

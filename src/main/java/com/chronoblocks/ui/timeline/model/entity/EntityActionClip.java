@@ -73,6 +73,11 @@ public class EntityActionClip extends EntityClip {
         return EntityClipType.ACTION;
     }
 
+    @Override
+    public TimelineClipVisualType getVisualType() {
+        return TimelineClipVisualType.EVENT;
+    }
+
     // ========== Getters and Setters ==========
 
     public ActionType getActionType() {

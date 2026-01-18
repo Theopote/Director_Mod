@@ -1,5 +1,6 @@
 package com.chronoblocks.ui.actor.selection;
 
+import com.chronoblocks.actor.Actor;
 import com.chronoblocks.actor.ActorRef;
 import com.chronoblocks.ui.actor.gizmo.ActorGizmoController;
 import com.chronoblocks.ui.selection.SelectionManager;
@@ -15,12 +16,15 @@ import java.util.Objects;
 import java.util.UUID;
 
 /**
- * ActorSelectionHub v1.0
+ * ActorSelectionHub v2.0
  *
- * <p>统一的"演员选中"入口。
+ * <p>统一的"演员选中"和"演员放置"入口。
  *
  * <p>任何地方（世界点击 / UI 点击 / 脚本）只要想选中一个 Actor：
  *     → 调用 ActorSelectionHub.selectActor(actorId)
+ *
+ * <p>任何地方想放置一个 Actor：
+ *     → 调用 ActorSelectionHub.beginPlace(actor)
  *
  * <p>它会负责：
  * <ol>
@@ -32,13 +36,13 @@ import java.util.UUID;
  *
  * <p>⚠️ 重要原则：
  * <ul>
- *   <li>ActorSelectionHub 不"存状态"</li>
- *   <li>它只是把一次 selection 行为广播到各系统</li>
+ *   <li>ActorSelectionHub 只描述"意图"，不执行任何操作</li>
+ *   <li>它只是把一次 selection/placement 行为广播到各系统</li>
  *   <li>严格遵守方案 C：Timeline 只通过 ActorRef 认识 Actor</li>
  * </ul>
  *
  * @author ChronoBlocks Team
- * @version 1.0
+ * @version 2.0
  */
 public final class ActorSelectionHub {
 
@@ -46,6 +50,24 @@ public final class ActorSelectionHub {
 
     /** 当前选中的 Actor ID（只读，供 Visualizer 使用） */
     private static UUID currentActorId = null;
+
+    /** 放置模式状态 */
+    private static ActorSelectionMode mode = ActorSelectionMode.NONE;
+
+    /** 等待放置的 Actor（放置模式时） */
+    private static Actor pendingActor = null;
+
+    /**
+     * Actor 选择模式
+     */
+    public enum ActorSelectionMode {
+        /** 无选择 */
+        NONE,
+        /** 选择模式（点击世界中的 Actor） */
+        SELECT,
+        /** 放置模式（在世界中放置新 Actor） */
+        PLACE
+    }
 
     private ActorSelectionHub() {
         // 静态工具类
@@ -158,6 +180,66 @@ public final class ActorSelectionHub {
         currentActorId = null;
 
         LOGGER.debug("[ActorSelectionHub] 已清除 Actor 选择和方块选区");
+    }
+
+    // =========================================================
+    // Placement API (v2.0 新增)
+    // =========================================================
+
+    /**
+     * 开始放置 Actor（进入放置模式）
+     * <p>告诉系统："我现在想放置这个 Actor"
+     * <p>Hub 只描述"意图"，不执行任何操作
+     *
+     * @param actor 要放置的 Actor
+     */
+    public static void beginPlace(Actor actor) {
+        if (actor == null) {
+            LOGGER.warn("[ActorSelectionHub] beginPlace: actor is null");
+            return;
+        }
+
+        mode = ActorSelectionMode.PLACE;
+        pendingActor = actor;
+
+        LOGGER.info("[ActorSelectionHub] 进入放置模式: {} ({})", actor.getName(), actor.getType());
+    }
+
+    /**
+     * 取消放置（退出放置模式）
+     */
+    public static void cancelPlace() {
+        mode = ActorSelectionMode.NONE;
+        pendingActor = null;
+
+        LOGGER.debug("[ActorSelectionHub] 已取消放置模式");
+    }
+
+    /**
+     * 检查是否正在放置 Actor
+     *
+     * @return 如果正在放置则返回 true
+     */
+    public static boolean isPlacingActor() {
+        return mode == ActorSelectionMode.PLACE && pendingActor != null;
+    }
+
+    /**
+     * 获取等待放置的 Actor
+     *
+     * @return 等待放置的 Actor，如果不在放置模式则返回 null
+     */
+    public static Actor getPendingActor() {
+        return pendingActor;
+    }
+
+    /**
+     * 获取当前选择模式
+     *
+     * @return 当前选择模式
+     */
+    public static ActorSelectionMode getMode() {
+        return mode;
     }
 
     // =========================================================

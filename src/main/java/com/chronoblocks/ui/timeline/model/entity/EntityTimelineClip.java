@@ -25,6 +25,16 @@ public class EntityTimelineClip extends TimelineClip {
         return entityClip;
     }
 
+    /**
+     * 获取视觉类型（委托给 EntityClip）
+     * <p>用于 Timeline 渲染时区分不同的视觉风格
+     *
+     * @return 视觉类型
+     */
+    public TimelineClipVisualType getVisualType() {
+        return entityClip != null ? entityClip.getVisualType() : TimelineClipVisualType.CURVE;
+    }
+
     void syncFromEntityClip(EntityClip source) {
         if (syncingToEntity) {
             return;

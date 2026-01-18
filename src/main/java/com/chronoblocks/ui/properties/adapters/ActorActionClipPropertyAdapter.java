@@ -1,20 +1,27 @@
 package com.chronoblocks.ui.properties.adapters;
 
+import com.chronoblocks.actor.Actor;
+import com.chronoblocks.actor.ActorRegistry;
+import com.chronoblocks.actor.ActorRegistryManager;
 import com.chronoblocks.actor.action.ActorActionType;
+import com.chronoblocks.actor.rig.ActorRigProfile;
 import com.chronoblocks.ui.properties.IPropertyAdapter;
+import com.chronoblocks.ui.selection.SelectionManager;
 import com.chronoblocks.ui.theme.Icons;
 import com.chronoblocks.ui.theme.UITheme;
+import com.chronoblocks.ui.timeline.model.TimelineTrack;
+import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.entity.ActorActionClip;
+import com.chronoblocks.ui.timeline.model.entity.EntityTrack;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
-import imgui.type.ImInt;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * ActorActionClipPropertyAdapter v1.0
+ * ActorActionClipPropertyAdapter v2.0
  *
  * <p>演员动作语义片段属性面板适配器。
  *
@@ -31,16 +38,16 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *   <li>只描述"感觉"，不直接控制动画</li>
  *   <li>不操作世界，不设置位置/旋转</li>
  *   <li>只影响 Runtime 表现策略</li>
+ *   <li>根据 RigProfile 禁用不支持的 Action（UI 层联动）</li>
  * </ul>
  *
  * @author ChronoBlocks Team
- * @version 1.0
+ * @version 2.0
  */
 public class ActorActionClipPropertyAdapter implements IPropertyAdapter<ActorActionClip> {
 
     private static final String TITLE = Icons.SMILE + " 动作语义片段";
 
-    private final ImInt actionTypeIndex = new ImInt();
     private final ImFloat intensityFloat = new ImFloat();
     private final ImBoolean loopBoolean = new ImBoolean();
     private final ImFloat startTimeFloat = new ImFloat();
@@ -73,23 +80,11 @@ public class ActorActionClipPropertyAdapter implements IPropertyAdapter<ActorAct
 
         // ========== 动作选择 ==========
         if (ImGui.collapsingHeader("🎭 动作语义", ImGuiTreeNodeFlags.DefaultOpen)) {
-            ActorActionType[] types = ActorActionType.values();
-            String[] typeLabels = new String[types.length];
-            for (int i = 0; i < types.length; i++) {
-                typeLabels[i] = types[i].name();
-                if (types[i] == clip.getActionType()) {
-                    actionTypeIndex.set(i);
-                }
-            }
-
-            if (ImGui.combo("动作类型", actionTypeIndex, typeLabels)) {
-                clip.setActionType(types[actionTypeIndex.get()]);
-                changed.set(true);
-            }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("选择演员在这段时间内的动作语义状态\n例如：RUN（奔跑）、WALK（行走）、DANCE（跳舞）");
-            }
+            renderActionSelector(clip, changed);
         }
+
+        // ========== RigProfile 警告（如果当前 Action 不支持）==========
+        renderRigWarningIfNeeded(clip);
 
         // ========== 动作强度 ==========
         if (ImGui.collapsingHeader("💪 动作强度", ImGuiTreeNodeFlags.DefaultOpen)) {
@@ -149,5 +144,149 @@ public class ActorActionClipPropertyAdapter implements IPropertyAdapter<ActorAct
         }
 
         return changed.get();
+    }
+
+    // =========================================================
+    // Actor Resolution (v2.0 新增)
+    // =========================================================
+
+    /**
+     * 解析当前 Clip 对应的 Actor（安全做法）
+     * <p>⚠️ 不要在 Adapter 里缓存 Actor，每次 render 都"就地取"，避免 Selection 不一致
+     *
+     * @return Actor，如果无法解析则返回 null
+     */
+    private Actor resolveActorForClip() {
+        SelectionManager sel = SelectionManager.get();
+        TimelineTrack track = sel.getSelectedTrack();
+        
+        if (track == null || track.getType() != TrackType.ENTITY) {
+            return null;
+        }
+
+        EntityTrack entityTrack = track.getEntityTrackPayload();
+        if (entityTrack == null) {
+            return null;
+        }
+
+        var actorRef = entityTrack.getActorRef();
+        if (actorRef == null) {
+            return null;
+        }
+
+        ActorRegistry actorRegistry = ActorRegistryManager.getInstance();
+        if (actorRegistry == null) {
+            return null;
+        }
+
+        return actorRegistry.getActor(actorRef.getActorId()).orElse(null);
+    }
+
+    // =========================================================
+    // Action Selector with RigProfile Support (v2.0 新增)
+    // =========================================================
+
+    /**
+     * 渲染动作选择器（根据 RigProfile 禁用不支持的 Action）
+     *
+     * @param clip ActorActionClip
+     * @param changed 修改标志
+     */
+    private void renderActionSelector(ActorActionClip clip, AtomicBoolean changed) {
+        ActorActionType current = clip.getActionType();
+        Actor actor = resolveActorForClip();
+        ActorRigProfile rig = actor != null ? actor.getRigProfile() : null;
+
+        // 构建显示标签（包含支持状态提示）
+        String currentLabel = current.name();
+        if (rig != null && !rig.supports(current)) {
+            currentLabel = current.name() + " ⚠";
+        }
+
+        if (ImGui.beginCombo("动作类型", currentLabel)) {
+            ActorActionType[] types = ActorActionType.values();
+            for (ActorActionType type : types) {
+                boolean supported = rig == null || rig.supports(type);
+                boolean selected = (type == current);
+
+                // 构建选项标签
+                String label = type.name();
+                if (!supported) {
+                    label = label + " (不支持)";
+                }
+
+                // 如果不支持，禁用该选项
+                if (!supported) {
+                    ImGui.beginDisabled();
+                }
+
+                if (ImGui.selectable(label, selected)) {
+                    if (supported) {
+                        clip.setActionType(type);
+                        changed.set(true);
+                    }
+                }
+
+                // 如果不支持，显示 Tooltip 解释原因
+                if (!supported && ImGui.isItemHovered()) {
+                    ImGui.beginTooltip();
+                    if (rig != null) {
+                        ImGui.textDisabled("此动作不被当前 RigProfile 支持");
+                        ImGui.textDisabled(String.format("Actor: %s, Rig: %s", 
+                            actor != null ? actor.getName() : "未知",
+                            rig.getClass().getSimpleName()));
+                    } else {
+                        ImGui.textDisabled("无法获取 RigProfile");
+                    }
+                    ImGui.endTooltip();
+                }
+
+                if (selected) {
+                    ImGui.setItemDefaultFocus();
+                }
+
+                if (!supported) {
+                    ImGui.endDisabled();
+                }
+            }
+
+            ImGui.endCombo();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("选择演员在这段时间内的动作语义状态\n例如：RUN（奔跑）、WALK（行走）、DANCE（跳舞）\n不支持的选项会被禁用");
+        }
+    }
+
+    // =========================================================
+    // RigProfile Warning (v2.0 新增)
+    // =========================================================
+
+    /**
+     * 如果当前 Action 不被 RigProfile 支持，显示警告
+     *
+     * @param clip ActorActionClip
+     */
+    private void renderRigWarningIfNeeded(ActorActionClip clip) {
+        Actor actor = resolveActorForClip();
+        if (actor == null) {
+            return;
+        }
+
+        ActorRigProfile rig = actor.getRigProfile();
+        if (rig == null) {
+            return;
+        }
+
+        ActorActionType currentAction = clip.getActionType();
+        if (!rig.supports(currentAction)) {
+            ImGui.spacing();
+            ImGui.textColored(1.0f, 0.6f, 0.2f, 1.0f, 
+                "⚠ 此动作不被当前演员的 RigProfile 支持");
+            ImGui.textDisabled(String.format("Actor: %s, Action: %s, Rig: %s", 
+                actor.getName(),
+                currentAction.name(),
+                rig.getClass().getSimpleName()));
+            ImGui.textDisabled("建议：更改动作类型或更换演员的 RigProfile");
+        }
     }
 }

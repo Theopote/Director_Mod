@@ -77,6 +77,16 @@ public abstract class EntityClip implements TimelineSelectable, Comparable<Entit
      */
     public abstract EntityClipType getClipType();
 
+    /**
+     * 获取视觉类型（用于 Timeline 渲染区分）
+     * <p>默认返回 CURVE（连续变化），子类可以覆盖以返回 BLOCK（状态区间）或 EVENT（瞬时事件）
+     *
+     * @return 视觉类型
+     */
+    public TimelineClipVisualType getVisualType() {
+        return TimelineClipVisualType.CURVE;
+    }
+
     // ========== TimelineSelectable 实现 ==========
 
     @Override

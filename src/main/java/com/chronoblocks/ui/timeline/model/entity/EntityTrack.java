@@ -297,5 +297,38 @@ public class EntityTrack {
         clip.setVisibleOnSpawn(true);
         addClip(clip);
     }
+
+    /**
+     * 获取所有 ActorActionClip（用于涂抹式编辑）
+     *
+     * @return ActorActionClip 列表（按时间排序）
+     */
+    public List<ActorActionClip> getActionClips() {
+        List<ActorActionClip> result = new ArrayList<>();
+        for (EntityClip clip : clips) {
+            if (clip instanceof ActorActionClip actionClip) {
+                result.add(actionClip);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 替换 ActionClips（用于涂抹式编辑）
+     * <p>移除所有现有的 ActorActionClip，然后添加新的
+     *
+     * @param newClips 新的 ActionClips 列表
+     */
+    public void replaceActionClips(List<ActorActionClip> newClips) {
+        // 移除所有现有的 ActorActionClip
+        clips.removeIf(clip -> clip instanceof ActorActionClip);
+
+        // 添加新的 ActionClips
+        for (ActorActionClip clip : newClips) {
+            if (clip != null) {
+                clips.add(clip);
+            }
+        }
+    }
 }
 

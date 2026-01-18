@@ -100,16 +100,24 @@ public final class PropertyAdapterRegistry {
         }
         
         // 2. 查找兼容的适配器（支持继承和 supports() 方法）
+        // 注意：确保精确类型匹配优先，避免误匹配其他适配器（如 Container）
         for (Map.Entry<Class<?>, IPropertyAdapter<?>> entry : adapters.entrySet()) {
-            // 检查继承关系
-            if (entry.getKey().isAssignableFrom(targetClass)) {
-                LOGGER.trace("[PropertyAdapterRegistry] Found compatible adapter: {} for {}", 
-                    entry.getKey().getSimpleName(), targetClass.getSimpleName());
-                return (IPropertyAdapter<T>) entry.getValue();
+            Class<?> registeredType = entry.getKey();
+            IPropertyAdapter<?> entryAdapter = entry.getValue();
+            
+            // 跳过精确匹配（已在步骤1处理）
+            if (registeredType == targetClass) {
+                continue;
             }
             
-            // 检查 supports() 方法
-            IPropertyAdapter<?> entryAdapter = entry.getValue();
+            // 检查继承关系（必须是直接父类或接口，避免过于宽泛的匹配）
+            if (registeredType.isAssignableFrom(targetClass)) {
+                LOGGER.trace("[PropertyAdapterRegistry] Found compatible adapter: {} for {}", 
+                    registeredType.getSimpleName(), targetClass.getSimpleName());
+                return (IPropertyAdapter<T>) entryAdapter;
+            }
+            
+            // 检查 supports() 方法（如果已通过继承关系匹配，则不再检查）
             if (entryAdapter.supports(target)) {
                 LOGGER.trace("[PropertyAdapterRegistry] Found adapter via supports(): {} for {}", 
                     entryAdapter.getClass().getSimpleName(), targetClass.getSimpleName());
