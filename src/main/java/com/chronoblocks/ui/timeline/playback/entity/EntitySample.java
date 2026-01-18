@@ -115,6 +115,11 @@ public class EntitySample {
     /** 动作强度（来自 ActorActionClip）[0.0-1.0] */
     public float actionIntensity = 1.0f;
 
+    // ========== 速度计算（用于自动动作推断）==========
+
+    /** 移动速度（单位：blocks/second，只读给 Runtime） */
+    public float speed = 0.0f;
+
     // ==========================================================
     // 工具方法
     // ==========================================================
@@ -180,6 +185,9 @@ public class EntitySample {
         // 动作强度插值
         actionIntensity = lerp(a.actionIntensity, b.actionIntensity, t);
 
+        // 速度插值（线性）
+        speed = lerp(a.speed, b.speed, t);
+
         // 布尔值：取最近关键帧的值（不插值）
         actionLoop = (t < 0.5f) ? a.actionLoop : b.actionLoop;
         active = (t < 0.5f) ? a.active : b.active;
@@ -231,6 +239,9 @@ public class EntitySample {
         // ActorActionClip 扩展字段
         action = s.action;
         actionIntensity = s.actionIntensity;
+
+        // 速度
+        speed = s.speed;
     }
 
     private float lerp(float a, float b, float t) {

@@ -216,6 +216,9 @@ public final class PropertyAdapterBootstrap {
             registerAdapter(com.chronoblocks.ui.timeline.model.entity.EntityDespawnClip.class,
                     new com.chronoblocks.ui.properties.adapters.EntityDespawnClipPropertyAdapter());
             registeredCount++;
+            registerAdapter(com.chronoblocks.ui.timeline.model.entity.ActorActionClip.class,
+                    new com.chronoblocks.ui.properties.adapters.ActorActionClipPropertyAdapter());
+            registeredCount++;
             
             // ✅ 后处理适配器
             registerAdapter(new PostProcessingPropertyAdapter(), "PostProcessing");

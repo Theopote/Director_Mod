@@ -1,5 +1,6 @@
 package com.chronoblocks.ui.timeline.playback.entity;
 
+import com.chronoblocks.actor.action.ActorActionType;
 import com.chronoblocks.ui.timeline.model.TimelineInterpolation;
 import com.chronoblocks.ui.timeline.model.entity.*;
 import org.joml.Vector3f;
@@ -48,6 +49,18 @@ public class EntityClipSampler {
 
     /** 用于 AnimationEvent 的"已触发记录"（防止重复触发） */
     private final AnimationEventTriggerCache animationEventCache = new AnimationEventTriggerCache();
+
+    /** 上一帧位置（用于计算速度） */
+    private Vector3f previousPosition = null;
+
+    /** 上一帧时间（用于计算速度） */
+    private float previousTime = -1.0f;
+
+    /**
+     * 动作推断阈值（blocks/second）
+     */
+    private static final float WALK_THRESHOLD = 0.02f;
+    private static final float RUN_THRESHOLD = 0.12f;
 
     /**
      * 构造函数（接受实体轨道）。
@@ -189,6 +202,12 @@ public class EntityClipSampler {
         // ========== 处理 ActorAction Clip（动作语义）==========
         // 规则：last-wins（取 startTime 最大的那个）
         applyActorAction(result, actorActionClips, timeSeconds);
+
+        // ========== 计算速度（用于自动动作推断）==========
+        sampleVelocity(result, timeSeconds);
+
+        // ========== 自动动作推断（仅在未显式指定时生效）==========
+        resolveAutoAction(result);
 
         return result;
     }
@@ -473,6 +492,99 @@ public class EntityClipSampler {
     }
 
     /**
+     * 计算移动速度（基于相邻两帧位置变化）。
+     *
+     * @param result 当前采样结果
+     * @param timeSeconds 当前时间（秒）
+     */
+    private void sampleVelocity(EntitySample result, float timeSeconds) {
+        if (previousPosition == null || previousTime < 0.0f) {
+            // 第一帧，无法计算速度
+            result.speed = 0.0f;
+            // 缓存当前位置和时间
+            previousPosition = new Vector3f(result.position);
+            previousTime = timeSeconds;
+            return;
+        }
+
+        float deltaTime = timeSeconds - previousTime;
+        if (deltaTime <= 0.0f) {
+            // 时间未前进，保持上一帧速度
+            return;
+        }
+
+        // 计算位置变化
+        float dx = result.position.x - previousPosition.x;
+        float dy = result.position.y - previousPosition.y;
+        float dz = result.position.z - previousPosition.z;
+
+        // 计算距离
+        float distance = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
+
+        // 计算速度（blocks/second）
+        result.speed = distance / deltaTime;
+
+        // 更新缓存
+        previousPosition.set(result.position);
+        previousTime = timeSeconds;
+    }
+
+    /**
+     * 自动动作推断（仅在未显式指定 ActorActionClip 时生效）。
+     *
+     * <p>优先级规则：
+     * <ol>
+     *   <li>ActorActionClip（导演显式指定）→ 完全尊重，不自动推断</li>
+     *   <li>位移速度自动推断（WALK / RUN）</li>
+     *   <li>默认 IDLE</li>
+     * </ol>
+     *
+     * @param result 采样结果
+     */
+    private void resolveAutoAction(EntitySample result) {
+        // 1️⃣ 如果导演明确指定了 ActionClip，完全尊重，不自动推断
+        if (result.action != ActorActionType.IDLE) {
+            return;
+        }
+
+        // 2️⃣ 否则根据速度判断
+        float v = result.speed;
+
+        if (v >= RUN_THRESHOLD) {
+            // 跑步
+            result.action = ActorActionType.RUN;
+            // 强度：基于速度超过阈值的程度
+            float excess = v - RUN_THRESHOLD;
+            result.actionIntensity = clamp(
+                    (excess / RUN_THRESHOLD) * 0.5f + 0.5f, // 0.5 ~ 1.0
+                    0.5f,
+                    1.0f
+            );
+        } else if (v >= WALK_THRESHOLD) {
+            // 行走
+            result.action = ActorActionType.WALK;
+            // 强度：基于速度在 WALK 和 RUN 之间的比例
+            float ratio = (v - WALK_THRESHOLD) / (RUN_THRESHOLD - WALK_THRESHOLD);
+            result.actionIntensity = clamp(
+                    ratio * 0.5f + 0.3f, // 0.3 ~ 0.8
+                    0.3f,
+                    0.8f
+            );
+        } else {
+            // 静止
+            result.action = ActorActionType.IDLE;
+            result.actionIntensity = 1.0f;
+        }
+    }
+
+    /**
+     * 限制值在指定范围内。
+     */
+    private static float clamp(float value, float min, float max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
+    /**
      * 清除 Action 触发缓存（用于重置/跳转时间）。
      */
     public void clearActionCache() {
@@ -492,6 +604,9 @@ public class EntityClipSampler {
     public void clearAllCaches() {
         actionCache.clear();
         animationEventCache.clear();
+        // 清除速度计算缓存（时间跳转时需要重置）
+        previousPosition = null;
+        previousTime = -1.0f;
     }
 
     /**
