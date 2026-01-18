@@ -230,8 +230,11 @@ public class GizmoInteractionController {
             }
             state = GizmoState.IDLE;
             
+            // ⭐ TRANSFORM Gizmo（Actor 编辑）不应该从方块选区更新 Box
             // 更新 Box（从 SelectionManager 同步，确保 Gizmo 与选区一致）
-            updateBoxFromSelection();
+            if (context == null || context.getType() != GizmoType.TRANSFORM) {
+                updateBoxFromSelection();
+            }
             
             // 🧩 可选：清除预览框
             // 注释：如果希望拖拽结束后保持预览框显示，可以注释掉下面的代码
@@ -288,8 +291,11 @@ public class GizmoInteractionController {
             context.setPivot(newPivot);
         }
         
+        // ⭐ TRANSFORM Gizmo（Actor 编辑）不应该从方块选区更新 Box
         // 更新 Box（从 SelectionManager 同步）
-        updateBoxFromSelection();
+        if (context == null || context.getType() != GizmoType.TRANSFORM) {
+            updateBoxFromSelection();
+        }
     }
 
     private boolean isMoveHandle(GizmoHandle handle) {

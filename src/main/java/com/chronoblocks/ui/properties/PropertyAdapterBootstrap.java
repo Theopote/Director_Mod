@@ -220,6 +220,11 @@ public final class PropertyAdapterBootstrap {
                     new com.chronoblocks.ui.properties.adapters.ActorActionClipPropertyAdapter());
             registeredCount++;
             
+            // ✅ 实体片段关键帧适配器
+            registerAdapter(com.chronoblocks.ui.timeline.model.entity.EntityClipKeyframe.class,
+                    new com.chronoblocks.ui.properties.adapters.EntityClipKeyframePropertyAdapter());
+            registeredCount++;
+            
             // ✅ 后处理适配器
             registerAdapter(new PostProcessingPropertyAdapter(), "PostProcessing");
             registeredCount++;

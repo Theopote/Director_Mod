@@ -1008,6 +1008,50 @@ public class TimelinePanel extends AbstractPanel
             return;
         }
 
+        // ⭐ 特殊处理 EntityTimelineClip：创建 EntityClipKeyframe
+        if (clip instanceof com.chronoblocks.ui.timeline.model.entity.EntityTimelineClip entityTimelineClip) {
+            com.chronoblocks.ui.timeline.model.entity.EntityClip entityClip = entityTimelineClip.getEntityClip();
+            
+            // 查找是否已存在关键帧
+            com.chronoblocks.ui.timeline.model.entity.EntityClipKeyframe existing = 
+                entityClip.findKeyframeAt(clickTime, KEYFRAME_TOLERANCE);
+            
+            if (existing != null) {
+                // 删除关键帧
+                entityClip.removeKeyframe(existing.getId());
+                markDataChanged();
+                LOGGER.debug("[TimelinePanel] 删除 EntityClipKeyframe at {}s (片段: {})",
+                        String.format("%.2f", clickTime), clip.getLabel());
+            } else {
+                // 创建 EntityClipKeyframe
+                com.chronoblocks.ui.timeline.model.entity.EntityClipKeyframe keyframe = 
+                    new com.chronoblocks.ui.timeline.model.entity.EntityClipKeyframe(clickTime);
+                
+                // 采样当前状态作为初始值
+                if (track != null && track.getType() == com.chronoblocks.ui.timeline.model.TrackType.ENTITY) {
+                    com.chronoblocks.ui.timeline.model.entity.EntityTrack entityTrack = 
+                        track.getEntityTrackPayload();
+                    if (entityTrack != null) {
+                        com.chronoblocks.ui.timeline.playback.entity.EntityClipSampler sampler = 
+                            new com.chronoblocks.ui.timeline.playback.entity.EntityClipSampler(entityTrack);
+                        com.chronoblocks.ui.timeline.playback.entity.EntitySample sample = 
+                            sampler.sampleAt(clickTime);
+                        if (sample != null && sample.enabled) {
+                            keyframe.setPosition(sample.position.x, sample.position.y, sample.position.z);
+                            keyframe.setRotation(sample.rotation.x, sample.rotation.y, sample.rotation.z);
+                            keyframe.setScale(sample.scale.x, sample.scale.y, sample.scale.z);
+                        }
+                    }
+                }
+                
+                entityClip.addKeyframe(keyframe);
+                markDataChanged();
+                LOGGER.debug("[TimelinePanel] 添加 EntityClipKeyframe at {}s (片段: {})",
+                        String.format("%.2f", clickTime), clip.getLabel());
+            }
+            return;
+        }
+
         Float existingKf = clip.getKeyframeAt(clickTime, KEYFRAME_TOLERANCE);
 
         if (existingKf != null) {

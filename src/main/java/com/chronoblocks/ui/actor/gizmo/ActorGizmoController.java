@@ -81,6 +81,11 @@ public final class ActorGizmoController {
     private Vec3d dragBaseRot;       // ROTATE 模式
     private Vec3d dragBaseScale;     // SCALE 模式
 
+    /** Gizmo 位置缓存（用于优化更新频率） */
+    private Box lastGizmoBox = null;
+    private Vec3d lastGizmoPivot = null;
+    private static final double BOX_CHANGE_THRESHOLD_SQ = 0.0001; // 0.01 blocks
+
     /** 默认 TransformClip 时长（秒） */
     private static final float DEFAULT_CLIP_DURATION = 1.0f;
 
@@ -101,10 +106,26 @@ public final class ActorGizmoController {
      * @param actorId Actor ID，如果为 null 则清除目标
      */
     public void setTargetActor(UUID actorId) {
+        // ⭐ 清除方块选区（Gizmo 激活前）
+        // Actor Gizmo 不应该与方块选区有任何关联
+        try {
+            com.chronoblocks.core.selection.SelectionManager blockSelectionManager = 
+                com.chronoblocks.core.selection.SelectionManager.get();
+            if (blockSelectionManager != null) {
+                blockSelectionManager.clearSelection();
+            }
+        } catch (Exception e) {
+            LOGGER.debug("[ActorGizmoController] 清除方块选区失败: {}", e.getMessage());
+        }
+        
         this.targetActorId = actorId;
         this.dragging = false;
         this.editingClip = null;
         clearDragBases();
+        
+        // 重置位置缓存，强制下次更新时重新计算
+        lastGizmoBox = null;
+        lastGizmoPivot = null;
 
         resolveTargetTrack();
     }
@@ -216,14 +237,25 @@ public final class ActorGizmoController {
 
     /**
      * 更新 Gizmo 位置（跟随实体）
+     * <p>优化：只在 Box 或 Pivot 真正变化时更新，拖动时不更新
      */
     private void updateGizmoPosition(Entity entity) {
+        // ⭐ 拖动时不要更新位置，避免干扰拖动操作
+        if (dragging) {
+            return;
+        }
+        
         Box box = entity.getBoundingBox();
         if (box == null) {
             return;
         }
 
         Vec3d pivot = new Vec3d(entity.getX(), entity.getY(), entity.getZ());
+
+        // ⭐ 检查 Box 和 Pivot 是否真正变化（避免不必要的更新）
+        boolean boxChanged = lastGizmoBox == null || !boxesEqual(box, lastGizmoBox);
+        boolean pivotChanged = lastGizmoPivot == null || 
+                              lastGizmoPivot.squaredDistanceTo(pivot) > BOX_CHANGE_THRESHOLD_SQ;
 
         // 如果 Gizmo 未激活，激活它
         if (!GizmoManager.get().isActive()) {
@@ -244,11 +276,23 @@ public final class ActorGizmoController {
                 LOGGER.debug("[ActorGizmoController] 已设置 ActorTransformApplier");
             }
             
+            lastGizmoBox = box;
+            lastGizmoPivot = pivot;
             LOGGER.debug("[ActorGizmoController] 已激活 Gizmo: Actor={}, Mode={}", targetActorId, currentMode);
         } else {
-            // 如果已激活，更新位置和模式
-            GizmoManager.get().setTargetBox(box);
-            GizmoManager.get().setPivot(pivot);
+            // 如果已激活，只在真正变化时更新位置和模式
+            if (boxChanged || pivotChanged) {
+                if (boxChanged) {
+                    GizmoManager.get().setTargetBox(box);
+                }
+                if (pivotChanged) {
+                    GizmoManager.get().setPivot(pivot);
+                }
+                lastGizmoBox = box;
+                lastGizmoPivot = pivot;
+            }
+            
+            // 模式更新（不依赖位置变化）
             if (GizmoManager.get().getContext() != null) {
                 GizmoManager.get().getContext().setMode(currentMode);
             }
@@ -268,6 +312,21 @@ public final class ActorGizmoController {
                 }
             }
         }
+    }
+    
+    /**
+     * 检查两个 Box 是否相等（容差范围内）
+     */
+    private boolean boxesEqual(Box a, Box b) {
+        if (a == b) return true;
+        if (a == null || b == null) return false;
+        double threshold = Math.sqrt(BOX_CHANGE_THRESHOLD_SQ);
+        return Math.abs(a.minX - b.minX) < threshold &&
+               Math.abs(a.minY - b.minY) < threshold &&
+               Math.abs(a.minZ - b.minZ) < threshold &&
+               Math.abs(a.maxX - b.maxX) < threshold &&
+               Math.abs(a.maxY - b.maxY) < threshold &&
+               Math.abs(a.maxZ - b.maxZ) < threshold;
     }
 
     // =========================================================

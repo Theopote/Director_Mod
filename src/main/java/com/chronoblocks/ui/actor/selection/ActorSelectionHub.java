@@ -111,6 +111,18 @@ public final class ActorSelectionHub {
         // 如果未来需要更复杂的选中逻辑，可以通过服务注入 TimelineInteractionHandler
         model.selectItem(track, false); // false = 单选模式，清空后选中
 
+        // ⭐ 明确清除方块选区（Actor 选择不应该有方块选区）
+        // 必须在 SelectionManager.selectActor() 之前清除，避免干扰
+        try {
+            com.chronoblocks.core.selection.SelectionManager blockSelectionManager = 
+                com.chronoblocks.core.selection.SelectionManager.get();
+            if (blockSelectionManager != null) {
+                blockSelectionManager.clearSelection();
+            }
+        } catch (Exception e) {
+            LOGGER.debug("[ActorSelectionHub] 清除方块选区失败: {}", e.getMessage());
+        }
+
         // 3️⃣ SelectionManager：明确设置为 ACTOR 类型
         SelectionManager selectionManager = SelectionManager.get();
         // ⭐ 关键：使用 selectActor() 明确设置 SelectionType.ACTOR

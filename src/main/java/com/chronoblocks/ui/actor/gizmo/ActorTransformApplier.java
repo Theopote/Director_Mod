@@ -26,8 +26,8 @@ public class ActorTransformApplier extends TransformApplier {
 
     @Override
     public void applyMove(Vec3d delta) {
-        // 如果正在编辑 Actor，转发到 ActorGizmoController
-        if (actorGizmoController != null && actorGizmoController.isEditing()) {
+        // ⭐ 检查是否有目标 Actor（而不是检查 isEditing，因为 editingClip 是在拖动开始时才设置的）
+        if (actorGizmoController != null && actorGizmoController.getTargetActorId() != null) {
             // 计算增量（相对于上次的增量）
             Vec3d actualDelta = delta.subtract(lastDragDelta);
             lastDragDelta = delta;
