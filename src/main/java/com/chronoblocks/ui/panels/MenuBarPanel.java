@@ -454,6 +454,10 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
                 if (ImGui.beginMenu("Toggle Panels")) {
                     for (IPanel panel : panelRegistry.getAllPanels()) {
                         if (panel != this) { // 不显示 MenuBar 自己
+                            // ⚠️ ActorsPanel 已隐藏，等待下一版本
+                            if ("Actors".equals(panel.getPanelName())) {
+                                continue;
+                            }
                             boolean visible = panel.isVisible();
                             if (ImGui.menuItem(panel.getPanelName(), "", visible)) {
                                 panel.setVisible(!visible);

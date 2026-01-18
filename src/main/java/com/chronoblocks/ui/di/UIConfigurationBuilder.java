@@ -431,7 +431,8 @@ public class UIConfigurationBuilder {
             case "MenuBarPanel" -> MenuBarPanel.class;
             case "ToolbarPanel" -> ToolbarPanel.class;
             case "ContainerPanel" -> ContainerPanel.class;
-            case "ActorsPanel" -> ActorsPanel.class;
+            // ⚠️ ActorsPanel 已隐藏，等待下一版本
+            // case "ActorsPanel" -> ActorsPanel.class;
             case "PropertiesPanel" -> PropertiesPanel.class;
             case "TimelinePanel" -> TimelinePanel.class;
             // 添加新的模块化面板
@@ -456,7 +457,8 @@ public class UIConfigurationBuilder {
             MenuBarPanel.class,
             ToolbarPanel.class,
             ContainerPanel.class,
-            ActorsPanel.class,
+            // ⚠️ ActorsPanel 已隐藏，等待下一版本
+            // ActorsPanel.class,
             PropertiesPanel.class,
             TimelinePanel.class,
             // 添加新的模块化面板

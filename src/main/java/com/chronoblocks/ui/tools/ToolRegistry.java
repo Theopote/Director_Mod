@@ -3,8 +3,9 @@ package com.chronoblocks.ui.tools;
 import com.chronoblocks.core.selection.SelectionManager;
 import com.chronoblocks.core.selection.SelectionTool;
 import com.chronoblocks.ui.theme.Icons;
-import com.chronoblocks.ui.tools.impl.ActorPathTool;
-import com.chronoblocks.ui.tools.impl.ActorSelectTool;
+// ⚠️ Actor 工具已隐藏，等待下一版本
+// import com.chronoblocks.ui.tools.impl.ActorPathTool;
+// import com.chronoblocks.ui.tools.impl.ActorSelectTool;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
@@ -319,8 +320,9 @@ public final class ToolRegistry {
     }
 
     private void registerBuiltInExtraTools() {
-        addExtraToolIfMissing(new ActorSelectTool());
-        addExtraToolIfMissing(new ActorPathTool());
+        // ⚠️ Actor 工具已隐藏，等待下一版本
+        // addExtraToolIfMissing(new ActorSelectTool());
+        // addExtraToolIfMissing(new ActorPathTool());
     }
 
     private void addExtraToolIfMissing(EditorTool tool) {

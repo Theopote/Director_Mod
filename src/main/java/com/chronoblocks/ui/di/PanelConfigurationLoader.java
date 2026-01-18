@@ -181,8 +181,9 @@ public class PanelConfigurationLoader {
         // ContainerPanel
         panels.add(new PanelConfiguration.PanelDefinition("ContainerPanel", true, 30));
 
+        // ⚠️ ActorsPanel 已隐藏，等待下一版本
         // ActorsPanel
-        panels.add(new PanelConfiguration.PanelDefinition("ActorsPanel", true, 35));
+        // panels.add(new PanelConfiguration.PanelDefinition("ActorsPanel", true, 35));
         
         // PropertiesPanel
         panels.add(new PanelConfiguration.PanelDefinition("PropertiesPanel", true, 40));

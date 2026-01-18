@@ -46,6 +46,11 @@ public class TimelineTrackController {
             ImGui.separator();
 
             for (TrackType type : TrackType.values()) {
+                // ⚠️ EntityTrack 已隐藏，等待下一版本
+                if (type == TrackType.ENTITY) {
+                    continue;
+                }
+                
                 if (ImGui.menuItem(type.getIconAndName())) {
                     createNewTrack(type);
                 }

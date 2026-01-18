@@ -183,14 +183,31 @@ public class PropertiesPanel extends AbstractPanel {
             case PROJECT -> // Project panel
                     renderProjectPanel();
             
-            case ACTOR -> // Actor 面板（ActorProjectPropertyAdapter）
-                    renderActorPanel(selectionManager);
+            case ACTOR -> // Actor 面板（ActorProjectPropertyAdapter）- ⚠️ 已隐藏，等待下一版本
+                    // renderActorPanel(selectionManager);
+                    renderProjectPanel(); // 回退到 Project 面板
             
-            case TRACK -> // Track 面板（TimelineTrackPropertyAdapter）
+            case TRACK -> {
+                // Track 面板（TimelineTrackPropertyAdapter）- ⚠️ 如果是 EntityTrack 则隐藏
+                var track = selectionManager.getSelectedTrack();
+                if (track != null && track.getType() == com.chronoblocks.ui.timeline.model.TrackType.ENTITY) {
+                    // EntityTrack 已隐藏，回退到 Project 面板
+                    renderProjectPanel();
+                } else {
                     renderTrackPanel(selectionManager);
+                }
+            }
             
-            case CLIP -> // Clip 面板（Entity*ClipPropertyAdapter）
+            case CLIP -> {
+                // Clip 面板（Entity*ClipPropertyAdapter）- ⚠️ 如果是 EntityClip 则隐藏
+                Object clip = selectionManager.getSelectionPayload();
+                if (clip instanceof com.chronoblocks.ui.timeline.model.entity.EntityClip) {
+                    // EntityClip 已隐藏，回退到 Project 面板
+                    renderProjectPanel();
+                } else {
                     renderClipPanel(selectionManager);
+                }
+            }
 
             case KEYFRAME -> // Keyframe panel (KeyframePropertyAdapter)
                     renderKeyframePanel(selectionManager);

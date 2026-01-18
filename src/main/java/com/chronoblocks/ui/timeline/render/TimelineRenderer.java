@@ -279,6 +279,10 @@ public class TimelineRenderer {
                 if (track == null) {
                     continue;
                 }
+                // ⚠️ EntityTrack 已隐藏，等待下一版本
+                if (track.getType() == TrackType.ENTITY) {
+                    continue;
+                }
                 float trackY = winY + (idx * rowHeight - scrollY);
                 
                 // 使用 TimelineTrackRenderer 渲染轨道
