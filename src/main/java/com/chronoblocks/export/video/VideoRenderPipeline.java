@@ -5,6 +5,8 @@ import com.chronoblocks.ui.timeline.container.ContainerTimelineService;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TrackType;
+import com.chronoblocks.ui.timeline.model.camera.CameraViewportProfile;
+import com.chronoblocks.ui.timeline.model.camera.ViewportMath;
 import com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController;
 
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -220,18 +222,39 @@ public final class VideoRenderPipeline {
             throw new IllegalStateException("client.getFramebuffer() == null");
         }
 
-        // 关键：主 framebuffer 尺寸取决于窗口（你的日志里就是 1920x1017），不一定等于导出目标尺寸（1920x1080）。
-        // “严格不拉伸”要求：不能用 GPU 直接缩放铺满（会改变宽高比）。
-        // 这里改为：先截图主 framebuffer，再在 CPU 侧做 letterbox/pillarbox（保持比例 + 黑边），保证最终帧严格为目标尺寸。
+        // ⭐ 关键：主 framebuffer 尺寸取决于窗口，不一定等于导出目标尺寸。
+        // 导出时应根据摄像机的画幅比例和缩放策略（FIT/FILL）进行裁切。
+        // 
+        // 设计原则：
+        // - 导出分辨率：使用 VideoExportSettings.width/height（用户可能手动修改过）
+        // - 裁切策略：从摄像机 CameraViewportProfile 获取 PreviewScalePolicy
+        // - 计算逻辑：复用 ViewportMath，确保与 UI 预览一致
         int targetW = Math.max(1, req.settings.width);
         int targetH = Math.max(1, req.settings.height);
 
-        // ignore
+        // ⭐ 获取当前导出使用的摄像机轨道（如果存在），读取其 CameraViewportProfile
+        CameraViewportProfile profile = null;
+        if (req.settings.cameraMode == VideoExportSettings.CAMERA_TRACK) {
+            TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
+            if (model != null) {
+                List<TimelineTrack> cameraTracks = getCameraTracks(model);
+                if (!cameraTracks.isEmpty()) {
+                    int idx = Math.max(0, Math.min(req.settings.cameraTrackIndex, cameraTracks.size() - 1));
+                    TimelineTrack track = cameraTracks.get(idx);
+                    if (track != null) {
+                        profile = track.getCameraViewportProfile();
+                    }
+                }
+            }
+        }
+        final CameraViewportProfile cameraProfile = profile;
+
         return (NativeImage img) -> {
             try {
                 NativeImage out = img;
                 if (img.getWidth() != targetW || img.getHeight() != targetH) {
-                    out = letterboxToTarget(img, targetW, targetH);
+                    // ⭐ 复用 ViewportMath 计算裁切区域，保持与 UI 预览一致的逻辑
+                    out = resizeToTargetUsingViewportMath(img, targetW, targetH, cameraProfile);
                     img.close();
                 }
                 req.future.complete(out);
@@ -247,34 +270,77 @@ public final class VideoRenderPipeline {
     }
 
     /**
-     * “严格不拉伸”缩放策略：保持源画面宽高比，居中绘制到目标尺寸，多余区域填充黑边。
-     * 采样方式：最近邻（更快，离线导出可接受）。
+     * ⭐ 使用 ViewportMath 将源图像调整到目标尺寸（复用 UI 预览的裁切逻辑）
+     * 
+     * <p>根据摄像机的 PreviewScalePolicy（FIT/FILL）决定缩放策略：
+     * <ul>
+     *   <li>FIT: 保持完整画面，可能留黑边（使用 ViewportMath.computeFit）</li>
+     *   <li>FILL: 填满目标尺寸，可能裁切（使用 ViewportMath.computeFill）</li>
+     * </ul>
+     * 
+     * <p>如果没有摄像机配置，默认使用 FIT 策略（保持画幅完整）。
+     * 
+     * @param src 源图像（主 framebuffer 截图）
+     * @param targetW 目标宽度
+     * @param targetH 目标高度
+     * @param cameraProfile 摄像机视口配置（可选，用于获取缩放策略）
+     * @return 调整后的图像
      */
-    private static NativeImage letterboxToTarget(NativeImage src, int targetW, int targetH) {
+    private static NativeImage resizeToTargetUsingViewportMath(NativeImage src, int targetW, int targetH,
+                                                               CameraViewportProfile cameraProfile) {
         int srcW = src.getWidth();
         int srcH = src.getHeight();
-        NativeImage dst = new NativeImage(targetW, targetH, true);
-        dst.fillRect(0, 0, targetW, targetH, 0xFF000000);
-
-        if (srcW <= 0 || srcH <= 0) {
+        
+        if (srcW <= 0 || srcH <= 0 || targetW <= 0 || targetH <= 0) {
+            NativeImage dst = new NativeImage(Math.max(1, targetW), Math.max(1, targetH), true);
+            dst.fillRect(0, 0, dst.getWidth(), dst.getHeight(), 0xFF000000);
             return dst;
         }
 
-        float scale = Math.min(targetW / (float) srcW, targetH / (float) srcH);
-        int drawW = Math.max(1, Math.round(srcW * scale));
-        int drawH = Math.max(1, Math.round(srcH * scale));
-        int offX = (targetW - drawW) / 2;
-        int offY = (targetH - drawH) / 2;
+        // ⭐ 使用 ViewportMath 计算裁切区域（与 UI Overlay 使用相同的算法）
+        float srcAspect = (float) srcW / (float) srcH;
+        CameraViewportProfile.PreviewScalePolicy scalePolicy = 
+            (cameraProfile != null) ? cameraProfile.getPreviewScalePolicy() 
+                                    : CameraViewportProfile.PreviewScalePolicy.FIT;
+        
+        ViewportMath.ViewportRects viewport;
+        if (scalePolicy == CameraViewportProfile.PreviewScalePolicy.FIT) {
+            // FIT: 保持完整画面，留黑边
+            viewport = ViewportMath.computeFit(0, 0, targetW, targetH, srcAspect);
+        } else {
+            // FILL: 填满目标，可能裁切
+            viewport = ViewportMath.computeFill(0, 0, targetW, targetH, srcAspect);
+        }
 
-        for (int y = 0; y < drawH; y++) {
-            int sy = Math.min(srcH - 1, (int) (y / scale));
-            int dy = offY + y;
-            if (dy < 0 || dy >= targetH) continue;
-            for (int x = 0; x < drawW; x++) {
-                int sx = Math.min(srcW - 1, (int) (x / scale));
-                int dx = offX + x;
-                if (dx < 0 || dx >= targetW) continue;
-                dst.setColorArgb(dx, dy, src.getColorArgb(sx, sy));
+        // 创建目标图像（全黑背景）
+        NativeImage dst = new NativeImage(targetW, targetH, true);
+        dst.fillRect(0, 0, targetW, targetH, 0xFF000000);
+
+        // 将源图像绘制到计算出的内矩形区域
+        int innerX = Math.round(viewport.innerX);
+        int innerY = Math.round(viewport.innerY);
+        int innerW = Math.round(viewport.innerW);
+        int innerH = Math.round(viewport.innerH);
+        
+        // 计算缩放比例
+        float scaleX = (float) srcW / (float) innerW;
+        float scaleY = (float) srcH / (float) innerH;
+
+        // 采样并绘制（最近邻采样，离线导出可接受）
+        for (int dy = 0; dy < innerH; dy++) {
+            int dstY = innerY + dy;
+            if (dstY < 0 || dstY >= targetH) continue;
+            
+            // 对于 FIT 模式，源图像完整映射到内矩形
+            // 对于 FILL 模式，可能需要裁切源图像
+            int srcY = Math.min(srcH - 1, Math.round(dy * scaleY));
+            
+            for (int dx = 0; dx < innerW; dx++) {
+                int dstX = innerX + dx;
+                if (dstX < 0 || dstX >= targetW) continue;
+                
+                int srcX = Math.min(srcW - 1, Math.round(dx * scaleX));
+                dst.setColorArgb(dstX, dstY, src.getColorArgb(srcX, srcY));
             }
         }
 
