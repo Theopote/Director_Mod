@@ -116,9 +116,6 @@ public class DeleteTrackCommand extends BaseTimelineCommand {
         }
 
         UUID actorId = actorRef.getActorId();
-        if (actorId == null) {
-            return;
-        }
 
         // 检查该演员是否还有任何轨道和片段（不限于 SpawnClip）
         if (hasAnyClip(model, actorId)) {

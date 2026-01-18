@@ -1,7 +1,6 @@
 package com.chronoblocks.actor.prop;
 
 import net.minecraft.entity.Entity;
-import org.joml.Vector3f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

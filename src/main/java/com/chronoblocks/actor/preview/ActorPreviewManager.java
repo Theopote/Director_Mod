@@ -7,7 +7,6 @@ import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.SpawnReason;
-import net.minecraft.entity.decoration.ArmorStandEntity;
 import net.minecraft.entity.mob.MobEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -268,12 +267,11 @@ public final class ActorPreviewManager {
         // 未来可以通过自定义渲染器来显示不同的模型
         return switch (type) {
             case PLAYER -> EntityType.ARMOR_STAND;
-            case VILLAGER -> EntityType.VILLAGER;
+            case VILLAGER, CUSTOM -> EntityType.VILLAGER;
             case COW -> EntityType.COW;
             case SHEEP -> EntityType.SHEEP;
             case ZOMBIE -> EntityType.ZOMBIE;
             case SKELETON -> EntityType.SKELETON;
-            case CUSTOM -> EntityType.VILLAGER;
         };
 
         // 原始映射（已禁用，因为会导致 ClassCastException）：

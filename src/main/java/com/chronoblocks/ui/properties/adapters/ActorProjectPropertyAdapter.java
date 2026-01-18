@@ -369,6 +369,57 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     // =========================================================
     
     /**
+     * 生成唯一的演员名称（检查演员和轨道名称）
+     *
+     * @param baseName 基础名称
+     * @param actorRegistry ActorRegistry
+     * @param timelineModel TimelineModel
+     * @return 唯一的名称
+     */
+    private String generateUniqueActorName(String baseName, ActorRegistry actorRegistry, TimelineModel timelineModel) {
+        if (baseName == null || baseName.isBlank()) {
+            baseName = "Actor";
+        }
+        String trimmed = baseName.trim();
+        String candidate = trimmed;
+        int index = 1;
+
+        // 检查名称是否已存在（检查演员和轨道）
+        while (isNameTaken(candidate, actorRegistry, timelineModel)) {
+            candidate = trimmed + index;
+            index++;
+        }
+
+        return candidate;
+    }
+
+    /**
+     * 检查名称是否已被使用（检查演员和轨道）
+     *
+     * @param name 名称
+     * @param actorRegistry ActorRegistry
+     * @param timelineModel TimelineModel
+     * @return 如果名称已被使用则返回 true
+     */
+    private boolean isNameTaken(String name, ActorRegistry actorRegistry, TimelineModel timelineModel) {
+        // 检查演员名称
+        if (actorRegistry.hasActorWithName(name)) {
+            return true;
+        }
+
+        // 检查轨道名称（特别是实体轨道）
+        if (timelineModel != null) {
+            for (TimelineTrack track : timelineModel.getTracks()) {
+                if (track != null && name.equals(track.getName())) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * 创建 Actor 和 Track（原子性操作）
      * <p>与 ActorSelectorPanel.createActorAndTrack() 保持一致
      *
@@ -377,10 +428,14 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
      */
     private void createActorAndTrack(String actorName, ActorType actorType) {
         ActorRegistry actorRegistry = ActorRegistryManager.getInstance();
+        TimelineModel timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
 
         try {
+            // 0️⃣ 生成唯一的名称
+            String uniqueName = generateUniqueActorName(actorName, actorRegistry, timelineModel);
+
             // 1️⃣ Create Actor
-            Actor actor = actorRegistry.createActor(actorName.trim(), actorType);
+            Actor actor = actorRegistry.createActor(uniqueName, actorType);
             ActorRef ref = new ActorRef(actor.getActorId());
 
             // 2️⃣ Create EntityTrack
@@ -389,7 +444,6 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             entityTrack.setDisplayName(actor.getName());
 
             // 3️⃣ Create TimelineTrack with EntityTrack payload
-            TimelineModel timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
             if (timelineModel == null) {
                 LOGGER.warn("[ActorProjectPropertyAdapter] TimelineModel 未初始化，无法创建 Track");
                 // 即使没有 TimelineModel，也选中 Actor
@@ -397,7 +451,8 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                 return;
             }
 
-            TimelineTrack timelineTrack = new TimelineTrack(actor.getName(), TrackType.ENTITY);
+            // 使用唯一的名称创建轨道
+            TimelineTrack timelineTrack = new TimelineTrack(uniqueName, TrackType.ENTITY);
             timelineTrack.setEntityTrackPayload(entityTrack);
 
             // 4️⃣ Add to TimelineModel

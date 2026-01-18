@@ -148,5 +148,20 @@ public final class ActorRegistry {
         if (ref == null) return false;
         return contains(ref.getActorId());
     }
+
+    /**
+     * 检查是否存在指定名称的演员
+     *
+     * @param name 演员名称
+     * @return 如果存在则返回 true
+     */
+    public boolean hasActorWithName(String name) {
+        if (name == null || name.isBlank()) {
+            return false;
+        }
+        String trimmed = name.trim();
+        return actors.values().stream()
+                .anyMatch(actor -> trimmed.equals(actor.getName()));
+    }
 }
 

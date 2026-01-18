@@ -101,8 +101,6 @@ public final class ActorPlacementController {
             return false;
         }
 
-        ActorRegistry actorRegistry = ActorRegistryManager.getInstance();
-
         try {
             // 1. 创建临时 Actor（不保存到 Registry，只是预览）
             pendingActor = new Actor(actorName.trim(), actorType);
@@ -314,17 +312,20 @@ public final class ActorPlacementController {
         }
 
         try {
+            // 0. 生成唯一的名称
+            String uniqueName = generateUniqueActorName(pendingActor.getName(), actorRegistry, timelineModel);
+
             // 1. 正式创建 Actor（保存到 Registry）
-            Actor actor = actorRegistry.createActor(pendingActor.getName(), pendingActor.getType());
+            Actor actor = actorRegistry.createActor(uniqueName, pendingActor.getType());
             ActorRef ref = new ActorRef(actor.getActorId());
 
             // 2. 创建 EntityTrack
             EntityTrack entityTrack = new EntityTrack();
             entityTrack.setActorRef(ref);
-            entityTrack.setDisplayName(actor.getName());
+            entityTrack.setDisplayName(uniqueName);
 
             // 3. 创建 TimelineTrack
-            TimelineTrack timelineTrack = new TimelineTrack(actor.getName(), TrackType.ENTITY);
+            TimelineTrack timelineTrack = new TimelineTrack(uniqueName, TrackType.ENTITY);
             timelineTrack.setEntityTrackPayload(entityTrack);
 
             // 4. 添加到 TimelineModel
@@ -372,6 +373,57 @@ public final class ActorPlacementController {
             LOGGER.error("[ActorPlacement] 放置 Actor 失败", e);
             cancelPlacement();
         }
+    }
+
+    /**
+     * 生成唯一的演员名称（检查演员和轨道名称）
+     *
+     * @param baseName 基础名称
+     * @param actorRegistry ActorRegistry
+     * @param timelineModel TimelineModel
+     * @return 唯一的名称
+     */
+    private String generateUniqueActorName(String baseName, ActorRegistry actorRegistry, TimelineModel timelineModel) {
+        if (baseName == null || baseName.isBlank()) {
+            baseName = "Actor";
+        }
+        String trimmed = baseName.trim();
+        String candidate = trimmed;
+        int index = 1;
+
+        // 检查名称是否已存在（检查演员和轨道）
+        while (isNameTaken(candidate, actorRegistry, timelineModel)) {
+            candidate = trimmed + index;
+            index++;
+        }
+
+        return candidate;
+    }
+
+    /**
+     * 检查名称是否已被使用（检查演员和轨道）
+     *
+     * @param name 名称
+     * @param actorRegistry ActorRegistry
+     * @param timelineModel TimelineModel
+     * @return 如果名称已被使用则返回 true
+     */
+    private boolean isNameTaken(String name, ActorRegistry actorRegistry, TimelineModel timelineModel) {
+        // 检查演员名称
+        if (actorRegistry.hasActorWithName(name)) {
+            return true;
+        }
+
+        // 检查轨道名称（特别是实体轨道）
+        if (timelineModel != null) {
+            for (TimelineTrack track : timelineModel.getTracks()) {
+                if (track != null && name.equals(track.getName())) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
 }
