@@ -35,13 +35,10 @@ public class TimelineTrack {
     
     /** 实体类型（仅对实体轨道有效） */
     private com.chronoblocks.ui.timeline.model.entity.EntityKeyframe.EntityType boundEntityType;
-    
+
     /** 演员显示名称（如 "主角 Steve", "守卫 A"） */
     private String actorDisplayName;
-    
-    /** 是否跨剪辑存在（persistent = true 表示实体在轨道外的时间段也存在） */
-    private boolean actorPersistent = false;
-    
+
     /** EntityTrack payload（仅对实体轨道有效，用于存储 EntityClip 系统） */
     private com.chronoblocks.ui.timeline.model.entity.EntityTrack entityTrackPayload;
     
@@ -139,18 +136,6 @@ public class TimelineTrack {
     }
 
     /**
-     * 根据索引移除片段，并清除父引用。
-     */
-    public void removeClipAt(int index) {
-        if (index >= 0 && index < clips.size()) {
-            TimelineClip clip = clips.remove(index);
-            if (clip != null) {
-                clip.setParentTrack(null); // 清除父引用
-            }
-        }
-    }
-
-    /**
      * 查找指定时间点上的片段。
      *
      * @param time 时间点（秒）
@@ -165,35 +150,6 @@ public class TimelineTrack {
         return null;
     }
 
-    public int getClipIndex(TimelineClip clip) {
-        return clips.indexOf(clip);
-    }
-
-    /**
-     * 查找指定时间范围内的片段。
-     */
-    public List<TimelineClip> getClipsInRange(float startTime, float endTime) {
-        List<TimelineClip> result = new ArrayList<>();
-        for (TimelineClip clip : clips) {
-            if (clip.getEndTime() >= startTime && clip.getStartTime() <= endTime) {
-                result.add(clip);
-            }
-        }
-        return result;
-    }
-
-    /**
-     * 检查时间范围是否有重叠的片段。
-     */
-    public boolean hasOverlap(float startTime, float endTime, TimelineClip exclude) {
-        for (TimelineClip clip : clips) {
-            if (clip == exclude) continue;
-            if (clip.getEndTime() > startTime && clip.getStartTime() < endTime) {
-                return true;
-            }
-        }
-        return false;
-    }
 
     // ========== 轨道级关键帧（摄像机、天气、标记等）==========
 
@@ -224,18 +180,6 @@ public class TimelineTrack {
      */
     public List<TimelineSelectable> getAutomationKeyframes() {
         return Collections.unmodifiableList(automationKeyframes);
-    }
-
-    /**
-     * 查找时间附近的关键帧，方便吸附或 UI 高亮。
-     */
-    public TimelineSelectable findAutomationKeyframeNear(float time, float tolerance) {
-        for (TimelineSelectable selectable : automationKeyframes) {
-            if (Math.abs(selectable.getStartTime() - time) <= tolerance) {
-                return selectable;
-            }
-        }
-        return null;
     }
 
     public boolean hasAutomationKeyframes() {
@@ -347,91 +291,6 @@ public class TimelineTrack {
         return Collections.unmodifiableList(audioEvents);
     }
 
-    // ========== 实体绑定信息 getter/setter（仅对实体轨道有效）==========
-
-    /**
-     * 获取绑定的演员ID。
-     *
-     * @return 演员ID，如果未绑定则返回 null
-     */
-    public java.util.UUID getBoundActorId() {
-        return boundActorId;
-    }
-
-    /**
-     * 设置绑定的演员ID。
-     *
-     * @param boundActorId 演员ID
-     */
-    public void setBoundActorId(java.util.UUID boundActorId) {
-        this.boundActorId = boundActorId;
-    }
-
-    /**
-     * 获取实体类型。
-     *
-     * @return 实体类型，如果未设置则返回 null
-     */
-    public com.chronoblocks.ui.timeline.model.entity.EntityKeyframe.EntityType getBoundEntityType() {
-        return boundEntityType;
-    }
-
-    /**
-     * 设置实体类型。
-     *
-     * @param boundEntityType 实体类型
-     */
-    public void setBoundEntityType(com.chronoblocks.ui.timeline.model.entity.EntityKeyframe.EntityType boundEntityType) {
-        this.boundEntityType = boundEntityType;
-    }
-
-    /**
-     * 获取演员显示名称。
-     *
-     * @return 显示名称，如果未设置则返回 null
-     */
-    public String getActorDisplayName() {
-        return actorDisplayName;
-    }
-
-    /**
-     * 设置演员显示名称。
-     *
-     * @param actorDisplayName 显示名称
-     */
-    public void setActorDisplayName(String actorDisplayName) {
-        this.actorDisplayName = (actorDisplayName == null || actorDisplayName.isBlank())
-            ? null
-            : actorDisplayName.trim();
-    }
-
-    /**
-     * 检查演员是否跨剪辑存在。
-     *
-     * @return 如果 persistent 则返回 true
-     */
-    public boolean isActorPersistent() {
-        return actorPersistent;
-    }
-
-    /**
-     * 设置演员是否跨剪辑存在。
-     *
-     * @param actorPersistent 是否跨剪辑存在
-     */
-    public void setActorPersistent(boolean actorPersistent) {
-        this.actorPersistent = actorPersistent;
-    }
-
-    /**
-     * 检查是否绑定了演员。
-     *
-     * @return 如果绑定了演员则返回 true
-     */
-    public boolean hasBoundActor() {
-        return boundActorId != null;
-    }
-
     // ========== EntityTrack payload getter/setter（仅对实体轨道有效）==========
 
     /**
@@ -477,15 +336,6 @@ public class TimelineTrack {
         return entityTrackPayload;
     }
 
-    /**
-     * 检查是否有 EntityTrack payload。
-     *
-     * @return 如果有 EntityTrack payload 则返回 true
-     */
-    public boolean hasEntityTrackPayload() {
-        return entityTrackPayload != null;
-    }
-    
     // ========== 摄像机属性 getter/setter（仅对摄像机轨道有效）==========
     
     /**
@@ -499,22 +349,5 @@ public class TimelineTrack {
         }
         return cameraViewportProfile;
     }
-    
-    /**
-     * 设置摄像机视口配置。
-     *
-     * @param profile CameraViewportProfile
-     */
-    public void setCameraViewportProfile(CameraViewportProfile profile) {
-        this.cameraViewportProfile = profile;
-    }
-    
-    /**
-     * 检查是否有摄像机视口配置。
-     *
-     * @return 如果有摄像机视口配置则返回 true
-     */
-    public boolean hasCameraViewportProfile() {
-        return cameraViewportProfile != null;
-    }
+
 }
