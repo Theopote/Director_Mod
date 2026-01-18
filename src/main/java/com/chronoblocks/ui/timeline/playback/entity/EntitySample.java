@@ -1,5 +1,6 @@
 package com.chronoblocks.ui.timeline.playback.entity;
 
+import com.chronoblocks.actor.action.ActorActionType;
 import com.chronoblocks.ui.timeline.model.TimelineInterpolation;
 import com.chronoblocks.ui.timeline.model.entity.EntityKeyframe;
 import org.joml.Vector3f;
@@ -106,6 +107,14 @@ public class EntitySample {
     /** Action 事件列表（本帧触发的事件） */
     public final java.util.List<EntityActionEvent> actionEvents = new java.util.ArrayList<>();
 
+    // ========== ActorActionClip 扩展字段 ==========
+
+    /** 动作语义类型（来自 ActorActionClip） */
+    public ActorActionType action = ActorActionType.IDLE;
+
+    /** 动作强度（来自 ActorActionClip）[0.0-1.0] */
+    public float actionIntensity = 1.0f;
+
     // ==========================================================
     // 工具方法
     // ==========================================================
@@ -166,6 +175,10 @@ public class EntitySample {
         // 枚举类型：根据 t 选择
         actionType = (t < 0.5f) ? a.actionType : b.actionType;
         entityType = (t < 0.5f) ? a.entityType : b.entityType;
+        action = (t < 0.5f) ? a.action : b.action;
+
+        // 动作强度插值
+        actionIntensity = lerp(a.actionIntensity, b.actionIntensity, t);
 
         // 布尔值：取最近关键帧的值（不插值）
         actionLoop = (t < 0.5f) ? a.actionLoop : b.actionLoop;
@@ -214,6 +227,10 @@ public class EntitySample {
         invulnerable = s.invulnerable;
         actionEvents.clear();
         actionEvents.addAll(s.actionEvents);
+
+        // ActorActionClip 扩展字段
+        action = s.action;
+        actionIntensity = s.actionIntensity;
     }
 
     private float lerp(float a, float b, float t) {

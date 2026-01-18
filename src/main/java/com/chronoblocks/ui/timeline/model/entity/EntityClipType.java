@@ -131,7 +131,37 @@ public enum EntityClipType {
      *   <li>死亡动画</li>
      * </ul>
      */
-    DESPAWN("离场", "控制实体的离场");
+    DESPAWN("离场", "控制实体的离场"),
+
+    /**
+     * 演员动作语义片段
+     * 
+     * <p>表示演员在一段时间内的"动作语义状态"。
+     * 
+     * <p>与 ACTION 的区别：
+     * <ul>
+     *   <li>ACTION：瞬时事件（Throw / Place）</li>
+     *   <li>ACTOR_ACTION：持续动作语义（Run / Dance / Walk）</li>
+     * </ul>
+     * 
+     * <p>示例：
+     * <ul>
+     *   <li>RUN（奔跑感觉）</li>
+     *   <li>WALK（行走感觉）</li>
+     *   <li>DANCE（跳舞）</li>
+     *   <li>CARRY（搬运）</li>
+     *   <li>IDLE（站立）</li>
+     * </ul>
+     * 
+     * <p>特点：
+     * <ul>
+     *   <li>这是"导演意图"，不是"实现细节"</li>
+     *   <li>不直接控制动画、不操作世界</li>
+     *   <li>只影响 Runtime 表现策略</li>
+     *   <li>必须是可插值 / 可过渡的</li>
+     * </ul>
+     */
+    ACTOR_ACTION("动作语义", "控制演员的持续动作语义状态（Run / Dance / Walk 等）");
 
     private final String displayName;
     private final String description;

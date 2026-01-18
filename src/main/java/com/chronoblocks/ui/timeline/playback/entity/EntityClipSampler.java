@@ -101,6 +101,7 @@ public class EntityClipSampler {
         List<EntityStateClip> stateClips = new ArrayList<>();
         List<EntityLookAtClip> lookAtClips = new ArrayList<>();
         List<EntityDespawnClip> despawnClips = new ArrayList<>();
+        List<ActorActionClip> actorActionClips = new ArrayList<>();
 
         for (EntityClip clip : clipsAtTime) {
             if (clip.isMuted()) {
@@ -143,6 +144,11 @@ public class EntityClipSampler {
                         despawnClips.add(despawnClip);
                     }
                     break;
+                case ACTOR_ACTION:
+                    if (clip instanceof ActorActionClip actorActionClip) {
+                        actorActionClips.add(actorActionClip);
+                    }
+                    break;
             }
         }
 
@@ -179,6 +185,10 @@ public class EntityClipSampler {
         // ========== 处理 Action Clip（行为事件）==========
         // 规则：一次性触发（只在刚进入 Clip 时触发）
         applyActions(result, actionClips, timeSeconds);
+
+        // ========== 处理 ActorAction Clip（动作语义）==========
+        // 规则：last-wins（取 startTime 最大的那个）
+        applyActorAction(result, actorActionClips, timeSeconds);
 
         return result;
     }
@@ -423,6 +433,43 @@ public class EntityClipSampler {
                 );
             }
         }
+    }
+
+    /**
+     * 应用 ActorAction Clip（动作语义）。
+     * 规则：在时间 t，取 startTime ≤ t ≤ endTime 的 ActorActionClip 中，startTime 最大的那个
+     *
+     * @param result EntitySample
+     * @param clips ActorAction Clips
+     * @param timeSeconds 当前时间（秒）
+     */
+    private void sampleAction(EntitySample result, List<ActorActionClip> clips, float timeSeconds) {
+        ActorActionClip active = null;
+
+        for (ActorActionClip clip : clips) {
+            if (clip.isMuted()) {
+                continue;
+            }
+
+            if (timeSeconds >= clip.getStartTime() && timeSeconds <= clip.getEndTime()) {
+                if (active == null || clip.getStartTime() > active.getStartTime()) {
+                    active = clip;
+                }
+            }
+        }
+
+        if (active != null) {
+            result.action = active.getActionType();
+            result.actionIntensity = active.getIntensity();
+        }
+    }
+
+    /**
+     * 应用 ActorAction Clip（动作语义）。
+     * 这是对外的公共方法名，内部调用 sampleAction。
+     */
+    private void applyActorAction(EntitySample result, List<ActorActionClip> clips, float timeSeconds) {
+        sampleAction(result, clips, timeSeconds);
     }
 
     /**
