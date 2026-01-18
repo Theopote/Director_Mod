@@ -1,5 +1,6 @@
 package com.chronoblocks.ui.timeline.commands;
 
+import com.chronoblocks.actor.Actor;
 import com.chronoblocks.actor.ActorRef;
 import com.chronoblocks.actor.ActorRegistry;
 import com.chronoblocks.actor.ActorRegistryManager;
@@ -7,6 +8,7 @@ import com.chronoblocks.actor.query.ActorUsageQuery;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TrackType;
+import com.chronoblocks.ui.timeline.model.entity.EntitySpawnClip;
 import com.chronoblocks.ui.timeline.model.entity.EntityTrack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +31,8 @@ public class DeleteTrackCommand extends BaseTimelineCommand {
     
     // 记录删除 Track 后，Actor 是否还在其他地方被使用
     private UUID orphanedActorId = null; // 如果删除 Track 后 Actor 未被使用，记录其 ID
+    private Actor removedActor;
+    private boolean removedActorFromRegistry;
 
     public DeleteTrackCommand(TimelineModel model, TimelineTrack track, List<TimelineTrack> trackList) {
         super(model, "track_deleted");
@@ -42,6 +46,8 @@ public class DeleteTrackCommand extends BaseTimelineCommand {
             LOGGER.warn("[Timeline] 删除轨道失败：track 或 trackList 为 null");
             return;
         }
+        removedActor = null;
+        removedActorFromRegistry = false;
         
         // 如果是 EntityTrack，检查删除后 Actor 是否还在其他地方被使用
         if (track.getType() == TrackType.ENTITY) {
@@ -70,6 +76,7 @@ public class DeleteTrackCommand extends BaseTimelineCommand {
                 ChangeKeyframeInterpolationCommand.clearInterpolationsForClip(clip);
             }
             trackList.remove(removedIndex);
+            removeActorIfOrphaned();
             LOGGER.info("[Timeline] 删除轨道，索引: {}", removedIndex);
         } else {
             LOGGER.warn("[Timeline] 删除轨道失败：轨道不在列表中");
@@ -84,8 +91,70 @@ public class DeleteTrackCommand extends BaseTimelineCommand {
         }
         if (removedIndex >= 0 && removedIndex <= trackList.size()) {
             trackList.add(removedIndex, track);
+            restoreActorIfNeeded();
             LOGGER.info("[Timeline] 恢复轨道到索引: {}", removedIndex);
         }
+    }
+
+    private void removeActorIfOrphaned() {
+        if (track == null || track.getType() != TrackType.ENTITY || model == null) {
+            return;
+        }
+
+        EntityTrack entityTrack = track.getEntityTrackPayload();
+        if (entityTrack == null) {
+            return;
+        }
+
+        ActorRef actorRef = entityTrack.getActorRef();
+        if (actorRef == null) {
+            return;
+        }
+
+        UUID actorId = actorRef.getActorId();
+        if (actorId == null || hasSpawnClip(model, actorId)) {
+            return;
+        }
+
+        ActorRegistry registry = ActorRegistryManager.getInstance();
+        registry.getActor(actorId).ifPresent(actor -> {
+            removedActor = actor;
+            removedActorFromRegistry = registry.removeActor(actorId);
+        });
+    }
+
+    private void restoreActorIfNeeded() {
+        if (!removedActorFromRegistry || removedActor == null) {
+            return;
+        }
+        ActorRegistry registry = ActorRegistryManager.getInstance();
+        registry.registerActor(removedActor);
+    }
+
+    private boolean hasSpawnClip(TimelineModel model, UUID actorId) {
+        if (model == null || actorId == null) {
+            return false;
+        }
+
+        for (TimelineTrack t : model.getTracks()) {
+            if (t == null || t.getType() != TrackType.ENTITY) {
+                continue;
+            }
+            EntityTrack entityTrack = t.getEntityTrackPayload();
+            if (entityTrack == null) {
+                continue;
+            }
+            ActorRef ref = entityTrack.getActorRef();
+            if (ref != null && actorId.equals(ref.getActorId())) {
+                for (com.chronoblocks.ui.timeline.model.entity.EntityClip clip : entityTrack.getClips()) {
+                    if (clip instanceof EntitySpawnClip) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
     }
 
     @Override

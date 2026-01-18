@@ -6,7 +6,7 @@ import com.chronoblocks.actor.ActorRegistry;
 import com.chronoblocks.actor.ActorRegistryManager;
 import com.chronoblocks.actor.ActorType;
 import com.chronoblocks.actor.preview.ActorPreviewManager;
-import com.chronoblocks.actor.preview.PreviewActorEntity;
+import net.minecraft.entity.Entity;
 import com.chronoblocks.client.input.ChronoBlocksInputSystem;
 import com.chronoblocks.ui.timeline.container.ContainerTimelineService;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
@@ -66,7 +66,7 @@ public final class ActorPlacementController {
     private Actor pendingActor = null;
 
     /** 临时 PreviewEntity（附着到鼠标的） */
-    private PreviewActorEntity previewEntity = null;
+    private Entity previewEntity = null;
 
     /** Last right-click state for edge trigger. */
     private boolean lastRightMouseDown = false;

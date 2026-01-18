@@ -1,6 +1,6 @@
 package com.chronoblocks.actor.prop;
 
-import com.chronoblocks.actor.preview.PreviewActorEntity;
+import net.minecraft.entity.Entity;
 import org.joml.Vector3f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,7 +40,7 @@ public final class ActorPropRuntime {
     private final Map<ActorPropSlot, RuntimeProp> props = new EnumMap<>(ActorPropSlot.class);
 
     /** 关联的 PreviewActorEntity（用于更新 Transform） */
-    private PreviewActorEntity actorEntity;
+    private Entity actorEntity;
 
     /**
      * 构造函数
@@ -137,7 +137,7 @@ public final class ActorPropRuntime {
      *
      * @param entity PreviewActorEntity
      */
-    public void setActorEntity(PreviewActorEntity entity) {
+    public void setActorEntity(Entity entity) {
         this.actorEntity = entity;
     }
 

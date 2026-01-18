@@ -2,7 +2,7 @@ package com.chronoblocks.actor.visualizer;
 
 import com.chronoblocks.actor.ActorRef;
 import com.chronoblocks.actor.preview.ActorPreviewManager;
-import com.chronoblocks.actor.preview.PreviewActorEntity;
+import net.minecraft.entity.Entity;
 import com.chronoblocks.ui.actor.selection.ActorSelectionHub;
 import com.chronoblocks.ui.timeline.container.ContainerTimelineService;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
@@ -94,8 +94,8 @@ public final class ActorLookAtVisualizer {
             return;
         }
 
-        // 3️⃣ 获取 PreviewActorEntity
-        PreviewActorEntity actor = ActorPreviewManager.getInstance().getPreview(actorId);
+        // 3️⃣ 获取预览实体
+        Entity actor = ActorPreviewManager.getInstance().getPreview(actorId);
         if (actor == null) {
             return;
         }
@@ -209,10 +209,10 @@ public final class ActorLookAtVisualizer {
     /**
      * 获取演员眼睛位置
      *
-     * @param actor PreviewActorEntity
+     * @param actor Entity
      * @return 眼睛位置（世界坐标）
      */
-    private Vec3d getActorEyePos(PreviewActorEntity actor) {
+    private Vec3d getActorEyePos(Entity actor) {
         // Entity.getEyePos() 返回眼睛位置（考虑眼高）
         return actor.getEyePos();
     }

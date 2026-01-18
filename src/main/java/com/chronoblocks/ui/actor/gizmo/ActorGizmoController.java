@@ -2,7 +2,7 @@ package com.chronoblocks.ui.actor.gizmo;
 
 import com.chronoblocks.actor.ActorRef;
 import com.chronoblocks.actor.preview.ActorPreviewManager;
-import com.chronoblocks.actor.preview.PreviewActorEntity;
+import net.minecraft.entity.Entity;
 import com.chronoblocks.client.gizmo.GizmoManager;
 import com.chronoblocks.client.gizmo.GizmoMode;
 import com.chronoblocks.client.gizmo.GizmoType;
@@ -165,7 +165,7 @@ public final class ActorGizmoController {
             return;
         }
 
-        PreviewActorEntity preview = ActorPreviewManager.getInstance().getPreview(targetActorId);
+        Entity preview = ActorPreviewManager.getInstance().getPreview(targetActorId);
         if (preview == null) {
             // 如果预览实体不存在，停用 Gizmo
             if (GizmoManager.get().isActive()) {
@@ -205,7 +205,7 @@ public final class ActorGizmoController {
     /**
      * 更新 Gizmo 位置（跟随实体）
      */
-    private void updateGizmoPosition(PreviewActorEntity entity) {
+    private void updateGizmoPosition(Entity entity) {
         Box box = entity.getBoundingBox();
         if (box == null) {
             return;

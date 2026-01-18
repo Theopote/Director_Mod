@@ -1,7 +1,7 @@
 package com.chronoblocks.ui.actor.pick;
 
 import com.chronoblocks.actor.preview.ActorPreviewManager;
-import com.chronoblocks.actor.preview.PreviewActorEntity;
+import com.chronoblocks.client.input.ChronoBlocksInputSystem;
 import com.chronoblocks.ui.actor.selection.ActorSelectionHub;
 import com.chronoblocks.ui.tools.ToolRegistry;
 import imgui.ImGui;
@@ -9,8 +9,11 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.hit.HitResult;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
 import org.lwjgl.glfw.GLFW;
 
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -97,28 +100,56 @@ public final class ActorPickController {
      * @param client MinecraftClient
      */
     private void handleClick(MinecraftClient client) {
-        HitResult hit = client.crosshairTarget;
-        if (hit == null || hit.getType() != HitResult.Type.ENTITY) {
+        Entity entity = resolveClickedEntity(client);
+        if (entity == null) {
             return;
         }
 
-        EntityHitResult ehr = (EntityHitResult) hit;
-        Entity entity = ehr.getEntity();
-
-        if (!(entity instanceof PreviewActorEntity preview)) {
-            return;
-        }
-
-        // 从 PreviewActorEntity 反查 actorId
         ActorPreviewManager previewManager = ActorPreviewManager.getInstance();
-
-        UUID actorId = previewManager.getActorId(preview);
+        UUID actorId = previewManager.getActorId(entity);
         if (actorId == null) {
             return;
         }
 
         // 🔥 统一入口：ActorSelectionHub
         ActorSelectionHub.selectActor(actorId);
+    }
+
+    private Entity resolveClickedEntity(MinecraftClient client) {
+        HitResult hit = client.crosshairTarget;
+        if (hit instanceof EntityHitResult ehr) {
+            Entity entity = ehr.getEntity();
+            if (ActorPreviewManager.getInstance().getActorId(entity) != null) {
+                return entity;
+            }
+        }
+
+        ChronoBlocksInputSystem.ImGuiRay ray = ChronoBlocksInputSystem.computeImGuiRay();
+        if (ray == null) {
+            return null;
+        }
+
+        Vec3d start = ray.origin();
+        Vec3d end = start.add(ray.direction().multiply(128.0));
+
+        Entity closest = null;
+        double closestDist = Double.MAX_VALUE;
+        for (Entity entity : ActorPreviewManager.getInstance().getPreviewEntities()) {
+            if (entity == null || !entity.isAlive()) {
+                continue;
+            }
+            Box box = entity.getBoundingBox().expand(0.25);
+            Optional<Vec3d> hitPos = box.raycast(start, end);
+            if (hitPos.isPresent()) {
+                double dist = start.squaredDistanceTo(hitPos.get());
+                if (dist < closestDist) {
+                    closest = entity;
+                    closestDist = dist;
+                }
+            }
+        }
+
+        return closest;
     }
 
     // =========================================================

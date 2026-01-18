@@ -1,6 +1,6 @@
 package com.chronoblocks.actor.prop;
 
-import com.chronoblocks.actor.preview.PreviewActorEntity;
+import net.minecraft.entity.Entity;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Vector3f;
 import org.slf4j.Logger;
@@ -106,9 +106,9 @@ public final class RuntimeProp {
      * 更新道具的 Transform（每帧调用）
      * <p>让道具跟随演员的位置、旋转
      *
-     * @param actor PreviewActorEntity
+     * @param actor Entity
      */
-    public void updateTransform(PreviewActorEntity actor) {
+    public void updateTransform(Entity actor) {
         if (!boundToActor) {
             // 如果已解绑（如投掷中），不更新 Transform
             return;

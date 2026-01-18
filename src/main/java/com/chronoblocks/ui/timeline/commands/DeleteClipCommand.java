@@ -1,5 +1,9 @@
 package com.chronoblocks.ui.timeline.commands;
 
+import com.chronoblocks.actor.Actor;
+import com.chronoblocks.actor.ActorRef;
+import com.chronoblocks.actor.ActorRegistry;
+import com.chronoblocks.actor.ActorRegistryManager;
 import com.chronoblocks.core.container.ContainerManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -7,12 +11,14 @@ import org.slf4j.LoggerFactory;
 import com.chronoblocks.ui.timeline.model.TimelineClip;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
+import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.entity.EntityClip;
 import com.chronoblocks.ui.timeline.model.entity.EntityTimelineClip;
 import com.chronoblocks.ui.timeline.model.entity.EntityTrack;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.UUID;
 
 /**
  * 删除片段命令。
@@ -28,6 +34,8 @@ public class DeleteClipCommand extends BaseTimelineCommand {
     private int removedIndex = -1;
     private EntityClip linkedEntityClip;
     private EntityTrack linkedEntityTrack;
+    private Actor removedActor;
+    private boolean removedActorFromRegistry;
 
     public DeleteClipCommand(TimelineModel model, TimelineClip clip, List<TimelineClip> clipList) {
         super(model, "clip_deleted");
@@ -43,6 +51,8 @@ public class DeleteClipCommand extends BaseTimelineCommand {
         }
         linkedEntityClip = null;
         linkedEntityTrack = null;
+        removedActor = null;
+        removedActorFromRegistry = false;
         removedIndex = clipList.indexOf(clip);
         if (removedIndex >= 0) {
             // 记录容器ID（删除前）
@@ -62,6 +72,7 @@ public class DeleteClipCommand extends BaseTimelineCommand {
             }
 
             clipList.remove(removedIndex);
+            removeActorIfOrphaned();
             // 清理插值映射，避免内存泄漏
             ChangeKeyframeInterpolationCommand.clearInterpolationsForClip(clip);
             LOGGER.debug("[Timeline] 删除片段，索引: {}", removedIndex);
@@ -94,11 +105,87 @@ public class DeleteClipCommand extends BaseTimelineCommand {
         }
         if (removedIndex >= 0 && removedIndex <= clipList.size()) {
             clipList.add(removedIndex, clip);
+            restoreActorIfNeeded();
             if (linkedEntityTrack != null && linkedEntityClip != null) {
                 linkedEntityTrack.addClip(linkedEntityClip);
             }
             LOGGER.debug("[Timeline] 恢复片段到索引: {}", removedIndex);
         }
+    }
+
+    /**
+     * 检查并删除孤立的演员
+     * <p>如果删除片段后，该演员没有任何片段了，则从注册表中删除该演员
+     */
+    private void removeActorIfOrphaned() {
+        // 只处理实体片段（EntityTimelineClip）
+        if (!(clip instanceof EntityTimelineClip) || linkedEntityTrack == null || model == null) {
+            return;
+        }
+
+        ActorRef actorRef = linkedEntityTrack.getActorRef();
+        if (actorRef == null) {
+            return;
+        }
+
+        UUID actorId = actorRef.getActorId();
+        if (actorId == null) {
+            return;
+        }
+
+        // 检查该演员是否还有任何片段（不限于 SpawnClip）
+        if (hasAnyClip(model, actorId)) {
+            return;
+        }
+
+        // 如果没有片段了，删除该演员
+        ActorRegistry registry = ActorRegistryManager.getInstance();
+        registry.getActor(actorId).ifPresent(actor -> {
+            removedActor = actor;
+            removedActorFromRegistry = registry.removeActor(actorId);
+            LOGGER.info("[DeleteClipCommand] 演员 {} 的所有片段已删除，已从注册表中移除", actor.getName());
+        });
+    }
+
+    private void restoreActorIfNeeded() {
+        if (!removedActorFromRegistry || removedActor == null) {
+            return;
+        }
+        ActorRegistry registry = ActorRegistryManager.getInstance();
+        registry.registerActor(removedActor);
+    }
+
+    /**
+     * 检查指定演员是否还有任何片段
+     * 
+     * @param model TimelineModel
+     * @param actorId 演员ID
+     * @return 如果还有片段则返回 true
+     */
+    private boolean hasAnyClip(TimelineModel model, UUID actorId) {
+        if (model == null || actorId == null) {
+            return false;
+        }
+
+        // 遍历所有轨道，查找该演员的轨道
+        for (TimelineTrack track : model.getTracks()) {
+            if (track == null || track.getType() != TrackType.ENTITY) {
+                continue;
+            }
+            EntityTrack entityTrack = track.getEntityTrackPayload();
+            if (entityTrack == null) {
+                continue;
+            }
+            ActorRef ref = entityTrack.getActorRef();
+            // 找到该演员的轨道，检查是否还有片段
+            if (ref != null && actorId.equals(ref.getActorId())) {
+                if (entityTrack.hasClips()) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     @Override

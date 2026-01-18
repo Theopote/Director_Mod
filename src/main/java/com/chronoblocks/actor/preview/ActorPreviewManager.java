@@ -4,8 +4,11 @@ import com.chronoblocks.actor.Actor;
 import com.chronoblocks.actor.ActorType;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
+import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
+import net.minecraft.entity.SpawnReason;
 import net.minecraft.entity.decoration.ArmorStandEntity;
+import net.minecraft.entity.mob.MobEntity;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,7 +48,7 @@ public final class ActorPreviewManager {
     }
 
     /** Actor ID 到 PreviewEntity 的映射 */
-    private final Map<UUID, PreviewActorEntity> previews = new HashMap<>();
+    private final Map<UUID, Entity> previews = new HashMap<>();
 
     /** Entity ID 到 Actor ID 的反向映射（用于点击检测） */
     private final Map<Integer, UUID> entityToActor = new HashMap<>();
@@ -64,7 +67,7 @@ public final class ActorPreviewManager {
      * @param actor Actor
      * @return PreviewEntity，如果创建失败则返回 null
      */
-    public PreviewActorEntity ensurePreview(Actor actor) {
+    public Entity ensurePreview(Actor actor) {
         if (actor == null) {
             return null;
         }
@@ -82,7 +85,7 @@ public final class ActorPreviewManager {
             return;
         }
 
-        PreviewActorEntity entity = previews.remove(actorId);
+        Entity entity = previews.remove(actorId);
         if (entity != null) {
             try {
                 // 清理反向映射
@@ -101,7 +104,7 @@ public final class ActorPreviewManager {
      * @param actorId 演员ID
      * @return PreviewEntity，如果不存在则返回 null
      */
-    public PreviewActorEntity getPreview(UUID actorId) {
+    public Entity getPreview(UUID actorId) {
         if (actorId == null) {
             return null;
         }
@@ -125,7 +128,7 @@ public final class ActorPreviewManager {
      * 清空所有预览实体（切换项目 / 关闭 Timeline 时）
      */
     public void clear() {
-        for (PreviewActorEntity entity : previews.values()) {
+        for (Entity entity : previews.values()) {
             try {
                 entity.discard();
             } catch (Throwable e) {
@@ -144,7 +147,7 @@ public final class ActorPreviewManager {
      * @param entity PreviewActorEntity
      * @return Actor ID，如果不存在则返回 null
      */
-    public UUID getActorId(PreviewActorEntity entity) {
+    public UUID getActorId(Entity entity) {
         if (entity == null) {
             return null;
         }
@@ -189,7 +192,7 @@ public final class ActorPreviewManager {
      * @param actor Actor
      * @return PreviewEntity，如果创建失败则返回 null
      */
-    private PreviewActorEntity createPreview(Actor actor) {
+    private Entity createPreview(Actor actor) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client == null || client.world == null) {
             LOGGER.warn("[ActorPreviewManager] 客户端或世界未加载，无法创建预览实体");
@@ -199,19 +202,31 @@ public final class ActorPreviewManager {
         ClientWorld world = client.world;
 
         try {
-            EntityType<? extends ArmorStandEntity> type = mapActorType(actor.getType());
+            EntityType<?> type = mapActorType(actor.getType());
             if (type == null) {
                 LOGGER.warn("[ActorPreviewManager] 无法映射 ActorType: {}", actor.getType());
                 return null;
             }
 
-            PreviewActorEntity entity = new PreviewActorEntity(type, world);
+            Entity entity = type.create(world, SpawnReason.COMMAND);
+            if (entity == null) {
+                LOGGER.warn("[ActorPreviewManager] 创建预览实体失败: {}", actor.getType());
+                return null;
+            }
 
             // 设置名称
             entity.setCustomNameVisible(true);
             if (actor.getName() != null) {
                 entity.setCustomName(net.minecraft.text.Text.literal(actor.getName()));
             }
+
+            if (entity instanceof MobEntity mob) {
+                mob.setAiDisabled(true);
+            }
+            entity.setNoGravity(true);
+            entity.setVelocity(0.0, 0.0, 0.0);
+            entity.setSilent(true);
+            entity.setInvulnerable(true);
 
             // 默认放在原点，真正位置由 RuntimeController 每帧驱动
             entity.refreshPositionAndAngles(0, 0, 0, 0, 0);
@@ -244,14 +259,22 @@ public final class ActorPreviewManager {
      * @param type ActorType
      * @return EntityType，如果无法映射则返回 null
      */
-    private EntityType<? extends ArmorStandEntity> mapActorType(ActorType type) {
+    private EntityType<?> mapActorType(ActorType type) {
         if (type == null) {
             return EntityType.ARMOR_STAND; // 默认使用 ARMOR_STAND
         }
 
         // ⚠️ 临时方案：所有类型都使用 ARMOR_STAND，避免类型转换错误
         // 未来可以通过自定义渲染器来显示不同的模型
-        return EntityType.ARMOR_STAND;
+        return switch (type) {
+            case PLAYER -> EntityType.ARMOR_STAND;
+            case VILLAGER -> EntityType.VILLAGER;
+            case COW -> EntityType.COW;
+            case SHEEP -> EntityType.SHEEP;
+            case ZOMBIE -> EntityType.ZOMBIE;
+            case SKELETON -> EntityType.SKELETON;
+            case CUSTOM -> EntityType.VILLAGER;
+        };
 
         // 原始映射（已禁用，因为会导致 ClassCastException）：
         // return switch (type) {
@@ -263,6 +286,10 @@ public final class ActorPreviewManager {
         //     case SKELETON -> EntityType.SKELETON;
         //     case CUSTOM -> EntityType.ARMOR_STAND;
         // };
+    }
+
+    public java.util.Collection<Entity> getPreviewEntities() {
+        return java.util.Collections.unmodifiableCollection(previews.values());
     }
 }
 

@@ -177,6 +177,67 @@ public final class ChronoBlocksInputSystem {
         return result;
     }
 
+    public record ImGuiRay(Vec3d origin, Vec3d direction) {}
+
+    public static ImGuiRay computeImGuiRay() {
+        if (MC.world == null || MC.player == null || MC.getCameraEntity() == null) {
+            return null;
+        }
+
+        Camera camera = MC.gameRenderer.getCamera();
+        if (camera == null) {
+            return null;
+        }
+
+        double mouseLogicalX = MC.mouse.getX();
+        double mouseLogicalY = MC.mouse.getY();
+        int windowW = MC.getWindow().getWidth();
+        int windowH = MC.getWindow().getHeight();
+        int fbw = MC.getWindow().getFramebufferWidth();
+        int fbh = MC.getWindow().getFramebufferHeight();
+        if (windowW <= 0 || windowH <= 0 || fbw <= 0 || fbh <= 0) {
+            return null;
+        }
+        double mouseX = mouseLogicalX * fbw / (double) windowW;
+        double mouseY = mouseLogicalY * fbh / (double) windowH;
+
+        Vec3d cameraPos = camera.getPos();
+
+        double ndcX = (mouseX / (double) fbw) * 2.0 - 1.0;
+        double ndcY = 1.0 - (mouseY / (double) fbh) * 2.0;
+
+        GameRenderer gr = MC.gameRenderer;
+        float tickDelta = getRenderTickDeltaSafe();
+        float fov = ((GameRendererAccessor) gr).chronoblocks$invokeGetFov(camera, tickDelta, true);
+        Matrix4f projMatrix = new Matrix4f(gr.getBasicProjectionMatrix(fov));
+        Matrix4f invProj = new Matrix4f(projMatrix).invert();
+
+        Vector4f nearClip = new Vector4f((float) ndcX, (float) ndcY, -1.0f, 1.0f).mul(invProj);
+        Vector4f farClip = new Vector4f((float) ndcX, (float) ndcY, 1.0f, 1.0f).mul(invProj);
+
+        if (nearClip.w != 0.0f) nearClip.div(nearClip.w);
+        if (farClip.w != 0.0f) farClip.div(farClip.w);
+
+        Vec3d viewDir = new Vec3d(farClip.x - nearClip.x, farClip.y - nearClip.y, farClip.z - nearClip.z).normalize();
+        var q = camera.getRotation();
+        float x = (float) viewDir.x;
+        float y = (float) viewDir.y;
+        float z = (float) viewDir.z;
+        float qx = q.x;
+        float qy = q.y;
+        float qz = q.z;
+        float qw = q.w;
+        float cx1 = qy * z - qz * y;
+        float cy1 = qz * x - qx * z;
+        float cz1 = qx * y - qy * x;
+        float rx = x + 2.0f * (qy * cz1 - qz * cy1 + qw * cx1);
+        float ry = y + 2.0f * (qz * cx1 - qx * cz1 + qw * cy1);
+        float rz = z + 2.0f * (qx * cy1 - qy * cx1 + qw * cz1);
+
+        Vec3d rayDir = new Vec3d(rx, ry, rz).normalize();
+        return new ImGuiRay(cameraPos, rayDir);
+    }
+
     /**
      * 获取当前缓存的射线结果
      */

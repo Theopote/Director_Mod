@@ -4,7 +4,7 @@ import com.chronoblocks.actor.Actor;
 import com.chronoblocks.actor.ActorRegistry;
 import com.chronoblocks.actor.ActorRef;
 import com.chronoblocks.actor.preview.ActorPreviewManager;
-import com.chronoblocks.actor.preview.PreviewActorEntity;
+import net.minecraft.entity.Entity;
 import com.chronoblocks.actor.prop.*;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
@@ -312,7 +312,7 @@ public final class ActorRuntimeController {
 
             // 4️⃣ Apply Sample
             if (spawned) {
-                PreviewActorEntity entity =
+                Entity entity =
                         ActorPreviewManager.getInstance().getPreview(actor.getActorId());
                 if (entity != null) {
                     applySample(entity, sample, lastSample);
@@ -366,7 +366,7 @@ public final class ActorRuntimeController {
 
             if (sample.active && !spawned) {
                 // 需要生成预览实体
-                PreviewActorEntity entity = ActorPreviewManager.getInstance().ensurePreview(actor);
+                Entity entity = ActorPreviewManager.getInstance().ensurePreview(actor);
                 if (entity != null) {
                     spawned = true;
                     LOGGER.debug("[ActorRuntime] Spawn 预览实体: {}", actor.getName());
@@ -393,7 +393,7 @@ public final class ActorRuntimeController {
          * @param prev 上一帧 Sample
          */
         private void applySample(
-                PreviewActorEntity entity,
+                Entity entity,
                 EntitySample s,
                 EntitySample prev
         ) {
@@ -427,7 +427,7 @@ public final class ActorRuntimeController {
          * @param entity PreviewActorEntity
          * @param s EntitySample
          */
-        private void applyLookAt(PreviewActorEntity entity, EntitySample s) {
+        private void applyLookAt(Entity entity, EntitySample s) {
             // 获取实体当前位置
             Vec3d pos = new Vec3d(
                     entity.getX(),
@@ -469,7 +469,7 @@ public final class ActorRuntimeController {
          * @param entity PreviewActorEntity
          * @param s EntitySample
          */
-        private void applyState(PreviewActorEntity entity, EntitySample s) {
+        private void applyState(Entity entity, EntitySample s) {
             // 发光
             entity.setGlowing(s.glowing);
 
@@ -488,7 +488,7 @@ public final class ActorRuntimeController {
                 return;
             }
 
-            PreviewActorEntity entity = ActorPreviewManager.getInstance().getPreview(actor.getActorId());
+            Entity entity = ActorPreviewManager.getInstance().getPreview(actor.getActorId());
             if (entity == null) {
                 return;
             }
@@ -515,7 +515,7 @@ public final class ActorRuntimeController {
          * @param entity PreviewActorEntity
          * @param event Action 事件
          */
-        private void applyPropAction(Actor actor, PreviewActorEntity entity, EntityActionEvent event) {
+        private void applyPropAction(Actor actor, Entity entity, EntityActionEvent event) {
             ActorPropRuntime propRuntime = getOrCreatePropRuntime(actor);
             propRuntime.setActorEntity(entity);
 

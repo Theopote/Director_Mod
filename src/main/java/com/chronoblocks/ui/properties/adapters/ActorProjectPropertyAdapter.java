@@ -103,6 +103,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         ActorRegistry actorRegistry = ActorRegistryManager.getInstance();
 
         boolean modified = false;
+        boolean projectView = "ACTOR_PROJECT".equals(obj);
         
         // 如果传入的是 Actor 对象，直接选中它
         if (obj instanceof Actor actor) {
@@ -112,17 +113,19 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         // 标题
         UITheme.title("🎭 Actors");
         
-        // Actor 列表
-        modified |= renderActorList(actorRegistry);
-        
-        // 创建 Actor 按钮
-        ImGui.spacing();
-        if (ImGui.button("+ Add Actor")) {
-            openCreateActorPopup();
+        if (projectView) {
+            // Actor 列表
+            modified |= renderActorList(actorRegistry);
+            
+            // 创建 Actor 按钮
+            ImGui.spacing();
+            if (ImGui.button("+ Add Actor")) {
+                openCreateActorPopup();
+            }
+            
+            // 创建 Actor 弹窗
+            renderCreateActorPopup(actorRegistry);
         }
-        
-        // 创建 Actor 弹窗
-        renderCreateActorPopup(actorRegistry);
         
         // 选中的 Actor 编辑器
         if (selectedActorId != null) {
@@ -269,20 +272,23 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     // Selection handling
     // =========================================================
     
+    /**
+     * 在演员面板中选中演员（仅更新内部状态，不设置全局选择）
+     * <p>只有在点击"Focus in World"等按钮时，才通过 ActorSelectionHub.selectActor() 设置全局选择
+     *
+     * @param actor Actor 实例
+     */
     private void selectActor(Actor actor) {
         if (actor == null) {
             selectedActorId = null;
             return;
         }
         
+        // 只更新内部的选中状态，不设置全局 SelectionManager
+        // 这样属性面板不会因为演员面板中的选择而显示重复内容
         this.selectedActorId = actor.getActorId();
-        
-        // 通知全局 Selection（明确设置为 ACTOR 类型）
-        SelectionManager selectionManager = SelectionManager.get();
-        // ⭐ 关键：使用 selectActor() 明确设置 SelectionType.ACTOR
-        selectionManager.selectActor(actor.getActorId());
 
-        LOGGER.debug("[ActorProjectPropertyAdapter] Selected actor: {}", actor.getActorId());
+        LOGGER.debug("[ActorProjectPropertyAdapter] Selected actor in panel: {}", actor.getActorId());
     }
     
     // =========================================================
