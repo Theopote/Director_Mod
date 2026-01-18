@@ -1,5 +1,6 @@
 package com.chronoblocks.actor.preview;
 
+import com.chronoblocks.actor.runtime.ActorRuntime;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.Entity;
 import net.minecraft.entity.EntityType;
@@ -40,6 +41,9 @@ import net.minecraft.util.math.Vec3d;
  */
 public class PreviewActorEntity extends ArmorStandEntity {
 
+    /** ActorRuntime（身体控制参数，由 Renderer 读取） */
+    private ActorRuntime actorRuntime;
+
     /**
      * 构造函数
      *
@@ -49,6 +53,24 @@ public class PreviewActorEntity extends ArmorStandEntity {
     public PreviewActorEntity(EntityType<? extends ArmorStandEntity> type, ClientWorld world) {
         super(type, world);
         this.noClip = true; // 无碰撞
+    }
+
+    /**
+     * 设置 ActorRuntime（由 ActorRuntimeController 调用）。
+     *
+     * @param runtime ActorRuntime
+     */
+    public void setActorRuntime(ActorRuntime runtime) {
+        this.actorRuntime = runtime;
+    }
+
+    /**
+     * 获取 ActorRuntime（由 Renderer / Mixin 调用）。
+     *
+     * @return ActorRuntime，如果未设置则返回 null
+     */
+    public ActorRuntime getActorRuntime() {
+        return actorRuntime;
     }
 
     // ======================

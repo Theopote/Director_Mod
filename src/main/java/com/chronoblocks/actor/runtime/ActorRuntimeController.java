@@ -3,7 +3,9 @@ package com.chronoblocks.actor.runtime;
 import com.chronoblocks.actor.Actor;
 import com.chronoblocks.actor.ActorRegistry;
 import com.chronoblocks.actor.ActorRef;
+import com.chronoblocks.actor.action.ActorActionType;
 import com.chronoblocks.actor.preview.ActorPreviewManager;
+import com.chronoblocks.actor.rig.ActorRigProfile;
 import net.minecraft.entity.Entity;
 import com.chronoblocks.actor.prop.*;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
@@ -257,6 +259,12 @@ public final class ActorRuntimeController {
         /** 上一帧 Sample（用于 Action edge trigger） */
         private EntitySample lastSample;
 
+        /** 上一帧时间（用于计算 deltaTime） */
+        private float lastTime = -1f;
+
+        /** ActorRuntime（身体控制参数） */
+        private final ActorRuntime actorRuntime = new ActorRuntime();
+
         /**
          * 构造函数
          *
@@ -315,9 +323,26 @@ public final class ActorRuntimeController {
                 Entity entity =
                         ActorPreviewManager.getInstance().getPreview(actor.getActorId());
                 if (entity != null) {
-                    applySample(entity, sample, lastSample);
+                    // 计算 deltaTime
+                    float deltaTime;
+                    if (lastTime < 0f) {
+                        // 第一帧
+                        deltaTime = 1f / 20f; // 默认 20 TPS
+                    } else {
+                        deltaTime = time - lastTime;
+                        if (deltaTime <= 0f || deltaTime > 1f) {
+                            deltaTime = 1f / 20f; // 限制在合理范围内
+                        }
+                    }
+
+                    applySample(entity, sample, lastSample, deltaTime);
                     
-                    // 5️⃣ 更新 Prop Runtime（每帧更新道具 Transform）
+                    // 5️⃣ 将 ActorRuntime 传递给 PreviewEntity（供 Renderer 使用）
+                    if (entity instanceof com.chronoblocks.actor.preview.PreviewActorEntity previewEntity) {
+                        previewEntity.setActorRuntime(actorRuntime);
+                    }
+                    
+                    // 6️⃣ 更新 Prop Runtime（每帧更新道具 Transform） */
                     ActorPropRuntime propRuntime = propRuntimes.get(actor.getActorId());
                     if (propRuntime != null) {
                         propRuntime.update();
@@ -326,6 +351,7 @@ public final class ActorRuntimeController {
             }
 
             lastSample = sample;
+            lastTime = time;
         }
 
         /**
@@ -391,11 +417,13 @@ public final class ActorRuntimeController {
          * @param entity PreviewActorEntity
          * @param s 当前 Sample
          * @param prev 上一帧 Sample
+         * @param deltaTime 时间增量（秒）
          */
         private void applySample(
                 Entity entity,
                 EntitySample s,
-                EntitySample prev
+                EntitySample prev,
+                float deltaTime
         ) {
             // === Visibility ===
             entity.setInvisible(s.visibility <= 0.01f);
@@ -417,8 +445,53 @@ public final class ActorRuntimeController {
             // === State ===
             applyState(entity, s);
 
+            // === RigProfile：应用动作语义到 Runtime 表现 ===
+            applyRigProfile(s, deltaTime);
+
             // === Action（一次性触发）===
             applyActionEvents(s, prev);
+        }
+
+        /**
+         * 应用 RigProfile（动作语义 → Runtime 表现）。
+         *
+         * <p>这是整个"多物种统一导演系统"的核心。
+         *
+         * @param s 当前 Sample
+         * @param deltaTime 时间增量（秒）
+         */
+        private void applyRigProfile(EntitySample s, float deltaTime) {
+            if (actor == null) {
+                return;
+            }
+
+            ActorRigProfile rig = actor.getRigProfile();
+            if (rig == null) {
+                return;
+            }
+
+            ActorActionType action = s.action;
+            if (action == null) {
+                action = ActorActionType.IDLE;
+            }
+
+            // 检查 Rig 是否支持该动作
+            if (!rig.supports(action)) {
+                // 不支持的动作，重置姿态
+                actorRuntime.resetPose();
+                return;
+            }
+
+            // 应用动作语义到 Runtime 表现
+            rig.applyAction(
+                    actorRuntime,
+                    action,
+                    s.actionIntensity,
+                    deltaTime
+            );
+
+            // 注意：actorRuntime 的参数会通过 PreviewActorEntity.getActorRuntime() 传递给 Renderer
+            // Renderer 层负责将这些抽象参数映射到具体的 ModelPart（参见 Renderer Mixin 示例）
         }
 
         /**
@@ -461,6 +534,16 @@ public final class ActorRuntimeController {
 
             entity.setYaw(lerp(currentYaw, yaw, s.lookAtStrength));
             entity.setPitch(lerp(currentPitch, pitch, s.lookAtStrength));
+
+            // 同时更新 ActorRuntime 的 headYaw 和 headPitch（供 RigProfile / Renderer 使用）
+            if (entity instanceof com.chronoblocks.actor.preview.PreviewActorEntity previewEntity) {
+                com.chronoblocks.actor.runtime.ActorRuntime runtime = previewEntity.getActorRuntime();
+                if (runtime != null) {
+                    // 转换为弧度
+                    runtime.setHeadYaw((float) Math.toRadians(yaw - currentYaw));
+                    runtime.setHeadPitch((float) Math.toRadians(pitch - currentPitch));
+                }
+            }
         }
 
         /**

@@ -1,5 +1,9 @@
 package com.chronoblocks.actor;
 
+import com.chronoblocks.actor.rig.ActorRigProfile;
+import com.chronoblocks.actor.rig.HumanoidRigProfile;
+import com.chronoblocks.actor.rig.QuadrupedRigProfile;
+
 import java.util.Objects;
 import java.util.UUID;
 
@@ -29,6 +33,7 @@ public final class Actor {
     private final UUID actorId;
     private String name;
     private ActorType type;
+    private ActorRigProfile rigProfile;
 
     /**
      * 构造函数
@@ -51,6 +56,8 @@ public final class Actor {
         this.actorId = Objects.requireNonNull(actorId, "actorId");
         this.name = (name == null || name.isBlank()) ? "Actor" : name;
         this.type = type != null ? type : ActorType.CUSTOM;
+        // 根据类型自动设置默认 RigProfile
+        this.rigProfile = createDefaultRigProfile(type);
     }
 
     // ======================
@@ -75,6 +82,36 @@ public final class Actor {
 
     public void setType(ActorType type) {
         this.type = type != null ? type : this.type;
+        // 类型改变时，如果 rigProfile 为空，自动设置默认值
+        if (this.rigProfile == null) {
+            this.rigProfile = createDefaultRigProfile(this.type);
+        }
+    }
+
+    public ActorRigProfile getRigProfile() {
+        return rigProfile;
+    }
+
+    public void setRigProfile(ActorRigProfile rigProfile) {
+        this.rigProfile = rigProfile;
+    }
+
+    /**
+     * 根据 ActorType 创建默认的 RigProfile。
+     *
+     * @param type 演员类型
+     * @return 默认 RigProfile，如果类型未知则返回 HumanoidRigProfile
+     */
+    private static ActorRigProfile createDefaultRigProfile(ActorType type) {
+        if (type == null) {
+            return new HumanoidRigProfile();
+        }
+
+        return switch (type) {
+            case VILLAGER, PLAYER, ZOMBIE, SKELETON -> new HumanoidRigProfile();
+            case COW, SHEEP -> new QuadrupedRigProfile();
+            default -> new HumanoidRigProfile(); // 默认使用人形
+        };
     }
 
     // ======================
