@@ -2,7 +2,12 @@ package com.chronoblocks.ui.timeline.model.entity;
 
 import com.chronoblocks.ui.timeline.model.TimelineSelectable;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Objects;
 import java.util.UUID;
 
@@ -40,6 +45,9 @@ public abstract class EntityClip implements TimelineSelectable, Comparable<Entit
     private boolean muted = false;
     private float weight = 1.0f; // 预留：叠加/混合权重
     private transient EntityTimelineClip timelineClip;
+
+    /** 关键帧列表（时间相对于 Clip 开始时间） */
+    private final List<EntityClipKeyframe> keyframes = new ArrayList<>();
 
     /**
      * 构造函数
@@ -208,6 +216,99 @@ public abstract class EntityClip implements TimelineSelectable, Comparable<Entit
     private void syncTimelineClip() {
         if (timelineClip != null) {
             timelineClip.syncFromEntityClip(this);
+        }
+    }
+
+    // ========== 关键帧管理 ==========
+
+    /**
+     * 添加关键帧
+     * <p>关键帧时间应该是全局时间，会自动验证是否在 Clip 范围内
+     *
+     * @param keyframe 关键帧对象（时间应为全局时间）
+     */
+    public void addKeyframe(EntityClipKeyframe keyframe) {
+        if (keyframe == null) {
+            return;
+        }
+        
+        float globalTime = keyframe.getTime();
+        
+        // 确保关键帧在 Clip 时间范围内
+        if (globalTime < this.startTime || globalTime > this.endTime) {
+            return;
+        }
+        
+        // 检查是否已存在相同时间的关键帧（容差范围内）
+        float epsilon = 0.0001f;
+        EntityClipKeyframe existing = findKeyframeAt(globalTime, epsilon);
+        if (existing != null) {
+            // 如果已存在，移除旧的
+            keyframes.remove(existing);
+        }
+        
+        keyframes.add(keyframe);
+        keyframes.sort(Comparator.comparing(EntityClipKeyframe::getTime));
+        
+        // 同步到 TimelineClip
+        syncKeyframesToTimelineClip();
+    }
+
+    /**
+     * 移除关键帧
+     *
+     * @param keyframeId 关键帧 ID
+     * @return 如果成功移除返回 true
+     */
+    public boolean removeKeyframe(UUID keyframeId) {
+        boolean removed = keyframes.removeIf(kf -> kf.getId().equals(keyframeId));
+        if (removed) {
+            syncKeyframesToTimelineClip();
+        }
+        return removed;
+    }
+
+    /**
+     * 获取所有关键帧（只读）
+     *
+     * @return 关键帧列表（按时间排序）
+     */
+    public List<EntityClipKeyframe> getKeyframes() {
+        return Collections.unmodifiableList(keyframes);
+    }
+
+    /**
+     * 查找指定时间的关键帧
+     * <p>时间参数是全局时间
+     *
+     * @param globalTime 全局时间（秒）
+     * @param epsilon 允许的误差范围（秒）
+     * @return 找到的关键帧，如果不存在则返回 null
+     */
+    @Nullable
+    public EntityClipKeyframe findKeyframeAt(float globalTime, float epsilon) {
+        for (EntityClipKeyframe kf : keyframes) {
+            if (Math.abs(kf.getTime() - globalTime) <= epsilon) {
+                return kf;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 清除所有关键帧
+     */
+    public void clearKeyframes() {
+        keyframes.clear();
+        syncKeyframesToTimelineClip();
+    }
+
+    /**
+     * 同步关键帧到 TimelineClip
+     */
+    private void syncKeyframesToTimelineClip() {
+        if (timelineClip != null) {
+            timelineClip.syncKeyframesFromEntityClip(this);
         }
     }
 

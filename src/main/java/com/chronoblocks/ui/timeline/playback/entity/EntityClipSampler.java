@@ -253,8 +253,60 @@ public class EntityClipSampler {
 
     /**
      * 应用单个 Transform Clip（位移/旋转/缩放）。
+     * <p>优先级：关键帧 > fromPos/toPos 插值
      */
     private void applyTransformClip(EntitySample result, EntityTransformClip clip, float time) {
+        // ⭐ 优先使用关键帧插值
+        List<EntityClipKeyframe> keyframes = clip.getKeyframes();
+        if (!keyframes.isEmpty()) {
+            EntityClipKeyframe prev = findPrevKeyframe(keyframes, time);
+            EntityClipKeyframe next = findNextKeyframe(keyframes, time);
+            
+            if (prev != null && next != null) {
+                // 在两个关键帧之间插值
+                float t = (time - prev.getTime()) / (next.getTime() - prev.getTime());
+                t = Math.max(0f, Math.min(1f, t));
+                
+                // 使用 next 的插值类型
+                TimelineInterpolation interp = next.getInterpolation();
+                if (interp == TimelineInterpolation.SMOOTH) {
+                    t = t * t * (3f - 2f * t);
+                } else if (interp == TimelineInterpolation.STEP) {
+                    t = 1f; // 步进：使用下一个关键帧的值
+                }
+                
+                // 位置插值
+                result.position.x = lerp(prev.getPosition().x, next.getPosition().x, t);
+                result.position.y = lerp(prev.getPosition().y, next.getPosition().y, t);
+                result.position.z = lerp(prev.getPosition().z, next.getPosition().z, t);
+                
+                // 旋转插值（角度插值，处理 360° 环绕）
+                result.rotation.x = lerpAngle(prev.getRotation().x, next.getRotation().x, t);
+                result.rotation.y = lerpAngle(prev.getRotation().y, next.getRotation().y, t);
+                result.rotation.z = lerpAngle(prev.getRotation().z, next.getRotation().z, t);
+                
+                // 缩放插值
+                result.scale.x = lerp(prev.getScale().x, next.getScale().x, t);
+                result.scale.y = lerp(prev.getScale().y, next.getScale().y, t);
+                result.scale.z = lerp(prev.getScale().z, next.getScale().z, t);
+                
+                return; // 使用关键帧，不再使用 fromPos/toPos
+            } else if (prev != null) {
+                // 只有前一个关键帧（在最后一个关键帧之后）
+                result.position.set(prev.getPosition());
+                result.rotation.set(prev.getRotation());
+                result.scale.set(prev.getScale());
+                return;
+            } else if (next != null) {
+                // 只有下一个关键帧（在第一个关键帧之前）
+                result.position.set(next.getPosition());
+                result.rotation.set(next.getRotation());
+                result.scale.set(next.getScale());
+                return;
+            }
+        }
+        
+        // 如果没有关键帧，使用原有的 fromPos/toPos 插值
         // 计算片段内的归一化时间 [0, 1]
         float clipLength = clip.getLength();
         if (clipLength <= 0) {
@@ -296,6 +348,36 @@ public class EntityClipSampler {
 
         // TODO: 如果 followPath 为 true 且 pathId 不为 null，使用路径系统
         // 这里先使用简单的 from/to 插值
+    }
+
+    /**
+     * 查找时间点之前的关键帧
+     */
+    private EntityClipKeyframe findPrevKeyframe(List<EntityClipKeyframe> keyframes, float time) {
+        EntityClipKeyframe prev = null;
+        for (EntityClipKeyframe kf : keyframes) {
+            if (kf.getTime() <= time) {
+                if (prev == null || kf.getTime() > prev.getTime()) {
+                    prev = kf;
+                }
+            }
+        }
+        return prev;
+    }
+
+    /**
+     * 查找时间点之后的关键帧
+     */
+    private EntityClipKeyframe findNextKeyframe(List<EntityClipKeyframe> keyframes, float time) {
+        EntityClipKeyframe next = null;
+        for (EntityClipKeyframe kf : keyframes) {
+            if (kf.getTime() > time) {
+                if (next == null || kf.getTime() < next.getTime()) {
+                    next = kf;
+                }
+            }
+        }
+        return next;
     }
 
     /**

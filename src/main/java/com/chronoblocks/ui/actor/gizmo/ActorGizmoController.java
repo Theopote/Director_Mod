@@ -232,6 +232,18 @@ public final class ActorGizmoController {
             if (GizmoManager.get().getContext() != null) {
                 GizmoManager.get().getContext().setMode(currentMode);
             }
+            
+            // ⭐ 设置 ActorTransformApplier，使 Gizmo 拖动能够更新 TransformClip
+            com.chronoblocks.client.gizmo.GizmoInteractionController controller = 
+                GizmoManager.get().getController();
+            if (controller != null) {
+                com.chronoblocks.core.selection.SelectionManager selectionManager =
+                    com.chronoblocks.core.selection.SelectionManager.get();
+                ActorTransformApplier actorApplier = new ActorTransformApplier(selectionManager, this);
+                controller.setTransformApplier(actorApplier);
+                LOGGER.debug("[ActorGizmoController] 已设置 ActorTransformApplier");
+            }
+            
             LOGGER.debug("[ActorGizmoController] 已激活 Gizmo: Actor={}, Mode={}", targetActorId, currentMode);
         } else {
             // 如果已激活，更新位置和模式
@@ -239,6 +251,21 @@ public final class ActorGizmoController {
             GizmoManager.get().setPivot(pivot);
             if (GizmoManager.get().getContext() != null) {
                 GizmoManager.get().getContext().setMode(currentMode);
+            }
+            
+            // ⭐ 确保 TransformApplier 已正确设置（防止被其他系统覆盖）
+            com.chronoblocks.client.gizmo.GizmoInteractionController controller = 
+                GizmoManager.get().getController();
+            if (controller != null) {
+                com.chronoblocks.client.gizmo.logic.TransformApplier currentApplier = 
+                    controller.getTransformApplier();
+                if (!(currentApplier instanceof ActorTransformApplier)) {
+                    com.chronoblocks.core.selection.SelectionManager selectionManager =
+                        com.chronoblocks.core.selection.SelectionManager.get();
+                    ActorTransformApplier actorApplier = new ActorTransformApplier(selectionManager, this);
+                    controller.setTransformApplier(actorApplier);
+                    LOGGER.debug("[ActorGizmoController] 已重新设置 ActorTransformApplier");
+                }
             }
         }
     }

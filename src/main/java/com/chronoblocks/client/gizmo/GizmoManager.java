@@ -417,6 +417,15 @@ public class GizmoManager {
     }
 
     /**
+     * 获取 Gizmo 交互控制器
+     * 
+     * @return GizmoInteractionController，如果未激活则返回 null
+     */
+    public GizmoInteractionController getController() {
+        return controller;
+    }
+
+    /**
      * 是否正在悬停/拖拽 Gizmo 的可交互手柄（用于输入层屏蔽“框选拖拽/点击”）。
      */
     public boolean isHot() {

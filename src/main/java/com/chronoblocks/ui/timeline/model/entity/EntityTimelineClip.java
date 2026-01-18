@@ -1,7 +1,9 @@
 package com.chronoblocks.ui.timeline.model.entity;
 
 import com.chronoblocks.ui.timeline.model.TimelineClip;
+import com.chronoblocks.ui.timeline.model.clip.ClipKeyframe;
 
+import java.util.List;
 import java.util.Objects;
 
 public class EntityTimelineClip extends TimelineClip {
@@ -105,6 +107,39 @@ public class EntityTimelineClip extends TimelineClip {
             entityClip.setTimeRange(getStartTime(), getEndTime());
         } finally {
             syncingToEntity = false;
+        }
+    }
+
+    /**
+     * 同步 EntityClip 的关键帧到 TimelineClip
+     * <p>将 EntityClip 的 EntityClipKeyframe 同步为 TimelineClip 的 ClipKeyframe
+     *
+     * @param source EntityClip 源对象
+     */
+    void syncKeyframesFromEntityClip(EntityClip source) {
+        if (syncingToEntity) {
+            return;
+        }
+        syncingFromEntity = true;
+        try {
+            // 清空现有关键帧（只清空 ClipKeyframe，保留 Float keyframes 用于兼容）
+            List<ClipKeyframe> toRemove =
+                new java.util.ArrayList<>(this.getClipKeyframes());
+            for (com.chronoblocks.ui.timeline.model.clip.ClipKeyframe kf : toRemove) {
+                this.removeKeyframe(kf.getId());
+            }
+            
+            // 添加 EntityClip 的关键帧（时间已经是全局时间）
+            for (EntityClipKeyframe ekf : source.getKeyframes()) {
+                com.chronoblocks.ui.timeline.model.clip.ClipKeyframe kf = 
+                    new com.chronoblocks.ui.timeline.model.clip.ClipKeyframe(
+                        ekf.getTime(), 
+                        ekf.getInterpolation()
+                    );
+                this.addKeyframe(kf);
+            }
+        } finally {
+            syncingFromEntity = false;
         }
     }
 }
