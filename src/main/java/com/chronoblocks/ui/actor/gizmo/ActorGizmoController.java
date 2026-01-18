@@ -120,6 +120,18 @@ public final class ActorGizmoController {
         this.editingClip = null;
         clearDragBases();
 
+        // 在停用 Gizmo 之前，先清除方块选区
+        // 因为 deactivate() 会调用 apply()，会将 Gizmo 的 Box 转换为方块选区
+        try {
+            com.chronoblocks.core.selection.SelectionManager blockSelectionManager = 
+                    com.chronoblocks.core.selection.SelectionManager.get();
+            if (blockSelectionManager != null) {
+                blockSelectionManager.clearSelection();
+            }
+        } catch (Exception e) {
+            LOGGER.debug("[ActorGizmoController] 清除方块选区失败（可能不在客户端）: {}", e.getMessage());
+        }
+
         GizmoManager.get().deactivate();
     }
 

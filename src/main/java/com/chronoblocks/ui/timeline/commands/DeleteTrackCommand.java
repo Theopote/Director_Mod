@@ -131,7 +131,10 @@ public class DeleteTrackCommand extends BaseTimelineCommand {
             // 清理 Minecraft 世界中的预览实体
             ActorPreviewManager.getInstance().removePreview(actorId);
             
-            LOGGER.info("[DeleteTrackCommand] 演员 {} 的所有轨道已删除，已从注册表中移除，预览实体已清理", actor.getName());
+            // 如果删除的是当前选中的演员，清除选择（包括方块选区）
+            com.chronoblocks.ui.actor.selection.ActorSelectionHub.clearSelection();
+            
+            LOGGER.info("[DeleteTrackCommand] 演员 {} 的所有轨道已删除，已从注册表中移除，预览实体和选区已清理", actor.getName());
         });
     }
 

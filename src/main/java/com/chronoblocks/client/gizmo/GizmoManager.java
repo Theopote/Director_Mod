@@ -236,7 +236,9 @@ public class GizmoManager {
             // ✅ BOUNDS Gizmo（用于移动选区整体）不应在停用时“体素化 box 并重建选区”，
             // 否则会把包围盒内空气也选中，改变框选工具语义。
             // 移动本身已由 TransformApplier.applyMove → SelectionManager.offsetSelection 实时写回。
-            if (context.getType() != GizmoType.BOUNDS) {
+            // ✅ TRANSFORM Gizmo（用于演员编辑）也不应在停用时调用 apply()，
+            // 因为演员的 Gizmo 是用于编辑 TransformClip，不应该影响方块选区。
+            if (context.getType() != GizmoType.BOUNDS && context.getType() != GizmoType.TRANSFORM) {
                 apply();
             }
             

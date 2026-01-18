@@ -775,14 +775,13 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                 selectedActorId = null;
             }
             
-            // 清空全局 Selection
-            SelectionManager selectionManager = SelectionManager.get();
-            selectionManager.clearSelection();
+            // 清空全局 Selection（包括方块选区）
+            ActorSelectionHub.clearSelection();
 
             // 标记需要保存（通过 TimelineModel）
             timelineModel.markDirty();
             
-            LOGGER.info("[ActorProjectPropertyAdapter] 已删除演员 {} 及其所有轨道、片段和预览实体", actorId);
+            LOGGER.info("[ActorProjectPropertyAdapter] 已删除演员 {} 及其所有轨道、片段、预览实体和选区", actorId);
         }
     }
 }

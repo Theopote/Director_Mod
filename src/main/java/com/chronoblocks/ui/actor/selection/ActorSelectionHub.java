@@ -133,6 +133,17 @@ public final class ActorSelectionHub {
         SelectionManager selectionManager = SelectionManager.get();
         selectionManager.clearSelection();
 
+        // 清除方块选区（Minecraft 世界中的选区）
+        try {
+            com.chronoblocks.core.selection.SelectionManager blockSelectionManager = 
+                    com.chronoblocks.core.selection.SelectionManager.get();
+            if (blockSelectionManager != null) {
+                blockSelectionManager.clearSelection();
+            }
+        } catch (Exception e) {
+            LOGGER.debug("[ActorSelectionHub] 清除方块选区失败（可能不在客户端）: {}", e.getMessage());
+        }
+
         ActorGizmoController gizmoController = ActorGizmoController.getInstance();
         gizmoController.clearTarget();
 
@@ -146,7 +157,7 @@ public final class ActorSelectionHub {
         // 清除当前选中的 Actor ID
         currentActorId = null;
 
-        LOGGER.debug("[ActorSelectionHub] 已清除 Actor 选择");
+        LOGGER.debug("[ActorSelectionHub] 已清除 Actor 选择和方块选区");
     }
 
     // =========================================================
