@@ -245,14 +245,8 @@ public class CameraViewportProfile {
         }
 
         // 自定义比例下：保证合法
-        if (aspectMode.isCustom()) {
-            customAspectW = Math.max(1, customAspectW);
-            customAspectH = Math.max(1, customAspectH);
-        } else {
-            // 非自定义时：保证 custom 值也合理（避免 UI 切换后突然爆炸）
-            customAspectW = Math.max(1, customAspectW);
-            customAspectH = Math.max(1, customAspectH);
-        }
+        customAspectW = Math.max(1, customAspectW);
+        customAspectH = Math.max(1, customAspectH);
 
         // 预览分辨率：允许为 0（未设置），但不能为负
         previewWidth = Math.max(0, previewWidth);
@@ -283,8 +277,7 @@ public class CameraViewportProfile {
 
     private static float clamp01(float v) {
         if (v < 0f) return 0f;
-        if (v > 1f) return 1f;
-        return v;
+        return Math.min(v, 1f);
     }
 
     // -------------------------------------------------------------------------

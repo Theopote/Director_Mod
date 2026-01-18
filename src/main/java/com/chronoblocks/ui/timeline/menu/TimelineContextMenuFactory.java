@@ -471,9 +471,7 @@ public class TimelineContextMenuFactory {
             }
             
             // 为每个轨道类型创建菜单项
-            addTrackSubmenu.item(type.getIconAndName(), () -> {
-                createNewTrack(type);
-            });
+            addTrackSubmenu.item(type.getIconAndName(), () -> createNewTrack(type));
         }
         addTrackSubmenu.end();
         
@@ -494,11 +492,7 @@ public class TimelineContextMenuFactory {
      * <p>包含自动激活第一条轨道的逻辑，与 TimelineTrackController.createNewTrack() 保持一致
      */
     private void createNewTrack(com.chronoblocks.ui.timeline.model.TrackType type) {
-        if (model == null) {
-            LOGGER.warn("[Timeline] 创建轨道失败：model 为 null");
-            return;
-        }
-        
+
         // 计算同类型轨道数量
         long sameTypeCount = model.getTracks().stream()
                 .filter(t -> t.getType() == type)
