@@ -154,6 +154,37 @@ public final class VideoExportDialog {
         
         ImGui.inputInt("宽度", widthInt);
         ImGui.inputInt("高度", heightInt);
+        
+        // 分辨率预设快捷按钮（根据当前画幅比例计算）
+        UITheme.spacingSmall();
+        ImGui.textDisabled("分辨率预设：");
+        ImGui.sameLine();
+        
+        // 计算当前画幅比例（用于预设按钮）
+        float currentAspect = (settings.height > 0) ? (float) settings.width / (float) settings.height : 16f / 9f;
+        
+        // 1080p 预设
+        if (ImGui.button("1080p", 80, 0)) {
+            applyResolutionPreset(currentAspect, 1080);
+        }
+        ImGui.sameLine();
+        
+        // 2K 预设 (1440p)
+        if (ImGui.button("2K (1440p)", 100, 0)) {
+            applyResolutionPreset(currentAspect, 1440);
+        }
+        ImGui.sameLine();
+        
+        // 4K 预设 (2160p)
+        if (ImGui.button("4K (2160p)", 100, 0)) {
+            applyResolutionPreset(currentAspect, 2160);
+        }
+        
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("根据当前画幅比例自动计算对应分辨率");
+        }
+        
+        UITheme.spacingSmall();
         ImGui.sliderInt("FPS", fpsInt.getData(), 1, 240);
 
         settings.width = Math.max(16, widthInt.get());
@@ -549,6 +580,28 @@ public final class VideoExportDialog {
         
         settings.width = recommendedWidth;
         settings.height = recommendedHeight;
+        widthInt.set(settings.width);
+        heightInt.set(settings.height);
+    }
+    
+    /**
+     * 应用分辨率预设（根据画幅比例计算）
+     * 
+     * @param aspectRatio 当前画幅比例（宽/高）
+     * @param targetHeight 目标高度（1080、1440、2160等）
+     */
+    private static void applyResolutionPreset(float aspectRatio, int targetHeight) {
+        int calculatedWidth = Math.round(targetHeight * aspectRatio);
+        // 确保宽度和高度都是偶数（视频编码通常要求）
+        if (calculatedWidth % 2 != 0) {
+            calculatedWidth++;
+        }
+        if (targetHeight % 2 != 0) {
+            targetHeight++;
+        }
+        
+        settings.width = calculatedWidth;
+        settings.height = targetHeight;
         widthInt.set(settings.width);
         heightInt.set(settings.height);
     }
