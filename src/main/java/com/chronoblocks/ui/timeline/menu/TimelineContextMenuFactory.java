@@ -587,6 +587,15 @@ public class TimelineContextMenuFactory {
                 com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
                 boolean isActiveTrack = (activeTrack == track);
                 
+                // ⭐ 摄像机属性菜单项
+                builder
+                    .item("摄像机属性", () -> {
+                        // 选择轨道并打开属性面板
+                        com.chronoblocks.ui.selection.SelectionManager.get().selectTrack(track);
+                        LOGGER.info("[TimelineContextMenuFactory] 打开摄像机属性: {}", track.getName());
+                    })
+                    .separator();
+                
                 if (isActiveTrack) {
                     // 激活轨道：可以添加关键帧
                     builder

@@ -1,6 +1,7 @@
 package com.chronoblocks.ui.timeline.model;
 
 import com.chronoblocks.ui.timeline.model.audio.AudioEvent;
+import com.chronoblocks.ui.timeline.model.camera.CameraViewportProfile;
 import com.chronoblocks.core.container.Container;
 import com.chronoblocks.core.container.ContainerManager;
 
@@ -46,6 +47,10 @@ public class TimelineTrack {
     
     // ========== 音频事件（仅对音频轨道有效）==========
     private final List<AudioEvent> audioEvents = new ArrayList<>();
+    
+    // ========== 摄像机属性（仅对摄像机轨道有效）==========
+    /** 摄像机视口配置（画幅比例、安全区、预览分辨率等） */
+    private CameraViewportProfile cameraViewportProfile;
 
     /**
      * 构造函数（默认为容器轨道）。
@@ -479,5 +484,37 @@ public class TimelineTrack {
      */
     public boolean hasEntityTrackPayload() {
         return entityTrackPayload != null;
+    }
+    
+    // ========== 摄像机属性 getter/setter（仅对摄像机轨道有效）==========
+    
+    /**
+     * 获取摄像机视口配置。
+     *
+     * @return CameraViewportProfile，如果未设置则返回默认值
+     */
+    public CameraViewportProfile getCameraViewportProfile() {
+        if (cameraViewportProfile == null) {
+            cameraViewportProfile = new CameraViewportProfile();
+        }
+        return cameraViewportProfile;
+    }
+    
+    /**
+     * 设置摄像机视口配置。
+     *
+     * @param profile CameraViewportProfile
+     */
+    public void setCameraViewportProfile(CameraViewportProfile profile) {
+        this.cameraViewportProfile = profile;
+    }
+    
+    /**
+     * 检查是否有摄像机视口配置。
+     *
+     * @return 如果有摄像机视口配置则返回 true
+     */
+    public boolean hasCameraViewportProfile() {
+        return cameraViewportProfile != null;
     }
 }

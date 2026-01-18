@@ -92,11 +92,18 @@ public final class PropertyAdapterRegistry {
         
         Class<?> targetClass = target.getClass();
         
-        // 1. 精确匹配
+        // 1. 精确匹配（但需要检查 supports() 方法，因为可能有专用适配器）
         IPropertyAdapter<?> adapter = adapters.get(targetClass);
         if (adapter != null) {
-            LOGGER.trace("[PropertyAdapterRegistry] Found exact match for {}", targetClass.getSimpleName());
-            return (IPropertyAdapter<T>) adapter;
+            // 如果适配器有 supports() 方法，检查是否支持此对象
+            if (adapter.supports(target)) {
+                LOGGER.trace("[PropertyAdapterRegistry] Found exact match for {} with supports() check", targetClass.getSimpleName());
+                return (IPropertyAdapter<T>) adapter;
+            } else {
+                // 精确匹配的适配器不支持此对象，继续查找其他适配器
+                LOGGER.trace("[PropertyAdapterRegistry] Exact match adapter {} does not support {}, continuing search", 
+                    adapter.getClass().getSimpleName(), targetClass.getSimpleName());
+            }
         }
         
         // 2. 查找兼容的适配器（支持继承和 supports() 方法）

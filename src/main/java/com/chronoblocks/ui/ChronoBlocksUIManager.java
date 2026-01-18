@@ -21,6 +21,11 @@ import com.chronoblocks.export.video.VideoExportSettings;
 import com.chronoblocks.export.video.VideoRenderPipeline;
 import com.chronoblocks.ui.video.VideoExportDialog;
 import com.chronoblocks.ui.video.VideoExportProgressOverlay;
+import com.chronoblocks.ui.timeline.model.camera.CameraViewportProfile;
+import com.chronoblocks.ui.timeline.model.camera.ViewportMath;
+import com.chronoblocks.ui.timeline.model.TimelineTrack;
+import com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController;
+import com.chronoblocks.ui.timeline.render.TimelineColors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -534,6 +539,9 @@ public class ChronoBlocksUIManager {
                 lastPerformanceLog = currentTime;
             }
 
+            // 0) 摄像机视口 Overlay（在所有面板之前渲染，使其被面板遮挡）
+            renderCameraViewportOverlay();
+
             // 1. 统一处理菜单栏（如果有的话）
             panelRegistry.getPanelOptional(MenuBarPanel.class)
                 .filter(panel -> {
@@ -987,6 +995,208 @@ public class ChronoBlocksUIManager {
             errorMessage.append("- UI无法正常初始化");
             throw new IllegalStateException(errorMessage.toString());
         }
+    }
+
+    /**
+     * 🎥 渲染摄像机视口 Overlay（导出画幅框、安全区、参考线等）
+     * 
+     * <p>在屏幕上叠加显示摄像机导出画幅区域，不裁切 Minecraft 世界渲染。
+     * 这是一个"导演监视器"功能，帮助用户在编辑时看到最终导出会被裁切的区域。
+     * 
+     * <p>渲染内容：
+     * <ul>
+     *   <li>导出画幅边框 - 显示未来会被导出的区域</li>
+     *   <li>Letterbox 遮罩 - 显示会被裁切的黑边区域</li>
+     *   <li>安全区 - Title Safe / Action Safe 参考线</li>
+     *   <li>参考线 - 中心十字、三分法网格</li>
+     * </ul>
+     * 
+     * <p>设计原则：
+     * <ul>
+     *   <li>✅ 全屏照常渲染 Minecraft 世界</li>
+     *   <li>✅ 在背景层叠加显示导出区域框（会被面板遮挡）</li>
+     *   <li>❌ 不裁切 Minecraft 渲染本身</li>
+     *   <li>❌ 不影响鼠标操作和调试</li>
+     * </ul>
+     */
+    private void renderCameraViewportOverlay() {
+        try {
+            // 获取激活的摄像机轨道
+            TimelineCameraController cameraController = TimelineCameraController.getInstance();
+            TimelineTrack activeCameraTrack = cameraController.getActiveCameraTrack();
+            
+            if (activeCameraTrack == null) {
+                // 没有激活的摄像机轨道，不显示任何 Overlay
+                return;
+            }
+            
+            // 获取摄像机视口配置
+            CameraViewportProfile profile = activeCameraTrack.getCameraViewportProfile();
+            if (profile == null) {
+                return;
+            }
+            
+            // 使用 ImGui Background DrawList（背景层绘制，会被面板遮挡）
+            imgui.ImDrawList dl = ImGui.getBackgroundDrawList();
+            if (dl == null) {
+                return;
+            }
+            
+            // 获取屏幕尺寸
+            imgui.ImGuiIO io = ImGui.getIO();
+            float screenW = io.getDisplaySizeX();
+            float screenH = io.getDisplaySizeY();
+            
+            // 计算导出画幅区域（Fit 或 Fill）
+            ViewportMath.ViewportRects viewport;
+            CameraViewportProfile.PreviewScalePolicy scalePolicy = profile.getPreviewScalePolicy();
+            float targetAspect = profile.getAspectRatio();
+            
+            if (scalePolicy == CameraViewportProfile.PreviewScalePolicy.FIT) {
+                viewport = ViewportMath.computeFit(0, 0, screenW, screenH, targetAspect);
+            } else {
+                viewport = ViewportMath.computeFill(0, 0, screenW, screenH, targetAspect);
+            }
+            
+            // 1️⃣ Letterbox 遮罩（先画，盖在世界上面）
+            if (profile.isShowLetterboxMask()) {
+                drawLetterboxMask(dl, viewport, profile.getLetterboxAlpha());
+            }
+            
+            // 2️⃣ 导出画幅边框（非常重要）
+            int borderColor = TimelineColors.rgba(255, 255, 255, 255); // 白色
+            float borderThickness = 2.0f;
+            dl.addRect(
+                viewport.innerX, viewport.innerY,
+                viewport.innerX2(), viewport.innerY2(),
+                borderColor, 0f, 0, borderThickness
+            );
+            
+            // 3️⃣ 安全区 / 构图辅助
+            if (profile.isShowSafeAreas()) {
+                drawSafeAreas(dl, viewport, profile.getActionSafe(), profile.getTitleSafe());
+            }
+            
+            // 4️⃣ 参考线
+            if (profile.isShowRuleOfThirds()) {
+                drawRuleOfThirds(dl, viewport);
+            }
+            
+            if (profile.isShowCenterCross()) {
+                drawCenterCross(dl, viewport);
+            }
+            
+        } catch (Exception e) {
+            LOGGER.debug("[ChronoBlocksUIManager] 渲染摄像机视口 Overlay 时出错: {}", e.getMessage(), e);
+            // 不抛出异常，避免影响其他 UI 渲染
+        }
+    }
+    
+    /**
+     * 绘制 Letterbox 遮罩（黑边）
+     */
+    private void drawLetterboxMask(imgui.ImDrawList dl, ViewportMath.ViewportRects viewport, float alpha) {
+        // 使用 TimelineColors.rgba() 创建 ARGB 格式颜色
+        int maskColor = TimelineColors.rgba(0, 0, 0, (int)(alpha * 255)); // 黑色，带透明度
+        
+        // 上黑边
+        if (viewport.innerY > viewport.outerY) {
+            dl.addRectFilled(
+                viewport.outerX, viewport.outerY,
+                viewport.outerX + viewport.outerW, viewport.innerY,
+                maskColor
+            );
+        }
+        
+        // 下黑边
+        float bottomY = viewport.outerY + viewport.outerH;
+        if (viewport.innerY2() < bottomY) {
+            dl.addRectFilled(
+                viewport.outerX, viewport.innerY2(),
+                viewport.outerX + viewport.outerW, bottomY,
+                maskColor
+            );
+        }
+        
+        // 左黑边
+        if (viewport.innerX > viewport.outerX) {
+            dl.addRectFilled(
+                viewport.outerX, viewport.innerY,
+                viewport.innerX, viewport.innerY2(),
+                maskColor
+            );
+        }
+        
+        // 右黑边
+        float rightX = viewport.outerX + viewport.outerW;
+        if (viewport.innerX2() < rightX) {
+            dl.addRectFilled(
+                viewport.innerX2(), viewport.innerY,
+                rightX, viewport.innerY2(),
+                maskColor
+            );
+        }
+    }
+    
+    /**
+     * 绘制安全区（Title Safe / Action Safe）
+     */
+    private void drawSafeAreas(imgui.ImDrawList dl, ViewportMath.ViewportRects viewport, 
+                                float actionSafe, float titleSafe) {
+        // Action Safe（动作安全区）
+        float actionW = viewport.innerW * actionSafe;
+        float actionH = viewport.innerH * actionSafe;
+        float actionX = viewport.innerX + (viewport.innerW - actionW) * 0.5f;
+        float actionY = viewport.innerY + (viewport.innerH - actionH) * 0.5f;
+        
+        int actionColor = TimelineColors.rgba(0, 255, 0, 200); // 绿色，半透明
+        dl.addRect(actionX, actionY, actionX + actionW, actionY + actionH, actionColor, 0f, 0, 1.0f);
+        
+        // Title Safe（标题安全区）
+        float titleW = viewport.innerW * titleSafe;
+        float titleH = viewport.innerH * titleSafe;
+        float titleX = viewport.innerX + (viewport.innerW - titleW) * 0.5f;
+        float titleY = viewport.innerY + (viewport.innerH - titleH) * 0.5f;
+        
+        int titleColor = TimelineColors.rgba(255, 0, 0, 200); // 红色，半透明
+        dl.addRect(titleX, titleY, titleX + titleW, titleY + titleH, titleColor, 0f, 0, 1.0f);
+    }
+    
+    /**
+     * 绘制三分法网格
+     */
+    private void drawRuleOfThirds(imgui.ImDrawList dl, ViewportMath.ViewportRects viewport) {
+        int lineColor = TimelineColors.rgba(255, 255, 255, 136); // 半透明白色 (136/255 ≈ 0.53)
+        
+        // 垂直三等分线
+        float thirdW = viewport.innerW / 3.0f;
+        float v1 = viewport.innerX + thirdW;
+        float v2 = viewport.innerX + thirdW * 2.0f;
+        dl.addLine(v1, viewport.innerY, v1, viewport.innerY2(), lineColor, 1.0f);
+        dl.addLine(v2, viewport.innerY, v2, viewport.innerY2(), lineColor, 1.0f);
+        
+        // 水平三等分线
+        float thirdH = viewport.innerH / 3.0f;
+        float h1 = viewport.innerY + thirdH;
+        float h2 = viewport.innerY + thirdH * 2.0f;
+        dl.addLine(viewport.innerX, h1, viewport.innerX2(), h1, lineColor, 1.0f);
+        dl.addLine(viewport.innerX, h2, viewport.innerX2(), h2, lineColor, 1.0f);
+    }
+    
+    /**
+     * 绘制中心十字参考线
+     */
+    private void drawCenterCross(imgui.ImDrawList dl, ViewportMath.ViewportRects viewport) {
+        int lineColor = TimelineColors.rgba(255, 255, 255, 136); // 半透明白色 (136/255 ≈ 0.53)
+        
+        float centerX = viewport.innerX + viewport.innerW * 0.5f;
+        float centerY = viewport.innerY + viewport.innerH * 0.5f;
+        
+        // 垂直中心线
+        dl.addLine(centerX, viewport.innerY, centerX, viewport.innerY2(), lineColor, 1.0f);
+        
+        // 水平中心线
+        dl.addLine(viewport.innerX, centerY, viewport.innerX2(), centerY, lineColor, 1.0f);
     }
 
     /**

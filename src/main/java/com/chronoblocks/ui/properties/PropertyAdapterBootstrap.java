@@ -5,6 +5,7 @@ import com.chronoblocks.core.animation.container.Keyframe;
 import com.chronoblocks.core.container.Container;
 import com.chronoblocks.ui.properties.adapters.*;
 import com.chronoblocks.ui.timeline.model.TimelineClip;
+import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.audio.AudioEvent;
 import com.chronoblocks.ui.timeline.model.audio.AudioClipKeyframe;
 import com.chronoblocks.ui.timeline.model.audio.AudioTimelineClip;
@@ -108,6 +109,10 @@ public final class PropertyAdapterBootstrap {
             
             // ✅ 时间线轨道适配器
             registerAdapter(new TimelineTrackPropertyAdapter(), "TimelineTrack");
+            registeredCount++;
+            
+            // ✅ 摄像机轨道属性适配器（专用适配器，直接注册为 TimelineTrack.class 以确保优先匹配）
+            registerAdapter(TimelineTrack.class, new CameraTrackPropertyAdapter());
             registeredCount++;
             
             LOGGER.info("  ========== 核心对象适配器 ==========");
