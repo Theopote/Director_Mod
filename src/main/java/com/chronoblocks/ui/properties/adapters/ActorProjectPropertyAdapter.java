@@ -5,6 +5,7 @@ import com.chronoblocks.actor.ActorRef;
 import com.chronoblocks.actor.ActorRegistry;
 import com.chronoblocks.actor.ActorRegistryManager;
 import com.chronoblocks.actor.ActorType;
+import com.chronoblocks.actor.preview.ActorPreviewManager;
 import com.chronoblocks.actor.query.ActorUsageQuery;
 import com.chronoblocks.ui.actor.selection.ActorSelectionHub;
 import com.chronoblocks.ui.properties.IPropertyAdapter;
@@ -677,7 +678,40 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         }
     }
     
+    /**
+     * 删除演员（同时删除该演员在实体轨道上的所有片段）
+     * <p>根据逻辑：在演员面板列表中的演员，一定在实体轨道上有对应的演员片段
+     * <p>删除演员时，应该同时删除该演员对应的轨道和所有片段
+     */
     private void deleteActor(ActorRegistry actorRegistry, UUID actorId) {
+        if (actorId == null) {
+            return;
+        }
+        
+        var timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+        if (timelineModel == null) {
+            LOGGER.warn("[ActorProjectPropertyAdapter] TimelineModel 未初始化，无法删除轨道");
+            // 即使没有 TimelineModel，也尝试删除演员
+            actorRegistry.removeActor(actorId);
+            return;
+        }
+        
+        // 1️⃣ 查找使用该演员的所有轨道
+        List<TimelineTrack> tracksToRemove = ActorUsageQuery.findTimelineTracksUsingActor(
+                timelineModel, 
+                actorId
+        );
+        
+        // 2️⃣ 删除所有关联的轨道（这会自动删除轨道上的所有片段）
+        for (TimelineTrack track : tracksToRemove) {
+            timelineModel.removeTrack(track);
+            LOGGER.debug("[ActorProjectPropertyAdapter] 已删除关联的轨道: {}", track.getName());
+        }
+        
+        // 3️⃣ 清理 Minecraft 世界中的预览实体
+        ActorPreviewManager.getInstance().removePreview(actorId);
+        
+        // 4️⃣ 从 ActorRegistry 删除演员
         boolean removed = actorRegistry.removeActor(actorId);
         
         if (removed) {
@@ -691,12 +725,9 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             selectionManager.clearSelection();
 
             // 标记需要保存（通过 TimelineModel）
-            var timelineModel = com.chronoblocks.ui.timeline.container.ContainerTimelineService.getInstance().getTimelineModel();
-            if (timelineModel != null) {
-                timelineModel.markDirty();
-            }
+            timelineModel.markDirty();
             
-            LOGGER.info("[ActorProjectPropertyAdapter] Deleted actor: {}", actorId);
+            LOGGER.info("[ActorProjectPropertyAdapter] 已删除演员 {} 及其所有轨道、片段和预览实体", actorId);
         }
     }
 }

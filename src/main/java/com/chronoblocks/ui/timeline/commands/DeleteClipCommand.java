@@ -4,6 +4,7 @@ import com.chronoblocks.actor.Actor;
 import com.chronoblocks.actor.ActorRef;
 import com.chronoblocks.actor.ActorRegistry;
 import com.chronoblocks.actor.ActorRegistryManager;
+import com.chronoblocks.actor.preview.ActorPreviewManager;
 import com.chronoblocks.core.container.ContainerManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -143,7 +144,11 @@ public class DeleteClipCommand extends BaseTimelineCommand {
         registry.getActor(actorId).ifPresent(actor -> {
             removedActor = actor;
             removedActorFromRegistry = registry.removeActor(actorId);
-            LOGGER.info("[DeleteClipCommand] 演员 {} 的所有片段已删除，已从注册表中移除", actor.getName());
+            
+            // 清理 Minecraft 世界中的预览实体
+            ActorPreviewManager.getInstance().removePreview(actorId);
+            
+            LOGGER.info("[DeleteClipCommand] 演员 {} 的所有片段已删除，已从注册表中移除，预览实体已清理", actor.getName());
         });
     }
 

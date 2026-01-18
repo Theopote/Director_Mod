@@ -4,11 +4,11 @@ import com.chronoblocks.actor.Actor;
 import com.chronoblocks.actor.ActorRef;
 import com.chronoblocks.actor.ActorRegistry;
 import com.chronoblocks.actor.ActorRegistryManager;
+import com.chronoblocks.actor.preview.ActorPreviewManager;
 import com.chronoblocks.actor.query.ActorUsageQuery;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TrackType;
-import com.chronoblocks.ui.timeline.model.entity.EntitySpawnClip;
 import com.chronoblocks.ui.timeline.model.entity.EntityTrack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -96,6 +96,10 @@ public class DeleteTrackCommand extends BaseTimelineCommand {
         }
     }
 
+    /**
+     * 检查并删除孤立的演员
+     * <p>如果删除轨道后，该演员没有任何轨道和片段了，则从注册表中删除该演员
+     */
     private void removeActorIfOrphaned() {
         if (track == null || track.getType() != TrackType.ENTITY || model == null) {
             return;
@@ -112,14 +116,25 @@ public class DeleteTrackCommand extends BaseTimelineCommand {
         }
 
         UUID actorId = actorRef.getActorId();
-        if (actorId == null || hasSpawnClip(model, actorId)) {
+        if (actorId == null) {
             return;
         }
 
+        // 检查该演员是否还有任何轨道和片段（不限于 SpawnClip）
+        if (hasAnyClip(model, actorId)) {
+            return;
+        }
+
+        // 如果没有轨道和片段了，删除该演员
         ActorRegistry registry = ActorRegistryManager.getInstance();
         registry.getActor(actorId).ifPresent(actor -> {
             removedActor = actor;
             removedActorFromRegistry = registry.removeActor(actorId);
+            
+            // 清理 Minecraft 世界中的预览实体
+            ActorPreviewManager.getInstance().removePreview(actorId);
+            
+            LOGGER.info("[DeleteTrackCommand] 演员 {} 的所有轨道已删除，已从注册表中移除，预览实体已清理", actor.getName());
         });
     }
 
@@ -131,11 +146,19 @@ public class DeleteTrackCommand extends BaseTimelineCommand {
         registry.registerActor(removedActor);
     }
 
-    private boolean hasSpawnClip(TimelineModel model, UUID actorId) {
+    /**
+     * 检查指定演员是否还有任何轨道和片段
+     * 
+     * @param model TimelineModel
+     * @param actorId 演员ID
+     * @return 如果还有轨道和片段则返回 true
+     */
+    private boolean hasAnyClip(TimelineModel model, UUID actorId) {
         if (model == null || actorId == null) {
             return false;
         }
 
+        // 遍历所有轨道，查找该演员的轨道
         for (TimelineTrack t : model.getTracks()) {
             if (t == null || t.getType() != TrackType.ENTITY) {
                 continue;
@@ -145,11 +168,10 @@ public class DeleteTrackCommand extends BaseTimelineCommand {
                 continue;
             }
             ActorRef ref = entityTrack.getActorRef();
+            // 找到该演员的轨道，检查是否还有片段
             if (ref != null && actorId.equals(ref.getActorId())) {
-                for (com.chronoblocks.ui.timeline.model.entity.EntityClip clip : entityTrack.getClips()) {
-                    if (clip instanceof EntitySpawnClip) {
-                        return true;
-                    }
+                if (entityTrack.hasClips()) {
+                    return true;
                 }
             }
         }
