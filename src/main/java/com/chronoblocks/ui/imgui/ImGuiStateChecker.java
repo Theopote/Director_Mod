@@ -170,7 +170,12 @@ public class ImGuiStateChecker {
      * @param error 错误信息
      */
     public static void recordError(String componentName, String operation, String error) {
-        LOGGER.error("[ImGuiStateChecker] {}: {} 操作失败: {}", componentName, operation, error);
+        // 注释掉错误日志以避免大量重复输出（窗口未能开始是正常情况）
+        // 只在debug模式下输出，或者对于真正的错误才输出
+        if (LOGGER.isDebugEnabled() && !error.contains("窗口未能开始")) {
+            LOGGER.debug("[ImGuiStateChecker] {}: {} 操作失败: {}", componentName, operation, error);
+        }
+        // LOGGER.error("[ImGuiStateChecker] {}: {} 操作失败: {}", componentName, operation, error);
     }
 
     /**

@@ -112,9 +112,10 @@ public abstract class AbstractPanel implements IPanel {
                             com.chronoblocks.ui.imgui.ImGuiStateChecker.recordError("Panel", getWindowName(), e.getMessage());
                         }
                     } else {
-                        // 如果窗口未能开始，记录警告但不抛出异常
-                        logger.warn("[{}] 窗口未能开始渲染: {} (可能被其他窗口遮挡或DockSpace未就绪)", getPanelName(), getWindowName());
-                        com.chronoblocks.ui.imgui.ImGuiStateChecker.recordError("Panel", getWindowName(), "窗口未能开始");
+                        // 如果窗口未能开始，这是正常情况（面板可能被隐藏或DockSpace未就绪），不记录日志
+                        // 注释掉日志以避免大量重复输出：
+                        // logger.warn("[{}] 窗口未能开始渲染: {} (可能被其他窗口遮挡或DockSpace未就绪)", getPanelName(), getWindowName());
+                        // com.chronoblocks.ui.imgui.ImGuiStateChecker.recordError("Panel", getWindowName(), "窗口未能开始");
                     }
                 } finally {
                     // 关键修复：无论begin返回什么，都必须调用end()来配对

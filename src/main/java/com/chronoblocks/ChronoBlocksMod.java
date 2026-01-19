@@ -358,9 +358,57 @@ public class ChronoBlocksMod implements ModInitializer {
             if (visibilityService != null) {
                 visibilityService.clearAll();
             }
+            // 清理所有线程池，避免在服务器关闭时提交任务导致异常
+            cleanupThreadPools();
         });
         
         LOGGER.info("[ChronoBlocks] 服务器生命周期事件注册完成");
+    }
+    
+    /**
+     * 清理所有线程池，在服务器关闭时调用
+     * 避免在服务器关闭时提交任务到已关闭的线程池导致异常
+     */
+    private void cleanupThreadPools() {
+        try {
+            // 清理 SelectionBatchProcessor 的线程池
+            try {
+                com.chronoblocks.core.selection.pipeline.SelectionBatchProcessor.get().shutdown();
+            } catch (Exception e) {
+                LOGGER.warn("[ChronoBlocks] 清理 SelectionBatchProcessor 线程池失败", e);
+            }
+            
+            // 清理 LassoSelectTask 的线程池
+            try {
+                java.util.concurrent.ExecutorService executor = com.chronoblocks.core.selection.tools.lassoselecttool.LassoSelectTask.EXECUTOR;
+                if (executor != null && !executor.isShutdown()) {
+                    executor.shutdownNow();
+                }
+            } catch (Exception e) {
+                LOGGER.warn("[ChronoBlocks] 清理 LassoSelectTask 线程池失败", e);
+            }
+            
+            // 注意：MagicWandTool.THREAD_POOL 是私有的，且使用 daemon 线程
+            // 会在 JVM 关闭时自动终止，无需手动清理
+            
+            // 清理 WaterFreezeManager 的线程池
+            try {
+                com.chronoblocks.season.WaterFreezeManager.get().shutdown();
+            } catch (Exception e) {
+                LOGGER.warn("[ChronoBlocks] 清理 WaterFreezeManager 线程池失败", e);
+            }
+            
+            // 清理 SeasonSnowManager 的线程池
+            try {
+                com.chronoblocks.season.SeasonSnowManager.get().shutdown();
+            } catch (Exception e) {
+                LOGGER.warn("[ChronoBlocks] 清理 SeasonSnowManager 线程池失败", e);
+            }
+            
+            LOGGER.debug("[ChronoBlocks] 所有线程池清理完成");
+        } catch (Exception e) {
+            LOGGER.error("[ChronoBlocks] 清理线程池时发生错误", e);
+        }
     }
     
     /**

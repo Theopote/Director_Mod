@@ -890,7 +890,9 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
         }
         ImGui.openPopup("Reset Workspace");
         ImGui.setNextWindowSize(420, 190);
-        if (ImGui.beginPopupModal("Reset Workspace", null, ImGuiWindowFlags.AlwaysAutoResize)) {
+        // 使用ImBoolean对象而不是null，避免NullPointerException
+        ImBoolean popupOpen = new ImBoolean(true);
+        if (ImGui.beginPopupModal("Reset Workspace", popupOpen, ImGuiWindowFlags.AlwaysAutoResize)) {
             ImGui.textColored(1.0f, 0.47f, 0.31f, 1.0f, Icons.WARNING + " 警告：该操作会清空当前动画与容器！");
             ImGui.spacing();
             ImGui.textWrapped("将删除当前存档中的时间线、关键帧和容器引用，并写入全新的空白工程。请确认已备份重要内容。");
@@ -899,13 +901,21 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
             if (ImGui.button("确认重置", 150, UITheme.Spacing.BUTTON_HEIGHT)) {
                 performNewAnimationReset();
                 showNewAnimationConfirm = false;
+                popupOpen.set(false);
                 ImGui.closeCurrentPopup();
             }
             ImGui.sameLine();
             if (ImGui.button("取消", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
                 showNewAnimationConfirm = false;
+                popupOpen.set(false);
                 ImGui.closeCurrentPopup();
             }
+            
+            // 如果用户通过其他方式关闭弹窗（如点击外部或ESC），更新状态
+            if (!popupOpen.get()) {
+                showNewAnimationConfirm = false;
+            }
+            
             ImGui.endPopup();
         }
     }

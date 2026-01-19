@@ -55,6 +55,11 @@ public abstract class WorldMixin {
         cir.setReturnValue(day * 24000L + tod);
     }
 
+    // ⚠️ 注意：getSkyAngle(F)F 和 getSkyAngleRadians(F)F 方法在 Minecraft 1.21.10 中
+    // 可能不存在于 World 基类中，只存在于 ClientWorld 中。
+    // 如果需要在 ClientWorld 中覆盖这些方法，请使用 ClientWorldMixin。
+    // 这里暂时注释掉，避免 Mixin 注入失败。
+    /*
     @SuppressWarnings("UnresolvedMixinReference")
     @Inject(method = "getSkyAngle(F)F", at = @At("HEAD"), cancellable = true)
     private void overrideSkyAngle(float tickDelta, CallbackInfoReturnable<Float> cir) {
@@ -81,6 +86,7 @@ public abstract class WorldMixin {
         }
         cir.setReturnValue(sample.getSkyAngle() * (float) (Math.PI * 2.0));
     }
+    */
 
     /**
      * Weather：覆盖雨强度
