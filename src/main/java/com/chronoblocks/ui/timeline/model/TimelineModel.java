@@ -537,18 +537,6 @@ public class TimelineModel {
     public List<TimelineMarker> getMarkers() {
         return new ArrayList<>(markers);
     }
-    
-    /**
-     * 查找指定时间点的标记
-     */
-    public TimelineMarker findMarkerAt(float time, float epsilon) {
-        for (TimelineMarker marker : markers) {
-            if (Math.abs(marker.getTime() - time) < epsilon) {
-                return marker;
-            }
-        }
-        return null;
-    }
 
     /**
      * 根据 Actor ID 查找对应的 EntityTrack
@@ -577,21 +565,6 @@ public class TimelineModel {
         return null;
     }
 
-    // ========== 轨道管理（语义方法，ChronoBlocks 风格）==========
-
-    /**
-     * 安全获取轨道（语义方法）
-     * 
-     * <p>如果索引有效则返回轨道，否则返回 null。
-     * 避免数组越界异常。
-     * 
-     * @param index 轨道索引
-     * @return 轨道实例，如果索引无效则返回 null
-     */
-    public TimelineTrack getTrackSafe(int index) {
-        return (index >= 0 && index < tracks.size()) ? tracks.get(index) : null;
-    }
-
     /**
      * 获取轨道数量（语义方法）
      * 
@@ -601,111 +574,7 @@ public class TimelineModel {
         return tracks.size();
     }
 
-    /**
-     * 为摄像机轨道添加关键帧。
-     *
-     * @return 新建的摄像机关键帧，轨道类型不支持时返回 null。
-     */
-    public CameraKeyframe addCameraKeyframe(TimelineTrack track, float timeSeconds) {
-        if (track == null || track.getType() == null || !track.getType().supportsCameraPath()) {
-            return null;
-        }
 
-        // ⭐ v5.0：检查是否是激活的摄像机轨道
-        com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController controller =
-                com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance();
-        TimelineTrack activeTrack = controller.getActiveCameraTrack();
-
-        if (activeTrack != track) {
-            org.slf4j.LoggerFactory.getLogger(TimelineModel.class)
-                    .warn("[TimelineModel] 只能在激活的摄像机轨道上添加关键帧，当前轨道：{}，激活轨道：{}",
-                            track.getName(),
-                            activeTrack != null ? activeTrack.getName() : "null");
-            return null;
-        }
-
-        float clamped = Math.max(0f, Math.min(timeSeconds, getDuration()));
-        CameraKeyframe keyframe = new CameraKeyframe("Camera Keyframe", clamped);
-        // ⭐ 自动捕获完整的当前相机状态（位置、旋转、FOV等所有属性）
-        TimelineCameraController.getInstance().captureFromCurrentCamera(keyframe);
-        track.addAutomationKeyframe(keyframe);
-        markDirty();
-        return keyframe;
-    }
-
-    /**
-     * 为天气轨道添加关键帧。
-     */
-    public WeatherKeyframe addWeatherKeyframe(TimelineTrack track, float timeSeconds) {
-        if (track == null || track.getType() == null || !track.getType().supportsWeatherControl()) {
-            return null;
-        }
-        float clamped = Math.max(0f, Math.min(timeSeconds, getDuration()));
-        WeatherKeyframe keyframe = new WeatherKeyframe("Weather Keyframe", clamped);
-        track.addAutomationKeyframe(keyframe);
-        markDirty();
-        return keyframe;
-    }
-
-    /**
-     * 为实体轨道添加关键帧。
-     *
-     * @return 新建的实体关键帧，轨道类型不支持时返回 null。
-     */
-    public com.chronoblocks.ui.timeline.model.entity.EntityKeyframe addEntityKeyframe(TimelineTrack track, float timeSeconds) {
-        if (track == null || track.getType() == null || !track.getType().supportsEntityControl()) {
-            return null;
-        }
-
-        // ⭐ v1.0：检查是否是激活的实体轨道
-        com.chronoblocks.ui.timeline.playback.entity.TimelineEntityController controller =
-                com.chronoblocks.ui.timeline.playback.entity.TimelineEntityController.getInstance();
-        TimelineTrack activeTrack = controller.getActiveEntityTrack();
-
-        if (activeTrack != track) {
-            org.slf4j.LoggerFactory.getLogger(TimelineModel.class)
-                    .warn("[TimelineModel] 只能在激活的实体轨道上添加关键帧，当前轨道：{}，激活轨道：{}",
-                            track.getName(),
-                            activeTrack != null ? activeTrack.getName() : "null");
-            return null;
-        }
-
-        float clamped = Math.max(0f, Math.min(timeSeconds, getDuration()));
-        com.chronoblocks.ui.timeline.model.entity.EntityKeyframe keyframe = 
-                new com.chronoblocks.ui.timeline.model.entity.EntityKeyframe("Entity Keyframe", clamped);
-        track.addAutomationKeyframe(keyframe);
-        markDirty();
-        return keyframe;
-    }
-
-    /**
-     * 在指定轨道上方插入新轨道（语义方法）
-     * 
-     * @param target 目标轨道
-     */
-    public void insertTrackAbove(TimelineTrack target) {
-        int idx = tracks.indexOf(target);
-        if (idx >= 0) {
-            TimelineTrack newTrack = new TimelineTrack("新轨道");
-            tracks.add(idx, newTrack);
-            markDurationDirty();
-        }
-    }
-
-    /**
-     * 在指定轨道下方插入新轨道（语义方法）
-     * 
-     * @param target 目标轨道
-     */
-    public void insertTrackBelow(TimelineTrack target) {
-        int idx = tracks.indexOf(target);
-        if (idx >= 0) {
-            TimelineTrack newTrack = new TimelineTrack("新轨道");
-            tracks.add(idx + 1, newTrack);
-            markDurationDirty();
-        }
-    }
-    
     // ========== 片段查找（O(1) 高效操作）==========
     
     /**
@@ -892,16 +761,18 @@ public class TimelineModel {
                 }
             }
 
-            for (TimelineClip clip : track.getClips()) {
-                maxEndTime = Math.max(maxEndTime, clip.getEndTime());
-                // clip 内关键帧（理论上应在 clip 范围内，但这里做兜底）
-                for (com.chronoblocks.ui.timeline.model.clip.ClipKeyframe kf : clip.getClipKeyframes()) {
-                    if (kf == null) continue;
-                    maxEndTime = Math.max(maxEndTime, kf.getTime());
-                }
-                for (Float t : clip.getKeyframes()) {
-                    if (t == null) continue;
-                    maxEndTime = Math.max(maxEndTime, t);
+            if (track != null) {
+                for (TimelineClip clip : track.getClips()) {
+                    maxEndTime = Math.max(maxEndTime, clip.getEndTime());
+                    // clip 内关键帧（理论上应在 clip 范围内，但这里做兜底）
+                    for (com.chronoblocks.ui.timeline.model.clip.ClipKeyframe kf : clip.getClipKeyframes()) {
+                        if (kf == null) continue;
+                        maxEndTime = Math.max(maxEndTime, kf.getTime());
+                    }
+                    for (Float t : clip.getKeyframes()) {
+                        if (t == null) continue;
+                        maxEndTime = Math.max(maxEndTime, t);
+                    }
                 }
             }
         }
@@ -942,9 +813,7 @@ public class TimelineModel {
     public float getPixelsPerSecond() { return viewportState.getPixelsPerSecond(); }
     public float getScrollX() { return viewportState.getScrollX(); }
     public void setScrollX(float scrollX) { viewportState.setScrollX(scrollX); }
-    
-    public float getMinPps() { return viewportState.getMinPixelsPerSecond(); }
-    public float getMaxPps() { return viewportState.getMaxPixelsPerSecond(); }
+
     
     public List<TimelineTrack> getTracks() { return tracks; }
     
@@ -1039,7 +908,7 @@ public class TimelineModel {
             lastClickedItem = last;
         }
     }
-    
+
     /**
      * 范围选择（Shift键）
      * @param item 范围结束项
@@ -1047,11 +916,11 @@ public class TimelineModel {
     public void selectRange(Object item) {
         if (item == null || lastClickedItem == null) {
         }
-        
+
         // TODO: 实现范围选择逻辑
         // 需要根据时间顺序选择 lastClickedItem 和 item 之间的所有项
     }
-    
+
     /**
      * 清除所有选择
      */
@@ -1065,15 +934,15 @@ public class TimelineModel {
      */
     public void selectAll() {
         selectedItems.clear();
-        
+
         // 使用 Stream API 收集所有轨道的所有片段
         List<TimelineClip> allClips = tracks.stream()
             .flatMap(track -> track.getClips().stream())
             .toList();
-        
+
         selectedItems.addAll(allClips);
     }
-    
+
     /**
      * 获取所有选中的项目
      */

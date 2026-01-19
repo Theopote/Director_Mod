@@ -2401,8 +2401,11 @@ public class TimelineInteractionHandler {
         handle.tempStart = snappedStart;
         handle.tempEnd = originalEnd;
         
-        // ⭐ 注意：拖动过程中不直接修改 clip 的时间，只更新临时值
-        // 实际的时间修改在 endInteractionIfNeeded 中通过命令完成
+        // ⭐ 实时更新 clip 的时间，确保属性面板能实时显示时间变化（与容器片段保持一致）
+        // 注意：最终的时间修改仍然会在 endInteractionIfNeeded 中通过命令完成（用于撤销/重做）
+        handle.clip.setStartTime(snappedStart);
+        handle.clip.setEndTime(originalEnd);
+        model.markDurationDirty();
         
         if (callbacks != null) {
             callbacks.onDataChanged();
@@ -2453,8 +2456,11 @@ public class TimelineInteractionHandler {
         handle.tempStart = originalStart;
         handle.tempEnd = snappedEnd;
         
-        // ⭐ 注意：拖动过程中不直接修改 clip 的时间，只更新临时值
-        // 实际的时间修改在 endInteractionIfNeeded 中通过命令完成
+        // ⭐ 实时更新 clip 的时间，确保属性面板能实时显示时间变化（与容器片段保持一致）
+        // 注意：最终的时间修改仍然会在 endInteractionIfNeeded 中通过命令完成（用于撤销/重做）
+        handle.clip.setStartTime(originalStart);
+        handle.clip.setEndTime(snappedEnd);
+        model.markDurationDirty();
         
         if (callbacks != null) {
             callbacks.onDataChanged();

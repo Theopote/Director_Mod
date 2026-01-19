@@ -154,31 +154,26 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
      * 
      * <p>⭐ 性能优化：实时显示时间信息，当用户在时间线上拖动或调整片段时，
      * 时间显示会立即更新，无需等待选择变化。
+     * 
+     * <p>参考容器面板的时间显示逻辑：每次渲染都直接从 clip 读取最新值，
+     * 直接使用 ImGui.text() 显示，确保每次渲染都显示最新值。
      */
     private void renderHeader(OrbitPathClip clip) {
         UITheme.title(Icons.CAMERA + " Orbit Camera Path");
         
         // ⭐ 实时读取最新时间值（确保拖动时能实时更新）
         // ⭐ 每次渲染都直接从 clip 读取，不依赖缓存，确保拖动过程中实时更新
+        // ⭐ 参考 EntitySpawnClipPropertyAdapter 的做法：直接使用 ImGui.text() 显示时间
         float currentStartTime = clip.getStartTime();
         float currentEndTime = clip.getEndTime();
         float currentDuration = clip.getDuration();
         
         // 时间范围（只读，通过 Timeline 控制）
-        // ⭐ 使用 String.format 确保每次都生成新的字符串，避免 ImGui 缓存
-        // ⭐ 使用 pushID/popID 确保每次渲染都是新的文本项，强制刷新
-        ImGui.pushID("time_duration");
+        // ⭐ 直接使用 ImGui.text() 显示，每次渲染都会显示最新值
+        // ⭐ 不使用 pushID，避免 ImGui 缓存文本内容
         ImGui.textDisabled(String.format("时长: %.2f 秒", currentDuration));
-        ImGui.popID();
-        
-        ImGui.pushID("time_start");
         ImGui.textDisabled(String.format("开始: %.2f 秒", currentStartTime));
-        ImGui.popID();
-        
-        ImGui.pushID("time_end");
         ImGui.textDisabled(String.format("结束: %.2f 秒", currentEndTime));
-        ImGui.popID();
-        
         ImGui.textDisabled("提示：时间通过 Timeline 拖动/拉伸调整");
         
         // ⭐ 更新缓存的时间值（用于检测变化，但不影响显示）
