@@ -10,6 +10,7 @@ import com.chronoblocks.ui.timeline.model.audio.AudioEvent;
 import com.chronoblocks.ui.timeline.model.audio.AudioClipKeyframe;
 import com.chronoblocks.ui.timeline.model.audio.AudioTimelineClip;
 import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
+import com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip;
 import com.chronoblocks.ui.timeline.model.time.TimeKeyframe;
 import com.chronoblocks.ui.timeline.model.selection.TimelineKeyframeMultiSelection;
 
@@ -178,6 +179,10 @@ public final class PropertyAdapterBootstrap {
             
             // ✅ 摄像机关键帧适配器
             registerAdapter(CameraKeyframe.class, new CameraKeyframePropertyAdapter());
+            registeredCount++;
+            
+            // ✅ 摄像机路径片段适配器
+            registerAdapter(OrbitPathClip.class, new OrbitPathClipPropertyAdapter());
             registeredCount++;
             
             // ✅ 时间关键帧适配器

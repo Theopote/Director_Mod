@@ -48,6 +48,7 @@ public class TimelineCommandHistory {
     /**
      * 执行命令并加入撤销栈。
      * 如果设置了 TimelineModel，会自动触发模型更新事件。
+     * ⭐ 性能优化：BaseTimelineCommand 已经会调用 markDirty()，这里不需要重复调用
      */
     public void executeCommand(TimelineCommand command) {
         command.execute();
@@ -63,14 +64,19 @@ public class TimelineCommandHistory {
             LOGGER.debug("[Timeline] 执行命令: {}", command.getDescription());
         }
         
-        // 自动触发模型更新（如果命令不是 BaseTimelineCommand，它可能没有触发更新）
-        notifyModelChanged("command_executed");
+        // ⭐ 性能优化：BaseTimelineCommand.execute() 已经会调用 notifyModelChanged() → markDirty()
+        // 这里不需要再次调用，避免重复触发模型变更通知和保存操作
+        // 只有非 BaseTimelineCommand 的命令才需要手动触发更新
+        if (!(command instanceof BaseTimelineCommand)) {
+            notifyModelChanged("command_executed");
+        }
     }
 
     /**
      * 撤销最近一次命令。
      *
      * @return true 表示成功撤销
+     * ⭐ 性能优化：BaseTimelineCommand 已经会调用 markDirty()，这里不需要重复调用
      */
     public boolean undo() {
         if (undoStack.isEmpty()) {
@@ -83,8 +89,12 @@ public class TimelineCommandHistory {
         redoStack.add(command);
         LOGGER.info("[Timeline] 撤销命令: {}", command.getDescription());
         
-        // 自动触发模型更新
-        notifyModelChanged("command_undone");
+        // ⭐ 性能优化：BaseTimelineCommand.undo() 已经会调用 notifyModelChanged() → markDirty()
+        // 这里不需要再次调用，避免重复触发模型变更通知和保存操作
+        // 只有非 BaseTimelineCommand 的命令才需要手动触发更新
+        if (!(command instanceof BaseTimelineCommand)) {
+            notifyModelChanged("command_undone");
+        }
         return true;
     }
 
@@ -92,6 +102,7 @@ public class TimelineCommandHistory {
      * 重做上一次撤销的命令。
      *
      * @return true 表示成功重做
+     * ⭐ 性能优化：BaseTimelineCommand 已经会调用 markDirty()，这里不需要重复调用
      */
     public boolean redo() {
         if (redoStack.isEmpty()) {
@@ -104,8 +115,12 @@ public class TimelineCommandHistory {
         undoStack.add(command);
         LOGGER.info("[Timeline] 重做命令: {}", command.getDescription());
         
-        // 自动触发模型更新
-        notifyModelChanged("command_redone");
+        // ⭐ 性能优化：BaseTimelineCommand.execute() 已经会调用 notifyModelChanged() → markDirty()
+        // 这里不需要再次调用，避免重复触发模型变更通知和保存操作
+        // 只有非 BaseTimelineCommand 的命令才需要手动触发更新
+        if (!(command instanceof BaseTimelineCommand)) {
+            notifyModelChanged("command_redone");
+        }
         return true;
     }
     

@@ -8,6 +8,8 @@ import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TimelineViewportState;
 import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
+import com.chronoblocks.ui.timeline.model.camera.path.CameraPathClip;
+import com.chronoblocks.ui.timeline.model.camera.path.CameraPathType;
 import com.chronoblocks.ui.timeline.model.time.TimeKeyframe;
 import com.chronoblocks.ui.timeline.model.season.SeasonKeyframe;
 // ⚠️ TimelineMarker 已移至时间标尺渲染，不再在轨道上渲染
@@ -131,6 +133,20 @@ public class TimelineRenderer {
          * @return 临时时间，如果没有拖动则返回 -1
          */
         float getDraggedMarkerTime(com.chronoblocks.ui.timeline.model.TimelineMarker marker);
+        
+        /**
+         * ⭐ 获取正在拖动中的 Path Clip 的临时开始时间
+         * @param clip Path Clip
+         * @return 临时开始时间，如果没有拖动则返回 -1
+         */
+        float getDraggedPathClipStartTime(CameraPathClip clip);
+        
+        /**
+         * ⭐ 获取正在拖动中的 Path Clip 的临时结束时间
+         * @param clip Path Clip
+         * @return 临时结束时间，如果没有拖动则返回 -1
+         */
+        float getDraggedPathClipEndTime(CameraPathClip clip);
     }
 
     public TimelineRenderer(TimelineModel model, TimelineViewportState viewportState) {
@@ -314,6 +330,11 @@ public class TimelineRenderer {
                 }
                 drawList.popClipRect();
                 
+                // ⭐ 渲染摄像机路径片段（Path Clips）- 在关键帧之前渲染，使其在关键帧下方
+                if (track.getType() == TrackType.CAMERA && track.hasCameraPathClips()) {
+                    renderCameraPathClips(drawList, track, contentX, trackY, contentW);
+                }
+                
                 // ★ 渲染轨道级自动化关键帧（摄像机关键帧、天气关键帧等）
                 renderAutomationKeyframes(drawList, track, contentX, trackY, contentW);
                 
@@ -327,6 +348,215 @@ public class TimelineRenderer {
 
     }
 
+    /**
+     * ⭐ 渲染摄像机路径片段（Path Clips）
+     * 
+     * <p>Path Clip 作为"块"显示在轨道上，位于关键帧下方。
+     * 不同路径类型使用不同颜色区分。
+     */
+    private static final float PATH_CLIP_MIN_WIDTH_PX = 10f; // 太窄也要可点中
+    
+    private void renderCameraPathClips(ImDrawList drawList, TimelineTrack track,
+                                      float contentX, float y, float contentW) {
+        if (track == null || !track.hasCameraPathClips()) {
+            return;
+        }
+        
+        // ⭐ 性能优化：移除重复的 syncViewportFromState() 调用
+        // renderTrackArea 已经调用了 syncViewportFromState()，这里不需要重复调用
+        
+        // ⭐ 布局：与容器片段保持一致的高度和位置
+        float pathClipHeight = TimelineClipRenderer.CLIP_HEIGHT;  // 20px（与容器片段一致）
+        // 与容器片段相同的垂直对齐：CLIP_VERT_PADDING = 2.0f（轨道高度24px - 片段高度20px）/ 2
+        float pathClipY = y + 2.0f;  // 与容器片段相同的垂直对齐
+        
+        // ⭐ 性能优化：直接计算可见时间范围，避免创建数组
+        float contentXForTime = viewport.getContentX();
+        float contentWForTime = viewport.getContentWidth();
+        float visibleStart = math.xToTime(contentXForTime);
+        float visibleEnd = math.xToTime(contentXForTime + contentWForTime);
+        
+        // ⭐ 性能优化：获取鼠标位置用于 hover 检测（只获取一次，避免重复调用）
+        float mouseX = ImGui.getMousePosX();
+        float mouseY = ImGui.getMousePosY();
+        
+        // 遍历轨道上的所有 Path Clip
+        for (CameraPathClip clip : track.getCameraPathClips()) {
+            if (clip == null || !clip.isEnabled()) {
+                continue;
+            }
+            
+            // ⭐ 检查是否正在拖动中，如果是则使用临时时间
+            float startTime = clip.getStartTime();
+            float endTime = clip.getEndTime();
+            if (dragStateQuery != null) {
+                float tempStart = dragStateQuery.getDraggedPathClipStartTime(clip);
+                float tempEnd = dragStateQuery.getDraggedPathClipEndTime(clip);
+                if (tempStart >= 0) {
+                    startTime = tempStart;
+                }
+                if (tempEnd >= 0) {
+                    endTime = tempEnd;
+                }
+            }
+            
+            // ⭐ 性能优化：早期跳过不可见的 Path Clip（在计算屏幕坐标之前）
+            if (endTime < visibleStart || startTime > visibleEnd) {
+                continue;
+            }
+            
+            // 计算屏幕坐标
+            float x1 = math.timeToX(startTime);
+            float x2 = math.timeToX(endTime);
+            
+            // ⭐ 性能优化：早期跳过不在内容区域内的 Path Clip
+            if (x2 < contentX || x1 > contentX + contentW) {
+                continue;
+            }
+            
+            // 裁剪到内容区域
+            float clipX1 = Math.max(contentX, x1);
+            float clipX2 = Math.min(contentX + contentW, x2);
+            float clipW = clipX2 - clipX1;
+            
+            // ⭐ 最小宽度保证（确保即使很窄的 Path Clip 也能被点击）
+            if (clipW < PATH_CLIP_MIN_WIDTH_PX) {
+                float centerX = (clipX1 + clipX2) * 0.5f;
+                clipX1 = centerX - PATH_CLIP_MIN_WIDTH_PX * 0.5f;
+                clipX2 = centerX + PATH_CLIP_MIN_WIDTH_PX * 0.5f;
+                clipW = clipX2 - clipX1;
+            }
+            
+            if (clipW <= 0) {
+                continue;
+            }
+            
+            // Hover 检测
+            boolean hovering = mouseX >= clipX1 && mouseX <= clipX2 &&
+                              mouseY >= pathClipY && mouseY <= pathClipY + pathClipHeight;
+            
+            // 检查是否被选中（isSelected 使用 HashSet.contains，已经是 O(1)）
+            boolean isSelected = model != null && model.isSelected(clip);
+            
+            // ⭐ 性能优化：只调用一次 getPathType()，避免重复调用
+            CameraPathType pathType = clip.getPathType();
+            int clipColor = getPathClipColor(pathType, isSelected, hovering);
+            int borderColor = isSelected 
+                ? TimelineColors.COLOR_KEYFRAME_SELECTED 
+                : TimelineColors.rgba(0, 0, 0, 200);
+            
+            // 绘制 Path Clip 块（扁平化风格，无圆角）
+            // ⭐ 统一风格：与容器片段、音频片段保持一致，使用扁平化设计
+            drawList.addRectFilled(
+                clipX1, pathClipY, 
+                clipX2, pathClipY + pathClipHeight,
+                clipColor, 0.0f, 0  // 无圆角
+            );
+            
+            // 边框（选中时高亮，扁平化）
+            float borderWidth = isSelected ? 2.0f : 1.0f;
+            drawList.addRect(
+                clipX1, pathClipY,
+                clipX2, pathClipY + pathClipHeight,
+                borderColor, 0.0f, 0, borderWidth  // 无圆角
+            );
+            
+            // ⭐ 移除白色竖条把手，统一扁平化风格（与容器片段、音频片段保持一致）
+            
+            // ⭐ 性能优化：只在需要时才计算和绘制文本（块足够宽时才绘制）
+            // ⭐ 性能优化：避免字符串格式化，使用简单的字符串拼接
+            if (clipW > 40) {
+                String label = getPathClipLabelFast(clip, pathType);
+                float textX = clipX1 + 6;
+                float textY = pathClipY + pathClipHeight * 0.5f;
+                
+                // 文本颜色（根据背景色自动调整）
+                int textColor = TimelineColors.COLOR_TEXT_LIGHT;
+                if (isSelected) {
+                    textColor = TimelineColors.COLOR_TEXT_DARK;
+                }
+                
+                // 绘制文本
+                drawList.addText(textX, textY - 7, textColor, label);
+            }
+        }
+    }
+    
+    /**
+     * 获取 Path Clip 的颜色（根据类型、选中状态、hover 状态）
+     * ⭐ 性能优化：内联颜色计算，减少方法调用
+     */
+    private int getPathClipColor(CameraPathType pathType, boolean isSelected, boolean hovering) {
+        // ⭐ 性能优化：根据状态直接返回最终颜色，避免多次调用 lighten/adjustAlpha
+        if (isSelected) {
+            // 选中时：使用预计算的亮色
+            return switch (pathType) {
+                case ORBIT -> TimelineColors.rgba(120, 210, 255, 240);  // 蓝色/青色（选中）
+                case DOLLY -> TimelineColors.rgba(120, 255, 195, 240);  // 绿色（选中）
+                case CRANE -> TimelineColors.rgba(255, 210, 120, 240);  // 橙色（选中）
+                case RAIL -> TimelineColors.rgba(230, 180, 255, 240);   // 紫色（选中）
+                default -> TimelineColors.rgba(180, 180, 180, 240);     // 灰色（选中）
+            };
+        } else if (hovering) {
+            // Hover 时：使用预计算的稍亮色
+            return switch (pathType) {
+                case ORBIT -> TimelineColors.rgba(90, 190, 255, 200);   // 蓝色/青色（hover）
+                case DOLLY -> TimelineColors.rgba(90, 255, 180, 200);   // 绿色（hover）
+                case CRANE -> TimelineColors.rgba(255, 200, 120, 200);  // 橙色（hover）
+                case RAIL -> TimelineColors.rgba(220, 170, 255, 200);  // 紫色（hover）
+                default -> TimelineColors.rgba(170, 170, 170, 200);     // 灰色（hover）
+            };
+        } else {
+            // 默认：基础颜色
+            return switch (pathType) {
+                case ORBIT -> TimelineColors.rgba(100, 180, 255, 180);  // 蓝色/青色
+                case DOLLY -> TimelineColors.rgba(100, 255, 150, 180);  // 绿色
+                case CRANE -> TimelineColors.rgba(255, 180, 100, 180);  // 橙色
+                case RAIL -> TimelineColors.rgba(200, 150, 255, 180);   // 紫色
+                default -> TimelineColors.rgba(150, 150, 150, 180);      // 灰色（FREE 或其他）
+            };
+        }
+    }
+    
+    /**
+     * 获取 Path Clip 的显示标签（性能优化版本）
+     * ⭐ 优化：接受 pathType 参数，避免重复调用 getPathType()
+     */
+    private String getPathClipLabelFast(CameraPathClip clip, CameraPathType pathType) {
+        String typeName = switch (pathType) {
+            case ORBIT -> "ORBIT";
+            case DOLLY -> "DOLLY";
+            case CRANE -> "CRANE";
+            case RAIL -> "RAIL";
+            default -> "PATH";
+        };
+        
+        // ⭐ 性能优化：如果是 Orbit，显示角度范围（避免使用 String.format，改用简单拼接）
+        if (pathType == CameraPathType.ORBIT && clip instanceof com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip orbit) {
+            float startAngle = orbit.getStartAngle();
+            float endAngle = orbit.getEndAngle();
+            float angleRange = endAngle - startAngle;
+            if (angleRange < 0) {
+                angleRange += 360f;
+            }
+            // ⭐ 性能优化：使用 StringBuilder 或简单字符串拼接，避免 String.format
+            // String.format 会创建 Formatter 对象，相对昂贵
+            int angleInt = Math.round(angleRange);
+            return typeName + " · " + angleInt + "°";
+        }
+        
+        return typeName;
+    }
+    
+    /**
+     * 获取 Path Clip 的显示标签（旧版本，保留用于向后兼容）
+     * @deprecated 使用 getPathClipLabelFast 代替，避免重复调用 getPathType()
+     */
+    @Deprecated
+    private String getPathClipLabel(CameraPathClip clip) {
+        return getPathClipLabelFast(clip, clip.getPathType());
+    }
+    
     /**
      * 渲染轨道级自动化关键帧（摄像机关键帧、天气关键帧等）
      * 

@@ -526,12 +526,16 @@ public final class TimelineWorldController {
      * <p>⭐ v3.0 改进：重建后立即更新冻结状态，确保关键帧变化时及时响应
      */
     public synchronized void rebuildFromActiveTrack() {
-        // ⭐ DEBUG: 记录重建采样器
-        LOGGER.info("[TimelineWorld] 🔨 rebuildFromActiveTrack() 调用 - 当前冻结状态={}, frozenGameTime={}", 
-                freezeTimeActive, freezeTimeActive ? frozenGameTime : "N/A");
+        // ⭐ 性能优化：减少日志输出，避免频繁的 INFO 日志影响性能
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("[TimelineWorld] 🔨 rebuildFromActiveTrack() 调用 - 当前冻结状态={}, frozenGameTime={}", 
+                    freezeTimeActive, freezeTimeActive ? frozenGameTime : "N/A");
+        }
         
         if (!hasValidActiveTrack()) {
-            LOGGER.info("[TimelineWorld] rebuildFromActiveTrack() - 无效轨道，清除状态");
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("[TimelineWorld] rebuildFromActiveTrack() - 无效轨道，清除状态");
+            }
             sampler.setKeyframes(new ArrayList<>());
             clear(); // 清除状态缓存
             // ⭐ v3.0：轨道无效时也需要更新冻结状态（可能轨道被删除）
@@ -540,14 +544,6 @@ public final class TimelineWorldController {
         }
 
         List<TimeKeyframe> kfs = collectTimeKeyframes(activeTimeTrack);
-        
-        // ⭐ DEBUG: 记录关键帧信息
-        LOGGER.info("[TimelineWorld] 📋 rebuildFromActiveTrack() - 轨道'{}'，关键帧数量={}", 
-                activeTimeTrack.getName(), kfs.size());
-        for (TimeKeyframe kf : kfs) {
-            LOGGER.info("[TimelineWorld]   - 关键帧: 时间={}s, worldTime={}, useNaturalTime={}", 
-                    kf.getTime(), kf.getWorldTimeTicks(), kf.isUseNaturalTime());
-        }
         
         sampler.setKeyframes(kfs);
 
@@ -558,10 +554,12 @@ public final class TimelineWorldController {
         
         // ⭐ v3.0 核心改进：每次重建采样器后立即检查冻结状态
         // 这样在添加/删除/修改关键帧时，冻结状态会立即更新
-        LOGGER.info("[TimelineWorld] 🔄 rebuildFromActiveTrack() - 准备更新冻结状态");
         updateTimeFreezeState();
-        LOGGER.info("[TimelineWorld] ✅ rebuildFromActiveTrack() - 完成，当前冻结状态={}, frozenGameTime={}", 
-                freezeTimeActive, freezeTimeActive ? frozenGameTime : "N/A");
+        
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("[TimelineWorld] ✅ rebuildFromActiveTrack() - 完成，当前冻结状态={}, frozenGameTime={}", 
+                    freezeTimeActive, freezeTimeActive ? frozenGameTime : "N/A");
+        }
     }
 
     /**

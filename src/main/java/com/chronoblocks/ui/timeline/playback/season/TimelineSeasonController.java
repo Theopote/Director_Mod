@@ -364,20 +364,22 @@ public final class TimelineSeasonController {
             return;
         }
         
-        LOGGER.info("[TimelineSeason] onModelStructureChanged() - 开始处理模型结构变更");
+        // ⭐ 性能优化：减少日志输出，避免频繁的 INFO 日志影响性能
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("[TimelineSeason] onModelStructureChanged() - 开始处理模型结构变更");
+        }
         
         // 统计当前季节轨道数量
         int seasonTrackCount = countSeasonTracks();
         TimelineTrack firstSeasonTrack = findFirstSeasonTrack();
         
-        LOGGER.info("[TimelineSeason] 当前季节轨道数量: {}, 激活轨道: {}", 
-                seasonTrackCount, activeSeasonTrack != null ? activeSeasonTrack.getName() : "<null>");
-        
         // ⭐ v1.0：如果只有一个季节轨道，无论当前状态如何，都确保它是激活的
         if (seasonTrackCount == 1 && firstSeasonTrack != null) {
             if (activeSeasonTrack != firstSeasonTrack) {
                 activeSeasonTrack = firstSeasonTrack;
-                LOGGER.info("[TimelineSeason] 模型变更：检测到只有一个季节轨道，自动激活: {}", firstSeasonTrack.getName());
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("[TimelineSeason] 模型变更：检测到只有一个季节轨道，自动激活: {}", firstSeasonTrack.getName());
+                }
             }
         } else if (seasonTrackCount == 0) {
             // 没有季节轨道时，清空激活轨道
@@ -386,23 +388,27 @@ public final class TimelineSeasonController {
             // 有多个季节轨道时，检查当前激活轨道是否仍然在模型中
             // 如果当前激活轨道不在模型中（被删除），或者无效，切换到第一条轨道
             if (activeSeasonTrack != null && !isSeasonTrackInModel(activeSeasonTrack)) {
-                LOGGER.info("[TimelineSeason] 模型变更：当前激活轨道已被删除，切换到: {}", 
-                        firstSeasonTrack != null ? firstSeasonTrack.getName() : "<none>");
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("[TimelineSeason] 模型变更：当前激活轨道已被删除，切换到: {}", 
+                            firstSeasonTrack != null ? firstSeasonTrack.getName() : "<none>");
+                }
                 activeSeasonTrack = firstSeasonTrack;
             } else if (!isValidSeasonTrack(activeSeasonTrack)) {
                 activeSeasonTrack = firstSeasonTrack;
-                if (firstSeasonTrack != null) {
-                    LOGGER.info("[TimelineSeason] 模型变更：当前激活轨道无效，切换到: {}", firstSeasonTrack.getName());
+                if (firstSeasonTrack != null && LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("[TimelineSeason] 模型变更：当前激活轨道无效，切换到: {}", firstSeasonTrack.getName());
                 }
             }
         }
         
         rebuildFromActiveTrack();
         
-        // 记录模型变更后的状态，使用 info 级别以便调试
-        LOGGER.info("[TimelineSeason] 模型变更完成，激活轨道: {}, 关键帧数: {}",
-                activeSeasonTrack != null ? activeSeasonTrack.getName() : "<none>",
-                sampler.hasKeyframes() ? "有" : "无");
+        // ⭐ 性能优化：只在 DEBUG 级别记录模型变更后的状态
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("[TimelineSeason] 模型变更完成，激活轨道: {}, 关键帧数: {}",
+                    activeSeasonTrack != null ? activeSeasonTrack.getName() : "<none>",
+                    sampler.hasKeyframes() ? "有" : "无");
+        }
     }
     
     /**

@@ -119,6 +119,15 @@ public final class TimelineHitTest {
         // 时间坐标
         float timeAtMouse = renderer.xToTime(mouseX, contentX);
 
+        // ⭐ 命中 Path Clip（在关键帧之前检测，但优先级低于关键帧）
+        if (track.getType() == com.chronoblocks.ui.timeline.model.TrackType.CAMERA && track.hasCameraPathClips()) {
+            PathClipHit pathClipHit = hitTestPathClips(renderer, model, track, trackIndex,
+                    mouseX, mouseY, contentX, trackY, trackBottom);
+            if (pathClipHit != null) {
+                return TimelineHitResult.pathClip(pathClipHit);
+            }
+        }
+
         // 命中 Keyframe（优先）
         TimelineHitResult keyHit = hitTestKeyframes(renderer, model, track, trackIndex,
                 mouseX, mouseY, contentX, trackY, trackBottom);
@@ -274,6 +283,81 @@ public final class TimelineHitTest {
         }
 
         return TimelineHitResult.none();
+    }
+
+    /**
+     * ⭐ 检测 Path Clip 命中
+     * 
+     * <p>检测鼠标是否命中 Path Clip 的主体、左边缘或右边缘。
+     * 左/右边缘各 8px 用于拉伸操作。
+     */
+    private static PathClipHit hitTestPathClips(
+            TimelineRenderer renderer,
+            TimelineModel model,
+            TimelineTrack track,
+            int trackIndex,
+            float mouseX,
+            float mouseY,
+            float contentX,
+            float trackTop,
+            float trackBottom
+    ) {
+        if (track == null || !track.hasCameraPathClips()) {
+            return null;
+        }
+        
+        float pps = model.getPixelsPerSecond();
+        float scrollX = model.getScrollX();
+        
+        // Path Clip 高度和位置（与渲染逻辑一致）
+        float pathClipHeight = TimelineRenderer.getTrackHeight() * 0.45f;
+        float pathClipY = trackTop + (TimelineRenderer.getTrackHeight() - pathClipHeight) * 0.5f;
+        float pathClipBottom = pathClipY + pathClipHeight;
+        
+        // 检查鼠标是否在 Path Clip 的垂直范围内
+        if (mouseY < pathClipY || mouseY > pathClipBottom) {
+            return null;
+        }
+        
+        // Resize Handle 宽度（8px）
+        float handleWidth = 8f;
+        
+        // 遍历所有 Path Clip（从后往前，优先命中后面的）
+        java.util.List<com.chronoblocks.ui.timeline.model.camera.path.CameraPathClip> pathClips = track.getCameraPathClips();
+        for (int i = pathClips.size() - 1; i >= 0; i--) {
+            com.chronoblocks.ui.timeline.model.camera.path.CameraPathClip clip = pathClips.get(i);
+            if (clip == null || !clip.isEnabled()) {
+                continue;
+            }
+            
+            float startTime = clip.getStartTime();
+            float endTime = clip.getEndTime();
+            
+            float x1 = contentX + (startTime * pps) - scrollX;
+            float x2 = contentX + (endTime * pps) - scrollX;
+            
+            // 检查是否在水平范围内
+            if (mouseX < x1 || mouseX > x2) {
+                continue;
+            }
+            
+            // 检查命中区域
+            float leftHandleX2 = x1 + handleWidth;
+            float rightHandleX1 = x2 - handleWidth;
+            
+            if (mouseX >= x1 && mouseX <= leftHandleX2) {
+                // 命中左边缘
+                return PathClipHit.resizeLeft(clip, track, trackIndex);
+            } else if (mouseX >= rightHandleX1 && mouseX <= x2) {
+                // 命中右边缘
+                return PathClipHit.resizeRight(clip, track, trackIndex);
+            } else {
+                // 命中主体
+                return PathClipHit.body(clip, track, trackIndex);
+            }
+        }
+        
+        return null;
     }
 
     private static TimelineHitResult hitTestAutomationKeyframes(

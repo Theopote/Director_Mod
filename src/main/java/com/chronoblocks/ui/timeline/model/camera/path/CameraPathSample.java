@@ -1,0 +1,59 @@
+package com.chronoblocks.ui.timeline.model.camera.path;
+
+import net.minecraft.util.math.Vec3d;
+
+/**
+ * CameraPathSample - 摄像机路径采样结果
+ * 
+ * <p>Path Clip 计算后输出的结果，包含摄像机的位置和朝向信息。
+ * 
+ * <p>设计说明：
+ * <ul>
+ *   <li>使用 LookAt 点而非旋转角度，更直观且便于计算</li>
+ *   <li>播放系统可以根据 position 和 lookAt 计算旋转角度</li>
+ *   <li>支持混合多个 Path Clip（未来扩展）</li>
+ * </ul>
+ * 
+ * @author ChronoBlocks Team
+ * @version 1.0
+ */
+public class CameraPathSample {
+    
+    /** 摄像机位置（世界坐标） */
+    private final Vec3d position;
+    
+    /** 摄像机注视点（LookAt，世界坐标） */
+    private final Vec3d lookAt;
+    
+    public CameraPathSample(Vec3d position, Vec3d lookAt) {
+        this.position = position != null ? position : Vec3d.ZERO;
+        this.lookAt = lookAt != null ? lookAt : Vec3d.ZERO;
+    }
+    
+    public Vec3d getPosition() {
+        return position;
+    }
+    
+    public Vec3d getLookAt() {
+        return lookAt;
+    }
+    
+    /**
+     * 计算从 position 指向 lookAt 的方向向量（归一化）
+     */
+    public Vec3d getDirection() {
+        Vec3d dir = lookAt.subtract(position);
+        double len = dir.length();
+        if (len < 1e-6) {
+            return new Vec3d(0, 0, -1); // 默认朝向 -Z
+        }
+        return dir.multiply(1.0 / len);
+    }
+    
+    @Override
+    public String toString() {
+        return String.format("CameraPathSample{pos=(%.2f, %.2f, %.2f), lookAt=(%.2f, %.2f, %.2f)}",
+                position.x, position.y, position.z,
+                lookAt.x, lookAt.y, lookAt.z);
+    }
+}

@@ -109,6 +109,7 @@ public class TimelineContextMenuFactory {
                         .build();
             }
             case AUTOMATION_KEYFRAME -> createAutomationKeyframeMenu(hit.automationKeyframe(), hit.track());
+            case PATH_CLIP -> createPathClipMenu(hit.pathClipHit()); // ⭐ Path Clip 菜单
             case EMPTY -> createEmptyAreaMenu(hit.time());
             default -> null;
         };
@@ -591,7 +592,7 @@ public class TimelineContextMenuFactory {
                     .separator();
                 
                 if (isActiveTrack) {
-                    // 激活轨道：可以添加关键帧
+                    // 激活轨道：可以添加关键帧和路径片段
                     builder
                         .submenu("摄像机关键帧")
                             .item("添加摄像机关键帧", () -> {
@@ -604,12 +605,58 @@ public class TimelineContextMenuFactory {
                                 // 执行命令
                                 commandHistory.executeCommand(new AddAutomationKeyframeCommand(model, track, keyframe));
                             })
+                        .end()
+                        .separator()
+                        .submenu("摄像机路径")
+                            .item("创建围绕路径 (Orbit)", () -> {
+                                // 创建 Orbit Path Clip
+                                float currentTime = model.getCurrentTime();
+                                float duration = 5.0f; // 默认 5 秒
+                                
+                                // 获取当前摄像机位置作为中心点（如果可能）
+                                net.minecraft.util.math.Vec3d center = net.minecraft.util.math.Vec3d.ZERO;
+                                float height = 64.0f; // 默认高度
+                                float radius = 10.0f; // 默认半径 10 方块
+                                
+                                // 尝试从当前摄像机状态获取位置
+                                com.chronoblocks.ui.timeline.playback.camera.CameraRuntime runtime = 
+                                    com.chronoblocks.ui.timeline.playback.camera.CameraRuntime.getInstance();
+                                com.chronoblocks.ui.timeline.playback.camera.CameraSample currentSample = runtime.getCurrentSample();
+                                if (currentSample != null) {
+                                    center = currentSample.position();
+                                    height = (float) center.y;
+                                }
+                                
+                                // 创建 Orbit Path Clip
+                                com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip orbitClip = 
+                                    new com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip(
+                                        "围绕路径 @" + formatTime(currentTime),
+                                        currentTime,
+                                        currentTime + duration,
+                                        center,
+                                        radius,
+                                        height
+                                    );
+                                
+                                // ⭐ 性能优化：使用命令系统，避免直接调用 markDirty() 导致重复触发模型变更通知
+                                com.chronoblocks.ui.timeline.commands.AddPathClipCommand cmd = 
+                                    new com.chronoblocks.ui.timeline.commands.AddPathClipCommand(model, track, orbitClip);
+                                commandHistory.executeCommand(cmd);
+                                
+                                // 选择轨道并打开属性面板（让用户编辑参数）
+                                com.chronoblocks.ui.selection.SelectionManager.get().selectTrack(track);
+                                LOGGER.info("[TimelineContextMenuFactory] 创建围绕路径: {} @ {:.2f}s", 
+                                    orbitClip.getName(), currentTime);
+                            })
                         .end();
                 } else {
                     // 非激活轨道：禁用添加关键帧选项
                     builder
                         .submenu("摄像机关键帧")
                             .disabledItem("添加摄像机关键帧（仅激活轨道可用）")
+                        .end()
+                        .submenu("摄像机路径")
+                            .disabledItem("创建路径（仅激活轨道可用）")
                         .end();
                 }
             }
@@ -693,6 +740,69 @@ public class TimelineContextMenuFactory {
         EntityTrack entityTrack = track.getOrCreateEntityTrackPayload();
         entityTrack.addClip(clip);
         track.addClip(new EntityTimelineClip(clip, entityTrack.getColorRgba()));
+    }
+
+    /**
+     * ⭐ 创建 Path Clip 的右键菜单
+     */
+    private TimelineContextMenu createPathClipMenu(com.chronoblocks.ui.timeline.interaction.PathClipHit pathClipHit) {
+        if (pathClipHit == null) {
+            return TimelineContextMenuBuilder
+                    .custom(commandHistory, "PathClipMenu")
+                    .disabledItem("无 Path Clip")
+                    .build();
+        }
+        
+        com.chronoblocks.ui.timeline.model.camera.path.CameraPathClip clip = pathClipHit.clip();
+        com.chronoblocks.ui.timeline.model.TimelineTrack track = pathClipHit.track();
+        
+        if (clip == null || track == null) {
+            return TimelineContextMenuBuilder
+                    .custom(commandHistory, "PathClipMenu")
+                    .disabledItem("无 Path Clip")
+                    .build();
+        }
+        
+        // 检查轨道锁定和激活状态
+        if (track.isLocked()) {
+            return TimelineContextMenuBuilder
+                    .custom(commandHistory, "PathClipMenu")
+                    .disabledItem("Path Clip: " + clip.getName())
+                    .disabledItem("轨道已锁定，无法操作")
+                    .build();
+        }
+        
+        if (track.getType() == com.chronoblocks.ui.timeline.model.TrackType.CAMERA) {
+            com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController controller =
+                    com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance();
+            com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
+            
+            if (activeTrack != track) {
+                return TimelineContextMenuBuilder
+                        .custom(commandHistory, "PathClipMenu")
+                        .disabledItem("Path Clip: " + clip.getName())
+                        .disabledItem("轨道未激活，无法操作")
+                        .build();
+            }
+        }
+        
+        TimelineContextMenuBuilder builder = TimelineContextMenuBuilder
+                .custom(commandHistory, "PathClipMenu")
+                .disabledItem("Path Clip: " + clip.getName())
+                .disabledItem(String.format("@ %.2fs - %.2fs", clip.getStartTime(), clip.getEndTime()))
+                .separator()
+                .item("Path 属性...", () -> {
+                    // 选择 Path Clip 并打开属性面板
+                    model.selectItem(clip, false);
+                    com.chronoblocks.ui.selection.SelectionManager.get().setCurrentSelection(clip);
+                    LOGGER.info("[TimelineContextMenuFactory] 打开 Path Clip 属性: {}", clip.getName());
+                })
+                .separator()
+                .command("删除 Path Clip", 
+                    new com.chronoblocks.ui.timeline.commands.DeletePathClipCommand(model, track, clip), 
+                    "Del");
+        
+        return builder.build();
     }
 
     private String formatTime(float time) {

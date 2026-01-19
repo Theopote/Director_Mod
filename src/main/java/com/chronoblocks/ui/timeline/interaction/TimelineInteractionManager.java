@@ -26,7 +26,10 @@ public class TimelineInteractionManager {
         DRAG_AUTOMATION_KEYFRAME,  // 拖动自动化关键帧（轨道级别的关键帧）
         DRAG_MARKER,               // ⭐ 拖动标记（时间标尺上的标记）
         BOX_SELECT,                // 框选
-        PAINT_ACTION               // ⭐ 涂抹 Action（Action 区间编辑）
+        PAINT_ACTION,             // ⭐ 涂抹 Action（Action 区间编辑）
+        DRAG_PATH_CLIP,            // ⭐ 拖动 Path Clip（整体移动）
+        RESIZE_PATH_CLIP_LEFT,     // ⭐ 调整 Path Clip 左边缘
+        RESIZE_PATH_CLIP_RIGHT     // ⭐ 调整 Path Clip 右边缘
     }
     
     private InteractionMode currentMode = InteractionMode.NONE;

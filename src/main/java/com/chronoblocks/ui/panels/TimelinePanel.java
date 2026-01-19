@@ -165,6 +165,16 @@ public class TimelinePanel extends AbstractPanel
             public float getDraggedMarkerTime(com.chronoblocks.ui.timeline.model.TimelineMarker marker) {
                 return interactionHandler.getDraggedMarkerTime(marker);
             }
+            
+            @Override
+            public float getDraggedPathClipStartTime(com.chronoblocks.ui.timeline.model.camera.path.CameraPathClip clip) {
+                return interactionHandler.getDraggedPathClipStartTime(clip);
+            }
+            
+            @Override
+            public float getDraggedPathClipEndTime(com.chronoblocks.ui.timeline.model.camera.path.CameraPathClip clip) {
+                return interactionHandler.getDraggedPathClipEndTime(clip);
+            }
         });
 
         // 配置历史管理

@@ -215,6 +215,7 @@ public final class TimelineCameraController {
 
         List<CameraKeyframe> kfs = collectCameraKeyframes(activeCameraTrack);
         sampler.setKeyframes(kfs);
+        sampler.setCameraTrack(activeCameraTrack);  // ⭐ 设置轨道引用，用于访问 Path Clips
         pathManager.setKeyframes(kfs);
         pathManager.markPathDirty();
 

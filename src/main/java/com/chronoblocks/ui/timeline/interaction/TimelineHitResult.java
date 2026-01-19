@@ -16,6 +16,7 @@ public record TimelineHitResult(
         TimelineClip clip,
         ClipKeyframe clipKeyframe,  // ⭐ 新增：Clip 内关键帧对象
         TimelineSelectable automationKeyframe,
+        PathClipHit pathClipHit,    // ⭐ 新增：Path Clip 命中结果
         float time,
         int trackIndex,
         int keyframeIndex
@@ -28,23 +29,24 @@ public record TimelineHitResult(
         CLIP,
         KEYFRAME,
         AUTOMATION_KEYFRAME,
-        MARKER  // ⭐ 标记（在时间标尺上）
+        MARKER,  // ⭐ 标记（在时间标尺上）
+        PATH_CLIP  // ⭐ Path Clip（摄像机路径片段）
     }
 
     public static TimelineHitResult none() {
-        return new TimelineHitResult(HitType.NONE, null, null, null, null, -1f, -1, -1);
+        return new TimelineHitResult(HitType.NONE, null, null, null, null, null, -1f, -1, -1);
     }
 
     public static TimelineHitResult empty(float time) {
-        return new TimelineHitResult(HitType.EMPTY, null, null, null, null, time, -1, -1);
+        return new TimelineHitResult(HitType.EMPTY, null, null, null, null, null, time, -1, -1);
     }
 
     public static TimelineHitResult track(TimelineTrack track, int trackIndex) {
-        return new TimelineHitResult(HitType.TRACK_HEADER, track, null, null, null, -1f, trackIndex, -1);
+        return new TimelineHitResult(HitType.TRACK_HEADER, track, null, null, null, null, -1f, trackIndex, -1);
     }
 
     public static TimelineHitResult clip(TimelineTrack track, TimelineClip clip, float time, int trackIndex) {
-        return new TimelineHitResult(HitType.CLIP, track, clip, null, null, time, trackIndex, -1);
+        return new TimelineHitResult(HitType.CLIP, track, clip, null, null, null, time, trackIndex, -1);
     }
 
     /**
@@ -59,7 +61,7 @@ public record TimelineHitResult(
         if (clipKeyframe == null) {
             throw new IllegalArgumentException("ClipKeyframe cannot be null");
         }
-        return new TimelineHitResult(HitType.KEYFRAME, track, clip, clipKeyframe, null, 
+        return new TimelineHitResult(HitType.KEYFRAME, track, clip, clipKeyframe, null, null,
                 clipKeyframe.getTime(), trackIndex, -1);
     }
 
@@ -67,7 +69,7 @@ public record TimelineHitResult(
      * 创建自动化关键帧的命中结果（轨道级别的关键帧，如摄像机关键帧）
      */
     public static TimelineHitResult automationKeyframe(TimelineTrack track, TimelineSelectable keyframe, int trackIndex) {
-        return new TimelineHitResult(HitType.AUTOMATION_KEYFRAME, track, null, null, keyframe, 
+        return new TimelineHitResult(HitType.AUTOMATION_KEYFRAME, track, null, null, keyframe, null,
                 keyframe != null ? keyframe.getStartTime() : -1f, trackIndex, -1);
     }
     
@@ -75,7 +77,18 @@ public record TimelineHitResult(
      * 创建标记的命中结果（时间标尺上的标记）
      */
     public static TimelineHitResult marker(com.chronoblocks.ui.timeline.model.TimelineMarker marker) {
-        return new TimelineHitResult(HitType.MARKER, null, null, null, marker,
+        return new TimelineHitResult(HitType.MARKER, null, null, null, marker, null,
                 marker != null ? marker.getTime() : -1f, -1, -1);
+    }
+    
+    /**
+     * 创建 Path Clip 的命中结果
+     */
+    public static TimelineHitResult pathClip(PathClipHit pathClipHit) {
+        if (pathClipHit == null) {
+            throw new IllegalArgumentException("PathClipHit cannot be null");
+        }
+        return new TimelineHitResult(HitType.PATH_CLIP, pathClipHit.track(), null, null, null, pathClipHit,
+                pathClipHit.clip().getStartTime(), pathClipHit.trackIndex(), -1);
     }
 }

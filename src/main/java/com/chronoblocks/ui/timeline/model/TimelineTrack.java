@@ -2,6 +2,7 @@ package com.chronoblocks.ui.timeline.model;
 
 import com.chronoblocks.ui.timeline.model.audio.AudioEvent;
 import com.chronoblocks.ui.timeline.model.camera.CameraViewportProfile;
+import com.chronoblocks.ui.timeline.model.camera.path.CameraPathClip;
 import com.chronoblocks.core.container.Container;
 import com.chronoblocks.core.container.ContainerManager;
 
@@ -48,6 +49,9 @@ public class TimelineTrack {
     // ========== 摄像机属性（仅对摄像机轨道有效）==========
     /** 摄像机视口配置（画幅比例、安全区、预览分辨率等） */
     private CameraViewportProfile cameraViewportProfile;
+    
+    /** 摄像机路径片段列表（仅对摄像机轨道有效，用于程序化路径生成） */
+    private final List<CameraPathClip> cameraPathClips = new ArrayList<>();
 
     /**
      * 构造函数（默认为容器轨道）。
@@ -348,6 +352,75 @@ public class TimelineTrack {
             cameraViewportProfile = new CameraViewportProfile();
         }
         return cameraViewportProfile;
+    }
+    
+    // ========== 摄像机路径片段管理（仅对摄像机轨道有效）==========
+    
+    /**
+     * 获取摄像机路径片段列表
+     */
+    public List<CameraPathClip> getCameraPathClips() {
+        return Collections.unmodifiableList(cameraPathClips);
+    }
+    
+    /**
+     * 添加路径片段
+     */
+    public void addCameraPathClip(CameraPathClip clip) {
+        if (clip != null && !cameraPathClips.contains(clip)) {
+            cameraPathClips.add(clip);
+            // 按开始时间排序
+            cameraPathClips.sort(java.util.Comparator.comparingDouble(CameraPathClip::getStartTime));
+        }
+    }
+    
+    /**
+     * 移除路径片段
+     */
+    public void removeCameraPathClip(CameraPathClip clip) {
+        cameraPathClips.remove(clip);
+    }
+    
+    /**
+     * 查找指定时间点激活的路径片段
+     */
+    public CameraPathClip findActivePathClip(float timeSeconds) {
+        for (CameraPathClip clip : cameraPathClips) {
+            if (clip.isActiveAt(timeSeconds)) {
+                return clip;
+            }
+        }
+        return null;
+    }
+    
+    /**
+     * 检查是否有路径片段
+     */
+    public boolean hasCameraPathClips() {
+        return !cameraPathClips.isEmpty();
+    }
+    
+    /**
+     * ⭐ 检查 Path Clip 是否与其他 Path Clip 重叠（用于拖动/拉伸时的约束检查）
+     * 
+     * @param start 开始时间
+     * @param end 结束时间
+     * @param exclude 要排除的 Path Clip（通常是正在拖动的那个）
+     * @return 如果存在重叠则返回 true
+     */
+    public boolean hasCameraPathOverlap(float start, float end, CameraPathClip exclude) {
+        for (CameraPathClip clip : cameraPathClips) {
+            if (clip == null || clip == exclude || !clip.isEnabled()) {
+                continue;
+            }
+            float clipStart = clip.getStartTime();
+            float clipEnd = clip.getEndTime();
+            // 检查是否有重叠：end > clipStart && start < clipEnd
+            if (end > clipStart && start < clipEnd) {
+                return true;
+            }
+        }
+        return false;
     }
 
 }

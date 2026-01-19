@@ -70,19 +70,35 @@ public class TimelineModel {
     }
     
     private final List<ModelChangeListener> listeners = new CopyOnWriteArrayList<>();
+    
+    // ⭐ 性能优化：防止 notifyModelChanged 的无限循环
+    private boolean isNotifyingListeners = false;
+    private long lastSaveTime = 0;
+    private static final long MIN_SAVE_INTERVAL_MS = 100; // 最小保存间隔：100ms（避免频繁保存）
 
     /**
      * 通知所有监听器模型已变更
      * @param changeType 变更类型
      */
     public void notifyModelChanged(String changeType) {
-        for (ModelChangeListener listener : listeners) {
-            try {
-                listener.onModelChanged(changeType);
-            } catch (Exception e) {
-                // 防止监听器异常影响其他监听器
-                System.err.println("[TimelineModel] 监听器异常: " + e.getMessage());
+        // ⭐ 性能优化：防止监听器回调中再次调用 markDirty() 导致的无限循环
+        if (isNotifyingListeners) {
+            // 如果正在通知监听器，跳过本次通知（防止循环）
+            return;
+        }
+        
+        isNotifyingListeners = true;
+        try {
+            for (ModelChangeListener listener : listeners) {
+                try {
+                    listener.onModelChanged(changeType);
+                } catch (Exception e) {
+                    // 防止监听器异常影响其他监听器
+                    System.err.println("[TimelineModel] 监听器异常: " + e.getMessage());
+                }
             }
+        } finally {
+            isNotifyingListeners = false;
         }
     }
     
@@ -108,14 +124,21 @@ public class TimelineModel {
     
     /**
      * 标记模型已变更（同时标记时长需要重新计算）
+     * ⭐ 性能优化：添加防重复调用机制和节流保存
      */
     public void markDirty() {
         markDurationDirty();
         notifyModelChanged("model_changed");
-        // 实时保存，确保当前存档的时间线始终落盘
-        save();
-        // 同时保存 ActorRegistry
-        com.chronoblocks.actor.ActorRegistryManager.save();
+        
+        // ⭐ 性能优化：节流保存操作，避免频繁的文件 I/O 阻塞主线程
+        long currentTime = System.currentTimeMillis();
+        if (currentTime - lastSaveTime >= MIN_SAVE_INTERVAL_MS) {
+            // 实时保存，确保当前存档的时间线始终落盘
+            save();
+            // 同时保存 ActorRegistry
+            com.chronoblocks.actor.ActorRegistryManager.save();
+            lastSaveTime = currentTime;
+        }
     }
     
     // ========== 构造函数 ==========

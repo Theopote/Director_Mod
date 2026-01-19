@@ -16,6 +16,7 @@ import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineSelectable;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TrackType;
+import com.chronoblocks.ui.timeline.model.camera.path.CameraPathClip;
 import com.chronoblocks.ui.timeline.model.entity.ActorActionClip;
 import com.chronoblocks.ui.timeline.model.entity.EntityTimelineClip;
 import com.chronoblocks.ui.timeline.model.entity.EntityTrack;
@@ -244,6 +245,52 @@ public class TimelineInteractionHandler {
                     if (Math.abs(originalTime - keyframeTime) < 0.001f) {
                         return handle.currentTime; // 返回拖动中的临时时间
                     }
+                }
+            }
+        }
+        
+        return -1f;
+    }
+    
+    /**
+     * ⭐ 获取正在拖动中的 Path Clip 的临时开始时间（用于渲染系统）
+     */
+    public float getDraggedPathClipStartTime(CameraPathClip clip) {
+        if (clip == null) {
+            return -1f;
+        }
+        
+        InteractionMode mode = interactionManager.getCurrentMode();
+        if (mode == InteractionMode.DRAG_PATH_CLIP || 
+            mode == InteractionMode.RESIZE_PATH_CLIP_LEFT || 
+            mode == InteractionMode.RESIZE_PATH_CLIP_RIGHT) {
+            Object active = interactionManager.getActiveObject();
+            if (active instanceof PathClipHandle handle) {
+                if (handle.clip == clip || handle.clip.getId().equals(clip.getId())) {
+                    return handle.tempStart;
+                }
+            }
+        }
+        
+        return -1f;
+    }
+    
+    /**
+     * ⭐ 获取正在拖动中的 Path Clip 的临时结束时间（用于渲染系统）
+     */
+    public float getDraggedPathClipEndTime(CameraPathClip clip) {
+        if (clip == null) {
+            return -1f;
+        }
+        
+        InteractionMode mode = interactionManager.getCurrentMode();
+        if (mode == InteractionMode.DRAG_PATH_CLIP || 
+            mode == InteractionMode.RESIZE_PATH_CLIP_LEFT || 
+            mode == InteractionMode.RESIZE_PATH_CLIP_RIGHT) {
+            Object active = interactionManager.getActiveObject();
+            if (active instanceof PathClipHandle handle) {
+                if (handle.clip == clip || handle.clip.getId().equals(clip.getId())) {
+                    return handle.tempEnd;
                 }
             }
         }
@@ -504,6 +551,7 @@ public class TimelineInteractionHandler {
 
             // 2) 根据 hit 类型分发
             switch (hit.type()) {
+                case PATH_CLIP -> onPathClipClicked(hit, mouseX, contentX, isDoubleClick); // ⭐ Path Clip 点击
                 case CLIP -> onClipClicked(hit, mouseX, contentX, isDoubleClick);
                 case KEYFRAME -> onKeyframeClicked(hit, mouseX, contentX, isDoubleClick);
                 case AUTOMATION_KEYFRAME -> onAutomationKeyframeClicked(hit, mouseX, contentX, isDoubleClick);
@@ -710,41 +758,94 @@ public class TimelineInteractionHandler {
 
         // 关键修复：不要在“非可调整区域”强行设置 Arrow。
         // 否则会覆盖 ImGui 内置的 dock 分割线/窗口边缘等系统光标反馈，导致“能拖拽但光标不变”。
-        if (hit == null || hit.type() != TimelineHitResult.HitType.CLIP) {
+        // ⭐ 支持容器片段（CLIP）和摄像机路径片段（PATH_CLIP）的光标更新
+        if (hit == null) {
             return;
         }
 
-        TimelineClip clip = hit.clip();
-        if (clip == null) {
-            return;
-        }
-
-        TimelineTrack track = hit.track();
-        // 音频轨/锁定轨：不显示调整光标（但也不要强行覆盖成 Arrow）
-        if (track != null) {
-            if (track.getType() == com.chronoblocks.ui.timeline.model.TrackType.AUDIO) {
+        TimelineHitResult.HitType hitType = hit.type();
+        
+        // 处理容器片段
+        if (hitType == TimelineHitResult.HitType.CLIP) {
+            TimelineClip clip = hit.clip();
+            if (clip == null) {
                 return;
             }
+
+            TimelineTrack track = hit.track();
+            // 音频轨/锁定轨：不显示调整光标（但也不要强行覆盖成 Arrow）
+            if (track != null) {
+                if (track.getType() == com.chronoblocks.ui.timeline.model.TrackType.AUDIO) {
+                    return;
+                }
+                if (track.isLocked()) {
+                    return;
+                }
+            }
+
+            float startX = renderer.timeToX(clip.getStartTime(), contentX);
+            float endX = renderer.timeToX(clip.getEndTime(), contentX);
+
+            boolean nearLeft = Math.abs(mouseX - startX) <= CLIP_EDGE_RESIZE_PIXEL;
+            boolean nearRight = Math.abs(mouseX - endX) <= CLIP_EDGE_RESIZE_PIXEL;
+
+            // 对于小片段，扩大边缘检测范围
+            float clipWidth = endX - startX;
+            if (clipWidth < CLIP_EDGE_RESIZE_PIXEL * 3) {
+                nearLeft = mouseX <= startX + CLIP_EDGE_RESIZE_PIXEL * 1.5f;
+                nearRight = mouseX >= endX - CLIP_EDGE_RESIZE_PIXEL * 1.5f;
+            }
+
+            if (nearLeft || nearRight) {
+                ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
+            }
+        }
+        // ⭐ 处理摄像机路径片段
+        else if (hitType == TimelineHitResult.HitType.PATH_CLIP) {
+            PathClipHit pathClipHit = hit.pathClipHit();
+            if (pathClipHit == null) {
+                return;
+            }
+
+            com.chronoblocks.ui.timeline.model.camera.path.CameraPathClip clip = pathClipHit.clip();
+            TimelineTrack track = pathClipHit.track();
+            
+            if (clip == null || track == null) {
+                return;
+            }
+
+            // 锁定轨：不显示调整光标
             if (track.isLocked()) {
                 return;
             }
-        }
 
-        float startX = renderer.timeToX(clip.getStartTime(), contentX);
-        float endX = renderer.timeToX(clip.getEndTime(), contentX);
+            // ⭐ 摄像机轨道：检查是否是激活的轨道
+            if (track.getType() == com.chronoblocks.ui.timeline.model.TrackType.CAMERA) {
+                com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController controller =
+                        com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance();
+                com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
+                
+                if (activeTrack != track) {
+                    return; // 非激活轨道不显示调整光标
+                }
+            }
 
-        boolean nearLeft = Math.abs(mouseX - startX) <= CLIP_EDGE_RESIZE_PIXEL;
-        boolean nearRight = Math.abs(mouseX - endX) <= CLIP_EDGE_RESIZE_PIXEL;
+            float startX = renderer.timeToX(clip.getStartTime(), contentX);
+            float endX = renderer.timeToX(clip.getEndTime(), contentX);
 
-        // 对于小片段，扩大边缘检测范围
-        float clipWidth = endX - startX;
-        if (clipWidth < CLIP_EDGE_RESIZE_PIXEL * 3) {
-            nearLeft = mouseX <= startX + CLIP_EDGE_RESIZE_PIXEL * 1.5f;
-            nearRight = mouseX >= endX - CLIP_EDGE_RESIZE_PIXEL * 1.5f;
-        }
+            boolean nearLeft = Math.abs(mouseX - startX) <= CLIP_EDGE_RESIZE_PIXEL;
+            boolean nearRight = Math.abs(mouseX - endX) <= CLIP_EDGE_RESIZE_PIXEL;
 
-        if (nearLeft || nearRight) {
-            ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
+            // 对于小片段，扩大边缘检测范围
+            float clipWidth = endX - startX;
+            if (clipWidth < CLIP_EDGE_RESIZE_PIXEL * 3) {
+                nearLeft = mouseX <= startX + CLIP_EDGE_RESIZE_PIXEL * 1.5f;
+                nearRight = mouseX >= endX - CLIP_EDGE_RESIZE_PIXEL * 1.5f;
+            }
+
+            if (nearLeft || nearRight) {
+                ImGui.setMouseCursor(ImGuiMouseCursor.ResizeEW);
+            }
         }
     }
 
@@ -1046,9 +1147,104 @@ public class TimelineInteractionHandler {
         }
     }
 
+    /**
+     * ⭐ 处理 Path Clip 的点击
+     */
+    private void onPathClipClicked(TimelineHitResult hit,
+                                   float mouseX,
+                                   float contentX,
+                                   boolean isDoubleClick) {
+        PathClipHit pathClipHit = hit.pathClipHit();
+        if (pathClipHit == null) {
+            return;
+        }
+        
+        TimelineTrack track = pathClipHit.track();
+        com.chronoblocks.ui.timeline.model.camera.path.CameraPathClip clip = pathClipHit.clip();
+        
+        if (track == null || clip == null) {
+            return;
+        }
+        
+        // 🔒 轨道锁定功能：如果轨道锁定，禁止操作
+        if (track.isLocked()) {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("[Timeline] 轨道已锁定，禁止操作 Path Clip (轨道: {})", track.getName());
+            }
+            return;
+        }
+        
+        // ⭐ v5.0：如果是摄像机轨道，检查是否是激活的轨道
+        if (track.getType() == com.chronoblocks.ui.timeline.model.TrackType.CAMERA) {
+            com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController controller =
+                    com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance();
+            com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
+            
+            if (activeTrack != track) {
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("[Timeline] 摄像机轨道未激活，禁止操作 Path Clip (轨道: {})", track.getName());
+                }
+                return;
+            }
+        }
+        
+        // 双击：打开属性面板
+        if (isDoubleClick) {
+            model.selectItem(clip, false);
+            syncPropertiesSelection(clip);
+            if (callbacks != null) {
+                callbacks.onDataChanged();
+            }
+            return;
+        }
+        
+        // 单击：选中 Path Clip
+        ImGuiIO io = ImGui.getIO();
+        boolean addToSelection = io.getKeyCtrl();
+        model.selectItem(clip, addToSelection);
+        syncPropertiesSelection(clip);
+        
+        // ⭐ 功能：选中单个 Path Clip 时，播放头自动跳转到开始时间
+        if (!addToSelection && model.getSelectedCount() == 1) {
+            float startTime = clip.getStartTime();
+            model.setCurrentTime(startTime);
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("[Timeline] 选中 Path Clip，播放头跳转到 {:.2f}s", startTime);
+            }
+        }
+        
+        // 根据命中区域决定交互模式
+        PathClipHit.HitZone zone = pathClipHit.zone();
+        PathClipHandle handle = new PathClipHandle(track, clip);
+        
+        InteractionMode mode;
+        if (zone == PathClipHit.HitZone.RESIZE_L) {
+            mode = InteractionMode.RESIZE_PATH_CLIP_LEFT;
+        } else if (zone == PathClipHit.HitZone.RESIZE_R) {
+            mode = InteractionMode.RESIZE_PATH_CLIP_RIGHT;
+        } else {
+            mode = InteractionMode.DRAG_PATH_CLIP;
+        }
+        
+        interactionManager.startInteraction(
+                mode,
+                handle,
+                mouseX, ImGui.getMousePosY(),
+                clip.getStartTime(), clip.getEndTime()
+        );
+        
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("[Timeline] 开始 {} Path Clip: {} (时间: {:.2f}s - {:.2f}s)", 
+                mode, clip.getName(), clip.getStartTime(), clip.getEndTime());
+        }
+        
+        if (callbacks != null) {
+            callbacks.onDataChanged();
+        }
+    }
 
     // ========================================================
-    // 鍙抽敭鑿滃崟
+    // 右键菜单
     // ========================================================
 
     private void openContextMenuForHit(TimelineHitResult hit) {
@@ -1192,6 +1388,38 @@ public class TimelineInteractionHandler {
                         model.selectItem(marker, false);
                     }
                     syncPropertiesSelection(marker);
+                }
+            }
+            case PATH_CLIP -> {
+                // ⭐ Path Clip 右键：选择 Path Clip 并打开属性面板
+                PathClipHit pathClipHit = hit.pathClipHit();
+                if (pathClipHit != null) {
+                    com.chronoblocks.ui.timeline.model.camera.path.CameraPathClip clip = pathClipHit.clip();
+                    TimelineTrack track = pathClipHit.track();
+                    
+                    if (clip != null && track != null) {
+                        // 检查轨道锁定和激活状态
+                        if (track.isLocked()) {
+                            LOGGER.debug("[Timeline] 轨道已锁定，禁止右键操作 Path Clip (轨道: {})", track.getName());
+                            return;
+                        }
+                        
+                        if (track.getType() == com.chronoblocks.ui.timeline.model.TrackType.CAMERA) {
+                            com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController controller =
+                                    com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance();
+                            com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
+                            
+                            if (activeTrack != track) {
+                                LOGGER.debug("[Timeline] 摄像机轨道未激活，禁止右键操作 Path Clip (轨道: {})", track.getName());
+                                return;
+                            }
+                        }
+                        
+                        if (!model.isSelected(clip)) {
+                            model.selectItem(clip, false);
+                        }
+                        syncPropertiesSelection(clip);
+                    }
                 }
             }
             case EMPTY, NONE, TRACK_HEADER -> {
@@ -1344,6 +1572,70 @@ public class TimelineInteractionHandler {
             model.setScrubbing(false);
             com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance().endScrubbing(finalTime);
             LOGGER.debug("[TimelineInteractionHandler] 拖动播放头结束 @ {:.2f}s", finalTime);
+        } else if (mode == InteractionMode.DRAG_PATH_CLIP) {
+            // ⭐ 拖动 Path Clip：使用 MovePathClipCommand
+            if (obj instanceof PathClipHandle handle) {
+                float originalStart = interactionManager.getDragStartValue();
+                float originalEnd = interactionManager.getDragStartValue2();
+                float finalStart = handle.tempStart;
+                float finalEnd = handle.tempEnd;
+                
+                // 只有当位置真正改变时才创建命令
+                if (Math.abs(finalStart - originalStart) > 0.001f || Math.abs(finalEnd - originalEnd) > 0.001f) {
+                    commandHistory.executeCommand(
+                        new com.chronoblocks.ui.timeline.commands.MovePathClipCommand(
+                            model, handle.track, handle.clip, originalStart, originalEnd, finalStart, finalEnd)
+                    );
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.debug("[Timeline] Path Clip 拖动完成: {}s-{}s -> {}s-{}s", 
+                            originalStart, originalEnd, finalStart, finalEnd);
+                    }
+                }
+                
+                if (callbacks != null) callbacks.onDataChanged();
+            }
+        } else if (mode == InteractionMode.RESIZE_PATH_CLIP_LEFT) {
+            // ⭐ 拉伸 Path Clip 左边缘：使用 ResizePathClipCommand
+            if (obj instanceof PathClipHandle handle) {
+                float originalStart = interactionManager.getDragStartValue();
+                float originalEnd = interactionManager.getDragStartValue2();
+                float finalStart = handle.tempStart;
+                float finalEnd = handle.tempEnd;
+                
+                // 只有当位置真正改变时才创建命令
+                if (Math.abs(finalStart - originalStart) > 0.001f) {
+                    commandHistory.executeCommand(
+                        new com.chronoblocks.ui.timeline.commands.ResizePathClipCommand(
+                            model, handle.track, handle.clip, originalStart, originalEnd, finalStart, finalEnd)
+                    );
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.debug("[Timeline] Path Clip 左边缘调整完成: {}s -> {}s", originalStart, finalStart);
+                    }
+                }
+                
+                if (callbacks != null) callbacks.onDataChanged();
+            }
+        } else if (mode == InteractionMode.RESIZE_PATH_CLIP_RIGHT) {
+            // ⭐ 拉伸 Path Clip 右边缘：使用 ResizePathClipCommand
+            if (obj instanceof PathClipHandle handle) {
+                float originalStart = interactionManager.getDragStartValue();
+                float originalEnd = interactionManager.getDragStartValue2();
+                float finalStart = handle.tempStart;
+                float finalEnd = handle.tempEnd;
+                
+                // 只有当位置真正改变时才创建命令
+                if (Math.abs(finalEnd - originalEnd) > 0.001f) {
+                    commandHistory.executeCommand(
+                        new com.chronoblocks.ui.timeline.commands.ResizePathClipCommand(
+                            model, handle.track, handle.clip, originalStart, originalEnd, finalStart, finalEnd)
+                    );
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.debug("[Timeline] Path Clip 右边缘调整完成: {}s -> {}s", originalEnd, finalEnd);
+                    }
+                }
+                
+                if (callbacks != null) callbacks.onDataChanged();
+            }
         }
 
         interactionManager.endInteraction();
@@ -1381,6 +1673,9 @@ public class TimelineInteractionHandler {
             case DRAG_MARKER -> dragMarker(mouseX, contentX);  // ⭐ 拖动标记
             case DRAG_PLAYHEAD -> dragPlayhead(mouseX, contentX);
             case PAINT_ACTION -> paintAction(mouseX, contentX); // ⭐ Action 涂抹
+            case DRAG_PATH_CLIP -> dragPathClip(mouseX, contentX); // ⭐ 拖动 Path Clip
+            case RESIZE_PATH_CLIP_LEFT -> resizePathClipLeft(mouseX, contentX); // ⭐ 拉伸 Path Clip 左边缘
+            case RESIZE_PATH_CLIP_RIGHT -> resizePathClipRight(mouseX, contentX); // ⭐ 拉伸 Path Clip 右边缘
             default -> { /* 其他模式暂不处理 */ }
         }
     }
@@ -2004,6 +2299,178 @@ public class TimelineInteractionHandler {
         
         if (callbacks != null) callbacks.onDataChanged();
     }
+    
+    /**
+     * ⭐ 拖动 Path Clip（整体移动）
+     */
+    private void dragPathClip(float mouseX, float contentX) {
+        Object active = interactionManager.getActiveObject();
+        if (!(active instanceof PathClipHandle handle)) {
+            return;
+        }
+        
+        // 🔒 轨道锁定功能
+        if (handle.track != null && handle.track.isLocked()) {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("[Timeline] 轨道已锁定，禁止拖动 Path Clip (轨道: {})", handle.track.getName());
+            }
+            return;
+        }
+        
+        float originalStart = interactionManager.getDragStartValue();
+        float originalEnd = interactionManager.getDragStartValue2();
+        float length = originalEnd - originalStart;
+        
+        // 计算时间变化
+        float startMouseX = interactionManager.getDragStartMouseX();
+        float startMouseTime = renderer.xToTime(startMouseX, contentX);
+        float currentMouseTime = renderer.xToTime(mouseX, contentX);
+        float delta = currentMouseTime - startMouseTime;
+        
+        float candidateStart = originalStart + delta;
+        candidateStart = Math.max(0f, candidateStart);
+        
+        // 应用吸附
+        TimelineSnapping.Result snap = TimelineSnapping.snapTime(
+                model, candidateStart, handle.track, null, 0f
+        );
+        float snappedStart = Math.max(0f, snap.snappedTime);
+        float snappedEnd = snappedStart + length;
+        
+        // 检查重叠（硬拒绝策略）
+        if (hasPathClipOverlap(handle.track, snappedStart, snappedEnd, handle.clip)) {
+            // 不允许重叠，保持原位置
+            return;
+        }
+        
+        // 更新临时值（用于渲染实时反馈）
+        handle.tempStart = snappedStart;
+        handle.tempEnd = snappedEnd;
+        
+        // ⭐ 注意：拖动过程中不直接修改 clip 的时间，只更新临时值
+        // 实际的时间修改在 endInteractionIfNeeded 中通过命令完成
+        
+        if (callbacks != null) {
+            callbacks.onDataChanged();
+        }
+    }
+    
+    /**
+     * ⭐ 拉伸 Path Clip 左边缘
+     */
+    private void resizePathClipLeft(float mouseX, float contentX) {
+        Object active = interactionManager.getActiveObject();
+        if (!(active instanceof PathClipHandle handle)) {
+            return;
+        }
+        
+        // 🔒 轨道锁定功能
+        if (handle.track != null && handle.track.isLocked()) {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("[Timeline] 轨道已锁定，禁止调整 Path Clip (轨道: {})", handle.track.getName());
+            }
+            return;
+        }
+        
+        float originalStart = interactionManager.getDragStartValue();
+        float originalEnd = interactionManager.getDragStartValue2();
+        float minLength = 0.1f; // 最小长度 0.1 秒
+        
+        float startMouseX = interactionManager.getDragStartMouseX();
+        float startMouseTime = renderer.xToTime(startMouseX, contentX);
+        float currentMouseTime = renderer.xToTime(mouseX, contentX);
+        float delta = currentMouseTime - startMouseTime;
+        
+        float candidateStart = originalStart + delta;
+        candidateStart = Math.min(candidateStart, originalEnd - minLength);
+        candidateStart = Math.max(0f, candidateStart);
+        
+        // 应用吸附
+        TimelineSnapping.Result snap = TimelineSnapping.snapTime(
+                model, candidateStart, handle.track, null, 0f
+        );
+        float snappedStart = Math.min(snap.snappedTime, originalEnd - minLength);
+        snappedStart = Math.max(0f, snappedStart);
+        
+        // 检查重叠
+        if (hasPathClipOverlap(handle.track, snappedStart, originalEnd, handle.clip)) {
+            return;
+        }
+        
+        // 更新临时值
+        handle.tempStart = snappedStart;
+        handle.tempEnd = originalEnd;
+        
+        // ⭐ 注意：拖动过程中不直接修改 clip 的时间，只更新临时值
+        // 实际的时间修改在 endInteractionIfNeeded 中通过命令完成
+        
+        if (callbacks != null) {
+            callbacks.onDataChanged();
+        }
+    }
+    
+    /**
+     * ⭐ 拉伸 Path Clip 右边缘
+     */
+    private void resizePathClipRight(float mouseX, float contentX) {
+        Object active = interactionManager.getActiveObject();
+        if (!(active instanceof PathClipHandle handle)) {
+            return;
+        }
+        
+        // 🔒 轨道锁定功能
+        if (handle.track != null && handle.track.isLocked()) {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("[Timeline] 轨道已锁定，禁止调整 Path Clip (轨道: {})", handle.track.getName());
+            }
+            return;
+        }
+        
+        float originalStart = interactionManager.getDragStartValue();
+        float originalEnd = interactionManager.getDragStartValue2();
+        float minLength = 0.1f; // 最小长度 0.1 秒
+        
+        float startMouseX = interactionManager.getDragStartMouseX();
+        float startMouseTime = renderer.xToTime(startMouseX, contentX);
+        float currentMouseTime = renderer.xToTime(mouseX, contentX);
+        float delta = currentMouseTime - startMouseTime;
+        
+        float candidateEnd = originalEnd + delta;
+        candidateEnd = Math.max(candidateEnd, originalStart + minLength);
+        
+        // 应用吸附
+        TimelineSnapping.Result snap = TimelineSnapping.snapTime(
+                model, candidateEnd, handle.track, null, 0f
+        );
+        float snappedEnd = Math.max(snap.snappedTime, originalStart + minLength);
+        
+        // 检查重叠
+        if (hasPathClipOverlap(handle.track, originalStart, snappedEnd, handle.clip)) {
+            return;
+        }
+        
+        // 更新临时值
+        handle.tempStart = originalStart;
+        handle.tempEnd = snappedEnd;
+        
+        // ⭐ 注意：拖动过程中不直接修改 clip 的时间，只更新临时值
+        // 实际的时间修改在 endInteractionIfNeeded 中通过命令完成
+        
+        if (callbacks != null) {
+            callbacks.onDataChanged();
+        }
+    }
+    
+    /**
+     * 检查 Path Clip 是否与其他 Path Clip 重叠
+     * ⭐ 优化：委托给 TimelineTrack.hasCameraPathOverlap() 方法
+     */
+    private boolean hasPathClipOverlap(TimelineTrack track, float start, float end, CameraPathClip exclude) {
+        if (track == null) {
+            return false;
+        }
+        return track.hasCameraPathOverlap(start, end, exclude);
+    }
 
     // ========== 小型 Handle 类型 ==========
 
@@ -2056,6 +2523,23 @@ public class TimelineInteractionHandler {
         MarkerHandle(com.chronoblocks.ui.timeline.model.TimelineMarker marker) {
             this.marker = marker;
             this.currentTime = marker.getTime();
+        }
+    }
+
+    /**
+     * ⭐ Path Clip 拖动 Handle（用于存储拖动状态）
+     */
+    private static final class PathClipHandle {
+        final TimelineTrack track;
+        final com.chronoblocks.ui.timeline.model.camera.path.CameraPathClip clip;
+        float tempStart;  // 拖动中的临时开始时间
+        float tempEnd;    // 拖动中的临时结束时间
+
+        PathClipHandle(TimelineTrack track, com.chronoblocks.ui.timeline.model.camera.path.CameraPathClip clip) {
+            this.track = track;
+            this.clip = clip;
+            this.tempStart = clip.getStartTime();
+            this.tempEnd = clip.getEndTime();
         }
     }
 
