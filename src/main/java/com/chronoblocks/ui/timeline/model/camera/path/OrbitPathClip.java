@@ -1,7 +1,6 @@
 package com.chronoblocks.ui.timeline.model.camera.path;
 
 import net.minecraft.util.math.Vec3d;
-import org.joml.Vector3f;
 
 /**
  * OrbitPathClip - 围绕路径片段
@@ -33,11 +32,23 @@ import org.joml.Vector3f;
  */
 public class OrbitPathClip extends CameraPathClip {
     
+    /**
+     * 高度模式枚举
+     */
+    public enum HeightMode {
+        /** 保持当前高度（首次进入 clip 时缓存） */
+        KEEP_CURRENT,
+        /** 使用绝对高度值 */
+        ABSOLUTE
+    }
+    
     private Vec3d center;       // 围绕中心
     private Vec3d lookAt;       // 注视点（通常 = center）
     
     private float radius;       // 半径（方块数）
-    private float height;       // 摄像机高度（Y）
+    private HeightMode heightMode = HeightMode.ABSOLUTE;  // 高度模式
+    private float height;       // 摄像机高度（Y，仅在 ABSOLUTE 模式下使用）
+    private Float cachedHeight = null;  // 缓存的当前高度（KEEP_CURRENT 模式使用）
     
     private float startAngle;   // 起始角度（度）
     private float endAngle;     // 结束角度（度）
@@ -72,6 +83,21 @@ public class OrbitPathClip extends CameraPathClip {
     
     @Override
     public CameraPathSample sample(float timeSeconds) {
+        // ⭐ 如果是 KEEP_CURRENT 模式且尚未缓存高度，尝试从当前摄像机获取
+        if (heightMode == HeightMode.KEEP_CURRENT && cachedHeight == null) {
+            try {
+                com.chronoblocks.ui.timeline.playback.camera.CameraRuntime runtime = 
+                    com.chronoblocks.ui.timeline.playback.camera.CameraRuntime.getInstance();
+                com.chronoblocks.ui.timeline.playback.camera.CameraSample currentSample = runtime.getCurrentSample();
+                if (currentSample != null) {
+                    cachedHeight = (float) currentSample.position().y;
+                }
+            } catch (Exception e) {
+                // 如果获取失败，使用默认高度（center.y + 5）
+                cachedHeight = (float) (center.y + 5.0);
+            }
+        }
+        
         if (!isActiveAt(timeSeconds)) {
             // 不在激活时间范围内，返回边界值
             if (timeSeconds < getStartTime()) {
@@ -103,7 +129,21 @@ public class OrbitPathClip extends CameraPathClip {
         // 计算位置
         double x = center.x + Math.cos(rad) * radius;
         double z = center.z + Math.sin(rad) * radius;
-        double y = height;
+        
+        // ⭐ 根据高度模式决定 Y 坐标
+        double y;
+        if (heightMode == HeightMode.KEEP_CURRENT) {
+            // 使用缓存的高度
+            if (cachedHeight != null) {
+                y = cachedHeight;
+            } else {
+                // 如果缓存失败，使用 center.y + 5 作为后备
+                y = center.y + 5.0;
+            }
+        } else {
+            // 使用绝对高度
+            y = height;
+        }
         
         Vec3d position = new Vec3d(x, y, z);
         return new CameraPathSample(position, lookAt);
@@ -135,12 +175,38 @@ public class OrbitPathClip extends CameraPathClip {
         this.radius = Math.max(0.1f, radius);
     }
     
+    public HeightMode getHeightMode() {
+        return heightMode;
+    }
+    
+    public void setHeightMode(HeightMode heightMode) {
+        this.heightMode = heightMode != null ? heightMode : HeightMode.ABSOLUTE;
+        // 切换到 KEEP_CURRENT 时，清除缓存（下次采样时会重新获取）
+        if (this.heightMode == HeightMode.KEEP_CURRENT) {
+            cachedHeight = null;
+        }
+    }
+    
     public float getHeight() {
         return height;
     }
     
     public void setHeight(float height) {
         this.height = height;
+    }
+    
+    /**
+     * 获取当前缓存的高度（KEEP_CURRENT 模式使用）
+     */
+    public Float getCachedHeight() {
+        return cachedHeight;
+    }
+    
+    /**
+     * 手动设置缓存高度（用于从 PropertyAdapter 设置）
+     */
+    public void setCachedHeight(Float cachedHeight) {
+        this.cachedHeight = cachedHeight;
     }
     
     public float getStartAngle() {
@@ -181,6 +247,11 @@ public class OrbitPathClip extends CameraPathClip {
         copy.setStartAngle(startAngle);
         copy.setEndAngle(endAngle);
         copy.setClockwise(clockwise);
+        copy.setHeightMode(heightMode);
+        copy.setHeight(height);
+        if (cachedHeight != null) {
+            copy.setCachedHeight(cachedHeight);
+        }
         copy.setEnabled(isEnabled());
         return copy;
     }
@@ -193,9 +264,16 @@ public class OrbitPathClip extends CameraPathClip {
     }
     
     /**
-     * 将角度归一化到 [0, 360) 范围
+     * 将角度归一化到 [0, 360] 范围
+     * 
+     * <p>注意：允许 360° 作为有效值（完整一圈），而不是归一化为 0°
      */
     private static float normalizeAngle(float angle) {
+        // ⭐ 特殊处理：360° 是有效值，不应该被归一化为 0°
+        if (angle == 360f) {
+            return 360f;
+        }
+        
         angle = angle % 360f;
         if (angle < 0) {
             angle += 360f;

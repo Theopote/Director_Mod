@@ -233,16 +233,6 @@ public class TimelineRenderer {
     }
 
     /**
-     * 更新左侧轨道标签区域宽度（委托给 TimelineDividerHandler）
-     */
-    public void updateLeftSectionWidth(float winX, float winY, float totalHeight) {
-        dividerHandler.updateLeftSectionWidth(winX, winY, totalHeight, false);
-        // 同步静态变量（向后兼容）
-        leftLabelWidth = dividerHandler.getLeftLabelWidth();
-        viewport.setLeftLabelWidth(leftLabelWidth);
-    }
-
-    /**
      * 更新左侧轨道标签区域宽度（带跳过标志）
      */
     public void updateLeftSectionWidth(float winX, float winY, float totalHeight, boolean shouldSkipDividerDrag) {
@@ -966,33 +956,6 @@ public class TimelineRenderer {
     }
 
     /**
-     * 关键帧圆形区域（用于命中检测）
-     * 
-     * <p>★ v9.0 重构：此类型已迁移到 TimelineRenderHitTest，保留此别名以保持向后兼容。
-     * 使用 TimelineRenderHitTest.Circle 作为实际类型，这里只是类型别名。
-     */
-    public static class Circle {
-        public final float x, y, radius;
-        
-        public Circle(float x, float y, float radius) {
-            this.x = x;
-            this.y = y;
-            this.radius = radius;
-        }
-        
-        public boolean contains(float px, float py) {
-            float dx = px - x;
-            float dy = py - y;
-            return dx * dx + dy * dy <= radius * radius;
-        }
-        
-        // 与 TimelineRenderHitTest.Circle 互转
-        public static Circle from(TimelineRenderHitTest.Circle circle) {
-            return new Circle(circle.x(), circle.y(), circle.radius());
-        }
-    }
-
-    /**
      * 获取指定轨道的头部边界矩形（完整版本，指定参数）
      * 
      * <p>★ v9.0 重构：委托给 TimelineRenderHitTest
@@ -1023,93 +986,4 @@ public class TimelineRenderer {
         return new Rect(x1, y1, contentX, y2);
     }
 
-    /**
-     * 获取 Clip 的边界矩形
-     * 
-     * <p>★ v9.0 重构：委托给 TimelineRenderHitTest
-     * 
-     * @param track 轨道
-     * @param clip 片段
-     * @param trackIndex 轨道索引
-     * @return Clip 边界矩形
-     */
-    public Rect getClipRect(TimelineTrack track, TimelineClip clip, int trackIndex) {
-        if (renderHitTest != null) {
-            syncViewportFromState();
-            TimelineRenderHitTest.Rect rect = renderHitTest.getClipRect(
-                track, clip, trackIndex, trackAreaTop, viewport.getScrollY());
-            return Rect.from(rect);
-        }
-        
-        // 回退到旧实现（向后兼容）
-        if (track == null || clip == null || trackIndex < 0) {
-            return new Rect(0, 0, 0, 0);
-        }
-
-        syncViewportFromState();
-        float x1 = math.timeToX(clip.getStartTime());
-        float x2 = math.timeToX(clip.getEndTime());
-        float rowHeight = TRACK_HEIGHT + TRACK_GAP;
-        float y1 = trackAreaTop + (trackIndex * rowHeight - viewport.getScrollY());
-        float y2 = y1 + TRACK_HEIGHT;
-
-        return new Rect(x1, y1, x2, y2);
-    }
-
-    /**
-     * 获取关键帧的圆形区域
-     * 
-     * <p>★ v9.0 重构：委托给 TimelineRenderHitTest
-     * 
-     * @param track 轨道
-     * @param clip 片段
-     * @param keyTime 关键帧时间
-     * @return 关键帧圆形区域
-     */
-    public Circle getKeyframeCircle(TimelineTrack track, TimelineClip clip, float keyTime) {
-        if (track == null || clip == null) {
-            return new Circle(0, 0, 0);
-        }
-        
-        if (renderHitTest != null) {
-            syncViewportFromState();
-            TimelineRenderHitTest.Circle circle = renderHitTest.getKeyframeCircle(
-                track, clip, keyTime, trackAreaTop, viewport.getScrollY());
-            return Circle.from(circle);
-        }
-        
-        // 回退到旧实现（向后兼容）
-        // ★ 优化：添加日志警告，提示使用回退实现
-        if (model == null) {
-            if (logger.isWarnEnabled()) {
-                logger.warn("HitTest not initialized and model is null, falling back to manual calculation");
-            }
-            return new Circle(0, 0, 0);
-        }
-        
-        if (logger.isDebugEnabled()) {
-            logger.debug("HitTest not initialized, falling back to manual calculation for keyframe circle");
-        }
-
-        syncViewportFromState();
-        float x = math.timeToX(keyTime);
-        
-        // 查找轨道索引（性能优化：如果轨道多，这个循环可能较慢）
-        int trackIndex = -1;
-        int trackCount = model.getTrackCount();
-        for (int i = 0; i < trackCount; i++) {
-            if (model.getTrackAt(i) == track) {
-                trackIndex = i;
-                break;
-            }
-        }
-        if (trackIndex < 0) {
-            return new Circle(0, 0, 0);
-        }
-        
-        float rowHeight = TRACK_HEIGHT + TRACK_GAP;
-        float y = trackAreaTop + (trackIndex * rowHeight - viewport.getScrollY()) + TRACK_HEIGHT / 2.0f;
-
-        return new Circle(x, y, KEYFRAME_HIT_RADIUS);
-    }
 }
