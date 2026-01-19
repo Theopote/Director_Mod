@@ -381,7 +381,7 @@ public class ChronoBlocksMod implements ModInitializer {
             // 清理 LassoSelectTask 的线程池
             try {
                 java.util.concurrent.ExecutorService executor = com.chronoblocks.core.selection.tools.lassoselecttool.LassoSelectTask.EXECUTOR;
-                if (executor != null && !executor.isShutdown()) {
+                if (!executor.isShutdown()) {
                     executor.shutdownNow();
                 }
             } catch (Exception e) {
