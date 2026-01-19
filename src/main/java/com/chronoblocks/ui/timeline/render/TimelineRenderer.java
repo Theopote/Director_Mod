@@ -87,7 +87,7 @@ public class TimelineRenderer {
 
     private final TimelineModel model;
     private final TimelineViewportState viewportState;
-    
+
     // 当前渲染区域的顶部 Y 坐标（由 updateRenderArea 设置）
     private float trackAreaTop = 0f;
 
@@ -537,16 +537,7 @@ public class TimelineRenderer {
         
         return typeName;
     }
-    
-    /**
-     * 获取 Path Clip 的显示标签（旧版本，保留用于向后兼容）
-     * @deprecated 使用 getPathClipLabelFast 代替，避免重复调用 getPathType()
-     */
-    @Deprecated
-    private String getPathClipLabel(CameraPathClip clip) {
-        return getPathClipLabelFast(clip, clip.getPathType());
-    }
-    
+
     /**
      * 渲染轨道级自动化关键帧（摄像机关键帧、天气关键帧等）
      * 
