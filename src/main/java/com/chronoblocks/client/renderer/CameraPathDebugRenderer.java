@@ -29,14 +29,14 @@ import java.util.Optional;
 
 /**
  * CameraPathDebugRenderer v2.0
- *
+ * <p>
  * 在世界中渲染摄像机轨迹，可视化：
  *  - 整体路径（线）
  *  - 关键帧位置（点）
  *  - Bezier 控制柄线段
  *  - 当前播放时间对应的位置（红点）
  *  - 当前摄像机方向箭头
- *
+ * <p>
  * 使用方式：
  *  - TimelineCameraController 在构造时注入 pathManager：
  *      CameraPathDebugRenderer.getInstance().setPathManager(pathManager);
@@ -524,6 +524,9 @@ public final class CameraPathDebugRenderer {
      */
     private boolean hasOrbitPathsToRender() {
         TimelineCameraController controller = TimelineCameraController.getInstance();
+        if (controller == null) {
+            return false;
+        }
 
         TimelineTrack activeTrack = controller.getActiveCameraTrack();
         if (activeTrack == null || !activeTrack.hasCameraPathClips()) {
@@ -544,17 +547,39 @@ public final class CameraPathDebugRenderer {
      */
     private void renderOrbitPaths(VertexConsumerProvider consumers, Matrix4f matrix, Vec3d cameraPos) {
         TimelineCameraController controller = TimelineCameraController.getInstance();
+        if (controller == null) {
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[CameraPathDebugRenderer] TimelineCameraController 为 null，跳过围绕轨迹渲染");
+            }
+            return;
+        }
 
         TimelineTrack activeTrack = controller.getActiveCameraTrack();
-        if (activeTrack == null || !activeTrack.hasCameraPathClips()) {
+        if (activeTrack == null) {
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[CameraPathDebugRenderer] 没有激活的摄像机轨道，跳过围绕轨迹渲染");
+            }
+            return;
+        }
+        
+        if (!activeTrack.hasCameraPathClips()) {
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[CameraPathDebugRenderer] 轨道 {} 没有 PathClips，跳过围绕轨迹渲染", activeTrack.getName());
+            }
             return;
         }
 
         List<CameraPathClip> pathClips = activeTrack.getCameraPathClips();
+        int orbitClipCount = 0;
         for (CameraPathClip clip : pathClips) {
             if (clip instanceof OrbitPathClip orbitClip) {
+                orbitClipCount++;
                 renderOrbitPath(consumers, matrix, cameraPos, orbitClip);
             }
+        }
+        
+        if (LOGGER.isDebugEnabled() && orbitClipCount > 0) {
+            LOGGER.debug("[CameraPathDebugRenderer] 已渲染 {} 个围绕轨迹", orbitClipCount);
         }
     }
 
@@ -565,7 +590,15 @@ public final class CameraPathDebugRenderer {
         // 采样围绕路径的点
         List<Vec3d> orbitPoints = sampleOrbitPath(clip);
         if (orbitPoints.size() < 2) {
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[CameraPathDebugRenderer] OrbitPathClip 采样点不足 ({} 个点)，跳过渲染", orbitPoints.size());
+            }
             return;
+        }
+        
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("[CameraPathDebugRenderer] 渲染围绕轨迹: {} 个点, center=({:.2f}, {:.2f}, {:.2f}), radius={:.2f}",
+                    orbitPoints.size(), clip.getCenter().x, clip.getCenter().y, clip.getCenter().z, clip.getRadius());
         }
 
         VertexConsumer consumer = consumers.getBuffer(RenderLayer.getLines());
