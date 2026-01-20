@@ -153,4 +153,34 @@ public abstract class CameraPathClip implements TimelineSelectable {
      * 复制该 Path Clip（用于撤销/重做）
      */
     public abstract CameraPathClip copy();
+    
+    // ========== 生命周期钩子 ==========
+    
+    /**
+     * 当时间轴"刚进入"该 PathClip 时调用（只调用一次）。
+     * 
+     * <p>用于 PathClip 对齐到当前摄像机位置，实现无缝接续。
+     * 例如：OrbitPathClip 可以根据当前摄像机位置自动计算起始角度。
+     * 
+     * <p>调用时机：
+     * <ul>
+     *   <li>只在第一次进入 PathClip 时调用（activePathClip != lastActivePathClip）</li>
+     *   <li>不会在播放过程中反复触发</li>
+     *   <li>支持 Timeline scrub、跳帧、倒放等场景</li>
+     * </ul>
+     * 
+     * @param ctx 进入上下文，包含进入前一帧的摄像机状态（位置、朝向等）
+     */
+    public void onEnter(CameraPathEnterContext ctx) {
+        // 默认什么都不做，子类可以 override
+    }
+    
+    /**
+     * 当时间轴"离开"该 PathClip 时调用（可选，用于清理）。
+     * 
+     * <p>目前暂未使用，保留用于未来扩展。
+     */
+    public void onExit() {
+        // 默认什么都不做，子类可以 override
+    }
 }

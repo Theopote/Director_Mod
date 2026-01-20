@@ -1,6 +1,8 @@
 package com.chronoblocks.ui.timeline.model.camera.path;
 
 import net.minecraft.util.math.Vec3d;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * OrbitPathClip - 围绕路径片段
@@ -32,6 +34,8 @@ import net.minecraft.util.math.Vec3d;
  */
 public class OrbitPathClip extends CameraPathClip {
     
+    private static final Logger LOGGER = LoggerFactory.getLogger(OrbitPathClip.class);
+    
     /**
      * 高度模式枚举
      */
@@ -54,6 +58,9 @@ public class OrbitPathClip extends CameraPathClip {
     private float endAngle;     // 结束角度（度）
     
     private boolean clockwise = true;  // 是否顺时针
+    
+    /** ⭐ 是否在进入 PathClip 时自动对齐起始角度到当前摄像机位置 */
+    private boolean alignStartToCurrentPosition = true;
     
     /**
      * 构造函数
@@ -233,6 +240,102 @@ public class OrbitPathClip extends CameraPathClip {
         this.clockwise = clockwise;
     }
     
+    /**
+     * 是否在进入 PathClip 时自动对齐起始角度到当前摄像机位置
+     */
+    public boolean isAlignStartToCurrentPosition() {
+        return alignStartToCurrentPosition;
+    }
+    
+    /**
+     * 设置是否在进入 PathClip 时自动对齐起始角度到当前摄像机位置
+     */
+    public void setAlignStartToCurrentPosition(boolean align) {
+        this.alignStartToCurrentPosition = align;
+    }
+    
+    /**
+     * ⭐ 当时间轴"刚进入"该 OrbitPathClip 时调用
+     * 
+     * <p>如果启用了对齐功能，会根据当前摄像机位置自动计算起始角度，
+     * 实现与前一段路径的无缝接续。
+     * 
+     * <p>对齐逻辑：
+     * <ul>
+     *   <li>从当前摄像机位置反推出在圆上的相位角</li>
+     *   <li>将起始角度设置为该相位角</li>
+     *   <li>保持扫过角度（sweep）不变，调整结束角度</li>
+     * </ul>
+     */
+    @Override
+    public void onEnter(CameraPathEnterContext ctx) {
+        if (!alignStartToCurrentPosition) {
+            return;
+        }
+        
+        if (ctx == null || ctx.position == null) {
+            return;
+        }
+        
+        Vec3d pos = ctx.position;
+        Vec3d c = center;
+        
+        // 计算当前位置在圆上的相位角
+        double dx = pos.x - c.x;
+        double dz = pos.z - c.z;
+        
+        // 防止半径为 0 或刚好在中心（无法确定角度）
+        double distSq = dx * dx + dz * dz;
+        if (distSq < 1e-6) {
+            // 如果摄像机在中心点，无法确定角度，保持原值
+            return;
+        }
+        
+        // 将当前摄像机位置映射为 Orbit 起始角
+        // 注意：atan2(dz, dx) 返回 [-π, π]，转换为 [0, 360)
+        float angleDeg = (float) Math.toDegrees(Math.atan2(dz, dx));
+        if (angleDeg < 0) {
+            angleDeg += 360f;
+        }
+        
+        // 保存当前的扫过角度（sweep），保持时长语义不变
+        float currentSweep = endAngle - startAngle;
+        if (currentSweep < 0) {
+            currentSweep += 360f;
+        }
+        
+        // 保存旧的角度值（用于调试日志）
+        float oldStartAngle = startAngle;
+        float oldEndAngle = endAngle;
+        
+        // ⭐ 特殊处理：如果是完整一圈（360°），保持完整一圈
+        if (Math.abs(currentSweep - 360f) < 0.1f) {
+            // 完整一圈，保持 360° 扫过角度
+            setStartAngle(angleDeg);
+            float newEndAngle = angleDeg + 360f;
+            // 如果超过 360，归一化到 [0, 360] 范围（但保持 360° 作为有效值）
+            if (newEndAngle > 360f) {
+                newEndAngle = 360f;  // 保持 360° 作为结束角度
+            }
+            setEndAngle(newEndAngle);
+        } else {
+            // 部分扫过，保持扫过角度不变
+            setStartAngle(angleDeg);
+            float newEndAngle = angleDeg + currentSweep;
+            // 如果超过 360，归一化到 [0, 360] 范围
+            if (newEndAngle > 360f) {
+                newEndAngle = newEndAngle % 360f;
+            }
+            setEndAngle(newEndAngle);
+        }
+        
+        // ⭐ 调试日志：记录角度对齐
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("[OrbitPathClip] onEnter() 对齐角度: startAngle {}° -> {}°, endAngle {}° -> {}°, sweep={}°", 
+                oldStartAngle, startAngle, oldEndAngle, endAngle, currentSweep);
+        }
+    }
+    
     @Override
     public CameraPathClip copy() {
         OrbitPathClip copy = new OrbitPathClip(
@@ -252,6 +355,7 @@ public class OrbitPathClip extends CameraPathClip {
         if (cachedHeight != null) {
             copy.setCachedHeight(cachedHeight);
         }
+        copy.setAlignStartToCurrentPosition(alignStartToCurrentPosition);
         copy.setEnabled(isEnabled());
         return copy;
     }

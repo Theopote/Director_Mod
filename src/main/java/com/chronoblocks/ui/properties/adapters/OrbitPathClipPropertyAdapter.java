@@ -472,6 +472,23 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
                 angleRange += 360f;
             }
             ImGui.textDisabled("角度范围: " + String.format("%.1f", angleRange) + "°");
+            
+            UITheme.spacingSmall();
+            
+            // ⭐ 对齐到当前摄像机位置选项
+            boolean alignToCurrent = clip.isAlignStartToCurrentPosition();
+            if (ImGui.checkbox("对齐起始角度到当前摄像机位置", alignToCurrent)) {
+                clip.setAlignStartToCurrentPosition(!alignToCurrent);
+                modified = true;
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.beginTooltip();
+                ImGui.text("启用后，进入此路径片段时会自动将起始角度");
+                ImGui.text("对齐到当前摄像机位置，实现与前一段路径的无缝接续。");
+                ImGui.text("");
+                ImGui.text("建议：保持启用，除非需要固定起始角度。");
+                ImGui.endTooltip();
+            }
         }
         
         return modified;

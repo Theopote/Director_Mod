@@ -294,19 +294,44 @@ public final class TimelineCameraController {
      * 由 TimelineModel.setPlaying(true) 通过 startPlayback() 调用
      *
      * <p>⭐ 关键修复：在事件发生时更新轨迹，而不是在 update() 中每帧 setKeyframes
+     * <p>⭐ 修复：立即应用当前时间的采样并设置 owner，确保播放开始时 PathClip 能正常工作
      */
     public void startPlayback() {
         this.previewing = false;
         ensureCameraDataBuilt();
+        
+        // ⭐ 修复：检查是否有摄像机数据（关键帧或 PathClip）
+        boolean hasKeyframes = hasValidActiveTrack() && !sampler.getKeyframes().isEmpty();
+        boolean hasPathClips = hasValidActiveTrack() && activeCameraTrack != null && activeCameraTrack.hasCameraPathClips();
+        boolean hasCameraData = hasKeyframes || hasPathClips;
+        
+        // ⭐ 修复：如果有摄像机数据，立即应用采样并设置 owner（类似 beginScrubbing）
+        if (hasCameraData && timelineModel != null) {
+            CameraRuntime runtime = CameraRuntime.getInstance();
+            float currentTime = timelineModel.getCurrentTime();
+            sampler.sample(currentTime).ifPresent(runtime::applyTimelineSample);
+            
+            // 确保 owner 被设置为 TIMELINE
+            if (!runtime.isTimelineOwner()) {
+                runtime.setOwner(CameraRuntime.Owner.TIMELINE);
+                ChronoBlocksClientController.getInstance().setHideCrosshair(true);
+                LOGGER.debug("[CameraController] 开始播放：接管相机");
+            }
+        }
+        
         LOGGER.debug("[TimelineCameraController] 开始播放");
     }
 
     /**
      * ⭐ UI 事件驱动：停止播放
      * 由 TimelineModel.setPlaying(false) 通过 stopPlayback() 调用
+     * 
+     * <p>⭐ 修复：清空 PathClip 状态，确保下次播放时 onEnter() 能重新触发
      */
     public void stopPlayback() {
         this.previewing = false;
+        // ⭐ 修复：清空 PathClip 状态，确保下次播放时能重新触发 onEnter()
+        sampler.onStop();
         LOGGER.debug("[TimelineCameraController] 停止播放");
     }
 
@@ -383,8 +408,18 @@ public final class TimelineCameraController {
         if (wantsTimeline) {
             ensureCameraDataBuilt();
         }
-        boolean hasCameraData = hasValidActiveTrack() && !sampler.getKeyframes().isEmpty();
+        // ⭐ 修复：检查是否有摄像机数据（关键帧或 PathClip）
+        // PathClip 不需要关键帧就能工作，所以需要单独检查
+        boolean hasKeyframes = hasValidActiveTrack() && !sampler.getKeyframes().isEmpty();
+        boolean hasPathClips = hasValidActiveTrack() && activeCameraTrack != null && activeCameraTrack.hasCameraPathClips();
+        boolean hasCameraData = hasKeyframes || hasPathClips;
         boolean shouldTimeline = wantsTimeline && hasCameraData;
+        
+        // ⭐ 调试日志：检查 owner 切换逻辑
+        if (LOGGER.isDebugEnabled() && wantsTimeline) {
+            LOGGER.debug("[CameraController] wantsTimeline={}, hasKeyframes={}, hasPathClips={}, hasCameraData={}, shouldTimeline={}, isTimelineOwner={}", 
+                wantsTimeline, hasKeyframes, hasPathClips, hasCameraData, shouldTimeline, runtime.isTimelineOwner());
+        }
 
         if (shouldTimeline && !runtime.isTimelineOwner()) {
             runtime.setOwner(CameraRuntime.Owner.TIMELINE);
@@ -399,20 +434,26 @@ public final class TimelineCameraController {
             LOGGER.debug("[CameraController] 恢复玩家控制");
         }
 
-        // 时间线模式：根据当前时间采样相机
-        if (runtime.isTimelineOwner()) {
+        // ⭐ 时间线模式：根据当前时间采样相机（播放/scrubbing/预览时）
+        // ⭐ 关键修复：确保播放时每帧都采样，不依赖 owner 状态
+        // 因为 owner 的设置可能滞后，但采样必须持续进行
+        if (shouldTimeline || runtime.isTimelineOwner()) {
             // ✅ 性能关键：播放时不要每帧 rebuild（会导致 FPS 大幅下降）
             ensureCameraDataBuilt();
             float time = playing || scrubbing ? timelineModel.getCurrentTime() : previewTimeSeconds;
             
-            // 获取最后关键帧时间
+            // ⭐ 修复：播放模式下，每帧都采样（这是解决"播放时 PathClip 不动"的关键）
+            // 获取最后关键帧时间（仅用于关键帧模式，PathClip 不受此限制）
             List<CameraKeyframe> kfs = sampler.getKeyframes();
             float lastKey = kfs.isEmpty() ? -1f : kfs.getLast().getTime();
 
             // 超出最后关键帧：保持最后帧的镜头，但继续播放其他轨道，owner 不切回玩家
-            if (lastKey >= 0f && time > lastKey + 1e-4f) {
+            // ⭐ 注意：PathClip 不受 lastKey 限制，会继续采样
+            if (lastKey >= 0f && time > lastKey + 1e-4f && !hasPathClips) {
+                // 只有没有 PathClip 时才限制在最后关键帧
                 sampler.sample(lastKey).ifPresent(runtime::applyTimelineSample);
             } else {
+                // ⭐ 关键：每帧都采样，确保 PathClip 持续更新
                 sampler.sample(time).ifPresent(runtime::applyTimelineSample);
             }
         } else {
