@@ -485,8 +485,18 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
                 }
             }
             
-            // ⭐ 只有在 Custom Angle 模式下才显示滑动条
-            if (!isStartAngleFromCurrent) {
+            // ⭐ 在 FROM_CURRENT_POSITION 模式下，显示当前计算的角度（只读）
+            if (isStartAngleFromCurrent) {
+                // ⭐ 实时获取当前摄像机位置计算的角度
+                float currentAngle = clip.getStartAngle();
+                ImGui.text(String.format("当前起始角: %.1f° (从当前摄像机位置计算)", currentAngle));
+                if (ImGui.isItemHovered()) {
+                    ImGui.setTooltip("起始角会实时从当前摄像机位置计算（平面角度），实现无缝衔接");
+                }
+                // ⭐ 同步缓存值，以便切换回 CUSTOM 模式时使用
+                startAngleFloat.set(currentAngle);
+            } else {
+                // ⭐ 只有在 Custom Angle 模式下才显示滑动条
                 // ⭐ 同步缓存值：确保滑动条显示的值与 clip 中的值一致
                 if (Math.abs(startAngleFloat.get() - clip.getStartAngle()) > 0.01f) {
                     startAngleFloat.set(clip.getStartAngle());
@@ -508,12 +518,6 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
                     modified = true; // 拖动结束，标记为已修改
                 }
                 wasStartAngleSliderActive = isStartAngleSliderActive;
-            } else {
-                // ⭐ From Current Position 模式：显示当前起始角值（只读）
-                ImGui.textDisabled(String.format("Start Angle: %.1f° (从进入时的摄像机位置计算)", clip.getStartAngle()));
-                if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("起始角会在进入 PathClip 时自动从当前摄像机位置计算，实现无缝衔接");
-                }
             }
             
             UITheme.spacingSmall();

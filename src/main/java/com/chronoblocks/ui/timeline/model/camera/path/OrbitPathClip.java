@@ -251,6 +251,39 @@ public class OrbitPathClip extends CameraPathClip {
     }
     
     public float getStartAngle() {
+        // ⭐ 如果处于 FROM_CURRENT_POSITION 模式，实时从当前摄像机位置计算起始角
+        if (startAngleMode == StartAngleMode.FROM_CURRENT_POSITION) {
+            try {
+                com.chronoblocks.ui.timeline.playback.camera.CameraRuntime runtime = 
+                    com.chronoblocks.ui.timeline.playback.camera.CameraRuntime.getInstance();
+                com.chronoblocks.ui.timeline.playback.camera.CameraSample currentSample = runtime.getCurrentSample();
+                
+                if (currentSample != null) {
+                    Vec3d currentPos = currentSample.position();
+                    Vec3d c = center;
+                    
+                    double dx = currentPos.x - c.x;
+                    double dz = currentPos.z - c.z;
+                    double distSq = dx * dx + dz * dz;
+                    
+                    // 防止半径为 0 或刚好在中心（无法确定角度）
+                    if (distSq >= 1e-6) {
+                        // 将当前摄像机位置映射为 Orbit 起始角（平面角度）
+                        // 注意：atan2(dz, dx) 返回 [-π, π]，转换为 [0, 360)
+                        float angleDeg = (float) Math.toDegrees(Math.atan2(dz, dx));
+                        if (angleDeg < 0) {
+                            angleDeg += 360f;
+                        }
+                        return angleDeg;
+                    }
+                }
+            } catch (Exception e) {
+                // 如果获取失败，返回缓存的 startAngle
+                if (LOGGER.isTraceEnabled()) {
+                    LOGGER.trace("[OrbitPathClip] getStartAngle() 无法获取当前摄像机状态，返回缓存值: {}°", startAngle);
+                }
+            }
+        }
         return startAngle;
     }
     
@@ -270,10 +303,15 @@ public class OrbitPathClip extends CameraPathClip {
         // ⭐ 向后兼容：如果 startAngleMode 是默认值但 alignStartToCurrentPosition 是 false，同步更新
         // 这处理了旧数据中只有 alignStartToCurrentPosition 字段的情况
         // ⚠️ 注意：这个检查只在数据不一致时执行一次，之后 setStartAngleMode() 会保持同步
+        // ⭐ 修复：只在第一次检测到不一致时修复，避免阻止正常的模式切换
+        // ⚠️ 重要：优先信任 startAngleMode，因为它是新字段，setStartAngleMode() 会同步 alignStartToCurrentPosition
         if (startAngleMode == StartAngleMode.FROM_CURRENT_POSITION && !alignStartToCurrentPosition) {
-            // 旧数据中 alignStartToCurrentPosition 是 false，应该使用 CUSTOM 模式
-            // 同步状态以确保一致性（只修复一次，之后 setStartAngleMode() 会保持同步）
-            this.startAngleMode = StartAngleMode.CUSTOM;
+            // 旧数据中 alignStartToCurrentPosition 是 false，但 startAngleMode 是 FROM_CURRENT_POSITION
+            // 这种情况可能是旧数据，同步 alignStartToCurrentPosition 以保持一致
+            this.alignStartToCurrentPosition = true;
+        } else if (startAngleMode == StartAngleMode.CUSTOM && alignStartToCurrentPosition) {
+            // 如果 startAngleMode 是 CUSTOM 但 alignStartToCurrentPosition 是 true，同步
+            this.alignStartToCurrentPosition = false;
         }
         return startAngleMode;
     }
