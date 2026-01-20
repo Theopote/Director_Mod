@@ -417,8 +417,8 @@ public final class TimelineCameraController {
         
         // ⭐ 调试日志：检查 owner 切换逻辑
         if (LOGGER.isDebugEnabled() && wantsTimeline) {
-            LOGGER.debug("[CameraController] wantsTimeline={}, hasKeyframes={}, hasPathClips={}, hasCameraData={}, shouldTimeline={}, isTimelineOwner={}", 
-                wantsTimeline, hasKeyframes, hasPathClips, hasCameraData, shouldTimeline, runtime.isTimelineOwner());
+            LOGGER.debug("[CameraController] wantsTimeline={}, hasKeyframes={}, hasPathClips={}, hasCameraData={}, shouldTimeline={}, isTimelineOwner={}",
+                    true, hasKeyframes, hasPathClips, hasCameraData, shouldTimeline, runtime.isTimelineOwner());
         }
 
         if (shouldTimeline && !runtime.isTimelineOwner()) {
@@ -521,9 +521,7 @@ public final class TimelineCameraController {
         Optional<CameraSample> opt = sampler.sample(timeSeconds);
         CameraRuntime runtime = CameraRuntime.getInstance();
 
-        if (opt.isPresent()) {
-            runtime.applyTimelineSample(opt.get());
-        }
+        opt.ifPresent(runtime::applyTimelineSample);
     }
 
     /**

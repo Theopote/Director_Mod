@@ -131,7 +131,7 @@ public final class CameraTrackSampler {
                     LOGGER.trace("[CameraTrackSampler] 未找到激活的 PathClip @ {}s (轨道: {}, 有PathClips: {})", 
                         timeSeconds,
                         cameraTrack != null ? cameraTrack.getName() : "null",
-                        cameraTrack != null ? cameraTrack.hasCameraPathClips() : false);
+                            cameraTrack != null && cameraTrack.hasCameraPathClips());
                 }
             }
         }
@@ -149,7 +149,7 @@ public final class CameraTrackSampler {
                 // 从上一帧的 CameraSample 构造进入上下文
                 // 注意：CameraSample 只有 position，没有 lookAt，需要从 yaw/pitch 计算
                 Vec3d lastPos = lastSample.position();
-                
+
                 // 从 yaw/pitch 计算 lookAt（近似值）
                 // 这是一个简化实现，如果需要更精确的 lookAt，可以从 CameraRuntime 获取
                 double yawRad = Math.toRadians(lastSample.yaw());
@@ -160,7 +160,7 @@ public final class CameraTrackSampler {
                     -Math.sin(pitchRad) * 10.0,
                     Math.cos(yawRad) * cosPitch * 10.0
                 );
-                
+
                 CameraPathEnterContext ctx = new CameraPathEnterContext(lastPos, lastLookAt);
                 activePathClip.onEnter(ctx);
             } else {
