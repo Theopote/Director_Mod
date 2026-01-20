@@ -3,6 +3,8 @@ package com.chronoblocks.client.renderer;
 import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
 import com.chronoblocks.ui.timeline.model.camera.path.CameraPathClip;
 import com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip;
+import com.chronoblocks.ui.timeline.model.camera.path.DollyPathClip;
+import com.chronoblocks.ui.timeline.model.camera.path.CranePathClip;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.playback.camera.CameraSample;
 import com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController;
@@ -204,8 +206,8 @@ public final class CameraPathDebugRenderer {
         // 4. 渲染当前时间对应的位置 + 方向箭头
         renderCurrentSample(consumers, matrix, cameraPos, currentTimeSeconds);
 
-        // 5. ⭐ 渲染围绕轨迹（OrbitPathClip）
-        renderOrbitPaths(consumers, matrix, cameraPos);
+        // 5. ⭐ 渲染路径片段（OrbitPathClip, DollyPathClip, CranePathClip）
+        renderPathClips(consumers, matrix, cameraPos);
 
         if (consumers instanceof VertexConsumerProvider.Immediate immediate) {
             immediate.draw();
@@ -543,13 +545,13 @@ public final class CameraPathDebugRenderer {
     }
 
     /**
-     * ⭐ 渲染所有 OrbitPathClip 的围绕轨迹
+     * ⭐ 渲染所有 PathClip（Orbit, Dolly, Crane）
      */
-    private void renderOrbitPaths(VertexConsumerProvider consumers, Matrix4f matrix, Vec3d cameraPos) {
+    private void renderPathClips(VertexConsumerProvider consumers, Matrix4f matrix, Vec3d cameraPos) {
         TimelineCameraController controller = TimelineCameraController.getInstance();
         if (controller == null) {
             if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[CameraPathDebugRenderer] TimelineCameraController 为 null，跳过围绕轨迹渲染");
+                LOGGER.trace("[CameraPathDebugRenderer] TimelineCameraController 为 null，跳过路径片段渲染");
             }
             return;
         }
@@ -557,29 +559,39 @@ public final class CameraPathDebugRenderer {
         TimelineTrack activeTrack = controller.getActiveCameraTrack();
         if (activeTrack == null) {
             if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[CameraPathDebugRenderer] 没有激活的摄像机轨道，跳过围绕轨迹渲染");
+                LOGGER.trace("[CameraPathDebugRenderer] 没有激活的摄像机轨道，跳过路径片段渲染");
             }
             return;
         }
         
         if (!activeTrack.hasCameraPathClips()) {
             if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[CameraPathDebugRenderer] 轨道 {} 没有 PathClips，跳过围绕轨迹渲染", activeTrack.getName());
+                LOGGER.trace("[CameraPathDebugRenderer] 轨道 {} 没有 PathClips，跳过路径片段渲染", activeTrack.getName());
             }
             return;
         }
 
         List<CameraPathClip> pathClips = activeTrack.getCameraPathClips();
-        int orbitClipCount = 0;
+        int orbitCount = 0;
+        int dollyCount = 0;
+        int craneCount = 0;
+        
         for (CameraPathClip clip : pathClips) {
             if (clip instanceof OrbitPathClip orbitClip) {
-                orbitClipCount++;
+                orbitCount++;
                 renderOrbitPath(consumers, matrix, cameraPos, orbitClip);
+            } else if (clip instanceof DollyPathClip dollyClip) {
+                dollyCount++;
+                renderDollyPath(consumers, matrix, cameraPos, dollyClip);
+            } else if (clip instanceof CranePathClip craneClip) {
+                craneCount++;
+                renderCranePath(consumers, matrix, cameraPos, craneClip);
             }
         }
         
-        if (LOGGER.isDebugEnabled() && orbitClipCount > 0) {
-            LOGGER.debug("[CameraPathDebugRenderer] 已渲染 {} 个围绕轨迹", orbitClipCount);
+        if (LOGGER.isDebugEnabled() && (orbitCount > 0 || dollyCount > 0 || craneCount > 0)) {
+            LOGGER.debug("[CameraPathDebugRenderer] 已渲染 {} 个围绕轨迹, {} 个推拉轨迹, {} 个升降轨迹", 
+                    orbitCount, dollyCount, craneCount);
         }
     }
 
@@ -706,6 +718,226 @@ public final class CameraPathDebugRenderer {
             float timeSeconds = startTime + t * duration;
             
             // 使用 clip 的 sample 方法获取位置
+            var sample = clip.sample(timeSeconds);
+            if (sample != null) {
+                points.add(sample.getPosition());
+            }
+        }
+        
+        return points;
+    }
+    
+    /**
+     * 渲染单个 DollyPathClip 的推拉轨迹
+     */
+    private void renderDollyPath(VertexConsumerProvider consumers, Matrix4f matrix, Vec3d cameraPos, DollyPathClip clip) {
+        // 采样推拉路径的点
+        List<Vec3d> dollyPoints = sampleDollyPath(clip);
+        if (dollyPoints.size() < 2) {
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[CameraPathDebugRenderer] DollyPathClip 采样点不足 ({} 个点)，跳过渲染", dollyPoints.size());
+            }
+            return;
+        }
+        
+        VertexConsumer consumer = consumers.getBuffer(RenderLayer.getLines());
+        
+        // 推拉轨迹颜色：绿色（与 Orbit 的绿色区分，使用更亮的绿色）
+        float r = 100 / 255.0f;
+        float g = 255 / 255.0f;
+        float b = 150 / 255.0f;
+        float a = 200 / 255.0f;
+        
+        // 渲染推拉轨迹线
+        for (int i = 0; i < dollyPoints.size() - 1; i++) {
+            Vec3d p0 = dollyPoints.get(i);
+            Vec3d p1 = dollyPoints.get(i + 1);
+            
+            double x0 = p0.x - cameraPos.x;
+            double y0 = p0.y - cameraPos.y;
+            double z0 = p0.z - cameraPos.z;
+            double x1 = p1.x - cameraPos.x;
+            double y1 = p1.y - cameraPos.y;
+            double z1 = p1.z - cameraPos.z;
+            
+            // 计算法线
+            double dx = x1 - x0;
+            double dy = y1 - y0;
+            double dz = z1 - z0;
+            double len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            float nx = len > 1e-6 ? (float)(dx / len) : 0f;
+            float ny = len > 1e-6 ? (float)(dy / len) : 1f;
+            float nz = len > 1e-6 ? (float)(dz / len) : 0f;
+            
+            consumer.vertex(matrix, (float) x0, (float) y0, (float) z0)
+                    .color(r, g, b, a)
+                    .normal(nx, ny, nz);
+            consumer.vertex(matrix, (float) x1, (float) y1, (float) z1)
+                    .color(r, g, b, a)
+                    .normal(nx, ny, nz);
+        }
+        
+        // 渲染起始点和方向箭头（可选，用于调试）
+        Vec3d startPos = clip.getStartPosition();
+        Vec3d dollyDir = clip.getDollyDirection();
+        
+        if (startPos != null && dollyDir != null) {
+            // 起始点：青色小点
+            float startR = 0 / 255.0f;
+            float startG = 255 / 255.0f;
+            float startB = 255 / 255.0f;
+            float startA = 255 / 255.0f;
+            double startSize = 0.1;
+            
+            double sx = startPos.x - cameraPos.x;
+            double sy = startPos.y - cameraPos.y;
+            double sz = startPos.z - cameraPos.z;
+            
+            // 起始点十字
+            consumer.vertex(matrix, (float)(sx - startSize), (float) sy, (float) sz).color(startR, startG, startB, startA).normal(1f, 0f, 0f);
+            consumer.vertex(matrix, (float)(sx + startSize), (float) sy, (float) sz).color(startR, startG, startB, startA).normal(1f, 0f, 0f);
+            consumer.vertex(matrix, (float) sx, (float)(sy - startSize), (float) sz).color(startR, startG, startB, startA).normal(0f, 1f, 0f);
+            consumer.vertex(matrix, (float) sx, (float)(sy + startSize), (float) sz).color(startR, startG, startB, startA).normal(0f, 1f, 0f);
+            consumer.vertex(matrix, (float) sx, (float) sy, (float)(sz - startSize)).color(startR, startG, startB, startA).normal(0f, 0f, 1f);
+            consumer.vertex(matrix, (float) sx, (float) sy, (float)(sz + startSize)).color(startR, startG, startB, startA).normal(0f, 0f, 1f);
+            
+            // 方向箭头（显示推拉方向）
+            double arrowLength = 2.0;
+            Vec3d arrowEnd = startPos.add(dollyDir.multiply(arrowLength));
+            double ex = arrowEnd.x - cameraPos.x;
+            double ey = arrowEnd.y - cameraPos.y;
+            double ez = arrowEnd.z - cameraPos.z;
+            
+            consumer.vertex(matrix, (float) sx, (float) sy, (float) sz).color(startR, startG, startB, startA).normal(0f, 1f, 0f);
+            consumer.vertex(matrix, (float) ex, (float) ey, (float) ez).color(startR, startG, startB, startA).normal(0f, 1f, 0f);
+        }
+    }
+    
+    /**
+     * 采样 DollyPathClip 的路径点
+     */
+    private List<Vec3d> sampleDollyPath(DollyPathClip clip) {
+        List<Vec3d> points = new java.util.ArrayList<>();
+        
+        float startTime = clip.getStartTime();
+        float endTime = clip.getEndTime();
+        float duration = endTime - startTime;
+        
+        if (duration <= 0) {
+            return points;
+        }
+        
+        // 采样点数：根据时长决定
+        int sampleCount = Math.max(16, (int)(duration * 10));
+        
+        for (int i = 0; i <= sampleCount; i++) {
+            float t = (float) i / sampleCount;
+            float timeSeconds = startTime + t * duration;
+            
+            var sample = clip.sample(timeSeconds);
+            if (sample != null) {
+                points.add(sample.getPosition());
+            }
+        }
+        
+        return points;
+    }
+    
+    /**
+     * 渲染单个 CranePathClip 的升降轨迹
+     */
+    private void renderCranePath(VertexConsumerProvider consumers, Matrix4f matrix, Vec3d cameraPos, CranePathClip clip) {
+        // 采样升降路径的点
+        List<Vec3d> cranePoints = sampleCranePath(clip);
+        if (cranePoints.size() < 2) {
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[CameraPathDebugRenderer] CranePathClip 采样点不足 ({} 个点)，跳过渲染", cranePoints.size());
+            }
+            return;
+        }
+        
+        VertexConsumer consumer = consumers.getBuffer(RenderLayer.getLines());
+        
+        // 升降轨迹颜色：橙色
+        float r = 255 / 255.0f;
+        float g = 180 / 255.0f;
+        float b = 100 / 255.0f;
+        float a = 200 / 255.0f;
+        
+        // 渲染升降轨迹线
+        for (int i = 0; i < cranePoints.size() - 1; i++) {
+            Vec3d p0 = cranePoints.get(i);
+            Vec3d p1 = cranePoints.get(i + 1);
+            
+            double x0 = p0.x - cameraPos.x;
+            double y0 = p0.y - cameraPos.y;
+            double z0 = p0.z - cameraPos.z;
+            double x1 = p1.x - cameraPos.x;
+            double y1 = p1.y - cameraPos.y;
+            double z1 = p1.z - cameraPos.z;
+            
+            // 计算法线
+            double dx = x1 - x0;
+            double dy = y1 - y0;
+            double dz = z1 - z0;
+            double len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            float nx = len > 1e-6 ? (float)(dx / len) : 0f;
+            float ny = len > 1e-6 ? (float)(dy / len) : 1f;
+            float nz = len > 1e-6 ? (float)(dz / len) : 0f;
+            
+            consumer.vertex(matrix, (float) x0, (float) y0, (float) z0)
+                    .color(r, g, b, a)
+                    .normal(nx, ny, nz);
+            consumer.vertex(matrix, (float) x1, (float) y1, (float) z1)
+                    .color(r, g, b, a)
+                    .normal(nx, ny, nz);
+        }
+        
+        // 渲染起始点（可选，用于调试）
+        Vec3d startPos = clip.getStartPosition();
+        if (startPos != null) {
+            // 起始点：橙色小点
+            float startR = 255 / 255.0f;
+            float startG = 200 / 255.0f;
+            float startB = 0 / 255.0f;
+            float startA = 255 / 255.0f;
+            double startSize = 0.1;
+            
+            double sx = startPos.x - cameraPos.x;
+            double sy = startPos.y - cameraPos.y;
+            double sz = startPos.z - cameraPos.z;
+            
+            // 起始点十字
+            consumer.vertex(matrix, (float)(sx - startSize), (float) sy, (float) sz).color(startR, startG, startB, startA).normal(1f, 0f, 0f);
+            consumer.vertex(matrix, (float)(sx + startSize), (float) sy, (float) sz).color(startR, startG, startB, startA).normal(1f, 0f, 0f);
+            consumer.vertex(matrix, (float) sx, (float)(sy - startSize), (float) sz).color(startR, startG, startB, startA).normal(0f, 1f, 0f);
+            consumer.vertex(matrix, (float) sx, (float)(sy + startSize), (float) sz).color(startR, startG, startB, startA).normal(0f, 1f, 0f);
+            consumer.vertex(matrix, (float) sx, (float) sy, (float)(sz - startSize)).color(startR, startG, startB, startA).normal(0f, 0f, 1f);
+            consumer.vertex(matrix, (float) sx, (float) sy, (float)(sz + startSize)).color(startR, startG, startB, startA).normal(0f, 0f, 1f);
+        }
+    }
+    
+    /**
+     * 采样 CranePathClip 的路径点
+     */
+    private List<Vec3d> sampleCranePath(CranePathClip clip) {
+        List<Vec3d> points = new java.util.ArrayList<>();
+        
+        float startTime = clip.getStartTime();
+        float endTime = clip.getEndTime();
+        float duration = endTime - startTime;
+        
+        if (duration <= 0) {
+            return points;
+        }
+        
+        // 采样点数：根据时长决定
+        int sampleCount = Math.max(16, (int)(duration * 10));
+        
+        for (int i = 0; i <= sampleCount; i++) {
+            float t = (float) i / sampleCount;
+            float timeSeconds = startTime + t * duration;
+            
             var sample = clip.sample(timeSeconds);
             if (sample != null) {
                 points.add(sample.getPosition());

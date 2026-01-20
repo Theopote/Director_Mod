@@ -648,6 +648,61 @@ public class TimelineContextMenuFactory {
                                 LOGGER.info("[TimelineContextMenuFactory] 创建围绕路径: {} @ {:.2f}s", 
                                     orbitClip.getName(), currentTime);
                             })
+                            .item("创建推拉路径 (Dolly)", () -> {
+                                // 创建 Dolly Path Clip
+                                float currentTime = model.getCurrentTime();
+                                float duration = 5.0f; // 默认 5 秒
+                                
+                                // 创建 Dolly Path Clip
+                                com.chronoblocks.ui.timeline.model.camera.path.DollyPathClip dollyClip = 
+                                    new com.chronoblocks.ui.timeline.model.camera.path.DollyPathClip(
+                                        "推拉路径 @" + formatTime(currentTime),
+                                        currentTime,
+                                        currentTime + duration
+                                    );
+                                
+                                // 设置默认参数
+                                dollyClip.setDistance(5.0f); // 默认推拉距离 5 方块
+                                dollyClip.setDirectionMode(
+                                    com.chronoblocks.ui.timeline.model.camera.path.DollyPathClip.DirectionMode.CAMERA_FORWARD
+                                );
+                                
+                                // ⭐ 性能优化：使用命令系统
+                                com.chronoblocks.ui.timeline.commands.AddPathClipCommand cmd = 
+                                    new com.chronoblocks.ui.timeline.commands.AddPathClipCommand(model, track, dollyClip);
+                                commandHistory.executeCommand(cmd);
+                                
+                                // 选择轨道并打开属性面板（让用户编辑参数）
+                                com.chronoblocks.ui.selection.SelectionManager.get().selectTrack(track);
+                                LOGGER.info("[TimelineContextMenuFactory] 创建推拉路径: {} @ {:.2f}s", 
+                                    dollyClip.getName(), currentTime);
+                            })
+                            .item("创建升降路径 (Crane)", () -> {
+                                // 创建 Crane Path Clip
+                                float currentTime = model.getCurrentTime();
+                                float duration = 5.0f; // 默认 5 秒
+                                
+                                // 创建 Crane Path Clip
+                                com.chronoblocks.ui.timeline.model.camera.path.CranePathClip craneClip = 
+                                    new com.chronoblocks.ui.timeline.model.camera.path.CranePathClip(
+                                        "升降路径 @" + formatTime(currentTime),
+                                        currentTime,
+                                        currentTime + duration
+                                    );
+                                
+                                // 设置默认参数
+                                craneClip.setHeightDelta(10.0f); // 默认高度变化 10 方块（上升）
+                                
+                                // ⭐ 性能优化：使用命令系统
+                                com.chronoblocks.ui.timeline.commands.AddPathClipCommand cmd = 
+                                    new com.chronoblocks.ui.timeline.commands.AddPathClipCommand(model, track, craneClip);
+                                commandHistory.executeCommand(cmd);
+                                
+                                // 选择轨道并打开属性面板（让用户编辑参数）
+                                com.chronoblocks.ui.selection.SelectionManager.get().selectTrack(track);
+                                LOGGER.info("[TimelineContextMenuFactory] 创建升降路径: {} @ {:.2f}s", 
+                                    craneClip.getName(), currentTime);
+                            })
                         .end();
                 } else {
                     // 非激活轨道：禁用添加关键帧选项

@@ -127,6 +127,8 @@ public class TimelineModelPersistence {
         public String typeName;  // TrackType 的名称
         public List<ClipDTO> clips = new ArrayList<>();
         public List<AutomationKeyframeDTO> automationKeyframes = new ArrayList<>();
+        /** 摄像机路径片段列表 */
+        public List<PathClipDTO> pathClips = new ArrayList<>();
         public boolean locked = false;
         public boolean visible = true;
         public int zOrder = 0;
@@ -188,6 +190,48 @@ public class TimelineModelPersistence {
             if (v == null) return null;
             return new Vec3DTO(v.x, v.y, v.z);
         }
+        
+        public static Vec3DTO fromVec3d(net.minecraft.util.math.Vec3d v) {
+            if (v == null) return null;
+            return new Vec3DTO((float) v.x, (float) v.y, (float) v.z);
+        }
+        
+        public net.minecraft.util.math.Vec3d toVec3d() {
+            return new net.minecraft.util.math.Vec3d(x, y, z);
+        }
+    }
+    
+    /**
+     * 摄像机路径片段 DTO
+     */
+    public static final class PathClipDTO {
+        public String type; // CameraPathType.name() (ORBIT, DOLLY, CRANE, etc.)
+        public String name;
+        public float startTime;
+        public float endTime;
+        public boolean enabled = true;
+        
+        // OrbitPathClip 参数
+        public Vec3DTO center;
+        public Vec3DTO lookAt;
+        public Float radius;
+        public String radiusMode; // RadiusMode.name()
+        public String heightMode; // HeightMode.name()
+        public Float height;
+        public Float cachedHeight;
+        public Float startAngle;
+        public Float endAngle;
+        public String startAngleMode; // StartAngleMode.name()
+        public Boolean clockwise;
+        
+        // DollyPathClip 参数
+        public Float distance;
+        public String directionMode; // DirectionMode.name()
+        public Vec3DTO fixedDirection;
+        public Boolean alignStartToCurrentPosition;
+        
+        // CranePathClip 参数
+        public Float heightDelta;
     }
 
     /**
@@ -469,6 +513,49 @@ public class TimelineModelPersistence {
                 clipDTO.autoFadeOpacity = clip.getAutoFadeOpacity();
                 
                 trackDTO.clips.add(clipDTO);
+            }
+            
+            // 保存轨道的所有 PathClip
+            for (com.chronoblocks.ui.timeline.model.camera.path.CameraPathClip pathClip : track.getCameraPathClips()) {
+                if (pathClip == null) continue;
+                PathClipDTO pathClipDTO = new PathClipDTO();
+                pathClipDTO.type = pathClip.getPathType() != null ? pathClip.getPathType().name() : null;
+                pathClipDTO.name = pathClip.getName();
+                pathClipDTO.startTime = pathClip.getStartTime();
+                pathClipDTO.endTime = pathClip.getEndTime();
+                pathClipDTO.enabled = pathClip.isEnabled();
+                
+                // 根据类型保存特定参数
+                switch (pathClip) {
+                    case com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip orbit -> {
+                        pathClipDTO.center = Vec3DTO.fromVec3d(orbit.getCenter());
+                        pathClipDTO.lookAt = Vec3DTO.fromVec3d(orbit.getLookAt());
+                        pathClipDTO.radius = orbit.getRadius();
+                        pathClipDTO.radiusMode = orbit.getRadiusMode() != null ? orbit.getRadiusMode().name() : null;
+                        pathClipDTO.heightMode = orbit.getHeightMode() != null ? orbit.getHeightMode().name() : null;
+                        pathClipDTO.height = orbit.getHeight();
+                        pathClipDTO.cachedHeight = orbit.getCachedHeight();
+                        pathClipDTO.startAngle = orbit.getStartAngle();
+                        pathClipDTO.endAngle = orbit.getEndAngle();
+                        pathClipDTO.startAngleMode = orbit.getStartAngleMode() != null ? orbit.getStartAngleMode().name() : null;
+                        pathClipDTO.clockwise = orbit.isClockwise();
+                    }
+                    case com.chronoblocks.ui.timeline.model.camera.path.DollyPathClip dolly -> {
+                        pathClipDTO.distance = dolly.getDistance();
+                        pathClipDTO.directionMode = dolly.getDirectionMode() != null ? dolly.getDirectionMode().name() : null;
+                        pathClipDTO.fixedDirection = Vec3DTO.fromVec3d(dolly.getFixedDirection());
+                        pathClipDTO.alignStartToCurrentPosition = dolly.isAlignStartToCurrentPosition();
+                    }
+                    case com.chronoblocks.ui.timeline.model.camera.path.CranePathClip crane -> {
+                        pathClipDTO.heightDelta = crane.getHeightDelta();
+                        pathClipDTO.alignStartToCurrentPosition = crane.isAlignStartToCurrentPosition();
+                    }
+                    default -> {
+                        // 其他类型暂不支持序列化
+                    }
+                }
+                
+                trackDTO.pathClips.add(pathClipDTO);
             }
             
             dto.tracks.add(trackDTO);
@@ -768,6 +855,91 @@ public class TimelineModelPersistence {
                 }
                 
                 track.addClip(clip);
+            }
+            
+            // 恢复轨道的所有 PathClip
+            if (trackDTO.pathClips != null) {
+                for (PathClipDTO pathClipDTO : trackDTO.pathClips) {
+                    if (pathClipDTO == null || pathClipDTO.type == null) continue;
+                    try {
+                        com.chronoblocks.ui.timeline.model.camera.path.CameraPathClip pathClip = null;
+                        
+                        switch (pathClipDTO.type) {
+                            case "ORBIT" -> {
+                                net.minecraft.util.math.Vec3d center = pathClipDTO.center != null ? pathClipDTO.center.toVec3d() : net.minecraft.util.math.Vec3d.ZERO;
+                                float radius = pathClipDTO.radius != null ? pathClipDTO.radius : 10.0f;
+                                float height = pathClipDTO.height != null ? pathClipDTO.height : 64.0f;
+                                
+                                com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip orbit = 
+                                    new com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip(
+                                        pathClipDTO.name != null ? pathClipDTO.name : "Orbit Path",
+                                        pathClipDTO.startTime,
+                                        pathClipDTO.endTime,
+                                        center,
+                                        radius,
+                                        height
+                                    );
+                                
+                                if (pathClipDTO.lookAt != null) orbit.setLookAt(pathClipDTO.lookAt.toVec3d());
+                                if (pathClipDTO.radiusMode != null) {
+                                    try { orbit.setRadiusMode(com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip.RadiusMode.valueOf(pathClipDTO.radiusMode)); } catch (Exception ignored) {}
+                                }
+                                if (pathClipDTO.heightMode != null) {
+                                    try { orbit.setHeightMode(com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip.HeightMode.valueOf(pathClipDTO.heightMode)); } catch (Exception ignored) {}
+                                }
+                                if (pathClipDTO.cachedHeight != null) orbit.setCachedHeight(pathClipDTO.cachedHeight);
+                                if (pathClipDTO.startAngle != null) orbit.setStartAngle(pathClipDTO.startAngle);
+                                if (pathClipDTO.endAngle != null) orbit.setEndAngle(pathClipDTO.endAngle);
+                                if (pathClipDTO.startAngleMode != null) {
+                                    try { orbit.setStartAngleMode(com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip.StartAngleMode.valueOf(pathClipDTO.startAngleMode)); } catch (Exception ignored) {}
+                                }
+                                if (pathClipDTO.clockwise != null) orbit.setClockwise(pathClipDTO.clockwise);
+                                
+                                pathClip = orbit;
+                            }
+                            case "DOLLY" -> {
+                                com.chronoblocks.ui.timeline.model.camera.path.DollyPathClip dolly = 
+                                    new com.chronoblocks.ui.timeline.model.camera.path.DollyPathClip(
+                                        pathClipDTO.name != null ? pathClipDTO.name : "Dolly Path",
+                                        pathClipDTO.startTime,
+                                        pathClipDTO.endTime
+                                    );
+                                
+                                if (pathClipDTO.distance != null) dolly.setDistance(pathClipDTO.distance);
+                                if (pathClipDTO.directionMode != null) {
+                                    try { dolly.setDirectionMode(com.chronoblocks.ui.timeline.model.camera.path.DollyPathClip.DirectionMode.valueOf(pathClipDTO.directionMode)); } catch (Exception ignored) {}
+                                }
+                                if (pathClipDTO.fixedDirection != null) dolly.setFixedDirection(pathClipDTO.fixedDirection.toVec3d());
+                                if (pathClipDTO.alignStartToCurrentPosition != null) dolly.setAlignStartToCurrentPosition(pathClipDTO.alignStartToCurrentPosition);
+                                
+                                pathClip = dolly;
+                            }
+                            case "CRANE" -> {
+                                com.chronoblocks.ui.timeline.model.camera.path.CranePathClip crane = 
+                                    new com.chronoblocks.ui.timeline.model.camera.path.CranePathClip(
+                                        pathClipDTO.name != null ? pathClipDTO.name : "Crane Path",
+                                        pathClipDTO.startTime,
+                                        pathClipDTO.endTime
+                                    );
+                                
+                                if (pathClipDTO.heightDelta != null) crane.setHeightDelta(pathClipDTO.heightDelta);
+                                if (pathClipDTO.alignStartToCurrentPosition != null) crane.setAlignStartToCurrentPosition(pathClipDTO.alignStartToCurrentPosition);
+                                
+                                pathClip = crane;
+                            }
+                            default -> {
+                                LOGGER.warn("[TimelineModelPersistence] 未知的 PathClip 类型: {}", pathClipDTO.type);
+                            }
+                        }
+                        
+                        if (pathClip != null) {
+                            pathClip.setEnabled(pathClipDTO.enabled);
+                            track.addCameraPathClip(pathClip);
+                        }
+                    } catch (Exception e) {
+                        LOGGER.error("[TimelineModelPersistence] 加载 PathClip 时发生错误: {}", pathClipDTO != null ? pathClipDTO.name : "unknown", e);
+                    }
+                }
             }
             
             model.addTrack(track);
