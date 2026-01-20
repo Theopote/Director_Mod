@@ -190,6 +190,13 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
             // 右侧方向提示
             ImGui.sameLine();
             ImGui.textDisabled("Up ↑");
+            
+            // ⭐ 解释性文本：强调 Crane 的构图稳定性
+            ImGui.spacing();
+            ImGui.textDisabled("Keeps horizontal framing stable");
+            
+            // ⭐ 微调提示：告诉用户如何精确调整
+            ImGui.textDisabled("Tip: Hold Ctrl for fine adjustment");
         }
         
         return modified;

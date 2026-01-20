@@ -198,6 +198,9 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
             // 右侧方向提示
             ImGui.sameLine();
             ImGui.textDisabled("Push In →");
+            
+            // ⭐ 微调提示：告诉用户如何精确调整
+            ImGui.textDisabled("Tip: Hold Ctrl for fine adjustment");
         }
         
         return modified;
@@ -213,15 +216,15 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
         if (ImGui.collapsingHeader("Direction", ImGuiTreeNodeFlags.DefaultOpen)) {
             DollyPathClip.DirectionMode mode = clip.getDirectionMode();
             
-            // ⭐ 语义化选项 1：沿镜头朝向（最常用）
-            if (ImGui.radioButton("● Along Camera View", mode == DollyPathClip.DirectionMode.CAMERA_FORWARD)) {
+            // ⭐ 语义化选项 1：沿镜头朝向（最常用，标记为推荐）
+            if (ImGui.radioButton("● Along Camera View (Recommended)", mode == DollyPathClip.DirectionMode.CAMERA_FORWARD)) {
                 if (mode != DollyPathClip.DirectionMode.CAMERA_FORWARD) {
                     clip.setDirectionMode(DollyPathClip.DirectionMode.CAMERA_FORWARD);
                     modified = true;
                 }
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("沿当前摄像机的镜头朝向推拉（最常用）");
+                ImGui.setTooltip("沿当前摄像机的镜头朝向推拉（最常用，推荐）");
             }
             
             // ⭐ 语义化选项 2：向焦点推拉
@@ -235,8 +238,8 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
                 ImGui.setTooltip("向当前注视点（Focus Point）推近或拉远");
             }
             
-            // ⭐ 语义化选项 3：自定义方向（高级）
-            if (ImGui.radioButton("○ Custom Direction", mode == DollyPathClip.DirectionMode.FIXED_DIRECTION)) {
+            // ⭐ 语义化选项 3：自定义方向（高级，默认折叠）
+            if (ImGui.radioButton("○ Custom World Direction (Advanced)", mode == DollyPathClip.DirectionMode.FIXED_DIRECTION)) {
                 if (mode != DollyPathClip.DirectionMode.FIXED_DIRECTION) {
                     clip.setDirectionMode(DollyPathClip.DirectionMode.FIXED_DIRECTION);
                     modified = true;
@@ -246,33 +249,35 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
                 ImGui.setTooltip("使用固定的世界方向（高级选项）");
             }
             
-            // ⭐ Custom Direction 输入（仅在 FIXED_DIRECTION 模式下显示，放在子区域）
+            // ⭐ Custom Direction 输入（仅在 FIXED_DIRECTION 模式下显示，放在可折叠子区域）
             if (clip.getDirectionMode() == DollyPathClip.DirectionMode.FIXED_DIRECTION) {
                 ImGui.spacing();
                 ImGui.indent();
-                ImGui.textDisabled("Custom Direction Vector:");
-                float[] dirArr = {fixedDirectionArr[0].get(), fixedDirectionArr[1].get(), fixedDirectionArr[2].get()};
-                boolean directionChanged = ImGui.dragFloat3("##direction_vector", dirArr, 0.01f);
-                boolean isDirectionActive = ImGui.isItemActive();
-                
-                if (directionChanged) {
-                    Vec3d newDir = new Vec3d(dirArr[0], dirArr[1], dirArr[2]);
-                    clip.setFixedDirection(newDir);
-                    fixedDirectionArr[0].set(dirArr[0]);
-                    fixedDirectionArr[1].set(dirArr[1]);
-                    fixedDirectionArr[2].set(dirArr[2]);
-                    // ⭐ 性能优化：只在拖动结束时才标记为已修改
-                    if (!isDirectionActive) {
+                // 使用可折叠区域，让高级选项更"收"一些
+                if (ImGui.collapsingHeader("Custom Direction Vector", ImGuiTreeNodeFlags.DefaultOpen)) {
+                    float[] dirArr = {fixedDirectionArr[0].get(), fixedDirectionArr[1].get(), fixedDirectionArr[2].get()};
+                    boolean directionChanged = ImGui.dragFloat3("##direction_vector", dirArr, 0.01f);
+                    boolean isDirectionActive = ImGui.isItemActive();
+                    
+                    if (directionChanged) {
+                        Vec3d newDir = new Vec3d(dirArr[0], dirArr[1], dirArr[2]);
+                        clip.setFixedDirection(newDir);
+                        fixedDirectionArr[0].set(dirArr[0]);
+                        fixedDirectionArr[1].set(dirArr[1]);
+                        fixedDirectionArr[2].set(dirArr[2]);
+                        // ⭐ 性能优化：只在拖动结束时才标记为已修改
+                        if (!isDirectionActive) {
+                            modified = true;
+                        }
+                    }
+                    
+                    // ⭐ 检测拖动结束
+                    if (directionChanged && !isDirectionActive) {
                         modified = true;
                     }
+                    
+                    ImGui.textDisabled("Will be normalized automatically");
                 }
-                
-                // ⭐ 检测拖动结束
-                if (directionChanged && !isDirectionActive) {
-                    modified = true;
-                }
-                
-                ImGui.textDisabled("Will be normalized automatically");
                 ImGui.unindent();
             }
         }
