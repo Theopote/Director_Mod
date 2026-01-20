@@ -46,10 +46,21 @@ public class OrbitPathClip extends CameraPathClip {
         ABSOLUTE
     }
     
+    /**
+     * 半径模式枚举
+     */
+    public enum RadiusMode {
+        /** 从进入 PathClip 时的摄像机位置计算（投影到 XZ 平面） */
+        FROM_CURRENT_POSITION,
+        /** 使用用户指定的数值 */
+        ABSOLUTE
+    }
+    
     private Vec3d center;       // 围绕中心
     private Vec3d lookAt;       // 注视点（通常 = center）
     
     private float radius;       // 半径（方块数）
+    private RadiusMode radiusMode = RadiusMode.FROM_CURRENT_POSITION;  // 半径模式（默认从当前位置计算）
     private HeightMode heightMode = HeightMode.ABSOLUTE;  // 高度模式
     private float height;       // 摄像机高度（Y，仅在 ABSOLUTE 模式下使用）
     private Float cachedHeight = null;  // 缓存的当前高度（KEEP_CURRENT 模式使用）
@@ -182,6 +193,14 @@ public class OrbitPathClip extends CameraPathClip {
         this.radius = Math.max(0.1f, radius);
     }
     
+    public RadiusMode getRadiusMode() {
+        return radiusMode;
+    }
+    
+    public void setRadiusMode(RadiusMode radiusMode) {
+        this.radiusMode = radiusMode != null ? radiusMode : RadiusMode.FROM_CURRENT_POSITION;
+    }
+    
     public HeightMode getHeightMode() {
         return heightMode;
     }
@@ -269,10 +288,6 @@ public class OrbitPathClip extends CameraPathClip {
      */
     @Override
     public void onEnter(CameraPathEnterContext ctx) {
-        if (!alignStartToCurrentPosition) {
-            return;
-        }
-        
         if (ctx == null || ctx.position == null) {
             return;
         }
@@ -280,12 +295,39 @@ public class OrbitPathClip extends CameraPathClip {
         Vec3d pos = ctx.position;
         Vec3d c = center;
         
-        // 计算当前位置在圆上的相位角
+        // ⭐ 计算当前位置到中心的距离（投影到 XZ 平面）
         double dx = pos.x - c.x;
         double dz = pos.z - c.z;
+        double distSq = dx * dx + dz * dz;
+        double dist = Math.sqrt(distSq);
+        
+        // ⭐ 如果半径模式是 FROM_CURRENT_POSITION，从当前位置计算半径
+        if (radiusMode == RadiusMode.FROM_CURRENT_POSITION) {
+            if (dist > 1e-3) {
+                // 投影到 XZ 平面的距离作为半径
+                float newRadius = (float) dist;
+                setRadius(newRadius);
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("[OrbitPathClip] onEnter() 从当前位置计算半径: {} blocks (距离中心: {:.2f})", 
+                        newRadius, dist);
+                }
+            } else {
+                // 如果摄像机在中心点，使用默认半径
+                if (radius < 0.1f) {
+                    setRadius(8.0f);  // 默认 8 格
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.debug("[OrbitPathClip] onEnter() 摄像机在中心点，使用默认半径: 8.0 blocks");
+                    }
+                }
+            }
+        }
+        
+        // ⭐ 如果启用了角度对齐，计算起始角度
+        if (!alignStartToCurrentPosition) {
+            return;
+        }
         
         // 防止半径为 0 或刚好在中心（无法确定角度）
-        double distSq = dx * dx + dz * dz;
         if (distSq < 1e-6) {
             // 如果摄像机在中心点，无法确定角度，保持原值
             return;
@@ -350,6 +392,8 @@ public class OrbitPathClip extends CameraPathClip {
         copy.setStartAngle(startAngle);
         copy.setEndAngle(endAngle);
         copy.setClockwise(clockwise);
+        copy.setRadiusMode(radiusMode);
+        copy.setRadius(radius);
         copy.setHeightMode(heightMode);
         copy.setHeight(height);
         if (cachedHeight != null) {

@@ -275,38 +275,66 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
         boolean modified = false;
         
         if (ImGui.collapsingHeader(Icons.SCALE + " 运动形态", ImGuiTreeNodeFlags.DefaultOpen)) {
-            // Radius（Slider + 数值）
+            // Radius（模式选择 + Slider）
             ImGui.text("Radius");
-            boolean radiusSliderChanged = ImGui.sliderFloat("##radius", radiusFloat.getData(), 0.1f, 100f, "%.1f blocks");
-            boolean isRadiusSliderActive = ImGui.isItemActive();
             
-            if (radiusSliderChanged) {
-                clip.setRadius(radiusFloat.get());
-                // ⭐ 性能优化：只在拖动结束时才标记为已修改（触发 markDirty）
-                // 如果滑动条正在被拖动，不标记为 modified，避免频繁触发 markDirty()
-                if (!isRadiusSliderActive) {
+            // ⭐ 半径模式选择（From Current Position / Custom Radius）
+            com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip.RadiusMode radiusMode = clip.getRadiusMode();
+            boolean isFromCurrent = radiusMode == com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip.RadiusMode.FROM_CURRENT_POSITION;
+            
+            if (ImGui.radioButton("From Current Camera Position", isFromCurrent)) {
+                if (!isFromCurrent) {
+                    clip.setRadiusMode(com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip.RadiusMode.FROM_CURRENT_POSITION);
+                    modified = true;
+                }
+            }
+            ImGui.sameLine();
+            if (ImGui.radioButton("Custom Radius", !isFromCurrent)) {
+                if (isFromCurrent) {
+                    clip.setRadiusMode(com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip.RadiusMode.ABSOLUTE);
                     modified = true;
                 }
             }
             
-            // ⭐ 检测拖动结束：从 active 变为 inactive
-            if (wasRadiusSliderActive && !isRadiusSliderActive) {
-                modified = true; // 拖动结束，标记为已修改
-            }
-            wasRadiusSliderActive = isRadiusSliderActive;
-            ImGui.sameLine();
-            if (ImGui.button("+1##radius")) {
-                float newRadius = radiusFloat.get() + 1;
-                clip.setRadius(newRadius);
-                radiusFloat.set(newRadius);
-                modified = true;
-            }
-            ImGui.sameLine();
-            if (ImGui.button("-1##radius")) {
-                float newRadius = Math.max(0.1f, radiusFloat.get() - 1);
-                clip.setRadius(newRadius);
-                radiusFloat.set(newRadius);
-                modified = true;
+            // ⭐ 只有在 Custom Radius 模式下才显示滑动条
+            if (!isFromCurrent) {
+                boolean radiusSliderChanged = ImGui.sliderFloat("##radius", radiusFloat.getData(), 0.1f, 100f, "%.1f blocks");
+                boolean isRadiusSliderActive = ImGui.isItemActive();
+                
+                if (radiusSliderChanged) {
+                    clip.setRadius(radiusFloat.get());
+                    // ⭐ 性能优化：只在拖动结束时才标记为已修改（触发 markDirty）
+                    // 如果滑动条正在被拖动，不标记为 modified，避免频繁触发 markDirty()
+                    if (!isRadiusSliderActive) {
+                        modified = true;
+                    }
+                }
+                
+                // ⭐ 检测拖动结束：从 active 变为 inactive
+                if (wasRadiusSliderActive && !isRadiusSliderActive) {
+                    modified = true; // 拖动结束，标记为已修改
+                }
+                wasRadiusSliderActive = isRadiusSliderActive;
+                ImGui.sameLine();
+                if (ImGui.button("+1##radius")) {
+                    float newRadius = radiusFloat.get() + 1;
+                    clip.setRadius(newRadius);
+                    radiusFloat.set(newRadius);
+                    modified = true;
+                }
+                ImGui.sameLine();
+                if (ImGui.button("-1##radius")) {
+                    float newRadius = Math.max(0.1f, radiusFloat.get() - 1);
+                    clip.setRadius(newRadius);
+                    radiusFloat.set(newRadius);
+                    modified = true;
+                }
+            } else {
+                // ⭐ From Current Position 模式：显示当前半径值（只读）
+                ImGui.textDisabled(String.format("Radius: %.2f blocks (从进入时的摄像机位置计算)", clip.getRadius()));
+                if (ImGui.isItemHovered()) {
+                    ImGui.setTooltip("半径会在进入 PathClip 时自动从当前摄像机位置计算");
+                }
             }
             
             UITheme.spacingSmall();
