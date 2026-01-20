@@ -1,6 +1,7 @@
 package com.chronoblocks.ui.properties.adapters;
 
 import com.chronoblocks.ui.properties.IPropertyAdapter;
+import com.chronoblocks.ui.theme.Icons;
 import com.chronoblocks.ui.timeline.container.ContainerTimelineService;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.camera.path.CameraPathEnterContext;
@@ -109,12 +110,12 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
     // ========== UI Sections ==========
     
     /**
-     * Header: 🎥 Camera Path · CRANE
+     * Header: Camera Path · CRANE
      * Vertical Move
      */
     private void renderHeader(CranePathClip clip) {
         // 第一行：类型标识（突出显示）
-        ImGui.text("🎥 Camera Path");
+        ImGui.text(Icons.CAMERA + " Camera Path");
         ImGui.sameLine();
         ImGui.text("· CRANE");
         
@@ -154,13 +155,13 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
         
         if (ImGui.collapsingHeader("Motion", ImGuiTreeNodeFlags.DefaultOpen)) {
             // ⭐ 方向提示：在 slider 上方显示升降语义
-            ImGui.textDisabled("↓ Down");
+            ImGui.textDisabled(Icons.ARROW_DOWN + " Down");
             ImGui.sameLine();
             
             // 计算可用宽度，使 slider 居中
             float availableWidth = ImGui.getContentRegionAvailX();
-            float leftTextWidth = ImGui.calcTextSize("↓ Down").x;
-            float rightTextWidth = ImGui.calcTextSize("Up ↑").x;
+            float leftTextWidth = ImGui.calcTextSize(Icons.ARROW_DOWN + " Down").x;
+            float rightTextWidth = ImGui.calcTextSize("Up " + Icons.ARROW_UP).x;
             float spacing = 10f; // 左右间距
             
             // 计算 slider 的起始位置（居中）
@@ -189,7 +190,7 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
             
             // 右侧方向提示
             ImGui.sameLine();
-            ImGui.textDisabled("Up ↑");
+            ImGui.textDisabled("Up " + Icons.ARROW_UP);
             
             // ⭐ 解释性文本：强调 Crane 的构图稳定性
             ImGui.spacing();

@@ -1,6 +1,7 @@
 package com.chronoblocks.ui.properties.adapters;
 
 import com.chronoblocks.ui.properties.IPropertyAdapter;
+import com.chronoblocks.ui.theme.Icons;
 import com.chronoblocks.ui.timeline.container.ContainerTimelineService;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.camera.path.CameraPathEnterContext;
@@ -117,12 +118,12 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
     // ========== UI Sections ==========
     
     /**
-     * Header: 🎥 Camera Path · DOLLY
+     * Header: Camera Path · DOLLY
      * Push / Pull
      */
     private void renderHeader(DollyPathClip clip) {
         // 第一行：类型标识（突出显示）
-        ImGui.text("🎥 Camera Path");
+        ImGui.text(Icons.CAMERA + " Camera Path");
         ImGui.sameLine();
         ImGui.text("· DOLLY");
         
@@ -162,13 +163,13 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
         
         if (ImGui.collapsingHeader("Motion", ImGuiTreeNodeFlags.DefaultOpen)) {
             // ⭐ 方向提示：在 slider 上方显示方向语义
-            ImGui.textDisabled("← Pull Back");
+            ImGui.textDisabled(Icons.ARROW_LEFT + " Pull Back");
             ImGui.sameLine();
             
             // 计算可用宽度，使 slider 居中
             float availableWidth = ImGui.getContentRegionAvailX();
-            float leftTextWidth = ImGui.calcTextSize("← Pull Back").x;
-            float rightTextWidth = ImGui.calcTextSize("Push In →").x;
+            float leftTextWidth = ImGui.calcTextSize(Icons.ARROW_LEFT + " Pull Back").x;
+            float rightTextWidth = ImGui.calcTextSize("Push In " + Icons.ARROW_RIGHT).x;
             float spacing = 10f; // 左右间距
             
             // 计算 slider 的起始位置（居中）
@@ -197,7 +198,7 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
             
             // 右侧方向提示
             ImGui.sameLine();
-            ImGui.textDisabled("Push In →");
+            ImGui.textDisabled("Push In " + Icons.ARROW_RIGHT);
             
             // ⭐ 微调提示：告诉用户如何精确调整
             ImGui.textDisabled("Tip: Hold Ctrl for fine adjustment");
@@ -217,7 +218,7 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
             DollyPathClip.DirectionMode mode = clip.getDirectionMode();
             
             // ⭐ 语义化选项 1：沿镜头朝向（最常用，标记为推荐）
-            if (ImGui.radioButton("● Along Camera View (Recommended)", mode == DollyPathClip.DirectionMode.CAMERA_FORWARD)) {
+            if (ImGui.radioButton(Icons.DOT + " Along Camera View (Recommended)", mode == DollyPathClip.DirectionMode.CAMERA_FORWARD)) {
                 if (mode != DollyPathClip.DirectionMode.CAMERA_FORWARD) {
                     clip.setDirectionMode(DollyPathClip.DirectionMode.CAMERA_FORWARD);
                     modified = true;
@@ -228,7 +229,7 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
             }
             
             // ⭐ 语义化选项 2：向焦点推拉
-            if (ImGui.radioButton("○ Towards Focus Point", mode == DollyPathClip.DirectionMode.TOWARDS_TARGET)) {
+            if (ImGui.radioButton(Icons.CHECK_CIRCLE + " Towards Focus Point", mode == DollyPathClip.DirectionMode.TOWARDS_TARGET)) {
                 if (mode != DollyPathClip.DirectionMode.TOWARDS_TARGET) {
                     clip.setDirectionMode(DollyPathClip.DirectionMode.TOWARDS_TARGET);
                     modified = true;
@@ -239,7 +240,7 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
             }
             
             // ⭐ 语义化选项 3：自定义方向（高级，默认折叠）
-            if (ImGui.radioButton("○ Custom World Direction (Advanced)", mode == DollyPathClip.DirectionMode.FIXED_DIRECTION)) {
+            if (ImGui.radioButton(Icons.CHECK_CIRCLE + " Custom World Direction (Advanced)", mode == DollyPathClip.DirectionMode.FIXED_DIRECTION)) {
                 if (mode != DollyPathClip.DirectionMode.FIXED_DIRECTION) {
                     clip.setDirectionMode(DollyPathClip.DirectionMode.FIXED_DIRECTION);
                     modified = true;
