@@ -12,6 +12,7 @@ import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImFloat;
 import net.minecraft.util.math.Vec3d;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -216,22 +217,9 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
                 LOGGER.warn("[CranePathClipPropertyAdapter] 无法获取当前摄像机状态，无法对齐");
                 return;
             }
-            
-            Vec3d currentPos = currentSample.position();
-            
-            // 从 yaw/pitch 计算 lookAt
-            double yawRad = Math.toRadians(currentSample.yaw());
-            double pitchRad = Math.toRadians(currentSample.pitch());
-            double cosPitch = Math.cos(pitchRad);
-            Vec3d currentLookAt = currentPos.add(
-                -Math.sin(yawRad) * cosPitch * 10.0,
-                -Math.sin(pitchRad) * 10.0,
-                Math.cos(yawRad) * cosPitch * 10.0
-            );
-            
-            // 构造 CameraPathEnterContext
-            CameraPathEnterContext ctx = new CameraPathEnterContext(currentPos, currentLookAt);
-            
+
+            CameraPathEnterContext ctx = getCameraPathEnterContext(currentSample);
+
             // 调用对齐方法
             clip.onEnter(ctx);
             
@@ -243,7 +231,24 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
             LOGGER.error("[CranePathClipPropertyAdapter] 对齐时发生错误", e);
         }
     }
-    
+
+    private static @NotNull CameraPathEnterContext getCameraPathEnterContext(CameraSample currentSample) {
+        Vec3d currentPos = currentSample.position();
+
+        // 从 yaw/pitch 计算 lookAt
+        double yawRad = Math.toRadians(currentSample.yaw());
+        double pitchRad = Math.toRadians(currentSample.pitch());
+        double cosPitch = Math.cos(pitchRad);
+        Vec3d currentLookAt = currentPos.add(
+            -Math.sin(yawRad) * cosPitch * 10.0,
+            -Math.sin(pitchRad) * 10.0,
+            Math.cos(yawRad) * cosPitch * 10.0
+        );
+
+        // 构造 CameraPathEnterContext
+        return new CameraPathEnterContext(currentPos, currentLookAt);
+    }
+
     /**
      * ⭐ 检查播放头是否在当前 clip 的时间范围内
      */
@@ -271,10 +276,7 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
             }
             
             TimelineCameraController controller = TimelineCameraController.getInstance();
-            if (controller == null) {
-                return;
-            }
-            
+
             float currentTime = timelineModel.getCurrentTime();
             controller.previewAt(currentTime);
             

@@ -23,6 +23,9 @@ import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
 import com.chronoblocks.ui.timeline.model.audio.AudioEvent;
+import com.chronoblocks.ui.timeline.model.camera.path.CranePathClip;
+import com.chronoblocks.ui.timeline.model.camera.path.DollyPathClip;
+import com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip;
 import com.chronoblocks.ui.timeline.model.entity.EntityActionClip;
 import com.chronoblocks.ui.timeline.model.entity.EntityAnimationClip;
 import com.chronoblocks.ui.timeline.model.entity.EntityClip;
@@ -35,6 +38,7 @@ import com.chronoblocks.ui.timeline.model.entity.EntityTrack;
 import com.chronoblocks.ui.timeline.model.entity.EntityTransformClip;
 import com.chronoblocks.ui.timeline.model.weather.WeatherKeyframe;
 import com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController;
+import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -614,30 +618,8 @@ public class TimelineContextMenuFactory {
                                 float duration = 5.0f; // 默认 5 秒
                                 
                                 // 获取当前摄像机位置作为中心点（如果可能）
-                                net.minecraft.util.math.Vec3d center = net.minecraft.util.math.Vec3d.ZERO;
-                                float height = 64.0f; // 默认高度
-                                float radius = 10.0f; // 默认半径 10 方块
-                                
-                                // 尝试从当前摄像机状态获取位置
-                                com.chronoblocks.ui.timeline.playback.camera.CameraRuntime runtime = 
-                                    com.chronoblocks.ui.timeline.playback.camera.CameraRuntime.getInstance();
-                                com.chronoblocks.ui.timeline.playback.camera.CameraSample currentSample = runtime.getCurrentSample();
-                                if (currentSample != null) {
-                                    center = currentSample.position();
-                                    height = (float) center.y;
-                                }
-                                
-                                // 创建 Orbit Path Clip
-                                com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip orbitClip = 
-                                    new com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip(
-                                        "围绕路径 @" + formatTime(currentTime),
-                                        currentTime,
-                                        currentTime + duration,
-                                        center,
-                                        radius,
-                                        height
-                                    );
-                                
+                                OrbitPathClip orbitClip = getOrbitPathClip(currentTime, duration);
+
                                 // ⭐ 性能优化：使用命令系统，避免直接调用 markDirty() 导致重复触发模型变更通知
                                 com.chronoblocks.ui.timeline.commands.AddPathClipCommand cmd = 
                                     new com.chronoblocks.ui.timeline.commands.AddPathClipCommand(model, track, orbitClip);
@@ -651,22 +633,8 @@ public class TimelineContextMenuFactory {
                             .item("创建推拉路径 (Dolly)", () -> {
                                 // 创建 Dolly Path Clip
                                 float currentTime = model.getCurrentTime();
-                                float duration = 5.0f; // 默认 5 秒
-                                
-                                // 创建 Dolly Path Clip
-                                com.chronoblocks.ui.timeline.model.camera.path.DollyPathClip dollyClip = 
-                                    new com.chronoblocks.ui.timeline.model.camera.path.DollyPathClip(
-                                        "推拉路径 @" + formatTime(currentTime),
-                                        currentTime,
-                                        currentTime + duration
-                                    );
-                                
-                                // 设置默认参数
-                                dollyClip.setDistance(5.0f); // 默认推拉距离 5 方块
-                                dollyClip.setDirectionMode(
-                                    com.chronoblocks.ui.timeline.model.camera.path.DollyPathClip.DirectionMode.CAMERA_FORWARD
-                                );
-                                
+                                DollyPathClip dollyClip = getDollyPathClip(currentTime);
+
                                 // ⭐ 性能优化：使用命令系统
                                 com.chronoblocks.ui.timeline.commands.AddPathClipCommand cmd = 
                                     new com.chronoblocks.ui.timeline.commands.AddPathClipCommand(model, track, dollyClip);
@@ -680,19 +648,8 @@ public class TimelineContextMenuFactory {
                             .item("创建升降路径 (Crane)", () -> {
                                 // 创建 Crane Path Clip
                                 float currentTime = model.getCurrentTime();
-                                float duration = 5.0f; // 默认 5 秒
-                                
-                                // 创建 Crane Path Clip
-                                com.chronoblocks.ui.timeline.model.camera.path.CranePathClip craneClip = 
-                                    new com.chronoblocks.ui.timeline.model.camera.path.CranePathClip(
-                                        "升降路径 @" + formatTime(currentTime),
-                                        currentTime,
-                                        currentTime + duration
-                                    );
-                                
-                                // 设置默认参数
-                                craneClip.setHeightDelta(10.0f); // 默认高度变化 10 方块（上升）
-                                
+                                CranePathClip craneClip = getCranePathClip(currentTime);
+
                                 // ⭐ 性能优化：使用命令系统
                                 com.chronoblocks.ui.timeline.commands.AddPathClipCommand cmd = 
                                     new com.chronoblocks.ui.timeline.commands.AddPathClipCommand(model, track, craneClip);
@@ -786,6 +743,66 @@ public class TimelineContextMenuFactory {
                         .end();
             default -> { /* no-op */ }
         }
+    }
+
+    private @NotNull CranePathClip getCranePathClip(float currentTime) {
+        float duration = 5.0f; // 默认 5 秒
+
+        // 创建 Crane Path Clip
+        CranePathClip craneClip =
+            new CranePathClip(
+                "升降路径 @" + formatTime(currentTime),
+                    currentTime,
+                currentTime + duration
+            );
+
+        // 设置默认参数
+        craneClip.setHeightDelta(10.0f); // 默认高度变化 10 方块（上升）
+        return craneClip;
+    }
+
+    private @NotNull DollyPathClip getDollyPathClip(float currentTime) {
+        float duration = 5.0f; // 默认 5 秒
+
+        // 创建 Dolly Path Clip
+        DollyPathClip dollyClip =
+            new DollyPathClip(
+                "推拉路径 @" + formatTime(currentTime),
+                    currentTime,
+                currentTime + duration
+            );
+
+        // 设置默认参数
+        dollyClip.setDistance(5.0f); // 默认推拉距离 5 方块
+        dollyClip.setDirectionMode(
+            DollyPathClip.DirectionMode.CAMERA_FORWARD
+        );
+        return dollyClip;
+    }
+
+    private @NotNull OrbitPathClip getOrbitPathClip(float currentTime, float duration) {
+        net.minecraft.util.math.Vec3d center = net.minecraft.util.math.Vec3d.ZERO;
+        float height = 64.0f; // 默认高度
+        float radius = 10.0f; // 默认半径 10 方块
+
+        // 尝试从当前摄像机状态获取位置
+        com.chronoblocks.ui.timeline.playback.camera.CameraRuntime runtime =
+            com.chronoblocks.ui.timeline.playback.camera.CameraRuntime.getInstance();
+        com.chronoblocks.ui.timeline.playback.camera.CameraSample currentSample = runtime.getCurrentSample();
+        if (currentSample != null) {
+            center = currentSample.position();
+            height = (float) center.y;
+        }
+
+        // 创建 Orbit Path Clip
+        return new OrbitPathClip(
+            "围绕路径 @" + formatTime(currentTime),
+                currentTime,
+            currentTime + duration,
+            center,
+            radius,
+            height
+        );
     }
 
     private void addEntityClip(TimelineTrack track, EntityClip clip) {

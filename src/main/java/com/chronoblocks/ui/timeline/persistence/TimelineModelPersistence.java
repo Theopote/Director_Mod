@@ -575,7 +575,7 @@ public class TimelineModelPersistence {
 
         TimelineAudioService audioService = TimelineAudioService.getInstance();
         boolean prevSuppress = audioService.isSuppressAutoCreate();
-        boolean loaded = false;
+        boolean loaded;
         audioService.setSuppressAutoCreate(true);
         try {
         
@@ -927,9 +927,7 @@ public class TimelineModelPersistence {
                                 
                                 pathClip = crane;
                             }
-                            default -> {
-                                LOGGER.warn("[TimelineModelPersistence] 未知的 PathClip 类型: {}", pathClipDTO.type);
-                            }
+                            default -> LOGGER.warn("[TimelineModelPersistence] 未知的 PathClip 类型: {}", pathClipDTO.type);
                         }
                         
                         if (pathClip != null) {

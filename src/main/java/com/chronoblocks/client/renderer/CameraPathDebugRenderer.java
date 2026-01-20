@@ -526,9 +526,6 @@ public final class CameraPathDebugRenderer {
      */
     private boolean hasOrbitPathsToRender() {
         TimelineCameraController controller = TimelineCameraController.getInstance();
-        if (controller == null) {
-            return false;
-        }
 
         TimelineTrack activeTrack = controller.getActiveCameraTrack();
         if (activeTrack == null || !activeTrack.hasCameraPathClips()) {
@@ -549,12 +546,6 @@ public final class CameraPathDebugRenderer {
      */
     private void renderPathClips(VertexConsumerProvider consumers, Matrix4f matrix, Vec3d cameraPos) {
         TimelineCameraController controller = TimelineCameraController.getInstance();
-        if (controller == null) {
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[CameraPathDebugRenderer] TimelineCameraController 为 null，跳过路径片段渲染");
-            }
-            return;
-        }
 
         TimelineTrack activeTrack = controller.getActiveCameraTrack();
         if (activeTrack == null) {

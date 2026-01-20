@@ -118,10 +118,8 @@ public class DollyPathClip extends CameraPathClip {
                 this.dollyDirection = normalizeSafe(dir);
             }
             
-            case FIXED_DIRECTION -> {
-                // 使用固定方向
-                this.dollyDirection = normalizeSafe(fixedDirection);
-            }
+            case FIXED_DIRECTION -> // 使用固定方向
+                    this.dollyDirection = normalizeSafe(fixedDirection);
         }
         
         // ③ 兜底（防止 NaN）
