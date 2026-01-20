@@ -221,21 +221,13 @@ public final class CameraTrackSampler {
             // 使用上一帧的摄像机状态作为进入上下文
             if (lastSample != null) {
                 // 从上一帧的 CameraSample 构造进入上下文
-                // 注意：CameraSample 只有 position，没有 lookAt，需要从 yaw/pitch 计算
+                // ⭐ 使用 yaw/pitch 构造函数，更精确且支持 CAMERA_FORWARD 模式
                 Vec3d lastPos = lastSample.position();
-
-                // 从 yaw/pitch 计算 lookAt（近似值）
-                // 这是一个简化实现，如果需要更精确的 lookAt，可以从 CameraRuntime 获取
-                double yawRad = Math.toRadians(lastSample.yaw());
-                double pitchRad = Math.toRadians(lastSample.pitch());
-                double cosPitch = Math.cos(pitchRad);
-                Vec3d lastLookAt = lastPos.add(
-                    -Math.sin(yawRad) * cosPitch * 10.0,  // 向前看 10 个单位
-                    -Math.sin(pitchRad) * 10.0,
-                    Math.cos(yawRad) * cosPitch * 10.0
+                CameraPathEnterContext ctx = new CameraPathEnterContext(
+                    lastPos, 
+                    lastSample.yaw(), 
+                    lastSample.pitch()
                 );
-
-                CameraPathEnterContext ctx = new CameraPathEnterContext(lastPos, lastLookAt);
                 activePathClip.onEnter(ctx);
             } else {
                 // 如果没有上一帧状态，尝试从 CameraRuntime 获取当前状态
@@ -244,16 +236,12 @@ public final class CameraTrackSampler {
                     CameraSample currentSample = runtime.getCurrentSample();
                     if (currentSample != null) {
                         Vec3d currentPos = currentSample.position();
-                        // 从 yaw/pitch 计算 lookAt（近似值）
-                        double yawRad = Math.toRadians(currentSample.yaw());
-                        double pitchRad = Math.toRadians(currentSample.pitch());
-                        double cosPitch = Math.cos(pitchRad);
-                        Vec3d currentLookAt = currentPos.add(
-                            -Math.sin(yawRad) * cosPitch * 10.0,
-                            -Math.sin(pitchRad) * 10.0,
-                            Math.cos(yawRad) * cosPitch * 10.0
+                        // ⭐ 使用 yaw/pitch 构造函数
+                        CameraPathEnterContext ctx = new CameraPathEnterContext(
+                            currentPos, 
+                            currentSample.yaw(), 
+                            currentSample.pitch()
                         );
-                        CameraPathEnterContext ctx = new CameraPathEnterContext(currentPos, currentLookAt);
                         activePathClip.onEnter(ctx);
                     }
                 } catch (Exception e) {
@@ -268,19 +256,77 @@ public final class CameraTrackSampler {
         if (activePathClip != null) {
             // 使用 Path Clip 计算位置和朝向
             CameraPathSample pathSample = activePathClip.sample(timeSeconds);
-            position = pathSample.getPosition();
             
-            // 从 lookAt 计算 yaw/pitch
-            Vec3d direction = pathSample.getDirection();
-            yaw = (float) Math.toDegrees(Math.atan2(-direction.x, direction.z));
-            pitch = (float) Math.toDegrees(Math.asin(-direction.y));
-            
-            // ⭐ 调试日志：确认 PathClip 采样成功
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("[CameraTrackSampler] 使用 PathClip 采样: {} @ {}s, pos=({:.2f}, {:.2f}, {:.2f}), lookAt=({:.2f}, {:.2f}, {:.2f})", 
-                    activePathClip.getClass().getSimpleName(), timeSeconds,
-                    position.x, position.y, position.z,
-                    pathSample.getLookAt().x, pathSample.getLookAt().y, pathSample.getLookAt().z);
+            // ⭐ 防御：如果 pathSample 为 null，fallback 到关键帧
+            if (pathSample == null) {
+                if (LOGGER.isWarnEnabled()) {
+                    LOGGER.warn("[CameraTrackSampler] PathClip.sample() 返回 null @ {}s，fallback 到关键帧", timeSeconds);
+                }
+                // Fallback 到关键帧采样
+                if (keyframes.isEmpty()) {
+                    lastActivePathClip = null;
+                    lastSample = null;
+                    return Optional.empty();
+                }
+                Optional<CameraSample> keyframeSample = pathManager.sample(timeSeconds);
+                if (keyframeSample.isEmpty()) {
+                    lastActivePathClip = null;
+                    lastSample = null;
+                    return Optional.empty();
+                }
+                CameraSample kfSample = keyframeSample.get();
+                position = kfSample.position();
+                yaw = kfSample.yaw();
+                pitch = kfSample.pitch();
+            } else {
+                position = pathSample.getPosition();
+                
+                // ⭐ 处理 lookAt 为 null 的情况（Dolly/Crane 保持构图）
+                if (pathSample.hasLookAt()) {
+                    // 有明确的 lookAt，从 lookAt 计算 yaw/pitch
+                    Vec3d direction = pathSample.getDirection();
+                    yaw = (float) Math.toDegrees(Math.atan2(-direction.x, direction.z));
+                    pitch = (float) Math.toDegrees(Math.asin(-direction.y));
+                } else {
+                    // lookAt 为 null，沿用上一帧或关键帧的朝向
+                    if (lastSample != null) {
+                        // 使用上一帧的朝向（保持构图）
+                        yaw = lastSample.yaw();
+                        pitch = lastSample.pitch();
+                    } else {
+                        // 如果没有上一帧，从关键帧获取朝向
+                        if (!keyframes.isEmpty()) {
+                            Optional<CameraSample> keyframeSample = pathManager.sample(timeSeconds);
+                            if (keyframeSample.isPresent()) {
+                                CameraSample kfSample = keyframeSample.get();
+                                yaw = kfSample.yaw();
+                                pitch = kfSample.pitch();
+                            } else {
+                                // 最后的 fallback：使用默认朝向
+                                yaw = 0f;
+                                pitch = 0f;
+                            }
+                        } else {
+                            yaw = 0f;
+                            pitch = 0f;
+                        }
+                    }
+                }
+                
+                // ⭐ 调试日志：确认 PathClip 采样成功
+                if (LOGGER.isDebugEnabled()) {
+                    if (pathSample.hasLookAt()) {
+                        Vec3d lookAt = pathSample.getLookAt();
+                        LOGGER.debug("[CameraTrackSampler] 使用 PathClip 采样: {} @ {}s, pos=({:.2f}, {:.2f}, {:.2f}), lookAt=({:.2f}, {:.2f}, {:.2f})", 
+                            activePathClip.getClass().getSimpleName(), timeSeconds,
+                            position.x, position.y, position.z,
+                            lookAt.x, lookAt.y, lookAt.z);
+                    } else {
+                        LOGGER.debug("[CameraTrackSampler] 使用 PathClip 采样: {} @ {}s, pos=({:.2f}, {:.2f}, {:.2f}), lookAt=null (沿用上一帧)", 
+                            activePathClip.getClass().getSimpleName(), timeSeconds,
+                            position.x, position.y, position.z);
+                    }
+                }
             }
         } else {
             // 使用关键帧插值计算位置和朝向

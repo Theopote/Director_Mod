@@ -10,6 +10,7 @@ import com.chronoblocks.ui.timeline.playback.camera.CameraSample;
 import com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
+import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 import net.minecraft.util.math.Vec3d;
 import org.jetbrains.annotations.NotNull;
@@ -42,6 +43,9 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
     private final ImFloat heightDeltaFloat = new ImFloat(0f);
     private CranePathClip lastClip = null;
     
+    // ⭐ 性能优化：跟踪滑动条拖动状态，避免拖动时频繁调用 markDirty()
+    private boolean wasHeightDeltaSliderActive = false;
+    
     @Override
     public Class<CranePathClip> getTargetType() {
         return CranePathClip.class;
@@ -64,6 +68,9 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
         if (clip != lastClip) {
             heightDeltaFloat.set(clip.getHeightDelta());
             lastClip = clip;
+            
+            // ⭐ 重置滑动条拖动状态（切换 clip 时）
+            wasHeightDeltaSliderActive = false;
         }
         
         boolean modified = false;
@@ -102,14 +109,17 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
     // ========== UI Sections ==========
     
     /**
-     * Header: Camera Path · CRANE · vertical move
+     * Header: 🎥 Camera Path · CRANE
+     * Vertical Move
      */
     private void renderHeader(CranePathClip clip) {
-        ImGui.textDisabled("Camera Path");
+        // 第一行：类型标识（突出显示）
+        ImGui.text("🎥 Camera Path");
         ImGui.sameLine();
-        ImGui.text("CRANE");
-        ImGui.sameLine();
-        ImGui.textDisabled("· vertical move");
+        ImGui.text("· CRANE");
+        
+        // 第二行：语义描述（稍小，灰色）
+        ImGui.textDisabled("Vertical Move");
     }
     
     /**
@@ -137,21 +147,49 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
     
     /**
      * Motion: 核心语义参数（Height Delta）
+     * 增强升降语义：↓ Down     Height (blocks)     Up ↑
      */
     private boolean renderMotionSection(CranePathClip clip) {
         boolean modified = false;
         
         if (ImGui.collapsingHeader("Motion", ImGuiTreeNodeFlags.DefaultOpen)) {
-            if (ImGui.sliderFloat("Height Change (blocks)", heightDeltaFloat.getData(), -32f, 32f, "%.1f")) {
+            // ⭐ 方向提示：在 slider 上方显示升降语义
+            ImGui.textDisabled("↓ Down");
+            ImGui.sameLine();
+            
+            // 计算可用宽度，使 slider 居中
+            float availableWidth = ImGui.getContentRegionAvailX();
+            float leftTextWidth = ImGui.calcTextSize("↓ Down").x;
+            float rightTextWidth = ImGui.calcTextSize("Up ↑").x;
+            float spacing = 10f; // 左右间距
+            
+            // 计算 slider 的起始位置（居中）
+            float sliderStartX = ImGui.getCursorPosX() + (availableWidth - leftTextWidth - rightTextWidth - spacing * 2) / 2f;
+            ImGui.setCursorPosX(sliderStartX);
+            
+            // Slider（使用更语义化的 label）
+            String sliderLabel = "Height (blocks)";
+            boolean heightDeltaSliderChanged = ImGui.sliderFloat(sliderLabel, heightDeltaFloat.getData(), -32f, 32f, "%.1f");
+            boolean isHeightDeltaSliderActive = ImGui.isItemActive();
+            
+            if (heightDeltaSliderChanged) {
                 clip.setHeightDelta(heightDeltaFloat.get());
-                modified = true;
+                // ⭐ 性能优化：只在拖动结束时才标记为已修改（触发 markDirty）
+                // 如果滑动条正在被拖动，不标记为 modified，避免频繁触发 markDirty()
+                if (!isHeightDeltaSliderActive) {
+                    modified = true;
+                }
             }
             
-            ImGui.textDisabled(
-                heightDeltaFloat.get() >= 0
-                    ? "Positive = move up"
-                    : "Negative = move down"
-            );
+            // ⭐ 检测拖动结束：从 active 变为 inactive
+            if (wasHeightDeltaSliderActive && !isHeightDeltaSliderActive) {
+                modified = true; // 拖动结束，标记为已修改
+            }
+            wasHeightDeltaSliderActive = isHeightDeltaSliderActive;
+            
+            // 右侧方向提示
+            ImGui.sameLine();
+            ImGui.textDisabled("Up ↑");
         }
         
         return modified;
@@ -164,9 +202,9 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
         boolean modified = false;
         
         if (ImGui.collapsingHeader("Advanced", ImGuiTreeNodeFlags.None)) {
-            boolean alignStart = clip.isAlignStartToCurrentPosition();
-            if (ImGui.checkbox("Align start to current camera", alignStart)) {
-                clip.setAlignStartToCurrentPosition(!alignStart);
+            ImBoolean align = new ImBoolean(clip.isAlignStartToCurrentPosition());
+            if (ImGui.checkbox("Align start to current camera", align)) {
+                clip.setAlignStartToCurrentPosition(align.get());
                 modified = true;
             }
             if (ImGui.isItemHovered()) {
@@ -234,19 +272,8 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
 
     private static @NotNull CameraPathEnterContext getCameraPathEnterContext(CameraSample currentSample) {
         Vec3d currentPos = currentSample.position();
-
-        // 从 yaw/pitch 计算 lookAt
-        double yawRad = Math.toRadians(currentSample.yaw());
-        double pitchRad = Math.toRadians(currentSample.pitch());
-        double cosPitch = Math.cos(pitchRad);
-        Vec3d currentLookAt = currentPos.add(
-            -Math.sin(yawRad) * cosPitch * 10.0,
-            -Math.sin(pitchRad) * 10.0,
-            Math.cos(yawRad) * cosPitch * 10.0
-        );
-
-        // 构造 CameraPathEnterContext
-        return new CameraPathEnterContext(currentPos, currentLookAt);
+        // ⭐ 使用 yaw/pitch 构造函数，更精确且支持 CAMERA_FORWARD 模式
+        return new CameraPathEnterContext(currentPos, currentSample.yaw(), currentSample.pitch());
     }
 
     /**

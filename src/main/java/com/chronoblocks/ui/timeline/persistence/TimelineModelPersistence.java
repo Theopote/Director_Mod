@@ -19,6 +19,7 @@ import com.chronoblocks.ui.timeline.model.audio.AudioEvent;
 import com.chronoblocks.ui.timeline.model.audio.AudioTrack;
 import com.chronoblocks.ui.timeline.model.audio.AudioTimelineClip;
 import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
+import com.chronoblocks.ui.timeline.model.camera.path.CranePathClip;
 import com.chronoblocks.ui.timeline.model.clip.ClipKeyframe;
 import com.chronoblocks.ui.timeline.model.season.SeasonKeyframe;
 import com.chronoblocks.ui.timeline.model.time.TimeKeyframe;
@@ -915,16 +916,8 @@ public class TimelineModelPersistence {
                                 pathClip = dolly;
                             }
                             case "CRANE" -> {
-                                com.chronoblocks.ui.timeline.model.camera.path.CranePathClip crane = 
-                                    new com.chronoblocks.ui.timeline.model.camera.path.CranePathClip(
-                                        pathClipDTO.name != null ? pathClipDTO.name : "Crane Path",
-                                        pathClipDTO.startTime,
-                                        pathClipDTO.endTime
-                                    );
-                                
-                                if (pathClipDTO.heightDelta != null) crane.setHeightDelta(pathClipDTO.heightDelta);
-                                if (pathClipDTO.alignStartToCurrentPosition != null) crane.setAlignStartToCurrentPosition(pathClipDTO.alignStartToCurrentPosition);
-                                
+                                CranePathClip crane = getCranePathClip(pathClipDTO);
+
                                 pathClip = crane;
                             }
                             default -> LOGGER.warn("[TimelineModelPersistence] 未知的 PathClip 类型: {}", pathClipDTO.type);
@@ -953,6 +946,19 @@ public class TimelineModelPersistence {
             audioService.setTimelineModel(model);
         }
 }
+
+    private static @NotNull CranePathClip getCranePathClip(PathClipDTO pathClipDTO) {
+        CranePathClip crane = 
+            new CranePathClip(
+                pathClipDTO.name != null ? pathClipDTO.name : "Crane Path",
+                pathClipDTO.startTime,
+                pathClipDTO.endTime
+            );
+
+        if (pathClipDTO.heightDelta != null) crane.setHeightDelta(pathClipDTO.heightDelta);
+        if (pathClipDTO.alignStartToCurrentPosition != null) crane.setAlignStartToCurrentPosition(pathClipDTO.alignStartToCurrentPosition);
+        return crane;
+    }
 
     private static TrackType resolveTrackType(TrackDTO trackDTO) {
         if (trackDTO == null) {

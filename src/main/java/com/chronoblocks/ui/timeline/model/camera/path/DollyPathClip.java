@@ -107,19 +107,23 @@ public class DollyPathClip extends CameraPathClip {
         // ② 决定 Dolly 方向
         switch (directionMode) {
             case CAMERA_FORWARD -> {
-                // 使用当前摄像机朝向
-                Vec3d forward = ctx.lookAt.subtract(ctx.position);
+                // ⭐ 使用当前摄像机的 forward 方向（镜头朝向）
+                // 从 yaw/pitch 计算 forward 向量，而不是从 lookAt
+                Vec3d forward = ctx.getForward();
                 this.dollyDirection = normalizeSafe(forward);
             }
             
             case TOWARDS_TARGET -> {
-                // 沿着 LookAt → Camera 的方向（向主体推近/拉远）
-                Vec3d dir = ctx.lookAt.subtract(ctx.position);
+                // ⭐ 沿着 LookAt → Camera 的方向（向主体推近/拉远）
+                // 这是从目标点指向摄像机的方向，与镜头朝向可能不同
+                Vec3d dir = ctx.position.subtract(ctx.lookAt); // 注意：是 position - lookAt（向主体）
                 this.dollyDirection = normalizeSafe(dir);
             }
             
-            case FIXED_DIRECTION -> // 使用固定方向
-                    this.dollyDirection = normalizeSafe(fixedDirection);
+            case FIXED_DIRECTION -> {
+                // 使用固定方向
+                this.dollyDirection = normalizeSafe(fixedDirection);
+            }
         }
         
         // ③ 兜底（防止 NaN）

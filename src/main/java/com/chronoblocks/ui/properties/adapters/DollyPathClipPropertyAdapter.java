@@ -10,6 +10,7 @@ import com.chronoblocks.ui.timeline.playback.camera.CameraSample;
 import com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
+import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 import net.minecraft.util.math.Vec3d;
 import org.jetbrains.annotations.NotNull;
@@ -42,6 +43,9 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
     private final ImFloat[] fixedDirectionArr = new ImFloat[]{new ImFloat(0f), new ImFloat(0f), new ImFloat(1f)};
     private DollyPathClip lastClip = null;
     
+    // ⭐ 性能优化：跟踪滑动条拖动状态，避免拖动时频繁调用 markDirty()
+    private boolean wasDistanceSliderActive = false;
+    
     @Override
     public Class<DollyPathClip> getTargetType() {
         return DollyPathClip.class;
@@ -68,6 +72,9 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
             fixedDirectionArr[1].set((float) fixedDir.y);
             fixedDirectionArr[2].set((float) fixedDir.z);
             lastClip = clip;
+            
+            // ⭐ 重置滑动条拖动状态（切换 clip 时）
+            wasDistanceSliderActive = false;
         }
         
         boolean modified = false;
@@ -110,14 +117,17 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
     // ========== UI Sections ==========
     
     /**
-     * Header: Camera Path · DOLLY · push / pull
+     * Header: 🎥 Camera Path · DOLLY
+     * Push / Pull
      */
     private void renderHeader(DollyPathClip clip) {
-        ImGui.textDisabled("Camera Path");
+        // 第一行：类型标识（突出显示）
+        ImGui.text("🎥 Camera Path");
         ImGui.sameLine();
-        ImGui.text("DOLLY");
-        ImGui.sameLine();
-        ImGui.textDisabled("· push / pull");
+        ImGui.text("· DOLLY");
+        
+        // 第二行：语义描述（稍小，灰色）
+        ImGui.textDisabled("Push / Pull");
     }
     
     /**
@@ -145,28 +155,57 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
     
     /**
      * Motion: 核心语义参数（Distance）
+     * 添加方向视觉提示：← Pull Back     Distance (blocks)     Push In →
      */
     private boolean renderMotionSection(DollyPathClip clip) {
         boolean modified = false;
         
         if (ImGui.collapsingHeader("Motion", ImGuiTreeNodeFlags.DefaultOpen)) {
-            if (ImGui.sliderFloat("Distance (blocks)", distanceFloat.getData(), -32f, 32f, "%.1f")) {
+            // ⭐ 方向提示：在 slider 上方显示方向语义
+            ImGui.textDisabled("← Pull Back");
+            ImGui.sameLine();
+            
+            // 计算可用宽度，使 slider 居中
+            float availableWidth = ImGui.getContentRegionAvailX();
+            float leftTextWidth = ImGui.calcTextSize("← Pull Back").x;
+            float rightTextWidth = ImGui.calcTextSize("Push In →").x;
+            float spacing = 10f; // 左右间距
+            
+            // 计算 slider 的起始位置（居中）
+            float sliderStartX = ImGui.getCursorPosX() + (availableWidth - leftTextWidth - rightTextWidth - spacing * 2) / 2f;
+            ImGui.setCursorPosX(sliderStartX);
+            
+            // Slider（使用隐藏的 label，实际显示在 slider 内部）
+            String sliderLabel = "Distance (blocks)";
+            boolean distanceSliderChanged = ImGui.sliderFloat(sliderLabel, distanceFloat.getData(), -32f, 32f, "%.1f");
+            boolean isDistanceSliderActive = ImGui.isItemActive();
+            
+            if (distanceSliderChanged) {
                 clip.setDistance(distanceFloat.get());
-                modified = true;
+                // ⭐ 性能优化：只在拖动结束时才标记为已修改（触发 markDirty）
+                // 如果滑动条正在被拖动，不标记为 modified，避免频繁触发 markDirty()
+                if (!isDistanceSliderActive) {
+                    modified = true;
+                }
             }
             
-            ImGui.textDisabled(
-                distanceFloat.get() >= 0
-                    ? "Positive = push forward"
-                    : "Negative = pull backward"
-            );
+            // ⭐ 检测拖动结束：从 active 变为 inactive
+            if (wasDistanceSliderActive && !isDistanceSliderActive) {
+                modified = true; // 拖动结束，标记为已修改
+            }
+            wasDistanceSliderActive = isDistanceSliderActive;
+            
+            // 右侧方向提示
+            ImGui.sameLine();
+            ImGui.textDisabled("Push In →");
         }
         
         return modified;
     }
     
     /**
-     * Direction: 方向模式
+     * Direction: 方向模式（语义化改进）
+     * 改成意图式选择，对导演更友好
      */
     private boolean renderDirectionSection(DollyPathClip clip) {
         boolean modified = false;
@@ -174,40 +213,67 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
         if (ImGui.collapsingHeader("Direction", ImGuiTreeNodeFlags.DefaultOpen)) {
             DollyPathClip.DirectionMode mode = clip.getDirectionMode();
             
-            if (ImGui.radioButton("Camera Forward", mode == DollyPathClip.DirectionMode.CAMERA_FORWARD)) {
+            // ⭐ 语义化选项 1：沿镜头朝向（最常用）
+            if (ImGui.radioButton("● Along Camera View", mode == DollyPathClip.DirectionMode.CAMERA_FORWARD)) {
                 if (mode != DollyPathClip.DirectionMode.CAMERA_FORWARD) {
                     clip.setDirectionMode(DollyPathClip.DirectionMode.CAMERA_FORWARD);
                     modified = true;
                 }
             }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("沿当前摄像机的镜头朝向推拉（最常用）");
+            }
             
-            if (ImGui.radioButton("Towards Target", mode == DollyPathClip.DirectionMode.TOWARDS_TARGET)) {
+            // ⭐ 语义化选项 2：向焦点推拉
+            if (ImGui.radioButton("○ Towards Focus Point", mode == DollyPathClip.DirectionMode.TOWARDS_TARGET)) {
                 if (mode != DollyPathClip.DirectionMode.TOWARDS_TARGET) {
                     clip.setDirectionMode(DollyPathClip.DirectionMode.TOWARDS_TARGET);
                     modified = true;
                 }
             }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("向当前注视点（Focus Point）推近或拉远");
+            }
             
-            if (ImGui.radioButton("Fixed World Direction", mode == DollyPathClip.DirectionMode.FIXED_DIRECTION)) {
+            // ⭐ 语义化选项 3：自定义方向（高级）
+            if (ImGui.radioButton("○ Custom Direction", mode == DollyPathClip.DirectionMode.FIXED_DIRECTION)) {
                 if (mode != DollyPathClip.DirectionMode.FIXED_DIRECTION) {
                     clip.setDirectionMode(DollyPathClip.DirectionMode.FIXED_DIRECTION);
                     modified = true;
                 }
             }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("使用固定的世界方向（高级选项）");
+            }
             
-            // Fixed Direction 输入（仅在 FIXED_DIRECTION 模式下显示）
+            // ⭐ Custom Direction 输入（仅在 FIXED_DIRECTION 模式下显示，放在子区域）
             if (clip.getDirectionMode() == DollyPathClip.DirectionMode.FIXED_DIRECTION) {
                 ImGui.spacing();
+                ImGui.indent();
+                ImGui.textDisabled("Custom Direction Vector:");
                 float[] dirArr = {fixedDirectionArr[0].get(), fixedDirectionArr[1].get(), fixedDirectionArr[2].get()};
-                if (ImGui.dragFloat3("Direction Vector", dirArr, 0.01f)) {
+                boolean directionChanged = ImGui.dragFloat3("##direction_vector", dirArr, 0.01f);
+                boolean isDirectionActive = ImGui.isItemActive();
+                
+                if (directionChanged) {
                     Vec3d newDir = new Vec3d(dirArr[0], dirArr[1], dirArr[2]);
                     clip.setFixedDirection(newDir);
                     fixedDirectionArr[0].set(dirArr[0]);
                     fixedDirectionArr[1].set(dirArr[1]);
                     fixedDirectionArr[2].set(dirArr[2]);
+                    // ⭐ 性能优化：只在拖动结束时才标记为已修改
+                    if (!isDirectionActive) {
+                        modified = true;
+                    }
+                }
+                
+                // ⭐ 检测拖动结束
+                if (directionChanged && !isDirectionActive) {
                     modified = true;
                 }
+                
                 ImGui.textDisabled("Will be normalized automatically");
+                ImGui.unindent();
             }
         }
         
@@ -221,9 +287,9 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
         boolean modified = false;
         
         if (ImGui.collapsingHeader("Advanced", ImGuiTreeNodeFlags.None)) {
-            boolean alignStart = clip.isAlignStartToCurrentPosition();
-            if (ImGui.checkbox("Align start to current camera", alignStart)) {
-                clip.setAlignStartToCurrentPosition(!alignStart);
+            ImBoolean align = new ImBoolean(clip.isAlignStartToCurrentPosition());
+            if (ImGui.checkbox("Align start to current camera", align)) {
+                clip.setAlignStartToCurrentPosition(align.get());
                 modified = true;
             }
             if (ImGui.isItemHovered()) {
@@ -302,19 +368,8 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
 
     private static @NotNull CameraPathEnterContext getCameraPathEnterContext(CameraSample currentSample) {
         Vec3d currentPos = currentSample.position();
-
-        // 从 yaw/pitch 计算 lookAt（与 CameraTrackSampler 中的逻辑一致）
-        double yawRad = Math.toRadians(currentSample.yaw());
-        double pitchRad = Math.toRadians(currentSample.pitch());
-        double cosPitch = Math.cos(pitchRad);
-        Vec3d currentLookAt = currentPos.add(
-            -Math.sin(yawRad) * cosPitch * 10.0,
-            -Math.sin(pitchRad) * 10.0,
-            Math.cos(yawRad) * cosPitch * 10.0
-        );
-
-        // 构造 CameraPathEnterContext
-        return new CameraPathEnterContext(currentPos, currentLookAt);
+        // ⭐ 使用 yaw/pitch 构造函数，更精确且支持 CAMERA_FORWARD 模式
+        return new CameraPathEnterContext(currentPos, currentSample.yaw(), currentSample.pitch());
     }
 
     /**
