@@ -56,6 +56,16 @@ public class OrbitPathClip extends CameraPathClip {
         ABSOLUTE
     }
     
+    /**
+     * 起始角模式枚举
+     */
+    public enum StartAngleMode {
+        /** 从进入 PathClip 时的摄像机位置计算相位角 */
+        FROM_CURRENT_POSITION,
+        /** 使用用户指定的数值 */
+        CUSTOM
+    }
+    
     private Vec3d center;       // 围绕中心
     private Vec3d lookAt;       // 注视点（通常 = center）
     
@@ -67,10 +77,15 @@ public class OrbitPathClip extends CameraPathClip {
     
     private float startAngle;   // 起始角度（度）
     private float endAngle;     // 结束角度（度）
+    private StartAngleMode startAngleMode = StartAngleMode.FROM_CURRENT_POSITION;  // 起始角模式（默认从当前位置计算）
     
     private boolean clockwise = true;  // 是否顺时针
     
-    /** ⭐ 是否在进入 PathClip 时自动对齐起始角度到当前摄像机位置 */
+    /** 
+     * ⭐ 是否在进入 PathClip 时自动对齐起始角度到当前摄像机位置
+     * @deprecated 使用 startAngleMode 代替，保留此字段以保持向后兼容
+     */
+    @Deprecated
     private boolean alignStartToCurrentPosition = true;
     
     /**
@@ -251,6 +266,24 @@ public class OrbitPathClip extends CameraPathClip {
         this.endAngle = normalizeAngle(endAngle);
     }
     
+    public StartAngleMode getStartAngleMode() {
+        // ⭐ 向后兼容：如果 startAngleMode 是默认值但 alignStartToCurrentPosition 是 false，同步更新
+        // 这处理了旧数据中只有 alignStartToCurrentPosition 字段的情况
+        // ⚠️ 注意：这个检查只在数据不一致时执行一次，之后 setStartAngleMode() 会保持同步
+        if (startAngleMode == StartAngleMode.FROM_CURRENT_POSITION && !alignStartToCurrentPosition) {
+            // 旧数据中 alignStartToCurrentPosition 是 false，应该使用 CUSTOM 模式
+            // 同步状态以确保一致性（只修复一次，之后 setStartAngleMode() 会保持同步）
+            this.startAngleMode = StartAngleMode.CUSTOM;
+        }
+        return startAngleMode;
+    }
+    
+    public void setStartAngleMode(StartAngleMode startAngleMode) {
+        this.startAngleMode = startAngleMode != null ? startAngleMode : StartAngleMode.FROM_CURRENT_POSITION;
+        // ⭐ 同步更新已废弃的 alignStartToCurrentPosition 字段（向后兼容）
+        this.alignStartToCurrentPosition = (this.startAngleMode == StartAngleMode.FROM_CURRENT_POSITION);
+    }
+    
     public boolean isClockwise() {
         return clockwise;
     }
@@ -261,16 +294,27 @@ public class OrbitPathClip extends CameraPathClip {
     
     /**
      * 是否在进入 PathClip 时自动对齐起始角度到当前摄像机位置
+     * @deprecated 使用 startAngleMode 代替
      */
+    @Deprecated
     public boolean isAlignStartToCurrentPosition() {
-        return alignStartToCurrentPosition;
+        // ⭐ 向后兼容：从 startAngleMode 推导
+        return startAngleMode == StartAngleMode.FROM_CURRENT_POSITION || alignStartToCurrentPosition;
     }
     
     /**
      * 设置是否在进入 PathClip 时自动对齐起始角度到当前摄像机位置
+     * @deprecated 使用 setStartAngleMode() 代替
      */
+    @Deprecated
     public void setAlignStartToCurrentPosition(boolean align) {
         this.alignStartToCurrentPosition = align;
+        // ⭐ 向后兼容：同步更新 startAngleMode
+        if (align) {
+            this.startAngleMode = StartAngleMode.FROM_CURRENT_POSITION;
+        } else {
+            this.startAngleMode = StartAngleMode.CUSTOM;
+        }
     }
     
     /**
@@ -322,14 +366,42 @@ public class OrbitPathClip extends CameraPathClip {
             }
         }
         
-        // ⭐ 如果启用了角度对齐，计算起始角度
-        if (!alignStartToCurrentPosition) {
+        // ⭐ 如果起始角模式是 FROM_CURRENT_POSITION，从当前位置计算起始角
+        // ⭐ 兼容性：如果 alignStartToCurrentPosition 为 true，也执行对齐（向后兼容）
+        boolean shouldAlignAngle = (startAngleMode == StartAngleMode.FROM_CURRENT_POSITION) || alignStartToCurrentPosition;
+        
+        if (shouldAlignAngle) {
+            alignStartAngleFromCamera(ctx);
+        }
+    }
+    
+    /**
+     * ⭐ 从当前摄像机状态立即对齐起始角（UI 主动调用）
+     * 
+     * <p>这个方法可以在属性面板中切换模式时立即调用，不需要等待 onEnter()。
+     * 与 onEnter() 中的对齐逻辑完全一致，确保行为统一。
+     * 
+     * @param ctx 摄像机进入上下文（包含位置和朝向信息）
+     */
+    public void alignStartAngleFromCamera(CameraPathEnterContext ctx) {
+        if (ctx == null || ctx.position == null) {
+            LOGGER.warn("[OrbitPathClip] alignStartAngleFromCamera() 上下文为空，无法对齐");
             return;
         }
+        
+        Vec3d pos = ctx.position;
+        Vec3d c = center;
+        
+        double dx = pos.x - c.x;
+        double dz = pos.z - c.z;
+        double distSq = dx * dx + dz * dz;
         
         // 防止半径为 0 或刚好在中心（无法确定角度）
         if (distSq < 1e-6) {
             // 如果摄像机在中心点，无法确定角度，保持原值
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("[OrbitPathClip] alignStartAngleFromCamera() 摄像机在中心点，无法确定角度");
+            }
             return;
         }
         
@@ -373,7 +445,7 @@ public class OrbitPathClip extends CameraPathClip {
         
         // ⭐ 调试日志：记录角度对齐
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("[OrbitPathClip] onEnter() 对齐角度: startAngle {}° -> {}°, endAngle {}° -> {}°, sweep={}°", 
+            LOGGER.debug("[OrbitPathClip] alignStartAngleFromCamera() 对齐角度: startAngle {}° -> {}°, endAngle {}° -> {}°, sweep={}°", 
                 oldStartAngle, startAngle, oldEndAngle, endAngle, currentSweep);
         }
     }
@@ -389,6 +461,7 @@ public class OrbitPathClip extends CameraPathClip {
                 height
         );
         copy.setLookAt(lookAt);
+        copy.setStartAngleMode(startAngleMode);
         copy.setStartAngle(startAngle);
         copy.setEndAngle(endAngle);
         copy.setClockwise(clockwise);
@@ -399,7 +472,8 @@ public class OrbitPathClip extends CameraPathClip {
         if (cachedHeight != null) {
             copy.setCachedHeight(cachedHeight);
         }
-        copy.setAlignStartToCurrentPosition(alignStartToCurrentPosition);
+        // ⭐ 向后兼容：使用新的 startAngleMode 方法，而不是已废弃的 setAlignStartToCurrentPosition
+        copy.setStartAngleMode(startAngleMode);
         copy.setEnabled(isEnabled());
         return copy;
     }

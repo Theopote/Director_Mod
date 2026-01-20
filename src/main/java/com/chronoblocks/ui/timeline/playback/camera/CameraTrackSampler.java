@@ -1,5 +1,6 @@
 package com.chronoblocks.ui.timeline.playback.camera;
 
+import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
 import com.chronoblocks.ui.timeline.model.camera.path.CameraPathClip;
@@ -48,6 +49,9 @@ public final class CameraTrackSampler {
     
     /** ⭐ 记录上一帧的摄像机状态，用于传递给 onEnter() */
     private CameraSample lastSample = null;
+    
+    /** ⭐ 是否正在接管摄像机控制权（用于 tick() 状态管理） */
+    private boolean active = false;
 
     public CameraTrackSampler() {
     }
@@ -95,13 +99,83 @@ public final class CameraTrackSampler {
         // ⭐ 清空 lastActivePathClip，确保下次进入 PathClip 时能触发 onEnter()
         lastActivePathClip = null;
         // 注意：保留 lastSample，因为可能立即进入另一个 PathClip
+        active = false;
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("[CameraTrackSampler] 停止播放，清空 PathClip 状态");
         }
     }
+    
+    /**
+     * ⭐ 在播放模式下，每一帧调用（统一的 tick 驱动入口）
+     * 
+     * <p>这是从"UI 驱动"升级为"时间驱动"的核心方法。
+     * 所有播放相关的采样都通过此方法统一管理。
+     * 
+     * <p>工作流程：
+     * <ul>
+     *   <li>PLAYING：采样当前时间（时间推进由 TimelinePanel.updatePlayback() 负责）</li>
+     *   <li>SCRUBBING：采样当前时间（不推进时间）</li>
+     *   <li>STOPPED：清空状态，释放控制权</li>
+     * </ul>
+     * 
+     * <p>⭐ 注意：虽然建议架构中 tick() 应该推进时间，但当前 TimelinePanel 已经在推进时间。
+     * 为了保持兼容性，这里只负责采样，不推进时间。未来可以重构让 tick() 完全负责时间推进。
+     * 
+     * @param timelineModel 时间轴模型（提供时间与播放状态）
+     * @param deltaSec 帧间隔（秒）。当前未使用，保留用于未来扩展（如果 tick() 负责推进时间）
+     * @return 如果成功采样则返回 CameraSample，否则返回 empty
+     */
+    public Optional<CameraSample> tick(TimelineModel timelineModel, float deltaSec) {
+        if (timelineModel == null) {
+            return Optional.empty();
+        }
+        
+        boolean playing = timelineModel.isPlaying();
+        boolean scrubbing = timelineModel.isScrubbing();
+        
+        // ⭐ 判断播放状态
+        if (playing) {
+            // ▶️ 播放：采样当前时间（时间推进由 TimelinePanel.updatePlayback() 负责）
+            // ⭐ 注意：虽然建议架构中 tick() 应该推进时间，但当前 TimelinePanel 已经在推进时间
+            // 为了保持兼容性，这里只负责采样，不推进时间
+            float currentTime = timelineModel.getCurrentTime();
+            Optional<CameraSample> result = sampleAtTime(currentTime);
+            active = true;
+            return result;
+            
+        } else if (scrubbing) {
+            // 🖱️ Scrubbing：不推进时间，但采样当前帧
+            float currentTime = timelineModel.getCurrentTime();
+            Optional<CameraSample> result = sampleAtTime(currentTime);
+            active = true;
+            return result;
+            
+        } else {
+            // ⏹️ 停止：释放摄像机控制权
+            if (active) {
+                onStop();
+            }
+            return Optional.empty();
+        }
+    }
 
     /**
-     * ⭐ 在指定时间采样摄像机状态（优先使用 Path Clip）
+     * ⭐ 公共接口：在指定时间采样摄像机状态（向后兼容）
+     * 
+     * <p>注意：建议使用 tick() 方法进行统一的播放驱动。
+     * 此方法保留用于 Scrubbing 等需要直接采样的场景。
+     * 
+     * @param timeSeconds 时间（秒）
+     * @return 如果成功采样则返回 CameraSample，否则返回 empty
+     */
+    public Optional<CameraSample> sample(float timeSeconds) {
+        return sampleAtTime(timeSeconds);
+    }
+    
+    /**
+     * ⭐ 内部采样方法：在指定时间采样摄像机状态（优先使用 Path Clip）
+     * 
+     * <p>这是所有采样逻辑的统一入口（tick() 和 sample() 都调用此方法）。
      * 
      * <p>采样优先级：
      * <ol>
@@ -115,7 +189,7 @@ public final class CameraTrackSampler {
      * @param timeSeconds 时间（秒）
      * @return 如果成功采样则返回 CameraSample，否则返回 empty
      */
-    public Optional<CameraSample> sample(float timeSeconds) {
+    private Optional<CameraSample> sampleAtTime(float timeSeconds) {
         // ⭐ 优先检查 Path Clip
         CameraPathClip activePathClip = null;
         if (cameraTrack != null && cameraTrack.hasCameraPathClips()) {

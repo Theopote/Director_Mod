@@ -6,8 +6,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
-import com.chronoblocks.ui.timeline.model.weather.WeatherKeyframe;
 import com.chronoblocks.ui.timeline.persistence.TimelineModelPersistence;
 import com.chronoblocks.ui.timeline.snapping.TimelineSnapSettings;
 import com.chronoblocks.ui.timeline.snapping.TimelineSnapping;

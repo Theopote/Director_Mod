@@ -3,7 +3,13 @@ package com.chronoblocks.ui.properties.adapters;
 import com.chronoblocks.ui.properties.IPropertyAdapter;
 import com.chronoblocks.ui.theme.Icons;
 import com.chronoblocks.ui.theme.UITheme;
+import com.chronoblocks.ui.timeline.container.ContainerTimelineService;
+import com.chronoblocks.ui.timeline.model.TimelineModel;
+import com.chronoblocks.ui.timeline.model.camera.path.CameraPathEnterContext;
 import com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip;
+import com.chronoblocks.ui.timeline.playback.camera.CameraRuntime;
+import com.chronoblocks.ui.timeline.playback.camera.CameraSample;
+import com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImFloat;
@@ -121,6 +127,9 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
         
         boolean modified = false;
         
+        // ⭐ 实时预览：检查播放头是否在当前 clip 上
+        boolean isPlayheadOnClip = isPlayheadOnClip(clip);
+        
         // ========== 分区 1：路径类型与时间（只读）==========
         renderHeader(clip);
         ImGui.separator();
@@ -144,6 +153,11 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
         // ⭐ 性能优化：如果值被外部修改，同步更新缓存（避免显示过时值）
         if (!modified) {
             syncCacheFromClip(clip);
+        }
+        
+        // ⭐ 实时预览：如果参数被修改且播放头在当前 clip 上，立即更新摄像机
+        if (modified && isPlayheadOnClip) {
+            updateCameraPreview(clip);
         }
         
         return modified;
@@ -448,28 +462,61 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
             
             UITheme.spacingSmall();
             
-            // Start Angle
-            // ⭐ 同步缓存值：确保滑动条显示的值与 clip 中的值一致
-            if (Math.abs(startAngleFloat.get() - clip.getStartAngle()) > 0.01f) {
-                startAngleFloat.set(clip.getStartAngle());
+            // ⭐ Start Angle 模式选择（From Current Position / Custom Angle）
+            ImGui.text("Start Angle");
+            com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip.StartAngleMode startAngleMode = clip.getStartAngleMode();
+            boolean isStartAngleFromCurrent = startAngleMode == com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip.StartAngleMode.FROM_CURRENT_POSITION;
+            
+            // ⭐ 修复：与其他 radioButton 保持一致，添加状态检查
+            // ⭐ 关键修复：切换到 From Current 模式时，立即对齐起始角
+            if (ImGui.radioButton("From Current Camera Position", isStartAngleFromCurrent)) {
+                if (!isStartAngleFromCurrent) {
+                    clip.setStartAngleMode(com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip.StartAngleMode.FROM_CURRENT_POSITION);
+                    // ⭐ 立即从当前摄像机状态对齐起始角（不需要等待 onEnter）
+                    alignStartAngleFromCurrentCamera(clip);
+                    modified = true;
+                }
             }
-            
-            boolean startAngleSliderChanged = ImGui.sliderFloat("Start Angle (度)", startAngleFloat.getData(), 0f, 360f, "%.1f°");
-            boolean isStartAngleSliderActive = ImGui.isItemActive();
-            
-            if (startAngleSliderChanged) {
-                clip.setStartAngle(startAngleFloat.get());
-                // ⭐ 性能优化：只在拖动结束时才标记为已修改（触发 markDirty）
-                if (!isStartAngleSliderActive) {
+            ImGui.sameLine();
+            if (ImGui.radioButton("Custom Angle", !isStartAngleFromCurrent)) {
+                if (isStartAngleFromCurrent) {
+                    clip.setStartAngleMode(com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip.StartAngleMode.CUSTOM);
                     modified = true;
                 }
             }
             
-            // ⭐ 检测拖动结束：从 active 变为 inactive
-            if (wasStartAngleSliderActive && !isStartAngleSliderActive) {
-                modified = true; // 拖动结束，标记为已修改
+            // ⭐ 只有在 Custom Angle 模式下才显示滑动条
+            if (!isStartAngleFromCurrent) {
+                // ⭐ 同步缓存值：确保滑动条显示的值与 clip 中的值一致
+                if (Math.abs(startAngleFloat.get() - clip.getStartAngle()) > 0.01f) {
+                    startAngleFloat.set(clip.getStartAngle());
+                }
+                
+                boolean startAngleSliderChanged = ImGui.sliderFloat("Start Angle (度)", startAngleFloat.getData(), 0f, 360f, "%.1f°");
+                boolean isStartAngleSliderActive = ImGui.isItemActive();
+                
+                if (startAngleSliderChanged) {
+                    clip.setStartAngle(startAngleFloat.get());
+                    // ⭐ 性能优化：只在拖动结束时才标记为已修改（触发 markDirty）
+                    if (!isStartAngleSliderActive) {
+                        modified = true;
+                    }
+                }
+                
+                // ⭐ 检测拖动结束：从 active 变为 inactive
+                if (wasStartAngleSliderActive && !isStartAngleSliderActive) {
+                    modified = true; // 拖动结束，标记为已修改
+                }
+                wasStartAngleSliderActive = isStartAngleSliderActive;
+            } else {
+                // ⭐ From Current Position 模式：显示当前起始角值（只读）
+                ImGui.textDisabled(String.format("Start Angle: %.1f° (从进入时的摄像机位置计算)", clip.getStartAngle()));
+                if (ImGui.isItemHovered()) {
+                    ImGui.setTooltip("起始角会在进入 PathClip 时自动从当前摄像机位置计算，实现无缝衔接");
+                }
             }
-            wasStartAngleSliderActive = isStartAngleSliderActive;
+            
+            UITheme.spacingSmall();
             
             // End Angle
             // ⭐ 同步缓存值：确保滑动条显示的值与 clip 中的值一致
@@ -501,22 +548,8 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
             }
             ImGui.textDisabled("角度范围: " + String.format("%.1f", angleRange) + "°");
             
-            UITheme.spacingSmall();
-            
-            // ⭐ 对齐到当前摄像机位置选项
-            boolean alignToCurrent = clip.isAlignStartToCurrentPosition();
-            if (ImGui.checkbox("对齐起始角度到当前摄像机位置", alignToCurrent)) {
-                clip.setAlignStartToCurrentPosition(!alignToCurrent);
-                modified = true;
-            }
-            if (ImGui.isItemHovered()) {
-                ImGui.beginTooltip();
-                ImGui.text("启用后，进入此路径片段时会自动将起始角度");
-                ImGui.text("对齐到当前摄像机位置，实现与前一段路径的无缝接续。");
-                ImGui.text("");
-                ImGui.text("建议：保持启用，除非需要固定起始角度。");
-                ImGui.endTooltip();
-            }
+            // ⭐ 注意：起始角模式选择已在上面实现（From Current Camera Position / Custom Angle）
+            // 移除了旧的 checkbox，现在起始角、半径、高度都使用统一的模式选择 UI
         }
         
         return modified;
@@ -613,6 +646,106 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
         }
         if (!nameBuffer.get().equals(clip.getName())) {
             nameBuffer.set(clip.getName());
+        }
+    }
+    
+    /**
+     * ⭐ 从当前摄像机状态立即对齐起始角（UI 主动调用）
+     * 
+     * <p>当用户在属性面板中切换到 "From Current Camera Position" 模式时，
+     * 立即使用当前摄像机状态重新计算起始角，而不需要等待 onEnter()。
+     * 
+     * @param clip 要对齐的 OrbitPathClip
+     */
+    private void alignStartAngleFromCurrentCamera(OrbitPathClip clip) {
+        try {
+            // 从 CameraRuntime 获取当前摄像机状态
+            CameraRuntime runtime = CameraRuntime.getInstance();
+            CameraSample currentSample = runtime.getCurrentSample();
+            
+            if (currentSample == null) {
+                LOGGER.warn("[OrbitPathClipPropertyAdapter] 无法获取当前摄像机状态，无法对齐起始角");
+                return;
+            }
+            
+            Vec3d currentPos = currentSample.position();
+            
+            // 从 yaw/pitch 计算 lookAt（与 CameraTrackSampler 中的逻辑一致）
+            double yawRad = Math.toRadians(currentSample.yaw());
+            double pitchRad = Math.toRadians(currentSample.pitch());
+            double cosPitch = Math.cos(pitchRad);
+            Vec3d currentLookAt = currentPos.add(
+                -Math.sin(yawRad) * cosPitch * 10.0,  // 向前看 10 个单位
+                -Math.sin(pitchRad) * 10.0,
+                Math.cos(yawRad) * cosPitch * 10.0
+            );
+            
+            // 构造 CameraPathEnterContext
+            CameraPathEnterContext ctx = new CameraPathEnterContext(currentPos, currentLookAt);
+            
+            // 调用对齐方法
+            clip.alignStartAngleFromCamera(ctx);
+            
+            // ⭐ 同步更新 UI 缓存值，确保滑动条显示正确的值
+            startAngleFloat.set(clip.getStartAngle());
+            endAngleFloat.set(clip.getEndAngle());
+            
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("[OrbitPathClipPropertyAdapter] 已从当前摄像机状态对齐起始角: {}°", clip.getStartAngle());
+            }
+        } catch (Exception e) {
+            LOGGER.error("[OrbitPathClipPropertyAdapter] 对齐起始角时发生错误", e);
+        }
+    }
+    
+    /**
+     * ⭐ 检查播放头是否在当前 clip 的时间范围内
+     * 
+     * @param clip 要检查的 OrbitPathClip
+     * @return 如果播放头在 clip 的时间范围内返回 true，否则返回 false
+     */
+    private boolean isPlayheadOnClip(OrbitPathClip clip) {
+        TimelineModel timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+        if (timelineModel == null) {
+            return false;
+        }
+        
+        float currentTime = timelineModel.getCurrentTime();
+        float clipStartTime = clip.getStartTime();
+        float clipEndTime = clip.getEndTime();
+        
+        // 检查播放头是否在 clip 的时间范围内（包含边界）
+        return currentTime >= clipStartTime && currentTime <= clipEndTime;
+    }
+    
+    /**
+     * ⭐ 实时预览：当参数被修改且播放头在 clip 上时，立即更新摄像机
+     * 
+     * @param clip 要预览的 OrbitPathClip
+     */
+    private void updateCameraPreview(OrbitPathClip clip) {
+        try {
+            TimelineModel timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+            if (timelineModel == null) {
+                return;
+            }
+            
+            TimelineCameraController controller = TimelineCameraController.getInstance();
+            if (controller == null) {
+                return;
+            }
+            
+            // ⭐ 使用 TimelineCameraController 的 previewAt() 来实时预览
+            // previewAt() 会自动处理采样和应用，适用于所有状态（静止/播放/scrubbing）
+            float currentTime = timelineModel.getCurrentTime();
+            controller.previewAt(currentTime);
+            
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("[OrbitPathClipPropertyAdapter] 实时预览更新摄像机 @ {}s (clip: {} - {})", 
+                    currentTime, clip.getStartTime(), clip.getEndTime());
+            }
+        } catch (Exception e) {
+            LOGGER.error("[OrbitPathClipPropertyAdapter] 实时预览更新摄像机时发生错误", e);
         }
     }
 }

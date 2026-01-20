@@ -243,11 +243,13 @@ public final class TimelineCameraController {
      *
      * <p>注意：scrubbing 状态由 TimelineModel.setScrubbing(true) 设置，这里只负责摄像机采样
      * <p>⭐ 关键点：即使没有关键帧，也会在 updateOwnerAndSample 中正确切 owner
+     * <p>⭐ 修复：使用 tick() 统一入口，确保 Scrub 和 Play 逻辑一致
      */
     public void beginScrubbing(float timeSeconds) {
         this.previewing = false;
         ensureCameraDataBuilt();
-        sampler.sample(timeSeconds).ifPresent(CameraRuntime.getInstance()::applyTimelineSample);
+        // ⭐ 使用 tick() 统一入口（deltaSec=0，因为 scrubbing 不推进时间）
+        sampler.tick(timelineModel, 0f).ifPresent(CameraRuntime.getInstance()::applyTimelineSample);
         LOGGER.debug("[TimelineCameraController] 开始 scrubbing @ {}s", String.format("%.2f", timeSeconds));
     }
 
@@ -256,7 +258,8 @@ public final class TimelineCameraController {
      * 由 TimelineInteractionHandler 在鼠标拖动时调用
      *
      * <p>注意：scrubbing 状态由 TimelineModel.isScrubbing() 检查
-     * <p>⭐ 关键修复：只更新 sample，不重复设置 owner（owner 已在 beginScrubbing 时设置）
+     * <p>⭐ 修复：使用 tick() 统一入口，确保 Scrub 和 Play 逻辑一致
+     * <p>注意：时间已经在 TimelineModel 中更新，这里只需要采样当前时间
      */
     public void updateScrubbing(float timeSeconds) {
         // 检查 model 的状态（单一真相源）
@@ -266,10 +269,8 @@ public final class TimelineCameraController {
         }
 
         ensureCameraDataBuilt();
-        sampler.sample(timeSeconds).ifPresent(sample -> {
-            // ⭐ 关键修复：只更新 sample，不重复设置 owner
-            CameraRuntime.getInstance().applyTimelineSample(sample);
-        });
+        // ⭐ 使用 tick() 统一入口（deltaSec=0，因为 scrubbing 不推进时间）
+        sampler.tick(timelineModel, 0f).ifPresent(sample -> CameraRuntime.getInstance().applyTimelineSample(sample));
     }
 
     /**
@@ -294,7 +295,7 @@ public final class TimelineCameraController {
      * 由 TimelineModel.setPlaying(true) 通过 startPlayback() 调用
      *
      * <p>⭐ 关键修复：在事件发生时更新轨迹，而不是在 update() 中每帧 setKeyframes
-     * <p>⭐ 修复：立即应用当前时间的采样并设置 owner，确保播放开始时 PathClip 能正常工作
+     * <p>⭐ 修复：使用 tick() 统一入口，立即应用当前时间的采样并设置 owner
      */
     public void startPlayback() {
         this.previewing = false;
@@ -305,11 +306,11 @@ public final class TimelineCameraController {
         boolean hasPathClips = hasValidActiveTrack() && activeCameraTrack != null && activeCameraTrack.hasCameraPathClips();
         boolean hasCameraData = hasKeyframes || hasPathClips;
         
-        // ⭐ 修复：如果有摄像机数据，立即应用采样并设置 owner（类似 beginScrubbing）
+        // ⭐ 修复：如果有摄像机数据，使用 tick() 立即应用采样并设置 owner
         if (hasCameraData && timelineModel != null) {
             CameraRuntime runtime = CameraRuntime.getInstance();
-            float currentTime = timelineModel.getCurrentTime();
-            sampler.sample(currentTime).ifPresent(runtime::applyTimelineSample);
+            // ⭐ 使用 tick() 统一入口（deltaSec=0，因为只是初始化，不推进时间）
+            sampler.tick(timelineModel, 0f).ifPresent(runtime::applyTimelineSample);
             
             // 确保 owner 被设置为 TIMELINE
             if (!runtime.isTimelineOwner()) {
@@ -435,26 +436,18 @@ public final class TimelineCameraController {
         }
 
         // ⭐ 时间线模式：根据当前时间采样相机（播放/scrubbing/预览时）
-        // ⭐ 关键修复：确保播放时每帧都采样，不依赖 owner 状态
-        // 因为 owner 的设置可能滞后，但采样必须持续进行
+        // ⭐ 关键修复：使用 tick() 统一入口，确保播放时每帧都采样
         if (shouldTimeline || runtime.isTimelineOwner()) {
             // ✅ 性能关键：播放时不要每帧 rebuild（会导致 FPS 大幅下降）
             ensureCameraDataBuilt();
-            float time = playing || scrubbing ? timelineModel.getCurrentTime() : previewTimeSeconds;
             
-            // ⭐ 修复：播放模式下，每帧都采样（这是解决"播放时 PathClip 不动"的关键）
-            // 获取最后关键帧时间（仅用于关键帧模式，PathClip 不受此限制）
-            List<CameraKeyframe> kfs = sampler.getKeyframes();
-            float lastKey = kfs.isEmpty() ? -1f : kfs.getLast().getTime();
-
-            // 超出最后关键帧：保持最后帧的镜头，但继续播放其他轨道，owner 不切回玩家
-            // ⭐ 注意：PathClip 不受 lastKey 限制，会继续采样
-            if (lastKey >= 0f && time > lastKey + 1e-4f && !hasPathClips) {
-                // 只有没有 PathClip 时才限制在最后关键帧
-                sampler.sample(lastKey).ifPresent(runtime::applyTimelineSample);
-            } else {
-                // ⭐ 关键：每帧都采样，确保 PathClip 持续更新
-                sampler.sample(time).ifPresent(runtime::applyTimelineSample);
+            if (playing || scrubbing) {
+                // ⭐ 播放/Scrubbing：使用 tick() 统一驱动
+                // tick() 负责采样当前时间（时间推进由 TimelinePanel.updatePlayback() 负责）
+                sampler.tick(timelineModel, 0f).ifPresent(runtime::applyTimelineSample);
+            } else if (previewActive) {
+                // ⭐ 预览模式：直接采样预览时间（不使用 tick，因为预览不是播放状态）
+                sampler.sample(previewTimeSeconds).ifPresent(runtime::applyTimelineSample);
             }
         } else {
             // ⭐ 玩家模式：只负责处理平滑过渡

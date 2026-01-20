@@ -1,6 +1,9 @@
 package com.chronoblocks.client.renderer;
 
 import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
+import com.chronoblocks.ui.timeline.model.camera.path.CameraPathClip;
+import com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip;
+import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.playback.camera.CameraSample;
 import com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController;
 import com.chronoblocks.ui.timeline.playback.camera.TimelineCameraPathManager;
@@ -107,11 +110,18 @@ public final class CameraPathDebugRenderer {
             LOGGER.warn("[CameraPathDebugRenderer] pathManager 为 null，跳过渲染。请确保 TimelineCameraController 已初始化。");
             return;
         }
-        if (pathManager.isEmpty()) {
-            LOGGER.debug("[CameraPathDebugRenderer] pathManager 为空（没有关键帧），跳过渲染");
+        
+        // ⭐ 检查是否有可渲染的内容（关键帧或围绕轨迹）
+        boolean hasKeyframes = !pathManager.isEmpty();
+        boolean hasOrbitPaths = hasOrbitPathsToRender();
+        
+        if (!hasKeyframes && !hasOrbitPaths) {
+            LOGGER.debug("[CameraPathDebugRenderer] 没有可渲染的数据（关键帧: {}, 围绕轨迹: {}）", false, false);
             return;
         }
-        LOGGER.debug("[CameraPathDebugRenderer] 开始渲染轨迹（关键帧数: {}）", pathManager.getKeyframes().size());
+        
+        LOGGER.debug("[CameraPathDebugRenderer] 开始渲染轨迹（关键帧数: {}, 围绕轨迹: {}）", 
+                pathManager.getKeyframes().size(), hasOrbitPaths);
         MinecraftClient client = MinecraftClient.getInstance();
         float tickDelta = client != null && client.getRenderTickCounter() != null
                 ? client.getRenderTickCounter().getTickProgress(false)
@@ -129,7 +139,15 @@ public final class CameraPathDebugRenderer {
      * @param currentTimeSeconds 当前时间线时间（秒），用于渲染当前摄像机位置
      */
     public void render(MatrixStack matrices, VertexConsumerProvider consumers, float tickDelta, float currentTimeSeconds) {
-        if (!enabled || pathManager == null || pathManager.isEmpty()) {
+        if (!enabled) {
+            return;
+        }
+        
+        // ⭐ 检查是否有可渲染的内容（关键帧或围绕轨迹）
+        boolean hasKeyframes = pathManager != null && !pathManager.isEmpty();
+        boolean hasOrbitPaths = hasOrbitPathsToRender();
+        
+        if (!hasKeyframes && !hasOrbitPaths) {
             return;
         }
 
@@ -148,15 +166,15 @@ public final class CameraPathDebugRenderer {
         }
 
         // 采样路径点 / 关键帧点 / Bezier 调试段
-        List<Vec3d> pathPoints = pathManager.getPathPointsForDebug();
-        List<CameraKeyframe> keyframes = pathManager.getKeyframes();
-        List<BezierDebugSegment> bezierSegments = pathManager.getBezierSegmentsForDebug();
+        List<Vec3d> pathPoints = pathManager != null ? pathManager.getPathPointsForDebug() : new java.util.ArrayList<>();
+        List<CameraKeyframe> keyframes = pathManager != null ? pathManager.getKeyframes() : new java.util.ArrayList<>();
+        List<BezierDebugSegment> bezierSegments = pathManager != null ? pathManager.getBezierSegmentsForDebug() : new java.util.ArrayList<>();
 
-        // 如果既没有路径点也没有关键帧，则不渲染
-        if (pathPoints.size() < 2 && keyframes.isEmpty()) {
-            LOGGER.debug("[CameraPathDebugRenderer] 没有可渲染的数据（路径点: {}, 关键帧: {}）",
-                    pathPoints.size(),
-                    0);
+        // ⭐ 如果既没有路径点也没有关键帧，且没有围绕轨迹，则不渲染
+        // 注意：即使没有关键帧，如果有围绕轨迹，也应该继续渲染
+        if (pathPoints.size() < 2 && keyframes.isEmpty() && !hasOrbitPaths) {
+            LOGGER.debug("[CameraPathDebugRenderer] 没有可渲染的数据（路径点: {}, 关键帧: {}, 围绕轨迹: {}）",
+                    pathPoints.size(), 0, false);
             return;
         }
 
@@ -185,6 +203,9 @@ public final class CameraPathDebugRenderer {
 
         // 4. 渲染当前时间对应的位置 + 方向箭头
         renderCurrentSample(consumers, matrix, cameraPos, currentTimeSeconds);
+
+        // 5. ⭐ 渲染围绕轨迹（OrbitPathClip）
+        renderOrbitPaths(consumers, matrix, cameraPos);
 
         if (consumers instanceof VertexConsumerProvider.Immediate immediate) {
             immediate.draw();
@@ -494,6 +515,171 @@ public final class CameraPathDebugRenderer {
         // 右翅
         consumer.vertex(matrix, (float) right.x, (float) right.y, (float) right.z).color(r, g, b, a).normal(rightNx, rightNy, rightNz);
         consumer.vertex(matrix, (float) x2,      (float) y2,      (float) z2     ).color(r, g, b, a).normal(rightNx, rightNy, rightNz);
+    }
+
+    // ============ 围绕轨迹渲染 ============
+
+    /**
+     * ⭐ 检查是否有围绕轨迹需要渲染
+     */
+    private boolean hasOrbitPathsToRender() {
+        TimelineCameraController controller = TimelineCameraController.getInstance();
+
+        TimelineTrack activeTrack = controller.getActiveCameraTrack();
+        if (activeTrack == null || !activeTrack.hasCameraPathClips()) {
+            return false;
+        }
+
+        List<CameraPathClip> pathClips = activeTrack.getCameraPathClips();
+        for (CameraPathClip clip : pathClips) {
+            if (clip instanceof OrbitPathClip) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * ⭐ 渲染所有 OrbitPathClip 的围绕轨迹
+     */
+    private void renderOrbitPaths(VertexConsumerProvider consumers, Matrix4f matrix, Vec3d cameraPos) {
+        TimelineCameraController controller = TimelineCameraController.getInstance();
+
+        TimelineTrack activeTrack = controller.getActiveCameraTrack();
+        if (activeTrack == null || !activeTrack.hasCameraPathClips()) {
+            return;
+        }
+
+        List<CameraPathClip> pathClips = activeTrack.getCameraPathClips();
+        for (CameraPathClip clip : pathClips) {
+            if (clip instanceof OrbitPathClip orbitClip) {
+                renderOrbitPath(consumers, matrix, cameraPos, orbitClip);
+            }
+        }
+    }
+
+    /**
+     * 渲染单个 OrbitPathClip 的围绕轨迹
+     */
+    private void renderOrbitPath(VertexConsumerProvider consumers, Matrix4f matrix, Vec3d cameraPos, OrbitPathClip clip) {
+        // 采样围绕路径的点
+        List<Vec3d> orbitPoints = sampleOrbitPath(clip);
+        if (orbitPoints.size() < 2) {
+            return;
+        }
+
+        VertexConsumer consumer = consumers.getBuffer(RenderLayer.getLines());
+        
+        // 围绕轨迹颜色：绿色（与关键帧路径的蓝色区分）
+        float r = 64 / 255.0f;
+        float g = 255 / 255.0f;
+        float b = 64 / 255.0f;
+        float a = 200 / 255.0f;
+
+        // 渲染围绕轨迹线
+        for (int i = 0; i < orbitPoints.size() - 1; i++) {
+            Vec3d p0 = orbitPoints.get(i);
+            Vec3d p1 = orbitPoints.get(i + 1);
+            
+            double x0 = p0.x - cameraPos.x;
+            double y0 = p0.y - cameraPos.y;
+            double z0 = p0.z - cameraPos.z;
+            double x1 = p1.x - cameraPos.x;
+            double y1 = p1.y - cameraPos.y;
+            double z1 = p1.z - cameraPos.z;
+            
+            // 计算法线
+            double dx = x1 - x0;
+            double dy = y1 - y0;
+            double dz = z1 - z0;
+            double len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            float nx = len > 1e-6 ? (float)(dx / len) : 0f;
+            float ny = len > 1e-6 ? (float)(dy / len) : 1f;
+            float nz = len > 1e-6 ? (float)(dz / len) : 0f;
+            
+            consumer.vertex(matrix, (float) x0, (float) y0, (float) z0)
+                    .color(r, g, b, a)
+                    .normal(nx, ny, nz);
+            consumer.vertex(matrix, (float) x1, (float) y1, (float) z1)
+                    .color(r, g, b, a)
+                    .normal(nx, ny, nz);
+        }
+
+        // 渲染中心点和注视点（可选，用于调试）
+        Vec3d center = clip.getCenter();
+        Vec3d lookAt = clip.getLookAt();
+        
+        // 中心点：黄色小点
+        float centerR = 255 / 255.0f;
+        float centerG = 255 / 255.0f;
+        float centerB = 0 / 255.0f;
+        float centerA = 255 / 255.0f;
+        double centerSize = 0.1;
+        
+        double cx = center.x - cameraPos.x;
+        double cy = center.y - cameraPos.y;
+        double cz = center.z - cameraPos.z;
+        
+        // 中心点十字
+        consumer.vertex(matrix, (float)(cx - centerSize), (float) cy, (float) cz).color(centerR, centerG, centerB, centerA).normal(1f, 0f, 0f);
+        consumer.vertex(matrix, (float)(cx + centerSize), (float) cy, (float) cz).color(centerR, centerG, centerB, centerA).normal(1f, 0f, 0f);
+        consumer.vertex(matrix, (float) cx, (float)(cy - centerSize), (float) cz).color(centerR, centerG, centerB, centerA).normal(0f, 1f, 0f);
+        consumer.vertex(matrix, (float) cx, (float)(cy + centerSize), (float) cz).color(centerR, centerG, centerB, centerA).normal(0f, 1f, 0f);
+        consumer.vertex(matrix, (float) cx, (float) cy, (float)(cz - centerSize)).color(centerR, centerG, centerB, centerA).normal(0f, 0f, 1f);
+        consumer.vertex(matrix, (float) cx, (float) cy, (float)(cz + centerSize)).color(centerR, centerG, centerB, centerA).normal(0f, 0f, 1f);
+
+        // 如果注视点与中心点不同，渲染注视点
+        if (!lookAt.equals(center)) {
+            float lookAtR = 255 / 255.0f;
+            float lookAtG = 200 / 255.0f;
+            float lookAtB = 0 / 255.0f;
+            float lookAtA = 255 / 255.0f;
+            double lookAtSize = 0.08;
+            
+            double lx = lookAt.x - cameraPos.x;
+            double ly = lookAt.y - cameraPos.y;
+            double lz = lookAt.z - cameraPos.z;
+            
+            // 注视点十字
+            consumer.vertex(matrix, (float)(lx - lookAtSize), (float) ly, (float) lz).color(lookAtR, lookAtG, lookAtB, lookAtA).normal(1f, 0f, 0f);
+            consumer.vertex(matrix, (float)(lx + lookAtSize), (float) ly, (float) lz).color(lookAtR, lookAtG, lookAtB, lookAtA).normal(1f, 0f, 0f);
+            consumer.vertex(matrix, (float) lx, (float)(ly - lookAtSize), (float) lz).color(lookAtR, lookAtG, lookAtB, lookAtA).normal(0f, 1f, 0f);
+            consumer.vertex(matrix, (float) lx, (float)(ly + lookAtSize), (float) lz).color(lookAtR, lookAtG, lookAtB, lookAtA).normal(0f, 1f, 0f);
+            consumer.vertex(matrix, (float) lx, (float) ly, (float)(lz - lookAtSize)).color(lookAtR, lookAtG, lookAtB, lookAtA).normal(0f, 0f, 1f);
+            consumer.vertex(matrix, (float) lx, (float) ly, (float)(lz + lookAtSize)).color(lookAtR, lookAtG, lookAtB, lookAtA).normal(0f, 0f, 1f);
+        }
+    }
+
+    /**
+     * 采样 OrbitPathClip 的路径点
+     */
+    private List<Vec3d> sampleOrbitPath(OrbitPathClip clip) {
+        List<Vec3d> points = new java.util.ArrayList<>();
+        
+        float startTime = clip.getStartTime();
+        float endTime = clip.getEndTime();
+        float duration = endTime - startTime;
+        
+        if (duration <= 0) {
+            return points;
+        }
+        
+        // 采样点数：根据时长决定，确保轨迹平滑
+        // 至少32个点，或每0.1秒一个点，确保圆形轨迹足够平滑
+        int sampleCount = Math.max(32, (int)(duration * 10));
+        
+        for (int i = 0; i <= sampleCount; i++) {
+            float t = (float) i / sampleCount;
+            float timeSeconds = startTime + t * duration;
+            
+            // 使用 clip 的 sample 方法获取位置
+            var sample = clip.sample(timeSeconds);
+            if (sample != null) {
+                points.add(sample.getPosition());
+            }
+        }
+        
+        return points;
     }
 }
 
