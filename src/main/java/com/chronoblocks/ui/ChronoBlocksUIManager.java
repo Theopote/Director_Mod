@@ -3,6 +3,7 @@ package com.chronoblocks.ui;
 import com.chronoblocks.ui.panels.IPanel;
 import com.chronoblocks.ui.panels.AbstractPanel;
 import com.chronoblocks.ui.panels.MenuBarPanel;
+import com.chronoblocks.ui.panels.StatusBarPanel;
 import com.chronoblocks.ui.panels.ToolbarPanel;
 import com.chronoblocks.ui.panels.TimelinePanel;
 import com.chronoblocks.ui.panels.PropertiesPanel;
@@ -683,6 +684,26 @@ public class ChronoBlocksUIManager {
         @Override
         public boolean isLooping() {
             return PlaybackController.get().isLoop();
+        }
+        
+        @Override
+        public float getPlaybackSpeed() {
+            return PlaybackController.get().getSpeed();
+        }
+        
+        @Override
+        public float getCurrentTime() {
+            return PlaybackController.get().getCurrentTime();
+        }
+        
+        @Override
+        public float getTotalDuration() {
+            PlaybackController pc = PlaybackController.get();
+            float duration = pc.getDuration();
+            if (timelineModel != null) {
+                duration = Math.max(duration, timelineModel.getDuration());
+            }
+            return duration;
         }
     }
     
@@ -1573,10 +1594,20 @@ public class ChronoBlocksUIManager {
                     }
                 }
                 
-                // 为 MenuBarPanel 注入 UICommandFacade（优化：不再通过 IUIManagerAware）
+                // 为 MenuBarPanel 和 StatusBarPanel 注入 UICommandFacade
                 if (panel instanceof MenuBarPanel) {
                     try {
                         ((MenuBarPanel) panel).setCommands(getOrCreateCommandFacade());
+                        commandFacadeCount++;
+                        logDebug("为面板 '{}' 注入了 UICommandFacade", panel.getPanelName());
+                    } catch (Exception e) {
+                        logError("为面板 '{}' 注入 UICommandFacade 失败", e, panel.getPanelName());
+                    }
+                }
+                
+                if (panel instanceof StatusBarPanel) {
+                    try {
+                        ((StatusBarPanel) panel).setCommands(getOrCreateCommandFacade());
                         commandFacadeCount++;
                         logDebug("为面板 '{}' 注入了 UICommandFacade", panel.getPanelName());
                     } catch (Exception e) {

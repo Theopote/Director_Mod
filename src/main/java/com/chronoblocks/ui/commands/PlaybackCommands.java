@@ -66,7 +66,7 @@ public interface PlaybackCommands {
      */
     void goToEnd();
     
-    // ==================== 状态查询方法 ====================
+    // ==================== 状态查询方法（只读接口） ====================
     
     /**
      * 查询是否正在播放
@@ -79,4 +79,22 @@ public interface PlaybackCommands {
      * @return true 如果开启循环，false 如果未开启
      */
     boolean isLooping();
+    
+    /**
+     * 获取当前播放速度
+     * @return 播放速度（如 1.0f 表示正常速度）
+     */
+    float getPlaybackSpeed();
+    
+    /**
+     * 获取当前播放时间
+     * @return 当前时间（秒）
+     */
+    float getCurrentTime();
+    
+    /**
+     * 获取总时长
+     * @return 总时长（秒）
+     */
+    float getTotalDuration();
 }

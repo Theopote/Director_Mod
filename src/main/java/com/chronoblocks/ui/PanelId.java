@@ -37,6 +37,9 @@ public final class PanelId {
     /** 菜单栏面板 */
     public static final String MENU_BAR = "MenuBar";
     
+    /** 状态栏面板 */
+    public static final String STATUS_BAR = "StatusBar";
+    
     // ==================== 属性与检查器面板 ====================
     
     /** 属性面板 */
@@ -91,6 +94,7 @@ public final class PanelId {
             case "Timeline" -> TIMELINE;
             case "Toolbar" -> TOOLBAR;
             case "MenuBar" -> MENU_BAR;
+            case "StatusBar" -> STATUS_BAR;
             case "Properties" -> PROPERTIES;
             case "Inspector" -> INSPECTOR;
             case "ToolProperties" -> TOOL_PROPERTIES;

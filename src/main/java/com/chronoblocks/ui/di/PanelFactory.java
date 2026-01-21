@@ -147,6 +147,13 @@ public class PanelFactory implements IPanelFactory {
             return new HelpPanel();
         });
         
+        // 注册StatusBarPanel创建器
+        registerPanelCreator(StatusBarPanel.class, minecraftClient -> {
+            LOGGER.debug("[PanelFactory] 创建StatusBarPanel (MinecraftClient: {})", 
+                minecraftClient != null ? "已注入" : "未注入");
+            return new StatusBarPanel();
+        });
+        
         
         LOGGER.debug("[PanelFactory] 已注册 {} 个默认面板创建器", creators.size());
     }

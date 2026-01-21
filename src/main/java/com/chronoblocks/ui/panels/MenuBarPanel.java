@@ -7,7 +7,6 @@ import imgui.ImGui;
 import com.chronoblocks.ui.commands.UICommandFacade;
 import com.chronoblocks.ui.di.IPanelRegistry;
 import com.chronoblocks.ui.theme.Icons;
-import com.chronoblocks.ui.theme.UITheme;
 import com.chronoblocks.ui.PanelId;
 
 import net.minecraft.client.MinecraftClient;
@@ -82,24 +81,16 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware {
     // ==================== Right Side ====================
 
     private void renderRightSideControls() {
-        float fps = ImGui.getIO().getFramerate();
-        String fpsText = String.format("FPS: %.0f", fps);
-
-        float rightX = ImGui.getWindowWidth()
-                - ImGui.calcTextSize(fpsText).x
+        // 将光标移动到右侧
+        float closeButtonWidth = ImGui.calcTextSize(Icons.CLOSE).x 
+                + ImGui.getStyle().getFramePadding().x * 2.0f;
+        float rightX = ImGui.getWindowWidth() 
+                - closeButtonWidth 
                 - ImGui.getStyle().getWindowPadding().x;
-
+        
         ImGui.sameLine(Math.max(ImGui.getCursorPosX(), rightX));
 
-        int color = fps >= 60 ? UITheme.DarkTheme.FPS_GOOD
-                : fps >= 30 ? UITheme.DarkTheme.FPS_WARN
-                : UITheme.DarkTheme.FPS_BAD;
-
-        float[] c = UITheme.toFloatArrayPublic(color);
-        ImGui.textColored(c[0], c[1], c[2], c[3], fpsText);
-
-        ImGui.sameLine();
-
+        // 关闭按钮
         if (ImGui.button(Icons.CLOSE + "##closeChronoBlocks")) {
             MinecraftClient.getInstance().setScreen(null);
         }
