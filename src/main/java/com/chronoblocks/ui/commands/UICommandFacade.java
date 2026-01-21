@@ -64,4 +64,9 @@ public interface UICommandFacade {
      * 获取帮助命令接口
      */
     HelpCommands help();
+    
+    /**
+     * 获取工具命令接口
+     */
+    ToolCommands tools();
 }

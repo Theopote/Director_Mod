@@ -35,6 +35,7 @@ import com.chronoblocks.ui.commands.CameraCommands;
 import com.chronoblocks.ui.commands.ViewCommands;
 import com.chronoblocks.ui.commands.LayoutCommands;
 import com.chronoblocks.ui.commands.HelpCommands;
+import com.chronoblocks.ui.commands.ToolCommands;
 import com.chronoblocks.core.playback.PlaybackController;
 import com.chronoblocks.ui.timeline.model.camera.path.CameraPathType;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
@@ -119,6 +120,30 @@ import imgui.flag.ImGuiWindowFlags;
  *   <li><strong>ImGui状态管理</strong> - 使用try-finally确保样式变量和颜色正确弹出，防止状态泄漏</li>
  *   <li><strong>增强资源管理</strong> - 关键错误传播，状态一致性保证，失败率监控</li>
  * </ul>
+ * 
+ * <h3>🚫 架构铁律（必须遵守）：</h3>
+ * <p>
+ * <strong>UIManager must not execute playback or timeline commands.</strong>
+ * </p>
+ * <p>
+ * UIManager 类本身禁止包含以下方法：
+ * </p>
+ * <ul>
+ *   <li>{@code public void play()}</li>
+ *   <li>{@code public void pause()}</li>
+ *   <li>{@code public void stop()}</li>
+ *   <li>任何直接操作 TimelineModel、BlockAnimationEngine、PlaybackController 的方法</li>
+ * </ul>
+ * <p>
+ * 这些方法只能存在于：
+ * </p>
+ * <ul>
+ *   <li>{@code UICommandFacadeImpl} 内部类（命令门面实现）</li>
+ *   <li>{@code Engine / Controller} 类（业务逻辑层）</li>
+ * </ul>
+ * <p>
+ * 这是防止架构退化的"保险丝"。
+ * </p>
  *
  * <h3>DockSpace布局说明：</h3>
  * <p>
@@ -398,6 +423,10 @@ public class ChronoBlocksUIManager {
     
     /**
      * UI 命令门面实现 - 分组结构（优化依赖注入）
+     * 
+     * <p><strong>架构原则：</strong>
+     * <br>Facade is the only place allowed to execute system commands.
+     * <br>This is the single entry point for all user actions from UI panels.
      */
     private class UICommandFacadeImpl implements UICommandFacade {
         
@@ -414,6 +443,7 @@ public class ChronoBlocksUIManager {
         private final ViewCommands viewCommands;
         private final LayoutCommands layoutCommands;
         private final HelpCommands helpCommands;
+        private final ToolCommands toolCommands;
         
         /**
          * 构造函数 - 初始化时注入依赖（优化：直接注入，避免重复查找）
@@ -442,6 +472,7 @@ public class ChronoBlocksUIManager {
             this.viewCommands = new ViewCommandsImpl(panelRegistry);
             this.layoutCommands = new LayoutCommandsImpl(layoutManager);
             this.helpCommands = new HelpCommandsImpl(menuBarPanel);
+            this.toolCommands = new ToolCommandsImpl();
         }
         
         @Override
@@ -477,6 +508,11 @@ public class ChronoBlocksUIManager {
         @Override
         public HelpCommands help() {
             return helpCommands;
+        }
+        
+        @Override
+        public ToolCommands tools() {
+            return toolCommands;
         }
     }
     
@@ -920,6 +956,34 @@ public class ChronoBlocksUIManager {
         @Override
         public void showAboutDialog() {
             dialogManager.showAboutDialog();
+        }
+    }
+    
+    /**
+     * 工具命令实现
+     */
+    private class ToolCommandsImpl implements ToolCommands {
+        
+        @Override
+        public void activateTool(String toolId) {
+            if (toolId == null || toolId.isBlank()) {
+                return;
+            }
+            com.chronoblocks.ui.tools.ToolRegistry.get().activate(toolId);
+        }
+        
+        @Override
+        public String getActiveToolId() {
+            return com.chronoblocks.ui.tools.ToolRegistry.get().getActiveToolId();
+        }
+        
+        @Override
+        public boolean isToolActive(String toolId) {
+            if (toolId == null || toolId.isBlank()) {
+                return false;
+            }
+            String activeId = getActiveToolId();
+            return toolId.equals(activeId);
         }
     }
     
@@ -1608,6 +1672,16 @@ public class ChronoBlocksUIManager {
                 if (panel instanceof StatusBarPanel) {
                     try {
                         ((StatusBarPanel) panel).setCommands(getOrCreateCommandFacade());
+                        commandFacadeCount++;
+                        logDebug("为面板 '{}' 注入了 UICommandFacade", panel.getPanelName());
+                    } catch (Exception e) {
+                        logError("为面板 '{}' 注入 UICommandFacade 失败", e, panel.getPanelName());
+                    }
+                }
+                
+                if (panel instanceof ToolbarPanel) {
+                    try {
+                        ((ToolbarPanel) panel).setCommands(getOrCreateCommandFacade());
                         commandFacadeCount++;
                         logDebug("为面板 '{}' 注入了 UICommandFacade", panel.getPanelName());
                     } catch (Exception e) {

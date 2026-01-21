@@ -10,30 +10,36 @@ import com.chronoblocks.ui.theme.Icons;
 import com.chronoblocks.ui.tools.EditorTool;
 import com.chronoblocks.ui.tools.ToolGroup;
 import com.chronoblocks.ui.tools.ToolRegistry;
+import com.chronoblocks.ui.commands.UICommandFacade;
+import com.chronoblocks.ui.PanelId;
 
 import java.util.List;
 
 /**
- * ChronoBlocks Toolbar v6.0 - 模块化重构版
+ * ChronoBlocks Toolbar - Facade-based implementation
  * <p>
- * 专注于核心工具栏功能：
- * - 选择工具（点击 / 框选 / 魔棒）
- * - 状态显示（工具模式 / 选择数量 / FPS）
- * - 渲染控制（容器显示开关）
- * - 面板调度（通过PanelRegistry管理子面板）
- * - 窗口控制（关闭）
+ * 职责：将用户点击翻译成 Facade 命令
  * <p>
- * 其他功能已模块化为独立面板：
- * - ToolPropertiesPanel - 工具属性
- * - RenderSettingsPanel - 渲染设置
- * - SelectionFilterPanel - 选择过滤器
- * - SelectionHistoryPanel - 选择历史
- * - HelpPanel - 帮助面板
+ * 核心原则：
+ * - 不直接改 TimelineModel
+ * - 不直接调 Engine
+ * - 不维护"播放中 / 当前工具"状态
+ * - 只做一件事：把"用户点击"翻译成 Facade 命令
+ * 
+ * <p><strong>🚫 禁止导入的业务类（架构防护）：</strong>
+ * <ul>
+ *   <li>{@code TimelineModel} - 必须通过 Facade 访问</li>
+ *   <li>{@code BlockAnimationEngine} - 必须通过 Facade 访问</li>
+ *   <li>{@code PlaybackController} - 必须通过 Facade 访问</li>
+ * </ul>
+ * <p>
+ * 这是防止架构退化的"铁门"。如果发现这些导入，说明架构已被破坏。
  */
 public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
 
     private final ToolRegistry toolRegistry;
     private IPanelRegistry panelRegistry;
+    private UICommandFacade commands;
 
     /**
      * 工具按钮是否显示文字（默认：图标模式，更紧凑）
@@ -234,7 +240,10 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
                 ImGui.setCursorPosX(buttonsStartX);
             }
 
-            boolean active = tool.isActive();
+            // 状态显示：只读查询，不缓存
+            boolean active = commands != null && commands.tools() != null 
+                    ? commands.tools().isToolActive(tool.getId())
+                    : tool.isActive();
             boolean enabled = tool.isEnabled();
 
             if (active) {
@@ -249,9 +258,9 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
             String buttonId = "ToolbarPanel_tool_" + tool.getId();
             float drawW = SHOW_TOOL_TEXT ? 0 : UITheme.Spacing.BUTTON_HEIGHT;
             if (ImGui.button(label + "##" + buttonId, drawW, UITheme.Spacing.BUTTON_HEIGHT)) {
-                if (enabled) {
+                if (enabled && commands != null && commands.tools() != null) {
                     logger.info("[ToolbarPanel] 工具按钮点击: {} (ID: {})", tool.getDisplayName(), tool.getId());
-                    toolRegistry.activate(tool);
+                    commands.tools().activateTool(tool.getId());
                 }
             }
 
@@ -369,103 +378,55 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
     // 移除不再使用的方法，现在使用独立面板
 
     /**
+     * 设置命令门面（供依赖注入使用）
+     */
+    public void setCommands(UICommandFacade commands) {
+        this.commands = commands;
+    }
+    
+    /**
      * 设置面板注册表引用
      */
     @Override
     public void setPanelRegistry(IPanelRegistry panelRegistry) {
         this.panelRegistry = panelRegistry;
-        logger.info("[ToolbarPanel] 面板注册表已设置，面板数量: {}", panelRegistry != null ? panelRegistry.size() : 0);
-        if (panelRegistry != null) {
-            logger.info("[ToolbarPanel] 可用的面板:");
-            for (IPanel panel : panelRegistry.getAllPanels()) {
-                logger.info("[ToolbarPanel]   - {} (类型: {})", panel.getPanelName(), panel.getClass().getSimpleName());
-            }
-        }
     }
 
     /**
-     * 切换面板显示状态
+     * 切换面板显示状态（通过 Facade）
      */
     private void togglePanel(Class<? extends IPanel> panelClass, String... fallbackPanelNames) {
-        String targetLabel = panelClass != null ? panelClass.getSimpleName() :
-                (fallbackPanelNames != null && fallbackPanelNames.length > 0 ? fallbackPanelNames[0] : "未知面板");
-        try {
-            logger.info("[ToolbarPanel] 尝试切换面板: {}", targetLabel);
-
-            if (panelRegistry == null) {
-                logger.warn("[ToolbarPanel] 面板注册表未设置，无法切换面板: {}", targetLabel);
-                return;
-            }
-
-            IPanel panel = null;
-
-            if (panelClass != null) {
-                panel = panelRegistry.getPanel(panelClass);
-                if (panel == null) {
-                    for (IPanel candidate : panelRegistry.getAllPanels()) {
-                        if (panelClass.isInstance(candidate)) {
-                            panel = candidate;
-                            break;
-                        }
-                    }
+        if (commands == null || commands.view() == null) {
+            return;
+        }
+        
+        // 尝试通过 PanelId 获取面板 ID
+        String panelId = null;
+        if (panelClass != null) {
+            if (panelRegistry != null) {
+                IPanel panel = panelRegistry.getPanel(panelClass);
+                if (panel != null) {
+                    panelId = PanelId.fromPanel(panel);
                 }
             }
-
-            if (panel == null && fallbackPanelNames != null) {
-                for (String candidateName : fallbackPanelNames) {
-                    if (candidateName == null || candidateName.isBlank()) {
-                        continue;
-                    }
-                    panel = panelRegistry.getPanelByName(candidateName);
+        }
+        
+        // 如果通过类找不到，尝试通过 fallback 名称
+        if (panelId == null && fallbackPanelNames != null) {
+            for (String name : fallbackPanelNames) {
+                if (name != null && !name.isBlank() && panelRegistry != null) {
+                    IPanel panel = panelRegistry.getPanelByName(name);
                     if (panel != null) {
-                        targetLabel = candidateName;
-                        break;
+                        panelId = PanelId.fromPanel(panel);
+                        if (panelId != null) break;
                     }
                 }
             }
-
-            if (panel != null) {
-                boolean currentVisible = panel.isVisible();
-                boolean newVisible = !currentVisible;
-                panel.setVisible(newVisible);
-                logger.info("[ToolbarPanel] 切换面板: {} -> {} (从 {} 到 {})",
-                        panel.getPanelName(), newVisible ? "显示" : "隐藏", currentVisible, newVisible);
-            } else {
-                String fallbackDescription = buildFallbackDescription(fallbackPanelNames);
-                logger.warn("[ToolbarPanel] 未找到面板: {} (class: {}, fallback: {})",
-                        targetLabel,
-                        panelClass != null ? panelClass.getName() : "无",
-                        fallbackDescription);
-                logger.info("[ToolbarPanel] 可用的面板:");
-                for (IPanel p : panelRegistry.getAllPanels()) {
-                    if (p != null) {
-                        logger.info("[ToolbarPanel]   - {} (类型: {})", p.getPanelName(), p.getClass().getSimpleName());
-                    }
-                }
-            }
-        } catch (Exception e) {
-            logger.error("[ToolbarPanel] 切换面板失败: {}", targetLabel, e);
         }
-    }
-
-    /**
-     * 构建候选面板名称描述
-     */
-    private String buildFallbackDescription(String... fallbackPanelNames) {
-        if (fallbackPanelNames == null || fallbackPanelNames.length == 0) {
-            return "无候选名称";
+        
+        if (panelId != null) {
+            commands.view().togglePanel(panelId);
         }
-        StringBuilder builder = new StringBuilder();
-        for (String name : fallbackPanelNames) {
-            if (name == null || name.isBlank()) {
-                continue;
-            }
-            if (!builder.isEmpty()) {
-                builder.append("/");
-            }
-            builder.append(name);
-        }
-        return !builder.isEmpty() ? builder.toString() : "无候选名称";
     }
 
     /**
