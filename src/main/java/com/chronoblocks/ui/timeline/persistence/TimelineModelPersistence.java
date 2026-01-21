@@ -20,6 +20,7 @@ import com.chronoblocks.ui.timeline.model.audio.AudioTrack;
 import com.chronoblocks.ui.timeline.model.audio.AudioTimelineClip;
 import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
 import com.chronoblocks.ui.timeline.model.camera.path.CranePathClip;
+import com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip;
 import com.chronoblocks.ui.timeline.model.clip.ClipKeyframe;
 import com.chronoblocks.ui.timeline.model.season.SeasonKeyframe;
 import com.chronoblocks.ui.timeline.model.time.TimeKeyframe;
@@ -867,20 +868,8 @@ public class TimelineModelPersistence {
                         
                         switch (pathClipDTO.type) {
                             case "ORBIT" -> {
-                                net.minecraft.util.math.Vec3d center = pathClipDTO.center != null ? pathClipDTO.center.toVec3d() : net.minecraft.util.math.Vec3d.ZERO;
-                                float radius = pathClipDTO.radius != null ? pathClipDTO.radius : 10.0f;
-                                float height = pathClipDTO.height != null ? pathClipDTO.height : 64.0f;
-                                
-                                com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip orbit = 
-                                    new com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip(
-                                        pathClipDTO.name != null ? pathClipDTO.name : "Orbit Path",
-                                        pathClipDTO.startTime,
-                                        pathClipDTO.endTime,
-                                        center,
-                                        radius,
-                                        height
-                                    );
-                                
+                                OrbitPathClip orbit = getOrbitPathClip(pathClipDTO);
+
                                 if (pathClipDTO.lookAt != null) orbit.setLookAt(pathClipDTO.lookAt.toVec3d());
                                 if (pathClipDTO.radiusMode != null) {
                                     try { orbit.setRadiusMode(com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip.RadiusMode.valueOf(pathClipDTO.radiusMode)); } catch (Exception ignored) {}
@@ -915,11 +904,7 @@ public class TimelineModelPersistence {
                                 
                                 pathClip = dolly;
                             }
-                            case "CRANE" -> {
-                                CranePathClip crane = getCranePathClip(pathClipDTO);
-
-                                pathClip = crane;
-                            }
+                            case "CRANE" -> pathClip = getCranePathClip(pathClipDTO);
                             default -> LOGGER.warn("[TimelineModelPersistence] 未知的 PathClip 类型: {}", pathClipDTO.type);
                         }
                         
@@ -946,6 +931,21 @@ public class TimelineModelPersistence {
             audioService.setTimelineModel(model);
         }
 }
+
+    private static @NotNull OrbitPathClip getOrbitPathClip(PathClipDTO pathClipDTO) {
+        net.minecraft.util.math.Vec3d center = pathClipDTO.center != null ? pathClipDTO.center.toVec3d() : net.minecraft.util.math.Vec3d.ZERO;
+        float radius = pathClipDTO.radius != null ? pathClipDTO.radius : 10.0f;
+        float height = pathClipDTO.height != null ? pathClipDTO.height : 64.0f;
+
+        return new OrbitPathClip(
+            pathClipDTO.name != null ? pathClipDTO.name : "Orbit Path",
+            pathClipDTO.startTime,
+            pathClipDTO.endTime,
+            center,
+            radius,
+            height
+        );
+    }
 
     private static @NotNull CranePathClip getCranePathClip(PathClipDTO pathClipDTO) {
         CranePathClip crane = 

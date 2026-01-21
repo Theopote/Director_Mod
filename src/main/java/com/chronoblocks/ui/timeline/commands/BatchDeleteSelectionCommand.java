@@ -4,6 +4,7 @@ import com.chronoblocks.ui.timeline.model.TimelineClip;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineSelectable;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
+import com.chronoblocks.ui.timeline.model.camera.path.CameraPathClip;
 import com.chronoblocks.ui.timeline.model.clip.ClipKeyframe;
 
 import java.util.ArrayList;
@@ -79,12 +80,27 @@ public class BatchDeleteSelectionCommand extends BaseTimelineCommand {
             }
         }
 
-        // 4) 自动化关键帧删除（轨道级）
+        // 4) Path Clip 删除（摄像机轨道级）
+        for (Object it : selectionSnapshot) {
+            if (!(it instanceof CameraPathClip pathClip)) continue;
+            
+            TimelineTrack track = findOwnerTrackForPathClip(pathClip);
+            if (track == null) continue;
+            if (track.isLocked()) continue;
+            
+            TimelineCommand cmd = new DeletePathClipCommand(model, track, pathClip);
+            cmd.execute();
+            executed.add(cmd);
+        }
+
+        // 5) 自动化关键帧删除（轨道级）
         for (Object it : selectionSnapshot) {
             if (!(it instanceof TimelineSelectable selectable)) continue;
             if (it instanceof TimelineClip) continue;
             // 跳过标记（已在步骤3处理）
             if (it instanceof com.chronoblocks.ui.timeline.model.TimelineMarker) continue;
+            // 跳过 Path Clip（已在步骤4处理）
+            if (it instanceof CameraPathClip) continue;
             // 与现有删除逻辑一致：音频事件点默认不通过工具栏/Del 批量删除
             if (it instanceof com.chronoblocks.ui.timeline.model.audio.AudioEvent) continue;
 
@@ -136,6 +152,20 @@ public class BatchDeleteSelectionCommand extends BaseTimelineCommand {
             if (t == null || !t.hasAutomationKeyframes()) continue;
             boolean contains = t.getAutomationKeyframes().stream()
                     .anyMatch(x -> x != null && keyframe.getId().equals(x.getId()));
+            if (contains) return t;
+        }
+        return null;
+    }
+    
+    /**
+     * 查找包含指定 Path Clip 的轨道
+     */
+    private TimelineTrack findOwnerTrackForPathClip(CameraPathClip pathClip) {
+        if (pathClip == null || model == null) return null;
+        for (TimelineTrack t : model.getTracks()) {
+            if (t == null || !t.hasCameraPathClips()) continue;
+            boolean contains = t.getCameraPathClips().stream()
+                    .anyMatch(x -> x != null && pathClip.getId().equals(x.getId()));
             if (contains) return t;
         }
         return null;
