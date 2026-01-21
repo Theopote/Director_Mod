@@ -96,13 +96,25 @@ public class BatchDeleteSelectionCommand extends BaseTimelineCommand {
         // 5) 自动化关键帧删除（轨道级）
         for (Object it : selectionSnapshot) {
             if (!(it instanceof TimelineSelectable selectable)) continue;
-            if (it instanceof TimelineClip) continue;
-            // 跳过标记（已在步骤3处理）
-            if (it instanceof com.chronoblocks.ui.timeline.model.TimelineMarker) continue;
-            // 跳过 Path Clip（已在步骤4处理）
-            if (it instanceof CameraPathClip) continue;
-            // 与现有删除逻辑一致：音频事件点默认不通过工具栏/Del 批量删除
-            if (it instanceof com.chronoblocks.ui.timeline.model.audio.AudioEvent) continue;
+            switch (it) {
+                case TimelineClip ignored -> {
+                    continue;
+                }
+                // 跳过标记（已在步骤3处理）
+                case com.chronoblocks.ui.timeline.model.TimelineMarker ignored -> {
+                    continue;
+                }
+                // 跳过 Path Clip（已在步骤4处理）
+                case CameraPathClip ignored -> {
+                    continue;
+                }
+                // 与现有删除逻辑一致：音频事件点默认不通过工具栏/Del 批量删除
+                case com.chronoblocks.ui.timeline.model.audio.AudioEvent ignored -> {
+                    continue;
+                }
+                default -> {
+                }
+            }
 
             TimelineTrack track = findOwnerTrackForAutomationKeyframe(selectable);
             if (track == null) continue;

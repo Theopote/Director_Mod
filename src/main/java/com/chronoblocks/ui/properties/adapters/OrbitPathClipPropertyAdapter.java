@@ -296,11 +296,25 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
             com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip.RadiusMode radiusMode = clip.getRadiusMode();
             boolean isFromCurrent = radiusMode == com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip.RadiusMode.FROM_CURRENT_POSITION;
             
+            // ⭐ 关键修复：切换到 From Current 模式时，立即对齐半径
+            // ⭐ 允许重复点击来重新对齐（即使已经选中）
             if (ImGui.radioButton("From Current Camera Position", isFromCurrent)) {
+                // 从其他模式切换过来
                 if (!isFromCurrent) {
                     clip.setRadiusMode(com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip.RadiusMode.FROM_CURRENT_POSITION);
                     modified = true;
                 }
+            }
+            // ⭐ 无论是否切换模式，只要被点击就重新对齐半径（允许重复点击重新对齐）
+            if (ImGui.isItemClicked()) {
+                // 如果当前不是 FROM_CURRENT 模式，先切换模式
+                if (!isFromCurrent) {
+                    clip.setRadiusMode(com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip.RadiusMode.FROM_CURRENT_POSITION);
+                    modified = true;
+                }
+                // 重新对齐半径
+                alignRadiusFromCurrentCamera(clip);
+                modified = true;
             }
             ImGui.sameLine();
             if (ImGui.radioButton("Custom Radius", !isFromCurrent)) {
@@ -344,10 +358,13 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
                     modified = true;
                 }
             } else {
-                // ⭐ From Current Position 模式：显示当前半径值（只读）
-                ImGui.textDisabled(String.format("Radius: %.2f blocks (从进入时的摄像机位置计算)", clip.getRadius()));
+                // ⭐ From Current Position 模式：显示当前半径值（只读，但可以实时更新）
+                // ⭐ 实时计算并显示当前半径（如果可能）
+                float displayRadius = getDisplayRadius(clip);
+
+                ImGui.textDisabled(String.format("Radius: %.2f blocks (从当前摄像机位置计算)", displayRadius));
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("半径会在进入 PathClip 时自动从当前摄像机位置计算");
+                    ImGui.setTooltip("半径会实时从当前摄像机位置计算（投影到 XZ 平面）\n点击上面的选项可以重新对齐");
                 }
             }
             
@@ -426,7 +443,30 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
         
         return modified;
     }
-    
+
+    private static float getDisplayRadius(OrbitPathClip clip) {
+        float displayRadius = clip.getRadius();
+        try {
+            // 尝试从当前摄像机位置实时计算半径（用于显示）
+            CameraRuntime runtime =
+                CameraRuntime.getInstance();
+            CameraSample currentSample = runtime.getCurrentSample();
+            if (currentSample != null) {
+                Vec3d currentPos = currentSample.position();
+                Vec3d c = clip.getCenter();
+                double dx = currentPos.x - c.x;
+                double dz = currentPos.z - c.z;
+                double dist = Math.sqrt(dx * dx + dz * dz);
+                if (dist > 1e-3) {
+                    displayRadius = (float) dist;
+                }
+            }
+        } catch (Exception e) {
+            // 如果获取失败，使用 clip 中的值
+        }
+        return displayRadius;
+    }
+
     /**
      * 分区 4：角度区间（Start/End Angle，带 Full Orbit 按钮）
      */
@@ -469,13 +509,24 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
             
             // ⭐ 修复：与其他 radioButton 保持一致，添加状态检查
             // ⭐ 关键修复：切换到 From Current 模式时，立即对齐起始角
+            // ⭐ 允许重复点击来重新对齐（即使已经选中）
             if (ImGui.radioButton("From Current Camera Position", isStartAngleFromCurrent)) {
+                // 从其他模式切换过来
                 if (!isStartAngleFromCurrent) {
                     clip.setStartAngleMode(com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip.StartAngleMode.FROM_CURRENT_POSITION);
-                    // ⭐ 立即从当前摄像机状态对齐起始角（不需要等待 onEnter）
-                    alignStartAngleFromCurrentCamera(clip);
                     modified = true;
                 }
+            }
+            // ⭐ 无论是否切换模式，只要被点击就重新对齐起始角（允许重复点击重新对齐）
+            if (ImGui.isItemClicked()) {
+                // 如果当前不是 FROM_CURRENT 模式，先切换模式
+                if (!isStartAngleFromCurrent) {
+                    clip.setStartAngleMode(com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip.StartAngleMode.FROM_CURRENT_POSITION);
+                    modified = true;
+                }
+                // 重新对齐起始角
+                alignStartAngleFromCurrentCamera(clip);
+                modified = true;
             }
             ImGui.sameLine();
             if (ImGui.radioButton("Custom Angle", !isStartAngleFromCurrent)) {
@@ -671,6 +722,50 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
                 LOGGER.warn("[OrbitPathClipPropertyAdapter] 无法获取当前摄像机状态，无法对齐起始角");
                 return;
             }
+
+            Vec3d currentPos = currentSample.position();
+
+            // 从 yaw/pitch 计算 lookAt（与 CameraTrackSampler 中的逻辑一致）
+            double yawRad = Math.toRadians(currentSample.yaw());
+            double pitchRad = Math.toRadians(currentSample.pitch());
+            double cosPitch = Math.cos(pitchRad);
+            Vec3d currentLookAt = currentPos.add(
+                -Math.sin(yawRad) * cosPitch * 10.0,  // 向前看 10 个单位
+                -Math.sin(pitchRad) * 10.0,
+                Math.cos(yawRad) * cosPitch * 10.0
+            );
+
+            // 构造 CameraPathEnterContext
+            CameraPathEnterContext ctx = new CameraPathEnterContext(currentPos, currentLookAt);
+
+            // 调用对齐方法
+            clip.alignStartAngleFromCamera(ctx);
+            
+            // ⭐ 同步更新 UI 缓存值，确保滑动条显示正确的值
+            startAngleFloat.set(clip.getStartAngle());
+            endAngleFloat.set(clip.getEndAngle());
+            
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("[OrbitPathClipPropertyAdapter] 已从当前摄像机状态对齐起始角: {}°", clip.getStartAngle());
+            }
+        } catch (Exception e) {
+            LOGGER.error("[OrbitPathClipPropertyAdapter] 对齐起始角时发生错误", e);
+        }
+    }
+
+    /**
+     * ⭐ 从当前摄像机状态立即对齐半径（UI 主动调用）
+     */
+    private void alignRadiusFromCurrentCamera(OrbitPathClip clip) {
+        try {
+            // 从 CameraRuntime 获取当前摄像机状态
+            CameraRuntime runtime = CameraRuntime.getInstance();
+            CameraSample currentSample = runtime.getCurrentSample();
+            
+            if (currentSample == null) {
+                LOGGER.warn("[OrbitPathClipPropertyAdapter] 无法获取当前摄像机状态，无法对齐半径");
+                return;
+            }
             
             Vec3d currentPos = currentSample.position();
             
@@ -688,17 +783,16 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
             CameraPathEnterContext ctx = new CameraPathEnterContext(currentPos, currentLookAt);
             
             // 调用对齐方法
-            clip.alignStartAngleFromCamera(ctx);
+            clip.alignRadiusFromCamera(ctx);
             
             // ⭐ 同步更新 UI 缓存值，确保滑动条显示正确的值
-            startAngleFloat.set(clip.getStartAngle());
-            endAngleFloat.set(clip.getEndAngle());
+            radiusFloat.set(clip.getRadius());
             
             if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("[OrbitPathClipPropertyAdapter] 已从当前摄像机状态对齐起始角: {}°", clip.getStartAngle());
+                LOGGER.debug("[OrbitPathClipPropertyAdapter] 已从当前摄像机状态对齐半径: {} blocks", clip.getRadius());
             }
         } catch (Exception e) {
-            LOGGER.error("[OrbitPathClipPropertyAdapter] 对齐起始角时发生错误", e);
+            LOGGER.error("[OrbitPathClipPropertyAdapter] 对齐半径时发生错误", e);
         }
     }
     
@@ -735,10 +829,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
             }
             
             TimelineCameraController controller = TimelineCameraController.getInstance();
-            if (controller == null) {
-                return;
-            }
-            
+
             // ⭐ 使用 TimelineCameraController 的 previewAt() 来实时预览
             // previewAt() 会自动处理采样和应用，适用于所有状态（静止/播放/scrubbing）
             float currentTime = timelineModel.getCurrentTime();

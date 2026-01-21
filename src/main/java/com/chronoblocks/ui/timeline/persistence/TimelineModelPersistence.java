@@ -913,7 +913,7 @@ public class TimelineModelPersistence {
                             track.addCameraPathClip(pathClip);
                         }
                     } catch (Exception e) {
-                        LOGGER.error("[TimelineModelPersistence] 加载 PathClip 时发生错误: {}", pathClipDTO != null ? pathClipDTO.name : "unknown", e);
+                        LOGGER.error("[TimelineModelPersistence] 加载 PathClip 时发生错误: {}", pathClipDTO.name, e);
                     }
                 }
             }
@@ -927,10 +927,8 @@ public class TimelineModelPersistence {
         } finally {
             audioService.setSuppressAutoCreate(prevSuppress);
         }
-        if (loaded) {
-            audioService.setTimelineModel(model);
-        }
-}
+        audioService.setTimelineModel(model);
+    }
 
     private static @NotNull OrbitPathClip getOrbitPathClip(PathClipDTO pathClipDTO) {
         net.minecraft.util.math.Vec3d center = pathClipDTO.center != null ? pathClipDTO.center.toVec3d() : net.minecraft.util.math.Vec3d.ZERO;

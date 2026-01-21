@@ -488,6 +488,48 @@ public class OrbitPathClip extends CameraPathClip {
         }
     }
     
+    /**
+     * ⭐ 从当前摄像机状态立即对齐半径（UI 主动调用）
+     * 
+     * <p>这个方法可以在属性面板中切换模式时立即调用，不需要等待 onEnter()。
+     * 与 onEnter() 中的对齐逻辑完全一致，确保行为统一。
+     * 
+     * @param ctx 摄像机进入上下文（包含位置和朝向信息）
+     */
+    public void alignRadiusFromCamera(CameraPathEnterContext ctx) {
+        if (ctx == null || ctx.position == null) {
+            LOGGER.warn("[OrbitPathClip] alignRadiusFromCamera() 上下文为空，无法对齐");
+            return;
+        }
+        
+        Vec3d pos = ctx.position;
+        Vec3d c = center;
+        
+        // ⭐ 计算当前位置到中心的距离（投影到 XZ 平面）
+        double dx = pos.x - c.x;
+        double dz = pos.z - c.z;
+        double distSq = dx * dx + dz * dz;
+        double dist = Math.sqrt(distSq);
+        
+        if (dist > 1e-3) {
+            // 投影到 XZ 平面的距离作为半径
+            float newRadius = (float) dist;
+            setRadius(newRadius);
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("[OrbitPathClip] alignRadiusFromCamera() 从当前位置计算半径: {} blocks (距离中心: {:.2f})", 
+                    newRadius, dist);
+            }
+        } else {
+            // 如果摄像机在中心点，使用默认半径
+            if (radius < 0.1f) {
+                setRadius(8.0f);  // 默认 8 格
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("[OrbitPathClip] alignRadiusFromCamera() 摄像机在中心点，使用默认半径: 8.0 blocks");
+                }
+            }
+        }
+    }
+    
     @Override
     public CameraPathClip copy() {
         OrbitPathClip copy = new OrbitPathClip(
