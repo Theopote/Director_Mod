@@ -97,11 +97,10 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
         if (ImGui.beginMainMenuBar()) {
                 try {
                     renderFileMenu();
-                    renderEditMenu();
-                    renderAnimationMenu();
-                renderContainerMenu();  // 🆕 容器管理菜单
+                    renderTimelineMenu();
+                    renderCameraMenu();
+                    renderPlaybackMenu();
                     renderWindowMenu();
-                    renderToolsMenu();
                     renderHelpMenu();
 
                     // 右侧：全局状态 + 窗口级操作（FPS + 关闭）
@@ -177,117 +176,117 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
      */
     private void renderFileMenu() {
         if (ImGui.beginMenu(Icons.FOLDER + " File")) {
-                    if (ImGui.menuItem("New Animation", "Ctrl+N")) {
-                        handleNewAnimation();
-                    }
+            if (ImGui.menuItem("新建项目", "Ctrl+N")) {
+                handleNewAnimation();
+            }
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip("创建新的动画工程");
             }
             
-                    if (ImGui.menuItem("Open...", "Ctrl+O")) {
-                        handleOpenAnimation();
-                    }
+            if (ImGui.menuItem("打开项目", "Ctrl+O")) {
+                handleOpenAnimation();
+            }
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip("打开现有动画文件");
             }
             
-            UITheme.spacingSmall();
+            ImGui.separator();
             
-                    if (ImGui.menuItem("Save", "Ctrl+S")) {
-                        handleSaveAnimation();
-                    }
+            if (ImGui.menuItem("保存", "Ctrl+S")) {
+                handleSaveAnimation();
+            }
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip("保存当前动画");
             }
             
-                    if (ImGui.menuItem("Save As...", "Ctrl+Shift+S")) {
-                        handleSaveAsAnimation();
-                    }
-            
-                    ImGui.separator();
-            
-                    if (ImGui.menuItem("Import Resources...")) {
-                        handleImportResources();
-                    }
-            if (ImGui.menuItem("Export Animation...", "Ctrl+E")) {
-                        handleExportAnimation();
-                    }
-            if (ImGui.menuItem(Icons.VIDEO + " Export Video...")) {
-                        handleExportVideo();
-                    }
-            
-                    ImGui.separator();
-            
-                    if (ImGui.menuItem("Exit", "Alt+F4")) {
-                        handleExit();
-                    }
-            
-                    ImGui.endMenu();
-        }
-    }
-
-    // ==================== Edit 菜单 ====================
-    
-    /**
-     * 编辑菜单 - 基础编辑功能
-     */
-    private void renderEditMenu() {
-        if (ImGui.beginMenu(Icons.EDIT + " Edit")) {
-                    if (ImGui.menuItem("Undo", "Ctrl+Z")) {
-                        handleUndo();
-                    }
-                    if (ImGui.menuItem("Redo", "Ctrl+Y")) {
-                        handleRedo();
-                    }
-            
-                    ImGui.separator();
-            
-                    if (ImGui.menuItem("Cut", "Ctrl+X")) {
-                        handleCut();
-                    }
-                    if (ImGui.menuItem("Copy", "Ctrl+C")) {
-                        handleCopy();
-                    }
-                    if (ImGui.menuItem("Paste", "Ctrl+V")) {
-                        handlePaste();
-                    }
-            if (ImGui.menuItem("Delete", "Del")) {
-                        handleDelete();
-                    }
-            
-            ImGui.separator();
-            
-                    if (ImGui.menuItem("Select All", "Ctrl+A")) {
-                        handleSelectAll();
-                    }
-            if (ImGui.menuItem("Deselect All", "Ctrl+Shift+A")) {
-                handleDeselectAll();
+            if (ImGui.menuItem("另存为", "Ctrl+Shift+S")) {
+                handleSaveAsAnimation();
             }
             
             ImGui.separator();
             
-            if (ImGui.menuItem("Group Keyframes", "Ctrl+G")) {
-                handleGroupKeyframes();
-            }
-            if (ImGui.menuItem("Ungroup Keyframes", "Ctrl+Shift+G")) {
-                handleUngroupKeyframes();
+            if (ImGui.menuItem(Icons.VIDEO + " 导出视频")) {
+                handleExportVideo();
             }
             
-                    ImGui.endMenu();
+            ImGui.separator();
+            
+            if (ImGui.menuItem("退出", "Alt+F4")) {
+                handleExit();
+            }
+            
+            ImGui.endMenu();
         }
     }
 
-    // ==================== Animation 菜单 ====================
+    // ==================== Timeline 菜单 ====================
     
     /**
-     * 动画菜单 - 动画控制与管理
+     * 时间线菜单 - 时间线设置与导航
      */
-    private void renderAnimationMenu() {
+    private void renderTimelineMenu() {
+        if (ImGui.beginMenu(Icons.TIMELINE + " Timeline")) {
+            if (ImGui.menuItem("时间线设置…")) {
+                handleTimelineSettings();
+            }
+            
+            ImGui.separator();
+            
+            if (ImGui.menuItem("对齐到播放头")) {
+                handleAlignToPlayhead();
+            }
+            if (ImGui.menuItem("缩放到全部内容")) {
+                handleZoomToFit();
+            }
+            
+            ImGui.endMenu();
+        }
+    }
+
+    // ==================== Camera 菜单 ====================
+    
+    /**
+     * 摄像机菜单 - 摄像机路径预设与操作
+     */
+    private void renderCameraMenu() {
+        if (ImGui.beginMenu(Icons.CAMERA + " Camera")) {
+            if (ImGui.beginMenu("摄像机路径预设")) {
+                if (ImGui.menuItem("Orbit")) {
+                    handleCreateOrbitPath();
+                }
+                if (ImGui.menuItem("Dolly")) {
+                    handleCreateDollyPath();
+                }
+                if (ImGui.menuItem("Crane")) {
+                    handleCreateCranePath();
+                }
+                ImGui.endMenu();
+            }
+            
+            ImGui.separator();
+            
+            if (ImGui.menuItem("对齐摄像机到视角")) {
+                handleAlignCameraToView();
+            }
+            if (ImGui.menuItem("从当前视角创建镜头")) {
+                handleCreateCameraFromView();
+            }
+            
+            ImGui.endMenu();
+        }
+    }
+
+    // ==================== Playback 菜单 ====================
+    
+    /**
+     * 播放菜单 - 播放控制与管理
+     */
+    private void renderPlaybackMenu() {
         PlaybackController pc = PlaybackController.get();
             
-        if (ImGui.beginMenu(Icons.ANIMATION + " Animation")) {
+        if (ImGui.beginMenu(Icons.PLAY + " Playback")) {
             // 播放控制
-            String playLabel = pc.isPlaying() ? (Icons.PAUSE + " Pause") : (Icons.PLAY + " Play");
+            String playLabel = pc.isPlaying() ? (Icons.PAUSE + " 播放 / 暂停") : (Icons.PLAY + " 播放 / 暂停");
             if (ImGui.menuItem(playLabel, "Space")) {
                 if (pc.isPlaying()) {
                     pc.pause();
@@ -299,7 +298,10 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
                 ImGui.setTooltip(pc.isPlaying() ? "暂停动画播放" : "开始播放动画");
             }
             
-            if (ImGui.menuItem(Icons.STOP + " Stop", "Ctrl+Space")) {
+            if (ImGui.menuItem(Icons.PAUSE + " 暂停", "Ctrl+Space")) {
+                pc.pause();
+            }
+            if (ImGui.menuItem(Icons.STOP + " 停止", "Ctrl+Shift+Space")) {
                 pc.stop();
             }
             if (ImGui.isItemHovered()) {
@@ -308,45 +310,28 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
             
             ImGui.separator();
             
-            // 关键帧操作
-            if (ImGui.menuItem("Add Keyframe", "K")) {
-                handleAddKeyframe();
-            }
-            if (ImGui.menuItem("Delete Keyframe", "Shift+K")) {
-                handleDeleteKeyframe();
-            }
-            if (ImGui.menuItem("Edit Keyframe Properties", "Enter")) {
-                handleEditKeyframe();
-            }
-            
-            ImGui.separator();
-            
-            // 动画片段
-            if (ImGui.menuItem("New Animation Clip")) {
-                handleNewClip();
-            }
-            if (ImGui.menuItem("Duplicate Clip")) {
-                handleDuplicateClip();
+            // 播放速度
+            if (ImGui.beginMenu("播放速度")) {
+                if (ImGui.menuItem("0.25x")) pc.setSpeed(0.25f);
+                if (ImGui.menuItem("0.5x")) pc.setSpeed(0.5f);
+                if (ImGui.menuItem("1x")) pc.setSpeed(1.0f);
+                if (ImGui.menuItem("2x")) pc.setSpeed(2.0f);
+                if (ImGui.menuItem("3x")) pc.setSpeed(3.0f);
+                ImGui.endMenu();
             }
             
-            ImGui.separator();
-            
-            // 播放选项
+            // 循环播放
             boolean looping = pc.isLoop();
-            if (ImGui.menuItem(Icons.LOOP + " Loop Playback", "", looping)) {
+            if (ImGui.menuItem(Icons.LOOP + " 循环播放", "", looping)) {
                 pc.toggleLoop();
             }
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip("开启/关闭循环播放");
             }
             
-            if (ImGui.beginMenu("Playback Speed")) {
-                if (ImGui.menuItem("0.25x")) pc.setSpeed(0.25f);
-                if (ImGui.menuItem("0.5x")) pc.setSpeed(0.5f);
-                if (ImGui.menuItem("1.0x (Normal)")) pc.setSpeed(1.0f);
-                if (ImGui.menuItem("1.5x")) pc.setSpeed(1.5f);
-                if (ImGui.menuItem("2.0x")) pc.setSpeed(2.0f);
-                ImGui.endMenu();
+            // 播放范围
+            if (ImGui.menuItem("播放范围（In / Out）")) {
+                handlePlaybackRange();
             }
             
             ImGui.separator();
@@ -359,78 +344,10 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
                 pc.seek(pc.getDuration());
             }
             
-            ImGui.separator();
-            
-            // 高级功能
-            if (ImGui.menuItem("Bake Animation")) {
-                handleBakeAnimation();
-            }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("烘焙动画为可播放序列");
-            }
-            
             ImGui.endMenu();
         }
     }
 
-    // ==================== Container 菜单 ====================
-
-    /**
-     * 容器菜单 - 容器管理专属（🆕 新增）
-     */
-    private void renderContainerMenu() {
-        if (ImGui.beginMenu(Icons.CONTAINER + " Container")) {
-            if (ImGui.menuItem("Add Container", "Ctrl+Shift+C")) {
-                handleAddContainer();
-            }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("创建新的容器");
-            }
-            
-            if (ImGui.menuItem("Duplicate Container", "Ctrl+D")) {
-                handleDuplicateContainer();
-            }
-            if (ImGui.menuItem("Rename Container", "F2")) {
-                handleRenameContainer();
-            }
-            if (ImGui.menuItem("Delete Container", "Delete")) {
-                handleDeleteContainer();
-            }
-            
-            ImGui.separator();
-            
-            if (ImGui.menuItem("Assign Selection to Container", "Ctrl+G")) {
-                handleAssignSelectionToContainer();
-            }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("将选中的方块指派给容器");
-            }
-            
-            ImGui.separator();
-            
-            if (ImGui.menuItem("Import Container...")) {
-                handleImportContainer();
-            }
-            if (ImGui.menuItem("Export Container...", "Ctrl+E")) {
-                handleExportContainer();
-            }
-            
-            ImGui.separator();
-            
-            if (ImGui.menuItem("Sync With World")) {
-                handleSyncContainer();
-            }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("同步容器与Minecraft世界");
-            }
-            
-            if (ImGui.menuItem("Refresh All Containers")) {
-                handleRefreshContainers();
-            }
-            
-            ImGui.endMenu();
-        }
-    }
 
     // ==================== Window 菜单 ====================
 
@@ -459,7 +376,20 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
                                 continue;
                             }
                             boolean visible = panel.isVisible();
-                            if (ImGui.menuItem(panel.getPanelName(), "", visible)) {
+                            String panelName = panel.getPanelName();
+                            // 根据用户要求显示特定的面板名称
+                            String displayName = switch (panelName) {
+                                case "Timeline" -> "Timeline";
+                                case "ToolProperties" -> "Tool Properties";
+                                case "Container" -> "Container";
+                                case "RenderSettings" -> "RenderSettings";
+                                case "Toolbar" -> "Toolbar";
+                                case "SelectionFilter" -> "SelectionFiler";
+                                case "Properties" -> "Properties";
+                                case "SelectionHistory" -> "SelectionHistory";
+                                default -> panelName;
+                            };
+                            if (ImGui.menuItem(displayName, "", visible)) {
                                 panel.setVisible(!visible);
                             }
                         }
@@ -478,71 +408,22 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
                 handleResetLayout();
             }
             
-            if (ImGui.beginMenu("Layout Presets")) {
-                if (ImGui.menuItem("Compact Layout")) {
-                    handleCompactLayout();
+            ImGui.separator();
+            
+            // UI 缩放
+            if (ImGui.menuItem("UI 缩放")) {
+                handleUIScale();
+            }
+            
+            // 主题切换
+            if (ImGui.beginMenu("主题切换（Dark / Light）")) {
+                if (ImGui.menuItem("Dark", "", true)) {
+                    handleThemeSwitch("Dark");
                 }
-                if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("紧凑布局 - 适合小屏幕");
+                if (ImGui.menuItem("Light", "", false)) {
+                    handleThemeSwitch("Light");
                 }
-                
-                if (ImGui.menuItem("Wide Layout")) {
-                    handleWideLayout();
-                }
-                if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("宽屏布局 - 适合大显示器");
-                }
-                
-                if (ImGui.menuItem("Animation Focus")) {
-                    handleAnimationFocusLayout();
-                }
-                if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("动画编辑优先布局");
-                }
-                
                 ImGui.endMenu();
-            }
-            
-            ImGui.separator();
-            
-            if (ImGui.menuItem("Toggle Fullscreen", "F11")) {
-                handleToggleFullscreen();
-            }
-            
-            ImGui.endMenu();
-        }
-    }
-
-    // ==================== Tools 菜单 ====================
-
-    /**
-     * 工具菜单 - 开发与调试
-     */
-    private void renderToolsMenu() {
-        if (ImGui.beginMenu(Icons.TOOLBOX + " Tools")) {
-            if (ImGui.menuItem("Settings...", "Ctrl+,")) {
-                showSettingsDialog.set(true);
-            }
-            
-            ImGui.separator();
-            
-            if (ImGui.menuItem("Developer Console", "`")) {
-                handleDeveloperConsole();
-            }
-            if (ImGui.menuItem("Performance Monitor")) {
-                handleShowPerformanceMonitor();
-            }
-            if (ImGui.menuItem("Resource Inspector")) {
-                handleResourceInspector();
-            }
-            
-            ImGui.separator();
-            
-            if (ImGui.menuItem("Scene Profiler")) {
-                handleSceneProfiler();
-            }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("分析场景性能");
             }
             
             ImGui.endMenu();
@@ -556,28 +437,35 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
      */
     private void renderHelpMenu() {
         if (ImGui.beginMenu(Icons.HELP + " Help")) {
-            if (ImGui.menuItem("Keyboard Shortcuts", "F1")) {
+            if (ImGui.menuItem("快捷键一览", "F1")) {
                 showShortcutsDialog.set(true);
             }
             if (ImGui.menuItem("User Manual")) {
                 handleShowUserManual();
             }
-            if (ImGui.menuItem("Video Tutorials")) {
+            if (ImGui.menuItem("Video Tutorial")) {
                 handleShowVideoTutorials();
             }
             
-        ImGui.separator();
-        
-            if (ImGui.menuItem("Check for Updates")) {
-                handleCheckUpdates();
-        }
-            if (ImGui.menuItem("Report Bug")) {
-                handleReportBug();
-        }
-        
-        ImGui.separator();
+            ImGui.separator();
             
-            if (ImGui.menuItem("About ChronoBlocks")) {
+            // Report Bug 子菜单
+            if (ImGui.beginMenu("Report Bug")) {
+                if (ImGui.menuItem("反馈")) {
+                    handleReportBugFeedback();
+                }
+                if (ImGui.menuItem("Discord")) {
+                    handleReportBugDiscord();
+                }
+                if (ImGui.menuItem("GitHub")) {
+                    handleReportBugGitHub();
+                }
+                ImGui.endMenu();
+            }
+            
+            ImGui.separator();
+            
+            if (ImGui.menuItem("关于 ChronoBlocks")) {
                 showAboutDialog.set(true);
             }
             
@@ -1019,29 +907,138 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
         logger.info("[MenuBar] Ungroup Keyframes");
     }
     
-    // Animation 菜单
-    private void handleAddKeyframe() {
-        logger.info("[MenuBar] Add Keyframe");
+    // Timeline 菜单
+    private void handleTimelineSettings() {
+        logger.info("[MenuBar] Timeline Settings");
+        showSettingsDialog.set(true);
     }
     
-    private void handleDeleteKeyframe() {
-        logger.info("[MenuBar] Delete Keyframe");
+    private void handleAlignToPlayhead() {
+        logger.info("[MenuBar] Align to Playhead");
+        try {
+            TimelinePanel timelinePanel = panelRegistry != null ? panelRegistry.getPanel(TimelinePanel.class) : null;
+            if (timelinePanel != null) {
+                // 通过调用 TimelinePanel 的 onFitToViewClicked 来触发对齐
+                timelinePanel.onFitToViewClicked();
+            }
+        } catch (Exception e) {
+            logger.error("[MenuBar] 对齐到播放头失败: {}", e.getMessage(), e);
+        }
     }
     
-    private void handleEditKeyframe() {
-        logger.info("[MenuBar] Edit Keyframe");
+    private void handleZoomToFit() {
+        logger.info("[MenuBar] Zoom to Fit");
+        try {
+            TimelinePanel timelinePanel = panelRegistry != null ? panelRegistry.getPanel(TimelinePanel.class) : null;
+            if (timelinePanel != null) {
+                timelinePanel.onFitToViewClicked();
+            }
+        } catch (Exception e) {
+            logger.error("[MenuBar] 缩放到全部内容失败: {}", e.getMessage(), e);
+        }
     }
     
-    private void handleNewClip() {
-        logger.info("[MenuBar] New Clip");
+    // Camera 菜单
+    private void handleCreateOrbitPath() {
+        logger.info("[MenuBar] Create Orbit Path");
+        try {
+            com.chronoblocks.ui.timeline.model.TimelineModel model = 
+                com.chronoblocks.ui.timeline.container.ContainerTimelineService.getInstance().getTimelineModel();
+            if (model != null) {
+                float currentTime = model.getCurrentTime();
+                net.minecraft.util.math.Vec3d center = net.minecraft.util.math.Vec3d.ZERO;
+                float radius = 10.0f;
+                float height = 64.0f;
+                com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip orbitClip = 
+                    new com.chronoblocks.ui.timeline.model.camera.path.OrbitPathClip(
+                        "Orbit @" + String.format("%.2f", currentTime),
+                        currentTime,
+                        currentTime + 5.0f,
+                        center,
+                        radius,
+                        height
+                    );
+                // TODO: 添加到时间线
+            }
+        } catch (Exception e) {
+            logger.error("[MenuBar] 创建 Orbit 路径失败: {}", e.getMessage(), e);
+        }
     }
     
-    private void handleDuplicateClip() {
-        logger.info("[MenuBar] Duplicate Clip");
+    private void handleCreateDollyPath() {
+        logger.info("[MenuBar] Create Dolly Path");
+        try {
+            com.chronoblocks.ui.timeline.model.TimelineModel model = 
+                com.chronoblocks.ui.timeline.container.ContainerTimelineService.getInstance().getTimelineModel();
+            if (model != null) {
+                float currentTime = model.getCurrentTime();
+                com.chronoblocks.ui.timeline.model.camera.path.DollyPathClip dollyClip = 
+                    new com.chronoblocks.ui.timeline.model.camera.path.DollyPathClip(
+                        "Dolly @" + String.format("%.2f", currentTime),
+                        currentTime,
+                        currentTime + 5.0f
+                    );
+                // TODO: 添加到时间线
+            }
+        } catch (Exception e) {
+            logger.error("[MenuBar] 创建 Dolly 路径失败: {}", e.getMessage(), e);
+        }
     }
     
-    private void handleBakeAnimation() {
-        logger.info("[MenuBar] Bake Animation");
+    private void handleCreateCranePath() {
+        logger.info("[MenuBar] Create Crane Path");
+        try {
+            com.chronoblocks.ui.timeline.model.TimelineModel model = 
+                com.chronoblocks.ui.timeline.container.ContainerTimelineService.getInstance().getTimelineModel();
+            if (model != null) {
+                float currentTime = model.getCurrentTime();
+                com.chronoblocks.ui.timeline.model.camera.path.CranePathClip craneClip = 
+                    new com.chronoblocks.ui.timeline.model.camera.path.CranePathClip(
+                        "Crane @" + String.format("%.2f", currentTime),
+                        currentTime,
+                        currentTime + 5.0f
+                    );
+                // TODO: 添加到时间线
+            }
+        } catch (Exception e) {
+            logger.error("[MenuBar] 创建 Crane 路径失败: {}", e.getMessage(), e);
+        }
+    }
+    
+    private void handleAlignCameraToView() {
+        logger.info("[MenuBar] Align Camera to View");
+        // TODO: 实现对齐摄像机到视角
+    }
+    
+    private void handleCreateCameraFromView() {
+        logger.info("[MenuBar] Create Camera from View");
+        try {
+            com.chronoblocks.ui.timeline.model.TimelineModel model = 
+                com.chronoblocks.ui.timeline.container.ContainerTimelineService.getInstance().getTimelineModel();
+            if (model != null) {
+                com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController cameraController = 
+                    com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance();
+                com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = cameraController.getActiveCameraTrack();
+                if (activeTrack != null) {
+                    float currentTime = model.getCurrentTime();
+                    com.chronoblocks.ui.timeline.model.camera.CameraKeyframe keyframe = 
+                        new com.chronoblocks.ui.timeline.model.camera.CameraKeyframe(
+                            "Camera @" + String.format("%.2f", currentTime),
+                            currentTime
+                        );
+                    cameraController.captureFromCurrentCamera(keyframe);
+                    // TODO: 添加到轨道
+                }
+            }
+        } catch (Exception e) {
+            logger.error("[MenuBar] 从当前视角创建镜头失败: {}", e.getMessage(), e);
+        }
+    }
+    
+    // Playback 菜单
+    private void handlePlaybackRange() {
+        logger.info("[MenuBar] Playback Range");
+        // TODO: 实现播放范围设置
     }
     
     // Container 菜单
@@ -1179,25 +1176,19 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
         }
     }
     
-    private void handleToggleFullscreen() {
-        logger.info("[MenuBar] Toggle Fullscreen");
+    private void handleUIScale() {
+        logger.info("[MenuBar] UI Scale");
+        // TODO: 实现 UI 缩放功能
     }
     
-    // Tools 菜单
-    private void handleDeveloperConsole() {
-        logger.info("[MenuBar] Developer Console");
-    }
-    
-    private void handleShowPerformanceMonitor() {
-        logger.info("[MenuBar] Performance Monitor");
-    }
-    
-    private void handleResourceInspector() {
-        logger.info("[MenuBar] Resource Inspector");
-    }
-    
-    private void handleSceneProfiler() {
-        logger.info("[MenuBar] Scene Profiler");
+    private void handleThemeSwitch(String theme) {
+        logger.info("[MenuBar] Theme Switch: {}", theme);
+        if ("Dark".equals(theme)) {
+            UITheme.applyDarkTheme();
+        } else if ("Light".equals(theme)) {
+            // TODO: 实现浅色主题
+            logger.warn("[MenuBar] 浅色主题尚未实现");
+        }
     }
     
     // Help 菜单
@@ -1213,8 +1204,27 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
         logger.info("[MenuBar] Check Updates");
     }
     
-    private void handleReportBug() {
-        logger.info("[MenuBar] Report Bug");
+    private void handleReportBugFeedback() {
+        logger.info("[MenuBar] Report Bug - Feedback");
+        // TODO: 打开反馈页面
+    }
+    
+    private void handleReportBugDiscord() {
+        logger.info("[MenuBar] Report Bug - Discord");
+        try {
+            java.awt.Desktop.getDesktop().browse(new java.net.URI("https://discord.gg/chronoblocks"));
+        } catch (Exception e) {
+            logger.error("[MenuBar] 打开 Discord 失败: {}", e.getMessage(), e);
+        }
+    }
+    
+    private void handleReportBugGitHub() {
+        logger.info("[MenuBar] Report Bug - GitHub");
+        try {
+            java.awt.Desktop.getDesktop().browse(new java.net.URI("https://github.com/ChronoBlocks/chronoblocks/issues"));
+        } catch (Exception e) {
+            logger.error("[MenuBar] 打开 GitHub 失败: {}", e.getMessage(), e);
+        }
     }
 
     // ==================== 依赖注入接口实现 ====================

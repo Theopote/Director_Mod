@@ -84,8 +84,10 @@ public class OrbitPathClip extends CameraPathClip {
     /** 
      * ⭐ 是否在进入 PathClip 时自动对齐起始角度到当前摄像机位置
      * @deprecated 使用 startAngleMode 代替，保留此字段以保持向后兼容
+     * 此字段仅在类内部使用以保持向后兼容性，不会对外暴露
      */
     @Deprecated
+    @SuppressWarnings("DeprecatedIsStillUsed")  // 此字段用于向后兼容，内部使用是预期的
     private boolean alignStartToCurrentPosition = true;
     
     /**
