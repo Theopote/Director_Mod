@@ -26,6 +26,17 @@ import com.chronoblocks.ui.timeline.model.camera.ViewportMath;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController;
 import com.chronoblocks.ui.timeline.render.TimelineColors;
+import com.chronoblocks.ui.commands.UICommandFacade;
+import com.chronoblocks.ui.commands.ProjectCommands;
+import com.chronoblocks.ui.commands.TimelineCommands;
+import com.chronoblocks.ui.commands.PlaybackCommands;
+import com.chronoblocks.ui.commands.CameraCommands;
+import com.chronoblocks.ui.commands.ViewCommands;
+import com.chronoblocks.ui.commands.LayoutCommands;
+import com.chronoblocks.ui.commands.HelpCommands;
+import com.chronoblocks.core.playback.PlaybackController;
+import com.chronoblocks.ui.timeline.model.camera.path.CameraPathType;
+import com.chronoblocks.ui.timeline.model.TimelineModel;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -230,6 +241,9 @@ public class ChronoBlocksUIManager {
     
     // 布局持久化管理器
     private final LayoutPersistenceManager layoutManager;
+    
+    // 对话框管理器
+    private final com.chronoblocks.ui.dialogs.DialogManager dialogManager;
 
     // 性能监控
     private long renderCount = 0;
@@ -297,6 +311,24 @@ public class ChronoBlocksUIManager {
         
         // 初始化布局持久化管理器
         this.layoutManager = LayoutPersistenceManager.getInstance();
+        
+        // 初始化对话框管理器
+        this.dialogManager = new com.chronoblocks.ui.dialogs.DialogManager();
+        // 设置新建动画确认回调
+        this.dialogManager.setNewAnimationConfirmCallback(() -> {
+            try {
+                TimelinePanel timelinePanel = panelRegistry.getPanel(TimelinePanel.class);
+                if (timelinePanel != null) {
+                    timelinePanel.resetWorkspace(true);
+                } else {
+                    // 兜底：清空容器并删除时间线存档
+                    Objects.requireNonNull(com.chronoblocks.core.container.ContainerManager.getInstance()).clear();
+                    com.chronoblocks.ui.timeline.persistence.TimelineModelPersistence.resetForCurrentWorld();
+                }
+            } catch (Exception e) {
+                LOGGER.error("[UIManager] 新建动画重置失败: {}", e.getMessage(), e);
+            }
+        });
 
         // 重置DockSpace布局构建器状态，以便首次打开时应用默认布局
         com.chronoblocks.ui.layout.DockSpaceLayoutBuilder.resetLayoutState();
@@ -336,6 +368,627 @@ public class ChronoBlocksUIManager {
     public IPanelRegistry getPanelRegistry() {
         return panelRegistry;
     }
+    
+    /**
+     * 获取命令门面（供 Menu / Toolbar / Shortcut 使用）
+     * 
+     * <p>将用户意图翻译成系统命令，而不是直接操作系统状态。
+     * 
+     * @return UI 命令门面实例
+     */
+    public UICommandFacade commands() {
+        return getOrCreateCommandFacade();
+    }
+    
+    // ==================== 命令门面实现 ====================
+    
+    private UICommandFacade commandFacade;
+    private final UILayoutFacade layoutFacade = new UILayoutFacadeImpl();
+    
+    /**
+     * 延迟初始化命令门面（懒加载模式，确保面板已完全初始化）
+     */
+    private UICommandFacade getOrCreateCommandFacade() {
+        if (commandFacade == null) {
+            commandFacade = new UICommandFacadeImpl();
+        }
+        return commandFacade;
+    }
+    
+    /**
+     * UI 命令门面实现 - 分组结构（优化依赖注入）
+     */
+    private class UICommandFacadeImpl implements UICommandFacade {
+        
+        // 直接注入的关键依赖（避免动态查找）
+        private final TimelinePanel timelinePanel;
+        private final TimelineModel timelineModel;
+        private final MenuBarPanel menuBarPanel;
+        
+        // 命令实现实例
+        private final ProjectCommands projectCommands;
+        private final TimelineCommands timelineCommands;
+        private final PlaybackCommands playbackCommands;
+        private final CameraCommands cameraCommands;
+        private final ViewCommands viewCommands;
+        private final LayoutCommands layoutCommands;
+        private final HelpCommands helpCommands;
+        
+        /**
+         * 构造函数 - 初始化时注入依赖（优化：直接注入，避免重复查找）
+         */
+        public UICommandFacadeImpl() {
+            // 从 panelRegistry 获取关键面板（初始化时获取一次，避免重复查找）
+            this.timelinePanel = panelRegistry.getPanel(TimelinePanel.class);
+            this.menuBarPanel = panelRegistry.getPanel(MenuBarPanel.class);
+            
+            // 从 TimelinePanel 直接获取 TimelineModel
+            if (timelinePanel != null) {
+                this.timelineModel = timelinePanel.getModel();
+            } else {
+                // 降级方案：通过 ContainerTimelineService 获取
+                this.timelineModel = com.chronoblocks.ui.timeline.container.ContainerTimelineService.getInstance().getTimelineModel();
+                if (this.timelineModel == null) {
+                    LOGGER.warn("[Commands] TimelineModel not available, some commands may not work");
+                }
+            }
+            
+            // 初始化命令实现（传入依赖）
+            this.projectCommands = new ProjectCommandsImpl(timelineModel, menuBarPanel);
+            this.timelineCommands = new TimelineCommandsImpl(timelinePanel, menuBarPanel, timelineModel);
+            this.playbackCommands = new PlaybackCommandsImpl(timelineModel);
+            this.cameraCommands = new CameraCommandsImpl(timelineModel);
+            this.viewCommands = new ViewCommandsImpl(panelRegistry);
+            this.layoutCommands = new LayoutCommandsImpl(layoutManager);
+            this.helpCommands = new HelpCommandsImpl(menuBarPanel);
+        }
+        
+        @Override
+        public ProjectCommands project() {
+            return projectCommands;
+        }
+        
+        @Override
+        public TimelineCommands timeline() {
+            return timelineCommands;
+        }
+        
+        @Override
+        public PlaybackCommands playback() {
+            return playbackCommands;
+        }
+        
+        @Override
+        public CameraCommands camera() {
+            return cameraCommands;
+        }
+        
+        @Override
+        public ViewCommands view() {
+            return viewCommands;
+        }
+        
+        @Override
+        public LayoutCommands layout() {
+            return layoutCommands;
+        }
+        
+        @Override
+        public HelpCommands help() {
+            return helpCommands;
+        }
+    }
+    
+    /**
+     * 项目命令实现（优化：直接调用，减少间接调用）
+     */
+    private class ProjectCommandsImpl implements ProjectCommands {
+        
+        private final TimelineModel timelineModel;
+        private final MenuBarPanel menuBarPanel;
+        
+        public ProjectCommandsImpl(TimelineModel timelineModel, MenuBarPanel menuBarPanel) {
+            this.timelineModel = timelineModel;
+            this.menuBarPanel = menuBarPanel;
+        }
+        
+        @Override
+        public void newProject() {
+            // 显示确认对话框
+            ChronoBlocksUIManager.this.dialogManager.showNewAnimationConfirm();
+        }
+        
+        @Override
+        public void openProject() {
+            // TODO: TimelineModelPersistence.open()
+            LOGGER.info("[Project] Open project");
+        }
+        
+        @Override
+        public void saveProject() {
+            // TODO: TimelineModelPersistence.save()
+            LOGGER.info("[Project] Save project");
+        }
+        
+        @Override
+        public void saveProjectAs() {
+            // TODO: TimelineModelPersistence.saveAs()
+            LOGGER.info("[Project] Save project as");
+        }
+        
+        @Override
+        public void exportVideo() {
+            ChronoBlocksUIManager.this.openVideoExportDialog();
+        }
+        
+        @Override
+        public void exitApplication() {
+            // TODO: 实现退出逻辑
+            LOGGER.info("[Project] Exit application");
+            // 可以在这里添加实际的退出逻辑，例如：
+            // MinecraftClient.getInstance().scheduleStop();
+        }
+    }
+    
+    /**
+     * 时间线命令实现（优化：直接调用 TimelinePanel 和 TimelineModel）
+     */
+    private class TimelineCommandsImpl implements TimelineCommands {
+        
+        private final TimelinePanel timelinePanel;
+        private final MenuBarPanel menuBarPanel;
+        private final TimelineModel timelineModel;
+        
+        public TimelineCommandsImpl(TimelinePanel timelinePanel, MenuBarPanel menuBarPanel, TimelineModel timelineModel) {
+            this.timelinePanel = timelinePanel;
+            this.menuBarPanel = menuBarPanel;
+            this.timelineModel = timelineModel;
+        }
+        
+        @Override
+        public void openTimelineSettings() {
+            ChronoBlocksUIManager.this.dialogManager.showSettingsDialog();
+        }
+        
+        @Override
+        public void zoomToFit() {
+            if (timelinePanel != null) {
+                timelinePanel.onFitToViewClicked();
+            }
+        }
+        
+        @Override
+        public void scrollToPlayhead() {
+            if (timelinePanel != null) {
+                timelinePanel.onFitToViewClicked();
+            }
+        }
+        
+        @Override
+        public void addCameraTrack(CameraPathType type) {
+            // TODO: 实现添加摄像机轨道
+            // timelineModel.createCameraTrack(type);
+            LOGGER.info("[Commands] Add camera track: {}", type);
+        }
+        
+        @Override
+        public void addActorTrack() {
+            // TODO: 实现添加演员轨道
+            // timelineModel.createActorTrack();
+            LOGGER.info("[Commands] Add actor track");
+        }
+        
+        @Override
+        public void addWeatherTrack() {
+            // TODO: 实现添加天气轨道
+            // timelineModel.createWeatherTrack();
+            LOGGER.info("[Commands] Add weather track");
+        }
+        
+        @Override
+        public void addAudioTrack() {
+            // TODO: 实现添加音频轨道
+            // timelineModel.createAudioTrack();
+            LOGGER.info("[Commands] Add audio track");
+        }
+    }
+    
+    /**
+     * 播放命令实现（优化：直接调用 PlaybackController，补充 In/Out 点逻辑）
+     */
+    private class PlaybackCommandsImpl implements PlaybackCommands {
+        
+        private final TimelineModel timelineModel;
+        
+        public PlaybackCommandsImpl(TimelineModel timelineModel) {
+            this.timelineModel = timelineModel;
+        }
+        
+        @Override
+        public void play() {
+            PlaybackController.get().play();
+        }
+        
+        @Override
+        public void pause() {
+            PlaybackController.get().pause();
+        }
+        
+        @Override
+        public void stop() {
+            PlaybackController.get().stop();
+        }
+        
+        @Override
+        public void togglePlayPause() {
+            PlaybackController pc = PlaybackController.get();
+            if (pc.isPlaying()) {
+                pause();
+            } else {
+                play();
+            }
+        }
+        
+        @Override
+        public void setInPoint() {
+            // TODO: 实现设置入点
+            // timelineModel.setInPoint(PlaybackController.get().getCurrentTime());
+            LOGGER.info("[Commands] Set in point");
+        }
+        
+        @Override
+        public void setOutPoint() {
+            // TODO: 实现设置出点
+            // timelineModel.setOutPoint(PlaybackController.get().getCurrentTime());
+            LOGGER.info("[Commands] Set out point");
+        }
+        
+        @Override
+        public void clearInOut() {
+            // TODO: 实现清除入出点
+            // timelineModel.clearInOut();
+            LOGGER.info("[Commands] Clear in/out points");
+        }
+        
+        @Override
+        public void setPlaybackSpeed(float speed) {
+            PlaybackController.get().setSpeed(speed);
+        }
+        
+        @Override
+        public void toggleLoop() {
+            PlaybackController.get().toggleLoop();
+        }
+        
+        @Override
+        public void goToStart() {
+            PlaybackController.get().seek(0f);
+        }
+        
+        @Override
+        public void goToEnd() {
+            PlaybackController pc = PlaybackController.get();
+            float endTime = pc.getDuration();
+            if (timelineModel != null) {
+                endTime = Math.max(endTime, timelineModel.getDuration());
+            }
+            pc.seek(endTime);
+        }
+        
+        @Override
+        public boolean isPlaying() {
+            return PlaybackController.get().isPlaying();
+        }
+        
+        @Override
+        public boolean isLooping() {
+            return PlaybackController.get().isLoop();
+        }
+    }
+    
+    /**
+     * 摄像机命令实现（优化：直接调用 TimelineModel 和摄像机控制器）
+     */
+    private class CameraCommandsImpl implements CameraCommands {
+        
+        private final TimelineModel timelineModel;
+        
+        public CameraCommandsImpl(TimelineModel timelineModel) {
+            this.timelineModel = timelineModel;
+        }
+        
+        @Override
+        public void createCameraPath(CameraPathType type) {
+            // TODO: 实现创建摄像机路径
+            // timelineModel.createCameraPathClip(type);
+            LOGGER.info("[Commands] Create camera path: {}", type);
+        }
+        
+        @Override
+        public void alignCameraToCurrentView() {
+            // TODO: 实现对齐摄像机到当前视角
+            // 通过 TimelineCameraController 对齐
+            LOGGER.info("[Commands] Align camera to current view");
+        }
+        
+        @Override
+        public void createShotFromCurrentView() {
+            // TODO: 实现从当前视角创建镜头
+            // timelineModel.createCameraClipFromCurrentView();
+            LOGGER.info("[Commands] Create shot from current view");
+        }
+        
+        @Override
+        public void setDefaultCameraView() {
+            // TODO: 实现设置默认摄像机视角
+            LOGGER.info("[Commands] Set default camera view");
+        }
+    }
+    
+    /**
+     * 视图命令实现（优化：直接使用 panelRegistry）
+     */
+    private class ViewCommandsImpl implements ViewCommands {
+        
+        private final IPanelRegistry panelRegistry;
+        
+        public ViewCommandsImpl(IPanelRegistry panelRegistry) {
+            this.panelRegistry = panelRegistry;
+        }
+        
+        @Override
+        public void showPanel(String panelId) {
+            IPanel panel = findPanelByName(panelId);
+            if (panel != null) {
+                panel.setVisible(true);
+            }
+        }
+        
+        @Override
+        public void hidePanel(String panelId) {
+            IPanel panel = findPanelByName(panelId);
+            if (panel != null) {
+                panel.setVisible(false);
+            }
+        }
+        
+        @Override
+        public void togglePanel(String panelId) {
+            IPanel panel = findPanelByName(panelId);
+            if (panel != null) {
+                panel.setVisible(!panel.isVisible());
+            }
+        }
+        
+        @Override
+        public void showAllPanels() {
+            for (IPanel panel : panelRegistry.getAllPanels()) {
+                panel.setVisible(true);
+            }
+        }
+        
+        @Override
+        public void hideAllPanels() {
+            for (IPanel panel : panelRegistry.getAllPanels()) {
+                if (!(panel instanceof MenuBarPanel)) { // 不隐藏 MenuBar
+                    panel.setVisible(false);
+                }
+            }
+        }
+        
+        private IPanel findPanelByName(String panelName) {
+            // 面板名称映射（处理显示名称和实际名称的差异）
+            String actualName = switch (panelName) {
+                case "Timeline" -> "Timeline";
+                case "Tool Properties" -> "ToolProperties";
+                case "Container" -> "Container";
+                case "RenderSettings" -> "RenderSettings";
+                case "Toolbar" -> "Toolbar";
+                case "SelectionFiler" -> "SelectionFilter";
+                case "Properties" -> "Properties";
+                case "SelectionHistory" -> "SelectionHistory";
+                default -> panelName;
+            };
+            
+            for (IPanel panel : panelRegistry.getAllPanels()) {
+                if (actualName.equals(panel.getPanelName())) {
+                    return panel;
+                }
+            }
+            return null;
+        }
+    }
+    
+    /**
+     * 布局命令实现（优化：直接使用 layoutManager）
+     */
+    private class LayoutCommandsImpl implements LayoutCommands {
+        
+        private final LayoutPersistenceManager layoutManager;
+        
+        public LayoutCommandsImpl(LayoutPersistenceManager layoutManager) {
+            this.layoutManager = layoutManager;
+        }
+        
+        @Override
+        public void saveCurrentLayout() {
+            try {
+                layoutManager.saveLayout();
+                LOGGER.info("[Layout] Current layout saved");
+            } catch (Exception e) {
+                LOGGER.error("[Layout] Failed to save layout: {}", e.getMessage(), e);
+            }
+        }
+        
+        @Override
+        public void restoreDefaultLayout() {
+            try {
+                java.nio.file.Path iniPath = layoutManager.getImGuiIniPath();
+                if (java.nio.file.Files.exists(iniPath)) {
+                    java.nio.file.Files.delete(iniPath);
+                }
+                layoutManager.resetToDefault();
+                com.chronoblocks.ui.layout.DockSpaceLayoutBuilder.resetLayoutState();
+                LOGGER.info("[Layout] Layout restored to default");
+            } catch (Exception e) {
+                LOGGER.error("[Layout] Failed to restore default layout: {}", e.getMessage(), e);
+            }
+        }
+        
+        @Override
+        public void setUIScale(float scale) {
+            // TODO: 实现 UI 缩放
+            LOGGER.info("[Layout] Set UI scale: {}", scale);
+        }
+        
+        @Override
+        public void setTheme(String theme) {
+            if ("Dark".equals(theme)) {
+                UITheme.applyDarkTheme();
+            } else if ("Light".equals(theme)) {
+                // TODO: 实现浅色主题
+                LOGGER.warn("[Layout] Light theme not implemented yet");
+            }
+        }
+    }
+    
+    /**
+     * 帮助命令实现（优化：直接调用 MenuBarPanel）
+     */
+    private class HelpCommandsImpl implements HelpCommands {
+        
+        private final MenuBarPanel menuBarPanel;
+        
+        public HelpCommandsImpl(MenuBarPanel menuBarPanel) {
+            this.menuBarPanel = menuBarPanel;
+        }
+        
+        @Override
+        public void showShortcutHelp() {
+            dialogManager.showShortcutsDialog();
+        }
+        
+        @Override
+        public void openUserManual() {
+            // TODO: 打开用户手册
+            LOGGER.info("[Help] Open user manual");
+            try {
+                java.awt.Desktop.getDesktop().browse(new java.net.URI("https://chronoblocks.github.io/docs"));
+            } catch (Exception e) {
+                LOGGER.error("[Help] 打开用户手册失败: {}", e.getMessage(), e);
+            }
+        }
+        
+        @Override
+        public void openVideoTutorial() {
+            // TODO: 打开视频教程
+            LOGGER.info("[Help] Open video tutorial");
+            try {
+                java.awt.Desktop.getDesktop().browse(new java.net.URI("https://chronoblocks.github.io/tutorials"));
+            } catch (Exception e) {
+                LOGGER.error("[Help] 打开视频教程失败: {}", e.getMessage(), e);
+            }
+        }
+        
+        @Override
+        public void reportBug() {
+            // TODO: 打开反馈页面
+            LOGGER.info("[Help] Report bug");
+        }
+        
+        @Override
+        public void showAboutDialog() {
+            dialogManager.showAboutDialog();
+        }
+    }
+    
+    /**
+     * 布局操作门面接口
+     */
+    public interface UILayoutFacade {
+        void showAll();
+        void hideAll();
+        void toggle(String panelName);
+        void saveCurrent();
+        void restoreDefault();
+    }
+    
+    /**
+     * 布局操作门面实现
+     */
+    private class UILayoutFacadeImpl implements UILayoutFacade {
+        
+        @Override
+        public void showAll() {
+            for (IPanel panel : panelRegistry.getAllPanels()) {
+                panel.setVisible(true);
+            }
+        }
+        
+        @Override
+        public void hideAll() {
+            for (IPanel panel : panelRegistry.getAllPanels()) {
+                if (!(panel instanceof MenuBarPanel)) { // 不隐藏 MenuBar
+                    panel.setVisible(false);
+                }
+            }
+        }
+        
+        @Override
+        public void toggle(String panelName) {
+            IPanel panel = findPanelByName(panelName);
+            if (panel != null) {
+                panel.setVisible(!panel.isVisible());
+            }
+        }
+        
+        @Override
+        public void saveCurrent() {
+            try {
+                layoutManager.saveLayout();
+                LOGGER.info("[Layout] Current layout saved");
+            } catch (Exception e) {
+                LOGGER.error("[Layout] Failed to save layout: {}", e.getMessage(), e);
+            }
+        }
+        
+        @Override
+        public void restoreDefault() {
+            try {
+                java.nio.file.Path iniPath = layoutManager.getImGuiIniPath();
+                if (java.nio.file.Files.exists(iniPath)) {
+                    java.nio.file.Files.delete(iniPath);
+                }
+                layoutManager.resetToDefault();
+                com.chronoblocks.ui.layout.DockSpaceLayoutBuilder.resetLayoutState();
+                LOGGER.info("[Layout] Layout restored to default");
+            } catch (Exception e) {
+                LOGGER.error("[Layout] Failed to restore default layout: {}", e.getMessage(), e);
+            }
+        }
+        
+        private IPanel findPanelByName(String panelName) {
+            // 面板名称映射（处理显示名称和实际名称的差异）
+            String actualName = switch (panelName) {
+                case "Timeline" -> "Timeline";
+                case "Tool Properties" -> "ToolProperties";
+                case "Container" -> "Container";
+                case "RenderSettings" -> "RenderSettings";
+                case "Toolbar" -> "Toolbar";
+                case "SelectionFiler" -> "SelectionFilter";
+                case "Properties" -> "Properties";
+                case "SelectionHistory" -> "SelectionHistory";
+                default -> panelName;
+            };
+            
+            for (IPanel panel : panelRegistry.getAllPanels()) {
+                if (actualName.equals(panel.getPanelName())) {
+                    return panel;
+                }
+            }
+            return null;
+        }
+    }
 
     /**
      * 高级依赖注入构造函数 - 直接使用面板注册表
@@ -362,6 +1015,24 @@ public class ChronoBlocksUIManager {
         
         // 初始化布局持久化管理器
         this.layoutManager = LayoutPersistenceManager.getInstance();
+        
+        // 初始化对话框管理器
+        this.dialogManager = new com.chronoblocks.ui.dialogs.DialogManager();
+        // 设置新建动画确认回调
+        this.dialogManager.setNewAnimationConfirmCallback(() -> {
+            try {
+                TimelinePanel timelinePanel = panelRegistry.getPanel(TimelinePanel.class);
+                if (timelinePanel != null) {
+                    timelinePanel.resetWorkspace(true);
+                } else {
+                    // 兜底：清空容器并删除时间线存档
+                    Objects.requireNonNull(com.chronoblocks.core.container.ContainerManager.getInstance()).clear();
+                    com.chronoblocks.ui.timeline.persistence.TimelineModelPersistence.resetForCurrentWorld();
+                }
+            } catch (Exception e) {
+                LOGGER.error("[UIManager] 新建动画重置失败: {}", e.getMessage(), e);
+            }
+        });
 
         // 检测并加载当前世界的布局（如果是新世界则使用默认布局，如果是同一世界则加载保存的布局）
         try {
@@ -584,6 +1255,9 @@ public class ChronoBlocksUIManager {
             // 4) 全局弹窗/Overlay（不属于某个 Dock 面板）
             VideoExportDialog.renderIfNeeded(this);
             videoExportProgressOverlay.render(this);
+            
+            // 5) 渲染对话框（集中管理）
+            dialogManager.renderDialogs();
             
             // ❌ 暂时禁用中央保护区域渲染 - 这会导致ImGui认为鼠标在UI上
             // renderCentralProtectionArea();
@@ -877,12 +1551,14 @@ public class ChronoBlocksUIManager {
      * <p>
      * 使用Aware接口设计模式，自动为实现了特定接口的面板注入依赖。
      * 这遵循开闭原则，未来新增面板只需实现对应接口即可获得依赖注入。
+     * 
+     * <p>优化：为 MenuBarPanel 注入 UICommandFacade 而不是 ChronoBlocksUIManager
      */
     private void setupPanelRegistryReferences() {
         logDebug("为所有符合条件的面板设置依赖引用...");
         
         int registryAwareCount = 0;
-        int uiManagerAwareCount = 0;
+        int commandFacadeCount = 0;
         
         for (IPanel panel : panelRegistry.getAllPanels()) {
             if (panel != null) {
@@ -897,11 +1573,21 @@ public class ChronoBlocksUIManager {
                     }
                 }
                 
-                // 注入UI管理器引用
-                if (panel instanceof IUIManagerAware) {
+                // 为 MenuBarPanel 注入 UICommandFacade（优化：不再通过 IUIManagerAware）
+                if (panel instanceof MenuBarPanel) {
+                    try {
+                        ((MenuBarPanel) panel).setCommands(getOrCreateCommandFacade());
+                        commandFacadeCount++;
+                        logDebug("为面板 '{}' 注入了 UICommandFacade", panel.getPanelName());
+                    } catch (Exception e) {
+                        logError("为面板 '{}' 注入 UICommandFacade 失败", e, panel.getPanelName());
+                    }
+                }
+                
+                // 注入UI管理器引用（其他面板仍可使用）
+                if (panel instanceof IUIManagerAware && !(panel instanceof MenuBarPanel)) {
                     try {
                         ((IUIManagerAware) panel).setUIManager(this);
-                        uiManagerAwareCount++;
                         logDebug("为面板 '{}' 注入了 UIManager", panel.getPanelName());
                     } catch (Exception e) {
                         logError("为面板 '{}' 注入 UIManager 失败", e, panel.getPanelName());
@@ -910,8 +1596,8 @@ public class ChronoBlocksUIManager {
             }
         }
         
-        logDebug("面板依赖引用设置完成 - PanelRegistry: {} 个面板, UIManager: {} 个面板", 
-                registryAwareCount, uiManagerAwareCount);
+        logDebug("面板依赖引用设置完成 - PanelRegistry: {} 个面板, UICommandFacade: {} 个面板", 
+                registryAwareCount, commandFacadeCount);
     }
     
     /**

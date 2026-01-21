@@ -1697,6 +1697,15 @@ public class TimelinePanel extends AbstractPanel
     public int getPriority() {
         return 200;
     }
+    
+    /**
+     * 获取 TimelineModel（供命令门面使用）
+     * 
+     * @return TimelineModel 实例
+     */
+    public TimelineModel getModel() {
+        return model;
+    }
 
     // ========== 容器监听器接口实现 ===========
 
