@@ -32,8 +32,61 @@ public class DialogManager {
     
     private final ImBoolean showAboutDialog = new ImBoolean(false);
     private final ImBoolean showSettingsDialog = new ImBoolean(false);
+    private final ImBoolean showTimelineSettingsDialog = new ImBoolean(false);
     private final ImBoolean showShortcutsDialog = new ImBoolean(false);
     private boolean showNewAnimationConfirm = false;
+    
+    // ==================== 时间线设置回调 ====================
+    
+    /**
+     * 时间线设置访问接口（用于读取和修改设置）
+     */
+    public interface TimelineSettingsAccessor {
+        com.chronoblocks.ui.timeline.snapping.TimelineSnapSettings getSnapSettings();
+        
+        /**
+         * 获取项目帧率（FPS）
+         * @return 帧率值，如果不可用则返回默认值 30.0f
+         */
+        default float getFrameRate() {
+            return 30.0f;
+        }
+        
+        /**
+         * 设置项目帧率（FPS）
+         * @param fps 新的帧率值（1-240）
+         * @return 是否设置成功
+         */
+        default boolean setFrameRate(float fps) {
+            return false;
+        }
+        
+        /**
+         * 获取时间单位
+         * @return 时间单位索引（0=秒, 1=帧, 2=Tick）
+         */
+        default int getTimeUnit() {
+            return 0;
+        }
+        
+        /**
+         * 设置时间单位
+         * @param unit 时间单位索引（0=秒, 1=帧, 2=Tick）
+         * @return 是否设置成功
+         */
+        default boolean setTimeUnit(int unit) {
+            return false;
+        }
+    }
+    
+    private TimelineSettingsAccessor timelineSettingsAccessor;
+    
+    /**
+     * 设置时间线设置访问器
+     */
+    public void setTimelineSettingsAccessor(TimelineSettingsAccessor accessor) {
+        this.timelineSettingsAccessor = accessor;
+    }
     
     // ==================== 对话框控制方法 ====================
     
@@ -63,6 +116,20 @@ public class DialogManager {
      */
     public void closeSettingsDialog() {
         showSettingsDialog.set(false);
+    }
+    
+    /**
+     * 显示时间线设置对话框
+     */
+    public void showTimelineSettingsDialog() {
+        showTimelineSettingsDialog.set(true);
+    }
+    
+    /**
+     * 关闭时间线设置对话框
+     */
+    public void closeTimelineSettingsDialog() {
+        showTimelineSettingsDialog.set(false);
     }
     
     /**
@@ -104,6 +171,9 @@ public class DialogManager {
         }
         if (showSettingsDialog.get()) {
             renderSettingsDialog();
+        }
+        if (showTimelineSettingsDialog.get()) {
+            renderTimelineSettingsDialog();
         }
         if (showShortcutsDialog.get()) {
             renderShortcutsDialog();
@@ -180,6 +250,161 @@ public class DialogManager {
             ImGui.sameLine();
             if (ImGui.button("Cancel", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
                 closeSettingsDialog();
+            }
+            
+            ImGui.endPopup();
+        }
+    }
+    
+    /**
+     * 时间线设置对话框
+     */
+    private void renderTimelineSettingsDialog() {
+        ImGui.openPopup("Timeline Settings");
+        ImGui.setNextWindowSize(500, 550);
+        
+        if (ImGui.beginPopupModal("Timeline Settings", showTimelineSettingsDialog)) {
+            UITheme.title(Icons.TIMELINE + " Timeline Settings");
+            
+            if (timelineSettingsAccessor == null) {
+                ImGui.textColored(1.0f, 0.5f, 0.0f, 1.0f, "错误：无法访问时间线设置");
+                if (ImGui.button("关闭", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
+                    closeTimelineSettingsDialog();
+                }
+                ImGui.endPopup();
+                return;
+            }
+            
+            com.chronoblocks.ui.timeline.snapping.TimelineSnapSettings snapSettings = 
+                    timelineSettingsAccessor.getSnapSettings();
+            
+            if (snapSettings == null) {
+                ImGui.textColored(1.0f, 0.5f, 0.0f, 1.0f, "错误：时间线设置不可用");
+                if (ImGui.button("关闭", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
+                    closeTimelineSettingsDialog();
+                }
+                ImGui.endPopup();
+                return;
+            }
+            
+            // ========== 项目设置 ==========
+            UITheme.beginGroup("项目设置");
+            
+            float frameRate = timelineSettingsAccessor.getFrameRate();
+            float[] frameRateRef = {frameRate};
+            boolean frameRateChanged = ImGui.dragFloat("帧率 (FPS)", frameRateRef, 1.0f, 1.0f, 240.0f, "%.0f");
+            if (frameRateChanged) {
+                boolean success = timelineSettingsAccessor.setFrameRate(frameRateRef[0]);
+                if (!success) {
+                    // 如果设置失败，恢复原值
+                    frameRateRef[0] = frameRate;
+                    // 显示提示（可选）
+                    ImGui.sameLine();
+                    ImGui.textColored(1.0f, 0.5f, 0.0f, 1.0f, Icons.WARNING);
+                    if (ImGui.isItemHovered()) {
+                        ImGui.setTooltip("无法修改帧率：项目对象不可用");
+                    }
+                }
+            }
+            if (ImGui.isItemHovered() && !frameRateChanged) {
+                ImGui.setTooltip("动画播放的每秒帧数（常用: 24, 30, 60）\n影响时间线帧数标签的显示");
+            }
+            
+            int timeUnit = timelineSettingsAccessor.getTimeUnit();
+            String[] timeUnitOptions = {"秒 (Seconds)", "帧 (Frames)", "Tick (MC Ticks)"};
+            imgui.type.ImInt timeUnitRef = new imgui.type.ImInt(timeUnit);
+            if (ImGui.combo("时间单位", timeUnitRef, timeUnitOptions, timeUnitOptions.length)) {
+                timelineSettingsAccessor.setTimeUnit(timeUnitRef.get());
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("时间轴显示的单位");
+            }
+            
+            UITheme.endGroup();
+            
+            UITheme.separator();
+            
+            // ========== 吸附系统总开关 ==========
+            UITheme.beginGroup("吸附系统");
+            boolean enabled = snapSettings.isEnabled();
+            ImBoolean enabledRef = new ImBoolean(enabled);
+            if (ImGui.checkbox("启用吸附", enabledRef)) {
+                snapSettings.setEnabled(enabledRef.get());
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("总开关：关闭后所有吸附功能都将禁用");
+            }
+            UITheme.endGroup();
+            
+            if (enabled) {
+                UITheme.separator();
+                
+                // ========== 网格设置 ==========
+                UITheme.beginGroup("网格吸附");
+                boolean snapToGrid = snapSettings.isSnapToGrid();
+                ImBoolean snapToGridRef = new ImBoolean(snapToGrid);
+                if (ImGui.checkbox("吸附到网格", snapToGridRef)) {
+                    snapSettings.setSnapToGrid(snapToGridRef.get());
+                }
+                
+                float gridInterval = snapSettings.getGridInterval();
+                float[] gridIntervalRef = {gridInterval};
+                if (ImGui.dragFloat("网格间隔 (秒)", gridIntervalRef, 0.01f, 0.001f, 10.0f, "%.3f")) {
+                    snapSettings.setGridInterval(gridIntervalRef[0]);
+                }
+                if (ImGui.isItemHovered()) {
+                    ImGui.setTooltip("网格间隔：时间线网格的最小单位（秒）\n常用值：0.1s, 0.25s, 0.5s, 1.0s");
+                }
+                UITheme.endGroup();
+                
+                UITheme.separator();
+                
+                // ========== 其他吸附选项 ==========
+                UITheme.beginGroup("其他吸附选项");
+                
+                boolean snapToClipEdges = snapSettings.isSnapToClipEdges();
+                ImBoolean snapToClipEdgesRef = new ImBoolean(snapToClipEdges);
+                if (ImGui.checkbox("吸附到片段边缘", snapToClipEdgesRef)) {
+                    snapSettings.setSnapToClipEdges(snapToClipEdgesRef.get());
+                }
+                if (ImGui.isItemHovered()) {
+                    ImGui.setTooltip("拖动片段时自动吸附到其他片段的开始/结束位置");
+                }
+                
+                boolean snapToKeyframes = snapSettings.isSnapToKeyframes();
+                ImBoolean snapToKeyframesRef = new ImBoolean(snapToKeyframes);
+                if (ImGui.checkbox("吸附到关键帧", snapToKeyframesRef)) {
+                    snapSettings.setSnapToKeyframes(snapToKeyframesRef.get());
+                }
+                if (ImGui.isItemHovered()) {
+                    ImGui.setTooltip("拖动时自动吸附到关键帧位置");
+                }
+                
+                UITheme.endGroup();
+                
+                UITheme.separator();
+                
+                // ========== 吸附阈值 ==========
+                UITheme.beginGroup("吸附阈值");
+                float pixelThreshold = snapSettings.getPixelThreshold();
+                float[] pixelThresholdRef = {pixelThreshold};
+                if (ImGui.dragFloat("像素阈值 (px)", pixelThresholdRef, 1.0f, 1.0f, 50.0f, "%.0f")) {
+                    snapSettings.setPixelThreshold(pixelThresholdRef[0]);
+                }
+                if (ImGui.isItemHovered()) {
+                    ImGui.setTooltip("吸附触发距离（像素）\n鼠标距离吸附目标小于此值时才会触发吸附");
+                }
+                UITheme.endGroup();
+            }
+            
+            UITheme.separator();
+            
+            if (ImGui.button("确定", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
+                closeTimelineSettingsDialog();
+            }
+            ImGui.sameLine();
+            if (ImGui.button("取消", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
+                closeTimelineSettingsDialog();
             }
             
             ImGui.endPopup();

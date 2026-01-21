@@ -473,6 +473,212 @@ public class ChronoBlocksUIManager {
             this.layoutCommands = new LayoutCommandsImpl(layoutManager);
             this.helpCommands = new HelpCommandsImpl(menuBarPanel);
             this.toolCommands = new ToolCommandsImpl();
+            
+            // 设置时间线设置访问器（用于时间线设置对话框）
+            if (timelineModel != null && ChronoBlocksUIManager.this.dialogManager != null) {
+                ChronoBlocksUIManager.this.dialogManager.setTimelineSettingsAccessor(
+                    new com.chronoblocks.ui.dialogs.DialogManager.TimelineSettingsAccessor() {
+                        @Override
+                        public com.chronoblocks.ui.timeline.snapping.TimelineSnapSettings getSnapSettings() {
+                            return timelineModel.getSnapSettings();
+                        }
+                        
+                        @Override
+                        public float getFrameRate() {
+                            // 尝试多种方式获取项目对象
+                            Object project = getProjectObject();
+                            if (project == null) {
+                                // 如果项目对象不存在，返回默认值
+                                // 这可能是因为项目系统尚未完全实现
+                                return 30.0f; // 默认值
+                            }
+                            
+                            // 使用与 TimelineProjectPropertyAdapter 相同的方式
+                            float fps = getFloatProperty(project, "frameRate", "getFrameRate", 30.0f);
+                            LOGGER.debug("[TimelineSettings] 获取帧率: {} (项目对象: {})", fps, project.getClass().getSimpleName());
+                            return fps;
+                        }
+                        
+                        @Override
+                        public boolean setFrameRate(float fps) {
+                            Object project = getProjectObject();
+                            if (project == null) {
+                                // 如果项目对象不存在，记录警告但不阻止操作
+                                // 这可能是因为项目系统尚未完全实现
+                                LOGGER.warn("[TimelineSettings] 无法获取项目对象，帧率设置可能无效");
+                                return false;
+                            }
+                            
+                            // 使用与 TimelineProjectPropertyAdapter 相同的方式
+                            boolean success = setFloatProperty(project, fps);
+                            if (success) {
+                                LOGGER.debug("[TimelineSettings] 帧率已设置为: {}", fps);
+                            } else {
+                                LOGGER.warn("[TimelineSettings] 设置帧率失败: {}", fps);
+                            }
+                            return success;
+                        }
+                        
+                        @Override
+                        public int getTimeUnit() {
+                            Object project = getProjectObject();
+                            if (project == null) {
+                                return 0; // 默认：秒
+                            }
+                            
+                            return getIntProperty(project, "timeUnit", "getTimeUnit", 0);
+                        }
+                        
+                        @Override
+                        public boolean setTimeUnit(int unit) {
+                            Object project = getProjectObject();
+                            if (project == null) {
+                                return false;
+                            }
+                            
+                            return setIntProperty(project, "timeUnit", "setTimeUnit", unit);
+                        }
+                        
+                        /**
+                         * 获取项目对象（尝试多种方式）
+                         */
+                        private Object getProjectObject() {
+                            // 方式1: 通过 SelectionManager 获取当前选择
+                            com.chronoblocks.ui.selection.SelectionManager selectionManager = 
+                                    com.chronoblocks.ui.selection.SelectionManager.get();
+                            Object selection = selectionManager.getCurrentSelection();
+                            
+                            // 方式2: 检查 SelectionType，如果是 PROJECT 类型，尝试获取项目对象
+                            com.chronoblocks.ui.selection.SelectionType selectionType = selectionManager.getSelectionType();
+                            if (selectionType == com.chronoblocks.ui.selection.SelectionType.PROJECT) {
+                                // 如果是 PROJECT 类型，即使 selection 为 null，也可能有项目对象
+                                // 尝试通过 PropertiesPanel 的方式：使用 PropertyAdapterRegistry
+                                try {
+                                    // 创建一个标记对象来查找项目适配器
+                                    String projectMarker = "TimelineProject";
+                                    com.chronoblocks.ui.properties.IPropertyAdapter<?> adapter = 
+                                            com.chronoblocks.ui.properties.PropertyAdapterRegistry.getAdapterFor(projectMarker);
+                                    
+                                    // 如果适配器存在，说明项目系统可用
+                                    // 但我们需要实际的项目对象，而不是适配器
+                                    // 所以继续尝试其他方式
+                                } catch (Exception e) {
+                                    // 忽略
+                                }
+                                
+                                // 如果 selection 不为 null，尝试使用它
+                                if (selection != null) {
+                                    String className = selection.getClass().getName().toLowerCase();
+                                    if (className.contains("timelineproject") || className.contains("project")) {
+                                        return selection;
+                                    }
+                                }
+                            }
+                            
+                            // 方式3: 如果 selection 不为 null，检查是否是项目对象
+                            if (selection != null) {
+                                String className = selection.getClass().getName().toLowerCase();
+                                if (className.contains("timelineproject") || className.contains("project")) {
+                                    return selection;
+                                }
+                            }
+                            
+                            // 方式4: 尝试通过反射查找项目对象（如果项目对象是单例或全局对象）
+                            // 这里我们无法直接访问，所以返回 null
+                            // 注意：如果项目对象不存在，帧率设置将无法工作
+                            return null;
+                        }
+                        
+                        /**
+                         * 获取浮点属性（与 TimelineProjectPropertyAdapter 相同）
+                         */
+                        private float getFloatProperty(Object obj, String fieldName, String getterName, float defaultValue) {
+                            try {
+                                java.lang.reflect.Method method = obj.getClass().getMethod(getterName);
+                                Object result = method.invoke(obj);
+                                if (result instanceof Float) return (Float) result;
+                                if (result instanceof Double) return ((Double) result).floatValue();
+                                return defaultValue;
+                            } catch (Exception e) {
+                                try {
+                                    java.lang.reflect.Field field = obj.getClass().getDeclaredField(fieldName);
+                                    field.setAccessible(true);
+                                    Object result = field.get(obj);
+                                    if (result instanceof Float) return (Float) result;
+                                    if (result instanceof Double) return ((Double) result).floatValue();
+                                    return defaultValue;
+                                } catch (Exception ex) {
+                                    return defaultValue;
+                                }
+                            }
+                        }
+                        
+                        /**
+                         * 设置浮点属性（与 TimelineProjectPropertyAdapter 相同）
+                         */
+                        private boolean setFloatProperty(Object obj, float value) {
+                            try {
+                                java.lang.reflect.Method method = obj.getClass().getMethod("setFrameRate", float.class);
+                                method.invoke(obj, value);
+                                return true;
+                            } catch (Exception e) {
+                                try {
+                                    java.lang.reflect.Field field = obj.getClass().getDeclaredField("frameRate");
+                                    field.setAccessible(true);
+                                    field.set(obj, value);
+                                    return true;
+                                } catch (Exception ex) {
+                                    return false;
+                                }
+                            }
+                        }
+                        
+                        /**
+                         * 获取整数属性
+                         */
+                        private int getIntProperty(Object obj, String fieldName, String getterName, int defaultValue) {
+                            try {
+                                java.lang.reflect.Method method = obj.getClass().getMethod(getterName);
+                                Object result = method.invoke(obj);
+                                if (result instanceof Integer) return (Integer) result;
+                                if (result instanceof Number) return ((Number) result).intValue();
+                                return defaultValue;
+                            } catch (Exception e) {
+                                try {
+                                    java.lang.reflect.Field field = obj.getClass().getDeclaredField(fieldName);
+                                    field.setAccessible(true);
+                                    Object result = field.get(obj);
+                                    if (result instanceof Integer) return (Integer) result;
+                                    if (result instanceof Number) return ((Number) result).intValue();
+                                    return defaultValue;
+                                } catch (Exception ex) {
+                                    return defaultValue;
+                                }
+                            }
+                        }
+                        
+                        /**
+                         * 设置整数属性
+                         */
+                        private boolean setIntProperty(Object obj, String fieldName, String setterName, int value) {
+                            try {
+                                java.lang.reflect.Method method = obj.getClass().getMethod(setterName, int.class);
+                                method.invoke(obj, value);
+                                return true;
+                            } catch (Exception e) {
+                                try {
+                                    java.lang.reflect.Field field = obj.getClass().getDeclaredField(fieldName);
+                                    field.setAccessible(true);
+                                    field.set(obj, value);
+                                    return true;
+                                } catch (Exception ex) {
+                                    return false;
+                                }
+                            }
+                        }
+                    }
+                );
+            }
         }
         
         @Override
@@ -537,20 +743,39 @@ public class ChronoBlocksUIManager {
         
         @Override
         public void openProject() {
-            // TODO: TimelineModelPersistence.open()
-            LOGGER.info("[Project] Open project");
+            if (timelineModel != null) {
+                try {
+                    // 重新加载当前世界的时间线数据
+                    timelineModel.reload();
+                    LOGGER.info("[Project] 项目已重新加载");
+                } catch (Exception e) {
+                    LOGGER.error("[Project] 打开项目失败: {}", e.getMessage(), e);
+                }
+            } else {
+                LOGGER.warn("[Project] TimelineModel 不可用，无法打开项目");
+            }
         }
         
         @Override
         public void saveProject() {
-            // TODO: TimelineModelPersistence.save()
-            LOGGER.info("[Project] Save project");
+            if (timelineModel != null) {
+                try {
+                    timelineModel.save();
+                    LOGGER.info("[Project] 项目已保存");
+                } catch (Exception e) {
+                    LOGGER.error("[Project] 保存项目失败: {}", e.getMessage(), e);
+                }
+            } else {
+                LOGGER.warn("[Project] TimelineModel 不可用，无法保存项目");
+            }
         }
         
         @Override
         public void saveProjectAs() {
-            // TODO: TimelineModelPersistence.saveAs()
-            LOGGER.info("[Project] Save project as");
+            // 当前系统按世界自动保存，Save As 功能暂时与 Save 相同
+            // 未来可以扩展为选择不同的保存位置
+            saveProject();
+            LOGGER.info("[Project] 项目已另存为（当前按世界自动保存）");
         }
         
         @Override
@@ -560,10 +785,26 @@ public class ChronoBlocksUIManager {
         
         @Override
         public void exitApplication() {
-            // TODO: 实现退出逻辑
-            LOGGER.info("[Project] Exit application");
-            // 可以在这里添加实际的退出逻辑，例如：
-            // MinecraftClient.getInstance().scheduleStop();
+            try {
+                // 退出前保存当前项目
+                if (timelineModel != null) {
+                    timelineModel.save();
+                    LOGGER.info("[Project] 退出前已保存项目");
+                }
+                
+                // 关闭 ChronoBlocks 窗口
+                net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
+                if (client != null && client.currentScreen instanceof com.chronoblocks.ui.ChronoBlocksScreen screen) {
+                    screen.close();
+                    client.setScreen(null);
+                    LOGGER.info("[Project] ChronoBlocks 窗口已关闭");
+                } else {
+                    // 兜底：直接设置屏幕为 null
+                    client.setScreen(null);
+                }
+            } catch (Exception e) {
+                LOGGER.error("[Project] 退出应用失败: {}", e.getMessage(), e);
+            }
         }
     }
     
@@ -584,49 +825,137 @@ public class ChronoBlocksUIManager {
         
         @Override
         public void openTimelineSettings() {
-            ChronoBlocksUIManager.this.dialogManager.showSettingsDialog();
+            ChronoBlocksUIManager.this.dialogManager.showTimelineSettingsDialog();
         }
         
         @Override
         public void zoomToFit() {
             if (timelinePanel != null) {
-                timelinePanel.onFitToViewClicked();
+                timelinePanel.zoomToFit();
             }
         }
         
         @Override
         public void scrollToPlayhead() {
             if (timelinePanel != null) {
-                timelinePanel.onFitToViewClicked();
+                timelinePanel.scrollToPlayhead();
             }
         }
         
         @Override
         public void addCameraTrack(CameraPathType type) {
-            // TODO: 实现添加摄像机轨道
-            // timelineModel.createCameraTrack(type);
-            LOGGER.info("[Commands] Add camera track: {}", type);
+            if (timelineModel == null) {
+                LOGGER.warn("[Commands] TimelineModel 不可用，无法添加摄像机轨道");
+                return;
+            }
+            
+            try {
+                // 计算同类型轨道数量，用于生成名称
+                long sameTypeCount = timelineModel.getTracks().stream()
+                        .filter(t -> t.getType() == com.chronoblocks.ui.timeline.model.TrackType.CAMERA)
+                        .count();
+                
+                String trackName = "摄像机轨道 " + (sameTypeCount + 1);
+                com.chronoblocks.ui.timeline.model.TimelineTrack newTrack = 
+                        new com.chronoblocks.ui.timeline.model.TimelineTrack(trackName, 
+                                com.chronoblocks.ui.timeline.model.TrackType.CAMERA);
+                
+                timelineModel.addTrack(newTrack);
+                LOGGER.info("[Commands] 已添加摄像机轨道: {}", trackName);
+            } catch (Exception e) {
+                LOGGER.error("[Commands] 添加摄像机轨道失败: {}", e.getMessage(), e);
+            }
         }
         
         @Override
         public void addActorTrack() {
-            // TODO: 实现添加演员轨道
-            // timelineModel.createActorTrack();
-            LOGGER.info("[Commands] Add actor track");
+            if (timelineModel == null) {
+                LOGGER.warn("[Commands] TimelineModel 不可用，无法添加演员轨道");
+                return;
+            }
+            
+            try {
+                // 计算同类型轨道数量，用于生成名称
+                long sameTypeCount = timelineModel.getTracks().stream()
+                        .filter(t -> t.getType() == com.chronoblocks.ui.timeline.model.TrackType.ENTITY)
+                        .count();
+                
+                String trackName = "实体轨道 " + (sameTypeCount + 1);
+                com.chronoblocks.ui.timeline.model.TimelineTrack newTrack = 
+                        new com.chronoblocks.ui.timeline.model.TimelineTrack(trackName, 
+                                com.chronoblocks.ui.timeline.model.TrackType.ENTITY);
+                
+                timelineModel.addTrack(newTrack);
+                
+                // 如果是第一条实体轨道，自动激活
+                if (sameTypeCount == 0) {
+                    com.chronoblocks.ui.timeline.playback.entity.TimelineEntityController
+                            .getInstance().bindActiveTrack(newTrack);
+                    LOGGER.info("[Commands] 创建第一条实体轨道，自动激活: {}", trackName);
+                }
+                
+                LOGGER.info("[Commands] 已添加实体轨道: {}", trackName);
+            } catch (Exception e) {
+                LOGGER.error("[Commands] 添加实体轨道失败: {}", e.getMessage(), e);
+            }
         }
         
         @Override
         public void addWeatherTrack() {
-            // TODO: 实现添加天气轨道
-            // timelineModel.createWeatherTrack();
-            LOGGER.info("[Commands] Add weather track");
+            if (timelineModel == null) {
+                LOGGER.warn("[Commands] TimelineModel 不可用，无法添加天气轨道");
+                return;
+            }
+            
+            try {
+                // 计算同类型轨道数量，用于生成名称
+                long sameTypeCount = timelineModel.getTracks().stream()
+                        .filter(t -> t.getType() == com.chronoblocks.ui.timeline.model.TrackType.WEATHER)
+                        .count();
+                
+                String trackName = "天气轨道 " + (sameTypeCount + 1);
+                com.chronoblocks.ui.timeline.model.TimelineTrack newTrack = 
+                        new com.chronoblocks.ui.timeline.model.TimelineTrack(trackName, 
+                                com.chronoblocks.ui.timeline.model.TrackType.WEATHER);
+                
+                timelineModel.addTrack(newTrack);
+                
+                // 如果是第一条天气轨道，自动激活
+                if (sameTypeCount == 0) {
+                    com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController.getInstance()
+                            .bindActiveTrack(newTrack);
+                    LOGGER.info("[Commands] 创建第一条天气轨道，自动激活: {}", trackName);
+                }
+                
+                LOGGER.info("[Commands] 已添加天气轨道: {}", trackName);
+            } catch (Exception e) {
+                LOGGER.error("[Commands] 添加天气轨道失败: {}", e.getMessage(), e);
+            }
         }
         
         @Override
         public void addAudioTrack() {
-            // TODO: 实现添加音频轨道
-            // timelineModel.createAudioTrack();
-            LOGGER.info("[Commands] Add audio track");
+            if (timelineModel == null) {
+                LOGGER.warn("[Commands] TimelineModel 不可用，无法添加音频轨道");
+                return;
+            }
+            
+            try {
+                // 计算同类型轨道数量，用于生成名称
+                long sameTypeCount = timelineModel.getTracks().stream()
+                        .filter(t -> t.getType() == com.chronoblocks.ui.timeline.model.TrackType.AUDIO)
+                        .count();
+                
+                String trackName = "音频轨道 " + (sameTypeCount + 1);
+                // 音频轨道使用 AudioTrack 类
+                com.chronoblocks.ui.timeline.model.audio.AudioTrack newTrack = 
+                        new com.chronoblocks.ui.timeline.model.audio.AudioTrack(trackName);
+                
+                timelineModel.addTrack(newTrack);
+                LOGGER.info("[Commands] 已添加音频轨道: {}", trackName);
+            } catch (Exception e) {
+                LOGGER.error("[Commands] 添加音频轨道失败: {}", e.getMessage(), e);
+            }
         }
     }
     

@@ -1686,6 +1686,46 @@ public class TimelinePanel extends AbstractPanel
         float availableWidth = ImGui.getContentRegionAvailX() - TimelineRenderer.getLeftLabelWidth();
         navigationHandler.fitToView(availableWidth);
     }
+    
+    /**
+     * 滚动到播放头位置（不缩放，只调整滚动位置）
+     * 供命令门面调用
+     */
+    public void scrollToPlayhead() {
+        if (navigationHandler == null) {
+            return;
+        }
+        
+        // 动态计算内容区域（如果缓存值无效，使用当前窗口尺寸）
+        float contentX;
+        float contentW;
+        
+        if (cachedContentW > 0) {
+            // 使用缓存值（更准确，因为是在渲染时计算的）
+            contentX = cachedContentX;
+            contentW = cachedContentW;
+        } else {
+            // 兜底：使用当前窗口尺寸
+            float winW = ImGui.getContentRegionAvailX();
+            contentX = TimelineRenderer.getLeftLabelWidth();
+            contentW = winW - TimelineRenderer.getLeftLabelWidth();
+        }
+        
+        if (contentW > 0) {
+            navigationHandler.ensurePlayheadVisible(contentX, contentW, PLAYHEAD_MARGIN);
+        }
+    }
+    
+    /**
+     * 缩放到适应视图（显示所有内容）
+     * 供命令门面调用
+     */
+    public void zoomToFit() {
+        if (navigationHandler != null) {
+            float availableWidth = ImGui.getContentRegionAvailX() - TimelineRenderer.getLeftLabelWidth();
+            navigationHandler.fitToView(availableWidth);
+        }
+    }
 
     // ========== 工具方法 ==========
 

@@ -50,13 +50,25 @@ public class TimelineSnapSettings {
     public boolean isSnapToGrid() {
         return snapToGrid;
     }
+    
+    public void setSnapToGrid(boolean snapToGrid) {
+        this.snapToGrid = snapToGrid;
+    }
 
     public boolean isSnapToClipEdges() {
         return snapToClipEdges;
     }
+    
+    public void setSnapToClipEdges(boolean snapToClipEdges) {
+        this.snapToClipEdges = snapToClipEdges;
+    }
 
     public boolean isSnapToKeyframes() {
         return snapToKeyframes;
+    }
+    
+    public void setSnapToKeyframes(boolean snapToKeyframes) {
+        this.snapToKeyframes = snapToKeyframes;
     }
 
     public float getGridInterval() {

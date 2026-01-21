@@ -111,6 +111,9 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware {
 
             ImGui.separator();
 
+            if (ImGui.menuItem("Save", "Ctrl+S")) {
+                commands.project().saveProject();
+            }
             if (ImGui.menuItem("Save As...", "Ctrl+Shift+S")) {
                 commands.project().saveProjectAs();
             }
