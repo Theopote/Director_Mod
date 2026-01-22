@@ -223,22 +223,8 @@ public class ChronoBlocksScreen extends Screen {
     @Override
     public boolean keyPressed(KeyInput input) {
         int keyCode = input.key();
-        int modifiers = input.modifiers();
-        
-        // 优先使用新的 ShortcutDispatcher（Facade 架构）
-        if (uiManager != null) {
-            var shortcutDispatcher = uiManager.getShortcutDispatcher();
-            if (shortcutDispatcher != null) {
-                // 提取修饰键
-                boolean ctrlPressed = (modifiers & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL) != 0;
-                boolean shiftPressed = (modifiers & org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT) != 0;
-                boolean altPressed = (modifiers & org.lwjgl.glfw.GLFW.GLFW_MOD_ALT) != 0;
-                
-                // 尝试使用 ShortcutDispatcher 处理（只处理按下事件）
-                shortcutDispatcher.handleGLFWKeyEvent(keyCode, org.lwjgl.glfw.GLFW.GLFW_PRESS, modifiers);
-            }
-        }
-        
+        int modifiers = getModifiers(input, keyCode);
+
         // 检查ImGui是否想要捕获键盘事件
         if (ImGui.getIO() != null && ImGui.getIO().getWantCaptureKeyboard()) {
             // ImGui 捕获键盘时，使用 ImGui 输入处理
@@ -257,7 +243,26 @@ public class ChronoBlocksScreen extends Screen {
         return shortcutManager.handleGLFWInput(keyCode, ctrlPressed, shiftPressed, altPressed); // 已处理，阻止游戏处理
 // 不拦截游戏按键，让游戏继续处理
     }
-    
+
+    private int getModifiers(KeyInput input, int keyCode) {
+        int modifiers = input.modifiers();
+
+        // 优先使用新的 ShortcutDispatcher（Facade 架构）
+        if (uiManager != null) {
+            var shortcutDispatcher = uiManager.getShortcutDispatcher();
+            if (shortcutDispatcher != null) {
+                // 提取修饰键
+                boolean ctrlPressed = (modifiers & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL) != 0;
+                boolean shiftPressed = (modifiers & org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT) != 0;
+                boolean altPressed = (modifiers & org.lwjgl.glfw.GLFW.GLFW_MOD_ALT) != 0;
+
+                // 尝试使用 ShortcutDispatcher 处理（只处理按下事件）
+                shortcutDispatcher.handleGLFWKeyEvent(keyCode, org.lwjgl.glfw.GLFW.GLFW_PRESS, modifiers);
+            }
+        }
+        return modifiers;
+    }
+
     /**
      * 处理鼠标点击事件
      * 根据鼠标位置决定是否处理UI事件

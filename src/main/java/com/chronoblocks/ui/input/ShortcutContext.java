@@ -72,9 +72,6 @@ public final class ShortcutContext {
             return false;
         }
         // 如果在文本输入中，不处理
-        if (isTextInputContext(io)) {
-            return false;
-        }
-        return true;
+        return !isTextInputContext(io);
     }
 }

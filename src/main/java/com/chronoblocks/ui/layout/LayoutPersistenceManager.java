@@ -234,9 +234,6 @@ public class LayoutPersistenceManager {
      */
     public void forceReloadLayout() {
         String worldId = resolveWorldId(currentWorldId);
-        if (worldId == null) {
-            worldId = resolveWorldId(WorldIdentifier.getCurrentWorldId());
-        }
         LOGGER.info("[LayoutPersistence] 强制重新加载布局 (世界: {})", worldId);
         loadLayoutInternal();
         loadImGuiIniIfExists(worldId);
