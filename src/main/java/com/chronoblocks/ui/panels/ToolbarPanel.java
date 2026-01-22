@@ -112,8 +112,8 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
         // 这些面板现在通过Window菜单的Toggle Panels来管理
         // 或者通过工具栏按钮打开独立面板
 
-        // 处理快捷键输入
-        handleKeyInput();
+        // 快捷键处理已迁移到 ShortcutDispatcher（统一入口）
+        // 不再在此处处理快捷键输入
 
         ImGui.popStyleVar(2);
     }
@@ -364,8 +364,8 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
             }
         }
 
-        // 快捷键：从 KeyBindings 系统读取（若存在）
-        String shortcut = com.chronoblocks.ui.input.SelectionToolKeyBindings.getToolSwitchShortcut(tool.getId());
+        // 快捷键：从 ShortcutBindings 系统读取（若存在）
+        String shortcut = com.chronoblocks.ui.input.ShortcutBindings.getToolShortcutText(tool.getId());
         if (shortcut != null && !shortcut.isBlank()) {
             ImGui.separator();
             ImGui.text("快捷键: " + shortcut);
@@ -429,16 +429,8 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
         }
     }
 
-    /**
-     * 处理快捷键输入
-     */
-    private void handleKeyInput() {
-        try {
-            com.chronoblocks.ui.input.SelectionToolKeyBindings.handleKeyInput();
-        } catch (Exception e) {
-            logger.error("[ToolbarPanel] 处理快捷键输入失败", e);
-        }
-    }
+    // 快捷键处理已迁移到 ShortcutDispatcher（统一入口）
+    // 不再需要 handleKeyInput() 方法
 
     /**
      * 渲染一个标准的工具栏按钮，用于切换指定面板的可见性。

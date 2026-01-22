@@ -1,12 +1,14 @@
 package com.chronoblocks.ui.commands;
 
+import com.chronoblocks.core.selection.SelectionOperation;
+
 /**
  * 工具命令接口 - 工具切换与管理
  * 
  * <p>职责：管理工具的激活、切换等
  * 
  * @author ChronoBlocks Team
- * @version 1.0
+ * @version 2.0 - 添加选择操作相关方法
  */
 public interface ToolCommands {
     
@@ -15,6 +17,27 @@ public interface ToolCommands {
      * @param toolId 工具标识符
      */
     void activateTool(String toolId);
+    
+    /**
+     * 切换到下一个工具（循环）
+     */
+    void switchToNextTool();
+    
+    /**
+     * 切换到上一个工具（循环）
+     */
+    void switchToPreviousTool();
+    
+    /**
+     * 设置选择操作模式（加选/减选/交集）
+     * @param operation 操作模式
+     */
+    void setSelectionMode(SelectionOperation operation);
+    
+    /**
+     * 清除当前选择
+     */
+    void clearSelection();
     
     // ==================== 状态查询方法（只读接口） ====================
     

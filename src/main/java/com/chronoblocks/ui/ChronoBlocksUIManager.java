@@ -410,6 +410,7 @@ public class ChronoBlocksUIManager {
     
     private UICommandFacade commandFacade;
     private final UILayoutFacade layoutFacade = new UILayoutFacadeImpl();
+    private com.chronoblocks.ui.input.ShortcutDispatcher shortcutDispatcher;
     
     /**
      * 延迟初始化命令门面（懒加载模式，确保面板已完全初始化）
@@ -417,8 +418,22 @@ public class ChronoBlocksUIManager {
     private UICommandFacade getOrCreateCommandFacade() {
         if (commandFacade == null) {
             commandFacade = new UICommandFacadeImpl();
+            // 初始化 ShortcutDispatcher
+            shortcutDispatcher = new com.chronoblocks.ui.input.ShortcutDispatcher(commandFacade);
+            LOGGER.info("[ChronoBlocksUIManager] ShortcutDispatcher 已初始化");
         }
         return commandFacade;
+    }
+    
+    /**
+     * 获取快捷键分发器
+     * 
+     * @return ShortcutDispatcher 实例
+     */
+    public com.chronoblocks.ui.input.ShortcutDispatcher getShortcutDispatcher() {
+        // 确保 Facade 已初始化（这会同时初始化 ShortcutDispatcher）
+        getOrCreateCommandFacade();
+        return shortcutDispatcher;
     }
     
     /**
@@ -1492,6 +1507,42 @@ public class ChronoBlocksUIManager {
                 return;
             }
             com.chronoblocks.ui.tools.ToolRegistry.get().activate(toolId);
+        }
+        
+        @Override
+        public void switchToNextTool() {
+            var world = net.minecraft.client.MinecraftClient.getInstance().world;
+            if (world != null) {
+                com.chronoblocks.core.selection.SelectionManager.get().switchToNextTool(world);
+                LOGGER.debug("[ToolCommands] 切换到下一个工具");
+            }
+        }
+        
+        @Override
+        public void switchToPreviousTool() {
+            var world = net.minecraft.client.MinecraftClient.getInstance().world;
+            if (world != null) {
+                com.chronoblocks.core.selection.SelectionManager.get().switchToPreviousTool(world);
+                LOGGER.debug("[ToolCommands] 切换到上一个工具");
+            }
+        }
+        
+        @Override
+        public void setSelectionMode(com.chronoblocks.core.selection.SelectionOperation operation) {
+            var currentTool = com.chronoblocks.core.selection.SelectionManager.get().getCurrentTool();
+            if (currentTool instanceof com.chronoblocks.core.selection.SelectionOperationSupport operationSupport) {
+                operationSupport.setOperation(operation);
+                LOGGER.debug("[ToolCommands] 设置选择操作模式: {}", operation.getDisplayName());
+            } else {
+                LOGGER.debug("[ToolCommands] 当前工具不支持操作模式切换: {}", 
+                    currentTool != null ? currentTool.getId() : "null");
+            }
+        }
+        
+        @Override
+        public void clearSelection() {
+            com.chronoblocks.core.selection.SelectionManager.get().clearSelection();
+            LOGGER.debug("[ToolCommands] 清除选择");
         }
         
         @Override

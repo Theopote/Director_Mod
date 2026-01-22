@@ -224,6 +224,21 @@ public class ChronoBlocksScreen extends Screen {
     public boolean keyPressed(KeyInput input) {
         int keyCode = input.key();
         int modifiers = input.modifiers();
+        
+        // 优先使用新的 ShortcutDispatcher（Facade 架构）
+        if (uiManager != null) {
+            var shortcutDispatcher = uiManager.getShortcutDispatcher();
+            if (shortcutDispatcher != null) {
+                // 提取修饰键
+                boolean ctrlPressed = (modifiers & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL) != 0;
+                boolean shiftPressed = (modifiers & org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT) != 0;
+                boolean altPressed = (modifiers & org.lwjgl.glfw.GLFW.GLFW_MOD_ALT) != 0;
+                
+                // 尝试使用 ShortcutDispatcher 处理（只处理按下事件）
+                shortcutDispatcher.handleGLFWKeyEvent(keyCode, org.lwjgl.glfw.GLFW.GLFW_PRESS, modifiers);
+            }
+        }
+        
         // 检查ImGui是否想要捕获键盘事件
         if (ImGui.getIO() != null && ImGui.getIO().getWantCaptureKeyboard()) {
             // ImGui 捕获键盘时，使用 ImGui 输入处理
@@ -234,7 +249,7 @@ public class ChronoBlocksScreen extends Screen {
             return super.keyPressed(input);
         }
         
-        // ImGui 不捕获键盘时，使用 GLFW 输入处理
+        // ImGui 不捕获键盘时，使用 GLFW 输入处理（保留旧系统作为后备）
         var shortcutManager = com.chronoblocks.ui.input.GlobalShortcutManager.getInstance();
         boolean ctrlPressed = (modifiers & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL) != 0;
         boolean shiftPressed = (modifiers & org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT) != 0;
