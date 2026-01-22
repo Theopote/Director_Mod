@@ -972,26 +972,44 @@ public class ChronoBlocksUIManager {
         
         @Override
         public void play() {
+            if (timelineModel != null) {
+                timelineModel.play();
+            }
+            // 同时更新旧的 PlaybackController（向后兼容）
             PlaybackController.get().play();
         }
         
         @Override
         public void pause() {
+            if (timelineModel != null) {
+                timelineModel.pause();
+            }
+            // 同时更新旧的 PlaybackController（向后兼容）
             PlaybackController.get().pause();
         }
         
         @Override
         public void stop() {
+            if (timelineModel != null) {
+                timelineModel.jumpToStart();
+                timelineModel.pause();
+            }
+            // 同时更新旧的 PlaybackController（向后兼容）
             PlaybackController.get().stop();
         }
         
         @Override
         public void togglePlayPause() {
-            PlaybackController pc = PlaybackController.get();
-            if (pc.isPlaying()) {
-                pause();
+            if (timelineModel != null) {
+                timelineModel.togglePlay();
             } else {
-                play();
+                // 降级方案：使用 PlaybackController
+                PlaybackController pc = PlaybackController.get();
+                if (pc.isPlaying()) {
+                    pause();
+                } else {
+                    play();
+                }
             }
         }
         
@@ -1018,57 +1036,91 @@ public class ChronoBlocksUIManager {
         
         @Override
         public void setPlaybackSpeed(float speed) {
+            if (timelineModel != null) {
+                timelineModel.setPlaybackSpeed(speed);
+            }
+            // 同时更新旧的 PlaybackController（向后兼容）
             PlaybackController.get().setSpeed(speed);
         }
         
         @Override
         public void toggleLoop() {
+            if (timelineModel != null) {
+                timelineModel.setLoopEnabled(!timelineModel.isLoopEnabled());
+            }
+            // 同时更新旧的 PlaybackController（向后兼容）
             PlaybackController.get().toggleLoop();
         }
         
         @Override
         public void goToStart() {
+            if (timelineModel != null) {
+                timelineModel.jumpToStart();
+            }
+            // 同时更新旧的 PlaybackController（向后兼容）
             PlaybackController.get().seek(0f);
         }
         
         @Override
         public void goToEnd() {
-            PlaybackController pc = PlaybackController.get();
-            float endTime = pc.getDuration();
             if (timelineModel != null) {
-                endTime = Math.max(endTime, timelineModel.getDuration());
+                timelineModel.jumpToEnd();
+            } else {
+                // 降级方案：使用 PlaybackController
+                PlaybackController pc = PlaybackController.get();
+                float endTime = pc.getDuration();
+                pc.seek(endTime);
             }
-            pc.seek(endTime);
         }
         
         @Override
         public boolean isPlaying() {
+            // 优先使用 TimelineModel 的状态
+            if (timelineModel != null) {
+                return timelineModel.isPlaying();
+            }
+            // 降级方案：使用 PlaybackController
             return PlaybackController.get().isPlaying();
         }
         
         @Override
         public boolean isLooping() {
+            // 优先使用 TimelineModel 的状态
+            if (timelineModel != null) {
+                return timelineModel.isLoopEnabled();
+            }
+            // 降级方案：使用 PlaybackController
             return PlaybackController.get().isLoop();
         }
         
         @Override
         public float getPlaybackSpeed() {
+            // 优先使用 TimelineModel 的状态
+            if (timelineModel != null) {
+                return timelineModel.getPlaybackSpeed();
+            }
+            // 降级方案：使用 PlaybackController
             return PlaybackController.get().getSpeed();
         }
         
         @Override
         public float getCurrentTime() {
+            // 优先使用 TimelineModel 的状态
+            if (timelineModel != null) {
+                return timelineModel.getCurrentTime();
+            }
+            // 降级方案：使用 PlaybackController
             return PlaybackController.get().getCurrentTime();
         }
         
         @Override
         public float getTotalDuration() {
-            PlaybackController pc = PlaybackController.get();
-            float duration = pc.getDuration();
+            // 优先使用 TimelineModel 的状态
             if (timelineModel != null) {
-                duration = Math.max(duration, timelineModel.getDuration());
+                return timelineModel.getDuration();
             }
-            return duration;
+            // 降级方案：使用 PlaybackController
+            return PlaybackController.get().getDuration();
         }
     }
     

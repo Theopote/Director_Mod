@@ -195,32 +195,51 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware {
         if (commands == null) return;
 
         if (ImGui.beginMenu(Icons.PLAY + " Playback")) {
-            if (ImGui.menuItem("Play / Pause", "Space")) {
+            // 播放/暂停
+            boolean isPlaying = commands.playback().isPlaying();
+            String playPauseLabel = isPlaying ? Icons.PAUSE + " Pause" : Icons.PLAY + " Play";
+            if (ImGui.menuItem(playPauseLabel, "Space")) {
                 commands.playback().togglePlayPause();
             }
+            
+            // 停止
             if (ImGui.menuItem("Stop")) {
                 commands.playback().stop();
             }
 
             ImGui.separator();
 
+            // 播放速度子菜单（显示当前选中的速度）
+            float currentSpeed = commands.playback().getPlaybackSpeed();
             if (ImGui.beginMenu("Playback Speed")) {
-                if (ImGui.menuItem("0.25x")) commands.playback().setPlaybackSpeed(0.25f);
-                if (ImGui.menuItem("0.5x")) commands.playback().setPlaybackSpeed(0.5f);
-                if (ImGui.menuItem("1x")) commands.playback().setPlaybackSpeed(1.0f);
-                if (ImGui.menuItem("2x")) commands.playback().setPlaybackSpeed(2.0f);
+                if (ImGui.menuItem("0.25x", "", Math.abs(currentSpeed - 0.25f) < 0.01f)) {
+                    commands.playback().setPlaybackSpeed(0.25f);
+                }
+                if (ImGui.menuItem("0.5x", "", Math.abs(currentSpeed - 0.5f) < 0.01f)) {
+                    commands.playback().setPlaybackSpeed(0.5f);
+                }
+                if (ImGui.menuItem("1x", "", Math.abs(currentSpeed - 1.0f) < 0.01f)) {
+                    commands.playback().setPlaybackSpeed(1.0f);
+                }
+                if (ImGui.menuItem("2x", "", Math.abs(currentSpeed - 2.0f) < 0.01f)) {
+                    commands.playback().setPlaybackSpeed(2.0f);
+                }
                 ImGui.endMenu();
             }
 
-            if (ImGui.menuItem("Toggle Loop")) {
+            // 循环播放（带复选框）
+            boolean isLooping = commands.playback().isLooping();
+            if (ImGui.menuItem("Toggle Loop", "", isLooping)) {
                 commands.playback().toggleLoop();
             }
 
             ImGui.separator();
 
+            // 跳转到开始
             if (ImGui.menuItem("Go to Start", "Home")) {
                 commands.playback().goToStart();
             }
+            // 跳转到结束
             if (ImGui.menuItem("Go to End", "End")) {
                 commands.playback().goToEnd();
             }

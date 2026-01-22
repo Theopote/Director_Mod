@@ -504,18 +504,27 @@ public class TimelinePanel extends AbstractPanel
 
         // 处理超出范围
         if (newTime > duration) {
-            newTime = duration; // 停在终点
-            // ⭐ 优化：只在状态真正改变时记录日志，避免频繁触发时刷屏
-            // 检查是否从播放状态变为空闲状态
-            boolean wasPlaying = model.isPlaying();
-            model.setPlaying(false);
-            
-            // ⭐ 关键修复：播放结束时通知摄像机控制器停止播放
-            TimelineCameraController.getInstance().onPlaybackStopped();
-            
-            if (wasPlaying && LOGGER.isTraceEnabled()) {
-                // 使用 trace 级别，因为这是高频事件，debug 级别可能过于频繁
-                LOGGER.trace("[TimelinePanel] 播放结束，停在终点 (时间: {:.2f}s)", newTime);
+            if (model.isLoopEnabled() && duration > 0) {
+                // 循环播放：回到开始位置
+                newTime = newTime % duration;
+                if (LOGGER.isTraceEnabled()) {
+                    LOGGER.trace("[TimelinePanel] 播放循环，回到开始 (时间: {:.2f}s)", newTime);
+                }
+            } else {
+                // 非循环：停在终点
+                newTime = duration;
+                // ⭐ 优化：只在状态真正改变时记录日志，避免频繁触发时刷屏
+                // 检查是否从播放状态变为空闲状态
+                boolean wasPlaying = model.isPlaying();
+                model.setPlaying(false);
+                
+                // ⭐ 关键修复：播放结束时通知摄像机控制器停止播放
+                TimelineCameraController.getInstance().onPlaybackStopped();
+                
+                if (wasPlaying && LOGGER.isTraceEnabled()) {
+                    // 使用 trace 级别，因为这是高频事件，debug 级别可能过于频繁
+                    LOGGER.trace("[TimelinePanel] 播放结束，停在终点 (时间: {:.2f}s)", newTime);
+                }
             }
         }
 
