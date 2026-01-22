@@ -385,6 +385,50 @@ public class LayoutPersistenceManager {
     }
 
     /**
+     * 保存当前布局为预设
+     * 
+     * @param presetName 预设名称
+     * @return 是否保存成功
+     */
+    public boolean saveLayoutPreset(String presetName) {
+        if (presetName == null || presetName.trim().isEmpty()) {
+            LOGGER.warn("[LayoutPersistence] 预设名称不能为空");
+            return false;
+        }
+        
+        try {
+            // 确保预设目录存在
+            Path presetsDir = LAYOUT_DIR.resolve("presets");
+            if (!Files.exists(presetsDir)) {
+                Files.createDirectories(presetsDir);
+                LOGGER.debug("[LayoutPersistence] 创建预设目录: {}", presetsDir);
+            }
+            
+            // 保存当前布局数据
+            LayoutData presetLayout = new LayoutData();
+            presetLayout.version = LAYOUT_VERSION;
+            presetLayout.timestamp = System.currentTimeMillis();
+            presetLayout.worldFingerprint = getWorldFingerprint();
+            if (currentLayout != null && currentLayout.panels != null) {
+                presetLayout.panels = new HashMap<>(currentLayout.panels);
+            } else {
+                presetLayout.panels = new HashMap<>();
+            }
+            
+            // 保存为 JSON 文件
+            Path presetFile = presetsDir.resolve(sanitizePresetName(presetName) + ".json");
+            String layoutJson = GSON.toJson(presetLayout);
+            Files.writeString(presetFile, layoutJson);
+            
+            LOGGER.info("[LayoutPersistence] 成功保存布局预设: {} -> {}", presetName, presetFile);
+            return true;
+        } catch (Exception e) {
+            LOGGER.error("[LayoutPersistence] 保存布局预设失败: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+    
+    /**
      * 加载布局预设
      * 
      * @param presetName 预设名称
@@ -413,6 +457,56 @@ public class LayoutPersistenceManager {
             }
         } catch (Exception e) {
             LOGGER.error("[LayoutPersistence] 加载布局预设失败: {}", e.getMessage(), e);
+            return false;
+        }
+    }
+    
+    /**
+     * 列出所有可用的布局预设
+     * 
+     * @return 预设名称列表（不包含文件扩展名）
+     */
+    public java.util.List<String> listLayoutPresets() {
+        java.util.List<String> presets = new java.util.ArrayList<>();
+        try {
+            Path presetsDir = LAYOUT_DIR.resolve("presets");
+            if (Files.exists(presetsDir)) {
+                try (java.util.stream.Stream<java.nio.file.Path> stream = Files.list(presetsDir)) {
+                    stream.filter(Files::isRegularFile)
+                          .filter(p -> p.toString().endsWith(".json"))
+                          .map(p -> {
+                              String fileName = p.getFileName().toString();
+                              return fileName.substring(0, fileName.length() - 5); // 移除 .json
+                          })
+                          .sorted()
+                          .forEach(presets::add);
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.error("[LayoutPersistence] 列出布局预设失败: {}", e.getMessage(), e);
+        }
+        return presets;
+    }
+    
+    /**
+     * 删除布局预设
+     * 
+     * @param presetName 预设名称
+     * @return 是否删除成功
+     */
+    public boolean deleteLayoutPreset(String presetName) {
+        try {
+            Path presetFile = LAYOUT_DIR.resolve("presets").resolve(sanitizePresetName(presetName) + ".json");
+            if (Files.exists(presetFile)) {
+                Files.delete(presetFile);
+                LOGGER.info("[LayoutPersistence] 已删除布局预设: {}", presetName);
+                return true;
+            } else {
+                LOGGER.warn("[LayoutPersistence] 布局预设不存在: {}", presetFile);
+                return false;
+            }
+        } catch (Exception e) {
+            LOGGER.error("[LayoutPersistence] 删除布局预设失败: {}", e.getMessage(), e);
             return false;
         }
     }

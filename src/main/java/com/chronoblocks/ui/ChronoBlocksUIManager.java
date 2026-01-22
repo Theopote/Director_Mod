@@ -476,6 +476,7 @@ public class ChronoBlocksUIManager {
             
             // 设置时间线设置访问器（用于时间线设置对话框）
             if (timelineModel != null && ChronoBlocksUIManager.this.dialogManager != null) {
+                // 设置时间线设置访问器
                 ChronoBlocksUIManager.this.dialogManager.setTimelineSettingsAccessor(
                     new com.chronoblocks.ui.dialogs.DialogManager.TimelineSettingsAccessor() {
                         @Override
@@ -675,6 +676,33 @@ public class ChronoBlocksUIManager {
                                     return false;
                                 }
                             }
+                        }
+                    }
+                );
+            }
+            
+            // 设置布局访问器（用于保存/加载布局预设对话框）
+            if (ChronoBlocksUIManager.this.dialogManager != null) {
+                ChronoBlocksUIManager.this.dialogManager.setLayoutAccessor(
+                    new com.chronoblocks.ui.dialogs.DialogManager.LayoutAccessor() {
+                        @Override
+                        public boolean saveLayoutPreset(String presetName) {
+                            return layoutCommands.saveLayoutPreset(presetName);
+                        }
+                        
+                        @Override
+                        public java.util.List<String> listLayoutPresets() {
+                            return layoutCommands.listLayoutPresets();
+                        }
+                        
+                        @Override
+                        public boolean loadLayoutPreset(String presetName) {
+                            return layoutCommands.loadLayoutPreset(presetName);
+                        }
+                        
+                        @Override
+                        public boolean deleteLayoutPreset(String presetName) {
+                            return layoutCommands.deleteLayoutPreset(presetName);
                         }
                     }
                 );
@@ -1282,6 +1310,55 @@ public class ChronoBlocksUIManager {
             } catch (Exception e) {
                 LOGGER.error("[Layout] Failed to save layout: {}", e.getMessage(), e);
             }
+        }
+        
+        @Override
+        public void showSaveLayoutDialog() {
+            if (ChronoBlocksUIManager.this.dialogManager != null) {
+                ChronoBlocksUIManager.this.dialogManager.showSaveLayoutDialog();
+            }
+        }
+        
+        @Override
+        public void showLoadLayoutDialog() {
+            if (ChronoBlocksUIManager.this.dialogManager != null) {
+                ChronoBlocksUIManager.this.dialogManager.showLoadLayoutDialog();
+            }
+        }
+        
+        @Override
+        public boolean saveLayoutPreset(String presetName) {
+            return layoutManager.saveLayoutPreset(presetName);
+        }
+        
+        @Override
+        public java.util.List<String> listLayoutPresets() {
+            return layoutManager.listLayoutPresets();
+        }
+        
+        @Override
+        public boolean loadLayoutPreset(String presetName) {
+            try {
+                boolean success = layoutManager.loadLayoutPreset(presetName);
+                if (success) {
+                    // 重新加载 ImGui INI 文件
+                    java.nio.file.Path iniPath = layoutManager.getImGuiIniPath();
+                    if (java.nio.file.Files.exists(iniPath)) {
+                        String iniPathStr = iniPath.toString().replace('\\', '/');
+                        imgui.ImGui.loadIniSettingsFromDisk(iniPathStr);
+                    }
+                    com.chronoblocks.ui.layout.DockSpaceLayoutBuilder.resetLayoutState();
+                }
+                return success;
+            } catch (Exception e) {
+                LOGGER.error("[Layout] Failed to load layout preset: {}", e.getMessage(), e);
+                return false;
+            }
+        }
+        
+        @Override
+        public boolean deleteLayoutPreset(String presetName) {
+            return layoutManager.deleteLayoutPreset(presetName);
         }
         
         @Override

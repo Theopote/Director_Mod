@@ -1,6 +1,7 @@
 package com.chronoblocks.ui.dialogs;
 
 import imgui.type.ImBoolean;
+import imgui.type.ImString;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 import com.chronoblocks.ui.theme.UITheme;
@@ -34,7 +35,29 @@ public class DialogManager {
     private final ImBoolean showSettingsDialog = new ImBoolean(false);
     private final ImBoolean showTimelineSettingsDialog = new ImBoolean(false);
     private final ImBoolean showShortcutsDialog = new ImBoolean(false);
+    private final ImBoolean showSaveLayoutDialog = new ImBoolean(false);
+    private final ImBoolean showLoadLayoutDialog = new ImBoolean(false);
     private boolean showNewAnimationConfirm = false;
+    
+    // 保存布局对话框输入缓冲区
+    private final ImString saveLayoutNameBuffer = new ImString("", 256);
+    
+    // 布局访问器（用于保存/加载布局预设）
+    public interface LayoutAccessor {
+        boolean saveLayoutPreset(String presetName);
+        java.util.List<String> listLayoutPresets();
+        boolean loadLayoutPreset(String presetName);
+        boolean deleteLayoutPreset(String presetName);
+    }
+    
+    private LayoutAccessor layoutAccessor;
+    
+    /**
+     * 设置布局访问器
+     */
+    public void setLayoutAccessor(LayoutAccessor accessor) {
+        this.layoutAccessor = accessor;
+    }
     
     // ==================== 时间线设置回调 ====================
     
@@ -160,6 +183,36 @@ public class DialogManager {
         showNewAnimationConfirm = false;
     }
     
+    /**
+     * 显示保存布局对话框
+     */
+    public void showSaveLayoutDialog() {
+        // 清空输入缓冲区
+        saveLayoutNameBuffer.set("");
+        showSaveLayoutDialog.set(true);
+    }
+    
+    /**
+     * 关闭保存布局对话框
+     */
+    public void closeSaveLayoutDialog() {
+        showSaveLayoutDialog.set(false);
+    }
+    
+    /**
+     * 显示载入布局对话框
+     */
+    public void showLoadLayoutDialog() {
+        showLoadLayoutDialog.set(true);
+    }
+    
+    /**
+     * 关闭载入布局对话框
+     */
+    public void closeLoadLayoutDialog() {
+        showLoadLayoutDialog.set(false);
+    }
+    
     // ==================== 对话框渲染方法 ====================
     
     /**
@@ -177,6 +230,12 @@ public class DialogManager {
         }
         if (showShortcutsDialog.get()) {
             renderShortcutsDialog();
+        }
+        if (showSaveLayoutDialog.get()) {
+            renderSaveLayoutDialog();
+        }
+        if (showLoadLayoutDialog.get()) {
+            renderLoadLayoutDialog();
         }
         renderNewAnimationDialog();
     }
@@ -512,6 +571,136 @@ public class DialogManager {
     private void onNewAnimationConfirm() {
         if (newAnimationConfirmCallback != null) {
             newAnimationConfirmCallback.run();
+        }
+    }
+    
+    /**
+     * 保存布局对话框
+     */
+    private void renderSaveLayoutDialog() {
+        ImGui.openPopup("Save Layout");
+        ImGui.setNextWindowSize(450, 200);
+        
+        if (ImGui.beginPopupModal("Save Layout", showSaveLayoutDialog)) {
+            UITheme.title(Icons.SAVE + " Save Layout Preset");
+            
+            ImGui.spacing();
+            ImGui.text("Enter a name for this layout preset:");
+            ImGui.spacing();
+            
+            // 输入框
+            ImGui.setNextItemWidth(-1);
+            ImGui.inputText("##LayoutName", saveLayoutNameBuffer);
+            
+            ImGui.spacing();
+            ImGui.separator();
+            ImGui.spacing();
+            
+            // 按钮
+            ImGui.beginGroup();
+            float buttonWidth = (ImGui.getContentRegionAvailX() - 10) / 2.0f; // 10px gap
+            
+            String layoutName = saveLayoutNameBuffer.get().trim();
+            boolean canSave = !layoutName.isEmpty() && layoutAccessor != null;
+            
+            if (ImGui.button("Save", buttonWidth, UITheme.Spacing.BUTTON_HEIGHT)) {
+                if (canSave && layoutAccessor.saveLayoutPreset(layoutName)) {
+                    closeSaveLayoutDialog();
+                }
+            }
+            
+            ImGui.sameLine();
+            
+            if (ImGui.button("Cancel", buttonWidth, UITheme.Spacing.BUTTON_HEIGHT)) {
+                closeSaveLayoutDialog();
+            }
+            
+            ImGui.endGroup();
+            
+            // 如果输入为空，显示提示
+            if (layoutName.isEmpty()) {
+                ImGui.spacing();
+                ImGui.textColored(0.8f, 0.6f, 0.2f, 1.0f, Icons.WARNING + " Please enter a layout name");
+            }
+            
+            ImGui.endPopup();
+        }
+    }
+    
+    /**
+     * 载入布局对话框
+     */
+    private void renderLoadLayoutDialog() {
+        ImGui.openPopup("Load Layout");
+        ImGui.setNextWindowSize(500, 400);
+        
+        if (ImGui.beginPopupModal("Load Layout", showLoadLayoutDialog)) {
+            UITheme.title(Icons.FOLDER + " Load Layout Preset");
+            
+            ImGui.spacing();
+            
+            if (layoutAccessor == null) {
+                ImGui.textColored(1.0f, 0.3f, 0.3f, 1.0f, Icons.ERROR + " Layout accessor not available");
+                ImGui.spacing();
+                if (ImGui.button("Close", -1, UITheme.Spacing.BUTTON_HEIGHT)) {
+                    closeLoadLayoutDialog();
+                }
+                ImGui.endPopup();
+                return;
+            }
+            
+            // 获取预设列表
+            java.util.List<String> presets = layoutAccessor.listLayoutPresets();
+            
+            if (presets.isEmpty()) {
+                ImGui.textColored(0.8f, 0.6f, 0.2f, 1.0f, Icons.WARNING + " No saved layouts found");
+                ImGui.spacing();
+                ImGui.text("Save a layout first to see it here.");
+                ImGui.spacing();
+                ImGui.separator();
+                ImGui.spacing();
+                if (ImGui.button("Close", -1, UITheme.Spacing.BUTTON_HEIGHT)) {
+                    closeLoadLayoutDialog();
+                }
+            } else {
+                ImGui.text("Select a layout preset to load:");
+                ImGui.spacing();
+                
+                // 列表区域（带滚动）
+                float listHeight = ImGui.getContentRegionAvailY() - UITheme.Spacing.BUTTON_HEIGHT - 20; // 20px for spacing
+                if (ImGui.beginChild("##LayoutList", 0, listHeight, true)) {
+                    for (String preset : presets) {
+                        if (ImGui.selectable(preset, false)) {
+                            // 用户选择了这个预设
+                            if (layoutAccessor.loadLayoutPreset(preset)) {
+                                closeLoadLayoutDialog();
+                                // 重新加载 ImGui INI 文件
+                                com.chronoblocks.ui.layout.DockSpaceLayoutBuilder.resetLayoutState();
+                            }
+                        }
+                        
+                        // 右键菜单：删除
+                        if (ImGui.beginPopupContextItem("##PresetContext_" + preset)) {
+                            if (ImGui.menuItem(Icons.DELETE + " Delete")) {
+                                layoutAccessor.deleteLayoutPreset(preset);
+                            }
+                            ImGui.endPopup();
+                        }
+                    }
+                }
+                ImGui.endChild();
+                
+                ImGui.spacing();
+                ImGui.separator();
+                ImGui.spacing();
+                
+                // 按钮
+                if (ImGui.button("Close", -1, UITheme.Spacing.BUTTON_HEIGHT)) {
+                    closeLoadLayoutDialog();
+                }
+            }
+            
+            ImGui.endPopup();
         }
     }
 }

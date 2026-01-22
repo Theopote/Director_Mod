@@ -11,9 +11,46 @@ package com.chronoblocks.ui.commands;
 public interface LayoutCommands {
     
     /**
-     * 保存当前布局
+     * 保存当前布局（自动保存到当前世界）
      */
     void saveCurrentLayout();
+    
+    /**
+     * 显示保存布局对话框
+     */
+    void showSaveLayoutDialog();
+    
+    /**
+     * 显示载入布局对话框
+     */
+    void showLoadLayoutDialog();
+    
+    /**
+     * 保存当前布局为预设
+     * @param presetName 预设名称
+     * @return 是否保存成功
+     */
+    boolean saveLayoutPreset(String presetName);
+    
+    /**
+     * 列出所有可用的布局预设
+     * @return 预设名称列表
+     */
+    java.util.List<String> listLayoutPresets();
+    
+    /**
+     * 加载布局预设
+     * @param presetName 预设名称
+     * @return 是否加载成功
+     */
+    boolean loadLayoutPreset(String presetName);
+    
+    /**
+     * 删除布局预设
+     * @param presetName 预设名称
+     * @return 是否删除成功
+     */
+    boolean deleteLayoutPreset(String presetName);
     
     /**
      * 恢复默认布局

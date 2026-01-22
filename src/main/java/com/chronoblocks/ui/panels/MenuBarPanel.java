@@ -281,10 +281,10 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware {
 
             // 布局管理
             if (ImGui.menuItem("Save Layout")) {
-                commands.layout().saveCurrentLayout();
+                commands.layout().showSaveLayoutDialog();
             }
             if (ImGui.menuItem("Load Layout")) {
-                commands.layout().reloadLayout();
+                commands.layout().showLoadLayoutDialog();
             }
             if (ImGui.menuItem("Restore Default Layout")) {
                 commands.layout().restoreDefaultLayout();
