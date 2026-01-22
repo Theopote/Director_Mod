@@ -66,6 +66,18 @@ public interface PlaybackCommands {
      */
     void goToEnd();
     
+    /**
+     * 跳转到指定时间（Seek）
+     * @param time 目标时间（秒）
+     */
+    void seek(float time);
+    
+    /**
+     * 更新播放系统（每帧调用，用于推进时间、更新 Controller 等）
+     * @param deltaTime 时间增量（秒）
+     */
+    void tick(float deltaTime);
+    
     // ==================== 状态查询方法（只读接口） ====================
     
     /**

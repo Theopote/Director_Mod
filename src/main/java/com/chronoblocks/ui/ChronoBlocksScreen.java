@@ -251,12 +251,8 @@ public class ChronoBlocksScreen extends Screen {
         if (uiManager != null) {
             var shortcutDispatcher = uiManager.getShortcutDispatcher();
             if (shortcutDispatcher != null) {
-                // 提取修饰键
-                boolean ctrlPressed = (modifiers & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL) != 0;
-                boolean shiftPressed = (modifiers & org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT) != 0;
-                boolean altPressed = (modifiers & org.lwjgl.glfw.GLFW.GLFW_MOD_ALT) != 0;
-
                 // 尝试使用 ShortcutDispatcher 处理（只处理按下事件）
+                // 注意：ShortcutDispatcher 内部会提取修饰键（Ctrl/Shift/Alt）
                 shortcutDispatcher.handleGLFWKeyEvent(keyCode, org.lwjgl.glfw.GLFW.GLFW_PRESS, modifiers);
             }
         }
@@ -690,6 +686,10 @@ public class ChronoBlocksScreen extends Screen {
 
         // ⭐ Marker 拖拽系统：每帧更新（LOOK_AT 模式下拖拽 Marker）
         com.chronoblocks.ui.actor.lookat.MarkerDragController.getInstance().update();
+        
+        // ⚠️ 播放系统 tick 已迁移到 PlaybackOrchestrator（在 UIManager.updateAnimationSystem() 中调用）
+        // 这确保了播放系统在任何情况下（面板隐藏/失焦）都保持一致
+        // 播放驱动现在由 UIManager 统一管理，不再依赖 ChronoBlocksScreen.tick()
     }
 
     private void cleanupRenderSystems(boolean full) {

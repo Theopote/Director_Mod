@@ -1195,6 +1195,46 @@ public class ChronoBlocksUIManager {
             // 降级方案：使用 PlaybackController
             return PlaybackController.get().getDuration();
         }
+        
+        @Override
+        public void seek(float time) {
+            if (timelineModel != null) {
+                float clampedTime = Math.max(0f, Math.min(timelineModel.getDuration(), time));
+                timelineModel.setCurrentTime(clampedTime);
+                
+                // ⭐ 季节轨道系统：跳转时间时更新季节采样
+                com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController.getInstance().onTimelineTick(clampedTime);
+                
+                // ⭐ 天气轨道系统：跳转时间时更新天气采样（预览模式）
+                com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController.getInstance().previewAt(clampedTime);
+                
+                // ⭐ 摄像机控制器：跳转到指定时间并保持玩家态
+                com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance().jumpToTimeAsPlayer(clampedTime);
+                
+                // ⭐ 更新片段方块显示状态
+                com.chronoblocks.ui.timeline.playback.TimelineClipBlockController.getInstance().update();
+                
+                LOGGER.debug("[PlaybackCommands] Seek to {:.2f}s", clampedTime);
+            } else {
+                // 降级方案：使用 PlaybackController
+                PlaybackController.get().seek(time);
+            }
+        }
+        
+        @Override
+        public void tick(float deltaTime) {
+            // ⚠️ 播放驱动已迁移到 PlaybackOrchestrator（在 UIManager.updateAnimationSystem() 中调用）
+            // Facade 的 tick() 方法保留用于向后兼容，但实际驱动由 Orchestrator 负责
+            // 这样可以确保播放系统在任何情况下（面板隐藏/失焦）都保持一致
+            // 
+            // 注意：如果外部代码直接调用 commands.playback().tick()，会触发 Orchestrator
+            // 但通常应该通过 UIManager.updateAnimationSystem() 统一驱动
+            if (timelineModel != null) {
+                // 委托给 Orchestrator（确保统一驱动）
+                com.chronoblocks.ui.timeline.playback.PlaybackOrchestrator.get().bindModel(timelineModel);
+                com.chronoblocks.ui.timeline.playback.PlaybackOrchestrator.get().tick(deltaTime);
+            }
+        }
     }
     
     /**
@@ -1835,8 +1875,16 @@ public class ChronoBlocksUIManager {
             // 限制最大帧间隔，避免长时间暂停后的巨大跳跃
             deltaSeconds = Math.min(deltaSeconds, 0.1f); // 最大100ms
             
-            // 驱动播放控制器更新动画状态
-            com.chronoblocks.core.playback.PlaybackController.get().update(deltaSeconds);
+            // ✅ 从 TimelinePanel 获取当前 TimelineModel，并绑定给 Orchestrator
+            TimelinePanel timelinePanel = panelRegistry.getPanel(TimelinePanel.class);
+            if (timelinePanel != null) {
+                com.chronoblocks.ui.timeline.model.TimelineModel model = timelinePanel.getModel();
+                com.chronoblocks.ui.timeline.playback.PlaybackOrchestrator.get().bindModel(model);
+            }
+            
+            // ✅ 统一播放驱动（替代 TimelinePanel 的 updatePlayback + 一堆 controller tick）
+            // 这确保了播放系统在任何情况下（面板隐藏/失焦）都保持一致
+            com.chronoblocks.ui.timeline.playback.PlaybackOrchestrator.get().tick(deltaSeconds);
             
         } catch (Exception e) {
             // 静默处理异常，避免中断UI渲染
@@ -2285,6 +2333,17 @@ public class ChronoBlocksUIManager {
                 if (panel instanceof ToolbarPanel) {
                     try {
                         ((ToolbarPanel) panel).setCommands(getOrCreateCommandFacade());
+                        commandFacadeCount++;
+                        logDebug("为面板 '{}' 注入了 UICommandFacade", panel.getPanelName());
+                    } catch (Exception e) {
+                        logError("为面板 '{}' 注入 UICommandFacade 失败", e, panel.getPanelName());
+                    }
+                }
+                
+                // ⭐ TimelinePanel：注入 UICommandFacade（用于播放控制等）
+                if (panel instanceof TimelinePanel) {
+                    try {
+                        ((TimelinePanel) panel).setCommands(getOrCreateCommandFacade());
                         commandFacadeCount++;
                         logDebug("为面板 '{}' 注入了 UICommandFacade", panel.getPanelName());
                     } catch (Exception e) {

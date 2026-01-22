@@ -24,7 +24,8 @@ import com.chronoblocks.ui.timeline.ui.TimelineControlBar;
 import com.chronoblocks.ui.timeline.shortcuts.TimelineShortcutManager;
 import com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController;
 import com.chronoblocks.ui.timeline.playback.time.TimelineWorldController;
-import com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController;
+// ⚠️ TimelineSeasonController 使用完全限定名，不需要导入
+// import com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController;
 import com.chronoblocks.ui.input.GlobalShortcutManager;
 import com.chronoblocks.ui.theme.UITheme;
 import net.minecraft.client.MinecraftClient;
@@ -105,6 +106,9 @@ public class TimelinePanel extends AbstractPanel
     private final TimelineControlBar controlBar;
     private final TimelineShortcutManager shortcutManager;
     private boolean globalTimelineShortcutsActive = false;
+    
+    // ⭐ Facade 架构：命令门面（用于控制命令，如播放/暂停/跳转）
+    private com.chronoblocks.ui.commands.UICommandFacade commands;
 
     // ========== 新的拆分组件 (Controllers/Handlers) ==========
     private final TimelineDragAndDropHandler dragDropHandler;
@@ -395,43 +399,15 @@ public class TimelinePanel extends AbstractPanel
             );
         }
 
-        // 1. 更新播放状态（每帧调用）
-        updatePlayback();
-
-        // 2. 根据播放头位置更新片段方块显示状态（每帧调用）
-        com.chronoblocks.ui.timeline.playback.TimelineClipBlockController.getInstance().update();
-        float delta = getRenderDelta();
-        TimelineCameraController.getInstance().updateOwnerAndSample(delta);
+        // ⚠️ 播放子系统 tick 已迁移到 ChronoBlocksScreen.tick()（Facade 架构）
+        // 所有播放相关的 Controller 更新现在通过 commands.playback().tick(deltaTime) 统一处理
+        // 这确保了播放逻辑不依赖于 TimelinePanel 的可见性，与 Menu/Toolbar/Shortcut 的行为一致
         
-        // ⭐ 时间轨道系统：每帧更新世界时间（播放/scrubbing时根据当前时间线时间插值）
-        TimelineWorldController.getInstance().update();
-        
-        // ⭐ 音频轨道系统：每帧更新音频播放
-        com.chronoblocks.ui.timeline.playback.TimelineAudioController.getInstance().update();
-        
-        // ⭐ 实体轨道系统 v2：每帧更新实体状态
-        com.chronoblocks.actor.runtime.ActorRuntimeController.getInstance().update();
-
-        // ⭐ Actor Gizmo 系统：每帧更新（跟随实体位置）
-        // 注意：ActorPickController.update() 已移到 ChronoBlocksScreen.tick() 中（世界输入处理）
-        com.chronoblocks.ui.actor.gizmo.ActorGizmoController.getInstance().update();
-        
-        // ⚠️ 旧版本 EntityRuntimeController（已迁移到 ActorRuntimeController v2，待移除）
-        // com.chronoblocks.ui.timeline.playback.entity.EntityRuntimeController.getInstance().update();
-        
-        // ⭐ 季节轨道系统：每帧更新季节参数（播放/scrubbing时根据当前时间线时间插值）
-        // 注意：update() 方法内部会根据播放状态决定是否更新
-        // 但为了统一数据流，我们改用 onTimelineTick() 在 setCurrentTime() 处统一调用
-        // TimelineSeasonController.getInstance().update(); // 已废弃，改为在 setCurrentTime 处调用
-        
-        // ⭐ 天气渲染器：每帧更新天气粒子特效
-        com.chronoblocks.client.renderer.weather.WeatherRenderer.get().tick();
-        
-        // ⭐ 天气粒子控制器：每帧持续生成雨雪粒子（修复只出现一瞬间的问题）
-        com.chronoblocks.ui.timeline.playback.weather.WeatherParticleController.getInstance().tick();
-        
-        // ⭐ v1.1 架构：天气事件子系统（雷暴、闪电、声音）- 每帧调用
-        com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController.getInstance().tickEvents(model.getCurrentTime());
+        // ⭐ 自动跟随：播放时确保播放头始终在可见区域内（UI 视图相关功能）
+        // Facade 架构：通过 Facade 查询播放状态，而不是直接访问 Model
+        if (commands != null && commands.playback() != null && commands.playback().isPlaying()) {
+            ensurePlayheadVisible();
+        }
 
         // 3. 处理快捷键
         shortcutManager.handle();
@@ -467,96 +443,16 @@ public class TimelinePanel extends AbstractPanel
         }
     }
 
-    /**
-     * 更新播放状态（每帧调用）
-     *
-     * <p>性能优化：
-     * <ul>
-     *   <li>非实时返回：不播放时直接返回</li>
-     *   <li>固定时间步长：使用固定时间步长避免帧率波动导致时间不准</li>
-     * </ul>
-     *
-     * <p>自动跟随：
-     * <ul>
-     *   <li>播放时自动调整视图，确保播放头始终在可见区域内</li>
-     *   <li>参考 Premiere Pro 等专业视频编辑软件的行为</li>
-     * </ul>
-     *
-     * <p>⭐ 关键修复 (v3.2)：
-     * <ul>
-     *   <li>非播放状态下，不再自动调用 previewAt()</li>
-     *   <li>相机模式完全由 TimelineCameraController.update() 根据 scrubbing 状态控制</li>
-     *   <li>避免 previewAt 与状态机冲突，导致 FOV 闪动和镜头跳变</li>
-     * </ul>
-     */
-    private void updatePlayback() {
-        // ⭐ 关键修复：非播放状态下直接返回，相机由 TimelineCameraController.update() 全权控制
-        // 不再调用 previewAt()，避免破坏相机状态机 (PREVIEW/GAME 来回切换)
-        if (!model.isPlaying()) {
-            return;
-        }
-
-        // 使用固定时间步长，避免帧率波动导致时间不准
-        // 实际应用中可根据需要选择使用固定时间步长或实时时间
-        float deltaTime = ImGui.getIO().getDeltaTime();
-        // 可选：使用固定时间步长
-        // float deltaTime = FIXED_DELTA_TIME;
-
-        // 更新当前时间
-        float newTime = model.getCurrentTime() + deltaTime * model.getPlaybackSpeed();
-        float duration = model.getDuration();
-
-        // 处理超出范围
-        if (newTime > duration) {
-            if (model.isLoopEnabled() && duration > 0) {
-                // 循环播放：回到开始位置
-                newTime = newTime % duration;
-                if (LOGGER.isTraceEnabled()) {
-                    LOGGER.trace("[TimelinePanel] 播放循环，回到开始 (时间: {:.2f}s)", newTime);
-                }
-            } else {
-                // 非循环：停在终点
-                newTime = duration;
-                // ⭐ 优化：只在状态真正改变时记录日志，避免频繁触发时刷屏
-                // 检查是否从播放状态变为空闲状态
-                boolean wasPlaying = model.isPlaying();
-                model.setPlaying(false);
-                
-                // ⭐ 关键修复：播放结束时通知摄像机控制器停止播放
-                TimelineCameraController.getInstance().onPlaybackStopped();
-                
-                if (wasPlaying && LOGGER.isTraceEnabled()) {
-                    // 使用 trace 级别，因为这是高频事件，debug 级别可能过于频繁
-                    LOGGER.trace("[TimelinePanel] 播放结束，停在终点 (时间: {:.2f}s)", newTime);
-                }
-            }
-        }
-
-        model.setCurrentTime(newTime);
-        
-        // ⭐ 季节轨道系统：播放时更新季节采样
-        TimelineSeasonController.getInstance().onTimelineTick(newTime);
-        
-        // ⭐ 天气轨道系统：播放时更新天气采样
-        com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController.getInstance().updateForPlayback(newTime);
-
-        // ⭐ 自动跟随：确保播放头始终在可见区域内
-        // 在播放时，如果播放头超出可见范围，自动调整 scrollX 使播放头保持在可见区域内
-        // 这确保播放时标记始终可见，用户可以随时查看当前位置
-        ensurePlayheadVisible();
-    }
-
-    private float getRenderDelta() {
-        MinecraftClient client = MinecraftClient.getInstance();
-        if (client != null && client.getRenderTickCounter() != null) {
-            return client.getRenderTickCounter().getTickProgress(false);
-        }
-        return ImGui.getIO().getDeltaTime();
-    }
+    // ⚠️ updatePlayback() 方法已迁移到 PlaybackCommandsImpl.tick()（Facade 架构）
+    // 播放系统 tick 现在通过 commands.playback().tick(deltaTime) 统一处理
+    // 这确保了播放逻辑不依赖于 TimelinePanel 的可见性，与 Menu/Toolbar/Shortcut 的行为一致
+    // 
+    // 自动跟随功能（ensurePlayheadVisible）保留在 TimelinePanel 中，因为它是 UI 视图相关的功能
+    // 需要在播放 tick 后调用，这可以通过监听播放状态变化来实现
 
     /**
      * 存储的可视区域参数（用于自动跟随功能）
-     * 这些值在 renderTimelineCanvas() 中更新，在 updatePlayback() 中使用
+     * 这些值在 renderTimelineCanvas() 中更新，用于自动跟随功能
      */
     private float cachedContentX = 0f;
     private float cachedContentW = 0f;
@@ -958,9 +854,10 @@ public class TimelinePanel extends AbstractPanel
             rulerClickStartX = mouseX;
             rulerClickStartY = mouseY;
             
-            // 如果正在播放，先暂停
-            if (model.isPlaying()) {
-                model.setPlaying(false);
+            // 如果正在播放，先暂停（Facade 架构）
+            // 通过 Facade 查询播放状态，然后通过 Facade 暂停
+            if (commands != null && commands.playback() != null && commands.playback().isPlaying()) {
+                commands.playback().pause();
             }
         }
         
@@ -985,8 +882,15 @@ public class TimelinePanel extends AbstractPanel
             if (rulerClickStartX >= 0f) {
                 // 如果点击位置还在，说明是点击而不是拖动
                 float clickTime = renderer.xToTime(rulerClickStartX, contentX);
-                interactionHandler.clickTimeRuler(rulerClickStartX, contentX);
-                LOGGER.debug("[TimelinePanel] 点击时间标尺，跳转到 {:.2f}s", clickTime);
+                // ⭐ Facade 架构：通过 Facade 统一处理 seek（包括时间更新、季节/天气/相机采样一致化）
+                if (commands != null && commands.playback() != null) {
+                    commands.playback().seek(clickTime);
+                    LOGGER.debug("[TimelinePanel] 点击时间标尺，跳转到 {:.2f}s (通过 Facade)", clickTime);
+                } else {
+                    // 降级方案：使用原有的 handler（向后兼容）
+                    interactionHandler.clickTimeRuler(rulerClickStartX, contentX);
+                    LOGGER.debug("[TimelinePanel] 点击时间标尺，跳转到 {:.2f}s (降级方案)", clickTime);
+                }
             }
             // 如果已经在拖动，endInteractionIfNeeded 会处理结束逻辑
             rulerClickStartX = -1f;
@@ -1722,6 +1626,17 @@ public class TimelinePanel extends AbstractPanel
     }
     
     /**
+     * 设置命令门面（供依赖注入使用）
+     */
+    public void setCommands(com.chronoblocks.ui.commands.UICommandFacade commands) {
+        this.commands = commands;
+        // 同时传递给 TimelineControlBar（如果已创建）
+        if (controlBar != null) {
+            controlBar.setCommands(commands);
+        }
+    }
+    
+    /**
      * 滚动到播放头位置（不缩放，只调整滚动位置）
      * 供命令门面调用
      */
@@ -1778,6 +1693,14 @@ public class TimelinePanel extends AbstractPanel
      * @return TimelineModel 实例
      */
     public TimelineModel getModel() {
+        return model;
+    }
+    
+    /**
+     * 获取 TimelineModel（别名方法，供外部统一访问）
+     * 与 getModel() 等价，提供更明确的语义
+     */
+    public TimelineModel getTimelineModel() {
         return model;
     }
 

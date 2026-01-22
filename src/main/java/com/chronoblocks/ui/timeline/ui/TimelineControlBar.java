@@ -48,6 +48,9 @@ public class TimelineControlBar {
     private final Callbacks callbacks;
     private final TimelineNavigationHandler navigationHandler;
 
+    // ⭐ Facade 架构：命令门面（用于控制命令，如播放/暂停/跳转）
+    private com.chronoblocks.ui.commands.UICommandFacade commands;
+
     // 是否显示相机轨迹（调试用）
     private boolean showCameraPath = false;
 
@@ -160,17 +163,32 @@ public class TimelineControlBar {
 
         renderSeparator();
 
-        // ========== 播放控制 ==========
+        // ========== 播放控制（Facade 架构）==========
         if (ImGui.button(Icons.SKIP_BACK, 0, UITheme.Spacing.BUTTON_HEIGHT)) {
-            model.jumpToStart();
+            if (commands != null && commands.playback() != null) {
+                commands.playback().goToStart();
+            } else {
+                // 降级方案：直接调用 model（向后兼容）
+                model.jumpToStart();
+            }
         }
         ImGui.sameLine();
         if (ImGui.button(model.isPlaying() ? (Icons.PAUSE + " 暂停") : (Icons.PLAY + " 播放"), 0, UITheme.Spacing.BUTTON_HEIGHT)) {
-            model.togglePlay();
+            if (commands != null && commands.playback() != null) {
+                commands.playback().togglePlayPause();
+            } else {
+                // 降级方案：直接调用 model（向后兼容）
+                model.togglePlay();
+            }
         }
         ImGui.sameLine();
         if (ImGui.button(Icons.SKIP_FORWARD, 0, UITheme.Spacing.BUTTON_HEIGHT)) {
-            model.jumpToEnd();
+            if (commands != null && commands.playback() != null) {
+                commands.playback().goToEnd();
+            } else {
+                // 降级方案：直接调用 model（向后兼容）
+                model.jumpToEnd();
+            }
         }
         ImGui.sameLine();
         // 轨迹调试开关
@@ -319,7 +337,13 @@ public class TimelineControlBar {
             String timeFormat = String.format("%.2fs", tempCurrentTime[0]);
             if (ImGui.sliderFloat("##timePosition", tempCurrentTime, 0f, duration, timeFormat)) {
                 float newTime = Math.max(0f, Math.min(duration, tempCurrentTime[0]));
-                model.setCurrentTime(newTime);
+                // ⭐ Facade 架构：通过 Facade 统一处理 seek（包括时间更新、季节/天气/相机采样一致化）
+                if (commands != null && commands.playback() != null) {
+                    commands.playback().seek(newTime);
+                } else {
+                    // 降级方案：直接调用 model（向后兼容）
+                    model.setCurrentTime(newTime);
+                }
                 
                 // ★ 修复后的自动跟随逻辑
                 ensurePlayheadVisible();
@@ -357,7 +381,13 @@ public class TimelineControlBar {
                 case 3 -> 3.0f;
                 default -> 1.0f;
             };
-            model.setPlaybackSpeed(newSpeed);
+            // ⭐ Facade 架构：通过 Facade 统一控制播放速度
+            if (commands != null && commands.playback() != null) {
+                commands.playback().setPlaybackSpeed(newSpeed);
+            } else {
+                // 降级方案：直接调用 model（向后兼容）
+                model.setPlaybackSpeed(newSpeed);
+            }
         }
         ImGui.popItemWidth();
         if (ImGui.isItemHovered()) {
@@ -365,6 +395,13 @@ public class TimelineControlBar {
         }
 
         ImGui.popStyleVar(2);
+    }
+    
+    /**
+     * 设置命令门面（供依赖注入使用）
+     */
+    public void setCommands(com.chronoblocks.ui.commands.UICommandFacade commands) {
+        this.commands = commands;
     }
 
     private boolean canDeleteSelection() {
