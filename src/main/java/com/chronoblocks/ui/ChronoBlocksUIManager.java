@@ -1176,62 +1176,88 @@ public class ChronoBlocksUIManager {
         
         @Override
         public void showPanel(String panelId) {
-            IPanel panel = findPanelByName(panelId);
+            IPanel panel = findPanelById(panelId);
             if (panel != null) {
                 panel.setVisible(true);
+                LOGGER.debug("[ViewCommands] 显示面板: {}", panelId);
+            } else {
+                LOGGER.warn("[ViewCommands] 未找到面板: {}", panelId);
             }
         }
         
         @Override
         public void hidePanel(String panelId) {
-            IPanel panel = findPanelByName(panelId);
+            IPanel panel = findPanelById(panelId);
             if (panel != null) {
                 panel.setVisible(false);
+                LOGGER.debug("[ViewCommands] 隐藏面板: {}", panelId);
+            } else {
+                LOGGER.warn("[ViewCommands] 未找到面板: {}", panelId);
             }
         }
         
         @Override
         public void togglePanel(String panelId) {
-            IPanel panel = findPanelByName(panelId);
+            IPanel panel = findPanelById(panelId);
             if (panel != null) {
                 panel.setVisible(!panel.isVisible());
+                LOGGER.debug("[ViewCommands] 切换面板可见性: {} -> {}", panelId, panel.isVisible());
+            } else {
+                LOGGER.warn("[ViewCommands] 未找到面板: {}", panelId);
             }
         }
         
         @Override
         public void showAllPanels() {
+            int count = 0;
             for (IPanel panel : panelRegistry.getAllPanels()) {
                 panel.setVisible(true);
+                count++;
             }
+            LOGGER.debug("[ViewCommands] 显示所有面板: {} 个", count);
         }
         
         @Override
         public void hideAllPanels() {
+            int count = 0;
             for (IPanel panel : panelRegistry.getAllPanels()) {
-                if (!(panel instanceof MenuBarPanel)) { // 不隐藏 MenuBar
+                // 不隐藏 MenuBar 和 StatusBar（这些是固定面板）
+                if (!(panel instanceof MenuBarPanel) && !(panel instanceof com.chronoblocks.ui.panels.StatusBarPanel)) {
                     panel.setVisible(false);
+                    count++;
                 }
             }
+            LOGGER.debug("[ViewCommands] 隐藏所有面板: {} 个", count);
         }
         
-        private IPanel findPanelByName(String panelName) {
-            // 面板名称映射（处理显示名称和实际名称的差异）
-            String actualName = switch (panelName) {
-                case "Timeline" -> "Timeline";
-                case "Tool Properties" -> "ToolProperties";
-                case "Container" -> "Container";
-                case "RenderSettings" -> "RenderSettings";
-                case "Toolbar" -> "Toolbar";
-                case "SelectionFiler" -> "SelectionFilter";
-                case "Properties" -> "Properties";
-                case "SelectionHistory" -> "SelectionHistory";
-                default -> panelName;
+        /**
+         * 根据面板ID查找面板实例
+         * @param panelId 面板ID（PanelId常量或面板名称）
+         * @return 面板实例，如果未找到则返回 null
+         */
+        private IPanel findPanelById(String panelId) {
+            // PanelId 常量的值就是面板名称，所以可以直接使用 panelId 作为面板名称
+            // 但需要处理一些特殊情况（如 MENU_BAR -> "MenuBar"）
+            String actualName = switch (panelId) {
+                case com.chronoblocks.ui.PanelId.MENU_BAR -> "MenuBar";
+                case com.chronoblocks.ui.PanelId.STATUS_BAR -> "StatusBar";
+                case com.chronoblocks.ui.PanelId.TOOL_PROPERTIES -> "ToolProperties";
+                case com.chronoblocks.ui.PanelId.SELECTION_FILTER -> "SelectionFilter";
+                case com.chronoblocks.ui.PanelId.SELECTION_HISTORY -> "SelectionHistory";
+                case com.chronoblocks.ui.PanelId.RENDER_SETTINGS -> "RenderSettings";
+                default -> panelId; // 大多数 PanelId 常量的值就是面板名称
             };
             
+            // 遍历所有面板，查找匹配的面板名称
             for (IPanel panel : panelRegistry.getAllPanels()) {
                 if (actualName.equals(panel.getPanelName())) {
                     return panel;
                 }
+            }
+            
+            // 如果没找到，记录警告（但不在每次调用时都记录，避免刷屏）
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[ViewCommands] 未找到面板: {} (映射后: {})", panelId, actualName);
             }
             return null;
         }
@@ -1270,6 +1296,35 @@ public class ChronoBlocksUIManager {
                 LOGGER.info("[Layout] Layout restored to default");
             } catch (Exception e) {
                 LOGGER.error("[Layout] Failed to restore default layout: {}", e.getMessage(), e);
+            }
+        }
+        
+        @Override
+        public void reloadLayout() {
+            try {
+                // 先保存当前布局（如果有未保存的更改）
+                layoutManager.saveLayout();
+                layoutManager.saveImGuiIni();
+                
+                // 重新载入当前世界的布局
+                // 获取当前世界的 ImGui INI 文件路径并重新加载
+                java.nio.file.Path iniPath = layoutManager.getImGuiIniPath();
+                if (java.nio.file.Files.exists(iniPath)) {
+                    String iniPathStr = iniPath.toString().replace('\\', '/');
+                    imgui.ImGui.loadIniSettingsFromDisk(iniPathStr);
+                    LOGGER.info("[Layout] Reloaded ImGui layout from: {}", iniPathStr);
+                } else {
+                    LOGGER.info("[Layout] No layout file found, using default layout");
+                }
+                
+                // 重新加载布局数据（通过 reloadForCurrentWorld）
+                layoutManager.reloadForCurrentWorld("menu_reload");
+                
+                // 重置 DockSpace 布局状态，强制重新应用布局
+                com.chronoblocks.ui.layout.DockSpaceLayoutBuilder.resetLayoutState();
+                LOGGER.info("[Layout] Layout reloaded for current world");
+            } catch (Exception e) {
+                LOGGER.error("[Layout] Failed to reload layout: {}", e.getMessage(), e);
             }
         }
         

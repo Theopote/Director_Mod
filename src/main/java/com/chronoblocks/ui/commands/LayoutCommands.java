@@ -1,7 +1,5 @@
 package com.chronoblocks.ui.commands;
 
-import com.chronoblocks.ui.theme.UITheme;
-
 /**
  * 布局命令接口 - 布局与主题管理
  * 
@@ -21,6 +19,11 @@ public interface LayoutCommands {
      * 恢复默认布局
      */
     void restoreDefaultLayout();
+    
+    /**
+     * 重新载入当前世界的布局
+     */
+    void reloadLayout();
     
     /**
      * 设置 UI 缩放

@@ -279,11 +279,28 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware {
 
             ImGui.separator();
 
+            // 布局管理
             if (ImGui.menuItem("Save Layout")) {
                 commands.layout().saveCurrentLayout();
             }
+            if (ImGui.menuItem("Load Layout")) {
+                commands.layout().reloadLayout();
+            }
             if (ImGui.menuItem("Restore Default Layout")) {
                 commands.layout().restoreDefaultLayout();
+            }
+
+            ImGui.separator();
+
+            // 主题切换
+            if (ImGui.beginMenu("Theme")) {
+                if (ImGui.menuItem("Dark Theme", "", true)) { // 当前默认主题
+                    commands.layout().setTheme("Dark");
+                }
+                if (ImGui.menuItem("Light Theme", "", false)) {
+                    commands.layout().setTheme("Light");
+                }
+                ImGui.endMenu();
             }
 
             ImGui.endMenu();
