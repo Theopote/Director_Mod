@@ -176,6 +176,13 @@ public class LayoutPersistenceManager {
     }
     
     /**
+     * 获取当前世界的布局文件路径（公共方法）
+     */
+    public Path getLayoutFile() {
+        return getLayoutFile(resolveWorldId(currentWorldId));
+    }
+    
+    /**
      * 获取ImGui INI文件路径（按世界区分）
      */
     public Path getImGuiIniPath() {
@@ -219,6 +226,20 @@ public class LayoutPersistenceManager {
         } else {
             LOGGER.debug("[LayoutPersistence] 世界未变化 ({})，保持当前布局", currentWorldId);
         }
+    }
+    
+    /**
+     * 强制重新加载当前世界的布局（即使世界ID未变化）
+     * 用于恢复默认布局、载入预设等场景
+     */
+    public void forceReloadLayout() {
+        String worldId = resolveWorldId(currentWorldId);
+        if (worldId == null) {
+            worldId = resolveWorldId(WorldIdentifier.getCurrentWorldId());
+        }
+        LOGGER.info("[LayoutPersistence] 强制重新加载布局 (世界: {})", worldId);
+        loadLayoutInternal();
+        loadImGuiIniIfExists(worldId);
     }
 
     private void loadLayoutInternal() {
@@ -383,6 +404,16 @@ public class LayoutPersistenceManager {
         markLayoutChanged();
         saveLayout();
     }
+    
+    /**
+     * 仅重置内存中的布局数据为默认值（不保存到文件）
+     * 用于恢复默认布局场景，在删除文件后重置内存状态
+     */
+    public void resetLayoutDataToDefault() {
+        LOGGER.info("[LayoutPersistence] 重置内存中的布局数据为默认值（不保存）");
+        currentLayout = new LayoutData();
+        // 不标记为已更改，也不保存
+    }
 
     /**
      * 保存当前布局为预设
@@ -449,7 +480,8 @@ public class LayoutPersistenceManager {
             if (currentLayout.isValid()) {
                 LOGGER.info("[LayoutPersistence] 成功加载布局预设: {}", presetName);
                 markLayoutChanged();
-                saveLayout(); // 保存到当前世界
+                saveLayout(); // 保存到当前世界的布局文件
+                saveImGuiIni(); // 保存当前 ImGui 状态到 INI 文件
                 return true;
             } else {
                 LOGGER.warn("[LayoutPersistence] 布局预设无效");

@@ -1341,13 +1341,13 @@ public class ChronoBlocksUIManager {
             try {
                 boolean success = layoutManager.loadLayoutPreset(presetName);
                 if (success) {
-                    // 重新加载 ImGui INI 文件
-                    java.nio.file.Path iniPath = layoutManager.getImGuiIniPath();
-                    if (java.nio.file.Files.exists(iniPath)) {
-                        String iniPathStr = iniPath.toString().replace('\\', '/');
-                        imgui.ImGui.loadIniSettingsFromDisk(iniPathStr);
-                    }
+                    // 强制重新加载布局（包括 ImGui INI 文件）
+                    layoutManager.forceReloadLayout();
+                    
+                    // 重置 DockSpace 布局状态，强制重新应用布局
                     com.chronoblocks.ui.layout.DockSpaceLayoutBuilder.resetLayoutState();
+                    
+                    LOGGER.info("[Layout] Layout preset '{}' loaded and applied", presetName);
                 }
                 return success;
             } catch (Exception e) {
@@ -1364,12 +1364,31 @@ public class ChronoBlocksUIManager {
         @Override
         public void restoreDefaultLayout() {
             try {
-                java.nio.file.Path iniPath = layoutManager.getImGuiIniPath();
-                if (java.nio.file.Files.exists(iniPath)) {
-                    java.nio.file.Files.delete(iniPath);
+                // 1. 删除布局 JSON 文件
+                java.nio.file.Path layoutFile = layoutManager.getLayoutFile();
+                if (layoutFile != null && java.nio.file.Files.exists(layoutFile)) {
+                    java.nio.file.Files.delete(layoutFile);
+                    LOGGER.info("[Layout] Deleted layout file: {}", layoutFile);
                 }
-                layoutManager.resetToDefault();
+                
+                // 2. 删除 ImGui INI 文件
+                java.nio.file.Path iniPath = layoutManager.getImGuiIniPath();
+                if (iniPath != null && java.nio.file.Files.exists(iniPath)) {
+                    java.nio.file.Files.delete(iniPath);
+                    LOGGER.info("[Layout] Deleted ImGui INI file: {}", iniPath);
+                }
+                
+                // 3. 重置内存中的布局数据为默认值（不保存，因为文件已删除）
+                // 注意：这里不调用 resetToDefault()，因为它会保存文件
+                // 我们直接创建新的默认布局数据，然后强制重新加载
+                layoutManager.resetLayoutDataToDefault();
+                
+                // 4. 强制重新加载布局（因为文件不存在，会保持默认布局数据）
+                layoutManager.forceReloadLayout();
+                
+                // 5. 重置 DockSpace 布局状态，强制重新应用默认布局
                 com.chronoblocks.ui.layout.DockSpaceLayoutBuilder.resetLayoutState();
+                
                 LOGGER.info("[Layout] Layout restored to default");
             } catch (Exception e) {
                 LOGGER.error("[Layout] Failed to restore default layout: {}", e.getMessage(), e);
@@ -1383,22 +1402,12 @@ public class ChronoBlocksUIManager {
                 layoutManager.saveLayout();
                 layoutManager.saveImGuiIni();
                 
-                // 重新载入当前世界的布局
-                // 获取当前世界的 ImGui INI 文件路径并重新加载
-                java.nio.file.Path iniPath = layoutManager.getImGuiIniPath();
-                if (java.nio.file.Files.exists(iniPath)) {
-                    String iniPathStr = iniPath.toString().replace('\\', '/');
-                    imgui.ImGui.loadIniSettingsFromDisk(iniPathStr);
-                    LOGGER.info("[Layout] Reloaded ImGui layout from: {}", iniPathStr);
-                } else {
-                    LOGGER.info("[Layout] No layout file found, using default layout");
-                }
-                
-                // 重新加载布局数据（通过 reloadForCurrentWorld）
-                layoutManager.reloadForCurrentWorld("menu_reload");
+                // 强制重新加载布局（包括布局数据和 ImGui INI 文件）
+                layoutManager.forceReloadLayout();
                 
                 // 重置 DockSpace 布局状态，强制重新应用布局
                 com.chronoblocks.ui.layout.DockSpaceLayoutBuilder.resetLayoutState();
+                
                 LOGGER.info("[Layout] Layout reloaded for current world");
             } catch (Exception e) {
                 LOGGER.error("[Layout] Failed to reload layout: {}", e.getMessage(), e);
