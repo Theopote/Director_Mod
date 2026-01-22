@@ -1000,6 +1000,36 @@ public class ChronoBlocksUIManager {
                 LOGGER.error("[Commands] 添加音频轨道失败: {}", e.getMessage(), e);
             }
         }
+        
+        @Override
+        public void undo() {
+            if (timelinePanel != null) {
+                timelinePanel.undo();
+                LOGGER.debug("[TimelineCommands] 撤销操作");
+            } else {
+                LOGGER.warn("[TimelineCommands] TimelinePanel 不可用，无法撤销");
+            }
+        }
+        
+        @Override
+        public void redo() {
+            if (timelinePanel != null) {
+                timelinePanel.redo();
+                LOGGER.debug("[TimelineCommands] 重做操作");
+            } else {
+                LOGGER.warn("[TimelineCommands] TimelinePanel 不可用，无法重做");
+            }
+        }
+        
+        @Override
+        public void deleteSelected() {
+            if (timelinePanel != null) {
+                timelinePanel.deleteSelected();
+                LOGGER.debug("[TimelineCommands] 删除选中项");
+            } else {
+                LOGGER.warn("[TimelineCommands] TimelinePanel 不可用，无法删除");
+            }
+        }
     }
     
     /**

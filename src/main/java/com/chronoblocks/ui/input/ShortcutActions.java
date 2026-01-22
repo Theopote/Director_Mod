@@ -148,6 +148,56 @@ public final class ShortcutActions {
                     commands.view().togglePanel(PanelId.SELECTION_HISTORY);
                     LOGGER.debug("[ShortcutActions] 执行: TOGGLE_SELECTION_HISTORY");
                 }
+                
+                // ==================== 时间线操作 ====================
+                case TIMELINE_UNDO -> {
+                    commands.timeline().undo();
+                    LOGGER.debug("[ShortcutActions] 执行: TIMELINE_UNDO");
+                }
+                case TIMELINE_REDO -> {
+                    commands.timeline().redo();
+                    LOGGER.debug("[ShortcutActions] 执行: TIMELINE_REDO");
+                }
+                case TIMELINE_DELETE -> {
+                    // 优先尝试删除时间线项，如果没有选中项则清除选择
+                    try {
+                        commands.timeline().deleteSelected();
+                        LOGGER.debug("[ShortcutActions] 执行: TIMELINE_DELETE");
+                    } catch (Exception e) {
+                        // 如果删除失败（可能没有选中项），尝试清除选择
+                        commands.tools().clearSelection();
+                        LOGGER.debug("[ShortcutActions] TIMELINE_DELETE 失败，回退到 CLEAR_SELECTION");
+                    }
+                }
+                
+                // ==================== Actor Gizmo 操作 ====================
+                case GIZMO_MOVE -> {
+                    // 需要检查是否在 Actor 选择工具模式下
+                    if (com.chronoblocks.ui.tools.ToolRegistry.ACTOR_SELECT_TOOL_ID.equals(
+                            com.chronoblocks.ui.tools.ToolRegistry.get().getActiveNonSelectionToolId())) {
+                        com.chronoblocks.ui.actor.gizmo.ActorGizmoController.getInstance()
+                                .setPreferredMode(com.chronoblocks.client.gizmo.GizmoMode.TRANSLATE);
+                        LOGGER.debug("[ShortcutActions] 执行: GIZMO_MOVE");
+                    }
+                }
+                case GIZMO_ROTATE -> {
+                    // 需要检查是否在 Actor 选择工具模式下
+                    if (com.chronoblocks.ui.tools.ToolRegistry.ACTOR_SELECT_TOOL_ID.equals(
+                            com.chronoblocks.ui.tools.ToolRegistry.get().getActiveNonSelectionToolId())) {
+                        com.chronoblocks.ui.actor.gizmo.ActorGizmoController.getInstance()
+                                .setPreferredMode(com.chronoblocks.client.gizmo.GizmoMode.ROTATE);
+                        LOGGER.debug("[ShortcutActions] 执行: GIZMO_ROTATE");
+                    }
+                }
+                case GIZMO_SCALE -> {
+                    // 需要检查是否在 Actor 选择工具模式下
+                    if (com.chronoblocks.ui.tools.ToolRegistry.ACTOR_SELECT_TOOL_ID.equals(
+                            com.chronoblocks.ui.tools.ToolRegistry.get().getActiveNonSelectionToolId())) {
+                        com.chronoblocks.ui.actor.gizmo.ActorGizmoController.getInstance()
+                                .setPreferredMode(com.chronoblocks.client.gizmo.GizmoMode.SCALE);
+                        LOGGER.debug("[ShortcutActions] 执行: GIZMO_SCALE");
+                    }
+                }
             }
         } catch (Exception e) {
             LOGGER.error("[ShortcutActions] 执行快捷键动作失败: action={}", action, e);

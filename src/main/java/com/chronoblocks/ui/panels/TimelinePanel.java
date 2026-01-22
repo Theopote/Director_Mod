@@ -39,7 +39,7 @@ import imgui.flag.ImGuiFocusedFlags;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.lwjgl.glfw.GLFW;
+// ⚠️ GLFW 导入已不再使用（时间线快捷键已迁移到 ShortcutDispatcher）
 
 import java.util.Objects;
 import java.util.UUID;
@@ -268,61 +268,65 @@ public class TimelinePanel extends AbstractPanel
     }
 
     private void registerGlobalTimelineShortcuts() {
-        GlobalShortcutManager manager = GlobalShortcutManager.getInstance();
-
-        manager.registerCtrlGLFW(
-                "timeline.undo.glfw",
-                "时间线：撤销",
-                GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
-                200,
-                GLFW.GLFW_KEY_Z,
-                commandHistory::undo
-        );
-        manager.registerCtrlGLFW(
-                "timeline.redo.glfw",
-                "时间线：重做",
-                GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
-                200,
-                GLFW.GLFW_KEY_Y,
-                commandHistory::redo
-        );
-
-        // Delete：注册多个变体，允许用户仍按住 Ctrl/Shift/Alt 时也能删除（多选习惯）
-        manager.registerKeyGLFW(
-                "timeline.delete.glfw",
-                "时间线：删除选中",
-                GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
-                200,
-                GLFW.GLFW_KEY_DELETE,
-                this::deleteSelectedClip
-        );
-        manager.registerGLFW(
-                "timeline.delete.ctrl.glfw",
-                "时间线：删除选中（Ctrl+Del）",
-                GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
-                200,
-                GLFW.GLFW_KEY_DELETE,
-                true, false, false,
-                this::deleteSelectedClip
-        );
-        manager.registerGLFW(
-                "timeline.delete.shift.glfw",
-                "时间线：删除选中（Shift+Del）",
-                GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
-                200,
-                GLFW.GLFW_KEY_DELETE,
-                false, true, false,
-                this::deleteSelectedClip
-        );
-        manager.registerGLFW(
-                "timeline.delete.alt.glfw",
-                "时间线：删除选中（Alt+Del）",
-                GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
-                200,
-                GLFW.GLFW_KEY_DELETE,
-                false, false, true,
-                this::deleteSelectedClip
-        );
+        // ⚠️ 时间线快捷键已迁移到 ShortcutDispatcher 系统（Facade 架构）
+        // 新的快捷键系统通过 ShortcutAction → ShortcutActions → UICommandFacade 统一处理
+        // 不再需要在此处注册，所有快捷键都通过 ShortcutDispatcher 统一分发
+        
+        // GlobalShortcutManager manager = GlobalShortcutManager.getInstance();
+        //
+        // manager.registerCtrlGLFW(
+        //         "timeline.undo.glfw",
+        //         "时间线：撤销",
+        //         GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
+        //         200,
+        //         GLFW.GLFW_KEY_Z,
+        //         commandHistory::undo
+        // );
+        // manager.registerCtrlGLFW(
+        //         "timeline.redo.glfw",
+        //         "时间线：重做",
+        //         GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
+        //         200,
+        //         GLFW.GLFW_KEY_Y,
+        //         commandHistory::redo
+        // );
+        //
+        // // Delete：注册多个变体，允许用户仍按住 Ctrl/Shift/Alt 时也能删除（多选习惯）
+        // manager.registerKeyGLFW(
+        //         "timeline.delete.glfw",
+        //         "时间线：删除选中",
+        //         GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
+        //         200,
+        //         GLFW.GLFW_KEY_DELETE,
+        //         this::deleteSelectedClip
+        // );
+        // manager.registerGLFW(
+        //         "timeline.delete.ctrl.glfw",
+        //         "时间线：删除选中（Ctrl+Del）",
+        //         GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
+        //         200,
+        //         GLFW.GLFW_KEY_DELETE,
+        //         true, false, false,
+        //         this::deleteSelectedClip
+        // );
+        // manager.registerGLFW(
+        //         "timeline.delete.shift.glfw",
+        //         "时间线：删除选中（Shift+Del）",
+        //         GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
+        //         200,
+        //         GLFW.GLFW_KEY_DELETE,
+        //         false, true, false,
+        //         this::deleteSelectedClip
+        // );
+        // manager.registerGLFW(
+        //         "timeline.delete.alt.glfw",
+        //         "时间线：删除选中（Alt+Del）",
+        //         GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
+        //         200,
+        //         GLFW.GLFW_KEY_DELETE,
+        //         false, false, true,
+        //         this::deleteSelectedClip
+        // );
     }
 
     @Override
@@ -1278,6 +1282,13 @@ public class TimelinePanel extends AbstractPanel
      * 删除选中的片段
      */
     private void deleteSelectedClip() {
+        deleteSelected();
+    }
+    
+    /**
+     * 删除选中的项（公共方法，供 Facade 调用）
+     */
+    public void deleteSelected() {
         java.util.List<Object> items = model.getSelectedItems();
         if (items == null || items.isEmpty()) {
             return;
@@ -1289,6 +1300,20 @@ public class TimelinePanel extends AbstractPanel
         model.clearSelection();
         com.chronoblocks.ui.selection.SelectionManager.get().clearSelection();
         markDataChanged();
+    }
+    
+    /**
+     * 撤销最近一次操作（公共方法，供 Facade 调用）
+     */
+    public void undo() {
+        commandHistory.undo();
+    }
+    
+    /**
+     * 重做上一次撤销的操作（公共方法，供 Facade 调用）
+     */
+    public void redo() {
+        commandHistory.redo();
     }
 
 

@@ -47,4 +47,21 @@ public interface TimelineCommands {
      * 添加音频轨道（为未来预留）
      */
     void addAudioTrack();
+    
+    // ==================== 编辑操作 ====================
+    
+    /**
+     * 撤销最近一次操作
+     */
+    void undo();
+    
+    /**
+     * 重做上一次撤销的操作
+     */
+    void redo();
+    
+    /**
+     * 删除选中的项
+     */
+    void deleteSelected();
 }

@@ -97,5 +97,27 @@ public enum ShortcutAction {
     TOGGLE_SELECTION_FILTER,
     
     /** 切换选择历史面板 */
-    TOGGLE_SELECTION_HISTORY
+    TOGGLE_SELECTION_HISTORY,
+    
+    // ==================== 时间线操作 ====================
+    
+    /** 撤销操作 */
+    TIMELINE_UNDO,
+    
+    /** 重做操作 */
+    TIMELINE_REDO,
+    
+    /** 删除选中项 */
+    TIMELINE_DELETE,
+    
+    // ==================== Actor Gizmo 操作 ====================
+    
+    /** Gizmo 移动模式 */
+    GIZMO_MOVE,
+    
+    /** Gizmo 旋转模式 */
+    GIZMO_ROTATE,
+    
+    /** Gizmo 缩放模式 */
+    GIZMO_SCALE
 }

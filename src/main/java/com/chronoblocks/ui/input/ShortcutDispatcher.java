@@ -73,8 +73,13 @@ public class ShortcutDispatcher {
             return;
         }
         
-        // 查找对应的快捷键动作
-        ShortcutAction shortcut = ShortcutBindings.getAction(key);
+        // 提取修饰键状态
+        boolean ctrlPressed = (modifiers & GLFW.GLFW_MOD_CONTROL) != 0;
+        boolean shiftPressed = (modifiers & GLFW.GLFW_MOD_SHIFT) != 0;
+        boolean altPressed = (modifiers & GLFW.GLFW_MOD_ALT) != 0;
+        
+        // 查找对应的快捷键动作（支持修饰键）
+        ShortcutAction shortcut = ShortcutBindings.getAction(key, ctrlPressed, shiftPressed, altPressed);
         if (shortcut == null) {
             return;
         }

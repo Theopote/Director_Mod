@@ -28,6 +28,13 @@ public final class ShortcutBindings {
     
     private static final Map<Integer, ShortcutAction> KEY_BINDINGS = new HashMap<>();
     
+    /**
+     * 带修饰键的快捷键绑定
+     * Key: 键码，Value: Map<修饰键组合, ShortcutAction>
+     * 修饰键组合使用位标志：Ctrl=1, Shift=2, Alt=4
+     */
+    private static final Map<Integer, Map<Integer, ShortcutAction>> MODIFIER_BINDINGS = new HashMap<>();
+    
     static {
         initializeKeyBindings();
     }
@@ -68,17 +75,74 @@ public final class ShortcutBindings {
         KEY_BINDINGS.put(GLFW.GLFW_KEY_0, ShortcutAction.SELECTION_MODE_INTERSECT);
         
         // ==================== 选择操作 ====================
-        KEY_BINDINGS.put(GLFW.GLFW_KEY_DELETE, ShortcutAction.CLEAR_SELECTION);
+        // Delete 键：根据上下文决定是清除选择还是删除时间线项
+        // 在 ShortcutActions 中会根据上下文处理
+        
+        // ==================== 时间线操作（带修饰键） ====================
+        // Ctrl+Z: 撤销
+        registerModifierBinding(GLFW.GLFW_KEY_Z, 1, ShortcutAction.TIMELINE_UNDO); // Ctrl = 1
+        // Ctrl+Y: 重做
+        registerModifierBinding(GLFW.GLFW_KEY_Y, 1, ShortcutAction.TIMELINE_REDO); // Ctrl = 1
+        // Delete: 删除时间线项（允许带修饰键）
+        KEY_BINDINGS.put(GLFW.GLFW_KEY_DELETE, ShortcutAction.TIMELINE_DELETE);
+        registerModifierBinding(GLFW.GLFW_KEY_DELETE, 1, ShortcutAction.TIMELINE_DELETE); // Ctrl+Delete
+        registerModifierBinding(GLFW.GLFW_KEY_DELETE, 2, ShortcutAction.TIMELINE_DELETE); // Shift+Delete
+        registerModifierBinding(GLFW.GLFW_KEY_DELETE, 4, ShortcutAction.TIMELINE_DELETE); // Alt+Delete
+        
+        // ==================== Actor Gizmo 操作 ====================
+        KEY_BINDINGS.put(GLFW.GLFW_KEY_W, ShortcutAction.GIZMO_MOVE);
+        KEY_BINDINGS.put(GLFW.GLFW_KEY_E, ShortcutAction.GIZMO_ROTATE);
+        // 注意：R 键已经用于 TOOL_ROTATE，Gizmo Scale 使用其他键或通过其他方式触发
+        // 暂时保留 R 键用于工具旋转，Gizmo Scale 可以通过其他方式访问
     }
     
     /**
-     * 根据按键获取对应的快捷键动作
+     * 注册带修饰键的快捷键绑定
+     * 
+     * @param key GLFW 键码
+     * @param modifierFlags 修饰键标志（Ctrl=1, Shift=2, Alt=4，可以组合）
+     * @param action 快捷键动作
+     */
+    private static void registerModifierBinding(int key, int modifierFlags, ShortcutAction action) {
+        MODIFIER_BINDINGS.computeIfAbsent(key, k -> new HashMap<>()).put(modifierFlags, action);
+    }
+    
+    /**
+     * 根据按键获取对应的快捷键动作（无修饰键）
      * 
      * @param key GLFW 键码
      * @return 对应的 ShortcutAction，如果没有绑定则返回 null
      */
     public static ShortcutAction getAction(int key) {
         return KEY_BINDINGS.get(key);
+    }
+    
+    /**
+     * 根据按键和修饰键获取对应的快捷键动作
+     * 
+     * @param key GLFW 键码
+     * @param ctrl Ctrl 键是否按下
+     * @param shift Shift 键是否按下
+     * @param alt Alt 键是否按下
+     * @return 对应的 ShortcutAction，如果没有绑定则返回 null
+     */
+    public static ShortcutAction getAction(int key, boolean ctrl, boolean shift, boolean alt) {
+        // 先检查带修饰键的绑定
+        Map<Integer, ShortcutAction> modifierMap = MODIFIER_BINDINGS.get(key);
+        if (modifierMap != null) {
+            int modifierFlags = (ctrl ? 1 : 0) | (shift ? 2 : 0) | (alt ? 4 : 0);
+            ShortcutAction action = modifierMap.get(modifierFlags);
+            if (action != null) {
+                return action;
+            }
+        }
+        
+        // 如果没有修饰键，检查无修饰键的绑定
+        if (!ctrl && !shift && !alt) {
+            return KEY_BINDINGS.get(key);
+        }
+        
+        return null;
     }
     
     /**

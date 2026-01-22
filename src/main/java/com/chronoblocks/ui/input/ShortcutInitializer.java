@@ -1,13 +1,15 @@
 package com.chronoblocks.ui.input;
 
-import imgui.ImGui;
-import com.chronoblocks.ui.tools.ToolRegistry;
-import com.chronoblocks.ui.actor.gizmo.ActorGizmoController;
-import com.chronoblocks.client.gizmo.GizmoMode;
-import imgui.flag.ImGuiKey;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+// ⚠️ 以下导入已不再使用（Actor Gizmo 和时间线快捷键已迁移到 ShortcutDispatcher）
+// import imgui.ImGui;
+// import com.chronoblocks.ui.tools.ToolRegistry;
+// import com.chronoblocks.ui.actor.gizmo.ActorGizmoController;
+// import com.chronoblocks.client.gizmo.GizmoMode;
+// import imgui.flag.ImGuiKey;
 
 /**
  * 🔧 快捷键初始化器
@@ -67,52 +69,55 @@ public class ShortcutInitializer {
             }
         );
 
-        registerActorGizmoShortcuts(manager);
+        // ⚠️ Actor Gizmo 快捷键已迁移到 ShortcutDispatcher 系统
+        // registerActorGizmoShortcuts(manager);
         
         // ========== 选择工具快捷键 ==========
         // 这些快捷键在选择工具模式时可用
         
         // ========== 时间线编辑快捷键 ==========
-        // 这些快捷键在时间线编辑时可用
+        // ⚠️ 以下快捷键已迁移到 ShortcutDispatcher 系统（Facade 架构）
+        // 新的快捷键系统通过 ShortcutAction → ShortcutActions → UICommandFacade 统一处理
+        // 不再需要在此处注册
         
-        // Ctrl+Z: 撤销
-        manager.registerCtrlImGui(
-            "timeline.undo",
-            "撤销操作",
-            GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
-            100,
-                ImGuiKey.Z,
-            () -> {
-                // 这个回调会在 TimelinePanel 中动态设置
-                LOGGER.debug("[ShortcutInitializer] 撤销快捷键触发");
-            }
-        );
+        // Ctrl+Z: 撤销 - 已迁移到 ShortcutDispatcher (TIMELINE_UNDO)
+        // manager.registerCtrlImGui(
+        //     "timeline.undo",
+        //     "撤销操作",
+        //     GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
+        //     100,
+        //         ImGuiKey.Z,
+        //     () -> {
+        //         // 这个回调会在 TimelinePanel 中动态设置
+        //         LOGGER.debug("[ShortcutInitializer] 撤销快捷键触发");
+        //     }
+        // );
         
-        // Ctrl+Y: 重做
-        manager.registerCtrlImGui(
-            "timeline.redo",
-            "重做操作",
-            GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
-            100,
-                ImGuiKey.Y,
-            () -> {
-                // 这个回调会在 TimelinePanel 中动态设置
-                LOGGER.debug("[ShortcutInitializer] 重做快捷键触发");
-            }
-        );
+        // Ctrl+Y: 重做 - 已迁移到 ShortcutDispatcher (TIMELINE_REDO)
+        // manager.registerCtrlImGui(
+        //     "timeline.redo",
+        //     "重做操作",
+        //     GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
+        //     100,
+        //         ImGuiKey.Y,
+        //     () -> {
+        //         // 这个回调会在 TimelinePanel 中动态设置
+        //         LOGGER.debug("[ShortcutInitializer] 重做快捷键触发");
+        //     }
+        // );
         
-        // Delete: 删除选中项
-        manager.registerKeyImGui(
-            "timeline.delete",
-            "删除选中项",
-            GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
-            100,
-                ImGuiKey.Delete,
-            () -> {
-                // 这个回调会在 TimelinePanel 中动态设置
-                LOGGER.debug("[ShortcutInitializer] 删除快捷键触发");
-            }
-        );
+        // Delete: 删除选中项 - 已迁移到 ShortcutDispatcher (TIMELINE_DELETE)
+        // manager.registerKeyImGui(
+        //     "timeline.delete",
+        //     "删除选中项",
+        //     GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
+        //     100,
+        //         ImGuiKey.Delete,
+        //     () -> {
+        //         // 这个回调会在 TimelinePanel 中动态设置
+        //         LOGGER.debug("[ShortcutInitializer] 删除快捷键触发");
+        //     }
+        // );
         
         // ========== 容器管理快捷键 ==========
         // 这些快捷键在容器管理时可用
@@ -121,53 +126,54 @@ public class ShortcutInitializer {
             manager.getActiveShortcuts().size());
     }
     
-    // Actor gizmo mode shortcuts (W/E/R)
+    // ⚠️ Actor gizmo mode shortcuts (W/E/R) - 已迁移到 ShortcutDispatcher 系统
+    // 新的快捷键系统通过 ShortcutAction (GIZMO_MOVE/GIZMO_ROTATE/GIZMO_SCALE) → ShortcutActions → Facade 统一处理
 
-    private static void registerActorGizmoShortcuts(GlobalShortcutManager manager) {
-        if (manager == null) {
-            return;
-        }
-
-        manager.registerGLFW(
-            "actor.gizmo.translate",
-            "Actor Gizmo: Move",
-            GlobalShortcutManager.ShortcutContext.UI_PANEL,
-            90,
-            GLFW.GLFW_KEY_W,
-            false, false, false,
-            () -> setActorGizmoMode(GizmoMode.TRANSLATE)
-        );
-
-        manager.registerGLFW(
-            "actor.gizmo.rotate",
-            "Actor Gizmo: Rotate",
-            GlobalShortcutManager.ShortcutContext.UI_PANEL,
-            90,
-            GLFW.GLFW_KEY_E,
-            false, false, false,
-            () -> setActorGizmoMode(GizmoMode.ROTATE)
-        );
-
-        manager.registerGLFW(
-            "actor.gizmo.scale",
-            "Actor Gizmo: Scale",
-            GlobalShortcutManager.ShortcutContext.UI_PANEL,
-            90,
-            GLFW.GLFW_KEY_R,
-            false, false, false,
-            () -> setActorGizmoMode(GizmoMode.SCALE)
-        );
-    }
-
-    private static void setActorGizmoMode(GizmoMode mode) {
-        if (ImGui.getIO() != null && ImGui.getIO().getWantTextInput()) {
-            return;
-        }
-        if (!ToolRegistry.ACTOR_SELECT_TOOL_ID.equals(ToolRegistry.get().getActiveNonSelectionToolId())) {
-            return;
-        }
-        ActorGizmoController.getInstance().setPreferredMode(mode);
-    }
+    // private static void registerActorGizmoShortcuts(GlobalShortcutManager manager) {
+    //     if (manager == null) {
+    //         return;
+    //     }
+    //
+    //     manager.registerGLFW(
+    //         "actor.gizmo.translate",
+    //         "Actor Gizmo: Move",
+    //         GlobalShortcutManager.ShortcutContext.UI_PANEL,
+    //         90,
+    //         GLFW.GLFW_KEY_W,
+    //         false, false, false,
+    //         () -> setActorGizmoMode(GizmoMode.TRANSLATE)
+    //     );
+    //
+    //     manager.registerGLFW(
+    //         "actor.gizmo.rotate",
+    //         "Actor Gizmo: Rotate",
+    //         GlobalShortcutManager.ShortcutContext.UI_PANEL,
+    //         90,
+    //         GLFW.GLFW_KEY_E,
+    //         false, false, false,
+    //         () -> setActorGizmoMode(GizmoMode.ROTATE)
+    //     );
+    //
+    //     manager.registerGLFW(
+    //         "actor.gizmo.scale",
+    //         "Actor Gizmo: Scale",
+    //         GlobalShortcutManager.ShortcutContext.UI_PANEL,
+    //         90,
+    //         GLFW.GLFW_KEY_R,
+    //         false, false, false,
+    //         () -> setActorGizmoMode(GizmoMode.SCALE)
+    //     );
+    // }
+    //
+    // private static void setActorGizmoMode(GizmoMode mode) {
+    //     if (ImGui.getIO() != null && ImGui.getIO().getWantTextInput()) {
+    //         return;
+    //     }
+    //     if (!ToolRegistry.ACTOR_SELECT_TOOL_ID.equals(ToolRegistry.get().getActiveNonSelectionToolId())) {
+    //         return;
+    //     }
+    //     ActorGizmoController.getInstance().setPreferredMode(mode);
+    // }
 
     /**
      * Activate UI shortcut contexts when ChronoBlocksScreen opens.
