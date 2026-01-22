@@ -22,7 +22,7 @@ import org.slf4j.LoggerFactory;
  * </ul>
  * 
  * @author ChronoBlocks Team
- * @version 1.0
+ * @version 1.2 - 生命周期钩子、模型绑定优化、Facade 闭环对齐
  */
 public final class PlaybackOrchestrator {
 
@@ -34,6 +34,7 @@ public final class PlaybackOrchestrator {
     }
 
     private TimelineModel model;
+    private boolean lastPlaying = false; // 用于检测播放状态变化
 
     // 防止长时间卡顿后的巨大跳跃
     private static final float MAX_DELTA_SECONDS = 0.1f; // 100ms
@@ -43,9 +44,26 @@ public final class PlaybackOrchestrator {
     /**
      * 绑定 TimelineModel（通常来自 TimelinePanel）
      * 可重复绑定（例如世界切换/重建模型）
+     * 
+     * <p>v1.2 改进：避免重复绑定相同模型，只在生命周期节点绑定
      */
     public void bindModel(TimelineModel model) {
+        if (this.model == model) {
+            return; // 避免重复绑定
+        }
         this.model = model;
+        onModelBound(model);
+    }
+    
+    /**
+     * 模型绑定后的初始化（v1.2 新增）
+     */
+    private void onModelBound(TimelineModel model) {
+        // 初始化播放状态（必要时）
+        if (model != null && model.isPlaying()) {
+            model.setPlaying(false); // 确保初始状态为暂停
+        }
+        lastPlaying = false; // 重置状态追踪
     }
 
     public TimelineModel getBoundModel() {
@@ -69,13 +87,77 @@ public final class PlaybackOrchestrator {
             deltaSeconds = MAX_DELTA_SECONDS;
         }
 
+        // ⭐ v1.2 改进：检测播放状态变化并触发生命周期钩子
+        boolean playing = model.isPlaying();
+        if (playing && !lastPlaying) {
+            // 从 paused → playing
+            onPlay();
+        } else if (!playing && lastPlaying) {
+            // 从 playing → paused
+            onPause();
+        }
+        lastPlaying = playing;
+
         // 1) 驱动"播放时间推进"（只有 playing 时推进）
-        if (model.isPlaying()) {
+        if (playing) {
             advanceTime(deltaSeconds);
         }
 
         // 2) 驱动"子系统更新"（每帧都跑：内部可根据 scrubbing/playing 自行决定行为）
         driveSubsystems(deltaSeconds);
+    }
+    
+    /**
+     * 播放生命周期钩子：开始播放（v1.2 新增）
+     * 从 paused → playing 时调用
+     */
+    private void onPlay() {
+        try {
+            // 摄像机 / 音频 / 世界状态准备
+            // 注意：TimelineCameraController.startPlayback() 已由 TimelineModel.setPlaying() 自动调用
+            // 这里可以添加其他需要在播放开始时执行的逻辑（如音频、录制等）
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[PlaybackOrchestrator] 播放开始");
+            }
+        } catch (Exception e) {
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[PlaybackOrchestrator] onPlay 钩子执行失败", e);
+            }
+        }
+    }
+    
+    /**
+     * 播放生命周期钩子：暂停播放（v1.2 新增）
+     * 从 playing → paused 时调用
+     */
+    private void onPause() {
+        try {
+            // 暂停态（通常不需要做事，留扩展）
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[PlaybackOrchestrator] 播放暂停");
+            }
+        } catch (Exception e) {
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[PlaybackOrchestrator] onPause 钩子执行失败", e);
+            }
+        }
+    }
+    
+    /**
+     * 播放生命周期钩子：停止播放（v1.2 新增）
+     * playing → stopped（time reset / end）时调用
+     */
+    private void onStop() {
+        try {
+            TimelineCameraController.getInstance().onPlaybackStopped();
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[PlaybackOrchestrator] 播放停止");
+            }
+        } catch (Exception e) {
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[PlaybackOrchestrator] onStop 钩子执行失败", e);
+            }
+        }
     }
 
     private void advanceTime(float deltaSeconds) {
@@ -94,19 +176,12 @@ public final class PlaybackOrchestrator {
             } else {
                 // stop：停在终点并停止
                 newTime = duration;
-                boolean wasPlaying = model.isPlaying();
                 model.setPlaying(false);
+                
+                // ⭐ v1.2 改进：显式调用 onStop 生命周期钩子
+                onStop();
 
-                // 播放停止通知（保持原本逻辑）
-                try {
-                    TimelineCameraController.getInstance().onPlaybackStopped();
-                } catch (Exception e) {
-                    if (LOGGER.isTraceEnabled()) {
-                        LOGGER.trace("[PlaybackOrchestrator] 播放停止通知失败", e);
-                    }
-                }
-
-                if (wasPlaying && LOGGER.isTraceEnabled()) {
+                if (LOGGER.isTraceEnabled()) {
                     LOGGER.trace("[PlaybackOrchestrator] 播放结束，停在终点 (时间: {:.2f}s)", newTime);
                 }
             }

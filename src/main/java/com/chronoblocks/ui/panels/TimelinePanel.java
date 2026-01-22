@@ -109,6 +109,18 @@ public class TimelinePanel extends AbstractPanel
     
     // ⭐ Facade 架构：命令门面（用于控制命令，如播放/暂停/跳转）
     private com.chronoblocks.ui.commands.UICommandFacade commands;
+    
+    // ⭐ v1.1：焦点状态追踪（用于快捷键上下文检测）
+    private static volatile boolean isTimelinePanelFocused = false;
+    
+    /**
+     * 检查 TimelinePanel 是否聚焦（供 ShortcutContext 使用）
+     * 
+     * @return true 如果 TimelinePanel 聚焦，false 如果不聚焦
+     */
+    public static boolean isFocused() {
+        return isTimelinePanelFocused;
+    }
 
     // ========== 新的拆分组件 (Controllers/Handlers) ==========
     private final TimelineDragAndDropHandler dragDropHandler;
@@ -241,6 +253,10 @@ public class TimelinePanel extends AbstractPanel
         ClipBindingDialog.initialize(model, commandHistory, this::markDataChanged);
         TrackRenameDialog.initialize(model, commandHistory, this::markDataChanged);
 
+        // ⭐ v1.2 改进：在 TimelinePanel 初始化时绑定 Orchestrator（生命周期节点）
+        // 这避免了每帧 bindModel，确保模型绑定只在生命周期节点发生
+        com.chronoblocks.ui.timeline.playback.PlaybackOrchestrator.get().bindModel(model);
+        
         // 初始化快捷键管理器
         this.shortcutManager = new TimelineShortcutManager(
                 model, commandHistory, interactionManager,
@@ -390,6 +406,7 @@ public class TimelinePanel extends AbstractPanel
     @Override
     protected void doRender() {
         // ✅ 只有时间线面板聚焦时才启用时间线快捷键上下文，避免影响其他面板输入
+        // 注意：ImGui.isWindowFocused() 必须在 ImGui.begin() 之后调用（已在 AbstractPanel.render() 中确保）
         boolean focused = ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
         if (focused != globalTimelineShortcutsActive) {
             globalTimelineShortcutsActive = focused;
@@ -397,6 +414,15 @@ public class TimelinePanel extends AbstractPanel
                     GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
                     globalTimelineShortcutsActive
             );
+        }
+        
+        // ⭐ v1.1：更新焦点状态（供 ShortcutContext 使用）
+        // 这个状态会在每次 doRender() 调用时更新，确保快捷键系统能够正确检测焦点
+        isTimelinePanelFocused = focused;
+        
+        // 调试日志（仅在 trace 级别）
+        if (LOGGER.isTraceEnabled() && focused) {
+            LOGGER.trace("[TimelinePanel] 窗口聚焦状态已更新: focused={}", focused);
         }
 
         // ⚠️ 播放子系统 tick 已迁移到 ChronoBlocksScreen.tick()（Facade 架构）

@@ -418,8 +418,8 @@ public class ChronoBlocksUIManager {
     private UICommandFacade getOrCreateCommandFacade() {
         if (commandFacade == null) {
             commandFacade = new UICommandFacadeImpl();
-            // 初始化 ShortcutDispatcher
-            shortcutDispatcher = new com.chronoblocks.ui.input.ShortcutDispatcher(commandFacade);
+            // 初始化 ShortcutDispatcher（传入 panelRegistry 用于面板焦点检测）
+            shortcutDispatcher = new com.chronoblocks.ui.input.ShortcutDispatcher(commandFacade, panelRegistry);
             LOGGER.info("[ChronoBlocksUIManager] ShortcutDispatcher 已初始化");
         }
         return commandFacade;
@@ -1045,44 +1045,76 @@ public class ChronoBlocksUIManager {
         
         @Override
         public void play() {
-            if (timelineModel != null) {
-                timelineModel.play();
+            // ⭐ v1.2 改进：Facade 只改 Model，不直接管 tick
+            // Orchestrator 会在下一帧检测到状态变化并触发生命周期钩子
+            com.chronoblocks.ui.timeline.model.TimelineModel model = 
+                com.chronoblocks.ui.timeline.playback.PlaybackOrchestrator.get().getBoundModel();
+            if (model != null) {
+                model.setPlaying(true);
+            } else {
+                // 降级方案：使用旧的 timelineModel（向后兼容）
+                if (timelineModel != null) {
+                    timelineModel.setPlaying(true);
+                }
+                // 同时更新旧的 PlaybackController（向后兼容）
+                PlaybackController.get().play();
             }
-            // 同时更新旧的 PlaybackController（向后兼容）
-            PlaybackController.get().play();
         }
         
         @Override
         public void pause() {
-            if (timelineModel != null) {
-                timelineModel.pause();
+            // ⭐ v1.2 改进：Facade 只改 Model，不直接管 tick
+            com.chronoblocks.ui.timeline.model.TimelineModel model = 
+                com.chronoblocks.ui.timeline.playback.PlaybackOrchestrator.get().getBoundModel();
+            if (model != null) {
+                model.setPlaying(false);
+            } else {
+                // 降级方案：使用旧的 timelineModel（向后兼容）
+                if (timelineModel != null) {
+                    timelineModel.setPlaying(false);
+                }
+                // 同时更新旧的 PlaybackController（向后兼容）
+                PlaybackController.get().pause();
             }
-            // 同时更新旧的 PlaybackController（向后兼容）
-            PlaybackController.get().pause();
         }
         
         @Override
         public void stop() {
-            if (timelineModel != null) {
-                timelineModel.jumpToStart();
-                timelineModel.pause();
+            // ⭐ v1.2 改进：Facade 只改 Model，不直接管 tick
+            com.chronoblocks.ui.timeline.model.TimelineModel model = 
+                com.chronoblocks.ui.timeline.playback.PlaybackOrchestrator.get().getBoundModel();
+            if (model != null) {
+                model.setPlaying(false);
+                model.setCurrentTime(0f);
+            } else {
+                // 降级方案：使用旧的 timelineModel（向后兼容）
+                if (timelineModel != null) {
+                    timelineModel.jumpToStart();
+                    timelineModel.setPlaying(false);
+                }
+                // 同时更新旧的 PlaybackController（向后兼容）
+                PlaybackController.get().stop();
             }
-            // 同时更新旧的 PlaybackController（向后兼容）
-            PlaybackController.get().stop();
         }
         
         @Override
         public void togglePlayPause() {
             if (timelineModel != null) {
+                boolean wasPlaying = timelineModel.isPlaying();
                 timelineModel.togglePlay();
+                boolean isPlaying = timelineModel.isPlaying();
+                LOGGER.info("[PlaybackCommands] togglePlayPause: {} -> {}", wasPlaying, isPlaying);
             } else {
                 // 降级方案：使用 PlaybackController
                 PlaybackController pc = PlaybackController.get();
+                boolean wasPlaying = pc.isPlaying();
                 if (pc.isPlaying()) {
                     pause();
                 } else {
                     play();
                 }
+                boolean isPlaying = pc.isPlaying();
+                LOGGER.info("[PlaybackCommands] togglePlayPause (fallback): {} -> {}", wasPlaying, isPlaying);
             }
         }
         
@@ -1198,26 +1230,60 @@ public class ChronoBlocksUIManager {
         
         @Override
         public void seek(float time) {
-            if (timelineModel != null) {
-                float clampedTime = Math.max(0f, Math.min(timelineModel.getDuration(), time));
-                timelineModel.setCurrentTime(clampedTime);
+            // ⭐ v1.2 改进：Facade 只改 Model，Orchestrator 在下一帧自然采样
+            com.chronoblocks.ui.timeline.model.TimelineModel model = 
+                com.chronoblocks.ui.timeline.playback.PlaybackOrchestrator.get().getBoundModel();
+            if (model != null) {
+                float clampedTime = Math.max(0f, Math.min(model.getDuration(), time));
+                model.setCurrentTime(clampedTime);
                 
-                // ⭐ 季节轨道系统：跳转时间时更新季节采样
-                com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController.getInstance().onTimelineTick(clampedTime);
+                // ⭐ 立即采样（seek 是离散命令，需要立即反馈）
+                // 季节轨道系统：跳转时间时更新季节采样
+                try {
+                    com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController.getInstance().onTimelineTick(clampedTime);
+                } catch (Exception e) {
+                    if (LOGGER.isTraceEnabled()) {
+                        LOGGER.trace("[PlaybackCommands] 季节采样失败", e);
+                    }
+                }
                 
                 // ⭐ 天气轨道系统：跳转时间时更新天气采样（预览模式）
-                com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController.getInstance().previewAt(clampedTime);
+                try {
+                    com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController.getInstance().previewAt(clampedTime);
+                } catch (Exception e) {
+                    if (LOGGER.isTraceEnabled()) {
+                        LOGGER.trace("[PlaybackCommands] 天气采样失败", e);
+                    }
+                }
                 
                 // ⭐ 摄像机控制器：跳转到指定时间并保持玩家态
-                com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance().jumpToTimeAsPlayer(clampedTime);
+                try {
+                    com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance().jumpToTimeAsPlayer(clampedTime);
+                } catch (Exception e) {
+                    if (LOGGER.isTraceEnabled()) {
+                        LOGGER.trace("[PlaybackCommands] 摄像机跳转失败", e);
+                    }
+                }
                 
                 // ⭐ 更新片段方块显示状态
-                com.chronoblocks.ui.timeline.playback.TimelineClipBlockController.getInstance().update();
+                try {
+                    com.chronoblocks.ui.timeline.playback.TimelineClipBlockController.getInstance().update();
+                } catch (Exception e) {
+                    if (LOGGER.isTraceEnabled()) {
+                        LOGGER.trace("[PlaybackCommands] 片段方块更新失败", e);
+                    }
+                }
                 
                 LOGGER.debug("[PlaybackCommands] Seek to {:.2f}s", clampedTime);
             } else {
-                // 降级方案：使用 PlaybackController
-                PlaybackController.get().seek(time);
+                // 降级方案：使用旧的 timelineModel（向后兼容）
+                if (timelineModel != null) {
+                    float clampedTime = Math.max(0f, Math.min(timelineModel.getDuration(), time));
+                    timelineModel.setCurrentTime(clampedTime);
+                } else {
+                    // 降级方案：使用 PlaybackController
+                    PlaybackController.get().seek(time);
+                }
             }
         }
         
@@ -1875,13 +1941,7 @@ public class ChronoBlocksUIManager {
             // 限制最大帧间隔，避免长时间暂停后的巨大跳跃
             deltaSeconds = Math.min(deltaSeconds, 0.1f); // 最大100ms
             
-            // ✅ 从 TimelinePanel 获取当前 TimelineModel，并绑定给 Orchestrator
-            TimelinePanel timelinePanel = panelRegistry.getPanel(TimelinePanel.class);
-            if (timelinePanel != null) {
-                com.chronoblocks.ui.timeline.model.TimelineModel model = timelinePanel.getModel();
-                com.chronoblocks.ui.timeline.playback.PlaybackOrchestrator.get().bindModel(model);
-            }
-            
+            // ⭐ v1.2 改进：不再每帧 bindModel，模型绑定已在生命周期节点完成
             // ✅ 统一播放驱动（替代 TimelinePanel 的 updatePlayback + 一堆 controller tick）
             // 这确保了播放系统在任何情况下（面板隐藏/失焦）都保持一致
             com.chronoblocks.ui.timeline.playback.PlaybackOrchestrator.get().tick(deltaSeconds);
@@ -2343,8 +2403,18 @@ public class ChronoBlocksUIManager {
                 // ⭐ TimelinePanel：注入 UICommandFacade（用于播放控制等）
                 if (panel instanceof TimelinePanel) {
                     try {
-                        ((TimelinePanel) panel).setCommands(getOrCreateCommandFacade());
+                        TimelinePanel timelinePanel = (TimelinePanel) panel;
+                        timelinePanel.setCommands(getOrCreateCommandFacade());
                         commandFacadeCount++;
+                        
+                        // ⭐ v1.2 改进：在面板注册时绑定 Orchestrator（生命周期节点）
+                        // 这确保了模型绑定只在生命周期节点发生，而不是每帧
+                        com.chronoblocks.ui.timeline.model.TimelineModel model = timelinePanel.getModel();
+                        if (model != null) {
+                            com.chronoblocks.ui.timeline.playback.PlaybackOrchestrator.get().bindModel(model);
+                            logDebug("为面板 '{}' 绑定了 PlaybackOrchestrator", panel.getPanelName());
+                        }
+                        
                         logDebug("为面板 '{}' 注入了 UICommandFacade", panel.getPanelName());
                     } catch (Exception e) {
                         logError("为面板 '{}' 注入 UICommandFacade 失败", e, panel.getPanelName());

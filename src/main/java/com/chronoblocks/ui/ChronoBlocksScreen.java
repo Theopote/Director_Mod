@@ -34,6 +34,15 @@ public class ChronoBlocksScreen extends Screen {
 
     private final MinecraftClient client;
     private ChronoBlocksUIManager uiManager;
+    
+    /**
+     * 获取 UIManager 实例（供 Mixin 使用）
+     * 
+     * @return UIManager 实例，如果未初始化则返回 null
+     */
+    public ChronoBlocksUIManager getUIManager() {
+        return uiManager;
+    }
     private boolean initializationFailed = false;
     private boolean isInitialized = false;
     private boolean directorModeActive = false;
@@ -223,11 +232,43 @@ public class ChronoBlocksScreen extends Screen {
     @Override
     public boolean keyPressed(KeyInput input) {
         int keyCode = input.key();
-        int modifiers = getModifiers(input, keyCode);
+        int modifiers = input.modifiers();
+
+        // ⚠️ 注意：KeyboardMixin 已经处理了快捷键事件并 cancel 了
+        // 如果 KeyboardMixin 正常工作，这个方法可能不会被调用
+        // 但为了安全起见，我们仍然在这里处理（防抖机制会防止重复处理）
+        
+        // ⭐ 优先使用新的 ShortcutDispatcher（Facade 架构）
+        // 无论 ImGui 是否捕获键盘，都先尝试新的系统
+        // ⚠️ 注意：由于 KeyboardMixin 已经处理了事件，这里可能不会被调用
+        // 但如果被调用，防抖机制会确保不会重复处理
+        if (uiManager != null) {
+            var shortcutDispatcher = uiManager.getShortcutDispatcher();
+            if (shortcutDispatcher != null) {
+                // 使用 ShortcutDispatcher 处理（只处理按下事件）
+                // 注意：ShortcutDispatcher 内部会检查上下文和文本输入状态，并有防抖机制
+                shortcutDispatcher.handleGLFWKeyEvent(keyCode, org.lwjgl.glfw.GLFW.GLFW_PRESS, modifiers);
+                // 注意：ShortcutDispatcher 不返回是否已处理，因为它只处理已绑定的快捷键
+                // 如果快捷键被处理，会在 ShortcutActions.dispatch() 中执行
+            } else {
+                // 调试：记录 ShortcutDispatcher 为 null 的情况
+                if (org.slf4j.LoggerFactory.getLogger(ChronoBlocksScreen.class).isDebugEnabled()) {
+                    org.slf4j.LoggerFactory.getLogger(ChronoBlocksScreen.class)
+                        .debug("[ChronoBlocksScreen] ShortcutDispatcher 为 null，无法处理快捷键: key={}", keyCode);
+                }
+            }
+        } else {
+            // 调试：记录 uiManager 为 null 的情况
+            if (org.slf4j.LoggerFactory.getLogger(ChronoBlocksScreen.class).isDebugEnabled()) {
+                org.slf4j.LoggerFactory.getLogger(ChronoBlocksScreen.class)
+                    .debug("[ChronoBlocksScreen] uiManager 为 null，无法处理快捷键: key={}", keyCode);
+            }
+        }
 
         // 检查ImGui是否想要捕获键盘事件
         if (ImGui.getIO() != null && ImGui.getIO().getWantCaptureKeyboard()) {
-            // ImGui 捕获键盘时，使用 ImGui 输入处理
+            // ImGui 捕获键盘时，使用旧的 GlobalShortcutManager 作为后备
+            // （用于处理尚未迁移到新系统的快捷键）
             var shortcutManager = com.chronoblocks.ui.input.GlobalShortcutManager.getInstance();
             if (shortcutManager.handleImGuiInput(ImGui.getIO())) {
                 return true; // 已处理
@@ -244,20 +285,8 @@ public class ChronoBlocksScreen extends Screen {
 // 不拦截游戏按键，让游戏继续处理
     }
 
-    private int getModifiers(KeyInput input, int keyCode) {
-        int modifiers = input.modifiers();
-
-        // 优先使用新的 ShortcutDispatcher（Facade 架构）
-        if (uiManager != null) {
-            var shortcutDispatcher = uiManager.getShortcutDispatcher();
-            if (shortcutDispatcher != null) {
-                // 尝试使用 ShortcutDispatcher 处理（只处理按下事件）
-                // 注意：ShortcutDispatcher 内部会提取修饰键（Ctrl/Shift/Alt）
-                shortcutDispatcher.handleGLFWKeyEvent(keyCode, org.lwjgl.glfw.GLFW.GLFW_PRESS, modifiers);
-            }
-        }
-        return modifiers;
-    }
+    // ⚠️ getModifiers() 方法已移除
+    // 快捷键处理已移到 keyPressed() 方法开头，确保优先处理
 
     /**
      * 处理鼠标点击事件

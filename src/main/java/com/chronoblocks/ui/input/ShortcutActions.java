@@ -51,8 +51,10 @@ public final class ShortcutActions {
                 
                 // ==================== 播放控制 ====================
                 case PLAY_PAUSE -> {
+                    boolean wasPlaying = commands.playback().isPlaying();
                     commands.playback().togglePlayPause();
-                    LOGGER.debug("[ShortcutActions] 执行: PLAY_PAUSE");
+                    boolean isPlaying = commands.playback().isPlaying();
+                    LOGGER.info("[ShortcutActions] 执行: PLAY_PAUSE, 状态变化: {} -> {}", wasPlaying, isPlaying);
                 }
                 case STOP -> {
                     commands.playback().stop();

@@ -37,16 +37,43 @@ public class KeyboardMixin {
 
         // 如果ChronoBlocks窗口激活且应该捕获键盘
         if (focusManager.shouldCaptureKeyboard()) {
-            // ✅ 即使拦截了 Minecraft 的键盘事件，也要让 ChronoBlocks 的快捷键系统能收到（否则会出现“所有快捷键都失效”）
+            // ✅ 优先使用新的 ShortcutDispatcher（Facade 架构）
+            // 尝试获取 ChronoBlocksScreen 的 UIManager 并调用 ShortcutDispatcher
+            boolean handledByNewSystem = false;
             try {
-                var mgr = com.chronoblocks.ui.input.GlobalShortcutManager.getInstance();
-                int keyCode = input.key();
-                int mods = input.modifiers();
-                boolean ctrl = (mods & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL) != 0;
-                boolean shift = (mods & org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT) != 0;
-                boolean alt = (mods & org.lwjgl.glfw.GLFW.GLFW_MOD_ALT) != 0;
-                mgr.handleGLFWInput(keyCode, ctrl, shift, alt);
-            } catch (Exception ignored) {}
+                // 通过 MinecraftClient 获取当前 Screen
+                var client = net.minecraft.client.MinecraftClient.getInstance();
+                if (client != null && client.currentScreen instanceof com.chronoblocks.ui.ChronoBlocksScreen chronoBlocksScreen) {
+                    var uiManager = chronoBlocksScreen.getUIManager();
+                    if (uiManager != null) {
+                        var shortcutDispatcher = uiManager.getShortcutDispatcher();
+                        if (shortcutDispatcher != null) {
+                            int keyCode = input.key();
+                            int mods = input.modifiers();
+                            // 使用新的 ShortcutDispatcher 处理快捷键
+                            shortcutDispatcher.handleGLFWKeyEvent(keyCode, org.lwjgl.glfw.GLFW.GLFW_PRESS, mods);
+                            handledByNewSystem = true;
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                if (DEBUG) {
+                    LOGGER.debug("[KeyboardMixin] 无法获取 ShortcutDispatcher: {}", e.getMessage());
+                }
+            }
+            
+            // 如果新系统没有处理，回退到旧的 GlobalShortcutManager
+            if (!handledByNewSystem) {
+                try {
+                    var mgr = com.chronoblocks.ui.input.GlobalShortcutManager.getInstance();
+                    int keyCode = input.key();
+                    int mods = input.modifiers();
+                    boolean ctrl = (mods & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL) != 0;
+                    boolean shift = (mods & org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT) != 0;
+                    boolean alt = (mods & org.lwjgl.glfw.GLFW.GLFW_MOD_ALT) != 0;
+                    mgr.handleGLFWInput(keyCode, ctrl, shift, alt);
+                } catch (Exception ignored) {}
+            }
 
             if (DEBUG) {
                 LOGGER.debug("[KeyboardMixin] 拦截键盘事件: key={}, scancode={}, mods={} (阻止游戏处理，ImGui通过GLFW回调接收)",
