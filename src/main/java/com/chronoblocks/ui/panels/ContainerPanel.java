@@ -38,6 +38,9 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
     private static final int SPLITTER_SHADOW_COLOR = 0x10FFFFFF;
     private static final String SPLITTER_ID = "ContainerPanelSplitter";
 
+    // 右侧属性面板折叠把手宽度（紧凑）
+    private static final float PROPERTIES_HANDLE_WIDTH = 22.0f;
+
     private final ContainerManager containerManager;
     private final TimelineCommandHistory commandHistory;
     private final ContainerPropertiesPanel propertiesPanel;
@@ -97,15 +100,19 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
         ImGui.textColored(0.4f, 1.0f, 0.4f, 1.0f, Icons.CONTAINER + " 容器管理 ");
         ImGui.sameLine();
         ImGui.textDisabled(String.format("(%d 个容器)", containerManager.getContainerCount()));
+
+        // ✅ 紧凑：把"分割比例"变成 tooltip，不占 header 位置
         ImGui.sameLine();
-        ImGui.textDisabled(String.format("分割: %.0f%%", state.getLeftPanelWidthRatio() * 100));
-        ImGui.sameLine();
-        if (ImGui.smallButton(headerButtonLabel(Icons.REFRESH, "重置分割", "resetSplitter"))) {
-            state.setLeftPanelWidthRatio(0.5f);
-        }
+        ImGui.textDisabled(state.isPropertiesCollapsed() ? "(属性已折叠 · P)" : "(属性已展开 · P)");
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("重置左右面板分割比例");
+            ImGui.beginTooltip();
+            ImGui.text("布局");
+            ImGui.separator();
+            ImGui.text(String.format("左侧宽度: %.0f%%", state.getLeftPanelWidthRatio() * 100));
+            ImGui.text("点击右侧边界箭头可折叠/展开属性面板");
+            ImGui.endTooltip();
         }
+
         ImGui.sameLine();
         renderHeaderControls();
     }
@@ -158,6 +165,16 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
             ImGui.text("点击切换显示方式");
             ImGui.endTooltip();
         }
+
+        // ✅ 可选：保留"重置分割"，但不占中间空间
+        ImGui.sameLine();
+        if (ImGui.smallButton(headerButtonLabel(Icons.REFRESH, "重置分割", "resetSplitter"))) {
+            state.setLeftPanelWidthRatio(0.5f);
+            state.setLeftRatioBeforeCollapse(0.5f);
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("重置左右面板分割比例");
+        }
     }
 
     private String headerButtonLabel(String icon, String text, String id) {
@@ -172,6 +189,12 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
         float windowWidth = ImGui.getContentRegionAvailX();
         float availableHeight = ImGui.getContentRegionAvailY();
 
+        if (state.isPropertiesCollapsed()) {
+            renderCollapsedLayout(windowWidth, availableHeight);
+            return;
+        }
+
+        // ✅ 展开状态：保持现有 splitter 布局
         float leftWidth = windowWidth * state.getLeftPanelWidthRatio() - SPLITTER_WIDTH / 2;
 
         if (ImGui.beginChild("ContainerTreeChild", leftWidth, availableHeight, true)) {
@@ -189,8 +212,50 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
         ImGui.endChild();
     }
 
+    private void renderCollapsedLayout(float windowWidth, float availableHeight) {
+        float leftWidth = Math.max(0, windowWidth - PROPERTIES_HANDLE_WIDTH);
+
+        if (ImGui.beginChild("ContainerTreeChild", leftWidth, availableHeight, true)) {
+            treeView.render();
+        }
+        ImGui.endChild();
+
+        ImGui.sameLine();
+
+        // 右侧把手：一个窄 child，里面放箭头按钮
+        if (ImGui.beginChild("PropertiesHandleChild", PROPERTIES_HANDLE_WIDTH, availableHeight, true)) {
+            // 垂直居中
+            float btnSize = PROPERTIES_HANDLE_WIDTH - 4.0f;
+            float centerY = (availableHeight - btnSize) * 0.5f;
+            ImGui.setCursorPosY(Math.max(2.0f, centerY));
+
+            if (ImGui.button(Icons.CHEVRON_RIGHT + "##expandProperties", btnSize, btnSize)) {
+                togglePropertiesCollapsed();
+            }
+            if (ImGui.isItemHovered()) {
+                Container selected = containerManager.getSelectedContainer();
+                ImGui.beginTooltip();
+                if (selected != null) {
+                    ImGui.text("选中: " + selected.getName());
+                    ImGui.text("类型: " + selected.getType().toString());
+                    ImGui.separator();
+                }
+                ImGui.text("展开属性面板");
+                ImGui.text("快捷键：P");
+                ImGui.endTooltip();
+            }
+        }
+        ImGui.endChild();
+    }
+
     private void renderVerticalSplitter(float height, float windowWidth) {
         ImGui.invisibleButton(SPLITTER_ID, SPLITTER_WIDTH, height);
+
+        // ✅ 双击 splitter：折叠/展开（可选但很顺手）
+        if (ImGui.isItemHovered() && ImGui.isMouseDoubleClicked(ImGuiMouseButton.Left)) {
+            togglePropertiesCollapsed();
+        }
+
         handleSplitterDrag(windowWidth);
 
         if (ImGui.isItemHovered()) {
@@ -200,12 +265,32 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
         drawSplitterVisuals();
     }
 
+    private void togglePropertiesCollapsed() {
+        boolean collapsed = state.isPropertiesCollapsed();
+
+        if (collapsed) {
+            // 展开：double-clamp 确保比例合法（防止布局恢复时的异常值）
+            float ratio = clampRatio(state.getLeftRatioBeforeCollapse());
+            state.setPropertiesCollapsed(false);
+            state.setLeftPanelWidthRatio(ratio);
+        } else {
+            // 折叠：保存当前比例
+            state.setLeftRatioBeforeCollapse(state.getLeftPanelWidthRatio());
+            state.setPropertiesCollapsed(true);
+        }
+    }
+
+    private float clampRatio(float ratio) {
+        return Math.max(MIN_PANEL_RATIO, Math.min(MAX_PANEL_RATIO, ratio));
+    }
+
     private void handleSplitterDrag(float windowWidth) {
         if (ImGui.isItemActive() && ImGui.isMouseDragging(ImGuiMouseButton.Left)) {
             float mouseDeltaX = ImGui.getIO().getMouseDeltaX();
             float ratio = state.getLeftPanelWidthRatio() + mouseDeltaX / windowWidth;
-            ratio = Math.max(MIN_PANEL_RATIO, Math.min(MAX_PANEL_RATIO, ratio));
+            ratio = clampRatio(ratio);
             state.setLeftPanelWidthRatio(ratio);
+            state.setLeftRatioBeforeCollapse(ratio); // ✅ 同步保存"上次比例"
         }
     }
 
@@ -233,6 +318,20 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
     }
 
     private void renderPropertiesPanel() {
+        // ✅ 顶部"属性"标题和折叠按钮
+        ImGui.alignTextToFramePadding();
+        ImGui.textDisabled("属性");
+        ImGui.sameLine();
+        if (ImGui.smallButton(Icons.CHEVRON_LEFT + "##collapsePropertiesTop")) {
+            togglePropertiesCollapsed();
+            return;
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("折叠属性面板\n快捷键：P");
+        }
+
+        ImGui.separator();
+
         Container selected = containerManager.getSelectedContainer();
         if (selected == null) {
             ImGui.textDisabled("(未选择容器或组)");
@@ -253,6 +352,17 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
             return;
         }
 
+        // 避免在文本输入时误触
+        if (ImGui.getIO().getWantTextInput()) {
+            return;
+        }
+
+        // ===== 新增：P 键折叠 / 展开属性面板 =====
+        if (ImGui.isKeyPressed(GLFW.GLFW_KEY_P)) {
+            togglePropertiesCollapsed();
+        }
+
+        // ===== 原有快捷键（Delete / Undo / Redo） =====
         boolean ctrl = ImGui.isKeyDown(GLFW.GLFW_KEY_LEFT_CONTROL) || ImGui.isKeyDown(GLFW.GLFW_KEY_RIGHT_CONTROL);
 
         if (ImGui.isKeyPressed(GLFW.GLFW_KEY_DELETE)) {

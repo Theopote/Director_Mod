@@ -29,6 +29,16 @@ public final class ContainerPanelState {
      */
     private boolean showToolbarText = false;
 
+    /**
+     * 右侧属性面板是否折叠（默认折叠，更紧凑）
+     */
+    private boolean propertiesCollapsed = true;
+
+    /**
+     * 折叠前左侧宽度比例（用于恢复）
+     */
+    private float leftRatioBeforeCollapse = 0.5f;
+
     public float getLeftPanelWidthRatio() {
         return leftPanelWidthRatio;
     }
@@ -113,6 +123,23 @@ public final class ContainerPanelState {
 
     public void setShowToolbarText(boolean showToolbarText) {
         this.showToolbarText = showToolbarText;
+    }
+
+    public boolean isPropertiesCollapsed() {
+        return propertiesCollapsed;
+    }
+
+    public void setPropertiesCollapsed(boolean propertiesCollapsed) {
+        this.propertiesCollapsed = propertiesCollapsed;
+    }
+
+    public float getLeftRatioBeforeCollapse() {
+        return leftRatioBeforeCollapse;
+    }
+
+    public void setLeftRatioBeforeCollapse(float leftRatioBeforeCollapse) {
+        // 保护合法性，防止布局恢复时出现异常值
+        this.leftRatioBeforeCollapse = Math.max(0.1f, Math.min(0.9f, leftRatioBeforeCollapse));
     }
 
     public void toggleNode(UUID nodeId) {

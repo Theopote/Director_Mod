@@ -5,6 +5,7 @@ import com.chronoblocks.ui.container.ContainerColorPicker;
 import com.chronoblocks.ui.container.ContainerPanelController;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.type.ImInt;
 import imgui.type.ImString;
@@ -75,19 +76,21 @@ public class ContainerPropertiesPanel {
 
         syncBuffersIfNeeded(container);
 
-        renderHeader(container);
-        ImGui.separator();
-
+        // ✅ 移除外部 header，因为 ContainerPanel 已经有了"属性"标题
+        // 容器信息显示在内容区域顶部
         ImGui.beginChild("ContainerProperties", 0, 0, false);
+        
+        // 在内容区域顶部显示容器信息（更紧凑）
+        renderContainerInfo(container);
 
         renderBasicProperties(container);
-        ImGui.separator();
+        ImGui.spacing();
 
         renderAnimationPreset(container);
-        ImGui.separator();
+        ImGui.spacing();
 
         renderVisualProperties(container);
-        ImGui.separator();
+        ImGui.spacing();
 
         renderReadonlyInfo(container);
 
@@ -141,19 +144,21 @@ public class ContainerPropertiesPanel {
     }
 
     // ----------------------------------------------------------
-    // UI：标题
+    // UI：容器信息（紧凑显示）
     // ----------------------------------------------------------
-    private void renderHeader(Container container) {
+    private void renderContainerInfo(Container container) {
         ImGui.textColored(0.4f, 1.0f, 0.5f, 1.0f,
-                container.getType().getIcon() + " 容器属性");
+                container.getType().getIcon() + " " + container.getName());
         ImGui.sameLine();
         ImGui.textDisabled("(ID: " + container.getId().toString().substring(0, 8) + ")");
+        ImGui.spacing();
     }
 
     // ----------------------------------------------------------
     // UI：基本属性
     // ----------------------------------------------------------
     private void renderBasicProperties(Container container) {
+        ImGui.setNextItemOpen(false, ImGuiCond.Once); // ✅ 默认收起（更紧凑）
         if (!ImGui.collapsingHeader("基本属性")) return;
 
         // 名称
@@ -195,6 +200,7 @@ public class ContainerPropertiesPanel {
     // UI：动画默认预设
     // ----------------------------------------------------------
     private void renderAnimationPreset(Container container) {
+        ImGui.setNextItemOpen(false, ImGuiCond.Once); // ✅ 默认收起
         if (!ImGui.collapsingHeader("默认动画预设")) return;
 
         ContainerAnimationPreset preset = container.getDefaultAnimationPreset();
@@ -249,6 +255,7 @@ public class ContainerPropertiesPanel {
     // UI：容器属性（非渲染相关）
     // ----------------------------------------------------------
     private void renderVisualProperties(Container container) {
+        ImGui.setNextItemOpen(false, ImGuiCond.Once); // ✅ 默认收起
         if (!ImGui.collapsingHeader("容器属性")) return;
 
         // UI 标签颜色（用于容器树视图中的颜色标记，不影响渲染）
@@ -305,6 +312,7 @@ public class ContainerPropertiesPanel {
     // UI：只读信息（不需要可编辑）
     // ----------------------------------------------------------
     private void renderReadonlyInfo(Container container) {
+        ImGui.setNextItemOpen(false, ImGuiCond.Once); // ✅ 默认收起
         if (!ImGui.collapsingHeader("统计信息")) return;
 
         ImGui.text("方块数: " + container.getBlockCount());
