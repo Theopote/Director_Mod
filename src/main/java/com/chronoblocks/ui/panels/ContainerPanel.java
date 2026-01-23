@@ -12,6 +12,7 @@ import com.chronoblocks.ui.timeline.commands.TimelineCommandHistory;
 import com.chronoblocks.ui.theme.Icons;
 import imgui.ImGui;
 import imgui.ImVec2;
+import imgui.flag.ImGuiFocusedFlags;
 import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiMouseCursor;
 import imgui.flag.ImGuiWindowFlags;
@@ -348,7 +349,9 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
     }
 
     private void handleKeyboardShortcuts() {
-        if (!ImGui.isWindowFocused()) {
+        // ✅ 检查窗口焦点（包括子窗口），确保在容器树列表区域也能响应快捷键
+        // 注意：ImGui.isWindowFocused() 必须在 ImGui.begin() 之后调用（已在 AbstractPanel.render() 中确保）
+        if (!ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows)) {
             return;
         }
 
@@ -367,9 +370,9 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
 
         if (ImGui.isKeyPressed(GLFW.GLFW_KEY_DELETE)) {
             if (!containerManager.getSelectedContainersView().isEmpty()) {
-                // ✅ Delete 键：直接删除选中的容器或组
-                LOGGER.info("[ContainerPanel] Delete 键触发 -> 删除选中容器");
-                controller.deleteSelectedContainers();
+                // ✅ Delete 键：弹出删除确认对话框（与右键删除一致）
+                LOGGER.info("[ContainerPanel] Delete 键触发 -> 标记待打开删除确认弹窗");
+                state.setPendingDeletionRequested(true);
             }
         }
 
