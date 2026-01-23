@@ -367,8 +367,9 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
 
         if (ImGui.isKeyPressed(GLFW.GLFW_KEY_DELETE)) {
             if (!containerManager.getSelectedContainersView().isEmpty()) {
-                LOGGER.info("[ContainerPanel] Delete 键触发 -> 标记待打开删除确认弹窗");
-                state.setPendingDeletionRequested(true);
+                // ✅ Delete 键：直接删除选中的容器或组
+                LOGGER.info("[ContainerPanel] Delete 键触发 -> 删除选中容器");
+                controller.deleteSelectedContainers();
             }
         }
 

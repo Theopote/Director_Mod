@@ -2,7 +2,6 @@ package com.chronoblocks.ui.input;
 
 import imgui.ImGui;
 import imgui.ImGuiIO;
-import imgui.flag.ImGuiFocusedFlags;
 
 /**
  * 快捷键上下文系统 - 判断快捷键是否应该在当前上下文中生效
@@ -98,21 +97,13 @@ public final class ShortcutContext {
                         timelineFocused);
             }
             
-            // 如果 TimelinePanel 聚焦，允许处理快捷键
+            // ✅ 只有 TimelinePanel 聚焦时才允许处理快捷键（移除临时放宽逻辑）
+            // 这样可以防止在 Minecraft 游戏中操作时误触快捷键（如空格键播放）
             if (timelineFocused) {
                 return true;
             }
-            // ⚠️ 临时放宽：如果 TimelinePanel 可见但未聚焦，也允许处理（便于调试）
-            // TODO: 后续可以根据需要调整这个逻辑
-            com.chronoblocks.ui.panels.TimelinePanel timelinePanel = 
-                panelRegistry.getPanel(com.chronoblocks.ui.panels.TimelinePanel.class);
-            if (timelinePanel != null && timelinePanel.isVisible()) {
-                org.slf4j.LoggerFactory.getLogger(ShortcutContext.class)
-                    .debug("[ShortcutContext] TimelinePanel 可见但未聚焦，临时允许快捷键");
-                return true;
-            }
             
-            // 如果 TimelinePanel 未聚焦且不可见，不允许处理（避免在其他面板中误触发）
+            // 如果 TimelinePanel 未聚焦，不允许处理（避免在其他面板或游戏中误触发）
             return false;
         }
         

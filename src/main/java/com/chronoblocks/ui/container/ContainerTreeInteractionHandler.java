@@ -92,6 +92,8 @@ class ContainerTreeInteractionHandler {
         
         // 处理空白区域的左键点击：取消选中容器
         if (ImGui.isMouseClicked(ImGuiMouseButton.Left) && !ImGui.isAnyItemHovered()) {
+            // ✅ 空白区域点击时取消编辑（clearSelection 内部已处理，这里显式调用以明确意图）
+            inlineRenamer.cancelEditing();
             controller.clearSelection();
             LOGGER.debug("[ContainerTreeInteractionHandler] 空白区域点击：已取消选中容器");
         }

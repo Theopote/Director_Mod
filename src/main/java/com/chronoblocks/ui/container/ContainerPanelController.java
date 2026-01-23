@@ -70,6 +70,9 @@ public class ContainerPanelController {
     public void selectContainer(UUID id, boolean multiSelect, boolean rangeSelect) {
         Container container = getContainer(id);
         if (container != null) {
+            // ✅ 选择变化时取消正在进行的重命名（避免编辑会话混乱）
+            cancelEditingIfActive();
+            
 			Container active = containerManager.getActive();
 			if (!multiSelect && !rangeSelect && active != null && active.isIntakeEnabled() && active != container) {
 				org.slf4j.LoggerFactory.getLogger(ContainerPanelController.class)
@@ -144,6 +147,9 @@ public class ContainerPanelController {
     }
 
     public void deleteSelectedContainers() {
+        // ✅ 删除容器时取消正在进行的重命名（避免编辑已删除的容器）
+        cancelEditingIfActive();
+        
         org.slf4j.LoggerFactory.getLogger(ContainerPanelController.class).debug("[ContainerPanelController] 执行删除选中容器");
         commandService.deleteSelectedContainers();
     }
@@ -198,26 +204,33 @@ public class ContainerPanelController {
     /* -------------------- 排序 / 拖拽 -------------------- */
 
     public void moveContainer(UUID containerId, UUID targetParentId, int index) {
+        // ✅ 移动容器时取消正在进行的重命名（避免编辑会话混乱）
+        cancelEditingIfActive();
 		hierarchyController.moveContainer(containerId, targetParentId, index);
     }
 
     public void moveContainerAsChild(UUID draggedId, UUID parentId) {
+        cancelEditingIfActive();
 		hierarchyController.moveContainerAsChild(draggedId, parentId);
     }
 
     public void moveContainerBefore(UUID draggedId, UUID referenceId) {
+        cancelEditingIfActive();
 		hierarchyController.moveContainerBefore(draggedId, referenceId);
     }
 
     public void moveContainerAfter(UUID draggedId, UUID referenceId) {
+        cancelEditingIfActive();
 		hierarchyController.moveContainerAfter(draggedId, referenceId);
     }
 
     public void moveContainerByOffset(UUID containerId, int offset) {
+        cancelEditingIfActive();
 		hierarchyController.moveContainerByOffset(containerId, offset);
     }
 
     public void swapContainers(UUID firstId, UUID secondId) {
+        cancelEditingIfActive();
 		hierarchyController.swapContainers(firstId, secondId);
     }
 
@@ -322,6 +335,9 @@ public class ContainerPanelController {
     /* -------------------- 状态辅助 -------------------- */
 
     public void toggleExpandAll() {
+        // ✅ 折叠/展开树节点时取消正在进行的重命名（避免节点被折叠导致输入框消失）
+        cancelEditingIfActive();
+        
         if (state.isExpandAll()) {
             state.collapseAllNodes();
         } else {
@@ -349,6 +365,8 @@ public class ContainerPanelController {
      * 取消选中所有容器（在空白区域点击时调用）
      */
     public void clearSelection() {
+        // ✅ 取消选择时也取消正在进行的重命名
+        cancelEditingIfActive();
         containerManager.clearSelection();
     }
     
@@ -357,6 +375,19 @@ public class ContainerPanelController {
      */
     ContainerManager getContainerManager() {
         return containerManager;
+    }
+    
+    /**
+     * 取消正在进行的编辑会话（如果存在）
+     * 应在以下情况调用：
+     * - 选择被程序性改变
+     * - 树节点被折叠/展开
+     * - 容器被移动/删除
+     */
+    public void cancelEditingIfActive() {
+        if (state.getRenamingContainerId() != null) {
+            state.setRenamingContainerId(null);
+        }
     }
 }
 

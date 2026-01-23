@@ -10,6 +10,7 @@ import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiTreeNodeFlags;
 
 import java.util.List;
+import java.util.UUID;
 
 /**
  * 纯渲染层：负责绘制树节点、图标与提示，不处理业务逻辑。
@@ -123,6 +124,16 @@ class ContainerTreeRenderer {
 
             // 同步展开状态到 state（用户点击箭头或双击时）
             if (nodeOpen != wasExpanded) {
+                // ✅ 节点折叠时取消正在进行的重命名（避免输入框随节点消失）
+                if (!nodeOpen && inlineRenamer.isEditing() && inlineRenamer.getEditingContainerId() != null) {
+                    // 检查正在编辑的容器是否是被折叠节点的后代
+                    UUID editingId = inlineRenamer.getEditingContainerId();
+                    Container editingContainer = controller.getContainer(editingId);
+                    if (editingContainer != null && editingContainer.isDescendantOf(container)) {
+                        inlineRenamer.cancelEditing();
+                    }
+                }
+                
                 if (state.isExpandAll()) {
                     java.util.Set<java.util.UUID> nodesToKeepExpanded = new java.util.HashSet<>();
                     collectAllContainerIds(controller.getRootContainers(), nodesToKeepExpanded);

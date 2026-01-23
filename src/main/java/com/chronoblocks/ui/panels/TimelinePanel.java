@@ -408,8 +408,13 @@ public class TimelinePanel extends AbstractPanel
         // ✅ 只有时间线面板聚焦时才启用时间线快捷键上下文，避免影响其他面板输入
         // 注意：ImGui.isWindowFocused() 必须在 ImGui.begin() 之后调用（已在 AbstractPanel.render() 中确保）
         boolean focused = ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
-        if (focused != globalTimelineShortcutsActive) {
-            globalTimelineShortcutsActive = focused;
+        boolean hovered = ImGui.isWindowHovered();
+        
+        // ✅ 只有窗口聚焦且鼠标在窗口范围内时才认为面板激活（防止在 Minecraft 游戏中误触）
+        boolean active = focused && hovered;
+        
+        if (active != globalTimelineShortcutsActive) {
+            globalTimelineShortcutsActive = active;
             GlobalShortcutManager.getInstance().setContextEnabled(
                     GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
                     globalTimelineShortcutsActive
@@ -418,7 +423,8 @@ public class TimelinePanel extends AbstractPanel
         
         // ⭐ v1.1：更新焦点状态（供 ShortcutContext 使用）
         // 这个状态会在每次 doRender() 调用时更新，确保快捷键系统能够正确检测焦点
-        isTimelinePanelFocused = focused;
+        // ✅ 只有窗口聚焦且鼠标在窗口范围内时才认为面板激活
+        isTimelinePanelFocused = active;
         
         // 调试日志（仅在 trace 级别）
         if (LOGGER.isTraceEnabled() && focused) {
@@ -435,8 +441,11 @@ public class TimelinePanel extends AbstractPanel
             ensurePlayheadVisible();
         }
 
-        // 3. 处理快捷键
-        shortcutManager.handle();
+        // 3. 处理快捷键（仅在窗口聚焦且鼠标在窗口范围内时）
+        // ✅ 防止在 Minecraft 游戏中操作时误触快捷键（如空格键播放）
+        if (focused && ImGui.isWindowHovered()) {
+            shortcutManager.handle();
+        }
 
         // 3. 渲染控制栏（优先给专职的组件）
         renderControlBar();
