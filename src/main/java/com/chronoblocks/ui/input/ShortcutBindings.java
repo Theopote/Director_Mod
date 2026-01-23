@@ -2,6 +2,9 @@ package com.chronoblocks.ui.input;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import org.lwjgl.glfw.GLFW;
 
 /**
@@ -228,9 +231,98 @@ public final class ShortcutBindings {
             case GLFW.GLFW_KEY_R -> "R";
             case GLFW.GLFW_KEY_S -> "S";
             case GLFW.GLFW_KEY_L -> "L";
+            case GLFW.GLFW_KEY_W -> "W";
+            case GLFW.GLFW_KEY_E -> "E";
+            case GLFW.GLFW_KEY_Z -> "Z";
+            case GLFW.GLFW_KEY_Y -> "Y";
             case GLFW.GLFW_KEY_EQUAL -> "+";
             case GLFW.GLFW_KEY_MINUS -> "-";
             default -> "Key" + key;
         };
+    }
+    
+    /**
+     * 获取所有快捷键的格式化列表（按分类组织）
+     * 
+     * @return 分类的快捷键列表，Key 为分类名称，Value 为该分类下的快捷键列表（格式：快捷键 -> 描述）
+     */
+    public static Map<String, List<String>> getAllShortcutsByCategory() {
+        Map<String, List<String>> categories = new LinkedHashMap<>();
+        
+        // ==================== 文件操作 ====================
+        List<String> file = new ArrayList<>();
+        file.add(formatShortcut("Ctrl+N", "新建项目"));
+        file.add(formatShortcut("Ctrl+O", "打开项目"));
+        file.add(formatShortcut("Ctrl+S", "保存"));
+        file.add(formatShortcut("Ctrl+Shift+S", "另存为"));
+        file.add(formatShortcut("Alt+F4", "退出应用"));
+        categories.put("文件操作", file);
+        
+        // ==================== 播放控制 ====================
+        List<String> playback = new ArrayList<>();
+        playback.add(formatShortcut("Space", "播放/暂停"));
+        playback.add(formatShortcut("Home", "跳转到开始"));
+        playback.add(formatShortcut("End", "跳转到结束"));
+        playback.add(formatShortcut("L", "切换循环播放"));
+        categories.put("播放控制", playback);
+        
+        // ==================== 工具切换 ====================
+        List<String> tools = new ArrayList<>();
+        tools.add(formatShortcut("1 或 V", "点击选择工具"));
+        tools.add(formatShortcut("2 或 B", "框选工具"));
+        tools.add(formatShortcut("3", "魔棒工具"));
+        tools.add(formatShortcut("4", "笔刷工具"));
+        tools.add(formatShortcut("5", "面选择工具"));
+        tools.add(formatShortcut("G", "移动工具"));
+        tools.add(formatShortcut("R", "旋转工具"));
+        tools.add(formatShortcut("S", "缩放工具"));
+        tools.add(formatShortcut("Tab", "下一个工具"));
+        // 注意：上一个工具 (TOOL_PREVIOUS) 在 ShortcutAction 中定义，但尚未绑定快捷键
+        categories.put("工具切换", tools);
+        
+        // ==================== 选择操作模式 ====================
+        List<String> selection = new ArrayList<>();
+        selection.add(formatShortcut("+", "加选模式"));
+        selection.add(formatShortcut("-", "减选模式"));
+        selection.add(formatShortcut("0", "交集模式"));
+        categories.put("选择操作模式", selection);
+        
+        // ==================== 时间线操作 ====================
+        List<String> timeline = new ArrayList<>();
+        timeline.add(formatShortcut("Ctrl+Z", "撤销"));
+        timeline.add(formatShortcut("Ctrl+Y", "重做"));
+        timeline.add(formatShortcut("Ctrl+X", "剪切"));
+        timeline.add(formatShortcut("Ctrl+C", "复制"));
+        timeline.add(formatShortcut("Ctrl+V", "粘贴"));
+        timeline.add(formatShortcut("Delete", "删除选中项"));
+        timeline.add(formatShortcut("Ctrl+Delete", "删除选中项"));
+        timeline.add(formatShortcut("Shift+Delete", "删除选中项"));
+        timeline.add(formatShortcut("Alt+Delete", "删除选中项"));
+        categories.put("时间线操作", timeline);
+        
+        // ==================== Actor Gizmo 操作 ====================
+        List<String> gizmo = new ArrayList<>();
+        gizmo.add(formatShortcut("W", "Gizmo 移动模式"));
+        gizmo.add(formatShortcut("E", "Gizmo 旋转模式"));
+        categories.put("Actor Gizmo 操作", gizmo);
+        
+        // ==================== 界面操作 ====================
+        List<String> ui = new ArrayList<>();
+        ui.add(formatShortcut("F1", "显示快捷键帮助"));
+        ui.add(formatShortcut("Esc", "清除选择"));
+        categories.put("界面操作", ui);
+        
+        return categories;
+    }
+    
+    /**
+     * 格式化快捷键显示文本
+     * 
+     * @param shortcut 快捷键文本
+     * @param description 描述
+     * @return 格式化后的字符串
+     */
+    private static String formatShortcut(String shortcut, String description) {
+        return String.format("%-20s - %s", shortcut, description);
     }
 }

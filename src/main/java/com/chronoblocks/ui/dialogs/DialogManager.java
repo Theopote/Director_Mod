@@ -475,37 +475,32 @@ public class DialogManager {
      */
     private void renderShortcutsDialog() {
         ImGui.openPopup("Keyboard Shortcuts");
-        ImGui.setNextWindowSize(600, 500);
+        ImGui.setNextWindowSize(700, 600);
         
         if (ImGui.beginPopupModal("Keyboard Shortcuts", showShortcutsDialog)) {
             UITheme.title(Icons.KEYBOARD + " Keyboard Shortcuts");
             
-            UITheme.beginGroup("File");
-            ImGui.text("Ctrl+N         - New Animation");
-            ImGui.text("Ctrl+O         - Open");
-            ImGui.text("Ctrl+S         - Save");
-            ImGui.text("Ctrl+Shift+S   - Save As");
-            ImGui.text("Ctrl+E         - Export");
-            UITheme.endGroup();
-            
-            UITheme.separator();
-            
-            UITheme.beginGroup("Edit");
-            ImGui.text("Ctrl+Z         - Undo");
-            ImGui.text("Ctrl+Y         - Redo");
-            ImGui.text("Ctrl+C/X/V     - Copy/Cut/Paste");
-            ImGui.text("Del            - Delete");
-            UITheme.endGroup();
-            
-            UITheme.separator();
-            
-            UITheme.beginGroup("Animation");
-            ImGui.text("Space          - Play/Pause");
-            ImGui.text("Ctrl+Space     - Stop");
-            ImGui.text("K              - Add Keyframe");
-            ImGui.text("Shift+K        - Delete Keyframe");
-            ImGui.text("Home/End       - Go to Start/End");
-            UITheme.endGroup();
+            // 使用滚动区域以支持更多快捷键
+            if (ImGui.beginChild("##ShortcutsScroll", 0, -ImGui.getFrameHeightWithSpacing() - 10)) {
+                // 从 ShortcutBindings 获取所有快捷键（按分类）
+                var shortcutsByCategory = com.chronoblocks.ui.input.ShortcutBindings.getAllShortcutsByCategory();
+                
+                boolean firstCategory = true;
+                for (var entry : shortcutsByCategory.entrySet()) {
+                    if (!firstCategory) {
+                        UITheme.separator();
+                    }
+                    firstCategory = false;
+                    
+                    UITheme.beginGroup(entry.getKey());
+                    for (String shortcut : entry.getValue()) {
+                        ImGui.text(shortcut);
+                    }
+                    UITheme.endGroup();
+                }
+                
+                ImGui.endChild();
+            }
             
             UITheme.separator();
             
