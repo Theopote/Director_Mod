@@ -1611,10 +1611,9 @@ public class ChronoBlocksUIManager {
         
         @Override
         public void openVideoTutorial() {
-            // TODO: 打开视频教程
             LOGGER.info("[Help] Open video tutorial");
             try {
-                java.awt.Desktop.getDesktop().browse(new java.net.URI("https://chronoblocks.github.io/tutorials"));
+                java.awt.Desktop.getDesktop().browse(new java.net.URI("https://www.youtube.com/@theopote"));
             } catch (Exception e) {
                 LOGGER.error("[Help] 打开视频教程失败: {}", e.getMessage(), e);
             }
