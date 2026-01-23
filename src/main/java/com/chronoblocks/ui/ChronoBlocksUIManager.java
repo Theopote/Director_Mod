@@ -771,11 +771,9 @@ public class ChronoBlocksUIManager {
     private class ProjectCommandsImpl implements ProjectCommands {
         
         private final TimelineModel timelineModel;
-        private final MenuBarPanel menuBarPanel;
-        
+
         public ProjectCommandsImpl(TimelineModel timelineModel, MenuBarPanel menuBarPanel) {
             this.timelineModel = timelineModel;
-            this.menuBarPanel = menuBarPanel;
         }
         
         @Override
@@ -843,7 +841,9 @@ public class ChronoBlocksUIManager {
                     LOGGER.info("[Project] ChronoBlocks 窗口已关闭");
                 } else {
                     // 兜底：直接设置屏幕为 null
-                    client.setScreen(null);
+                    if (client != null) {
+                        client.setScreen(null);
+                    }
                 }
             } catch (Exception e) {
                 LOGGER.error("[Project] 退出应用失败: {}", e.getMessage(), e);
@@ -857,12 +857,10 @@ public class ChronoBlocksUIManager {
     private class TimelineCommandsImpl implements TimelineCommands {
         
         private final TimelinePanel timelinePanel;
-        private final MenuBarPanel menuBarPanel;
         private final TimelineModel timelineModel;
         
         public TimelineCommandsImpl(TimelinePanel timelinePanel, MenuBarPanel menuBarPanel, TimelineModel timelineModel) {
             this.timelinePanel = timelinePanel;
-            this.menuBarPanel = menuBarPanel;
             this.timelineModel = timelineModel;
         }
         
@@ -1307,11 +1305,8 @@ public class ChronoBlocksUIManager {
      * 摄像机命令实现（优化：直接调用 TimelineModel 和摄像机控制器）
      */
     private class CameraCommandsImpl implements CameraCommands {
-        
-        private final TimelineModel timelineModel;
-        
+
         public CameraCommandsImpl(TimelineModel timelineModel) {
-            this.timelineModel = timelineModel;
         }
         
         @Override
@@ -1586,11 +1581,8 @@ public class ChronoBlocksUIManager {
      * 帮助命令实现（优化：直接调用 MenuBarPanel）
      */
     private class HelpCommandsImpl implements HelpCommands {
-        
-        private final MenuBarPanel menuBarPanel;
-        
+
         public HelpCommandsImpl(MenuBarPanel menuBarPanel) {
-            this.menuBarPanel = menuBarPanel;
         }
         
         @Override
@@ -2400,9 +2392,8 @@ public class ChronoBlocksUIManager {
                 }
                 
                 // ⭐ TimelinePanel：注入 UICommandFacade（用于播放控制等）
-                if (panel instanceof TimelinePanel) {
+                if (panel instanceof TimelinePanel timelinePanel) {
                     try {
-                        TimelinePanel timelinePanel = (TimelinePanel) panel;
                         timelinePanel.setCommands(getOrCreateCommandFacade());
                         commandFacadeCount++;
                         

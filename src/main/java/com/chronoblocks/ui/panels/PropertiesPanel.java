@@ -429,8 +429,8 @@ public class PropertiesPanel extends AbstractPanel {
      * 渲染无选择消息
      */
     private void renderNoSelectionMessage() {
-        UITheme.spacingLarge();
-        UITheme.title(Icons.CLIPBOARD + " 属性面板");
+        //UITheme.spacingLarge();
+        //UITheme.title(Icons.CLIPBOARD + " 属性面板");
         //UITheme.spacingSmall();
         
         UITheme.label("未选择对象", UITheme.DarkTheme.TEXT_DISABLED);
