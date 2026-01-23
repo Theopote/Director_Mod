@@ -138,10 +138,6 @@ public final class ShortcutActions {
                     commands.view().togglePanel(PanelId.TOOL_PROPERTIES);
                     LOGGER.debug("[ShortcutActions] 执行: TOGGLE_TOOL_PROPERTIES");
                 }
-                case TOGGLE_HELP -> {
-                    commands.view().togglePanel(PanelId.HELP);
-                    LOGGER.debug("[ShortcutActions] 执行: TOGGLE_HELP");
-                }
                 case TOGGLE_SELECTION_FILTER -> {
                     commands.view().togglePanel(PanelId.SELECTION_FILTER);
                     LOGGER.debug("[ShortcutActions] 执行: TOGGLE_SELECTION_FILTER");

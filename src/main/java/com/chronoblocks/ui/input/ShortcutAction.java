@@ -90,9 +90,6 @@ public enum ShortcutAction {
     /** 切换工具属性面板 */
     TOGGLE_TOOL_PROPERTIES,
     
-    /** 切换帮助面板 */
-    TOGGLE_HELP,
-    
     /** 切换选择过滤器面板 */
     TOGGLE_SELECTION_FILTER,
     

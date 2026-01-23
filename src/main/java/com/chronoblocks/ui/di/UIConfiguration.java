@@ -122,7 +122,6 @@ public class UIConfiguration {
             panels.add(panelFactory.createPanel(ToolPropertiesPanel.class, minecraftClient));
             panels.add(panelFactory.createPanel(RenderSettingsPanel.class, minecraftClient));
             panels.add(panelFactory.createPanel(SelectionHistoryPanel.class, minecraftClient));
-            panels.add(panelFactory.createPanel(HelpPanel.class, minecraftClient));
             
             // 注册状态栏面板
             panels.add(panelFactory.createPanel(StatusBarPanel.class, minecraftClient));

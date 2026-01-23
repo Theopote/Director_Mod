@@ -140,13 +140,6 @@ public class PanelFactory implements IPanelFactory {
             return new SelectionHistoryPanel();
         });
         
-        // 注册HelpPanel创建器
-        registerPanelCreator(HelpPanel.class, minecraftClient -> {
-            LOGGER.debug("[PanelFactory] 创建HelpPanel (MinecraftClient: {})", 
-                minecraftClient != null ? "已注入" : "未注入");
-            return new HelpPanel();
-        });
-        
         // 注册StatusBarPanel创建器
         registerPanelCreator(StatusBarPanel.class, minecraftClient -> {
             LOGGER.debug("[PanelFactory] 创建StatusBarPanel (MinecraftClient: {})", 

@@ -67,11 +67,6 @@ public final class PanelId {
     /** 渲染设置面板 */
     public static final String RENDER_SETTINGS = "RenderSettings";
     
-    // ==================== 帮助面板 ====================
-    
-    /** 帮助面板 */
-    public static final String HELP = "Help";
-    
     // ==================== 工具方法 ====================
     
     /**
@@ -102,7 +97,6 @@ public final class PanelId {
             case "SelectionFilter" -> SELECTION_FILTER;
             case "SelectionHistory" -> SELECTION_HISTORY;
             case "RenderSettings" -> RENDER_SETTINGS;
-            case "Help" -> HELP;
             default -> null;
         };
     }

@@ -119,9 +119,10 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
     }
 
     /**
-     * 面板快捷按钮区块（属性/帮助/过滤/历史）
+     * 面板快捷按钮区块（属性/过滤/历史）
      *
      * <p>规则：先区块换行，再区块内按钮换行。</p>
+     * <p>注意：帮助面板已移除，可通过 Window 菜单 → Toggle Panels 控制。</p>
      */
     private boolean renderPanelShortcutsSection(boolean firstSection) {
         // 区块总宽估算（用于决定“区块整体是否换行”）
@@ -129,7 +130,6 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
         beginSection(firstSection, totalW);
 
         renderPanelToggleButtonWrapped(Icons.SETTINGS, "属性", ToolPropertiesPanel.class, "打开工具属性面板", ToolPropertiesPanel.PANEL_NAME);
-        renderPanelToggleButtonWrapped(Icons.HELP, "帮助", HelpPanel.class, "打开帮助面板", HelpPanel.PANEL_NAME);
         renderPanelToggleButtonWrapped(Icons.FILTER, "过滤", SelectionFilterPanel.class, "打开选择过滤器面板", SelectionFilterPanel.PANEL_NAME);
         renderPanelToggleButtonWrapped(Icons.UNDO, "历史", SelectionHistoryPanel.class, "打开选择历史面板", SelectionHistoryPanel.PANEL_NAME);
 
@@ -153,13 +153,13 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
     }
 
     private float estimatePanelShortcutsTotalWidth() {
-        // 估算四个按钮在同一行时的总宽（用来决定是否整块换行）
+        // 估算三个按钮在同一行时的总宽（用来决定是否整块换行）
+        // 注意：帮助按钮已移除，现在只有属性/过滤/历史三个按钮
         float spacing = UITheme.Spacing.ELEMENT_SPACING;
         float w1 = estimatePanelButtonWidth(Icons.SETTINGS, "属性");
-        float w2 = estimatePanelButtonWidth(Icons.HELP, "帮助");
-        float w3 = estimatePanelButtonWidth(Icons.FILTER, "过滤");
-        float w4 = estimatePanelButtonWidth(Icons.UNDO, "历史");
-        return w1 + w2 + w3 + w4 + spacing * 3;
+        float w2 = estimatePanelButtonWidth(Icons.FILTER, "过滤");
+        float w3 = estimatePanelButtonWidth(Icons.UNDO, "历史");
+        return w1 + w2 + w3 + spacing * 2;
     }
 
     private float estimatePanelButtonWidth(String icon, String label) {

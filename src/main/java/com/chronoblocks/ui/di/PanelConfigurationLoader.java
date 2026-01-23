@@ -196,7 +196,6 @@ public class PanelConfigurationLoader {
         panels.add(new PanelConfiguration.PanelDefinition("SelectionRenderSettingsPanel", true, 70));
         panels.add(new PanelConfiguration.PanelDefinition("SelectionFilterPanel", true, 80));
         panels.add(new PanelConfiguration.PanelDefinition("SelectionHistoryPanel", true, 90));
-        panels.add(new PanelConfiguration.PanelDefinition("HelpPanel", true, 100));
         
         // 状态栏面板（优先级 -10，永远在最底部）
         panels.add(new PanelConfiguration.PanelDefinition("StatusBarPanel", true, -10));
