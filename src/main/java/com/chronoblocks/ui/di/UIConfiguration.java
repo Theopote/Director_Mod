@@ -124,6 +124,9 @@ public class UIConfiguration {
             panels.add(panelFactory.createPanel(SelectionHistoryPanel.class, minecraftClient));
             panels.add(panelFactory.createPanel(HelpPanel.class, minecraftClient));
             
+            // 注册状态栏面板
+            panels.add(panelFactory.createPanel(StatusBarPanel.class, minecraftClient));
+            
             // 按优先级排序
             panels.sort(Comparator.comparingInt(IPanel::getPriority));
             

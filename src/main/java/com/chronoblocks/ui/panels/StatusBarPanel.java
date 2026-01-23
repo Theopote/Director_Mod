@@ -40,7 +40,8 @@ public class StatusBarPanel extends AbstractPanel implements IPanelRegistryAware
 
     @Override
     protected boolean shouldUseStandardWindow() {
-        return true;
+        // 状态栏需要自己管理窗口（像 MenuBar 一样），以便在 begin() 之前设置位置和大小
+        return false;
     }
 
     @Override
@@ -68,9 +69,12 @@ public class StatusBarPanel extends AbstractPanel implements IPanelRegistryAware
 
     private void renderStatusBar() {
         float barHeight = 22.0f;
+        float displayHeight = ImGui.getIO().getDisplaySizeY();
+        float displayWidth = ImGui.getIO().getDisplaySizeX();
 
-        ImGui.setNextWindowPos(0, ImGui.getIO().getDisplaySizeY() - barHeight);
-        ImGui.setNextWindowSize(ImGui.getIO().getDisplaySizeX(), barHeight);
+        // ⭐ 必须在 begin() 之前设置窗口位置和大小
+        ImGui.setNextWindowPos(0, displayHeight - barHeight);
+        ImGui.setNextWindowSize(displayWidth, barHeight);
 
         int flags =
                 ImGuiWindowFlags.NoTitleBar |
@@ -80,21 +84,23 @@ public class StatusBarPanel extends AbstractPanel implements IPanelRegistryAware
                 ImGuiWindowFlags.NoScrollWithMouse |
                 ImGuiWindowFlags.NoCollapse;
 
-        // Flat style
+        // 应用扁平样式
         ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.WindowPadding, 0.0f, 0.0f);
         ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.WindowRounding, 0.0f);
 
-        if (ImGui.begin(getWindowName(), flags)) {
-            try {
-                renderContent(barHeight);
-            } catch (Exception e) {
-                logger.error("[StatusBar] Render error", e);
-            } finally {
-                ImGui.end();
+        try {
+            if (ImGui.begin(getWindowName(), flags)) {
+                try {
+                    renderContent(barHeight);
+                } catch (Exception e) {
+                    logger.error("[StatusBar] Render error", e);
+                } finally {
+                    ImGui.end();
+                }
             }
+        } finally {
+            ImGui.popStyleVar(2);
         }
-
-        ImGui.popStyleVar(2);
     }
 
     // ==================== Content ====================

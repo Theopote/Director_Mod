@@ -442,6 +442,7 @@ public class UIConfigurationBuilder {
             case "SelectionFilterPanel" -> SelectionFilterPanel.class;
             case "SelectionHistoryPanel" -> SelectionHistoryPanel.class;
             case "HelpPanel" -> HelpPanel.class;
+            case "StatusBarPanel" -> StatusBarPanel.class;
             default -> null;
         };
     }
@@ -466,7 +467,8 @@ public class UIConfigurationBuilder {
             RenderSettingsPanel.class,
             SelectionFilterPanel.class,
             SelectionHistoryPanel.class,
-            HelpPanel.class
+            HelpPanel.class,
+            StatusBarPanel.class  // ⭐ 添加状态栏面板
         );
         
         for (Class<? extends IPanel> panelType : defaultTypes) {
