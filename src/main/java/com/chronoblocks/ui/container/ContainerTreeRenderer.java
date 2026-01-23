@@ -124,14 +124,9 @@ class ContainerTreeRenderer {
 
             // 同步展开状态到 state（用户点击箭头或双击时）
             if (nodeOpen != wasExpanded) {
-                // ✅ 节点折叠时取消正在进行的重命名（避免输入框随节点消失）
-                if (!nodeOpen && inlineRenamer.isEditing() && inlineRenamer.getEditingContainerId() != null) {
-                    // 检查正在编辑的容器是否是被折叠节点的后代
-                    UUID editingId = inlineRenamer.getEditingContainerId();
-                    Container editingContainer = controller.getContainer(editingId);
-                    if (editingContainer != null && editingContainer.isDescendantOf(container)) {
-                        inlineRenamer.cancelEditing();
-                    }
+                // ✅ 新增：如果节点被折叠，且正在编辑的对象在这个子树里，安全取消会话
+                if (!nodeOpen) {
+                    inlineRenamer.cancelIfEditingInSubtree(container);
                 }
                 
                 if (state.isExpandAll()) {

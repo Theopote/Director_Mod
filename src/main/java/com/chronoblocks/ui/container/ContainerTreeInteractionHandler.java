@@ -39,11 +39,20 @@ class ContainerTreeInteractionHandler {
             state.setHoveredContainer(container);
         }
 
+        // ✅ 双击开始重命名：开始新会话前先结束旧会话（安全）
         if (isDoubleClicked) {
+            if (inlineRenamer.isEditing() && !inlineRenamer.isRenaming(container)) {
+                inlineRenamer.cancelEditing("startRenamingOther");
+            }
             inlineRenamer.startRenaming(container);
         }
 
         if (isLeftClicked) {
+            // ✅ 点击其他节点：如果正在编辑另一个节点，按"点击别处提交"的习惯处理
+            if (inlineRenamer.isEditing() && !inlineRenamer.isRenaming(container)) {
+                inlineRenamer.requestCommit();
+            }
+
             boolean multiSelect = ImGui.getIO().getKeyCtrl();
             boolean rangeSelect = ImGui.getIO().getKeyShift();
             controller.selectContainer(container.getId(), multiSelect, rangeSelect);
@@ -92,8 +101,8 @@ class ContainerTreeInteractionHandler {
         
         // 处理空白区域的左键点击：取消选中容器
         if (ImGui.isMouseClicked(ImGuiMouseButton.Left) && !ImGui.isAnyItemHovered()) {
-            // ✅ 空白区域点击时取消编辑（clearSelection 内部已处理，这里显式调用以明确意图）
-            inlineRenamer.cancelEditing();
+            // ✅ 空白点击：取消重命名（避免误提交半成品）
+            inlineRenamer.cancelEditing("clearSelection");
             controller.clearSelection();
             LOGGER.debug("[ContainerTreeInteractionHandler] 空白区域点击：已取消选中容器");
         }
@@ -101,6 +110,11 @@ class ContainerTreeInteractionHandler {
         if (ImGui.beginDragDropTarget()) {
             Object payload = ImGui.acceptDragDropPayload(DND_PAYLOAD_TYPE);
             if (payload != null) {
+                // ✅ 拖拽到根区域时也取消编辑（避免结构变化导致的问题）
+                if (inlineRenamer.isEditing()) {
+                    inlineRenamer.cancelEditing("dragToRoot");
+                }
+                
                 // 解析载荷：可能是单个UUID或多个UUID（逗号分隔）
                 String payloadStr = (String) payload;
                 String[] ids = payloadStr.split(",");
@@ -260,6 +274,11 @@ class ContainerTreeInteractionHandler {
      * 支持批量拖拽：payloadId 可以是单个UUID或多个UUID（逗号分隔）
      */
     private void handleDropPayload(Container container, String payloadId) {
+        // ✅ 拖拽/重排会改变树结构，最容易出现"编辑框丢失/提交错对象"，所以先取消编辑
+        if (inlineRenamer.isEditing()) {
+            inlineRenamer.cancelEditing("dragMove");
+        }
+        
         // 解析载荷：可能是单个UUID或多个UUID（逗号分隔）
         String[] ids = payloadId.split(",");
         
