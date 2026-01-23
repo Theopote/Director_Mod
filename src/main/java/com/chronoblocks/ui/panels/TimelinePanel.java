@@ -455,10 +455,10 @@ public class TimelinePanel extends AbstractPanel
         // 所以控制栏到 separator 之间已经有 4px 间距了，我们不需要再手动添加
         // 但需要临时清除 ItemSpacing 以避免 separator 也自动添加间距
         ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, 0f, 0f);
-        ImGui.separator();
+        //ImGui.separator();
         // 分隔线与时间刻度栏之间的间距（等于按钮与按钮之间的间距，4像素）
         // 使用固定的像素间距，确保 Header 与 Separator 不太紧
-        ImGui.dummy(0f, UITheme.Spacing.ELEMENT_SPACING); // 4px: 分隔线到时间刻度栏的间距
+        //ImGui.dummy(0f, UITheme.Spacing.ELEMENT_SPACING); // 4px: 分隔线到时间刻度栏的间距
         ImGui.popStyleVar(); // 恢复 ItemSpacing
 
         // 4. 渲染时间线画布

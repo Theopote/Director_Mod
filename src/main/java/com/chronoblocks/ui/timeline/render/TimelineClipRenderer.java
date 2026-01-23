@@ -65,16 +65,10 @@ public final class TimelineClipRenderer {
     private static final float CLIP_TEXT_OFFSET_Y = 6.0f;
     
     /**
-     * 选中边框偏移（像素）
-     * 
-     * <p>选中片段时，边框向外扩展的偏移量。
-     */
-    private static final float CLIP_SELECTED_BORDER_OFFSET = 2.0f;
-    
-    /**
      * 调整手柄宽度（像素）
      * 
      * <p>片段左右两侧用于调整宽度的拖拽手柄宽度。
+     * 注意：虽然不再渲染视觉手柄，但此常量仍用于命中检测逻辑。
      */
     private static final float RESIZE_HANDLE_WIDTH = 6.0f;
     
@@ -179,49 +173,53 @@ public final class TimelineClipRenderer {
             col = TimelineColors.grayscale(col);
         }
 
-        if (clip == model.getSelectedClip()) {
-            float borderX1 = Math.max(contentX, x1 - CLIP_SELECTED_BORDER_OFFSET);
-            float borderX2 = Math.min(maxX, x2 + CLIP_SELECTED_BORDER_OFFSET);
-            if (borderX2 > borderX1 && !isTrackLocked) {
-                drawList.addRect(borderX1, y + 1, borderX2, y + trackH - 1, TimelineColors.COLOR_SELECTED_BORDER, 0.0f, 0, 2.0f);
+        // ✅ 扁平化样式：与摄像机路径片段保持一致，无渐变效果
+        float clipTop = y + CLIP_VERT_PADDING + 1.0f;
+        float clipBottom = y + trackH - CLIP_VERT_PADDING - 1.0f;
+        
+        // 检查是否被选中（用于边框颜色）
+        boolean isSelected = clip == model.getSelectedClip();
+        int borderColor = isSelected 
+            ? TimelineColors.COLOR_KEYFRAME_SELECTED 
+            : TimelineColors.rgba(0, 0, 0, 200);
+        
+        // 绘制片段块（扁平化风格，无圆角，无渐变）
+        drawList.addRectFilled(
+            clampedX1, clipTop, 
+            clampedX2, clipBottom,
+            col, 0.0f, 0  // 无圆角
+        );
+        
+        // 边框（选中时高亮，扁平化）
+        float borderWidth = isSelected ? 2.0f : 1.0f;
+        drawList.addRect(
+            clampedX1, clipTop,
+            clampedX2, clipBottom,
+            borderColor, 0.0f, 0, borderWidth  // 无圆角
+        );
+
+        // ✅ 文字渲染：默认白色，选中时黑色，垂直居中对齐
+        float textWidth = ImGui.calcTextSize(clip.getLabel()).x;
+        float clipWidth = clampedX2 - clampedX1;
+        if (clipWidth > textWidth + 12.0f) { // 只有足够宽时才显示文本
+            float textX = clampedX1 + Math.max(CLIP_TEXT_OFFSET_X, (clipWidth - textWidth) * 0.5f);
+            if (textX + textWidth <= maxX && textX >= contentX) {
+                // 文本颜色：默认白色，选中时黑色（与摄像机路径片段一致）
+                int textColor = isSelected 
+                    ? TimelineColors.COLOR_TEXT_DARK 
+                    : TimelineColors.COLOR_TEXT_LIGHT;
+                
+                // 垂直居中对齐：使用片段中心位置
+                float clipCenterY = (clipTop + clipBottom) * 0.5f;
+                // 文本基准线在底部，需要向上偏移约7像素以居中对齐
+                float textY = clipCenterY - 7.0f;
+                
+                drawList.addText(textX, textY, textColor, clip.getLabel());
             }
         }
 
-        // 使用限制后的坐标绘制片段（曲线类型：线条更细）
-        float clipTop = y + CLIP_VERT_PADDING + 1.0f; // 稍微细一点
-        float clipBottom = y + trackH - CLIP_VERT_PADDING - 1.0f;
-        drawList.addRectFilled(clampedX1, clipTop, clampedX2, clipBottom, col);
-        int highlightCol = TimelineColors.lighten(col);
-        drawList.addRectFilledMultiColor(
-            clampedX1, clipTop, clampedX2, y + 8,
-            highlightCol, highlightCol,
-            col, col
-        );
-
-        drawList.addRect(clampedX1, clipTop, clampedX2, clipBottom, TimelineColors.rgba(0,0,0,200));
-
-        float textWidth = ImGui.calcTextSize(clip.getLabel()).x;
-        float clipWidth = clampedX2 - clampedX1;
-        float textX = clampedX1 + Math.max(CLIP_TEXT_OFFSET_X, (clipWidth - textWidth) * 0.5f);
-        if (textX + textWidth <= maxX && textX >= contentX) {
-            drawList.addText(textX, y + CLIP_TEXT_OFFSET_Y, TimelineColors.COLOR_TEXT_DARK, clip.getLabel());
-        }
-
-        // ★ 轨道锁定功能：锁定轨道上的片段不显示调整手柄
-        if (!isTrackLocked) {
-            float controlWidth = RESIZE_HANDLE_WIDTH;
-            float handleRightX = x2 - controlWidth;
-            
-            drawList.addRectFilled(x1, clipTop, x1 + controlWidth, clipBottom, TimelineColors.COLOR_RESIZE_HANDLE);
-            drawList.addRectFilled(handleRightX, clipTop, handleRightX + controlWidth, clipBottom, TimelineColors.COLOR_RESIZE_HANDLE);
-            
-            float leftHandleCenterX = x1 + controlWidth * 0.5f;
-            drawList.addLine(leftHandleCenterX, clipTop + 2, leftHandleCenterX, clipBottom - 2, 
-                            TimelineColors.rgba(255, 255, 255, 200), 1.5f);
-            float rightHandleCenterX = handleRightX + controlWidth * 0.5f;
-            drawList.addLine(rightHandleCenterX, clipTop + 2, rightHandleCenterX, clipBottom - 2, 
-                            TimelineColors.rgba(255, 255, 255, 200), 1.5f);
-        }
+        // ✅ 移除调整手柄：调整功能通过边缘检测实现（8像素范围），不需要视觉手柄
+        // 扁平化设计下，这些手柄显得多余且不美观
 
         // ========= 关键帧渲染（曲线类型显示关键帧）=========
         float centerY = y + trackH / 2.0f;
@@ -332,33 +330,48 @@ public final class TimelineClipRenderer {
             col = TimelineColors.grayscale(col);
         }
 
-        // 选中边框
-        if (clip == model.getSelectedClip()) {
-            float borderX1 = Math.max(contentX, x1 - CLIP_SELECTED_BORDER_OFFSET);
-            float borderX2 = Math.min(maxX, x2 + CLIP_SELECTED_BORDER_OFFSET);
-            if (borderX2 > borderX1 && !isTrackLocked) {
-                drawList.addRect(borderX1, y + 1, borderX2, y + trackH - 1, TimelineColors.COLOR_SELECTED_BORDER, 0.0f, 0, 2.0f);
-            }
-        }
-
-        // Block Clip：实心区块，高度略大于 Curve
-        float blockPadding = 0.5f; // Block 比 Curve 稍微高一点
-        float clipTop = y + CLIP_VERT_PADDING - blockPadding;
-        float clipBottom = y + trackH - CLIP_VERT_PADDING + blockPadding;
-
-        // 绘制实心区块（使用普通矩形，未来可以改进为圆角）
-        drawList.addRectFilled(clampedX1, clipTop, clampedX2, clipBottom, col);
+        // ✅ 扁平化样式：与摄像机路径片段保持一致，无渐变效果
+        float clipTop = y + CLIP_VERT_PADDING + 1.0f;
+        float clipBottom = y + trackH - CLIP_VERT_PADDING - 1.0f;
         
-        // 边框（稍微内缩，营造"区块感"）
-        drawList.addRect(clampedX1 + 1, clipTop + 1, clampedX2 - 1, clipBottom - 1, TimelineColors.rgba(0, 0, 0, 200));
+        // 检查是否被选中（用于边框颜色）
+        boolean isSelected = clip == model.getSelectedClip();
+        int borderColor = isSelected 
+            ? TimelineColors.COLOR_KEYFRAME_SELECTED 
+            : TimelineColors.rgba(0, 0, 0, 200);
+        
+        // 绘制片段块（扁平化风格，无圆角，无渐变）
+        drawList.addRectFilled(
+            clampedX1, clipTop, 
+            clampedX2, clipBottom,
+            col, 0.0f, 0  // 无圆角
+        );
+        
+        // 边框（选中时高亮，扁平化）
+        float borderWidth = isSelected ? 2.0f : 1.0f;
+        drawList.addRect(
+            clampedX1, clipTop,
+            clampedX2, clipBottom,
+            borderColor, 0.0f, 0, borderWidth  // 无圆角
+        );
 
-        // 文本标签（中央显示 Action 名称）
+        // ✅ 文字渲染：默认白色，选中时黑色，垂直居中对齐
         float textWidth = ImGui.calcTextSize(actionLabel).x;
         float clipWidth = clampedX2 - clampedX1;
         if (clipWidth > textWidth + 12.0f) { // 只有足够宽时才显示文本
             float textX = clampedX1 + (clipWidth - textWidth) * 0.5f;
             if (textX + textWidth <= maxX && textX >= contentX) {
-                drawList.addText(textX, y + CLIP_TEXT_OFFSET_Y, TimelineColors.COLOR_TEXT_DARK, actionLabel);
+                // 文本颜色：默认白色，选中时黑色（与摄像机路径片段一致）
+                int textColor = isSelected 
+                    ? TimelineColors.COLOR_TEXT_DARK 
+                    : TimelineColors.COLOR_TEXT_LIGHT;
+                
+                // 垂直居中对齐：使用片段中心位置
+                float clipCenterY = (clipTop + clipBottom) * 0.5f;
+                // 文本基准线在底部，需要向上偏移约7像素以居中对齐
+                float textY = clipCenterY - 7.0f;
+                
+                drawList.addText(textX, textY, textColor, actionLabel);
             }
         }
 
