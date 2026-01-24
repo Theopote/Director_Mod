@@ -1,8 +1,6 @@
 package com.chronoblocks.ui.adapters;
 
 import com.chronoblocks.ui.adapters.events.PropertyChangeNotifier;
-import com.chronoblocks.ui.adapters.events.PropertyChangeDispatcher;
-import com.chronoblocks.ui.adapters.events.PropertyChangeScheduler;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
@@ -133,63 +131,6 @@ public abstract class BasePropertyAdapter<T> implements PropertyAdapter<T> {
     protected void notifyPropertyChange(T target, Object newValue) {
         PropertyChangeNotifier.get().notifyChange(target, "properties", null, newValue);
     }
-    
-    /**
-     * 延迟通知属性变更
-     * <p>事件会在下一帧被派发，适用于高频更新或跨线程场景。
-     *
-     * @param target       目标对象
-     * @param propertyName 属性名称
-     * @param oldValue     旧值
-     * @param newValue     新值
-     */
-    protected void notifyPropertyChangeLater(T target, String propertyName, Object oldValue, Object newValue) {
-        PropertyChangeDispatcher.get().dispatchLater(target, propertyName, oldValue, newValue);
-    }
-    
-    /**
-     * 立即派发属性变更（通过调度器）
-     * <p>使用调度器但立即派发，保持统计一致性。
-     *
-     * @param target       目标对象
-     * @param propertyName 属性名称
-     * @param oldValue     旧值
-     * @param newValue     新值
-     */
-    protected void dispatchPropertyChange(T target, String propertyName, Object oldValue, Object newValue) {
-        PropertyChangeDispatcher.get().dispatchNow(target, propertyName, oldValue, newValue);
-    }
-    
-    /**
-     * 调度属性变更（高级）
-     * <p>使用高级调度器，支持帧延迟和优先级控制。
-     *
-     * @param target       目标对象
-     * @param propertyName 属性名称
-     * @param oldValue     旧值
-     * @param newValue     新值
-     * @param priority     优先级
-     * @param delayFrames  延迟帧数
-     */
-    protected void schedulePropertyChange(T target, String propertyName, Object oldValue, Object newValue,
-                                         PropertyChangeScheduler.Priority priority, int delayFrames) {
-        PropertyChangeScheduler.get().schedule(target, propertyName, oldValue, newValue, priority, delayFrames);
-    }
-    
-    /**
-     * 调度属性变更（默认优先级）
-     * <p>使用NORMAL优先级和指定的延迟帧数。
-     *
-     * @param target       目标对象
-     * @param propertyName 属性名称
-     * @param oldValue     旧值
-     * @param newValue     新值
-     * @param delayFrames  延迟帧数
-     */
-    protected void schedulePropertyChange(T target, String propertyName, Object oldValue, Object newValue, int delayFrames) {
-        PropertyChangeScheduler.get().schedule(target, propertyName, oldValue, newValue, 
-                                              PropertyChangeScheduler.Priority.NORMAL, delayFrames);
-    }
 
     @Override
     public boolean validate(T target) {
@@ -234,37 +175,6 @@ public abstract class BasePropertyAdapter<T> implements PropertyAdapter<T> {
         
         ImGui.pushItemWidth(-labelWidth);
         boolean changed = ImGui.dragFloat("##" + label, value, speed, min, max, "%.3f");
-        ImGui.popItemWidth();
-        
-        ImGui.sameLine();
-        ImGui.text(label);
-        
-        if (changed) {
-            setter.set(value[0]);
-        }
-        
-        return changed;
-    }
-
-    /**
-     * 渲染整数属性
-     *
-     * @param label  标签
-     * @param getter 获取值的方法
-     * @param setter 设置值的方法
-     * @param speed  拖动速度
-     * @param min    最小值
-     * @param max    最大值
-     * @return 是否有修改
-     */
-    protected boolean renderIntProperty(String label,
-                                       IntGetter getter,
-                                       IntSetter setter,
-                                       int speed, int min, int max) {
-        int[] value = {getter.get()};
-        
-        ImGui.pushItemWidth(-labelWidth);
-        boolean changed = ImGui.dragInt("##" + label, value, speed, min, max);
         ImGui.popItemWidth();
         
         ImGui.sameLine();
@@ -554,34 +464,6 @@ public abstract class BasePropertyAdapter<T> implements PropertyAdapter<T> {
         void set(float[] color); // RGBA
     }
 
-    // ==================== 配置方法 ====================
-
-    /**
-     * 设置标签宽度
-     *
-     * @param width 宽度
-     */
-    public void setLabelWidth(float width) {
-        this.labelWidth = width;
-    }
-
-    /**
-     * 设置紧凑模式
-     *
-     * @param compact 是否紧凑
-     */
-    public void setCompactMode(boolean compact) {
-        this.compactMode = compact;
-    }
-
-    /**
-     * 设置调试模式
-     *
-     * @param debug 是否调试
-     */
-    public void setDebugMode(boolean debug) {
-        this.debugMode = debug;
-    }
 
     // ==================== 默认实现 ====================
 
