@@ -95,7 +95,6 @@ public final class ToolPropertyRendering {
         String d = tool.getDescription();
         if (d != null && !d.isEmpty()) ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, d);
         ImGui.spacing();
-        UITheme.label("工具ID: " + tool.getId(), UITheme.DarkTheme.TEXT_DISABLED);
     }
 
     static void renderOperationControls(SelectionTool tool) {
@@ -142,7 +141,9 @@ public final class ToolPropertyRendering {
     private static final class FaceSelectToolRenderer implements ToolPropertyRenderer<FaceSelectTool> {
         @Override
         public void render(FaceSelectTool tool, IToolPropertyRenderContext ctx) {
-            if (ImGui.collapsingHeader("传播设置", ImGuiTreeNodeFlags.DefaultOpen)) {
+            // 1) 传播设置（与魔棒「连通性与传播」同级）
+            if (ImGui.collapsingHeader(Icons.AREA + " 传播设置", ImGuiTreeNodeFlags.DefaultOpen)) {
+                ImGui.indent();
                 int idx = switch (tool.getPlaneMode()) {
                     case AUTO -> 0; case XY -> 1; case XZ -> 2; case YZ -> 3;
                 };
@@ -165,18 +166,28 @@ public final class ToolPropertyRendering {
                 if (ImGui.sliderInt("每帧步数##faceStepSize", ctx.getIntBuffer2(), 128, 16_384))
                     tool.setStepSize(ctx.getIntBuffer2()[0]);
                 ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "步数越大扩散越快，但可能带来瞬时卡顿。");
+                ImGui.unindent();
             }
-            if (ImGui.collapsingHeader("匹配规则")) {
+            // 2) 匹配规则
+            if (ImGui.collapsingHeader(Icons.FILTER + " 匹配规则", ImGuiTreeNodeFlags.DefaultOpen)) {
+                ImGui.indent();
                 if (ImGui.checkbox("忽略透明方块##faceIgnoreTransparent", tool.isIgnoreTransparent())) tool.setIgnoreTransparent(!tool.isIgnoreTransparent());
                 if (ImGui.isItemHovered()) ImGui.setTooltip("跳过玻璃、空气等透明方块。");
                 if (ImGui.checkbox("按材质传播##faceByMaterial", tool.isPropagateByMaterial())) tool.setPropagateByMaterial(!tool.isPropagateByMaterial());
                 if (ImGui.isItemHovered()) ImGui.setTooltip("按方块材质 (MapColor) 判断连通。");
                 if (ImGui.checkbox("严格匹配方块状态##faceStrictState", tool.isStrictBlockState())) tool.setStrictBlockState(!tool.isStrictBlockState());
                 if (ImGui.isItemHovered()) ImGui.setTooltip("仅传播到完全相同 BlockState 的方块。");
+                ImGui.unindent();
             }
+            // 3) 底部：选中预览（与魔棒一致）
             ImGui.spacing();
+            ImGui.separator();
             int cnt = ctx.getSelectionManager().getSelectionSet().size();
-            UITheme.label("当前选中: " + cnt + " 个方块", UITheme.DarkTheme.TEXT);
+            if (cnt > 0) {
+                ImGui.textColored(0.5f, 1.0f, 0.5f, 1.0f, Icons.STATS + " 当前选中: " + cnt + " 个方块");
+            } else {
+                ImGui.textColored(0.6f, 0.6f, 0.6f, 1.0f, Icons.STATS + " 点击方块面以选择并传播");
+            }
         }
         @Override
         public Class<FaceSelectTool> getToolClass() { return FaceSelectTool.class; }
@@ -185,12 +196,25 @@ public final class ToolPropertyRendering {
     private static final class LassoToolRenderer implements ToolPropertyRenderer<LassoSelectTool> {
         @Override
         public void render(LassoSelectTool tool, IToolPropertyRenderContext ctx) {
-            ImGui.text(Icons.LASSO + " 套索工具设置");
-            if (ImGui.checkbox("包含非实体方块##lassoIncludeNonSolid", tool.isIncludeNonSolid())) tool.setIncludeNonSolid(!tool.isIncludeNonSolid());
-            if (ImGui.isItemHovered()) ImGui.setTooltip("草、花等非实体方块也会加入选区。");
+            // 1) 套索设置（与魔棒「匹配规则」同级）
+            if (ImGui.collapsingHeader(Icons.LASSO + " 套索设置", ImGuiTreeNodeFlags.DefaultOpen)) {
+                ImGui.indent();
+                if (ImGui.checkbox("包含非实体方块##lassoIncludeNonSolid", tool.isIncludeNonSolid())) tool.setIncludeNonSolid(!tool.isIncludeNonSolid());
+                if (ImGui.isItemHovered()) ImGui.setTooltip("草、花等非实体方块也会加入选区。");
+                ImGui.spacing();
+                ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "当前采样点: " + tool.getPathSampleCount());
+                ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "绘制状态: " + (tool.isDrawing() ? "进行中" : "已结束/空闲"));
+                ImGui.unindent();
+            }
+            // 2) 底部：选中预览（与魔棒一致）
             ImGui.spacing();
-            ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "当前采样点: " + tool.getPathSampleCount());
-            ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "绘制状态: " + (tool.isDrawing() ? "进行中" : "已结束/空闲"));
+            ImGui.separator();
+            int cnt = ctx.getSelectionManager().getSelectionSet().size();
+            if (cnt > 0) {
+                ImGui.textColored(0.5f, 1.0f, 0.5f, 1.0f, Icons.STATS + " 当前选中: " + cnt + " 个方块");
+            } else {
+                ImGui.textColored(0.6f, 0.6f, 0.6f, 1.0f, Icons.STATS + " 绘制闭合路径以选择");
+            }
         }
         @Override
         public Class<LassoSelectTool> getToolClass() { return LassoSelectTool.class; }
@@ -199,8 +223,9 @@ public final class ToolPropertyRendering {
     private static final class BrushToolRenderer implements ToolPropertyRenderer<BrushSelectTool> {
         @Override
         public void render(BrushSelectTool tool, IToolPropertyRenderContext ctx) {
-            ImGui.text("🖌️ 刷选工具属性");
-            if (ImGui.collapsingHeader("几何形状", ImGuiTreeNodeFlags.DefaultOpen)) {
+            // 1) 几何形状（与魔棒「匹配规则」同级，进退关系）
+            if (ImGui.collapsingHeader(Icons.BOX + " 几何形状", ImGuiTreeNodeFlags.DefaultOpen)) {
+                ImGui.indent();
                 GeometryShape s = tool.getShape();
                 if (ImGui.beginCombo("形状##brushShape", s.getDisplayName())) {
                     for (GeometryShape sh : GeometryShape.values()) {
@@ -221,13 +246,24 @@ public final class ToolPropertyRendering {
                 if (ImGui.checkbox("空心结构##brushHollow", tool.isHollow())) tool.setHollow(!tool.isHollow());
                 ImGui.spacing();
                 UITheme.label("提示: 生成后可通过操作模式执行叠加/相减/交集等操作。", UITheme.DarkTheme.TEXT_DISABLED);
+                ImGui.unindent();
             }
-            ImGui.spacing();
-            ImGui.separator();
-            if (ImGui.collapsingHeader("过滤器设置")) {
+            // 2) 过滤器设置
+            if (ImGui.collapsingHeader(Icons.FILTER + " 过滤器设置", ImGuiTreeNodeFlags.DefaultOpen)) {
+                ImGui.indent();
                 ImGui.text(String.format("过滤管线: %d 个过滤器", tool.getPipeline().size()));
                 Runnable r = ctx.getOnRequestShowFilterPanel();
                 if (r != null && ImGui.button("编辑过滤器##brushFilters")) r.run();
+                ImGui.unindent();
+            }
+            // 3) 底部：选中预览（与魔棒一致）
+            ImGui.spacing();
+            ImGui.separator();
+            int cnt = ctx.getSelectionManager().getSelectionSet().size();
+            if (cnt > 0) {
+                ImGui.textColored(0.5f, 1.0f, 0.5f, 1.0f, Icons.STATS + " 当前选中: " + cnt + " 个方块");
+            } else {
+                ImGui.textColored(0.6f, 0.6f, 0.6f, 1.0f, Icons.STATS + " 拖拽绘制笔刷范围以选择");
             }
         }
         @Override
@@ -312,9 +348,21 @@ public final class ToolPropertyRendering {
             }
         }
         private void renderConnected(ConnectedSelectTool tool, IToolPropertyRenderContext ctx) {
-            if (ImGui.collapsingHeader("洪填充设置")) {
+            // 1) 洪填充设置（与魔棒「连通性与传播」同级）
+            if (ImGui.collapsingHeader(Icons.LINK + " 洪填充设置", ImGuiTreeNodeFlags.DefaultOpen)) {
+                ImGui.indent();
                 UITheme.label("最大选择数量: " + tool.getMaxSelectionSize(), UITheme.DarkTheme.TEXT);
                 if (ImGui.checkbox("包含对角线连接##connectedDiagonal", tool.isIncludeDiagonal())) tool.setIncludeDiagonal(!tool.isIncludeDiagonal());
+                ImGui.unindent();
+            }
+            // 2) 底部：选中预览（与魔棒一致）
+            ImGui.spacing();
+            ImGui.separator();
+            int cnt = ctx.getSelectionManager().getSelectionSet().size();
+            if (cnt > 0) {
+                ImGui.textColored(0.5f, 1.0f, 0.5f, 1.0f, Icons.STATS + " 当前选中: " + cnt + " 个方块");
+            } else {
+                ImGui.textColored(0.6f, 0.6f, 0.6f, 1.0f, Icons.STATS + " 点击相连方块以选择");
             }
         }
         @Override
@@ -324,7 +372,21 @@ public final class ToolPropertyRendering {
     private static final class BoxV3ToolRenderer implements ToolPropertyRenderer<BoxSelectTool> {
         @Override
         public void render(BoxSelectTool tool, IToolPropertyRenderContext ctx) {
-            if (ImGui.collapsingHeader("框选设置")) { /* 扩展钩子 */ }
+            // 1) 框选设置（与魔棒结构一致，暂无扩展参数）
+            if (ImGui.collapsingHeader(Icons.BOX + " 框选设置", ImGuiTreeNodeFlags.DefaultOpen)) {
+                ImGui.indent();
+                ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "拖拽绘制立方体区域，支持 Gizmo 调整。");
+                ImGui.unindent();
+            }
+            // 2) 底部：选中预览（与魔棒一致）
+            ImGui.spacing();
+            ImGui.separator();
+            int cnt = ctx.getSelectionManager().getSelectionSet().size();
+            if (cnt > 0) {
+                ImGui.textColored(0.5f, 1.0f, 0.5f, 1.0f, Icons.STATS + " 当前选中: " + cnt + " 个方块");
+            } else {
+                ImGui.textColored(0.6f, 0.6f, 0.6f, 1.0f, Icons.STATS + " 拖拽绘制框选区域");
+            }
         }
         @Override
         public Class<BoxSelectTool> getToolClass() { return BoxSelectTool.class; }
