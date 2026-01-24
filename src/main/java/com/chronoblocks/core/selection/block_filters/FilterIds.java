@@ -77,13 +77,13 @@ public final class FilterIds {
      */
     public static String getPresetDisplayName(String presetId) {
         if (presetId == null) return "";
-        switch (presetId) {
-            case "default": return "通用编辑";
-            case "terrain_edit": return "地形编辑";
-            case "plant_edit": return "植物编辑";
-            case "fluid_edit": return "流体编辑";
-            case "replaceable_edit": return "可替换方块";
-            default: return presetId;
-        }
+        return switch (presetId) {
+            case "default" -> "通用编辑";
+            case "terrain_edit" -> "地形编辑";
+            case "plant_edit" -> "植物编辑";
+            case "fluid_edit" -> "流体编辑";
+            case "replaceable_edit" -> "可替换方块";
+            default -> presetId;
+        };
     }
 }

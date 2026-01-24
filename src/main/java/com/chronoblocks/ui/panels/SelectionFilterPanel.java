@@ -19,17 +19,17 @@ import java.util.Set;
 
 /**
  * SelectionFilterPanel v3.0
- *
+ * <p>
  * UI-only 重构版本：
  * - 面向普通用户的“人话过滤”
  * - 保留完整高级过滤能力
  * - 不直接接触 Pipeline / Manager
- *
+ * <p>
  * 三层语义（底层共用 BlockFilterPipeline）：
  * - 层 1「选择内容」：基础 Checkbox，人话（忽略空气/水/岩浆，仅固体/植物/可替换）
  * - 层 2「选择模式」：Preset 的 UI 语义（切换、保存为模式）
  * - 层 3「高级过滤器」：规则选择、当前规则列表、清空、调试统计
- *
+ * <p>
  * Commands / Core 完全不变
  */
 public class SelectionFilterPanel extends AbstractPanel implements ICommandsAware {

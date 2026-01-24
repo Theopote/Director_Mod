@@ -23,7 +23,7 @@ import java.util.function.Consumer;
 
 /**
  * 🎯 SelectionManager - 选择工具管理器
- * 
+ * <p>
  * 负责管理当前选中工具、选区状态与世界交互事件。
  * - 处理工具切换（来自 Toolbar）
  * - 转发鼠标事件至当前工具
@@ -434,7 +434,7 @@ public class SelectionManager {
      */
     public BlockFilter getEffectiveBlockFilter() {
         if (globalPipeline != null && !globalPipeline.isEmpty()) {
-            return (w, p, s) -> globalPipeline.test(w, p, s);
+            return globalPipeline::test;
         }
         return BlockFilters.nonAir();
     }
@@ -752,7 +752,7 @@ public class SelectionManager {
     
     /**
      * 沿指定轴扩展或收缩当前选区。
-     * 
+     * <p>
      * 支持功能：
      * ✅ 正/负方向扩展选区
      * ✅ 自动重新计算 Bounding Box
@@ -912,7 +912,7 @@ public class SelectionManager {
     
     /**
      * 获取当前选区的包围盒（Box）
-     * 
+     * <p>
      * 用于：
      * - Gizmo 系统获取选区边界
      * - SelectionRenderer 预览框同步
