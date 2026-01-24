@@ -94,14 +94,7 @@ public class UITheme {
         public static final int RESIZE_GRIP = rgba(61, 133, 224, 51);        // 调整大小手柄
         public static final int RESIZE_GRIP_HOVERED = rgba(61, 133, 224, 153);
         public static final int RESIZE_GRIP_ACTIVE = rgba(61, 133, 224, 255);
-        
-        // 状态指示器颜色
-        public static final int DIRECTOR_ACTIVE = rgba(0, 150, 0, 255);       // 导演模式激活
-        public static final int DIRECTOR_INACTIVE = rgba(100, 100, 100, 255); // 导演模式未激活
-        public static final int FPS_GOOD = rgba(0, 255, 0, 255);              // FPS良好（绿色）
-        public static final int FPS_WARN = rgba(255, 255, 0, 255);           // FPS警告（黄色）
-        public static final int FPS_BAD = rgba(255, 0, 0, 255);             // FPS差（红色）
-        
+
         // 按钮特殊颜色
         public static final int BUTTON_DEBUG = rgba(51, 153, 204, 255);       // 调试按钮
         public static final int BUTTON_DEBUG_HOVERED = rgba(77, 179, 230, 255);
@@ -109,7 +102,7 @@ public class UITheme {
         public static final int BUTTON_DANGER = rgba(204, 51, 51, 255);       // 危险按钮（关闭）
         public static final int BUTTON_DANGER_HOVERED = rgba(255, 77, 77, 255);
         public static final int BUTTON_DANGER_ACTIVE = rgba(179, 26, 26, 255);
-        
+
         // 渲染开关颜色
         public static final int RENDER_ENABLED = rgba(51, 204, 51, 255);      // 渲染启用（绿色）
         public static final int RENDER_ENABLED_HOVERED = rgba(77, 255, 77, 255);
@@ -134,12 +127,7 @@ public class UITheme {
         public static final float MEDIUM = 12.0f;       // 中等间距
         public static final float LARGE = 16.0f;        // 大间距
         public static final float EXTRA_LARGE = 24.0f;  // 超大间距
-        
-        // 内边距
-        public static final float PADDING_TINY = 2.0f;
-        public static final float PADDING_SMALL = 4.0f;
-        public static final float PADDING_NORMAL = 8.0f;
-        public static final float PADDING_LARGE = 12.0f;
+
         
         // 面板边距（控件与面板边缘的距离，比元素间距大）
         public static final float PANEL_PADDING = 8.0f;          // 面板内边距（12px）
@@ -154,13 +142,6 @@ public class UITheme {
         public static final float BUTTON_HEIGHT = 24.0f;  // 保持24px高度
         public static final float BUTTON_PADDING_X = 6.0f;  // 按钮文字左右内边距，等于元素间距
         public static final float BUTTON_PADDING_Y = 3.0f;  // 3px边距，适配18px字体
-        
-        // 按钮宽度模式
-        public static final float BUTTON_WIDTH_AUTO = 0.0f;  // 自动宽度（根据文字长度）
-        
-        // 输入框
-        public static final float INPUT_HEIGHT = 22.0f;
-        public static final float INPUT_PADDING = 8.0f;
         
         // 输入框宽度（常用尺寸）
         public static final float INPUT_WIDTH_SMALL = 70.0f;    // 小输入框（如时间输入）
@@ -360,33 +341,7 @@ public class UITheme {
         float[] color = toFloatArray(rgba);
         style.setColor(idx, color[0], color[1], color[2], color[3]);
     }
-    
-    /**
-     * 推送调试按钮颜色样式
-     */
-    public static void pushDebugButtonColors() {
-        float[] color = toFloatArray(DarkTheme.BUTTON_DEBUG);
-        float[] hoverColor = toFloatArray(DarkTheme.BUTTON_DEBUG_HOVERED);
-        float[] activeColor = toFloatArray(DarkTheme.BUTTON_DEBUG_ACTIVE);
-        
-        ImGui.pushStyleColor(ImGuiCol.Button, color[0], color[1], color[2], color[3]);
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, hoverColor[0], hoverColor[1], hoverColor[2], hoverColor[3]);
-        ImGui.pushStyleColor(ImGuiCol.ButtonActive, activeColor[0], activeColor[1], activeColor[2], activeColor[3]);
-    }
-    
-    /**
-     * 推送危险按钮颜色样式（如关闭按钮）
-     */
-    public static void pushDangerButtonColors() {
-        float[] color = toFloatArray(DarkTheme.BUTTON_DANGER);
-        float[] hoverColor = toFloatArray(DarkTheme.BUTTON_DANGER_HOVERED);
-        float[] activeColor = toFloatArray(DarkTheme.BUTTON_DANGER_ACTIVE);
-        
-        ImGui.pushStyleColor(ImGuiCol.Button, color[0], color[1], color[2], color[3]);
-        ImGui.pushStyleColor(ImGuiCol.ButtonHovered, hoverColor[0], hoverColor[1], hoverColor[2], hoverColor[3]);
-        ImGui.pushStyleColor(ImGuiCol.ButtonActive, activeColor[0], activeColor[1], activeColor[2], activeColor[3]);
-    }
-    
+
     /**
      * RGBA颜色打包
      */
@@ -438,14 +393,7 @@ public class UITheme {
     public static void spacingLarge() {
         spacing(Spacing.MEDIUM);  // 12px，与PANEL_PADDING一致
     }
-    
-    /**
-     * 开始水平布局
-     */
-    public static void beginHorizontal() {
-        // ImGui 自动水平布局，使用 sameLine()
-    }
-    
+
     /**
      * 分隔符（加强版）
      * 
