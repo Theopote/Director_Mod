@@ -128,10 +128,15 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
         renderToolTextToggleWrapped(firstGroup);
     }
 
+    /** 当前 ItemSpacing.x，用于换行时预留间距 */
+    private static float getItemSpacingX() {
+        return ImGui.getStyle().getItemSpacing().x;
+    }
+
     /**
      * 组级换行优先：
-     * - 先决定“下一组是否整体换行”
-     * - 进入组内后，再对工具按钮做自动换行（换行时保持按钮对齐，不把下一组挤进来）
+     * - 先 sameLine 到上一项末尾，再根据「剩余宽度」决定是否换行，确保组/按钮随面板宽度自动换行
+     * - 进入组内后，对每个工具按钮：若当前行放不下则换行并对齐到 buttonsStartX
      *
      * @return false 表示已经渲染过至少一个组；true 表示仍然是第一个组（通常只会发生在 group 为空时）
      */
@@ -142,11 +147,12 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
         }
 
         float minGroupWidth = estimateMinGroupWidth(tools.getFirst());
+        float spx = getItemSpacingX();
+
         if (!firstGroup) {
-            if (minGroupWidth > ImGui.getContentRegionAvailX()) {
+            ImGui.sameLine(); // 先回到上一项末尾，才能用 getContentRegionAvailX 得到当前行剩余宽度
+            if (minGroupWidth + spx > ImGui.getContentRegionAvailX()) {
                 ImGui.newLine();
-            } else {
-                ImGui.sameLine();
             }
         }
 
@@ -162,15 +168,16 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
             if (tool == null) continue;
 
             float buttonW = getToolButtonWidth(tool);
+            float avail = ImGui.getContentRegionAvailX();
 
-            // 组内换行：如果当前行容不下按钮，则换行并把 X 对齐到 buttonsStartX
-            if (buttonW > ImGui.getContentRegionAvailX()) {
+            // 组内换行：当前行放不下则换行，并对齐到 buttonsStartX；下一项间距由下一项判断时处理
+            if (buttonW > avail) {
                 ImGui.newLine();
                 ImGui.setCursorPosX(buttonsStartX);
             }
 
             // 状态显示：只读查询，不缓存
-            boolean active = commands != null && commands.tools() != null 
+            boolean active = commands != null && commands.tools() != null
                     ? commands.tools().isToolActive(tool.getId())
                     : tool.isActive();
             boolean enabled = tool.isEnabled();
@@ -203,12 +210,9 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
                 renderToolTooltip(tool);
             }
 
-            // 下一个按钮：能放下才 sameLine，否则让下次循环触发 newLine+对齐
+            // 有下一个按钮则 sameLine，换行由下一次循环开头的「放不下则 newLine」统一处理
             if (i < tools.size() - 1) {
-                float nextW = getToolButtonWidth(tools.get(i + 1));
-                if (nextW <= ImGui.getContentRegionAvailX()) {
-                    ImGui.sameLine();
-                }
+                ImGui.sameLine();
             }
         }
 
@@ -217,13 +221,12 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
 
     private void renderToolTextToggleWrapped(boolean firstGroup) {
         float toggleW = UITheme.Spacing.BUTTON_HEIGHT;
-        float minW = toggleW + UITheme.Spacing.ELEMENT_SPACING;
+        float minW = toggleW + getItemSpacingX();
 
         if (!firstGroup) {
+            ImGui.sameLine();
             if (minW > ImGui.getContentRegionAvailX()) {
                 ImGui.newLine();
-            } else {
-                ImGui.sameLine();
             }
         }
 
