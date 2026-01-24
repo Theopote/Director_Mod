@@ -37,6 +37,7 @@ import com.chronoblocks.ui.commands.LayoutCommands;
 import com.chronoblocks.ui.commands.HelpCommands;
 import com.chronoblocks.ui.commands.ToolCommands;
 import com.chronoblocks.ui.commands.ContainerCommands;
+import com.chronoblocks.ui.commands.SelectionFilterCommands;
 import com.chronoblocks.core.playback.PlaybackController;
 import com.chronoblocks.ui.timeline.model.camera.path.CameraPathType;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
@@ -472,6 +473,7 @@ public class ChronoBlocksUIManager {
         private final HelpCommands helpCommands;
         private final ToolCommands toolCommands;
         private final ContainerCommands containerCommands;
+        private final SelectionFilterCommands selectionFilterCommands;
         
         /**
          * 构造函数 - 初始化时注入依赖（优化：直接注入，避免重复查找）
@@ -502,6 +504,7 @@ public class ChronoBlocksUIManager {
             this.helpCommands = new HelpCommandsImpl(menuBarPanel);
             this.toolCommands = new ToolCommandsImpl();
             this.containerCommands = new ContainerCommandsImpl(ChronoBlocksUIManager.this.panelRegistry);
+            this.selectionFilterCommands = new SelectionFilterCommandsImpl();
             
             // 设置时间线设置访问器（用于时间线设置对话框）
             if (timelineModel != null) {
@@ -780,6 +783,115 @@ public class ChronoBlocksUIManager {
         public ContainerCommands container() {
             return containerCommands;
         }
+        
+        @Override
+        public SelectionFilterCommands selectionFilter() {
+            return selectionFilterCommands;
+        }
+    }
+    
+    /**
+     * 选择过滤器命令实现：唯一允许操作全局 BlockFilterPipeline 的入口，Panel 不得直接碰 SelectionManager/Pipeline。
+     */
+    private static final class SelectionFilterCommandsImpl implements SelectionFilterCommands {
+        private static com.chronoblocks.core.selection.block_filters.BlockFilterPipeline getPipeline() {
+            return com.chronoblocks.core.selection.SelectionManager.get().getPipeline();
+        }
+        
+        @Override
+        public java.util.List<com.chronoblocks.core.selection.block_filters.BlockFilter> getFilters() {
+            return getPipeline().getFilters();
+        }
+        
+        @Override
+        public boolean isEmpty() { return getPipeline().isEmpty(); }
+        
+        @Override
+        public int size() { return getPipeline().size(); }
+        
+        @Override
+        public void clear() { getPipeline().clear(); }
+        
+        @Override
+        public void replaceAll(java.util.List<com.chronoblocks.core.selection.block_filters.BlockFilter> filters) {
+            var p = getPipeline();
+            p.clear();
+            if (filters != null) p.addAll(filters);
+        }
+        
+        @Override
+        public void appendFilter(com.chronoblocks.core.selection.block_filters.BlockFilter filter) {
+            if (filter != null) getPipeline().add(filter);
+        }
+        
+        @Override
+        public void removeFilterAt(int index) {
+            var list = new java.util.ArrayList<>(getPipeline().getFilters());
+            if (index >= 0 && index < list.size()) {
+                list.remove(index);
+                replaceAll(list);
+            }
+        }
+        
+        @Override
+        public void applyQuickFilter(String id) {
+            var f = com.chronoblocks.core.selection.block_filters.BlockFilterRegistry.getFilter(id);
+            if (f != null) {
+                replaceAll(java.util.List.of(f));
+                return;
+            }
+            var preset = com.chronoblocks.core.selection.block_filters.BlockFilterPresetManager.getPreset(id);
+            if (preset != null) replaceAll(preset.getFilters());
+        }
+        
+        @Override
+        public void loadPreset(String id) {
+            var preset = com.chronoblocks.core.selection.block_filters.BlockFilterPresetManager.getPreset(id);
+            if (preset != null) replaceAll(preset.getFilters());
+        }
+        
+        @Override
+        public void savePreset(String name) {
+            if (name == null || name.isBlank()) return;
+            com.chronoblocks.core.selection.block_filters.BlockFilterPresetManager.savePreset(name, getPipeline());
+        }
+        
+        @Override
+        public void deletePreset(String id) {
+            com.chronoblocks.core.selection.block_filters.BlockFilterPresetManager.deletePreset(id);
+        }
+        
+        @Override
+        public java.util.Set<String> getPresetIds() {
+            return com.chronoblocks.core.selection.block_filters.BlockFilterPresetManager.getPresetIds();
+        }
+        
+        @Override
+        public java.util.Set<String> getFilterIds() {
+            return com.chronoblocks.core.selection.block_filters.BlockFilterRegistry.getAllFilterIds();
+        }
+        
+        @Override
+        public com.chronoblocks.core.selection.block_filters.BlockFilter getFilter(String id) {
+            return com.chronoblocks.core.selection.block_filters.BlockFilterRegistry.getFilter(id);
+        }
+        
+        @Override
+        public String getFilterId(com.chronoblocks.core.selection.block_filters.BlockFilter filter) {
+            return com.chronoblocks.core.selection.block_filters.BlockFilterRegistry.getFilterId(filter);
+        }
+        
+        @Override
+        public void enableProfiling(boolean enable) { getPipeline().enableProfiling(enable); }
+        
+        @Override
+        public void resetStats() { getPipeline().resetStats(); }
+        
+        @Override
+        public long getLastNanos() { return getPipeline().getLastNanos(); }
+        
+        @Override
+        public long getTotalChecked() { return getPipeline().getTotalChecked(); }
     }
     
     /**

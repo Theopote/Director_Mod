@@ -8,6 +8,7 @@ import com.chronoblocks.core.selection.SelectionSet;
 import com.chronoblocks.core.selection.SelectionState;
 import com.chronoblocks.core.selection.SelectionTool;
 import com.chronoblocks.core.selection.block_filters.BlockFilterPipeline;
+import com.chronoblocks.core.selection.block_filters.BlockFilters;
 import com.chronoblocks.core.selection.tools.geometry.GeometryShape;
 
 import net.minecraft.util.math.BlockPos;
@@ -42,7 +43,6 @@ public class BrushSelectTool implements SelectionTool, SelectionOperationSupport
     private boolean hollow = false;
     private GeometryShape shape = GeometryShape.SPHERE;
     private SelectionOperation operation = SelectionOperation.NEW;
-    private final BlockFilterPipeline pipeline = new BlockFilterPipeline();
     private boolean isPainting = false;
 
     private volatile BrushSelectTask currentTask;
@@ -165,8 +165,12 @@ public class BrushSelectTool implements SelectionTool, SelectionOperationSupport
         return operation;
     }
 
+    /**
+     * 只读：返回全局管道（供 ToolPropertiesPanel 等展示）。刷选逻辑统一经 SelectionManager.getEffectiveFilterPipeline()。
+     */
     public BlockFilterPipeline getPipeline() {
-        return pipeline;
+        SelectionManager m = SelectionManager.get();
+        return m != null ? m.getPipeline() : new BlockFilterPipeline();
     }
 
     private void cancelCurrentTask() {
@@ -205,8 +209,12 @@ public class BrushSelectTool implements SelectionTool, SelectionOperationSupport
 
         cancelCurrentTask();
 
+        BlockFilterPipeline effective = (SelectionManager.get() != null)
+            ? SelectionManager.get().getEffectiveFilterPipeline()
+            : new BlockFilterPipeline().add(BlockFilters.nonAir());
+
         BrushSelectTask task = BrushSelectTask.start(
-            world, pos, shape, radius, height, hollow, pipeline,
+            world, pos, shape, radius, height, hollow, effective,
             new BrushSelectTask.Callback() {
             @Override
             public void onCompleted(BrushSelectTask taskRef, Set<BlockPos> result) {

@@ -3,6 +3,7 @@ package com.chronoblocks.core.selection;
 import com.chronoblocks.client.renderer.SelectionRenderer;
 import com.chronoblocks.client.renderer.ToolPreviewManager;
 import com.chronoblocks.core.selection.events.*;
+import com.chronoblocks.core.selection.block_filters.BlockFilter;
 import com.chronoblocks.core.selection.block_filters.BlockFilterPipeline;
 import com.chronoblocks.core.selection.block_filters.BlockFilters;
 import net.minecraft.util.math.BlockPos;
@@ -426,7 +427,29 @@ public class SelectionManager {
     public BlockFilterPipeline getPipeline() {
         return globalPipeline;
     }
-    
+
+    /**
+     * 获取用于方块选择的「有效过滤器」：管道非空时用管道，否则用 nonAir。
+     * 所有需要 BlockFilter 的选择逻辑应集中使用此方法，避免在工具内重复 if/else 与兜底。
+     */
+    public BlockFilter getEffectiveBlockFilter() {
+        if (globalPipeline != null && !globalPipeline.isEmpty()) {
+            return (w, p, s) -> globalPipeline.test(w, p, s);
+        }
+        return BlockFilters.nonAir();
+    }
+
+    /**
+     * 获取用于需要 BlockFilterPipeline 的「有效管道」：管道非空时返回 clone，否则返回仅含 nonAir 的管线。
+     * 供魔棒、刷选等统一使用，与 getEffectiveBlockFilter 行为一致。
+     */
+    public BlockFilterPipeline getEffectiveFilterPipeline() {
+        if (globalPipeline != null && !globalPipeline.isEmpty()) {
+            return globalPipeline.clone();
+        }
+        return new BlockFilterPipeline().add(BlockFilters.nonAir());
+    }
+
     // =====================================================
     // 🔄 面拖拽实时预览 (v4.9)
     // =====================================================

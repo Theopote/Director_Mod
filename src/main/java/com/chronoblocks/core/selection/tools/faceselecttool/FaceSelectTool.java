@@ -4,6 +4,8 @@ import com.chronoblocks.client.renderer.ToolPreviewManager;
 import com.chronoblocks.core.selection.SelectionManager;
 import com.chronoblocks.core.selection.SelectionState;
 import com.chronoblocks.core.selection.SelectionTool;
+import com.chronoblocks.core.selection.block_filters.BlockFilter;
+import com.chronoblocks.core.selection.block_filters.BlockFilters;
 
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
@@ -88,12 +90,14 @@ public class FaceSelectTool implements SelectionTool {
 
         LOGGER.info("[FaceSelectTool] 开始面选择: pos={}, face={}, block={}", pos, face, targetState.getBlock());
 
+        BlockFilter filter = getEffectiveBlockFilter();
         runningTask = new FaceSelectTask(
             world,
             pos,
             face,
             targetState,
             config,
+            filter,
             progress -> {
                 if (client != null) {
                     client.execute(() -> handleProgress(progress, isShiftDown));
@@ -142,7 +146,7 @@ public class FaceSelectTool implements SelectionTool {
                 currentHoverTask = null;
             }
 
-            FaceSelectHoverTask task = new FaceSelectHoverTask(world, pos, face, state);
+            FaceSelectHoverTask task = new FaceSelectHoverTask(world, pos, face, state, getEffectiveBlockFilter());
             currentHoverTask = task;
 
             task.start(new FaceSelectHoverTask.Callback() {
@@ -265,6 +269,12 @@ public class FaceSelectTool implements SelectionTool {
             }
         }
         ToolPreviewManager.get().clearFaceHoverPreviewImmediately();
+    }
+
+    /** 与框选、魔棒、刷选一致：使用 SelectionManager.getEffectiveBlockFilter()，空管道时 nonAir。 */
+    private BlockFilter getEffectiveBlockFilter() {
+        SelectionManager m = SelectionManager.get();
+        return m != null ? m.getEffectiveBlockFilter() : BlockFilters.nonAir();
     }
 
     @Override

@@ -6,6 +6,8 @@ import com.chronoblocks.core.selection.SelectionOperation;
 import com.chronoblocks.core.selection.SelectionOperationSupport;
 import com.chronoblocks.core.selection.SelectionState;
 import com.chronoblocks.core.selection.SelectionTool;
+import com.chronoblocks.core.selection.block_filters.BlockFilter;
+import com.chronoblocks.core.selection.block_filters.BlockFilters;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
@@ -222,11 +224,13 @@ public final class LassoSelectTool implements SelectionTool, SelectionOperationS
         cancelActiveTask();
 
         List<BlockPos> pathSnapshot = new ArrayList<>(currentPath);
+        BlockFilter filter = getEffectiveBlockFilter();
         LassoSelectTask task = new LassoSelectTask(
             world,
             pathSnapshot,
             operation,
-            includeNonSolid
+            includeNonSolid,
+            filter
         );
         activeTask = task;
         task.start();
@@ -242,6 +246,12 @@ public final class LassoSelectTool implements SelectionTool, SelectionOperationS
             activeTask.cancel();
             activeTask = null;
         }
+    }
+
+    /** 与框选、魔棒、刷选、面选一致：使用 SelectionManager.getEffectiveBlockFilter()，空管道时 nonAir。 */
+    private BlockFilter getEffectiveBlockFilter() {
+        SelectionManager m = SelectionManager.get();
+        return m != null ? m.getEffectiveBlockFilter() : BlockFilters.nonAir();
     }
 
     private void clearPreview() {

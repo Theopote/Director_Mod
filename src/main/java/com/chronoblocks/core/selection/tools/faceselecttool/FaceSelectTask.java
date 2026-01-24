@@ -1,5 +1,6 @@
 package com.chronoblocks.core.selection.tools.faceselecttool;
 
+import com.chronoblocks.core.selection.block_filters.BlockFilter;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.MapColor;
 import net.minecraft.util.math.BlockPos;
@@ -44,6 +45,8 @@ public class FaceSelectTask implements Runnable {
     private final Direction face;
     private final BlockState targetState;
     private final FaceSelectConfig config;
+    /** 全局过滤管道（与框选、魔棒、刷选一致），空时由调用方保证传入 nonAir */
+    private final BlockFilter blockFilter;
 
     /** 回调 */
     private final Consumer<TaskProgress> onProgress;
@@ -68,6 +71,7 @@ public class FaceSelectTask implements Runnable {
         Direction face,
         BlockState targetState,
         FaceSelectConfig config,
+        BlockFilter blockFilter,
         Consumer<TaskProgress> onProgress,
         Consumer<TaskResult> onComplete
     ) {
@@ -76,6 +80,7 @@ public class FaceSelectTask implements Runnable {
         this.face = Objects.requireNonNull(face, "face");
         this.targetState = Objects.requireNonNull(targetState, "targetState");
         this.config = Objects.requireNonNull(config, "config");
+        this.blockFilter = Objects.requireNonNull(blockFilter, "blockFilter");
         this.onProgress = onProgress;
         this.onComplete = onComplete;
 
@@ -122,6 +127,12 @@ public class FaceSelectTask implements Runnable {
                 break;
             }
 
+            // 全局管道：未通过则不加入选区且不继续扩散
+            BlockState currentState = world.getBlockState(current);
+            if (!blockFilter.test(world, current, currentState)) {
+                continue;
+            }
+
             accepted.add(current);
             frameDelta.add(current);
 
@@ -138,6 +149,9 @@ public class FaceSelectTask implements Runnable {
 
                 BlockState neighborState = world.getBlockState(neighbor);
                 if (!matches(neighbor, neighborState)) {
+                    continue;
+                }
+                if (!blockFilter.test(world, neighbor, neighborState)) {
                     continue;
                 }
 

@@ -74,4 +74,9 @@ public interface UICommandFacade {
      * 获取容器命令接口（删除选中容器等，供 Shortcut 与菜单调用）
      */
     ContainerCommands container();
+
+    /**
+     * 获取选择过滤器命令接口（配置方块选择管道，仅此入口；Panel 不得直接操作 SelectionManager/Pipeline）
+     */
+    SelectionFilterCommands selectionFilter();
 }

@@ -3,6 +3,8 @@ package com.chronoblocks.core.selection.tools.lassoselecttool;
 import com.chronoblocks.client.renderer.ToolPreviewManager;
 import com.chronoblocks.core.selection.SelectionManager;
 import com.chronoblocks.core.selection.SelectionOperation;
+import com.chronoblocks.core.selection.block_filters.BlockFilter;
+import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -55,6 +57,8 @@ public final class LassoSelectTask implements Runnable {
     private final List<BlockPos> path;
     private final SelectionOperation operation;
     private final boolean includeNonSolid;
+    /** 全局过滤管道（与框选、魔棒、刷选、面选一致） */
+    private final BlockFilter blockFilter;
     private final AtomicBoolean cancelled = new AtomicBoolean(false);
 
     private int minY;
@@ -63,7 +67,8 @@ public final class LassoSelectTask implements Runnable {
     public LassoSelectTask(World world,
                            List<BlockPos> path,
                            SelectionOperation operation,
-                           boolean includeNonSolid) {
+                           boolean includeNonSolid,
+                           BlockFilter blockFilter) {
         this.world = Objects.requireNonNull(world, "world");
         if (path == null || path.size() < 3) {
             throw new IllegalArgumentException("Lasso path requires at least 3 points");
@@ -76,6 +81,7 @@ public final class LassoSelectTask implements Runnable {
 
         this.operation = operation != null ? operation : SelectionOperation.NEW;
         this.includeNonSolid = includeNonSolid;
+        this.blockFilter = Objects.requireNonNull(blockFilter, "blockFilter");
 
         computeVerticalBounds();
     }
@@ -191,10 +197,11 @@ public final class LassoSelectTask implements Runnable {
 
                 for (int y = minY; y <= maxY && !cancelled.get(); y++) {
                     BlockPos pos = new BlockPos(x, y, z);
-                    if (!includeNonSolid && world.isAir(pos)) {
+                    BlockState state = world.getBlockState(pos);
+                    if (!includeNonSolid && state.isAir()) {
                         continue;
                     }
-                    if (!includeNonSolid && world.getBlockState(pos).isAir()) {
+                    if (!blockFilter.test(world, pos, state)) {
                         continue;
                     }
 

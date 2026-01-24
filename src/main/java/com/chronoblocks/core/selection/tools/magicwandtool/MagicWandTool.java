@@ -451,18 +451,15 @@ public class MagicWandTool implements SelectionTool, SelectionOperationSupport {
     }
 
     /**
-     * 获取当前激活的过滤器管线（若为空则返回 null）
+     * 获取当前激活的过滤器管线；委托 SelectionManager.getEffectiveFilterPipeline()，
+     * 与框选、刷选等行为一致。
      */
     private BlockFilterPipeline getActiveFilterPipeline() {
         SelectionManager manager = SelectionManager.get();
         if (manager == null) {
-            return null;
+            return new BlockFilterPipeline().add(com.chronoblocks.core.selection.block_filters.BlockFilters.nonAir());
         }
-        BlockFilterPipeline pipeline = manager.getPipeline();
-        if (pipeline == null || pipeline.isEmpty()) {
-            return null;
-        }
-        return pipeline.clone();
+        return manager.getEffectiveFilterPipeline();
     }
     
     // ==================== 配置访问 ====================

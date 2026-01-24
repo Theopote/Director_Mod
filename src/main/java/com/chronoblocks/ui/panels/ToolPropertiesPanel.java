@@ -16,6 +16,9 @@ import com.chronoblocks.core.selection.tools.magicwandtool.MagicWandConfig;
 import com.chronoblocks.core.selection.tools.magicwandtool.MagicWandTask;
 import com.chronoblocks.core.selection.tools.magicwandtool.MagicWandTool;
 import com.chronoblocks.core.selection.tools.lassoselecttool.LassoSelectTool;
+import com.chronoblocks.ui.PanelId;
+import com.chronoblocks.ui.aware.ICommandsAware;
+import com.chronoblocks.ui.commands.UICommandFacade;
 import com.chronoblocks.ui.theme.Icons;
 import com.chronoblocks.ui.theme.UITheme;
 import imgui.ImGui;
@@ -48,12 +51,15 @@ import java.util.Map;
  * @author ChronoBlocks Team
  * @version 3.1
  */
-public class ToolPropertiesPanel extends AbstractPanel {
+public class ToolPropertiesPanel extends AbstractPanel implements ICommandsAware {
     
     /** 面板名称常量 */
     public static final String PANEL_NAME = "ToolProperties";
     
     private static final Logger LOGGER = LoggerFactory.getLogger(ToolPropertiesPanel.class);
+    
+    /** 命令门面（由 UIPanelManager 注入） */
+    private UICommandFacade commands;
     
     /** 选择管理器 */
     private final com.chronoblocks.core.selection.SelectionManager selectionManager;
@@ -82,6 +88,20 @@ public class ToolPropertiesPanel extends AbstractPanel {
     public ToolPropertiesPanel() {
         this.selectionManager = com.chronoblocks.core.selection.SelectionManager.get();
         LOGGER.info("[ToolPropertiesPanel] 初始化动态工具属性面板 v3.1");
+    }
+
+    @Override
+    public void setCommands(UICommandFacade commands) {
+        this.commands = commands;
+    }
+
+    /**
+     * 请求显示选择过滤器面板（供「编辑过滤器」等入口调用）
+     */
+    public void requestShowSelectionFilterPanel() {
+        if (commands != null && commands.view() != null) {
+            commands.view().showPanel(PanelId.SELECTION_FILTER);
+        }
     }
 
     /**
@@ -471,11 +491,11 @@ public class ToolPropertiesPanel extends AbstractPanel {
             ImGui.spacing();
             ImGui.separator();
             
-            // 过滤器设置
+            // 过滤器设置（刷选使用全局管道，与魔棒、框选一致）
             if (ImGui.collapsingHeader("过滤器设置")) {
                 ImGui.text(String.format("过滤管线: %d 个过滤器", tool.getPipeline().size()));
                 if (ImGui.button("编辑过滤器##brushFilters")) {
-                    LOGGER.info("[ToolPropertiesPanel] TODO: 打开刷选过滤器编辑器");
+                    panel.requestShowSelectionFilterPanel();
                 }
             }
         }

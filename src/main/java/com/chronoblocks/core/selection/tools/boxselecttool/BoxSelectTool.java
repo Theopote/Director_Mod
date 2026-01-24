@@ -9,7 +9,6 @@ import com.chronoblocks.core.selection.*;
 import com.chronoblocks.core.selection.algorithms.RegionSelectors;
 import com.chronoblocks.core.selection.events.SelectionEvents;
 import com.chronoblocks.core.selection.block_filters.BlockFilter;
-import com.chronoblocks.core.selection.block_filters.BlockFilterPipeline;
 import com.chronoblocks.core.selection.history.SelectionHistoryManager;
 import com.chronoblocks.core.selection.tools.FaceHandleManager;
 import com.chronoblocks.core.selection.tools.SelectionPhase;
@@ -25,7 +24,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 
 /**
@@ -72,11 +70,6 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
 
     // ====================== 操作模式 ======================
     private SelectionOperation operation = SelectionOperation.NEW;
-    
-    // ====================== 默认过滤器 ======================
-    // 保留默认过滤器作为兜底
-    private final BlockFilterPipeline defaultPipeline = new BlockFilterPipeline()
-            .add(com.chronoblocks.core.selection.block_filters.BlockFilters.nonAir());
 
     @Override
     public String getId() {
@@ -601,9 +594,8 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
         // 📊 记录操作前状态（用于历史记录）
         SelectionState beforeState = SelectionState.of(set.asUnmodifiableSet(), getId());
 
-        // 选择过滤：优先使用全局 Pipeline，否则默认 nonAir
-        BlockFilter filter = getSelectionFilter(manager);
-
+        // 选择过滤：集中使用 SelectionManager.getEffectiveBlockFilter()
+        BlockFilter filter = manager.getEffectiveBlockFilter();
         Set<BlockPos> found = RegionSelectors.selectInBox(world, box, filter);
 
         int beforeSize = set.size();
@@ -668,34 +660,6 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
                 }
             }
         }
-    }
-
-    private BlockFilter getSelectionFilter(SelectionManager manager) {
-        BlockFilterPipeline pipeline = manager.getPipeline();
-        BlockFilter filter;
-
-        if (pipeline != null && !pipeline.isEmpty()) {
-            // 如果有多个过滤器，创建一个组合过滤器
-            List<BlockFilter> filters = pipeline.getFilters();
-            if (filters.size() == 1) {
-                filter = filters.getFirst();
-            } else {
-                // 多个过滤器：创建组合过滤器（全部通过才返回 true）
-                filter = (w, p, s) -> {
-                    for (BlockFilter f : filters) {
-                        if (!f.test(w, p, s)) return false;
-                    }
-                    return true;
-                };
-            }
-        } else {
-            // 使用默认过滤器（nonAir）
-            List<BlockFilter> defaultFilters = defaultPipeline.getFilters();
-            filter = defaultFilters.isEmpty()
-                ? com.chronoblocks.core.selection.block_filters.BlockFilters.nonAir()
-                : defaultFilters.getFirst();
-        }
-        return filter;
     }
 
     // ====================== Gizmo 相关方法 ======================

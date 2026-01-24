@@ -1,5 +1,6 @@
 package com.chronoblocks.core.selection.tools.faceselecttool;
 
+import com.chronoblocks.core.selection.block_filters.BlockFilter;
 import net.minecraft.block.BlockState;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
@@ -9,10 +10,12 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayDeque;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.ForkJoinPool;
@@ -50,6 +53,7 @@ public class FaceSelectHoverTask {
     private final BlockPos startPos;
     private final Direction face;
     private final BlockState targetState;
+    private final BlockFilter blockFilter;
     private final int maxBlocks;
     private final int stepSize;
 
@@ -59,20 +63,23 @@ public class FaceSelectHoverTask {
     public FaceSelectHoverTask(World world,
                                BlockPos startPos,
                                Direction face,
-                               BlockState targetState) {
-        this(world, startPos, face, targetState, DEFAULT_MAX_BLOCKS, DEFAULT_STEP_SIZE);
+                               BlockState targetState,
+                               BlockFilter blockFilter) {
+        this(world, startPos, face, targetState, blockFilter, DEFAULT_MAX_BLOCKS, DEFAULT_STEP_SIZE);
     }
 
     public FaceSelectHoverTask(World world,
                                BlockPos startPos,
                                Direction face,
                                BlockState targetState,
+                               BlockFilter blockFilter,
                                int maxBlocks,
                                int stepSize) {
         this.world = world;
         this.startPos = startPos != null ? startPos.toImmutable() : null;
         this.face = face;
         this.targetState = targetState;
+        this.blockFilter = Objects.requireNonNull(blockFilter, "blockFilter");
         this.maxBlocks = Math.max(1, maxBlocks);
         this.stepSize = Math.max(32, stepSize);
     }
@@ -96,6 +103,17 @@ public class FaceSelectHoverTask {
             if (callback != null) {
                 try {
                     callback.onCancelled();
+                } catch (Exception ignored) {}
+            }
+            return;
+        }
+
+        if (!blockFilter.test(world, startPos, targetState)) {
+            finished = true;
+            Result empty = new Result(Collections.emptySet(), new HashMap<>(), startPos, face, false);
+            if (callback != null) {
+                try {
+                    callback.onCompleted(empty);
                 } catch (Exception ignored) {}
             }
             return;
@@ -125,6 +143,9 @@ public class FaceSelectHoverTask {
 
                 BlockState neighborState = world.getBlockState(neighbor);
                 if (!isSameBlockType(targetState, neighborState)) {
+                    continue;
+                }
+                if (!blockFilter.test(world, neighbor, neighborState)) {
                     continue;
                 }
 
