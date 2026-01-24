@@ -97,13 +97,15 @@ public final class ShortcutContext {
                         timelineFocused);
             }
             
-            // ✅ 只有 TimelinePanel 聚焦时才允许处理快捷键（移除临时放宽逻辑）
-            // 这样可以防止在 Minecraft 游戏中操作时误触快捷键（如空格键播放）
+            // ✅ TimelinePanel 或 ContainerPanel 聚焦时允许处理快捷键
             if (timelineFocused) {
                 return true;
             }
+            if (com.chronoblocks.ui.panels.ContainerPanel.isContainerTreeFocused()) {
+                return true;
+            }
             
-            // 如果 TimelinePanel 未聚焦，不允许处理（避免在其他面板或游戏中误触发）
+            // 如果都未聚焦，不允许处理（避免在其他面板或游戏中误触发）
             return false;
         }
         

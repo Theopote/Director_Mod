@@ -69,4 +69,9 @@ public interface UICommandFacade {
      * 获取工具命令接口
      */
     ToolCommands tools();
+
+    /**
+     * 获取容器命令接口（删除选中容器等，供 Shortcut 与菜单调用）
+     */
+    ContainerCommands container();
 }

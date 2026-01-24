@@ -5,6 +5,7 @@ import imgui.flag.ImGuiWindowFlags;
 
 import com.chronoblocks.ui.commands.UICommandFacade;
 import com.chronoblocks.ui.di.IPanelRegistry;
+import com.chronoblocks.ui.aware.ICommandsAware;
 import com.chronoblocks.ui.aware.IPanelRegistryAware;
 import com.chronoblocks.ui.theme.Icons;
 import com.chronoblocks.ui.theme.UITheme;
@@ -16,7 +17,7 @@ import com.chronoblocks.core.container.ContainerManager;
  * Facade read-only status display panel.
  * No commands, no side effects.
  */
-public class StatusBarPanel extends AbstractPanel implements IPanelRegistryAware {
+public class StatusBarPanel extends AbstractPanel implements IPanelRegistryAware, ICommandsAware {
 
     private UICommandFacade commands;
     private IPanelRegistry panelRegistry;
@@ -51,8 +52,14 @@ public class StatusBarPanel extends AbstractPanel implements IPanelRegistryAware
 
     // ==================== Injection ====================
 
+    @Override
     public void setCommands(UICommandFacade commands) {
         this.commands = commands;
+    }
+
+    @Override
+    public boolean isHideableInView() {
+        return false;
     }
 
     @Override

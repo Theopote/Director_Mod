@@ -3,6 +3,7 @@ package com.chronoblocks.ui.panels;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
+import com.chronoblocks.ui.aware.ICommandsAware;
 import com.chronoblocks.ui.aware.IPanelRegistryAware;
 import com.chronoblocks.ui.di.IPanelRegistry;
 import com.chronoblocks.ui.theme.UITheme;
@@ -35,7 +36,7 @@ import java.util.List;
  * <p>
  * 这是防止架构退化的"铁门"。如果发现这些导入，说明架构已被破坏。
  */
-public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
+public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, ICommandsAware {
 
     private final ToolRegistry toolRegistry;
     private IPanelRegistry panelRegistry;
@@ -380,6 +381,7 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware {
     /**
      * 设置命令门面（供依赖注入使用）
      */
+    @Override
     public void setCommands(UICommandFacade commands) {
         this.commands = commands;
     }

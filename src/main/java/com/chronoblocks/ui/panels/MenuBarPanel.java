@@ -1,5 +1,6 @@
 package com.chronoblocks.ui.panels;
 
+import com.chronoblocks.ui.aware.ICommandsAware;
 import com.chronoblocks.ui.aware.IPanelRegistryAware;
 import com.chronoblocks.ui.timeline.model.camera.path.CameraPathType;
 import imgui.ImGui;
@@ -15,7 +16,7 @@ import net.minecraft.client.MinecraftClient;
  * ChronoBlocks MenuBar
  * Facade-based, production-safe implementation
  */
-public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware {
+public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, ICommandsAware {
 
     private UICommandFacade commands;
     private IPanelRegistry panelRegistry;
@@ -44,8 +45,19 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware {
 
     // ==================== Injection ====================
 
+    @Override
     public void setCommands(UICommandFacade commands) {
         this.commands = commands;
+    }
+
+    @Override
+    public String getRenderGroup() {
+        return "menu_bar";
+    }
+
+    @Override
+    public boolean isHideableInView() {
+        return false;
     }
 
     @Override

@@ -106,6 +106,9 @@ public enum ShortcutAction {
     
     /** 删除选中项 */
     TIMELINE_DELETE,
+
+    /** 请求删除选中的容器（弹出确认，仅当容器树焦点时） */
+    CONTAINER_DELETE,
     
     // ==================== Actor Gizmo 操作 ====================
     

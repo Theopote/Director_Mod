@@ -42,6 +42,9 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
     // 右侧属性面板折叠把手宽度（紧凑）
     private static final float PROPERTIES_HANDLE_WIDTH = 22.0f;
 
+    /** 容器树焦点状态（在 doRender 开头更新，供 ShortcutContext / ShortcutDispatcher 使用） */
+    private static volatile boolean _containerTreeFocused;
+
     private final ContainerManager containerManager;
     private final TimelineCommandHistory commandHistory;
     private final ContainerPropertiesPanel propertiesPanel;
@@ -86,6 +89,7 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
 
     @Override
     protected void doRender() {
+        _containerTreeFocused = ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
         handleKeyboardShortcuts();
 
         renderHeader();
@@ -175,6 +179,18 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("重置左右面板分割比例");
+        }
+    }
+
+    /** 容器树是否有焦点（供 ShortcutContext / ShortcutDispatcher 做 Delete 焦点路由） */
+    public static boolean isContainerTreeFocused() {
+        return _containerTreeFocused;
+    }
+
+    /** 请求删除选中容器（有选中则 setPendingDeletionRequested，由 Facade/Shortcut 调用；Delete 已迁出 handleKeyboardShortcuts） */
+    public void requestDeleteSelected() {
+        if (!containerManager.getSelectedContainersView().isEmpty()) {
+            state.setPendingDeletionRequested(true);
         }
     }
 
@@ -365,16 +381,8 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
             togglePropertiesCollapsed();
         }
 
-        // ===== 原有快捷键（Delete / Undo / Redo） =====
+        // ===== 原有快捷键（Undo / Redo；Delete 已迁到 UIShortcutCoordinator/ShortcutDispatcher） =====
         boolean ctrl = ImGui.isKeyDown(GLFW.GLFW_KEY_LEFT_CONTROL) || ImGui.isKeyDown(GLFW.GLFW_KEY_RIGHT_CONTROL);
-
-        if (ImGui.isKeyPressed(GLFW.GLFW_KEY_DELETE)) {
-            if (!containerManager.getSelectedContainersView().isEmpty()) {
-                // ✅ Delete 键：弹出删除确认对话框（与右键删除一致）
-                LOGGER.info("[ContainerPanel] Delete 键触发 -> 标记待打开删除确认弹窗");
-                state.setPendingDeletionRequested(true);
-            }
-        }
 
         if (ctrl && ImGui.isKeyPressed(GLFW.GLFW_KEY_Z)) {
             if (commandHistory.canUndo()) {

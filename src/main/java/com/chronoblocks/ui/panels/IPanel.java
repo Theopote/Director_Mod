@@ -79,6 +79,38 @@ public interface IPanel {
     default int getPriority() {
         return 100;
     }
+
+    /**
+     * 渲染分组（用于 UIPanelManager 决定渲染顺序，不依赖具体类型）。
+     * 例如 "menu_bar" 先渲染，其余为 "default"。
+     * @return 分组标识，默认 "default"
+     */
+    default String getRenderGroup() {
+        return "default";
+    }
+
+    /**
+     * 是否处于隐藏状态（占位但不绘内容）。默认 false。
+     * @see #shouldReserveDockSpaceWhenHidden()
+     */
+    default boolean isHidden() {
+        return false;
+    }
+
+    /**
+     * 隐藏时是否保留 DockSpace 占位。默认 false。
+     */
+    default boolean shouldReserveDockSpaceWhenHidden() {
+        return false;
+    }
+
+    /**
+     * 在「隐藏所有面板」等操作中是否可被隐藏。MenuBar、StatusBar 通常为 false。
+     * @return 默认 true
+     */
+    default boolean isHideableInView() {
+        return true;
+    }
     
     // ========== 输入事件处理方法 ==========
     

@@ -86,8 +86,8 @@ public final class ShortcutBindings {
         registerModifierBinding(GLFW.GLFW_KEY_Z, 1, ShortcutAction.TIMELINE_UNDO); // Ctrl = 1
         // Ctrl+Y: 重做
         registerModifierBinding(GLFW.GLFW_KEY_Y, 1, ShortcutAction.TIMELINE_REDO); // Ctrl = 1
-        // Delete: 删除时间线项（允许带修饰键）
-        KEY_BINDINGS.put(GLFW.GLFW_KEY_DELETE, ShortcutAction.TIMELINE_DELETE);
+        // 无修饰 Delete：由 ShortcutDispatcher 按 Container/Timeline 焦点路由到 CONTAINER_DELETE 或 TIMELINE_DELETE，此处不绑定
+        // 带修饰 Delete：仍映射到 TIMELINE_DELETE
         registerModifierBinding(GLFW.GLFW_KEY_DELETE, 1, ShortcutAction.TIMELINE_DELETE); // Ctrl+Delete
         registerModifierBinding(GLFW.GLFW_KEY_DELETE, 2, ShortcutAction.TIMELINE_DELETE); // Shift+Delete
         registerModifierBinding(GLFW.GLFW_KEY_DELETE, 4, ShortcutAction.TIMELINE_DELETE); // Alt+Delete

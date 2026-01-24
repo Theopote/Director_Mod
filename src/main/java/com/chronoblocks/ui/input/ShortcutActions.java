@@ -167,6 +167,10 @@ public final class ShortcutActions {
                         LOGGER.debug("[ShortcutActions] TIMELINE_DELETE 失败，回退到 CLEAR_SELECTION");
                     }
                 }
+                case CONTAINER_DELETE -> {
+                    commands.container().requestDeleteSelected();
+                    LOGGER.debug("[ShortcutActions] 执行: CONTAINER_DELETE");
+                }
                 
                 // ==================== Actor Gizmo 操作 ====================
                 case GIZMO_MOVE -> {

@@ -114,8 +114,20 @@ public class ShortcutDispatcher {
         boolean shiftPressed = (modifiers & GLFW.GLFW_MOD_SHIFT) != 0;
         boolean altPressed = (modifiers & GLFW.GLFW_MOD_ALT) != 0;
         
-        // 查找对应的快捷键动作（支持修饰键）
-        ShortcutAction shortcut = ShortcutBindings.getAction(key, ctrlPressed, shiftPressed, altPressed);
+        // 无修饰 Delete：按焦点路由到 CONTAINER_DELETE 或 TIMELINE_DELETE；带修饰的 Delete 仍走 ShortcutBindings -> TIMELINE_DELETE
+        ShortcutAction shortcut;
+        if (key == GLFW.GLFW_KEY_DELETE && !ctrlPressed && !shiftPressed && !altPressed) {
+            if (com.chronoblocks.ui.panels.ContainerPanel.isContainerTreeFocused()) {
+                shortcut = ShortcutAction.CONTAINER_DELETE;
+            } else if (com.chronoblocks.ui.panels.TimelinePanel.isFocused()) {
+                shortcut = ShortcutAction.TIMELINE_DELETE;
+            } else {
+                shortcut = null;
+            }
+        } else {
+            shortcut = ShortcutBindings.getAction(key, ctrlPressed, shiftPressed, altPressed);
+        }
+        
         if (shortcut == null) {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("[ShortcutDispatcher] 未找到快捷键绑定: key={}, ctrl={}, shift={}, alt={}", 

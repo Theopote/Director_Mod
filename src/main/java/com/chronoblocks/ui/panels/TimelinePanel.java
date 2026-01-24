@@ -16,6 +16,7 @@ import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.TimelineViewportState;
 import com.chronoblocks.ui.timeline.model.audio.AudioClipKeyframe;
 import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
+import com.chronoblocks.ui.timeline.model.entity.EntityClipKeyframe;
 import com.chronoblocks.ui.timeline.model.time.TimeKeyframe;
 import com.chronoblocks.ui.timeline.model.weather.WeatherKeyframe;
 import com.chronoblocks.ui.timeline.render.TimelineRenderer;
@@ -24,10 +25,7 @@ import com.chronoblocks.ui.timeline.ui.TimelineControlBar;
 import com.chronoblocks.ui.timeline.shortcuts.TimelineShortcutManager;
 import com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController;
 import com.chronoblocks.ui.timeline.playback.time.TimelineWorldController;
-// ⚠️ TimelineSeasonController 使用完全限定名，不需要导入
-// import com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController;
 import com.chronoblocks.ui.input.GlobalShortcutManager;
-import com.chronoblocks.ui.theme.UITheme;
 import net.minecraft.client.MinecraftClient;
 import imgui.ImGui;
 import imgui.ImDrawList;
@@ -79,7 +77,9 @@ import java.util.UUID;
 public class TimelinePanel extends AbstractPanel
         implements TimelineInteractionHandler.InteractionCallbacks,
         TimelineControlBar.Callbacks,
-        ContainerManager.ContainerListener {
+        ContainerManager.ContainerListener,
+        com.chronoblocks.ui.aware.ICommandsAware,
+        com.chronoblocks.ui.aware.IPlaybackModelProvider {
     private static final Logger LOGGER = LoggerFactory.getLogger(TimelinePanel.class);
 
     // ========== UI 布局常量（v9.0 优化：提取常量数值）==========
@@ -1086,26 +1086,8 @@ public class TimelinePanel extends AbstractPanel
                         String.format("%.2f", clickTime), clip.getLabel());
             } else {
                 // 创建 EntityClipKeyframe
-                com.chronoblocks.ui.timeline.model.entity.EntityClipKeyframe keyframe = 
-                    new com.chronoblocks.ui.timeline.model.entity.EntityClipKeyframe(clickTime);
-                
-                // 采样当前状态作为初始值
-                if (track != null && track.getType() == com.chronoblocks.ui.timeline.model.TrackType.ENTITY) {
-                    com.chronoblocks.ui.timeline.model.entity.EntityTrack entityTrack = 
-                        track.getEntityTrackPayload();
-                    if (entityTrack != null) {
-                        com.chronoblocks.ui.timeline.playback.entity.EntityClipSampler sampler = 
-                            new com.chronoblocks.ui.timeline.playback.entity.EntityClipSampler(entityTrack);
-                        com.chronoblocks.ui.timeline.playback.entity.EntitySample sample = 
-                            sampler.sampleAt(clickTime);
-                        if (sample != null && sample.enabled) {
-                            keyframe.setPosition(sample.position.x, sample.position.y, sample.position.z);
-                            keyframe.setRotation(sample.rotation.x, sample.rotation.y, sample.rotation.z);
-                            keyframe.setScale(sample.scale.x, sample.scale.y, sample.scale.z);
-                        }
-                    }
-                }
-                
+                EntityClipKeyframe keyframe = getEntityClipKeyframe(clickTime, track);
+
                 entityClip.addKeyframe(keyframe);
                 markDataChanged();
                 LOGGER.debug("[TimelinePanel] 添加 EntityClipKeyframe at {}s (片段: {})",
@@ -1129,6 +1111,29 @@ public class TimelinePanel extends AbstractPanel
             LOGGER.debug("[TimelinePanel] ???????????????at {}s (??????: {})",
                     String.format("%.2f", clickTime), clip.getLabel());
         }
+    }
+
+    private static @NotNull EntityClipKeyframe getEntityClipKeyframe(float clickTime, TimelineTrack track) {
+        EntityClipKeyframe keyframe =
+            new EntityClipKeyframe(clickTime);
+
+        // 采样当前状态作为初始值
+        if (track != null && track.getType() == TrackType.ENTITY) {
+            com.chronoblocks.ui.timeline.model.entity.EntityTrack entityTrack =
+                track.getEntityTrackPayload();
+            if (entityTrack != null) {
+                com.chronoblocks.ui.timeline.playback.entity.EntityClipSampler sampler =
+                    new com.chronoblocks.ui.timeline.playback.entity.EntityClipSampler(entityTrack);
+                com.chronoblocks.ui.timeline.playback.entity.EntitySample sample =
+                    sampler.sampleAt(clickTime);
+                if (sample != null && sample.enabled) {
+                    keyframe.setPosition(sample.position.x, sample.position.y, sample.position.z);
+                    keyframe.setRotation(sample.rotation.x, sample.rotation.y, sample.rotation.z);
+                    keyframe.setScale(sample.scale.x, sample.scale.y, sample.scale.z);
+                }
+            }
+        }
+        return keyframe;
     }
 
     private void renderInlineEdit(float winX, float trackRegionTop, float scrollY) {
@@ -1663,6 +1668,7 @@ public class TimelinePanel extends AbstractPanel
     /**
      * 设置命令门面（供依赖注入使用）
      */
+    @Override
     public void setCommands(com.chronoblocks.ui.commands.UICommandFacade commands) {
         this.commands = commands;
         // 同时传递给 TimelineControlBar（如果已创建）
@@ -1727,6 +1733,7 @@ public class TimelinePanel extends AbstractPanel
      * 
      * @return TimelineModel 实例
      */
+    @Override
     public TimelineModel getModel() {
         return model;
     }

@@ -1,9 +1,7 @@
 package com.chronoblocks.ui;
 
 import com.chronoblocks.ui.panels.IPanel;
-import com.chronoblocks.ui.panels.AbstractPanel;
 import com.chronoblocks.ui.panels.MenuBarPanel;
-import com.chronoblocks.ui.panels.StatusBarPanel;
 import com.chronoblocks.ui.panels.ToolbarPanel;
 import com.chronoblocks.ui.panels.TimelinePanel;
 import com.chronoblocks.ui.panels.PropertiesPanel;
@@ -12,8 +10,10 @@ import com.chronoblocks.ui.di.UIConfiguration;
 import com.chronoblocks.ui.di.IPanelRegistry;
 import com.chronoblocks.ui.di.PanelRegistry;
 import com.chronoblocks.ui.layout.LayoutPersistenceManager;
-import com.chronoblocks.ui.aware.IPanelRegistryAware;
-import com.chronoblocks.ui.aware.IUIManagerAware;
+import com.chronoblocks.ui.coordinator.UIPanelManager;
+import com.chronoblocks.ui.coordinator.UIPlaybackBridge;
+import com.chronoblocks.ui.coordinator.UIShortcutCoordinator;
+import com.chronoblocks.ui.coordinator.UIDialogCoordinator;
 import com.chronoblocks.ui.imgui.ImGuiUtils;
 import com.chronoblocks.ui.theme.UITheme;
 import com.chronoblocks.ui.properties.PropertyAdapterBootstrap;
@@ -36,6 +36,7 @@ import com.chronoblocks.ui.commands.ViewCommands;
 import com.chronoblocks.ui.commands.LayoutCommands;
 import com.chronoblocks.ui.commands.HelpCommands;
 import com.chronoblocks.ui.commands.ToolCommands;
+import com.chronoblocks.ui.commands.ContainerCommands;
 import com.chronoblocks.core.playback.PlaybackController;
 import com.chronoblocks.ui.timeline.model.camera.path.CameraPathType;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
@@ -47,13 +48,20 @@ import java.util.List;
 import java.util.Objects;
 
 import imgui.ImGui;
-import imgui.flag.ImGuiWindowFlags;
 
 /**
  * ChronoBlocks UI Manager - 核心UI管理器
  * <p>
  * 这是 ChronoBlocks 动画编辑器的核心UI管理器，负责协调和管理所有UI面板的渲染和交互。
  * 采用现代化的依赖注入架构，提供高度可扩展和可维护的UI系统。
+ *
+ * <h3>职责协调器（4 个子模块）：</h3>
+ * <ul>
+ *   <li><strong>UIPanelManager</strong> - 面板注册、依赖注入、renderAll、show/hide/toggle</li>
+ *   <li><strong>UIPlaybackBridge</strong> - UI 帧循环 ↔ PlaybackOrchestrator.tick(delta)</li>
+ *   <li><strong>UIShortcutCoordinator</strong> - 持有 ShortcutDispatcher，统一快捷键入口</li>
+ *   <li><strong>UIDialogCoordinator</strong> - 持有 DialogManager，统一 dialog 渲染</li>
+ * </ul>
  *
  * <h3>核心功能特性：</h3>
  * <ul>
@@ -267,9 +275,12 @@ public class ChronoBlocksUIManager {
     
     // 布局持久化管理器
     private final LayoutPersistenceManager layoutManager;
-    
-    // 对话框管理器
-    private final com.chronoblocks.ui.dialogs.DialogManager dialogManager;
+
+    // ========== 职责协调器（4 个子模块）==========
+    private final UIDialogCoordinator dialogCoordinator;
+    private final UIPanelManager panelManager;
+    private final UIPlaybackBridge playbackBridge;
+    private final UIShortcutCoordinator shortcutCoordinator;
 
     // 性能监控
     private long renderCount = 0;
@@ -278,9 +289,6 @@ public class ChronoBlocksUIManager {
 
     // ========== 视频导出 UI（v5.2）==========
     private final VideoExportProgressOverlay videoExportProgressOverlay = new VideoExportProgressOverlay();
-    
-    // ========== 动画系统更新（v4.5）==========
-    private long lastUpdateTime = System.currentTimeMillis();
 
     // DockSpace相关常量
     private static final int DOCKSPACE_FLAGS = imgui.flag.ImGuiWindowFlags.NoTitleBar |
@@ -337,17 +345,15 @@ public class ChronoBlocksUIManager {
         
         // 初始化布局持久化管理器
         this.layoutManager = LayoutPersistenceManager.getInstance();
-        
-        // 初始化对话框管理器
-        this.dialogManager = new com.chronoblocks.ui.dialogs.DialogManager();
-        // 设置新建动画确认回调
-        this.dialogManager.setNewAnimationConfirmCallback(() -> {
+
+        // 创建职责协调器
+        this.dialogCoordinator = new UIDialogCoordinator();
+        getDialogManager().setNewAnimationConfirmCallback(() -> {
             try {
                 TimelinePanel timelinePanel = panelRegistry.getPanel(TimelinePanel.class);
                 if (timelinePanel != null) {
                     timelinePanel.resetWorkspace(true);
                 } else {
-                    // 兜底：清空容器并删除时间线存档
                     Objects.requireNonNull(com.chronoblocks.core.container.ContainerManager.getInstance()).clear();
                     com.chronoblocks.ui.timeline.persistence.TimelineModelPersistence.resetForCurrentWorld();
                 }
@@ -355,6 +361,9 @@ public class ChronoBlocksUIManager {
                 LOGGER.error("[UIManager] 新建动画重置失败: {}", e.getMessage(), e);
             }
         });
+        this.panelManager = new UIPanelManager(panelRegistry, this, this::getOrCreateCommandFacade);
+        this.playbackBridge = new UIPlaybackBridge();
+        this.shortcutCoordinator = new UIShortcutCoordinator();
 
         // 重置DockSpace布局构建器状态，以便首次打开时应用默认布局
         com.chronoblocks.ui.layout.DockSpaceLayoutBuilder.resetLayoutState();
@@ -375,11 +384,9 @@ public class ChronoBlocksUIManager {
         com.chronoblocks.ui.adapters.PropertyAdapterModule.initialize();
         LOGGER.info("[ChronoBlocks] 新属性系统已初始化");
         
-        // 初始化所有面板
-        initializeAllPanels();
-        
-        // 设置面板注册表引用（用于面板间通信）
-        setupPanelRegistryReferences();
+        // 初始化所有面板 & 设置依赖引用（UIPanelManager）
+        panelManager.initializeAll();
+        panelManager.setupReferences();
         
         // 根据当前世界的布局还原面板可见性
         restorePanelVisibilityFromLayout();
@@ -393,6 +400,14 @@ public class ChronoBlocksUIManager {
      */
     public IPanelRegistry getPanelRegistry() {
         return panelRegistry;
+    }
+
+    /**
+     * 获取 DialogManager（供 CommandFacade、Layout 等配置与调用）。
+     * 由 UIDialogCoordinator 持有，此处统一接入。
+     */
+    private com.chronoblocks.ui.dialogs.DialogManager getDialogManager() {
+        return dialogCoordinator.getDialogManager();
     }
     
     /**
@@ -409,17 +424,15 @@ public class ChronoBlocksUIManager {
     // ==================== 命令门面实现 ====================
     
     private UICommandFacade commandFacade;
-    private final UILayoutFacade layoutFacade = new UILayoutFacadeImpl();
-    private com.chronoblocks.ui.input.ShortcutDispatcher shortcutDispatcher;
-    
+
     /**
      * 延迟初始化命令门面（懒加载模式，确保面板已完全初始化）
      */
     private UICommandFacade getOrCreateCommandFacade() {
         if (commandFacade == null) {
             commandFacade = new UICommandFacadeImpl();
-            // 初始化 ShortcutDispatcher（传入 panelRegistry 用于面板焦点检测）
-            shortcutDispatcher = new com.chronoblocks.ui.input.ShortcutDispatcher(commandFacade, panelRegistry);
+            var d = new com.chronoblocks.ui.input.ShortcutDispatcher(commandFacade, panelRegistry);
+            shortcutCoordinator.setShortcutDispatcher(d);
             LOGGER.info("[ChronoBlocksUIManager] ShortcutDispatcher 已初始化");
         }
         return commandFacade;
@@ -431,9 +444,8 @@ public class ChronoBlocksUIManager {
      * @return ShortcutDispatcher 实例
      */
     public com.chronoblocks.ui.input.ShortcutDispatcher getShortcutDispatcher() {
-        // 确保 Facade 已初始化（这会同时初始化 ShortcutDispatcher）
         getOrCreateCommandFacade();
-        return shortcutDispatcher;
+        return shortcutCoordinator.getShortcutDispatcher();
     }
     
     /**
@@ -459,6 +471,7 @@ public class ChronoBlocksUIManager {
         private final LayoutCommands layoutCommands;
         private final HelpCommands helpCommands;
         private final ToolCommands toolCommands;
+        private final ContainerCommands containerCommands;
         
         /**
          * 构造函数 - 初始化时注入依赖（优化：直接注入，避免重复查找）
@@ -484,15 +497,16 @@ public class ChronoBlocksUIManager {
             this.timelineCommands = new TimelineCommandsImpl(timelinePanel, menuBarPanel, timelineModel);
             this.playbackCommands = new PlaybackCommandsImpl(timelineModel);
             this.cameraCommands = new CameraCommandsImpl(timelineModel);
-            this.viewCommands = new ViewCommandsImpl(panelRegistry);
+            this.viewCommands = new ViewCommandsImpl(ChronoBlocksUIManager.this.panelManager);
             this.layoutCommands = new LayoutCommandsImpl(layoutManager);
             this.helpCommands = new HelpCommandsImpl(menuBarPanel);
             this.toolCommands = new ToolCommandsImpl();
+            this.containerCommands = new ContainerCommandsImpl(ChronoBlocksUIManager.this.panelRegistry);
             
             // 设置时间线设置访问器（用于时间线设置对话框）
-            if (timelineModel != null && ChronoBlocksUIManager.this.dialogManager != null) {
+            if (timelineModel != null) {
                 // 设置时间线设置访问器
-                ChronoBlocksUIManager.this.dialogManager.setTimelineSettingsAccessor(
+                ChronoBlocksUIManager.this.getDialogManager().setTimelineSettingsAccessor(
                     new com.chronoblocks.ui.dialogs.DialogManager.TimelineSettingsAccessor() {
                         @Override
                         public com.chronoblocks.ui.timeline.snapping.TimelineSnapSettings getSnapSettings() {
@@ -697,8 +711,7 @@ public class ChronoBlocksUIManager {
             }
             
             // 设置布局访问器（用于保存/加载布局预设对话框）
-            if (ChronoBlocksUIManager.this.dialogManager != null) {
-                ChronoBlocksUIManager.this.dialogManager.setLayoutAccessor(
+            ChronoBlocksUIManager.this.getDialogManager().setLayoutAccessor(
                     new com.chronoblocks.ui.dialogs.DialogManager.LayoutAccessor() {
                         @Override
                         public boolean saveLayoutPreset(String presetName) {
@@ -721,7 +734,6 @@ public class ChronoBlocksUIManager {
                         }
                     }
                 );
-            }
         }
         
         @Override
@@ -763,6 +775,28 @@ public class ChronoBlocksUIManager {
         public ToolCommands tools() {
             return toolCommands;
         }
+        
+        @Override
+        public ContainerCommands container() {
+            return containerCommands;
+        }
+    }
+    
+    /**
+     * 容器命令实现（从 panelRegistry 取 ContainerPanel，委托 requestDeleteSelected）
+     */
+    private class ContainerCommandsImpl implements ContainerCommands {
+        private final IPanelRegistry registry;
+        ContainerCommandsImpl(IPanelRegistry registry) {
+            this.registry = registry;
+        }
+        @Override
+        public void requestDeleteSelected() {
+            ContainerPanel panel = registry.getPanel(ContainerPanel.class);
+            if (panel != null) {
+                panel.requestDeleteSelected();
+            }
+        }
     }
     
     /**
@@ -779,7 +813,7 @@ public class ChronoBlocksUIManager {
         @Override
         public void newProject() {
             // 显示确认对话框
-            ChronoBlocksUIManager.this.dialogManager.showNewAnimationConfirm();
+            ChronoBlocksUIManager.this.getDialogManager().showNewAnimationConfirm();
         }
         
         @Override
@@ -866,7 +900,7 @@ public class ChronoBlocksUIManager {
         
         @Override
         public void openTimelineSettings() {
-            ChronoBlocksUIManager.this.dialogManager.showTimelineSettingsDialog();
+            ChronoBlocksUIManager.this.getDialogManager().showTimelineSettingsDialog();
         }
         
         @Override
@@ -1287,12 +1321,8 @@ public class ChronoBlocksUIManager {
         
         @Override
         public void tick(float deltaTime) {
-            // ⚠️ 播放驱动已迁移到 PlaybackOrchestrator（在 UIManager.updateAnimationSystem() 中调用）
-            // Facade 的 tick() 方法保留用于向后兼容，但实际驱动由 Orchestrator 负责
-            // 这样可以确保播放系统在任何情况下（面板隐藏/失焦）都保持一致
-            // 
-            // 注意：如果外部代码直接调用 commands.playback().tick()，会触发 Orchestrator
-            // 但通常应该通过 UIManager.updateAnimationSystem() 统一驱动
+            // ⚠️ 播放驱动已迁移到 UIPlaybackBridge（在 UIManager.render() 中每帧调用 playbackBridge.tick()）
+            // Facade 的 tick() 方法保留用于向后兼容；实际驱动由 UIPlaybackBridge → PlaybackOrchestrator 统一负责
             if (timelineModel != null) {
                 // 委托给 Orchestrator（确保统一驱动）
                 com.chronoblocks.ui.timeline.playback.PlaybackOrchestrator.get().bindModel(timelineModel);
@@ -1338,102 +1368,39 @@ public class ChronoBlocksUIManager {
     }
     
     /**
-     * 视图命令实现（优化：直接使用 panelRegistry）
+     * 视图命令实现（委托 UIPanelManager）
      */
     private class ViewCommandsImpl implements ViewCommands {
         
-        private final IPanelRegistry panelRegistry;
+        private final UIPanelManager panelManager;
         
-        public ViewCommandsImpl(IPanelRegistry panelRegistry) {
-            this.panelRegistry = panelRegistry;
+        public ViewCommandsImpl(UIPanelManager panelManager) {
+            this.panelManager = panelManager;
         }
         
         @Override
         public void showPanel(String panelId) {
-            IPanel panel = findPanelById(panelId);
-            if (panel != null) {
-                panel.setVisible(true);
-                LOGGER.debug("[ViewCommands] 显示面板: {}", panelId);
-            } else {
-                LOGGER.warn("[ViewCommands] 未找到面板: {}", panelId);
-            }
+            panelManager.showPanel(panelId);
         }
         
         @Override
         public void hidePanel(String panelId) {
-            IPanel panel = findPanelById(panelId);
-            if (panel != null) {
-                panel.setVisible(false);
-                LOGGER.debug("[ViewCommands] 隐藏面板: {}", panelId);
-            } else {
-                LOGGER.warn("[ViewCommands] 未找到面板: {}", panelId);
-            }
+            panelManager.hidePanel(panelId);
         }
         
         @Override
         public void togglePanel(String panelId) {
-            IPanel panel = findPanelById(panelId);
-            if (panel != null) {
-                panel.setVisible(!panel.isVisible());
-                LOGGER.debug("[ViewCommands] 切换面板可见性: {} -> {}", panelId, panel.isVisible());
-            } else {
-                LOGGER.warn("[ViewCommands] 未找到面板: {}", panelId);
-            }
+            panelManager.togglePanel(panelId);
         }
         
         @Override
         public void showAllPanels() {
-            int count = 0;
-            for (IPanel panel : panelRegistry.getAllPanels()) {
-                panel.setVisible(true);
-                count++;
-            }
-            LOGGER.debug("[ViewCommands] 显示所有面板: {} 个", count);
+            panelManager.showAllPanels();
         }
         
         @Override
         public void hideAllPanels() {
-            int count = 0;
-            for (IPanel panel : panelRegistry.getAllPanels()) {
-                // 不隐藏 MenuBar 和 StatusBar（这些是固定面板）
-                if (!(panel instanceof MenuBarPanel) && !(panel instanceof com.chronoblocks.ui.panels.StatusBarPanel)) {
-                    panel.setVisible(false);
-                    count++;
-                }
-            }
-            LOGGER.debug("[ViewCommands] 隐藏所有面板: {} 个", count);
-        }
-        
-        /**
-         * 根据面板ID查找面板实例
-         * @param panelId 面板ID（PanelId常量或面板名称）
-         * @return 面板实例，如果未找到则返回 null
-         */
-        private IPanel findPanelById(String panelId) {
-            // PanelId 常量的值就是面板名称，所以可以直接使用 panelId 作为面板名称
-            // 但需要处理一些特殊情况（如 MENU_BAR -> "MenuBar"）
-            String actualName = switch (panelId) {
-                case com.chronoblocks.ui.PanelId.MENU_BAR -> "MenuBar";
-                case com.chronoblocks.ui.PanelId.STATUS_BAR -> "StatusBar";
-                case com.chronoblocks.ui.PanelId.TOOL_PROPERTIES -> "ToolProperties";
-                case com.chronoblocks.ui.PanelId.SELECTION_FILTER -> "SelectionFilter";
-                case com.chronoblocks.ui.PanelId.SELECTION_HISTORY -> "SelectionHistory";
-                case com.chronoblocks.ui.PanelId.RENDER_SETTINGS -> "RenderSettings";
-                default -> panelId; // 大多数 PanelId 常量的值就是面板名称
-            };
-            
-            // 遍历所有面板，查找匹配的面板名称
-            for (IPanel panel : panelRegistry.getAllPanels()) {
-                if (actualName.equals(panel.getPanelName())) {
-                    return panel;
-                }
-            }
-            
-            // 如果没找到，记录警告（但不在每次调用时都记录，避免刷屏）
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[ViewCommands] 未找到面板: {} (映射后: {})", panelId, actualName);
-            }
-            return null;
+            panelManager.hideAllPanels();
         }
     }
     
@@ -1460,16 +1427,12 @@ public class ChronoBlocksUIManager {
         
         @Override
         public void showSaveLayoutDialog() {
-            if (ChronoBlocksUIManager.this.dialogManager != null) {
-                ChronoBlocksUIManager.this.dialogManager.showSaveLayoutDialog();
-            }
+            ChronoBlocksUIManager.this.getDialogManager().showSaveLayoutDialog();
         }
         
         @Override
         public void showLoadLayoutDialog() {
-            if (ChronoBlocksUIManager.this.dialogManager != null) {
-                ChronoBlocksUIManager.this.dialogManager.showLoadLayoutDialog();
-            }
+            ChronoBlocksUIManager.this.getDialogManager().showLoadLayoutDialog();
         }
         
         @Override
@@ -1587,7 +1550,7 @@ public class ChronoBlocksUIManager {
         
         @Override
         public void showShortcutHelp() {
-            dialogManager.showShortcutsDialog();
+            ChronoBlocksUIManager.this.getDialogManager().showShortcutsDialog();
         }
         
         @Override
@@ -1619,7 +1582,7 @@ public class ChronoBlocksUIManager {
         
         @Override
         public void showAboutDialog() {
-            dialogManager.showAboutDialog();
+            ChronoBlocksUIManager.this.getDialogManager().showAboutDialog();
         }
     }
     
@@ -1686,94 +1649,6 @@ public class ChronoBlocksUIManager {
             return toolId.equals(activeId);
         }
     }
-    
-    /**
-     * 布局操作门面接口
-     */
-    public interface UILayoutFacade {
-        void showAll();
-        void hideAll();
-        void toggle(String panelName);
-        void saveCurrent();
-        void restoreDefault();
-    }
-    
-    /**
-     * 布局操作门面实现
-     */
-    private class UILayoutFacadeImpl implements UILayoutFacade {
-        
-        @Override
-        public void showAll() {
-            for (IPanel panel : panelRegistry.getAllPanels()) {
-                panel.setVisible(true);
-            }
-        }
-        
-        @Override
-        public void hideAll() {
-            for (IPanel panel : panelRegistry.getAllPanels()) {
-                if (!(panel instanceof MenuBarPanel)) { // 不隐藏 MenuBar
-                    panel.setVisible(false);
-                }
-            }
-        }
-        
-        @Override
-        public void toggle(String panelName) {
-            IPanel panel = findPanelByName(panelName);
-            if (panel != null) {
-                panel.setVisible(!panel.isVisible());
-            }
-        }
-        
-        @Override
-        public void saveCurrent() {
-            try {
-                layoutManager.saveLayout();
-                LOGGER.info("[Layout] Current layout saved");
-            } catch (Exception e) {
-                LOGGER.error("[Layout] Failed to save layout: {}", e.getMessage(), e);
-            }
-        }
-        
-        @Override
-        public void restoreDefault() {
-            try {
-                java.nio.file.Path iniPath = layoutManager.getImGuiIniPath();
-                if (java.nio.file.Files.exists(iniPath)) {
-                    java.nio.file.Files.delete(iniPath);
-                }
-                layoutManager.resetToDefault();
-                com.chronoblocks.ui.layout.DockSpaceLayoutBuilder.resetLayoutState();
-                LOGGER.info("[Layout] Layout restored to default");
-            } catch (Exception e) {
-                LOGGER.error("[Layout] Failed to restore default layout: {}", e.getMessage(), e);
-            }
-        }
-        
-        private IPanel findPanelByName(String panelName) {
-            // 面板名称映射（处理显示名称和实际名称的差异）
-            String actualName = switch (panelName) {
-                case "Timeline" -> "Timeline";
-                case "Tool Properties" -> "ToolProperties";
-                case "Container" -> "Container";
-                case "RenderSettings" -> "RenderSettings";
-                case "Toolbar" -> "Toolbar";
-                case "SelectionFiler" -> "SelectionFilter";
-                case "Properties" -> "Properties";
-                case "SelectionHistory" -> "SelectionHistory";
-                default -> panelName;
-            };
-            
-            for (IPanel panel : panelRegistry.getAllPanels()) {
-                if (actualName.equals(panel.getPanelName())) {
-                    return panel;
-                }
-            }
-            return null;
-        }
-    }
 
     /**
      * 高级依赖注入构造函数 - 直接使用面板注册表
@@ -1800,17 +1675,15 @@ public class ChronoBlocksUIManager {
         
         // 初始化布局持久化管理器
         this.layoutManager = LayoutPersistenceManager.getInstance();
-        
-        // 初始化对话框管理器
-        this.dialogManager = new com.chronoblocks.ui.dialogs.DialogManager();
-        // 设置新建动画确认回调
-        this.dialogManager.setNewAnimationConfirmCallback(() -> {
+
+        // 创建职责协调器
+        this.dialogCoordinator = new UIDialogCoordinator();
+        getDialogManager().setNewAnimationConfirmCallback(() -> {
             try {
                 TimelinePanel timelinePanel = panelRegistry.getPanel(TimelinePanel.class);
                 if (timelinePanel != null) {
                     timelinePanel.resetWorkspace(true);
                 } else {
-                    // 兜底：清空容器并删除时间线存档
                     Objects.requireNonNull(com.chronoblocks.core.container.ContainerManager.getInstance()).clear();
                     com.chronoblocks.ui.timeline.persistence.TimelineModelPersistence.resetForCurrentWorld();
                 }
@@ -1818,6 +1691,9 @@ public class ChronoBlocksUIManager {
                 LOGGER.error("[UIManager] 新建动画重置失败: {}", e.getMessage(), e);
             }
         });
+        this.panelManager = new UIPanelManager(panelRegistry, this, this::getOrCreateCommandFacade);
+        this.playbackBridge = new UIPlaybackBridge();
+        this.shortcutCoordinator = new UIShortcutCoordinator();
 
         // 检测并加载当前世界的布局（如果是新世界则使用默认布局，如果是同一世界则加载保存的布局）
         try {
@@ -1826,7 +1702,6 @@ public class ChronoBlocksUIManager {
             LOGGER.info("[ChronoBlocks] 已加载世界 {} 的布局配置", currentWorldId);
         } catch (Exception e) {
             LOGGER.warn("[ChronoBlocks] 加载世界布局失败: {}", e.getMessage(), e);
-            // 如果加载失败，创建默认布局
             try {
                 this.layoutManager.resetToDefault();
                 LOGGER.info("[ChronoBlocks] 已创建默认布局");
@@ -1838,11 +1713,9 @@ public class ChronoBlocksUIManager {
         // 验证必需的面板是否存在
         validateRequiredPanels();
 
-        // 初始化所有面板
-        initializeAllPanels();
-        
-        // 设置面板注册表引用（用于面板间通信）
-        setupPanelRegistryReferences();
+        // 初始化所有面板 & 设置依赖引用（UIPanelManager）
+        panelManager.initializeAll();
+        panelManager.setupReferences();
         
         // 根据布局还原面板可见性
         restorePanelVisibilityFromLayout();
@@ -1900,11 +1773,9 @@ public class ChronoBlocksUIManager {
         // 验证必需的面板是否存在
         validateRequiredPanels();
 
-        // 初始化所有面板
-        initializeAllPanels();
-        
-        // 设置面板注册表引用（用于面板间通信）
-        setupPanelRegistryReferences();
+        // 初始化所有面板 & 设置依赖引用（UIPanelManager）
+        panelManager.initializeAll();
+        panelManager.setupReferences();
         
         // 根据布局还原面板可见性
         restorePanelVisibilityFromLayout();
@@ -1915,50 +1786,6 @@ public class ChronoBlocksUIManager {
 
 
     /**
-     * 更新动画系统（v4.5 一体化交互系统）
-     * <p>
-     * 统一的动画更新循环，每帧调用：
-     * - 计算帧间隔时间
-     * - 驱动 PlaybackController 更新
-     * - 同步时间线求值结果
-     */
-    private void updateAnimationSystem() {
-        try {
-            // 计算时间增量（deltaTime）
-            long currentTime = System.currentTimeMillis();
-            float deltaSeconds = (currentTime - lastUpdateTime) / 1000.0f;
-            lastUpdateTime = currentTime;
-            
-            // 限制最大帧间隔，避免长时间暂停后的巨大跳跃
-            deltaSeconds = Math.min(deltaSeconds, 0.1f); // 最大100ms
-            
-            // ⭐ v1.2 改进：不再每帧 bindModel，模型绑定已在生命周期节点完成
-            // ✅ 统一播放驱动（替代 TimelinePanel 的 updatePlayback + 一堆 controller tick）
-            // 这确保了播放系统在任何情况下（面板隐藏/失焦）都保持一致
-            com.chronoblocks.ui.timeline.playback.PlaybackOrchestrator.get().tick(deltaSeconds);
-            
-        } catch (Exception e) {
-            // 静默处理异常，避免中断UI渲染
-            if (renderCount % 60 == 0) { // 每秒最多记录一次
-                logError("动画系统更新失败", e);
-            }
-        }
-    }
-
-    /**
-     * 安全渲染单个面板 - 封装try-catch逻辑
-     * @param panel 要渲染的面板
-     */
-    private void renderPanelSafe(IPanel panel) {
-        try {
-            panel.render();
-        } catch (Exception e) {
-            logError("面板 {} 渲染失败", e, panel.getPanelName());
-            com.chronoblocks.ui.imgui.ImGuiStateChecker.recordError("UIManager", panel.getPanelName(), e.getMessage());
-        }
-    }
-
-    /**
      * 渲染UI - 主渲染入口（v4.5 一体化交互系统）
      */
     public void render() {
@@ -1967,18 +1794,17 @@ public class ChronoBlocksUIManager {
             return;
         }
 
-        // 🔄 系统级更新循环 - 驱动动画播放
-        updateAnimationSystem();
+        // 🔄 系统级更新循环 - 驱动动画播放（UIPlaybackBridge）
+        playbackBridge.tick();
 
         // 🎥 视频导出：
         // 目前的抓帧与缩放发生在 GameRenderer.renderWorld 的 HEAD/Tail 钩子中，
         // 这里保留 no-op 调用用于向后兼容（不会触发重复渲染）。
         VideoRenderPipeline.getInstance().processPendingCaptures();
 
-        // 预检查：验证必需的面板是否存在
-        if (!validateRequiredPanelsForRender()) {
-            logWarn("⚠️ 必需面板缺失，渲染降级UI提示");
-            renderEmptyStateUI();
+        // 预检查：由 PanelManager 判定是否满足最小条件，Shell 只调用不决定
+        if (!panelManager.hasMinimumPanels()) {
+            panelManager.renderEmptyState();
             return;
         }
 
@@ -2000,51 +1826,25 @@ public class ChronoBlocksUIManager {
             // 0) 摄像机视口 Overlay（在所有面板之前渲染，使其被面板遮挡）
             renderCameraViewportOverlay();
 
-            // 1. 统一处理菜单栏（如果有的话）
-            panelRegistry.getPanelOptional(MenuBarPanel.class)
-                .filter(panel -> {
-                    // 菜单栏：渲染可见的，或者需要占位的隐藏菜单栏
-                    if (panel.isVisible()) {
-                        return true;
-                    }
-                    return panel.isHidden() && panel.shouldReserveDockSpaceWhenHidden();
-                })
-                .ifPresent(this::renderPanelSafe);
+            // 1. 菜单栏（UIPanelManager）
+            panelManager.renderMenuBar();
 
             // 2. 渲染DockSpace布局 - 为其他面板提供停靠区域
             int dockspaceId = renderDockSpaceWithPanels();
             if (dockspaceId == -1) {
-                // DockSpace 未就绪时，跳过本帧的面板渲染，避免 Begin/End 失配
                 logWarn("DockSpace 未就绪，跳过本帧面板渲染");
                 return;
             }
 
-            // *** 暂时禁用自动布局，让面板独立渲染 ***
-            // 先让面板能够正常显示，再解决布局问题
-
-            // 3. 一次循环渲染所有非菜单栏的面板（包括需要占位的隐藏面板）
-            panelRegistry.getAllPanels().stream()
-                .filter(Objects::nonNull)
-                .filter(panel -> !(panel instanceof MenuBarPanel))
-                .filter(panel -> {
-                    // 渲染可见面板，或者需要DockSpace占位的隐藏面板
-                    if (panel.isVisible()) {
-                        return true;
-                    }
-                    // 检查是否是需要占位的隐藏面板
-                    if (panel instanceof AbstractPanel abstractPanel) {
-                        return abstractPanel.isHidden() && abstractPanel.shouldReserveDockSpaceWhenHidden();
-                    }
-                    return false;
-                })
-                .forEach(this::renderPanelSafe);
+            // 3. 除菜单栏外的所有面板（UIPanelManager）
+            panelManager.renderPanels();
 
             // 4) 全局弹窗/Overlay（不属于某个 Dock 面板）
             VideoExportDialog.renderIfNeeded(this);
             videoExportProgressOverlay.render(this);
             
             // 5) 渲染对话框（集中管理）
-            dialogManager.renderDialogs();
+            dialogCoordinator.render();
             
             // ❌ 暂时禁用中央保护区域渲染 - 这会导致ImGui认为鼠标在UI上
             // renderCentralProtectionArea();
@@ -2258,15 +2058,13 @@ public class ChronoBlocksUIManager {
                 if (panel != null) {
                     String panelName = panel.getClass().getSimpleName();
                     boolean visible = panel.isVisible();
-                    boolean shouldRender = visible;
-                    boolean isHidden = false;
-                    boolean shouldReserveSpace = false;
+                    boolean shouldRender;
+                    boolean isHidden;
+                    boolean shouldReserveSpace;
                     
-                    if (panel instanceof AbstractPanel abstractPanel) {
-                        isHidden = abstractPanel.isHidden();
-                        shouldReserveSpace = abstractPanel.shouldReserveDockSpaceWhenHidden();
-                        shouldRender = visible || (isHidden && shouldReserveSpace);
-                    }
+                    isHidden = panel.isHidden();
+                    shouldReserveSpace = panel.shouldReserveDockSpaceWhenHidden();
+                    shouldRender = visible || (isHidden && shouldReserveSpace);
                     
                     status.append(String.format("  %s: visible=%s, hidden=%s, reserveSpace=%s, shouldRender=%s\n",
                         panelName, visible, isHidden, shouldReserveSpace, shouldRender));
@@ -2280,153 +2078,6 @@ public class ChronoBlocksUIManager {
     }
 
 
-    /**
-     * 渲染空状态UI - 当面板列表为空时显示
-     */
-    private void renderEmptyStateUI() {
-        try {
-            LOGGER.debug("[ChronoBlocks] 渲染空状态UI提示");
-
-            // 显示简洁的错误提示，不显示详细的调试信息
-            if (ImGui.begin("ChronoBlocks", ImGuiWindowFlags.AlwaysAutoResize)) {
-                ImGui.textColored(0.8f, 0.2f, 0.2f, 1.0f, "ChronoBlocks UI 初始化失败");
-                ImGui.separator();
-                ImGui.text("面板状态: 无可用面板");
-                ImGui.text("请检查面板配置和初始化");
-                ImGui.separator();
-                ImGui.text("如需详细调试信息，请查看控制台日志");
-            }
-            ImGui.end();
-
-        } catch (Exception e) {
-            logError("渲染空状态UI失败", e);
-        }
-    }
-
-    /**
-     * 初始化所有面板 - 在UIConfiguration注入后立即调用
-     * 确保所有面板在渲染前完成初始化
-     */
-    private void initializeAllPanels() {
-        logDebug("开始初始化所有面板");
-
-        int successCount = 0;
-        int failureCount = 0;
-
-        for (IPanel panel : panelRegistry.getAllPanels()) {
-            try {
-                if (panel != null) {
-                    logDebug("初始化面板: {}", panel.getPanelName());
-                    panel.initialize();
-                    successCount++;
-                }
-            } catch (Exception e) {
-                failureCount++;
-                logError("初始化面板 {} 失败", e, panel.getPanelName());
-            }
-        }
-
-        logInfo("面板初始化完成 - 成功: {}, 失败: {}", successCount, failureCount);
-
-        if (failureCount > 0) {
-            logWarn("有 {} 个面板初始化失败，可能影响UI功能", failureCount);
-        }
-    }
-    
-    /**
-     * 设置面板注册表引用（用于面板间通信）
-     * <p>
-     * 使用Aware接口设计模式，自动为实现了特定接口的面板注入依赖。
-     * 这遵循开闭原则，未来新增面板只需实现对应接口即可获得依赖注入。
-     * 
-     * <p>优化：为 MenuBarPanel 注入 UICommandFacade 而不是 ChronoBlocksUIManager
-     */
-    private void setupPanelRegistryReferences() {
-        logDebug("为所有符合条件的面板设置依赖引用...");
-        
-        int registryAwareCount = 0;
-        int commandFacadeCount = 0;
-        
-        for (IPanel panel : panelRegistry.getAllPanels()) {
-            if (panel != null) {
-                // 注入面板注册表引用
-                if (panel instanceof IPanelRegistryAware) {
-                    try {
-                        ((IPanelRegistryAware) panel).setPanelRegistry(panelRegistry);
-                        registryAwareCount++;
-                        logDebug("为面板 '{}' 注入了 PanelRegistry", panel.getPanelName());
-                    } catch (Exception e) {
-                        logError("为面板 '{}' 注入 PanelRegistry 失败", e, panel.getPanelName());
-                    }
-                }
-                
-                // 为 MenuBarPanel 和 StatusBarPanel 注入 UICommandFacade
-                if (panel instanceof MenuBarPanel) {
-                    try {
-                        ((MenuBarPanel) panel).setCommands(getOrCreateCommandFacade());
-                        commandFacadeCount++;
-                        logDebug("为面板 '{}' 注入了 UICommandFacade", panel.getPanelName());
-                    } catch (Exception e) {
-                        logError("为面板 '{}' 注入 UICommandFacade 失败", e, panel.getPanelName());
-                    }
-                }
-                
-                if (panel instanceof StatusBarPanel) {
-                    try {
-                        ((StatusBarPanel) panel).setCommands(getOrCreateCommandFacade());
-                        commandFacadeCount++;
-                        logDebug("为面板 '{}' 注入了 UICommandFacade", panel.getPanelName());
-                    } catch (Exception e) {
-                        logError("为面板 '{}' 注入 UICommandFacade 失败", e, panel.getPanelName());
-                    }
-                }
-                
-                if (panel instanceof ToolbarPanel) {
-                    try {
-                        ((ToolbarPanel) panel).setCommands(getOrCreateCommandFacade());
-                        commandFacadeCount++;
-                        logDebug("为面板 '{}' 注入了 UICommandFacade", panel.getPanelName());
-                    } catch (Exception e) {
-                        logError("为面板 '{}' 注入 UICommandFacade 失败", e, panel.getPanelName());
-                    }
-                }
-                
-                // ⭐ TimelinePanel：注入 UICommandFacade（用于播放控制等）
-                if (panel instanceof TimelinePanel timelinePanel) {
-                    try {
-                        timelinePanel.setCommands(getOrCreateCommandFacade());
-                        commandFacadeCount++;
-                        
-                        // ⭐ v1.2 改进：在面板注册时绑定 Orchestrator（生命周期节点）
-                        // 这确保了模型绑定只在生命周期节点发生，而不是每帧
-                        com.chronoblocks.ui.timeline.model.TimelineModel model = timelinePanel.getModel();
-                        if (model != null) {
-                            com.chronoblocks.ui.timeline.playback.PlaybackOrchestrator.get().bindModel(model);
-                            logDebug("为面板 '{}' 绑定了 PlaybackOrchestrator", panel.getPanelName());
-                        }
-                        
-                        logDebug("为面板 '{}' 注入了 UICommandFacade", panel.getPanelName());
-                    } catch (Exception e) {
-                        logError("为面板 '{}' 注入 UICommandFacade 失败", e, panel.getPanelName());
-                    }
-                }
-                
-                // 注入UI管理器引用（其他面板仍可使用）
-                if (panel instanceof IUIManagerAware && !(panel instanceof MenuBarPanel)) {
-                    try {
-                        ((IUIManagerAware) panel).setUIManager(this);
-                        logDebug("为面板 '{}' 注入了 UIManager", panel.getPanelName());
-                    } catch (Exception e) {
-                        logError("为面板 '{}' 注入 UIManager 失败", e, panel.getPanelName());
-                    }
-                }
-            }
-        }
-        
-        logDebug("面板依赖引用设置完成 - PanelRegistry: {} 个面板, UICommandFacade: {} 个面板", 
-                registryAwareCount, commandFacadeCount);
-    }
-    
     /**
      * 根据布局配置还原面板可见性
      */
@@ -2449,20 +2100,6 @@ public class ChronoBlocksUIManager {
                 }
             }
         });
-    }
-
-    /**
-     * 验证必需的面板是否存在（用于渲染前的预检查）
-     * @return true如果所有必需面板都存在，false如果关键面板缺失
-     */
-    private boolean validateRequiredPanelsForRender() {
-        if (panelRegistry == null || panelRegistry.isEmpty()) {
-            return false;
-        }
-
-        // 检查关键面板是否存在
-        MenuBarPanel menuBarPanel = panelRegistry.getPanel(MenuBarPanel.class);
-        return menuBarPanel != null;
     }
 
     /**
