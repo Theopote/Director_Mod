@@ -42,6 +42,9 @@ public class CameraTrackPropertyAdapter implements IPropertyAdapter<TimelineTrac
     public Class<TimelineTrack> getTargetType() {
         return TimelineTrack.class;
     }
+
+    @Override
+    public int getPriority() { return 60; }
     
     @Override
     public boolean supports(Object target) {

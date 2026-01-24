@@ -51,6 +51,9 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
     public Class<CranePathClip> getTargetType() {
         return CranePathClip.class;
     }
+
+    @Override
+    public int getPriority() { return 80; }
     
     @Override
     public boolean supports(Object target) {

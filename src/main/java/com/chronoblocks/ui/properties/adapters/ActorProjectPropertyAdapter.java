@@ -89,6 +89,9 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     public Class<Object> getTargetType() {
         return Object.class;
     }
+
+    @Override
+    public int getPriority() { return 40; }
     
     @Override
     public boolean supports(Object obj) {

@@ -8,17 +8,22 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * 📚 LegacyPropertyAdapterRegistry - 旧版属性适配器注册表（未接入 UI）
+ * 📚 LegacyPropertyAdapterRegistry - 旧版属性适配器注册表（已冻结，仅作历史兼容层）
  *
- * <p><b>已弃用：</b> 此注册表及其 {@link PropertyAdapterModule} 仅做注册，从未被 PropertiesPanel 或
- * 其他 UI 查找使用。当前实际生效的系统为
+ * <p><b>【冻结】</b> 不再新增 Adapter。此注册表及其 {@link PropertyAdapterModule} 仅做注册，
+ * 从未被 PropertiesPanel 或其他 UI 查找使用。当前实际生效的唯一起点为
  * {@code com.chronoblocks.ui.properties.PropertyAdapterRegistry}（{@code IPropertyAdapter}）。
  *
- * <p>保留此类仅为避免与 {@code ui.properties.PropertyAdapterRegistry} 同名冲突；
+ * <p><b>规则：</b> 所有新 Adapter（含 Tool）<b>只允许</b>注册到
+ * {@code com.chronoblocks.ui.properties.PropertyAdapterRegistry}，并通过
+ * {@code com.chronoblocks.ui.properties.PropertyAdapterBootstrap} 接入。勿向本类或
+ * {@link PropertyAdapterModule} 注册。
+ *
+ * <p>保留本类仅为避免与 {@code ui.properties.PropertyAdapterRegistry} 同名冲突及兼容旧启动路径；
  * 若确认不再迁移，可移除本类及 {@link PropertyAdapterModule}、{@code ui.adapters.impl} 中
  * 仅被本注册表使用的适配器。
  *
- * <h3>✨ 原核心功能：</h3>
+ * <h3>✨ 原核心功能（仅供理解历史）：</h3>
  * <ul>
  *     <li>适配器注册：支持单个或批量注册</li>
  *     <li>智能查找：基于类型匹配和优先级排序</li>
@@ -31,7 +36,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * @author ChronoBlocks Team
  * @version 4.5
  * @since 4.5
- * @deprecated 未被 UI 使用；请使用 {@code com.chronoblocks.ui.properties.PropertyAdapterRegistry}
+ * @deprecated ⚠️ 历史遗留 Registry，请勿注册新 Adapter。新属性适配器必须使用
+ *             {@code com.chronoblocks.ui.properties.PropertyAdapterRegistry}。
  */
 @Deprecated(since = "4.5", forRemoval = true)
 public class LegacyPropertyAdapterRegistry {
@@ -140,11 +146,10 @@ public class LegacyPropertyAdapterRegistry {
      *
      * @param adapter 要注销的适配器
      * @param <T>     适配器支持的类型
-     * @return true 如果成功注销
      */
-    public <T> boolean unregister(PropertyAdapter<T> adapter) {
+    public <T> void unregister(PropertyAdapter<T> adapter) {
         if (adapter == null) {
-            return false;
+            return;
         }
 
         Class<T> targetType = adapter.getTargetType();
@@ -171,7 +176,6 @@ public class LegacyPropertyAdapterRegistry {
             }
         }
 
-        return removed;
     }
 
     /**

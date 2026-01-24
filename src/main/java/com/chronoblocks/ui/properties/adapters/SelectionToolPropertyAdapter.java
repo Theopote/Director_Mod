@@ -34,7 +34,7 @@ public final class SelectionToolPropertyAdapter implements IPropertyAdapter<Sele
         public int[] getIntBuffer2() { return intBuffer2; }
         @Override
         public Runnable getOnRequestShowFilterPanel() {
-            return com.chronoblocks.ui.properties.PropertyAdapterContext.getShowFilterPanelRunnable();
+            return com.chronoblocks.ui.properties.PropertyAdapterContext.getShowFilterPanelRunnableStatic();
         }
     };
 
@@ -42,6 +42,9 @@ public final class SelectionToolPropertyAdapter implements IPropertyAdapter<Sele
     public Class<SelectionTool> getTargetType() {
         return SelectionTool.class;
     }
+
+    @Override
+    public int getPriority() { return 100; }
 
     @Override
     public String getAdapterName() {

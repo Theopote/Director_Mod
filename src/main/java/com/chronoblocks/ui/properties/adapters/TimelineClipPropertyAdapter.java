@@ -140,6 +140,9 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
     }
 
     @Override
+    public int getPriority() { return 80; }
+
+    @Override
     public boolean renderProperties(TimelineClip clip) {
         if (clip == null) {
             ImGui.textDisabled("未选中片段");

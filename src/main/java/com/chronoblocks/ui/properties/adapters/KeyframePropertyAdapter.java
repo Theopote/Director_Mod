@@ -78,6 +78,9 @@ public class KeyframePropertyAdapter implements IPropertyAdapter<Keyframe> {
     public Class<Keyframe> getTargetType() {
         return Keyframe.class;
     }
+
+    @Override
+    public int getPriority() { return 70; }
 }
 
 

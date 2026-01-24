@@ -424,4 +424,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
     public Class<CameraKeyframe> getTargetType() {
         return CameraKeyframe.class;
     }
+
+    @Override
+    public int getPriority() { return 70; }
 }

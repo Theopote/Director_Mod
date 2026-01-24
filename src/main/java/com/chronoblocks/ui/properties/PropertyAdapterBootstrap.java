@@ -22,9 +22,12 @@ import org.slf4j.LoggerFactory;
 
 /**
  * 属性适配器启动器 - ChronoBlocks Properties System v4.9
- * 
+ *
  * <p>在 ChronoBlocks 启动时自动注册所有可用的属性适配器。
- * 
+ *
+ * <p><b>只做注册，不负责排序。</b> 注册顺序与解析无关；当多适配器竞争同一类型时，
+ * 由 {@link IPropertyAdapter#getPriority()} 与 {@link PropertyAdapterRegistry} 内部逻辑决定选用哪个。
+ *
  * <h3>功能特性</h3>
  * <ul>
  *   <li>自动注册所有已知的属性适配器</li>

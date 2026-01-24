@@ -51,6 +51,9 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
     public Class<DollyPathClip> getTargetType() {
         return DollyPathClip.class;
     }
+
+    @Override
+    public int getPriority() { return 80; }
     
     @Override
     public boolean supports(Object target) {

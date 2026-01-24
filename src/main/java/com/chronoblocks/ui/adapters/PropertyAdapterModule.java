@@ -8,18 +8,23 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * 🔌 PropertyAdapterModule - 旧版属性适配器注册模块（未接入 UI）
+ * 🔌 PropertyAdapterModule - 旧版属性适配器注册模块（已冻结，仅作历史兼容层）
  *
- * <p><b>已弃用：</b> 本模块向 {@link LegacyPropertyAdapterRegistry} 注册的适配器未被 PropertiesPanel
- * 或其它 UI 使用。实际生效的为 {@code com.chronoblocks.ui.properties.PropertyAdapterBootstrap} +
+ * <p><b>【冻结】</b> 不再向本模块或 {@link LegacyPropertyAdapterRegistry} 新增 Adapter。
+ * 本模块注册的适配器未被 PropertiesPanel 或其它 UI 使用。实际生效的唯一起点为
+ * {@code com.chronoblocks.ui.properties.PropertyAdapterBootstrap} +
  * {@code com.chronoblocks.ui.properties.PropertyAdapterRegistry}（{@code IPropertyAdapter}）。
  *
- * <p>负责在应用启动时注册所有属性适配器到 {@link LegacyPropertyAdapterRegistry}。
+ * <p><b>规则：</b> 所有新 Adapter（含 Tool）只允许通过
+ * {@code com.chronoblocks.ui.properties.PropertyAdapterBootstrap} 注册到
+ * {@code com.chronoblocks.ui.properties.PropertyAdapterRegistry}。
+ *
+ * <p>本模块仅在应用启动时向 {@link LegacyPropertyAdapterRegistry} 做历史性注册，无新接入。
  *
  * @author ChronoBlocks Team
  * @version 4.5
  * @since 4.5
- * @deprecated 未被 UI 使用；请使用 {@code com.chronoblocks.ui.properties.PropertyAdapterBootstrap}
+ * @deprecated 已冻结；请使用 {@code com.chronoblocks.ui.properties.PropertyAdapterBootstrap}
  */
 @Deprecated(since = "4.5", forRemoval = true)
 @SuppressWarnings("removal")

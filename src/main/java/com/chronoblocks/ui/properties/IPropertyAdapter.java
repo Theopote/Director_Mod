@@ -65,6 +65,11 @@ import org.slf4j.LoggerFactory;
  *     <td>导出前合法性验证</td>
  *     <td>⚙️ 可选</td>
  *   </tr>
+ *   <tr>
+ *     <td>getPriority()</td>
+ *     <td>多适配器竞争同一类型时，Registry 按此值择优；值越大越优先</td>
+ *     <td>⚙️ 可选（默认 0）</td>
+ *   </tr>
  * </table>
  * 
  * <h3>🧠 使用示例</h3>
@@ -112,19 +117,28 @@ public interface IPropertyAdapter<T> {
      * 🎨 渲染属性编辑 UI
      * <p>
      * 在此方法中，适配器应使用 ImGui 命令绘制属性字段。
-     * 一般遵循：
-     * <ul>
-     *   <li>ImGui.text() 显示标签</li>
-     *   <li>ImGui.dragFloat() / inputFloat3() 编辑数值</li>
-     *   <li>ImGui.checkbox() 处理布尔值</li>
-     *   <li>ImGui.colorEdit4() 处理颜色</li>
-     * </ul>
+     * ❗ 只渲染，不做上下文判断；是否渲染由 PropertyContextService + Registry 决定。
      * </p>
-     * 
+     *
      * @param target 当前被选中的对象实例
      * @return 如果有任何属性被修改则返回 true，否则返回 false
      */
     boolean renderProperties(T target);
+
+    /**
+     * 🎨 渲染属性编辑 UI（传入 AdapterContext，用于 scale/readOnly/打开过滤器等）
+     * <p>
+     * 默认委托给 {@link #renderProperties(Object)}；子类可覆写以使用 ctx 的 {@code getUiScale()}、
+     * {@code isReadOnly()}、{@code getShowFilterPanelRunnable()} 等。
+     * </p>
+     *
+     * @param target  当前被选中的对象实例
+     * @param adapterContext 渲染辅助（可为 null，表示使用默认）
+     * @return 如果有任何属性被修改则返回 true，否则返回 false
+     */
+    default boolean renderProperties(T target, PropertyAdapterContext adapterContext) {
+        return renderProperties(target);
+    }
     
     /**
      * 🎯 获取此适配器适用的目标类型
@@ -140,6 +154,19 @@ public interface IPropertyAdapter<T> {
     // ⚙️ 可选扩展方法
     // ========================================
     
+    /**
+     * 📐 获取适配器优先级（多适配器竞争同一 target 时，Registry 按此择优）
+     * <p>
+     * 值越大越优先。专用适配器建议 100，通用/回退建议 -100，默认 0。
+     * 仅当多个适配器同时匹配（继承或 supports）时使用；Bootstrap 只做注册，不负责排序。
+     * </p>
+     *
+     * @return 优先级，默认 0
+     */
+    default int getPriority() {
+        return 0;
+    }
+
     /**
      * 📝 获取适配器的显示名称
      * <p>
@@ -167,7 +194,9 @@ public interface IPropertyAdapter<T> {
      *   <li>泛型容器（需要检查元素类型）</li>
      * </ul>
      * </p>
-     * 
+     *
+     * <p>❗ 不得在此方法中访问 Registry / Service；仅做纯函数判断。
+     *
      * @param target 要检查的对象
      * @return 如果支持则返回 true
      */
@@ -180,6 +209,21 @@ public interface IPropertyAdapter<T> {
             return false;
         }
         return type.isAssignableFrom(target.getClass());
+    }
+
+    /**
+     * 🔍 检查是否支持给定上下文与目标（Registry 按 ctx+target 过滤时调用）
+     * <p>
+     * 默认委托给 {@link #supports(Object)}；子类可覆写以实现「仅 TOOL」「仅 TIMELINE」等语义。
+     * ❗ 不得在此方法中访问 Registry / Service。
+     * </p>
+     *
+     * @param context 当前 PropertyContext，可为 null（表示不按 context 过滤）
+     * @param target  要检查的对象
+     * @return 如果支持则返回 true
+     */
+    default boolean supports(PropertyContext context, Object target) {
+        return supports(target);
     }
     
     /**

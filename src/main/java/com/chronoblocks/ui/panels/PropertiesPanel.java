@@ -3,6 +3,7 @@ package com.chronoblocks.ui.panels;
 import com.chronoblocks.actor.Actor;
 import com.chronoblocks.actor.ActorRegistryManager;
 import com.chronoblocks.ui.properties.IPropertyAdapter;
+import com.chronoblocks.ui.properties.PropertyAdapterContext;
 import com.chronoblocks.ui.properties.PropertyAdapterRegistry;
 import com.chronoblocks.ui.properties.PropertyContext;
 import com.chronoblocks.ui.properties.PropertyContextService;
@@ -183,13 +184,13 @@ public class PropertiesPanel extends AbstractPanel {
 
         if (ctx == PropertyContext.TOOL) {
             if (target != null) {
-                var ad = PropertyAdapterRegistry.getAdapterFor(target);
+                var ad = PropertyAdapterRegistry.getAdapterFor(ctx, target);
                 if (ad != null) {
                     currentSelection = target;
                     currentAdapter = ad;
                     UITheme.title(ad.getAdapterName());
                     UITheme.separator();
-                    ad.renderProperties(target);
+                    ad.renderProperties(target, PropertyAdapterContext.of(1f, false));
                     renderMultiSelectHint(SelectionManager.get());
                     return;
                 }
@@ -203,24 +204,12 @@ public class PropertiesPanel extends AbstractPanel {
             return;
         }
         if (ctx == PropertyContext.TIMELINE) {
-            // 隐藏规则：EntityTrack、EntityClip 回退到 Project
-            if (target instanceof com.chronoblocks.ui.timeline.model.TimelineTrack tt
-                    && tt.getType() == com.chronoblocks.ui.timeline.model.TrackType.ENTITY) {
+            if (target == null || svc.isTimelineTargetRenderedAsProject(target)) {
                 renderProjectPanel();
                 renderMultiSelectHint(SelectionManager.get());
                 return;
             }
-            if (target instanceof com.chronoblocks.ui.timeline.model.entity.EntityClip) {
-                renderProjectPanel();
-                renderMultiSelectHint(SelectionManager.get());
-                return;
-            }
-            if (target == null) {
-                renderProjectPanel();
-                renderMultiSelectHint(SelectionManager.get());
-                return;
-            }
-            var ad = PropertyAdapterRegistry.getAdapterFor(target);
+            var ad = PropertyAdapterRegistry.getAdapterFor(ctx, target);
             if (ad == null) {
                 currentSelection = target;
                 currentAdapter = null;
@@ -230,10 +219,11 @@ public class PropertiesPanel extends AbstractPanel {
             }
             currentSelection = target;
             currentAdapter = ad;
+            var adapterCtx = PropertyAdapterContext.of(1f, false);
             try {
                 renderObjectTypeHeader();
                 UITheme.separator();
-                boolean modified = ad.renderProperties(target);
+                boolean modified = ad.renderProperties(target, adapterCtx);
                 if (modified) {
                     var timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
                     if (timelineModel != null) timelineModel.markDirty();
@@ -299,13 +289,13 @@ public class PropertiesPanel extends AbstractPanel {
         
         Actor actor = actorOpt.get();
         
-        // 使用 ActorProjectPropertyAdapter
-        var adapter = PropertyAdapterRegistry.getAdapterFor(actor);
+        // 使用 ActorProjectPropertyAdapter（Actor 路径暂无 PropertyContext，传 null）
+        var adapter = PropertyAdapterRegistry.getAdapterFor(null, actor);
         if (adapter != null) {
             try {
                 UITheme.title("🎭 Actor Properties");
                 UITheme.separator();
-                boolean modified = adapter.renderProperties(actor);
+                boolean modified = adapter.renderProperties(actor, PropertyAdapterContext.of(1f, false));
                 if (modified) {
                     var timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
                     if (timelineModel != null) {

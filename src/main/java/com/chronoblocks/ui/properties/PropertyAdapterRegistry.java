@@ -3,15 +3,20 @@ package com.chronoblocks.ui.properties;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 属性适配器注册中心 - ChronoBlocks Properties System v4.5
- * 
- * <p>管理所有属性适配器的注册和查找。
- * 使用线程安全的设计，支持运行时动态注册。
- * 
+ * 属性适配器注册中心 - ChronoBlocks Properties System v4.5（单 Registry 唯一入口）
+ *
+ * <p><b>本类为属性适配器唯一注册中心。</b> 所有新 Adapter（含 Tool）只能通过
+ * {@link PropertyAdapterBootstrap} 注册于此。{@code ui.adapters.LegacyPropertyAdapterRegistry}
+ * 已冻结，勿向该处注册。
+ *
+ * <p>管理所有属性适配器的注册和查找，使用线程安全的设计，支持运行时动态注册。
+ *
  * <h3>功能特性</h3>
  * <ul>
  *   <li>类型安全的适配器注册</li>
@@ -63,6 +68,12 @@ public final class PropertyAdapterRegistry {
         if (adapter == null) {
             throw new IllegalArgumentException("Adapter cannot be null");
         }
+        // 护栏：禁止 ui.adapters（Legacy）包下的适配器注册到此 Registry
+        String pkg = adapter.getClass().getPackage() != null ? adapter.getClass().getPackage().getName() : "";
+        if (pkg.equals("com.chronoblocks.ui.adapters") || pkg.startsWith("com.chronoblocks.ui.adapters.")) {
+            throw new IllegalStateException("Legacy adapter registration is forbidden: "
+                + adapter.getClass().getName() + " is in " + pkg + ". Use com.chronoblocks.ui.properties.PropertyAdapterRegistry only.");
+        }
         
         adapters.put(type, adapter);
         LOGGER.debug("[PropertyAdapterRegistry] Registered adapter: {} → {}", 
@@ -70,75 +81,86 @@ public final class PropertyAdapterRegistry {
     }
     
     /**
-     * 获取指定对象的属性适配器
-     * 
+     * 获取指定对象的属性适配器（不按 Context 过滤，等价于 {@code getAdapterFor(null, target)}）
+     *
+     * @param target 目标对象
+     * @param <T> 对象类型
+     * @return 适配器实例，如果未找到则返回 null
+     */
+    public static <T> IPropertyAdapter<T> getAdapterFor(T target) {
+        return getAdapterFor(null, target);
+    }
+
+    /**
+     * 获取指定上下文与目标对应的属性适配器
+     *
      * <p>查找策略：
      * <ol>
-     *   <li>首先尝试精确匹配对象的类型</li>
-     *   <li>然后尝试匹配对象的父类和接口</li>
-     *   <li>如果都找不到，返回 null</li>
+     *   <li>精确匹配 target 的 Class，且 {@code supports(ctx,target)} 为 true → 直接返回</li>
+     *   <li>收集所有通过继承或 supports 匹配且 {@code supports(ctx,target)} 为 true 的适配器，按 {@link IPropertyAdapter#getPriority()} 取最大者</li>
+     *   <li>若未找到，使用回退适配器（若有且 supports 通过）</li>
+     *   <li>否则返回 null</li>
      * </ol>
-     * 
+     * <p>当 {@code ctx == null} 时，使用 {@code supports(target)} 代替 {@code supports(ctx, target)}。
+     *
+     * @param ctx   当前 PropertyContext，可为 null
      * @param target 目标对象
      * @param <T> 对象类型
      * @return 适配器实例，如果未找到则返回 null
      */
     @SuppressWarnings("unchecked")
-    public static <T> IPropertyAdapter<T> getAdapterFor(T target) {
+    public static <T> IPropertyAdapter<T> getAdapterFor(PropertyContext ctx, T target) {
         if (target == null) {
             LOGGER.trace("[PropertyAdapterRegistry] Target is null, returning null adapter");
             return null;
         }
-        
+        boolean useCtx = (ctx != null);
+
         Class<?> targetClass = target.getClass();
-        
-        // 1. 精确匹配（但需要检查 supports() 方法，因为可能有专用适配器）
+
+        // 1. 精确匹配
         IPropertyAdapter<?> adapter = adapters.get(targetClass);
         if (adapter != null) {
-            // 如果适配器有 supports() 方法，检查是否支持此对象
-            if (adapter.supports(target)) {
-                LOGGER.trace("[PropertyAdapterRegistry] Found exact match for {} with supports() check", targetClass.getSimpleName());
+            if (useCtx ? adapter.supports(ctx, target) : adapter.supports(target)) {
+                LOGGER.trace("[PropertyAdapterRegistry] Found exact match for {} (ctx={})", targetClass.getSimpleName(), ctx);
                 return (IPropertyAdapter<T>) adapter;
-            } else {
-                // 精确匹配的适配器不支持此对象，继续查找其他适配器
-                LOGGER.trace("[PropertyAdapterRegistry] Exact match adapter {} does not support {}, continuing search", 
-                    adapter.getClass().getSimpleName(), targetClass.getSimpleName());
             }
         }
-        
-        // 2. 查找兼容的适配器（支持继承和 supports() 方法）
-        // 注意：确保精确类型匹配优先，避免误匹配其他适配器（如 Container）
+
+        // 2. 兼容匹配：继承或 supports，且 supports(ctx,target)，再按 priority 择优
+        List<IPropertyAdapter<?>> candidates = new ArrayList<>();
         for (Map.Entry<Class<?>, IPropertyAdapter<?>> entry : adapters.entrySet()) {
             Class<?> registeredType = entry.getKey();
             IPropertyAdapter<?> entryAdapter = entry.getValue();
-            
-            // 跳过精确匹配（已在步骤1处理）
-            if (registeredType == targetClass) {
-                continue;
-            }
-            
-            // 检查继承关系（必须是直接父类或接口，避免过于宽泛的匹配）
-            if (registeredType.isAssignableFrom(targetClass)) {
-                LOGGER.trace("[PropertyAdapterRegistry] Found compatible adapter: {} for {}", 
-                    registeredType.getSimpleName(), targetClass.getSimpleName());
-                return (IPropertyAdapter<T>) entryAdapter;
-            }
-            
-            // 检查 supports() 方法（如果已通过继承关系匹配，则不再检查）
-            if (entryAdapter.supports(target)) {
-                LOGGER.trace("[PropertyAdapterRegistry] Found adapter via supports(): {} for {}", 
-                    entryAdapter.getClass().getSimpleName(), targetClass.getSimpleName());
-                return (IPropertyAdapter<T>) entryAdapter;
-            }
+            if (registeredType == targetClass) continue;
+            if (!(registeredType.isAssignableFrom(targetClass) || entryAdapter.supports(target))) continue;
+            if (!(!useCtx || entryAdapter.supports(ctx, target))) continue;
+            candidates.add(entryAdapter);
         }
-        
-        // 3. 使用回退适配器（如果有）
+        if (!candidates.isEmpty()) {
+            IPropertyAdapter<?> best = candidates.getFirst();
+            int bestPriority = best.getPriority();
+            for (int i = 1; i < candidates.size(); i++) {
+                IPropertyAdapter<?> a = candidates.get(i);
+                if (a.getPriority() > bestPriority) {
+                    bestPriority = a.getPriority();
+                    best = a;
+                }
+            }
+            LOGGER.trace("[PropertyAdapterRegistry] Found adapter by priority: {} for {} (priority={}, ctx={})",
+                best.getClass().getSimpleName(), targetClass.getSimpleName(), bestPriority, ctx);
+            return (IPropertyAdapter<T>) best;
+        }
+
+        // 3. 回退适配器
         if (fallbackAdapter != null) {
-            LOGGER.debug("[PropertyAdapterRegistry] Using fallback adapter for {}", targetClass.getSimpleName());
-            return (IPropertyAdapter<T>) fallbackAdapter;
+            if (!useCtx || fallbackAdapter.supports(ctx, target)) {
+                LOGGER.debug("[PropertyAdapterRegistry] Using fallback adapter for {} (ctx={})", targetClass.getSimpleName(), ctx);
+                return (IPropertyAdapter<T>) fallbackAdapter;
+            }
         }
-        
-        LOGGER.debug("[PropertyAdapterRegistry] No adapter found for {}", targetClass.getSimpleName());
+
+        LOGGER.debug("[PropertyAdapterRegistry] No adapter found for {} (ctx={})", targetClass.getSimpleName(), ctx);
         return null;
     }
     

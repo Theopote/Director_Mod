@@ -77,6 +77,9 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
     public Class<OrbitPathClip> getTargetType() {
         return OrbitPathClip.class;
     }
+
+    @Override
+    public int getPriority() { return 80; }
     
     @Override
     public boolean supports(Object target) {

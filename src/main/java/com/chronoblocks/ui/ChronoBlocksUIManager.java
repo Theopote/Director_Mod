@@ -526,7 +526,7 @@ public class ChronoBlocksUIManager {
                             }
                             
                             // 使用与 TimelineProjectPropertyAdapter 相同的方式
-                            float fps = getFloatProperty(project, "frameRate", "getFrameRate", 30.0f);
+                            float fps = getFloatProperty(project);
                             LOGGER.debug("[TimelineSettings] 获取帧率: {} (项目对象: {})", fps, project.getClass().getSimpleName());
                             return fps;
                         }
@@ -558,7 +558,7 @@ public class ChronoBlocksUIManager {
                                 return 0; // 默认：秒
                             }
                             
-                            return getIntProperty(project, "timeUnit", "getTimeUnit", 0);
+                            return getIntProperty(project);
                         }
                         
                         @Override
@@ -568,7 +568,7 @@ public class ChronoBlocksUIManager {
                                 return false;
                             }
                             
-                            return setIntProperty(project, "timeUnit", "setTimeUnit", unit);
+                            return setIntProperty(project, unit);
                         }
                         
                         /**
@@ -624,23 +624,23 @@ public class ChronoBlocksUIManager {
                         /**
                          * 获取浮点属性（与 TimelineProjectPropertyAdapter 相同）
                          */
-                        private float getFloatProperty(Object obj, String fieldName, String getterName, float defaultValue) {
+                        private float getFloatProperty(Object obj) {
                             try {
-                                java.lang.reflect.Method method = obj.getClass().getMethod(getterName);
+                                java.lang.reflect.Method method = obj.getClass().getMethod("getFrameRate");
                                 Object result = method.invoke(obj);
                                 if (result instanceof Float) return (Float) result;
                                 if (result instanceof Double) return ((Double) result).floatValue();
-                                return defaultValue;
+                                return (float) 30.0;
                             } catch (Exception e) {
                                 try {
-                                    java.lang.reflect.Field field = obj.getClass().getDeclaredField(fieldName);
+                                    java.lang.reflect.Field field = obj.getClass().getDeclaredField("frameRate");
                                     field.setAccessible(true);
                                     Object result = field.get(obj);
                                     if (result instanceof Float) return (Float) result;
                                     if (result instanceof Double) return ((Double) result).floatValue();
-                                    return defaultValue;
+                                    return (float) 30.0;
                                 } catch (Exception ex) {
-                                    return defaultValue;
+                                    return (float) 30.0;
                                 }
                             }
                         }
@@ -668,23 +668,23 @@ public class ChronoBlocksUIManager {
                         /**
                          * 获取整数属性
                          */
-                        private int getIntProperty(Object obj, String fieldName, String getterName, int defaultValue) {
+                        private int getIntProperty(Object obj) {
                             try {
-                                java.lang.reflect.Method method = obj.getClass().getMethod(getterName);
+                                java.lang.reflect.Method method = obj.getClass().getMethod("getTimeUnit");
                                 Object result = method.invoke(obj);
                                 if (result instanceof Integer) return (Integer) result;
                                 if (result instanceof Number) return ((Number) result).intValue();
-                                return defaultValue;
+                                return 0;
                             } catch (Exception e) {
                                 try {
-                                    java.lang.reflect.Field field = obj.getClass().getDeclaredField(fieldName);
+                                    java.lang.reflect.Field field = obj.getClass().getDeclaredField("timeUnit");
                                     field.setAccessible(true);
                                     Object result = field.get(obj);
                                     if (result instanceof Integer) return (Integer) result;
                                     if (result instanceof Number) return ((Number) result).intValue();
-                                    return defaultValue;
+                                    return 0;
                                 } catch (Exception ex) {
-                                    return defaultValue;
+                                    return 0;
                                 }
                             }
                         }
@@ -692,14 +692,14 @@ public class ChronoBlocksUIManager {
                         /**
                          * 设置整数属性
                          */
-                        private boolean setIntProperty(Object obj, String fieldName, String setterName, int value) {
+                        private boolean setIntProperty(Object obj, int value) {
                             try {
-                                java.lang.reflect.Method method = obj.getClass().getMethod(setterName, int.class);
+                                java.lang.reflect.Method method = obj.getClass().getMethod("setTimeUnit", int.class);
                                 method.invoke(obj, value);
                                 return true;
                             } catch (Exception e) {
                                 try {
-                                    java.lang.reflect.Field field = obj.getClass().getDeclaredField(fieldName);
+                                    java.lang.reflect.Field field = obj.getClass().getDeclaredField("timeUnit");
                                     field.setAccessible(true);
                                     field.set(obj, value);
                                     return true;

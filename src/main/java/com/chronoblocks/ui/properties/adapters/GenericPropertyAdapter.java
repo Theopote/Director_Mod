@@ -256,6 +256,11 @@ public class GenericPropertyAdapter implements IPropertyAdapter<Object> {
     public Class<Object> getTargetType() {
         return Object.class;
     }
+
+    @Override
+    public int getPriority() {
+        return -100; // 通用/回退适配器，确保专用适配器优先
+    }
     
     @Override
     public String getAdapterName() {

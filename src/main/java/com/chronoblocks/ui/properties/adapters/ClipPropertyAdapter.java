@@ -64,4 +64,7 @@ public class ClipPropertyAdapter implements IPropertyAdapter<AnimationClip> {
     public Class<AnimationClip> getTargetType() {
         return AnimationClip.class;
     }
+
+    @Override
+    public int getPriority() { return 80; }
 }
