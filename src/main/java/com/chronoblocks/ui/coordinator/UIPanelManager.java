@@ -60,7 +60,7 @@ public final class UIPanelManager {
      * 用于 Shell 层「只调用不决定」：由 PanelManager 判定，UIManager 仅据此选择 render 或 renderEmptyState。
      */
     public boolean hasMinimumPanels() {
-        if (panelRegistry == null || panelRegistry.isEmpty()) return false;
+        if (panelRegistry.isEmpty()) return false;
         return panelRegistry.getAllPanels().stream()
                 .filter(Objects::nonNull)
                 .anyMatch(p -> RENDER_GROUP_MENU_BAR.equals(p.getRenderGroup()));

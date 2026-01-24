@@ -98,9 +98,8 @@ public class ShortcutDispatcher {
         if (!shouldHandle) {
             // 添加调试日志（debug 级别，便于排查问题）
             boolean textInput = ShortcutContext.isTextInputContext(io);
-            boolean timelineFocused = panelRegistry != null ? com.chronoblocks.ui.panels.TimelinePanel.isFocused() : false;
-            boolean timelineVisible = panelRegistry != null && panelRegistry.getPanel(com.chronoblocks.ui.panels.TimelinePanel.class) != null 
-                ? panelRegistry.getPanel(com.chronoblocks.ui.panels.TimelinePanel.class).isVisible() : false;
+            boolean timelineFocused = panelRegistry != null && com.chronoblocks.ui.panels.TimelinePanel.isFocused();
+            boolean timelineVisible = panelRegistry != null && panelRegistry.getPanel(com.chronoblocks.ui.panels.TimelinePanel.class) != null && panelRegistry.getPanel(com.chronoblocks.ui.panels.TimelinePanel.class).isVisible();
             LOGGER.debug("[ShortcutDispatcher] 快捷键被上下文检查拒绝: key={} (GLFW), textInput={}, timelineVisible={}, timelineFocused={}", 
                 key, textInput, timelineVisible, timelineFocused);
             // ⚠️ 注意：即使上下文检查失败，也要更新防抖状态，防止重复触发

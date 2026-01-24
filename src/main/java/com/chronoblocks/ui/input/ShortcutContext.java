@@ -93,7 +93,7 @@ public final class ShortcutContext {
                 org.slf4j.LoggerFactory.getLogger(ShortcutContext.class)
                     .debug("[ShortcutContext] TimelinePanel 检查: exists={}, visible={}, focused={}", 
                         timelinePanel != null,
-                        timelinePanel != null ? timelinePanel.isVisible() : false,
+                            timelinePanel != null && timelinePanel.isVisible(),
                         timelineFocused);
             }
             
@@ -101,12 +101,9 @@ public final class ShortcutContext {
             if (timelineFocused) {
                 return true;
             }
-            if (com.chronoblocks.ui.panels.ContainerPanel.isContainerTreeFocused()) {
-                return true;
-            }
+            return com.chronoblocks.ui.panels.ContainerPanel.isContainerTreeFocused();
             
             // 如果都未聚焦，不允许处理（避免在其他面板或游戏中误触发）
-            return false;
         }
         
         // 降级方案：如果没有 panelRegistry，使用默认检查（允许所有快捷键）
