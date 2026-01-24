@@ -185,7 +185,6 @@ public final class ToolPropertyRendering {
     private static final class LassoToolRenderer implements ToolPropertyRenderer<LassoSelectTool> {
         @Override
         public void render(LassoSelectTool tool, IToolPropertyRenderContext ctx) {
-            ImGui.separator();
             ImGui.text(Icons.LASSO + " 套索工具设置");
             if (ImGui.checkbox("包含非实体方块##lassoIncludeNonSolid", tool.isIncludeNonSolid())) tool.setIncludeNonSolid(!tool.isIncludeNonSolid());
             if (ImGui.isItemHovered()) ImGui.setTooltip("草、花等非实体方块也会加入选区。");
@@ -200,7 +199,6 @@ public final class ToolPropertyRendering {
     private static final class BrushToolRenderer implements ToolPropertyRenderer<BrushSelectTool> {
         @Override
         public void render(BrushSelectTool tool, IToolPropertyRenderContext ctx) {
-            ImGui.separator();
             ImGui.text("🖌️ 刷选工具属性");
             if (ImGui.collapsingHeader("几何形状", ImGuiTreeNodeFlags.DefaultOpen)) {
                 GeometryShape s = tool.getShape();

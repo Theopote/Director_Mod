@@ -39,7 +39,6 @@ public final class ActorsPanel extends AbstractPanel {
     @Override
     protected void doRender() {
         UITheme.title(Icons.TARGET + " Actors");
-        ImGui.separator();
         renderActorProjectSection();
     }
 

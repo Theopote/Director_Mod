@@ -128,7 +128,6 @@ public final class VideoExportDialog {
         // 输出文件
         // =============================
         UITheme.title("输出");
-        ImGui.separator();
 
         ImGui.pushItemWidth(UITheme.Spacing.INPUT_WIDTH_LARGE);
         String outputHint = (settings.format == VideoExportSettings.FORMAT_H264_MP4) ? "输出文件 (.mp4)" : "输出基名（用于 PNG 序列目录命名）";
@@ -146,7 +145,6 @@ public final class VideoExportDialog {
         // 分辨率 / FPS
         // =============================
         UITheme.title("视频参数");
-        ImGui.separator();
 
         // 同步分辨率到 ImInt（在摄像机选择变化后，这里的值会被自动更新）
         widthInt.set(settings.width);
@@ -212,7 +210,6 @@ public final class VideoExportDialog {
         // 导出范围
         // =============================
         UITheme.title("导出范围");
-        ImGui.separator();
 
         String[] rangeOptions = { "使用时间线范围（预留）", "自定义区间", "整个工程（预留）" };
         if (ImGui.combo("范围模式", rangeModeInt, rangeOptions, rangeOptions.length)) {
@@ -234,7 +231,6 @@ public final class VideoExportDialog {
         // 摄像机
         // =============================
         UITheme.title("摄像机");
-        ImGui.separator();
 
         String[] cameraOptions = { "玩家摄像机", "时间线摄像机轨道" };
         if (ImGui.combo("来源", cameraModeInt, cameraOptions, cameraOptions.length)) {
@@ -285,7 +281,6 @@ public final class VideoExportDialog {
         // 渲染质量（简化）
         // =============================
         UITheme.title("渲染质量");
-        ImGui.separator();
 
         ImGui.sliderInt("渲染距离", renderDistanceInt.getData(), 2, 32);
         settings.renderDistance = renderDistanceInt.get();
@@ -302,7 +297,6 @@ public final class VideoExportDialog {
         // =============================
         if (settings.format == VideoExportSettings.FORMAT_H264_MP4) {
             UITheme.title("音频");
-            ImGui.separator();
 
             settings.enableAudio = audioEnabledBool.get();
 

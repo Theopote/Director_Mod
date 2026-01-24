@@ -189,7 +189,6 @@ public class PropertiesPanel extends AbstractPanel {
                     currentSelection = target;
                     currentAdapter = ad;
                     UITheme.title(ad.getAdapterName());
-                    UITheme.separator();
                     ad.renderProperties(target, PropertyAdapterContext.of(1f, false));
                     renderMultiSelectHint(SelectionManager.get());
                     return;
@@ -222,7 +221,6 @@ public class PropertiesPanel extends AbstractPanel {
             var adapterCtx = PropertyAdapterContext.of(1f, false);
             try {
                 renderObjectTypeHeader();
-                UITheme.separator();
                 boolean modified = ad.renderProperties(target, adapterCtx);
                 if (modified) {
                     var timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
@@ -294,7 +292,6 @@ public class PropertiesPanel extends AbstractPanel {
         if (adapter != null) {
             try {
                 UITheme.title("🎭 Actor Properties");
-                UITheme.separator();
                 boolean modified = adapter.renderProperties(actor, PropertyAdapterContext.of(1f, false));
                 if (modified) {
                     var timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
@@ -361,6 +358,7 @@ public class PropertiesPanel extends AbstractPanel {
         } else if (currentSelection != null) {
             String typeName = currentSelection.getClass().getSimpleName();
             UITheme.label("对象: " + typeName, UITheme.DarkTheme.TEXT);
+            UITheme.separator();
         }
     }
     

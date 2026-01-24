@@ -115,7 +115,6 @@ public class EntityKeyframePropertyAdapter implements IPropertyAdapter<EntityKey
         
         if (!isTrackActive) {
             UITheme.title(TITLE);
-            UITheme.separator();
             UITheme.label(Icons.WARNING + " 此关键帧不属于激活的实体轨道", UITheme.DarkTheme.TEXT_WARNING);
             ImGui.textDisabled("当前激活轨道: " + (activeTrack != null ? activeTrack.getName() : "<无>"));
             if (keyframeTrack != null) {
