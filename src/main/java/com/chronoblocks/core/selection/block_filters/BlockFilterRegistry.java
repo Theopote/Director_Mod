@@ -126,7 +126,7 @@ public class BlockFilterRegistry {
     }
 
     private static boolean isParameterizedId(String c) {
-        return c != null && (FilterIds.MAX_DEPTH_LIMIT.equals(c) || FilterIds.WITHIN_RADIUS.equals(c)
+        return (FilterIds.MAX_DEPTH_LIMIT.equals(c) || FilterIds.WITHIN_RADIUS.equals(c)
                 || FilterIds.WITHIN_BBOX.equals(c) || FilterIds.MAX_BLOCK_COUNT.equals(c));
     }
 
