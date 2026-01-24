@@ -118,8 +118,7 @@ public class UIConfiguration {
             // 注册新的选择系统面板
             panels.add(panelFactory.createPanel(SelectionFilterPanel.class, minecraftClient));
             
-            // 注册模块化的独立面板（ToolPropertiesPanel 现在包含渲染设置）
-            panels.add(panelFactory.createPanel(ToolPropertiesPanel.class, minecraftClient));
+            // 注册模块化的独立面板（ToolPropertiesPanel 已并入 PropertiesPanel，通过 PropertyContext 仲裁）
             panels.add(panelFactory.createPanel(RenderSettingsPanel.class, minecraftClient));
             panels.add(panelFactory.createPanel(SelectionHistoryPanel.class, minecraftClient));
             

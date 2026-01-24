@@ -3,6 +3,7 @@ package com.chronoblocks.ui.properties;
 import com.chronoblocks.core.animation.container.AnimationClip;
 import com.chronoblocks.core.animation.container.Keyframe;
 import com.chronoblocks.core.container.Container;
+import com.chronoblocks.core.selection.SelectionTool;
 import com.chronoblocks.ui.properties.adapters.*;
 import com.chronoblocks.ui.timeline.model.TimelineClip;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
@@ -142,6 +143,10 @@ public final class PropertyAdapterBootstrap {
 
             // ✅ 时间线关键帧多选占位适配器（避免多选时显示单个关键帧属性）
             registerAdapter(TimelineKeyframeMultiSelection.class, new TimelineKeyframeMultiSelectionPropertyAdapter());
+            registeredCount++;
+
+            // ✅ 选择工具属性适配器（PropertyContext.TOOL 时由 PropertiesPanel 选用）
+            registerAdapter(SelectionTool.class, new SelectionToolPropertyAdapter());
             registeredCount++;
             
             LOGGER.info("  ========== 扩展系统适配器 ==========");

@@ -4,8 +4,9 @@ import com.chronoblocks.actor.Actor;
 import com.chronoblocks.actor.ActorRegistryManager;
 import com.chronoblocks.ui.properties.IPropertyAdapter;
 import com.chronoblocks.ui.properties.PropertyAdapterRegistry;
+import com.chronoblocks.ui.properties.PropertyContext;
+import com.chronoblocks.ui.properties.PropertyContextService;
 import com.chronoblocks.ui.selection.SelectionManager;
-import com.chronoblocks.ui.selection.SelectionType;
 import com.chronoblocks.ui.timeline.container.ContainerTimelineService;
 import com.chronoblocks.ui.theme.UITheme;
 import com.chronoblocks.ui.theme.Icons;
@@ -172,55 +173,90 @@ public class PropertiesPanel extends AbstractPanel {
             checkSelectionChange();
             lastUpdateTime = currentTime;
         }
-        
-        // =========================
-        // SelectionType 驱动的精确切换（v5.0）
-        // =========================
-        SelectionManager selectionManager = SelectionManager.get();
-        SelectionType selectionType = selectionManager.getSelectionType();
-        
-        switch (selectionType) {
-            case PROJECT -> // Project panel
-                    renderProjectPanel();
-            
-            case ACTOR -> // Actor 面板（ActorProjectPropertyAdapter）- ⚠️ 已隐藏，等待下一版本
-                    // renderActorPanel(selectionManager);
-                    renderProjectPanel(); // 回退到 Project 面板
-            
-            case TRACK -> {
-                // Track 面板（TimelineTrackPropertyAdapter）- ⚠️ 如果是 EntityTrack 则隐藏
-                var track = selectionManager.getSelectedTrack();
-                if (track != null && track.getType() == com.chronoblocks.ui.timeline.model.TrackType.ENTITY) {
-                    // EntityTrack 已隐藏，回退到 Project 面板
-                    renderProjectPanel();
-                } else {
-                    renderTrackPanel(selectionManager);
-                }
-            }
-            
-            case CLIP -> {
-                // Clip 面板（Entity*ClipPropertyAdapter）- ⚠️ 如果是 EntityClip 则隐藏
-                Object clip = selectionManager.getSelectionPayload();
-                if (clip instanceof com.chronoblocks.ui.timeline.model.entity.EntityClip) {
-                    // EntityClip 已隐藏，回退到 Project 面板
-                    renderProjectPanel();
-                } else {
-                    renderClipPanel(selectionManager);
-                }
-            }
 
-            case KEYFRAME -> // Keyframe panel (KeyframePropertyAdapter)
-                    renderKeyframePanel(selectionManager);
-        }
-        
-        // 多选提示
-        var multiSelection = selectionManager.getMultiSelection();
-        if (multiSelection.size() > 1) {
-            UITheme.separator();
-            ImGui.textDisabled(String.format("多选 (%d 个对象)", multiSelection.size()));
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("当前选择了多个对象，只显示第一个对象的属性");
+        // =========================
+        // PropertyContext 仲裁：只消费 getCurrentContext / getContextTarget
+        // =========================
+        PropertyContextService svc = PropertyContextService.get();
+        PropertyContext ctx = svc.getCurrentContext();
+        Object target = svc.getContextTarget();
+
+        if (ctx == PropertyContext.TOOL) {
+            if (target != null) {
+                var ad = PropertyAdapterRegistry.getAdapterFor(target);
+                if (ad != null) {
+                    currentSelection = target;
+                    currentAdapter = ad;
+                    UITheme.title(ad.getAdapterName());
+                    UITheme.separator();
+                    ad.renderProperties(target);
+                    renderMultiSelectHint(SelectionManager.get());
+                    return;
+                }
             }
+            renderNoToolMessage();
+            return;
+        }
+        if (ctx == PropertyContext.NONE || ctx == PropertyContext.WORLD) {
+            renderProjectPanel();
+            renderMultiSelectHint(SelectionManager.get());
+            return;
+        }
+        if (ctx == PropertyContext.TIMELINE) {
+            // 隐藏规则：EntityTrack、EntityClip 回退到 Project
+            if (target instanceof com.chronoblocks.ui.timeline.model.TimelineTrack tt
+                    && tt.getType() == com.chronoblocks.ui.timeline.model.TrackType.ENTITY) {
+                renderProjectPanel();
+                renderMultiSelectHint(SelectionManager.get());
+                return;
+            }
+            if (target instanceof com.chronoblocks.ui.timeline.model.entity.EntityClip) {
+                renderProjectPanel();
+                renderMultiSelectHint(SelectionManager.get());
+                return;
+            }
+            if (target == null) {
+                renderProjectPanel();
+                renderMultiSelectHint(SelectionManager.get());
+                return;
+            }
+            var ad = PropertyAdapterRegistry.getAdapterFor(target);
+            if (ad == null) {
+                currentSelection = target;
+                currentAdapter = null;
+                renderNoAdapterMessage();
+                renderMultiSelectHint(SelectionManager.get());
+                return;
+            }
+            currentSelection = target;
+            currentAdapter = ad;
+            try {
+                renderObjectTypeHeader();
+                UITheme.separator();
+                boolean modified = ad.renderProperties(target);
+                if (modified) {
+                    var timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+                    if (timelineModel != null) timelineModel.markDirty();
+                }
+            } catch (Exception e) {
+                LOGGER.error("[PropertiesPanel] 渲染 TIMELINE 属性时出错", e);
+                renderErrorMessage(e);
+            }
+            renderMultiSelectHint(SelectionManager.get());
+            return;
+        }
+
+        renderProjectPanel();
+        renderMultiSelectHint(SelectionManager.get());
+    }
+
+    /** 多选时在底部显示提示 */
+    private void renderMultiSelectHint(SelectionManager sm) {
+        var multi = sm.getMultiSelection();
+        if (multi.size() > 1) {
+            UITheme.separator();
+            ImGui.textDisabled(String.format("多选 (%d 个对象)", multi.size()));
+            if (ImGui.isItemHovered()) ImGui.setTooltip("当前选择了多个对象，只显示第一个对象的属性");
         }
     }
     
@@ -229,6 +265,14 @@ public class PropertiesPanel extends AbstractPanel {
      */
     private void renderProjectPanel() {
         renderNoSelectionMessage();
+    }
+
+    /**
+     * 工具上下文下无当前工具时显示
+     */
+    private void renderNoToolMessage() {
+        ImGui.textColored(1.0f, 1.0f, 0.0f, 1.0f, Icons.WARNING + " 未选择工具");
+        UITheme.label("请在工具栏中选择一个工具", UITheme.DarkTheme.TEXT);
     }
     
     /**
@@ -277,101 +321,6 @@ public class PropertiesPanel extends AbstractPanel {
         }
     }
     
-    /**
-     * 渲染 Track 面板
-     */
-    private void renderTrackPanel(SelectionManager selectionManager) {
-        var track = selectionManager.getSelectedTrack();
-        if (track == null) {
-            renderProjectPanel();
-            return;
-        }
-        
-        // 使用 TimelineTrackPropertyAdapter
-        var adapter = PropertyAdapterRegistry.getAdapterFor(track);
-        if (adapter != null) {
-            try {
-                renderObjectTypeHeader();
-                UITheme.separator();
-                boolean modified = adapter.renderProperties(track);
-                if (modified) {
-                    var timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
-                    if (timelineModel != null) {
-                        timelineModel.markDirty();
-                    }
-                }
-            } catch (Exception e) {
-                LOGGER.error("[PropertiesPanel] 渲染 Track 面板时出错", e);
-                renderErrorMessage(e);
-            }
-        } else {
-            renderNoAdapterMessage();
-        }
-    }
-    
-    /**
-     * 渲染 Clip 面板
-     */
-    private void renderClipPanel(SelectionManager selectionManager) {
-        Object clip = selectionManager.getSelectionPayload();
-        if (clip == null) {
-            renderProjectPanel();
-            return;
-        }
-        
-        // 使用对应的 Entity*ClipPropertyAdapter
-        var adapter = PropertyAdapterRegistry.getAdapterFor(clip);
-        if (adapter != null) {
-            try {
-                renderObjectTypeHeader();
-                UITheme.separator();
-                boolean modified = adapter.renderProperties(clip);
-                if (modified) {
-                    var timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
-                    if (timelineModel != null) {
-                        timelineModel.markDirty();
-                    }
-                }
-            } catch (Exception e) {
-                LOGGER.error("[PropertiesPanel] 渲染 Clip 面板时出错", e);
-                renderErrorMessage(e);
-            }
-        } else {
-            renderNoAdapterMessage();
-        }
-    }
-    
-    /**
-     * Render Keyframe panel.
-     */
-    private void renderKeyframePanel(SelectionManager selectionManager) {
-        Object keyframe = selectionManager.getSelectionPayload();
-        if (keyframe == null) {
-            renderProjectPanel();
-            return;
-        }
-
-        var adapter = PropertyAdapterRegistry.getAdapterFor(keyframe);
-        if (adapter != null) {
-            try {
-                renderObjectTypeHeader();
-                UITheme.separator();
-                boolean modified = adapter.renderProperties(keyframe);
-                if (modified) {
-                    var timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
-                    if (timelineModel != null) {
-                        timelineModel.markDirty();
-                    }
-                }
-            } catch (Exception e) {
-                LOGGER.error("[PropertiesPanel] Failed to render Keyframe panel", e);
-                renderErrorMessage(e);
-            }
-        } else {
-            renderNoAdapterMessage();
-        }
-    }
-
     /**
      * Selection change callback.
      */

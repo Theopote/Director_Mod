@@ -461,8 +461,7 @@ public class UIConfigurationBuilder {
             // ActorsPanel.class,
             PropertiesPanel.class,
             TimelinePanel.class,
-            // 添加新的模块化面板
-            ToolPropertiesPanel.class,
+            // ToolPropertiesPanel 已并入属性面板，不再加入默认列表（switch 保留以兼容旧布局）
             RenderSettingsPanel.class,
             SelectionFilterPanel.class,
             SelectionHistoryPanel.class,

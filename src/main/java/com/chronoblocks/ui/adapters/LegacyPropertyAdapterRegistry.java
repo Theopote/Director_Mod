@@ -8,11 +8,17 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * 📚 PropertyAdapterRegistry - 属性适配器注册表
+ * 📚 LegacyPropertyAdapterRegistry - 旧版属性适配器注册表（未接入 UI）
  *
- * <p>ChronoBlocks 属性系统的核心管理器，负责所有属性适配器的注册、查找和生命周期管理。
+ * <p><b>已弃用：</b> 此注册表及其 {@link PropertyAdapterModule} 仅做注册，从未被 PropertiesPanel 或
+ * 其他 UI 查找使用。当前实际生效的系统为
+ * {@code com.chronoblocks.ui.properties.PropertyAdapterRegistry}（{@code IPropertyAdapter}）。
  *
- * <h3>✨ 核心功能：</h3>
+ * <p>保留此类仅为避免与 {@code ui.properties.PropertyAdapterRegistry} 同名冲突；
+ * 若确认不再迁移，可移除本类及 {@link PropertyAdapterModule}、{@code ui.adapters.impl} 中
+ * 仅被本注册表使用的适配器。
+ *
+ * <h3>✨ 原核心功能：</h3>
  * <ul>
  *     <li>适配器注册：支持单个或批量注册</li>
  *     <li>智能查找：基于类型匹配和优先级排序</li>
@@ -22,47 +28,18 @@ import java.util.concurrent.CopyOnWriteArrayList;
  *     <li>生命周期管理：自动调用适配器的初始化和清理方法</li>
  * </ul>
  *
- * <h3>📖 使用示例：</h3>
- * <pre>{@code
- * // 获取单例
- * PropertyAdapterRegistry registry = PropertyAdapterRegistry.get();
- *
- * // 注册适配器
- * registry.register(new KeyframeAdapter());
- * registry.register(new ContainerAdapter());
- *
- * // 查找适配器
- * PropertyAdapter<Keyframe> adapter = registry.findAdapter(Keyframe.class);
- *
- * // 批量注册
- * registry.registerAll(
- *     new KeyframeAdapter(),
- *     new ContainerAdapter(),
- *     new EffectAdapter()
- * );
- *
- * // 清理所有适配器
- * registry.clear();
- * }</pre>
- *
- * <h3>🔧 高级特性：</h3>
- * <ul>
- *     <li>优先级系统：支持多个适配器竞争同一类型</li>
- *     <li>动态注册：运行时动态添加/移除适配器</li>
- *     <li>查找缓存：自动缓存查找结果以优化性能</li>
- *     <li>统计信息：提供注册表统计和调试信息</li>
- * </ul>
- *
  * @author ChronoBlocks Team
  * @version 4.5
  * @since 4.5
+ * @deprecated 未被 UI 使用；请使用 {@code com.chronoblocks.ui.properties.PropertyAdapterRegistry}
  */
-public class PropertyAdapterRegistry {
+@Deprecated(since = "4.5", forRemoval = true)
+public class LegacyPropertyAdapterRegistry {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(PropertyAdapterRegistry.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(LegacyPropertyAdapterRegistry.class);
 
     /** 单例实例 */
-    private static volatile PropertyAdapterRegistry instance;
+    private static volatile LegacyPropertyAdapterRegistry instance;
 
     /** 适配器存储：类型 -> 适配器列表（按优先级排序） */
     private final Map<Class<?>, List<PropertyAdapter<?>>> adapters;
@@ -79,13 +56,13 @@ public class PropertyAdapterRegistry {
     /**
      * 私有构造函数（单例模式）
      */
-    private PropertyAdapterRegistry() {
+    private LegacyPropertyAdapterRegistry() {
         this.adapters = new ConcurrentHashMap<>();
         this.adapterCache = new ConcurrentHashMap<>();
         this.allAdapters = new CopyOnWriteArrayList<>();
         this.statistics = new RegistryStatistics();
         
-        LOGGER.info("[PropertyAdapterRegistry] 属性适配器注册表已初始化");
+        LOGGER.info("[LegacyPropertyAdapterRegistry] 属性适配器注册表已初始化");
     }
 
     /**
@@ -93,11 +70,11 @@ public class PropertyAdapterRegistry {
      *
      * @return 注册表实例
      */
-    public static PropertyAdapterRegistry get() {
+    public static LegacyPropertyAdapterRegistry get() {
         if (instance == null) {
-            synchronized (PropertyAdapterRegistry.class) {
+            synchronized (LegacyPropertyAdapterRegistry.class) {
                 if (instance == null) {
-                    instance = new PropertyAdapterRegistry();
+                    instance = new LegacyPropertyAdapterRegistry();
                 }
             }
         }
@@ -112,15 +89,15 @@ public class PropertyAdapterRegistry {
      * @param <T>     适配器支持的类型
      * @return 当前注册表实例（支持链式调用）
      */
-    public <T> PropertyAdapterRegistry register(PropertyAdapter<T> adapter) {
+    public <T> LegacyPropertyAdapterRegistry register(PropertyAdapter<T> adapter) {
         if (adapter == null) {
-            LOGGER.warn("[PropertyAdapterRegistry] 尝试注册空适配器");
+            LOGGER.warn("[LegacyPropertyAdapterRegistry] 尝试注册空适配器");
             return this;
         }
 
         // 检查适配器是否启用
         if (!adapter.isEnabled()) {
-            LOGGER.debug("[PropertyAdapterRegistry] 跳过已禁用的适配器: {}", adapter.getDisplayName());
+            LOGGER.debug("[LegacyPropertyAdapterRegistry] 跳过已禁用的适配器: {}", adapter.getDisplayName());
             return this;
         }
 
@@ -128,7 +105,7 @@ public class PropertyAdapterRegistry {
         
         // 检查是否已注册
         if (isAlreadyRegistered(adapter)) {
-            LOGGER.debug("[PropertyAdapterRegistry] 适配器已注册: {}", adapter.getDisplayName());
+            LOGGER.debug("[LegacyPropertyAdapterRegistry] 适配器已注册: {}", adapter.getDisplayName());
             return this;
         }
 
@@ -146,10 +123,10 @@ public class PropertyAdapterRegistry {
         try {
             adapter.initialize();
             statistics.recordRegistration(targetType, adapter);
-            LOGGER.info("[PropertyAdapterRegistry] 已注册适配器: {} (类型: {}, 优先级: {})",
+            LOGGER.info("[LegacyPropertyAdapterRegistry] 已注册适配器: {} (类型: {}, 优先级: {})",
                     adapter.getDisplayName(), targetType.getSimpleName(), adapter.getPriority());
         } catch (Exception e) {
-            LOGGER.error("[PropertyAdapterRegistry] 适配器初始化失败: {}", adapter.getDisplayName(), e);
+            LOGGER.error("[LegacyPropertyAdapterRegistry] 适配器初始化失败: {}", adapter.getDisplayName(), e);
             // 初始化失败，移除适配器
             unregister(adapter);
         }
@@ -188,9 +165,9 @@ public class PropertyAdapterRegistry {
             try {
                 adapter.dispose();
                 statistics.recordUnregistration(targetType, adapter);
-                LOGGER.info("[PropertyAdapterRegistry] 已注销适配器: {}", adapter.getDisplayName());
+                LOGGER.info("[LegacyPropertyAdapterRegistry] 已注销适配器: {}", adapter.getDisplayName());
             } catch (Exception e) {
-                LOGGER.error("[PropertyAdapterRegistry] 适配器清理失败: {}", adapter.getDisplayName(), e);
+                LOGGER.error("[LegacyPropertyAdapterRegistry] 适配器清理失败: {}", adapter.getDisplayName(), e);
             }
         }
 
@@ -230,7 +207,7 @@ public class PropertyAdapterRegistry {
         PropertyAdapter<T> adapter = findExactMatch(type);
         if (adapter != null) {
             adapterCache.put(type, adapter);
-            LOGGER.debug("[PropertyAdapterRegistry] 找到精确匹配: {} -> {}",
+            LOGGER.debug("[LegacyPropertyAdapterRegistry] 找到精确匹配: {} -> {}",
                     type.getSimpleName(), adapter.getDisplayName());
             return adapter;
         }
@@ -239,7 +216,7 @@ public class PropertyAdapterRegistry {
         adapter = findBySupports(type);
         if (adapter != null) {
             adapterCache.put(type, adapter);
-            LOGGER.debug("[PropertyAdapterRegistry] 找到支持匹配: {} -> {}",
+            LOGGER.debug("[LegacyPropertyAdapterRegistry] 找到支持匹配: {} -> {}",
                     type.getSimpleName(), adapter.getDisplayName());
             return adapter;
         }
@@ -248,12 +225,12 @@ public class PropertyAdapterRegistry {
         adapter = findByInheritance(type);
         if (adapter != null) {
             adapterCache.put(type, adapter);
-            LOGGER.debug("[PropertyAdapterRegistry] 找到继承匹配: {} -> {}",
+            LOGGER.debug("[LegacyPropertyAdapterRegistry] 找到继承匹配: {} -> {}",
                     type.getSimpleName(), adapter.getDisplayName());
             return adapter;
         }
 
-        LOGGER.debug("[PropertyAdapterRegistry] 未找到适配器: {}", type.getSimpleName());
+        LOGGER.debug("[LegacyPropertyAdapterRegistry] 未找到适配器: {}", type.getSimpleName());
         return null;
     }
 
@@ -285,7 +262,7 @@ public class PropertyAdapterRegistry {
                     .max(Comparator.comparingInt(PropertyAdapter::getPriority))
                     .orElse(null);
         } catch (Exception e) {
-            LOGGER.debug("[PropertyAdapterRegistry] 无法创建模拟实例: {}", type.getSimpleName());
+            LOGGER.debug("[LegacyPropertyAdapterRegistry] 无法创建模拟实例: {}", type.getSimpleName());
             return null;
         }
     }
@@ -359,7 +336,7 @@ public class PropertyAdapterRegistry {
      * <p>注销所有适配器并清除缓存。
      */
     public void clear() {
-        LOGGER.info("[PropertyAdapterRegistry] 正在清空注册表...");
+        LOGGER.info("[LegacyPropertyAdapterRegistry] 正在清空注册表...");
 
         // 复制列表避免并发修改
         List<PropertyAdapter<?>> adaptersCopy = new ArrayList<>(allAdapters);
@@ -374,7 +351,7 @@ public class PropertyAdapterRegistry {
         allAdapters.clear();
         statistics.reset();
 
-        LOGGER.info("[PropertyAdapterRegistry] 注册表已清空");
+        LOGGER.info("[LegacyPropertyAdapterRegistry] 注册表已清空");
     }
 
     /**
@@ -399,7 +376,7 @@ public class PropertyAdapterRegistry {
 
     @Override
     public String toString() {
-        return String.format("PropertyAdapterRegistry{types=%d, adapters=%d, cacheSize=%d}",
+        return String.format("LegacyPropertyAdapterRegistry{types=%d, adapters=%d, cacheSize=%d}",
                 adapters.size(), allAdapters.size(), adapterCache.size());
     }
 
@@ -463,4 +440,3 @@ public class PropertyAdapterRegistry {
         }
     }
 }
-

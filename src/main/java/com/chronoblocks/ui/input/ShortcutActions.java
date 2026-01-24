@@ -135,8 +135,8 @@ public final class ShortcutActions {
                 
                 // ==================== 面板切换 ====================
                 case TOGGLE_TOOL_PROPERTIES -> {
-                    commands.view().togglePanel(PanelId.TOOL_PROPERTIES);
-                    LOGGER.debug("[ShortcutActions] 执行: TOGGLE_TOOL_PROPERTIES");
+                    commands.view().togglePanel(PanelId.PROPERTIES);
+                    LOGGER.debug("[ShortcutActions] 执行: TOGGLE_TOOL_PROPERTIES（已映射到属性面板）");
                 }
                 case TOGGLE_SELECTION_FILTER -> {
                     commands.view().togglePanel(PanelId.SELECTION_FILTER);

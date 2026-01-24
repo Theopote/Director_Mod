@@ -378,13 +378,9 @@ public class ChronoBlocksUIManager {
         UITheme.applyDarkTheme();
         LOGGER.info("[ChronoBlocks] UI主题已应用");
         
-        // 初始化旧属性系统 v4.9 📋（兼容性）
+        // 初始化属性系统 v4.9（PropertyAdapterBootstrap + ui.properties.PropertyAdapterRegistry）
         com.chronoblocks.ui.properties.PropertyAdapterBootstrap.initialize();
-        LOGGER.info("[ChronoBlocks] 旧属性系统已初始化");
-        
-        // 初始化新属性系统 v4.5 ⭐（现代化）
-        com.chronoblocks.ui.adapters.PropertyAdapterModule.initialize();
-        LOGGER.info("[ChronoBlocks] 新属性系统已初始化");
+        LOGGER.info("[ChronoBlocks] 属性系统已初始化");
         
         // 初始化所有面板 & 设置依赖引用（UIPanelManager）
         panelManager.initializeAll();
@@ -501,6 +497,8 @@ public class ChronoBlocksUIManager {
             this.playbackCommands = new PlaybackCommandsImpl(timelineModel);
             this.cameraCommands = new CameraCommandsImpl(timelineModel);
             this.viewCommands = new ViewCommandsImpl(ChronoBlocksUIManager.this.panelManager);
+            com.chronoblocks.ui.properties.PropertyAdapterContext.setShowFilterPanelRunnable(
+                () -> viewCommands.showPanel(com.chronoblocks.ui.PanelId.SELECTION_FILTER));
             this.layoutCommands = new LayoutCommandsImpl(layoutManager);
             this.helpCommands = new HelpCommandsImpl(menuBarPanel);
             this.toolCommands = new ToolCommandsImpl();
@@ -1759,6 +1757,7 @@ public class ChronoBlocksUIManager {
                 return;
             }
             com.chronoblocks.ui.tools.ToolRegistry.get().activate(toolId);
+            com.chronoblocks.ui.properties.PropertyContextService.get().onToolActivated(toolId);
         }
         
         @Override
@@ -1766,6 +1765,8 @@ public class ChronoBlocksUIManager {
             var world = net.minecraft.client.MinecraftClient.getInstance().world;
             if (world != null) {
                 com.chronoblocks.core.selection.SelectionManager.get().switchToNextTool(world);
+                var id = com.chronoblocks.core.selection.SelectionManager.get().getCurrentToolId();
+                if (id != null) com.chronoblocks.ui.properties.PropertyContextService.get().onToolActivated(id);
                 LOGGER.debug("[ToolCommands] 切换到下一个工具");
             }
         }
@@ -1775,6 +1776,8 @@ public class ChronoBlocksUIManager {
             var world = net.minecraft.client.MinecraftClient.getInstance().world;
             if (world != null) {
                 com.chronoblocks.core.selection.SelectionManager.get().switchToPreviousTool(world);
+                var id = com.chronoblocks.core.selection.SelectionManager.get().getCurrentToolId();
+                if (id != null) com.chronoblocks.ui.properties.PropertyContextService.get().onToolActivated(id);
                 LOGGER.debug("[ToolCommands] 切换到上一个工具");
             }
         }

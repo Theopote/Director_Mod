@@ -130,7 +130,7 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
         float totalW = estimatePanelShortcutsTotalWidth();
         beginSection(firstSection, totalW);
 
-        renderPanelToggleButtonWrapped(Icons.SETTINGS, "属性", ToolPropertiesPanel.class, "打开工具属性面板", ToolPropertiesPanel.PANEL_NAME);
+        renderPanelToggleButtonWrapped(Icons.SETTINGS, "属性", PropertiesPanel.class, "打开属性面板（工具与时间线对象属性）", PanelId.PROPERTIES);
         renderPanelToggleButtonWrapped(Icons.FILTER, "过滤", SelectionFilterPanel.class, "打开选择过滤器面板", SelectionFilterPanel.PANEL_NAME);
         renderPanelToggleButtonWrapped(Icons.UNDO, "历史", SelectionHistoryPanel.class, "打开选择历史面板", SelectionHistoryPanel.PANEL_NAME);
 

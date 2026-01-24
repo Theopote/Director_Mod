@@ -191,8 +191,7 @@ public class PanelConfigurationLoader {
         // TimelinePanel
         panels.add(new PanelConfiguration.PanelDefinition("TimelinePanel", true, 50));
         
-        // 添加新的模块化面板
-        panels.add(new PanelConfiguration.PanelDefinition("ToolPropertiesPanel", true, 60));
+        // 添加新的模块化面板（ToolPropertiesPanel 已并入 PropertiesPanel，不再单独列出）
         panels.add(new PanelConfiguration.PanelDefinition("SelectionRenderSettingsPanel", true, 70));
         panels.add(new PanelConfiguration.PanelDefinition("SelectionFilterPanel", true, 80));
         panels.add(new PanelConfiguration.PanelDefinition("SelectionHistoryPanel", true, 90));

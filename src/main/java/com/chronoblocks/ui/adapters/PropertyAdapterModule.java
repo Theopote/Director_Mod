@@ -8,32 +8,21 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * 🔌 PropertyAdapterModule - 属性适配器注册模块
+ * 🔌 PropertyAdapterModule - 旧版属性适配器注册模块（未接入 UI）
  *
- * <p>负责在应用启动时注册所有属性适配器到注册表。
+ * <p><b>已弃用：</b> 本模块向 {@link LegacyPropertyAdapterRegistry} 注册的适配器未被 PropertiesPanel
+ * 或其它 UI 使用。实际生效的为 {@code com.chronoblocks.ui.properties.PropertyAdapterBootstrap} +
+ * {@code com.chronoblocks.ui.properties.PropertyAdapterRegistry}（{@code IPropertyAdapter}）。
  *
- * <h3>✨ 功能特性：</h3>
- * <ul>
- *     <li>自动注册所有内置适配器</li>
- *     <li>提供注册状态检查</li>
- *     <li>支持动态添加自定义适配器</li>
- *     <li>详细的日志记录</li>
- * </ul>
- *
- * <h3>📖 使用示例：</h3>
- * <pre>{@code
- * // 在应用启动时调用
- * public class ChronoBlocksInitializer {
- *     public static void initialize() {
- *         PropertyAdapterModule.initialize();
- *     }
- * }
- * }</pre>
+ * <p>负责在应用启动时注册所有属性适配器到 {@link LegacyPropertyAdapterRegistry}。
  *
  * @author ChronoBlocks Team
  * @version 4.5
  * @since 4.5
+ * @deprecated 未被 UI 使用；请使用 {@code com.chronoblocks.ui.properties.PropertyAdapterBootstrap}
  */
+@Deprecated(since = "4.5", forRemoval = true)
+@SuppressWarnings("removal")
 public class PropertyAdapterModule {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(PropertyAdapterModule.class);
@@ -56,7 +45,7 @@ public class PropertyAdapterModule {
         LOGGER.info("[PropertyAdapterModule] 正在初始化属性适配器系统...");
 
         try {
-            PropertyAdapterRegistry registry = PropertyAdapterRegistry.get();
+            LegacyPropertyAdapterRegistry registry = LegacyPropertyAdapterRegistry.get();
 
             // 注册核心适配器
             registerCoreAdapters(registry);
@@ -77,7 +66,7 @@ public class PropertyAdapterModule {
     /**
      * 注册核心适配器
      */
-    private static void registerCoreAdapters(PropertyAdapterRegistry registry) {
+    private static void registerCoreAdapters(LegacyPropertyAdapterRegistry registry) {
         LOGGER.debug("[PropertyAdapterModule] 正在注册核心适配器...");
 
         // 容器适配器
@@ -102,7 +91,7 @@ public class PropertyAdapterModule {
     /**
      * 记录注册表统计信息
      */
-    private static void logRegistryStatistics(PropertyAdapterRegistry registry) {
+    private static void logRegistryStatistics(LegacyPropertyAdapterRegistry registry) {
         var stats = registry.getStatistics();
 
         LOGGER.info("[PropertyAdapterModule] 注册表统计:");
@@ -133,7 +122,7 @@ public class PropertyAdapterModule {
     public static void reset() {
         LOGGER.warn("[PropertyAdapterModule] 正在重置模块...");
 
-        PropertyAdapterRegistry.get().clear();
+        LegacyPropertyAdapterRegistry.get().clear();
         initialized = false;
 
         LOGGER.info("[PropertyAdapterModule] 模块已重置");
@@ -144,11 +133,11 @@ public class PropertyAdapterModule {
      *
      * @return 注册表实例
      */
-    public static PropertyAdapterRegistry getRegistry() {
+    public static LegacyPropertyAdapterRegistry getRegistry() {
         if (!initialized) {
             LOGGER.warn("[PropertyAdapterModule] 系统未初始化，返回默认注册表");
         }
-        return PropertyAdapterRegistry.get();
+        return LegacyPropertyAdapterRegistry.get();
     }
 
 }
