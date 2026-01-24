@@ -20,7 +20,7 @@ import java.util.Set;
 
 /**
  * 🔲 FaceSelectTool v2.0
- *
+ * <p>
  * - 基于命中面的二维 Flood Fill
  * - 异步执行 + 分帧更新，避免卡顿
  * - 实时预览同步 ToolPreviewManager
@@ -257,7 +257,7 @@ public class FaceSelectTool implements SelectionTool {
             case XY -> Direction.NORTH; // Axis.Z
             case XZ -> Direction.UP;    // Axis.Y
             case YZ -> Direction.EAST;  // Axis.X
-            case AUTO -> clickedFace;
+            default -> throw new IllegalStateException("Unexpected value: " + mode);
         };
     }
 

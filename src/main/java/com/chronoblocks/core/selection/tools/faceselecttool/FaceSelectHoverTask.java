@@ -22,7 +22,7 @@ import java.util.concurrent.ForkJoinPool;
 
 /**
  * 💠 FaceSelectHoverTask
- *
+ * <p>
  * 面选择工具的悬停预览任务。
  * - 在指定平面内进行 Flood Fill
  * - 分批回调，逐步刷新预览，避免一次性卡顿
@@ -168,7 +168,7 @@ public class FaceSelectHoverTask {
                 processedInStep = 0;
                 if (callback != null) {
                     try {
-                        callback.onUpdate(snapshotResult(visited, depthMap, reachedLimit));
+                        callback.onUpdate(snapshotResult(visited, depthMap, false));
                     } catch (Exception e) {
                         LOGGER.warn("[FaceSelectHoverTask] onUpdate 回调失败", e);
                     }
