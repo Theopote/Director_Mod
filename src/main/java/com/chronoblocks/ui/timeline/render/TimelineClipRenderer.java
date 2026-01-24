@@ -37,7 +37,7 @@ public final class TimelineClipRenderer {
      * 片段高度（像素）
      * 
      * <p>片段在轨道上的实际显示高度。
-     * 轨道高度为 24px，片段高度为 20px，上下各留 2px 内边距。
+     * 轨道高度为 22px，片段上下各留 1px 内边距，实际渲染高度约 18px。
      */
     public static final float CLIP_HEIGHT = 20.0f;
     
@@ -45,10 +45,9 @@ public final class TimelineClipRenderer {
      * 片段垂直内边距（像素）
      * 
      * <p>片段上下两侧的内边距。
-     * 计算公式：CLIP_VERT_PADDING = (轨道高度 - 片段高度) / 2
-     * 当前值：(24 - 20) / 2 = 2px
+     * 轨道高度 22px 时，与 clipTop/clipBottom 公式中的 ±1 配合，使片段视觉高度约 18px。
      */
-    private static final float CLIP_VERT_PADDING = 2.0f;
+    private static final float CLIP_VERT_PADDING = 1.0f;
     
     /**
      * 片段文本 X 偏移（像素）

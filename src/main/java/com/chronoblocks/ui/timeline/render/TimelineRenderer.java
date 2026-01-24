@@ -68,7 +68,7 @@ public class TimelineRenderer {
     // 时间线轨道尺寸从 UITheme 中获取，保持UI规范统一
     private static final float TRACK_HEIGHT = UITheme.Spacing.TIMELINE_TRACK_HEIGHT;
     private static final float TRACK_GAP = UITheme.Spacing.TIMELINE_TRACK_GAP;
-    private static final float RULER_HEIGHT = UITheme.Spacing.BUTTON_HEIGHT;
+    private static final float RULER_HEIGHT = UITheme.Spacing.BUTTON_HEIGHT - 2f;  // 时间刻度高度比按钮低2px
     private static final float RULER_BOTTOM_PADDING = UITheme.Spacing.SMALL;
     private static final float DEFAULT_LEFT_LABEL_WIDTH = TimelineDividerHandler.getDefaultLeftLabelWidth();
     // LEFT_LABEL_MIN 和 LEFT_LABEL_MAX 现在由 TimelineDividerHandler 管理
@@ -355,10 +355,9 @@ public class TimelineRenderer {
         // ⭐ 性能优化：移除重复的 syncViewportFromState() 调用
         // renderTrackArea 已经调用了 syncViewportFromState()，这里不需要重复调用
         
-        // ⭐ 布局：与容器片段保持一致的高度和位置
+        // ⭐ 布局：与轨道垂直居中对齐（与容器片段视觉一致）
         float pathClipHeight = TimelineClipRenderer.CLIP_HEIGHT;  // 20px（与容器片段一致）
-        // 与容器片段相同的垂直对齐：CLIP_VERT_PADDING = 2.0f（轨道高度24px - 片段高度20px）/ 2
-        float pathClipY = y + 2.0f;  // 与容器片段相同的垂直对齐
+        float pathClipY = y + (TRACK_HEIGHT - pathClipHeight) * 0.5f;  // 轨道内垂直居中
         
         // ⭐ 性能优化：直接计算可见时间范围，避免创建数组
         float contentXForTime = viewport.getContentX();

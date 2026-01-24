@@ -39,6 +39,11 @@ public class SelectionFilterPanel extends AbstractPanel implements ICommandsAwar
 
     private UICommandFacade commands;
 
+    public SelectionFilterPanel() {
+        super();
+        setVisible(false);  // 默认布局不打开，需从菜单「选择过滤」打开
+    }
+
     /** 当前选择的过滤器ID（高级区） */
     private String selectedFilterId = "";
 

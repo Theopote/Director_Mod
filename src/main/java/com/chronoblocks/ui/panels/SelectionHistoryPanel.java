@@ -68,6 +68,7 @@ public class SelectionHistoryPanel extends AbstractPanel {
         this.table = new TableSection();
         this.settings = new SettingsSection();
         
+        setVisible(false);  // 默认布局不打开，需从菜单「选择历史」打开
         LOGGER.info("[SelectionHistoryPanel] 初始化选择历史面板 v2.0");
     }
     
@@ -86,8 +87,8 @@ public class SelectionHistoryPanel extends AbstractPanel {
     
     @Override
     protected void doRender() {
-        UITheme.title(Icons.UNDO + " 选择历史");
-        ImGui.spacing();
+//        UITheme.title(Icons.UNDO + " 选择历史");
+//        ImGui.spacing();
         
         // 快捷键处理
         handleKeyboardShortcuts();

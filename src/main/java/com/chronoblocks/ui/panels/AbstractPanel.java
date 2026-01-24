@@ -106,7 +106,7 @@ public abstract class AbstractPanel implements IPanel {
                     if (windowStarted) {
                         try {
                             if (ImGui.isWindowAppearing()) {
-                                // 设置窗口默认大小（高度为80%）
+                                // 设置窗口默认大小（首次出现时，如选择历史、选择过滤等活动面板）
                                 setDefaultWindowSize();
                             }
                             
@@ -316,9 +316,9 @@ public abstract class AbstractPanel implements IPanel {
         float viewportWidth = viewport.getWorkSizeX();
         float viewportHeight = viewport.getWorkSizeY();
         
-        // 设置默认窗口大小（宽度保持默认，高度为视口高度的80%）
+        // 设置默认窗口大小（宽度保持默认，高度为视口高度的40%，适用于选择历史、选择过滤等活动面板首次打开）
         float defaultWidth = Math.min(400.0f, viewportWidth * 0.3f); // 宽度为视口宽度的30%，最大400px
-        float defaultHeight = viewportHeight * 0.8f; // 高度为视口高度的80%
+        float defaultHeight = viewportHeight * 0.4f; // 高度为视口高度的40%（原80%的一半，避免过高）
         
         imgui.ImGui.setNextWindowSize(defaultWidth, defaultHeight, imgui.flag.ImGuiCond.FirstUseEver);
     }
