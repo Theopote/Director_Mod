@@ -38,6 +38,7 @@ import com.chronoblocks.ui.commands.HelpCommands;
 import com.chronoblocks.ui.commands.ToolCommands;
 import com.chronoblocks.ui.commands.ContainerCommands;
 import com.chronoblocks.ui.commands.SelectionFilterCommands;
+import com.chronoblocks.core.selection.block_filters.FilterIds;
 import com.chronoblocks.core.playback.PlaybackController;
 import com.chronoblocks.ui.timeline.model.camera.path.CameraPathType;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
@@ -842,6 +843,62 @@ public class ChronoBlocksUIManager {
             }
             var preset = com.chronoblocks.core.selection.block_filters.BlockFilterPresetManager.getPreset(id);
             if (preset != null) replaceAll(preset.getFilters());
+        }
+
+        @Override
+        public boolean isFilterEnabled(String id) {
+            if (id == null) return false;
+            if (pipelineContains(id)) return true;
+            String c = com.chronoblocks.core.selection.block_filters.BlockFilterRegistry.resolveFilterId(id);
+            if (FilterIds.EXCLUDE_AIR.equals(c) && isEmpty()) return true;
+            return false;
+        }
+
+        @Override
+        public void setFilterEnabled(String id, boolean enabled) {
+            if (id == null) return;
+            String c = com.chronoblocks.core.selection.block_filters.BlockFilterRegistry.resolveFilterId(id);
+            if (enabled) {
+                if (FilterIds.EXCLUDE_AIR.equals(c)) removeFilterById(FilterIds.ALL);
+                if (!pipelineContains(id)) {
+                    var f = com.chronoblocks.core.selection.block_filters.BlockFilterRegistry.getFilter(id);
+                    if (f != null) {
+                        // 空管道时视为「忽略空气」默认 on，先加入 exclude_air 再追加当前（排除正在加的即是 exclude_air 的情况）
+                        if (isEmpty() && !FilterIds.EXCLUDE_AIR.equals(c)) {
+                            var air = com.chronoblocks.core.selection.block_filters.BlockFilterRegistry.getFilter(FilterIds.EXCLUDE_AIR);
+                            if (air != null) appendFilter(air);
+                        }
+                        appendFilter(f);
+                    }
+                }
+            } else {
+                removeFilterById(id);
+                if (FilterIds.EXCLUDE_AIR.equals(c) && isEmpty()) {
+                    var all = com.chronoblocks.core.selection.block_filters.BlockFilterRegistry.getFilter(FilterIds.ALL);
+                    if (all != null) appendFilter(all);
+                }
+            }
+        }
+
+        private boolean pipelineContains(String id) {
+            String c = com.chronoblocks.core.selection.block_filters.BlockFilterRegistry.resolveFilterId(id);
+            if (c == null) return false;
+            for (var f : getFilters())
+                if (c.equals(com.chronoblocks.core.selection.block_filters.BlockFilterRegistry.getFilterId(f)))
+                    return true;
+            return false;
+        }
+
+        private void removeFilterById(String id) {
+            String c = com.chronoblocks.core.selection.block_filters.BlockFilterRegistry.resolveFilterId(id);
+            if (c == null) return;
+            var list = new java.util.ArrayList<>(getFilters());
+            for (int i = 0; i < list.size(); i++) {
+                if (c.equals(com.chronoblocks.core.selection.block_filters.BlockFilterRegistry.getFilterId(list.get(i)))) {
+                    removeFilterAt(i);
+                    return;
+                }
+            }
         }
         
         @Override

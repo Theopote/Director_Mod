@@ -1,6 +1,7 @@
 package com.chronoblocks.ui.panels;
 
 import com.chronoblocks.core.selection.block_filters.BlockFilter;
+import com.chronoblocks.core.selection.block_filters.FilterIds;
 import com.chronoblocks.ui.commands.SelectionFilterCommands;
 import com.chronoblocks.ui.commands.UICommandFacade;
 import com.chronoblocks.ui.theme.Icons;
@@ -17,17 +18,19 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * SelectionFilterPanel v2.1
- * <p>
- * 架构收口：<strong>只通过 SelectionFilterCommands 配置管道，不直接触碰 SelectionManager / BlockFilterPipeline。</strong>
- * <p>
- * 特性：
- * - 基于 BlockFilter 规则对象与 BlockFilterPipeline
- * - 快速过滤、过滤器选择、管道卡片、预设、性能统计 — 全部经 commands.selectionFilter() 完成
- * - 实现 ICommandsAware，由 UIPanelManager 注入 UICommandFacade
+ * SelectionFilterPanel v3.0
  *
- * @author ChronoBlocks Team
- * @version 2.1
+ * UI-only 重构版本：
+ * - 面向普通用户的“人话过滤”
+ * - 保留完整高级过滤能力
+ * - 不直接接触 Pipeline / Manager
+ *
+ * 三层语义（底层共用 BlockFilterPipeline）：
+ * - 层 1「选择内容」：基础 Checkbox，人话（忽略空气/水/岩浆，仅固体/植物/可替换）
+ * - 层 2「选择模式」：Preset 的 UI 语义（切换、保存为模式）
+ * - 层 3「高级过滤器」：规则选择、当前规则列表、清空、调试统计
+ *
+ * Commands / Core 完全不变
  */
 public class SelectionFilterPanel extends AbstractPanel implements ICommandsAware {
 
@@ -36,18 +39,14 @@ public class SelectionFilterPanel extends AbstractPanel implements ICommandsAwar
 
     private UICommandFacade commands;
 
-    /** 当前选择的过滤器ID */
+    /** 当前选择的过滤器ID（高级区） */
     private String selectedFilterId = "";
 
-    /** 当前选择的预设ID */
+    /** 当前选择的模式 / 预设 */
     private String selectedPresetId = "";
 
-    /** 自定义预设名称输入 */
+    /** 新建模式名称 */
     private final ImString presetNameInput = new ImString("", 64);
-
-    public SelectionFilterPanel() {
-        LOGGER.info("[SelectionFilterPanel] 初始化过滤器面板 v2.1");
-    }
 
     @Override
     public void setCommands(UICommandFacade commands) {
@@ -59,16 +58,24 @@ public class SelectionFilterPanel extends AbstractPanel implements ICommandsAwar
     }
 
     @Override
-    public String getPanelName() { return PANEL_NAME; }
+    public String getPanelName() {
+        return PANEL_NAME;
+    }
 
     @Override
-    public String getWindowName() { return Icons.FILTER + " 过滤器面板###SelectionFilterPanel"; }
+    public String getWindowName() {
+        return Icons.FILTER + " 选择过滤###SelectionFilterPanel";
+    }
 
     @Override
-    public int getPriority() { return 25; }
+    public int getPriority() {
+        return 25;
+    }
 
     @Override
-    protected int getWindowFlags() { return 0; }
+    protected int getWindowFlags() {
+        return 0;
+    }
 
     @Override
     protected void doRender() {
@@ -78,46 +85,109 @@ public class SelectionFilterPanel extends AbstractPanel implements ICommandsAwar
             return;
         }
 
-        if (ImGui.collapsingHeader(Icons.TARGET + " 快速过滤", ImGuiTreeNodeFlags.DefaultOpen))
-            renderQuickFilters(sf);
+        // ===============================
+        // 🟢 层 1：基础内容过滤（普通用户）
+        // ===============================
+        if (ImGui.collapsingHeader(Icons.TARGET + " 选择内容", ImGuiTreeNodeFlags.DefaultOpen)) {
+            renderBasicFilters(sf);
+        }
 
-        if (ImGui.collapsingHeader(Icons.SEARCH + " 过滤器选择", ImGuiTreeNodeFlags.DefaultOpen))
-            renderFilterSelection(sf);
+        // ===============================
+        // 🟣 层 2：选择模式（预设）
+        // ===============================
+        if (ImGui.collapsingHeader(Icons.BOOKMARK + " 选择模式")) {
+            renderModes(sf);
+        }
 
-        if (ImGui.collapsingHeader(Icons.LINK + " 当前过滤管道", ImGuiTreeNodeFlags.DefaultOpen))
-            renderPipeline(sf);
-
-        if (ImGui.collapsingHeader(Icons.BOOKMARK + " 预设管理"))
-            renderPresets(sf);
-
-        if (ImGui.collapsingHeader(Icons.PLAY + " 调试与统计"))
-            renderTesting(sf);
+        // ===============================
+        // 🔵 层 3：高级过滤（专家）
+        // ===============================
+        if (ImGui.collapsingHeader(Icons.TOOLS + " 高级过滤器 ▶")) {
+            renderAdvancedFilters(sf);
+        }
     }
 
-    // -------------------------------
-    // 快速过滤
-    // -------------------------------
-    private void renderQuickFilters(SelectionFilterCommands sf) {
+    // -------------------------------------------------
+    // 🟢 基础内容过滤（Checkbox，人话；filterId 见 FilterIds / docs/selection-filter-ids.md）
+    // -------------------------------------------------
+    private void renderBasicFilters(SelectionFilterCommands sf) {
         ImGui.indent();
-        if (ImGui.button("非空气")) { sf.applyQuickFilter("non_air"); LOGGER.info("[FilterPanel] 应用: non_air"); }
-        ImGui.sameLine();
-        if (ImGui.button("固体")) { sf.applyQuickFilter("solid"); LOGGER.info("[FilterPanel] 应用: solid"); }
-        if (ImGui.button("透明")) { sf.applyQuickFilter("transparent"); LOGGER.info("[FilterPanel] 应用: transparent"); }
-        ImGui.sameLine();
-        if (ImGui.button("可替换")) { sf.applyQuickFilter("replaceable"); LOGGER.info("[FilterPanel] 应用: replaceable"); }
+
+        checkboxFilter(sf, "忽略空气", FilterIds.EXCLUDE_AIR);
+        checkboxFilter(sf, "忽略水", FilterIds.EXCLUDE_WATER);
+        checkboxFilter(sf, "忽略岩浆", FilterIds.EXCLUDE_LAVA);
+
+        ImGui.separator();
+
+        checkboxFilter(sf, "仅选择固体方块", FilterIds.SOLID_ONLY);
+        checkboxFilter(sf, "仅选择植物", FilterIds.PLANT_ONLY);
+        checkboxFilter(sf, "仅选择可替换方块（草 / 花 / 雪）", FilterIds.REPLACEABLE_ONLY);
+        checkboxFilter(sf, "仅选择透明方块", FilterIds.TRANSPARENT_ONLY);
+
         ImGui.unindent();
     }
 
-    // -------------------------------
-    // 过滤器选择 + 动态参数配置
-    // -------------------------------
-    private void renderFilterSelection(SelectionFilterCommands sf) {
+    private void checkboxFilter(SelectionFilterCommands sf, String label, String filterId) {
+        boolean enabled = sf.isFilterEnabled(filterId);
+        if (ImGui.checkbox(label + "##" + filterId, enabled)) {
+            sf.setFilterEnabled(filterId, !enabled);
+            LOGGER.info("[SelectionFilter] {} -> {}", filterId, !enabled);
+        }
+    }
+
+    // -------------------------------------------------
+    // 🟣 选择模式（Preset 的 UI 语义；显示名见 FilterIds.getPresetDisplayName）
+    // -------------------------------------------------
+    private void renderModes(SelectionFilterCommands sf) {
         ImGui.indent();
 
-        Set<String> ids = sf.getFilterIds();
-        String currentName = selectedFilterId.isEmpty() ? "选择过滤器..." : selectedFilterId;
+        Set<String> presetIds = sf.getPresetIds();
+        String current = selectedPresetId.isEmpty() ? "通用编辑（默认）" : FilterIds.getPresetDisplayName(selectedPresetId);
 
-        if (ImGui.beginCombo("过滤器类型##filterType", currentName)) {
+        if (ImGui.beginCombo("当前模式##modeSelect", current)) {
+            for (String id : presetIds) {
+                boolean selected = id.equals(selectedPresetId);
+                String label = FilterIds.getPresetDisplayName(id);
+                if (ImGui.selectable(label + "##" + id, selected)) {
+                    selectedPresetId = id;
+                    sf.loadPreset(id);
+                    LOGGER.info("[SelectionFilter] 切换模式: {}", id);
+                }
+                if (selected) ImGui.setItemDefaultFocus();
+            }
+            ImGui.endCombo();
+        }
+
+        ImGui.spacing();
+        ImGui.separator();
+        ImGui.spacing();
+
+        UITheme.label("保存当前过滤为新模式:", UITheme.DarkTheme.TEXT);
+        ImGui.inputText("##newModeName", presetNameInput);
+        ImGui.sameLine();
+        if (ImGui.button("保存模式")) {
+            String name = presetNameInput.get().trim();
+            if (!name.isEmpty() && !sf.isEmpty()) {
+                sf.savePreset(name);
+                presetNameInput.set("");
+                LOGGER.info("[SelectionFilter] 保存新模式: {}", name);
+            }
+        }
+
+        ImGui.unindent();
+    }
+
+    // -------------------------------------------------
+    // 🔵 高级过滤（完整系统，语义：规则 / 当前规则列表）
+    // -------------------------------------------------
+    private void renderAdvancedFilters(SelectionFilterCommands sf) {
+        ImGui.indent();
+
+        // --- 添加规则 ---
+        Set<String> ids = sf.getFilterIds();
+        String currentName = selectedFilterId.isEmpty() ? "选择规则..." : selectedFilterId;
+
+        if (ImGui.beginCombo("添加规则##filterType", currentName)) {
             for (String id : ids) {
                 boolean selected = id.equals(selectedFilterId);
                 if (ImGui.selectable(id, selected)) selectedFilterId = id;
@@ -129,128 +199,53 @@ public class SelectionFilterPanel extends AbstractPanel implements ICommandsAwar
         if (!selectedFilterId.isEmpty()) {
             BlockFilter filter = sf.getFilter(selectedFilterId);
             if (filter != null) {
-                ImGui.spacing();
-                UITheme.label("过滤器: " + filter.getClass().getSimpleName(), UITheme.DarkTheme.TEXT_DISABLED);
-                if (ImGui.button("添加到管道##addFilter")) {
+                ImGui.sameLine();
+                if (ImGui.button("添加到规则列表")) {
                     sf.appendFilter(filter);
-                    LOGGER.info("[FilterPanel] 添加过滤器: {}", selectedFilterId);
+                    LOGGER.info("[SelectionFilter] 添加高级规则: {}", selectedFilterId);
                 }
             }
         }
 
-        ImGui.unindent();
-    }
+        ImGui.separator();
 
-    // -------------------------------
-    // 当前过滤管道（卡片化显示）
-    // -------------------------------
-    private void renderPipeline(SelectionFilterCommands sf) {
-        ImGui.indent();
-
+        // --- 当前规则列表 ---
         List<BlockFilter> filters = new ArrayList<>(sf.getFilters());
         if (filters.isEmpty()) {
-            UITheme.label("当前管道为空", UITheme.DarkTheme.TEXT_DISABLED);
-            ImGui.unindent();
-            return;
-        }
+            UITheme.label("当前没有启用任何高级规则", UITheme.DarkTheme.TEXT_DISABLED);
+        } else {
+            for (int i = 0; i < filters.size(); i++) {
+                BlockFilter filter = filters.get(i);
+                String name = sf.getFilterId(filter);
+                if (name == null) name = filter.getClass().getSimpleName();
 
-        for (int i = 0; i < filters.size(); i++) {
-            BlockFilter filter = filters.get(i);
-            String filterName = sf.getFilterId(filter);
-            if (filterName == null) filterName = filter.getClass().getSimpleName();
+                boolean open = ImGui.treeNodeEx(
+                        "[" + (i + 1) + "] " + name + "##card" + i,
+                        ImGuiTreeNodeFlags.DefaultOpen
+                );
 
-            boolean open = ImGui.treeNodeEx("[" + (i + 1) + "] " + filterName + "##card" + i, ImGuiTreeNodeFlags.DefaultOpen);
-            ImGui.sameLine(ImGui.getContentRegionMaxX() - 20);
-            if (ImGui.button(Icons.DELETE + "##remove" + i, 0, 0)) {
-                sf.removeFilterAt(i);
-                LOGGER.info("[FilterPanel] 移除过滤器: {}", filterName);
-                if (open) ImGui.treePop();
-                break;
-            }
+                ImGui.sameLine(ImGui.getContentRegionMaxX() - 24);
+                if (ImGui.button(Icons.DELETE + "##rm" + i)) {
+                    sf.removeFilterAt(i);
+                    LOGGER.info("[SelectionFilter] 移除规则: {}", name);
+                    if (open) ImGui.treePop();
+                    break;
+                }
 
-            if (open) {
-                ImGui.indent();
-                UITheme.label("类型: " + filter.getClass().getName(), UITheme.DarkTheme.TEXT_DISABLED);
-                ImGui.unindent();
-                ImGui.treePop();
+                if (open) {
+                    ImGui.indent();
+                    UITheme.label(filter.getClass().getName(), UITheme.DarkTheme.TEXT_DISABLED);
+                    ImGui.unindent();
+                    ImGui.treePop();
+                }
             }
         }
 
         ImGui.spacing();
-        if (ImGui.button("清空管道##clearPipeline")) {
+        if (ImGui.button("清空高级规则")) {
             sf.clear();
-            LOGGER.info("[FilterPanel] 清空管道");
+            LOGGER.info("[SelectionFilter] 清空高级规则");
         }
-
-        ImGui.unindent();
-    }
-
-    // -------------------------------
-    // 预设管理
-    // -------------------------------
-    private void renderPresets(SelectionFilterCommands sf) {
-        ImGui.indent();
-
-        Set<String> presetIds = sf.getPresetIds();
-        String currentPresetName = selectedPresetId.isEmpty() ? "选择预设..." : selectedPresetId;
-
-        if (ImGui.beginCombo("预设##presetSelect", currentPresetName)) {
-            for (String presetId : presetIds) {
-                boolean selected = presetId.equals(selectedPresetId);
-                if (ImGui.selectable(presetId, selected)) selectedPresetId = presetId;
-                if (selected) ImGui.setItemDefaultFocus();
-            }
-            ImGui.endCombo();
-        }
-
-        if (!selectedPresetId.isEmpty()) {
-            ImGui.sameLine();
-            if (ImGui.button("加载##loadPreset")) {
-                sf.loadPreset(selectedPresetId);
-                LOGGER.info("[FilterPanel] 加载预设: {}", selectedPresetId);
-            }
-            ImGui.sameLine();
-            if (ImGui.button("删除##deletePreset")) {
-                sf.deletePreset(selectedPresetId);
-                selectedPresetId = "";
-                LOGGER.info("[FilterPanel] 删除预设");
-            }
-        }
-
-        ImGui.spacing();
-        ImGui.separator();
-        ImGui.spacing();
-
-        UITheme.label("保存当前管道为预设:", UITheme.DarkTheme.TEXT);
-        ImGui.inputText("##presetName", presetNameInput);
-        ImGui.sameLine();
-        if (ImGui.button("保存##savePreset")) {
-            String name = presetNameInput.get().trim();
-            if (!name.isEmpty() && !sf.isEmpty()) {
-                sf.savePreset(name);
-                LOGGER.info("[FilterPanel] 保存预设: {}", name);
-                presetNameInput.set("");
-            }
-        }
-
-        ImGui.unindent();
-    }
-
-    // -------------------------------
-    // 测试与应用
-    // -------------------------------
-    private void renderTesting(SelectionFilterCommands sf) {
-        ImGui.indent();
-
-        UITheme.label("管道统计", UITheme.DarkTheme.TEXT);
-        ImGui.text("过滤器: " + sf.size() + "  最近: " + (sf.getLastNanos() / 1000.0) + " μs  总次数: " + sf.getTotalChecked());
-
-        ImGui.spacing();
-        if (ImGui.button("启用性能分析##enableProfiling")) { sf.enableProfiling(true); LOGGER.info("[FilterPanel] 启用性能分析"); }
-        ImGui.sameLine();
-        if (ImGui.button("禁用性能分析##disableProfiling")) { sf.enableProfiling(false); LOGGER.info("[FilterPanel] 禁用性能分析"); }
-        ImGui.spacing();
-        if (ImGui.button("重置统计##resetStats")) { sf.resetStats(); LOGGER.info("[FilterPanel] 重置统计"); }
 
         ImGui.unindent();
     }

@@ -42,6 +42,14 @@ public interface SelectionFilterCommands {
     /** 快速应用：按 id 从 Registry 或 Preset 查找，并替换当前管道 */
     void applyQuickFilter(String id);
 
+    // ---------- 层 1 基础内容过滤（状态型，人话入口） ----------
+
+    /** 某 id 对应的过滤器是否已在管道中；non_air 在空管道时视为已启用。 */
+    boolean isFilterEnabled(String id);
+
+    /** 启用/禁用：加入或从管道移除对应过滤器；non_air 禁用且管道变空时写入 all。 */
+    void setFilterEnabled(String id, boolean enabled);
+
     // ---------- 预设 ----------
 
     void loadPreset(String id);

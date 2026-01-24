@@ -70,11 +70,14 @@ public class BlockFilterPipeline {
     }
     
     /**
-     * 测试方块是否通过管道中的所有过滤器
+     * 测试方块是否通过管道中的所有过滤器。
+     * 空管道时视为「忽略空气」默认 on，与 UI 的 isFilterEnabled(exclude_air) 语义一致。
      */
     public boolean test(World world, BlockPos pos, BlockState state) {
+        if (filters.isEmpty()) {
+            return !state.isAir();
+        }
         if (!profiling) {
-            // 快速路径：无性能分析
             for (BlockFilter filter : filters) {
                 if (!filter.test(world, pos, state)) {
                     return false;
@@ -82,8 +85,6 @@ public class BlockFilterPipeline {
             }
             return true;
         }
-        
-        // 慢速路径：带性能分析
         long start = System.nanoTime();
         try {
             totalChecked++;

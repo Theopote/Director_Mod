@@ -34,35 +34,43 @@ public class BlockFilterPresetManager {
     }
     
     /**
-     * 加载默认预设
+     * 加载默认预设（与 docs/selection-filter-ids.md、FilterIds 一致）
      */
     private static void loadDefaultPresets() {
-        // 建筑材料预设（使用基础过滤器）
-        BlockFilterPipeline buildingMaterials = new BlockFilterPipeline()
-            .add(BlockFilters.solid());
-        presets.put("building_materials", buildingMaterials);
-        
-        // 自然方块预设
-        BlockFilterPipeline naturalBlocks = new BlockFilterPipeline()
-            .add(BlockFilters.solid());
-        presets.put("natural_blocks", naturalBlocks);
-        
-        // 透明方块预设
-        BlockFilterPipeline transparentBlocks = new BlockFilterPipeline()
-            .add(BlockFilters.transparent());
-        presets.put("transparent_blocks", transparentBlocks);
-        
-        // 非空气预设
-        BlockFilterPipeline nonAir = new BlockFilterPipeline()
-            .add(BlockFilters.nonAir());
-        presets.put("non_air", nonAir);
-        
-        // 可替换预设
-        BlockFilterPipeline replaceable = new BlockFilterPipeline()
-            .add(BlockFilters.replaceable());
-        presets.put("replaceable", replaceable);
-        
+        // default: exclude_air + exclude_water + exclude_lava → 通用编辑
+        BlockFilterPipeline pDefault = new BlockFilterPipeline();
+        addIfPresent(pDefault, FilterIds.EXCLUDE_AIR);
+        addIfPresent(pDefault, FilterIds.EXCLUDE_WATER);
+        addIfPresent(pDefault, FilterIds.EXCLUDE_LAVA);
+        presets.put(FilterIds.PRESET_DEFAULT, pDefault);
+
+        // terrain_edit: solid_only + exclude_air → 地形编辑
+        BlockFilterPipeline pTerrain = new BlockFilterPipeline();
+        addIfPresent(pTerrain, FilterIds.SOLID_ONLY);
+        addIfPresent(pTerrain, FilterIds.EXCLUDE_AIR);
+        presets.put(FilterIds.PRESET_TERRAIN_EDIT, pTerrain);
+
+        // plant_edit: plant_only → 植物编辑
+        BlockFilterPipeline pPlant = new BlockFilterPipeline();
+        addIfPresent(pPlant, FilterIds.PLANT_ONLY);
+        presets.put(FilterIds.PRESET_PLANT_EDIT, pPlant);
+
+        // fluid_edit: exclude_air only（不排除水/岩浆）→ 流体编辑
+        BlockFilterPipeline pFluid = new BlockFilterPipeline();
+        addIfPresent(pFluid, FilterIds.EXCLUDE_AIR);
+        presets.put(FilterIds.PRESET_FLUID_EDIT, pFluid);
+
+        // replaceable_edit: replaceable_only → 可替换方块
+        BlockFilterPipeline pReplaceable = new BlockFilterPipeline();
+        addIfPresent(pReplaceable, FilterIds.REPLACEABLE_ONLY);
+        presets.put(FilterIds.PRESET_REPLACEABLE_EDIT, pReplaceable);
+
         LOGGER.info("[BlockFilterPresetManager] 加载了 {} 个默认预设", presets.size());
+    }
+
+    private static void addIfPresent(BlockFilterPipeline p, String filterId) {
+        BlockFilter f = BlockFilterRegistry.getFilter(filterId);
+        if (f != null) p.add(f);
     }
     
     /**

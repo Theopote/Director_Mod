@@ -10,52 +10,86 @@ import java.util.*;
 
 /**
  * 🎯 方块过滤器注册表
- * 
- * 统一管理所有方块过滤器，提供：
- * - 过滤器注册和查找
- * - 预设过滤器
- * - 组合过滤器
- * 
+ * <p>
+ * 统一管理所有方块过滤器；filterId 以 {@link FilterIds} 与 {@code docs/selection-filter-ids.md} 为唯一合法来源。
+ * - 禁止 magic string，禁止将编辑器概念（容器/锁定/面板）纳入
+ * - 旧 id 通过 LEGACY_ALIASES 在 getFilter/hasFilter 中解析，保证兼容
+ *
  * @author ChronoBlocks Team
- * @version 2.0 (从 SelectionFilterSystem 迁移)
+ * @see FilterIds
+ * @see <a href="../../../../../docs/selection-filter-ids.md">selection-filter-ids.md</a>
  */
 public class BlockFilterRegistry {
-    
+
     private static final Logger LOGGER = LoggerFactory.getLogger(BlockFilterRegistry.class);
-    
+
     /** 过滤器注册表 */
     private static final Map<String, BlockFilter> registeredFilters = new HashMap<>();
-    
+
     /** 反向查找表（用于序列化） */
     private static final Map<BlockFilter, String> reverseRegistry = new HashMap<>();
-    
+
+    /** 旧 id → 规范表 id，仅用于 getFilter / hasFilter 解析，不写入 reverseRegistry */
+    private static final Map<String, String> LEGACY_ALIASES = Map.of(
+            "non_air", FilterIds.EXCLUDE_AIR,
+            "not_water", FilterIds.EXCLUDE_WATER,
+            "not_lava", FilterIds.EXCLUDE_LAVA,
+            "solid", FilterIds.SOLID_ONLY,
+            "plant", FilterIds.PLANT_ONLY,
+            "replaceable", FilterIds.REPLACEABLE_ONLY,
+            "transparent", FilterIds.TRANSPARENT_ONLY
+    );
+
     static {
         initializeDefaultFilters();
     }
-    
+
     /**
-     * 初始化默认过滤器
+     * 初始化默认过滤器（仅使用 FilterIds 与 BlockFilters）
      */
     private static void initializeDefaultFilters() {
-        // 基础过滤器
-        registerFilter("air", (world, pos, state) -> state.isAir());
-        registerFilter("non_air", BlockFilters.nonAir());
-        registerFilter("solid", BlockFilters.solid());
-        registerFilter("transparent", BlockFilters.transparent());
-        registerFilter("replaceable", BlockFilters.replaceable());
-        
-        // 发光过滤器
-        registerFilter("luminous", BlockFilters.luminous(1));
-        registerFilter("luminous_5", BlockFilters.luminous(5));
-        registerFilter("luminous_10", BlockFilters.luminous(10));
-        
+        // 一、基础内容过滤（Layer 1）
+        registerFilter(FilterIds.EXCLUDE_AIR, BlockFilters.nonAir());
+        registerFilter(FilterIds.EXCLUDE_WATER, BlockFilters.water().negate());
+        registerFilter(FilterIds.EXCLUDE_LAVA, BlockFilters.lava().negate());
+        registerFilter(FilterIds.SOLID_ONLY, BlockFilters.solid());
+        registerFilter(FilterIds.PLANT_ONLY, BlockFilters.plant());
+        registerFilter(FilterIds.REPLACEABLE_ONLY, BlockFilters.replaceable());
+        registerFilter(FilterIds.TRANSPARENT_ONLY, BlockFilters.transparent());
+
+        // 内部用
+        registerFilter(FilterIds.ALL, BlockFilters.all());
+        registerFilter(FilterIds.NONE, BlockFilters.none());
+
+        // 扩展（高级区）
+        registerFilter(FilterIds.LUMINOUS, BlockFilters.luminous(1));
+        registerFilter(FilterIds.LUMINOUS_5, BlockFilters.luminous(5));
+        registerFilter(FilterIds.LUMINOUS_10, BlockFilters.luminous(10));
+
         LOGGER.info("[BlockFilterRegistry] 已注册 {} 个默认过滤器", registeredFilters.size());
     }
-    
+
+    private static String resolveId(String id) {
+        if (id == null) return null;
+        return LEGACY_ALIASES.getOrDefault(id, id);
+    }
+
+    /** 解析为规范 id（legacy 映射），供 Commands 等做 pipeline 查找/删除。 */
+    public static String resolveFilterId(String id) {
+        return resolveId(id);
+    }
+
     /**
-     * 注册过滤器
+     * 注册过滤器。id 须非空、非空白；建议来自 FilterIds。
      */
     public static void registerFilter(String id, BlockFilter filter) {
+        if (id == null || id.isBlank()) {
+            LOGGER.warn("[BlockFilterRegistry] 拒绝注册空 id");
+            return;
+        }
+        if (!FilterIds.isKnownFilterId(id)) {
+            LOGGER.debug("[BlockFilterRegistry] 注册非规范表 id: {}（扩展/插件）", id);
+        }
         if (registeredFilters.containsKey(id)) {
             LOGGER.warn("[BlockFilterRegistry] 过滤器 '{}' 已存在，将被覆盖", id);
         }
@@ -63,23 +97,26 @@ public class BlockFilterRegistry {
         reverseRegistry.put(filter, id);
         LOGGER.debug("[BlockFilterRegistry] 注册过滤器: {}", id);
     }
-    
+
     /**
-     * 获取过滤器
+     * 获取过滤器；旧 id（如 non_air、not_water）会解析为规范 id 再查找。
      */
     public static BlockFilter getFilter(String id) {
-        BlockFilter filter = registeredFilters.get(id);
+        String canonical = resolveId(id);
+        if (canonical == null) return null;
+        BlockFilter filter = registeredFilters.get(canonical);
         if (filter == null) {
-            LOGGER.warn("[BlockFilterRegistry] 未找到过滤器: {}", id);
+            LOGGER.warn("[BlockFilterRegistry] 未找到过滤器: {} (resolved: {})", id, canonical);
         }
         return filter;
     }
-    
+
     /**
-     * 检查过滤器是否存在
+     * 检查过滤器是否存在；旧 id 会解析为规范 id。
      */
     public static boolean hasFilter(String id) {
-        return registeredFilters.containsKey(id);
+        String canonical = resolveId(id);
+        return canonical != null && registeredFilters.containsKey(canonical);
     }
     
     /**

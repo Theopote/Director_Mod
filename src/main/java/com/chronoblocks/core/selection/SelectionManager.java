@@ -589,9 +589,9 @@ public class SelectionManager {
                 for (int z = minZ; z <= maxZ; z++) {
                     BlockPos p = new BlockPos(x, y, z);
                     var state = world.getBlockState(p);
-                    if (globalPipeline == null || globalPipeline.isEmpty() || globalPipeline.test(world, p, state)) {
-                        selectionSet.add(p);
-                    }
+                    // 空管道或 null 时 pipeline.test 已默认排除空气；此处仅处理 null 时直接排除空气
+                    boolean pass = globalPipeline == null ? !state.isAir() : globalPipeline.test(world, p, state);
+                    if (pass) selectionSet.add(p);
                 }
             }
         }
@@ -639,9 +639,9 @@ public class SelectionManager {
                 for (int z = minZ; z <= maxZ; z++) {
                     BlockPos p = new BlockPos(x, y, z);
                     var state = world.getBlockState(p);
-                    if (globalPipeline == null || globalPipeline.isEmpty() || globalPipeline.test(world, p, state)) {
-                        selectionSet.add(p);
-                    }
+                    // 空管道或 null 时 pipeline.test 已默认排除空气；此处仅处理 null 时直接排除空气
+                    boolean pass = globalPipeline == null ? !state.isAir() : globalPipeline.test(world, p, state);
+                    if (pass) selectionSet.add(p);
                 }
             }
         }

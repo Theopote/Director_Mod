@@ -2,6 +2,8 @@ package com.chronoblocks.core.selection.block_filters;
 
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
+import net.minecraft.block.Blocks;
+import net.minecraft.registry.tag.BlockTags;
 import net.minecraft.registry.tag.TagKey;
 
 import java.util.Set;
@@ -36,6 +38,30 @@ public class BlockFilters {
      */
     public static BlockFilter nonAir() {
         return (world, pos, state) -> !state.isAir();
+    }
+
+    /**
+     * 匹配水（含流水、静水）
+     */
+    public static BlockFilter water() {
+        return (world, pos, state) -> state.getBlock() == Blocks.WATER;
+    }
+
+    /**
+     * 匹配岩浆（含流岩浆、静岩浆）
+     */
+    public static BlockFilter lava() {
+        return (world, pos, state) -> state.getBlock() == Blocks.LAVA;
+    }
+
+    /**
+     * 匹配植物类方块（树叶、花、树苗、作物等）
+     */
+    public static BlockFilter plant() {
+        return hasTag(BlockTags.LEAVES)
+            .or(hasTag(BlockTags.SMALL_FLOWERS))
+            .or(hasTag(BlockTags.SAPLINGS))
+            .or(hasTag(BlockTags.CROPS));
     }
     
     /**
