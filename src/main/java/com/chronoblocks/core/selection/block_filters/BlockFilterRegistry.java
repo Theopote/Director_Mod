@@ -12,8 +12,8 @@ import java.util.*;
  * 🎯 方块过滤器注册表
  * <p>
  * 统一管理所有方块过滤器；filterId 以 {@link FilterIds} 与 {@code docs/selection-filter-ids.md} 为唯一合法来源。
- * - 禁止 magic string，禁止将编辑器概念（容器/锁定/面板）纳入
- * - 旧 id 通过 LEGACY_ALIASES 在 getFilter/hasFilter 中解析，保证兼容
+ * - 正式注册仅用规范 id（exclude_air、solid_only 等）；旧 id 通过 LEGACY_ALIASES 在 getFilter/hasFilter 中解析，不写入注册表。
+ * - 禁止将编辑器概念（容器/锁定/面板）纳入；带参数规则用 {@link #createFilter(String)} 取得新实例。
  *
  * @author ChronoBlocks Team
  * @see FilterIds
@@ -100,6 +100,7 @@ public class BlockFilterRegistry {
 
     /**
      * 获取过滤器；旧 id（如 non_air、not_water）会解析为规范 id 再查找。
+     * 无状态规则返回共享实例；带参数的规则应使用 {@link #createFilter(String)} 获得独立实例。
      */
     public static BlockFilter getFilter(String id) {
         String canonical = resolveId(id);
@@ -109,6 +110,24 @@ public class BlockFilterRegistry {
             LOGGER.warn("[BlockFilterRegistry] 未找到过滤器: {} (resolved: {})", id, canonical);
         }
         return filter;
+    }
+
+    /**
+     * 创建过滤器实例。无参数规则目前与 getFilter 相同（共享实例）；
+     * 带参数规则（如 max_depth_limit、within_radius）必须在此返回新实例，避免管道间参数污染。
+     * 参见 docs/selection-filter-ids.md 中「参数化」标注的 filterId。
+     */
+    public static BlockFilter createFilter(String id) {
+        if (isParameterizedId(resolveId(id))) {
+            // 预留：参数化规则在此 factory 或子类中 new 实例
+            LOGGER.debug("[BlockFilterRegistry] createFilter 参数化 id 尚未实现，回退 getFilter: {}", id);
+        }
+        return getFilter(id);
+    }
+
+    private static boolean isParameterizedId(String c) {
+        return c != null && (FilterIds.MAX_DEPTH_LIMIT.equals(c) || FilterIds.WITHIN_RADIUS.equals(c)
+                || FilterIds.WITHIN_BBOX.equals(c) || FilterIds.MAX_BLOCK_COUNT.equals(c));
     }
 
     /**

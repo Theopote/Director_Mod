@@ -6,6 +6,8 @@ import com.chronoblocks.core.selection.events.*;
 import com.chronoblocks.core.selection.block_filters.BlockFilter;
 import com.chronoblocks.core.selection.block_filters.BlockFilterPipeline;
 import com.chronoblocks.core.selection.block_filters.BlockFilters;
+import com.chronoblocks.core.selection.block_filters.BlockFilterRegistry;
+import com.chronoblocks.core.selection.block_filters.FilterIds;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
@@ -63,9 +65,13 @@ public class SelectionManager {
     /** 是否自动显示预览框 */
     private boolean autoPreviewEnabled = true;
     
-    /** 全局过滤管道（可由 SelectionFilterPanel 配置） */
-    private final BlockFilterPipeline globalPipeline = new BlockFilterPipeline()
-            .add(BlockFilters.nonAir());
+    /** 全局过滤管道（可由 SelectionFilterPanel 配置）；默认显式加入 exclude_air，不再用「空管道=忽略空气」隐式规则。 */
+    private final BlockFilterPipeline globalPipeline = createInitialPipeline();
+
+    private static BlockFilterPipeline createInitialPipeline() {
+        BlockFilter f = BlockFilterRegistry.getFilter(FilterIds.EXCLUDE_AIR);
+        return new BlockFilterPipeline().add(f != null ? f : BlockFilters.nonAir());
+    }
 
     private SelectionManager() {
         registerDefaultTools();
@@ -429,25 +435,17 @@ public class SelectionManager {
     }
 
     /**
-     * 获取用于方块选择的「有效过滤器」：管道非空时用管道，否则用 nonAir。
-     * 所有需要 BlockFilter 的选择逻辑应集中使用此方法，避免在工具内重复 if/else 与兜底。
+     * 获取用于方块选择的「有效过滤器」。空管道 = 全部通过，由 pipeline.test 语义保证。
      */
     public BlockFilter getEffectiveBlockFilter() {
-        if (globalPipeline != null && !globalPipeline.isEmpty()) {
-            return globalPipeline::test;
-        }
-        return BlockFilters.nonAir();
+        return globalPipeline::test;
     }
 
     /**
-     * 获取用于需要 BlockFilterPipeline 的「有效管道」：管道非空时返回 clone，否则返回仅含 nonAir 的管线。
-     * 供魔棒、刷选等统一使用，与 getEffectiveBlockFilter 行为一致。
+     * 获取用于需要 BlockFilterPipeline 的「有效管道」的副本。空管道 = 全部通过。
      */
     public BlockFilterPipeline getEffectiveFilterPipeline() {
-        if (globalPipeline != null && !globalPipeline.isEmpty()) {
-            return globalPipeline.clone();
-        }
-        return new BlockFilterPipeline().add(BlockFilters.nonAir());
+        return globalPipeline.clone();
     }
 
     // =====================================================
@@ -589,9 +587,7 @@ public class SelectionManager {
                 for (int z = minZ; z <= maxZ; z++) {
                     BlockPos p = new BlockPos(x, y, z);
                     var state = world.getBlockState(p);
-                    // 空管道或 null 时 pipeline.test 已默认排除空气；此处仅处理 null 时直接排除空气
-                    boolean pass = globalPipeline == null ? !state.isAir() : globalPipeline.test(world, p, state);
-                    if (pass) selectionSet.add(p);
+                    if (globalPipeline.test(world, p, state)) selectionSet.add(p);
                 }
             }
         }
@@ -639,9 +635,7 @@ public class SelectionManager {
                 for (int z = minZ; z <= maxZ; z++) {
                     BlockPos p = new BlockPos(x, y, z);
                     var state = world.getBlockState(p);
-                    // 空管道或 null 时 pipeline.test 已默认排除空气；此处仅处理 null 时直接排除空气
-                    boolean pass = globalPipeline == null ? !state.isAir() : globalPipeline.test(world, p, state);
-                    if (pass) selectionSet.add(p);
+                    if (globalPipeline.test(world, p, state)) selectionSet.add(p);
                 }
             }
         }

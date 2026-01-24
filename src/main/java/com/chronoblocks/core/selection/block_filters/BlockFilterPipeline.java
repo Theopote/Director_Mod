@@ -71,12 +71,10 @@ public class BlockFilterPipeline {
     
     /**
      * 测试方块是否通过管道中的所有过滤器。
-     * 空管道时视为「忽略空气」默认 on，与 UI 的 isFilterEnabled(exclude_air) 语义一致。
+     * 空管道 = 全部通过（允许所有方块）；「忽略空气」等由管道中的显式规则表达，默认由 SelectionManager 初始为 [exclude_air]。
      */
     public boolean test(World world, BlockPos pos, BlockState state) {
-        if (filters.isEmpty()) {
-            return !state.isAir();
-        }
+        if (filters.isEmpty()) return true;
         if (!profiling) {
             for (BlockFilter filter : filters) {
                 if (!filter.test(world, pos, state)) {

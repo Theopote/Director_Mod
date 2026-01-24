@@ -23,7 +23,7 @@
 
 | filterId | 中文 UI 文案 | 英文语义 | 说明 | 默认 |
 |----------|--------------|----------|------|:----:|
-| `exclude_air` | 忽略空气 | Exclude Air | 不允许选中空气方块；**空管道时默认 on**，所有选择均默认排除空气 | ✅ |
+| `exclude_air` | 忽略空气 | Exclude Air | 不允许选中空气方块；**默认显式存在于管道**（SelectionManager 初值为 [exclude_air]），不再用「空管道=忽略空气」隐式规则 | ✅ |
 | `exclude_water` | 忽略水 | Exclude Water | 排除所有水体方块 | ✅ |
 | `exclude_lava` | 忽略岩浆 | Exclude Lava | 排除所有岩浆方块 | ✅ |
 | `solid_only` | 仅选择固体方块 | Solid Only | 只允许实体固体 | ⬜ |
@@ -143,6 +143,11 @@ Preset 不是新能力，只是 **filterId 的组合**。
 | `plant` | `plant_only` |
 | `replaceable` | `replaceable_only` |
 | `transparent` | `transparent_only` |
+
+### createFilter 与参数化规则
+
+- 无参数规则：`getFilter(id)` 返回共享实例即可。
+- 带参数规则（`max_depth_limit`、`within_radius`、`within_bbox`、`max_block_count`）：必须通过 `BlockFilterRegistry.createFilter(id)` 取得**新实例**，再填入参数；禁止用 `getFilter` 取共享实例，否则管道间参数会互相污染。
 
 ---
 

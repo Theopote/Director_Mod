@@ -28,7 +28,7 @@ import java.util.Set;
  * 三层语义（底层共用 BlockFilterPipeline）：
  * - 层 1「选择内容」：基础 Checkbox，人话（忽略空气/水/岩浆，仅固体/植物/可替换）
  * - 层 2「选择模式」：Preset 的 UI 语义（切换、保存为模式）
- * - 层 3「高级过滤器」：规则选择、当前规则列表、清空、调试统计
+ * - 层 3「高级过滤器」：规则选择、当前规则列表、清空
  * <p>
  * Commands / Core 完全不变
  */
@@ -124,7 +124,24 @@ public class SelectionFilterPanel extends AbstractPanel implements ICommandsAwar
         checkboxFilter(sf, "仅选择可替换方块（草 / 花 / 雪）", FilterIds.REPLACEABLE_ONLY);
         checkboxFilter(sf, "仅选择透明方块", FilterIds.TRANSPARENT_ONLY);
 
+        String conflict = getBasicConflictHint(sf);
+        if (conflict != null) {
+            ImGui.spacing();
+            UITheme.label(conflict, UITheme.DarkTheme.TEXT_WARNING);
+        }
+
         ImGui.unindent();
+    }
+
+    /** 检测基础层互斥组合：solid_only 与 plant/replaceable/transparent 同时开易导致选不到。仅提示，不自动取消。 */
+    private String getBasicConflictHint(SelectionFilterCommands sf) {
+        if (!sf.isFilterEnabled(FilterIds.SOLID_ONLY)) return null;
+        List<String> with = new ArrayList<>();
+        if (sf.isFilterEnabled(FilterIds.PLANT_ONLY)) with.add("仅选择植物");
+        if (sf.isFilterEnabled(FilterIds.REPLACEABLE_ONLY)) with.add("仅选择可替换方块");
+        if (sf.isFilterEnabled(FilterIds.TRANSPARENT_ONLY)) with.add("仅选择透明方块");
+        if (with.isEmpty()) return null;
+        return "当前组合可能导致选不到任何方块：仅选择固体 + " + String.join("、", with);
     }
 
     private void checkboxFilter(SelectionFilterCommands sf, String label, String filterId) {

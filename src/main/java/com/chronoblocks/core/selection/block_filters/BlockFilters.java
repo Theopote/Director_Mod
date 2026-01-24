@@ -55,13 +55,21 @@ public class BlockFilters {
     }
 
     /**
-     * 匹配植物类方块（树叶、花、树苗、作物等）
+     * 匹配植物类方块：树叶、花、树苗、作物、地上的草/高草/蕨/枯灌木等。
+     * 注：Short Grass、Tall Grass、Fern、Large Fern、Dead Bush 无单独 BlockTag，用方块判断。
      */
     public static BlockFilter plant() {
         return hasTag(BlockTags.LEAVES)
             .or(hasTag(BlockTags.SMALL_FLOWERS))
             .or(hasTag(BlockTags.SAPLINGS))
-            .or(hasTag(BlockTags.CROPS));
+            .or(hasTag(BlockTags.CROPS))
+            .or(BlockFilters::isGrassOrFernOrDeadBush);
+    }
+
+    private static boolean isGrassOrFernOrDeadBush(net.minecraft.world.World w, net.minecraft.util.math.BlockPos p, net.minecraft.block.BlockState s) {
+        Block b = s.getBlock();
+        return b == Blocks.SHORT_GRASS || b == Blocks.TALL_GRASS
+            || b == Blocks.FERN || b == Blocks.LARGE_FERN || b == Blocks.DEAD_BUSH;
     }
     
     /**

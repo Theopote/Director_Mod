@@ -848,10 +848,7 @@ public class ChronoBlocksUIManager {
         @Override
         public boolean isFilterEnabled(String id) {
             if (id == null) return false;
-            if (pipelineContains(id)) return true;
-            String c = com.chronoblocks.core.selection.block_filters.BlockFilterRegistry.resolveFilterId(id);
-            if (FilterIds.EXCLUDE_AIR.equals(c) && isEmpty()) return true;
-            return false;
+            return pipelineContains(id);
         }
 
         @Override
@@ -863,7 +860,7 @@ public class ChronoBlocksUIManager {
                 if (!pipelineContains(id)) {
                     var f = com.chronoblocks.core.selection.block_filters.BlockFilterRegistry.getFilter(id);
                     if (f != null) {
-                        // 空管道时视为「忽略空气」默认 on，先加入 exclude_air 再追加当前（排除正在加的即是 exclude_air 的情况）
+                        // 默认「忽略空气」：往空管道加其他规则时，先加 exclude_air 再追加当前（排除正在加的就是 exclude_air）
                         if (isEmpty() && !FilterIds.EXCLUDE_AIR.equals(c)) {
                             var air = com.chronoblocks.core.selection.block_filters.BlockFilterRegistry.getFilter(FilterIds.EXCLUDE_AIR);
                             if (air != null) appendFilter(air);
@@ -873,10 +870,6 @@ public class ChronoBlocksUIManager {
                 }
             } else {
                 removeFilterById(id);
-                if (FilterIds.EXCLUDE_AIR.equals(c) && isEmpty()) {
-                    var all = com.chronoblocks.core.selection.block_filters.BlockFilterRegistry.getFilter(FilterIds.ALL);
-                    if (all != null) appendFilter(all);
-                }
             }
         }
 
