@@ -4,6 +4,8 @@ import com.chronoblocks.core.selection.SelectionManager;
 import com.chronoblocks.core.selection.SelectionTool;
 import com.chronoblocks.core.selection.tools.geometry.GeometryConfig;
 import com.chronoblocks.core.selection.tools.geometry.GeometryShape;
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.opengl.GlStateManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.RenderLayer;
 import net.minecraft.client.render.VertexConsumer;
@@ -15,6 +17,7 @@ import net.minecraft.util.math.Direction;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Matrix4f;
+import org.lwjgl.opengl.GL11;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -104,6 +107,8 @@ public class ToolPreviewManager {
     private List<BlockPos> lassoPathWorld = List.of();
     private boolean lassoPathClosed = false;
     private Set<BlockPos> lassoFillBlocks = Set.of();
+    /** 套索笔迹：贴块表面的世界坐标点，用于拖拽时实时绘制折线；与 lassoPathWorld 分离。 */
+    private List<Vec3d> lassoStrokePoints = List.of();
     private boolean lassoPreviewActive = false;
 
     // ======================= 几何预览 =======================
@@ -249,8 +254,11 @@ public class ToolPreviewManager {
             switch (toolId) {
                 case "box":
                 case "box_v3": {
-                    // 框选工具的实时预览由 BoxSelectTool 通过 setPreviewBox() 管理，避免这里 O(n^3) 扫描体积方块
-                    // （SelectionManager 已对 box/box_v3 跳过 start/update/endDragPreview 调用）
+                    previewBlocks.clear();
+                    break;
+                }
+                case "lasso": {
+                    // 套索的绘制轨迹由 renderLassoPreview 的路径线单独绘制，此处不叠加单块预览
                     previewBlocks.clear();
                     break;
                 }
@@ -258,9 +266,7 @@ public class ToolPreviewManager {
                     populateSpherePreview(dragCurrentPos);
                     break;
                 }
-                // "geometry" 工具已合并到刷选工具中，不再单独处理
-                // case "geometry": 已移除
-                default: // 默认预览 - 单个方块
+                default:
                     previewBlocks.add(dragCurrentPos);
                     break;
             }
@@ -309,7 +315,7 @@ public class ToolPreviewManager {
 
             renderGeometryPreview(matrix, vertexConsumers);
 
-            renderLassoPreview(matrices, vertexConsumers, tickDelta);
+            renderLassoPreview(matrices, vertexConsumers, tickDelta, cameraPos);
 
             tickFaceHoverAlpha(tickDelta);
             if (faceHoverAlpha > 0.01f && !faceHoverBlocks.isEmpty()) {
@@ -1019,32 +1025,41 @@ public class ToolPreviewManager {
             .normal(nx, ny, nz);
     }
 
-    private void renderLassoPreview(MatrixStack matrices, VertexConsumerProvider vertexConsumers, float tickDelta) {
-        List<BlockPos> pathCopy;
+    /** 套索笔迹线宽（像素） */
+    private static final float LASSO_STROKE_LINE_WIDTH = 2.0f;
+    /** 笔尖十字半宽（世界单位） */
+    private static final float LASSO_TIP_SIZE = 0.08f;
+
+    /**
+     * 套索笔迹渲染（LassoPathPreview 设计）
+     * - 世界坐标折线，相机相对传入管线；depthMask(false) 贴表面不穿墙；保留 depth test
+     * - 折线 ≥2 点绘制；笔尖十字在末点（≥1 点）
+     */
+    private void renderLassoPreview(MatrixStack matrices, VertexConsumerProvider vertexConsumers, float tickDelta, Vec3d cameraPos) {
+        List<Vec3d> strokeCopy;
         Set<BlockPos> fillCopy;
-        boolean closed;
         synchronized (lassoLock) {
             if (!lassoPreviewActive) {
                 return;
             }
-            pathCopy = new ArrayList<>(lassoPathWorld);
+            strokeCopy = new ArrayList<>(lassoStrokePoints);
             fillCopy = new HashSet<>(lassoFillBlocks);
-            closed = lassoPathClosed;
         }
 
-        if (pathCopy.isEmpty() && fillCopy.isEmpty()) {
+        if (strokeCopy.isEmpty() && fillCopy.isEmpty()) {
             return;
         }
 
         long time = System.currentTimeMillis();
         float phase = (time % 2000L) / 2000.0f;
-        float pathAlpha = MathHelper.clamp(0.55f + 0.25f * MathHelper.sin(phase * MathHelper.TAU * 2.0f), 0.3f, 0.85f);
+        float strokeAlpha = MathHelper.clamp(0.6f + 0.3f * MathHelper.sin(phase * MathHelper.TAU * 2.0f), 0.35f, 0.9f);
         float fillAlpha = MathHelper.clamp(0.25f + 0.12f * MathHelper.sin(phase * MathHelper.TAU), 0.15f, 0.5f);
-        float[] pathColor = new float[]{0.0f, 0.65f, 1.0f, pathAlpha};
+        float[] strokeColor = new float[]{0.2f, 0.85f, 1.0f, strokeAlpha};
         float[] fillColor = new float[]{0.0f, 0.55f, 1.0f, fillAlpha};
 
         Matrix4f matrix = matrices.peek().getPositionMatrix();
 
+        // 1. 填充（选区内部，沿用原有逻辑）
         if (!fillCopy.isEmpty()) {
             VertexConsumer fillConsumer = vertexConsumers.getBuffer(RenderLayers.getPreviewLayer());
             for (BlockPos pos : fillCopy) {
@@ -1052,24 +1067,49 @@ public class ToolPreviewManager {
             }
         }
 
-        if (pathCopy.size() >= 2) {
+        // 2. 笔迹折线 + 笔尖：贴表面、不穿墙
+        if (strokeCopy.isEmpty()) {
+            return;
+        }
+
+        // 2.1 准备渲染状态：blend、depth test 开，depth write 关，线宽
+        GlStateManager._enableBlend();
+        GlStateManager._blendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GlStateManager._enableDepthTest();
+        GlStateManager._depthMask(false);
+        RenderSystem.lineWidth(LASSO_STROKE_LINE_WIDTH);
+
+        try {
             VertexConsumer lineConsumer = vertexConsumers.getBuffer(RenderLayer.getLines());
-            BlockPos previous = pathCopy.getFirst();
-            for (int i = 1; i < pathCopy.size(); i++) {
-                BlockPos current = pathCopy.get(i);
-                renderLine(lineConsumer, matrix,
-                    previous.getX() + 0.5, previous.getY() + 0.5, previous.getZ() + 0.5,
-                    current.getX() + 0.5, current.getY() + 0.5, current.getZ() + 0.5,
-                    pathColor);
-                previous = current;
+            double cx = cameraPos.x;
+            double cy = cameraPos.y;
+            double cz = cameraPos.z;
+
+            // 2.2 折线（≥2 点）：相机相对坐标
+            if (strokeCopy.size() >= 2) {
+                for (int i = 0; i < strokeCopy.size() - 1; i++) {
+                    Vec3d a = strokeCopy.get(i);
+                    Vec3d b = strokeCopy.get(i + 1);
+                    renderLine(lineConsumer, matrix,
+                        (float) (a.x - cx), (float) (a.y - cy), (float) (a.z - cz),
+                        (float) (b.x - cx), (float) (b.y - cy), (float) (b.z - cz),
+                        strokeColor);
+                }
             }
-            if (closed && pathCopy.size() > 2) {
-                BlockPos first = pathCopy.getFirst();
-                renderLine(lineConsumer, matrix,
-                    previous.getX() + 0.5, previous.getY() + 0.5, previous.getZ() + 0.5,
-                    first.getX() + 0.5, first.getY() + 0.5, first.getZ() + 0.5,
-                    pathColor);
-            }
+
+            // 2.3 笔尖十字（末点，小 3D 十字）
+            Vec3d tip = strokeCopy.get(strokeCopy.size() - 1);
+            float tx = (float) (tip.x - cx);
+            float ty = (float) (tip.y - cy);
+            float tz = (float) (tip.z - cz);
+            float r = LASSO_TIP_SIZE;
+            renderLine(lineConsumer, matrix, tx - r, ty, tz, tx + r, ty, tz, strokeColor);
+            renderLine(lineConsumer, matrix, tx, ty - r, tz, tx, ty + r, tz, strokeColor);
+            renderLine(lineConsumer, matrix, tx, ty, tz - r, tx, ty, tz + r, strokeColor);
+        } finally {
+            GlStateManager._depthMask(true);
+            RenderSystem.lineWidth(1.0f);
+            GlStateManager._disableBlend();
         }
     }
 
@@ -1144,7 +1184,22 @@ public class ToolPreviewManager {
                 lassoPathWorld = Collections.unmodifiableList(copy);
                 lassoPathClosed = closed;
             }
-            lassoPreviewActive = !lassoPathWorld.isEmpty() || !lassoFillBlocks.isEmpty();
+            lassoPreviewActive = !lassoStrokePoints.isEmpty() || !lassoPathWorld.isEmpty() || !lassoFillBlocks.isEmpty();
+        }
+    }
+
+    /**
+     * 更新套索笔迹（贴块表面的世界坐标折线），用于拖拽时实时绘制。
+     * 与 lassoPathWorld 分离：笔迹仅作视觉，选区路径仍由 updateLassoPath/currentPath 提供。
+     */
+    public void updateLassoStroke(List<Vec3d> points) {
+        synchronized (lassoLock) {
+            if (points == null || points.isEmpty()) {
+                lassoStrokePoints = List.of();
+            } else {
+                lassoStrokePoints = Collections.unmodifiableList(new ArrayList<>(points));
+            }
+            lassoPreviewActive = !lassoStrokePoints.isEmpty() || !lassoPathWorld.isEmpty() || !lassoFillBlocks.isEmpty();
         }
     }
 
@@ -1161,7 +1216,7 @@ public class ToolPreviewManager {
                 }
                 lassoFillBlocks = Collections.unmodifiableSet(copy);
             }
-            lassoPreviewActive = !lassoPathWorld.isEmpty() || !lassoFillBlocks.isEmpty();
+            lassoPreviewActive = !lassoStrokePoints.isEmpty() || !lassoPathWorld.isEmpty() || !lassoFillBlocks.isEmpty();
         }
     }
 
@@ -1170,6 +1225,7 @@ public class ToolPreviewManager {
             lassoPathWorld = List.of();
             lassoPathClosed = false;
             lassoFillBlocks = Set.of();
+            lassoStrokePoints = List.of();
             lassoPreviewActive = false;
         }
     }

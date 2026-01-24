@@ -8,7 +8,9 @@ import com.chronoblocks.core.selection.SelectionState;
 import com.chronoblocks.core.selection.SelectionTool;
 import com.chronoblocks.core.selection.block_filters.BlockFilter;
 import com.chronoblocks.core.selection.block_filters.BlockFilters;
+import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,9 +31,13 @@ public final class LassoSelectTool implements SelectionTool, SelectionOperationS
     private static final Logger LOGGER = LoggerFactory.getLogger(LassoSelectTool.class);
 
     private static final int MAX_PATH_POINTS = 8_192;
-    private static final double MIN_SAMPLE_DISTANCE_SQ = 0.25; // 0.5 格
+    private static final double MIN_SAMPLE_DISTANCE_SQ = 0.25; // 0.5 格，用于 currentPath 采样
+    /** 笔迹稀疏阈值（0.1 格 squared），仅当与上一点距离超过此值才加点，减轻 z-fighting 与开销 */
+    private static final double MIN_STROKE_DISTANCE_SQ = 0.01;
 
     private final List<BlockPos> currentPath = new ArrayList<>();
+    /** 套索笔迹：贴块表面的世界坐标，仅供 ToolPreviewManager 绘制，与 currentPath 分离 */
+    private final List<Vec3d> strokePoints = new ArrayList<>();
     private final ToolPreviewManager previewManager = ToolPreviewManager.getInstance();
 
     private SelectionOperation operation = SelectionOperation.NEW;
@@ -124,7 +130,7 @@ public final class LassoSelectTool implements SelectionTool, SelectionOperationS
     }
 
     @Override
-    public void onDragStart(World world, BlockPos start) {
+    public void onDragStart(World world, BlockPos start, BlockHitResult hitOrNull) {
         if (world == null || start == null) {
             return;
         }
@@ -133,15 +139,27 @@ public final class LassoSelectTool implements SelectionTool, SelectionOperationS
         drawing = true;
         currentPath.clear();
         currentPath.add(start.toImmutable());
+        strokePoints.clear();
 
         previewManager.updateLassoPath(currentPath, false);
         previewManager.updateLassoFill(Collections.emptyList());
+
+        if (hitOrNull != null) {
+            Vec3d n = new Vec3d(
+                hitOrNull.getSide().getOffsetX(),
+                hitOrNull.getSide().getOffsetY(),
+                hitOrNull.getSide().getOffsetZ()
+            );
+            Vec3d p = hitOrNull.getPos().add(n.multiply(0.01));
+            strokePoints.add(p);
+            previewManager.updateLassoStroke(strokePoints);
+        }
 
         LOGGER.debug("[LassoSelectTool] 拖拽开始，起点={}", start);
     }
 
     @Override
-    public void onDragUpdate(World world, BlockPos current) {
+    public void onDragUpdate(World world, BlockPos current, BlockHitResult hitOrNull) {
         if (!drawing || world == null || current == null) {
             return;
         }
@@ -156,14 +174,29 @@ public final class LassoSelectTool implements SelectionTool, SelectionOperationS
 
         currentPath.add(current.toImmutable());
         previewManager.updateLassoPath(currentPath, false);
+
+        if (hitOrNull != null) {
+            Vec3d n = new Vec3d(
+                hitOrNull.getSide().getOffsetX(),
+                hitOrNull.getSide().getOffsetY(),
+                hitOrNull.getSide().getOffsetZ()
+            );
+            Vec3d p = hitOrNull.getPos().add(n.multiply(0.01));
+            if (strokePoints.isEmpty() || strokePoints.get(strokePoints.size() - 1).squaredDistanceTo(p) > MIN_STROKE_DISTANCE_SQ) {
+                strokePoints.add(p);
+                previewManager.updateLassoStroke(strokePoints);
+            }
+        }
     }
 
     @Override
-    public void onDragEnd(World world, BlockPos end) {
+    public void onDragEnd(World world, BlockPos end, BlockHitResult hitOrNull) {
         if (!drawing) {
             return;
         }
         drawing = false;
+
+        previewManager.updateLassoStroke(Collections.emptyList());
 
         if (world == null || end == null) {
             clearPreview();
@@ -256,6 +289,7 @@ public final class LassoSelectTool implements SelectionTool, SelectionOperationS
 
     private void clearPreview() {
         currentPath.clear();
+        strokePoints.clear();
         previewManager.clearLassoPreview();
         previewManager.updateLassoFill(Collections.emptyList());
     }

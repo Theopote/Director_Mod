@@ -1,5 +1,6 @@
 package com.chronoblocks.core.selection;
 
+import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 
@@ -50,11 +51,33 @@ public interface SelectionTool {
     /** 拖拽选择开始 */
     default void onDragStart(World world, BlockPos start) {}
 
+    /**
+     * 拖拽开始（带射线命中结果，用于贴面采样等）。
+     * 默认转调 {@link #onDragStart(World, BlockPos)}；套索等工具可重写以取表面点。
+     */
+    default void onDragStart(World world, BlockPos start, BlockHitResult hitOrNull) {
+        onDragStart(world, start);
+    }
+
     /** 拖拽中更新 */
     default void onDragUpdate(World world, BlockPos current) {}
 
+    /**
+     * 拖拽更新（带射线命中结果）。默认转调 {@link #onDragUpdate(World, BlockPos)}。
+     */
+    default void onDragUpdate(World world, BlockPos current, BlockHitResult hitOrNull) {
+        onDragUpdate(world, current);
+    }
+
     /** 拖拽结束 */
     default void onDragEnd(World world, BlockPos end) {}
+
+    /**
+     * 拖拽结束（带射线命中结果）。默认转调 {@link #onDragEnd(World, BlockPos)}。
+     */
+    default void onDragEnd(World world, BlockPos end, BlockHitResult hitOrNull) {
+        onDragEnd(world, end);
+    }
 
     /** 工具的每帧更新逻辑（用于动画或可视选区渲染） */
     default void tick(World world) {}

@@ -8,6 +8,7 @@ import com.chronoblocks.core.selection.block_filters.BlockFilterPipeline;
 import com.chronoblocks.core.selection.block_filters.BlockFilters;
 import com.chronoblocks.core.selection.block_filters.BlockFilterRegistry;
 import com.chronoblocks.core.selection.block_filters.FilterIds;
+import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
@@ -282,14 +283,15 @@ public class SelectionManager {
 
     /**
      * 处理拖拽开始
+     * @param hitOrNull 射线命中结果，未命中或来自平面投影时为 null
      */
-    public void handleDragStart(World world, net.minecraft.util.math.BlockPos start) {
+    public void handleDragStart(World world, BlockPos start, BlockHitResult hitOrNull) {
         if (currentTool != null) {
             // 发布工具拖拽开始事件
             getEventProcessorInternal().processToolDragStart(world, start);
             
-            // 执行工具拖拽开始逻辑
-            currentTool.onDragStart(world, start);
+            // 执行工具拖拽开始逻辑（3-参数，供套索等取表面点）
+            currentTool.onDragStart(world, start, hitOrNull);
 
             // 开始工具预览（框选工具自己负责 setPreviewBox 实时预览，避免双重预览与 O(n^3) 预览计算）
             String toolId = currentTool.getId();
@@ -301,14 +303,15 @@ public class SelectionManager {
 
     /**
      * 处理拖拽更新
+     * @param hitOrNull 射线命中结果，未命中或来自平面投影时为 null
      */
-    public void handleDragUpdate(World world, net.minecraft.util.math.BlockPos current) {
+    public void handleDragUpdate(World world, BlockPos current, BlockHitResult hitOrNull) {
         if (currentTool != null) {
             // 发布工具拖拽更新事件
             getEventProcessorInternal().processToolDragUpdate(world, current, current);
             
-            // 执行工具拖拽更新逻辑
-            currentTool.onDragUpdate(world, current);
+            // 执行工具拖拽更新逻辑（3-参数，供套索等取表面点）
+            currentTool.onDragUpdate(world, current, hitOrNull);
 
             // 更新工具预览（框选工具自己负责 setPreviewBox 实时预览）
             String toolId = currentTool.getId();
@@ -320,14 +323,15 @@ public class SelectionManager {
 
     /**
      * 处理拖拽结束
+     * @param hitOrNull 射线命中结果，未命中或来自平面投影时为 null
      */
-    public void handleDragEnd(World world, net.minecraft.util.math.BlockPos end) {
+    public void handleDragEnd(World world, BlockPos end, BlockHitResult hitOrNull) {
         if (currentTool != null) {
             // 发布工具拖拽结束事件
             getEventProcessorInternal().processToolDragEnd(world, end, end);
             
-            // 执行工具拖拽结束逻辑
-            currentTool.onDragEnd(world, end);
+            // 执行工具拖拽结束逻辑（3-参数，供套索等取表面点）
+            currentTool.onDragEnd(world, end, hitOrNull);
 
             // 结束工具预览（框选工具自己负责 clearPreview）
             String toolId = currentTool.getId();

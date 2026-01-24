@@ -13,6 +13,8 @@ import net.minecraft.client.render.GameRenderer;
 import org.joml.Matrix4f;
 import org.joml.Vector4f;
 import org.lwjgl.glfw.GLFW;
+
+import com.chronoblocks.core.selection.tools.lassoselecttool.LassoSelectTool;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,6 +36,8 @@ public class SelectionInputHandler {
     // 状态
     private boolean isDragging = false;
     private BlockPos dragStart = null;
+    /** 拖拽起点时的射线命中，用于 onDragStart(World, BlockPos, BlockHitResult)；仅用一次后置 null */
+    private BlockHitResult dragStartHit = null;
     private long lastClickTime = 0;
 
     private static final long CLICK_DEBOUNCE_MS = 50;   // 降低防抖时间，提高响应性
@@ -44,6 +48,59 @@ public class SelectionInputHandler {
     }
 
     /* -------------------- 统一的射线方法 -------------------- */
+
+    /**
+     * 从鼠标位置计算射线（原点 + 方向），供射线检测或平面投影使用。
+     * @return [origin, direction] 或 null（窗口/相机不可用时）
+     */
+    private Vec3d[] getRayFromMouse() {
+        if (client == null || client.getWindow() == null) return null;
+        Camera camera = client.gameRenderer.getCamera();
+        double[] mouseLogicalX = new double[1];
+        double[] mouseLogicalY = new double[1];
+        GLFW.glfwGetCursorPos(client.getWindow().getHandle(), mouseLogicalX, mouseLogicalY);
+        int windowW = client.getWindow().getWidth();
+        int windowH = client.getWindow().getHeight();
+        int fbWidth = client.getWindow().getFramebufferWidth();
+        int fbHeight = client.getWindow().getFramebufferHeight();
+        if (windowW <= 0 || windowH <= 0 || fbWidth <= 0 || fbHeight <= 0) return null;
+        double mouseXpx = mouseLogicalX[0] * fbWidth / (double) windowW;
+        double mouseYpx = mouseLogicalY[0] * fbHeight / (double) windowH;
+        float ndcX = (float)(mouseXpx / fbWidth * 2.0 - 1.0);
+        float ndcY = (float)(1.0 - mouseYpx / fbHeight * 2.0);
+        Vec3d cameraPos = camera.getPos();
+        GameRenderer gr = client.gameRenderer;
+        float fov = client.options.getFov().getValue().floatValue();
+        Matrix4f invProj = new Matrix4f(gr.getBasicProjectionMatrix(fov)).invert();
+        Vector4f nearClip = new Vector4f(ndcX, ndcY, -1.0f, 1.0f).mul(invProj);
+        Vector4f farClip  = new Vector4f(ndcX, ndcY,  1.0f, 1.0f).mul(invProj);
+        if (nearClip.w != 0.0f) nearClip.div(nearClip.w);
+        if (farClip.w  != 0.0f)  farClip.div(farClip.w);
+        float vx = farClip.x - nearClip.x, vy = farClip.y - nearClip.y, vz = farClip.z - nearClip.z;
+        float lenInv = (float)(1.0 / Math.max(1e-8, Math.sqrt(vx*vx + vy*vy + vz*vz)));
+        vx *= lenInv; vy *= lenInv; vz *= lenInv;
+        var q = camera.getRotation();
+        float qx = q.x, qy = q.y, qz = q.z, qw = q.w;
+        float cx1 = qy * vz - qz * vy, cy1 = qz * vx - qx * vz, cz1 = qx * vy - qy * vx;
+        float rx = vx + 2.0f * (qy * cz1 - qz * cy1 + qw * cx1);
+        float ry = vy + 2.0f * (qz * cx1 - qx * cz1 + qw * cy1);
+        float rz = vz + 2.0f * (qx * cy1 - qy * cx1 + qw * cz1);
+        Vec3d rayDir = new Vec3d(rx, ry, rz).normalize();
+        return new Vec3d[]{ cameraPos, rayDir };
+    }
+
+    /**
+     * 将射线与水平面 Y=planeY 求交，得到 BlockPos（用于套索在“空中”绘制时投影到起点的 XZ 平面）。
+     */
+    private BlockPos projectRayToHorizontalPlane(Vec3d origin, Vec3d dir, int planeY, double maxDist) {
+        double dy = dir.y;
+        if (Math.abs(dy) < 1e-6) return null;
+        double t = (planeY - origin.y) / dy;
+        if (t < 0) t = 0;
+        else if (t > maxDist) t = maxDist;
+        double x = origin.x + t * dir.x, z = origin.z + t * dir.z;
+        return new BlockPos((int)Math.floor(x), planeY, (int)Math.floor(z));
+    }
 
     /**
      * 🔥 最简单方法：将鼠标位置转换为角度偏移（类似 Minecraft 原版）
@@ -68,55 +125,10 @@ public class SelectionInputHandler {
             // 兼容初始化阶段
         }
 
-        // 1) 读取鼠标逻辑坐标并换算为帧缓冲像素
-        double[] mouseLogicalX = new double[1];
-        double[] mouseLogicalY = new double[1];
-        GLFW.glfwGetCursorPos(client.getWindow().getHandle(), mouseLogicalX, mouseLogicalY);
-
-        int windowW = client.getWindow().getWidth();
-        int windowH = client.getWindow().getHeight();
-        int fbWidth = client.getWindow().getFramebufferWidth();
-        int fbHeight = client.getWindow().getFramebufferHeight();
-        if (windowW <= 0 || windowH <= 0 || fbWidth <= 0 || fbHeight <= 0) return null;
-
-        double mouseXpx = mouseLogicalX[0] * fbWidth / (double) windowW;
-        double mouseYpx = mouseLogicalY[0] * fbHeight / (double) windowH;
-
-        // 2) NDC（注意Y翻转）
-        float ndcX = (float)(mouseXpx / fbWidth * 2.0 - 1.0);
-        float ndcY = (float)(1.0 - mouseYpx / fbHeight * 2.0);
-
-        // 4. 获取相机参数
-        Camera camera = client.gameRenderer.getCamera();
-        Vec3d cameraPos = camera.getPos();
-        // 3) 1.21.10+：使用 GameRenderer 的基础投影矩阵（替代 RenderSystem.getProjectionMatrix）
-        GameRenderer gr = client.gameRenderer;
-        float fov = client.options.getFov().getValue().floatValue();
-        Matrix4f invProj = new Matrix4f(gr.getBasicProjectionMatrix(fov)).invert();
-        Vector4f nearClip = new Vector4f(ndcX, ndcY, -1.0f, 1.0f).mul(invProj);
-        Vector4f farClip  = new Vector4f(ndcX, ndcY,  1.0f, 1.0f).mul(invProj);
-        if (nearClip.w != 0.0f) nearClip.div(nearClip.w);
-        if (farClip.w  != 0.0f)  farClip.div(farClip.w);
-
-        // 视空间方向
-        float vx = farClip.x - nearClip.x;
-        float vy = farClip.y - nearClip.y;
-        float vz = farClip.z - nearClip.z;
-        float lenInv = (float)(1.0 / Math.max(1e-8, Math.sqrt(vx*vx + vy*vy + vz*vz)));
-        vx *= lenInv; vy *= lenInv; vz *= lenInv;
-
-        // 相机旋转到世界方向（四元数旋转）
-        var q = camera.getRotation();
-        float qx = q.x, qy = q.y, qz = q.z, qw = q.w;
-        float cx1 = qy * vz - qz * vy;
-        float cy1 = qz * vx - qx * vz;
-        float cz1 = qx * vy - qy * vx;
-        float rx = vx + 2.0f * (qy * cz1 - qz * cy1 + qw * cx1);
-        float ry = vy + 2.0f * (qz * cx1 - qx * cz1 + qw * cy1);
-        float rz = vz + 2.0f * (qx * cy1 - qy * cx1 + qw * cz1);
-        Vec3d rayDir = new Vec3d(rx, ry, rz).normalize();
-
-        // 9. 执行射线追踪
+        Vec3d[] ray = getRayFromMouse();
+        if (ray == null) return null;
+        Vec3d cameraPos = ray[0];
+        Vec3d rayDir = ray[1];
         double maxDist = client.options.getViewDistance().getValue() * 16.0;
         Vec3d endPos = cameraPos.add(rayDir.multiply(maxDist));
 
@@ -215,6 +227,7 @@ public class SelectionInputHandler {
         }
 
         dragStart = hit.getBlockPos();
+        dragStartHit = hit;
         // 注意：暂不设置 isDragging，等鼠标真正移动后再设置
         LOGGER.debug("[Drag] 起点记录: {}", dragStart);
     }
@@ -224,40 +237,48 @@ public class SelectionInputHandler {
         if (dragStart == null) return;
         
         // 检查当前工具是否是 BoxSelectTool，并且正在拖拽面中心小方块
-        // 如果是，则不处理框选拖拽，让面中心小方块的拖拽逻辑处理
         if (selectionManager.getCurrentTool() instanceof com.chronoblocks.core.selection.tools.boxselecttool.BoxSelectTool boxTool) {
             if (boxTool.isDraggingFaceHandle()) {
                 LOGGER.debug("[Drag] 正在拖拽面中心小方块，跳过框选拖拽");
-                return; // 阻止框选拖拽
+                return;
             }
         }
 
         BlockHitResult hit = raycastFromMouse();
-        if (hit == null) return;
-
-        BlockPos currentPos = hit.getBlockPos();
+        BlockPos currentPos = null;
+        if (hit != null) {
+            currentPos = hit.getBlockPos();
+        } else if (selectionManager.getCurrentTool() instanceof LassoSelectTool) {
+            // 套索：当射线未命中方块（划过空中）时，投影到起点所在水平面，以显示连续绘制轨迹
+            Vec3d[] ray = getRayFromMouse();
+            if (ray != null) {
+                double maxDist = client.options.getViewDistance().getValue() * 16.0;
+                currentPos = projectRayToHorizontalPlane(ray[0], ray[1], dragStart.getY(), maxDist);
+            }
+        }
+        if (currentPos == null) return;
 
         // 只有当鼠标移动到不同方块时，才真正开始拖拽
         if (!isDragging) {
             if (!dragStart.equals(currentPos)) {
                 isDragging = true;
                 LOGGER.info("[Drag] ✅ 开始拖拽: {} -> {}", dragStart, currentPos);
-                selectionManager.handleDragStart(client.world, dragStart);
+                selectionManager.handleDragStart(client.world, dragStart, dragStartHit);
+                dragStartHit = null;
             } else {
-                // 还在起点，不算拖拽
                 return;
             }
         }
 
-        selectionManager.handleDragUpdate(client.world, currentPos);
+        selectionManager.handleDragUpdate(client.world, currentPos, hit);
     }
 
     public void handleMouseDragEnd(boolean isLeftClick) {
         if (!isLeftClick) return;
 
-        // 如果从未真正开始拖拽，清理状态
         if (!isDragging) {
             dragStart = null;
+            dragStartHit = null;
             LOGGER.debug("[Drag] 未真正拖拽，清理状态");
             return;
         }
@@ -265,24 +286,32 @@ public class SelectionInputHandler {
         if (selectionManager == null || client.world == null) {
             isDragging = false;
             dragStart = null;
+            dragStartHit = null;
             return;
         }
 
         BlockHitResult hit = raycastFromMouse();
-        if (hit == null) {
+        BlockPos end;
+        if (hit != null) {
+            end = hit.getBlockPos();
+        } else if (selectionManager.getCurrentTool() instanceof LassoSelectTool && dragStart != null) {
+            // 套索：释放在空中时，投影到起点水平面作为终点，以便正确闭合路径
+            Vec3d[] ray = getRayFromMouse();
+            double maxDist = client.options.getViewDistance().getValue() * 16.0;
+            end = (ray != null) ? projectRayToHorizontalPlane(ray[0], ray[1], dragStart.getY(), maxDist) : null;
+            if (end == null) end = dragStart;
+        } else {
             isDragging = false;
             dragStart = null;
-            LOGGER.debug("[Drag] 终点：射线未命中");
+            LOGGER.debug("[Drag] 终点：射线未命中且非套索");
             return;
         }
 
-        BlockPos end = hit.getBlockPos();
         LOGGER.info("[Drag] ✅ 拖拽完成: {} -> {}", dragStart, end);
-
-        selectionManager.handleDragEnd(client.world, end);
-
+        selectionManager.handleDragEnd(client.world, end, hit);
         isDragging = false;
         dragStart = null;
+        dragStartHit = null;
     }
 
     public void tick() {
