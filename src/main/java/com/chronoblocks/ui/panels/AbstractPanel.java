@@ -1,7 +1,9 @@
 package com.chronoblocks.ui.panels;
 
 import imgui.ImGui;
+import imgui.flag.ImGuiCol;
 import imgui.type.ImBoolean;
+import com.chronoblocks.ui.theme.UITheme;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,7 +67,15 @@ public abstract class AbstractPanel implements IPanel {
                 
                 // 记录状态检查，防止嵌套调用问题
                 com.chronoblocks.ui.imgui.ImGuiStateChecker.recordBegin("Panel", getWindowName());
-                
+
+                // 普通面板（除菜单栏、状态栏外）使用中灰色标题栏，便于区分面板边界
+                float[] tb = UITheme.toFloatArrayPublic(UITheme.DarkTheme.TITLE_BG_PANEL);
+                float[] tba = UITheme.toFloatArrayPublic(UITheme.DarkTheme.TITLE_BG_PANEL_ACTIVE);
+                float[] tbc = UITheme.toFloatArrayPublic(UITheme.DarkTheme.TITLE_BG_PANEL_COLLAPSED);
+                ImGui.pushStyleColor(ImGuiCol.TitleBg, tb[0], tb[1], tb[2], tb[3]);
+                ImGui.pushStyleColor(ImGuiCol.TitleBgActive, tba[0], tba[1], tba[2], tba[3]);
+                ImGui.pushStyleColor(ImGuiCol.TitleBgCollapsed, tbc[0], tbc[1], tbc[2], tbc[3]);
+
                 boolean windowStarted;
                 try {
                     // 仅在“游离窗口”显示关闭按钮“×”（停靠时不显示）
@@ -125,7 +135,7 @@ public abstract class AbstractPanel implements IPanel {
                         logger.error("[{}] 结束窗口时发生错误: {}", getPanelName(), e.getMessage(), e);
                         com.chronoblocks.ui.imgui.ImGuiStateChecker.recordError("Panel", getWindowName(), "结束窗口失败: " + e.getMessage());
                     }
-                    
+                    ImGui.popStyleColor(3); // 还原 TitleBg / TitleBgActive / TitleBgCollapsed
                     // 记录End调用以保持栈平衡
                     com.chronoblocks.ui.imgui.ImGuiStateChecker.recordEnd("Panel", getWindowName());
                 }

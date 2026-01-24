@@ -43,9 +43,14 @@ public class UITheme {
         public static final int BUTTON_ACTIVE = rgba(85, 85, 85, 255);       // 按钮按下
         
         // 标题栏
-        public static final int TITLE_BG = rgba(32, 32, 32, 255);            // 标题栏
+        public static final int TITLE_BG = rgba(32, 32, 32, 255);            // 标题栏（菜单栏等沿用）
         public static final int TITLE_BG_ACTIVE = rgba(42, 42, 42, 255);     // 活动标题栏
         public static final int TITLE_BG_COLLAPSED = rgba(28, 28, 28, 255);  // 折叠标题栏
+
+        /** 普通面板标题栏：中灰色，便于区分各面板边界（仅 Toolbar、Properties、Container、Timeline 等，不含菜单栏/状态栏） */
+        public static final int TITLE_BG_PANEL = rgba(88, 88, 88, 255);
+        public static final int TITLE_BG_PANEL_ACTIVE = rgba(104, 104, 104, 255);
+        public static final int TITLE_BG_PANEL_COLLAPSED = rgba(72, 72, 72, 255);
         
         // 选择器和滑块
         public static final int FRAME_BG = rgba(42, 42, 42, 255);            // 输入框背景
