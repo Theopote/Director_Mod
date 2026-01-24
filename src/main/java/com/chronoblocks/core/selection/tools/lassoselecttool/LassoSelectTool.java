@@ -22,7 +22,7 @@ import java.util.Objects;
 
 /**
  * 🖊️ 世界空间套索工具
- *
+ * <p>
  * 拖拽时直接采样 BlockPos 顶点，形成 XZ 平面上的多边形，
  * 交由 {@link LassoSelectTask} 异步计算选区。
  */
@@ -182,7 +182,7 @@ public final class LassoSelectTool implements SelectionTool, SelectionOperationS
                 hitOrNull.getSide().getOffsetZ()
             );
             Vec3d p = hitOrNull.getPos().add(n.multiply(0.01));
-            if (strokePoints.isEmpty() || strokePoints.get(strokePoints.size() - 1).squaredDistanceTo(p) > MIN_STROKE_DISTANCE_SQ) {
+            if (strokePoints.isEmpty() || strokePoints.getLast().squaredDistanceTo(p) > MIN_STROKE_DISTANCE_SQ) {
                 strokePoints.add(p);
                 previewManager.updateLassoStroke(strokePoints);
             }

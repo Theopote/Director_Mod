@@ -1025,10 +1025,47 @@ public class ToolPreviewManager {
             .normal(nx, ny, nz);
     }
 
-    /** 套索笔迹线宽（像素） */
+    /**
+     * 渲染线段（两端不同颜色，用于画笔式渐变）
+     */
+    private void renderLineGradient(VertexConsumer vertexConsumer, Matrix4f matrix,
+                                    double x1, double y1, double z1, float r1, float g1, float a1,
+                                    double x2, double y2, double z2, float r2, float g2, float a2) {
+        double dx = x2 - x1;
+        double dy = y2 - y1;
+        double dz = z2 - z1;
+        double length = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        float nx, ny, nz;
+        if (length > 1.0e-6) {
+            nx = (float) (dx / length);
+            ny = (float) (dy / length);
+            nz = (float) (dz / length);
+        } else {
+            nx = 0.0f;
+            ny = 1.0f;
+            nz = 0.0f;
+        }
+        vertexConsumer.vertex(matrix, (float) x1, (float) y1, (float) z1).color(r1, g1, ToolPreviewManager.LASSO_B, a1).normal(nx, ny, nz);
+        vertexConsumer.vertex(matrix, (float) x2, (float) y2, (float) z2).color(r2, g2, ToolPreviewManager.LASSO_B, a2).normal(nx, ny, nz);
+    }
+
+    // ========== 套索笔迹：画笔式视觉 ==========
     private static final float LASSO_STROKE_LINE_WIDTH = 2.0f;
-    /** 笔尖十字半宽（世界单位） */
     private static final float LASSO_TIP_SIZE = 0.08f;
+    /** 尾部 alpha（旧路径更淡） */
+    private static final float LASSO_ALPHA_TAIL = 0.15f;
+    /** 笔尖 alpha */
+    private static final float LASSO_ALPHA_TIP = 1.0f;
+    /** 颜色：尾部 (淡青) → 笔尖 (高亮青) */
+    private static final float LASSO_R_TAIL = 0.7f;
+    private static final float LASSO_G_TAIL = 0.9f;
+    private static final float LASSO_B = 1.0f;
+    private static final float LASSO_R_TIP = 0.0f;
+    private static final float LASSO_G_TIP = 1.0f;
+    /** 虚线 + 流动：关闭时仅渐变；打开时逻辑虚线 + 时间偏移 */
+    private static final boolean LASSO_DASH_FLOW = false;
+    private static final float LASSO_DASH_PERIOD = 0.4f;
+    private static final float LASSO_DASH_LENGTH = 0.25f;
 
     /**
      * 套索笔迹渲染（LassoPathPreview 设计）
@@ -1052,9 +1089,7 @@ public class ToolPreviewManager {
 
         long time = System.currentTimeMillis();
         float phase = (time % 2000L) / 2000.0f;
-        float strokeAlpha = MathHelper.clamp(0.6f + 0.3f * MathHelper.sin(phase * MathHelper.TAU * 2.0f), 0.35f, 0.9f);
         float fillAlpha = MathHelper.clamp(0.25f + 0.12f * MathHelper.sin(phase * MathHelper.TAU), 0.15f, 0.5f);
-        float[] strokeColor = new float[]{0.2f, 0.85f, 1.0f, strokeAlpha};
         float[] fillColor = new float[]{0.0f, 0.55f, 1.0f, fillAlpha};
 
         Matrix4f matrix = matrices.peek().getPositionMatrix();
@@ -1067,12 +1102,11 @@ public class ToolPreviewManager {
             }
         }
 
-        // 2. 笔迹折线 + 笔尖：贴表面、不穿墙
+        // 2. 笔迹折线 + 笔尖：画笔式渐变、贴表面、不穿墙
         if (strokeCopy.isEmpty()) {
             return;
         }
 
-        // 2.1 准备渲染状态：blend、depth test 开，depth write 关，线宽
         GlStateManager._enableBlend();
         GlStateManager._blendFuncSeparate(GL11.GL_SRC_ALPHA, GL11.GL_ONE_MINUS_SRC_ALPHA, GL11.GL_ONE, GL11.GL_ONE_MINUS_SRC_ALPHA);
         GlStateManager._enableDepthTest();
@@ -1081,31 +1115,55 @@ public class ToolPreviewManager {
 
         try {
             VertexConsumer lineConsumer = vertexConsumers.getBuffer(RenderLayer.getLines());
-            double cx = cameraPos.x;
-            double cy = cameraPos.y;
-            double cz = cameraPos.z;
+            double cx = cameraPos.x, cy = cameraPos.y, cz = cameraPos.z;
+            int n = strokeCopy.size();
+            float timeOffset = LASSO_DASH_FLOW ? (time % 1000) / 1000.0f * LASSO_DASH_PERIOD : 0f;
+            float dist = 0f;
 
-            // 2.2 折线（≥2 点）：相机相对坐标
-            if (strokeCopy.size() >= 2) {
-                for (int i = 0; i < strokeCopy.size() - 1; i++) {
+            // 2.1 折线（≥2 点）：按 t=i/(n-1) 做 alpha + 颜色渐变；可选虚线+流动
+            if (n >= 2) {
+                for (int i = 0; i < n - 1; i++) {
                     Vec3d a = strokeCopy.get(i);
                     Vec3d b = strokeCopy.get(i + 1);
-                    renderLine(lineConsumer, matrix,
-                        (float) (a.x - cx), (float) (a.y - cy), (float) (a.z - cz),
-                        (float) (b.x - cx), (float) (b.y - cy), (float) (b.z - cz),
-                        strokeColor);
+                    float segLen = (float) a.distanceTo(b);
+
+                    if (LASSO_DASH_FLOW) {
+                        float distMid = dist + segLen * 0.5f;
+                        float u = (distMid + timeOffset) % LASSO_DASH_PERIOD;
+                        if (u < 0) u += LASSO_DASH_PERIOD;
+                        if (u >= LASSO_DASH_LENGTH) {
+                            dist += segLen;
+                            continue;
+                        }
+                    }
+
+                    float tA = i / (float) (n - 1);
+                    float tB = (i + 1) / (float) (n - 1);
+                    float alphaA = LASSO_ALPHA_TAIL + (LASSO_ALPHA_TIP - LASSO_ALPHA_TAIL) * tA;
+                    float alphaB = LASSO_ALPHA_TAIL + (LASSO_ALPHA_TIP - LASSO_ALPHA_TAIL) * tB;
+                    float rA = LASSO_R_TAIL + (LASSO_R_TIP - LASSO_R_TAIL) * tA;
+                    float gA = LASSO_G_TAIL + (LASSO_G_TIP - LASSO_G_TAIL) * tA;
+                    float rB = LASSO_R_TAIL + (LASSO_R_TIP - LASSO_R_TAIL) * tB;
+                    float gB = LASSO_G_TAIL + (LASSO_G_TIP - LASSO_G_TAIL) * tB;
+
+                    renderLineGradient(lineConsumer, matrix,
+                        a.x - cx, a.y - cy, a.z - cz, rA, gA, alphaA,
+                        b.x - cx, b.y - cy, b.z - cz, rB, gB, alphaB);
+
+                    dist += segLen;
                 }
             }
 
-            // 2.3 笔尖十字（末点，小 3D 十字）
-            Vec3d tip = strokeCopy.get(strokeCopy.size() - 1);
+            // 2.2 笔尖十字：高亮色、全不透明
+            Vec3d tip = strokeCopy.get(n - 1);
             float tx = (float) (tip.x - cx);
             float ty = (float) (tip.y - cy);
             float tz = (float) (tip.z - cz);
-            float r = LASSO_TIP_SIZE;
-            renderLine(lineConsumer, matrix, tx - r, ty, tz, tx + r, ty, tz, strokeColor);
-            renderLine(lineConsumer, matrix, tx, ty - r, tz, tx, ty + r, tz, strokeColor);
-            renderLine(lineConsumer, matrix, tx, ty, tz - r, tx, ty, tz + r, strokeColor);
+            float hr = LASSO_TIP_SIZE;
+            float[] tipColor = new float[]{LASSO_R_TIP, LASSO_G_TIP, LASSO_B, LASSO_ALPHA_TIP};
+            renderLine(lineConsumer, matrix, tx - hr, ty, tz, tx + hr, ty, tz, tipColor);
+            renderLine(lineConsumer, matrix, tx, ty - hr, tz, tx, ty + hr, tz, tipColor);
+            renderLine(lineConsumer, matrix, tx, ty, tz - hr, tx, ty, tz + hr, tipColor);
         } finally {
             GlStateManager._depthMask(true);
             RenderSystem.lineWidth(1.0f);
@@ -1197,7 +1255,7 @@ public class ToolPreviewManager {
             if (points == null || points.isEmpty()) {
                 lassoStrokePoints = List.of();
             } else {
-                lassoStrokePoints = Collections.unmodifiableList(new ArrayList<>(points));
+                lassoStrokePoints = List.copyOf(points);
             }
             lassoPreviewActive = !lassoStrokePoints.isEmpty() || !lassoPathWorld.isEmpty() || !lassoFillBlocks.isEmpty();
         }
@@ -1227,30 +1285,6 @@ public class ToolPreviewManager {
             lassoFillBlocks = Set.of();
             lassoStrokePoints = List.of();
             lassoPreviewActive = false;
-        }
-    }
-
-    // ======================= 几何预览 API =======================
-
-    public void updateGeometryPreview(Set<BlockPos> blocks, GeometryShape shape, GeometryConfig cfg) {
-        synchronized (geometryLock) {
-            if (blocks == null || blocks.isEmpty()) {
-                geometryPreviewBlocks = Set.of();
-                geometryPreviewActive = false;
-            } else {
-                geometryPreviewBlocks = Collections.unmodifiableSet(new LinkedHashSet<>(blocks));
-                geometryPreviewActive = true;
-            }
-            geometryPreviewShape = shape != null ? shape : GeometryShape.SPHERE;
-            geometryPreviewConfig = cfg != null ? cfg.copy() : null;
-        }
-    }
-
-    public void clearGeometryPreview() {
-        synchronized (geometryLock) {
-            geometryPreviewBlocks = Set.of();
-            geometryPreviewActive = false;
-            geometryPreviewConfig = null;
         }
     }
 
