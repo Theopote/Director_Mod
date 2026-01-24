@@ -64,9 +64,8 @@ public class BlockFilterPipeline {
     /**
      * 启用/禁用性能分析
      */
-    public BlockFilterPipeline enableProfiling(boolean enable) {
+    public void enableProfiling(boolean enable) {
         this.profiling = enable;
-        return this;
     }
     
     /**

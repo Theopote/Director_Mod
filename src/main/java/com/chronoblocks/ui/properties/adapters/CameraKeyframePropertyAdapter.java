@@ -354,7 +354,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
 
     /**
      * 拖拽 Float 控件，返回是否发生了改变
-     * 
+     * <p>
      * 注意：调用此方法前，应该先调用 value.set() 从 keyframe 同步值。
      * ImGui 会智能处理：如果控件正在被拖动，它会忽略新值并保持拖动状态；
      * 如果控件未激活，它会使用我们传入的新值更新显示。

@@ -107,17 +107,14 @@ public final class PropertyContextService {
         if (cleared) {
             return null;
         }
-        switch (getCurrentContext()) {
-            case TOOL:
+        return switch (getCurrentContext()) {
+            case TOOL -> {
                 var core = com.chronoblocks.core.selection.SelectionManager.get();
-                return core != null ? core.getCurrentTool() : null;
-            case TIMELINE:
-                return SelectionManager.get().getSelectionPayload();
-            case WORLD:
-            case NONE:
-            default:
-                return null;
-        }
+                yield core != null ? core.getCurrentTool() : null;
+            }
+            case TIMELINE -> SelectionManager.get().getSelectionPayload();
+            default -> null;
+        };
     }
 
     // ===================== UI 信号输入接口（Panels / 命令 调用） =====================

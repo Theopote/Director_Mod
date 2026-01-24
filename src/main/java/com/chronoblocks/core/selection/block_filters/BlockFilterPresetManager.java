@@ -12,7 +12,7 @@ import java.util.*;
 
 /**
  * 💾 方块过滤器预设管理器
- * 
+ * <p>
  * 负责保存和加载过滤器预设到 JSON 文件。
  * - 支持预设的增删改查
  * - 自动持久化到配置文件
@@ -196,14 +196,14 @@ public class BlockFilterPresetManager {
     public static Set<String> getPresetIds() {
         return new LinkedHashSet<>(presets.keySet());
     }
-    
+
     /**
      * 检查预设是否存在
      */
     public static boolean hasPreset(String presetId) {
         return presets.containsKey(presetId);
     }
-    
+
     /**
      * 重命名预设
      */

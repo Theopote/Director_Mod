@@ -12,7 +12,6 @@ import com.chronoblocks.ui.tools.EditorTool;
 import com.chronoblocks.ui.tools.ToolGroup;
 import com.chronoblocks.ui.tools.ToolRegistry;
 import com.chronoblocks.ui.commands.UICommandFacade;
-import com.chronoblocks.ui.PanelId;
 
 import java.util.List;
 
@@ -103,11 +102,8 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
         // 工具按钮组（组级换行优先，组内再换行）
         renderSelectionToolButtons();
 
-        // 工具栏主体只保留：工具区 + 面板快捷区
+        // 工具栏主体只保留工具区；属性/过滤/历史由 Window → Toggle Panels 控制
         // FPS/关闭已迁移到 MenuBarPanel 右侧（全局状态/窗口级操作）
-        boolean firstSection = false; // 工具区已渲染
-
-        renderPanelShortcutsSection(firstSection);
 
         // 移除集成的面板渲染，现在使用独立面板
         // 这些面板现在通过Window菜单的Toggle Panels来管理
@@ -117,74 +113,6 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
         // 不再在此处处理快捷键输入
 
         ImGui.popStyleVar(2);
-    }
-
-    /**
-     * 面板快捷按钮区块（属性/过滤/历史）
-     *
-     * <p>规则：先区块换行，再区块内按钮换行。</p>
-     * <p>注意：帮助面板已移除，可通过 Window 菜单 → Toggle Panels 控制。</p>
-     */
-    private boolean renderPanelShortcutsSection(boolean firstSection) {
-        // 区块总宽估算（用于决定“区块整体是否换行”）
-        float totalW = estimatePanelShortcutsTotalWidth();
-        beginSection(firstSection, totalW);
-
-        renderPanelToggleButtonWrapped(Icons.SETTINGS, "属性", PropertiesPanel.class, "打开属性面板（工具与时间线对象属性）", PanelId.PROPERTIES);
-        renderPanelToggleButtonWrapped(Icons.FILTER, "过滤", SelectionFilterPanel.class, "打开选择过滤器面板", SelectionFilterPanel.PANEL_NAME);
-        renderPanelToggleButtonWrapped(Icons.UNDO, "历史", SelectionHistoryPanel.class, "打开选择历史面板", SelectionHistoryPanel.PANEL_NAME);
-
-        return false;
-    }
-
-    /**
-     * 区块级换行优先：如果当前行剩余宽度不够，则整块换行；否则同一行继续。
-     */
-    private void beginSection(boolean firstSection, float minSectionWidth) {
-        if (firstSection) {
-            return;
-        }
-        // 留一点间距，避免紧贴
-        float required = minSectionWidth + UITheme.Spacing.ELEMENT_SPACING;
-        if (required > ImGui.getContentRegionAvailX()) {
-            ImGui.newLine();
-        } else {
-            ImGui.sameLine();
-        }
-    }
-
-    private float estimatePanelShortcutsTotalWidth() {
-        // 估算三个按钮在同一行时的总宽（用来决定是否整块换行）
-        // 注意：帮助按钮已移除，现在只有属性/过滤/历史三个按钮
-        float spacing = UITheme.Spacing.ELEMENT_SPACING;
-        float w1 = estimatePanelButtonWidth(Icons.SETTINGS, "属性");
-        float w2 = estimatePanelButtonWidth(Icons.FILTER, "过滤");
-        float w3 = estimatePanelButtonWidth(Icons.UNDO, "历史");
-        return w1 + w2 + w3 + spacing * 2;
-    }
-
-    private float estimatePanelButtonWidth(String icon, String label) {
-        return estimateButtonWidth(icon + " " + label);
-    }
-
-    private float estimateButtonWidth(String visibleText) {
-        float textW = ImGui.calcTextSize(visibleText).x;
-        float paddingX = ImGui.getStyle().getFramePadding().x * 2.0f;
-        return textW + paddingX;
-    }
-
-    /**
-     * 面板按钮：区块内换行版本。
-     */
-    private void renderPanelToggleButtonWrapped(String icon, String label, Class<? extends IPanel> panelClass,
-                                                String tooltip, String... fallbackPanelNames) {
-        float btnW = estimatePanelButtonWidth(icon, label);
-        if (btnW + UITheme.Spacing.ELEMENT_SPACING > ImGui.getContentRegionAvailX()) {
-            ImGui.newLine();
-        } else {
-            ImGui.sameLine();
-        }
-        renderPanelToggleButton(icon, label, panelClass, tooltip, fallbackPanelNames);
     }
 
     /* ---------- 选择工具按钮 ---------- */
@@ -394,66 +322,6 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
         this.panelRegistry = panelRegistry;
     }
 
-    /**
-     * 切换面板显示状态（通过 Facade）
-     */
-    private void togglePanel(Class<? extends IPanel> panelClass, String... fallbackPanelNames) {
-        if (commands == null || commands.view() == null) {
-            return;
-        }
-        
-        // 尝试通过 PanelId 获取面板 ID
-        String panelId = null;
-        if (panelClass != null) {
-            if (panelRegistry != null) {
-                IPanel panel = panelRegistry.getPanel(panelClass);
-                if (panel != null) {
-                    panelId = PanelId.fromPanel(panel);
-                }
-            }
-        }
-        
-        // 如果通过类找不到，尝试通过 fallback 名称
-        if (panelId == null && fallbackPanelNames != null) {
-            for (String name : fallbackPanelNames) {
-                if (name != null && !name.isBlank() && panelRegistry != null) {
-                    IPanel panel = panelRegistry.getPanelByName(name);
-                    if (panel != null) {
-                        panelId = PanelId.fromPanel(panel);
-                        if (panelId != null) break;
-                    }
-                }
-            }
-        }
-        
-        if (panelId != null) {
-            commands.view().togglePanel(panelId);
-        }
-    }
-
     // 快捷键处理已迁移到 ShortcutDispatcher（统一入口）
     // 不再需要 handleKeyInput() 方法
-
-    /**
-     * 渲染一个标准的工具栏按钮，用于切换指定面板的可见性。
-     *
-     * @param icon      按钮图标 (来自 Icons 类)
-     * @param label     按钮的文本标签
-     * @param tooltip   鼠标悬停时显示的工具提示文本
-     */
-    private void renderPanelToggleButton(String icon, String label, Class<? extends IPanel> panelClass,
-                                         String tooltip, String... fallbackPanelNames) {
-        String uniqueId = panelClass != null ? panelClass.getSimpleName()
-                : (fallbackPanelNames != null && fallbackPanelNames.length > 0 ? fallbackPanelNames[0] : label);
-        String buttonId = icon + " " + label + "##" + uniqueId + "Toggle";
-
-        if (ImGui.button(buttonId, 0, UITheme.Spacing.BUTTON_HEIGHT)) {
-            logger.info("[ToolbarPanel] 面板切换按钮被点击: {}", uniqueId);
-            togglePanel(panelClass, fallbackPanelNames);
-        }
-
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(tooltip);
-        }
-    }
 }
