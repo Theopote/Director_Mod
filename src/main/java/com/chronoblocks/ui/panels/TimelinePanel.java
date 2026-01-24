@@ -421,10 +421,10 @@ public class TimelinePanel extends AbstractPanel
             );
         }
         
-        // ⭐ v1.1：更新焦点状态（供 ShortcutContext 使用）
-        // 这个状态会在每次 doRender() 调用时更新，确保快捷键系统能够正确检测焦点
-        // ✅ 只有窗口聚焦且鼠标在窗口范围内时才认为面板激活
-        isTimelinePanelFocused = active;
+        // ⭐ v1.1：更新焦点状态（供 ShortcutContext / ShortcutDispatcher 使用，如 Delete、播放等键盘快捷键）
+        // 仅用 focused：键盘快捷键在窗口（或其子窗口）有焦点时即可生效，不要求鼠标悬停；
+        // 否则选中片段/关键帧后鼠标移开再按 Delete 会无反应。
+        isTimelinePanelFocused = focused;
         
         // 调试日志（仅在 trace 级别）
         if (LOGGER.isTraceEnabled() && focused) {
