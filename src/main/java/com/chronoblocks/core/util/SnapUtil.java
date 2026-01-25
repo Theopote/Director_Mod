@@ -4,7 +4,7 @@ import net.minecraft.util.math.Box;
 
 /**
  * 🔧 SnapUtil - 方块网格对齐工具类
- * 
+ * <p>
  * 功能：
  * - 一方块步进（网格对齐）
  * - 保证厚度 >= 1 方块
@@ -19,7 +19,7 @@ public final class SnapUtil {
     
     /**
      * 保证盒子在三个方向的厚度 >= 1 方块
-     * 
+     * <p>
      * Box 的 max 边界是 exclusive（不包含），所以对于整数坐标：
      * - minX=0, maxX=1 表示厚度为 1 方块
      * - minX=0, maxX=0.5 表示厚度 < 1，需要修正为 maxX=1

@@ -11,11 +11,11 @@ import java.io.InputStream;
 
 /**
  * ChronoBlocks ImGui 字体管理器
- * 
+ * <p>
  * 负责加载和管理 ImGui 使用的所有字体，包括：
  * - 中文字体（主字体）- Noto Sans SC
  * - 图标字体（合并模式）- IcoMoon 自定义图标
- * 
+ * <p>
  * 解决方案说明：
  * 1. 首先加载中文字体作为基础字体
  * 2. 使用合并模式（MergeMode）加载自定义图标字体，将图标字形添加到字体图集中

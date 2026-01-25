@@ -8,7 +8,7 @@ import java.util.Set;
 
 /**
  * 🎯 选择变化事件
- * 
+ * <p>
  * 当选择状态发生变化时触发，用于通知UI组件更新选择显示。
  * 
  * @author ChronoBlocks Team

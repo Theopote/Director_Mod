@@ -6,7 +6,7 @@ import net.minecraft.world.World;
 
 /**
  * 🪄 SelectionTool 接口
- * 
+ * <p>
  * 定义所有选择工具（点击、框选、魔棒等）的通用行为。
  * 每种工具在世界中有独立的交互逻辑与视觉反馈。
  * 

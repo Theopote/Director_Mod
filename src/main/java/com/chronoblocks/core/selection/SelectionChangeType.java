@@ -2,7 +2,7 @@ package com.chronoblocks.core.selection;
 
 /**
  * 📢 选区变化类型枚举
- * 
+ * <p>
  * 用于 SelectionEvents.fireChanged() 的事件标识。
  * 区分不同的选区变化来源和类型。
  * 

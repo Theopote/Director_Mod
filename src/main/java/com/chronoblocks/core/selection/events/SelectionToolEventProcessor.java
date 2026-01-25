@@ -9,7 +9,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * 🎯 选择工具事件处理器
- * 
+ * <p>
  * 负责处理选择工具的各种事件，包括点击、拖拽、激活等。
  * 作为SelectionManager和事件系统之间的桥梁。
  * 

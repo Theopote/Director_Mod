@@ -10,14 +10,14 @@ import java.util.function.Consumer;
 
 /**
  * 🛰️ SelectionEvents
- * 
+ * <p>
  * —— ChronoBlocks 全局选区事件总线
- * 
+ * <p>
  * 用于：
  *  - 通知 SelectionRenderer、GizmoRenderer、UI 面板等刷新状态；
  *  - 监听选区变化（更新历史、预览、动画状态等）；
  *  - 解耦 SelectionManager 与渲染/UI 层。
- * 
+ * <p>
  * 使用示例：
  * <pre>{@code
  * // 注册监听器

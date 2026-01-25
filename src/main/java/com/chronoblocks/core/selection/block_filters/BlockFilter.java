@@ -6,7 +6,7 @@ import net.minecraft.world.World;
 
 /**
  * 🔍 方块过滤器接口
- * 
+ * <p>
  * 用于定义各种方块匹配规则，可被魔棒工具、类型过滤工具等使用。
  * 
  * @author ChronoBlocks Team

@@ -26,7 +26,6 @@ public class VideoExportSettings {
 
     public static final int RANGE_TIMELINE = 0;
     public static final int RANGE_CUSTOM = 1;
-    public static final int RANGE_PROJECT = 2;
 
     public int rangeMode = RANGE_TIMELINE;
     public float customStartTime = 0f;

@@ -39,7 +39,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * 🧩 ChronoBlocksRendererRegistry v3.0
  * -----------------------------------------------------
  * 🎯 统一渲染调度系统（类似 Unity RenderPipeline）
- *
+ * <p>
  * ✅ 注册 / 注销 各类渲染器（Selection、ToolPreview、Hover、Gizmo 等）
  * ✅ 自动挂载 Fabric WorldRenderEvents（BeforeEntities / AfterEntities / AfterTranslucent）
  * ✅ 支持阶段化渲染 Stage → priority → renderer

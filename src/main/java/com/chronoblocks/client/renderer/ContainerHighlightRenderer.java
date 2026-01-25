@@ -128,27 +128,7 @@ public final class ContainerHighlightRenderer {
                 Container.BoundingBox bbox = selectedContainer.getBoundingBox();
                 if (bbox != null) {
                     // 计算相机到 AABB 的最短距离（平方）
-                    double dx = 0.0;
-                    double dy = 0.0;
-                    double dz = 0.0;
-                    double cx = cameraPos.x;
-                    double cy = cameraPos.y;
-                    double cz = cameraPos.z;
-                    double minX = bbox.getMin().getX();
-                    double minY = bbox.getMin().getY();
-                    double minZ = bbox.getMin().getZ();
-                    double maxX = bbox.getMax().getX() + 1.0;
-                    double maxY = bbox.getMax().getY() + 1.0;
-                    double maxZ = bbox.getMax().getZ() + 1.0;
-
-                    if (cx < minX) dx = minX - cx;
-                    else if (cx > maxX) dx = cx - maxX;
-                    if (cy < minY) dy = minY - cy;
-                    else if (cy > maxY) dy = cy - maxY;
-                    if (cz < minZ) dz = minZ - cz;
-                    else if (cz > maxZ) dz = cz - maxZ;
-
-                    double distSqToBox = dx * dx + dy * dy + dz * dz;
+                    double distSqToBox = getDistSqToBox(cameraPos, bbox);
                     if (distSqToBox > (double) maxDistSq) {
                         return;
                     }
@@ -224,7 +204,31 @@ public final class ContainerHighlightRenderer {
             RenderSystem.lineWidth(1.0f);
         }
     }
-    
+
+    private static double getDistSqToBox(Vec3d cameraPos, Container.BoundingBox bbox) {
+        double dx = 0.0;
+        double dy = 0.0;
+        double dz = 0.0;
+        double cx = cameraPos.x;
+        double cy = cameraPos.y;
+        double cz = cameraPos.z;
+        double minX = bbox.getMin().getX();
+        double minY = bbox.getMin().getY();
+        double minZ = bbox.getMin().getZ();
+        double maxX = bbox.getMax().getX() + 1.0;
+        double maxY = bbox.getMax().getY() + 1.0;
+        double maxZ = bbox.getMax().getZ() + 1.0;
+
+        if (cx < minX) dx = minX - cx;
+        else if (cx > maxX) dx = cx - maxX;
+        if (cy < minY) dy = minY - cy;
+        else if (cy > maxY) dy = cy - maxY;
+        if (cz < minZ) dz = minZ - cz;
+        else if (cz > maxZ) dz = cz - maxZ;
+
+        return dx * dx + dy * dy + dz * dz;
+    }
+
     /**
      * 绘制一条线
      */

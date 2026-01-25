@@ -2,6 +2,8 @@ package com.chronoblocks.core.selection.tools.faceselecttool;
 
 import com.chronoblocks.client.renderer.ToolPreviewManager;
 import com.chronoblocks.core.selection.SelectionManager;
+import com.chronoblocks.core.selection.SelectionOperation;
+import com.chronoblocks.core.selection.SelectionOperationSupport;
 import com.chronoblocks.core.selection.SelectionState;
 import com.chronoblocks.core.selection.SelectionTool;
 import com.chronoblocks.core.selection.block_filters.BlockFilter;
@@ -16,6 +18,8 @@ import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.HashSet;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -24,14 +28,16 @@ import java.util.Set;
  * - 基于命中面的二维 Flood Fill
  * - 异步执行 + 分帧更新，避免卡顿
  * - 实时预览同步 ToolPreviewManager
- * - 支持 Shift 加选
+ * - 支持操作模式：新建/加选/减选/交集，Shift+单击强制加选
  */
-public class FaceSelectTool implements SelectionTool {
+public class FaceSelectTool implements SelectionTool, SelectionOperationSupport {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FaceSelectTool.class);
 
     private final SelectionState currentSelection = new SelectionState("face");
     private final FaceSelectConfig config = new FaceSelectConfig();
+
+    private SelectionOperation operation = SelectionOperation.NEW;
 
     private FaceSelectTask runningTask;
 
@@ -51,7 +57,7 @@ public class FaceSelectTool implements SelectionTool {
 
     @Override
     public String getDescription() {
-        return "选择方块的特定面，并延伸至相连的同类方块。支持异步处理与实时预览。";
+        return "选择方块的特定面并延伸至相连的同类方块；支持操作模式与 Shift+单击加选。";
     }
 
     @Override
@@ -88,7 +94,10 @@ public class FaceSelectTool implements SelectionTool {
         MinecraftClient client = MinecraftClient.getInstance();
         ToolPreviewManager previewManager = ToolPreviewManager.getInstance();
 
-        LOGGER.info("[FaceSelectTool] 开始面选择: pos={}, face={}, block={}", pos, face, targetState.getBlock());
+        // 与套索、框选等一致：Shift+单击强制加选，否则使用当前操作模式
+        SelectionOperation effectiveOp = isShiftDown ? SelectionOperation.ADD : operation;
+
+        LOGGER.info("[FaceSelectTool] 开始面选择: pos={}, face={}, block={}, 操作={}", pos, face, targetState.getBlock(), effectiveOp);
 
         BlockFilter filter = getEffectiveBlockFilter();
         runningTask = new FaceSelectTask(
@@ -100,21 +109,21 @@ public class FaceSelectTool implements SelectionTool {
             filter,
             progress -> {
                 if (client != null) {
-                    client.execute(() -> handleProgress(progress, isShiftDown));
+                    client.execute(() -> handleProgress(progress, effectiveOp));
                 } else {
-                    handleProgress(progress, isShiftDown);
+                    handleProgress(progress, effectiveOp);
                 }
             },
             result -> {
                 if (client != null) {
-                    client.execute(() -> handleCompletion(result, isShiftDown));
+                    client.execute(() -> handleCompletion(result, effectiveOp));
                 } else {
-                    handleCompletion(result, isShiftDown);
+                    handleCompletion(result, effectiveOp);
                 }
             }
         );
 
-        previewManager.updateFacePreview(Set.of(pos), tintFor(isShiftDown, false));
+        previewManager.updateFacePreview(Set.of(pos), tintFor(effectiveOp == SelectionOperation.ADD, false));
         runningTask.start();
     }
 
@@ -193,14 +202,14 @@ public class FaceSelectTool implements SelectionTool {
         }
     }
 
-    private void handleProgress(FaceSelectTask.TaskProgress progress, boolean appendMode) {
+    private void handleProgress(FaceSelectTask.TaskProgress progress, SelectionOperation op) {
         if (progress == null || progress.blocks() == null) {
             return;
         }
-        ToolPreviewManager.getInstance().updateFacePreview(progress.blocks(), tintFor(appendMode, progress.reachedLimit()));
+        ToolPreviewManager.getInstance().updateFacePreview(progress.blocks(), tintFor(op == SelectionOperation.ADD, progress.reachedLimit()));
     }
 
-    private void handleCompletion(FaceSelectTask.TaskResult result, boolean appendMode) {
+    private void handleCompletion(FaceSelectTask.TaskResult result, SelectionOperation op) {
         runningTask = null;
         if (result == null || result.blocks() == null) {
             return;
@@ -212,19 +221,44 @@ public class FaceSelectTool implements SelectionTool {
         }
 
         SelectionManager manager = SelectionManager.get();
-        if (!appendMode) {
-            currentSelection.clear();
-            manager.clearSelection();
-        }
-        currentSelection.addBlocks(result.blocks());
-        manager.addAllToSelection(result.blocks());
+        Set<BlockPos> blocks = result.blocks();
 
-        ToolPreviewManager.getInstance().updateFacePreview(result.blocks(), tintFor(appendMode, result.reachedLimit()));
+        switch (op) {
+            case NEW -> {
+                currentSelection.clear();
+                manager.clearSelection();
+                currentSelection.addBlocks(blocks);
+                manager.addAllToSelection(blocks);
+            }
+            case ADD -> {
+                currentSelection.addBlocks(blocks);
+                manager.addAllToSelection(blocks);
+            }
+            case SUBTRACT -> {
+                for (BlockPos b : blocks) {
+                    manager.removeFromSelection(b);
+                }
+                Set<BlockPos> cur = new HashSet<>(currentSelection.getSelectedBlocks());
+                cur.removeAll(blocks);
+                currentSelection.clear();
+                currentSelection.addBlocks(cur);
+            }
+            case INTERSECT -> {
+                Set<BlockPos> inter = new HashSet<>(manager.getSelectionSet().asUnmodifiableSet());
+                inter.retainAll(blocks);
+                manager.clearSelection();
+                manager.addAllToSelection(inter);
+                currentSelection.clear();
+                currentSelection.addBlocks(inter);
+            }
+        }
+
+        ToolPreviewManager.getInstance().updateFacePreview(blocks, tintFor(op == SelectionOperation.ADD, result.reachedLimit()));
 
         if (result.reachedLimit()) {
             LOGGER.warn("[FaceSelectTool] 达到最大限制 ({} 个方块)", config.getMaxSelectionSize());
         } else {
-            LOGGER.info("[FaceSelectTool] 面选择完成，选择 {} 个方块", result.blocks().size());
+            LOGGER.info("[FaceSelectTool] 面选择完成，操作={}，{} 个方块", op, blocks.size());
         }
     }
 
@@ -301,6 +335,16 @@ public class FaceSelectTool implements SelectionTool {
 
     public void setPlaneMode(FaceSelectConfig.PlaneMode mode) {
         config.setPlaneMode(mode);
+    }
+
+    @Override
+    public SelectionOperation getOperation() {
+        return operation;
+    }
+
+    @Override
+    public void setOperation(SelectionOperation operation) {
+        this.operation = Objects.requireNonNull(operation, "operation");
     }
 
     @Override

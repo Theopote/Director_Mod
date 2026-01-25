@@ -1,6 +1,8 @@
 package com.chronoblocks.core.selection.tools;
 
 import com.chronoblocks.core.selection.SelectionManager;
+import com.chronoblocks.core.selection.SelectionOperation;
+import com.chronoblocks.core.selection.SelectionOperationSupport;
 import com.chronoblocks.core.selection.SelectionState;
 import com.chronoblocks.core.selection.SelectionTool;
 import net.minecraft.util.math.BlockPos;
@@ -8,15 +10,29 @@ import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Objects;
+
 /**
  * 🖱️ 点击选择工具
  *
  * 左键点击即可在世界中选中单个方块：
- * - 单击：仅保留被点击的方块
- * - Shift+单击：在现有选区中加选或减选
+ * - 单击：按当前操作模式（新建/加选/减选/交集）处理
+ * - Shift+单击：强制加选（与其它选择工具一致）
  */
-public class ClickSelectTool implements SelectionTool {
+public class ClickSelectTool implements SelectionTool, SelectionOperationSupport {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClickSelectTool.class);
+
+    private SelectionOperation operation = SelectionOperation.NEW;
+
+    @Override
+    public SelectionOperation getOperation() {
+        return operation;
+    }
+
+    @Override
+    public void setOperation(SelectionOperation operation) {
+        this.operation = Objects.requireNonNull(operation, "operation");
+    }
 
     @Override
     public String getId() {
@@ -30,7 +46,7 @@ public class ClickSelectTool implements SelectionTool {
 
     @Override
     public String getDescription() {
-        return "单击方块以选中它，Shift+单击可执行加选或减选。";
+        return "单击方块按操作模式处理，Shift+单击为加选。";
     }
 
     @Override
@@ -58,29 +74,39 @@ public class ClickSelectTool implements SelectionTool {
             LOGGER.error("[ClickSelectTool] SelectionManager 为空！");
             return;
         }
-        
-        boolean alreadySelected = manager.getSelectionSet().contains(pos);
 
-        LOGGER.info("[ClickSelectTool] 点击方块 {} (Shift: {}, 已在选区: {})", pos, isShiftDown, alreadySelected);
-        LOGGER.info("[ClickSelectTool] 当前选区大小: {} 个方块", manager.getSelectionSet().size());
+        // 与套索、框选等工具一致：Shift+单击强制加选，否则使用当前操作模式
+        SelectionOperation op = isShiftDown ? SelectionOperation.ADD : operation;
 
-        if (isShiftDown) {
-            if (alreadySelected) {
+        LOGGER.info("[ClickSelectTool] 点击方块 {} (Shift: {}, 操作: {})", pos, isShiftDown, op);
+
+        switch (op) {
+            case NEW -> {
+                manager.clearSelection();
+                manager.addToSelection(pos);
+                LOGGER.info("[ClickSelectTool] ✅ 新建选区，选中方块 {}", pos);
+            }
+            case ADD -> {
+                manager.addToSelection(pos);
+                LOGGER.info("[ClickSelectTool] ✅ 加选方块 {}", pos);
+            }
+            case SUBTRACT -> {
                 manager.removeFromSelection(pos);
                 LOGGER.info("[ClickSelectTool] ✅ 从选区移除方块 {}", pos);
-            } else {
-                manager.addToSelection(pos);
-                LOGGER.info("[ClickSelectTool] ✅ 将方块加入选区 {}", pos);
             }
-        } else {
-            int prevSize = manager.getSelectionSet().size();
-            manager.clearSelection();
-            manager.addToSelection(pos);
-            LOGGER.info("[ClickSelectTool] ✅ 清除选区 (之前 {} 个)，添加新方块 {}", prevSize, pos);
+            case INTERSECT -> {
+                if (manager.getSelectionSet().contains(pos)) {
+                    manager.clearSelection();
+                    manager.addToSelection(pos);
+                    LOGGER.info("[ClickSelectTool] ✅ 交集：仅保留方块 {}", pos);
+                } else {
+                    manager.clearSelection();
+                    LOGGER.info("[ClickSelectTool] ✅ 交集：方块不在选区内，清空选区");
+                }
+            }
         }
 
-        int finalSize = manager.getSelectionSet().size();
-        LOGGER.info("[ClickSelectTool] 操作完成，选区内共有 {} 个方块", finalSize);
+        LOGGER.info("[ClickSelectTool] 操作完成，选区内共有 {} 个方块", manager.getSelectionSet().size());
         LOGGER.info("[ClickSelectTool] ======= onClick 结束 =======");
     }
 

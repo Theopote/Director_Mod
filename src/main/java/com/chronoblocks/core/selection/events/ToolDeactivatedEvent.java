@@ -5,7 +5,7 @@ import net.minecraft.world.World;
 
 /**
  * 🎯 工具停用事件
- * 
+ * <p>
  * 当选择工具被停用时触发，用于清理工具状态和UI更新。
  * 
  * @author ChronoBlocks Team

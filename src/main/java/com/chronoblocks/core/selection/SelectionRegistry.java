@@ -4,7 +4,7 @@ import java.util.*;
 
 /**
  * 🧰 SelectionRegistry - 工具注册表
- * 
+ * <p>
  * 管理所有已注册的 SelectionTool。
  * 
  * @author ChronoBlocks Team

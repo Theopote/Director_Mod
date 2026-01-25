@@ -5,7 +5,7 @@ import net.minecraft.world.World;
 
 /**
  * 🎯 工具激活事件
- * 
+ * <p>
  * 当选择工具被激活时触发，用于通知UI组件更新工具状态。
  * 
  * @author ChronoBlocks Team

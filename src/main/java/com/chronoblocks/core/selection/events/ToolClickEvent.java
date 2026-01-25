@@ -5,7 +5,7 @@ import net.minecraft.world.World;
 
 /**
  * 🎯 工具点击事件
- * 
+ * <p>
  * 当选择工具被点击时触发，用于处理工具交互逻辑。
  * 
  * @author ChronoBlocks Team

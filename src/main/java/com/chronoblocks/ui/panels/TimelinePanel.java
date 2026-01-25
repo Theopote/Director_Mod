@@ -428,7 +428,7 @@ public class TimelinePanel extends AbstractPanel
         
         // 调试日志（仅在 trace 级别）
         if (LOGGER.isTraceEnabled() && focused) {
-            LOGGER.trace("[TimelinePanel] 窗口聚焦状态已更新: focused={}", focused);
+            LOGGER.trace("[TimelinePanel] 窗口聚焦状态已更新: focused={}", true);
         }
 
         // ⚠️ 播放子系统 tick 已迁移到 ChronoBlocksScreen.tick()（Facade 架构）

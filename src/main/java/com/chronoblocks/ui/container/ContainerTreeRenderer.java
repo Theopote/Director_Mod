@@ -10,7 +10,6 @@ import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiTreeNodeFlags;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * 纯渲染层：负责绘制树节点、图标与提示，不处理业务逻辑。

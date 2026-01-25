@@ -21,7 +21,7 @@ import java.util.*;
  *  - 输出：Mesh { quads: List<Quad>, lines: List<Line> }
  *  - Quad：渲染填充面（面贪婪合并）
  *  - Line：渲染线框（线贪婪合并）
- *
+ * <p>
  * 特点：
  *  - 统一缓存（基于集合哈希）
  *  - 只生成外露的面和线
@@ -348,9 +348,7 @@ public final class BlockOutlineMeshCache {
 
     private record EdgeKey(Direction.Axis axis, int c1, int c2) {}
 
-    private static final class IntInterval {
-        final int start, end;
-        IntInterval(int s, int e) { start = s; end = e; }
+    private record IntInterval(int start, int end) {
     }
 }
 

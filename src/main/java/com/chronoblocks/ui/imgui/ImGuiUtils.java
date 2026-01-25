@@ -93,57 +93,7 @@ public final class ImGuiUtils {
         }
         return null;
     }
-    
-    /**
-     * 开始ImGui窗口（无标志），返回资源管理器
-     * @param name 窗口名称
-     * @return 窗口资源管理器，如果窗口未能开始则返回null
-     */
-    public static ImGuiWindow beginWindow(String name) {
-        return beginWindow(name, 0);
-    }
-    
-    /**
-     * 创建样式资源管理器，自动管理push/pop调用
-     * @return 样式资源管理器
-     */
-    public static ImGuiStyle pushStyle() {
-        return new ImGuiStyle() {
-            private boolean closed = false;
-            
-            @Override
-            public void setColor(int colorIndex, float r, float g, float b, float a) {
-                if (!closed) {
-                    ImGui.pushStyleColor(colorIndex, r, g, b, a);
-                }
-            }
-            
-            @Override
-            public void setVar(int varIndex, float value) {
-                if (!closed) {
-                    ImGui.pushStyleVar(varIndex, value);
-                }
-            }
-            
-            @Override
-            public void setVar(int varIndex, float value1, float value2) {
-                if (!closed) {
-                    ImGui.pushStyleVar(varIndex, value1, value2);
-                }
-            }
-            
-            @Override
-            public void close() {
-                if (!closed) {
-                    // 这里需要根据实际push的数量来pop
-                    // 由于ImGui没有提供查询栈深度的方法，我们使用一个简单的计数器
-                    // 在实际使用中，应该由调用方管理push/pop的平衡
-                    closed = true;
-                }
-            }
-        };
-    }
-    
+
     /**
      * 创建带计数器的样式资源管理器
      * @return 样式资源管理器
