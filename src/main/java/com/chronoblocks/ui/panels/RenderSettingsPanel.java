@@ -185,87 +185,60 @@ public class RenderSettingsPanel extends AbstractPanel {
         UITheme.label("显示控制：", UITheme.DarkTheme.TEXT_SELECTED);
         ImGui.indent();
 
-        // 显示填充
-        {
-            boolean cur = rs.selection_showFill;
-            if (ImGui.checkbox("显示填充##selectionFill", cur)) {
-                rs.selection_showFill = !cur;
-            }
+        boolean cur = rs.selection_showFill;
+        if (ImGui.checkbox("显示填充##selectionFill", cur)) {
+            rs.selection_showFill = !cur;
         }
-
-        // 显示轮廓线
-        {
-            boolean cur = rs.selection_showOutline;
-            if (ImGui.checkbox("显示线框##selectionOutline", cur)) {
-                rs.selection_showOutline = !cur;
-            }
+        cur = rs.selection_showOutline;
+        if (ImGui.checkbox("显示线框##selectionOutline", cur)) {
+            rs.selection_showOutline = !cur;
         }
-
-        // 显示包围盒（只对选区/容器开放）
-        {
-            boolean cur = rs.selection_showBoundingBox;
-            if (ImGui.checkbox("显示包围盒##selectionBBox", cur)) {
-                rs.selection_showBoundingBox = !cur;
-            }
+        cur = rs.selection_showBoundingBox;
+        if (ImGui.checkbox("显示包围盒##selectionBBox", cur)) {
+            rs.selection_showBoundingBox = !cur;
         }
-
-        // 贪婪合并（面+线一起控制）
-        {
-            boolean cur = rs.selection_enableGreedy;
-            if (ImGui.checkbox("启用贪婪合并（面+线）##selectionGreedy", cur)) {
-                rs.selection_enableGreedy = !cur;
-            }
+        cur = rs.selection_enableGreedy;
+        if (ImGui.checkbox("启用贪婪合并（面+线）##selectionGreedy", cur)) {
+            rs.selection_enableGreedy = !cur;
         }
 
         ImGui.unindent();
     }
 
     private void renderSelectionStyles() {
-        UITheme.label("选区样式：", UITheme.DarkTheme.TEXT_SELECTED);
+        // 选取样式
+        UITheme.label("选取样式：", UITheme.DarkTheme.TEXT_SELECTED);
         ImGui.indent();
-
-        // 颜色 / 线宽基础控制
         if (ImGui.colorEdit4("填充颜色##selectionFillColor", rs.selection_fillColor)) {
             LOGGER.debug("[RenderSettingsPanel] 选区填充颜色更新");
         }
-
         if (ImGui.colorEdit4("线框颜色##selectionOutlineColor", rs.selection_outlineColor)) {
             LOGGER.debug("[RenderSettingsPanel] 选区线框颜色更新");
         }
-
-        float[] width = {rs.selection_outlineWidth};
-        if (ImGui.sliderFloat("线宽##selectionOutlineWidth", width, 0.5f, 5.0f, "%.1f")) {
-            rs.selection_outlineWidth = width[0];
-        }
-
         float[] intensity = {rs.selection_highlightIntensity};
         if (ImGui.sliderFloat("高亮强度##selectionIntensity", intensity, 0.1f, 2.0f, "%.1f")) {
             rs.selection_highlightIntensity = intensity[0];
         }
+        ImGui.unindent();
 
         ImGui.separator();
 
-        // ================= 包围盒样式（独立于选区） =================
+        // 包围盒样式（独立于选区）
         UITheme.label("包围盒样式：", UITheme.DarkTheme.TEXT_SELECTED);
-        {
-            boolean cur = rs.selection_bboxShowFill;
-            if (ImGui.checkbox("包围盒显示填充（面）##selectionBBoxFill", cur)) {
-                rs.selection_bboxShowFill = !cur;
-            }
+        ImGui.indent();
+        boolean cur = rs.selection_bboxShowFill;
+        if (ImGui.checkbox("包围盒显示填充（面）##selectionBBoxFill", cur)) {
+            rs.selection_bboxShowFill = !cur;
         }
         ImGui.colorEdit4("包围盒线颜色##selectionBBoxOutlineColor", rs.selection_bboxOutlineColor);
         ImGui.colorEdit4("包围盒面颜色##selectionBBoxFillColor", rs.selection_bboxFillColor);
-        float[] bboxWidth = {rs.selection_bboxOutlineWidth};
-        if (ImGui.sliderFloat("包围盒线宽##selectionBBoxOutlineWidth", bboxWidth, 0.5f, 6.0f, "%.1f")) {
-            rs.selection_bboxOutlineWidth = bboxWidth[0];
-        }
+        ImGui.unindent();
 
         ImGui.separator();
 
         // 预设（可选）
         UITheme.label("预设：", UITheme.DarkTheme.TEXT_SELECTED);
-
-        // 边框预设
+        ImGui.indent();
         String[] borderPresetNames = java.util.Arrays.stream(borderPresets)
                 .map(BorderStyle::name)
                 .toArray(String[]::new);
@@ -274,8 +247,6 @@ public class RenderSettingsPanel extends AbstractPanel {
             selectedBorderPreset = borderIdx.get();
             applyBorderPreset(borderPresets[selectedBorderPreset]);
         }
-
-        // 填充预设
         String[] fillPresetNames = java.util.Arrays.stream(fillPresets)
                 .map(FillStyle::name)
                 .toArray(String[]::new);
@@ -284,40 +255,35 @@ public class RenderSettingsPanel extends AbstractPanel {
             selectedFillPreset = fillIdx.get();
             applyFillPreset(fillPresets[selectedFillPreset]);
         }
-
         ImGui.unindent();
     }
 
     private void renderSelectionPerformance() {
-        UITheme.label("选区性能 / 剔除：", UITheme.DarkTheme.TEXT_SELECTED);
-        ImGui.indent();
+        if (ImGui.collapsingHeader("选区性能 / 剔除")) {
+            ImGui.indent();
 
-        int[] dist = {rs.selection_maxRenderDistance};
-        if (ImGui.sliderInt("最大渲染距离##selectionMaxDist", dist, 8, 256)) {
-            rs.selection_maxRenderDistance = dist[0];
-        }
+            int[] dist = {rs.selection_maxRenderDistance};
+            if (ImGui.sliderInt("最大渲染距离##selectionMaxDist", dist, 8, 256)) {
+                rs.selection_maxRenderDistance = dist[0];
+            }
 
-        {
             boolean cur = rs.selection_enableFrustumCull;
             if (ImGui.checkbox("视锥剔除##selectionFrustum", cur)) {
                 rs.selection_enableFrustumCull = !cur;
             }
-        }
 
-        {
-            boolean cur = rs.selection_enableOcclusionCull;
+            cur = rs.selection_enableOcclusionCull;
             if (ImGui.checkbox("遮挡剔除##selectionOcclusion", cur)) {
                 rs.selection_enableOcclusionCull = !cur;
             }
-        }
 
-        // 贪婪阈值
-        int[] th = {rs.selection_greedyThreshold};
-        if (ImGui.sliderInt("贪婪合并阈值（方块数）##selectionGreedyThreshold", th, 1, 5000)) {
-            rs.selection_greedyThreshold = Math.max(1, th[0]);
-        }
+            int[] th = {rs.selection_greedyThreshold};
+            if (ImGui.sliderInt("贪婪合并阈值（方块数）##selectionGreedyThreshold", th, 1, 5000)) {
+                rs.selection_greedyThreshold = Math.max(1, th[0]);
+            }
 
-        ImGui.unindent();
+            ImGui.unindent();
+        }
     }
 
     // ============================================================
@@ -353,11 +319,6 @@ public class RenderSettingsPanel extends AbstractPanel {
 
         ImGui.colorEdit4("轮廓颜色##toolOutlineColor", rs.tool_outlineColor);
         ImGui.colorEdit4("填充颜色##toolFillColor", rs.tool_fillColor);
-
-        float[] width = {rs.tool_outlineWidth};
-        if (ImGui.sliderFloat("线宽##toolOutlineWidth", width, 0.5f, 5.0f, "%.1f")) {
-            rs.tool_outlineWidth = width[0];
-        }
 
         ImGui.unindent();
     }
@@ -400,11 +361,6 @@ public class RenderSettingsPanel extends AbstractPanel {
         ImGui.colorEdit4("轮廓颜色##containerOutlineColor", rs.container_outlineColor);
         ImGui.colorEdit4("填充颜色##containerFillColor", rs.container_fillColor);
 
-        float[] width = {rs.container_outlineWidth};
-        if (ImGui.sliderFloat("线宽##containerOutlineWidth", width, 0.5f, 5.0f, "%.1f")) {
-            rs.container_outlineWidth = width[0];
-        }
-
         ImGui.unindent();
     }
     
@@ -420,10 +376,10 @@ public class RenderSettingsPanel extends AbstractPanel {
     }
 
     private void resetToDefaults() {
-        // === 选区 ===
+        // === 选区（显示控制默认全勾选；填充透明度 100%；线宽 1，UI 不暴露）===
         rs.selection_showFill         = true;
         rs.selection_showOutline      = true;
-        rs.selection_showBoundingBox  = false;
+        rs.selection_showBoundingBox  = true;
         rs.selection_bboxShowFill     = true;
         rs.selection_enableGreedy     = true;
         rs.selection_greedyThreshold  = 1;
@@ -431,29 +387,29 @@ public class RenderSettingsPanel extends AbstractPanel {
         rs.selection_enableFrustumCull = true;
         rs.selection_enableOcclusionCull = false;
         rs.selection_outlineColor     = new float[]{0.1f, 0.8f, 1.0f, 0.95f};
-        rs.selection_fillColor        = new float[]{1.0f, 1.0f, 1.0f, 0.35f};
-        rs.selection_outlineWidth     = 2.0f;
+        rs.selection_fillColor        = new float[]{1.0f, 1.0f, 1.0f, 1.0f};  // alpha=100%
+        rs.selection_outlineWidth     = 1.0f;
         rs.selection_highlightIntensity = 1.0f;
         rs.selection_bboxOutlineColor = new float[]{0.20f, 0.90f, 0.40f, 0.90f};
         rs.selection_bboxFillColor    = new float[]{0.20f, 0.90f, 0.40f, 0.18f};
-        rs.selection_bboxOutlineWidth = 1.6f;
+        rs.selection_bboxOutlineWidth = 1.0f;
 
-        // === 工具预览 ===
+        // === 工具预览（线宽 1；面填充透明度 50%）===
         rs.tool_showFill              = true;
         rs.tool_showOutline           = true;
         rs.tool_enableGreedy          = true;
         rs.tool_outlineColor          = new float[]{0.2f, 0.6f, 1.0f, 0.7f};
-        rs.tool_fillColor             = new float[]{1.0f, 0.8f, 0.0f, 0.30f};
-        rs.tool_outlineWidth          = 1.2f;
+        rs.tool_fillColor             = new float[]{1.0f, 0.8f, 0.0f, 0.6f};  // alpha=60%
+        rs.tool_outlineWidth          = 1.0f;
 
-        // === 容器 ===
+        // === 容器（显示填充、显示包围盒默认不勾选；线宽 1，UI 不暴露）===
         rs.container_showFill         = false;
         rs.container_showOutline      = true;
         rs.container_showBoundingBox  = false;
         rs.container_enableGreedy     = true;
         rs.container_outlineColor     = new float[]{0.4f, 1.0f, 0.5f, 0.9f};
         rs.container_fillColor        = new float[]{0.4f, 1.0f, 0.5f, 0.2f};
-        rs.container_outlineWidth     = 2.0f;
+        rs.container_outlineWidth     = 1.0f;
 
         // === 全局 Mesh / 性能 ===
         rs.useSharedMeshCache         = true;

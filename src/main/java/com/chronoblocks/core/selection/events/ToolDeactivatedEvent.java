@@ -41,24 +41,12 @@ public class ToolDeactivatedEvent extends SelectionEvent {
         return tool;
     }
     
-    /**
-     * 获取下一个要使用的工具ID
-     */
-    public String getNextToolId() {
-        return nextToolId;
-    }
-    
+
     /**
      * 获取工具ID
      */
     public String getToolId() {
         return tool.getId();
     }
-    
-    /**
-     * 获取工具显示名称
-     */
-    public String getToolDisplayName() {
-        return tool.getDisplayName();
-    }
+
 }
