@@ -31,6 +31,27 @@ public class ContainerToolbar {
         }
     }
 
+    /** 估算按钮宽度，用于换行判断（与 ToolbarPanel.getToolButtonWidth 逻辑一致）。 */
+    private float estimateButtonWidth(String icon, String text) {
+        if (showText()) {
+            float pad = ImGui.getStyle().getFramePadding().x * 2f;
+            return ImGui.calcTextSize(icon + " " + text).x + pad;
+        }
+        return UITheme.Spacing.BUTTON_HEIGHT;
+    }
+
+    /**
+     * 先 sameLine，若剩余宽度放不下下一按钮则 newLine。
+     * 与 ToolbarPanel 的 renderToolGroupWrapped / 组内换行 逻辑一致。
+     */
+    private void sameLineOrWrap(String icon, String text) {
+        ImGui.sameLine();
+        float spx = ImGui.getStyle().getItemSpacing().x;
+        if (estimateButtonWidth(icon, text) + spx > ImGui.getContentRegionAvailX()) {
+            ImGui.newLine();
+        }
+    }
+
     private boolean toolbarButton(String id, String icon, String text, String tooltip) {
         boolean showText = showText();
         String label = showText ? (icon + " " + text + "##" + id) : (icon + "##" + id);
@@ -47,17 +68,17 @@ public class ContainerToolbar {
             controller.createNewContainer();
         }
 
-        ImGui.sameLine();
+        sameLineOrWrap(Icons.FOLDER, "新建分组");
         if (toolbarButton("group_create", Icons.FOLDER, "新建分组", "创建一个新的分组（仅用于组织容器）")) {
             controller.createNewGroupContainer();
         }
 
-        ImGui.sameLine();
+        sameLineOrWrap(Icons.CONTAINER, "生成容器");
         if (toolbarButton("container_generate", Icons.CONTAINER, "生成容器", "用当前 Minecraft 选区生成容器")) {
             controller.generateContainerFromSelection();
         }
 
-        ImGui.sameLine();
+        sameLineOrWrap(Icons.ERASER, "生成拆除容器");
         if (toolbarButton("container_generate_demolition", Icons.ERASER, "生成拆除容器", "用当前 Minecraft 选区生成拆除容器")) {
             controller.generateDemolitionContainerFromSelection();
         }
@@ -70,7 +91,7 @@ public class ContainerToolbar {
 
         boolean hasMinecraftSelection = ContainerSelectionUtil.hasMinecraftSelection();
 
-        ImGui.sameLine();
+        sameLineOrWrap(Icons.DOWNLOAD, "收纳选区");
         boolean canIntake = hasSelection && !isGroup && hasMinecraftSelection;
         if (hasSelection && selectedContainer.isLocked()) {
             canIntake = false;
@@ -92,11 +113,11 @@ public class ContainerToolbar {
             }
         }
 
-        ImGui.sameLine();
-        if (!hasSelection || isGroup || selectedContainer.isLocked()) ImGui.beginDisabled();
         boolean intakeEnabled = hasSelection && !isGroup && selectedContainer.isIntakeEnabled() && !selectedContainer.isLocked();
         String intakeIcon = intakeEnabled ? Icons.PAUSE : Icons.PLAY;
         String intakeLabel = intakeEnabled ? "停止接收" : "实时接收";
+        sameLineOrWrap(intakeIcon, intakeLabel);
+        if (!hasSelection || isGroup || selectedContainer.isLocked()) ImGui.beginDisabled();
         if (toolbarButton("toggle_intake", intakeIcon, intakeLabel,
             intakeEnabled ? "停止实时接收选中的方块" : "开启实时接收模式：每次选中方块时自动收纳到此容器")) {
             if (selectedContainer != null) {
