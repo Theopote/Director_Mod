@@ -304,7 +304,7 @@ class ContainerTreeInteractionHandler {
      * 处理拖拽到某个目标 Container 上的行为：
      * - 目标是组：作为其子容器追加
      * - 否则：移动到目标节点之前（同级排序）
-     *
+     * <p>
      * 支持批量拖拽：payloadId 为单个 UUID 或多个逗号分隔的 UUID；
      * 一次 drop = 一条 {@code moveContainers}，一次 undo。
      */

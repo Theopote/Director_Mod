@@ -103,18 +103,6 @@ public final class BrushSelectTask implements Runnable {
         }
     }
 
-    public boolean isCancelled() {
-        return cancelled.get();
-    }
-
-    public int getTotalCandidateCount() {
-        return candidates.size();
-    }
-
-    public int getProcessedCount() {
-        return index;
-    }
-
     @Override
     public void run() {
         if (cancelled.get()) {
