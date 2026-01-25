@@ -12,6 +12,7 @@ import com.chronoblocks.ui.timeline.commands.TimelineCommandHistory;
 import com.chronoblocks.ui.theme.Icons;
 import imgui.ImGui;
 import imgui.ImVec2;
+import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiFocusedFlags;
 import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiMouseCursor;
@@ -375,6 +376,11 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
         }
         imgui.ImVec2 cMin = ImGui.getItemRectMin();
         imgui.ImVec2 cMax = ImGui.getItemRectMax();
+        // 背景框，像按钮；使用主题 Button/ButtonHovered/ButtonActive
+        int bgCol = ImGui.getColorU32(ImGui.isItemActive() ? ImGuiCol.ButtonActive : ImGui.isItemHovered() ? ImGuiCol.ButtonHovered : ImGuiCol.Button);
+        float rounding = ImGui.getStyle().getFrameRounding();
+        ImGui.getWindowDrawList().addRectFilled(cMin.x, cMin.y, cMax.x, cMax.y, bgCol, rounding);
+        // 图标
         imgui.ImVec2 cSz = ImGui.calcTextSize(Icons.CHEVRON_LEFT);
         float cIx = cMin.x + (cMax.x - cMin.x - cSz.x) * 0.5f;
         float cIy = cMin.y + (cMax.y - cMin.y - cSz.y) * 0.5f;
