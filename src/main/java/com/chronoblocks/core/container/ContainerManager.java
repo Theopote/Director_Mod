@@ -660,34 +660,39 @@ public class ContainerManager {
      * @param rangeSelect 是否为范围选择模式（Shift）
      */
     public void selectContainer(Container container, boolean multiSelect, boolean rangeSelect) {
+        selectContainer(container, multiSelect, rangeSelect, null);
+    }
+
+    /**
+     * 选择容器（支持按「可见顺序」做 Shift 范围选择，折叠子节点不参与）
+     * @param visibleOrderForRange 当 rangeSelect 且非 null 时，用此顺序替代 getAllContainersInOrder
+     */
+    public void selectContainer(Container container, boolean multiSelect, boolean rangeSelect,
+                                List<Container> visibleOrderForRange) {
         boolean changed = false;
         writeLock.lock();
         try {
             if (rangeSelect && lastSelectedContainer != null && container != null) {
-                // Shift 范围选择：选择从 lastSelectedContainer 到 container 之间的所有容器
-                List<Container> allContainers = getAllContainersInOrder();
-                int lastIndex = allContainers.indexOf(lastSelectedContainer);
-                int currentIndex = allContainers.indexOf(container);
+                List<Container> order = (visibleOrderForRange != null && !visibleOrderForRange.isEmpty())
+                    ? visibleOrderForRange
+                    : getAllContainersInOrder();
+                int lastIndex = order.indexOf(lastSelectedContainer);
+                int currentIndex = order.indexOf(container);
                 
                 if (lastIndex >= 0 && currentIndex >= 0) {
                     int start = Math.min(lastIndex, currentIndex);
                     int end = Math.max(lastIndex, currentIndex);
-                    
-                    // 先清除非多选时的选中状态
                     if (!multiSelect) {
                         selectedContainers.clear();
                         selectedContainer = null;
                         changed = true;
                     }
-                    
-                    // 选择范围内的所有容器
                     for (int i = start; i <= end; i++) {
-                        Container c = allContainers.get(i);
+                        Container c = order.get(i);
                         if (selectedContainers.add(c)) {
                             changed = true;
                         }
                     }
-
                 } else {
                     // 如果找不到索引，回退到普通选择
                     if (!multiSelect) {

@@ -70,16 +70,34 @@ public class ContainerPanelController {
     public void selectContainer(UUID id, boolean multiSelect, boolean rangeSelect) {
         Container container = getContainer(id);
         if (container != null) {
-            // ✅ 选择变化时取消正在进行的重命名（避免编辑会话混乱）
             cancelEditingIfActive();
-            
 			Container active = containerManager.getActive();
 			if (!multiSelect && !rangeSelect && active != null && active.isIntakeEnabled() && active != container) {
 				org.slf4j.LoggerFactory.getLogger(ContainerPanelController.class)
 					.info("[ContainerPanelController] 选择其他容器 -> 结束激活容器的实时接收: {}", active.getName());
 				commandService.toggleIntake(active.getId());
 			}
-            containerManager.selectContainer(container, multiSelect, rangeSelect);
+            // Shift 范围选择：按「当前可见」线性顺序，折叠的子节点不参与
+            java.util.List<Container> visibleOrder = rangeSelect ? getContainersInVisibleOrder() : null;
+            containerManager.selectContainer(container, multiSelect, rangeSelect, visibleOrder);
+        }
+    }
+
+    /** 按树的前序、仅包含当前可见节点（折叠的父节点其子不加入），用于 Shift 范围选择 */
+    private java.util.List<Container> getContainersInVisibleOrder() {
+        java.util.List<Container> out = new java.util.ArrayList<>();
+        for (Container root : getRootContainers()) {
+            collectVisibleInOrder(root, out);
+        }
+        return out;
+    }
+
+    private void collectVisibleInOrder(Container c, java.util.List<Container> out) {
+        out.add(c);
+        if (state.isNodeExpanded(c.getId())) {
+            for (Container child : c.getChildren()) {
+                collectVisibleInOrder(child, out);
+            }
         }
     }
 
@@ -207,6 +225,14 @@ public class ContainerPanelController {
         // ✅ 移动容器时取消正在进行的重命名（避免编辑会话混乱）
         cancelEditingIfActive();
 		hierarchyController.moveContainer(containerId, targetParentId, index);
+    }
+
+    /**
+     * 批量移动容器（一次 undo）。多选拖到组/根/节点前时调用。
+     */
+    public void moveContainers(java.util.List<UUID> ids, UUID targetParentId, int targetIndex) {
+        cancelEditingIfActive();
+        hierarchyController.moveContainers(ids, targetParentId, targetIndex);
     }
 
     public void moveContainerAsChild(UUID draggedId, UUID parentId) {

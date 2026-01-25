@@ -250,11 +250,18 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
                 togglePropertiesCollapsed();
             }
             if (ImGui.isItemHovered()) {
-                Container selected = containerManager.getSelectedContainer();
+                java.util.Set<Container> sel = containerManager.getSelectedContainersView();
+                int n = sel != null ? sel.size() : 0;
                 ImGui.beginTooltip();
-                if (selected != null) {
-                    ImGui.text("选中: " + selected.getName());
-                    ImGui.text("类型: " + selected.getType().toString());
+                if (n == 1) {
+                    Container selected = containerManager.getSelectedContainer();
+                    if (selected != null) {
+                        ImGui.text("选中: " + selected.getName());
+                        ImGui.text("类型: " + selected.getType().toString());
+                        ImGui.separator();
+                    }
+                } else if (n > 1) {
+                    ImGui.text("选中 " + n + " 个容器");
                     ImGui.separator();
                 }
                 ImGui.text("展开属性面板");
@@ -349,14 +356,35 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
 
         ImGui.separator();
 
-        Container selected = containerManager.getSelectedContainer();
-        if (selected == null) {
+        java.util.Set<Container> selSet = containerManager.getSelectedContainersView();
+        int selCount = selSet != null ? selSet.size() : 0;
+        if (selCount == 0) {
             ImGui.textDisabled("(未选择容器或组)");
             ImGui.spacing();
             ImGui.textWrapped("在左侧容器树中选择一个条目以查看和编辑属性。");
             return;
         }
+        if (selCount > 1) {
+            ImGui.textDisabled("已选择 " + selCount + " 个容器");
+            ImGui.spacing();
+            ImGui.textWrapped("多选时仅显示主选容器属性，或使用右键菜单进行批量操作。");
+            Container primary = containerManager.getSelectedContainer();
+            if (primary != null) {
+                ImGui.separator();
+                if (primary.getType() == ContainerType.GROUP) {
+                    groupPropertiesPanel.render(primary);
+                } else {
+                    propertiesPanel.render(primary);
+                }
+            }
+            return;
+        }
 
+        Container selected = containerManager.getSelectedContainer();
+        if (selected == null) {
+            ImGui.textDisabled("(未选择容器或组)");
+            return;
+        }
         if (selected.getType() == ContainerType.GROUP) {
             groupPropertiesPanel.render(selected);
         } else {

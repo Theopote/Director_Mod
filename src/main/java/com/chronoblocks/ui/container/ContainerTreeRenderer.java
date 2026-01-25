@@ -13,12 +13,22 @@ import java.util.List;
 
 /**
  * 纯渲染层：负责绘制树节点、图标与提示，不处理业务逻辑。
+ *
+ * <p>与 InteractionHandler 对齐（可见 = 可点 = 可选 = 可拖）：
+ * <ul>
+ *   <li>可见行：每行一个 {@code treeNodeEx}，父行不叠子行，不存在 parent 吃掉 children 的 hit。</li>
+ *   <li>可点：整行 TreeNode 为 hit 区；组内子节点不画行内锁/可见性图标，避免叠在标签上抢点击导致「组内部分容器点不中」。</li>
+ *   <li>根级节点仅在 {@code iconRegionStart >= MIN_LABEL_WIDTH_FOR_ICONS} 时绘制行内图标；锁/可见性仍可通过右键菜单操作。</li>
+ *   <li>不引入独立 VisibleNode 列表：ImGui 每行一 item，hit 与 last item 一致，由 InteractionHandler 直接基于 isItemHovered/Clicked 处理。</li>
+ * </ul>
  */
 class ContainerTreeRenderer {
 
     // 右侧“锁/隐藏”图标区域：更紧凑一些，让按钮更靠近右侧边缘（同时保留少量安全边距避免裁剪）
     private static final float ICONS_REGION_WIDTH = 32.0f;
     private static final float ICON_RIGHT_MARGIN = 6.0f; // 图标右侧边距（越小越靠右）
+    /** 仅用于根级节点：图标区起始偏移至少保留此宽度才绘制行内锁/可见性图标；组内子节点一律不绘（避免抢点击）。 */
+    private static final float MIN_LABEL_WIDTH_FOR_ICONS = 80.0f;
     private static final float TREE_NODE_INNER_SPACING = 2.0f; // 树节点内部间距（箭头和文本之间），更紧凑
     private static final float COLOR_TAG_BAR_WIDTH = 6.0f; // 颜色标签条宽度（4-6px，推荐6px）
     private static final float NAME_BUTTONS_SEPARATOR_PADDING = 6.0f; // 名称与按钮之间的留白
@@ -86,8 +96,8 @@ class ContainerTreeRenderer {
             ImGui.pushStyleVar(ImGuiStyleVar.ItemInnerSpacing, TREE_NODE_INNER_SPACING, TREE_NODE_INNER_SPACING);
             
             int flags = buildNodeFlags(container);
-            // 移除 SpanAvailWidth，让树节点只占据它需要的宽度，为图标留出空间
-            flags &= ~ImGuiTreeNodeFlags.SpanAvailWidth;
+            // 保留 SpanAvailWidth：整行可点击，Ctrl/Shift 多选在组内子节点才可靠；
+            // 图标用 sameLine 置于右侧且后渲染，会叠在 TreeNode 上并优先接收点击，不会丢图标点击
 
             // 获取容器标签颜色（从metadata或默认值）
             Integer tagColor = (Integer) container.getMetadata("tagColor", null);
@@ -113,11 +123,6 @@ class ContainerTreeRenderer {
             imgui.ImVec2 rowMin = ImGui.getItemRectMin();
             imgui.ImVec2 rowMax = ImGui.getItemRectMax();
             
-            // 在树节点渲染后，绘制颜色标签条（在容器名称左侧）
-            if (tagColor != null && ImGui.isItemVisible()) {
-                drawColorTagBar(tagColor);
-            }
-            
             // 恢复树节点内部间距
             ImGui.popStyleVar();
 
@@ -140,33 +145,47 @@ class ContainerTreeRenderer {
                 }
             }
 
+            // 在 setupDragAndDrop 之前采集：isItemHovered/Clicked/Visible 都针对当前 TreeNode；
+            // setupDragAndDrop 内 ImGui.text 会改掉 last item，故 handleContextMenu 也需在其前
             boolean isHovered = ImGui.isItemHovered();
             boolean isLeftClicked = ImGui.isItemClicked(ImGuiMouseButton.Left);
             boolean isDoubleClicked = isHovered && ImGui.isMouseDoubleClicked(ImGuiMouseButton.Left);
+            boolean isRowVisible = ImGui.isItemVisible();
 
-            // 拖拽与节点右键菜单（在图标渲染之前检测，避免被图标影响）
-            interactionHandler.setupDragAndDrop(container, isHovered);
             interactionHandler.handleContextMenu(container);
+            interactionHandler.setupDragAndDrop(container, isHovered);
+
+            if (tagColor != null && isRowVisible) {
+                drawColorTagBar(tagColor, rowMin, rowMax);
+            }
 
             // 在同一行右侧绘制图标（右对齐）
-            // 计算相对于当前行起始位置的偏移量，减去右侧边距避免被裁剪
+            // 组内子节点一律不绘制行内图标：缩进会压缩右侧空间，图标极易叠在标签上抢走点击，导致「组中有些容器不能被选中」。
+            // 根级节点在空间足够时仍绘制；锁/可见性始终可通过右键菜单操作。
             float contentMaxX = ImGui.getContentRegionMaxX();
             float cursorStartX = ImGui.getCursorStartPosX();
             float iconRegionStart = contentMaxX - cursorStartX - ICONS_REGION_WIDTH - ICON_RIGHT_MARGIN;
-            iconRegionStart = Math.max(0, iconRegionStart); // 确保不为负
+            iconRegionStart = Math.max(0, iconRegionStart);
 
-            // ✅ 名称文字后、锁/隐藏按钮前的竖向分割线（类似时间线轨道的样式）
-            if (ImGui.isItemVisible()) {
-                drawNameButtonsSeparator(iconRegionStart, rowMin, rowMax);
+            boolean isInGroup = container.getParent() != null;
+            boolean allowIcons = !isInGroup && iconRegionStart >= MIN_LABEL_WIDTH_FOR_ICONS;
+
+            IconClickState iconClickState;
+            boolean iconHovered;
+            if (allowIcons) {
+                if (isRowVisible) {
+                    drawNameButtonsSeparator(iconRegionStart, rowMin, rowMax);
+                }
+                ImGui.sameLine(iconRegionStart);
+                iconClickState = renderContainerControlIcons(container, rowMin, rowMax);
+                iconHovered = ImGui.isItemHovered();
+            } else {
+                iconClickState = new IconClickState(false, false);
+                iconHovered = false;
             }
-            ImGui.sameLine(iconRegionStart);
-            IconClickState iconClickState = renderContainerControlIcons(container, rowMin, rowMax);
 
             // 检测图标是否被点击（在节点点击检测之前）
             boolean iconClicked = iconClickState.lockClicked || iconClickState.visibilityClicked;
-            
-            // 检查最后一个渲染的图标是否被悬停（可见性图标是最后渲染的）
-            boolean iconHovered = ImGui.isItemHovered();
             
             // 优先响应图标点击，立即处理
             if (iconClicked) {
@@ -203,24 +222,18 @@ class ContainerTreeRenderer {
 
     /**
      * 绘制颜色标签条（Color Tag Bar）
-     * 在容器行的最左侧绘制一条竖直的颜色条，贯穿整行
-     * 
      * @param tagColor 标签颜色（ARGB格式）
+     * @param rowMin  行矩形最小点（不依赖 getItemRect，避免被拖拽预览等破坏 last item）
+     * @param rowMax  行矩形最大点
      */
-    private void drawColorTagBar(Integer tagColor) {
+    private void drawColorTagBar(Integer tagColor, imgui.ImVec2 rowMin, imgui.ImVec2 rowMax) {
         if (tagColor == null) {
             return;
         }
-        
-        // 获取当前项的位置（整行）
-        imgui.ImVec2 itemMin = ImGui.getItemRectMin();
-        imgui.ImVec2 itemMax = ImGui.getItemRectMax();
-        
-        // 获取窗口位置，颜色条应该从窗口左边缘开始
         float windowPosX = ImGui.getWindowPosX();
         float barX2 = windowPosX + COLOR_TAG_BAR_WIDTH;
-        float barY1 = itemMin.y;
-        float barY2 = itemMax.y;
+        float barY1 = rowMin.y;
+        float barY2 = rowMax.y;
         
         // 使用 DrawList 绘制颜色标签条
         ImDrawList drawList = ImGui.getWindowDrawList();

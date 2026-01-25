@@ -1,5 +1,6 @@
 package com.chronoblocks.ui.container;
 
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -15,6 +16,13 @@ public class ContainerHierarchyController {
 
     public void moveContainer(UUID containerId, UUID targetParentId, int index) {
         commandService.moveContainer(containerId, targetParentId, index);
+    }
+
+    /**
+     * 批量移动容器（一次 undo）。拖拽多选到组/根/节点前时使用。
+     */
+    public void moveContainers(List<UUID> ids, UUID targetParentId, int targetIndex) {
+        commandService.moveContainers(ids, targetParentId, targetIndex);
     }
 
     public void moveContainerAsChild(UUID draggedId, UUID parentId) {

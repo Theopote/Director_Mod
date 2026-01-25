@@ -7,10 +7,24 @@ import imgui.flag.ImGuiMouseButton;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 /**
  * 负责容器树所有与用户交互相关的逻辑，如点击、拖放、上下文菜单等。
+ *
+ * <p>设计原则（与 Renderer / Command 对齐）：
+ * <ul>
+ *   <li>可见节点 = 可点 = 可选：每行一个 treeNodeEx，hit 与 ImGui item 一致；组内不画行内图标，避免抢点击。</li>
+ *   <li>拖拽与 Selection 对齐：多选用 selection.getSelected() 作为 payload，否则当前节点；drop 统一走
+ *       {@code controller.moveContainers(ids, targetParentId, targetIndex)} → MoveContainersCommand。</li>
+ *   <li>Group 仅展开/折叠、不可拖拽；仍可作为 drop target。多选时禁用 InlineRename；Group 双击不触发 rename。</li>
+ *   <li>Selection 生命周期：仅在「空白区域左键」时 clearSelection；树展开/折叠、刷新不清空。</li>
+ * </ul>
+ *
+ * <p>事件流时序图与三条铁律（Interaction 只解释输入 / Selection 只表达意图 / Command 唯一改模型）：
+ * 详见 {@code docs/CONTAINER_PANEL_EVENT_FLOW.md}，作后续 bug 的判官。
  */
 class ContainerTreeInteractionHandler {
 
@@ -18,6 +32,9 @@ class ContainerTreeInteractionHandler {
     private static final String POPUP_CONTAINER_CONTEXT = "ContainerContextMenu";
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ContainerTreeInteractionHandler.class);
+
+    /** 拖拽时在 setDragDropPayload 中写入，accept 时若 payload 不可用则用此回退，确保批量拖放可靠 */
+    private String lastDragPayloadData;
 
     private final ContainerPanelController controller;
     private final ContainerPanelState state;
@@ -39,12 +56,18 @@ class ContainerTreeInteractionHandler {
             state.setHoveredContainer(container);
         }
 
-        // ✅ 双击开始重命名：开始新会话前先结束旧会话（安全）
+        // ✅ 双击语义：仅当「单选 + 非 Group」时开始重命名
+        // - 多选：不触发 rename，避免误操作（需 enforce：selection.size()==1 才 rename）
+        // - Group：双击仅用于展开/折叠（由 treeNodeEx 处理），不进入 rename
         if (isDoubleClicked) {
             if (inlineRenamer.isEditing() && !inlineRenamer.isRenaming(container)) {
                 inlineRenamer.cancelEditing("startRenamingOther");
             }
-            inlineRenamer.startRenaming(container);
+            boolean singleSelected = controller.getSelectedContainers().size() == 1;
+            boolean isGroup = container.getType() == ContainerType.GROUP;
+            if (singleSelected && !isGroup) {
+                inlineRenamer.startRenaming(container);
+            }
         }
 
         if (isLeftClicked) {
@@ -60,12 +83,13 @@ class ContainerTreeInteractionHandler {
     }
 
     void setupDragAndDrop(Container container, boolean hovered) {
-        if (hovered && ImGui.beginDragDropSource()) {
-            // 检查是否有多个容器被选中，如果拖拽的容器在选中列表中，则批量拖拽
+        // 仅「非 Group」可作为拖拽源；Group 仅展开/折叠，不参与拖拽。Group 仍可作为 drop target 接收子节点。
+        // 不依赖 hovered：beginDragDropSource() 仅在从本节点发起拖拽时为 true
+        if (container.getType() != ContainerType.GROUP && ImGui.beginDragDropSource()) {
             java.util.Collection<Container> selectedContainers = controller.getSelectedContainers();
             boolean isSelected = controller.isContainerSelected(container.getId());
             boolean hasMultipleSelection = selectedContainers.size() > 1 && isSelected;
-            
+
             if (hasMultipleSelection) {
                 // 批量拖拽：将选中的容器ID用逗号连接
                 StringBuilder payloadBuilder = new StringBuilder();
@@ -75,11 +99,12 @@ class ContainerTreeInteractionHandler {
                     }
                     payloadBuilder.append(c.getId().toString());
                 }
-                ImGui.setDragDropPayload(DND_PAYLOAD_TYPE, payloadBuilder.toString());
+                lastDragPayloadData = payloadBuilder.toString();
+                ImGui.setDragDropPayload(DND_PAYLOAD_TYPE, lastDragPayloadData);
                 ImGui.text(String.format("拖动 %d 个容器", selectedContainers.size()));
             } else {
-                // 单个拖拽
-                ImGui.setDragDropPayload(DND_PAYLOAD_TYPE, container.getId().toString());
+                lastDragPayloadData = container.getId().toString();
+                ImGui.setDragDropPayload(DND_PAYLOAD_TYPE, lastDragPayloadData);
                 ImGui.text("拖动容器: " + container.getName());
             }
             ImGui.endDragDropSource();
@@ -88,7 +113,11 @@ class ContainerTreeInteractionHandler {
         if (ImGui.beginDragDropTarget()) {
             Object payload = ImGui.acceptDragDropPayload(DND_PAYLOAD_TYPE);
             if (payload != null) {
-                handleDropPayload(container, (String) payload);
+                String raw = (payload instanceof String) ? (String) payload : null;
+                if (raw == null || parsePayloadIds(raw).isEmpty()) raw = lastDragPayloadData;
+                if (raw != null && !parsePayloadIds(raw).isEmpty()) {
+                    handleDropPayload(container, raw);
+                }
             }
             ImGui.endDragDropTarget();
         }
@@ -110,27 +139,32 @@ class ContainerTreeInteractionHandler {
         if (ImGui.beginDragDropTarget()) {
             Object payload = ImGui.acceptDragDropPayload(DND_PAYLOAD_TYPE);
             if (payload != null) {
-                // ✅ 拖拽到根区域时也取消编辑（避免结构变化导致的问题）
-                if (inlineRenamer.isEditing()) {
-                    inlineRenamer.cancelEditing("dragToRoot");
-                }
-                
-                // 解析载荷：可能是单个UUID或多个UUID（逗号分隔）
-                String payloadStr = (String) payload;
-                String[] ids = payloadStr.split(",");
-                
-                for (String idStr : ids) {
-                    try {
-                        UUID draggedId = UUID.fromString(idStr.trim());
-                        controller.moveContainer(draggedId, null, -1);
-                        LOGGER.info("[ContainerTreeInteractionHandler] 将容器 {} 移动到根目录", draggedId);
-                    } catch (IllegalArgumentException e) {
-                        LOGGER.warn("[ContainerTreeInteractionHandler] 无法解析拖拽载荷为 UUID: {}", idStr);
+                String raw = (payload instanceof String) ? (String) payload : null;
+                if (raw == null || parsePayloadIds(raw).isEmpty()) raw = lastDragPayloadData;
+                if (raw != null) {
+                    List<UUID> ids = parsePayloadIds(raw);
+                    if (!ids.isEmpty()) {
+                        if (inlineRenamer.isEditing()) {
+                            inlineRenamer.cancelEditing("dragToRoot");
+                        }
+                        controller.moveContainers(ids, null, -1);
+                        LOGGER.info("[ContainerTreeInteractionHandler] 将 {} 个容器移动到根", ids.size());
                     }
                 }
             }
             ImGui.endDragDropTarget();
         }
+    }
+
+    private static List<UUID> parsePayloadIds(String payload) {
+        List<UUID> out = new ArrayList<>();
+        if (payload == null || payload.isBlank()) return out;
+        for (String s : payload.split(",")) {
+            try {
+                out.add(UUID.fromString(s.trim()));
+            } catch (IllegalArgumentException ignored) { }
+        }
+        return out;
     }
 
     void handleCanvasContextMenu() {
@@ -268,48 +302,35 @@ class ContainerTreeInteractionHandler {
 
     /**
      * 处理拖拽到某个目标 Container 上的行为：
-     * - 目标是组：作为其子容器
+     * - 目标是组：作为其子容器追加
      * - 否则：移动到目标节点之前（同级排序）
-     * 
-     * 支持批量拖拽：payloadId 可以是单个UUID或多个UUID（逗号分隔）
+     *
+     * 支持批量拖拽：payloadId 为单个 UUID 或多个逗号分隔的 UUID；
+     * 一次 drop = 一条 {@code moveContainers}，一次 undo。
      */
     private void handleDropPayload(Container container, String payloadId) {
-        // ✅ 拖拽/重排会改变树结构，最容易出现"编辑框丢失/提交错对象"，所以先取消编辑
         if (inlineRenamer.isEditing()) {
             inlineRenamer.cancelEditing("dragMove");
         }
-        
-        // 解析载荷：可能是单个UUID或多个UUID（逗号分隔）
-        String[] ids = payloadId.split(",");
-        
-        for (String idStr : ids) {
-            try {
-                UUID draggedId = UUID.fromString(idStr.trim());
-                Container draggedContainer = controller.getContainer(draggedId);
-                if (draggedContainer == null || draggedContainer == container) {
-                    continue;
-                }
 
-                boolean targetIsGroup = container.getType() == ContainerType.GROUP;
-                boolean cyclic = container.isDescendantOf(draggedContainer);
-                if (cyclic) {
-                    LOGGER.warn("[ContainerTreeInteractionHandler] 拖拽 {} 会造成循环引用，已忽略", draggedContainer.getName());
-                    continue;
-                }
+        List<UUID> ids = parsePayloadIds(payloadId);
+        if (ids.isEmpty()) return;
 
-                if (targetIsGroup) {
-                    // 组内：作为子节点追加
-                    controller.moveContainerAsChild(draggedId, container.getId());
-                    LOGGER.info("[ContainerTreeInteractionHandler] 移动 {} 到组 {}", draggedContainer.getName(), container.getName());
-                } else {
-                    // 普通节点：移动到目标之前，利用 CommandService 内的相对排序逻辑
-                    controller.moveContainerBefore(draggedId, container.getId());
-                    LOGGER.info("[ContainerTreeInteractionHandler] 将 {} 移动到 {} 之前", draggedContainer.getName(), container.getName());
-                }
-            } catch (IllegalArgumentException e) {
-                LOGGER.warn("[ContainerTreeInteractionHandler] 无法解析拖拽载荷为 UUID: {}", idStr);
-            }
+        UUID targetParentId;
+        int targetIndex;
+        if (container.getType() == ContainerType.GROUP) {
+            targetParentId = container.getId();
+            targetIndex = -1;
+        } else {
+            Container parent = container.getParent();
+            List<Container> rootView = controller.getRootContainers();
+            targetParentId = parent != null ? parent.getId() : null;
+            targetIndex = parent != null
+                ? parent.indexOfChild(container)
+                : rootView.indexOf(container);
         }
+        controller.moveContainers(ids, targetParentId, targetIndex);
+        LOGGER.info("[ContainerTreeInteractionHandler] 批量移动 {} 个容器到目标", ids.size());
     }
 
     /**

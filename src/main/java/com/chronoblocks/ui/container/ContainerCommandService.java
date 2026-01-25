@@ -221,6 +221,86 @@ public class ContainerCommandService {
         execute(new MoveContainerCommand(containerManager, container, parent, targetIndex));
     }
 
+    /**
+     * 批量移动容器到同一父级下，一次 undo/redo。
+     * 会过滤：null、循环（目标为自身或自身子孙）、仅保留顶层（父子同在时只移父）。
+     *
+     * @param ids            要移动的容器 ID，按原树顺序排序后执行
+     * @param targetParentId 目标父级 ID，null 表示根
+     * @param targetIndex    起始插入索引，&lt;0 表示追加到末尾
+     */
+    public void moveContainers(List<UUID> ids, UUID targetParentId, int targetIndex) {
+        if (ids == null || ids.isEmpty()) {
+            return;
+        }
+        Container targetParent = targetParentId != null ? containerManager.getContainer(targetParentId) : null;
+        if (targetParentId != null && targetParent == null) {
+            return;
+        }
+        if (targetParent != null && targetParent.getType() != ContainerType.GROUP) {
+            targetParent = null;
+        }
+
+        List<Container> resolved = new ArrayList<>();
+        for (UUID id : ids) {
+            Container c = containerManager.getContainer(id);
+            if (c == null) continue;
+            if (targetParent != null && (c == targetParent || targetParent.isDescendantOf(c))) {
+                continue;
+            }
+            if (targetParentId != null && targetParentId.equals(id)) {
+                continue;
+            }
+            resolved.add(c);
+        }
+        if (resolved.isEmpty()) return;
+
+        List<Container> topLevel = containerManager.getTopLevelSelection(resolved);
+        if (topLevel.isEmpty()) return;
+
+        List<Container> rootView = containerManager.getRootContainersView();
+        // 按原树中的 (父, 索引) 稳定排序
+        topLevel.sort((a, b) -> {
+            Container pa = a.getParent();
+            Container pb = b.getParent();
+            int cmp = compareRef(pa != null ? pa.getId() : null, pb != null ? pb.getId() : null);
+            if (cmp != 0) return cmp;
+            int ia = pa != null ? pa.indexOfChild(a) : rootView.indexOf(a);
+            int ib = pb != null ? pb.indexOfChild(b) : rootView.indexOf(b);
+            return Integer.compare(ia, ib);
+        });
+
+        List<MoveContainersCommand.Item> moveItems = new ArrayList<>();
+        for (Container c : topLevel) {
+            Container oldParent = c.getParent();
+            UUID oldParentId = oldParent != null ? oldParent.getId() : null;
+            int oldIndex = oldParent != null
+                ? oldParent.indexOfChild(c)
+                : rootView.indexOf(c);
+            moveItems.add(new MoveContainersCommand.Item(c.getId(), oldParentId, oldIndex));
+        }
+
+        // 同父移动且目标落在「选中块内部」[min, max+1] 时 no-op，避免顺序错乱与 undo 错位（见 MoveIndexCorrection）
+        List<Integer> sameParentOldIndices = new ArrayList<>();
+        for (MoveContainersCommand.Item it : moveItems) {
+            if (MoveIndexCorrection.sameRef(it.oldParentId, targetParentId)) {
+                sameParentOldIndices.add(it.oldIndex);
+            }
+        }
+        if (MoveIndexCorrection.isNoOpWhenDroppingIntoSelectedBlock(sameParentOldIndices, targetIndex)) {
+            return;
+        }
+
+        execute(new MoveContainersCommand(containerManager, targetParentId, targetIndex, moveItems));
+    }
+
+    private static int compareRef(UUID a, UUID b) {
+        if (a == null && b == null) return 0;
+        if (a == null) return -1;
+        if (b == null) return 1;
+        return a.compareTo(b);
+    }
+
     private void moveContainerRelative(UUID draggedId, UUID referenceId, boolean insertBefore) {
         Container dragged = containerManager.getContainer(draggedId);
         Container reference = containerManager.getContainer(referenceId);

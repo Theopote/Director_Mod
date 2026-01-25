@@ -138,12 +138,20 @@ public class ContainerToolbar {
     }
 
     private void renderSelectionInfo() {
-        Container selected = controller.getSelectedContainer();
-        if (selected != null) {
-            ImGui.textColored(0.0f, 0.588f, 1.0f, 1.0f,
-                "选中: " + selected.getName() + " (" + selected.getType().getDisplayName() + ")");
-        } else {
+        java.util.Set<Container> selected = controller.getSelectedContainers();
+        int n = selected != null ? selected.size() : 0;
+        if (n == 0) {
             ImGui.textDisabled("(未选择容器)");
+        } else if (n > 1) {
+            ImGui.textColored(0.0f, 0.588f, 1.0f, 1.0f, "选中 " + n + " 个容器");
+        } else {
+            Container c = controller.getSelectedContainer();
+            if (c != null) {
+                ImGui.textColored(0.0f, 0.588f, 1.0f, 1.0f,
+                    "选中: " + c.getName() + " (" + c.getType().getDisplayName() + ")");
+            } else {
+                ImGui.textDisabled("(未选择容器)");
+            }
         }
     }
 }
