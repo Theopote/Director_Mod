@@ -4,7 +4,6 @@ import com.chronoblocks.core.container.Container;
 import com.chronoblocks.ui.theme.Icons;
 import imgui.ImDrawList;
 import imgui.ImGui;
-import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiTreeNodeFlags;
@@ -21,12 +20,16 @@ import java.util.List;
  *   <li>根级节点仅在 {@code iconRegionStart >= MIN_LABEL_WIDTH_FOR_ICONS} 时绘制行内图标；锁/可见性仍可通过右键菜单操作。</li>
  *   <li>不引入独立 VisibleNode 列表：ImGui 每行一 item，hit 与 last item 一致，由 InteractionHandler 直接基于 isItemHovered/Clicked 处理。</li>
  * </ul>
+ *
+ * <p><b>行内按钮事件铁律</b>：所有行内按钮必须在 selection / drag 之前命中并 consume 事件。
+ * 当 ImGui 把 click 判给 TreeNode（行）时，用 isMouseClicked+rect 显式命中按钮，确保 handleIconClicks 能执行并 suppress 行选择。
  */
 class ContainerTreeRenderer {
 
-    // 右侧“锁/隐藏”图标区域：更紧凑一些，让按钮更靠近右侧边缘（同时保留少量安全边距避免裁剪）
-    private static final float ICONS_REGION_WIDTH = 32.0f;
-    private static final float ICON_RIGHT_MARGIN = 6.0f; // 图标右侧边距（越小越靠右）
+    // 右侧“锁/隐藏”图标区域：两枚 18×18 按钮，右侧留白避开滚动条
+    private static final float ICON_BUTTON_SIZE = 18.0f;
+    private static final float ICONS_REGION_WIDTH = ICON_BUTTON_SIZE * 2.0f; // 36
+    private static final float ICON_RIGHT_MARGIN = 12.0f; // 与滚动条拉开距离，避免抢点击
     /** 仅用于根级节点：图标区起始偏移至少保留此宽度才绘制行内锁/可见性图标；组内子节点一律不绘（避免抢点击）。 */
     private static final float MIN_LABEL_WIDTH_FOR_ICONS = 80.0f;
     private static final float TREE_NODE_INNER_SPACING = 2.0f; // 树节点内部间距（箭头和文本之间），更紧凑
@@ -177,7 +180,7 @@ class ContainerTreeRenderer {
                     drawNameButtonsSeparator(iconRegionStart, rowMin, rowMax);
                 }
                 ImGui.sameLine(iconRegionStart);
-                iconClickState = renderContainerControlIcons(container, rowMin, rowMax);
+                iconClickState = renderContainerControlIcons(container);
                 iconHovered = ImGui.isItemHovered();
             } else {
                 iconClickState = new IconClickState(false, false);
@@ -288,78 +291,54 @@ class ContainerTreeRenderer {
         return flags;
     }
 
-    private IconClickState renderContainerControlIcons(Container container, imgui.ImVec2 rowMin, imgui.ImVec2 rowMax) {
-        // 使用局部 pushID 确保图标按钮 ID 唯一
+    /**
+     * 锁定/可见性图标：InvisibleButton 作命中区 + DrawList 绘制图标。
+     * 用 isItemClicked 检测点击；当 ImGui 把 click 判给行时，用 isMouseClicked+rect 显式命中，确保事件能路由到按钮并 consume，不触发行选择。
+     */
+    private IconClickState renderContainerControlIcons(Container container) {
         ImGui.pushID("Icons");
-        boolean lockClicked = false;
-        boolean visibilityClicked = false;
+        boolean lockClicked;
+        boolean visibilityClicked;
         boolean lockHovered;
         boolean visibilityHovered;
+        ImDrawList drawList = ImGui.getWindowDrawList();
+        float mx = ImGui.getMousePosX();
+        float my = ImGui.getMousePosY();
         try {
-            // ✅ 行内垂直居中（名称/按钮/分割线统一观感）
-            float rowHeight = rowMax.y - rowMin.y;
-            float textHeight = ImGui.getTextLineHeight();
-            float centerY = rowMin.y + Math.max(0.0f, (rowHeight - textHeight) * 0.5f);
-
-            // 锁定/解锁图标 - 使用 InvisibleButton 精确命中区域
+            // 锁定
             String lockIcon = container.isLocked() ? Icons.LOCK : Icons.UNLOCK;
             int lockColor = container.isLocked() ? LOCKED_COLOR : LOCKED_DISABLED_COLOR;
-
-            float lockTextWidth = ImGui.calcTextSize(lockIcon).x;
-            float lockTextHeight = ImGui.getTextLineHeight();
-
-            float lockPosX = ImGui.getCursorScreenPosX();
-            float lockPosY = centerY;
-            if (ImGui.invisibleButton("lock_btn", lockTextWidth, lockTextHeight)) {
-                lockClicked = true;
-            }
+            ImGui.invisibleButton("lock_btn", ICON_BUTTON_SIZE, ICON_BUTTON_SIZE);
+            imgui.ImVec2 lockMin = ImGui.getItemRectMin();
+            imgui.ImVec2 lockMax = ImGui.getItemRectMax();
+            lockClicked = ImGui.isItemClicked(ImGuiMouseButton.Left)
+                || (ImGui.isMouseClicked(ImGuiMouseButton.Left) && rectContainsScreen(lockMin, lockMax, mx, my));
             lockHovered = ImGui.isItemHovered();
-            // 将光标回到同一位置绘制文本
-            ImGui.setCursorScreenPos(lockPosX, lockPosY);
-            ImGui.pushStyleColor(ImGuiCol.Text, lockColor);
-            ImGui.text(lockIcon);
-            ImGui.popStyleColor();
             if (lockHovered) {
                 ImGui.setTooltip(container.isLocked() ? "解锁容器" : "锁定容器");
             }
+            drawIconInRect(drawList, lockMin, lockMax, lockIcon, lockColor);
 
-            // 可见性图标
+            // 可见性
             ImGui.sameLine();
             boolean isHidden = container.getState() == com.chronoblocks.core.container.ContainerState.HIDDEN;
             boolean isOnTimeline = com.chronoblocks.ui.timeline.container.ContainerTimelineService.getInstance()
                 .isContainerOnTimeline(container.getId());
-            
-            // ★ 功能：已拖动到时间线的容器，可见性图标不能被点击（禁用切换）
             String visIcon = isHidden ? Icons.INVISIBLE : Icons.VISIBLE;
             int visColor = isHidden ? VISIBLE_DISABLED_COLOR : VISIBLE_COLOR;
 
-            float visTextWidth = ImGui.calcTextSize(visIcon).x;
-            float visTextHeight = ImGui.getTextLineHeight();
-
-            float visPosX = ImGui.getCursorScreenPosX();
-            float visPosY = centerY;
-            
-            // 如果容器在时间线上，禁用可见性切换按钮
             if (isOnTimeline) {
                 ImGui.beginDisabled();
             }
-            
-            if (ImGui.invisibleButton("vis_btn", visTextWidth, visTextHeight)) {
-                if (!isOnTimeline) {  // 只有不在时间线上时才能切换
-                    visibilityClicked = true;
-                }
-            }
+            ImGui.invisibleButton("vis_btn", ICON_BUTTON_SIZE, ICON_BUTTON_SIZE);
+            imgui.ImVec2 visMin = ImGui.getItemRectMin();
+            imgui.ImVec2 visMax = ImGui.getItemRectMax();
+            visibilityClicked = ImGui.isItemClicked(ImGuiMouseButton.Left)
+                || (!isOnTimeline && ImGui.isMouseClicked(ImGuiMouseButton.Left) && rectContainsScreen(visMin, visMax, mx, my));
             visibilityHovered = ImGui.isItemHovered();
-            
             if (isOnTimeline) {
                 ImGui.endDisabled();
             }
-            
-            ImGui.setCursorScreenPos(visPosX, visPosY);
-            ImGui.pushStyleColor(ImGuiCol.Text, visColor);
-            ImGui.text(visIcon);
-            ImGui.popStyleColor();
-
             if (visibilityHovered) {
                 if (isOnTimeline) {
                     ImGui.setTooltip("容器在时间线上，无法切换可见性（请先从时间线删除片段）");
@@ -367,16 +346,29 @@ class ContainerTreeRenderer {
                     ImGui.setTooltip(isHidden ? "显示容器（方块将在 Minecraft 中可见）" : "隐藏容器（方块将在 Minecraft 中不可见，看起来像被清除）");
                 }
             }
+            drawIconInRect(drawList, visMin, visMax, visIcon, visColor);
         } finally {
             ImGui.popID();
         }
 
-        // 在外层用于抑制节点事件：任一图标 hovered 都算图标区域悬停
-        if (lockHovered || visibilityHovered) {
-            // 标记最近一个 item 为 hovered，保持与原有逻辑兼容
-        }
-
         return new IconClickState(lockClicked, visibilityClicked);
+    }
+
+    /** 屏幕坐标 rect 包含点 (mx,my)：与 getItemRectMin/Max 同系，用于显式命中以绕过 ImGui 把 click 判给行的情况。 */
+    private static boolean rectContainsScreen(imgui.ImVec2 min, imgui.ImVec2 max, float mx, float my) {
+        return mx >= min.x && mx < max.x && my >= min.y && my < max.y;
+    }
+
+    /** 在矩形内居中绘制图标；argb 为 ARGB，内部转 DrawList 所需格式。 */
+    private void drawIconInRect(ImDrawList drawList, imgui.ImVec2 min, imgui.ImVec2 max, String icon, int argb) {
+        imgui.ImVec2 size = ImGui.calcTextSize(icon);
+        float x = min.x + (max.x - min.x - size.x) * 0.5f;
+        float y = min.y + (max.y - min.y - size.y) * 0.5f;
+        int a = (argb >> 24) & 0xFF;
+        if (a == 0) a = 255;
+        int r = (argb >> 16) & 0xFF, g = (argb >> 8) & 0xFF, b = argb & 0xFF;
+        int abgr = (a << 24) | (b << 16) | (g << 8) | r;
+        drawList.addText(x, y, abgr, icon);
     }
 
     private void renderTooltip(Container container) {
