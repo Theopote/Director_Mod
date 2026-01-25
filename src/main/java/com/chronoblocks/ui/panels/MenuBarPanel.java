@@ -2,7 +2,6 @@ package com.chronoblocks.ui.panels;
 
 import com.chronoblocks.ui.aware.ICommandsAware;
 import com.chronoblocks.ui.aware.IPanelRegistryAware;
-import com.chronoblocks.ui.timeline.model.camera.path.CameraPathType;
 import imgui.ImGui;
 
 import com.chronoblocks.ui.commands.UICommandFacade;
@@ -78,7 +77,6 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
         try {
             renderFileMenu();
             renderTimelineMenu();
-            renderCameraMenu();
             renderPlaybackMenu();
             renderWindowMenu();
             renderHelpMenu();
@@ -163,38 +161,6 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
             }
             if (ImGui.menuItem("Zoom to Fit")) {
                 commands.timeline().zoomToFit();
-            }
-
-            ImGui.endMenu();
-        }
-    }
-
-    // ==================== Camera ====================
-
-    private void renderCameraMenu() {
-        if (commands == null) return;
-
-        if (ImGui.beginMenu(Icons.CAMERA + " Camera")) {
-            if (ImGui.beginMenu("Camera Path Preset")) {
-                if (ImGui.menuItem("Orbit")) {
-                    commands.camera().createCameraPath(CameraPathType.ORBIT);
-                }
-                if (ImGui.menuItem("Dolly")) {
-                    commands.camera().createCameraPath(CameraPathType.DOLLY);
-                }
-                if (ImGui.menuItem("Crane")) {
-                    commands.camera().createCameraPath(CameraPathType.CRANE);
-                }
-                ImGui.endMenu();
-            }
-
-            ImGui.separator();
-
-            if (ImGui.menuItem("Align Camera to View")) {
-                commands.camera().alignCameraToCurrentView();
-            }
-            if (ImGui.menuItem("Create Shot from View")) {
-                commands.camera().createShotFromCurrentView();
             }
 
             ImGui.endMenu();

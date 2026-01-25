@@ -29,12 +29,16 @@ public final class OverlayRenderHelper {
 
     private OverlayRenderHelper() {}
 
+    /** 面中心锚点（框选面手柄）的视觉大小：未激活 / 激活（拖拽中）。调大便于看见和拖动机理。 */
+    private static final float HANDLE_SIZE_IDLE = 0.2f;
+    private static final float HANDLE_SIZE_ACTIVE = 0.28f;
+
     public static void drawHandle(VertexConsumer consumer, Matrix4f matrix, Vec3d pos, float[] color, boolean active) {
         if (consumer == null || pos == null || color == null || color.length < 4) {
             return;
         }
 
-        float size = active ? 0.15f : 0.1f;
+        float size = active ? HANDLE_SIZE_ACTIVE : HANDLE_SIZE_IDLE;
         double halfSize = size / 2.0;
 
         populateCorners(
