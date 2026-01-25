@@ -191,7 +191,7 @@ public class ContainerPropertiesPanel {
         }
 
         // 描述（用户自由填写）
-        if (ImGui.inputTextMultiline("描述", descBuffer, 0, 70)) {
+        if (ImGui.inputTextMultiline("描述", descBuffer, 0, 55)) {
             controller.setMetadata(container.getId(), "description", descBuffer.get());
         }
     }

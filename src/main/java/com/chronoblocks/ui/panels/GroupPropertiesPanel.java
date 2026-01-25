@@ -4,6 +4,7 @@ import com.chronoblocks.core.container.Container;
 import com.chronoblocks.core.container.ContainerManager;
 import com.chronoblocks.core.container.ContainerType;
 import imgui.ImGui;
+import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImString;
 
 import java.util.List;
@@ -12,6 +13,8 @@ import java.util.List;
  * 组属性面板：用于展示和编辑分组容器的基础信息。
  */
 public class GroupPropertiesPanel {
+
+    private static final int MAX_CHILDREN_VISIBLE = 10;
 
     private final ContainerManager containerManager;
     private final ImString nameBuffer = new ImString(256);
@@ -66,18 +69,24 @@ public class GroupPropertiesPanel {
     }
 
     private void renderChildrenOverview(Container group) {
-        ImGui.textColored(0.8f, 0.9f, 1.0f, 1.0f, "包含的容器");
+        if (!ImGui.collapsingHeader("包含的容器", ImGuiTreeNodeFlags.DefaultOpen)) {
+            return;
+        }
         List<Container> children = group.getChildren();
         if (children.isEmpty()) {
             ImGui.textDisabled("暂无子容器");
             return;
         }
-
-        for (Container child : children) {
+        int limit = Math.min(children.size(), MAX_CHILDREN_VISIBLE);
+        for (int i = 0; i < limit; i++) {
+            Container child = children.get(i);
             ImGui.bulletText(String.format("%s %s (%d 方块)",
                 child.getType().getIcon(),
                 child.getName(),
                 child.getTotalBlockCount()));
+        }
+        if (children.size() > MAX_CHILDREN_VISIBLE) {
+            ImGui.textDisabled("其余 " + (children.size() - MAX_CHILDREN_VISIBLE) + " 个");
         }
     }
 

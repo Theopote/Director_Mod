@@ -20,7 +20,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * 🧵 BrushSelectTask
- *
+ * <p>
  * 基于几何形状的异步分帧刷选任务。
  * 支持球体、圆柱体、金字塔、立方体等多种形状。
  * 按批次遍历形状内的方块并支持取消、错误回调。

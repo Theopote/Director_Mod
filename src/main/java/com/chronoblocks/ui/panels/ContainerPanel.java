@@ -146,16 +146,6 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
             ImGui.setTooltip("重做");
         }
 
-        ImGui.sameLine();
-        String expandLabel = state.isExpandAll() ? "折叠全部" : "展开全部";
-        String expandIcon = state.isExpandAll() ? Icons.MINIMIZE_2 : Icons.MAXIMIZE_2;
-        if (ImGui.smallButton(headerButtonLabel(expandIcon, expandLabel, "expandAll"))) {
-            controller.toggleExpandAll();
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(expandLabel);
-        }
-
         // 图标/文字显示切换（与 ToolbarPanel 类似）
         ImGui.sameLine();
         String toggleIcon = showText ? Icons.TOOLS : Icons.TAG;
@@ -171,14 +161,24 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
             ImGui.endTooltip();
         }
 
-        // ✅ 可选：保留"重置分割"，但不占中间空间
+        // 布局：展开/折叠全部、重置分割 收起到弹出菜单，减轻 header 拥挤
         ImGui.sameLine();
-        if (ImGui.smallButton(headerButtonLabel(Icons.REFRESH, "重置分割", "resetSplitter"))) {
-            state.setLeftPanelWidthRatio(0.5f);
-            state.setLeftRatioBeforeCollapse(0.5f);
+        if (ImGui.smallButton(headerButtonLabel(Icons.MORE_VERTICAL, "布局", "layoutMenu"))) {
+            ImGui.openPopup("ContainerLayoutPopup##layout");
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("重置左右面板分割比例");
+            ImGui.setTooltip("展开/折叠树、重置左右分割比例");
+        }
+        if (ImGui.beginPopup("ContainerLayoutPopup##layout")) {
+            String expandLabel = state.isExpandAll() ? "折叠全部" : "展开全部";
+            if (ImGui.menuItem(expandLabel)) {
+                controller.toggleExpandAll();
+            }
+            if (ImGui.menuItem("重置分割")) {
+                state.setLeftPanelWidthRatio(0.5f);
+                state.setLeftRatioBeforeCollapse(0.5f);
+            }
+            ImGui.endPopup();
         }
     }
 
