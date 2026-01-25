@@ -107,7 +107,7 @@ public class SelectionFilterPanel extends AbstractPanel implements ICommandsAwar
         // ===============================
         // 🔵 层 3：高级过滤（专家）
         // ===============================
-        if (ImGui.collapsingHeader(Icons.TOOLS + " 高级过滤器 ▶")) {
+        if (ImGui.collapsingHeader(Icons.TOOLS + " 高级过滤器")) {
             renderAdvancedFilters(sf);
         }
     }

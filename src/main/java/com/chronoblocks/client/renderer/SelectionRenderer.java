@@ -249,19 +249,27 @@ public final class SelectionRenderer {
             // 🚀 v2.0: 一律使用贪婪合并（当开启时且非空）
             boolean greedy = settings.selection_enableGreedy;
             if (greedy && !blocks.isEmpty()) {
-                // 使用贪婪合并算法
+                // 使用贪婪合并算法；按最大渲染距离过滤（与逐方块分支一致）
                 BlockOutlineMeshCache.Mesh mesh = meshCache.getOrCreateMesh(blocks);
-                
+                int maxDistSq = settings.selection_maxRenderDistance * settings.selection_maxRenderDistance;
+                int rendered = 0;
                 for (BlockOutlineMeshCache.Line line : mesh.lines()) {
+                    double d1Sq = (line.x1() - cam.x) * (line.x1() - cam.x)
+                        + (line.y1() - cam.y) * (line.y1() - cam.y)
+                        + (line.z1() - cam.z) * (line.z1() - cam.z);
+                    double d2Sq = (line.x2() - cam.x) * (line.x2() - cam.x)
+                        + (line.y2() - cam.y) * (line.y2() - cam.y)
+                        + (line.z2() - cam.z) * (line.z2() - cam.z);
+                    if (d1Sq > maxDistSq && d2Sq > maxDistSq) continue;
                     line(consumer, m,
                          line.x1() - cam.x, line.y1() - cam.y, line.z1() - cam.z,
                          line.x2() - cam.x, line.y2() - cam.y, line.z2() - cam.z,
                          r, g, b, a);
+                    rendered++;
                 }
-                
-                    if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("[SelectionRenderer] ✅ 贪婪合并渲染 {} 条线框", mesh.lines().size());
-                    }
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("[SelectionRenderer] ✅ 贪婪合并渲染 {} 条线框", rendered);
+                }
                 
                 // ⭐ 包围盒渲染（根据设置控制；若处于面缩放预览中，则使用 preview bounds，避免“两个盒子叠在一起”）
                 if (settings.selection_showBoundingBox && blocks.size() > 1 && state.getBoundingBox().isPresent()) {
@@ -408,15 +416,25 @@ public final class SelectionRenderer {
                 // 🚀 v2.0: 使用贪婪合并或逐方块渲染
                 int greedyThreshold = Math.max(1, settings.selection_greedyThreshold);
                 if (settings.selection_enableGreedy && blocks.size() >= greedyThreshold) {
-                    // 使用贪婪合并算法
+                    // 使用贪婪合并算法；按最大渲染距离过滤（与逐方块分支一致）
                     BlockOutlineMeshCache.Mesh mesh = meshCache.getOrCreateMesh(blocks);
-                    
+                    int maxDistSq = settings.selection_maxRenderDistance * settings.selection_maxRenderDistance;
+                    int rendered = 0;
                     for (BlockOutlineMeshCache.Quad quad : mesh.quads()) {
+                        // 若四个角点都在最大距离外则跳过
+                        boolean inRange = false;
+                        for (BlockPos p : new BlockPos[]{quad.p1(), quad.p2(), quad.p3(), quad.p4()}) {
+                            double dSq = (p.getX() - cam.x) * (p.getX() - cam.x)
+                                + (p.getY() - cam.y) * (p.getY() - cam.y)
+                                + (p.getZ() - cam.z) * (p.getZ() - cam.z);
+                            if (dSq <= maxDistSq) { inRange = true; break; }
+                        }
+                        if (!inRange) continue;
                         emitMergedQuad(fill, posMat, quad, cam, fillR, fillG, fillB, fillA);
+                        rendered++;
                     }
-                    
                     if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("[SelectionRenderer] ✅ 贪婪合并渲染 {} 个填充面", mesh.quads().size());
+                        LOGGER.debug("[SelectionRenderer] ✅ 贪婪合并渲染 {} 个填充面", rendered);
                     }
                     
                     // ⭐ 包围盒填充（根据设置控制）

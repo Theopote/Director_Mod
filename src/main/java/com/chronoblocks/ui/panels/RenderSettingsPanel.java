@@ -262,11 +262,6 @@ public class RenderSettingsPanel extends AbstractPanel {
         if (ImGui.collapsingHeader("选区性能 / 剔除")) {
             ImGui.indent();
 
-            int[] dist = {rs.selection_maxRenderDistance};
-            if (ImGui.sliderInt("最大渲染距离##selectionMaxDist", dist, 8, 256)) {
-                rs.selection_maxRenderDistance = dist[0];
-            }
-
             boolean cur = rs.selection_enableFrustumCull;
             if (ImGui.checkbox("视锥剔除##selectionFrustum", cur)) {
                 rs.selection_enableFrustumCull = !cur;
@@ -275,6 +270,11 @@ public class RenderSettingsPanel extends AbstractPanel {
             cur = rs.selection_enableOcclusionCull;
             if (ImGui.checkbox("遮挡剔除##selectionOcclusion", cur)) {
                 rs.selection_enableOcclusionCull = !cur;
+            }
+
+            int[] dist = {rs.selection_maxRenderDistance};
+            if (ImGui.sliderInt("最大渲染距离##selectionMaxDist", dist, 8, 256)) {
+                rs.selection_maxRenderDistance = dist[0];
             }
 
             int[] th = {rs.selection_greedyThreshold};
