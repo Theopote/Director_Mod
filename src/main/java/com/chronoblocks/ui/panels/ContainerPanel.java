@@ -41,6 +41,8 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
 
     // 右侧属性面板折叠把手宽度（紧凑）
     private static final float PROPERTIES_HANDLE_WIDTH = 22.0f;
+    /** 折叠把手内箭头颜色（ARGB），与容器树锁/可见性图标同一体系。 */
+    private static final int HANDLE_CHEVRON_COLOR = 0xFFC0C0C0;
 
     /** 容器树焦点状态（在 doRender 开头更新，供 ShortcutContext / ShortcutDispatcher 使用） */
     private static volatile boolean _containerTreeFocused;
@@ -239,14 +241,17 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
 
         ImGui.sameLine();
 
-        // 右侧把手：一个窄 child，里面放箭头按钮
+        // 右侧把手：InvisibleButton 作命中区 + DrawList 按 icon 包围盒与 rect 中心对齐绘制，
+        // 与容器树锁/可见性图标一致；避免箭头按文字 baseline 对齐导致与按钮不同轴。
         if (ImGui.beginChild("PropertiesHandleChild", PROPERTIES_HANDLE_WIDTH, availableHeight, true)) {
-            // 垂直居中
-            float btnSize = PROPERTIES_HANDLE_WIDTH - 4.0f;
-            float centerY = (availableHeight - btnSize) * 0.5f;
-            ImGui.setCursorPosY(Math.max(2.0f, centerY));
+            float contentW = ImGui.getContentRegionAvailX();
+            float contentH = ImGui.getContentRegionAvailY();
+            float btnSize = Math.min(PROPERTIES_HANDLE_WIDTH - 4.0f, Math.min(contentW, contentH));
+            float offX = Math.max(0, (contentW - btnSize) * 0.5f);
+            float offY = Math.max(0, (contentH - btnSize) * 0.5f);
+            ImGui.setCursorPos(offX, offY);
 
-            if (ImGui.button(Icons.CHEVRON_RIGHT + "##expandProperties", btnSize, btnSize)) {
+            if (ImGui.invisibleButton("##expandProperties", btnSize, btnSize)) {
                 togglePropertiesCollapsed();
             }
             if (ImGui.isItemHovered()) {
@@ -268,6 +273,18 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
                 ImGui.text("快捷键：P");
                 ImGui.endTooltip();
             }
+            // 按 icon 包围盒与 rect 中心对齐，不用 baseline
+            imgui.ImVec2 rMin = ImGui.getItemRectMin();
+            imgui.ImVec2 rMax = ImGui.getItemRectMax();
+            imgui.ImVec2 sz = ImGui.calcTextSize(Icons.CHEVRON_RIGHT);
+            float ix = rMin.x + (rMax.x - rMin.x - sz.x) * 0.5f;
+            float iy = rMin.y + (rMax.y - rMin.y - sz.y) * 0.5f;
+            iy += 1f; // ▶ 字形视觉重心偏上，optical offset 使与图标同轴
+            int a = (HANDLE_CHEVRON_COLOR >> 24) & 0xFF;
+            if (a == 0) a = 255;
+            int r = (HANDLE_CHEVRON_COLOR >> 16) & 0xFF, g = (HANDLE_CHEVRON_COLOR >> 8) & 0xFF, b = HANDLE_CHEVRON_COLOR & 0xFF;
+            int abgr = (a << 24) | (b << 16) | (g << 8) | r;
+            ImGui.getWindowDrawList().addText(ix, iy, abgr, Icons.CHEVRON_RIGHT);
         }
         ImGui.endChild();
     }
@@ -342,17 +359,31 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
     }
 
     private void renderPropertiesPanel() {
-        // ✅ 顶部"属性"标题和折叠按钮
+        // ✅ 顶部"属性"标题和折叠按钮；折叠钮与把手展开钮同一套：InvisibleButton + DrawList 按 icon 包围盒居中
         ImGui.alignTextToFramePadding();
         ImGui.textDisabled("属性");
         ImGui.sameLine();
-        if (ImGui.smallButton(Icons.CHEVRON_LEFT + "##collapsePropertiesTop")) {
+        float lineH = ImGui.getFrameHeight();
+        float cbh = 18f;
+        ImGui.setCursorPosY(ImGui.getCursorPosY() + Math.max(0, (lineH - cbh) * 0.5f));
+        if (ImGui.invisibleButton("##collapsePropertiesTop", cbh, cbh)) {
             togglePropertiesCollapsed();
             return;
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("折叠属性面板\n快捷键：P");
         }
+        imgui.ImVec2 cMin = ImGui.getItemRectMin();
+        imgui.ImVec2 cMax = ImGui.getItemRectMax();
+        imgui.ImVec2 cSz = ImGui.calcTextSize(Icons.CHEVRON_LEFT);
+        float cIx = cMin.x + (cMax.x - cMin.x - cSz.x) * 0.5f;
+        float cIy = cMin.y + (cMax.y - cMin.y - cSz.y) * 0.5f;
+        cIy += 1f; // ◀ 与 ▶ 同族 optical offset
+        int ca = (HANDLE_CHEVRON_COLOR >> 24) & 0xFF;
+        if (ca == 0) ca = 255;
+        int cr = (HANDLE_CHEVRON_COLOR >> 16) & 0xFF, cg = (HANDLE_CHEVRON_COLOR >> 8) & 0xFF, cb = HANDLE_CHEVRON_COLOR & 0xFF;
+        int cabgr = (ca << 24) | (cb << 16) | (cg << 8) | cr;
+        ImGui.getWindowDrawList().addText(cIx, cIy, cabgr, Icons.CHEVRON_LEFT);
 
         ImGui.separator();
 
