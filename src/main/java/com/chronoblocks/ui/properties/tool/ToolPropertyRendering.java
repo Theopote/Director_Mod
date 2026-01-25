@@ -73,6 +73,13 @@ public final class ToolPropertyRendering {
     @SuppressWarnings("unchecked")
     public static void render(SelectionTool tool, IToolPropertyRenderContext ctx) {
         renderToolInfo(tool, ctx.getSelectionManager());
+        // 打开选择过滤（全局管道，所有选择工具共用；入口统一放在面板顶部）
+        Runnable r = ctx.getOnRequestShowFilterPanel();
+        if (r != null) {
+            if (ImGui.button(Icons.FILTER + " 选择过滤##toolFilterTop")) r.run();
+            if (ImGui.isItemHovered()) ImGui.setTooltip("打开选择过滤面板，配置方块选择规则（全局，对所有选择工具生效）");
+            ImGui.spacing();
+        }
         renderOperationControls(tool);
         ImGui.separator();
         ToolPropertyRenderer<?> renderer = findRenderer(tool);
@@ -245,13 +252,7 @@ public final class ToolPropertyRendering {
                 UITheme.label("提示: 生成后可通过操作模式执行叠加/相减/交集等操作。", UITheme.DarkTheme.TEXT_DISABLED);
                 ImGui.unindent();
             }
-            // 2) 过滤器设置（使用全局选择过滤管道；编辑请在「选择过滤」面板）
-            if (ImGui.collapsingHeader(Icons.FILTER + " 过滤器设置", ImGuiTreeNodeFlags.DefaultOpen)) {
-                ImGui.indent();
-                ImGui.text(String.format("过滤管线: %d 个过滤器", tool.getPipeline().size()));
-                ImGui.unindent();
-            }
-            // 3) 底部：选中预览（与魔棒一致）
+            // 2) 底部：选中预览（与魔棒一致）
             ImGui.spacing();
             ImGui.separator();
             int cnt = ctx.getSelectionManager().getSelectionSet().size();
