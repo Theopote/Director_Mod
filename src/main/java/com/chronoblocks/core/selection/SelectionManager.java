@@ -5,6 +5,7 @@ import com.chronoblocks.client.renderer.ToolPreviewManager;
 import com.chronoblocks.core.selection.events.*;
 import com.chronoblocks.core.selection.block_filters.BlockFilter;
 import com.chronoblocks.core.selection.block_filters.BlockFilterPipeline;
+import com.chronoblocks.core.selection.block_filters.BlockFilterPresetManager;
 import com.chronoblocks.core.selection.block_filters.BlockFilters;
 import com.chronoblocks.core.selection.block_filters.BlockFilterRegistry;
 import com.chronoblocks.core.selection.block_filters.FilterIds;
@@ -70,6 +71,8 @@ public class SelectionManager {
     private final BlockFilterPipeline globalPipeline = createInitialPipeline();
 
     private static BlockFilterPipeline createInitialPipeline() {
+        var p = BlockFilterPresetManager.getPreset(FilterIds.PRESET_DEFAULT);
+        if (p != null && !p.isEmpty()) return p;
         BlockFilter f = BlockFilterRegistry.getFilter(FilterIds.EXCLUDE_AIR);
         return new BlockFilterPipeline().add(f != null ? f : BlockFilters.nonAir());
     }

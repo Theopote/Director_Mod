@@ -57,6 +57,15 @@ public final class FilterIds {
     public static final String PRESET_FLUID_EDIT = "fluid_edit";
     public static final String PRESET_REPLACEABLE_EDIT = "replaceable_edit";
 
+    private static final Set<String> BUILTIN_PRESET_IDS = Set.of(
+            PRESET_DEFAULT, PRESET_TERRAIN_EDIT, PRESET_PLANT_EDIT, PRESET_FLUID_EDIT, PRESET_REPLACEABLE_EDIT
+    );
+
+    /** 是否为内置模式 id，保存时禁止使用以避免覆盖。 */
+    public static boolean isBuiltinPresetId(String id) {
+        return id != null && BUILTIN_PRESET_IDS.contains(id);
+    }
+
     /** 规范表已收录的 filterId（含内部 all/none、扩展 luminous*），用于校验/提示 */
     private static final Set<String> KNOWN_FILTER_IDS = Set.of(
             EXCLUDE_AIR, EXCLUDE_WATER, EXCLUDE_LAVA,

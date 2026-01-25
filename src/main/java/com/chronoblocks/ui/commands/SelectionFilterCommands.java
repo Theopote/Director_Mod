@@ -44,10 +44,10 @@ public interface SelectionFilterCommands {
 
     // ---------- 层 1 基础内容过滤（状态型，人话入口） ----------
 
-    /** 某 id 对应的过滤器是否已在管道中；non_air 在空管道时视为已启用。 */
+    /** 某 id 对应的过滤器是否已在管道中（仅查 pipeline，空管道时全为 false；空管道行为=全部通过）。 */
     boolean isFilterEnabled(String id);
 
-    /** 启用/禁用：加入或从管道移除对应过滤器；non_air 禁用且管道变空时写入 all。 */
+    /** 启用/禁用：加入或从管道移除对应过滤器；启用 exclude_air 时会先移除 all；空管道下加非 exclude_air 规则时会先追加 exclude_air。 */
     void setFilterEnabled(String id, boolean enabled);
 
     // ---------- 预设 ----------

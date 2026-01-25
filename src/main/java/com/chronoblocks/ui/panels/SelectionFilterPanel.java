@@ -53,6 +53,9 @@ public class SelectionFilterPanel extends AbstractPanel implements ICommandsAwar
     /** 新建模式名称 */
     private final ImString presetNameInput = new ImString("", 64);
 
+    /** 保存模式被拒绝时的提示（如使用内置名），成功保存后清空 */
+    private String saveBlockedReason = null;
+
     @Override
     public void setCommands(UICommandFacade commands) {
         this.commands = commands;
@@ -153,6 +156,7 @@ public class SelectionFilterPanel extends AbstractPanel implements ICommandsAwar
         boolean enabled = sf.isFilterEnabled(filterId);
         if (ImGui.checkbox(label + "##" + filterId, enabled)) {
             sf.setFilterEnabled(filterId, !enabled);
+            selectedPresetId = "";
             LOGGER.info("[SelectionFilter] {} -> {}", filterId, !enabled);
         }
     }
@@ -164,7 +168,7 @@ public class SelectionFilterPanel extends AbstractPanel implements ICommandsAwar
         ImGui.indent();
 
         Set<String> presetIds = sf.getPresetIds();
-        String current = selectedPresetId.isEmpty() ? "通用编辑（默认）" : FilterIds.getPresetDisplayName(selectedPresetId);
+        String current = selectedPresetId.isEmpty() ? "自定义" : FilterIds.getPresetDisplayName(selectedPresetId);
 
         if (ImGui.beginCombo("当前模式##modeSelect", current)) {
             for (String id : presetIds) {
@@ -189,11 +193,21 @@ public class SelectionFilterPanel extends AbstractPanel implements ICommandsAwar
         ImGui.sameLine();
         if (ImGui.button("保存模式")) {
             String name = presetNameInput.get().trim();
-            if (!name.isEmpty() && !sf.isEmpty()) {
+            saveBlockedReason = null;
+            if (name.isEmpty()) {
+                // 不保存
+            } else if (FilterIds.isBuiltinPresetId(name)) {
+                saveBlockedReason = "不能使用内置模式名（如 default、terrain_edit）";
+            } else if (sf.isEmpty()) {
+                // 不保存空管道
+            } else {
                 sf.savePreset(name);
                 presetNameInput.set("");
                 LOGGER.info("[SelectionFilter] 保存新模式: {}", name);
             }
+        }
+        if (saveBlockedReason != null) {
+            UITheme.label(saveBlockedReason, UITheme.DarkTheme.TEXT_WARNING);
         }
 
         ImGui.unindent();
@@ -224,6 +238,7 @@ public class SelectionFilterPanel extends AbstractPanel implements ICommandsAwar
                 ImGui.sameLine();
                 if (ImGui.button("添加到规则列表")) {
                     sf.appendFilter(filter);
+                    selectedPresetId = "";
                     LOGGER.info("[SelectionFilter] 添加高级规则: {}", selectedFilterId);
                 }
             }
@@ -249,6 +264,7 @@ public class SelectionFilterPanel extends AbstractPanel implements ICommandsAwar
                 ImGui.sameLine(ImGui.getContentRegionMaxX() - 24);
                 if (ImGui.button(Icons.DELETE + "##rm" + i)) {
                     sf.removeFilterAt(i);
+                    selectedPresetId = "";
                     LOGGER.info("[SelectionFilter] 移除规则: {}", name);
                     if (open) ImGui.treePop();
                     break;
@@ -264,9 +280,10 @@ public class SelectionFilterPanel extends AbstractPanel implements ICommandsAwar
         }
 
         ImGui.spacing();
-        if (ImGui.button("清空高级规则")) {
+        if (ImGui.button("清空所有规则")) {
             sf.clear();
-            LOGGER.info("[SelectionFilter] 清空高级规则");
+            selectedPresetId = "";
+            LOGGER.info("[SelectionFilter] 清空所有规则");
         }
 
         ImGui.unindent();

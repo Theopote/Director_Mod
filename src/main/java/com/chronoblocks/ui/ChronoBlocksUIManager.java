@@ -820,7 +820,10 @@ public class ChronoBlocksUIManager {
         
         @Override
         public void appendFilter(com.chronoblocks.core.selection.block_filters.BlockFilter filter) {
-            if (filter != null) getPipeline().add(filter);
+            if (filter == null) return;
+            String id = com.chronoblocks.core.selection.block_filters.BlockFilterRegistry.getFilterId(filter);
+            if (id != null && pipelineContains(id)) return; // 避免重复添加同一规则
+            getPipeline().add(filter);
         }
         
         @Override
