@@ -29,10 +29,12 @@ class ContainerTreeRenderer {
     // 右侧“锁/隐藏”图标区域：两枚 18×18 按钮，右侧留白避开滚动条
     private static final float ICON_BUTTON_SIZE = 18.0f;
     private static final float ICONS_REGION_WIDTH = ICON_BUTTON_SIZE * 2.0f; // 36
-    private static final float ICON_RIGHT_MARGIN = 12.0f; // 与滚动条拉开距离，避免抢点击
+    private static final float ICON_RIGHT_MARGIN = 6.0f; // 与滚动条拉开距离，避免抢点击
     /** 仅用于根级节点：图标区起始偏移至少保留此宽度才绘制行内锁/可见性图标；组内子节点一律不绘（避免抢点击）。 */
     private static final float MIN_LABEL_WIDTH_FOR_ICONS = 80.0f;
     private static final float TREE_NODE_INNER_SPACING = 2.0f; // 树节点内部间距（箭头和文本之间），更紧凑
+    /** 行与行之间的垂直间距（ItemSpacing.y），在 renderTree 内覆写。 */
+    private static final float ROW_SPACING = 2.0f;
     private static final float COLOR_TAG_BAR_WIDTH = 6.0f; // 颜色标签条宽度（4-6px，推荐6px）
     private static final float NAME_BUTTONS_SEPARATOR_PADDING = 6.0f; // 名称与按钮之间的留白
     private static final float NAME_BUTTONS_SEPARATOR_THICKNESS = 1.0f;
@@ -42,6 +44,22 @@ class ContainerTreeRenderer {
     private static final int LOCKED_DISABLED_COLOR = 0xB4787878;
     private static final int VISIBLE_COLOR = 0xFFB4B4B4;
     private static final int VISIBLE_DISABLED_COLOR = 0xB4969696;
+
+    /** 每行背景：未选中深灰，选中明显更亮的中灰，便于区分行与选中态。 */
+    private static final int ROW_BG_DEFAULT = 0xFF252525;
+    private static final int ROW_BG_SELECTED = 0xFF5E5E5E;
+
+    /**
+     * 行高与行距（与 TreeNode 一致，用于行背景等布局）：
+     * <ul>
+     *   <li><b>行高</b>：{@code getTextLineHeight() + getStyle().getFramePadding().y * 2}，
+     *       约 22–24px（视字体）；FramePadding.y = Spacing.BUTTON_PADDING_Y = 3。</li>
+     *   <li><b>行间距</b>：相邻 TreeNode 之间为 {@code ItemSpacing.y}；本树在 {@code renderTree} 内
+     *       覆写为 {@link #ROW_SPACING} = 2px（水平间距保留主题值）。</li>
+     * </ul>
+     * 更精确的实时行高可在 {@code treeNodeEx} 之后用 {@code getItemRectMax().y - getItemRectMin().y} 得到。
+     */
+    // (行高/行距为 ImGui 主题与 TreeNode 行为，此处仅作文档；行背景的 rh 与本公式一致)
 
     private final ContainerPanelController controller;
     private final ContainerPanelState state;
@@ -59,13 +77,18 @@ class ContainerTreeRenderer {
     }
 
     void renderTree(List<Container> roots) {
-        if (roots == null || roots.isEmpty()) {
-            ImGui.textDisabled("(暂无容器)");
-            return;
-        }
-
-        for (Container container : roots) {
-            renderContainerNode(container);
+        float spacingX = ImGui.getStyle().getItemSpacing().x;
+        ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, spacingX, ROW_SPACING);
+        try {
+            if (roots == null || roots.isEmpty()) {
+                ImGui.textDisabled("(暂无容器)");
+                return;
+            }
+            for (Container container : roots) {
+                renderContainerNode(container);
+            }
+        } finally {
+            ImGui.popStyleVar();
         }
     }
 
@@ -120,6 +143,16 @@ class ContainerTreeRenderer {
             // 使用树节点渲染（包含图标和文本的完整 label）
             // ✅ 让文字在“行背景/按钮”中看起来更垂直居中
             ImGui.alignTextToFramePadding();
+
+            // 行背景：未选中深灰，选中中灰；在 TreeNode 之前绘制以保证在文字/图标下层
+            boolean isSelected = controller.isContainerSelected(container.getId());
+            float rx = ImGui.getCursorScreenPosX();
+            float ry = ImGui.getCursorScreenPosY();
+            float rw = ImGui.getContentRegionAvailX();
+            float rh = ImGui.getTextLineHeight() + ImGui.getStyle().getFramePadding().y * 2.0f; // 行高，见类注释
+            int rowBg = isSelected ? ROW_BG_SELECTED : ROW_BG_DEFAULT;
+            ImGui.getWindowDrawList().addRectFilled(rx, ry, rx + rw, ry + rh, rowBg);
+
             boolean nodeOpen = ImGui.treeNodeEx(label, flags);
 
             // 记录这一行的矩形（用于让右侧按钮/分割线与背景垂直居中对齐）
