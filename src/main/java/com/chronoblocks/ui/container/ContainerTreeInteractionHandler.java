@@ -469,8 +469,7 @@ class ContainerTreeInteractionHandler {
     }
 
     private void renderContextMenu_CommonMovementActions(Container container) {
-        renderMenuItem("移到顶层", "", false,
-            () -> controller.moveContainer(container.getId(), null, -1));
+        // 「移到顶层」已由「从组中移出」+ 拖到空白区 覆盖，故移除
         renderMenuItem("上移", "Ctrl+Up", false,
             () -> controller.moveContainerByOffset(container.getId(), -1));
         renderMenuItem("下移", "Ctrl+Down", false,
