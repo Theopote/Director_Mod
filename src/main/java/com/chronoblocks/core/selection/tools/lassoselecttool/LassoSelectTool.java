@@ -41,7 +41,6 @@ public final class LassoSelectTool implements SelectionTool, SelectionOperationS
     private final ToolPreviewManager previewManager = ToolPreviewManager.getInstance();
 
     private SelectionOperation operation = SelectionOperation.NEW;
-    private boolean includeNonSolid = false;
     private boolean drawing = false;
 
     private LassoSelectTask activeTask;
@@ -76,14 +75,6 @@ public final class LassoSelectTool implements SelectionTool, SelectionOperationS
     @Override
     public void setOperation(SelectionOperation operation) {
         this.operation = Objects.requireNonNull(operation, "operation");
-    }
-
-    public boolean isIncludeNonSolid() {
-        return includeNonSolid;
-    }
-
-    public void setIncludeNonSolid(boolean includeNonSolid) {
-        this.includeNonSolid = includeNonSolid;
     }
 
     public boolean isDrawing() {
@@ -258,18 +249,11 @@ public final class LassoSelectTool implements SelectionTool, SelectionOperationS
 
         List<BlockPos> pathSnapshot = new ArrayList<>(currentPath);
         BlockFilter filter = getEffectiveBlockFilter();
-        LassoSelectTask task = new LassoSelectTask(
-            world,
-            pathSnapshot,
-            operation,
-            includeNonSolid,
-            filter
-        );
+        LassoSelectTask task = new LassoSelectTask(world, pathSnapshot, operation, filter);
         activeTask = task;
         task.start();
 
-        LOGGER.info("[LassoSelectTool] 已提交套索任务，顶点数={}，操作={}，includeNonSolid={}",
-            pathSnapshot.size(), operation, includeNonSolid);
+        LOGGER.info("[LassoSelectTool] 已提交套索任务，顶点数={}，操作={}", pathSnapshot.size(), operation);
 
         currentPath.clear();
     }

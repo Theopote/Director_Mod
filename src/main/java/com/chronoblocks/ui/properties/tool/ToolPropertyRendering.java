@@ -199,9 +199,6 @@ public final class ToolPropertyRendering {
             // 1) 套索设置（与魔棒「匹配规则」同级）
             if (ImGui.collapsingHeader(Icons.LASSO + " 套索设置", ImGuiTreeNodeFlags.DefaultOpen)) {
                 ImGui.indent();
-                if (ImGui.checkbox("包含非实体方块##lassoIncludeNonSolid", tool.isIncludeNonSolid())) tool.setIncludeNonSolid(!tool.isIncludeNonSolid());
-                if (ImGui.isItemHovered()) ImGui.setTooltip("草、花等非实体方块也会加入选区。");
-                ImGui.spacing();
                 ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "当前采样点: " + tool.getPathSampleCount());
                 ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "绘制状态: " + (tool.isDrawing() ? "进行中" : "已结束/空闲"));
                 ImGui.unindent();
@@ -248,12 +245,10 @@ public final class ToolPropertyRendering {
                 UITheme.label("提示: 生成后可通过操作模式执行叠加/相减/交集等操作。", UITheme.DarkTheme.TEXT_DISABLED);
                 ImGui.unindent();
             }
-            // 2) 过滤器设置
+            // 2) 过滤器设置（使用全局选择过滤管道；编辑请在「选择过滤」面板）
             if (ImGui.collapsingHeader(Icons.FILTER + " 过滤器设置", ImGuiTreeNodeFlags.DefaultOpen)) {
                 ImGui.indent();
                 ImGui.text(String.format("过滤管线: %d 个过滤器", tool.getPipeline().size()));
-                Runnable r = ctx.getOnRequestShowFilterPanel();
-                if (r != null && ImGui.button("编辑过滤器##brushFilters")) r.run();
                 ImGui.unindent();
             }
             // 3) 底部：选中预览（与魔棒一致）

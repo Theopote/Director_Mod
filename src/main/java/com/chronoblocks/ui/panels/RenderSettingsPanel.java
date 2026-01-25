@@ -69,7 +69,7 @@ public class RenderSettingsPanel extends AbstractPanel {
         new FillStyle("柔光蓝", new float[]{0.3f, 0.7f, 1.0f, 0.25f}, 1.0f),
         new FillStyle("警告黄", new float[]{1.0f, 0.8f, 0.0f, 0.30f}, 1.2f),
         new FillStyle("幽灵绿", new float[]{0.1f, 1.0f, 0.3f, 0.2f}, 0.8f),
-        new FillStyle("默认", new float[]{1.0f, 1.0f, 1.0f, 0.35f}, 1.0f)
+        new FillStyle("默认", new float[]{1.0f, 1.0f, 1.0f, 1.0f}, 1.0f)  // 白色，透明度 100%
     };
     
     /** 当前选择的边框预设索引 */
@@ -394,7 +394,7 @@ public class RenderSettingsPanel extends AbstractPanel {
         rs.selection_bboxFillColor    = new float[]{0.20f, 0.90f, 0.40f, 0.18f};
         rs.selection_bboxOutlineWidth = 1.0f;
 
-        // === 工具预览（线宽 1；面填充透明度 50%）===
+        // === 工具预览（线宽 1；面填充透明度 60%）===
         rs.tool_showFill              = true;
         rs.tool_showOutline           = true;
         rs.tool_enableGreedy          = true;

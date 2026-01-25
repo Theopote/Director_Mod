@@ -46,7 +46,7 @@ public class ClickSelectTool implements SelectionTool, SelectionOperationSupport
 
     @Override
     public String getDescription() {
-        return "单击方块按操作模式处理，Shift+单击为加选。";
+        return "单击选择方块。";
     }
 
     @Override

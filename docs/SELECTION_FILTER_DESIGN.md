@@ -55,7 +55,7 @@ SelectionManager.commit / 工具写入 selectionSet
 | 配置 UI           | `SelectionFilterPanel`，仅调 `selectionFilter().*` |
 | 刷选              | 已移除本地 `pipeline`，统一用全局；`getPipeline()` 只读透出全局供 ToolPropertiesPanel |
 | 面选              | `FaceSelectTask`、`FaceSelectHoverTask` 接收 `BlockFilter`，在扩散/悬停时用 `getEffectiveBlockFilter()` 校验 |
-| 套索              | `LassoSelectTask.fillPolygon` 用 `getEffectiveBlockFilter()` 过滤多边形内方块；`includeNonSolid` 先于管道判断 |
+| 套索              | `LassoSelectTask.fillPolygon` 用 `getEffectiveBlockFilter()` 过滤多边形内方块（与框选、魔棒、刷选、面选一致） |
 
 ## 六、扩展时注意
 

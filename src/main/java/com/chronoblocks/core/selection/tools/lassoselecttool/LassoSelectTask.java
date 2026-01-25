@@ -56,8 +56,7 @@ public final class LassoSelectTask implements Runnable {
     private final World world;
     private final List<BlockPos> path;
     private final SelectionOperation operation;
-    private final boolean includeNonSolid;
-    /** 全局过滤管道（与框选、魔棒、刷选、面选一致） */
+    /** 全局过滤管道（与框选、魔棒、刷选、面选一致）；空气等由管道统一控制。 */
     private final BlockFilter blockFilter;
     private final AtomicBoolean cancelled = new AtomicBoolean(false);
 
@@ -67,7 +66,6 @@ public final class LassoSelectTask implements Runnable {
     public LassoSelectTask(World world,
                            List<BlockPos> path,
                            SelectionOperation operation,
-                           boolean includeNonSolid,
                            BlockFilter blockFilter) {
         this.world = Objects.requireNonNull(world, "world");
         if (path == null || path.size() < 3) {
@@ -80,7 +78,6 @@ public final class LassoSelectTask implements Runnable {
         closePathIfNeeded(this.path);
 
         this.operation = operation != null ? operation : SelectionOperation.NEW;
-        this.includeNonSolid = includeNonSolid;
         this.blockFilter = Objects.requireNonNull(blockFilter, "blockFilter");
 
         computeVerticalBounds();
@@ -198,9 +195,6 @@ public final class LassoSelectTask implements Runnable {
                 for (int y = minY; y <= maxY && !cancelled.get(); y++) {
                     BlockPos pos = new BlockPos(x, y, z);
                     BlockState state = world.getBlockState(pos);
-                    if (!includeNonSolid && state.isAir()) {
-                        continue;
-                    }
                     if (!blockFilter.test(world, pos, state)) {
                         continue;
                     }
