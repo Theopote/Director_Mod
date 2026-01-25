@@ -8,7 +8,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -71,6 +73,11 @@ class ContainerTreeInteractionHandler {
         }
 
         if (isLeftClicked) {
+            // 诊断「组内点不中」：若点不中时此日志从不出现，说明 isItemClicked 未命中（ImGui/叠层）；若出现则问题在 selectContainer 或 SelectionModel
+            if (container.getParent() != null) {
+                LOGGER.debug("[ContainerTree] 组内节点收到左键点击: id={} name={}", container.getId(), container.getName());
+            }
+
             // ✅ 点击其他节点：如果正在编辑另一个节点，按"点击别处提交"的习惯处理
             if (inlineRenamer.isEditing() && !inlineRenamer.isRenaming(container)) {
                 inlineRenamer.requestCommit();
@@ -191,6 +198,7 @@ class ContainerTreeInteractionHandler {
             boolean hasSelection = controller.hasSelection();
             renderMenuItem("将选中容器分组", "Ctrl+G", !hasSelection, controller::groupSelectedContainers);
             renderMenuItem("合并选中容器", "Ctrl+M", !controller.canMergeSelection(), () -> controller.mergeSelection(null));
+            renderContextMenu_MoveToFromGroup();
 
             boolean clipboardEmpty = controller.isClipboardEmpty();
             renderMenuItem("粘贴为根容器", "Ctrl+V", clipboardEmpty, () -> controller.pasteClipboard(null, -1));
@@ -247,6 +255,7 @@ class ContainerTreeInteractionHandler {
 
         ImGui.separator();
         renderContextMenu_CommonOrganizationActions();
+        renderContextMenu_MoveToFromGroup();
 
         ImGui.separator();
         // 组特有：新建子容器
@@ -281,6 +290,7 @@ class ContainerTreeInteractionHandler {
 
         ImGui.separator();
         renderContextMenu_CommonOrganizationActions();
+        renderContextMenu_MoveToFromGroup();
 
         ImGui.separator();
         renderContextMenu_CommonMovementActions(container);
@@ -385,6 +395,77 @@ class ContainerTreeInteractionHandler {
             controller.getState().setPendingDeletionRequested(true);
             ImGui.closeCurrentPopup();
         });
+    }
+
+    /**
+     * 「移动到组」：有选中且存在可目标组时，子菜单列出组，选后 moveContainers(ids, groupId, -1)。
+     * 「从组中移出」：有选中且至少一个在组内时，移到上一级（按目标父级分批 moveContainers）。
+     * 仅在 hasSelection 且（存在可移动到的组 或 存在在组内的选中）时显示本区块。
+     */
+    private void renderContextMenu_MoveToFromGroup() {
+        if (!controller.hasSelection()) return;
+        java.util.Collection<Container> selected = controller.getSelectedContainers();
+        List<Container> validGroups = collectValidTargetGroups(selected);
+        boolean anyInGroup = selected.stream().anyMatch(c -> c.getParent() != null);
+        if (validGroups.isEmpty() && !anyInGroup) return;
+
+        ImGui.separator();
+        if (!validGroups.isEmpty()) {
+            if (ImGui.beginMenu("移动到组")) {
+                for (Container g : validGroups) {
+                    if (ImGui.menuItem(g.getName())) {
+                        List<UUID> ids = selected.stream().map(Container::getId).toList();
+                        controller.moveContainers(ids, g.getId(), -1);
+                        LOGGER.debug("[ContainerTreeInteractionHandler] 将 {} 个容器移动到组: {}", ids.size(), g.getName());
+                    }
+                }
+                ImGui.endMenu();
+            }
+        }
+        if (anyInGroup) {
+            renderMenuItem("从组中移出", "", false, this::executeMoveOutOfGroup);
+        }
+    }
+
+    /** 从根递归收集 GROUP，并排除：自身在选中中、或为任一选中容器的后代（不可移入）。 */
+    private List<Container> collectValidTargetGroups(java.util.Collection<Container> selected) {
+        List<Container> out = new ArrayList<>();
+        for (Container root : controller.getRootContainers()) {
+            collectValidGroupsRec(root, selected, out);
+        }
+        return out;
+    }
+
+    private void collectValidGroupsRec(Container c, java.util.Collection<Container> selected, List<Container> out) {
+        if (c.getType() == ContainerType.GROUP) {
+            boolean invalid = selected.contains(c);
+            if (!invalid) {
+                for (Container s : selected) {
+                    if (c.isDescendantOf(s)) { invalid = true; break; }
+                }
+            }
+            if (!invalid) out.add(c);
+        }
+        for (Container child : c.getChildren()) {
+            collectValidGroupsRec(child, selected, out);
+        }
+    }
+
+    private void executeMoveOutOfGroup() {
+        java.util.Collection<Container> selected = controller.getSelectedContainers();
+        Map<UUID, List<UUID>> byTarget = new HashMap<>(); // key: 目标父级 id，null 表示根
+        for (Container c : selected) {
+            Container p = c.getParent();
+            if (p == null) continue;
+            UUID grandparent = (p.getParent() != null) ? p.getParent().getId() : null;
+            byTarget.computeIfAbsent(grandparent, k -> new ArrayList<>()).add(c.getId());
+        }
+        for (Map.Entry<UUID, List<UUID>> e : byTarget.entrySet()) {
+            controller.moveContainers(e.getValue(), e.getKey(), -1);
+        }
+        if (!byTarget.isEmpty()) {
+            LOGGER.debug("[ContainerTreeInteractionHandler] 从组中移出: {} 个目标父级", byTarget.size());
+        }
     }
 
     private void renderContextMenu_CommonMovementActions(Container container) {
