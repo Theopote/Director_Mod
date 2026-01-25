@@ -274,9 +274,11 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
                 ImGui.text("快捷键：P");
                 ImGui.endTooltip();
             }
-            // 按 icon 包围盒与 rect 中心对齐，不用 baseline
             imgui.ImVec2 rMin = ImGui.getItemRectMin();
             imgui.ImVec2 rMax = ImGui.getItemRectMax();
+            // 1px 浅色边框，与全局按钮一致（此按钮无填充，仅边框+箭头）
+            ImGui.getWindowDrawList().addRect(rMin.x, rMin.y, rMax.x, rMax.y, ImGui.getColorU32(ImGuiCol.Border), ImGui.getStyle().getFrameRounding(), 0, 1.0f);
+            // 按 icon 包围盒与 rect 中心对齐，不用 baseline
             imgui.ImVec2 sz = ImGui.calcTextSize(Icons.CHEVRON_RIGHT);
             float ix = rMin.x + (rMax.x - rMin.x - sz.x) * 0.5f;
             float iy = rMin.y + (rMax.y - rMin.y - sz.y) * 0.5f;
@@ -376,10 +378,11 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
         }
         imgui.ImVec2 cMin = ImGui.getItemRectMin();
         imgui.ImVec2 cMax = ImGui.getItemRectMax();
-        // 背景框，像按钮；使用主题 Button/ButtonHovered/ButtonActive
+        // 背景框，像按钮；使用主题 Button/ButtonHovered/ButtonActive + 1px 浅色边框（与全局 frame 一致）
         int bgCol = ImGui.getColorU32(ImGui.isItemActive() ? ImGuiCol.ButtonActive : ImGui.isItemHovered() ? ImGuiCol.ButtonHovered : ImGuiCol.Button);
         float rounding = ImGui.getStyle().getFrameRounding();
         ImGui.getWindowDrawList().addRectFilled(cMin.x, cMin.y, cMax.x, cMax.y, bgCol, rounding);
+        ImGui.getWindowDrawList().addRect(cMin.x, cMin.y, cMax.x, cMax.y, ImGui.getColorU32(ImGuiCol.Border), rounding, 0, 1.0f);
         // 图标
         imgui.ImVec2 cSz = ImGui.calcTextSize(Icons.CHEVRON_LEFT);
         float cIx = cMin.x + (cMax.x - cMin.x - cSz.x) * 0.5f;

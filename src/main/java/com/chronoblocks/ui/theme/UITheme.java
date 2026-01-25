@@ -34,7 +34,8 @@ public class UITheme {
         public static final int TEXT_WARNING = rgba(255, 200, 0, 255);        // 警告文本（黄色）
         
         // 边框色
-        public static final int BORDER = rgba(48, 48, 48, 255);              // 边框
+        /** 边框（窗口、弹出框、按钮/输入框等 frame 的 1px 描边）；浅色以便在深色按钮上可见。 */
+        public static final int BORDER = rgba(90, 90, 90, 255);
         public static final int BORDER_SHADOW = rgba(0, 0, 0, 80);           // 边框阴影
         
         // 按钮色
@@ -294,11 +295,11 @@ public class UITheme {
         style.setGrabRounding(Rounding.SMALL);
         style.setTabRounding(Rounding.SMALL);
         
-        // 边框
+        // 边框（1px 浅色描边，使按钮/输入框等 frame 轮廓更清晰）
         style.setWindowBorderSize(1.0f);
         style.setChildBorderSize(0.0f);
         style.setPopupBorderSize(1.0f);
-        style.setFrameBorderSize(0.0f);
+        style.setFrameBorderSize(1.0f);
         style.setTabBorderSize(0.0f);
         
         // 滚动条
