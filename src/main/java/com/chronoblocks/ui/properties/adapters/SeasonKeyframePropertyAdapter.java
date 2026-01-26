@@ -109,6 +109,7 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
         // 1. 基础信息
         // ===========================================================
         if (ImGui.collapsingHeader(Icons.INFO + " 基础信息", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             timeFloat.set(keyframe.getTime());
             if (ImGui.dragFloat("时间位置", timeFloat.getData(), 0.05f, 0f, 10000f, "%.2fs")) {
                 keyframe.setTime(timeFloat.get());
@@ -116,12 +117,14 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
             }
             ImGui.textDisabled("关键帧在时间线上的位置");
             UITheme.spacingSmall();
+            ImGui.unindent();
         }
 
         // ===========================================================
         // 2. 季节类型（预设）
         // ===========================================================
         if (ImGui.collapsingHeader(Icons.COLOR + " 季节类型", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             seasonTypeIndex.set(keyframe.getSeasonType().ordinal());
             SeasonKeyframe.SeasonType[] types = SeasonKeyframe.SeasonType.values();
 
@@ -166,12 +169,14 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
                 paramChanged.set(true);
             }
             UITheme.spacingSmall();
+            ImGui.unindent();
         }
 
         // ===========================================================
         // 3. 积雪控制（v4.0 新增）
         // ===========================================================
         if (ImGui.collapsingHeader("❄ 积雪控制", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             snowAmountFloat.set(keyframe.getSnowAmount());
             if (ImGui.sliderFloat("雪覆盖度", snowAmountFloat.getData(), 0f, 1f, "%.2f")) {
                 keyframe.setSnowAmount(snowAmountFloat.get());
@@ -196,12 +201,14 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
             ImGui.textDisabled("• 0 = 无厚度，10 = 最大厚度（大多数区域覆盖此层数，使用正态分布扰动）");
             ImGui.textDisabled("• 季节过渡通过关键帧之间的插值自动实现");
             UITheme.spacingSmall();
+            ImGui.unindent();
         }
 
         // ===========================================================
         // 4. 冰冻控制（v4.0 新增）
         // ===========================================================
         if (ImGui.collapsingHeader("🧊 冰冻控制", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             freezeStrengthFloat.set(keyframe.getFreezeStrength());
             if (ImGui.sliderFloat("冰覆盖度", freezeStrengthFloat.getData(), 0f, 1f, "%.2f")) {
                 keyframe.setFreezeStrength(freezeStrengthFloat.get());
@@ -210,12 +217,14 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
             ImGui.textDisabled("• 0.0 = 没有覆盖，1.0 = 几乎全覆盖（区域内的占比概率）");
             ImGui.textDisabled("• 季节过渡通过关键帧之间的插值自动实现");
             UITheme.spacingSmall();
+            ImGui.unindent();
         }
 
         // ===========================================================
         // 5. 颜色 Tint 控制
         // ===========================================================
         if (ImGui.collapsingHeader(Icons.PALETTE + " 颜色与光照", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             int flags = ImGuiColorEditFlags.DisplayRGB
                     | ImGuiColorEditFlags.InputRGB
                     | ImGuiColorEditFlags.PickerHueWheel
@@ -264,12 +273,14 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
                 paramChanged.set(true);
             }
             UITheme.spacingSmall();
+            ImGui.unindent();
         }
 
         // ===========================================================
         // 6. 插值方式
         // ===========================================================
         if (ImGui.collapsingHeader(Icons.INTERPOLATION + " 插值设置", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             SeasonKeyframe.Interpolation[] types = SeasonKeyframe.Interpolation.values();
             interpolationIndex.set(keyframe.getInterpolation().ordinal());
 
@@ -282,6 +293,7 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
             ImGui.textDisabled("• 平滑：缓入缓出");
             ImGui.textDisabled("• 曲线：Catmull-Rom 样条");
             UITheme.spacingSmall();
+            ImGui.unindent();
         }
 
         // ===========================================================

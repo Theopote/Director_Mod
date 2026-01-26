@@ -135,6 +135,7 @@ public class EntityKeyframePropertyAdapter implements IPropertyAdapter<EntityKey
         // ⏱ 基础信息
         // ==========================================================
         if (ImGui.collapsingHeader(Icons.INFO + " 基础信息", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             timeFloat.set(kf.getTime());
             if (ImGui.dragFloat("时间 (秒)", timeFloat.getData(), 0.02f, 0, 10_000f, "%.2f")) {
                 kf.setTime(timeFloat.get());
@@ -181,12 +182,14 @@ public class EntityKeyframePropertyAdapter implements IPropertyAdapter<EntityKey
             }
 
             UITheme.spacingSmall();
+            ImGui.unindent();
         }
 
         // ==========================================================
         // 📍 位置和旋转
         // ==========================================================
         if (ImGui.collapsingHeader(Icons.PIN + " 位置和旋转", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             Vector3f pos = kf.getPosition();
             posXFloat.set(pos.x);
             posYFloat.set(pos.y);
@@ -237,12 +240,14 @@ public class EntityKeyframePropertyAdapter implements IPropertyAdapter<EntityKey
             }
 
             UITheme.spacingSmall();
+            ImGui.unindent();
         }
 
         // ==========================================================
         // 🎬 动作和状态
         // ==========================================================
         if (ImGui.collapsingHeader(Icons.ANIMATION + " 动作和状态", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             // 动作类型
             actionTypeIndex.set(kf.getActionType().ordinal());
             EntityKeyframe.ActionType[] actionTypes = EntityKeyframe.ActionType.values();
@@ -300,12 +305,14 @@ public class EntityKeyframePropertyAdapter implements IPropertyAdapter<EntityKey
             }
 
             UITheme.spacingSmall();
+            ImGui.unindent();
         }
 
         // ==========================================================
         // 🏷️ 行为和交互
         // ==========================================================
         if (ImGui.collapsingHeader(Icons.TAG + " 行为和交互")) {
+            ImGui.indent();
             // 激活状态
             activeBool.set(kf.isActive());
             if (ImGui.checkbox("激活", activeBool)) {
@@ -350,6 +357,7 @@ public class EntityKeyframePropertyAdapter implements IPropertyAdapter<EntityKey
             }
 
             UITheme.spacingSmall();
+            ImGui.unindent();
         }
 
         // ==========================================================

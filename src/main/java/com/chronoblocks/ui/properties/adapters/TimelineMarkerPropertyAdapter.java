@@ -52,6 +52,7 @@ public class TimelineMarkerPropertyAdapter implements IPropertyAdapter<TimelineM
         
         // ========== 基础信息 ==========
         if (ImGui.collapsingHeader(Icons.INFO + " 基础信息", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             // 时间位置
             timeFloat.set(marker.getTime());
             if (ImGui.dragFloat("时间位置", timeFloat.getData(), 0.02f, 0.0f, 10_000f, "%.2fs")) {
@@ -79,10 +80,12 @@ public class TimelineMarkerPropertyAdapter implements IPropertyAdapter<TimelineM
             }
             
             UITheme.spacingSmall();
+            ImGui.unindent();
         }
         
         // ========== 外观设置 ==========
         if (ImGui.collapsingHeader(Icons.PALETTE + " 外观设置", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             // 预设颜色色卡
             ImGui.text("预设颜色：");
             UITheme.spacingSmall();
@@ -184,10 +187,12 @@ public class TimelineMarkerPropertyAdapter implements IPropertyAdapter<TimelineM
             }
             
             UITheme.spacingSmall();
+            ImGui.unindent();
         }
         
         // ========== 描述/注释 ==========
         if (ImGui.collapsingHeader(Icons.INFO + " 描述/注释")) {
+            ImGui.indent();
             String currentNote = marker.getNote();
             if (currentNote == null) {
                 currentNote = "";
@@ -205,6 +210,7 @@ public class TimelineMarkerPropertyAdapter implements IPropertyAdapter<TimelineM
             }
             
             UITheme.spacingSmall();
+            ImGui.unindent();
         }
         
         return modified.get();

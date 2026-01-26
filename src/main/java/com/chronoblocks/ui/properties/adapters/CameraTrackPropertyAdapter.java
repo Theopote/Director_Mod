@@ -76,27 +76,37 @@ public class CameraTrackPropertyAdapter implements IPropertyAdapter<TimelineTrac
         
         // ========== 画幅比例 ==========
         if (ImGui.collapsingHeader(Icons.SCALE + " 画幅比例 (Aspect Ratio)", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             renderAspectRatioSection(profile, modifiedRef);
+            ImGui.unindent();
         }
         
         // ========== 安全区 ==========
         if (ImGui.collapsingHeader(Icons.SHIELD + " 构图安全区 (Safe Area)", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             renderSafeAreaSection(profile, modifiedRef);
+            ImGui.unindent();
         }
         
         // ========== 预览分辨率 ==========
         if (ImGui.collapsingHeader(Icons.PREVIEW + " 预览分辨率 (Preview Resolution)", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             renderPreviewResolutionSection(profile, modifiedRef);
+            ImGui.unindent();
         }
         
         // ========== 预览选项 ==========
         if (ImGui.collapsingHeader(Icons.FILM + " 预览选项")) {
+            ImGui.indent();
             renderPreviewOptionsSection(profile, modifiedRef);
+            ImGui.unindent();
         }
         
         // ========== 参考线选项 ==========
         if (ImGui.collapsingHeader(Icons.GRID + " 参考线与网格")) {
+            ImGui.indent();
             renderGuideLinesSection(profile, modifiedRef);
+            ImGui.unindent();
         }
         
         return modifiedRef[0];

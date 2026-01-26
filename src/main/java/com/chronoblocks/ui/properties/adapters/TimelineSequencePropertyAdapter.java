@@ -548,40 +548,6 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
         }
     }
     
-    private float[] getFloatArrayProperty(Object obj, String fieldName, String getterName) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            Object result = method.invoke(obj);
-            return result instanceof float[] ? (float[]) result : null;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                return result instanceof float[] ? (float[]) result : null;
-            } catch (Exception ex) {
-                return null;
-            }
-        }
-    }
-    
-    private boolean setFloatArrayProperty(Object obj, String fieldName, String setterName, float[] value) {
-        try {
-            var method = obj.getClass().getMethod(setterName, float[].class);
-            method.invoke(obj, (Object) value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
     /**
      * 调用无参方法
      */

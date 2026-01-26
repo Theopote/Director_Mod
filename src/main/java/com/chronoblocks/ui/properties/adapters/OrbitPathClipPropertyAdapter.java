@@ -206,6 +206,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
         boolean modified = false;
         
         if (ImGui.collapsingHeader(Icons.TARGET + " 围绕中心", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             // Center
             ImGui.text("Center");
             Vec3d center = clip.getCenter();
@@ -280,6 +281,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
                     ImGui.textColored(1.0f, 0.8f, 0.0f, 1.0f, Icons.CROSSHAIR + " 点击世界中的方块");
                 }
             }
+            ImGui.unindent();
         }
         
         return modified;
@@ -292,6 +294,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
         boolean modified = false;
         
         if (ImGui.collapsingHeader(Icons.SCALE + " 运动形态", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             // Radius（模式选择 + Slider）
             ImGui.text("Radius");
             
@@ -442,6 +445,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
                     modified = true;
                 }
             }
+            ImGui.unindent();
         }
         
         return modified;
@@ -477,6 +481,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
         boolean modified = false;
         
         if (ImGui.collapsingHeader(Icons.ROTATE + " 角度区间", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             // ⭐ 快捷按钮：Full Orbit / 90° Sweep / 180° Sweep
             if (ImGui.button("Full Orbit (0° - 360°)")) {
                 clip.setStartAngle(0f);
@@ -608,6 +613,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
             
             // ⭐ 注意：起始角模式选择已在上面实现（From Current Camera Position / Custom Angle）
             // 移除了旧的 checkbox，现在起始角、半径、高度都使用统一的模式选择 UI
+            ImGui.unindent();
         }
         
         return modified;

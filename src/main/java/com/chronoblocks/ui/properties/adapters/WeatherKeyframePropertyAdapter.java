@@ -133,6 +133,7 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
         // ⏱ 基础信息
         // ==========================================================
         if (ImGui.collapsingHeader(Icons.INFO + " 基础信息", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             timeFloat.set(kf.getTime());
             if (ImGui.dragFloat("时间 (秒)", timeFloat.getData(), 0.02f, 0, 10_000f, "%.2f")) {
                 kf.setTime(timeFloat.get());
@@ -179,12 +180,14 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
             }
 
             UITheme.spacingSmall();
+            ImGui.unindent();
         }
 
         // ==========================================================
         // 🌧 降水 (Precipitation)
         // ==========================================================
         if (ImGui.collapsingHeader(Icons.PARTICLE + " 降水 (Precipitation)", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
 
             // 雨强度
             rainFloat.set(kf.getRainIntensity());
@@ -343,12 +346,14 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
             }
 
             UITheme.spacingSmall();
+            ImGui.unindent();
         }
 
         // ==========================================================
         // 🌬 风 (Wind)
         // ==========================================================
         if (ImGui.collapsingHeader("\uD83C\uDF2C 风 (Wind)", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
 
             // 风强度
             windFloat.set(kf.getWindStrength());
@@ -398,12 +403,14 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
             }
 
             UITheme.spacingSmall();
+            ImGui.unindent();
         }
 
         // ==========================================================
         // ⛈ 雷暴 (Thunderstorm)
         // ==========================================================
         if (ImGui.collapsingHeader(Icons.LIGHTNING + " 雷暴 (Thunderstorm)")) {
+            ImGui.indent();
 
             // 雷暴强度
             thunderFloat.set(kf.getThunderIntensity());
@@ -452,12 +459,14 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
             }
 
             UITheme.spacingSmall();
+            ImGui.unindent();
         }
 
         // ==========================================================
         // 🌌 天空/光照 (Sky / Lighting)
         // ==========================================================
         if (ImGui.collapsingHeader(Icons.LIGHT + " 天空/光照 (Sky / Lighting)")) {
+            ImGui.indent();
 
             // 天空变暗（使用 stormDarkness，这是现有的字段）
             stormDarknessFloat.set(kf.getStormDarkness());
@@ -477,6 +486,7 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
             // 如果未来需要区分，可以在这里添加
 
             UITheme.spacingSmall();
+            ImGui.unindent();
         }
 
         // ==========================================================

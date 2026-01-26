@@ -141,6 +141,7 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
         boolean modified = false;
         
         if (ImGui.collapsingHeader("Timing", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             ImGui.beginDisabled();
             float startTime = clip.getStartTime();
             float endTime = clip.getEndTime();
@@ -152,6 +153,7 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
             ImGui.endDisabled();
             
             ImGui.textDisabled("Edit timing on the timeline.");
+            ImGui.unindent();
         }
         
         return modified;
@@ -165,6 +167,7 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
         boolean modified = false;
         
         if (ImGui.collapsingHeader("Motion", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             // ⭐ 方向提示：在 slider 上方显示方向语义
             ImGui.textDisabled(Icons.ARROW_LEFT + " Pull Back");
             ImGui.sameLine();
@@ -205,6 +208,7 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
             
             // ⭐ 微调提示：告诉用户如何精确调整
             ImGui.textDisabled("Tip: Hold Ctrl for fine adjustment");
+            ImGui.unindent();
         }
         
         return modified;
@@ -218,6 +222,7 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
         boolean modified = false;
         
         if (ImGui.collapsingHeader("Direction", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             DollyPathClip.DirectionMode mode = clip.getDirectionMode();
             
             // ⭐ 语义化选项 1：沿镜头朝向（最常用，标记为推荐）
@@ -284,6 +289,7 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
                 }
                 ImGui.unindent();
             }
+            ImGui.unindent();
         }
         
         return modified;
@@ -296,6 +302,7 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
         boolean modified = false;
         
         if (ImGui.collapsingHeader("Advanced", ImGuiTreeNodeFlags.None)) {
+            ImGui.indent();
             ImBoolean align = new ImBoolean(clip.isAlignStartToCurrentPosition());
             if (ImGui.checkbox("Align start to current camera", align)) {
                 clip.setAlignStartToCurrentPosition(align.get());
@@ -307,6 +314,7 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
             
             // 调试信息（可折叠）
             if (ImGui.collapsingHeader("Debug Info", ImGuiTreeNodeFlags.None)) {
+                ImGui.indent();
                 Vec3d startPos = clip.getStartPosition();
                 Vec3d dollyDir = clip.getDollyDirection();
                 if (startPos != null && dollyDir != null) {
@@ -323,7 +331,9 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
                     alignFromCurrentCamera(clip);
                     modified = true;
                 }
+                ImGui.unindent(); // Debug Info 的缩进
             }
+            ImGui.unindent(); // Advanced 的缩进
         }
         
         return modified;

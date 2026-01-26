@@ -76,23 +76,33 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
         UITheme.title(Icons.FOLDER + " 组属性编辑器");
 
         if (ImGui.collapsingHeader(Icons.CLIPBOARD + " 基本信息", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             modified |= renderNameAndTypeSection(container, false);
+            ImGui.unindent();
         }
 
         if (ImGui.collapsingHeader(Icons.VISIBLE + " 显示与控制", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             modified |= renderVisibilityAndLockSection(container);
+            ImGui.unindent();
         }
 
         if (ImGui.collapsingHeader(Icons.CHART + " 内容统计", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             renderGroupContentStatistics(container);
+            ImGui.unindent();
         }
 
         if (ImGui.collapsingHeader(Icons.PARENT + " 层级结构", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             renderHierarchySection(container);
+            ImGui.unindent();
         }
 
         if (ImGui.collapsingHeader(Icons.CALENDAR + " 元数据")) {
+            ImGui.indent();
             renderMetadataSection(container);
+            ImGui.unindent();
         }
 
         return modified;
@@ -103,10 +113,13 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
         UITheme.title(Icons.CONTAINER + " 容器属性编辑器");
 
         if (ImGui.collapsingHeader(Icons.CLIPBOARD + " 基本信息", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             modified |= renderNameAndTypeSection(container, true);
+            ImGui.unindent();
         }
 
         if (ImGui.collapsingHeader(Icons.VISIBLE + " 视觉属性", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             modified |= renderVisibilityAndLockSection(container);
 
             float[] opacity = {container.getOpacity()};
@@ -143,26 +156,37 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip("容器在编辑器中的标记颜色");
             }
+            ImGui.unindent();
         }
 
         if (ImGui.collapsingHeader(Icons.ANIMATION + " 动画模式")) {
+            ImGui.indent();
             modified |= renderAnimationSection(container);
+            ImGui.unindent();
         }
 
         if (ImGui.collapsingHeader(Icons.RULER + " 边界信息")) {
+            ImGui.indent();
             renderBoundingBoxSection(container);
+            ImGui.unindent();
         }
 
         if (ImGui.collapsingHeader(Icons.CHART + " 统计信息")) {
+            ImGui.indent();
             renderStatisticsSection(container);
+            ImGui.unindent();
         }
 
         if (ImGui.collapsingHeader(Icons.PARENT + " 层级结构")) {
+            ImGui.indent();
             renderHierarchySection(container);
+            ImGui.unindent();
         }
 
         if (ImGui.collapsingHeader(Icons.CALENDAR + " 元数据")) {
+            ImGui.indent();
             renderMetadataSection(container);
+            ImGui.unindent();
         }
 
         UITheme.separator();

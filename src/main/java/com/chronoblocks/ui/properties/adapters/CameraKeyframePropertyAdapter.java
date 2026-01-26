@@ -82,6 +82,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
     private void basicInfoSection(CameraKeyframe kf, AtomicBoolean changed) {
         if (!ImGui.collapsingHeader(Icons.CLIPBOARD + " 基础信息", ImGuiTreeNodeFlags.DefaultOpen))
             return;
+        ImGui.indent();
 
         // ----- 时间 -----
         f1.set(kf.getTime());
@@ -103,6 +104,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
             changed.set(true);
         }
         tooltip("决定关键帧 UI、拐角行为、是否需要控制柄等");
+        ImGui.unindent();
     }
 
     // ============================================================================
@@ -111,6 +113,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
     private void interpolationSection(CameraKeyframe kf, AtomicBoolean changed) {
         if (!ImGui.collapsingHeader(Icons.INTERPOLATION + " 插值选项 (位置/旋转)", ImGuiTreeNodeFlags.DefaultOpen))
             return;
+        ImGui.indent();
 
         // --- Segment Path Type（位置曲线） ---
         String[] segLabels = {"Default", "Linear", "Catmull-Rom", "Bezier", "Step", "Hold"};
@@ -149,6 +152,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
                 - Linear：四元数 Slerp
                 - Step：维持上一帧
                 """);
+        ImGui.unindent();
     }
 
     // ============================================================================
@@ -157,6 +161,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
     private void transformSection(CameraKeyframe kf, AtomicBoolean changed) {
         if (!ImGui.collapsingHeader(Icons.TRANSFORM + " 位置与旋转", ImGuiTreeNodeFlags.DefaultOpen))
             return;
+        ImGui.indent();
 
         // ---- Capture 按钮 ----
         if (ImGui.button(Icons.CAMERA + " 从当前视角捕获", -1, 0)) {
@@ -180,6 +185,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
                 "摄像机欧拉角（度）")) {
             changed.set(true);
         }
+        ImGui.unindent();
     }
 
     // ============================================================================
@@ -191,6 +197,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
         
         if (!show || !ImGui.collapsingHeader(Icons.BEZIER + " Bezier 控制柄", ImGuiTreeNodeFlags.DefaultOpen))
             return;
+        ImGui.indent();
 
         // 手柄模式
         String[] modeLabels = {"自动", "自由", "对齐"};
@@ -253,6 +260,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
         ImGui.spacing();
         ImGui.text("提示：控制柄为相对坐标（相对于关键帧本身的位置）");
         ImGui.text("若为 (0,0,0)，则 TimelineCameraPathManager 会使用自动生成的控制柄");
+        ImGui.unindent();
     }
 
     // ============================================================================
@@ -261,6 +269,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
     private void projectionSection(CameraKeyframe kf, AtomicBoolean changed) {
         if (!ImGui.collapsingHeader(Icons.CAMERA + " 投影参数", ImGuiTreeNodeFlags.DefaultOpen))
             return;
+        ImGui.indent();
 
         // FOV
         f1.set(kf.getFov());
@@ -301,6 +310,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
         if (kf.getNearPlane() >= kf.getFarPlane()) {
             UITheme.label("⚠ Near 应小于 Far", UITheme.DarkTheme.TEXT_WARNING);
         }
+        ImGui.unindent();
     }
 
     // ============================================================================
@@ -309,6 +319,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
     private void depthOfFieldSection(CameraKeyframe kf, AtomicBoolean changed) {
         if (!ImGui.collapsingHeader(Icons.EFFECT + " 景深 Depth of Field"))
             return;
+        ImGui.indent();
 
         // 复用 ImBoolean 对象
         dofEnabled.set(kf.isDepthOfFieldEnabled());
@@ -318,10 +329,10 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
         }
         tooltip("启用景深效果，模拟相机模糊");
 
-        if (!dofEnabled.get())
+        if (!dofEnabled.get()) {
+            ImGui.unindent();
             return;
-
-        ImGui.indent();
+        }
 
         // 焦距
         f1.set(kf.getFocusDistance());
@@ -345,7 +356,8 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
         }
         tooltip("光圈值，控制模糊强度");
 
-        ImGui.unindent();
+        ImGui.unindent(); // 嵌套的启用景深后的缩进
+        ImGui.unindent(); // collapsingHeader 的缩进
     }
 
     // ============================================================================

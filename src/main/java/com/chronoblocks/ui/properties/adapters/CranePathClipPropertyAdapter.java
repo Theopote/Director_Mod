@@ -133,6 +133,7 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
         boolean modified = false;
         
         if (ImGui.collapsingHeader("Timing", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             ImGui.beginDisabled();
             float startTime = clip.getStartTime();
             float endTime = clip.getEndTime();
@@ -144,6 +145,7 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
             ImGui.endDisabled();
             
             ImGui.textDisabled("Edit timing on the timeline.");
+            ImGui.unindent();
         }
         
         return modified;
@@ -157,6 +159,7 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
         boolean modified = false;
         
         if (ImGui.collapsingHeader("Motion", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             // ⭐ 方向提示：在 slider 上方显示升降语义
             ImGui.textDisabled(Icons.ARROW_DOWN + " Down");
             ImGui.sameLine();
@@ -201,6 +204,7 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
             
             // ⭐ 微调提示：告诉用户如何精确调整
             ImGui.textDisabled("Tip: Hold Ctrl for fine adjustment");
+            ImGui.unindent();
         }
         
         return modified;
@@ -213,6 +217,7 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
         boolean modified = false;
         
         if (ImGui.collapsingHeader("Advanced", ImGuiTreeNodeFlags.None)) {
+            ImGui.indent();
             ImBoolean align = new ImBoolean(clip.isAlignStartToCurrentPosition());
             if (ImGui.checkbox("Align start to current camera", align)) {
                 clip.setAlignStartToCurrentPosition(align.get());
@@ -224,6 +229,7 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
             
             // 调试信息（可折叠）
             if (ImGui.collapsingHeader("Debug Info", ImGuiTreeNodeFlags.None)) {
+                ImGui.indent();
                 Vec3d startPos = clip.getStartPosition();
                 if (startPos != null) {
                     ImGui.textDisabled(String.format("Start Position: (%.2f, %.2f, %.2f)", 
@@ -237,7 +243,9 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
                     alignFromCurrentCamera(clip);
                     modified = true;
                 }
+                ImGui.unindent(); // Debug Info 的缩进
             }
+            ImGui.unindent(); // Advanced 的缩进
         }
         
         return modified;

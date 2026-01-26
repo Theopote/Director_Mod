@@ -173,7 +173,9 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
 
         // 1. 基础设置组 - 默认展开
         if (ImGui.collapsingHeader(Icons.SETTINGS + " 基础设置", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             modified |= renderBasicProperties(clip);
+            ImGui.unindent();
             //UITheme.spacing();
         }
 
@@ -182,15 +184,19 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
 
         // 2. 序列行为组 - 默认展开
         if (ImGui.collapsingHeader(Icons.LAYERS + " 序列行为", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             sequenceModified = renderSequenceBehavior(clip);
             modified |= sequenceModified;
+            ImGui.unindent();
             //UITheme.spacing();
         }
 
         // 3. 动画设置组 - 默认展开
         if (ImGui.collapsingHeader(Icons.ANIMATION + " 动画设置", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             animationModified = renderAnimationSettings(clip);
             modified |= animationModified;
+            ImGui.unindent();
             //UITheme.spacing();
         }
 
@@ -202,7 +208,9 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
             effectsHeader += " (" + effects.size() + ")";
         }
         if (ImGui.collapsingHeader(effectsHeader, ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
             modified |= renderEffectsSection(clip);
+            ImGui.unindent();
             //UITheme.spacing();
         }
 

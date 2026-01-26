@@ -101,6 +101,7 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
         try {
             // ========== 基本信息 ==========
             if (ImGui.collapsingHeader("📋 基本信息", ImGuiTreeNodeFlags.DefaultOpen)) {
+                ImGui.indent();
                 // 轨道名称
                 String currentName = getStringProperty(track, "name", "getName", "未命名轨道");
                 ImString nameBuffer = new ImString(currentName, 256);
@@ -137,10 +138,12 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
                 if (id != null) {
                     UITheme.label("轨道 ID: " + id, UITheme.DarkTheme.TEXT_DISABLED);
                 }
+                ImGui.unindent();
             }
             
             // ========== 容器绑定 ==========
             if (ImGui.collapsingHeader("📦 容器绑定")) {
+                ImGui.indent();
                 String currentContainer = getStringProperty(track, "boundContainerName", "getBoundContainerName", "(未绑定)");
                 ImString containerBuffer = new ImString(currentContainer, 256);
                 if (ImGui.inputText("绑定容器", containerBuffer, ImGuiInputTextFlags.EnterReturnsTrue)) {
@@ -174,10 +177,12 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
                 if (ImGui.isItemHovered()) {
                     ImGui.setTooltip("移除容器绑定");
                 }
+                ImGui.unindent();
             }
             
             // ========== 混合与权重 ==========
             if (ImGui.collapsingHeader("🎨 混合与权重", ImGuiTreeNodeFlags.DefaultOpen)) {
+                ImGui.indent();
                 // 混合模式
                 int currentBlendMode = getIntProperty(track, "blendMode", "getBlendMode");
                 ImInt blendModeIdx = new ImInt(currentBlendMode);
@@ -223,10 +228,12 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
                 if (ImGui.isItemHovered()) {
                     ImGui.setTooltip("启用后，此轨道的效果会叠加到其他轨道上");
                 }
+                ImGui.unindent();
             }
             
             // ========== 对齐与范围 ==========
             if (ImGui.collapsingHeader("⏱ 对齐与范围", ImGuiTreeNodeFlags.DefaultOpen)) {
+                ImGui.indent();
                 // 对齐模式
                 int currentAlignment = getIntProperty(track, "alignmentMode", "getAlignmentMode");
                 ImInt alignmentIdx = new ImInt(currentAlignment);
@@ -273,10 +280,12 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
                 float duration = Math.max(0, endTime[0] - startTime[0]);
                 UITheme.spacingSmall();
                 UITheme.label(String.format("持续时间: %.2f 秒", duration), UITheme.DarkTheme.TEXT_SELECTED);
+                ImGui.unindent();
             }
             
             // ========== 可视化参数 ==========
             if (ImGui.collapsingHeader("👁 可视化参数")) {
+                ImGui.indent();
                 // 轨道颜色
                 float[] colorRGBA = getFloatArrayProperty(track);
                 if (colorRGBA == null || colorRGBA.length < 4) {
@@ -306,10 +315,12 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
                         }
                     }
                 }
+                ImGui.unindent();
             }
             
             // ========== 统计信息 ==========
             if (ImGui.collapsingHeader("📊 统计信息")) {
+                ImGui.indent();
                 // 关键帧统计
                 int keyframeCount = getIntProperty(track, "keyframeCount", "getKeyframeCount");
                 UITheme.label("关键帧总数: " + keyframeCount, UITheme.DarkTheme.TEXT);
@@ -333,6 +344,7 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
                 UITheme.spacingSmall();
                 UITheme.label(String.format("当前权重: %.0f%%", weight * 100), 
                     UITheme.DarkTheme.TEXT_DISABLED);
+                ImGui.unindent();
             }
             
             UITheme.separator();
@@ -346,28 +358,26 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
                         var actorRef = entityTrack.getActorRef();
                         if (actorRef != null) {
                             var actorId = actorRef.getActorId();
-                            if (actorId != null) {
-                                UITheme.beginGroup("🎭 演员快捷操作");
-                                
-                                if (ImGui.button("👁 Look At Camera", -1, UITheme.Spacing.BUTTON_HEIGHT)) {
-                                    // 调用 ActorLookAtGizmoController 创建 Camera LookAtClip
-                                    try {
-                                        var lookAtController = com.chronoblocks.ui.actor.lookat.ActorLookAtGizmoController.getInstance();
-                                        lookAtController.setTargetActor(actorId);
-                                        lookAtController.createCameraLookAtClip();
-                                        modifiedRef[0] = true; // 标记为已修改（创建了新 Clip）
-                                        LOGGER.info("[TimelineTrackPropertyAdapter] 已创建 Camera LookAtClip for Actor: {}", actorId);
-                                    } catch (Exception e) {
-                                        LOGGER.error("[TimelineTrackPropertyAdapter] 创建 Camera LookAtClip 失败", e);
-                                    }
+                            UITheme.beginGroup("🎭 演员快捷操作");
+
+                            if (ImGui.button("👁 Look At Camera", -1, UITheme.Spacing.BUTTON_HEIGHT)) {
+                                // 调用 ActorLookAtGizmoController 创建 Camera LookAtClip
+                                try {
+                                    var lookAtController = com.chronoblocks.ui.actor.lookat.ActorLookAtGizmoController.getInstance();
+                                    lookAtController.setTargetActor(actorId);
+                                    lookAtController.createCameraLookAtClip();
+                                    modifiedRef[0] = true; // 标记为已修改（创建了新 Clip）
+                                    LOGGER.info("[TimelineTrackPropertyAdapter] 已创建 Camera LookAtClip for Actor: {}", actorId);
+                                } catch (Exception e) {
+                                    LOGGER.error("[TimelineTrackPropertyAdapter] 创建 Camera LookAtClip 失败", e);
                                 }
-                                if (ImGui.isItemHovered()) {
-                                    ImGui.setTooltip("在当前时间创建一个看向摄像机的 LookAtClip");
-                                }
-                                
-                                UITheme.endGroup();
-                                UITheme.separator();
                             }
+                            if (ImGui.isItemHovered()) {
+                                ImGui.setTooltip("在当前时间创建一个看向摄像机的 LookAtClip");
+                            }
+
+                            UITheme.endGroup();
+                            UITheme.separator();
                         }
                     }
                 }
@@ -619,7 +629,7 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
     private boolean setFloatArrayProperty(Object obj, float[] value) {
         try {
             var method = obj.getClass().getMethod("setColorRGBA", float[].class);
-            method.invoke(obj, value);
+            method.invoke(obj, (Object) value);
             return true;
         } catch (Exception e) {
             try {

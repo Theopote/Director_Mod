@@ -70,6 +70,7 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
         try {
             // ========== 位置与旋转 ==========
             if (ImGui.collapsingHeader("📍 位置与旋转", ImGuiTreeNodeFlags.DefaultOpen)) {
+                ImGui.indent();
                 // 位置（使用 Vector3fPropertyAdapter）
                 Object position = getObjectProperty(camera, "position", "getPosition");
                 if (position != null) {
@@ -95,10 +96,12 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
                         }
                     }
                 }
+                ImGui.unindent();
             }
             
             // ========== 投影参数 ==========
             if (ImGui.collapsingHeader("🎥 投影参数", ImGuiTreeNodeFlags.DefaultOpen)) {
+                ImGui.indent();
                 // 视野（FOV）
                 float currentFOV = getFloatProperty(camera, "fov", "getFov", 70.0f);
                 float[] fov = {currentFOV};
@@ -156,10 +159,12 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
                 if (ImGui.isItemHovered()) {
                     ImGui.setTooltip("相机能看到的最远距离");
                 }
+                ImGui.unindent();
             }
             
             // ========== 镜头特效 ==========
             if (ImGui.collapsingHeader("📷 镜头特效")) {
+                ImGui.indent();
                 // 景深开关
                 boolean currentDOF = getBooleanProperty(camera, "depthOfFieldEnabled", "isDepthOfFieldEnabled", false);
                 ImBoolean enableDOF = new ImBoolean(currentDOF);
@@ -211,10 +216,12 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
                 if (ImGui.isItemHovered()) {
                     ImGui.setTooltip("背景模糊的质量（0 = 关闭，5 = 最高）");
                 }
+                ImGui.unindent();
             }
             
             // ========== 动画控制 ==========
             if (ImGui.collapsingHeader("🎬 动画控制")) {
+                ImGui.indent();
                 // 动画名称
                 String currentName = getStringProperty(camera);
                 ImString nameBuffer = new ImString(currentName, 256);
@@ -258,6 +265,7 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
                 if (ImGui.isItemHovered()) {
                     ImGui.setTooltip("使用平滑曲线插值相机路径");
                 }
+                ImGui.unindent();
             }
             
             UITheme.separator();
