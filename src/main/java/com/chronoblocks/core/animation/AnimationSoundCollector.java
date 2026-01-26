@@ -163,9 +163,9 @@ public class AnimationSoundCollector {
             // 计算方块事件时间（全局时间）
             float normalizedTime = entry.getNormalizedTime(); // 0..1
             float eventTime;
+            float blockStartTime = clipStart + totalDelay + normalizedTime * availableSpan;
+            float blockEndTime = Math.min(clipStart + clipDuration, blockStartTime + animDuration);
             if (isExit) {
-                float blockStartTime = clipStart + totalDelay + normalizedTime * availableSpan;
-                float blockEndTime = Math.min(clipStart + clipDuration, blockStartTime + animDuration);
 
                 if (isInstant) {
                     eventTime = blockStartTime;
@@ -187,8 +187,6 @@ public class AnimationSoundCollector {
                     eventTime += exitSoundOffsetSeconds;
                 }
             } else {
-                float blockStartTime = clipStart + totalDelay + normalizedTime * availableSpan;
-                float blockEndTime = Math.min(clipStart + clipDuration, blockStartTime + animDuration);
                 if (isInstant) {
                     eventTime = blockStartTime;
                 } else if ("START".equalsIgnoreCase(enterTiming)) {

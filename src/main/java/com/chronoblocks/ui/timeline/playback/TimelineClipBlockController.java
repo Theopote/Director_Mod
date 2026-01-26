@@ -1034,7 +1034,9 @@ public class TimelineClipBlockController {
             if (blockStartTime < clipStart) blockStartTime = clipStart;
             if (blockEndTime > clipEnd) blockEndTime = clipEnd;
 
-            boolean inAnimWindow = currentTime >= blockStartTime && currentTime < blockEndTime;
+            // INSTANT 模式：不需要动画窗口，直接按序列出现
+            boolean isInstant = config.getMode() == com.chronoblocks.core.container.AnimationMode.INSTANT;
+            boolean inAnimWindow = !isInstant && currentTime >= blockStartTime && currentTime < blockEndTime;
 
             // ENTER：未到开始时间，理论上不应在 visibleBlocks 中；保险跳过
             if (phase != ClipAnimationConfig.AnimationPhase.EXIT && currentTime < blockStartTime) {

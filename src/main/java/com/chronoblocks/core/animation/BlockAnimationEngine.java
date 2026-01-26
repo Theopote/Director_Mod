@@ -126,6 +126,57 @@ public final class BlockAnimationEngine {
         }
         ClipAnimationConfig.AnimationPhase phase = config.getPhase();
 
+        // ===== INSTANT 模式特殊处理：直接按序列出现，不需要动画窗口 =====
+        if (mode == AnimationMode.INSTANT) {
+            float delay = Math.max(0.0f, config.getDelay());
+            try {
+                var seq = config.getSequenceParameters();
+                if (seq != null) {
+                    delay += Math.max(0.0f, seq.getGlobalDelay());
+                }
+            } catch (Exception ignored) {
+            }
+            
+            float seqNormalizedTime = (seqEntry != null)
+                    ? MathHelper.clamp(seqEntry.getNormalizedTime(), 0.0f, 1.0f)
+                    : 0.0f;
+            
+            float clipDuration = Math.max(0.0001f, clipEnd - clipStart);
+            // INSTANT 模式：方块按照序列顺序直接出现，不需要动画窗口
+            float sequenceSpan = Math.max(0.0001f, clipDuration - delay);
+            float blockStartTime = clipStart + delay + seqNormalizedTime * sequenceSpan;
+            
+            // 钳制到片段范围
+            if (blockStartTime < clipStart) blockStartTime = clipStart;
+            if (blockStartTime > clipEnd) blockStartTime = clipEnd;
+            
+            if (phase == ClipAnimationConfig.AnimationPhase.EXIT) {
+                // EXIT：在 blockStartTime 之前完全可见，之后隐藏（由上层移除）
+                if (now >= blockStartTime) {
+                    snapshot.markHidden();
+                } else {
+                    snapshot.markFullyVisible();
+                    snapshot.setSequenceNormalizedTime(seqNormalizedTime);
+                    snapshot.setTransform(null); // null = identity
+                    snapshot.setAlpha(1.0f);
+                    // EXIT 阶段不应用特效（因为方块即将被移除）
+                }
+            } else {
+                // ENTER：在 blockStartTime 之前隐藏，之后完全可见
+                if (now >= blockStartTime) {
+                    snapshot.markFullyVisible();
+                    snapshot.setSequenceNormalizedTime(seqNormalizedTime);
+                    snapshot.setTransform(null); // null = identity
+                    snapshot.setAlpha(1.0f);
+                    // 允许触发特效（虽然 INSTANT 模式通常不需要特效，但保留兼容性）
+                    applyEffectsSafe(snapshot, config, now, randomSeed);
+                } else {
+                    snapshot.markHidden();
+                }
+            }
+            return snapshot;
+        }
+
         float clipDuration = Math.max(0.0001f, clipEnd - clipStart);
         float animDuration = Math.max(0.0001f, Math.min(config.getDuration(), clipDuration));
         float delay = Math.max(0.0f, config.getDelay());
@@ -476,11 +527,17 @@ public final class BlockAnimationEngine {
                             }
                             // 触发一次：用 effectT=0 作为起点
                         }
-                        // 如果时间倒退（拖动播放头/循环），允许重新触发
+                        // 如果时间倒退（拖动播放头/循环），重置状态以允许重新触发
                         if (tRaw + 1e-4f < gate.lastTRaw) {
+                            // 时间倒退：重置状态，允许下次前进时重新触发
                             gate.lastTRaw = tRaw;
+                            // 如果倒退到特效窗口之前，重置 initialized 以允许重新触发
+                            if (tRaw + 1e-4f < startNorm) {
+                                gate.initialized = false;
+                            }
                             continue;
                         }
+                        // 检查是否跨越了特效开始边界（从窗口外进入窗口内）
                         boolean crossed = gate.lastTRaw + 1e-4f < startNorm && tRaw + 1e-4f >= startNorm;
                         gate.lastTRaw = tRaw;
                         if (!crossed) {
