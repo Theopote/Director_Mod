@@ -3,6 +3,7 @@ package com.chronoblocks.ui.properties.adapters;
 import com.chronoblocks.ui.properties.IPropertyAdapter;
 import com.chronoblocks.ui.selection.SelectionManager;
 import com.chronoblocks.ui.theme.UITheme;
+import com.chronoblocks.ui.theme.Icons;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiTreeNodeFlags;
@@ -176,12 +177,12 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
                 
                 // 播放状态（只读）
                 boolean isPlaying = getBooleanProperty(sequence, "playing", "isPlaying", false);
-                String playStatus = isPlaying ? "▶ 播放中" : "⏸ 已暂停";
+                String playStatus = isPlaying ? Icons.PLAY + " 播放中" : Icons.PAUSE + " 已暂停";
                 UITheme.label(playStatus, UITheme.DarkTheme.TEXT_DISABLED);
             }
             
             // ========== 轨道管理 ==========
-            if (ImGui.collapsingHeader("🎞 轨道管理", ImGuiTreeNodeFlags.DefaultOpen)) {
+            if (ImGui.collapsingHeader(Icons.FILM + " 轨道管理", ImGuiTreeNodeFlags.DefaultOpen)) {
                 // 获取轨道列表
                 Object tracksObj = getObjectProperty(sequence);
                 
@@ -324,7 +325,7 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
             UITheme.label("播放控制", UITheme.DarkTheme.TEXT);
             UITheme.spacingSmall();
             
-            if (ImGui.button("▶ 播放", 80, UITheme.Spacing.BUTTON_HEIGHT)) {
+            if (ImGui.button(Icons.PLAY + " 播放", 80, UITheme.Spacing.BUTTON_HEIGHT)) {
                 if (callMethod(sequence, "play")) {
                     LOGGER.info("[TimelineSequencePropertyAdapter] 播放序列");
                 }
@@ -335,7 +336,7 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
             
             ImGui.sameLine();
             
-            if (ImGui.button("⏸ 暂停", 80, UITheme.Spacing.BUTTON_HEIGHT)) {
+            if (ImGui.button(Icons.PAUSE + " 暂停", 80, UITheme.Spacing.BUTTON_HEIGHT)) {
                 if (callMethod(sequence, "pause")) {
                     LOGGER.info("[TimelineSequencePropertyAdapter] 暂停序列");
                 }

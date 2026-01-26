@@ -168,7 +168,6 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
             ImGui.indent();
             modified |= renderBasicProperties(clip);
             ImGui.unindent();
-            //UITheme.spacing();
         }
 
         boolean sequenceModified = false;
@@ -180,7 +179,6 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
             sequenceModified = renderSequenceBehavior(clip);
             modified |= sequenceModified;
             ImGui.unindent();
-            //UITheme.spacing();
         }
 
         // 3. 动画设置组 - 默认展开
@@ -189,7 +187,6 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
             animationModified = renderAnimationSettings(clip);
             modified |= animationModified;
             ImGui.unindent();
-            //UITheme.spacing();
         }
 
         // 4. 特效 && 特效预设组
@@ -203,7 +200,6 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
             ImGui.indent();
             modified |= renderEffectsSection(clip);
             ImGui.unindent();
-            //UITheme.spacing();
         }
 
         // ======= 动画配置联动：修改动画/序列设置后，自动刷新音效事件 =======
@@ -672,7 +668,6 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             // 闪白光已归入「特效系统」（EffectInstance: FLASH_WHITE），避免“UI 有开关但运行时不生效”的情况。
             ImGui.textDisabled("提示：闪白光请在下方「特效」面板添加 FLASH_WHITE（或使用特效预设包）。");
 
-            //UITheme.spacingSmall();
             if (ImGui.button("恢复当前模式默认参数")) {
                 try {
                     IAnimationTransformer transformer = AnimationTransformerFactory.getInstance().getTransformer(currentMode);
@@ -793,56 +788,93 @@ private boolean renderAnimationSettings(TimelineClip clip) {
 
         // ✅ 快捷预设：排序策略（Sequence）属于“序列层”，从动画设置面板移到这里
         UITheme.label("排序策略预设（Sequence）", UITheme.DarkTheme.TEXT_SELECTED);
-        if (ImGui.button("顺序(默认)")) {
-            params.setFlowType(FlowType.PLANAR);
-            params.setOriginType(OriginType.BOTTOM_CENTER);
-            params.setFillType(FillType.LINEAR_SCAN);
-            params.setReverse(false);
-            params.setAlternating(false);
-            modified = true;
-        }
-        ImGui.sameLine();
-        if (ImGui.button("随机")) {
-            params.setFlowType(FlowType.RANDOM);
-            params.setFillType(FillType.LINEAR_SCAN);
-            params.setReverse(false);
-            params.setAlternating(false);
-            modified = true;
-        }
-        ImGui.sameLine();
-        if (ImGui.button("扩散(中心→外)")) {
-            params.setFlowType(FlowType.SPHERICAL);
-            params.setOriginType(OriginType.CENTER);
-            params.setFillType(FillType.RADIAL);
-            params.setReverse(false);
-            params.setAlternating(false);
-            modified = true;
-        }
-        if (ImGui.button("螺旋")) {
-            params.setFlowType(FlowType.PLANAR);
-            params.setOriginType(OriginType.CENTER);
-            params.setFillType(FillType.SPIRAL);
-            params.setReverse(false);
-            params.setAlternating(false);
-            modified = true;
-        }
-        ImGui.sameLine();
-        if (ImGui.button("切片(逐层)")) {
-            params.setFlowType(FlowType.PLANAR);
-            params.setOriginType(OriginType.BOTTOM_CENTER);
-            params.setFillType(FillType.LINEAR_SCAN);
-            params.setReverse(false);
-            params.setAlternating(false);
-            modified = true;
-        }
-        ImGui.sameLine();
-        if (ImGui.button("波浪")) {
-            params.setFlowType(FlowType.PLANAR);
-            params.setOriginType(OriginType.BOTTOM_CENTER);
-            params.setFillType(FillType.LINEAR_SCAN);
-            params.setReverse(false);
-            params.setAlternating(true);
-            modified = true;
+        // 定义所有预设按钮的标签和配置
+        String[] presetLabels = {
+            "顺序(默认)",
+            "随机",
+            "扩散(中心" + Icons.ARROW_RIGHT + "外)",
+            "螺旋",
+            "切片(逐层)",
+            "波浪"
+        };
+        
+        // 记录按钮起始位置，用于换行后对齐
+        float buttonsStartX = ImGui.getCursorPosX();
+        
+        // 渲染所有按钮，支持自动换行
+        for (int i = 0; i < presetLabels.length; i++) {
+            String label = presetLabels[i];
+            
+            // 计算按钮宽度（文本宽度 + 内边距）
+            float textWidth = ImGui.calcTextSize(label).x;
+            float paddingX = ImGui.getStyle().getFramePadding().x * 2.0f;
+            float buttonWidth = textWidth + paddingX;
+            
+            // 如果不是第一个按钮，先回到上一项末尾，然后检查是否需要换行
+            if (i > 0) {
+                ImGui.sameLine();
+            }
+            
+            // 检查是否需要换行：如果当前行放不下，则换行
+            float availWidth = ImGui.getContentRegionAvailX();
+            if (buttonWidth > availWidth) {
+                ImGui.newLine();
+                ImGui.setCursorPosX(buttonsStartX);
+            }
+            
+            // 渲染按钮并处理点击
+            if (ImGui.button(label)) {
+                switch (i) {
+                    case 0: // 顺序(默认)
+                        params.setFlowType(FlowType.PLANAR);
+                        params.setOriginType(OriginType.BOTTOM_CENTER);
+                        params.setFillType(FillType.LINEAR_SCAN);
+                        params.setReverse(false);
+                        params.setAlternating(false);
+                        break;
+                    case 1: // 随机
+                        params.setFlowType(FlowType.RANDOM);
+                        params.setFillType(FillType.LINEAR_SCAN);
+                        params.setReverse(false);
+                        params.setAlternating(false);
+                        break;
+                    case 2: // 扩散(中心→外)
+                        params.setFlowType(FlowType.SPHERICAL);
+                        params.setOriginType(OriginType.CENTER);
+                        params.setFillType(FillType.RADIAL);
+                        params.setReverse(false);
+                        params.setAlternating(false);
+                        break;
+                    case 3: // 螺旋
+                        params.setFlowType(FlowType.PLANAR);
+                        params.setOriginType(OriginType.CENTER);
+                        params.setFillType(FillType.SPIRAL);
+                        params.setReverse(false);
+                        params.setAlternating(false);
+                        break;
+                    case 4: // 切片(逐层)
+                        params.setFlowType(FlowType.PLANAR);
+                        params.setOriginType(OriginType.BOTTOM_CENTER);
+                        params.setFillType(FillType.LINEAR_SCAN);
+                        params.setReverse(false);
+                        params.setAlternating(false);
+                        break;
+                    case 5: // 波浪
+                        params.setFlowType(FlowType.PLANAR);
+                        params.setOriginType(OriginType.BOTTOM_CENTER);
+                        params.setFillType(FillType.LINEAR_SCAN);
+                        params.setReverse(false);
+                        params.setAlternating(true);
+                        break;
+                }
+                modified = true;
+            }
+            
+            // 为最后一个按钮显示工具提示
+            if (i == presetLabels.length - 1 && ImGui.isItemHovered()) {
+                ImGui.setTooltip("这些预设等价于旧的\"随机/扩散/螺旋/切片/波浪\"等模式，但现在它们属于排序策略。\n" +
+                        "入场(出现)与退场(擦除)都可以复用同一套排序。");
+            }
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("这些预设等价于旧的“随机/扩散/螺旋/切片/波浪”等模式，但现在它们属于排序策略。\n" +
@@ -855,23 +887,17 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         // ---------- 1. 切分方式 (Flow) ----------
         modified |= renderSequenceFlowSection(params);
 
-        //UITheme.spacing();
         UITheme.separator();
-        //UITheme.spacing();
 
         // ---------- 2. 起始锚点 (Origin) ----------
         modified |= renderSequenceOriginSection(params);
 
-        //UITheme.spacing();
         UITheme.separator();
-        //UITheme.spacing();
 
         // ---------- 3. 内部填充 (Fill) ----------
         modified |= renderSequenceFillSection(params);
 
-        //UITheme.spacing();
         UITheme.separator();
-        //UITheme.spacing();
 
         // ---------- 4. 层级分离度 + 修饰 ----------
         modified |= renderSequenceWeightAndModifiers(params);
@@ -1005,7 +1031,6 @@ private boolean renderAnimationSettings(TimelineClip clip) {
 
         // 仅在 PLANAR 模式下显示平面方向选择
         if (params.getFlowType() == FlowType.PLANAR) {
-            //UITheme.spacingSmall();
             UITheme.label("平面方向", UITheme.DarkTheme.TEXT_SELECTED);
 
             // 快捷预设：X/Y/Z轴
@@ -1035,7 +1060,6 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             }
 
             // 自定义角度开关
-            //UITheme.spacingSmall();
             ImGui.checkbox("自定义角度", showSequenceAdvanced);
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip("需要精细控制切片平面的倾斜角度时启用");
@@ -1071,7 +1095,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             }
 
             // 视线对齐：将 Flow 方向对齐到当前摄像机视线（用于减少“先出现遮挡后出现”）
-            if (ImGui.button("对齐到摄像机视线（远→近）")) {
+            if (ImGui.button("对齐到摄像机视线（远" + Icons.ARROW_RIGHT + "近）")) {
                 Vec3d dir = null;
                 try {
                     MinecraftClient client = MinecraftClient.getInstance();
@@ -1268,7 +1292,6 @@ private boolean renderAnimationSettings(TimelineClip clip) {
 
         // FLOOD 专属参数：FloodSeedMode
         if (params.getFillType() == FillType.FLOOD) {
-            //UITheme.spacingSmall();
             UITheme.label("泛洪起点 (Flood Seed)", UITheme.DarkTheme.TEXT_SELECTED);
 
             FloodSeedMode[] seedModes = FloodSeedMode.values();
@@ -1380,7 +1403,6 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                 """);
         }
 
-        //UITheme.spacingSmall();
 
         // 修饰符
         ImGui.textDisabled("修饰：");
@@ -1413,76 +1435,6 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         return modified;
     }
 
-    /**
-            }
-            return;
-        }
-
-        Container container = Objects.requireNonNull(ContainerManager.getInstance()).getContainer(containerId);
-        if (container == null) {
-            ImGui.textDisabled("⚠ 容器不存在或已被删除");
-            return;
-        }
-
-        try {
-            // 生成序列
-            List<BlockPos> blocks = new java.util.ArrayList<>(container.getBlocks());
-            if (blocks.isEmpty()) {
-                ImGui.textDisabled("容器为空，无方块可预览");
-                return;
-            }
-
-            // 用片段时长做一次“带时间上下文”的序列生成，保证预览与实际播放一致（批次/并发/延迟等）
-            float clipDuration = Math.max(0.05f, clip.getLength());
-            float animDuration = Math.min(Math.max(0.05f, clip.getAnimationConfig().getDuration()), clipDuration);
-            float delay = Math.max(0.0f, clip.getAnimationConfig().getDelay());
-            try {
-                if (params != null) {
-                    delay += Math.max(0.0f, params.getGlobalDelay());
-                }
-            } catch (Exception ignored) {
-            }
-            List<BlockSequenceEntry> entries = BlockSequenceGenerator.generate(blocks, container, params, clipDuration, animDuration, delay);
-
-            // 显示预览信息
-            UITheme.label("序列预览", UITheme.DarkTheme.TEXT_SELECTED);
-            ImGui.text(String.format("总方块数: %d", entries.size()));
-
-            // 按组显示
-            Map<Integer, List<BlockSequenceEntry>> groups = new java.util.HashMap<>();
-            for (BlockSequenceEntry entry : entries) {
-                groups.computeIfAbsent(entry.getGroupId(), k -> new java.util.ArrayList<>()).add(entry);
-            }
-
-            if (groups.size() > 1) {
-                ImGui.text(String.format("分组数: %d", groups.size()));
-            }
-
-            //UITheme.spacingSmall();
-
-            // 显示前20个方块的出现顺序
-            int previewCount = Math.min(20, entries.size());
-            if (ImGui.collapsingHeader(String.format("前 %d 个方块的出现顺序", previewCount))) {
-                for (int i = 0; i < previewCount; i++) {
-                    String info = getString(entries, i, groups);
-                    ImGui.text(info);
-                }
-                if (entries.size() > previewCount) {
-                    ImGui.textDisabled(String.format("... 还有 %d 个方块", entries.size() - previewCount));
-                }
-            }
-
-            // 显示分组信息
-            if (groups.size() > 1 && ImGui.collapsingHeader("分组详情")) {
-                for (Map.Entry<Integer, List<BlockSequenceEntry>> groupEntry : groups.entrySet().stream()
-                        .sorted(Map.Entry.comparingByKey())
-                        .toList()) {
-                    int groupId = groupEntry.getKey();
-                    List<BlockSequenceEntry> groupEntries = groupEntry.getValue();
-                    ImGui.text(String.format("组 %d: %d 个方块", groupId, groupEntries.size()));
-                }
-            }
-        } catch (Exception e) {
     /**
      * 渲染「特效系统」面板（新版）
      * 
@@ -1556,7 +1508,6 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             }
         }
         
-        //UITheme.spacingSmall();
 
         // 使用两列布局显示预设按钮
         float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) * 0.5f;
@@ -1590,9 +1541,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             ImGui.newLine();
         }
         
-        //UITheme.spacingSmall();
         UITheme.separator();
-        //UITheme.spacingSmall();
 
         // ========== 2. 已添加特效列表 ==========
         List<EffectInstance> effects = config.getEffects();
@@ -1653,9 +1602,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                     IBlockEffect effectImpl = BlockEffectRegistry.get(inst.getType());
                     if (effectImpl != null) {
                         try {
-                            //UITheme.spacingSmall();
                             UITheme.separator();
-                            //UITheme.spacingSmall();
                             UITheme.label("特效参数", UITheme.DarkTheme.TEXT_SELECTED);
                             modified |= renderEffectParams(inst, inst.getType());
                         } catch (Exception e) {
@@ -1671,7 +1618,6 @@ private boolean renderAnimationSettings(TimelineClip clip) {
 
                 ImGui.popID();
                 index++;
-                //UITheme.spacingSmall();
             }
 
             // 真正删除被标记的特效
@@ -1679,7 +1625,6 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         }
 
         UITheme.separator();
-        //UITheme.spacingSmall();
 
         // ========== 3. 添加新特效 ==========
         UITheme.label("添加特效", UITheme.DarkTheme.TEXT_SELECTED);
@@ -1942,7 +1887,6 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             ));
         }
 
-        //UITheme.spacingSmall();
         return modified;
     }
 

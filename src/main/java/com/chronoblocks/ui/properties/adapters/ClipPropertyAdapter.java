@@ -7,6 +7,7 @@ import com.chronoblocks.core.animation.container.VisibilityTrack;
 import com.chronoblocks.core.animation.container.Track;
 import com.chronoblocks.ui.properties.IPropertyAdapter;
 import com.chronoblocks.ui.theme.UITheme;
+import com.chronoblocks.ui.theme.Icons;
 import imgui.ImGui;
 
 import java.util.List;
@@ -24,7 +25,7 @@ public class ClipPropertyAdapter implements IPropertyAdapter<AnimationClip> {
         ImGui.text("名称: " + clip.getName());
         double start = clip.getStart();
         double end = clip.getEnd();
-        ImGui.text(String.format("时间范围: %.2fs → %.2fs (%.2fs)", start, end, Math.max(0.0, end - start)));
+        ImGui.text(String.format("时间范围: %.2fs %s %.2fs (%.2fs)", start, Icons.ARROW_RIGHT, end, Math.max(0.0, end - start)));
         ImGui.text("绑定容器: " + clip.getBoundContainerId());
         UITheme.endGroup();
 

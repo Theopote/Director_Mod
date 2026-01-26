@@ -2,6 +2,7 @@ package com.chronoblocks.ui.properties.adapters;
 
 import com.chronoblocks.ui.properties.IPropertyAdapter;
 import com.chronoblocks.ui.theme.UITheme;
+import com.chronoblocks.ui.theme.Icons;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;
@@ -352,7 +353,7 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
             // ========== 快捷操作 ==========
             UITheme.beginGroup("快捷操作");
             
-            if (ImGui.button("🔄 重置为默认", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
+            if (ImGui.button(Icons.REFRESH + " 重置为默认", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
                 if (callMethod(env)) {
                     modifiedRef[0] = true;
                     LOGGER.info("[ProjectEnvironmentPropertyAdapter] 环境已重置为默认值");

@@ -3,6 +3,7 @@ package com.chronoblocks.ui.properties.adapters;
 import com.chronoblocks.ui.properties.IPropertyAdapter;
 import com.chronoblocks.ui.properties.PropertyAdapterRegistry;
 import com.chronoblocks.ui.theme.UITheme;
+import com.chronoblocks.ui.theme.Icons;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;
@@ -262,7 +263,7 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
             // ========== 快捷操作 ==========
             UITheme.beginGroup("快捷操作");
             
-            if (ImGui.button("🔄 重置为默认", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
+            if (ImGui.button(Icons.REFRESH + " 重置为默认", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
                 if (callMethod(physics)) {
                     modifiedRef[0] = true;
                     LOGGER.info("[PhysicsEnvironmentPropertyAdapter] 物理环境已重置");
@@ -285,7 +286,7 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
             ImGui.sameLine();
             
             boolean currentEnabled = getBooleanProperty(physics, "enabled", "isEnabled", true);
-            String toggleText = currentEnabled ? "⏸ 暂停物理" : "▶ 启用物理";
+            String toggleText = currentEnabled ? Icons.PAUSE + " 暂停物理" : Icons.PLAY + " 启用物理";
             if (ImGui.button(toggleText, 120, UITheme.Spacing.BUTTON_HEIGHT)) {
                 if (setBooleanProperty(physics, "enabled", "setEnabled", !currentEnabled)) {
                     modifiedRef[0] = true;

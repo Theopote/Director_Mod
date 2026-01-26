@@ -3,6 +3,7 @@ package com.chronoblocks.ui.properties.adapters;
 import com.chronoblocks.ui.properties.IPropertyAdapter;
 import com.chronoblocks.ui.properties.PropertyAdapterRegistry;
 import com.chronoblocks.ui.theme.UITheme;
+import com.chronoblocks.ui.theme.Icons;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiTreeNodeFlags;
@@ -273,7 +274,7 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
             // ========== 快捷操作 ==========
             UITheme.beginGroup("快捷操作");
             
-            if (ImGui.button("🔄 重置相机", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
+            if (ImGui.button(Icons.REFRESH + " 重置相机", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
                 if (callMethod(camera, "reset") || callMethod(camera, "resetToDefault")) {
                     modifiedRef[0] = true;
                     LOGGER.info("[CameraPropertyAdapter] 相机已重置");

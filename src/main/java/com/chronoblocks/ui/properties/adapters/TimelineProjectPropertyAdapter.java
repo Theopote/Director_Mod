@@ -3,6 +3,7 @@ package com.chronoblocks.ui.properties.adapters;
 import com.chronoblocks.ui.properties.IPropertyAdapter;
 import com.chronoblocks.ui.selection.SelectionManager;
 import com.chronoblocks.ui.theme.UITheme;
+import com.chronoblocks.ui.theme.Icons;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiTreeNodeFlags;
@@ -240,7 +241,7 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                             float seqDuration = getFloatProperty(seq, "duration", "getDuration", 0.0f);
                             boolean seqLoop = getBooleanProperty(seq, "loop", "isLoop", false);
                             
-                            String loopIcon = seqLoop ? "🔄" : "▶";
+                            String loopIcon = seqLoop ? Icons.LOOP : Icons.PLAY;
                             
                             if (ImGui.treeNodeEx(loopIcon + " " + seqName, 
                                     ImGuiTreeNodeFlags.Framed | ImGuiTreeNodeFlags.SpanAvailWidth)) {
@@ -477,7 +478,7 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
             
             ImGui.sameLine();
             
-            if (ImGui.button("🔄 重新加载", 110, UITheme.Spacing.BUTTON_HEIGHT)) {
+            if (ImGui.button(Icons.REFRESH + " 重新加载", 110, UITheme.Spacing.BUTTON_HEIGHT)) {
                 if (callMethod(project, "reload")) {
                     LOGGER.info("[TimelineProjectPropertyAdapter] 项目已重新加载");
                 }

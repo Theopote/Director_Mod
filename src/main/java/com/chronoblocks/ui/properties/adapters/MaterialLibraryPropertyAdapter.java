@@ -2,6 +2,7 @@ package com.chronoblocks.ui.properties.adapters;
 
 import com.chronoblocks.ui.properties.IPropertyAdapter;
 import com.chronoblocks.ui.theme.UITheme;
+import com.chronoblocks.ui.theme.Icons;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiTreeNodeFlags;
@@ -248,7 +249,7 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
                         
                         ImGui.sameLine();
                         
-                        if (ImGui.button("🔄 重载纹理", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
+                        if (ImGui.button(Icons.REFRESH + " 重载纹理", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
                             if (callMethod(material, "reload") || callMethod(material, "reloadTexture")) {
                                 LOGGER.info("[MaterialLibraryPropertyAdapter] 纹理已重载");
                             }
@@ -333,7 +334,7 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
             
             ImGui.sameLine();
             
-            if (ImGui.button("🔄 重载材质库", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
+            if (ImGui.button(Icons.REFRESH + " 重载材质库", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
                 if (callMethod(library, "reload")) {
                     LOGGER.info("[MaterialLibraryPropertyAdapter] 材质库已重载");
                 }

@@ -3,6 +3,7 @@ package com.chronoblocks.ui.properties.adapters;
 import com.chronoblocks.ui.properties.IPropertyAdapter;
 import com.chronoblocks.ui.properties.PropertyAdapterRegistry;
 import com.chronoblocks.ui.theme.UITheme;
+import com.chronoblocks.ui.theme.Icons;
 import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import imgui.ImGui;
@@ -96,7 +97,7 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
         final boolean[] modifiedRef = {false};
         
         // 标题
-        UITheme.title("🎞 时间线轨道属性编辑器");
+        UITheme.title(Icons.FILM + " 时间线轨道属性编辑器");
         
         try {
             // ========== 基本信息 ==========

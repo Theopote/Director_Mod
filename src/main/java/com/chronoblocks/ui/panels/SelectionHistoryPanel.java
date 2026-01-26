@@ -289,7 +289,7 @@ public class SelectionHistoryPanel extends AbstractPanel {
                     }
                     
                     ImGui.tableSetColumnIndex(0);
-                    String indexText = info.isCurrent() ? "▶ " + (info.getIndex() + 1) : "  " + (info.getIndex() + 1);
+                    String indexText = info.isCurrent() ? Icons.PLAY + " " + (info.getIndex() + 1) : "  " + (info.getIndex() + 1);
                     UITheme.label(indexText, info.isCurrent() ? UITheme.DarkTheme.TEXT_SELECTED : UITheme.DarkTheme.TEXT);
                     
                     ImGui.tableSetColumnIndex(1);

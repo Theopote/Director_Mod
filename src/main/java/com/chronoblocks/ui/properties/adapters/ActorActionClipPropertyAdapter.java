@@ -104,7 +104,7 @@ public class ActorActionClipPropertyAdapter implements IPropertyAdapter<ActorAct
         }
 
         // ========== 循环设置 ==========
-        if (ImGui.collapsingHeader("🔄 循环设置")) {
+        if (ImGui.collapsingHeader(Icons.LOOP + " 循环设置")) {
             loopBoolean.set(clip.isLoop());
             if (ImGui.checkbox("循环播放", loopBoolean)) {
                 clip.setLoop(loopBoolean.get());
