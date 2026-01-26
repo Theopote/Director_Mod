@@ -62,10 +62,10 @@ public class MergeContainersCommand implements ContainerCommand {
             : preferredName.trim();
         String uniqueName = manager.generateUniqueName(baseName);
 
-        // 合并后的容器类型：保持非组类型（如果首个为组则退回为 CUSTOM）
+        // 合并后的容器类型：保持非组类型（如果首个为组则退回为 GENERAL）
         ContainerType resultType = targets.getFirst().getType();
         if (resultType == ContainerType.GROUP) {
-            resultType = ContainerType.CUSTOM;
+            resultType = ContainerType.GENERAL;
         }
         mergedContainer = manager.createContainer(uniqueName, resultType);
         manager.moveContainerToParent(mergedContainer, mergedParent, mergedInsertIndex);

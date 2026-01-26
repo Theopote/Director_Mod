@@ -232,12 +232,12 @@ public final class ContainerPersistence {
     private static Container decodeContainer(NbtCompound tag) {
         UUID id = tag.getIntArray("id").map(Uuids::toUuid).orElseGet(UUID::randomUUID);
         String name = tag.getString("name", "Container");
-        String typeStr = tag.getString("type", ContainerType.CUSTOM.name());
+        String typeStr = tag.getString("type", ContainerType.GENERAL.name());
         ContainerType type;
         try {
             type = ContainerType.valueOf(typeStr);
         } catch (Exception e) {
-            type = ContainerType.CUSTOM;
+            type = ContainerType.GENERAL;
         }
         Container c = new Container(id, name, type);
         c.setColor(tag.getInt("color", c.getColor()));

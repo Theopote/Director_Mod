@@ -18,7 +18,7 @@ public class CreateContainerCommand implements ContainerCommand {
     private Container createdContainer;
     
     public CreateContainerCommand(ContainerManager manager, String name) {
-        this(manager, name, ContainerType.CUSTOM, null);
+        this(manager, name, ContainerType.GENERAL, null);
     }
     
     public CreateContainerCommand(ContainerManager manager, String name, ContainerType type, Container parent) {

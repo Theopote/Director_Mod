@@ -1059,7 +1059,7 @@ public class ContainerManager {
         }
         
         String name = generateUniqueName("选区容器");
-        Container container = createContainer(name, ContainerType.CUSTOM);
+        Container container = createContainer(name, ContainerType.GENERAL);
         
         // 设置容器的世界归属（v5.2新增）
         if (world != null) {
@@ -1298,9 +1298,9 @@ public class ContainerManager {
     
     private void createDefaultContainers() {
         createContainer("Scene Root", ContainerType.GROUP);
-        createContainer("City Core", ContainerType.STRUCTURE);
-        createContainer("Residential Zone", ContainerType.ENVIRONMENT);
-        createContainer("Tree Cluster", ContainerType.VEGETATION);
+        createContainer("City Core", ContainerType.GENERAL);
+        createContainer("Residential Zone", ContainerType.GENERAL);
+        createContainer("Tree Cluster", ContainerType.GENERAL);
         
         LOGGER.info("[ContainerManager] 创建默认容器");
     }

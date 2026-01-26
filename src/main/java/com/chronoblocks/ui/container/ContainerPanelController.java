@@ -133,7 +133,7 @@ public class ContainerPanelController {
     /* -------------------- 创建 / 删除 -------------------- */
 
     public void createNewContainer() {
-        handlePostCreate(commandService.createContainer("容器", ContainerType.CUSTOM, null));
+        handlePostCreate(commandService.createContainer("容器", ContainerType.GENERAL, null));
     }
 
     public void createNewGroupContainer() {

@@ -55,7 +55,7 @@ public class Container {
     private long modifiedTime;
     
     public Container(String name) {
-        this(UUID.randomUUID(), name, ContainerType.CUSTOM);
+        this(UUID.randomUUID(), name, ContainerType.GENERAL);
     }
     
     public Container(String name, ContainerType type) {
