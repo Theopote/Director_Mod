@@ -1100,13 +1100,19 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                 try {
                     MinecraftClient client = MinecraftClient.getInstance();
                     if (client != null && client.player != null) {
+                        // ⭐ 获取摄像机前向方向（从摄像机指向目标）
                         dir = client.player.getRotationVec(1.0f);
                     }
                 } catch (Exception ignored) {
                 }
 
                 if (dir != null && dir.lengthSquared() > 1.0e-6) {
-                    dir = dir.normalize();
+                    // ⭐ 反转方向：为了实现"远→近"排序，需要使用反向
+                    // 因为 flowScore = rel.dotProduct(normal)，排序按升序
+                    // 要让远处的方块先出现（更小的分数），需要让远处的点积为负
+                    // 所以使用 -dir 作为 normal，这样远处的方块 rel.dotProduct(-dir) 为负且绝对值大
+                    dir = dir.normalize().multiply(-1.0);
+                    
                     // 与 SequenceEvaluator.getNormalFromAngles 的参数约定一致：
                     // x = cos(pitch)*sin(yaw), z = cos(pitch)*cos(yaw), y = sin(pitch)
                     float yaw = (float) Math.toDegrees(Math.atan2(dir.x, dir.z));

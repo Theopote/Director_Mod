@@ -71,6 +71,7 @@ public class ActorRegistryPersistence {
 
     /**
      * 保存 ActorRegistry 到文件
+     * ⭐ 性能优化：添加异常保护，防止保存失败导致崩溃
      *
      * @param registry ActorRegistry
      */
@@ -82,20 +83,37 @@ public class ActorRegistryPersistence {
 
         try {
             Path file = getActorRegistryFile();
+            if (file == null) {
+                LOGGER.warn("[ActorRegistryPersistence] 无法获取保存路径，跳过保存");
+                return;
+            }
+            
             Path parent = file.getParent();
             if (parent != null && !Files.exists(parent)) {
                 Files.createDirectories(parent);
             }
 
             JsonObject root = getJsonObject(registry);
-
             String json = GSON.toJson(root);
-            Files.writeString(file, json);
+            
+            // ⭐ 使用临时文件写入，然后原子性重命名，避免写入过程中崩溃导致文件损坏
+            Path tempFile = file.resolveSibling(file.getFileName().toString() + ".tmp");
+            Files.writeString(tempFile, json);
+            try {
+                // 尝试原子性移动（某些文件系统可能不支持）
+                Files.move(tempFile, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING, java.nio.file.StandardCopyOption.ATOMIC_MOVE);
+            } catch (java.nio.file.FileSystemException e) {
+                // 如果不支持原子移动，使用普通替换
+                Files.move(tempFile, file, java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+            }
 
             LOGGER.info("[ActorRegistryPersistence] 保存 ActorRegistry 到文件: {} ({} 个 Actor)", file, registry.size());
 
         } catch (IOException e) {
             LOGGER.error("[ActorRegistryPersistence] 保存 ActorRegistry 失败", e);
+        } catch (Exception e) {
+            // 捕获所有异常，防止保存操作导致崩溃
+            LOGGER.error("[ActorRegistryPersistence] 保存 ActorRegistry 时发生未预期的异常", e);
         }
     }
 

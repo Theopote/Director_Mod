@@ -229,7 +229,7 @@ public class ActorActionClipPropertyAdapter implements IPropertyAdapter<ActorAct
                     ImGui.beginTooltip();
                     ImGui.textDisabled("此动作不被当前 RigProfile 支持");
                     ImGui.textDisabled(String.format("Actor: %s, Rig: %s",
-                        actor != null ? actor.getName() : "未知",
+                            actor.getName(),
                         rig.getClass().getSimpleName()));
                     ImGui.endTooltip();
                 }

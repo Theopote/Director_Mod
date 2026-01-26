@@ -71,8 +71,8 @@ public class TimelineModel {
     
     // ⭐ 性能优化：防止 notifyModelChanged 的无限循环
     private boolean isNotifyingListeners = false;
-    private long lastSaveTime = 0;
-    private static final long MIN_SAVE_INTERVAL_MS = 100; // 最小保存间隔：100ms（避免频繁保存）
+    private volatile long lastSaveTime = 0;
+    private static final long MIN_SAVE_INTERVAL_MS = 1000; // 最小保存间隔：1秒（避免频繁保存导致崩溃）
 
     /**
      * 通知所有监听器模型已变更
@@ -131,11 +131,17 @@ public class TimelineModel {
         // ⭐ 性能优化：节流保存操作，避免频繁的文件 I/O 阻塞主线程
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastSaveTime >= MIN_SAVE_INTERVAL_MS) {
-            // 实时保存，确保当前存档的时间线始终落盘
-            save();
-            // 同时保存 ActorRegistry
-            com.chronoblocks.actor.ActorRegistryManager.save();
-            lastSaveTime = currentTime;
+            try {
+                // 实时保存，确保当前存档的时间线始终落盘
+                save();
+                // 同时保存 ActorRegistry
+                com.chronoblocks.actor.ActorRegistryManager.save();
+                lastSaveTime = currentTime;
+            } catch (Exception e) {
+                // 保存失败不应该影响程序运行，只记录错误
+                System.err.println("[TimelineModel] 保存失败: " + e.getMessage());
+                e.printStackTrace();
+            }
         }
     }
     
