@@ -70,9 +70,6 @@ public class GenericPropertyAdapter implements IPropertyAdapter<Object> {
         boolean modified = false;
         Class<?> clazz = target.getClass();
         
-        // 标题
-        UITheme.title("🔍 通用属性");
-        
         // 类型信息
         UITheme.beginGroup("类型信息");
         UITheme.label("类名: " + clazz.getSimpleName(), UITheme.DarkTheme.TEXT);

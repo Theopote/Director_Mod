@@ -334,7 +334,6 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
 
         // 淡化透明度控制
         if (clip.isAutoFadePreviousClips()) {
-            ImGui.indent();
             float[] opacity = {clip.getAutoFadeOpacity()};
             if (ImGui.sliderFloat("淡化透明度", opacity, 0.05f, 0.95f, "%.2f")) {
                 clip.setAutoFadeOpacity(opacity[0]);
@@ -351,7 +350,6 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
             } else {
                 ImGui.textColored(0.8f, 0.8f, 0.8f, 1.0f, "  -> 遮挡方块将轻微淡化");
             }
-            ImGui.unindent();
         }
 
         // 遮挡时透明显示开关
