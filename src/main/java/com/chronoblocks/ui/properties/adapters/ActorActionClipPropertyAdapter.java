@@ -175,9 +175,6 @@ public class ActorActionClipPropertyAdapter implements IPropertyAdapter<ActorAct
         }
 
         ActorRegistry actorRegistry = ActorRegistryManager.getInstance();
-        if (actorRegistry == null) {
-            return null;
-        }
 
         return actorRegistry.getActor(actorRef.getActorId()).orElse(null);
     }
@@ -230,14 +227,10 @@ public class ActorActionClipPropertyAdapter implements IPropertyAdapter<ActorAct
                 // 如果不支持，显示 Tooltip 解释原因
                 if (!supported && ImGui.isItemHovered()) {
                     ImGui.beginTooltip();
-                    if (rig != null) {
-                        ImGui.textDisabled("此动作不被当前 RigProfile 支持");
-                        ImGui.textDisabled(String.format("Actor: %s, Rig: %s", 
-                            actor != null ? actor.getName() : "未知",
-                            rig.getClass().getSimpleName()));
-                    } else {
-                        ImGui.textDisabled("无法获取 RigProfile");
-                    }
+                    ImGui.textDisabled("此动作不被当前 RigProfile 支持");
+                    ImGui.textDisabled(String.format("Actor: %s, Rig: %s",
+                        actor != null ? actor.getName() : "未知",
+                        rig.getClass().getSimpleName()));
                     ImGui.endTooltip();
                 }
 

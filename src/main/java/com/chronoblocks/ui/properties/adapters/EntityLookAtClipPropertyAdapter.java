@@ -99,7 +99,7 @@ public class EntityLookAtClipPropertyAdapter implements IPropertyAdapter<EntityL
             } else if (mode == EntityLookAtClip.TargetMode.ENTITY_UUID) {
                 UUID targetUuid = clip.getTargetEntityUuid();
                 if (targetUuid != null) {
-                    ImGui.text("目标实体UUID: " + targetUuid.toString());
+                    ImGui.text("目标实体UUID: " + targetUuid);
                 } else {
                     ImGui.textDisabled("未设置目标实体");
                 }

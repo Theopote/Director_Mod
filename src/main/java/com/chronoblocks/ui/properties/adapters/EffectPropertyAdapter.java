@@ -644,7 +644,7 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
     private boolean setFloatArrayProperty(Object obj, float[] value) {
         try {
             var method = obj.getClass().getMethod("setColorRGBA", float[].class);
-            method.invoke(obj, value);
+            method.invoke(obj, (Object) value);
             return true;
         } catch (Exception e) {
             try {

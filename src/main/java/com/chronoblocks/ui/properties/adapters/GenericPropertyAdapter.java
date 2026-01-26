@@ -14,7 +14,6 @@ import org.slf4j.LoggerFactory;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.util.Arrays;
-import java.util.List;
 
 /**
  * 通用属性适配器 - ChronoBlocks Properties System v4.5
@@ -58,15 +57,7 @@ import java.util.List;
  */
 public class GenericPropertyAdapter implements IPropertyAdapter<Object> {
     private static final Logger LOGGER = LoggerFactory.getLogger(GenericPropertyAdapter.class);
-    
-    /** 支持的基础类型列表 */
-    private static final List<Class<?>> SUPPORTED_TYPES = List.of(
-        int.class, Integer.class,
-        float.class, Float.class,
-        double.class, Double.class,
-        boolean.class, Boolean.class,
-        String.class
-    );
+
     
     @Override
     public boolean renderProperties(Object target) {
@@ -266,36 +257,6 @@ public class GenericPropertyAdapter implements IPropertyAdapter<Object> {
     public String getAdapterName() {
         return "通用属性编辑器";
     }
-    
-    /**
-     * 检查字段类型是否受支持
-     * 
-     * @param type 字段类型
-     * @return 如果支持则返回 true
-     */
-    private boolean isSupportedType(Class<?> type) {
-        return SUPPORTED_TYPES.contains(type) || type.isEnum();
-    }
-    
-    /**
-     * 获取对象的可编辑字段数量
-     * 
-     * @param target 目标对象
-     * @return 可编辑字段数量
-     */
-    public int getEditableFieldCount(Object target) {
-        if (target == null) return 0;
-        
-        int count = 0;
-        for (Field field : target.getClass().getDeclaredFields()) {
-            if (Modifier.isStatic(field.getModifiers()) || 
-                Modifier.isTransient(field.getModifiers())) {
-                continue;
-            }
-            if (isSupportedType(field.getType())) {
-                count++;
-            }
-        }
-        return count;
-    }
+
+
 }
