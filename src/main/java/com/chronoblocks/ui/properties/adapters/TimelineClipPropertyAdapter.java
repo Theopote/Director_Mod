@@ -12,13 +12,8 @@ import com.chronoblocks.core.animation.effect.preset.EffectPreset;
 import com.chronoblocks.core.animation.effect.preset.EffectPresetRegistry;
 import com.chronoblocks.ui.util.EffectClipboardManager;
 import com.chronoblocks.core.container.AnimationMode;
-import com.chronoblocks.core.container.Container;
-import com.chronoblocks.core.container.ContainerManager;
-import com.chronoblocks.core.animation.sequence.BlockSequenceGenerator;
-import com.chronoblocks.core.animation.sequence.BlockSequenceEntry;
 import com.chronoblocks.core.animation.sequence.ConcurrencyMode;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import com.chronoblocks.core.animation.sequence.SequenceMode;
 import com.chronoblocks.core.animation.sequence.SequenceParameters;
@@ -68,9 +63,6 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
 
     private final ImBoolean opacityFade = new ImBoolean(false);
 
-    // 序列行为预览状态
-    private final ImBoolean showSequencePreview = new ImBoolean(false);
-    
     // ==== Effects UI state ====
     private final ImInt addEffectSelectedIndex = new ImInt(0);
     
@@ -859,24 +851,6 @@ private boolean renderAnimationSettings(TimelineClip clip) {
 
         UITheme.separator();
 
-        // ========================= 预览按钮 =========================
-        String previewLabel = showSequencePreview.get()
-            ? Icons.VISIBLE + " 隐藏预览"
-            : Icons.INVISIBLE + " 预览";
-        if (ImGui.button(previewLabel)) {
-            showSequencePreview.set(!showSequencePreview.get());
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("预览方块出现顺序（需要绑定容器）");
-        }
-
-        // 预览区域
-        if (showSequencePreview.get()) {
-            UITheme.spacingSmall();
-            renderSequencePreview(clip, params);
-            UITheme.separator();
-        }
-
         // ========================= 主内容区域 =========================
         // ---------- 1. 切分方式 (Flow) ----------
         modified |= renderSequenceFlowSection(params);
@@ -1440,17 +1414,6 @@ private boolean renderAnimationSettings(TimelineClip clip) {
     }
 
     /**
-     * 渲染序列行为预览
-     */
-    private void renderSequencePreview(TimelineClip clip, SequenceParameters params) {
-        //UITheme.spacingSmall();
-        UITheme.separator();
-
-        UUID containerId = clip.getBoundContainerId();
-        if (containerId == null) {
-            ImGui.textDisabled("⚠ 未绑定容器，无法预览");
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("请先为片段绑定一个容器");
             }
             return;
         }
@@ -1520,32 +1483,6 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                 }
             }
         } catch (Exception e) {
-            LOGGER.error("生成序列预览时出错: {}", e.getMessage(), e);
-            ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, "预览生成失败: " + e.getMessage());
-        }
-    }
-
-    private static @NotNull String getString(List<BlockSequenceEntry> entries, int i, Map<Integer, List<BlockSequenceEntry>> groups) {
-
-        BlockSequenceEntry entry = entries.get(i);
-        BlockPos pos = entry.getPos();
-        float normalizedTime = entry.getNormalizedTime();
-        int groupId = entry.getGroupId();
-
-        String info = String.format("%d. [%d,%d,%d] - 时间: %.2f%%",
-
-            i + 1, pos.getX(), pos.getY(), pos.getZ(), normalizedTime * 100.0f);
-
-        if (groups.size() > 1) {
-
-            info += String.format(" (组 %d)", groupId);
-
-        }
-
-        return info;
-
-    }
-
     /**
      * 渲染「特效系统」面板（新版）
      * 
