@@ -132,7 +132,26 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
     }
 
     @Override
+    public String getAdapterName() {
+        return "容器片段属性";
+    }
+
+    @Override
     public int getPriority() { return 80; }
+
+    @Override
+    public boolean supports(Object target) {
+        if (!(target instanceof TimelineClip clip)) {
+            return false;
+        }
+        try {
+            TimelineTrack parent = clip.getParentTrack();
+            // ✅ 容器片段适配器：只支持非 ERASE 轨道
+            return parent != null && parent.getType() != TrackType.ERASE;
+        } catch (Exception e) {
+            return false;
+        }
+    }
 
     @Override
     public boolean renderProperties(TimelineClip clip) {
@@ -444,29 +463,14 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             config.setEasing(currentEasing);
         }
 
-        // ===== 1. 总体节奏：阶段(Enter/Exit) + 模式 + 时长 =====
-        // 判断是否为擦除轨道
-        boolean isEraseTrack = false;
-        try {
-            if (clip.getParentTrack() != null && clip.getParentTrack().getType() == com.chronoblocks.ui.timeline.model.TrackType.ERASE) {
-                isEraseTrack = true;
-            }
-        } catch (Exception ignored) {
-        }
-        
-        String sectionTitle = isEraseTrack ? "清除动画模式与节奏" : "动画模式与节奏";
+        // ===== 1. 总体节奏：阶段(Enter) + 模式 + 时长 =====
+        // ✅ 注意：拆除片段现在使用 EraseTimelineClipPropertyAdapter，此适配器只处理容器片段（ENTER 阶段）
+        String sectionTitle = "动画模式与节奏";
         UITheme.label(sectionTitle, UITheme.DarkTheme.TEXT_SELECTED);
-        
-        if (isEraseTrack) {
-            UITheme.label("拆除容器片段：方块会先播放退出动画，然后在动画结束后被清除", UITheme.DarkTheme.TEXT_DISABLED);
-            UITheme.spacingSmall();
-        }
 
-            // 片段阶段：根据轨道类型自动锁定（出现轨道=ENTER，擦除轨道=EXIT）
+            // 片段阶段：容器片段固定为 ENTER
             com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase desiredPhase =
-                    isEraseTrack 
-                    ? com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase.EXIT
-                    : com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase.ENTER;
+                    com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase.ENTER;
             if (config.getPhase() != desiredPhase) {
                 config.setPhase(desiredPhase);
                 modified = true;
@@ -475,18 +479,11 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             final com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase finalPhase = desiredPhase;
 
             // 模式选择（按阶段过滤）
-            AnimationMode[] availableModes = (desiredPhase == com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase.EXIT)
-                    ? new AnimationMode[]{AnimationMode.INSTANT, AnimationMode.FADE_OUT, AnimationMode.EXPLODE, AnimationMode.IMPLODE, AnimationMode.SHRINK_OUT, AnimationMode.GRAVITY_FALL, AnimationMode.FLY_OUT}
-                    : new AnimationMode[]{AnimationMode.INSTANT, AnimationMode.FADE_IN, AnimationMode.GROW_UP, AnimationMode.ASSEMBLE, AnimationMode.FALL_DOWN, AnimationMode.RISE_UP, AnimationMode.FLY_IN, AnimationMode.POP_IN, AnimationMode.SHAKER};
+            AnimationMode[] availableModes = new AnimationMode[]{AnimationMode.INSTANT, AnimationMode.FADE_IN, AnimationMode.GROW_UP, AnimationMode.ASSEMBLE, AnimationMode.FALL_DOWN, AnimationMode.RISE_UP, AnimationMode.FLY_IN, AnimationMode.POP_IN, AnimationMode.SHAKER};
 
-            String[] availableLabels = java.util.Arrays.stream(availableModes)
-                    .map(m -> {
-                        // 同一个 mode 在 Exit/Enter 阶段语义可能相反：显示名做一次用户友好化
-                        if (finalPhase == com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase.EXIT && m == AnimationMode.ASSEMBLE) {
-                            return "碎片散射";
-                        }
-                        return m.getDisplayName();
-                    })
+        // 同一个 mode 在 Exit/Enter 阶段语义可能相反：显示名做一次用户友好化
+        String[] availableLabels = java.util.Arrays.stream(availableModes)
+                    .map(AnimationMode::getDisplayName)
                     .toArray(String[]::new);
             int selectedIdx = 0;
             for (int i = 0; i < availableModes.length; i++) {
@@ -497,9 +494,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             }
             // 当前 mode 不在可选列表：自动纠正到更合理的默认值
             if (selectedIdx == 0 && currentMode != availableModes[0]) {
-                AnimationMode fallback = (desiredPhase == com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase.EXIT)
-                        ? AnimationMode.FADE_OUT
-                        : AnimationMode.FADE_IN;
+                AnimationMode fallback = AnimationMode.FADE_IN;
                 config.setMode(fallback);
                 currentMode = fallback;
                 for (int i = 0; i < availableModes.length; i++) {
@@ -572,19 +567,13 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             }
             ImGui.popItemWidth();
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(desiredPhase == com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase.EXIT
-                        ? "选择擦除片段的退出方式（方块先播放退出动画，再被清除）"
-                        : "选择出现片段的入场方式");
+                ImGui.setTooltip("选择出现片段的入场方式");
             }
 
             // 模式描述（来自 AnimationMode 描述，个别 Exit 模式做友好化）
             //UITheme.spacingSmall();
             try {
-                if (desiredPhase == com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase.EXIT && currentMode == AnimationMode.ASSEMBLE) {
-                    drawHelpBox("方块向外散射并淡出（由“碎片聚合”自动反向播放得到），适合擦除片段的碎片效果");
-                } else {
-                    drawHelpBox(currentMode.getDescription());
-                }
+                drawHelpBox(currentMode.getDescription());
             } catch (Exception e) {
                 LOGGER.error("显示模式描述时出错: {}", e.getMessage(), e);
             }

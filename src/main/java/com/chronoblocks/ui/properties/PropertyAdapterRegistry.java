@@ -45,7 +45,8 @@ public final class PropertyAdapterRegistry {
     private static final Logger LOGGER = LoggerFactory.getLogger(PropertyAdapterRegistry.class);
     
     // 使用 ConcurrentHashMap 保证线程安全
-    private static final Map<Class<?>, IPropertyAdapter<?>> adapters = new ConcurrentHashMap<>();
+    // ✅ 支持同一类型注册多个适配器（通过 supports() 方法区分）
+    private static final Map<Class<?>, List<IPropertyAdapter<?>>> adapters = new ConcurrentHashMap<>();
     
     // 回退适配器（用于未注册类型）
     private static IPropertyAdapter<Object> fallbackAdapter = null;
@@ -75,9 +76,11 @@ public final class PropertyAdapterRegistry {
                 + adapter.getClass().getName() + " is in " + pkg + ". Use com.chronoblocks.ui.properties.PropertyAdapterRegistry only.");
         }
         
-        adapters.put(type, adapter);
-        LOGGER.debug("[PropertyAdapterRegistry] Registered adapter: {} → {}", 
-            adapter.getClass().getSimpleName(), type.getSimpleName());
+        // ✅ 支持同一类型注册多个适配器
+        adapters.computeIfAbsent(type, k -> new ArrayList<>()).add(adapter);
+        LOGGER.debug("[PropertyAdapterRegistry] Registered adapter: {} → {} (total for this type: {})", 
+            adapter.getClass().getSimpleName(), type.getSimpleName(), 
+            adapters.get(type).size());
     }
     
     /**
@@ -119,23 +122,47 @@ public final class PropertyAdapterRegistry {
         Class<?> targetClass = target.getClass();
 
         // 1. 精确匹配
-        IPropertyAdapter<?> adapter = adapters.get(targetClass);
-        if (adapter != null) {
-            if (useCtx ? adapter.supports(ctx, target) : adapter.supports(target)) {
-                LOGGER.trace("[PropertyAdapterRegistry] Found exact match for {} (ctx={})", targetClass.getSimpleName(), ctx);
-                return (IPropertyAdapter<T>) adapter;
+        List<IPropertyAdapter<?>> exactAdapters = adapters.get(targetClass);
+        if (exactAdapters != null) {
+            for (IPropertyAdapter<?> adapter : exactAdapters) {
+                boolean supportsResult = useCtx ? adapter.supports(ctx, target) : adapter.supports(target);
+                if (supportsResult) {
+                    LOGGER.debug("[PropertyAdapterRegistry] ✅ 精确匹配成功: {} → {} (ctx={})", 
+                        targetClass.getSimpleName(), adapter.getClass().getSimpleName(), ctx);
+                    return (IPropertyAdapter<T>) adapter;
+                }
             }
+            LOGGER.debug("[PropertyAdapterRegistry] ⚠ 精确匹配失败（所有适配器 supports=false）: {} (ctx={})，继续兼容匹配", 
+                targetClass.getSimpleName(), ctx);
         }
 
         // 2. 兼容匹配：继承或 supports，且 supports(ctx,target)，再按 priority 择优
+        // ✅ 注意：即使精确匹配失败，也要检查所有注册的适配器（包括精确匹配的类型），
+        // 因为可能有多个适配器注册到同一类型，通过 supports() 和 priority 来区分
         List<IPropertyAdapter<?>> candidates = new ArrayList<>();
-        for (Map.Entry<Class<?>, IPropertyAdapter<?>> entry : adapters.entrySet()) {
+        for (Map.Entry<Class<?>, List<IPropertyAdapter<?>>> entry : adapters.entrySet()) {
             Class<?> registeredType = entry.getKey();
-            IPropertyAdapter<?> entryAdapter = entry.getValue();
-            if (registeredType == targetClass) continue;
-            if (!(registeredType.isAssignableFrom(targetClass) || entryAdapter.supports(target))) continue;
-            if (!(!useCtx || entryAdapter.supports(ctx, target))) continue;
-            candidates.add(entryAdapter);
+            List<IPropertyAdapter<?>> adapterList = entry.getValue();
+            for (IPropertyAdapter<?> entryAdapter : adapterList) {
+            // ✅ 移除跳过精确匹配类型的限制，因为可能有多个适配器注册到同一类型
+            // if (registeredType == targetClass) continue;
+            
+            // ✅ 检查类型匹配：注册类型必须是目标类型的父类或相同类型，或者适配器通过 supports() 匹配
+            boolean typeMatches = registeredType.isAssignableFrom(targetClass) || entryAdapter.supports(target);
+            if (!typeMatches) continue;
+            
+            // ✅ 必须通过 supports() 检查（这是关键！）
+            boolean supportsMatch = useCtx ? entryAdapter.supports(ctx, target) : entryAdapter.supports(target);
+            if (!supportsMatch) {
+                LOGGER.trace("[PropertyAdapterRegistry] 跳过适配器 {} (注册为 {}): supports() 返回 false", 
+                    entryAdapter.getClass().getSimpleName(), registeredType.getSimpleName());
+                continue;
+            }
+            
+                LOGGER.trace("[PropertyAdapterRegistry] 候选适配器: {} (注册为 {}, priority={})", 
+                    entryAdapter.getClass().getSimpleName(), registeredType.getSimpleName(), entryAdapter.getPriority());
+                candidates.add(entryAdapter);
+            }
         }
         if (!candidates.isEmpty()) {
             IPropertyAdapter<?> best = candidates.getFirst();
@@ -147,8 +174,8 @@ public final class PropertyAdapterRegistry {
                     best = a;
                 }
             }
-            LOGGER.trace("[PropertyAdapterRegistry] Found adapter by priority: {} for {} (priority={}, ctx={})",
-                best.getClass().getSimpleName(), targetClass.getSimpleName(), bestPriority, ctx);
+            LOGGER.debug("[PropertyAdapterRegistry] ✅ 兼容匹配成功: {} → {} (priority={}, candidates={}, ctx={})",
+                targetClass.getSimpleName(), best.getClass().getSimpleName(), bestPriority, candidates.size(), ctx);
             return (IPropertyAdapter<T>) best;
         }
 
@@ -176,7 +203,12 @@ public final class PropertyAdapterRegistry {
         if (type == null) {
             return null;
         }
-        return (IPropertyAdapter<T>) adapters.get(type);
+        List<IPropertyAdapter<?>> adapterList = adapters.get(type);
+        if (adapterList == null || adapterList.isEmpty()) {
+            return null;
+        }
+        // 返回第一个适配器（如果有多个，应该使用 getAdapterFor 方法）
+        return (IPropertyAdapter<T>) adapterList.get(0);
     }
     
     /**
@@ -201,11 +233,12 @@ public final class PropertyAdapterRegistry {
         if (type == null) {
             return null;
         }
-        IPropertyAdapter<?> removed = adapters.remove(type);
-        if (removed != null) {
-            LOGGER.info("[PropertyAdapterRegistry] Removed adapter for {}", type.getSimpleName());
+        List<IPropertyAdapter<?>> removed = adapters.remove(type);
+        if (removed != null && !removed.isEmpty()) {
+            LOGGER.info("[PropertyAdapterRegistry] Removed {} adapter(s) for {}", removed.size(), type.getSimpleName());
+            return (IPropertyAdapter<T>) removed.get(0);
         }
-        return (IPropertyAdapter<T>) removed;
+        return null;
     }
     
     /**
@@ -269,10 +302,14 @@ public final class PropertyAdapterRegistry {
      */
     public static String getDebugInfo() {
         StringBuilder sb = new StringBuilder();
-        sb.append("PropertyAdapterRegistry [").append(adapters.size()).append(" adapters]:\n");
-        adapters.forEach((type, adapter) -> sb.append("  - ").append(type.getSimpleName())
-          .append(" → ").append(adapter.getClass().getSimpleName())
-          .append("\n"));
+        int totalAdapters = adapters.values().stream().mapToInt(List::size).sum();
+        sb.append("PropertyAdapterRegistry [").append(totalAdapters).append(" adapters across ").append(adapters.size()).append(" types]:\n");
+        adapters.forEach((type, adapterList) -> {
+            sb.append("  - ").append(type.getSimpleName()).append(" (").append(adapterList.size()).append(" adapters):\n");
+            for (IPropertyAdapter<?> adapter : adapterList) {
+                sb.append("    → ").append(adapter.getClass().getSimpleName()).append("\n");
+            }
+        });
         if (fallbackAdapter != null) {
             sb.append("  Fallback: ").append(fallbackAdapter.getClass().getSimpleName()).append("\n");
         }

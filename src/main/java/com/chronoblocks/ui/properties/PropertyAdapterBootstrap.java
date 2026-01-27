@@ -135,7 +135,13 @@ public final class PropertyAdapterBootstrap {
             // ✅ 动画片段属性适配器（新版动画系统）
             registerAdapter(AnimationClip.class, new ClipPropertyAdapter());
             registeredCount++;
-            registerAdapter(TimelineClip.class, new TimelineClipPropertyAdapter());
+            // ✅ 拆除片段属性适配器（高优先级，优先匹配 ERASE 轨道上的片段）
+            // 先注册 EraseTimelineClipPropertyAdapter，因为它有更高的 priority (100)
+            registerAdapter(TimelineClip.class, new EraseTimelineClipPropertyAdapter());
+            registeredCount++;
+            // ✅ 容器片段属性适配器（通过 supports() 方法匹配非 ERASE 轨道）
+            // 使用第二个重载方法，注册为 Object.class，通过 supports() 方法来匹配 TimelineClip（非 ERASE 轨道）
+            registerAdapter(new TimelineClipPropertyAdapter(), "TimelineClip");
             registeredCount++;
             registerAdapter(AudioTimelineClip.class, new AudioTimelineClipPropertyAdapter());
             registeredCount++;
@@ -325,7 +331,7 @@ public final class PropertyAdapterBootstrap {
     @SuppressWarnings("unchecked")
     private static <T> void registerAdapter(IPropertyAdapter<T> adapter, String targetName) {
         PropertyAdapterRegistry.registerAdapter((Class<T>) Object.class, adapter);
-        LOGGER.info("[PropertyAdapterBootstrap] ✅ 已注册: {} → {}", 
+        LOGGER.info("[PropertyAdapterBootstrap] ✅ 已注册: {} → {} (实际注册类型: Object.class)", 
             adapter.getClass().getSimpleName(), 
             targetName);
     }
