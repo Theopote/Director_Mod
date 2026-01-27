@@ -115,10 +115,9 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
 
     @Override
     public boolean supports(Object target) {
-        if (target == null || !(target instanceof TimelineClip)) {
+        if (!(target instanceof TimelineClip clip)) {
             return false;
         }
-        TimelineClip clip = (TimelineClip) target;
         try {
             TimelineTrack parent = clip.getParentTrack();
             return parent != null && parent.getType() == TrackType.ERASE;
@@ -742,7 +741,7 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
         UITheme.separator();
 
         // 起始锚点（拆除片段专用提示）
-        modified |= renderSequenceOriginSection(params, true);
+        modified |= renderSequenceOriginSection(params);
 
         UITheme.separator();
 
@@ -887,17 +886,15 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
         return modified;
     }
 
-    private boolean renderSequenceOriginSection(SequenceParameters params, boolean isEraseTrack) {
+    private boolean renderSequenceOriginSection(SequenceParameters params) {
         boolean modified = false;
         FlowType flow = params.getFlowType();
 
-        String originLabel = isEraseTrack ? "2. 起始锚点 (Origin) - 拆除片段" : "2. 起始锚点 (Origin)";
+        String originLabel = "2. 起始锚点 (Origin) - 拆除片段";
         UITheme.label(originLabel, UITheme.DarkTheme.TEXT_SELECTED);
-        
-        if (isEraseTrack) {
-            UITheme.label("提示：拆除片段的方向与容器片段相反（如容器由下到上，拆除由上到下）", UITheme.DarkTheme.TEXT_DISABLED);
-            UITheme.spacingSmall();
-        }
+
+        UITheme.label("提示：拆除片段的方向与容器片段相反（如容器由下到上，拆除由上到下）", UITheme.DarkTheme.TEXT_DISABLED);
+        UITheme.spacingSmall();
 
         if (flow == FlowType.SPHERICAL) {
             if (params.getOriginType() != OriginType.CENTER) {
@@ -947,25 +944,15 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
                     • 几何中心：从整体中心向外扩散
                     """);
             } else {
-                if (isEraseTrack) {
-                    ImGui.setTooltip("""
-                        决定序列的"起点"（拆除片段，方向与容器相反）：
-                        • 最小角：从容器原点（通常是一角）开始
-                        • 几何中心：从整体中心向外
-                        • 底部中心：从地面中心往上（拆除时由上到下）
-                        • 自定义：从你指定的坐标开始
-                        
-                        提示：拆除片段的方向与容器片段相反，例如容器由下到上，拆除由上到下。
-                        """);
-                } else {
-                    ImGui.setTooltip("""
-                        决定序列的"起点"：
-                        • 最小角：从容器原点（通常是一角）开始
-                        • 几何中心：从整体中心向外
-                        • 底部中心：从地面中心往上，适合树/建筑生长
-                        • 自定义：从你指定的坐标开始
-                        """);
-                }
+                ImGui.setTooltip("""
+                    决定序列的"起点"（拆除片段，方向与容器相反）：
+                    • 最小角：从容器原点（通常是一角）开始
+                    • 几何中心：从整体中心向外
+                    • 底部中心：从地面中心往上（拆除时由上到下）
+                    • 自定义：从你指定的坐标开始
+                    
+                    提示：拆除片段的方向与容器片段相反，例如容器由下到上，拆除由上到下。
+                    """);
             }
         }
 
@@ -1700,7 +1687,6 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
         if (params == null) return 1.0f;
         Object val = params.get("opacityFadeIntensity");
         switch (val) {
-            case null -> { return 1.0f; }
             case Number number -> { return number.floatValue(); }
             case String s -> {
                 try {
@@ -1709,7 +1695,7 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
                     return 1.0f;
                 }
             }
-            default -> { return 1.0f; }
+            case null, default -> { return 1.0f; }
         }
     }
 
