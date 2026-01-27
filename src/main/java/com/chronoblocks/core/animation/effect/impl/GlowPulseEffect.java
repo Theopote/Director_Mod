@@ -4,6 +4,8 @@ import com.chronoblocks.core.animation.effect.EffectInstance;
 import com.chronoblocks.core.animation.effect.IBlockEffect;
 import com.chronoblocks.core.animation.effect.ui.EffectUIHelper;
 import com.chronoblocks.core.animation.effect.ui.EffectUIUtils;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.particle.ParticleManager;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.util.math.BlockPos;
@@ -46,6 +48,13 @@ public class GlowPulseEffect implements IBlockEffect {
         int base = (int) Math.round((2.0 + 5.0 * pulse) * intensity);
         int count = Math.max(1, Math.min(base, 12)); // 上限更低：默认更克制
 
+        // ✅ 修复：使用 particleManager.addParticle() 而不是 addParticleClient()
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.particleManager == null) {
+            return;
+        }
+        ParticleManager particleManager = client.particleManager;
+
         double cx = pos.getX() + 0.5;
         double cy = pos.getY() + 0.5;
         double cz = pos.getZ() + 0.5;
@@ -60,7 +69,7 @@ public class GlowPulseEffect implements IBlockEffect {
             double vz = (random.nextDouble() - 0.5) * 0.01;
 
             // ✅ 修复：使用 TOTEM_OF_UNDYING 粒子来模拟脉冲发光效果（绿色发光粒子，更适合脉冲效果）
-            world.addParticleClient(ParticleTypes.TOTEM_OF_UNDYING, ox, oy, oz, vx, vy, vz);
+            particleManager.addParticle(ParticleTypes.TOTEM_OF_UNDYING, ox, oy, oz, vx, vy, vz);
         }
 
         // 额外雾化：非常克制
@@ -70,7 +79,7 @@ public class GlowPulseEffect implements IBlockEffect {
                 double ox = cx + (random.nextDouble() - 0.5) * 0.3;
                 double oy = cy + (random.nextDouble() - 0.5) * 0.3;
                 double oz = cz + (random.nextDouble() - 0.5) * 0.3;
-                world.addParticleClient(ParticleTypes.CLOUD, ox, oy, oz, 0.0, 0.0, 0.0);
+                particleManager.addParticle(ParticleTypes.CLOUD, ox, oy, oz, 0.0, 0.0, 0.0);
             }
         }
     }

@@ -269,7 +269,7 @@ public final class BlockAnimationEngine {
                 LOGGER.trace("[BlockAnimationEngine] finished: pos={} mode={} now={} blockEndTime={}",
                         pos, mode, now, blockEndTime);
             }
-            if (phase == ClipAnimationConfig.AnimationPhase.EXIT && mode != AnimationMode.INSTANT) {
+            if (phase == ClipAnimationConfig.AnimationPhase.EXIT) {
                 // EXIT：动画结束后应当隐藏（上层会在同一时刻把方块从世界中移除）
                 snapshot.markHidden();
             } else {
@@ -511,7 +511,8 @@ public final class BlockAnimationEngine {
                 durNorm = 1.0f;
             }
             durNorm = MathHelper.clamp(durNorm, 0.0001f, 1.0f);
-            float endNorm = startNorm + durNorm;
+            // ✅ 修复：确保 endNorm 不超过 1.0f，避免特效在动画结束后仍然触发
+            float endNorm = MathHelper.clamp(startNorm + durNorm, 0.0f, 1.0f);
 
             if (tRaw < startNorm || tRaw > endNorm) {
                 if (LOGGER.isTraceEnabled()) {
@@ -547,11 +548,19 @@ public final class BlockAnimationEngine {
                             if (tRaw + 1e-4f < startNorm) {
                                 // 当前时间还没到特效窗口，等待进入窗口
                                 gate.lastTRaw = tRaw;
+                                if (LOGGER.isDebugEnabled()) {
+                                    LOGGER.debug("[BlockAnimationEngine] ONE_SHOT 特效 {} 等待进入窗口: tRaw={} startNorm={} endNorm={}",
+                                            inst.getType(), tRaw, startNorm, endNorm);
+                                }
                                 continue;
                             }
                             // 已经在窗口内，允许触发一次
                             gate.lastTRaw = tRaw;
                             effectT = 0.0f;
+                            if (LOGGER.isDebugEnabled()) {
+                                LOGGER.debug("[BlockAnimationEngine] ONE_SHOT 特效 {} 首次触发（已在窗口内）: tRaw={} startNorm={} endNorm={}",
+                                        inst.getType(), tRaw, startNorm, endNorm);
+                            }
                         } else {
                             // 如果时间倒退（拖动播放头/循环），重置状态以允许重新触发
                             if (tRaw + 1e-4f < gate.lastTRaw) {
@@ -560,6 +569,10 @@ public final class BlockAnimationEngine {
                                 // 如果倒退到特效窗口之前，重置 initialized 以允许重新触发
                                 if (tRaw + 1e-4f < startNorm) {
                                     gate.initialized = false;
+                                    if (LOGGER.isDebugEnabled()) {
+                                        LOGGER.debug("[BlockAnimationEngine] ONE_SHOT 特效 {} 时间倒退，重置状态: tRaw={} startNorm={}",
+                                                inst.getType(), tRaw, startNorm);
+                                    }
                                 }
                                 continue;
                             }
@@ -567,10 +580,18 @@ public final class BlockAnimationEngine {
                             boolean crossed = gate.lastTRaw + 1e-4f < startNorm && tRaw + 1e-4f >= startNorm;
                             gate.lastTRaw = tRaw;
                             if (!crossed) {
+                                if (LOGGER.isTraceEnabled()) {
+                                    LOGGER.trace("[BlockAnimationEngine] ONE_SHOT 特效 {} 未跨越边界: lastTRaw={} tRaw={} startNorm={}",
+                                            inst.getType(), gate.lastTRaw, tRaw, startNorm);
+                                }
                                 continue;
                             }
                             // 触发一次：用 effectT=0 作为起点
                             effectT = 0.0f;
+                            if (LOGGER.isDebugEnabled()) {
+                                LOGGER.debug("[BlockAnimationEngine] ONE_SHOT 特效 {} 跨越边界触发: lastTRaw={} tRaw={} startNorm={}",
+                                        inst.getType(), gate.lastTRaw, tRaw, startNorm);
+                            }
                         }
                     }
 

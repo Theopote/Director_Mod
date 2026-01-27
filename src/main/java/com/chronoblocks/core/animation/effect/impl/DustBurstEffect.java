@@ -4,6 +4,8 @@ import com.chronoblocks.core.animation.effect.EffectInstance;
 import com.chronoblocks.core.animation.effect.IBlockEffect;
 import com.chronoblocks.core.animation.effect.ui.EffectUIHelper;
 import com.chronoblocks.core.animation.effect.ui.EffectUIUtils;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.particle.ParticleManager;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.particle.BlockStateParticleEffect;
 import net.minecraft.particle.ParticleEffect;
@@ -56,10 +58,23 @@ public class DustBurstEffect implements IBlockEffect {
         float radius = EffectUIUtils.getFloat(inst.getParams(), "radius", 0.6f);
         
         // t 越小爆得越猛
+        // ✅ 修复：对于 ONE_SHOT 模式，t=0.0f，burstPhase=1.0f，应该产生最大粒子数
         float burstPhase = 1.0f - (t / 0.4f);
         if (burstPhase < 0) burstPhase = 0;
         
         int count = Math.max(2, (int) (12 * intensity * burstPhase));
+        
+        // ✅ 调试：记录粒子数量和参数
+        org.slf4j.Logger logger = org.slf4j.LoggerFactory.getLogger(DustBurstEffect.class);
+        if (logger.isDebugEnabled()) {
+            logger.debug("[DustBurstEffect] 渲染: t={} burstPhase={} intensity={} radius={} count={} triggerMode={}",
+                    t, burstPhase, intensity, radius, count, inst.getTriggerMode());
+        }
+        if (count <= 0) {
+            logger.warn("[DustBurstEffect] 粒子数量为 0: t={} burstPhase={} intensity={}",
+                    t, burstPhase, intensity);
+            return;  // 如果没有粒子，直接返回
+        }
         
         // 使用方块本身材质的粒子效果，如果取不到就退回 POOF
         ParticleEffect effect;
@@ -71,6 +86,14 @@ public class DustBurstEffect implements IBlockEffect {
         } catch (Exception e) {
             effect = ParticleTypes.POOF;
         }
+        
+        // ✅ 修复：使用 particleManager.addParticle() 而不是 addParticleClient()
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.particleManager == null) {
+            logger.warn("[DustBurstEffect] 无法获取 particleManager");
+            return;
+        }
+        ParticleManager particleManager = client.particleManager;
         
         double baseX = pos.getX() + 0.5;
         double baseY = pos.getY() + 0.01; // 靠近地面
@@ -88,7 +111,8 @@ public class DustBurstEffect implements IBlockEffect {
             double vy = 0.1 + random.nextDouble() * 0.1;
             double vz = (oz - baseZ) * 0.15;
             
-            world.addParticleClient(effect, ox, oy, oz, vx, vy, vz);
+            // ✅ 修复：使用 particleManager.addParticle() 添加粒子
+            particleManager.addParticle(effect, ox, oy, oz, vx, vy, vz);
         }
     }
     

@@ -4,6 +4,8 @@ import com.chronoblocks.core.animation.effect.EffectInstance;
 import com.chronoblocks.core.animation.effect.IBlockEffect;
 import com.chronoblocks.core.animation.effect.ui.EffectUIHelper;
 import com.chronoblocks.core.animation.effect.ui.EffectUIUtils;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.particle.ParticleManager;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.util.math.BlockPos;
@@ -41,6 +43,13 @@ public class MagicFlareEffect implements IBlockEffect {
         // 轻量：每帧只刷少量粒子（连续触发也不会炸）
         int count = Math.max(1, Math.min(3, (int) Math.ceil(1.5f * intensity)));
 
+        // ✅ 修复：使用 particleManager.addParticle() 而不是 addParticleClient()
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.particleManager == null) {
+            return;
+        }
+        ParticleManager particleManager = client.particleManager;
+
         double cx = pos.getX() + 0.5;
         double cy = pos.getY() + 0.5;
         double cz = pos.getZ() + 0.5;
@@ -63,7 +72,7 @@ public class MagicFlareEffect implements IBlockEffect {
             double vy = 0.01 + random.nextDouble() * 0.01;
 
             // ✅ 修复：使用 ENCHANT 粒子来模拟魔法光焰效果（紫色魔法粒子）
-            world.addParticleClient(ParticleTypes.ENCHANT, ox, oy, oz, vx, vy, vz);
+            particleManager.addParticle(ParticleTypes.ENCHANT, ox, oy, oz, vx, vy, vz);
         }
     }
 

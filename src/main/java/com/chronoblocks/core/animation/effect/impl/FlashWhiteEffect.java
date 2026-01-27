@@ -4,6 +4,8 @@ import com.chronoblocks.core.animation.effect.EffectInstance;
 import com.chronoblocks.core.animation.effect.IBlockEffect;
 import com.chronoblocks.core.animation.effect.ui.EffectUIHelper;
 import com.chronoblocks.core.animation.effect.ui.EffectUIUtils;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.particle.ParticleManager;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.util.math.BlockPos;
@@ -44,13 +46,20 @@ public class FlashWhiteEffect implements IBlockEffect {
         
         int baseCount = Math.max(1, (int) (4 * intensity * fade));
         
+        // ✅ 修复：使用 particleManager.addParticle() 而不是 addParticleClient()
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.particleManager == null) {
+            return;
+        }
+        ParticleManager particleManager = client.particleManager;
+        
         for (int i = 0; i < baseCount; i++) {
             double ox = pos.getX() + 0.5 + (random.nextDouble() - 0.5) * 0.6;
             double oy = pos.getY() + 0.5 + (random.nextDouble() - 0.5) * 0.6;
             double oz = pos.getZ() + 0.5 + (random.nextDouble() - 0.5) * 0.6;
             
             // ✅ 修复：使用 CRIT 粒子来模拟闪白光效果（更明显的白色闪光）
-            world.addParticleClient(
+            particleManager.addParticle(
                     ParticleTypes.CRIT,
                     ox, oy, oz,
                     0.0, 0.02, 0.0
