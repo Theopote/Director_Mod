@@ -1058,7 +1058,7 @@ public class TimelineClipBlockController {
             BlockAnimationSnapshot snapshot;
             
             // ✅ 修复：INSTANT 模式或需要特效时，即使不在动画窗口内也应该调用 sample() 来触发特效
-            boolean needsEffects = config != null && !config.getEffects().isEmpty();
+            boolean needsEffects = !config.getEffects().isEmpty();
             boolean shouldSampleForEffects = isInstant && needsEffects && currentTime >= blockStartTime;
             
             if (!inAnimWindow && !shouldSampleForEffects) {
