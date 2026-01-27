@@ -269,7 +269,12 @@ public final class BlockAnimationEngine {
                 snapshot.setSequenceNormalizedTime(seqNormalizedTime);
                 snapshot.setTransform(null); // null = identity
                 snapshot.setAlpha(1.0f);
+                // ✅ 修复：动画结束后，设置 rawProgress = 1.0，允许后段特效触发（如 DUST_BURST）
+                snapshot.setRawProgress(1.0f);
+                snapshot.setEasedProgress(1.0f);
             }
+            // ✅ 修复：动画结束后仍然检查并触发特效（特别是后段特效，如 DUST_BURST）
+            applyEffectsSafe(snapshot, config, now, randomSeed);
             return snapshot;
         }
 
@@ -522,31 +527,45 @@ public final class BlockAnimationEngine {
                             // - 默认不触发，避免在片段中途开始渲染时“突然爆一堆”
                             // - 但如果特效窗口从 0 开始，且当前正处于动画刚起步（tRaw 非常小），允许触发一次
                             //   这样 startOffset=0 的 ONE_SHOT（如闪白光）不会永远不触发。
-                            if (!(startNorm <= 1e-4f && tRaw <= 1e-3f)) {
+                            // ✅ 修复：首次初始化时，如果当前已经在特效窗口内，允许触发一次
+                            // 这样即使 startOffset 不是 0，也能正常触发
+                            if (tRaw + 1e-4f < startNorm) {
+                                // 当前时间还没到特效窗口，等待进入窗口
+                                gate.lastTRaw = tRaw;
+                                continue;
+                            }
+                            // 已经在窗口内，允许触发一次
+                            gate.lastTRaw = tRaw;
+                            effectT = 0.0f;
+                        } else {
+                            // 如果时间倒退（拖动播放头/循环），重置状态以允许重新触发
+                            if (tRaw + 1e-4f < gate.lastTRaw) {
+                                // 时间倒退：重置状态，允许下次前进时重新触发
+                                gate.lastTRaw = tRaw;
+                                // 如果倒退到特效窗口之前，重置 initialized 以允许重新触发
+                                if (tRaw + 1e-4f < startNorm) {
+                                    gate.initialized = false;
+                                }
+                                continue;
+                            }
+                            // ✅ 修复：检查是否跨越了特效开始边界（从窗口外进入窗口内）
+                            boolean crossed = gate.lastTRaw + 1e-4f < startNorm && tRaw + 1e-4f >= startNorm;
+                            gate.lastTRaw = tRaw;
+                            if (!crossed) {
                                 continue;
                             }
                             // 触发一次：用 effectT=0 作为起点
-                        }
-                        // 如果时间倒退（拖动播放头/循环），重置状态以允许重新触发
-                        if (tRaw + 1e-4f < gate.lastTRaw) {
-                            // 时间倒退：重置状态，允许下次前进时重新触发
-                            gate.lastTRaw = tRaw;
-                            // 如果倒退到特效窗口之前，重置 initialized 以允许重新触发
-                            if (tRaw + 1e-4f < startNorm) {
-                                gate.initialized = false;
-                            }
-                            continue;
-                        }
-                        // 检查是否跨越了特效开始边界（从窗口外进入窗口内）
-                        boolean crossed = gate.lastTRaw + 1e-4f < startNorm && tRaw + 1e-4f >= startNorm;
-                        gate.lastTRaw = tRaw;
-                        if (!crossed) {
-                            continue;
+                            effectT = 0.0f;
                         }
                         // 触发一次：用 effectT=0 作为起点
                         effectT = 0.0f;
                     }
 
+                    if (LOGGER.isTraceEnabled()) {
+                        LOGGER.trace("[BlockAnimationEngine] 触发特效: type={} pos={} tRaw={} effectT={} startNorm={} endNorm={}",
+                                inst.getType(), snapshot.getPos(), tRaw, effectT, startNorm, endNorm);
+                    }
+                    
                     effectImpl.render(
                         world,
                         snapshot.getPos(),

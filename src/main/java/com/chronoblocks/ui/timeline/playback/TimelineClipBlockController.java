@@ -1056,7 +1056,12 @@ public class TimelineClipBlockController {
 
             BlockState blockState;
             BlockAnimationSnapshot snapshot;
-            if (!inAnimWindow) {
+            
+            // ✅ 修复：INSTANT 模式或需要特效时，即使不在动画窗口内也应该调用 sample() 来触发特效
+            boolean needsEffects = config != null && !config.getEffects().isEmpty();
+            boolean shouldSampleForEffects = isInstant && needsEffects && currentTime >= blockStartTime;
+            
+            if (!inAnimWindow && !shouldSampleForEffects) {
                 // 静态块：如果视觉状态是 NORMAL 且不抑制世界渲染，完全不需要 overlay / snapshot
                 if (visualState.isNormal() && !visualState.shouldSuppressWorldRendering()) {
                     continue;
@@ -1068,18 +1073,35 @@ public class TimelineClipBlockController {
                     continue;
                 }
 
-                // 视觉状态需要 overlay（遮挡/透明）：构造轻量 snapshot（不走 sample）
-                snapshot = new BlockAnimationSnapshot(pos, blockState);
-                snapshot.markFullyVisible();
-                snapshot.setSequenceNormalizedTime(seqNormalizedTime);
-                snapshot.setTransform(null); // null = identity
+                // ✅ 修复：即使不在动画窗口内，如果需要特效，也应该调用 sample() 来触发特效
+                // 对于静态方块（动画已结束），设置 rawProgress = 1.0，允许后段特效（如 DUST_BURST）触发
+                if (needsEffects && currentTime >= blockStartTime) {
+                    // 调用 sample() 来触发特效，即使方块不在动画窗口内
+                    long randomSeed = container.getId().getLeastSignificantBits() ^ pos.asLong();
+                    snapshot = BlockAnimationEngine.sample(
+                            pos,
+                            blockState,
+                            config,
+                            entry,
+                            clipStart,
+                            clipEnd,
+                            currentTime,
+                            randomSeed
+                    );
+                } else {
+                    // 视觉状态需要 overlay（遮挡/透明）：构造轻量 snapshot（不走 sample）
+                    snapshot = new BlockAnimationSnapshot(pos, blockState);
+                    snapshot.markFullyVisible();
+                    snapshot.setSequenceNormalizedTime(seqNormalizedTime);
+                    snapshot.setTransform(null); // null = identity
+                }
             } else {
-                // 🔥 步骤 3：动画窗口内才解析方块状态 + 采样
+                // 🔥 步骤 3：动画窗口内或需要特效时，解析方块状态 + 采样
                 blockState = resolveBlockStateForRender(container, pos);
                 if (blockState == null) {
                     continue;
                 }
-                // 动画窗口内：才进行真实采样
+                // 动画窗口内或需要特效：进行真实采样（会触发特效）
                 long randomSeed = container.getId().getLeastSignificantBits() ^ pos.asLong();
                 snapshot = BlockAnimationEngine.sample(
                         pos,

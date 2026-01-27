@@ -1842,7 +1842,26 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         }
         ImGui.popItemWidth();
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("控制该特效在哪种片段阶段生效：出现片段 / 擦除片段 / 两者都生效。");
+            ImGui.setTooltip("控制该特效在哪种片段阶段生效：出现片段 / 擦除片段 / 两者都生效。\n" +
+                    "注意：如果特效阶段与片段阶段不匹配，特效不会触发。");
+        }
+        
+        // ✅ 检查阶段是否匹配，如果不匹配则显示警告
+        ClipAnimationConfig.AnimationPhase clipPhase = cfg != null ? cfg.getPhase() : ClipAnimationConfig.AnimationPhase.ENTER;
+        EffectInstance.EffectPhase effectPhase = inst.getPhase();
+        boolean phaseMismatch = (effectPhase != EffectInstance.EffectPhase.BOTH)
+                && ((clipPhase == ClipAnimationConfig.AnimationPhase.ENTER && effectPhase != EffectInstance.EffectPhase.ENTER)
+                    || (clipPhase == ClipAnimationConfig.AnimationPhase.EXIT && effectPhase != EffectInstance.EffectPhase.EXIT));
+        if (phaseMismatch) {
+            ImGui.textColored(1.0f, 0.6f, 0.0f, 1.0f, "⚠ 警告：特效阶段与片段阶段不匹配，特效可能不会触发！");
+            if (ImGui.isItemHovered()) {
+                String clipPhaseName = clipPhase == ClipAnimationConfig.AnimationPhase.ENTER ? "出现(Enter)" : "擦除(Exit)";
+                String effectPhaseName = effectPhase == EffectInstance.EffectPhase.ENTER ? "出现(Enter)" : 
+                        effectPhase == EffectInstance.EffectPhase.EXIT ? "擦除(Exit)" : "两者(Both)";
+                ImGui.setTooltip("当前片段阶段：" + clipPhaseName + 
+                        "\n特效阶段：" + effectPhaseName +
+                        "\n建议：将特效阶段设置为'两者(Both)'或与片段阶段匹配。");
+            }
         }
 
         // 触发模式
@@ -1894,8 +1913,15 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         }
         ImGui.popItemWidth();
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("特效从开始到结束的持续时间（相对于单块动画窗口）。");
+            ImGui.setTooltip("特效从开始到结束的持续时间（相对于单块动画窗口）。\n" +
+                    "单块动画窗口长度：" + String.format("%.2f", animLen) + "秒\n" +
+                    "提示：后段特效（如 startOffset > 0.8）适合在动画结束时触发。");
         }
+        
+        // ✅ 添加提示：说明特效时间窗口的概念
+        ImGui.textDisabled("提示：特效时间窗口是相对于单个方块动画窗口的归一化时间（0..1）。");
+        ImGui.textDisabled(String.format("当前方块动画窗口：%.2f秒 | 特效窗口：[%.2f, %.2f]秒",
+                animLen, startSec, startSec + durSec));
 
         // 简单的时间条预览 [====effect====]
         float previewWidth = ImGui.getContentRegionAvailX();
