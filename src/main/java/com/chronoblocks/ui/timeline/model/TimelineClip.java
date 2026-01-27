@@ -39,8 +39,6 @@ public class TimelineClip {
     private final java.util.List<com.chronoblocks.ui.timeline.model.clip.ClipKeyframe> clipKeyframes = new java.util.ArrayList<>();
 
     // ========== 额外属性 ==========
-    private boolean muted = false;
-    private float opacity = 1.0f;
     private ClipAnimationConfig animationConfig = ClipAnimationConfig.defaultConfig();
     private UUID boundContainerId = null;
     private String boundContainerName = null;
@@ -91,8 +89,6 @@ public class TimelineClip {
                 this.clipKeyframes.add(kf.copy());
             }
         }
-        this.muted = other.muted;
-        this.opacity = other.opacity;
         this.animationConfig = other.animationConfig != null ? other.animationConfig.copy() : ClipAnimationConfig.defaultConfig();
         this.boundContainerId = other.boundContainerId;
         this.boundContainerName = other.boundContainerName;
@@ -451,8 +447,6 @@ public class TimelineClip {
      */
     public TimelineClip duplicateShallow() {
         TimelineClip copy = new TimelineClip(this.label, this.startTime, this.endTime, this.color);
-        copy.muted = this.muted;
-        copy.opacity = this.opacity;
         copy.animationConfig = this.animationConfig != null ? this.animationConfig.copy() : ClipAnimationConfig.defaultConfig();
         copy.boundContainerId = this.boundContainerId;
         copy.boundContainerName = this.boundContainerName;
@@ -469,12 +463,6 @@ public class TimelineClip {
         }
         return copy;
     }
-
-    public boolean isMuted() { return muted; }
-    public void setMuted(boolean muted) { this.muted = muted; }
-
-    public float getOpacity() { return opacity; }
-    public void setOpacity(float opacity) { this.opacity = UIUtils.clamp(opacity, 0f, 1f); }
 
     public ClipAnimationConfig getAnimationConfig() {
         if (animationConfig == null) {

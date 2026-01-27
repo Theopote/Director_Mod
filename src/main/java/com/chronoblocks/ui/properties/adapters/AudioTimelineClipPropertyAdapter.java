@@ -9,7 +9,6 @@ import com.chronoblocks.ui.timeline.model.audio.AudioClipKeyframe;
 import com.chronoblocks.ui.timeline.model.audio.AudioTimelineClip;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
-import imgui.type.ImBoolean;
 import imgui.type.ImInt;
 
 /**
@@ -51,15 +50,6 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
 
             if (isBound) {
                 ImGui.endDisabled();
-            }
-
-            ImBoolean muted = new ImBoolean(clip.isMuted());
-            if (ImGui.checkbox("片段静音", muted)) {
-                clip.setMuted(muted.get());
-                modified = true;
-            }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("静音后：该片段的音量自动化对播放无效（事件仍可存在）。");
             }
         }
 

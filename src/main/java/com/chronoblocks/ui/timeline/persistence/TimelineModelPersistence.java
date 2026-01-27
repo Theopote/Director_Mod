@@ -154,8 +154,6 @@ public class TimelineModelPersistence {
         public List<ClipKeyframeDTO> clipKeyframes = new ArrayList<>();
         /** 可见性关键帧（淡入淡出/隐藏显示等） */
         public List<VisibilityKeyframeDTO> visibilityKeyframes = new ArrayList<>();
-        public boolean muted = false;
-        public float opacity = 1.0f;
         public String animationMode;
         public float animationDuration = 2.0f;
         public float animationDelay = 0.0f;
@@ -453,8 +451,6 @@ public class TimelineModelPersistence {
                 clipDTO.startTime = clip.getStartTime();
                 clipDTO.endTime = clip.getEndTime();
                 clipDTO.color = clip.getColor();
-                clipDTO.muted = clip.isMuted();
-                clipDTO.opacity = clip.getOpacity();
                 // 旧版：float 时间点关键帧（向后兼容）
                 clipDTO.keyframes.addAll(clip.getKeyframes());
 
@@ -577,7 +573,6 @@ public class TimelineModelPersistence {
 
         TimelineAudioService audioService = TimelineAudioService.getInstance();
         boolean prevSuppress = audioService.isSuppressAutoCreate();
-        boolean loaded;
         audioService.setSuppressAutoCreate(true);
         try {
         
@@ -734,8 +729,6 @@ public class TimelineModelPersistence {
                 TimelineClip clip = (track.getType() == TrackType.AUDIO)
                         ? new AudioTimelineClip(clipDTO.label, clipDTO.startTime, clipDTO.endTime, clipDTO.color)
                         : new TimelineClip(clipDTO.label, clipDTO.startTime, clipDTO.endTime, clipDTO.color);
-                clip.setMuted(clipDTO.muted);
-                clip.setOpacity(clipDTO.opacity);
                 clip.setAutoFadePreviousClips(clipDTO.autoFadePreviousClips);
                 clip.setAutoFadeOpacity(clipDTO.autoFadeOpacity);
                 ClipAnimationConfig config = clip.getAnimationConfig();
@@ -922,7 +915,6 @@ public class TimelineModelPersistence {
         }
         
         LOGGER.info("[TimelineModelPersistence] 成功恢复 {} 条轨道", dto.tracks.size());
-        loaded = true;
     
         } finally {
             audioService.setSuppressAutoCreate(prevSuppress);

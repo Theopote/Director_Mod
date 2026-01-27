@@ -21,7 +21,7 @@ import java.util.Collection;
 
 /**
  * BlockAnimationRenderer v3.1 - 重构版
- *
+ * <p>
  * 渲染职责：
  *  1. 基于 BlockAnimationContext / BlockAnimationEngine 得到 BlockAnimationSnapshot
  *  2. 从 BlockVisualStateManager 查询覆盖可见性状态（遮挡透明、轨道隐藏等）
@@ -29,7 +29,7 @@ import java.util.Collection;
  *  4. 将 snapshot 的“局部变换矩阵”叠加到世界矩阵上
  *  5. 使用自定义 RenderLayer 渲染半透明/ghost 方块
  *  6. 触发粒子等 BlockEffect
- *
+ * <p>
  * 核心约定：
  *  - BlockAnimationSnapshot.transform 只包含局部矩阵（围绕方块中心），不含世界平移
  *  - 本 Renderer 负责 translate(pos) 再乘上 snapshot.transform
@@ -136,7 +136,7 @@ public class BlockAnimationRenderer {
 
     /**
      * 批量渲染当前帧所有"需要覆盖层渲染"的条目（时间线主通路）
-     * 
+     * <p>
      * 🔥 修复：直接使用控制器传入的 snapshot，不再用世界时间重采样
      * - 时间线路径必须使用 TimelineClipBlockController 传入的 overrideSnapshot
      * - 避免用世界时间（world.getTime()）重采样导致动画跳到结束状态
@@ -261,11 +261,11 @@ public class BlockAnimationRenderer {
 
     /**
      * 将 snapshot 的局部矩阵乘到当前 MatrixStack 顶部。
-     *
+     * <p>
      * 约定：
      *  - snapshot.transform 只包含局部动画变换（中心平移 / 旋转 / 缩放 / 微移）
      *  - 当前 MatrixStack 已经包含了世界矩阵（包括 translate(pos)）
-     *
+     * <p>
      * 结果：worldMatrix = worldMatrix * localAnimMatrix
      */
     private static void applyAnimationTransformFromSnapshot(MatrixStack matrices, BlockAnimationSnapshot snapshot) {

@@ -350,6 +350,47 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
             ImGui.setTooltip("勾选：遮挡后续片段时由系统接管并以半透明显示（隐藏原网格）。\n关闭：保持原样，不参与透明遮挡。");
         }
 
+        ImGui.separator();
+
+        // Post-Animation Fade 设置
+        if (ImGui.collapsingHeader("动画后淡化 (Post-Animation Fade)", ImGuiTreeNodeFlags.None)) {
+            ImGui.indent();
+            
+            ImGui.textDisabled("片段动画结束后，可以设置一个淡化阶段，让方块逐渐变透明。");
+            UITheme.spacingSmall();
+            
+            float[] fadeStart = {clip.getPostAnimationFadeStart()};
+            if (ImGui.dragFloat("淡化开始时间 (秒)", fadeStart, 0.1f, 0.0f, 10.0f, "%.1fs")) {
+                clip.setPostAnimationFadeStart(fadeStart[0]);
+                modified = true;
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("片段结束后，等待多少秒开始淡化。\n0.0 = 片段结束立即开始淡化。");
+            }
+            
+            float[] fadeEnd = {clip.getPostAnimationFadeEnd()};
+            if (ImGui.dragFloat("淡化结束时间 (秒)", fadeEnd, 0.1f, fadeStart[0], 30.0f, "%.1fs")) {
+                clip.setPostAnimationFadeEnd(fadeEnd[0]);
+                modified = true;
+            }
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("片段结束后，到多少秒时淡化完成。\n必须 >= 淡化开始时间。\n超过此时间后，方块恢复为完全不透明。");
+            }
+            
+            // 显示淡化时间范围提示
+            if (fadeEnd[0] > fadeStart[0]) {
+                float fadeDuration = fadeEnd[0] - fadeStart[0];
+                ImGui.textDisabled(String.format("淡化持续时间: %.1f 秒 (从 %.1f 到 %.1f 秒)", 
+                    fadeDuration, fadeStart[0], fadeEnd[0]));
+            } else if (fadeEnd[0] == fadeStart[0] && fadeStart[0] > 0.0f) {
+                ImGui.textColored(0.8f, 0.6f, 0.2f, 1.0f, "⚠ 淡化开始和结束时间相同，淡化效果将立即完成");
+            } else {
+                ImGui.textDisabled("淡化功能已禁用（开始和结束时间均为 0）");
+            }
+            
+            ImGui.unindent();
+        }
+
         return modified;
     }
 

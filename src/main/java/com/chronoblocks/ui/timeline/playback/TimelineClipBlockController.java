@@ -341,7 +341,12 @@ public class TimelineClipBlockController {
                 Set<BlockPos> worldBlocks = result.worldBlocks();
                 currentFrameVisibleBlocks.put(containerId, renderBlocks);
                 currentFrameWorldBlocks.put(containerId, worldBlocks);
-                currentFrameOpacity.put(containerId, clip.getOpacity()); // 使用片段的透明度
+                
+                // ✅ 计算透明度：使用可见性关键帧和 post-animation fade
+                // 支持可见性关键帧和 post-animation fade 功能
+                float finalOpacity = clip.computeAlphaAtGlobalTime(currentTime);
+                currentFrameOpacity.put(containerId, finalOpacity);
+                
                 currentFrameSequences.put(containerId, result.sequenceEntries());
                 
                 if (LOGGER.isTraceEnabled() && !renderBlocks.isEmpty()) {
