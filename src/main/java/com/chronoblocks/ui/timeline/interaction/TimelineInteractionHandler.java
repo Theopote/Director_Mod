@@ -482,7 +482,11 @@ public class TimelineInteractionHandler {
                 tooltip = isActive ? "当前激活的天气轨道（点击切换到其他轨道）" : "设为当前激活的天气轨道";
             }
             case ADD_KEYFRAME -> {
-                if (track.getType() == com.chronoblocks.ui.timeline.model.TrackType.CAMERA) {
+                com.chronoblocks.ui.timeline.model.TrackType trackType = track.getType();
+                if (trackType == com.chronoblocks.ui.timeline.model.TrackType.CONTAINER 
+                        || trackType == com.chronoblocks.ui.timeline.model.TrackType.ERASE) {
+                    tooltip = "容器轨道不支持轨道级关键帧，请使用片段内的动画配置";
+                } else if (trackType == com.chronoblocks.ui.timeline.model.TrackType.CAMERA) {
                     tooltip = "添加摄像机关键帧（仅激活轨道可用）";
                 } else {
                     tooltip = "添加关键帧";
@@ -1990,6 +1994,18 @@ public class TimelineInteractionHandler {
         Object active = interactionManager.getActiveObject();
         if (!(active instanceof AutomationKeyframeHandle handle)) {
             return;
+        }
+
+        // ✅ 修复：容器轨道和清除轨道不支持轨道级关键帧，禁止拖动
+        if (handle.track != null) {
+            com.chronoblocks.ui.timeline.model.TrackType trackType = handle.track.getType();
+            if (trackType == com.chronoblocks.ui.timeline.model.TrackType.CONTAINER 
+                    || trackType == com.chronoblocks.ui.timeline.model.TrackType.ERASE) {
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("[Timeline] 容器轨道和清除轨道不支持轨道级关键帧拖动 (轨道: {})", handle.track.getName());
+                }
+                return;
+            }
         }
 
         // 🔒 音频事件点：禁止拖动（时间严格由容器动画决定）

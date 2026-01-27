@@ -3,6 +3,7 @@ package com.chronoblocks.ui.timeline.commands;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineSelectable;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
+import com.chronoblocks.ui.timeline.model.TrackType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,6 +28,14 @@ public class AddAutomationKeyframeCommand extends BaseTimelineCommand {
             LOGGER.warn("[Timeline] 添加关键帧失败：track 或 keyframe 为空");
             return;
         }
+        
+        // ✅ 修复：容器轨道和清除轨道不支持轨道级关键帧
+        TrackType type = track.getType();
+        if (type == TrackType.CONTAINER || type == TrackType.ERASE) {
+            LOGGER.warn("[Timeline] 容器轨道和清除轨道不支持轨道级关键帧，请使用片段内的动画配置 (轨道: {})", track.getName());
+            return;
+        }
+        
         track.addAutomationKeyframe(keyframe);
     }
 

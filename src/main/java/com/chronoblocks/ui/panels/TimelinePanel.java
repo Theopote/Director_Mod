@@ -1347,9 +1347,16 @@ public class TimelinePanel extends AbstractPanel
             return;
         }
 
+        TrackType type = track.getType();
+        
+        // ✅ 修复：容器轨道和清除轨道不支持轨道级关键帧
+        if (type == TrackType.CONTAINER || type == TrackType.ERASE) {
+            LOGGER.warn("[TimelinePanel] 容器轨道和清除轨道不支持轨道级关键帧，请使用片段内的动画配置 (轨道: {})", track.getName());
+            return;
+        }
+
         float time = clamp(model.getCurrentTime(), 0f, model.getDuration());
         String timeLabel = String.format("%.2f", time);
-        TrackType type = track.getType();
         boolean handled = false;
 
         if (type != null) {

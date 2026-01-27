@@ -178,8 +178,11 @@ public final class TimelineTrackControlHit {
                     addHitToPool(track, TrackControlType.ADD_KEYFRAME, keyframeX1, y + 2f, keyframeX2, y2);
                 }
             } else {
-                // 非摄像机/时间/季节轨道，正常注册
-                addHitToPool(track, TrackControlType.ADD_KEYFRAME, keyframeX1, y + 2f, keyframeX2, y2);
+                // ✅ 修复：容器轨道和清除轨道不支持轨道级关键帧，跳过注册
+                if (type != TrackType.CONTAINER && type != TrackType.ERASE) {
+                    // 非摄像机/时间/季节轨道，正常注册
+                    addHitToPool(track, TrackControlType.ADD_KEYFRAME, keyframeX1, y + 2f, keyframeX2, y2);
+                }
             }
         }
         // 使用池化方法获取对象

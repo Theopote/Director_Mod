@@ -544,7 +544,12 @@ public class TimelineRenderer {
      */
     private void renderAutomationKeyframes(ImDrawList drawList, TimelineTrack track,
                                            float contentX, float y, float contentW) {
-        if (track == null || track.getType() == TrackType.AUDIO || !track.hasAutomationKeyframes()) {
+        // ✅ 修复：容器轨道不支持关键帧，跳过渲染
+        if (track == null 
+                || track.getType() == TrackType.AUDIO 
+                || track.getType() == TrackType.CONTAINER 
+                || track.getType() == TrackType.ERASE
+                || !track.hasAutomationKeyframes()) {
             return;
         }
 
