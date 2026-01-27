@@ -62,7 +62,8 @@ public class MagicFlareEffect implements IBlockEffect {
             double vz = Math.cos(a) * 0.01;
             double vy = 0.01 + random.nextDouble() * 0.01;
 
-            world.addParticleClient(ParticleTypes.END_ROD, ox, oy, oz, vx, vy, vz);
+            // ✅ 修复：使用 ENCHANT 粒子来模拟魔法光焰效果（紫色魔法粒子）
+            world.addParticleClient(ParticleTypes.ENCHANT, ox, oy, oz, vx, vy, vz);
         }
     }
 

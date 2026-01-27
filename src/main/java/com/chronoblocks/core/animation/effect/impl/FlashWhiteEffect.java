@@ -49,9 +49,9 @@ public class FlashWhiteEffect implements IBlockEffect {
             double oy = pos.getY() + 0.5 + (random.nextDouble() - 0.5) * 0.6;
             double oz = pos.getZ() + 0.5 + (random.nextDouble() - 0.5) * 0.6;
             
-            // 使用 END_ROD 粒子来模拟小光点
+            // ✅ 修复：使用 CRIT 粒子来模拟闪白光效果（更明显的白色闪光）
             world.addParticleClient(
-                    ParticleTypes.END_ROD,
+                    ParticleTypes.CRIT,
                     ox, oy, oz,
                     0.0, 0.02, 0.0
             );

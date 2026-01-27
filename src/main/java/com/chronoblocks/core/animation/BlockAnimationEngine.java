@@ -245,12 +245,20 @@ public final class BlockAnimationEngine {
                 snapshot.setSequenceNormalizedTime(seqNormalizedTime);
                 snapshot.setTransform(null); // null = identity
                 snapshot.setAlpha(1.0f);
+                // ✅ 修复：即使动画还没开始，如果设置了特效，也应该检查并触发（特别是前段特效）
+                snapshot.setRawProgress(0.0f);
+                snapshot.setEasedProgress(0.0f);
+                applyEffectsSafe(snapshot, config, now, randomSeed);
                 return snapshot;
             }
         } else {
             // ENTER：动画开始前隐藏
             if (now < blockStartTime) {
                 snapshot.markHidden();
+                // ✅ 修复：即使动画还没开始，如果设置了特效，也应该检查并触发（特别是前段特效）
+                snapshot.setRawProgress(0.0f);
+                snapshot.setEasedProgress(0.0f);
+                applyEffectsSafe(snapshot, config, now, randomSeed);
                 return snapshot;
             }
         }
@@ -473,6 +481,9 @@ public final class BlockAnimationEngine {
 
         for (EffectInstance inst : config.getEffects()) {
             if (inst == null || !inst.isEnabled()) {
+                if (LOGGER.isTraceEnabled() && inst != null) {
+                    LOGGER.trace("[BlockAnimationEngine] 特效 {} 被跳过：已禁用", inst.getType());
+                }
                 continue;
             }
 
@@ -503,6 +514,10 @@ public final class BlockAnimationEngine {
             float endNorm = startNorm + durNorm;
 
             if (tRaw < startNorm || tRaw > endNorm) {
+                if (LOGGER.isTraceEnabled()) {
+                    LOGGER.trace("[BlockAnimationEngine] 特效 {} 时间窗口不匹配：tRaw={} 窗口=[{}, {}]",
+                            inst.getType(), tRaw, startNorm, endNorm);
+                }
                 continue;
             }
 
@@ -557,13 +572,11 @@ public final class BlockAnimationEngine {
                             // 触发一次：用 effectT=0 作为起点
                             effectT = 0.0f;
                         }
-                        // 触发一次：用 effectT=0 作为起点
-                        effectT = 0.0f;
                     }
 
-                    if (LOGGER.isTraceEnabled()) {
-                        LOGGER.trace("[BlockAnimationEngine] 触发特效: type={} pos={} tRaw={} effectT={} startNorm={} endNorm={}",
-                                inst.getType(), snapshot.getPos(), tRaw, effectT, startNorm, endNorm);
+                    if (LOGGER.isDebugEnabled()) {
+                        LOGGER.debug("[BlockAnimationEngine] 触发特效: type={} pos={} tRaw={} effectT={} startNorm={} endNorm={} triggerMode={}",
+                                inst.getType(), snapshot.getPos(), tRaw, effectT, startNorm, endNorm, inst.getTriggerMode());
                     }
                     
                     effectImpl.render(

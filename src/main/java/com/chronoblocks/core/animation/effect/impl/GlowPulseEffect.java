@@ -59,7 +59,8 @@ public class GlowPulseEffect implements IBlockEffect {
             double vy = 0.01 + random.nextDouble() * 0.02;
             double vz = (random.nextDouble() - 0.5) * 0.01;
 
-            world.addParticleClient(ParticleTypes.END_ROD, ox, oy, oz, vx, vy, vz);
+            // ✅ 修复：使用 TOTEM_OF_UNDYING 粒子来模拟脉冲发光效果（绿色发光粒子，更适合脉冲效果）
+            world.addParticleClient(ParticleTypes.TOTEM_OF_UNDYING, ox, oy, oz, vx, vy, vz);
         }
 
         // 额外雾化：非常克制

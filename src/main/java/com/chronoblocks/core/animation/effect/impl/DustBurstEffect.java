@@ -39,9 +39,17 @@ public class DustBurstEffect implements IBlockEffect {
                        EffectInstance inst,
                        Random random) {
         
+        // ✅ 修复：对于 ONE_SHOT 模式，t 总是 0.0f，应该允许触发
         // 只在前 40% 的时间里触发爆炸感，避免持续不断地放粒子
-        if (t > 0.4f) {
-            return;
+        // 但对于 ONE_SHOT 模式，即使 t=0.0f 也应该触发一次
+        if (inst.getTriggerMode() == EffectInstance.TriggerMode.ONE_SHOT) {
+            // ONE_SHOT 模式：总是触发（t 已经被设置为 0.0f）
+            // 不做任何检查，直接继续
+        } else {
+            // CONTINUOUS 模式：只在前 40% 的时间里触发
+            if (t > 0.4f) {
+                return;
+            }
         }
         
         float intensity = EffectUIUtils.getFloat(inst.getParams(), "intensity", 1.0f);
