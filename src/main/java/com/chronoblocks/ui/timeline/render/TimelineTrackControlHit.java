@@ -104,12 +104,17 @@ public final class TimelineTrackControlHit {
         TrackType type = track != null ? track.getType() : null;
         boolean supportsKeyframes = type != null && type.supportsKeyframes();
 
-        float keyframeX1 = winX + leftLabelWidth - 68f;
-        float keyframeX2 = keyframeX1 + CONTROL_ICON_SIZE;
-        float lockX1 = winX + leftLabelWidth - 48f;
-        float lockX2 = lockX1 + CONTROL_ICON_SIZE;
-        float visibleX1 = winX + leftLabelWidth - 28f;
+        // ✅ 修复：按钮区域两侧边距设置为 6px，按钮之间的间距保持 20px 不变，与 TimelineTrackRenderer 保持一致
+        float BUTTON_AREA_MARGIN = 6f;
+        float BUTTON_SPACING = 20f;
+        
+        // 从右边界向左计算按钮位置（与 TimelineTrackRenderer 保持一致）
+        float visibleX1 = winX + leftLabelWidth - (BUTTON_AREA_MARGIN + CONTROL_ICON_SIZE);
         float visibleX2 = visibleX1 + CONTROL_ICON_SIZE;
+        float lockX1 = winX + leftLabelWidth - (BUTTON_AREA_MARGIN + CONTROL_ICON_SIZE + BUTTON_SPACING + CONTROL_ICON_SIZE);
+        float lockX2 = lockX1 + CONTROL_ICON_SIZE;
+        float keyframeX1 = winX + leftLabelWidth - (BUTTON_AREA_MARGIN + CONTROL_ICON_SIZE + BUTTON_SPACING + CONTROL_ICON_SIZE + BUTTON_SPACING + CONTROL_ICON_SIZE);
+        float keyframeX2 = keyframeX1 + CONTROL_ICON_SIZE;
         float y2 = y + CONTROL_ICON_SIZE + 2f;
         
         // ⭐ v5.0：仅对 CAMERA 轨道注册激活按钮（放在原来隐藏按钮的位置）

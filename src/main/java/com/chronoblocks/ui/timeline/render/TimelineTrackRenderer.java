@@ -32,11 +32,20 @@ public final class TimelineTrackRenderer {
     private static final float TRACK_LABEL_ICON_SPACING = 6f;
     private static final float TRACK_LABEL_TEXT_OFFSET = 8f;
     private static final float TRACK_ICON_OFFSET_Y = 6f;
-    private static final float TRACK_KEYFRAME_OFFSET_X = -65f;
-    private static final float TRACK_LOCK_OFFSET_X = -45f;
-    private static final float TRACK_VISIBILITY_OFFSET_X = -25f;
-    // 名称和按钮之间的分割位置（从右侧开始计算，相对于 leftLabelWidth）
-    private static final float TRACK_NAME_BUTTONS_SEPARATOR_OFFSET = -75f;
+    // ✅ 修复：按钮区域两侧边距设置为 6px，按钮之间的间距保持 20px 不变
+    // 按钮布局：分割线 | 6px | 关键帧(16px) | 20px | 锁定(16px) | 20px | 可见性(16px) | 6px | 右边界
+    private static final float BUTTON_AREA_MARGIN = 6f;  // 两侧边距
+    private static final float BUTTON_SPACING = 4f;     // 按钮之间的间距（保持不变）
+    private static final float CONTROL_ICON_SIZE = 16f;  // 按钮图标大小
+    // 从右边界向左计算位置（负值表示从右边界向左）
+    // 可见性按钮：右边界 - 6px - 16px = -22px
+    private static final float TRACK_VISIBILITY_OFFSET_X = -(BUTTON_AREA_MARGIN + CONTROL_ICON_SIZE);
+    // 锁定按钮：可见性位置 - 20px - 16px = -58px（保持20px间距）
+    private static final float TRACK_LOCK_OFFSET_X = -(BUTTON_AREA_MARGIN + CONTROL_ICON_SIZE + BUTTON_SPACING + CONTROL_ICON_SIZE);
+    // 关键帧按钮：锁定位置 - 20px - 16px = -94px（保持20px间距）
+    private static final float TRACK_KEYFRAME_OFFSET_X = -(BUTTON_AREA_MARGIN + CONTROL_ICON_SIZE + BUTTON_SPACING + CONTROL_ICON_SIZE + BUTTON_SPACING + CONTROL_ICON_SIZE);
+    // 名称和按钮之间的分割位置：关键帧位置 - 6px = -100px
+    private static final float TRACK_NAME_BUTTONS_SEPARATOR_OFFSET = -(BUTTON_AREA_MARGIN + CONTROL_ICON_SIZE + BUTTON_SPACING + CONTROL_ICON_SIZE + BUTTON_SPACING + CONTROL_ICON_SIZE + BUTTON_AREA_MARGIN);
 
     private final TimelineRenderViewport viewport;
 
