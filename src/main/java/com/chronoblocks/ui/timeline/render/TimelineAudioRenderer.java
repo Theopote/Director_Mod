@@ -1,5 +1,8 @@
 package com.chronoblocks.ui.timeline.render;
 
+import com.chronoblocks.core.container.Container;
+import com.chronoblocks.core.container.ContainerManager;
+import com.chronoblocks.core.container.ContainerType;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.audio.AudioEvent;
@@ -151,10 +154,15 @@ public class TimelineAudioRenderer {
         try {
             TimelineClip linked = TimelineAudioService.getInstance().getLinkedClip(event).orElse(null);
             if (linked != null) {
-                var pt = linked.getParentTrack();
-                if (pt != null && pt.getType() == TrackType.ERASE) {
-                    return COLOR_BLOCK_PLACE;
-                }
+                // ✅ 基于容器类型判断是否为拆除容器（不再依赖轨道类型）
+                try {
+                    Container c = ContainerManager.getInstance() != null
+                            ? ContainerManager.getInstance().getContainer(linked.getBoundContainerId())
+                            : null;
+                    if (c != null && c.getType() == ContainerType.DEMOLITION) {
+                        return COLOR_BLOCK_PLACE;
+                    }
+                } catch (Exception ignored) {}
             }
         } catch (Exception ignored) {}
         

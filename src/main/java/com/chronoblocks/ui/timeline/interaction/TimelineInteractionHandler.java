@@ -483,8 +483,7 @@ public class TimelineInteractionHandler {
             }
             case ADD_KEYFRAME -> {
                 com.chronoblocks.ui.timeline.model.TrackType trackType = track.getType();
-                if (trackType == com.chronoblocks.ui.timeline.model.TrackType.CONTAINER 
-                        || trackType == com.chronoblocks.ui.timeline.model.TrackType.ERASE) {
+                if (trackType == com.chronoblocks.ui.timeline.model.TrackType.CONTAINER) {
                     tooltip = "容器轨道不支持轨道级关键帧，请使用片段内的动画配置";
                 } else if (trackType == com.chronoblocks.ui.timeline.model.TrackType.CAMERA) {
                     tooltip = "添加摄像机关键帧（仅激活轨道可用）";
@@ -1747,9 +1746,9 @@ public class TimelineInteractionHandler {
                 TimelineTrack newTrack = model.getTrackAt(newTrackIndex);
                 // �?关键修复：只在目标轨道与当前轨道不同时才移动，避免重复移�?
                 if (newTrack != null && newTrack != currentTrack && !newTrack.isLocked()) {
-                    // ✅ 轨道类型兼容性：清除轨道片段不能跨轨道；拆除容器只能在清除轨道
-                    if (currentTrack != null && currentTrack.getType() == TrackType.ERASE && newTrack.getType() != TrackType.ERASE) {
-                        // 清除轨道上的片段禁止移到其他轨道
+                    // ✅ 容器片段只能在容器轨道上（拆除容器和普通容器都可以）
+                    if (newTrack != null && newTrack.getType() != TrackType.CONTAINER) {
+                        // 容器片段禁止移到非容器轨道
                         newTrack = null;
                     } else if (!isClipAllowedOnTrack(handle.clip, newTrack)) {
                         // 拆除/非拆除容器的轨道约束（模型层也会拦截，这里提前判断避免“先移除导致消失”）
@@ -1816,20 +1815,9 @@ public class TimelineInteractionHandler {
             return tt == TrackType.AUDIO;
         }
 
-        try {
-            Container c = ContainerManager.getInstance() != null
-                    ? ContainerManager.getInstance().getContainer(clip.getBoundContainerId())
-                    : null;
-            if (c == null) return true;
-            boolean isDemolition = (c.getType() == com.chronoblocks.core.container.ContainerType.DEMOLITION);
-
-            // ✅ 容器片段：只能在 CONTAINER/ERASE 两类轨道，且 DEMOLITION ↔ ERASE 强绑定
-            if (tt == TrackType.ERASE) return isDemolition;
-            if (tt == TrackType.CONTAINER) return !isDemolition;
-            return false; // 其它轨道一律不允许容器片段进入
-        } catch (Exception ignored) {
-            return true;
-        }
+        // ✅ 容器片段：只能在 CONTAINER 轨道（拆除容器和普通容器都可以放在容器轨道上）
+        if (tt == TrackType.CONTAINER) return true;
+        return false; // 其它轨道一律不允许容器片段进入
     }
 
     /**
@@ -1999,10 +1987,9 @@ public class TimelineInteractionHandler {
         // ✅ 修复：容器轨道和清除轨道不支持轨道级关键帧，禁止拖动
         if (handle.track != null) {
             com.chronoblocks.ui.timeline.model.TrackType trackType = handle.track.getType();
-            if (trackType == com.chronoblocks.ui.timeline.model.TrackType.CONTAINER 
-                    || trackType == com.chronoblocks.ui.timeline.model.TrackType.ERASE) {
+            if (trackType == com.chronoblocks.ui.timeline.model.TrackType.CONTAINER) {
                 if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("[Timeline] 容器轨道和清除轨道不支持轨道级关键帧拖动 (轨道: {})", handle.track.getName());
+                    LOGGER.debug("[Timeline] 容器轨道不支持轨道级关键帧拖动 (轨道: {})", handle.track.getName());
                 }
                 return;
             }

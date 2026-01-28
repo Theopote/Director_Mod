@@ -957,7 +957,13 @@ public class TimelineModelPersistence {
         TrackType type = null;
         if (trackDTO.typeName != null) {
             try {
-                type = TrackType.valueOf(trackDTO.typeName);
+                // ✅ 向后兼容：将旧的 ERASE 轨道类型自动转换为 CONTAINER
+                if ("ERASE".equals(trackDTO.typeName)) {
+                    LOGGER.info("[TimelineModelPersistence] 检测到旧的 ERASE 轨道类型，自动转换为 CONTAINER: {}", trackDTO.name);
+                    type = TrackType.CONTAINER;
+                } else {
+                    type = TrackType.valueOf(trackDTO.typeName);
+                }
             } catch (IllegalArgumentException e) {
                 LOGGER.warn("[TimelineModelPersistence] 未知的轨道类型: {}", trackDTO.typeName);
             }

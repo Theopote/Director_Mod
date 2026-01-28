@@ -7,6 +7,10 @@ import com.chronoblocks.ui.timeline.model.TimelineClip;
 import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.audio.AudioClipKeyframe;
 import com.chronoblocks.ui.timeline.model.audio.AudioTimelineClip;
+import com.chronoblocks.core.container.Container;
+import com.chronoblocks.core.container.ContainerManager;
+import com.chronoblocks.core.container.ContainerType;
+import java.util.UUID;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImInt;
@@ -92,11 +96,17 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
                     if (cfg == null) {
                         ImGui.textDisabled("容器片段动画配置为空，无法同步音效。");
                     } else {
+                        // ✅ 基于容器类型判断是否为拆除容器（不再依赖轨道类型）
                         boolean isErase = false;
                         try {
-                            if (containerClip.getParentTrack() != null
-                                    && containerClip.getParentTrack().getType() == com.chronoblocks.ui.timeline.model.TrackType.ERASE) {
-                                isErase = true;
+                            UUID containerId = containerClip.getBoundContainerId();
+                            if (containerId != null) {
+                                Container c = ContainerManager.getInstance() != null
+                                        ? ContainerManager.getInstance().getContainer(containerId)
+                                        : null;
+                                if (c != null && c.getType() == com.chronoblocks.core.container.ContainerType.DEMOLITION) {
+                                    isErase = true;
+                                }
                             }
                         } catch (Exception ignored) {}
 

@@ -86,28 +86,9 @@ public class TimelineTrack {
             // 重要：AudioTimelineClip 也可能绑定容器（用于音效同步），不能被当成容器片段处理。
             boolean isAudioClip = clip instanceof com.chronoblocks.ui.timeline.model.audio.AudioTimelineClip;
             if (!isAudioClip && clip.getBoundContainerId() != null) {
-                // 容器片段只允许出现在 CONTAINER/ERASE 两类轨道
-                if (this.type != TrackType.CONTAINER && this.type != TrackType.ERASE) {
+                // 容器片段只允许出现在 CONTAINER 轨道
+                if (this.type != TrackType.CONTAINER) {
                     return;
-                }
-            }
-
-            if ((this.type == TrackType.CONTAINER || this.type == TrackType.ERASE) && !isAudioClip && clip.getBoundContainerId() != null) {
-                try {
-                    Container c = ContainerManager.getInstance() != null
-                            ? ContainerManager.getInstance().getContainer(clip.getBoundContainerId())
-                            : null;
-                    if (c != null) {
-                        boolean isDemolition = (c.getType() == com.chronoblocks.core.container.ContainerType.DEMOLITION);
-                        if (this.type == TrackType.ERASE && !isDemolition) {
-                            return; // 拒绝：清除轨道只允许拆除容器
-                        }
-                        if (this.type != TrackType.ERASE && isDemolition) {
-                            return; // 拒绝：拆除容器只能在清除轨道
-                        }
-                    }
-                } catch (Exception ignored) {
-                    // 如果容器系统不可用，宁可不拦截（保持向后兼容）
                 }
             }
             this.clips.add(clip);
@@ -118,7 +99,7 @@ public class TimelineTrack {
             // 如果片段绑定了容器：仅当时间线已存在音频轨道时才自动收集声音事件。
             // 没有音频轨道/没有对应事件时，播放应保持静音（由音频轨道事件驱动）。
             if (clip.getBoundContainerId() != null
-                    && (type == TrackType.CONTAINER || type == TrackType.ERASE)) {
+                    && type == TrackType.CONTAINER) {
                 try {
                     com.chronoblocks.ui.timeline.audio.TimelineAudioService.getInstance()
                             .collectAndAddSoundEvents(clip);

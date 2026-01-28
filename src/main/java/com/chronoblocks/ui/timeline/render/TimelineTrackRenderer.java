@@ -195,8 +195,8 @@ public final class TimelineTrackRenderer {
         // ⭐ v1.0：对于天气轨道，只有在激活状态下才显示可用的关键帧按钮
         // ✅ 修复：容器轨道和清除轨道不支持轨道级关键帧，不显示按钮
         boolean shouldShowKeyframeButton = type != null && type.supportsKeyframes();
-        if (type == TrackType.CONTAINER || type == TrackType.ERASE) {
-            shouldShowKeyframeButton = false;  // 容器轨道和清除轨道不显示关键帧按钮
+        if (type == TrackType.CONTAINER) {
+            shouldShowKeyframeButton = false;  // 容器轨道不显示关键帧按钮
         }
         
         boolean keyframeEnabled = false;

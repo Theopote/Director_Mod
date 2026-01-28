@@ -70,6 +70,7 @@ public final class SequenceEvaluator {
         return switch (origin) {
             case CENTER -> new Vec3d(midX, midY, midZ);
             case BOTTOM_CENTER -> new Vec3d(midX, min.getY(), midZ);
+            case TOP_CENTER -> new Vec3d(midX, max.getY(), midZ);
             case CUSTOM -> new Vec3d(
                 min.getX() + params.getCustomX(),
                 min.getY() + params.getCustomY(),

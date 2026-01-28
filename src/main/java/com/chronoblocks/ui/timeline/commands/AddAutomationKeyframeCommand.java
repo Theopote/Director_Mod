@@ -31,8 +31,8 @@ public class AddAutomationKeyframeCommand extends BaseTimelineCommand {
         
         // ✅ 修复：容器轨道和清除轨道不支持轨道级关键帧
         TrackType type = track.getType();
-        if (type == TrackType.CONTAINER || type == TrackType.ERASE) {
-            LOGGER.warn("[Timeline] 容器轨道和清除轨道不支持轨道级关键帧，请使用片段内的动画配置 (轨道: {})", track.getName());
+        if (type == TrackType.CONTAINER) {
+            LOGGER.warn("[Timeline] 容器轨道不支持轨道级关键帧，请使用片段内的动画配置 (轨道: {})", track.getName());
             return;
         }
         

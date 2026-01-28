@@ -548,7 +548,6 @@ public class TimelineRenderer {
         if (track == null 
                 || track.getType() == TrackType.AUDIO 
                 || track.getType() == TrackType.CONTAINER 
-                || track.getType() == TrackType.ERASE
                 || !track.hasAutomationKeyframes()) {
             return;
         }

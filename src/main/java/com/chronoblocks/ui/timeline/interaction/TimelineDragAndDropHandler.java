@@ -2,6 +2,7 @@ package com.chronoblocks.ui.timeline.interaction;
 
 import com.chronoblocks.core.container.Container;
 import com.chronoblocks.core.container.ContainerManager;
+import com.chronoblocks.core.container.ContainerType;
 import com.chronoblocks.core.container.ContainerAnimationPreset;
 import com.chronoblocks.core.animation.ClipAnimationConfig;
 import com.chronoblocks.ui.timeline.model.TimelineClip;
@@ -143,17 +144,10 @@ public class TimelineDragAndDropHandler {
                     continue;
                 }
 
-                // 轨道类型与容器类型的校验
-                if (trackType == TrackType.ERASE) {
-                    if (container.getType() != com.chronoblocks.core.container.ContainerType.DEMOLITION) {
-                        LOGGER.warn("[DragDrop] 拒绝拖放：清除轨道仅接受拆除容器（当前: {}）", container.getType());
-                        continue;
-                    }
-                } else if (trackType == TrackType.CONTAINER) {
-                    if (container.getType() == com.chronoblocks.core.container.ContainerType.DEMOLITION) {
-                        LOGGER.warn("[DragDrop] 拒绝拖放：容器轨道不接受拆除容器");
-                        continue;
-                    }
+                // ✅ 容器片段：只能在 CONTAINER 轨道（拆除容器和普通容器都可以放在容器轨道上）
+                if (trackType != TrackType.CONTAINER) {
+                    LOGGER.warn("[DragDrop] 拒绝拖放：容器片段只能在容器轨道（当前轨道: {}）", trackType);
+                    continue;
                 }
 
                 // 检查容器是否已经在时间线上有片段
@@ -230,12 +224,17 @@ public class TimelineDragAndDropHandler {
                 initializeClipAnimationConfig(clip, container);
 
                 // 清除轨道默认使用“淡出”更符合直觉（不强制，用户可改）
-                if (trackType == TrackType.ERASE) {
-                    ClipAnimationConfig cfg = clip.getAnimationConfig();
-                    cfg.setPhase(ClipAnimationConfig.AnimationPhase.EXIT);
-                    cfg.setMode(com.chronoblocks.core.container.AnimationMode.FADE_OUT);
-                    clip.setAnimationConfig(cfg);
-                }
+                try {
+                    Container c = ContainerManager.getInstance() != null
+                            ? ContainerManager.getInstance().getContainer(containerUuid)
+                            : null;
+                    if (c != null && c.getType() == ContainerType.DEMOLITION) {
+                        ClipAnimationConfig cfg = clip.getAnimationConfig();
+                        cfg.setPhase(ClipAnimationConfig.AnimationPhase.EXIT);
+                        cfg.setMode(com.chronoblocks.core.container.AnimationMode.FADE_OUT);
+                        clip.setAnimationConfig(cfg);
+                    }
+                } catch (Exception ignored) {}
 
                 // 添加到目标轨道
                 targetTrack.addClip(clip);
@@ -257,9 +256,13 @@ public class TimelineDragAndDropHandler {
                                 container.setState(com.chronoblocks.core.container.ContainerState.HIDDEN);
                                 LOGGER.info("[DragDrop] 容器 {} 已隐藏（已添加到容器轨道）", container.getName());
                             }
-                        } else if (trackType == TrackType.ERASE) {
-                            // 预热快照：不改世界、不改容器状态
-                            visibilityService.createSnapshotFromBlockStore(container);
+                        } else {
+                            // ✅ 拆除容器：预热快照（不改世界、不改容器状态）
+                            try {
+                                if (container.getType() == ContainerType.DEMOLITION) {
+                                    visibilityService.createSnapshotFromBlockStore(container);
+                                }
+                            } catch (Exception ignored) {}
                         }
                     }
                 } catch (Exception e) {

@@ -63,7 +63,7 @@ public class TimelineAudioService {
     private final Map<TimelineClip, TimelineClip> linkedContainerClipsByAudioClip = new IdentityHashMap<>();
     /**
      * 自动音效生成签名：用于避免属性面板每帧刷新时重复重建事件。
-     * key = 容器片段（CONTAINER/ERASE），value = 与动画/序列相关的 hash。
+     * key = 容器片段（CONTAINER），value = 与动画/序列相关的 hash。
      */
     private final Map<TimelineClip, Integer> autoSoundSignatureByClip = new IdentityHashMap<>();
 
@@ -148,7 +148,7 @@ public class TimelineAudioService {
                 continue;
             }
             TrackType type = track.getType();
-            if (type != TrackType.CONTAINER && type != TrackType.ERASE) {
+            if (type != TrackType.CONTAINER) {
                 continue;
             }
             for (TimelineClip clip : track.getClips()) {
@@ -158,12 +158,17 @@ public class TimelineAudioService {
                     // 只在允许创建时才补齐音频片段；否则仅尝试查找现有绑定
                     if (!suppressAutoCreate) {
                         try {
-                            boolean isEraseTrack = false;
-                            TimelineTrack pt = clip.getParentTrack();
-                            if (pt != null && pt.getType() == TrackType.ERASE) {
-                                isEraseTrack = true;
-                            }
-                            audioClip = ensureAudioClipForContainerClip(clip, audioTrack, !hasPersistedEvents, isEraseTrack);
+                            // ✅ 基于容器类型判断是否为拆除容器（不再依赖轨道类型）
+                            boolean isDemolition = false;
+                            try {
+                                Container c = ContainerManager.getInstance() != null
+                                        ? ContainerManager.getInstance().getContainer(clip.getBoundContainerId())
+                                        : null;
+                                if (c != null) {
+                                    isDemolition = c.getType() == com.chronoblocks.core.container.ContainerType.DEMOLITION;
+                                }
+                            } catch (Exception ignored) {}
+                            audioClip = ensureAudioClipForContainerClip(clip, audioTrack, !hasPersistedEvents, isDemolition);
                         } catch (Exception ignored) {}
                     }
                     if (audioClip != null) {
@@ -194,7 +199,7 @@ public class TimelineAudioService {
                             for (TimelineTrack t : timelineModel.getAllTracks()) {
                                 if (t == null) continue;
                                 TrackType tt = t.getType();
-                                if (tt != TrackType.CONTAINER && tt != TrackType.ERASE) continue;
+                                if (tt != TrackType.CONTAINER) continue;
                                 for (TimelineClip c : t.getClips()) {
                                     if (c != null && bid.equals(c.getBoundContainerId())) {
                                         cc = c;
@@ -272,8 +277,11 @@ public class TimelineAudioService {
         // 判断是否为擦除轨道
         boolean isEraseTrack = false;
         try {
-            TimelineTrack track = clip.getParentTrack();
-            if (track != null && track.getType() == TrackType.ERASE) {
+            // ✅ 基于容器类型判断是否为拆除容器（不再依赖轨道类型）
+            Container c = ContainerManager.getInstance() != null
+                    ? ContainerManager.getInstance().getContainer(clip.getBoundContainerId())
+                    : null;
+            if (c != null && c.getType() == com.chronoblocks.core.container.ContainerType.DEMOLITION) {
                 isEraseTrack = true;
             }
         } catch (Exception ignored) {
@@ -517,7 +525,7 @@ public class TimelineAudioService {
             return false;
         }
         TrackType type = track.getType();
-        return type == TrackType.CONTAINER || type == TrackType.ERASE;
+        return type == TrackType.CONTAINER;
     }
 
     private boolean isAudioClip(TimelineClip clip) {

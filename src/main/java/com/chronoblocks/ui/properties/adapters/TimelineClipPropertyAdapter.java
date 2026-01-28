@@ -28,6 +28,9 @@ import com.chronoblocks.ui.timeline.model.TimelineClip;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.theme.Icons;
 import com.chronoblocks.ui.timeline.model.TrackType;
+import com.chronoblocks.core.container.Container;
+import com.chronoblocks.core.container.ContainerManager;
+import com.chronoblocks.core.container.ContainerType;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
@@ -146,8 +149,22 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
         }
         try {
             TimelineTrack parent = clip.getParentTrack();
-            // ✅ 容器片段适配器：只支持非 ERASE 轨道
-            return parent != null && parent.getType() != TrackType.ERASE;
+            // ✅ 容器片段适配器：只支持非拆除容器（拆除容器由EraseTimelineClipPropertyAdapter处理）
+            UUID containerId = clip.getBoundContainerId();
+            if (containerId == null) {
+                return false;
+            }
+            try {
+                Container container = ContainerManager.getInstance() != null
+                        ? ContainerManager.getInstance().getContainer(containerId)
+                        : null;
+                if (container == null) {
+                    return false;
+                }
+                return container.getType() != com.chronoblocks.core.container.ContainerType.DEMOLITION;
+            } catch (Exception e) {
+                return false;
+            }
         } catch (Exception e) {
             return false;
         }
@@ -226,7 +243,7 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
         try {
             TimelineTrack parent = clip.getParentTrack();
             TrackType type = parent != null ? parent.getType() : null;
-            boolean isBlockClip = type == TrackType.CONTAINER || type == TrackType.ERASE;
+            boolean isBlockClip = type == TrackType.CONTAINER;
             if (isBlockClip && (sequenceModified || animationModified)) {
                 // 避免拖动 slider 时每帧重建：仅在用户停止编辑后触发一次（服务端也有签名缓存兜底）
                 if (!ImGui.isAnyItemActive()) {
@@ -242,7 +259,7 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
         try {
             TimelineTrack parent = clip.getParentTrack();
             TrackType type = parent != null ? parent.getType() : null;
-            boolean isBlockClip = type == TrackType.CONTAINER || type == TrackType.ERASE;
+            boolean isBlockClip = type == TrackType.CONTAINER;
             if (isBlockClip) {
                 float newStart = clip.getStartTime();
                 float newEnd = clip.getEndTime();

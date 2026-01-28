@@ -7,6 +7,7 @@ import com.chronoblocks.core.animation.sequence.BlockSequenceEntry;
 import com.chronoblocks.core.animation.sequence.BlockSequenceGenerator;
 import com.chronoblocks.core.container.Container;
 import com.chronoblocks.core.container.ContainerManager;
+import com.chronoblocks.core.container.ContainerType;
 import com.chronoblocks.ui.timeline.model.TimelineClip;
 import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
@@ -198,8 +199,7 @@ public class TimelineClipBlockController {
     }
 
     private static boolean isBlockTrackType(TrackType trackType) {
-        return trackType == TrackType.CONTAINER
-                || trackType == TrackType.ERASE;
+        return trackType == TrackType.CONTAINER;
     }
 
     /**
@@ -813,16 +813,17 @@ public class TimelineClipBlockController {
         Set<BlockPos> worldBlocks = new HashSet<>();
         List<BlockSequenceEntry> sequenceEntries = List.of();
 
-        TrackType type = trackType != null ? trackType : TrackType.CONTAINER;
+        // ✅ 基于容器类型判断是否为拆除容器（不再依赖轨道类型）
+        boolean isDemolition = container != null && container.getType() == ContainerType.DEMOLITION;
 
         List<BlockPos> allBlocks = getCachedContainerBlocks(container);
         if (allBlocks.isEmpty()) {
             return new VisibleBlocksResult(worldBlocks, renderBlocks, sequenceEntries);
         }
 
-        // 轨道禁用：容器轨道 => 隐藏；清除轨道 => 不清除（保留全量）
+        // 轨道禁用：普通容器 => 隐藏；拆除容器 => 不清除（保留全量）
         if (!trackEnabled) {
-            if (type == TrackType.ERASE) {
+            if (isDemolition) {
                 renderBlocks.addAll(allBlocks);
                 worldBlocks.addAll(allBlocks);
             }
@@ -834,7 +835,7 @@ public class TimelineClipBlockController {
 
         // 片段左侧
         if (currentTime < clipStart) {
-            if (type == TrackType.ERASE) {
+            if (isDemolition) {
                 renderBlocks.addAll(allBlocks);
                 worldBlocks.addAll(allBlocks);
             }
@@ -877,7 +878,8 @@ public class TimelineClipBlockController {
                 return new VisibleBlocksResult(worldBlocks, renderBlocks, sequenceEntries);
             }
 
-            if (type == TrackType.CONTAINER) {
+            // ✅ 基于容器类型判断（不再依赖轨道类型）
+            if (!isDemolition) {
                 // 逐步显示（ENTER）：
                 // - renderBlocks：从 blockStartTime 起可见（用于 overlay 动画）
                 // - worldBlocks ：到 blockEndTime 才落地（避免真方块提前出现在目标格）
@@ -905,7 +907,7 @@ public class TimelineClipBlockController {
                         }
                     }
                 }
-            } else if (type == TrackType.ERASE) {
+            } else {
                 // 逐步清除（带退出动画窗口）：
                 // - 每个方块在自己的 EXIT 动画结束时刻被移除（即从世界中消失/置 AIR）
                 // - 在此之前一直保留在 visible 集合中，供 BlockAnimationEngine 采样退出动画
@@ -920,10 +922,6 @@ public class TimelineClipBlockController {
                         worldBlocks.remove(entry.getPos());
                     }
                 }
-            } else {
-                // 其他类型（理论上不会到这里）：默认全量
-                renderBlocks.addAll(allBlocks);
-                worldBlocks.addAll(allBlocks);
             }
 
             return new VisibleBlocksResult(worldBlocks, renderBlocks, sequenceEntries);
@@ -931,11 +929,12 @@ public class TimelineClipBlockController {
 
         // 片段右侧
         if (currentTime > clipEnd) {
-            if (type == TrackType.CONTAINER) {
+            if (!isDemolition) {
+                // 普通容器：全量显示
                 renderBlocks.addAll(allBlocks);
                 worldBlocks.addAll(allBlocks);
-            } else if (type == TrackType.ERASE) {
-                // 全清除 => 保持空集合
+            } else {
+                // 拆除容器：全清除 => 保持空集合
             }
         }
 
@@ -1416,11 +1415,11 @@ public class TimelineClipBlockController {
                 }
             }
             
-            // 轨道差异：
-            // - 容器轨道：容器应保持 HIDDEN（世界方块由 showContainerBlocks 控制出现）
-            // - 清除轨道：容器不应被强制隐藏，否则会改变编辑预期
-            TrackType type = trackType != null ? trackType : TrackType.CONTAINER;
-            if (type == TrackType.CONTAINER) {
+            // ✅ 轨道差异：
+            // - 普通容器：容器应保持 HIDDEN（世界方块由 showContainerBlocks 控制出现）
+            // - 拆除容器：容器不应被强制隐藏，否则会改变编辑预期
+            boolean isDemolition = container.getType() == ContainerType.DEMOLITION;
+            if (!isDemolition) {
                 if (container.getState() != com.chronoblocks.core.container.ContainerState.HIDDEN) {
                     container.setState(com.chronoblocks.core.container.ContainerState.HIDDEN);
                 }

@@ -7,6 +7,7 @@ public enum OriginType {
     MIN_CORNER("最小角 (Corner)"),
     CENTER("几何中心 (Center)"),
     BOTTOM_CENTER("底部中心 (Bottom)"),
+    TOP_CENTER("顶部中心 (Top)"),
     CUSTOM("自定义 (Custom)");
 
     private final String displayName;

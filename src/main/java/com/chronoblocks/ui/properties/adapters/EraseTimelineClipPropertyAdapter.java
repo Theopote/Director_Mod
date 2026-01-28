@@ -28,6 +28,10 @@ import com.chronoblocks.ui.timeline.model.TimelineClip;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.theme.Icons;
 import com.chronoblocks.ui.timeline.model.TrackType;
+import com.chronoblocks.core.container.Container;
+import com.chronoblocks.core.container.ContainerManager;
+import com.chronoblocks.core.container.ContainerType;
+import java.util.UUID;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;
@@ -46,7 +50,7 @@ import org.slf4j.LoggerFactory;
 /**
  * 拆除片段属性面板适配器
  *
- * <p>专门用于 ERASE 轨道上的 TimelineClip，处理拆除片段的属性编辑。
+ * <p>专门用于拆除容器（ContainerType.DEMOLITION）的 TimelineClip，处理拆除片段的属性编辑。
  * 拆除片段与容器片段在很多方面是相反的（方块消失 vs 出现），因此需要独立的适配器。
  *
  * @author ChronoBlocks Team
@@ -119,8 +123,15 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
             return false;
         }
         try {
-            TimelineTrack parent = clip.getParentTrack();
-            return parent != null && parent.getType() == TrackType.ERASE;
+            // ✅ 基于容器类型判断是否为拆除容器（不再依赖轨道类型）
+            UUID containerId = clip.getBoundContainerId();
+            if (containerId == null) {
+                return false;
+            }
+            Container container = ContainerManager.getInstance() != null
+                    ? ContainerManager.getInstance().getContainer(containerId)
+                    : null;
+            return container != null && container.getType() == com.chronoblocks.core.container.ContainerType.DEMOLITION;
         } catch (Exception e) {
             return false;
         }
@@ -644,7 +655,7 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
             ImGui.textDisabled("序列参数为空，使用默认配置");
             params = new SequenceParameters();
             // ✅ 拆除片段默认：从顶部开始（由上到下）
-            params.setOriginType(OriginType.CENTER); // 暂时使用 CENTER
+            params.setOriginType(OriginType.TOP_CENTER); // 拆除片段从顶部开始
             params.setReverse(true); // 反向
             config.setSequenceParameters(params);
             modified = true;
@@ -689,7 +700,7 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
                 switch (i) {
                     case 0:
                         params.setFlowType(FlowType.PLANAR);
-                        params.setOriginType(OriginType.BOTTOM_CENTER);
+                        params.setOriginType(OriginType.TOP_CENTER); // 拆除片段从顶部开始
                         params.setFillType(FillType.LINEAR_SCAN);
                         params.setReverse(true); // 拆除片段默认反向
                         params.setAlternating(false);
@@ -716,14 +727,14 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
                         break;
                     case 4:
                         params.setFlowType(FlowType.PLANAR);
-                        params.setOriginType(OriginType.BOTTOM_CENTER);
+                        params.setOriginType(OriginType.TOP_CENTER); // 拆除片段从顶部开始
                         params.setFillType(FillType.LINEAR_SCAN);
                         params.setReverse(true);
                         params.setAlternating(false);
                         break;
                     case 5:
                         params.setFlowType(FlowType.PLANAR);
-                        params.setOriginType(OriginType.BOTTOM_CENTER);
+                        params.setOriginType(OriginType.TOP_CENTER); // 拆除片段从顶部开始
                         params.setFillType(FillType.LINEAR_SCAN);
                         params.setReverse(true);
                         params.setAlternating(true);
@@ -801,10 +812,11 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
                 modified = true;
             }
             ImGui.sameLine();
-            boolean ySelected = isAxisSelected(planeYaw, planePitch, 0.0f, 90.0f);
-            if (renderAxisButton("Y 轴", ySelected)) {
+            // ✅ 拆除片段：Y轴方向应该从顶部向下（负方向，pitch = -90°）
+            boolean ySelected = isAxisSelected(planeYaw, planePitch, 0.0f, -90.0f);
+            if (renderAxisButton("Y 轴（向下）", ySelected)) {
                 params.setPlaneYaw(0.0f);
-                params.setPlanePitch(90.0f);
+                params.setPlanePitch(-90.0f); // 负方向：从顶部向下
                 modified = true;
             }
             ImGui.sameLine();
@@ -850,8 +862,8 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
                         自定义角度时建议适当调大，避免层级被切得过碎。""");
             }
 
-            // 视线对齐：将 Flow 方向对齐到当前摄像机视线（用于减少"先出现遮挡后出现"）
-            if (ImGui.button("对齐到摄像机视线（远" + Icons.ARROW_RIGHT + "近）")) {
+            // ✅ 拆除片段：对齐到摄像机视线应该是由近到远（先拆除近处的，一层层下去）
+            if (ImGui.button("对齐到摄像机视线（近" + Icons.ARROW_RIGHT + "远）")) {
                 Vec3d dir = null;
                 try {
                     MinecraftClient client = MinecraftClient.getInstance();
@@ -863,8 +875,9 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
                 }
 
                 if (dir != null && dir.lengthSquared() > 1.0e-6) {
-                    // ⭐ 反转方向：为了实现"远→近"排序，需要使用反向
-                    dir = dir.normalize().multiply(-1.0);
+                    // ✅ 拆除片段：不需要反转方向，直接使用摄像机方向（近→远）
+                    // 这样会先拆除近处的方块，一层层向远处推进
+                    dir = dir.normalize();
                     
                     // 与 SequenceEvaluator.getNormalFromAngles 的参数约定一致：
                     // x = cos(pitch)*sin(yaw), z = cos(pitch)*cos(yaw), y = sin(pitch)
@@ -878,8 +891,8 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip("""
                         将 Flow 的推进方向对齐到当前摄像机视线。
-                        排序会倾向于从远处开始出现、逐步向近处推进，减少"前面先出现把后面遮住"。
-                        提示：这会把 Flow 变成"按深度切片"，更适合镜头演示建造过程。""");
+                        拆除片段：排序会从近处开始拆除、逐步向远处推进（先拆除近处的，一层层下去）。
+                        提示：这会把 Flow 变成"按深度切片"，更适合拆除演示。""");
             }
         }
 
@@ -907,9 +920,10 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
 
         OriginType[] availableOrigins;
         if (flow == FlowType.CYLINDRICAL) {
-            availableOrigins = new OriginType[]{OriginType.BOTTOM_CENTER, OriginType.CENTER};
-            if (params.getOriginType() == OriginType.CUSTOM || params.getOriginType() == OriginType.MIN_CORNER) {
-                params.setOriginType(OriginType.BOTTOM_CENTER);
+            // ✅ 拆除片段：柱形扩散从顶部开始更合理
+            availableOrigins = new OriginType[]{OriginType.TOP_CENTER, OriginType.CENTER};
+            if (params.getOriginType() == OriginType.CUSTOM || params.getOriginType() == OriginType.MIN_CORNER || params.getOriginType() == OriginType.BOTTOM_CENTER) {
+                params.setOriginType(OriginType.TOP_CENTER);
                 modified = true;
             }
         } else {
@@ -939,8 +953,8 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
         if (ImGui.isItemHovered()) {
             if (flow == FlowType.CYLINDRICAL) {
                 ImGui.setTooltip("""
-                    柱形扩散的起点选项：
-                    • 底部中心：从地面中心向外扩散
+                    柱形扩散的起点选项（拆除片段）：
+                    • 顶部中心：从顶部中心向下扩散（拆除时由上到下）
                     • 几何中心：从整体中心向外扩散
                     """);
             } else {
@@ -948,10 +962,12 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
                     决定序列的"起点"（拆除片段，方向与容器相反）：
                     • 最小角：从容器原点（通常是一角）开始
                     • 几何中心：从整体中心向外
-                    • 底部中心：从地面中心往上（拆除时由上到下）
+                    • 底部中心：从地面中心往上（容器片段用）
+                    • 顶部中心：从顶部中心向下（拆除片段推荐，由上到下）
                     • 自定义：从你指定的坐标开始
                     
                     提示：拆除片段的方向与容器片段相反，例如容器由下到上，拆除由上到下。
+                    推荐使用"顶部中心"作为拆除片段的起始锚点。
                     """);
             }
         }

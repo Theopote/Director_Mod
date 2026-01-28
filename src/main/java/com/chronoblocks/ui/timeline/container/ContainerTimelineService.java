@@ -75,7 +75,7 @@ public class ContainerTimelineService {
                 continue;
             }
             TrackType type = track.getType();
-            if (type != TrackType.CONTAINER && type != TrackType.ERASE) {
+            if (type != TrackType.CONTAINER) {
                 continue;
             }
             for (TimelineClip clip : track.getClips()) {
@@ -100,7 +100,7 @@ public class ContainerTimelineService {
                 continue;
             }
             TrackType type = track.getType();
-            if (type != TrackType.CONTAINER && type != TrackType.ERASE) {
+            if (type != TrackType.CONTAINER) {
                 continue;
             }
             for (TimelineClip clip : track.getClips()) {
@@ -125,7 +125,7 @@ public class ContainerTimelineService {
                 continue;
             }
             TrackType type = track.getType();
-            if (type != TrackType.CONTAINER && type != TrackType.ERASE) {
+            if (type != TrackType.CONTAINER) {
                 // 音频轨道等不直接按 containerId 清理 clip：由 TimelineAudioService.onClipRemoved(containerClip) 统一处理
                 continue;
             }
@@ -165,7 +165,7 @@ public class ContainerTimelineService {
                 continue;
             }
             TrackType type = track.getType();
-            if (type != TrackType.CONTAINER && type != TrackType.ERASE) {
+            if (type != TrackType.CONTAINER) {
                 // 音频轨道的“音频片段”会有独立的显示名（例如带 🔊 前缀），不应被容器重命名逻辑覆盖
                 continue;
             }
