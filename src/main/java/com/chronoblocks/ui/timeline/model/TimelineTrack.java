@@ -3,8 +3,6 @@ package com.chronoblocks.ui.timeline.model;
 import com.chronoblocks.ui.timeline.model.audio.AudioEvent;
 import com.chronoblocks.ui.timeline.model.camera.CameraViewportProfile;
 import com.chronoblocks.ui.timeline.model.camera.path.CameraPathClip;
-import com.chronoblocks.core.container.Container;
-import com.chronoblocks.core.container.ContainerManager;
 
 import java.util.ArrayList;
 import java.util.Collections;

@@ -9,7 +9,6 @@ import com.chronoblocks.ui.timeline.model.audio.AudioClipKeyframe;
 import com.chronoblocks.ui.timeline.model.audio.AudioTimelineClip;
 import com.chronoblocks.core.container.Container;
 import com.chronoblocks.core.container.ContainerManager;
-import com.chronoblocks.core.container.ContainerType;
 import java.util.UUID;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;

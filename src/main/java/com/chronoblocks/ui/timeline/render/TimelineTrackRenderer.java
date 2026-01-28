@@ -198,35 +198,9 @@ public final class TimelineTrackRenderer {
         if (type == TrackType.CONTAINER) {
             shouldShowKeyframeButton = false;  // 容器轨道不显示关键帧按钮
         }
-        
-        boolean keyframeEnabled = false;
-        if (shouldShowKeyframeButton) {
-            if (type == TrackType.CAMERA) {
-                com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController controller =
-                        com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance();
-                com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
-                keyframeEnabled = (activeTrack == track);  // 只有激活轨道才可用
-            } else if (type == TrackType.TIME) {
-                com.chronoblocks.ui.timeline.playback.time.TimelineWorldController controller =
-                        com.chronoblocks.ui.timeline.playback.time.TimelineWorldController.getInstance();
-                com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveTimeTrack();
-                keyframeEnabled = (activeTrack == track);  // 只有激活轨道才可用
-            } else if (type == TrackType.SEASON) {
-                com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController controller =
-                        com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController.getInstance();
-                com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveSeasonTrack();
-                keyframeEnabled = (activeTrack == track);  // 只有激活轨道才可用
-            } else if (type == TrackType.WEATHER) {
-                com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController controller =
-                        com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController.getInstance();
-                com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveWeatherTrack();
-                keyframeEnabled = (activeTrack == track);  // 只有激活轨道才可用
-            } else {
-                // 其他支持关键帧的轨道（如实体轨道），默认启用
-                keyframeEnabled = true;
-            }
-        }
-        
+
+        boolean keyframeEnabled = isKeyframeEnabled(track, shouldShowKeyframeButton, type);
+
         // 只有应该显示且启用的轨道才渲染关键帧按钮
         if (shouldShowKeyframeButton) {
             int keyframeColor = keyframeEnabled 
@@ -255,6 +229,37 @@ public final class TimelineTrackRenderer {
 
         // 注意：Clip 的渲染由 TimelineClipRenderer 负责，这里只需要设置裁剪区域
         // 在 TimelineRenderer.renderTrackArea 中会调用 TimelineClipRenderer.renderClip
+    }
+
+    private static boolean isKeyframeEnabled(TimelineTrack track, boolean shouldShowKeyframeButton, TrackType type) {
+        boolean keyframeEnabled = false;
+        if (shouldShowKeyframeButton) {
+            if (type == TrackType.CAMERA) {
+                com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController controller =
+                        com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance();
+                TimelineTrack activeTrack = controller.getActiveCameraTrack();
+                keyframeEnabled = (activeTrack == track);  // 只有激活轨道才可用
+            } else if (type == TrackType.TIME) {
+                com.chronoblocks.ui.timeline.playback.time.TimelineWorldController controller =
+                        com.chronoblocks.ui.timeline.playback.time.TimelineWorldController.getInstance();
+                TimelineTrack activeTrack = controller.getActiveTimeTrack();
+                keyframeEnabled = (activeTrack == track);  // 只有激活轨道才可用
+            } else if (type == TrackType.SEASON) {
+                com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController controller =
+                        com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController.getInstance();
+                TimelineTrack activeTrack = controller.getActiveSeasonTrack();
+                keyframeEnabled = (activeTrack == track);  // 只有激活轨道才可用
+            } else if (type == TrackType.WEATHER) {
+                com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController controller =
+                        com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController.getInstance();
+                TimelineTrack activeTrack = controller.getActiveWeatherTrack();
+                keyframeEnabled = (activeTrack == track);  // 只有激活轨道才可用
+            } else {
+                // 其他支持关键帧的轨道（如实体轨道），默认启用
+                keyframeEnabled = true;
+            }
+        }
+        return keyframeEnabled;
     }
 }
 

@@ -25,8 +25,6 @@ import com.chronoblocks.ui.timeline.render.TimelineRenderer;
 import com.chronoblocks.ui.timeline.render.TimelineTrackControlHit;
 import com.chronoblocks.ui.timeline.snapping.TimelineSnapping;
 import com.chronoblocks.ui.timeline.commands.MoveAutomationKeyframeCommand;
-import com.chronoblocks.core.container.Container;
-import com.chronoblocks.core.container.ContainerManager;
 
 import imgui.ImGui;
 import imgui.ImGuiIO;

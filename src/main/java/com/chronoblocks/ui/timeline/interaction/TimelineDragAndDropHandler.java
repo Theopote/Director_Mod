@@ -208,7 +208,7 @@ public class TimelineDragAndDropHandler {
                 float duration = calculateInitialClipDuration(container);
 
                 // 创建片段（颜色跟随轨道类型）
-                int clipColor = trackType != null ? trackType.getClipColor() : 0xFF4A90E2;
+                int clipColor = trackType.getClipColor();
                 TimelineClip clip = new TimelineClip(
                     container.getName(),
                     dropTime,
@@ -250,19 +250,10 @@ public class TimelineDragAndDropHandler {
 
                     var visibilityService = com.chronoblocks.core.container.visibility.ContainerServices.visibility();
                     if (visibilityService != null) {
-                        if (trackType == TrackType.CONTAINER) {
-                            if (container.getState() != com.chronoblocks.core.container.ContainerState.HIDDEN) {
-                                visibilityService.hideContainer(container);
-                                container.setState(com.chronoblocks.core.container.ContainerState.HIDDEN);
-                                LOGGER.info("[DragDrop] 容器 {} 已隐藏（已添加到容器轨道）", container.getName());
-                            }
-                        } else {
-                            // ✅ 拆除容器：预热快照（不改世界、不改容器状态）
-                            try {
-                                if (container.getType() == ContainerType.DEMOLITION) {
-                                    visibilityService.createSnapshotFromBlockStore(container);
-                                }
-                            } catch (Exception ignored) {}
+                        if (container.getState() != com.chronoblocks.core.container.ContainerState.HIDDEN) {
+                            visibilityService.hideContainer(container);
+                            container.setState(com.chronoblocks.core.container.ContainerState.HIDDEN);
+                            LOGGER.info("[DragDrop] 容器 {} 已隐藏（已添加到容器轨道）", container.getName());
                         }
                     }
                 } catch (Exception e) {
