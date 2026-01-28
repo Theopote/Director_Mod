@@ -336,7 +336,7 @@ public class TimelineClipBlockController {
                 
                 // ◆ 根据播放头位置和片段配置计算应该显示的方块
                 // 完全基于片段的ClipAnimationConfig，不依赖容器状态
-                VisibleBlocksResult result = calculateVisibleBlocks(clip, trackType, currentTime, trackEnabled, container, config);
+                VisibleBlocksResult result = calculateVisibleBlocks(clip, currentTime, trackEnabled, container, config);
                 Set<BlockPos> renderBlocks = result.renderBlocks();
                 Set<BlockPos> worldBlocks = result.worldBlocks();
                 currentFrameVisibleBlocks.put(containerId, renderBlocks);
@@ -802,7 +802,6 @@ public class TimelineClipBlockController {
      * </ul>
      */
     private VisibleBlocksResult calculateVisibleBlocks(TimelineClip clip,
-                                                       TrackType trackType,
                                                        float currentTime,
                                                        boolean trackEnabled,
                                                        Container container,
