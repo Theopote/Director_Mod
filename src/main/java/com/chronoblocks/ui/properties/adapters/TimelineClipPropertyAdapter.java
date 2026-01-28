@@ -30,7 +30,6 @@ import com.chronoblocks.ui.theme.Icons;
 import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.core.container.Container;
 import com.chronoblocks.core.container.ContainerManager;
-import com.chronoblocks.core.container.ContainerType;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.ImVec2;

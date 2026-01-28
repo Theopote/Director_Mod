@@ -304,7 +304,9 @@ public final class BlockAnimationEngine {
         if (phase == ClipAnimationConfig.AnimationPhase.EXIT
                 && mode != AnimationMode.FADE_OUT
                 && mode != AnimationMode.EXPLODE
-                && mode != AnimationMode.IMPLODE) {
+                && mode != AnimationMode.IMPLODE
+                && mode != AnimationMode.FLY_OUT
+                && mode != AnimationMode.SHRINK_OUT) {
             tForTransformer = 1.0f - tEased;
         }
 
