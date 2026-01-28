@@ -913,13 +913,43 @@ public class TimelineClipBlockController {
                 // - 在此之前一直保留在 visible 集合中，供 BlockAnimationEngine 采样退出动画
                 renderBlocks.addAll(allBlocks); // 先全量保留，再按“结束时刻”移除
                 worldBlocks.addAll(allBlocks);
-                for (BlockSequenceEntry entry : sequenceEntries) {
-                    float normalizedTime = entry.getNormalizedTime();
-                    // 与 BlockAnimationEngine 的 EXIT 时间窗口对齐：结束时刻分布在 [clipStart+delay+animDuration, clipEnd]
-                    float blockEndTime = clipStart + delay + (fullWindow ? animDuration : 0.0f) + normalizedTime * sequenceSpan;
-                    if (currentTime >= blockEndTime) {
-                        renderBlocks.remove(entry.getPos());
-                        worldBlocks.remove(entry.getPos());
+                // ✅ INSTANT 模式：到达开始时间就立即移除，不需要动画窗口（与容器片段 INSTANT 模式对称）
+                boolean isInstant = false;
+                try {
+                    isInstant = config != null
+                            && config.getMode() == com.chronoblocks.core.container.AnimationMode.INSTANT;
+                } catch (Exception ignored) {
+                }
+                
+                if (isInstant) {
+                    // INSTANT 模式：按序列顺序直接移除，不需要动画窗口（与容器片段 INSTANT 模式对称）
+                    for (BlockSequenceEntry entry : sequenceEntries) {
+                        float normalizedTime = entry.getNormalizedTime();
+                        float blockStartTime = clipStart + delay + normalizedTime * sequenceSpan;
+                        if (currentTime >= blockStartTime) {
+                            // 到达开始时间就立即移除，不保留在 visible 集合中（避免黑色方块动画）
+                            renderBlocks.remove(entry.getPos());
+                            worldBlocks.remove(entry.getPos());
+                        }
+                    }
+                } else {
+                    // 非 INSTANT 模式：逐步清除（带退出动画窗口）
+                    // ✅ 与容器片段对称：在动画窗口内时，方块只在 renderBlocks 中（用于 overlay），不在 worldBlocks 中（避免与真实方块叠加导致黑色）
+                    for (BlockSequenceEntry entry : sequenceEntries) {
+                        float normalizedTime = entry.getNormalizedTime();
+                        // 与 BlockAnimationEngine 的 EXIT 时间窗口对齐：结束时刻分布在 [clipStart+delay+animDuration, clipEnd]
+                        float blockEndTime = clipStart + delay + (fullWindow ? animDuration : 0.0f) + normalizedTime * sequenceSpan;
+                        float blockStartTime = blockEndTime - animDuration;
+                        
+                        if (currentTime >= blockEndTime) {
+                            // 动画结束后：从 renderBlocks 和 worldBlocks 中移除（方块已消失）
+                            renderBlocks.remove(entry.getPos());
+                            worldBlocks.remove(entry.getPos());
+                        } else if (currentTime >= blockStartTime) {
+                            // 动画窗口内：从 worldBlocks 中移除，只保留在 renderBlocks 中（用于 overlay 渲染，避免与真实方块叠加）
+                            worldBlocks.remove(entry.getPos());
+                        }
+                        // 动画开始前：方块仍在 renderBlocks 和 worldBlocks 中（完全可见）
                     }
                 }
             }
@@ -1121,7 +1151,12 @@ public class TimelineClipBlockController {
                         snapshot.getTransform() != null);
             }
             
-            if (!snapshot.isVisible() || snapshot.getAlpha() <= 0.0f) {
+            // ✅ EXIT 阶段在动画窗口内时，即使 alpha 为 0 也应该注册 renderEntry（显示动画过程）
+            // 其他情况：如果不可见或 alpha <= 0，跳过
+            if (!snapshot.isVisible()) {
+                continue;
+            }
+            if (snapshot.getAlpha() <= 0.0f && !(phase == ClipAnimationConfig.AnimationPhase.EXIT && inAnimWindow)) {
                 continue;
             }
 
@@ -1130,9 +1165,11 @@ public class TimelineClipBlockController {
             // - 视觉状态不是 NORMAL（有透明度或遮挡）
             // - 动画 alpha < 0.999（有透明度变化）
             // - 有非单位变换（有动画变换）
+            // ✅ EXIT 阶段在动画窗口内时，总是需要 overlay（即使 alpha 为 0 或没有变换，也需要渲染动画过程）
             boolean needsOverlay = !visualState.isNormal()
                     || snapshot.getAlpha() < 0.999f
-                    || !isIdentityTransform(snapshot);
+                    || !isIdentityTransform(snapshot)
+                    || (phase == ClipAnimationConfig.AnimationPhase.EXIT && inAnimWindow);
 
             if (!needsOverlay) {
                 continue;
