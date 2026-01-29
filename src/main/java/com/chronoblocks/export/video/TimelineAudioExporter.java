@@ -321,7 +321,7 @@ public final class TimelineAudioExporter implements AudioExporter {
                 int sampleRate = Math.max(1, (int) format.getSampleRate());
 
                 FloatArrayList samples = new FloatArrayList();
-                FloatConsumer consumer = v -> samples.add(v);
+                FloatConsumer consumer = samples::add;
                 while (stream.read(consumer)) {
                     // keep reading
                 }
@@ -352,7 +352,7 @@ public final class TimelineAudioExporter implements AudioExporter {
         float[] src = sound.samples;
         int srcChannels = Math.max(1, sound.channels);
         int srcFrames = src.length / srcChannels;
-        if (srcFrames <= 0) {
+        if (srcFrames == 0) {
             return;
         }
 
@@ -384,9 +384,7 @@ public final class TimelineAudioExporter implements AudioExporter {
                         ? sampleInterleaved(src, srcChannels, srcFrames, srcIndex, frac, 1)
                         : left;
                 mix[outBase] += left * gain;
-                if (mixChannels >= 2) {
-                    mix[outBase + 1] += right * gain;
-                }
+                mix[outBase + 1] += right * gain;
             }
         }
     }
