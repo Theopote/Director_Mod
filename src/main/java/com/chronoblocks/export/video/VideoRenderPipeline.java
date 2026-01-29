@@ -290,62 +290,83 @@ public final class VideoRenderPipeline {
                                                                CameraViewportProfile cameraProfile) {
         int srcW = src.getWidth();
         int srcH = src.getHeight();
-        
+
         if (srcW <= 0 || srcH <= 0 || targetW <= 0 || targetH <= 0) {
             NativeImage dst = new NativeImage(Math.max(1, targetW), Math.max(1, targetH), true);
             dst.fillRect(0, 0, dst.getWidth(), dst.getHeight(), 0xFF000000);
             return dst;
         }
 
-        // ⭐ 使用 ViewportMath 计算裁切区域（与 UI Overlay 使用相同的算法）
-        float srcAspect = (float) srcW / (float) srcH;
-        CameraViewportProfile.PreviewScalePolicy scalePolicy = 
-            (cameraProfile != null) ? cameraProfile.getPreviewScalePolicy() 
-                                    : CameraViewportProfile.PreviewScalePolicy.FIT;
-        
-        ViewportMath.ViewportRects viewport;
-        if (scalePolicy == CameraViewportProfile.PreviewScalePolicy.FIT) {
-            // FIT: 保持完整画面，留黑边
-            viewport = ViewportMath.computeFit(0, 0, targetW, targetH, srcAspect);
-        } else {
-            // FILL: 填满目标，可能裁切
-            viewport = ViewportMath.computeFill(0, 0, targetW, targetH, srcAspect);
+        // Determine camera aspect; fall back to target aspect when missing.
+        float cameraAspect = (cameraProfile != null) ? cameraProfile.getAspectRatio() : 0f;
+        if (cameraAspect <= 0f) {
+            cameraAspect = (float) targetW / (float) targetH;
         }
 
-        // 创建目标图像（全黑背景）
-        NativeImage dst = new NativeImage(targetW, targetH, true);
-        dst.fillRect(0, 0, targetW, targetH, 0xFF000000);
+        CameraViewportProfile.PreviewScalePolicy scalePolicy =
+                (cameraProfile != null) ? cameraProfile.getPreviewScalePolicy()
+                        : CameraViewportProfile.PreviewScalePolicy.FIT;
 
-        // 将源图像绘制到计算出的内矩形区域
+        // Compute viewport rect in target using camera aspect (NOT source aspect).
+        ViewportMath.ViewportRects viewport = (scalePolicy == CameraViewportProfile.PreviewScalePolicy.FIT)
+                ? ViewportMath.computeFit(0, 0, targetW, targetH, cameraAspect)
+                : ViewportMath.computeFill(0, 0, targetW, targetH, cameraAspect);
+
         int innerX = Math.round(viewport.innerX);
         int innerY = Math.round(viewport.innerY);
         int innerW = Math.round(viewport.innerW);
         int innerH = Math.round(viewport.innerH);
-        
-        // 计算缩放比例
-        float scaleX = (float) srcW / (float) innerW;
-        float scaleY = (float) srcH / (float) innerH;
+        if (innerW <= 0 || innerH <= 0) {
+            NativeImage dst = new NativeImage(Math.max(1, targetW), Math.max(1, targetH), true);
+            dst.fillRect(0, 0, dst.getWidth(), dst.getHeight(), 0xFF000000);
+            return dst;
+        }
 
-        // 采样并绘制（最近邻采样，离线导出可接受）
+        // Crop source to camera aspect (center crop) to avoid distortion.
+        float srcAspect = (float) srcW / (float) srcH;
+        int cropX = 0;
+        int cropY = 0;
+        int cropW = srcW;
+        int cropH = srcH;
+        if (Math.abs(srcAspect - cameraAspect) > 0.0001f) {
+            if (srcAspect > cameraAspect) {
+                // Source is wider than camera; crop left/right.
+                cropW = Math.round(srcH * cameraAspect);
+                cropW = Math.min(cropW, srcW);
+                cropX = (srcW - cropW) / 2;
+            } else {
+                // Source is taller than camera; crop top/bottom.
+                cropH = Math.round(srcW / cameraAspect);
+                cropH = Math.min(cropH, srcH);
+                cropY = (srcH - cropH) / 2;
+            }
+        }
+
+        float scaleX = (float) cropW / (float) innerW;
+        float scaleY = (float) cropH / (float) innerH;
+
+        NativeImage dst = new NativeImage(targetW, targetH, true);
+        dst.fillRect(0, 0, targetW, targetH, 0xFF000000);
+
         for (int dy = 0; dy < innerH; dy++) {
             int dstY = innerY + dy;
             if (dstY < 0 || dstY >= targetH) continue;
-            
-            // 对于 FIT 模式，源图像完整映射到内矩形
-            // 对于 FILL 模式，可能需要裁切源图像
-            int srcY = Math.min(srcH - 1, Math.round(dy * scaleY));
-            
+
+            int srcY = cropY + Math.min(cropH - 1, Math.round(dy * scaleY));
             for (int dx = 0; dx < innerW; dx++) {
                 int dstX = innerX + dx;
                 if (dstX < 0 || dstX >= targetW) continue;
-                
-                int srcX = Math.min(srcW - 1, Math.round(dx * scaleX));
+
+                int srcX = cropX + Math.min(cropW - 1, Math.round(dx * scaleX));
                 dst.setColorArgb(dstX, dstY, src.getColorArgb(srcX, srcY));
             }
         }
 
         return dst;
     }
+
 }
+
+
 
 
