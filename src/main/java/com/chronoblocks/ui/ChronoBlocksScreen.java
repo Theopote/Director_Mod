@@ -172,13 +172,14 @@ public class ChronoBlocksScreen extends Screen {
 
             // 渲染UI管理器（包含DockSpace）
             if (uiManager != null) {
-                if (LOGGER.isTraceEnabled()) {
-                    LOGGER.trace("[ChronoBlocks] Rendering UI manager...");
-                }
-                uiManager.render();
-                if (LOGGER.isTraceEnabled()) {
-                    LOGGER.trace("[ChronoBlocks] UI manager rendered successfully");
-                }
+            InputFocusManager.getInstance().beginFrame();
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[ChronoBlocks] Rendering UI manager...");
+            }
+            uiManager.render();
+            if (LOGGER.isTraceEnabled()) {
+                LOGGER.trace("[ChronoBlocks] UI manager rendered successfully");
+            }
             } else {
                 LOGGER.warn("[ChronoBlocks] UIManager为空，跳过UI渲染");
             }

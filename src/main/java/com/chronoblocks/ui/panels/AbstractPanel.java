@@ -2,7 +2,9 @@ package com.chronoblocks.ui.panels;
 
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
+import imgui.flag.ImGuiHoveredFlags;
 import imgui.type.ImBoolean;
+import com.chronoblocks.ui.input.InputFocusManager;
 import com.chronoblocks.ui.theme.UITheme;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,6 +106,9 @@ public abstract class AbstractPanel implements IPanel {
                     }
 
                     if (windowStarted) {
+                        if (ImGui.isWindowHovered(ImGuiHoveredFlags.RootAndChildWindows)) {
+                            InputFocusManager.getInstance().recordPanelHover();
+                        }
                         try {
                             if (ImGui.isWindowAppearing()) {
                                 // 设置窗口默认大小（首次出现时，如选择历史、选择过滤等活动面板）
