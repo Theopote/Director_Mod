@@ -104,9 +104,9 @@ public final class TimelineTrackControlHit {
         TrackType type = track != null ? track.getType() : null;
         boolean supportsKeyframes = type != null && type.supportsKeyframes();
 
-        // ✅ 修复：按钮区域两侧边距设置为 6px，按钮之间的间距保持 20px 不变，与 TimelineTrackRenderer 保持一致
+        // ✅ 修复：按钮区域两侧边距设置为 6px，按钮之间的间距保持 4px，与 TimelineTrackRenderer 保持一致
         float BUTTON_AREA_MARGIN = 6f;
-        float BUTTON_SPACING = 20f;
+        float BUTTON_SPACING = 4f;
         
         // 从右边界向左计算按钮位置（与 TimelineTrackRenderer 保持一致）
         float visibleX1 = winX + leftLabelWidth - (BUTTON_AREA_MARGIN + CONTROL_ICON_SIZE);
