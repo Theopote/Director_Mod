@@ -317,7 +317,7 @@ public final class VideoRenderPipeline {
         int innerW = Math.round(viewport.innerW);
         int innerH = Math.round(viewport.innerH);
         if (innerW <= 0 || innerH <= 0) {
-            NativeImage dst = new NativeImage(Math.max(1, targetW), Math.max(1, targetH), true);
+            NativeImage dst = new NativeImage(targetW, targetH, true);
             dst.fillRect(0, 0, dst.getWidth(), dst.getHeight(), 0xFF000000);
             return dst;
         }
