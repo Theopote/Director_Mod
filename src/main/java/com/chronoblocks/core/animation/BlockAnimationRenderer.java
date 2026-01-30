@@ -23,16 +23,16 @@ import java.util.Collection;
  * BlockAnimationRenderer v3.1 - 重构版
  * <p>
  * 渲染职责：
- *  1. 基于 BlockAnimationContext / BlockAnimationEngine 得到 BlockAnimationSnapshot
- *  2. 从 BlockVisualStateManager 查询覆盖可见性状态（遮挡透明、轨道隐藏等）
- *  3. 合并动画透明度 × 可见性透明度
- *  4. 将 snapshot 的“局部变换矩阵”叠加到世界矩阵上
- *  5. 使用自定义 RenderLayer 渲染半透明/ghost 方块
- *  6. 触发粒子等 BlockEffect
+ * 1. 基于 BlockAnimationContext / BlockAnimationEngine 得到 BlockAnimationSnapshot
+ * 2. 从 BlockVisualStateManager 查询覆盖可见性状态（遮挡透明、轨道隐藏等）
+ * 3. 合并动画透明度 × 可见性透明度
+ * 4. 将 snapshot 的“局部变换矩阵”叠加到世界矩阵上
+ * 5. 使用自定义 RenderLayer 渲染半透明/ghost 方块
+ * 6. 触发粒子等 BlockEffect
  * <p>
  * 核心约定：
- *  - BlockAnimationSnapshot.transform 只包含局部矩阵（围绕方块中心），不含世界平移
- *  - 本 Renderer 负责 translate(pos) 再乘上 snapshot.transform
+ * - BlockAnimationSnapshot.transform 只包含局部矩阵（围绕方块中心），不含世界平移
+ * - 本 Renderer 负责 translate(pos) 再乘上 snapshot.transform
  *
  * @author ChronoBlocks Team
  * @version 3.1
@@ -40,7 +40,6 @@ import java.util.Collection;
 public class BlockAnimationRenderer {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BlockAnimationRenderer.class);
-
 
     /**
      * 主入口：基于 Context 直接渲染一个动画方块
@@ -53,8 +52,7 @@ public class BlockAnimationRenderer {
             @NotNull BlockPos pos,
             @NotNull BlockSequenceEntry seqEntry,
             @NotNull TimelineClip clip,
-            double globalTimeSec
-    ) {
+            double globalTimeSec) {
         // 性能敏感：renderBlock 可能在调试时被高频调用，避免 info 刷屏。
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("[BlockAnimationRenderer] renderBlock called for pos={} time={}", pos, globalTimeSec);
@@ -68,8 +66,7 @@ public class BlockAnimationRenderer {
             }
 
             BlockAnimationContext ctx = BlockAnimationContext.build(
-                    world, pos, clip, config, seqEntry, globalTimeSec
-            );
+                    world, pos, clip, config, seqEntry, globalTimeSec);
             if (ctx == null) {
                 // 动画还没开始，或者已经结束
                 return;
@@ -92,8 +89,7 @@ public class BlockAnimationRenderer {
                     ctx.getClip().getStartTime(),
                     ctx.getClip().getStartTime() + ctx.getClip().getLength(),
                     (float) ctx.getGlobalTimeSec(),
-                    ctx.getSequenceEntry().getPos().asLong()
-            );
+                    ctx.getSequenceEntry().getPos().asLong());
 
             if (!snapshot.isVisible() || snapshot.getAlpha() <= 0.0f) {
                 return;
@@ -107,8 +103,7 @@ public class BlockAnimationRenderer {
                     pos,
                     snapshot,
                     visualState,
-                    world.getBlockState(pos)
-            );
+                    world.getBlockState(pos));
 
         } catch (Exception e) {
             LOGGER.error("渲染动画方块时出错: {}", e.getMessage(), e);
@@ -118,7 +113,8 @@ public class BlockAnimationRenderer {
     /**
      * 向后兼容的旧版本方法（使用 float elapsedTime）
      *
-     * @deprecated 请使用 renderBlock(world, matrices, consumers, pos, seqEntry, clip, double)
+     * @deprecated 请使用 renderBlock(world, matrices, consumers, pos, seqEntry, clip,
+     *             double)
      */
     @Deprecated
     public static void renderBlock(
@@ -128,8 +124,7 @@ public class BlockAnimationRenderer {
             @NotNull BlockPos pos,
             @NotNull BlockSequenceEntry seqEntry,
             @NotNull TimelineClip clip,
-            float elapsedTime
-    ) {
+            float elapsedTime) {
         double globalTimeSec = clip.getStartTime() + elapsedTime;
         renderBlock(world, matrices, consumers, pos, seqEntry, clip, globalTimeSec);
     }
@@ -146,8 +141,7 @@ public class BlockAnimationRenderer {
             @NotNull ClientWorld world,
             @NotNull MatrixStack matrices,
             @NotNull VertexConsumerProvider consumers,
-            @NotNull Collection<BlockVisualStateManager.RenderEntry> entries
-    ) {
+            @NotNull Collection<BlockVisualStateManager.RenderEntry> entries) {
         if (entries.isEmpty()) {
             return;
         }
@@ -159,8 +153,8 @@ public class BlockAnimationRenderer {
 
         Vec3d cameraPos = MinecraftClient.getInstance().gameRenderer != null
                 && MinecraftClient.getInstance().gameRenderer.getCamera() != null
-                ? MinecraftClient.getInstance().gameRenderer.getCamera().getPos()
-                : Vec3d.ZERO;
+                        ? MinecraftClient.getInstance().gameRenderer.getCamera().getPos()
+                        : Vec3d.ZERO;
         matrices.push();
         matrices.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
         try {
@@ -171,8 +165,8 @@ public class BlockAnimationRenderer {
 
                 BlockPos pos = entry.pos();
                 BlockState state = entry.blockState();
-                BlockVisualStateManager.BlockVisualState visualState =
-                        entry.visualState() != null ? entry.visualState() : BlockVisualStateManager.BlockVisualState.normal();
+                BlockVisualStateManager.BlockVisualState visualState = entry.visualState() != null ? entry.visualState()
+                        : BlockVisualStateManager.BlockVisualState.normal();
 
                 BlockAnimationSnapshot snapshot = entry.overrideSnapshot();
                 if (snapshot == null) {
@@ -198,8 +192,7 @@ public class BlockAnimationRenderer {
                         pos,
                         snapshot,
                         visualState,
-                        state
-                );
+                        state);
             }
         } finally {
             matrices.pop();
@@ -213,8 +206,7 @@ public class BlockAnimationRenderer {
             @NotNull BlockPos pos,
             @NotNull BlockAnimationSnapshot snapshot,
             @NotNull BlockVisualStateManager.BlockVisualState visualState,
-            BlockState blockStateOverride
-    ) {
+            BlockState blockStateOverride) {
         // 1. HIDDEN 模式：完全不渲染
         if (visualState.getMode() == BlockRenderMode.HIDDEN) {
             return;
@@ -263,8 +255,8 @@ public class BlockAnimationRenderer {
      * 将 snapshot 的局部矩阵乘到当前 MatrixStack 顶部。
      * <p>
      * 约定：
-     *  - snapshot.transform 只包含局部动画变换（中心平移 / 旋转 / 缩放 / 微移）
-     *  - 当前 MatrixStack 已经包含了世界矩阵（包括 translate(pos)）
+     * - snapshot.transform 只包含局部动画变换（中心平移 / 旋转 / 缩放 / 微移）
+     * - 当前 MatrixStack 已经包含了世界矩阵（包括 translate(pos)）
      * <p>
      * 结果：worldMatrix = worldMatrix * localAnimMatrix
      */
@@ -278,7 +270,8 @@ public class BlockAnimationRenderer {
         MatrixStack snapshotStack = snapshot.getTransform();
         if (snapshotStack == null) {
             if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("[BlockAnimationRenderer] applyAnimationTransformFromSnapshot: snapshot.getTransform() is null for pos={}",
+                LOGGER.debug(
+                        "[BlockAnimationRenderer] applyAnimationTransformFromSnapshot: snapshot.getTransform() is null for pos={}",
                         snapshot.getPos());
             }
             return;
@@ -287,12 +280,12 @@ public class BlockAnimationRenderer {
         // matrices.top = matrices.top * snapshot.top
         var snapshotMatrix = snapshotStack.peek().getPositionMatrix();
         var currentMatrix = matrices.peek().getPositionMatrix();
-        
+
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("[BlockAnimationRenderer] applyAnimationTransformFromSnapshot: pos={} matrix={}",
                     snapshot.getPos(), snapshotMatrix);
         }
-        
+
         currentMatrix.mul(snapshotMatrix);
     }
 
@@ -310,8 +303,7 @@ public class BlockAnimationRenderer {
             @NotNull BlockPos pos,
             @NotNull BlockState state,
             float alpha,
-            boolean depthWrite
-    ) {
+            boolean depthWrite) {
         BlockRenderManager manager = MinecraftClient.getInstance().getBlockRenderManager();
         if (manager == null) {
             return;
@@ -328,14 +320,27 @@ public class BlockAnimationRenderer {
                 // ✅ 使用世界实时光照（否则动画方块会“永远全亮”，夜晚也不变暗）
                 int light = net.minecraft.client.render.WorldRenderer.getLightmapCoordinates(world, pos);
 
+                // 🔥 修复：如果当前位置是完整方块（光源被遮挡导致 light=0），
+                // 且我们需要渲染 overlay（双重渲染用于遮缝），则 overlay 会变成全黑。
+                // 此时尝试使用该方块自身的发光亮度，或者如果它不发光，则采集上方/邻近亮度。
+                if (light == 0 && state.isOpaqueFullCube()) {
+                    // 1. 检查自身是否发光
+                    int luminance = state.getLuminance();
+                    if (luminance > 0) {
+                        light = net.minecraft.client.render.LightmapTextureManager.pack(luminance, 0);
+                    } else {
+                        // 2. 自身不发光且为不透明方块，采集上方亮度（模拟环境光照）
+                        light = net.minecraft.client.render.WorldRenderer.getLightmapCoordinates(world, pos.up());
+                    }
+                }
+
                 // 1.21.10+：使用 BlockRenderManager#renderBlockAsEntity（避免底层 model renderer 签名变化）
                 manager.renderBlockAsEntity(
                         state,
                         matrices,
                         provider,
                         light,
-                        OverlayTexture.DEFAULT_UV
-                );
+                        OverlayTexture.DEFAULT_UV);
             } finally {
                 com.chronoblocks.client.renderer.BlockColorRenderContext.pop();
             }
