@@ -39,7 +39,7 @@ public class WeatherParticleController {
 
     /** 粒子生成半径（格） */
     private static final int BASE_RADIUS_RAIN = 72;
-    private static final int BASE_RADIUS_SNOW = 64;
+    private static final int BASE_RADIUS_SNOW = 120;
     private static final int MAX_RADIUS_RAIN = 200;
     private static final int MAX_RADIUS_SNOW = 200;
 
@@ -48,8 +48,6 @@ public class WeatherParticleController {
 
     /** 在地形顶部再抬高多少格，确保"从天落下"的感觉 */
     private static final int ABOVE_SURFACE_PADDING = 24;
-    private static final int ABOVE_SURFACE_PADDING_SNOW = 2;
-    private static final int SNOW_SURFACE_EXTRA = 26;
 
     /** 每 tick 允许生成的最大粒子数（硬限，防止卡顿） */
     private static final int HARD_CAP_PER_TICK = 8000;
@@ -219,7 +217,12 @@ public class WeatherParticleController {
             double z = camPos.z + spread(radius);
 
             int topY = world.getTopY(Heightmap.Type.MOTION_BLOCKING, MathHelper.floor(x), MathHelper.floor(z));
-            double y = topY + ABOVE_SURFACE_PADDING_SNOW + random.nextDouble() * SNOW_SURFACE_EXTRA;
+
+            // ✅ 修复：音量化降雪 (Volume-based Spawning)
+            // 不再仅仅在摄像机上方生成，而是在摄像机周围的一个垂直体积内生成 [-10, +30]
+            // 这样当玩家往下看时，也能看到已经在下方生成的雪花，而不是一片空地
+            double y = camPos.y + (random.nextDouble() * 40.0 - 10.0);
+            y = Math.max(y, topY + 0.1); // 确保不穿模到地下
 
             // 雪更慢、更飘
             double vy = -(SNOW_FALL_MIN + random.nextDouble() * (SNOW_FALL_MAX - SNOW_FALL_MIN));
@@ -228,7 +231,7 @@ public class WeatherParticleController {
             double vx = windVec.x + (random.nextDouble() - 0.5) * 0.04;
             double vz = windVec.z + (random.nextDouble() - 0.5) * 0.04;
 
-            world.addParticleClient(ParticleTypes.SNOWFLAKE, x, y, z, vx, vy, vz);
+            world.addImportantParticleClient(ParticleTypes.SNOWFLAKE, x, y, z, vx, vy, vz);
         }
     }
 
