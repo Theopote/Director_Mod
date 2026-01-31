@@ -25,26 +25,23 @@ import java.util.UUID;
 public class TimeKeyframe implements TimelineSelectable {
     
     /**
-     * 段插值类型（用于世界时间插值）
+     * 时间插值类型（统一用于位置、时间、角度插值）
+     * 
+     * <p>设计说明：
+     * <ul>
+     *   <li>DEFAULT：使用轨道默认插值类型</li>
+     *   <li>LINEAR：线性插值</li>
+     *   <li>CATMULL_ROM：Catmull-Rom 平滑样条插值</li>
+     *   <li>BEZIER：贝塞尔曲线插值</li>
+     *   <li>STEP：阶梯插值（保持值）</li>
+     * </ul>
      */
-    public enum SegmentInterpolation {
+    public enum TimeInterpolation {
         DEFAULT,      // 使用轨道默认类型
         LINEAR,       // 线性插值
         CATMULL_ROM,  // Catmull-Rom 样条插值
         BEZIER,       // 贝塞尔曲线插值
-        STEP,         // 阶梯插值（保持值）
-        HOLD          // 保持（等价 STEP）
-    }
-    
-    /**
-     * 角度插值类型（用于太阳角度插值）
-     */
-    public enum AngleInterpolation {
-        DEFAULT,      // 跟随段插值类型
-        LINEAR,       // 线性角度插值
-        CATMULL_ROM,  // Catmull-Rom 角度插值（平滑过渡）
-        BEZIER,       // 贝塞尔角度插值
-        STEP          // 阶梯插值（保持角度）
+        STEP          // 阶梯插值（保持值）
     }
     
     private final UUID id;
@@ -67,10 +64,10 @@ public class TimeKeyframe implements TimelineSelectable {
     
     // ========== 插值设置 ==========
     /** 位置/时间插值类型 */
-    private SegmentInterpolation pathInterpolation = SegmentInterpolation.DEFAULT;
+    private TimeInterpolation pathInterpolation = TimeInterpolation.DEFAULT;
     
     /** 角度插值类型 */
-    private AngleInterpolation angleInterpolation = AngleInterpolation.DEFAULT;
+    private TimeInterpolation angleInterpolation = TimeInterpolation.DEFAULT;
     
     public TimeKeyframe(String name, float time) {
         this.id = UUID.randomUUID();
@@ -172,37 +169,37 @@ public class TimeKeyframe implements TimelineSelectable {
         this.sunAzimuth = sunAzimuth;
     }
     
-    public SegmentInterpolation getPathInterpolation() {
+    public TimeInterpolation getPathInterpolation() {
         return pathInterpolation;
     }
-    
-    public void setPathInterpolation(SegmentInterpolation pathInterpolation) {
-        this.pathInterpolation = pathInterpolation != null ? pathInterpolation : SegmentInterpolation.DEFAULT;
+
+    public void setPathInterpolation(TimeInterpolation pathInterpolation) {
+        this.pathInterpolation = pathInterpolation != null ? pathInterpolation : TimeInterpolation.DEFAULT;
     }
     
-    public AngleInterpolation getAngleInterpolation() {
+    public TimeInterpolation getAngleInterpolation() {
         return angleInterpolation;
     }
     
-    public void setAngleInterpolation(AngleInterpolation angleInterpolation) {
-        this.angleInterpolation = angleInterpolation != null ? angleInterpolation : AngleInterpolation.DEFAULT;
+    public void setAngleInterpolation(TimeInterpolation angleInterpolation) {
+        this.angleInterpolation = angleInterpolation != null ? angleInterpolation : TimeInterpolation.DEFAULT;
     }
     
     /**
-     * 将 SegmentInterpolation 转换为 CameraKeyframe.SegmentPathType（用于复用插值逻辑）
+     * 将 TimeInterpolation 转换为 CameraKeyframe.SegmentPathType（用于复用插值逻辑）
      */
     public CameraKeyframe.SegmentPathType toSegmentPathType() {
         return switch (pathInterpolation) {
             case LINEAR -> CameraKeyframe.SegmentPathType.LINEAR;
             case CATMULL_ROM -> CameraKeyframe.SegmentPathType.CATMULL_ROM;
             case BEZIER -> CameraKeyframe.SegmentPathType.BEZIER;
-            case STEP, HOLD -> CameraKeyframe.SegmentPathType.STEP;
+            case STEP -> CameraKeyframe.SegmentPathType.STEP;
             case DEFAULT -> CameraKeyframe.SegmentPathType.DEFAULT;
         };
     }
     
     /**
-     * 将 AngleInterpolation 转换为 CameraKeyframe.RotationInterpolation（用于复用插值逻辑）
+     * 将 TimeInterpolation 转换为 CameraKeyframe.RotationInterpolation（用于复用插值逻辑）
      */
     public CameraKeyframe.RotationInterpolation toRotationInterpolation() {
         return switch (angleInterpolation) {

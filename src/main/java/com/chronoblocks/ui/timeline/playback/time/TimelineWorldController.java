@@ -871,13 +871,21 @@ public final class TimelineWorldController {
         List<TimeKeyframe> keyframes = sampler.getKeyframes();
         
         // 如果轨道为空（无关键帧），不冻结
-        return !keyframes.isEmpty();
+        if (keyframes.isEmpty()) {
+            return false;
+        }
 
-        // ⭐ v3.6：只要时间轨道存在关键帧，就冻结原版时间推进（doDaylightCycle = false）。
-        // 否则会出现“原版时间推进 + 时间轨道不断写回”的来回拉扯，体感为日夜闪烁/抖动。
+        // ✅ v4.0 修复：检查是否所有关键帧都是自然时间模式
+        // 如果至少有一个自定义太阳关键帧，就需要冻结时间
+        for (TimeKeyframe kf : keyframes) {
+            if (!kf.isUseNaturalTime()) {
+                // 发现自定义太阳关键帧，需要冻结
+                return true;
+            }
+        }
 
-        // 所有关键帧都是自然时间模式 → 不冻结
-        // 这种情况下，原版时间系统可以正常运行，只需要在采样时同步时间即可
+        // 所有关键帧都是自然时间模式 → 不冻结，原版时间正常推进
+        return false;
     }
 
     /**

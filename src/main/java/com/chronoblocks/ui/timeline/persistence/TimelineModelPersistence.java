@@ -639,10 +639,10 @@ public class TimelineModelPersistence {
                                 tk.setSunElevation(kdto.sunElevation);
                                 tk.setSunAzimuth(kdto.sunAzimuth);
                                 if (kdto.timePathInterpolation != null) {
-                                    try { tk.setPathInterpolation(TimeKeyframe.SegmentInterpolation.valueOf(kdto.timePathInterpolation)); } catch (Exception ignored) {}
+                                    try { tk.setPathInterpolation(TimeKeyframe.TimeInterpolation.valueOf(kdto.timePathInterpolation)); } catch (Exception ignored) {}
                                 }
                                 if (kdto.timeAngleInterpolation != null) {
-                                    try { tk.setAngleInterpolation(TimeKeyframe.AngleInterpolation.valueOf(kdto.timeAngleInterpolation)); } catch (Exception ignored) {}
+                                    try { tk.setAngleInterpolation(TimeKeyframe.TimeInterpolation.valueOf(kdto.timeAngleInterpolation)); } catch (Exception ignored) {}
                                 }
                                 track.addAutomationKeyframe(tk);
                             }

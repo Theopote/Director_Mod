@@ -258,7 +258,10 @@ public final class TimeSample {
     }
     
     /**
-     * 基于太阳高度角和方位角计算天空角度（反向映射）
+     * 基于太阳高度角计算天空角度（反向映射）
+     * 
+     * <p>注意：Minecraft 1.21 中太阳位置由 skyAngle 单独控制，不支持独立的方位角。
+     * 这个方法仅根据高度角计算 skyAngle。
      */
     private static float calculateSkyAngleFromElevation(float elevation, float azimuth) {
         // 简化映射：将高度角映射到天空角度范围

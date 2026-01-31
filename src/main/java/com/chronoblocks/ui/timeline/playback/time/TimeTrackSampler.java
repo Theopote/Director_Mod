@@ -111,9 +111,9 @@ public final class TimeTrackSampler {
         t = Math.max(0.0f, Math.min(1.0f, t));
 
         // 获取插值类型
-        TimeKeyframe.SegmentInterpolation interpolation = a.getPathInterpolation();
-        if (interpolation == TimeKeyframe.SegmentInterpolation.DEFAULT) {
-            interpolation = TimeKeyframe.SegmentInterpolation.CATMULL_ROM; // 默认使用 Catmull-Rom
+        TimeKeyframe.TimeInterpolation interpolation = a.getPathInterpolation();
+        if (interpolation == TimeKeyframe.TimeInterpolation.DEFAULT) {
+            interpolation = TimeKeyframe.TimeInterpolation.CATMULL_ROM; // 默认使用 Catmull-Rom
         }
 
         // 应用插值模式
@@ -122,7 +122,6 @@ public final class TimeTrackSampler {
             // 如果到达，使用平滑插值作为默认
             case DEFAULT:
             case STEP:
-            case HOLD:
                 t = 0f; // 保持 a 值
                 break;
             case LINEAR:

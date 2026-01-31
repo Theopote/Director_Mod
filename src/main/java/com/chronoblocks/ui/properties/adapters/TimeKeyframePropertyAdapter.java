@@ -47,36 +47,18 @@ public class TimeKeyframePropertyAdapter implements IPropertyAdapter<TimeKeyfram
     // 复用的临时对象，减少 GC 压力
     private final ImFloat timeFloat = new ImFloat();
     private final ImFloat sunElevationFloat = new ImFloat();
-    private final ImFloat sunAzimuthFloat = new ImFloat();
     private final ImFloat worldTimeFloat = new ImFloat();
     private final ImInt interpolationIndex = new ImInt();
     private final ImBoolean useNaturalTimeBool = new ImBoolean();
     
-    private static final String[] SEGMENT_INTERPOLATION_LABELS = buildSegmentInterpolationLabels();
-    private static final String[] ANGLE_INTERPOLATION_LABELS = buildAngleInterpolationLabels();
+    private static final String[] TIME_INTERPOLATION_LABELS = buildTimeInterpolationLabels();
     
-    private static String[] buildSegmentInterpolationLabels() {
-        TimeKeyframe.SegmentInterpolation[] types = TimeKeyframe.SegmentInterpolation.values();
+    private static String[] buildTimeInterpolationLabels() {
+        TimeKeyframe.TimeInterpolation[] types = TimeKeyframe.TimeInterpolation.values();
         String[] labels = new String[types.length];
         for (int i = 0; i < types.length; i++) {
             labels[i] = switch (types[i]) {
                 case DEFAULT -> "默认（跟随轨道）";
-                case LINEAR -> "线性";
-                case CATMULL_ROM -> "平滑（Catmull-Rom）";
-                case BEZIER -> "贝塞尔曲线";
-                case STEP -> "阶梯";
-                case HOLD -> "保持";
-            };
-        }
-        return labels;
-    }
-    
-    private static String[] buildAngleInterpolationLabels() {
-        TimeKeyframe.AngleInterpolation[] types = TimeKeyframe.AngleInterpolation.values();
-        String[] labels = new String[types.length];
-        for (int i = 0; i < types.length; i++) {
-            labels[i] = switch (types[i]) {
-                case DEFAULT -> "默认（跟随位置插值）";
                 case LINEAR -> "线性";
                 case CATMULL_ROM -> "平滑（Catmull-Rom）";
                 case BEZIER -> "贝塞尔曲线";
@@ -143,81 +125,53 @@ public class TimeKeyframePropertyAdapter implements IPropertyAdapter<TimeKeyfram
             }
             
             UITheme.spacingSmall();
-            
-            // 世界时间（tick）
-            long worldTime = keyframe.getWorldTimeTicks();
-            worldTimeFloat.set(worldTime);
-            if (ImGui.dragFloat("世界时间（tick）", worldTimeFloat.getData(), 10f, 0f, 24000f, "%.0f")) {
-                long newWorldTime = (long)worldTimeFloat.get();
-                System.out.println("[TimeKeyframePropertyAdapter] 用户修改世界时间: " + worldTime + " -> " + newWorldTime);
-                keyframe.setWorldTimeTicks(newWorldTime);
-                parameterChanged.set(true);
-            }
-            
-            // 显示对应的时间描述
-            long normalizedTime = worldTime % 24000L;
-            String timeDesc = describeWorldTime(normalizedTime);
-            ImGui.textDisabled(timeDesc);
-            
             UITheme.spacingSmall();
             
-            // ⭐ v3.1：预设时间按钮 - 快速设置常见时间点
-            // 点击按钮会自动将世界时间设置为对应值，并触发预览
-            ImGui.textDisabled("快速设置：");
-            
-            // 第一行：日出前和正午
-            if (ImGui.button("日出前")) {
-                System.out.println("[TimeKeyframePropertyAdapter] 用户点击'日出前'按钮，设置时间=0");
-                keyframe.setWorldTimeTicks(0L);
-                worldTimeFloat.set(0L); // 同步UI显示
-                parameterChanged.set(true);
-            }
-            ImGui.sameLine();
-            if (ImGui.button("正午")) {
-                System.out.println("[TimeKeyframePropertyAdapter] 用户点击'正午'按钮，设置时间=6000");
-                keyframe.setWorldTimeTicks(6000L);
-                worldTimeFloat.set(6000L); // 同步UI显示
-                parameterChanged.set(true);
-            }
-            
-            // 第二行：日落和午夜
-            if (ImGui.button("日落")) {
-                System.out.println("[TimeKeyframePropertyAdapter] 用户点击'日落'按钮，设置时间=12000");
-                keyframe.setWorldTimeTicks(12000L);
-                worldTimeFloat.set(12000L); // 同步UI显示
-                parameterChanged.set(true);
-            }
-            ImGui.sameLine();
-            if (ImGui.button("午夜")) {
-                System.out.println("[TimeKeyframePropertyAdapter] 用户点击'午夜'按钮，设置时间=18000");
-                keyframe.setWorldTimeTicks(18000L);
-                worldTimeFloat.set(18000L); // 同步UI显示
-                parameterChanged.set(true);
-            }
-            
-            UITheme.spacingSmall();
-            
-            // 同步当前世界时间按钮
-            if (ImGui.button("同步当前世界时间")) {
-                MinecraftClient client = MinecraftClient.getInstance();
-                if (client != null && client.world != null) {
-                    long currentTime = client.world.getTimeOfDay();
-                    keyframe.setWorldTimeTicks(currentTime % 24000L);
+            // ⭐ v3.4：只在自然时间模式下显示世界时间输入框
+            // 自定义太阳模式下不需要这个参数，因为时间会被冻结
+            if (keyframe.isUseNaturalTime()) {
+                // 世界时间（tick）
+                long worldTime = keyframe.getWorldTimeTicks();
+                worldTimeFloat.set(worldTime);
+                if (ImGui.sliderFloat("世界时间（tick）", worldTimeFloat.getData(), 0.0f, 24000.0f, "%.0f")) {
+                    long newWorldTime = (long)worldTimeFloat.get();
+                    System.out.println("[TimeKeyframePropertyAdapter] 用户修改世界时间: " + worldTime + " -> " + newWorldTime);
+                    keyframe.setWorldTimeTicks(newWorldTime);
                     parameterChanged.set(true);
                 }
+                
+                // 显示对应的时间描述
+                long normalizedTime = worldTime % 24000L;
+                String timeDesc = describeWorldTime(normalizedTime);
+                ImGui.textDisabled(timeDesc);
+                
+                UITheme.spacingSmall();
+                
+                // 同步当前世界时间按钮（仅在自然时间模式下显示）
+                if (ImGui.button("同步当前世界时间")) {
+                    MinecraftClient client = MinecraftClient.getInstance();
+                    if (client != null && client.world != null) {
+                        long currentTime = client.world.getTimeOfDay();
+                        keyframe.setWorldTimeTicks(currentTime % 24000L);
+                        parameterChanged.set(true);
+                    }
+                }
+                
+                UITheme.spacingSmall();
+            } else {
+                // 自定义太阳模式下显示提示信息
+                ImGui.textDisabled("（时间被冻结，由轨道控制太阳位置）");
+                UITheme.spacingSmall();
             }
-            
-            UITheme.spacingSmall();
             
             // ⭐ 无论模式如何，都同步 ImFloat 对象的值（确保切换模式时值正确）
             sunElevationFloat.set(keyframe.getSunElevation());
-            sunAzimuthFloat.set(keyframe.getSunAzimuth());
             
             // 如果使用自定义太阳模式，显示太阳角度设置
             if (!keyframe.isUseNaturalTime()) {
                 ImGui.separator();
                 
-                boolean elevationChanged = ImGui.dragFloat("太阳高度角（Elevation）", sunElevationFloat.getData(), 1.0f, 0.0f, 90.0f, "%.1f°");
+                boolean elevationChanged = ImGui.sliderFloat("太阳高度角（Elevation）", sunElevationFloat.getData(), 0.0f, 90.0f, "%.1f°");
                 if (elevationChanged) {
                     float newElevation = sunElevationFloat.get();
                     keyframe.setSunElevation(newElevation);
@@ -226,14 +180,6 @@ public class TimeKeyframePropertyAdapter implements IPropertyAdapter<TimeKeyfram
                 ImGui.textDisabled("0° = 地平线，90° = 正头顶");
                 
                 UITheme.spacingSmall();
-                
-                boolean azimuthChanged = ImGui.dragFloat("太阳方位角（Azimuth）", sunAzimuthFloat.getData(), 1.0f, 0.0f, 360.0f, "%.1f°");
-                if (azimuthChanged) {
-                    float newAzimuth = sunAzimuthFloat.get();
-                    keyframe.setSunAzimuth(newAzimuth);
-                    parameterChanged.set(true);
-                }
-                ImGui.textDisabled("0° = 正北，90° = 正东，180° = 正南，270° = 正西");
             }
             
             UITheme.spacingSmall();
@@ -242,20 +188,19 @@ public class TimeKeyframePropertyAdapter implements IPropertyAdapter<TimeKeyfram
         // ========== 插值设置 ==========
         if (ImGui.collapsingHeader(Icons.INTERPOLATION + " 插值设置", ImGuiTreeNodeFlags.DefaultOpen)) {
             // 位置/时间插值类型
-            TimeKeyframe.SegmentInterpolation[] segmentTypes = TimeKeyframe.SegmentInterpolation.values();
+            TimeKeyframe.TimeInterpolation[] timeTypes = TimeKeyframe.TimeInterpolation.values();
             interpolationIndex.set(keyframe.getPathInterpolation().ordinal());
-            if (ImGui.combo("位置插值", interpolationIndex, SEGMENT_INTERPOLATION_LABELS)) {
-                keyframe.setPathInterpolation(segmentTypes[interpolationIndex.get()]);
+            if (ImGui.combo("位置插值", interpolationIndex, TIME_INTERPOLATION_LABELS)) {
+                keyframe.setPathInterpolation(timeTypes[interpolationIndex.get()]);
                 parameterChanged.set(true);
             }
             
             UITheme.spacingSmall();
             
             // 角度插值类型
-            TimeKeyframe.AngleInterpolation[] angleTypes = TimeKeyframe.AngleInterpolation.values();
             interpolationIndex.set(keyframe.getAngleInterpolation().ordinal());
-            if (ImGui.combo("方位插值", interpolationIndex, ANGLE_INTERPOLATION_LABELS)) {
-                keyframe.setAngleInterpolation(angleTypes[interpolationIndex.get()]);
+            if (ImGui.combo("方位插值", interpolationIndex, TIME_INTERPOLATION_LABELS)) {
+                keyframe.setAngleInterpolation(timeTypes[interpolationIndex.get()]);
                 parameterChanged.set(true);
             }
             
