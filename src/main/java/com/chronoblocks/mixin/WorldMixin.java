@@ -40,7 +40,7 @@ public abstract class WorldMixin {
      * <p>
      * 注意：我们尽量保留原始 day 计数，仅替换 time-of-day（0~23999）。
      */
-    @Inject(method = "getTimeOfDay()J", at = @At("RETURN"), cancellable = true)
+    @Inject(method = "getTimeOfDay()J", at = @At("HEAD"), cancellable = true)
     private void overrideTimeOfDay(CallbackInfoReturnable<Long> cir) {
         TimelineWorldController controller = TimelineWorldController.getInstance();
         if (!controller.hasOverride()) {
@@ -51,50 +51,46 @@ public abstract class WorldMixin {
             return;
         }
 
-        long base = cir.getReturnValue();
-        long day = Math.floorDiv(base, 24000L);
+        // ⚠️ 在 HEAD 位置，我们无法获得原始返回值
+        // 但由于我们正在取消（cancellable=true），这是可以的
+        // 直接使用 TimeSample 中的时间
         long tod = sample.getWorldTimeTicks() % 24000L;
         if (tod < 0)
             tod += 24000L;
-        cir.setReturnValue(day * 24000L + tod);
+        cir.setReturnValue(tod);
     }
 
     // ⚠️ 注意：getSkyAngle(F)F 和 getSkyAngleRadians(F)F 方法在 Minecraft 1.21.10 中
     // 可能不存在于 World 基类中，只存在于 ClientWorld 中。
     // 如果需要在 ClientWorld 中覆盖这些方法，请使用 ClientWorldMixin。
     // 这里暂时注释掉，避免 Mixin 注入失败。
-    /*
-     * @SuppressWarnings("UnresolvedMixinReference")
-     * 
-     * @Inject(method = "getSkyAngle(F)F", at = @At("HEAD"), cancellable = true)
-     * private void overrideSkyAngle(float tickDelta, CallbackInfoReturnable<Float>
-     * cir) {
-     * TimelineWorldController controller = TimelineWorldController.getInstance();
-     * if (!controller.hasOverride()) {
-     * return;
-     * }
-     * TimeSample sample = controller.current();
-     * if (sample == null) {
-     * return;
-     * }
-     * cir.setReturnValue(sample.getSkyAngle());
-     * }
-     * 
-     * @Inject(method = "getSkyAngleRadians(F)F", at = @At("HEAD"), cancellable =
-     * true)
-     * private void overrideSkyAngleRadians(float tickDelta,
-     * CallbackInfoReturnable<Float> cir) {
-     * TimelineWorldController controller = TimelineWorldController.getInstance();
-     * if (!controller.hasOverride()) {
-     * return;
-     * }
-     * TimeSample sample = controller.current();
-     * if (sample == null) {
-     * return;
-     * }
-     * cir.setReturnValue(sample.getSkyAngle() * (float) (Math.PI * 2.0));
-     * }
-     */
+    @SuppressWarnings("UnresolvedMixinReference")
+    @Inject(method = "getSkyAngle(F)F", at = @At("HEAD"), cancellable = true)
+    private void overrideSkyAngle(float tickDelta, CallbackInfoReturnable<Float> cir) {
+        TimelineWorldController controller = TimelineWorldController.getInstance();
+        if (!controller.hasOverride()) {
+            return;
+        }
+        TimeSample sample = controller.current();
+        if (sample == null) {
+            return;
+        }
+        cir.setReturnValue(sample.getSkyAngle());
+    }
+
+    @SuppressWarnings("UnresolvedMixinReference")
+    @Inject(method = "getSkyAngleRadians(F)F", at = @At("HEAD"), cancellable = true)
+    private void overrideSkyAngleRadians(float tickDelta, CallbackInfoReturnable<Float> cir) {
+        TimelineWorldController controller = TimelineWorldController.getInstance();
+        if (!controller.hasOverride()) {
+            return;
+        }
+        TimeSample sample = controller.current();
+        if (sample == null) {
+            return;
+        }
+        cir.setReturnValue(sample.getSkyAngle() * (float) (Math.PI * 2.0));
+    }
 
     /**
      * Weather：覆盖雨强度

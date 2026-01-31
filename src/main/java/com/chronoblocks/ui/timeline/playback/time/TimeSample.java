@@ -245,16 +245,20 @@ public final class TimeSample {
     /**
      * 基于天空角度计算太阳高度角（简化模型）
      */
-    private static float calculateSunElevationFromSkyAngle(float skyAngleNorm) {
-        // Minecraft 天空角度：0.0=午夜，0.5=正午，1.0=下一个午夜
-        // 太阳高度：在 0.25（日出）和 0.75（日落）时最低（0°），在 0.5（正午）时最高（~60°）
-        float normalizedTime = skyAngleNorm;
-        if (normalizedTime > 0.5f) {
-            normalizedTime = 1.0f - normalizedTime; // 下午对称于上午
-        }
-        // 映射 0.25-0.5 到 0-60 度
-        float phase = (normalizedTime - 0.25f) / 0.25f;
-        return Math.max(0.0f, Math.min(60.0f, phase * 60.0f));
+    public static float calculateSunElevationFromSkyAngle(float skyAngleNorm) {
+        // Improved mapping:
+        // skyAngleNorm: 0.0 = midnight, 0.5 = noon, 1.0 = next midnight
+        // Convert to an angular position around the circle: theta = (skyAngleNorm - 0.5) * 2pi
+        // Sun elevation = sin(theta) * maxElevation. This yields negative values at night.
+        double theta = (skyAngleNorm - 0.5d) * 2.0d * Math.PI;
+        double sin = Math.sin(theta);
+        // Use ~60 degrees as a reasonable maximum elevation (near vanilla feel)
+        double maxElevation = 60.0d;
+        double elev = sin * maxElevation;
+        // Clamp to reasonable range (-90..90)
+        if (elev > 90.0d) elev = 90.0d;
+        if (elev < -90.0d) elev = -90.0d;
+        return (float) elev;
     }
     
     /**
@@ -277,12 +281,35 @@ public final class TimeSample {
      * <p>Minecraft 公式：brightness = 1.0F - cos(skyAngle * 2π) * 2F + 0.2F
      * 这里简化：基于太阳高度直接计算
      */
-    private static float calculateSkyLightFromElevation(float elevation) {
-        // 太阳越高，天空越亮
-        // 0° → 0.2（夜晚/日出前）
-        // 60° → 1.0（正午）
-        float normalizedElev = Math.min(1.0f, elevation / 60.0f);
-        return 0.2f + normalizedElev * 0.8f;
+    public static float calculateSkyLightFromElevation(float elevation) {
+        // Improved brightness mapping:
+        // - When the sun is well below horizon (e.g. <= -5°) treat as night (0.0)
+        // - From -5° to 0°: transition from 0.0 to 0.2 (dawn/dusk)
+        // - From 0° to 60°: transition from 0.2 to 1.0 (daylight)
+        if (elevation <= -5.0f) {
+            return 0.0f;
+        } else if (elevation < 0.0f) {
+            float p = (elevation + 5.0f) / 5.0f; // 0..1
+            return p * 0.2f;
+        } else {
+            float p = Math.min(1.0f, elevation / 60.0f);
+            return 0.2f + p * 0.8f;
+        }
+    }
+
+    /**
+     * 创建一个完整的 TimeSample（显式参数），用于在采样器中直接构造插值结果
+     */
+    public static TimeSample createFull(boolean useWorldTime, long worldTimeTicks, double worldTimeOfDay, boolean freezeWorldTime,
+                                        float skyAngle, float sunElevation, float sunAzimuth, float skyLight,
+                                        int moonPhase, float moonElevation, float moonAzimuth,
+                                        boolean useCustomSkyColor, float sunriseR, float sunriseG, float sunriseB, float sunriseA,
+                                        float skyColorR, float skyColorG, float skyColorB, float skyColorA) {
+        return new TimeSample(useWorldTime, worldTimeTicks, worldTimeOfDay, freezeWorldTime,
+                skyAngle, sunElevation, sunAzimuth, skyLight,
+                moonPhase, moonElevation, moonAzimuth,
+                useCustomSkyColor, sunriseR, sunriseG, sunriseB, sunriseA,
+                skyColorR, skyColorG, skyColorB, skyColorA);
     }
 
     private static float calculateVanillaSkyAngle(double timeOfDay) {

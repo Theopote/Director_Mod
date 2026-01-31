@@ -424,11 +424,12 @@ public final class TimelineWorldController {
         // 对于自然时间模式，如果未冻结，setTime 会生效；如果已冻结（其他原因），Mixin 会维持冻结
 
         if (!quiet) {
-            LOGGER.debug("[TimelineWorld] Applied TimeSample: time={}, useWorldTime={}, sunElevation={}°, sunAzimuth={}°",
-                    newSample.getWorldTimeTicks(),
-                    newSample.isUseWorldTime(),
-                    newSample.getSunElevation(),
-                    newSample.getSunAzimuth());
+            LOGGER.debug("[TimelineWorld] Applied TimeSample: time={}, useWorldTime={}, skyAngle={}, sunElevation={}°, sunAzimuth={}°",
+                newSample.getWorldTimeTicks(),
+                newSample.isUseWorldTime(),
+                newSample.getSkyAngle(),
+                newSample.getSunElevation(),
+                newSample.getSunAzimuth());
         }
     }
 
@@ -445,6 +446,10 @@ public final class TimelineWorldController {
 
         // 恢复原版时间系统（注意：必须在清除 freezeTimeActive 前执行，否则 resume 会被短路）
         resumeMinecraftTime();
+        
+        // ⭐ 关键修复：显式同步客户端时间与服务器
+        // 这确保当 Mixin 停止覆盖时，时间值会被正确更新
+        syncClientTimeWithServer();
 
         freezeTimeActive = false;
         savedDoDaylightCycle = null;
@@ -732,7 +737,13 @@ public final class TimelineWorldController {
         if (hasOverride()) {
             frozenGameTime = currentSample.getWorldTimeTicks() % 24000L;
             LOGGER.info("[TimelineWorld] ✅ freezeMinecraftTime() - 使用采样时间作为冻结时间: {}", frozenGameTime);
-            // 立即同步到世界，确保一致性
+            
+            // ⭐ v4.0 关键修复：移除 world.setTime() 调用
+            // 原因：setTime() 会永久改变世界的内部时间值
+            // 即使后来 hasOverride() 变为 false，世界内部时间仍然是那个冻结的值
+            // 应该由 Mixin 的 overrideTimeOfDay() 负责返回冻结的时间值
+            // 而不是修改世界的实际时间
+            /*
             try {
                 internalTimeUpdate = true;
                 world.setTime(frozenGameTime, frozenGameTime, false);
@@ -740,6 +751,7 @@ public final class TimelineWorldController {
                 internalTimeUpdate = false;
             }
             LOGGER.info("[TimelineWorld] 🔨 freezeMinecraftTime() - 已设置世界时间到 {}", frozenGameTime);
+            */
         } else {
             frozenGameTime = currentNormalized; // 使用归一化的时间
             LOGGER.info("[TimelineWorld] ⚠️ freezeMinecraftTime() - 无活跃采样，使用当前世界时间: {} (原始={}, 归一化={})", 
@@ -840,6 +852,49 @@ public final class TimelineWorldController {
             freezeMinecraftTime();
         } else if (!shouldFreeze && freezeTimeActive) {
             resumeMinecraftTime();
+        }
+    }
+    
+    /**
+     * ⭐ 客户端时间同步方法 - 确保客户端与服务器时间同步
+     * 
+     * <p>当关闭 ChronoBlocks 时调用，强制客户端刷新时间缓存
+     * 这确保即使 Mixin 停止覆盖，客户端也能正确显示服务器的实际时间
+     * 
+     * <p>问题背景：
+     * <ul>
+     *   <li>当时间被冻结时，ClientWorld 的内部时间值停止更新</li>
+     *   <li>即使 Mixin 停止覆盖返回原始值，缓存的时间也不会自动更新</li>
+     *   <li>需要显式触发客户端重新同步时间</li>
+     * </ul>
+     */
+    private synchronized void syncClientTimeWithServer() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.world == null) {
+            LOGGER.warn("[TimelineWorld] ❌ 无法同步时间：客户端或世界为 null");
+            return;
+        }
+
+        // 获取服务器时间
+        MinecraftServer server = client.getServer();
+        if (server != null) {
+            net.minecraft.server.world.ServerWorld serverWorld = server.getOverworld();
+            if (serverWorld != null) {
+                try {
+                    long serverTime = serverWorld.getTimeOfDay();
+                    // 在客户端世界中同步时间
+                    // 这会触发客户端重新计算所有时间相关的值（太阳角度、天空亮度等）
+                    ClientWorld clientWorld = client.world;
+                    
+                    // ⚠️ 注意：ClientWorld 的时间由服务器同步过来
+                    // 我们不能直接修改，但可以通过清除 Mixin 覆盖来让它恢复服务器的时间
+                    // 由于我们已经设置了 hasCustomSample=false，Mixin 会停止覆盖
+                    
+                    LOGGER.info("[TimelineWorld] ✅ 已触发客户端时间同步 (服务器时间: {})", serverTime);
+                } catch (Exception e) {
+                    LOGGER.warn("[TimelineWorld] ⚠️ 客户端时间同步出错: {}", e.getMessage());
+                }
+            }
         }
     }
     

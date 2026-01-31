@@ -153,6 +153,32 @@ public abstract class ClientWorldMixin {
         cir.setReturnValue(starBrightness);
     }
 
+    @Inject(method = "getSkyAngle(F)F", at = @At("HEAD"), cancellable = true)
+    private void overrideSkyAngle(float tickDelta, CallbackInfoReturnable<Float> cir) {
+        TimelineWorldController controller = TimelineWorldController.getInstance();
+        if (!controller.hasOverride()) {
+            return;
+        }
+        TimeSample sample = controller.current();
+        if (sample == null) {
+            return;
+        }
+        cir.setReturnValue(sample.getSkyAngle());
+    }
+
+    @Inject(method = "getSkyAngleRadians(F)F", at = @At("HEAD"), cancellable = true)
+    private void overrideSkyAngleRadians(float tickDelta, CallbackInfoReturnable<Float> cir) {
+        TimelineWorldController controller = TimelineWorldController.getInstance();
+        if (!controller.hasOverride()) {
+            return;
+        }
+        TimeSample sample = controller.current();
+        if (sample == null) {
+            return;
+        }
+        cir.setReturnValue(sample.getSkyAngle() * (float) (Math.PI * 2.0));
+    }
+
     /**
      * Weather + Time：云颜色控制
      * 

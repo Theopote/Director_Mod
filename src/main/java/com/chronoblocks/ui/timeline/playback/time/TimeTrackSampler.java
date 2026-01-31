@@ -168,12 +168,14 @@ public final class TimeTrackSampler {
         boolean useWorldTime = a.isUseWorldTime() || b.isUseWorldTime();
         boolean freezeWorldTime = a.isFreezeWorldTime() || b.isFreezeWorldTime();
         double worldTimeOfDay = lerpTime(a.getWorldTimeOfDay(), b.getWorldTimeOfDay(), t);
-        
-        // 2. 太阳轨迹参数
-        float sunElevation = lerpFloat(a.getSunElevation(), b.getSunElevation(), t);
+
+        // 2. 插值 skyAngle 并根据 skyAngle 计算太阳高度与光照
+        float skyAngle = lerpFloat(a.getSkyAngle(), b.getSkyAngle(), t);
+        float sunElevation = TimeSample.calculateSunElevationFromSkyAngle(skyAngle);
         float sunAzimuth = lerpAngle(a.getSunAzimuth(), b.getSunAzimuth(), t);
-        
-        // 3. 天空颜色参数
+        float skyLight = TimeSample.calculateSkyLightFromElevation(sunElevation);
+
+        // 3. 天空颜色参数插值
         boolean useCustomSkyColor = a.isUseCustomSkyColor() || b.isUseCustomSkyColor();
         float sunriseR = lerpFloat(a.getSunriseR(), b.getSunriseR(), t);
         float sunriseG = lerpFloat(a.getSunriseG(), b.getSunriseG(), t);
@@ -183,27 +185,21 @@ public final class TimeTrackSampler {
         float skyColorG = lerpFloat(a.getSkyColorG(), b.getSkyColorG(), t);
         float skyColorB = lerpFloat(a.getSkyColorB(), b.getSkyColorB(), t);
         float skyColorA = lerpFloat(a.getSkyColorA(), b.getSkyColorA(), t);
-        
-        // 4. 创建新的 TimeSample
-        // ⭐ 注意：目前 TimeSample 的工厂方法会自动计算 skyAngle, skyLight, moonPhase 等参数
-        // 当需要完整参数插值时，我们需要扩展 TimeSample 的构造函数
-        // 当前版本：主要插值世界时间、太阳角度和天空颜色
-        
-        TimeSample base;
-        if (useWorldTime) {
-            base = TimeSample.fromNaturalTime(worldTimeOfDay, freezeWorldTime);
-        } else {
-            base = TimeSample.fromCustomSun(worldTimeOfDay, sunElevation, sunAzimuth, freezeWorldTime);
-        }
-        
-        // 如果使用自定义天空颜色，应用颜色覆盖
-        if (useCustomSkyColor) {
-            return TimeSample.withCustomSkyColor(base, 
-                    sunriseR, sunriseG, sunriseB, sunriseA,
-                    skyColorR, skyColorG, skyColorB, skyColorA);
-        }
-        
-        return base;
+
+        // 4. 计算月亮参数（保持与太阳相对）
+        int moonPhase = Math.round(lerpFloat(a.getMoonPhase(), b.getMoonPhase(), t));
+        float moonElevation = -sunElevation;
+        float moonAzimuth = (sunAzimuth + 180.0f) % 360.0f;
+
+        // 5. 构造完整的 TimeSample（避免工厂方法重复计算导致的突变）
+        long worldTicks = (long) Math.floor(worldTimeOfDay);
+        TimeSample sample = TimeSample.createFull(useWorldTime, worldTicks, worldTimeOfDay, freezeWorldTime,
+                skyAngle, sunElevation, sunAzimuth, skyLight,
+                moonPhase, moonElevation, moonAzimuth,
+                useCustomSkyColor, sunriseR, sunriseG, sunriseB, sunriseA,
+                skyColorR, skyColorG, skyColorB, skyColorA);
+
+        return sample;
         
         // ⭐ 未来扩展：当 TimeSample 支持完整自定义构造函数时，可以插值所有参数：
         // - skyAngle (已自动计算，但可以覆盖)
