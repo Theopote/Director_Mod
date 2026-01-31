@@ -26,7 +26,8 @@ public class WeatherParticleController {
         return INSTANCE;
     }
 
-    private WeatherParticleController() {}
+    private WeatherParticleController() {
+    }
 
     // ---------------- Config ----------------
 
@@ -62,7 +63,7 @@ public class WeatherParticleController {
     private static final float SNOW_FALL_MAX = 0.90f;
 
     /** 风对水平速度的放大（可见性关键） */
-    private static final float WIND_HORIZONTAL_SCALE_RAIN = 0.80f;
+    private static final float WIND_HORIZONTAL_SCALE_RAIN = 3.50f;
     private static final float WIND_HORIZONTAL_SCALE_SNOW = 1.05f;
 
     // ---------------- State ----------------
@@ -95,10 +96,12 @@ public class WeatherParticleController {
      * 每 tick 调用一次（建议挂到 ClientTickEvents.END_CLIENT_TICK）。
      */
     public void tick() {
-        if (!enabled || currentSample == null || !currentSample.enabled) return;
+        if (!enabled || currentSample == null || !currentSample.enabled)
+            return;
 
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.world == null || client.player == null) return;
+        if (client == null || client.world == null || client.player == null)
+            return;
 
         ClientWorld world = client.world;
         Vec3d camPos = client.player.getCameraPosVec(1.0f);
@@ -125,7 +128,8 @@ public class WeatherParticleController {
 
         rainRadius = resolveIntensityRadius(rainRadius, BASE_RADIUS_RAIN, MAX_RADIUS_RAIN, finalRainI);
         snowRadius = resolveIntensityRadius(snowRadius, BASE_RADIUS_SNOW, MAX_RADIUS_SNOW, snowI);
-        snowRadius = MathHelper.clamp(Math.round(snowRadius * (1.0f + snowI * 0.8f)), BASE_RADIUS_SNOW, MAX_RADIUS_SNOW);
+        snowRadius = MathHelper.clamp(Math.round(snowRadius * (1.0f + snowI * 0.8f)), BASE_RADIUS_SNOW,
+                MAX_RADIUS_SNOW);
         // accumulator: integrate by deltaSeconds for stable PPS
         rainAcc += rainPps * deltaSeconds;
         snowAcc += snowPps * deltaSeconds;
@@ -133,11 +137,14 @@ public class WeatherParticleController {
         int rainToSpawn = (int) rainAcc;
         int snowToSpawn = (int) snowAcc;
 
-        if (rainToSpawn > 0) rainAcc -= rainToSpawn;
-        if (snowToSpawn > 0) snowAcc -= snowToSpawn;
+        if (rainToSpawn > 0)
+            rainAcc -= rainToSpawn;
+        if (snowToSpawn > 0)
+            snowAcc -= snowToSpawn;
 
         int total = rainToSpawn + snowToSpawn;
-        if (total <= 0) return;
+        if (total <= 0)
+            return;
 
         // 硬限：避免强度过高时瞬间爆量
         int hardCap = computeHardCap(deltaSeconds);
@@ -147,14 +154,18 @@ public class WeatherParticleController {
             snowToSpawn = Math.max(0, (int) (snowToSpawn * scale));
         }
 
-        if (rainToSpawn > 0) spawnRain(world, camPos, rainRadius, rainToSpawn, currentSample, finalRainI);
-        if (snowToSpawn > 0) spawnSnow(world, camPos, snowRadius, snowToSpawn, currentSample);
+        if (rainToSpawn > 0)
+            spawnRain(world, camPos, rainRadius, rainToSpawn, currentSample, finalRainI);
+        if (snowToSpawn > 0)
+            spawnSnow(world, camPos, snowRadius, snowToSpawn, currentSample);
     }
 
     // ---------------- Spawn ----------------
 
-    private void spawnRain(ClientWorld world, Vec3d camPos, int radius, int count, WeatherSample sample, float intensity) {
-        if (count <= 0) return;
+    private void spawnRain(ClientWorld world, Vec3d camPos, int radius, int count, WeatherSample sample,
+            float intensity) {
+        if (count <= 0)
+            return;
 
         // ✅ 修复：使用 WeatherSample 中的风方向和强度
         float wind = clamp01(sample.windStrength);
@@ -196,7 +207,8 @@ public class WeatherParticleController {
     }
 
     private void spawnSnow(ClientWorld world, Vec3d camPos, int radius, int count, WeatherSample sample) {
-        if (count <= 0) return;
+        if (count <= 0)
+            return;
 
         // ✅ 修复：使用 WeatherSample 中的风方向和强度
         float wind = clamp01(sample.windStrength);
@@ -225,13 +237,15 @@ public class WeatherParticleController {
     /**
      * ✅ 修复：使用 WeatherSample 中的风方向，而不是时间变化的风。
      * 
-     * <p>现在风方向由导演在时间线上控制，可以实现：
+     * <p>
+     * 现在风方向由导演在时间线上控制，可以实现：
      * - 固定风向
      * - 风向随时间轴动画
      * - 镜头级导演控制
      */
     private Vec3d computeWindVector(WeatherSample sample, float windStrength01) {
-        if (windStrength01 <= 0.001f) return Vec3d.ZERO;
+        if (windStrength01 <= 0.001f)
+            return Vec3d.ZERO;
 
         // ✅ 使用 WeatherSample 中的风方向（度）
         // 0° = +X（东），90° = +Z（南），180° = -X（西），270° = -Z（北）
@@ -243,13 +257,14 @@ public class WeatherParticleController {
         double speed = windStrength01 * WIND_HORIZONTAL_SCALE_RAIN;
         return new Vec3d(dirX * speed, 0.0, dirZ * speed);
     }
-    
+
     /**
      * ✅ 修复：使用 WeatherSample 中的风方向，而不是时间变化的风。
      * 雪使用与雨相同的风向，但风速比例更大。
      */
     private Vec3d computeWindVectorSnow(WeatherSample sample, float windStrength01) {
-        if (windStrength01 <= 0.001f) return Vec3d.ZERO;
+        if (windStrength01 <= 0.001f)
+            return Vec3d.ZERO;
 
         // ✅ 使用 WeatherSample 中的风方向（与雨相同）
         double angleRad = Math.toRadians(sample.windDirectionDegrees);
@@ -266,10 +281,12 @@ public class WeatherParticleController {
     /**
      * ✅ 修复：计算实际时间差，但确保最小值为游戏 tick 时间（0.05秒）。
      * 
-     * <p>原因：此方法在 UI 渲染循环中调用，UI 帧率可能很高（60fps+），
+     * <p>
+     * 原因：此方法在 UI 渲染循环中调用，UI 帧率可能很高（60fps+），
      * 导致 deltaSeconds 很小（如 0.016秒），进而限制了粒子生成。
      * 
-     * <p>解决方案：
+     * <p>
+     * 解决方案：
      * - 使用实际时间差，但设置最小值为游戏 tick 时间（0.05秒）
      * - 这样可以确保粒子生成率稳定，不受 UI 帧率影响
      * - 同时避免在 UI 帧率很高时过度生成粒子
@@ -282,7 +299,7 @@ public class WeatherParticleController {
         }
         float delta = (now - lastUpdateNanos) / 1_000_000_000f;
         lastUpdateNanos = now;
-        
+
         // ✅ 关键修复：确保最小值为游戏 tick 时间（0.05秒）
         // 这样可以避免 UI 高帧率时 delta 太小导致粒子生成受限
         // 同时限制最大值为 0.2 秒，避免长时间暂停后突然生成大量粒子
@@ -303,7 +320,8 @@ public class WeatherParticleController {
     /**
      * ✅ 修复：基于实际时间差计算硬限。
      * 
-     * <p>硬限应该基于实际时间差，但确保最小值为基于游戏 tick 时间的硬限。
+     * <p>
+     * 硬限应该基于实际时间差，但确保最小值为基于游戏 tick 时间的硬限。
      * 这样可以避免在 UI 高帧率时过度生成粒子。
      */
     private int computeHardCap(float deltaSeconds) {
