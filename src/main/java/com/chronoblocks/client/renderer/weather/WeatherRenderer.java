@@ -12,14 +12,16 @@ import net.minecraft.world.Heightmap;
 /**
  * WeatherRenderer v1.1
  *
- * <p>负责渲染特殊天气特效（沙暴、暴雪等特殊效果）。
+ * <p>
+ * 负责渲染特殊天气特效（沙暴、暴雪等特殊效果）。
  *
- * <p>设计要点：
+ * <p>
+ * 设计要点：
  * <ul>
- *   <li>⚠️ 普通降水（雨/雪）已由 WeatherParticleController 统一处理，此处不再生成</li>
- *   <li>⚠️ 雷暴/闪电效果已由 WeatherEventController 统一处理，此处不再生成</li>
- *   <li>处理特殊天气事件（沙暴、暴雪、浓雾、热浪等）</li>
- *   <li>可选：地面湿度效果（未来可能迁移到 WeatherParticleController）</li>
+ * <li>⚠️ 普通降水（雨/雪）已由 WeatherParticleController 统一处理，此处不再生成</li>
+ * <li>⚠️ 雷暴/闪电效果已由 WeatherEventController 统一处理，此处不再生成</li>
+ * <li>处理特殊天气事件（沙暴、暴雪、浓雾、热浪等）</li>
+ * <li>可选：地面湿度效果（未来可能迁移到 WeatherParticleController）</li>
  * </ul>
  *
  * @author ChronoBlocks Team
@@ -72,7 +74,7 @@ public class WeatherRenderer {
 
         // 渲染特殊天气事件（沙暴、暴雪等特殊效果）
         if (currentSample.specialWeatherType != com.chronoblocks.ui.timeline.model.weather.WeatherKeyframe.SpecialWeatherType.NONE
-            && currentSample.specialWeatherIntensity > 0.01f) {
+                && currentSample.specialWeatherIntensity > 0.01f) {
             renderSpecialWeather(world, particleManager, playerPos);
         }
 
@@ -100,12 +102,11 @@ public class WeatherRenderer {
                         double z = playerPos.z + (world.random.nextDouble() - 0.5) * 34;
 
                         particleManager.addParticle(
-                            ParticleTypes.CLOUD,
-                            x, y, z,
-                            windVec.x + (world.random.nextDouble() - 0.5) * 0.4 * intensity,
-                            world.random.nextDouble() * 0.15 * intensity,
-                            windVec.z + (world.random.nextDouble() - 0.5) * 0.4 * intensity
-                        );
+                                ParticleTypes.CLOUD,
+                                x, y, z,
+                                windVec.x + (world.random.nextDouble() - 0.5) * 0.4 * intensity,
+                                world.random.nextDouble() * 0.15 * intensity,
+                                windVec.z + (world.random.nextDouble() - 0.5) * 0.4 * intensity);
                     }
                 }
             }
@@ -118,12 +119,11 @@ public class WeatherRenderer {
                         double z = playerPos.z + (world.random.nextDouble() - 0.5) * 28;
 
                         particleManager.addParticle(
-                            ParticleTypes.SNOWFLAKE,
-                            x, y, z,
-                            windVec.x + (world.random.nextDouble() - 0.5) * 0.35 * intensity,
-                            -0.7 - world.random.nextDouble() * 0.8,
-                            windVec.z + (world.random.nextDouble() - 0.5) * 0.35 * intensity
-                        );
+                                ParticleTypes.SNOWFLAKE,
+                                x, y, z,
+                                windVec.x + (world.random.nextDouble() - 0.5) * 0.35 * intensity,
+                                -0.7 - world.random.nextDouble() * 0.8,
+                                windVec.z + (world.random.nextDouble() - 0.5) * 0.35 * intensity);
                     }
                 }
             }
@@ -136,12 +136,11 @@ public class WeatherRenderer {
                         double z = playerPos.z + (world.random.nextDouble() - 0.5) * 24;
 
                         particleManager.addParticle(
-                            ParticleTypes.CLOUD,
-                            x, y, z,
-                            windVec.x * 0.2 + (world.random.nextDouble() - 0.5) * 0.06,
-                            world.random.nextDouble() * 0.03,
-                            windVec.z * 0.2 + (world.random.nextDouble() - 0.5) * 0.06
-                        );
+                                ParticleTypes.CLOUD,
+                                x, y, z,
+                                windVec.x * 0.2 + (world.random.nextDouble() - 0.5) * 0.06,
+                                world.random.nextDouble() * 0.03,
+                                windVec.z * 0.2 + (world.random.nextDouble() - 0.5) * 0.06);
                     }
                 }
             }
@@ -154,12 +153,11 @@ public class WeatherRenderer {
                         double z = playerPos.z + (world.random.nextDouble() - 0.5) * 18;
 
                         particleManager.addParticle(
-                            ParticleTypes.CLOUD,
-                            x, y, z,
-                            windVec.x * 0.15 + (world.random.nextDouble() - 0.5) * 0.12,
-                            world.random.nextDouble() * 0.05,
-                            windVec.z * 0.15 + (world.random.nextDouble() - 0.5) * 0.12
-                        );
+                                ParticleTypes.CLOUD,
+                                x, y, z,
+                                windVec.x * 0.15 + (world.random.nextDouble() - 0.5) * 0.12,
+                                world.random.nextDouble() * 0.05,
+                                windVec.z * 0.15 + (world.random.nextDouble() - 0.5) * 0.12);
                     }
                 }
             }
@@ -187,7 +185,8 @@ public class WeatherRenderer {
     /**
      * ✅ 修复：增强地面湿度效果，使其更明显可见。
      * 
-     * <p>改进：
+     * <p>
+     * 改进：
      * - 增加粒子数量（从最多18个增加到最多60个）
      * - 减少生成间隔（从每4-12 tick改为每1-3 tick）
      * - 增加生成半径（从24格增加到32格）
@@ -199,16 +198,16 @@ public class WeatherRenderer {
             return;
         }
 
-        // ✅ 修复：减少生成间隔，让效果更连续
-        // 湿度越高，生成越频繁（每1-3 tick生成一次）
-        int interval = Math.max(1, (int) (3 / (wetness + 0.1f)));
+        // ✅ 修复：大幅增加生成频率，让效果密集连续
+        // 湿度越高，生成越频繁（每1 tick生成一次，最低湿度也每2 tick）
+        int interval = wetness > 0.5f ? 1 : 2;
         if (particleTickCounter % interval != 0) {
             return;
         }
 
-        // ✅ 修复：增加生成半径和粒子数量
-        int radius = 32; // 从24增加到32
-        int baseParticleCount = Math.max(3, Math.round(wetness * 60f)); // 从18增加到60
+        // ✅ 修复：进一步扩大生成半径和粒子数量，确保"全屏有雨"感
+        int radius = 48; // 从32增加到48
+        int baseParticleCount = Math.max(10, Math.round(wetness * 120f)); // 从60增加到120
 
         for (int i = 0; i < baseParticleCount; i++) {
             double x = playerPos.x + (world.random.nextDouble() - 0.5) * radius * 2;
@@ -221,31 +220,28 @@ public class WeatherRenderer {
             if (rand < 0.4f) {
                 // 40% 概率：水滴粒子（地面上的水滴）
                 particleManager.addParticle(
-                    ParticleTypes.DRIPPING_WATER,
-                    x, y, z,
-                    0,
-                    0.02 + world.random.nextDouble() * 0.04,
-                    0
-                );
+                        ParticleTypes.DRIPPING_WATER,
+                        x, y, z,
+                        0,
+                        0.02 + world.random.nextDouble() * 0.04,
+                        0);
             } else if (rand < 0.7f) {
                 // 30% 概率：雨滴粒子（从上方滴落）
                 particleManager.addParticle(
-                    ParticleTypes.RAIN,
-                    x, y + 0.5 + world.random.nextDouble() * 1.5,
-                    z,
-                    (world.random.nextDouble() - 0.5) * 0.1,
-                    -0.1 - world.random.nextDouble() * 0.2,
-                    (world.random.nextDouble() - 0.5) * 0.1
-                );
+                        ParticleTypes.RAIN,
+                        x, y + 0.5 + world.random.nextDouble() * 1.5,
+                        z,
+                        (world.random.nextDouble() - 0.5) * 0.1,
+                        -0.1 - world.random.nextDouble() * 0.2,
+                        (world.random.nextDouble() - 0.5) * 0.1);
             } else {
                 // 30% 概率：水花粒子（地面上的水花效果）
                 particleManager.addParticle(
-                    ParticleTypes.SPLASH,
-                    x, y, z,
-                    (world.random.nextDouble() - 0.5) * 0.05,
-                    0.01 + world.random.nextDouble() * 0.02,
-                    (world.random.nextDouble() - 0.5) * 0.05
-                );
+                        ParticleTypes.SPLASH,
+                        x, y, z,
+                        (world.random.nextDouble() - 0.5) * 0.05,
+                        0.01 + world.random.nextDouble() * 0.02,
+                        (world.random.nextDouble() - 0.5) * 0.05);
             }
         }
     }
@@ -254,4 +250,3 @@ public class WeatherRenderer {
         return currentSample;
     }
 }
-
