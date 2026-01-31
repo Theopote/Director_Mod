@@ -412,6 +412,13 @@ public final class TimelineWorldController {
                     normalizedTicks, freezeTimeActive);
         }
 
+        // Debug: trace the applied sample details (temporary)
+        System.out.println("[ChronoBlocks][TIME] applySampleInternal -> newSample.worldTicks=" + newSample.getWorldTimeTicks()
+            + ", useWorldTime=" + newSample.isUseWorldTime()
+            + ", freezeWorldTime=" + newSample.isFreezeWorldTime()
+            + ", skyAngle=" + newSample.getSkyAngle()
+            + ", worldTimeOfDay=" + newSample.getWorldTimeOfDay());
+
         applyWorldTime(normalizedTicks);
         // ⭐ 注意：applyWorldTime() 内部已经会更新 frozenGameTime（如果 freezeTimeActive）
 
@@ -643,13 +650,19 @@ public final class TimelineWorldController {
             oldWorldTime = client.world.getTimeOfDay();
         }
 
+        // Debug: quick console trace for diagnosis (temporary)
+        System.out.println("[ChronoBlocks][TIME] applyWorldTime called: newTicks=" + ticks
+            + ", oldWorldTime=" + oldWorldTime
+            + ", normOld=" + (oldWorldTime >= 0 ? oldWorldTime % 24000L : -1)
+            + ", freezeActive=" + freezeTimeActive
+            + ", frozenGameTime=" + (freezeTimeActive ? frozenGameTime : "N/A"));
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("[TimelineWorld] applyWorldTime: new={} old={} normOld={} freezeActive={} frozenGameTime={}",
-                    ticks,
-                    oldWorldTime,
-                    oldWorldTime >= 0 ? oldWorldTime % 24000L : -1,
-                    freezeTimeActive,
-                    freezeTimeActive ? frozenGameTime : "N/A");
+                ticks,
+                oldWorldTime,
+                oldWorldTime >= 0 ? oldWorldTime % 24000L : -1,
+                freezeTimeActive,
+                freezeTimeActive ? frozenGameTime : "N/A");
         }
         
         if (client == null || client.world == null) {
@@ -666,6 +679,8 @@ public final class TimelineWorldController {
         long actualNormalized = actualTime % 24000L;
         if (actualNormalized < 0) actualNormalized += 24000L;
         if (actualNormalized == normalizedTicks) {
+            // Debug: skip setTime when already equal
+            System.out.println("[ChronoBlocks][TIME] applyWorldTime -> already at normalizedTicks=" + normalizedTicks + ", skipping setTime");
             if (freezeTimeActive) {
                 frozenGameTime = normalizedTicks;
             }
@@ -675,7 +690,8 @@ public final class TimelineWorldController {
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("[TimelineWorld] applyWorldTime: world.setTime({}, {}, false)", normalizedTicks, normalizedTicks);
         }
-        
+        // Debug: announce we are calling world.setTime (temporary)
+        System.out.println("[ChronoBlocks][TIME] applyWorldTime -> calling world.setTime(" + normalizedTicks + ")");
         try {
             internalTimeUpdate = true;
             world.setTime(normalizedTicks, normalizedTicks, false);
@@ -695,9 +711,12 @@ public final class TimelineWorldController {
         actualNormalized = actualTime % 24000L;
         if (actualNormalized < 0) actualNormalized += 24000L;
         if (actualNormalized != normalizedTicks) {
+            System.out.println("[ChronoBlocks][TIME] ⚠️ applyWorldTime() - verification failed: expected=" + normalizedTicks + ", actual=" + actualTime + " (norm=" + actualNormalized + ")");
             LOGGER.warn("[TimelineWorld] ⚠️ applyWorldTime() - 设置后验证失败! 期望={}, 实际={} (归一化={})", 
                     normalizedTicks, actualTime, actualNormalized);
         } else {
+            // Debug: success
+            System.out.println("[ChronoBlocks][TIME] applyWorldTime ok: actual=" + actualTime + " norm=" + actualNormalized);
             if (LOGGER.isTraceEnabled()) {
                 LOGGER.trace("[TimelineWorld] applyWorldTime ok: actual={} norm={}", actualTime, actualNormalized);
             }

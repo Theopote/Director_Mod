@@ -67,22 +67,15 @@ public abstract class WorldMixin {
     // 如果需要在 ClientWorld 中覆盖这些方法，请使用 ClientWorldMixin。
     // 这里暂时注释掉，避免 Mixin 注入失败。
     @SuppressWarnings("UnresolvedMixinReference")
-    @Inject(method = "getSkyAngle(F)F", at = @At("HEAD"), cancellable = true)
-    private void overrideSkyAngle(float tickDelta, CallbackInfoReturnable<Float> cir) {
-        TimelineWorldController controller = TimelineWorldController.getInstance();
-        if (!controller.hasOverride()) {
-            return;
-        }
-        TimeSample sample = controller.current();
-        if (sample == null) {
-            return;
-        }
-        cir.setReturnValue(sample.getSkyAngle());
-    }
-
-    @SuppressWarnings("UnresolvedMixinReference")
     @Inject(method = "getSkyAngleRadians(F)F", at = @At("HEAD"), cancellable = true)
     private void overrideSkyAngleRadians(float tickDelta, CallbackInfoReturnable<Float> cir) {
+        // 优先使用渲染层注入的值（WorldRendererMixin 会在 render 开始时写入）
+        float overridden = com.chronoblocks.client.RenderTimeState.getSkyAngleRadians();
+        if (!Float.isNaN(overridden)) {
+            cir.setReturnValue(overridden);
+            return;
+        }
+
         TimelineWorldController controller = TimelineWorldController.getInstance();
         if (!controller.hasOverride()) {
             return;

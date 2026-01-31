@@ -47,6 +47,25 @@ public abstract class WorldRendererMixin {
         }
     }
 
+    /**
+     * 在 WorldRenderer.render 开始时同步渲染侧的 skyAngleRadians
+     * 这样即使某些渲染路径直接根据 world/time 推导角度，也能从这里读取到覆盖值。
+     */
+    @Inject(method = "render", at = @At("HEAD"))
+    private void onWorldRenderHead(net.minecraft.client.render.Camera camera, float tickDelta, long limitTime, MatrixStack matrices, CallbackInfo ci) {
+        com.chronoblocks.ui.timeline.playback.time.TimelineWorldController controller = com.chronoblocks.ui.timeline.playback.time.TimelineWorldController.getInstance();
+        if (controller != null && controller.hasOverride()) {
+            com.chronoblocks.ui.timeline.playback.time.TimeSample sample = controller.current();
+            if (sample != null) {
+                float rad = sample.getSkyAngle() * (float) (Math.PI * 2.0);
+                com.chronoblocks.client.RenderTimeState.setSkyAngleRadians(rad);
+                return;
+            }
+        }
+        // 无覆盖时清除状态
+        com.chronoblocks.client.RenderTimeState.clear();
+    }
+
     // ⭐ v2.0：Weather - 云颜色控制
     // 
     // 注意：Minecraft 1.21.4 中 WorldRenderer 没有 getCloudColor() 方法。

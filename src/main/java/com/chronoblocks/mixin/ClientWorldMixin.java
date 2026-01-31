@@ -157,10 +157,27 @@ public abstract class ClientWorldMixin {
         cir.setReturnValue(starBrightness);
     }
 
-    // NOTE: Removed direct injectors into `getSkyAngle`/`getSkyAngleRadians`.
-    // These methods may not exist under some mappings and can cause Mixin
-    // InvalidInjectionException. We rely on `WorldMixin.getTimeOfDay()` and
-    // renderer-side overrides for sky angle/rotation instead.
+    // Injector: ensure renderer-side calls to getSkyAngleRadians
+    // use the TimeSample's skyAngle when ChronoBlocks overrides time.
+    @Inject(method = "getSkyAngleRadians(F)F", at = @At("HEAD"), cancellable = true)
+    private void overrideSkyAngleRadians(float tickDelta, CallbackInfoReturnable<Float> cir) {
+        // 优先使用渲染层注入的值
+        float overridden = com.chronoblocks.client.RenderTimeState.getSkyAngleRadians();
+        if (!Float.isNaN(overridden)) {
+            cir.setReturnValue(overridden);
+            return;
+        }
+
+        TimelineWorldController controller = TimelineWorldController.getInstance();
+        if (!controller.hasOverride()) {
+            return;
+        }
+        TimeSample sample = controller.current();
+        if (sample == null) {
+            return;
+        }
+        cir.setReturnValue(sample.getSkyAngle() * (float) (Math.PI * 2.0));
+    }
 
     /**
      * Weather + Time：云颜色控制
