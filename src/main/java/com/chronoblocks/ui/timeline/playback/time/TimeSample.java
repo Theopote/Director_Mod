@@ -175,58 +175,14 @@ public final class TimeSample {
     public static TimeSample fromNaturalTime(long worldTimeTicks) {
         return fromNaturalTime((double) worldTimeTicks, false);
     }
-    
-    /**
-     * 创建一个使用自然世界时间的采样结果（可指定是否冻结时间）
-     */
-    public static TimeSample fromNaturalTime(long worldTimeTicks, boolean freezeWorldTime) {
-        return fromNaturalTime((double) worldTimeTicks, freezeWorldTime);
-    }
-    
+
     /**
      * 创建一个使用自定义太阳角度的采样结果
      */
     public static TimeSample fromCustomSun(long worldTimeTicks, float sunElevation, float sunAzimuth) {
         return fromCustomSun((double) worldTimeTicks, sunElevation, sunAzimuth, true);
     }
-    
-    /**
-     * 创建一个使用自定义太阳角度的采样结果（可指定是否冻结时间）
-     */
-    public static TimeSample fromCustomSun(long worldTimeTicks, float sunElevation, float sunAzimuth, boolean freezeWorldTime) {
-        // 基于太阳高度角计算天空角度（反向映射）
-        float skyAngleNorm = calculateSkyAngleFromElevation(sunElevation, sunAzimuth);
-        
-        // 计算天空亮度
-        float skyLight = calculateSkyLightFromElevation(sunElevation);
-        
-        // 月亮相位基于世界时间，位置在太阳对面
-        int moonPhase = (int) ((worldTimeTicks / 24000L) % 8L);
-        float moonElevation = -sunElevation;
-        float moonAzimuth = (sunAzimuth + 180.0f) % 360.0f;
-        
-        return new TimeSample(false, worldTimeTicks, (double) worldTimeTicks, freezeWorldTime,
-                             skyAngleNorm, sunElevation, sunAzimuth, skyLight,
-                             moonPhase, moonElevation, moonAzimuth,
-                             false, 1.0f, 0.6f, 0.2f, 1.0f, // 默认日出颜色
-                             0.6f, 0.7f, 1.0f, 1.0f); // 默认天空颜色
-    }
-    
-    /**
-     * 创建自定义天空颜色的采样结果
-     */
-    public static TimeSample withCustomSkyColor(TimeSample base, 
-                                                float sunriseR, float sunriseG, float sunriseB, float sunriseA,
-                                                float skyColorR, float skyColorG, float skyColorB, float skyColorA) {
-        return new TimeSample(
-            base.useWorldTime, base.worldTimeTicks, base.worldTimeOfDay, base.freezeWorldTime,
-            base.skyAngle, base.sunElevation, base.sunAzimuth, base.skyLight,
-            base.moonPhase, base.moonElevation, base.moonAzimuth,
-            true, sunriseR, sunriseG, sunriseB, sunriseA,
-            skyColorR, skyColorG, skyColorB, skyColorA
-        );
-    }
-    
+
     /**
      * 复制当前采样结果（创建新实例，避免共享引用）
      */
@@ -364,9 +320,6 @@ public final class TimeSample {
         return skyLight;
     }
 
-    public float getLightingSkyAngle() {
-        return calculateVanillaSkyAngle(worldTimeOfDay);
-    }
     
     public float getSunElevation() {
         return sunElevation;
@@ -384,14 +337,7 @@ public final class TimeSample {
     public int getMoonPhase() {
         return moonPhase;
     }
-    
-    public float getMoonElevation() {
-        return moonElevation;
-    }
-    
-    public float getMoonAzimuth() {
-        return moonAzimuth;
-    }
+
     
     // ================== Getters（天空颜色系统）==================
     

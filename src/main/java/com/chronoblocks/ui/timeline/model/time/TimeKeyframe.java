@@ -1,7 +1,6 @@
 package com.chronoblocks.ui.timeline.model.time;
 
 import com.chronoblocks.ui.timeline.model.TimelineSelectable;
-import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
 
 import java.util.UUID;
 
@@ -183,31 +182,5 @@ public class TimeKeyframe implements TimelineSelectable {
     
     public void setAngleInterpolation(TimeInterpolation angleInterpolation) {
         this.angleInterpolation = angleInterpolation != null ? angleInterpolation : TimeInterpolation.DEFAULT;
-    }
-    
-    /**
-     * 将 TimeInterpolation 转换为 CameraKeyframe.SegmentPathType（用于复用插值逻辑）
-     */
-    public CameraKeyframe.SegmentPathType toSegmentPathType() {
-        return switch (pathInterpolation) {
-            case LINEAR -> CameraKeyframe.SegmentPathType.LINEAR;
-            case CATMULL_ROM -> CameraKeyframe.SegmentPathType.CATMULL_ROM;
-            case BEZIER -> CameraKeyframe.SegmentPathType.BEZIER;
-            case STEP -> CameraKeyframe.SegmentPathType.STEP;
-            case DEFAULT -> CameraKeyframe.SegmentPathType.DEFAULT;
-        };
-    }
-    
-    /**
-     * 将 TimeInterpolation 转换为 CameraKeyframe.RotationInterpolation（用于复用插值逻辑）
-     */
-    public CameraKeyframe.RotationInterpolation toRotationInterpolation() {
-        return switch (angleInterpolation) {
-            case LINEAR -> CameraKeyframe.RotationInterpolation.LINEAR;
-            case CATMULL_ROM -> CameraKeyframe.RotationInterpolation.CATMULL_ROM;
-            case BEZIER -> CameraKeyframe.RotationInterpolation.BEZIER;
-            case STEP -> CameraKeyframe.RotationInterpolation.STEP;
-            case DEFAULT -> CameraKeyframe.RotationInterpolation.DEFAULT;
-        };
     }
 }

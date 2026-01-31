@@ -58,7 +58,7 @@ public abstract class WorldMixin {
         if (tod < 0)
             tod += 24000L;
         // Debug: log when we override time-of-day (compact)
-        System.out.println("[ChronoBlocks][TIME] overrideTimeOfDay -> returning tod=" + tod + ", hasOverride=" + controller.hasOverride());
+        System.out.println("[ChronoBlocks][TIME] overrideTimeOfDay -> returning tod=" + tod + ", hasOverride=" + true);
         cir.setReturnValue(tod);
     }
 
@@ -66,7 +66,6 @@ public abstract class WorldMixin {
     // 可能不存在于 World 基类中，只存在于 ClientWorld 中。
     // 如果需要在 ClientWorld 中覆盖这些方法，请使用 ClientWorldMixin。
     // 这里暂时注释掉，避免 Mixin 注入失败。
-    @SuppressWarnings("UnresolvedMixinReference")
     @Inject(method = "getSkyAngleRadians(F)F", at = @At("HEAD"), cancellable = true)
     private void overrideSkyAngleRadians(float tickDelta, CallbackInfoReturnable<Float> cir) {
         // 优先使用渲染层注入的值（WorldRendererMixin 会在 render 开始时写入）
@@ -89,7 +88,7 @@ public abstract class WorldMixin {
 
     /**
      * Weather：覆盖雨强度
-     * 
+     * <p>
      * ✅ 修复：当存在天气轨道时，完全禁止原版天气事件
      * - 如果轨道有降水，使用轨道的值
      * - 如果轨道没有降水，强制返回 0（禁止原版下雨）
@@ -120,7 +119,7 @@ public abstract class WorldMixin {
 
     /**
      * Weather：覆盖雷暴强度
-     * 
+     * <p>
      * ✅ 修复：当存在天气轨道时，完全禁止原版天气事件
      * - 如果轨道有雷暴，使用轨道的值
      * - 如果轨道没有雷暴，强制返回 0（禁止原版雷暴）
@@ -150,7 +149,7 @@ public abstract class WorldMixin {
 
     /**
      * Weather：覆盖是否下雨
-     * 
+     * <p>
      * ✅ 修复：当存在天气轨道时，完全禁止原版天气事件
      * - 如果轨道有降水，返回 true
      * - 如果轨道没有降水，强制返回 false（禁止原版下雨）
@@ -181,7 +180,7 @@ public abstract class WorldMixin {
 
     /**
      * Weather：覆盖是否打雷
-     * 
+     * <p>
      * ✅ 修复：当存在天气轨道时，完全禁止原版天气事件
      * - 如果轨道有雷暴，返回 true
      * - 如果轨道没有雷暴，强制返回 false（禁止原版雷暴）

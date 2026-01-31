@@ -120,7 +120,6 @@ public final class TimeTrackSampler {
         switch (interpolation) {
             // DEFAULT 应该已经在上面的逻辑中处理，这里不应该到达
             // 如果到达，使用平滑插值作为默认
-            case DEFAULT:
             case STEP:
                 t = 0f; // 保持 a 值
                 break;
@@ -193,13 +192,12 @@ public final class TimeTrackSampler {
 
         // 5. 构造完整的 TimeSample（避免工厂方法重复计算导致的突变）
         long worldTicks = (long) Math.floor(worldTimeOfDay);
-        TimeSample sample = TimeSample.createFull(useWorldTime, worldTicks, worldTimeOfDay, freezeWorldTime,
+
+        return TimeSample.createFull(useWorldTime, worldTicks, worldTimeOfDay, freezeWorldTime,
                 skyAngle, sunElevation, sunAzimuth, skyLight,
                 moonPhase, moonElevation, moonAzimuth,
                 useCustomSkyColor, sunriseR, sunriseG, sunriseB, sunriseA,
                 skyColorR, skyColorG, skyColorB, skyColorA);
-
-        return sample;
         
         // ⭐ 未来扩展：当 TimeSample 支持完整自定义构造函数时，可以插值所有参数：
         // - skyAngle (已自动计算，但可以覆盖)

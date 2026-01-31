@@ -289,7 +289,6 @@ public abstract class ClientWorldMixin {
         // 确保 Alpha 通道为 0xFF（天空颜色应该完全不透明）
         int a = (color >> 24) & 0xFF;
         if (a == 0) {
-            a = 0xFF;
         }
         
         float rf = r / 255f;
