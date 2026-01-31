@@ -42,6 +42,7 @@ public abstract class ClientWorldMixin {
     private void onTickTime(CallbackInfo ci) {
         ChronoBlocksClientController controller = ChronoBlocksClientController.getInstance();
         if (controller != null && controller.isChronoBlocksModeActive()) {
+            System.out.println("[ChronoBlocks][TIME] onTickTime: cancelled (chrono mode active)");
             ci.cancel();
         }
     }
@@ -63,10 +64,13 @@ public abstract class ClientWorldMixin {
         if (!controller.hasOverride()) {
             return;
         }
-        if (controller.isInternalTimeUpdate()) {
-            return;
+        boolean internal = controller.isInternalTimeUpdate();
+        if (!internal) {
+            System.out.println("[ChronoBlocks][TIME] blockExternalTimeUpdate: blocking external setTime -> time=" + time + " timeOfDay=" + timeOfDay);
+            ci.cancel();
+        } else {
+            System.out.println("[ChronoBlocks][TIME] blockExternalTimeUpdate: allowed internal setTime -> time=" + time + " timeOfDay=" + timeOfDay);
         }
-        ci.cancel();
     }
 
     @Inject(method = "getSkyBrightness(F)F", at = @At("HEAD"), cancellable = true)
@@ -153,31 +157,10 @@ public abstract class ClientWorldMixin {
         cir.setReturnValue(starBrightness);
     }
 
-    @Inject(method = "getSkyAngle(F)F", at = @At("HEAD"), cancellable = true)
-    private void overrideSkyAngle(float tickDelta, CallbackInfoReturnable<Float> cir) {
-        TimelineWorldController controller = TimelineWorldController.getInstance();
-        if (!controller.hasOverride()) {
-            return;
-        }
-        TimeSample sample = controller.current();
-        if (sample == null) {
-            return;
-        }
-        cir.setReturnValue(sample.getSkyAngle());
-    }
-
-    @Inject(method = "getSkyAngleRadians(F)F", at = @At("HEAD"), cancellable = true)
-    private void overrideSkyAngleRadians(float tickDelta, CallbackInfoReturnable<Float> cir) {
-        TimelineWorldController controller = TimelineWorldController.getInstance();
-        if (!controller.hasOverride()) {
-            return;
-        }
-        TimeSample sample = controller.current();
-        if (sample == null) {
-            return;
-        }
-        cir.setReturnValue(sample.getSkyAngle() * (float) (Math.PI * 2.0));
-    }
+    // NOTE: Removed direct injectors into `getSkyAngle`/`getSkyAngleRadians`.
+    // These methods may not exist under some mappings and can cause Mixin
+    // InvalidInjectionException. We rely on `WorldMixin.getTimeOfDay()` and
+    // renderer-side overrides for sky angle/rotation instead.
 
     /**
      * Weather + Time：云颜色控制
