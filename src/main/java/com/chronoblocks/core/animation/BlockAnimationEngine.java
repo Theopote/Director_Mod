@@ -23,17 +23,17 @@ import java.util.Map;
  * BlockAnimationEngine
  * --------------------
  * 负责把：
- *   - 时间线时间 (now)
- *   - 片段配置 ClipAnimationConfig（mode/duration/easing/params/effects）
- *   - 序列行为 BlockSequenceEntry（seqNormalizedTime）
+ * - 时间线时间 (now)
+ * - 片段配置 ClipAnimationConfig（mode/duration/easing/params/effects）
+ * - 序列行为 BlockSequenceEntry（seqNormalizedTime）
  * <p>
  * 映射成单个方块在当前帧的动画采样结果 BlockAnimationSnapshot。
  * <p>
  * 约定：
- *   - 所有时间单位统一用秒（与 Timeline 一致）
- *   - sequenceEntry.normalizedTime 为归一化 [0..1]，决定该方块在片段中的"出场顺序"
- *   - Snapshot.transform 只保存"局部动画矩阵"（围绕方块中心），不包含世界坐标
- *     世界坐标由 Renderer 统一负责：先 translate(pos)，再乘 transform
+ * - 所有时间单位统一用秒（与 Timeline 一致）
+ * - sequenceEntry.normalizedTime 为归一化 [0..1]，决定该方块在片段中的"出场顺序"
+ * - Snapshot.transform 只保存"局部动画矩阵"（围绕方块中心），不包含世界坐标
+ * 世界坐标由 Renderer 统一负责：先 translate(pos)，再乘 transform
  *
  * @author ChronoBlocks Team
  * @version 2.2
@@ -48,7 +48,8 @@ public final class BlockAnimationEngine {
     /**
      * 运行时特效触发状态（用于 ONE_SHOT 等跨帧门控）。
      *
-     * <p>键：pos + effectId
+     * <p>
+     * 键：pos + effectId
      * 值：上一帧该方块在单块动画窗口内的 t_raw（0..1），以及最近一次 seen 时间用于清理。
      */
     private static final class EffectRuntimeGate {
@@ -99,13 +100,13 @@ public final class BlockAnimationEngine {
      * @param randomSeed 本方块随机种子（建议 containerSeed ^ pos.asLong()）
      */
     public static BlockAnimationSnapshot sample(BlockPos pos,
-                                                BlockState state,
-                                                ClipAnimationConfig config,
-                                                BlockSequenceEntry seqEntry,
-                                                float clipStart,
-                                                float clipEnd,
-                                                float now,
-                                                long randomSeed) {
+            BlockState state,
+            ClipAnimationConfig config,
+            BlockSequenceEntry seqEntry,
+            float clipStart,
+            float clipEnd,
+            float now,
+            long randomSeed) {
         BlockAnimationSnapshot snapshot = new BlockAnimationSnapshot(pos, state);
 
         // ===== 0. 无配置：纯瞬时渲染 =====
@@ -136,20 +137,22 @@ public final class BlockAnimationEngine {
                 }
             } catch (Exception ignored) {
             }
-            
+
             float seqNormalizedTime = (seqEntry != null)
                     ? MathHelper.clamp(seqEntry.getNormalizedTime(), 0.0f, 1.0f)
                     : 0.0f;
-            
+
             float clipDuration = Math.max(0.0001f, clipEnd - clipStart);
             // INSTANT 模式：方块按照序列顺序直接出现，不需要动画窗口
             float sequenceSpan = Math.max(0.0001f, clipDuration - delay);
             float blockStartTime = clipStart + delay + seqNormalizedTime * sequenceSpan;
-            
+
             // 钳制到片段范围
-            if (blockStartTime < clipStart) blockStartTime = clipStart;
-            if (blockStartTime > clipEnd) blockStartTime = clipEnd;
-            
+            if (blockStartTime < clipStart)
+                blockStartTime = clipStart;
+            if (blockStartTime > clipEnd)
+                blockStartTime = clipEnd;
+
             if (phase == ClipAnimationConfig.AnimationPhase.EXIT) {
                 // EXIT：在 blockStartTime 之前完全可见，之后隐藏（由上层移除）
                 if (now >= blockStartTime) {
@@ -187,7 +190,7 @@ public final class BlockAnimationEngine {
             }
         } catch (Exception ignored) {
         }
-        
+
         // 性能敏感：sample() 会被每帧对大量方块调用，禁止使用 info 级日志刷屏。
         // 如需调试请改用 trace 并自行开启日志级别。
         if (LOGGER.isTraceEnabled()) {
@@ -220,8 +223,10 @@ public final class BlockAnimationEngine {
         }
 
         // 钳制到片段范围
-        if (blockStartTime < clipStart) blockStartTime = clipStart;
-        if (blockEndTime > clipEnd) blockEndTime = clipEnd;
+        if (blockStartTime < clipStart)
+            blockStartTime = clipStart;
+        if (blockEndTime > clipEnd)
+            blockEndTime = clipEnd;
 
         if (blockEndTime <= blockStartTime) {
             // 动画时间窗口无效：按瞬时处理，但仍然允许触发 effect
@@ -277,8 +282,8 @@ public final class BlockAnimationEngine {
                 snapshot.setSequenceNormalizedTime(seqNormalizedTime);
                 snapshot.setTransform(null); // null = identity
                 snapshot.setAlpha(1.0f);
-                // ✅ 修复：动画结束后，设置 rawProgress = 1.0，允许后段特效触发（如 DUST_BURST）
-                snapshot.setRawProgress(1.0f);
+                // ✅ 修复：动画结束后，设置 rawProgress = 1.001f，允许后段特效触发并确保持续特效能正常结束
+                snapshot.setRawProgress(1.001f);
                 snapshot.setEasedProgress(1.0f);
             }
             // ✅ 修复：动画结束后仍然检查并触发特效（特别是后段特效，如 DUST_BURST）
@@ -315,7 +320,7 @@ public final class BlockAnimationEngine {
         snapshot.setEasedProgress(tEased);
         snapshot.setSequenceNormalizedTime(seqNormalizedTime);
         snapshot.setAlpha(1.0f); // 初始 alpha=1，后续由动画/特效调整
-        
+
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("[BlockAnimationEngine] animating: pos={} mode={} tRaw={} tEased={}",
                     pos, mode, tRaw, tEased);
@@ -326,18 +331,16 @@ public final class BlockAnimationEngine {
         // 围绕方块中心做局部变换
         matrices.translate(0.5f, 0.5f, 0.5f);
 
-        IAnimationTransformer transformer =
-                AnimationTransformerFactory.getInstance().getTransformer(mode);
-        
+        IAnimationTransformer transformer = AnimationTransformerFactory.getInstance().getTransformer(mode);
+
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("[BlockAnimationEngine] transformer: mode={} transformer={}",
                     mode, transformer != null ? transformer.getClass().getSimpleName() : "null");
         }
-        
+
         if (transformer != null) {
             // ⚠️ 防御：config.getParams() 可能为 null
-            Map<String, Object> baseParams =
-                    config.getParams();
+            Map<String, Object> baseParams = config.getParams();
             Map<String, Object> tempParams = new java.util.HashMap<>(baseParams);
 
             // 合并默认参数
@@ -403,9 +406,9 @@ public final class BlockAnimationEngine {
      * 包一层 try-catch，避免特效抛异常把整个动画系统搞崩。
      */
     private static void applyEffectsSafe(BlockAnimationSnapshot snapshot,
-                                         ClipAnimationConfig config,
-                                         float now,
-                                         long randomSeed) {
+            ClipAnimationConfig config,
+            float now,
+            long randomSeed) {
         try {
             applyEffects(snapshot, config, now, randomSeed);
         } catch (Exception e) {
@@ -469,9 +472,9 @@ public final class BlockAnimationEngine {
      * 注意：这里仅负责「触发」粒子等效果，不改变方块几何。
      */
     private static void applyEffects(BlockAnimationSnapshot snapshot,
-                                     ClipAnimationConfig config,
-                                     float now,
-                                     long randomSeed) {
+            ClipAnimationConfig config,
+            float now,
+            long randomSeed) {
 
         if (config == null || config.getEffects().isEmpty()) {
             return;
@@ -532,8 +535,7 @@ public final class BlockAnimationEngine {
             }
 
             try {
-                net.minecraft.client.world.ClientWorld world =
-                        MinecraftClient.getInstance().world;
+                net.minecraft.client.world.ClientWorld world = MinecraftClient.getInstance().world;
                 if (world != null && snapshot != null) {
                     // ONE_SHOT：只在进入时间窗口时触发一次（支持回放/拖动倒退时再次触发）
                     if (inst.getTriggerMode() == com.chronoblocks.core.animation.effect.EffectInstance.TriggerMode.ONE_SHOT) {
@@ -544,14 +546,15 @@ public final class BlockAnimationEngine {
                             // 首次看到该方块：
                             // - 默认不触发，避免在片段中途开始渲染时“突然爆一堆”
                             // - 但如果特效窗口从 0 开始，且当前正处于动画刚起步（tRaw 非常小），允许触发一次
-                            //   这样 startOffset=0 的 ONE_SHOT（如闪白光）不会永远不触发。
+                            // 这样 startOffset=0 的 ONE_SHOT（如闪白光）不会永远不触发。
                             // ✅ 修复：首次初始化时，如果当前已经在特效窗口内，允许触发一次
                             // 这样即使 startOffset 不是 0，也能正常触发
                             if (tRaw + 1e-4f < startNorm) {
                                 // 当前时间还没到特效窗口，等待进入窗口
                                 gate.lastTRaw = tRaw;
                                 if (LOGGER.isDebugEnabled()) {
-                                    LOGGER.debug("[BlockAnimationEngine] ONE_SHOT 特效 {} 等待进入窗口: tRaw={} startNorm={} endNorm={}",
+                                    LOGGER.debug(
+                                            "[BlockAnimationEngine] ONE_SHOT 特效 {} 等待进入窗口: tRaw={} startNorm={} endNorm={}",
                                             inst.getType(), tRaw, startNorm, endNorm);
                                 }
                                 continue;
@@ -560,7 +563,8 @@ public final class BlockAnimationEngine {
                             gate.lastTRaw = tRaw;
                             effectT = 0.0f;
                             if (LOGGER.isDebugEnabled()) {
-                                LOGGER.debug("[BlockAnimationEngine] ONE_SHOT 特效 {} 首次触发（已在窗口内）: tRaw={} startNorm={} endNorm={}",
+                                LOGGER.debug(
+                                        "[BlockAnimationEngine] ONE_SHOT 特效 {} 首次触发（已在窗口内）: tRaw={} startNorm={} endNorm={}",
                                         inst.getType(), tRaw, startNorm, endNorm);
                             }
                         } else {
@@ -572,7 +576,8 @@ public final class BlockAnimationEngine {
                                 if (tRaw + 1e-4f < startNorm) {
                                     gate.initialized = false;
                                     if (LOGGER.isDebugEnabled()) {
-                                        LOGGER.debug("[BlockAnimationEngine] ONE_SHOT 特效 {} 时间倒退，重置状态: tRaw={} startNorm={}",
+                                        LOGGER.debug(
+                                                "[BlockAnimationEngine] ONE_SHOT 特效 {} 时间倒退，重置状态: tRaw={} startNorm={}",
                                                 inst.getType(), tRaw, startNorm);
                                     }
                                 }
@@ -583,7 +588,8 @@ public final class BlockAnimationEngine {
                             gate.lastTRaw = tRaw;
                             if (!crossed) {
                                 if (LOGGER.isTraceEnabled()) {
-                                    LOGGER.trace("[BlockAnimationEngine] ONE_SHOT 特效 {} 未跨越边界: lastTRaw={} tRaw={} startNorm={}",
+                                    LOGGER.trace(
+                                            "[BlockAnimationEngine] ONE_SHOT 特效 {} 未跨越边界: lastTRaw={} tRaw={} startNorm={}",
                                             inst.getType(), gate.lastTRaw, tRaw, startNorm);
                                 }
                                 continue;
@@ -591,28 +597,29 @@ public final class BlockAnimationEngine {
                             // 触发一次：用 effectT=0 作为起点
                             effectT = 0.0f;
                             if (LOGGER.isDebugEnabled()) {
-                                LOGGER.debug("[BlockAnimationEngine] ONE_SHOT 特效 {} 跨越边界触发: lastTRaw={} tRaw={} startNorm={}",
+                                LOGGER.debug(
+                                        "[BlockAnimationEngine] ONE_SHOT 特效 {} 跨越边界触发: lastTRaw={} tRaw={} startNorm={}",
                                         inst.getType(), gate.lastTRaw, tRaw, startNorm);
                             }
                         }
                     }
 
                     if (LOGGER.isDebugEnabled()) {
-                        LOGGER.debug("[BlockAnimationEngine] 触发特效: type={} pos={} tRaw={} effectT={} startNorm={} endNorm={} triggerMode={}",
-                                inst.getType(), snapshot.getPos(), tRaw, effectT, startNorm, endNorm, inst.getTriggerMode());
+                        LOGGER.debug(
+                                "[BlockAnimationEngine] 触发特效: type={} pos={} tRaw={} effectT={} startNorm={} endNorm={} triggerMode={}",
+                                inst.getType(), snapshot.getPos(), tRaw, effectT, startNorm, endNorm,
+                                inst.getTriggerMode());
                     }
-                    
+
                     effectImpl.render(
-                        world,
-                        snapshot.getPos(),
-                        effectT,
-                        inst,
-                        new java.util.Random(
-                            randomSeed
-                                ^ snapshot.getPos().asLong()
-                                ^ inst.getId().getLeastSignificantBits()
-                        )
-                    );
+                            world,
+                            snapshot.getPos(),
+                            snapshot.getBlockState(),
+                            effectT,
+                            inst,
+                            new java.util.Random(
+                                    randomSeed
+                                            ^ inst.getId().getLeastSignificantBits()));
                 }
             } catch (Exception e) {
                 LOGGER.error("应用特效失败: type={} pos={} err={}",

@@ -4,6 +4,7 @@ import com.chronoblocks.core.animation.effect.EffectInstance;
 import com.chronoblocks.core.animation.effect.IBlockEffect;
 import com.chronoblocks.core.animation.effect.ui.EffectUIHelper;
 import com.chronoblocks.core.animation.effect.ui.EffectUIUtils;
+import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.particle.ParticleManager;
 import net.minecraft.client.world.ClientWorld;
@@ -17,20 +18,24 @@ import java.util.Random;
 /**
  * 脉冲发光：用少量“光点 + 轻雾”模拟方块出现时的短暂发光脉冲。
  *
- * <p>注意：当前 Effect API 不直接修改渲染材质/光照，因此使用粒子来表现“发光感”。</p>
+ * <p>
+ * 注意：当前 Effect API 不直接修改渲染材质/光照，因此使用粒子来表现“发光感”。
+ * </p>
  *
- * <p>参数：</p>
+ * <p>
+ * 参数：
+ * </p>
  * <ul>
- *   <li>intensity (float, 默认 1.0) - 强度（粒子数量倍率）</li>
- *   <li>radius (float, 默认 0.45) - 扩散半径</li>
- *   <li>pulseCount (int, 默认 2) - 一个窗口内脉冲次数</li>
- *   <li>cloud (boolean, 默认 true) - 是否附加少量 CLOUD 粒子增强“发光雾”</li>
+ * <li>intensity (float, 默认 1.0) - 强度（粒子数量倍率）</li>
+ * <li>radius (float, 默认 0.45) - 扩散半径</li>
+ * <li>pulseCount (int, 默认 2) - 一个窗口内脉冲次数</li>
+ * <li>cloud (boolean, 默认 true) - 是否附加少量 CLOUD 粒子增强“发光雾”</li>
  * </ul>
  */
 public class GlowPulseEffect implements IBlockEffect {
 
     @Override
-    public void render(ClientWorld world, BlockPos pos, float t, EffectInstance inst, Random random) {
+    public void render(ClientWorld world, BlockPos pos, BlockState state, float t, EffectInstance inst, Random random) {
         if (world == null || pos == null || inst == null) {
             return;
         }
@@ -105,28 +110,28 @@ public class GlowPulseEffect implements IBlockEffect {
         EffectUIHelper.label("脉冲发光参数");
 
         float intensity = EffectUIUtils.getFloat(params, "intensity", 1.0f);
-        float[] intensityArr = {intensity};
+        float[] intensityArr = { intensity };
         if (EffectUIHelper.dragFloat("强度 (Intensity)", intensityArr, 0.1f, 0.0f, 5.0f, "%.1f")) {
             params.put("intensity", intensityArr[0]);
             modified = true;
         }
 
         float radius = EffectUIUtils.getFloat(params, "radius", 0.45f);
-        float[] radiusArr = {radius};
+        float[] radiusArr = { radius };
         if (EffectUIHelper.dragFloat("半径 (Radius)", radiusArr, 0.02f, 0.05f, 2.0f, "%.2f")) {
             params.put("radius", radiusArr[0]);
             modified = true;
         }
 
         int pulseCount = Math.max(1, EffectUIUtils.getInt(params, "pulseCount", 2));
-        float[] pulseAsFloat = {(float) pulseCount};
+        float[] pulseAsFloat = { (float) pulseCount };
         if (EffectUIHelper.dragFloat("脉冲次数 (PulseCount)", pulseAsFloat, 1.0f, 1.0f, 10.0f, "%.0f")) {
             params.put("pulseCount", Math.max(1, Math.round(pulseAsFloat[0])));
             modified = true;
         }
 
         boolean cloud = EffectUIUtils.getBoolean(params, "cloud", true);
-        boolean[] cloudArr = {cloud};
+        boolean[] cloudArr = { cloud };
         if (EffectUIHelper.checkbox("附加轻雾 (Cloud)", cloudArr)) {
             params.put("cloud", cloudArr[0]);
             modified = true;
@@ -135,5 +140,3 @@ public class GlowPulseEffect implements IBlockEffect {
         return modified;
     }
 }
-
-
