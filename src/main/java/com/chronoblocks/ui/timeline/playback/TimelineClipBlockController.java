@@ -1257,12 +1257,11 @@ public class TimelineClipBlockController {
                 }
             }
 
-            if (!needsOverlay) {
-                continue;
-            }
-
-            // 🔥 步骤 6：确保视觉状态抑制世界渲染
-            if (!visualState.shouldSuppressWorldRendering()) {
+            // 🔥 步骤 6：确保视觉状态抑制世界渲染（除非在交接窗口期间）
+            // 注意：在交接窗口期间（inEnterHandoff || inExitHandoff），已经设置 suppressWorldRendering =
+            // false
+            // 这里只对非交接窗口的动画方块启用抑制
+            if (!inEnterHandoff && !inExitHandoff && !visualState.shouldSuppressWorldRendering()) {
                 visualState = visualState.withSuppressWorldRendering(true);
                 visualStateManager.setBlockState(pos, visualState);
             }
