@@ -1606,8 +1606,8 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
                     ImGui.setTooltip(preset.getDescription());
                 count++;
             }
-            ImGui.endChild();
         }
+        ImGui.endChild();
 
         // 单个添加
         ImGui.textDisabled("手动添加 (Individual):");
