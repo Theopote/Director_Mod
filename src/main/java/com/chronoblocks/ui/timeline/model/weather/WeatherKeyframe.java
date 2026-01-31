@@ -46,7 +46,6 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
         STORM("雷暴"),
         SNOW("大雪"),
         SLEET("雨夹雪"),
-        FOGGY("大雾"),
         CUSTOM("自定义");
 
         private final String displayName;
@@ -723,26 +722,6 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
                 fogDensity = 0.35f;
                 fogColor.set(0.7f, 0.7f, 0.8f);
                 tempBias = -0.2f;
-                humidityBias = 0.4f;
-                specialWeatherType = SpecialWeatherType.NONE;
-                specialWeatherIntensity = 0.0f;
-            }
-            case FOGGY -> {
-                rainStrength = 0.0f;
-                rainType = RainType.NONE;
-                rainParticleDensity = 0.0f;
-                puddleLevel = 0.3f;
-                thunderStrength = 0.0f;
-                lightningFrequency = 0.0f;
-                windStrength = 0.1f;
-                windDirectionDegrees = 0.0f; // 默认无风
-                stormDarkness = 0.1f;
-                cloudDensity = 0.8f;
-                cloudSpeed = 0.3f;
-                cloudBrightness = 0.9f;
-                fogDensity = 0.9f;
-                fogColor.set(0.6f, 0.6f, 0.65f);
-                tempBias = 0.0f;
                 humidityBias = 0.4f;
                 specialWeatherType = SpecialWeatherType.NONE;
                 specialWeatherIntensity = 0.0f;
