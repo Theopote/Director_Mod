@@ -123,6 +123,9 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
     /** 雨强度：0 = 无雨，1 = 暴雨 */
     private float rainStrength = 0.0f;
 
+    /** 雪强度：0 = 无雪，1 = 暴雪（用于支持雨夹雪时雨雪独立调整） */
+    private float snowStrength = 0.0f;
+
     /** 降水类型（雨/雪/夹雪） */
     private RainType rainType = RainType.NONE;
 
@@ -362,6 +365,14 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
         this.rainStrength = clamp01(rainStrength);
     }
 
+    public float getSnowStrength() {
+        return snowStrength;
+    }
+
+    public void setSnowStrength(float snowStrength) {
+        this.snowStrength = clamp01(snowStrength);
+    }
+
     public RainType getRainType() {
         return rainType;
     }
@@ -550,10 +561,10 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
 
     /**
      * 获取雪强度（用于 WeatherSample.snowIntensity）。
-     * 如果 rainType 是 SNOW 或 SLEET，返回 rainStrength，否则返回 0。
+     * 如果 rainType 是 SNOW 或 SLEET，返回 snowStrength，否则返回 0。
      */
     public float getSnowIntensity() {
-        return (rainType == RainType.SNOW || rainType == RainType.SLEET) ? rainStrength : 0f;
+        return (rainType == RainType.SNOW || rainType == RainType.SLEET) ? snowStrength : 0f;
     }
 
     /**
@@ -697,6 +708,7 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
             }
             case SLEET -> {
                 rainStrength = 0.7f;
+                snowStrength = 0.7f;
                 rainType = RainType.SLEET;
                 rainParticleDensity = 0.6f;
                 puddleLevel = 0.5f;
@@ -738,6 +750,7 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
             case CUSTOM -> {
                 // 自定义：不强行改写当前值，只保证 clamp 范围合法
                 rainStrength = clamp01(rainStrength);
+                snowStrength = clamp01(snowStrength);
                 rainParticleDensity = clamp01(rainParticleDensity);
                 puddleLevel = clamp01(puddleLevel);
                 thunderStrength = clamp01(thunderStrength);

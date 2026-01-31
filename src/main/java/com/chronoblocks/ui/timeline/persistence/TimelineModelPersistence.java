@@ -295,6 +295,7 @@ public class TimelineModelPersistence {
         public String weatherType;
         public String weatherInterpolation;
         public float rainStrength;
+        public float snowStrength;
         public String rainType;
         public float rainParticleDensity;
         public float puddleLevel;
@@ -397,6 +398,7 @@ public class TimelineModelPersistence {
                         kdto.weatherType = wk.getWeatherType() != null ? wk.getWeatherType().name() : null;
                         kdto.weatherInterpolation = wk.getInterpolation() != null ? wk.getInterpolation().name() : null;
                         kdto.rainStrength = wk.getRainStrength();
+                        kdto.snowStrength = wk.getSnowStrength();
                         kdto.rainType = wk.getRainType() != null ? wk.getRainType().name() : null;
                         kdto.rainParticleDensity = wk.getRainParticleDensity();
                         kdto.puddleLevel = wk.getPuddleLevel();
@@ -653,6 +655,7 @@ public class TimelineModelPersistence {
                                     try { wk.setInterpolation(TimelineInterpolation.valueOf(kdto.weatherInterpolation)); } catch (Exception ignored) {}
                                 }
                                 wk.setRainStrength(kdto.rainStrength);
+                                wk.setSnowStrength(kdto.snowStrength);
                                 if (kdto.rainType != null) {
                                     try { wk.setRainType(WeatherKeyframe.RainType.valueOf(kdto.rainType)); } catch (Exception ignored) {}
                                 }

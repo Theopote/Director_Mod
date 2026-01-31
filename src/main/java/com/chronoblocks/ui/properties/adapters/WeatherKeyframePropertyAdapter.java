@@ -9,12 +9,10 @@ import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.weather.WeatherKeyframe;
 import com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController;
 import imgui.ImGui;
-import imgui.flag.ImGuiColorEditFlags;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 import imgui.type.ImInt;
-import org.joml.Vector3f;
 
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -193,10 +191,23 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
             rainFloat.set(kf.getRainIntensity());
             if (ImGui.sliderFloat("雨强度", rainFloat.getData(), 0.0f, 1.0f, "%.2f")) {
                 float value = rainFloat.get();
+                float snowIntensity = kf.getSnowIntensity();
+                
                 if (value > 0.01f) {
-                    kf.setRainType(WeatherKeyframe.RainType.RAIN);
                     kf.setRainStrength(value);
+                    // ✅ 智能设置 rainType：如果已有雪，升级到 SLEET；否则设为 RAIN
+                    if (snowIntensity > 0.01f) {
+                        kf.setRainType(WeatherKeyframe.RainType.SLEET);
+                    } else {
+                        kf.setRainType(WeatherKeyframe.RainType.RAIN);
+                    }
                 } else {
+                    // 如果雨强度为 0，检查是否还有雪
+                    if (snowIntensity > 0.01f) {
+                        kf.setRainType(WeatherKeyframe.RainType.SNOW);
+                    } else {
+                        kf.setRainType(WeatherKeyframe.RainType.NONE);
+                    }
                     kf.setRainStrength(0f);
                 }
                 parameterChanged.set(true);
@@ -213,11 +224,24 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
             snowFloat.set(kf.getSnowIntensity());
             if (ImGui.sliderFloat("雪强度", snowFloat.getData(), 0.0f, 1.0f, "%.2f")) {
                 float value = snowFloat.get();
+                float rainIntensity = kf.getRainIntensity();
+                
                 if (value > 0.01f) {
-                    kf.setRainType(WeatherKeyframe.RainType.SNOW);
-                    kf.setRainStrength(value);
+                    kf.setSnowStrength(value);
+                    // ✅ 智能设置 rainType：如果已有雨，升级到 SLEET；否则设为 SNOW
+                    if (rainIntensity > 0.01f) {
+                        kf.setRainType(WeatherKeyframe.RainType.SLEET);
+                    } else {
+                        kf.setRainType(WeatherKeyframe.RainType.SNOW);
+                    }
                 } else {
-                    kf.setRainStrength(0f);
+                    // 如果雪强度为 0，检查是否还有雨
+                    if (rainIntensity > 0.01f) {
+                        kf.setRainType(WeatherKeyframe.RainType.RAIN);
+                    } else {
+                        kf.setRainType(WeatherKeyframe.RainType.NONE);
+                    }
+                    kf.setSnowStrength(0f);
                 }
                 parameterChanged.set(true);
             }
