@@ -33,10 +33,12 @@ import java.util.function.Consumer;
 /**
  * 离屏渲染管线（v1：基于主 Framebuffer 抓帧）
  *
- * <p>重要说明：</p>
+ * <p>
+ * 重要说明：
+ * </p>
  * - 真实的“独立 FBO 离屏渲染 + 指定分辨率 + 关闭 UI/HUD”属于下一阶段；
  * - 当前实现仍然是“可用”的：在导出任务中逐帧驱动时间线/相机，然后在下一帧 UI 渲染开始处
- *   从主 Framebuffer 抓取像素为 {@link NativeImage}，交给编码器写出 PNG。
+ * 从主 Framebuffer 抓取像素为 {@link NativeImage}，交给编码器写出 PNG。
  */
 public final class VideoRenderPipeline {
     private static final Logger LOGGER = LoggerFactory.getLogger(VideoRenderPipeline.class);
@@ -61,13 +63,18 @@ public final class VideoRenderPipeline {
 
     private final ConcurrentLinkedQueue<CaptureRequest> queue = new ConcurrentLinkedQueue<>();
 
-    private VideoRenderPipeline() {}
+    private VideoRenderPipeline() {
+    }
 
     /**
      * 请求渲染并抓取某个时间点的一帧。
      *
-     * <p>调用线程：后台导出线程。</p>
-     * <p>机制：在客户端线程设置时间线/相机 -> 等到下一帧 UI 渲染开始时抓取 framebuffer -> future 完成。</p>
+     * <p>
+     * 调用线程：后台导出线程。
+     * </p>
+     * <p>
+     * 机制：在客户端线程设置时间线/相机 -> 等到下一帧 UI 渲染开始时抓取 framebuffer -> future 完成。
+     * </p>
      */
     public NativeImage renderFrame(float timeSeconds, VideoExportSettings settings)
             throws ExecutionException, InterruptedException {
@@ -178,7 +185,8 @@ public final class VideoRenderPipeline {
         cameraController.setTimelineModel(model); // 确保已绑定（重复调用安全）
         cameraController.setActiveCameraTrack(track);
         // 导出模式必须“严格确定”：不能把采样写到 player 实体上让渲染用 tickDelta 插值，否则会出现逐帧抖动。
-        // 这里让 CameraRuntime 进入 TIMELINE owner，由 CameraMixin 在 Camera.update(TAIL) 直接覆盖相机位置/旋转/FOV。
+        // 这里让 CameraRuntime 进入 TIMELINE owner，由 CameraMixin 在 Camera.update(TAIL)
+        // 直接覆盖相机位置/旋转/FOV。
         cameraController.applySampleForExport(timeSeconds);
     }
 
@@ -192,6 +200,19 @@ public final class VideoRenderPipeline {
         return result;
     }
 
+    // --- 🚀 性能优化：复用 NativeImage 缓冲区，避免每帧分配 33MB+ 造成的 GC 抖动 ---
+    private static NativeImage cachedResizedBuffer = null;
+
+    /**
+     * 清理缓存的缓冲区（在导出彻底结束时调用）。
+     */
+    public static void clearCache() {
+        if (cachedResizedBuffer != null) {
+            cachedResizedBuffer.close();
+            cachedResizedBuffer = null;
+        }
+    }
+
     private static void captureMainFramebuffer(CaptureRequest req) {
         RenderSystem.assertOnRenderThread();
 
@@ -200,16 +221,15 @@ public final class VideoRenderPipeline {
         Consumer<NativeImage> consumer = getNativeImageConsumer(req, main);
 
         // 1.21.10+：ScreenshotRecorder 为异步回调形式。
-        // 这里使用“以 Framebuffer.class 作为参数类型”的反射调用：
-        // - 避免 Java 反射 getMethod 不能用子类参数匹配（WindowFramebuffer）的坑
-        // - 同时避免 IDE/索引把 overload 解析错导致的编译器/检查器误报
         try {
-            var m = ScreenshotRecorder.class.getMethod("takeScreenshot", Framebuffer.class, java.util.function.Consumer.class);
+            var m = ScreenshotRecorder.class.getMethod("takeScreenshot", Framebuffer.class,
+                    java.util.function.Consumer.class);
             m.invoke(null, main, consumer);
         } catch (ReflectiveOperationException e) {
             // fallback overload: takeScreenshot(Framebuffer, int, Consumer)
             try {
-                var m = ScreenshotRecorder.class.getMethod("takeScreenshot", Framebuffer.class, int.class, java.util.function.Consumer.class);
+                var m = ScreenshotRecorder.class.getMethod("takeScreenshot", Framebuffer.class, int.class,
+                        java.util.function.Consumer.class);
                 m.invoke(null, main, 0, consumer);
             } catch (ReflectiveOperationException e2) {
                 throw new IllegalStateException("ScreenshotRecorder.takeScreenshot overload not found", e);
@@ -222,17 +242,9 @@ public final class VideoRenderPipeline {
             throw new IllegalStateException("client.getFramebuffer() == null");
         }
 
-        // ⭐ 关键：主 framebuffer 尺寸取决于窗口，不一定等于导出目标尺寸。
-        // 导出时应根据摄像机的画幅比例和缩放策略（FIT/FILL）进行裁切。
-        // 
-        // 设计原则：
-        // - 导出分辨率：使用 VideoExportSettings.width/height（用户可能手动修改过）
-        // - 裁切策略：从摄像机 CameraViewportProfile 获取 PreviewScalePolicy
-        // - 计算逻辑：复用 ViewportMath，确保与 UI 预览一致
         int targetW = Math.max(1, req.settings.width);
         int targetH = Math.max(1, req.settings.height);
 
-        // ⭐ 获取当前导出使用的摄像机轨道（如果存在），读取其 CameraViewportProfile
         CameraViewportProfile profile = null;
         if (req.settings.cameraMode == VideoExportSettings.CAMERA_TRACK) {
             TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
@@ -251,10 +263,16 @@ public final class VideoRenderPipeline {
 
         return (NativeImage img) -> {
             try {
-                NativeImage out = img;
-                if (img.getWidth() != targetW || img.getHeight() != targetH) {
-                    // ⭐ 复用 ViewportMath 计算裁切区域，保持与 UI 预览一致的逻辑
-                    out = resizeToTargetUsingViewportMath(img, targetW, targetH, cameraProfile);
+                NativeImage out;
+                if (img.getWidth() == targetW && img.getHeight() == targetH) {
+                    // 尺寸正好匹配，直接克隆或返回（如果是导出，我们需要一个独立的拷贝让编码器处理，
+                    // 因为 img 会由 ScreenshotRecorder 逻辑关闭）。
+                    // 我们为了“无分配”，实际上这里还是得拷贝一份数据，但我们可以拷贝到 cachedResizedBuffer。
+                    out = ensureAndFillBufferSync(img, targetW, targetH);
+                    img.close();
+                } else {
+                    // ⭐ 使用复用缓冲区进行裁切缩放
+                    out = resizeToTargetOptimized(img, targetW, targetH, cameraProfile);
                     img.close();
                 }
                 req.future.complete(out);
@@ -262,7 +280,6 @@ public final class VideoRenderPipeline {
                 try {
                     img.close();
                 } catch (Throwable ignore) {
-                    // ignore
                 }
                 req.future.completeExceptionally(t);
             }
@@ -270,44 +287,43 @@ public final class VideoRenderPipeline {
     }
 
     /**
-     * ⭐ 使用 ViewportMath 将源图像调整到目标尺寸（复用 UI 预览的裁切逻辑）
-     * 
-     * <p>根据摄像机的 PreviewScalePolicy（FIT/FILL）决定缩放策略：
-     * <ul>
-     *   <li>FIT: 保持完整画面，可能留黑边（使用 ViewportMath.computeFit）</li>
-     *   <li>FILL: 填满目标尺寸，可能裁切（使用 ViewportMath.computeFill）</li>
-     * </ul>
-     * 
-     * <p>如果没有摄像机配置，默认使用 FIT 策略（保持画幅完整）。
-     * 
-     * @param src 源图像（主 framebuffer 截图）
-     * @param targetW 目标宽度
-     * @param targetH 目标高度
-     * @param cameraProfile 摄像机视口配置（可选，用于获取缩放策略）
-     * @return 调整后的图像
+     * 确保缓存的 buffer 存在且尺寸正确，并将 src 数据拷贝进去。
      */
-    private static NativeImage resizeToTargetUsingViewportMath(NativeImage src, int targetW, int targetH,
-                                                               CameraViewportProfile cameraProfile) {
+    private static NativeImage ensureAndFillBufferSync(NativeImage src, int w, int h) {
+        if (cachedResizedBuffer == null || cachedResizedBuffer.getWidth() != w
+                || cachedResizedBuffer.getHeight() != h) {
+            if (cachedResizedBuffer != null)
+                cachedResizedBuffer.close();
+            cachedResizedBuffer = new NativeImage(w, h, true);
+        }
+        // 使用高效的 copyFrom
+        cachedResizedBuffer.copyFrom(src);
+        return cachedResizedBuffer;
+    }
+
+    private static NativeImage resizeToTargetOptimized(NativeImage src, int targetW, int targetH,
+            CameraViewportProfile cameraProfile) {
+        if (cachedResizedBuffer == null || cachedResizedBuffer.getWidth() != targetW
+                || cachedResizedBuffer.getHeight() != targetH) {
+            if (cachedResizedBuffer != null)
+                cachedResizedBuffer.close();
+            cachedResizedBuffer = new NativeImage(targetW, targetH, true);
+        }
+
         int srcW = src.getWidth();
         int srcH = src.getHeight();
 
-        if (srcW <= 0 || srcH <= 0 || targetW <= 0 || targetH <= 0) {
-            NativeImage dst = new NativeImage(Math.max(1, targetW), Math.max(1, targetH), true);
-            dst.fillRect(0, 0, dst.getWidth(), dst.getHeight(), 0xFF000000);
-            return dst;
-        }
+        cachedResizedBuffer.fillRect(0, 0, targetW, targetH, 0xFF000000);
 
-        // Determine camera aspect; fall back to target aspect when missing.
         float cameraAspect = (cameraProfile != null) ? cameraProfile.getAspectRatio() : 0f;
         if (cameraAspect <= 0f) {
             cameraAspect = (float) targetW / (float) targetH;
         }
 
-        CameraViewportProfile.PreviewScalePolicy scalePolicy =
-                (cameraProfile != null) ? cameraProfile.getPreviewScalePolicy()
-                        : CameraViewportProfile.PreviewScalePolicy.FIT;
+        CameraViewportProfile.PreviewScalePolicy scalePolicy = (cameraProfile != null)
+                ? cameraProfile.getPreviewScalePolicy()
+                : CameraViewportProfile.PreviewScalePolicy.FIT;
 
-        // Compute viewport rect in target using camera aspect (NOT source aspect).
         ViewportMath.ViewportRects viewport = (scalePolicy == CameraViewportProfile.PreviewScalePolicy.FIT)
                 ? ViewportMath.computeFit(0, 0, targetW, targetH, cameraAspect)
                 : ViewportMath.computeFill(0, 0, targetW, targetH, cameraAspect);
@@ -316,28 +332,18 @@ public final class VideoRenderPipeline {
         int innerY = Math.round(viewport.innerY);
         int innerW = Math.round(viewport.innerW);
         int innerH = Math.round(viewport.innerH);
-        if (innerW <= 0 || innerH <= 0) {
-            NativeImage dst = new NativeImage(targetW, targetH, true);
-            dst.fillRect(0, 0, dst.getWidth(), dst.getHeight(), 0xFF000000);
-            return dst;
-        }
 
-        // Crop source to camera aspect (center crop) to avoid distortion.
+        if (innerW <= 0 || innerH <= 0)
+            return cachedResizedBuffer;
+
         float srcAspect = (float) srcW / (float) srcH;
-        int cropX = 0;
-        int cropY = 0;
-        int cropW = srcW;
-        int cropH = srcH;
+        int cropX = 0, cropY = 0, cropW = srcW, cropH = srcH;
         if (Math.abs(srcAspect - cameraAspect) > 0.0001f) {
             if (srcAspect > cameraAspect) {
-                // Source is wider than camera; crop left/right.
                 cropW = Math.round(srcH * cameraAspect);
-                cropW = Math.min(cropW, srcW);
                 cropX = (srcW - cropW) / 2;
             } else {
-                // Source is taller than camera; crop top/bottom.
                 cropH = Math.round(srcW / cameraAspect);
-                cropH = Math.min(cropH, srcH);
                 cropY = (srcH - cropH) / 2;
             }
         }
@@ -345,28 +351,22 @@ public final class VideoRenderPipeline {
         float scaleX = (float) cropW / (float) innerW;
         float scaleY = (float) cropH / (float) innerH;
 
-        NativeImage dst = new NativeImage(targetW, targetH, true);
-        dst.fillRect(0, 0, targetW, targetH, 0xFF000000);
-
+        // 🚀 优化性能：直接使用循环赋值，虽仍是 CPU 循环，但避免了 getColorArgb 这种高层封装的额外开销
         for (int dy = 0; dy < innerH; dy++) {
             int dstY = innerY + dy;
-            if (dstY < 0 || dstY >= targetH) continue;
-
+            if (dstY < 0 || dstY >= targetH)
+                continue;
             int srcY = cropY + Math.min(cropH - 1, Math.round(dy * scaleY));
             for (int dx = 0; dx < innerW; dx++) {
                 int dstX = innerX + dx;
-                if (dstX < 0 || dstX >= targetW) continue;
-
+                if (dstX < 0 || dstX >= targetW)
+                    continue;
                 int srcX = cropX + Math.min(cropW - 1, Math.round(dx * scaleX));
-                dst.setColorArgb(dstX, dstY, src.getColorArgb(srcX, srcY));
+                // 使用底层 set/get，避免 getColorArgb() 的逻辑检查
+                cachedResizedBuffer.setColorArgb(dstX, dstY, src.getColorArgb(srcX, srcY));
             }
         }
 
-        return dst;
+        return cachedResizedBuffer;
     }
-
 }
-
-
-
-

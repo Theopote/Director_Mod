@@ -1,5 +1,6 @@
 package com.chronoblocks.export.video;
 
+import com.chronoblocks.mixin.accessor.NativeImageAccessor;
 import net.minecraft.client.texture.NativeImage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -19,10 +20,14 @@ import java.util.Locale;
 /**
  * FFmpeg MP4 编码器（stdin 管道写入 raw RGBA）
  *
- * <p>不产生临时 PNG 序列，直接输出 MP4（H.264）。</p>
+ * <p>
+ * 不产生临时 PNG 序列，直接输出 MP4（H.264）。
+ * </p>
  *
- * <p>要求：系统可执行 {@code ffmpeg}（Windows: ffmpeg.exe）在 PATH 中，
- * 或通过系统属性 {@code chronoblocks.ffmpeg} 指定完整路径。</p>
+ * <p>
+ * 要求：系统可执行 {@code ffmpeg}（Windows: ffmpeg.exe）在 PATH 中，
+ * 或通过系统属性 {@code chronoblocks.ffmpeg} 指定完整路径。
+ * </p>
  */
 public final class FFmpegVideoEncoder implements VideoEncoder {
     private static final Logger LOGGER = LoggerFactory.getLogger(FFmpegVideoEncoder.class);
@@ -57,7 +62,8 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
 
         String ffmpeg = detectFFmpegBinary();
 
-        // ffmpeg -y -f rawvideo -vcodec rawvideo -pix_fmt rgba -s WxH -r FPS -i - (-i audio.wav -map ...) -c:v libx264 ... out.mp4
+        // ffmpeg -y -f rawvideo -vcodec rawvideo -pix_fmt rgba -s WxH -r FPS -i - (-i
+        // audio.wav -map ...) -c:v libx264 ... out.mp4
         List<String> cmd = new ArrayList<>();
         cmd.add(ffmpeg);
         cmd.add("-y");
@@ -119,27 +125,43 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
         if (ffmpegStdin == null || ffmpegProcess == null) {
             throw new IOException("FFmpegVideoEncoder 未初始化");
         }
-        if (image.getWidth() != width || image.getHeight() != height) {
-            throw new IOException("帧尺寸不匹配：got " + image.getWidth() + "x" + image.getHeight()
+        int imgW = image.getWidth();
+        int imgH = image.getHeight();
+        if (imgW != width || imgH != height) {
+            throw new IOException("帧尺寸不匹配：got " + imgW + "x" + imgH
                     + ", expected " + width + "x" + height);
         }
 
-        // NativeImage 提供 ARGB copy（int），这里转换为 RGBA bytes
-        int[] argb = image.copyPixelsArgb();
+        // 🚀 优化：不再使用 image.copyPixelsArgb()，因为它每帧都会分配一个新的大 int[] (4K = 33MB)
+        // 改为直接读取像素并写入复用的字节缓冲区。
         int p = 0;
-        for (int c : argb) {
-            // ARGB: 0xAARRGGBB
-            int a = (c >>> 24) & 0xFF;
-            int r = (c >>> 16) & 0xFF;
-            int g = (c >>> 8) & 0xFF;
-            int b = (c) & 0xFF;
-            rgbaFrameBuffer[p++] = (byte) r;
-            rgbaFrameBuffer[p++] = (byte) g;
-            rgbaFrameBuffer[p++] = (byte) b;
-            rgbaFrameBuffer[p++] = (byte) a;
+        for (int y = 0; y < imgH; y++) {
+            for (int x = 0; x < imgW; x++) {
+                // getColor(x, y) 在 NativeImage 中返回的是 0xAABBGGRR (小端序直接读 int)
+                // 或者 0xAARRGGBB，取决于具体实现。
+                // 1.21.x NativeImage.getColor(x, y) 返回的是 0xAABBGGRR
+                int c = ((NativeImageAccessor) (Object) image).invokeGetColor(x, y);
+
+                // 我们需要输出 RGBA 给 FFmpeg (-pix_fmt rgba)
+                // c = 0xAABBGGRR
+                byte r = (byte) (c & 0xFF);
+                byte g = (byte) ((c >>> 8) & 0xFF);
+                byte b = (byte) ((c >>> 16) & 0xFF);
+                byte a = (byte) ((c >>> 24) & 0xFF);
+
+                rgbaFrameBuffer[p++] = r;
+                rgbaFrameBuffer[p++] = g;
+                rgbaFrameBuffer[p++] = b;
+                rgbaFrameBuffer[p++] = a;
+            }
         }
 
         ffmpegStdin.write(rgbaFrameBuffer);
+        // 建议在每几帧 flush 一次，或者完全靠管道缓冲区。
+        // 30 帧 (约 1s @ 30fps) flush 一次较为合适。
+        if (frameIndex % 30 == 0) {
+            ffmpegStdin.flush();
+        }
     }
 
     @Override
@@ -238,5 +260,3 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
         return os.contains("win") ? "ffmpeg.exe" : "ffmpeg";
     }
 }
-
-

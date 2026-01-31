@@ -45,10 +45,14 @@ public class DustBurstEffect implements IBlockEffect {
             BlockAnimationSnapshot snapshot,
             float t,
             EffectInstance inst,
-            Random random) {
+            Random ignored) {
 
         BlockPos pos = snapshot.getPos();
         BlockState state = snapshot.getBlockState();
+
+        // 🚀 确定性随机种子
+        long seed = pos.asLong() ^ (long) (t * 1000000L);
+        Random deterministicRandom = new Random(seed);
 
         // ✅ 修复：对于 ONE_SHOT 模式，t 总是 0.0f，应该允许触发
         // 只在前 40% 的时间里触发爆炸感，避免持续不断地放粒子
@@ -107,15 +111,15 @@ public class DustBurstEffect implements IBlockEffect {
         double baseZ = pos.getZ() + 0.5;
 
         for (int i = 0; i < count; i++) {
-            double angle = random.nextDouble() * Math.PI * 2;
-            double r = radius * random.nextDouble();
+            double angle = deterministicRandom.nextDouble() * Math.PI * 2;
+            double r = radius * deterministicRandom.nextDouble();
 
             double ox = baseX + Math.cos(angle) * r;
             double oz = baseZ + Math.sin(angle) * r;
-            double oy = baseY + random.nextDouble() * 0.2;
+            double oy = baseY + deterministicRandom.nextDouble() * 0.2;
 
             double vx = (ox - baseX) * 0.15;
-            double vy = 0.1 + random.nextDouble() * 0.1;
+            double vy = 0.1 + deterministicRandom.nextDouble() * 0.1;
             double vz = (oz - baseZ) * 0.15;
 
             // ✅ 修复：使用 particleManager.addParticle() 添加粒子

@@ -29,9 +29,13 @@ public class MotionTrailEffect implements IBlockEffect {
 
     @Override
     public void render(ClientWorld world, BlockAnimationSnapshot snapshot, float t, EffectInstance inst,
-            Random random) {
+            Random ignored) {
         if (world == null || snapshot == null || inst == null)
             return;
+
+        // 🚀 确定性随机种子
+        long seed = snapshot.getPos().asLong() ^ (long) (t * 1000000L);
+        Random deterministicRandom = new Random(seed);
 
         float intensity = EffectUIUtils.getFloat(inst.getParams(), "intensity", 1.0f);
         float density = EffectUIUtils.getFloat(inst.getParams(), "density", 1.0f);
@@ -72,17 +76,17 @@ public class MotionTrailEffect implements IBlockEffect {
 
         for (int i = 0; i < count; i++) {
             // 在中心附近随机偏移
-            double ox = worldX + (random.nextDouble() - 0.5) * 0.4;
-            double oy = worldY + (random.nextDouble() - 0.5) * 0.4;
-            double oz = worldZ + (random.nextDouble() - 0.5) * 0.4;
+            double ox = worldX + (deterministicRandom.nextDouble() - 0.5) * 0.4;
+            double oy = worldY + (deterministicRandom.nextDouble() - 0.5) * 0.4;
+            double oz = worldZ + (deterministicRandom.nextDouble() - 0.5) * 0.4;
 
             // 尾迹粒子产生后几乎静止，或者有少许随机漂移
-            double vx = (random.nextDouble() - 0.5) * 0.02;
-            double vy = (random.nextDouble() - 0.5) * 0.02;
-            double vz = (random.nextDouble() - 0.5) * 0.02;
+            double vx = (deterministicRandom.nextDouble() - 0.5) * 0.02;
+            double vy = (deterministicRandom.nextDouble() - 0.5) * 0.02;
+            double vz = (deterministicRandom.nextDouble() - 0.5) * 0.02;
 
             particleManager.addParticle(ParticleTypes.ELECTRIC_SPARK, ox, oy, oz, vx, vy, vz);
-            if (random.nextDouble() < 0.3) {
+            if (deterministicRandom.nextDouble() < 0.3) {
                 particleManager.addParticle(ParticleTypes.ASH, ox, oy, oz, 0, 0.01, 0);
             }
         }

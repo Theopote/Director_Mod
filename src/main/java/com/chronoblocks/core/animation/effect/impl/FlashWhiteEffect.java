@@ -34,7 +34,7 @@ public class FlashWhiteEffect implements IBlockEffect {
             BlockAnimationSnapshot snapshot,
             float t,
             EffectInstance inst,
-            Random random) {
+            Random ignored) {
 
         BlockPos pos = snapshot.getPos();
 
@@ -42,6 +42,11 @@ public class FlashWhiteEffect implements IBlockEffect {
         if (t > 0.3f) {
             return;
         }
+
+        // 🚀 优化：使用确定性种子，确保在导出或多次渲染时位置完全一致，防止“抖动”
+        // 使用位置和时间作为种子
+        long seed = pos.asLong() ^ (long) (t * 1000000L);
+        Random deterministicRandom = new Random(seed);
 
         float intensity = EffectUIUtils.getFloat(inst.getParams(), "intensity", 1.0f);
         // t 越接近 0，闪得越猛
@@ -59,9 +64,9 @@ public class FlashWhiteEffect implements IBlockEffect {
         ParticleManager particleManager = client.particleManager;
 
         for (int i = 0; i < baseCount; i++) {
-            double ox = pos.getX() + 0.5 + (random.nextDouble() - 0.5) * 0.6;
-            double oy = pos.getY() + 0.5 + (random.nextDouble() - 0.5) * 0.6;
-            double oz = pos.getZ() + 0.5 + (random.nextDouble() - 0.5) * 0.6;
+            double ox = pos.getX() + 0.5 + (deterministicRandom.nextDouble() - 0.5) * 0.6;
+            double oy = pos.getY() + 0.5 + (deterministicRandom.nextDouble() - 0.5) * 0.6;
+            double oz = pos.getZ() + 0.5 + (deterministicRandom.nextDouble() - 0.5) * 0.6;
 
             // ✅ 修复：使用 CRIT 粒子来模拟闪白光效果（更明显的白色闪光）
             particleManager.addParticle(

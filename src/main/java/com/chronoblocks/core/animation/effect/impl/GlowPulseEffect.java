@@ -36,12 +36,16 @@ public class GlowPulseEffect implements IBlockEffect {
 
     @Override
     public void render(ClientWorld world, BlockAnimationSnapshot snapshot, float t, EffectInstance inst,
-            Random random) {
+            Random ignored) {
         if (world == null || snapshot == null || inst == null) {
             return;
         }
 
         BlockPos pos = snapshot.getPos();
+
+        // 🚀 确定性随机种子
+        long seed = pos.asLong() ^ (long) (t * 1000000L);
+        Random deterministicRandom = new Random(seed);
 
         float intensity = EffectUIUtils.getFloat(inst.getParams(), "intensity", 0.6f);
         float radius = EffectUIUtils.getFloat(inst.getParams(), "radius", 0.45f);
@@ -68,13 +72,13 @@ public class GlowPulseEffect implements IBlockEffect {
         double cz = pos.getZ() + 0.5;
 
         for (int i = 0; i < count; i++) {
-            double ox = cx + (random.nextDouble() - 0.5) * radius * 2.0;
-            double oy = cy + (random.nextDouble() - 0.5) * radius * 1.2;
-            double oz = cz + (random.nextDouble() - 0.5) * radius * 2.0;
+            double ox = cx + (deterministicRandom.nextDouble() - 0.5) * radius * 2.0;
+            double oy = cy + (deterministicRandom.nextDouble() - 0.5) * radius * 1.2;
+            double oz = cz + (deterministicRandom.nextDouble() - 0.5) * radius * 2.0;
 
-            double vx = (random.nextDouble() - 0.5) * 0.01;
-            double vy = 0.01 + random.nextDouble() * 0.02;
-            double vz = (random.nextDouble() - 0.5) * 0.01;
+            double vx = (deterministicRandom.nextDouble() - 0.5) * 0.01;
+            double vy = 0.01 + deterministicRandom.nextDouble() * 0.02;
+            double vz = (deterministicRandom.nextDouble() - 0.5) * 0.01;
 
             // ✅ 修复：使用 TOTEM_OF_UNDYING 粒子来模拟脉冲发光效果（绿色发光粒子，更适合脉冲效果）
             particleManager.addParticle(ParticleTypes.TOTEM_OF_UNDYING, ox, oy, oz, vx, vy, vz);
@@ -84,9 +88,9 @@ public class GlowPulseEffect implements IBlockEffect {
         if (cloud && pulse > 0.55) {
             int cloudCount = Math.max(0, Math.min(1, Math.round(intensity)));
             for (int i = 0; i < cloudCount; i++) {
-                double ox = cx + (random.nextDouble() - 0.5) * 0.3;
-                double oy = cy + (random.nextDouble() - 0.5) * 0.3;
-                double oz = cz + (random.nextDouble() - 0.5) * 0.3;
+                double ox = cx + (deterministicRandom.nextDouble() - 0.5) * 0.3;
+                double oy = cy + (deterministicRandom.nextDouble() - 0.5) * 0.3;
+                double oz = cz + (deterministicRandom.nextDouble() - 0.5) * 0.3;
                 particleManager.addParticle(ParticleTypes.CLOUD, ox, oy, oz, 0.0, 0.0, 0.0);
             }
         }

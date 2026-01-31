@@ -24,7 +24,8 @@
     "BackgroundRendererMixin",
     "LivingEntityRendererMixin",
     "accessor.GameRendererAccessor",
-    "accessor.MinecraftClientAccessor"
+    "accessor.MinecraftClientAccessor",
+    "accessor.NativeImageAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

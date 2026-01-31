@@ -36,12 +36,16 @@ public class MagicFlareEffect implements IBlockEffect {
 
     @Override
     public void render(ClientWorld world, BlockAnimationSnapshot snapshot, float t, EffectInstance inst,
-            Random random) {
+            Random ignored) {
         if (world == null || snapshot == null || inst == null) {
             return;
         }
 
         BlockPos pos = snapshot.getPos();
+
+        // 🚀 确定性随机种子
+        long seed = pos.asLong() ^ (long) (t * 1000000L);
+        Random deterministicRandom = new Random(seed);
 
         float intensity = EffectUIUtils.getFloat(inst.getParams(), "intensity", 0.6f);
         float radius = EffectUIUtils.getFloat(inst.getParams(), "radius", 0.5f);
@@ -66,18 +70,18 @@ public class MagicFlareEffect implements IBlockEffect {
         double baseAngle = (t * (Math.PI * 2.0) * spinSpeed);
 
         for (int i = 0; i < count; i++) {
-            double jitter = (random.nextDouble() - 0.5) * 0.35;
+            double jitter = (deterministicRandom.nextDouble() - 0.5) * 0.35;
             double a = baseAngle + jitter + i * (Math.PI * 2.0 / count);
 
-            double r = radius * (0.85 + random.nextDouble() * 0.3);
+            double r = radius * (0.85 + deterministicRandom.nextDouble() * 0.3);
             double ox = cx + Math.cos(a) * r;
             double oz = cz + Math.sin(a) * r;
-            double oy = cy + (random.nextDouble() - 0.5) * height;
+            double oy = cy + (deterministicRandom.nextDouble() - 0.5) * height;
 
             // 轻微上飘 + 环绕切向速度
             double vx = -Math.sin(a) * 0.01;
             double vz = Math.cos(a) * 0.01;
-            double vy = 0.01 + random.nextDouble() * 0.01;
+            double vy = 0.01 + deterministicRandom.nextDouble() * 0.01;
 
             // ✅ 修复：使用 ENCHANT 粒子来模拟魔法光焰效果（紫色魔法粒子）
             particleManager.addParticle(ParticleTypes.ENCHANT, ox, oy, oz, vx, vy, vz);

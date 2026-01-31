@@ -22,11 +22,11 @@ import org.jetbrains.annotations.Nullable;
  * TimelineCameraController v5.0 (Multi-Camera Tracks)
  *
  * 职责：
- *  - 管理多条 CAMERA 轨道，但任意时刻只有一条为 active
- *  - 从激活轨道收集摄像机关键帧，交给 TimelineCameraPathManager 生成轨迹
- *  - 根据播放 / 拖动 / 预览状态采样 CameraSample，写入 CameraRuntime
- *  - 在需要时接管/释放相机控制权（CameraRuntime.Owner）
- *  - 提供「从当前视角捕捉关键帧」等高级操作
+ * - 管理多条 CAMERA 轨道，但任意时刻只有一条为 active
+ * - 从激活轨道收集摄像机关键帧，交给 TimelineCameraPathManager 生成轨迹
+ * - 根据播放 / 拖动 / 预览状态采样 CameraSample，写入 CameraRuntime
+ * - 在需要时接管/释放相机控制权（CameraRuntime.Owner）
+ * - 提供「从当前视角捕捉关键帧」等高级操作
  */
 public final class TimelineCameraController {
 
@@ -48,7 +48,9 @@ public final class TimelineCameraController {
     /**
      * 性能优化：摄像机轨道数据是否需要重建（keyframes/path）。
      *
-     * <p>之前在 updateOwnerAndSample() 中每帧 rebuildFromActiveTrack()，会频繁分配/排序，导致播放掉帧。</p>
+     * <p>
+     * 之前在 updateOwnerAndSample() 中每帧 rebuildFromActiveTrack()，会频繁分配/排序，导致播放掉帧。
+     * </p>
      */
     private boolean cameraDataDirty = true;
 
@@ -91,7 +93,7 @@ public final class TimelineCameraController {
                 modelChangeListener = changeType -> onModelStructureChanged();
             }
             model.addModelChangeListener(modelChangeListener);
-            
+
             // ⭐ v5.0：初始选中第一条 CAMERA 轨道（如果还没有 active）
             // ⭐ 如果只有一个摄像机轨道，自动激活它
             if (!isValidCameraTrack(activeCameraTrack)) {
@@ -105,7 +107,7 @@ public final class TimelineCameraController {
                     }
                 }
             }
-            
+
             rebuildFromActiveTrack();
         } else {
             activeCameraTrack = null;
@@ -167,7 +169,7 @@ public final class TimelineCameraController {
         // 统计当前摄像机轨道数量
         int cameraTrackCount = countCameraTracks();
         TimelineTrack firstCameraTrack = findFirstCameraTrack();
-        
+
         // ⭐ 如果只有一个摄像机轨道，无论当前状态如何，都确保它是激活的
         // 这包括：从0个变成1个、从多个变成1个、新建唯一轨道等情况
         if (cameraTrackCount == 1 && firstCameraTrack != null) {
@@ -198,12 +200,14 @@ public final class TimelineCameraController {
      * ⭐ v5.0：从当前激活轨道重建采样器和路径
      * 在轨道切换、关键帧变化时调用
      * 
-     * <p>重要：只收集 activeCameraTrack 的关键帧，其他摄像机轨道不参与当前播放路径。
+     * <p>
+     * 重要：只收集 activeCameraTrack 的关键帧，其他摄像机轨道不参与当前播放路径。
      * 每条摄像机轨道都有自己独立的轨迹，但只有激活轨道会被采样。
      * 
-     * <p>基于当前 activeCameraTrack 重新构建：
-     *  - CameraTrackSampler 的关键帧列表
-     *  - TimelineCameraPathManager 的路径采样点
+     * <p>
+     * 基于当前 activeCameraTrack 重新构建：
+     * - CameraTrackSampler 的关键帧列表
+     * - TimelineCameraPathManager 的路径采样点
      */
     private synchronized void rebuildFromActiveTrack() {
         if (!hasValidActiveTrack()) {
@@ -215,7 +219,7 @@ public final class TimelineCameraController {
 
         List<CameraKeyframe> kfs = collectCameraKeyframes(activeCameraTrack);
         sampler.setKeyframes(kfs);
-        sampler.setCameraTrack(activeCameraTrack);  // ⭐ 设置轨道引用，用于访问 Path Clips
+        sampler.setCameraTrack(activeCameraTrack); // ⭐ 设置轨道引用，用于访问 Path Clips
         pathManager.setKeyframes(kfs);
         pathManager.markPathDirty();
 
@@ -241,9 +245,12 @@ public final class TimelineCameraController {
      * ⭐ UI 事件驱动：开始拖动播放头（scrubbing）
      * 由 TimelineInteractionHandler 在鼠标按下播放头时调用
      *
-     * <p>注意：scrubbing 状态由 TimelineModel.setScrubbing(true) 设置，这里只负责摄像机采样
-     * <p>⭐ 关键点：即使没有关键帧，也会在 updateOwnerAndSample 中正确切 owner
-     * <p>⭐ 修复：使用 tick() 统一入口，确保 Scrub 和 Play 逻辑一致
+     * <p>
+     * 注意：scrubbing 状态由 TimelineModel.setScrubbing(true) 设置，这里只负责摄像机采样
+     * <p>
+     * ⭐ 关键点：即使没有关键帧，也会在 updateOwnerAndSample 中正确切 owner
+     * <p>
+     * ⭐ 修复：使用 tick() 统一入口，确保 Scrub 和 Play 逻辑一致
      */
     public void beginScrubbing(float timeSeconds) {
         this.previewing = false;
@@ -257,9 +264,12 @@ public final class TimelineCameraController {
      * ⭐ UI 事件驱动：更新拖动播放头位置
      * 由 TimelineInteractionHandler 在鼠标拖动时调用
      *
-     * <p>注意：scrubbing 状态由 TimelineModel.isScrubbing() 检查
-     * <p>⭐ 修复：使用 tick() 统一入口，确保 Scrub 和 Play 逻辑一致
-     * <p>注意：时间已经在 TimelineModel 中更新，这里只需要采样当前时间
+     * <p>
+     * 注意：scrubbing 状态由 TimelineModel.isScrubbing() 检查
+     * <p>
+     * ⭐ 修复：使用 tick() 统一入口，确保 Scrub 和 Play 逻辑一致
+     * <p>
+     * 注意：时间已经在 TimelineModel 中更新，这里只需要采样当前时间
      */
     public void updateScrubbing(float timeSeconds) {
         // 检查 model 的状态（单一真相源）
@@ -277,16 +287,17 @@ public final class TimelineCameraController {
      * ⭐ UI 事件驱动：结束拖动播放头
      * 由 TimelineInteractionHandler 在鼠标释放时调用
      * 
-     * <p>注意：scrubbing 状态由 TimelineModel.setScrubbing(false) 设置，这里只负责摄像机状态同步
+     * <p>
+     * 注意：scrubbing 状态由 TimelineModel.setScrubbing(false) 设置，这里只负责摄像机状态同步
      */
     public void endScrubbing(float timeSeconds) {
         // 检查 model 的状态（单一真相源）
         if (timelineModel == null || !timelineModel.isScrubbing()) {
             return;
         }
-        
+
         this.previewing = false;
-        
+
         LOGGER.debug("[TimelineCameraController] 结束 scrubbing @ {}s", String.format("%.2f", timeSeconds));
     }
 
@@ -294,24 +305,27 @@ public final class TimelineCameraController {
      * ⭐ UI 事件驱动：开始播放
      * 由 TimelineModel.setPlaying(true) 通过 startPlayback() 调用
      *
-     * <p>⭐ 关键修复：在事件发生时更新轨迹，而不是在 update() 中每帧 setKeyframes
-     * <p>⭐ 修复：使用 tick() 统一入口，立即应用当前时间的采样并设置 owner
+     * <p>
+     * ⭐ 关键修复：在事件发生时更新轨迹，而不是在 update() 中每帧 setKeyframes
+     * <p>
+     * ⭐ 修复：使用 tick() 统一入口，立即应用当前时间的采样并设置 owner
      */
     public void startPlayback() {
         this.previewing = false;
         ensureCameraDataBuilt();
-        
+
         // ⭐ 修复：检查是否有摄像机数据（关键帧或 PathClip）
         boolean hasKeyframes = hasValidActiveTrack() && !sampler.getKeyframes().isEmpty();
-        boolean hasPathClips = hasValidActiveTrack() && activeCameraTrack != null && activeCameraTrack.hasCameraPathClips();
+        boolean hasPathClips = hasValidActiveTrack() && activeCameraTrack != null
+                && activeCameraTrack.hasCameraPathClips();
         boolean hasCameraData = hasKeyframes || hasPathClips;
-        
+
         // ⭐ 修复：如果有摄像机数据，使用 tick() 立即应用采样并设置 owner
         if (hasCameraData && timelineModel != null) {
             CameraRuntime runtime = CameraRuntime.getInstance();
             // ⭐ 使用 tick() 统一入口（deltaSec=0，因为只是初始化，不推进时间）
             sampler.tick(timelineModel, 0f).ifPresent(runtime::applyTimelineSample);
-            
+
             // 确保 owner 被设置为 TIMELINE
             if (!runtime.isTimelineOwner()) {
                 runtime.setOwner(CameraRuntime.Owner.TIMELINE);
@@ -319,7 +333,7 @@ public final class TimelineCameraController {
                 LOGGER.debug("[CameraController] 开始播放：接管相机");
             }
         }
-        
+
         LOGGER.debug("[TimelineCameraController] 开始播放");
     }
 
@@ -327,7 +341,8 @@ public final class TimelineCameraController {
      * ⭐ UI 事件驱动：停止播放
      * 由 TimelineModel.setPlaying(false) 通过 stopPlayback() 调用
      * 
-     * <p>⭐ 修复：清空 PathClip 状态，确保下次播放时 onEnter() 能重新触发
+     * <p>
+     * ⭐ 修复：清空 PathClip 状态，确保下次播放时 onEnter() 能重新触发
      */
     public void stopPlayback() {
         this.previewing = false;
@@ -338,7 +353,7 @@ public final class TimelineCameraController {
 
     /**
      * @deprecated 使用 beginScrubbing/updateScrubbing/endScrubbing 代替
-     * scrubbing 状态现在完全由 TimelineModel 管理
+     *             scrubbing 状态现在完全由 TimelineModel 管理
      */
     @Deprecated
     public void setScrubbing(boolean scrubbing) {
@@ -395,14 +410,14 @@ public final class TimelineCameraController {
         // 先判断当前应该由谁控制相机：玩家 or 时间线
         boolean playing = timelineModel.isPlaying();
         boolean scrubbing = timelineModel.isScrubbing();
-        
+
         // ⭐ 修复：如果不在播放/scrubbing，自动清除 previewing 状态
         // 这样当播放头静止时，玩家可以立即操作摄像机，无需先拖动播放头
         if (!playing && !scrubbing && previewing) {
             previewing = false;
             LOGGER.debug("[CameraController] 自动清除预览状态（播放头静止）");
         }
-        
+
         boolean previewActive = previewing && !playing && !scrubbing;
         CameraRuntime runtime = CameraRuntime.getInstance();
         boolean wantsTimeline = playing || scrubbing || previewActive;
@@ -412,14 +427,24 @@ public final class TimelineCameraController {
         // ⭐ 修复：检查是否有摄像机数据（关键帧或 PathClip）
         // PathClip 不需要关键帧就能工作，所以需要单独检查
         boolean hasKeyframes = hasValidActiveTrack() && !sampler.getKeyframes().isEmpty();
-        boolean hasPathClips = hasValidActiveTrack() && activeCameraTrack != null && activeCameraTrack.hasCameraPathClips();
+        boolean hasPathClips = hasValidActiveTrack() && activeCameraTrack != null
+                && activeCameraTrack.hasCameraPathClips();
         boolean hasCameraData = hasKeyframes || hasPathClips;
-        boolean shouldTimeline = wantsTimeline && hasCameraData;
-        
+        boolean isExporting = com.chronoblocks.export.video.VideoExportManager.getInstance().isExporting();
+
+        // 🔒 导出期间：强制禁用预览状态，避免 UI 循环采样“游标时间”与导出采样“导出时间”冲突。
+        if (isExporting && previewing) {
+            this.previewing = false;
+        }
+
+        boolean shouldTimeline = (wantsTimeline || isExporting) && hasCameraData;
+
         // ⭐ 调试日志：检查 owner 切换逻辑
-        if (LOGGER.isDebugEnabled() && wantsTimeline) {
-            LOGGER.debug("[CameraController] wantsTimeline={}, hasKeyframes={}, hasPathClips={}, hasCameraData={}, shouldTimeline={}, isTimelineOwner={}",
-                    true, hasKeyframes, hasPathClips, hasCameraData, shouldTimeline, runtime.isTimelineOwner());
+        if (LOGGER.isDebugEnabled() && (wantsTimeline || isExporting)) {
+            LOGGER.debug(
+                    "[CameraController] wantsTimeline={}, isExporting={}, hasKeyframes={}, hasPathClips={}, hasCameraData={}, shouldTimeline={}, isTimelineOwner={}",
+                    wantsTimeline, isExporting, hasKeyframes, hasPathClips, hasCameraData, shouldTimeline,
+                    runtime.isTimelineOwner());
         }
 
         if (shouldTimeline && !runtime.isTimelineOwner()) {
@@ -440,7 +465,7 @@ public final class TimelineCameraController {
         if (shouldTimeline || runtime.isTimelineOwner()) {
             // ✅ 性能关键：播放时不要每帧 rebuild（会导致 FPS 大幅下降）
             ensureCameraDataBuilt();
-            
+
             if (playing || scrubbing) {
                 // ⭐ 播放/Scrubbing：使用 tick() 统一驱动
                 // tick() 负责采样当前时间（时间推进由 TimelinePanel.updatePlayback() 负责）
@@ -498,7 +523,7 @@ public final class TimelineCameraController {
             LOGGER.warn("[TimelineCamera] previewAt({}) 但当前没有有效摄像机轨道", timeSeconds);
             return;
         }
-        
+
         this.previewing = true;
         this.previewTimeSeconds = timeSeconds;
 
@@ -506,7 +531,7 @@ public final class TimelineCameraController {
         applySampleAtTime(timeSeconds);
         LOGGER.debug("[TimelineCameraController] 预览 @ {}s", String.format("%.2f", timeSeconds));
     }
-    
+
     /**
      * ⭐ v5.0：对指定时间采样，并写入 CameraRuntime
      */
@@ -522,21 +547,27 @@ public final class TimelineCameraController {
      */
     private static float getRenderTickDeltaSafe(MinecraftClient client) {
         try {
-            if (client == null) return 0.0f;
+            if (client == null)
+                return 0.0f;
             Object rtc = client.getRenderTickCounter();
-            if (rtc == null) return 0.0f;
+            if (rtc == null)
+                return 0.0f;
 
             try {
                 var m = rtc.getClass().getMethod("getTickProgress", boolean.class);
                 Object v = m.invoke(rtc, false);
-                if (v instanceof Float f) return f;
-            } catch (ReflectiveOperationException ignored) {}
+                if (v instanceof Float f)
+                    return f;
+            } catch (ReflectiveOperationException ignored) {
+            }
 
             try {
                 var m = rtc.getClass().getMethod("getDynamicDeltaTicks");
                 Object v = m.invoke(rtc);
-                if (v instanceof Float f) return f;
-            } catch (ReflectiveOperationException ignored) {}
+                if (v instanceof Float f)
+                    return f;
+            } catch (ReflectiveOperationException ignored) {
+            }
         } catch (Throwable ignored) {
             // ignore
         }
@@ -550,14 +581,15 @@ public final class TimelineCameraController {
         if (!hasValidActiveTrack()) {
             return;
         }
-        
+
         this.previewing = true;
         this.previewTimeSeconds = timeSeconds;
 
         ensureCameraDataBuilt();
         applySampleAtTime(timeSeconds);
         // 将镜头位置直接写到玩家实体 / 相机
-        sampler.sample(timeSeconds).ifPresent(sample -> CameraAccessor.applySampleToPlayerEntity(MinecraftClient.getInstance(), sample));
+        sampler.sample(timeSeconds)
+                .ifPresent(sample -> CameraAccessor.applySampleToPlayerEntity(MinecraftClient.getInstance(), sample));
         // 保持玩家 owner，允许继续移动、录制下一帧
         CameraRuntime.getInstance().setOwner(CameraRuntime.Owner.PLAYER);
         ChronoBlocksClientController.getInstance().setHideCrosshair(false);
@@ -567,12 +599,16 @@ public final class TimelineCameraController {
     /**
      * 🎥 导出专用：将指定时间点的 CameraSample 应用到 {@link CameraRuntime}，并强制 owner=TIMELINE。
      *
-     * <p>为什么要这样做？</p>
+     * <p>
+     * 为什么要这样做？
+     * </p>
      * <ul>
-     *   <li>如果把采样写到 player 实体上（{@link #jumpToTimeAsPlayer(float)}），渲染会使用 tickDelta 对实体做插值，
-     *   只要 prev/lastRender 没同步，就会产生“每帧跳一下”的抖动。</li>
-     *   <li>导出时我们需要每一帧完全确定：由 {@code CameraMixin} 在 {@code Camera.update(TAIL)} 直接覆盖 Camera 的 pos/rot，
-     *   不走实体插值路径，从而避免 jitter。</li>
+     * <li>如果把采样写到 player 实体上（{@link #jumpToTimeAsPlayer(float)}），渲染会使用 tickDelta
+     * 对实体做插值，
+     * 只要 prev/lastRender 没同步，就会产生“每帧跳一下”的抖动。</li>
+     * <li>导出时我们需要每一帧完全确定：由 {@code CameraMixin} 在 {@code Camera.update(TAIL)} 直接覆盖
+     * Camera 的 pos/rot，
+     * 不走实体插值路径，从而避免 jitter。</li>
      * </ul>
      */
     public synchronized void applySampleForExport(float timeSeconds) {
@@ -600,10 +636,10 @@ public final class TimelineCameraController {
      * 3. 捕获的参数与播放时一致（使用同一套插值算法）
      *
      * 工作流程（参考专业动画软件如 Blender、After Effects）：
-     *  - 如果当前 owner 是 TIMELINE（预览/播放状态），先切回 PLAYER
-     *  - 立即从游戏摄像机直接采样（不等待 CameraMixin 更新）
-     *  - 如果 owner 已经是 PLAYER，也从游戏摄像机直接采样（确保是最新状态）
-     *  - 将采样结果同步到 CameraRuntime，然后设置关键帧属性
+     * - 如果当前 owner 是 TIMELINE（预览/播放状态），先切回 PLAYER
+     * - 立即从游戏摄像机直接采样（不等待 CameraMixin 更新）
+     * - 如果 owner 已经是 PLAYER，也从游戏摄像机直接采样（确保是最新状态）
+     * - 将采样结果同步到 CameraRuntime，然后设置关键帧属性
      *
      * 关键原则：
      * - 设置关键帧时：从游戏摄像机直接读取（玩家当前视角）
@@ -611,7 +647,8 @@ public final class TimelineCameraController {
      * - 两者使用同一套数据源（CameraRuntime.currentSample）和插值算法
      */
     public void captureFromCurrentCamera(CameraKeyframe keyframe) {
-        if (keyframe == null) return;
+        if (keyframe == null)
+            return;
 
         CameraRuntime runtime = CameraRuntime.getInstance();
         MinecraftClient client = MinecraftClient.getInstance();
@@ -621,7 +658,7 @@ public final class TimelineCameraController {
             LOGGER.warn("[TimelineCameraController] 当前非玩家控制，忽略关键帧捕捉");
             return;
         }
-        
+
         CameraSample sample = CameraAccessor.sampleFromGameCamera(client);
         if (sample == null) {
             // 如果无法从游戏摄像机采样，尝试从 CameraRuntime 读取（降级方案）
@@ -641,14 +678,13 @@ public final class TimelineCameraController {
         keyframe.setPosition(new Vector3f(
                 (float) sample.position().x,
                 (float) sample.position().y,
-                (float) sample.position().z
-        ));
+                (float) sample.position().z));
 
         // rotation.x = pitch, rotation.y = yaw, rotation.z = roll
         keyframe.setRotation(new Vector3f(
-                sample.pitch(),  // x = pitch
-                sample.yaw(),    // y = yaw
-                sample.roll()    // z = roll
+                sample.pitch(), // x = pitch
+                sample.yaw(), // y = yaw
+                sample.roll() // z = roll
         ));
         keyframe.setFov(sample.fov());
         keyframe.setNearPlane(sample.nearPlane());
@@ -668,7 +704,8 @@ public final class TimelineCameraController {
     /**
      * ⭐ v5.0：从指定轨道收集摄像机关键帧
      * 
-     * <p>注意：此方法只收集传入 track 的关键帧，不会遍历所有摄像机轨道。
+     * <p>
+     * 注意：此方法只收集传入 track 的关键帧，不会遍历所有摄像机轨道。
      * 用于确保每条摄像机轨道有独立的路径（多机位系统）。
      * 
      * @param track 目标摄像机轨道（通常为 activeCameraTrack）
@@ -679,7 +716,7 @@ public final class TimelineCameraController {
         if (track == null || track.getType() != TrackType.CAMERA) {
             return result;
         }
-        
+
         // 只收集该轨道上的关键帧，不混入其他轨道的关键帧
         for (TimelineSelectable selectable : track.getAutomationKeyframes()) {
             if (selectable instanceof CameraKeyframe ck) {
@@ -689,7 +726,7 @@ public final class TimelineCameraController {
         result.sort(Comparator.comparing(CameraKeyframe::getTime));
         return result;
     }
-    
+
     /**
      * ⭐ v5.0：检查是否有有效的激活轨道
      */
@@ -702,8 +739,8 @@ public final class TimelineCameraController {
      */
     private boolean isValidCameraTrack(@Nullable TimelineTrack track) {
         return track != null && track.getType() == TrackType.CAMERA &&
-               timelineModel != null &&
-               timelineModel.getTracks().contains(track);
+                timelineModel != null &&
+                timelineModel.getTracks().contains(track);
     }
 
     /**
@@ -711,7 +748,8 @@ public final class TimelineCameraController {
      */
     @Nullable
     private TimelineTrack findFirstCameraTrack() {
-        if (timelineModel == null) return null;
+        if (timelineModel == null)
+            return null;
         for (TimelineTrack track : timelineModel.getTracks()) {
             if (track.getType() == TrackType.CAMERA) {
                 return track;
@@ -724,7 +762,8 @@ public final class TimelineCameraController {
      * 统计当前模型中摄像机轨道的数量
      */
     private int countCameraTracks() {
-        if (timelineModel == null) return 0;
+        if (timelineModel == null)
+            return 0;
         int count = 0;
         for (TimelineTrack track : timelineModel.getTracks()) {
             if (track.getType() == TrackType.CAMERA) {
