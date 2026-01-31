@@ -613,8 +613,7 @@ public final class BlockAnimationEngine {
 
                     effectImpl.render(
                             world,
-                            snapshot.getPos(),
-                            snapshot.getBlockState(),
+                            snapshot,
                             effectT,
                             inst,
                             new java.util.Random(

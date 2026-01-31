@@ -1,10 +1,10 @@
 package com.chronoblocks.core.animation.effect.impl;
 
+import com.chronoblocks.core.animation.BlockAnimationSnapshot;
 import com.chronoblocks.core.animation.effect.EffectInstance;
 import com.chronoblocks.core.animation.effect.IBlockEffect;
 import com.chronoblocks.core.animation.effect.ui.EffectUIHelper;
 import com.chronoblocks.core.animation.effect.ui.EffectUIUtils;
-import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.particle.ParticleManager;
 import net.minecraft.client.world.ClientWorld;
@@ -35,10 +35,13 @@ import java.util.Random;
 public class MagicFlareEffect implements IBlockEffect {
 
     @Override
-    public void render(ClientWorld world, BlockPos pos, BlockState state, float t, EffectInstance inst, Random random) {
-        if (world == null || pos == null || inst == null) {
+    public void render(ClientWorld world, BlockAnimationSnapshot snapshot, float t, EffectInstance inst,
+            Random random) {
+        if (world == null || snapshot == null || inst == null) {
             return;
         }
+
+        BlockPos pos = snapshot.getPos();
 
         float intensity = EffectUIUtils.getFloat(inst.getParams(), "intensity", 0.6f);
         float radius = EffectUIUtils.getFloat(inst.getParams(), "radius", 0.5f);

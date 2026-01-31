@@ -1,8 +1,7 @@
 package com.chronoblocks.core.animation.effect;
 
-import net.minecraft.block.BlockState;
+import com.chronoblocks.core.animation.BlockAnimationSnapshot;
 import net.minecraft.client.world.ClientWorld;
-import net.minecraft.util.math.BlockPos;
 
 import java.util.Collections;
 import java.util.Map;
@@ -20,18 +19,16 @@ import java.util.Random;
 public interface IBlockEffect {
 
     /**
-     * 渲染特效
+     * 执行特效渲染/粒子生成逻辑。
      * 
-     * @param world  客户端世界（用于 spawn 粒子 / 声音等）
-     * @param pos    方块世界坐标
-     * @param state  方块状态
-     * @param t      特效归一化进度 [0,1]
-     * @param inst   当前 EffectInstance 配置（含 startOffset/duration/params）
-     * @param random 针对该方块的稳定随机源
+     * @param world    客户端世界
+     * @param snapshot 当前方块的动画采样快照（包含位置、状态、变换矩阵等）
+     * @param t        特效自身的内部进度 (0.0 -> 1.0)，由 startOffset 和 duration 映射得到
+     * @param inst     当前特效实例的配置（参数、ID等）
+     * @param random   每个方块、每个特效实例独立的随机源
      */
     void render(ClientWorld world,
-            BlockPos pos,
-            BlockState state,
+            BlockAnimationSnapshot snapshot,
             float t,
             EffectInstance inst,
             Random random);

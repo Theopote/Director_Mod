@@ -48,7 +48,8 @@ import org.slf4j.LoggerFactory;
 /**
  * TimelineClip 属性面板适配器（最终清洗版）
  *
- * <p>基于ImGui的属性编辑面板。
+ * <p>
+ * 基于ImGui的属性编辑面板。
  * 修复了旧的字符串硬编码问题，统一了枚举处理逻辑。
  *
  * @author ChronoBlocks Team
@@ -67,10 +68,10 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
 
     // ==== Effects UI state ====
     private final ImInt addEffectSelectedIndex = new ImInt(0);
-    
+
     // 序列行为高级选项折叠
     private final ImBoolean showSequenceAdvanced = new ImBoolean(false);
-    
+
     // Easing曲线预览缓存（避免每帧重新计算）
     private static final int EASING_CURVE_SAMPLES = 100;
     private float[] easingCurveCache = new float[EASING_CURVE_SAMPLES];
@@ -90,7 +91,7 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
                 EASING_FUNCTION_LABELS = buildEasingLabels();
             } catch (Exception e) {
                 LOGGER.error("初始化缓动函数标签失败: {}", e.getMessage(), e);
-                EASING_FUNCTION_LABELS = new String[]{"线性"};
+                EASING_FUNCTION_LABELS = new String[] { "线性" };
             }
         }
         return EASING_FUNCTION_LABELS;
@@ -139,7 +140,9 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
     }
 
     @Override
-    public int getPriority() { return 80; }
+    public int getPriority() {
+        return 80;
+    }
 
     @Override
     public boolean supports(Object target) {
@@ -225,8 +228,8 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
         }
 
         // 4. 特效 && 特效预设组
-        List<EffectInstance> effects = clip.getAnimationConfig() != null ? 
-                clip.getAnimationConfig().getEffects() : java.util.Collections.emptyList();
+        List<EffectInstance> effects = clip.getAnimationConfig() != null ? clip.getAnimationConfig().getEffects()
+                : java.util.Collections.emptyList();
         String effectsHeader = Icons.PARTICLE + " 特效 (Effects)";
         if (!effects.isEmpty()) {
             effectsHeader += " (" + effects.size() + ")";
@@ -301,7 +304,7 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
         ImGui.text("起始时间");
         ImGui.sameLine();
         ImGui.pushItemWidth(inputWidth);
-        float[] startVal = {clip.getStartTime()};
+        float[] startVal = { clip.getStartTime() };
         if (ImGui.dragFloat("##StartTime", startVal, 0.05f, 0f, 10000f, "%.2fs")) {
             clip.setStartTime(Math.max(0f, startVal[0]));
             modified = true;
@@ -318,7 +321,7 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
         ImGui.text("持续时长");
         ImGui.sameLine();
         ImGui.pushItemWidth(inputWidth);
-        float[] lengthVal = {clip.getLength()};
+        float[] lengthVal = { clip.getLength() };
         if (ImGui.dragFloat("##Length", lengthVal, 0.05f, 0.05f, 10000f, "%.2fs")) {
             clip.setLength(lengthVal[0]);
             modified = true;
@@ -333,8 +336,8 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
         float[] colorRGBA = colorIntToFloat(clipColor);
         if (ImGui.colorEdit4("片段颜色", colorRGBA,
                 imgui.flag.ImGuiColorEditFlags.NoAlpha |
-                imgui.flag.ImGuiColorEditFlags.DisplayRGB |
-                imgui.flag.ImGuiColorEditFlags.InputRGB)) {
+                        imgui.flag.ImGuiColorEditFlags.DisplayRGB |
+                        imgui.flag.ImGuiColorEditFlags.InputRGB)) {
             int newColor = colorFloatToInt(colorRGBA);
             clip.setColor(newColor);
             modified = true;
@@ -357,7 +360,7 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
 
         // 淡化透明度控制
         if (clip.isAutoFadePreviousClips()) {
-            float[] opacity = {clip.getAutoFadeOpacity()};
+            float[] opacity = { clip.getAutoFadeOpacity() };
             if (ImGui.sliderFloat("淡化透明度", opacity, 0.05f, 0.95f, "%.2f")) {
                 clip.setAutoFadeOpacity(opacity[0]);
                 modified = true;
@@ -390,11 +393,11 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
         // Post-Animation Fade 设置
         if (ImGui.collapsingHeader("动画后淡化 (Post-Animation Fade)", ImGuiTreeNodeFlags.None)) {
             ImGui.indent();
-            
+
             ImGui.textDisabled("片段动画结束后，可以设置一个淡化阶段，让方块逐渐变透明。");
             UITheme.spacingSmall();
-            
-            float[] fadeStart = {clip.getPostAnimationFadeStart()};
+
+            float[] fadeStart = { clip.getPostAnimationFadeStart() };
             if (ImGui.dragFloat("淡化开始时间 (秒)", fadeStart, 0.1f, 0.0f, 10.0f, "%.1fs")) {
                 clip.setPostAnimationFadeStart(fadeStart[0]);
                 modified = true;
@@ -402,8 +405,8 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip("片段结束后，等待多少秒开始淡化。\n0.0 = 片段结束立即开始淡化。");
             }
-            
-            float[] fadeEnd = {clip.getPostAnimationFadeEnd()};
+
+            float[] fadeEnd = { clip.getPostAnimationFadeEnd() };
             if (ImGui.dragFloat("淡化结束时间 (秒)", fadeEnd, 0.1f, fadeStart[0], 30.0f, "%.1fs")) {
                 clip.setPostAnimationFadeEnd(fadeEnd[0]);
                 modified = true;
@@ -411,25 +414,25 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip("片段结束后，到多少秒时淡化完成。\n必须 >= 淡化开始时间。\n超过此时间后，方块恢复为完全不透明。");
             }
-            
+
             // 显示淡化时间范围提示
             if (fadeEnd[0] > fadeStart[0]) {
                 float fadeDuration = fadeEnd[0] - fadeStart[0];
-                ImGui.textDisabled(String.format("淡化持续时间: %.1f 秒 (从 %.1f 到 %.1f 秒)", 
-                    fadeDuration, fadeStart[0], fadeEnd[0]));
+                ImGui.textDisabled(String.format("淡化持续时间: %.1f 秒 (从 %.1f 到 %.1f 秒)",
+                        fadeDuration, fadeStart[0], fadeEnd[0]));
             } else if (fadeEnd[0] == fadeStart[0] && fadeStart[0] > 0.0f) {
                 ImGui.textColored(0.8f, 0.6f, 0.2f, 1.0f, "⚠ 淡化开始和结束时间相同，淡化效果将立即完成");
             } else {
                 ImGui.textDisabled("淡化功能已禁用（开始和结束时间均为 0）");
             }
-            
+
             ImGui.unindent();
         }
 
         return modified;
     }
 
-private boolean renderAnimationSettings(TimelineClip clip) {
+    private boolean renderAnimationSettings(TimelineClip clip) {
         try {
             return renderAnimationSettingsInternal(clip);
         } catch (Exception e) {
@@ -442,12 +445,13 @@ private boolean renderAnimationSettings(TimelineClip clip) {
     /**
      * 渲染动画设置（内部实现）
      *
-     * <p>结构：
+     * <p>
+     * 结构：
      * <ul>
-     *   <li>1. 总体节奏（模式 + 时长）</li>
-     *   <li>2. 缓动曲线（枚举 + 曲线预览）</li>
-     *   <li>3. 动画模式参数（位移 / 缩放 / 旋转等）</li>
-     *   <li>4. 高级修饰（透明度 / 闪白光等）</li>
+     * <li>1. 总体节奏（模式 + 时长）</li>
+     * <li>2. 缓动曲线（枚举 + 曲线预览）</li>
+     * <li>3. 动画模式参数（位移 / 缩放 / 旋转等）</li>
+     * <li>4. 高级修饰（透明度 / 闪白光等）</li>
      * </ul>
      */
     private boolean renderAnimationSettingsInternal(TimelineClip clip) {
@@ -484,263 +488,265 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         String sectionTitle = "动画模式与节奏";
         UITheme.label(sectionTitle, UITheme.DarkTheme.TEXT_SELECTED);
 
-            // 片段阶段：容器片段固定为 ENTER
-            com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase desiredPhase =
-                    com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase.ENTER;
-            if (config.getPhase() != desiredPhase) {
-                config.setPhase(desiredPhase);
-                modified = true;
-            }
+        // 片段阶段：容器片段固定为 ENTER
+        com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase desiredPhase = com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase.ENTER;
+        if (config.getPhase() != desiredPhase) {
+            config.setPhase(desiredPhase);
+            modified = true;
+        }
 
-            final com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase finalPhase = desiredPhase;
+        final com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase finalPhase = desiredPhase;
 
-            // 模式选择（按阶段过滤）
-            AnimationMode[] availableModes = new AnimationMode[]{AnimationMode.INSTANT, AnimationMode.FADE_IN, AnimationMode.GROW_UP, AnimationMode.ASSEMBLE, AnimationMode.FALL_DOWN, AnimationMode.RISE_UP, AnimationMode.FLY_IN, AnimationMode.POP_IN, AnimationMode.SHAKER};
+        // 模式选择（按阶段过滤）
+        AnimationMode[] availableModes = new AnimationMode[] { AnimationMode.INSTANT, AnimationMode.FADE_IN,
+                AnimationMode.GROW_UP, AnimationMode.ASSEMBLE, AnimationMode.FALL_DOWN, AnimationMode.RISE_UP,
+                AnimationMode.FLY_IN, AnimationMode.POP_IN, AnimationMode.SHAKER };
 
         // 同一个 mode 在 Exit/Enter 阶段语义可能相反：显示名做一次用户友好化
         String[] availableLabels = java.util.Arrays.stream(availableModes)
-                    .map(AnimationMode::getDisplayName)
-                    .toArray(String[]::new);
-            int selectedIdx = 0;
+                .map(AnimationMode::getDisplayName)
+                .toArray(String[]::new);
+        int selectedIdx = 0;
+        for (int i = 0; i < availableModes.length; i++) {
+            if (availableModes[i] == currentMode) {
+                selectedIdx = i;
+                break;
+            }
+        }
+        // 当前 mode 不在可选列表：自动纠正到更合理的默认值
+        if (selectedIdx == 0 && currentMode != availableModes[0]) {
+            AnimationMode fallback = AnimationMode.FADE_IN;
+            config.setMode(fallback);
+            currentMode = fallback;
             for (int i = 0; i < availableModes.length; i++) {
                 if (availableModes[i] == currentMode) {
                     selectedIdx = i;
                     break;
                 }
             }
-            // 当前 mode 不在可选列表：自动纠正到更合理的默认值
-            if (selectedIdx == 0 && currentMode != availableModes[0]) {
-                AnimationMode fallback = AnimationMode.FADE_IN;
-                config.setMode(fallback);
-                currentMode = fallback;
-                for (int i = 0; i < availableModes.length; i++) {
-                    if (availableModes[i] == currentMode) {
-                        selectedIdx = i;
-                        break;
-                    }
-                }
-                modified = true;
+            modified = true;
+        }
+        animationModeIndex.set(selectedIdx);
+
+        ImGui.pushItemWidth(ImGui.getContentRegionAvailX());
+        if (ImGui.combo("##AnimMode", animationModeIndex, availableLabels)) {
+            int newIndex = animationModeIndex.get();
+            if (newIndex < 0 || newIndex >= availableModes.length) {
+                newIndex = 0;
             }
-            animationModeIndex.set(selectedIdx);
+            AnimationMode newMode = availableModes[newIndex];
+            config.setMode(newMode);
+            currentMode = newMode;
 
-            ImGui.pushItemWidth(ImGui.getContentRegionAvailX());
-            if (ImGui.combo("##AnimMode", animationModeIndex, availableLabels)) {
-                int newIndex = animationModeIndex.get();
-                if (newIndex < 0 || newIndex >= availableModes.length) {
-                    newIndex = 0;
-                }
-                AnimationMode newMode = availableModes[newIndex];
-                config.setMode(newMode);
-                currentMode = newMode;
+            // 智能默认缓动函数和参数重置
+            try {
+                IAnimationTransformer transformer = AnimationTransformerFactory.getInstance().getTransformer(newMode);
+                if (transformer != null) {
+                    // 设置推荐的缓动函数
+                    String recommended = transformer.getRecommendedEasing();
+                    if (recommended != null && !recommended.isEmpty()) {
+                        config.setEasing(recommended);
+                        currentEasing = recommended;
+                    }
 
-                // 智能默认缓动函数和参数重置
-                try {
-                    IAnimationTransformer transformer = AnimationTransformerFactory.getInstance().getTransformer(newMode);
-                    if (transformer != null) {
-                        // 设置推荐的缓动函数
-                        String recommended = transformer.getRecommendedEasing();
-                        if (recommended != null && !recommended.isEmpty()) {
-                            config.setEasing(recommended);
-                            currentEasing = recommended;
-                        }
-                        
-                        // 重置参数：清除旧参数，填充新模式的默认参数
-                        Map<String, Object> params = config.getParams();
-                        Map<String, Object> defaultParams = transformer.getDefaultParams();
-                        if (defaultParams != null) {
-                            // 清除所有旧参数（但保留高级修饰参数）
-                            boolean opacityFadeValue = params.containsKey("opacityFade") && 
+                    // 重置参数：清除旧参数，填充新模式的默认参数
+                    Map<String, Object> params = config.getParams();
+                    Map<String, Object> defaultParams = transformer.getDefaultParams();
+                    if (defaultParams != null) {
+                        // 清除所有旧参数（但保留高级修饰参数）
+                        boolean opacityFadeValue = params.containsKey("opacityFade") &&
                                 (params.get("opacityFade") instanceof Boolean b ? b : false);
-                            float opacityFadeIntensity = 1.0f;
-                            if (params.containsKey("opacityFadeIntensity")) {
-                                Object intensityObj = params.get("opacityFadeIntensity");
-                                if (intensityObj instanceof Number num) {
-                                    opacityFadeIntensity = num.floatValue();
-                                } else if (intensityObj instanceof String str) {
-                                    try {
-                                        opacityFadeIntensity = Float.parseFloat(str);
-                                    } catch (NumberFormatException e) {
-                                        throw new RuntimeException(e);
-                                    }
+                        float opacityFadeIntensity = 1.0f;
+                        if (params.containsKey("opacityFadeIntensity")) {
+                            Object intensityObj = params.get("opacityFadeIntensity");
+                            if (intensityObj instanceof Number num) {
+                                opacityFadeIntensity = num.floatValue();
+                            } else if (intensityObj instanceof String str) {
+                                try {
+                                    opacityFadeIntensity = Float.parseFloat(str);
+                                } catch (NumberFormatException e) {
+                                    throw new RuntimeException(e);
                                 }
                             }
-                            
-                            params.clear();
-                            
-                            // 填充新模式的默认参数
-                            params.putAll(defaultParams);
-                            
-                            // 恢复高级修饰参数
-                            params.put("opacityFade", opacityFadeValue);
-                            params.put("opacityFadeIntensity", opacityFadeIntensity);
                         }
+
+                        params.clear();
+
+                        // 填充新模式的默认参数
+                        params.putAll(defaultParams);
+
+                        // 恢复高级修饰参数
+                        params.put("opacityFade", opacityFadeValue);
+                        params.put("opacityFadeIntensity", opacityFadeIntensity);
                     }
-                } catch (Exception e) {
-                    LOGGER.warn("获取推荐缓动函数时出错: {}", e.getMessage());
+                }
+            } catch (Exception e) {
+                LOGGER.warn("获取推荐缓动函数时出错: {}", e.getMessage());
+            }
+
+            modified = true;
+        }
+        ImGui.popItemWidth();
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("选择出现片段的入场方式");
+        }
+
+        // 模式描述（来自 AnimationMode 描述，个别 Exit 模式做友好化）
+        // UITheme.spacingSmall();
+        try {
+            drawHelpBox(currentMode.getDescription());
+        } catch (Exception e) {
+            LOGGER.error("显示模式描述时出错: {}", e.getMessage(), e);
+        }
+
+        // 动画时长（相对于片段长度的绝对秒数）
+        // UITheme.spacingSmall();
+        float[] duration = { config.getDuration() };
+        if (ImGui.dragFloat("动画时长 (秒)", duration, 0.05f, 0.0f, clip.getLength(), "%.2fs")) {
+            if (duration[0] < 0.0f)
+                duration[0] = 0.0f;
+            config.setDuration(duration[0]);
+            modified = true;
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("控制单个方块从开始运动到完全就位所用的时间。\n" +
+                    "建议不超过片段总时长。");
+        }
+
+        // ===== 动画模式特定参数（显示在"动画模式与节奏"部分内）=====
+        UITheme.spacingSmall();
+        Map<String, Object> params = config.getParams();
+
+        // 填入默认值，避免 NPE
+        try {
+            IAnimationTransformer transformer = AnimationTransformerFactory.getInstance().getTransformer(currentMode);
+            if (transformer != null) {
+                Map<String, Object> defaultParams = transformer.getDefaultParams();
+                if (defaultParams != null) {
+                    defaultParams.forEach(params::putIfAbsent);
                 }
 
+                // 直接使用 ImGui 渲染参数（不依赖 UIHelper 的反射）
+                try {
+                    boolean paramsModified = renderAnimationParamsDirectly(currentMode, params);
+                    if (paramsModified) {
+                        modified = true;
+                    }
+                } catch (Exception e) {
+                    LOGGER.warn("渲染动画参数时出错: {}", e.getMessage(), e);
+                    ImGui.textColored(1.0f, 0.5f, 0.0f, 1.0f, "⚠ 参数渲染失败: " + e.getMessage());
+                }
+            } else {
+                LOGGER.warn("未找到动画模式 {} 对应的 Transformer", currentMode);
+                ImGui.textDisabled("⚠ 未找到动画模式实现");
+            }
+        } catch (Exception e) {
+            LOGGER.error("渲染动画参数时出错: {}", e.getMessage(), e);
+            ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, "错误: " + e.getMessage());
+        }
+
+        UITheme.separator();
+
+        // ===== 2. 缓动曲线：枚举 + 曲线预览 =====
+        UITheme.label("缓动曲线 (Easing)", UITheme.DarkTheme.TEXT_SELECTED);
+
+        // 解析当前缓动
+        EasingFunction currentEasingFunc;
+        try {
+            currentEasingFunc = EasingFunction.fromString(currentEasing);
+        } catch (Exception e) {
+            currentEasingFunc = EasingFunction.LINEAR;
+        }
+
+        int easingOrdinal = currentEasingFunc.ordinal();
+        String[] easingLabels = getEasingFunctionLabels();
+        if (easingOrdinal >= easingLabels.length) {
+            easingOrdinal = 0;
+        }
+        easingFunctionIndex.set(easingOrdinal);
+
+        ImGui.pushItemWidth(ImGui.getContentRegionAvailX());
+        if (ImGui.combo("##Easing", easingFunctionIndex, easingLabels)) {
+            int newIdx = easingFunctionIndex.get();
+            if (newIdx < 0 || newIdx >= EasingFunction.values().length) {
+                newIdx = 0;
+            }
+            EasingFunction newFunc = EasingFunction.values()[newIdx];
+            config.setEasing(newFunc.name());
+            currentEasingFunc = newFunc;
+            modified = true;
+        }
+        ImGui.popItemWidth();
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(currentEasingFunc.getDescription());
+        }
+
+        // UITheme.spacingSmall();
+        // 可视化曲线预览（你已经实现了）
+        renderEasingCurvePreview(currentEasingFunc);
+
+        UITheme.separator();
+
+        // ===== 4. 高级修饰（透明度 / 闪白光 / 重置） =====
+        UITheme.label("高级修饰 (Advanced)", UITheme.DarkTheme.TEXT_SELECTED);
+
+        // 透明度淡入
+        opacityFade.set(getBooleanParam(params));
+        if (ImGui.checkbox("透明度淡入", opacityFade)) {
+            params.put("opacityFade", opacityFade.get());
+            modified = true;
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("勾选后，动画过程中会从完全透明逐渐变为不透明。");
+        }
+
+        // 强度（仅在开启时显示）
+        if (opacityFade.get()) {
+            ImGui.sameLine();
+            float fadeIntensity = getFloatParam(params);
+            float[] fadeArr = { fadeIntensity };
+            ImGui.pushItemWidth(100.0f);
+            if (ImGui.dragFloat("##FadeIntensity", fadeArr, 0.05f, 0.1f, 2.0f, "强度: %.2f")) {
+                fadeIntensity = fadeArr[0];
+                params.put("opacityFadeIntensity", fadeIntensity);
                 modified = true;
             }
             ImGui.popItemWidth();
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("选择出现片段的入场方式");
+                ImGui.setTooltip("控制淡入的速度：>1 慢，<1 快。");
             }
+        }
 
-            // 模式描述（来自 AnimationMode 描述，个别 Exit 模式做友好化）
-            //UITheme.spacingSmall();
+        // 闪白光已归入「特效系统」（EffectInstance: FLASH_WHITE），避免“UI 有开关但运行时不生效”的情况。
+        ImGui.textDisabled("提示：闪白光请在下方「特效」面板添加 FLASH_WHITE（或使用特效预设包）。");
+
+        if (ImGui.button("恢复当前模式默认参数")) {
             try {
-                drawHelpBox(currentMode.getDescription());
-            } catch (Exception e) {
-                LOGGER.error("显示模式描述时出错: {}", e.getMessage(), e);
-            }
-
-            // 动画时长（相对于片段长度的绝对秒数）
-            //UITheme.spacingSmall();
-            float[] duration = {config.getDuration()};
-            if (ImGui.dragFloat("动画时长 (秒)", duration, 0.05f, 0.0f, clip.getLength(), "%.2fs")) {
-                if (duration[0] < 0.0f) duration[0] = 0.0f;
-                config.setDuration(duration[0]);
-                modified = true;
-            }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("控制单个方块从开始运动到完全就位所用的时间。\n" +
-                                 "建议不超过片段总时长。");
-            }
-
-            // ===== 动画模式特定参数（显示在"动画模式与节奏"部分内）=====
-            UITheme.spacingSmall();
-            Map<String, Object> params = config.getParams();
-
-            // 填入默认值，避免 NPE
-            try {
-                IAnimationTransformer transformer = AnimationTransformerFactory.getInstance().getTransformer(currentMode);
+                IAnimationTransformer transformer = AnimationTransformerFactory.getInstance()
+                        .getTransformer(currentMode);
                 if (transformer != null) {
                     Map<String, Object> defaultParams = transformer.getDefaultParams();
                     if (defaultParams != null) {
-                        defaultParams.forEach(params::putIfAbsent);
+                        params.clear();
+                        params.putAll(defaultParams);
+                        // 高级修饰默认关闭
+                        params.put("opacityFade", false);
+                        params.put("opacityFadeIntensity", 1.0f);
+                        opacityFade.set(false);
+                        modified = true;
                     }
-                    
-                    // 直接使用 ImGui 渲染参数（不依赖 UIHelper 的反射）
-                    try {
-                        boolean paramsModified = renderAnimationParamsDirectly(currentMode, params);
-                        if (paramsModified) {
-                            modified = true;
-                        }
-                    } catch (Exception e) {
-                        LOGGER.warn("渲染动画参数时出错: {}", e.getMessage(), e);
-                        ImGui.textColored(1.0f, 0.5f, 0.0f, 1.0f, "⚠ 参数渲染失败: " + e.getMessage());
-                    }
-                } else {
-                    LOGGER.warn("未找到动画模式 {} 对应的 Transformer", currentMode);
-                    ImGui.textDisabled("⚠ 未找到动画模式实现");
                 }
             } catch (Exception e) {
-                LOGGER.error("渲染动画参数时出错: {}", e.getMessage(), e);
-                ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, "错误: " + e.getMessage());
+                LOGGER.error("恢复默认值时出错: {}", e.getMessage(), e);
+                ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, "恢复失败: " + e.getMessage());
             }
-
-            UITheme.separator();
-
-            // ===== 2. 缓动曲线：枚举 + 曲线预览 =====
-            UITheme.label("缓动曲线 (Easing)", UITheme.DarkTheme.TEXT_SELECTED);
-
-            // 解析当前缓动
-            EasingFunction currentEasingFunc;
-            try {
-                currentEasingFunc = EasingFunction.fromString(currentEasing);
-            } catch (Exception e) {
-                currentEasingFunc = EasingFunction.LINEAR;
-            }
-
-            int easingOrdinal = currentEasingFunc.ordinal();
-            String[] easingLabels = getEasingFunctionLabels();
-            if (easingOrdinal >= easingLabels.length) {
-                easingOrdinal = 0;
-            }
-            easingFunctionIndex.set(easingOrdinal);
-
-            ImGui.pushItemWidth(ImGui.getContentRegionAvailX());
-            if (ImGui.combo("##Easing", easingFunctionIndex, easingLabels)) {
-                int newIdx = easingFunctionIndex.get();
-                if (newIdx < 0 || newIdx >= EasingFunction.values().length) {
-                    newIdx = 0;
-                }
-                EasingFunction newFunc = EasingFunction.values()[newIdx];
-                config.setEasing(newFunc.name());
-                currentEasingFunc = newFunc;
-                modified = true;
-            }
-            ImGui.popItemWidth();
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(currentEasingFunc.getDescription());
-            }
-
-            //UITheme.spacingSmall();
-            // 可视化曲线预览（你已经实现了）
-            renderEasingCurvePreview(currentEasingFunc);
-
-            UITheme.separator();
-
-            // ===== 4. 高级修饰（透明度 / 闪白光 / 重置） =====
-            UITheme.label("高级修饰 (Advanced)", UITheme.DarkTheme.TEXT_SELECTED);
-
-            // 透明度淡入
-            opacityFade.set(getBooleanParam(params));
-            if (ImGui.checkbox("透明度淡入", opacityFade)) {
-                params.put("opacityFade", opacityFade.get());
-                modified = true;
-            }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("勾选后，动画过程中会从完全透明逐渐变为不透明。");
-            }
-
-            // 强度（仅在开启时显示）
-            if (opacityFade.get()) {
-                ImGui.sameLine();
-                float fadeIntensity = getFloatParam(params);
-                float[] fadeArr = {fadeIntensity};
-                ImGui.pushItemWidth(100.0f);
-                if (ImGui.dragFloat("##FadeIntensity", fadeArr, 0.05f, 0.1f, 2.0f, "强度: %.2f")) {
-                    fadeIntensity = fadeArr[0];
-                    params.put("opacityFadeIntensity", fadeIntensity);
-                    modified = true;
-                }
-                ImGui.popItemWidth();
-                if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("控制淡入的速度：>1 慢，<1 快。");
-                }
-            }
-
-            // 闪白光已归入「特效系统」（EffectInstance: FLASH_WHITE），避免“UI 有开关但运行时不生效”的情况。
-            ImGui.textDisabled("提示：闪白光请在下方「特效」面板添加 FLASH_WHITE（或使用特效预设包）。");
-
-            if (ImGui.button("恢复当前模式默认参数")) {
-                try {
-                    IAnimationTransformer transformer = AnimationTransformerFactory.getInstance().getTransformer(currentMode);
-                    if (transformer != null) {
-                        Map<String, Object> defaultParams = transformer.getDefaultParams();
-                        if (defaultParams != null) {
-                            params.clear();
-                            params.putAll(defaultParams);
-                            // 高级修饰默认关闭
-                            params.put("opacityFade", false);
-                            params.put("opacityFadeIntensity", 1.0f);
-                            opacityFade.set(false);
-                            modified = true;
-                        }
-                    }
-                } catch (Exception e) {
-                    LOGGER.error("恢复默认值时出错: {}", e.getMessage(), e);
-                    ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, "恢复失败: " + e.getMessage());
-                }
-            }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("将当前动画模式的参数全部恢复为默认值。");
-            }
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("将当前动画模式的参数全部恢复为默认值。");
+        }
 
         return modified;
     }
-
 
     // ========== 工具方法 ==========
 
@@ -751,7 +757,8 @@ private boolean renderAnimationSettings(TimelineClip clip) {
      * @return 参数值或默认值
      */
     private float getFloatParam(Map<String, Object> params) {
-        if (params == null) return (float) 1.0;
+        if (params == null)
+            return (float) 1.0;
         Object val = params.get("opacityFadeIntensity");
         switch (val) {
             case null -> {
@@ -783,7 +790,8 @@ private boolean renderAnimationSettings(TimelineClip clip) {
      * @return 参数值或默认值
      */
     private boolean getBooleanParam(Map<String, Object> params) {
-        if (params == null) return false;
+        if (params == null)
+            return false;
         Object val = params.get("opacityFade");
         if (val == null) {
             return false;
@@ -798,15 +806,14 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         };
     }
 
-
     /**
      * 渲染「序列行为」面板
      * <p>
      * 新版 UI 采用 Flow + Fill + Origin + Weight + Modifiers 的 3 步流水线：
      * <p>
-     * 1. 切分方式 (Flow)  —— 决定整体波浪的方向/形状（按层、球形、柱形、随机）
+     * 1. 切分方式 (Flow) —— 决定整体波浪的方向/形状（按层、球形、柱形、随机）
      * 2. 起始锚点 (Origin) —— 决定从哪里开始（底部中心、几何中心、自定义）
-     * 3. 内部填充 (Fill)  —— 决定局部纹理（线性扫描、径向、螺旋、噪点）
+     * 3. 内部填充 (Fill) —— 决定局部纹理（线性扫描、径向、螺旋、噪点）
      * 4. 层级分离度 + 修饰 —— 实现"严格分层 / 软过渡 + 反向 / 往复"
      */
     private boolean renderSequenceBehavior(TimelineClip clip) {
@@ -836,38 +843,38 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         UITheme.label("排序策略预设（Sequence）", UITheme.DarkTheme.TEXT_SELECTED);
         // 定义所有预设按钮的标签和配置
         String[] presetLabels = {
-            "顺序(默认)",
-            "随机",
-            "扩散(中心" + Icons.ARROW_RIGHT + "外)",
-            "螺旋",
-            "切片(逐层)",
-            "波浪"
+                "顺序(默认)",
+                "随机",
+                "扩散(中心" + Icons.ARROW_RIGHT + "外)",
+                "螺旋",
+                "切片(逐层)",
+                "波浪"
         };
-        
+
         // 记录按钮起始位置，用于换行后对齐
         float buttonsStartX = ImGui.getCursorPosX();
-        
+
         // 渲染所有按钮，支持自动换行
         for (int i = 0; i < presetLabels.length; i++) {
             String label = presetLabels[i];
-            
+
             // 计算按钮宽度（文本宽度 + 内边距）
             float textWidth = ImGui.calcTextSize(label).x;
             float paddingX = ImGui.getStyle().getFramePadding().x * 2.0f;
             float buttonWidth = textWidth + paddingX;
-            
+
             // 如果不是第一个按钮，先回到上一项末尾，然后检查是否需要换行
             if (i > 0) {
                 ImGui.sameLine();
             }
-            
+
             // 检查是否需要换行：如果当前行放不下，则换行
             float availWidth = ImGui.getContentRegionAvailX();
             if (buttonWidth > availWidth) {
                 ImGui.newLine();
                 ImGui.setCursorPosX(buttonsStartX);
             }
-            
+
             // 渲染按钮并处理点击
             if (ImGui.button(label)) {
                 switch (i) {
@@ -915,7 +922,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                 }
                 modified = true;
             }
-            
+
             // 为最后一个按钮显示工具提示
             if (i == presetLabels.length - 1 && ImGui.isItemHovered()) {
                 ImGui.setTooltip("这些预设等价于旧的\"随机/扩散/螺旋/切片/波浪\"等模式，但现在它们属于排序策略。\n" +
@@ -955,7 +962,8 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         return modified;
     }
 
-    private boolean renderSequenceTimingSection(TimelineClip clip, ClipAnimationConfig config, SequenceParameters params) {
+    private boolean renderSequenceTimingSection(TimelineClip clip, ClipAnimationConfig config,
+            SequenceParameters params) {
         boolean modified = false;
 
         UITheme.label("5. 节奏/并发 (Timing)", UITheme.DarkTheme.TEXT_SELECTED);
@@ -989,7 +997,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         }
 
         // 全局延迟（叠加到 ClipAnimationConfig.delay 上）
-        float[] globalDelay = {params.getGlobalDelay()};
+        float[] globalDelay = { params.getGlobalDelay() };
         if (ImGui.dragFloat("序列全局延迟 (秒)", globalDelay, 0.05f, 0.0f, 30.0f, "%.2fs")) {
             params.setGlobalDelay(globalDelay[0]);
             modified = true;
@@ -1005,12 +1013,12 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                 || params.getTimeMappingStrategy() == TimeMappingStrategy.STAGGERED;
 
         if (needsBatch) {
-            int[] bs = {params.getBatchSize()};
+            int[] bs = { params.getBatchSize() };
             if (ImGui.dragInt("批次大小 (batchSize)", bs, 1, 1, 10_000)) {
                 params.setBatchSize(bs[0]);
                 modified = true;
             }
-            float[] bi = {params.getBatchInterval()};
+            float[] bi = { params.getBatchInterval() };
             if (ImGui.dragFloat("批次间隔 (秒)", bi, 0.01f, 0.0f, 10.0f, "%.2fs")) {
                 params.setBatchInterval(bi[0]);
                 modified = true;
@@ -1019,7 +1027,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                 ImGui.setTooltip("批与批之间的间隔时间。实际播放会根据片段时长自动缩放/裁剪，避免排不下。");
             }
         } else if (needsGroupGap) {
-            float[] gi = {params.getBatchInterval()};
+            float[] gi = { params.getBatchInterval() };
             if (ImGui.dragFloat("组间隔 (秒)", gi, 0.01f, 0.0f, 10.0f, "%.2fs")) {
                 // 复用 batchInterval 作为组间隔（避免新增字段破坏存档）
                 params.setBatchInterval(gi[0]);
@@ -1034,8 +1042,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         ImGui.textDisabled(String.format("片段长度 %.2fs / 动画时长 %.2fs / delay(含序列) %.2fs",
                 clip.getLength(),
                 config != null ? config.getDuration() : 0.0f,
-                (config != null ? Math.max(0.0f, config.getDelay()) : 0.0f) + Math.max(0.0f, params.getGlobalDelay())
-        ));
+                (config != null ? Math.max(0.0f, config.getDelay()) : 0.0f) + Math.max(0.0f, params.getGlobalDelay())));
 
         return modified;
     }
@@ -1043,11 +1050,11 @@ private boolean renderAnimationSettings(TimelineClip clip) {
     /**
      * 1. 切分方式 Flow（两级选择：切分方式 + 平面方向）
      * <p>
-     * NONE       - 不切分（整体）
-     * PLANAR     - 平面切分（X/Y/Z/自定义角度）
-     * SPHERICAL  - 球形扩散
+     * NONE - 不切分（整体）
+     * PLANAR - 平面切分（X/Y/Z/自定义角度）
+     * SPHERICAL - 球形扩散
      * CYLINDRICAL - 柱形扩散
-     * RANDOM     - 完全随机
+     * RANDOM - 完全随机
      */
     private boolean renderSequenceFlowSection(SequenceParameters params) {
         boolean modified = false;
@@ -1066,13 +1073,13 @@ private boolean renderAnimationSettings(TimelineClip clip) {
 
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("""
-                决定整体"波浪"如何在建筑中推进：
-                • 不切分：整体作为一个单元，只由内部填充决定顺序
-                • 平面切分：像扫描仪/盖楼一样一片片推进
-                • 球形扩散：从中心向外生长或爆炸
-                • 柱形扩散：从中心向外，但忽略高度
-                • 完全随机：没有明显流向，偏自然/噪点
-                """);
+                    决定整体"波浪"如何在建筑中推进：
+                    • 不切分：整体作为一个单元，只由内部填充决定顺序
+                    • 平面切分：像扫描仪/盖楼一样一片片推进
+                    • 球形扩散：从中心向外生长或爆炸
+                    • 柱形扩散：从中心向外，但忽略高度
+                    • 完全随机：没有明显流向，偏自然/噪点
+                    """);
         }
 
         // 仅在 PLANAR 模式下显示平面方向选择
@@ -1120,9 +1127,9 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                 }
                 if (ImGui.isItemHovered()) {
                     ImGui.setTooltip("""
-                        • Yaw：绕竖直轴旋转（0°=沿 Z 方向，90°=沿 X 方向）
-                        • Pitch：0° 垂直切片，90° 水平切层
-                        """);
+                            • Yaw：绕竖直轴旋转（0°=沿 Z 方向，90°=沿 X 方向）
+                            • Pitch：0° 垂直切片，90° 水平切层
+                            """);
                 }
             }
 
@@ -1158,7 +1165,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                     // 要让远处的方块先出现（更小的分数），需要让远处的点积为负
                     // 所以使用 -dir 作为 normal，这样远处的方块 rel.dotProduct(-dir) 为负且绝对值大
                     dir = dir.normalize().multiply(-1.0);
-                    
+
                     // 与 SequenceEvaluator.getNormalFromAngles 的参数约定一致：
                     // x = cos(pitch)*sin(yaw), z = cos(pitch)*cos(yaw), y = sin(pitch)
                     float yaw = (float) Math.toDegrees(Math.atan2(dir.x, dir.z));
@@ -1210,7 +1217,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         // 柱形扩散：仅允许中心/底部中心
         OriginType[] availableOrigins;
         if (flow == FlowType.CYLINDRICAL) {
-            availableOrigins = new OriginType[]{OriginType.BOTTOM_CENTER, OriginType.CENTER};
+            availableOrigins = new OriginType[] { OriginType.BOTTOM_CENTER, OriginType.CENTER };
             // 如果当前是CUSTOM，自动重置为BOTTOM_CENTER
             if (params.getOriginType() == OriginType.CUSTOM || params.getOriginType() == OriginType.MIN_CORNER) {
                 params.setOriginType(OriginType.BOTTOM_CENTER);
@@ -1244,18 +1251,18 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         if (ImGui.isItemHovered()) {
             if (flow == FlowType.CYLINDRICAL) {
                 ImGui.setTooltip("""
-                    柱形扩散的起点选项：
-                    • 底部中心：从地面中心向外扩散
-                    • 几何中心：从整体中心向外扩散
-                    """);
+                        柱形扩散的起点选项：
+                        • 底部中心：从地面中心向外扩散
+                        • 几何中心：从整体中心向外扩散
+                        """);
             } else {
                 ImGui.setTooltip("""
-                    决定序列的"起点"：
-                    • 最小角：从容器原点（通常是一角）开始
-                    • 几何中心：从整体中心向外
-                    • 底部中心：从地面中心往上，适合树/建筑生长
-                    • 自定义：从你指定的坐标开始
-                    """);
+                        决定序列的"起点"：
+                        • 最小角：从容器原点（通常是一角）开始
+                        • 几何中心：从整体中心向外
+                        • 底部中心：从地面中心往上，适合树/建筑生长
+                        • 自定义：从你指定的坐标开始
+                        """);
             }
         }
 
@@ -1293,14 +1300,14 @@ private boolean renderAnimationSettings(TimelineClip clip) {
 
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("""
-                决定每一片区域内部的填充轨迹：
-                • 线性扫描：像打印机/扫描仪一样一行行扫过去
-                • 打印机扫描：先分行，再行内逐个（支持蛇形往返）
-                • 径向扩散：从切片中心向两边扩散
-                • 螺旋：绕中心画圈推进
-                • 平滑噪声：Perlin噪声，适合自然碎块/云状效果
-                • 泛洪蔓延：从起点沿相邻方块蔓延（BFS），适合火焰/藤蔓/生长感
-                """);
+                    决定每一片区域内部的填充轨迹：
+                    • 线性扫描：像打印机/扫描仪一样一行行扫过去
+                    • 打印机扫描：先分行，再行内逐个（支持蛇形往返）
+                    • 径向扩散：从切片中心向两边扩散
+                    • 螺旋：绕中心画圈推进
+                    • 平滑噪声：Perlin噪声，适合自然碎块/云状效果
+                    • 泛洪蔓延：从起点沿相邻方块蔓延（BFS），适合火焰/藤蔓/生长感
+                    """);
         }
 
         // RASTER 专属参数：行内扫描方向 / 换行步长 / 蛇形
@@ -1358,12 +1365,12 @@ private boolean renderAnimationSettings(TimelineClip clip) {
 
             if (ImGui.isItemHovered()) {
                 ImGui.setTooltip("""
-                    决定每层泛洪蔓延的起点：
-                    • 每层中心：从该切片的几何中心开始蔓延
-                    • 每层最小角：从该切片的 (minX,minY,minZ) 开始
-                    • 每层随机点：每层随机挑选一个方块作为起点
-                    • 全局随机：整个容器随机1个点，从上到下蔓延
-                    """);
+                        决定每层泛洪蔓延的起点：
+                        • 每层中心：从该切片的几何中心开始蔓延
+                        • 每层最小角：从该切片的 (minX,minY,minZ) 开始
+                        • 每层随机点：每层随机挑选一个方块作为起点
+                        • 全局随机：整个容器随机1个点，从上到下蔓延
+                        """);
             }
         }
 
@@ -1403,7 +1410,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         } catch (Exception ignored) {
         }
 
-        return new String[]{
+        return new String[] {
                 "行内扫描方向：" + axisU,
                 "行内扫描方向：" + axisV
         };
@@ -1432,10 +1439,10 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("""
-                控制 Flow 与 Fill 的混合程度：
-                • 0%：像流水一样整体推进，层与层之间模糊过渡
-                • 100%：当前层完全盖好后，才会开始下一层
-                """);
+                    控制 Flow 与 Fill 的混合程度：
+                    • 0%：像流水一样整体推进，层与层之间模糊过渡
+                    • 100%：当前层完全盖好后，才会开始下一层
+                    """);
         }
 
         // 可视化提示：用文本模拟进度条
@@ -1449,12 +1456,11 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         ImGui.textDisabled(bar.toString());
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("""
-                提示：
-                0%  = 柔和过渡（像水流）
-                100% = 严格分层（必须先完成上一层）
-                """);
+                    提示：
+                    0%  = 柔和过渡（像水流）
+                    100% = 严格分层（必须先完成上一层）
+                    """);
         }
-
 
         // 修饰符
         ImGui.textDisabled("修饰：");
@@ -1478,10 +1484,10 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("""
-                在相邻"层"之间交替反转内部填充顺序：
-                • 第一层从左到右，第二层从右到左，第三层再从左到右…
-                类似蛇形走位/耕地轨迹。
-                """);
+                    在相邻"层"之间交替反转内部填充顺序：
+                    • 第一层从左到右，第二层从右到左，第三层再从左到右…
+                    类似蛇形走位/耕地轨迹。
+                    """);
         }
 
         return modified;
@@ -1490,11 +1496,12 @@ private boolean renderAnimationSettings(TimelineClip clip) {
     /**
      * 渲染「特效系统」面板（新版）
      * 
-     * <p>结构：
+     * <p>
+     * 结构：
      * <ul>
-     *   <li>1. 预设特效包（一键应用组合特效）</li>
-     *   <li>2. 已添加特效列表（带时间轴可视化）</li>
-     *   <li>3. 添加新特效按钮</li>
+     * <li>1. 预设特效包（一键应用组合特效）</li>
+     * <li>2. 已添加特效列表（带时间轴可视化）</li>
+     * <li>3. 添加新特效按钮</li>
      * </ul>
      */
     private boolean renderEffectsSection(TimelineClip clip) {
@@ -1509,90 +1516,117 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         // ✅ 旧高级参数迁移（保证旧片段“闪白光”等效果不会丢）
         com.chronoblocks.core.animation.LegacyAdvancedParamsMigrator.migrateIfNeeded(config);
 
-        // ========== 0. 快捷开关（本质也是在操作 EffectInstance 列表） ==========
-        UITheme.label("快捷特效", UITheme.DarkTheme.TEXT_SELECTED);
-        boolean hasFlash = hasEffectType(config, EffectType.FLASH_WHITE);
-        boolean hasDust = hasEffectType(config, EffectType.DUST_BURST);
+        // ========== 1. 快捷添加 (Quick Add / Shortcuts) ==========
+        UITheme.label("快捷特效 (Quick Add)", UITheme.DarkTheme.TEXT_SELECTED);
 
-        ImBoolean flash = new ImBoolean(hasFlash);
-        if (ImGui.checkbox("闪白光 (FLASH_WHITE)", flash)) {
-            if (flash.get()) {
-                ensureEffect(config, EffectType.FLASH_WHITE, 0.0f, 0.30f);
-            } else {
+        // 第一排
+        ImBoolean flash = new ImBoolean(hasEffectType(config, EffectType.FLASH_WHITE));
+        if (ImGui.checkbox("闪白 (Flash)", flash)) {
+            if (flash.get())
+                ensureEffect(config, EffectType.FLASH_WHITE, 0.0f, 0.2f);
+            else
                 removeEffects(config, EffectType.FLASH_WHITE);
-            }
             modified = true;
         }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("在单块动画开始的前 30% 内闪一下白光（粒子）。");
+        ImGui.sameLine();
+        ImBoolean dust = new ImBoolean(hasEffectType(config, EffectType.DUST_BURST));
+        if (ImGui.checkbox("扬尘 (Dust)", dust)) {
+            if (dust.get())
+                ensureEffect(config, EffectType.DUST_BURST, 0.8f, 0.25f);
+            else
+                removeEffects(config, EffectType.DUST_BURST);
+            modified = true;
         }
 
-        ImGui.sameLine();
-        ImBoolean dust = new ImBoolean(hasDust);
-        if (ImGui.checkbox("烟尘爆裂 (DUST_BURST)", dust)) {
-            if (dust.get()) {
-                ensureEffect(config, EffectType.DUST_BURST, 0.85f, 0.25f);
-            } else {
-                removeEffects(config, EffectType.DUST_BURST);
-            }
+        // 第二排
+        ImBoolean ripple = new ImBoolean(hasEffectType(config, EffectType.IMPACT_RIPPLE));
+        if (ImGui.checkbox("涟漪 (Ripple)", ripple)) {
+            if (ripple.get())
+                ensureEffect(config, EffectType.IMPACT_RIPPLE, 0.85f, 0.3f);
+            else
+                removeEffects(config, EffectType.IMPACT_RIPPLE);
             modified = true;
         }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("适合坠落/收缩等结束时落地扬尘（默认在动画后段触发）。");
+        ImGui.sameLine();
+        ImBoolean trail = new ImBoolean(hasEffectType(config, EffectType.MOTION_TRAIL));
+        if (ImGui.checkbox("尾迹 (Trail)", trail)) {
+            if (trail.get())
+                ensureEffect(config, EffectType.MOTION_TRAIL, 0.0f, 1.0f);
+            else
+                removeEffects(config, EffectType.MOTION_TRAIL);
+            modified = true;
         }
 
         UITheme.separator();
 
-        // ========== 1. 预设特效包区域 ==========
-        UITheme.label("特效预设包", UITheme.DarkTheme.TEXT_SELECTED);
-        ImGui.textDisabled("一键应用一组常用特效组合");
-        
-        // 清空特效按钮（仅在有效果时显示）
-        if (!config.getEffects().isEmpty()) {
-            float buttonWidth = ImGui.calcTextSize(Icons.DELETE + " 清空所有特效").x + ImGui.getStyle().getFramePadding().x * 2;
-            ImGui.sameLine(ImGui.getContentRegionAvailX() - buttonWidth);
-            if (ImGui.button(Icons.DELETE + " 清空所有特效")) {
-                config.getEffects().clear();
-                modified = true;
-            }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("清除当前片段的所有特效");
-            }
-        }
-        
+        // ========== 2. 特效库 (Effect Library) ==========
+        UITheme.label("特效库 (Library)", UITheme.DarkTheme.TEXT_SELECTED);
 
-        // 使用两列布局显示预设按钮
-        float buttonWidth = (ImGui.getContentRegionAvailX() - ImGui.getStyle().getItemSpacingX()) * 0.5f;
-        int buttonCount = 0;
-        
-        for (EffectPreset preset : EffectPresetRegistry.getPresets()) {
-            if (buttonCount > 0 && buttonCount % 2 == 0) {
-                ImGui.newLine();
+        // 功能性按钮行 (清空 & 粘贴)
+        boolean hasEffects = !config.getEffects().isEmpty();
+        boolean hasCopied = EffectClipboardManager.hasCopiedEffect();
+
+        if (hasEffects || hasCopied) {
+            if (hasEffects) {
+                if (ImGui.button(Icons.DELETE + " 清空所有")) {
+                    config.getEffects().clear();
+                    modified = true;
+                }
+                if (ImGui.isItemHovered())
+                    ImGui.setTooltip("清除当前片段的所有特效");
             }
-            
-            ImGui.pushItemWidth(buttonWidth);
-            if (ImGui.button(preset.getName() + "##preset_" + preset.getName())) {
-                preset.applyTo(config);
-                modified = true;
+            if (hasCopied) {
+                if (hasEffects)
+                    ImGui.sameLine();
+                if (ImGui.button(Icons.CLIPBOARD + " 粘贴特效")) {
+                    EffectInstance copied = EffectClipboardManager.getCopiedEffect();
+                    if (copied != null) {
+                        config.addEffect(copied);
+                        modified = true;
+                    }
+                }
             }
-            ImGui.popItemWidth();
-            
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(preset.getDescription());
-            }
-            
-            if (buttonCount % 2 == 0) {
-                ImGui.sameLine();
-            }
-            
-            buttonCount++;
+            ImGui.spacing();
         }
-        
-        // 如果按钮数量是奇数，换行对齐
-        if (buttonCount % 2 == 1) {
-            ImGui.newLine();
+
+        // 预设列表
+        ImGui.textDisabled("组合预设 (Presets):");
+        if (ImGui.beginChild("##PresetLibrary", 0, 80.0f, true)) {
+            float availWidth = ImGui.getContentRegionAvailX();
+            float btnWidth = (availWidth - ImGui.getStyle().getItemSpacingX()) * 0.5f;
+            int count = 0;
+            for (EffectPreset preset : EffectPresetRegistry.getPresets()) {
+                if (count % 2 != 0)
+                    ImGui.sameLine();
+                if (ImGui.button(preset.getName() + "##" + count, btnWidth, 0)) {
+                    preset.applyTo(config);
+                    modified = true;
+                }
+                if (ImGui.isItemHovered())
+                    ImGui.setTooltip(preset.getDescription());
+                count++;
+            }
+            ImGui.endChild();
         }
-        
+
+        // 单个添加
+        ImGui.textDisabled("手动添加 (Individual):");
+        List<EffectType> allTypes = BlockEffectRegistry.getRegisteredTypes();
+        String[] effectLabels = allTypes.stream().map(EffectType::getDisplayName).toArray(String[]::new);
+        ImGui.pushItemWidth(ImGui.getContentRegionAvailX() * 0.65f);
+        ImGui.combo("##AddEffectCombo", addEffectSelectedIndex, effectLabels);
+        ImGui.popItemWidth();
+        ImGui.sameLine();
+        if (ImGui.button("添加", ImGui.getContentRegionAvailX(), 0)) {
+            EffectType type = allTypes.get(addEffectSelectedIndex.get());
+            EffectInstance inst = getEffectInstance(type, config);
+            IBlockEffect impl = BlockEffectRegistry.get(type);
+            if (impl != null)
+                inst.getParams().putAll(impl.getDefaultParams());
+            config.addEffect(inst);
+            modified = true;
+        }
+
         UITheme.separator();
 
         // ========== 2. 已添加特效列表 ==========
@@ -1676,63 +1710,6 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             effects.removeIf(EffectInstance::isMarkedForRemoval);
         }
 
-        UITheme.separator();
-
-        // ========== 3. 添加新特效 ==========
-        UITheme.label("添加特效", UITheme.DarkTheme.TEXT_SELECTED);
-
-        List<EffectType> allTypes = BlockEffectRegistry.getRegisteredTypes();
-        if (allTypes.isEmpty()) {
-            ImGui.textDisabled("当前没有注册任何特效类型");
-            return modified;
-        }
-
-        String[] effectLabels = allTypes.stream()
-                .map(EffectType::getDisplayName)
-                .toArray(String[]::new);
-
-        ImGui.pushItemWidth(ImGui.getContentRegionAvailX() * 0.6f);
-        ImGui.combo("可用特效", addEffectSelectedIndex, effectLabels);
-        ImGui.popItemWidth();
-
-        ImGui.sameLine();
-        if (ImGui.button("添加到片段")) {
-            int idx = Math.max(0, Math.min(addEffectSelectedIndex.get(), allTypes.size() - 1));
-            EffectType type = allTypes.get(idx);
-
-            EffectInstance inst = getEffectInstance(type, config);
-
-            // 初始化参数为特效默认配置
-            IBlockEffect impl = BlockEffectRegistry.get(type);
-            if (impl != null) {
-                Map<String, Object> defaultParams = impl.getDefaultParams();
-                if (defaultParams != null) {
-                    inst.getParams().putAll(defaultParams);
-                }
-            }
-
-            config.addEffect(inst);
-            modified = true;
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("从注册表中选择一个特效，并将其添加到当前片段中");
-        }
-
-        // 粘贴按钮（如果有复制的特效）
-        if (EffectClipboardManager.hasCopiedEffect()) {
-            ImGui.sameLine();
-            if (ImGui.button(Icons.CLIPBOARD + " 粘贴特效")) {
-                EffectInstance copied = EffectClipboardManager.getCopiedEffect();
-                if (copied != null) {
-                    config.addEffect(copied);
-                    modified = true;
-                }
-            }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("粘贴剪贴板中的特效");
-            }
-        }
-
         return modified;
     }
 
@@ -1768,7 +1745,8 @@ private boolean renderAnimationSettings(TimelineClip clip) {
     }
 
     private static boolean hasEffectType(ClipAnimationConfig config, EffectType type) {
-        if (config == null || type == null) return false;
+        if (config == null || type == null)
+            return false;
         List<EffectInstance> effects = config.getEffects();
         for (EffectInstance e : effects) {
             if (e != null && e.getType() == type && e.isEnabled()) {
@@ -1779,7 +1757,8 @@ private boolean renderAnimationSettings(TimelineClip clip) {
     }
 
     private static void ensureEffect(ClipAnimationConfig config, EffectType type, float startOffset, float duration) {
-        if (config == null || type == null) return;
+        if (config == null || type == null)
+            return;
         for (EffectInstance e : config.getEffects()) {
             if (e != null && e.getType() == type) {
                 e.setEnabled(true);
@@ -1809,7 +1788,8 @@ private boolean renderAnimationSettings(TimelineClip clip) {
     }
 
     private static void removeEffects(ClipAnimationConfig config, EffectType type) {
-        if (config == null || type == null) return;
+        if (config == null || type == null)
+            return;
         config.getEffects().removeIf(e -> e != null && e.getType() == type);
     }
 
@@ -1835,9 +1815,10 @@ private boolean renderAnimationSettings(TimelineClip clip) {
 
         // 作用阶段
         EffectInstance.EffectPhase[] phases = EffectInstance.EffectPhase.values();
-        String[] phaseLabels = new String[]{"出现(Enter)", "擦除(Exit)", "两者(Both)"};
+        String[] phaseLabels = new String[] { "出现(Enter)", "擦除(Exit)", "两者(Both)" };
         int phaseIdx = inst.getPhase().ordinal();
-        if (phaseIdx >= phases.length) phaseIdx = 2;
+        if (phaseIdx >= phases.length)
+            phaseIdx = 2;
         ImInt phaseIdxIm = new ImInt(phaseIdx);
         ImGui.pushItemWidth(ImGui.getContentRegionAvailX());
         if (ImGui.combo("作用阶段", phaseIdxIm, phaseLabels)) {
@@ -1850,20 +1831,23 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             ImGui.setTooltip("控制该特效在哪种片段阶段生效：出现片段 / 擦除片段 / 两者都生效。\n" +
                     "注意：如果特效阶段与片段阶段不匹配，特效不会触发。");
         }
-        
+
         // ✅ 检查阶段是否匹配，如果不匹配则显示警告
-        ClipAnimationConfig.AnimationPhase clipPhase = cfg != null ? cfg.getPhase() : ClipAnimationConfig.AnimationPhase.ENTER;
+        ClipAnimationConfig.AnimationPhase clipPhase = cfg != null ? cfg.getPhase()
+                : ClipAnimationConfig.AnimationPhase.ENTER;
         EffectInstance.EffectPhase effectPhase = inst.getPhase();
         boolean phaseMismatch = (effectPhase != EffectInstance.EffectPhase.BOTH)
-                && ((clipPhase == ClipAnimationConfig.AnimationPhase.ENTER && effectPhase != EffectInstance.EffectPhase.ENTER)
-                    || (clipPhase == ClipAnimationConfig.AnimationPhase.EXIT && effectPhase != EffectInstance.EffectPhase.EXIT));
+                && ((clipPhase == ClipAnimationConfig.AnimationPhase.ENTER
+                        && effectPhase != EffectInstance.EffectPhase.ENTER)
+                        || (clipPhase == ClipAnimationConfig.AnimationPhase.EXIT
+                                && effectPhase != EffectInstance.EffectPhase.EXIT));
         if (phaseMismatch) {
             ImGui.textColored(1.0f, 0.6f, 0.0f, 1.0f, "⚠ 警告：特效阶段与片段阶段不匹配，特效可能不会触发！");
             if (ImGui.isItemHovered()) {
                 String clipPhaseName = clipPhase == ClipAnimationConfig.AnimationPhase.ENTER ? "出现(Enter)" : "擦除(Exit)";
-                String effectPhaseName = effectPhase == EffectInstance.EffectPhase.ENTER ? "出现(Enter)" : 
-                        effectPhase == EffectInstance.EffectPhase.EXIT ? "擦除(Exit)" : "两者(Both)";
-                ImGui.setTooltip("当前片段阶段：" + clipPhaseName + 
+                String effectPhaseName = effectPhase == EffectInstance.EffectPhase.ENTER ? "出现(Enter)"
+                        : effectPhase == EffectInstance.EffectPhase.EXIT ? "擦除(Exit)" : "两者(Both)";
+                ImGui.setTooltip("当前片段阶段：" + clipPhaseName +
                         "\n特效阶段：" + effectPhaseName +
                         "\n建议：将特效阶段设置为'两者(Both)'或与片段阶段匹配。");
             }
@@ -1871,9 +1855,10 @@ private boolean renderAnimationSettings(TimelineClip clip) {
 
         // 触发模式
         EffectInstance.TriggerMode[] triggerModes = EffectInstance.TriggerMode.values();
-        String[] triggerLabels = new String[]{"连续(每帧)", "一次(One-shot)"};
+        String[] triggerLabels = new String[] { "连续(每帧)", "一次(One-shot)" };
         int trigIdx = inst.getTriggerMode().ordinal();
-        if (trigIdx >= triggerModes.length) trigIdx = 0;
+        if (trigIdx >= triggerModes.length)
+            trigIdx = 0;
         ImInt trigIdxIm = new ImInt(trigIdx);
         ImGui.pushItemWidth(ImGui.getContentRegionAvailX());
         if (ImGui.combo("触发方式", trigIdxIm, triggerLabels)) {
@@ -1922,7 +1907,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                     "单块动画窗口长度：" + String.format("%.2f", animLen) + "秒\n" +
                     "提示：后段特效（如 startOffset > 0.8）适合在动画结束时触发。");
         }
-        
+
         // ✅ 添加提示：说明特效时间窗口的概念
         ImGui.textDisabled("提示：特效时间窗口是相对于单个方块动画窗口的归一化时间（0..1）。");
         ImGui.textDisabled(String.format("当前方块动画窗口：%.2f秒 | 特效窗口：[%.2f, %.2f]秒",
@@ -1957,12 +1942,11 @@ private boolean renderAnimationSettings(TimelineClip clip) {
 
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(String.format(
-                "开始: %.2fs (%.0f%%)\n结束: %.2fs (%.0f%%)",
-                actualStartNorm * animLen,
-                actualStartNorm * 100f,
-                (actualStartNorm + actualDurNorm) * animLen,
-                (actualStartNorm + actualDurNorm) * 100f
-            ));
+                    "开始: %.2fs (%.0f%%)\n结束: %.2fs (%.0f%%)",
+                    actualStartNorm * animLen,
+                    actualStartNorm * 100f,
+                    (actualStartNorm + actualDurNorm) * animLen,
+                    (actualStartNorm + actualDurNorm) * 100f));
         }
 
         return modified;
@@ -1991,10 +1975,12 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         float maxValue = easingCurveCache[0];
         for (int i = 1; i < EASING_CURVE_SAMPLES; i++) {
             float value = easingCurveCache[i];
-            if (value < minValue) minValue = value;
-            if (value > maxValue) maxValue = value;
+            if (value < minValue)
+                minValue = value;
+            if (value > maxValue)
+                maxValue = value;
         }
-        
+
         // 确保有合理的范围（避免除以零）
         float valueRange = maxValue - minValue;
         if (valueRange < 0.0001f) {
@@ -2005,7 +1991,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         // 绘制曲线预览区域
         float totalWidth = ImGui.getContentRegionAvailX();
         float totalHeight = 80.0f; // 固定高度，类似Unity的曲线预览
-        
+
         // 添加边距（出血区域），缩放0.9，参考 easings.net
         float padding = Math.min(totalWidth, totalHeight) * 0.05f; // 5% 边距
         float chartWidth = totalWidth - padding * 2;
@@ -2014,7 +2000,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         ImVec2 cursor = ImGui.getCursorScreenPos();
         float x = cursor.x;
         float y = cursor.y;
-        
+
         // 计算实际的绘制区域坐标
         float chartStartX = x + padding;
         float chartStartY = y + padding;
@@ -2043,7 +2029,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             float gy = chartStartY + chartHeight * i / 4.0f;
             drawList.addLine(chartStartX, gy, chartEndX, gy, mainGridColor, 1.0f);
         }
-        
+
         // 次要网格线（细线，8等分）
         int minorGridColor = ImGui.getColorU32(ImGuiCol.Border, 0.15f);
         for (int i = 1; i < 8; i++) {
@@ -2075,7 +2061,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         // 将值从 [minValue, maxValue] 映射到 [0, chartHeight]，然后反转Y轴
         float normalizedPrevValue = (prevValue - minValue) / valueRange; // 归一化到 [0, 1]
         float prevY = chartStartY + chartHeight - normalizedPrevValue * chartHeight;
-        
+
         for (int i = 1; i < EASING_CURVE_SAMPLES; i++) {
             float t = i / (float) (EASING_CURVE_SAMPLES - 1);
             float currentX = chartStartX + chartWidth * t;
@@ -2083,15 +2069,15 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             // 归一化到 [0, 1]，然后映射到图表高度
             float normalizedCurrentValue = (currentValue - minValue) / valueRange;
             float currentY = chartStartY + chartHeight - normalizedCurrentValue * chartHeight;
-            
+
             drawList.addLine(prevX, prevY, currentX, currentY, curveColor, 2.5f);
             prevX = currentX;
             prevY = currentY;
         }
-        
+
         // 恢复裁剪区域
         drawList.popClipRect();
-        
+
         // 绘制外边框（整个预览区域）
         int outerBorderColor = ImGui.getColorU32(ImGuiCol.Border, 0.5f);
         drawList.addRect(x, y, x + totalWidth, y + totalHeight, outerBorderColor, 4.0f, 0, 1.5f);
@@ -2128,51 +2114,55 @@ private boolean renderAnimationSettings(TimelineClip clip) {
     /**
      * 将 int 颜色值转换为 float[4] 数组 (RGBA, 0.0-1.0)
      *
-     * <p>注意：TimelineColors.rgba() 返回的格式是 ABGR（Alpha, Blue, Green, Red）
+     * <p>
+     * 注意：TimelineColors.rgba() 返回的格式是 ABGR（Alpha, Blue, Green, Red）
      * 位布局：A(24-31) | B(16-23) | G(8-15) | R(0-7)
      * 
-     * <p>转换后的 float 数组是 RGBA 顺序，用于 ImGui.colorEdit4
+     * <p>
+     * 转换后的 float 数组是 RGBA 顺序，用于 ImGui.colorEdit4
      */
     private float[] colorIntToFloat(int color) {
 
         // ABGR 格式解析
 
-        int r = (color) & 0xFF;           // R 在最低位 (0-7)
-        int g = (color >> 8) & 0xFF;      // G 在 8-15 位
-        int b = (color >> 16) & 0xFF;     // B 在 16-23 位
-        int a = (color >> 24) & 0xFF;     // A 在最高位 (24-31)
+        int r = (color) & 0xFF; // R 在最低位 (0-7)
+        int g = (color >> 8) & 0xFF; // G 在 8-15 位
+        int b = (color >> 16) & 0xFF; // B 在 16-23 位
+        int a = (color >> 24) & 0xFF; // A 在最高位 (24-31)
         // 返回 RGBA 顺序的 float 数组（ImGui 使用）
-        return new float[]{
-            r / 255.0f,
-            g / 255.0f,
-            b / 255.0f,
-            a / 255.0f
+        return new float[] {
+                r / 255.0f,
+                g / 255.0f,
+                b / 255.0f,
+                a / 255.0f
         };
 
     }
 
     /**
      * 将 float[4] 数组 (RGBA, 0.0-1.0) 转换为 int 颜色值
-     * <p>注意：TimelineColors.rgba() 返回的格式是 ABGR（Alpha, Blue, Green, Red）
+     * <p>
+     * 注意：TimelineColors.rgba() 返回的格式是 ABGR（Alpha, Blue, Green, Red）
      * 位布局：A(24-31) | B(16-23) | G(8-15) | R(0-7)
-     * <p>输入的 float 数组是 RGBA 顺序（来自 ImGui.colorEdit4）
+     * <p>
+     * 输入的 float 数组是 RGBA 顺序（来自 ImGui.colorEdit4）
      */
     private int colorFloatToInt(float[] rgba) {
 
-        int r = (int)(rgba[0] * 255.0f) & 0xFF;
-        int g = (int)(rgba[1] * 255.0f) & 0xFF;
-        int b = (int)(rgba[2] * 255.0f) & 0xFF;
-        int a = (int)(rgba[3] * 255.0f) & 0xFF;
+        int r = (int) (rgba[0] * 255.0f) & 0xFF;
+        int g = (int) (rgba[1] * 255.0f) & 0xFF;
+        int b = (int) (rgba[2] * 255.0f) & 0xFF;
+        int a = (int) (rgba[3] * 255.0f) & 0xFF;
         // 转换为 ABGR 格式：A(24-31) | B(16-23) | G(8-15) | R(0-7)
         return (a << 24) | (b << 16) | (g << 8) | r;
 
     }
-    
+
     /**
      * 渲染特效参数 UI（重构后：委托给具体实现类）
      * 
      * @param instance 特效实例
-     * @param type 特效类型
+     * @param type     特效类型
      * @return 是否修改了参数
      */
     private boolean renderEffectParams(EffectInstance instance, EffectType type) {
@@ -2210,19 +2200,19 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         return Math.abs(currentYaw - targetYaw) < EPSILON &&
                 Math.abs(currentPitch - targetPitch) < EPSILON;
     }
-    
+
     /**
      * 直接使用 ImGui 渲染动画参数（不依赖 UIHelper 的反射）
      */
     private boolean renderAnimationParamsDirectly(AnimationMode mode, Map<String, Object> params) {
         boolean modified = false;
-        
+
         switch (mode) {
             case FLY_IN:
             case FLY_OUT: {
                 // 飞入/飞离方向
                 String direction = getStringParam(params, "direction", "X+");
-                String[] directions = {"X+", "X-", "Y+", "Y-", "Z+", "Z-"};
+                String[] directions = { "X+", "X-", "Y+", "Y-", "Z+", "Z-" };
                 int dirIndex = 0;
                 for (int i = 0; i < directions.length; i++) {
                     if (directions[i].equals(direction)) {
@@ -2235,10 +2225,10 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                     params.put("direction", directions[dirIdx.get()]);
                     modified = true;
                 }
-                
+
                 // 飞行距离
                 float flyDistance = getFloatParam(params, "flyDistance", 10.0f);
-                float[] distanceArray = {flyDistance};
+                float[] distanceArray = { flyDistance };
                 if (ImGui.dragFloat("飞行距离", distanceArray, 1.0f, 5.0f, 50.0f, "%.0f 格")) {
                     params.put("flyDistance", distanceArray[0]);
                     modified = true;
@@ -2250,15 +2240,15 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                 if (mode == AnimationMode.FALL_DOWN) {
                     // 下落高度
                     float height = getFloatParam(params, "height", 10.0f);
-                    float[] heightArray = {height};
+                    float[] heightArray = { height };
                     if (ImGui.dragFloat("下落高度", heightArray, 0.5f, 0.0f, 50.0f, "%.1f 格")) {
                         params.put("height", heightArray[0]);
                         modified = true;
                     }
-                    
+
                     // 回弹力度
                     float bounciness = getFloatParam(params, "bounciness", 0.3f);
-                    float[] bouncinessArray = {bounciness};
+                    float[] bouncinessArray = { bounciness };
                     if (ImGui.dragFloat("回弹力度", bouncinessArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
                         params.put("bounciness", bouncinessArray[0]);
                         modified = true;
@@ -2266,13 +2256,13 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                 } else {
                     // 重力坍塌：下落速度
                     float fallSpeed = getFloatParam(params, "fallSpeed", 5.0f);
-                    float[] speedArray = {fallSpeed};
+                    float[] speedArray = { fallSpeed };
                     if (ImGui.dragFloat("下落速度", speedArray, 0.5f, 1.0f, 20.0f, "%.1f 格/秒")) {
                         params.put("fallSpeed", speedArray[0]);
                         modified = true;
                     }
                 }
-                
+
                 // 翻滚旋转（两个模式都有）
                 boolean tumble = getBooleanParam(params, true);
                 ImBoolean tumbleBool = new ImBoolean(tumble);
@@ -2280,11 +2270,11 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                     params.put("tumble", tumbleBool.get());
                     modified = true;
                 }
-                
+
                 // 旋转强度（仅在启用翻滚时显示）
                 if (tumbleBool.get()) {
                     float tumbleIntensity = getFloatParam(params, "tumbleIntensity", 1.0f);
-                    float[] intensityArray = {tumbleIntensity};
+                    float[] intensityArray = { tumbleIntensity };
                     if (ImGui.dragFloat("旋转强度", intensityArray, 0.1f, 0.0f, 3.0f, "%.1f")) {
                         params.put("tumbleIntensity", intensityArray[0]);
                         modified = true;
@@ -2295,7 +2285,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             case GROW_UP: {
                 // 生长轴向
                 String axis = getStringParam(params, "axis", "Y");
-                String[] axes = {"X", "Y", "Z", "XYZ"};
+                String[] axes = { "X", "Y", "Z", "XYZ" };
                 int axisIndex = 0;
                 for (int i = 0; i < axes.length; i++) {
                     if (axes[i].equals(axis)) {
@@ -2308,20 +2298,20 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                     params.put("axis", axes[axisIdx.get()]);
                     modified = true;
                 }
-                
+
                 // 缩放锚点
                 String pivot = getStringParam(params, "pivot", "BOTTOM");
-                String[] pivots = {"CENTER", "BOTTOM"};
+                String[] pivots = { "CENTER", "BOTTOM" };
                 int pivotIndex = pivot.equals("BOTTOM") ? 1 : 0;
                 ImInt pivotIdx = new ImInt(pivotIndex);
                 if (ImGui.combo("缩放锚点", pivotIdx, pivots)) {
                     params.put("pivot", pivots[pivotIdx.get()]);
                     modified = true;
                 }
-                
+
                 // 升起距离
                 float distance = getFloatParam(params, "distance", 0.0f);
-                float[] distanceArray = {distance};
+                float[] distanceArray = { distance };
                 if (ImGui.dragFloat("升起距离", distanceArray, 0.5f, 0.0f, 20.0f, "%.1f 格")) {
                     params.put("distance", distanceArray[0]);
                     modified = true;
@@ -2331,15 +2321,15 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             case SHAKER: {
                 // 震动幅度
                 float intensity = getFloatParam(params, "intensity", 0.5f);
-                float[] intensityArray = {intensity};
+                float[] intensityArray = { intensity };
                 if (ImGui.dragFloat("震动幅度", intensityArray, 0.05f, 0.0f, 2.0f, "%.2f")) {
                     params.put("intensity", intensityArray[0]);
                     modified = true;
                 }
-                
+
                 // 衰减速度
                 float decay = getFloatParam(params, "decay", 0.8f);
-                float[] decayArray = {decay};
+                float[] decayArray = { decay };
                 if (ImGui.dragFloat("衰减速度", decayArray, 0.05f, 0.1f, 1.0f, "%.2f")) {
                     params.put("decay", decayArray[0]);
                     modified = true;
@@ -2351,7 +2341,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                 // 目标比例
                 String paramKey = mode == AnimationMode.IMPLODE ? "scale" : "targetScale";
                 float scale = getFloatParam(params, paramKey, 0.0f);
-                float[] scaleArray = {scale};
+                float[] scaleArray = { scale };
                 String label = "目标比例";
                 if (ImGui.dragFloat(label, scaleArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
                     params.put(paramKey, scaleArray[0]);
@@ -2362,7 +2352,7 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             case ASSEMBLE: {
                 // 散开半径（用于 ENTER 阶段的碎片聚合）
                 float spread = getFloatParam(params, "spread", 5.0f);
-                float[] spreadArray = {spread};
+                float[] spreadArray = { spread };
                 if (ImGui.dragFloat("散开半径", spreadArray, 0.5f, 1.0f, 20.0f, "%.1f 格")) {
                     params.put("spread", spreadArray[0]);
                     modified = true;
@@ -2373,23 +2363,23 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                 // 爆炸参数（用于 EXIT 阶段的碎片散射）
                 // 散射半径
                 float radius = getFloatParam(params, "radius", 2.0f);
-                float[] radiusArray = {radius};
+                float[] radiusArray = { radius };
                 if (ImGui.dragFloat("散射半径", radiusArray, 0.1f, 0.1f, 20.0f, "%.1f 格")) {
                     params.put("radius", radiusArray[0]);
                     modified = true;
                 }
-                
+
                 // 上抛偏置
                 float upBias = getFloatParam(params, "upBias", 0.25f);
-                float[] upBiasArray = {upBias};
+                float[] upBiasArray = { upBias };
                 if (ImGui.dragFloat("上抛偏置", upBiasArray, 0.05f, -1.0f, 2.0f, "%.2f")) {
                     params.put("upBias", upBiasArray[0]);
                     modified = true;
                 }
-                
+
                 // 最小缩放
                 float scaleMin = getFloatParam(params, "scaleMin", 0.7f);
-                float[] scaleMinArray = {scaleMin};
+                float[] scaleMinArray = { scaleMin };
                 if (ImGui.dragFloat("最小缩放", scaleMinArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
                     params.put("scaleMin", scaleMinArray[0]);
                     modified = true;
@@ -2399,15 +2389,15 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             case FADE_OUT: {
                 // 起始透明度
                 float startOpacity = getFloatParam(params, "startOpacity", 1.0f);
-                float[] startArray = {startOpacity};
+                float[] startArray = { startOpacity };
                 if (ImGui.dragFloat("起始透明度", startArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
                     params.put("startOpacity", startArray[0]);
                     modified = true;
                 }
-                
+
                 // 结束透明度
                 float endOpacity = getFloatParam(params, "endOpacity", 0.0f);
-                float[] endArray = {endOpacity};
+                float[] endArray = { endOpacity };
                 if (ImGui.dragFloat("结束透明度", endArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
                     params.put("endOpacity", endArray[0]);
                     modified = true;
@@ -2417,15 +2407,15 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             case POP_IN: {
                 // 初始缩放
                 float initialScale = getFloatParam(params, "initialScale", 0.0f);
-                float[] scaleArray = {initialScale};
+                float[] scaleArray = { initialScale };
                 if (ImGui.dragFloat("初始缩放", scaleArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
                     params.put("initialScale", scaleArray[0]);
                     modified = true;
                 }
-                
+
                 // 弹性程度
                 float elasticity = getFloatParam(params, "elasticity", 1.5f);
-                float[] elasticityArray = {elasticity};
+                float[] elasticityArray = { elasticity };
                 if (ImGui.dragFloat("弹性程度", elasticityArray, 0.1f, 0.5f, 3.0f, "%.1f")) {
                     params.put("elasticity", elasticityArray[0]);
                     modified = true;
@@ -2436,15 +2426,16 @@ private boolean renderAnimationSettings(TimelineClip clip) {
                 // 其他模式可能没有参数或使用默认渲染
                 break;
         }
-        
+
         return modified;
     }
-    
+
     /**
      * 从 params Map 中安全获取浮点参数
      */
     private float getFloatParam(Map<String, Object> params, String key, float defaultValue) {
-        if (params == null || key == null) return defaultValue;
+        if (params == null || key == null)
+            return defaultValue;
         Object val = params.get(key);
         switch (val) {
             case null -> {
@@ -2465,12 +2456,13 @@ private boolean renderAnimationSettings(TimelineClip clip) {
         }
         return defaultValue;
     }
-    
+
     /**
      * 从 params Map 中安全获取布尔参数
      */
     private boolean getBooleanParam(Map<String, Object> params, boolean defaultValue) {
-        if (params == null) return defaultValue;
+        if (params == null)
+            return defaultValue;
         Object val = params.get("tumble");
         return switch (val) {
             case Boolean b -> b;
@@ -2478,14 +2470,16 @@ private boolean renderAnimationSettings(TimelineClip clip) {
             case null, default -> defaultValue;
         };
     }
-    
+
     /**
      * 从 params Map 中安全获取字符串参数
      */
     private String getStringParam(Map<String, Object> params, String key, String defaultValue) {
-        if (params == null || key == null) return defaultValue;
+        if (params == null || key == null)
+            return defaultValue;
         Object val = params.get(key);
-        if (val == null) return defaultValue;
+        if (val == null)
+            return defaultValue;
         return val.toString();
     }
 }

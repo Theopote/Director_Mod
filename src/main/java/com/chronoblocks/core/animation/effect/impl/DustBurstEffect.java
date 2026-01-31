@@ -1,5 +1,6 @@
 package com.chronoblocks.core.animation.effect.impl;
 
+import com.chronoblocks.core.animation.BlockAnimationSnapshot;
 import com.chronoblocks.core.animation.effect.EffectInstance;
 import com.chronoblocks.core.animation.effect.IBlockEffect;
 import com.chronoblocks.core.animation.effect.ui.EffectUIHelper;
@@ -41,11 +42,13 @@ public class DustBurstEffect implements IBlockEffect {
 
     @Override
     public void render(ClientWorld world,
-            BlockPos pos,
-            BlockState state,
+            BlockAnimationSnapshot snapshot,
             float t,
             EffectInstance inst,
             Random random) {
+
+        BlockPos pos = snapshot.getPos();
+        BlockState state = snapshot.getBlockState();
 
         // ✅ 修复：对于 ONE_SHOT 模式，t 总是 0.0f，应该允许触发
         // 只在前 40% 的时间里触发爆炸感，避免持续不断地放粒子

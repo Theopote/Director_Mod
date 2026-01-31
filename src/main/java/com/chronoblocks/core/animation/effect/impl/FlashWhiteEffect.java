@@ -1,10 +1,10 @@
 package com.chronoblocks.core.animation.effect.impl;
 
+import com.chronoblocks.core.animation.BlockAnimationSnapshot;
 import com.chronoblocks.core.animation.effect.EffectInstance;
 import com.chronoblocks.core.animation.effect.IBlockEffect;
 import com.chronoblocks.core.animation.effect.ui.EffectUIHelper;
 import com.chronoblocks.core.animation.effect.ui.EffectUIUtils;
-import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.particle.ParticleManager;
 import net.minecraft.client.world.ClientWorld;
@@ -31,11 +31,12 @@ public class FlashWhiteEffect implements IBlockEffect {
 
     @Override
     public void render(ClientWorld world,
-            BlockPos pos,
-            BlockState state,
+            BlockAnimationSnapshot snapshot,
             float t,
             EffectInstance inst,
             Random random) {
+
+        BlockPos pos = snapshot.getPos();
 
         // t: [0,1]，只在前 0.3 内明显
         if (t > 0.3f) {

@@ -1,10 +1,9 @@
 package com.chronoblocks.core.animation.effect.impl;
 
+import com.chronoblocks.core.animation.BlockAnimationSnapshot;
 import com.chronoblocks.core.animation.effect.EffectInstance;
 import com.chronoblocks.core.animation.effect.IBlockEffect;
-import net.minecraft.block.BlockState;
 import net.minecraft.client.world.ClientWorld;
-import net.minecraft.util.math.BlockPos;
 
 import java.util.Collections;
 import java.util.Map;
@@ -31,7 +30,8 @@ public class NullBlockEffect implements IBlockEffect {
     }
 
     @Override
-    public void render(ClientWorld world, BlockPos pos, BlockState state, float t, EffectInstance inst, Random random) {
+    public void render(ClientWorld world, BlockAnimationSnapshot snapshot, float t, EffectInstance inst,
+            Random random) {
         // 空实现：什么都不做
     }
 
