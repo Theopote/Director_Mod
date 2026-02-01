@@ -368,42 +368,6 @@ public abstract class ClientWorldMixin {
     }
 
     /**
-     * 兼容：部分版本 getSkyColor 返回 Vec3d
-     */
-    @Inject(
-        method = "getSkyColor(Lnet/minecraft/util/math/Vec3d;F)Lnet/minecraft/util/math/Vec3d;",
-        at = @At("RETURN"),
-        cancellable = true,
-        require = 0
-    )
-    private void tintSkyVec(Vec3d pos, float tickDelta, CallbackInfoReturnable<Vec3d> cir) {
-        Vec3d color = cir.getReturnValue();
-        if (color == null) {
-            return;
-        }
-
-        double rf = color.x;
-        double gf = color.y;
-        double bf = color.z;
-
-        // 天气系统（暗度/雷暴）仍然由原始方法处理，这里只做季节色调叠加
-        TimelineSeasonController seasonController = TimelineSeasonController.getInstance();
-        if (seasonController.hasOverride()) {
-            SeasonSample seasonSample = seasonController.getCurrentSample();
-            if (seasonSample != null) {
-                rf = clamp01((float) (rf * (1f + clampTint(seasonSample.lightTint.x))));
-                gf = clamp01((float) (gf * (1f + clampTint(seasonSample.lightTint.y))));
-                bf = clamp01((float) (bf * (1f + clampTint(seasonSample.lightTint.z))));
-                rf = clamp01((float) (rf * (1f + clampTint(seasonSample.skyTint.x))));
-                gf = clamp01((float) (gf * (1f + clampTint(seasonSample.skyTint.y))));
-                bf = clamp01((float) (bf * (1f + clampTint(seasonSample.skyTint.z))));
-            }
-        }
-
-        cir.setReturnValue(new Vec3d(rf, gf, bf));
-    }
-
-    /**
      * 将值限制在 [0, 1] 范围内
      */
     @Unique
