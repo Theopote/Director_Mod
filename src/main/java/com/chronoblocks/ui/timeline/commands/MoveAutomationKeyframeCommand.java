@@ -89,6 +89,15 @@ public class MoveAutomationKeyframeCommand extends BaseTimelineCommand {
         if (keyframe instanceof com.chronoblocks.ui.timeline.model.camera.CameraKeyframe) {
             com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance()
                     .onKeyframeChanged();
+        } else if (keyframe instanceof com.chronoblocks.ui.timeline.model.time.TimeKeyframe) {
+            com.chronoblocks.ui.timeline.playback.time.TimelineWorldController.getInstance()
+                    .rebuildFromActiveTrack();
+        } else if (keyframe instanceof com.chronoblocks.ui.timeline.model.season.SeasonKeyframe) {
+            com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController.getInstance()
+                    .rebuildFromActiveTrack();
+        } else if (keyframe instanceof com.chronoblocks.ui.timeline.model.weather.WeatherKeyframe) {
+            com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController.getInstance()
+                    .rebuildFromActiveTrack();
         }
     }
 
@@ -100,6 +109,10 @@ public class MoveAutomationKeyframeCommand extends BaseTimelineCommand {
             case com.chronoblocks.ui.timeline.model.camera.CameraKeyframe cameraKeyframe ->
                     cameraKeyframe.setTime(time);
             case com.chronoblocks.ui.timeline.model.TimelineMarker marker -> marker.setTime(time);
+            case com.chronoblocks.ui.timeline.model.time.TimeKeyframe timeKeyframe ->
+                    timeKeyframe.setTime(time);
+            case com.chronoblocks.ui.timeline.model.season.SeasonKeyframe seasonKeyframe ->
+                    seasonKeyframe.setTime(time);
             case com.chronoblocks.ui.timeline.model.weather.WeatherKeyframe weatherKeyframe ->
                     weatherKeyframe.setTime(time);
             case AudioEvent audioEvent -> audioEvent.setTime(time);
