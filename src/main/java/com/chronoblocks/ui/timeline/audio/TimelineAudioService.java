@@ -345,7 +345,9 @@ public class TimelineAudioService {
             return;
         }
 
-        if (!isContainerClip(clip)) {
+        boolean isContainer = isContainerClip(clip);
+        boolean isAudio = !isContainer && isAudioClip(clip);
+        if (!isContainer && !isAudio) {
             return;
         }
 
@@ -355,7 +357,12 @@ public class TimelineAudioService {
             return;
         }
 
-        List<UUID> ids = linkedEventIdsByClip.getOrDefault(clip, Collections.emptyList());
+        TimelineClip containerClip = isContainer ? clip : resolveContainerClipForClip(clip);
+        if (containerClip == null) {
+            return;
+        }
+
+        List<UUID> ids = linkedEventIdsByClip.getOrDefault(containerClip, Collections.emptyList());
         AudioTrack audioTrack = findAudioTrack();
         if (audioTrack != null && !ids.isEmpty()) {
             for (UUID id : ids) {
@@ -372,7 +379,13 @@ public class TimelineAudioService {
             audioTrack.sortEvents();
         }
 
-        updateLinkedAudioClipTimeRange(clip, oldStartTime, oldEndTime, newStartTime, newEndTime);
+        if (isAudio) {
+            updateAudioClipKeyframes(clip, oldStartTime, oldEndTime, newStartTime, newEndTime);
+        }
+
+        if (isContainer) {
+            updateLinkedAudioClipTimeRange(clip, oldStartTime, oldEndTime, newStartTime, newEndTime);
+        }
     }
 
     // =========================
@@ -383,14 +396,16 @@ public class TimelineAudioService {
         if (clip == null) {
             return;
         }
-        if (!isContainerClip(clip)) {
-            return;
-        }
         if (clipPreviewStates.containsKey(clip)) {
             return;
         }
 
-        List<UUID> ids = linkedEventIdsByClip.getOrDefault(clip, Collections.emptyList());
+        TimelineClip containerClip = resolveContainerClipForClip(clip);
+        if (containerClip == null) {
+            return;
+        }
+
+        List<UUID> ids = linkedEventIdsByClip.getOrDefault(containerClip, Collections.emptyList());
         if (ids.isEmpty()) {
             return;
         }
@@ -418,9 +433,6 @@ public class TimelineAudioService {
 
     public void updateClipTimeRangePreview(TimelineClip clip, float newStartTime, float newEndTime) {
         if (clip == null) {
-            return;
-        }
-        if (!isContainerClip(clip)) {
             return;
         }
         ClipAudioPreviewState state = clipPreviewStates.get(clip);
@@ -510,6 +522,96 @@ public class TimelineAudioService {
         }
         linkedEventIdsByClip.computeIfAbsent(clip, c -> new ArrayList<>()).add(event.getId());
         linkedClipByEventId.put(event.getId(), clip);
+    }
+
+    public void moveLinkedEventsToTrack(TimelineClip audioClip, TimelineTrack targetTrack) {
+        if (audioClip == null || targetTrack == null) {
+            return;
+        }
+        TimelineClip containerClip = resolveContainerClipForClip(audioClip);
+        if (containerClip == null) {
+            return;
+        }
+
+        List<UUID> ids = linkedEventIdsByClip.getOrDefault(containerClip, Collections.emptyList());
+        if (ids.isEmpty()) {
+            return;
+        }
+
+        AudioTrack targetAudioTrack = resolveAudioTrack(targetTrack);
+        if (targetAudioTrack == null) {
+            return;
+        }
+
+        List<AudioTrack> audioTracks = getAllAudioTracks();
+        if (audioTracks.isEmpty()) {
+            return;
+        }
+
+        Map<UUID, AudioEvent> eventsToMove = new HashMap<>();
+        for (AudioTrack track : audioTracks) {
+            for (UUID id : ids) {
+                AudioEvent ev = track.getEventById(id);
+                if (ev == null) {
+                    continue;
+                }
+                if (track != targetAudioTrack) {
+                    track.removeEvent(ev);
+                }
+                eventsToMove.put(id, ev);
+            }
+        }
+
+        if (!eventsToMove.isEmpty()) {
+            for (AudioEvent ev : eventsToMove.values()) {
+                targetAudioTrack.addEvent(ev);
+            }
+            targetAudioTrack.sortEvents();
+        }
+    }
+
+    private AudioTrack resolveAudioTrack(TimelineTrack track) {
+        if (track instanceof AudioTrack audioTrack) {
+            return audioTrack;
+        }
+        if (track != null && track.getType() == TrackType.AUDIO && timelineModel != null) {
+            return convertToAudioTrack(track);
+        }
+        return null;
+    }
+
+    private List<AudioTrack> getAllAudioTracks() {
+        if (timelineModel == null) {
+            return Collections.emptyList();
+        }
+        List<AudioTrack> tracks = new ArrayList<>();
+        for (TimelineTrack track : timelineModel.getAllTracks()) {
+            if (track == null || track.getType() != TrackType.AUDIO) {
+                continue;
+            }
+            AudioTrack audioTrack = resolveAudioTrack(track);
+            if (audioTrack != null && !tracks.contains(audioTrack)) {
+                tracks.add(audioTrack);
+            }
+        }
+        return tracks;
+    }
+
+    private TimelineClip resolveContainerClipForClip(TimelineClip clip) {
+        if (clip == null) {
+            return null;
+        }
+        if (isContainerClip(clip)) {
+            return clip;
+        }
+        if (isAudioClip(clip)) {
+            TimelineClip containerClip = linkedContainerClipsByAudioClip.get(clip);
+            if (containerClip != null) {
+                return containerClip;
+            }
+            return getContainerClipForAudioClip(clip).orElse(null);
+        }
+        return null;
     }
 
     
@@ -1092,8 +1194,8 @@ public class TimelineAudioService {
             return;
         }
 
-        AudioTrack audioTrack = findAudioTrack();
-        if (audioTrack == null) {
+        List<AudioTrack> audioTracks = getAllAudioTracks();
+        if (audioTracks.isEmpty()) {
             return;
         }
 
@@ -1103,21 +1205,25 @@ public class TimelineAudioService {
         if (linked != null && !linked.isEmpty()) {
             for (UUID id : linked) {
                 linkedClipByEventId.remove(id);
-                AudioEvent ev = audioTrack.getEventById(id);
-                if (ev != null) {
-                    audioTrack.removeEvent(ev);
-                    removed++;
+                for (AudioTrack audioTrack : audioTracks) {
+                    AudioEvent ev = audioTrack.getEventById(id);
+                    if (ev != null) {
+                        audioTrack.removeEvent(ev);
+                        removed++;
+                    }
                 }
             }
         } else {
             // 向后兼容：如果没有建立链接关系（旧数据），回退到按时间范围移除
-            List<AudioEvent> eventsToRemove = audioTrack.getEventsInRange(clip.getStartTime(), clip.getEndTime());
-            for (AudioEvent event : eventsToRemove) {
-                if (event != null && event.getId() != null) {
-                    linkedClipByEventId.remove(event.getId());
+            for (AudioTrack audioTrack : audioTracks) {
+                List<AudioEvent> eventsToRemove = audioTrack.getEventsInRange(clip.getStartTime(), clip.getEndTime());
+                for (AudioEvent event : eventsToRemove) {
+                    if (event != null && event.getId() != null) {
+                        linkedClipByEventId.remove(event.getId());
+                    }
+                    audioTrack.removeEvent(event);
+                    removed++;
                 }
-                audioTrack.removeEvent(event);
-                removed++;
             }
         }
 

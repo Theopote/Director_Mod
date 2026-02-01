@@ -934,11 +934,11 @@ public class TimelineInteractionHandler {
         
         if (callbacks != null) callbacks.onDataChanged();
         
-        if (track.getType() == com.chronoblocks.ui.timeline.model.TrackType.AUDIO) {
+        boolean isAudioTrack = track.getType() == com.chronoblocks.ui.timeline.model.TrackType.AUDIO;
+        if (isAudioTrack) {
             if (isDoubleClick && callbacks != null) {
                 callbacks.onKeyframeDoubleClick(clip, mouseX, contentX);
             }
-            return;
         }
         
         // �?优化：添加日志，便于调试
@@ -961,6 +961,11 @@ public class TimelineInteractionHandler {
             // 对于很小的片段，扩大边缘检测范�?
             nearLeft = mouseX <= startX + CLIP_EDGE_RESIZE_PIXEL * 1.5f;
             nearRight = mouseX >= endX - CLIP_EDGE_RESIZE_PIXEL * 1.5f;
+        }
+
+        if (isAudioTrack) {
+            nearLeft = false;
+            nearRight = false;
         }
 
         if (nearLeft) {
@@ -1837,6 +1842,11 @@ public class TimelineInteractionHandler {
                         }
                         
                         targetTrack = newTrack; // 更新目标轨道用于吸附计算
+                        
+                        if (newTrack.getType() == TrackType.AUDIO) {
+                            com.chronoblocks.ui.timeline.audio.TimelineAudioService.getInstance()
+                                    .moveLinkedEventsToTrack(handle.clip, newTrack);
+                        }
                         
                         if (LOGGER.isDebugEnabled()) {
                             LOGGER.debug("[Timeline] 片段跨轨道移�? {} -> {} (片段: {})", 
@@ -2844,3 +2854,4 @@ public class TimelineInteractionHandler {
         }
     }
 }
+
