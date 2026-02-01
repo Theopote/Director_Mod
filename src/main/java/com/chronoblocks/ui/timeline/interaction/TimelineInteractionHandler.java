@@ -1799,6 +1799,13 @@ public class TimelineInteractionHandler {
         float currentMouseTime = renderer.xToTime(mouseX, contentX);
         float delta = currentMouseTime - startMouseTime;
 
+        boolean isBoundAudioClip = handle.clip instanceof com.chronoblocks.ui.timeline.model.audio.AudioTimelineClip
+                && com.chronoblocks.ui.timeline.audio.TimelineAudioService.getInstance()
+                        .isAudioClipBound(handle.clip);
+        if (isBoundAudioClip) {
+            delta = 0f;
+        }
+
         float candidateStart = start0 + delta;
         candidateStart = Math.max(0f, candidateStart);
 
@@ -1859,11 +1866,17 @@ public class TimelineInteractionHandler {
         }
 
         // �?修复：使用目标轨道进行吸附计算，确保跨轨道拖动时吸附正确
-        TimelineSnapping.Result snap = TimelineSnapping.snapTime(
-                model, candidateStart, targetTrack, handle.clip, 0f
-        );
-        updateSnapGuide(snap);
-        float snappedStart = Math.max(0f, snap.snappedTime);
+        float snappedStart;
+        if (isBoundAudioClip) {
+            clearSnapGuide();
+            snappedStart = Math.max(0f, start0);
+        } else {
+            TimelineSnapping.Result snap = TimelineSnapping.snapTime(
+                    model, candidateStart, targetTrack, handle.clip, 0f
+            );
+            updateSnapGuide(snap);
+            snappedStart = Math.max(0f, snap.snappedTime);
+        }
         float snappedEnd = snappedStart + length;
 
         // �?修复：确保片段时长保持不变，只移动位置（X轴和Y轴都更新�?

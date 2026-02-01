@@ -40,6 +40,10 @@ public class BindClipToContainerCommand extends BaseTimelineCommand {
         oldContainerId = clip.getBoundContainerId();
         oldContainerName = clip.getBoundContainerName();
         clip.bindToContainer(newContainerId, newContainerName);
+        if (clip instanceof com.chronoblocks.ui.timeline.model.audio.AudioTimelineClip) {
+            com.chronoblocks.ui.timeline.audio.TimelineAudioService.getInstance()
+                    .onAudioClipBindingChanged(clip, oldContainerId, newContainerId);
+        }
         LOGGER.debug("[Timeline] 片段 {} 绑定容器: {} ({})",
                 clip.getLabel(),
                 newContainerName,
@@ -52,6 +56,10 @@ public class BindClipToContainerCommand extends BaseTimelineCommand {
             return;
         }
         clip.bindToContainer(oldContainerId, oldContainerName);
+        if (clip instanceof com.chronoblocks.ui.timeline.model.audio.AudioTimelineClip) {
+            com.chronoblocks.ui.timeline.audio.TimelineAudioService.getInstance()
+                    .onAudioClipBindingChanged(clip, newContainerId, oldContainerId);
+        }
         LOGGER.debug("[Timeline] 撤销片段 {} 容器绑定，恢复为 {}", clip.getLabel(), oldContainerName);
     }
 
