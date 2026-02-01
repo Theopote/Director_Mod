@@ -101,6 +101,57 @@ public final class TimelineSnapping {
         boolean snappedClip = false;
         boolean snappedKey = false;
 
+        // 0) 优先同轨道吸附（片段边缘 / 关键帧）
+        if (track != null) {
+            if (model.snapToClipEdges()) {
+                for (TimelineClip clip : track.getClips()) {
+                    if (clip == null) continue;
+                    if (activeClip != null && clip == activeClip) continue;
+
+                    float start = clip.getStartTime();
+                    float end = clip.getEndTime();
+
+                    float ds = Math.abs(start - rawTime);
+                    if (ds < bestDelta && ds <= timeThreshold) {
+                        bestTime = start;
+                        bestDelta = ds;
+                        snappedGrid = false;
+                        snappedClip = true;
+                        snappedKey = false;
+                    }
+
+                    float de = Math.abs(end - rawTime);
+                    if (de < bestDelta && de <= timeThreshold) {
+                        bestTime = end;
+                        bestDelta = de;
+                        snappedGrid = false;
+                        snappedClip = true;
+                        snappedKey = false;
+                    }
+                }
+            }
+
+            if (model.snapToKeyframes()) {
+                for (TimelineClip clip : track.getClips()) {
+                    if (clip == null) continue;
+                    for (Float kf : clip.getKeyframeTimes()) {
+                        if (kf == null) continue;
+                        float dk = Math.abs(kf - rawTime);
+                        if (dk < bestDelta && dk <= timeThreshold) {
+                            bestTime = kf;
+                            bestDelta = dk;
+                            snappedGrid = false;
+                            snappedClip = false;
+                            snappedKey = true;
+                        }
+                    }
+                }
+            }
+
+            if (snappedClip || snappedKey) {
+                return new Result(bestTime, snappedGrid, snappedClip, snappedKey);
+            }
+        }
         // 1) 网格吸附（使用统一 API）
         if (model.isSnapToGridEnabled()) {
             float gridCandidate = model.snapToGrid(rawTime);

@@ -147,6 +147,27 @@ public class TimelineRenderer {
          * @return 临时结束时间，如果没有拖动则返回 -1
          */
         float getDraggedPathClipEndTime(CameraPathClip clip);
+
+        // ========== 吸附参考线状态（可选实现）==========
+        default boolean isSnapGuideActive() {
+            return false;
+        }
+
+        default float getSnapGuideTime() {
+            return -1f;
+        }
+
+        default boolean isSnapGuideToGrid() {
+            return false;
+        }
+
+        default boolean isSnapGuideToClip() {
+            return false;
+        }
+
+        default boolean isSnapGuideToKeyframe() {
+            return false;
+        }
     }
 
     public TimelineRenderer(TimelineModel model, TimelineViewportState viewportState) {
@@ -822,6 +843,43 @@ public class TimelineRenderer {
                                     float y, float contentW) {
         drawList.addRectFilled(contentX, y, contentX + contentW, y + TRACK_HEIGHT,
                 TimelineColors.COLOR_DROP_HIGHLIGHT);
+    }
+
+    /**
+     * 渲染吸附参考线（拖动时显示）
+     */
+    public void renderSnapGuide(ImDrawList drawList, float contentX,
+                                float contentY, float contentW, float contentH) {
+        if (dragStateQuery == null || !dragStateQuery.isSnapGuideActive()) {
+            return;
+        }
+
+        float time = dragStateQuery.getSnapGuideTime();
+        if (time < 0f) {
+            return;
+        }
+
+        float x = timeToX(time, contentX);
+        if (x < contentX - 2f || x > contentX + contentW + 2f) {
+            return;
+        }
+
+        int color;
+        if (dragStateQuery.isSnapGuideToClip()) {
+            color = TimelineColors.rgba(100, 220, 255, 200);
+        } else if (dragStateQuery.isSnapGuideToKeyframe()) {
+            color = TimelineColors.COLOR_KEYFRAME_SELECTED;
+        } else if (dragStateQuery.isSnapGuideToGrid()) {
+            color = TimelineColors.rgba(200, 200, 200, 160);
+        } else {
+            color = TimelineColors.rgba(255, 255, 255, 160);
+        }
+
+        float xAligned = (float) Math.floor(x) + 0.5f;
+        float y1 = contentY;
+        float y2 = contentY + contentH;
+        drawList.addRectFilled(xAligned - 1.5f, y1, xAligned + 1.5f, y2, TimelineColors.rgba(0, 0, 0, 80));
+        drawList.addRectFilled(xAligned - 0.5f, y1, xAligned + 0.5f, y2, color);
     }
 
     public List<TimelineTrackControlHit.Hit> getTrackControlHitAreas() {

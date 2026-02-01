@@ -191,6 +191,31 @@ public class TimelinePanel extends AbstractPanel
             public float getDraggedPathClipEndTime(com.chronoblocks.ui.timeline.model.camera.path.CameraPathClip clip) {
                 return interactionHandler.getDraggedPathClipEndTime(clip);
             }
+
+            @Override
+            public boolean isSnapGuideActive() {
+                return interactionHandler.isSnapGuideActive();
+            }
+
+            @Override
+            public float getSnapGuideTime() {
+                return interactionHandler.getSnapGuideTime();
+            }
+
+            @Override
+            public boolean isSnapGuideToGrid() {
+                return interactionHandler.isSnapGuideToGrid();
+            }
+
+            @Override
+            public boolean isSnapGuideToClip() {
+                return interactionHandler.isSnapGuideToClip();
+            }
+
+            @Override
+            public boolean isSnapGuideToKeyframe() {
+                return interactionHandler.isSnapGuideToKeyframe();
+            }
         });
 
         // 配置历史管理
@@ -737,6 +762,9 @@ public class TimelinePanel extends AbstractPanel
             float y = trackRegionTop - scrollY + dropTargetTrackIndex * rowHeight;
             renderer.renderDropHighlight(drawList, contentX, y, contentW);
         }
+
+        // 6.5) 吸附参考线（在剪裁区域内）
+        renderer.renderSnapGuide(drawList, contentX, trackRegionTop, contentW, trackViewportHeight);
 
         // 恢复轨道区域剪裁
         drawList.popClipRect();

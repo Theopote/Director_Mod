@@ -75,6 +75,13 @@ public class TimelineInteractionHandler {
     private float marqueeCurX = 0f;
     private float marqueeCurY = 0f;
 
+    // ========== 吸附参考线状态 ==========
+    private boolean snapGuideActive = false;
+    private float snapGuideTime = -1f;
+    private boolean snapGuideToGrid = false;
+    private boolean snapGuideToClip = false;
+    private boolean snapGuideToKey = false;
+
     /**
      * 浜や簰鍥炶皟鎺ュ彛锛岀�?TimelinePanel 瀹炵幇銆?
      */
@@ -114,6 +121,52 @@ public class TimelineInteractionHandler {
 
     public TimelineContextMenu getActiveContextMenu() {
         return activeContextMenu;
+    }
+
+    // ========== 吸附参考线查询（供 Renderer 使用）==========
+    public boolean isSnapGuideActive() {
+        return snapGuideActive;
+    }
+
+    public float getSnapGuideTime() {
+        return snapGuideTime;
+    }
+
+    public boolean isSnapGuideToGrid() {
+        return snapGuideToGrid;
+    }
+
+    public boolean isSnapGuideToClip() {
+        return snapGuideToClip;
+    }
+
+    public boolean isSnapGuideToKeyframe() {
+        return snapGuideToKey;
+    }
+
+    private void updateSnapGuide(TimelineSnapping.Result snap) {
+        if (snap == null) {
+            clearSnapGuide();
+            return;
+        }
+        boolean active = snap.snappedToGrid || snap.snappedToClipEdge || snap.snappedToKeyframe;
+        if (!active) {
+            clearSnapGuide();
+            return;
+        }
+        snapGuideActive = true;
+        snapGuideTime = snap.snappedTime;
+        snapGuideToGrid = snap.snappedToGrid;
+        snapGuideToClip = snap.snappedToClipEdge;
+        snapGuideToKey = snap.snappedToKeyframe;
+    }
+
+    private void clearSnapGuide() {
+        snapGuideActive = false;
+        snapGuideTime = -1f;
+        snapGuideToGrid = false;
+        snapGuideToClip = false;
+        snapGuideToKey = false;
     }
 
     /**
@@ -305,6 +358,7 @@ public class TimelineInteractionHandler {
             // 静默结束 scrubbing，不通知摄像机控制器
             model.setScrubbing(false);
         }
+        clearSnapGuide();
         // 清理音频实时预览（避免右键取消交互后预览残留）
         com.chronoblocks.ui.timeline.audio.TimelineAudioService.getInstance().endAllClipTimeRangePreviews();
         interactionManager.cancelAllInteractionsSilently();
@@ -1639,6 +1693,7 @@ public class TimelineInteractionHandler {
             }
         }
 
+        clearSnapGuide();
         interactionManager.endInteraction();
     }
 
@@ -1707,6 +1762,7 @@ public class TimelineInteractionHandler {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("[Timeline] 轨道已锁定，禁止拖动片段 (轨道: {})", currentTrack.getName());
             }
+            clearSnapGuide();
             return;
         }
 
@@ -1783,6 +1839,7 @@ public class TimelineInteractionHandler {
         TimelineSnapping.Result snap = TimelineSnapping.snapTime(
                 model, candidateStart, targetTrack, handle.clip, 0f
         );
+        updateSnapGuide(snap);
         float snappedStart = Math.max(0f, snap.snappedTime);
         float snappedEnd = snappedStart + length;
 
@@ -1834,6 +1891,7 @@ public class TimelineInteractionHandler {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("[Timeline] 轨道已锁定，禁止调整片段宽度 (轨道: {})", handle.track.getName());
             }
+            clearSnapGuide();
             return;
         }
 
@@ -1858,6 +1916,7 @@ public class TimelineInteractionHandler {
         TimelineSnapping.Result snap = TimelineSnapping.snapTime(
                 model, candidateStart, handle.track, handle.clip, 0f
         );
+        updateSnapGuide(snap);
         float snappedStart = Math.min(snap.snappedTime, handle.clip.getEndTime() - minLength);
         snappedStart = Math.max(0f, snappedStart);
 
@@ -1888,6 +1947,7 @@ public class TimelineInteractionHandler {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("[Timeline] 轨道已锁定，禁止调整片段宽度 (轨道: {})", handle.track.getName());
             }
+            clearSnapGuide();
             return;
         }
 
@@ -1911,6 +1971,7 @@ public class TimelineInteractionHandler {
         TimelineSnapping.Result snap = TimelineSnapping.snapTime(
                 model, candidateEnd, handle.track, handle.clip, 0f
         );
+        updateSnapGuide(snap);
         float snappedEnd = Math.max(snap.snappedTime, handle.clip.getStartTime() + minLength);
 
         // �?优化：实时更新片段结束时间，保持开始时间不变（调整时长�?
@@ -1934,6 +1995,7 @@ public class TimelineInteractionHandler {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("[Timeline] 轨道已锁定，禁止拖动关键�?(轨道: {})", handle.track.getName());
             }
+            clearSnapGuide();
             return;
         }
 
@@ -1941,6 +2003,7 @@ public class TimelineInteractionHandler {
         TimelineSnapping.Result snap = TimelineSnapping.snapTime(
                 model, rawTime, handle.track, handle.clip, 0f
         );
+        updateSnapGuide(snap);
         float newTime = snap.snappedTime;
 
         // 限制�?clip 范围�?
@@ -1989,6 +2052,7 @@ public class TimelineInteractionHandler {
                 if (LOGGER.isDebugEnabled()) {
                     LOGGER.debug("[Timeline] 容器轨道不支持轨道级关键帧拖动 (轨道: {})", handle.track.getName());
                 }
+                clearSnapGuide();
                 return;
             }
         }
@@ -1997,6 +2061,7 @@ public class TimelineInteractionHandler {
         if (handle.track != null
                 && handle.track.getType() == com.chronoblocks.ui.timeline.model.TrackType.AUDIO
                 && handle.keyframe instanceof com.chronoblocks.ui.timeline.model.audio.AudioEvent) {
+            clearSnapGuide();
             return;
         }
 
@@ -2005,6 +2070,7 @@ public class TimelineInteractionHandler {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("[Timeline] 轨道已锁定，禁止拖动自动化关键帧(轨道: {})", handle.track.getName());
             }
+            clearSnapGuide();
             return;
         }
 
@@ -2018,6 +2084,7 @@ public class TimelineInteractionHandler {
                 if (LOGGER.isDebugEnabled()) {
                     LOGGER.debug("[Timeline] 摄像机轨道未激活，禁止拖动关键帧(轨道: {})", handle.track.getName());
                 }
+                clearSnapGuide();
                 return;
             }
         }
@@ -2032,6 +2099,7 @@ public class TimelineInteractionHandler {
                 if (LOGGER.isDebugEnabled()) {
                     LOGGER.debug("[Timeline] 时间轨道未激活，禁止拖动关键帧(轨道: {})", handle.track.getName());
                 }
+                clearSnapGuide();
                 return;
             }
         }
@@ -2046,6 +2114,7 @@ public class TimelineInteractionHandler {
                 if (LOGGER.isDebugEnabled()) {
                     LOGGER.debug("[Timeline] 季节轨道未激活，禁止拖动关键帧(轨道: {})", handle.track.getName());
                 }
+                clearSnapGuide();
                 return;
             }
         }
@@ -2054,6 +2123,7 @@ public class TimelineInteractionHandler {
         TimelineSnapping.Result snap = TimelineSnapping.snapTime(
                 model, rawTime, handle.track, null, 0f
         );
+        updateSnapGuide(snap);
         float newTime = Math.max(0f, Math.min(model.getDuration(), snap.snappedTime));
 
         // 若变化太小，则不更新
@@ -2087,6 +2157,7 @@ public class TimelineInteractionHandler {
         TimelineSnapping.Result snap = TimelineSnapping.snapTime(
                 model, rawTime, null, null, 0f
         );
+        updateSnapGuide(snap);
         float clampedTime = Math.max(0f, Math.min(model.getDuration(), snap.snappedTime));
         model.setCurrentTime(clampedTime);
         model.setScrubbing(true);
@@ -2197,6 +2268,7 @@ public class TimelineInteractionHandler {
         TimelineSnapping.Result snap = TimelineSnapping.snapTime(
                 model, rawTime, null, null, 0f
         );
+        updateSnapGuide(snap);
         float newTime = Math.max(0f, Math.min(model.getDuration(), snap.snappedTime));
         
         float eps = 0.001f;
@@ -2237,6 +2309,7 @@ public class TimelineInteractionHandler {
             LOGGER.debug("[Timeline] 标记拖动完成 {} -> {}", originalTime, finalTime);
         }
         
+        clearSnapGuide();
         interactionManager.endInteraction();
     }
     
@@ -2260,6 +2333,7 @@ public class TimelineInteractionHandler {
         TimelineSnapping.Result snap = TimelineSnapping.snapTime(
                 model, rawTime, null, null, 0f
         );
+        updateSnapGuide(snap);
         float newTime = Math.max(0f, Math.min(model.getDuration(), snap.snappedTime));
         
         float eps = 0.001f;
@@ -2281,6 +2355,7 @@ public class TimelineInteractionHandler {
         TimelineSnapping.Result snap = TimelineSnapping.snapTime(
                 model, rawTime, null, null, 0f
         );
+        updateSnapGuide(snap);
         float clampedTime = Math.max(0f, Math.min(model.getDuration(), snap.snappedTime));
         
         // 更新模型时间
@@ -2315,6 +2390,7 @@ public class TimelineInteractionHandler {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("[Timeline] 轨道已锁定，禁止拖动 Path Clip (轨道: {})", handle.track.getName());
             }
+            clearSnapGuide();
             return;
         }
         
@@ -2343,6 +2419,7 @@ public class TimelineInteractionHandler {
             // 不允许重叠，保持原位置
             return;
         }
+        updateSnapGuide(snap);
         
         // 更新临时值（用于渲染实时反馈）
         handle.tempStart = snappedStart;
@@ -2370,6 +2447,7 @@ public class TimelineInteractionHandler {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("[Timeline] 轨道已锁定，禁止调整 Path Clip (轨道: {})", handle.track.getName());
             }
+            clearSnapGuide();
             return;
         }
         
@@ -2397,6 +2475,7 @@ public class TimelineInteractionHandler {
         if (hasPathClipOverlap(handle.track, snappedStart, originalEnd, handle.clip)) {
             return;
         }
+        updateSnapGuide(snap);
         
         // 更新临时值
         handle.tempStart = snappedStart;
@@ -2427,6 +2506,7 @@ public class TimelineInteractionHandler {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("[Timeline] 轨道已锁定，禁止调整 Path Clip (轨道: {})", handle.track.getName());
             }
+            clearSnapGuide();
             return;
         }
         
@@ -2452,6 +2532,7 @@ public class TimelineInteractionHandler {
         if (hasPathClipOverlap(handle.track, originalStart, snappedEnd, handle.clip)) {
             return;
         }
+        updateSnapGuide(snap);
         
         // 更新临时值
         handle.tempStart = originalStart;
@@ -2733,3 +2814,6 @@ public class TimelineInteractionHandler {
         }
     }
 }
+
+
+
