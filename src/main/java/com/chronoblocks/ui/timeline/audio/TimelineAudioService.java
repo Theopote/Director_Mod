@@ -358,11 +358,8 @@ public class TimelineAudioService {
         }
 
         TimelineClip containerClip = isContainer ? clip : resolveContainerClipForClip(clip);
-        if (containerClip == null && isAudio) {
-            containerClip = clip;
-        }
         if (containerClip == null) {
-            return;
+            containerClip = clip;
         }
 
         List<UUID> ids = linkedEventIdsByClip.getOrDefault(containerClip, Collections.emptyList());
