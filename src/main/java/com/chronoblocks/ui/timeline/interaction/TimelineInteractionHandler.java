@@ -88,17 +88,11 @@ public class TimelineInteractionHandler {
     public interface InteractionCallbacks {
         void onKeyframeDoubleClick(TimelineClip clip, float mouseX, float contentX);
         void onClipInteractionFinished(TimelineClip clip, float originalStartTime, float originalEndTime);
-        void onKeyframeDragFinished(TimelineClip clip, float originalTime, float newTime);
         void onDataChanged();
         void setHoveredTrack(TimelineTrack track);
-        void setDropTargetTrackIndex(int index);
-        boolean isMouseHoveringRect(float x1, float y1, float x2, float y2);
         void onAddKeyframeToTrack(TimelineTrack track);
         void onToggleTrackLock(TimelineTrack track);
         void onToggleTrackVisible(TimelineTrack track);
-        void onContainerDropped(String containerId);
-        void onContainerDroppedToTrack(String containerId, int trackIndex);
-        void onContainerDropRejected(String containerId, int trackIndex);
     }
     
     public TimelineInteractionHandler(TimelineModel model,
@@ -1801,7 +1795,7 @@ public class TimelineInteractionHandler {
                 // �?关键修复：只在目标轨道与当前轨道不同时才移动，避免重复移�?
                 if (newTrack != null && newTrack != currentTrack && !newTrack.isLocked()) {
                     // ✅ 容器片段只能在容器轨道上（拆除容器和普通容器都可以）
-                    if (newTrack != null && newTrack.getType() != TrackType.CONTAINER) {
+                    if (newTrack.getType() != TrackType.CONTAINER) {
                         // 容器片段禁止移到非容器轨道
                         newTrack = null;
                     } else if (!isClipAllowedOnTrack(handle.clip, newTrack)) {
@@ -1871,8 +1865,7 @@ public class TimelineInteractionHandler {
         }
 
         // ✅ 容器片段：只能在 CONTAINER 轨道（拆除容器和普通容器都可以放在容器轨道上）
-        if (tt == TrackType.CONTAINER) return true;
-        return false; // 其它轨道一律不允许容器片段进入
+        return tt == TrackType.CONTAINER;// 其它轨道一律不允许容器片段进入
     }
 
     /**
@@ -2688,9 +2681,6 @@ public class TimelineInteractionHandler {
 
         // 尝试获取 Actor 和 RigProfile
         ActorRegistry actorRegistry = ActorRegistryManager.getInstance();
-        if (actorRegistry == null) {
-            return true; // 如果没有 Registry，允许涂抹
-        }
 
         java.util.Optional<Actor> actorOpt = actorRegistry.getActor(actorRef.getActorId());
         if (actorOpt.isEmpty()) {

@@ -41,7 +41,6 @@ import org.slf4j.LoggerFactory;
 // ⚠️ GLFW 导入已不再使用（时间线快捷键已迁移到 ShortcutDispatcher）
 
 import java.util.Objects;
-import java.util.UUID;
 
 /**
  * ChronoBlocks 专业级时间轴面板（架构重构版 v8.0）
@@ -1329,17 +1328,6 @@ public class TimelinePanel extends AbstractPanel
     }
 
     @Override
-    public void onKeyframeDragFinished(TimelineClip clip, float originalTime, float newTime) {
-        // 控制器负责创建命令和管理数据修改
-        // 使用 Remove + Add 命令实现关键帧移动
-        commandHistory.executeCommand(new RemoveKeyframeCommand(model, clip, originalTime));
-        commandHistory.executeCommand(new AddKeyframeCommand(model, clip, newTime));
-        markDataChanged();
-        LOGGER.info("[TimelinePanel] 移动关键帧从 {}s 到 {}s (片段: {})",
-                String.format("%.2f", originalTime), String.format("%.2f", newTime), clip.getLabel());
-    }
-
-    @Override
     public void onDataChanged() {
         markDataChanged();
     }
@@ -1357,17 +1345,6 @@ public class TimelinePanel extends AbstractPanel
         ClipBindingDialog.open(clip);
     }
 
-    @Override
-    public void setDropTargetTrackIndex(int index) {
-        dropTargetTrackIndex = index;
-    }
-
-    @Override
-    public boolean isMouseHoveringRect(float x1, float y1, float x2, float y2) {
-        float mx = ImGui.getMousePosX();
-        float my = ImGui.getMousePosY();
-        return mx >= x1 && mx <= x2 && my >= y1 && my <= y2;
-    }
 
     @Override
     public void onAddKeyframeToTrack(TimelineTrack track) {
@@ -1576,109 +1553,6 @@ public class TimelinePanel extends AbstractPanel
         markDataChanged();
     }
 
-    @Override
-    public void onContainerDropped(String containerId) {
-        if (containerId == null || containerId.isEmpty()) {
-            LOGGER.warn("[TimelinePanel] 容器ID为空，拒绝拖放");
-            return;
-        }
-
-        try {
-            // 1. 验证并解析容器ID
-            UUID containerUuid;
-            try {
-                containerUuid = UUID.fromString(containerId);
-            } catch (IllegalArgumentException e) {
-                LOGGER.error("[TimelinePanel] 无效的容器ID格式: {}", containerId, e);
-                return;
-            }
-
-            // 2. 获取容器
-            Container container = Objects.requireNonNull(ContainerManager.getInstance()).getContainer(containerUuid);
-            if (container == null) {
-                LOGGER.warn("[TimelinePanel] 容器不存在: {}", containerId);
-                return;
-            }
-
-            // 3. 创建容器轨道（使用UI层的TimelineTrack）
-            TimelineTrack track = new TimelineTrack(container.getName());
-            track.setName("Track_" + container.getName());
-
-            // 4. 添加到时间线模型
-            model.addTrack(track);
-
-            // 5. 标记数据已修改
-            markDataChanged();
-
-            LOGGER.info("[TimelinePanel] 成功创建容器轨道: {} -> {}",
-                    container.getName(), track.getName());
-
-        } catch (Exception e) {
-            LOGGER.error("[TimelinePanel] 处理容器拖放失败: containerId={}", containerId, e);
-            // 可以考虑在这里添加用户通知（如 ImGui 弹窗）
-        }
-    }
-
-    @Override
-    public void onContainerDroppedToTrack(String containerId, int trackIndex) {
-        // 注意：此回调现在由 TimelineDragAndDropHandler 内部处理
-        // 留空以兼容接口，但逻辑已在 handleDragDropTarget 中实现
-        LOGGER.debug("[TimelinePanel] onContainerDroppedToTrack 回调被调用，但逻辑已由 DragDropHandler 处理");
-    }
-
-
-    @Override
-    public void onContainerDropRejected(String containerId, int trackIndex) {
-        if (containerId == null || containerId.isEmpty()) {
-            LOGGER.warn("[TimelinePanel] 容器ID为空，拒绝拖放");
-            return;
-        }
-
-        try {
-            // 1. 验证并解析容器ID
-            UUID containerUuid;
-            try {
-                containerUuid = UUID.fromString(containerId);
-            } catch (IllegalArgumentException e) {
-                LOGGER.error("[TimelinePanel] 无效的容器ID格式: {}", containerId, e);
-                return;
-            }
-
-            // 2. 获取容器
-            Container container = Objects.requireNonNull(ContainerManager.getInstance()).getContainer(containerUuid);
-            if (container == null) {
-                LOGGER.warn("[TimelinePanel] 容器不存在: {}", containerId);
-                return;
-            }
-
-            // 3. 获取目标轨道
-            if (trackIndex < 0 || trackIndex >= model.getTrackCount()) {
-                LOGGER.warn("[TimelinePanel] 目标轨道索引无效: {} (总轨道数: {})",
-                        trackIndex, model.getTrackCount());
-                return;
-            }
-
-            TimelineTrack targetTrack = model.getTrackAt(trackIndex);
-            if (targetTrack == null) {
-                LOGGER.warn("[TimelinePanel] 目标轨道不存在，索引: {}", trackIndex);
-                return;
-            }
-
-            // 4. 记录拒绝原因
-            String containerName = container.getName();
-            String trackTypeName = targetTrack.getType().getDisplayName();
-
-            LOGGER.warn("[TimelinePanel] 容器拖放被拒绝: {} 不能拖放到 {} 轨道上 (轨道索引: {})",
-                    containerName, trackTypeName, trackIndex);
-
-            // 5. 可以在这里添加用户界面提示，比如显示一个临时的错误消息
-            // 由于ImGui的限制，这里只记录日志，实际应用中可通过其他方式显示提示
-
-        } catch (Exception e) {
-            LOGGER.error("[TimelinePanel] 处理容器拖放拒绝失败: containerId={}, trackIndex={}",
-                    containerId, trackIndex, e);
-        }
-    }
 
     // ========== 回调接口实现（TimelineControlBar.Callbacks） ==========
 
