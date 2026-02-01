@@ -25,6 +25,7 @@ import com.chronoblocks.ui.timeline.render.TimelineRenderer;
 import com.chronoblocks.ui.timeline.render.TimelineTrackControlHit;
 import com.chronoblocks.ui.timeline.snapping.TimelineSnapping;
 import com.chronoblocks.ui.timeline.commands.MoveAutomationKeyframeCommand;
+import com.chronoblocks.ui.timeline.commands.MoveAutomationKeyframeBetweenTracksCommand;
 
 import imgui.ImGui;
 import imgui.ImGuiIO;
@@ -351,6 +352,16 @@ public class TimelineInteractionHandler {
         if (mode == InteractionMode.DRAG_PLAYHEAD) {
             // 静默结束 scrubbing，不通知摄像机控制器
             model.setScrubbing(false);
+        }
+        if (interactionManager.isInteracting(InteractionMode.DRAG_AUTOMATION_KEYFRAME)) {
+            Object active = interactionManager.getActiveObject();
+            if (active instanceof AutomationKeyframeHandle handle
+                    && handle.keyframe instanceof com.chronoblocks.ui.timeline.model.audio.AudioEvent
+                    && handle.currentTrack != handle.originalTrack) {
+                handle.currentTrack.removeAutomationKeyframe(handle.keyframe.getId());
+                handle.originalTrack.addAutomationKeyframe(handle.keyframe);
+                handle.currentTrack = handle.originalTrack;
+            }
         }
         clearSnapGuide();
         // 清理音频实时预览（避免右键取消交互后预览残留）
@@ -1587,12 +1598,20 @@ public class TimelineInteractionHandler {
                 float originalTime = interactionManager.getDragStartValue();
                 float finalTime = handle.currentTime;
 
-                // ⭐⭐ 修复：改成单一命令处理
-                // 所有数据结构修改都在这里执行一次，拖动过程中不会修改模型
-                commandHistory.executeCommand(
-                    new com.chronoblocks.ui.timeline.commands.MoveAutomationKeyframeCommand(
-                        model, handle.track, handle.keyframe, originalTime, finalTime)
-                );
+                if (handle.keyframe instanceof com.chronoblocks.ui.timeline.model.audio.AudioEvent
+                        && handle.currentTrack != handle.originalTrack) {
+                    commandHistory.executeCommand(
+                        new MoveAutomationKeyframeBetweenTracksCommand(
+                            model, handle.originalTrack, handle.currentTrack, handle.keyframe, originalTime, finalTime)
+                    );
+                } else {
+                    // ⭐⭐ 修复：改成单一命令处理
+                    // 所有数据结构修改都在这里执行一次，拖动过程中不会修改模型
+                    commandHistory.executeCommand(
+                        new MoveAutomationKeyframeCommand(
+                            model, handle.currentTrack, handle.keyframe, originalTime, finalTime)
+                    );
+                }
 
                 // MoveAutomationKeyframeCommand 内部已经调用了 onKeyframeChanged()，这里不需要再调用
 
@@ -1719,7 +1738,7 @@ public class TimelineInteractionHandler {
             case RESIZE_CLIP_LEFT -> resizeClipLeft(mouseX, contentX);
             case RESIZE_CLIP_RIGHT -> resizeClipRight(mouseX, contentX);
             case DRAG_KEYFRAME -> dragKeyframe(mouseX, contentX);
-            case DRAG_AUTOMATION_KEYFRAME -> dragAutomationKeyframe(mouseX, contentX);
+            case DRAG_AUTOMATION_KEYFRAME -> dragAutomationKeyframe(mouseX, contentX, mouseY, trackAreaTop, scrollY);
             case DRAG_MARKER -> dragMarker(mouseX, contentX);  // ⭐ 拖动标记
             case DRAG_PLAYHEAD -> dragPlayhead(mouseX, contentX);
             case PAINT_ACTION -> paintAction(mouseX, contentX); // ⭐ Action 涂抹
@@ -1794,14 +1813,14 @@ public class TimelineInteractionHandler {
                 TimelineTrack newTrack = model.getTrackAt(newTrackIndex);
                 // �?关键修复：只在目标轨道与当前轨道不同时才移动，避免重复移�?
                 if (newTrack != null && newTrack != currentTrack && !newTrack.isLocked()) {
-                    // ✅ 容器片段只能在容器轨道上（拆除容器和普通容器都可以）
-                    if (newTrack.getType() != TrackType.CONTAINER) {
-                        // 容器片段禁止移到非容器轨道
-                        newTrack = null;
-                    } else if (!isClipAllowedOnTrack(handle.clip, newTrack)) {
-                        // 拆除/非拆除容器的轨道约束（模型层也会拦截，这里提前判断避免“先移除导致消失”）
+                    // Track constraint: use isClipAllowedOnTrack
+                    if (!isClipAllowedOnTrack(handle.clip, newTrack)) {
+                        // Block invalid track types
                         newTrack = null;
                     }
+
+
+
                     if (newTrack == null) {
                         // 不允许跨轨道移动：保持在当前轨道
                         targetTrack = currentTrack;
@@ -2032,50 +2051,69 @@ public class TimelineInteractionHandler {
      * <p>所有数据结构修改（track.remove/add, keyframe.setTime）都留给
      * {@link MoveAutomationKeyframeCommand} 在鼠标松开时统一处理。
      */
-    private void dragAutomationKeyframe(float mouseX, float contentX) {
+    private void dragAutomationKeyframe(float mouseX, float contentX, float mouseY, float trackAreaTop, float scrollY) {
         Object active = interactionManager.getActiveObject();
         if (!(active instanceof AutomationKeyframeHandle handle)) {
             return;
         }
 
         // ✅ 修复：容器轨道和清除轨道不支持轨道级关键帧，禁止拖动
-        if (handle.track != null) {
-            com.chronoblocks.ui.timeline.model.TrackType trackType = handle.track.getType();
+        if (handle.currentTrack != null) {
+            com.chronoblocks.ui.timeline.model.TrackType trackType = handle.currentTrack.getType();
             if (trackType == com.chronoblocks.ui.timeline.model.TrackType.CONTAINER) {
                 if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("[Timeline] 容器轨道不支持轨道级关键帧拖动 (轨道: {})", handle.track.getName());
+                    LOGGER.debug("[Timeline] 容器轨道不支持轨道级关键帧拖动 (轨道: {})", handle.currentTrack.getName());
                 }
                 clearSnapGuide();
                 return;
             }
         }
 
-        // 🔒 音频事件点：禁止拖动（时间严格由容器动画决定）
-        if (handle.track != null
-                && handle.track.getType() == com.chronoblocks.ui.timeline.model.TrackType.AUDIO
-                && handle.keyframe instanceof com.chronoblocks.ui.timeline.model.audio.AudioEvent) {
-            clearSnapGuide();
-            return;
-        }
-
         // 轨道锁定功能：如果轨道锁定，禁止拖动关键帧
-        if (handle.track != null && handle.track.isLocked()) {
+        if (handle.currentTrack != null && handle.currentTrack.isLocked()) {
             if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("[Timeline] 轨道已锁定，禁止拖动自动化关键帧(轨道: {})", handle.track.getName());
+                LOGGER.debug("[Timeline] 轨道已锁定，禁止拖动自动化关键帧(轨道: {})", handle.currentTrack.getName());
             }
             clearSnapGuide();
             return;
         }
 
+        boolean isAudioEvent = handle.currentTrack != null
+                && handle.currentTrack.getType() == com.chronoblocks.ui.timeline.model.TrackType.AUDIO
+                && handle.keyframe instanceof com.chronoblocks.ui.timeline.model.audio.AudioEvent;
+        if (isAudioEvent) {
+            // 允许在不同音频轨道之间移动（垂直拖动），时间不变
+            if (mouseY > 0 && trackAreaTop > 0) {
+                float relativeY = mouseY - trackAreaTop;
+                int newTrackIndex = renderer.yToTrackIndex(relativeY, scrollY);
+                if (newTrackIndex >= 0 && newTrackIndex < model.getTrackCount()) {
+                    TimelineTrack newTrack = model.getTrackAt(newTrackIndex);
+                    if (newTrack != null
+                            && newTrack != handle.currentTrack
+                            && !newTrack.isLocked()
+                            && newTrack.getType() == com.chronoblocks.ui.timeline.model.TrackType.AUDIO) {
+                        handle.currentTrack.removeAutomationKeyframe(handle.keyframe.getId());
+                        newTrack.addAutomationKeyframe(handle.keyframe);
+                        handle.currentTrack = newTrack;
+                    }
+                }
+            }
+            handle.currentTime = handle.keyframe.getStartTime();
+            if (callbacks != null) {
+                callbacks.onDataChanged();
+            }
+            return;
+        }
+
         // ⭐ v5.0：如果是摄像机轨道，检查是否是激活的轨道
-        if (handle.track != null && handle.track.getType() == com.chronoblocks.ui.timeline.model.TrackType.CAMERA) {
+        if (handle.currentTrack != null && handle.currentTrack.getType() == com.chronoblocks.ui.timeline.model.TrackType.CAMERA) {
             com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController controller =
                     com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance();
             com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
             
-            if (activeTrack != handle.track) {
+            if (activeTrack != handle.currentTrack) {
                 if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("[Timeline] 摄像机轨道未激活，禁止拖动关键帧(轨道: {})", handle.track.getName());
+                    LOGGER.debug("[Timeline] 摄像机轨道未激活，禁止拖动关键帧(轨道: {})", handle.currentTrack.getName());
                 }
                 clearSnapGuide();
                 return;
@@ -2083,14 +2121,14 @@ public class TimelineInteractionHandler {
         }
         
         // ⭐ v3.5：如果是时间轨道，检查是否是激活的轨道
-        if (handle.track != null && handle.track.getType() == com.chronoblocks.ui.timeline.model.TrackType.TIME) {
+        if (handle.currentTrack != null && handle.currentTrack.getType() == com.chronoblocks.ui.timeline.model.TrackType.TIME) {
             com.chronoblocks.ui.timeline.playback.time.TimelineWorldController controller =
                     com.chronoblocks.ui.timeline.playback.time.TimelineWorldController.getInstance();
             com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveTimeTrack();
             
-            if (activeTrack != handle.track) {
+            if (activeTrack != handle.currentTrack) {
                 if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("[Timeline] 时间轨道未激活，禁止拖动关键帧(轨道: {})", handle.track.getName());
+                    LOGGER.debug("[Timeline] 时间轨道未激活，禁止拖动关键帧(轨道: {})", handle.currentTrack.getName());
                 }
                 clearSnapGuide();
                 return;
@@ -2098,14 +2136,14 @@ public class TimelineInteractionHandler {
         }
         
         // ⭐ v1.1：如果是季节轨道，检查是否是激活的轨道
-        if (handle.track != null && handle.track.getType() == com.chronoblocks.ui.timeline.model.TrackType.SEASON) {
+        if (handle.currentTrack != null && handle.currentTrack.getType() == com.chronoblocks.ui.timeline.model.TrackType.SEASON) {
             com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController controller =
                     com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController.getInstance();
             com.chronoblocks.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveSeasonTrack();
             
-            if (activeTrack != handle.track) {
+            if (activeTrack != handle.currentTrack) {
                 if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("[Timeline] 季节轨道未激活，禁止拖动关键帧(轨道: {})", handle.track.getName());
+                    LOGGER.debug("[Timeline] 季节轨道未激活，禁止拖动关键帧(轨道: {})", handle.currentTrack.getName());
                 }
                 clearSnapGuide();
                 return;
@@ -2114,7 +2152,7 @@ public class TimelineInteractionHandler {
 
         float rawTime = renderer.xToTime(mouseX, contentX);
         TimelineSnapping.Result snap = TimelineSnapping.snapTime(
-                model, rawTime, handle.track, null, 0f
+                model, rawTime, handle.currentTrack, null, 0f
         );
         updateSnapGuide(snap);
         float newTime = Math.max(0f, Math.min(model.getDuration(), snap.snappedTime));
@@ -2583,12 +2621,14 @@ public class TimelineInteractionHandler {
     }
 
     private static final class AutomationKeyframeHandle {
-        final TimelineTrack track;
+        final TimelineTrack originalTrack;
+        TimelineTrack currentTrack;
         final TimelineSelectable keyframe;
         float currentTime;
 
         AutomationKeyframeHandle(TimelineTrack track, TimelineSelectable keyframe) {
-            this.track = track;
+            this.originalTrack = track;
+            this.currentTrack = track;
             this.keyframe = keyframe;
             this.currentTime = keyframe.getStartTime();
         }
@@ -2804,6 +2844,3 @@ public class TimelineInteractionHandler {
         }
     }
 }
-
-
-
