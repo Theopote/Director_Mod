@@ -68,6 +68,8 @@ public abstract class BackgroundRendererMixin {
         float g = original.y;
         float b = original.z;
         float a = original.w;
+
+        // 时间轨道不直接修改雾颜色（/time set 语义），雾由原版与天气系统决定
         
         // ⚠️ 雾功能已禁用：由于雾效果无法实现理想效果，已注释掉所有雾相关代码
         // ⭐ 天气系统：优先级最高，直接覆盖雾颜色和密度

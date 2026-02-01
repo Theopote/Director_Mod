@@ -674,18 +674,8 @@ public final class TimelineWorldController {
         long normalizedTicks = ticks % 24000L;
         if (normalizedTicks < 0) normalizedTicks += 24000L;
 
-        // ⭐ v3.6：避免每帧重复 setTime() 触发天空/光照抖动（用户体感为“闪一下”）
-        long actualTime = world.getTimeOfDay();
-        long actualNormalized = actualTime % 24000L;
-        if (actualNormalized < 0) actualNormalized += 24000L;
-        if (actualNormalized == normalizedTicks) {
-            // Debug: skip setTime when already equal
-            System.out.println("[ChronoBlocks][TIME] applyWorldTime -> already at normalizedTicks=" + normalizedTicks + ", skipping setTime");
-            if (freezeTimeActive) {
-                frozenGameTime = normalizedTicks;
-            }
-            return;
-        }
+        // 注意：不能依赖 getTimeOfDay() 来判断是否需要 setTime，
+        // 因为该方法可能被 Mixin 覆盖返回采样值，导致跳过更新。
 
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("[TimelineWorld] applyWorldTime: world.setTime({}, {}, false)", normalizedTicks, normalizedTicks);
@@ -707,20 +697,7 @@ public final class TimelineWorldController {
         
         // ⭐ DEBUG: 验证设置是否成功
         // 注意：getTimeOfDay() 可能返回总 tick 数，需要归一化后比较
-        actualTime = world.getTimeOfDay();
-        actualNormalized = actualTime % 24000L;
-        if (actualNormalized < 0) actualNormalized += 24000L;
-        if (actualNormalized != normalizedTicks) {
-            System.out.println("[ChronoBlocks][TIME] ⚠️ applyWorldTime() - verification failed: expected=" + normalizedTicks + ", actual=" + actualTime + " (norm=" + actualNormalized + ")");
-            LOGGER.warn("[TimelineWorld] ⚠️ applyWorldTime() - 设置后验证失败! 期望={}, 实际={} (归一化={})", 
-                    normalizedTicks, actualTime, actualNormalized);
-        } else {
-            // Debug: success
-            System.out.println("[ChronoBlocks][TIME] applyWorldTime ok: actual=" + actualTime + " norm=" + actualNormalized);
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[TimelineWorld] applyWorldTime ok: actual={} norm={}", actualTime, actualNormalized);
-            }
-        }
+        // 避免依赖 getTimeOfDay 的校验（该方法可能被覆盖）
     }
 
     // ================== 原版时间系统冻结/恢复 ==================

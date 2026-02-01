@@ -167,6 +167,15 @@ public final class TimeSample {
                              false, 1.0f, 0.6f, 0.2f, 1.0f,
                              0.6f, 0.7f, 1.0f, 1.0f);
     }
+
+    /**
+     * 自定义太阳高度角，但以 /time set 的方式驱动世界时间与天空。
+     */
+    public static TimeSample fromSunElevationAsTime(float sunElevation, float sunAzimuth) {
+        float skyAngleNorm = calculateSkyAngleFromElevation(sunElevation, sunAzimuth);
+        double timeOfDay = skyAngleToTimeOfDay(skyAngleNorm);
+        return fromNaturalTime(timeOfDay, true);
+    }
     
     /**
      * 创建一个使用自然世界时间的采样结果
@@ -202,16 +211,12 @@ public final class TimeSample {
      * 基于天空角度计算太阳高度角（简化模型）
      */
     public static float calculateSunElevationFromSkyAngle(float skyAngleNorm) {
-        // Improved mapping:
-        // skyAngleNorm: 0.0 = midnight, 0.5 = noon, 1.0 = next midnight
-        // Convert to an angular position around the circle: theta = (skyAngleNorm - 0.5) * 2pi
-        // Sun elevation = sin(theta) * maxElevation. This yields negative values at night.
+        // Vanilla-like mapping:
+        // skyAngleNorm: 0.0 = midnight, 0.25 = sunrise, 0.5 = noon, 0.75 = sunset
         double theta = (skyAngleNorm - 0.5d) * 2.0d * Math.PI;
-        double sin = Math.sin(theta);
-        // Use ~60 degrees as a reasonable maximum elevation (near vanilla feel)
+        double cos = Math.cos(theta);
         double maxElevation = 60.0d;
-        double elev = sin * maxElevation;
-        // Clamp to reasonable range (-90..90)
+        double elev = cos * maxElevation;
         if (elev > 90.0d) elev = 90.0d;
         if (elev < -90.0d) elev = -90.0d;
         return (float) elev;
@@ -224,9 +229,42 @@ public final class TimeSample {
      * 这个方法根据高度角生成完整昼夜循环的 skyAngle。
      */
     private static float calculateSkyAngleFromElevation(float elevation, float azimuth) {
-        // 允许负高度角：-90°(午夜) → 0.0，0°(日出/日落) → 0.25，90°(正午) → 0.5
-        float clamped = Math.max(-90.0f, Math.min(90.0f, elevation));
-        return (clamped + 90.0f) / 360.0f;
+        double maxElevation = 60.0d;
+        double clamped = Math.max(-maxElevation, Math.min(maxElevation, elevation));
+        double ratio = clamped / maxElevation;
+        if (ratio > 1.0d) ratio = 1.0d;
+        if (ratio < -1.0d) ratio = -1.0d;
+        double t = Math.acos(ratio); // 0..pi
+        double skyAngle = azimuth < 180.0f
+                ? 0.5d - t / (2.0d * Math.PI)
+                : 0.5d + t / (2.0d * Math.PI);
+        while (skyAngle < 0.0d) skyAngle += 1.0d;
+        while (skyAngle >= 1.0d) skyAngle -= 1.0d;
+        return (float) skyAngle;
+    }
+
+    /**
+     * 将天空角度映射回时间（tick），用于等价于 /time set 的效果。
+     */
+    private static double skyAngleToTimeOfDay(float skyAngle) {
+        float target = skyAngle;
+        while (target < 0.0f) target += 1.0f;
+        while (target >= 1.0f) target -= 1.0f;
+        double low = 0.0d;
+        double high = DAY_LENGTH_TICKS;
+        for (int i = 0; i < 32; i++) {
+            double mid = (low + high) * 0.5d;
+            float angle = calculateVanillaSkyAngle(mid);
+            if (angle < target) {
+                low = mid;
+            } else {
+                high = mid;
+            }
+        }
+        double time = (low + high) * 0.5d;
+        time = time % DAY_LENGTH_TICKS;
+        if (time < 0.0d) time += DAY_LENGTH_TICKS;
+        return time;
     }
     
     /**

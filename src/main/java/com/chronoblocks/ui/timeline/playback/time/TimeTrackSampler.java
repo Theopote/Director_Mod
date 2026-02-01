@@ -148,8 +148,7 @@ public final class TimeTrackSampler {
         if (keyframe.isUseNaturalTime()) {
             return TimeSample.fromNaturalTime(keyframe.getWorldTimeTicks());
         } else {
-            return TimeSample.fromCustomSun(
-                    keyframe.getWorldTimeTicks(),
+            return TimeSample.fromSunElevationAsTime(
                     keyframe.getSunElevation(),
                     keyframe.getSunAzimuth()
             );

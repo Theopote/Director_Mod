@@ -83,10 +83,16 @@ public abstract class ClientWorldMixin {
         if (sample == null) {
             return;
         }
+        if (sample.isUseWorldTime()) {
+            return; // /time set 语义：让原版按世界时间计算亮度
+        }
 
-        // ⭐ 直接使用 TimeSample.getSkyLight() 而不是通过 skyAngle 计算
-        // skyLight 已经在 TimeSample 中根据太阳高度角计算好了
-        float baseBrightness = sample.getSkyLight(); // 0.0-1.0，0=午夜，1=正午
+        // 自定义太阳模式：使用 skyAngle 走原版亮度曲线
+        float f = sample.getSkyAngle();
+        float g = 1.0f - (MathHelper.cos(f * (float) (Math.PI * 2)) * 2.0f + 0.2f);
+        g = MathHelper.clamp(g, 0.0f, 1.0f);
+        g = 1.0f - g;
+        float baseBrightness = g;
         
         ClientWorld world = (ClientWorld) (Object) this;
         
@@ -147,7 +153,9 @@ public abstract class ClientWorldMixin {
         if (sample == null) {
             return;
         }
-
+        if (sample.isUseWorldTime()) {
+            return; // /time set 语义：让原版按世界时间计算星星亮度
+        }
         // ⭐ 直接使用 TimeSample.getSkyLight() 计算星星亮度
         // 星星亮度与天空亮度反相关：亮度越低（夜晚），星星越亮
         float skyLight = sample.getSkyLight(); // 0.0-1.0
@@ -185,22 +193,6 @@ public abstract class ClientWorldMixin {
         float rf = r / 255f;
         float gf = g / 255f;
         float bf = b / 255f;
-
-        // ⭐ 时间轨道（自定义太阳模式）：补偿云颜色随时间变化
-        TimelineWorldController timeController = TimelineWorldController.getInstance();
-        if (timeController.hasOverride()) {
-            TimeSample timeSample = timeController.current();
-            if (timeSample != null && !timeSample.isUseWorldTime()) {
-                float skyLight = timeSample.getSkyLight();
-                float cloudBrightness = skyLight * skyLight * 0.8f + 0.2f;
-                rf *= cloudBrightness;
-                gf *= cloudBrightness;
-                bf *= cloudBrightness;
-                if (skyLight < 0.3f) {
-                    bf += (0.3f - skyLight) * 0.15f;
-                }
-            }
-        }
 
         // ⭐ 天气系统：应用在原版时间影响之后
         TimelineWeatherController weatherController = TimelineWeatherController.getInstance();
@@ -275,31 +267,6 @@ public abstract class ClientWorldMixin {
         float rf = r / 255f;
         float gf = g / 255f;
         float bf = b / 255f;
-
-        // ⭐ 时间轨道（自定义太阳模式）：补偿天空颜色随时间变化
-        TimelineWorldController timeController = TimelineWorldController.getInstance();
-        if (timeController.hasOverride()) {
-            TimeSample timeSample = timeController.current();
-            if (timeSample != null && !timeSample.isUseWorldTime()) {
-                float skyLight = timeSample.getSkyLight();
-                float lightFactor = skyLight * skyLight;
-                rf *= lightFactor;
-                gf *= lightFactor;
-                bf *= lightFactor;
-                if (skyLight < 0.3f) {
-                    bf += (0.3f - skyLight) * 0.2f;
-                }
-                if (skyLight > 0.2f && skyLight < 0.4f) {
-                    float sunriseFactor = (0.4f - skyLight) / 0.2f;
-                    rf += sunriseFactor * 0.3f;
-                    gf += sunriseFactor * 0.15f;
-                } else if (skyLight > 0.6f && skyLight < 0.8f) {
-                    float sunsetFactor = (0.8f - skyLight) / 0.2f;
-                    rf += sunsetFactor * 0.3f;
-                    gf += sunsetFactor * 0.15f;
-                }
-            }
-        }
 
         // ⭐ 天气系统：优先级最高，应用天空暗度和雷暴暗度
         TimelineWeatherController weatherController = TimelineWeatherController.getInstance();
