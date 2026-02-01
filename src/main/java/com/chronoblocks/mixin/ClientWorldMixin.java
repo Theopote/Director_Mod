@@ -157,28 +157,6 @@ public abstract class ClientWorldMixin {
         cir.setReturnValue(starBrightness);
     }
 
-    // Injector: ensure renderer-side calls to getSkyAngleRadians
-    // use the TimeSample's skyAngle when ChronoBlocks overrides time.
-    @Inject(method = "getSkyAngleRadians(F)F", at = @At("HEAD"), cancellable = true)
-    private void overrideSkyAngleRadians(float tickDelta, CallbackInfoReturnable<Float> cir) {
-        // 优先使用渲染层注入的值
-        float overridden = com.chronoblocks.client.RenderTimeState.getSkyAngleRadians();
-        if (!Float.isNaN(overridden)) {
-            cir.setReturnValue(overridden);
-            return;
-        }
-
-        TimelineWorldController controller = TimelineWorldController.getInstance();
-        if (!controller.hasOverride()) {
-            return;
-        }
-        TimeSample sample = controller.current();
-        if (sample == null) {
-            return;
-        }
-        cir.setReturnValue(sample.getSkyAngle() * (float) (Math.PI * 2.0));
-    }
-
     /**
      * Weather + Time：云颜色控制
      * 
@@ -387,6 +365,42 @@ public abstract class ClientWorldMixin {
                 | ((int) (clamp01(rf) * 255) << 16)
                 | ((int) (clamp01(gf) * 255) << 8)
                 | (int) (clamp01(bf) * 255));
+    }
+
+    /**
+     * 兼容：部分版本 getSkyColor 返回 Vec3d
+     */
+    @Inject(
+        method = "getSkyColor(Lnet/minecraft/util/math/Vec3d;F)Lnet/minecraft/util/math/Vec3d;",
+        at = @At("RETURN"),
+        cancellable = true,
+        require = 0
+    )
+    private void tintSkyVec(Vec3d pos, float tickDelta, CallbackInfoReturnable<Vec3d> cir) {
+        Vec3d color = cir.getReturnValue();
+        if (color == null) {
+            return;
+        }
+
+        double rf = color.x;
+        double gf = color.y;
+        double bf = color.z;
+
+        // 天气系统（暗度/雷暴）仍然由原始方法处理，这里只做季节色调叠加
+        TimelineSeasonController seasonController = TimelineSeasonController.getInstance();
+        if (seasonController.hasOverride()) {
+            SeasonSample seasonSample = seasonController.getCurrentSample();
+            if (seasonSample != null) {
+                rf = clamp01((float) (rf * (1f + clampTint(seasonSample.lightTint.x))));
+                gf = clamp01((float) (gf * (1f + clampTint(seasonSample.lightTint.y))));
+                bf = clamp01((float) (bf * (1f + clampTint(seasonSample.lightTint.z))));
+                rf = clamp01((float) (rf * (1f + clampTint(seasonSample.skyTint.x))));
+                gf = clamp01((float) (gf * (1f + clampTint(seasonSample.skyTint.y))));
+                bf = clamp01((float) (bf * (1f + clampTint(seasonSample.skyTint.z))));
+            }
+        }
+
+        cir.setReturnValue(new Vec3d(rf, gf, bf));
     }
 
     /**

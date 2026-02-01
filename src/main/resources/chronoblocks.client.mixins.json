@@ -15,6 +15,7 @@
     "HotbarMixin",
     "DebugHudMixin",
     "WorldRendererMixin",
+    "LightmapTextureManagerMixin",
     "CloudRendererMixin",
     "BlockRenderManagerMixin",
     "BlockColorsMixin",
