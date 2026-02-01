@@ -186,31 +186,23 @@ public abstract class ClientWorldMixin {
         float gf = g / 255f;
         float bf = b / 255f;
 
-        // ⭐ 时间系统：首先应用基于 skyLight 的亮度调整
-        // 这确保了云会随时间变亮或变暗，就像Minecraft原生一样
+        // ⭐ 时间轨道（自定义太阳模式）：补偿云颜色随时间变化
         TimelineWorldController timeController = TimelineWorldController.getInstance();
         if (timeController.hasOverride()) {
             TimeSample timeSample = timeController.current();
-            if (timeSample != null) {
-                // 根据 skyLight 调整云的亮度
-                // skyLight: 0.0 = 午夜（很暗）, 1.0 = 正午（最亮）
+            if (timeSample != null && !timeSample.isUseWorldTime()) {
                 float skyLight = timeSample.getSkyLight();
-                
-                // 使用非线性曲线：白天保持相对不变，夜晚明显变暗
-                // 这与Minecraft的daylight cycle一致
                 float cloudBrightness = skyLight * skyLight * 0.8f + 0.2f;
                 rf *= cloudBrightness;
                 gf *= cloudBrightness;
                 bf *= cloudBrightness;
-                
-                // 夜晚给云添加蓝调，而不是完全变黑
                 if (skyLight < 0.3f) {
                     bf += (0.3f - skyLight) * 0.15f;
                 }
             }
         }
 
-        // ⭐ 天气系统：应用在时间系统之后
+        // ⭐ 天气系统：应用在原版时间影响之后
         TimelineWeatherController weatherController = TimelineWeatherController.getInstance();
         if (weatherController.hasOverride()) {
             WeatherSample weatherSample = weatherController.getCurrentSample();
@@ -283,44 +275,32 @@ public abstract class ClientWorldMixin {
         float rf = r / 255f;
         float gf = g / 255f;
         float bf = b / 255f;
-        
-        // ⭐ 时间系统：首先应用基于 skyLight 的亮度调整（优先级高于天气/季节）
+
+        // ⭐ 时间轨道（自定义太阳模式）：补偿天空颜色随时间变化
         TimelineWorldController timeController = TimelineWorldController.getInstance();
         if (timeController.hasOverride()) {
             TimeSample timeSample = timeController.current();
-            if (timeSample != null) {
-                // 根据 skyLight 调整天空颜色
-                // skyLight: 0.0 = 午夜（很暗）, 0.5 = 傍晚/早晨（中等）, 1.0 = 正午（最亮）
+            if (timeSample != null && !timeSample.isUseWorldTime()) {
                 float skyLight = timeSample.getSkyLight();
-                
-                // 应用非线性的亮度曲线以匹配 Minecraft 的视觉感受
-                // 夜晚应该很暗，白天应该很亮
-                float lightFactor = skyLight * skyLight; // 二次函数使过渡更平滑
+                float lightFactor = skyLight * skyLight;
                 rf *= lightFactor;
                 gf *= lightFactor;
                 bf *= lightFactor;
-                
-                // 夜晚添加蓝调（真实的夜空是蓝色的，不是完全黑色）
                 if (skyLight < 0.3f) {
-                    // 夜晚：添加一点蓝色调
-                    bf += (0.3f - skyLight) * 0.2f; // 最多加 20% 蓝色
+                    bf += (0.3f - skyLight) * 0.2f;
                 }
-                
-                // 日出/日落时添加橙黄色调
                 if (skyLight > 0.2f && skyLight < 0.4f) {
-                    // 早晨（0.2-0.4）：添加红/橙色调
-                    float sunriseFactor = (0.4f - skyLight) / 0.2f; // 0 到 1
-                    rf += sunriseFactor * 0.3f; // 最多加 30% 红色
-                    gf += sunriseFactor * 0.15f; // 最多加 15% 绿色
+                    float sunriseFactor = (0.4f - skyLight) / 0.2f;
+                    rf += sunriseFactor * 0.3f;
+                    gf += sunriseFactor * 0.15f;
                 } else if (skyLight > 0.6f && skyLight < 0.8f) {
-                    // 傍晚（0.6-0.8）：添加红/橙色调
-                    float sunsetFactor = (0.8f - skyLight) / 0.2f; // 0 到 1
-                    rf += sunsetFactor * 0.3f; // 最多加 30% 红色
-                    gf += sunsetFactor * 0.15f; // 最多加 15% 绿色
+                    float sunsetFactor = (0.8f - skyLight) / 0.2f;
+                    rf += sunsetFactor * 0.3f;
+                    gf += sunsetFactor * 0.15f;
                 }
             }
         }
-        
+
         // ⭐ 天气系统：优先级最高，应用天空暗度和雷暴暗度
         TimelineWeatherController weatherController = TimelineWeatherController.getInstance();
         if (weatherController.hasOverride()) {

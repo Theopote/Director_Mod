@@ -62,11 +62,9 @@ public abstract class WorldMixin {
         cir.setReturnValue(tod);
     }
 
-    // ⚠️ 注意：getSkyAngle(F)F 和 getSkyAngleRadians(F)F 方法在 Minecraft 1.21.10 中
-    // 可能不存在于 World 基类中，只存在于 ClientWorld 中。
-    // 如果需要在 ClientWorld 中覆盖这些方法，请使用 ClientWorldMixin。
-    // 这里暂时注释掉，避免 Mixin 注入失败。
-    @Inject(method = "getSkyAngleRadians(F)F", at = @At("HEAD"), cancellable = true)
+    // ⚠️ 注意：getSkyAngle(F)F / getSkyAngleRadians(F)F 在不同版本可能位于不同类。
+    // 这里使用 require = 0 以避免在目标不存在时导致 Mixin 失败。
+    @Inject(method = "getSkyAngleRadians(F)F", at = @At("HEAD"), cancellable = true, require = 0)
     private void overrideSkyAngleRadians(float tickDelta, CallbackInfoReturnable<Float> cir) {
         // 优先使用渲染层注入的值（WorldRendererMixin 会在 render 开始时写入）
         float overridden = com.chronoblocks.client.RenderTimeState.getSkyAngleRadians();

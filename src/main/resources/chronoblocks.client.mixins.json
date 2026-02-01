@@ -16,6 +16,7 @@
     "DebugHudMixin",
     "WorldRendererMixin",
     "LightmapTextureManagerMixin",
+    "SkyRenderingMixin",
     "CloudRendererMixin",
     "BlockRenderManagerMixin",
     "BlockColorsMixin",
