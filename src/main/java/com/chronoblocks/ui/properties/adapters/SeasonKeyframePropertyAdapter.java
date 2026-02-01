@@ -175,7 +175,47 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
         }
 
         // ===========================================================
-        // 3. 气候控制
+        // 3. 气候预设
+        // ===========================================================
+        if (ImGui.collapsingHeader(Icons.FILTER + " 气候预设", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
+            if (ImGui.button(Icons.FILTER + " 温带湿润")) {
+                keyframe.applyClimatePresetTemperate();
+                paramChanged.set(true);
+            }
+            ImGui.sameLine();
+            if (ImGui.button(Icons.FILTER + " 大陆性")) {
+                keyframe.applyClimatePresetContinental();
+                paramChanged.set(true);
+            }
+            ImGui.sameLine();
+            if (ImGui.button(Icons.FILTER + " 海洋性")) {
+                keyframe.applyClimatePresetMaritime();
+                paramChanged.set(true);
+            }
+            UITheme.spacingSmall();
+            if (ImGui.button(Icons.FILTER + " 高山寒冷")) {
+                keyframe.applyClimatePresetHighland();
+                paramChanged.set(true);
+            }
+            ImGui.sameLine();
+            if (ImGui.button(Icons.FILTER + " 季风湿润")) {
+                keyframe.applyClimatePresetMonsoonWet();
+                paramChanged.set(true);
+            }
+            ImGui.sameLine();
+            if (ImGui.button(Icons.FILTER + " 沙漠干燥")) {
+                keyframe.applyClimatePresetDesertDry();
+                paramChanged.set(true);
+            }
+            UITheme.spacingSmall();
+            ImGui.textDisabled("• 预设会同时调整湿度、雪/冰参数与颜色趋势");
+            UITheme.spacingSmall();
+            ImGui.unindent();
+        }
+
+        // ===========================================================
+        // 4. 气候控制
         // ===========================================================
         if (ImGui.collapsingHeader(Icons.FILTER + " 气候控制", ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
@@ -190,7 +230,7 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
         }
 
         // ===========================================================
-        // 4. 积雪控制（v4.0 新增）
+        // 5. 积雪控制（v4.0 新增）
         // ===========================================================
         if (ImGui.collapsingHeader(Icons.PARTICLE + " 积雪控制", ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
@@ -222,7 +262,7 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
         }
 
         // ===========================================================
-        // 5. 冰冻控制（v4.0 新增）
+        // 6. 冰冻控制（v4.0 新增）
         // ===========================================================
         if (ImGui.collapsingHeader(Icons.LIGHT + " 冰冻控制", ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
@@ -238,7 +278,7 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
         }
 
         // ===========================================================
-        // 6. 颜色 Tint 控制
+        // 7. 颜色 Tint 控制
         // ===========================================================
         if (ImGui.collapsingHeader(Icons.PALETTE + " 颜色与光照", ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
@@ -294,7 +334,7 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
         }
 
         // ===========================================================
-        // 7. 插值方式
+        // 8. 插值方式
         // ===========================================================
         if (ImGui.collapsingHeader(Icons.INTERPOLATION + " 插值设置", ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();

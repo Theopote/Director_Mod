@@ -256,6 +256,17 @@ public abstract class ClientWorldMixin {
             }
         }
 
+        // ⭐ 季节系统：应用光照 tint（在天气调整之后）
+        TimelineSeasonController seasonController = TimelineSeasonController.getInstance();
+        if (seasonController.hasOverride()) {
+            SeasonSample seasonSample = seasonController.getCurrentSample();
+            if (seasonSample != null) {
+                rf = clamp01(rf * (1f + clampTint(seasonSample.lightTint.x)));
+                gf = clamp01(gf * (1f + clampTint(seasonSample.lightTint.y)));
+                bf = clamp01(bf * (1f + clampTint(seasonSample.lightTint.z)));
+            }
+        }
+
         // 限制范围并转换回 ARGB int
         rf = clamp01(rf);
         gf = clamp01(gf);
@@ -352,12 +363,6 @@ public abstract class ClientWorldMixin {
                     bf *= thunderFactor;
                 }
                 
-                // 天气系统覆盖，不再应用季节系统
-                cir.setReturnValue((0xFF << 24)
-                        | ((int) (clamp01(rf) * 255) << 16)
-                        | ((int) (clamp01(gf) * 255) << 8)
-                        | (int) (clamp01(bf) * 255));
-                return;
             }
         }
         
@@ -366,7 +371,11 @@ public abstract class ClientWorldMixin {
         if (seasonController.hasOverride()) {
             SeasonSample seasonSample = seasonController.getCurrentSample();
             if (seasonSample != null) {
-                // 应用 tint 偏移：finalColor = originalColor * (1.0 + tint)
+                // 光照色调
+                rf = clamp01(rf * (1f + clampTint(seasonSample.lightTint.x)));
+                gf = clamp01(gf * (1f + clampTint(seasonSample.lightTint.y)));
+                bf = clamp01(bf * (1f + clampTint(seasonSample.lightTint.z)));
+                // 天空色调
                 rf = clamp01(rf * (1f + clampTint(seasonSample.skyTint.x)));
                 gf = clamp01(gf * (1f + clampTint(seasonSample.skyTint.y)));
                 bf = clamp01(bf * (1f + clampTint(seasonSample.skyTint.z)));

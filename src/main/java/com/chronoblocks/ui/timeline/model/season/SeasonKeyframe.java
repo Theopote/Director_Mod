@@ -481,6 +481,92 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
         fogTint.set(0.1f, 0.05f, -0.05f);     // 金色雾
         lightTint.set(0.15f, 0.1f, 0.0f);     // 暖色调光照（金色阳光）
     }
+
+    // ========== 气候预设（长期趋势） ==========
+
+    public void applyClimatePresetTemperate() {
+        this.seasonType = SeasonType.CUSTOM;
+        humidity = 0.60f;
+        snowlineHeight = 170f;
+        snowAmount = 0.20f;
+        snowThickness = 1;
+        freezeStrength = 0.20f;
+        grassTint.set(0.05f, 0.08f, 0.02f);
+        foliageTint.set(0.04f, 0.06f, 0.02f);
+        skyTint.set(0.02f, 0.02f, 0.05f);
+        fogTint.set(0.01f, 0.02f, 0.03f);
+        lightTint.set(0.03f, 0.03f, 0.02f);
+    }
+
+    public void applyClimatePresetContinental() {
+        this.seasonType = SeasonType.CUSTOM;
+        humidity = 0.35f;
+        snowlineHeight = 120f;
+        snowAmount = 0.50f;
+        snowThickness = 2;
+        freezeStrength = 0.60f;
+        grassTint.set(-0.05f, -0.03f, -0.02f);
+        foliageTint.set(-0.08f, -0.06f, -0.04f);
+        skyTint.set(0.0f, 0.02f, 0.08f);
+        fogTint.set(0.0f, 0.03f, 0.08f);
+        lightTint.set(-0.02f, -0.02f, 0.04f);
+    }
+
+    public void applyClimatePresetMaritime() {
+        this.seasonType = SeasonType.CUSTOM;
+        humidity = 0.75f;
+        snowlineHeight = 200f;
+        snowAmount = 0.10f;
+        snowThickness = 0;
+        freezeStrength = 0.15f;
+        grassTint.set(0.02f, 0.06f, 0.04f);
+        foliageTint.set(0.02f, 0.05f, 0.03f);
+        skyTint.set(0.03f, 0.05f, 0.08f);
+        fogTint.set(0.03f, 0.05f, 0.08f);
+        lightTint.set(0.02f, 0.03f, 0.04f);
+    }
+
+    public void applyClimatePresetHighland() {
+        this.seasonType = SeasonType.CUSTOM;
+        humidity = 0.50f;
+        snowlineHeight = 90f;
+        snowAmount = 0.70f;
+        snowThickness = 3;
+        freezeStrength = 0.70f;
+        grassTint.set(-0.10f, -0.10f, -0.12f);
+        foliageTint.set(-0.12f, -0.12f, -0.15f);
+        skyTint.set(0.0f, 0.03f, 0.12f);
+        fogTint.set(0.0f, 0.05f, 0.12f);
+        lightTint.set(-0.04f, -0.04f, 0.06f);
+    }
+
+    public void applyClimatePresetMonsoonWet() {
+        this.seasonType = SeasonType.CUSTOM;
+        humidity = 0.90f;
+        snowlineHeight = 220f;
+        snowAmount = 0.05f;
+        snowThickness = 0;
+        freezeStrength = 0.05f;
+        grassTint.set(0.08f, 0.12f, 0.04f);
+        foliageTint.set(0.06f, 0.10f, 0.03f);
+        skyTint.set(0.02f, 0.03f, 0.05f);
+        fogTint.set(0.04f, 0.06f, 0.08f);
+        lightTint.set(0.01f, 0.02f, 0.03f);
+    }
+
+    public void applyClimatePresetDesertDry() {
+        this.seasonType = SeasonType.CUSTOM;
+        humidity = 0.10f;
+        snowlineHeight = 256f;
+        snowAmount = 0.0f;
+        snowThickness = 0;
+        freezeStrength = 0.0f;
+        grassTint.set(-0.10f, -0.15f, -0.20f);
+        foliageTint.set(-0.12f, -0.18f, -0.22f);
+        skyTint.set(0.08f, 0.04f, -0.02f);
+        fogTint.set(0.10f, 0.06f, -0.02f);
+        lightTint.set(0.12f, 0.08f, 0.02f);
+    }
     
     // ========== 调试输出 ==========
     
