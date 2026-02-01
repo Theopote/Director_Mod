@@ -53,6 +53,7 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
     private final ImFloat snowAmountFloat = new ImFloat();
     private final ImFloat snowlineFloat = new ImFloat();
     private final ImInt snowThicknessInt = new ImInt();
+    private final ImFloat humidityFloat = new ImFloat();
     
     // 冰冻参数
     private final ImFloat freezeStrengthFloat = new ImFloat();
@@ -110,8 +111,9 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
         // ===========================================================
         if (ImGui.collapsingHeader(Icons.INFO + " 基础信息", ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
+            float maxTime = timelineModel.getDuration();
             timeFloat.set(keyframe.getTime());
-            if (ImGui.dragFloat("时间位置", timeFloat.getData(), 0.05f, 0f, 10000f, "%.2fs")) {
+            if (ImGui.dragFloat("时间位置", timeFloat.getData(), 0.05f, 0f, maxTime, "%.2fs")) {
                 keyframe.setTime(timeFloat.get());
                 timeChanged.set(true);
             }
@@ -138,33 +140,33 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
             UITheme.spacingSmall();
 
             // ---------- 一键预设按钮 ----------
-            if (ImGui.button("🌸 春季预设")) {
+            if (ImGui.button(Icons.SPRING + " 春季预设")) {
                 keyframe.applySeasonPreset(SeasonKeyframe.SeasonType.SPRING);
                 paramChanged.set(true);
             }
             ImGui.sameLine();
-            if (ImGui.button("☀ 夏季预设")) {
+            if (ImGui.button(Icons.LIGHT + " 夏季预设")) {
                 keyframe.applySeasonPreset(SeasonKeyframe.SeasonType.SUMMER);
                 paramChanged.set(true);
             }
             ImGui.sameLine();
-            if (ImGui.button("🍁 秋季预设")) {
+            if (ImGui.button(Icons.COLOR + " 秋季预设")) {
                 keyframe.applySeasonPreset(SeasonKeyframe.SeasonType.AUTUMN);
                 paramChanged.set(true);
             }
             ImGui.sameLine();
-            if (ImGui.button("❄ 冬季预设")) {
+            if (ImGui.button(Icons.PARTICLE + " 冬季预设")) {
                 keyframe.applySeasonPreset(SeasonKeyframe.SeasonType.WINTER);
                 paramChanged.set(true);
             }
             UITheme.spacingSmall();
 
-            if (ImGui.button("🎬 电影冷色")) {
+            if (ImGui.button(Icons.FILM + " 电影冷色")) {
                 keyframe.applyFilmPresetCold();
                 paramChanged.set(true);
             }
             ImGui.sameLine();
-            if (ImGui.button("🎬 电影暖色")) {
+            if (ImGui.button(Icons.FILM + " 电影暖色")) {
                 keyframe.applyFilmPresetWarm();
                 paramChanged.set(true);
             }
@@ -173,9 +175,24 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
         }
 
         // ===========================================================
-        // 3. 积雪控制（v4.0 新增）
+        // 3. 气候控制
         // ===========================================================
-        if (ImGui.collapsingHeader("❄ 积雪控制", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(Icons.FILTER + " 气候控制", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
+            humidityFloat.set(keyframe.getHumidity());
+            if (ImGui.sliderFloat("湿度", humidityFloat.getData(), 0f, 1f, "%.2f")) {
+                keyframe.setHumidity(humidityFloat.get());
+                paramChanged.set(true);
+            }
+            ImGui.textDisabled("• 0.0 = 干燥，1.0 = 潮湿（用于长期气候趋势）");
+            UITheme.spacingSmall();
+            ImGui.unindent();
+        }
+
+        // ===========================================================
+        // 4. 积雪控制（v4.0 新增）
+        // ===========================================================
+        if (ImGui.collapsingHeader(Icons.PARTICLE + " 积雪控制", ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
             snowAmountFloat.set(keyframe.getSnowAmount());
             if (ImGui.sliderFloat("雪覆盖度", snowAmountFloat.getData(), 0f, 1f, "%.2f")) {
@@ -205,9 +222,9 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
         }
 
         // ===========================================================
-        // 4. 冰冻控制（v4.0 新增）
+        // 5. 冰冻控制（v4.0 新增）
         // ===========================================================
-        if (ImGui.collapsingHeader("🧊 冰冻控制", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(Icons.LIGHT + " 冰冻控制", ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
             freezeStrengthFloat.set(keyframe.getFreezeStrength());
             if (ImGui.sliderFloat("冰覆盖度", freezeStrengthFloat.getData(), 0f, 1f, "%.2f")) {
@@ -221,7 +238,7 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
         }
 
         // ===========================================================
-        // 5. 颜色 Tint 控制
+        // 6. 颜色 Tint 控制
         // ===========================================================
         if (ImGui.collapsingHeader(Icons.PALETTE + " 颜色与光照", ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
@@ -242,7 +259,7 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
                 keyframe.setGrassTint(colorToTint(grassTintArr));
                 paramChanged.set(true);
             }
-            ImGui.textDisabled("• 颜色偏移趋势：0.5=无变化，<0.5=减弱，>0.5=增强");
+            ImGui.textDisabled("• 颜色偏移趋势：0.25=无变化，<0.25=减弱，>0.25=增强");
             UITheme.spacingSmall();
 
             // 树叶
@@ -277,7 +294,7 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
         }
 
         // ===========================================================
-        // 6. 插值方式
+        // 7. 插值方式
         // ===========================================================
         if (ImGui.collapsingHeader(Icons.INTERPOLATION + " 插值设置", ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
@@ -308,6 +325,8 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
         }
 
         if (timeChanged.get()) {
+            keyframeTrack.removeAutomationKeyframe(keyframe.getId());
+            keyframeTrack.addAutomationKeyframe(keyframe);
             TimelineSeasonController c = TimelineSeasonController.getInstance();
             c.rebuildFromActiveTrack(); // 时间变化不需要 preview
         }
@@ -327,30 +346,30 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
     /**
      * Tint 到显示颜色的映射范围
      * 
-     * <p>tint 的有效范围是 [-0.99, +3.0]，但大部分实际值在 [-0.5, +0.5] 之间。
-     * 为了在 UI 上更好地显示和编辑，我们将显示范围限制为 [-0.5, +0.5]，
+     * <p>tint 的有效范围是 [-0.99, +3.0]，但大部分实际值在 [-1.0, +3.0] 之间。
+     * 为了在 UI 上更好地显示和编辑，我们将显示范围限制为 [-1.0, +3.0]，
      * 映射到颜色选择器的 [0, 1] 范围。
      * 
      * <p>映射公式：
      * <ul>
-     *   <li>显示值 = (tint + 0.5) / 1.0 → [0, 1]</li>
-     *   <li>tint = 显示值 * 1.0 - 0.5 → [-0.5, +0.5]</li>
+     *   <li>显示值 = (tint - (-1.0)) / 4.0 → [0, 1]</li>
+     *   <li>tint = 显示值 * 4.0 - 1.0 → [-1.0, +3.0]</li>
      * </ul>
      * 
      * <p>这样：
      * <ul>
-     *   <li>tint = -0.5 → 显示 = 0.0（黑色，表示 -50%）</li>
-     *   <li>tint = 0.0 → 显示 = 0.5（中性灰，表示无变化）</li>
-     *   <li>tint = +0.5 → 显示 = 1.0（白色，表示 +50%）</li>
+     *   <li>tint = -1.0 → 显示 = 0.0（黑色，表示强烈减弱）</li>
+     *   <li>tint = 0.0 → 显示 = 0.25（偏暗，表示无变化）</li>
+     *   <li>tint = +3.0 → 显示 = 1.0（白色，表示强烈增强）</li>
      * </ul>
      */
-    private static final float TINT_DISPLAY_MIN = -0.5f;  // 显示范围最小值
-    private static final float TINT_DISPLAY_MAX = 0.5f;  // 显示范围最大值
-    private static final float TINT_DISPLAY_RANGE = TINT_DISPLAY_MAX - TINT_DISPLAY_MIN; // 1.0
+    private static final float TINT_DISPLAY_MIN = -1.0f;  // 显示范围最小值
+    private static final float TINT_DISPLAY_MAX = 3.0f;  // 显示范围最大值
+    private static final float TINT_DISPLAY_RANGE = TINT_DISPLAY_MAX - TINT_DISPLAY_MIN; // 4.0
 
     /** 将 tint（偏移值）转换为颜色显示值（0~1） */
     private void tintToColor(Vector3f tint, float[] outColor) {
-        // 将 tint 从 [-0.5, +0.5] 映射到 [0, 1]
+        // 将 tint 从 [-1.0, +3.0] 映射到 [0, 1]
         // 超出范围的值会被 clamp
         outColor[0] = clamp01((tint.x - TINT_DISPLAY_MIN) / TINT_DISPLAY_RANGE);
         outColor[1] = clamp01((tint.y - TINT_DISPLAY_MIN) / TINT_DISPLAY_RANGE);
@@ -359,7 +378,7 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
 
     /** 将 colorEdit3 的输出转换回 tint（偏移值） */
     private Vector3f colorToTint(float[] color) {
-        // 将 [0, 1] 映射回 [-0.5, +0.5]
+        // 将 [0, 1] 映射回 [-1.0, +3.0]
         return new Vector3f(
                 color[0] * TINT_DISPLAY_RANGE + TINT_DISPLAY_MIN,
                 color[1] * TINT_DISPLAY_RANGE + TINT_DISPLAY_MIN,

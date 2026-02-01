@@ -317,6 +317,8 @@ public class TimelineModelPersistence {
 
         // ===== SeasonKeyframe =====
         public String seasonType;
+        public float seasonHumidity;
+        public boolean seasonHumiditySet;
         public float snowlineHeight;
         public float snowAmount;
         public int snowThickness;
@@ -421,6 +423,8 @@ public class TimelineModelPersistence {
                     }
                     case SeasonKeyframe sk -> {
                         kdto.seasonType = sk.getSeasonType() != null ? sk.getSeasonType().name() : null;
+                        kdto.seasonHumidity = sk.getHumidity();
+                        kdto.seasonHumiditySet = true;
                         kdto.snowlineHeight = sk.getSnowlineHeight();
                         kdto.snowAmount = sk.getSnowAmount();
                         kdto.snowThickness = sk.getSnowThickness();
@@ -696,6 +700,9 @@ public class TimelineModelPersistence {
                                 SeasonKeyframe sk = new SeasonKeyframe(kdto.name != null ? kdto.name : "Season Keyframe", kdto.time);
                                 if (kdto.seasonType != null) {
                                     try { sk.applySeasonPreset(SeasonKeyframe.SeasonType.valueOf(kdto.seasonType)); } catch (Exception ignored) {}
+                                }
+                                if (kdto.seasonHumiditySet) {
+                                    sk.setHumidity(kdto.seasonHumidity);
                                 }
                                 sk.setSnowlineHeight(kdto.snowlineHeight);
                                 sk.setSnowAmount(kdto.snowAmount);

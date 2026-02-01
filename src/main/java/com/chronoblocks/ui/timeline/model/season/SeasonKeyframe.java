@@ -249,6 +249,10 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
         return humidity;
     }
 
+    public void setHumidity(float humidity) {
+        this.humidity = Math.max(0.0f, Math.min(1.0f, humidity));
+    }
+
     public float getSnowlineHeight() {
         return snowlineHeight;
     }
