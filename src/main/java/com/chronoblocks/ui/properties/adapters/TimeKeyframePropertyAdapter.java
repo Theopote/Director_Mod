@@ -171,13 +171,13 @@ public class TimeKeyframePropertyAdapter implements IPropertyAdapter<TimeKeyfram
             if (!keyframe.isUseNaturalTime()) {
                 ImGui.separator();
                 
-                boolean elevationChanged = ImGui.sliderFloat("太阳高度角（Elevation）", sunElevationFloat.getData(), 0.0f, 90.0f, "%.1f°");
+                boolean elevationChanged = ImGui.sliderFloat("太阳高度角（Elevation）", sunElevationFloat.getData(), -90.0f, 90.0f, "%.1f°");
                 if (elevationChanged) {
                     float newElevation = sunElevationFloat.get();
                     keyframe.setSunElevation(newElevation);
                     parameterChanged.set(true);
                 }
-                ImGui.textDisabled("0° = 地平线，90° = 正头顶");
+                ImGui.textDisabled("0° = 地平线，90° = 正头顶，负值表示地平线以下（夜晚）");
                 
                 UITheme.spacingSmall();
             }

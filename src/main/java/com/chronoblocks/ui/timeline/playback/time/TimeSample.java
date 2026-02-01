@@ -105,7 +105,7 @@ public final class TimeSample {
         this.worldTimeOfDay = normalizeTimeOfDay(worldTimeOfDay);
         this.freezeWorldTime = freezeWorldTime;
         this.skyAngle = Math.max(0.0f, Math.min(1.0f, skyAngle));
-        this.sunElevation = Math.max(0.0f, Math.min(90.0f, sunElevation));
+        this.sunElevation = Math.max(-90.0f, Math.min(90.0f, sunElevation));
         // 规范化方位角
         float normalizedAzimuth = sunAzimuth;
         while (normalizedAzimuth < 0.0f) normalizedAzimuth += 360.0f;
@@ -221,14 +221,12 @@ public final class TimeSample {
      * 基于太阳高度角计算天空角度（反向映射）
      * 
      * <p>注意：Minecraft 1.21 中太阳位置由 skyAngle 单独控制，不支持独立的方位角。
-     * 这个方法仅根据高度角计算 skyAngle。
+     * 这个方法根据高度角生成完整昼夜循环的 skyAngle。
      */
     private static float calculateSkyAngleFromElevation(float elevation, float azimuth) {
-        // 简化映射：将高度角映射到天空角度范围
-        // 0° (地平线) → 0.25 或 0.75 (日出/日落)
-        // 60° (正午) → 0.5 (正午)
-        float normalizedElev = Math.min(1.0f, elevation / 60.0f);
-        return 0.25f + normalizedElev * 0.5f;
+        // 允许负高度角：-90°(午夜) → 0.0，0°(日出/日落) → 0.25，90°(正午) → 0.5
+        float clamped = Math.max(-90.0f, Math.min(90.0f, elevation));
+        return (clamped + 90.0f) / 360.0f;
     }
     
     /**

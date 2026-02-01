@@ -147,7 +147,7 @@ public class TimeKeyframe implements TimelineSelectable {
      * 设置太阳高度角（覆盖值，仅在 useNaturalTime = false 时生效）
      */
     public void setSunElevation(float sunElevation) {
-        this.sunElevation = Math.max(0.0f, Math.min(90.0f, sunElevation));
+        this.sunElevation = Math.max(-90.0f, Math.min(90.0f, sunElevation));
     }
     
     /**
