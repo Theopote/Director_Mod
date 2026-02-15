@@ -5,6 +5,11 @@ import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.client.render.state.WorldRenderState;
+import net.minecraft.client.util.ObjectAllocator;
+import net.minecraft.client.render.RenderTickCounter;
+import org.joml.Matrix4f;
+import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import org.joml.Vector4f;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -52,7 +57,19 @@ public abstract class WorldRendererMixin {
      * 这样即使某些渲染路径直接根据 world/time 推导角度，也能从这里读取到覆盖值。
      */
     @Inject(method = "render", at = @At("HEAD"))
-    private void onWorldRenderHead(net.minecraft.client.render.Camera camera, float tickDelta, long limitTime, MatrixStack matrices, CallbackInfo ci) {
+    private void onWorldRenderHead(
+            ObjectAllocator allocator,
+            RenderTickCounter tickCounter,
+            boolean renderBlockOutline,
+            net.minecraft.client.render.Camera camera,
+            Matrix4f projectionMatrix,
+            Matrix4f positionMatrix,
+            Matrix4f viewMatrix,
+            GpuBufferSlice buffer,
+            Vector4f frustum,
+            boolean thickFog,
+            CallbackInfo ci
+    ) {
         com.chronoblocks.ui.timeline.playback.time.TimelineWorldController controller = com.chronoblocks.ui.timeline.playback.time.TimelineWorldController.getInstance();
         if (controller != null && controller.hasOverride()) {
             com.chronoblocks.ui.timeline.playback.time.TimeSample sample = controller.current();

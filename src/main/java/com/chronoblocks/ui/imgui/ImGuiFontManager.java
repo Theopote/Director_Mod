@@ -1,8 +1,10 @@
 package com.chronoblocks.ui.imgui;
 
 import com.chronoblocks.ui.theme.UITheme;
+import imgui.ImFont;
 import imgui.ImFontAtlas;
 import imgui.ImFontConfig;
+import imgui.ImGui;
 import imgui.ImGuiIO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +28,7 @@ import java.io.InputStream;
  */
 public class ImGuiFontManager {
     private static final Logger LOGGER = LoggerFactory.getLogger("ChronoBlocks-FontManager");
+    private static final String LOG_PREFIX = "[ChronoBlocks][Font]";
     
     // 字体大小配置（从UITheme获取，保持一致性）
     private static final float DEFAULT_FONT_SIZE = UITheme.FontSize.DEFAULT;  // 18px字体，适配24px按钮
@@ -36,6 +39,25 @@ public class ImGuiFontManager {
     private static final String CHINESE_FONT = "NotoSansSC-Regular.ttf";
     private static final String ICON_FONT = "icomoon.ttf";  // 自定义图标字体（替代 Emoji）
     
+    private static void verifyDefaultFontHasIcons() {
+        try {
+            ImFont current = ImGui.getFont();
+            if (current == null) return;
+
+            // Icons.SELECT = U+E97C
+            // Icons.BLOCK  = U+E90D
+            boolean hasSelect = current.findGlyphNoFallback(0xE97C) != null;
+            boolean hasBlock = current.findGlyphNoFallback(0xE90D) != null;
+
+            if (!hasSelect || !hasBlock) {
+                LOGGER.warn("{} Default font missing icon glyphs: SELECT={} BLOCK={}. Toolbar buttons may appear blank.",
+                        LOG_PREFIX, hasSelect, hasBlock);
+            }
+        } catch (Throwable t) {
+            LOGGER.debug("{} Icon glyph verification failed: {}", LOG_PREFIX, t.getMessage());
+        }
+    }
+
     /**
      * 初始化所有字体
      * 
@@ -44,16 +66,32 @@ public class ImGuiFontManager {
     public static void initializeFonts(ImGuiIO io) {
         try {
             final ImFontAtlas fontAtlas = io.getFonts();
+
+            // 关键：清理默认字体/残留字体，避免出现“默认字体仍在使用，合并字体不生效”的情况。
+            // 在 Minecraft + ImGui 的生命周期里，字体图集可能因为重初始化/重建而残留。
+            try {
+                fontAtlas.clear();
+            } catch (Throwable t) {
+                // clear() 在不同版本 binding 上行为可能不同；失败时退化为清理 fonts/tex。
+                try { fontAtlas.clearFonts(); } catch (Throwable ignored) {}
+                try { fontAtlas.clearTexData(); } catch (Throwable ignored) {}
+            }
             
             // 第一步：加载中文字体作为主字体
-            boolean chineseFontLoaded = loadChineseFont(fontAtlas);
+            ImFont baseFont = loadChineseFont(fontAtlas);
             
-            if (!chineseFontLoaded) {
+            if (baseFont == null) {
                 LOGGER.warn("[ChronoBlocks] 中文字体加载失败，使用 ImGui 默认字体");
-                io.getFonts().addFontDefault();
+                baseFont = fontAtlas.addFontDefault();
             }
             
             // 第二步：以合并模式加载自定义图标字体（替代 Emoji）
+            try {
+                io.setFontDefault(baseFont);
+            } catch (Throwable t) {
+                LOGGER.warn("{} setFontDefault failed: {}", LOG_PREFIX, t.getMessage());
+            }
+
             boolean iconFontLoaded = loadIconFont(fontAtlas);
             
             if (!iconFontLoaded) {
@@ -69,6 +107,7 @@ public class ImGuiFontManager {
                 LOGGER.info("[ChronoBlocks] 字体图集构建完成");
             }
             
+            verifyDefaultFontHasIcons();
         } catch (Exception e) {
             LOGGER.error("[ChronoBlocks] 字体初始化过程中发生错误", e);
             // 降级方案：使用默认字体
@@ -83,7 +122,7 @@ public class ImGuiFontManager {
      * @param fontAtlas 字体图集
      * @return 是否加载成功
      */
-    private static boolean loadChineseFont(ImFontAtlas fontAtlas) {
+    private static ImFont loadChineseFont(ImFontAtlas fontAtlas) {
         final ImFontConfig fontConfig = new ImFontConfig();
         
         // 中文字符范围
@@ -141,7 +180,7 @@ public class ImGuiFontManager {
             0,               // 结束标记
         };
         
-        boolean result = loadFontFromResources(
+        ImFont merged = loadFontFromResources(
             fontAtlas, 
             FONT_PATH_PREFIX + ICON_FONT, 
             ICON_FONT_SIZE,  // 使用与主字体相同的大小
@@ -149,7 +188,8 @@ public class ImGuiFontManager {
             iconGlyphRanges,
             "IcoMoon 图标字体"
         );
-        
+        boolean result = merged != null;
+         
         if (result) {
             LOGGER.info("[ChronoBlocks] ✅ IcoMoon 图标字体加载成功!");
             LOGGER.info("[ChronoBlocks] 图标范围: U+E900 - U+E9A2 (共 161 个图标)");
@@ -179,7 +219,7 @@ public class ImGuiFontManager {
      * @param fontName 字体名称（用于日志）
      * @return 是否加载成功
      */
-    private static boolean loadFontFromResources(
+    private static ImFont loadFontFromResources(
             ImFontAtlas fontAtlas, 
             String resourcePath, 
             float fontSize, 
@@ -190,27 +230,31 @@ public class ImGuiFontManager {
         try (InputStream fontStream = ImGuiFontManager.class.getResourceAsStream(resourcePath)) {
             if (fontStream == null) {
                 LOGGER.error("[ChronoBlocks] 找不到字体资源: {} ({})", resourcePath, fontName);
-                return false;
+                return null;
             }
             
             byte[] fontBytes = fontStream.readAllBytes();
             
             if (fontBytes.length == 0) {
                 LOGGER.error("[ChronoBlocks] 字体文件为空: {} ({})", resourcePath, fontName);
-                return false;
+                return null;
             }
             
             // 使用 ImGui 的内存加载方式
-            fontAtlas.addFontFromMemoryTTF(fontBytes, fontSize, fontConfig, glyphRanges);
+            ImFont font = fontAtlas.addFontFromMemoryTTF(fontBytes, fontSize, fontConfig, glyphRanges);
+            if (font == null) {
+                LOGGER.error("{} addFontFromMemoryTTF returned null: {} ({}) size={}", LOG_PREFIX, resourcePath, fontName, fontSize);
+                return null;
+            }
             
             LOGGER.info("[ChronoBlocks] 成功加载字体: {} ({}) - {} 字节", 
                 fontName, resourcePath, fontBytes.length);
             
-            return true;
+            return font;
             
         } catch (Exception e) {
             LOGGER.error("[ChronoBlocks] 加载字体失败: {} ({})", resourcePath, fontName, e);
-            return false;
+            return null;
         }
     }
     
