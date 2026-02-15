@@ -207,7 +207,7 @@ public class RenderSettingsPanel extends AbstractPanel {
 
     private void renderSelectionStyles() {
         // 选取样式
-        UITheme.label("选取样式：", UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.label("选区样式：", UITheme.DarkTheme.TEXT_SELECTED);
         ImGui.indent();
         if (ImGui.colorEdit4("填充颜色##selectionFillColor", rs.selection_fillColor)) {
             LOGGER.debug("[RenderSettingsPanel] 选区填充颜色更新");
@@ -387,7 +387,7 @@ public class RenderSettingsPanel extends AbstractPanel {
         rs.selection_enableFrustumCull = true;
         rs.selection_enableOcclusionCull = false;
         rs.selection_outlineColor     = new float[]{0.1f, 0.8f, 1.0f, 0.95f};
-        rs.selection_fillColor        = new float[]{1.0f, 1.0f, 1.0f, 1.0f};  // alpha=100%
+        rs.selection_fillColor        = new float[]{1.0f, 1.0f, 1.0f, 0.392f};  // alpha=100 (approx 39%)
         rs.selection_outlineWidth     = 1.0f;
         rs.selection_highlightIntensity = 1.0f;
         rs.selection_bboxOutlineColor = new float[]{0.20f, 0.90f, 0.40f, 0.90f};
@@ -399,7 +399,7 @@ public class RenderSettingsPanel extends AbstractPanel {
         rs.tool_showOutline           = true;
         rs.tool_enableGreedy          = true;
         rs.tool_outlineColor          = new float[]{0.2f, 0.6f, 1.0f, 0.7f};
-        rs.tool_fillColor             = new float[]{1.0f, 0.8f, 0.0f, 0.6f};  // alpha=60%
+        rs.tool_fillColor             = new float[]{1.0f, 0.8f, 0.0f, 0.275f};  // alpha=70 (approx 27.5%)
         rs.tool_outlineWidth          = 1.0f;
 
         // === 容器（显示填充、显示包围盒默认不勾选；线宽 1，UI 不暴露）===
@@ -407,7 +407,7 @@ public class RenderSettingsPanel extends AbstractPanel {
         rs.container_showOutline      = true;
         rs.container_showBoundingBox  = false;
         rs.container_enableGreedy     = true;
-        rs.container_outlineColor     = new float[]{0.4f, 1.0f, 0.5f, 0.9f};
+        rs.container_outlineColor     = new float[]{0.4f, 1.0f, 0.5f, 0.588f}; // alpha=150 (approx 59%)
         rs.container_fillColor        = new float[]{0.4f, 1.0f, 0.5f, 0.2f};
         rs.container_outlineWidth     = 1.0f;
 

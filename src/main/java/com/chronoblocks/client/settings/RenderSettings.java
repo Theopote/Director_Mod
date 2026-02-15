@@ -33,7 +33,7 @@ public final class RenderSettings {
     public boolean selection_enableOcclusionCull = false;
     // 样式（填充透明度默认 100%；线宽默认 1，UI 不暴露）
     public float[] selection_outlineColor = new float[]{0.05f, 0.7f, 1.0f, 0.95f};
-    public float[] selection_fillColor = new float[]{1.0f, 1.0f, 1.0f, 1.0f};  // alpha=100%
+    public float[] selection_fillColor = new float[]{1.0f, 1.0f, 1.0f, 0.392f};  // alpha=100 (approx 39%)
     public float selection_outlineWidth = 1.0f;
     public float selection_highlightIntensity = 1.0f;
     // 包围盒样式（独立于选区线框/填充）
@@ -47,7 +47,7 @@ public final class RenderSettings {
     public boolean tool_enableGreedy = true;     // 贪婪合并（同时控制填充和线框）
     // 注意：工具预览不需要包围盒；线宽默认 1，UI 不暴露；面填充透明度默认 60%
     public float[] tool_outlineColor = new float[]{0.2f, 0.6f, 1.0f, 0.7f};
-    public float[] tool_fillColor = new float[]{1.0f, 0.8f, 0.0f, 0.6f};  // alpha=60%
+    public float[] tool_fillColor = new float[]{1.0f, 0.8f, 0.0f, 0.275f};  // alpha=70 (approx 27.5%)
     public float tool_outlineWidth = 1.0f;
 
     // ================= Container (容器) =================
@@ -56,7 +56,7 @@ public final class RenderSettings {
     public boolean container_enableGreedy = true;     // 贪婪合并（同时控制填充和线框）
     public boolean container_showBoundingBox = false; // 显示包围盒（默认不勾选）
     public float container_outlineWidth = 1.0f;       // 线宽默认 1，UI 不暴露
-    public float[] container_outlineColor = new float[]{0.4f, 1.0f, 0.5f, 0.9f};
+    public float[] container_outlineColor = new float[]{0.4f, 1.0f, 0.5f, 0.588f}; // alpha=150 (approx 59%)
     public float[] container_fillColor = new float[]{0.4f, 1.0f, 0.5f, 0.2f};
 
     // ================= Global Mesh / Performance =================
