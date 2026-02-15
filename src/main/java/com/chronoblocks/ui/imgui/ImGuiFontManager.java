@@ -242,11 +242,7 @@ public class ImGuiFontManager {
             
             // 使用 ImGui 的内存加载方式
             ImFont font = fontAtlas.addFontFromMemoryTTF(fontBytes, fontSize, fontConfig, glyphRanges);
-            if (font == null) {
-                LOGGER.error("{} addFontFromMemoryTTF returned null: {} ({}) size={}", LOG_PREFIX, resourcePath, fontName, fontSize);
-                return null;
-            }
-            
+
             LOGGER.info("[ChronoBlocks] 成功加载字体: {} ({}) - {} 字节", 
                 fontName, resourcePath, fontBytes.length);
             
