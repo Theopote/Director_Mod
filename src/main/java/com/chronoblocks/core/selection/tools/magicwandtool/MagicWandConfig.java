@@ -120,9 +120,6 @@ public final class MagicWandConfig {
     /** 允许水平传播 */
     private boolean propagateHorizontal = true;
     
-    /** 允许对角传播（仅在 NEIGHBOR_18/26 时有效） */
-    private boolean propagateCorners = true;
-    
     // ==================== 高级功能 ====================
     
     /** 只在当前选区内部进行泛洪填充 */
@@ -214,14 +211,6 @@ public final class MagicWandConfig {
         this.propagateHorizontal = propagateHorizontal;
     }
     
-    public boolean isPropagateCorners() {
-        return propagateCorners;
-    }
-    
-    public void setPropagateCorners(boolean propagateCorners) {
-        this.propagateCorners = propagateCorners;
-    }
-    
     public boolean isLimitToCurrentSelection() {
         return limitToCurrentSelection;
     }
@@ -298,7 +287,6 @@ public final class MagicWandConfig {
         config.propagateUp = this.propagateUp;
         config.propagateDown = this.propagateDown;
         config.propagateHorizontal = this.propagateHorizontal;
-        config.propagateCorners = this.propagateCorners;
         config.limitToCurrentSelection = this.limitToCurrentSelection;
         config.multiSeedMode = this.multiSeedMode;
         config.weightedMode = this.weightedMode;

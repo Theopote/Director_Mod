@@ -287,6 +287,25 @@ public final class ToolPropertyRendering {
                 }
                 ImGui.spacing();
                 ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, m.getDescription());
+                
+                // 动态显示标签/过滤器输入框
+                if (m == MagicWandConfig.CompareMode.BY_TAG) {
+                    ImGui.spacing();
+                    String tag = c.getTagFilter();
+                    imgui.type.ImString tagStr = new imgui.type.ImString(tag, 128);
+                    if (ImGui.inputText("标签 (如 #logs)##wandTag", tagStr)) {
+                        c.setTagFilter(tagStr.get());
+                        tool.requestPreviewRefresh();
+                    }
+                } else if (m == MagicWandConfig.CompareMode.BY_FILTER) {
+                    ImGui.spacing();
+                    String fid = c.getCustomFilterId();
+                    imgui.type.ImString fidStr = new imgui.type.ImString(fid, 128);
+                    if (ImGui.inputText("过滤器ID##wandFilterId", fidStr)) {
+                        c.setCustomFilterId(fidStr.get());
+                        tool.requestPreviewRefresh();
+                    }
+                }
                 ImGui.unindent();
             }
             if (ImGui.collapsingHeader(Icons.LINK + " 连通性与传播", ImGuiTreeNodeFlags.DefaultOpen)) {
@@ -305,10 +324,7 @@ public final class ToolPropertyRendering {
                 ImGui.sameLine();
                 if (ImGui.checkbox("向下传播##wandPropDown", c.isPropagateDown())) { c.setPropagateDown(!c.isPropagateDown()); tool.requestPreviewRefresh(); }
                 if (ImGui.checkbox("水平传播##wandPropHoriz", c.isPropagateHorizontal())) { c.setPropagateHorizontal(!c.isPropagateHorizontal()); tool.requestPreviewRefresh(); }
-                if (conn != MagicWandConfig.Connectivity.NEIGHBOR_6) {
-                    ImGui.sameLine();
-                    if (ImGui.checkbox("对角传播##wandPropCorners", c.isPropagateCorners())) { c.setPropagateCorners(!c.isPropagateCorners()); tool.requestPreviewRefresh(); }
-                }
+                // 对角传播 checkbox 已移除，融合进 Connectivity 逻辑中
                 ImGui.unindent();
             }
             if (ImGui.collapsingHeader(Icons.SETTINGS + " 限制与性能", ImGuiTreeNodeFlags.DefaultOpen)) {
@@ -316,17 +332,47 @@ public final class ToolPropertyRendering {
                 ctx.getIntBuffer1()[0] = c.getMaxBlocks();
                 if (ImGui.sliderInt("最大方块数##wandMaxBlocks", ctx.getIntBuffer1(), 100, 500_000)) { c.setMaxBlocks(ctx.getIntBuffer1()[0]); tool.requestPreviewRefresh(); }
                 if (ImGui.isItemHovered()) ImGui.setTooltip("防止选择过多方块影响性能");
+                if (ImGui.isItemHovered()) ImGui.setTooltip("防止选择过多方块影响性能");
+                
                 int r = c.getRange();
-                ctx.getIntBuffer2()[0] = r < 0 ? 100 : r;
-                if (ImGui.sliderInt("扩散范围##wandRange", ctx.getIntBuffer2(), 1, 200)) { c.setRange(ctx.getIntBuffer2()[0]); tool.requestPreviewRefresh(); }
-                if (ImGui.isItemHovered()) ImGui.setTooltip("从种子点向外扩散的最大步数（-1=无限制）");
-                ImGui.sameLine();
-                if (ImGui.button("无限##wandRangeUnlim")) { c.setRange(-1); tool.requestPreviewRefresh(); }
+                boolean useRange = r != -1;
+                if (ImGui.checkbox("限制扩散范围##wandUseRange", useRange)) {
+                    c.setRange(useRange ? -1 : 64); // Toggle: if was on, turn off; if was off, set to default 64
+                    tool.requestPreviewRefresh();
+                }
+                if (c.getRange() != -1) {
+                    ImGui.sameLine();
+                    ctx.getIntBuffer2()[0] = c.getRange();
+                    if (ImGui.sliderInt("范围 (最大步数)##wandRange", ctx.getIntBuffer2(), 1, 200)) { 
+                        c.setRange(ctx.getIntBuffer2()[0]); 
+                        tool.requestPreviewRefresh(); 
+                    }
+                }
                 ImGui.spacing();
-                if (ImGui.checkbox("仅表层##wandSurfaceOnly", c.isSurfaceOnly())) { c.setSurfaceOnly(!c.isSurfaceOnly()); tool.requestPreviewRefresh(); }
                 if (ImGui.isItemHovered()) ImGui.setTooltip("只选择至少有一面临空气的方块");
                 if (ImGui.checkbox("限定在当前选区##wandLimitSel", c.isLimitToCurrentSelection())) { c.setLimitToCurrentSelection(!c.isLimitToCurrentSelection()); tool.requestPreviewRefresh(); }
                 if (ImGui.isItemHovered()) ImGui.setTooltip("只在已有选区内部进行泛洪填充");
+                ImGui.unindent();
+            }
+            if (ImGui.collapsingHeader(Icons.SETTINGS + " 高级设置", ImGuiTreeNodeFlags.None)) {
+                ImGui.indent();
+                if (ImGui.checkbox("多种子模式##wandMultiSeed", c.isMultiSeedMode())) {
+                     c.setMultiSeedMode(!c.isMultiSeedMode());
+                     // 多种子模式通常不需要刷新预览，或者逻辑比较复杂，视情况而定
+                }
+                if (ImGui.isItemHovered()) ImGui.setTooltip("允许同时从多个位置开始泛洪（实验性）");
+                
+                if (ImGui.checkbox("权重模式 (距离衰减)##wandWeighted", c.isWeightedMode())) {
+                    c.setWeightedMode(!c.isWeightedMode());
+                    tool.requestPreviewRefresh();
+                }
+                if (c.isWeightedMode()) {
+                    ctx.getIntBuffer1()[0] = c.getMaxWeightSteps();
+                    if (ImGui.sliderInt("最大权重步数##wandWeightSteps", ctx.getIntBuffer1(), 1, 100)) {
+                        c.setMaxWeightSteps(ctx.getIntBuffer1()[0]);
+                        tool.requestPreviewRefresh();
+                    }
+                }
                 ImGui.unindent();
             }
             ImGui.spacing();

@@ -95,7 +95,7 @@ public final class MagicWandTask {
     
     /**
      * 创建魔棒任务
-     * 
+     *
      * @param world 世界实例
      * @param seed 起始种子点
      * @param config 魔棒配置
@@ -104,7 +104,7 @@ public final class MagicWandTask {
     public MagicWandTask(World world, BlockPos seed, MagicWandConfig config, SelectionState limitRegion) {
         this(world, seed, config, limitRegion, null);
     }
-    
+
     public MagicWandTask(World world, BlockPos seed, MagicWandConfig config,
                          SelectionState limitRegion, BlockFilterPipeline filterPipeline) {
         this.world = world;
@@ -113,15 +113,7 @@ public final class MagicWandTask {
         this.limitRegion = limitRegion;
         this.filterPipeline = filterPipeline;
     }
-    
-    /**
-     * 设置进度回调
-     */
-    public MagicWandTask withProgressCallback(ProgressCallback callback) {
-        this.progressCallback = callback;
-        return this;
-    }
-    
+
     /**
      * 取消任务
      */
@@ -310,7 +302,7 @@ public final class MagicWandTask {
         }
 
         // 18 邻接：加上 12 条边
-        if (connectivity.ordinal() >= MagicWandConfig.Connectivity.NEIGHBOR_18.ordinal() && config.isPropagateCorners()) {
+        if (connectivity.ordinal() >= MagicWandConfig.Connectivity.NEIGHBOR_18.ordinal()) {
             if (config.isPropagateHorizontal()) {
                 // 水平边（4个）
                 neighbors.add(pos.north().east());
@@ -336,7 +328,7 @@ public final class MagicWandTask {
         }
         
         // 26 邻接：加上 8 个对角
-        if (connectivity == MagicWandConfig.Connectivity.NEIGHBOR_26 && config.isPropagateCorners()) {
+        if (connectivity == MagicWandConfig.Connectivity.NEIGHBOR_26) {
             if (config.isPropagateUp() && config.isPropagateHorizontal()) {
                 neighbors.add(pos.up().north().east());
                 neighbors.add(pos.up().north().west());
@@ -414,7 +406,7 @@ public final class MagicWandTask {
                 true; // 已经检查过不是空气，无需缓存
                 
             case BY_TAG -> 
-                matchesByTag(targetBlock);
+                matchesByTag(targetState);
                 
             case BY_FILTER -> 
                 matchesByFilter(targetPos, targetState);
@@ -424,16 +416,21 @@ public final class MagicWandTask {
     /**
      * 按标签匹配（预留实现）
      */
-    private boolean matchesByTag(Block targetBlock) {
+    private boolean matchesByTag(BlockState targetState) {
         String tagFilter = config.getTagFilter();
         if (tagFilter == null || tagFilter.isEmpty()) {
-            return targetBlock.equals(originBlock);
+            return targetState.getBlock().equals(originBlock);
         }
         
-        // TODO: 实现标签匹配逻辑
-        // 需要检查 targetBlock 是否在指定的 TagKey 中
-        LOGGER.debug("[MagicWandTask] 标签匹配尚未实现: {}", tagFilter);
-        return targetBlock.equals(originBlock);
+        try {
+            net.minecraft.util.Identifier tagId = net.minecraft.util.Identifier.of(tagFilter.replace("#", ""));
+            net.minecraft.registry.tag.TagKey<Block> tagKey = net.minecraft.registry.tag.TagKey.of(net.minecraft.registry.RegistryKeys.BLOCK, tagId);
+            return targetState.isIn(tagKey);
+        } catch (Exception e) {
+            // 解析失败（无论是 Identifier 格式错误还是其他），降级为方块匹配
+            // 不频繁打日志避免刷屏，但在调试模式下记录
+            return targetState.getBlock().equals(originBlock);
+        }
     }
     
     /**
@@ -506,11 +503,11 @@ public final class MagicWandTask {
         public int size() {
             return blocks != null ? blocks.size() : 0;
         }
-        
+
         public boolean wasSuccessful() {
             return !cancelled && !isEmpty();
         }
-        
+
         /**
          * 获取最大深度
          */
