@@ -107,7 +107,7 @@ public class ImGuiFontManager {
                 LOGGER.info("[ChronoBlocks] 字体图集构建完成");
             }
             
-            verifyDefaultFontHasIcons();
+            // verifyDefaultFontHasIcons(); // Causing JVM crash during init
         } catch (Exception e) {
             LOGGER.error("[ChronoBlocks] 字体初始化过程中发生错误", e);
             // 降级方案：使用默认字体
