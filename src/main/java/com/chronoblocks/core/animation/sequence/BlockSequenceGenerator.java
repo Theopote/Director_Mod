@@ -152,22 +152,26 @@ public final class BlockSequenceGenerator {
         int batchSize = Math.max(1, params.getBatchSize());
         float batchInterval = Math.max(0.0f, params.getBatchInterval());
 
-        // 对 batchInterval 做一次裁剪：避免“间隔大到没法排”的极端
-        // 这里仅在 IN_BATCHES / BATCH_MAPPING / GROUP_FIRST 需要间隔时使用。
-        // 设计：间隔总和最多吃掉 availableSpan 的 50%，剩余给批/组本身。
-        float maxTotalGaps = availableSpan * 0.5f;
-
         int groupCount = Math.max(1, groupIdsSorted.size());
         int batchCount = Math.max(1, (int) Math.ceil((double) n / (double) batchSize));
 
-        float batchGap = batchCount > 1 ? Math.min(batchInterval, maxTotalGaps / (batchCount - 1)) : 0.0f;
-        float groupGap = groupCount > 1 ? Math.min(batchInterval, maxTotalGaps / (groupCount - 1)) : 0.0f;
+        // ---- 批次间隔 (IN_BATCHES / BATCH_MAPPING) ----
+        // 直接使用用户设置的间隔值，仅在总量超出可用时间时才等比压缩。
+        // 批次内所有方块同时出发，不再分配无用的 batchDuration 空窗。
+        float batchGap = batchCount > 1
+                ? Math.min(batchInterval, availableSpan / (float) (batchCount - 1))
+                : 0.0f;
 
-        float batchWindow = Math.max(0.0f, availableSpan - (batchCount - 1) * batchGap);
-        float batchDuration = batchWindow / (float) batchCount;
+        // ---- 组间隔 (GROUP_FIRST / STAGGERED) ----
+        // 每组需要最小窗口让组内方块有铺展空间，其余时间分配给组间隔。
+        float minGroupDuration = 0.001f;
+        float maxTotalGroupGaps = Math.max(0.0f, availableSpan - groupCount * minGroupDuration);
+        float groupGap = groupCount > 1
+                ? Math.min(batchInterval, maxTotalGroupGaps / (float) (groupCount - 1))
+                : 0.0f;
 
         float groupWindow = Math.max(0.0f, availableSpan - (groupCount - 1) * groupGap);
-        float groupDuration = groupWindow / (float) groupCount;
+        float groupDuration = Math.max(minGroupDuration, groupWindow / (float) groupCount);
 
         for (int i = 0; i < n; i++) {
             BlockSequenceItem item = items.get(i);
@@ -182,7 +186,7 @@ public final class BlockSequenceGenerator {
                 startOffsetSeconds = 0.0f;
             } else if (concurrency == ConcurrencyMode.IN_BATCHES || mapping == TimeMappingStrategy.BATCH_MAPPING) {
                 int b = i / batchSize;
-                startOffsetSeconds = b * (batchDuration + batchGap);
+                startOffsetSeconds = b * batchGap;
             } else if (concurrency == ConcurrencyMode.PARALLEL_LAYERS) {
                 // 层并行：每层都在 [0..availableSpan] 内独立推进（由 groupNormalized 决定）
                 startOffsetSeconds = groupNormalized * availableSpan;
