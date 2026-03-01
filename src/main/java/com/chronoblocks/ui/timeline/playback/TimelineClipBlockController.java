@@ -927,29 +927,16 @@ public class TimelineClipBlockController {
             if (!isDemolition) {
                 // 逐步显示（ENTER）：
                 // - renderBlocks：从 blockStartTime 起可见（用于 overlay 动画）
-                // - worldBlocks ：到 blockEndTime 才落地（避免真方块提前出现在目标格）
-                boolean isInstant = false;
-                try {
-                    isInstant = config != null
-                            && config.getMode() == com.chronoblocks.core.container.AnimationMode.INSTANT;
-                } catch (Exception ignored) {
-                }
+                // - worldBlocks ：也从 blockStartTime 起落地，由 Mixin(suppressWorldRendering) 阻止区块网格渲染，
+                //   让 overlay 独占视觉呈现。到动画结束的交接窗口再取消抑制，此时真方块已在世界中，
+                //   区块重建只需把方块加入网格（无需再 setBlockState），大幅缩短重建延迟，消除视觉间隔。
                 for (BlockSequenceEntry entry : sequenceEntries) {
                     float normalizedTime = entry.getNormalizedTime();
                     float blockStartTime = clipStart + delay + normalizedTime * sequenceSpan;
-                    float blockEndTime = Math.min(clipEnd, blockStartTime + animDuration);
 
                     if (currentTime >= blockStartTime) {
                         renderBlocks.add(entry.getPos());
-                    }
-                    if (isInstant) {
-                        if (currentTime >= blockStartTime) {
-                            worldBlocks.add(entry.getPos());
-                        }
-                    } else {
-                        if (currentTime >= blockEndTime) {
-                            worldBlocks.add(entry.getPos());
-                        }
+                        worldBlocks.add(entry.getPos());
                     }
                 }
             } else {
@@ -1217,9 +1204,12 @@ public class TimelineClipBlockController {
             // 引入交接窗口（Handoff Window），解决区块重建延迟导致的黑影/闪烁/Z-fighting问题
             // 策略：在动画边界处强制渲染一个"微放大且不透明"的 Overlay，以覆盖底下的真实方块
 
-            // 1. 预备窗口：动画开始前/结束后的一小段时间，确保覆盖层提前就位/最后撤离
-            float PRE_POST_WINDOW = 0.05f;
-            // 2. 遮蔽窗口：动画开始后/结束前的一小段时间，强制覆盖层保持不透明，防止"淡出时透视到Ghost方块"
+            // 1. 预备窗口：动画结束后覆盖层继续渲染的时间，确保区块重建完成后再撤离
+            //    配合 worldBlocks 提前落地策略：方块在 blockStartTime 就已存在于世界中，
+            //    到交接窗口时 suppressWorldRendering 解除，区块重建只需把方块加入网格（无需 setBlockState），
+            //    0.3s（约 6-18 帧）足以覆盖绝大多数场景的区块重建延迟。
+            float PRE_POST_WINDOW = 0.3f;
+            // 2. 遮蔽窗口：动画结束前的一小段时间，强制覆盖层保持不透明，防止"淡出时透视到Ghost方块"
             // 延长到 0.2s，确保覆盖大部分快速区块重建延迟（慢速机器可能需要更久，但 0.2s 覆盖大多数情况）
             float MASK_WINDOW = 0.2f;
 
