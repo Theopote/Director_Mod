@@ -126,6 +126,11 @@ public final class SequenceEvaluator {
             case NOISE -> {
                 return hash(rel) * 10.0f;
             }
+            case FLOOD -> {
+                // FLOOD 的实际 BFS 距离由 BlockSequenceGenerator 后处理赋值，
+                // 此处返回 0 作为占位符，确保 layer 内方块最终按 BFS 波前距离排序。
+                return 0f;
+            }
         }
         return 0f; // unreachable
     }

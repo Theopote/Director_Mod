@@ -8,10 +8,8 @@ public enum FillType {
     RASTER("打印机扫描 (Raster)"),
     RADIAL("径向扩散 (Radial)"),
     SPIRAL("螺旋 (Spiral)"),
-    NOISE("伪随机散布 (Noise)");
-
-    // 注意：FLOOD（泛洪蔓延）已移除 —— 原 BFS 逻辑未实现，避免用户误选。
-    // 如需恢复，需在 SequenceEvaluator.computeFillScore 中实现真正的 BFS 泛洪算法。
+    NOISE("伪随机散布 (Noise)"),
+    FLOOD("泛洪蔓延 (Flood)");
 
     private final String displayName;
 

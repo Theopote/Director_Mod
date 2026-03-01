@@ -1046,7 +1046,30 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
             }
         }
 
-        // FLOOD 已移除（BFS 算法未实现），此处不再显示 FloodSeedMode UI
+        // FLOOD 专属参数：FloodSeedMode
+        if (params.getFillType() == FillType.FLOOD) {
+            UITheme.label("泛洪起点 (Flood Seed)", UITheme.DarkTheme.TEXT_SELECTED);
+
+            FloodSeedMode[] seedModes = FloodSeedMode.values();
+            ImInt seedIdx = new ImInt(params.getFloodSeedMode().ordinal());
+
+            ImGui.pushItemWidth(ImGui.getContentRegionAvailX());
+            if (ImGui.combo("##FloodSeed", seedIdx, getAllEnumDisplayNames(seedModes))) {
+                params.setFloodSeedMode(seedModes[seedIdx.get()]);
+                modified = true;
+            }
+            ImGui.popItemWidth();
+
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("""
+                    决定每层泛洪蔓延的起点：
+                    • 每层中心：从该切片的几何中心开始蔓延
+                    • 每层最小角：从该切片的 (minX,minY,minZ) 开始
+                    • 每层随机点：每层随机挑选一个方块作为起点
+                    • 全局随机：整个容器随机1个点，从上到下蔓延
+                    """);
+            }
+        }
 
         return modified;
     }
