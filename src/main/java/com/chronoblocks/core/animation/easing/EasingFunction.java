@@ -48,6 +48,21 @@ public enum EasingFunction {
         this.displayName = displayName;
         this.description = description;
     }
+
+    // ✅ 优化：预构建查找表，避免在热路径上使用 valueOf() + catch 异常
+    private static final java.util.Map<String, EasingFunction> LOOKUP_BY_NAME;
+    private static final java.util.Map<String, EasingFunction> LOOKUP_BY_DISPLAY_NAME;
+
+    static {
+        EasingFunction[] vals = values();
+        LOOKUP_BY_NAME = new java.util.HashMap<>(vals.length * 2);
+        LOOKUP_BY_DISPLAY_NAME = new java.util.HashMap<>(vals.length * 2);
+        for (EasingFunction func : vals) {
+            LOOKUP_BY_NAME.put(func.name(), func);
+            LOOKUP_BY_NAME.put(func.name().toLowerCase(), func);
+            LOOKUP_BY_DISPLAY_NAME.put(func.displayName, func);
+        }
+    }
     
     public String getDisplayName() {
         return displayName;
@@ -125,25 +140,31 @@ public enum EasingFunction {
     
     /**
      * 从字符串名称获取缓动函数
+     * <p>✅ 优化：使用预构建 Map 查找，避免在热路径上抛异常
      */
     public static EasingFunction fromString(String name) {
         if (name == null || name.isEmpty()) {
             return LINEAR;
         }
-        
-        // 尝试精确匹配
-        try {
-            return valueOf(name.toUpperCase());
-        } catch (IllegalArgumentException e) {
-            // 尝试模糊匹配
-            String upper = name.toUpperCase();
-            for (EasingFunction func : values()) {
-                if (func.name().equals(upper) || func.displayName.contains(name)) {
-                    return func;
-                }
+
+        // 1. 精确匹配（大小写不敏感）
+        EasingFunction result = LOOKUP_BY_NAME.get(name);
+        if (result != null) return result;
+        result = LOOKUP_BY_NAME.get(name.toUpperCase());
+        if (result != null) return result;
+
+        // 2. 中文显示名精确匹配
+        result = LOOKUP_BY_DISPLAY_NAME.get(name);
+        if (result != null) return result;
+
+        // 3. 模糊匹配（中文显示名包含）
+        for (EasingFunction func : values()) {
+            if (func.displayName.contains(name)) {
+                return func;
             }
-            return LINEAR;
         }
+
+        return LINEAR;
     }
 }
 

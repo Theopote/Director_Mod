@@ -35,16 +35,18 @@ public class ShakerTransformer implements IAnimationTransformer {
             float decayFactor = (float) Math.pow(1.0f - shakeProgress, decay);
             float shakeAmount = intensity * decayFactor;
             
-            // 使用随机数生成器产生震动偏移（但保持一致）
-            random.setSeed((long) (shakeProgress * 1000));
-            result.translateX = (random.nextFloat() - 0.5f) * 2.0f * shakeAmount;
-            result.translateY = (random.nextFloat() - 0.5f) * 2.0f * shakeAmount;
-            result.translateZ = (random.nextFloat() - 0.5f) * 2.0f * shakeAmount;
+            // ✅ 修复：先保存原始种子状态，用离散步生成时变抖动，避免污染传入的 random
+            long baseSeed = random.nextLong();
+            int step = (int) (shakeProgress * 30);
+            Random localRandom = new Random(baseSeed ^ (step * 73856093L));
+            result.translateX = (localRandom.nextFloat() - 0.5f) * 2.0f * shakeAmount;
+            result.translateY = (localRandom.nextFloat() - 0.5f) * 2.0f * shakeAmount;
+            result.translateZ = (localRandom.nextFloat() - 0.5f) * 2.0f * shakeAmount;
             
             // 可选：添加旋转震动
-            result.rotateX = (random.nextFloat() - 0.5f) * 10.0f * shakeAmount;
-            result.rotateY = (random.nextFloat() - 0.5f) * 10.0f * shakeAmount;
-            result.rotateZ = (random.nextFloat() - 0.5f) * 10.0f * shakeAmount;
+            result.rotateX = (localRandom.nextFloat() - 0.5f) * 10.0f * shakeAmount;
+            result.rotateY = (localRandom.nextFloat() - 0.5f) * 10.0f * shakeAmount;
+            result.rotateZ = (localRandom.nextFloat() - 0.5f) * 10.0f * shakeAmount;
         }
         // 震动结束后，方块应该回到原位（所有变换为0，这是默认值）
         
@@ -151,16 +153,23 @@ public class ShakerTransformer implements IAnimationTransformer {
         
         // 震动效果：使用 shakeDuration 控制震动持续时间，decay 控制衰减速度
         float shakeFactor = 0f;
+        float dx = 0f, dy = 0f, dz = 0f;
         if (easedT < shakeDuration) {
             float shakeProgress = easedT / shakeDuration;
             float decayFactor = (float) Math.pow(1.0f - shakeProgress, decay);
             shakeFactor = intensity * decayFactor;
+
+            // ✅ 修复：使用基于进度离散化的种子，让不同帧的震动方向发生变化
+            // 将 shakeProgress 量化到约 30 个离散步（模拟 ~30fps 的震动），
+            // 同时混合原始 random 种子以保证不同方块有不同的震动模式。
+            long baseSeed = random.nextLong();
+            int step = (int) (shakeProgress * 30);
+            random.setSeed(baseSeed ^ (step * 73856093L));
+
+            dx = (random.nextFloat() - 0.5f) * 2.0f * shakeFactor;
+            dy = (random.nextFloat() - 0.5f) * 2.0f * shakeFactor;
+            dz = (random.nextFloat() - 0.5f) * 2.0f * shakeFactor;
         }
-        
-        // 抖动随着 t -> 1 收敛
-        float dx = (random.nextFloat() - 0.5f) * 2.0f * shakeFactor;
-        float dy = (random.nextFloat() - 0.5f) * 2.0f * shakeFactor;
-        float dz = (random.nextFloat() - 0.5f) * 2.0f * shakeFactor;
         
         params.put("dx", dx);
         params.put("dy", dy);

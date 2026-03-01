@@ -24,25 +24,18 @@ public class PopInTransformer implements IAnimationTransformer {
         
         // 获取参数
         float initialScale = getFloatParam(params, "initialScale", 0.0f);
-        float elasticity = getFloatParam(params, "elasticity", 1.0f);
         
-        // 计算缩放：从 initialScale 到 1.0，带有弹性回弹
-        // 弹性效果通过 EaseOutBack 缓动函数实现，这里我们直接计算缩放值
+        // 计算缩放：从 initialScale 到 1.0
+        // 弹性回弹效果由推荐的 EasingFunction (EASE_OUT_BACK) 在外层完成，
+        // Transformer 本身只负责线性映射，避免与 Easing 双重叠加
         float scale = initialScale + (1.0f - initialScale) * progress;
-        
-        // 应用弹性效果：在接近 1.0 时略微超过，然后回弹
-        if (elasticity > 0.0f && progress > 0.7f) {
-            float overshoot = (progress - 0.7f) / 0.3f; // 0.0 -> 1.0
-            float bounce = (float) Math.sin(overshoot * Math.PI) * elasticity * 0.1f;
-            scale += bounce;
-        }
         
         result.scaleX = scale;
         result.scaleY = scale;
         result.scaleZ = scale;
         
-        // 可选：淡入效果
-        result.opacity = Math.min(1.0f, progress * 1.2f); // 稍微提前淡入
+        // 淡入效果
+        result.opacity = Math.min(1.0f, progress * 1.2f);
         
         return result;
     }

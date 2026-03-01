@@ -127,7 +127,8 @@ public interface IAnimationTransformer {
      * <p>写入的键名约定：
      * <ul>
      *   <li>dx, dy, dz: 平移偏移（float）</li>
-     *   <li>scale: 缩放比例（float，默认 1.0）</li>
+     *   <li>scale: 统一缩放比例（float，默认 1.0）</li>
+     *   <li>scaleX, scaleY, scaleZ: 非均匀缩放比例（优先于 scale）</li>
      *   <li>yaw, pitch, roll: 旋转角度（float，度）</li>
      *   <li>alpha: 透明度（float [0..1]，默认 1.0）</li>
      * </ul>
@@ -146,9 +147,17 @@ public interface IAnimationTransformer {
             params.put("dy", result.translateY);
             params.put("dz", result.translateZ);
             
-            // 缩放（统一缩放）
-            float avgScale = (result.scaleX + result.scaleY + result.scaleZ) / 3.0f;
-            params.put("scale", avgScale);
+            // ✅ 修复：保留非均匀缩放信息，不再取平均
+            boolean isUniform = (result.scaleX == result.scaleY && result.scaleY == result.scaleZ);
+            if (isUniform) {
+                params.put("scale", result.scaleX);
+            } else {
+                // 非均匀缩放：写入 scaleX/Y/Z，清除 scale 键避免歧义
+                params.put("scaleX", result.scaleX);
+                params.put("scaleY", result.scaleY);
+                params.put("scaleZ", result.scaleZ);
+                params.remove("scale");
+            }
             
             // 旋转
             params.put("yaw", result.rotateY);

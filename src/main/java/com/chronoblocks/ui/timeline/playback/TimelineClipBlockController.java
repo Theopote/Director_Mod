@@ -78,6 +78,9 @@ public class TimelineClipBlockController {
     // 简化遮挡检测器
     private final BlockOcclusionResolver occlusionResolver = new BlockOcclusionResolver();
 
+    // ✅ 缓存清理计数器：每 60 帧清理一次过期缓存
+    private int cacheCleanupCounter = 0;
+
     // =====================================================================
     // Perf caches (播放性能关键)
     // =====================================================================
@@ -675,6 +678,21 @@ public class TimelineClipBlockController {
             lastFrameWorldBlocks.put(id, s != null ? s : java.util.Collections.emptySet());
         }
         visualStateManager.finishFrame();
+
+        // ✅ 修复：定期清理不再活跃的容器/片段缓存，防止内存泄漏
+        // 每 60 帧（约 3 秒）执行一次清理
+        if (++cacheCleanupCounter >= 60) {
+            cacheCleanupCounter = 0;
+            Set<UUID> activeContainerIds = currentFrameVisibleBlocks.keySet();
+            blocksCacheByContainer.entrySet().removeIf(e -> {
+                Container c = e.getKey();
+                return c == null || !activeContainerIds.contains(c.getId());
+            });
+            sequenceCacheByClip.entrySet().removeIf(e -> {
+                TimelineClip c = e.getKey();
+                return c == null || !activeContainerIds.contains(c.getBoundContainerId());
+            });
+        }
 
         // ===== 节流性能日志（每 5 秒一次）=====
         long nowMs = System.currentTimeMillis();

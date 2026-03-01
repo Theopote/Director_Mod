@@ -101,6 +101,7 @@ public final class BlockAnimationContext {
      * 从时间线状态构建动画上下文
      * 
      * <p>将全局时间映射到该方块的局部动画时间，计算动画进度。
+     * <p>时间窗口计算与 {@link com.chronoblocks.core.animation.BlockAnimationEngine#sample} 保持一致。
      * 
      * @param world 世界
      * @param pos 方块位置
@@ -130,12 +131,12 @@ public final class BlockAnimationContext {
         // 片段内本地时间 [0, clip.length]
         double clipLocalTime = globalTimeSec - clipStart;
         
-        // 序列时间：该方块在片段内什么时候开始动画
         float seqT = sequenceEntry.getNormalizedTime(); // 0..1
-        double seqStartTime = clip.getLength() * seqT; // 片段内绝对秒
-        
+
         // 动画时长
-        double animDuration = config.getDuration();
+        float clipDuration = (float) Math.max(0.0001, clip.getLength());
+        float animDuration = (float) Math.max(0.0001, Math.min(config.getDuration(), clipDuration));
+
         if (animDuration <= 0.0) {
             // duration 为 0 相当于瞬间到位
             return new BlockAnimationContext(
@@ -144,10 +145,45 @@ public final class BlockAnimationContext {
                     1.0f, 1.0f
             );
         }
-        
+
+        // ✅ 修复：与 BlockAnimationEngine.sample() 保持一致的时间窗口计算
+        float delay = Math.max(0.0f, config.getDelay());
+        try {
+            var seq = config.getSequenceParameters();
+            if (seq != null) {
+                delay += Math.max(0.0f, seq.getGlobalDelay());
+            }
+        } catch (Exception ignored) {
+        }
+
+        float baseSpan = clipDuration - animDuration - delay;
+        boolean fullWindow = baseSpan > 0.0001f;
+        float sequenceSpan = fullWindow ? baseSpan : Math.max(0.0001f, clipDuration - delay);
+
+        // ENTER：开始时刻分布在 [clipStart+delay, clipEnd-animDuration]
+        float blockBaseOffset = seqT * sequenceSpan;
+        double blockStartTime = delay + blockBaseOffset;
+        double blockEndTime = blockStartTime + animDuration;
+
+        // 钳制到片段范围
+        if (blockStartTime < 0) blockStartTime = 0;
+        if (blockEndTime > clipDuration) blockEndTime = clipDuration;
+
+        if (blockEndTime <= blockStartTime) {
+            // 动画时间窗口无效：按瞬时处理
+            if (clipLocalTime >= blockStartTime) {
+                return new BlockAnimationContext(
+                        world, pos, clip, config, sequenceEntry,
+                        globalTimeSec, clipLocalTime, seqT,
+                        1.0f, 1.0f
+                );
+            }
+            return null;
+        }
+
         // 对于这个方块来说，当前的动画进度
-        double animLocalTime = clipLocalTime - seqStartTime; // 该方块的动画已经运行了多少秒
-        float animProgressRaw = (float) (animLocalTime / animDuration);
+        double animLocalTime = clipLocalTime - blockStartTime;
+        float animProgressRaw = (float) (animLocalTime / (blockEndTime - blockStartTime));
         
         if (animProgressRaw < 0.0f) {
             // 动画还没开始

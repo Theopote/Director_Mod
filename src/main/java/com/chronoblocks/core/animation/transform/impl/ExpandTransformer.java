@@ -134,11 +134,18 @@ public class ExpandTransformer implements IAnimationTransformer {
         // 如果参数中有 expandSpeed，调整扩散速度
         float expandSpeed = getFloatParam(params, "expandSpeed", 1.0f);
         float effectiveT = Math.min(1.0f, easedT * expandSpeed);
-        
-        // 随机方向（使用 sequenceEntry.seed，确保稳定）
-        float angle = random.nextFloat() * 360f;
-        float dx = (float) (Math.cos(Math.toRadians(angle)) * radius * (1.0f - effectiveT));
-        float dz = (float) (Math.sin(Math.toRadians(angle)) * radius * (1.0f - effectiveT));
+
+        // ✅ 修复：读取 useDistance 参数。启用时方块从随机方向向内收拢，
+        // 禁用时只做纯缩放（无位移）。
+        boolean useDistance = getBooleanParam(params);
+
+        float dx = 0f, dz = 0f;
+        if (useDistance) {
+            // 随机方向（使用 sequenceEntry.seed，确保稳定）
+            float angle = random.nextFloat() * 360f;
+            dx = (float) (Math.cos(Math.toRadians(angle)) * radius * (1.0f - effectiveT));
+            dz = (float) (Math.sin(Math.toRadians(angle)) * radius * (1.0f - effectiveT));
+        }
         
         params.put("dx", dx);
         params.put("dy", 0f);

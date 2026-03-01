@@ -59,8 +59,9 @@ public final class BlockAnimationEngine {
             boolean initialized;
         }
 
-        private static final java.util.Map<Key, State> STATES = new java.util.HashMap<>();
-        private static float lastCleanupNow = Float.NEGATIVE_INFINITY;
+        // ✅ 修复：使用 ConcurrentHashMap 保证线程安全
+        private static final java.util.concurrent.ConcurrentHashMap<Key, State> STATES = new java.util.concurrent.ConcurrentHashMap<>();
+        private static volatile float lastCleanupNow = Float.NEGATIVE_INFINITY;
 
         private record Key(long posLong, java.util.UUID effectId) {
         }
@@ -448,10 +449,24 @@ public final class BlockAnimationEngine {
             matrices.multiply(net.minecraft.util.math.RotationAxis.POSITIVE_Z.rotationDegrees(roll));
         }
 
-        // 缩放
-        float scale = getFloat(params, "scale", 1.0f);
-        if (scale != 1.0f) {
-            matrices.scale(scale, scale, scale);
+        // 缩放：优先使用非均匀缩放 scaleX/scaleY/scaleZ，否则回退到统一 scale
+        float scaleX = getFloat(params, "scaleX", Float.NaN);
+        float scaleY = getFloat(params, "scaleY", Float.NaN);
+        float scaleZ = getFloat(params, "scaleZ", Float.NaN);
+        if (!Float.isNaN(scaleX) || !Float.isNaN(scaleY) || !Float.isNaN(scaleZ)) {
+            // 非均匀缩放：任何轴有指定值就使用非均匀路径
+            float sx = Float.isNaN(scaleX) ? 1.0f : scaleX;
+            float sy = Float.isNaN(scaleY) ? 1.0f : scaleY;
+            float sz = Float.isNaN(scaleZ) ? 1.0f : scaleZ;
+            if (sx != 1.0f || sy != 1.0f || sz != 1.0f) {
+                matrices.scale(sx, sy, sz);
+            }
+        } else {
+            // 统一缩放
+            float scale = getFloat(params, "scale", 1.0f);
+            if (scale != 1.0f) {
+                matrices.scale(scale, scale, scale);
+            }
         }
     }
 

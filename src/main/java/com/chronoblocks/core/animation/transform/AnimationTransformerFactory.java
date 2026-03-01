@@ -54,6 +54,16 @@ public class AnimationTransformerFactory {
         register(AnimationMode.SHRINK_OUT, new ShrinkOutTransformer());
         register(AnimationMode.GRAVITY_FALL, new GravityFallTransformer());
         register(AnimationMode.FLY_OUT, new FlyOutTransformer());
+
+        // ✅ 旧版排序策略模式：映射到 InstantTransformer
+        // 这些模式的"排序策略"已由 LegacyAnimationModeMigrator 迁移到 SequenceParameters，
+        // 此处仅提供 Transformer 回退，避免未迁移的旧存档静默使用无效变换。
+        IAnimationTransformer instant = registry.get(AnimationMode.INSTANT);
+        register(AnimationMode.GROW_DOWN, instant);
+        register(AnimationMode.SLICE, instant);
+        register(AnimationMode.RANDOM, instant);
+        register(AnimationMode.WAVE, instant);
+        register(AnimationMode.SPIRAL, instant);
     }
     
     /**
@@ -75,7 +85,13 @@ public class AnimationTransformerFactory {
         if (mode == null) {
             mode = AnimationMode.INSTANT;
         }
-        return registry.getOrDefault(mode, registry.get(AnimationMode.INSTANT));
+        IAnimationTransformer transformer = registry.get(mode);
+        if (transformer == null) {
+            org.slf4j.LoggerFactory.getLogger(AnimationTransformerFactory.class)
+                    .warn("[AnimationTransformerFactory] 未注册的动画模式 {}，回退到 INSTANT", mode);
+            transformer = registry.get(AnimationMode.INSTANT);
+        }
+        return transformer;
     }
 }
 

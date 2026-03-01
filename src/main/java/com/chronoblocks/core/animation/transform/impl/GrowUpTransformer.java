@@ -175,11 +175,8 @@ public class GrowUpTransformer implements IAnimationTransformer {
         String pivot = getStringParam(params, "pivot", "BOTTOM");
         float distance = getFloatParam(params, "distance", 0.0f);
 
-        // 根据轴向应用缩放（统一使用 scale 参数，BlockAnimationEngine 会统一应用）
-        // 对于复杂的轴向缩放，可以使用 scaleX/scaleY/scaleZ，但当前约定是统一 scale
-
         // 根据锚点调整位移
-        float dy = 0f;
+        float dx = 0f, dy = 0f, dz = 0f;
         if ("BOTTOM".equalsIgnoreCase(pivot) && "Y".equalsIgnoreCase(axis)) {
             // 从底部生长：需要向下偏移，使底部固定
             dy = -0.5f * (1.0f - easedT) - distance * (1.0f - easedT);
@@ -187,17 +184,43 @@ public class GrowUpTransformer implements IAnimationTransformer {
             // 如果有升起距离，从下方升起
             dy = -distance * (1.0f - easedT);
         }
-        
-        params.put("dx", 0f);
+
+        params.put("dx", dx);
         params.put("dy", dy);
-        params.put("dz", 0f);
-        
+        params.put("dz", dz);
+
         params.put("yaw", 0f);
         params.put("pitch", 0f);
         params.put("roll", 0f);
-        
-        params.put("scale", easedT);
-        params.put("alpha", easedT); // 慢慢出现
+
+        // ✅ 修复：使用非均匀缩放（按轴），而不是统一 scale
+        // BlockAnimationEngine.applyTransformFromParams 现在支持 scaleX/scaleY/scaleZ
+        switch (axis.toUpperCase()) {
+            case "X" -> {
+                params.put("scaleX", easedT);
+                params.put("scaleY", 1.0f);
+                params.put("scaleZ", 1.0f);
+            }
+            case "Z" -> {
+                params.put("scaleX", 1.0f);
+                params.put("scaleY", 1.0f);
+                params.put("scaleZ", easedT);
+            }
+            case "XYZ" -> {
+                params.put("scaleX", easedT);
+                params.put("scaleY", easedT);
+                params.put("scaleZ", easedT);
+            }
+            default -> { // "Y"
+                params.put("scaleX", 1.0f);
+                params.put("scaleY", easedT);
+                params.put("scaleZ", 1.0f);
+            }
+        }
+        // 清除统一 scale 键，避免被 applyTransformFromParams 误读
+        params.remove("scale");
+
+        params.put("alpha", Math.max(0.0f, Math.min(1.0f, easedT))); // 慢慢出现
     }
 }
 
