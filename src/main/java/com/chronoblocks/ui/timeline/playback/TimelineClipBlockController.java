@@ -927,16 +927,31 @@ public class TimelineClipBlockController {
             if (!isDemolition) {
                 // 逐步显示（ENTER）：
                 // - renderBlocks：从 blockStartTime 起可见（用于 overlay 动画）
-                // - worldBlocks ：也从 blockStartTime 起落地，由 Mixin(suppressWorldRendering) 阻止区块网格渲染，
-                //   让 overlay 独占视觉呈现。到动画结束的交接窗口再取消抑制，此时真方块已在世界中，
-                //   区块重建只需把方块加入网格（无需再 setBlockState），大幅缩短重建延迟，消除视觉间隔。
+                // - worldBlocks ：到 blockEndTime 才落地（避免真方块提前出现在目标格）
+                //   配合加大的交接窗口（PRE_POST_WINDOW=0.3f），overlay 在动画结束后继续渲染，
+                //   遮盖区块重建延迟，实现无缝衔接。
+                boolean isInstant = false;
+                try {
+                    isInstant = config != null
+                            && config.getMode() == com.chronoblocks.core.container.AnimationMode.INSTANT;
+                } catch (Exception ignored) {
+                }
                 for (BlockSequenceEntry entry : sequenceEntries) {
                     float normalizedTime = entry.getNormalizedTime();
                     float blockStartTime = clipStart + delay + normalizedTime * sequenceSpan;
+                    float blockEndTime = Math.min(clipEnd, blockStartTime + animDuration);
 
                     if (currentTime >= blockStartTime) {
                         renderBlocks.add(entry.getPos());
-                        worldBlocks.add(entry.getPos());
+                    }
+                    if (isInstant) {
+                        if (currentTime >= blockStartTime) {
+                            worldBlocks.add(entry.getPos());
+                        }
+                    } else {
+                        if (currentTime >= blockEndTime) {
+                            worldBlocks.add(entry.getPos());
+                        }
                     }
                 }
             } else {
@@ -1132,9 +1147,19 @@ public class TimelineClipBlockController {
             boolean needsEffects = !config.getEffects().isEmpty();
             boolean shouldSampleForEffects = isInstant && needsEffects && currentTime >= blockStartTime;
 
+            // ===== 提前计算交接窗口（Handoff Window），用于下方的跳过判断 =====
+            float PRE_POST_WINDOW = 0.3f;
+            float MASK_WINDOW = 0.2f;
+            boolean inEnterHandoffEarly = (phase != ClipAnimationConfig.AnimationPhase.EXIT)
+                    && (currentTime >= blockEndTime - MASK_WINDOW && currentTime < blockEndTime + PRE_POST_WINDOW);
+            boolean inExitHandoffEarly = (phase == ClipAnimationConfig.AnimationPhase.EXIT)
+                    && (currentTime >= blockStartTime - PRE_POST_WINDOW && currentTime < blockStartTime + MASK_WINDOW);
+            boolean inHandoffWindow = inEnterHandoffEarly || inExitHandoffEarly;
+
             if (!inAnimWindow && !shouldSampleForEffects) {
                 // 静态块：如果视觉状态是 NORMAL 且不抑制世界渲染，完全不需要 overlay / snapshot
-                if (visualState.isNormal() && !visualState.shouldSuppressWorldRendering()) {
+                // ✅ 关键修复：但如果处于交接窗口内，必须继续渲染 overlay 以遮盖区块重建延迟
+                if (visualState.isNormal() && !visualState.shouldSuppressWorldRendering() && !inHandoffWindow) {
                     continue;
                 }
 
@@ -1203,23 +1228,10 @@ public class TimelineClipBlockController {
             // 🔥 步骤 5：检查是否需要覆盖层渲染
             // 引入交接窗口（Handoff Window），解决区块重建延迟导致的黑影/闪烁/Z-fighting问题
             // 策略：在动画边界处强制渲染一个"微放大且不透明"的 Overlay，以覆盖底下的真实方块
+            // （PRE_POST_WINDOW / MASK_WINDOW / inEnterHandoff / inExitHandoff 已在前面提前计算）
 
-            // 1. 预备窗口：动画结束后覆盖层继续渲染的时间，确保区块重建完成后再撤离
-            //    配合 worldBlocks 提前落地策略：方块在 blockStartTime 就已存在于世界中，
-            //    到交接窗口时 suppressWorldRendering 解除，区块重建只需把方块加入网格（无需 setBlockState），
-            //    0.3s（约 6-18 帧）足以覆盖绝大多数场景的区块重建延迟。
-            float PRE_POST_WINDOW = 0.3f;
-            // 2. 遮蔽窗口：动画结束前的一小段时间，强制覆盖层保持不透明，防止"淡出时透视到Ghost方块"
-            // 延长到 0.2s，确保覆盖大部分快速区块重建延迟（慢速机器可能需要更久，但 0.2s 覆盖大多数情况）
-            float MASK_WINDOW = 0.2f;
-
-            // ENTER: [结束前 MASK_WINDOW] -> [结束] -> [结束后 PRE_POST_WINDOW]
-            boolean inEnterHandoff = (phase != ClipAnimationConfig.AnimationPhase.EXIT)
-                    && (currentTime >= blockEndTime - MASK_WINDOW && currentTime < blockEndTime + PRE_POST_WINDOW);
-
-            // EXIT: [开始前 PRE_POST_WINDOW] -> [开始] -> [开始后 MASK_WINDOW]
-            boolean inExitHandoff = (phase == ClipAnimationConfig.AnimationPhase.EXIT)
-                    && (currentTime >= blockStartTime - PRE_POST_WINDOW && currentTime < blockStartTime + MASK_WINDOW);
+            boolean inEnterHandoff = inEnterHandoffEarly;
+            boolean inExitHandoff = inExitHandoffEarly;
 
             // 需要 overlay 的情况：
             // - 视觉状态不是 NORMAL（有透明度或遮挡）
