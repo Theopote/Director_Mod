@@ -1261,20 +1261,18 @@ public class TimelineClipBlockController {
                 MatrixStack ms = new MatrixStack();
                 ms.translate(0.5, 0.5, 0.5);
                 float s = 1.002f;
-                // 注意：如果原 snapshot 已有变换（例如飞入），我们应该保留它还是覆盖它？
-                // 在 handoff 阶段（特别是 OUT结束前 和 IN开始后），动画通常已经接近完成了。
-                // 为了稳健，我们直接覆盖为"原位微放大"，确保它和真实方块位置一致。
                 ms.scale(s, s, s);
                 ms.translate(-0.5, -0.5, -0.5);
                 snapshot.setTransform(ms);
 
-                // 3. 🔥 关键修复：在交接期间，必须允许世界方块渲染（Suppress=False）
-                // 这样底层的 Chunk Update 才能正常进行（把方块加进去/移出来），而 Overlay 负责遮丑。
-                // 如果 Suppress=True，Chunk Rebuild 会被延迟到 Overlay 结束那一刻，导致"断点/黑洞"。
-                if (visualState.shouldSuppressWorldRendering()) {
-                    visualState = visualState.withSuppressWorldRendering(false);
-                    visualStateManager.setBlockState(pos, visualState);
-                }
+                // 3. 🔥 关键修复：交接期间 suppress=false 让区块重建正常进行，
+                //    但 visualState 必须设为 GHOST_WITH_DEPTH（非 NORMAL），
+                //    否则渲染器 renderAnimatedBlockWithVisualState 检查
+                //    isNormal() && !shouldSuppressWorldRendering() 会直接跳过覆盖层渲染，
+                //    导致动画结束瞬间覆盖层消失 → 区块重建完成前出现空隙。
+                //    GHOST_WITH_DEPTH + alpha=1.0 + depthWrite=true 视觉效果等同实体方块。
+                visualState = BlockVisualStateManager.BlockVisualState.ghost(1.0f, true, false);
+                visualStateManager.setBlockState(pos, visualState);
             }
 
             // 🔥 步骤 6：确保视觉状态抑制世界渲染（除非在交接窗口期间）
