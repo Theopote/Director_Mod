@@ -1230,9 +1230,6 @@ public class TimelineClipBlockController {
             // 策略：在动画边界处强制渲染一个"微放大且不透明"的 Overlay，以覆盖底下的真实方块
             // （PRE_POST_WINDOW / MASK_WINDOW / inEnterHandoff / inExitHandoff 已在前面提前计算）
 
-            boolean inEnterHandoff = inEnterHandoffEarly;
-            boolean inExitHandoff = inExitHandoffEarly;
-
             // 需要 overlay 的情况：
             // - 视觉状态不是 NORMAL（有透明度或遮挡）
             // - 动画 alpha < 0.999（有透明度变化）
@@ -1243,15 +1240,15 @@ public class TimelineClipBlockController {
                     || snapshot.getAlpha() < 0.999f
                     || !isIdentityTransform(snapshot)
                     || (phase == ClipAnimationConfig.AnimationPhase.EXIT && inAnimWindow)
-                    || inEnterHandoff
-                    || inExitHandoff;
+                    || inEnterHandoffEarly
+                    || inExitHandoffEarly;
 
             if (!needsOverlay) {
                 continue;
             }
 
             // 如果处于交接窗口，强制修正 snapshot 状态，确保平滑过渡且遮挡底下的瑕疵
-            if (inEnterHandoff || inExitHandoff) {
+            if (inEnterHandoffEarly || inExitHandoffEarly) {
                 // 1. 强制完全显示（Alpha 1.0），遮挡内部
                 snapshot.setAlpha(1.0f);
                 snapshot.markFullyVisible();
@@ -1279,7 +1276,7 @@ public class TimelineClipBlockController {
             // 注意：在交接窗口期间（inEnterHandoff || inExitHandoff），已经设置 suppressWorldRendering =
             // false
             // 这里只对非交接窗口的动画方块启用抑制
-            if (!inEnterHandoff && !inExitHandoff && !visualState.shouldSuppressWorldRendering()) {
+            if (!inEnterHandoffEarly && !inExitHandoffEarly && !visualState.shouldSuppressWorldRendering()) {
                 visualState = visualState.withSuppressWorldRendering(true);
                 visualStateManager.setBlockState(pos, visualState);
             }
