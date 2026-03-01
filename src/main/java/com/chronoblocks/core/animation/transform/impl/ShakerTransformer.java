@@ -152,7 +152,7 @@ public class ShakerTransformer implements IAnimationTransformer {
         float shakeDuration = getFloatParam(params, "shakeDuration", 0.3f);
         
         // 震动效果：使用 shakeDuration 控制震动持续时间，decay 控制衰减速度
-        float shakeFactor = 0f;
+        float shakeFactor;
         float dx = 0f, dy = 0f, dz = 0f;
         if (easedT < shakeDuration) {
             float shakeProgress = easedT / shakeDuration;
