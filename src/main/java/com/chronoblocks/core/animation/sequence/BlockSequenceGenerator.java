@@ -186,9 +186,14 @@ public final class BlockSequenceGenerator {
             } else if (concurrency == ConcurrencyMode.PARALLEL_LAYERS) {
                 // 层并行：每层都在 [0..availableSpan] 内独立推进（由 groupNormalized 决定）
                 startOffsetSeconds = groupNormalized * availableSpan;
-            } else if (mapping == TimeMappingStrategy.GROUP_FIRST || mapping == TimeMappingStrategy.STAGGERED) {
+            } else if (mapping == TimeMappingStrategy.GROUP_FIRST) {
                 int g = groupRank.getOrDefault(groupId, 0);
                 startOffsetSeconds = g * (groupDuration + groupGap) + groupNormalized * groupDuration;
+            } else if (mapping == TimeMappingStrategy.STAGGERED) {
+                // 交错模式：奇数组正序、偶数组反序，在同一时间窗口内形成"锯齿"推进
+                int g = groupRank.getOrDefault(groupId, 0);
+                float groupNorm = (g % 2 == 0) ? groupNormalized : (1.0f - groupNormalized);
+                startOffsetSeconds = g * (groupDuration + groupGap) + groupNorm * groupDuration;
             } else {
                 // NORMALIZED_LINEAR：将排序结果均匀铺满 availableSpan
                 float normalized = n == 1 ? 0.0f : (float) i / (float) (n - 1);

@@ -499,8 +499,8 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
 
         // 模式选择（按阶段过滤）
         AnimationMode[] availableModes = new AnimationMode[] { AnimationMode.INSTANT, AnimationMode.FADE_IN,
-                AnimationMode.GROW_UP, AnimationMode.ASSEMBLE, AnimationMode.FALL_DOWN, AnimationMode.RISE_UP,
-                AnimationMode.FLY_IN, AnimationMode.POP_IN, AnimationMode.SHAKER };
+                AnimationMode.GROW_UP, AnimationMode.EXPAND, AnimationMode.ASSEMBLE, AnimationMode.FALL_DOWN,
+                AnimationMode.RISE_UP, AnimationMode.FLY_IN, AnimationMode.POP_IN, AnimationMode.SHAKER };
 
         // 同一个 mode 在 Exit/Enter 阶段语义可能相反：显示名做一次用户友好化
         String[] availableLabels = java.util.Arrays.stream(availableModes)
@@ -909,6 +909,8 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
                         params.setFlowType(FlowType.PLANAR);
                         params.setOriginType(OriginType.BOTTOM_CENTER);
                         params.setFillType(FillType.LINEAR_SCAN);
+                        params.setPriorityWeight(100.0f); // 严格分层：当前层完全完成后才开始下一层
+                        params.setLayerStep(1.0f);
                         params.setReverse(false);
                         params.setAlternating(false);
                         break;
@@ -1349,30 +1351,7 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
             }
         }
 
-        // FLOOD 专属参数：FloodSeedMode
-        if (params.getFillType() == FillType.FLOOD) {
-            UITheme.label("泛洪起点 (Flood Seed)", UITheme.DarkTheme.TEXT_SELECTED);
-
-            FloodSeedMode[] seedModes = FloodSeedMode.values();
-            ImInt seedIdx = new ImInt(params.getFloodSeedMode().ordinal());
-
-            ImGui.pushItemWidth(ImGui.getContentRegionAvailX());
-            if (ImGui.combo("##FloodSeed", seedIdx, getAllEnumDisplayNames(seedModes))) {
-                params.setFloodSeedMode(seedModes[seedIdx.get()]);
-                modified = true;
-            }
-            ImGui.popItemWidth();
-
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("""
-                        决定每层泛洪蔓延的起点：
-                        • 每层中心：从该切片的几何中心开始蔓延
-                        • 每层最小角：从该切片的 (minX,minY,minZ) 开始
-                        • 每层随机点：每层随机挑选一个方块作为起点
-                        • 全局随机：整个容器随机1个点，从上到下蔓延
-                        """);
-            }
-        }
+        // FLOOD 已移除（BFS 算法未实现），此处不再显示 FloodSeedMode UI
 
         return modified;
     }
@@ -2346,6 +2325,33 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
                 if (ImGui.dragFloat(label, scaleArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
                     params.put(paramKey, scaleArray[0]);
                     modified = true;
+                }
+                break;
+            }
+            case EXPAND: {
+                // 扩散速度
+                float expandSpeed = getFloatParam(params, "expandSpeed", 1.0f);
+                float[] speedArray = { expandSpeed };
+                if (ImGui.dragFloat("扩散速度", speedArray, 0.1f, 0.1f, 5.0f, "%.1f")) {
+                    params.put("expandSpeed", speedArray[0]);
+                    modified = true;
+                }
+                if (ImGui.isItemHovered()) {
+                    ImGui.setTooltip("控制方块从中心膨胀扩散的速度，越大越快。");
+                }
+
+                // 使用距离
+                boolean useDistance = true;
+                Object udVal = params.get("useDistance");
+                if (udVal instanceof Boolean b) useDistance = b;
+                else if (udVal instanceof String s) useDistance = Boolean.parseBoolean(s);
+                ImBoolean useDistBool = new ImBoolean(useDistance);
+                if (ImGui.checkbox("基于距离缩放", useDistBool)) {
+                    params.put("useDistance", useDistBool.get());
+                    modified = true;
+                }
+                if (ImGui.isItemHovered()) {
+                    ImGui.setTooltip("勾选后，离中心越远的方块缩放越大（更有扩散感）。");
                 }
                 break;
             }

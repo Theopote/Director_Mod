@@ -85,6 +85,9 @@ public final class SequenceEvaluator {
             return 0f;
         }
         switch (type) {
+            case NONE -> {
+                return 0f; // 不分层：所有方块 flowScore=0，仅由 fillScore 决定顺序
+            }
             case PLANAR -> {
                 Vec3d normal = getNormalFromAngles(params.getPlaneYaw(), params.getPlanePitch());
                 return (float) rel.dotProduct(normal);
@@ -98,10 +101,8 @@ public final class SequenceEvaluator {
             case RANDOM -> {
                 return hash(rel);
             }
-            default -> {
-                return 0f;
-            }
         }
+        return 0f; // unreachable
     }
 
     private float computeFillScore(Vec3d rel, FillType type) {
@@ -125,10 +126,8 @@ public final class SequenceEvaluator {
             case NOISE -> {
                 return hash(rel) * 10.0f;
             }
-            default -> {
-                return 0f;
-            }
         }
+        return 0f; // unreachable
     }
 
     private float computeRasterFillScore(BlockPos pos, Container.BoundingBox bounds, SequenceParameters params, Vec3d rel) {

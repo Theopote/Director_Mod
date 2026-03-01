@@ -32,7 +32,7 @@ public enum TimeMappingStrategy {
     /**
      * 交错映射：支持 alternating（奇偶层方向相反）、ping-pong（反向交替）等
      */
-    STAGGERED("交错映射", "支持交替、往复等交错执行模式");
+    STAGGERED("交错映射", "组与组之间正序/反序交替推进，形成锯齿状蔓延");
     
     private final String displayName;
     private final String description;
