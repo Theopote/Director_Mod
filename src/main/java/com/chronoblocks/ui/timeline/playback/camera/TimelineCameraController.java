@@ -8,6 +8,7 @@ import com.chronoblocks.ui.timeline.model.TrackType;
 import com.chronoblocks.ui.timeline.model.TimelineSelectable;
 import com.chronoblocks.ui.timeline.model.camera.CameraKeyframe;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.util.math.Vec3d;
 import org.joml.Vector3f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,6 +58,17 @@ public final class TimelineCameraController {
     /** 是否处于「单帧预览关键帧」的状态 */
     private boolean previewing = false;
     private float previewTimeSeconds = 0f;
+
+    /**
+     * ⭐ 属性面板实时预览：选中关键帧并编辑属性时，直接将关键帧转换为 CameraSample 应用到相机，
+     * 无需重建 PathManager，低延迟。
+     * <p>
+     * keyframeEditFramesRemaining 倒计时：每次 previewKeyframeDirect() 被调用时重置为 N，
+     * 每帧 updateOwnerAndSample() 递减。当 renderProperties 不再被调用（关键帧取消选中）时，
+     * 倒计时归零，预览自动结束。
+     */
+    private CameraSample keyframeEditSample = null;
+    private int keyframeEditFramesRemaining = 0;
 
     // ⭐ scrubbing 状态完全由 TimelineModel.isScrubbing() 管理，不再使用内部变量
 
@@ -423,9 +435,22 @@ public final class TimelineCameraController {
             LOGGER.debug("[CameraController] 自动清除预览状态（播放头静止）");
         }
 
+        // ⭐ 属性面板实时预览：倒计时管理
+        // 当 renderProperties() 每帧调用 previewKeyframeDirect() 时，计数器被重置。
+        // 当关键帧取消选中（renderProperties 不再被调用），计数器自然递减归零。
+        boolean keyframeEditActive = false;
+        if (keyframeEditFramesRemaining > 0 && !playing && !scrubbing) {
+            keyframeEditActive = true;
+            keyframeEditFramesRemaining--;
+        } else if (playing || scrubbing) {
+            // 播放/Scrubbing 时强制停止关键帧编辑预览
+            keyframeEditFramesRemaining = 0;
+            keyframeEditSample = null;
+        }
+
         boolean previewActive = previewing && !playing && !scrubbing;
         CameraRuntime runtime = CameraRuntime.getInstance();
-        boolean wantsTimeline = playing || scrubbing || previewActive;
+        boolean wantsTimeline = playing || scrubbing || previewActive || keyframeEditActive;
         if (wantsTimeline) {
             ensureCameraDataBuilt();
         }
@@ -442,14 +467,16 @@ public final class TimelineCameraController {
             this.previewing = false;
         }
 
-        boolean shouldTimeline = (wantsTimeline || isExporting) && hasCameraData;
+        // ⭐ 关键帧编辑预览不需要 PathClip/关键帧数据，因为直接使用 keyframeEditSample
+        boolean shouldTimeline = keyframeEditActive
+                || ((wantsTimeline || isExporting) && hasCameraData);
 
         // ⭐ 调试日志：检查 owner 切换逻辑
-        if (LOGGER.isDebugEnabled() && (wantsTimeline || isExporting)) {
+        if (LOGGER.isDebugEnabled() && (wantsTimeline || isExporting || keyframeEditActive)) {
             LOGGER.debug(
-                    "[CameraController] wantsTimeline={}, isExporting={}, hasKeyframes={}, hasPathClips={}, hasCameraData={}, shouldTimeline={}, isTimelineOwner={}",
+                    "[CameraController] wantsTimeline={}, isExporting={}, hasKeyframes={}, hasPathClips={}, hasCameraData={}, shouldTimeline={}, keyframeEditActive={}, isTimelineOwner={}",
                     wantsTimeline, isExporting, hasKeyframes, hasPathClips, hasCameraData, shouldTimeline,
-                    runtime.isTimelineOwner());
+                    keyframeEditActive, runtime.isTimelineOwner());
         }
 
         if (shouldTimeline && !runtime.isTimelineOwner()) {
@@ -475,6 +502,9 @@ public final class TimelineCameraController {
                 // ⭐ 播放/Scrubbing：使用 tick() 统一驱动
                 // tick() 负责采样当前时间（时间推进由 TimelinePanel.updatePlayback() 负责）
                 sampler.tick(timelineModel, 0f).ifPresent(runtime::applyTimelineSample);
+            } else if (keyframeEditActive && keyframeEditSample != null) {
+                // ⭐ 关键帧属性编辑实时预览：直接使用缓存的 CameraSample，无需 PathManager 采样
+                runtime.applyTimelineSample(keyframeEditSample);
             } else if (previewActive) {
                 // ⭐ 预览模式：直接采样预览时间（不使用 tick，因为预览不是播放状态）
                 sampler.sample(previewTimeSeconds).ifPresent(runtime::applyTimelineSample);
@@ -555,6 +585,53 @@ public final class TimelineCameraController {
         CameraRuntime runtime = CameraRuntime.getInstance();
 
         opt.ifPresent(runtime::applyTimelineSample);
+    }
+
+    // ================== 属性面板实时预览 ==================
+
+    /**
+     * 属性面板实时预览：将关键帧直接转换为 CameraSample 并应用到 CameraRuntime。
+     * <p>
+     * 无需重建 PathManager，适合拖拽编辑时的低延迟实时预览。
+     * 每次调用重置存活帧计数器，保证在 renderProperties 不再被调用后自动停止。
+     *
+     * @param kf 当前正在编辑的关键帧
+     */
+    public synchronized void previewKeyframeDirect(CameraKeyframe kf) {
+        if (kf == null) return;
+        keyframeEditSample = keyframeToSample(kf);
+        keyframeEditFramesRemaining = 3; // 存活 3 帧，允许渲染帧间的微小间隔
+    }
+
+    /**
+     * 停止关键帧编辑预览（通常在关键帧取消选中时调用）。
+     */
+    public synchronized void stopKeyframePreview() {
+        keyframeEditFramesRemaining = 0;
+        keyframeEditSample = null;
+    }
+
+    /**
+     * 将 CameraKeyframe 直接转换为 CameraSample（不经过 PathManager）。
+     * 与 TimelineCameraPathManager.toSample() 保持一致的安全值逻辑。
+     */
+    private CameraSample keyframeToSample(CameraKeyframe kf) {
+        Vector3f pos = kf.getPosition();
+        Vector3f rot = kf.getRotation();
+        float fov  = kf.getFov() > 1f ? kf.getFov() : 70f;
+        float near = kf.getNearPlane() > 0.0001f ? kf.getNearPlane() : 0.01f;
+        float far  = Math.max(kf.getFarPlane(), near + 0.1f);
+
+        return new CameraSample(
+                new Vec3d(pos.x, pos.y, pos.z),
+                rot.y,   // yaw
+                rot.x,   // pitch
+                rot.z,   // roll
+                fov, near, far,
+                kf.isDepthOfFieldEnabled(),
+                kf.getFocusDistance(),
+                kf.getAperture()
+        );
     }
 
     /**

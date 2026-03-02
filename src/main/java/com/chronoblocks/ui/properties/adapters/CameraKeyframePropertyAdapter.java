@@ -54,23 +54,30 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
         }
 
         AtomicBoolean changed = new AtomicBoolean(false);
+        // ⭐ 实时编辑标志：dragFloat/dragFloat3 返回 true 时设为 true（包含拖拽中的值变化）
+        AtomicBoolean editing = new AtomicBoolean(false);
 
         // 标题
         UITheme.title(Icons.CLIPBOARD + " 摄像机关键帧");
 
         // 渲染各个 UI 区域
         basicInfoSection(kf, changed);
-        interpolationSection(kf, changed);
-        transformSection(kf, changed);
-        bezierHandleSection(kf, changed);
-        projectionSection(kf, changed);
-        depthOfFieldSection(kf, changed);
+        interpolationSection(kf, changed, editing);
+        transformSection(kf, changed, editing);
+        bezierHandleSection(kf, changed, editing);
+        projectionSection(kf, changed, editing);
+        depthOfFieldSection(kf, changed, editing);
 
         // ---------------------------------------------------------------------------------
         // 性能优化：只有在鼠标松开时才刷新 PathManager
         // ---------------------------------------------------------------------------------
         if (changed.get()) {
             TimelineCameraController.getInstance().onKeyframeChanged();
+        }
+
+        // ⭐ 属性面板实时预览：拖拽编辑或值已提交时，将关键帧直接应用到相机
+        if (editing.get() || changed.get()) {
+            TimelineCameraController.getInstance().previewKeyframeDirect(kf);
         }
 
         return changed.get();
@@ -110,7 +117,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
     // ============================================================================
     // ② 曲线插值（位置 + 旋转）
     // ============================================================================
-    private void interpolationSection(CameraKeyframe kf, AtomicBoolean changed) {
+    private void interpolationSection(CameraKeyframe kf, AtomicBoolean changed, AtomicBoolean editing) {
         if (!ImGui.collapsingHeader(Icons.INTERPOLATION + " 插值选项 (位置/旋转)", ImGuiTreeNodeFlags.DefaultOpen))
             return;
         ImGui.indent();
@@ -121,6 +128,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
         if (enumCombo("位置曲线", i1, segLabels)) {
             kf.setSegmentPathType(CameraKeyframe.SegmentPathType.values()[i1.get()]);
             changed.set(true);
+            editing.set(true);
         }
         tooltip("""
                 控制"位置"的插值方式：
@@ -145,6 +153,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
         if (enumCombo("旋转曲线", i1, rLabels)) {
             kf.setRotationInterpolation(CameraKeyframe.RotationInterpolation.values()[i1.get()]);
             changed.set(true);
+            editing.set(true);
         }
         tooltip("""
                 控制摄像机旋转的插值：
@@ -158,7 +167,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
     // ============================================================================
     // ③ 位置（Position）与旋转（Rotation）
     // ============================================================================
-    private void transformSection(CameraKeyframe kf, AtomicBoolean changed) {
+    private void transformSection(CameraKeyframe kf, AtomicBoolean changed, AtomicBoolean editing) {
         if (!ImGui.collapsingHeader(Icons.TRANSFORM + " 位置与旋转", ImGuiTreeNodeFlags.DefaultOpen))
             return;
         ImGui.indent();
@@ -176,7 +185,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
 
         // ----- Position -----
         if (vector3("位置 Position", kf.getPosition(), kf::setPosition, 0.05f,
-                "摄像机世界位置")) {
+                "摄像机世界位置", editing)) {
             changed.set(true);
         }
 
@@ -184,7 +193,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
 
         // ----- Rotation -----
         if (vector3("旋转 Pitch/Yaw/Roll", kf.getRotation(), kf::setRotation, 0.1f,
-                "摄像机欧拉角（度）")) {
+                "摄像机欧拉角（度）", editing)) {
             changed.set(true);
         }
         ImGui.unindent();
@@ -193,7 +202,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
     // ============================================================================
     // ④ 控制柄（Bezier Handles）
     // ============================================================================
-    private void bezierHandleSection(CameraKeyframe kf, AtomicBoolean changed) {
+    private void bezierHandleSection(CameraKeyframe kf, AtomicBoolean changed, AtomicBoolean editing) {
         boolean show = kf.getSegmentPathType() == CameraKeyframe.SegmentPathType.BEZIER
                 || kf.getKeyType() == CameraKeyframe.KeyType.MANUAL_BEZIER;
         
@@ -221,7 +230,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
 
         // In handle
         boolean inChanged = vector3("进入控制柄 (In)", kf.getBezierInHandle(), kf::setBezierInHandle, 0.05f,
-                "相对坐标。若为 (0,0,0)，系统自动生成");
+                "相对坐标。若为 (0,0,0)，系统自动生成", editing);
         
         if (inChanged) {
             changed.set(true);
@@ -242,7 +251,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
 
         // Out handle
         boolean outChanged = vector3("离开控制柄 (Out)", kf.getBezierOutHandle(), kf::setBezierOutHandle, 0.05f,
-                "相对坐标。若为 (0,0,0)，系统自动生成");
+                "相对坐标。若为 (0,0,0)，系统自动生成", editing);
         
         if (outChanged) {
             changed.set(true);
@@ -268,7 +277,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
     // ============================================================================
     // ⑤ 投影参数（FOV / near / far）
     // ============================================================================
-    private void projectionSection(CameraKeyframe kf, AtomicBoolean changed) {
+    private void projectionSection(CameraKeyframe kf, AtomicBoolean changed, AtomicBoolean editing) {
         if (!ImGui.collapsingHeader(Icons.CAMERA + " 投影参数", ImGuiTreeNodeFlags.DefaultOpen))
             return;
         ImGui.indent();
@@ -277,6 +286,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
         f1.set(kf.getFov());
         if (dragFloat("FOV", f1, 0.1f, 1f, 180f, "%.1f°")) {
             kf.setFov(f1.get());
+            editing.set(true); // ⭐ 拖拽中实时预览
             // 只在鼠标松开时才标记为 changed，避免拖动时频繁刷新 PathManager
             if (ImGui.isItemDeactivatedAfterEdit()) {
                 changed.set(true);
@@ -290,6 +300,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
         f1.set(kf.getNearPlane());
         if (dragFloat("Near", f1, 0.001f, 0.001f, 10f, "%.3f")) {
             kf.setNearPlane(f1.get());
+            editing.set(true); // ⭐ 拖拽中实时预览
             if (ImGui.isItemDeactivatedAfterEdit()) {
                 changed.set(true);
             }
@@ -302,6 +313,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
         f2.set(kf.getFarPlane());
         if (dragFloat("Far", f2, 0.1f, 1f, 10000f, "%.1f")) {
             kf.setFarPlane(f2.get());
+            editing.set(true); // ⭐ 拖拽中实时预览
             if (ImGui.isItemDeactivatedAfterEdit()) {
                 changed.set(true);
             }
@@ -318,7 +330,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
     // ============================================================================
     // ⑥ 景深（DOF）
     // ============================================================================
-    private void depthOfFieldSection(CameraKeyframe kf, AtomicBoolean changed) {
+    private void depthOfFieldSection(CameraKeyframe kf, AtomicBoolean changed, AtomicBoolean editing) {
         if (!ImGui.collapsingHeader(Icons.EFFECT + " 景深 Depth of Field"))
             return;
         ImGui.indent();
@@ -340,6 +352,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
         f1.set(kf.getFocusDistance());
         if (dragFloat("焦距 Focus", f1, 0.05f, 0f, 2000f, "%.2f")) {
             kf.setFocusDistance(f1.get());
+            editing.set(true); // ⭐ 拖拽中实时预览
             if (ImGui.isItemDeactivatedAfterEdit()) {
                 changed.set(true);
             }
@@ -352,6 +365,7 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
         f1.set(kf.getAperture());
         if (dragFloat("光圈 Aperture", f1, 0.01f, 0.01f, 10f, "%.2f")) {
             kf.setAperture(f1.get());
+            editing.set(true); // ⭐ 拖拽中实时预览
             if (ImGui.isItemDeactivatedAfterEdit()) {
                 changed.set(true);
             }
@@ -389,13 +403,18 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
 
     /**
      * Vector3 拖拽控件，只在鼠标松开时才返回 true（性能优化）
+     * <p>
+     * ⭐ 拖拽过程中会设置 editing 标志，用于触发实时相机预览。
+     * 返回 true 仅在 isItemDeactivatedAfterEdit()（鼠标松开）时，用于触发 PathManager 重建。
      */
-    private boolean vector3(String label, Vector3f vec, VectorSetter setter, float speed, String tooltipText) {
+    private boolean vector3(String label, Vector3f vec, VectorSetter setter, float speed,
+                            String tooltipText, AtomicBoolean editing) {
         float[] arr = {vec.x, vec.y, vec.z};
         boolean changed = ImGui.dragFloat3(label, arr, speed);
         
         if (changed) {
             setter.set(new Vector3f(arr[0], arr[1], arr[2]));
+            editing.set(true); // ⭐ 拖拽中实时标记，用于相机预览
             // 只有鼠标松开时才返回 true，避免拖动时频繁触发刷新
             if (ImGui.isItemDeactivatedAfterEdit()) {
                 if (ImGui.isItemHovered() && tooltipText != null) {
