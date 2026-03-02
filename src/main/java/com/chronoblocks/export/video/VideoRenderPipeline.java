@@ -205,12 +205,16 @@ public final class VideoRenderPipeline {
 
     /**
      * 清理缓存的缓冲区（在导出彻底结束时调用）。
+     * ⭐ 线程安全：NativeImage 的 close() 必须在渲染线程执行，
+     *   因此通过 execute() 调度到渲染线程，避免与 onRenderWorldTail 的竞态。
      */
     public static void clearCache() {
-        if (cachedResizedBuffer != null) {
-            cachedResizedBuffer.close();
-            cachedResizedBuffer = null;
-        }
+        MinecraftClient.getInstance().execute(() -> {
+            if (cachedResizedBuffer != null) {
+                cachedResizedBuffer.close();
+                cachedResizedBuffer = null;
+            }
+        });
     }
 
     private static void captureMainFramebuffer(CaptureRequest req) {
@@ -232,6 +236,7 @@ public final class VideoRenderPipeline {
                         java.util.function.Consumer.class);
                 m.invoke(null, main, 0, consumer);
             } catch (ReflectiveOperationException e2) {
+                e.addSuppressed(e2);
                 throw new IllegalStateException("ScreenshotRecorder.takeScreenshot overload not found", e);
             }
         }

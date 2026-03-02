@@ -8,6 +8,7 @@ import net.minecraft.client.render.Camera;
 import net.minecraft.entity.Entity;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.BlockView;
+import org.joml.Quaternionf;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -71,5 +72,19 @@ public abstract class CameraMixin {
         CameraAccessorMixin accessor = (CameraAccessorMixin) this;
         accessor.chronoblocks$invokeSetPos(sample.position().x, sample.position().y, sample.position().z);
         accessor.chronoblocks$invokeSetRotation(sample.yaw(), sample.pitch());
+
+        // ⭐ Roll 角度支持：Camera.setRotation() 内部将 roll 硬编码为 0，
+        //   这里在 setRotation 之后追加 Z 轴旋转来实现 roll。
+        //   同时必须重新计算方向向量 (horizontalPlane / verticalPlane / diagonalPlane)，
+        //   否则视锥体裁剪、碰撞检测等下游系统会使用错误的方向。
+        if (sample.roll() != 0f) {
+            Quaternionf rotation = self.getRotation();
+            rotation.rotateZ((float) Math.toRadians(sample.roll()));
+            // 从修改后的四元数重新计算方向向量（与 Camera.setRotation 内部逻辑一致）
+            // HORIZONTAL=(0,0,1), VERTICAL=(0,1,0), DIAGONAL=(-1,0,0)
+            self.getHorizontalPlane().set(0, 0, 1).rotate(rotation);
+            self.getVerticalPlane().set(0, 1, 0).rotate(rotation);
+            self.getDiagonalPlane().set(-1, 0, 0).rotate(rotation);
+        }
     }
 }

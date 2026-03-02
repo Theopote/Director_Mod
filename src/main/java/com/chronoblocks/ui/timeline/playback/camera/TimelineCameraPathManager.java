@@ -565,23 +565,24 @@ public final class TimelineCameraPathManager {
     }
 
     private Vector3f quatToEuler(Quaternionf q) {
-        // 将四元数转换为欧拉角（pitch, yaw, roll），按 YXZ 近似 Minecraft，用常用公式
-        // 参考常见 yaw-pitch-roll 转换
-        float ysqr = q.y * q.y;
+        // 将四元数转换为欧拉角（pitch, yaw, roll），按 YXZ 内旋顺序
+        // R = Ry(yaw) * Rx(pitch) * Rz(roll)，对应旋转矩阵元素：
+        //   R[1][0] = 2(xy+wz),  R[1][1] = 1-2(x²+z²),  R[1][2] = 2(yz-wx)
+        //   R[0][2] = 2(xz+wy),  R[2][2] = 1-2(x²+y²)
 
-        // roll (Z)
+        // roll (Z) = atan2(R[1][0], R[1][1])
         float t0 = +2.0f * (q.w * q.z + q.x * q.y);
-        float t1 = +1.0f - 2.0f * (q.y * q.y + q.z * q.z);
+        float t1 = +1.0f - 2.0f * (q.x * q.x + q.z * q.z);
         float roll = (float) Math.toDegrees(Math.atan2(t0, t1));
 
-        // pitch (X)
+        // pitch (X) = asin(-R[1][2]) = asin(2(wx - yz))
         float t2 = +2.0f * (q.w * q.x - q.z * q.y);
         t2 = Math.max(-1.0f, Math.min(1.0f, t2));
         float pitch = (float) Math.toDegrees(Math.asin(t2));
 
-        // yaw (Y)
+        // yaw (Y) = atan2(R[0][2], R[2][2])
         float t3 = +2.0f * (q.w * q.y + q.z * q.x);
-        float t4 = +1.0f - 2.0f * (q.x * q.x + ysqr);
+        float t4 = +1.0f - 2.0f * (q.x * q.x + q.y * q.y);
         float yaw = (float) Math.toDegrees(Math.atan2(t3, t4));
 
         return new Vector3f(pitch, yaw, roll);

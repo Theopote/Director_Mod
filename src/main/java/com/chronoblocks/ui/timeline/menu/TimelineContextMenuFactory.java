@@ -604,8 +604,12 @@ public class TimelineContextMenuFactory {
                                 float currentTime = model.getCurrentTime();
                                 String timeLabel = formatTime(currentTime);
                                 CameraKeyframe keyframe = new CameraKeyframe("Camera @" + timeLabel, currentTime);
-                                // 在执行时捕获当前相机状态
-                                TimelineCameraController.getInstance().captureFromCurrentCamera(keyframe);
+                                // ⭐ 修复：检查捕获是否成功，避免以默认值 (0,0,0) 添加关键帧
+                                boolean captured = TimelineCameraController.getInstance().captureFromCurrentCamera(keyframe);
+                                if (!captured) {
+                                    LOGGER.warn("[TimelineContextMenu] 摄像机状态捕获失败（可能不在玩家模式），取消添加关键帧");
+                                    return;
+                                }
                                 // 执行命令
                                 commandHistory.executeCommand(new AddAutomationKeyframeCommand(model, track, keyframe));
                             })

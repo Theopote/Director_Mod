@@ -22,9 +22,15 @@ public final class CameraAccessor {
      * <p>⭐ 单一摄像机系统：直接更新玩家位置和旋转，实现无跳变切换。
      * FOV 由 GameRendererMixin 在渲染时覆盖，不需要修改 client.options.getFov()。
      * 
+     * @deprecated 直接写入玩家实体会叠加眼高导致相机抬高。
+     *   统一摄像机系统中，Mixin 从 CameraRuntime 读取并应用，不需要直接修改游戏摄像机。
+     *   如需同步到玩家实体，请使用 {@link #applySampleToPlayerEntity(MinecraftClient, CameraSample)}
+     *   （已补偿眼高）。
+     * 
      * @param client MinecraftClient 实例
      * @param sample 要应用的摄像机样本
      */
+    @Deprecated
     public static void applySampleToGameCamera(MinecraftClient client, CameraSample sample) {
         if (client == null || sample == null) {
             return;

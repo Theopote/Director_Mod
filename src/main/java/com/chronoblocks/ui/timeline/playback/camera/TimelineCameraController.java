@@ -62,7 +62,9 @@ public final class TimelineCameraController {
 
     /** 监听模型变更，自动刷新摄像机关键帧列表 */
     private TimelineModel.ModelChangeListener modelChangeListener;
-    private float timeSeconds;
+
+    /** ⭐ 帧间隔计时器：用于计算精确的 delta seconds（替代 getTickProgress 误用）*/
+    private long lastUpdateNanoTime = 0L;
 
     private TimelineCameraController() {
         // 把 pathManager 交给调试渲染器，用同一套轨迹数据
@@ -273,7 +275,6 @@ public final class TimelineCameraController {
      * 注意：时间已经在 TimelineModel 中更新，这里只需要采样当前时间
      */
     public void updateScrubbing(float timeSeconds) {
-        this.timeSeconds = timeSeconds;
         // 检查 model 的状态（单一真相源）
         if (timelineModel == null || !timelineModel.isScrubbing()) {
             // 如果不在 scrubbing 状态，忽略更新
@@ -488,10 +489,20 @@ public final class TimelineCameraController {
 
     /**
      * 兼容旧接口：沿用 update 名称，但委托给 updateOwnerAndSample。
+     * ⭐ 使用 System.nanoTime() 计算真实帧间隔（delta seconds），
+     *   避免 getTickProgress 返回的 tick 位置（非增量）被误用为时间差。
      */
     public synchronized void update() {
-        MinecraftClient client = MinecraftClient.getInstance();
-        float delta = getRenderTickDeltaSafe(client);
+        long now = System.nanoTime();
+        float delta;
+        if (lastUpdateNanoTime == 0L) {
+            delta = 1f / 60f; // 首帧使用合理默认值
+        } else {
+            delta = (now - lastUpdateNanoTime) / 1_000_000_000f;
+        }
+        lastUpdateNanoTime = now;
+        // 限制在合理范围内（防止暂停后巨大跳变）
+        delta = Math.min(delta, 0.5f);
         updateOwnerAndSample(delta);
     }
 
@@ -547,54 +558,23 @@ public final class TimelineCameraController {
     }
 
     /**
-     * 取当前渲染 tickDelta（partialTicks），用反射避免 IDE/映射漂移导致的解析报错。
-     */
-    private static float getRenderTickDeltaSafe(MinecraftClient client) {
-        try {
-            if (client == null)
-                return 0.0f;
-            Object rtc = client.getRenderTickCounter();
-            if (rtc == null)
-                return 0.0f;
-
-            try {
-                var m = rtc.getClass().getMethod("getTickProgress", boolean.class);
-                Object v = m.invoke(rtc, false);
-                if (v instanceof Float f)
-                    return f;
-            } catch (ReflectiveOperationException ignored) {
-            }
-
-            try {
-                var m = rtc.getClass().getMethod("getDynamicDeltaTicks");
-                Object v = m.invoke(rtc);
-                if (v instanceof Float f)
-                    return f;
-            } catch (ReflectiveOperationException ignored) {
-            }
-        } catch (Throwable ignored) {
-            // ignore
-        }
-        return 0.0f;
-    }
-
-    /**
      * 点击时间标尺时：只采样并把镜头落到玩家态，允许立即调整。
+     * ⭐ 修复：不再设置 previewing=true，否则下一帧 updateOwnerAndSample()
+     *   会检测到 previewing 并将 owner 切回 TIMELINE，造成 1~2 帧闪烁。
      */
     public synchronized void jumpToTimeAsPlayer(float timeSeconds) {
         if (!hasValidActiveTrack()) {
             return;
         }
 
-        this.previewing = true;
         this.previewTimeSeconds = timeSeconds;
 
         ensureCameraDataBuilt();
-        applySampleAtTime(timeSeconds);
         // 将镜头位置直接写到玩家实体 / 相机
         sampler.sample(timeSeconds)
                 .ifPresent(sample -> CameraAccessor.applySampleToPlayerEntity(MinecraftClient.getInstance(), sample));
         // 保持玩家 owner，允许继续移动、录制下一帧
+        this.previewing = false; // ⭐ 确保不触发下一帧的预览→TIMELINE 切换
         CameraRuntime.getInstance().setOwner(CameraRuntime.Owner.PLAYER);
         ChronoBlocksClientController.getInstance().setHideCrosshair(false);
         LOGGER.debug("[TimelineCamera] jumpToTimeAsPlayer @ {}s", timeSeconds);
@@ -650,9 +630,13 @@ public final class TimelineCameraController {
      * - 播放关键帧时：从关键帧插值得到 sample（时间线视角）
      * - 两者使用同一套数据源（CameraRuntime.currentSample）和插值算法
      */
-    public synchronized void captureFromCurrentCamera(CameraKeyframe keyframe) {
+    /**
+     * 从当前游戏摄像机捕捉状态并写入关键帧。
+     * @return true 表示捕捉成功，false 表示由于非玩家模式或其他原因失败
+     */
+    public synchronized boolean captureFromCurrentCamera(CameraKeyframe keyframe) {
         if (keyframe == null)
-            return;
+            return false;
 
         CameraRuntime runtime = CameraRuntime.getInstance();
         MinecraftClient client = MinecraftClient.getInstance();
@@ -660,7 +644,7 @@ public final class TimelineCameraController {
         // 只允许玩家模式下捕捉，避免时间线接管时错采样
         if (!runtime.isPlayerOwner()) {
             LOGGER.warn("[TimelineCameraController] 当前非玩家控制，忽略关键帧捕捉");
-            return;
+            return false;
         }
 
         CameraSample sample = CameraAccessor.sampleFromGameCamera(client);
@@ -669,7 +653,7 @@ public final class TimelineCameraController {
             sample = runtime.getCurrentSample();
             if (sample == null) {
                 LOGGER.warn("[TimelineCameraController] 无法获取当前相机状态，无法设置关键帧");
-                return;
+                return false;
             }
             LOGGER.warn("[TimelineCameraController] 从游戏摄像机采样失败，使用 CameraRuntime 中的状态（可能不是最新）");
         } else {
@@ -698,6 +682,7 @@ public final class TimelineCameraController {
         keyframe.setAperture(sample.aperture());
 
         LOGGER.info("[TimelineCameraController] 捕捉当前视角到 CameraKeyframe@{}s", keyframe.getTime());
+        return true;
     }
 
     // ================== 内部工具：收集摄像机关键帧 ==================

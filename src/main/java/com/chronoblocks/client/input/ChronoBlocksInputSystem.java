@@ -109,7 +109,12 @@ public final class ChronoBlocksInputSystem {
         // 4. 使用与 Minecraft 一致的基础投影矩阵（1.21.10+ RenderSystem.getProjectionMatrix() 已不再暴露）
         GameRenderer gr = MC.gameRenderer;
         float tickDelta = getRenderTickDeltaSafe();
-        float fov = ((GameRendererAccessor) gr).chronoblocks$invokeGetFov(camera, tickDelta, true);
+        float fov;
+        if (gr instanceof GameRendererAccessor accessor) {
+            fov = accessor.chronoblocks$invokeGetFov(camera, tickDelta, true);
+        } else {
+            fov = (float) MC.options.getFov().getValue();
+        }
         Matrix4f projMatrix = new Matrix4f(gr.getBasicProjectionMatrix(fov));
 
         // 5. 使用当前帧的 modelView（取自传入矩阵栈的 positionMatrix）
@@ -208,7 +213,12 @@ public final class ChronoBlocksInputSystem {
 
         GameRenderer gr = MC.gameRenderer;
         float tickDelta = getRenderTickDeltaSafe();
-        float fov = ((GameRendererAccessor) gr).chronoblocks$invokeGetFov(camera, tickDelta, true);
+        float fov;
+        if (gr instanceof GameRendererAccessor accessor) {
+            fov = accessor.chronoblocks$invokeGetFov(camera, tickDelta, true);
+        } else {
+            fov = (float) MC.options.getFov().getValue();
+        }
         Matrix4f projMatrix = new Matrix4f(gr.getBasicProjectionMatrix(fov));
         Matrix4f invProj = new Matrix4f(projMatrix).invert();
 

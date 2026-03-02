@@ -37,11 +37,20 @@ public final class CameraRuntime {
     private volatile CameraSample currentSample = CameraSample.EMPTY;
 
     // 退出时间线时的轻微过渡（0.1s lerp）
-    private volatile CameraSample lerpStart;
-    private volatile CameraSample lerpTarget;
-    private volatile float lerpElapsed = 0f;
-    private volatile float lerpDuration = 0f;
-    private volatile boolean lerpActive = false;
+    // ⭐ 使用不可变 record + 单个 volatile 引用，确保多字段组合读写的原子可见性。
+    //   之前使用 5 个独立 volatile 字段，渲染线程可能读到不一致的中间状态
+    //   （例如 lerpActive=true 但 lerpStart 还是旧值）。
+    private record LerpState(CameraSample start, CameraSample target,
+                             float elapsed, float duration, boolean active) {
+        static final LerpState INACTIVE = new LerpState(null, null, 0f, 0f, false);
+
+        LerpState advance(float deltaSeconds) {
+            float newElapsed = elapsed + Math.max(0f, deltaSeconds);
+            return new LerpState(start, target, newElapsed, duration, active);
+        }
+    }
+
+    private volatile LerpState lerpState = LerpState.INACTIVE;
 
     private CameraRuntime() {}
 
@@ -117,7 +126,7 @@ public final class CameraRuntime {
      */
     public void applyLerpToPlayer(CameraSample target, float durationSeconds) {
         if (target == null || durationSeconds <= EPSILON) {
-            lerpActive = false;
+            lerpState = LerpState.INACTIVE;
             return;
         }
         MinecraftClient mc = MinecraftClient.getInstance();
@@ -125,30 +134,29 @@ public final class CameraRuntime {
         if (start == null) {
             start = currentSample;
         }
-        lerpStart = start;
-        lerpTarget = target;
-        lerpDuration = durationSeconds;
-        lerpElapsed = 0f;
-        lerpActive = true;
+        lerpState = new LerpState(start, target, 0f, durationSeconds, true);
     }
 
     /**
      * 在 PLAYER 模式下逐帧推进 lerp，将玩家实体轻微拉向时间线最后的样本。
      */
     public void tickPlayerLerp(float deltaSeconds) {
-        if (!lerpActive) {
+        LerpState state = this.lerpState; // 原子读取一致快照
+        if (!state.active()) {
             return;
         }
-        lerpElapsed += Math.max(0f, deltaSeconds);
-        float t = lerpDuration <= EPSILON ? 1f : Math.min(1f, lerpElapsed / lerpDuration);
-        CameraSample blended = lerpSamples(lerpStart, lerpTarget, t);
+        state = state.advance(deltaSeconds);
+        float t = state.duration() <= EPSILON ? 1f : Math.min(1f, state.elapsed() / state.duration());
+        CameraSample blended = lerpSamples(state.start(), state.target(), t);
 
         MinecraftClient mc = MinecraftClient.getInstance();
         CameraAccessor.applySampleToPlayerEntity(mc, blended);
         this.currentSample = blended;
 
         if (t >= 1f - EPSILON) {
-            lerpActive = false;
+            this.lerpState = LerpState.INACTIVE;
+        } else {
+            this.lerpState = state; // 原子写入更新后的状态
         }
     }
 

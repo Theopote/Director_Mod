@@ -253,13 +253,17 @@ public final class CameraTrackSampler {
                         activePathClip.onEnter(ctx);
                     }
                 } catch (Exception e) {
-                    // 如果获取失败，跳过 onEnter（不影响正常采样）
+                    // ⭐ 记录异常而非静默吞掉，便于排查 PathClip 初始化问题
+                    LOGGER.warn("[CameraTrackSampler] onEnter fallback 获取 CameraRuntime 状态失败", e);
                 }
             }
         }
 
         Vec3d position;
         float yaw, pitch;
+
+        // ⭐ 缓存关键帧采样结果，避免后续 FOV/Roll/DOF 部分重复调用 pathManager.sample()
+        CameraSample cachedKeyframeSample = null;
 
         if (activePathClip != null) {
             // 使用 Path Clip 计算位置和朝向
@@ -283,6 +287,7 @@ public final class CameraTrackSampler {
                     return Optional.empty();
                 }
                 CameraSample kfSample = keyframeSample.get();
+                cachedKeyframeSample = kfSample;
                 position = kfSample.position();
                 yaw = kfSample.yaw();
                 pitch = kfSample.pitch();
@@ -307,6 +312,7 @@ public final class CameraTrackSampler {
                             Optional<CameraSample> keyframeSample = pathManager.sample(timeSeconds);
                             if (keyframeSample.isPresent()) {
                                 CameraSample kfSample = keyframeSample.get();
+                                cachedKeyframeSample = kfSample;
                                 yaw = kfSample.yaw();
                                 pitch = kfSample.pitch();
                             } else {
@@ -354,14 +360,13 @@ public final class CameraTrackSampler {
                 return Optional.empty();
             }
             CameraSample kfSample = keyframeSample.get();
+            cachedKeyframeSample = kfSample;
             position = kfSample.position();
             yaw = kfSample.yaw();
             pitch = kfSample.pitch();
         }
 
         // FOV、Roll、DOF 等参数从关键帧获取（如果没有关键帧，使用默认值）
-        // ⭐ 优化：缓存关键帧采样结果，避免对 PathManager 重复调用 sample()。
-        //   对于 CatmullRom/Bezier 插值，这可以省去一次完整矩阵运算。
         float roll = 0f;
         float fov = 70f;
         float nearPlane = 0.1f;
@@ -372,23 +377,26 @@ public final class CameraTrackSampler {
 
         if (!keyframes.isEmpty()) {
             // ⭐ 优化：复用上面已经采样过的关键帧结果（如果有的话），
-            //   避免对 pathManager.sample() 进行重复计算
-            CameraSample cachedKfSample = null;
+            //   避免对 pathManager.sample() 进行重复计算。
+            //   仅当前面的分支没有调用过 pathManager.sample() 时才重新采样。
+            CameraSample kfSampleForParams = cachedKeyframeSample;
 
-            // 检查是否已经在前面的 fallback 路径中采样过
-            Optional<CameraSample> cached = pathManager.sample(timeSeconds);
-            if (cached.isPresent()) {
-                cachedKfSample = cached.get();
+            if (kfSampleForParams == null) {
+                // 前面的分支没有采样过（例如 PathClip 有 lookAt 且有 lastSample 的情况）
+                Optional<CameraSample> freshSample = pathManager.sample(timeSeconds);
+                if (freshSample.isPresent()) {
+                    kfSampleForParams = freshSample.get();
+                }
             }
 
-            if (cachedKfSample != null) {
-                roll = cachedKfSample.roll();
-                fov = cachedKfSample.fov();
-                nearPlane = cachedKfSample.nearPlane();
-                farPlane = cachedKfSample.farPlane();
-                depthOfFieldEnabled = cachedKfSample.depthOfFieldEnabled();
-                focusDistance = cachedKfSample.focusDistance();
-                aperture = cachedKfSample.aperture();
+            if (kfSampleForParams != null) {
+                roll = kfSampleForParams.roll();
+                fov = kfSampleForParams.fov();
+                nearPlane = kfSampleForParams.nearPlane();
+                farPlane = kfSampleForParams.farPlane();
+                depthOfFieldEnabled = kfSampleForParams.depthOfFieldEnabled();
+                focusDistance = kfSampleForParams.focusDistance();
+                aperture = kfSampleForParams.aperture();
             }
         }
 

@@ -165,8 +165,10 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
 
         // ---- Capture 按钮 ----
         if (ImGui.button(Icons.CAMERA + " 从当前视角捕获", -1, 0)) {
-            TimelineCameraController.getInstance().captureFromCurrentCamera(kf);
-            changed.set(true);
+            boolean ok = TimelineCameraController.getInstance().captureFromCurrentCamera(kf);
+            if (ok) {
+                changed.set(true);
+            }
         }
         tooltip("从当前玩家视角记录到关键帧");
 
