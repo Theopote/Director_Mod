@@ -495,8 +495,6 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
             modified = true;
         }
 
-        final com.chronoblocks.core.animation.ClipAnimationConfig.AnimationPhase finalPhase = desiredPhase;
-
         // 模式选择（按阶段过滤）
         AnimationMode[] availableModes = new AnimationMode[] { AnimationMode.INSTANT, AnimationMode.FADE_IN,
                 AnimationMode.GROW_UP, AnimationMode.EXPAND, AnimationMode.ASSEMBLE, AnimationMode.FALL_DOWN,

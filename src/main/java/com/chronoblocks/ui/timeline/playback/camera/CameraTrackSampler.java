@@ -325,16 +325,18 @@ public final class CameraTrackSampler {
                 if (LOGGER.isDebugEnabled()) {
                     if (pathSample.hasLookAt()) {
                         Vec3d lookAt = pathSample.getLookAt();
-                        LOGGER.debug(
-                                "[CameraTrackSampler] 使用 PathClip 采样: {} @ {}s, pos=({:.2f}, {:.2f}, {:.2f}), lookAt=({:.2f}, {:.2f}, {:.2f})",
-                                activePathClip.getClass().getSimpleName(), timeSeconds,
-                                position.x, position.y, position.z,
-                                lookAt.x, lookAt.y, lookAt.z);
+                        if (lookAt != null) {
+                            LOGGER.debug(
+                                    "[CameraTrackSampler] 使用 PathClip 采样: {} @ {}s, pos=({}, {}, {}), lookAt=({}, {}, {})",
+                                    activePathClip.getClass().getSimpleName(), timeSeconds,
+                                    String.format("%.2f", position.x), String.format("%.2f", position.y), String.format("%.2f", position.z),
+                                    String.format("%.2f", lookAt.x), String.format("%.2f", lookAt.y), String.format("%.2f", lookAt.z));
+                        }
                     } else {
                         LOGGER.debug(
-                                "[CameraTrackSampler] 使用 PathClip 采样: {} @ {}s, pos=({:.2f}, {:.2f}, {:.2f}), lookAt=null (沿用上一帧)",
+                                "[CameraTrackSampler] 使用 PathClip 采样: {} @ {}s, pos=({}, {}, {}), lookAt=null (沿用上一帧)",
                                 activePathClip.getClass().getSimpleName(), timeSeconds,
-                                position.x, position.y, position.z);
+                                String.format("%.2f", position.x), String.format("%.2f", position.y), String.format("%.2f", position.z));
                     }
                 }
             }
@@ -358,6 +360,8 @@ public final class CameraTrackSampler {
         }
 
         // FOV、Roll、DOF 等参数从关键帧获取（如果没有关键帧，使用默认值）
+        // ⭐ 优化：缓存关键帧采样结果，避免对 PathManager 重复调用 sample()。
+        //   对于 CatmullRom/Bezier 插值，这可以省去一次完整矩阵运算。
         float roll = 0f;
         float fov = 70f;
         float nearPlane = 0.1f;
@@ -367,16 +371,24 @@ public final class CameraTrackSampler {
         float aperture = 2.8f;
 
         if (!keyframes.isEmpty()) {
-            Optional<CameraSample> keyframeSample = pathManager.sample(timeSeconds);
-            if (keyframeSample.isPresent()) {
-                CameraSample kfSample = keyframeSample.get();
-                roll = kfSample.roll();
-                fov = kfSample.fov();
-                nearPlane = kfSample.nearPlane();
-                farPlane = kfSample.farPlane();
-                depthOfFieldEnabled = kfSample.depthOfFieldEnabled();
-                focusDistance = kfSample.focusDistance();
-                aperture = kfSample.aperture();
+            // ⭐ 优化：复用上面已经采样过的关键帧结果（如果有的话），
+            //   避免对 pathManager.sample() 进行重复计算
+            CameraSample cachedKfSample = null;
+
+            // 检查是否已经在前面的 fallback 路径中采样过
+            Optional<CameraSample> cached = pathManager.sample(timeSeconds);
+            if (cached.isPresent()) {
+                cachedKfSample = cached.get();
+            }
+
+            if (cachedKfSample != null) {
+                roll = cachedKfSample.roll();
+                fov = cachedKfSample.fov();
+                nearPlane = cachedKfSample.nearPlane();
+                farPlane = cachedKfSample.farPlane();
+                depthOfFieldEnabled = cachedKfSample.depthOfFieldEnabled();
+                focusDistance = cachedKfSample.focusDistance();
+                aperture = cachedKfSample.aperture();
             }
         }
 

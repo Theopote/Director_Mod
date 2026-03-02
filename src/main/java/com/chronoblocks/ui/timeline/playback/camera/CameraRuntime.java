@@ -7,14 +7,14 @@ import org.slf4j.LoggerFactory;
 
 /**
  * 统一相机运行时（单一相机状态 + 控制权）
- *
+ * <p>
  * 核心设计：
  * - 只有一份 currentSample，表示“当前摄像机状态”（位置 / 旋转 / FOV / DOF...）
  * - 只有一个 owner 表示当前谁在控制摄像机：PLAYER 或 TIMELINE
  * - Mixin 每帧只与这一份状态交互：
  *    - 当 owner=PLAYER 时，从原版 Camera 写入 currentSample
  *    - 当 owner=TIMELINE 时，从 currentSample 写回原版 Camera
- *
+ * <p>
  * 兼容性：
  * - 保留部分旧 API（enterGameMode / enterCinematic / getActiveSample 等），内部用新设计实现
  */
@@ -30,18 +30,18 @@ public final class CameraRuntime {
         TIMELINE   // 时间线（播放 / 拖动 / 预览）控制
     }
 
-    /** 当前控制权 */
-    private Owner owner = Owner.PLAYER;
+    /** 当前控制权（volatile：渲染线程 / UI线程 / 导出线程均可读写） */
+    private volatile Owner owner = Owner.PLAYER;
 
-    /** 当前相机状态（无论玩家还是时间线写入的，都是同一份） */
-    private CameraSample currentSample = CameraSample.EMPTY;
+    /** 当前相机状态（volatile：CameraMixin 读 + Controller/Export 写） */
+    private volatile CameraSample currentSample = CameraSample.EMPTY;
 
     // 退出时间线时的轻微过渡（0.1s lerp）
-    private CameraSample lerpStart;
-    private CameraSample lerpTarget;
-    private float lerpElapsed = 0f;
-    private float lerpDuration = 0f;
-    private boolean lerpActive = false;
+    private volatile CameraSample lerpStart;
+    private volatile CameraSample lerpTarget;
+    private volatile float lerpElapsed = 0f;
+    private volatile float lerpDuration = 0f;
+    private volatile boolean lerpActive = false;
 
     private CameraRuntime() {}
 
@@ -87,6 +87,7 @@ public final class CameraRuntime {
 
     /**
      * 由 TimelineCameraController 每帧写入时间线采样结果。
+     * 语义：这是时间线控制器的采样写入，owner 应为 TIMELINE。
      */
     public void applyTimelineSample(CameraSample sample) {
         if (sample == null) return;
@@ -97,12 +98,18 @@ public final class CameraRuntime {
      * 仅更新 currentSample，不改变 owner。
      * 用于捕获关键帧时同步状态，而不影响当前的 owner 状态。
      * 
+     * <p>与 applyTimelineSample 的区别：
+     * <ul>
+     *   <li>applyTimelineSample：时间线控制器写入，调用方应确保 owner=TIMELINE</li>
+     *   <li>updateCurrentSample：玩家模式下同步状态，不触发 owner 切换</li>
+     * </ul>
+     * 
      * @param sample 要同步的摄像机样本
      */
     public void updateCurrentSample(CameraSample sample) {
         if (sample == null) return;
+        assert owner == Owner.PLAYER : "updateCurrentSample should only be called in PLAYER mode";
         this.currentSample = sample;
-        // 不改变 owner，仅更新状态
     }
 
     /**

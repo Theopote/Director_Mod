@@ -20,7 +20,7 @@ import org.jetbrains.annotations.Nullable;
 
 /**
  * TimelineCameraController v5.0 (Multi-Camera Tracks)
- *
+ * <p>
  * 职责：
  * - 管理多条 CAMERA 轨道，但任意时刻只有一条为 active
  * - 从激活轨道收集摄像机关键帧，交给 TimelineCameraPathManager 生成轨迹
@@ -62,6 +62,7 @@ public final class TimelineCameraController {
 
     /** 监听模型变更，自动刷新摄像机关键帧列表 */
     private TimelineModel.ModelChangeListener modelChangeListener;
+    private float timeSeconds;
 
     private TimelineCameraController() {
         // 把 pathManager 交给调试渲染器，用同一套轨迹数据
@@ -272,6 +273,7 @@ public final class TimelineCameraController {
      * 注意：时间已经在 TimelineModel 中更新，这里只需要采样当前时间
      */
     public void updateScrubbing(float timeSeconds) {
+        this.timeSeconds = timeSeconds;
         // 检查 model 的状态（单一真相源）
         if (timelineModel == null || !timelineModel.isScrubbing()) {
             // 如果不在 scrubbing 状态，忽略更新
@@ -401,8 +403,10 @@ public final class TimelineCameraController {
 
     /**
      * TimelinePanel 每帧调用：根据播放/拖动/预览状态切换 owner 并采样。
+     * ⭐ 修复：添加 synchronized，与 setActiveCameraTrack / setTimelineModel 等保持一致，
+     *   避免并发读写 activeCameraTrack / previewing / timelineModel 导致状态撕裂。
      */
-    public void updateOwnerAndSample(float deltaSeconds) {
+    public synchronized void updateOwnerAndSample(float deltaSeconds) {
         if (timelineModel == null) {
             return;
         }
@@ -485,7 +489,7 @@ public final class TimelineCameraController {
     /**
      * 兼容旧接口：沿用 update 名称，但委托给 updateOwnerAndSample。
      */
-    public void update() {
+    public synchronized void update() {
         MinecraftClient client = MinecraftClient.getInstance();
         float delta = getRenderTickDeltaSafe(client);
         updateOwnerAndSample(delta);
@@ -629,24 +633,24 @@ public final class TimelineCameraController {
 
     /**
      * 捕捉关键帧：从「当前相机状态」采样。
-     *
+     * <p>
      * ⭐ 关键修复：确保设置关键帧时：
      * 1. owner 是 PLAYER，玩家可以继续移动摄像机设置下一个关键帧
      * 2. 立即从游戏摄像机读取，而不是等待下一帧更新 CameraRuntime
      * 3. 捕获的参数与播放时一致（使用同一套插值算法）
-     *
+     * <p>
      * 工作流程（参考专业动画软件如 Blender、After Effects）：
      * - 如果当前 owner 是 TIMELINE（预览/播放状态），先切回 PLAYER
      * - 立即从游戏摄像机直接采样（不等待 CameraMixin 更新）
      * - 如果 owner 已经是 PLAYER，也从游戏摄像机直接采样（确保是最新状态）
      * - 将采样结果同步到 CameraRuntime，然后设置关键帧属性
-     *
+     * <p>
      * 关键原则：
      * - 设置关键帧时：从游戏摄像机直接读取（玩家当前视角）
      * - 播放关键帧时：从关键帧插值得到 sample（时间线视角）
      * - 两者使用同一套数据源（CameraRuntime.currentSample）和插值算法
      */
-    public void captureFromCurrentCamera(CameraKeyframe keyframe) {
+    public synchronized void captureFromCurrentCamera(CameraKeyframe keyframe) {
         if (keyframe == null)
             return;
 

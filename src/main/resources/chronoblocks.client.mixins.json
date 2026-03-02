@@ -26,6 +26,7 @@
     "BackgroundRendererMixin",
     "LivingEntityRendererMixin",
     "accessor.GameRendererAccessor",
+    "accessor.CameraAccessorMixin",
     "accessor.MinecraftClientAccessor",
     "accessor.NativeImageAccessor"
   ],

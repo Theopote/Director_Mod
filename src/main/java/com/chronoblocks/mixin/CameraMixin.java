@@ -1,5 +1,6 @@
 package com.chronoblocks.mixin;
 
+import com.chronoblocks.mixin.accessor.CameraAccessorMixin;
 import com.chronoblocks.ui.timeline.playback.camera.CameraRuntime;
 import com.chronoblocks.ui.timeline.playback.camera.CameraSample;
 import net.minecraft.client.MinecraftClient;
@@ -8,41 +9,25 @@ import net.minecraft.entity.Entity;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.BlockView;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.lang.reflect.Method;
-
 /**
  * CameraMixin（统一相机系统版）
- *
+ * <p>
  * 核心逻辑：
  * - 在 Camera.update() 之后：
  *   1. 用原版 Camera 的位置 / 旋转 / FOV 更新 CameraRuntime（当 owner=PLAYER 时）
  *   2. 如果 owner=TIMELINE，则用 CameraRuntime.currentSample 覆盖 Camera 的位置 / 旋转
- *
+ * <p>
  * FOV 不在这里处理，而是在 GameRendererMixin.getFov(...) 中根据 owner 决定。
+ * <p>
+ * ⭐ 优化：使用 @Invoker (CameraAccessorMixin) 替代 Java 反射，
+ *   避免映射名变化时的运行时崩溃，并消除 JNI 开销。
  */
 @Mixin(Camera.class)
 public abstract class CameraMixin {
-
-    @Unique
-    private static Method chronoblocks$setPosMethod;
-    @Unique
-    private static Method chronoblocks$setRotationMethod;
-
-    static {
-        try {
-            chronoblocks$setPosMethod = Camera.class.getDeclaredMethod("setPos", double.class, double.class, double.class);
-            chronoblocks$setPosMethod.setAccessible(true);
-            chronoblocks$setRotationMethod = Camera.class.getDeclaredMethod("setRotation", float.class, float.class);
-            chronoblocks$setRotationMethod.setAccessible(true);
-        } catch (Exception e) {
-            throw new RuntimeException("ChronoBlocks: Failed to reflect Camera methods", e);
-        }
-    }
 
     @Inject(method = "update", at = @At("TAIL"))
     private void chronoblocks$applyUnifiedCamera(
@@ -61,9 +46,17 @@ public abstract class CameraMixin {
         float yaw = self.getYaw();
         float pitch = self.getPitch();
 
-        // 这里用玩家设置的基础 FOV，而不是动态 FOV，避免视角闪跳
-        float baseFov = (float) MinecraftClient.getInstance().options.getFov().getValue();
-        runtime.updateFromGameCamera(pos, yaw, pitch, baseFov);
+        // ⭐ 修复 FOV 来源不一致：统一使用动态 FOV（含冲刺/飞行加成），
+        // 与 CameraAccessor.sampleFromGameCamera() 保持一致。
+        // 这样捕获关键帧时的 FOV 和玩家模式记录的 FOV 是同一个值。
+        float fov;
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client.gameRenderer instanceof com.chronoblocks.mixin.accessor.GameRendererAccessor accessor) {
+            fov = accessor.chronoblocks$invokeGetFov(self, tickDelta, true);
+        } else {
+            fov = (float) client.options.getFov().getValue();
+        }
+        runtime.updateFromGameCamera(pos, yaw, pitch, fov);
 
         // 2. 如果当前是玩家控制，就不用覆盖 Camera
         if (runtime.isPlayerOwner()) {
@@ -74,25 +67,9 @@ public abstract class CameraMixin {
         CameraSample sample = runtime.getCurrentSample();
         if (sample == null) return;
 
-        chronoblocks$setPos(sample.position().x, sample.position().y, sample.position().z);
-        chronoblocks$setRotation(sample.yaw(), sample.pitch());
-    }
-
-    @Unique
-    private void chronoblocks$setPos(double x, double y, double z) {
-        try {
-            chronoblocks$setPosMethod.invoke(this, x, y, z);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-    }
-
-    @Unique
-    private void chronoblocks$setRotation(float yaw, float pitch) {
-        try {
-            chronoblocks$setRotationMethod.invoke(this, yaw, pitch);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        // ⭐ 使用 @Invoker 替代反射
+        CameraAccessorMixin accessor = (CameraAccessorMixin) this;
+        accessor.chronoblocks$invokeSetPos(sample.position().x, sample.position().y, sample.position().z);
+        accessor.chronoblocks$invokeSetRotation(sample.yaw(), sample.pitch());
     }
 }

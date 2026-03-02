@@ -265,16 +265,16 @@ public final class VideoRenderPipeline {
             try {
                 NativeImage out;
                 if (img.getWidth() == targetW && img.getHeight() == targetH) {
-                    // 尺寸正好匹配，直接克隆或返回（如果是导出，我们需要一个独立的拷贝让编码器处理，
-                    // 因为 img 会由 ScreenshotRecorder 逻辑关闭）。
-                    // 我们为了“无分配”，实际上这里还是得拷贝一份数据，但我们可以拷贝到 cachedResizedBuffer。
-                    out = ensureAndFillBufferSync(img, targetW, targetH);
+                    // 尺寸正好匹配，拷贝到复用缓冲区再深拷贝给消费者
+                    ensureAndFillBufferSync(img, targetW, targetH);
                     img.close();
                 } else {
                     // ⭐ 使用复用缓冲区进行裁切缩放
-                    out = resizeToTargetOptimized(img, targetW, targetH, cameraProfile);
+                    resizeToTargetOptimized(img, targetW, targetH, cameraProfile);
                     img.close();
                 }
+                // ⭐ P0 修复：深拷贝再 complete，避免下一帧覆盖 cachedResizedBuffer 导致画面错乱
+                out = deepCopyBuffer(cachedResizedBuffer);
                 req.future.complete(out);
             } catch (Throwable t) {
                 try {
@@ -287,9 +287,22 @@ public final class VideoRenderPipeline {
     }
 
     /**
+     * ⭐ P0 修复：将 cachedResizedBuffer 深拷贝一份交给编码器，
+     * 避免下一帧抓取覆盖同一块内存导致画面错乱。
+     */
+    private static NativeImage deepCopyBuffer(NativeImage src) {
+        if (src == null) {
+            throw new IllegalStateException("cachedResizedBuffer is null when trying to deep copy");
+        }
+        NativeImage copy = new NativeImage(src.getWidth(), src.getHeight(), true);
+        copy.copyFrom(src);
+        return copy;
+    }
+
+    /**
      * 确保缓存的 buffer 存在且尺寸正确，并将 src 数据拷贝进去。
      */
-    private static NativeImage ensureAndFillBufferSync(NativeImage src, int w, int h) {
+    private static void ensureAndFillBufferSync(NativeImage src, int w, int h) {
         if (cachedResizedBuffer == null || cachedResizedBuffer.getWidth() != w
                 || cachedResizedBuffer.getHeight() != h) {
             if (cachedResizedBuffer != null)
@@ -298,10 +311,9 @@ public final class VideoRenderPipeline {
         }
         // 使用高效的 copyFrom
         cachedResizedBuffer.copyFrom(src);
-        return cachedResizedBuffer;
     }
 
-    private static NativeImage resizeToTargetOptimized(NativeImage src, int targetW, int targetH,
+    private static void resizeToTargetOptimized(NativeImage src, int targetW, int targetH,
             CameraViewportProfile cameraProfile) {
         if (cachedResizedBuffer == null || cachedResizedBuffer.getWidth() != targetW
                 || cachedResizedBuffer.getHeight() != targetH) {
@@ -334,7 +346,7 @@ public final class VideoRenderPipeline {
         int innerH = Math.round(viewport.innerH);
 
         if (innerW <= 0 || innerH <= 0)
-            return cachedResizedBuffer;
+            return;
 
         float srcAspect = (float) srcW / (float) srcH;
         int cropX = 0, cropY = 0, cropW = srcW, cropH = srcH;
@@ -367,6 +379,5 @@ public final class VideoRenderPipeline {
             }
         }
 
-        return cachedResizedBuffer;
     }
 }

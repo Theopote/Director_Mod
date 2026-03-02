@@ -31,12 +31,9 @@ public final class VideoExportManager {
         void onCompleted(boolean success, String errorMessage);
     }
 
-    private static VideoExportManager INSTANCE;
+    private static final VideoExportManager INSTANCE = new VideoExportManager();
 
     public static VideoExportManager getInstance() {
-        if (INSTANCE == null) {
-            INSTANCE = new VideoExportManager();
-        }
         return INSTANCE;
     }
 
