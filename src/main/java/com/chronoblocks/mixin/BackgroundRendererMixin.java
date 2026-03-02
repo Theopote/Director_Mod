@@ -64,9 +64,9 @@ public abstract class BackgroundRendererMixin {
             return;
         }
         
-        float r = original.x;
-        float g = original.y;
-        float b = original.z;
+        float r;
+        float g;
+        float b;
         float a = original.w;
 
         // 时间轨道不直接修改雾颜色（/time set 语义），雾由原版与天气系统决定

@@ -295,16 +295,6 @@ public final class TimelineSeasonController {
     }
 
     /**
-     * 在当前时间线时间进行预览（例如属性面板中点击"预览当前时间季节状态"）。
-     */
-    public synchronized void previewAtCurrentTime() {
-        if (timelineModel == null) {
-            return;
-        }
-        previewAt(timelineModel.getCurrentTime());
-    }
-
-    /**
      * 预览指定关键帧时间点的季节状态。
      * 用于属性面板修改后立即预览
      */
@@ -418,13 +408,6 @@ public final class TimelineSeasonController {
                     activeSeasonTrack != null ? activeSeasonTrack.getName() : "<none>",
                     sampler.hasKeyframes() ? "有" : "无");
         }
-    }
-    
-    /**
-     * 绑定 TimelineModel（v4.0 API，别名）。
-     */
-    public void bindTimelineModel(TimelineModel model) {
-        init(model);
     }
 
     // ================== 采样 / 应用 ==================
