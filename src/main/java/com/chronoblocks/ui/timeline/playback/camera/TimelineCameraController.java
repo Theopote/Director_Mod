@@ -546,17 +546,21 @@ public final class TimelineCameraController {
             previewing = false;
             LOGGER.debug("[TimelineCameraController] 清除预览状态");
         }
+        // ⭐ 同时清除关键帧编辑预览，避免残留状态导致下一帧又切回 TIMELINE
+        keyframeEditFramesRemaining = 0;
+        keyframeEditSample = null;
     }
 
     /**
-     * 检查时间线是否真正在活动（播放或 scrubbing）
+     * 检查时间线是否真正在活动（播放、scrubbing 或关键帧属性编辑预览）
      * 用于判断是否应该保持 TIMELINE owner
      */
     public synchronized boolean isTimelineActive() {
         if (timelineModel == null) {
-            return false;
+            return keyframeEditFramesRemaining > 0;
         }
-        return timelineModel.isPlaying() || timelineModel.isScrubbing();
+        return timelineModel.isPlaying() || timelineModel.isScrubbing()
+                || keyframeEditFramesRemaining > 0;
     }
 
     /**
@@ -600,7 +604,7 @@ public final class TimelineCameraController {
     public synchronized void previewKeyframeDirect(CameraKeyframe kf) {
         if (kf == null) return;
         keyframeEditSample = keyframeToSample(kf);
-        keyframeEditFramesRemaining = 3; // 存活 3 帧，允许渲染帧间的微小间隔
+        keyframeEditFramesRemaining = 5; // 存活 5 帧，允许 update 与 ImGui 帧率差异
     }
 
     /**

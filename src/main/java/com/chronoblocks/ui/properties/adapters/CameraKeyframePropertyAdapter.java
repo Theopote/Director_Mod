@@ -75,10 +75,9 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
             TimelineCameraController.getInstance().onKeyframeChanged();
         }
 
-        // ⭐ 属性面板实时预览：拖拽编辑或值已提交时，将关键帧直接应用到相机
-        if (editing.get() || changed.get()) {
-            TimelineCameraController.getInstance().previewKeyframeDirect(kf);
-        }
+        // ⭐ 属性面板实时预览：只要关键帧在属性面板中显示，就持续将其状态应用到相机。
+        // 每帧刷新计数器，当关键帧取消选中（renderProperties 不再被调用）时计数器自然耗尽、相机回归玩家控制。
+        TimelineCameraController.getInstance().previewKeyframeDirect(kf);
 
         return changed.get();
     }

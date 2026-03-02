@@ -91,12 +91,12 @@ public abstract class MouseMixin {
             boolean hasMouseMovement = Math.abs(dx) > 0.001 || Math.abs(dy) > 0.001;
             
             if (hasMouseMovement && runtime.isTimelineOwner()) {
-                // 检查时间线是否真的在活动（播放或 scrubbing）
+                // 检查时间线是否真的在活动（播放、scrubbing 或关键帧属性编辑预览）
                 com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController controller =
                     com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance();
                 
                 if (!controller.isTimelineActive()) {
-                    // ⭐ 播放头静止 + 玩家鼠标移动 = 立即切回玩家控制
+                    // ⭐ 播放头静止且不在编辑关键帧 + 玩家鼠标移动 = 立即切回玩家控制
                     controller.clearPreviewState();
                     runtime.setOwner(com.chronoblocks.ui.timeline.playback.camera.CameraRuntime.Owner.PLAYER);
                     com.chronoblocks.client.ChronoBlocksClientController.getInstance().setHideCrosshair(false);
