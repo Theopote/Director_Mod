@@ -260,51 +260,63 @@ public class SeasonSnowManager {
 
         tickCounter++;
 
-        // 2) 雪量为 0 或未启用 → 清除全部雪
-        if (!currentSample.enabled || currentSample.snowAmount <= 0.01f || currentSample.snowThickness <= 0) {
+        // 2) 判断当前是否需要积雪
+        boolean noSnowDesired = !currentSample.enabled
+                || currentSample.snowAmount <= 0.01f
+                || currentSample.snowThickness <= 0;
+
+        if (noSnowDesired) {
+            // 不需要积雪
             if (!snowMap.isEmpty()) {
+                // ⭐ 有残留雪需要融化 → 目标设 0，继续运行动画逐层移除
                 meltAllSnow(world, true);
+            } else {
+                // 确实没有任何残留雪，跳过后续逻辑
+                return;
             }
-            return;
-        }
+        } else {
+            // 需要积雪 → 执行几何扫描 + 覆盖评估
+            BlockPos playerPos = BlockPos.ofFloored(cameraPos);
 
-        BlockPos playerPos = BlockPos.ofFloored(cameraPos);
+            // 3) 检查是否需要几何重新扫描（玩家移动超过阈值或首次扫描）
+            boolean needsGeometry = geometryCacheDirty
+                    || lastGeometryScanCenter == null
+                    || playerPos.getSquaredDistance(lastGeometryScanCenter) > GEOMETRY_RESCAN_DISTANCE_SQ;
 
-        // 3) 检查是否需要几何重新扫描（玩家移动超过阈值或首次扫描）
-        boolean needsGeometry = geometryCacheDirty
-                || lastGeometryScanCenter == null
-                || playerPos.getSquaredDistance(lastGeometryScanCenter) > GEOMETRY_RESCAN_DISTANCE_SQ;
+            if (needsGeometry && !scanRunning) {
+                geometryCacheDirty = false;
+                scanRunning = true;
 
-        if (needsGeometry && !scanRunning) {
-            geometryCacheDirty = false;
-            scanRunning = true;
+                scanExecutor.submit(() -> {
+                    try {
+                        scanGeometry(world, playerPos);
+                        // 几何缓存更新后，需要重新评估覆盖
+                        coverageNeedsUpdate = true;
+                    } catch (Exception e) {
+                        LOGGER.warn("[SeasonSnowManager] 几何扫描任务出错", e);
+                    } finally {
+                        scanRunning = false;
+                    }
+                });
+            }
 
-            scanExecutor.submit(() -> {
-                try {
-                    scanGeometry(world, playerPos);
-                    // 几何缓存更新后，需要重新评估覆盖
-                    coverageNeedsUpdate = true;
-                } catch (Exception e) {
-                    LOGGER.warn("[SeasonSnowManager] 几何扫描任务出错", e);
-                } finally {
-                    scanRunning = false;
+            // 4) ⭐ 覆盖评估（纯数学计算，无世界访问，成本极低）
+            //    每次 snowAmount/snowThickness/snowlineHeight 变化时都会执行
+            //    这是实现平滑季节过渡的关键
+            if (coverageNeedsUpdate) {
+                Map<BlockPos, CachedSnowPos> cache = this.geometryCache;
+                if (!cache.isEmpty()) {
+                    coverageNeedsUpdate = false;
+                    updateCoverageFromCache(world, cache, currentSample);
                 }
-            });
-        }
-
-        // 4) ⭐ 覆盖评估（纯数学计算，无世界访问，成本极低）
-        //    每次 snowAmount/snowThickness/snowlineHeight 变化时都会执行
-        //    这是实现平滑季节过渡的关键
-        if (coverageNeedsUpdate) {
-            Map<BlockPos, CachedSnowPos> cache = this.geometryCache;
-            if (!cache.isEmpty()) {
-                coverageNeedsUpdate = false;
-                updateCoverageFromCache(world, cache, currentSample);
             }
         }
 
-        // 5) 动画更新（逐层堆雪/融雪）
-        animateSnowLayers(world);
+        // 5) ⭐ 动画更新 — 无论堆雪还是融雪，只要 snowMap 非空就必须运行
+        //    这是修复的关键：确保 snowAmount=0 时融雪动画仍然能执行
+        if (!snowMap.isEmpty()) {
+            animateSnowLayers(world);
+        }
     }
 
     /**
@@ -603,9 +615,10 @@ public class SeasonSnowManager {
             }
             snowMap.clear();
         } else {
-            // 动画融化 → 设置所有目标层数为 0
+            // 动画融化 → 设置所有目标层数为 0，并清除延迟以立刻开始融化
             for (SnowRecord rec : snowMap.values()) {
                 rec.targetLayers = 0;
+                rec.meltDelay = 0;
             }
         }
     }
