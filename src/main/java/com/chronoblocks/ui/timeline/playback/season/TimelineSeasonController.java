@@ -4,7 +4,6 @@ import com.chronoblocks.ui.timeline.model.TimelineModel;
 import com.chronoblocks.ui.timeline.model.TimelineTrack;
 import com.chronoblocks.ui.timeline.model.TrackType;
 import net.minecraft.client.MinecraftClient;
-import org.joml.Vector3f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -59,6 +58,15 @@ public final class TimelineSeasonController {
     
     /** 最近一次采样到的季节状态（供渲染层 / Mixin 使用） */
     private SeasonSample currentSample = SeasonSample.disabled();
+    
+    /** 上一次触发区块重渲染的时间戳（毫秒），用于节流 */
+    private long lastRerenderTimestamp = 0;
+    
+    /** 区块重渲染最短间隔（毫秒），避免每帧全量刷新 */
+    private static final long RERENDER_THROTTLE_MS = 100;
+    
+    /** 缓存的 hasOverride 结果，避免在渲染热路径中重复计算 */
+    private volatile boolean cachedHasOverride = false;
     
     private TimelineSeasonController() {
     }
@@ -181,6 +189,7 @@ public final class TimelineSeasonController {
         if (!enabled) {
             currentSample = SeasonSample.disabled();
         }
+        this.cachedHasOverride = computeHasOverride();
         LOGGER.info("[TimelineSeason] 季节控制 {}", enabled ? "已启用" : "已禁用");
     }
     
@@ -465,27 +474,37 @@ public final class TimelineSeasonController {
 
     /**
      * 设置当前季节状态，并在必要时触发渲染更新。
+     * 
+     * <p>⭐ 性能优化：使用节流机制（{@value #RERENDER_THROTTLE_MS}ms 间隔），
+     * 避免在播放期间每帧都全量刷新区块渲染。
      */
     private void setCurrentSample(SeasonSample sample) {
         // ⭐ 关键：先设置 currentSample，确保后续的 hasOverride() 检查能看到新值
         this.currentSample = sample;
         
+        // 更新缓存的 hasOverride 状态
+        this.cachedHasOverride = computeHasOverride();
+        
+        // 节流：限制区块重渲染频率，避免插值播放时每帧全量刷新
+        long now = System.currentTimeMillis();
+        if (now - lastRerenderTimestamp < RERENDER_THROTTLE_MS) {
+            return;
+        }
+        lastRerenderTimestamp = now;
+        
         // 强制刷新渲染，让颜色变化立即生效
-        // 由于生物群系颜色可能被缓存，我们需要触发一次区域重渲染
         MinecraftClient client = MinecraftClient.getInstance();
         if (client != null && client.world != null && client.worldRenderer != null) {
             try {
-                // 获取玩家当前位置和视野范围
                 net.minecraft.util.math.BlockPos playerPos = client.player != null 
                         ? client.player.getBlockPos() 
-                        : new net.minecraft.util.math.BlockPos(0, 64, 0); // 如果没有玩家，使用默认位置
+                        : new net.minecraft.util.math.BlockPos(0, 64, 0);
                 
                 int renderDistance = client.player != null 
                         ? Math.max(client.options.getViewDistance().getValue(), 8) 
-                        : 8; // 至少 8 区块
-                int chunkRadius = renderDistance * 16; // 转换为方块单位
+                        : 8;
+                int chunkRadius = renderDistance * 16;
                 
-                // 计算可见区域的边界（使用 Minecraft 1.21 的标准高度范围：-64 到 320）
                 int minX = playerPos.getX() - chunkRadius;
                 int minY = Math.max(playerPos.getY() - 64, -64);
                 int minZ = playerPos.getZ() - chunkRadius;
@@ -493,20 +512,13 @@ public final class TimelineSeasonController {
                 int maxY = Math.min(playerPos.getY() + 256, 320);
                 int maxZ = playerPos.getZ() + chunkRadius;
                 
-                // ⭐ 强制刷新：无论样本是否变化，都调度重渲染（特别是恢复默认时）
-                // 调度可见区域的区块重渲染，强制重新计算生物群系颜色
                 client.worldRenderer.scheduleBlockRenders(minX, minY, minZ, maxX, maxY, maxZ);
                 
                 if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("[TimelineSeason] 已调度区域重渲染: ({}, {}, {}) 到 ({}, {}, {}) - hasOverride() = {}", 
-                            minX, minY, minZ, maxX, maxY, maxZ, hasOverride());
+                    LOGGER.debug("[TimelineSeason] 已调度区域重渲染 (节流) - hasOverride() = {}", cachedHasOverride);
                 }
             } catch (Exception e) {
                 LOGGER.warn("[TimelineSeason] 调度区域重渲染失败: {}", e.getMessage(), e);
-            }
-        } else {
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("[TimelineSeason] 无法刷新渲染：客户端、世界或渲染器为 null");
             }
         }
     }
@@ -518,33 +530,27 @@ public final class TimelineSeasonController {
      * 
      * <p>供 Mixin 使用，判断是否应该应用季节颜色。
      * 
-     * <p>判断标准：
-     * <ul>
-     *   <li>季节控制已启用</li>
-     *   <li>有有效的激活轨道</li>
-     *   <li>采样器中有关键帧（关键修复：没有关键帧时不应用覆盖）</li>
-     *   <li>当前样本不为 null</li>
-     *   <li>当前样本不是默认样本（所有 tint 为 0）</li>
-     * </ul>
+     * <p>⭐ 性能优化：此方法被每个方块草色/叶色渲染调用（每帧数万次），
+     * 使用缓存的结果避免 synchronized 锁竞争。缓存在 {@link #setCurrentSample} 
+     * 和 {@link #rebuildFromActiveTrack()} 时更新。
      */
-    public synchronized boolean hasOverride() {
+    public boolean hasOverride() {
+        return cachedHasOverride;
+    }
+    
+    /**
+     * 计算 hasOverride 的实际值（仅在 sample 或轨道状态变化时调用）。
+     */
+    private boolean computeHasOverride() {
         if (!enabled) {
             return false;
         }
         
-        // ⭐ 关键修复：如果没有激活轨道，直接返回 false（即使 currentSample 可能不为 null）
         if (!hasValidActiveTrack()) {
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[TimelineSeason] hasOverride() = false (没有激活轨道)");
-            }
             return false;
         }
         
-        // ⭐ 关键修复：如果采样器中没有关键帧，也返回 false（没有关键帧意味着没有季节覆盖）
         if (!sampler.hasKeyframes()) {
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[TimelineSeason] hasOverride() = false (采样器中没有关键帧)");
-            }
             return false;
         }
         
@@ -552,20 +558,7 @@ public final class TimelineSeasonController {
             return false;
         }
         
-        // 检查是否有任何非零的 tint（使用偏移值语义）
-        Vector3f zero = new Vector3f(0f, 0f, 0f);
-        boolean result = !currentSample.grassTint.equals(zero) ||
-               !currentSample.foliageTint.equals(zero) ||
-               !currentSample.skyTint.equals(zero) ||
-               !currentSample.fogTint.equals(zero) ||
-               !currentSample.lightTint.equals(zero);
-        
-        if (LOGGER.isTraceEnabled()) {
-            LOGGER.trace("[TimelineSeason] hasOverride() = {} (有激活轨道，有关键帧，tint检查: {})", 
-                    result, result ? "有非零tint" : "所有tint为零");
-        }
-        
-        return result;
+        return currentSample.hasNonZeroTint();
     }
     
     /**

@@ -45,8 +45,10 @@ public class WaterFreezeManager {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(WaterFreezeManager.class);
 
-    /** 单例 */
-    private static WaterFreezeManager INSTANCE;
+    /** 单例（线程安全，使用静态内部类持有者模式） */
+    private static final class InstanceHolder {
+        private static final WaterFreezeManager INSTANCE = new WaterFreezeManager();
+    }
 
     /** 冻结作用半径（以方块为单位） */
     private static final int FREEZE_RADIUS = 128;
@@ -94,10 +96,7 @@ public class WaterFreezeManager {
     private WaterFreezeManager() {}
 
     public static WaterFreezeManager get() {
-        if (INSTANCE == null) {
-            INSTANCE = new WaterFreezeManager();
-        }
-        return INSTANCE;
+        return InstanceHolder.INSTANCE;
     }
 
     // ========================================================================

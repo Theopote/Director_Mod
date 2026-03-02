@@ -135,8 +135,9 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
     /**
      * 雪覆盖度 [0.0, 1.0]，表示覆盖的概率。
      * 0.0 = 没有覆盖，1.0 = 几乎全覆盖。
+     * ⭐ 默认为 0（无积雪），只有应用冬季预设时才设为高值。
      */
-    private float snowAmount = 0.80f;
+    private float snowAmount = 0.0f;
     
     /**
      * 积雪厚度 [0, 10]，用于控制积雪的厚度（层数）。
@@ -148,9 +149,10 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
     /**
      * 冰覆盖度 [0.0, 1.0]，表示覆盖的概率。
      * 0.0 = 没有覆盖，1.0 = 几乎全覆盖。
+     * ⭐ 默认为 0（无冰冻），只有应用冬季预设时才设为高值。
      * 季节过渡通过关键帧之间的插值实现，无需单独的融化速度参数。
      */
-    private float freezeStrength = 0.80f;
+    private float freezeStrength = 0.0f;
     
     // ========== 颜色趋势（作为偏移值，使用公式：finalColor = originalColor * (1.0 + tint)） ==========
     
@@ -377,9 +379,9 @@ public class SeasonKeyframe implements TimelineSelectable, Comparable<SeasonKeyf
                 // 默认：所有值设为游戏原始状态（无季节偏移）
                 humidity = 0.5f;
                 snowlineHeight = 200f;  // v4.0 默认值
-                snowAmount = 0.80f;
+                snowAmount = 0.0f;
                 snowThickness = 0;
-                freezeStrength = 0.80f;
+                freezeStrength = 0.0f;
                 
                 // 所有 tint 为 0（无变化）
                 grassTint.set(0.0f, 0.0f, 0.0f);

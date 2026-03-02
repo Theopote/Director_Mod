@@ -296,11 +296,8 @@ public abstract class ClientWorldMixin {
         if (seasonController.hasOverride()) {
             SeasonSample seasonSample = seasonController.getCurrentSample();
             if (seasonSample != null) {
-                // 光照色调
-                rf = clamp01(rf * (1f + clampTint(seasonSample.lightTint.x)));
-                gf = clamp01(gf * (1f + clampTint(seasonSample.lightTint.y)));
-                bf = clamp01(bf * (1f + clampTint(seasonSample.lightTint.z)));
-                // 天空色调
+                // ⭐ 修复：天空颜色只应用 skyTint，lightTint 应只影响光照系统，
+                // 而不应在天空颜色上与 skyTint 乘法叠加导致极端颜色
                 rf = clamp01(rf * (1f + clampTint(seasonSample.skyTint.x)));
                 gf = clamp01(gf * (1f + clampTint(seasonSample.skyTint.y)));
                 bf = clamp01(bf * (1f + clampTint(seasonSample.skyTint.z)));

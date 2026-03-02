@@ -53,15 +53,14 @@ import java.util.ArrayDeque;
 public class SeasonSnowManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(SeasonSnowManager.class);
 
-    // === 单例 ===
+    // === 单例（线程安全，使用静态内部类持有者模式） ===
 
-    private static SeasonSnowManager INSTANCE;
+    private static final class InstanceHolder {
+        private static final SeasonSnowManager INSTANCE = new SeasonSnowManager();
+    }
 
     public static SeasonSnowManager get() {
-        if (INSTANCE == null) {
-            INSTANCE = new SeasonSnowManager();
-        }
-        return INSTANCE;
+        return InstanceHolder.INSTANCE;
     }
 
     // ========= 配置参数 =========
@@ -112,6 +111,9 @@ public class SeasonSnowManager {
 
     /**
      * 雪记录（跟踪每个位置的雪状态）。
+     * 
+     * <p>⭐ 线程安全注意：{@code targetLayers} 和 {@code meltDelay} 使用 volatile，
+     * 因为后台扫描线程写入、主线程读取。
      */
     private static class SnowRecord {
         /** 原始方块类型 */
@@ -121,10 +123,10 @@ public class SeasonSnowManager {
         int currentLayers;
 
         /** 目标雪层数（0~8，由 SeasonSample.snowAmount 决定，0 = 无雪） */
-        int targetLayers;
+        volatile int targetLayers;
 
         /** 融雪延迟（tick 数，用于随机偏移，避免所有雪同步变化） */
-        int meltDelay;
+        volatile int meltDelay;
 
         /** 是否仅允许单层（用于树叶等需要保持单层效果的方块） */
         boolean singleLayerOnly;
@@ -161,32 +163,32 @@ public class SeasonSnowManager {
      * @param sample 季节采样，如果为 null 表示没有季节覆盖
      */
     public void onSeasonSampleChanged(SeasonSample sample) {
-        SeasonSample newSample = sample != null ? sample : SeasonSample.disabled();
+        SeasonSample newSample = sample != null ? sample : SeasonSample.disabledCopy();
         
         // 如果参数没有变化，不触发重新扫描
         if (newSample.equals(this.currentSample)) {
             return;
         }
         
+        // ⭐ 关键修复：在赋值前保存旧值，用于后续比较（修复死代码 bug）
+        SeasonSample oldSample = this.currentSample;
+        
         // 检查关键参数是否变化
-        boolean snowAmountChanged = Math.abs(newSample.snowAmount - this.currentSample.snowAmount) > 0.01f;
-        boolean snowThicknessChanged = newSample.snowThickness != this.currentSample.snowThickness;
-        boolean snowlineHeightChanged = Math.abs(newSample.snowlineHeight - this.currentSample.snowlineHeight) > 0.1f;
+        boolean snowAmountChanged = Math.abs(newSample.snowAmount - oldSample.snowAmount) > 0.01f;
+        boolean snowThicknessChanged = newSample.snowThickness != oldSample.snowThickness;
+        boolean snowlineHeightChanged = Math.abs(newSample.snowlineHeight - oldSample.snowlineHeight) > 0.1f;
         
         this.currentSample = newSample;
         this.needsRescan = true;
         
         // 如果只是 snowThickness 变化（snowAmount 和 snowlineHeight 不变），
         // 可以立即更新已有记录的 targetLayers，而不需要等待重新扫描
-        // 这样调整积雪厚度时，可以立即看到效果
         if (snowThicknessChanged && !snowAmountChanged && !snowlineHeightChanged) {
             updateExistingTargetLayers(newSample.snowThickness);
         }
         
         // 如果 snowAmount 变小，立即清除所有位置的延迟，让它们能够快速响应重新扫描的结果
-        if (snowAmountChanged && newSample.snowAmount < this.currentSample.snowAmount) {
-            // 雪覆盖度变小，需要等待重新扫描来确定哪些位置应该保留
-            // 但我们可以先清除所有位置的延迟，让它们能够立即响应
+        if (snowAmountChanged && newSample.snowAmount < oldSample.snowAmount) {
             for (SnowRecord rec : snowMap.values()) {
                 rec.meltDelay = 0; // 清除延迟，让动画更快响应
             }

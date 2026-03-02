@@ -269,10 +269,39 @@ public class SeasonTrackSampler {
     }
 
     private float catmullRom(SeasonKeyframe kf0, SeasonKeyframe kf1, float time) {
-        // 简化版 catmull-rom，仅平滑时间插值，不用于参数预测
+        // 真正的 Catmull-Rom 样条插值：利用前后关键帧实现更平滑的曲线过渡。
+        // 找到当前区间两侧的关键帧索引
+        int idx0 = keyframes.indexOf(kf0);
+        int idx1 = keyframes.indexOf(kf1);
+        
         float dt = kf1.getTime() - kf0.getTime();
-        float t = dt == 0 ? 0 : (time - kf0.getTime()) / dt;
-        return smoothStep(MathHelper.clamp(t, 0f, 1f));
+        if (dt <= 0) return 0f;
+        float t = MathHelper.clamp((time - kf0.getTime()) / dt, 0f, 1f);
+        
+        // 获取四个控制点的时间值（用于确定切线方向）
+        float t0 = (idx0 > 0) ? keyframes.get(idx0 - 1).getTime() : kf0.getTime() - dt;
+        float t1 = kf0.getTime();
+        float t2 = kf1.getTime();
+        float t3 = (idx1 < keyframes.size() - 1) ? keyframes.get(idx1 + 1).getTime() : kf1.getTime() + dt;
+        
+        // Catmull-Rom 计算切线影响的 t 曲线
+        // m1 = (p2 - p0) / (t2 - t0), m2 = (p3 - p1) / (t3 - t1)
+        // 用时间作为插值的值（p）来生成曲线形状的 t
+        float pDelta = t2 - t1; // 当前区间宽度
+        float m1 = 0.5f * (t2 - t0) / ((t2 - t0) != 0 ? 1f : 0.001f) * pDelta / (t2 - t0 != 0 ? t2 - t0 : 0.001f);
+        float m2 = 0.5f * (t3 - t1) / ((t3 - t1) != 0 ? 1f : 0.001f) * pDelta / (t3 - t1 != 0 ? t3 - t1 : 0.001f);
+        
+        // Hermite 基函数
+        float t2f = t * t;
+        float t3f = t2f * t;
+        float h00 = 2 * t3f - 3 * t2f + 1;
+        float h10 = t3f - 2 * t2f + t;
+        float h01 = -2 * t3f + 3 * t2f;
+        float h11 = t3f - t2f;
+        
+        // 计算结果并 clamp
+        float result = h00 * 0f + h10 * m1 + h01 * 1f + h11 * m2; // p1=0, p2=1 的标准化插值
+        return MathHelper.clamp(result, 0f, 1f);
     }
 
     /**

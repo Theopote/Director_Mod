@@ -40,13 +40,26 @@ public class SeasonSample {
     public final Vector3f fogTint     = new Vector3f(0f, 0f, 0f);
     public final Vector3f lightTint   = new Vector3f(0f, 0f, 0f);
 
+    /** 不可变的禁用状态单例（所有 tint 为零，enabled = false） */
+    private static final SeasonSample DISABLED_SINGLETON = new SeasonSample();
+
     public SeasonSample() {
     }
 
     /**
-     * 创建一个禁用状态的采样（不应用任何季节效果）。
+     * 返回禁用状态的采样单例（不应用任何季节效果）。
+     * 
+     * <p>⚠️ 注意：返回的是共享单例，<b>不要修改其字段</b>。
+     * 如果需要可修改的副本，请使用 {@code disabled().copy()} 或 {@code new SeasonSample()}。
      */
     public static SeasonSample disabled() {
+        return DISABLED_SINGLETON;
+    }
+
+    /**
+     * 创建一个新的禁用状态采样副本（可安全修改）。
+     */
+    public static SeasonSample disabledCopy() {
         SeasonSample s = new SeasonSample();
         s.enabled = false;
         return s;
@@ -59,9 +72,7 @@ public class SeasonSample {
      */
     @Deprecated
     public static SeasonSample defaultSample() {
-        SeasonSample s = new SeasonSample();
-        s.enabled = false;
-        return s;
+        return disabled();
     }
 
     /**
@@ -72,6 +83,17 @@ public class SeasonSample {
     @Deprecated
     public static SeasonSample neutral() {
         return disabled();
+    }
+
+    /**
+     * 检查所有 tint 是否全部为零（用于快速判断是否有颜色覆盖）。
+     */
+    public boolean hasNonZeroTint() {
+        return grassTint.x != 0f || grassTint.y != 0f || grassTint.z != 0f
+            || foliageTint.x != 0f || foliageTint.y != 0f || foliageTint.z != 0f
+            || skyTint.x != 0f || skyTint.y != 0f || skyTint.z != 0f
+            || fogTint.x != 0f || fogTint.y != 0f || fogTint.z != 0f
+            || lightTint.x != 0f || lightTint.y != 0f || lightTint.z != 0f;
     }
 
     /**

@@ -109,9 +109,10 @@ public abstract class BackgroundRendererMixin {
             r = clamp01(original.x * (1f + clampTint(seasonSample.fogTint.x)));
             g = clamp01(original.y * (1f + clampTint(seasonSample.fogTint.y)));
             b = clamp01(original.z * (1f + clampTint(seasonSample.fogTint.z)));
+            
+            cir.setReturnValue(new Vector4f(r, g, b, a));
         }
-        
-        cir.setReturnValue(new Vector4f(r, g, b, a));
+        // ⭐ 优化：没有季节覆盖时不再创建新的 Vector4f，直接使用原始返回值
     }
     
     /**
