@@ -4,6 +4,7 @@ import com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController;
 import com.chronoblocks.ui.timeline.playback.weather.WeatherSample;
 import com.chronoblocks.ui.timeline.playback.time.TimeSample;
 import com.chronoblocks.ui.timeline.playback.time.TimelineWorldController;
+import net.minecraft.client.world.ClientWorld;
 import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -42,6 +43,8 @@ public abstract class WorldMixin {
      */
     @Inject(method = "getTimeOfDay()J", at = @At("HEAD"), cancellable = true)
     private void overrideTimeOfDay(CallbackInfoReturnable<Long> cir) {
+        // ✅ 仅在客户端世界生效，避免影响服务器端导致 ServerChunkManager 并发修改崩溃
+        if (!((Object) this instanceof ClientWorld)) return;
         TimelineWorldController controller = TimelineWorldController.getInstance();
         if (!controller.hasOverride()) {
             return;
@@ -66,6 +69,8 @@ public abstract class WorldMixin {
     // 这里使用 require = 0 以避免在目标不存在时导致 Mixin 失败。
     @Inject(method = "getSkyAngleRadians(F)F", at = @At("HEAD"), cancellable = true, require = 0)
     private void overrideSkyAngleRadians(float tickDelta, CallbackInfoReturnable<Float> cir) {
+        // ✅ 仅在客户端世界生效
+        if (!((Object) this instanceof ClientWorld)) return;
         // 优先使用渲染层注入的值（WorldRendererMixin 会在 render 开始时写入）
         float overridden = com.chronoblocks.client.RenderTimeState.getSkyAngleRadians();
         if (!Float.isNaN(overridden)) {
@@ -93,6 +98,8 @@ public abstract class WorldMixin {
      */
     @Inject(method = "getRainGradient(F)F", at = @At("RETURN"), cancellable = true)
     private void overrideRainGradient(float delta, CallbackInfoReturnable<Float> cir) {
+        // ✅ 仅在客户端世界生效
+        if (!((Object) this instanceof ClientWorld)) return;
         TimelineWeatherController controller = TimelineWeatherController.getInstance();
         if (!controller.hasWeatherTrack()) {
             return;
@@ -124,6 +131,8 @@ public abstract class WorldMixin {
      */
     @Inject(method = "getThunderGradient(F)F", at = @At("RETURN"), cancellable = true)
     private void overrideThunderGradient(float delta, CallbackInfoReturnable<Float> cir) {
+        // ✅ 仅在客户端世界生效
+        if (!((Object) this instanceof ClientWorld)) return;
         TimelineWeatherController controller = TimelineWeatherController.getInstance();
         if (!controller.hasWeatherTrack()) {
             return;
@@ -154,6 +163,8 @@ public abstract class WorldMixin {
      */
     @Inject(method = "isRaining()Z", at = @At("RETURN"), cancellable = true)
     private void overrideIsRaining(CallbackInfoReturnable<Boolean> cir) {
+        // ✅ 仅在客户端世界生效
+        if (!((Object) this instanceof ClientWorld)) return;
         TimelineWeatherController controller = TimelineWeatherController.getInstance();
         if (!controller.hasWeatherTrack()) {
             return;
@@ -185,6 +196,8 @@ public abstract class WorldMixin {
      */
     @Inject(method = "isThundering()Z", at = @At("RETURN"), cancellable = true)
     private void overrideIsThundering(CallbackInfoReturnable<Boolean> cir) {
+        // ✅ 仅在客户端世界生效
+        if (!((Object) this instanceof ClientWorld)) return;
         TimelineWeatherController controller = TimelineWeatherController.getInstance();
         if (!controller.hasWeatherTrack()) {
             return;
