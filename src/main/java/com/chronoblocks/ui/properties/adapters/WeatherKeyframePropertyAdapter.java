@@ -560,6 +560,31 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
 
         // 获取绘制位置中心点
         float cx = ImGui.getItemRectMinX() + radius;
+        float cy = getCy(angleDeg, radius, cx);
+
+        // 鼠标交互：拖拽调整方向
+        if (ImGui.isItemActive()) {
+            float mx = ImGui.getIO().getMousePosX();
+            float my = ImGui.getIO().getMousePosY();
+
+            float vx = mx - cx;
+            float vy = my - cy;
+
+            // 计算角度（注意：ImGui Y 轴向下，所以 atan2 的参数顺序）
+            float newAngle = (float) Math.toDegrees(Math.atan2(vy, vx));
+            // 转换为我们的坐标系（0° = 东，顺时针为正）
+            newAngle = newAngle + 90.0f;
+            // 归一化到 [0, 360)
+            while (newAngle < 0f) newAngle += 360f;
+            while (newAngle >= 360f) newAngle -= 360f;
+
+            angleDeg[0] = newAngle;
+        }
+
+        ImGui.popID();
+    }
+
+    private static float getCy(float[] angleDeg, float radius, float cx) {
         float cy = ImGui.getItemRectMinY() + radius;
 
         var drawList = ImGui.getWindowDrawList();
@@ -596,27 +621,7 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
 
         // 绘制中心点
         drawList.addCircleFilled(cx, cy, 3.0f, 0xFF00CCFF, 8);
-
-        // 鼠标交互：拖拽调整方向
-        if (ImGui.isItemActive()) {
-            float mx = ImGui.getIO().getMousePosX();
-            float my = ImGui.getIO().getMousePosY();
-
-            float vx = mx - cx;
-            float vy = my - cy;
-
-            // 计算角度（注意：ImGui Y 轴向下，所以 atan2 的参数顺序）
-            float newAngle = (float) Math.toDegrees(Math.atan2(vy, vx));
-            // 转换为我们的坐标系（0° = 东，顺时针为正）
-            newAngle = newAngle + 90.0f;
-            // 归一化到 [0, 360)
-            while (newAngle < 0f) newAngle += 360f;
-            while (newAngle >= 360f) newAngle -= 360f;
-
-            angleDeg[0] = newAngle;
-        }
-
-        ImGui.popID();
+        return cy;
     }
 
     @Override

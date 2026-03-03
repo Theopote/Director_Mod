@@ -178,8 +178,6 @@ public class TimelineModelPersistence {
         public float y;
         public float z;
 
-        public Vec3DTO() {}
-
         public Vec3DTO(float x, float y, float z) {
             this.x = x;
             this.y = y;
