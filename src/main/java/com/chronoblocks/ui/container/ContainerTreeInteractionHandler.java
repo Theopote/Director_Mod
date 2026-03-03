@@ -521,14 +521,14 @@ class ContainerTreeInteractionHandler {
             boolean hasTagColor = container.getMetadata("tagColor") != null;
             if (ImGui.menuItem("重置标签颜色", null, false, hasTagColor)) {
                 if (hasSelection && selectedCount > 1) {
-                    // 批量重置
+                    // 批量重置（通过命令系统，支持撤销）
                     for (Container c : controller.getSelectedContainers()) {
                         if (c.getMetadata("tagColor") != null) {
-                            c.removeMetadata("tagColor");
+                            controller.setMetadata(c.getId(), "tagColor", null);
                         }
                     }
                 } else {
-                    container.removeMetadata("tagColor");
+                    controller.setMetadata(container.getId(), "tagColor", null);
                 }
             }
             

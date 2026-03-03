@@ -719,12 +719,21 @@ public class ContainerManager {
                 }
 
                 if (container != null) {
-                    if (selectedContainers.add(container)) {
+                    if (multiSelect && selectedContainers.contains(container)) {
+                        // Ctrl+Click toggle：已选中则取消选中
+                        selectedContainers.remove(container);
+                        if (selectedContainer == container) {
+                            selectedContainer = selectedContainers.isEmpty() ? null : selectedContainers.iterator().next();
+                        }
                         changed = true;
-                    }
-                    if (selectedContainer != container) {
-                        selectedContainer = container;
-                        changed = true;
+                    } else {
+                        if (selectedContainers.add(container)) {
+                            changed = true;
+                        }
+                        if (selectedContainer != container) {
+                            selectedContainer = container;
+                            changed = true;
+                        }
                     }
                 }
             }
@@ -1028,6 +1037,9 @@ public class ContainerManager {
             selectedContainer = selectedContainers.isEmpty() ? null : selectedContainers.iterator().next();
             changed = true;
         }
+        if (lastSelectedContainer == container) {
+            lastSelectedContainer = null;
+        }
         return changed;
     }
 
@@ -1035,6 +1047,7 @@ public class ContainerManager {
         if (!selectedContainers.isEmpty() || selectedContainer != null) {
             selectedContainers.clear();
             selectedContainer = null;
+            lastSelectedContainer = null;
             return true;
         }
         return false;

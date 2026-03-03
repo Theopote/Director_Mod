@@ -1,8 +1,8 @@
 package com.chronoblocks.ui.panels;
 
 import com.chronoblocks.core.container.Container;
-import com.chronoblocks.core.container.ContainerManager;
 import com.chronoblocks.core.container.ContainerType;
+import com.chronoblocks.ui.container.ContainerPanelController;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImString;
@@ -11,17 +11,18 @@ import java.util.List;
 
 /**
  * 组属性面板：用于展示和编辑分组容器的基础信息。
+ * 所有修改通过 ContainerPanelController 执行命令，支持撤销/重做。
  */
 public class GroupPropertiesPanel {
 
     private static final int MAX_CHILDREN_VISIBLE = 10;
 
-    private final ContainerManager containerManager;
+    private final ContainerPanelController controller;
     private final ImString nameBuffer = new ImString(256);
     private final ImString descBuffer = new ImString(512);
 
-    public GroupPropertiesPanel(ContainerManager containerManager) {
-        this.containerManager = containerManager;
+    public GroupPropertiesPanel(ContainerPanelController controller) {
+        this.controller = controller;
     }
 
     public void render(Container group) {
@@ -52,14 +53,14 @@ public class GroupPropertiesPanel {
         if (ImGui.inputText("组名称", nameBuffer)) {
             String newName = nameBuffer.get().trim();
             if (!newName.isEmpty() && !newName.equals(group.getName())) {
-                containerManager.renameContainer(group, newName);
+                controller.renameContainer(group.getId(), newName);
             }
         }
 
-        Object desc = group.getMetadata("group.description", "");
-        descBuffer.set(desc.toString());
+        Object desc = group.getMetadata("description", "");
+        descBuffer.set(desc != null ? desc.toString() : "");
         if (ImGui.inputTextMultiline("备注", descBuffer, 0, 80)) {
-            group.setMetadata("group.description", descBuffer.get());
+            controller.setMetadata(group.getId(), "description", descBuffer.get());
         }
 
         ImGui.spacing();

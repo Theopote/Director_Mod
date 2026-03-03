@@ -70,7 +70,7 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
         this.toolbar = new ContainerToolbar(controller);
         this.treeView = new ContainerTreeView(controller, state);
         this.dialogs = new ContainerDialogs(controller, state);
-        this.groupPropertiesPanel = new GroupPropertiesPanel(containerManager);
+        this.groupPropertiesPanel = new GroupPropertiesPanel(controller);
 
         containerManager.addListener(this);
     }

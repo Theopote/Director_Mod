@@ -27,6 +27,8 @@ public class ContainerPropertiesPanel {
     private final ImInt typeIndex = new ImInt(0);
     private final ImInt animModeIndex = new ImInt(0);
     private final float[] tagColorBuffer = new float[4];
+    private final ImString easingBuffer = new ImString(64);
+    private final ImString orderingBuffer = new ImString(64);
     
     // 容器类型选项（排除 GROUP 类型）
     private static final ContainerType[] AVAILABLE_TYPES;
@@ -131,7 +133,10 @@ public class ContainerPropertiesPanel {
         System.arraycopy(colorArray, 0, tagColorBuffer, 0, 4);
 
         // 动画 preset
-        animModeIndex.set(container.getDefaultAnimationPreset().getMode().ordinal());
+        ContainerAnimationPreset syncPreset = container.getDefaultAnimationPreset();
+        animModeIndex.set(syncPreset.getMode().ordinal());
+        easingBuffer.set(syncPreset.getEasing() != null ? syncPreset.getEasing() : "");
+        orderingBuffer.set(syncPreset.getOrdering() != null ? syncPreset.getOrdering() : "");
     }
 
     // ----------------------------------------------------------
@@ -236,15 +241,13 @@ public class ContainerPropertiesPanel {
         }
 
         // Easing
-        ImString easingBuf = new ImString(preset.getEasing(), 64);
-        if (ImGui.inputText("Easing 曲线", easingBuf)) {
-            controller.setPresetEasing(container.getId(), easingBuf.get());
+        if (ImGui.inputText("Easing 曲线", easingBuffer)) {
+            controller.setPresetEasing(container.getId(), easingBuffer.get());
         }
 
         // 播放排序
-        ImString orderingBuf = new ImString(preset.getOrdering(), 64);
-        if (ImGui.inputText("播放排序", orderingBuf)) {
-            controller.setPresetOrdering(container.getId(), orderingBuf.get());
+        if (ImGui.inputText("播放排序", orderingBuffer)) {
+            controller.setPresetOrdering(container.getId(), orderingBuffer.get());
         }
 
         ImGui.spacing();
