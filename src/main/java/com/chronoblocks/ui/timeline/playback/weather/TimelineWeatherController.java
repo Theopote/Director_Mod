@@ -172,6 +172,23 @@ public final class TimelineWeatherController {
             }
         }
         LOGGER.debug("[WeatherController] 重建 WeatherTrackSampler。关键帧数 = {}", keyframeCount);
+
+        // ⭐ v1.2：重建后立即用当前时间采样，保持 currentSample 始终有效
+        if (enabled && keyframeCount > 0) {
+            float currentTime = 0f;
+            com.chronoblocks.ui.timeline.container.ContainerTimelineService svc =
+                com.chronoblocks.ui.timeline.container.ContainerTimelineService.getInstance();
+            if (svc != null) {
+                com.chronoblocks.ui.timeline.model.TimelineModel m = svc.getTimelineModel();
+                if (m != null) {
+                    currentTime = m.getCurrentTime();
+                }
+            }
+            WeatherSample sample = sampler.sample(currentTime);
+            this.currentSample = sample;
+            this.hasOverride = true;
+            applyToWorld(sample);
+        }
     }
 
     /**
@@ -215,6 +232,24 @@ public final class TimelineWeatherController {
             // ⭐ 自动启用天气控制器（如果有激活轨道）
             if (!enabled) {
                 setEnabled(true);
+            }
+            // ⭐ v1.2：自动激活后立即采样当前时间，确保 currentSample 有效
+            //    否则在用户交互前 Mixin/forceDisableVanillaWeather 读到 null
+            if (currentSample == null && sampler != null) {
+                float currentTime = 0f;
+                com.chronoblocks.ui.timeline.container.ContainerTimelineService svc =
+                    com.chronoblocks.ui.timeline.container.ContainerTimelineService.getInstance();
+                if (svc != null) {
+                    com.chronoblocks.ui.timeline.model.TimelineModel m = svc.getTimelineModel();
+                    if (m != null) {
+                        currentTime = m.getCurrentTime();
+                    }
+                }
+                WeatherSample sample = sampler.sample(currentTime);
+                this.currentSample = sample;
+                this.hasOverride = true;
+                applyToWorld(sample);
+                LOGGER.debug("[WeatherController] 自动激活后立即采样 @ t={}s, rain={}", currentTime, sample.rainIntensity);
             }
         } else if (weatherTrackCount == 0) {
             // 没有天气轨道时，清空激活轨道并禁用控制器
@@ -345,7 +380,16 @@ public final class TimelineWeatherController {
     }
 
     /**
-     * Force-disable vanilla precipitation while ChronoBlocks is active.
+     * 接管原版降水：将底层字段设为天气轨道的值。
+     * <p>
+     * 旧方案总是清零 rainGradient，再依赖 WorldMixin 在 getRainGradient()
+     * 的 @At("RETURN") 覆盖返回值。但 MC 1.21.10 的 FrameGraph 渲染管线中
+     * WeatherRendering.buildPrecipitationPieces 可能在某些路径缓存了原始值，
+     * 导致 Mixin 覆盖不生效，雨线无法渲染。
+     * <p>
+     * 新方案：直接将 rainGradient / thunderGradient 设为轨道值，
+     * 这样即使 Mixin 拦截没触发，底层字段也是正确的。
+     * Mixin 仍然作为双保险保持不变。
      */
     public void forceDisableVanillaWeather() {
         MinecraftClient client = MinecraftClient.getInstance();
@@ -353,9 +397,24 @@ public final class TimelineWeatherController {
             return;
         }
         ClientWorld world = client.world;
-        world.setRainGradient(0.0f);
-        world.setThunderGradient(0.0f);
-        world.getLevelProperties().setRaining(false);
+
+        // 在有天气轨道且有有效 sample 时，将底层字段设为轨道值
+        if (hasOverride && currentSample != null && currentSample.enabled) {
+            float rain = currentSample.rainIntensity;
+            float thunder = currentSample.thunderIntensity;
+
+            world.setRainGradient(rain);
+            world.setThunderGradient(thunder);
+            // 只在真正有雨降水时才告诉原版"正在下雨"
+            // 雷暴不需要设 raining（isThundering 单独处理）
+            // 雪不需要设 raining（由 WeatherParticleController 自定义处理）
+            world.getLevelProperties().setRaining(rain > 0.01f);
+        } else {
+            // 无天气轨道或 sample 无效时：清零，阻止原版随机天气
+            world.setRainGradient(0.0f);
+            world.setThunderGradient(0.0f);
+            world.getLevelProperties().setRaining(false);
+        }
     }
 
     // ==========================================================

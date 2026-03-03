@@ -17,7 +17,7 @@ import java.util.Random;
  *         雨的视觉主体由原版 WorldRenderer.renderWeather() 渲染
  *         （通过 WorldMixin 覆盖 getRainGradient/isRaining 驱动）。
  *   - 雪：负责全部雪花粒子（SNOWFLAKE），因为需要自定义风向和强度。
- *
+ * <p>
  * 设计：
  *   1) 发射率以"每秒粒子数 (PPS)"为单位，乘以真实 deltaSeconds
  *   2) 通过累加器实现帧率无关的稳定生成
