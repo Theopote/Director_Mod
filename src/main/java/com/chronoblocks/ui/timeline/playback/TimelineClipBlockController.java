@@ -1253,11 +1253,13 @@ public class TimelineClipBlockController {
                 snapshot.setAlpha(1.0f);
                 snapshot.markFullyVisible();
 
-                // 2. 强制微放大（Scale 1.002），解决 Z-fighting
+                // 2. 交接窗口缩放策略
+                // ENTER：在动画末段改为轻微缩小（0.99），避免与刚出现的真实方块重叠导致瞬时发黑
+                // EXIT：保持微放大（1.002）以覆盖边界缝隙
                 // 必须从中心缩放：translate(0.5) -> scale -> translate(-0.5)
                 MatrixStack ms = new MatrixStack();
                 ms.translate(0.5, 0.5, 0.5);
-                float s = 1.002f;
+                float s = inEnterHandoffEarly ? 0.99f : 1.002f;
                 ms.scale(s, s, s);
                 ms.translate(-0.5, -0.5, -0.5);
                 snapshot.setTransform(ms);
