@@ -401,7 +401,7 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
             // ✅ 新增：风方向可视化控件（方向盘）
             windDirectionFloat.set(kf.getWindDirectionDegrees());
             float[] windDirArr = { windDirectionFloat.get() };
-            drawWindDirectionDial("风方向", windDirArr);
+            drawWindDirectionDial(windDirArr);
             if (Math.abs(windDirArr[0] - windDirectionFloat.get()) > 0.1f) {
                 if (kf.getWeatherType() != WeatherKeyframe.WeatherType.CUSTOM) {
                     kf.setWeatherType(WeatherKeyframe.WeatherType.CUSTOM);
@@ -538,22 +538,21 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
 
     /**
      * ✅ 绘制风方向可视化控件（方向盘）。
-     * 
+     *
      * <p>使用 ImGui 的绘制 API 创建一个可交互的方向盘：
      * - 圆形表示方向环
      * - 指针表示当前风向
      * - 鼠标拖拽可调整方向
-     * 
-     * @param label 控件标签
+     *
      * @param angleDeg 角度值（度），会被修改
      */
-    private void drawWindDirectionDial(String label, float[] angleDeg) {
+    private void drawWindDirectionDial(float[] angleDeg) {
         final float radius = 40.0f;
         final float diameter = radius * 2.0f;
 
-        ImGui.text(label);
+        ImGui.text("风方向");
 
-        ImGui.pushID(label);
+        ImGui.pushID("风方向");
         
         // 创建一个不可见按钮作为交互区域
         ImGui.invisibleButton("##wind_dir", diameter, diameter);
