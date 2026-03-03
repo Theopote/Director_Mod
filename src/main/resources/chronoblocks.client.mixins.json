@@ -22,6 +22,7 @@
     "BlockColorsMixin",
     "ClientWorldMixin",
     "WorldMixin",
+    "WeatherRenderingMixin",
     "BiomeColorsMixin",
     "BackgroundRendererMixin",
     "LivingEntityRendererMixin",
