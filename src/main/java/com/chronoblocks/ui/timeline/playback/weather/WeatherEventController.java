@@ -54,10 +54,17 @@ public class WeatherEventController {
     /** 当前天空闪白强度（用于瞬时亮度变化） */
     private float currentFlashBrightness = 0f;
     
-    /** 闪白衰减速度（每 tick 衰减量） */
-    private static final float FLASH_DECAY = 0.15f;
+    /** 闪白衰减速度（每 tick 衰减量） — 原来 0.15 衰减太快，改为 0.08 让闪白持续更久 */
+    private static final float FLASH_DECAY = 0.08f;
     
-    /** 上次触发闪电的时间（tick） */
+    /**
+     * ✅ v1.2 修复：使用内部 tick 计数器替代 world.getTime()。
+     * 导演模式下 ClientWorldMixin.onTickTime() 冻结了世界时间，
+     * 导致 world.getTime() 每帧返回相同值，闪电只触发一次就永远不再触发。
+     */
+    private long internalTickCounter = 0;
+    
+    /** 上次触发闪电的内部 tick */
     private long lastLightningTick = -1000;
     
     /** 随机数生成器 */
@@ -91,7 +98,11 @@ public class WeatherEventController {
         }
         
         ClientWorld world = client.world;
-        long currentTick = world.getTime();
+        
+        // ✅ v1.2 修复：使用内部 tick 计数器，不依赖 world.getTime()
+        // 导演模式下世界时间被冻结，world.getTime() 永远返回相同值
+        internalTickCounter++;
+        long currentTick = internalTickCounter;
         
         // 闪白亮度衰减
         if (currentFlashBrightness > 0f) {
@@ -145,8 +156,9 @@ public class WeatherEventController {
         }
 
         // === 1️⃣ 屏幕/天空闪白（永远触发） ===
-        // 闪白强度基于 thunderIntensity
-        currentFlashBrightness = 0.3f + thunderIntensity * 0.5f; // 0.3 ~ 0.8
+        // ✅ v1.2：增强闪白强度，让闪电更明显
+        // 闪白强度基于 thunderIntensity：0.6 ~ 1.0（原来 0.3 ~ 0.8 太暗）
+        currentFlashBrightness = 0.6f + thunderIntensity * 0.4f;
         
         // === 2️⃣ 雷声音效（永远触发） ===
         playThunderSound(world, playerPos, thunderIntensity);
@@ -280,5 +292,6 @@ public class WeatherEventController {
     public void clear() {
         currentFlashBrightness = 0f;
         lastLightningTick = -1000;
+        internalTickCounter = 0;
     }
 }
