@@ -321,6 +321,7 @@ public class WeatherKeyframePropertyAdapter implements IPropertyAdapter<WeatherK
         // 云层 (Clouds)
         // ==========================================================
         if (ImGui.collapsingHeader(Icons.LAYERS + " 云层 (Clouds)", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
 
             cloudDensityFloat.set(kf.getCloudDensity());
             if (ImGui.sliderFloat("云量", cloudDensityFloat.getData(), 0.0f, 1.0f, "%.2f")) {

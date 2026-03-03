@@ -282,17 +282,14 @@ public class WeatherParticleController {
     // ---------------- Utils ----------------
 
     /**
-     * ✅ 修复：计算实际时间差，但确保最小值为游戏 tick 时间（0.05秒）。
+     * ✅ 修复：计算实际时间差，使用真实帧间隔驱动粒子发射率。
      * 
      * <p>
-     * 原因：此方法在 UI 渲染循环中调用，UI 帧率可能很高（60fps+），
-     * 导致 deltaSeconds 很小（如 0.016秒），进而限制了粒子生成。
+     * 粒子发射率以「每秒粒子数 (PPS)」为单位，乘以真实 deltaSeconds
+     * 通过累加器自然实现帧率无关的稳定生成。
      * 
      * <p>
-     * 解决方案：
-     * - 使用实际时间差，但设置最小值为游戏 tick 时间（0.05秒）
-     * - 这样可以确保粒子生成率稳定，不受 UI 帧率影响
-     * - 同时避免在 UI 帧率很高时过度生成粒子
+     * 限制最大 delta 为 0.2s，避免长时间暂停后突然爆发大量粒子。
      */
     private float computeDeltaSeconds() {
         long now = System.nanoTime();
@@ -303,10 +300,10 @@ public class WeatherParticleController {
         float delta = (now - lastUpdateNanos) / 1_000_000_000f;
         lastUpdateNanos = now;
 
-        // ✅ 关键修复：确保最小值为游戏 tick 时间（0.05秒）
-        // 这样可以避免 UI 高帧率时 delta 太小导致粒子生成受限
-        // 同时限制最大值为 0.2 秒，避免长时间暂停后突然生成大量粒子
-        return MathHelper.clamp(Math.max(delta, 1f / 20f), 1f / 20f, 0.2f);
+        // 使用真实时间差，仅限制上界防止暂停后爆发
+        // 下界不再人为抬高，累加器会自然积攒不足 1 的余量到下一帧
+        if (delta <= 0f) return 0f;
+        return Math.min(delta, 0.2f);
     }
 
     private int resolveRadius(int viewDistanceChunks, int baseRadius, int maxRadius) {

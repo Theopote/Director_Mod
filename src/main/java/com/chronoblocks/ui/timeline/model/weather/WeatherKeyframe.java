@@ -686,7 +686,8 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
                 specialWeatherIntensity = 0.0f;
             }
             case SNOW -> {
-                rainStrength = 1.0f;
+                rainStrength = 0.0f;
+                snowStrength = 1.0f;
                 rainType = RainType.SNOW;
                 rainParticleDensity = 0.9f;
                 puddleLevel = 0.6f;
@@ -707,7 +708,7 @@ public class WeatherKeyframe implements TimelineSelectable, Comparable<WeatherKe
             }
             case SLEET -> {
                 rainStrength = 0.7f;
-                snowStrength = 0.7f;
+                snowStrength = 0.7f;  // ✅ 雨夹雪：雨和雪都有强度
                 rainType = RainType.SLEET;
                 rainParticleDensity = 0.6f;
                 puddleLevel = 0.5f;

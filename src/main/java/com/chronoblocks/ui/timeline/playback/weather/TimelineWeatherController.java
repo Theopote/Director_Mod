@@ -127,9 +127,6 @@ public final class TimelineWeatherController {
      * 是否存在天气轨道（无论是否已激活）。
      */
     public boolean hasWeatherTrack() {
-        if (com.chronoblocks.client.ChronoBlocksClientController.getInstance().isChronoBlocksModeActive()) {
-            return true;
-        }
         if (activeTrack != null) {
             return true;
         }

@@ -652,9 +652,9 @@ public class TimelineModelPersistence {
                             }
                             case "WeatherKeyframe" -> {
                                 WeatherKeyframe wk = new WeatherKeyframe(kdto.name != null ? kdto.name : "Weather Keyframe", kdto.time);
-                                if (kdto.weatherType != null) {
-                                    try { wk.setWeatherType(WeatherKeyframe.WeatherType.valueOf(kdto.weatherType)); } catch (Exception ignored) {}
-                                }
+                                // ✅ 修复：先设为 CUSTOM 阻止 applyWeatherDefaults()，
+                                // 再逐个恢复参数，最后设置真正的 weatherType（不触发默认值覆盖）
+                                wk.setWeatherType(WeatherKeyframe.WeatherType.CUSTOM);
                                 if (kdto.weatherInterpolation != null) {
                                     try { wk.setInterpolation(TimelineInterpolation.valueOf(kdto.weatherInterpolation)); } catch (Exception ignored) {}
                                 }
@@ -670,12 +670,8 @@ public class TimelineModelPersistence {
                                 // ✅ 新增：只视觉雷暴（如果不存在则使用默认值 true）
                                 wk.setVisualOnlyThunder(kdto.visualOnlyThunder);
                                 wk.setWindStrength(kdto.windStrength);
-                                // ✅ 新增：风方向（如果不存在则使用默认值 0°）
-                                if (kdto.windDirectionDegrees >= 0f && kdto.windDirectionDegrees < 360f) {
-                                    wk.setWindDirectionDegrees(kdto.windDirectionDegrees);
-                                } else {
-                                    wk.setWindDirectionDegrees(0.0f); // 默认向东
-                                }
+                                // ✅ 修复：直接设置风方向，setter 内部已做 [0,360) 归一化
+                                wk.setWindDirectionDegrees(kdto.windDirectionDegrees);
                                 wk.setStormDarkness(kdto.stormDarkness);
                                 wk.setCloudDensity(kdto.cloudDensity);
                                 wk.setCloudSpeed(kdto.cloudSpeed);
@@ -694,6 +690,10 @@ public class TimelineModelPersistence {
                                     try { wk.setSpecialWeatherType(WeatherKeyframe.SpecialWeatherType.valueOf(kdto.specialWeatherType)); } catch (Exception ignored) {}
                                 }
                                 wk.setSpecialWeatherIntensity(kdto.specialWeatherIntensity);
+                                // ✅ 修复：最后设置 weatherType（直接写字段，不触发 applyWeatherDefaults）
+                                if (kdto.weatherType != null) {
+                                    try { wk.setWeatherType(WeatherKeyframe.WeatherType.valueOf(kdto.weatherType)); } catch (Exception ignored) {}
+                                }
                                 track.addAutomationKeyframe(wk);
                             }
                             case "SeasonKeyframe" -> {
