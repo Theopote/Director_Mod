@@ -63,13 +63,17 @@ public class WeatherRenderer {
         }
 
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.world == null || client.player == null) {
+        if (client == null || client.world == null || client.gameRenderer == null) {
             return;
         }
 
         ClientWorld world = client.world;
         ParticleManager particleManager = client.particleManager;
-        Vec3d playerPos = client.player.getEntityPos();
+        // ⭐ 使用游戏摄像机位置（而非玩家位置），确保导演模式下特效跟随摄像机
+        net.minecraft.client.render.Camera camera = client.gameRenderer.getCamera();
+        Vec3d playerPos = (camera != null) ? camera.getPos()
+                : (client.player != null ? client.player.getEntityPos() : null);
+        if (playerPos == null) return;
         particleTickCounter++;
 
         // 渲染特殊天气事件（沙暴、暴雪等特殊效果）

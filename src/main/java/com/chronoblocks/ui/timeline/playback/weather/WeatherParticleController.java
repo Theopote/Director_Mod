@@ -1,6 +1,7 @@
 package com.chronoblocks.ui.timeline.playback.weather;
 
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.Camera;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.particle.ParticleTypes;
 import net.minecraft.util.math.MathHelper;
@@ -92,11 +93,14 @@ public class WeatherParticleController {
             return;
 
         MinecraftClient client = MinecraftClient.getInstance();
-        if (client == null || client.world == null || client.player == null)
+        if (client == null || client.world == null || client.gameRenderer == null)
             return;
 
         ClientWorld world = client.world;
-        Vec3d camPos = client.player.getCameraPosVec(1.0f);
+        // ⭐ 使用游戏摄像机位置（而非玩家位置），确保导演模式下粒子跟随摄像机
+        Camera camera = client.gameRenderer.getCamera();
+        Vec3d camPos = (camera != null) ? camera.getPos() : (client.player != null ? client.player.getCameraPosVec(1.0f) : null);
+        if (camPos == null) return;
         float deltaSeconds = computeDeltaSeconds();
         if (deltaSeconds <= 0f) {
             return;
