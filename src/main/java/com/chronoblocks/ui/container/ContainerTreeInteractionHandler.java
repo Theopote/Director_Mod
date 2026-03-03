@@ -230,7 +230,14 @@ class ContainerTreeInteractionHandler {
     }
 
     private void renderItemContextMenu(Container container) {
-        ImGui.textColored(0.0f, 0.588f, 1.0f, 1.0f, container.getName());
+        int selCount = controller.getSelectedContainers().size();
+        if (selCount > 1) {
+            ImGui.textColored(0.0f, 0.588f, 1.0f, 1.0f, "已选择 " + selCount + " 个容器");
+            ImGui.sameLine();
+            ImGui.textDisabled("(" + container.getName() + ")");
+        } else {
+            ImGui.textColored(0.0f, 0.588f, 1.0f, 1.0f, container.getName());
+        }
         ImGui.separator();
 
         if (container.getType() == ContainerType.GROUP) {
@@ -477,13 +484,46 @@ class ContainerTreeInteractionHandler {
     }
 
     private void renderContextMenu_CommonStateActions(Container container, String visibilityLabel) {
-        boolean hidden = container.isHidden();
-        renderMenuItem(hidden ? "显示" : visibilityLabel, "V", false,
-            () -> controller.toggleContainerState(container.getId()));
+        int selCount = controller.getSelectedContainers().size();
 
-        boolean locked = container.isLocked();
-        renderMenuItem(locked ? "解锁" : "锁定", "L", false,
-            () -> controller.setContainerLocked(container.getId(), !locked));
+        if (selCount > 1) {
+            // ── 多选：批量可见性 ──
+            if (ImGui.beginMenu("批量可见性")) {
+                ImGui.textDisabled("对 " + selCount + " 个容器操作");
+                ImGui.separator();
+                if (ImGui.menuItem("全部显示")) {
+                    controller.batchSetContainerState(
+                        com.chronoblocks.core.container.ContainerState.VISIBLE);
+                }
+                if (ImGui.menuItem("全部隐藏")) {
+                    controller.batchSetContainerState(
+                        com.chronoblocks.core.container.ContainerState.HIDDEN);
+                }
+                ImGui.endMenu();
+            }
+
+            // ── 多选：批量锁定 ──
+            if (ImGui.beginMenu("批量锁定")) {
+                ImGui.textDisabled("对 " + selCount + " 个容器操作");
+                ImGui.separator();
+                if (ImGui.menuItem("全部锁定")) {
+                    controller.batchSetContainerLocked(true);
+                }
+                if (ImGui.menuItem("全部解锁")) {
+                    controller.batchSetContainerLocked(false);
+                }
+                ImGui.endMenu();
+            }
+        } else {
+            // ── 单选：原有行为 ──
+            boolean hidden = container.isHidden();
+            renderMenuItem(hidden ? "显示" : visibilityLabel, "V", false,
+                () -> controller.toggleContainerState(container.getId()));
+
+            boolean locked = container.isLocked();
+            renderMenuItem(locked ? "解锁" : "锁定", "L", false,
+                () -> controller.setContainerLocked(container.getId(), !locked));
+        }
     }
     
     private void renderContextMenu_ColorActions(Container container) {

@@ -312,6 +312,26 @@ public class ContainerPanelController {
         }
     }
 
+    /**
+     * 批量设置选中容器的锁定状态（一次 undo/redo）
+     */
+    public void batchSetContainerLocked(boolean locked) {
+        Set<Container> selected = containerManager.getSelectedContainersView();
+        if (!selected.isEmpty()) {
+            commandService.batchSetContainerLocked(selected, locked);
+        }
+    }
+
+    /**
+     * 批量设置选中容器的可见性状态（一次 undo/redo）
+     */
+    public void batchSetContainerState(com.chronoblocks.core.container.ContainerState state) {
+        Set<Container> selected = containerManager.getSelectedContainersView();
+        if (!selected.isEmpty()) {
+            commandService.batchSetContainerState(selected, state);
+        }
+    }
+
     public void setContainerOpacity(UUID containerId, float opacity) {
         commandService.setContainerOpacity(containerId, opacity);
     }

@@ -464,6 +464,26 @@ public class ContainerCommandService {
         execute(new BatchSetContainerColorsCommand(containerManager, containers, titleColor, iconColor));
     }
 
+    /**
+     * 批量设置容器锁定状态（一次 undo）
+     */
+    public void batchSetContainerLocked(Collection<Container> containers, boolean locked) {
+        if (containers == null || containers.isEmpty()) {
+            return;
+        }
+        execute(new BatchSetContainerLockedCommand(containerManager, containers, locked));
+    }
+
+    /**
+     * 批量设置容器可见性状态（一次 undo）
+     */
+    public void batchSetContainerState(Collection<Container> containers, com.chronoblocks.core.container.ContainerState state) {
+        if (containers == null || containers.isEmpty() || state == null) {
+            return;
+        }
+        execute(new BatchSetContainerStateCommand(containers, state));
+    }
+
     public void setActiveContainer(UUID containerId) {
         if (containerId == null) {
             containerManager.setActive((Container) null);
