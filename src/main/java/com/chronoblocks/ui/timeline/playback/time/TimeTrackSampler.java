@@ -110,33 +110,27 @@ public final class TimeTrackSampler {
         float t = span == 0 ? 0 : (timeSeconds - a.getTime()) / span;
         t = Math.max(0.0f, Math.min(1.0f, t));
 
-        // 获取插值类型
-        TimeKeyframe.TimeInterpolation interpolation = a.getPathInterpolation();
-        if (interpolation == TimeKeyframe.TimeInterpolation.DEFAULT) {
-            interpolation = TimeKeyframe.TimeInterpolation.CATMULL_ROM; // 默认使用 Catmull-Rom
+        // 获取位置/时间插值类型
+        TimeKeyframe.TimeInterpolation pathInterp = a.getPathInterpolation();
+        if (pathInterp == TimeKeyframe.TimeInterpolation.DEFAULT) {
+            pathInterp = TimeKeyframe.TimeInterpolation.CATMULL_ROM; // 默认使用 Catmull-Rom
         }
 
-        // 应用插值模式
-        switch (interpolation) {
-            // DEFAULT 应该已经在上面的逻辑中处理，这里不应该到达
-            // 如果到达，使用平滑插值作为默认
-            case STEP:
-                t = 0f; // 保持 a 值
-                break;
-            case LINEAR:
-                // t 保持不变
-                break;
-            case CATMULL_ROM:
-            case BEZIER:
-                // 使用 smoothstep 进行平滑插值（未来可以扩展完整的曲线插值）
-                t = smoothstep(t);
-                break;
+        // 获取角度插值类型（用于 sunAzimuth 等角度参数）
+        TimeKeyframe.TimeInterpolation angleInterp = a.getAngleInterpolation();
+        if (angleInterp == TimeKeyframe.TimeInterpolation.DEFAULT) {
+            angleInterp = pathInterp; // 默认跟随位置插值
         }
+
+        // 应用位置插值模式
+        float tPath = applyInterpolation(t, pathInterp);
+        // 应用角度插值模式
+        float tAngle = applyInterpolation(t, angleInterp);
 
         // 转换关键帧为 TimeSample 并插值
         TimeSample sampleA = toSample(a);
         TimeSample sampleB = toSample(b);
-        return Optional.of(lerpSample(sampleA, sampleB, t));
+        return Optional.of(lerpSample(sampleA, sampleB, tPath, tAngle));
     }
 
     // ======================= 采样实现 =======================
@@ -160,32 +154,38 @@ public final class TimeTrackSampler {
      * 
      * <p>这是 v2.0 的核心改进：直接在所有参数之间插值，而不仅仅是通过工厂方法创建。
      * 这样可以在 TimeSample 之间平滑过渡所有参数（月亮、天空颜色等）。
+     *
+     * @param a 左关键帧采样
+     * @param b 右关键帧采样
+     * @param tPath 位置/时间插值系数
+     * @param tAngle 角度插值系数
      */
-    private TimeSample lerpSample(TimeSample a, TimeSample b, float t) {
+    private TimeSample lerpSample(TimeSample a, TimeSample b, float tPath, float tAngle) {
         // 1. 基础世界时间参数
-        boolean useWorldTime = a.isUseWorldTime() || b.isUseWorldTime();
-        boolean freezeWorldTime = a.isFreezeWorldTime() || b.isFreezeWorldTime();
-        double worldTimeOfDay = lerpTime(a.getWorldTimeOfDay(), b.getWorldTimeOfDay(), t);
+        // ⭐ 修复：布尔值基于插值系数阈值决定，而不是简单的 OR
+        boolean useWorldTime = tPath < 0.5f ? a.isUseWorldTime() : b.isUseWorldTime();
+        boolean freezeWorldTime = tPath < 0.5f ? a.isFreezeWorldTime() : b.isFreezeWorldTime();
+        double worldTimeOfDay = lerpTime(a.getWorldTimeOfDay(), b.getWorldTimeOfDay(), tPath);
 
         // 2. 插值 skyAngle 并根据 skyAngle 计算太阳高度与光照
-        float skyAngle = lerpFloat(a.getSkyAngle(), b.getSkyAngle(), t);
+        float skyAngle = lerpFloat(a.getSkyAngle(), b.getSkyAngle(), tPath);
         float sunElevation = TimeSample.calculateSunElevationFromSkyAngle(skyAngle);
-        float sunAzimuth = lerpAngle(a.getSunAzimuth(), b.getSunAzimuth(), t);
+        float sunAzimuth = lerpAngle(a.getSunAzimuth(), b.getSunAzimuth(), tAngle);
         float skyLight = TimeSample.calculateSkyLightFromElevation(sunElevation);
 
         // 3. 天空颜色参数插值
-        boolean useCustomSkyColor = a.isUseCustomSkyColor() || b.isUseCustomSkyColor();
-        float sunriseR = lerpFloat(a.getSunriseR(), b.getSunriseR(), t);
-        float sunriseG = lerpFloat(a.getSunriseG(), b.getSunriseG(), t);
-        float sunriseB = lerpFloat(a.getSunriseB(), b.getSunriseB(), t);
-        float sunriseA = lerpFloat(a.getSunriseA(), b.getSunriseA(), t);
-        float skyColorR = lerpFloat(a.getSkyColorR(), b.getSkyColorR(), t);
-        float skyColorG = lerpFloat(a.getSkyColorG(), b.getSkyColorG(), t);
-        float skyColorB = lerpFloat(a.getSkyColorB(), b.getSkyColorB(), t);
-        float skyColorA = lerpFloat(a.getSkyColorA(), b.getSkyColorA(), t);
+        boolean useCustomSkyColor = tPath < 0.5f ? a.isUseCustomSkyColor() : b.isUseCustomSkyColor();
+        float sunriseR = lerpFloat(a.getSunriseR(), b.getSunriseR(), tPath);
+        float sunriseG = lerpFloat(a.getSunriseG(), b.getSunriseG(), tPath);
+        float sunriseB = lerpFloat(a.getSunriseB(), b.getSunriseB(), tPath);
+        float sunriseA = lerpFloat(a.getSunriseA(), b.getSunriseA(), tPath);
+        float skyColorR = lerpFloat(a.getSkyColorR(), b.getSkyColorR(), tPath);
+        float skyColorG = lerpFloat(a.getSkyColorG(), b.getSkyColorG(), tPath);
+        float skyColorB = lerpFloat(a.getSkyColorB(), b.getSkyColorB(), tPath);
+        float skyColorA = lerpFloat(a.getSkyColorA(), b.getSkyColorA(), tPath);
 
         // 4. 计算月亮参数（保持与太阳相对）
-        int moonPhase = Math.round(lerpFloat(a.getMoonPhase(), b.getMoonPhase(), t));
+        int moonPhase = Math.round(lerpFloat(a.getMoonPhase(), b.getMoonPhase(), tPath));
         float moonElevation = -sunElevation;
         float moonAzimuth = (sunAzimuth + 180.0f) % 360.0f;
 
@@ -197,11 +197,6 @@ public final class TimeTrackSampler {
                 moonPhase, moonElevation, moonAzimuth,
                 useCustomSkyColor, sunriseR, sunriseG, sunriseB, sunriseA,
                 skyColorR, skyColorG, skyColorB, skyColorA);
-        
-        // ⭐ 未来扩展：当 TimeSample 支持完整自定义构造函数时，可以插值所有参数：
-        // - skyAngle (已自动计算，但可以覆盖)
-        // - skyLight (已自动计算，但可以覆盖)
-        // - moonPhase, moonElevation, moonAzimuth (已自动计算，但可以覆盖)
     }
 
     // ======================= 辅助插值方法 =======================
@@ -277,12 +272,37 @@ public final class TimeTrackSampler {
     }
 
     /**
-     * Smoothstep 函数（用于平滑插值）
+     * 根据插值类型应用插值曲线
+     */
+    private float applyInterpolation(float t, TimeKeyframe.TimeInterpolation interpolation) {
+        return switch (interpolation) {
+            case STEP -> 0f; // 保持左关键帧的值
+            case LINEAR -> t; // 线性，不处理
+            case CATMULL_ROM -> smoothstep(t); // 平滑缓入缓出
+            case BEZIER -> smootherstep(t); // 更平滑的五次曲线（模拟贝塞尔的平滑度）
+            default -> smoothstep(t); // DEFAULT 已在上层处理，但作为安全后备
+        };
+    }
+
+    /**
+     * Smoothstep 函数（用于 Catmull-Rom 平滑插值）
      * 
-     * <p>输入 x (0~1)，输出平滑的插值系数
+     * <p>输入 x (0~1)，输出三次平滑的插值系数
      */
     private float smoothstep(float x) {
         return x * x * (3.0f - 2.0f * x);
+    }
+
+    /**
+     * Smootherstep 函数（用于 Bezier 式平滑插值）
+     *
+     * <p>Ken Perlin 的五次曲线，比 smoothstep 更加平滑，一阶和二阶导数在端点均为 0。
+     * 模拟了贝塞尔曲线的“平缓进出”特征。
+     * 
+     * <p>输入 x (0~1)，输出五次平滑的插值系数
+     */
+    private float smootherstep(float x) {
+        return x * x * x * (x * (x * 6.0f - 15.0f) + 10.0f);
     }
 
 }

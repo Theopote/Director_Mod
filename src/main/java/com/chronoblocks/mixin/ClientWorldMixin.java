@@ -42,7 +42,6 @@ public abstract class ClientWorldMixin {
     private void onTickTime(CallbackInfo ci) {
         ChronoBlocksClientController controller = ChronoBlocksClientController.getInstance();
         if (controller != null && controller.isChronoBlocksModeActive()) {
-            System.out.println("[ChronoBlocks][TIME] onTickTime: cancelled (chrono mode active)");
             ci.cancel();
         }
     }
@@ -66,10 +65,7 @@ public abstract class ClientWorldMixin {
         }
         boolean internal = controller.isInternalTimeUpdate();
         if (!internal) {
-            System.out.println("[ChronoBlocks][TIME] blockExternalTimeUpdate: blocking external setTime -> time=" + time + " timeOfDay=" + timeOfDay);
             ci.cancel();
-        } else {
-            System.out.println("[ChronoBlocks][TIME] blockExternalTimeUpdate: allowed internal setTime -> time=" + time + " timeOfDay=" + timeOfDay);
         }
     }
 

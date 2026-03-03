@@ -47,6 +47,7 @@ public class TimeKeyframePropertyAdapter implements IPropertyAdapter<TimeKeyfram
     // 复用的临时对象，减少 GC 压力
     private final ImFloat timeFloat = new ImFloat();
     private final ImFloat sunElevationFloat = new ImFloat();
+    private final ImFloat sunAzimuthFloat = new ImFloat();
     private final ImFloat worldTimeFloat = new ImFloat();
     private final ImInt interpolationIndex = new ImInt();
     private final ImBoolean useNaturalTimeBool = new ImBoolean();
@@ -135,7 +136,6 @@ public class TimeKeyframePropertyAdapter implements IPropertyAdapter<TimeKeyfram
                 worldTimeFloat.set(worldTime);
                 if (ImGui.sliderFloat("世界时间（tick）", worldTimeFloat.getData(), 0.0f, 24000.0f, "%.0f")) {
                     long newWorldTime = (long)worldTimeFloat.get();
-                    System.out.println("[TimeKeyframePropertyAdapter] 用户修改世界时间: " + worldTime + " -> " + newWorldTime);
                     keyframe.setWorldTimeTicks(newWorldTime);
                     parameterChanged.set(true);
                 }
@@ -144,6 +144,31 @@ public class TimeKeyframePropertyAdapter implements IPropertyAdapter<TimeKeyfram
                 long normalizedTime = worldTime % 24000L;
                 String timeDesc = describeWorldTime(normalizedTime);
                 ImGui.textDisabled(timeDesc);
+                
+                UITheme.spacingSmall();
+                
+                // ⭐ v3.2：预设时间按钮 - 快速设置常见时间点
+                ImGui.text("预设时间：");
+                ImGui.sameLine();
+                if (ImGui.smallButton(Icons.LIGHT + " 日出")) {
+                    keyframe.setWorldTimeTicks(0L);
+                    parameterChanged.set(true);
+                }
+                ImGui.sameLine();
+                if (ImGui.smallButton(Icons.LIGHT + " 正午")) {
+                    keyframe.setWorldTimeTicks(6000L);
+                    parameterChanged.set(true);
+                }
+                ImGui.sameLine();
+                if (ImGui.smallButton(Icons.TIME + " 日落")) {
+                    keyframe.setWorldTimeTicks(12000L);
+                    parameterChanged.set(true);
+                }
+                ImGui.sameLine();
+                if (ImGui.smallButton(Icons.TIME + " 午夜")) {
+                    keyframe.setWorldTimeTicks(18000L);
+                    parameterChanged.set(true);
+                }
                 
                 UITheme.spacingSmall();
                 
@@ -180,6 +205,18 @@ public class TimeKeyframePropertyAdapter implements IPropertyAdapter<TimeKeyfram
                 ImGui.textDisabled("0° = 地平线，90° = 正头顶，负值表示地平线以下（夜晚）");
                 
                 UITheme.spacingSmall();
+                
+                // ⭐ v3.2：太阳方位角编辑
+                sunAzimuthFloat.set(keyframe.getSunAzimuth());
+                boolean azimuthChanged = ImGui.sliderFloat("太阳方位角（Azimuth）", sunAzimuthFloat.getData(), 0.0f, 360.0f, "%.1f°");
+                if (azimuthChanged) {
+                    float newAzimuth = sunAzimuthFloat.get();
+                    keyframe.setSunAzimuth(newAzimuth);
+                    parameterChanged.set(true);
+                }
+                ImGui.textDisabled("0° = 正北，90° = 正东，180° = 正南，270° = 正西");
+                
+                UITheme.spacingSmall();
             }
             
             UITheme.spacingSmall();
@@ -211,20 +248,14 @@ public class TimeKeyframePropertyAdapter implements IPropertyAdapter<TimeKeyfram
         // 这样可以确保设置的时间能够持久显示，不会被播放头位置的采样结果覆盖
         // 同时确保自定义太阳模式时立即冻结时间，防止原版时间推进覆盖设置
         if (parameterChanged.get()) {
-            System.out.println("[TimeKeyframePropertyAdapter] 检测到参数变化，准备应用 - 关键帧时间=" + keyframe.getTime() + 
-                    "s, 世界时间=" + keyframe.getWorldTimeTicks() + ", useNaturalTime=" + keyframe.isUseNaturalTime());
             TimelineWorldController controller = TimelineWorldController.getInstance();
-            
-            System.out.println("[TimeKeyframePropertyAdapter] 调用 rebuildFromActiveTrack()");
             controller.rebuildFromActiveTrack();
             
             // ⭐ v3.3 关键修复：
             // 1. previewAtKeyframeTime 内部会立即更新冻结状态（如果切换为自定义模式）
             // 2. 预览关键帧所在位置的时间，而不是当前播放头位置
             // 3. 应用采样后立即同步冻结时间快照，防止原版时间推进覆盖
-            System.out.println("[TimeKeyframePropertyAdapter] 调用 previewAtKeyframeTime(" + keyframe.getTime() + ")");
             controller.previewAtKeyframeTime(keyframe.getTime());
-            System.out.println("[TimeKeyframePropertyAdapter] 参数变化处理完成");
         }
         
         // ⭐ v3.0：时间变化只通知重建采样器，不触发预览
@@ -240,18 +271,46 @@ public class TimeKeyframePropertyAdapter implements IPropertyAdapter<TimeKeyfram
     
     /**
      * 描述世界时间（tick）对应的时间段
+     * 
+     * <p>Minecraft 时间映射：
+     * <ul>
+     *   <li>0 = 日出 (6:00 AM)</li>
+     *   <li>1000 = 早晨 (7:00 AM)</li>
+     *   <li>6000 = 正午 (12:00 PM)</li>
+     *   <li>12000 = 日落 (18:00 PM)</li>
+     *   <li>13000 = 傍晚 (19:00 PM)</li>
+     *   <li>18000 = 午夜 (0:00 AM)</li>
+     *   <li>23000 = 凌晨 (5:00 AM)</li>
+     * </ul>
      */
     private String describeWorldTime(long timeTicks) {
         long normalized = timeTicks % 24000L;
-        if (normalized < 6000) {
-            return "凌晨 / 日出前";
-        } else if (normalized < 12000) {
-            return "正午";
-        } else if (normalized < 18000) {
-            return "日落";
+        // Minecraft 时间 tick 0 = 6:00 AM（日出），每 1000 tick = 1 小时
+        int hour = (int) ((normalized / 1000 + 6) % 24);
+        int minute = (int) ((normalized % 1000) * 60 / 1000);
+        String clockTime = String.format("%02d:%02d", hour, minute);
+        
+        String period;
+        if (normalized < 1000) {
+            period = "日出";
+        } else if (normalized < 6000) {
+            period = "上午";
+        } else if (normalized < 6500) {
+            period = "正午";
+        } else if (normalized < 11500) {
+            period = "下午";
+        } else if (normalized < 13000) {
+            period = "日落";
+        } else if (normalized < 17500) {
+            period = "夜晚";
+        } else if (normalized < 18500) {
+            period = "午夜";
+        } else if (normalized < 23000) {
+            period = "深夜";
         } else {
-            return "午夜";
+            period = "凌晨";
         }
+        return period + " (" + clockTime + ")";
     }
     
     @Override

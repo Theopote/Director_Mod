@@ -60,8 +60,6 @@ public abstract class WorldMixin {
         long tod = sample.getWorldTimeTicks() % 24000L;
         if (tod < 0)
             tod += 24000L;
-        // Debug: log when we override time-of-day (compact)
-        System.out.println("[ChronoBlocks][TIME] overrideTimeOfDay -> returning tod=" + tod + ", hasOverride=" + true);
         cir.setReturnValue(tod);
     }
 
