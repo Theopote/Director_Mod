@@ -42,11 +42,11 @@ public class ContainerDialogs {
 	 * 通用确认弹窗渲染：负责定位到屏幕中心、打开指定 id 的模态弹窗，渲染消息与“确定/取消”按钮。
 	 * 返回值不需要，逻辑在 onConfirm 内处理。
 	 */
-	private void renderConfirmDialog(String popupId, String message, Runnable onConfirm) {
+	private void renderConfirmDialog(Runnable onConfirm) {
 		ImVec2 center = ImGui.getMainViewport().getCenter();
 		ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
-		if (ImGui.beginPopupModal(popupId, ImGuiWindowFlags.AlwaysAutoResize)) {
-			ImGui.text(Icons.WARNING + " " + message);
+		if (ImGui.beginPopupModal("ConfirmClearAll", ImGuiWindowFlags.AlwaysAutoResize)) {
+			ImGui.text(Icons.WARNING + " " + "您确定要清空所有容器吗？");
 			ImGui.separator();
 			if (ImGui.button("确定", 120, 0)) {
 				if (onConfirm != null) {
@@ -89,7 +89,7 @@ public class ContainerDialogs {
     }
 
     private void renderClearAllConfirmDialog() {
-		renderConfirmDialog("ConfirmClearAll", "您确定要清空所有容器吗？", controller::clearAllContainers);
+		renderConfirmDialog(controller::clearAllContainers);
     }
 
     private void renderReleaseConfirmDialog() {
