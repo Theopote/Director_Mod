@@ -54,10 +54,6 @@ public class ContainerPanelController {
         return containerManager.getSelectedContainer();
     }
 
-    public Container getActiveContainer() {
-        return containerManager.getActive();
-    }
-
     public boolean isContainerSelected(UUID id) {
         Container container = getContainer(id);
         return container != null && containerManager.isSelected(container);
@@ -177,12 +173,6 @@ public class ContainerPanelController {
         commandService.clearAllContainers();
     }
 
-    /* -------------------- 复制 / 粘贴 -------------------- */
-
-    public void copySelectionToClipboard() {
-        commandService.copySelectionToClipboard();
-    }
-
     public void copyContainerToClipboard(UUID containerId) {
         commandService.copyContainerToClipboard(containerId);
     }
@@ -193,14 +183,6 @@ public class ContainerPanelController {
 
     public void pasteClipboard(UUID parentId, int insertIndex) {
         commandService.pasteClipboard(parentId, insertIndex);
-    }
-
-    public void duplicateSelectedContainers() {
-        commandService.duplicateSelectedContainers();
-    }
-
-    public void duplicateContainer(UUID containerId) {
-        commandService.duplicateContainer(containerId);
     }
 
     /* -------------------- 分组 / 合并 -------------------- */
@@ -219,14 +201,6 @@ public class ContainerPanelController {
         }
     }
 
-    /* -------------------- 排序 / 拖拽 -------------------- */
-
-    public void moveContainer(UUID containerId, UUID targetParentId, int index) {
-        // ✅ 移动容器时取消正在进行的重命名（避免编辑会话混乱）
-        cancelEditingIfActive();
-		hierarchyController.moveContainer(containerId, targetParentId, index);
-    }
-
     /**
      * 批量移动容器（一次 undo）。多选拖到组/根/节点前时调用。
      */
@@ -235,29 +209,9 @@ public class ContainerPanelController {
         hierarchyController.moveContainers(ids, targetParentId, targetIndex);
     }
 
-    public void moveContainerAsChild(UUID draggedId, UUID parentId) {
-        cancelEditingIfActive();
-		hierarchyController.moveContainerAsChild(draggedId, parentId);
-    }
-
-    public void moveContainerBefore(UUID draggedId, UUID referenceId) {
-        cancelEditingIfActive();
-		hierarchyController.moveContainerBefore(draggedId, referenceId);
-    }
-
-    public void moveContainerAfter(UUID draggedId, UUID referenceId) {
-        cancelEditingIfActive();
-		hierarchyController.moveContainerAfter(draggedId, referenceId);
-    }
-
     public void moveContainerByOffset(UUID containerId, int offset) {
         cancelEditingIfActive();
 		hierarchyController.moveContainerByOffset(containerId, offset);
-    }
-
-    public void swapContainers(UUID firstId, UUID secondId) {
-        cancelEditingIfActive();
-		hierarchyController.swapContainers(firstId, secondId);
     }
 
     /* -------------------- 属性变更 -------------------- */
@@ -276,26 +230,6 @@ public class ContainerPanelController {
 
     public void toggleContainerState(UUID containerId) {
         commandService.toggleContainerState(containerId);
-    }
-
-    public void setContainerState(UUID containerId, com.chronoblocks.core.container.ContainerState state) {
-        commandService.setContainerState(containerId, state);
-    }
-
-    public void setContainerColor(UUID containerId, int color) {
-        commandService.setContainerColor(containerId, color);
-    }
-    
-    /**
-     * 批量设置选中容器的颜色（标题和/或图标）
-     * @param titleColor 标题颜色（ARGB），null 表示不设置
-     * @param iconColor 图标颜色（ARGB），null 表示不设置
-     */
-    public void batchSetContainerColors(Integer titleColor, Integer iconColor) {
-        Set<Container> selected = containerManager.getSelectedContainersView();
-        if (!selected.isEmpty()) {
-            commandService.batchSetContainerColors(selected, titleColor, iconColor);
-        }
     }
     
     /**
@@ -332,10 +266,6 @@ public class ContainerPanelController {
         }
     }
 
-    public void setContainerOpacity(UUID containerId, float opacity) {
-        commandService.setContainerOpacity(containerId, opacity);
-    }
-
     public void setPresetMode(UUID containerId, com.chronoblocks.core.container.AnimationMode mode) {
 		animationController.setPresetMode(containerId, mode);
     }
@@ -358,10 +288,6 @@ public class ContainerPanelController {
 
     public void setMetadata(UUID containerId, String key, Object value) {
         commandService.setMetadata(containerId, key, value);
-    }
-
-    public void setActiveContainer(UUID containerId) {
-        commandService.setActiveContainer(containerId);
     }
 
     public void releaseContainer(UUID containerId) {
@@ -390,22 +316,6 @@ public class ContainerPanelController {
             state.expandAllNodes();
         }
     }
-
-    public void setRenamingContainer(UUID containerId) {
-        state.setRenamingContainerId(containerId);
-    }
-
-    public void clearRenamingContainer() {
-        state.setRenamingContainerId(null);
-    }
-
-    public void setContextMenuContainer(UUID containerId) {
-        state.setContextMenuContainerId(containerId);
-    }
-
-    public void clearContextMenuContainer() {
-        state.setContextMenuContainerId(null);
-    }
     
     /**
      * 取消选中所有容器（在空白区域点击时调用）
@@ -414,13 +324,6 @@ public class ContainerPanelController {
         // ✅ 取消选择时也取消正在进行的重命名
         cancelEditingIfActive();
         containerManager.clearSelection();
-    }
-    
-    /**
-     * 获取容器管理器（供交互处理器使用）
-     */
-    ContainerManager getContainerManager() {
-        return containerManager;
     }
     
     /**
