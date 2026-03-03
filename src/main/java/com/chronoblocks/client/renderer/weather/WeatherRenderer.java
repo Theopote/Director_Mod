@@ -215,27 +215,20 @@ public class WeatherRenderer {
             int topY = world.getTopY(Heightmap.Type.MOTION_BLOCKING, MathHelper.floor(x), MathHelper.floor(z));
             double y = topY + 0.02 + world.random.nextDouble() * 0.08;
 
-            // ✅ 修复：根据湿度使用不同的粒子类型，增强视觉效果
+            // 地面湿润效果：混合使用 RAIN 和 SPLASH 粒子
+            // ⚠️ 不使用 DRIPPING_WATER（蓝色水滴，与原版雨风格不一致）
             float rand = world.random.nextFloat();
-            if (rand < 0.4f) {
-                // 40% 概率：水滴粒子（地面上的水滴）
-                particleManager.addParticle(
-                        ParticleTypes.DRIPPING_WATER,
-                        x, y, z,
-                        0,
-                        0.02 + world.random.nextDouble() * 0.04,
-                        0);
-            } else if (rand < 0.7f) {
-                // 30% 概率：雨滴粒子（从上方滴落）
+            if (rand < 0.5f) {
+                // 50% 概率：雨滴粒子（地面溅起的小水滴）
                 particleManager.addParticle(
                         ParticleTypes.RAIN,
-                        x, y + 0.5 + world.random.nextDouble() * 1.5,
+                        x, y + 0.1 + world.random.nextDouble() * 0.3,
                         z,
-                        (world.random.nextDouble() - 0.5) * 0.1,
-                        -0.1 - world.random.nextDouble() * 0.2,
-                        (world.random.nextDouble() - 0.5) * 0.1);
+                        (world.random.nextDouble() - 0.5) * 0.06,
+                        -0.05 - world.random.nextDouble() * 0.1,
+                        (world.random.nextDouble() - 0.5) * 0.06);
             } else {
-                // 30% 概率：水花粒子（地面上的水花效果）
+                // 50% 概率：水花粒子（地面上的水花效果）
                 particleManager.addParticle(
                         ParticleTypes.SPLASH,
                         x, y, z,
