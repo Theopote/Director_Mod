@@ -284,7 +284,6 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
             float iy = rMin.y + (rMax.y - rMin.y - sz.y) * 0.5f;
             iy += 1f; // ▶ 字形视觉重心偏上，optical offset 使与图标同轴
             int a = (HANDLE_CHEVRON_COLOR >> 24) & 0xFF;
-            if (a == 0) a = 255;
             int r = (HANDLE_CHEVRON_COLOR >> 16) & 0xFF, g = (HANDLE_CHEVRON_COLOR >> 8) & 0xFF, b = HANDLE_CHEVRON_COLOR & 0xFF;
             int abgr = (a << 24) | (b << 16) | (g << 8) | r;
             ImGui.getWindowDrawList().addText(ix, iy, abgr, Icons.CHEVRON_RIGHT);
@@ -389,7 +388,6 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
         float cIy = cMin.y + (cMax.y - cMin.y - cSz.y) * 0.5f;
         cIy += 1f; // ◀ 与 ▶ 同族 optical offset
         int ca = (HANDLE_CHEVRON_COLOR >> 24) & 0xFF;
-        if (ca == 0) ca = 255;
         int cr = (HANDLE_CHEVRON_COLOR >> 16) & 0xFF, cg = (HANDLE_CHEVRON_COLOR >> 8) & 0xFF, cb = HANDLE_CHEVRON_COLOR & 0xFF;
         int cabgr = (ca << 24) | (cb << 16) | (cg << 8) | cr;
         ImGui.getWindowDrawList().addText(cIx, cIy, cabgr, Icons.CHEVRON_LEFT);

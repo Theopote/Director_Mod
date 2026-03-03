@@ -76,12 +76,6 @@ public class ContainerCommandService {
         }
     }
 
-    /* ---------------------- 复制 / 粘贴 ---------------------- */
-
-    public void copySelectionToClipboard() {
-        clipboard.capture(containerManager, containerManager.getSelectedContainersView());
-    }
-
     public void copyContainerToClipboard(UUID containerId) {
         Container container = containerManager.getContainer(containerId);
         if (container != null) {
@@ -109,22 +103,6 @@ public class ContainerCommandService {
             insertIndex
         );
         execute(command);
-    }
-
-    public void duplicateSelectedContainers() {
-        Collection<Container> selection = containerManager.getSelectedContainersView();
-        if (selection.isEmpty()) {
-            return;
-        }
-        execute(new DuplicateContainersCommand(containerManager, selection));
-    }
-
-    public void duplicateContainer(UUID containerId) {
-        Container container = containerManager.getContainer(containerId);
-        if (container == null) {
-            return;
-        }
-        execute(new DuplicateContainersCommand(containerManager, Collections.singletonList(container)));
     }
 
     /* ---------------------- 分组 / 合并 ---------------------- */
@@ -367,30 +345,6 @@ public class ContainerCommandService {
         execute(new ToggleContainerStateCommand(container));
     }
 
-    public void setContainerState(UUID containerId, com.chronoblocks.core.container.ContainerState state) {
-        Container container = containerManager.getContainer(containerId);
-        if (container == null) {
-            return;
-        }
-        execute(new ToggleContainerStateCommand(container, state));
-    }
-
-    public void setContainerColor(UUID containerId, int color) {
-        Container container = containerManager.getContainer(containerId);
-        if (container == null) {
-            return;
-        }
-        execute(new SetContainerColorCommand(containerManager, container, color));
-    }
-
-    public void setContainerOpacity(UUID containerId, float opacity) {
-        Container container = containerManager.getContainer(containerId);
-        if (container == null) {
-            return;
-        }
-        execute(new SetContainerOpacityCommand(containerManager, container, opacity));
-    }
-
     public void setContainerType(UUID containerId, ContainerType newType) {
         Container container = containerManager.getContainer(containerId);
         if (container == null || newType == null) {
@@ -447,22 +401,6 @@ public class ContainerCommandService {
         }
         execute(new SetContainerMetadataCommand(containerManager, container, key, value));
     }
-    
-    /**
-     * 批量设置容器颜色（标题颜色和/或图标颜色）
-     * @param containers 要设置的容器集合
-     * @param titleColor 标题颜色（ARGB），null 表示不设置
-     * @param iconColor 图标颜色（ARGB），null 表示不设置
-     */
-    public void batchSetContainerColors(Collection<Container> containers, Integer titleColor, Integer iconColor) {
-        if (containers == null || containers.isEmpty()) {
-            return;
-        }
-        if (titleColor == null && iconColor == null) {
-            return;
-        }
-        execute(new BatchSetContainerColorsCommand(containerManager, containers, titleColor, iconColor));
-    }
 
     /**
      * 批量设置容器锁定状态（一次 undo）
@@ -482,19 +420,6 @@ public class ContainerCommandService {
             return;
         }
         execute(new BatchSetContainerStateCommand(containers, state));
-    }
-
-    public void setActiveContainer(UUID containerId) {
-        if (containerId == null) {
-            containerManager.setActive((Container) null);
-            return;
-        }
-        Container container = containerManager.getContainer(containerId);
-        if (container != null && container.getType() != ContainerType.GROUP) {
-            containerManager.setActive(container);
-        } else if (container != null) {
-            LOGGER.warn("[ContainerCommandService] 组不能被设为激活容器: {}", container.getName());
-        }
     }
 
     public void releaseContainer(UUID containerId) {
