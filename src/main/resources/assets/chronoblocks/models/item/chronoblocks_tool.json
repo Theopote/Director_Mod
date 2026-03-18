@@ -1,6 +1,6 @@
 {
   "parent": "item/handheld",
   "textures": {
-    "layer0": "chronoblocks:item/chronoblocks_tool"
+    "layer0": "minecraft:item/clock"
   }
 }
