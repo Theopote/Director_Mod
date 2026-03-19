@@ -3,6 +3,7 @@ package com.chronoblocks.ui.imgui;
 import imgui.ImGui;
 import imgui.ImGuiIO;
 import imgui.flag.ImGuiConfigFlags;
+import imgui.internal.ImGuiContext;
 import imgui.gl3.ImGuiImplGl3;
 import imgui.glfw.ImGuiImplGlfw;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -29,6 +30,11 @@ public class ImGuiRenderer {
     private boolean initialized;
     private boolean frameInProgress;
     private boolean drawDataReady;
+
+    /** ChronoBlocks 专用的 ImGui 上下文，实现与其他 ImGui 模组的样式隔离 */
+    private ImGuiContext ourContext;
+    /** 初始化前的 ImGui 上下文，渲染结束后恢复以便其他模组使用 */
+    private ImGuiContext previousContext;
 
     // perf (throttled)
     private long lastPerfLogMs = 0L;
@@ -76,9 +82,11 @@ public class ImGuiRenderer {
                 throw new RuntimeException("Not on main thread");
             }
 
-            // 初始化 ImGui
-            LOGGER.debug("[ChronoBlocks] Creating ImGui context...");
-            ImGui.createContext();
+            // 初始化 ImGui - 使用独立上下文，避免与其他 ImGui 模组互相影响样式
+            LOGGER.debug("[ChronoBlocks] Creating isolated ImGui context...");
+            previousContext = ImGui.getCurrentContext();
+            ourContext = ImGui.createContext();
+            ImGui.setCurrentContext(ourContext);
 
             // 配置 ImGui IO
             ImGuiIO io = ImGui.getIO();
@@ -165,6 +173,9 @@ public class ImGuiRenderer {
 
             try {
                 LOGGER.debug("[ChronoBlocks] Beginning ImGui frame...");
+
+                // 切换到 ChronoBlocks 专用上下文，确保样式不被其他模组影响
+                ImGui.setCurrentContext(ourContext);
 
                 // 检查并更新INI文件路径（如果世界已切换）
                 checkAndUpdateIniPath();
@@ -293,6 +304,8 @@ public class ImGuiRenderer {
                 LOGGER.error("[ChronoBlocks] Failed to render pending ImGui draw data", e);
             } finally {
                 drawDataReady = false;
+                // 恢复之前的 ImGui 上下文，避免 ChronoBlocks 样式影响其他模组
+                ImGui.setCurrentContext(previousContext);
                 long nowMs = System.currentTimeMillis();
                 if (nowMs - lastPerfLogMs > 5000L) {
                     lastPerfLogMs = nowMs;
@@ -330,7 +343,11 @@ public class ImGuiRenderer {
                     imGuiGlfw = null;
                 }
 
-                ImGui.destroyContext();
+                // 恢复原上下文后再销毁 ChronoBlocks 的上下文
+                ImGui.setCurrentContext(previousContext);
+                ImGui.destroyContext(ourContext);
+                ourContext = null;
+                previousContext = null;
 
                 initialized = false;
                 frameInProgress = false;
