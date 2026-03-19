@@ -64,6 +64,7 @@ public class WaterFreezeManager {
         t.setDaemon(true);
         return t;
     });
+    private final AtomicBoolean shutdown = new AtomicBoolean(false);
 
     /**
      * 记录已经被我们替换成冰的方块位置。
@@ -265,6 +266,7 @@ public class WaterFreezeManager {
      * 关闭工作线程（在世界卸载时调用，可选）。
      */
     public void shutdown() {
+        shutdown.set(true);
         executor.shutdownNow();
         currentIcePositions.clear();
         originalWaterStates.clear();
@@ -278,12 +280,15 @@ public class WaterFreezeManager {
      * 安排一次完整扫描：根据 sample 对玩家周围区域「结冰 + 解冻」。
      */
     private void scheduleScanAndApply(SeasonSample sample) {
+        if (isExecutorUnavailable()) {
+            return;
+        }
         if (!scanning.compareAndSet(false, true)) {
             // 已有扫描任务在执行，略过这次，避免堆积
             return;
         }
 
-        executor.submit(() -> {
+        submitSafely(() -> {
             try {
                 scanAndApplyFrozenField(sample);
             } catch (Throwable t) {
@@ -301,11 +306,14 @@ public class WaterFreezeManager {
      * 确保它们根据新的覆盖度值正确更新（冻结或解冻）。
      */
     private void scheduleUpdateAllExistingIce(SeasonSample sample) {
+        if (isExecutorUnavailable()) {
+            return;
+        }
         if (!scanning.compareAndSet(false, true)) {
             return;
         }
 
-        executor.submit(() -> {
+        submitSafely(() -> {
             try {
                 updateAllExistingIce(sample);
             } catch (Throwable t) {
@@ -320,10 +328,13 @@ public class WaterFreezeManager {
      * 覆盖度接近 0 时，只需融化我们之前冻住的冰块。
      */
     private void scheduleMeltOnly() {
+        if (isExecutorUnavailable()) {
+            return;
+        }
         if (!scanning.compareAndSet(false, true)) {
             return;
         }
-        executor.submit(() -> {
+        submitSafely(() -> {
             try {
                 meltAllCurrentIce();
             } catch (Throwable t) {
@@ -338,10 +349,13 @@ public class WaterFreezeManager {
      * 没有 sample 时（轨道被清空），完全恢复所有冰块。
      */
     private void scheduleFullClear() {
+        if (isExecutorUnavailable()) {
+            return;
+        }
         if (!scanning.compareAndSet(false, true)) {
             return;
         }
-        executor.submit(() -> {
+        submitSafely(() -> {
             try {
                 meltAllCurrentIce();
             } catch (Throwable t) {
@@ -350,6 +364,20 @@ public class WaterFreezeManager {
                 scanning.set(false);
             }
         });
+    }
+
+    private boolean isExecutorUnavailable() {
+        return shutdown.get() || executor.isShutdown() || executor.isTerminated();
+    }
+
+    private void submitSafely(Runnable task) {
+        try {
+            executor.submit(task);
+        } catch (RejectedExecutionException e) {
+            // 退出阶段线程池可能已关闭，忽略即可，避免刷栈污染日志。
+            scanning.set(false);
+            LOGGER.debug("[WaterFreezeManager] 线程池已关闭，跳过调度任务");
+        }
     }
 
     // ========================================================================
