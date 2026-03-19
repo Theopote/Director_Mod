@@ -42,11 +42,11 @@ dependencies {
 	// Fabric API. This is technically optional, but you probably want it anyway.
 	modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
-	// ImGui Java bindings (UI framework) - 升级到最新版本以修复中文字体bug
-	implementation "io.github.spair:imgui-java-binding:1.86.11"
-	implementation "io.github.spair:imgui-java-lwjgl3:1.86.11"
-	// ImGui native library for Windows (required at runtime)
-	runtimeOnly "io.github.spair:imgui-java-natives-windows:1.86.11"
+	// ImGui Java bindings (UI framework)
+	// 使用 include(...) 将库打进发布 jar，避免玩家仅放主模组时出现 NoClassDefFoundError。
+	implementation include("io.github.spair:imgui-java-binding:1.86.11")
+	implementation include("io.github.spair:imgui-java-lwjgl3:1.86.11")
+	implementation include("io.github.spair:imgui-java-natives-windows:1.86.11")
 
 	// JSON serialization
 	implementation "com.google.code.gson:gson:2.11.0"
