@@ -47,7 +47,40 @@ public class ChronoBlocksScreen extends Screen {
     private boolean isInitialized = false;
     private boolean directorModeActive = false;
     private long lastModeResyncMs = 0L;
+    private boolean closeCleanupDone = false;
     private WorldSnapshotManager snapshotManager;
+    private UISessionState uiSessionState;
+
+    private static final class UISessionState {
+        private final com.chronoblocks.ui.timeline.playback.camera.CameraSample cameraSample;
+        private final long worldTime;
+        private final long worldTimeOfDay;
+        private final float rainGradient;
+        private final float thunderGradient;
+        private final boolean raining;
+        private final Long serverWorldTimeOfDay;
+        private final Boolean serverDoDaylightCycle;
+
+        private UISessionState(
+            com.chronoblocks.ui.timeline.playback.camera.CameraSample cameraSample,
+            long worldTime,
+            long worldTimeOfDay,
+            float rainGradient,
+            float thunderGradient,
+            boolean raining,
+            Long serverWorldTimeOfDay,
+            Boolean serverDoDaylightCycle
+        ) {
+            this.cameraSample = cameraSample;
+            this.worldTime = worldTime;
+            this.worldTimeOfDay = worldTimeOfDay;
+            this.rainGradient = rainGradient;
+            this.thunderGradient = thunderGradient;
+            this.raining = raining;
+            this.serverWorldTimeOfDay = serverWorldTimeOfDay;
+            this.serverDoDaylightCycle = serverDoDaylightCycle;
+        }
+    }
 
     public ChronoBlocksScreen() {
         super(Text.literal("ChronoBlocks"));
@@ -316,22 +349,7 @@ public class ChronoBlocksScreen extends Screen {
     @Override
     public void removed() {
         super.removed();
-        LOGGER.info("[ChronoBlocks] 🧭 退出导演模式界面");
-        exitDirectorMode();
-        cleanupRenderSystems(false);
-        InputFocusManager.getInstance().setChronoBlocksScreenActive(false);
-        
-        // ⭐ 修复：不再在这里通知 CameraController，由 close() 统一处理
-        // 避免重复调用导致状态混乱
-        
-        // 停用 UI 相关快捷键上下文
-        try {
-            com.chronoblocks.ui.input.ShortcutInitializer.deactivateUIContexts();
-        } catch (Exception e) {
-            LOGGER.warn("[ChronoBlocks] 停用 UI 快捷键上下文失败", e);
-        }
-        
-        LOGGER.info("[ChronoBlocks] ChronoBlocksScreen 已关闭，恢复游戏输入模式");
+        performCloseCleanup("removed");
     }
     
     @Override
@@ -426,9 +444,22 @@ public class ChronoBlocksScreen extends Screen {
     
     @Override
     public void close() {
+        performCloseCleanup("close");
+        super.close();
+    }
+
+    private void performCloseCleanup(String source) {
+        if (closeCleanupDone) {
+            return;
+        }
+        closeCleanupDone = true;
+
+        LOGGER.info("[ChronoBlocks] 🧭 退出导演模式界面 (source={})", source);
+        exitDirectorMode();
+
         // 关闭 UI：必须强制停用（否则 controller 会因 UI 打开而忽略 soft-deactivate）
         ChronoBlocksClientController.getInstance().forceDeactivateChronoBlocksMode();
-        
+
         // ⭐ 单一摄像机系统：关闭窗口时通知时间线控制器停止驱动摄像机
         try {
             com.chronoblocks.ui.timeline.playback.camera.TimelineCameraController.getInstance().onTimelineUiClosed();
@@ -436,7 +467,7 @@ public class ChronoBlocksScreen extends Screen {
         } catch (Exception e) {
             LOGGER.warn("[ChronoBlocks] 通知 TimelineCameraController 关闭窗口时出错", e);
         }
-        
+
         // ⭐ 时间轨道系统：关闭窗口时清理时间控制器状态
         try {
             com.chronoblocks.ui.timeline.playback.time.TimelineWorldController.getInstance().clear();
@@ -444,7 +475,7 @@ public class ChronoBlocksScreen extends Screen {
         } catch (Exception e) {
             LOGGER.warn("[ChronoBlocks] 清理 TimelineWorldController 状态时出错", e);
         }
-        
+
         // ⭐ 季节轨道系统：关闭窗口时清理季节控制器状态
         try {
             com.chronoblocks.ui.timeline.playback.season.TimelineSeasonController.getInstance().clear();
@@ -452,7 +483,7 @@ public class ChronoBlocksScreen extends Screen {
         } catch (Exception e) {
             LOGGER.warn("[ChronoBlocks] 清理 TimelineSeasonController 状态时出错", e);
         }
-        
+
         // ⭐ 天气轨道系统：关闭窗口时清理天气控制器状态
         try {
             com.chronoblocks.ui.timeline.playback.weather.TimelineWeatherController.getInstance().clear();
@@ -460,10 +491,16 @@ public class ChronoBlocksScreen extends Screen {
         } catch (Exception e) {
             LOGGER.warn("[ChronoBlocks] 清理 TimelineWeatherController 状态时出错", e);
         }
-        
-        // 季节效果恢复已由 forceDeactivateChronoBlocksMode 统一负责，避免重复执行
-        
+
         cleanupRenderSystems(true);
+        InputFocusManager.getInstance().setChronoBlocksScreenActive(false);
+
+        // 停用 UI 相关快捷键上下文
+        try {
+            com.chronoblocks.ui.input.ShortcutInitializer.deactivateUIContexts();
+        } catch (Exception e) {
+            LOGGER.warn("[ChronoBlocks] 停用 UI 快捷键上下文失败", e);
+        }
 
         if (client != null && client.mouse != null) {
             client.mouse.lockCursor();
@@ -472,7 +509,7 @@ public class ChronoBlocksScreen extends Screen {
 
         // 在关闭前保存当前世界的布局
         try {
-            com.chronoblocks.ui.layout.LayoutPersistenceManager layoutManager = 
+            com.chronoblocks.ui.layout.LayoutPersistenceManager layoutManager =
                 com.chronoblocks.ui.layout.LayoutPersistenceManager.getInstance();
             layoutManager.saveLayout();
             layoutManager.saveImGuiIni();
@@ -500,7 +537,7 @@ public class ChronoBlocksScreen extends Screen {
         } catch (Exception e) {
             LOGGER.warn("[ChronoBlocks] 保存时间线数据失败: {}", e.getMessage(), e);
         }
-        
+
         if (uiManager != null) {
             try {
                 uiManager.dispose();
@@ -510,7 +547,7 @@ public class ChronoBlocksScreen extends Screen {
             } catch (Exception e) {
                 LOGGER.warn("[ChronoBlocks] 释放UI管理器资源时发生错误", e);
             } finally {
-                uiManager = null; // 确保引用被清空
+                uiManager = null;
             }
         }
 
@@ -532,7 +569,7 @@ public class ChronoBlocksScreen extends Screen {
         initializationFailed = false;
         isInitialized = false;
 
-        super.close();
+        LOGGER.info("[ChronoBlocks] ChronoBlocksScreen 已关闭，恢复游戏输入模式");
     }
     
     /**
@@ -596,6 +633,8 @@ public class ChronoBlocksScreen extends Screen {
         directorModeActive = true;
 
         try {
+            captureUiSessionState();
+
             // 1️⃣ 冻结世界时间与实体
             freezeWorld();
 
@@ -638,6 +677,8 @@ public class ChronoBlocksScreen extends Screen {
                     snapshotManager.restoreSnapshot();
                     LOGGER.info("[ChronoBlocks] 世界快照恢复完成");
                 }
+
+                restoreUiSessionState();
             }
 
             directorModeActive = false;
@@ -672,6 +713,98 @@ public class ChronoBlocksScreen extends Screen {
             }
         } catch (Exception e) {
             LOGGER.error("[ChronoBlocks] 冻结世界失败", e);
+        }
+    }
+
+    private void captureUiSessionState() {
+        if (client == null || client.world == null) {
+            return;
+        }
+        try {
+            var cameraSample = com.chronoblocks.ui.timeline.playback.camera.CameraAccessor.sampleFromGameCamera(client);
+            long worldTime = client.world.getTime();
+            long worldTimeOfDay = client.world.getTimeOfDay();
+            float rain = client.world.getRainGradient(1.0f);
+            float thunder = client.world.getThunderGradient(1.0f);
+            boolean raining = client.world.isRaining();
+
+            Long serverTimeOfDay = null;
+            Boolean serverDoDaylightCycle = null;
+            var server = client.getServer();
+            if (server != null) {
+                var serverWorld = server.getOverworld();
+                if (serverWorld != null) {
+                    serverTimeOfDay = serverWorld.getTimeOfDay();
+                    serverDoDaylightCycle = serverWorld.getGameRules()
+                        .getBoolean(net.minecraft.world.GameRules.DO_DAYLIGHT_CYCLE);
+                }
+            }
+
+            uiSessionState = new UISessionState(
+                cameraSample,
+                worldTime,
+                worldTimeOfDay,
+                rain,
+                thunder,
+                raining,
+                serverTimeOfDay,
+                serverDoDaylightCycle
+            );
+            LOGGER.info(
+                "[ChronoBlocks] 已捕获 UI 会话前状态: worldTime={}, timeOfDay={}, rain={}, thunder={}, raining={}, serverTimeOfDay={}, serverDoDaylightCycle={}",
+                worldTime, worldTimeOfDay, rain, thunder, raining, serverTimeOfDay, serverDoDaylightCycle
+            );
+        } catch (Exception e) {
+            LOGGER.warn("[ChronoBlocks] 捕获 UI 会话前状态失败", e);
+            uiSessionState = null;
+        }
+    }
+
+    private void restoreUiSessionState() {
+        if (uiSessionState == null || client == null || client.world == null) {
+            return;
+        }
+        try {
+            // 先恢复相机视角，再恢复世界时间与天气，尽量回到打开 UI 前状态。
+            if (uiSessionState.cameraSample != null) {
+                com.chronoblocks.ui.timeline.playback.camera.CameraAccessor.applySampleToPlayerEntity(
+                    client, uiSessionState.cameraSample
+                );
+                com.chronoblocks.ui.timeline.playback.camera.CameraRuntime.getInstance()
+                    .updateCurrentSample(uiSessionState.cameraSample);
+            }
+
+            // 单人世界优先恢复服务端权威时间与昼夜规则，避免客户端被下一次同步包覆盖。
+            var server = client.getServer();
+            if (server != null && uiSessionState.serverWorldTimeOfDay != null) {
+                var serverWorld = server.getOverworld();
+                if (serverWorld != null) {
+                    if (uiSessionState.serverDoDaylightCycle != null) {
+                        serverWorld.getGameRules()
+                            .get(net.minecraft.world.GameRules.DO_DAYLIGHT_CYCLE)
+                            .set(uiSessionState.serverDoDaylightCycle, server);
+                    }
+                    serverWorld.setTimeOfDay(uiSessionState.serverWorldTimeOfDay);
+                }
+            }
+
+            client.world.setTime(uiSessionState.worldTime, uiSessionState.worldTimeOfDay, false);
+            client.world.setRainGradient(uiSessionState.rainGradient);
+            client.world.setThunderGradient(uiSessionState.thunderGradient);
+            client.world.getLevelProperties().setRaining(uiSessionState.raining);
+
+            LOGGER.info(
+                "[ChronoBlocks] 已恢复 UI 会话前状态: worldTime={}, timeOfDay={}, rain={}, thunder={}, raining={}",
+                uiSessionState.worldTime,
+                uiSessionState.worldTimeOfDay,
+                uiSessionState.rainGradient,
+                uiSessionState.thunderGradient,
+                uiSessionState.raining
+            );
+        } catch (Exception e) {
+            LOGGER.warn("[ChronoBlocks] 恢复 UI 会话前状态失败", e);
+        } finally {
+            uiSessionState = null;
         }
     }
 
