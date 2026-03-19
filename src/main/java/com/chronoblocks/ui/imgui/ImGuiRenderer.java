@@ -31,11 +31,6 @@ public class ImGuiRenderer {
     private boolean frameInProgress;
     private boolean drawDataReady;
 
-    /** ChronoBlocks 专用的 ImGui 上下文，实现与其他 ImGui 模组的样式隔离 */
-    private ImGuiContext ourContext;
-    /** 初始化前的 ImGui 上下文，渲染结束后恢复以便其他模组使用 */
-    private ImGuiContext previousContext;
-
     // perf (throttled)
     private long lastPerfLogMs = 0L;
     private long lastRenderNs = 0L;
@@ -82,11 +77,11 @@ public class ImGuiRenderer {
                 throw new RuntimeException("Not on main thread");
             }
 
-            // 初始化 ImGui - 使用独立上下文，避免与其他 ImGui 模组互相影响样式
-            LOGGER.debug("[ChronoBlocks] Creating isolated ImGui context...");
-            previousContext = ImGui.getCurrentContext();
-            ourContext = ImGui.createContext();
-            ImGui.setCurrentContext(ourContext);
+            // 初始化 ImGui - 使用共享上下文（与 Treefactory 一致），样式通过 ChronoblocksStyleScope 临时 push/pop 隔离
+            if (ImGui.getCurrentContext() == null) {
+                ImGuiContext ctx = ImGui.createContext();
+                ImGui.setCurrentContext(ctx);
+            }
 
             // 配置 ImGui IO
             ImGuiIO io = ImGui.getIO();
@@ -109,9 +104,7 @@ public class ImGuiRenderer {
             // 初始化字体
             initializeFonts(io);
 
-            // 设置 ImGui 样式
-            LOGGER.debug("[ChronoBlocks] Setting ImGui style...");
-            ImGui.styleColorsDark();  // 使用深色主题
+            // 不在此处设置样式；ChronoblocksStyleScope 在每帧渲染时临时 push 样式，渲染后 pop，避免影响 Treefactory 等模组
 
             // 初始化 GLFW 实现
             LOGGER.debug("[ChronoBlocks] Initializing GLFW implementation...");
@@ -173,9 +166,6 @@ public class ImGuiRenderer {
 
             try {
                 LOGGER.debug("[ChronoBlocks] Beginning ImGui frame...");
-
-                // 切换到 ChronoBlocks 专用上下文，确保样式不被其他模组影响
-                ImGui.setCurrentContext(ourContext);
 
                 // 检查并更新INI文件路径（如果世界已切换）
                 checkAndUpdateIniPath();
@@ -304,8 +294,6 @@ public class ImGuiRenderer {
                 LOGGER.error("[ChronoBlocks] Failed to render pending ImGui draw data", e);
             } finally {
                 drawDataReady = false;
-                // 恢复之前的 ImGui 上下文，避免 ChronoBlocks 样式影响其他模组
-                ImGui.setCurrentContext(previousContext);
                 long nowMs = System.currentTimeMillis();
                 if (nowMs - lastPerfLogMs > 5000L) {
                     lastPerfLogMs = nowMs;
@@ -342,12 +330,6 @@ public class ImGuiRenderer {
                     imGuiGlfw.dispose();
                     imGuiGlfw = null;
                 }
-
-                // 恢复原上下文后再销毁 ChronoBlocks 的上下文
-                ImGui.setCurrentContext(previousContext);
-                ImGui.destroyContext(ourContext);
-                ourContext = null;
-                previousContext = null;
 
                 initialized = false;
                 frameInProgress = false;

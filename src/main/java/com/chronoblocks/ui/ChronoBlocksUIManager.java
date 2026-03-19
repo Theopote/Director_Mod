@@ -15,7 +15,6 @@ import com.chronoblocks.ui.coordinator.UIPlaybackBridge;
 import com.chronoblocks.ui.coordinator.UIShortcutCoordinator;
 import com.chronoblocks.ui.coordinator.UIDialogCoordinator;
 import com.chronoblocks.ui.imgui.ImGuiUtils;
-import com.chronoblocks.ui.theme.UITheme;
 import com.chronoblocks.ui.properties.PropertyAdapterBootstrap;
 import com.chronoblocks.export.video.VideoExportManager;
 import com.chronoblocks.export.video.VideoExportSettings;
@@ -374,9 +373,7 @@ public class ChronoBlocksUIManager {
         // 验证必需的面板是否存在
         validateRequiredPanels();
 
-        // 应用UI主题 v4.5 🎨
-        UITheme.applyDarkTheme();
-        LOGGER.info("[ChronoBlocks] UI主题已应用");
+        // 样式由 ChronoblocksStyleScope 在每帧渲染时临时 push/pop，不在此处永久修改，避免影响 Treefactory 等模组
         
         // 初始化属性系统 v4.9（PropertyAdapterBootstrap + ui.properties.PropertyAdapterRegistry）
         com.chronoblocks.ui.properties.PropertyAdapterBootstrap.initialize();
@@ -1695,7 +1692,7 @@ public class ChronoBlocksUIManager {
         @Override
         public void setTheme(String theme) {
             if ("Dark".equals(theme)) {
-                UITheme.applyDarkTheme();
+                // 主题由 ChronoblocksStyleScope 每帧应用，此处无需操作
             } else if ("Light".equals(theme)) {
                 // TODO: 实现浅色主题
                 LOGGER.warn("[Layout] Light theme not implemented yet");
@@ -1833,9 +1830,7 @@ public class ChronoBlocksUIManager {
 
         this.panelRegistry = panelRegistry;
         
-        // 应用UI主题 v4.5 🎨
-        UITheme.applyDarkTheme();
-        LOGGER.info("[ChronoBlocks] UI主题已应用");
+        // 样式由 ChronoblocksStyleScope 在每帧渲染时临时 push/pop，不在此处永久修改，避免影响 Treefactory 等模组
         
         // 初始化属性系统 v4.5 📋
         PropertyAdapterBootstrap.initialize();

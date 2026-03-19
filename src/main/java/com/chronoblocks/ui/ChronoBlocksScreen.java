@@ -8,6 +8,7 @@ import com.chronoblocks.client.renderer.pipeline.ChronoBlocksRendererRegistry;
 import com.chronoblocks.ui.cursor.ImGuiCursorController;
 import com.chronoblocks.ui.di.UIConfiguration;
 import com.chronoblocks.ui.di.UIConfigurationBuilder;
+import com.chronoblocks.ui.imgui.ChronoblocksStyleScope;
 import com.chronoblocks.ui.imgui.ImGuiRenderer;
 import com.chronoblocks.ui.input.InputFocusManager;
 import com.chronoblocks.world.snapshot.WorldSnapshotManager;
@@ -226,13 +227,15 @@ public class ChronoBlocksScreen extends Screen {
                 LOGGER.trace("[ChronoBlocks] ImGui frame started");
             }
 
-            // 渲染UI管理器（包含DockSpace）
+            // 渲染UI管理器（包含DockSpace）- 使用 ChronoblocksStyleScope 临时应用样式，渲染后 pop 恢复，避免影响 Treefactory 等模组
             if (uiManager != null) {
             InputFocusManager.getInstance().beginFrame();
             if (LOGGER.isTraceEnabled()) {
                 LOGGER.trace("[ChronoBlocks] Rendering UI manager...");
             }
-            uiManager.render();
+            try (ChronoblocksStyleScope scope = ChronoblocksStyleScope.enter()) {
+                uiManager.render();
+            }
             if (LOGGER.isTraceEnabled()) {
                 LOGGER.trace("[ChronoBlocks] UI manager rendered successfully");
             }
@@ -476,6 +479,8 @@ public class ChronoBlocksScreen extends Screen {
             return;
         }
         closeCleanupDone = true;
+
+        // 样式隔离已改为 ChronoblocksStyleScope（每帧 push/pop），不再需要上下文切换或恢复
 
         LOGGER.info("[ChronoBlocks] 🧭 退出导演模式界面 (source={})", source);
         exitDirectorMode();
