@@ -50,6 +50,7 @@ public class ChronoBlocksScreen extends Screen {
     private boolean closeCleanupDone = false;
     private WorldSnapshotManager snapshotManager;
     private UISessionState uiSessionState;
+    private static volatile PendingRestoreState pendingRestoreState;
 
     private static final class UISessionState {
         private final com.chronoblocks.ui.timeline.playback.camera.CameraSample cameraSample;
@@ -79,6 +80,28 @@ public class ChronoBlocksScreen extends Screen {
             this.raining = raining;
             this.serverWorldTimeOfDay = serverWorldTimeOfDay;
             this.serverDoDaylightCycle = serverDoDaylightCycle;
+        }
+    }
+
+    private static final class PendingRestoreState {
+        private final long worldTime;
+        private final long worldTimeOfDay;
+        private final Long serverWorldTimeOfDay;
+        private final Boolean serverDoDaylightCycle;
+        private int ticksRemaining;
+
+        private PendingRestoreState(
+            long worldTime,
+            long worldTimeOfDay,
+            Long serverWorldTimeOfDay,
+            Boolean serverDoDaylightCycle,
+            int ticksRemaining
+        ) {
+            this.worldTime = worldTime;
+            this.worldTimeOfDay = worldTimeOfDay;
+            this.serverWorldTimeOfDay = serverWorldTimeOfDay;
+            this.serverDoDaylightCycle = serverDoDaylightCycle;
+            this.ticksRemaining = ticksRemaining;
         }
     }
 
@@ -801,10 +824,60 @@ public class ChronoBlocksScreen extends Screen {
                 uiSessionState.thunderGradient,
                 uiSessionState.raining
             );
+
+            // 关闭 UI 后做短期二次校正，抵消异步同步把时间再次改写的情况。
+            scheduleDeferredRestore(uiSessionState);
         } catch (Exception e) {
             LOGGER.warn("[ChronoBlocks] 恢复 UI 会话前状态失败", e);
         } finally {
             uiSessionState = null;
+        }
+    }
+
+    private static void scheduleDeferredRestore(UISessionState state) {
+        if (state == null) {
+            return;
+        }
+        pendingRestoreState = new PendingRestoreState(
+            state.worldTime,
+            state.worldTimeOfDay,
+            state.serverWorldTimeOfDay,
+            state.serverDoDaylightCycle,
+            40
+        );
+    }
+
+    public static void tickPendingRestore(MinecraftClient client) {
+        PendingRestoreState state = pendingRestoreState;
+        if (state == null || client == null || client.world == null) {
+            return;
+        }
+
+        if (client.currentScreen instanceof ChronoBlocksScreen) {
+            return;
+        }
+
+        try {
+            var server = client.getServer();
+            if (server != null && state.serverWorldTimeOfDay != null) {
+                var serverWorld = server.getOverworld();
+                if (serverWorld != null) {
+                    if (state.serverDoDaylightCycle != null) {
+                        serverWorld.getGameRules()
+                            .get(net.minecraft.world.GameRules.DO_DAYLIGHT_CYCLE)
+                            .set(state.serverDoDaylightCycle, server);
+                    }
+                    serverWorld.setTimeOfDay(state.serverWorldTimeOfDay);
+                }
+            }
+            client.world.setTime(state.worldTime, state.worldTimeOfDay, false);
+        } catch (Exception e) {
+            LOGGER.debug("[ChronoBlocks] 延迟时间校正失败", e);
+        }
+
+        state.ticksRemaining--;
+        if (state.ticksRemaining <= 0) {
+            pendingRestoreState = null;
         }
     }
 

@@ -201,6 +201,8 @@ public class ChronoBlocksClient implements ClientModInitializer {
      */
     private void registerKeyBindingHandler() {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            com.chronoblocks.ui.ChronoBlocksScreen.tickPendingRestore(client);
+
             if (client.player != null && client.currentScreen == null) {
                 // 检查自定义键绑定
                 if (chronoBlocksKeyBinding.wasPressed()) {
