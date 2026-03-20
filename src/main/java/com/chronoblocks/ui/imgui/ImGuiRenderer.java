@@ -77,11 +77,12 @@ public class ImGuiRenderer {
                 throw new RuntimeException("Not on main thread");
             }
 
-            // 初始化 ImGui - 使用共享上下文（与 Treefactory 一致），样式通过 ChronoblocksStyleScope 临时 push/pop 隔离
-            if (ImGui.getCurrentContext() == null) {
-                ImGuiContext ctx = ImGui.createContext();
-                ImGui.setCurrentContext(ctx);
+            // 初始化 ImGui - 始终创建并设置上下文（无 Treefactory 时 getCurrentContext 为 null，必须创建）
+            ImGuiContext ctx = ImGui.createContext();
+            if (ctx == null) {
+                throw new RuntimeException("[ChronoBlocks] ImGui.createContext() 返回 null");
             }
+            ImGui.setCurrentContext(ctx);
 
             // 配置 ImGui IO
             ImGuiIO io = ImGui.getIO();
