@@ -47,8 +47,8 @@ public static void selectActor(UUID actorId) {
     
     // ⭐ 明确清除方块选区（Actor 选择不应该有方块选区）
     try {
-        com.chronoblocks.core.selection.SelectionManager blockSelectionManager = 
-            com.chronoblocks.core.selection.SelectionManager.get();
+        com.director.core.selection.SelectionManager blockSelectionManager = 
+            com.director.core.selection.SelectionManager.get();
         if (blockSelectionManager != null) {
             blockSelectionManager.clearSelection();
         }
@@ -63,8 +63,8 @@ public static void selectActor(UUID actorId) {
 public void setTargetActor(UUID actorId) {
     // ⭐ 清除方块选区（Gizmo 激活前）
     try {
-        com.chronoblocks.core.selection.SelectionManager blockSelectionManager = 
-            com.chronoblocks.core.selection.SelectionManager.get();
+        com.director.core.selection.SelectionManager blockSelectionManager = 
+            com.director.core.selection.SelectionManager.get();
         if (blockSelectionManager != null) {
             blockSelectionManager.clearSelection();
         }

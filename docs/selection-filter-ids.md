@@ -1,4 +1,4 @@
-# ChronoBlocks Selection Filter ID 规范表（官方）
+# Director Selection Filter ID 规范表（官方）
 
 > 本文档是 **filterId 命名、语义、UI 文案、适用层级** 的唯一权威来源。  
 > 代码中的 `FilterIds`、`BlockFilterRegistry`、`SelectionFilterPanel`、Preset 内置模式均须与此表一致。

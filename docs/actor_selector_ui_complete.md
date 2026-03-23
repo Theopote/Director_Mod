@@ -4,7 +4,7 @@
 
 ### 1. **ActorSelectorPanel 类**
 
-**位置**：`src/main/java/com/chronoblocks/ui/actor/ActorSelectorPanel.java`
+**位置**：`src/main/java/com/director/ui/actor/ActorSelectorPanel.java`
 
 **核心功能**：
 - ✅ 显示 Actor 列表（名称 + 类型）
@@ -28,7 +28,7 @@
 
 ### 2. **EntityTrack.addDefaultSpawnClip() 方法**
 
-**位置**：`src/main/java/com/chronoblocks/ui/timeline/model/entity/EntityTrack.java`
+**位置**：`src/main/java/com/director/ui/timeline/model/entity/EntityTrack.java`
 
 **功能**：
 - 在当前时间点创建默认的 `EntitySpawnClip`
@@ -39,7 +39,7 @@
 
 ### 3. **PropertiesPanel 集成**
 
-**位置**：`src/main/java/com/chronoblocks/ui/panels/PropertiesPanel.java`
+**位置**：`src/main/java/com/director/ui/panels/PropertiesPanel.java`
 
 **集成方式**：
 - 在 `renderNoSelectionMessage()` 中添加 Actor Selector 区块
@@ -79,14 +79,14 @@
 ## 📋 文件变更清单
 
 ### 新增文件
-- ✅ `src/main/java/com/chronoblocks/ui/actor/ActorSelectorPanel.java`
+- ✅ `src/main/java/com/director/ui/actor/ActorSelectorPanel.java`
 - ✅ `docs/actor_selector_ui_complete.md`
 
 ### 修改文件
-- ✅ `src/main/java/com/chronoblocks/ui/timeline/model/entity/EntityTrack.java`
+- ✅ `src/main/java/com/director/ui/timeline/model/entity/EntityTrack.java`
   - 添加 `addDefaultSpawnClip(float time)` 方法
 
-- ✅ `src/main/java/com/chronoblocks/ui/panels/PropertiesPanel.java`
+- ✅ `src/main/java/com/director/ui/panels/PropertiesPanel.java`
   - 添加 `ActorSelectorPanel` 字段
   - 添加 `ensureActorSelectorInitialized()` 方法
   - 在 `renderNoSelectionMessage()` 中渲染 Actor Selector
@@ -103,7 +103,7 @@
 | Runtime 驱动          | ✅  |
 | **导演创建演员入口**        | ✅  |
 
-**ChronoBlocks 现在已经是"能用"的导演工具了！** 🎬
+**Director 现在已经是"能用"的导演工具了！** 🎬
 
 ## 🚀 下一步（Step 4B）
 

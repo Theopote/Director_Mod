@@ -4,10 +4,10 @@
 
 ### 1. **ActorRegistry 序列化**
 
-**位置**：`src/main/java/com/chronoblocks/actor/persistence/ActorRegistryPersistence.java`
+**位置**：`src/main/java/com/director/actor/persistence/ActorRegistryPersistence.java`
 
 **核心功能**：
-- ✅ 保存 ActorRegistry 到世界目录（`saves/<world>/chronoblocks/actor_registry.json`）
+- ✅ 保存 ActorRegistry 到世界目录（`saves/<world>/director/actor_registry.json`）
 - ✅ 从文件加载 ActorRegistry
 - ✅ 使用 Gson 进行 JSON 序列化
 - ✅ 支持版本控制（version 1.0）
@@ -63,7 +63,7 @@
 ### 3. **移除旧版本代码**
 
 **已删除**：
-- ✅ `src/main/java/com/chronoblocks/ui/timeline/playback/entity/EntityRuntimeController.java`（完全删除）
+- ✅ `src/main/java/com/director/ui/timeline/playback/entity/EntityRuntimeController.java`（完全删除）
 
 **已清理**：
 - ✅ TimelinePanel 中旧版本 EntityRuntimeController 的绑定代码（已移除）
@@ -79,7 +79,7 @@ ActorRegistry
   ↓
 ActorRegistryPersistence.saveToFile()
   ↓
-saves/<world>/chronoblocks/actor_registry.json
+saves/<world>/director/actor_registry.json
 ```
 
 ### 加载流程
@@ -136,36 +136,36 @@ ActorRegistryPersistence.saveToFile()
 ## 📋 文件变更清单
 
 ### 新增文件
-- ✅ `src/main/java/com/chronoblocks/actor/persistence/ActorRegistryPersistence.java`
+- ✅ `src/main/java/com/director/actor/persistence/ActorRegistryPersistence.java`
 - ✅ `docs/actor_system_final_migration_complete.md`
 
 ### 修改文件
-- ✅ `src/main/java/com/chronoblocks/actor/ActorRegistryManager.java`
+- ✅ `src/main/java/com/director/actor/ActorRegistryManager.java`
   - 添加序列化支持
   - 添加项目切换支持
   - 添加自动加载功能
   - 添加手动保存功能
 
-- ✅ `src/main/java/com/chronoblocks/ui/timeline/model/TimelineModel.java`
+- ✅ `src/main/java/com/director/ui/timeline/model/TimelineModel.java`
   - `save()` 方法同时保存 ActorRegistry
   - `reload()` 方法同时加载 ActorRegistry
   - `markDirty()` 触发保存时同时保存 ActorRegistry
 
-- ✅ `src/main/java/com/chronoblocks/ui/panels/TimelinePanel.java`
+- ✅ `src/main/java/com/director/ui/panels/TimelinePanel.java`
   - 移除旧版本 EntityRuntimeController 绑定
   - 移除旧版本 EntityRuntimeController update() 调用
 
-- ✅ `src/main/java/com/chronoblocks/actor/ActorRegistry.java`
+- ✅ `src/main/java/com/director/actor/ActorRegistry.java`
   - 添加自动保存注释（可选，已注释）
 
 ### 删除文件
-- ✅ `src/main/java/com/chronoblocks/ui/timeline/playback/entity/EntityRuntimeController.java`
+- ✅ `src/main/java/com/director/ui/timeline/playback/entity/EntityRuntimeController.java`
 
 ## ⚠️ 已知问题
 
 ### PreviewActorEntity 抽象方法
 
-**位置**：`src/main/java/com/chronoblocks/actor/preview/PreviewActorEntity.java`
+**位置**：`src/main/java/com/director/actor/preview/PreviewActorEntity.java`
 
 **问题**：
 - 需要实现 `readCustomData(ReadView)` 和 `writeCustomData(WriteView)` 抽象方法
@@ -195,5 +195,5 @@ ActorRegistryPersistence.saveToFile()
 - 测试项目切换
 - 性能优化（减少频繁保存）
 
-ChronoBlocks Actor System 最终迁移完成！🎬
+Director Actor System 最终迁移完成！🎬
 

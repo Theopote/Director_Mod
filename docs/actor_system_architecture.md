@@ -1,4 +1,4 @@
-# ChronoBlocks Actor System · 核心架构
+# Director Actor System · 核心架构
 
 ## 🎭 核心宪法（Architecture Law）
 
@@ -131,7 +131,7 @@ ActorRuntimeController
 - ❌ 在世界中生成真实实体作为演员
 - ❌ 把时间线和世界状态绑定在一起
 
-这些放弃，会让 ChronoBlocks 长期可维护、可扩展、可导出。
+这些放弃，会让 Director 长期可维护、可扩展、可导出。
 
 ## 📋 实现状态
 
@@ -172,12 +172,12 @@ ActorRuntimeController
 
 ## ✨ 总结
 
-ChronoBlocks Actor System 已确立：
+Director Actor System 已确立：
 
 1. ✅ **Actor 是第一等公民** - 纯数据对象，不依赖世界
 2. ✅ **Preview Entity 是投影** - 只存在于客户端，不污染世界
 3. ✅ **Timeline 只认识 Actor** - 可复制、可导出、可重放
 4. ✅ **架构清晰** - 数据层、采样层、运行时层、投影层分离
 
-这是 ChronoBlocks 的"导演级"设计。🎬
+这是 Director 的"导演级"设计。🎬
 

@@ -10,7 +10,7 @@
 
 ### IntelliJ IDEA / Android Studio
 
-1. **打开文件**：`src/main/java/com/chronoblocks/actor/preview/PreviewActorEntity.java`
+1. **打开文件**：`src/main/java/com/director/actor/preview/PreviewActorEntity.java`
 
 2. **定位到类声明**：
    ```java
@@ -54,7 +54,7 @@
 
 ### Eclipse
 
-1. **打开文件**：`src/main/java/com/chronoblocks/actor/preview/PreviewActorEntity.java`
+1. **打开文件**：`src/main/java/com/director/actor/preview/PreviewActorEntity.java`
 
 2. **定位到类声明**：
    ```java
@@ -72,7 +72,7 @@
 
 ### Visual Studio Code
 
-1. **打开文件**：`src/main/java/com/chronoblocks/actor/preview/PreviewActorEntity.java`
+1. **打开文件**：`src/main/java/com/director/actor/preview/PreviewActorEntity.java`
 
 2. **定位到类声明**：
    ```java

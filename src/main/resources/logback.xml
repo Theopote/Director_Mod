@@ -9,9 +9,9 @@
 
     <!-- 文件输出 -->
     <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
-        <file>logs/chronoblocks.log</file>
+        <file>logs/director.log</file>
         <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
-            <fileNamePattern>logs/chronoblocks.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <fileNamePattern>logs/director.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
             <maxFileSize>10MB</maxFileSize>
             <maxHistory>30</maxHistory>
             <totalSizeCap>1GB</totalSizeCap>
@@ -21,20 +21,20 @@
         </encoder>
     </appender>
 
-    <!-- ChronoBlocks 特定配置 -->
-    <logger name="com.chronoblocks" level="DEBUG" additivity="false">
+    <!-- Director 特定配置 -->
+    <logger name="com.director" level="DEBUG" additivity="false">
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="FILE"/>
     </logger>
 
     <!-- ImGui 相关日志 -->
-    <logger name="com.chronoblocks.client.theme" level="DEBUG" additivity="false">
+    <logger name="com.director.client.theme" level="DEBUG" additivity="false">
         <appender-ref ref="CONSOLE"/>
         <appender-ref ref="FILE"/>
     </logger>
 
     <!-- 性能相关日志 -->
-    <logger name="com.chronoblocks.performance" level="TRACE" additivity="false">
+    <logger name="com.director.performance" level="TRACE" additivity="false">
         <appender-ref ref="FILE"/>
     </logger>
 

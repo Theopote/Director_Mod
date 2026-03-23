@@ -3,12 +3,12 @@
 ## ✅ 已完成的核心功能
 
 ### 1. **ActionBrushState** ✅
-- 位置：`com.chronoblocks.ui.timeline.interaction.ActionBrushState`
+- 位置：`com.director.ui.timeline.interaction.ActionBrushState`
 - 功能：全局轻量状态（当前绘制动作）
 - 状态：已完成
 
 ### 2. **ActionClipIntervalResolver** ✅
-- 位置：`com.chronoblocks.ui.timeline.interaction.ActionClipIntervalResolver`
+- 位置：`com.director.ui.timeline.interaction.ActionClipIntervalResolver`
 - 功能：区间切割算法（涂抹式编辑的核心）
 - 算法：已完成
 

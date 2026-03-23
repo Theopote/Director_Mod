@@ -1,34 +1,34 @@
 {
 	"schemaVersion": 1,
-	"id": "chronoblocks",
+	"id": "director",
 	"version": "${version}",
-	"name": "ChronoBlocks",
+	"name": "Director",
 	"description": "A powerful time-based building and planning mod for Minecraft. Create, manage, and visualize complex building projects with advanced UI tools.",
 	"authors": [
-		"ChronoBlocks Team"
+		"Director Team"
 	],
 	"contact": {
-		"homepage": "https://github.com/ChronoBlocks/chronoblocks",
-		"sources": "https://github.com/ChronoBlocks/chronoblocks",
-		"issues": "https://github.com/ChronoBlocks/chronoblocks/issues"
+		"homepage": "https://github.com/Director/director",
+		"sources": "https://github.com/Director/director",
+		"issues": "https://github.com/Director/director/issues"
 	},
 	"license": "MIT",
-	"icon": "assets/chronoblocks/icon.png",
+	"icon": "assets/director/icon.png",
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-			"com.chronoblocks.ChronoBlocksMod"
+			"com.director.DirectorMod"
 		],
 		"client": [
-			"com.chronoblocks.client.ChronoBlocksClient"
+			"com.director.client.DirectorClient"
 		],
 		"fabric-datagen": [
-			"com.chronoblocks.ChronoBlocksDataGenerator"
+			"com.director.DirectorDataGenerator"
 		]
 	},
 	"mixins": [
 		{
-			"config": "chronoblocks.client.mixins.json",
+			"config": "director.client.mixins.json",
 			"environment": "client"
 		}
 	],
@@ -49,8 +49,8 @@
 	"custom": {
 		"modmenu": {
 			"links": {
-				"modmenu.discord": "https://discord.gg/chronoblocks",
-				"modmenu.wiki": "https://github.com/ChronoBlocks/chronoblocks/wiki"
+				"modmenu.discord": "https://discord.gg/director",
+				"modmenu.wiki": "https://github.com/Director/director/wiki"
 			},
 			"badges": [
 				"library"

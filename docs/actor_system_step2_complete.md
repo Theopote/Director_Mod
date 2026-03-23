@@ -4,7 +4,7 @@
 
 ### 1. **PreviewActorEntity 类（核心实体类）**
 
-**位置**：`src/main/java/com/chronoblocks/actor/preview/PreviewActorEntity.java`
+**位置**：`src/main/java/com/director/actor/preview/PreviewActorEntity.java`
 
 **设计原则**：
 - 继承 Entity（为了复用渲染 / hitbox / yaw / pitch）
@@ -26,7 +26,7 @@
 
 ### 2. **ActorPreviewManager 类（管理器）**
 
-**位置**：`src/main/java/com/chronoblocks/actor/preview/ActorPreviewManager.java`
+**位置**：`src/main/java/com/director/actor/preview/ActorPreviewManager.java`
 
 **职责**：
 - 管理 Actor ↔ PreviewEntity 的映射
@@ -50,7 +50,7 @@
 
 ### 3. **EntityRuntimeController 更新**
 
-**位置**：`src/main/java/com/chronoblocks/ui/timeline/playback/entity/EntityRuntimeController.java`
+**位置**：`src/main/java/com/director/ui/timeline/playback/entity/EntityRuntimeController.java`
 
 **变更**：
 - 移除旧的 `previewEntities` Map
@@ -137,5 +137,5 @@ PreviewActorEntity    ⭐（Ghost）
 - ✅ EntityRuntimeController 完全迁移到新系统
 - ✅ 世界不被污染，只存在于客户端
 
-ChronoBlocks Actor System Step 2 已完整实现！🎬
+Director Actor System Step 2 已完整实现！🎬
 

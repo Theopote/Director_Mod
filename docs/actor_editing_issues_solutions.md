@@ -27,7 +27,7 @@ public GizmoInteractionController(GizmoContext context) {
     this.context = context;
     // ⚠️ 问题：使用默认的 TransformApplier，不是 ActorTransformApplier
     this.transformApplier = new TransformApplier(
-        com.chronoblocks.core.selection.SelectionManager.get()
+        com.director.core.selection.SelectionManager.get()
     );
 }
 ```
@@ -46,8 +46,8 @@ private void updateGizmoPosition(Entity entity) {
         // ⭐ 设置 ActorTransformApplier
         GizmoInteractionController controller = GizmoManager.get().getController();
         if (controller != null) {
-            com.chronoblocks.core.selection.SelectionManager selectionManager =
-                com.chronoblocks.core.selection.SelectionManager.get();
+            com.director.core.selection.SelectionManager selectionManager =
+                com.director.core.selection.SelectionManager.get();
             ActorTransformApplier actorApplier = new ActorTransformApplier(selectionManager, this);
             controller.setTransformApplier(actorApplier);
         }
@@ -59,8 +59,8 @@ private void updateGizmoPosition(Entity entity) {
         // 已激活时也需要检查 TransformApplier 是否正确设置
         GizmoInteractionController controller = GizmoManager.get().getController();
         if (controller != null && !(controller.getTransformApplier() instanceof ActorTransformApplier)) {
-            com.chronoblocks.core.selection.SelectionManager selectionManager =
-                com.chronoblocks.core.selection.SelectionManager.get();
+            com.director.core.selection.SelectionManager selectionManager =
+                com.director.core.selection.SelectionManager.get();
             ActorTransformApplier actorApplier = new ActorTransformApplier(selectionManager, this);
             controller.setTransformApplier(actorApplier);
         }

@@ -3,7 +3,7 @@
 ## 一、已实现的核心组件 ✅
 
 ### 1. **ActionBrushState** ✅
-- 位置：`com.chronoblocks.ui.timeline.interaction.ActionBrushState`
+- 位置：`com.director.ui.timeline.interaction.ActionBrushState`
 - 功能：全局轻量状态（当前绘制动作）
 - API：
   ```java
@@ -12,7 +12,7 @@
   ```
 
 ### 2. **ActionClipIntervalResolver** ✅
-- 位置：`com.chronoblocks.ui.timeline.interaction.ActionClipIntervalResolver`
+- 位置：`com.director.ui.timeline.interaction.ActionClipIntervalResolver`
 - 功能：区间切割算法（涂抹式编辑的核心）
 - 核心方法：
   ```java
@@ -43,7 +43,7 @@
 ## 二、待实现的功能 🚧
 
 ### 1. **TimelineInteractionHandler 涂抹逻辑** 🚧
-- 位置：`com.chronoblocks.ui.timeline.interaction.TimelineInteractionHandler`
+- 位置：`com.director.ui.timeline.interaction.TimelineInteractionHandler`
 - 需要实现：
   - 检测 `PAINT_ACTION` 模式
   - 处理鼠标按下 → 拖拽 → 松开

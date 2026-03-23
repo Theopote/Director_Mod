@@ -65,7 +65,7 @@ ActorPlacementController.cancelPlacement()
 
 ### 3.1 ActorPlacementController
 
-**位置**：`com.chronoblocks.ui.actor.placement.ActorPlacementController`
+**位置**：`com.director.ui.actor.placement.ActorPlacementController`
 
 **职责**：
 - ✅ 管理放置状态（`isPlacing`）
@@ -141,13 +141,13 @@ if (ImGui.button("Create")) {
 }
 ```
 
-### 4.2 ChronoBlocksScreen
+### 4.2 DirectorScreen
 
 **修改**：每帧调用 `ActorPlacementController.update()`：
 
 ```java
 // ⭐ Actor 放置系统：每帧更新（鼠标附着预览和右键放置）
-com.chronoblocks.ui.actor.placement.ActorPlacementController.getInstance().update();
+com.director.ui.actor.placement.ActorPlacementController.getInstance().update();
 ```
 
 ### 4.3 EntitySpawnClipPropertyAdapter

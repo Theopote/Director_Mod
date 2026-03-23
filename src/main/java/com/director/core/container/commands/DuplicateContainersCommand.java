@@ -1,0 +1,60 @@
+package com.director.core.container.commands;
+
+import com.director.core.container.Container;
+import com.director.core.container.ContainerManager;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+
+/**
+ * 复制容器的命令。
+ */
+public class DuplicateContainersCommand implements ContainerCommand {
+
+    private final ContainerManager manager;
+    private final List<Container> sources;
+    private final List<Container> duplicates = new ArrayList<>();
+
+    public DuplicateContainersCommand(ContainerManager manager, Collection<Container> sources) {
+        this.manager = manager;
+        this.sources = manager.getTopLevelSelection(sources);
+    }
+
+    @Override
+    public void execute() {
+        if (sources.isEmpty()) {
+            return;
+        }
+        duplicates.clear();
+
+        java.util.List<Container> rootView = manager.getRootContainersView();
+        for (Container source : sources) {
+            Container clone = source.clone();
+            clone.setName(manager.generateUniqueName(clone.getName()));
+            manager.addContainer(clone);
+            Container parent = source.getParent();
+            int insertIndex = parent != null
+                ? parent.indexOfChild(source) + 1
+                : rootView.indexOf(source) + 1;
+            manager.moveContainerToParent(clone, parent, insertIndex);
+            duplicates.add(clone);
+        }
+
+        if (!duplicates.isEmpty()) {
+            manager.selectContainer(duplicates.getLast());
+        }
+    }
+
+    @Override
+    public void undo() {
+        manager.removeContainers(duplicates);
+        duplicates.clear();
+    }
+
+    @Override
+    public String getDescription() {
+        return "复制容器 (" + sources.size() + ")";
+    }
+}
+

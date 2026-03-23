@@ -5,7 +5,7 @@
 ### 一、核心架构（完全按照建议）
 
 #### 1. EntityBinding 类 ✅
-- **位置**：`src/main/java/com/chronoblocks/ui/timeline/model/entity/EntityBinding.java`
+- **位置**：`src/main/java/com/director/ui/timeline/model/entity/EntityBinding.java`
 - **功能**：描述"演员"如何绑定到世界里的实体
 - **绑定模式**：
   - `SPAWN_NEW` - 生成新实体（导演虚拟演员）
@@ -17,7 +17,7 @@
   - `persistent` - 是否持久化
 
 #### 2. EntityClip 基类 ✅
-- **位置**：`src/main/java/com/chronoblocks/ui/timeline/model/entity/EntityClip.java`
+- **位置**：`src/main/java/com/director/ui/timeline/model/entity/EntityClip.java`
 - **设计**：实现 `TimelineSelectable`，不继承 `TimelineClip`
 - **特点**：
   - 统一的 start/end 时间
@@ -26,7 +26,7 @@
   - 支持时间偏移（offsetTime）
 
 #### 3. EntityTrack 类 ✅
-- **位置**：`src/main/java/com/chronoblocks/ui/timeline/model/entity/EntityTrack.java`
+- **位置**：`src/main/java/com/director/ui/timeline/model/entity/EntityTrack.java`
 - **设计**：独立的实体轨道数据结构
 - **特点**：
   - 一个 EntityTrack = 一个演员（Actor）
@@ -92,7 +92,7 @@
 ### 三、代码结构
 
 ```
-src/main/java/com/chronoblocks/ui/timeline/model/entity/
+src/main/java/com/director/ui/timeline/model/entity/
 ├── EntityKeyframe.java          (已存在 - 关键帧系统)
 ├── EntityClipType.java          (已更新 - Clip 类型枚举)
 ├── EntityBinding.java           (新增 - 演员绑定信息)

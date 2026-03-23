@@ -4,10 +4,10 @@
 
 ### 1. **ActorRegistry 序列化**
 
-**位置**：`src/main/java/com/chronoblocks/actor/persistence/ActorRegistryPersistence.java`
+**位置**：`src/main/java/com/director/actor/persistence/ActorRegistryPersistence.java`
 
 **核心功能**：
-- 保存 ActorRegistry 到世界目录（`saves/<world>/chronoblocks/actor_registry.json`）
+- 保存 ActorRegistry 到世界目录（`saves/<world>/director/actor_registry.json`）
 - 从文件加载 ActorRegistry
 - 使用 Gson 进行 JSON 序列化
 - 支持版本控制（version 1.0）
@@ -73,7 +73,7 @@ ActorRegistry
   ↓
 ActorRegistryPersistence.saveToFile()
   ↓
-saves/<world>/chronoblocks/actor_registry.json
+saves/<world>/director/actor_registry.json
 ```
 
 ### 加载流程
@@ -115,24 +115,24 @@ ActorRegistryManager.setRegistry(newRegistry)
 ## 📋 文件变更清单
 
 ### 新增文件
-- ✅ `src/main/java/com/chronoblocks/actor/persistence/ActorRegistryPersistence.java`
+- ✅ `src/main/java/com/director/actor/persistence/ActorRegistryPersistence.java`
 - ✅ `docs/actor_system_migration_complete.md`
 
 ### 修改文件
-- ✅ `src/main/java/com/chronoblocks/actor/ActorRegistryManager.java`
+- ✅ `src/main/java/com/director/actor/ActorRegistryManager.java`
   - 添加序列化支持
   - 添加项目切换支持
   - 添加自动加载功能
 
-- ✅ `src/main/java/com/chronoblocks/ui/panels/TimelinePanel.java`
+- ✅ `src/main/java/com/director/ui/panels/TimelinePanel.java`
   - 移除旧版本 EntityRuntimeController 绑定
   - 移除旧版本 EntityRuntimeController update() 调用
 
-- ✅ `src/main/java/com/chronoblocks/actor/ActorRegistry.java`
+- ✅ `src/main/java/com/director/actor/ActorRegistry.java`
   - 添加自动保存注释（可选）
 
 ### 待删除文件（测试后）
-- ⚠️ `src/main/java/com/chronoblocks/ui/timeline/playback/entity/EntityRuntimeController.java`
+- ⚠️ `src/main/java/com/director/ui/timeline/playback/entity/EntityRuntimeController.java`
 
 ## 🎉 总结
 
@@ -150,5 +150,5 @@ ActorRegistryManager.setRegistry(newRegistry)
 - 完全删除旧版本文件
 - 性能优化（减少频繁保存）
 
-ChronoBlocks Actor System 迁移完成！🎬
+Director Actor System 迁移完成！🎬
 

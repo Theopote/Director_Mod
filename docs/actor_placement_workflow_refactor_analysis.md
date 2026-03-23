@@ -11,7 +11,7 @@
 ### ✅ 已实现的部分
 
 1. **ActorPlacementController** ✅
-   - 位置：`com.chronoblocks.ui.actor.placement.ActorPlacementController`
+   - 位置：`com.director.ui.actor.placement.ActorPlacementController`
    - 功能：已有放置功能，但实现方式不同
    - 差异：
      - 建议：`beginPlace(Actor)` 
@@ -23,7 +23,7 @@
      - ✅ Ghost 预览（通过 PreviewEntity）
 
 2. **ActorSelectionHub** ✅
-   - 位置：`com.chronoblocks.ui.actor.selection.ActorSelectionHub`
+   - 位置：`com.director.ui.actor.selection.ActorSelectionHub`
    - 功能：统一的选择入口
    - 缺失：
      - ❌ 缺少 `ActorSelectionMode.PLACE` 状态
@@ -31,14 +31,14 @@
      - ❌ 缺少 `isPlacingActor()` 方法
 
 3. **ActorProjectPropertyAdapter** ✅
-   - 位置：`com.chronoblocks.ui.properties.adapters.ActorProjectPropertyAdapter`
+   - 位置：`com.director.ui.properties.adapters.ActorProjectPropertyAdapter`
    - 功能：Actor 列表和属性编辑
    - 缺失：
      - ❌ 缺少"Place"按钮（只有"Place at Camera"）
      - ❌ 没有调用 `ActorSelectionHub.beginPlace()`
 
 4. **ActorPickController** ✅
-   - 位置：`com.chronoblocks.ui.actor.pick.ActorPickController`
+   - 位置：`com.director.ui.actor.pick.ActorPickController`
    - 功能：点击选择 Actor
    - 缺失：
      - ❌ 没有监听 PLACE 状态

@@ -61,6 +61,6 @@ Panel 内仅保留**局部**快捷键（如 Timeline 内 Scrub、InlineRenamer �
 
 ## 引用
 
-- `UIShortcutCoordinator` / `ShortcutDispatcher`：`com.chronoblocks.ui.input`
+- `UIShortcutCoordinator` / `ShortcutDispatcher`：`com.director.ui.input`
 - `ShortcutBindings`、`ShortcutActions`、`ShortcutContext`
 - 权责边界：`docs` 或 `.cursor` 中的 UI Shell 架构说明

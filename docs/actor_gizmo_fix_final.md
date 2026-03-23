@@ -12,8 +12,8 @@
 ```java
 // ActorSelectionHub.selectActor()
 try {
-    com.chronoblocks.core.selection.SelectionManager blockSelectionManager = 
-        com.chronoblocks.core.selection.SelectionManager.get();
+    com.director.core.selection.SelectionManager blockSelectionManager = 
+        com.director.core.selection.SelectionManager.get();
     if (blockSelectionManager != null) {
         blockSelectionManager.clearSelection();
     }

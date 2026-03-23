@@ -14,8 +14,8 @@
 ```java
 // ⭐ 明确清除方块选区（Actor 选择不应该有方块选区）
 try {
-    com.chronoblocks.core.selection.SelectionManager blockSelectionManager = 
-        com.chronoblocks.core.selection.SelectionManager.get();
+    com.director.core.selection.SelectionManager blockSelectionManager = 
+        com.director.core.selection.SelectionManager.get();
     if (blockSelectionManager != null) {
         blockSelectionManager.clearSelection();
     }

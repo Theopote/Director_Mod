@@ -35,7 +35,7 @@
 
 ### 2.1 新增 Action 类型
 
-**位置**：`com.chronoblocks.ui.timeline.model.entity.EntityActionClip.ActionType`
+**位置**：`com.director.ui.timeline.model.entity.EntityActionClip.ActionType`
 
 **新增类型**：
 ```java
@@ -80,7 +80,7 @@ THROW_PROP("投掷道具")
 
 ### 3.1 RuntimeProjectile（一次投掷的实例）
 
-**位置**：`com.chronoblocks.actor.prop.RuntimeProjectile`
+**位置**：`com.director.actor.prop.RuntimeProjectile`
 
 **职责**：
 - ✅ 管理投掷物的生命周期
@@ -108,7 +108,7 @@ private Vec3d interpolateArc(Vec3d a, Vec3d b, float t, float height) {
 
 ### 3.2 ProjectileRuntimeManager（统一管理）
 
-**位置**：`com.chronoblocks.actor.prop.ProjectileRuntimeManager`
+**位置**：`com.director.actor.prop.ProjectileRuntimeManager`
 
 **职责**：
 - ✅ 管理所有投掷中的道具
@@ -194,7 +194,7 @@ public void update() {
 - `world.setBlockState(targetPos)` - 放置方块
 - 生成真实 `ItemEntity` - 生成掉落物
 
-**这一步不属于 ChronoBlocks Timeline，而是 Export Pipeline。**
+**这一步不属于 Director Timeline，而是 Export Pipeline。**
 
 ---
 
@@ -240,7 +240,7 @@ ThrowProp(target: (12, 65, 8))
 
 ## 七、一个"非常重要的导演级提醒"
 
-**ChronoBlocks 不追求"物理真实"，而追求"表演可信"。**
+**Director 不追求"物理真实"，而追求"表演可信"。**
 
 这个抛物线模型就是正确的选择。
 

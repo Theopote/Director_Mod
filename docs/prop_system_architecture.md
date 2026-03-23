@@ -55,7 +55,7 @@ Actor
 
 ### 3.1 PropDescriptor（道具描述符）
 
-**位置**：`com.chronoblocks.actor.prop.PropDescriptor`
+**位置**：`com.director.actor.prop.PropDescriptor`
 
 **职责**：定义道具的视觉表现和元数据
 
@@ -76,7 +76,7 @@ public final class PropDescriptor {
 
 ### 3.2 ActorPropSlot（演员道具槽位）
 
-**位置**：`com.chronoblocks.actor.prop.ActorPropSlot`
+**位置**：`com.director.actor.prop.ActorPropSlot`
 
 **职责**：定义道具可以"附着"在演员的哪个部位
 
@@ -89,7 +89,7 @@ public final class PropDescriptor {
 
 ### 3.3 PropRegistry（道具注册表）
 
-**位置**：`com.chronoblocks.actor.prop.PropRegistry`
+**位置**：`com.director.actor.prop.PropRegistry`
 
 **职责**：管理所有可用的道具描述符
 
@@ -104,7 +104,7 @@ public final class PropDescriptor {
 
 ### 4.1 扩展 ActionType
 
-**位置**：`com.chronoblocks.ui.timeline.model.entity.EntityActionClip.ActionType`
+**位置**：`com.director.ui.timeline.model.entity.EntityActionClip.ActionType`
 
 **新增类型**：
 ```java
@@ -163,7 +163,7 @@ SWITCH_PROP("切换道具")   // 切换道具（先卸下，再装备）
 
 ### 5.1 ActorPropRuntime（演员携带道具的状态）
 
-**位置**：`com.chronoblocks.actor.prop.ActorPropRuntime`
+**位置**：`com.director.actor.prop.ActorPropRuntime`
 
 **职责**：
 - ✅ 管理 `RuntimeProp` 的创建/销毁
@@ -180,7 +180,7 @@ public void update()                                       // 每帧更新（跟
 
 ### 5.2 RuntimeProp（运行时道具）
 
-**位置**：`com.chronoblocks.actor.prop.RuntimeProp`
+**位置**：`com.director.actor.prop.RuntimeProp`
 
 **职责**：
 - ✅ 纯客户端视觉对象
@@ -194,7 +194,7 @@ public void update()                                       // 每帧更新（跟
 
 ### 5.3 ActorRuntimeController：处理 Prop Action
 
-**位置**：`com.chronoblocks.actor.runtime.ActorRuntimeController`
+**位置**：`com.director.actor.runtime.ActorRuntimeController`
 
 **处理流程**：
 ```java
@@ -291,7 +291,7 @@ DetachProp
 
 **Prop 是"演员的表演道具"，不是"世界的物理对象"。**
 
-只要你守住这条线，ChronoBlocks 就会一直是一个导演系统，而不是"半 AI + 半动画"的混乱工具。
+只要你守住这条线，Director 就会一直是一个导演系统，而不是"半 AI + 半动画"的混乱工具。
 
 ---
 

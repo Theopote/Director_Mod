@@ -39,11 +39,11 @@ replay_*.log
 *.hprof
 *.jfr
 
-# ChronoBlocks specific
+# Director specific
 
 # Icon conversion temporary files
 icons_converted/
 icons_original_backup_*/
 
 # ImGui config
-config/chronoblocks/imgui.ini
+config/director/imgui.ini

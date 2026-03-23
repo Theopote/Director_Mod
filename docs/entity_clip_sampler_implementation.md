@@ -4,7 +4,7 @@
 
 ### 一、EntityClipSampler 类
 
-**位置**：`src/main/java/com/chronoblocks/ui/timeline/playback/entity/EntityClipSampler.java`
+**位置**：`src/main/java/com/director/ui/timeline/playback/entity/EntityClipSampler.java`
 
 #### 核心功能
 1. **采样流程**：
@@ -51,7 +51,7 @@
 
 ### 二、EntitySample 扩展
 
-**位置**：`src/main/java/com/chronoblocks/ui/timeline/playback/entity/EntitySample.java`
+**位置**：`src/main/java/com/director/ui/timeline/playback/entity/EntitySample.java`
 
 #### 新增字段
 

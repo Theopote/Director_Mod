@@ -136,7 +136,7 @@
 ## 📝 代码结构
 
 ```
-src/main/java/com/chronoblocks/ui/timeline/model/entity/
+src/main/java/com/director/ui/timeline/model/entity/
 ├── EntityKeyframe.java          (已存在 - 关键帧系统)
 ├── EntityClipType.java          (新增 - Clip 类型枚举)
 ├── EntityTimelineClip.java       (新增 - Clip 基类)
@@ -144,7 +144,7 @@ src/main/java/com/chronoblocks/ui/timeline/model/entity/
 ├── EntityTransformClip.java      (新增 - 位移/旋转 Clip)
 └── EntityAnimationClip.java      (新增 - 动画 Clip)
 
-src/main/java/com/chronoblocks/ui/timeline/playback/entity/
+src/main/java/com/director/ui/timeline/playback/entity/
 ├── EntitySample.java             (已存在)
 ├── EntityTrackSampler.java       (已存在)
 └── TimelineEntityController.java (已存在)

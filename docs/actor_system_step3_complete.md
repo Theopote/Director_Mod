@@ -4,7 +4,7 @@
 
 ### 1. **ActorRuntimeController v2（导演核心）**
 
-**位置**：`src/main/java/com/chronoblocks/actor/runtime/ActorRuntimeController.java`
+**位置**：`src/main/java/com/director/actor/runtime/ActorRuntimeController.java`
 
 **核心职责**：
 - Actor（虚拟） → PreviewActorEntity（客户端投影）
@@ -123,7 +123,7 @@ PreviewActorEntity
 
 ## 🎉 总结
 
-**Step 3 完成后，ChronoBlocks 已经具备：**
+**Step 3 完成后，Director 已经具备：**
 
 一个真正意义上的"导演系统内核"
 
@@ -138,5 +138,5 @@ PreviewActorEntity
 - 完成 TimelinePanel 的完全迁移
 - 开始测试和优化
 
-ChronoBlocks Actor System Step 3 已完整实现！🎬
+Director Actor System Step 3 已完整实现！🎬
 

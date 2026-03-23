@@ -23,7 +23,7 @@
 ## 二、文件位置
 
 ```
-src/main/java/com/chronoblocks/ui/properties/adapters/ActorProjectPropertyAdapter.java
+src/main/java/com/director/ui/properties/adapters/ActorProjectPropertyAdapter.java
 ```
 
 ---
@@ -76,7 +76,7 @@ if (actorAdapter != null && actorAdapter.supports(actorProjectMarker)) {
 ### 4.1 初始状态
 
 ```
-打开 ChronoBlocks
+打开 Director
     ↓
 SelectionManager.getCurrentSelection() == null
     ↓
@@ -318,12 +318,12 @@ ActorProjectPropertyAdapter 自动退场
 
 ## 七、总结
 
-`ActorProjectPropertyAdapter` 是 ChronoBlocks 属性编辑体系中的**Project 级入口**：
+`ActorProjectPropertyAdapter` 是 Director 属性编辑体系中的**Project 级入口**：
 
 1. **职责清晰**：只管理 Actor，不编辑 Clip/Track
 2. **无缝集成**：通过 PropertyAdapter 系统自动切换
 3. **用户友好**：提供完整的 Actor 管理功能（创建、编辑、删除）
 4. **架构正确**：Actor 是 Project 级资产，生命周期 > Timeline
 
-**这就是 ChronoBlocks 的"Selection → PropertyAdapter → 数据对象 → Runtime"完整体系！** 🎨
+**这就是 Director 的"Selection → PropertyAdapter → 数据对象 → Runtime"完整体系！** 🎨
 

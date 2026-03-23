@@ -10,7 +10,7 @@
 ## 二、已实现的功能
 
 ### 1. **TimelineClipVisualType 枚举** ✅
-- 位置：`com.chronoblocks.ui.timeline.model.entity.TimelineClipVisualType`
+- 位置：`com.director.ui.timeline.model.entity.TimelineClipVisualType`
 - 定义了三种视觉类型：
   - `CURVE`：曲线类型（连续变化）
   - `BLOCK`：区块类型（状态区间）
@@ -54,7 +54,7 @@
 - 不显示调整手柄和关键帧
 
 ### 8. **ActionTypeColors 颜色映射** ✅
-- 位置：`com.chronoblocks.ui.timeline.render.ActionTypeColors`
+- 位置：`com.director.ui.timeline.render.ActionTypeColors`
 - 为每个 ActionType 定义了稳定的颜色：
   - IDLE → 灰色
   - WALK → 蓝色

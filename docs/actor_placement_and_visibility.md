@@ -150,7 +150,7 @@ if (entity != null) {
    - 检测点击位置
    - 创建/更新 Clip
 
-2. **集成到 ChronoBlocksScreen**
+2. **集成到 DirectorScreen**
    - 在 `tick()` 中调用 `ActorPlacementController.update()`
 
 3. **UI 提示**

@@ -1,4 +1,4 @@
-# ChronoBlocks SVG 图标索引
+# Director SVG 图标索引
 
 完整的SVG图标集，共 **52个图标** 已创建。
 
@@ -207,5 +207,5 @@
 
 **创建日期**: 2025-10-18  
 **版本**: v1.0  
-**作者**: ChronoBlocks Team
+**作者**: Director Team
 

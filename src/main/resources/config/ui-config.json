@@ -5,7 +5,7 @@
       "enabled": true,
       "priority": 10,
       "properties": {
-        "title": "ChronoBlocks Menu",
+        "title": "Director Menu",
         "showIcons": true,
         "theme": "dark"
       },
@@ -73,6 +73,6 @@
     "enableLogging": true,
     "defaultFactory": "PanelFactory",
     "configVersion": "2.1",
-    "description": "ChronoBlocks UI Configuration - 支持动态面板配置和依赖注入"
+    "description": "Director UI Configuration - 支持动态面板配置和依赖注入"
   }
 }

@@ -1,0 +1,432 @@
+package com.director.ui.properties.adapters;
+
+import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.theme.Icons;
+import com.director.ui.theme.UITheme;
+import com.director.ui.timeline.container.ContainerTimelineService;
+import com.director.ui.timeline.model.TimelineModel;
+import com.director.ui.timeline.model.TimelineTrack;
+import com.director.ui.timeline.model.season.SeasonKeyframe;
+import com.director.ui.timeline.playback.season.TimelineSeasonController;
+import imgui.ImGui;
+import imgui.flag.ImGuiColorEditFlags;
+import imgui.flag.ImGuiTreeNodeFlags;
+import imgui.type.ImFloat;
+import imgui.type.ImInt;
+import org.joml.Vector3f;
+
+import java.util.concurrent.atomic.AtomicBoolean;
+
+/**
+ * SeasonKeyframePropertyAdapter v4.0
+ *
+ * <p>新增功能：
+ * <ul>
+ *   <li>✔ 完整积雪控制（雪覆盖度/雪线高度/积雪厚度）</li>
+ *   <li>✔ 冰冻控制（冰覆盖度）</li>
+ *   <li>✔ 颜色 Tint 完整编辑（草、树叶、天空、雾、光照）</li>
+ *   <li>✔ 插值方式（线性/平滑/曲线）- 实现季节过渡动画</li>
+ *   <li>✔ 季节预设按钮（春/夏/秋/冬/电影效果）</li>
+ * </ul>
+ *
+ * <p>结构优化：
+ * <ul>
+ *   <li>✔ 颜色模块拆分</li>
+ *   <li>✔ 气候模块拆分</li>
+ *   <li>✔ 雪模块独立</li>
+ *   <li>✔ 冰冻模块独立</li>
+ * </ul>
+ *
+ * @author Director Team
+ * @version 4.0
+ */
+public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKeyframe> {
+
+    private static final String TITLE = "季节关键帧";
+
+    // 临时变量对象（减少 GC）
+    private final ImFloat timeFloat = new ImFloat();
+    private final ImInt seasonTypeIndex = new ImInt();
+    private final ImInt interpolationIndex = new ImInt();
+    
+    // 积雪参数
+    private final ImFloat snowAmountFloat = new ImFloat();
+    private final ImFloat snowlineFloat = new ImFloat();
+    private final ImInt snowThicknessInt = new ImInt();
+    private final ImFloat humidityFloat = new ImFloat();
+    
+    // 冰冻参数
+    private final ImFloat freezeStrengthFloat = new ImFloat();
+
+    // Tint 颜色缓存 [0..1]
+    private final float[] grassTintArr = new float[3];
+    private final float[] foliageTintArr = new float[3];
+    private final float[] skyTintArr = new float[3];
+    private final float[] fogTintArr = new float[3];
+    private final float[] lightTintArr = new float[3];
+
+    // 使用 SeasonKeyframe 提供的静态标签数组（v4.0）
+    private static final String[] SEASON_TYPE_LABELS = SeasonKeyframe.SEASON_TYPE_LABELS;
+    private static final String[] INTERPOLATION_LABELS = SeasonKeyframe.INTERPOLATION_LABELS;
+
+    @Override
+    public boolean renderProperties(SeasonKeyframe keyframe) {
+        if (keyframe == null) {
+            UITheme.label("（没有选中关键帧）", UITheme.DarkTheme.TEXT_DISABLED);
+            return false;
+        }
+
+        // ⭐ v1.1：检查关键帧是否属于激活的季节轨道
+        TimelineModel timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineTrack keyframeTrack = null;
+        if (timelineModel != null) {
+            keyframeTrack = timelineModel.findTrackForKeyframe(keyframe);
+        }
+        
+        TimelineSeasonController seasonController = TimelineSeasonController.getInstance();
+        TimelineTrack activeTrack = seasonController.getActiveSeasonTrack();
+        
+        boolean isTrackActive = (keyframeTrack != null && keyframeTrack == activeTrack);
+        
+        if (!isTrackActive) {
+            UITheme.title(Icons.CALENDAR + " " + TITLE);
+            UITheme.label(Icons.WARNING + " 此关键帧不属于激活的季节轨道", UITheme.DarkTheme.TEXT_WARNING);
+            ImGui.textDisabled("当前激活轨道: " + (activeTrack != null ? activeTrack.getName() : "<无>"));
+            if (keyframeTrack != null) {
+                ImGui.textDisabled("关键帧所在轨道: " + keyframeTrack.getName());
+            }
+            UITheme.spacingMedium();
+            UITheme.label("提示：只有激活轨道上的关键帧才能被编辑和影响世界中的季节。", UITheme.DarkTheme.TEXT_DISABLED);
+            UITheme.label("请点击轨道头部的激活按钮来切换激活轨道。", UITheme.DarkTheme.TEXT_DISABLED);
+            return false; // 禁用编辑
+        }
+
+        AtomicBoolean timeChanged = new AtomicBoolean(false);
+        AtomicBoolean paramChanged = new AtomicBoolean(false);
+
+        UITheme.title(Icons.CALENDAR + " " + TITLE);
+
+        // ===========================================================
+        // 1. 基础信息
+        // ===========================================================
+        if (ImGui.collapsingHeader(Icons.INFO + " 基础信息", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
+            float maxTime = timelineModel.getDuration();
+            timeFloat.set(keyframe.getTime());
+            if (ImGui.dragFloat("时间位置", timeFloat.getData(), 0.05f, 0f, maxTime, "%.2fs")) {
+                keyframe.setTime(timeFloat.get());
+                timeChanged.set(true);
+            }
+            ImGui.textDisabled("关键帧在时间线上的位置");
+            UITheme.spacingSmall();
+            ImGui.unindent();
+        }
+
+        // ===========================================================
+        // 2. 季节类型（预设）
+        // ===========================================================
+        if (ImGui.collapsingHeader(Icons.COLOR + " 季节类型", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
+            seasonTypeIndex.set(keyframe.getSeasonType().ordinal());
+            SeasonKeyframe.SeasonType[] types = SeasonKeyframe.SeasonType.values();
+
+            if (ImGui.combo("季节类型", seasonTypeIndex, SEASON_TYPE_LABELS)) {
+                SeasonKeyframe.SeasonType newType = types[seasonTypeIndex.get()];
+                keyframe.applySeasonPreset(newType);
+                paramChanged.set(true);
+            }
+
+            ImGui.textDisabled("• 选择季节会自动设置对应的颜色趋势");
+            UITheme.spacingSmall();
+
+            // ---------- 一键预设按钮 ----------
+            if (ImGui.button(Icons.SPRING + " 春季预设")) {
+                keyframe.applySeasonPreset(SeasonKeyframe.SeasonType.SPRING);
+                paramChanged.set(true);
+            }
+            ImGui.sameLine();
+            if (ImGui.button(Icons.LIGHT + " 夏季预设")) {
+                keyframe.applySeasonPreset(SeasonKeyframe.SeasonType.SUMMER);
+                paramChanged.set(true);
+            }
+            ImGui.sameLine();
+            if (ImGui.button(Icons.COLOR + " 秋季预设")) {
+                keyframe.applySeasonPreset(SeasonKeyframe.SeasonType.AUTUMN);
+                paramChanged.set(true);
+            }
+            ImGui.sameLine();
+            if (ImGui.button(Icons.PARTICLE + " 冬季预设")) {
+                keyframe.applySeasonPreset(SeasonKeyframe.SeasonType.WINTER);
+                paramChanged.set(true);
+            }
+            UITheme.spacingSmall();
+
+            if (ImGui.button(Icons.FILM + " 电影冷色")) {
+                keyframe.applyFilmPresetCold();
+                paramChanged.set(true);
+            }
+            ImGui.sameLine();
+            if (ImGui.button(Icons.FILM + " 电影暖色")) {
+                keyframe.applyFilmPresetWarm();
+                paramChanged.set(true);
+            }
+            UITheme.spacingSmall();
+            ImGui.unindent();
+        }
+
+        // ===========================================================
+        // 3. 气候预设
+        // ===========================================================
+        if (ImGui.collapsingHeader(Icons.FILTER + " 气候预设", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
+            if (ImGui.button(Icons.FILTER + " 温带湿润")) {
+                keyframe.applyClimatePresetTemperate();
+                paramChanged.set(true);
+            }
+            ImGui.sameLine();
+            if (ImGui.button(Icons.FILTER + " 大陆性")) {
+                keyframe.applyClimatePresetContinental();
+                paramChanged.set(true);
+            }
+            ImGui.sameLine();
+            if (ImGui.button(Icons.FILTER + " 海洋性")) {
+                keyframe.applyClimatePresetMaritime();
+                paramChanged.set(true);
+            }
+            UITheme.spacingSmall();
+            if (ImGui.button(Icons.FILTER + " 高山寒冷")) {
+                keyframe.applyClimatePresetHighland();
+                paramChanged.set(true);
+            }
+            ImGui.sameLine();
+            if (ImGui.button(Icons.FILTER + " 季风湿润")) {
+                keyframe.applyClimatePresetMonsoonWet();
+                paramChanged.set(true);
+            }
+            ImGui.sameLine();
+            if (ImGui.button(Icons.FILTER + " 沙漠干燥")) {
+                keyframe.applyClimatePresetDesertDry();
+                paramChanged.set(true);
+            }
+            UITheme.spacingSmall();
+            ImGui.textDisabled("• 预设会同时调整湿度、雪/冰参数与颜色趋势");
+            UITheme.spacingSmall();
+            ImGui.unindent();
+        }
+
+        // ===========================================================
+        // 4. 气候控制
+        // ===========================================================
+        if (ImGui.collapsingHeader(Icons.FILTER + " 气候控制", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
+            humidityFloat.set(keyframe.getHumidity());
+            if (ImGui.sliderFloat("湿度", humidityFloat.getData(), 0f, 1f, "%.2f")) {
+                keyframe.setHumidity(humidityFloat.get());
+                paramChanged.set(true);
+            }
+            ImGui.textDisabled("• 0.0 = 干燥，1.0 = 潮湿（用于长期气候趋势）");
+            UITheme.spacingSmall();
+            ImGui.unindent();
+        }
+
+        // ===========================================================
+        // 5. 积雪控制（v4.0 新增）
+        // ===========================================================
+        if (ImGui.collapsingHeader(Icons.PARTICLE + " 积雪控制", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
+            snowAmountFloat.set(keyframe.getSnowAmount());
+            if (ImGui.sliderFloat("雪覆盖度", snowAmountFloat.getData(), 0f, 1f, "%.2f")) {
+                keyframe.setSnowAmount(snowAmountFloat.get());
+                paramChanged.set(true);
+            }
+            ImGui.textDisabled("• 0.0 = 没有覆盖，1.0 = 几乎全覆盖（区域内的占比概率）");
+            UITheme.spacingSmall();
+
+            snowlineFloat.set(keyframe.getSnowlineHeight());
+            if (ImGui.dragFloat("雪线高度 (Y)", snowlineFloat.getData(), 1f, -64f, 320f, "%.0f")) {
+                keyframe.setSnowlineHeight(snowlineFloat.get());
+                paramChanged.set(true);
+            }
+            ImGui.textDisabled("• 大部分积雪在雪线高度以上生成，小部分在雪线以下附近生成");
+            UITheme.spacingSmall();
+
+            snowThicknessInt.set(keyframe.getSnowThickness());
+            if (ImGui.sliderInt("积雪厚度", snowThicknessInt.getData(), 0, 10)) {
+                keyframe.setSnowThickness(snowThicknessInt.get());
+                paramChanged.set(true);
+            }
+            ImGui.textDisabled("• 0 = 无厚度，10 = 最大厚度（大多数区域覆盖此层数，使用正态分布扰动）");
+            ImGui.textDisabled("• 季节过渡通过关键帧之间的插值自动实现");
+            UITheme.spacingSmall();
+            ImGui.unindent();
+        }
+
+        // ===========================================================
+        // 6. 冰冻控制（v4.0 新增）
+        // ===========================================================
+        if (ImGui.collapsingHeader(Icons.LIGHT + " 冰冻控制", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
+            freezeStrengthFloat.set(keyframe.getFreezeStrength());
+            if (ImGui.sliderFloat("冰覆盖度", freezeStrengthFloat.getData(), 0f, 1f, "%.2f")) {
+                keyframe.setFreezeStrength(freezeStrengthFloat.get());
+                paramChanged.set(true);
+            }
+            ImGui.textDisabled("• 0.0 = 没有覆盖，1.0 = 几乎全覆盖（区域内的占比概率）");
+            ImGui.textDisabled("• 季节过渡通过关键帧之间的插值自动实现");
+            UITheme.spacingSmall();
+            ImGui.unindent();
+        }
+
+        // ===========================================================
+        // 7. 颜色 Tint 控制
+        // ===========================================================
+        if (ImGui.collapsingHeader(Icons.PALETTE + " 颜色与光照", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
+            int flags = ImGuiColorEditFlags.DisplayRGB
+                    | ImGuiColorEditFlags.InputRGB
+                    | ImGuiColorEditFlags.PickerHueWheel
+                    | ImGuiColorEditFlags.NoAlpha;
+
+            // 将 tint 转换为 colorEdit3 可显示的颜色值
+            tintToColor(keyframe.getGrassTint(), grassTintArr);
+            tintToColor(keyframe.getFoliageTint(), foliageTintArr);
+            tintToColor(keyframe.getSkyTint(), skyTintArr);
+            tintToColor(keyframe.getFogTint(), fogTintArr);
+            tintToColor(keyframe.getLightTint(), lightTintArr);
+
+            // 草地
+            if (ImGui.colorEdit3("草地颜色趋势", grassTintArr, flags)) {
+                keyframe.setGrassTint(colorToTint(grassTintArr));
+                paramChanged.set(true);
+            }
+            ImGui.textDisabled("• 颜色偏移趋势：0.25=无变化，<0.25=减弱，>0.25=增强");
+            UITheme.spacingSmall();
+
+            // 树叶
+            if (ImGui.colorEdit3("树叶颜色趋势", foliageTintArr, flags)) {
+                keyframe.setFoliageTint(colorToTint(foliageTintArr));
+                paramChanged.set(true);
+            }
+            ImGui.textDisabled("• 与原始生物群系颜色相乘：finalColor = original × (1 + tint)");
+            UITheme.spacingSmall();
+
+            // 天空
+            if (ImGui.colorEdit3("天空颜色趋势", skyTintArr, flags)) {
+                keyframe.setSkyTint(colorToTint(skyTintArr));
+                paramChanged.set(true);
+            }
+            UITheme.spacingSmall();
+
+            // 雾
+            if (ImGui.colorEdit3("雾颜色趋势", fogTintArr, flags)) {
+                keyframe.setFogTint(colorToTint(fogTintArr));
+                paramChanged.set(true);
+            }
+            UITheme.spacingSmall();
+
+            // 光照
+            if (ImGui.colorEdit3("光照颜色趋势", lightTintArr, flags)) {
+                keyframe.setLightTint(colorToTint(lightTintArr));
+                paramChanged.set(true);
+            }
+            UITheme.spacingSmall();
+            ImGui.unindent();
+        }
+
+        // ===========================================================
+        // 8. 插值方式
+        // ===========================================================
+        if (ImGui.collapsingHeader(Icons.INTERPOLATION + " 插值设置", ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.indent();
+            SeasonKeyframe.Interpolation[] types = SeasonKeyframe.Interpolation.values();
+            interpolationIndex.set(keyframe.getInterpolation().ordinal());
+
+            if (ImGui.combo("插值类型", interpolationIndex, INTERPOLATION_LABELS)) {
+                keyframe.setInterpolation(types[interpolationIndex.get()]);
+                paramChanged.set(true);
+            }
+
+            ImGui.textDisabled("• 线性：匀速变化");
+            ImGui.textDisabled("• 平滑：缓入缓出");
+            ImGui.textDisabled("• 曲线：Catmull-Rom 样条");
+            UITheme.spacingSmall();
+            ImGui.unindent();
+        }
+
+        // ===========================================================
+        // 参数更新触发 Season 系统（实时更新）
+        // ===========================================================
+        if (paramChanged.get()) {
+            TimelineSeasonController c = TimelineSeasonController.getInstance();
+            // 先重建轨道（更新关键帧数据）
+            c.rebuildFromActiveTrack();
+            // 然后预览被编辑的关键帧所在时间点的季节状态，立即更新积雪和冰冻效果
+            c.previewAtKeyframeTime(keyframe.getTime());
+        }
+
+        if (timeChanged.get()) {
+            keyframeTrack.removeAutomationKeyframe(keyframe.getId());
+            keyframeTrack.addAutomationKeyframe(keyframe);
+            TimelineSeasonController c = TimelineSeasonController.getInstance();
+            c.rebuildFromActiveTrack(); // 时间变化不需要 preview
+        }
+
+        return paramChanged.get() || timeChanged.get();
+    }
+
+    @Override
+    public Class<SeasonKeyframe> getTargetType() {
+        return SeasonKeyframe.class;
+    }
+
+    // ===========================================================
+    // 工具函数：Tint ↔ ColorEdit3 显示值
+    // ===========================================================
+    
+    /**
+     * Tint 到显示颜色的映射范围
+     * 
+     * <p>tint 的有效范围是 [-0.99, +3.0]，但大部分实际值在 [-1.0, +3.0] 之间。
+     * 为了在 UI 上更好地显示和编辑，我们将显示范围限制为 [-1.0, +3.0]，
+     * 映射到颜色选择器的 [0, 1] 范围。
+     * 
+     * <p>映射公式：
+     * <ul>
+     *   <li>显示值 = (tint - (-1.0)) / 4.0 → [0, 1]</li>
+     *   <li>tint = 显示值 * 4.0 - 1.0 → [-1.0, +3.0]</li>
+     * </ul>
+     * 
+     * <p>这样：
+     * <ul>
+     *   <li>tint = -1.0 → 显示 = 0.0（黑色，表示强烈减弱）</li>
+     *   <li>tint = 0.0 → 显示 = 0.25（偏暗，表示无变化）</li>
+     *   <li>tint = +3.0 → 显示 = 1.0（白色，表示强烈增强）</li>
+     * </ul>
+     */
+    private static final float TINT_DISPLAY_MIN = -1.0f;  // 显示范围最小值
+    private static final float TINT_DISPLAY_MAX = 3.0f;  // 显示范围最大值
+    private static final float TINT_DISPLAY_RANGE = TINT_DISPLAY_MAX - TINT_DISPLAY_MIN; // 4.0
+
+    /** 将 tint（偏移值）转换为颜色显示值（0~1） */
+    private void tintToColor(Vector3f tint, float[] outColor) {
+        // 将 tint 从 [-1.0, +3.0] 映射到 [0, 1]
+        // 超出范围的值会被 clamp
+        outColor[0] = clamp01((tint.x - TINT_DISPLAY_MIN) / TINT_DISPLAY_RANGE);
+        outColor[1] = clamp01((tint.y - TINT_DISPLAY_MIN) / TINT_DISPLAY_RANGE);
+        outColor[2] = clamp01((tint.z - TINT_DISPLAY_MIN) / TINT_DISPLAY_RANGE);
+    }
+
+    /** 将 colorEdit3 的输出转换回 tint（偏移值） */
+    private Vector3f colorToTint(float[] color) {
+        // 将 [0, 1] 映射回 [-1.0, +3.0]
+        return new Vector3f(
+                color[0] * TINT_DISPLAY_RANGE + TINT_DISPLAY_MIN,
+                color[1] * TINT_DISPLAY_RANGE + TINT_DISPLAY_MIN,
+                color[2] * TINT_DISPLAY_RANGE + TINT_DISPLAY_MIN
+        );
+    }
+
+    private float clamp01(float v) {
+        return Math.max(0f, Math.min(1f, v));
+    }
+}

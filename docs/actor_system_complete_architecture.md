@@ -1,4 +1,4 @@
-# ChronoBlocks Actor System · 完整架构文档
+# Director Actor System · 完整架构文档
 
 > **核心宪法**：实体轨道（EntityTrack）不是"控制 Minecraft 实体"，而是"导演一个虚拟演员（Actor）的表演"。
 
@@ -72,7 +72,7 @@
 
 ### 1️⃣ Actor（演员）——"谁在表演"
 
-**位置**：`com.chronoblocks.actor.Actor`
+**位置**：`com.director.actor.Actor`
 
 ```java
 public final class Actor {
@@ -95,7 +95,7 @@ public final class Actor {
 
 ### 2️⃣ EntityTrack（实体轨道）——"这个演员演什么"
 
-**位置**：`com.chronoblocks.ui.timeline.model.entity.EntityTrack`
+**位置**：`com.director.ui.timeline.model.entity.EntityTrack`
 
 ```java
 public class EntityTrack {
@@ -117,7 +117,7 @@ public class EntityTrack {
 
 ### 3️⃣ EntityClip（表演片段）——"在某一段时间做什么"
 
-**位置**：`com.chronoblocks.ui.timeline.model.entity.EntityClip`（抽象基类）
+**位置**：`com.director.ui.timeline.model.entity.EntityClip`（抽象基类）
 
 **7 种 Clip 类型**：
 
@@ -141,7 +141,7 @@ public class EntityTrack {
 
 ### 4️⃣ TimelineModel（时间线模型）——"全局导演台本"
 
-**位置**：`com.chronoblocks.ui.timeline.model.TimelineModel`
+**位置**：`com.director.ui.timeline.model.TimelineModel`
 
 **核心职责**：
 - 管理所有轨道（包括 EntityTrack）
@@ -158,7 +158,7 @@ public class EntityTrack {
 
 ### 5️⃣ EntityClipSampler（采样器）——"导演助理"
 
-**位置**：`com.chronoblocks.ui.timeline.playback.entity.EntityClipSampler`
+**位置**：`com.director.ui.timeline.playback.entity.EntityClipSampler`
 
 **核心职责**：
 - 在时间 `t`，把一堆 Clips 变成一个"演员状态快照"（EntitySample）
@@ -187,7 +187,7 @@ EntitySample（完整状态快照）
 
 ### 6️⃣ EntitySample（状态快照）——"这一帧演员应该处于什么状态"
 
-**位置**：`com.chronoblocks.ui.timeline.playback.entity.EntitySample`
+**位置**：`com.director.ui.timeline.playback.entity.EntitySample`
 
 ```java
 public class EntitySample {
@@ -231,7 +231,7 @@ public class EntitySample {
 
 ### 7️⃣ ActorRuntimeController（运行时控制器）——"导演现场执行官"
 
-**位置**：`com.chronoblocks.actor.runtime.ActorRuntimeController`
+**位置**：`com.director.actor.runtime.ActorRuntimeController`
 
 **核心职责**：
 - 每一帧，对每条 EntityTrack：
@@ -269,7 +269,7 @@ public void update() {
 
 ### 8️⃣ PreviewActorEntity（预览实体）——"演员的舞台形象"
 
-**位置**：`com.chronoblocks.actor.preview.PreviewActorEntity`
+**位置**：`com.director.actor.preview.PreviewActorEntity`
 
 **核心特征**：
 - ✅ 继承 `Entity`（复用渲染 / hitbox / yaw / pitch）
@@ -288,7 +288,7 @@ public void update() {
 
 ### 9️⃣ ActorPreviewManager（预览管理器）——"演员到实体的映射"
 
-**位置**：`com.chronoblocks.actor.preview.ActorPreviewManager`
+**位置**：`com.director.actor.preview.ActorPreviewManager`
 
 **核心职责**：
 - 管理 `Actor` → `PreviewActorEntity` 的映射
@@ -549,7 +549,7 @@ MarkerDragController.updateDrag()
 
 ### 步骤 1：创建 Actor
 
-1. 打开 ChronoBlocks UI（按 C 键）
+1. 打开 Director UI（按 C 键）
 2. 在属性面板中，找到 "🎭 Actors" 区域
 3. 点击 "+ Add Actor" 按钮
 4. 在弹出的对话框中：
@@ -797,7 +797,7 @@ MarkerDragController.updateDrag()
 
 ## 📝 八、总结
 
-ChronoBlocks 的 Actor System 是一个**完整的导演级角色表演系统**，具备以下特征：
+Director 的 Actor System 是一个**完整的导演级角色表演系统**，具备以下特征：
 
 1. **🎭 Actor 是第一等公民** - 不依赖世界，可跨项目使用
 2. **🎬 Timeline 纯粹描述意图** - 可序列化、可导出、可重放
@@ -811,15 +811,15 @@ ChronoBlocks 的 Actor System 是一个**完整的导演级角色表演系统**�
 - ✅ 可导出、可重放、可协作
 - ✅ 未来可扩展（AI、真实玩家、多人协作）
 
-**这就是 ChronoBlocks 的"导演级 Actor System"！** 🎬
+**这就是 Director 的"导演级 Actor System"！** 🎬
 
 ---
 
-## 🎨 九、Actor 面板在 ChronoBlocks 属性编辑体系中的工作机制
+## 🎨 九、Actor 面板在 Director 属性编辑体系中的工作机制
 
 ### 9.1 四层属性编辑体系
 
-ChronoBlocks 已经形成了一个清晰的 **4 层属性编辑体系**：
+Director 已经形成了一个清晰的 **4 层属性编辑体系**：
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -902,10 +902,10 @@ else if (Selection instanceof EntityClip) {
 
 ### 9.4 Actor 面板的打开时机
 
-#### 时机 1：默认打开（第一次进 ChronoBlocks）
+#### 时机 1：默认打开（第一次进 Director）
 
 ```
-用户打开 ChronoBlocks UI
+用户打开 Director UI
     ↓
 SelectionManager.getCurrentSelection() == null
     ↓
@@ -1148,7 +1148,7 @@ Actor 的生命周期 > Timeline
 
 ### 9.8 系统级真相
 
-**ChronoBlocks 的实体轨道系统不是**：
+**Director 的实体轨道系统不是**：
 ```
 "选中实体 → 改参数"
 ```
@@ -1222,7 +1222,7 @@ Actor 的生命周期 > Timeline
 
 ### 9.10 总结
 
-**Actor 面板在 ChronoBlocks 属性编辑体系中的核心价值**：
+**Actor 面板在 Director 属性编辑体系中的核心价值**：
 
 1. **🎭 项目级入口** - 管理整个项目的演员列表
 2. **🔄 Selection 驱动** - 与 Clip 面板无缝切换
@@ -1230,5 +1230,5 @@ Actor 的生命周期 > Timeline
 4. **🧩 职责清晰** - 只管理 Actor，不编辑表演参数
 5. **🌍 世界反馈** - 世界选中演员的第一反馈
 
-**这就是 ChronoBlocks 的"Selection → PropertyAdapter → 数据对象 → Runtime"完整体系！** 🎨
+**这就是 Director 的"Selection → PropertyAdapter → 数据对象 → Runtime"完整体系！** 🎨
 

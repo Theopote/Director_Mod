@@ -4,7 +4,7 @@
 
 ### 一、ActionTriggerCache（新增）
 
-**位置**：`src/main/java/com/chronoblocks/ui/timeline/playback/entity/ActionTriggerCache.java`
+**位置**：`src/main/java/com/director/ui/timeline/playback/entity/ActionTriggerCache.java`
 
 #### 设计特点
 - 防止重复触发 Action Clip
@@ -21,7 +21,7 @@ if (cache.shouldTrigger(actionClip, time)) {
 
 ### 二、EntityActionEvent（新增）
 
-**位置**：`src/main/java/com/chronoblocks/ui/timeline/playback/entity/EntityActionEvent.java`
+**位置**：`src/main/java/com/director/ui/timeline/playback/entity/EntityActionEvent.java`
 
 #### 设计特点
 - 记录本帧触发的 Action 事件
@@ -152,5 +152,5 @@ sampler.clearActionCache();
 4. ✅ **代码结构优化** - 方法更清晰，易于扩展
 5. ✅ **EntitySample 扩展** - 添加 lookAtEnabled 和 actionEvents
 
-EntityClipSampler 现在是一个完整的"可播放系统"，ChronoBlocks 的"演员系统"已真正成立！
+EntityClipSampler 现在是一个完整的"可播放系统"，Director 的"演员系统"已真正成立！
 

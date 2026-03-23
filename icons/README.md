@@ -1,4 +1,4 @@
-# ChronoBlocks SVG 图标集（纯黑色单色版）
+# Director SVG 图标集（纯黑色单色版）
 
 > **专为 IcoMoon 字体生成优化**  
 > **图标总数**: 100+ 个  
@@ -148,7 +148,7 @@ clock, calendar, layers
 
 **方法 A - 拖拽（推荐）**:
 1. 打开文件资源管理器
-2. 导航到 `E:\ChronoBlocks\chronoblocks\icons\`
+2. 导航到 `E:\Director\director\icons\`
 3. 全选所有 `.svg` 文件（排除 `.md` 文件）
 4. 拖拽到 IcoMoon 窗口
 
@@ -203,7 +203,7 @@ Class Prefix: icon-
 #### 7.1 替换字体文件
 ```bash
 复制: icomoon.ttf
-到: src/main/resources/assets/chronoblocks/fonts/icomoon.ttf
+到: src/main/resources/assets/director/fonts/icomoon.ttf
 ```
 
 #### 7.2 查看 Unicode 映射

@@ -4,7 +4,7 @@
 
 ### 一、EntityRuntimeController 实现
 
-**位置**：`src/main/java/com/chronoblocks/ui/timeline/playback/entity/EntityRuntimeController.java`
+**位置**：`src/main/java/com/director/ui/timeline/playback/entity/EntityRuntimeController.java`
 
 #### 核心功能
 1. **多轨道支持**
@@ -138,5 +138,5 @@ EntityRuntimeController 已完整实现并集成：
 4. ✅ **可插拔实体解析器** - 支持自定义绑定策略
 5. ✅ **TimelinePanel 集成** - 模型绑定和每帧更新
 
-ChronoBlocks 的"演员系统"现在真正成立了！🎬
+Director 的"演员系统"现在真正成立了！🎬
 

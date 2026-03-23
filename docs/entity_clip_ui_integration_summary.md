@@ -5,7 +5,7 @@
 ### 一、属性面板适配器
 
 #### 1. EntitySpawnClipPropertyAdapter ✅
-- **位置**：`src/main/java/com/chronoblocks/ui/properties/adapters/EntitySpawnClipPropertyAdapter.java`
+- **位置**：`src/main/java/com/director/ui/properties/adapters/EntitySpawnClipPropertyAdapter.java`
 - **功能**：编辑出现/绑定片段的属性
 - **支持字段**：
   - 基础信息（时间范围）
@@ -13,7 +13,7 @@
   - 可见性（出现时可见）
 
 #### 2. EntityTransformClipPropertyAdapter ✅
-- **位置**：`src/main/java/com/chronoblocks/ui/properties/adapters/EntityTransformClipPropertyAdapter.java`
+- **位置**：`src/main/java/com/director/ui/properties/adapters/EntityTransformClipPropertyAdapter.java`
 - **功能**：编辑位移/旋转/缩放片段的属性
 - **支持字段**：
   - 基础信息（时间范围）
@@ -24,7 +24,7 @@
 ### 二、创建菜单
 
 #### TimelineContextMenuFactory 集成 ✅
-- **位置**：`src/main/java/com/chronoblocks/ui/timeline/menu/TimelineContextMenuFactory.java`
+- **位置**：`src/main/java/com/director/ui/timeline/menu/TimelineContextMenuFactory.java`
 - **功能**：在实体轨道的右键菜单中添加"创建实体片段"子菜单
 - **支持的 Clip 类型**：
   - 出现/绑定 (Spawn)
@@ -44,7 +44,7 @@
 ### 三、TimelineTrack 集成
 
 #### EntityTrack Payload 支持 ✅
-- **位置**：`src/main/java/com/chronoblocks/ui/timeline/model/TimelineTrack.java`
+- **位置**：`src/main/java/com/director/ui/timeline/model/TimelineTrack.java`
 - **新增字段**：
   - `entityTrackPayload` - EntityTrack 实例
 - **新增方法**：
@@ -61,7 +61,7 @@
 ### 四、属性适配器注册
 
 #### PropertyAdapterBootstrap 更新 ✅
-- **位置**：`src/main/java/com/chronoblocks/ui/properties/PropertyAdapterBootstrap.java`
+- **位置**：`src/main/java/com/director/ui/properties/PropertyAdapterBootstrap.java`
 - **已注册**：
   - `EntitySpawnClipPropertyAdapter`
   - `EntityTransformClipPropertyAdapter`

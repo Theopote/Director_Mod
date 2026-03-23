@@ -2,7 +2,7 @@
 
 ## 一、为什么必须有 SelectionType？
 
-ChronoBlocks 中已经隐含了 4 种 Selection 语义，但需要显式区分：
+Director 中已经隐含了 4 种 Selection 语义，但需要显式区分：
 
 | SelectionType | 语义 | PropertiesPanel 显示 |
 |--------------|------|---------------------|
@@ -20,7 +20,7 @@ ChronoBlocks 中已经隐含了 4 种 Selection 语义，但需要显式区分�
 
 ## 二、SelectionType 枚举定义
 
-**位置**：`src/main/java/com/chronoblocks/ui/selection/SelectionType.java`
+**位置**：`src/main/java/com/director/ui/selection/SelectionType.java`
 
 ```java
 public enum SelectionType {
@@ -88,7 +88,7 @@ void clearSelection()
 
 ### 4.1 核心切换代码
 
-**位置**：`src/main/java/com/chronoblocks/ui/panels/PropertiesPanel.java`
+**位置**：`src/main/java/com/director/ui/panels/PropertiesPanel.java`
 
 ```java
 @Override
@@ -228,7 +228,7 @@ private void renderClipPanel(SelectionManager selectionManager) {
 
 ## 五、ActorSelectionHub 的对接
 
-**位置**：`src/main/java/com/chronoblocks/ui/actor/selection/ActorSelectionHub.java`
+**位置**：`src/main/java/com/director/ui/actor/selection/ActorSelectionHub.java`
 
 ```java
 public static void selectActor(UUID actorId) {
@@ -421,5 +421,5 @@ public boolean supports(Object obj) {
 4. **🌍 世界反馈** - 世界点选 → 正确的面板显示
 5. **🚀 未来扩展** - 为 AI / Actor 分组预留空间
 
-**这就是 ChronoBlocks 的"SelectionType → PropertiesPanel → PropertyAdapter"完整体系！** 🎨
+**这就是 Director 的"SelectionType → PropertiesPanel → PropertyAdapter"完整体系！** 🎨
 

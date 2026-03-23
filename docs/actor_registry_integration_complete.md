@@ -4,7 +4,7 @@
 
 ### 1. **ActorRegistryManager（全局管理器）**
 
-**位置**：`src/main/java/com/chronoblocks/actor/ActorRegistryManager.java`
+**位置**：`src/main/java/com/director/actor/ActorRegistryManager.java`
 
 **核心功能**：
 - 单例模式：全局唯一 ActorRegistry 实例
@@ -21,7 +21,7 @@
 
 ### 2. **TimelinePanel 集成**
 
-**位置**：`src/main/java/com/chronoblocks/ui/panels/TimelinePanel.java`
+**位置**：`src/main/java/com/director/ui/panels/TimelinePanel.java`
 
 **变更**：
 - 在 `setModel()` 中绑定 ActorRegistry 到 ActorRuntimeController v2
@@ -31,12 +31,12 @@
 **集成代码**：
 ```java
 // ⭐ 实体轨道控制器 v2：绑定 TimelineModel 和 ActorRegistry
-com.chronoblocks.actor.ActorRegistry actorRegistry = 
-    com.chronoblocks.actor.ActorRegistryManager.getInstance();
-com.chronoblocks.actor.runtime.ActorRuntimeController.getInstance().bind(model, actorRegistry);
+com.director.actor.ActorRegistry actorRegistry = 
+    com.director.actor.ActorRegistryManager.getInstance();
+com.director.actor.runtime.ActorRuntimeController.getInstance().bind(model, actorRegistry);
 
 // ⭐ 实体轨道系统 v2：每帧更新实体状态
-com.chronoblocks.actor.runtime.ActorRuntimeController.getInstance().update();
+com.director.actor.runtime.ActorRuntimeController.getInstance().update();
 ```
 
 ### 3. **迁移状态**
@@ -139,5 +139,5 @@ TimelinePanel
 - 完善项目切换支持
 - 移除旧版本代码
 
-ChronoBlocks Actor System 集成完成！🎬
+Director Actor System 集成完成！🎬
 

@@ -56,7 +56,7 @@ ActionEvent：THROW_PROP
 
 ### 3.1 最小模型
 
-**位置**：`com.chronoblocks.ui.timeline.model.entity.AnimationEvent`
+**位置**：`com.director.ui.timeline.model.entity.AnimationEvent`
 
 **字段**：
 ```java
@@ -73,7 +73,7 @@ public final class AnimationEvent {
 
 ### 3.2 EntityAnimationClip 增强
 
-**位置**：`com.chronoblocks.ui.timeline.model.entity.EntityAnimationClip`
+**位置**：`com.director.ui.timeline.model.entity.EntityAnimationClip`
 
 **新增字段**：
 ```java
@@ -125,7 +125,7 @@ public boolean hasEvents()  // 检查是否有事件
 
 ### 5.1 AnimationEventTriggerCache
 
-**位置**：`com.chronoblocks.ui.timeline.playback.entity.AnimationEventTriggerCache`
+**位置**：`com.director.ui.timeline.playback.entity.AnimationEventTriggerCache`
 
 **职责**：
 - ✅ 管理 AnimationEvent 的触发状态
@@ -263,7 +263,7 @@ RuntimeProjectile 生成
 
 ## 九、你现在已经到达的高度
 
-到目前为止，ChronoBlocks 已经具备：
+到目前为止，Director 已经具备：
 
 - 🎭 演员（Actor）
 - 🎬 动画（AnimationClip）
