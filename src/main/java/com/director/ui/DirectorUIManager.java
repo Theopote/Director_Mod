@@ -299,7 +299,13 @@ public class DirectorUIManager {
                                              imgui.flag.ImGuiWindowFlags.NoBackground;
 
     private static final String DOCKSPACE_WINDOW_NAME = "DockSpace";
-    private static final String DOCKSPACE_ID = "DirectorDockSpace";
+    /**
+     * DockSpace 持久化 ID。
+     *
+     * 使用与宿主窗口同名的稳定键，避免历史布局里出现多个 DockSpace 根节点
+     * （表现为“窗口位置正确但不在当前 DockSpace 停靠树中”）。
+     */
+    private static final String DOCKSPACE_ID = DOCKSPACE_WINDOW_NAME;
 
     /**
      * 默认构造函数 - 已移除

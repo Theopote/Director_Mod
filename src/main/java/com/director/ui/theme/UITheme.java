@@ -20,81 +20,80 @@ public class UITheme {
     
     // ==================== 颜色主题 ====================
     
-    /** 深色主题（默认） */
+    /** 深色主题（默认）：底色更深、控件面更亮，对比清晰；无边框描边依赖底色差分轮廓。 */
     public static class DarkTheme {
-        // 背景色
-        public static final int WINDOW_BG = rgba(24, 24, 24, 245);           // 主窗口背景
-        public static final int CHILD_BG = rgba(28, 28, 28, 255);            // 子窗口背景
-        public static final int POPUP_BG = rgba(32, 32, 32, 240);            // 弹出窗口背景
+        // 背景色（窗口最暗，子区域逐级提亮）
+        public static final int WINDOW_BG = rgba(16, 16, 18, 245);           // 主窗口背景
+        public static final int CHILD_BG = rgba(38, 38, 42, 255);            // 子窗口 / 内容区
+        public static final int POPUP_BG = rgba(44, 44, 50, 250);            // 弹出窗口背景
         
         // 文本色
-        public static final int TEXT = rgba(220, 220, 220, 255);             // 主文本
-        public static final int TEXT_DISABLED = rgba(128, 128, 128, 255);    // 禁用文本
+        public static final int TEXT = rgba(236, 236, 240, 255);             // 主文本
+        public static final int TEXT_DISABLED = rgba(142, 142, 152, 255);    // 禁用文本
         public static final int TEXT_SELECTED = rgba(255, 255, 255, 255);    // 选中文本
         public static final int TEXT_WARNING = rgba(255, 200, 0, 255);        // 警告文本（黄色）
         
-        // 边框色
-        /** 边框（窗口、弹出框、按钮/输入框等 frame 的 1px 描边）；浅色以便在深色按钮上可见。 */
-        public static final int BORDER = rgba(90, 90, 90, 255);
-        public static final int BORDER_SHADOW = rgba(0, 0, 0, 80);           // 边框阴影
+        // 边框色（描边已关闭时仍供分隔线等使用，略弱化）
+        public static final int BORDER = rgba(72, 74, 82, 180);
+        public static final int BORDER_SHADOW = rgba(0, 0, 0, 48);
         
-        // 按钮色
-        public static final int BUTTON = rgba(51, 51, 51, 255);              // 按钮默认
-        public static final int BUTTON_HOVERED = rgba(68, 68, 68, 255);      // 按钮悬停
-        public static final int BUTTON_ACTIVE = rgba(85, 85, 85, 255);       // 按钮按下
+        // 按钮色（与输入框底色区分，略偏冷灰）
+        public static final int BUTTON = rgba(55, 58, 66, 255);
+        public static final int BUTTON_HOVERED = rgba(72, 76, 88, 255);
+        public static final int BUTTON_ACTIVE = rgba(88, 94, 108, 255);
         
         // 标题栏
-        public static final int TITLE_BG = rgba(32, 32, 32, 255);            // 标题栏（菜单栏等沿用）
-        public static final int TITLE_BG_ACTIVE = rgba(42, 42, 42, 255);     // 活动标题栏
-        public static final int TITLE_BG_COLLAPSED = rgba(28, 28, 28, 255);  // 折叠标题栏
+        public static final int TITLE_BG = rgba(30, 30, 34, 255);
+        public static final int TITLE_BG_ACTIVE = rgba(40, 40, 46, 255);
+        public static final int TITLE_BG_COLLAPSED = rgba(26, 26, 30, 255);
 
-        /** 普通面板标题栏：中灰色，便于区分各面板边界（仅 Toolbar、Properties、Container、Timeline 等，不含菜单栏/状态栏） */
-        public static final int TITLE_BG_PANEL = rgba(88, 88, 88, 255);
-        public static final int TITLE_BG_PANEL_ACTIVE = rgba(104, 104, 104, 255);
-        public static final int TITLE_BG_PANEL_COLLAPSED = rgba(72, 72, 72, 255);
+        /** 普通面板标题栏 */
+        public static final int TITLE_BG_PANEL = rgba(72, 74, 82, 255);
+        public static final int TITLE_BG_PANEL_ACTIVE = rgba(86, 88, 98, 255);
+        public static final int TITLE_BG_PANEL_COLLAPSED = rgba(60, 62, 70, 255);
         
-        // 选择器和滑块
-        public static final int FRAME_BG = rgba(42, 42, 42, 255);            // 输入框背景
-        public static final int FRAME_BG_HOVERED = rgba(51, 51, 51, 255);    // 输入框悬停
-        public static final int FRAME_BG_ACTIVE = rgba(60, 60, 60, 255);     // 输入框激活
+        // 输入框、滑块槽等 frame 背景（相对 CHILD_BG 明显更亮）
+        public static final int FRAME_BG = rgba(48, 50, 58, 255);
+        public static final int FRAME_BG_HOVERED = rgba(58, 60, 70, 255);
+        public static final int FRAME_BG_ACTIVE = rgba(68, 70, 82, 255);
         
         // 滑块和进度条
-        public static final int SLIDER_GRAB = rgba(61, 133, 224, 255);       // 滑块抓取
-        public static final int SLIDER_GRAB_ACTIVE = rgba(51, 118, 204, 255);// 滑块抓取激活
+        public static final int SLIDER_GRAB = rgba(100, 168, 255, 255);
+        public static final int SLIDER_GRAB_ACTIVE = rgba(130, 196, 255, 255);
         
         // 复选框和单选按钮
-        public static final int CHECK_MARK = rgba(61, 133, 224, 255);        // 复选标记
+        public static final int CHECK_MARK = rgba(100, 168, 255, 255);
         
         // 标签页
-        public static final int TAB = rgba(42, 42, 42, 255);                 // 标签页默认
-        public static final int TAB_HOVERED = rgba(51, 51, 51, 255);         // 标签页悬停
-        public static final int TAB_ACTIVE = rgba(51, 118, 204, 255);        // 标签页激活
-        public static final int TAB_UNFOCUSED = rgba(38, 38, 38, 255);       // 标签页未聚焦
+        public static final int TAB = rgba(42, 44, 52, 255);
+        public static final int TAB_HOVERED = rgba(55, 58, 68, 255);
+        public static final int TAB_ACTIVE = rgba(72, 130, 210, 255);
+        public static final int TAB_UNFOCUSED = rgba(34, 36, 42, 255);
         
         // 滚动条
-        public static final int SCROLLBAR_BG = rgba(24, 24, 24, 200);        // 滚动条背景
-        public static final int SCROLLBAR_GRAB = rgba(68, 68, 68, 255);      // 滚动条抓取
-        public static final int SCROLLBAR_GRAB_HOVERED = rgba(85, 85, 85, 255);
-        public static final int SCROLLBAR_GRAB_ACTIVE = rgba(102, 102, 102, 255);
+        public static final int SCROLLBAR_BG = rgba(20, 20, 22, 220);
+        public static final int SCROLLBAR_GRAB = rgba(96, 98, 108, 255);
+        public static final int SCROLLBAR_GRAB_HOVERED = rgba(118, 120, 132, 255);
+        public static final int SCROLLBAR_GRAB_ACTIVE = rgba(138, 140, 154, 255);
         
         // 分割线
-        public static final int SEPARATOR = rgba(68, 68, 68, 255);           // 分割线
-        public static final int SEPARATOR_HOVERED = rgba(85, 85, 85, 255);   // 分割线悬停
-        public static final int SEPARATOR_ACTIVE = rgba(102, 102, 102, 255); // 分割线激活
+        public static final int SEPARATOR = rgba(62, 64, 72, 255);
+        public static final int SEPARATOR_HOVERED = rgba(82, 84, 94, 255);
+        public static final int SEPARATOR_ACTIVE = rgba(100, 102, 114, 255);
         
         // 表头
-        public static final int HEADER = rgba(51, 51, 51, 255);              // 表头
-        public static final int HEADER_HOVERED = rgba(68, 68, 68, 255);      // 表头悬停
-        public static final int HEADER_ACTIVE = rgba(85, 85, 85, 255);       // 表头激活
+        public static final int HEADER = rgba(52, 54, 62, 255);
+        public static final int HEADER_HOVERED = rgba(64, 66, 76, 255);
+        public static final int HEADER_ACTIVE = rgba(78, 80, 92, 255);
         
         // 高亮色（选择、激活等）
-        public static final int HIGHLIGHT = rgba(61, 133, 224, 102);         // 选择高亮
-        public static final int HIGHLIGHT_HOVERED = rgba(61, 133, 224, 153); // 选择高亮悬停
+        public static final int HIGHLIGHT = rgba(72, 130, 210, 130);
+        public static final int HIGHLIGHT_HOVERED = rgba(100, 168, 255, 180);
         
         // 调整大小手柄
-        public static final int RESIZE_GRIP = rgba(61, 133, 224, 51);        // 调整大小手柄
-        public static final int RESIZE_GRIP_HOVERED = rgba(61, 133, 224, 153);
-        public static final int RESIZE_GRIP_ACTIVE = rgba(61, 133, 224, 255);
+        public static final int RESIZE_GRIP = rgba(72, 130, 210, 70);
+        public static final int RESIZE_GRIP_HOVERED = rgba(100, 168, 255, 160);
+        public static final int RESIZE_GRIP_ACTIVE = rgba(130, 196, 255, 255);
 
         // 按钮特殊颜色
         public static final int BUTTON_DEBUG = rgba(51, 153, 204, 255);       // 调试按钮
@@ -295,11 +294,11 @@ public class UITheme {
         style.setGrabRounding(Rounding.SMALL);
         style.setTabRounding(Rounding.SMALL);
         
-        // 边框（1px 浅色描边，使按钮/输入框等 frame 轮廓更清晰）
-        style.setWindowBorderSize(1.0f);
+        // 无边框描边；层次靠底色与圆角区分
+        style.setWindowBorderSize(0.0f);
         style.setChildBorderSize(0.0f);
-        style.setPopupBorderSize(1.0f);
-        style.setFrameBorderSize(1.0f);
+        style.setPopupBorderSize(0.0f);
+        style.setFrameBorderSize(0.0f);
         style.setTabBorderSize(0.0f);
         
         // 滚动条
