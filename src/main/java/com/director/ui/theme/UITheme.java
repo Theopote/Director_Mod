@@ -23,9 +23,9 @@ public class UITheme {
     /** 深色主题（默认）：底色更深、控件面更亮，对比清晰；无边框描边依赖底色差分轮廓。 */
     public static class DarkTheme {
         // 背景色（窗口最暗，子区域逐级提亮）
-        public static final int WINDOW_BG = rgba(16, 16, 18, 245);           // 主窗口背景
-        public static final int CHILD_BG = rgba(38, 38, 42, 255);            // 子窗口 / 内容区
-        public static final int POPUP_BG = rgba(44, 44, 50, 250);            // 弹出窗口背景
+        public static final int WINDOW_BG = rgba(16, 16, 18, 220);           // 主窗口背景（更透明）
+        public static final int CHILD_BG = rgba(38, 38, 42, 230);            // 子窗口 / 内容区（更透明）
+        public static final int POPUP_BG = rgba(44, 44, 50, 225);            // 弹出窗口背景（更透明）
         
         // 文本色
         public static final int TEXT = rgba(236, 236, 240, 255);             // 主文本
