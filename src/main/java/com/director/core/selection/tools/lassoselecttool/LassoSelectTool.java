@@ -6,6 +6,7 @@ import com.director.core.selection.SelectionOperation;
 import com.director.core.selection.SelectionOperationSupport;
 import com.director.core.selection.SelectionState;
 import com.director.core.selection.SelectionTool;
+import com.director.ui.theme.Icons;
 import com.director.core.selection.block_filters.BlockFilter;
 import com.director.core.selection.block_filters.BlockFilters;
 import net.minecraft.util.hit.BlockHitResult;
@@ -62,7 +63,7 @@ public final class LassoSelectTool implements SelectionTool, SelectionOperationS
 
     @Override
     public String getIcon() {
-        return "\uE91D";
+        return Icons.LASSO;
     }
 
     // ========= 配置 =========

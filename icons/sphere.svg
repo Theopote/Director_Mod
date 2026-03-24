@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- 球体图标 - Sphere Icon (单色版) -->
-
 <svg
    viewBox="0 0 24 24"
    width="24"
    height="24"
+   fill="none"
+   stroke="currentColor"
+   stroke-width="1.8"
+   stroke-linecap="round"
+   stroke-linejoin="round"
    version="1.1"
    id="svg1"
    sodipodi:docname="sphere.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -22,13 +26,27 @@
      inkscape:showpageshadow="2"
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1" />
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="36.875"
+     inkscape:cx="9.1525424"
+     inkscape:cy="14.738983"
+     inkscape:window-width="1920"
+     inkscape:window-height="1129"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
      d="M 12,1 C 5.9367124,1 1,5.9367124 1,12 1,18.063288 5.9367124,23 12,23 18.063288,23 23,18.063288 23,12 23,5.9367124 18.063288,1 12,1 Z m 0,2 c 4.982407,0 9,4.0175926 9,9 0,4.982407 -4.017593,9 -9,9 C 7.0175926,21 3,16.982407 3,12 3,7.0175926 7.0175926,3 12,3 Z"
-     id="circle1" />
+     id="circle1"
+     opacity="1"
+     fill="currentColor"
+     style="stroke-width:0.5;stroke-dasharray:none" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
-     d="M 12,0.51757812 11.261719,1.3261719 C 8.8203629,3.9989205 7.4028397,7.4105349 7.109375,11 H 2 v 2 h 5.109375 c 0.2934647,3.589465 1.7109879,7.001079 4.152344,9.673828 L 12,23.482422 12.738281,22.673828 C 15.179637,20.001079 16.59716,16.589465 16.890625,13 H 22 V 11 H 16.890625 C 16.59716,7.4105349 15.179637,3.9989205 12.738281,1.3261719 Z M 12,3.8515625 C 13.569667,5.9517352 14.544805,8.3853515 14.792969,11 H 9.2070313 C 9.4551954,8.3853515 10.430333,5.9517352 12,3.8515625 Z M 9.2070313,13 H 14.792969 C 14.544805,15.614649 13.569667,18.048265 12,20.148437 10.430333,18.048265 9.4551954,15.614649 9.2070313,13 Z"
-     id="path1" />
+     d="M 11.261719,1.3261719 C 8.8203629,3.9989205 7.4028397,7.4105349 7.109375,11 H 2 v 2 h 5.109375 c 0.2934647,3.589465 1.7109879,7.001079 4.152344,9.673828 h 1.476562 C 15.179637,20.001079 16.59716,16.589465 16.890625,13 H 22 V 11 H 16.890625 C 16.59716,7.4105349 15.179637,3.9989205 12.738281,1.3261719 Z M 12,3.8515625 C 13.569667,5.9517352 14.544805,8.3853515 14.792969,11 H 9.2070313 C 9.4551954,8.3853515 10.430333,5.9517352 12,3.8515625 Z M 9.2070313,13 H 14.792969 C 14.544805,15.614649 13.569667,18.048265 12,20.148437 10.430333,18.048265 9.4551954,15.614649 9.2070313,13 Z"
+     id="path1"
+     opacity="1"
+     fill="currentColor"
+     style="stroke-width:0.5;stroke-dasharray:none"
+     sodipodi:nodetypes="ccccccccccccccccccccc" />
 </svg>

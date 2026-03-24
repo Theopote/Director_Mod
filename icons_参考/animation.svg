@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- 动画图标 - Animation/Clapper Icon (单色版) -->
+
+<svg
+   viewBox="0 0 24 24"
+   width="24"
+   height="24"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="animation.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="M 6,1 A 1,1 0 0 0 5.2929687,1.2929687 l -4,4 A 1,1 0 0 0 1,6 v 6 8 a 1.0001,1.0001 0 0 0 1,1 h 20 a 1.0001,1.0001 0 0 0 1,-1 V 12 6 A 1,1 0 0 0 22.707031,5.2929687 l -4,-4 a 1,1 0 0 0 -1.414062,0 1,1 0 0 0 0,1.4140626 L 19.585937,5 H 14.414063 L 10.707031,1.2929687 a 1,1 0 0 0 -1.4140622,0 1,1 0 0 0 0,1.4140626 L 11.585938,5 H 4.4140625 L 6.7070312,2.7070313 a 1,1 0 0 0 0,-1.4140626 A 1,1 0 0 0 6,1 Z M 3,7 h 11 7 v 4 H 3 Z m 0,6 h 18 v 6 H 3 Z"
+     id="path1" />
+</svg>

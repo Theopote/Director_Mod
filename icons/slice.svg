@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- 切片图标 - Slice Icon (单色版) -->
-
 <svg
    viewBox="0 0 24 24"
    width="24"
    height="24"
+   fill="none"
+   stroke="currentColor"
+   stroke-width="1.8"
+   stroke-linecap="round"
+   stroke-linejoin="round"
    version="1.1"
    id="svg1"
    sodipodi:docname="slice.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -22,21 +26,35 @@
      inkscape:showpageshadow="2"
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1" />
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="18.4375"
+     inkscape:cx="11.579661"
+     inkscape:cy="9.0305085"
+     inkscape:window-width="1920"
+     inkscape:window-height="1129"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
      d="M 12,1 C 5.9367124,1 1,5.9367124 1,12 1,18.063288 5.9367124,23 12,23 18.063288,23 23,18.063288 23,12 23,5.9367124 18.063288,1 12,1 Z m 0,2 c 4.982407,0 9,4.0175926 9,9 0,4.982407 -4.017593,9 -9,9 C 7.0175926,21 3,16.982407 3,12 3,7.0175926 7.0175926,3 12,3 Z"
-     id="circle1" />
+     id="circle1"
+     opacity="1"
+     fill="currentColor"
+     style="stroke-width:0.5;stroke-dasharray:none" />
   <g
      id="path1"
-     style="opacity:1">
+     opacity="1"
+     style="stroke-width:0.5;stroke-dasharray:none">
     <path
-       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
        d="M 12,2 V 22 M 2,12 h 20"
-       id="path2" />
+       id="path2"
+       fill="currentColor"
+       style="stroke-width:0.5;stroke-dasharray:none" />
     <path
-       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
        d="m 11,2 v 9 H 2 v 2 h 9 v 9 h 2 v -9 h 9 V 11 H 13 V 2 Z"
-       id="path3" />
+       id="path3"
+       fill="currentColor"
+       style="stroke-width:0.5;stroke-dasharray:none" />
   </g>
 </svg>

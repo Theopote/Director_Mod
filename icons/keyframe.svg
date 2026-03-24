@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- 关键帧图标 - Keyframe Icon (单色版 - 菱形) -->
-
 <svg
    viewBox="0 0 24 24"
    width="24"
    height="24"
+   fill="none"
+   stroke="currentColor"
+   stroke-width="1.8"
+   stroke-linecap="round"
+   stroke-linejoin="round"
    version="1.1"
    id="svg1"
    sodipodi:docname="keyframe.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -22,15 +26,28 @@
      inkscape:showpageshadow="2"
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1" />
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="18.4375"
+     inkscape:cx="9.6813559"
+     inkscape:cy="12.501695"
+     inkscape:window-width="1920"
+     inkscape:window-height="1129"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
      d="M 11.292969,1.2929687 1.2929687,11.292969 a 1.0001,1.0001 0 0 0 0,1.414062 l 10.0000003,10 a 1.0001,1.0001 0 0 0 1.414062,0 l 10,-10 a 1.0001,1.0001 0 0 0 0,-1.414062 l -10,-10.0000003 a 1.0001,1.0001 0 0 0 -1.414062,0 z M 12,3.4140625 20.585937,12 12,20.585937 3.4140625,12 Z"
-     id="path1" />
+     id="path1"
+     stroke-linejoin="round"
+     opacity="1"
+     fill="currentColor"
+     style="stroke-width:0.5;stroke-dasharray:none" />
   <circle
      cx="12"
      cy="12"
      r="3"
-     fill="#000000"
-     id="circle1" />
+     fill="currentColor"
+     id="circle1"
+     style="stroke-width:0.5;stroke-dasharray:none" />
 </svg>

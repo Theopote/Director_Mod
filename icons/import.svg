@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- 导入图标 - Import Icon (单色版) -->
-
 <svg
    viewBox="0 0 24 24"
    width="24"
    height="24"
+   fill="none"
+   stroke="currentColor"
+   stroke-width="1.8"
+   stroke-linecap="round"
+   stroke-linejoin="round"
    version="1.1"
    id="svg1"
    sodipodi:docname="import.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -22,9 +26,23 @@
      inkscape:showpageshadow="2"
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1" />
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="16"
+     inkscape:cx="-2.71875"
+     inkscape:cy="14.09375"
+     inkscape:window-width="1920"
+     inkscape:window-height="1129"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
-     d="M 4,3 C 2.3549904,3 1,4.3549904 1,6 v 14 c 0,1.64501 1.3549904,3 3,3 h 14 c 1.64501,0 3,-1.35499 3,-3 v -7 a 1,1 0 0 0 -1,-1 1,1 0 0 0 -1,1 v 7 c 0,0.564129 -0.435871,1 -1,1 H 4 C 3.4358706,21 3,20.564129 3,20 V 6 C 3,5.4358706 3.4358706,5 4,5 h 7 A 1,1 0 0 0 12,4 1,1 0 0 0 11,3 Z m 10,1 a 1,1 0 0 0 -1,1 1,1 0 0 0 1,1 h 2.585937 l -8.2929682,8.292969 a 1,1 0 0 0 0,1.414062 1,1 0 0 0 1.4140625,0 L 18,7.4140625 V 10 a 1,1 0 0 0 1,1 1,1 0 0 0 1,-1 V 5 a 1,1 0 0 0 -0.292969,-0.7070313 1,1 0 0 0 -0.414062,0 A 1.0001,1.0001 0 0 0 19,4 Z"
-     id="path1" />
+     d="M 5,2 C 3.3549904,2 2,3.3549904 2,5 v 14 c 0,1.64501 1.3549904,3 3,3 h 14 c 1.64501,0 3,-1.35499 3,-3 v -7 c 0,-0.552285 -0.447715,-1 -1,-1 -0.552285,0 -1,0.447715 -1,1 v 7 c 0,0.564129 -0.435871,1 -1,1 H 5 C 4.4358706,20 4,19.564129 4,19 V 5 C 4,4.4358706 4.4358706,4 5,4 h 7 C 12.552285,4 13,3.5522847 13,3 13,2.4477153 12.552285,2 12,2 Z m 10.99714,-0.00286 c -0.552284,0 -1,0.4477153 -1,1 0,0.5522848 0.447716,1 1,1 h 2.585937 l -8.292968,8.2929686 c -0.3904231,0.390507 -0.3904231,1.023555 0,1.414062 0.390507,0.390424 1.023555,0.390424 1.414062,0 L 19.99714,5.4112029 v 2.5859375 c 0,0.5522848 0.447716,1 1,1 0.552285,0 1,-0.4477152 1,-1 v -5 c 0,-0.2964764 -0.0101,-0.4958118 -0.207031,-0.7265625 C 21.585315,2.0366024 21.346679,1.9971404 20.99714,1.9971404 Z"
+     id="path1"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     opacity="1"
+     fill="currentColor"
+     style="stroke-width:0.5;stroke-dasharray:none"
+     sodipodi:nodetypes="sssssssssssssssssssssscccccssscccs" />
 </svg>

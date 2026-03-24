@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- 循环图标 - Loop Icon (单色版) -->
-
 <svg
    viewBox="0 0 24 24"
    width="24"
    height="24"
+   fill="none"
+   stroke="currentColor"
+   stroke-width="1.8"
+   stroke-linecap="round"
+   stroke-linejoin="round"
    version="1.1"
    id="svg1"
    sodipodi:docname="loop.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -22,9 +26,23 @@
      inkscape:showpageshadow="2"
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1" />
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="9.21875"
+     inkscape:cx="-6.5627119"
+     inkscape:cy="11.335593"
+     inkscape:window-width="1920"
+     inkscape:window-height="1129"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
-     d="m 16.292969,0.29296875 a 1,1 0 0 0 0,1.41406245 L 18.585937,4 H 7 C 4.2504209,4 2,6.2504209 2,9 v 2 a 1,1 0 0 0 1,1 1,1 0 0 0 1,-1 V 9 C 4,7.3313011 5.3313011,6 7,6 h 11.585937 l -2.292968,2.2929688 a 1,1 0 0 0 0,1.4140625 1,1 0 0 0 1.414062,0 l 4,-4.0000001 a 1.0001,1.0001 0 0 0 0,-0.4140625 A 1,1 0 0 0 22,5 1,1 0 0 0 21.707031,4.7070312 a 1.0001,1.0001 0 0 0 0,-0.4140625 l -4,-3.99999995 a 1,1 0 0 0 -1.414062,0 z M 21,12 a 1,1 0 0 0 -1,1 v 2 c 0,1.668699 -1.331301,3 -3,3 H 5.4140625 l 2.2929687,-2.292969 a 1,1 0 0 0 0,-1.414062 1,1 0 0 0 -1.4140625,0 l -3.9999999,4 a 1.0001,1.0001 0 0 0 0,0.414062 A 1,1 0 0 0 2,19 a 1,1 0 0 0 0.2929688,0.292969 1.0001,1.0001 0 0 0 0,0.414062 l 3.9999999,4 a 1,1 0 0 0 1.4140625,0 1,1 0 0 0 0,-1.414062 L 5.4140625,20 H 17 c 2.749579,0 5,-2.250421 5,-5 v -2 a 1,1 0 0 0 -1,-1 z"
-     id="path1" />
+     d="m 16.26924,1.1464845 c -0.390424,0.390507 -0.390424,1.0235554 0,1.4140624 l 2.292968,2.2929688 H 6.9762714 c -2.7495791,0 -5,2.2504209 -5,5 v 2.0000003 c 0,0.552284 0.4477153,1 1,1 0.5522847,0 1,-0.447716 1,-1 V 9.8535157 c 0,-1.6686989 1.3313011,-3 3,-3 H 18.562208 L 16.26924,9.1464845 c -0.390424,0.390507 -0.390424,1.0235555 0,1.4140625 0.390507,0.390423 1.023555,0.390423 1.414062,0 l 4,-4.0000001 c 0.2657,-0.2656997 0.267843,-0.4497043 0.340427,-0.7205905 -0.06704,-0.2501967 -0.05422,-0.4072651 -0.340427,-0.693472 l -4,-3.9999999 c -0.390507,-0.39042334 -1.023555,-0.39042334 -1.414062,0 z m 4.707031,10.0000005 c -0.552285,0 -1,0.447715 -1,1 v 2 c 0,1.668699 -1.331301,2.999999 -3,2.999999 H 5.3903339 l 2.2929687,-2.292968 c 0.3904233,-0.390507 0.3904233,-1.023556 0,-1.414062 -0.390507,-0.390424 -1.0235555,-0.390424 -1.4140625,0 l -3.9999999,3.999999 c -0.2959087,0.295909 -0.2929688,0.536987 -0.2929688,0.697443 0,0.270862 0.032564,0.456214 0.2929688,0.716619 l 3.9999999,4 c 0.390507,0.390424 1.0235555,0.390424 1.4140625,0 0.3904233,-0.390506 0.3904233,-1.023555 0,-1.414062 L 5.3903339,19.146484 H 16.976271 c 2.749579,0 5,-2.250421 5,-4.999999 v -2 c 0,-0.552285 -0.447715,-1 -1,-1 z"
+     id="path1"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     opacity="1"
+     fill="currentColor"
+     style="stroke-width:0.5;stroke-dasharray:none"
+     sodipodi:nodetypes="cccssssssscccccccccsssscccccccccccssss" />
 </svg>

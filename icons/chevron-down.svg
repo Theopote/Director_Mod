@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- 向下箭头图标 - Chevron Down Icon (单色版) -->
-
 <svg
    viewBox="0 0 24 24"
    width="24"
    height="24"
+   fill="none"
+   stroke="currentColor"
+   stroke-width="1.8"
+   stroke-linecap="round"
+   stroke-linejoin="round"
    version="1.1"
    id="svg1"
    sodipodi:docname="chevron-down.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -22,9 +26,22 @@
      inkscape:showpageshadow="2"
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1" />
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="18.4375"
+     inkscape:cx="11.633898"
+     inkscape:cy="5.9932203"
+     inkscape:window-width="1920"
+     inkscape:window-height="1129"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
-     d="m 6,8 a 1,1 0 0 0 -0.7070313,0.2929688 1,1 0 0 0 0,1.4140625 l 6.0000003,5.9999997 a 1.0001,1.0001 0 0 0 1.414062,0 l 6,-5.9999997 a 1,1 0 0 0 0,-1.4140625 1,1 0 0 0 -1.414062,0 L 12,13.585938 6.7070312,8.2929688 A 1,1 0 0 0 6,8 Z"
-     id="path1" />
+     d="m 1.8207418,7.6372736 a 1.4542515,1.4542515 0 0 0 0.42605,1.028203 l 8.7255092,8.7255094 a 1.4543969,1.4543969 0 0 0 2.056402,0 l 8.725509,-8.7255094 a 1.4542515,1.4542515 0 0 0 0,-2.056403 1.4542515,1.4542515 0 0 0 -2.056402,0 L 12.000503,14.306381 4.3031938,6.6090736 a 1.4542515,1.4542515 0 0 0 -2.056402,0 1.4542515,1.4542515 0 0 0 -0.42605,1.0282 z"
+     id="path1"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     opacity="1"
+     fill="currentColor"
+     style="stroke-width:0.25;stroke-dasharray:none" />
 </svg>

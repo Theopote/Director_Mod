@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- 靶心图标 - Target Icon (单色版) -->
+
+<svg
+   viewBox="0 0 24 24"
+   width="24"
+   height="24"
+   version="1.1"
+   id="svg3"
+   sodipodi:docname="target.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs3" />
+  <sodipodi:namedview
+     id="namedview3"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="M 12,1 C 5.9367124,1 1,5.9367124 1,12 1,18.063288 5.9367124,23 12,23 18.063288,23 23,18.063288 23,12 23,5.9367124 18.063288,1 12,1 Z m 0,2 c 4.982407,0 9,4.0175926 9,9 0,4.982407 -4.017593,9 -9,9 C 7.0175926,21 3,16.982407 3,12 3,7.0175926 7.0175926,3 12,3 Z"
+     id="circle1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="m 12,5 c -3.8541486,0 -7,3.1458514 -7,7 0,3.854149 3.1458514,7 7,7 3.854149,0 7,-3.145851 7,-7 0,-3.8541486 -3.145851,-7 -7,-7 z m 0,2 c 2.773268,0 5,2.2267316 5,5 0,2.773268 -2.226732,5 -5,5 C 9.2267316,17 7,14.773268 7,12 7,9.2267316 9.2267316,7 12,7 Z"
+     id="circle2" />
+  <circle
+     cx="12"
+     cy="12"
+     r="2"
+     fill="#000000"
+     id="circle3" />
+</svg>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- 选择图标 - Select Icon (单色版) -->
+
+<svg
+   viewBox="0 0 24 24"
+   width="24"
+   height="24"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="select.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="M 3.3847656,2.0761719 A 1.0001,1.0001 0 0 0 2.0761719,3.3847656 L 9.1464844,20.355469 a 1.0001,1.0001 0 0 0 1.8710936,-0.06445 l 1.992188,-5.867188 5.283203,5.283203 a 1,1 0 0 0 1.414062,0 1,1 0 0 0 0,-1.414062 l -5.283203,-5.283203 5.867188,-1.992188 a 1.0001,1.0001 0 0 0 0.06445,-1.8710936 z m 1.4726563,2.78125 12.2851561,5.1171875 -4.884765,1.6582036 a 1.0001,1.0001 0 0 0 -0.625,0.625 l -1.6582036,4.884765 z"
+     id="path1" />
+</svg>

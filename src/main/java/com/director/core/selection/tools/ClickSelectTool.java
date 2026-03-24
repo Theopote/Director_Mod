@@ -5,6 +5,7 @@ import com.director.core.selection.SelectionOperation;
 import com.director.core.selection.SelectionOperationSupport;
 import com.director.core.selection.SelectionState;
 import com.director.core.selection.SelectionTool;
+import com.director.ui.theme.Icons;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
@@ -51,7 +52,7 @@ public class ClickSelectTool implements SelectionTool, SelectionOperationSupport
 
     @Override
     public String getIcon() {
-        return "\uE97C"; // Icons.SELECT
+        return Icons.SELECT;
     }
 
     @Override

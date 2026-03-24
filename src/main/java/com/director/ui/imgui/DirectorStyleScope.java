@@ -19,7 +19,7 @@ import imgui.flag.ImGuiStyleVar;
  */
 public final class DirectorStyleScope implements AutoCloseable {
 
-    private static final int STYLE_VAR_COUNT = 21;
+    private static final int STYLE_VAR_COUNT = 22;
     private static final int STYLE_COLOR_COUNT = 39;
 
     private DirectorStyleScope() {
@@ -59,6 +59,7 @@ public final class DirectorStyleScope implements AutoCloseable {
         ImGui.pushStyleVar(ImGuiStyleVar.GrabMinSize, 10.0f);
         ImGui.pushStyleVar(ImGuiStyleVar.GrabRounding, UITheme.Rounding.SMALL);
         ImGui.pushStyleVar(ImGuiStyleVar.TabRounding, UITheme.Rounding.SMALL);
+        ImGui.pushStyleVar(ImGuiStyleVar.ButtonTextAlign, 0.5f, 0.5f);
 
         // StyleColors（Director 深色主题）
         float[] c;

@@ -142,6 +142,10 @@ public class UITheme {
         public static final float BUTTON_HEIGHT = 24.0f;  // 保持24px高度
         public static final float BUTTON_PADDING_X = 6.0f;  // 按钮文字左右内边距，等于元素间距
         public static final float BUTTON_PADDING_Y = 3.0f;  // 3px边距，适配18px字体
+
+        /** 纯图标或图标为主的紧凑按钮（工具栏图标模式、时间线播放键），减小内边距使字形在正方形容器内尽量占满 */
+        public static final float ICON_BUTTON_PADDING_X = 2.0f;
+        public static final float ICON_BUTTON_PADDING_Y = 2.0f;
         
         // 输入框宽度（常用尺寸）
         public static final float INPUT_WIDTH_SMALL = 70.0f;    // 小输入框（如时间输入）
@@ -275,7 +279,8 @@ public class UITheme {
         
         // 2. 按钮内边距：18px字体 + 上下各3px = 24px按钮高度，左右各6px = 元素间距
         style.setFramePadding(Spacing.BUTTON_PADDING_X, Spacing.BUTTON_PADDING_Y);  // (6px, 3px)
-        
+        style.setButtonTextAlign(0.5f, 0.5f);
+
         // 3. 元素间距：统一使用6px（上下按钮之间、左右按钮之间都是6px）
         style.setItemSpacing(Spacing.ELEMENT_SPACING, Spacing.ELEMENT_SPACING);  // (6px, 6px)
         

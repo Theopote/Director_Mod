@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- 书签图标 - Bookmark Icon (单色版) -->
-
 <svg
    viewBox="0 0 24 24"
    width="24"
    height="24"
+   fill="none"
+   stroke="currentColor"
+   stroke-width="1.8"
+   stroke-linecap="round"
+   stroke-linejoin="round"
    version="1.1"
    id="svg1"
    sodipodi:docname="bookmark.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -22,9 +26,22 @@
      inkscape:showpageshadow="2"
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1" />
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="9.21875"
+     inkscape:cx="-3.8508475"
+     inkscape:cy="14.915254"
+     inkscape:window-width="1920"
+     inkscape:window-height="1129"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
-     d="M 7,2 C 5.3549904,2 4,3.3549904 4,5 v 16 a 1.0001,1.0001 0 0 0 1.5820312,0.814453 L 12,17.228516 18.417969,21.814453 A 1.0001,1.0001 0 0 0 20,21 V 5 C 20,3.3549904 18.64501,2 17,2 Z m 0,2 h 10 c 0.564129,0 1,0.4358706 1,1 v 14.054687 l -5.417969,-3.86914 a 1.0001,1.0001 0 0 0 -1.164062,0 L 6,19.054687 V 5 C 6,4.4358706 6.4358706,4 7,4 Z"
-     id="path1" />
+     d="m 7,2.0042716 c -1.6450096,0 -3,1.3549904 -3,3 V 21.004271 a 1.0001,1.0001 0 0 0 1.5820312,0.814453 L 12,17.232787 18.417969,21.818724 A 1.0001,1.0001 0 0 0 20,21.004271 V 5.0042716 c 0,-1.6450096 -1.35499,-3 -3,-3 z m 0,2 h 10 c 0.564129,0 1,0.4358706 1,1 V 19.058958 l -5.417969,-3.86914 a 1.0001,1.0001 0 0 0 -1.164062,0 L 6,19.058958 V 5.0042716 c 0,-0.5641294 0.4358706,-1 1,-1 z"
+     id="path1"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     opacity="1"
+     fill="currentColor"
+     style="stroke-width:1;stroke-dasharray:none" />
 </svg>

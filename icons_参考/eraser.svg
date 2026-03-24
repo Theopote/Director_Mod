@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- 橡皮擦图标 - Eraser Icon (单色版) -->
+
+<svg
+   viewBox="0 0 24 24"
+   width="24"
+   height="24"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="eraser.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="m 15.115234,-0.11523437 c -0.512042,0 -1.024241,0.19254653 -1.410156,0.57617187 a 1.0001,1.0001 0 0 0 -0.002,0.001953 L 1.2929687,12.882813 a 1.0001,1.0001 0 0 0 -0.00195,0.002 c -0.76725065,0.771829 -0.76725065,2.048483 0,2.820312 a 1.0001,1.0001 0 0 0 0.00195,0.002 l 5,5 A 1.0001,1.0001 0 0 0 7,21 h 13 a 1,1 0 0 0 1,-1 1,1 0 0 0 -1,-1 H 7.4140625 L 2.7089844,14.294922 15.115234,1.8789062 21.289062,8.0429688 14.333984,14.253906 a 1,1 0 0 0 -0.08008,1.41211 1,1 0 0 0 1.41211,0.08008 l 7,-6.2500002 a 1.0001,1.0001 0 0 0 0.04297,-0.041016 c 0.767251,-0.7718295 0.767251,-2.048483 0,-2.8203125 a 1.0001,1.0001 0 0 0 -0.002,-0.00195 L 16.527344,0.46289063 a 1.0001,1.0001 0 0 0 -0.002,-0.001953 C 16.139476,0.07731216 15.627277,-0.11523438 15.115234,-0.11523437 Z M 15.119141,7 A 1,1 0 0 0 14.412109,7.2929687 L 7.4121094,14.292969 a 1,1 0 0 0 0,1.414062 1,1 0 0 0 1.4140625,0 L 15.826172,8.7070313 a 1,1 0 0 0 0,-1.4140626 A 1,1 0 0 0 15.119141,7 Z"
+     id="path1" />
+</svg>

@@ -26,7 +26,7 @@ import imgui.flag.ImGuiStyleVar;
  * <p>优化点：
  * <ul>
  *   <li>Zero-GC: 移除了每帧分配的 float[] 数组，改为成员变量复用</li>
- *   <li>Layout: 移除了冗余的 Push/Pop StyleVar，使用 AlignTextToFramePadding 修正垂直对齐</li>
+ *   <li>Layout: 播放控制区使用紧凑 FramePadding；配合全局 ButtonTextAlign 与 AlignTextToFramePadding 对齐</li>
  *   <li>UX: 限制了缩放滑块的最大宽度，防止在高分辨率下过长</li>
  * </ul>
  * 
@@ -163,6 +163,8 @@ public class TimelineControlBar {
 
         renderSeparator();
 
+        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, UITheme.Spacing.ICON_BUTTON_PADDING_X, UITheme.Spacing.ICON_BUTTON_PADDING_Y);
+
         // ========== 播放控制（Facade 架构）==========
         if (ImGui.button(Icons.SKIP_BACK, 0, UITheme.Spacing.BUTTON_HEIGHT)) {
             if (commands != null && commands.playback() != null) {
@@ -190,6 +192,9 @@ public class TimelineControlBar {
                 model.jumpToEnd();
             }
         }
+
+        ImGui.popStyleVar();
+
         ImGui.sameLine();
         // 轨迹调试开关
         imgui.type.ImBoolean pathFlag = new imgui.type.ImBoolean(showCameraPath);

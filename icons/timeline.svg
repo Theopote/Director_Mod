@@ -1,54 +1,74 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- 时间线图标 - Timeline Icon (单色版) -->
-
 <svg
    viewBox="0 0 24 24"
    width="24"
    height="24"
+   fill="none"
+   stroke="currentColor"
+   stroke-width="1.8"
+   stroke-linecap="round"
+   stroke-linejoin="round"
    version="1.1"
-   id="svg3"
+   id="svg1"
    sodipodi:docname="timeline.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg">
   <defs
-     id="defs3" />
+     id="defs1" />
   <sodipodi:namedview
-     id="namedview3"
+     id="namedview1"
      pagecolor="#ffffff"
      bordercolor="#000000"
      borderopacity="0.25"
      inkscape:showpageshadow="2"
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1" />
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="18.4375"
+     inkscape:cx="6.3728814"
+     inkscape:cy="9.8983051"
+     inkscape:window-width="1920"
+     inkscape:window-height="1129"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
   <g
      id="line1"
-     style="opacity:1">
+     opacity="1"
+     style="stroke-width:0.5;stroke-dasharray:none">
     <path
-       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
        d="M 2,12 H 22"
-       id="path3" />
+       id="path3"
+       fill="currentColor"
+       style="stroke-width:0.5;stroke-dasharray:none" />
     <path
-       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
        d="m 2,11 v 2 h 20 v -2 z"
-       id="path4" />
+       id="path4"
+       fill="currentColor"
+       style="stroke-width:0.5;stroke-dasharray:none" />
   </g>
   <circle
      cx="6"
      cy="12"
      r="3"
-     fill="#000000"
-     id="circle1" />
+     fill="currentColor"
+     id="circle1"
+     style="stroke-width:0.5;stroke-dasharray:none" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
      d="m 12,8 c -2.1972944,0 -4,1.8027056 -4,4 0,2.197294 1.8027056,4 4,4 2.197294,0 4,-1.802706 4,-4 0,-2.1972944 -1.802706,-4 -4,-4 z m 0,2 c 1.116414,0 2,0.883586 2,2 0,1.116414 -0.883586,2 -2,2 -1.116414,0 -2,-0.883586 -2,-2 0,-1.116414 0.883586,-2 2,-2 z"
-     id="circle2" />
+     id="circle2"
+     opacity="1"
+     fill="currentColor"
+     style="stroke-width:0.05;stroke-dasharray:none" />
   <circle
      cx="18"
      cy="12"
      r="3"
-     fill="#000000"
-     id="circle3" />
+     fill="currentColor"
+     id="circle3"
+     style="stroke-width:0.5;stroke-dasharray:none" />
 </svg>

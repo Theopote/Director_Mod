@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- 钢笔工具图标 - Pen Tool Icon (单色版) -->
+
+<svg
+   viewBox="0 0 24 24"
+   width="24"
+   height="24"
+   version="1.1"
+   id="svg3"
+   sodipodi:docname="pen.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs3" />
+  <sodipodi:namedview
+     id="namedview3"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="m 18.292969,11.292969 -7,7 a 1.0001,1.0001 0 0 0 0,1.414062 l 3,3 a 1.0001,1.0001 0 0 0 1.414062,0 l 7,-7 a 1.0001,1.0001 0 0 0 0,-1.414062 l -3,-3 a 1.0001,1.0001 0 0 0 -1.414062,0 z M 19,13.414063 20.585937,15 15,20.585937 13.414063,19 Z"
+     id="path1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="M 2.234375,1.0273437 A 1.0001,1.0001 0 0 0 1.0273437,2.234375 l 3.5,14.5 a 1.0001,1.0001 0 0 0 0.7773438,0.746094 l 7.5000005,1.5 a 1.0001,1.0001 0 0 0 0.902343,-0.273438 l 5,-5 a 1.0001,1.0001 0 0 0 0.273438,-0.902343 l -1.5,-7.5000005 A 1.0001,1.0001 0 0 0 16.734375,4.5273437 Z m 1.1230469,2.3300782 12.2871091,2.9648437 1.269531,6.3496094 -4.242187,4.242187 -6.3496094,-1.269531 z"
+     id="path2" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="M 2.7070313,1.2929687 1.2929687,2.7070313 8.8789063,10.292969 10.292969,8.8789063 Z"
+     id="path3" />
+  <circle
+     cx="11"
+     cy="11"
+     r="2"
+     fill="#000000"
+     id="circle3" />
+</svg>

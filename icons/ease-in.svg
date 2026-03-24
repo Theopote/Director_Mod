@@ -1,46 +1,66 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- 缓入图标 - Ease In Icon (单色版) -->
-
 <svg
    viewBox="0 0 24 24"
    width="24"
    height="24"
+   fill="none"
+   stroke="currentColor"
+   stroke-width="1.8"
+   stroke-linecap="round"
+   stroke-linejoin="round"
    version="1.1"
-   id="svg2"
+   id="svg1"
    sodipodi:docname="ease-in.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg">
   <defs
-     id="defs2" />
+     id="defs1" />
   <sodipodi:namedview
-     id="namedview2"
+     id="namedview1"
      pagecolor="#ffffff"
      bordercolor="#000000"
      borderopacity="0.25"
      inkscape:showpageshadow="2"
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1" />
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="13.037281"
+     inkscape:cx="-5.330866"
+     inkscape:cy="5.330866"
+     inkscape:window-width="1920"
+     inkscape:window-height="1129"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
      d="M 4,1 C 2.3552972,1 1,2.3552972 1,4 v 16 c 0,1.644703 1.3552972,3 3,3 h 16 c 1.644703,0 3,-1.355297 3,-3 V 4 C 23,2.3552972 21.644703,1 20,1 Z m 0,2 h 16 c 0.571297,0 1,0.4287028 1,1 v 16 c 0,0.571297 -0.428703,1 -1,1 H 4 C 3.4287028,21 3,20.571297 3,20 V 4 C 3,3.4287028 3.4287028,3 4,3 Z"
-     id="rect1" />
+     id="rect1"
+     opacity="1"
+     fill="currentColor"
+     style="stroke-width:0.5;stroke-dasharray:none" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
      d="M 18,4.75 C 13.791667,4.75 10.409862,5.8206065 8.1152344,8.1152344 5.8206065,10.409862 4.75,13.791667 4.75,18 A 1.25,1.25 0 0 0 6,19.25 1.25,1.25 0 0 0 7.25,18 C 7.25,14.208333 8.1793935,11.590138 9.8847656,9.8847656 11.590138,8.1793935 14.208333,7.25 18,7.25 A 1.25,1.25 0 0 0 19.25,6 1.25,1.25 0 0 0 18,4.75 Z"
-     id="path1" />
+     id="path1"
+     stroke-linecap="round"
+     opacity="1"
+     fill="currentColor"
+     style="stroke-width:0.5;stroke-dasharray:none" />
   <circle
      cx="6"
      cy="18"
      r="2"
-     fill="#000000"
-     id="circle1" />
+     fill="currentColor"
+     id="circle1"
+     style="stroke-width:0.5;stroke-dasharray:none" />
   <circle
      cx="18"
      cy="6"
      r="2"
-     fill="#000000"
-     id="circle2" />
+     fill="currentColor"
+     id="circle2"
+     style="stroke-width:0.5;stroke-dasharray:none" />
 </svg>

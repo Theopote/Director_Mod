@@ -1,34 +1,53 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- 麦克风图标 - Microphone Icon (单色版) -->
-
 <svg
    viewBox="0 0 24 24"
    width="24"
    height="24"
+   fill="none"
+   stroke="currentColor"
+   stroke-width="1.8"
+   stroke-linecap="round"
+   stroke-linejoin="round"
    version="1.1"
-   id="svg2"
+   id="svg1"
    sodipodi:docname="mic.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg">
   <defs
-     id="defs2" />
+     id="defs1" />
   <sodipodi:namedview
-     id="namedview2"
+     id="namedview1"
      pagecolor="#ffffff"
      bordercolor="#000000"
      borderopacity="0.25"
      inkscape:showpageshadow="2"
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1" />
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="9.21875"
+     inkscape:cx="15.240678"
+     inkscape:cy="17.19322"
+     inkscape:window-width="1920"
+     inkscape:window-height="1129"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
-     d="M 12,0 C 9.8027056,0 8,1.8027056 8,4 v 8 c 0,1.25 0.5047556,2.314774 1.2734375,2.998047 C 10.042119,15.681319 11.027778,16 12,16 12.972222,16 13.957881,15.681319 14.726563,14.998047 15.495244,14.314774 16,13.25 16,12 V 4 C 16,1.8027056 14.197294,0 12,0 Z m 0,2 c 1.116414,0 2,0.8835859 2,2 v 8 c 0,0.749999 -0.245244,1.185226 -0.601562,1.501953 C 13.042119,13.81868 12.527778,14 12,14 11.472222,14 10.957881,13.81868 10.601563,13.501953 10.245244,13.185226 10,12.749999 10,12 V 4 c 0,-1.1164141 0.883586,-2 2,-2 z"
-     id="path1" />
+     d="m 12,0.7907815 c -2.0562296,0 -3.7432029,1.6869733 -3.7432029,3.7432031 v 7.4864064 c 0,1.169751 0.4723507,2.166167 1.1916838,2.805574 0.7193331,0.639407 1.6417131,0.937629 2.5515191,0.937629 0.909806,0 1.832187,-0.298222 2.55152,-0.937629 0.719332,-0.639407 1.191683,-1.635823 1.191683,-2.805574 V 4.5339846 C 15.743203,2.4777548 14.05623,0.7907815 12,0.7907815 Z m 0,1.8716016 c 1.044741,0 1.871602,0.8268603 1.871602,1.8716015 v 7.4864064 c 0,0.701849 -0.2295,1.109135 -0.562942,1.405528 -0.333444,0.296394 -0.814765,0.466073 -1.30866,0.466073 -0.493895,0 -0.975215,-0.169679 -1.308658,-0.466073 -0.333444,-0.296393 -0.562943,-0.703679 -0.562943,-1.405528 V 4.5339846 c 0,-1.0447412 0.82686,-1.8716015 1.871601,-1.8716015 z"
+     id="path1"
+     opacity="1"
+     fill="currentColor"
+     style="stroke-width:0.5;stroke-dasharray:none" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
-     d="m 5,9 a 1,1 0 0 0 -1,1 v 2 c 0,4.052133 3.0846094,7.281987 7,7.796875 V 22 H 8 a 1,1 0 0 0 -1,1 1,1 0 0 0 1,1 h 4 4 a 1,1 0 0 0 1,-1 1,1 0 0 0 -1,-1 H 13 V 19.796875 C 16.915391,19.281987 20,16.052133 20,12 v -2 a 1,1 0 0 0 -1,-1 1,1 0 0 0 -1,1 v 2 c 0,3.325556 -2.674446,6 -6,6 C 8.674446,18 6,15.325556 6,12 V 10 A 1,1 0 0 0 5,9 Z"
-     id="path2" />
+     d="M 5.4493949,9.2129884 A 0.93580076,0.93580076 0 0 0 4.5135941,10.148789 v 1.871602 c 0,3.791989 2.8865798,6.814489 6.5506059,7.296321 v 2.061686 H 8.2567971 A 0.93580076,0.93580076 0 0 0 7.3209964,22.314199 0.93580076,0.93580076 0 0 0 8.2567971,23.25 H 12 15.743203 a 0.93580076,0.93580076 0 0 0 0.935801,-0.935801 0.93580076,0.93580076 0 0 0 -0.935801,-0.935801 h -2.807402 v -2.061686 c 3.664026,-0.481832 6.550605,-3.504332 6.550605,-7.296321 v -1.871602 a 0.93580076,0.93580076 0 0 0 -0.9358,-0.9358006 0.93580076,0.93580076 0 0 0 -0.935801,0.9358006 v 1.871602 c 0,3.112058 -2.502749,5.614804 -5.614805,5.614804 -3.1120558,0 -5.6148044,-2.502746 -5.6148044,-5.614804 V 10.148789 A 0.93580076,0.93580076 0 0 0 5.4493949,9.2129884 Z"
+     id="path2"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     opacity="1"
+     fill="currentColor"
+     style="stroke-width:0.5;stroke-dasharray:none" />
 </svg>

@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- 铃铛图标 - Bell Icon (单色版) -->
-
 <svg
    viewBox="0 0 24 24"
    width="24"
    height="24"
+   fill="none"
+   stroke="currentColor"
+   stroke-width="1.8"
+   stroke-linecap="round"
+   stroke-linejoin="round"
    version="1.1"
    id="svg1"
    sodipodi:docname="bell.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -22,9 +26,22 @@
      inkscape:showpageshadow="2"
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1" />
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="18.4375"
+     inkscape:cx="12.827119"
+     inkscape:cy="12.501695"
+     inkscape:window-width="1920"
+     inkscape:window-height="1129"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
      d="M 12,1 C 8.1458524,1 5,4.1458495 5,8 5,11.357143 4.2876465,13.428052 3.6230469,14.646484 2.9584473,15.864917 2.4453125,16.167969 2.4453125,16.167969 A 1.0001,1.0001 0 0 0 3,18 h 18 a 1.0001,1.0001 0 0 0 0.554687,-1.832031 c 0,0 -0.513134,-0.303052 -1.177734,-1.521485 C 19.712354,13.428052 19,11.357143 19,8 19,4.1458495 15.854148,1 12,1 Z m 0,2 c 2.773269,0 5,2.226729 5,5 0,3.642857 0.787646,6.071948 1.623047,7.603516 0.148632,0.272491 0.17236,0.176072 0.324219,0.396484 H 5.0527344 C 5.2045926,15.779588 5.2283214,15.876007 5.3769531,15.603516 6.2123535,14.071948 7,11.642857 7,8 7,5.226729 9.2267307,3 12,3 Z m 1.472656,17.033203 a 1,1 0 0 0 -0.607422,0.464844 c -0.409265,0.705529 -1.321203,0.705529 -1.730468,0 A 1,1 0 0 0 9.7675781,20.134766 1,1 0 0 0 9.4042969,21.501953 c 1.1321411,1.951687 4.0592651,1.951687 5.1914061,0 a 1,1 0 0 0 -0.363281,-1.367187 1,1 0 0 0 -0.759766,-0.101563 z"
-     id="path1" />
+     id="path1"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     opacity="1"
+     fill="currentColor"
+     style="stroke-width:1;stroke-dasharray:none" />
 </svg>

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- 解锁图标 - Unlock Icon (单色版) -->
+
+<svg
+   viewBox="0 0 24 24"
+   width="24"
+   height="24"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="unlock.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="m 5,10 c -1.6447028,0 -3,1.355297 -3,3 v 7 c 0,1.644703 1.3552972,3 3,3 h 14 c 1.644703,0 3,-1.355297 3,-3 v -7 c 0,-1.644703 -1.355297,-3 -3,-3 z m 0,2 h 14 c 0.571297,0 1,0.428703 1,1 v 7 c 0,0.571297 -0.428703,1 -1,1 H 5 C 4.4287028,21 4,20.571297 4,20 v -7 c 0,-0.571297 0.4287028,-1 1,-1 z"
+     id="rect1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="M 11.396484,1.0253906 C 8.6449253,1.3033259 5.9964849,3.5042971 6,7.0019531 V 11 a 1,1 0 0 0 1,1 1,1 0 0 0 1,-1 V 7 a 1.0001,1.0001 0 0 0 0,-0.00195 c -0.00255,-2.5356203 1.6978476,-3.790522 3.597656,-3.9824219 1.899809,-0.1918999 3.81769,0.6986833 4.322266,3.1835937 a 1,1 0 0 0 1.179687,0.78125 1,1 0 0 0 0.78125,-1.1796875 C 17.184843,2.3730748 14.148043,0.74745536 11.396484,1.0253906 Z"
+     id="path1" />
+</svg>

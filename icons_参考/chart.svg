@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- 图表上升图标 - Chart Increasing Icon (单色版) -->
+
+<svg
+   viewBox="0 0 24 24"
+   width="24"
+   height="24"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="chart.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="m 17,5 a 1,1 0 0 0 -1,1 1,1 0 0 0 1,1 h 3.585937 L 13.5,14.085938 9.2070313,9.7929688 a 1.0001,1.0001 0 0 0 -1.4140626,0 L 0.29296875,17.292969 a 1,1 0 0 0 0,1.414062 1,1 0 0 0 1.41406245,0 L 8.5,11.914063 l 4.292969,4.292968 a 1.0001,1.0001 0 0 0 1.414062,0 L 22,8.4140625 V 12 a 1,1 0 0 0 1,1 1,1 0 0 0 1,-1 V 6 a 1,1 0 0 0 -0.292969,-0.7070313 1,1 0 0 0 -0.414062,0 A 1.0001,1.0001 0 0 0 23,5 Z"
+     id="path1" />
+</svg>

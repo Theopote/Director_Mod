@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- 最小化图标 - Minimize Icon (单色版) -->
-
 <svg
    viewBox="0 0 24 24"
    width="24"
    height="24"
+   fill="none"
+   stroke="currentColor"
+   stroke-width="1.8"
+   stroke-linecap="round"
+   stroke-linejoin="round"
    version="1.1"
    id="svg1"
    sodipodi:docname="minimize.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -22,9 +26,23 @@
      inkscape:showpageshadow="2"
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1" />
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="18.4375"
+     inkscape:cx="5.2338983"
+     inkscape:cy="11.579661"
+     inkscape:window-width="1920"
+     inkscape:window-height="1129"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
-     d="M 20.292969,2.2929688 15,7.5859375 V 4 A 1,1 0 0 0 14,3 1,1 0 0 0 13,4 v 6 A 1,1 0 0 0 13.292969,10.707031 1,1 0 0 0 14,11 h 6 a 1,1 0 0 0 1,-1 1,1 0 0 0 -1,-1 h -3.585938 l 5.292969,-5.2929687 a 1,1 0 0 0 0,-1.4140625 1,1 0 0 0 -1.414062,0 z M 4,13 a 1,1 0 0 0 -1,1 1,1 0 0 0 1,1 h 3.5859375 l -5.2929687,5.292969 a 1,1 0 0 0 0,1.414062 1,1 0 0 0 1.4140625,0 L 9,16.414062 V 20 a 1,1 0 0 0 1,1 1,1 0 0 0 1,-1 V 14 A 1,1 0 0 0 10.707031,13.292969 1,1 0 0 0 10,13 Z"
-     id="path1" />
+     d="M 20.939453,1.6464844 15.646485,6.9394531 V 3.3535156 c 0,-0.5522847 -0.447716,-1 -1,-1 -0.552285,0 -1,0.4477153 -1,1 v 6 c 4e-5,0.2652011 0.105423,0.5195256 0.292968,0.7070314 0.187506,0.187545 0.44183,0.292928 0.707032,0.292969 h 5.999999 c 0.552285,0 1,-0.4477157 1,-1.0000004 0,-0.5522847 -0.447715,-1 -1,-1 h -3.585938 l 5.292969,-5.2929687 c 0.390424,-0.390507 0.390424,-1.0235555 0,-1.4140625 -0.390506,-0.3904233 -1.023555,-0.3904233 -1.414062,0 z M 3.3535156,13.646485 c -0.5522847,0 -1,0.447715 -1,1 0,0.552284 0.4477153,1 1,1 h 3.5859375 l -5.2929687,5.292968 c -0.3904233,0.390507 -0.3904233,1.023556 0,1.414062 0.390507,0.390424 1.0235555,0.390424 1.4140625,0 l 5.2929687,-5.292969 v 3.585938 c 0,0.552285 0.4477153,1 1,1 0.5522847,0 1.0000004,-0.447715 1.0000004,-1 V 14.646485 C 10.353475,14.381283 10.248092,14.126959 10.060547,13.939453 9.8730412,13.751908 9.6187167,13.646525 9.3535156,13.646485 Z"
+     id="path1"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     opacity="1"
+     fill="currentColor"
+     style="stroke-width:0.5;stroke-dasharray:none"
+     sodipodi:nodetypes="ccssscccsssccccssscccccssscccs" />
 </svg>

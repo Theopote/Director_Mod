@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- 波形图标 - Waveform Icon (单色版) -->
-
 <svg
    viewBox="0 0 24 24"
    width="24"
    height="24"
+   fill="none"
+   stroke="currentColor"
+   stroke-width="1.8"
+   stroke-linecap="round"
+   stroke-linejoin="round"
    version="1.1"
    id="svg1"
    sodipodi:docname="waveform.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -22,9 +26,22 @@
      inkscape:showpageshadow="2"
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1" />
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="18.4375"
+     inkscape:cx="5.6677966"
+     inkscape:cy="12.176271"
+     inkscape:window-width="1920"
+     inkscape:window-height="1129"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
      d="M 6,3 A 1.0001,1.0001 0 0 0 5.0292969,3.7578125 L 3.21875,11 H 2 a 1,1 0 0 0 -1,1 1,1 0 0 0 1,1 H 4 A 1.0001,1.0001 0 0 0 4.9707031,12.242188 L 6,8.125 9.0292969,20.242187 a 1.0001,1.0001 0 0 0 1.8652341,0.205079 L 14,14.236328 15.105469,16.447266 A 1.0001,1.0001 0 0 0 16,17 h 6 a 1,1 0 0 0 1,-1 1,1 0 0 0 -1,-1 h -5.382813 l -1.722656,-3.447266 a 1.0001,1.0001 0 0 0 -1.789062,0 L 10.314453,17.134766 6.9707031,3.7578125 A 1.0001,1.0001 0 0 0 6,3 Z"
-     id="path1" />
+     id="path1"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     opacity="1"
+     fill="currentColor"
+     style="stroke-width:0.5;stroke-dasharray:none" />
 </svg>

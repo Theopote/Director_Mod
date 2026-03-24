@@ -6,6 +6,7 @@ import com.director.core.selection.SelectionOperation;
 import com.director.core.selection.SelectionOperationSupport;
 import com.director.core.selection.SelectionState;
 import com.director.core.selection.SelectionTool;
+import com.director.ui.theme.Icons;
 import com.director.core.selection.block_filters.BlockFilter;
 import com.director.core.selection.block_filters.BlockFilters;
 
@@ -62,7 +63,7 @@ public class FaceSelectTool implements SelectionTool, SelectionOperationSupport 
 
     @Override
     public String getIcon() {
-        return "\uE91F";
+        return Icons.COLOR;
     }
 
     @Override

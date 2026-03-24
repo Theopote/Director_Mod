@@ -7,6 +7,7 @@ import com.director.core.selection.SelectionOperationSupport;
 import com.director.core.selection.SelectionSet;
 import com.director.core.selection.SelectionState;
 import com.director.core.selection.SelectionTool;
+import com.director.ui.theme.Icons;
 import com.director.core.selection.block_filters.BlockFilterPipeline;
 import com.director.core.selection.block_filters.BlockFilters;
 import com.director.core.selection.tools.geometry.GeometryShape;
@@ -66,7 +67,7 @@ public class BrushSelectTool implements SelectionTool, SelectionOperationSupport
 
     @Override
     public String getIcon() {
-        return "\uE911"; // Icons.BRUSH
+        return Icons.BRUSH;
     }
 
     public void setRadius(double r) {

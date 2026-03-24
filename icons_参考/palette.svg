@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- 调色板图标 - Palette Icon (单色版) -->
+
+<svg
+   viewBox="0 0 24 24"
+   width="24"
+   height="24"
+   version="1.1"
+   id="svg5"
+   sodipodi:docname="palette.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs5" />
+  <sodipodi:namedview
+     id="namedview5"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="M 12,1 C 5.9367124,1 1,5.9367124 1,12 1,18.063288 5.9367124,23 12,23 18.063288,23 23,18.063288 23,12 23,5.9367124 18.063288,1 12,1 Z m 0,2 c 4.982407,0 9,4.0175926 9,9 0,4.982407 -4.017593,9 -9,9 C 7.0175926,21 3,16.982407 3,12 3,7.0175926 7.0175926,3 12,3 Z"
+     id="circle1" />
+  <circle
+     cx="8.5"
+     cy="8.5"
+     r="1.5"
+     fill="#000000"
+     id="circle2" />
+  <circle
+     cx="15.5"
+     cy="8.5"
+     r="1.5"
+     fill="#000000"
+     id="circle3" />
+  <circle
+     cx="8.5"
+     cy="15.5"
+     r="1.5"
+     fill="#000000"
+     id="circle4" />
+  <circle
+     cx="15.5"
+     cy="15.5"
+     r="1.5"
+     fill="#000000"
+     id="circle5" />
+</svg>

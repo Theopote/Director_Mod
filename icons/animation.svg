@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- 动画图标 - Animation/Clapper Icon (单色版) -->
-
 <svg
    viewBox="0 0 24 24"
    width="24"
    height="24"
+   fill="none"
+   stroke="currentColor"
+   stroke-width="1.8"
+   stroke-linecap="round"
+   stroke-linejoin="round"
    version="1.1"
    id="svg1"
    sodipodi:docname="animation.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -22,9 +26,22 @@
      inkscape:showpageshadow="2"
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1" />
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="13.037281"
+     inkscape:cx="9.1276699"
+     inkscape:cy="6.2513033"
+     inkscape:window-width="1920"
+     inkscape:window-height="1129"
+     inkscape:window-x="1912"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
-     d="M 6,1 A 1,1 0 0 0 5.2929687,1.2929687 l -4,4 A 1,1 0 0 0 1,6 v 6 8 a 1.0001,1.0001 0 0 0 1,1 h 20 a 1.0001,1.0001 0 0 0 1,-1 V 12 6 A 1,1 0 0 0 22.707031,5.2929687 l -4,-4 a 1,1 0 0 0 -1.414062,0 1,1 0 0 0 0,1.4140626 L 19.585937,5 H 14.414063 L 10.707031,1.2929687 a 1,1 0 0 0 -1.4140622,0 1,1 0 0 0 0,1.4140626 L 11.585938,5 H 4.4140625 L 6.7070312,2.7070313 a 1,1 0 0 0 0,-1.4140626 A 1,1 0 0 0 6,1 Z M 3,7 h 11 7 v 4 H 3 Z m 0,6 h 18 v 6 H 3 Z"
-     id="path1" />
+     d="M 6.4632666,2.3493242 A 0.92278889,0.96506759 0 0 0 5.8108259,2.6320587 L 2.1196704,6.492329 A 0.92278889,0.96506759 0 0 0 1.8493222,7.1746619 v 5.7904051 7.720542 a 0.92288116,0.96516405 0 0 0 0.9227888,0.965067 h 18.455778 a 0.92288116,0.96516405 0 0 0 0.922789,-0.965067 V 12.965067 7.1746619 A 0.92278889,0.96506759 0 0 0 21.880329,6.492329 L 18.189174,2.6320587 a 0.92278889,0.96506759 0 0 0 -1.304881,0 0.92278889,0.96506759 0 0 0 0,1.364666 l 2.115926,2.2128698 H 14.22767 L 10.806862,2.6320587 a 0.92278889,0.96506759 0 0 0 -1.3048805,0 0.92278889,0.96506759 0 0 0 0,1.364666 L 11.617908,6.2095945 H 4.999781 L 7.1157071,3.9967247 a 0.92278889,0.96506759 0 0 0 0,-1.364666 A 0.92278889,0.96506759 0 0 0 6.4632666,2.3493242 Z M 3.6948998,8.1397295 H 13.845577 20.3051 V 12 H 3.6948998 Z m 0,5.7904055 H 20.3051 v 5.790406 H 3.6948998 Z"
+     id="path1"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     opacity="1"
+     fill="currentColor"
+     style="stroke-width:1;stroke-dasharray:none" />
 </svg>

@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- 吸管图标 - Eyedropper Icon (单色版) -->
-
 <svg
    viewBox="0 0 24 24"
    width="24"
    height="24"
+   fill="none"
+   stroke="currentColor"
+   stroke-width="1.8"
+   stroke-linecap="round"
+   stroke-linejoin="round"
    version="1.1"
    id="svg1"
    sodipodi:docname="eyedropper.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -22,17 +26,26 @@
      inkscape:showpageshadow="2"
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1" />
-  <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
-     d="m 20.292969,2.2929688 -3,2.9999999 -3,3.0000001 -6.0000002,6.0000002 -3.0000001,3 -2.9999999,3 -1.0000001,1 a 1,1 0 0 0 0,1.414062 1,1 0 0 0 1.4140626,0 l 1,-1 2.9999999,-3 3.0000001,-3 5.9999997,-5.9999997 3,-3.0000001 3,-2.9999999 a 1,1 0 0 0 0,-1.4140625 1,1 0 0 0 -1.414062,0 z"
-     id="path1" />
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="4.609375"
+     inkscape:cx="-25.925424"
+     inkscape:cy="35.688136"
+     inkscape:window-width="1920"
+     inkscape:window-height="1129"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
   <rect
      x="14"
      y="5"
-     width="5"
-     height="5"
      transform="rotate(45 16.5 7.5)"
-     fill="#000000"
+     fill="currentColor"
      id="rect1" />
+  <path
+     d="m 19.170727,1.3631654 a 1.1539639,1.1540453 0 0 0 -1.633338,0 l -3.807273,3.8075413 -1.499344,-1.4971403 -1.633339,1.6334533 1.499345,1.497139 -9.5759365,9.5766123 a 1.1562741,1.1563556 0 0 0 -0.303796,0.537169 l -1.1551191,4.620801 a 1.1516537,1.1517349 0 0 0 1.4000041,1.400104 l 4.6204758,-1.155201 c 0.203301,-0.05083 0.389275,-0.155952 0.537131,-0.303817 l 9.5782467,-9.578923 1.494723,1.492519 1.633339,-1.633453 -1.494724,-1.49252 3.804962,-3.8052303 a 1.1539639,1.1540453 0 0 0 0,-1.633453 z M 6.2114473,19.619954 3.7695255,20.231054 4.3805835,17.788961 13.731271,8.4376127 15.56329,10.26745 Z"
+     fill=""
+     p-id="10323"
+     id="path1-8"
+     style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.05;stroke-opacity:1;stroke-dasharray:none" />
 </svg>

@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- 图表上升图标 - Chart Increasing Icon (单色版) -->
-
 <svg
    viewBox="0 0 24 24"
    width="24"
    height="24"
+   fill="none"
+   stroke="currentColor"
+   stroke-width="1.8"
+   stroke-linecap="round"
+   stroke-linejoin="round"
    version="1.1"
    id="svg1"
    sodipodi:docname="chart.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -22,9 +26,19 @@
      inkscape:showpageshadow="2"
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1" />
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="4.609375"
+     inkscape:cx="12.366102"
+     inkscape:cy="6.6169491"
+     inkscape:window-width="1920"
+     inkscape:window-height="1129"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
-     d="m 17,5 a 1,1 0 0 0 -1,1 1,1 0 0 0 1,1 h 3.585937 L 13.5,14.085938 9.2070313,9.7929688 a 1.0001,1.0001 0 0 0 -1.4140626,0 L 0.29296875,17.292969 a 1,1 0 0 0 0,1.414062 1,1 0 0 0 1.41406245,0 L 8.5,11.914063 l 4.292969,4.292968 a 1.0001,1.0001 0 0 0 1.414062,0 L 22,8.4140625 V 12 a 1,1 0 0 0 1,1 1,1 0 0 0 1,-1 V 6 a 1,1 0 0 0 -0.292969,-0.7070313 1,1 0 0 0 -0.414062,0 A 1.0001,1.0001 0 0 0 23,5 Z"
-     id="path1" />
+     d="m 3.4933645,21.668597 a 1.2177697,1.2073219 0 0 1 -2.4355394,0 v -7.243931 a 1.2177697,1.2073219 0 0 1 2.4355394,0 z m 6.0888529,0 a 1.217772,1.2073241 0 0 1 -2.4355439,0 V 10.802701 a 1.217772,1.2073241 0 0 1 2.4355439,0 z m 6.0888476,0 a 1.2177701,1.2073222 0 0 1 -2.435539,0 v -9.658574 a 1.2177701,1.2073222 0 0 1 2.435539,0 z m 6.088848,0 a 1.2177696,1.2073217 0 0 1 -2.435538,0 V 8.3880566 a 1.2177696,1.2073217 0 0 1 2.435538,0 z M 3.0367108,10.5371 A 1.2177696,1.2073217 0 1 1 1.5144901,8.6536696 L 7.6033385,3.8243835 A 1.2177696,1.2073217 0 0 1 8.8162404,3.6456974 L 14.310817,5.8237112 21.084051,1.346964 a 1.2179212,1.2074719 0 0 1 1.351724,2.0089812 l -7.306619,4.8292864 a 1.2177696,1.2073217 0 0 1 -1.127653,0.115899 L 8.5702514,6.1484842 3.0367108,10.538306 Z"
+     p-id="6502"
+     id="path1-1"
+     style="fill:#000000;fill-opacity:1;stroke-width:0.05;stroke-dasharray:none" />
 </svg>

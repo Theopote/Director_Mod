@@ -95,9 +95,13 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
         toolRegistry.initializeIfNeeded();
         toolRegistry.ensureDefaultTool("click");
 
-        // 使用统一的元素间距（6px）和按钮内边距（6px, 3px）
+        // 使用统一的元素间距；图标模式用更小的 FramePadding，使图标在按钮内尽量占满并居中（ButtonTextAlign 在 DirectorStyleScope 中全局为 0.5,0.5）
         ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, UITheme.Spacing.ELEMENT_SPACING, UITheme.Spacing.ELEMENT_SPACING);
-        ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, UITheme.Spacing.BUTTON_PADDING_X, UITheme.Spacing.BUTTON_PADDING_Y);
+        if (SHOW_TOOL_TEXT) {
+            ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, UITheme.Spacing.BUTTON_PADDING_X, UITheme.Spacing.BUTTON_PADDING_Y);
+        } else {
+            ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, UITheme.Spacing.ICON_BUTTON_PADDING_X, UITheme.Spacing.ICON_BUTTON_PADDING_Y);
+        }
 
         // 工具按钮组（组级换行优先，组内再换行）
         renderSelectionToolButtons();

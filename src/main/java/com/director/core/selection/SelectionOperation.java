@@ -1,5 +1,7 @@
 package com.director.core.selection;
 
+import com.director.ui.theme.Icons;
+
 /**
  * 选择操作枚举
  * 定义 New / Add / Subtract / Intersect 四种逻辑
@@ -24,10 +26,10 @@ public enum SelectionOperation {
     
     public String getIcon() {
         return switch (this) {
-            case NEW -> "\uE937"; // Icons.FILE
-            case ADD -> "\uE900"; // Icons.ADD
-            case SUBTRACT -> "\uE960"; // Icons.MINUS
-            case INTERSECT -> "\uE921"; // Icons.COPY (交集)
+            case NEW -> Icons.FILE;
+            case ADD -> Icons.ADD;
+            case SUBTRACT -> Icons.MINUS;
+            case INTERSECT -> Icons.COPY;
         };
     }
     

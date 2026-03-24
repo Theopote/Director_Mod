@@ -2,6 +2,7 @@ package com.director.core.selection.tools;
 
 import com.director.core.selection.SelectionState;
 import com.director.core.selection.SelectionTool;
+import com.director.ui.theme.Icons;
 import net.minecraft.block.BlockState;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -43,7 +44,7 @@ public class ConnectedSelectTool implements SelectionTool {
     
     @Override
     public String getIcon() {
-        return "\uE95C"; // Icons.LINK (关联)
+        return Icons.LINK;
     }
 
     @Override

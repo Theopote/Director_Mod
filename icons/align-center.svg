@@ -1,52 +1,82 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- 居中对齐图标 - Align Center Icon (单色版) -->
-
 <svg
    viewBox="0 0 24 24"
    width="24"
    height="24"
+   fill="none"
+   stroke="currentColor"
+   stroke-width="1.8"
+   stroke-linecap="round"
+   stroke-linejoin="round"
    version="1.1"
-   id="svg2"
+   id="svg1"
    sodipodi:docname="align-center.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg">
   <defs
-     id="defs2" />
+     id="defs1">
+    <linearGradient
+       id="swatch7"
+       inkscape:swatch="solid">
+      <stop
+         style="stop-color:#000000;stop-opacity:1;"
+         offset="0"
+         id="stop7" />
+    </linearGradient>
+    <linearGradient
+       id="swatch1"
+       inkscape:swatch="solid">
+      <stop
+         style="stop-color:#000000;stop-opacity:1;"
+         offset="0"
+         id="stop1" />
+    </linearGradient>
+  </defs>
   <sodipodi:namedview
-     id="namedview2"
+     id="namedview1"
      pagecolor="#ffffff"
      bordercolor="#000000"
      borderopacity="0.25"
      inkscape:showpageshadow="2"
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1" />
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="13.037281"
+     inkscape:cx="2.6079057"
+     inkscape:cy="14.07502"
+     inkscape:window-width="1920"
+     inkscape:window-height="1129"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="line1" />
   <g
      id="line1"
-     style="opacity:1">
+     opacity="1">
     <path
-       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
-       d="M 12,3 V 21"
-       id="path2" />
-    <path
-       style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1"
-       d="m 11,3 v 18 h 2 V 3 Z"
-       id="path3" />
+       d="m 12,2.5 v 19"
+       id="path2"
+       fill="currentColor"
+       style="stroke-dasharray:1.79999995,2.15999994;stroke-dashoffset:1.25999997"
+       sodipodi:nodetypes="cc" />
+    <circle
+       style="fill:none;stroke:#000000;stroke-width:1.4;stroke-dasharray:none;stroke-dashoffset:1.26;stroke-opacity:1"
+       id="path8"
+       cx="12"
+       cy="12"
+       r="7.5" />
   </g>
   <rect
      x="5"
      y="5"
-     width="14"
-     height="4"
-     fill="#000000"
+     fill="currentColor"
      id="rect1" />
   <rect
      x="7"
      y="15"
-     width="10"
-     height="4"
-     fill="#000000"
+     fill="currentColor"
      id="rect2" />
 </svg>

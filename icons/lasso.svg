@@ -1,34 +1,53 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- 套索图标 - Lasso Icon (单色版) -->
-
 <svg
    viewBox="0 0 24 24"
    width="24"
    height="24"
+   fill="none"
+   stroke="currentColor"
+   stroke-width="1.8"
+   stroke-linecap="round"
+   stroke-linejoin="round"
    version="1.1"
-   id="svg2"
+   id="svg1"
    sodipodi:docname="lasso.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg">
   <defs
-     id="defs2" />
+     id="defs1" />
   <sodipodi:namedview
-     id="namedview2"
+     id="namedview1"
      pagecolor="#ffffff"
      bordercolor="#000000"
      borderopacity="0.25"
      inkscape:showpageshadow="2"
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1" />
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="13.037281"
+     inkscape:cx="1.5724137"
+     inkscape:cy="12.004036"
+     inkscape:window-width="1920"
+     inkscape:window-height="1129"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
      d="M 12,1 C 9.0984848,1 6.4538146,1.6472488 4.4550781,2.75 2.4563416,3.8527512 1,5.5 1,7.5 1,9.5 2.4563416,11.147249 4.4550781,12.25 6.4538146,13.352751 9.0984848,14 12,14 14.901515,14 17.546185,13.352751 19.544922,12.25 21.543658,11.147249 23,9.5 23,7.5 23,5.5 21.543658,3.8527512 19.544922,2.75 17.546185,1.6472488 14.901515,1 12,1 Z m 0,2 c 2.598485,0 4.953815,0.6027512 6.580078,1.5 C 20.206342,5.3972488 21,6.5 21,7.5 c 0,1 -0.793658,2.1027512 -2.419922,3 C 16.953815,11.397249 14.598485,12 12,12 9.4015152,12 7.0461854,11.397249 5.4199219,10.5 3.7936584,9.6027512 3,8.5 3,7.5 3,6.5 3.7936584,5.3972488 5.4199219,4.5 7.0461854,3.6027512 9.4015152,3 12,3 Z"
-     id="path1" />
+     id="path1"
+     opacity="1"
+     fill="currentColor"
+     style="stroke-width:0.5;stroke-dasharray:none" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
-     d="m 2,6.5 a 1,1 0 0 0 -1,1 V 17 c 0,2 1.4563416,3.647249 3.4550781,4.75 C 6.4538146,22.852751 9.0984848,23.5 12,23.5 c 2.633333,0 5.050182,-0.51891 6.996094,-1.630859 a 1,1 0 0 0 0.373047,-1.365235 1,1 0 0 0 -1.365235,-0.373047 C 16.449818,21.01891 14.366667,21.5 12,21.5 9.4015152,21.5 7.0461854,20.897249 5.4199219,20 3.7936584,19.102751 3,18 3,17 V 7.5 a 1,1 0 0 0 -1,-1 z m 20,0 a 1,1 0 0 0 -1,1 V 10 a 1,1 0 0 0 1,1 1,1 0 0 0 1,-1 V 7.5 a 1,1 0 0 0 -1,-1 z"
-     id="path2" />
+     d="m 2,6.5 c -0.5522847,0 -1,0.4477153 -1,1 V 17 c 0,2 1.4563416,3.647249 3.4550781,4.75 C 6.4538146,22.852751 9.0984848,23.5 12,23.5 c 2.633333,0 5.050182,-0.51891 6.996094,-1.630859 0.480372,-0.273707 0.647482,-0.885279 0.373047,-1.365235 C 19.095434,20.023534 18.483862,19.856424 18.003906,20.130859 16.449818,21.01891 14.366667,21.5 12,21.5 9.4015152,21.5 7.0461854,20.897249 5.4199219,20 3.7936584,19.102751 3,18 3,17 V 7.5 C 3,6.9477153 2.5522847,6.5 2,6.5 Z"
+     id="path2"
+     stroke-linecap="round"
+     opacity="1"
+     fill="currentColor"
+     style="stroke-width:0.5;stroke-dasharray:none"
+     sodipodi:nodetypes="ssssscccsssss" />
 </svg>

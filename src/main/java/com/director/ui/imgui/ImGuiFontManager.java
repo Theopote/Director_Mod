@@ -16,14 +16,14 @@ import java.io.InputStream;
  * <p>
  * 负责加载和管理 ImGui 使用的所有字体，包括：
  * - 中文字体（主字体）- Noto Sans SC
- * - 图标字体（合并模式）- IcoMoon 自定义图标
+ * - 图标字体（合并模式）- director.ttf 自定义图标
  * <p>
  * 解决方案说明：
  * 1. 首先加载中文字体作为基础字体
  * 2. 使用合并模式（MergeMode）加载自定义图标字体，将图标字形添加到字体图集中
  * 3. 完全放弃 Emoji 字体，使用专业的自定义图标
  * 
- * @version 2.0 (移除 Emoji，使用 IcoMoon 图标字体)
+ * @version 2.1 (director.ttf，码位 U+F000–U+F0A1)
  * @since 2025-10-18
  */
 public class ImGuiFontManager {
@@ -37,17 +37,16 @@ public class ImGuiFontManager {
     // 字体资源路径
     private static final String FONT_PATH_PREFIX = "/assets/director/fonts/";
     private static final String CHINESE_FONT = "NotoSansSC-Regular.ttf";
-    private static final String ICON_FONT = "icomoon.ttf";  // 自定义图标字体（替代 Emoji）
+    private static final String ICON_FONT = "director.ttf";
     
     private static void verifyDefaultFontHasIcons() {
         try {
             ImFont current = ImGui.getFont();
             if (current == null) return;
 
-            // Icons.SELECT = U+E97C
-            // Icons.BLOCK  = U+E90D
-            boolean hasSelect = current.findGlyphNoFallback(0xE97C) != null;
-            boolean hasBlock = current.findGlyphNoFallback(0xE90D) != null;
+            // Icons.SELECT = U+F070, Icons.BLOCK = U+F087
+            boolean hasSelect = current.findGlyphNoFallback(0xF070) != null;
+            boolean hasBlock = current.findGlyphNoFallback(0xF087) != null;
 
             if (!hasSelect || !hasBlock) {
                 LOGGER.warn("{} Default font missing icon glyphs: SELECT={} BLOCK={}. Toolbar buttons may appear blank.",
@@ -96,7 +95,7 @@ public class ImGuiFontManager {
             
             if (!iconFontLoaded) {
                 LOGGER.error("[Director] ❌ 图标字体加载失败！自定义图标将无法显示");
-                LOGGER.error("[Director] 请确认 icomoon.ttf 文件位于: {}", FONT_PATH_PREFIX + ICON_FONT);
+                LOGGER.error("[Director] 请确认 director.ttf 文件位于: {}", FONT_PATH_PREFIX + ICON_FONT);
             } else {
                 LOGGER.info("[Director] ✅ 图标字体加载成功！自定义图标系统已启用");
             }
@@ -159,7 +158,7 @@ public class ImGuiFontManager {
     /**
      * 加载自定义图标字体（合并模式）
      * 
-     * <p>IcoMoon 生成的图标字体，包含 100+ 个专业图标
+     * <p>Director 图标字体（与 {@code Icons} 及 font/demo.html 码位一致）
      * 
      * @param fontAtlas 字体图集
      * @return 是否加载成功
@@ -171,13 +170,11 @@ public class ImGuiFontManager {
         iconConfig.setMergeMode(true);
         iconConfig.setPixelSnapH(true);  // 像素对齐，确保清晰显示
         
-        // 图标字体范围 - IcoMoon 实际使用范围
-        // 从 style.css 可以看到: U+E900 - U+E9A2 (共 161 个图标)
-        // 精确指定范围以优化性能和内存使用
+        // U+F000 – U+F0A1（162 个字形，见 IcoMoon / demo.html 列表）
         final short[] iconGlyphRanges = new short[]{
-            (short) 0xE900,  // 图标起始码位
-            (short) 0xE9A2,  // 图标结束码位（zoom-out 是最后一个）
-            0,               // 结束标记
+            (short) 0xF000,
+            (short) 0xF0A1,
+            0,
         };
         
         ImFont merged = loadFontFromResources(
@@ -186,17 +183,17 @@ public class ImGuiFontManager {
             ICON_FONT_SIZE,  // 使用与主字体相同的大小
             iconConfig, 
             iconGlyphRanges,
-            "IcoMoon 图标字体"
+            "Director 图标字体"
         );
         boolean result = merged != null;
          
         if (result) {
-            LOGGER.info("[Director] ✅ IcoMoon 图标字体加载成功!");
-            LOGGER.info("[Director] 图标范围: U+E900 - U+E9A2 (共 161 个图标)");
+            LOGGER.info("[Director] ✅ Director 图标字体加载成功!");
+            LOGGER.info("[Director] 图标范围: U+F000 - U+F0A1 (共 162 个图标)");
             LOGGER.info("[Director] 已完全替代 Emoji 字体，使用专业自定义图标");
         } else {
             LOGGER.error("[Director] ❌ 图标字体加载失败!");
-            LOGGER.error("[Director] 请确认 icomoon.ttf 文件存在于: {}", FONT_PATH_PREFIX + ICON_FONT);
+            LOGGER.error("[Director] 请确认 director.ttf 文件存在于: {}", FONT_PATH_PREFIX + ICON_FONT);
             LOGGER.error("[Director] UI 图标将无法正常显示");
         }
         

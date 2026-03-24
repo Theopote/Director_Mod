@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- 图层图标 - Layers Icon (单色版) -->
+
+<svg
+   viewBox="0 0 24 24"
+   width="24"
+   height="24"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="layers.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="m 11.552734,1.1054687 -9.9999996,5 a 1.0001,1.0001 0 0 0 0,1.7890625 l 9.9999996,4.9999998 a 1.0001,1.0001 0 0 0 0.894532,0 l 10,-4.9999998 a 1.0001,1.0001 0 0 0 0,-1.7890625 l -10,-5 a 1.0001,1.0001 0 0 0 -0.894532,0 z M 12,3.1171875 19.763672,7 12,10.882813 4.2363281,7 Z M 2.4472656,11.105469 a 1,1 0 0 0 -1.3417969,0.447265 1,1 0 0 0 0.4472657,1.341797 l 9.9999996,5 a 1.0001,1.0001 0 0 0 0.894532,0 l 10,-5 a 1,1 0 0 0 0.447265,-1.341797 1,1 0 0 0 -1.341797,-0.447265 L 12,15.882813 Z m -0.7636719,4.945312 a 1,1 0 0 0 -0.578125,0.501953 1,1 0 0 0 0.4472657,1.341797 l 9.9999996,5 a 1.0001,1.0001 0 0 0 0.894532,0 l 10,-5 a 1,1 0 0 0 0.447265,-1.341797 1,1 0 0 0 -1.341797,-0.447265 L 12,20.882812 2.4472656,16.105469 a 1,1 0 0 0 -0.7636719,-0.05469 z"
+     id="path1" />
+</svg>

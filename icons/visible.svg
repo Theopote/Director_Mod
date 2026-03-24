@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- 可见图标 - Eye/Visible Icon (单色版) -->
-
 <svg
    viewBox="0 0 24 24"
    width="24"
    height="24"
+   fill="none"
+   stroke="currentColor"
+   stroke-width="1.8"
+   stroke-linecap="round"
+   stroke-linejoin="round"
    version="1.1"
    id="svg1"
    sodipodi:docname="visible.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -22,13 +26,26 @@
      inkscape:showpageshadow="2"
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1" />
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="18.4375"
+     inkscape:cx="10.440678"
+     inkscape:cy="13.423729"
+     inkscape:window-width="1920"
+     inkscape:window-height="1129"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
-     d="M 12,3 C 4.2380952,3 0.10546875,11.552734 0.10546875,11.552734 L -0.1171875,12 0.10546875,12.447266 C 0.10546875,12.447266 4.2380952,21 12,21 19.761905,21 23.894531,12.447266 23.894531,12.447266 L 24.117187,12 23.894531,11.552734 C 23.894531,11.552734 19.761905,3 12,3 Z m 0,2 c 5.863389,0 9.347663,6.209584 9.779297,7 C 21.347663,12.790416 17.863389,19 12,19 6.1366105,19 2.6523365,12.790416 2.2207031,12 2.6523365,11.209584 6.1366105,5 12,5 Z"
-     id="path1" />
+     d="m 12,3.6516919 c -7.1998632,0 -11.03324526,7.9334281 -11.03324526,7.9334281 L 0.76022107,12 0.96675474,12.414879 c 0,0 3.83338206,7.933429 11.03324526,7.933429 7.199864,0 11.033246,-7.933429 11.033246,-7.933429 L 23.239779,12 23.033246,11.58512 c 0,0 -3.833382,-7.9334281 -11.033246,-7.9334281 z m 0,1.8551795 c 5.43882,0 8.670797,5.7599466 9.071176,6.4931286 C 20.670797,12.733181 17.43882,18.493128 12,18.493128 6.5611801,18.493128 3.3292032,12.733181 2.9288244,12 3.3292032,11.266818 6.5611801,5.5068714 12,5.5068714 Z"
+     id="path1"
+     opacity="1"
+     fill="currentColor"
+     style="stroke-width:0.5;stroke-dasharray:none" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
-     d="m 12,8 c -2.1972944,0 -4,1.8027056 -4,4 0,2.197294 1.8027056,4 4,4 2.197294,0 4,-1.802706 4,-4 0,-2.1972944 -1.802706,-4 -4,-4 z m 0,2 c 1.116414,0 2,0.883586 2,2 0,1.116414 -0.883586,2 -2,2 -1.116414,0 -2,-0.883586 -2,-2 0,-1.116414 0.883586,-2 2,-2 z"
-     id="circle1" />
+     d="m 12,8.2896408 c -2.0381877,0 -3.7103589,1.6721714 -3.7103589,3.7103592 0,2.038187 1.6721712,3.710359 3.7103589,3.710359 2.038188,0 3.710359,-1.672172 3.710359,-3.710359 0,-2.0381878 -1.672171,-3.7103592 -3.710359,-3.7103592 z m 0,1.8551792 c 1.035574,0 1.855179,0.819605 1.855179,1.85518 0,1.035574 -0.819605,1.855179 -1.855179,1.855179 -1.035574,0 -1.855179,-0.819605 -1.855179,-1.855179 0,-1.035575 0.819605,-1.85518 1.855179,-1.85518 z"
+     id="circle1"
+     opacity="1"
+     fill="currentColor"
+     style="stroke-width:0.5;stroke-dasharray:none" />
 </svg>

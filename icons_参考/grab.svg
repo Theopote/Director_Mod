@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- 抓手图标 - Grab Icon (单色版) -->
+
+<svg
+   viewBox="0 0 24 24"
+   width="24"
+   height="24"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="grab.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="M 8,5 C 6.3545455,5 5,6.3545455 5,8 v 11 c 0,4.406436 3.5935677,8 8,8 4.406432,0 8,-3.593564 8,-8 V 8 C 21,6.3549904 19.64501,5 18,5 A 1,1 0 0 0 17.412109,5.5878906 C 16.967596,5.3261636 16.548611,5 16,5 15.222806,5 14.535315,5.3416826 14,5.8339844 13.464685,5.3416826 12.777194,5 12,5 11.222806,5 10.535315,5.3416826 10,5.8339844 9.4646848,5.3416826 8.7771938,5 8,5 Z m 0,2 c 0.5545455,0 1,0.4454545 1,1 a 1,1 0 0 0 1,1 1,1 0 0 0 1,-1 c 0,-0.5545455 0.445455,-1 1,-1 0.554545,0 1,0.4454545 1,1 a 1,1 0 0 0 1,1 1,1 0 0 0 1,-1 c 0,-0.5545455 0.445455,-1 1,-1 0.554545,0 1,0.4454545 1,1 a 1,1 0 0 0 1,1 1,1 0 0 0 1,-1 C 19,7.7221112 18.773316,7.5413275 18.701172,7.2851562 18.885067,7.4651332 19,7.7140697 19,8 v 11 c 0,3.325556 -2.674446,6 -6,6 C 9.674446,25 7,22.325556 7,19 V 8 C 7,7.4454545 7.4454545,7 8,7 Z"
+     id="path1" />
+</svg>

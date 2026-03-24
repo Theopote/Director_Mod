@@ -6,6 +6,7 @@ import com.director.core.selection.SelectionOperation;
 import com.director.core.selection.SelectionOperationSupport;
 import com.director.core.selection.SelectionState;
 import com.director.core.selection.SelectionTool;
+import com.director.ui.theme.Icons;
 import com.director.core.selection.block_filters.BlockFilterPipeline;
 import com.director.core.selection.progressive.ProgressiveFloodController;
 import net.minecraft.util.math.BlockPos;
@@ -116,7 +117,7 @@ public class MagicWandTool implements SelectionTool, SelectionOperationSupport {
     
     @Override
     public String getIcon() {
-        return "\uE958"; // Icons.MAGIC
+        return Icons.MAGIC;
     }
 
     @Override

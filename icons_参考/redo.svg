@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- 重做图标 - Redo Icon (单色版) -->
+
+<svg
+   viewBox="0 0 24 24"
+   width="24"
+   height="24"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="redo.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="m 21,6 a 1,1 0 0 0 -1,1 v 4.316406 C 18.184733,8.7716524 15.354693,7 12,7 6.4889971,7 2,11.488997 2,17 a 1,1 0 0 0 1,1 1,1 0 0 0 1,-1 c 0,-4.430123 3.5698774,-8 8,-8 2.503395,0 4.64235,1.209063 6.107422,3 H 15 a 1,1 0 0 0 -1,1 1,1 0 0 0 1,1 h 4.396484 C 19.771635,14.928109 20,15.934738 20,17 a 1,1 0 0 0 1,1 1,1 0 0 0 1,-1 c 0,-1.179066 -0.296826,-2.27462 -0.673828,-3.326172 A 1.0001,1.0001 0 0 0 22,13 V 7 A 1,1 0 0 0 21,6 Z"
+     id="path1" />
+</svg>

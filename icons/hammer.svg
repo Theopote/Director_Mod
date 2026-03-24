@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- 锤子图标 - Hammer Icon (单色版) -->
-
 <svg
    viewBox="0 0 24 24"
    width="24"
    height="24"
+   fill="none"
+   stroke="currentColor"
+   stroke-width="1.8"
+   stroke-linecap="round"
+   stroke-linejoin="round"
    version="1.1"
    id="svg1"
    sodipodi:docname="hammer.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -22,9 +26,26 @@
      inkscape:showpageshadow="2"
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1" />
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="13.037281"
+     inkscape:cx="5.0240536"
+     inkscape:cy="13.768208"
+     inkscape:window-width="1920"
+     inkscape:window-height="1129"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
-     d="m 21.460937,-0.01953125 c -0.51655,0 -1.034976,0.19585329 -1.421875,0.5859375 l 0.166016,-0.13476562 -5.75,3.72851557 a 1,1 0 0 0 -0.3125,1.2832032 L 11.292969,8.2929688 2.7929688,16.792969 c -1.2118557,1.210346 -1.2118557,3.203716 0,4.414062 1.2105313,1.210532 3.2035311,1.210532 4.4140624,0 l 8.4999998,-8.5 a 1,1 0 0 0 0,-1.414062 1,1 0 0 0 -1.414062,0 l -8.5000003,8.5 c -0.4494686,0.449468 -1.1364688,0.449468 -1.5859375,0 -0.4464585,-0.445903 -0.4464585,-1.140035 0,-1.585938 l 8.4999998,-8.4999997 4,-4.0000001 a 1,1 0 0 0 0.259766,-0.7890625 l 2.794922,-1.8144531 -2.828125,2.8300781 a 1,1 0 0 0 0,1.4140625 1,1 0 0 0 1.414062,0 l 4.949219,-4.9511718 a 1.0001,1.0001 0 0 0 0,-1.41406252 L 22.880859,0.56640625 c -0.386898,-0.39008421 -0.903371,-0.5859375 -1.419922,-0.5859375 z"
-     id="path1" />
+     d="m 20.783756,22.979692 c -0.0732,0 -0.219593,-0.08103 -0.292791,-0.08103 L 7.3885305,8.069998 c -0.0732,-0.08103 -0.146396,-0.162062 -0.146396,-0.243093 0,-0.08103 0.0732,-0.243093 0.0732,-0.324123 l 1.390761,-1.539589 c 0.146396,-0.162062 0.36599,-0.162062 0.512385,0 L 22.833301,20.224639 c 0.0732,0.08103 0.146396,0.162063 0.146396,0.324125 0,1.377526 -1.024771,2.430928 -2.195939,2.430928 z M 8.1205095,7.826904 20.856955,22.169381 c 0.731978,-0.08103 1.244365,-0.648246 1.317562,-1.458557 L 8.9988855,6.854534 Z"
+     fill=""
+     p-id="2546"
+     id="path1-8"
+     style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.5;stroke-opacity:1;stroke-dasharray:none" />
+  <path
+     d="m 3.7286325,12.445669 c -0.0732,0 -0.219594,0 -0.292792,-0.08103 L 1.0935065,9.85268 c 0,-0.08103 -0.0732,-0.243093 -0.0732,-0.324124 0,-0.08103 0.0732,-0.243093 0.0732,-0.324124 L 6.3637585,3.451235 C 7.8277175,1.911648 9.7308645,1.0203065 11.70721,1.0203065 h 1.610355 c 0.146396,0 0.292792,0.08103 0.36599,0.243093 0.0732,0.162062 0,0.3241235 -0.0732,0.4051545 L 3.9482245,12.36464 c -0.0732,0.08103 -0.146396,0.08103 -0.219594,0.08103 z M 1.8986835,9.528555 3.6554345,11.473298 12.43919,1.911647 h -0.73198 c -1.8299495,0 -3.5867005,0.810309 -4.8310655,2.187835 z"
+     fill=""
+     p-id="2547"
+     id="path2"
+     style="fill:#000000;fill-opacity:1;stroke:#000000;stroke-width:0.5;stroke-opacity:1;stroke-dasharray:none" />
 </svg>

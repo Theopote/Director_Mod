@@ -1,42 +1,63 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- 组合图标 - Group Icon (单色版) -->
-
 <svg
    viewBox="0 0 24 24"
    width="24"
    height="24"
+   fill="none"
+   stroke="currentColor"
+   stroke-width="1.8"
+   stroke-linecap="round"
+   stroke-linejoin="round"
    version="1.1"
-   id="svg4"
+   id="svg1"
    sodipodi:docname="group.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg">
   <defs
-     id="defs4" />
+     id="defs1" />
   <sodipodi:namedview
-     id="namedview4"
+     id="namedview1"
      pagecolor="#ffffff"
      bordercolor="#000000"
      borderopacity="0.25"
      inkscape:showpageshadow="2"
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1" />
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="18.4375"
+     inkscape:cx="3.3355932"
+     inkscape:cy="7.8915254"
+     inkscape:window-width="1920"
+     inkscape:window-height="1129"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
-     d="m 4,4 v 8 h 8 V 4 Z m 2,2 h 4 v 4 H 6 Z"
-     id="rect1" />
+     d="m 3.25,3.25 v 8 h 8 v -8 z m 2,2 h 4 v 4 h -4 z"
+     id="rect1"
+     opacity="1"
+     fill="currentColor"
+     style="stroke-width:0.5;stroke-dasharray:none" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
-     d="m 12,4 v 8 h 8 V 4 Z m 2,2 h 4 v 4 h -4 z"
-     id="rect2" />
+     d="m 12.75,3.25 v 8 h 8 v -8 z m 2,2 h 4 v 4 h -4 z"
+     id="rect2"
+     opacity="1"
+     fill="currentColor"
+     style="stroke-width:0.5;stroke-dasharray:none" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
-     d="m 4,12 v 8 h 8 v -8 z m 2,2 h 4 v 4 H 6 Z"
-     id="rect3" />
+     d="m 3.25,12.75 v 8 h 8 v -8 z m 2,2 h 4 v 4 h -4 z"
+     id="rect3"
+     opacity="1"
+     fill="currentColor"
+     style="stroke-width:0.5;stroke-dasharray:none" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
-     d="m 12,12 v 8 h 8 v -8 z m 2,2 h 4 v 4 h -4 z"
-     id="rect4" />
+     d="m 12.75,12.75 v 8 h 8 v -8 z m 2,2 h 4 v 4 h -4 z"
+     id="rect4"
+     opacity="1"
+     fill="currentColor"
+     style="stroke-width:0.5;stroke-dasharray:none" />
 </svg>

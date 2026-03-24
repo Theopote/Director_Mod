@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- 对勾图标 - Check Icon (单色版) -->
-
 <svg
    viewBox="0 0 24 24"
    width="24"
    height="24"
+   fill="none"
+   stroke="currentColor"
+   stroke-width="1.8"
+   stroke-linecap="round"
+   stroke-linejoin="round"
    version="1.1"
    id="svg1"
    sodipodi:docname="check.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -22,9 +26,22 @@
      inkscape:showpageshadow="2"
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1" />
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="9.21875"
+     inkscape:cx="5.5864407"
+     inkscape:cy="-3.7423729"
+     inkscape:window-width="1920"
+     inkscape:window-height="1129"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
-     d="M 20,4.5 A 1.5,1.5 0 0 0 18.939453,4.9394531 L 9,14.878906 5.0605469,10.939453 a 1.5,1.5 0 0 0 -2.1210938,0 1.5,1.5 0 0 0 0,2.121094 l 5,5 a 1.50015,1.50015 0 0 0 2.1210939,0 l 11,-11.0000001 a 1.5,1.5 0 0 0 0,-2.1210938 A 1.5,1.5 0 0 0 20,4.5 Z"
-     id="path1" />
+     d="M 20.867957,4.2407763 A 1.6627418,1.6627418 0 0 0 19.692346,4.7279077 L 8.6745163,15.745737 4.307654,11.378875 a 1.6627418,1.6627418 0 0 0 -2.3512209,0 1.6627418,1.6627418 0 0 0 0,2.351221 l 5.5424728,5.542473 a 1.6629081,1.6629081 0 0 0 2.351221,0 L 22.043567,7.0791286 a 1.6627418,1.6627418 0 0 0 0,-2.3512209 1.6627418,1.6627418 0 0 0 -1.17561,-0.4871314 z"
+     id="path1"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     opacity="1"
+     fill="currentColor"
+     style="stroke-width:0.05;stroke-dasharray:none" />
 </svg>

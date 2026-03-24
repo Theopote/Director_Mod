@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- 渲染图标 - Render Icon (单色版) -->
-
 <svg
    viewBox="0 0 24 24"
    width="24"
    height="24"
+   fill="none"
+   stroke="currentColor"
+   stroke-width="1.8"
+   stroke-linecap="round"
+   stroke-linejoin="round"
    version="1.1"
    id="svg1"
    sodipodi:docname="render.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -22,19 +26,35 @@
      inkscape:showpageshadow="2"
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1" />
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="18.4375"
+     inkscape:cx="4.0949153"
+     inkscape:cy="12.067797"
+     inkscape:window-width="1920"
+     inkscape:window-height="1129"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
      d="M 5,2 C 3.3552972,2 2,3.3552972 2,5 v 14 c 0,1.644703 1.3552972,3 3,3 h 14 c 1.644703,0 3,-1.355297 3,-3 V 5 C 22,3.3552972 20.644703,2 19,2 Z m 0,2 h 14 c 0.571297,0 1,0.4287028 1,1 v 14 c 0,0.571297 -0.428703,1 -1,1 H 5 C 4.4287028,20 4,19.571297 4,19 V 5 C 4,4.4287028 4.4287028,4 5,4 Z"
-     id="rect1" />
+     id="rect1"
+     opacity="1"
+     fill="currentColor"
+     style="stroke-width:0.5;stroke-dasharray:none" />
   <circle
      cx="8.5"
      cy="8.5"
      r="1.5"
-     fill="#000000"
-     id="circle1" />
+     fill="currentColor"
+     id="circle1"
+     style="stroke-width:0.5;stroke-dasharray:none" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
      d="M 15.292969,9.2929688 4.2929687,20.292969 a 1,1 0 0 0 0,1.414062 1,1 0 0 0 1.4140625,0 L 16,11.414063 l 4.292969,4.292968 a 1,1 0 0 0 1.414062,0 1,1 0 0 0 0,-1.414062 l -5,-5.0000002 a 1.0001,1.0001 0 0 0 -1.414062,0 z"
-     id="path1" />
+     id="path1"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     opacity="1"
+     fill="currentColor"
+     style="stroke-width:0.5;stroke-dasharray:none" />
 </svg>

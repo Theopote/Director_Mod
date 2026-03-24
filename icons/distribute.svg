@@ -1,47 +1,59 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- 分布图标 - Distribute Icon (单色版) -->
-
 <svg
    viewBox="0 0 24 24"
    width="24"
    height="24"
+   fill="none"
+   stroke="currentColor"
+   stroke-width="1.8"
+   stroke-linecap="round"
+   stroke-linejoin="round"
    version="1.1"
-   id="svg3"
+   id="svg1"
    sodipodi:docname="distribute.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg">
   <defs
-     id="defs3" />
+     id="defs1" />
   <sodipodi:namedview
-     id="namedview3"
+     id="namedview1"
      pagecolor="#ffffff"
      bordercolor="#000000"
      borderopacity="0.25"
      inkscape:showpageshadow="2"
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1" />
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="4.609375"
+     inkscape:cx="-38.291525"
+     inkscape:cy="18.115254"
+     inkscape:window-width="1920"
+     inkscape:window-height="1129"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
   <rect
      x="5"
      y="7"
-     width="4"
-     height="10"
-     fill="#000000"
+     fill="currentColor"
      id="rect1" />
   <rect
      x="10"
      y="5"
-     width="4"
-     height="14"
-     fill="#000000"
+     fill="currentColor"
      id="rect2" />
   <rect
      x="15"
      y="7"
-     width="4"
-     height="10"
-     fill="#000000"
+     fill="currentColor"
      id="rect3" />
+  <path
+     d="M 1.019302,1.0193022 V 22.980698 H 22.980698 V 21.559384 H 2.440616 V 2.4406163 H 21.559384 V 22.980698 h 1.421314 V 1.0193022 Z M 4.972353,9.6089533 H 9.669347 V 11.030267 H 4.972353 Z m 0,-4.106095 h 13.744403 v 1.421314 H 4.972353 Z m 9.864099,4.6427767 v 6.460082 l -2.287417,-2.28124 -1.043167,1.043166 4.069035,4.075211 4.075212,-4.075211 -1.049342,-1.043166 -2.287417,2.28124 v -6.460082 h -1.476218 z"
+     p-id="8514"
+     id="path1"
+     style="stroke-width:0.0386041;fill:#000000;fill-opacity:1" />
 </svg>

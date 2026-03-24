@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- 上箭头图标 - Arrow Up Icon (单色版) -->
-
 <svg
    viewBox="0 0 24 24"
    width="24"
    height="24"
+   fill="none"
+   stroke="currentColor"
+   stroke-width="1.8"
+   stroke-linecap="round"
+   stroke-linejoin="round"
    version="1.1"
    id="svg1"
    sodipodi:docname="arrow-up.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -22,9 +26,23 @@
      inkscape:showpageshadow="2"
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1" />
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="13.037281"
+     inkscape:cx="18.25534"
+     inkscape:cy="19.904457"
+     inkscape:window-width="1920"
+     inkscape:window-height="1129"
+     inkscape:window-x="1912"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
-     d="m 12,4 a 1,1 0 0 0 -0.292969,0.2929687 1.0001,1.0001 0 0 0 -0.414062,0 L 4.2929687,11.292969 a 1,1 0 0 0 0,1.414062 1,1 0 0 0 1.4140625,0 L 11,7.4140625 V 19 a 1,1 0 0 0 1,1 1,1 0 0 0 1,-1 V 7.4140625 l 5.292969,5.2929685 a 1,1 0 0 0 1.414062,0 1,1 0 0 0 0,-1.414062 l -7,-7.0000003 a 1.0001,1.0001 0 0 0 -0.414062,0 A 1,1 0 0 0 12,4 Z"
-     id="path1" />
+     d="m 12,1.9999808 c -7.5570769,7.210973 -4.954363,4.7704102 -7.7070311,7.292969 -0.3904233,0.3905072 -0.3904233,1.0235552 0,1.4140622 0.390507,0.390424 1.0235555,0.390424 1.4140625,0 L 11,5.4140433 V 21 c 0,0.552285 0.447715,1 1,1 0.552285,0 1,-0.447715 1,-1 V 5.4140433 l 5.292969,5.2929687 c 0.390507,0.390423 1.023555,0.390423 1.414062,0 0.390423,-0.390507 0.390423,-1.023555 0,-1.4140622 C 14.805111,4.7348245 18.92448,8.6257228 12,1.9999808 Z"
+     id="path1"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     opacity="1"
+     fill="currentColor"
+     style="stroke-width:1;stroke-dasharray:none"
+     sodipodi:nodetypes="cccccsssccccc" />
 </svg>

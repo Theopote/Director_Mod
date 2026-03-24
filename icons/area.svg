@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- 区域图标 - Area/Map Icon (单色版) -->
-
 <svg
    viewBox="0 0 24 24"
    width="24"
    height="24"
+   fill="none"
+   stroke="currentColor"
+   stroke-width="1.8"
+   stroke-linecap="round"
+   stroke-linejoin="round"
    version="1.1"
    id="svg1"
    sodipodi:docname="area.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -22,9 +26,23 @@
      inkscape:showpageshadow="2"
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1" />
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="13.037281"
+     inkscape:cx="4.7172412"
+     inkscape:cy="14.30513"
+     inkscape:window-width="1920"
+     inkscape:window-height="1129"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
-     d="m 8,1 a 1,1 0 0 0 -0.1210938,0.1210937 1.0001,1.0001 0 0 0 -0.375,0.00977 l -6.99999995,4 A 1.0001,1.0001 0 0 0 0,6 v 16 a 1.0001,1.0001 0 0 0 1.4960937,0.869141 l 6.5351563,-3.736329 7.521484,3.761719 a 1.0001,1.0001 0 0 0 0.332032,-0.0098 A 1,1 0 0 0 16,23 a 1,1 0 0 0 0.121094,-0.121094 1.0001,1.0001 0 0 0 0.375,-0.0098 l 7,-4 A 1.0001,1.0001 0 0 0 24,18 V 2 A 1.0001,1.0001 0 0 0 22.503906,1.1308594 L 15.96875,4.8671875 8.4472656,1.1054687 A 1.0001,1.0001 0 0 0 8.1152344,1.1152344 1,1 0 0 0 8,1 Z m 1,2.6171875 6,3 V 20.382812 l -6,-3 z M 7,3.7226563 V 17.417969 L 2,20.275391 V 6.5800781 Z m 15,0.00195 V 17.419922 l -5,2.857422 V 6.5820312 Z"
-     id="path1" />
+     d="m 8.5996965,1.7989567 c -0.037193,0.034153 -0.071632,0.071724 -0.1029388,0.1122984 -0.1058322,-0.018941 -0.213994,-0.015868 -0.3187784,0.00906 L 2.2274504,5.6297878 C 1.9623505,5.7950494 1.798845,6.1027051 1.7990921,6.4357971 V 21.273687 c -4.57e-4,0.71232 0.7047989,1.159284 1.2717926,0.806013 l 5.5553767,-3.464952 6.3938296,3.488498 c 0.09389,0.01415 0.189291,0.01108 0.282253,-0.0091 0.02993,0.03849 0.0627,0.07424 0.09796,0.106896 0.03719,-0.03415 0.07163,-0.07172 0.10294,-0.112299 0.105832,0.01894 0.213995,0.01585 0.318777,-0.0091 l 5.950529,-3.709472 c 0.265092,-0.165257 0.428597,-0.472899 0.428358,-0.805981 V 2.7263248 C 22.201362,2.0140036 21.496106,1.5670396 20.929113,1.9203115 L 15.373736,5.385263 8.9799061,1.896765 C 8.8860171,1.882598 8.7906178,1.885659 8.6976545,1.905825 8.6677215,1.867355 8.6349595,1.831615 8.5996965,1.7989603 Z M 9.4497721,4.2260529 14.550225,7.008157 V 19.773958 L 9.4497721,16.991853 Z M 7.749621,4.3238613 V 17.024457 L 3.4992431,19.674339 V 6.9737429 Z m 12.751133,0.00181 V 17.026268 L 16.250376,19.67615 V 6.9755543 Z"
+     id="path1"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     opacity="1"
+     fill="currentColor"
+     style="display:inline;stroke-width:1;stroke-dasharray:none"
+     sodipodi:nodetypes="cccccccccccccccccccccccccccccccccccc" />
 </svg>

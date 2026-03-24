@@ -1,13 +1,17 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- 下箭头图标 - Arrow Down Icon (单色版) -->
-
 <svg
    viewBox="0 0 24 24"
    width="24"
    height="24"
+   fill="none"
+   stroke="currentColor"
+   stroke-width="1.8"
+   stroke-linecap="round"
+   stroke-linejoin="round"
    version="1.1"
    id="svg1"
    sodipodi:docname="arrow-down.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -22,9 +26,23 @@
      inkscape:showpageshadow="2"
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1" />
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="13.037281"
+     inkscape:cx="10.585029"
+     inkscape:cy="13.844911"
+     inkscape:window-width="1920"
+     inkscape:window-height="1129"
+     inkscape:window-x="1912"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
-     d="M 12,4 A 1,1 0 0 0 11,5 V 16.585937 L 5.7070312,11.292969 a 1,1 0 0 0 -1.4140625,0 1,1 0 0 0 0,1.414062 l 7.0000003,7 a 1.0001,1.0001 0 0 0 0.414062,0 A 1,1 0 0 0 12,20 a 1,1 0 0 0 0.292969,-0.292969 1.0001,1.0001 0 0 0 0.414062,0 l 7,-7 a 1,1 0 0 0 0,-1.414062 1,1 0 0 0 -1.414062,0 L 13,16.585937 V 5 A 1,1 0 0 0 12,4 Z"
-     id="path1" />
+     d="m 12,1.9999996 c -0.552272,0 -0.999976,0.4477159 -0.999976,1.0000011 V 18.585952 L 5.7071804,13.292977 c -0.3904978,-0.390424 -1.0235313,-0.390424 -1.414029,0 -0.3904141,0.390508 -0.3904141,1.023557 0,1.414064 C 10.979108,21.040612 4.8079925,15.15509 12,22.000019 c 6.720769,-6.310112 2.088173,-1.89119 7.706849,-7.292978 0.390413,-0.390507 0.390413,-1.023556 0,-1.414064 -0.390498,-0.390423 -1.023531,-0.390423 -1.414029,0 l -5.292844,5.292975 V 3.0000008 C 12.999976,2.4477155 12.552272,1.9999996 12,1.9999996 Z"
+     id="path1"
+     stroke-linecap="round"
+     stroke-linejoin="round"
+     opacity="1"
+     fill="currentColor"
+     sodipodi:nodetypes="sscccccccccss"
+     style="stroke-width:1;stroke-dasharray:none" />
 </svg>

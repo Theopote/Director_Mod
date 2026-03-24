@@ -12,6 +12,7 @@ import com.director.core.selection.block_filters.BlockFilter;
 import com.director.core.selection.history.SelectionHistoryManager;
 import com.director.core.selection.tools.FaceHandleManager;
 import com.director.core.selection.tools.SelectionPhase;
+import com.director.ui.theme.Icons;
 import com.director.core.util.SnapUtil;
 import com.director.ui.cursor.ImGuiCursorController;
 import net.minecraft.client.MinecraftClient;
@@ -88,7 +89,7 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
 
     @Override
     public String getIcon() {
-        return "\uE910"; // Box icon
+        return Icons.BOX;
     }
 
     // ====================== 事件处理 ======================

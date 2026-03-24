@@ -1,54 +1,73 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<!-- 调色板图标 - Palette Icon (单色版) -->
-
 <svg
    viewBox="0 0 24 24"
    width="24"
    height="24"
+   fill="none"
+   stroke="currentColor"
+   stroke-width="1.8"
+   stroke-linecap="round"
+   stroke-linejoin="round"
    version="1.1"
-   id="svg5"
+   id="svg1"
    sodipodi:docname="palette.svg"
+   inkscape:version="1.4.2 (f4327f4, 2025-05-13)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
    xmlns:svg="http://www.w3.org/2000/svg">
   <defs
-     id="defs5" />
+     id="defs1" />
   <sodipodi:namedview
-     id="namedview5"
+     id="namedview1"
      pagecolor="#ffffff"
      bordercolor="#000000"
      borderopacity="0.25"
      inkscape:showpageshadow="2"
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1" />
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="13.037281"
+     inkscape:cx="2.9530697"
+     inkscape:cy="7.6319593"
+     inkscape:window-width="1920"
+     inkscape:window-height="1129"
+     inkscape:window-x="-8"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
   <path
-     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
      d="M 12,1 C 5.9367124,1 1,5.9367124 1,12 1,18.063288 5.9367124,23 12,23 18.063288,23 23,18.063288 23,12 23,5.9367124 18.063288,1 12,1 Z m 0,2 c 4.982407,0 9,4.0175926 9,9 0,4.982407 -4.017593,9 -9,9 C 7.0175926,21 3,16.982407 3,12 3,7.0175926 7.0175926,3 12,3 Z"
-     id="circle1" />
+     id="circle1"
+     opacity="1"
+     fill="currentColor"
+     style="stroke-width:0.5;stroke-dasharray:none" />
   <circle
      cx="8.5"
      cy="8.5"
      r="1.5"
-     fill="#000000"
-     id="circle2" />
+     fill="currentColor"
+     id="circle2"
+     style="stroke-width:0.5;stroke-dasharray:none" />
   <circle
      cx="15.5"
      cy="8.5"
      r="1.5"
-     fill="#000000"
-     id="circle3" />
+     fill="currentColor"
+     id="circle3"
+     style="stroke-width:0.5;stroke-dasharray:none" />
   <circle
      cx="8.5"
      cy="15.5"
      r="1.5"
-     fill="#000000"
-     id="circle4" />
+     fill="currentColor"
+     id="circle4"
+     style="stroke-width:0.5;stroke-dasharray:none" />
   <circle
      cx="15.5"
      cy="15.5"
      r="1.5"
-     fill="#000000"
-     id="circle5" />
+     fill="currentColor"
+     id="circle5"
+     style="stroke-width:0.5;stroke-dasharray:none" />
 </svg>

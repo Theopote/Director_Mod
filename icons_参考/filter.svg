@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- 滤镜图标 - Filter Icon (单色版) -->
+
+<svg
+   viewBox="0 0 24 24"
+   width="24"
+   height="24"
+   version="1.1"
+   id="svg1"
+   sodipodi:docname="filter.svg"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1" />
+  <path
+     style="baseline-shift:baseline;display:inline;overflow:visible;vector-effect:none;stroke-linecap:round;stroke-linejoin:round;enable-background:accumulate;stop-color:#000000;stop-opacity:1;opacity:1"
+     d="M 2,2 A 1.0001,1.0001 0 0 0 1.2363281,3.6464844 L 9,12.826172 V 19 a 1.0001,1.0001 0 0 0 0.5527344,0.894531 l 3.9999996,2 A 1.0001,1.0001 0 0 0 15,21 V 12.826172 L 22.763672,3.6464844 A 1.0001,1.0001 0 0 0 22,2 Z m 2.15625,2 h 15.6875 l -6.607422,7.814453 A 1.0001,1.0001 0 0 0 13,12.460938 v 6.921874 l -2,-1 v -5.921874 a 1.0001,1.0001 0 0 0 -0.236328,-0.646485 z"
+     id="path1" />
+</svg>

@@ -2,6 +2,7 @@ package com.director.core.selection.tools;
 
 import com.director.core.selection.SelectionState;
 import com.director.core.selection.SelectionTool;
+import com.director.ui.theme.Icons;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
@@ -42,7 +43,7 @@ public class InverseSelectTool implements SelectionTool {
     
     @Override
     public String getIcon() {
-        return "\uE996"; // Icons.UNDO (反向)
+        return Icons.UNDO;
     }
 
     @Override

@@ -2,6 +2,7 @@ package com.director.core.selection.tools;
 
 import com.director.core.selection.SelectionState;
 import com.director.core.selection.SelectionTool;
+import com.director.ui.theme.Icons;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 // import net.minecraft.block.Blocks; // 暂时不使用
@@ -48,7 +49,7 @@ public class TypeFilterTool implements SelectionTool {
     
     @Override
     public String getIcon() {
-        return "\uE91F"; // Icons.COLOR (类型)
+        return Icons.COLOR;
     }
 
     @Override
