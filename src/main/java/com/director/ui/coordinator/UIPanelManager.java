@@ -217,14 +217,6 @@ public final class UIPanelManager {
                 .forEach(this::renderPanelSafe);
     }
 
-    /**
-     * 渲染所有面板：先菜单栏，再其余。
-     */
-    public void renderAll() {
-        renderMenuBar();
-        renderPanels();
-    }
-
     // ---------- show / hide / toggle ----------
 
     public void showPanel(String panelId) {

@@ -74,7 +74,7 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
 
     private void renderMainMenuBar() {
         boolean startedInsideWindow = ImGui.beginMenuBar();
-        boolean startedGlobal = false;
+        boolean startedGlobal;
         if (!startedInsideWindow) {
             startedGlobal = ImGui.beginMainMenuBar();
             if (!startedGlobal) return;
@@ -92,7 +92,7 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
         } finally {
             if (startedInsideWindow) {
                 ImGui.endMenuBar();
-            } else if (startedGlobal) {
+            } else {
                 ImGui.endMainMenuBar();
             }
         }
