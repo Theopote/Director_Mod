@@ -6,6 +6,7 @@ import imgui.ImGui;
 
 import com.director.ui.commands.UICommandFacade;
 import com.director.ui.di.IPanelRegistry;
+import com.director.ui.imgui.ImGuiRenderer;
 import com.director.ui.theme.Icons;
 import com.director.ui.PanelId;
 
@@ -253,6 +254,13 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
                     }
                 }
                 ImGui.endMenu();
+            }
+
+            ImGui.separator();
+
+            boolean externalPanels = ImGuiRenderer.getInstance().isExternalViewportsEnabled();
+            if (ImGui.menuItem(Icons.WINDOW + " External Panels", "", externalPanels)) {
+                ImGuiRenderer.getInstance().setExternalViewportsEnabled(!externalPanels);
             }
 
             ImGui.separator();

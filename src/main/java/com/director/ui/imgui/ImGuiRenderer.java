@@ -9,6 +9,7 @@ import imgui.glfw.ImGuiImplGlfw;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.Window;
+import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
 import org.lwjgl.opengl.GL20;
@@ -30,6 +31,7 @@ public class ImGuiRenderer {
     private boolean initialized;
     private boolean frameInProgress;
     private boolean drawDataReady;
+    private boolean externalViewportsEnabled = true;
 
     // perf (throttled)
     private long lastPerfLogMs = 0L;
@@ -98,12 +100,16 @@ public class ImGuiRenderer {
             // 3. 渲染错误（OpenGL状态不一致）
             // 
             // 如果需要启用多视口，取消下面的注释，但请注意可能存在的问题
-            int configFlags = ImGuiConfigFlags.NavEnableKeyboard | ImGuiConfigFlags.DockingEnable;
+            int configFlags = ImGuiConfigFlags.NavEnableKeyboard
+                | ImGuiConfigFlags.DockingEnable
+                | ImGuiConfigFlags.ViewportsEnable;
+            io.setConfigFlags(configFlags);
             // configFlags |= ImGuiConfigFlags.ViewportsEnable;  // 多视口支持（暂时禁用）
             io.setConfigFlags(configFlags);
 
             // 初始化字体
             initializeFonts(io);
+            applyConfigFlags(io);
 
             // 不在此处设置样式；DirectorStyleScope 在每帧渲染时临时 push 样式，渲染后 pop，避免影响 Treefactory 等模组
 
@@ -158,6 +164,24 @@ public class ImGuiRenderer {
     /**
      * 开始新的ImGui帧
      */
+    private void applyConfigFlags(ImGuiIO io) {
+        if (io == null) {
+            return;
+        }
+
+        int flags = io.getConfigFlags();
+        flags |= ImGuiConfigFlags.NavEnableKeyboard;
+        flags |= ImGuiConfigFlags.DockingEnable;
+
+        if (externalViewportsEnabled) {
+            flags |= ImGuiConfigFlags.ViewportsEnable;
+        } else {
+            flags &= ~ImGuiConfigFlags.ViewportsEnable;
+        }
+
+        io.setConfigFlags(flags);
+    }
+
     public void beginFrame() {
         synchronized (LOCK) {
             if (!initialized || frameInProgress) {
@@ -173,17 +197,6 @@ public class ImGuiRenderer {
 
                 imGuiGlfw.newFrame();
                 ImGui.newFrame();
-                
-                // 多视口支持：在newFrame之后更新平台窗口
-                // 注意：在Minecraft环境中，多视口可能不稳定，因为Minecraft完全控制OpenGL上下文
-                // 如果遇到闪烁或输入问题，建议禁用多视口功能
-                if ((ImGui.getIO().getConfigFlags() & ImGuiConfigFlags.ViewportsEnable) != 0) {
-                    try {
-                        ImGui.updatePlatformWindows();
-                    } catch (Exception e) {
-                        LOGGER.warn("[Director] 多视口更新失败，可能由于OpenGL上下文冲突: {}", e.getMessage());
-                    }
-                }
                 
                 // 合并模式：不需要推送字体，ImGui自动使用默认字体（已包含中文）
                 // 之前的pushFont逻辑已移除，因为使用合并模式
@@ -258,7 +271,7 @@ public class ImGuiRenderer {
                 // 3. 渲染错误（OpenGL状态不一致）
                 // 
                 // 如果遇到这些问题，建议暂时禁用多视口功能（移除ViewportsEnable标志）
-                if ((ImGui.getIO().getConfigFlags() & ImGuiConfigFlags.ViewportsEnable) != 0) {
+                if (isExternalViewportsEnabled()) {
                     try {
                         // 恢复主窗口的OpenGL状态（为上下文切换做准备）
                         GL11.glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
@@ -266,12 +279,18 @@ public class ImGuiRenderer {
                             GL11.glEnable(GL11.GL_SCISSOR_TEST);
                         }
                         
+                        final long previousGlfwContext = GLFW.glfwGetCurrentContext();
+                        ImGui.updatePlatformWindows();
+
                         // 渲染所有额外的视口窗口
                         // 注意：这会切换OpenGL上下文，可能与Minecraft的渲染系统冲突
                         ImGui.renderPlatformWindowsDefault();
                         
                         // 恢复主窗口的OpenGL上下文和状态
                         // renderPlatformWindowsDefault应该会自动恢复，但为了安全起见手动恢复
+                        if (previousGlfwContext != 0L) {
+                            GLFW.glfwMakeContextCurrent(previousGlfwContext);
+                        }
                         GL11.glViewport(viewport[0], viewport[1], viewport[2], viewport[3]);
                         if (scissorEnabled) {
                             GL11.glEnable(GL11.GL_SCISSOR_TEST);
@@ -306,6 +325,26 @@ public class ImGuiRenderer {
 
     public boolean hasPendingDrawData() {
         return drawDataReady;
+    }
+
+    public boolean isExternalViewportsEnabled() {
+        return externalViewportsEnabled
+            && initialized
+            && (ImGui.getIO().getConfigFlags() & ImGuiConfigFlags.ViewportsEnable) != 0;
+    }
+
+    public void setExternalViewportsEnabled(boolean enabled) {
+        externalViewportsEnabled = enabled;
+        if (!initialized) {
+            return;
+        }
+
+        try {
+            applyConfigFlags(ImGui.getIO());
+            LOGGER.info("[Director] External ImGui viewports {}", enabled ? "enabled" : "disabled");
+        } catch (Exception e) {
+            LOGGER.error("[Director] Failed to toggle external ImGui viewports", e);
+        }
     }
     
     /**
