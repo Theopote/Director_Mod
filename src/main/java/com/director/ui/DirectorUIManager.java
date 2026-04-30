@@ -292,8 +292,12 @@ public class DirectorUIManager {
     private final VideoExportProgressOverlay videoExportProgressOverlay = new VideoExportProgressOverlay();
 
     // DockSpace相关常量
-    private static final int DOCKSPACE_FLAGS = imgui.flag.ImGuiWindowFlags.NoTitleBar |
+    private static final int DOCKSPACE_FLAGS = imgui.flag.ImGuiWindowFlags.MenuBar |
+                                             imgui.flag.ImGuiWindowFlags.NoDocking |
+                                             imgui.flag.ImGuiWindowFlags.NoTitleBar |
                                              imgui.flag.ImGuiWindowFlags.NoCollapse |
+                                             imgui.flag.ImGuiWindowFlags.NoResize |
+                                             imgui.flag.ImGuiWindowFlags.NoMove |
                                              imgui.flag.ImGuiWindowFlags.NoBringToFrontOnFocus |
                                              imgui.flag.ImGuiWindowFlags.NoNavFocus |
                                              imgui.flag.ImGuiWindowFlags.NoBackground;
@@ -1995,24 +1999,24 @@ public class DirectorUIManager {
             // 0) 摄像机视口 Overlay（在所有面板之前渲染，使其被面板遮挡）
             renderCameraViewportOverlay();
 
-            // 1. 菜单栏（UIPanelManager）
-            panelManager.renderMenuBar();
-
-            // 2. 渲染DockSpace布局 - 为其他面板提供停靠区域
+            // 1. 渲染统一宿主窗口和 DockSpace
             int dockspaceId = renderDockSpaceWithPanels();
             if (dockspaceId == -1) {
                 logWarn("DockSpace 未就绪，跳过本帧面板渲染");
                 return;
             }
 
-            // 3. 除菜单栏外的所有面板（UIPanelManager）
+            // 2. 除菜单栏外的所有面板（UIPanelManager）
             panelManager.renderPanels();
 
-            // 4) 全局弹窗/Overlay（不属于某个 Dock 面板）
+            // 3) 全局弹窗/Overlay（不属于某个 Dock 面板）
+            VideoExportDialog.renderIfNeeded(this);
+            panelManager.renderPanels();
             VideoExportDialog.renderIfNeeded(this);
             videoExportProgressOverlay.render(this);
+            dialogCoordinator.render();
             
-            // 5) 渲染对话框（集中管理）
+            // 4) 渲染对话框（集中管理）
             dialogCoordinator.render();
             
             // ❌ 暂时禁用中央保护区域渲染 - 这会导致ImGui认为鼠标在UI上
@@ -2118,7 +2122,7 @@ public class DirectorUIManager {
     private int renderDockSpaceWithPanels() {
         imgui.ImGuiViewport viewport = imgui.ImGui.getMainViewport();
 
-        // 设置DockSpace覆盖整个工作区域，菜单栏独立渲染
+        // 使用一个统一的宿主窗口承载菜单栏和整个 DockSpace
         imgui.ImGui.setNextWindowPos(viewport.getWorkPosX(), viewport.getWorkPosY());
         imgui.ImGui.setNextWindowSize(viewport.getWorkSizeX(), viewport.getWorkSizeY());
         imgui.ImGui.setNextWindowViewport(viewport.getID());
@@ -2144,6 +2148,7 @@ public class DirectorUIManager {
                 if (window != null) {
                     try {
                         com.director.ui.imgui.ImGuiStateChecker.recordBegin("DockSpace", DOCKSPACE_WINDOW_NAME);
+                        panelManager.renderMenuBar();
                         
                         // 创建DockSpace - 全屏透明，基础停靠功能
                         dockspaceId = imgui.ImGui.getID(DOCKSPACE_ID);

@@ -480,6 +480,12 @@ public class DirectorScreen extends Screen {
         }
         closeCleanupDone = true;
 
+        try {
+            ImGuiRenderer.getInstance().closeDetachedDirectorWindow(this);
+        } catch (Exception e) {
+            LOGGER.warn("[Director] 关闭外置 Director 窗口失败", e);
+        }
+
         // 样式隔离已改为 DirectorStyleScope（每帧 push/pop），不再需要上下文切换或恢复
 
         LOGGER.info("[Director] 🧭 退出导演模式界面 (source={})", source);

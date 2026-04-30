@@ -1,5 +1,7 @@
 package com.director.ui.imgui;
 
+import com.director.ui.DirectorScreen;
+import com.director.ui.window.DetachedDirectorWindow;
 import imgui.ImGui;
 import imgui.ImGuiIO;
 import imgui.flag.ImGuiConfigFlags;
@@ -27,11 +29,13 @@ public class ImGuiRenderer {
 
     private ImGuiImplGlfw imGuiGlfw;
     private ImGuiImplGl3 imGuiGl3;
+    private final DetachedDirectorWindow detachedDirectorWindow = new DetachedDirectorWindow();
     private long windowHandle;
+    private long backendWindowHandle;
     private boolean initialized;
     private boolean frameInProgress;
     private boolean drawDataReady;
-    private boolean externalViewportsEnabled = true;
+    private boolean externalViewportsEnabled = false;
 
     // perf (throttled)
     private long lastPerfLogMs = 0L;
@@ -68,6 +72,7 @@ public class ImGuiRenderer {
 
             // 获取窗口句柄
             windowHandle = client.getWindow().getHandle();
+            backendWindowHandle = windowHandle;
             if (windowHandle == 0) {
                 LOGGER.error("[Director] Invalid window handle");
                 throw new RuntimeException("Invalid window handle");
@@ -101,8 +106,7 @@ public class ImGuiRenderer {
             // 
             // 如果需要启用多视口，取消下面的注释，但请注意可能存在的问题
             int configFlags = ImGuiConfigFlags.NavEnableKeyboard
-                | ImGuiConfigFlags.DockingEnable
-                | ImGuiConfigFlags.ViewportsEnable;
+                | ImGuiConfigFlags.DockingEnable;
             io.setConfigFlags(configFlags);
             // configFlags |= ImGuiConfigFlags.ViewportsEnable;  // 多视口支持（暂时禁用）
             io.setConfigFlags(configFlags);
@@ -195,6 +199,11 @@ public class ImGuiRenderer {
                 // 检查并更新INI文件路径（如果世界已切换）
                 checkAndUpdateIniPath();
 
+                ImGuiIO io = ImGui.getIO();
+                if (detachedDirectorWindow.isOpen()) {
+                    detachedDirectorWindow.prepareFrame(io);
+                }
+
                 imGuiGlfw.newFrame();
                 ImGui.newFrame();
                 
@@ -260,7 +269,10 @@ public class ImGuiRenderer {
                 
                 // 避免被 Minecraft 的 RenderType scissor 影响
                 GL11.glDisable(GL11.GL_SCISSOR_TEST);
-                imGuiGl3.renderDrawData(ImGui.getDrawData());
+                imgui.ImDrawData drawData = ImGui.getDrawData();
+                if (!detachedDirectorWindow.isOpen()) {
+                    imGuiGl3.renderDrawData(drawData);
+                }
                 lastRenderNs = System.nanoTime() - t0;
                 
                 // 多视口支持：渲染额外的平台窗口（拖出主窗口的面板）
@@ -310,6 +322,10 @@ public class ImGuiRenderer {
                         } catch (Exception ignored) {}
                     }
                 }
+
+                if (detachedDirectorWindow.isOpen()) {
+                    detachedDirectorWindow.renderDrawData(drawData, imGuiGl3);
+                }
             } catch (Exception e) {
                 LOGGER.error("[Director] Failed to render pending ImGui draw data", e);
             } finally {
@@ -346,6 +362,52 @@ public class ImGuiRenderer {
             LOGGER.error("[Director] Failed to toggle external ImGui viewports", e);
         }
     }
+
+    public void openDetachedDirectorWindow(final DirectorScreen screen) {
+        if (!initialized) {
+            return;
+        }
+        detachedDirectorWindow.open(screen);
+    }
+
+    public void closeDetachedDirectorWindow(final DirectorScreen screen) {
+        detachedDirectorWindow.close(screen);
+    }
+
+    public boolean isDetachedDirectorOpen(final DirectorScreen screen) {
+        return detachedDirectorWindow.isDetached(screen);
+    }
+
+    public boolean isDetachedDirectorWindowOpen() {
+        return detachedDirectorWindow.isOpen();
+    }
+
+    public void bindPlatformBackendToWindow(final long newWindowHandle) {
+        if (!initialized || newWindowHandle == 0L || backendWindowHandle == newWindowHandle) {
+            return;
+        }
+
+        try {
+            if (imGuiGlfw != null) {
+                imGuiGlfw.dispose();
+            }
+        } catch (Exception e) {
+            LOGGER.debug("[Director] Rebinding ImGui GLFW backend dispose failed: {}", e.getMessage());
+        }
+
+        imGuiGlfw = new ImGuiImplGlfw();
+        if (!imGuiGlfw.init(newWindowHandle, true)) {
+            throw new RuntimeException("ImGui GLFW backend rebind failed");
+        }
+        backendWindowHandle = newWindowHandle;
+    }
+
+    public void restorePrimaryPlatformBackend() {
+        if (!initialized || windowHandle == 0L) {
+            return;
+        }
+        bindPlatformBackendToWindow(windowHandle);
+    }
     
     /**
      * 清理资源
@@ -374,6 +436,8 @@ public class ImGuiRenderer {
                 initialized = false;
                 frameInProgress = false;
                 windowHandle = 0;
+                backendWindowHandle = 0;
+                detachedDirectorWindow.cleanup();
                 LOGGER.info("[Director] ImGui resources cleaned up");
             } catch (Exception e) {
                 LOGGER.error("[Director] Error cleaning up ImGui resources", e);
@@ -406,15 +470,13 @@ public class ImGuiRenderer {
             if (currentWindowHandle != windowHandle) {
                 LOGGER.info("[Director] Window handle changed, reinitializing GLFW");
                 windowHandle = currentWindowHandle;
-
-                if (imGuiGlfw != null) {
-                    imGuiGlfw.dispose();
-                }
-                imGuiGlfw = new ImGuiImplGlfw();
-                // installCallbacks = true: 重新安装输入回调
-                if (!imGuiGlfw.init(windowHandle, true)) {
-                    LOGGER.error("[Director] Failed to reinitialize GLFW");
-                    return;
+                if (!detachedDirectorWindow.isOpen()) {
+                    try {
+                        bindPlatformBackendToWindow(windowHandle);
+                    } catch (Exception e) {
+                        LOGGER.error("[Director] Failed to reinitialize GLFW", e);
+                        return;
+                    }
                 }
                 LOGGER.info("[Director] ImGui GLFW callbacks reinstalled");
             }

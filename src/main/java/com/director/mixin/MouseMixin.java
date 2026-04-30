@@ -231,8 +231,6 @@ public abstract class MouseMixin {
             boolean hover = isHoveringDirectorUI(screen);
             if (hover) {
                 ci.cancel();
-            } else if (!client.mouse.isCursorLocked()) {
-                client.mouse.lockCursor();
             }
         }
     }

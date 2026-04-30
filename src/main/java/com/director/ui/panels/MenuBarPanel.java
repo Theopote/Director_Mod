@@ -73,7 +73,12 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
     }
 
     private void renderMainMenuBar() {
-        if (!ImGui.beginMainMenuBar()) return;
+        boolean startedInsideWindow = ImGui.beginMenuBar();
+        boolean startedGlobal = false;
+        if (!startedInsideWindow) {
+            startedGlobal = ImGui.beginMainMenuBar();
+            if (!startedGlobal) return;
+        }
 
         try {
             renderFileMenu();
@@ -85,7 +90,11 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
         } catch (Exception e) {
             logger.error("[MenuBar] Render error", e);
         } finally {
-            ImGui.endMainMenuBar();
+            if (startedInsideWindow) {
+                ImGui.endMenuBar();
+            } else if (startedGlobal) {
+                ImGui.endMainMenuBar();
+            }
         }
     }
 
@@ -258,9 +267,19 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
 
             ImGui.separator();
 
-            boolean externalPanels = ImGuiRenderer.getInstance().isExternalViewportsEnabled();
-            if (ImGui.menuItem(Icons.WINDOW + " External Panels", "", externalPanels)) {
-                ImGuiRenderer.getInstance().setExternalViewportsEnabled(!externalPanels);
+            boolean detachedWindow = false;
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client.currentScreen instanceof com.director.ui.DirectorScreen directorScreen) {
+                detachedWindow = ImGuiRenderer.getInstance().isDetachedDirectorOpen(directorScreen);
+            }
+            if (ImGui.menuItem(Icons.WINDOW + " External Window", "", detachedWindow)) {
+                if (client.currentScreen instanceof com.director.ui.DirectorScreen directorScreen) {
+                    if (detachedWindow) {
+                        ImGuiRenderer.getInstance().closeDetachedDirectorWindow(directorScreen);
+                    } else {
+                        ImGuiRenderer.getInstance().openDetachedDirectorWindow(directorScreen);
+                    }
+                }
             }
 
             ImGui.separator();
