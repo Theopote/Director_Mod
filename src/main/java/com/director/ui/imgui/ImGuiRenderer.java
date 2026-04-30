@@ -348,20 +348,6 @@ public class ImGuiRenderer {
             && (ImGui.getIO().getConfigFlags() & ImGuiConfigFlags.ViewportsEnable) != 0;
     }
 
-    public void setExternalViewportsEnabled(boolean enabled) {
-        externalViewportsEnabled = enabled;
-        if (!initialized) {
-            return;
-        }
-
-        try {
-            applyConfigFlags(ImGui.getIO());
-            LOGGER.info("[Director] External ImGui viewports {}", enabled ? "enabled" : "disabled");
-        } catch (Exception e) {
-            LOGGER.error("[Director] Failed to toggle external ImGui viewports", e);
-        }
-    }
-
     public void openDetachedDirectorWindow(final DirectorScreen screen) {
         if (!initialized) {
             return;
@@ -375,10 +361,6 @@ public class ImGuiRenderer {
 
     public boolean isDetachedDirectorOpen(final DirectorScreen screen) {
         return detachedDirectorWindow.isDetached(screen);
-    }
-
-    public boolean isDetachedDirectorWindowOpen() {
-        return detachedDirectorWindow.isOpen();
     }
 
     public void bindPlatformBackendToWindow(final long newWindowHandle) {

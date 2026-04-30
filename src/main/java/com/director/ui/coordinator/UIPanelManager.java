@@ -302,28 +302,4 @@ public final class UIPanelManager {
         }
         return null;
     }
-
-    /**
-     * 根据显示名称解析并查找面板（用于 Layout 等）。
-     */
-    public IPanel findPanelByName(String panelName) {
-        String actualName = switch (panelName) {
-            case "Timeline" -> "Timeline";
-            case "Tool Properties" -> "ToolProperties";
-            case "Container" -> "Container";
-            case "RenderSettings" -> "RenderSettings";
-            case "Toolbar" -> "Toolbar";
-            case "SelectionFiler" -> "SelectionFilter";
-            case "Properties" -> "Properties";
-            case "SelectionHistory" -> "SelectionHistory";
-            default -> panelName;
-        };
-
-        for (IPanel panel : panelRegistry.getAllPanels()) {
-            if (actualName.equals(panel.getPanelName())) {
-                return panel;
-            }
-        }
-        return null;
-    }
 }
