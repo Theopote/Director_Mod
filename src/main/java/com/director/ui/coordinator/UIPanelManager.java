@@ -14,7 +14,9 @@ import imgui.flag.ImGuiWindowFlags;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 
 /**
@@ -41,6 +43,7 @@ public final class UIPanelManager {
     private final IPanelRegistry panelRegistry;
     private final DirectorUIManager uiManager;
     private final Supplier<UICommandFacade> commandsGetter;
+    private final Map<String, Integer> panelRenderFrameGuard = new ConcurrentHashMap<>();
 
     public UIPanelManager(
             IPanelRegistry panelRegistry,
@@ -179,6 +182,12 @@ public final class UIPanelManager {
      */
     public void renderPanelSafe(IPanel panel) {
         try {
+            final int frameCount = ImGui.getFrameCount();
+            final String frameKey = panel.getWindowName();
+            final Integer lastRenderedFrame = panelRenderFrameGuard.put(frameKey, frameCount);
+            if (lastRenderedFrame != null && lastRenderedFrame == frameCount) {
+                return;
+            }
             panel.render();
         } catch (Exception e) {
             LOGGER.error("[UIPanelManager] 面板 {} 渲染失败", panel.getPanelName(), e);

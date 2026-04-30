@@ -2013,7 +2013,7 @@ public class DirectorUIManager {
             panelManager.renderPanels();
 
             // 3) 全局弹窗/Overlay（不属于某个 Dock 面板）
-            VideoExportDialog.renderIfNeeded(this);
+            panelManager.renderPanels();
             panelManager.renderPanels();
             VideoExportDialog.renderIfNeeded(this);
             videoExportProgressOverlay.render(this);

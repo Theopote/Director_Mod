@@ -270,10 +270,11 @@ public class ImGuiRenderer {
                 // 避免被 Minecraft 的 RenderType scissor 影响
                 GL11.glDisable(GL11.GL_SCISSOR_TEST);
                 imgui.ImDrawData drawData = ImGui.getDrawData();
-                if (!detachedDirectorWindow.isOpen()) {
+                if (detachedDirectorWindow.isOpen()) {
+                    detachedDirectorWindow.renderDrawData(drawData, imGuiGl3);
+                } else if (drawData != null && drawData.getCmdListsCount() > 0) {
                     imGuiGl3.renderDrawData(drawData);
                 }
-                lastRenderNs = System.nanoTime() - t0;
                 
                 // 多视口支持：渲染额外的平台窗口（拖出主窗口的面板）
                 // ⚠️ 警告：在Minecraft环境中，多视口功能可能不稳定
@@ -323,9 +324,7 @@ public class ImGuiRenderer {
                     }
                 }
 
-                if (detachedDirectorWindow.isOpen()) {
-                    detachedDirectorWindow.renderDrawData(drawData, imGuiGl3);
-                }
+                lastRenderNs = System.nanoTime() - t0;
             } catch (Exception e) {
                 LOGGER.error("[Director] Failed to render pending ImGui draw data", e);
             } finally {
