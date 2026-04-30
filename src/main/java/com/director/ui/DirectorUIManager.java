@@ -1666,6 +1666,9 @@ public class DirectorUIManager {
                 layoutManager.forceReloadLayout();
                 
                 // 5. 重置 DockSpace 布局状态，强制重新应用默认布局
+                DirectorUIManager.this.clearCurrentDockSpaceState();
+                DirectorUIManager.this.restoreDefaultPanelVisibility();
+                DirectorUIManager.this.isFirstLayout = true;
                 com.director.ui.layout.DockSpaceLayoutBuilder.resetLayoutState();
                 
                 LOGGER.info("[Layout] Layout restored to default");
@@ -2280,6 +2283,41 @@ public class DirectorUIManager {
      * 验证必需的面板是否存在（用于构造函数初始化）
      * @throws IllegalStateException 如果关键面板缺失且无法提供降级方案
      */
+    private void restoreDefaultPanelVisibility() {
+        if (panelRegistry == null || panelRegistry.isEmpty()) {
+            return;
+        }
+
+        panelRegistry.getAllPanels().forEach(panel -> {
+            if (panel == null) {
+                return;
+            }
+
+            boolean visibleByDefault = switch (panel.getClass().getSimpleName()) {
+                case "SelectionFilterPanel", "SelectionHistoryPanel", "RenderSettingsPanel", "ToolPropertiesPanel" -> false;
+                default -> true;
+            };
+
+            try {
+                panel.setVisible(visibleByDefault);
+                logDebug("闈㈡澘 {} 宸查噸缃负榛樿鍙鎬? {}", panel.getPanelName(), visibleByDefault);
+            } catch (Exception e) {
+                logWarn("闈㈡澘 {} 閲嶇疆榛樿鍙鎬уけ璐? {}", panel.getPanelName(), e.getMessage());
+            }
+        });
+    }
+
+    private void clearCurrentDockSpaceState() {
+        try {
+            int dockspaceId = ImGui.getID(DOCKSPACE_ID);
+            if (dockspaceId != 0) {
+                imgui.internal.ImGui.dockBuilderRemoveNode(dockspaceId);
+            }
+        } catch (Exception e) {
+            logWarn("娓呯悊褰撳墠 DockSpace 鐘舵€佸け璐? {}", e.getMessage());
+        }
+    }
+
     private void validateRequiredPanels() {
         boolean hasCriticalErrors = false;
         StringBuilder errorMessage = new StringBuilder("关键面板缺失: ");
