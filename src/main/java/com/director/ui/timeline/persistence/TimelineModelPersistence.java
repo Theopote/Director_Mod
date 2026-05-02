@@ -117,6 +117,8 @@ public class TimelineModelPersistence {
         public float scrollX = 0f;
         public boolean snapEnabled = true;
         public float snapInterval = 0.25f;
+        public float frameRate = 30.0f;
+        public int timeUnit = 0;
         public long timestamp;
         public String worldFingerprint;
     }
@@ -345,6 +347,8 @@ public class TimelineModelPersistence {
         }
         dto.snapEnabled = model.isSnappingEnabled();
         dto.snapInterval = model.getSnapSettings().getGridInterval();
+        dto.frameRate = model.getFrameRate();
+        dto.timeUnit = model.getTimeUnit();
         dto.timestamp = System.currentTimeMillis();
         dto.worldFingerprint = getWorldFingerprint();
         
@@ -590,6 +594,8 @@ public class TimelineModelPersistence {
         }
         model.setSnappingEnabled(dto.snapEnabled);
         model.getSnapSettings().setGridInterval(dto.snapInterval);
+        model.setFrameRate(dto.frameRate);
+        model.setTimeUnit(dto.timeUnit);
         
         // 清空现有轨道
         model.getTracks().clear();

@@ -209,9 +209,9 @@ public final class CameraPathDebugRenderer {
         // 5. ⭐ 渲染路径片段（OrbitPathClip, DollyPathClip, CranePathClip）
         renderPathClips(consumers, matrix, cameraPos);
 
-        if (consumers instanceof VertexConsumerProvider.Immediate immediate) {
-            immediate.draw();
-        }
+        // WorldRenderContext.consumers() is shared across the render phase.
+        // Let Fabric/FrameGraph flush it at the phase boundary instead of
+        // forcing an early draw that can invalidate later renderers' buffers.
         GlStateManager._disableBlend();
 
         matrices.pop();

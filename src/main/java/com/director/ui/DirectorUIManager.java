@@ -39,6 +39,7 @@ import com.director.ui.commands.ContainerCommands;
 import com.director.ui.commands.SelectionFilterCommands;
 import com.director.core.selection.block_filters.FilterIds;
 import com.director.core.playback.PlaybackController;
+import com.director.ui.timeline.model.ITimelineProject;
 import com.director.ui.timeline.model.camera.path.CameraPathType;
 import com.director.ui.timeline.model.TimelineModel;
 
@@ -525,7 +526,7 @@ public class DirectorUIManager {
                         @Override
                         public float getFrameRate() {
                             // 尝试多种方式获取项目对象
-                            Object project = getProjectObject();
+                            ITimelineProject project = timelineModel;
                             if (project == null) {
                                 // 如果项目对象不存在，返回默认值
                                 // 这可能是因为项目系统尚未完全实现
@@ -533,14 +534,14 @@ public class DirectorUIManager {
                             }
                             
                             // 使用与 TimelineProjectPropertyAdapter 相同的方式
-                            float fps = getFloatProperty(project);
+                            float fps = project.getFrameRate();
                             LOGGER.debug("[TimelineSettings] 获取帧率: {} (项目对象: {})", fps, project.getClass().getSimpleName());
                             return fps;
                         }
                         
                         @Override
                         public boolean setFrameRate(float fps) {
-                            Object project = getProjectObject();
+                            ITimelineProject project = timelineModel;
                             if (project == null) {
                                 // 如果项目对象不存在，记录警告但不阻止操作
                                 // 这可能是因为项目系统尚未完全实现
@@ -549,7 +550,8 @@ public class DirectorUIManager {
                             }
                             
                             // 使用与 TimelineProjectPropertyAdapter 相同的方式
-                            boolean success = setFloatProperty(project, fps);
+                            project.setFrameRate(fps);
+                            boolean success = true;
                             if (success) {
                                 LOGGER.debug("[TimelineSettings] 帧率已设置为: {}", fps);
                             } else {
@@ -560,22 +562,23 @@ public class DirectorUIManager {
                         
                         @Override
                         public int getTimeUnit() {
-                            Object project = getProjectObject();
+                            ITimelineProject project = timelineModel;
                             if (project == null) {
                                 return 0; // 默认：秒
                             }
                             
-                            return getIntProperty(project);
+                            return project.getTimeUnit();
                         }
                         
                         @Override
                         public boolean setTimeUnit(int unit) {
-                            Object project = getProjectObject();
+                            ITimelineProject project = timelineModel;
                             if (project == null) {
                                 return false;
                             }
                             
-                            return setIntProperty(project, unit);
+                            project.setTimeUnit(unit);
+                            return true;
                         }
                         
                         /**
@@ -632,6 +635,9 @@ public class DirectorUIManager {
                          * 获取浮点属性（与 TimelineProjectPropertyAdapter 相同）
                          */
                         private float getFloatProperty(Object obj) {
+                            if (obj instanceof ITimelineProject project) {
+                                return project.getFrameRate();
+                            }
                             try {
                                 java.lang.reflect.Method method = obj.getClass().getMethod("getFrameRate");
                                 Object result = method.invoke(obj);
@@ -656,6 +662,10 @@ public class DirectorUIManager {
                          * 设置浮点属性（与 TimelineProjectPropertyAdapter 相同）
                          */
                         private boolean setFloatProperty(Object obj, float value) {
+                            if (obj instanceof ITimelineProject project) {
+                                project.setFrameRate(value);
+                                return true;
+                            }
                             try {
                                 java.lang.reflect.Method method = obj.getClass().getMethod("setFrameRate", float.class);
                                 method.invoke(obj, value);
@@ -676,6 +686,9 @@ public class DirectorUIManager {
                          * 获取整数属性
                          */
                         private int getIntProperty(Object obj) {
+                            if (obj instanceof ITimelineProject project) {
+                                return project.getTimeUnit();
+                            }
                             try {
                                 java.lang.reflect.Method method = obj.getClass().getMethod("getTimeUnit");
                                 Object result = method.invoke(obj);
@@ -700,6 +713,10 @@ public class DirectorUIManager {
                          * 设置整数属性
                          */
                         private boolean setIntProperty(Object obj, int value) {
+                            if (obj instanceof ITimelineProject project) {
+                                project.setTimeUnit(value);
+                                return true;
+                            }
                             try {
                                 java.lang.reflect.Method method = obj.getClass().getMethod("setTimeUnit", int.class);
                                 method.invoke(obj, value);

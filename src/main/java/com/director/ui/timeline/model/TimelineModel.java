@@ -25,7 +25,9 @@ import com.director.ui.timeline.playback.camera.TimelineCameraController;
  * @author Director Team
  * @version 7.4
  */
-public class TimelineModel {
+public class TimelineModel implements ITimelineProject {
+    private float frameRate = 30.0f;
+    private int timeUnit = 0;
     // ========== 核心动画状态（现在直接拥有）==========
     private boolean playing = false;
     private float currentTime = 0f;
@@ -198,6 +200,8 @@ public class TimelineModel {
         scrubbing = false;
         loopEnabled = false;
         currentTime = 0f;
+        frameRate = 30.0f;
+        timeUnit = 0;
         duration = 20.0f;
         cachedDynamicDuration = 0f;
         isDurationDirty = true;
@@ -246,6 +250,28 @@ public class TimelineModel {
     public void togglePlay() {
         boolean newState = !this.playing;
         setPlaying(newState);
+    }
+
+    @Override
+    public float getFrameRate() {
+        return frameRate;
+    }
+
+    @Override
+    public void setFrameRate(float frameRate) {
+        this.frameRate = Math.clamp(frameRate, 1.0f, 240.0f);
+        markDirty();
+    }
+
+    @Override
+    public int getTimeUnit() {
+        return timeUnit;
+    }
+
+    @Override
+    public void setTimeUnit(int timeUnit) {
+        this.timeUnit = Math.clamp(timeUnit, 0, 2);
+        markDirty();
     }
     
     public void jumpToStart() {
