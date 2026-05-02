@@ -49,6 +49,7 @@ public class DirectorScreen extends Screen {
     private boolean directorModeActive = false;
     private long lastModeResyncMs = 0L;
     private boolean closeCleanupDone = false;
+    private boolean detachedWindowClosePending = false;
     private WorldSnapshotManager snapshotManager;
     private UISessionState uiSessionState;
     private static volatile PendingRestoreState pendingRestoreState;
@@ -214,6 +215,10 @@ public class DirectorScreen extends Screen {
         try {
             // 获取ImGui渲染器实例
             ImGuiRenderer imGuiRenderer = ImGuiRenderer.getInstance();
+            if (imGuiRenderer.consumeDetachedWindowCloseRequest(this)) {
+                detachedWindowClosePending = true;
+                return;
+            }
 
             // 更新显示尺寸（处理全屏切换等）
             imGuiRenderer.updateDisplaySize();
@@ -479,6 +484,7 @@ public class DirectorScreen extends Screen {
             return;
         }
         closeCleanupDone = true;
+        com.director.client.DirectorClient.markDirectorScreenClosed();
 
         try {
             ImGuiRenderer.getInstance().closeDetachedDirectorWindow(this);
@@ -899,6 +905,14 @@ public class DirectorScreen extends Screen {
     @Override
     public void tick() {
         super.tick();
+
+        if (detachedWindowClosePending) {
+            detachedWindowClosePending = false;
+            if (client != null && client.currentScreen == this) {
+                client.setScreen(null);
+            }
+            return;
+        }
 
         com.director.ui.timeline.playback.weather.TimelineWeatherController.getInstance()
             .forceDisableVanillaWeather();

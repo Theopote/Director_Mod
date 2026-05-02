@@ -518,6 +518,10 @@ public class DirectorClient implements ClientModInitializer {
     /**
      * 检查Director屏幕是否已经打开
      */
+    public static void markDirectorScreenClosed() {
+        lastItemUseTime = System.currentTimeMillis();
+    }
+
     private static boolean isDirectorScreenAlreadyOpen(MinecraftClient client) {
         try {
             return client.currentScreen instanceof com.director.ui.DirectorScreen;

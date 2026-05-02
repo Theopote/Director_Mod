@@ -25,6 +25,7 @@ public final class DetachedDirectorWindow {
     private boolean currentLeftMouseDown;
     private boolean currentRightMouseDown;
     private boolean currentMiddleMouseDown;
+    private DirectorScreen pendingCloseScreen;
 
     public boolean isDetached(final DirectorScreen screen) {
         return windowHandle != 0L && attachedScreen == screen;
@@ -92,6 +93,7 @@ public final class DetachedDirectorWindow {
             GLFW.glfwSwapInterval(0);
 
             attachedScreen = screen;
+            pendingCloseScreen = null;
             previousLeftMouseDown = false;
             previousRightMouseDown = false;
             currentLeftMouseDown = false;
@@ -118,7 +120,18 @@ public final class DetachedDirectorWindow {
         if (screen == null || attachedScreen != screen) {
             return;
         }
+        if (pendingCloseScreen == screen) {
+            pendingCloseScreen = null;
+        }
         cleanup();
+    }
+
+    public boolean consumeCloseRequested(final DirectorScreen screen) {
+        if (screen == null || pendingCloseScreen != screen) {
+            return false;
+        }
+        pendingCloseScreen = null;
+        return true;
     }
 
     public void prepareFrame(final ImGuiIO io) {
@@ -152,10 +165,7 @@ public final class DetachedDirectorWindow {
         }
 
         if (GLFW.glfwWindowShouldClose(windowHandle)) {
-            final MinecraftClient client = MinecraftClient.getInstance();
-            if (client != null) {
-                client.execute(() -> client.setScreen(null));
-            }
+            pendingCloseScreen = attachedScreen;
             cleanup();
             return;
         }

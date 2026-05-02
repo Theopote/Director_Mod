@@ -363,6 +363,10 @@ public class ImGuiRenderer {
         return detachedDirectorWindow.isDetached(screen);
     }
 
+    public boolean consumeDetachedWindowCloseRequest(final DirectorScreen screen) {
+        return detachedDirectorWindow.consumeCloseRequested(screen);
+    }
+
     public void bindPlatformBackendToWindow(final long newWindowHandle) {
         if (!initialized || newWindowHandle == 0L || backendWindowHandle == newWindowHandle) {
             return;
