@@ -52,8 +52,6 @@ public class InputFocusManager {
             return;
         }
 
-        panelHoveredThisFrame = false;
-
         try {
             ImGui.getIO(); // ensure ImGui context exists
             boolean mouseOverGui = panelHoveredThisFrame;
