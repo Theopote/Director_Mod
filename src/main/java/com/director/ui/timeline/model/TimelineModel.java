@@ -35,6 +35,8 @@ public class TimelineModel implements ITimelineProject {
     private boolean loopEnabled = false; // 循环播放
     private float playbackSpeed = 1.0f; // 播放速度倍率（0.5x/1x/2x/3x...）
     private boolean scrubbing = false; // 是否正在拖动播放头
+    private Float inPoint = null; // 播放入点（null 表示未设置）
+    private Float outPoint = null; // 播放出点（null 表示未设置）
     
     // ========== 视图状态（由外部注入）==========
     private final TimelineViewportState viewportState;
@@ -203,6 +205,8 @@ public class TimelineModel implements ITimelineProject {
         frameRate = 30.0f;
         timeUnit = 0;
         duration = 20.0f;
+        inPoint = null;
+        outPoint = null;
         cachedDynamicDuration = 0f;
         isDurationDirty = true;
         tracks.clear();
@@ -298,6 +302,61 @@ public class TimelineModel implements ITimelineProject {
     public void setPlaybackSpeed(float playbackSpeed) {
         // 合理范围：防止 0 或负数导致卡死/倒放（如需倒放以后再单独实现）
         this.playbackSpeed = Math.max(0.1f, Math.min(8.0f, playbackSpeed));
+    }
+
+    public boolean hasInPoint() {
+        return inPoint != null;
+    }
+
+    public boolean hasOutPoint() {
+        return outPoint != null;
+    }
+
+    public float getInPoint() {
+        return inPoint != null ? inPoint : 0f;
+    }
+
+    public float getOutPoint() {
+        return outPoint != null ? outPoint : getDuration();
+    }
+
+    public void setInPoint(float point) {
+        float clamped = clamp(point, getDuration());
+        inPoint = clamped;
+        if (outPoint != null && outPoint < clamped) {
+            outPoint = clamped;
+        }
+        if (currentTime < clamped) {
+            setCurrentTime(clamped);
+        }
+    }
+
+    public void setOutPoint(float point) {
+        float clamped = clamp(point, getDuration());
+        if (inPoint != null && clamped < inPoint) {
+            clamped = inPoint;
+        }
+        outPoint = clamped;
+        if (currentTime > clamped) {
+            setCurrentTime(clamped);
+        }
+    }
+
+    public void clearInOut() {
+        inPoint = null;
+        outPoint = null;
+    }
+
+    public float getPlaybackRangeStart() {
+        return inPoint != null ? inPoint : 0f;
+    }
+
+    public float getPlaybackRangeEnd() {
+        float start = getPlaybackRangeStart();
+        float durationValue = getDuration();
+        float end = outPoint != null ? outPoint : durationValue;
+        end = Math.min(end, durationValue);
+        return Math.max(start, end);
     }
     
     // ========== 缩放控制 ==========

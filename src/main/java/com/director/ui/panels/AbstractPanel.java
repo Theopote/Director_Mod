@@ -41,8 +41,7 @@ public abstract class AbstractPanel implements IPanel {
 
     @Override
     public final void render() {
-        boolean shouldRenderWindow = (visible && !hidden) || shouldReserveDockSpaceWhenHidden();
-        if (!shouldRenderWindow) {
+        if (!shouldRenderWindow()) {
             return;
         }
 
@@ -50,114 +49,131 @@ public abstract class AbstractPanel implements IPanel {
         final boolean renderPlaceholder = !renderContent && shouldReserveDockSpaceWhenHidden();
 
         try {
-            // 确保面板已初始化
-            if (!initialized) {
-                initialize();
-                initialized = true;
-            }
+            ensureInitialized();
 
             if (shouldUseStandardWindow()) {
-                // 将 begin/end 的逻辑集中在这里
-                // 为DockSpace中的面板设置合适的窗口标志
-                int windowFlags = getWindowFlags();
-                
-                // 如果面板被隐藏，使用特殊的窗口标志（移除可能阻止渲染的标志）
-                if (hidden || renderPlaceholder) {
-                    // 只保留最基本的标志，避免阻止窗口创建
-                    windowFlags = windowFlags | imgui.flag.ImGuiWindowFlags.NoScrollbar;
-                }
-                
-                // 记录状态检查，防止嵌套调用问题
-                com.director.ui.imgui.ImGuiStateChecker.recordBegin("Panel", getWindowName());
-
-                // 普通面板（除菜单栏、状态栏外）使用中灰色标题栏，便于区分面板边界
-                float[] tb = UITheme.toFloatArrayPublic(UITheme.DarkTheme.TITLE_BG_PANEL);
-                float[] tba = UITheme.toFloatArrayPublic(UITheme.DarkTheme.TITLE_BG_PANEL_ACTIVE);
-                float[] tbc = UITheme.toFloatArrayPublic(UITheme.DarkTheme.TITLE_BG_PANEL_COLLAPSED);
-                ImGui.pushStyleColor(ImGuiCol.TitleBg, tb[0], tb[1], tb[2], tb[3]);
-                ImGui.pushStyleColor(ImGuiCol.TitleBgActive, tba[0], tba[1], tba[2], tba[3]);
-                ImGui.pushStyleColor(ImGuiCol.TitleBgCollapsed, tbc[0], tbc[1], tbc[2], tbc[3]);
-
-                boolean windowStarted;
-                try {
-                    // 仅在“游离窗口”显示关闭按钮“×”（停靠时不显示）
-                    final boolean shouldShowCloseButton = shouldShowCloseButtonWhenFloating() && renderContent && !hidden && !wasDockedLastFrame;
-
-                    // 添加ImGui状态检查，防止嵌套调用问题
-                    if (shouldShowCloseButton) {
-                        // 每次开始渲染时重置为 true；点击“×”会被 begin() 改写为 false
-                        closeOpen.set(true);
-                        windowStarted = ImGui.begin(getWindowName(), closeOpen, windowFlags);
-
-                        // 若用户点击了“×”，立即关闭（隐藏）面板
-                        if (!closeOpen.get()) {
-                            setVisible(false);
-                        }
-                    } else {
-                        windowStarted = ImGui.begin(getWindowName(), windowFlags);
-                    }
-
-                    // 更新停靠状态缓存（供下一帧决定是否显示“×”）
-                    try {
-                        wasDockedLastFrame = ImGui.isWindowDocked();
-                    } catch (Throwable ignored) {
-                        // 兼容性兜底：若运行环境不支持 docking API，默认按“游离”处理
-                        wasDockedLastFrame = false;
-                    }
-
-                    if (windowStarted) {
-                        if (ImGui.isWindowHovered(ImGuiHoveredFlags.RootAndChildWindows)) {
-                            InputFocusManager.getInstance().recordPanelHover();
-                        }
-                        try {
-                            if (ImGui.isWindowAppearing()) {
-                                // 设置窗口默认大小（首次出现时，如选择历史、选择过滤等活动面板）
-                                setDefaultWindowSize();
-                            }
-                            
-                            if (renderPlaceholder || hidden) {
-                                // 渲染隐藏占位符
-                                renderHiddenPlaceholder();
-                            } else {
-                                // 正常渲染内容
-                                doRender();
-                            }
-                        } catch (Exception e) {
-                            logger.error("[{}] 面板内容渲染错误: {}", getPanelName(), e.getMessage(), e);
-                            com.director.ui.imgui.ImGuiStateChecker.recordError("Panel", getWindowName(), e.getMessage());
-                        }
-                    } else {
-                        // 如果窗口未能开始，这是正常情况（面板可能被隐藏或DockSpace未就绪），不记录日志
-                        // 注释掉日志以避免大量重复输出：
-                        // logger.warn("[{}] 窗口未能开始渲染: {} (可能被其他窗口遮挡或DockSpace未就绪)", getPanelName(), getWindowName());
-                        // com.director.ui.imgui.ImGuiStateChecker.recordError("Panel", getWindowName(), "窗口未能开始");
-                    }
-                } finally {
-                    // 关键修复：无论begin返回什么，都必须调用end()来配对
-                    try {
-                        ImGui.end();
-                    } catch (Exception e) {
-                        logger.error("[{}] 结束窗口时发生错误: {}", getPanelName(), e.getMessage(), e);
-                        com.director.ui.imgui.ImGuiStateChecker.recordError("Panel", getWindowName(), "结束窗口失败: " + e.getMessage());
-                    }
-                    ImGui.popStyleColor(3); // 还原 TitleBg / TitleBgActive / TitleBgCollapsed
-                    // 记录End调用以保持栈平衡
-                    com.director.ui.imgui.ImGuiStateChecker.recordEnd("Panel", getWindowName());
-                }
+                renderStandardWindow(renderContent, renderPlaceholder);
             } else {
-                // 对于像 MainMenuBar 这样的特殊面板，直接调用 doRender()
-                // 这些面板自己管理 ImGui.begin/end 调用
-                try {
-                    doRender();
-                } catch (Exception e) {
-                    logger.error("[{}] 特殊面板渲染错误: {}", getPanelName(), e.getMessage(), e);
-                }
+                renderCustomWindowContent();
             }
 
         } catch (Exception e) {
             logger.error("[{}] 渲染错误: {}", getPanelName(), e.getMessage(), e);
             // 在渲染异常时，尝试清理可能的ImGui状态
             cleanupImGuiState();
+        }
+    }
+
+    private boolean shouldRenderWindow() {
+        return (visible && !hidden) || shouldReserveDockSpaceWhenHidden();
+    }
+
+    private void ensureInitialized() {
+        if (!initialized) {
+            initialize();
+            initialized = true;
+        }
+    }
+
+    private void renderStandardWindow(boolean renderContent, boolean renderPlaceholder) {
+        int windowFlags = computeWindowFlags(renderPlaceholder);
+        beginWindowFrameStyling();
+
+        try {
+            boolean windowStarted = beginWindow(windowFlags, renderContent);
+            updateDockedStateCache();
+            if (windowStarted) {
+                renderWindowContent(renderContent, renderPlaceholder);
+            }
+        } finally {
+            endWindow();
+        }
+    }
+
+    private int computeWindowFlags(boolean renderPlaceholder) {
+        int windowFlags = getWindowFlags();
+        if (hidden || renderPlaceholder) {
+            // 只保留最基本的标志，避免阻止窗口创建
+            windowFlags = windowFlags | imgui.flag.ImGuiWindowFlags.NoScrollbar;
+        }
+        return windowFlags;
+    }
+
+    private void beginWindowFrameStyling() {
+        com.director.ui.imgui.ImGuiStateChecker.recordBegin("Panel", getWindowName());
+
+        float[] tb = UITheme.toFloatArrayPublic(UITheme.DarkTheme.TITLE_BG_PANEL);
+        float[] tba = UITheme.toFloatArrayPublic(UITheme.DarkTheme.TITLE_BG_PANEL_ACTIVE);
+        float[] tbc = UITheme.toFloatArrayPublic(UITheme.DarkTheme.TITLE_BG_PANEL_COLLAPSED);
+        ImGui.pushStyleColor(ImGuiCol.TitleBg, tb[0], tb[1], tb[2], tb[3]);
+        ImGui.pushStyleColor(ImGuiCol.TitleBgActive, tba[0], tba[1], tba[2], tba[3]);
+        ImGui.pushStyleColor(ImGuiCol.TitleBgCollapsed, tbc[0], tbc[1], tbc[2], tbc[3]);
+    }
+
+    private boolean beginWindow(int windowFlags, boolean renderContent) {
+        final boolean shouldShowCloseButton = shouldShowCloseButtonWhenFloating()
+                && renderContent
+                && !hidden
+                && !wasDockedLastFrame;
+
+        if (shouldShowCloseButton) {
+            closeOpen.set(true);
+            boolean started = ImGui.begin(getWindowName(), closeOpen, windowFlags);
+            if (!closeOpen.get()) {
+                setVisible(false);
+            }
+            return started;
+        }
+
+        return ImGui.begin(getWindowName(), windowFlags);
+    }
+
+    private void updateDockedStateCache() {
+        try {
+            wasDockedLastFrame = ImGui.isWindowDocked();
+        } catch (Throwable ignored) {
+            // 兼容性兜底：若运行环境不支持 docking API，默认按“游离”处理
+            wasDockedLastFrame = false;
+        }
+    }
+
+    private void renderWindowContent(boolean renderContent, boolean renderPlaceholder) {
+        if (ImGui.isWindowHovered(ImGuiHoveredFlags.RootAndChildWindows)) {
+            InputFocusManager.getInstance().recordPanelHover();
+        }
+
+        try {
+            if (ImGui.isWindowAppearing()) {
+                setDefaultWindowSize();
+            }
+
+            if (!renderContent || renderPlaceholder || hidden) {
+                renderHiddenPlaceholder();
+            } else {
+                doRender();
+            }
+        } catch (Exception e) {
+            logger.error("[{}] 面板内容渲染错误: {}", getPanelName(), e.getMessage(), e);
+            com.director.ui.imgui.ImGuiStateChecker.recordError("Panel", getWindowName(), e.getMessage());
+        }
+    }
+
+    private void endWindow() {
+        try {
+            ImGui.end();
+        } catch (Exception e) {
+            logger.error("[{}] 结束窗口时发生错误: {}", getPanelName(), e.getMessage(), e);
+            com.director.ui.imgui.ImGuiStateChecker.recordError("Panel", getWindowName(), "结束窗口失败: " + e.getMessage());
+        }
+        ImGui.popStyleColor(3);
+        com.director.ui.imgui.ImGuiStateChecker.recordEnd("Panel", getWindowName());
+    }
+
+    private void renderCustomWindowContent() {
+        try {
+            doRender();
+        } catch (Exception e) {
+            logger.error("[{}] 特殊面板渲染错误: {}", getPanelName(), e.getMessage(), e);
         }
     }
     

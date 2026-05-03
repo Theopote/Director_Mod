@@ -163,19 +163,24 @@ public final class PlaybackOrchestrator {
     private void advanceTime(float deltaSeconds) {
         float speed = model.getPlaybackSpeed();
         float newTime = model.getCurrentTime() + deltaSeconds * speed;
-        float duration = model.getDuration();
+        float rangeStart = model.getPlaybackRangeStart();
+        float rangeEnd = model.getPlaybackRangeEnd();
+
+        if (newTime < rangeStart) {
+            newTime = rangeStart;
+        }
 
         // 处理超界：loop or stop
-        if (newTime > duration) {
-            if (model.isLoopEnabled() && duration > 0) {
+        if (newTime > rangeEnd) {
+            if (model.isLoopEnabled() && rangeEnd > rangeStart) {
                 // loop：回到起点继续
-                newTime = 0f;
+                newTime = rangeStart;
                 if (LOGGER.isTraceEnabled()) {
                     LOGGER.trace("[PlaybackOrchestrator] 播放循环，回到开始 (时间: {:.2f}s)", newTime);
                 }
             } else {
                 // stop：停在终点并停止
-                newTime = duration;
+                newTime = rangeEnd;
                 model.setPlaying(false);
                 
                 // ⭐ v1.2 改进：显式调用 onStop 生命周期钩子

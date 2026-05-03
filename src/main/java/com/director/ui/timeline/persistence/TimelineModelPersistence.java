@@ -119,6 +119,8 @@ public class TimelineModelPersistence {
         public float snapInterval = 0.25f;
         public float frameRate = 30.0f;
         public int timeUnit = 0;
+        public Float inPoint = null;
+        public Float outPoint = null;
         public long timestamp;
         public String worldFingerprint;
     }
@@ -349,6 +351,8 @@ public class TimelineModelPersistence {
         dto.snapInterval = model.getSnapSettings().getGridInterval();
         dto.frameRate = model.getFrameRate();
         dto.timeUnit = model.getTimeUnit();
+        dto.inPoint = model.hasInPoint() ? model.getInPoint() : null;
+        dto.outPoint = model.hasOutPoint() ? model.getOutPoint() : null;
         dto.timestamp = System.currentTimeMillis();
         dto.worldFingerprint = getWorldFingerprint();
         
@@ -926,6 +930,14 @@ public class TimelineModelPersistence {
             }
             
             model.addTrack(track);
+        }
+
+        model.clearInOut();
+        if (dto.inPoint != null) {
+            model.setInPoint(dto.inPoint);
+        }
+        if (dto.outPoint != null) {
+            model.setOutPoint(dto.outPoint);
         }
         
         LOGGER.info("[TimelineModelPersistence] 成功恢复 {} 条轨道", dto.tracks.size());

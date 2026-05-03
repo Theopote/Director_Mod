@@ -38,7 +38,6 @@ import com.director.ui.commands.ToolCommands;
 import com.director.ui.commands.ContainerCommands;
 import com.director.ui.commands.SelectionFilterCommands;
 import com.director.core.selection.block_filters.FilterIds;
-import com.director.core.playback.PlaybackController;
 import com.director.ui.timeline.model.ITimelineProject;
 import com.director.ui.timeline.model.camera.path.CameraPathType;
 import com.director.ui.timeline.model.TimelineModel;
@@ -1221,7 +1220,7 @@ public class DirectorUIManager {
     }
     
     /**
-     * 播放命令实现（优化：直接调用 PlaybackController，补充 In/Out 点逻辑）
+        * 播放命令实现（统一由 TimelineModel/PlaybackOrchestrator 驱动）
      */
     private class PlaybackCommandsImpl implements PlaybackCommands {
         
@@ -1230,197 +1229,140 @@ public class DirectorUIManager {
         public PlaybackCommandsImpl(TimelineModel timelineModel) {
             this.timelineModel = timelineModel;
         }
+
+        private TimelineModel resolvePlaybackModel() {
+            TimelineModel boundModel = com.director.ui.timeline.playback.PlaybackOrchestrator.get().getBoundModel();
+            return boundModel != null ? boundModel : timelineModel;
+        }
+
+        private boolean withPlaybackModel(java.util.function.Consumer<TimelineModel> action, String actionName) {
+            TimelineModel model = resolvePlaybackModel();
+            if (model == null) {
+                LOGGER.warn("[PlaybackCommands] {} skipped: TimelineModel unavailable", actionName);
+                return false;
+            }
+            action.accept(model);
+            return true;
+        }
         
         @Override
         public void play() {
-            // ⭐ v1.2 改进：Facade 只改 Model，不直接管 tick
-            // Orchestrator 会在下一帧检测到状态变化并触发生命周期钩子
-            com.director.ui.timeline.model.TimelineModel model = 
-                com.director.ui.timeline.playback.PlaybackOrchestrator.get().getBoundModel();
-            if (model != null) {
-                model.setPlaying(true);
-            } else {
-                // 降级方案：使用旧的 timelineModel（向后兼容）
-                if (timelineModel != null) {
-                    timelineModel.setPlaying(true);
+            withPlaybackModel(model -> {
+                float start = model.getPlaybackRangeStart();
+                float end = model.getPlaybackRangeEnd();
+                float current = model.getCurrentTime();
+                if (current < start || current > end) {
+                    model.setCurrentTime(start);
                 }
-                // 同时更新旧的 PlaybackController（向后兼容）
-                PlaybackController.get().play();
-            }
+                model.setPlaying(true);
+            }, "play");
         }
         
         @Override
         public void pause() {
-            // ⭐ v1.2 改进：Facade 只改 Model，不直接管 tick
-            com.director.ui.timeline.model.TimelineModel model = 
-                com.director.ui.timeline.playback.PlaybackOrchestrator.get().getBoundModel();
-            if (model != null) {
-                model.setPlaying(false);
-            } else {
-                // 降级方案：使用旧的 timelineModel（向后兼容）
-                if (timelineModel != null) {
-                    timelineModel.setPlaying(false);
-                }
-                // 同时更新旧的 PlaybackController（向后兼容）
-                PlaybackController.get().pause();
-            }
+            withPlaybackModel(model -> model.setPlaying(false), "pause");
         }
         
         @Override
         public void stop() {
-            // ⭐ v1.2 改进：Facade 只改 Model，不直接管 tick
-            com.director.ui.timeline.model.TimelineModel model = 
-                com.director.ui.timeline.playback.PlaybackOrchestrator.get().getBoundModel();
-            if (model != null) {
+            withPlaybackModel(model -> {
                 model.setPlaying(false);
                 model.setCurrentTime(0f);
-            } else {
-                // 降级方案：使用旧的 timelineModel（向后兼容）
-                if (timelineModel != null) {
-                    timelineModel.jumpToStart();
-                    timelineModel.setPlaying(false);
-                }
-                // 同时更新旧的 PlaybackController（向后兼容）
-                PlaybackController.get().stop();
-            }
+            }, "stop");
         }
         
         @Override
         public void togglePlayPause() {
-            if (timelineModel != null) {
-                boolean wasPlaying = timelineModel.isPlaying();
-                timelineModel.togglePlay();
-                boolean isPlaying = timelineModel.isPlaying();
+            TimelineModel model = resolvePlaybackModel();
+            if (model != null) {
+                boolean wasPlaying = model.isPlaying();
+                model.togglePlay();
+                boolean isPlaying = model.isPlaying();
                 LOGGER.info("[PlaybackCommands] togglePlayPause: {} -> {}", wasPlaying, isPlaying);
             } else {
-                // 降级方案：使用 PlaybackController
-                PlaybackController pc = PlaybackController.get();
-                boolean wasPlaying = pc.isPlaying();
-                if (pc.isPlaying()) {
-                    pause();
-                } else {
-                    play();
-                }
-                boolean isPlaying = pc.isPlaying();
-                LOGGER.info("[PlaybackCommands] togglePlayPause (fallback): {} -> {}", wasPlaying, isPlaying);
+                LOGGER.warn("[PlaybackCommands] togglePlayPause skipped: TimelineModel unavailable");
             }
         }
         
         @Override
         public void setInPoint() {
-            // TODO: 实现设置入点
-            // timelineModel.setInPoint(PlaybackController.get().getCurrentTime());
-            LOGGER.info("[Commands] Set in point");
+            withPlaybackModel(model -> {
+                float current = model.getCurrentTime();
+                model.setInPoint(current);
+                LOGGER.info("[PlaybackCommands] 设置入点: {:.2f}s", model.getInPoint());
+            }, "setInPoint");
         }
         
         @Override
         public void setOutPoint() {
-            // TODO: 实现设置出点
-            // timelineModel.setOutPoint(PlaybackController.get().getCurrentTime());
-            LOGGER.info("[Commands] Set out point");
+            withPlaybackModel(model -> {
+                float current = model.getCurrentTime();
+                model.setOutPoint(current);
+                LOGGER.info("[PlaybackCommands] 设置出点: {:.2f}s", model.getOutPoint());
+            }, "setOutPoint");
         }
         
         @Override
         public void clearInOut() {
-            // TODO: 实现清除入出点
-            // timelineModel.clearInOut();
-            LOGGER.info("[Commands] Clear in/out points");
+            withPlaybackModel(model -> {
+                model.clearInOut();
+                LOGGER.info("[PlaybackCommands] 已清除入/出点");
+            }, "clearInOut");
         }
         
         @Override
         public void setPlaybackSpeed(float speed) {
-            if (timelineModel != null) {
-                timelineModel.setPlaybackSpeed(speed);
-            }
-            // 同时更新旧的 PlaybackController（向后兼容）
-            PlaybackController.get().setSpeed(speed);
+            withPlaybackModel(model -> model.setPlaybackSpeed(speed), "setPlaybackSpeed");
         }
         
         @Override
         public void toggleLoop() {
-            if (timelineModel != null) {
-                timelineModel.setLoopEnabled(!timelineModel.isLoopEnabled());
-            }
-            // 同时更新旧的 PlaybackController（向后兼容）
-            PlaybackController.get().toggleLoop();
+            withPlaybackModel(model -> model.setLoopEnabled(!model.isLoopEnabled()), "toggleLoop");
         }
         
         @Override
         public void goToStart() {
-            if (timelineModel != null) {
-                timelineModel.jumpToStart();
-            }
-            // 同时更新旧的 PlaybackController（向后兼容）
-            PlaybackController.get().seek(0f);
+            withPlaybackModel(model -> model.setCurrentTime(model.getPlaybackRangeStart()), "goToStart");
         }
         
         @Override
         public void goToEnd() {
-            if (timelineModel != null) {
-                timelineModel.jumpToEnd();
-            } else {
-                // 降级方案：使用 PlaybackController
-                PlaybackController pc = PlaybackController.get();
-                float endTime = pc.getDuration();
-                pc.seek(endTime);
-            }
+            withPlaybackModel(model -> model.setCurrentTime(model.getPlaybackRangeEnd()), "goToEnd");
         }
         
         @Override
         public boolean isPlaying() {
-            // 优先使用 TimelineModel 的状态
-            if (timelineModel != null) {
-                return timelineModel.isPlaying();
-            }
-            // 降级方案：使用 PlaybackController
-            return PlaybackController.get().isPlaying();
+            TimelineModel model = resolvePlaybackModel();
+            return model != null && model.isPlaying();
         }
         
         @Override
         public boolean isLooping() {
-            // 优先使用 TimelineModel 的状态
-            if (timelineModel != null) {
-                return timelineModel.isLoopEnabled();
-            }
-            // 降级方案：使用 PlaybackController
-            return PlaybackController.get().isLoop();
+            TimelineModel model = resolvePlaybackModel();
+            return model != null && model.isLoopEnabled();
         }
         
         @Override
         public float getPlaybackSpeed() {
-            // 优先使用 TimelineModel 的状态
-            if (timelineModel != null) {
-                return timelineModel.getPlaybackSpeed();
-            }
-            // 降级方案：使用 PlaybackController
-            return PlaybackController.get().getSpeed();
+            TimelineModel model = resolvePlaybackModel();
+            return model != null ? model.getPlaybackSpeed() : 1.0f;
         }
         
         @Override
         public float getCurrentTime() {
-            // 优先使用 TimelineModel 的状态
-            if (timelineModel != null) {
-                return timelineModel.getCurrentTime();
-            }
-            // 降级方案：使用 PlaybackController
-            return PlaybackController.get().getCurrentTime();
+            TimelineModel model = resolvePlaybackModel();
+            return model != null ? model.getCurrentTime() : 0.0f;
         }
         
         @Override
         public float getTotalDuration() {
-            // 优先使用 TimelineModel 的状态
-            if (timelineModel != null) {
-                return timelineModel.getDuration();
-            }
-            // 降级方案：使用 PlaybackController
-            return PlaybackController.get().getDuration();
+            TimelineModel model = resolvePlaybackModel();
+            return model != null ? model.getDuration() : 0.0f;
         }
         
         @Override
         public void seek(float time) {
-            // ⭐ v1.2 改进：Facade 只改 Model，Orchestrator 在下一帧自然采样
-            com.director.ui.timeline.model.TimelineModel model = 
-                com.director.ui.timeline.playback.PlaybackOrchestrator.get().getBoundModel();
+            TimelineModel model = resolvePlaybackModel();
             if (model != null) {
                 float clampedTime = Math.max(0f, Math.min(model.getDuration(), time));
                 model.setCurrentTime(clampedTime);
@@ -1464,14 +1406,7 @@ public class DirectorUIManager {
                 
                 LOGGER.debug("[PlaybackCommands] Seek to {:.2f}s", clampedTime);
             } else {
-                // 降级方案：使用旧的 timelineModel（向后兼容）
-                if (timelineModel != null) {
-                    float clampedTime = Math.max(0f, Math.min(timelineModel.getDuration(), time));
-                    timelineModel.setCurrentTime(clampedTime);
-                } else {
-                    // 降级方案：使用 PlaybackController
-                    PlaybackController.get().seek(time);
-                }
+                LOGGER.warn("[PlaybackCommands] seek skipped: TimelineModel unavailable");
             }
         }
         
@@ -2267,9 +2202,9 @@ public class DirectorUIManager {
 
             try {
                 panel.setVisible(visibleByDefault);
-                logDebug("闈㈡澘 {} 宸查噸缃负榛樿鍙鎬? {}", panel.getPanelName(), visibleByDefault);
+                logDebug("面板 {} 已重置为默认可见性: {}", panel.getPanelName(), visibleByDefault);
             } catch (Exception e) {
-                logWarn("闈㈡澘 {} 閲嶇疆榛樿鍙鎬уけ璐? {}", panel.getPanelName(), e.getMessage());
+                logWarn("面板 {} 重置默认可见性失败: {}", panel.getPanelName(), e.getMessage());
             }
         });
     }
@@ -2281,7 +2216,7 @@ public class DirectorUIManager {
                 imgui.internal.ImGui.dockBuilderRemoveNode(dockspaceId);
             }
         } catch (Exception e) {
-            logWarn("娓呯悊褰撳墠 DockSpace 鐘舵€佸け璐? {}", e.getMessage());
+            logWarn("清理当前 DockSpace 状态失败: {}", e.getMessage());
         }
     }
 
