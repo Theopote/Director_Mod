@@ -92,15 +92,6 @@ class ContainerTreeRenderer {
         }
     }
 
-    private void collectAllContainerIds(List<Container> containers, java.util.Set<java.util.UUID> ids) {
-        for (Container container : containers) {
-            ids.add(container.getId());
-            if (!container.getChildren().isEmpty()) {
-                collectAllContainerIds(container.getChildren(), ids);
-            }
-        }
-    }
-
     private void renderContainerNode(Container container) {
         // 内联重命名优先，直接占位这一行
         if (inlineRenamer.isRenaming(container)) {
@@ -170,12 +161,7 @@ class ContainerTreeRenderer {
                 }
                 
                 if (state.isExpandAll()) {
-                    java.util.Set<java.util.UUID> nodesToKeepExpanded = new java.util.HashSet<>();
-                    collectAllContainerIds(controller.getRootContainers(), nodesToKeepExpanded);
-                    if (!nodeOpen) {
-                        nodesToKeepExpanded.remove(container.getId());
-                    }
-                    state.disableExpandAllWithState(nodesToKeepExpanded);
+                    state.disableExpandAllByCollapsing(container.getId());
                 } else {
                     state.toggleNode(container.getId());
                 }
@@ -213,7 +199,7 @@ class ContainerTreeRenderer {
                     drawNameButtonsSeparator(iconRegionStart, rowMin, rowMax);
                 }
                 ImGui.sameLine(iconRegionStart);
-                iconClickState = renderContainerControlIcons(container);
+                iconClickState = renderContainerControlIcons(container, isOnTimeline);
                 iconHovered = ImGui.isItemHovered();
             } else {
                 iconClickState = new IconClickState(false, false);
@@ -328,7 +314,7 @@ class ContainerTreeRenderer {
      * 锁定/可见性图标：InvisibleButton 作命中区 + DrawList 绘制图标。
      * 用 isItemClicked 检测点击；当 ImGui 把 click 判给行时，用 isMouseClicked+rect 显式命中，确保事件能路由到按钮并 consume，不触发行选择。
      */
-    private IconClickState renderContainerControlIcons(Container container) {
+    private IconClickState renderContainerControlIcons(Container container, boolean isOnTimeline) {
         ImGui.pushID("Icons");
         boolean lockClicked;
         boolean visibilityClicked;
@@ -355,8 +341,6 @@ class ContainerTreeRenderer {
             // 可见性
             ImGui.sameLine();
             boolean isHidden = container.getState() == com.director.core.container.ContainerState.HIDDEN;
-            boolean isOnTimeline = com.director.ui.timeline.container.ContainerTimelineService.getInstance()
-                .isContainerOnTimeline(container.getId());
             String visIcon = isHidden ? Icons.INVISIBLE : Icons.VISIBLE;
             int visColor = isHidden ? VISIBLE_DISABLED_COLOR : VISIBLE_COLOR;
 

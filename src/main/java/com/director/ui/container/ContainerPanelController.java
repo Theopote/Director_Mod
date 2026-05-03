@@ -238,11 +238,9 @@ public class ContainerPanelController {
      */
     public void batchSetContainerTagColors(Integer tagColor) {
         Set<Container> selected = containerManager.getSelectedContainersView();
-        if (!selected.isEmpty() && tagColor != null) {
+        if (!selected.isEmpty()) {
             // 批量设置标签颜色
-            for (Container container : selected) {
-                commandService.setMetadata(container.getId(), "tagColor", tagColor);
-            }
+            commandService.batchSetMetadata(selected, "tagColor", tagColor);
         }
     }
 

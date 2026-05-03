@@ -402,6 +402,13 @@ public class ContainerCommandService {
         execute(new SetContainerMetadataCommand(containerManager, container, key, value));
     }
 
+    public void batchSetMetadata(Collection<Container> containers, String key, Object value) {
+        if (containers == null || containers.isEmpty() || key == null || key.isBlank()) {
+            return;
+        }
+        execute(new BatchSetContainerMetadataCommand(containerManager, containers, key, value));
+    }
+
     /**
      * 批量设置容器锁定状态（一次 undo）
      */
