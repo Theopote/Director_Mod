@@ -1,6 +1,7 @@
 package com.director.ui.input;
 
 import imgui.ImGui;
+import imgui.ImGuiIO;
 import net.minecraft.client.MinecraftClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -53,12 +54,25 @@ public class InputFocusManager {
         }
 
         try {
-            ImGui.getIO(); // ensure ImGui context exists
+            ImGuiIO io = ImGui.getIO(); // ensure ImGui context exists
             boolean mouseOverGui = panelHoveredThisFrame;
+            boolean imguiWantsMouse = io.getWantCaptureMouse();
+            boolean imguiWantsKeyboard = io.getWantTextInput() || io.getWantCaptureKeyboard();
 
-            shouldCaptureMouse = mouseOverGui;
-            shouldCaptureKeyboard = mouseOverGui;
-            allowGameInput = !mouseOverGui;
+            shouldCaptureMouse = mouseOverGui || imguiWantsMouse;
+            shouldCaptureKeyboard = mouseOverGui || imguiWantsKeyboard;
+            allowGameInput = !shouldCaptureMouse && !shouldCaptureKeyboard;
+
+            if (DEBUG) {
+                LOGGER.trace("[InputFocus] update: hover={}, wantMouse={}, wantText={}, wantKeyboard={}, captureMouse={}, captureKeyboard={}, allowGame={}",
+                        mouseOverGui,
+                        imguiWantsMouse,
+                        io.getWantTextInput(),
+                        io.getWantCaptureKeyboard(),
+                        shouldCaptureMouse,
+                        shouldCaptureKeyboard,
+                        allowGameInput);
+            }
         } catch (Exception e) {
             LOGGER.error("[InputFocus] 更新焦点状态失败", e);
         }

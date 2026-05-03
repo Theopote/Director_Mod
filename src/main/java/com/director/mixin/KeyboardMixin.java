@@ -34,36 +34,44 @@ public class KeyboardMixin {
     @Inject(method = "onKey", at = @At("HEAD"), cancellable = true)
     private void onKey(long window, int scanCode, KeyInput input, CallbackInfo ci) {
         InputFocusManager focusManager = InputFocusManager.getInstance();
+        boolean textInputActive = false;
+        try {
+            textInputActive = imgui.ImGui.getIO() != null && imgui.ImGui.getIO().getWantTextInput();
+        } catch (Exception ignored) {
+            // If ImGui is between frames, keep the existing capture behavior.
+        }
 
         // 如果Director窗口激活且应该捕获键盘
         if (focusManager.shouldCaptureKeyboard()) {
             // ✅ 优先使用新的 ShortcutDispatcher（Facade 架构）
             // 尝试获取 DirectorScreen 的 UIManager 并调用 ShortcutDispatcher
             boolean handledByNewSystem = false;
-            try {
-                // 通过 MinecraftClient 获取当前 Screen
-                var client = net.minecraft.client.MinecraftClient.getInstance();
-                if (client != null && client.currentScreen instanceof com.director.ui.DirectorScreen directorScreen) {
-                    var uiManager = directorScreen.getUIManager();
-                    if (uiManager != null) {
-                        var shortcutDispatcher = uiManager.getShortcutDispatcher();
-                        if (shortcutDispatcher != null) {
-                            int keyCode = input.key();
-                            int mods = input.modifiers();
-                            // 使用新的 ShortcutDispatcher 处理快捷键
-                            shortcutDispatcher.handleGLFWKeyEvent(keyCode, org.lwjgl.glfw.GLFW.GLFW_PRESS, mods);
-                            handledByNewSystem = true;
+            if (!textInputActive) {
+                try {
+                    // 通过 MinecraftClient 获取当前 Screen
+                    var client = net.minecraft.client.MinecraftClient.getInstance();
+                    if (client != null && client.currentScreen instanceof com.director.ui.DirectorScreen directorScreen) {
+                        var uiManager = directorScreen.getUIManager();
+                        if (uiManager != null) {
+                            var shortcutDispatcher = uiManager.getShortcutDispatcher();
+                            if (shortcutDispatcher != null) {
+                                int keyCode = input.key();
+                                int mods = input.modifiers();
+                                // 使用新的 ShortcutDispatcher 处理快捷键
+                                shortcutDispatcher.handleGLFWKeyEvent(keyCode, org.lwjgl.glfw.GLFW.GLFW_PRESS, mods);
+                                handledByNewSystem = true;
+                            }
                         }
                     }
-                }
-            } catch (Exception e) {
-                if (DEBUG) {
-                    LOGGER.debug("[KeyboardMixin] 无法获取 ShortcutDispatcher: {}", e.getMessage());
+                } catch (Exception e) {
+                    if (DEBUG) {
+                        LOGGER.debug("[KeyboardMixin] 无法获取 ShortcutDispatcher: {}", e.getMessage());
+                    }
                 }
             }
             
             // 如果新系统没有处理，回退到旧的 GlobalShortcutManager
-            if (!handledByNewSystem) {
+            if (!textInputActive && !handledByNewSystem) {
                 try {
                     var mgr = com.director.ui.input.GlobalShortcutManager.getInstance();
                     int keyCode = input.key();

@@ -109,7 +109,7 @@ class InlineRenamer {
         }
         if (!commitRequested) {
             commitRequested = true;
-            commitRequestedValue = renameBuffer.get();
+            commitRequestedValue = UIUtils.readInputBuffer(renameBuffer);
             LOGGER.debug("[InlineRenamer] requestCommit: {}", commitRequestedValue);
         }
     }
@@ -182,12 +182,25 @@ class InlineRenamer {
             return;
         }
         
-        String newName = UIUtils.cleanString(renameBuffer.get());
+        String rawName = UIUtils.readInputBuffer(renameBuffer);
+        String newName = UIUtils.cleanString(rawName);
         if (!newName.isEmpty() && !newName.equals(container.getName())) {
-            LOGGER.info("[InlineRenamer] commit rename: '{}' -> '{}'", container.getName(), newName);
+            LOGGER.info("[InlineRenamer] commit rename: '{}' -> '{}' (chars={}, bytes={}, bufferSize={}, imStringChars={}, rawBytes={})",
+                container.getName(),
+                newName,
+                newName.length(),
+                newName.getBytes(java.nio.charset.StandardCharsets.UTF_8).length,
+                renameBuffer.getBufferSize(),
+                renameBuffer.get().length(),
+                rawName.getBytes(java.nio.charset.StandardCharsets.UTF_8).length);
             controller.renameContainer(container.getId(), newName);
         } else {
-            LOGGER.debug("[InlineRenamer] commit skipped (empty or same)");
+            LOGGER.debug("[InlineRenamer] commit skipped (empty or same, chars={}, bytes={}, bufferSize={}, imStringChars={}, rawBytes={})",
+                newName.length(),
+                newName.getBytes(java.nio.charset.StandardCharsets.UTF_8).length,
+                renameBuffer.getBufferSize(),
+                renameBuffer.get().length(),
+                rawName.getBytes(java.nio.charset.StandardCharsets.UTF_8).length);
         }
         clearRenameState();
     }
@@ -214,6 +227,7 @@ class InlineRenamer {
 
         ImGui.setCursorPosX(ImGui.getCursorStartPosX());
         ImGui.setNextItemWidth(-1.0f);
+        UIUtils.exposeInputBufferCapacity(renameBuffer);
 
         boolean enterPressed = ImGui.inputText(
             inputId,

@@ -3,6 +3,9 @@ package com.director.ui.util;
 import imgui.ImGui;
 import imgui.type.ImString;
 
+import java.lang.reflect.Field;
+import java.nio.charset.StandardCharsets;
+
 /**
  * UI 工具类 (UIUtils)
  * <p>
@@ -17,6 +20,8 @@ import imgui.type.ImString;
  * @version 1.0
  */
 public final class UIUtils {
+
+    private static final Field IM_STRING_INPUT_SIZE_FIELD = resolveImStringInputSizeField();
 
     /**
      * ImGui/ImString 的容量单位是 UTF-8 字节而不是 Java 字符数。
@@ -99,10 +104,61 @@ public final class UIUtils {
      */
     public static ImString createInputBuffer(int maxCharacters) {
         int initialBytes = inputBufferBytes(maxCharacters);
-        ImString buffer = new ImString(initialBytes);
-        buffer.inputData.isResizable = true;
-        buffer.inputData.resizeFactor = initialBytes;
-        return buffer;
+        return new ImString(initialBytes);
+    }
+
+    /**
+     * Reads the complete NUL-terminated UTF-8 contents from an ImString buffer.
+     *
+     * <p>imgui-java's ImString#get() depends on InputData.size. In some inputText
+     * paths that size can remain at the original text length even though the
+     * native byte buffer contains more text, which truncates multibyte input on
+     * commit. Reading to the first NUL byte matches how ImGui treats the buffer.
+     */
+    public static String readInputBuffer(ImString buffer) {
+        if (buffer == null) {
+            return "";
+        }
+
+        byte[] data = buffer.getData();
+        int length = 0;
+        while (length < data.length && data[length] != 0) {
+            length++;
+        }
+        if (length == 0) {
+            return "";
+        }
+        return new String(data, 0, length, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * Forces imgui-java's internal input size metadata to the byte buffer capacity.
+     *
+     * <p>The native inputText bridge in imgui-java 1.86 can behave as if
+     * InputData.size is the writable buffer size. ImString#set(...) stores the
+     * current text length there, which makes editing stop at the old name length.
+     * The actual text is still NUL-terminated in the byte array, so expanding this
+     * metadata before inputText gives the native side the real capacity.
+     */
+    public static void exposeInputBufferCapacity(ImString buffer) {
+        if (buffer == null || IM_STRING_INPUT_SIZE_FIELD == null) {
+            return;
+        }
+        try {
+            IM_STRING_INPUT_SIZE_FIELD.setInt(buffer.inputData, Math.max(0, buffer.getData().length - 1));
+        } catch (IllegalAccessException ignored) {
+            // Leave the buffer unchanged if this imgui-java build changes internals.
+        }
+    }
+
+    private static Field resolveImStringInputSizeField() {
+        try {
+            Field field = Class.forName("imgui.type.ImString$InputData").getDeclaredField("size");
+            field.setAccessible(true);
+            return field;
+        } catch (ReflectiveOperationException | RuntimeException e) {
+            return null;
+        }
     }
 
     // ========== ImGui 交互 ==========
