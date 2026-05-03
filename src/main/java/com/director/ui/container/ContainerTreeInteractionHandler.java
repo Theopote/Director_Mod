@@ -382,11 +382,6 @@ class ContainerTreeInteractionHandler {
         if (disabled) ImGui.endDisabled();
     }
 
-    // 保留重载以便未来使用（当前未使用）
-    // private void renderMenuItem(String label, boolean disabled, Runnable action) {
-    //     renderMenuItem(label, "", disabled, action);
-    // }
-
     private void renderContextMenu_CommonEditActions(Container container) {
         if (ImGui.menuItem("重命名", "F2")) {
             inlineRenamer.startRenaming(container);

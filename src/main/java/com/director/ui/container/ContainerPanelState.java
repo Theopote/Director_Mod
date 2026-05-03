@@ -190,8 +190,10 @@ public final class ContainerPanelState {
     }
 
     public void toggleNode(UUID nodeId) {
-        if (!expandedNodes.add(nodeId)) {
+        if (expandedNodes.contains(nodeId)) {
             expandedNodes.remove(nodeId);
+        } else {
+            expandedNodes.add(nodeId);
         }
     }
 
