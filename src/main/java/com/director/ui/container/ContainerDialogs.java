@@ -6,6 +6,8 @@ import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiWindowFlags;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.UUID;
 
@@ -14,6 +16,7 @@ import java.util.UUID;
  */
 public class ContainerDialogs {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(ContainerDialogs.class);
     private static final String LABEL_CANCEL = "\u53D6\u6D88";
     private static final String LABEL_CONFIRM = "\u786E\u5B9A";
 
@@ -27,11 +30,11 @@ public class ContainerDialogs {
 
     public void render() {
         if (state.isPendingDeletionRequested() && !ImGui.isPopupOpen("ConfirmDeletion")) {
-            org.slf4j.LoggerFactory.getLogger(ContainerDialogs.class).info("[ContainerDialogs] pending deletion detected, opening ConfirmDeletion");
+            LOGGER.info("[ContainerDialogs] pending deletion detected, opening ConfirmDeletion");
             ImGui.openPopup("ConfirmDeletion");
         }
         if (state.getPendingReleaseContainerId() != null && !ImGui.isPopupOpen("ConfirmRelease")) {
-            org.slf4j.LoggerFactory.getLogger(ContainerDialogs.class).info("[ContainerDialogs] pending release detected, opening ConfirmRelease");
+            LOGGER.info("[ContainerDialogs] pending release detected, opening ConfirmRelease");
             ImGui.openPopup("ConfirmRelease");
         }
         renderDeletionConfirmDialog();
@@ -61,23 +64,23 @@ public class ContainerDialogs {
 
     private void renderDeletionConfirmDialog() {
         if (ImGui.isPopupOpen("ConfirmDeletion")) {
-            org.slf4j.LoggerFactory.getLogger(ContainerDialogs.class).info("[ContainerDialogs] ConfirmDeletion requested");
+            LOGGER.info("[ContainerDialogs] ConfirmDeletion requested");
         }
         ImVec2 center = ImGui.getMainViewport().getCenter();
         ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
         if (ImGui.beginPopupModal("ConfirmDeletion", ImGuiWindowFlags.AlwaysAutoResize)) {
-            org.slf4j.LoggerFactory.getLogger(ContainerDialogs.class).info("[ContainerDialogs] ConfirmDeletion visible");
+            LOGGER.info("[ContainerDialogs] ConfirmDeletion visible");
             ImGui.text(Icons.WARNING + " " + "\u60A8\u786E\u5B9A\u8981\u5220\u9664\u9009\u4E2D\u7684\u5BB9\u5668\u5417\uFF1F");
             ImGui.separator();
             if (ImGui.button("\u786E\u8BA4\u5220\u9664", 120, 0)) {
-                org.slf4j.LoggerFactory.getLogger(ContainerDialogs.class).info("[ContainerDialogs] delete confirmed");
+                LOGGER.info("[ContainerDialogs] delete confirmed");
                 controller.deleteSelectedContainers();
                 state.setPendingDeletionRequested(false);
                 ImGui.closeCurrentPopup();
             }
             ImGui.sameLine();
             if (ImGui.button(LABEL_CANCEL, 120, 0)) {
-                org.slf4j.LoggerFactory.getLogger(ContainerDialogs.class).info("[ContainerDialogs] delete cancelled");
+                LOGGER.info("[ContainerDialogs] delete cancelled");
                 state.setPendingDeletionRequested(false);
                 ImGui.closeCurrentPopup();
             }

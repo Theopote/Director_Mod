@@ -113,6 +113,13 @@ public final class ContainerPanelState {
         }
     }
 
+    public void disableExpandAllByCollapsing(UUID collapsedNodeId) {
+        this.expandAll = false;
+        if (collapsedNodeId != null) {
+            this.expandedNodes.remove(collapsedNodeId);
+        }
+    }
+
     public UUID getRenamingContainerId() {
         return renamingContainerId;
     }
