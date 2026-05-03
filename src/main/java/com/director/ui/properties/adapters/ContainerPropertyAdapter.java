@@ -7,6 +7,7 @@ import com.director.core.container.AnimationMode;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.theme.UITheme;
 import com.director.ui.theme.Icons;
+import com.director.ui.util.UIUtils;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiTreeNodeFlags;
@@ -56,6 +57,10 @@ import java.util.Map;
 public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
     private static final Logger LOGGER = LoggerFactory.getLogger(ContainerPropertyAdapter.class);
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
+    // 使用持久缓冲区，避免每帧重建导致 IME 合成中断。
+    private final ImString nameBuffer = new ImString(1024);
+    private java.util.UUID editingContainerId;
 
     @Override
     public boolean renderProperties(Container container) {
@@ -197,11 +202,17 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
 
     private boolean renderNameAndTypeSection(Container container, boolean allowTypeChange) {
         boolean modified = false;
-        ImString nameBuffer = new ImString(container.getName(), 256);
-        if (ImGui.inputText("名称", nameBuffer, ImGuiInputTextFlags.EnterReturnsTrue)) {
-            container.setName(nameBuffer.get());
+        syncNameBufferIfNeeded(container);
+
+        boolean nameEnterPressed = ImGui.inputText("名称", nameBuffer,
+                ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll);
+        if (nameEnterPressed || ImGui.isItemDeactivatedAfterEdit()) {
+            String cleanedName = UIUtils.cleanString(nameBuffer.get());
+            if (!cleanedName.isEmpty() && !cleanedName.equals(container.getName())) {
+                container.setName(cleanedName);
+            }
             modified = true;
-            LOGGER.debug("[ContainerPropertyAdapter] 容器名称已更新: {}", nameBuffer.get());
+            LOGGER.debug("[ContainerPropertyAdapter] 容器名称已更新: {}", container.getName());
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("对象的显示名称");
@@ -240,6 +251,18 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
         UITheme.spacingSmall();
         UITheme.label("UUID: " + container.getId().toString(), UITheme.DarkTheme.TEXT_DISABLED);
         return modified;
+    }
+
+    private void syncNameBufferIfNeeded(Container container) {
+        if (container == null) {
+            editingContainerId = null;
+            return;
+        }
+        if (editingContainerId != null && editingContainerId.equals(container.getId())) {
+            return;
+        }
+        editingContainerId = container.getId();
+        nameBuffer.set(container.getName());
     }
 
     private boolean renderVisibilityAndLockSection(Container container) {

@@ -882,7 +882,7 @@ public class ContainerManager {
         if (container == null || newName == null) {
             return;
         }
-        String trimmed = newName.trim();
+        String trimmed = sanitizeContainerName(newName);
         if (trimmed.isEmpty()) {
             return;
         }
@@ -908,6 +908,17 @@ public class ContainerManager {
             writeLock.unlock();
         }
         fireContainerRenamed(container, oldName, appliedName);
+    }
+
+    private String sanitizeContainerName(String raw) {
+        if (raw == null || raw.isEmpty()) {
+            return "";
+        }
+
+        // ImGui/ImString 可能带有 '\0' 终止符或控制字符，若不清理会导致渲染时被截断。
+        int nullIndex = raw.indexOf('\0');
+        String effective = (nullIndex >= 0) ? raw.substring(0, nullIndex) : raw;
+        return effective.replaceAll("\\p{Cntrl}", "").trim();
     }
 
     private boolean deselectInternal(Container container) {

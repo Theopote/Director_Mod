@@ -6,6 +6,10 @@ import com.director.core.container.ContainerType;
 import com.director.core.container.AnimationMode;
 import com.director.ui.adapters.BasePropertyAdapter;
 import com.director.ui.theme.Icons;
+import imgui.ImGui;
+import imgui.flag.ImGuiInputTextFlags;
+import imgui.type.ImString;
+import java.util.UUID;
 
 /**
  * 📦 ContainerAdapter - 容器属性适配器
@@ -27,17 +31,32 @@ import com.director.ui.theme.Icons;
  */
 public class ContainerAdapter extends BasePropertyAdapter<Container> {
 
+    // 持久化输入缓冲区，避免每帧重建导致 IME 输入中断
+    private final ImString nameBuffer = new ImString(1024);
+    private UUID lastContainerId = null;
+
     @Override
     protected boolean doRenderProperties(Container container) {
         boolean changed = false;
 
         // ========== 基础属性 ==========
         renderSectionHeader(Icons.CLIPBOARD + " 基础信息");
-        
-        changed |= renderTextProperty("名称",
-                container::getName,
-                container::setName,
-                128);
+
+        // 名称：使用持久化缓冲区，保证 IME 输入不被每帧重置打断
+        UUID currentId = container.getId();
+        if (!currentId.equals(lastContainerId)) {
+            nameBuffer.set(container.getName() != null ? container.getName() : "");
+            lastContainerId = currentId;
+        }
+        ImGui.text("名称");
+        ImGui.pushItemWidth(-1);
+        boolean nameEdited = ImGui.inputText("##名称", nameBuffer,
+                ImGuiInputTextFlags.EnterReturnsTrue);
+        if (nameEdited || (!ImGui.isItemActive() && !nameBuffer.get().equals(container.getName()))) {
+            container.setName(nameBuffer.get());
+            changed = true;
+        }
+        ImGui.popItemWidth();
         
         // 容器类型（下拉框）
         ContainerType[] types = ContainerType.values();

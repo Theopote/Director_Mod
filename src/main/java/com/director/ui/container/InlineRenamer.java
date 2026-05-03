@@ -5,6 +5,7 @@ import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiKey;
 import imgui.type.ImString;
+import com.director.ui.util.UIUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -174,7 +175,7 @@ class InlineRenamer {
             return;
         }
         
-        String newName = renameBuffer.get().trim();
+        String newName = UIUtils.cleanString(renameBuffer.get());
         if (!newName.isEmpty() && !newName.equals(container.getName())) {
             LOGGER.info("[InlineRenamer] commit rename: '{}' -> '{}'", container.getName(), newName);
             controller.renameContainer(container.getId(), newName);
@@ -203,6 +204,8 @@ class InlineRenamer {
 
         // 用稳定唯一ID，避免树里ID冲突
         String inputId = "##InlineRename_" + container.getId();
+
+        ImGui.setNextItemWidth(-1.0f);
 
         boolean enterPressed = ImGui.inputText(
             inputId,

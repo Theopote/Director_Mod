@@ -349,8 +349,17 @@ public class Container {
     
     public String getName() { return name; }
     public void setName(String name) { 
-        this.name = name; 
+        this.name = sanitizeName(name);
         markModified();
+    }
+
+    private String sanitizeName(String raw) {
+        if (raw == null || raw.isEmpty()) {
+            return "";
+        }
+        int nullIndex = raw.indexOf('\0');
+        String effective = (nullIndex >= 0) ? raw.substring(0, nullIndex) : raw;
+        return effective.replaceAll("\\p{Cntrl}", "").trim();
     }
     
     public ContainerType getType() { return type; }

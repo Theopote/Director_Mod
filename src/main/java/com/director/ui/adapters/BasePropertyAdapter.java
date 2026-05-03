@@ -244,7 +244,9 @@ public abstract class BasePropertyAdapter<T> implements PropertyAdapter<T> {
         ImGui.text(label);
         ImGui.pushItemWidth(-1);
         
-        ImString buffer = new ImString(currentValue, maxLength);
+        // 使用 maxLength 作为缓冲区大小（而非字符串长度），防止输入被截断
+        ImString buffer = new ImString(maxLength);
+        buffer.set(currentValue);
         boolean changed = ImGui.inputText("##" + label, buffer);
         ImGui.popItemWidth();
         

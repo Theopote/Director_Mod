@@ -3,6 +3,7 @@ package com.director.ui.panels;
 import com.director.core.container.*;
 import com.director.ui.container.ContainerColorPicker;
 import com.director.ui.container.ContainerPanelController;
+import com.director.ui.util.UIUtils;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiCond;
@@ -168,10 +169,9 @@ public class ContainerPropertiesPanel {
         if (!ImGui.collapsingHeader("基本属性")) return;
 
         // 名称
-        ImGui.inputText("名称", nameBuffer, ImGuiInputTextFlags.AutoSelectAll | ImGuiInputTextFlags.EnterReturnsTrue);
-        boolean nameEditFinished = ImGui.isItemDeactivatedAfterEdit();
-        if (nameEditFinished || ImGui.isKeyPressed(imgui.flag.ImGuiKey.Enter)) {
-            String newName = nameBuffer.get().trim();
+        boolean nameEnterPressed = ImGui.inputText("名称", nameBuffer, ImGuiInputTextFlags.AutoSelectAll | ImGuiInputTextFlags.EnterReturnsTrue);
+        if (nameEnterPressed || ImGui.isItemDeactivatedAfterEdit()) {
+            String newName = UIUtils.cleanString(nameBuffer.get());
             if (!newName.isEmpty() && !newName.equals(container.getName())) {
                 controller.renameContainer(container.getId(), newName);
             }
@@ -200,7 +200,7 @@ public class ContainerPropertiesPanel {
 
         // 描述（用户自由填写）
         if (ImGui.inputTextMultiline("描述", descBuffer, 0, 55)) {
-            controller.setMetadata(container.getId(), "description", descBuffer.get());
+            controller.setMetadata(container.getId(), "description", UIUtils.cleanString(descBuffer.get()));
         }
     }
 

@@ -3,6 +3,7 @@ package com.director.ui.panels;
 import com.director.core.container.Container;
 import com.director.core.container.ContainerType;
 import com.director.ui.container.ContainerPanelController;
+import com.director.ui.util.UIUtils;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImString;
@@ -56,14 +57,14 @@ public class GroupPropertiesPanel {
         ImGui.inputText("组名称", nameBuffer, imgui.flag.ImGuiInputTextFlags.EnterReturnsTrue);
         boolean nameEditFinished = ImGui.isItemDeactivatedAfterEdit();
         if (nameEditFinished || ImGui.isKeyPressed(imgui.flag.ImGuiKey.Enter)) {
-            String newName = nameBuffer.get().trim();
+            String newName = UIUtils.cleanString(nameBuffer.get());
             if (!newName.isEmpty() && !newName.equals(group.getName())) {
                 controller.renameContainer(group.getId(), newName);
             }
         }
 
         if (ImGui.inputTextMultiline("备注", descBuffer, 0, 80)) {
-            controller.setMetadata(group.getId(), "description", descBuffer.get());
+            controller.setMetadata(group.getId(), "description", UIUtils.cleanString(descBuffer.get()));
         }
 
         ImGui.spacing();
