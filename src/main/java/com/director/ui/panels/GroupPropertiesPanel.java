@@ -19,9 +19,8 @@ public class GroupPropertiesPanel {
     private static final int MAX_CHILDREN_VISIBLE = 10;
 
     private final ContainerPanelController controller;
-    // ImString 容量按 UTF-8 字节计，中文输入需要更大缓冲区。
-    private final ImString nameBuffer = new ImString(1024);
-    private final ImString descBuffer = new ImString(2048);
+    private final ImString nameBuffer = UIUtils.createInputBuffer(UIUtils.DEFAULT_NAME_MAX_CHARACTERS);
+    private final ImString descBuffer = UIUtils.createInputBuffer(UIUtils.DEFAULT_DESCRIPTION_MAX_CHARACTERS);
     private java.util.UUID currentEditingGroupId = null;
 
     public GroupPropertiesPanel(ContainerPanelController controller) {

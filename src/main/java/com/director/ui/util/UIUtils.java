@@ -1,6 +1,7 @@
 package com.director.ui.util;
 
 import imgui.ImGui;
+import imgui.type.ImString;
 
 /**
  * UI 工具类 (UIUtils)
@@ -16,6 +17,13 @@ import imgui.ImGui;
  * @version 1.0
  */
 public final class UIUtils {
+
+    /**
+     * ImGui/ImString 的容量单位是 UTF-8 字节而不是 Java 字符数。
+     * 这里统一按最坏 4 bytes/code point 预留，避免中文/emoji 等多字节输入被过早截断。
+     */
+    public static final int DEFAULT_NAME_MAX_CHARACTERS = 256;
+    public static final int DEFAULT_DESCRIPTION_MAX_CHARACTERS = 1024;
 
     /**
      * 私有构造函数，防止该工具类被实例化。
@@ -74,6 +82,27 @@ public final class UIUtils {
      */
     public static int clamp(int value, int min, int max) {
         return Math.max(min, Math.min(max, value));
+    }
+
+    /**
+     * 将“最大字符数”转换为 ImString 需要的缓冲区字节数。
+     */
+    public static int inputBufferBytes(int maxCharacters) {
+        if (maxCharacters <= 0) {
+            return 32;
+        }
+        return Math.max(32, maxCharacters * 4 + 1);
+    }
+
+    /**
+     * 创建一个按“字符数”配置的 ImGui 文本输入缓冲区。
+     */
+    public static ImString createInputBuffer(int maxCharacters) {
+        int initialBytes = inputBufferBytes(maxCharacters);
+        ImString buffer = new ImString(initialBytes);
+        buffer.inputData.isResizable = true;
+        buffer.inputData.resizeFactor = initialBytes;
+        return buffer;
     }
 
     // ========== ImGui 交互 ==========

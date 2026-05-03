@@ -59,7 +59,7 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
     // 使用持久缓冲区，避免每帧重建导致 IME 合成中断。
-    private final ImString nameBuffer = new ImString(1024);
+    private final ImString nameBuffer = UIUtils.createInputBuffer(UIUtils.DEFAULT_NAME_MAX_CHARACTERS);
     private java.util.UUID editingContainerId;
 
     @Override

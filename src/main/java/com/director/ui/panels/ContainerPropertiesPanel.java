@@ -23,9 +23,8 @@ import java.util.UUID;
 public class ContainerPropertiesPanel {
 
     // ---------------- UI 缓冲区 ----------------
-    // ImString 容量按 UTF-8 字节计，中文输入需要更大缓冲区。
-    private final ImString nameBuffer = new ImString(1024);
-    private final ImString descBuffer = new ImString(2048);
+    private final ImString nameBuffer = UIUtils.createInputBuffer(UIUtils.DEFAULT_NAME_MAX_CHARACTERS);
+    private final ImString descBuffer = UIUtils.createInputBuffer(UIUtils.DEFAULT_DESCRIPTION_MAX_CHARACTERS);
     private final ImInt typeIndex = new ImInt(0);
     private final ImInt animModeIndex = new ImInt(0);
     private final float[] tagColorBuffer = new float[4];

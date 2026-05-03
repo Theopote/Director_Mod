@@ -6,6 +6,7 @@ import com.director.core.container.ContainerType;
 import com.director.core.container.AnimationMode;
 import com.director.ui.adapters.BasePropertyAdapter;
 import com.director.ui.theme.Icons;
+import com.director.ui.util.UIUtils;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.type.ImString;
@@ -32,7 +33,7 @@ import java.util.UUID;
 public class ContainerAdapter extends BasePropertyAdapter<Container> {
 
     // 持久化输入缓冲区，避免每帧重建导致 IME 输入中断
-    private final ImString nameBuffer = new ImString(1024);
+    private final ImString nameBuffer = UIUtils.createInputBuffer(UIUtils.DEFAULT_NAME_MAX_CHARACTERS);
     private UUID lastContainerId = null;
 
     @Override

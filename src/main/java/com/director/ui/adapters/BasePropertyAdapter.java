@@ -8,6 +8,7 @@ import imgui.type.ImInt;
 import imgui.type.ImString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.director.ui.util.UIUtils;
 
 /**
  * 🎨 BasePropertyAdapter - 属性适配器抽象基类
@@ -244,8 +245,8 @@ public abstract class BasePropertyAdapter<T> implements PropertyAdapter<T> {
         ImGui.text(label);
         ImGui.pushItemWidth(-1);
         
-        // 使用 maxLength 作为缓冲区大小（而非字符串长度），防止输入被截断
-        ImString buffer = new ImString(maxLength);
+        // ImString 容量按 UTF-8 字节计算，这里把 maxLength 视为“字符数”来分配缓冲区。
+        ImString buffer = UIUtils.createInputBuffer(maxLength);
         buffer.set(currentValue);
         boolean changed = ImGui.inputText("##" + label, buffer);
         ImGui.popItemWidth();

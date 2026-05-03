@@ -26,19 +26,18 @@ import java.util.UUID;
 class InlineRenamer {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(InlineRenamer.class);
-    // ImString 容量按 UTF-8 字节计，中文等多字节字符会更快触顶。
-    // 提升容量以避免输入较长中文名称时出现截断/替换字符。
-    private static final int MAX_RENAME_BUFFER_SIZE = 1024;
+    private static final int MAX_RENAME_CHARACTERS = UIUtils.DEFAULT_NAME_MAX_CHARACTERS;
 
     private final ContainerPanelController controller;
     private final ContainerPanelState state;
-    private final ImString renameBuffer = new ImString(MAX_RENAME_BUFFER_SIZE);
+    private final ImString renameBuffer = UIUtils.createInputBuffer(MAX_RENAME_CHARACTERS);
 
     // 会话状态
     private UUID renameBufferContainerId;
     private boolean commitRequested;          // 外部请求提交标记
     private String commitRequestedValue;       // 请求提交时的值
     private boolean focusRequested;           // 只在会话开始时请求一次 focus
+    private boolean restorePropertiesAfterRename;
 
     InlineRenamer(ContainerPanelController controller, ContainerPanelState state) {
         this.controller = controller;
@@ -83,6 +82,14 @@ class InlineRenamer {
         state.setRenamingContainerId(id);
         renameBuffer.set(container.getName());
         renameBufferContainerId = id;
+
+        if (!state.isPropertiesCollapsed()) {
+            state.setLeftRatioBeforeCollapse(state.getLeftPanelWidthRatio());
+            state.setPropertiesCollapsed(true);
+            restorePropertiesAfterRename = true;
+        } else {
+            restorePropertiesAfterRename = false;
+        }
         
         // 重置会话状态
         commitRequested = false;
@@ -205,6 +212,7 @@ class InlineRenamer {
         // 用稳定唯一ID，避免树里ID冲突
         String inputId = "##InlineRename_" + container.getId();
 
+        ImGui.setCursorPosX(ImGui.getCursorStartPosX());
         ImGui.setNextItemWidth(-1.0f);
 
         boolean enterPressed = ImGui.inputText(
@@ -278,5 +286,9 @@ class InlineRenamer {
         commitRequested = false;
         commitRequestedValue = null;
         focusRequested = false;
+        if (restorePropertiesAfterRename && state.isPropertiesCollapsed()) {
+            state.setPropertiesCollapsed(false);
+        }
+        restorePropertiesAfterRename = false;
     }
 }
