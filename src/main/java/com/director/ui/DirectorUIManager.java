@@ -341,64 +341,7 @@ public class DirectorUIManager {
      * @throws IllegalArgumentException 如果面板列表为null或包含null元素
      */
     public DirectorUIManager(List<IPanel> panels) {
-        if (panels == null) {
-            throw new IllegalArgumentException("面板列表不能为 null");
-        }
-        if (panels.isEmpty()) {
-            throw new IllegalArgumentException("面板列表不能为空");
-        }
-        long nullCount = panels.stream().filter(Objects::isNull).count();
-        if (nullCount > 0) {
-            throw new IllegalArgumentException("面板列表包含 " + nullCount + " 个 null 元素");
-        }
-
-        // 创建面板注册表
-        this.panelRegistry = new PanelRegistry(panels);
-        
-        // 初始化布局持久化管理器
-        this.layoutManager = LayoutPersistenceManager.getInstance();
-
-        // 创建职责协调器
-        this.dialogCoordinator = new UIDialogCoordinator();
-        getDialogManager().setNewAnimationConfirmCallback(() -> {
-            try {
-                TimelinePanel timelinePanel = panelRegistry.getPanel(TimelinePanel.class);
-                if (timelinePanel != null) {
-                    timelinePanel.resetWorkspace(true);
-                } else {
-                    Objects.requireNonNull(com.director.core.container.ContainerManager.getInstance()).clear();
-                    com.director.ui.timeline.persistence.TimelineModelPersistence.resetForCurrentWorld();
-                }
-            } catch (Exception e) {
-                LOGGER.error("[UIManager] 新建动画重置失败: {}", e.getMessage(), e);
-            }
-        });
-        this.panelManager = new UIPanelManager(panelRegistry, this, this::getOrCreateCommandFacade);
-        this.playbackBridge = new UIPlaybackBridge();
-        this.shortcutCoordinator = new UIShortcutCoordinator();
-
-        // 重置DockSpace布局构建器状态，以便首次打开时应用默认布局
-        com.director.ui.layout.DockSpaceLayoutBuilder.resetLayoutState();
-        LOGGER.info("[Director] DockSpace布局状态已重置，准备应用布局");
-
-        // 验证必需的面板是否存在
-        validateRequiredPanels();
-
-        // 样式由 DirectorStyleScope 在每帧渲染时临时 push/pop，不在此处永久修改，避免影响 Treefactory 等模组
-        
-        // 初始化属性系统 v4.9（PropertyAdapterBootstrap + ui.properties.PropertyAdapterRegistry）
-        com.director.ui.properties.PropertyAdapterBootstrap.initialize();
-        LOGGER.info("[Director] 属性系统已初始化");
-        
-        // 初始化所有面板 & 设置依赖引用（UIPanelManager）
-        panelManager.initializeAll();
-        panelManager.setupReferences();
-        
-        // 根据当前世界的布局还原面板可见性
-        restorePanelVisibilityFromLayout();
-
-        logInfo("UI Manager initialized with {} injected panels using modern IoC", panelRegistry.size());
-        logDebugState(() -> "Panel registry: " + panelRegistry.getDebugInfo());
+        this(createValidatedRegistry(panels), LayoutInitPolicy.RESET_DOCKSPACE_STATE);
     }
 
     /**
@@ -429,20 +372,46 @@ public class DirectorUIManager {
     
     // ==================== 命令门面实现 ====================
     
-    private UICommandFacade commandFacade;
+    private volatile UICommandFacade commandFacade;
 
     /**
      * 延迟初始化命令门面（懒加载模式，确保面板已完全初始化）
      */
     private UICommandFacade getOrCreateCommandFacade() {
-        if (commandFacade == null) {
-            commandFacade = new UICommandFacadeImpl();
-            var d = new com.director.ui.input.ShortcutDispatcher(commandFacade, panelRegistry);
-            shortcutCoordinator.setShortcutDispatcher(d);
-            LOGGER.info("[DirectorUIManager] ShortcutDispatcher 已初始化");
+        UICommandFacade localFacade = commandFacade;
+        if (localFacade == null) {
+            synchronized (this) {
+                localFacade = commandFacade;
+                if (localFacade == null) {
+                    localFacade = new UICommandFacadeImpl();
+                    var d = new com.director.ui.input.ShortcutDispatcher(localFacade, panelRegistry);
+                    shortcutCoordinator.setShortcutDispatcher(d);
+                    commandFacade = localFacade;
+                    LOGGER.info("[DirectorUIManager] ShortcutDispatcher 已初始化");
+                }
+            }
         }
-        return commandFacade;
+        return localFacade;
     }
+        private enum LayoutInitPolicy {
+            RESET_DOCKSPACE_STATE,
+            RELOAD_CURRENT_WORLD
+        }
+
+        private static IPanelRegistry createValidatedRegistry(List<IPanel> panels) {
+            if (panels == null) {
+                throw new IllegalArgumentException("面板列表不能为 null");
+            }
+            if (panels.isEmpty()) {
+                throw new IllegalArgumentException("面板列表不能为空");
+            }
+            long nullCount = panels.stream().filter(Objects::isNull).count();
+            if (nullCount > 0) {
+                throw new IllegalArgumentException("面板列表包含 " + nullCount + " 个 null 元素");
+            }
+            return new PanelRegistry(panels);
+        }
+
     
     /**
      * 获取快捷键分发器
@@ -1851,6 +1820,10 @@ public class DirectorUIManager {
      * @throws IllegalArgumentException 如果面板注册表为null或为空
      */
     public DirectorUIManager(IPanelRegistry panelRegistry) {
+        this(panelRegistry, LayoutInitPolicy.RELOAD_CURRENT_WORLD);
+    }
+
+    private DirectorUIManager(IPanelRegistry panelRegistry, LayoutInitPolicy layoutInitPolicy) {
         if (panelRegistry == null) {
             throw new IllegalArgumentException("面板注册表不能为 null");
         }
@@ -1859,13 +1832,7 @@ public class DirectorUIManager {
         }
 
         this.panelRegistry = panelRegistry;
-        
-        // 样式由 DirectorStyleScope 在每帧渲染时临时 push/pop，不在此处永久修改，避免影响 Treefactory 等模组
-        
-        // 初始化属性系统 v4.5 📋
-        PropertyAdapterBootstrap.initialize();
-        LOGGER.info("[Director] 属性系统已初始化");
-        
+
         // 初始化布局持久化管理器
         this.layoutManager = LayoutPersistenceManager.getInstance();
 
@@ -1888,6 +1855,62 @@ public class DirectorUIManager {
         this.playbackBridge = new UIPlaybackBridge();
         this.shortcutCoordinator = new UIShortcutCoordinator();
 
+        init(layoutInitPolicy);
+    }
+
+    /**
+     * 静态工厂方法 - 从面板列表创建UI管理器
+     * @param panels 面板列表
+     * @return 完全初始化的UI管理器实例
+     * @throws IllegalArgumentException 如果面板列表无效
+     */
+    public static DirectorUIManager create(List<IPanel> panels) {
+        return new DirectorUIManager(panels);
+    }
+
+    /**
+     * 静态工厂方法 - 从面板注册表创建UI管理器
+     * @param panelRegistry 面板注册表
+     * @return 完全初始化的UI管理器实例
+     * @throws IllegalArgumentException 如果面板注册表无效
+     */
+    public static DirectorUIManager create(IPanelRegistry panelRegistry) {
+        return new DirectorUIManager(panelRegistry);
+    }
+
+    /**
+     * 私有初始化方法 - 封装完整的初始化流程
+     */
+    private void init(LayoutInitPolicy layoutInitPolicy) {
+        // 样式由 DirectorStyleScope 在每帧渲染时临时 push/pop，不在此处永久修改，避免影响 Treefactory 等模组
+
+        // 初始化属性系统（PropertyAdapterBootstrap + ui.properties.PropertyAdapterRegistry）
+        PropertyAdapterBootstrap.initialize();
+        LOGGER.info("[Director] 属性系统已初始化");
+
+        initializeLayout(layoutInitPolicy);
+
+        // 验证必需的面板是否存在
+        validateRequiredPanels();
+
+        // 初始化所有面板 & 设置依赖引用（UIPanelManager）
+        panelManager.initializeAll();
+        panelManager.setupReferences();
+        
+        // 根据布局还原面板可见性
+        restorePanelVisibilityFromLayout();
+
+        logInfo("UI Manager initialized with {} panels using modern IoC", panelRegistry.size());
+        logDebugState(() -> "Panel registry: " + panelRegistry.getDebugInfo());
+    }
+
+    private void initializeLayout(LayoutInitPolicy layoutInitPolicy) {
+        if (layoutInitPolicy == LayoutInitPolicy.RESET_DOCKSPACE_STATE) {
+            com.director.ui.layout.DockSpaceLayoutBuilder.resetLayoutState();
+            LOGGER.info("[Director] DockSpace布局状态已重置，准备应用布局");
+            return;
+        }
+
         // 检测并加载当前世界的布局（如果是新世界则使用默认布局，如果是同一世界则加载保存的布局）
         try {
             this.layoutManager.reloadForCurrentWorld("DirectorUIManager.constructor");
@@ -1902,79 +1925,6 @@ public class DirectorUIManager {
                 LOGGER.warn("[Director] 无法创建默认布局: {}", resetException.getMessage(), resetException);
             }
         }
-
-        // 验证必需的面板是否存在
-        validateRequiredPanels();
-
-        // 初始化所有面板 & 设置依赖引用（UIPanelManager）
-        panelManager.initializeAll();
-        panelManager.setupReferences();
-        
-        // 根据布局还原面板可见性
-        restorePanelVisibilityFromLayout();
-
-        logInfo("UI Manager initialized with {} panels using advanced IoC", panelRegistry.size());
-        logDebugState(() -> "Panel registry: " + panelRegistry.getDebugInfo());
-    }
-
-    /**
-     * 静态工厂方法 - 从面板列表创建UI管理器
-     * @param panels 面板列表
-     * @return 完全初始化的UI管理器实例
-     * @throws IllegalArgumentException 如果面板列表无效
-     */
-    public static DirectorUIManager create(List<IPanel> panels) {
-        if (panels == null) {
-            throw new IllegalArgumentException("面板列表不能为 null");
-        }
-        if (panels.isEmpty()) {
-            throw new IllegalArgumentException("面板列表不能为空");
-        }
-        long nullCount = panels.stream().filter(Objects::isNull).count();
-        if (nullCount > 0) {
-            throw new IllegalArgumentException("面板列表包含 " + nullCount + " 个 null 元素");
-        }
-
-        IPanelRegistry registry = new PanelRegistry(panels);
-        return create(registry);
-    }
-
-    /**
-     * 静态工厂方法 - 从面板注册表创建UI管理器
-     * @param panelRegistry 面板注册表
-     * @return 完全初始化的UI管理器实例
-     * @throws IllegalArgumentException 如果面板注册表无效
-     */
-    public static DirectorUIManager create(IPanelRegistry panelRegistry) {
-        DirectorUIManager manager = new DirectorUIManager(panelRegistry);
-        manager.initialize();
-        return manager;
-    }
-
-    /**
-     * 私有初始化方法 - 封装完整的初始化流程
-     */
-    private void initialize() {
-        // 强制使用默认布局配置
-        try {
-            this.layoutManager.resetToDefault();
-            LOGGER.info("[Director] 强制使用默认布局配置");
-        } catch (Exception e) {
-            LOGGER.warn("[Director] 无法重置为默认布局: {}", e.getMessage(), e);
-        }
-
-        // 验证必需的面板是否存在
-        validateRequiredPanels();
-
-        // 初始化所有面板 & 设置依赖引用（UIPanelManager）
-        panelManager.initializeAll();
-        panelManager.setupReferences();
-        
-        // 根据布局还原面板可见性
-        restorePanelVisibilityFromLayout();
-
-        logInfo("UI Manager initialized with {} panels using modern IoC", panelRegistry.size());
-        logDebugState(() -> "Panel registry: " + panelRegistry.getDebugInfo());
     }
 
 

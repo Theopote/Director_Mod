@@ -111,15 +111,6 @@ public class DirectorScreen extends Screen {
         super(Text.literal("Director"));
         this.client = MinecraftClient.getInstance();
         LOGGER.info("[Director] 创建新的 DirectorScreen");
-
-        InputFocusManager.getInstance().setDirectorScreenActive(true);
-
-        DirectorClientController.getInstance().activateDirectorMode();
-
-        if (client != null && client.mouse != null) {
-            client.mouse.unlockCursor();
-            LOGGER.info("[Director] 鼠标光标已解锁");
-        }
     }
 
     @Override
@@ -188,6 +179,7 @@ public class DirectorScreen extends Screen {
     public void onDisplayed() {
         super.onDisplayed();
         LOGGER.info("[Director] 🎬 进入导演模式界面");
+        activateScreenState();
         enterDirectorMode();
         DirectorRendererRegistry rendererRegistry = DirectorRendererRegistry.get();
         if (!rendererRegistry.isInitialized()) {
@@ -201,6 +193,16 @@ public class DirectorScreen extends Screen {
             com.director.ui.input.ShortcutInitializer.activateUIContexts();
         } catch (Exception e) {
             LOGGER.warn("[Director] 激活 UI 快捷键上下文失败", e);
+        }
+    }
+
+    private void activateScreenState() {
+        InputFocusManager.getInstance().setDirectorScreenActive(true);
+        DirectorClientController.getInstance().activateDirectorMode();
+
+        if (client != null && client.mouse != null) {
+            client.mouse.unlockCursor();
+            LOGGER.info("[Director] 鼠标光标已解锁");
         }
     }
 
