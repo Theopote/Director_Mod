@@ -598,108 +598,6 @@ public class DirectorUIManager {
                             // 注意：如果项目对象不存在，帧率设置将无法工作
                             return null;
                         }
-                        
-                        /**
-                         * 获取浮点属性（与 TimelineProjectPropertyAdapter 相同）
-                         */
-                        private float getFloatProperty(Object obj) {
-                            if (obj instanceof ITimelineProject project) {
-                                return project.getFrameRate();
-                            }
-                            try {
-                                java.lang.reflect.Method method = obj.getClass().getMethod("getFrameRate");
-                                Object result = method.invoke(obj);
-                                if (result instanceof Float) return (Float) result;
-                                if (result instanceof Double) return ((Double) result).floatValue();
-                                return (float) 30.0;
-                            } catch (Exception e) {
-                                try {
-                                    java.lang.reflect.Field field = obj.getClass().getDeclaredField("frameRate");
-                                    field.setAccessible(true);
-                                    Object result = field.get(obj);
-                                    if (result instanceof Float) return (Float) result;
-                                    if (result instanceof Double) return ((Double) result).floatValue();
-                                    return (float) 30.0;
-                                } catch (Exception ex) {
-                                    return (float) 30.0;
-                                }
-                            }
-                        }
-                        
-                        /**
-                         * 设置浮点属性（与 TimelineProjectPropertyAdapter 相同）
-                         */
-                        private boolean setFloatProperty(Object obj, float value) {
-                            if (obj instanceof ITimelineProject project) {
-                                project.setFrameRate(value);
-                                return true;
-                            }
-                            try {
-                                java.lang.reflect.Method method = obj.getClass().getMethod("setFrameRate", float.class);
-                                method.invoke(obj, value);
-                                return true;
-                            } catch (Exception e) {
-                                try {
-                                    java.lang.reflect.Field field = obj.getClass().getDeclaredField("frameRate");
-                                    field.setAccessible(true);
-                                    field.set(obj, value);
-                                    return true;
-                                } catch (Exception ex) {
-                                    return false;
-                                }
-                            }
-                        }
-                        
-                        /**
-                         * 获取整数属性
-                         */
-                        private int getIntProperty(Object obj) {
-                            if (obj instanceof ITimelineProject project) {
-                                return project.getTimeUnit();
-                            }
-                            try {
-                                java.lang.reflect.Method method = obj.getClass().getMethod("getTimeUnit");
-                                Object result = method.invoke(obj);
-                                if (result instanceof Integer) return (Integer) result;
-                                if (result instanceof Number) return ((Number) result).intValue();
-                                return 0;
-                            } catch (Exception e) {
-                                try {
-                                    java.lang.reflect.Field field = obj.getClass().getDeclaredField("timeUnit");
-                                    field.setAccessible(true);
-                                    Object result = field.get(obj);
-                                    if (result instanceof Integer) return (Integer) result;
-                                    if (result instanceof Number) return ((Number) result).intValue();
-                                    return 0;
-                                } catch (Exception ex) {
-                                    return 0;
-                                }
-                            }
-                        }
-                        
-                        /**
-                         * 设置整数属性
-                         */
-                        private boolean setIntProperty(Object obj, int value) {
-                            if (obj instanceof ITimelineProject project) {
-                                project.setTimeUnit(value);
-                                return true;
-                            }
-                            try {
-                                java.lang.reflect.Method method = obj.getClass().getMethod("setTimeUnit", int.class);
-                                method.invoke(obj, value);
-                                return true;
-                            } catch (Exception e) {
-                                try {
-                                    java.lang.reflect.Field field = obj.getClass().getDeclaredField("timeUnit");
-                                    field.setAccessible(true);
-                                    field.set(obj, value);
-                                    return true;
-                                } catch (Exception ex) {
-                                    return false;
-                                }
-                            }
-                        }
                     }
                 );
             }
@@ -1861,18 +1759,18 @@ public class DirectorUIManager {
         restorePanelVisibilityFromLayout();
 
         // 强制同步当前存档的项目数据，避免跨存档内存残留（容器/时间线/Actor）。
-        synchronizeWorldScopedState("DirectorUIManager.init");
+        synchronizeWorldScopedState();
 
         logInfo("UI Manager initialized with {} panels using modern IoC", panelRegistry.size());
         logDebugState(() -> "Panel registry: " + panelRegistry.getDebugInfo());
     }
 
-    private void synchronizeWorldScopedState(String source) {
+    private void synchronizeWorldScopedState() {
         try {
             com.director.core.container.persistence.ContainerPersistence.loadForCurrentWorld(
                 com.director.core.container.ContainerManager.getInstance());
         } catch (Exception e) {
-            LOGGER.warn("[Director] 同步当前存档容器数据失败 (source={}): {}", source, e.getMessage(), e);
+            LOGGER.warn("[Director] 同步当前存档容器数据失败 (source={}): {}", "DirectorUIManager.init", e.getMessage(), e);
         }
 
         try {
@@ -1881,7 +1779,7 @@ public class DirectorUIManager {
                 timelinePanel.reloadForCurrentWorld();
             }
         } catch (Exception e) {
-            LOGGER.warn("[Director] 同步当前存档时间线数据失败 (source={}): {}", source, e.getMessage(), e);
+            LOGGER.warn("[Director] 同步当前存档时间线数据失败 (source={}): {}", "DirectorUIManager.init", e.getMessage(), e);
         }
     }
 
