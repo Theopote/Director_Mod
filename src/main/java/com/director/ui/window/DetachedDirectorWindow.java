@@ -165,8 +165,9 @@ public final class DetachedDirectorWindow {
         }
 
         if (GLFW.glfwWindowShouldClose(windowHandle)) {
+            // 仅上报关闭请求，由 DirectorScreen 主生命周期在安全时机执行 close()/cleanup()。
+            // 避免在 detached 窗口自己的渲染上下文中立即 destroy 导致原生崩溃风险。
             pendingCloseScreen = attachedScreen;
-            cleanup();
             return;
         }
 

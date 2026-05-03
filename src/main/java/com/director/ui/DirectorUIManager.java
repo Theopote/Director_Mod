@@ -2511,19 +2511,12 @@ public class DirectorUIManager {
         int totalPanels = 0;
 
         try {
-            // 清理ImGui DockSpace状态，防止第二次打开时的冲突
-            try {
-                logDebug("清理ImGui DockSpace状态");
-                // 获取DockSpace ID并清理
-                int dockspaceId = ImGui.getID(DOCKSPACE_ID);
-                if (dockspaceId != 0) {
-                    imgui.internal.ImGui.dockBuilderRemoveNode(dockspaceId);
-                    logDebug("DockSpace节点已清理");
-                }
-            } catch (Exception e) {
-                logError("清理DockSpace状态时发生错误", e);
-                // DockSpace清理失败不是关键错误，继续处理
-            }
+            // 关闭路径避免调用 DockBuilder 原生接口：
+            // 在某些关闭时序（尤其 detached window 系统关闭）下，
+            // 这里的 native 调用可能导致 JVM 级崩溃。
+            // 布局状态重置由 DirectorScreen.performCloseCleanup() 中的
+            // DockSpaceLayoutBuilder.resetLayoutState() 负责。
+            logDebug("跳过 dispose 阶段 DockBuilder 原生清理，使用布局状态重置替代");
 
             // 释放所有面板
             if (panelRegistry != null && !panelRegistry.isEmpty()) {
@@ -2533,8 +2526,9 @@ public class DirectorUIManager {
                 for (IPanel panel : panelRegistry.getAllPanels()) {
                     if (panel != null) {
                         try {
+                            logInfo("释放面板资源: {}", panel.getPanelName());
                             panel.dispose();
-                        } catch (Exception e) {
+                        } catch (Throwable e) {
                             panelDisposalErrors++;
                             logError("释放面板 {} 时发生错误", e);
                             // 面板释放失败不是关键错误，继续处理其他面板

@@ -218,6 +218,9 @@ public class DirectorScreen extends Screen {
             // 获取ImGui渲染器实例
             ImGuiRenderer imGuiRenderer = ImGuiRenderer.getInstance();
             if (imGuiRenderer.consumeDetachedWindowCloseRequest(this)) {
+                // 系统关闭按钮（外置窗口 X）触发时，在主路径安全关闭 detached window，
+                // 避免在 detached 渲染上下文内直接销毁原生窗口。
+                imGuiRenderer.closeDetachedDirectorWindow(this);
                 detachedWindowClosePending = true;
                 return;
             }
