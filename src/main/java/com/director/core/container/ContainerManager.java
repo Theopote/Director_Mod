@@ -1071,53 +1071,6 @@ public class ContainerManager {
     }
 
     /**
-     * 释放容器
-     * <p>删除容器，并恢复方块在世界中的显示
-     * 
-     * @param id 容器ID
-     */
-    public void release(UUID id) {
-        Container container = getContainer(id);
-        if (container == null) {
-            LOGGER.warn("[ContainerManager] 无法释放容器：容器 {} 不存在", id);
-            return;
-        }
-        if (container.isLocked()) {
-            LOGGER.warn("[ContainerManager] 无法释放容器 {}：容器已锁定", container.getName());
-            return;
-        }
-        
-        // v5.2: 如果容器是隐藏状态，先恢复方块再释放
-        if (container.isHidden()) {
-            try {
-                var visibilityService = com.director.core.container.visibility.ContainerServices.visibility();
-                if (visibilityService != null) {
-                    visibilityService.showContainer(container);
-                }
-                // 将容器状态同步为可见，避免后续删除时再次触发隐藏逻辑导致方块被清除
-                container.setState(com.director.core.container.ContainerState.VISIBLE);
-            } catch (Exception e) {
-                LOGGER.warn("[ContainerManager] 释放容器 {} 时恢复方块失败: {}", 
-                    container.getName(), e.getMessage());
-            }
-        }
-        
-        // ★ 功能：释放容器时，删除时间线上的对应片段
-        var timelineService = com.director.ui.timeline.container.ContainerTimelineService.getInstance();
-        int removedCount = timelineService.removeClipsForContainer(container.getId());
-        if (removedCount > 0) {
-            LOGGER.info("[ContainerManager] 释放容器 {} 时，已删除时间线上的 {} 个片段", 
-                container.getName(), removedCount);
-        }
-        
-        // 删除容器
-        removeContainer(container);
-        
-        LOGGER.info("[ContainerManager] 释放容器: {} ({} 个方块)", 
-            container.getName(), container.getBlockCount());
-    }
-
-    /**
      * 当前选中容器数量是否满足合并条件
      */
     public boolean canMergeSelection() {

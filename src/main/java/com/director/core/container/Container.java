@@ -133,27 +133,6 @@ public class Container {
         return false;
     }
     
-    // ========== 方块管理 ==========
-    
-    public void addBlock(BlockPos pos) {
-        if (isGroup()) {
-            LOGGER.warn("[Container] 组 {} 不支持存储方块，忽略 addBlock", name);
-            return;
-        }
-        if (locked) {
-            LOGGER.warn("[Container] 容器 {} 已锁定，禁止 addBlock 操作", name);
-            return;
-        }
-        if (blocks.add(pos)) {
-            cachedBounds = null;  // 清除边界框缓存
-            updateCenter();
-            markModified();
-            
-            // v5.2: 如果容器是隐藏状态，可见性由ContainerVisibilityService管理
-            // 新添加的方块会在下次状态切换时自动处理
-        }
-    }
-    
     public void addBlocks(Collection<BlockPos> positions) {
         if (isGroup()) {
             LOGGER.warn("[Container] 组 {} 不支持存储方块，忽略 addBlocks", name);
