@@ -223,6 +223,29 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
 
             ImGui.separator();
 
+            // In/Out 区间
+            if (ImGui.menuItem("Set In Point", "I")) {
+                commands.playback().setInPoint();
+            }
+            if (ImGui.menuItem("Set Out Point", "O")) {
+                commands.playback().setOutPoint();
+            }
+
+            boolean hasIn = commands.playback().hasInPoint();
+            boolean hasOut = commands.playback().hasOutPoint();
+            float inPoint = commands.playback().getInPoint();
+            float outPoint = commands.playback().getOutPoint();
+            String rangeLabel = (hasIn || hasOut)
+                    ? String.format("Range: %.2fs - %.2fs", inPoint, outPoint)
+                    : "Range: Full Timeline";
+            ImGui.menuItem(rangeLabel, "", false, false);
+
+            if (ImGui.menuItem("Clear In/Out", "", false, hasIn || hasOut)) {
+                commands.playback().clearInOut();
+            }
+
+            ImGui.separator();
+
             // 跳转到开始
             if (ImGui.menuItem("Go to Start", "Home")) {
                 commands.playback().goToStart();

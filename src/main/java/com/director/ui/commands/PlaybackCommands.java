@@ -44,6 +44,26 @@ public interface PlaybackCommands {
      * 清除入出点
      */
     void clearInOut();
+
+    /**
+     * 是否设置了入点
+     */
+    boolean hasInPoint();
+
+    /**
+     * 是否设置了出点
+     */
+    boolean hasOutPoint();
+
+    /**
+     * 获取入点（秒）
+     */
+    float getInPoint();
+
+    /**
+     * 获取出点（秒）
+     */
+    float getOutPoint();
     
     /**
      * 设置播放速度

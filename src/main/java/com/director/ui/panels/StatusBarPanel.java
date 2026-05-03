@@ -146,6 +146,10 @@ public class StatusBarPanel extends AbstractPanel implements IPanelRegistryAware
             // 3. Timeline time
             float current = commands.playback().getCurrentTime();
             float total = commands.playback().getTotalDuration();
+            boolean hasIn = commands.playback().hasInPoint();
+            boolean hasOut = commands.playback().hasOutPoint();
+            float inPoint = commands.playback().getInPoint();
+            float outPoint = commands.playback().getOutPoint();
 
             String timeFmt = total < 60.0f ? "%.2fs / %.2fs" : "%.0fs / %.0fs";
             UITheme.label(
@@ -153,6 +157,15 @@ public class StatusBarPanel extends AbstractPanel implements IPanelRegistryAware
                     UITheme.DarkTheme.TEXT
             );
             separator();
+
+                // 3.5. Playback range (In/Out)
+                if (hasIn || hasOut) {
+                UITheme.label(
+                    String.format("Range: %.2fs - %.2fs", inPoint, outPoint),
+                    rgba(93, 173, 226)
+                );
+                separator();
+                }
 
             // 4. Speed
             if (Math.abs(speed - 1.0f) > 0.01f) {

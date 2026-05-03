@@ -1267,7 +1267,7 @@ public class DirectorUIManager {
         public void stop() {
             withPlaybackModel(model -> {
                 model.setPlaying(false);
-                model.setCurrentTime(0f);
+                model.setCurrentTime(model.getPlaybackRangeStart());
             }, "stop");
         }
         
@@ -1308,6 +1308,30 @@ public class DirectorUIManager {
                 model.clearInOut();
                 LOGGER.info("[PlaybackCommands] 已清除入/出点");
             }, "clearInOut");
+        }
+
+        @Override
+        public boolean hasInPoint() {
+            TimelineModel model = resolvePlaybackModel();
+            return model != null && model.hasInPoint();
+        }
+
+        @Override
+        public boolean hasOutPoint() {
+            TimelineModel model = resolvePlaybackModel();
+            return model != null && model.hasOutPoint();
+        }
+
+        @Override
+        public float getInPoint() {
+            TimelineModel model = resolvePlaybackModel();
+            return model != null ? model.getInPoint() : 0.0f;
+        }
+
+        @Override
+        public float getOutPoint() {
+            TimelineModel model = resolvePlaybackModel();
+            return model != null ? model.getOutPoint() : getTotalDuration();
         }
         
         @Override
