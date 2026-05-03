@@ -12,13 +12,13 @@ import org.slf4j.LoggerFactory;
 import java.util.UUID;
 
 /**
- * \u7BA1\u7406\u5BB9\u5668\u9762\u677F\u5185\u7684\u6240\u6709\u5F39\u7A97\u3002
+ * 管理容器面板内的所有弹窗。
  */
 public class ContainerDialogs {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ContainerDialogs.class);
-    private static final String LABEL_CANCEL = "\u53D6\u6D88";
-    private static final String LABEL_CONFIRM = "\u786E\u5B9A";
+    private static final String LABEL_CANCEL = "取消";
+    private static final String LABEL_CONFIRM = "确定";
 
     private final ContainerPanelController controller;
     private final ContainerPanelState state;
@@ -42,13 +42,13 @@ public class ContainerDialogs {
         renderClearAllConfirmDialog();
     }
 
-    private void renderConfirmDialog(String popupId, String message, String confirmLabel, Runnable onConfirm) {
+    private void renderConfirmDialog(Runnable onConfirm) {
         ImVec2 center = ImGui.getMainViewport().getCenter();
         ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
-        if (ImGui.beginPopupModal(popupId, ImGuiWindowFlags.AlwaysAutoResize)) {
-            ImGui.text(Icons.WARNING + " " + message);
+        if (ImGui.beginPopupModal("ConfirmClearAll", ImGuiWindowFlags.AlwaysAutoResize)) {
+            ImGui.text(Icons.WARNING + " " + "您确定要清空所有容器吗？");
             ImGui.separator();
-            if (ImGui.button(confirmLabel, 120, 0)) {
+            if (ImGui.button(ContainerDialogs.LABEL_CONFIRM, 120, 0)) {
                 if (onConfirm != null) {
                     onConfirm.run();
                 }
@@ -70,9 +70,9 @@ public class ContainerDialogs {
         ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
         if (ImGui.beginPopupModal("ConfirmDeletion", ImGuiWindowFlags.AlwaysAutoResize)) {
             LOGGER.info("[ContainerDialogs] ConfirmDeletion visible");
-            ImGui.text(Icons.WARNING + " " + "\u60A8\u786E\u5B9A\u8981\u5220\u9664\u9009\u4E2D\u7684\u5BB9\u5668\u5417\uFF1F");
+            ImGui.text(Icons.WARNING + " " + "您确定要删除选中的容器吗？");
             ImGui.separator();
-            if (ImGui.button("\u786E\u8BA4\u5220\u9664", 120, 0)) {
+            if (ImGui.button("确认删除", 120, 0)) {
                 LOGGER.info("[ContainerDialogs] delete confirmed");
                 controller.deleteSelectedContainers();
                 state.setPendingDeletionRequested(false);
@@ -90,10 +90,7 @@ public class ContainerDialogs {
 
     private void renderClearAllConfirmDialog() {
         renderConfirmDialog(
-            "ConfirmClearAll",
-            "\u60A8\u786E\u5B9A\u8981\u6E05\u7A7A\u6240\u6709\u5BB9\u5668\u5417\uFF1F",
-            LABEL_CONFIRM,
-            controller::clearAllContainers
+                controller::clearAllContainers
         );
     }
 
@@ -112,12 +109,12 @@ public class ContainerDialogs {
                 return;
             }
 
-            ImGui.text(Icons.WARNING + " " + "\u91CA\u653E\u5BB9\u5668 \"" + target.getName() + "\" ?");
+            ImGui.text(Icons.WARNING + " " + "释放容器 \"" + target.getName() + "\" ?");
             ImGui.separator();
-            ImGui.textWrapped("\u91CA\u653E\u540E\u5BB9\u5668\u5C06\u88AB\u5220\u9664\uFF0C\u65B9\u5757\u5C06\u91CD\u65B0\u663E\u793A\u5728\u4E16\u754C\u4E2D\u3002");
+            ImGui.textWrapped("释放后容器将被删除，方块将重新显示在世界中。");
             ImGui.spacing();
 
-            if (ImGui.button("\u786E\u8BA4\u91CA\u653E", 120, 0)) {
+            if (ImGui.button("确认释放", 120, 0)) {
                 controller.releaseContainer(targetId);
                 state.setPendingReleaseContainerId(null);
                 ImGui.closeCurrentPopup();
