@@ -25,7 +25,9 @@ import java.util.UUID;
 class InlineRenamer {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(InlineRenamer.class);
-    private static final int MAX_RENAME_BUFFER_SIZE = 256;
+    // ImString 容量按 UTF-8 字节计，中文等多字节字符会更快触顶。
+    // 提升容量以避免输入较长中文名称时出现截断/替换字符。
+    private static final int MAX_RENAME_BUFFER_SIZE = 1024;
 
     private final ContainerPanelController controller;
     private final ContainerPanelState state;

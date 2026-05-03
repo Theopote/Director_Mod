@@ -22,8 +22,9 @@ import java.util.UUID;
 public class ContainerPropertiesPanel {
 
     // ---------------- UI 缓冲区 ----------------
-    private final ImString nameBuffer = new ImString(256);
-    private final ImString descBuffer = new ImString(512);
+    // ImString 容量按 UTF-8 字节计，中文输入需要更大缓冲区。
+    private final ImString nameBuffer = new ImString(1024);
+    private final ImString descBuffer = new ImString(2048);
     private final ImInt typeIndex = new ImInt(0);
     private final ImInt animModeIndex = new ImInt(0);
     private final float[] tagColorBuffer = new float[4];
@@ -167,7 +168,9 @@ public class ContainerPropertiesPanel {
         if (!ImGui.collapsingHeader("基本属性")) return;
 
         // 名称
-        if (ImGui.inputText("名称", nameBuffer, ImGuiInputTextFlags.AutoSelectAll)) {
+        ImGui.inputText("名称", nameBuffer, ImGuiInputTextFlags.AutoSelectAll | ImGuiInputTextFlags.EnterReturnsTrue);
+        boolean nameEditFinished = ImGui.isItemDeactivatedAfterEdit();
+        if (nameEditFinished || ImGui.isKeyPressed(imgui.flag.ImGuiKey.Enter)) {
             String newName = nameBuffer.get().trim();
             if (!newName.isEmpty() && !newName.equals(container.getName())) {
                 controller.renameContainer(container.getId(), newName);

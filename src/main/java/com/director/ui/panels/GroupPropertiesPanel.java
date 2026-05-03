@@ -18,8 +18,10 @@ public class GroupPropertiesPanel {
     private static final int MAX_CHILDREN_VISIBLE = 10;
 
     private final ContainerPanelController controller;
-    private final ImString nameBuffer = new ImString(256);
-    private final ImString descBuffer = new ImString(512);
+    // ImString 容量按 UTF-8 字节计，中文输入需要更大缓冲区。
+    private final ImString nameBuffer = new ImString(1024);
+    private final ImString descBuffer = new ImString(2048);
+    private java.util.UUID currentEditingGroupId = null;
 
     public GroupPropertiesPanel(ContainerPanelController controller) {
         this.controller = controller;
@@ -49,16 +51,17 @@ public class GroupPropertiesPanel {
     private void renderBasicInfo(Container group) {
         ImGui.textColored(0.8f, 0.9f, 1.0f, 1.0f, "基本信息");
 
-        nameBuffer.set(group.getName());
-        if (ImGui.inputText("组名称", nameBuffer)) {
+        syncBuffersIfNeeded(group);
+
+        ImGui.inputText("组名称", nameBuffer, imgui.flag.ImGuiInputTextFlags.EnterReturnsTrue);
+        boolean nameEditFinished = ImGui.isItemDeactivatedAfterEdit();
+        if (nameEditFinished || ImGui.isKeyPressed(imgui.flag.ImGuiKey.Enter)) {
             String newName = nameBuffer.get().trim();
             if (!newName.isEmpty() && !newName.equals(group.getName())) {
                 controller.renameContainer(group.getId(), newName);
             }
         }
 
-        Object desc = group.getMetadata("description", "");
-        descBuffer.set(desc != null ? desc.toString() : "");
         if (ImGui.inputTextMultiline("备注", descBuffer, 0, 80)) {
             controller.setMetadata(group.getId(), "description", descBuffer.get());
         }
@@ -67,6 +70,22 @@ public class GroupPropertiesPanel {
         ImGui.textDisabled("统计：");
         ImGui.text(String.format("  子容器: %d", group.getChildren().size()));
         ImGui.text(String.format("  总方块: %d", group.getTotalBlockCount()));
+    }
+
+    private void syncBuffersIfNeeded(Container group) {
+        if (group == null) {
+            currentEditingGroupId = null;
+            return;
+        }
+        if (currentEditingGroupId != null && currentEditingGroupId.equals(group.getId())) {
+            return;
+        }
+
+        currentEditingGroupId = group.getId();
+        nameBuffer.set(group.getName());
+
+        Object desc = group.getMetadata("description", "");
+        descBuffer.set(desc != null ? desc.toString() : "");
     }
 
     private void renderChildrenOverview(Container group) {
