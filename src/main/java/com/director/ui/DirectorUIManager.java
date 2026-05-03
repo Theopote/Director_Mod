@@ -1447,38 +1447,39 @@ public class DirectorUIManager {
     }
     
     /**
-     * 摄像机命令实现（优化：直接调用 TimelineModel 和摄像机控制器）
+     * 摄像机命令实现（当前阶段：fail-fast，避免 TODO 静默成功）
      */
     private class CameraCommandsImpl implements CameraCommands {
 
+        private final TimelineModel timelineModel;
+
         public CameraCommandsImpl(TimelineModel timelineModel) {
+            this.timelineModel = timelineModel;
+        }
+
+        private UnsupportedOperationException unsupportedCameraCommand(String commandName) {
+            String modelState = (timelineModel != null) ? "model-bound" : "model-missing";
+            return new UnsupportedOperationException("Camera command not implemented yet: " + commandName + " (" + modelState + ")");
         }
         
         @Override
         public void createCameraPath(CameraPathType type) {
-            // TODO: 实现创建摄像机路径
-            // timelineModel.createCameraPathClip(type);
-            LOGGER.info("[Commands] Create camera path: {}", type);
+            throw unsupportedCameraCommand("createCameraPath(" + type + ")");
         }
         
         @Override
         public void alignCameraToCurrentView() {
-            // TODO: 实现对齐摄像机到当前视角
-            // 通过 TimelineCameraController 对齐
-            LOGGER.info("[Commands] Align camera to current view");
+            throw unsupportedCameraCommand("alignCameraToCurrentView");
         }
         
         @Override
         public void createShotFromCurrentView() {
-            // TODO: 实现从当前视角创建镜头
-            // timelineModel.createCameraClipFromCurrentView();
-            LOGGER.info("[Commands] Create shot from current view");
+            throw unsupportedCameraCommand("createShotFromCurrentView");
         }
         
         @Override
         public void setDefaultCameraView() {
-            // TODO: 实现设置默认摄像机视角
-            LOGGER.info("[Commands] Set default camera view");
+            throw unsupportedCameraCommand("setDefaultCameraView");
         }
     }
     

@@ -436,7 +436,10 @@ public class UIConfigurationBuilder {
             case "PropertiesPanel" -> PropertiesPanel.class;
             case "TimelinePanel" -> TimelinePanel.class;
             // 添加新的模块化面板
-            case "ToolPropertiesPanel" -> ToolPropertiesPanel.class;
+            case "ToolPropertiesPanel" -> {
+                LOGGER.warn("[UIConfigurationBuilder] ToolPropertiesPanel 已弃用，配置项将被忽略: {}", typeName);
+                yield null;
+            }
             case "SelectionRenderSettingsPanel" -> RenderSettingsPanel.class; // 向后兼容旧名称
             case "RenderSettingsPanel" -> RenderSettingsPanel.class;
             case "SelectionFilterPanel" -> SelectionFilterPanel.class;

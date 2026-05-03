@@ -294,21 +294,16 @@ public class DirectorScreen extends Screen {
     
     /**
      * 处理键盘输入事件
-     * 使用全局快捷键管理器统一处理所有快捷键
+     * 权威路径：ShortcutDispatcher（Facade）
+     * 兼容回退：GlobalShortcutManager（尚未迁移的旧快捷键）
      */
     @Override
     public boolean keyPressed(KeyInput input) {
         int keyCode = input.key();
         int modifiers = input.modifiers();
 
-        // ⚠️ 注意：KeyboardMixin 已经处理了快捷键事件并 cancel 了
-        // 如果 KeyboardMixin 正常工作，这个方法可能不会被调用
-        // 但为了安全起见，我们仍然在这里处理（防抖机制会防止重复处理）
-        
-        // ⭐ 优先使用新的 ShortcutDispatcher（Facade 架构）
-        // 无论 ImGui 是否捕获键盘，都先尝试新的系统
-        // ⚠️ 注意：由于 KeyboardMixin 已经处理了事件，这里可能不会被调用
-        // 但如果被调用，防抖机制会确保不会重复处理
+        // KeyboardMixin 通常会优先分发快捷键；该方法作为屏幕层补充入口。
+        // 为保证行为一致，这里仍先走 ShortcutDispatcher，内部防抖会避免重复触发。
         if (uiManager != null) {
             var shortcutDispatcher = uiManager.getShortcutDispatcher();
             if (shortcutDispatcher != null) {
@@ -349,7 +344,6 @@ public class DirectorScreen extends Screen {
         boolean shiftPressed = (modifiers & org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT) != 0;
         boolean altPressed = (modifiers & org.lwjgl.glfw.GLFW.GLFW_MOD_ALT) != 0;
         return shortcutManager.handleGLFWInput(keyCode, ctrlPressed, shiftPressed, altPressed); // 已处理，阻止游戏处理
-// 不拦截游戏按键，让游戏继续处理
     }
 
     // ⚠️ getModifiers() 方法已移除
