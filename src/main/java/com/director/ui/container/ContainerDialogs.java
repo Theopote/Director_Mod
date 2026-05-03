@@ -10,10 +10,12 @@ import imgui.flag.ImGuiWindowFlags;
 import java.util.UUID;
 
 /**
- * 管理容器面板内的所有弹窗。
- * 当前版本仅迁移了删除容器等已有弹窗，后续可以逐步扩展。
+ * \u7BA1\u7406\u5BB9\u5668\u9762\u677F\u5185\u7684\u6240\u6709\u5F39\u7A97\u3002
  */
 public class ContainerDialogs {
+
+    private static final String LABEL_CANCEL = "\u53D6\u6D88";
+    private static final String LABEL_CONFIRM = "\u786E\u5B9A";
 
     private final ContainerPanelController controller;
     private final ContainerPanelState state;
@@ -24,13 +26,12 @@ public class ContainerDialogs {
     }
 
     public void render() {
-        // 兜底：如存在待打开标记且当前未处于打开状态，则主动 openPopup，确保下一帧能够显示
         if (state.isPendingDeletionRequested() && !ImGui.isPopupOpen("ConfirmDeletion")) {
-            org.slf4j.LoggerFactory.getLogger(ContainerDialogs.class).info("[ContainerDialogs] 兜底：检测到待删除标记，主动打开 ConfirmDeletion");
+            org.slf4j.LoggerFactory.getLogger(ContainerDialogs.class).info("[ContainerDialogs] pending deletion detected, opening ConfirmDeletion");
             ImGui.openPopup("ConfirmDeletion");
         }
         if (state.getPendingReleaseContainerId() != null && !ImGui.isPopupOpen("ConfirmRelease")) {
-            org.slf4j.LoggerFactory.getLogger(ContainerDialogs.class).info("[ContainerDialogs] 兜底：检测到待释放目标，主动打开 ConfirmRelease");
+            org.slf4j.LoggerFactory.getLogger(ContainerDialogs.class).info("[ContainerDialogs] pending release detected, opening ConfirmRelease");
             ImGui.openPopup("ConfirmRelease");
         }
         renderDeletionConfirmDialog();
@@ -38,58 +39,59 @@ public class ContainerDialogs {
         renderClearAllConfirmDialog();
     }
 
-	/**
-	 * 通用确认弹窗渲染：负责定位到屏幕中心、打开指定 id 的模态弹窗，渲染消息与“确定/取消”按钮。
-	 * 返回值不需要，逻辑在 onConfirm 内处理。
-	 */
-	private void renderConfirmDialog(Runnable onConfirm) {
-		ImVec2 center = ImGui.getMainViewport().getCenter();
-		ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
-		if (ImGui.beginPopupModal("ConfirmClearAll", ImGuiWindowFlags.AlwaysAutoResize)) {
-			ImGui.text(Icons.WARNING + " " + "您确定要清空所有容器吗？");
-			ImGui.separator();
-			if (ImGui.button("确定", 120, 0)) {
-				if (onConfirm != null) {
-					onConfirm.run();
-				}
-				ImGui.closeCurrentPopup();
-			}
-			ImGui.sameLine();
-			if (ImGui.button("取消", 120, 0)) {
-				ImGui.closeCurrentPopup();
-			}
-			ImGui.endPopup();
-		}
-	}
+    private void renderConfirmDialog(String popupId, String message, String confirmLabel, Runnable onConfirm) {
+        ImVec2 center = ImGui.getMainViewport().getCenter();
+        ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
+        if (ImGui.beginPopupModal(popupId, ImGuiWindowFlags.AlwaysAutoResize)) {
+            ImGui.text(Icons.WARNING + " " + message);
+            ImGui.separator();
+            if (ImGui.button(confirmLabel, 120, 0)) {
+                if (onConfirm != null) {
+                    onConfirm.run();
+                }
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.sameLine();
+            if (ImGui.button(LABEL_CANCEL, 120, 0)) {
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.endPopup();
+        }
+    }
 
     private void renderDeletionConfirmDialog() {
-		if (ImGui.isPopupOpen("ConfirmDeletion")) {
-			org.slf4j.LoggerFactory.getLogger(ContainerDialogs.class).info("[ContainerDialogs] 检测到 ConfirmDeletion 请求打开");
-		}
-		ImVec2 center = ImGui.getMainViewport().getCenter();
-		ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
-		if (ImGui.beginPopupModal("ConfirmDeletion", ImGuiWindowFlags.AlwaysAutoResize)) {
-			org.slf4j.LoggerFactory.getLogger(ContainerDialogs.class).info("[ContainerDialogs] ConfirmDeletion 弹窗可见");
-			ImGui.text(Icons.WARNING + " 您确定要删除选中的容器吗？");
-			ImGui.separator();
-			if (ImGui.button("确定删除", 120, 0)) {
-				org.slf4j.LoggerFactory.getLogger(ContainerDialogs.class).info("[ContainerDialogs] 确认删除被点击 -> 调用 controller.deleteSelectedContainers()");
-				controller.deleteSelectedContainers();
-				state.setPendingDeletionRequested(false);
-				ImGui.closeCurrentPopup();
-			}
-			ImGui.sameLine();
-			if (ImGui.button("取消", 120, 0)) {
-				org.slf4j.LoggerFactory.getLogger(ContainerDialogs.class).info("[ContainerDialogs] 删除取消");
-				state.setPendingDeletionRequested(false);
-				ImGui.closeCurrentPopup();
-			}
-			ImGui.endPopup();
-		}
+        if (ImGui.isPopupOpen("ConfirmDeletion")) {
+            org.slf4j.LoggerFactory.getLogger(ContainerDialogs.class).info("[ContainerDialogs] ConfirmDeletion requested");
+        }
+        ImVec2 center = ImGui.getMainViewport().getCenter();
+        ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
+        if (ImGui.beginPopupModal("ConfirmDeletion", ImGuiWindowFlags.AlwaysAutoResize)) {
+            org.slf4j.LoggerFactory.getLogger(ContainerDialogs.class).info("[ContainerDialogs] ConfirmDeletion visible");
+            ImGui.text(Icons.WARNING + " " + "\u60A8\u786E\u5B9A\u8981\u5220\u9664\u9009\u4E2D\u7684\u5BB9\u5668\u5417\uFF1F");
+            ImGui.separator();
+            if (ImGui.button("\u786E\u8BA4\u5220\u9664", 120, 0)) {
+                org.slf4j.LoggerFactory.getLogger(ContainerDialogs.class).info("[ContainerDialogs] delete confirmed");
+                controller.deleteSelectedContainers();
+                state.setPendingDeletionRequested(false);
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.sameLine();
+            if (ImGui.button(LABEL_CANCEL, 120, 0)) {
+                org.slf4j.LoggerFactory.getLogger(ContainerDialogs.class).info("[ContainerDialogs] delete cancelled");
+                state.setPendingDeletionRequested(false);
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.endPopup();
+        }
     }
 
     private void renderClearAllConfirmDialog() {
-		renderConfirmDialog(controller::clearAllContainers);
+        renderConfirmDialog(
+            "ConfirmClearAll",
+            "\u60A8\u786E\u5B9A\u8981\u6E05\u7A7A\u6240\u6709\u5BB9\u5668\u5417\uFF1F",
+            LABEL_CONFIRM,
+            controller::clearAllContainers
+        );
     }
 
     private void renderReleaseConfirmDialog() {
@@ -107,18 +109,18 @@ public class ContainerDialogs {
                 return;
             }
 
-            ImGui.text(Icons.WARNING + " 释放容器 \"" + target.getName() + "\" ?");
+            ImGui.text(Icons.WARNING + " " + "\u91CA\u653E\u5BB9\u5668 \"" + target.getName() + "\" ?");
             ImGui.separator();
-            ImGui.textWrapped("释放后容器将被删除，方块将重新显示在世界中。");
+            ImGui.textWrapped("\u91CA\u653E\u540E\u5BB9\u5668\u5C06\u88AB\u5220\u9664\uFF0C\u65B9\u5757\u5C06\u91CD\u65B0\u663E\u793A\u5728\u4E16\u754C\u4E2D\u3002");
             ImGui.spacing();
 
-            if (ImGui.button("确定释放", 120, 0)) {
+            if (ImGui.button("\u786E\u8BA4\u91CA\u653E", 120, 0)) {
                 controller.releaseContainer(targetId);
                 state.setPendingReleaseContainerId(null);
                 ImGui.closeCurrentPopup();
             }
             ImGui.sameLine();
-            if (ImGui.button("取消", 120, 0)) {
+            if (ImGui.button(LABEL_CANCEL, 120, 0)) {
                 state.setPendingReleaseContainerId(null);
                 ImGui.closeCurrentPopup();
             }
@@ -126,4 +128,3 @@ public class ContainerDialogs {
         }
     }
 }
-

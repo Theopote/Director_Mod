@@ -427,10 +427,7 @@ public class ContainerCommandService {
         if (container == null) {
             return;
         }
-        containerManager.release(container.getId());
-        if (containerManager.isActive(container)) {
-            containerManager.setActive((UUID) null);
-        }
+        execute(new ReleaseContainerCommand(containerManager, container));
     }
 
     public void toggleIntake(UUID containerId) {
@@ -442,13 +439,11 @@ public class ContainerCommandService {
             LOGGER.warn("[ContainerCommandService] 组无法开启实时接收: {}", container.getName());
             return;
         }
-        boolean newState = !container.isIntakeEnabled();
-        container.setIntakeEnabled(newState);
-        if (newState) {
-            containerManager.setActive(container);
-        } else if (containerManager.isActive(container)) {
-            containerManager.setActive((UUID) null);
+        if (!container.isIntakeEnabled() && container.isLocked()) {
+            LOGGER.warn("[ContainerCommandService] 已锁定容器无法开启实时接收: {}", container.getName());
+            return;
         }
+        execute(new ToggleIntakeCommand(containerManager, container));
     }
 
     public void swapContainers(UUID firstId, UUID secondId) {
