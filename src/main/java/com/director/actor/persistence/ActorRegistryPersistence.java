@@ -16,7 +16,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.UUID;
 
 /**
@@ -33,9 +32,6 @@ public class ActorRegistryPersistence {
             .setPrettyPrinting()
             .create();
 
-    // 配置文件路径
-    private static final Path CONFIG_DIR = Paths.get("config", "director");
-
     /**
      * 获取当前世界的 ActorRegistry 文件路径
      */
@@ -45,9 +41,8 @@ public class ActorRegistryPersistence {
             // ✅ 最佳实践：把工程文件写进世界存档目录，天然"仅绑定当前存档"
             return worldDir.resolve("actor_registry.json");
         }
-        // 兜底：写入 config（用于无法获取世界目录的场景）
-        String worldId = WorldIdentifier.getCurrentWorldId();
-        return CONFIG_DIR.resolve("actors").resolve(worldId + "_actor_registry.json");
+        // 不再回退到全局 config，避免跨存档串状态
+        return null;
     }
 
     /**
@@ -84,7 +79,7 @@ public class ActorRegistryPersistence {
         try {
             Path file = getActorRegistryFile();
             if (file == null) {
-                LOGGER.warn("[ActorRegistryPersistence] 无法获取保存路径，跳过保存");
+                LOGGER.debug("[ActorRegistryPersistence] 当前无活动存档目录，跳过保存");
                 return;
             }
             
@@ -148,6 +143,10 @@ public class ActorRegistryPersistence {
 
         try {
             Path file = getActorRegistryFile();
+            if (file == null) {
+                LOGGER.debug("[ActorRegistryPersistence] 当前无活动存档目录，跳过加载");
+                return;
+            }
             if (!Files.exists(file)) {
                 LOGGER.debug("[ActorRegistryPersistence] ActorRegistry 文件不存在: {}", file);
                 return;
@@ -197,7 +196,7 @@ public class ActorRegistryPersistence {
      */
     public static boolean hasSavedData() {
         Path file = getActorRegistryFile();
-        return Files.exists(file);
+        return file != null && Files.exists(file);
     }
 }
 

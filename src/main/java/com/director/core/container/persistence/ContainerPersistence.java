@@ -43,12 +43,14 @@ public final class ContainerPersistence {
         if (worldDir != null) {
             return worldDir.resolve("containers.dat");
         }
-        String worldId = WorldIdentifier.getCurrentWorldId();
-        return CONFIG_DIR.resolve(worldId + "_containers.dat");
+        return null;
     }
 
     private static Path getLegacyContainerFile() {
         String worldId = WorldIdentifier.getCurrentWorldId();
+        if (worldId == null || worldId.isEmpty() || "default".equals(worldId)) {
+            return null;
+        }
         return CONFIG_DIR.resolve(worldId + "_containers.dat");
     }
 
@@ -69,6 +71,10 @@ public final class ContainerPersistence {
         }
         try {
             Path file = getContainerFile();
+            if (file == null) {
+                LOGGER.debug("[ContainerPersistence] 当前无活动存档目录，跳过保存");
+                return;
+            }
             if (!Files.exists(file.getParent())) {
                 Files.createDirectories(file.getParent());
             }
@@ -92,9 +98,17 @@ public final class ContainerPersistence {
         }
         Path file = getContainerFile();
         Path legacy = getLegacyContainerFile();
+        if (file == null) {
+            LOGGER.debug("[ContainerPersistence] 当前无活动存档目录，跳过加载");
+            return;
+        }
+
+        // 关键：先清空内存状态，再按当前存档加载。
+        // 即使目标存档没有文件，也不能保留上一个存档的容器数据。
+        manager.clear();
 
         // 自动迁移：世界目录优先；若世界目录没有但旧 config 存在，迁移一次
-        if (!Files.exists(file) && Files.exists(legacy) && !legacy.equals(file)) {
+        if (!Files.exists(file) && legacy != null && Files.exists(legacy) && !legacy.equals(file)) {
             try {
                 if (!Files.exists(file.getParent())) {
                     Files.createDirectories(file.getParent());
@@ -115,9 +129,6 @@ public final class ContainerPersistence {
             NbtList list = root.getList("containers").orElseGet(NbtList::new);
             Map<UUID, Container> map = new HashMap<>();
             Map<UUID, UUID> parentMap = new HashMap<>();
-
-            // 先清空现有容器
-            manager.clear();
 
             for (int i = 0; i < list.size(); i++) {
                 NbtCompound tag = list.getCompound(i).orElse(null);
@@ -153,13 +164,13 @@ public final class ContainerPersistence {
     public static void resetForCurrentWorld() {
         try {
             Path file = getContainerFile();
-            if (Files.exists(file)) {
+            if (file != null && Files.exists(file)) {
                 Files.delete(file);
                 LOGGER.info("[ContainerPersistence] 删除容器存档: {}", file);
             }
 
             Path legacy = getLegacyContainerFile();
-            if (Files.exists(legacy) && !legacy.equals(file)) {
+            if (legacy != null && Files.exists(legacy) && !legacy.equals(file)) {
                 Files.delete(legacy);
                 LOGGER.info("[ContainerPersistence] 删除旧位置容器存档: {}", legacy);
             }

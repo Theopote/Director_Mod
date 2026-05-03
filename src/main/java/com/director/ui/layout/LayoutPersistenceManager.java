@@ -32,8 +32,8 @@ public class LayoutPersistenceManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(LayoutPersistenceManager.class);
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     
-    // 布局配置文件路径
-    private static final Path LAYOUT_DIR = Paths.get("config", "director");
+    // 旧版全局布局目录（用于兼容迁移与预设）
+    private static final Path LEGACY_LAYOUT_DIR = Paths.get("config", "director");
     
     // 布局版本
     private static final String LAYOUT_VERSION = "1.0";
@@ -107,9 +107,9 @@ public class LayoutPersistenceManager {
         
         try {
             // 确保布局目录存在
-            if (!Files.exists(LAYOUT_DIR)) {
-                Files.createDirectories(LAYOUT_DIR);
-                LOGGER.debug("[LayoutPersistence] 创建布局目录: {}", LAYOUT_DIR);
+            if (!Files.exists(LEGACY_LAYOUT_DIR)) {
+                Files.createDirectories(LEGACY_LAYOUT_DIR);
+                LOGGER.debug("[LayoutPersistence] 创建布局目录: {}", LEGACY_LAYOUT_DIR);
             }
             
             // 检测当前世界并加载对应布局
@@ -135,7 +135,13 @@ public class LayoutPersistenceManager {
      * 获取 layout 子目录（确保存在）
      */
     private Path getLayoutsDir() {
-        Path layoutsDir = LAYOUT_DIR.resolve("layouts");
+        Path layoutsDir;
+        Path worldSavePath = WorldIdentifier.getWorldSavePath();
+        if (worldSavePath != null) {
+            layoutsDir = worldSavePath.resolve("director").resolve("layouts");
+        } else {
+            layoutsDir = LEGACY_LAYOUT_DIR.resolve("layouts");
+        }
         try {
             if (!Files.exists(layoutsDir)) {
                 Files.createDirectories(layoutsDir);
@@ -172,7 +178,7 @@ public class LayoutPersistenceManager {
      * 获取指定世界的布局文件路径
      */
     private Path getLayoutFile(String worldId) {
-        return getLayoutsDir().resolve(worldId + "_ui_layout.json");
+        return getLayoutsDir().resolve("ui_layout.json");
     }
     
     /**
@@ -190,7 +196,7 @@ public class LayoutPersistenceManager {
     }
     
     public Path getImGuiIniPath(String worldId) {
-        Path iniFile = getLayoutsDir().resolve(worldId + "_imgui.ini");
+        Path iniFile = getLayoutsDir().resolve("imgui.ini");
         Path parent = iniFile.getParent();
         try {
             if (parent != null && !Files.exists(parent)) {
@@ -211,6 +217,7 @@ public class LayoutPersistenceManager {
         if (currentWorldId == null) {
             currentWorldId = nextWorldId;
             LOGGER.info("[LayoutPersistence] 初始化世界布局: {} (触发: {})", currentWorldId, reason);
+            migrateLegacyWorldLayoutIfNeeded(currentWorldId);
             loadLayoutInternal();
             loadImGuiIniIfExists(currentWorldId);
             return;
@@ -221,6 +228,7 @@ public class LayoutPersistenceManager {
             saveLayoutForWorld(currentWorldId);
             saveImGuiIni(currentWorldId);
             currentWorldId = nextWorldId;
+            migrateLegacyWorldLayoutIfNeeded(currentWorldId);
             loadLayoutInternal();
             loadImGuiIniIfExists(currentWorldId);
         } else {
@@ -426,7 +434,7 @@ public class LayoutPersistenceManager {
         
         try {
             // 确保预设目录存在
-            Path presetsDir = LAYOUT_DIR.resolve("presets");
+            Path presetsDir = LEGACY_LAYOUT_DIR.resolve("presets");
             if (!Files.exists(presetsDir)) {
                 Files.createDirectories(presetsDir);
                 LOGGER.debug("[LayoutPersistence] 创建预设目录: {}", presetsDir);
@@ -463,7 +471,7 @@ public class LayoutPersistenceManager {
      */
     public boolean loadLayoutPreset(String presetName) {
         try {
-            Path presetFile = LAYOUT_DIR.resolve("presets").resolve(sanitizePresetName(presetName) + ".json");
+            Path presetFile = LEGACY_LAYOUT_DIR.resolve("presets").resolve(sanitizePresetName(presetName) + ".json");
             
             if (!Files.exists(presetFile)) {
                 LOGGER.warn("[LayoutPersistence] 布局预设不存在: {}", presetFile);
@@ -498,7 +506,7 @@ public class LayoutPersistenceManager {
     public java.util.List<String> listLayoutPresets() {
         java.util.List<String> presets = new java.util.ArrayList<>();
         try {
-            Path presetsDir = LAYOUT_DIR.resolve("presets");
+            Path presetsDir = LEGACY_LAYOUT_DIR.resolve("presets");
             if (Files.exists(presetsDir)) {
                 try (java.util.stream.Stream<java.nio.file.Path> stream = Files.list(presetsDir)) {
                     stream.filter(Files::isRegularFile)
@@ -516,6 +524,39 @@ public class LayoutPersistenceManager {
         }
         return presets;
     }
+
+    private void migrateLegacyWorldLayoutIfNeeded(String worldId) {
+        try {
+            if (worldId == null || worldId.isEmpty() || "default".equals(worldId)) {
+                return;
+            }
+
+            Path targetLayout = getLayoutFile(worldId);
+            Path targetIni = getImGuiIniPath(worldId);
+            Path legacyLayout = LEGACY_LAYOUT_DIR.resolve("layouts").resolve(worldId + "_ui_layout.json");
+            Path legacyIni = LEGACY_LAYOUT_DIR.resolve("layouts").resolve(worldId + "_imgui.ini");
+
+            if (!Files.exists(targetLayout) && Files.exists(legacyLayout) && !legacyLayout.equals(targetLayout)) {
+                Path parent = targetLayout.getParent();
+                if (parent != null && !Files.exists(parent)) {
+                    Files.createDirectories(parent);
+                }
+                Files.copy(legacyLayout, targetLayout);
+                LOGGER.info("[LayoutPersistence] 已迁移布局文件到世界目录: {} -> {}", legacyLayout, targetLayout);
+            }
+
+            if (!Files.exists(targetIni) && Files.exists(legacyIni) && !legacyIni.equals(targetIni)) {
+                Path parent = targetIni.getParent();
+                if (parent != null && !Files.exists(parent)) {
+                    Files.createDirectories(parent);
+                }
+                Files.copy(legacyIni, targetIni);
+                LOGGER.info("[LayoutPersistence] 已迁移 ImGui INI 到世界目录: {} -> {}", legacyIni, targetIni);
+            }
+        } catch (Exception e) {
+            LOGGER.warn("[LayoutPersistence] 迁移旧布局文件失败: {}", e.getMessage(), e);
+        }
+    }
     
     /**
      * 删除布局预设
@@ -525,7 +566,7 @@ public class LayoutPersistenceManager {
      */
     public boolean deleteLayoutPreset(String presetName) {
         try {
-            Path presetFile = LAYOUT_DIR.resolve("presets").resolve(sanitizePresetName(presetName) + ".json");
+            Path presetFile = LEGACY_LAYOUT_DIR.resolve("presets").resolve(sanitizePresetName(presetName) + ".json");
             if (Files.exists(presetFile)) {
                 Files.delete(presetFile);
                 LOGGER.info("[LayoutPersistence] 已删除布局预设: {}", presetName);

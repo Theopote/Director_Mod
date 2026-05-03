@@ -1860,8 +1860,29 @@ public class DirectorUIManager {
         // 根据布局还原面板可见性
         restorePanelVisibilityFromLayout();
 
+        // 强制同步当前存档的项目数据，避免跨存档内存残留（容器/时间线/Actor）。
+        synchronizeWorldScopedState("DirectorUIManager.init");
+
         logInfo("UI Manager initialized with {} panels using modern IoC", panelRegistry.size());
         logDebugState(() -> "Panel registry: " + panelRegistry.getDebugInfo());
+    }
+
+    private void synchronizeWorldScopedState(String source) {
+        try {
+            com.director.core.container.persistence.ContainerPersistence.loadForCurrentWorld(
+                com.director.core.container.ContainerManager.getInstance());
+        } catch (Exception e) {
+            LOGGER.warn("[Director] 同步当前存档容器数据失败 (source={}): {}", source, e.getMessage(), e);
+        }
+
+        try {
+            TimelinePanel timelinePanel = panelRegistry.getPanel(TimelinePanel.class);
+            if (timelinePanel != null) {
+                timelinePanel.reloadForCurrentWorld();
+            }
+        } catch (Exception e) {
+            LOGGER.warn("[Director] 同步当前存档时间线数据失败 (source={}): {}", source, e.getMessage(), e);
+        }
     }
 
     private void initializeLayout(LayoutInitPolicy layoutInitPolicy) {

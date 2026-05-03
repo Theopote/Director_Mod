@@ -81,9 +81,7 @@ public class TimelineModelPersistence {
             // ✅ 最佳实践：把工程文件写进世界存档目录，天然“仅绑定当前存档”
             return worldDir.resolve("timeline_model.json");
         }
-        // 兜底：写入 config（用于无法获取世界目录的场景）
-        String worldId = WorldIdentifier.getCurrentWorldId();
-        return CONFIG_DIR.resolve("timelines").resolve(worldId + "_timeline_model.json");
+        return null;
     }
 
     /**
@@ -91,6 +89,9 @@ public class TimelineModelPersistence {
      */
     private static Path getLegacyTimelineFile() {
         String worldId = WorldIdentifier.getCurrentWorldId();
+        if (worldId == null || worldId.isEmpty() || "default".equals(worldId)) {
+            return null;
+        }
         return CONFIG_DIR.resolve("timelines").resolve(worldId + "_timeline_model.json");
     }
 
@@ -1064,6 +1065,10 @@ public class TimelineModelPersistence {
     public static void saveToFile(TimelineModel model, TimelineViewportState viewportState) {
         try {
             Path timelineFile = getTimelineFile();
+            if (timelineFile == null) {
+                LOGGER.debug("[TimelineModelPersistence] 当前无活动存档目录，跳过保存");
+                return;
+            }
             
             // 确保配置目录存在
             if (!Files.exists(timelineFile.getParent())) {
@@ -1086,9 +1091,13 @@ public class TimelineModelPersistence {
         try {
             Path timelineFile = getTimelineFile();
             Path legacy = getLegacyTimelineFile();
+            if (timelineFile == null) {
+                LOGGER.debug("[TimelineModelPersistence] 当前无活动存档目录，跳过加载");
+                return;
+            }
 
             // 自动迁移：优先使用世界目录；若世界目录没有但旧 config 存在，则迁移一次
-            if (!Files.exists(timelineFile) && Files.exists(legacy) && !legacy.equals(timelineFile)) {
+            if (!Files.exists(timelineFile) && legacy != null && Files.exists(legacy) && !legacy.equals(timelineFile)) {
                 try {
                     if (!Files.exists(timelineFile.getParent())) {
                         Files.createDirectories(timelineFile.getParent());
@@ -1129,12 +1138,12 @@ public class TimelineModelPersistence {
      */
     public static boolean hasSavedData() {
         Path primary = getTimelineFile();
-        if (Files.exists(primary)) {
+        if (primary != null && Files.exists(primary)) {
             return true;
         }
         // 兼容旧位置（用于升级迁移的首次启动）
         Path legacy = getLegacyTimelineFile();
-        return Files.exists(legacy);
+        return legacy != null && Files.exists(legacy);
     }
 
     private static String getWorldFingerprint() {
@@ -1162,7 +1171,7 @@ public class TimelineModelPersistence {
     public static void resetForCurrentWorld() {
         try {
             Path file = getTimelineFile();
-            if (Files.exists(file)) {
+            if (file != null && Files.exists(file)) {
                 Files.delete(file);
                 LOGGER.info("[TimelineModelPersistence] 已删除世界 {} 的时间线存档: {}",
                         WorldIdentifier.getCurrentWorldId(), file);
@@ -1170,7 +1179,7 @@ public class TimelineModelPersistence {
 
             // 兼容：同时删除旧位置的存档，避免“新建动画”后旧文件又被迁移回来
             Path legacy = getLegacyTimelineFile();
-            if (Files.exists(legacy) && !legacy.equals(file)) {
+            if (legacy != null && Files.exists(legacy) && !legacy.equals(file)) {
                 Files.delete(legacy);
                 LOGGER.info("[TimelineModelPersistence] 已删除旧位置时间线存档: {}", legacy);
             }

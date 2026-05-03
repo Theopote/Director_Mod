@@ -3,10 +3,12 @@ package com.director.util;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.registry.RegistryKey;
+import net.minecraft.util.WorldSavePath;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
@@ -95,6 +97,14 @@ public class WorldIdentifier {
      */
     private static String computeWorldId(MinecraftClient client, RegistryKey<World> worldKey) {
         try {
+            // 优先使用真实存档目录名，避免显示名称变更或同名世界导致串档。
+            Path savePath = getWorldSavePath();
+            if (savePath != null && savePath.getFileName() != null) {
+                String worldId = sanitizeWorldName(savePath.getFileName().toString());
+                LOGGER.debug("[WorldIdentifier] 从存档目录获取世界ID: {} -> {}", savePath, worldId);
+                return worldId;
+            }
+
             // 优先方法：从服务器获取存档名称（同一存档的所有维度共享布局）
             if (client.getServer() != null) {
                 String levelName = client.getServer().getSaveProperties().getLevelName();
@@ -197,20 +207,41 @@ public class WorldIdentifier {
             if (client == null) {
                 return null;
             }
+
+            // 优先：直接询问当前单机服务器的真实存档根目录（最可靠）。
+            if (client.getServer() != null) {
+                try {
+                    Path serverSavePath = client.getServer().getSavePath(WorldSavePath.ROOT);
+                    if (serverSavePath != null && Files.exists(serverSavePath)) {
+                        return serverSavePath.toAbsolutePath().normalize();
+                    }
+                } catch (Exception e) {
+                    LOGGER.debug("[WorldIdentifier] 通过服务器API获取存档路径失败，回退到目录扫描: {}", e.getMessage());
+                }
+            }
             
             // 尝试从运行目录获取
             Path runDir = Paths.get(".");
             Path savesDir = runDir.resolve("saves");
             
             if (savesDir.toFile().exists()) {
-                String worldId = getCurrentWorldId();
-                if (!"default".equals(worldId)) {
+                String levelName = null;
+                if (client.getServer() != null && client.getServer().getSaveProperties() != null) {
+                    levelName = client.getServer().getSaveProperties().getLevelName();
+                }
+
+                if (levelName != null && !levelName.isEmpty()) {
+                    String expectedSanitized = sanitizeWorldName(levelName);
                     // 尝试查找对应的世界目录
                     java.io.File[] saves = savesDir.toFile().listFiles();
                     if (saves != null) {
                         for (java.io.File save : saves) {
-                            if (save.isDirectory() && sanitizeWorldName(save.getName()).equals(worldId)) {
-                                return save.toPath();
+                            if (!save.isDirectory()) {
+                                continue;
+                            }
+                            String dirName = save.getName();
+                            if (dirName.equals(levelName) || sanitizeWorldName(dirName).equals(expectedSanitized)) {
+                                return save.toPath().toAbsolutePath().normalize();
                             }
                         }
                     }
