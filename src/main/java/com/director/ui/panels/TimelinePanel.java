@@ -19,6 +19,7 @@ import com.director.ui.timeline.model.camera.CameraKeyframe;
 import com.director.ui.timeline.model.entity.EntityClipKeyframe;
 import com.director.ui.timeline.model.time.TimeKeyframe;
 import com.director.ui.timeline.model.weather.WeatherKeyframe;
+import com.director.ui.timeline.render.TimelineColors;
 import com.director.ui.timeline.render.TimelineRenderer;
 import com.director.ui.timeline.state.*;
 import com.director.ui.timeline.ui.TimelineControlBar;
@@ -94,6 +95,12 @@ public class TimelinePanel extends AbstractPanel
     private static final float RULER_INTERACTION_MIN_WIDTH = 10f;
     /** 虚拟滚动条底部填充（像素），用于改善滚动体验 */
     private static final float DUMMY_SCROLL_PADDING = 50.0f;
+    /** In/Out 标签宽度 */
+    private static final float RANGE_TAG_WIDTH = 28.0f;
+    /** In/Out 标签高度 */
+    private static final float RANGE_TAG_HEIGHT = 14.0f;
+    /** In/Out 标签与线的水平间距 */
+    private static final float RANGE_TAG_GAP = 4.0f;
 
     // ========== 核心组件（框架优化）==========
     private final TimelineModel model;
@@ -851,6 +858,9 @@ public class TimelinePanel extends AbstractPanel
         // 手柄在底部三角内，所以不需要向上扩展剪裁区域
         pushClipRectSafe(drawList, contentX, winY, contentX + contentW, trackAreaBottom);
 
+        // 在播放头下方绘制 In/Out 参考线，播放头保持最上层可读性。
+        renderPlaybackRangeGuides(drawList, contentX, winY, contentW, trackAreaBottom);
+
         // 注意参数调整：
         // - contentY 用 winY（Header 顶部），以便 renderer 计算正确的手柄位置
         // - contentH 用 availH（总高度），让播放头线画到底部
@@ -860,6 +870,103 @@ public class TimelinePanel extends AbstractPanel
 
         // 9) 把光标移动到子窗口下面，避免下一个控件重叠
         ImGui.setCursorScreenPos(winX, trackRegionTop + trackViewportHeight);
+    }
+
+    private void renderPlaybackRangeGuides(
+            ImDrawList drawList,
+            float contentX,
+            float rulerTop,
+            float contentW,
+            float trackAreaBottom
+    ) {
+        if (model == null || contentW <= 0f) {
+            return;
+        }
+
+        boolean hasIn = model.hasInPoint();
+        boolean hasOut = model.hasOutPoint();
+        if (!hasIn && !hasOut) {
+            return;
+        }
+
+        float duration = model.getDuration();
+        if (duration <= 0f) {
+            return;
+        }
+
+        float inPoint = model.getInPoint();
+        float outPoint = model.getOutPoint();
+        boolean overlap = hasIn && hasOut && Math.abs(inPoint - outPoint) < 0.001f;
+
+        if (hasIn) {
+            renderPlaybackRangeGuide(
+                    drawList,
+                    contentX,
+                    contentW,
+                    rulerTop,
+                    trackAreaBottom,
+                    inPoint,
+                    "IN",
+                    true,
+                    TimelineColors.rgba(80, 210, 120, 210),
+                    0f
+            );
+        }
+
+        if (hasOut) {
+            renderPlaybackRangeGuide(
+                    drawList,
+                    contentX,
+                    contentW,
+                    rulerTop,
+                    trackAreaBottom,
+                    outPoint,
+                    "OUT",
+                    false,
+                    TimelineColors.rgba(255, 185, 70, 210),
+                    overlap ? (RANGE_TAG_HEIGHT + 2f) : 0f
+            );
+        }
+    }
+
+    private void renderPlaybackRangeGuide(
+            ImDrawList drawList,
+            float contentX,
+            float contentW,
+            float rulerTop,
+            float trackAreaBottom,
+            float time,
+            String label,
+            boolean placeRight,
+            int lineColor,
+            float tagYOffset
+    ) {
+        float x = renderer.timeToX(time, contentX);
+        float minX = contentX;
+        float maxX = contentX + contentW;
+        if (x < minX - 2f || x > maxX + 2f) {
+            return;
+        }
+
+        float xAligned = (float) Math.floor(x) + 0.5f;
+
+        // 竖线（阴影 + 主线），与播放头/吸附线风格一致。
+        drawList.addRectFilled(xAligned - 1.5f, rulerTop, xAligned + 1.5f, trackAreaBottom, TimelineColors.rgba(0, 0, 0, 70));
+        drawList.addRectFilled(xAligned - 0.5f, rulerTop, xAligned + 0.5f, trackAreaBottom, lineColor);
+
+        float tagTop = rulerTop + 2f + tagYOffset;
+        float tagBottom = tagTop + RANGE_TAG_HEIGHT;
+        float tagLeft = placeRight
+                ? xAligned + RANGE_TAG_GAP
+                : xAligned - RANGE_TAG_GAP - RANGE_TAG_WIDTH;
+        tagLeft = clamp(tagLeft, minX, maxX - RANGE_TAG_WIDTH);
+        float tagRight = tagLeft + RANGE_TAG_WIDTH;
+
+        int tagBg = TimelineColors.adjustAlpha(lineColor, 55);
+        int tagBorder = TimelineColors.adjustAlpha(lineColor, 200);
+        drawList.addRectFilled(tagLeft, tagTop, tagRight, tagBottom, tagBg, 2.0f);
+        drawList.addRect(tagLeft, tagTop, tagRight, tagBottom, tagBorder, 2.0f, 0, 1.0f);
+        drawList.addText(tagLeft + 5f, tagTop + 2f, TimelineColors.COLOR_TEXT_LIGHT, label);
     }
 
     /**
