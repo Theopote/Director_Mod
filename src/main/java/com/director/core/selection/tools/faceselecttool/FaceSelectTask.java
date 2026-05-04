@@ -201,10 +201,6 @@ public class FaceSelectTask implements Runnable {
             return false;
         }
 
-        if (config.isIgnoreTransparent() && state.isAir()) {
-            return false;
-        }
-
         if (config.isIgnoreTransparent() && !state.isOpaque()) {
             return false;
         }
