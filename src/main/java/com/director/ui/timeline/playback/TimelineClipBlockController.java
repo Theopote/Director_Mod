@@ -69,6 +69,8 @@ import java.util.*;
  */
 public class TimelineClipBlockController {
     private static final Logger LOGGER = LoggerFactory.getLogger(TimelineClipBlockController.class);
+    private static final int MAX_WORLD_PLACEMENTS_PER_TICK = 128;
+    private static final int MAX_WORLD_PLACEMENTS_PER_CONTAINER_PER_TICK = 48;
 
     private static TimelineClipBlockController instance;
     private TimelineModel timelineModel;
@@ -298,12 +300,12 @@ public class TimelineClipBlockController {
         visualStateManager.clearFrame(); // 这会清空 visualOverrides 和 renderEntries
 
         // currentFrameVisibleBlocks：保持为“渲染可见集合”（用于遮挡/overlay/视觉状态）
-        Map<UUID, Set<BlockPos>> currentFrameVisibleBlocks = new HashMap<>();
+        Map<UUID, Set<BlockPos>> currentFrameVisibleBlocks = new LinkedHashMap<>();
         // currentFrameWorldBlocks：用于真实世界方块落地（showContainerBlocks）
-        Map<UUID, Set<BlockPos>> currentFrameWorldBlocks = new HashMap<>();
-        Map<UUID, Float> currentFrameOpacity = new HashMap<>();
-        Map<UUID, List<BlockSequenceEntry>> currentFrameSequences = new HashMap<>();
-        Map<UUID, ClipAnimationConfig> currentFrameConfigs = new HashMap<>();
+        Map<UUID, Set<BlockPos>> currentFrameWorldBlocks = new LinkedHashMap<>();
+        Map<UUID, Float> currentFrameOpacity = new LinkedHashMap<>();
+        Map<UUID, List<BlockSequenceEntry>> currentFrameSequences = new LinkedHashMap<>();
+        Map<UUID, ClipAnimationConfig> currentFrameConfigs = new LinkedHashMap<>();
 
         // 本帧世界方块（AIR/恢复）变化导致的重渲染位置（与视觉覆盖层无关）
         Set<BlockPos> worldStateChangedBlocksForRerender = new HashSet<>();
@@ -374,6 +376,8 @@ public class TimelineClipBlockController {
                 }
             }
         }
+
+        throttleWorldPlacements(currentFrameWorldBlocks, currentFrameSequences);
         final long tAfterVisible = System.nanoTime();
 
         // ✅ 步骤1.5：根据“上一帧可见集 vs 当前帧可见集”推导世界方块变化量，提前为区块重建收集 pos
@@ -848,6 +852,84 @@ public class TimelineClipBlockController {
      * <li>清除轨道：强制不清除（保留全量）</li>
      * </ul>
      */
+    private void throttleWorldPlacements(Map<UUID, Set<BlockPos>> currentFrameWorldBlocks,
+            Map<UUID, List<BlockSequenceEntry>> currentFrameSequences) {
+        if (currentFrameWorldBlocks == null || currentFrameWorldBlocks.isEmpty()) {
+            return;
+        }
+
+        int remainingGlobalBudget = MAX_WORLD_PLACEMENTS_PER_TICK;
+        int throttledContainers = 0;
+        int deferredPlacements = 0;
+
+        for (Map.Entry<UUID, Set<BlockPos>> entry : currentFrameWorldBlocks.entrySet()) {
+            UUID containerId = entry.getKey();
+            Set<BlockPos> desired = entry.getValue() != null ? entry.getValue() : Collections.emptySet();
+            Set<BlockPos> previous = lastFrameWorldBlocks.getOrDefault(containerId, Collections.emptySet());
+
+            LinkedHashSet<BlockPos> applied = new LinkedHashSet<>(previous);
+            applied.retainAll(desired); // removals happen immediately
+
+            if (desired.isEmpty() || remainingGlobalBudget <= 0) {
+                if (remainingGlobalBudget <= 0 && desired.size() > applied.size()) {
+                    throttledContainers++;
+                    deferredPlacements += desired.size() - applied.size();
+                }
+                entry.setValue(applied);
+                continue;
+            }
+
+            List<BlockPos> orderedAdditions = collectOrderedAdditions(containerId, desired, previous, currentFrameSequences);
+            if (orderedAdditions.isEmpty()) {
+                entry.setValue(applied);
+                continue;
+            }
+
+            int containerBudget = Math.min(MAX_WORLD_PLACEMENTS_PER_CONTAINER_PER_TICK, remainingGlobalBudget);
+            int allowed = Math.min(containerBudget, orderedAdditions.size());
+            for (int i = 0; i < allowed; i++) {
+                applied.add(orderedAdditions.get(i));
+            }
+
+            remainingGlobalBudget -= allowed;
+            int deferred = orderedAdditions.size() - allowed;
+            if (deferred > 0) {
+                throttledContainers++;
+                deferredPlacements += deferred;
+            }
+
+            entry.setValue(applied);
+        }
+
+        if (throttledContainers > 0 && LOGGER.isDebugEnabled()) {
+            LOGGER.debug("[TimelineClipBlockController] 节流世界落地: containers={}, deferredPlacements={}, budgetPerTick={}, perContainer={}",
+                throttledContainers, deferredPlacements, MAX_WORLD_PLACEMENTS_PER_TICK, MAX_WORLD_PLACEMENTS_PER_CONTAINER_PER_TICK);
+        }
+    }
+
+    private List<BlockPos> collectOrderedAdditions(UUID containerId,
+            Set<BlockPos> desired,
+            Set<BlockPos> previous,
+            Map<UUID, List<BlockSequenceEntry>> currentFrameSequences) {
+        LinkedHashSet<BlockPos> ordered = new LinkedHashSet<>();
+        List<BlockSequenceEntry> entries = currentFrameSequences != null ? currentFrameSequences.get(containerId) : null;
+        if (entries != null) {
+            for (BlockSequenceEntry entry : entries) {
+                BlockPos pos = entry != null ? entry.getPos() : null;
+                if (pos != null && desired.contains(pos) && !previous.contains(pos)) {
+                    ordered.add(pos);
+                }
+            }
+        }
+
+        for (BlockPos pos : desired) {
+            if (!previous.contains(pos)) {
+                ordered.add(pos);
+            }
+        }
+        return new ArrayList<>(ordered);
+    }
+
     private VisibleBlocksResult calculateVisibleBlocks(TimelineClip clip,
             float currentTime,
             boolean trackEnabled,

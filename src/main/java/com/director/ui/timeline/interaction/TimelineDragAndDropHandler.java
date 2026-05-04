@@ -5,6 +5,8 @@ import com.director.core.container.ContainerManager;
 import com.director.core.container.ContainerType;
 import com.director.core.container.ContainerAnimationPreset;
 import com.director.core.animation.ClipAnimationConfig;
+import com.director.core.animation.sequence.ConcurrencyMode;
+import com.director.core.animation.sequence.SequenceParameters;
 import com.director.ui.timeline.model.TimelineClip;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;
@@ -26,6 +28,12 @@ import java.util.UUID;
  */
 public class TimelineDragAndDropHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(TimelineDragAndDropHandler.class);
+    private static final float MIN_CLIP_DURATION_SECONDS = 2.0f;
+    private static final float MAX_INITIAL_CLIP_DURATION_SECONDS = 300.0f;
+    private static final float SAFE_DEFAULT_BLOCKS_PER_SECOND = 200.0f;
+    private static final int SAFE_MAX_CONCURRENT_BLOCKS = 64;
+    private static final int HEAVY_CONTAINER_BLOCK_THRESHOLD = 512;
+    private static final float SAFE_BATCH_INTERVAL_SECONDS = 0.05f;
 
     private final TimelineModel model;
     private final Runnable onDataChangedCallback;
@@ -205,7 +213,7 @@ public class TimelineDragAndDropHandler {
                 dropTime = Math.max(0f, Math.min(dropTime, model.getDuration() - 1f));
 
                 // 计算初始片段时长
-                float duration = calculateInitialClipDuration(container);
+                float duration = calculateInitialClipDurationSafe(container);
 
                 // 创建片段（颜色跟随轨道类型）
                 int clipColor = trackType.getClipColor();
@@ -386,6 +394,7 @@ public class TimelineDragAndDropHandler {
             }
             
             // 应用配置到片段
+            applySafetyDefaults(config, container, clipDuration);
             clip.setAnimationConfig(config);
             
             LOGGER.info("[DragDrop] 片段 {} 动画配置已初始化：模式={}, 时长={}s, 缓动={}",
@@ -397,6 +406,69 @@ public class TimelineDragAndDropHandler {
             LOGGER.error("[DragDrop] 初始化片段动画配置失败，使用默认配置", e);
             // 使用默认配置作为后备
             clip.setAnimationConfig(ClipAnimationConfig.defaultConfig());
+        }
+    }
+
+    private float calculateInitialClipDurationSafe(Container container) {
+        if (container == null) {
+            return MIN_CLIP_DURATION_SECONDS;
+        }
+
+        int blockCount = container.getTotalBlockCount();
+        if (blockCount <= 0) {
+            return MIN_CLIP_DURATION_SECONDS;
+        }
+
+        float durationFromRate = blockCount / SAFE_DEFAULT_BLOCKS_PER_SECOND;
+        float durationFromConcurrency =
+            (float) Math.ceil(blockCount / (float) SAFE_MAX_CONCURRENT_BLOCKS) * SAFE_BATCH_INTERVAL_SECONDS;
+        float duration = Math.max(MIN_CLIP_DURATION_SECONDS, Math.max(durationFromRate, durationFromConcurrency));
+        duration = Math.min(duration, MAX_INITIAL_CLIP_DURATION_SECONDS);
+
+        LOGGER.info("[DragDrop] 容器 {} 含 {} 个方块，默认片段时长按安全速率调整为 {}s",
+            container.getName(), blockCount, duration);
+        return duration;
+    }
+
+    private void applySafetyDefaults(ClipAnimationConfig config, Container container, float clipDuration) {
+        if (config == null || container == null) {
+            return;
+        }
+
+        int blockCount = container.getTotalBlockCount();
+        if (blockCount < HEAVY_CONTAINER_BLOCK_THRESHOLD) {
+            return;
+        }
+
+        SequenceParameters params = config.getSequenceParameters();
+        if (params == null) {
+            params = new SequenceParameters();
+            config.setSequenceParameters(params);
+            params = config.getSequenceParameters();
+        }
+
+        boolean changed = false;
+        if (params.getConcurrencyMode() == ConcurrencyMode.ALL_AT_ONCE) {
+            params.setConcurrencyMode(ConcurrencyMode.IN_BATCHES);
+            changed = true;
+        }
+
+        int safeBatchSize = Math.max(1, Math.min(SAFE_MAX_CONCURRENT_BLOCKS, params.getBatchSize()));
+        if (params.getBatchSize() != safeBatchSize) {
+            params.setBatchSize(safeBatchSize);
+            changed = true;
+        }
+
+        float recommendedInterval = Math.max(SAFE_BATCH_INTERVAL_SECONDS,
+            Math.min(clipDuration / Math.max(1.0f, (float) Math.ceil(blockCount / (float) safeBatchSize)), 0.25f));
+        if (params.getBatchInterval() < recommendedInterval) {
+            params.setBatchInterval(recommendedInterval);
+            changed = true;
+        }
+
+        if (changed) {
+            LOGGER.info("[DragDrop] 容器 {} 方块较多({})，片段默认并发已降级为安全批次模式: batchSize={}, interval={}s",
+                container.getName(), blockCount, params.getBatchSize(), params.getBatchInterval());
         }
     }
 }
