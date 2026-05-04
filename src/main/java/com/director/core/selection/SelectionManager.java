@@ -278,27 +278,6 @@ public class SelectionManager {
             LOGGER.warn("[SelectionManager] 没有当前工具，无法处理点击事件");
         }
     }
-    
-    /**
-     * 澶勭悊鍙抽敭鐐瑰嚮浜嬩欢
-     */
-    public void handleRightClick(World world, BlockPos pos) {
-        LOGGER.debug("[SelectionManager] 澶勭悊鍙抽敭鐐瑰嚮浜嬩欢: pos={}, currentTool={}", 
-            pos, currentTool != null ? currentTool.getId() : "null");
-        
-        if (currentTool != null) {
-            // 鍙戝竷宸ュ叿鍙抽敭鐐瑰嚮浜嬩欢
-            getEventProcessorInternal().processToolClick(world, pos, false, true);
-            
-            // 鎵ц宸ュ叿鍙抽敭鐐瑰嚮閫昏緫
-            currentTool.onRightClick(world, pos);
-            
-            // 閫氱煡閫夋嫨鍙樺寲
-            notifySelectionChanged();
-        } else {
-            LOGGER.debug("[SelectionManager] 没有当前工具，无法处理右键点击事件");
-        }
-    }
 
     /**
      * 澶勭悊鎷栨嫿寮€濮?
