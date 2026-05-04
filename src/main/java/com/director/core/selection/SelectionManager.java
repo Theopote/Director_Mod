@@ -3,6 +3,7 @@ package com.director.core.selection;
 import com.director.client.renderer.SelectionRenderer;
 import com.director.client.renderer.ToolPreviewManager;
 import com.director.core.selection.tools.FaceHandleManager;
+import com.director.core.selection.tools.boxselecttool.BoxSelectTool;
 import com.director.core.selection.events.*;
 import com.director.core.selection.block_filters.BlockFilter;
 import com.director.core.selection.block_filters.BlockFilterPipeline;
@@ -217,6 +218,7 @@ public class SelectionManager {
      */
     public void addToSelection(BlockPos pos) { 
         if (pos != null) {
+            emptySelectionBounds = null;
             selectionSet.add(pos);
             // 馃殌 v2.0: 浣跨綉鏍肩紦瀛樺け鏁?
             invalidateRendererCache();
@@ -227,6 +229,7 @@ public class SelectionManager {
      * 鎵归噺娣诲姞鍒伴€夊尯
      */
     public void addAllToSelection(Collection<BlockPos> positions) {
+        emptySelectionBounds = null;
         selectionSet.addAll(positions);
         // 馃殌 v2.0: 浣跨綉鏍肩紦瀛樺け鏁?
         invalidateRendererCache();
@@ -237,6 +240,7 @@ public class SelectionManager {
      */
     public void removeFromSelection(BlockPos pos) { 
         if (pos != null) {
+            emptySelectionBounds = null;
             selectionSet.remove(pos);
             // 馃殌 v2.0: 浣跨綉鏍肩紦瀛樺け鏁?
             invalidateRendererCache();
@@ -246,6 +250,16 @@ public class SelectionManager {
     /**
      * 馃殌 v2.0: 浣挎覆鏌撳櫒缂撳瓨澶辨晥鐨勮緟鍔╂柟娉?
      */
+    public void setSelectionBoundsOverride(Box bounds) {
+        emptySelectionBounds = copyBox(bounds);
+        invalidateRendererCache();
+    }
+
+    public void clearSelectionBoundsOverride() {
+        emptySelectionBounds = null;
+        invalidateRendererCache();
+    }
+
     private void invalidateRendererCache() {
         try {
             SelectionRenderer.getInstance().invalidateCache();
@@ -708,7 +722,7 @@ public class SelectionManager {
         }
 
         Box bounds = getCurrentBounds();
-        if (bounds == null || selectionSet.isEmpty()) {
+        if (bounds == null) {
             return;
         }
         
@@ -907,6 +921,9 @@ public class SelectionManager {
      * @return 褰撳墠閫夊尯鐨勫寘鍥寸洅锛屽鏋滈€夊尯涓虹┖鍒欒繑鍥?null
      */
     public Box getCurrentBounds() {
+        if (currentTool instanceof BoxSelectTool && emptySelectionBounds != null) {
+            return copyBox(emptySelectionBounds);
+        }
         if (selectionSet.isEmpty()) {
             return emptySelectionBounds != null ? copyBox(emptySelectionBounds) : null;
         }

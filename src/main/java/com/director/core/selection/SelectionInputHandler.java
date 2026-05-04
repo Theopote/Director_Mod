@@ -367,7 +367,7 @@ public class SelectionInputHandler {
             return;
         }
 
-        if (!RenderSettings.get().selection_showBoundingBox || selectionManager.getSelectionSet().isEmpty()) {
+        if (!RenderSettings.get().selection_showBoundingBox) {
             if (faceHandleManager.isDragging()) {
                 faceHandleManager.cancelDrag();
             } else {

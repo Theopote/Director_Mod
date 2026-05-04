@@ -526,7 +526,10 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
 
     @Override
     public boolean shouldRenderOverlay() {
-        return phase != SelectionPhase.IDLE || !SelectionManager.get().getSelectionSet().isEmpty();
+        SelectionManager manager = SelectionManager.get();
+        return phase != SelectionPhase.IDLE
+            || !manager.getSelectionSet().isEmpty()
+            || manager.getCurrentBounds() != null;
     }
 
     @Override
@@ -588,6 +591,12 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
 
         SelectionManager manager = SelectionManager.get();
         SelectionSet set = manager.getSelectionSet();
+
+        if (operation == SelectionOperation.NEW) {
+            manager.setSelectionBoundsOverride(box);
+        } else {
+            manager.clearSelectionBoundsOverride();
+        }
         
         // 📊 记录操作前状态（用于历史记录）
         SelectionState beforeState = SelectionState.of(set.asUnmodifiableSet(), getId());
@@ -639,27 +648,23 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
         SelectionEvents.fireChanged(SelectionChangeType.SELECTION_UPDATED);
 
         // 🧭 激活或停用 Bounds Gizmo（在包围盒几何中心，用于移动选区）
-        if (set.isEmpty()) {
-            // 选区为空时，停用 Gizmo
+        Box bounds = manager.getCurrentBounds();
+        if (bounds == null) {
             clearGizmo();
-        } else if (delta > 0) {
-            // 选区不为空且有变化时，激活 Gizmo
-            Box bounds = manager.getCurrentBounds();
-            if (bounds != null) {
-                // 计算包围盒的几何中心
-                Vec3d pivot = new Vec3d(
-                    (bounds.minX + bounds.maxX) / 2.0,
-                    (bounds.minY + bounds.maxY) / 2.0,
-                    (bounds.minZ + bounds.maxZ) / 2.0
-                );
-                try {
-                    GizmoManager.get().activate(GizmoType.BOUNDS, bounds, pivot);
-                    gizmoActive = true;
-                    LOGGER.info("[BoxSelectTool] ✅ 已激活 Gizmo（几何中心）：Box={}, Pivot={}", bounds, pivot);
-                } catch (Exception e) {
-                    LOGGER.warn("[BoxSelectTool] 激活 Gizmo 失败", e);
-                    gizmoActive = false;
-                }
+        } else if (delta > 0 || operation == SelectionOperation.NEW) {
+            // 选区变化或新建包围盒时，激活/更新 Gizmo
+            Vec3d pivot = new Vec3d(
+                (bounds.minX + bounds.maxX) / 2.0,
+                (bounds.minY + bounds.maxY) / 2.0,
+                (bounds.minZ + bounds.maxZ) / 2.0
+            );
+            try {
+                GizmoManager.get().activate(GizmoType.BOUNDS, bounds, pivot);
+                gizmoActive = true;
+                LOGGER.info("[BoxSelectTool] ✅ 已激活 Gizmo（几何中心）：Box={}, Pivot={}", bounds, pivot);
+            } catch (Exception e) {
+                LOGGER.warn("[BoxSelectTool] 激活 Gizmo 失败", e);
+                gizmoActive = false;
             }
         }
     }

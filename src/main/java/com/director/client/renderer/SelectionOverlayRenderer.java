@@ -71,7 +71,7 @@ public final class SelectionOverlayRenderer {
         if (manager == null || !manager.hasCurrentTool()) return;
 
         var selection = manager.getCurrentSelection();
-        if (selection == null || selection.isEmpty()) return;
+        if (selection == null) return;
 
         Vec3d camPos = camera.getPos();
         Matrix4f matrix = matrices.peek().getPositionMatrix();
@@ -90,14 +90,12 @@ public final class SelectionOverlayRenderer {
         // === 绘制中心锚点 ===
         // ✅ 直接从全局设置读取颜色（实时生效）
         float[] anchorColor = settings.tool_outlineColor;
-        selection.getBoundingBox().ifPresent(bbox -> {
-            Vec3d anchor = new Vec3d(
-                (bbox.getMinX() + bbox.getMaxX() + 1) / 2.0,
-                (bbox.getMinY() + bbox.getMaxY() + 1) / 2.0,
-                (bbox.getMinZ() + bbox.getMaxZ() + 1) / 2.0
-            );
-            drawAnchor(matrix, consumers.getBuffer(RenderLayer.getLines()), anchor.subtract(camPos), anchorColor);
-        });
+        Vec3d anchor = new Vec3d(
+            (baseBox.minX + baseBox.maxX) / 2.0,
+            (baseBox.minY + baseBox.maxY) / 2.0,
+            (baseBox.minZ + baseBox.maxZ) / 2.0
+        );
+        drawAnchor(matrix, consumers.getBuffer(RenderLayer.getLines()), anchor.subtract(camPos), anchorColor);
 
         GlStateManager._disableBlend();
     }

@@ -192,7 +192,8 @@ public final class SelectionRenderer {
         if (manager == null || !manager.hasCurrentTool()) return null;
 
         SelectionState state = manager.getCurrentSelection();
-        if (state == null || state.isEmpty()) return null;
+        if (state == null) return null;
+        if (state.isEmpty() && manager.getCurrentBounds() == null) return null;
 
         // 检查是否需要渲染（填充或线框）- 直接从 settings 读取
         if (requireFill) {
@@ -491,10 +492,8 @@ public final class SelectionRenderer {
                             worldBox = manager.getBoundsGizmoMovePreviewBounds();
                         } else if (manager.isFaceResizeActive() && manager.getResizePreviewBounds() != null) {
                             worldBox = manager.getResizePreviewBounds();
-                        } else if (blocks.size() > 1 && state.getBoundingBox().isPresent()) {
-                            SelectionState.BoundingBox bbox = state.getBoundingBox().get();
-                            worldBox = new Box(bbox.getMinX(), bbox.getMinY(), bbox.getMinZ(),
-                                            bbox.getMaxX() + 1, bbox.getMaxY() + 1, bbox.getMaxZ() + 1);
+                        } else {
+                            worldBox = manager.getCurrentBounds();
                         }
                     }
                     if (worldBox != null) {
