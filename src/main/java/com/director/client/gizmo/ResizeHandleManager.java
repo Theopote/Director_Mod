@@ -177,7 +177,7 @@ public class ResizeHandleManager {
             // 🧩 实时联动：调用 SelectionManager.expandSelection()
             // 对于多轴手柄，需要分别沿每个轴扩展
             for (Axis axis : activeAxes) {
-                SelectionManager.get().expandSelection(axis, delta);
+                SelectionManager.get().expandSelection(axis, isMaxFaceHandle(activeHandleType, axis), delta);
             }
             
             lastWorldCoord = current;
@@ -283,6 +283,17 @@ public class ResizeHandleManager {
             case FACE_Z_POS, FACE_Z_NEG -> Set.of(Axis.Z);
             case CORNER_XYZ_PPP, CORNER_XYZ_PPN, CORNER_XYZ_PNP, CORNER_XYZ_PNN,
                  CORNER_XYZ_NPP, CORNER_XYZ_NPN, CORNER_XYZ_NNP, CORNER_XYZ_NNN -> Set.of(Axis.X, Axis.Y, Axis.Z);
+        };
+    }
+
+    private boolean isMaxFaceHandle(HandleType type, Axis axis) {
+        if (type == null) {
+            return true;
+        }
+        return switch (axis) {
+            case X -> type != HandleType.FACE_X_NEG;
+            case Y -> type != HandleType.FACE_Y_NEG;
+            case Z -> type != HandleType.FACE_Z_NEG;
         };
     }
     

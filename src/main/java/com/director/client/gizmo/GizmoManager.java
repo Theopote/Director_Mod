@@ -204,22 +204,22 @@ public class GizmoManager {
         // 创建六个面手柄（沿单一轴缩放）
         handles.add(new com.director.client.gizmo.handles.ResizeHandle(
             "face_x_min", com.director.client.gizmo.handles.ResizeHandle.Type.FACE,
-            new Vec3d(min.x, center.y, center.z), handleSize, Axis.X));
+            new Vec3d(min.x, center.y, center.z), handleSize, false, Axis.X));
         handles.add(new com.director.client.gizmo.handles.ResizeHandle(
             "face_x_max", com.director.client.gizmo.handles.ResizeHandle.Type.FACE,
-            new Vec3d(max.x, center.y, center.z), handleSize, Axis.X));
+            new Vec3d(max.x, center.y, center.z), handleSize, true, Axis.X));
         handles.add(new com.director.client.gizmo.handles.ResizeHandle(
             "face_y_min", com.director.client.gizmo.handles.ResizeHandle.Type.FACE,
-            new Vec3d(center.x, min.y, center.z), handleSize, Axis.Y));
+            new Vec3d(center.x, min.y, center.z), handleSize, false, Axis.Y));
         handles.add(new com.director.client.gizmo.handles.ResizeHandle(
             "face_y_max", com.director.client.gizmo.handles.ResizeHandle.Type.FACE,
-            new Vec3d(center.x, max.y, center.z), handleSize, Axis.Y));
+            new Vec3d(center.x, max.y, center.z), handleSize, true, Axis.Y));
         handles.add(new com.director.client.gizmo.handles.ResizeHandle(
             "face_z_min", com.director.client.gizmo.handles.ResizeHandle.Type.FACE,
-            new Vec3d(center.x, center.y, min.z), handleSize, Axis.Z));
+            new Vec3d(center.x, center.y, min.z), handleSize, false, Axis.Z));
         handles.add(new com.director.client.gizmo.handles.ResizeHandle(
             "face_z_max", com.director.client.gizmo.handles.ResizeHandle.Type.FACE,
-            new Vec3d(center.x, center.y, max.z), handleSize, Axis.Z));
+            new Vec3d(center.x, center.y, max.z), handleSize, true, Axis.Z));
         
         // 不再创建角点手柄
         // 用户只需要面中心小方块来调整选区大小，不需要角点手柄

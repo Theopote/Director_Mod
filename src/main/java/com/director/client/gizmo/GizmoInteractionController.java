@@ -14,9 +14,9 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * 🧭 GizmoInteractionController - Gizmo 交互控制器
+ * 馃Л GizmoInteractionController - Gizmo 浜や簰鎺у埗鍣?
  * 
- * 负责光线检测、Handle 检测优先级、拖拽状态机
+ * 璐熻矗鍏夌嚎妫€娴嬨€丠andle 妫€娴嬩紭鍏堢骇銆佹嫋鎷界姸鎬佹満
  * 
  * @author Director Team
  * @version 1.0
@@ -32,14 +32,14 @@ public class GizmoInteractionController {
     private List<com.director.client.gizmo.handles.ResizeHandle> resizeHandles = new ArrayList<>();
     private TransformApplier transformApplier;
 
-    // BOUNDS Gizmo：移动“包围盒(区域)”预览，松手后按过滤器重建选区
+    // BOUNDS Gizmo锛氱Щ鍔ㄢ€滃寘鍥寸洅(鍖哄煙)鈥濋瑙堬紝鏉炬墜鍚庢寜杩囨护鍣ㄩ噸寤洪€夊尯
     private final com.director.core.selection.SelectionManager selectionManager =
         com.director.core.selection.SelectionManager.get();
     private Vec3d boundsMoveCarry = Vec3d.ZERO;
     
     public GizmoInteractionController(GizmoContext context) {
         this.context = context;
-        // 初始化 TransformApplier
+        // 鍒濆鍖?TransformApplier
         this.transformApplier = new TransformApplier(
             com.director.core.selection.SelectionManager.get()
         );
@@ -50,52 +50,52 @@ public class GizmoInteractionController {
     }
     
     /**
-     * 更新交互状态
+     * 鏇存柊浜や簰鐘舵€?
      * 
-     * @param rayOrigin 射线起点
-     * @param rayDir 射线方向（归一化）
-     * @param mouseDown 鼠标是否按下
-     * @param mouseReleased 鼠标是否释放
+     * @param rayOrigin 灏勭嚎璧风偣
+     * @param rayDir 灏勭嚎鏂瑰悜锛堝綊涓€鍖栵級
+     * @param mouseDown 榧犳爣鏄惁鎸変笅
+     * @param mouseReleased 榧犳爣鏄惁閲婃斁
      */
     public void update(Vec3d rayOrigin, Vec3d rayDir, boolean mouseDown, boolean mouseReleased) {
         if (state == GizmoState.DRAGGING) {
             if (mouseReleased) {
-                // 结束拖拽
+                // 缁撴潫鎷栨嫿
                 endDrag();
             } else if (mouseDown && activeHandle != null) {
-                // 更新拖拽
+                // 鏇存柊鎷栨嫿
                 updateDrag(rayOrigin, rayDir);
             }
         } else {
             if (mouseDown) {
-                // 开始拖拽
+                // 寮€濮嬫嫋鎷?
                 startDrag(rayOrigin, rayDir);
             } else {
-                // 检测悬停
+                // 妫€娴嬫偓鍋?
                 detectHover(rayOrigin, rayDir);
             }
         }
     }
     
     /**
-     * 检测悬停
+     * 妫€娴嬫偓鍋?
      */
     private void detectHover(Vec3d rayOrigin, Vec3d rayDir) {
         GizmoHandle closestHandle = null;
         RotationHandle closestRotationHandle = null;
         double closestDistance = Double.POSITIVE_INFINITY;
         
-        // 优先检测旋转环（如果存在）
+        // 浼樺厛妫€娴嬫棆杞幆锛堝鏋滃瓨鍦級
         for (RotationHandle rotHandle : rotationHandles) {
             double distance = rotHandle.intersectRay(rayOrigin, rayDir);
             if (distance < closestDistance) {
                 closestDistance = distance;
                 closestRotationHandle = rotHandle;
-                closestHandle = null; // 旋转环优先
+                closestHandle = null; // 鏃嬭浆鐜紭鍏?
             }
         }
         
-        // 检测 ResizeHandle（优先级高于普通 Handle）
+        // 妫€娴?ResizeHandle锛堜紭鍏堢骇楂樹簬鏅€?Handle锛?
         for (com.director.client.gizmo.handles.ResizeHandle resizeHandle : resizeHandles) {
             HitResult hit = resizeHandle.intersectRay(rayOrigin, rayDir);
             if (hit.isHit() && hit.getDistance() < closestDistance) {
@@ -105,18 +105,18 @@ public class GizmoInteractionController {
             }
         }
         
-        // 检测普通 Handle
+        // 妫€娴嬫櫘閫?Handle
         for (GizmoHandle handle : handles) {
             HitResult hit = handle.intersectRay(rayOrigin, rayDir);
             if (hit.isHit() && hit.getDistance() < closestDistance) {
                 closestDistance = hit.getDistance();
                 closestHandle = handle;
-                closestRotationHandle = null; // 普通 Handle 优先于旋转环
+                closestRotationHandle = null; // 鏅€?Handle 浼樺厛浜庢棆杞幆
             }
         }
         
         if (closestRotationHandle != null) {
-            // 旋转环悬停（当前简化，不显示悬停状态）
+            // 鏃嬭浆鐜偓鍋滐紙褰撳墠绠€鍖栵紝涓嶆樉绀烘偓鍋滅姸鎬侊級
             hoveredHandle = null;
             state = GizmoState.HOVER;
         } else if (closestHandle != null) {
@@ -131,10 +131,10 @@ public class GizmoInteractionController {
     }
     
     /**
-     * 开始拖拽
+     * 寮€濮嬫嫋鎷?
      */
     private void startDrag(Vec3d rayOrigin, Vec3d rayDir) {
-        // 优先检测旋转环
+        // 浼樺厛妫€娴嬫棆杞幆
         for (RotationHandle rotHandle : rotationHandles) {
             double distance = rotHandle.intersectRay(rayOrigin, rayDir);
             if (distance < Double.POSITIVE_INFINITY) {
@@ -145,7 +145,7 @@ public class GizmoInteractionController {
             }
         }
         
-        // 检测普通 Handle
+        // 妫€娴嬫櫘閫?Handle
         if (hoveredHandle != null) {
             activeHandle = hoveredHandle;
             if (transformApplier != null) {
@@ -162,42 +162,42 @@ public class GizmoInteractionController {
     }
     
     /**
-     * 更新拖拽
+     * 鏇存柊鎷栨嫿
      * 
-     * 实时联动流程：
-     * - 计算拖拽增量（delta）
-     * - 应用变换（通过 TransformApplier）
-     * - TransformApplier → SelectionManager.expandSelection()
-     * - SelectionManager 自动更新预览框（通过 autoPreviewEnabled）
+     * 瀹炴椂鑱斿姩娴佺▼锛?
+     * - 璁＄畻鎷栨嫿澧為噺锛坉elta锛?
+     * - 搴旂敤鍙樻崲锛堥€氳繃 TransformApplier锛?
+     * - TransformApplier 鈫?SelectionManager.expandSelection()
+     * - SelectionManager 鑷姩鏇存柊棰勮妗嗭紙閫氳繃 autoPreviewEnabled锛?
      */
     private void updateDrag(Vec3d rayOrigin, Vec3d rayDir) {
         if (activeRotationHandle != null) {
-            // 更新旋转
+            // 鏇存柊鏃嬭浆
             activeRotationHandle.updateRotation(rayOrigin, rayDir);
             double deltaAngle = activeRotationHandle.getDeltaAngle();
             
-            // 应用旋转（通过 TransformApplier）
+            // 搴旂敤鏃嬭浆锛堥€氳繃 TransformApplier锛?
             if (transformApplier != null && Math.abs(deltaAngle) > 1e-6) {
                 transformApplier.applyRotation(deltaAngle, activeRotationHandle.getAxis());
             }
         } else if (activeHandle != null) {
             Vec3d delta = activeHandle.onDragUpdate(rayOrigin, rayDir);
             
-            // 应用吸附
+            // 搴旂敤鍚搁檮
             if (context.getSnapStep() > 0) {
                 delta = SnapUtil.snapVec(delta, context.getSnapStep(), null);
             }
             
-            // 🧩 应用变换（实时联动 SelectionManager）
-            // - ResizeHandle → applyResize() → expandSelection() → 自动更新预览框
-            // - AxisHandle/PlaneHandle → applyMove() → offsetSelection() → 自动更新预览框
+            // 馃З 搴旂敤鍙樻崲锛堝疄鏃惰仈鍔?SelectionManager锛?
+            // - ResizeHandle 鈫?applyResize() 鈫?expandSelection() 鈫?鑷姩鏇存柊棰勮妗?
+            // - AxisHandle/PlaneHandle 鈫?applyMove() 鈫?offsetSelection() 鈫?鑷姩鏇存柊棰勮妗?
             applyTransform(delta);
             
-            // ✅ BOUNDS Gizmo（移动包围盒）拖拽中不要用“当前选区 bounds”覆盖 targetBox，
-            // 否则会出现“Gizmo 能动但包围盒不动”的现象（因为选区此时还没重建）。
-            // ⭐ TRANSFORM Gizmo（Actor 编辑）不应该从方块选区更新 Box
+            // 鉁?BOUNDS Gizmo锛堢Щ鍔ㄥ寘鍥寸洅锛夋嫋鎷戒腑涓嶈鐢ㄢ€滃綋鍓嶉€夊尯 bounds鈥濊鐩?targetBox锛?
+            // 鍚﹀垯浼氬嚭鐜扳€淕izmo 鑳藉姩浣嗗寘鍥寸洅涓嶅姩鈥濈殑鐜拌薄锛堝洜涓洪€夊尯姝ゆ椂杩樻病閲嶅缓锛夈€?
+            // 猸?TRANSFORM Gizmo锛圓ctor 缂栬緫锛変笉搴旇浠庢柟鍧楅€夊尯鏇存柊 Box
             if (context != null && context.getType() == GizmoType.TRANSFORM) {
-                // TRANSFORM Gizmo：Box 由 ActorGizmoController.updateGizmoPosition() 管理，不从选区更新
+                // TRANSFORM Gizmo锛欱ox 鐢?ActorGizmoController.updateGizmoPosition() 绠＄悊锛屼笉浠庨€夊尯鏇存柊
             } else if (!(context != null && context.getType() == GizmoType.BOUNDS && isMoveHandle(activeHandle))) {
                 updateBoxFromSelection();
             }
@@ -205,12 +205,12 @@ public class GizmoInteractionController {
     }
     
     /**
-     * 结束拖拽
+     * 缁撴潫鎷栨嫿
      * 
-     * 实时联动流程：
-     * - 结束拖拽状态
-     * - 更新 Box（从 SelectionManager 同步）
-     * - （可选）清除预览框或保持显示
+     * 瀹炴椂鑱斿姩娴佺▼锛?
+     * - 缁撴潫鎷栨嫿鐘舵€?
+     * - 鏇存柊 Box锛堜粠 SelectionManager 鍚屾锛?
+     * - 锛堝彲閫夛級娓呴櫎棰勮妗嗘垨淇濇寔鏄剧ず
      */
     private void endDrag() {
         if (activeRotationHandle != null) {
@@ -233,69 +233,79 @@ public class GizmoInteractionController {
             }
             state = GizmoState.IDLE;
             
-            // ⭐ TRANSFORM Gizmo（Actor 编辑）不应该从方块选区更新 Box
-            // 更新 Box（从 SelectionManager 同步，确保 Gizmo 与选区一致）
+            // 猸?TRANSFORM Gizmo锛圓ctor 缂栬緫锛変笉搴旇浠庢柟鍧楅€夊尯鏇存柊 Box
+            // 鏇存柊 Box锛堜粠 SelectionManager 鍚屾锛岀‘淇?Gizmo 涓庨€夊尯涓€鑷达級
             if (context == null || context.getType() != GizmoType.TRANSFORM) {
                 updateBoxFromSelection();
             }
             
-            // 🧩 可选：清除预览框
-            // 注释：如果希望拖拽结束后保持预览框显示，可以注释掉下面的代码
-            // 当前实现：保持预览框显示，因为 SelectionManager 已经自动更新了预览框
-            // 如果需要清除，可以取消注释：
+            // 馃З 鍙€夛細娓呴櫎棰勮妗?
+            // 娉ㄩ噴锛氬鏋滃笇鏈涙嫋鎷界粨鏉熷悗淇濇寔棰勮妗嗘樉绀猴紝鍙互娉ㄩ噴鎺変笅闈㈢殑浠ｇ爜
+            // 褰撳墠瀹炵幇锛氫繚鎸侀瑙堟鏄剧ず锛屽洜涓?SelectionManager 宸茬粡鑷姩鏇存柊浜嗛瑙堟
+            // 濡傛灉闇€瑕佹竻闄わ紝鍙互鍙栨秷娉ㄩ噴锛?
             // try {
             //     com.director.client.renderer.SelectionRenderer.getInstance().clearPreview();
             // } catch (Exception e) {
-            //     // 如果 SelectionRenderer 不可用，忽略错误
+            //     // 濡傛灉 SelectionRenderer 涓嶅彲鐢紝蹇界暐閿欒
             // }
         }
         
-        // 清除悬停状态，强制重新检测（鼠标可能已经不在手柄上了）
+        // 娓呴櫎鎮仠鐘舵€侊紝寮哄埗閲嶆柊妫€娴嬶紙榧犳爣鍙兘宸茬粡涓嶅湪鎵嬫焺涓婁簡锛?
         hoveredHandle = null;
     }
     
     /**
-     * 应用变换（根据 Handle 类型）
+     * 搴旂敤鍙樻崲锛堟牴鎹?Handle 绫诲瀷锛?
      * 
-     * 使用 TransformApplier 将变换应用到选区或动画目标
+     * 浣跨敤 TransformApplier 灏嗗彉鎹㈠簲鐢ㄥ埌閫夊尯鎴栧姩鐢荤洰鏍?
      */
     private void applyTransform(Vec3d delta) {
         if (transformApplier == null) {
-            // 回退到旧方法（直接修改 Box）
+            // 鍥為€€鍒版棫鏂规硶锛堢洿鎺ヤ慨鏀?Box锛?
             applyTransformLegacy(delta);
             return;
         }
 
-        // ✅ BOUNDS Gizmo：轴/平面/中心手柄移动“包围盒预览”，不平移 selectionSet
+        // 鉁?BOUNDS Gizmo锛氳酱/骞抽潰/涓績鎵嬫焺绉诲姩鈥滃寘鍥寸洅棰勮鈥濓紝涓嶅钩绉?selectionSet
         if (context != null && context.getType() == GizmoType.BOUNDS && isMoveHandle(activeHandle)) {
             applyBoundsMove(delta);
             return;
         }
         
-        // 使用 TransformApplier 应用变换
+        // 浣跨敤 TransformApplier 搴旂敤鍙樻崲
         if (activeHandle instanceof com.director.client.gizmo.handles.ResizeHandle resizeHandle) {
-            // ResizeHandle：应用缩放
+            // ResizeHandle锛氭寜鍏蜂綋闈㈠悜搴旂敤缂╂斁
             Vec3d axisDelta = resizeHandle.getAxisDelta(delta);
-            transformApplier.applyResize(axisDelta);
+            Axis[] axes = resizeHandle.getAxes();
+            if (resizeHandle.getHandleType() == com.director.client.gizmo.handles.ResizeHandle.Type.FACE && axes.length == 1) {
+                double signedDelta = switch (axes[0]) {
+                    case X -> axisDelta.x;
+                    case Y -> axisDelta.y;
+                    case Z -> axisDelta.z;
+                };
+                transformApplier.applyResize(axes[0], resizeHandle.isMaxFace(), signedDelta);
+            } else {
+                transformApplier.applyResize(axisDelta);
+            }
         } else if (activeHandle instanceof com.director.client.gizmo.handles.AxisHandle) {
-            // 轴手柄：平移选区
+            // 杞存墜鏌勶細骞崇Щ閫夊尯
             transformApplier.applyMove(delta);
         } else if (activeHandle instanceof com.director.client.gizmo.handles.PlaneHandle) {
-            // 平面手柄：在平面上平移选区
+            // 骞抽潰鎵嬫焺锛氬湪骞抽潰涓婂钩绉婚€夊尯
             transformApplier.applyMove(delta);
         } else if (activeHandle instanceof com.director.client.gizmo.handles.CornerHandle corner) {
-            // 角点手柄：从角点调整选区大小
+            // 瑙掔偣鎵嬫焺锛氫粠瑙掔偣璋冩暣閫夊尯澶у皬
             transformApplier.applyResizeFromCorner(delta, corner.getCornerSign());
         } else if (activeHandle instanceof com.director.client.gizmo.handles.CenterHandle) {
-            // 中心手柄：平移选区（移动轴心点会同时平移选区）
+            // 涓績鎵嬫焺锛氬钩绉婚€夊尯锛堢Щ鍔ㄨ酱蹇冪偣浼氬悓鏃跺钩绉婚€夊尯锛?
             transformApplier.applyMove(delta);
-            // 更新轴心点
+            // 鏇存柊杞村績鐐?
             Vec3d newPivot = context.getPivot().add(delta);
             context.setPivot(newPivot);
         }
         
-        // ⭐ TRANSFORM Gizmo（Actor 编辑）不应该从方块选区更新 Box
-        // 更新 Box（从 SelectionManager 同步）
+        // 猸?TRANSFORM Gizmo锛圓ctor 缂栬緫锛変笉搴旇浠庢柟鍧楅€夊尯鏇存柊 Box
+        // 鏇存柊 Box锛堜粠 SelectionManager 鍚屾锛?
         if (context == null || context.getType() != GizmoType.TRANSFORM) {
             updateBoxFromSelection();
         }
@@ -316,7 +326,7 @@ public class GizmoInteractionController {
     private void applyBoundsMove(Vec3d delta) {
         if (context == null) return;
 
-        // 吸附保持一致
+        // 鍚搁檮淇濇寔涓€鑷?
         if (context.getSnapStep() > 0) {
             delta = SnapUtil.snapVec(delta, context.getSnapStep(), null);
         }
@@ -342,12 +352,12 @@ public class GizmoInteractionController {
         context.setTargetBox(moved);
         context.setPivot(movedPivot);
 
-        // 只更新“包围盒预览”，重建选区在松手时做
+        // 鍙洿鏂扳€滃寘鍥寸洅棰勮鈥濓紝閲嶅缓閫夊尯鍦ㄦ澗鎵嬫椂鍋?
         selectionManager.setBoundsGizmoMovePreviewBounds(moved);
     }
     
     /**
-     * 旧版变换应用方法（直接修改 Box）
+     * 鏃х増鍙樻崲搴旂敤鏂规硶锛堢洿鎺ヤ慨鏀?Box锛?
      */
     private void applyTransformLegacy(Vec3d delta) {
         Box currentBox = context.getTargetBox();
@@ -371,7 +381,7 @@ public class GizmoInteractionController {
     }
     
     /**
-     * 从 SelectionManager 同步 Box
+     * 浠?SelectionManager 鍚屾 Box
      */
     private void updateBoxFromSelection() {
         var selectionManager = com.director.core.selection.SelectionManager.get();
@@ -389,7 +399,7 @@ public class GizmoInteractionController {
         Box newBox = getBox(blocks);
         context.setTargetBox(newBox);
 
-        // ✅ BOUNDS Gizmo：pivot 永远是包围盒几何中心
+        // 鉁?BOUNDS Gizmo锛歱ivot 姘歌繙鏄寘鍥寸洅鍑犱綍涓績
         if (context != null && context.getType() == GizmoType.BOUNDS) {
             Vec3d center = new Vec3d(
                 (newBox.minX + newBox.maxX) / 2.0,
