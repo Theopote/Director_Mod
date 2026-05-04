@@ -55,6 +55,7 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
     
     // ====================== 两点式建盒状态 ======================
     private BlockPos firstCorner = null;  // 第一角点（左键点击）
+    private BlockPos previewCorner = null; // 预览中的第二角点（鼠标移动实时更新）
     
     // ====================== Gizmo 编辑状态 ======================
     @SuppressWarnings("unused")
@@ -119,6 +120,7 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
         // 两点式：第一次左键设置起点，第二次左键直接确认终点并应用
         if (firstCorner == null) {
             firstCorner = pos.toImmutable();
+            previewCorner = firstCorner;
             phase = SelectionPhase.FIRST_POINT_SET;
             clearPreview();
 
@@ -135,6 +137,7 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
         clearPreview();
         LOGGER.info("[BoxSelectTool] ✅ 两点式建盒完成: {} -> {}", firstCorner, pos);
         firstCorner = null;
+        previewCorner = null;
         phase = SelectionPhase.IDLE;
     }
     
@@ -147,6 +150,7 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
             clearPreview();
             LOGGER.info("[BoxSelectTool] 取消两点式框选，已清除第一角点: {}", firstCorner);
             firstCorner = null;
+            previewCorner = null;
             phase = SelectionPhase.IDLE;
         }
     }
@@ -246,7 +250,10 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
         if (phase == SelectionPhase.FIRST_POINT_SET && firstCorner != null && !faceHandleManager.isDragging()) {
             BlockPos hovered = getHoveredBlockPos();
             if (hovered != null) {
-                Box preview = makeDragBoxWithMinHeight(firstCorner, hovered).expand(0.01);
+                previewCorner = hovered.toImmutable();
+            }
+            if (previewCorner != null) {
+                Box preview = makeDragBoxWithMinHeight(firstCorner, previewCorner).expand(0.01);
                 ToolPreviewManager.get().setPreviewBox(preview);
             }
         }
@@ -508,6 +515,7 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
         clearDrag();
         clearGizmo();
         firstCorner = null;
+        previewCorner = null;
         phase = SelectionPhase.IDLE;
         SelectionEvents.fireChanged(SelectionChangeType.SELECTION_CLEARED);
         LOGGER.debug("[BoxSelectTool] 清除选区");
@@ -530,6 +538,7 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
         clearDrag();
         clearGizmo();
         firstCorner = null;
+        previewCorner = null;
         phase = SelectionPhase.IDLE;
         LOGGER.debug("[BoxSelectTool] 工具激活 (模式: {})", operation.name());
     }
@@ -540,6 +549,7 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
         clearDrag();
         clearGizmo();
         firstCorner = null;
+        previewCorner = null;
         phase = SelectionPhase.IDLE;
         LOGGER.debug("[BoxSelectTool] 工具停用");
     }
@@ -664,6 +674,7 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
      * 清理预览
      */
     private void clearPreview() {
+        previewCorner = null;
         ToolPreviewManager.get().clearPreview();
     }
     

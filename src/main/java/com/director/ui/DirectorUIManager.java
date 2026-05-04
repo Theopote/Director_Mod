@@ -305,7 +305,7 @@ public class DirectorUIManager {
     private static final String DOCKSPACE_WINDOW_NAME = "DockSpace";
     /**
      * DockSpace 持久化 ID。
-     *
+     * <p>
      * 使用与宿主窗口同名的稳定键，避免历史布局里出现多个 DockSpace 根节点
      * （表现为“窗口位置正确但不在当前 DockSpace 停靠树中”）。
      */
@@ -495,11 +495,6 @@ public class DirectorUIManager {
                         public float getFrameRate() {
                             // 尝试多种方式获取项目对象
                             ITimelineProject project = timelineModel;
-                            if (project == null) {
-                                // 如果项目对象不存在，返回默认值
-                                // 这可能是因为项目系统尚未完全实现
-                                return 30.0f; // 默认值
-                            }
 
                             // 使用与 TimelineProjectPropertyAdapter 相同的方式
                             float fps = project.getFrameRate();
@@ -509,42 +504,24 @@ public class DirectorUIManager {
                         
                         @Override
                         public boolean setFrameRate(float fps) {
-                            ITimelineProject project = timelineModel;
-                            if (project == null) {
-                                // 如果项目对象不存在，记录警告但不阻止操作
-                                // 这可能是因为项目系统尚未完全实现
-                                LOGGER.warn("[TimelineSettings] 无法获取项目对象，帧率设置可能无效");
-                                return false;
-                            }
-                            
+
                             // 使用与 TimelineProjectPropertyAdapter 相同的方式
-                            project.setFrameRate(fps);
+                            timelineModel.setFrameRate(fps);
                             boolean success = true;
-                            if (success) {
-                                LOGGER.debug("[TimelineSettings] 帧率已设置为: {}", fps);
-                            } else {
-                                LOGGER.warn("[TimelineSettings] 设置帧率失败: {}", fps);
-                            }
+                            LOGGER.debug("[TimelineSettings] 帧率已设置为: {}", fps);
                             return success;
                         }
                         
                         @Override
                         public int getTimeUnit() {
-                            ITimelineProject project = timelineModel;
-                            if (project == null) {
-                                return 0; // 默认：秒
-                            }
-                            
-                            return project.getTimeUnit();
+
+                            return timelineModel.getTimeUnit();
                         }
                         
                         @Override
                         public boolean setTimeUnit(int unit) {
                             ITimelineProject project = timelineModel;
-                            if (project == null) {
-                                return false;
-                            }
-                            
+
                             project.setTimeUnit(unit);
                             return true;
                         }

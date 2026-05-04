@@ -2,7 +2,7 @@ package com.director.core.selection.tools;
 
 /**
  * 📐 框选状态机
- * 
+ * <p>
  * 用于 BoxSelectTool 的状态管理：
  * - IDLE：空闲状态
  * - FIRST_POINT_SET：已确定第一角点，等待第二角点（左键再次点击）
