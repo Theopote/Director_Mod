@@ -4,6 +4,7 @@ import com.director.core.container.Container;
 import com.director.core.container.ContainerManager;
 import com.director.core.container.ContainerState;
 import com.director.core.container.ContainerType;
+import com.director.core.container.visibility.ContainerServices;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -125,7 +126,7 @@ public class MergeContainersCommand implements ContainerCommand {
 
         // 统一批量删除所有被合并的原容器（一次加锁、一次事件触发），删除前已在上方补齐快照
         manager.removeContainers(removedContainers);
-
+        syncMergedContainerVisibility();
         manager.selectContainer(mergedContainer);
     }
 
@@ -192,6 +193,28 @@ public class MergeContainersCommand implements ContainerCommand {
 
     public Container getMergedContainer() {
         return mergedContainer;
+    }
+
+    private void syncMergedContainerVisibility() {
+        if (mergedContainer == null) {
+            return;
+        }
+
+        var visibilityService = ContainerServices.visibility();
+        if (visibilityService == null) {
+            LOGGER.warn("[MergeCommand] ContainerVisibilityService未初始化，无法同步合并后容器可见性: {}", mergedContainer.getName());
+            return;
+        }
+
+        try {
+            if (mergedContainer.isHidden()) {
+                visibilityService.hideContainer(mergedContainer);
+            } else {
+                visibilityService.showContainer(mergedContainer);
+            }
+        } catch (Exception e) {
+            LOGGER.warn("[MergeCommand] 同步合并后容器可见性失败: {} - {}", mergedContainer.getName(), e.getMessage(), e);
+        }
     }
 }
 
