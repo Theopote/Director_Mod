@@ -2,6 +2,7 @@ package com.director.core.selection;
 
 import com.director.client.renderer.SelectionRenderer;
 import com.director.client.renderer.ToolPreviewManager;
+import com.director.core.selection.tools.FaceHandleManager;
 import com.director.core.selection.events.*;
 import com.director.core.selection.block_filters.BlockFilter;
 import com.director.core.selection.block_filters.BlockFilterPipeline;
@@ -9,6 +10,7 @@ import com.director.core.selection.block_filters.BlockFilterPresetManager;
 import com.director.core.selection.block_filters.BlockFilters;
 import com.director.core.selection.block_filters.BlockFilterRegistry;
 import com.director.core.selection.block_filters.FilterIds;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
@@ -47,6 +49,9 @@ public class SelectionManager {
     
     /** 閫夊尯闆嗗悎 */
     private final SelectionSet selectionSet = new SelectionSet();
+
+    /** 鍏变韩闈㈡嫋鎷挎墜鏌勭鐞嗗櫒锛堟墍鏈夐€夋嫨宸ュ叿鍏卞悓浣跨敤锛� */
+    private final FaceHandleManager faceHandleManager = FaceHandleManager.SHARED;
 
     // ===== 闈㈡嫋鎷藉疄鏃堕瑙堢姸鎬?(v4.9) =====
     private Box activeResizeBaseBounds = null;
@@ -139,6 +144,9 @@ public class SelectionManager {
             // 鍙戝竷宸ュ叿鍋滅敤浜嬩欢
             getEventProcessorInternal().processToolDeactivation(currentTool.getId(), world);
         }
+
+        // 工具切换时清理共享面拖拽状态，避免跨工具残留
+        faceHandleManager.cancelDrag();
         
         // 婵€娲绘柊宸ュ叿
         currentTool = tool;
@@ -175,6 +183,10 @@ public class SelectionManager {
      */
     public SelectionSet getSelectionSet() { 
         return selectionSet; 
+    }
+
+    public FaceHandleManager getFaceHandleManager() {
+        return faceHandleManager;
     }
 
     /**
@@ -558,6 +570,10 @@ public class SelectionManager {
         }
 
         selectionSet.clear();
+        World world = MinecraftClient.getInstance() != null ? MinecraftClient.getInstance().world : null;
+        if (world == null) {
+            return;
+        }
 
         int minX = (int) Math.floor(bounds.minX);
         int minY = (int) Math.floor(bounds.minY);
@@ -570,11 +586,14 @@ public class SelectionManager {
             return;
         }
 
-        // Bounds Gizmo resize：包含框内所有位置（包括空气），不过滤方块类型
+        // Bounds Gizmo resize：只保留非空气方块
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
                 for (int z = minZ; z <= maxZ; z++) {
-                    selectionSet.add(new BlockPos(x, y, z));
+                    BlockPos pos = new BlockPos(x, y, z);
+                    if (!world.isAir(pos)) {
+                        selectionSet.add(pos);
+                    }
                 }
             }
         }
@@ -593,6 +612,11 @@ public class SelectionManager {
 
 
         selectionSet.clear();
+        World world = MinecraftClient.getInstance() != null ? MinecraftClient.getInstance().world : null;
+        if (world == null) {
+            SelectionEvents.fireChanged(SelectionChangeType.SELECTION_CLEARED);
+            return;
+        }
 
         int minX = (int) Math.floor(bounds.minX);
         int minY = (int) Math.floor(bounds.minY);
@@ -606,11 +630,14 @@ public class SelectionManager {
             return;
         }
 
-        // Bounds Gizmo resize：包含框内所有位置（包括空气），不过滤方块类型
+        // Bounds Gizmo resize：只保留非空气方块
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
                 for (int z = minZ; z <= maxZ; z++) {
-                    selectionSet.add(new BlockPos(x, y, z));
+                    BlockPos pos = new BlockPos(x, y, z);
+                    if (!world.isAir(pos)) {
+                        selectionSet.add(pos);
+                    }
                 }
             }
         }

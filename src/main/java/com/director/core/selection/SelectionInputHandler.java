@@ -1,11 +1,16 @@
 package com.director.core.selection;
 
+import com.director.client.gizmo.GizmoManager;
+import com.director.client.settings.RenderSettings;
+import com.director.core.selection.tools.FaceHandleManager;
+import com.director.core.selection.tools.boxselecttool.BoxSelectTool;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.RaycastContext;
 import net.minecraft.world.World;
@@ -197,29 +202,14 @@ public class SelectionInputHandler {
     public void handleMouseDragStart(boolean isLeftClick) {
         if (!isLeftClick) return;
         if (selectionManager == null || !selectionManager.hasCurrentTool()) return;
-        
-        // 检查当前工具是否是 BoxSelectTool，并且鼠标悬停在面中心小方块上
-        // 如果是，则不设置 dragStart，让面中心小方块的拖拽逻辑处理
-        if (selectionManager.getCurrentTool() instanceof com.director.core.selection.tools.boxselecttool.BoxSelectTool boxTool) {
-            // ✅ Gizmo 优先：当鼠标在 Gizmo 轴/平面/中心手柄上时，左键按下应进入 Gizmo 拖拽，不进入框选拖拽
-            try {
-                if (com.director.client.gizmo.GizmoManager.get().isHot()) {
-                    LOGGER.debug("[Drag] 鼠标命中 Gizmo 手柄，跳过框选拖拽开始");
-                    return;
-                }
-            } catch (Exception ignored) {
-            }
 
-            // 检查是否悬停在面中心小方块上
-            Integer hoveredFace = boxTool.getHoveredFaceIndex();
-            if (hoveredFace != null) {
-                // ✅ 直接启动面手柄拖拽（按下即开始），避免依赖 “BlockPos 变化才触发拖拽” 的框选逻辑
-                boolean started = boxTool.tryBeginFaceHandleDrag();
-                LOGGER.debug("[Drag] 鼠标悬停在面中心小方块上，启动面拖拽: {}", started);
-                return; // 阻止框选拖拽开始
-            }
+        // 任意选择工具：若按下时命中面手柄，则进入包围盒 resize 拖拽。
+        if (tryBeginFaceHandleDrag()) {
+            return;
+        }
 
-            // BoxSelectTool 改为左键两点式框选：禁用普通左键拖拽建盒入口。
+        // BoxSelectTool 为两点式框选：禁用普通左键拖拽建盒入口。
+        if (selectionManager.getCurrentTool() instanceof BoxSelectTool) {
             return;
         }
 
@@ -238,13 +228,10 @@ public class SelectionInputHandler {
     public void handleMouseDragUpdate() {
         if (selectionManager == null || client.world == null) return;
         if (dragStart == null) return;
-        
-        // 检查当前工具是否是 BoxSelectTool，并且正在拖拽面中心小方块
-        if (selectionManager.getCurrentTool() instanceof com.director.core.selection.tools.boxselecttool.BoxSelectTool boxTool) {
-            if (boxTool.isDraggingFaceHandle()) {
-                LOGGER.debug("[Drag] 正在拖拽面中心小方块，跳过框选拖拽");
-                return;
-            }
+
+        if (selectionManager.getFaceHandleManager().isDragging()) {
+            LOGGER.debug("[Drag] 正在拖拽面中心小方块，跳过工具拖拽");
+            return;
         }
 
         BlockHitResult hit = raycastFromMouse();
@@ -330,7 +317,93 @@ public class SelectionInputHandler {
                 } else {
                     currentTool.onHover(client.world, null);
                 }
+
+                updateFaceHandleInteractionForNonBoxTool(currentTool);
             }
+        }
+    }
+
+    private boolean tryBeginFaceHandleDrag() {
+        if (!RenderSettings.get().selection_showBoundingBox) {
+            return false;
+        }
+        if (selectionManager.getSelectionSet().isEmpty()) {
+            return false;
+        }
+
+        try {
+            if (GizmoManager.get().isHot()) {
+                LOGGER.debug("[Drag] 鼠标命中 Gizmo 手柄，跳过面手柄拖拽开始");
+                return false;
+            }
+        } catch (Exception ignored) {
+        }
+
+        Box bounds = selectionManager.getCurrentBounds();
+        if (bounds == null) {
+            return false;
+        }
+
+        Vec3d[] ray = getRayFromMouse();
+        if (ray == null || ray.length != 2) {
+            return false;
+        }
+
+        FaceHandleManager faceHandleManager = selectionManager.getFaceHandleManager();
+        Integer hoveredFace = faceHandleManager.detectHover(bounds, ray[0], ray[1]);
+        if (hoveredFace == null) {
+            return false;
+        }
+
+        boolean started = faceHandleManager.startDrag(bounds, ray[0], ray[1]);
+        LOGGER.debug("[Drag] 命中面手柄，启动 resize 拖拽: face={}, started={}", hoveredFace, started);
+        return started;
+    }
+
+    private void updateFaceHandleInteractionForNonBoxTool(SelectionTool currentTool) {
+        if (currentTool instanceof BoxSelectTool) {
+            return;
+        }
+
+        FaceHandleManager faceHandleManager = selectionManager.getFaceHandleManager();
+        if (faceHandleManager == null) {
+            return;
+        }
+
+        if (!RenderSettings.get().selection_showBoundingBox || selectionManager.getSelectionSet().isEmpty()) {
+            if (faceHandleManager.isDragging()) {
+                faceHandleManager.cancelDrag();
+            } else {
+                faceHandleManager.detectHover(null, null, null);
+            }
+            return;
+        }
+
+        Box bounds = selectionManager.getCurrentBounds();
+        Vec3d[] ray = getRayFromMouse();
+        if (bounds == null || ray == null || ray.length != 2) {
+            if (!faceHandleManager.isDragging()) {
+                faceHandleManager.detectHover(null, null, null);
+            }
+            return;
+        }
+
+        faceHandleManager.detectHover(bounds, ray[0], ray[1]);
+
+        if (!faceHandleManager.isDragging()) {
+            return;
+        }
+
+        faceHandleManager.updateDrag(ray[0], ray[1]);
+
+        if (client == null || client.getWindow() == null) {
+            return;
+        }
+
+        long window = client.getWindow().getHandle();
+        boolean mouseDown = GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
+        if (!mouseDown) {
+            faceHandleManager.endDrag();
         }
     }
 

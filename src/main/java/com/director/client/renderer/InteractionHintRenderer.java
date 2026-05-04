@@ -1,6 +1,7 @@
 package com.director.client.renderer;
 
 import com.director.core.selection.SelectionManager;
+import com.director.core.selection.tools.FaceHandleManager;
 import com.director.client.settings.RenderSettings;
 import net.minecraft.client.render.VertexConsumer;
 import net.minecraft.client.render.VertexConsumerProvider;
@@ -56,13 +57,9 @@ public final class InteractionHintRenderer {
             bboxOpt.get().getMaxX() + 1, bboxOpt.get().getMaxY() + 1, bboxOpt.get().getMaxZ() + 1
         );
 
-        var currentTool = manager.getCurrentTool();
-        if (!(currentTool instanceof com.director.core.selection.tools.boxselecttool.BoxSelectTool boxTool)) {
-            return;
-        }
-
-        Integer hoveredFace = boxTool.getHoveredFaceIndex();
-        Integer draggingFace = boxTool.isDraggingFaceHandle() ? boxTool.getDraggingFaceIndex() : null;
+        FaceHandleManager faceHandleManager = manager.getFaceHandleManager();
+        Integer hoveredFace = faceHandleManager.getHoveredFaceIndex();
+        Integer draggingFace = faceHandleManager.isDragging() ? faceHandleManager.getDraggingFaceIndex() : null;
         Box previewBox = manager.isFaceResizeActive() ? manager.getResizePreviewBounds() : null;
         Box baseBounds = manager.isFaceResizeActive() && manager.getResizeBaseBounds() != null
             ? manager.getResizeBaseBounds()

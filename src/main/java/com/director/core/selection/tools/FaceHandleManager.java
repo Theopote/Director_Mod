@@ -19,6 +19,11 @@ public class FaceHandleManager {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FaceHandleManager.class);
 
+    /**
+     * 全局共享实例：用于所有选择工具的包围盒面手柄交互状态。
+     */
+    public static final FaceHandleManager SHARED = new FaceHandleManager();
+
     // 拾取半径：支持“按距离自适应”，避免远处/小目标难以命中
     private static final double HANDLE_HALF_SIZE_MIN = 0.25;
     private static final double HANDLE_HALF_SIZE_MAX = 0.65;

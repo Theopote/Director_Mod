@@ -62,7 +62,7 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
     private boolean gizmoActive = false;
     
     // ====================== 面中心小方块管理器 ======================
-    private final FaceHandleManager faceHandleManager = new FaceHandleManager();
+    private final FaceHandleManager faceHandleManager = FaceHandleManager.SHARED;
 
     // ====================== 操作模式 ======================
     private SelectionOperation operation = SelectionOperation.NEW;
