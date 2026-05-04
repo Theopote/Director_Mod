@@ -315,6 +315,32 @@ public class TimelineDragAndDropHandler {
             LOGGER.error("[DragDrop] 绑定容器世界失败: {}", e.getMessage(), e);
         }
     }
+
+    /**
+     * 根据容器中的方块数量计算片段的初始时间长度。
+     */
+    private float calculateInitialClipDuration(Container container) {
+        if (container == null) {
+            return 2.0f; // 默认 2 秒
+        }
+
+        // 获取容器中的方块数量（包括子容器的总方块数）
+        int blockCount = container.getTotalBlockCount();
+
+        // 计算时间长度：每 10 个方块 2 秒
+        float duration = (blockCount / 10.0f) * 2.0f;
+
+        // 最少 2 秒
+        duration = Math.max(2.0f, duration);
+
+        // 最多 60 秒
+        duration = Math.min(60.0f, duration);
+
+        LOGGER.debug("[DragDrop] 容器 {} 有 {} 个方块，计算初始时长: {}s",
+            container.getName(), blockCount, duration);
+
+        return duration;
+    }
     
     /**
      * 初始化片段的动画配置
