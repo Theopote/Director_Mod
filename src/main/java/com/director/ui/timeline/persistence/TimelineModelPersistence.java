@@ -143,6 +143,110 @@ public class TimelineModelPersistence {
         public boolean solo = false;
         public String boundContainerName;
         public String boundContainerId;
+        /** 演员轨道 payload（type=ENTITY 时有效） */
+        public EntityTrackDTO entityTrackPayload;
+    }
+
+    /**
+     * 演员轨道 DTO
+     */
+    public static final class EntityTrackDTO {
+        public String actorRefId;       // ActorRef UUID
+        public String displayName;
+        public EntityBindingDTO binding;
+        public boolean enabled = true;
+        public int colorRgba = 0xFF66CCFF;
+        public List<EntityClipDTO> clips = new ArrayList<>();
+    }
+
+    /**
+     * 演员绑定 DTO
+     */
+    public static final class EntityBindingDTO {
+        public String mode;             // EntityBinding.Mode.name()
+        public String targetEntityUuid;
+        public String targetPlayerName;
+        public String entityTypeId = "minecraft:villager";
+        public boolean persistent = true;
+    }
+
+    /**
+     * EntityClip DTO（覆盖所有 7 种 clip 类型的全部字段）
+     */
+    public static final class EntityClipDTO {
+        // ===== 公共字段 =====
+        public String id;               // UUID
+        public String clipType;         // EntityClipType.name()
+        public String name;
+        public float startTime;
+        public float endTime;
+        public boolean muted = false;
+        public float weight = 1.0f;
+
+        // 关键帧（EntityClipKeyframe）
+        public List<EntityClipKeyframeDTO> keyframes = new ArrayList<>();
+
+        // ===== EntitySpawnClip =====
+        public Float spawnX, spawnY, spawnZ;
+        public Float yawDeg, pitchDeg;
+        public Boolean visibleOnSpawn;
+
+        // ===== EntityTransformClip =====
+        public String transformInterpolation;
+        public Vec3DTO fromPos, toPos;
+        public Vec3DTO fromRot, toRot;
+        public Vec3DTO fromScale, toScale;
+        public String pathId;
+        public Boolean followPath;
+
+        // ===== EntityLookAtClip =====
+        public String lookAtMode;       // EntityLookAtClip.TargetMode.name()
+        public Vec3DTO lookAtWorldPoint;
+        public String lookAtTargetEntityUuid;
+        public Float lookAtStrength;
+
+        // ===== EntityAnimationClip =====
+        public String animationSource;  // AnimationSource.name()
+        public String animationId;
+        public Boolean animationLoop;
+        public Float animationSpeed;
+
+        // ===== EntityStateClip =====
+        public Boolean sneaking, sprinting, glowing, invulnerable;
+        public Float stateVisibility;
+
+        // ===== EntityActionClip =====
+        public String actionType;       // EntityActionClip.ActionType.name()
+        public Map<String, Object> actionParams = new HashMap<>();
+        public Boolean triggerOnce;
+
+        // ===== EntityDespawnClip =====
+        public String despawnMode;      // EntityDespawnClip.DespawnMode.name()
+
+        // ===== ActorActionClip =====
+        public String actorActionType;  // ActorActionType.name()
+        public Float actorActionIntensity;
+        public Boolean actorActionLoop;
+    }
+
+    /**
+     * EntityClipKeyframe DTO
+     */
+    public static final class EntityClipKeyframeDTO {
+        public String id;               // UUID
+        public float time;
+        public String interpolation;    // TimelineInterpolation.name()
+        public Vec3DTO position;
+        public Vec3DTO rotation;
+        public Vec3DTO scale;
+        public String actionType;       // EntityKeyframe.ActionType.name()
+        public Float actionSpeed;
+        public Boolean actionLoop;
+        public Float visibility;
+        public Boolean active;
+        public String displayName;
+        public Boolean showNameTag;
+        public String entityType;       // EntityKeyframe.EntityType.name()
     }
     
     /**
@@ -568,7 +672,126 @@ public class TimelineModelPersistence {
                 
                 trackDTO.pathClips.add(pathClipDTO);
             }
-            
+
+            // 保存演员轨道 payload
+            if (track.getEntityTrackPayload() != null) {
+                com.director.ui.timeline.model.entity.EntityTrack entityTrack = track.getEntityTrackPayload();
+                EntityTrackDTO etDTO = new EntityTrackDTO();
+                etDTO.displayName = entityTrack.getDisplayName();
+                etDTO.enabled = entityTrack.isEnabled();
+                etDTO.colorRgba = entityTrack.getColorRgba();
+
+                com.director.actor.ActorRef actorRef = entityTrack.getActorRef();
+                if (actorRef != null) {
+                    etDTO.actorRefId = actorRef.getActorId().toString();
+                }
+
+                com.director.ui.timeline.model.entity.EntityBinding binding = entityTrack.getBinding();
+                if (binding != null) {
+                    EntityBindingDTO bdto = new EntityBindingDTO();
+                    bdto.mode = binding.getMode() != null ? binding.getMode().name() : null;
+                    bdto.targetEntityUuid = binding.getTargetEntityUuid() != null ? binding.getTargetEntityUuid().toString() : null;
+                    bdto.targetPlayerName = binding.getTargetPlayerName();
+                    bdto.entityTypeId = binding.getEntityTypeId();
+                    bdto.persistent = binding.isPersistent();
+                    etDTO.binding = bdto;
+                }
+
+                for (com.director.ui.timeline.model.entity.EntityClip clip : entityTrack.getClips()) {
+                    if (clip == null) continue;
+                    EntityClipDTO cdto = new EntityClipDTO();
+                    cdto.id = clip.getId().toString();
+                    cdto.clipType = clip.getClipType().name();
+                    cdto.name = clip.getName();
+                    cdto.startTime = clip.getStartTime();
+                    cdto.endTime = clip.getEndTime();
+                    cdto.muted = clip.isMuted();
+                    cdto.weight = clip.getWeight();
+
+                    // 关键帧
+                    for (com.director.ui.timeline.model.entity.EntityClipKeyframe kf : clip.getKeyframes()) {
+                        if (kf == null) continue;
+                        EntityClipKeyframeDTO kfdto = new EntityClipKeyframeDTO();
+                        kfdto.id = kf.getId().toString();
+                        kfdto.time = kf.getTime();
+                        kfdto.interpolation = kf.getInterpolation() != null ? kf.getInterpolation().name() : null;
+                        kfdto.position = Vec3DTO.from(kf.getPosition());
+                        kfdto.rotation = Vec3DTO.from(kf.getRotation());
+                        kfdto.scale = Vec3DTO.from(kf.getScale());
+                        kfdto.actionType = kf.getActionType() != null ? kf.getActionType().name() : null;
+                        kfdto.actionSpeed = kf.getActionSpeed();
+                        kfdto.actionLoop = kf.isActionLoop();
+                        kfdto.visibility = kf.getVisibility();
+                        kfdto.active = kf.isActive();
+                        kfdto.displayName = kf.getDisplayName();
+                        kfdto.showNameTag = kf.isShowNameTag();
+                        kfdto.entityType = kf.getEntityType() != null ? kf.getEntityType().name() : null;
+                        cdto.keyframes.add(kfdto);
+                    }
+
+                    // 类型特定字段
+                    switch (clip) {
+                        case com.director.ui.timeline.model.entity.EntitySpawnClip sc -> {
+                            cdto.spawnX = sc.getPosition().x;
+                            cdto.spawnY = sc.getPosition().y;
+                            cdto.spawnZ = sc.getPosition().z;
+                            cdto.yawDeg = sc.getYawDeg();
+                            cdto.pitchDeg = sc.getPitchDeg();
+                            cdto.visibleOnSpawn = sc.isVisibleOnSpawn();
+                        }
+                        case com.director.ui.timeline.model.entity.EntityTransformClip tc -> {
+                            cdto.transformInterpolation = tc.getInterpolation() != null ? tc.getInterpolation().name() : null;
+                            cdto.fromPos = Vec3DTO.from(tc.getFromPos());
+                            cdto.toPos = Vec3DTO.from(tc.getToPos());
+                            cdto.fromRot = Vec3DTO.from(tc.getFromRot());
+                            cdto.toRot = Vec3DTO.from(tc.getToRot());
+                            cdto.fromScale = Vec3DTO.from(tc.getFromScale());
+                            cdto.toScale = Vec3DTO.from(tc.getToScale());
+                            cdto.pathId = tc.getPathId();
+                            cdto.followPath = tc.isFollowPath();
+                        }
+                        case com.director.ui.timeline.model.entity.EntityLookAtClip lc -> {
+                            cdto.lookAtMode = lc.getMode() != null ? lc.getMode().name() : null;
+                            cdto.lookAtWorldPoint = Vec3DTO.from(lc.getWorldPoint());
+                            cdto.lookAtTargetEntityUuid = lc.getTargetEntityUuid() != null ? lc.getTargetEntityUuid().toString() : null;
+                            cdto.lookAtStrength = lc.getStrength();
+                        }
+                        case com.director.ui.timeline.model.entity.EntityAnimationClip ac -> {
+                            cdto.animationSource = ac.getSource() != null ? ac.getSource().name() : null;
+                            cdto.animationId = ac.getAnimationId();
+                            cdto.animationLoop = ac.isLoop();
+                            cdto.animationSpeed = ac.getSpeed();
+                        }
+                        case com.director.ui.timeline.model.entity.EntityStateClip stc -> {
+                            cdto.sneaking = stc.isSneaking();
+                            cdto.sprinting = stc.isSprinting();
+                            cdto.glowing = stc.isGlowing();
+                            cdto.invulnerable = stc.isInvulnerable();
+                            cdto.stateVisibility = stc.getVisibility();
+                        }
+                        case com.director.ui.timeline.model.entity.EntityActionClip xac -> {
+                            cdto.actionType = xac.getActionType() != null ? xac.getActionType().name() : null;
+                            cdto.actionParams.putAll(xac.getParams());
+                            cdto.triggerOnce = xac.isTriggerOnce();
+                        }
+                        case com.director.ui.timeline.model.entity.EntityDespawnClip dc -> {
+                            cdto.despawnMode = dc.getMode() != null ? dc.getMode().name() : null;
+                        }
+                        case com.director.ui.timeline.model.entity.ActorActionClip aac -> {
+                            cdto.actorActionType = aac.getActionType() != null ? aac.getActionType().name() : null;
+                            cdto.actorActionIntensity = aac.getIntensity();
+                            cdto.actorActionLoop = aac.isLoop();
+                        }
+                        default -> {
+                        }
+                    }
+
+                    etDTO.clips.add(cdto);
+                }
+
+                trackDTO.entityTrackPayload = etDTO;
+            }
+
             dto.tracks.add(trackDTO);
         }
         
@@ -930,6 +1153,167 @@ public class TimelineModelPersistence {
                 }
             }
             
+            // 恢复演员轨道 payload
+            if (trackDTO.entityTrackPayload != null) {
+                try {
+                    EntityTrackDTO etDTO = trackDTO.entityTrackPayload;
+                    com.director.ui.timeline.model.entity.EntityTrack entityTrack = new com.director.ui.timeline.model.entity.EntityTrack(etDTO.displayName);
+                    entityTrack.setEnabled(etDTO.enabled);
+                    entityTrack.setColorRgba(etDTO.colorRgba);
+
+                    if (etDTO.actorRefId != null) {
+                        try {
+                            entityTrack.setActorRef(new com.director.actor.ActorRef(java.util.UUID.fromString(etDTO.actorRefId)));
+                        } catch (Exception ignored) {}
+                    }
+
+                    if (etDTO.binding != null) {
+                        EntityBindingDTO bdto = etDTO.binding;
+                        com.director.ui.timeline.model.entity.EntityBinding binding = new com.director.ui.timeline.model.entity.EntityBinding();
+                        if (bdto.mode != null) {
+                            try { binding.setMode(com.director.ui.timeline.model.entity.EntityBinding.Mode.valueOf(bdto.mode)); } catch (Exception ignored) {}
+                        }
+                        if (bdto.targetEntityUuid != null) {
+                            try { binding.setTargetEntityUuid(java.util.UUID.fromString(bdto.targetEntityUuid)); } catch (Exception ignored) {}
+                        }
+                        binding.setTargetPlayerName(bdto.targetPlayerName);
+                        if (bdto.entityTypeId != null) binding.setEntityTypeId(bdto.entityTypeId);
+                        binding.setPersistent(bdto.persistent);
+                        entityTrack.setBinding(binding);
+                    }
+
+                    if (etDTO.clips != null) {
+                        for (EntityClipDTO cdto : etDTO.clips) {
+                            if (cdto == null || cdto.clipType == null) continue;
+                            try {
+                                com.director.ui.timeline.model.entity.EntityClipType clipType =
+                                    com.director.ui.timeline.model.entity.EntityClipType.valueOf(cdto.clipType);
+                                String cname = cdto.name != null ? cdto.name : cdto.clipType;
+                                com.director.ui.timeline.model.entity.EntityClip clip = switch (clipType) {
+                                    case SPAWN -> new com.director.ui.timeline.model.entity.EntitySpawnClip(cname, cdto.startTime, cdto.endTime);
+                                    case TRANSFORM -> new com.director.ui.timeline.model.entity.EntityTransformClip(cname, cdto.startTime, cdto.endTime);
+                                    case LOOK_AT -> new com.director.ui.timeline.model.entity.EntityLookAtClip(cname, cdto.startTime, cdto.endTime);
+                                    case ANIMATION -> new com.director.ui.timeline.model.entity.EntityAnimationClip(cname, cdto.startTime, cdto.endTime);
+                                    case STATE -> new com.director.ui.timeline.model.entity.EntityStateClip(cname, cdto.startTime, cdto.endTime);
+                                    case ACTION -> new com.director.ui.timeline.model.entity.EntityActionClip(cname, cdto.startTime, cdto.endTime);
+                                    case DESPAWN -> new com.director.ui.timeline.model.entity.EntityDespawnClip(cname, cdto.startTime, cdto.endTime);
+                                    case ACTOR_ACTION -> new com.director.ui.timeline.model.entity.ActorActionClip(cname, cdto.startTime, cdto.endTime);
+                                };
+                                clip.setMuted(cdto.muted);
+                                clip.setWeight(cdto.weight);
+
+                                // 恢复关键帧
+                                if (cdto.keyframes != null) {
+                                    for (EntityClipKeyframeDTO kfdto : cdto.keyframes) {
+                                        if (kfdto == null) continue;
+                                        try {
+                                            com.director.ui.timeline.model.entity.EntityClipKeyframe kf = new com.director.ui.timeline.model.entity.EntityClipKeyframe(kfdto.time);
+                                            if (kfdto.interpolation != null) {
+                                                try { kf.setInterpolation(com.director.ui.timeline.model.TimelineInterpolation.valueOf(kfdto.interpolation)); } catch (Exception ignored) {}
+                                            }
+                                            if (kfdto.position != null) kf.setPosition(kfdto.position.x, kfdto.position.y, kfdto.position.z);
+                                            if (kfdto.rotation != null) kf.setRotation(kfdto.rotation.x, kfdto.rotation.y, kfdto.rotation.z);
+                                            if (kfdto.scale != null) kf.setScale(kfdto.scale.x, kfdto.scale.y, kfdto.scale.z);
+                                            if (kfdto.actionType != null) {
+                                                try { kf.setActionType(com.director.ui.timeline.model.entity.EntityKeyframe.ActionType.valueOf(kfdto.actionType)); } catch (Exception ignored) {}
+                                            }
+                                            if (kfdto.actionSpeed != null) kf.setActionSpeed(kfdto.actionSpeed);
+                                            if (kfdto.actionLoop != null) kf.setActionLoop(kfdto.actionLoop);
+                                            if (kfdto.visibility != null) kf.setVisibility(kfdto.visibility);
+                                            if (kfdto.active != null) kf.setActive(kfdto.active);
+                                            if (kfdto.displayName != null) kf.setDisplayName(kfdto.displayName);
+                                            if (kfdto.showNameTag != null) kf.setShowNameTag(kfdto.showNameTag);
+                                            if (kfdto.entityType != null) {
+                                                try { kf.setEntityType(com.director.ui.timeline.model.entity.EntityKeyframe.EntityType.valueOf(kfdto.entityType)); } catch (Exception ignored) {}
+                                            }
+                                            clip.addKeyframe(kf);
+                                        } catch (Exception ignored) {}
+                                    }
+                                }
+
+                                // 类型特定字段
+                                switch (clip) {
+                                    case com.director.ui.timeline.model.entity.EntitySpawnClip sc -> {
+                                        if (cdto.spawnX != null && cdto.spawnY != null && cdto.spawnZ != null)
+                                            sc.setPosition(cdto.spawnX, cdto.spawnY, cdto.spawnZ);
+                                        if (cdto.yawDeg != null) sc.setYawDeg(cdto.yawDeg);
+                                        if (cdto.pitchDeg != null) sc.setPitchDeg(cdto.pitchDeg);
+                                        if (cdto.visibleOnSpawn != null) sc.setVisibleOnSpawn(cdto.visibleOnSpawn);
+                                    }
+                                    case com.director.ui.timeline.model.entity.EntityTransformClip tc -> {
+                                        if (cdto.transformInterpolation != null) {
+                                            try { tc.setInterpolation(com.director.ui.timeline.model.TimelineInterpolation.valueOf(cdto.transformInterpolation)); } catch (Exception ignored) {}
+                                        }
+                                        if (cdto.fromPos != null) tc.setFromPos(cdto.fromPos.x, cdto.fromPos.y, cdto.fromPos.z);
+                                        if (cdto.toPos != null) tc.setToPos(cdto.toPos.x, cdto.toPos.y, cdto.toPos.z);
+                                        if (cdto.fromRot != null) tc.setFromRot(cdto.fromRot.x, cdto.fromRot.y, cdto.fromRot.z);
+                                        if (cdto.toRot != null) tc.setToRot(cdto.toRot.x, cdto.toRot.y, cdto.toRot.z);
+                                        if (cdto.fromScale != null) tc.setFromScale(cdto.fromScale.x, cdto.fromScale.y, cdto.fromScale.z);
+                                        if (cdto.toScale != null) tc.setToScale(cdto.toScale.x, cdto.toScale.y, cdto.toScale.z);
+                                        if (cdto.pathId != null) tc.setPathId(cdto.pathId);
+                                        if (cdto.followPath != null) tc.setFollowPath(cdto.followPath);
+                                    }
+                                    case com.director.ui.timeline.model.entity.EntityLookAtClip lc -> {
+                                        if (cdto.lookAtMode != null) {
+                                            try { lc.setMode(com.director.ui.timeline.model.entity.EntityLookAtClip.TargetMode.valueOf(cdto.lookAtMode)); } catch (Exception ignored) {}
+                                        }
+                                        if (cdto.lookAtWorldPoint != null) lc.setWorldPoint(cdto.lookAtWorldPoint.x, cdto.lookAtWorldPoint.y, cdto.lookAtWorldPoint.z);
+                                        if (cdto.lookAtTargetEntityUuid != null) {
+                                            try { lc.setTargetEntityUuid(java.util.UUID.fromString(cdto.lookAtTargetEntityUuid)); } catch (Exception ignored) {}
+                                        }
+                                        if (cdto.lookAtStrength != null) lc.setStrength(cdto.lookAtStrength);
+                                    }
+                                    case com.director.ui.timeline.model.entity.EntityAnimationClip ac -> {
+                                        if (cdto.animationSource != null) {
+                                            try { ac.setSource(com.director.ui.timeline.model.entity.EntityAnimationClip.AnimationSource.valueOf(cdto.animationSource)); } catch (Exception ignored) {}
+                                        }
+                                        if (cdto.animationId != null) ac.setAnimationId(cdto.animationId);
+                                        if (cdto.animationLoop != null) ac.setLoop(cdto.animationLoop);
+                                        if (cdto.animationSpeed != null) ac.setSpeed(cdto.animationSpeed);
+                                    }
+                                    case com.director.ui.timeline.model.entity.EntityStateClip stc -> {
+                                        if (cdto.sneaking != null) stc.setSneaking(cdto.sneaking);
+                                        if (cdto.sprinting != null) stc.setSprinting(cdto.sprinting);
+                                        if (cdto.glowing != null) stc.setGlowing(cdto.glowing);
+                                        if (cdto.invulnerable != null) stc.setInvulnerable(cdto.invulnerable);
+                                        if (cdto.stateVisibility != null) stc.setVisibility(cdto.stateVisibility);
+                                    }
+                                    case com.director.ui.timeline.model.entity.EntityActionClip xac -> {
+                                        if (cdto.actionType != null) {
+                                            try { xac.setActionType(com.director.ui.timeline.model.entity.EntityActionClip.ActionType.valueOf(cdto.actionType)); } catch (Exception ignored) {}
+                                        }
+                                        if (cdto.actionParams != null) cdto.actionParams.forEach(xac::setParam);
+                                        if (cdto.triggerOnce != null) xac.setTriggerOnce(cdto.triggerOnce);
+                                    }
+                                    case com.director.ui.timeline.model.entity.EntityDespawnClip dc -> {
+                                        if (cdto.despawnMode != null) {
+                                            try { dc.setMode(com.director.ui.timeline.model.entity.EntityDespawnClip.DespawnMode.valueOf(cdto.despawnMode)); } catch (Exception ignored) {}
+                                        }
+                                    }
+                                    case com.director.ui.timeline.model.entity.ActorActionClip aac -> {
+                                        if (cdto.actorActionType != null) {
+                                            try { aac.setActionType(com.director.actor.action.ActorActionType.valueOf(cdto.actorActionType)); } catch (Exception ignored) {}
+                                        }
+                                        if (cdto.actorActionIntensity != null) aac.setIntensity(cdto.actorActionIntensity);
+                                        if (cdto.actorActionLoop != null) aac.setLoop(cdto.actorActionLoop);
+                                    }
+                                    default -> {
+                                    }
+                                }
+
+                                entityTrack.addClip(clip);
+                            } catch (Exception e) {
+                                LOGGER.error("[TimelineModelPersistence] 加载 EntityClip 时发生错误: {}", cdto.name, e);
+                            }
+                        }
+                    }
+
+                    track.setEntityTrackPayload(entityTrack);
+                } catch (Exception e) {
+                    LOGGER.error("[TimelineModelPersistence] 加载 EntityTrack payload 时发生错误: {}", e.getMessage(), e);
+                }
+            }
+
             model.addTrack(track);
         }
 
