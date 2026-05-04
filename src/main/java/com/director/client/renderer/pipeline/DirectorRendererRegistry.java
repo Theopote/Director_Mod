@@ -217,6 +217,11 @@ public final class DirectorRendererRegistry {
                 registerRenderer(RendererStage.INTERACTION_HINT, "ContainerHighlight",
                     DirectorRendererRegistry::renderContainerHighlight,
                     hintOrder + 15);
+                // 框选预览包围盒的轮廓线必须在 AFTER_ENTITIES 阶段绘制，
+                // 否则 RenderLayer.getLines() 在 END_MAIN 阶段不会被正确 flush。
+                registerRenderer(RendererStage.INTERACTION_HINT, "SelectionPreviewOutline",
+                    DirectorRendererRegistry::renderSelectionPreviewOutline,
+                    hintOrder + 20);
             }
 
             if (RendererStage.SELECTION_OVERLAY.isEnabled()) {
@@ -468,7 +473,19 @@ public final class DirectorRendererRegistry {
         }
         com.director.client.renderer.ContainerBoundsRenderer.render(matrices, consumers);
     }
-    
+
+    private static void renderSelectionPreviewOutline(WorldRenderContext context) {
+        if (!isDirectorActive()) {
+            return;
+        }
+        MatrixStack matrices = context.matrices();
+        VertexConsumerProvider consumers = context.consumers();
+        if (matrices == null || consumers == null) {
+            return;
+        }
+        ToolPreviewManager.getInstance().renderSelectionPreviewBoxOutline(matrices, consumers);
+    }
+
     private static void renderContainerHighlight(WorldRenderContext context) {
         if (!isDirectorActive()) {
             return;

@@ -704,29 +704,40 @@ public class ToolPreviewManager {
             return;
         }
 
-        Box adjusted = box.offset(-cameraPos.x, -cameraPos.y, -cameraPos.z);
-        VertexConsumer lineConsumer = vertexConsumers.getBuffer(RenderLayers.getLineOverlay());
-
-        boolean showFill = settings.tool_showFill;
-        boolean showOutline = settings.tool_showOutline;
-
-        // 框选过程预览必须可见：当用户关闭通用工具显示开关时，至少保留线框。
-        if (!showFill && !showOutline) {
-            showOutline = true;
-        }
-
-        if (showFill) {
+        if (settings.tool_showFill) {
             try {
+                Box adjusted = box.offset(-cameraPos.x, -cameraPos.y, -cameraPos.z);
                 VertexConsumer fillConsumer = vertexConsumers.getBuffer(RenderLayers.getPreviewLayer());
                 drawSelectionPreviewFill(fillConsumer, matrix, adjusted, selectionPreviewFillColor);
             } catch (Exception e) {
-                // 某些渲染阶段下 PreviewLayer 可能不可写；降级到仅线框，避免整段预览消失。
-                LOGGER.debug("[ToolPreviewManager] selection preview fill unavailable, fallback to outline only");
+                LOGGER.debug("[ToolPreviewManager] selection preview fill unavailable");
             }
         }
-        if (showOutline) {
-            drawSelectionPreviewEdges(lineConsumer, matrix, adjusted, selectionPreviewOutlineColor);
+        // 轮廓线在 AFTER_ENTITIES 阶段由 renderSelectionPreviewBoxOutline 单独绘制，
+        // 因为 RenderLayer.getLines() 在 END_MAIN (AFTER_TRANSLUCENT) 阶段不会被正确 flush。
+    }
+
+    /**
+     * 在 AFTER_ENTITIES 阶段绘制框选预览包围盒的轮廓线。
+     * 必须在 AFTER_ENTITIES（WorldRenderEvents.AFTER_ENTITIES）阶段调用，
+     * 才能保证 RenderLayer.getLines() 被正确 flush 并渲染出来。
+     */
+    public void renderSelectionPreviewBoxOutline(MatrixStack matrices, VertexConsumerProvider vertexConsumers) {
+        if (!selectionPreviewActive || selectionPreviewBox == null || vertexConsumers == null) {
+            return;
         }
+        Vec3d cameraPos = getCameraPosition();
+        Box adjusted = selectionPreviewBox.offset(-cameraPos.x, -cameraPos.y, -cameraPos.z);
+        Matrix4f matrix = matrices.peek().getPositionMatrix();
+        VertexConsumer lineConsumer = vertexConsumers.getBuffer(RenderLayers.getLineOverlay());
+        GlStateManager._enableBlend();
+        GlStateManager._blendFuncSeparate(
+                org.lwjgl.opengl.GL11.GL_SRC_ALPHA, org.lwjgl.opengl.GL11.GL_ONE_MINUS_SRC_ALPHA,
+                org.lwjgl.opengl.GL11.GL_ONE, org.lwjgl.opengl.GL11.GL_ONE_MINUS_SRC_ALPHA);
+        GlStateManager._enableDepthTest();
+        RenderSystem.lineWidth(2.0f);
+        drawSelectionPreviewEdges(lineConsumer, matrix, adjusted, selectionPreviewOutlineColor);
+        RenderSystem.lineWidth(1.0f);
     }
 
     private void drawSelectionPreviewFill(VertexConsumer consumer, Matrix4f matrix, Box box, float[] color) {
