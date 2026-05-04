@@ -438,23 +438,32 @@ public final class SelectionRenderer {
                     }
                     
                     // ⭐ 包围盒填充（根据设置控制）
-                    if (settings.selection_showBoundingBox && settings.selection_bboxShowFill
-                        && blocks.size() > 1 && state.getBoundingBox().isPresent()) {
+                    if (settings.selection_showBoundingBox && settings.selection_bboxShowFill) {
                         SelectionManager mgr = SelectionManager.get();
-                        Box worldBox;
-                        if (mgr != null && mgr.isFaceResizeActive() && mgr.getResizePreviewBounds() != null) {
-                            worldBox = mgr.getResizePreviewBounds();
-                        } else {
+                        Box worldBox = null;
+                        if (mgr != null) {
+                            if (mgr.isBoundsGizmoMoveActive() && mgr.getBoundsGizmoMovePreviewBounds() != null) {
+                                worldBox = mgr.getBoundsGizmoMovePreviewBounds();
+                            } else if (mgr.isFaceResizeActive() && mgr.getResizePreviewBounds() != null) {
+                                worldBox = mgr.getResizePreviewBounds();
+                            } else if (blocks.size() > 1 && state.getBoundingBox().isPresent()) {
+                                SelectionState.BoundingBox bbox = state.getBoundingBox().get();
+                                worldBox = new Box(bbox.getMinX(), bbox.getMinY(), bbox.getMinZ(),
+                                        bbox.getMaxX() + 1, bbox.getMaxY() + 1, bbox.getMaxZ() + 1);
+                            }
+                        } else if (blocks.size() > 1 && state.getBoundingBox().isPresent()) {
                             SelectionState.BoundingBox bbox = state.getBoundingBox().get();
                             worldBox = new Box(bbox.getMinX(), bbox.getMinY(), bbox.getMinZ(),
                                     bbox.getMaxX() + 1, bbox.getMaxY() + 1, bbox.getMaxZ() + 1);
                         }
-                        Box box = worldBox.offset(-cam.x, -cam.y, -cam.z);
-                        
-                        float[] base = settings.selection_bboxFillColor;
-                        float a2 = base[3] * Math.min(1.0f, settings.selection_highlightIntensity);
-                        float[] boxColor = new float[]{base[0], base[1], base[2], a2};
-                        drawBoundingBoxFill(fill, posMat, box, boxColor);
+                        if (worldBox != null) {
+                            Box box = worldBox.offset(-cam.x, -cam.y, -cam.z);
+                            
+                            float[] base = settings.selection_bboxFillColor;
+                            float a2 = base[3] * Math.min(1.0f, settings.selection_highlightIntensity);
+                            float[] boxColor = new float[]{base[0], base[1], base[2], a2};
+                            drawBoundingBoxFill(fill, posMat, box, boxColor);
+                        }
                     }
                 } else {
                     // 使用逐方块渲染（小选区或未启用贪婪合并）
@@ -474,26 +483,26 @@ public final class SelectionRenderer {
                         LOGGER.debug("[SelectionRenderer] ✅ 渲染 {} 个方块填充", rendered);
                     }
                     
-                    // ⭐ BoxSelectTool → 整体包围盒填充（作为辅助视觉效果）
-                    // 只在 BoxSelectTool 工具选中时才显示整体包围盒（逐方块渲染分支）
+                    // ⭐ 包围盒填充：始终以 SelectionManager 当前边界为准（空选区也可显示）
                     SelectionManager manager = SelectionManager.get();
-                    if (manager != null && manager.hasCurrentTool()) {
-                        var currentTool = manager.getCurrentTool();
-                        if (currentTool instanceof com.director.core.selection.tools.boxselecttool.BoxSelectTool) {
-                            if (settings.selection_showBoundingBox && settings.selection_bboxShowFill
-                                && blocks.size() > 1 && state.getBoundingBox().isPresent()) {
-                                SelectionState.BoundingBox bbox = state.getBoundingBox().get();
-                                Box box = new Box(bbox.getMinX(), bbox.getMinY(), bbox.getMinZ(),
-                                                  bbox.getMaxX() + 1, bbox.getMaxY() + 1, bbox.getMaxZ() + 1)
-                                                  .offset(-cam.x, -cam.y, -cam.z);
-                                
-                                float[] base = settings.selection_bboxFillColor;
-                                float a2 = base[3] * Math.min(1.0f, settings.selection_highlightIntensity);
-                                float[] boxColor = new float[]{base[0], base[1], base[2], a2};
-                                
-                                drawBoundingBoxFill(fill, posMat, box, boxColor);
-                            }
+                    Box worldBox = null;
+                    if (settings.selection_showBoundingBox && settings.selection_bboxShowFill && manager != null) {
+                        if (manager.isBoundsGizmoMoveActive() && manager.getBoundsGizmoMovePreviewBounds() != null) {
+                            worldBox = manager.getBoundsGizmoMovePreviewBounds();
+                        } else if (manager.isFaceResizeActive() && manager.getResizePreviewBounds() != null) {
+                            worldBox = manager.getResizePreviewBounds();
+                        } else if (blocks.size() > 1 && state.getBoundingBox().isPresent()) {
+                            SelectionState.BoundingBox bbox = state.getBoundingBox().get();
+                            worldBox = new Box(bbox.getMinX(), bbox.getMinY(), bbox.getMinZ(),
+                                            bbox.getMaxX() + 1, bbox.getMaxY() + 1, bbox.getMaxZ() + 1);
                         }
+                    }
+                    if (worldBox != null) {
+                        Box box = worldBox.offset(-cam.x, -cam.y, -cam.z);
+                        float[] base = settings.selection_bboxFillColor;
+                        float a2 = base[3] * Math.min(1.0f, settings.selection_highlightIntensity);
+                        float[] boxColor = new float[]{base[0], base[1], base[2], a2};
+                        drawBoundingBoxFill(fill, posMat, box, boxColor);
                     }
                 }
                 
