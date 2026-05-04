@@ -500,7 +500,7 @@ public class DirectorUIManager {
                                 // 这可能是因为项目系统尚未完全实现
                                 return 30.0f; // 默认值
                             }
-                            
+
                             // 使用与 TimelineProjectPropertyAdapter 相同的方式
                             float fps = project.getFrameRate();
                             LOGGER.debug("[TimelineSettings] 获取帧率: {} (项目对象: {})", fps, project.getClass().getSimpleName());
@@ -547,56 +547,6 @@ public class DirectorUIManager {
                             
                             project.setTimeUnit(unit);
                             return true;
-                        }
-                        
-                        /**
-                         * 获取项目对象（尝试多种方式）
-                         */
-                        private Object getProjectObject() {
-                            // 方式1: 通过 SelectionManager 获取当前选择
-                            com.director.ui.selection.SelectionManager selectionManager = 
-                                    com.director.ui.selection.SelectionManager.get();
-                            Object selection = selectionManager.getCurrentSelection();
-                            
-                            // 方式2: 检查 SelectionType，如果是 PROJECT 类型，尝试获取项目对象
-                            com.director.ui.selection.SelectionType selectionType = selectionManager.getSelectionType();
-                            if (selectionType == com.director.ui.selection.SelectionType.PROJECT) {
-                                // 如果是 PROJECT 类型，即使 selection 为 null，也可能有项目对象
-                                // 尝试通过 PropertiesPanel 的方式：使用 PropertyAdapterRegistry
-                                try {
-                                    // 创建一个标记对象来查找项目适配器
-                                    String projectMarker = "TimelineProject";
-                                    com.director.ui.properties.IPropertyAdapter<?> adapter = 
-                                            com.director.ui.properties.PropertyAdapterRegistry.getAdapterFor(projectMarker);
-                                    
-                                    // 如果适配器存在，说明项目系统可用
-                                    // 但我们需要实际的项目对象，而不是适配器
-                                    // 所以继续尝试其他方式
-                                } catch (Exception e) {
-                                    // 忽略
-                                }
-                                
-                                // 如果 selection 不为 null，尝试使用它
-                                if (selection != null) {
-                                    String className = selection.getClass().getName().toLowerCase();
-                                    if (className.contains("timelineproject") || className.contains("project")) {
-                                        return selection;
-                                    }
-                                }
-                            }
-                            
-                            // 方式3: 如果 selection 不为 null，检查是否是项目对象
-                            if (selection != null) {
-                                String className = selection.getClass().getName().toLowerCase();
-                                if (className.contains("timelineproject") || className.contains("project")) {
-                                    return selection;
-                                }
-                            }
-                            
-                            // 方式4: 尝试通过反射查找项目对象（如果项目对象是单例或全局对象）
-                            // 这里我们无法直接访问，所以返回 null
-                            // 注意：如果项目对象不存在，帧率设置将无法工作
-                            return null;
                         }
                     }
                 );

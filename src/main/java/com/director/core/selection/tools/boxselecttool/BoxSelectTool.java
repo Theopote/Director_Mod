@@ -33,8 +33,7 @@ import java.util.Set;
  * —— Director 框选工具增强版
  * <p>
  * 功能特性：
- * ✅ 两点式建盒（左键+右键确定对角点）
- * ✅ 拖拽式建盒（左键拖拽，最小高度=1方块）
+ * ✅ 两点式建盒（左键第一次设置起点，第二次设置终点）
  * ✅ 包围盒生成时自动在几何中心激活 Gizmo，用于移动选区
  * ✅ 一方块步进（网格对齐）
  * ✅ 支持新建选区 / 加选 / 减选 / 交集 模式
@@ -57,11 +56,6 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
     // ====================== 两点式建盒状态 ======================
     private BlockPos firstCorner = null;  // 第一角点（左键点击）
     
-    // ====================== 拖拽状态 ======================
-    private BlockPos dragStart = null;
-    private BlockPos dragCurrent = null;
-    private boolean isDragging = false;
-
     // ====================== Gizmo 编辑状态 ======================
     @SuppressWarnings("unused")
     private boolean gizmoActive = false;
@@ -84,7 +78,7 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
 
     @Override
     public String getDescription() {
-        return "拖拽选择立方体区域，支持加选/减选/交集模式，支持实时预览与 Gizmo 操作。";
+        return "左键两点框选立方体区域，支持加选/减选/交集模式，支持实时预览与 Gizmo 操作。";
     }
 
     @Override
@@ -101,12 +95,6 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
         // 如果正在拖拽面中心小方块，不处理点击
         if (faceHandleManager.isDragging()) {
             LOGGER.debug("[BoxSelectTool] 正在拖拽面中心小方块，跳过点击");
-            return;
-        }
-
-        // 如果正在拖拽，不处理点击（点击会被拖拽结束处理）
-        if (phase == SelectionPhase.DRAGGING) {
-            LOGGER.debug("[BoxSelectTool] 正在拖拽，跳过点击");
             return;
         }
 
@@ -128,42 +116,39 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
             }
         }
 
-        // ✅ 非Ctrl模式：左键总是重新设置第一角点（不管当前状态）
-        // 但只有在不是拖拽状态时才设置
-        firstCorner = pos.toImmutable();
-        phase = SelectionPhase.FIRST_POINT_SET;
-        clearPreview(); // 清除之前的预览
-        
-        // 显示第一角点的预览（单个方块）
-        Box previewBox = makeInclusiveBlockBox(firstCorner, firstCorner).expand(0.01);
-        ToolPreviewManager.get().setPreviewBox(previewBox);
-        
-        LOGGER.info("[BoxSelectTool] ✅ 第一角点已设置: {} (现在右键点击第二角点完成选择)", firstCorner);
+        // 两点式：第一次左键设置起点，第二次左键直接确认终点并应用
+        if (firstCorner == null) {
+            firstCorner = pos.toImmutable();
+            phase = SelectionPhase.FIRST_POINT_SET;
+            clearPreview();
+
+            // 显示第一角点预览（单个方块）
+            Box previewBox = makeInclusiveBlockBox(firstCorner, firstCorner).expand(0.01);
+            ToolPreviewManager.get().setPreviewBox(previewBox);
+
+            LOGGER.info("[BoxSelectTool] ✅ 第一角点已设置: {} (左键点击第二角点完成选择)", firstCorner);
+            return;
+        }
+
+        Box box = makeInclusiveBlockBox(firstCorner, pos);
+        applyBoxSelection(world, box);
+        clearPreview();
+        LOGGER.info("[BoxSelectTool] ✅ 两点式建盒完成: {} -> {}", firstCorner, pos);
+        firstCorner = null;
+        phase = SelectionPhase.IDLE;
     }
     
     @Override
     public void onRightClick(World world, BlockPos pos) {
-        if (world == null || pos == null) return;
-        
-        // Gizmo 编辑由 GizmoInteractionController 处理，这里不需要额外处理
-        
-        // ✅ 两点式：如果已有第一角点，则右键作为第二角点 → 立刻生成盒子
+        if (world == null) return;
+
+        // 右键用于取消当前两点式框选（不参与确认第二角点）
         if (firstCorner != null) {
-            Box box = makeInclusiveBlockBox(firstCorner, pos);
-            applyBoxSelection(world, box);
             clearPreview();
-            LOGGER.info("[BoxSelectTool] ✅ 两点式建盒完成: {} -> {}", firstCorner, pos);
+            LOGGER.info("[BoxSelectTool] 取消两点式框选，已清除第一角点: {}", firstCorner);
             firstCorner = null;
             phase = SelectionPhase.IDLE;
-            return;
         }
-        
-        // ✅ 如果没有第一角点，右键也可以重新设置第一角点（可选：或什么都不做）
-        // 这里选择：右键也设置第一角点（与左键行为一致）
-        firstCorner = pos.toImmutable();
-        phase = SelectionPhase.FIRST_POINT_SET;
-        clearPreview();
-        LOGGER.debug("[BoxSelectTool] 右键设置第一角点: {}", firstCorner);
     }
 
     @Override
@@ -194,20 +179,7 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
             }
         }
         
-        // ✅ 普通拖拽建盒
-        // 清除两点式建盒的状态，避免冲突
-        firstCorner = null;
-        
-        dragStart = start.toImmutable();
-        dragCurrent = start.toImmutable();
-        isDragging = true;
-        phase = SelectionPhase.DRAGGING;
-        
-        // 预览：单层最小高度=1方块
-        Box preview = makeDragBoxWithMinHeight(dragStart, dragCurrent).expand(0.01);
-        ToolPreviewManager.get().setPreviewBox(preview);
-        
-        LOGGER.info("[BoxSelectTool] ✅ 拖拽开始: {} (拖拽模式)", start);
+        // 普通左键拖拽不再触发框选建盒；两点式框选由 onClick 完成。
     }
 
     @Override
@@ -223,13 +195,7 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
             updateMouseCursor(true);
             return; // 阻止框选拖拽更新
         }
-        
-        if (phase == SelectionPhase.DRAGGING && dragStart != null) {
-            dragCurrent = current.toImmutable();
-            Box preview = makeDragBoxWithMinHeight(dragStart, dragCurrent).expand(0.01);
-            ToolPreviewManager.get().setPreviewBox(preview);
-        }
-        
+
         // Gizmo 拖拽更新由 GizmoInteractionController 处理，这里不需要额外处理
     }
 
@@ -260,15 +226,6 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
             return;
         }
         
-        if (phase == SelectionPhase.DRAGGING && dragStart != null) {
-            Box box = makeDragBoxWithMinHeight(dragStart, end);
-            applyBoxSelection(world, box);
-            clearDrag();
-            clearPreview();
-            phase = SelectionPhase.IDLE;
-            LOGGER.info("[BoxSelectTool] ✅ 拖拽建盒完成: {} -> {}", dragStart, end);
-        }
-        
         // Gizmo 拖拽结束由 GizmoInteractionController 处理，这里不需要额外处理
     }
 
@@ -285,7 +242,7 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
         }
 
         // ✅ 两点式建盒：实时预览（参考 formacraft 的做法：选点后持续更新 end）
-        // 当第一角点已设置且还未右键确认时，使用当前鼠标指向的方块作为临时第二角点更新预览框。
+        // 当第一角点已设置且还未左键确认终点时，使用当前鼠标指向的方块作为临时第二角点更新预览框。
         if (phase == SelectionPhase.FIRST_POINT_SET && firstCorner != null && !faceHandleManager.isDragging()) {
             BlockPos hovered = getHoveredBlockPos();
             if (hovered != null) {
@@ -505,12 +462,39 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
     private BlockPos getHoveredBlockPos() {
         try {
             MinecraftClient client = MinecraftClient.getInstance();
-            if (client == null || client.crosshairTarget == null) {
+            if (client == null || client.world == null || client.player == null || client.options == null) {
                 return null;
             }
-            if (client.crosshairTarget instanceof BlockHitResult hit) {
+
+            // 优先复用输入系统当前射线命中，保证与点击/掠过逻辑一致。
+            try {
+                BlockHitResult current = com.director.client.input.DirectorInputSystem.getCurrentRay();
+                if (current != null && current.getType() == net.minecraft.util.hit.HitResult.Type.BLOCK) {
+                    return current.getBlockPos();
+                }
+            } catch (Throwable ignored) {
+                // 输入系统尚未就绪时走下方回退射线
+            }
+
+            Vec3d[] ray = getMouseRay();
+            if (ray == null || ray.length != 2) {
+                return null;
+            }
+
+            double maxDist = client.options.getViewDistance().getValue() * 16.0;
+            Vec3d endPos = ray[0].add(ray[1].multiply(maxDist));
+            BlockHitResult hit = client.world.raycast(new net.minecraft.world.RaycastContext(
+                    ray[0],
+                    endPos,
+                    net.minecraft.world.RaycastContext.ShapeType.OUTLINE,
+                    net.minecraft.world.RaycastContext.FluidHandling.NONE,
+                    client.player
+            ));
+
+            if (hit != null && hit.getType() == net.minecraft.util.hit.HitResult.Type.BLOCK) {
                 return hit.getBlockPos();
             }
+
             return null;
         } catch (Exception e) {
             return null;
@@ -673,9 +657,7 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
      * 清理拖拽态与预览
      */
     private void clearDrag() {
-        isDragging = false;
-        dragStart = null;
-        dragCurrent = null;
+        // 保留方法用于兼容既有调用；当前框选工具已不使用普通框选拖拽状态。
     }
     
     /**
@@ -703,7 +685,7 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
     // ====================== Getters & Setters ======================
 
     public boolean isDragging() {
-        return isDragging;
+        return phase == SelectionPhase.DRAGGING;
     }
 
     @Override

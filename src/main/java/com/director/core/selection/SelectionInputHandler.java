@@ -218,6 +218,9 @@ public class SelectionInputHandler {
                 LOGGER.debug("[Drag] 鼠标悬停在面中心小方块上，启动面拖拽: {}", started);
                 return; // 阻止框选拖拽开始
             }
+
+            // BoxSelectTool 改为左键两点式框选：禁用普通左键拖拽建盒入口。
+            return;
         }
 
         BlockHitResult hit = raycastFromMouse();
