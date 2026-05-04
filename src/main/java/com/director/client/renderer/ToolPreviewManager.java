@@ -708,7 +708,8 @@ public class ToolPreviewManager {
             try {
                 Box adjusted = box.offset(-cameraPos.x, -cameraPos.y, -cameraPos.z);
                 VertexConsumer fillConsumer = vertexConsumers.getBuffer(RenderLayers.getPreviewLayer());
-                drawSelectionPreviewFill(fillConsumer, matrix, adjusted, selectionPreviewFillColor);
+                // 使用全局渲染设置中的选区填充色
+                drawSelectionPreviewFill(fillConsumer, matrix, adjusted, settings.selection_fillColor);
             } catch (Exception e) {
                 LOGGER.debug("[ToolPreviewManager] selection preview fill unavailable");
             }
@@ -736,7 +737,8 @@ public class ToolPreviewManager {
                 org.lwjgl.opengl.GL11.GL_ONE, org.lwjgl.opengl.GL11.GL_ONE_MINUS_SRC_ALPHA);
         GlStateManager._enableDepthTest();
         RenderSystem.lineWidth(2.0f);
-        drawSelectionPreviewEdges(lineConsumer, matrix, adjusted, selectionPreviewOutlineColor);
+        // 使用全局渲染设置中的包围盒轮廓线色
+        drawSelectionPreviewEdges(lineConsumer, matrix, adjusted, settings.selection_bboxOutlineColor);
         RenderSystem.lineWidth(1.0f);
     }
 

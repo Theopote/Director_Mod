@@ -592,9 +592,9 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
         // 📊 记录操作前状态（用于历史记录）
         SelectionState beforeState = SelectionState.of(set.asUnmodifiableSet(), getId());
 
-        // 框选工具：不过滤方块类型，选区包含框内所有位置（包括空气），
-        // 让用户可以自由调整选框大小而不受方块分布影响。
-        Set<BlockPos> found = RegionSelectors.selectInBox(world, box, BlockFilters.all());
+        // 框选工具：选中框内所有非空气方块，这样用户可以看到被选中的方块样式。
+        // 框选工具允许自由调整选框大小（不受方块分布影响），但最终选区只包含实际存在的方块。
+        Set<BlockPos> found = RegionSelectors.selectInBox(world, box, BlockFilters.nonAir());
 
         int beforeSize = set.size();
         

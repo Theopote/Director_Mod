@@ -570,7 +570,7 @@ public class SelectionManager {
             return;
         }
 
-        // 闈㈡嫋鎷?resize锛氬寘鍚鍐呮墍鏈変綅缃紙鍚┖姘旓級锛屼笉杩囨护鏂瑰潡绫诲瀷
+        // Bounds Gizmo resize：包含框内所有位置（包括空气），不过滤方块类型
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
                 for (int z = minZ; z <= maxZ; z++) {
@@ -581,10 +581,10 @@ public class SelectionManager {
     }
 
     /**
-     * 鉁?渚?BOUNDS Gizmo 浣跨敤锛氭妸涓€涓?浣撶Н鍖呭洿鐩?杞负閫夊尯锛堝寘鍚墍鏈変綅缃紝鍚┖姘旓級銆?
+     * ✓ 用于 BOUNDS Gizmo 使用：把一个体积包围盒变为选区（包含所有位置，包括空气）。
      *
-     * <p>娉ㄦ剰锛氳繖閲?strong>涓?/strong>璋冪敤 {@link #updateGizmoPosition()}锛屽惁鍒欐嫋鎷借繃绋嬩腑浼氬弽澶嶉噸寤?Gizmo锛?
-     * 瀵艰嚧姣忔鏈€澶氱Щ鍔ㄤ竴鏍?鎷栨嫿涓柇銆?/p>
+     * <p>注意：这里不调用 {@link #updateGizmoPosition()}，否则拖拽过程中会反复重建Gizmo，
+     * 导致每次最多移动一格、拖拽中断。</p>
      */
     public void rebuildSelectionFromBoundsForBoundsGizmo(Box bounds) {
         if (bounds == null) {
@@ -606,7 +606,7 @@ public class SelectionManager {
             return;
         }
 
-        // BOUNDS Gizmo resize锛氬寘鍚鍐呮墍鏈変綅缃紙鍚┖姘旓級锛屼笉杩囨护鏂瑰潡绫诲瀷
+        // Bounds Gizmo resize：包含框内所有位置（包括空气），不过滤方块类型
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
                 for (int z = minZ; z <= maxZ; z++) {
@@ -615,7 +615,7 @@ public class SelectionManager {
             }
         }
 
-        // 鉁?閫夊尯閲嶅缓鍚庨渶瑕佽娓叉煋缂撳瓨澶辨晥锛屽惁鍒欏彲鑳藉嚭鐜扳€滈€夊尯娌℃洿鏂?涓嶇ǔ瀹氣€濈殑瑙嗚琛ㄧ幇
+        // 选区重建后需要让渲染缓存失效，否则可能出现"选区没更新、不稳定"的视觉表现
         invalidateRendererCache();
 
         if (selectionSet.isEmpty()) {
@@ -624,7 +624,7 @@ public class SelectionManager {
             SelectionEvents.fireChanged(SelectionChangeType.SELECTION_UPDATED);
         }
 
-        // 璁╅潰鏉?鐩戝惉鍣ㄤ篃鑳芥敹鍒板彉鍖栵紙涓嶈Е鍙?updateGizmoPosition锛岄伩鍏嶆嫋鎷戒腑鏂級
+        // 让面拖拽监听器也能收到变化（不触发updateGizmoPosition，避免拖拽中断）
         notifySelectionChanged();
     }
 
