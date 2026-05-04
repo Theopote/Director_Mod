@@ -61,6 +61,9 @@ public class SelectionManager {
 
     // ===== BOUNDS Gizmo锛堢Щ鍔ㄥ寘鍥寸洅锛夊疄鏃堕瑙堢姸鎬?=====
     private Box activeBoundsGizmoMovePreviewBounds = null;
+
+    // 当选区中没有非空气方块时，仍保留最近一次可编辑的包围盒
+    private Box emptySelectionBounds = null;
     
     /** 浜嬩欢澶勭悊鍣?*/
     private SelectionToolEventProcessor eventProcessor;
@@ -194,6 +197,7 @@ public class SelectionManager {
      */
     public void clearSelection() { 
         selectionSet.clear();
+        emptySelectionBounds = null;
         
         // 馃殌 v2.0: 浣跨綉鏍肩紦瀛樺け鏁堬紝寮哄埗涓嬫娓叉煋鏃堕噸鏂拌绠?
         invalidateRendererCache();
@@ -520,6 +524,9 @@ public class SelectionManager {
             return;
         }
 
+        // 无论是否命中非空气方块，都保留用户调整后的包围盒尺寸
+        emptySelectionBounds = copyBox(activeResizePreviewBounds);
+
         rebuildSelectionFromBounds(activeResizePreviewBounds);
         notifySelectionChanged();
         
@@ -569,6 +576,8 @@ public class SelectionManager {
             return;
         }
 
+        emptySelectionBounds = copyBox(bounds);
+
         selectionSet.clear();
         World world = MinecraftClient.getInstance() != null ? MinecraftClient.getInstance().world : null;
         if (world == null) {
@@ -609,6 +618,8 @@ public class SelectionManager {
         if (bounds == null) {
             return;
         }
+
+        emptySelectionBounds = copyBox(bounds);
 
 
         selectionSet.clear();
@@ -918,7 +929,7 @@ public class SelectionManager {
      */
     public Box getCurrentBounds() {
         if (selectionSet.isEmpty()) {
-            return null;
+            return emptySelectionBounds != null ? copyBox(emptySelectionBounds) : null;
         }
         
         int minX = Integer.MAX_VALUE, minY = Integer.MAX_VALUE, minZ = Integer.MAX_VALUE;

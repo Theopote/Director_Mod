@@ -271,19 +271,19 @@ public final class SelectionRenderer {
                     LOGGER.debug("[SelectionRenderer] ✅ 贪婪合并渲染 {} 条线框", rendered);
                 }
                 
-                // ⭐ 包围盒渲染（根据设置控制；若处于面缩放预览中，则使用 preview bounds，避免“两个盒子叠在一起”）
-                if (settings.selection_showBoundingBox && blocks.size() > 1 && state.getBoundingBox().isPresent()) {
-                    SelectionManager mgr = SelectionManager.get();
-                    Box worldBox;
-                    if (mgr != null && mgr.isBoundsGizmoMoveActive() && mgr.getBoundsGizmoMovePreviewBounds() != null) {
+                // ⭐ 包围盒渲染：始终以 SelectionManager 当前边界为准（空选区也可显示）
+                SelectionManager mgr = SelectionManager.get();
+                Box worldBox = null;
+                if (settings.selection_showBoundingBox && mgr != null) {
+                    if (mgr.isBoundsGizmoMoveActive() && mgr.getBoundsGizmoMovePreviewBounds() != null) {
                         worldBox = mgr.getBoundsGizmoMovePreviewBounds();
-                    } else if (mgr != null && mgr.isFaceResizeActive() && mgr.getResizePreviewBounds() != null) {
+                    } else if (mgr.isFaceResizeActive() && mgr.getResizePreviewBounds() != null) {
                         worldBox = mgr.getResizePreviewBounds();
                     } else {
-                        SelectionState.BoundingBox bbox = state.getBoundingBox().get();
-                        worldBox = new Box(bbox.getMinX(), bbox.getMinY(), bbox.getMinZ(),
-                                bbox.getMaxX() + 1, bbox.getMaxY() + 1, bbox.getMaxZ() + 1);
+                        worldBox = mgr.getCurrentBounds();
                     }
+                }
+                if (worldBox != null) {
                     Box box = worldBox.offset(-cam.x, -cam.y, -cam.z);
                     
                     // 使用稍微扩展的线框，确保可见
@@ -303,19 +303,19 @@ public final class SelectionRenderer {
                     rendered++;
                 }
 
-                // ⭐ 包围盒渲染（根据设置控制；若处于面缩放预览中，则使用 preview bounds）
-                if (settings.selection_showBoundingBox && blocks.size() > 1 && state.getBoundingBox().isPresent()) {
-                    SelectionManager mgr = SelectionManager.get();
-                    Box worldBox;
-                    if (mgr != null && mgr.isBoundsGizmoMoveActive() && mgr.getBoundsGizmoMovePreviewBounds() != null) {
+                // ⭐ 包围盒渲染：始终以 SelectionManager 当前边界为准（空选区也可显示）
+                SelectionManager mgr = SelectionManager.get();
+                Box worldBox = null;
+                if (settings.selection_showBoundingBox && mgr != null) {
+                    if (mgr.isBoundsGizmoMoveActive() && mgr.getBoundsGizmoMovePreviewBounds() != null) {
                         worldBox = mgr.getBoundsGizmoMovePreviewBounds();
-                    } else if (mgr != null && mgr.isFaceResizeActive() && mgr.getResizePreviewBounds() != null) {
+                    } else if (mgr.isFaceResizeActive() && mgr.getResizePreviewBounds() != null) {
                         worldBox = mgr.getResizePreviewBounds();
                     } else {
-                        SelectionState.BoundingBox bbox = state.getBoundingBox().get();
-                        worldBox = new Box(bbox.getMinX(), bbox.getMinY(), bbox.getMinZ(),
-                                bbox.getMaxX() + 1, bbox.getMaxY() + 1, bbox.getMaxZ() + 1);
+                        worldBox = mgr.getCurrentBounds();
                     }
+                }
+                if (worldBox != null) {
                     Box box = worldBox.offset(-cam.x, -cam.y, -cam.z);
                     
                     // 使用稍微扩展的线框，确保可见

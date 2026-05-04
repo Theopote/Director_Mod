@@ -42,20 +42,10 @@ public final class InteractionHintRenderer {
             return;
         }
 
-        var selection = manager.getCurrentSelection();
-        if (selection == null || selection.isEmpty()) {
+        Box selectionBox = manager.getCurrentBounds();
+        if (selectionBox == null) {
             return;
         }
-
-        var bboxOpt = selection.getBoundingBox();
-        if (bboxOpt.isEmpty()) {
-            return;
-        }
-
-        Box selectionBox = new Box(
-            bboxOpt.get().getMinX(), bboxOpt.get().getMinY(), bboxOpt.get().getMinZ(),
-            bboxOpt.get().getMaxX() + 1, bboxOpt.get().getMaxY() + 1, bboxOpt.get().getMaxZ() + 1
-        );
 
         FaceHandleManager faceHandleManager = manager.getFaceHandleManager();
         Integer hoveredFace = faceHandleManager.getHoveredFaceIndex();
