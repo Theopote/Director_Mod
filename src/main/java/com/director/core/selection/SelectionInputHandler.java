@@ -185,16 +185,13 @@ public class SelectionInputHandler {
      */
     public void handleMouseRightClick() {
         if (selectionManager == null || !selectionManager.hasCurrentTool()) return;
-        
-        BlockHitResult hit = raycastFromMouse();
-        if (hit == null) {
-            LOGGER.debug("[RightClick] 射线未命中方块");
-            return;
+
+        SelectionTool currentTool = selectionManager.getCurrentTool();
+        if (currentTool != null) {
+            currentTool.clearSelection();
         }
-        
-        BlockPos pos = hit.getBlockPos();
-        LOGGER.debug("[RightClick] ✅ 右键点击: {}", pos);
-        selectionManager.handleRightClick(client.world, pos);
+        selectionManager.clearSelection();
+        LOGGER.debug("[RightClick] 已清空当前选区");
     }
 
     /* -------------------- 拖拽开始 / 更新 / 结束 -------------------- */
