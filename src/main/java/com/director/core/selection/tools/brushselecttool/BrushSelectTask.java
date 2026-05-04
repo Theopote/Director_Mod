@@ -63,7 +63,7 @@ public final class BrushSelectTask implements Runnable {
         this.stepSize = stepSize > 0 ? stepSize : DEFAULT_STEP_SIZE;
         this.callback = callback != null ? callback : new Callback() {};
         BlockPos immutableCenter = center.toImmutable();
-        this.candidates = generateCandidates(immutableCenter, shape, radius, height, hollow);
+        this.candidates = new ArrayList<>(generateGeometryCandidates(immutableCenter, shape, radius, height, hollow));
 
         LOGGER.info("[BrushSelectTask] 初始化：中心={}, 形状={}, 半径={}, 高度={}, 空心={}, 候选方块数={}",
             immutableCenter, shape, String.format("%.2f", radius), String.format("%.2f", height), hollow, candidates.size());
@@ -151,12 +151,6 @@ public final class BrushSelectTask implements Runnable {
             LOGGER.error("[BrushSelectTask] 任务执行出错", t);
             notifyError(t);
         }
-    }
-
-    private List<BlockPos> generateCandidates(BlockPos center, GeometryShape shape, double radius, double height, boolean hollow) {
-        // 使用 GeometryShapeGenerator 生成候选方块
-        Set<BlockPos> geometryBlocks = generateGeometryCandidates(center, shape, radius, height, hollow);
-        return new ArrayList<>(geometryBlocks);
     }
 
     private void notifyCompleted(Set<BlockPos> finalResult) {

@@ -619,7 +619,11 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
             }
         }
 
-        int delta = Math.abs(set.size() - beforeSize);
+        int afterSize = set.size();
+        int delta = switch (operation) {
+            case NEW, ADD -> Math.max(0, afterSize - beforeSize);
+            case SUBTRACT, INTERSECT -> Math.max(0, beforeSize - afterSize);
+        };
         LOGGER.info("[BoxSelectTool] 框选完成 ({} 模式) → 影响 {} 个方块", operation.name(), delta);
 
         // 📊 记录操作到历史管理器

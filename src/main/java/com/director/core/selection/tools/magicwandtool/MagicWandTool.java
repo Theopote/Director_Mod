@@ -59,7 +59,7 @@ public class MagicWandTool implements SelectionTool, SelectionOperationSupport {
     private SelectionOperation operation = SelectionOperation.NEW;
     
     /** 当前选择状态（本地缓存） */
-    private SelectionState currentSelection = SelectionState.empty();
+    private final SelectionState currentSelection = new SelectionState("wand");
     
     // ==================== 预览系统 ====================
     
@@ -236,7 +236,7 @@ public class MagicWandTool implements SelectionTool, SelectionOperationSupport {
                 }
             }
             case INTERSECT -> {
-                SelectionState current = manager.getCurrentSelection();
+                var current = manager.getSelectionSet().asUnmodifiableSet();
                 manager.clearSelection();
                 for (BlockPos pos : result.blocks()) {
                     if (current.contains(pos)) {
@@ -247,7 +247,7 @@ public class MagicWandTool implements SelectionTool, SelectionOperationSupport {
         }
         
         // 更新本地缓存
-        currentSelection = manager.getCurrentSelection();
+        syncCurrentSelection(manager);
         
         if (result.reachedLimit()) {
             LOGGER.warn("[MagicWandTool] 达到最大方块数限制: {}", config.getMaxBlocks());
@@ -499,8 +499,14 @@ public class MagicWandTool implements SelectionTool, SelectionOperationSupport {
         return !currentSelection.isEmpty() || hasPreview();
     }
 
+    private void syncCurrentSelection(SelectionManager manager) {
+        currentSelection.clear();
+        currentSelection.addBlocks(manager.getSelectionSet().asUnmodifiableSet());
+    }
+
     @Override
     public void onActivate(World world) {
+        syncCurrentSelection(SelectionManager.get());
         LOGGER.info("[MagicWandTool] 魔棒工具激活 - config={}", config);
     }
 

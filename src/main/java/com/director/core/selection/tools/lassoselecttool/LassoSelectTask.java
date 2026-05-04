@@ -225,8 +225,8 @@ public final class LassoSelectTask implements Runnable {
             max = Math.max(max, pos.getY());
         }
 
-        minY = Math.max(worldBottom, min - 2);
-        maxY = Math.min(worldTop, max + 2);
+        minY = Math.max(worldBottom, min);
+        maxY = Math.min(worldTop, max);
     }
 
     private static void closePathIfNeeded(List<BlockPos> path) {
