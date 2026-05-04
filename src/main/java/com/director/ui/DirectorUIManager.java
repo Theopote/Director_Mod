@@ -47,6 +47,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.function.Consumer;
 
 import imgui.ImGui;
 
@@ -520,9 +521,8 @@ public class DirectorUIManager {
                         
                         @Override
                         public boolean setTimeUnit(int unit) {
-                            ITimelineProject project = timelineModel;
 
-                            project.setTimeUnit(unit);
+                            timelineModel.setTimeUnit(unit);
                             return true;
                         }
                     }
@@ -1060,14 +1060,13 @@ public class DirectorUIManager {
             return boundModel != null ? boundModel : timelineModel;
         }
 
-        private boolean withPlaybackModel(java.util.function.Consumer<TimelineModel> action, String actionName) {
+        private void withPlaybackModel(Consumer<TimelineModel> action, String actionName) {
             TimelineModel model = resolvePlaybackModel();
             if (model == null) {
                 LOGGER.warn("[PlaybackCommands] {} skipped: TimelineModel unavailable", actionName);
-                return false;
+                return;
             }
             action.accept(model);
-            return true;
         }
         
         @Override

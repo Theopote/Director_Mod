@@ -122,6 +122,9 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
             firstCorner = pos.toImmutable();
             previewCorner = firstCorner;
             phase = SelectionPhase.FIRST_POINT_SET;
+
+            // 兜底：确保工具预览管理器处于启用状态，避免状态残留导致预览不可见。
+            ToolPreviewManager.get().setEnabled(true);
             clearPreview();
 
             // 显示第一角点预览（单个方块）

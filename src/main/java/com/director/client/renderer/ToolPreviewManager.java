@@ -705,13 +705,26 @@ public class ToolPreviewManager {
         }
 
         Box adjusted = box.offset(-cameraPos.x, -cameraPos.y, -cameraPos.z);
-        VertexConsumer fillConsumer = vertexConsumers.getBuffer(RenderLayers.getPreviewLayer());
         VertexConsumer lineConsumer = vertexConsumers.getBuffer(RenderLayers.getLineOverlay());
 
-        if (settings.tool_showFill) {
-            drawSelectionPreviewFill(fillConsumer, matrix, adjusted, selectionPreviewFillColor);
+        boolean showFill = settings.tool_showFill;
+        boolean showOutline = settings.tool_showOutline;
+
+        // 框选过程预览必须可见：当用户关闭通用工具显示开关时，至少保留线框。
+        if (!showFill && !showOutline) {
+            showOutline = true;
         }
-        if (settings.tool_showOutline) {
+
+        if (showFill) {
+            try {
+                VertexConsumer fillConsumer = vertexConsumers.getBuffer(RenderLayers.getPreviewLayer());
+                drawSelectionPreviewFill(fillConsumer, matrix, adjusted, selectionPreviewFillColor);
+            } catch (Exception e) {
+                // 某些渲染阶段下 PreviewLayer 可能不可写；降级到仅线框，避免整段预览消失。
+                LOGGER.debug("[ToolPreviewManager] selection preview fill unavailable, fallback to outline only");
+            }
+        }
+        if (showOutline) {
             drawSelectionPreviewEdges(lineConsumer, matrix, adjusted, selectionPreviewOutlineColor);
         }
     }
