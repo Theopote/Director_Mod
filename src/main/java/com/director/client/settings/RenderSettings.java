@@ -54,6 +54,7 @@ public final class RenderSettings {
     public boolean container_showOutline = true;      // 显示线框
     public boolean container_showFill = false;        // 显示填充（默认不勾选）
     public boolean container_enableGreedy = true;     // 贪婪合并（同时控制填充和线框）
+    public int container_greedyThreshold = 1;
     public boolean container_showBoundingBox = false; // 显示包围盒（默认不勾选）
     public float container_outlineWidth = 1.0f;       // 线宽默认 1，UI 不暴露
     public float[] container_outlineColor = new float[]{0.4f, 1.0f, 0.5f, 0.588f}; // alpha=150 (approx 59%)
