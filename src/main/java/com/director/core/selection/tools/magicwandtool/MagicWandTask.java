@@ -390,16 +390,8 @@ public final class MagicWandTask {
             }
                 
             case SAME_MATERIAL -> {
-                // 使用 MapColor 作为近似的材质比较（带缓存）
-                Boolean cached = blockMatchCache.get(targetBlock);
-                if (cached != null) {
-                    yield cached;
-                }
-                BlockPos tempPos = new BlockPos(0, 0, 0); // 临时位置，仅用于获取 MapColor
-                MapColor targetMapColor = targetState.getMapColor(world, tempPos);
-                boolean result = targetMapColor == originMapColor;
-                blockMatchCache.put(targetBlock, result);
-                yield result;
+                MapColor targetMapColor = targetState.getMapColor(world, targetPos);
+                yield targetMapColor == originMapColor;
             }
                 
             case NON_AIR -> 
