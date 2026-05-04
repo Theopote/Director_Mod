@@ -22,7 +22,6 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -165,24 +164,6 @@ public final class ContainerPersistence {
 
     public static boolean isLoading() {
         return loading;
-    }
-
-    public static void resetForCurrentWorld() {
-        try {
-            Path file = getContainerFile();
-            if (file != null && Files.exists(file)) {
-                Files.delete(file);
-                LOGGER.info("[ContainerPersistence] 删除容器存档: {}", file);
-            }
-
-            Path legacy = getLegacyContainerFile();
-            if (legacy != null && Files.exists(legacy) && !legacy.equals(file)) {
-                Files.delete(legacy);
-                LOGGER.info("[ContainerPersistence] 删除旧位置容器存档: {}", legacy);
-            }
-        } catch (IOException e) {
-            LOGGER.warn("[ContainerPersistence] 删除容器存档失败: {}", e.getMessage(), e);
-        }
     }
 
     public static void requestAutoSave() {

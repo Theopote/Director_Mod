@@ -22,6 +22,8 @@ import com.director.ui.timeline.model.camera.CameraKeyframe;
 import com.director.ui.timeline.model.camera.path.CranePathClip;
 import com.director.ui.timeline.model.camera.path.OrbitPathClip;
 import com.director.ui.timeline.model.clip.ClipKeyframe;
+import com.director.ui.timeline.model.entity.EntityClip;
+import com.director.ui.timeline.model.entity.EntityClipType;
 import com.director.ui.timeline.model.season.SeasonKeyframe;
 import com.director.ui.timeline.model.time.TimeKeyframe;
 import com.director.ui.timeline.model.weather.WeatherKeyframe;
@@ -774,9 +776,7 @@ public class TimelineModelPersistence {
                             cdto.actionParams.putAll(xac.getParams());
                             cdto.triggerOnce = xac.isTriggerOnce();
                         }
-                        case com.director.ui.timeline.model.entity.EntityDespawnClip dc -> {
-                            cdto.despawnMode = dc.getMode() != null ? dc.getMode().name() : null;
-                        }
+                        case com.director.ui.timeline.model.entity.EntityDespawnClip dc -> cdto.despawnMode = dc.getMode() != null ? dc.getMode().name() : null;
                         case com.director.ui.timeline.model.entity.ActorActionClip aac -> {
                             cdto.actorActionType = aac.getActionType() != null ? aac.getActionType().name() : null;
                             cdto.actorActionIntensity = aac.getIntensity();
@@ -1189,19 +1189,7 @@ public class TimelineModelPersistence {
                             try {
                                 com.director.ui.timeline.model.entity.EntityClipType clipType =
                                     com.director.ui.timeline.model.entity.EntityClipType.valueOf(cdto.clipType);
-                                String cname = cdto.name != null ? cdto.name : cdto.clipType;
-                                com.director.ui.timeline.model.entity.EntityClip clip = switch (clipType) {
-                                    case SPAWN -> new com.director.ui.timeline.model.entity.EntitySpawnClip(cname, cdto.startTime, cdto.endTime);
-                                    case TRANSFORM -> new com.director.ui.timeline.model.entity.EntityTransformClip(cname, cdto.startTime, cdto.endTime);
-                                    case LOOK_AT -> new com.director.ui.timeline.model.entity.EntityLookAtClip(cname, cdto.startTime, cdto.endTime);
-                                    case ANIMATION -> new com.director.ui.timeline.model.entity.EntityAnimationClip(cname, cdto.startTime, cdto.endTime);
-                                    case STATE -> new com.director.ui.timeline.model.entity.EntityStateClip(cname, cdto.startTime, cdto.endTime);
-                                    case ACTION -> new com.director.ui.timeline.model.entity.EntityActionClip(cname, cdto.startTime, cdto.endTime);
-                                    case DESPAWN -> new com.director.ui.timeline.model.entity.EntityDespawnClip(cname, cdto.startTime, cdto.endTime);
-                                    case ACTOR_ACTION -> new com.director.ui.timeline.model.entity.ActorActionClip(cname, cdto.startTime, cdto.endTime);
-                                };
-                                clip.setMuted(cdto.muted);
-                                clip.setWeight(cdto.weight);
+                                EntityClip clip = getEntityClip(cdto, clipType);
 
                                 // 恢复关键帧
                                 if (cdto.keyframes != null) {
@@ -1333,6 +1321,23 @@ public class TimelineModelPersistence {
             audioService.setSuppressAutoCreate(prevSuppress);
         }
         audioService.setTimelineModel(model);
+    }
+
+    private static @NotNull EntityClip getEntityClip(EntityClipDTO cdto, EntityClipType clipType) {
+        String cname = cdto.name != null ? cdto.name : cdto.clipType;
+        EntityClip clip = switch (clipType) {
+            case SPAWN -> new com.director.ui.timeline.model.entity.EntitySpawnClip(cname, cdto.startTime, cdto.endTime);
+            case TRANSFORM -> new com.director.ui.timeline.model.entity.EntityTransformClip(cname, cdto.startTime, cdto.endTime);
+            case LOOK_AT -> new com.director.ui.timeline.model.entity.EntityLookAtClip(cname, cdto.startTime, cdto.endTime);
+            case ANIMATION -> new com.director.ui.timeline.model.entity.EntityAnimationClip(cname, cdto.startTime, cdto.endTime);
+            case STATE -> new com.director.ui.timeline.model.entity.EntityStateClip(cname, cdto.startTime, cdto.endTime);
+            case ACTION -> new com.director.ui.timeline.model.entity.EntityActionClip(cname, cdto.startTime, cdto.endTime);
+            case DESPAWN -> new com.director.ui.timeline.model.entity.EntityDespawnClip(cname, cdto.startTime, cdto.endTime);
+            case ACTOR_ACTION -> new com.director.ui.timeline.model.entity.ActorActionClip(cname, cdto.startTime, cdto.endTime);
+        };
+        clip.setMuted(cdto.muted);
+        clip.setWeight(cdto.weight);
+        return clip;
     }
 
     private static @NotNull OrbitPathClip getOrbitPathClip(PathClipDTO pathClipDTO) {
