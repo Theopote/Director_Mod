@@ -26,13 +26,13 @@ import java.util.HashSet;
 import java.util.function.Consumer;
 
 /**
- * 🎯 SelectionManager - 选择工具管理器
+ * 馃幆 SelectionManager - 閫夋嫨宸ュ叿绠＄悊鍣?
  * <p>
- * 负责管理当前选中工具、选区状态与世界交互事件。
- * - 处理工具切换（来自 Toolbar）
- * - 转发鼠标事件至当前工具
- * - 发出选区变化事件给属性面板 / 时间线
- * - 管理全局过滤管道（由 SelectionFilterPanel 配置）
+ * 璐熻矗绠＄悊褰撳墠閫変腑宸ュ叿銆侀€夊尯鐘舵€佷笌涓栫晫浜や簰浜嬩欢銆?
+ * - 澶勭悊宸ュ叿鍒囨崲锛堟潵鑷?Toolbar锛?
+ * - 杞彂榧犳爣浜嬩欢鑷冲綋鍓嶅伐鍏?
+ * - 鍙戝嚭閫夊尯鍙樺寲浜嬩欢缁欏睘鎬ч潰鏉?/ 鏃堕棿绾?
+ * - 绠＄悊鍏ㄥ眬杩囨护绠￠亾锛堢敱 SelectionFilterPanel 閰嶇疆锛?
  * 
  * @author Director Team
  * @version 2.0
@@ -45,29 +45,29 @@ public class SelectionManager {
     private final SelectionRegistry registry = new SelectionRegistry();
     private final List<Consumer<SelectionState>> selectionChangeListeners = new ArrayList<>();
     
-    /** 选区集合 */
+    /** 閫夊尯闆嗗悎 */
     private final SelectionSet selectionSet = new SelectionSet();
 
-    // ===== 面拖拽实时预览状态 (v4.9) =====
+    // ===== 闈㈡嫋鎷藉疄鏃堕瑙堢姸鎬?(v4.9) =====
     private Box activeResizeBaseBounds = null;
     private Box activeResizePreviewBounds = null;
     private Integer activeResizeFaceIndex = null;
     private double activeResizeOffset = 0.0;
 
-    // ===== BOUNDS Gizmo（移动包围盒）实时预览状态 =====
+    // ===== BOUNDS Gizmo锛堢Щ鍔ㄥ寘鍥寸洅锛夊疄鏃堕瑙堢姸鎬?=====
     private Box activeBoundsGizmoMovePreviewBounds = null;
     
-    /** 事件处理器 */
+    /** 浜嬩欢澶勭悊鍣?*/
     private SelectionToolEventProcessor eventProcessor;
     
     // ================================
-    // 🧩 实时预览同步配置 (v3.1)
+    // 馃З 瀹炴椂棰勮鍚屾閰嶇疆 (v3.1)
     // ================================
     
-    /** 是否自动显示预览框 */
+    /** 鏄惁鑷姩鏄剧ず棰勮妗?*/
     private boolean autoPreviewEnabled = true;
     
-    /** 全局过滤管道（可由 SelectionFilterPanel 配置）；默认显式加入 exclude_air，不再用「空管道=忽略空气」隐式规则。 */
+    /** 鍏ㄥ眬杩囨护绠￠亾锛堝彲鐢?SelectionFilterPanel 閰嶇疆锛夛紱榛樿鏄惧紡鍔犲叆 exclude_air锛屼笉鍐嶇敤銆岀┖绠￠亾=蹇界暐绌烘皵銆嶉殣寮忚鍒欍€?*/
     private final BlockFilterPipeline globalPipeline = createInitialPipeline();
 
     private static BlockFilterPipeline createInitialPipeline() {
@@ -79,7 +79,7 @@ public class SelectionManager {
 
     private SelectionManager() {
         registerDefaultTools();
-        // 延迟初始化事件处理器，避免循环依赖
+        // 寤惰繜鍒濆鍖栦簨浠跺鐞嗗櫒锛岄伩鍏嶅惊鐜緷璧?
         this.eventProcessor = null;
     }
 
@@ -91,7 +91,7 @@ public class SelectionManager {
     }
     
     /**
-     * 延迟初始化事件处理器
+     * 寤惰繜鍒濆鍖栦簨浠跺鐞嗗櫒
      */
     private SelectionToolEventProcessor getEventProcessorInternal() {
         if (eventProcessor == null) {
@@ -101,57 +101,57 @@ public class SelectionManager {
     }
 
     /**
-     * 注册默认工具
+     * 娉ㄥ唽榛樿宸ュ叿
      */
     private void registerDefaultTools() {
-        // 基础工具
+        // 鍩虹宸ュ叿
         registry.register(new com.director.core.selection.tools.ClickSelectTool());
         registry.register(new com.director.core.selection.tools.magicwandtool.MagicWandTool());
         
-        // 高级工具
+        // 楂樼骇宸ュ叿
         registry.register(new com.director.core.selection.tools.faceselecttool.FaceSelectTool());
-        // 几何选择工具已合并到刷选工具中，不再单独注册
+        // 鍑犱綍閫夋嫨宸ュ叿宸插悎骞跺埌鍒烽€夊伐鍏蜂腑锛屼笉鍐嶅崟鐙敞鍐?
         // registry.register(new com.director.core.selection.tools.geometry.GeometrySelectTool());
         registry.register(new com.director.core.selection.tools.brushselecttool.BrushSelectTool());
         registry.register(new com.director.core.selection.tools.lassoselecttool.LassoSelectTool());
         
-        // 多模式选择工具
+        // 澶氭ā寮忛€夋嫨宸ュ叿
         registry.register(new com.director.core.selection.tools.boxselecttool.BoxSelectTool());
         
-        LOGGER.info("[SelectionManager] 已注册 {} 个选择工具", registry.size());
+        LOGGER.info("[SelectionManager] 宸叉敞鍐?{} 涓€夋嫨宸ュ叿", registry.size());
     }
 
     /**
-     * 设置当前工具
+     * 璁剧疆褰撳墠宸ュ叿
      */
     public void setCurrentTool(String toolId, World world) {
         SelectionTool tool = registry.getTool(toolId);
         if (tool == null) {
-            LOGGER.warn("[SelectionManager] 无法切换到未知工具: {}", toolId);
+            LOGGER.warn("[SelectionManager] 鏃犳硶鍒囨崲鍒版湭鐭ュ伐鍏? {}", toolId);
             return;
         }
 
-        // String previousToolId = currentTool != null ? currentTool.getId() : null; // 暂时不使用
+        // String previousToolId = currentTool != null ? currentTool.getId() : null; // 鏆傛椂涓嶄娇鐢?
         
-        // 停用当前工具
+        // 鍋滅敤褰撳墠宸ュ叿
         if (currentTool != null) {
             currentTool.onDeactivate(world);
-            // 发布工具停用事件
+            // 鍙戝竷宸ュ叿鍋滅敤浜嬩欢
             getEventProcessorInternal().processToolDeactivation(currentTool.getId(), world);
         }
         
-        // 激活新工具
+        // 婵€娲绘柊宸ュ叿
         currentTool = tool;
         currentTool.onActivate(world);
         
-        // 发布工具激活事件
+        // 鍙戝竷宸ュ叿婵€娲讳簨浠?
         getEventProcessorInternal().processToolActivation(toolId, world);
 
-        LOGGER.info("[SelectionManager] 当前工具切换为: {}", tool.getDisplayName());
+        LOGGER.info("[SelectionManager] 褰撳墠宸ュ叿鍒囨崲涓? {}", tool.getDisplayName());
     }
 
     /**
-     * 切换到下一个工具
+     * 鍒囨崲鍒颁笅涓€涓伐鍏?
      */
     public void switchToNextTool(World world) {
         SelectionTool nextTool = registry.getNextTool(currentTool);
@@ -161,7 +161,7 @@ public class SelectionManager {
     }
 
     /**
-     * 切换到上一个工具
+     * 鍒囨崲鍒颁笂涓€涓伐鍏?
      */
     public void switchToPreviousTool(World world) {
         SelectionTool prevTool = registry.getPreviousTool(currentTool);
@@ -171,92 +171,92 @@ public class SelectionManager {
     }
 
     /**
-     * 获取选区集合
+     * 鑾峰彇閫夊尯闆嗗悎
      */
     public SelectionSet getSelectionSet() { 
         return selectionSet; 
     }
 
     /**
-     * 清除选区
+     * 娓呴櫎閫夊尯
      */
     public void clearSelection() { 
         selectionSet.clear();
         
-        // 🚀 v2.0: 使网格缓存失效，强制下次渲染时重新计算
+        // 馃殌 v2.0: 浣跨綉鏍肩紦瀛樺け鏁堬紝寮哄埗涓嬫娓叉煋鏃堕噸鏂拌绠?
         invalidateRendererCache();
         
-        // 自动清除预览框
+        // 鑷姩娓呴櫎棰勮妗?
         if (autoPreviewEnabled) {
             try {
                 ToolPreviewManager.getInstance().clearPreview();
             } catch (Exception e) {
-                LOGGER.debug("[SelectionManager] 清除预览框失败（可能不在客户端）: {}", e.getMessage());
+                LOGGER.debug("[SelectionManager] 娓呴櫎棰勮妗嗗け璐ワ紙鍙兘涓嶅湪瀹㈡埛绔級: {}", e.getMessage());
             }
         }
     }
 
     /**
-     * 添加到选区
+     * 娣诲姞鍒伴€夊尯
      */
     public void addToSelection(BlockPos pos) { 
         if (pos != null) {
             selectionSet.add(pos);
-            // 🚀 v2.0: 使网格缓存失效
+            // 馃殌 v2.0: 浣跨綉鏍肩紦瀛樺け鏁?
             invalidateRendererCache();
         }
     }
 
     /**
-     * 批量添加到选区
+     * 鎵归噺娣诲姞鍒伴€夊尯
      */
     public void addAllToSelection(Collection<BlockPos> positions) {
         selectionSet.addAll(positions);
-        // 🚀 v2.0: 使网格缓存失效
+        // 馃殌 v2.0: 浣跨綉鏍肩紦瀛樺け鏁?
         invalidateRendererCache();
     }
 
     /**
-     * 从选区移除
+     * 浠庨€夊尯绉婚櫎
      */
     public void removeFromSelection(BlockPos pos) { 
         if (pos != null) {
             selectionSet.remove(pos);
-            // 🚀 v2.0: 使网格缓存失效
+            // 馃殌 v2.0: 浣跨綉鏍肩紦瀛樺け鏁?
             invalidateRendererCache();
         }
     }
     
     /**
-     * 🚀 v2.0: 使渲染器缓存失效的辅助方法
+     * 馃殌 v2.0: 浣挎覆鏌撳櫒缂撳瓨澶辨晥鐨勮緟鍔╂柟娉?
      */
     private void invalidateRendererCache() {
         try {
             SelectionRenderer.getInstance().invalidateCache();
         } catch (Exception e) {
-            // 如果 SelectionRenderer 不可用（服务器端），忽略错误
-            LOGGER.debug("[SelectionManager] 使网格缓存失效失败（可能不在客户端）: {}", e.getMessage());
+            // 濡傛灉 SelectionRenderer 涓嶅彲鐢紙鏈嶅姟鍣ㄧ锛夛紝蹇界暐閿欒
+            LOGGER.debug("[SelectionManager] 浣跨綉鏍肩紦瀛樺け鏁堝け璐ワ紙鍙兘涓嶅湪瀹㈡埛绔級: {}", e.getMessage());
         }
     }
 
     /**
-     * 处理点击事件
+     * 澶勭悊鐐瑰嚮浜嬩欢
      */
     public void handleClick(World world, BlockPos pos, boolean shift) {
-        LOGGER.info("[SelectionManager] 处理点击事件: pos={}, shift={}, currentTool={}", 
+        LOGGER.info("[SelectionManager] 澶勭悊鐐瑰嚮浜嬩欢: pos={}, shift={}, currentTool={}", 
             pos, shift, currentTool != null ? currentTool.getId() : "null");
         
         if (currentTool != null) {
-            // 发布工具点击事件
-            LOGGER.info("[SelectionManager] 发布工具点击事件");
+            // 鍙戝竷宸ュ叿鐐瑰嚮浜嬩欢
+            LOGGER.info("[SelectionManager] 鍙戝竷宸ュ叿鐐瑰嚮浜嬩欢");
             getEventProcessorInternal().processToolClick(world, pos, shift, false);
             
-            // 执行工具点击逻辑
-            LOGGER.info("[SelectionManager] 执行工具点击逻辑");
+            // 鎵ц宸ュ叿鐐瑰嚮閫昏緫
+            LOGGER.info("[SelectionManager] 鎵ц宸ュ叿鐐瑰嚮閫昏緫");
             currentTool.onClick(world, pos, shift);
             
-            // 通知选择变化
-            LOGGER.info("[SelectionManager] 通知选择变化");
+            // 閫氱煡閫夋嫨鍙樺寲
+            LOGGER.info("[SelectionManager] 閫氱煡閫夋嫨鍙樺寲");
             notifySelectionChanged();
         } else {
             LOGGER.warn("[SelectionManager] 没有当前工具，无法处理点击事件");
@@ -264,20 +264,20 @@ public class SelectionManager {
     }
     
     /**
-     * 处理右键点击事件
+     * 澶勭悊鍙抽敭鐐瑰嚮浜嬩欢
      */
     public void handleRightClick(World world, BlockPos pos) {
-        LOGGER.debug("[SelectionManager] 处理右键点击事件: pos={}, currentTool={}", 
+        LOGGER.debug("[SelectionManager] 澶勭悊鍙抽敭鐐瑰嚮浜嬩欢: pos={}, currentTool={}", 
             pos, currentTool != null ? currentTool.getId() : "null");
         
         if (currentTool != null) {
-            // 发布工具右键点击事件
+            // 鍙戝竷宸ュ叿鍙抽敭鐐瑰嚮浜嬩欢
             getEventProcessorInternal().processToolClick(world, pos, false, true);
             
-            // 执行工具右键点击逻辑
+            // 鎵ц宸ュ叿鍙抽敭鐐瑰嚮閫昏緫
             currentTool.onRightClick(world, pos);
             
-            // 通知选择变化
+            // 閫氱煡閫夋嫨鍙樺寲
             notifySelectionChanged();
         } else {
             LOGGER.debug("[SelectionManager] 没有当前工具，无法处理右键点击事件");
@@ -285,18 +285,18 @@ public class SelectionManager {
     }
 
     /**
-     * 处理拖拽开始
-     * @param hitOrNull 射线命中结果，未命中或来自平面投影时为 null
+     * 澶勭悊鎷栨嫿寮€濮?
+     * @param hitOrNull 灏勭嚎鍛戒腑缁撴灉锛屾湭鍛戒腑鎴栨潵鑷钩闈㈡姇褰辨椂涓?null
      */
     public void handleDragStart(World world, BlockPos start, BlockHitResult hitOrNull) {
         if (currentTool != null) {
-            // 发布工具拖拽开始事件
+            // 鍙戝竷宸ュ叿鎷栨嫿寮€濮嬩簨浠?
             getEventProcessorInternal().processToolDragStart(world, start);
             
-            // 执行工具拖拽开始逻辑（3-参数，供套索等取表面点）
+            // 鎵ц宸ュ叿鎷栨嫿寮€濮嬮€昏緫锛?-鍙傛暟锛屼緵濂楃储绛夊彇琛ㄩ潰鐐癸級
             currentTool.onDragStart(world, start, hitOrNull);
 
-            // 开始工具预览（框选工具自己负责 setPreviewBox 实时预览，避免双重预览与 O(n^3) 预览计算）
+            // 寮€濮嬪伐鍏烽瑙堬紙妗嗛€夊伐鍏疯嚜宸辫礋璐?setPreviewBox 瀹炴椂棰勮锛岄伩鍏嶅弻閲嶉瑙堜笌 O(n^3) 棰勮璁＄畻锛?
             String toolId = currentTool.getId();
             if (!"box".equalsIgnoreCase(toolId) && !"box_v3".equalsIgnoreCase(toolId)) {
                 com.director.client.renderer.ToolPreviewManager.getInstance().startDragPreview(start);
@@ -305,18 +305,18 @@ public class SelectionManager {
     }
 
     /**
-     * 处理拖拽更新
-     * @param hitOrNull 射线命中结果，未命中或来自平面投影时为 null
+     * 澶勭悊鎷栨嫿鏇存柊
+     * @param hitOrNull 灏勭嚎鍛戒腑缁撴灉锛屾湭鍛戒腑鎴栨潵鑷钩闈㈡姇褰辨椂涓?null
      */
     public void handleDragUpdate(World world, BlockPos current, BlockHitResult hitOrNull) {
         if (currentTool != null) {
-            // 发布工具拖拽更新事件
+            // 鍙戝竷宸ュ叿鎷栨嫿鏇存柊浜嬩欢
             getEventProcessorInternal().processToolDragUpdate(world, current, current);
             
-            // 执行工具拖拽更新逻辑（3-参数，供套索等取表面点）
+            // 鎵ц宸ュ叿鎷栨嫿鏇存柊閫昏緫锛?-鍙傛暟锛屼緵濂楃储绛夊彇琛ㄩ潰鐐癸級
             currentTool.onDragUpdate(world, current, hitOrNull);
 
-            // 更新工具预览（框选工具自己负责 setPreviewBox 实时预览）
+            // 鏇存柊宸ュ叿棰勮锛堟閫夊伐鍏疯嚜宸辫礋璐?setPreviewBox 瀹炴椂棰勮锛?
             String toolId = currentTool.getId();
             if (!"box".equalsIgnoreCase(toolId) && !"box_v3".equalsIgnoreCase(toolId)) {
                 com.director.client.renderer.ToolPreviewManager.getInstance().updateDragPreview(current);
@@ -325,33 +325,33 @@ public class SelectionManager {
     }
 
     /**
-     * 处理拖拽结束
-     * @param hitOrNull 射线命中结果，未命中或来自平面投影时为 null
+     * 澶勭悊鎷栨嫿缁撴潫
+     * @param hitOrNull 灏勭嚎鍛戒腑缁撴灉锛屾湭鍛戒腑鎴栨潵鑷钩闈㈡姇褰辨椂涓?null
      */
     public void handleDragEnd(World world, BlockPos end, BlockHitResult hitOrNull) {
         if (currentTool != null) {
-            // 发布工具拖拽结束事件
+            // 鍙戝竷宸ュ叿鎷栨嫿缁撴潫浜嬩欢
             getEventProcessorInternal().processToolDragEnd(world, end, end);
             
-            // 执行工具拖拽结束逻辑（3-参数，供套索等取表面点）
+            // 鎵ц宸ュ叿鎷栨嫿缁撴潫閫昏緫锛?-鍙傛暟锛屼緵濂楃储绛夊彇琛ㄩ潰鐐癸級
             currentTool.onDragEnd(world, end, hitOrNull);
 
-            // 结束工具预览（框选工具自己负责 clearPreview）
+            // 缁撴潫宸ュ叿棰勮锛堟閫夊伐鍏疯嚜宸辫礋璐?clearPreview锛?
             String toolId = currentTool.getId();
             if (!"box".equalsIgnoreCase(toolId) && !"box_v3".equalsIgnoreCase(toolId)) {
                 com.director.client.renderer.ToolPreviewManager.getInstance().endDragPreview();
             }
             
-            // 🚀 v2.0: 使网格缓存失效（拖拽结束通常意味着选区改变）
+            // 馃殌 v2.0: 浣跨綉鏍肩紦瀛樺け鏁堬紙鎷栨嫿缁撴潫閫氬父鎰忓懗鐫€閫夊尯鏀瑰彉锛?
             invalidateRendererCache();
             
-            // 通知选择变化
+            // 閫氱煡閫夋嫨鍙樺寲
             notifySelectionChanged();
         }
     }
 
     /**
-     * 每帧更新
+     * 姣忓抚鏇存柊
      */
     public void tick(World world) {
         if (currentTool != null) {
@@ -360,16 +360,16 @@ public class SelectionManager {
     }
 
     /**
-     * 添加选择变化监听器
+     * 娣诲姞閫夋嫨鍙樺寲鐩戝惉鍣?
      */
     public void addSelectionChangeListener(Consumer<SelectionState> listener) {
         selectionChangeListeners.add(listener);
     }
 
     /**
-     * 移除选择变化监听器
+     * 绉婚櫎閫夋嫨鍙樺寲鐩戝惉鍣?
      * 
-     * @deprecated 当前未使用，保留用于未来扩展
+     * @deprecated 褰撳墠鏈娇鐢紝淇濈暀鐢ㄤ簬鏈潵鎵╁睍
      */
     @Deprecated
     @SuppressWarnings("unused")
@@ -378,23 +378,23 @@ public class SelectionManager {
     }
 
     /**
-     * 通知选择状态变化
+     * 閫氱煡閫夋嫨鐘舵€佸彉鍖?
      */
     private void notifySelectionChanged() {
         if (currentTool != null) {
             SelectionState state = currentTool.getCurrentSelection();
             
-            // 创建选择变化事件
-            Set<BlockPos> addedBlocks = new HashSet<>(); // 简化实现，实际应该跟踪变化
-            Set<BlockPos> removedBlocks = new HashSet<>(); // 简化实现，实际应该跟踪变化
+            // 鍒涘缓閫夋嫨鍙樺寲浜嬩欢
+            Set<BlockPos> addedBlocks = new HashSet<>(); // 绠€鍖栧疄鐜帮紝瀹為檯搴旇璺熻釜鍙樺寲
+            Set<BlockPos> removedBlocks = new HashSet<>(); // 绠€鍖栧疄鐜帮紝瀹為檯搴旇璺熻釜鍙樺寲
             SelectionChangedEvent event = new SelectionChangedEvent(
-                null, // 简化实现，暂时使用null
+                null, // 绠€鍖栧疄鐜帮紝鏆傛椂浣跨敤null
                 state, addedBlocks, removedBlocks);
             
-            // 发布选择变化事件
-            getEventProcessorInternal().processSelectionChanged(null, event); // 简化实现，暂时使用null
+            // 鍙戝竷閫夋嫨鍙樺寲浜嬩欢
+            getEventProcessorInternal().processSelectionChanged(null, event); // 绠€鍖栧疄鐜帮紝鏆傛椂浣跨敤null
             
-            // 通知传统监听器
+            // 閫氱煡浼犵粺鐩戝惉鍣?
             for (Consumer<SelectionState> listener : selectionChangeListeners) {
                 try {
                     listener.accept(state);
@@ -433,30 +433,30 @@ public class SelectionManager {
     }
 
     /**
-     * 获取全局过滤管道
+     * 鑾峰彇鍏ㄥ眬杩囨护绠￠亾
      * 
-     * @return 全局过滤管道实例，可用于区域选择工具
+     * @return 鍏ㄥ眬杩囨护绠￠亾瀹炰緥锛屽彲鐢ㄤ簬鍖哄煙閫夋嫨宸ュ叿
      */
     public BlockFilterPipeline getPipeline() {
         return globalPipeline;
     }
 
     /**
-     * 获取用于方块选择的「有效过滤器」。空管道 = 全部通过，由 pipeline.test 语义保证。
+     * 鑾峰彇鐢ㄤ簬鏂瑰潡閫夋嫨鐨勩€屾湁鏁堣繃婊ゅ櫒銆嶃€傜┖绠￠亾 = 鍏ㄩ儴閫氳繃锛岀敱 pipeline.test 璇箟淇濊瘉銆?
      */
     public BlockFilter getEffectiveBlockFilter() {
         return globalPipeline::test;
     }
 
     /**
-     * 获取用于需要 BlockFilterPipeline 的「有效管道」的副本。空管道 = 全部通过。
+     * 鑾峰彇鐢ㄤ簬闇€瑕?BlockFilterPipeline 鐨勩€屾湁鏁堢閬撱€嶇殑鍓湰銆傜┖绠￠亾 = 鍏ㄩ儴閫氳繃銆?
      */
     public BlockFilterPipeline getEffectiveFilterPipeline() {
         return globalPipeline.clone();
     }
 
     // =====================================================
-    // 🔄 面拖拽实时预览 (v4.9)
+    // 馃攧 闈㈡嫋鎷藉疄鏃堕瑙?(v4.9)
     // =====================================================
 
     public void beginFaceResize(Box baseBounds, int faceIndex) {
@@ -511,7 +511,7 @@ public class SelectionManager {
         rebuildSelectionFromBounds(activeResizePreviewBounds);
         notifySelectionChanged();
         
-        // 更新 Gizmo 位置以跟随新的选区中心
+        // 鏇存柊 Gizmo 浣嶇疆浠ヨ窡闅忔柊鐨勯€夊尯涓績
         updateGizmoPosition();
         
         cancelFaceResize();
@@ -570,58 +570,27 @@ public class SelectionManager {
             return;
         }
 
-        // ✅ 使用全局过滤管道（默认包含 nonAir）来重建选区，避免“包围盒里全是空气但选区为空/混乱”的体验
-        World world = null;
-        try {
-            world = net.minecraft.client.MinecraftClient.getInstance().world;
-        } catch (Throwable ignored) {
-        }
-
-        if (world == null) {
-            // 兜底：无 world 时按坐标填充（至少不丢选区）
-            for (int x = minX; x <= maxX; x++) {
-                for (int y = minY; y <= maxY; y++) {
-                    for (int z = minZ; z <= maxZ; z++) {
-                        selectionSet.add(new BlockPos(x, y, z));
-                    }
-                }
-            }
-            return;
-        }
-
+        // 闈㈡嫋鎷?resize锛氬寘鍚鍐呮墍鏈変綅缃紙鍚┖姘旓級锛屼笉杩囨护鏂瑰潡绫诲瀷
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
                 for (int z = minZ; z <= maxZ; z++) {
-                    BlockPos p = new BlockPos(x, y, z);
-                    var state = world.getBlockState(p);
-                    if (globalPipeline.test(world, p, state)) selectionSet.add(p);
+                    selectionSet.add(new BlockPos(x, y, z));
                 }
             }
         }
     }
 
     /**
-     * ✅ 供 BOUNDS Gizmo 使用：把一个“体积包围盒”转为选区（默认过滤掉空气）。
+     * 鉁?渚?BOUNDS Gizmo 浣跨敤锛氭妸涓€涓?浣撶Н鍖呭洿鐩?杞负閫夊尯锛堝寘鍚墍鏈変綅缃紝鍚┖姘旓級銆?
      *
-     * <p>注意：这里<strong>不</strong>调用 {@link #updateGizmoPosition()}，否则拖拽过程中会反复重建 Gizmo，
-     * 导致每次最多移动一格/拖拽中断。</p>
+     * <p>娉ㄦ剰锛氳繖閲?strong>涓?/strong>璋冪敤 {@link #updateGizmoPosition()}锛屽惁鍒欐嫋鎷借繃绋嬩腑浼氬弽澶嶉噸寤?Gizmo锛?
+     * 瀵艰嚧姣忔鏈€澶氱Щ鍔ㄤ竴鏍?鎷栨嫿涓柇銆?/p>
      */
     public void rebuildSelectionFromBoundsForBoundsGizmo(Box bounds) {
         if (bounds == null) {
             return;
         }
 
-        World world;
-        try {
-            world = net.minecraft.client.MinecraftClient.getInstance().world;
-        } catch (Throwable t) {
-            world = null;
-        }
-
-        if (world == null) {
-            // ✅ 没有 world 时不做“坐标填充”，避免把空气也选中。
-            return;
-        }
 
         selectionSet.clear();
 
@@ -637,17 +606,16 @@ public class SelectionManager {
             return;
         }
 
+        // BOUNDS Gizmo resize锛氬寘鍚鍐呮墍鏈変綅缃紙鍚┖姘旓級锛屼笉杩囨护鏂瑰潡绫诲瀷
         for (int x = minX; x <= maxX; x++) {
             for (int y = minY; y <= maxY; y++) {
                 for (int z = minZ; z <= maxZ; z++) {
-                    BlockPos p = new BlockPos(x, y, z);
-                    var state = world.getBlockState(p);
-                    if (globalPipeline.test(world, p, state)) selectionSet.add(p);
+                    selectionSet.add(new BlockPos(x, y, z));
                 }
             }
         }
 
-        // ✅ 选区重建后需要让渲染缓存失效，否则可能出现“选区没更新/不稳定”的视觉表现
+        // 鉁?閫夊尯閲嶅缓鍚庨渶瑕佽娓叉煋缂撳瓨澶辨晥锛屽惁鍒欏彲鑳藉嚭鐜扳€滈€夊尯娌℃洿鏂?涓嶇ǔ瀹氣€濈殑瑙嗚琛ㄧ幇
         invalidateRendererCache();
 
         if (selectionSet.isEmpty()) {
@@ -656,7 +624,7 @@ public class SelectionManager {
             SelectionEvents.fireChanged(SelectionChangeType.SELECTION_UPDATED);
         }
 
-        // 让面板/监听器也能收到变化（不触发 updateGizmoPosition，避免拖拽中断）
+        // 璁╅潰鏉?鐩戝惉鍣ㄤ篃鑳芥敹鍒板彉鍖栵紙涓嶈Е鍙?updateGizmoPosition锛岄伩鍏嶆嫋鎷戒腑鏂級
         notifySelectionChanged();
     }
 
@@ -710,10 +678,10 @@ public class SelectionManager {
     }
     
     /**
-     * 更新 Gizmo 位置以跟随选区中心
+     * 鏇存柊 Gizmo 浣嶇疆浠ヨ窡闅忛€夊尯涓績
      */
     private void updateGizmoPosition() {
-        // Gizmo 用于“整体移动包围盒/选区”，只有在显示包围盒时才启用，避免与拖拽建盒产生概念/交互冲突
+        // Gizmo 鐢ㄤ簬鈥滄暣浣撶Щ鍔ㄥ寘鍥寸洅/閫夊尯鈥濓紝鍙湁鍦ㄦ樉绀哄寘鍥寸洅鏃舵墠鍚敤锛岄伩鍏嶄笌鎷栨嫿寤虹洅浜х敓姒傚康/浜や簰鍐茬獊
         if (!com.director.client.settings.RenderSettings.get().selection_showBoundingBox) {
             try {
                 com.director.client.gizmo.GizmoManager.get().deactivate();
@@ -727,7 +695,7 @@ public class SelectionManager {
             return;
         }
         
-        // 计算新的几何中心
+        // 璁＄畻鏂扮殑鍑犱綍涓績
         Vec3d newPivot = new Vec3d(
             (bounds.minX + bounds.maxX) / 2.0,
             (bounds.minY + bounds.maxY) / 2.0,
@@ -737,31 +705,31 @@ public class SelectionManager {
         try {
             com.director.client.gizmo.GizmoManager gizmoManager = com.director.client.gizmo.GizmoManager.get();
             if (gizmoManager != null && gizmoManager.isActive()) {
-                // ✅ 不要在选区变化时反复 activate()（会重建 controller/handles，导致“拖拽只能动一格/不稳定”）
+                // 鉁?涓嶈鍦ㄩ€夊尯鍙樺寲鏃跺弽澶?activate()锛堜細閲嶅缓 controller/handles锛屽鑷粹€滄嫋鎷藉彧鑳藉姩涓€鏍?涓嶇ǔ瀹氣€濓級
                 gizmoManager.setPivot(newPivot);
                 gizmoManager.setTargetBox(bounds);
-                LOGGER.debug("[SelectionManager] 更新 Gizmo 位置(无重建): pivot={}", newPivot);
+                LOGGER.debug("[SelectionManager] 鏇存柊 Gizmo 浣嶇疆(鏃犻噸寤?: pivot={}", newPivot);
             }
         } catch (Exception e) {
-            LOGGER.warn("[SelectionManager] 更新 Gizmo 位置失败", e);
+            LOGGER.warn("[SelectionManager] 鏇存柊 Gizmo 浣嶇疆澶辫触", e);
         }
     }
 
     // =====================================================
-    // 🧩 expandSelection — 选区缩放核心逻辑 (v3.0)
+    // 馃З expandSelection 鈥?閫夊尯缂╂斁鏍稿績閫昏緫 (v3.0)
     // =====================================================
     
     /**
-     * 沿指定轴扩展或收缩当前选区。
+     * 娌挎寚瀹氳酱鎵╁睍鎴栨敹缂╁綋鍓嶉€夊尯銆?
      * <p>
-     * 支持功能：
-     * ✅ 正/负方向扩展选区
-     * ✅ 自动重新计算 Bounding Box
-     * ✅ 兼容 BoxSelectTool_v3 与 GizmoRenderer
-     * ✅ 实时预览刷新（预留）
+     * 鏀寔鍔熻兘锛?
+     * 鉁?姝?璐熸柟鍚戞墿灞曢€夊尯
+     * 鉁?鑷姩閲嶆柊璁＄畻 Bounding Box
+     * 鉁?鍏煎 BoxSelectTool_v3 涓?GizmoRenderer
+     * 鉁?瀹炴椂棰勮鍒锋柊锛堥鐣欙級
      * 
-     * @param axis  方向轴（X/Y/Z）
-     * @param delta 增量（>0 扩展，<0 收缩）
+     * @param axis  鏂瑰悜杞达紙X/Y/Z锛?
+     * @param delta 澧為噺锛?0 鎵╁睍锛?0 鏀剁缉锛?
      */
     public void expandSelection(Axis axis, int delta) {
         if (selectionSet.isEmpty()) {
@@ -769,25 +737,25 @@ public class SelectionManager {
             return;
         }
         
-        // 计算当前选区边界（使用 getCurrentBounds()）
+        // 璁＄畻褰撳墠閫夊尯杈圭晫锛堜娇鐢?getCurrentBounds()锛?
         Box bounds = getCurrentBounds();
         if (bounds == null) {
-            LOGGER.warn("[SelectionManager] 无法计算选区边界");
+            LOGGER.warn("[SelectionManager] 鏃犳硶璁＄畻閫夊尯杈圭晫");
             return;
         }
         
         int minX = (int) bounds.minX;
         int minY = (int) bounds.minY;
         int minZ = (int) bounds.minZ;
-        int maxX = (int) bounds.maxX - 1; // Box 的 max 是 exclusive，需要减 1
+        int maxX = (int) bounds.maxX - 1; // Box 鐨?max 鏄?exclusive锛岄渶瑕佸噺 1
         int maxY = (int) bounds.maxY - 1;
         int maxZ = (int) bounds.maxZ - 1;
         
-        // 基于方向扩展边界
+        // 鍩轰簬鏂瑰悜鎵╁睍杈圭晫
         switch (axis) {
             case X -> {
                 if (delta > 0) {
-                    // 正向扩展：在 maxX 外侧添加方块
+                    // 姝ｅ悜鎵╁睍锛氬湪 maxX 澶栦晶娣诲姞鏂瑰潡
                     for (int x = maxX + 1; x <= maxX + delta; x++) {
                         for (int y = minY; y <= maxY; y++) {
                             for (int z = minZ; z <= maxZ; z++) {
@@ -796,7 +764,7 @@ public class SelectionManager {
                         }
                     }
                 } else {
-                    // 负向收缩：移除 maxX 侧的外层方块
+                    // 璐熷悜鏀剁缉锛氱Щ闄?maxX 渚х殑澶栧眰鏂瑰潡
                     for (int x = maxX; x > maxX + delta; x--) {
                         final int removeX = x;
                         selectionSet.removeIf(p -> p.getX() == removeX);
@@ -805,7 +773,7 @@ public class SelectionManager {
             }
             case Y -> {
                 if (delta > 0) {
-                    // 正向扩展：在 maxY 外侧添加方块
+                    // 姝ｅ悜鎵╁睍锛氬湪 maxY 澶栦晶娣诲姞鏂瑰潡
                     for (int y = maxY + 1; y <= maxY + delta; y++) {
                         for (int x = minX; x <= maxX; x++) {
                             for (int z = minZ; z <= maxZ; z++) {
@@ -814,7 +782,7 @@ public class SelectionManager {
                         }
                     }
                 } else {
-                    // 负向收缩：移除 maxY 侧的外层方块
+                    // 璐熷悜鏀剁缉锛氱Щ闄?maxY 渚х殑澶栧眰鏂瑰潡
                     for (int y = maxY; y > maxY + delta; y--) {
                         final int removeY = y;
                         selectionSet.removeIf(p -> p.getY() == removeY);
@@ -823,7 +791,7 @@ public class SelectionManager {
             }
             case Z -> {
                 if (delta > 0) {
-                    // 正向扩展：在 maxZ 外侧添加方块
+                    // 姝ｅ悜鎵╁睍锛氬湪 maxZ 澶栦晶娣诲姞鏂瑰潡
                     for (int z = maxZ + 1; z <= maxZ + delta; z++) {
                         for (int x = minX; x <= maxX; x++) {
                             for (int y = minY; y <= maxY; y++) {
@@ -832,7 +800,7 @@ public class SelectionManager {
                         }
                     }
                 } else {
-                    // 负向收缩：移除 maxZ 侧的外层方块
+                    // 璐熷悜鏀剁缉锛氱Щ闄?maxZ 渚х殑澶栧眰鏂瑰潡
                     for (int z = maxZ; z > maxZ + delta; z--) {
                         final int removeZ = z;
                         selectionSet.removeIf(p -> p.getZ() == removeZ);
@@ -841,33 +809,33 @@ public class SelectionManager {
             }
         }
         
-        LOGGER.info("[SelectionManager] 沿 {} 轴调整选区 Δ={}，当前方块数={}",
+        LOGGER.info("[SelectionManager] 娌?{} 杞磋皟鏁撮€夊尯 螖={}锛屽綋鍓嶆柟鍧楁暟={}",
                 axis.name(), delta, selectionSet.size());
         
-        // 通知选择变化（触发渲染更新）
+        // 閫氱煡閫夋嫨鍙樺寲锛堣Е鍙戞覆鏌撴洿鏂帮級
         notifySelectionChanged();
         
-        // 🧩 实时同步预览框（如果启用）
+        // 馃З 瀹炴椂鍚屾棰勮妗嗭紙濡傛灉鍚敤锛?
         if (autoPreviewEnabled) {
             Box newBounds = getCurrentBounds();
             if (newBounds != null) {
                 try {
                     ToolPreviewManager.getInstance().setPreviewBox(newBounds);
                 } catch (Exception e) {
-                    LOGGER.debug("[SelectionManager] 设置预览框失败（可能不在客户端）: {}", e.getMessage());
+                    LOGGER.debug("[SelectionManager] 璁剧疆棰勮妗嗗け璐ワ紙鍙兘涓嶅湪瀹㈡埛绔級: {}", e.getMessage());
                 }
             }
         }
     }
     
     // =====================================================
-    // 📦 offsetSelection — 平移选区 (v3.0)
+    // 馃摝 offsetSelection 鈥?骞崇Щ閫夊尯 (v3.0)
     // =====================================================
     
     /**
-     * 平移选区
+     * 骞崇Щ閫夊尯
      * 
-     * @param offset 偏移向量
+     * @param offset 鍋忕Щ鍚戦噺
      */
     public void offsetSelection(BlockPos offset) {
         if (selectionSet.isEmpty()) {
@@ -877,49 +845,49 @@ public class SelectionManager {
         
         Set<BlockPos> moved = new HashSet<>();
         
-        // 计算新的位置
+        // 璁＄畻鏂扮殑浣嶇疆
         for (BlockPos pos : selectionSet.asUnmodifiableSet()) {
             moved.add(pos.add(offset));
         }
         
-        // 清空旧选区，添加新位置
+        // 娓呯┖鏃ч€夊尯锛屾坊鍔犳柊浣嶇疆
         selectionSet.clear();
         selectionSet.addAll(moved);
         
-        LOGGER.debug("[SelectionManager] 平移选区: offset={}, 方块数={}", offset, selectionSet.size());
+        LOGGER.debug("[SelectionManager] 骞崇Щ閫夊尯: offset={}, 鏂瑰潡鏁?{}", offset, selectionSet.size());
         
-        // 通知选择变化（触发渲染更新）
+        // 閫氱煡閫夋嫨鍙樺寲锛堣Е鍙戞覆鏌撴洿鏂帮級
         notifySelectionChanged();
         
-        // ✅ 更新 Gizmo 位置，跟随选区移动
+        // 鉁?鏇存柊 Gizmo 浣嶇疆锛岃窡闅忛€夊尯绉诲姩
         updateGizmoPosition();
         
-        // 🧩 实时同步预览框（如果启用）
+        // 馃З 瀹炴椂鍚屾棰勮妗嗭紙濡傛灉鍚敤锛?
         if (autoPreviewEnabled) {
             Box newBounds = getCurrentBounds();
             if (newBounds != null) {
                 try {
                     ToolPreviewManager.getInstance().setPreviewBox(newBounds);
                 } catch (Exception e) {
-                    LOGGER.debug("[SelectionManager] 设置预览框失败（可能不在客户端）: {}", e.getMessage());
+                    LOGGER.debug("[SelectionManager] 璁剧疆棰勮妗嗗け璐ワ紙鍙兘涓嶅湪瀹㈡埛绔級: {}", e.getMessage());
                 }
             }
         }
     }
     
     // =====================================================
-    // 📦 getCurrentBounds — 当前选区包围盒 (v3.1)
+    // 馃摝 getCurrentBounds 鈥?褰撳墠閫夊尯鍖呭洿鐩?(v3.1)
     // =====================================================
     
     /**
-     * 获取当前选区的包围盒（Box）
+     * 鑾峰彇褰撳墠閫夊尯鐨勫寘鍥寸洅锛圔ox锛?
      * <p>
-     * 用于：
-     * - Gizmo 系统获取选区边界
-     * - SelectionRenderer 预览框同步
-     * - 其他需要选区边界的功能
+     * 鐢ㄤ簬锛?
+     * - Gizmo 绯荤粺鑾峰彇閫夊尯杈圭晫
+     * - SelectionRenderer 棰勮妗嗗悓姝?
+     * - 鍏朵粬闇€瑕侀€夊尯杈圭晫鐨勫姛鑳?
      * 
-     * @return 当前选区的包围盒，如果选区为空则返回 null
+     * @return 褰撳墠閫夊尯鐨勫寘鍥寸洅锛屽鏋滈€夊尯涓虹┖鍒欒繑鍥?null
      */
     public Box getCurrentBounds() {
         if (selectionSet.isEmpty()) {
@@ -938,7 +906,7 @@ public class SelectionManager {
             maxZ = Math.max(maxZ, pos.getZ());
         }
         
-        // 返回 Box（包含 min 到 max+1 的范围，因为 BlockPos 是整数坐标）
+        // 杩斿洖 Box锛堝寘鍚?min 鍒?max+1 鐨勮寖鍥达紝鍥犱负 BlockPos 鏄暣鏁板潗鏍囷級
         return new Box(minX, minY, minZ, maxX + 1, maxY + 1, maxZ + 1);
     }
 }

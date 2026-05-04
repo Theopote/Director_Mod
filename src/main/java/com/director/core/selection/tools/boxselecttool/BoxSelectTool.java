@@ -8,7 +8,7 @@ import com.director.client.settings.RenderSettings;
 import com.director.core.selection.*;
 import com.director.core.selection.algorithms.RegionSelectors;
 import com.director.core.selection.events.SelectionEvents;
-import com.director.core.selection.block_filters.BlockFilter;
+import com.director.core.selection.block_filters.BlockFilters;
 import com.director.core.selection.history.SelectionHistoryManager;
 import com.director.core.selection.tools.FaceHandleManager;
 import com.director.core.selection.tools.SelectionPhase;
@@ -592,9 +592,9 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
         // 📊 记录操作前状态（用于历史记录）
         SelectionState beforeState = SelectionState.of(set.asUnmodifiableSet(), getId());
 
-        // 选择过滤：集中使用 SelectionManager.getEffectiveBlockFilter()
-        BlockFilter filter = manager.getEffectiveBlockFilter();
-        Set<BlockPos> found = RegionSelectors.selectInBox(world, box, filter);
+        // 框选工具：不过滤方块类型，选区包含框内所有位置（包括空气），
+        // 让用户可以自由调整选框大小而不受方块分布影响。
+        Set<BlockPos> found = RegionSelectors.selectInBox(world, box, BlockFilters.all());
 
         int beforeSize = set.size();
         
