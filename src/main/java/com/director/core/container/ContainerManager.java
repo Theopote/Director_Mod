@@ -1134,20 +1134,23 @@ public class ContainerManager {
         } finally {
             writeLock.unlock();
         }
-        
-        // 在锁外删除所有容器在时间线上的片段
-        try {
-            var timelineService = com.director.ui.timeline.container.ContainerTimelineService.getInstance();
-            int totalRemoved = 0;
-            for (Container c : removedContainers) {
-                int removedCount = timelineService.removeClipsForContainer(c.getId());
-                totalRemoved += removedCount;
+
+        // 在锁外删除所有容器在时间线上的片段。
+        // 加载存档时 clear() 仅用于切换世界，不应改写时间线存档。
+        if (!ContainerPersistence.isLoading()) {
+            try {
+                var timelineService = com.director.ui.timeline.container.ContainerTimelineService.getInstance();
+                int totalRemoved = 0;
+                for (Container c : removedContainers) {
+                    int removedCount = timelineService.removeClipsForContainer(c.getId());
+                    totalRemoved += removedCount;
+                }
+                if (totalRemoved > 0) {
+                    LOGGER.info("[ContainerManager] 清空容器时，时间线上的 {} 个片段已自动删除", totalRemoved);
+                }
+            } catch (Exception ex) {
+                LOGGER.warn("[ContainerManager] 清空容器时删除片段失败: {}", ex.getMessage());
             }
-            if (totalRemoved > 0) {
-                LOGGER.info("[ContainerManager] 清空容器时，时间线上的 {} 个片段已自动删除", totalRemoved);
-            }
-        } catch (Exception ex) {
-            LOGGER.warn("[ContainerManager] 清空容器时删除片段失败: {}", ex.getMessage());
         }
         
         LOGGER.info("[ContainerManager] 清空所有容器: {}", removedContainers.size());

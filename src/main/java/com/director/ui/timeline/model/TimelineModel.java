@@ -37,6 +37,8 @@ public class TimelineModel implements ITimelineProject {
     private boolean scrubbing = false; // 是否正在拖动播放头
     private Float inPoint = null; // 播放入点（null 表示未设置）
     private Float outPoint = null; // 播放出点（null 表示未设置）
+    // 持久化反序列化期间抑制写回，避免加载过程中的 setter 触发空数据覆盖存档。
+    private boolean suppressPersistenceWrites = false;
     
     // ========== 视图状态（由外部注入）==========
     private final TimelineViewportState viewportState;
@@ -129,9 +131,13 @@ public class TimelineModel implements ITimelineProject {
      * ⭐ 性能优化：添加防重复调用机制和节流保存
      */
     public void markDirty() {
+        if (suppressPersistenceWrites) {
+            return;
+        }
+
         markDurationDirty();
         notifyModelChanged("model_changed");
-        
+
         // ⭐ 性能优化：节流保存操作，避免频繁的文件 I/O 阻塞主线程
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastSaveTime >= MIN_SAVE_INTERVAL_MS) {
@@ -164,10 +170,22 @@ public class TimelineModel implements ITimelineProject {
      * 保存当前时间线数据
      */
     public void save() {
+        if (suppressPersistenceWrites) {
+            return;
+        }
+
         TimelineModelPersistence.saveToFile(this, viewportState);
         // 同时保存 ActorRegistry
         com.director.actor.ActorRegistryManager.save();
     }
+
+    /**
+     * 设置是否抑制持久化写入（仅供持久化层在加载阶段使用）。
+     */
+    public void setSuppressPersistenceWrites(boolean suppress) {
+        this.suppressPersistenceWrites = suppress;
+    }
+
     
     /**
      * 重新加载保存的数据

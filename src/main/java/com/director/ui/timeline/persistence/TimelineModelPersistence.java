@@ -810,6 +810,7 @@ public class TimelineModelPersistence {
         TimelineAudioService audioService = TimelineAudioService.getInstance();
         boolean prevSuppress = audioService.isSuppressAutoCreate();
         audioService.setSuppressAutoCreate(true);
+        model.setSuppressPersistenceWrites(true);
         try {
         
         // 恢复视图状态
@@ -1328,6 +1329,7 @@ public class TimelineModelPersistence {
         LOGGER.info("[TimelineModelPersistence] 成功恢复 {} 条轨道", dto.tracks.size());
     
         } finally {
+            model.setSuppressPersistenceWrites(false);
             audioService.setSuppressAutoCreate(prevSuppress);
         }
         audioService.setTimelineModel(model);

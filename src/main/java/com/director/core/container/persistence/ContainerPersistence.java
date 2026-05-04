@@ -103,28 +103,30 @@ public final class ContainerPersistence {
             return;
         }
 
-        // 关键：先清空内存状态，再按当前存档加载。
-        // 即使目标存档没有文件，也不能保留上一个存档的容器数据。
-        manager.clear();
-
-        // 自动迁移：世界目录优先；若世界目录没有但旧 config 存在，迁移一次
-        if (!Files.exists(file) && legacy != null && Files.exists(legacy) && !legacy.equals(file)) {
-            try {
-                if (!Files.exists(file.getParent())) {
-                    Files.createDirectories(file.getParent());
-                }
-                Files.copy(legacy, file);
-                LOGGER.info("[ContainerPersistence] 已迁移容器存档到世界目录: {} -> {}", legacy, file);
-            } catch (Exception e) {
-                LOGGER.warn("[ContainerPersistence] 迁移容器存档失败: {}", e.getMessage(), e);
-            }
-        }
-        if (!Files.exists(file)) {
-            LOGGER.info("[ContainerPersistence] 未找到容器存档，使用默认容器 (世界: {})", WorldIdentifier.getCurrentWorldId());
-            return;
-        }
+        // 加载期间置位，避免 clear() 触发时间线片段删除并回写覆盖存档。
         loading = true;
         try {
+            // 关键：先清空内存状态，再按当前存档加载。
+            // 即使目标存档没有文件，也不能保留上一个存档的容器数据。
+            manager.clear();
+
+            // 自动迁移：世界目录优先；若世界目录没有但旧 config 存在，迁移一次
+            if (!Files.exists(file) && legacy != null && Files.exists(legacy) && !legacy.equals(file)) {
+                try {
+                    if (!Files.exists(file.getParent())) {
+                        Files.createDirectories(file.getParent());
+                    }
+                    Files.copy(legacy, file);
+                    LOGGER.info("[ContainerPersistence] 已迁移容器存档到世界目录: {} -> {}", legacy, file);
+                } catch (Exception e) {
+                    LOGGER.warn("[ContainerPersistence] 迁移容器存档失败: {}", e.getMessage(), e);
+                }
+            }
+            if (!Files.exists(file)) {
+                LOGGER.info("[ContainerPersistence] 未找到容器存档，使用默认容器 (世界: {})", WorldIdentifier.getCurrentWorldId());
+                return;
+            }
+
             NbtCompound root = NbtIo.readCompressed(file, net.minecraft.nbt.NbtSizeTracker.ofUnlimitedBytes());
             NbtList list = root.getList("containers").orElseGet(NbtList::new);
             Map<UUID, Container> map = new HashMap<>();
@@ -159,6 +161,10 @@ public final class ContainerPersistence {
         } finally {
             loading = false;
         }
+    }
+
+    public static boolean isLoading() {
+        return loading;
     }
 
     public static void resetForCurrentWorld() {
