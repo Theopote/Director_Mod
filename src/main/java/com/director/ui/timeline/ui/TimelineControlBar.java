@@ -203,7 +203,7 @@ public class TimelineControlBar {
             CameraPathDebugRenderer.getInstance().setEnabled(showCameraPath);
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("在世界中显示摄像机路径（仅调试用）");
+            ImGui.setTooltip("在世界中显示摄像机路径");
         }
         ImGui.sameLine();
         
