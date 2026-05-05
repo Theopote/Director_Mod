@@ -63,7 +63,7 @@ public final class CameraHudOverlayRenderer {
                 Math.round(viewport.innerX2()),
                 Math.round(viewport.innerY2()),
                 TimelineColors.rgba(255, 255, 255, 255),
-                2);
+            1);
 
         if (profile.isShowSafeAreas()) {
             drawSafeAreas(context, viewport, profile.getActionSafe(), profile.getTitleSafe());

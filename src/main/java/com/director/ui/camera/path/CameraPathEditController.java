@@ -253,7 +253,7 @@ public final class CameraPathEditController {
         }
 
         context.fill(minX, minY, maxX, maxY, BOX_FILL_COLOR);
-        drawRectOutline(context, minX, minY, maxX, maxY, BOX_BORDER_COLOR, 2);
+        drawRectOutline(context, minX, minY, maxX, maxY, BOX_BORDER_COLOR, 1);
     }
 
     private static void drawRectOutline(DrawContext context, int x1, int y1, int x2, int y2, int color, int thickness) {
