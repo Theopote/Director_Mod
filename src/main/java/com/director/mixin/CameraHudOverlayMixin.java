@@ -1,5 +1,6 @@
 package com.director.mixin;
 
+import com.director.client.DirectorClientController;
 import com.director.client.renderer.CameraHudOverlayRenderer;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.hud.InGameHud;
@@ -17,6 +18,9 @@ public class CameraHudOverlayMixin {
 
     @Inject(method = "render", at = @At("TAIL"))
     private void director$renderCameraHudOverlays(DrawContext context, RenderTickCounter tickCounter, CallbackInfo ci) {
+        if (!DirectorClientController.getInstance().shouldHideCrosshair()) {
+            return;
+        }
         CameraHudOverlayRenderer.render(context);
     }
 }
