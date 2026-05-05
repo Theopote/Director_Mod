@@ -138,11 +138,15 @@ public final class CameraPathEditController {
             clearSelectionAndGizmo();
         }
 
+        boolean leftDown = isLeftMouseDown(client);
+        boolean leftReleased = !leftDown && lastLeftMouseDown;
+
+        tickGizmoInteraction(leftDown, leftReleased);
+
         if (selectedKeyframe != null && !GizmoManager.get().isDraggingHandle()) {
             syncGizmoToSelectedKeyframe();
         }
 
-        boolean leftDown = isLeftMouseDown(client);
         processDeleteShortcut(client);
 
         if (leftDown && !lastLeftMouseDown && GizmoManager.get().isHot()) {
@@ -200,7 +204,7 @@ public final class CameraPathEditController {
         if (!active || !pendingWorldMouseDown || !boxDragging) {
             return;
         }
-        ImDrawList drawList = ImGui.getForegroundDrawList();
+        ImDrawList drawList = ImGui.getBackgroundDrawList();
         if (drawList == null) {
             return;
         }
@@ -212,6 +216,17 @@ public final class CameraPathEditController {
 
         drawList.addRectFilled(minX, minY, maxX, maxY, BOX_FILL_COLOR);
         drawList.addRect(minX, minY, maxX, maxY, BOX_BORDER_COLOR, 0.0f, 0, 1.6f);
+    }
+
+    private void tickGizmoInteraction(boolean leftDown, boolean leftReleased) {
+        if (!GizmoManager.get().isActive() || isMouseOverDirectorUi()) {
+            return;
+        }
+        DirectorInputSystem.ImGuiRay ray = DirectorInputSystem.computeImGuiRay();
+        if (ray == null) {
+            return;
+        }
+        GizmoManager.get().tick(ray.origin(), ray.direction(), leftDown, leftReleased);
     }
 
     public boolean isKeyframeSelected(CameraKeyframe keyframe) {
