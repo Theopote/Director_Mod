@@ -5,6 +5,7 @@ import com.director.client.gizmo.GizmoManager;
 import com.director.client.gizmo.GizmoType;
 import com.director.client.input.DirectorInputSystem;
 import com.director.client.renderer.CameraPathDebugRenderer;
+import com.director.mixin.accessor.GameRendererAccessor;
 import com.director.ui.timeline.container.ContainerTimelineService;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineSelectable;
@@ -12,12 +13,17 @@ import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.TrackType;
 import com.director.ui.timeline.model.camera.CameraKeyframe;
 import com.director.ui.timeline.playback.camera.TimelineCameraController;
+import com.director.ui.timeline.playback.camera.TimelineCameraPathManager;
 import com.director.ui.input.InputFocusManager;
 import imgui.ImGui;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.Camera;
+import net.minecraft.client.render.GameRenderer;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
+import org.joml.Matrix4f;
 import org.joml.Vector3f;
+import org.joml.Vector4f;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,12 +38,19 @@ public final class CameraPathEditController {
 
     private static final double ANCHOR_PICK_BASE_RADIUS = 0.35;
     private static final double ANCHOR_PICK_DISTANCE_SCALE = 0.006;
+    private static final double CURVE_PICK_BASE_RADIUS = 0.28;
+    private static final double CURVE_PICK_DISTANCE_SCALE = 0.004;
     private static final double ANCHOR_BOX_HALF_SIZE = 0.12;
+    private static final double BOX_DRAG_THRESHOLD_PX = 5.0;
 
     private boolean active = false;
     private boolean lastLeftMouseDown = false;
     private boolean previousPathRendererEnabled = false;
     private CameraKeyframe selectedKeyframe = null;
+    private boolean pendingWorldMouseDown = false;
+    private boolean boxDragging = false;
+    private double dragStartX = 0.0;
+    private double dragStartY = 0.0;
 
     private CameraPathEditController() {
     }
@@ -49,6 +62,8 @@ public final class CameraPathEditController {
     public void activate() {
         active = true;
         lastLeftMouseDown = false;
+        pendingWorldMouseDown = false;
+        boxDragging = false;
         previousPathRendererEnabled = CameraPathDebugRenderer.getInstance().isEnabled();
         CameraPathDebugRenderer.getInstance().setEnabled(true);
         selectedKeyframe = findSelectedCameraKeyframe();
@@ -61,6 +76,8 @@ public final class CameraPathEditController {
     public void deactivate() {
         active = false;
         lastLeftMouseDown = false;
+        pendingWorldMouseDown = false;
+        boxDragging = false;
         selectedKeyframe = null;
         TimelineCameraController.getInstance().stopKeyframePreview();
         CameraPathDebugRenderer.getInstance().setEnabled(previousPathRendererEnabled);
@@ -100,14 +117,31 @@ public final class CameraPathEditController {
             syncGizmoToSelectedKeyframe();
         }
 
-        if (isMouseOverDirectorUi()) {
-            lastLeftMouseDown = isLeftMouseDown(client);
+        boolean leftDown = isLeftMouseDown(client);
+        if (!pendingWorldMouseDown && isMouseOverDirectorUi()) {
+            lastLeftMouseDown = leftDown;
             return;
         }
 
-        boolean leftDown = isLeftMouseDown(client);
-        if (leftDown && !lastLeftMouseDown && !GizmoManager.get().isHot()) {
-            handleAnchorPick();
+        if (leftDown && !lastLeftMouseDown) {
+            pendingWorldMouseDown = !GizmoManager.get().isHot();
+            boxDragging = false;
+            dragStartX = client.mouse.getX();
+            dragStartY = client.mouse.getY();
+        } else if (leftDown && pendingWorldMouseDown) {
+            double dx = client.mouse.getX() - dragStartX;
+            double dy = client.mouse.getY() - dragStartY;
+            if ((dx * dx + dy * dy) >= BOX_DRAG_THRESHOLD_PX * BOX_DRAG_THRESHOLD_PX) {
+                boxDragging = true;
+            }
+        } else if (!leftDown && lastLeftMouseDown && pendingWorldMouseDown) {
+            if (boxDragging) {
+                handleBoxSelect(client, dragStartX, dragStartY, client.mouse.getX(), client.mouse.getY());
+            } else {
+                handleAnchorPick();
+            }
+            pendingWorldMouseDown = false;
+            boxDragging = false;
         }
         lastLeftMouseDown = leftDown;
     }
@@ -130,6 +164,9 @@ public final class CameraPathEditController {
 
         CameraKeyframe picked = pickNearestKeyframe(ray.origin(), ray.direction());
         if (picked == null) {
+            picked = pickNearestKeyframeFromCurve(ray.origin(), ray.direction());
+        }
+        if (picked == null) {
             clearSelectionAndGizmo();
             return;
         }
@@ -141,6 +178,41 @@ public final class CameraPathEditController {
         }
         showGizmoFor(picked);
         TimelineCameraController.getInstance().previewKeyframeDirect(picked);
+    }
+
+    private void handleBoxSelect(MinecraftClient client, double x0, double y0, double x1, double y1) {
+        double minX = Math.min(x0, x1);
+        double maxX = Math.max(x0, x1);
+        double minY = Math.min(y0, y1);
+        double maxY = Math.max(y0, y1);
+
+        List<CameraKeyframe> selected = new ArrayList<>();
+        for (CameraKeyframe keyframe : getActiveCameraKeyframes()) {
+            ScreenPoint point = worldToScreen(client, toVec(keyframe.getPosition()));
+            if (point != null && point.x >= minX && point.x <= maxX && point.y >= minY && point.y <= maxY) {
+                selected.add(keyframe);
+            }
+        }
+
+        TimelineModel model = getTimelineModel();
+        if (model != null) {
+            model.clearSelection();
+            for (int i = 0; i < selected.size(); i++) {
+                model.selectItem(selected.get(i), i > 0);
+            }
+        }
+
+        if (selected.size() == 1) {
+            selectedKeyframe = selected.getFirst();
+            showGizmoFor(selectedKeyframe);
+            TimelineCameraController.getInstance().previewKeyframeDirect(selectedKeyframe);
+        } else {
+            selectedKeyframe = null;
+            TimelineCameraController.getInstance().stopKeyframePreview();
+            if (GizmoManager.get().isActive()) {
+                GizmoManager.get().deactivate();
+            }
+        }
     }
 
     private CameraKeyframe pickNearestKeyframe(Vec3d rayOrigin, Vec3d rayDir) {
@@ -166,6 +238,68 @@ public final class CameraPathEditController {
             }
         }
         return best;
+    }
+
+    private CameraKeyframe pickNearestKeyframeFromCurve(Vec3d rayOrigin, Vec3d rayDir) {
+        List<CameraKeyframe> keyframes = getActiveCameraKeyframes();
+        if (keyframes.size() < 2) {
+            return null;
+        }
+
+        TimelineCameraPathManager manager = new TimelineCameraPathManager();
+        manager.setKeyframes(keyframes);
+        List<Vec3d> points = manager.getPathPointsForDebug();
+        if (points.size() < 2) {
+            return null;
+        }
+
+        Vec3d bestPoint = null;
+        double bestDistance = Double.POSITIVE_INFINITY;
+        for (int i = 0; i < points.size() - 1; i++) {
+            SegmentHit hit = distanceRayToSegment(rayOrigin, rayDir, points.get(i), points.get(i + 1));
+            double threshold = CURVE_PICK_BASE_RADIUS + Math.min(0.75, rayOrigin.distanceTo(hit.point) * CURVE_PICK_DISTANCE_SCALE);
+            if (hit.distance <= threshold && hit.distance < bestDistance) {
+                bestDistance = hit.distance;
+                bestPoint = hit.point;
+            }
+        }
+
+        if (bestPoint == null) {
+            return null;
+        }
+
+        CameraKeyframe nearest = null;
+        double nearestDistance = Double.POSITIVE_INFINITY;
+        for (CameraKeyframe keyframe : keyframes) {
+            double distance = toVec(keyframe.getPosition()).squaredDistanceTo(bestPoint);
+            if (distance < nearestDistance) {
+                nearestDistance = distance;
+                nearest = keyframe;
+            }
+        }
+        return nearest;
+    }
+
+    private SegmentHit distanceRayToSegment(Vec3d rayOrigin, Vec3d rayDir, Vec3d segA, Vec3d segB) {
+        Vec3d u = rayDir;
+        Vec3d v = segB.subtract(segA);
+        Vec3d w0 = rayOrigin.subtract(segA);
+
+        double a = u.dotProduct(u);
+        double b = u.dotProduct(v);
+        double c = v.dotProduct(v);
+        double d = u.dotProduct(w0);
+        double e = v.dotProduct(w0);
+        double denom = a * c - b * b;
+
+        double s = denom > 1e-8 ? (b * e - c * d) / denom : 0.0;
+        double t = denom > 1e-8 ? (a * e - b * d) / denom : 0.0;
+        s = Math.max(0.0, s);
+        t = Math.max(0.0, Math.min(1.0, t));
+
+        Vec3d rayPoint = rayOrigin.add(u.multiply(s));
+        Vec3d segmentPoint = segA.add(v.multiply(t));
+        return new SegmentHit(rayPoint.distanceTo(segmentPoint), segmentPoint);
     }
 
     private void showGizmoFor(CameraKeyframe keyframe) {
@@ -262,4 +396,46 @@ public final class CameraPathEditController {
                 pos.z + ANCHOR_BOX_HALF_SIZE
         );
     }
+
+    private ScreenPoint worldToScreen(MinecraftClient client, Vec3d worldPos) {
+        if (client == null || client.gameRenderer == null || client.getWindow() == null) {
+            return null;
+        }
+
+        Camera camera = client.gameRenderer.getCamera();
+        if (camera == null) {
+            return null;
+        }
+
+        Vec3d rel = worldPos.subtract(camera.getPos());
+        org.joml.Vector3f view = new org.joml.Vector3f((float) rel.x, (float) rel.y, (float) rel.z);
+        new org.joml.Quaternionf(camera.getRotation()).conjugate().transform(view);
+
+        GameRenderer gr = client.gameRenderer;
+        float fov;
+        if (gr instanceof GameRendererAccessor accessor) {
+            fov = accessor.director$invokeGetFov(camera, 0.0f, true);
+        } else {
+            fov = (float) client.options.getFov().getValue();
+        }
+
+        Matrix4f projection = new Matrix4f(gr.getBasicProjectionMatrix(fov));
+        Vector4f clip = new Vector4f(view.x, view.y, view.z, 1.0f).mul(projection);
+        if (Math.abs(clip.w) < 1e-6f) {
+            return null;
+        }
+
+        clip.div(clip.w);
+        if (!Float.isFinite(clip.x) || !Float.isFinite(clip.y) || !Float.isFinite(clip.z)) {
+            return null;
+        }
+
+        double x = (clip.x + 1.0) * 0.5 * client.getWindow().getWidth();
+        double y = (1.0 - clip.y) * 0.5 * client.getWindow().getHeight();
+        return new ScreenPoint(x, y);
+    }
+
+    private record SegmentHit(double distance, Vec3d point) {}
+
+    private record ScreenPoint(double x, double y) {}
 }
