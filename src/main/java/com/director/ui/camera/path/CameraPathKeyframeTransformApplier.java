@@ -41,11 +41,7 @@ final class CameraPathKeyframeTransformApplier extends TransformApplier {
             GizmoManager.get().setPivot(currentPivot.add(delta));
         }
 
-        TimelineCameraController.getInstance().onKeyframeChanged();
-
-        TimelineModel model = controller.getTimelineModel();
-        if (model != null) {
-            model.markDirty();
-        }
+        // 拖拽中只做轻量路径刷新，避免每帧全量重建导致卡顿。
+        TimelineCameraController.getInstance().onKeyframePreviewMoved();
     }
 }

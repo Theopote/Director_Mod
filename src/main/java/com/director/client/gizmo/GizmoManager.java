@@ -490,7 +490,7 @@ public class GizmoManager {
     public void setPivot(Vec3d pivot) {
         if (context != null) {
             context.setPivot(pivot);
-            LOGGER.info("[GizmoManager] 🎯 设置 Pivot: {}", pivot);
+            LOGGER.debug("[GizmoManager] 🎯 设置 Pivot: {}", pivot);
         } else {
             LOGGER.warn("[GizmoManager] ⚠️ 无法设置 Pivot：Gizmo 未激活");
         }

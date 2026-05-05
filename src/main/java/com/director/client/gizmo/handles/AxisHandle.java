@@ -83,6 +83,17 @@ public class AxisHandle extends AbstractGizmoHandle {
     }
     
     @Override
+    public void onDragStart(Vec3d rayOrigin, Vec3d rayDir) {
+        this.dragging = true;
+        this.dragStartRayOrigin = rayOrigin;
+        this.dragStartRayDir = rayDir;
+        // Use axis projection as the drag start point (not the AABB surface hit),
+        // so the first onDragUpdate delta is measured from the correct axis position.
+        Vec3d axisProjection = calculateAxisProjection(rayOrigin, rayDir);
+        this.dragStartHitPoint = (axisProjection != null) ? axisProjection : position;
+    }
+
+    @Override
     public Vec3d onDragUpdate(Vec3d rayOrigin, Vec3d rayDir) {
         if (!dragging || dragStartHitPoint == null) {
             return Vec3d.ZERO;

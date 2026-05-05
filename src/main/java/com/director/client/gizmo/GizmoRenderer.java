@@ -126,7 +126,7 @@ public class GizmoRenderer {
 
             Matrix4f posMat = matrices.peek().getPositionMatrix();
 
-            LOGGER.info("[GizmoRenderer] 🧩 开始渲染: Box={}, Pivot={}, Type={}, Visible={}",
+                LOGGER.debug("[GizmoRenderer] 🧩 开始渲染: Box={}, Pivot={}, Type={}, Visible={}",
                     box, pivot, context.getType(), context.isActive());
 
             // === 1️⃣ 绘制 Gizmo 中心点 ===
@@ -153,7 +153,7 @@ public class GizmoRenderer {
                 Vec3d zEnd = getAxisEndPoint(pivot, Axis.Z, axisLength, cameraPos);
                 drawLineToBuffer(lineBuffer, posMat, pivot, zEnd, axisColor(Axis.Z, time));
 
-                LOGGER.info("[GizmoRenderer] ✅ 轴手柄线条渲染完成: 3条轴 (X={}, Y={}, Z={})",
+                LOGGER.debug("[GizmoRenderer] ✅ 轴手柄线条渲染完成: 3条轴 (X={}, Y={}, Z={})",
                         java.util.Arrays.toString(COLOR_X),
                         java.util.Arrays.toString(COLOR_Y),
                         java.util.Arrays.toString(COLOR_Z));
@@ -218,7 +218,7 @@ public class GizmoRenderer {
                 LOGGER.error("[GizmoRenderer] ❌ 渲染中心手柄失败", e);
             }
 
-            LOGGER.info("[GizmoRenderer] ✅ Gizmo 渲染完成: Pivot={}", pivot);
+            LOGGER.debug("[GizmoRenderer] ✅ Gizmo 渲染完成: Pivot={}", pivot);
 
         } catch (Exception e) {
             LOGGER.error("[GizmoRenderer] ❌ 渲染 Gizmo 时发生异常", e);

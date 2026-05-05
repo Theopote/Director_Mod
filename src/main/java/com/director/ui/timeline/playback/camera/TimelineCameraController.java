@@ -173,6 +173,14 @@ public final class TimelineCameraController {
     }
 
     /**
+     * 拖拽预览用的轻量刷新：
+     * 仅让路径缓存失效，不触发关键帧列表重建。
+     */
+    public synchronized void onKeyframePreviewMoved() {
+        pathManager.markPathDirty();
+    }
+
+    /**
      * ⭐ v5.0：当 TimelineModel 的结构发生变化（轨道增删、关键帧变动）时调用
      * 尝试保持 activeCameraTrack 不变，若失效则自动选取新的摄像机轨道
      */

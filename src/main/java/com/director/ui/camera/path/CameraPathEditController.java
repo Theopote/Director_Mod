@@ -63,6 +63,7 @@ public final class CameraPathEditController {
     private boolean pendingWorldMouseDown = false;
     private boolean boxDragging = false;
     private boolean gizmoMouseCaptured = false;
+    private boolean wasGizmoDragging = false;
     private boolean lastDeleteDown = false;
     private double dragStartX = 0.0;
     private double dragStartY = 0.0;
@@ -85,6 +86,7 @@ public final class CameraPathEditController {
         pendingWorldMouseDown = false;
         boxDragging = false;
         gizmoMouseCaptured = false;
+        wasGizmoDragging = false;
         lastDeleteDown = false;
         lastGizmoPosition = null;
         lastClickTimeMs = 0L;
@@ -103,6 +105,7 @@ public final class CameraPathEditController {
         pendingWorldMouseDown = false;
         boxDragging = false;
         gizmoMouseCaptured = false;
+        wasGizmoDragging = false;
         lastDeleteDown = false;
         lastGizmoPosition = null;
         lastClickTimeMs = 0L;
@@ -142,9 +145,20 @@ public final class CameraPathEditController {
 
         boolean leftDown = isLeftMouseDown(client);
 
-        if (selectedKeyframe != null && !GizmoManager.get().isDraggingHandle()) {
+        boolean draggingNow = GizmoManager.get().isDraggingHandle();
+
+        if (selectedKeyframe != null && !draggingNow) {
             syncGizmoToSelectedKeyframe();
         }
+
+        if (wasGizmoDragging && !draggingNow && selectedKeyframe != null) {
+            TimelineCameraController.getInstance().onKeyframeChanged();
+            TimelineModel model = getTimelineModel();
+            if (model != null) {
+                model.markDirty();
+            }
+        }
+        wasGizmoDragging = draggingNow;
 
         processDeleteShortcut(client);
 
@@ -154,7 +168,7 @@ public final class CameraPathEditController {
         if (!leftDown) {
             gizmoMouseCaptured = false;
         }
-        if (GizmoManager.get().isDraggingHandle() || (leftDown && gizmoMouseCaptured)) {
+        if (draggingNow || (leftDown && gizmoMouseCaptured)) {
             pendingWorldMouseDown = false;
             boxDragging = false;
             lastLeftMouseDown = true;
