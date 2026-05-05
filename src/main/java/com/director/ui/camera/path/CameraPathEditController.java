@@ -53,7 +53,7 @@ public final class CameraPathEditController {
     private static final double DOUBLE_CLICK_MAX_DISTANCE_PX = 16.0;
     private static final double GIZMO_SYNC_EPSILON_SQ = 1.0e-8;
     private static final int BOX_FILL_COLOR = 0x3345A9FF;
-    private static final int BOX_BORDER_COLOR = 0xCC45A9FF;
+    private static final int BOX_BORDER_COLOR = 0x6645A9FF;
 
     private boolean active = false;
     private boolean lastLeftMouseDown = false;
