@@ -1773,6 +1773,7 @@ public class DirectorUIManager {
 
             // 0) 摄像机视口 Overlay（在所有面板之前渲染，使其被面板遮挡）
             renderCameraViewportOverlay();
+            com.director.ui.camera.path.CameraPathEditController.getInstance().renderOverlay();
 
             // 1. 渲染统一宿主窗口和 DockSpace
             int dockspaceId = renderDockSpaceWithPanels();

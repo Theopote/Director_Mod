@@ -6,6 +6,7 @@ import com.director.ui.timeline.model.camera.path.OrbitPathClip;
 import com.director.ui.timeline.model.camera.path.DollyPathClip;
 import com.director.ui.timeline.model.camera.path.CranePathClip;
 import com.director.ui.timeline.model.TimelineTrack;
+import com.director.ui.camera.path.CameraPathEditController;
 import com.director.ui.timeline.playback.camera.CameraSample;
 import com.director.ui.timeline.playback.camera.TimelineCameraController;
 import com.director.ui.timeline.playback.camera.TimelineCameraPathManager;
@@ -271,10 +272,17 @@ public final class CameraPathDebugRenderer {
         float dirB = 0 / 255.0f;
         float dirA = 255 / 255.0f;
 
+        // 选中点颜色：青蓝，便于与未选中黄点区分
+        float selectedR = 64 / 255.0f;
+        float selectedG = 225 / 255.0f;
+        float selectedB = 255 / 255.0f;
+        float selectedA = 255 / 255.0f;
+
         double s = KEYFRAME_POINT_SIZE;
         double dirLen = 0.5; // 朝向线长度
 
         for (CameraKeyframe kf : keyframes) {
+            boolean selected = CameraPathEditController.getInstance().isKeyframeSelected(kf);
             org.joml.Vector3f pos = kf.getPosition();
             org.joml.Vector3f rot = kf.getRotation();
             
@@ -284,14 +292,26 @@ public final class CameraPathDebugRenderer {
 
             // 1. 画关键帧位置点（小十字）
             // X 轴
-            consumer.vertex(matrix, (float) (x - s), (float) y, (float) z).color(pointR, pointG, pointB, pointA).normal(1f, 0f, 0f);
-            consumer.vertex(matrix, (float) (x + s), (float) y, (float) z).color(pointR, pointG, pointB, pointA).normal(1f, 0f, 0f);
+                consumer.vertex(matrix, (float) (x - s), (float) y, (float) z)
+                    .color(selected ? selectedR : pointR, selected ? selectedG : pointG, selected ? selectedB : pointB, selected ? selectedA : pointA)
+                    .normal(1f, 0f, 0f);
+                consumer.vertex(matrix, (float) (x + s), (float) y, (float) z)
+                    .color(selected ? selectedR : pointR, selected ? selectedG : pointG, selected ? selectedB : pointB, selected ? selectedA : pointA)
+                    .normal(1f, 0f, 0f);
             // Y 轴
-            consumer.vertex(matrix, (float) x, (float) (y - s), (float) z).color(pointR, pointG, pointB, pointA).normal(0f, 1f, 0f);
-            consumer.vertex(matrix, (float) x, (float) (y + s), (float) z).color(pointR, pointG, pointB, pointA).normal(0f, 1f, 0f);
+                consumer.vertex(matrix, (float) x, (float) (y - s), (float) z)
+                    .color(selected ? selectedR : pointR, selected ? selectedG : pointG, selected ? selectedB : pointB, selected ? selectedA : pointA)
+                    .normal(0f, 1f, 0f);
+                consumer.vertex(matrix, (float) x, (float) (y + s), (float) z)
+                    .color(selected ? selectedR : pointR, selected ? selectedG : pointG, selected ? selectedB : pointB, selected ? selectedA : pointA)
+                    .normal(0f, 1f, 0f);
             // Z 轴
-            consumer.vertex(matrix, (float) x, (float) y, (float) (z - s)).color(pointR, pointG, pointB, pointA).normal(0f, 0f, 1f);
-            consumer.vertex(matrix, (float) x, (float) y, (float) (z + s)).color(pointR, pointG, pointB, pointA).normal(0f, 0f, 1f);
+                consumer.vertex(matrix, (float) x, (float) y, (float) (z - s))
+                    .color(selected ? selectedR : pointR, selected ? selectedG : pointG, selected ? selectedB : pointB, selected ? selectedA : pointA)
+                    .normal(0f, 0f, 1f);
+                consumer.vertex(matrix, (float) x, (float) y, (float) (z + s))
+                    .color(selected ? selectedR : pointR, selected ? selectedG : pointG, selected ? selectedB : pointB, selected ? selectedA : pointA)
+                    .normal(0f, 0f, 1f);
 
             // 2. 画朝向短线（根据 pitch/yaw 计算前向向量）
             // Minecraft 的旋转：pitch (x), yaw (y), roll (z)

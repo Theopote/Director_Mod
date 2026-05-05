@@ -16,6 +16,7 @@ import com.director.ui.timeline.playback.camera.CameraSample;
 import com.director.ui.timeline.playback.camera.TimelineCameraController;
 import com.director.ui.timeline.playback.camera.TimelineCameraPathManager;
 import com.director.ui.input.InputFocusManager;
+import imgui.ImDrawList;
 import imgui.ImGui;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.Camera;
@@ -32,6 +33,9 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Set;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 public final class CameraPathEditController {
     private static final Logger LOGGER = LoggerFactory.getLogger(CameraPathEditController.class);
@@ -46,6 +50,8 @@ public final class CameraPathEditController {
     private static final double DOUBLE_CLICK_MAX_INTERVAL_MS = 350.0;
     private static final double DOUBLE_CLICK_MAX_DISTANCE_PX = 16.0;
     private static final double GIZMO_SYNC_EPSILON_SQ = 1.0e-8;
+    private static final int BOX_FILL_COLOR = 0x3345A9FF;
+    private static final int BOX_BORDER_COLOR = 0xCC45A9FF;
 
     private boolean active = false;
     private boolean lastLeftMouseDown = false;
@@ -54,8 +60,12 @@ public final class CameraPathEditController {
     private Vec3d lastGizmoPosition = null;
     private boolean pendingWorldMouseDown = false;
     private boolean boxDragging = false;
+    private boolean gizmoMouseCaptured = false;
+    private boolean lastDeleteDown = false;
     private double dragStartX = 0.0;
     private double dragStartY = 0.0;
+    private double dragCurrentX = 0.0;
+    private double dragCurrentY = 0.0;
     private long lastClickTimeMs = 0L;
     private double lastClickX = 0.0;
     private double lastClickY = 0.0;
@@ -72,6 +82,8 @@ public final class CameraPathEditController {
         lastLeftMouseDown = false;
         pendingWorldMouseDown = false;
         boxDragging = false;
+        gizmoMouseCaptured = false;
+        lastDeleteDown = false;
         lastGizmoPosition = null;
         lastClickTimeMs = 0L;
         previousPathRendererEnabled = CameraPathDebugRenderer.getInstance().isEnabled();
@@ -88,6 +100,8 @@ public final class CameraPathEditController {
         lastLeftMouseDown = false;
         pendingWorldMouseDown = false;
         boxDragging = false;
+        gizmoMouseCaptured = false;
+        lastDeleteDown = false;
         lastGizmoPosition = null;
         lastClickTimeMs = 0L;
         selectedKeyframe = null;
@@ -129,7 +143,15 @@ public final class CameraPathEditController {
         }
 
         boolean leftDown = isLeftMouseDown(client);
-        if (leftDown && GizmoManager.get().isHot()) {
+        processDeleteShortcut(client);
+
+        if (leftDown && !lastLeftMouseDown && GizmoManager.get().isHot()) {
+            gizmoMouseCaptured = true;
+        }
+        if (!leftDown) {
+            gizmoMouseCaptured = false;
+        }
+        if (GizmoManager.get().isDraggingHandle() || (leftDown && gizmoMouseCaptured)) {
             pendingWorldMouseDown = false;
             boxDragging = false;
             lastLeftMouseDown = true;
@@ -146,7 +168,11 @@ public final class CameraPathEditController {
             boxDragging = false;
             dragStartX = client.mouse.getX();
             dragStartY = client.mouse.getY();
+            dragCurrentX = dragStartX;
+            dragCurrentY = dragStartY;
         } else if (leftDown && pendingWorldMouseDown) {
+            dragCurrentX = client.mouse.getX();
+            dragCurrentY = client.mouse.getY();
             double dx = client.mouse.getX() - dragStartX;
             double dy = client.mouse.getY() - dragStartY;
             if ((dx * dx + dy * dy) >= BOX_DRAG_THRESHOLD_PX * BOX_DRAG_THRESHOLD_PX) {
@@ -170,6 +196,42 @@ public final class CameraPathEditController {
         lastLeftMouseDown = leftDown;
     }
 
+    public void renderOverlay() {
+        if (!active || !pendingWorldMouseDown || !boxDragging) {
+            return;
+        }
+        ImDrawList drawList = ImGui.getForegroundDrawList();
+        if (drawList == null) {
+            return;
+        }
+
+        float minX = (float) Math.min(dragStartX, dragCurrentX);
+        float maxX = (float) Math.max(dragStartX, dragCurrentX);
+        float minY = (float) Math.min(dragStartY, dragCurrentY);
+        float maxY = (float) Math.max(dragStartY, dragCurrentY);
+
+        drawList.addRectFilled(minX, minY, maxX, maxY, BOX_FILL_COLOR);
+        drawList.addRect(minX, minY, maxX, maxY, BOX_BORDER_COLOR, 0.0f, 0, 1.6f);
+    }
+
+    public boolean isKeyframeSelected(CameraKeyframe keyframe) {
+        if (keyframe == null) {
+            return false;
+        }
+        TimelineModel model = getTimelineModel();
+        if (model == null) {
+            return selectedKeyframe != null && keyframe.getId().equals(selectedKeyframe.getId());
+        }
+        for (Object item : model.getSelectedItems()) {
+            if (item instanceof CameraKeyframe cameraKeyframe
+                    && cameraKeyframe.getId().equals(keyframe.getId())
+                    && containsActiveTrackKeyframe(cameraKeyframe)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private boolean isMouseOverDirectorUi() {
         return InputFocusManager.getInstance().isPanelHovered()
                 || ImGui.isAnyItemHovered()
@@ -178,6 +240,74 @@ public final class CameraPathEditController {
 
     private boolean isLeftMouseDown(MinecraftClient client) {
         return GLFW.glfwGetMouseButton(client.getWindow().getHandle(), GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
+    }
+
+    private void processDeleteShortcut(MinecraftClient client) {
+        if (client == null || client.getWindow() == null) {
+            return;
+        }
+
+        boolean deleteDown = GLFW.glfwGetKey(client.getWindow().getHandle(), GLFW.GLFW_KEY_DELETE) == GLFW.GLFW_PRESS;
+        if (deleteDown && !lastDeleteDown) {
+            if (!(ImGui.getIO().getWantTextInput() || ImGui.isAnyItemActive())) {
+                deleteSelectedKeyframes();
+            }
+        }
+        lastDeleteDown = deleteDown;
+    }
+
+    private void deleteSelectedKeyframes() {
+        TimelineTrack track = TimelineCameraController.getInstance().getActiveCameraTrack();
+        if (track == null || track.getType() != TrackType.CAMERA || track.isLocked()) {
+            return;
+        }
+
+        Set<UUID> selectedIds = getSelectedCameraKeyframes().stream()
+                .map(CameraKeyframe::getId)
+                .collect(Collectors.toSet());
+        if (selectedIds.isEmpty()) {
+            return;
+        }
+
+        int removed = 0;
+        for (TimelineSelectable selectable : new ArrayList<>(track.getAutomationKeyframes())) {
+            if (selectable == null || selectable.getId() == null || !selectedIds.contains(selectable.getId())) {
+                continue;
+            }
+            track.removeAutomationKeyframe(selectable.getId());
+            removed++;
+        }
+
+        if (removed <= 0) {
+            return;
+        }
+
+        TimelineModel model = getTimelineModel();
+        if (model != null) {
+            model.clearSelection();
+            model.markDirty();
+        }
+        selectedKeyframe = null;
+        lastGizmoPosition = null;
+        if (GizmoManager.get().isActive()) {
+            GizmoManager.get().deactivate();
+        }
+        TimelineCameraController.getInstance().onKeyframeChanged();
+        LOGGER.info("[CameraPathEdit] Deleted {} selected camera keyframe(s)", removed);
+    }
+
+    private List<CameraKeyframe> getSelectedCameraKeyframes() {
+        TimelineModel model = getTimelineModel();
+        if (model == null) {
+            return List.of();
+        }
+        List<CameraKeyframe> selected = new ArrayList<>();
+        for (Object item : model.getSelectedItems()) {
+            if (item instanceof CameraKeyframe keyframe && containsActiveTrackKeyframe(keyframe)) {
+                selected.add(keyframe);
+            }
+        }
+        return selected;
     }
 
     private void handleAnchorPick() {
@@ -302,6 +432,8 @@ public final class CameraPathEditController {
                 GizmoManager.get().deactivate();
             }
         }
+        dragCurrentX = x1;
+        dragCurrentY = y1;
     }
 
     private CameraKeyframe pickNearestKeyframe(Vec3d rayOrigin, Vec3d rayDir) {
