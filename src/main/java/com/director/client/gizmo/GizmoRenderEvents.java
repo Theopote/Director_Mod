@@ -7,6 +7,7 @@ import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.util.math.Vec3d;
 
 import com.director.client.input.DirectorInputSystem;
+import com.director.ui.DirectorScreen;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -134,6 +135,13 @@ public class GizmoRenderEvents {
     private static Vec3d calculateRayDirection(MinecraftClient client) {
         try {
             // 尝试使用 DirectorInputSystem 的射线结果
+            if (client.currentScreen instanceof DirectorScreen) {
+                DirectorInputSystem.ImGuiRay ray = DirectorInputSystem.computeImGuiRay();
+                if (ray != null) {
+                    return ray.direction();
+                }
+            }
+
             var hitResult = DirectorInputSystem.getCurrentRay();
             if (hitResult != null && hitResult.getType() == net.minecraft.util.hit.BlockHitResult.Type.BLOCK) {
                 Vec3d cameraPos = client.gameRenderer.getCamera().getPos();

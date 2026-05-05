@@ -941,6 +941,9 @@ public class DirectorScreen extends Screen {
         // ⭐ Actor 路径工具：每帧更新（路径点采集与预览）
         com.director.ui.actor.path.ActorPathController.getInstance().update();
 
+        // Camera path edit tool: world-space anchor picking and Gizmo movement.
+        com.director.ui.camera.path.CameraPathEditController.getInstance().update();
+
         // ⭐ Actor LookAt Gizmo 系统：每帧更新（LOOK_AT 模式下处理世界点击）
         com.director.ui.actor.lookat.ActorLookAtGizmoController.getInstance().update();
 

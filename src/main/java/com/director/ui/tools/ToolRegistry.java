@@ -3,6 +3,7 @@ package com.director.ui.tools;
 import com.director.core.selection.SelectionManager;
 import com.director.core.selection.SelectionTool;
 import com.director.ui.theme.Icons;
+import com.director.ui.tools.impl.CameraPathEditTool;
 // ⚠️ Actor 工具已隐藏，等待下一版本
 // import com.director.ui.tools.impl.ActorPathTool;
 // import com.director.ui.tools.impl.ActorSelectTool;
@@ -113,6 +114,11 @@ public final class ToolRegistry {
                 ToolGroup.TIMELINE, 9999,
                 "时间线工具系统：开发中",
                 "这里将承载时间线编辑/剪辑/标记等工具"
+        ));
+        META.put(CameraPathEditTool.ID, ToolMetadata.of(
+                ToolGroup.TIMELINE, 10,
+                "Edit camera path anchors",
+                "Click a camera keyframe anchor in the world, then drag the Gizmo arrows"
         ));
     }
 
@@ -323,6 +329,7 @@ public final class ToolRegistry {
         // ⚠️ Actor 工具已隐藏，等待下一版本
         // addExtraToolIfMissing(new ActorSelectTool());
         // addExtraToolIfMissing(new ActorPathTool());
+        addExtraToolIfMissing(new CameraPathEditTool());
     }
 
     private void addExtraToolIfMissing(EditorTool tool) {

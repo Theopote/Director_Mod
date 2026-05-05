@@ -109,4 +109,8 @@ public class InputFocusManager {
         }
         return result;
     }
+
+    public boolean isPanelHovered() {
+        return directorScreenActive && panelHoveredThisFrame;
+    }
 }
