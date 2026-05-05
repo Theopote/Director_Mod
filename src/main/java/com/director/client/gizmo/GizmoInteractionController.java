@@ -62,12 +62,15 @@ public class GizmoInteractionController {
             if (mouseReleased) {
                 // 缁撴潫鎷栨嫿
                 endDrag();
-            } else if (mouseDown && activeHandle != null) {
+            } else if (mouseDown && (activeHandle != null || activeRotationHandle != null)) {
                 // 鏇存柊鎷栨嫿
                 updateDrag(rayOrigin, rayDir);
             }
         } else {
             if (mouseDown) {
+                // Mouse-down frame may arrive before a hover frame.
+                // Refresh hover first so click-drag can start immediately.
+                detectHover(rayOrigin, rayDir);
                 // 寮€濮嬫嫋鎷?
                 startDrag(rayOrigin, rayDir);
             } else {

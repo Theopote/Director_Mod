@@ -432,7 +432,9 @@ public class GizmoManager {
         if (controller == null || context == null || !context.isActive()) {
             return false;
         }
-        return controller.getHoveredHandle() != null || controller.getActiveHandle() != null;
+        return controller.getHoveredHandle() != null
+            || controller.getActiveHandle() != null
+            || controller.getActiveRotationHandle() != null;
     }
 
     /**
@@ -442,7 +444,7 @@ public class GizmoManager {
         if (controller == null || context == null || !context.isActive()) {
             return false;
         }
-        return controller.getActiveHandle() != null;
+        return controller.getActiveHandle() != null || controller.getActiveRotationHandle() != null;
     }
     
     public GizmoType getType() {

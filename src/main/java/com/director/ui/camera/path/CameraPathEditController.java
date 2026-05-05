@@ -23,6 +23,7 @@ import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
+import org.jetbrains.annotations.NotNull;
 import org.joml.Matrix4f;
 import org.joml.Vector3f;
 import org.joml.Vector4f;
@@ -32,6 +33,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -139,9 +141,6 @@ public final class CameraPathEditController {
         }
 
         boolean leftDown = isLeftMouseDown(client);
-        boolean leftReleased = !leftDown && lastLeftMouseDown;
-
-        tickGizmoInteraction(leftDown, leftReleased);
 
         if (selectedKeyframe != null && !GizmoManager.get().isDraggingHandle()) {
             syncGizmoToSelectedKeyframe();
@@ -216,17 +215,6 @@ public final class CameraPathEditController {
 
         drawList.addRectFilled(minX, minY, maxX, maxY, BOX_FILL_COLOR);
         drawList.addRect(minX, minY, maxX, maxY, BOX_BORDER_COLOR, 0.0f, 0, 1.6f);
-    }
-
-    private void tickGizmoInteraction(boolean leftDown, boolean leftReleased) {
-        if (!GizmoManager.get().isActive() || isMouseOverDirectorUi()) {
-            return;
-        }
-        DirectorInputSystem.ImGuiRay ray = DirectorInputSystem.computeImGuiRay();
-        if (ray == null) {
-            return;
-        }
-        GizmoManager.get().tick(ray.origin(), ray.direction(), leftDown, leftReleased);
     }
 
     public boolean isKeyframeSelected(CameraKeyframe keyframe) {
@@ -386,6 +374,23 @@ public final class CameraPathEditController {
             return false;
         }
 
+        CameraKeyframe keyframe = getCameraKeyframe(hit, sample);
+
+        track.addAutomationKeyframe(keyframe);
+        TimelineCameraController.getInstance().onKeyframeChanged();
+
+        TimelineModel model = getTimelineModel();
+        if (model != null) {
+            model.selectItem(keyframe, false);
+            model.markDirty();
+        }
+
+        selectedKeyframe = keyframe;
+        showGizmoFor(keyframe);
+        return true;
+    }
+
+    private static @NotNull CameraKeyframe getCameraKeyframe(CurveHit hit, CameraSample sample) {
         CameraKeyframe keyframe = new CameraKeyframe(String.format("Camera @ %.2fs", hit.time), hit.time);
         keyframe.setPosition(new Vector3f((float) sample.position().x, (float) sample.position().y, (float) sample.position().z));
         keyframe.setRotation(new Vector3f(sample.pitch(), sample.yaw(), sample.roll()));
@@ -401,19 +406,7 @@ public final class CameraPathEditController {
             keyframe.setRotationInterpolation(hit.previousKeyframe.getRotationInterpolation());
             keyframe.setHandleMode(hit.previousKeyframe.getHandleMode());
         }
-
-        track.addAutomationKeyframe(keyframe);
-        TimelineCameraController.getInstance().onKeyframeChanged();
-
-        TimelineModel model = getTimelineModel();
-        if (model != null) {
-            model.selectItem(keyframe, false);
-            model.markDirty();
-        }
-
-        selectedKeyframe = keyframe;
-        showGizmoFor(keyframe);
-        return true;
+        return keyframe;
     }
 
     private void handleBoxSelect(MinecraftClient client, double x0, double y0, double x1, double y1) {
@@ -573,6 +566,7 @@ public final class CameraPathEditController {
         lastGizmoPosition = pos;
         GizmoInteractionController controller = GizmoManager.get().getController();
         if (controller != null) {
+            controller.setRotationHandles(Collections.emptyList());
             controller.setTransformApplier(new CameraPathKeyframeTransformApplier(this));
         }
     }
@@ -590,6 +584,7 @@ public final class CameraPathEditController {
         }
         GizmoInteractionController controller = GizmoManager.get().getController();
         if (controller != null && !(controller.getTransformApplier() instanceof CameraPathKeyframeTransformApplier)) {
+            controller.setRotationHandles(Collections.emptyList());
             controller.setTransformApplier(new CameraPathKeyframeTransformApplier(this));
         }
     }
