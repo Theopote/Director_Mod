@@ -16,9 +16,9 @@ import com.director.ui.timeline.playback.camera.CameraSample;
 import com.director.ui.timeline.playback.camera.TimelineCameraController;
 import com.director.ui.timeline.playback.camera.TimelineCameraPathManager;
 import com.director.ui.input.InputFocusManager;
-import imgui.ImDrawList;
 import imgui.ImGui;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.util.math.Box;
@@ -214,21 +214,54 @@ public final class CameraPathEditController {
     }
 
     public void renderOverlay() {
+        // Deprecated: screen-space overlays are now rendered in Minecraft HUD pipeline.
+    }
+
+    public void renderOverlay(float viewportX, float viewportY, float viewportW, float viewportH) {
+        // Deprecated: screen-space overlays are now rendered in Minecraft HUD pipeline.
+    }
+
+    public void renderHudOverlay(DrawContext context) {
         if (!active || !pendingWorldMouseDown || !boxDragging) {
             return;
         }
-        ImDrawList drawList = ImGui.getBackgroundDrawList();
-        if (drawList == null) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.getWindow() == null) {
             return;
         }
 
-        float minX = (float) Math.min(dragStartX, dragCurrentX);
-        float maxX = (float) Math.max(dragStartX, dragCurrentX);
-        float minY = (float) Math.min(dragStartY, dragCurrentY);
-        float maxY = (float) Math.max(dragStartY, dragCurrentY);
+        int windowW = Math.max(1, client.getWindow().getWidth());
+        int windowH = Math.max(1, client.getWindow().getHeight());
+        int guiW = Math.max(1, client.getWindow().getScaledWidth());
+        int guiH = Math.max(1, client.getWindow().getScaledHeight());
 
-        drawList.addRectFilled(minX, minY, maxX, maxY, BOX_FILL_COLOR);
-        drawList.addRect(minX, minY, maxX, maxY, BOX_BORDER_COLOR, 0.0f, 0, 1.6f);
+        double scaleX = guiW / (double) windowW;
+        double scaleY = guiH / (double) windowH;
+
+        int minX = (int) Math.floor(Math.min(dragStartX, dragCurrentX) * scaleX);
+        int maxX = (int) Math.ceil(Math.max(dragStartX, dragCurrentX) * scaleX);
+        int minY = (int) Math.floor(Math.min(dragStartY, dragCurrentY) * scaleY);
+        int maxY = (int) Math.ceil(Math.max(dragStartY, dragCurrentY) * scaleY);
+
+        minX = Math.max(0, Math.min(guiW, minX));
+        maxX = Math.max(0, Math.min(guiW, maxX));
+        minY = Math.max(0, Math.min(guiH, minY));
+        maxY = Math.max(0, Math.min(guiH, maxY));
+
+        if (maxX <= minX || maxY <= minY) {
+            return;
+        }
+
+        context.fill(minX, minY, maxX, maxY, BOX_FILL_COLOR);
+        drawRectOutline(context, minX, minY, maxX, maxY, BOX_BORDER_COLOR, 2);
+    }
+
+    private static void drawRectOutline(DrawContext context, int x1, int y1, int x2, int y2, int color, int thickness) {
+        int t = Math.max(1, thickness);
+        context.fill(x1, y1, x2, y1 + t, color);
+        context.fill(x1, y2 - t, x2, y2, color);
+        context.fill(x1, y1 + t, x1 + t, y2 - t, color);
+        context.fill(x2 - t, y1 + t, x2, y2 - t, color);
     }
 
     public boolean isKeyframeSelected(CameraKeyframe keyframe) {

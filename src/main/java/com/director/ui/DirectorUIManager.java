@@ -1771,9 +1771,7 @@ public class DirectorUIManager {
                 lastPerformanceLog = currentTime;
             }
 
-            // 0) 摄像机视口 Overlay（在所有面板之前渲染，使其被面板遮挡）
-            renderCameraViewportOverlay();
-            com.director.ui.camera.path.CameraPathEditController.getInstance().renderOverlay();
+            // 0) 摄像机相关 Overlay 已迁移到 Minecraft HUD 渲染通道（避免 External Window 干扰）
 
             // 1. 渲染统一宿主窗口和 DockSpace
             int dockspaceId = renderDockSpaceWithPanels();
@@ -1833,6 +1831,56 @@ public class DirectorUIManager {
                 }
             }
         }
+    }
+
+    /**
+     * 在主 viewport 中渲染与 Minecraft 画面绑定的 Overlay。
+     */
+    private void renderMainViewportOverlays() {
+        imgui.ImGuiViewport mainViewport = ImGui.getMainViewport();
+        if (mainViewport == null) {
+            return;
+        }
+
+        float viewportX = mainViewport.getPosX();
+        float viewportY = mainViewport.getPosY();
+        float viewportW = mainViewport.getSizeX();
+        float viewportH = mainViewport.getSizeY();
+        if (viewportW <= 0.0f || viewportH <= 0.0f) {
+            return;
+        }
+
+        ImGui.setNextWindowPos(viewportX, viewportY, imgui.flag.ImGuiCond.Always);
+        ImGui.setNextWindowSize(viewportW, viewportH, imgui.flag.ImGuiCond.Always);
+        ImGui.setNextWindowViewport(mainViewport.getID());
+
+        int flags = imgui.flag.ImGuiWindowFlags.NoDecoration
+                | imgui.flag.ImGuiWindowFlags.NoMove
+                | imgui.flag.ImGuiWindowFlags.NoSavedSettings
+                | imgui.flag.ImGuiWindowFlags.NoNav
+                | imgui.flag.ImGuiWindowFlags.NoBringToFrontOnFocus
+                | imgui.flag.ImGuiWindowFlags.NoFocusOnAppearing
+                | imgui.flag.ImGuiWindowFlags.NoInputs;
+
+        ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.WindowPadding, 0.0f, 0.0f);
+        ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.WindowBorderSize, 0.0f);
+        ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.WindowRounding, 0.0f);
+        ImGui.pushStyleColor(imgui.flag.ImGuiCol.WindowBg, 0.0f, 0.0f, 0.0f, 0.0f);
+
+        if (ImGui.begin("##DirectorMainViewportOverlay", flags)) {
+            imgui.ImDrawList dl = ImGui.getWindowDrawList();
+            if (dl != null) {
+                dl.pushClipRect(viewportX, viewportY, viewportX + viewportW, viewportY + viewportH, true);
+                renderCameraViewportOverlay(dl, viewportX, viewportY, viewportW, viewportH);
+                com.director.ui.camera.path.CameraPathEditController.getInstance()
+                        .renderOverlay(viewportX, viewportY, viewportW, viewportH);
+                dl.popClipRect();
+            }
+        }
+        ImGui.end();
+
+        ImGui.popStyleColor();
+        ImGui.popStyleVar(3);
     }
 
     // =========================================================
@@ -2154,7 +2202,7 @@ public class DirectorUIManager {
      *   <li>❌ 不影响鼠标操作和调试</li>
      * </ul>
      */
-    private void renderCameraViewportOverlay() {
+    private void renderCameraViewportOverlay(imgui.ImDrawList dl, float screenX, float screenY, float screenW, float screenH) {
         try {
             // 获取激活的摄像机轨道
             TimelineCameraController cameraController = TimelineCameraController.getInstance();
@@ -2171,16 +2219,9 @@ public class DirectorUIManager {
                 return;
             }
             
-            // 使用 ImGui Background DrawList（背景层绘制，会被面板遮挡）
-            imgui.ImDrawList dl = ImGui.getBackgroundDrawList();
-            if (dl == null) {
+            if (dl == null || screenW <= 0.0f || screenH <= 0.0f) {
                 return;
             }
-            
-            // 获取屏幕尺寸
-            imgui.ImGuiIO io = ImGui.getIO();
-            float screenW = io.getDisplaySizeX();
-            float screenH = io.getDisplaySizeY();
             
             // 计算导出画幅区域（Fit 或 Fill）
             ViewportMath.ViewportRects viewport;
@@ -2188,9 +2229,9 @@ public class DirectorUIManager {
             float targetAspect = profile.getAspectRatio();
             
             if (scalePolicy == CameraViewportProfile.PreviewScalePolicy.FIT) {
-                viewport = ViewportMath.computeFit(0, 0, screenW, screenH, targetAspect);
+                viewport = ViewportMath.computeFit(screenX, screenY, screenW, screenH, targetAspect);
             } else {
-                viewport = ViewportMath.computeFill(0, 0, screenW, screenH, targetAspect);
+                viewport = ViewportMath.computeFill(screenX, screenY, screenW, screenH, targetAspect);
             }
             
             // 1️⃣ Letterbox 遮罩（先画，盖在世界上面）
