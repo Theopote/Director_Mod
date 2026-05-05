@@ -17,9 +17,9 @@ import java.util.function.Consumer;
 
 /**
  * 🧭 GizmoManager v2.3 - Gizmo 管理器
- * 
+ * <p>
  * 管理所有 Gizmo 生命周期与输入事件
- * 
+ * <p>
  * ✅ v2.3: 与 SelectionManager v3.0 无缝衔接
  * - 添加 setPivot() / setVisible() / applyHandleDrag() 逻辑
  * - 支持实时选区变换
@@ -347,7 +347,7 @@ public class GizmoManager {
     
     /**
      * 更新 ResizeHandle 位置（根据当前 Box）
-     * 
+     * <p>
      * 简化实现：如果 Box 改变，重新创建 ResizeHandle 列表
      * （更简单可靠，避免位置不匹配问题）
      */
@@ -534,86 +534,7 @@ public class GizmoManager {
     public boolean isVisible() {
         return isActive();
     }
-    
-    // ===========================================================
-    // ✅ v2.3: 拖拽逻辑入口（与 SelectionManager v3.0 联动）
-    // ===========================================================
-    
-    /**
-     * 在 Gizmo 被点击后调用，用于开始拖拽。
-     * 
-     * @param axis 拖拽的轴向（X/Y/Z）
-     * @param startWorldPos 开始拖拽时的世界坐标
-     */
-    public void beginDrag(Axis axis, Vec3d startWorldPos) {
-        if (!isActive()) {
-            LOGGER.warn("[GizmoManager] ⚠️ 无法开始拖拽：Gizmo 未激活");
-            return;
-        }
-        
-        this.activeAxis = axis;
-        this.dragging = true;
-        this.lastDragWorldPos = startWorldPos;
-        
-        LOGGER.info("[GizmoManager] 🧩 开始拖拽 - 轴={} 起点={}", axis, startWorldPos);
-    }
-    
-    /**
-     * 拖拽中持续调用（由 InputRouter 驱动）。
-     * 
-     * @param currentWorldPos 当前鼠标光标的世界坐标
-     */
-    public void applyHandleDrag(Vec3d currentWorldPos) {
-        if (!dragging || activeAxis == null || !isActive()) {
-            return;
-        }
-        
-        if (lastDragWorldPos == null) {
-            lastDragWorldPos = currentWorldPos;
-            return;
-        }
-        
-        // 🧮 计算在该轴方向上的拖拽距离（方块单位）
-        double delta = 0.0;
-        switch (activeAxis) {
-            case X -> delta = currentWorldPos.x - lastDragWorldPos.x;
-            case Y -> delta = currentWorldPos.y - lastDragWorldPos.y;
-            case Z -> delta = currentWorldPos.z - lastDragWorldPos.z;
-        }
-        
-        // 转换为整数方块步进
-        int blockDelta = (int) Math.round(delta);
-        
-        if (blockDelta != 0) {
-            // 交给 SelectionManager 执行选区扩展
-            SelectionManager manager = SelectionManager.get();
-            if (manager != null) {
-                manager.expandSelection(activeAxis, blockDelta);
-                
-                // 更新 pivot 位置（用于实时 Gizmo 同步）
-                Box newBounds = manager.getCurrentBounds();
-                if (newBounds != null) {
-                    Vec3d newPivot = new Vec3d(
-                        (newBounds.minX + newBounds.maxX) / 2.0,
-                        (newBounds.minY + newBounds.maxY) / 2.0,
-                        (newBounds.minZ + newBounds.maxZ) / 2.0
-                    );
-                    setPivot(newPivot);
-                    
-                    // 更新 Gizmo 的 targetBox
-                    if (context != null) {
-                        context.setTargetBox(newBounds);
-                    }
-                    
-                    LOGGER.info("[GizmoManager] 🔧 拖拽轴={} Δ={} (方块单位) -> Pivot={}", 
-                               activeAxis, blockDelta, newPivot);
-                }
-            }
-        }
-        
-        lastDragWorldPos = currentWorldPos;
-    }
-    
+
     /**
      * 结束拖拽。
      */
@@ -621,9 +542,9 @@ public class GizmoManager {
         if (!dragging) {
             return;
         }
-        
+
         LOGGER.info("[GizmoManager] ✅ 结束拖拽 - 轴={} Pivot={}", activeAxis, getPivot());
-        
+
         dragging = false;
         activeAxis = null;
         lastDragWorldPos = null;

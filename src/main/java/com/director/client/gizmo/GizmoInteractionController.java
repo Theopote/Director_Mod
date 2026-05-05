@@ -15,7 +15,7 @@ import java.util.Set;
 
 /**
  * 馃Л GizmoInteractionController - Gizmo 浜や簰鎺у埗鍣?
- * 
+ * <p>
  * 璐熻矗鍏夌嚎妫€娴嬨€丠andle 妫€娴嬩紭鍏堢骇銆佹嫋鎷界姸鎬佹満
  * 
  * @author Director Team
@@ -209,7 +209,7 @@ public class GizmoInteractionController {
     
     /**
      * 缁撴潫鎷栨嫿
-     * 
+     * <p>
      * 瀹炴椂鑱斿姩娴佺▼锛?
      * - 缁撴潫鎷栨嫿鐘舵€?
      * - 鏇存柊 Box锛堜粠 SelectionManager 鍚屾锛?
@@ -259,7 +259,7 @@ public class GizmoInteractionController {
     
     /**
      * 搴旂敤鍙樻崲锛堟牴鎹?Handle 绫诲瀷锛?
-     * 
+     * <p>
      * 浣跨敤 TransformApplier 灏嗗彉鎹㈠簲鐢ㄥ埌閫夊尯鎴栧姩鐢荤洰鏍?
      */
     private void applyTransform(Vec3d delta) {
