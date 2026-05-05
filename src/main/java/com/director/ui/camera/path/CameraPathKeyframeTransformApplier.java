@@ -42,7 +42,6 @@ final class CameraPathKeyframeTransformApplier extends TransformApplier {
         }
 
         TimelineCameraController.getInstance().onKeyframeChanged();
-        TimelineCameraController.getInstance().previewKeyframeDirect(keyframe);
 
         TimelineModel model = controller.getTimelineModel();
         if (model != null) {

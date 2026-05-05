@@ -5,6 +5,8 @@ import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import com.director.ui.timeline.model.camera.CameraKeyframe;
 import com.director.ui.timeline.playback.camera.TimelineCameraController;
+import com.director.ui.tools.ToolRegistry;
+import com.director.ui.tools.impl.CameraPathEditTool;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;
@@ -77,7 +79,9 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
 
         // ⭐ 属性面板实时预览：只要关键帧在属性面板中显示，就持续将其状态应用到相机。
         // 每帧刷新计数器，当关键帧取消选中（renderProperties 不再被调用）时计数器自然耗尽、相机回归玩家控制。
-        TimelineCameraController.getInstance().previewKeyframeDirect(kf);
+        if (!CameraPathEditTool.ID.equals(ToolRegistry.get().getActiveNonSelectionToolId())) {
+            TimelineCameraController.getInstance().previewKeyframeDirect(kf);
+        }
 
         return changed.get();
     }
