@@ -75,6 +75,8 @@ public final class ActorGizmoController {
     /** Gizmo 编辑状态 */
     private EntityTransformClip editingClip;
     private boolean dragging = false;
+    /** 是否由 ActorGizmoController 激活并持有当前 Gizmo。 */
+    private boolean ownsGizmo = false;
 
     /** Drag 基础值（按模式区分） */
     private Vec3d dragBasePos;      // TRANSLATE 模式
@@ -121,6 +123,7 @@ public final class ActorGizmoController {
         this.targetActorId = actorId;
         this.dragging = false;
         this.editingClip = null;
+        this.ownsGizmo = false;
         clearDragBases();
         
         // 重置位置缓存，强制下次更新时重新计算
@@ -153,7 +156,10 @@ public final class ActorGizmoController {
             LOGGER.debug("[ActorGizmoController] 清除方块选区失败（可能不在客户端）: {}", e.getMessage());
         }
 
-        GizmoManager.get().deactivate();
+        if (ownsGizmo && GizmoManager.get().isActive()) {
+            GizmoManager.get().deactivate();
+        }
+        ownsGizmo = false;
     }
 
     /**
@@ -191,19 +197,21 @@ public final class ActorGizmoController {
      */
     public void update() {
         if (targetActorId == null) {
-            // 如果没有目标，确保 Gizmo 已停用
-            if (GizmoManager.get().isActive()) {
+            // 只停用自己持有的 Gizmo，避免干扰 Camera Path 等其他工具。
+            if (ownsGizmo && GizmoManager.get().isActive()) {
                 GizmoManager.get().deactivate();
             }
+            ownsGizmo = false;
             return;
         }
 
         Entity preview = ActorPreviewManager.getInstance().getPreview(targetActorId);
         if (preview == null) {
-            // 如果预览实体不存在，停用 Gizmo
-            if (GizmoManager.get().isActive()) {
+            // 只停用自己持有的 Gizmo，避免干扰 Camera Path 等其他工具。
+            if (ownsGizmo && GizmoManager.get().isActive()) {
                 GizmoManager.get().deactivate();
             }
+            ownsGizmo = false;
             return;
         }
 
@@ -260,6 +268,7 @@ public final class ActorGizmoController {
         // 如果 Gizmo 未激活，激活它
         if (!GizmoManager.get().isActive()) {
             GizmoManager.get().activate(GizmoType.TRANSFORM, box, pivot);
+            ownsGizmo = true;
             // 设置默认模式
             if (GizmoManager.get().getContext() != null) {
                 GizmoManager.get().getContext().setMode(currentMode);
