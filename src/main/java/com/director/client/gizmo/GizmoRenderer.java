@@ -340,8 +340,7 @@ public class GizmoRenderer {
         }
 
         if (hot) {
-            float pulse = (float) (0.85 + 0.15 * Math.sin(time * 10.0));
-            return new float[]{COLOR_HOVER[0], COLOR_HOVER[1], COLOR_HOVER[2], pulse};
+            return COLOR_HOVER;
         }
 
         return switch (axis) {

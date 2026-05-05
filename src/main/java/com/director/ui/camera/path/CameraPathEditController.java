@@ -129,13 +129,20 @@ public final class CameraPathEditController {
         }
 
         boolean leftDown = isLeftMouseDown(client);
+        if (leftDown && GizmoManager.get().isHot()) {
+            pendingWorldMouseDown = false;
+            boxDragging = false;
+            lastLeftMouseDown = true;
+            return;
+        }
+
         if (!pendingWorldMouseDown && isMouseOverDirectorUi()) {
             lastLeftMouseDown = leftDown;
             return;
         }
 
         if (leftDown && !lastLeftMouseDown) {
-            pendingWorldMouseDown = !GizmoManager.get().isHot();
+            pendingWorldMouseDown = true;
             boxDragging = false;
             dragStartX = client.mouse.getX();
             dragStartY = client.mouse.getY();
@@ -243,6 +250,12 @@ public final class CameraPathEditController {
         keyframe.setDepthOfFieldEnabled(sample.depthOfFieldEnabled());
         keyframe.setFocusDistance(sample.focusDistance());
         keyframe.setAperture(sample.aperture());
+        if (hit.previousKeyframe != null) {
+            keyframe.setKeyType(hit.previousKeyframe.getKeyType());
+            keyframe.setSegmentPathType(hit.previousKeyframe.getSegmentPathType());
+            keyframe.setRotationInterpolation(hit.previousKeyframe.getRotationInterpolation());
+            keyframe.setHandleMode(hit.previousKeyframe.getHandleMode());
+        }
 
         track.addAutomationKeyframe(keyframe);
         TimelineCameraController.getInstance().onKeyframeChanged();
@@ -365,6 +378,8 @@ public final class CameraPathEditController {
         }
 
         CameraKeyframe nearest = null;
+        CameraKeyframe previous = null;
+        CameraKeyframe next = null;
         double nearestDistance = Double.POSITIVE_INFINITY;
         for (CameraKeyframe keyframe : keyframes) {
             double distance = toVec(keyframe.getPosition()).squaredDistanceTo(bestPoint);
@@ -372,8 +387,14 @@ public final class CameraPathEditController {
                 nearestDistance = distance;
                 nearest = keyframe;
             }
+            if (keyframe.getTime() <= bestTime && (previous == null || keyframe.getTime() > previous.getTime())) {
+                previous = keyframe;
+            }
+            if (keyframe.getTime() >= bestTime && (next == null || keyframe.getTime() < next.getTime())) {
+                next = keyframe;
+            }
         }
-        return new CurveHit(bestPoint, bestTime, nearest);
+        return new CurveHit(bestPoint, bestTime, nearest, previous, next);
     }
 
     private SegmentHit distanceRayToSegment(Vec3d rayOrigin, Vec3d rayDir, Vec3d segA, Vec3d segB) {
@@ -537,7 +558,13 @@ public final class CameraPathEditController {
 
     private record SegmentHit(double distance, Vec3d point, double segmentT) {}
 
-    private record CurveHit(Vec3d point, float time, CameraKeyframe nearestKeyframe) {}
+    private record CurveHit(
+            Vec3d point,
+            float time,
+            CameraKeyframe nearestKeyframe,
+            CameraKeyframe previousKeyframe,
+            CameraKeyframe nextKeyframe
+    ) {}
 
     private record ScreenPoint(double x, double y) {}
 }

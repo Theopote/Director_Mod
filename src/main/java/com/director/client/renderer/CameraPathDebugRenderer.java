@@ -158,14 +158,10 @@ public final class CameraPathDebugRenderer {
             return;
         }
 
-        Vec3d cameraPos;
-        if (client.getCameraEntity() != null) {
-            cameraPos = client.getCameraEntity().getLerpedPos(tickDelta);
-        } else if (client.gameRenderer != null && client.gameRenderer.getCamera() != null) {
-            cameraPos = client.gameRenderer.getCamera().getPos();
-        } else {
+        if (client.gameRenderer == null || client.gameRenderer.getCamera() == null) {
             return;
         }
+        Vec3d cameraPos = client.gameRenderer.getCamera().getPos();
 
         // 采样路径点 / 关键帧点 / Bezier 调试段
         List<Vec3d> pathPoints = pathManager != null ? pathManager.getPathPointsForDebug() : new java.util.ArrayList<>();
