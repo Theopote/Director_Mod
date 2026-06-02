@@ -80,7 +80,7 @@ public final class ContainerPersistence {
             NbtCompound root = new NbtCompound();
             root.putLong("timestamp", System.currentTimeMillis());
             NbtList list = new NbtList();
-            for (Container c : manager.getAllContainers()) {
+            for (Container c : collectContainersInHierarchyOrder(manager)) {
                 list.add(encodeContainer(c));
             }
             root.put("containers", list);
@@ -130,17 +130,19 @@ public final class ContainerPersistence {
             NbtList list = root.getList("containers").orElseGet(NbtList::new);
             Map<UUID, Container> map = new HashMap<>();
             Map<UUID, UUID> parentMap = new HashMap<>();
+            List<Container> orderedContainers = new ArrayList<>(list.size());
 
             for (int i = 0; i < list.size(); i++) {
                 NbtCompound tag = list.getCompound(i).orElse(null);
                 if (tag == null) continue;
                 Container c = decodeContainer(tag);
                 map.put(c.getId(), c);
+                orderedContainers.add(c);
                 tag.getIntArray("parent").ifPresent(arr -> parentMap.put(c.getId(), Uuids.toUuid(arr)));
             }
 
-            // 建立层级
-            for (Container c : map.values()) {
+            // 严格按文件顺序回放层级，避免 HashMap 遍历导致顺序漂移。
+            for (Container c : orderedContainers) {
                 UUID pid = parentMap.get(c.getId());
                 if (pid != null) {
                     Container parent = map.get(pid);
@@ -177,6 +179,21 @@ public final class ContainerPersistence {
         ContainerManager manager = ContainerManager.getInstance();
         if (manager != null) {
             saveForCurrentWorld(manager);
+        }
+    }
+
+    private static List<Container> collectContainersInHierarchyOrder(ContainerManager manager) {
+        List<Container> ordered = new ArrayList<>();
+        for (Container root : manager.getRootContainersView()) {
+            collectPreOrder(root, ordered);
+        }
+        return ordered;
+    }
+
+    private static void collectPreOrder(Container container, List<Container> out) {
+        out.add(container);
+        for (Container child : container.getChildren()) {
+            collectPreOrder(child, out);
         }
     }
 
