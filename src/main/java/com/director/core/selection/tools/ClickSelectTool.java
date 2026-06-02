@@ -39,6 +39,8 @@ public class ClickSelectTool implements SelectionTool, SelectionOperationSupport
     private DoubleClickMode doubleClickMode = DoubleClickMode.CONNECTED_ALL;
     private int expansionRange = 24;
     private int maxSelectionCount = 8192;
+    private boolean visibleOnlySelection = false;
+    private DoubleClickPreset doubleClickPreset = DoubleClickPreset.PRECISE;
 
     public enum DoubleClickMode {
         CONNECTED_ALL("相邻全部"),
@@ -48,6 +50,23 @@ public class ClickSelectTool implements SelectionTool, SelectionOperationSupport
         private final String displayName;
 
         DoubleClickMode(String displayName) {
+            this.displayName = displayName;
+        }
+
+        public String getDisplayName() {
+            return displayName;
+        }
+    }
+
+    public enum DoubleClickPreset {
+        QUICK("快速"),
+        PRECISE("精确"),
+        WIDE("大范围"),
+        CUSTOM("自定义");
+
+        private final String displayName;
+
+        DoubleClickPreset(String displayName) {
             this.displayName = displayName;
         }
 
@@ -207,7 +226,9 @@ public class ClickSelectTool implements SelectionTool, SelectionOperationSupport
                 continue;
             }
 
-            result.add(current.toImmutable());
+            if (passesVisibilityFilter(world, current)) {
+                result.add(current.toImmutable());
+            }
             if (depth >= expansionRange) {
                 continue;
             }
@@ -232,13 +253,27 @@ public class ClickSelectTool implements SelectionTool, SelectionOperationSupport
                 for (int dz = -range; dz <= range && result.size() < maxSelectionCount; dz++) {
                     mutable.set(seed.getX() + dx, seed.getY() + dy, seed.getZ() + dz);
                     BlockState state = world.getBlockState(mutable);
-                    if (!state.isAir() && state.getBlock() == targetBlock) {
+                    if (!state.isAir() && state.getBlock() == targetBlock && passesVisibilityFilter(world, mutable)) {
                         result.add(mutable.toImmutable());
                     }
                 }
             }
         }
         return result;
+    }
+
+    private boolean passesVisibilityFilter(World world, BlockPos pos) {
+        return !visibleOnlySelection || isVisibleBlock(world, pos);
+    }
+
+    private boolean isVisibleBlock(World world, BlockPos pos) {
+        for (Direction direction : CARDINAL_DIRECTIONS) {
+            BlockPos neighbor = pos.offset(direction);
+            if (world.getBlockState(neighbor).isAir()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void applySelectionOperation(SelectionManager manager, SelectionOperation op, Set<BlockPos> targets) {
@@ -314,6 +349,7 @@ public class ClickSelectTool implements SelectionTool, SelectionOperationSupport
     }
 
     public void setDoubleClickMode(DoubleClickMode doubleClickMode) {
+        this.doubleClickPreset = DoubleClickPreset.CUSTOM;
         this.doubleClickMode = Objects.requireNonNull(doubleClickMode, "doubleClickMode");
     }
 
@@ -322,6 +358,7 @@ public class ClickSelectTool implements SelectionTool, SelectionOperationSupport
     }
 
     public void setExpansionRange(int expansionRange) {
+        this.doubleClickPreset = DoubleClickPreset.CUSTOM;
         this.expansionRange = Math.max(1, Math.min(64, expansionRange));
     }
 
@@ -330,6 +367,47 @@ public class ClickSelectTool implements SelectionTool, SelectionOperationSupport
     }
 
     public void setMaxSelectionCount(int maxSelectionCount) {
+        this.doubleClickPreset = DoubleClickPreset.CUSTOM;
         this.maxSelectionCount = Math.max(128, Math.min(200_000, maxSelectionCount));
+    }
+
+    public boolean isVisibleOnlySelection() {
+        return visibleOnlySelection;
+    }
+
+    public void setVisibleOnlySelection(boolean visibleOnlySelection) {
+        this.doubleClickPreset = DoubleClickPreset.CUSTOM;
+        this.visibleOnlySelection = visibleOnlySelection;
+    }
+
+    public DoubleClickPreset getDoubleClickPreset() {
+        return doubleClickPreset;
+    }
+
+    public void setDoubleClickPreset(DoubleClickPreset preset) {
+        this.doubleClickPreset = Objects.requireNonNull(preset, "preset");
+        switch (preset) {
+            case QUICK -> {
+                this.doubleClickMode = DoubleClickMode.CONNECTED_ALL;
+                this.expansionRange = 12;
+                this.maxSelectionCount = 4_096;
+                this.visibleOnlySelection = true;
+            }
+            case PRECISE -> {
+                this.doubleClickMode = DoubleClickMode.CONNECTED_SAME_BLOCK;
+                this.expansionRange = 24;
+                this.maxSelectionCount = 8_192;
+                this.visibleOnlySelection = true;
+            }
+            case WIDE -> {
+                this.doubleClickMode = DoubleClickMode.GLOBAL_SAME_BLOCK;
+                this.expansionRange = 32;
+                this.maxSelectionCount = 50_000;
+                this.visibleOnlySelection = false;
+            }
+            case CUSTOM -> {
+                // 保持用户当前参数
+            }
+        }
     }
 }

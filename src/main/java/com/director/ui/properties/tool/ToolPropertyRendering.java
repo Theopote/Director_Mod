@@ -279,6 +279,25 @@ public final class ToolPropertyRendering {
                 }
                 if (ImGui.isItemHovered()) ImGui.setTooltip("双击同一方块时执行扩展选择。关闭后保持原有单点行为。");
 
+                ClickSelectTool.DoubleClickPreset preset = tool.getDoubleClickPreset();
+                ClickSelectTool.DoubleClickPreset[] presets = ClickSelectTool.DoubleClickPreset.values();
+                int presetCurrent = 0;
+                for (int i = 0; i < presets.length; i++) {
+                    if (presets[i] == preset) {
+                        presetCurrent = i;
+                        break;
+                    }
+                }
+                ImInt presetIdx = new ImInt(presetCurrent);
+                String[] presetItems = new String[presets.length];
+                for (int i = 0; i < presets.length; i++) {
+                    presetItems[i] = presets[i].getDisplayName();
+                }
+                if (ImGui.combo("双击预设##clickPreset", presetIdx, presetItems)) {
+                    tool.setDoubleClickPreset(presets[presetIdx.get()]);
+                }
+                if (ImGui.isItemHovered()) ImGui.setTooltip("快速/精确/大范围为推荐参数组合；自定义表示你已手动调整参数。");
+
                 ClickSelectTool.DoubleClickMode mode = tool.getDoubleClickMode();
                 ClickSelectTool.DoubleClickMode[] modes = ClickSelectTool.DoubleClickMode.values();
                 int current = 0;
@@ -296,6 +315,12 @@ public final class ToolPropertyRendering {
                 if (ImGui.combo("双击模式##clickDoubleMode", modeIdx, modeItems)) {
                     tool.setDoubleClickMode(modes[modeIdx.get()]);
                 }
+
+                boolean visibleOnly = tool.isVisibleOnlySelection();
+                if (ImGui.checkbox("仅可见方块##clickVisibleOnly", visibleOnly)) {
+                    tool.setVisibleOnlySelection(!visibleOnly);
+                }
+                if (ImGui.isItemHovered()) ImGui.setTooltip("只选择至少有一个外露面的方块，避免扩选到内部被遮挡方块。");
 
                 ctx.getIntBuffer1()[0] = tool.getExpansionRange();
                 if (ImGui.sliderInt("扩展范围##clickExpandRange", ctx.getIntBuffer1(), 1, 64)) {
