@@ -53,11 +53,42 @@ public class RenameContainerCommand implements ContainerCommand {
             return oldName;
         }
         String trimmed = desired.trim();
-        Container existing = manager.getContainer(trimmed);
-        if (existing == null || existing.getId().equals(containerId)) {
-            return trimmed;
+        String normalized = collapseUniformPairDuplication(trimmed);
+        if (normalized.isBlank()) {
+            return oldName;
         }
-        return manager.generateUniqueName(trimmed);
+
+        Container existing = manager.getContainer(normalized);
+        if (existing == null || existing.getId().equals(containerId)) {
+            return normalized;
+        }
+        return manager.generateUniqueName(normalized);
+    }
+
+    /**
+     * 兼容某些运行环境下文本输入事件被重复注入的问题：
+     * 当且仅当整个名称呈现“每个字符都重复一次”的模式时进行折叠。
+     */
+    private static String collapseUniformPairDuplication(String value) {
+        if (value == null || value.isEmpty()) {
+            return "";
+        }
+
+        int[] codePoints = value.codePoints().toArray();
+        if (codePoints.length < 4 || (codePoints.length & 1) != 0) {
+            return value;
+        }
+
+        StringBuilder collapsed = new StringBuilder(codePoints.length / 2);
+        for (int i = 0; i < codePoints.length; i += 2) {
+            int first = codePoints[i];
+            int second = codePoints[i + 1];
+            if (first != second) {
+                return value;
+            }
+            collapsed.appendCodePoint(first);
+        }
+        return collapsed.toString();
     }
 }
 
