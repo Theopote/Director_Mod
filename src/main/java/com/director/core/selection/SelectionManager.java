@@ -3,6 +3,7 @@ package com.director.core.selection;
 import com.director.client.renderer.SelectionRenderer;
 import com.director.client.renderer.ToolPreviewManager;
 import com.director.core.selection.tools.FaceHandleManager;
+import com.director.core.selection.tools.ClickSelectTool;
 import com.director.core.selection.tools.boxselecttool.BoxSelectTool;
 import com.director.core.selection.events.*;
 import com.director.core.selection.block_filters.BlockFilter;
@@ -289,6 +290,26 @@ public class SelectionManager {
         } else {
             LOGGER.warn("[SelectionManager] No active tool to handle click");
         }
+    }
+
+    public void handleDoubleClick(World world, BlockPos pos, boolean shift) {
+        LOGGER.info("[SelectionManager] Handle double click pos={} shift={} currentTool={}",
+                pos, shift, currentTool != null ? currentTool.getId() : "null");
+
+        if (!(currentTool instanceof ClickSelectTool clickTool)) {
+            // 非点选工具维持原行为
+            handleClick(world, pos, shift);
+            return;
+        }
+
+        LOGGER.info("[SelectionManager] Dispatching tool click event (double click)");
+        getEventProcessorInternal().processToolClick(world, pos, shift, false);
+
+        LOGGER.info("[SelectionManager] Executing tool double click logic");
+        clickTool.onDoubleClick(world, pos, shift);
+
+        LOGGER.info("[SelectionManager] Notifying selection change");
+        notifySelectionChanged();
     }
 
     /**

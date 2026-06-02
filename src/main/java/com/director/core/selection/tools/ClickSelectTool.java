@@ -6,12 +6,19 @@ import com.director.core.selection.SelectionOperationSupport;
 import com.director.core.selection.SelectionState;
 import com.director.core.selection.SelectionTool;
 import com.director.ui.theme.Icons;
+import net.minecraft.block.Block;
+import net.minecraft.block.BlockState;
 import net.minecraft.util.math.BlockPos;
+import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayDeque;
+import java.util.HashSet;
 import java.util.Objects;
+import java.util.Queue;
+import java.util.Set;
 
 /**
  * 🖱️ 点击选择工具
@@ -22,8 +29,32 @@ import java.util.Objects;
  */
 public class ClickSelectTool implements SelectionTool, SelectionOperationSupport {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClickSelectTool.class);
+    private static final Direction[] CARDINAL_DIRECTIONS = {
+            Direction.NORTH, Direction.SOUTH, Direction.EAST,
+            Direction.WEST, Direction.UP, Direction.DOWN
+    };
 
     private SelectionOperation operation = SelectionOperation.NEW;
+    private boolean doubleClickExpandEnabled = true;
+    private DoubleClickMode doubleClickMode = DoubleClickMode.CONNECTED_ALL;
+    private int expansionRange = 24;
+    private int maxSelectionCount = 8192;
+
+    public enum DoubleClickMode {
+        CONNECTED_ALL("相邻全部"),
+        CONNECTED_SAME_BLOCK("相邻同类型"),
+        GLOBAL_SAME_BLOCK("范围内同类型");
+
+        private final String displayName;
+
+        DoubleClickMode(String displayName) {
+            this.displayName = displayName;
+        }
+
+        public String getDisplayName() {
+            return displayName;
+        }
+    }
 
     @Override
     public SelectionOperation getOperation() {
@@ -47,7 +78,7 @@ public class ClickSelectTool implements SelectionTool, SelectionOperationSupport
 
     @Override
     public String getDescription() {
-        return "单击选择方块。";
+        return "单击选择方块，双击可按配置扩展选择。";
     }
 
     @Override
@@ -111,6 +142,125 @@ public class ClickSelectTool implements SelectionTool, SelectionOperationSupport
         LOGGER.info("[ClickSelectTool] ======= onClick 结束 =======");
     }
 
+    public void onDoubleClick(World world, BlockPos pos, boolean isShiftDown) {
+        LOGGER.info("[ClickSelectTool] ======= onDoubleClick 开始 =======");
+
+        if (!doubleClickExpandEnabled) {
+            LOGGER.debug("[ClickSelectTool] 双击扩选已禁用，忽略");
+            return;
+        }
+        if (world == null || pos == null) {
+            LOGGER.warn("[ClickSelectTool] world 或 pos 为空，忽略双击事件 (world={}, pos={})", world, pos);
+            return;
+        }
+
+        BlockState seedState = world.getBlockState(pos);
+        if (seedState.isAir()) {
+            LOGGER.debug("[ClickSelectTool] 双击命中空气，忽略: {}", pos);
+            return;
+        }
+
+        SelectionManager manager = SelectionManager.get();
+        if (manager == null) {
+            LOGGER.error("[ClickSelectTool] SelectionManager 为空！");
+            return;
+        }
+
+        Set<BlockPos> expanded = switch (doubleClickMode) {
+            case CONNECTED_ALL -> collectConnected(world, pos, false);
+            case CONNECTED_SAME_BLOCK -> collectConnected(world, pos, true);
+            case GLOBAL_SAME_BLOCK -> collectGlobalSame(world, pos, seedState.getBlock());
+        };
+
+        if (expanded.isEmpty()) {
+            LOGGER.info("[ClickSelectTool] 双击扩选为空，跳过应用");
+            return;
+        }
+
+        SelectionOperation op = isShiftDown ? SelectionOperation.ADD : operation;
+        applySelectionOperation(manager, op, expanded);
+
+        LOGGER.info("[ClickSelectTool] 双击扩选完成，模式={}, 数量={}, 当前选区={}",
+                doubleClickMode, expanded.size(), manager.getSelectionSet().size());
+        LOGGER.info("[ClickSelectTool] ======= onDoubleClick 结束 =======");
+    }
+
+    private Set<BlockPos> collectConnected(World world, BlockPos seed, boolean sameBlockOnly) {
+        Set<BlockPos> result = new HashSet<>();
+        Set<BlockPos> visited = new HashSet<>();
+        Queue<Node> queue = new ArrayDeque<>();
+
+        Block seedBlock = world.getBlockState(seed).getBlock();
+        queue.offer(new Node(seed, 0));
+        visited.add(seed);
+
+        while (!queue.isEmpty() && result.size() < maxSelectionCount) {
+            Node node = queue.poll();
+            BlockPos current = node.pos;
+            int depth = node.depth;
+
+            BlockState currentState = world.getBlockState(current);
+            if (currentState.isAir()) {
+                continue;
+            }
+            if (sameBlockOnly && currentState.getBlock() != seedBlock) {
+                continue;
+            }
+
+            result.add(current.toImmutable());
+            if (depth >= expansionRange) {
+                continue;
+            }
+
+            for (Direction direction : CARDINAL_DIRECTIONS) {
+                BlockPos next = current.offset(direction);
+                if (visited.add(next)) {
+                    queue.offer(new Node(next, depth + 1));
+                }
+            }
+        }
+        return result;
+    }
+
+    private Set<BlockPos> collectGlobalSame(World world, BlockPos seed, Block targetBlock) {
+        Set<BlockPos> result = new HashSet<>();
+        int range = expansionRange;
+        BlockPos.Mutable mutable = new BlockPos.Mutable();
+
+        for (int dx = -range; dx <= range && result.size() < maxSelectionCount; dx++) {
+            for (int dy = -range; dy <= range && result.size() < maxSelectionCount; dy++) {
+                for (int dz = -range; dz <= range && result.size() < maxSelectionCount; dz++) {
+                    mutable.set(seed.getX() + dx, seed.getY() + dy, seed.getZ() + dz);
+                    BlockState state = world.getBlockState(mutable);
+                    if (!state.isAir() && state.getBlock() == targetBlock) {
+                        result.add(mutable.toImmutable());
+                    }
+                }
+            }
+        }
+        return result;
+    }
+
+    private void applySelectionOperation(SelectionManager manager, SelectionOperation op, Set<BlockPos> targets) {
+        switch (op) {
+            case NEW -> {
+                manager.clearSelection();
+                manager.addAllToSelection(targets);
+            }
+            case ADD -> manager.addAllToSelection(targets);
+            case SUBTRACT -> targets.forEach(manager::removeFromSelection);
+            case INTERSECT -> {
+                Set<BlockPos> keep = new HashSet<>(manager.getSelectionSet().asUnmodifiableSet());
+                keep.retainAll(targets);
+                manager.clearSelection();
+                manager.addAllToSelection(keep);
+            }
+        }
+    }
+
+    private record Node(BlockPos pos, int depth) {
+    }
+
     @Override
     public void onDragStart(World world, BlockPos start) {
         // 点击工具不支持拖拽，保留钩子以兼容事件流
@@ -149,5 +299,37 @@ public class ClickSelectTool implements SelectionTool, SelectionOperationSupport
     @Override
     public void onDeactivate(World world) {
         LOGGER.debug("[ClickSelectTool] 工具停用");
+    }
+
+    public boolean isDoubleClickExpandEnabled() {
+        return doubleClickExpandEnabled;
+    }
+
+    public void setDoubleClickExpandEnabled(boolean doubleClickExpandEnabled) {
+        this.doubleClickExpandEnabled = doubleClickExpandEnabled;
+    }
+
+    public DoubleClickMode getDoubleClickMode() {
+        return doubleClickMode;
+    }
+
+    public void setDoubleClickMode(DoubleClickMode doubleClickMode) {
+        this.doubleClickMode = Objects.requireNonNull(doubleClickMode, "doubleClickMode");
+    }
+
+    public int getExpansionRange() {
+        return expansionRange;
+    }
+
+    public void setExpansionRange(int expansionRange) {
+        this.expansionRange = Math.max(1, Math.min(64, expansionRange));
+    }
+
+    public int getMaxSelectionCount() {
+        return maxSelectionCount;
+    }
+
+    public void setMaxSelectionCount(int maxSelectionCount) {
+        this.maxSelectionCount = Math.max(128, Math.min(200_000, maxSelectionCount));
     }
 }

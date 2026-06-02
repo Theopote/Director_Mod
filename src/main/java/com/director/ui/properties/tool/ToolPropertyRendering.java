@@ -4,6 +4,7 @@ import com.director.core.selection.SelectionOperation;
 import com.director.core.selection.SelectionOperationSupport;
 import com.director.core.selection.SelectionState;
 import com.director.core.selection.SelectionTool;
+import com.director.core.selection.tools.ClickSelectTool;
 import com.director.core.selection.tools.ConnectedSelectTool;
 import com.director.core.selection.tools.boxselecttool.BoxSelectTool;
 import com.director.core.selection.tools.brushselecttool.BrushSelectTool;
@@ -43,6 +44,7 @@ public final class ToolPropertyRendering {
     static {
         registerRenderer(new BrushToolRenderer());
         registerRenderer(new BoxV3ToolRenderer());
+        registerRenderer(new ClickToolRenderer());
         registerRenderer(new FloodFillToolRenderer());
         registerRenderer(new FaceSelectToolRenderer());
         registerRenderer(new LassoToolRenderer());
@@ -264,6 +266,67 @@ public final class ToolPropertyRendering {
         }
         @Override
         public Class<BrushSelectTool> getToolClass() { return BrushSelectTool.class; }
+    }
+
+    private static final class ClickToolRenderer implements ToolPropertyRenderer<ClickSelectTool> {
+        @Override
+        public void render(ClickSelectTool tool, IToolPropertyRenderContext ctx) {
+            if (ImGui.collapsingHeader(Icons.SELECT + " 点选扩展", ImGuiTreeNodeFlags.DefaultOpen)) {
+                ImGui.indent();
+                boolean enabled = tool.isDoubleClickExpandEnabled();
+                if (ImGui.checkbox("启用双击扩选##clickDoubleEnabled", enabled)) {
+                    tool.setDoubleClickExpandEnabled(!enabled);
+                }
+                if (ImGui.isItemHovered()) ImGui.setTooltip("双击同一方块时执行扩展选择。关闭后保持原有单点行为。");
+
+                ClickSelectTool.DoubleClickMode mode = tool.getDoubleClickMode();
+                ClickSelectTool.DoubleClickMode[] modes = ClickSelectTool.DoubleClickMode.values();
+                int current = 0;
+                for (int i = 0; i < modes.length; i++) {
+                    if (modes[i] == mode) {
+                        current = i;
+                        break;
+                    }
+                }
+                ImInt modeIdx = new ImInt(current);
+                String[] modeItems = new String[modes.length];
+                for (int i = 0; i < modes.length; i++) {
+                    modeItems[i] = modes[i].getDisplayName();
+                }
+                if (ImGui.combo("双击模式##clickDoubleMode", modeIdx, modeItems)) {
+                    tool.setDoubleClickMode(modes[modeIdx.get()]);
+                }
+
+                ctx.getIntBuffer1()[0] = tool.getExpansionRange();
+                if (ImGui.sliderInt("扩展范围##clickExpandRange", ctx.getIntBuffer1(), 1, 64)) {
+                    tool.setExpansionRange(ctx.getIntBuffer1()[0]);
+                }
+                if (ImGui.isItemHovered()) ImGui.setTooltip("连通模式表示最大扩散步数；全局同类模式表示立方体半径。");
+
+                ctx.getIntBuffer2()[0] = tool.getMaxSelectionCount();
+                if (ImGui.sliderInt("最大选择数##clickMaxCount", ctx.getIntBuffer2(), 128, 200_000)) {
+                    tool.setMaxSelectionCount(ctx.getIntBuffer2()[0]);
+                }
+                if (ImGui.isItemHovered()) ImGui.setTooltip("限制单次双击扩选数量，避免大范围卡顿。");
+
+                ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "提示: Shift+双击会强制加选，与其他选择工具一致。");
+                ImGui.unindent();
+            }
+
+            ImGui.spacing();
+            ImGui.separator();
+            int cnt = ctx.getSelectionManager().getSelectionSet().size();
+            if (cnt > 0) {
+                ImGui.textColored(0.5f, 1.0f, 0.5f, 1.0f, Icons.STATS + " 当前选中: " + cnt + " 个方块");
+            } else {
+                ImGui.textColored(0.6f, 0.6f, 0.6f, 1.0f, Icons.STATS + " 单击选择，双击可按配置扩展");
+            }
+        }
+
+        @Override
+        public Class<ClickSelectTool> getToolClass() {
+            return ClickSelectTool.class;
+        }
     }
 
     private static final class FloodFillToolRenderer implements ToolPropertyRenderer<SelectionTool> {

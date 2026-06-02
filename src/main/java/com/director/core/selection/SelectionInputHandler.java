@@ -2,6 +2,7 @@ package com.director.core.selection;
 
 import com.director.client.gizmo.GizmoManager;
 import com.director.client.settings.RenderSettings;
+import com.director.core.selection.tools.ClickSelectTool;
 import com.director.core.selection.tools.FaceHandleManager;
 import com.director.core.selection.tools.boxselecttool.BoxSelectTool;
 import net.minecraft.client.MinecraftClient;
@@ -44,8 +45,10 @@ public class SelectionInputHandler {
     /** 拖拽起点时的射线命中，用于 onDragStart(World, BlockPos, BlockHitResult)；仅用一次后置 null */
     private BlockHitResult dragStartHit = null;
     private long lastClickTime = 0;
+    private BlockPos lastClickPos = null;
 
     private static final long CLICK_DEBOUNCE_MS = 50;   // 降低防抖时间，提高响应性
+    private static final long DOUBLE_CLICK_WINDOW_MS = 280;
 
     public SelectionInputHandler() {
         this.client = MinecraftClient.getInstance();
@@ -162,12 +165,13 @@ public class SelectionInputHandler {
             return;
         }
 
+        long previousClickTime = lastClickTime;
+
         // 防抖检查
-        if (now - lastClickTime < CLICK_DEBOUNCE_MS) {
-            LOGGER.debug("[Click] 点击防抖 (间隔={}ms < {}ms)", now - lastClickTime, CLICK_DEBOUNCE_MS);
+        if (now - previousClickTime < CLICK_DEBOUNCE_MS) {
+            LOGGER.debug("[Click] 点击防抖 (间隔={}ms < {}ms)", now - previousClickTime, CLICK_DEBOUNCE_MS);
             return;
         }
-        lastClickTime = now;
 
         BlockHitResult hit = raycastFromMouse();
         if (hit == null) {
@@ -176,8 +180,21 @@ public class SelectionInputHandler {
         }
 
         BlockPos pos = hit.getBlockPos();
-        LOGGER.info("[Click] ✅ 点击选中: {}", pos);
-        selectionManager.handleClick(client.world, pos, isShiftDown);
+        boolean isDoubleClick = lastClickPos != null
+                && lastClickPos.equals(pos)
+            && (now - previousClickTime) <= DOUBLE_CLICK_WINDOW_MS;
+
+        SelectionTool currentTool = selectionManager.getCurrentTool();
+        if (isDoubleClick && currentTool instanceof ClickSelectTool clickTool && clickTool.isDoubleClickExpandEnabled()) {
+            LOGGER.info("[Click] ✅ 双击扩选: {}", pos);
+            selectionManager.handleDoubleClick(client.world, pos, isShiftDown);
+        } else {
+            LOGGER.info("[Click] ✅ 点击选中: {}", pos);
+            selectionManager.handleClick(client.world, pos, isShiftDown);
+        }
+
+        lastClickPos = pos.toImmutable();
+        lastClickTime = now;
     }
     
     /**
