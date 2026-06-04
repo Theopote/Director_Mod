@@ -184,7 +184,7 @@ class ContainerTreeRenderer {
             boolean isRowVisible = ImGui.isItemVisible();
 
             interactionHandler.handleContextMenu(container);
-            interactionHandler.setupDragAndDrop(container, isHovered);
+            boolean dragSourceActive = interactionHandler.setupDragAndDrop(container, isHovered);
 
             if (tagColor != null && isRowVisible) {
                 drawColorTagBar(tagColor, rowMin, rowMax);
@@ -231,7 +231,7 @@ class ContainerTreeRenderer {
 
             // 如果图标被点击或悬停，不处理节点点击（避免冲突）
             // 图标悬停时，即使节点也被悬停，也不处理节点点击
-            boolean suppressNodeClick = iconClicked || iconHovered;
+            boolean suppressNodeClick = iconClicked || iconHovered || dragSourceActive;
             interactionHandler.handleNodeInteraction(
                     container,
                     isHovered && !iconHovered,  // 节点悬停但不包括图标悬停

@@ -29,6 +29,7 @@ public class ContainerTreeView {
             return;
         }
 
+        interactionHandler.beginFrame();
         List<Container> roots = new ArrayList<>(controller.getRootContainers());
         renderer.renderTree(roots);
         interactionHandler.handleRootDropArea();

@@ -38,6 +38,8 @@ class ContainerTreeInteractionHandler {
 
     /** 拖拽时在 setDragDropPayload 中写入，accept 时若 payload 不可用则用此回退，确保批量拖放可靠 */
     private String lastDragPayloadData;
+    private boolean anyNodeHoveredThisFrame;
+    private boolean anyNodeClickedThisFrame;
 
     private final ContainerPanelController controller;
     private final ContainerPanelState state;
@@ -51,11 +53,17 @@ class ContainerTreeInteractionHandler {
         this.inlineRenamer = inlineRenamer;
     }
 
+    void beginFrame() {
+        anyNodeHoveredThisFrame = false;
+        anyNodeClickedThisFrame = false;
+    }
+
     void handleNodeInteraction(Container container,
                                boolean isHovered,
                                boolean isLeftClicked,
                                boolean isDoubleClicked) {
         if (isHovered) {
+            anyNodeHoveredThisFrame = true;
             state.setHoveredContainer(container);
         }
 
@@ -74,6 +82,7 @@ class ContainerTreeInteractionHandler {
         }
 
         if (isLeftClicked) {
+            anyNodeClickedThisFrame = true;
             // 诊断「组内点不中」：若点不中时此日志从不出现，说明 isItemClicked 未命中（ImGui/叠层）；若出现则问题在 selectContainer 或 SelectionModel
             if (container.getParent() != null) {
                 LOGGER.debug("[ContainerTree] 组内节点收到左键点击: id={} name={}", container.getId(), container.getName());
@@ -86,13 +95,20 @@ class ContainerTreeInteractionHandler {
 
             boolean multiSelect = ImGui.getIO().getKeyCtrl();
             boolean rangeSelect = ImGui.getIO().getKeyShift();
+            if (!multiSelect && !rangeSelect
+                    && controller.isContainerSelected(container.getId())
+                    && controller.getSelectedContainers().size() > 1) {
+                return;
+            }
             controller.selectContainer(container.getId(), multiSelect, rangeSelect);
         }
     }
 
-    void setupDragAndDrop(Container container, boolean hovered) {
+    boolean setupDragAndDrop(Container container, boolean hovered) {
+        boolean dragSourceActive = false;
         // 不依赖 hovered：beginDragDropSource() 仅在从本节点发起拖拽时为 true
         if (ImGui.beginDragDropSource()) {
+            dragSourceActive = true;
             java.util.Collection<Container> selectedContainers = controller.getSelectedContainers();
             boolean isSelected = controller.isContainerSelected(container.getId());
             boolean hasMultipleSelection = selectedContainers.size() > 1 && isSelected;
@@ -128,15 +144,19 @@ class ContainerTreeInteractionHandler {
             }
             ImGui.endDragDropTarget();
         }
+        return dragSourceActive;
     }
 
     void handleRootDropArea() {
-        if (!ImGui.isWindowHovered() || ImGui.isAnyItemHovered()) {
+        if (!ImGui.isWindowHovered()) {
             return;
         }
         
         // 处理空白区域的左键点击：取消选中容器
-        if (ImGui.isMouseClicked(ImGuiMouseButton.Left) && !ImGui.isAnyItemHovered()) {
+        if (ImGui.isMouseClicked(ImGuiMouseButton.Left)
+                && !ImGui.isAnyItemHovered()
+                && !anyNodeHoveredThisFrame
+                && !anyNodeClickedThisFrame) {
             // ✅ 空白点击：取消重命名（避免误提交半成品）
             inlineRenamer.cancelEditing("clearSelection");
             controller.clearSelection();
