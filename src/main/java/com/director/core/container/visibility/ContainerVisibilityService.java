@@ -195,14 +195,6 @@ public class ContainerVisibilityService {
         lastShownBlocks.remove(container.getId());
         LOGGER.debug("[Visibility] 容器 {} 显示完成", container.getName());
     }
-    
-    /**
-     * 清除容器的快照（容器被删除时调用）
-     */
-    public void clearSnapshot(Container container) {
-        snapshots.remove(container.getId());
-        lastShownBlocks.remove(container.getId());
-    }
 
     /**
      * 从隐藏容器中释放一部分方块。
