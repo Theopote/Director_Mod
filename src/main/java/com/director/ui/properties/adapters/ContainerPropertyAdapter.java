@@ -70,10 +70,37 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
             return false;
         }
 
-        if (container.getType() == ContainerType.GROUP) {
-            return renderGroupProperties(container);
+        boolean timelineControlled = isTimelineControlled(container);
+        if (timelineControlled) {
+            UITheme.label("已由时间线接管，容器属性只读", UITheme.DarkTheme.TEXT_DISABLED);
+            ImGui.beginDisabled();
         }
-        return renderStandardContainerProperties(container);
+        try {
+            if (container.getType() == ContainerType.GROUP) {
+                return renderGroupProperties(container);
+            }
+            return renderStandardContainerProperties(container);
+        } finally {
+            if (timelineControlled) {
+                ImGui.endDisabled();
+            }
+        }
+    }
+
+    private boolean isTimelineControlled(Container container) {
+        if (container == null) {
+            return false;
+        }
+        var timelineService = com.director.ui.timeline.container.ContainerTimelineService.getInstance();
+        if (timelineService.isContainerOnTimeline(container.getId())) {
+            return true;
+        }
+        for (Container child : container.getChildren()) {
+            if (isTimelineControlled(child)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean renderGroupProperties(Container container) {

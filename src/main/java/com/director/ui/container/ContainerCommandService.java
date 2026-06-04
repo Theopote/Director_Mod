@@ -39,6 +39,9 @@ public class ContainerCommandService {
         if (parent != null && parent.getType() != ContainerType.GROUP) {
             parent = null;
         }
+        if (isTimelineControlled(parent, "添加子容器")) {
+            return null;
+        }
         String uniqueName = containerManager.generateUniqueName(baseName);
         CreateContainerCommand command = new CreateContainerCommand(containerManager, uniqueName, type, parent);
         execute(command);
@@ -48,6 +51,9 @@ public class ContainerCommandService {
     public void deleteSelectedContainers() {
         Collection<Container> selection = containerManager.getSelectedContainersView();
         if (selection.isEmpty()) {
+            return;
+        }
+        if (hasTimelineControlledContainer(selection, "删除")) {
             return;
         }
         execute(new DeleteContainersCommand(containerManager, selection));
@@ -96,6 +102,9 @@ public class ContainerCommandService {
             targetParent = null;
             insertIndex = -1;
         }
+        if (isTimelineControlled(targetParent, "粘贴子容器")) {
+            return;
+        }
         PasteContainersCommand command = new PasteContainersCommand(
             containerManager,
             clipboard.getTemplates(),
@@ -119,6 +128,9 @@ public class ContainerCommandService {
                 return null;
             }
         }
+        if (hasTimelineControlledContainer(selection, "分组")) {
+            return null;
+        }
         GroupContainersCommand command = new GroupContainersCommand(containerManager, selection, null);
         execute(command);
         return command.getGroupContainer();
@@ -136,6 +148,9 @@ public class ContainerCommandService {
                 return null;
             }
         }
+        if (hasTimelineControlledContainer(selection, "合并")) {
+            return null;
+        }
         MergeContainersCommand command = new MergeContainersCommand(containerManager, selection, mergeName);
         execute(command);
         return command.getMergedContainer();
@@ -149,6 +164,12 @@ public class ContainerCommandService {
         if (container == null) {
             return;
         }
+        if (isTimelineControlled(container, "移动")) {
+            return;
+        }
+        if (isTimelineControlled(targetParent, "接收移动")) {
+            return;
+        }
         execute(new MoveContainerCommand(containerManager, container, targetParent, index));
     }
 
@@ -156,6 +177,12 @@ public class ContainerCommandService {
         Container dragged = containerManager.getContainer(draggedId);
         Container parent = parentId != null ? containerManager.getContainer(parentId) : null;
         if (dragged == null) {
+            return;
+        }
+        if (isTimelineControlled(dragged, "移动")) {
+            return;
+        }
+        if (isTimelineControlled(parent, "接收移动")) {
             return;
         }
         if (parent != null) {
@@ -180,6 +207,9 @@ public class ContainerCommandService {
         }
         Container container = containerManager.getContainer(containerId);
         if (container == null) {
+            return;
+        }
+        if (isTimelineControlled(container, "移动")) {
             return;
         }
         Container parent = container.getParent();
@@ -218,11 +248,15 @@ public class ContainerCommandService {
         if (targetParent != null && targetParent.getType() != ContainerType.GROUP) {
             targetParent = null;
         }
+        if (isTimelineControlled(targetParent, "接收移动")) {
+            return;
+        }
 
         List<Container> resolved = new ArrayList<>();
         for (UUID id : ids) {
             Container c = containerManager.getContainer(id);
             if (c == null) continue;
+            if (isTimelineControlled(c, "移动")) continue;
             if (targetParent != null && (c == targetParent || targetParent.isDescendantOf(c))) {
                 continue;
             }
@@ -291,6 +325,9 @@ public class ContainerCommandService {
         if (dragged == null || reference == null || dragged == reference) {
             return;
         }
+        if (isTimelineControlled(dragged, "移动")) {
+            return;
+        }
         if (reference.isDescendantOf(dragged)) {
             return;
         }
@@ -332,12 +369,18 @@ public class ContainerCommandService {
         if (container == null) {
             return;
         }
+        if (isTimelineControlled(container, "重命名")) {
+            return;
+        }
         execute(new RenameContainerCommand(containerManager, container, newName));
     }
 
     public void setContainerLocked(UUID containerId, boolean locked) {
         Container container = containerManager.getContainer(containerId);
         if (container == null) {
+            return;
+        }
+        if (isTimelineControlled(container, "锁定")) {
             return;
         }
         execute(new SetContainerLockedCommand(containerManager, container, locked));
@@ -348,12 +391,18 @@ public class ContainerCommandService {
         if (container == null) {
             return;
         }
+        if (isTimelineControlled(container, "切换可见性")) {
+            return;
+        }
         execute(new ToggleContainerStateCommand(container));
     }
 
     public void setContainerType(UUID containerId, ContainerType newType) {
         Container container = containerManager.getContainer(containerId);
         if (container == null || newType == null) {
+            return;
+        }
+        if (isTimelineControlled(container, "修改类型")) {
             return;
         }
         // 不允许将类型改为 GROUP
@@ -395,6 +444,9 @@ public class ContainerCommandService {
 		if (container == null) {
 			return;
 		}
+		if (isTimelineControlled(container, "修改动画预设")) {
+			return;
+		}
 		ContainerAnimationPreset preset = container.getDefaultAnimationPreset().copy();
 		operation.accept(preset);
 		execute(new SetContainerPresetCommand(containerManager, container, preset));
@@ -405,11 +457,17 @@ public class ContainerCommandService {
         if (container == null) {
             return;
         }
+        if (isTimelineControlled(container, "修改元数据")) {
+            return;
+        }
         execute(new SetContainerMetadataCommand(containerManager, container, key, value));
     }
 
     public void batchSetMetadata(Collection<Container> containers, String key, Object value) {
         if (containers == null || containers.isEmpty() || key == null || key.isBlank()) {
+            return;
+        }
+        if (hasTimelineControlledContainer(containers, "批量修改元数据")) {
             return;
         }
         execute(new BatchSetContainerMetadataCommand(containerManager, containers, key, value));
@@ -422,6 +480,9 @@ public class ContainerCommandService {
         if (containers == null || containers.isEmpty()) {
             return;
         }
+        if (hasTimelineControlledContainer(containers, "批量锁定")) {
+            return;
+        }
         execute(new BatchSetContainerLockedCommand(containerManager, containers, locked));
     }
 
@@ -432,6 +493,9 @@ public class ContainerCommandService {
         if (containers == null || containers.isEmpty() || state == null) {
             return;
         }
+        if (hasTimelineControlledContainer(containers, "批量切换可见性")) {
+            return;
+        }
         execute(new BatchSetContainerStateCommand(containers, state));
     }
 
@@ -440,12 +504,18 @@ public class ContainerCommandService {
         if (container == null) {
             return;
         }
+        if (isTimelineControlled(container, "释放")) {
+            return;
+        }
         execute(new ReleaseContainerCommand(containerManager, container));
     }
 
     public void toggleIntake(UUID containerId) {
         Container container = containerManager.getContainer(containerId);
         if (container == null) {
+            return;
+        }
+        if (isTimelineControlled(container, "实时接收")) {
             return;
         }
         if (container.getType() == ContainerType.GROUP) {
@@ -466,6 +536,9 @@ public class ContainerCommandService {
         Container first = containerManager.getContainer(firstId);
         Container second = containerManager.getContainer(secondId);
         if (first == null || second == null) {
+            return;
+        }
+        if (isTimelineControlled(first, "交换") || isTimelineControlled(second, "交换")) {
             return;
         }
         execute(new SwapContainersCommand(containerManager, firstId, secondId));
@@ -495,6 +568,38 @@ public class ContainerCommandService {
         if (commandHistory.canRedo()) {
             commandHistory.redo();
         }
+    }
+
+    private boolean hasTimelineControlledContainer(Collection<Container> containers, String action) {
+        if (containers == null || containers.isEmpty()) {
+            return false;
+        }
+        for (Container container : containers) {
+            if (isTimelineControlled(container, action)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isTimelineControlled(Container container, String action) {
+        if (container == null) {
+            return false;
+        }
+        var timelineService = com.director.ui.timeline.container.ContainerTimelineService.getInstance();
+        if (timelineService.isContainerOnTimeline(container.getId())) {
+            LOGGER.warn("[ContainerCommandService] 容器 {} 已在时间线上，拒绝{}",
+                    container.getName(), action);
+            return true;
+        }
+        for (Container child : container.getChildren()) {
+            if (isTimelineControlled(child, action)) {
+                LOGGER.warn("[ContainerCommandService] 容器 {} 包含已在时间线上的子容器，拒绝{}",
+                        container.getName(), action);
+                return true;
+            }
+        }
+        return false;
     }
 
     /* ---------------------- 命令执行 ---------------------- */

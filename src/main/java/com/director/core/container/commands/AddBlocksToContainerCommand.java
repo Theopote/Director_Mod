@@ -1,6 +1,7 @@
 package com.director.core.container.commands;
 
 import com.director.core.container.Container;
+import com.director.core.container.ContainerManager;
 import com.director.core.container.visibility.ContainerServices;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -38,19 +39,20 @@ public class AddBlocksToContainerCommand implements ContainerCommand {
     @Override
     public void execute() {
         actuallyAdded.clear();
-        for (BlockPos pos : blocksToAdd) {
+        Collection<BlockPos> acceptedBlocks = filterUnownedBlocks();
+        for (BlockPos pos : acceptedBlocks) {
             if (pos != null && !container.containsBlock(pos)) {
                 actuallyAdded.add(pos);
             }
         }
 
         // 添加方块
-        container.addBlocks(blocksToAdd);
+        container.addBlocks(acceptedBlocks);
         actuallyAdded.removeIf(pos -> pos == null || !container.containsBlock(pos));
         
         // 捕获方块快照
         if (world != null) {
-            container.getBlockStore().addAllFromWorld(blocksToAdd, world);
+            container.getBlockStore().addAllFromWorld(acceptedBlocks, world);
         }
 
         syncHiddenContainer();
@@ -98,6 +100,15 @@ public class AddBlocksToContainerCommand implements ContainerCommand {
         if (visibilityService != null) {
             visibilityService.restoreContainerBlocks(container, blocks);
         }
+    }
+
+    private Collection<BlockPos> filterUnownedBlocks() {
+        ContainerManager manager = ContainerManager.getInstance();
+        if (manager == null) {
+            return blocksToAdd;
+        }
+        var worldKey = world != null ? world.getRegistryKey() : container.getLevelKey();
+        return manager.filterUnownedBlocks(blocksToAdd, worldKey, container.getId());
     }
 }
 

@@ -10,6 +10,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.director.core.container.persistence.ContainerPersistence;
+import net.minecraft.registry.RegistryKey;
 
 /**
  * 容器管理器（v4.5 一体化交互系统）
@@ -971,16 +972,22 @@ public class ContainerManager {
             return null;
         }
         
+        RegistryKey<net.minecraft.world.World> worldKey = world != null ? world.getRegistryKey() : null;
+        Set<net.minecraft.util.math.BlockPos> blocks = filterUnownedBlocks(sel.getSelectedBlocks(), worldKey, null);
+        if (blocks.isEmpty()) {
+            LOGGER.warn("[ContainerManager] 无法从选区创建容器：选区方块已被其他容器占用");
+            return null;
+        }
+
         String name = generateUniqueName("选区容器");
         Container container = createContainer(name, ContainerType.GENERAL);
         
         // 设置容器的世界归属（v5.2新增）
         if (world != null) {
-            container.setLevelKey(world.getRegistryKey());
+            container.setLevelKey(worldKey);
         }
 
         // 先添加方块，再设置状态：确保可见性服务能够正确处理所有方块
-        Set<net.minecraft.util.math.BlockPos> blocks = sel.getSelectedBlocks();
         container.addBlocks(blocks);
         
         // 捕获方块快照（必须在添加方块后、设置状态前完成）
@@ -1025,12 +1032,26 @@ public class ContainerManager {
             container.setLevelKey(world.getRegistryKey());
         }
         
+        java.util.Set<net.minecraft.util.math.BlockPos> accepted =
+                filterUnownedBlocks(positions, container.getLevelKey(), container.getId());
+        if (accepted.isEmpty()) {
+            LOGGER.warn("[ContainerManager] 容器 {} 添加方块失败：目标方块已被其他容器占用",
+                    container.getName());
+            return;
+        }
+
+        int skipped = positions.size() - accepted.size();
+        if (skipped > 0) {
+            LOGGER.warn("[ContainerManager] 容器 {} 跳过 {} 个已被其他容器占用的方块",
+                    container.getName(), skipped);
+        }
+
         // 添加方块
-        container.addBlocks(positions);
+        container.addBlocks(accepted);
         
         // 捕获方块快照
         if (world != null) {
-            container.getBlockStore().addAllFromWorld(positions, world);
+            container.getBlockStore().addAllFromWorld(accepted, world);
         }
         
         // 若容器当前为隐藏状态，立刻应用可见性到新加入的方块，避免需手动切换一次才生效
@@ -1053,7 +1074,7 @@ public class ContainerManager {
                 var selectionSet = selectionManager.getSelectionSet();
                 if (selectionSet != null && !selectionSet.isEmpty()) {
                     int removedCount = 0;
-                    for (net.minecraft.util.math.BlockPos pos : positions) {
+                    for (net.minecraft.util.math.BlockPos pos : accepted) {
                         if (selectionSet.contains(pos)) {
                             selectionManager.removeFromSelection(pos);
                             removedCount++;
@@ -1070,7 +1091,61 @@ public class ContainerManager {
         }
         
         LOGGER.debug("[ContainerManager] 容器 {} 添加 {} 个方块", 
-            container.getName(), positions.size());
+            container.getName(), accepted.size());
+    }
+
+    public java.util.Set<net.minecraft.util.math.BlockPos> filterUnownedBlocks(
+            Collection<net.minecraft.util.math.BlockPos> positions,
+            RegistryKey<net.minecraft.world.World> worldKey,
+            UUID excludingContainerId) {
+        java.util.Set<net.minecraft.util.math.BlockPos> accepted = new java.util.LinkedHashSet<>();
+        if (positions == null || positions.isEmpty()) {
+            return accepted;
+        }
+
+        for (net.minecraft.util.math.BlockPos pos : positions) {
+            if (pos != null && findBlockOwner(pos, worldKey, excludingContainerId) == null) {
+                accepted.add(pos);
+            }
+        }
+        return accepted;
+    }
+
+    public Container findBlockOwner(net.minecraft.util.math.BlockPos pos,
+                                    RegistryKey<net.minecraft.world.World> worldKey,
+                                    UUID excludingContainerId) {
+        if (pos == null) {
+            return null;
+        }
+
+        readLock.lock();
+        try {
+            for (Container container : containers.values()) {
+                if (container == null || container.isGroup()) {
+                    continue;
+                }
+                if (excludingContainerId != null && excludingContainerId.equals(container.getId())) {
+                    continue;
+                }
+                if (!sameWorldForOwnership(worldKey, container.getLevelKey())) {
+                    continue;
+                }
+                if (container.containsBlock(pos)) {
+                    return container;
+                }
+            }
+        } finally {
+            readLock.unlock();
+        }
+        return null;
+    }
+
+    private boolean sameWorldForOwnership(RegistryKey<net.minecraft.world.World> target,
+                                          RegistryKey<net.minecraft.world.World> owner) {
+        if (target != null && owner != null) {
+            return target.equals(owner);
+        }
+        return true;
     }
 
     private void syncVisibilityForAddedContainer(Container container) {
