@@ -169,7 +169,7 @@ public class ContainerManager {
         }
         
         // v5.2: 不再使用HiddenBlockRegistry，可见性由ContainerVisibilityService管理
-        // 如果容器是隐藏状态，Container.setState()会自动调用ContainerVisibilityService.hideContainer()
+        syncVisibilityForAddedContainer(container);
         
         fireContainerAdded(container);
         ContainerPersistence.requestAutoSave();
@@ -201,6 +201,7 @@ public class ContainerManager {
         }
         for (Container c : list) {
             if (c != null) {
+                syncVisibilityForAddedContainer(c);
                 fireContainerAdded(c);
             }
         }
@@ -225,6 +226,7 @@ public class ContainerManager {
         }
         // 锁外统一触发 Added 事件（子先父后影响较小，这里按 DFS 顺序触发）
         for (Container c : restored) {
+            syncVisibilityForAddedContainer(c);
             fireContainerAdded(c);
         }
     }
@@ -278,6 +280,7 @@ public class ContainerManager {
         for (int i = 0; i < items.size(); i++) {
             Container c = items.get(i);
             if (c == null) continue;
+            syncVisibilityForAddedContainer(c);
             fireContainerAdded(c);
             fireContainerMoved(c, parents.get(i));
         }
@@ -1068,6 +1071,26 @@ public class ContainerManager {
         
         LOGGER.debug("[ContainerManager] 容器 {} 添加 {} 个方块", 
             container.getName(), positions.size());
+    }
+
+    private void syncVisibilityForAddedContainer(Container container) {
+        if (container == null || container.getBlockCount() <= 0) {
+            return;
+        }
+        try {
+            var visibilityService = com.director.core.container.visibility.ContainerServices.visibility();
+            if (visibilityService == null) {
+                return;
+            }
+            if (container.isHidden()) {
+                visibilityService.hideContainer(container);
+            } else if (visibilityService.hasSnapshot(container)) {
+                visibilityService.showContainer(container);
+            }
+        } catch (Exception e) {
+            LOGGER.warn("[ContainerManager] 同步新增容器 {} 可见性失败: {}",
+                    container.getName(), e.getMessage());
+        }
     }
 
     /**

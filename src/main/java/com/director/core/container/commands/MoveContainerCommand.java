@@ -2,6 +2,7 @@ package com.director.core.container.commands;
 
 import com.director.core.container.Container;
 import com.director.core.container.ContainerManager;
+import com.director.core.container.ContainerState;
 
 import java.util.UUID;
 
@@ -15,6 +16,8 @@ public class MoveContainerCommand implements ContainerCommand {
 
     private Container oldParent;
     private int oldIndex;
+    private boolean oldLocked;
+    private ContainerState oldState;
 
     private final Container targetParent;
     private final int targetIndex;
@@ -41,6 +44,8 @@ public class MoveContainerCommand implements ContainerCommand {
         oldIndex = oldParent != null
             ? oldParent.indexOfChild(container)
             : rootView.indexOf(container);
+        oldLocked = container.isLocked();
+        oldState = container.getState();
 
         manager.moveContainerToParent(container, targetParent, targetIndex);
     }
@@ -52,6 +57,8 @@ public class MoveContainerCommand implements ContainerCommand {
             return;
         }
         manager.moveContainerToParent(container, oldParent, oldIndex);
+        container.setLocked(oldLocked);
+        container.setState(oldState);
     }
 
     @Override

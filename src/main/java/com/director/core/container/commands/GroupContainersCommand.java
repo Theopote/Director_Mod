@@ -2,6 +2,7 @@ package com.director.core.container.commands;
 
 import com.director.core.container.Container;
 import com.director.core.container.ContainerManager;
+import com.director.core.container.ContainerState;
 import com.director.core.container.ContainerType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,6 +24,8 @@ public class GroupContainersCommand implements ContainerCommand {
 
     private final List<Container> originalParents = new ArrayList<>();
     private final List<Integer> originalIndices = new ArrayList<>();
+    private final List<Boolean> originalLocked = new ArrayList<>();
+    private final List<ContainerState> originalStates = new ArrayList<>();
     private Container groupContainer;
     private Container groupParent;
     private int groupInsertIndex = -1;
@@ -42,6 +45,8 @@ public class GroupContainersCommand implements ContainerCommand {
 
         originalParents.clear();
         originalIndices.clear();
+        originalLocked.clear();
+        originalStates.clear();
 
         // 记录原父级和顺序（一次获取根快照，避免循环内多次复制/加锁）
         java.util.List<Container> rootView = manager.getRootContainersView();
@@ -52,6 +57,8 @@ public class GroupContainersCommand implements ContainerCommand {
                 : rootView.indexOf(container);
             originalParents.add(parent);
             originalIndices.add(index);
+            originalLocked.add(container.isLocked());
+            originalStates.add(container.getState());
         }
 
         groupParent = determineCommonParent();
@@ -95,6 +102,8 @@ public class GroupContainersCommand implements ContainerCommand {
             Container originalParent = originalParents.get(i);
             int originalIndex = originalIndices.get(i);
             manager.moveContainerToParent(container, originalParent, originalIndex);
+            container.setLocked(originalLocked.get(i));
+            container.setState(originalStates.get(i));
         }
 
         // 移除新建的组容器

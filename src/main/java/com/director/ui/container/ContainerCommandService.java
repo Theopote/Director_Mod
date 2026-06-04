@@ -255,7 +255,13 @@ public class ContainerCommandService {
             int oldIndex = oldParent != null
                 ? oldParent.indexOfChild(c)
                 : rootView.indexOf(c);
-            moveItems.add(new MoveContainersCommand.Item(c.getId(), oldParentId, oldIndex));
+            moveItems.add(new MoveContainersCommand.Item(
+                c.getId(),
+                oldParentId,
+                oldIndex,
+                c.isLocked(),
+                c.getState()
+            ));
         }
 
         // 同父移动且目标落在「选中块内部」[min, max+1] 时 no-op，避免顺序错乱与 undo 错位（见 MoveIndexCorrection）

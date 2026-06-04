@@ -2,6 +2,7 @@ package com.director.core.container.commands;
 
 import com.director.core.container.Container;
 import com.director.core.container.ContainerManager;
+import com.director.core.container.ContainerState;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -68,6 +69,8 @@ public class MoveContainersCommand implements ContainerCommand {
             if (c == null) continue;
             Container oldParent = it.oldParentId != null ? manager.getContainer(it.oldParentId) : null;
             manager.moveContainerToParent(c, oldParent, it.oldIndex);
+            c.setLocked(it.oldLocked);
+            c.setState(it.oldState);
         }
     }
 
@@ -85,11 +88,19 @@ public class MoveContainersCommand implements ContainerCommand {
         public final UUID containerId;
         public final UUID oldParentId;
         public final int oldIndex;
+        public final boolean oldLocked;
+        public final ContainerState oldState;
 
         public Item(UUID containerId, UUID oldParentId, int oldIndex) {
+            this(containerId, oldParentId, oldIndex, false, ContainerState.VISIBLE);
+        }
+
+        public Item(UUID containerId, UUID oldParentId, int oldIndex, boolean oldLocked, ContainerState oldState) {
             this.containerId = containerId;
             this.oldParentId = oldParentId;
             this.oldIndex = oldIndex;
+            this.oldLocked = oldLocked;
+            this.oldState = oldState != null ? oldState : ContainerState.VISIBLE;
         }
     }
 }

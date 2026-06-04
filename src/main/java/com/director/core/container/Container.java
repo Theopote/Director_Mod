@@ -300,11 +300,20 @@ public class Container {
         Container copy = new Container(UUID.randomUUID(), name + " (副本)", type);
         copy.blocks.addAll(this.blocks);
         copy.center = this.center;
+        copy.levelKey = this.levelKey;
+        copy.state = this.state;
+        copy.intakeEnabled = this.intakeEnabled;
         copy.defaultAnimationPreset = this.defaultAnimationPreset != null ? this.defaultAnimationPreset.copy() : null;
         copy.opacity = this.opacity;
         copy.locked = this.locked;
         copy.color = this.color;
         copy.metadata.putAll(this.metadata);
+        for (Map.Entry<BlockPos, BlockStore.Entry> entry : this.blockStore.raw().entrySet()) {
+            BlockStore.Entry value = entry.getValue();
+            if (entry.getKey() != null && value != null) {
+                copy.blockStore.add(entry.getKey(), new BlockStore.Entry(value.state, value.beNbt));
+            }
+        }
         
         // 递归克隆子容器
         for (Container child : children) {
