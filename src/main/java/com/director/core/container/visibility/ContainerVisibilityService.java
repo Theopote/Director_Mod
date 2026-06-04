@@ -92,6 +92,7 @@ public class ContainerVisibilityService {
             LOGGER.debug("[Visibility] 容器 {} 已隐藏，处理新增方块 (总方块数: {})", 
                 container.getName(), container.getBlockCount());
             store = existingStore;
+            backfillSnapshotFromBlockStore(container, store);
             
             // 找出新增的方块（在容器中但不在快照中）
             java.util.Set<BlockPos> existingBlocks = new java.util.HashSet<>(existingStore.positions());
@@ -152,6 +153,7 @@ public class ContainerVisibilityService {
                     net.minecraft.block.Block.NOTIFY_ALL | net.minecraft.block.Block.FORCE_STATE);
             }
             
+            backfillSnapshotFromBlockStore(container, store);
             snapshots.put(container.getId(), store);
             lastShownBlocks.remove(container.getId());
             LOGGER.debug("[Visibility] 容器 {} 隐藏完成，保存了 {} 个方块快照", 
@@ -181,6 +183,7 @@ public class ContainerVisibilityService {
                 return;
             }
         }
+        backfillSnapshotFromBlockStore(container, store);
         
         LOGGER.debug("[Visibility] 显示容器 {} (恢复 {} 个方块)", 
             container.getName(), store.size());
@@ -234,9 +237,15 @@ public class ContainerVisibilityService {
         
         BlockStore store = snapshots.get(container.getId());
         if (store == null) {
-            LOGGER.warn("[Visibility] 容器 {} 无快照可恢复，跳过", container.getName());
-            return;
+            if (createSnapshotFromBlockStore(container)) {
+                store = snapshots.get(container.getId());
+            }
+            if (store == null) {
+                LOGGER.warn("[Visibility] 容器 {} 无快照可恢复，跳过", container.getName());
+                return;
+            }
         }
+        backfillSnapshotFromBlockStore(container, store);
         
         // blocksToShow 为空：表示“全部隐藏”（用于时间线播放/清除轨道）
         // 之前版本直接 return 会导致：当容器在世界中仍可见时，无法将其清空。
@@ -482,6 +491,40 @@ public class ContainerVisibilityService {
         }
         
         return true;
+    }
+
+    /**
+     * 用容器持久化的原始方块快照补齐运行时快照。
+     *
+     * <p>大容器经常跨很多区块。运行时隐藏时，未加载区块会被跳过；如果后续显示/释放只依赖这份
+     * 不完整的内存快照，就会出现容器轮廓还在、真实方块回不来的情况。容器自身的 blockStore 是创建
+     * 容器时记录的完整原始状态，因此这里把缺失位置补回来。
+     */
+    private void backfillSnapshotFromBlockStore(Container container, BlockStore snapshot) {
+        if (container == null || snapshot == null) {
+            return;
+        }
+
+        BlockStore source = container.getBlockStore();
+        if (source == null || source.isEmpty()) {
+            return;
+        }
+
+        int added = 0;
+        for (Map.Entry<BlockPos, BlockStore.Entry> entry : source.raw().entrySet()) {
+            BlockPos pos = entry.getKey();
+            BlockStore.Entry value = entry.getValue();
+            if (pos == null || value == null || snapshot.contains(pos)) {
+                continue;
+            }
+            snapshot.add(pos, new BlockStore.Entry(value.state, value.beNbt));
+            added++;
+        }
+
+        if (added > 0 && LOGGER.isDebugEnabled()) {
+            LOGGER.debug("[Visibility] 容器 {} 快照已从 blockStore 补齐 {} 个方块 (总数: {})",
+                    container.getName(), added, snapshot.size());
+        }
     }
 }
 

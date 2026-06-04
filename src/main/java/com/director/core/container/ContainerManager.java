@@ -300,7 +300,7 @@ public class ContainerManager {
             var visibilityService = com.director.core.container.visibility.ContainerServices.visibility();
             if (visibilityService != null) {
                 for (Container c : toRemove) {
-                    if (c.isHidden()) {
+                    if (c.isHidden() || visibilityService.hasSnapshot(c)) {
                         try {
                             visibilityService.showContainer(c);
                         } catch (Exception visEx) {
@@ -437,7 +437,7 @@ public class ContainerManager {
         if (visibilityService != null) {
             for (Container c : all) {
                 try {
-                    if (c.isHidden()) {
+                    if (c.isHidden() || visibilityService.hasSnapshot(c)) {
                         visibilityService.showContainer(c);
                     }
                 } catch (Exception ignored) {}
