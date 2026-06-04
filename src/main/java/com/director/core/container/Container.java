@@ -192,6 +192,21 @@ public class Container {
         center = null;
         markModified();
     }
+
+    /**
+     * 清理克隆体中的方块归属数据，不触发世界恢复。
+     * <p>用于复制/粘贴容器时保留结构和属性，但避免多个容器持有同一批 Minecraft 方块坐标。
+     */
+    public void clearBlockReferencesForClone() {
+        blocks.clear();
+        blockStore.clear();
+        cachedBounds = null;
+        center = null;
+        for (Container child : getChildrenInternal()) {
+            child.clearBlockReferencesForClone();
+        }
+        markModified();
+    }
     
     public boolean containsBlock(BlockPos pos) {
         return blocks.contains(pos);

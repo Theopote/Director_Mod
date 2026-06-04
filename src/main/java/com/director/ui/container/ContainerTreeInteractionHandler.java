@@ -2,6 +2,7 @@ package com.director.ui.container;
 
 import com.director.core.container.Container;
 import com.director.core.container.ContainerType;
+import com.director.ui.timeline.container.ContainerTimelineService;
 import imgui.ImGui;
 import imgui.flag.ImGuiMouseButton;
 import org.slf4j.Logger;
@@ -67,7 +68,7 @@ class ContainerTreeInteractionHandler {
             }
             boolean singleSelected = controller.getSelectedContainers().size() == 1;
             boolean isGroup = container.getType() == ContainerType.GROUP;
-            if (singleSelected && !isGroup) {
+            if (singleSelected && !isGroup && !isTimelineControlled(container)) {
                 inlineRenamer.startRenaming(container);
             }
         }
@@ -238,6 +239,10 @@ class ContainerTreeInteractionHandler {
         } else {
             ImGui.textColored(0.0f, 0.588f, 1.0f, 1.0f, container.getName());
         }
+        if (isTimelineControlled(container)) {
+            ImGui.sameLine();
+            ImGui.textDisabled("(时间线接管)");
+        }
         ImGui.separator();
 
         if (container.getType() == ContainerType.GROUP) {
@@ -256,7 +261,8 @@ class ContainerTreeInteractionHandler {
 
         // 组特有：粘贴为子容器
         boolean clipboardEmpty = controller.isClipboardEmpty();
-        if (ImGui.menuItem("粘贴为子容器", "Ctrl+Shift+V", false, !clipboardEmpty)) {
+        boolean timelineControlled = isTimelineControlled(container);
+        if (ImGui.menuItem("粘贴为子容器", "Ctrl+Shift+V", false, !clipboardEmpty && !timelineControlled)) {
             controller.pasteClipboard(container.getId(), -1);
         }
 
@@ -266,6 +272,7 @@ class ContainerTreeInteractionHandler {
 
         ImGui.separator();
         // 组特有：新建子容器
+        if (timelineControlled) ImGui.beginDisabled();
         if (ImGui.beginMenu("新建子容器")) {
             for (ContainerType type : ContainerType.values()) {
                 if (ImGui.menuItem(type.getDisplayName())) {
@@ -274,6 +281,7 @@ class ContainerTreeInteractionHandler {
             }
             ImGui.endMenu();
         }
+        if (timelineControlled) ImGui.endDisabled();
 
         ImGui.separator();
         renderContextMenu_CommonMovementActions(container);
@@ -304,10 +312,12 @@ class ContainerTreeInteractionHandler {
 
         ImGui.separator();
         // 容器特有：方块操作
-        if (ImGui.menuItem(container.isIntakeEnabled() ? "停止实时接收" : "开启实时接收", "I")) {
+        boolean timelineControlled = isTimelineControlled(container);
+        if (ImGui.menuItem(container.isIntakeEnabled() ? "停止实时接收" : "开启实时接收",
+                "I", false, !timelineControlled)) {
             controller.toggleIntake(container.getId());
         }
-        if (ImGui.menuItem("释放容器", "R")) {
+        if (ImGui.menuItem("释放容器", "R", false, !timelineControlled)) {
             controller.getState().setPendingReleaseContainerId(container.getId());
             ImGui.openPopup("ConfirmRelease");
             ImGui.closeCurrentPopup();
@@ -359,8 +369,7 @@ class ContainerTreeInteractionHandler {
         }
         if (visibilityClicked) {
             // ★ 功能：已拖动到时间线的容器，不能切换可见性
-            boolean isOnTimeline = com.director.ui.timeline.container.ContainerTimelineService.getInstance()
-                .isContainerOnTimeline(container.getId());
+            boolean isOnTimeline = isTimelineControlled(container);
             
             if (isOnTimeline) {
                 LOGGER.info("[ContainerTreeInteractionHandler] 容器 {} 在时间线上，无法切换可见性", container.getName());
@@ -383,16 +392,17 @@ class ContainerTreeInteractionHandler {
     }
 
     private void renderContextMenu_CommonEditActions(Container container) {
-        if (ImGui.menuItem("重命名", "F2")) {
+        renderMenuItem("重命名", "F2", isTimelineControlled(container), () -> {
             inlineRenamer.startRenaming(container);
-        }
+        });
     }
 
     private void renderContextMenu_CommonOrganizationActions() {
         boolean hasSelection = controller.hasSelection();
-        renderMenuItem("将选中容器分组", "Ctrl+G", !hasSelection, controller::groupSelectedContainers);
-        renderMenuItem("合并选中容器", "Ctrl+M", !controller.canMergeSelection(), () -> controller.mergeSelection(null));
-        renderMenuItem("删除", "Del", false, () -> {
+        boolean timelineSelection = hasTimelineControlledSelection();
+        renderMenuItem("将选中容器分组", "Ctrl+G", !hasSelection || timelineSelection, controller::groupSelectedContainers);
+        renderMenuItem("合并选中容器", "Ctrl+M", !controller.canMergeSelection() || timelineSelection, () -> controller.mergeSelection(null));
+        renderMenuItem("删除", "Del", timelineSelection, () -> {
             LOGGER.info("[ContainerTreeInteractionHandler] 点击删除，标记待打开删除确认弹窗");
             controller.getState().setPendingDeletionRequested(true);
             ImGui.closeCurrentPopup();
@@ -406,6 +416,7 @@ class ContainerTreeInteractionHandler {
      */
     private void renderContextMenu_MoveToFromGroup() {
         if (!controller.hasSelection()) return;
+        if (hasTimelineControlledSelection()) return;
         java.util.Collection<Container> selected = controller.getSelectedContainers();
         List<Container> validGroups = collectValidTargetGroups(selected);
         boolean anyInGroup = selected.stream().anyMatch(c -> c.getParent() != null);
@@ -446,7 +457,7 @@ class ContainerTreeInteractionHandler {
                     if (c.isDescendantOf(s)) { invalid = true; break; }
                 }
             }
-            if (!invalid) out.add(c);
+            if (!invalid && !isTimelineControlled(c)) out.add(c);
         }
         for (Container child : c.getChildren()) {
             collectValidGroupsRec(child, selected, out);
@@ -472,17 +483,20 @@ class ContainerTreeInteractionHandler {
 
     private void renderContextMenu_CommonMovementActions(Container container) {
         // 「移到顶层」已由「从组中移出」+ 拖到空白区 覆盖，故移除
-        renderMenuItem("上移", "Ctrl+Up", false,
+        boolean disabled = isTimelineControlled(container);
+        renderMenuItem("上移", "Ctrl+Up", disabled,
             () -> controller.moveContainerByOffset(container.getId(), -1));
-        renderMenuItem("下移", "Ctrl+Down", false,
+        renderMenuItem("下移", "Ctrl+Down", disabled,
             () -> controller.moveContainerByOffset(container.getId(), 1));
     }
 
     private void renderContextMenu_CommonStateActions(Container container, String visibilityLabel) {
         int selCount = controller.getSelectedContainers().size();
+        boolean timelineSelection = hasTimelineControlledSelection();
 
         if (selCount > 1) {
             // ── 多选：批量可见性 ──
+            if (timelineSelection) ImGui.beginDisabled();
             if (ImGui.beginMenu("批量可见性")) {
                 ImGui.textDisabled("对 " + selCount + " 个容器操作");
                 ImGui.separator();
@@ -496,8 +510,10 @@ class ContainerTreeInteractionHandler {
                 }
                 ImGui.endMenu();
             }
+            if (timelineSelection) ImGui.endDisabled();
 
             // ── 多选：批量锁定 ──
+            if (timelineSelection) ImGui.beginDisabled();
             if (ImGui.beginMenu("批量锁定")) {
                 ImGui.textDisabled("对 " + selCount + " 个容器操作");
                 ImGui.separator();
@@ -509,14 +525,16 @@ class ContainerTreeInteractionHandler {
                 }
                 ImGui.endMenu();
             }
+            if (timelineSelection) ImGui.endDisabled();
         } else {
             // ── 单选：原有行为 ──
+            boolean disabled = isTimelineControlled(container);
             boolean hidden = container.isHidden();
-            renderMenuItem(hidden ? "显示" : visibilityLabel, "V", false,
+            renderMenuItem(hidden ? "显示" : visibilityLabel, "V", disabled,
                 () -> controller.toggleContainerState(container.getId()));
 
             boolean locked = container.isLocked();
-            renderMenuItem(locked ? "解锁" : "锁定", "L", false,
+            renderMenuItem(locked ? "解锁" : "锁定", "L", disabled,
                 () -> controller.setContainerLocked(container.getId(), !locked));
         }
     }
@@ -529,6 +547,8 @@ class ContainerTreeInteractionHandler {
         int defaultColor = tagColor != null ? tagColor : 0xFFFFFFFF;
         float[] tagColorBuffer = ContainerColorPicker.colorIntToFloat(defaultColor);
         
+        boolean timelineSelection = hasTimelineControlledSelection();
+        if (timelineSelection) ImGui.beginDisabled();
         if (ImGui.beginMenu("设置标签颜色")) {
             boolean hasSelection = controller.hasSelection();
             int selectedCount = hasSelection ? controller.getSelectedContainers().size() : 1;
@@ -565,5 +585,30 @@ class ContainerTreeInteractionHandler {
             
             ImGui.endMenu();
         }
+        if (timelineSelection) ImGui.endDisabled();
+    }
+
+    private boolean hasTimelineControlledSelection() {
+        for (Container container : controller.getSelectedContainers()) {
+            if (isTimelineControlled(container)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isTimelineControlled(Container container) {
+        if (container == null) {
+            return false;
+        }
+        if (ContainerTimelineService.getInstance().isContainerOnTimeline(container.getId())) {
+            return true;
+        }
+        for (Container child : container.getChildren()) {
+            if (isTimelineControlled(child)) {
+                return true;
+            }
+        }
+        return false;
     }
 }

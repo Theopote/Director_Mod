@@ -74,6 +74,7 @@ public class PasteContainersCommand implements ContainerCommand {
 
     private static Container copyTemplate(Container source) {
         Container clone = source.clone();
+        clone.clearBlockReferencesForClone();
         restoreNames(clone, source);
         return clone;
     }

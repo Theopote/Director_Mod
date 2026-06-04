@@ -2,6 +2,7 @@ package com.director.core.container;
 
 import com.director.core.selection.SelectionManager;
 import com.director.core.selection.SelectionState;
+import com.director.ui.timeline.container.ContainerTimelineService;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -97,6 +98,14 @@ public final class ContainerIntakeSubscriber {
         // 检查实时接收开关
         if (!activeContainer.isIntakeEnabled()) {
             // 实时接收未开启,更新lastSelection后返回
+            updateLastSelection(newSelection);
+            return;
+        }
+
+        if (isTimelineControlled(activeContainer)) {
+            activeContainer.setIntakeEnabled(false);
+            LOGGER.warn("[ContainerIntakeSubscriber] 容器 {} 已在时间线上，停止实时接收",
+                activeContainer.getName());
             updateLastSelection(newSelection);
             return;
         }
@@ -220,6 +229,13 @@ public final class ContainerIntakeSubscriber {
             LOGGER.warn("[ContainerIntakeSubscriber] 组容器无法收纳方块: {}", container.getName());
             return;
         }
+
+        if (isTimelineControlled(container)) {
+            container.setIntakeEnabled(false);
+            LOGGER.warn("[ContainerIntakeSubscriber] 容器 {} 已在时间线上，拒绝收纳当前选区",
+                container.getName());
+            return;
+        }
         
         SelectionManager selectionManager = SelectionManager.get();
         if (selectionManager == null) {
@@ -252,6 +268,11 @@ public final class ContainerIntakeSubscriber {
      */
     public void intakeCurrentSelection() {
         intakeCurrentSelection(null);
+    }
+
+    private boolean isTimelineControlled(Container container) {
+        return container != null
+            && ContainerTimelineService.getInstance().isContainerOnTimeline(container.getId());
     }
 }
 

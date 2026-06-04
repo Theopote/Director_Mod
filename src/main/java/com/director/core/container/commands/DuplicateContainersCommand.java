@@ -31,6 +31,7 @@ public class DuplicateContainersCommand implements ContainerCommand {
         java.util.List<Container> rootView = manager.getRootContainersView();
         for (Container source : sources) {
             Container clone = source.clone();
+            clone.clearBlockReferencesForClone();
             clone.setName(manager.generateUniqueName(clone.getName()));
             manager.addContainer(clone);
             Container parent = source.getParent();

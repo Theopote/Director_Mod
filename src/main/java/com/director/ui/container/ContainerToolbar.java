@@ -4,6 +4,7 @@ import com.director.core.container.Container;
 import com.director.core.container.ContainerType;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
+import com.director.ui.timeline.container.ContainerTimelineService;
 import imgui.ImGui;
 
 /**
@@ -88,11 +89,12 @@ public class ContainerToolbar {
         Container selectedContainer = controller.getSelectedContainer();
         boolean hasSelection = selectedContainer != null;
         boolean isGroup = hasSelection && selectedContainer.getType() == ContainerType.GROUP;
+        boolean timelineControlled = hasSelection && isTimelineControlled(selectedContainer);
 
         boolean hasMinecraftSelection = ContainerSelectionUtil.hasMinecraftSelection();
 
         sameLineOrWrap(Icons.DOWNLOAD, "收纳选区");
-        boolean canIntake = hasSelection && !isGroup && hasMinecraftSelection;
+        boolean canIntake = hasSelection && !isGroup && !timelineControlled && hasMinecraftSelection;
         if (hasSelection && selectedContainer.isLocked()) {
             canIntake = false;
         }
@@ -106,6 +108,8 @@ public class ContainerToolbar {
                 ImGui.setTooltip("请先选择一个容器");
             } else if (isGroup) {
                 ImGui.setTooltip("组仅用于分类，无法收纳方块");
+            } else if (timelineControlled) {
+                ImGui.setTooltip("容器已由时间线接管，不能再收纳方块");
             } else if (!hasMinecraftSelection) {
                 ImGui.setTooltip("请在Minecraft中选择方块");
             } else {
@@ -117,24 +121,31 @@ public class ContainerToolbar {
         String intakeIcon = intakeEnabled ? Icons.PAUSE : Icons.PLAY;
         String intakeLabel = intakeEnabled ? "停止接收" : "实时接收";
         sameLineOrWrap(intakeIcon, intakeLabel);
-        if (!hasSelection || isGroup || selectedContainer.isLocked()) ImGui.beginDisabled();
+        if (!hasSelection || isGroup || timelineControlled || selectedContainer.isLocked()) ImGui.beginDisabled();
         if (toolbarButton("toggle_intake", intakeIcon, intakeLabel,
             intakeEnabled ? "停止实时接收选中的方块" : "开启实时接收模式：每次选中方块时自动收纳到此容器")) {
             if (selectedContainer != null) {
                 controller.toggleIntake(selectedContainer.getId());
             }
         }
-        if (!hasSelection || isGroup || selectedContainer.isLocked()) ImGui.endDisabled();
+        if (!hasSelection || isGroup || timelineControlled || selectedContainer.isLocked()) ImGui.endDisabled();
         // tooltip 已在 toolbarButton() 中设置；这里保留原逻辑的特殊提示（覆盖更精准）
         if (ImGui.isItemHovered()) {
             if (!hasSelection) {
                 ImGui.setTooltip("请先选择一个容器");
             } else if (isGroup) {
                 ImGui.setTooltip("组无法开启实时接收");
+            } else if (timelineControlled) {
+                ImGui.setTooltip("容器已由时间线接管，不能开启实时接收");
             }
         }
 
 		// 顶部不再提供“释放”按钮，释放操作保留在右键菜单中
+    }
+
+    private boolean isTimelineControlled(Container container) {
+        return container != null
+            && ContainerTimelineService.getInstance().isContainerOnTimeline(container.getId());
     }
 
     private void renderSelectionInfo() {

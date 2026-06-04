@@ -158,6 +158,8 @@ public class TimelineDragAndDropHandler {
                     continue;
                 }
 
+                prepareContainerForContainerTrack(container);
+
                 // 检查容器是否已经在时间线上有片段
                 var timelineService = com.director.ui.timeline.container.ContainerTimelineService.getInstance();
                 var existingClips = timelineService.findClipsForContainer(containerUuid);
@@ -250,20 +252,6 @@ public class TimelineDragAndDropHandler {
                 // 标记时长需要重新计算（新片段可能超过当前总时长）
                 model.markDurationDirty();
 
-                // 轨道分支：
-                // - 容器轨道：拖入即隐藏容器，确保播放用快照恢复
-                // - 清除轨道：不隐藏容器，仅确保存在快照（用于可逆清除/拖动恢复）
-                try {
-                    ensureContainerWorldBinding(container);
-
-                    if (container.getState() != com.director.core.container.ContainerState.HIDDEN) {
-                        container.setState(com.director.core.container.ContainerState.HIDDEN);
-                        LOGGER.info("[DragDrop] 容器 {} 已隐藏（已添加到容器轨道）", container.getName());
-                    }
-                } catch (Exception e) {
-                    LOGGER.warn("[DragDrop] 初始化容器轨道行为失败: {}", container.getName(), e);
-                }
-
                 // 自动选中新创建的片段，使其可以立即被拖动
                 model.setSelectedClip(clip);
 
@@ -275,6 +263,23 @@ public class TimelineDragAndDropHandler {
             }
         } catch (Exception e) {
             LOGGER.error("[DragDrop] 处理容器拖放失败", e);
+        }
+    }
+
+    private void prepareContainerForContainerTrack(Container container) {
+        try {
+            ensureContainerWorldBinding(container);
+
+            if (container.isIntakeEnabled()) {
+                container.setIntakeEnabled(false);
+                LOGGER.info("[DragDrop] 容器 {} 已关闭实时接收（已添加到容器轨道）", container.getName());
+            }
+            if (container.getState() != com.director.core.container.ContainerState.HIDDEN) {
+                container.setState(com.director.core.container.ContainerState.HIDDEN);
+                LOGGER.info("[DragDrop] 容器 {} 已隐藏（已添加到容器轨道）", container.getName());
+            }
+        } catch (Exception e) {
+            LOGGER.warn("[DragDrop] 初始化容器轨道行为失败: {}", container != null ? container.getName() : "<null>", e);
         }
     }
     

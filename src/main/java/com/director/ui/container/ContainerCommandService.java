@@ -639,6 +639,7 @@ public class ContainerCommandService {
 
         private static Container copyTemplate(Container source) {
             Container clone = source.clone();
+            clone.clearBlockReferencesForClone();
             restoreNames(clone, source);
             return clone;
         }

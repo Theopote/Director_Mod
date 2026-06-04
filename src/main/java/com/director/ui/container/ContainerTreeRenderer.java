@@ -327,14 +327,25 @@ class ContainerTreeRenderer {
             // 锁定
             String lockIcon = container.isLocked() ? Icons.LOCK : Icons.UNLOCK;
             int lockColor = container.isLocked() ? LOCKED_COLOR : LOCKED_DISABLED_COLOR;
+            if (isOnTimeline) {
+                ImGui.beginDisabled();
+            }
             ImGui.invisibleButton("lock_btn", ICON_BUTTON_SIZE, ICON_BUTTON_SIZE);
             imgui.ImVec2 lockMin = ImGui.getItemRectMin();
             imgui.ImVec2 lockMax = ImGui.getItemRectMax();
             lockClicked = ImGui.isItemClicked(ImGuiMouseButton.Left)
-                || (ImGui.isMouseClicked(ImGuiMouseButton.Left) && rectContainsScreen(lockMin, lockMax, mx, my));
+                || (!isOnTimeline && ImGui.isMouseClicked(ImGuiMouseButton.Left) && rectContainsScreen(lockMin, lockMax, mx, my));
             lockHovered = ImGui.isItemHovered();
+            if (isOnTimeline) {
+                ImGui.endDisabled();
+                lockClicked = false;
+            }
             if (lockHovered) {
-                ImGui.setTooltip(container.isLocked() ? "解锁容器" : "锁定容器");
+                if (isOnTimeline) {
+                    ImGui.setTooltip("容器在时间线上，无法切换锁定（请先从时间线删除片段）");
+                } else {
+                    ImGui.setTooltip(container.isLocked() ? "解锁容器" : "锁定容器");
+                }
             }
             drawIconInRect(drawList, lockMin, lockMax, lockIcon, lockColor);
 
