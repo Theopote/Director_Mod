@@ -53,7 +53,7 @@ class ContainerTreeRenderer {
     private static final int TIMELINE_TEXT_COLOR = 0xFFD8C2A8;
     private static final int TIMELINE_BADGE_BG = 0xCC6B4A24;
     private static final int TIMELINE_BADGE_BORDER = 0xFF9A7445;
-    private static final int TIMELINE_BADGE_TEXT = 0xFFE8D7BE;
+    private static final int TIMELINE_BADGE_ICON = 0xFFE8D7BE;
 
     /**
      * 行高与行距（与 TreeNode 一致，用于行背景等布局）：
@@ -314,14 +314,14 @@ class ContainerTreeRenderer {
                                    imgui.ImVec2 rowMax,
                                    float iconRegionStartLocalX,
                                    boolean reserveIconRegion) {
-        final String badgeText = "时间线";
+        final String badgeIcon = Icons.TIMELINE;
         ImDrawList drawList = ImGui.getWindowDrawList();
         imgui.ImVec2 labelSize = ImGui.calcTextSize(rowLabel);
-        imgui.ImVec2 badgeTextSize = ImGui.calcTextSize(badgeText);
+        imgui.ImVec2 badgeIconSize = ImGui.calcTextSize(badgeIcon);
 
-        float badgePaddingX = 5.0f;
+        float badgePaddingX = 4.0f;
         float badgeHeight = Math.min(17.0f, Math.max(14.0f, rowMax.y - rowMin.y - 4.0f));
-        float badgeWidth = badgeTextSize.x + badgePaddingX * 2.0f;
+        float badgeWidth = Math.max(badgeHeight, badgeIconSize.x + badgePaddingX * 2.0f);
         float badgeX = rowMin.x + labelSize.x + 28.0f;
         float badgeY = rowMin.y + (rowMax.y - rowMin.y - badgeHeight) * 0.5f;
 
@@ -337,8 +337,9 @@ class ContainerTreeRenderer {
 
         drawList.addRectFilled(badgeX, badgeY, badgeX + badgeWidth, badgeY + badgeHeight, TIMELINE_BADGE_BG, 3.0f);
         drawList.addRect(badgeX, badgeY, badgeX + badgeWidth, badgeY + badgeHeight, TIMELINE_BADGE_BORDER, 3.0f, 0, 1.0f);
-        drawList.addText(badgeX + badgePaddingX, badgeY + (badgeHeight - badgeTextSize.y) * 0.5f,
-            TIMELINE_BADGE_TEXT, badgeText);
+        drawList.addText(badgeX + (badgeWidth - badgeIconSize.x) * 0.5f,
+            badgeY + (badgeHeight - badgeIconSize.y) * 0.5f,
+            TIMELINE_BADGE_ICON, badgeIcon);
     }
 
     private void pushTextColor(int abgr) {
