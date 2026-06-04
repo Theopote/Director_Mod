@@ -257,7 +257,6 @@ class ContainerTreeInteractionHandler {
 
     private void renderGroupContextMenu(Container container) {
         renderContextMenu_CommonEditActions(container);
-        // 合并“复制容器/粘贴到此处”为单一操作仅针对普通容器，组不在此处提供“粘贴到此处”入口
 
         // 组特有：粘贴为子容器
         boolean clipboardEmpty = controller.isClipboardEmpty();
@@ -292,18 +291,6 @@ class ContainerTreeInteractionHandler {
 
     private void renderContainerContextMenu(Container container) {
         renderContextMenu_CommonEditActions(container);
-        if (ImGui.menuItem("复制容器", "Ctrl+C")) {
-            // 合并“复制容器 + 粘贴到此处”为一个动作：复制并立即粘贴到当前容器位置之后
-            controller.copyContainerToClipboard(container.getId());
-            Container parent = container.getParent();
-            java.util.UUID parentId = parent != null ? parent.getId() : null;
-            int insertIndex = (parent != null
-                ? parent.indexOfChild(container)
-                : controller.getRootContainers().indexOf(container)) + 1;
-            controller.pasteClipboard(parentId, insertIndex);
-        }
-
-        ImGui.separator();
         renderContextMenu_CommonOrganizationActions();
         renderContextMenu_MoveToFromGroup();
 
