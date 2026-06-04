@@ -33,6 +33,7 @@ public class DeleteClipCommand extends BaseTimelineCommand {
     private final TimelineClip clip;
     private final List<TimelineClip> clipList;
     private int removedIndex = -1;
+    private TimelineTrack ownerTrack;
     private EntityClip linkedEntityClip;
     private EntityTrack linkedEntityTrack;
     private Actor removedActor;
@@ -54,6 +55,10 @@ public class DeleteClipCommand extends BaseTimelineCommand {
         linkedEntityTrack = null;
         removedActor = null;
         removedActorFromRegistry = false;
+        ownerTrack = clip.getParentTrack();
+        if (ownerTrack == null && model != null) {
+            ownerTrack = model.findTrackForClip(clip);
+        }
         removedIndex = clipList.indexOf(clip);
         if (removedIndex >= 0) {
             // 记录容器ID（删除前）
@@ -72,7 +77,11 @@ public class DeleteClipCommand extends BaseTimelineCommand {
                 }
             }
 
-            clipList.remove(removedIndex);
+            if (ownerTrack != null) {
+                ownerTrack.removeClip(clip);
+            } else {
+                clipList.remove(removedIndex);
+            }
             removeActorIfOrphaned();
             // 清理插值映射，避免内存泄漏
             ChangeKeyframeInterpolationCommand.clearInterpolationsForClip(clip);
@@ -105,7 +114,11 @@ public class DeleteClipCommand extends BaseTimelineCommand {
             return;
         }
         if (removedIndex >= 0 && removedIndex <= clipList.size()) {
-            clipList.add(removedIndex, clip);
+            if (ownerTrack != null) {
+                ownerTrack.addClip(clip);
+            } else {
+                clipList.add(removedIndex, clip);
+            }
             restoreActorIfNeeded();
             if (linkedEntityTrack != null && linkedEntityClip != null) {
                 linkedEntityTrack.addClip(linkedEntityClip);
@@ -203,5 +216,4 @@ public class DeleteClipCommand extends BaseTimelineCommand {
         return removedIndex >= 0;
     }
 }
-
 

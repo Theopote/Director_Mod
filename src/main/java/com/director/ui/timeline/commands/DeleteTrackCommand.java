@@ -73,6 +73,9 @@ public class DeleteTrackCommand extends BaseTimelineCommand {
         if (removedIndex >= 0) {
             // 清理轨道中所有 clips 的插值映射，避免内存泄漏
             for (com.director.ui.timeline.model.TimelineClip clip : track.getClips()) {
+                if (track.getType() == TrackType.CONTAINER && clip.getBoundContainerId() != null) {
+                    com.director.ui.timeline.audio.TimelineAudioService.getInstance().onClipRemoved(clip);
+                }
                 ChangeKeyframeInterpolationCommand.clearInterpolationsForClip(clip);
             }
             trackList.remove(removedIndex);

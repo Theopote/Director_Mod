@@ -5,6 +5,7 @@ import com.director.ui.timeline.commands.TimelineCommandHistory;
 import com.director.ui.timeline.model.TimelineClip;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;
+import com.director.ui.timeline.model.TrackType;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,7 +69,13 @@ public final class ClipboardManager {
      * 粘贴片段到指定轨道
      */
     public void pasteToTrack(TimelineTrack track, TimelineModel model) {
-        if (hasClip() || track == null) {
+        if (!hasClip() || track == null) {
+            return;
+        }
+
+        if (!canPasteToTrack(track)) {
+            LOGGER.info("[Timeline] 剪贴板片段不能粘贴到轨道: clip={}, track={}",
+                clip.getLabel(), track.getName());
             return;
         }
         
@@ -81,8 +88,15 @@ public final class ClipboardManager {
         newClip.setEndTime(pasteTime + newClip.getLength());
         
         // 添加到轨道
-        track.addClip(newClip);
+        boolean added = track.addClip(newClip);
+        if (!added) {
+            LOGGER.info("[Timeline] 粘贴片段失败，轨道拒绝接收: {} -> {}",
+                newClip.getLabel(), track.getName());
+            return;
+        }
         model.setSelectedClip(newClip);
+        model.markDirty();
+        model.markDurationDirty();
         
         LOGGER.info("[Timeline] 粘贴片段: {} 到轨道 {}", newClip.getLabel(), track.getName());
         
@@ -96,7 +110,7 @@ public final class ClipboardManager {
      * 粘贴片段（自动选择目标轨道）
      */
     public void paste(TimelineModel model) {
-        if (hasClip()) {
+        if (!hasClip()) {
             return;
         }
         
@@ -147,7 +161,24 @@ public final class ClipboardManager {
     }
 
     public boolean hasClip() {
-        return clip == null;
+        return clip != null;
+    }
+
+    private boolean canPasteToTrack(TimelineTrack track) {
+        if (clip == null || track == null) {
+            return false;
+        }
+        if (clip.getBoundContainerId() == null) {
+            return true;
+        }
+        if (clip instanceof com.director.ui.timeline.model.audio.AudioTimelineClip) {
+            return track.getType() == TrackType.AUDIO;
+        }
+        if (track.getType() != TrackType.CONTAINER) {
+            return false;
+        }
+        return isCut || !com.director.ui.timeline.container.ContainerTimelineService.getInstance()
+            .isContainerOnTimeline(clip.getBoundContainerId());
     }
 }
 

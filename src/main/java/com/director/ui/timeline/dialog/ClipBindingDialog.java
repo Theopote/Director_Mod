@@ -2,7 +2,9 @@ package com.director.ui.timeline.dialog;
 
 import com.director.core.container.Container;
 import com.director.core.container.ContainerManager;
+import com.director.core.container.ContainerType;
 import com.director.ui.timeline.commands.BindClipToContainerCommand;
+import com.director.ui.timeline.container.ContainerTimelineService;
 import com.director.ui.timeline.commands.TimelineCommandHistory;
 import com.director.ui.timeline.model.TimelineClip;
 import com.director.ui.timeline.model.TimelineModel;
@@ -41,7 +43,9 @@ public final class ClipBindingDialog {
             return;
         }
         clip = c;
-        containers = ContainerManager.getInstance().getAllContainers();
+        containers = ContainerManager.getInstance().getAllContainers().stream()
+            .filter(ClipBindingDialog::isBindableContainer)
+            .toList();
         selectedIndex = -1;
         
         if (c.getBoundContainerId() != null) {
@@ -148,6 +152,16 @@ public final class ClipBindingDialog {
         containers = Collections.emptyList();
         selectedIndex = -1;
         shouldOpen = false;
+    }
+
+    private static boolean isBindableContainer(Container container) {
+        if (container == null || container.getType() == ContainerType.GROUP) {
+            return false;
+        }
+        if (clip != null && container.getId().equals(clip.getBoundContainerId())) {
+            return true;
+        }
+        return !ContainerTimelineService.getInstance().isContainerOnTimeline(container.getId());
     }
 }
 

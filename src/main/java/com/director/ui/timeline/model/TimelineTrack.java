@@ -9,12 +9,16 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 时间线轨道（多类型支持）。
  * 包含多个 TimelineClip，支持容器片段与轨道级关键帧。
  */
 public class TimelineTrack {
+    private static final Logger LOGGER = LoggerFactory.getLogger(TimelineTrack.class);
+
     private String name;
     private TrackType type;  // 轨道类型
     private final List<TimelineClip> clips = new ArrayList<>();
@@ -71,7 +75,7 @@ public class TimelineTrack {
     /**
      * 添加片段到轨道，并自动设置父引用。
      */
-    public void addClip(TimelineClip clip) {
+    public boolean addClip(TimelineClip clip) {
         if (clip != null && !this.clips.contains(clip)) {
             // ✅ 轨道类型约束（防止“拆除容器/清除片段”被拖到其他轨道）
             // - DEMOLITION 容器只能在 ERASE 轨道
@@ -86,7 +90,15 @@ public class TimelineTrack {
             if (!isAudioClip && clip.getBoundContainerId() != null) {
                 // 容器片段只允许出现在 CONTAINER 轨道
                 if (this.type != TrackType.CONTAINER) {
-                    return;
+                    LOGGER.warn("[TimelineTrack] 拒绝添加容器片段到非容器轨道: clip={}, track={}",
+                        clip.getLabel(), this.type);
+                    return false;
+                }
+
+                if (isContainerAlreadyOnOtherTimelineClip(clip)) {
+                    LOGGER.warn("[TimelineTrack] 容器 {} 已存在时间线片段，拒绝重复添加: clip={}",
+                        clip.getBoundContainerId(), clip.getLabel());
+                    return false;
                 }
             }
             this.clips.add(clip);
@@ -106,7 +118,9 @@ public class TimelineTrack {
                     // 正常情况下服务应该在 TimelinePanel 初始化时注册
                 }
             }
+            return true;
         }
+        return false;
     }
 
     /**
@@ -116,6 +130,20 @@ public class TimelineTrack {
         if (clip != null && this.clips.remove(clip)) {
             clip.setParentTrack(null); // 清除父引用
         }
+    }
+
+    private boolean isContainerAlreadyOnOtherTimelineClip(TimelineClip candidate) {
+        UUID containerId = candidate != null ? candidate.getBoundContainerId() : null;
+        if (containerId == null) {
+            return false;
+        }
+        var service = com.director.ui.timeline.container.ContainerTimelineService.getInstance();
+        for (TimelineClip existing : service.findClipsForContainer(containerId)) {
+            if (existing != null && existing != candidate) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**

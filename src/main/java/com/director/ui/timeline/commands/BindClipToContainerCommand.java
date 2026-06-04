@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 
 import com.director.ui.timeline.model.TimelineClip;
 import com.director.ui.timeline.model.TimelineModel;
+import com.director.ui.timeline.model.TrackType;
 
 import java.util.UUID;
 
@@ -39,6 +40,11 @@ public class BindClipToContainerCommand extends BaseTimelineCommand {
         }
         oldContainerId = clip.getBoundContainerId();
         oldContainerName = clip.getBoundContainerName();
+        if (!canBind(newContainerId)) {
+            LOGGER.warn("[Timeline] 拒绝绑定片段 {} 到容器 {}：轨道类型不匹配或容器已有片段",
+                clip.getLabel(), newContainerId);
+            return;
+        }
         clip.bindToContainer(newContainerId, newContainerName);
         if (clip instanceof com.director.ui.timeline.model.audio.AudioTimelineClip) {
             com.director.ui.timeline.audio.TimelineAudioService.getInstance()
@@ -66,6 +72,29 @@ public class BindClipToContainerCommand extends BaseTimelineCommand {
     @Override
     public String getDescription() {
         return newContainerId == null ? "取消片段容器绑定" : "绑定片段到容器";
+    }
+
+    private boolean canBind(UUID containerId) {
+        if (containerId == null || clip instanceof com.director.ui.timeline.model.audio.AudioTimelineClip) {
+            return true;
+        }
+        var track = clip.getParentTrack();
+        if (track == null && model != null) {
+            track = model.findTrackForClip(clip);
+        }
+        if (track == null || track.getType() != TrackType.CONTAINER) {
+            return false;
+        }
+        if (containerId.equals(oldContainerId)) {
+            return true;
+        }
+        for (TimelineClip existing : com.director.ui.timeline.container.ContainerTimelineService.getInstance()
+                .findClipsForContainer(containerId)) {
+            if (existing != null && existing != clip) {
+                return false;
+            }
+        }
+        return true;
     }
 }
 

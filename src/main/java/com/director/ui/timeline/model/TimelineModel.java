@@ -743,9 +743,11 @@ public class TimelineModel implements ITimelineProject {
      */
     public void addClip(TimelineTrack track, TimelineClip clip) {
         if (track != null && clip != null) {
-            track.addClip(clip);
-            markDurationDirty();
-            // 注意：声音事件收集在 TimelineTrack.addClip() 中自动处理
+            if (track.addClip(clip)) {
+                markDirty();
+                markDurationDirty();
+                // 注意：声音事件收集在 TimelineTrack.addClip() 中自动处理
+            }
         }
     }
 

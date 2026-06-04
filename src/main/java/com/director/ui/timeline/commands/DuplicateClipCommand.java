@@ -34,6 +34,12 @@ public class DuplicateClipCommand extends BaseTimelineCommand {
             LOGGER.warn("[Timeline] 复制片段失败：track 或 originalClip 为 null");
             return;
         }
+        if (originalClip.getBoundContainerId() != null
+            && !(originalClip instanceof com.director.ui.timeline.model.audio.AudioTimelineClip)) {
+            LOGGER.warn("[Timeline] 容器片段不支持直接复制，请从容器列表重新拖入或移动现有片段: {}",
+                originalClip.getLabel());
+            return;
+        }
 
         // 创建副本（拷贝构造函数已实现深拷贝，包括 keyframes）
         duplicatedClip = new TimelineClip(originalClip);
@@ -56,7 +62,11 @@ public class DuplicateClipCommand extends BaseTimelineCommand {
         }
 
         // 添加到轨道
-        track.addClip(duplicatedClip);
+        if (!track.addClip(duplicatedClip)) {
+            duplicatedClip = null;
+            LOGGER.warn("[Timeline] 复制片段失败：轨道拒绝接收 {}", originalClip.getLabel());
+            return;
+        }
 
         LOGGER.debug("[Timeline] 复制片段: {} -> {}", originalClip.getLabel(), duplicatedClip.getLabel());
     }

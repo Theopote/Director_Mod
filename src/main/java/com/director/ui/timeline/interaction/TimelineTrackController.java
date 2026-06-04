@@ -200,6 +200,11 @@ public class TimelineTrackController {
         TimelineTrack newTrack = new TimelineTrack(newName, track.getType());
 
         for (TimelineClip clip : track.getClips()) {
+            if (clip.getBoundContainerId() != null
+                && !(clip instanceof com.director.ui.timeline.model.audio.AudioTimelineClip)) {
+                LOGGER.info("[TrackController] 复制轨道时跳过容器片段: {}", clip.getLabel());
+                continue;
+            }
             TimelineClip newClip = new TimelineClip(clip);
             newClip.setLabel(clip.getLabel() + " (副本)");
             newClip.offsetTime(0.5f);
