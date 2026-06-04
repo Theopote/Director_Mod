@@ -4,6 +4,7 @@ import com.director.core.container.Container;
 import com.director.ui.theme.Icons;
 import imgui.ImDrawList;
 import imgui.ImGui;
+import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiMouseButton;
 import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiTreeNodeFlags;
@@ -47,7 +48,12 @@ class ContainerTreeRenderer {
 
     /** 每行背景：未选中深灰，选中明显更亮的中灰，便于区分行与选中态。 */
     private static final int ROW_BG_DEFAULT = 0xFF252525;
+    private static final int ROW_BG_TIMELINE = 0xFF443326;
     private static final int ROW_BG_SELECTED = 0xFF5E5E5E;
+    private static final int TIMELINE_TEXT_COLOR = 0xFFD8C2A8;
+    private static final int TIMELINE_BADGE_BG = 0xCC6B4A24;
+    private static final int TIMELINE_BADGE_BORDER = 0xFF9A7445;
+    private static final int TIMELINE_BADGE_TEXT = 0xFFE8D7BE;
 
     /**
      * 行高与行距（与 TreeNode 一致，用于行背景等布局）：
@@ -102,9 +108,6 @@ class ContainerTreeRenderer {
         // 检查容器是否在时间线上
         boolean isOnTimeline = com.director.ui.timeline.container.ContainerTimelineService.getInstance()
             .isContainerOnTimeline(container.getId());
-        
-        // ★ 功能：已拖动到时间线的容器，在容器名称前面显示圆点"·"
-        String timelineIndicator = isOnTimeline ? "· " : "";
 
         // 使用 pushID 隔离节点，避免拖拽、上下文菜单、内联重命名、图标按钮的 ID 冲突
         ImGui.pushID(container.getId().toString());
@@ -121,7 +124,7 @@ class ContainerTreeRenderer {
             
             // 使用稳定的 ID 与可读 Label 分离的模式
             String iconText = container.getType().getIcon();
-            String nameText = timelineIndicator + container.getName();
+            String nameText = container.getName();
             String label = iconText + " " + nameText;
             
             // 强制根据 state 控制展开/折叠（DefaultOpen 只影响首次出现，需 setNextItemOpen 每帧生效）
@@ -141,10 +144,16 @@ class ContainerTreeRenderer {
             float ry = ImGui.getCursorScreenPosY();
             float rw = ImGui.getContentRegionAvailX();
             float rh = ImGui.getTextLineHeight() + ImGui.getStyle().getFramePadding().y * 2.0f; // 行高，见类注释
-            int rowBg = isSelected ? ROW_BG_SELECTED : ROW_BG_DEFAULT;
+            int rowBg = isSelected ? ROW_BG_SELECTED : (isOnTimeline ? ROW_BG_TIMELINE : ROW_BG_DEFAULT);
             ImGui.getWindowDrawList().addRectFilled(rx, ry, rx + rw, ry + rh, rowBg);
 
+            if (isOnTimeline && !isSelected) {
+                pushTextColor(TIMELINE_TEXT_COLOR);
+            }
             boolean nodeOpen = ImGui.treeNodeEx(label, flags);
+            if (isOnTimeline && !isSelected) {
+                ImGui.popStyleColor();
+            }
 
             // 记录这一行的矩形（用于让右侧按钮/分割线与背景垂直居中对齐）
             imgui.ImVec2 rowMin = ImGui.getItemRectMin();
@@ -191,6 +200,10 @@ class ContainerTreeRenderer {
 
             boolean isInGroup = container.getParent() != null;
             boolean allowIcons = !isInGroup && iconRegionStart >= MIN_LABEL_WIDTH_FOR_ICONS;
+
+            if (isOnTimeline && isRowVisible) {
+                drawTimelineBadge(label, rowMin, rowMax, iconRegionStart, allowIcons);
+            }
 
             IconClickState iconClickState;
             boolean iconHovered;
@@ -294,6 +307,46 @@ class ContainerTreeRenderer {
 
         ImDrawList dl = ImGui.getWindowDrawList();
         dl.addLine(separatorX, itemMin.y, separatorX, itemMax.y, NAME_BUTTONS_SEPARATOR_COLOR, NAME_BUTTONS_SEPARATOR_THICKNESS);
+    }
+
+    private void drawTimelineBadge(String rowLabel,
+                                   imgui.ImVec2 rowMin,
+                                   imgui.ImVec2 rowMax,
+                                   float iconRegionStartLocalX,
+                                   boolean reserveIconRegion) {
+        final String badgeText = "时间线";
+        ImDrawList drawList = ImGui.getWindowDrawList();
+        imgui.ImVec2 labelSize = ImGui.calcTextSize(rowLabel);
+        imgui.ImVec2 badgeTextSize = ImGui.calcTextSize(badgeText);
+
+        float badgePaddingX = 5.0f;
+        float badgeHeight = Math.min(17.0f, Math.max(14.0f, rowMax.y - rowMin.y - 4.0f));
+        float badgeWidth = badgeTextSize.x + badgePaddingX * 2.0f;
+        float badgeX = rowMin.x + labelSize.x + 28.0f;
+        float badgeY = rowMin.y + (rowMax.y - rowMin.y - badgeHeight) * 0.5f;
+
+        float rightLimit = reserveIconRegion
+            ? ImGui.getWindowPosX() + iconRegionStartLocalX - NAME_BUTTONS_SEPARATOR_PADDING - 4.0f
+            : rowMax.x - 6.0f;
+        if (badgeX + badgeWidth > rightLimit) {
+            badgeX = rightLimit - badgeWidth;
+        }
+        if (badgeX < rowMin.x + 12.0f) {
+            return;
+        }
+
+        drawList.addRectFilled(badgeX, badgeY, badgeX + badgeWidth, badgeY + badgeHeight, TIMELINE_BADGE_BG, 3.0f);
+        drawList.addRect(badgeX, badgeY, badgeX + badgeWidth, badgeY + badgeHeight, TIMELINE_BADGE_BORDER, 3.0f, 0, 1.0f);
+        drawList.addText(badgeX + badgePaddingX, badgeY + (badgeHeight - badgeTextSize.y) * 0.5f,
+            TIMELINE_BADGE_TEXT, badgeText);
+    }
+
+    private void pushTextColor(int abgr) {
+        int a = (abgr >> 24) & 0xFF;
+        int b = (abgr >> 16) & 0xFF;
+        int g = (abgr >> 8) & 0xFF;
+        int r = abgr & 0xFF;
+        ImGui.pushStyleColor(ImGuiCol.Text, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f);
     }
 
     private int buildNodeFlags(Container container) {
@@ -416,6 +469,13 @@ class ContainerTreeRenderer {
         ImGui.text(String.format("大小: %dx%dx%d",
             bbox.getWidth(), bbox.getHeight(), bbox.getDepth()));
         ImGui.separator();
+        boolean isOnTimeline = com.director.ui.timeline.container.ContainerTimelineService.getInstance()
+            .isContainerOnTimeline(container.getId());
+        if (isOnTimeline) {
+            ImGui.textColored(0.66f, 0.82f, 1.0f, 1.0f, "状态: 已添加到时间线");
+            ImGui.textDisabled("容器属性只读，请先从时间线删除片段再编辑");
+            ImGui.separator();
+        }
         ImGui.textDisabled("右键打开菜单");
         ImGui.textDisabled("拖动到时间线创建轨道");
         ImGui.endTooltip();
