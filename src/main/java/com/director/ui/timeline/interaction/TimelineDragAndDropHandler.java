@@ -256,13 +256,9 @@ public class TimelineDragAndDropHandler {
                 try {
                     ensureContainerWorldBinding(container);
 
-                    var visibilityService = com.director.core.container.visibility.ContainerServices.visibility();
-                    if (visibilityService != null) {
-                        if (container.getState() != com.director.core.container.ContainerState.HIDDEN) {
-                            visibilityService.hideContainer(container);
-                            container.setState(com.director.core.container.ContainerState.HIDDEN);
-                            LOGGER.info("[DragDrop] 容器 {} 已隐藏（已添加到容器轨道）", container.getName());
-                        }
+                    if (container.getState() != com.director.core.container.ContainerState.HIDDEN) {
+                        container.setState(com.director.core.container.ContainerState.HIDDEN);
+                        LOGGER.info("[DragDrop] 容器 {} 已隐藏（已添加到容器轨道）", container.getName());
                     }
                 } catch (Exception e) {
                     LOGGER.warn("[DragDrop] 初始化容器轨道行为失败: {}", container.getName(), e);

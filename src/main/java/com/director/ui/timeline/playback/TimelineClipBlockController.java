@@ -663,6 +663,7 @@ public class TimelineClipBlockController {
         if (!worldStateChangedBlocksForRerender.isEmpty()) {
             rerender.addAll(worldStateChangedBlocksForRerender);
         }
+        cleanupContainersNoLongerControlled(currentFrameWorldBlocks.keySet(), visibilityService, visualStateManager, rerender);
         scheduleBlockRerender(rerender);
         final long tAfterRerender = System.nanoTime();
 
@@ -1386,6 +1387,58 @@ public class TimelineClipBlockController {
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("[TimelineClipBlockController] registerRenderEntries completed: {} entries added",
                     sequenceEntries.stream().filter(e -> e != null && visibleBlocks.contains(e.getPos())).count());
+        }
+    }
+
+    private void cleanupContainersNoLongerControlled(Set<UUID> activeContainerIds,
+            com.director.core.container.visibility.ContainerVisibilityService visibilityService,
+            BlockVisualStateManager visualStateManager,
+            Set<BlockPos> rerender) {
+        if (lastFrameWorldBlocks.isEmpty()) {
+            return;
+        }
+
+        Set<UUID> removed = new HashSet<>(lastFrameWorldBlocks.keySet());
+        if (activeContainerIds != null && !activeContainerIds.isEmpty()) {
+            removed.removeAll(activeContainerIds);
+        }
+        if (removed.isEmpty()) {
+            return;
+        }
+
+        ContainerManager manager = ContainerManager.getInstance();
+        for (UUID containerId : removed) {
+            Container container = manager != null ? manager.getContainer(containerId) : null;
+            if (container == null) {
+                continue;
+            }
+
+            List<BlockPos> allBlocks = getCachedContainerBlocks(container);
+            if (rerender != null) {
+                rerender.addAll(allBlocks);
+            }
+
+            if (visualStateManager != null) {
+                visualStateManager.setBlocksState(allBlocks,
+                        container.isHidden()
+                                ? BlockVisualStateManager.BlockVisualState.hidden()
+                                : BlockVisualStateManager.BlockVisualState.normal());
+            }
+
+            if (visibilityService == null) {
+                continue;
+            }
+
+            try {
+                if (container.isHidden()) {
+                    visibilityService.showContainerBlocks(container, Collections.emptySet());
+                } else if (visibilityService.hasSnapshot(container)) {
+                    visibilityService.showContainer(container);
+                }
+            } catch (Exception e) {
+                LOGGER.warn("[TimelineClipBlockController] 清理脱离时间线控制的容器失败: {} - {}",
+                        container.getName(), e.getMessage(), e);
+            }
         }
     }
 

@@ -257,12 +257,11 @@ public final class ContainerPersistence {
         Container c = new Container(id, name, type);
         c.setColor(tag.getInt("color", c.getColor()));
         c.setOpacity(tag.getFloat("opacity", c.getOpacity()));
-        c.setLocked(tag.getBoolean("locked", c.isLocked()));
         String stateStr = tag.getString("state", c.getState().name());
+        ContainerState decodedState = c.getState();
         try {
-            c.setState(ContainerState.valueOf(stateStr));
+            decodedState = ContainerState.valueOf(stateStr);
         } catch (Exception ignored) {}
-        c.setIntakeEnabled(tag.getBoolean("intake", c.isIntakeEnabled()));
         String levelStr = tag.getString("level", "");
         if (!levelStr.isEmpty()) {
             try {
@@ -292,6 +291,11 @@ public final class ContainerPersistence {
             NbtCompound be = snap.getCompound("be").orElse(null);
             store.put(pos, new BlockStore.Entry(state, be));
         }
+        if (decodedState != c.getState()) {
+            c.setState(decodedState);
+        }
+        c.setLocked(tag.getBoolean("locked", c.isLocked()));
+        c.setIntakeEnabled(tag.getBoolean("intake", c.isIntakeEnabled()));
         return c;
     }
 
