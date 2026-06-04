@@ -194,6 +194,15 @@ public class ContainerPanelController {
         }
     }
 
+    public void ungroupSelectedContainers() {
+        cancelEditingIfActive();
+        commandService.ungroupSelectedContainers();
+    }
+
+    public boolean canUngroupSelection() {
+        return commandService.canUngroupSelection();
+    }
+
     public void mergeSelection(String mergeName) {
         Container merged = commandService.mergeSelection(mergeName);
         if (merged != null) {

@@ -91,9 +91,8 @@ class ContainerTreeInteractionHandler {
     }
 
     void setupDragAndDrop(Container container, boolean hovered) {
-        // 仅「非 Group」可作为拖拽源；Group 仅展开/折叠，不参与拖拽。Group 仍可作为 drop target 接收子节点。
         // 不依赖 hovered：beginDragDropSource() 仅在从本节点发起拖拽时为 true
-        if (container.getType() != ContainerType.GROUP && ImGui.beginDragDropSource()) {
+        if (ImGui.beginDragDropSource()) {
             java.util.Collection<Container> selectedContainers = controller.getSelectedContainers();
             boolean isSelected = controller.isContainerSelected(container.getId());
             boolean hasMultipleSelection = selectedContainers.size() > 1 && isSelected;
@@ -197,8 +196,10 @@ class ContainerTreeInteractionHandler {
             }
 
             boolean hasSelection = controller.hasSelection();
-            renderMenuItem("将选中容器分组", "Ctrl+G", !hasSelection, controller::groupSelectedContainers);
-            renderMenuItem("合并选中容器", "Ctrl+M", !controller.canMergeSelection(), () -> controller.mergeSelection(null));
+            boolean timelineSelection = hasTimelineControlledSelection();
+            renderMenuItem("将选中容器分组", "Ctrl+G", !hasSelection || timelineSelection, controller::groupSelectedContainers);
+            renderMenuItem("解散选中组", "", !controller.canUngroupSelection() || timelineSelection, controller::ungroupSelectedContainers);
+            renderMenuItem("合并选中容器", "Ctrl+M", !controller.canMergeSelection() || timelineSelection, () -> controller.mergeSelection(null));
             renderContextMenu_MoveToFromGroup();
 
             boolean clipboardEmpty = controller.isClipboardEmpty();
@@ -388,6 +389,7 @@ class ContainerTreeInteractionHandler {
         boolean hasSelection = controller.hasSelection();
         boolean timelineSelection = hasTimelineControlledSelection();
         renderMenuItem("将选中容器分组", "Ctrl+G", !hasSelection || timelineSelection, controller::groupSelectedContainers);
+        renderMenuItem("解散选中组", "", !controller.canUngroupSelection() || timelineSelection, controller::ungroupSelectedContainers);
         renderMenuItem("合并选中容器", "Ctrl+M", !controller.canMergeSelection() || timelineSelection, () -> controller.mergeSelection(null));
         renderMenuItem("删除", "Del", timelineSelection, () -> {
             LOGGER.info("[ContainerTreeInteractionHandler] 点击删除，标记待打开删除确认弹窗");

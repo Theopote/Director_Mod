@@ -151,6 +151,11 @@ public class TimelineDragAndDropHandler {
                     LOGGER.warn("[DragDrop] 容器不存在: {}", containerUuid);
                     continue;
                 }
+                if (container.getType() == ContainerType.GROUP) {
+                    LOGGER.warn("[DragDrop] 拒绝拖放：组容器仅用于列表组织，不能添加到容器轨道: {}",
+                        container.getName());
+                    continue;
+                }
 
                 // ✅ 容器片段：只能在 CONTAINER 轨道（拆除容器和普通容器都可以放在容器轨道上）
                 if (trackType != TrackType.CONTAINER) {

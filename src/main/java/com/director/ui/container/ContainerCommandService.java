@@ -136,6 +136,41 @@ public class ContainerCommandService {
         return command.getGroupContainer();
     }
 
+    public void ungroupSelectedContainers() {
+        Collection<Container> selection = containerManager.getSelectedContainersView();
+        if (selection.isEmpty()) {
+            return;
+        }
+        for (Container c : selection) {
+            if (c != null && c.getType() == ContainerType.GROUP && c.isLocked()) {
+                LOGGER.warn("[ContainerCommandService] 解散组失败：组已锁定 {}", c.getName());
+                return;
+            }
+        }
+        if (hasTimelineControlledContainer(selection, "解散组")) {
+            return;
+        }
+        UngroupContainersCommand command = new UngroupContainersCommand(containerManager, selection);
+        if (!command.hasGroups()) {
+            return;
+        }
+        execute(command);
+    }
+
+    public boolean canUngroupSelection() {
+        Collection<Container> selection = containerManager.getSelectedContainersView();
+        if (selection.isEmpty()) {
+            return false;
+        }
+        for (Container c : selection) {
+            if (c != null && c.getType() == ContainerType.GROUP && c.hasChildren()
+                    && !c.isLocked() && !isTimelineControlledSilently(c)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     public Container mergeSelection(String mergeName) {
         Collection<Container> selection = containerManager.getSelectedContainersView();
         if (selection.isEmpty()) {
@@ -596,6 +631,22 @@ public class ContainerCommandService {
             if (isTimelineControlled(child, action)) {
                 LOGGER.warn("[ContainerCommandService] 容器 {} 包含已在时间线上的子容器，拒绝{}",
                         container.getName(), action);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isTimelineControlledSilently(Container container) {
+        if (container == null) {
+            return false;
+        }
+        var timelineService = com.director.ui.timeline.container.ContainerTimelineService.getInstance();
+        if (timelineService.isContainerOnTimeline(container.getId())) {
+            return true;
+        }
+        for (Container child : container.getChildren()) {
+            if (isTimelineControlledSilently(child)) {
                 return true;
             }
         }
