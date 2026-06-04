@@ -176,6 +176,16 @@ public class Container {
             LOGGER.warn("[Container] 容器 {} 已锁定，禁止 clearBlocks 操作", name);
             return;
         }
+        if (isHidden() && !blocks.isEmpty()) {
+            try {
+                var visibilityService = com.director.core.container.visibility.ContainerServices.visibility();
+                if (visibilityService != null) {
+                    visibilityService.restoreContainerBlocks(this, new java.util.ArrayList<>(blocks));
+                }
+            } catch (Exception e) {
+                LOGGER.warn("[Container] 清空隐藏容器 {} 前释放方块失败: {}", name, e.getMessage());
+            }
+        }
         blocks.clear();
         blockStore.clear();  // 清除快照存储
         cachedBounds = null;  // 清除边界框缓存

@@ -1,6 +1,7 @@
 package com.director.core.container.commands;
 
 import com.director.core.container.Container;
+import com.director.core.container.visibility.ContainerServices;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
@@ -24,6 +25,7 @@ public class AddBlocksToContainerCommand implements ContainerCommand {
     private final Container container;
     private final Set<BlockPos> blocksToAdd;
     private final World world;
+    private final Set<BlockPos> actuallyAdded = new HashSet<>();
     
     public AddBlocksToContainerCommand(Container container, 
                                        Collection<BlockPos> blocks, 
@@ -35,13 +37,23 @@ public class AddBlocksToContainerCommand implements ContainerCommand {
     
     @Override
     public void execute() {
+        actuallyAdded.clear();
+        for (BlockPos pos : blocksToAdd) {
+            if (pos != null && !container.containsBlock(pos)) {
+                actuallyAdded.add(pos);
+            }
+        }
+
         // 添加方块
         container.addBlocks(blocksToAdd);
+        actuallyAdded.removeIf(pos -> pos == null || !container.containsBlock(pos));
         
         // 捕获方块快照
         if (world != null) {
             container.getBlockStore().addAllFromWorld(blocksToAdd, world);
         }
+
+        syncHiddenContainer();
         
         // v5.2: 如果容器是隐藏状态，可见性由ContainerVisibilityService管理
         LOGGER.debug("[AddBlocksToContainerCommand] 添加 {} 个方块到容器 {}", 
@@ -51,7 +63,8 @@ public class AddBlocksToContainerCommand implements ContainerCommand {
     @Override
     public void undo() {
         // 移除方块
-        for (BlockPos pos : blocksToAdd) {
+        releaseFromHiddenContainer(actuallyAdded);
+        for (BlockPos pos : actuallyAdded) {
             container.removeBlock(pos);
         }
         
@@ -65,6 +78,26 @@ public class AddBlocksToContainerCommand implements ContainerCommand {
         return String.format("添加 %d 个方块到容器 \"%s\"", 
             blocksToAdd.size(), 
             container.getName());
+    }
+
+    private void syncHiddenContainer() {
+        if (!container.isHidden()) {
+            return;
+        }
+        var visibilityService = ContainerServices.visibility();
+        if (visibilityService != null) {
+            visibilityService.hideContainer(container);
+        }
+    }
+
+    private void releaseFromHiddenContainer(Collection<BlockPos> blocks) {
+        if (!container.isHidden() || blocks == null || blocks.isEmpty()) {
+            return;
+        }
+        var visibilityService = ContainerServices.visibility();
+        if (visibilityService != null) {
+            visibilityService.restoreContainerBlocks(container, blocks);
+        }
     }
 }
 

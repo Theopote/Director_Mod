@@ -2,6 +2,7 @@ package com.director.core.container.commands;
 
 import com.director.core.container.Container;
 import com.director.core.container.BlockStore;
+import com.director.core.container.visibility.ContainerServices;
 import net.minecraft.util.math.BlockPos;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -40,6 +41,8 @@ public class RemoveBlocksFromContainerCommand implements ContainerCommand {
     
     @Override
     public void execute() {
+        releaseFromHiddenContainer();
+
         // 移除方块
         for (BlockPos pos : removedBlocks.keySet()) {
             container.removeBlock(pos);
@@ -62,6 +65,7 @@ public class RemoveBlocksFromContainerCommand implements ContainerCommand {
             // 直接使用 Entry 恢复
             store.raw().put(entry.getKey(), snapshot);
         }
+        syncHiddenContainer();
         
         // v5.2: 如果容器是隐藏状态，可见性由ContainerVisibilityService管理
         LOGGER.debug("[RemoveBlocksFromContainerCommand] 撤销：恢复容器 {} 的 {} 个方块", 
@@ -73,6 +77,26 @@ public class RemoveBlocksFromContainerCommand implements ContainerCommand {
         return String.format("从容器 \"%s\" 移除 %d 个方块", 
             container.getName(), 
             removedBlocks.size());
+    }
+
+    private void releaseFromHiddenContainer() {
+        if (!container.isHidden() || removedBlocks.isEmpty()) {
+            return;
+        }
+        var visibilityService = ContainerServices.visibility();
+        if (visibilityService != null) {
+            visibilityService.restoreContainerBlocks(container, removedBlocks.keySet());
+        }
+    }
+
+    private void syncHiddenContainer() {
+        if (!container.isHidden() || removedBlocks.isEmpty()) {
+            return;
+        }
+        var visibilityService = ContainerServices.visibility();
+        if (visibilityService != null) {
+            visibilityService.hideContainer(container);
+        }
     }
 }
 

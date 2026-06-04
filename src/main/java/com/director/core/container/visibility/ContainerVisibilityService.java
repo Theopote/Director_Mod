@@ -203,6 +203,61 @@ public class ContainerVisibilityService {
         snapshots.remove(container.getId());
         lastShownBlocks.remove(container.getId());
     }
+
+    /**
+     * 从隐藏容器中释放一部分方块。
+     *
+     * <p>用于“从容器移除方块/撤销添加方块”这类元数据操作：这些方块不再受容器隐藏状态控制，
+     * 因此应该立即从快照恢复到世界，并从运行时快照与增量显示缓存中移除。
+     */
+    public void restoreContainerBlocks(Container container, Collection<BlockPos> blocks) {
+        if (container == null || blocks == null || blocks.isEmpty()) {
+            return;
+        }
+
+        ServerWorld world = resolveWorld(container);
+        if (world == null) {
+            LOGGER.warn("[Visibility] 容器 {} 未绑定世界，无法释放方块", container.getName());
+            return;
+        }
+
+        BlockStore store = snapshots.get(container.getId());
+        if (store == null && createSnapshotFromBlockStore(container)) {
+            store = snapshots.get(container.getId());
+        }
+        if (store == null) {
+            return;
+        }
+        backfillSnapshotFromBlockStore(container, store);
+
+        LongSet shown = lastShownBlocks.get(container.getId());
+        int restored = 0;
+        for (BlockPos pos : blocks) {
+            if (pos == null) {
+                continue;
+            }
+
+            BlockStore.Entry entry = store.get(pos);
+            if (entry == null) {
+                BlockStore source = container.getBlockStore();
+                entry = source != null ? source.get(pos) : null;
+            }
+            if (entry == null) {
+                continue;
+            }
+
+            restoreBlockEntry(world, pos, entry);
+            store.remove(pos);
+            if (shown != null) {
+                shown.remove(pos.asLong());
+            }
+            restored++;
+        }
+
+        if (restored > 0 && LOGGER.isDebugEnabled()) {
+            LOGGER.debug("[Visibility] 容器 {} 已释放 {} 个方块", container.getName(), restored);
+        }
+    }
     
     /**
      * 检查容器是否已隐藏
@@ -322,24 +377,7 @@ public class ContainerVisibilityService {
 
                 net.minecraft.block.BlockState currentState = world.getBlockState(pos);
                 if (currentState.isAir()) {
-                    world.setBlockState(pos, entry.state,
-                            net.minecraft.block.Block.NOTIFY_ALL | net.minecraft.block.Block.FORCE_STATE);
-
-                    // 恢复 BlockEntity（沿用原逻辑的反射方式）
-                    if (entry.beNbt != null) {
-                        net.minecraft.block.entity.BlockEntity be = world.getBlockEntity(pos);
-                        if (be != null) {
-                            try {
-                                java.lang.reflect.Method loadMethod = be.getClass()
-                                        .getMethod("loadWithComponents", net.minecraft.nbt.NbtCompound.class,
-                                                net.minecraft.registry.RegistryWrapper.WrapperLookup.class);
-                                loadMethod.invoke(be, entry.beNbt, world.getRegistryManager());
-                                be.markDirty();
-                            } catch (Exception e) {
-                                // 忽略恢复失败
-                            }
-                        }
-                    }
+                    restoreBlockEntry(world, pos, entry);
                     shownCount++;
                 }
             }
@@ -407,24 +445,7 @@ public class ContainerVisibilityService {
 
             net.minecraft.block.BlockState currentState = world.getBlockState(pos);
             if (currentState.isAir()) {
-                world.setBlockState(pos, entry.state,
-                        net.minecraft.block.Block.NOTIFY_ALL | net.minecraft.block.Block.FORCE_STATE);
-
-                // 恢复 BlockEntity（沿用原逻辑的反射方式）
-                if (entry.beNbt != null) {
-                    net.minecraft.block.entity.BlockEntity be = world.getBlockEntity(pos);
-                    if (be != null) {
-                        try {
-                            java.lang.reflect.Method loadMethod = be.getClass()
-                                    .getMethod("loadWithComponents", net.minecraft.nbt.NbtCompound.class,
-                                            net.minecraft.registry.RegistryWrapper.WrapperLookup.class);
-                            loadMethod.invoke(be, entry.beNbt, world.getRegistryManager());
-                            be.markDirty();
-                        } catch (Exception e) {
-                            // 忽略恢复失败
-                        }
-                    }
-                }
+                restoreBlockEntry(world, pos, entry);
                 shownCount++;
             }
         }
@@ -491,6 +512,52 @@ public class ContainerVisibilityService {
         }
         
         return true;
+    }
+
+    private void restoreBlockEntry(ServerWorld world, BlockPos pos, BlockStore.Entry entry) {
+        if (world == null || pos == null || entry == null || entry.state == null) {
+            return;
+        }
+
+        int chunkX = pos.getX() >> 4;
+        int chunkZ = pos.getZ() >> 4;
+        try {
+            if (!world.getChunkManager().isChunkLoaded(chunkX, chunkZ)) {
+                world.getChunk(chunkX, chunkZ);
+            }
+        } catch (Exception ignored) {
+        }
+        if (!world.getChunkManager().isChunkLoaded(chunkX, chunkZ)) {
+            return;
+        }
+
+        world.setBlockState(pos, entry.state,
+                net.minecraft.block.Block.NOTIFY_ALL | net.minecraft.block.Block.FORCE_STATE);
+
+        if (entry.beNbt == null) {
+            return;
+        }
+
+        net.minecraft.block.entity.BlockEntity be = world.getBlockEntity(pos);
+        if (be == null) {
+            return;
+        }
+        try {
+            java.lang.reflect.Method loadMethod = be.getClass()
+                    .getMethod("loadWithComponents", net.minecraft.nbt.NbtCompound.class,
+                            net.minecraft.registry.RegistryWrapper.WrapperLookup.class);
+            loadMethod.invoke(be, entry.beNbt, world.getRegistryManager());
+            be.markDirty();
+        } catch (Exception e) {
+            try {
+                java.lang.reflect.Method readNbtMethod = be.getClass()
+                        .getMethod("readNbt", net.minecraft.nbt.NbtCompound.class,
+                                net.minecraft.registry.RegistryWrapper.WrapperLookup.class);
+                readNbtMethod.invoke(be, entry.beNbt, world.getRegistryManager());
+                be.markDirty();
+            } catch (Exception ignored) {
+            }
+        }
     }
 
     /**
