@@ -155,24 +155,19 @@ public class ContainerManager {
     
     public void addContainer(Container container) {
         if (container == null) return;
+        java.util.ArrayList<Container> added = new java.util.ArrayList<>();
         writeLock.lock();
         try {
-            containers.put(container.getId(), container);
-            Container previous = containersByName.put(container.getName(), container);
-            if (previous != null && previous != container) {
-                LOGGER.warn("[ContainerManager] 覆盖重复名称容器: {}", container.getName());
-            }
-            if (container.getParent() == null) {
-                rootContainers.add(container);
-            }
+            attachHierarchyInternal(container, container.getParent(), added);
         } finally {
             writeLock.unlock();
         }
         
         // v5.2: 不再使用HiddenBlockRegistry，可见性由ContainerVisibilityService管理
-        syncVisibilityForAddedContainer(container);
-        
-        fireContainerAdded(container);
+        for (Container c : added) {
+            syncVisibilityForAddedContainer(c);
+            fireContainerAdded(c);
+        }
         ContainerPersistence.requestAutoSave();
     }
 
@@ -181,30 +176,19 @@ public class ContainerManager {
      */
     public void addContainers(java.util.Collection<Container> list) {
         if (list == null || list.isEmpty()) return;
+        java.util.ArrayList<Container> added = new java.util.ArrayList<>();
         writeLock.lock();
         try {
             for (Container container : list) {
                 if (container == null) continue;
-                containers.put(container.getId(), container);
-                Container previous = containersByName.put(container.getName(), container);
-                if (previous != null && previous != container) {
-                    LOGGER.warn("[ContainerManager] 覆盖重复名称容器: {}", container.getName());
-                }
-                if (container.getParent() == null) {
-                    rootContainers.add(container);
-                } else {
-                    // 已有父级的，默认挂到父级末尾
-                    container.getParent().addChildAt(container, container.getParent().getChildCount());
-                }
+                attachHierarchyInternal(container, container.getParent(), added);
             }
         } finally {
             writeLock.unlock();
         }
-        for (Container c : list) {
-            if (c != null) {
-                syncVisibilityForAddedContainer(c);
-                fireContainerAdded(c);
-            }
+        for (Container c : added) {
+            syncVisibilityForAddedContainer(c);
+            fireContainerAdded(c);
         }
         ContainerPersistence.requestAutoSave();
     }
@@ -234,17 +218,45 @@ public class ContainerManager {
 
     // 递归将容器树挂入当前管理器（假定已持有写锁），并收集用于事件触发
     private void attachHierarchyInternal(Container node, Container parent, java.util.List<Container> restored) {
+        if (node == null) return;
+        ensureUniqueIdForAttach(node);
         containers.put(node.getId(), node);
-        containersByName.put(node.getName(), node);
+        Container previousByName = containersByName.put(node.getName(), node);
+        if (previousByName != null && previousByName != node) {
+            LOGGER.warn("[ContainerManager] 覆盖重复名称容器: {}", node.getName());
+        }
         if (parent == null) {
-            rootContainers.add(node);
+            if (node.getParent() != null) {
+                node.removeFromParent();
+            }
+            if (!rootContainers.contains(node)) {
+                rootContainers.add(node);
+            }
         } else {
-            parent.addChildAt(node, parent.getChildCount());
+            if (node.getParent() != parent || !parent.getChildrenInternal().contains(node)) {
+                parent.addChildAt(node, parent.getChildCount());
+            }
         }
         restored.add(node);
-        for (Container child : node.getChildrenInternal()) {
+        for (Container child : new java.util.ArrayList<>(node.getChildrenInternal())) {
             attachHierarchyInternal(child, node, restored);
         }
+    }
+
+    private void ensureUniqueIdForAttach(Container node) {
+        Container existing = containers.get(node.getId());
+        if (existing == null || existing == node) {
+            return;
+        }
+
+        UUID oldId = node.getId();
+        UUID newId;
+        do {
+            newId = UUID.randomUUID();
+        } while (containers.containsKey(newId));
+        node.replaceIdForRecovery(newId);
+        LOGGER.warn("[ContainerManager] 检测到重复容器 ID，已为 {} 重建 ID: {} -> {}",
+            node.getName(), oldId, newId);
     }
 
     /**
@@ -257,6 +269,7 @@ public class ContainerManager {
         if (items == null || items.isEmpty()) return;
         if (parents == null || indices == null) return;
         if (parents.size() != items.size() || indices.size() != items.size()) return;
+        java.util.ArrayList<Container> restored = new java.util.ArrayList<>();
         writeLock.lock();
         try {
             for (int i = 0; i < items.size(); i++) {
@@ -264,6 +277,7 @@ public class ContainerManager {
                 if (c == null) continue;
                 Container parent = parents.get(i);
                 int index = indices.get(i) != null ? indices.get(i) : -1;
+                ensureUniqueIdForAttach(c);
                 containers.put(c.getId(), c);
                 containersByName.put(c.getName(), c);
                 if (parent != null) {
@@ -273,16 +287,23 @@ public class ContainerManager {
                     int applied = index < 0 ? rootContainers.size() : Math.min(index, rootContainers.size());
                     rootContainers.add(applied, c);
                 }
+                restored.add(c);
+                for (Container child : new java.util.ArrayList<>(c.getChildrenInternal())) {
+                    attachHierarchyInternal(child, c, restored);
+                }
             }
         } finally {
             writeLock.unlock();
         }
         // 统一触发 Added/Moved 事件
-        for (int i = 0; i < items.size(); i++) {
-            Container c = items.get(i);
+        for (Container c : restored) {
             if (c == null) continue;
             syncVisibilityForAddedContainer(c);
             fireContainerAdded(c);
+        }
+        for (int i = 0; i < items.size(); i++) {
+            Container c = items.get(i);
+            if (c == null) continue;
             fireContainerMoved(c, parents.get(i));
         }
     }

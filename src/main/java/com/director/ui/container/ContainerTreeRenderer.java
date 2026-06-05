@@ -176,10 +176,11 @@ class ContainerTreeRenderer {
                 }
             }
 
-            // 在 setupDragAndDrop 之前采集：isItemHovered/Clicked/Visible 都针对当前 TreeNode；
-            // setupDragAndDrop 内 ImGui.text 会改掉 last item，故 handleContextMenu 也需在其前
-            boolean isHovered = ImGui.isItemHovered();
-            boolean isLeftClicked = ImGui.isItemClicked(ImGuiMouseButton.Left);
+            // 使用行矩形做显式命中，避免 TreeNode/拖拽目标/缩进状态导致组内某些行点不中。
+            float mouseX = ImGui.getMousePosX();
+            float mouseY = ImGui.getMousePosY();
+            boolean isHovered = rectContainsScreen(rowMin, rowMax, mouseX, mouseY);
+            boolean isLeftClicked = isHovered && ImGui.isMouseClicked(ImGuiMouseButton.Left);
             boolean isDoubleClicked = isHovered && ImGui.isMouseDoubleClicked(ImGuiMouseButton.Left);
             boolean isRowVisible = ImGui.isItemVisible();
 

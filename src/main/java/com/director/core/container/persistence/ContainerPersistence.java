@@ -104,6 +104,7 @@ public final class ContainerPersistence {
 
         // 加载期间置位，避免 clear() 触发时间线片段删除并回写覆盖存档。
         loading = true;
+        boolean saveAfterLoad = false;
         try {
             // 关键：先清空内存状态，再按当前存档加载。
             // 即使目标存档没有文件，也不能保留上一个存档的容器数据。
@@ -128,39 +129,61 @@ public final class ContainerPersistence {
 
             NbtCompound root = NbtIo.readCompressed(file, net.minecraft.nbt.NbtSizeTracker.ofUnlimitedBytes());
             NbtList list = root.getList("containers").orElseGet(NbtList::new);
-            Map<UUID, Container> map = new HashMap<>();
+            Map<UUID, Container> map = new LinkedHashMap<>();
             Map<UUID, UUID> parentMap = new HashMap<>();
             List<Container> orderedContainers = new ArrayList<>(list.size());
+            int repairedDuplicateIds = 0;
 
             for (int i = 0; i < list.size(); i++) {
                 NbtCompound tag = list.getCompound(i).orElse(null);
                 if (tag == null) continue;
                 Container c = decodeContainer(tag);
+                UUID originalId = c.getId();
+                if (map.containsKey(originalId)) {
+                    UUID recoveredId;
+                    do {
+                        recoveredId = UUID.randomUUID();
+                    } while (map.containsKey(recoveredId));
+                    c.replaceIdForRecovery(recoveredId);
+                    repairedDuplicateIds++;
+                    LOGGER.warn("[ContainerPersistence] 容器存档存在重复 ID，已修复: {} -> {} ({})",
+                        originalId, recoveredId, c.getName());
+                }
                 map.put(c.getId(), c);
                 orderedContainers.add(c);
                 tag.getIntArray("parent").ifPresent(arr -> parentMap.put(c.getId(), Uuids.toUuid(arr)));
             }
 
             // 严格按文件顺序回放层级，避免 HashMap 遍历导致顺序漂移。
+            List<Container> roots = new ArrayList<>();
             for (Container c : orderedContainers) {
                 UUID pid = parentMap.get(c.getId());
                 if (pid != null) {
                     Container parent = map.get(pid);
-                    if (parent != null) {
+                    if (parent != null && parent != c && !parent.isDescendantOf(c)) {
                         parent.addChild(c);
                     } else {
-                        manager.addContainer(c);
+                        roots.add(c);
                     }
                 } else {
-                    manager.addContainer(c);
+                    roots.add(c);
                 }
             }
 
-            LOGGER.info("[ContainerPersistence] 已加载 {} 个容器 (世界: {})", map.size(), WorldIdentifier.getCurrentWorldId());
+            manager.restoreHierarchyBulk(roots);
+
+            if (repairedDuplicateIds > 0) {
+                LOGGER.warn("[ContainerPersistence] 加载时修复了 {} 个重复容器 ID", repairedDuplicateIds);
+                saveAfterLoad = true;
+            }
+            LOGGER.info("[ContainerPersistence] 已加载 {} 个容器 (世界: {})", orderedContainers.size(), WorldIdentifier.getCurrentWorldId());
         } catch (Exception e) {
             LOGGER.warn("[ContainerPersistence] 加载容器数据失败: {}", e.getMessage(), e);
         } finally {
             loading = false;
+        }
+        if (saveAfterLoad) {
+            saveForCurrentWorld(manager);
         }
     }
 

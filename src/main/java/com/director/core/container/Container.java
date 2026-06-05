@@ -359,6 +359,16 @@ public class Container {
     // ========== Getters & Setters ==========
     
     public UUID getId() { return id; }
+
+    /**
+     * 仅用于加载或恢复旧数据时修复重复 ID。
+     * 正常业务代码不应调用，否则会破坏时间线绑定等外部引用。
+     */
+    public void replaceIdForRecovery(UUID newId) {
+        if (newId != null && !newId.equals(this.id)) {
+            this.id = newId;
+        }
+    }
     
     public String getName() { return name; }
     public void setName(String name) { 
