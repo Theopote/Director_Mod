@@ -55,10 +55,25 @@ public class ContainerVisibilityService {
      * <p>这里改为 delta：只对 “新增显示” 与 “新增隐藏” 的少量方块做 setBlockState。
      */
     private final Map<UUID, LongSet> lastShownBlocks = new HashMap<>();
+
+    private final Deque<VisibilityTask> pendingTasks = new ArrayDeque<>();
     
     public ContainerVisibilityService(MinecraftServer server) {
         this.server = server;
         LOGGER.debug("[ContainerVisibilityService] 初始化");
+    }
+
+    public void tick() {
+        int budget = getBlocksPerTickBudget();
+        while (budget > 0 && !pendingTasks.isEmpty()) {
+            VisibilityTask task = pendingTasks.peekFirst();
+            int consumed = task.process(budget);
+            budget -= Math.max(1, consumed);
+            if (task.isComplete()) {
+                pendingTasks.removeFirst();
+                task.finish();
+            }
+        }
     }
     
     /**
@@ -94,39 +109,10 @@ public class ContainerVisibilityService {
             store = existingStore;
             backfillSnapshotFromBlockStore(container, store);
             
-            // 找出新增的方块（在容器中但不在快照中）
-            java.util.Set<BlockPos> existingBlocks = new java.util.HashSet<>(existingStore.positions());
-            java.util.Map<Long, Boolean> chunkLoadCache = new java.util.HashMap<>();
-            for (BlockPos pos : container.getBlocksView()) {
-                if (existingBlocks.contains(pos)) {
-                    continue; // 已经在快照中，跳过
-                }
-                
-                // 检查区块是否已加载
-                int chunkX = pos.getX() >> 4;
-                int chunkZ = pos.getZ() >> 4;
-                if (!isChunkLoadedCached(world, chunkLoadCache, chunkX, chunkZ)) {
-                    continue;
-                }
-                
-                // 捕获方块状态和方块实体
-                store.capture(world, pos);
-
-                net.minecraft.block.BlockState currentState = world.getBlockState(pos);
-                if (currentState.isAir()) {
-                    continue;
-                }
-                
-                // 移除方块实体（如果存在）
-                var blockEntity = world.getBlockEntity(pos);
-                if (blockEntity != null) {
-                    world.removeBlockEntity(pos);
-                }
-                
-                // 将方块设置为AIR
-                world.setBlockState(pos, Blocks.AIR.getDefaultState(), 
-                    net.minecraft.block.Block.NOTIFY_ALL | net.minecraft.block.Block.FORCE_STATE);
-            }
+            // 已有快照时仍按整容器重新对齐。这样可以处理“大容器显示任务尚未完成又切回隐藏”的情况。
+            // 具体快照保护由 hideOne() 负责：已有快照的位置不会被 AIR 覆盖。
+            java.util.List<BlockPos> toHide = new java.util.ArrayList<>(container.getBlocksView());
+            enqueueOrRun(createHideTask(container, world, store, toHide));
             
             LOGGER.debug("[Visibility] 容器 {} 新增方块已隐藏，快照总数: {}", 
                 container.getName(), store.size());
@@ -136,38 +122,10 @@ public class ContainerVisibilityService {
             
             // 保存当前世界中的真实方块快照
             store = new BlockStore();
-            java.util.Map<Long, Boolean> chunkLoadCache = new java.util.HashMap<>();
-            
-            for (BlockPos pos : container.getBlocksView()) {
-                // 检查区块是否已加载（使用新方法避免弃用警告）
-                int chunkX = pos.getX() >> 4;
-                int chunkZ = pos.getZ() >> 4;
-                if (!isChunkLoadedCached(world, chunkLoadCache, chunkX, chunkZ)) {
-                    continue;
-                }
-                
-                // 捕获方块状态和方块实体
-                store.capture(world, pos);
-
-                net.minecraft.block.BlockState currentState = world.getBlockState(pos);
-                if (currentState.isAir()) {
-                    continue;
-                }
-                
-                // 移除方块实体（如果存在）
-                var blockEntity = world.getBlockEntity(pos);
-                if (blockEntity != null) {
-                    world.removeBlockEntity(pos);
-                }
-                
-                // 将方块设置为AIR
-                world.setBlockState(pos, Blocks.AIR.getDefaultState(), 
-                    net.minecraft.block.Block.NOTIFY_ALL | net.minecraft.block.Block.FORCE_STATE);
-            }
-            
             backfillSnapshotFromBlockStore(container, store);
             snapshots.put(container.getId(), store);
             lastShownBlocks.remove(container.getId());
+            enqueueOrRun(createHideTask(container, world, store, new java.util.ArrayList<>(container.getBlocksView())));
             LOGGER.debug("[Visibility] 容器 {} 隐藏完成，保存了 {} 个方块快照", 
                 container.getName(), store.size());
         }
@@ -200,11 +158,7 @@ public class ContainerVisibilityService {
         LOGGER.debug("[Visibility] 显示容器 {} (恢复 {} 个方块)", 
             container.getName(), store.size());
         
-        // 将方块恢复到世界
-        store.apply(world);
-        
-        snapshots.remove(container.getId());
-        lastShownBlocks.remove(container.getId());
+        enqueueOrRun(createShowTask(container, world, store, new java.util.ArrayList<>(store.positions())));
         LOGGER.debug("[Visibility] 容器 {} 显示完成", container.getName());
     }
 
@@ -234,33 +188,7 @@ public class ContainerVisibilityService {
         }
         backfillSnapshotFromBlockStore(container, store);
 
-        LongSet shown = lastShownBlocks.get(container.getId());
-        int restored = 0;
-        for (BlockPos pos : blocks) {
-            if (pos == null) {
-                continue;
-            }
-
-            BlockStore.Entry entry = store.get(pos);
-            if (entry == null) {
-                BlockStore source = container.getBlockStore();
-                entry = source != null ? source.get(pos) : null;
-            }
-            if (entry == null) {
-                continue;
-            }
-
-            restoreBlockEntry(world, pos, entry);
-            store.remove(pos);
-            if (shown != null) {
-                shown.remove(pos.asLong());
-            }
-            restored++;
-        }
-
-        if (restored > 0 && LOGGER.isDebugEnabled()) {
-            LOGGER.debug("[Visibility] 容器 {} 已释放 {} 个方块", container.getName(), restored);
-        }
+        enqueueOrRun(createRestoreTask(container, world, store, new java.util.ArrayList<>(blocks)));
     }
     
     /**
@@ -274,6 +202,7 @@ public class ContainerVisibilityService {
      * 清除所有快照（服务器关闭时调用）
      */
     public void clearAll() {
+        pendingTasks.clear();
         snapshots.clear();
         lastShownBlocks.clear();
         LOGGER.debug("[ContainerVisibilityService] 清除所有快照");
@@ -288,6 +217,7 @@ public class ContainerVisibilityService {
      * @param blocksToShow 应该显示的方块位置集合
      */
     public void showContainerBlocks(Container container, java.util.Set<net.minecraft.util.math.BlockPos> blocksToShow) {
+        cancelPendingTasks(container.getId());
         ServerWorld world = resolveWorld(container);
         if (world == null) {
             LOGGER.warn("[Visibility] 容器 {} 未绑定世界，无法显示方块", container.getName());
@@ -463,6 +393,50 @@ public class ContainerVisibilityService {
                     container.getName(), shownCount, hiddenCount, now.size());
         }
     }
+
+    private void enqueueOrRun(VisibilityTask task) {
+        if (task == null || task.isComplete()) {
+            return;
+        }
+        cancelPendingTasks(task.containerId);
+        if (task.remaining() <= getBlocksPerTickBudget()) {
+            while (!task.isComplete()) {
+                task.process(getBlocksPerTickBudget());
+            }
+            task.finish();
+            return;
+        }
+        pendingTasks.addLast(task);
+        LOGGER.info("[Visibility] 容器 {} 的 {} 操作已分帧执行: {} 个方块",
+                task.containerName, task.actionLabel, task.remaining());
+    }
+
+    private VisibilityTask createHideTask(Container container, ServerWorld world, BlockStore store, List<BlockPos> positions) {
+        return new VisibilityTask(container, world, store, positions, TaskKind.HIDE, "隐藏");
+    }
+
+    private VisibilityTask createShowTask(Container container, ServerWorld world, BlockStore store, List<BlockPos> positions) {
+        return new VisibilityTask(container, world, store, positions, TaskKind.SHOW, "显示");
+    }
+
+    private VisibilityTask createRestoreTask(Container container, ServerWorld world, BlockStore store, List<BlockPos> positions) {
+        return new VisibilityTask(container, world, store, positions, TaskKind.RESTORE, "释放");
+    }
+
+    private void cancelPendingTasks(UUID containerId) {
+        if (containerId == null || pendingTasks.isEmpty()) {
+            return;
+        }
+        pendingTasks.removeIf(task -> containerId.equals(task.containerId));
+    }
+
+    private int getBlocksPerTickBudget() {
+        try {
+            return Math.max(1, com.director.config.DirectorConfig.getConfig().performance.containerWorldBlocksPerTick);
+        } catch (Exception ignored) {
+            return 3000;
+        }
+    }
     
     /**
      * 检查容器是否有快照（用于判断容器是否在隐藏状态）
@@ -607,6 +581,127 @@ public class ContainerVisibilityService {
         boolean loaded = world.getChunkManager().isChunkLoaded(chunkX, chunkZ);
         cache.put(chunkKey, loaded);
         return loaded;
+    }
+
+    private final class VisibilityTask {
+        private final UUID containerId;
+        private final String containerName;
+        private final String actionLabel;
+        private final ServerWorld world;
+        private final BlockStore store;
+        private final BlockStore fallbackStore;
+        private final List<BlockPos> positions;
+        private final TaskKind kind;
+        private final LongSet shown;
+        private final Map<Long, Boolean> chunkLoadCache = new HashMap<>();
+        private int index = 0;
+        private int changed = 0;
+
+        private VisibilityTask(Container container,
+                               ServerWorld world,
+                               BlockStore store,
+                               List<BlockPos> positions,
+                               TaskKind kind,
+                               String actionLabel) {
+            this.containerId = container.getId();
+            this.containerName = container.getName();
+            this.world = world;
+            this.store = store;
+            this.fallbackStore = container.getBlockStore();
+            this.positions = positions != null ? positions : java.util.Collections.emptyList();
+            this.kind = kind;
+            this.actionLabel = actionLabel;
+            this.shown = lastShownBlocks.get(containerId);
+        }
+
+        int process(int budget) {
+            int processed = 0;
+            while (processed < budget && index < positions.size()) {
+                BlockPos pos = positions.get(index++);
+                processed++;
+                if (pos == null) {
+                    continue;
+                }
+                switch (kind) {
+                    case HIDE -> hideOne(pos);
+                    case SHOW -> showOne(pos);
+                    case RESTORE -> restoreOne(pos);
+                }
+            }
+            return processed;
+        }
+
+        private void hideOne(BlockPos pos) {
+            int chunkX = pos.getX() >> 4;
+            int chunkZ = pos.getZ() >> 4;
+            if (!isChunkLoadedCached(world, chunkLoadCache, chunkX, chunkZ)) {
+                return;
+            }
+            if (!store.contains(pos)) {
+                store.capture(world, pos);
+            }
+            net.minecraft.block.BlockState currentState = world.getBlockState(pos);
+            if (currentState.isAir()) {
+                return;
+            }
+            var blockEntity = world.getBlockEntity(pos);
+            if (blockEntity != null) {
+                world.removeBlockEntity(pos);
+            }
+            world.setBlockState(pos, Blocks.AIR.getDefaultState(),
+                    net.minecraft.block.Block.NOTIFY_ALL | net.minecraft.block.Block.FORCE_STATE);
+            changed++;
+        }
+
+        private void showOne(BlockPos pos) {
+            BlockStore.Entry entry = store.get(pos);
+            if (entry == null) {
+                return;
+            }
+            restoreBlockEntry(world, pos, entry);
+            changed++;
+        }
+
+        private void restoreOne(BlockPos pos) {
+            BlockStore.Entry entry = store.get(pos);
+            if (entry == null && fallbackStore != null) {
+                entry = fallbackStore.get(pos);
+            }
+            if (entry == null) {
+                return;
+            }
+            restoreBlockEntry(world, pos, entry);
+            store.remove(pos);
+            if (shown != null) {
+                shown.remove(pos.asLong());
+            }
+            changed++;
+        }
+
+        boolean isComplete() {
+            return index >= positions.size();
+        }
+
+        int remaining() {
+            return Math.max(0, positions.size() - index);
+        }
+
+        void finish() {
+            if (kind == TaskKind.SHOW) {
+                snapshots.remove(containerId);
+                lastShownBlocks.remove(containerId);
+            }
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("[Visibility] 容器 {} {}完成，处理 {} 个方块，实际改动 {} 个",
+                        containerName, actionLabel, positions.size(), changed);
+            }
+        }
+    }
+
+    private enum TaskKind {
+        HIDE,
+        SHOW,
+        RESTORE
     }
 }
 

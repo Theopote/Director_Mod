@@ -61,6 +61,7 @@ public class DirectorConfig {
             public boolean enableOptimizations = true;
             public int warnBlocksPerContainer = 50000;
             public int maxBlocksPerContainer = 200000;
+            public int containerWorldBlocksPerTick = 3000;
         }
         
         public static class UISettings {

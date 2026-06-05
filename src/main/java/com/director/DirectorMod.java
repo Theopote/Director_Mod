@@ -2,6 +2,7 @@ package com.director;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -360,6 +361,13 @@ public class DirectorMod implements ModInitializer {
             }
             // 清理所有线程池，避免在服务器关闭时提交任务导致异常
             cleanupThreadPools();
+        });
+
+        ServerTickEvents.END_SERVER_TICK.register(server -> {
+            var visibilityService = ContainerServices.visibility();
+            if (visibilityService != null) {
+                visibilityService.tick();
+            }
         });
         
         LOGGER.info("[Director] 服务器生命周期事件注册完成");
