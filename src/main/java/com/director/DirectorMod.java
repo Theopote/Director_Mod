@@ -355,6 +355,8 @@ public class DirectorMod implements ModInitializer {
         
         // 服务器停止时清理
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
+            com.director.core.container.persistence.ContainerPersistence.flushPendingAutoSave(
+                    com.director.core.container.ContainerManager.getInstance());
             var visibilityService = ContainerServices.visibility();
             if (visibilityService != null) {
                 visibilityService.clearAll();
@@ -368,6 +370,8 @@ public class DirectorMod implements ModInitializer {
             if (visibilityService != null) {
                 visibilityService.tick();
             }
+            com.director.core.container.persistence.ContainerPersistence.tickAutoSave(
+                    com.director.core.container.ContainerManager.getInstance());
         });
         
         LOGGER.info("[Director] 服务器生命周期事件注册完成");

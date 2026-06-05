@@ -33,6 +33,7 @@ public class Container {
     private BlockPos center;  // 中心点（用于变换）
     private final BlockStore blockStore = new BlockStore();  // 方块快照存储（v5.0）
     private BoundingBox cachedBounds = null;  // 缓存的边界框（v5.0）
+    private Integer cachedTotalBlockCount = null;
     
     // ========== 世界归属（v5.2 新增） ==========
     private net.minecraft.registry.RegistryKey<net.minecraft.world.World> levelKey;
@@ -220,10 +221,14 @@ public class Container {
      * 获取包括所有子容器的总方块数
      */
     public int getTotalBlockCount() {
+        if (cachedTotalBlockCount != null) {
+            return cachedTotalBlockCount;
+        }
         int count = blocks.size();
         for (Container child : children) {
             count += child.getTotalBlockCount();
         }
+        cachedTotalBlockCount = count;
         return count;
     }
     
@@ -304,10 +309,19 @@ public class Container {
     
     private void markModified() {
         this.modifiedTime = System.currentTimeMillis();
+        invalidateTotalBlockCountCache();
         try {
             com.director.core.container.persistence.ContainerPersistence.requestAutoSave();
         } catch (Exception e) {
             LOGGER.debug("[Container] auto-save skipped: {}", e.getMessage());
+        }
+    }
+
+    private void invalidateTotalBlockCountCache() {
+        Container current = this;
+        while (current != null) {
+            current.cachedTotalBlockCount = null;
+            current = current.parent;
         }
     }
     

@@ -33,7 +33,10 @@ import java.util.*;
 public final class ContainerPersistence {
     private static final Logger LOGGER = LoggerFactory.getLogger(ContainerPersistence.class);
     private static final Path CONFIG_DIR = Paths.get("config", "director", "containers");
+    private static final long AUTO_SAVE_DELAY_MS = 1200L;
     private static volatile boolean loading = false;
+    private static volatile boolean pendingAutoSave = false;
+    private static volatile long lastAutoSaveRequestMs = 0L;
 
     private ContainerPersistence() {}
 
@@ -68,6 +71,7 @@ public final class ContainerPersistence {
         if (manager == null || loading) {
             return;
         }
+        pendingAutoSave = false;
         try {
             Path file = getContainerFile();
             if (file == null) {
@@ -199,10 +203,26 @@ public final class ContainerPersistence {
         if (ContainerManager.isInitializing()) {
             return;
         }
-        ContainerManager manager = ContainerManager.getInstance();
-        if (manager != null) {
-            saveForCurrentWorld(manager);
+        pendingAutoSave = true;
+        lastAutoSaveRequestMs = System.currentTimeMillis();
+    }
+
+    public static void tickAutoSave(ContainerManager manager) {
+        if (!pendingAutoSave || loading || manager == null) {
+            return;
         }
+        long now = System.currentTimeMillis();
+        if (now - lastAutoSaveRequestMs < AUTO_SAVE_DELAY_MS) {
+            return;
+        }
+        saveForCurrentWorld(manager);
+    }
+
+    public static void flushPendingAutoSave(ContainerManager manager) {
+        if (!pendingAutoSave || loading || manager == null) {
+            return;
+        }
+        saveForCurrentWorld(manager);
     }
 
     private static List<Container> collectContainersInHierarchyOrder(ContainerManager manager) {
