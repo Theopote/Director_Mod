@@ -20,6 +20,7 @@ import com.director.ui.timeline.model.audio.AudioTrack;
 import com.director.ui.timeline.model.audio.AudioTimelineClip;
 import com.director.ui.timeline.model.camera.CameraKeyframe;
 import com.director.ui.timeline.model.camera.path.CranePathClip;
+import com.director.ui.timeline.model.camera.path.CustomPathClip;
 import com.director.ui.timeline.model.camera.path.OrbitPathClip;
 import com.director.ui.timeline.model.clip.ClipKeyframe;
 import com.director.ui.timeline.model.entity.EntityClip;
@@ -341,6 +342,9 @@ public class TimelineModelPersistence {
         
         // CranePathClip 参数
         public Float heightDelta;
+
+        // CustomPathClip 参数
+        public List<AutomationKeyframeDTO> cameraKeyframes = new ArrayList<>();
     }
 
     /**
@@ -644,6 +648,12 @@ public class TimelineModelPersistence {
                 
                 // 根据类型保存特定参数
                 switch (pathClip) {
+                    case com.director.ui.timeline.model.camera.path.CustomPathClip custom -> {
+                        for (CameraKeyframe keyframe : custom.getKeyframes()) {
+                            if (keyframe == null) continue;
+                            pathClipDTO.cameraKeyframes.add(toCameraKeyframeDTO(keyframe));
+                        }
+                    }
                     case com.director.ui.timeline.model.camera.path.OrbitPathClip orbit -> {
                         pathClipDTO.center = Vec3DTO.fromVec3d(orbit.getCenter());
                         pathClipDTO.lookAt = Vec3DTO.fromVec3d(orbit.getLookAt());
@@ -1103,6 +1113,21 @@ public class TimelineModelPersistence {
                         com.director.ui.timeline.model.camera.path.CameraPathClip pathClip = null;
                         
                         switch (pathClipDTO.type) {
+                            case "CUSTOM", "FREE" -> {
+                                CustomPathClip custom = new CustomPathClip(
+                                    pathClipDTO.name != null ? pathClipDTO.name : "Custom Path",
+                                    pathClipDTO.startTime,
+                                    pathClipDTO.endTime
+                                );
+                                if (pathClipDTO.cameraKeyframes != null) {
+                                    for (AutomationKeyframeDTO keyframeDTO : pathClipDTO.cameraKeyframes) {
+                                        if (keyframeDTO != null) {
+                                            custom.addKeyframe(fromCameraKeyframeDTO(keyframeDTO));
+                                        }
+                                    }
+                                }
+                                pathClip = custom;
+                            }
                             case "ORBIT" -> {
                                 OrbitPathClip orbit = getOrbitPathClip(pathClipDTO);
 
@@ -1353,6 +1378,55 @@ public class TimelineModelPersistence {
             radius,
             height
         );
+    }
+
+    private static AutomationKeyframeDTO toCameraKeyframeDTO(CameraKeyframe ck) {
+        AutomationKeyframeDTO kdto = new AutomationKeyframeDTO();
+        kdto.type = ck.getType();
+        kdto.name = ck.getName();
+        kdto.time = ck.getTime();
+        kdto.position = Vec3DTO.from(ck.getPosition());
+        kdto.rotation = Vec3DTO.from(ck.getRotation());
+        kdto.fov = ck.getFov();
+        kdto.nearPlane = ck.getNearPlane();
+        kdto.farPlane = ck.getFarPlane();
+        kdto.cameraKeyType = ck.getKeyType() != null ? ck.getKeyType().name() : null;
+        kdto.cameraSegmentType = ck.getSegmentType() != null ? ck.getSegmentType().name() : null;
+        kdto.cameraRotationInterpolation = ck.getRotationInterpolation() != null ? ck.getRotationInterpolation().name() : null;
+        kdto.bezierInHandle = Vec3DTO.from(ck.getBezierInHandle());
+        kdto.bezierOutHandle = Vec3DTO.from(ck.getBezierOutHandle());
+        kdto.cameraHandleMode = ck.getHandleMode() != null ? ck.getHandleMode().name() : null;
+        kdto.dofEnabled = ck.isDepthOfFieldEnabled();
+        kdto.focusDistance = ck.getFocusDistance();
+        kdto.aperture = ck.getAperture();
+        return kdto;
+    }
+
+    private static CameraKeyframe fromCameraKeyframeDTO(AutomationKeyframeDTO kdto) {
+        CameraKeyframe ck = new CameraKeyframe(kdto.name != null ? kdto.name : "Camera Keyframe", kdto.time);
+        if (kdto.position != null) ck.setPosition(new org.joml.Vector3f(kdto.position.x, kdto.position.y, kdto.position.z));
+        if (kdto.rotation != null) ck.setRotation(new org.joml.Vector3f(kdto.rotation.x, kdto.rotation.y, kdto.rotation.z));
+        ck.setFov(kdto.fov);
+        ck.setNearPlane(kdto.nearPlane);
+        ck.setFarPlane(kdto.farPlane);
+        if (kdto.cameraKeyType != null) {
+            try { ck.setKeyType(CameraKeyframe.KeyType.valueOf(kdto.cameraKeyType)); } catch (Exception ignored) {}
+        }
+        if (kdto.cameraSegmentType != null) {
+            try { ck.setSegmentType(CameraKeyframe.SegmentPathType.valueOf(kdto.cameraSegmentType)); } catch (Exception ignored) {}
+        }
+        if (kdto.cameraRotationInterpolation != null) {
+            try { ck.setRotationInterpolation(CameraKeyframe.RotationInterpolation.valueOf(kdto.cameraRotationInterpolation)); } catch (Exception ignored) {}
+        }
+        if (kdto.bezierInHandle != null) ck.setBezierInHandle(new org.joml.Vector3f(kdto.bezierInHandle.x, kdto.bezierInHandle.y, kdto.bezierInHandle.z));
+        if (kdto.bezierOutHandle != null) ck.setBezierOutHandle(new org.joml.Vector3f(kdto.bezierOutHandle.x, kdto.bezierOutHandle.y, kdto.bezierOutHandle.z));
+        if (kdto.cameraHandleMode != null) {
+            try { ck.setHandleMode(CameraKeyframe.HandleMode.valueOf(kdto.cameraHandleMode)); } catch (Exception ignored) {}
+        }
+        ck.setDepthOfFieldEnabled(kdto.dofEnabled);
+        ck.setFocusDistance(kdto.focusDistance);
+        ck.setAperture(kdto.aperture);
+        return ck;
     }
 
     private static @NotNull CranePathClip getCranePathClip(PathClipDTO pathClipDTO) {

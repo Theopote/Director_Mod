@@ -726,8 +726,26 @@ public class TimelineModel implements ITimelineProject {
                     return track;
                 }
             }
+            if (keyframe instanceof com.director.ui.timeline.model.camera.CameraKeyframe cameraKeyframe
+                    && track.findCustomPathClipForKeyframe(cameraKeyframe) != null) {
+                return track;
+            }
         }
         
+        return null;
+    }
+
+    public com.director.ui.timeline.model.camera.path.CustomPathClip findCustomPathClipForKeyframe(
+            com.director.ui.timeline.model.camera.CameraKeyframe keyframe) {
+        if (keyframe == null) {
+            return null;
+        }
+        for (TimelineTrack track : tracks) {
+            com.director.ui.timeline.model.camera.path.CustomPathClip clip = track.findCustomPathClipForKeyframe(keyframe);
+            if (clip != null) {
+                return clip;
+            }
+        }
         return null;
     }
 
@@ -885,6 +903,16 @@ public class TimelineModel implements ITimelineProject {
             }
 
             if (track != null) {
+                for (com.director.ui.timeline.model.camera.path.CameraPathClip pathClip : track.getCameraPathClips()) {
+                    if (pathClip == null) continue;
+                    maxEndTime = Math.max(maxEndTime, pathClip.getEndTime());
+                    if (pathClip instanceof com.director.ui.timeline.model.camera.path.CustomPathClip customPathClip) {
+                        for (com.director.ui.timeline.model.camera.CameraKeyframe keyframe : customPathClip.getKeyframes()) {
+                            if (keyframe == null) continue;
+                            maxEndTime = Math.max(maxEndTime, keyframe.getTime());
+                        }
+                    }
+                }
                 for (TimelineClip clip : track.getClips()) {
                     maxEndTime = Math.max(maxEndTime, clip.getEndTime());
                     // clip 内关键帧（理论上应在 clip 范围内，但这里做兜底）

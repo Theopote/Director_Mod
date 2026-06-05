@@ -24,6 +24,7 @@ import com.director.ui.timeline.model.TrackType;
 import com.director.ui.timeline.model.camera.CameraKeyframe;
 import com.director.ui.timeline.model.audio.AudioEvent;
 import com.director.ui.timeline.model.camera.path.CranePathClip;
+import com.director.ui.timeline.model.camera.path.CustomPathClip;
 import com.director.ui.timeline.model.camera.path.DollyPathClip;
 import com.director.ui.timeline.model.camera.path.OrbitPathClip;
 import com.director.ui.timeline.model.entity.EntityActionClip;
@@ -596,26 +597,20 @@ public class TimelineContextMenuFactory {
                     .separator();
                 
                 if (isActiveTrack) {
-                    // 激活轨道：可以添加关键帧和路径片段
+                    // 激活轨道：摄像机路径统一以片段形式创建，关键帧只能添加到自定义路径片段内
                     builder
-                        .submenu("摄像机关键帧")
-                            .item("添加摄像机关键帧", () -> {
-                                // 在执行时获取当前时间（可能是菜单打开后播放头移动了）
-                                float currentTime = model.getCurrentTime();
-                                String timeLabel = formatTime(currentTime);
-                                CameraKeyframe keyframe = new CameraKeyframe("Camera @" + timeLabel, currentTime);
-                                // ⭐ 修复：检查捕获是否成功，避免以默认值 (0,0,0) 添加关键帧
-                                boolean captured = TimelineCameraController.getInstance().captureFromCurrentCamera(keyframe);
-                                if (!captured) {
-                                    LOGGER.warn("[TimelineContextMenu] 摄像机状态捕获失败（可能不在玩家模式），取消添加关键帧");
-                                    return;
-                                }
-                                // 执行命令
-                                commandHistory.executeCommand(new AddAutomationKeyframeCommand(model, track, keyframe));
-                            })
-                        .end()
-                        .separator()
                         .submenu("摄像机路径")
+                            .item("创建自定义路径", () -> {
+                                float currentTime = model.getCurrentTime();
+                                CustomPathClip customClip = getCustomPathClip(currentTime);
+                                commandHistory.executeCommand(
+                                    new com.director.ui.timeline.commands.AddPathClipCommand(model, track, customClip)
+                                );
+                                model.selectItem(customClip, false);
+                                com.director.ui.selection.SelectionManager.get().setCurrentSelection(customClip);
+                                LOGGER.info("[TimelineContextMenuFactory] 创建自定义路径: {} @ {:.2f}s",
+                                    customClip.getName(), currentTime);
+                            })
                             .item("创建围绕路径 (Orbit)", () -> {
                                 // 创建 Orbit Path Clip
                                 float currentTime = model.getCurrentTime();
@@ -666,11 +661,8 @@ public class TimelineContextMenuFactory {
                             })
                         .end();
                 } else {
-                    // 非激活轨道：禁用添加关键帧选项
+                    // 非激活轨道：禁用路径创建
                     builder
-                        .submenu("摄像机关键帧")
-                            .disabledItem("添加摄像机关键帧（仅激活轨道可用）")
-                        .end()
                         .submenu("摄像机路径")
                             .disabledItem("创建路径（仅激活轨道可用）")
                         .end();
@@ -763,6 +755,15 @@ public class TimelineContextMenuFactory {
         // 设置默认参数
         craneClip.setHeightDelta(10.0f); // 默认高度变化 10 方块（上升）
         return craneClip;
+    }
+
+    private @NotNull CustomPathClip getCustomPathClip(float currentTime) {
+        float duration = 5.0f;
+        return new CustomPathClip(
+            "自定义路径 @" + formatTime(currentTime),
+            currentTime,
+            currentTime + duration
+        );
     }
 
     private @NotNull DollyPathClip getDollyPathClip(float currentTime) {
@@ -874,7 +875,27 @@ public class TimelineContextMenuFactory {
                     LOGGER.info("[TimelineContextMenuFactory] 打开 Path Clip 属性: {}", clip.getName());
                 })
                 .separator()
-                .command("删除 Path Clip", 
+                ;
+
+        if (clip instanceof CustomPathClip customPathClip) {
+            builder.item("添加摄像机关键帧", () -> {
+                float currentTime = Math.max(customPathClip.getStartTime(),
+                        Math.min(customPathClip.getEndTime(), model.getCurrentTime()));
+                String timeLabel = formatTime(currentTime);
+                CameraKeyframe keyframe = new CameraKeyframe("Camera @" + timeLabel, currentTime);
+                boolean captured = TimelineCameraController.getInstance().captureFromCurrentCamera(keyframe);
+                if (!captured) {
+                    LOGGER.warn("[TimelineContextMenu] 摄像机状态捕获失败（可能不在玩家模式），取消添加关键帧");
+                    return;
+                }
+                commandHistory.executeCommand(
+                    new com.director.ui.timeline.commands.AddCameraPathKeyframeCommand(model, customPathClip, keyframe)
+                );
+            });
+            builder.separator();
+        }
+
+        builder.command("删除 Path Clip", 
                     new com.director.ui.timeline.commands.DeletePathClipCommand(model, track, clip), 
                     "Del");
         

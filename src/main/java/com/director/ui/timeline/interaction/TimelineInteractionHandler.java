@@ -543,7 +543,7 @@ public class TimelineInteractionHandler {
                 if (trackType == com.director.ui.timeline.model.TrackType.CONTAINER) {
                     tooltip = "容器轨道不支持轨道级关键帧，请使用片段内的动画配置";
                 } else if (trackType == com.director.ui.timeline.model.TrackType.CAMERA) {
-                    tooltip = "添加摄像机关键帧（仅激活轨道可用）";
+                    tooltip = "添加摄像机关键帧（需位于自定义路径片段内）";
                 } else {
                     tooltip = "添加关键帧";
                 }
@@ -1609,6 +1609,17 @@ public class TimelineInteractionHandler {
                         new MoveAutomationKeyframeBetweenTracksCommand(
                             model, handle.originalTrack, handle.currentTrack, handle.keyframe, originalTime, finalTime)
                     );
+                } else if (handle.keyframe instanceof com.director.ui.timeline.model.camera.CameraKeyframe cameraKeyframe
+                        && handle.currentTrack != null
+                        && handle.currentTrack.findCustomPathClipForKeyframe(cameraKeyframe) != null) {
+                    commandHistory.executeCommand(
+                        new com.director.ui.timeline.commands.MoveCameraPathKeyframeCommand(
+                            model,
+                            handle.currentTrack.findCustomPathClipForKeyframe(cameraKeyframe),
+                            cameraKeyframe,
+                            originalTime,
+                            finalTime)
+                    );
                 } else {
                     // ⭐⭐ 修复：改成单一命令处理
                     // 所有数据结构修改都在这里执行一次，拖动过程中不会修改模型
@@ -2179,6 +2190,17 @@ public class TimelineInteractionHandler {
         );
         updateSnapGuide(snap);
         float newTime = Math.max(0f, Math.min(model.getDuration(), snap.snappedTime));
+
+        if (handle.keyframe instanceof com.director.ui.timeline.model.camera.CameraKeyframe cameraKeyframe
+                && handle.currentTrack != null) {
+            com.director.ui.timeline.model.camera.path.CustomPathClip customPathClip =
+                    handle.currentTrack.findCustomPathClipForKeyframe(cameraKeyframe);
+            if (customPathClip != null) {
+                float eps = 0.001f;
+                newTime = Math.max(customPathClip.getStartTime() + eps, newTime);
+                newTime = Math.min(customPathClip.getEndTime() - eps, newTime);
+            }
+        }
 
         // 若变化太小，则不更新
         if (Math.abs(newTime - handle.currentTime) < 0.0005f) {

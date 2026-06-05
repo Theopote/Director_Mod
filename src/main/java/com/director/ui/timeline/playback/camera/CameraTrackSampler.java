@@ -6,6 +6,7 @@ import com.director.ui.timeline.model.camera.CameraKeyframe;
 import com.director.ui.timeline.model.camera.path.CameraPathClip;
 import com.director.ui.timeline.model.camera.path.CameraPathEnterContext;
 import com.director.ui.timeline.model.camera.path.CameraPathSample;
+import com.director.ui.timeline.model.camera.path.CustomPathClip;
 import net.minecraft.util.math.Vec3d;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -266,6 +267,14 @@ public final class CameraTrackSampler {
         CameraSample cachedKeyframeSample = null;
 
         if (activePathClip != null) {
+            if (activePathClip instanceof CustomPathClip customPathClip) {
+                CameraSample customSample = customPathClip.sampleCamera(timeSeconds);
+                if (customSample != null) {
+                    lastActivePathClip = activePathClip;
+                    lastSample = customSample;
+                    return Optional.of(customSample);
+                }
+            }
             // 使用 Path Clip 计算位置和朝向
             CameraPathSample pathSample = activePathClip.sample(timeSeconds);
 

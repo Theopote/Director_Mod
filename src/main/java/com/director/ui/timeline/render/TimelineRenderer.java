@@ -489,6 +489,40 @@ public class TimelineRenderer {
                 // 绘制文本
                 drawList.addText(textX, textY - 7, textColor, label);
             }
+
+            if (clip instanceof com.director.ui.timeline.model.camera.path.CustomPathClip customPathClip
+                    && customPathClip.hasKeyframes()) {
+                float centerY = pathClipY + pathClipHeight * 0.5f;
+                for (com.director.ui.timeline.model.camera.CameraKeyframe keyframe : customPathClip.getKeyframes()) {
+                    if (keyframe == null) {
+                        continue;
+                    }
+                    float keyTime = keyframe.getTime();
+                    if (dragStateQuery != null) {
+                        float draggedTime = dragStateQuery.getDraggedAutomationKeyframeTime(keyframe);
+                        if (draggedTime >= 0) {
+                            keyTime = draggedTime;
+                        }
+                    }
+                    if (keyTime < startTime || keyTime > endTime || keyTime < visibleStart || keyTime > visibleEnd) {
+                        continue;
+                    }
+                    float kx = math.timeToX(keyTime);
+                    if (kx < contentX || kx > contentX + contentW) {
+                        continue;
+                    }
+                    float kxAligned = (float) Math.floor(kx) + 0.5f;
+                    boolean keySelected = model != null && model.isSelected(keyframe);
+                    int kfColor = keySelected ? TimelineColors.COLOR_KEYFRAME_SELECTED : TimelineColors.COLOR_KEYFRAME;
+                    drawList.addRectFilled(kxAligned - 1.5f, pathClipY + 3f, kxAligned + 1.5f,
+                            pathClipY + pathClipHeight - 3f, TimelineColors.rgba(0, 0, 0, 80));
+                    drawList.addRectFilled(kxAligned - 0.5f, pathClipY + 3f, kxAligned + 0.5f,
+                            pathClipY + pathClipHeight - 3f, kfColor);
+                    drawList.addCircleFilled(kxAligned, centerY, TimelineClipRenderer.KEYFRAME_RADIUS + 1.0f,
+                            TimelineColors.rgba(0, 0, 0, 180));
+                    drawList.addCircleFilled(kxAligned, centerY, TimelineClipRenderer.KEYFRAME_RADIUS, kfColor);
+                }
+            }
         }
     }
     
@@ -502,6 +536,7 @@ public class TimelineRenderer {
             // 选中时：使用预计算的亮色
             return switch (pathType) {
                 case ORBIT -> TimelineColors.rgba(120, 210, 255, 240);  // 蓝色/青色（选中）
+                case CUSTOM -> TimelineColors.rgba(210, 210, 210, 240); // 自定义路径（选中）
                 case DOLLY -> TimelineColors.rgba(120, 255, 195, 240);  // 绿色（选中）
                 case CRANE -> TimelineColors.rgba(255, 210, 120, 240);  // 橙色（选中）
                 case RAIL -> TimelineColors.rgba(230, 180, 255, 240);   // 紫色（选中）
@@ -511,6 +546,7 @@ public class TimelineRenderer {
             // Hover 时：使用预计算的稍亮色
             return switch (pathType) {
                 case ORBIT -> TimelineColors.rgba(90, 190, 255, 200);   // 蓝色/青色（hover）
+                case CUSTOM -> TimelineColors.rgba(200, 200, 200, 200); // 自定义路径（hover）
                 case DOLLY -> TimelineColors.rgba(90, 255, 180, 200);   // 绿色（hover）
                 case CRANE -> TimelineColors.rgba(255, 200, 120, 200);  // 橙色（hover）
                 case RAIL -> TimelineColors.rgba(220, 170, 255, 200);  // 紫色（hover）
@@ -520,6 +556,7 @@ public class TimelineRenderer {
             // 默认：基础颜色
             return switch (pathType) {
                 case ORBIT -> TimelineColors.rgba(100, 180, 255, 180);  // 蓝色/青色
+                case CUSTOM -> TimelineColors.rgba(180, 180, 180, 180); // 自定义路径
                 case DOLLY -> TimelineColors.rgba(100, 255, 150, 180);  // 绿色
                 case CRANE -> TimelineColors.rgba(255, 180, 100, 180);  // 橙色
                 case RAIL -> TimelineColors.rgba(200, 150, 255, 180);   // 紫色
@@ -535,6 +572,7 @@ public class TimelineRenderer {
     private String getPathClipLabelFast(CameraPathClip clip, CameraPathType pathType) {
         String typeName = switch (pathType) {
             case ORBIT -> "ORBIT";
+            case CUSTOM -> "CUSTOM";
             case DOLLY -> "DOLLY";
             case CRANE -> "CRANE";
             case RAIL -> "RAIL";
@@ -553,6 +591,10 @@ public class TimelineRenderer {
             // String.format 会创建 Formatter 对象，相对昂贵
             int angleInt = Math.round(angleRange);
             return typeName + " · " + angleInt + "°";
+        }
+
+        if (pathType == CameraPathType.CUSTOM && clip instanceof com.director.ui.timeline.model.camera.path.CustomPathClip custom) {
+            return typeName + " · " + custom.getKeyframes().size() + " KF";
         }
         
         return typeName;

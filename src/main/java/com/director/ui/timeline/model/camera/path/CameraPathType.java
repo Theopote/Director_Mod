@@ -9,8 +9,8 @@ package com.director.ui.timeline.model.camera.path;
  * @version 1.0
  */
 public enum CameraPathType {
-    /** 自由路径（现有关键帧插值路径） */
-    FREE,
+    /** 自定义路径（用户在片段内设置摄像机关键帧） */
+    CUSTOM,
     
     /** 围绕路径（Orbit - 围绕中心点旋转） */
     ORBIT,

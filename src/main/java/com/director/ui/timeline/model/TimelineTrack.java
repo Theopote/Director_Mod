@@ -2,7 +2,9 @@ package com.director.ui.timeline.model;
 
 import com.director.ui.timeline.model.audio.AudioEvent;
 import com.director.ui.timeline.model.camera.CameraViewportProfile;
+import com.director.ui.timeline.model.camera.CameraKeyframe;
 import com.director.ui.timeline.model.camera.path.CameraPathClip;
+import com.director.ui.timeline.model.camera.path.CustomPathClip;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -395,6 +397,30 @@ public class TimelineTrack {
         for (CameraPathClip clip : cameraPathClips) {
             if (clip.isActiveAt(timeSeconds)) {
                 return clip;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 查找指定时间点可写入关键帧的自定义路径片段。
+     */
+    public CustomPathClip findCustomPathClipAt(float timeSeconds) {
+        for (CameraPathClip clip : cameraPathClips) {
+            if (clip instanceof CustomPathClip custom && custom.isActiveAt(timeSeconds)) {
+                return custom;
+            }
+        }
+        return null;
+    }
+
+    public CustomPathClip findCustomPathClipForKeyframe(CameraKeyframe keyframe) {
+        if (keyframe == null) {
+            return null;
+        }
+        for (CameraPathClip clip : cameraPathClips) {
+            if (clip instanceof CustomPathClip custom && custom.containsKeyframe(keyframe)) {
+                return custom;
             }
         }
         return null;

@@ -120,7 +120,18 @@ public class BatchDeleteSelectionCommand extends BaseTimelineCommand {
             if (track == null) continue;
             if (track.isLocked()) continue;
 
-            TimelineCommand cmd = new RemoveAutomationKeyframeCommand(model, track, selectable);
+            TimelineCommand cmd;
+            if (selectable instanceof com.director.ui.timeline.model.camera.CameraKeyframe cameraKeyframe) {
+                com.director.ui.timeline.model.camera.path.CustomPathClip customPathClip =
+                        model.findCustomPathClipForKeyframe(cameraKeyframe);
+                if (customPathClip != null) {
+                    cmd = new RemoveCameraPathKeyframeCommand(model, customPathClip, cameraKeyframe);
+                } else {
+                    cmd = new RemoveAutomationKeyframeCommand(model, track, selectable);
+                }
+            } else {
+                cmd = new RemoveAutomationKeyframeCommand(model, track, selectable);
+            }
             cmd.execute();
             executed.add(cmd);
         }
@@ -161,10 +172,16 @@ public class BatchDeleteSelectionCommand extends BaseTimelineCommand {
     private TimelineTrack findOwnerTrackForAutomationKeyframe(TimelineSelectable keyframe) {
         if (keyframe == null || model == null) return null;
         for (TimelineTrack t : model.getTracks()) {
-            if (t == null || !t.hasAutomationKeyframes()) continue;
-            boolean contains = t.getAutomationKeyframes().stream()
-                    .anyMatch(x -> x != null && keyframe.getId().equals(x.getId()));
-            if (contains) return t;
+            if (t == null) continue;
+            if (t.hasAutomationKeyframes()) {
+                boolean contains = t.getAutomationKeyframes().stream()
+                        .anyMatch(x -> x != null && keyframe.getId().equals(x.getId()));
+                if (contains) return t;
+            }
+            if (keyframe instanceof com.director.ui.timeline.model.camera.CameraKeyframe cameraKeyframe
+                    && t.findCustomPathClipForKeyframe(cameraKeyframe) != null) {
+                return t;
+            }
         }
         return null;
     }

@@ -119,6 +119,15 @@ public final class TimelineHitTest {
         // 时间坐标
         float timeAtMouse = renderer.xToTime(mouseX, contentX);
 
+        // 自定义摄像机路径片段内的关键帧优先于 Path Clip 块命中
+        if (track.getType() == com.director.ui.timeline.model.TrackType.CAMERA && track.hasCameraPathClips()) {
+            TimelineHitResult pathKeyHit = hitTestCameraPathKeyframes(renderer, model, track, trackIndex,
+                    mouseX, mouseY, contentX, trackY, trackBottom);
+            if (pathKeyHit.type() == TimelineHitResult.HitType.AUTOMATION_KEYFRAME) {
+                return pathKeyHit;
+            }
+        }
+
         // ⭐ 命中 Path Clip（在关键帧之前检测，但优先级低于关键帧）
         if (track.getType() == com.director.ui.timeline.model.TrackType.CAMERA && track.hasCameraPathClips()) {
             PathClipHit pathClipHit = hitTestPathClips(renderer, model, track, trackIndex,
@@ -310,7 +319,7 @@ public final class TimelineHitTest {
         float scrollX = model.getScrollX();
         
         // Path Clip 高度和位置（与渲染逻辑一致）
-        float pathClipHeight = TimelineRenderer.getTrackHeight() * 0.45f;
+        float pathClipHeight = com.director.ui.timeline.render.TimelineClipRenderer.CLIP_HEIGHT;
         float pathClipY = trackTop + (TimelineRenderer.getTrackHeight() - pathClipHeight) * 0.5f;
         float pathClipBottom = pathClipY + pathClipHeight;
         
@@ -358,6 +367,65 @@ public final class TimelineHitTest {
         }
         
         return null;
+    }
+
+    private static TimelineHitResult hitTestCameraPathKeyframes(
+            TimelineRenderer renderer,
+            TimelineModel model,
+            TimelineTrack track,
+            int trackIndex,
+            float mouseX,
+            float mouseY,
+            float contentX,
+            float trackTop,
+            float trackBottom
+    ) {
+        if (track == null || !track.hasCameraPathClips()) {
+            return TimelineHitResult.none();
+        }
+
+        float pathClipHeight = com.director.ui.timeline.render.TimelineClipRenderer.CLIP_HEIGHT;
+        float pathClipY = trackTop + (TimelineRenderer.getTrackHeight() - pathClipHeight) * 0.5f;
+        float pathClipBottom = pathClipY + pathClipHeight;
+        if (mouseY < pathClipY || mouseY > pathClipBottom) {
+            return TimelineHitResult.none();
+        }
+
+        float pps = model.getPixelsPerSecond();
+        float scrollX = model.getScrollX();
+        float centerY = pathClipY + pathClipHeight * 0.5f;
+        float bestDistSq = Float.MAX_VALUE;
+        com.director.ui.timeline.model.camera.CameraKeyframe bestKeyframe = null;
+
+        for (com.director.ui.timeline.model.camera.path.CameraPathClip pathClip : track.getCameraPathClips()) {
+            if (!(pathClip instanceof com.director.ui.timeline.model.camera.path.CustomPathClip customPathClip)
+                    || !customPathClip.isEnabled()) {
+                continue;
+            }
+            for (com.director.ui.timeline.model.camera.CameraKeyframe keyframe : customPathClip.getKeyframes()) {
+                if (keyframe == null) {
+                    continue;
+                }
+                float keyTime = keyframe.getTime();
+                if (keyTime < customPathClip.getStartTime() || keyTime > customPathClip.getEndTime()) {
+                    continue;
+                }
+                float kx = contentX + (keyTime * pps) - scrollX;
+                float dx = mouseX - kx;
+                float dy = mouseY - centerY;
+                float distSq = dx * dx + dy * dy;
+                float r = TimelineRenderer.getKeyframeHitRadius();
+                if (distSq <= r * r && distSq < bestDistSq) {
+                    bestDistSq = distSq;
+                    bestKeyframe = keyframe;
+                }
+            }
+        }
+
+        if (bestKeyframe != null) {
+            return TimelineHitResult.automationKeyframe(track, bestKeyframe, trackIndex);
+        }
+        return TimelineHitResult.none();
     }
 
     private static TimelineHitResult hitTestAutomationKeyframes(

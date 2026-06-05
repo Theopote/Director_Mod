@@ -1,6 +1,7 @@
 package com.director.ui.timeline.menu;
 
 import com.director.ui.timeline.commands.RemoveAutomationKeyframeCommand;
+import com.director.ui.timeline.commands.RemoveCameraPathKeyframeCommand;
 import com.director.ui.timeline.commands.BatchRemoveAutomationKeyframesCommand;
 import com.director.ui.timeline.commands.BatchChangeCameraKeyframeKeyTypeCommand;
 import com.director.ui.timeline.commands.BatchChangeCameraKeyframeSegmentTypeCommand;
@@ -180,9 +181,17 @@ public class CameraKeyframeContextMenu extends TimelineContextMenu {
             });
         }
 
-        addCommandItem("删除关键帧",
-                new RemoveAutomationKeyframeCommand(model, track, keyframe),
-                "Del");
+        com.director.ui.timeline.model.camera.path.CustomPathClip ownerPathClip =
+                model.findCustomPathClipForKeyframe(keyframe);
+        if (ownerPathClip != null) {
+            addCommandItem("删除关键帧",
+                    new RemoveCameraPathKeyframeCommand(model, ownerPathClip, keyframe),
+                    "Del");
+        } else {
+            addCommandItem("删除关键帧",
+                    new RemoveAutomationKeyframeCommand(model, track, keyframe),
+                    "Del");
+        }
     }
 
     // ------------------------------------------------

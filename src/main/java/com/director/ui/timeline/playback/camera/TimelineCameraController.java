@@ -7,6 +7,8 @@ import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.TrackType;
 import com.director.ui.timeline.model.TimelineSelectable;
 import com.director.ui.timeline.model.camera.CameraKeyframe;
+import com.director.ui.timeline.model.camera.path.CameraPathClip;
+import com.director.ui.timeline.model.camera.path.CustomPathClip;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Vector3f;
@@ -799,6 +801,11 @@ public final class TimelineCameraController {
         for (TimelineSelectable selectable : track.getAutomationKeyframes()) {
             if (selectable instanceof CameraKeyframe ck) {
                 result.add(ck);
+            }
+        }
+        for (CameraPathClip pathClip : track.getCameraPathClips()) {
+            if (pathClip instanceof CustomPathClip customPathClip) {
+                result.addAll(customPathClip.getKeyframes());
             }
         }
         result.sort(Comparator.comparing(CameraKeyframe::getTime));

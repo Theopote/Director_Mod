@@ -1495,12 +1495,18 @@ public class TimelinePanel extends AbstractPanel
                     LOGGER.warn("[TimelinePanel] 当前非玩家模式，跳过摄像机关键帧捕捉");
                     return;
                 }
+                com.director.ui.timeline.model.camera.path.CustomPathClip customPathClip =
+                        track.findCustomPathClipAt(time);
+                if (customPathClip == null) {
+                    LOGGER.warn("[TimelinePanel] 摄像机关键帧只能添加到自定义路径片段内，请先创建自定义路径片段 (轨道: {})", track.getName());
+                    return;
+                }
                 CameraKeyframe keyframe = new CameraKeyframe("Camera @" + timeLabel, time);
                 // ⭐ 自动捕获完整的当前相机状态（位置、旋转、FOV等所有属性）
                 TimelineCameraController.getInstance().captureFromCurrentCamera(keyframe);
-                commandHistory.executeCommand(new AddAutomationKeyframeCommand(
+                commandHistory.executeCommand(new com.director.ui.timeline.commands.AddCameraPathKeyframeCommand(
                         model,
-                        track,
+                        customPathClip,
                         keyframe
                 ));
                 handled = true;
