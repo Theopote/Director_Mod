@@ -1503,7 +1503,11 @@ public class TimelinePanel extends AbstractPanel
                 }
                 CameraKeyframe keyframe = new CameraKeyframe("Camera @" + timeLabel, time);
                 // ⭐ 自动捕获完整的当前相机状态（位置、旋转、FOV等所有属性）
-                TimelineCameraController.getInstance().captureFromCurrentCamera(keyframe);
+                boolean captured = TimelineCameraController.getInstance().captureFromCurrentCamera(keyframe);
+                if (!captured) {
+                    LOGGER.warn("[TimelinePanel] 摄像机状态捕获失败，取消添加关键帧");
+                    return;
+                }
                 commandHistory.executeCommand(new com.director.ui.timeline.commands.AddCameraPathKeyframeCommand(
                         model,
                         customPathClip,

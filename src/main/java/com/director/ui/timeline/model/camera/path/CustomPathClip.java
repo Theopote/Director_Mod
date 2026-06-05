@@ -83,9 +83,36 @@ public class CustomPathClip extends CameraPathClip {
     }
 
     public CameraSample sampleCamera(float timeSeconds) {
-        pathManager.setKeyframes(keyframes);
-        dirty = false;
+        rebuildIfDirty();
         return pathManager.sample(timeSeconds).orElse(null);
+    }
+
+    public void offsetKeyframes(float deltaSeconds) {
+        if (Math.abs(deltaSeconds) < 0.0001f) {
+            return;
+        }
+        for (CameraKeyframe keyframe : keyframes) {
+            if (keyframe != null) {
+                keyframe.setTime(keyframe.getTime() + deltaSeconds);
+            }
+        }
+        sortAndMarkDirty();
+    }
+
+    public void remapKeyframes(float oldStart, float oldEnd, float newStart, float newEnd) {
+        float oldDuration = oldEnd - oldStart;
+        float newDuration = newEnd - newStart;
+        for (CameraKeyframe keyframe : keyframes) {
+            if (keyframe == null) {
+                continue;
+            }
+            float normalized = oldDuration > 0.0001f
+                    ? (keyframe.getTime() - oldStart) / oldDuration
+                    : 0f;
+            normalized = Math.max(0f, Math.min(1f, normalized));
+            keyframe.setTime(newStart + normalized * Math.max(0f, newDuration));
+        }
+        sortAndMarkDirty();
     }
 
     @Override

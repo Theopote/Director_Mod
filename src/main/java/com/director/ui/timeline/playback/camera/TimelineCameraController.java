@@ -242,15 +242,17 @@ public final class TimelineCameraController {
             return;
         }
 
-        List<CameraKeyframe> kfs = collectCameraKeyframes(activeCameraTrack);
-        sampler.setKeyframes(kfs);
+        markCustomPathClipsDirty(activeCameraTrack);
+        List<CameraKeyframe> trackKeyframes = collectTrackCameraKeyframes(activeCameraTrack);
+        List<CameraKeyframe> pathPreviewKeyframes = collectAllCameraKeyframes(activeCameraTrack);
+        sampler.setKeyframes(trackKeyframes);
         sampler.setCameraTrack(activeCameraTrack); // ⭐ 设置轨道引用，用于访问 Path Clips
-        pathManager.setKeyframes(kfs);
+        pathManager.setKeyframes(pathPreviewKeyframes);
         pathManager.markPathDirty();
 
         if (LOGGER.isDebugEnabled()) {
-            LOGGER.debug("[TimelineCamera] Rebuild from track '{}', keyframes = {}",
-                    activeCameraTrack.getName(), kfs.size());
+            LOGGER.debug("[TimelineCamera] Rebuild from track '{}', fallback keyframes = {}, preview keyframes = {}",
+                    activeCameraTrack.getName(), trackKeyframes.size(), pathPreviewKeyframes.size());
         }
         cameraDataDirty = false;
     }
@@ -791,18 +793,29 @@ public final class TimelineCameraController {
      * @param track 目标摄像机轨道（通常为 activeCameraTrack）
      * @return 排序后的关键帧列表
      */
-    private List<CameraKeyframe> collectCameraKeyframes(TimelineTrack track) {
+    private List<CameraKeyframe> collectTrackCameraKeyframes(TimelineTrack track) {
         List<CameraKeyframe> result = new ArrayList<>();
         if (track == null || track.getType() != TrackType.CAMERA) {
             return result;
         }
 
-        // 只收集该轨道上的关键帧，不混入其他轨道的关键帧
+        // 只收集旧数据/兼容路径中的轨道级关键帧。片段内关键帧不能进入 fallback 采样，
+        // 否则自定义路径片段会在片段外继续驱动摄像机。
         for (TimelineSelectable selectable : track.getAutomationKeyframes()) {
             if (selectable instanceof CameraKeyframe ck) {
                 result.add(ck);
             }
         }
+        result.sort(Comparator.comparing(CameraKeyframe::getTime));
+        return result;
+    }
+
+    private List<CameraKeyframe> collectAllCameraKeyframes(TimelineTrack track) {
+        List<CameraKeyframe> result = collectTrackCameraKeyframes(track);
+        if (track == null || track.getType() != TrackType.CAMERA) {
+            return result;
+        }
+
         for (CameraPathClip pathClip : track.getCameraPathClips()) {
             if (pathClip instanceof CustomPathClip customPathClip) {
                 result.addAll(customPathClip.getKeyframes());
@@ -810,6 +823,17 @@ public final class TimelineCameraController {
         }
         result.sort(Comparator.comparing(CameraKeyframe::getTime));
         return result;
+    }
+
+    private void markCustomPathClipsDirty(TimelineTrack track) {
+        if (track == null || track.getType() != TrackType.CAMERA) {
+            return;
+        }
+        for (CameraPathClip pathClip : track.getCameraPathClips()) {
+            if (pathClip instanceof CustomPathClip customPathClip) {
+                customPathClip.onKeyframeChanged();
+            }
+        }
     }
 
     /**

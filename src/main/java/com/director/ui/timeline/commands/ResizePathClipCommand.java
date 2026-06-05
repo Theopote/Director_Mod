@@ -3,6 +3,7 @@ package com.director.ui.timeline.commands;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.camera.path.CameraPathClip;
+import com.director.ui.timeline.model.camera.path.CustomPathClip;
 
 /**
  * ResizePathClipCommand - 调整 Path Clip 大小的命令
@@ -38,6 +39,9 @@ public class ResizePathClipCommand extends BaseTimelineCommand {
             return;
         }
         
+        if (clip instanceof CustomPathClip customPathClip) {
+            customPathClip.remapKeyframes(oldStart, oldEnd, newStart, newEnd);
+        }
         clip.setStartTime(newStart);
         clip.setEndTime(newEnd);
         
@@ -51,6 +55,9 @@ public class ResizePathClipCommand extends BaseTimelineCommand {
             return;
         }
         
+        if (clip instanceof CustomPathClip customPathClip) {
+            customPathClip.remapKeyframes(newStart, newEnd, oldStart, oldEnd);
+        }
         clip.setStartTime(oldStart);
         clip.setEndTime(oldEnd);
         

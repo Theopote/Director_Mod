@@ -3,6 +3,7 @@ package com.director.ui.timeline.commands;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.camera.path.CameraPathClip;
+import com.director.ui.timeline.model.camera.path.CustomPathClip;
 
 /**
  * MovePathClipCommand - 移动 Path Clip 的命令
@@ -38,6 +39,9 @@ public class MovePathClipCommand extends BaseTimelineCommand {
             return;
         }
         
+        if (clip instanceof CustomPathClip customPathClip) {
+            customPathClip.offsetKeyframes(newStart - oldStart);
+        }
         clip.setStartTime(newStart);
         clip.setEndTime(newEnd);
         
@@ -51,6 +55,9 @@ public class MovePathClipCommand extends BaseTimelineCommand {
             return;
         }
         
+        if (clip instanceof CustomPathClip customPathClip) {
+            customPathClip.offsetKeyframes(oldStart - newStart);
+        }
         clip.setStartTime(oldStart);
         clip.setEndTime(oldEnd);
         
