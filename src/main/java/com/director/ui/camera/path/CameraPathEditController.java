@@ -214,10 +214,6 @@ public final class CameraPathEditController {
         lastLeftMouseDown = leftDown;
     }
 
-    public void renderOverlay() {
-        // Deprecated: screen-space overlays are now rendered in Minecraft HUD pipeline.
-    }
-
     public void renderOverlay(float viewportX, float viewportY, float viewportW, float viewportH) {
         // Deprecated: screen-space overlays are now rendered in Minecraft HUD pipeline.
     }
@@ -426,7 +422,7 @@ public final class CameraPathEditController {
             return false;
         }
 
-        CustomPathClip customPathClip = track.findCustomPathClipAt(hit.time);
+        CustomPathClip customPathClip = hit.pathClip;
         if (customPathClip == null) {
             return false;
         }
@@ -539,11 +535,24 @@ public final class CameraPathEditController {
     }
 
     private CurveHit pickCurveHit(Vec3d rayOrigin, Vec3d rayDir) {
-        List<CameraKeyframe> keyframes = getActiveCameraKeyframes();
+        CurveHit bestHit = null;
+        for (KeyframeGroup group : getActiveCameraKeyframeGroups()) {
+            CurveHit hit = pickCurveHitInGroup(rayOrigin, rayDir, group);
+            if (hit == null) {
+                continue;
+            }
+            if (bestHit == null || hit.distance < bestHit.distance) {
+                bestHit = hit;
+            }
+        }
+        return bestHit;
+    }
+
+    private CurveHit pickCurveHitInGroup(Vec3d rayOrigin, Vec3d rayDir, KeyframeGroup group) {
+        List<CameraKeyframe> keyframes = group.keyframes;
         if (keyframes.size() < 2) {
             return null;
         }
-
         TimelineCameraPathManager manager = new TimelineCameraPathManager();
         manager.setKeyframes(keyframes);
         float start = keyframes.getFirst().getTime();
@@ -598,7 +607,7 @@ public final class CameraPathEditController {
                 next = keyframe;
             }
         }
-        return new CurveHit(bestPoint, bestTime, nearest, previous, next);
+        return new CurveHit(bestPoint, bestTime, nearest, previous, next, group.pathClip, bestDistance);
     }
 
     private SegmentHit distanceRayToSegment(Vec3d rayOrigin, Vec3d rayDir, Vec3d segA, Vec3d segB) {
@@ -714,6 +723,35 @@ public final class CameraPathEditController {
         return out;
     }
 
+    private List<KeyframeGroup> getActiveCameraKeyframeGroups() {
+        TimelineTrack track = TimelineCameraController.getInstance().getActiveCameraTrack();
+        if (track == null || track.getType() != TrackType.CAMERA) {
+            return List.of();
+        }
+
+        List<KeyframeGroup> groups = new ArrayList<>();
+        List<CameraKeyframe> legacyKeyframes = new ArrayList<>();
+        for (TimelineSelectable selectable : track.getAutomationKeyframes()) {
+            if (selectable instanceof CameraKeyframe keyframe) {
+                legacyKeyframes.add(keyframe);
+            }
+        }
+        legacyKeyframes.sort(Comparator.comparing(CameraKeyframe::getTime));
+        if (legacyKeyframes.size() >= 2) {
+            groups.add(new KeyframeGroup(null, legacyKeyframes));
+        }
+
+        for (com.director.ui.timeline.model.camera.path.CameraPathClip pathClip : track.getCameraPathClips()) {
+            if (!(pathClip instanceof CustomPathClip customPathClip) || customPathClip.getKeyframes().size() < 2) {
+                continue;
+            }
+            List<CameraKeyframe> keyframes = new ArrayList<>(customPathClip.getKeyframes());
+            keyframes.sort(Comparator.comparing(CameraKeyframe::getTime));
+            groups.add(new KeyframeGroup(customPathClip, keyframes));
+        }
+        return groups;
+    }
+
     private Vec3d toVec(Vector3f v) {
         return new Vec3d(v.x, v.y, v.z);
     }
@@ -774,8 +812,12 @@ public final class CameraPathEditController {
             float time,
             CameraKeyframe nearestKeyframe,
             CameraKeyframe previousKeyframe,
-            CameraKeyframe nextKeyframe
+            CameraKeyframe nextKeyframe,
+            CustomPathClip pathClip,
+            double distance
     ) {}
+
+    private record KeyframeGroup(CustomPathClip pathClip, List<CameraKeyframe> keyframes) {}
 
     private record ScreenPoint(double x, double y) {}
 }
