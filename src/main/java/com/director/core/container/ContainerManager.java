@@ -1205,35 +1205,6 @@ public class ContainerManager {
         return limited;
     }
 
-    public Container findBlockOwner(net.minecraft.util.math.BlockPos pos,
-                                    RegistryKey<net.minecraft.world.World> worldKey,
-                                    UUID excludingContainerId) {
-        if (pos == null) {
-            return null;
-        }
-
-        readLock.lock();
-        try {
-            for (Container container : containers.values()) {
-                if (container == null || container.isGroup()) {
-                    continue;
-                }
-                if (excludingContainerId != null && excludingContainerId.equals(container.getId())) {
-                    continue;
-                }
-                if (!sameWorldForOwnership(worldKey, container.getLevelKey())) {
-                    continue;
-                }
-                if (container.containsBlock(pos)) {
-                    return container;
-                }
-            }
-        } finally {
-            readLock.unlock();
-        }
-        return null;
-    }
-
     private boolean sameWorldForOwnership(RegistryKey<net.minecraft.world.World> target,
                                           RegistryKey<net.minecraft.world.World> owner) {
         if (target != null && owner != null) {
