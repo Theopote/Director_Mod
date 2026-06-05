@@ -515,7 +515,7 @@ public class BlockVisualStateManager {
         if (container == null) {
             return;
         }
-        setContainerOpacity(container.getId(), container.getBlocks(), alpha, useOverlay);
+        setContainerOpacity(container.getId(), container.getBlocksView(), alpha, useOverlay);
     }
     
     /**
@@ -550,8 +550,9 @@ public class BlockVisualStateManager {
         }
         BlockVisualState state = BlockVisualState.translucent(clamp01(alpha));
         state.setUseOverlay(useOverlay);
+        Set<BlockPos> containerBlocks = container.getBlocksView();
         for (BlockPos pos : blockPositions) {
-            if (pos != null && container.getBlocks().contains(pos)) {
+            if (pos != null && containerBlocks.contains(pos)) {
                 setBlockState(pos, state);
             }
         }
@@ -566,7 +567,7 @@ public class BlockVisualStateManager {
         if (container == null) {
             return;
         }
-        setBlocksState(container.getBlocks(), BlockVisualState.hidden());
+        setBlocksState(container.getBlocksView(), BlockVisualState.hidden());
     }
     
     /**
@@ -579,8 +580,9 @@ public class BlockVisualStateManager {
         if (container == null || blockPositions == null || blockPositions.isEmpty()) {
             return;
         }
+        Set<BlockPos> containerBlocks = container.getBlocksView();
         for (BlockPos pos : blockPositions) {
-            if (pos != null && container.getBlocks().contains(pos)) {
+            if (pos != null && containerBlocks.contains(pos)) {
                 setBlockState(pos, BlockVisualState.hidden());
             }
         }
@@ -595,7 +597,7 @@ public class BlockVisualStateManager {
         if (container == null) {
             return;
         }
-        setBlocksState(container.getBlocks(), BlockVisualState.normal());
+        setBlocksState(container.getBlocksView(), BlockVisualState.normal());
     }
     
     /**
@@ -649,7 +651,7 @@ public class BlockVisualStateManager {
             return Collections.emptySet();
         }
         Set<BlockPos> result = new HashSet<>();
-        for (BlockPos pos : container.getBlocks()) {
+        for (BlockPos pos : container.getBlocksView()) {
             BlockVisualState state = getBlockState(pos);
             if (!state.isNormal()) {
                 result.add(pos);

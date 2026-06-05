@@ -111,6 +111,12 @@ public class TimelineClipBlockController {
 
     private final Map<Container, ContainerBlocksCache> blocksCacheByContainer = new IdentityHashMap<>();
     private final Map<TimelineClip, ClipSequenceCache> sequenceCacheByClip = new IdentityHashMap<>();
+    private final Map<UUID, SequenceOrderCache> sequenceOrderCacheByContainerId = new HashMap<>();
+
+    private static final class SequenceOrderCache {
+        List<BlockSequenceEntry> entries;
+        Map<BlockPos, Integer> order = Map.of();
+    }
 
     private List<BlockPos> getCachedContainerBlocks(Container container) {
         if (container == null) {
@@ -126,8 +132,7 @@ public class TimelineClipBlockController {
                 || cache.modifiedTime != mod
                 || (cache.blocks.isEmpty() && container.getBlockCount() > 0)) {
             cache.modifiedTime = mod;
-            // container.getBlocks() 本身会复制一次 set；这里保证只在容器变更时做。
-            cache.blocks = new ArrayList<>(container.getBlocks());
+            cache.blocks = new ArrayList<>(container.getBlocksView());
         }
         return cache.blocks != null ? cache.blocks : List.of();
     }
@@ -697,6 +702,7 @@ public class TimelineClipBlockController {
                 TimelineClip c = e.getKey();
                 return c == null || !activeContainerIds.contains(c.getBoundContainerId());
             });
+            sequenceOrderCacheByContainerId.keySet().retainAll(activeContainerIds);
         }
 
         // ===== 节流性能日志（每 5 秒一次）=====
@@ -912,23 +918,43 @@ public class TimelineClipBlockController {
             Set<BlockPos> desired,
             Set<BlockPos> previous,
             Map<UUID, List<BlockSequenceEntry>> currentFrameSequences) {
-        LinkedHashSet<BlockPos> ordered = new LinkedHashSet<>();
         List<BlockSequenceEntry> entries = currentFrameSequences != null ? currentFrameSequences.get(containerId) : null;
-        if (entries != null) {
-            for (BlockSequenceEntry entry : entries) {
-                BlockPos pos = entry != null ? entry.getPos() : null;
-                if (pos != null && desired.contains(pos) && !previous.contains(pos)) {
-                    ordered.add(pos);
-                }
-            }
-        }
-
+        List<BlockPos> additions = new ArrayList<>();
         for (BlockPos pos : desired) {
             if (!previous.contains(pos)) {
-                ordered.add(pos);
+                additions.add(pos);
             }
         }
-        return new ArrayList<>(ordered);
+        if (additions.size() <= 1 || entries == null || entries.isEmpty()) {
+            return additions;
+        }
+
+        Map<BlockPos, Integer> order = getSequenceOrder(containerId, entries);
+        additions.sort(Comparator.comparingInt(pos -> order.getOrDefault(pos, Integer.MAX_VALUE)));
+        return additions;
+    }
+
+    private Map<BlockPos, Integer> getSequenceOrder(UUID containerId, List<BlockSequenceEntry> entries) {
+        if (containerId == null || entries == null || entries.isEmpty()) {
+            return Map.of();
+        }
+        SequenceOrderCache cache = sequenceOrderCacheByContainerId.get(containerId);
+        if (cache != null && cache.entries == entries) {
+            return cache.order;
+        }
+        Map<BlockPos, Integer> order = new HashMap<>(Math.max(16, (int) (entries.size() / 0.75f) + 1));
+        for (int i = 0; i < entries.size(); i++) {
+            BlockSequenceEntry entry = entries.get(i);
+            BlockPos pos = entry != null ? entry.getPos() : null;
+            if (pos != null) {
+                order.putIfAbsent(pos, i);
+            }
+        }
+        SequenceOrderCache next = cache != null ? cache : new SequenceOrderCache();
+        next.entries = entries;
+        next.order = order;
+        sequenceOrderCacheByContainerId.put(containerId, next);
+        return order;
     }
 
     private VisibleBlocksResult calculateVisibleBlocks(TimelineClip clip,
@@ -936,10 +962,6 @@ public class TimelineClipBlockController {
             boolean trackEnabled,
             Container container,
             ClipAnimationConfig config) {
-        // renderBlocks：用于“视觉可见”（overlay/动画采样/遮挡）
-        Set<BlockPos> renderBlocks = new HashSet<>();
-        // worldBlocks：用于“真实落地到世界”（showContainerBlocks）
-        Set<BlockPos> worldBlocks = new HashSet<>();
         List<BlockSequenceEntry> sequenceEntries = List.of();
 
         // ✅ 基于容器类型判断是否为拆除容器（不再依赖轨道类型）
@@ -947,16 +969,16 @@ public class TimelineClipBlockController {
 
         List<BlockPos> allBlocks = getCachedContainerBlocks(container);
         if (allBlocks.isEmpty()) {
-            return new VisibleBlocksResult(worldBlocks, renderBlocks, sequenceEntries);
+            return new VisibleBlocksResult(Collections.emptySet(), Collections.emptySet(), sequenceEntries);
         }
 
         // 轨道禁用：普通容器 => 隐藏；拆除容器 => 不清除（保留全量）
         if (!trackEnabled) {
             if (isDemolition) {
-                renderBlocks.addAll(allBlocks);
-                worldBlocks.addAll(allBlocks);
+                Set<BlockPos> all = newBlockSet(allBlocks);
+                return new VisibleBlocksResult(all, all, sequenceEntries);
             }
-            return new VisibleBlocksResult(worldBlocks, renderBlocks, sequenceEntries);
+            return new VisibleBlocksResult(Collections.emptySet(), Collections.emptySet(), sequenceEntries);
         }
 
         float clipStart = clip.getStartTime();
@@ -965,10 +987,10 @@ public class TimelineClipBlockController {
         // 片段左侧
         if (currentTime < clipStart) {
             if (isDemolition) {
-                renderBlocks.addAll(allBlocks);
-                worldBlocks.addAll(allBlocks);
+                Set<BlockPos> all = newBlockSet(allBlocks);
+                return new VisibleBlocksResult(all, all, sequenceEntries);
             }
-            return new VisibleBlocksResult(worldBlocks, renderBlocks, sequenceEntries);
+            return new VisibleBlocksResult(Collections.emptySet(), Collections.emptySet(), sequenceEntries);
         }
 
         // 片段范围内：按序列推进
@@ -1001,13 +1023,14 @@ public class TimelineClipBlockController {
 
             if (sequenceEntries == null || sequenceEntries.isEmpty()) {
                 // 后备：序列为空时，直接视为全量
-                renderBlocks.addAll(allBlocks);
-                worldBlocks.addAll(allBlocks);
-                return new VisibleBlocksResult(worldBlocks, renderBlocks, sequenceEntries);
+                Set<BlockPos> all = newBlockSet(allBlocks);
+                return new VisibleBlocksResult(all, all, sequenceEntries);
             }
 
             // ✅ 基于容器类型判断（不再依赖轨道类型）
             if (!isDemolition) {
+                Set<BlockPos> renderBlocks = newBlockSetForExpectedSize(Math.min(allBlocks.size(), sequenceEntries.size()));
+                Set<BlockPos> worldBlocks = newBlockSetForExpectedSize(Math.min(allBlocks.size(), sequenceEntries.size()));
                 // 逐步显示（ENTER）：
                 // - renderBlocks：从 blockStartTime 起可见（用于 overlay 动画）
                 // - worldBlocks ：到 blockEndTime 才落地（避免真方块提前出现在目标格）
@@ -1037,12 +1060,13 @@ public class TimelineClipBlockController {
                         }
                     }
                 }
+                return new VisibleBlocksResult(worldBlocks, renderBlocks, sequenceEntries);
             } else {
                 // 逐步清除（带退出动画窗口）：
                 // - 每个方块在自己的 EXIT 动画结束时刻被移除（即从世界中消失/置 AIR）
                 // - 在此之前一直保留在 visible 集合中，供 BlockAnimationEngine 采样退出动画
-                renderBlocks.addAll(allBlocks); // 先全量保留，再按“结束时刻”移除
-                worldBlocks.addAll(allBlocks);
+                Set<BlockPos> renderBlocks = newBlockSet(allBlocks); // 先全量保留，再按“结束时刻”移除
+                Set<BlockPos> worldBlocks = newBlockSet(allBlocks);
                 // ✅ INSTANT 模式：到达开始时间就立即移除，不需要动画窗口（与容器片段 INSTANT 模式对称）
                 boolean isInstant = false;
                 try {
@@ -1085,23 +1109,37 @@ public class TimelineClipBlockController {
                         // 动画开始前：方块仍在 renderBlocks 和 worldBlocks 中（完全可见）
                     }
                 }
+                return new VisibleBlocksResult(worldBlocks, renderBlocks, sequenceEntries);
             }
-
-            return new VisibleBlocksResult(worldBlocks, renderBlocks, sequenceEntries);
         }
 
         // 片段右侧
         if (currentTime > clipEnd) {
             if (!isDemolition) {
                 // 普通容器：全量显示
-                renderBlocks.addAll(allBlocks);
-                worldBlocks.addAll(allBlocks);
+                Set<BlockPos> all = newBlockSet(allBlocks);
+                return new VisibleBlocksResult(all, all, sequenceEntries);
             } else {
                 // 拆除容器：全清除 => 保持空集合
+                return new VisibleBlocksResult(Collections.emptySet(), Collections.emptySet(), sequenceEntries);
             }
         }
 
-        return new VisibleBlocksResult(worldBlocks, renderBlocks, sequenceEntries);
+        return new VisibleBlocksResult(Collections.emptySet(), Collections.emptySet(), sequenceEntries);
+    }
+
+    private static Set<BlockPos> newBlockSet(Collection<BlockPos> blocks) {
+        if (blocks == null || blocks.isEmpty()) {
+            return Collections.emptySet();
+        }
+        Set<BlockPos> set = newBlockSetForExpectedSize(blocks.size());
+        set.addAll(blocks);
+        return set;
+    }
+
+    private static Set<BlockPos> newBlockSetForExpectedSize(int expectedSize) {
+        int capacity = Math.max(16, (int) (expectedSize / 0.75f) + 1);
+        return new HashSet<>(capacity);
     }
 
     /**

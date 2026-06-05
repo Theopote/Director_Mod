@@ -35,7 +35,7 @@ public class BlockOcclusionResolver {
                 continue;
             }
             Set<BlockPos> hits = new HashSet<>();
-            for (BlockPos pos : candidate.getBlocks()) {
+            for (BlockPos pos : candidate.getBlocksView()) {
                 if (targetBox.contains(pos)) {
                     hits.add(pos);
                 }

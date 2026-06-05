@@ -35,8 +35,8 @@ public final class BlockSequenceGenerator {
         }
 
         List<BlockPos> blocks = sourceBlocks != null && !sourceBlocks.isEmpty()
-            ? new ArrayList<>(sourceBlocks)
-            : new ArrayList<>(container.getBlocks());
+            ? sourceBlocks
+            : new ArrayList<>(container.getBlocksView());
 
         Container.BoundingBox bbox = container.getBoundingBox();
 
@@ -112,8 +112,8 @@ public final class BlockSequenceGenerator {
         }
 
         List<BlockPos> blocks = sourceBlocks != null && !sourceBlocks.isEmpty()
-            ? new ArrayList<>(sourceBlocks)
-            : new ArrayList<>(container.getBlocks());
+            ? sourceBlocks
+            : new ArrayList<>(container.getBlocksView());
 
         Container.BoundingBox bbox = container.getBoundingBox();
 
@@ -234,9 +234,9 @@ public final class BlockSequenceGenerator {
     private static List<BlockSequenceEntry> generateDefault(List<BlockPos> sourceBlocks, Container container) {
         List<BlockPos> blocks;
         if (sourceBlocks != null && !sourceBlocks.isEmpty()) {
-            blocks = new ArrayList<>(sourceBlocks);
+            blocks = sourceBlocks;
         } else if (container != null) {
-            blocks = new ArrayList<>(container.getBlocks());
+            blocks = new ArrayList<>(container.getBlocksView());
         } else {
             blocks = List.of();
         }
