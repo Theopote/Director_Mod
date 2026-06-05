@@ -179,6 +179,7 @@ public final class TimelineCameraController {
      * 仅让路径缓存失效，不触发关键帧列表重建。
      */
     public synchronized void onKeyframePreviewMoved() {
+        markCustomPathClipsDirty(activeCameraTrack);
         pathManager.markPathDirty();
     }
 

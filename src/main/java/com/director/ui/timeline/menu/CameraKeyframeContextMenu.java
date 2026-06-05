@@ -2,7 +2,7 @@ package com.director.ui.timeline.menu;
 
 import com.director.ui.timeline.commands.RemoveAutomationKeyframeCommand;
 import com.director.ui.timeline.commands.RemoveCameraPathKeyframeCommand;
-import com.director.ui.timeline.commands.BatchRemoveAutomationKeyframesCommand;
+import com.director.ui.timeline.commands.BatchDeleteSelectionCommand;
 import com.director.ui.timeline.commands.BatchChangeCameraKeyframeKeyTypeCommand;
 import com.director.ui.timeline.commands.BatchChangeCameraKeyframeSegmentTypeCommand;
 import com.director.ui.timeline.commands.BatchChangeCameraKeyframeRotationInterpolationCommand;
@@ -171,11 +171,10 @@ public class CameraKeyframeContextMenu extends TimelineContextMenu {
 
         if (isMulti) {
             addItem("删除选中", () -> {
-                List<BatchRemoveAutomationKeyframesCommand.Entry> entries = new ArrayList<>();
-                for (CameraKeyframe ckf : selectedCameraKeyframes) {
-                    entries.add(new BatchRemoveAutomationKeyframesCommand.Entry(track, ckf));
-                }
-                getCommandHistory().executeCommand(new BatchRemoveAutomationKeyframesCommand(model, entries));
+                getCommandHistory().executeCommand(new BatchDeleteSelectionCommand(
+                        model,
+                        new ArrayList<>(selectedCameraKeyframes)
+                ));
                 TimelineCameraController.getInstance().onKeyframeChanged();
                 LOGGER.debug("[Timeline] 批量删除摄像机关键帧: {}", selectedCameraKeyframes.size());
             });

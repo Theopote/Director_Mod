@@ -12,6 +12,7 @@ import com.director.ui.timeline.model.TimelineSelectable;
 import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.TrackType;
 import com.director.ui.timeline.model.camera.CameraKeyframe;
+import com.director.ui.timeline.model.camera.path.CustomPathClip;
 import com.director.ui.timeline.playback.camera.CameraSample;
 import com.director.ui.timeline.playback.camera.TimelineCameraController;
 import com.director.ui.timeline.playback.camera.TimelineCameraPathManager;
@@ -327,6 +328,17 @@ public final class CameraPathEditController {
             track.removeAutomationKeyframe(selectable.getId());
             removed++;
         }
+        for (com.director.ui.timeline.model.camera.path.CameraPathClip pathClip : track.getCameraPathClips()) {
+            if (!(pathClip instanceof CustomPathClip customPathClip)) {
+                continue;
+            }
+            for (CameraKeyframe keyframe : new ArrayList<>(customPathClip.getKeyframes())) {
+                if (keyframe != null && selectedIds.contains(keyframe.getId())
+                        && customPathClip.removeKeyframe(keyframe.getId())) {
+                    removed++;
+                }
+            }
+        }
 
         if (removed <= 0) {
             return;
@@ -414,8 +426,13 @@ public final class CameraPathEditController {
             return false;
         }
 
+        CustomPathClip customPathClip = track.findCustomPathClipAt(hit.time);
+        if (customPathClip == null) {
+            return false;
+        }
+
         TimelineCameraPathManager manager = new TimelineCameraPathManager();
-        manager.setKeyframes(getActiveCameraKeyframes());
+        manager.setKeyframes(customPathClip.getKeyframes());
         CameraSample sample = manager.sample(hit.time).orElse(null);
         if (sample == null) {
             return false;
@@ -423,7 +440,7 @@ public final class CameraPathEditController {
 
         CameraKeyframe keyframe = getCameraKeyframe(hit, sample);
 
-        track.addAutomationKeyframe(keyframe);
+        customPathClip.addKeyframe(keyframe);
         TimelineCameraController.getInstance().onKeyframeChanged();
 
         TimelineModel model = getTimelineModel();
@@ -674,7 +691,7 @@ public final class CameraPathEditController {
                 return true;
             }
         }
-        return false;
+        return track.findCustomPathClipForKeyframe(keyframe) != null;
     }
 
     private List<CameraKeyframe> getActiveCameraKeyframes() {
@@ -686,6 +703,11 @@ public final class CameraPathEditController {
         for (TimelineSelectable selectable : track.getAutomationKeyframes()) {
             if (selectable instanceof CameraKeyframe keyframe) {
                 out.add(keyframe);
+            }
+        }
+        for (com.director.ui.timeline.model.camera.path.CameraPathClip pathClip : track.getCameraPathClips()) {
+            if (pathClip instanceof CustomPathClip customPathClip) {
+                out.addAll(customPathClip.getKeyframes());
             }
         }
         out.sort(Comparator.comparing(CameraKeyframe::getTime));
