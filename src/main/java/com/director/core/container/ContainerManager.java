@@ -999,6 +999,13 @@ public class ContainerManager {
             LOGGER.warn("[ContainerManager] 无法从选区创建容器：选区方块已被其他容器占用");
             return null;
         }
+        int maxBlocks = getMaxBlocksPerContainer();
+        if (maxBlocks > 0 && blocks.size() > maxBlocks) {
+            LOGGER.warn("[ContainerManager] 无法从选区创建容器：选区方块数 {} 超过上限 {}",
+                    blocks.size(), maxBlocks);
+            return null;
+        }
+        warnIfLargeContainer("从选区创建容器", blocks.size());
 
         String name = generateUniqueName("选区容器");
         Container container = createContainer(name, ContainerType.GENERAL);
@@ -1061,10 +1068,23 @@ public class ContainerManager {
             return;
         }
 
-        int skipped = positions.size() - accepted.size();
-        if (skipped > 0) {
+        int ownershipAccepted = accepted.size();
+        accepted = limitBlocksForContainer(container, accepted);
+        if (accepted.isEmpty()) {
+            LOGGER.warn("[ContainerManager] 容器 {} 添加方块失败：已达到单容器方块上限 {}",
+                    container.getName(), getMaxBlocksPerContainer());
+            return;
+        }
+
+        int ownershipSkipped = positions.size() - ownershipAccepted;
+        if (ownershipSkipped > 0) {
             LOGGER.warn("[ContainerManager] 容器 {} 跳过 {} 个已被其他容器占用的方块",
-                    container.getName(), skipped);
+                    container.getName(), ownershipSkipped);
+        }
+        int limitSkipped = ownershipAccepted - accepted.size();
+        if (limitSkipped > 0) {
+            LOGGER.warn("[ContainerManager] 容器 {} 因数量上限跳过 {} 个方块",
+                    container.getName(), limitSkipped);
         }
 
         // 添加方块
@@ -1124,12 +1144,65 @@ public class ContainerManager {
             return accepted;
         }
 
+        java.util.Set<net.minecraft.util.math.BlockPos> owned = new java.util.HashSet<>();
+        readLock.lock();
+        try {
+            for (Container container : containers.values()) {
+                if (container == null || container.isGroup()) {
+                    continue;
+                }
+                if (excludingContainerId != null && excludingContainerId.equals(container.getId())) {
+                    continue;
+                }
+                if (!sameWorldForOwnership(worldKey, container.getLevelKey())) {
+                    continue;
+                }
+                owned.addAll(container.getBlocksView());
+            }
+        } finally {
+            readLock.unlock();
+        }
+
         for (net.minecraft.util.math.BlockPos pos : positions) {
-            if (pos != null && findBlockOwner(pos, worldKey, excludingContainerId) == null) {
+            if (pos != null && !owned.contains(pos)) {
                 accepted.add(pos);
             }
         }
         return accepted;
+    }
+
+    public java.util.Set<net.minecraft.util.math.BlockPos> limitBlocksForContainer(
+            Container container,
+            Collection<net.minecraft.util.math.BlockPos> positions) {
+        java.util.Set<net.minecraft.util.math.BlockPos> limited = new java.util.LinkedHashSet<>();
+        if (container == null || positions == null || positions.isEmpty()) {
+            return limited;
+        }
+
+        int maxBlocks = getMaxBlocksPerContainer();
+        int current = container.getBlockCount();
+        int capacity = maxBlocks <= 0 ? Integer.MAX_VALUE : Math.max(0, maxBlocks - current);
+        if (capacity <= 0) {
+            return limited;
+        }
+
+        for (net.minecraft.util.math.BlockPos pos : positions) {
+            if (pos == null || container.containsBlock(pos)) {
+                continue;
+            }
+            limited.add(pos);
+            if (limited.size() >= capacity) {
+                break;
+            }
+        }
+
+        int finalCount = current + limited.size();
+        if (positions.size() > limited.size() && maxBlocks > 0) {
+            LOGGER.warn("[ContainerManager] 容器 {} 添加方块被上限裁剪: 请求 {}，实际 {}，上限 {}",
+                    container.getName(), positions.size(), limited.size(), maxBlocks);
+        }
+        warnIfLargeContainer("容器 " + container.getName(), finalCount);
+        return limited;
     }
 
     public Container findBlockOwner(net.minecraft.util.math.BlockPos pos,
@@ -1167,6 +1240,30 @@ public class ContainerManager {
             return target.equals(owner);
         }
         return true;
+    }
+
+    private int getWarnBlocksPerContainer() {
+        try {
+            return Math.max(0, com.director.config.DirectorConfig.getConfig().performance.warnBlocksPerContainer);
+        } catch (Exception ignored) {
+            return 50000;
+        }
+    }
+
+    private int getMaxBlocksPerContainer() {
+        try {
+            return Math.max(0, com.director.config.DirectorConfig.getConfig().performance.maxBlocksPerContainer);
+        } catch (Exception ignored) {
+            return 200000;
+        }
+    }
+
+    private void warnIfLargeContainer(String context, int blockCount) {
+        int warnBlocks = getWarnBlocksPerContainer();
+        if (warnBlocks > 0 && blockCount >= warnBlocks) {
+            LOGGER.warn("[ContainerManager] {} 方块数较大: {}，隐藏/恢复/保存可能需要更长时间",
+                    context, blockCount);
+        }
     }
 
     private void syncVisibilityForAddedContainer(Container container) {

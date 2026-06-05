@@ -59,6 +59,8 @@ public class DirectorConfig {
         
         public static class PerformanceSettings {
             public boolean enableOptimizations = true;
+            public int warnBlocksPerContainer = 50000;
+            public int maxBlocksPerContainer = 200000;
         }
         
         public static class UISettings {

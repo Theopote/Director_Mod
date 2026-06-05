@@ -40,6 +40,10 @@ public class AddBlocksToContainerCommand implements ContainerCommand {
     public void execute() {
         actuallyAdded.clear();
         Collection<BlockPos> acceptedBlocks = filterUnownedBlocks();
+        ContainerManager manager = ContainerManager.getInstance();
+        if (manager != null) {
+            acceptedBlocks = manager.limitBlocksForContainer(container, acceptedBlocks);
+        }
         for (BlockPos pos : acceptedBlocks) {
             if (pos != null && !container.containsBlock(pos)) {
                 actuallyAdded.add(pos);

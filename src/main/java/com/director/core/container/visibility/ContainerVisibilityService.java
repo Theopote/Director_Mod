@@ -96,7 +96,8 @@ public class ContainerVisibilityService {
             
             // 找出新增的方块（在容器中但不在快照中）
             java.util.Set<BlockPos> existingBlocks = new java.util.HashSet<>(existingStore.positions());
-            for (BlockPos pos : container.getBlocks()) {
+            java.util.Map<Long, Boolean> chunkLoadCache = new java.util.HashMap<>();
+            for (BlockPos pos : container.getBlocksView()) {
                 if (existingBlocks.contains(pos)) {
                     continue; // 已经在快照中，跳过
                 }
@@ -104,12 +105,17 @@ public class ContainerVisibilityService {
                 // 检查区块是否已加载
                 int chunkX = pos.getX() >> 4;
                 int chunkZ = pos.getZ() >> 4;
-                if (!world.getChunkManager().isChunkLoaded(chunkX, chunkZ)) {
+                if (!isChunkLoadedCached(world, chunkLoadCache, chunkX, chunkZ)) {
                     continue;
                 }
                 
                 // 捕获方块状态和方块实体
                 store.capture(world, pos);
+
+                net.minecraft.block.BlockState currentState = world.getBlockState(pos);
+                if (currentState.isAir()) {
+                    continue;
+                }
                 
                 // 移除方块实体（如果存在）
                 var blockEntity = world.getBlockEntity(pos);
@@ -130,17 +136,23 @@ public class ContainerVisibilityService {
             
             // 保存当前世界中的真实方块快照
             store = new BlockStore();
+            java.util.Map<Long, Boolean> chunkLoadCache = new java.util.HashMap<>();
             
-            for (BlockPos pos : container.getBlocks()) {
+            for (BlockPos pos : container.getBlocksView()) {
                 // 检查区块是否已加载（使用新方法避免弃用警告）
                 int chunkX = pos.getX() >> 4;
                 int chunkZ = pos.getZ() >> 4;
-                if (!world.getChunkManager().isChunkLoaded(chunkX, chunkZ)) {
+                if (!isChunkLoadedCached(world, chunkLoadCache, chunkX, chunkZ)) {
                     continue;
                 }
                 
                 // 捕获方块状态和方块实体
                 store.capture(world, pos);
+
+                net.minecraft.block.BlockState currentState = world.getBlockState(pos);
+                if (currentState.isAir()) {
+                    continue;
+                }
                 
                 // 移除方块实体（如果存在）
                 var blockEntity = world.getBlockEntity(pos);
@@ -584,6 +596,17 @@ public class ContainerVisibilityService {
             LOGGER.debug("[Visibility] 容器 {} 快照已从 blockStore 补齐 {} 个方块 (总数: {})",
                     container.getName(), added, snapshot.size());
         }
+    }
+
+    private boolean isChunkLoadedCached(ServerWorld world, Map<Long, Boolean> cache, int chunkX, int chunkZ) {
+        long chunkKey = (((long) chunkX) << 32) ^ (chunkZ & 0xffffffffL);
+        Boolean cached = cache.get(chunkKey);
+        if (cached != null) {
+            return cached;
+        }
+        boolean loaded = world.getChunkManager().isChunkLoaded(chunkX, chunkZ);
+        cache.put(chunkKey, loaded);
+        return loaded;
     }
 }
 

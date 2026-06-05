@@ -409,6 +409,8 @@ public class Container {
     public int getChildCount() { return children.size(); }
     
     public Set<BlockPos> getBlocks() { return new HashSet<>(blocks); }
+
+    public Set<BlockPos> getBlocksView() { return Collections.unmodifiableSet(blocks); }
     
     public BlockPos getCenter() { return center; }
     public void setCenter(BlockPos center) { 

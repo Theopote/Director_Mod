@@ -225,7 +225,7 @@ public final class ContainerPersistence {
 
         // 坐标集合
         NbtList blocks = new NbtList();
-        for (BlockPos pos : c.getBlocks()) {
+        for (BlockPos pos : c.getBlocksView()) {
             blocks.add(NbtLong.of(pos.asLong()));
         }
         tag.put("blocks", blocks);
