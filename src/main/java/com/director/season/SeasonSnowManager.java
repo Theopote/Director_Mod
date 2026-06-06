@@ -78,6 +78,9 @@ public class SeasonSnowManager {
     /** 每 tick 最多推进多少个雪层动画记录，避免大雪场景全量遍历。 */
     private static final int MAX_SNOW_ANIMATIONS_PER_TICK = 512;
 
+    /** 每 tick 最多扫描多少个 X/Z 列，避免一次性读取大量世界状态。 */
+    private static final int GEOMETRY_SCAN_COLUMNS_PER_TICK = 512;
+
     /** 几何重新扫描的距离阈值（方块数平方，避免开方） */
     private static final int GEOMETRY_RESCAN_DISTANCE_SQ = 48 * 48;
 
@@ -85,15 +88,6 @@ public class SeasonSnowManager {
     private static final int LOD_NEAR_CHUNKS = 5;
 
     // ========= 状态 =========
-
-    /** 后台扫描线程池 */
-    private final ExecutorService scanExecutor = Executors.newSingleThreadExecutor(
-            r -> {
-                Thread t = new Thread(r, "Director-SeasonSnowScanThread");
-                t.setDaemon(true);
-                return t;
-            }
-    );
 
     /** 主线程任务队列（用于安全的方块写操作） */
     private final Queue<Runnable> mainThreadTasks = new ConcurrentLinkedQueue<>();
@@ -121,7 +115,7 @@ public class SeasonSnowManager {
     /**
      * 几何缓存：所有可能放置积雪的位置及其噪声/属性信息。
      * 
-     * <p>由后台线程写入（整体替换引用），主线程读取。
+     * <p>由主线程分批扫描后整体替换引用。
      * 使用 volatile 保证可见性。
      */
     private volatile Map<BlockPos, CachedSnowPos> geometryCache = Collections.emptyMap();
@@ -135,13 +129,14 @@ public class SeasonSnowManager {
     /** 覆盖计算是否需要更新（当 snowAmount/snowThickness/snowlineHeight 变化时设置） */
     private volatile boolean coverageNeedsUpdate = true;
 
+    /** 主线程分批几何扫描状态。 */
+    private GeometryScanState activeGeometryScan = null;
+
     // ========= 数据结构 =========
 
     /**
      * 雪记录（跟踪每个位置的雪状态）。
      * 
-     * <p>⭐ 线程安全注意：{@code targetLayers} 和 {@code meltDelay} 使用 volatile，
-     * 因为后台扫描线程写入、主线程读取。
      */
     private static class SnowRecord {
         /** 原始方块状态，用于完整恢复天然雪层或空气等原始状态 */
@@ -253,7 +248,7 @@ public class SeasonSnowManager {
      * 
      * <p>两阶段扫描：
      * <ol>
-     *   <li><b>几何发现</b>（后台，仅在玩家移动时）：扫描世界，缓存所有可放雪位置</li>
+     *   <li><b>几何发现</b>（主线程分批，仅在玩家移动时）：扫描世界，缓存所有可放雪位置</li>
      *   <li><b>覆盖评估</b>（主线程，每次参数变化时）：基于缓存数据 + 当前阈值快速计算覆盖</li>
      * </ol>
      * 
@@ -279,6 +274,7 @@ public class SeasonSnowManager {
                 || currentSample.snowThickness <= 0;
 
         if (noSnowDesired) {
+            cancelGeometryScan();
             // 不需要积雪
             if (!snowMap.isEmpty()) {
                 // ⭐ 有残留雪需要融化 → 目标设 0，继续运行动画逐层移除
@@ -298,20 +294,9 @@ public class SeasonSnowManager {
 
             if (needsGeometry && !scanRunning) {
                 geometryCacheDirty = false;
-                scanRunning = true;
-
-                scanExecutor.submit(() -> {
-                    try {
-                        scanGeometry(world, playerPos);
-                        // 几何缓存更新后，需要重新评估覆盖
-                        coverageNeedsUpdate = true;
-                    } catch (Exception e) {
-                        LOGGER.warn("[SeasonSnowManager] 几何扫描任务出错", e);
-                    } finally {
-                        scanRunning = false;
-                    }
-                });
+                startGeometryScan(world, playerPos);
             }
+            processGeometryScanBatch(world);
 
             // 4) ⭐ 覆盖评估（纯数学计算，无世界访问，成本极低）
             //    每次 snowAmount/snowThickness/snowlineHeight 变化时都会执行
@@ -347,7 +332,7 @@ public class SeasonSnowManager {
     }
 
     // ====================================================
-    // 阶段 1：几何发现（后台线程，仅在玩家移动时运行）
+    // 阶段 1：几何发现（主线程分批运行，仅在玩家移动时运行）
     // ====================================================
 
     /**
@@ -366,48 +351,94 @@ public class SeasonSnowManager {
      * @param world 客户端世界
      * @param playerPos 玩家位置（扫描中心）
      */
-    private void scanGeometry(ClientWorld world, BlockPos playerPos) {
-        int px = playerPos.getX() >> 4; // chunk X
-        int pz = playerPos.getZ() >> 4; // chunk Z
+    private void startGeometryScan(ClientWorld world, BlockPos playerPos) {
+        activeGeometryScan = new GeometryScanState(world, playerPos);
+        scanRunning = true;
+        LOGGER.debug("[SeasonSnowManager] 开始分批几何扫描，中心 {}", playerPos);
+    }
 
-        Map<BlockPos, CachedSnowPos> newCache = new HashMap<>();
+    private void cancelGeometryScan() {
+        activeGeometryScan = null;
+        scanRunning = false;
+    }
 
-        for (int cx = px - SCAN_RADIUS_CHUNKS; cx <= px + SCAN_RADIUS_CHUNKS; cx++) {
-            for (int cz = pz - SCAN_RADIUS_CHUNKS; cz <= pz + SCAN_RADIUS_CHUNKS; cz++) {
-                // LOD：计算当前 chunk 到玩家 chunk 的切比雪夫距离
-                int chunkDist = Math.max(Math.abs(cx - px), Math.abs(cz - pz));
-                int step = (chunkDist <= LOD_NEAR_CHUNKS) ? 1 : 2;
-
-                for (int bx = 0; bx < 16; bx += step) {
-                    for (int bz = 0; bz < 16; bz += step) {
-                        int wx = cx * 16 + bx;
-                        int wz = cz * 16 + bz;
-
-                        // 只查找最顶部可放雪位置（性能优化）
-                        BlockPos snowPlacePos = findSnowPlacePosition(world, wx, wz);
-                        if (snowPlacePos == null) continue;
-
-                        // 计算噪声值（位置相关，不随季节变化）
-                        float noiseValue = NoiseField.snowCoverage(snowPlacePos);
-                        float thicknessNoise = (float) new Random(Objects.hash(wx, wz)).nextGaussian();
-
-                        // 判断是否为叶子表面
-                        boolean isLeaf = isLeafSurface(world, snowPlacePos);
-
-                        BlockState originalState = world.getBlockState(snowPlacePos);
-
-                        newCache.put(snowPlacePos, new CachedSnowPos(
-                                snowPlacePos, noiseValue, thicknessNoise, isLeaf, originalState));
-                    }
-                }
-            }
+    private void processGeometryScanBatch(ClientWorld world) {
+        GeometryScanState scan = activeGeometryScan;
+        if (scan == null) {
+            return;
+        }
+        if (scan.world != world) {
+            cancelGeometryScan();
+            geometryCacheDirty = true;
+            return;
         }
 
-        // 原子替换缓存引用（volatile write）
-        this.geometryCache = newCache;
-        this.lastGeometryScanCenter = playerPos;
+        int processed = 0;
+        while (!scan.complete && processed < GEOMETRY_SCAN_COLUMNS_PER_TICK) {
+            scanGeometryColumn(scan);
+            advanceGeometryScan(scan);
+            processed++;
+        }
 
-        LOGGER.debug("[SeasonSnowManager] 几何扫描完成，缓存 {} 个位置", newCache.size());
+        if (scan.complete) {
+            this.geometryCache = scan.cache;
+            this.lastGeometryScanCenter = scan.center;
+            this.coverageNeedsUpdate = true;
+            this.activeGeometryScan = null;
+            this.scanRunning = false;
+            LOGGER.debug("[SeasonSnowManager] 几何扫描完成，缓存 {} 个位置", scan.cache.size());
+        }
+    }
+
+    private void scanGeometryColumn(GeometryScanState scan) {
+        int wx = scan.chunkX * 16 + scan.blockX;
+        int wz = scan.chunkZ * 16 + scan.blockZ;
+
+        BlockPos snowPlacePos = findSnowPlacePosition(scan.world, wx, wz);
+        if (snowPlacePos == null) {
+            return;
+        }
+
+        float noiseValue = NoiseField.snowCoverage(snowPlacePos);
+        float thicknessNoise = (float) new Random(Objects.hash(wx, wz)).nextGaussian();
+        boolean isLeaf = isLeafSurface(scan.world, snowPlacePos);
+        BlockState originalState = scan.world.getBlockState(snowPlacePos);
+
+        scan.cache.put(snowPlacePos, new CachedSnowPos(
+                snowPlacePos, noiseValue, thicknessNoise, isLeaf, originalState));
+    }
+
+    private void advanceGeometryScan(GeometryScanState scan) {
+        int step = geometryStepForChunk(scan);
+        scan.blockZ += step;
+        if (scan.blockZ < 16) {
+            return;
+        }
+
+        scan.blockZ = 0;
+        scan.blockX += step;
+        if (scan.blockX < 16) {
+            return;
+        }
+
+        scan.blockX = 0;
+        scan.chunkZ++;
+        if (scan.chunkZ <= scan.maxChunkZ) {
+            return;
+        }
+
+        scan.chunkZ = scan.minChunkZ;
+        scan.chunkX++;
+        if (scan.chunkX > scan.maxChunkX) {
+            scan.complete = true;
+        }
+    }
+
+    private int geometryStepForChunk(GeometryScanState scan) {
+        int chunkDist = Math.max(
+                Math.abs(scan.chunkX - scan.centerChunkX),
+                Math.abs(scan.chunkZ - scan.centerChunkZ));
+        return (chunkDist <= LOD_NEAR_CHUNKS) ? 1 : 2;
     }
 
     // ====================================================
@@ -591,6 +622,39 @@ public class SeasonSnowManager {
         }
     }
 
+    private static class GeometryScanState {
+        final ClientWorld world;
+        final BlockPos center;
+        final int centerChunkX;
+        final int centerChunkZ;
+        final int minChunkX;
+        final int maxChunkX;
+        final int minChunkZ;
+        final int maxChunkZ;
+        final Map<BlockPos, CachedSnowPos> cache = new HashMap<>();
+
+        int chunkX;
+        int chunkZ;
+        int blockX;
+        int blockZ;
+        boolean complete;
+
+        GeometryScanState(ClientWorld world, BlockPos center) {
+            this.world = world;
+            this.center = center.toImmutable();
+            this.centerChunkX = center.getX() >> 4;
+            this.centerChunkZ = center.getZ() >> 4;
+            this.minChunkX = centerChunkX - SCAN_RADIUS_CHUNKS;
+            this.maxChunkX = centerChunkX + SCAN_RADIUS_CHUNKS;
+            this.minChunkZ = centerChunkZ - SCAN_RADIUS_CHUNKS;
+            this.maxChunkZ = centerChunkZ + SCAN_RADIUS_CHUNKS;
+            this.chunkX = minChunkX;
+            this.chunkZ = minChunkZ;
+            this.blockX = 0;
+            this.blockZ = 0;
+        }
+    }
+
     // ====================================================
     // 全局融化
     // ====================================================
@@ -649,6 +713,7 @@ public class SeasonSnowManager {
         // 清除几何缓存
         this.geometryCache = Collections.emptyMap();
         this.lastGeometryScanCenter = null;
+        cancelGeometryScan();
         
         // 立即恢复所有原始方块（不通过队列，直接执行）
         int restoredCount = 0;
@@ -909,12 +974,12 @@ public class SeasonSnowManager {
      * 关闭工作线程（在世界卸载时调用，可选）。
      */
     public void shutdown() {
-        scanExecutor.shutdownNow();
         mainThreadTasks.clear();
         snowMap.clear();
         snowAnimationQueue.clear();
         geometryCache = Collections.emptyMap();
         lastGeometryScanCenter = null;
+        cancelGeometryScan();
     }
 
     private void setTargetLayers(BlockPos pos, SnowRecord rec, int targetLayers) {
