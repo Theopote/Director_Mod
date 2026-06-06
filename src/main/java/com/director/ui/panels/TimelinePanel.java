@@ -466,12 +466,6 @@ public class TimelinePanel extends AbstractPanel
         // 所有播放相关的 Controller 更新现在通过 commands.playback().tick(deltaTime) 统一处理
         // 这确保了播放逻辑不依赖于 TimelinePanel 的可见性，与 Menu/Toolbar/Shortcut 的行为一致
         
-        // ⭐ 自动跟随：播放时确保播放头始终在可见区域内（UI 视图相关功能）
-        // Facade 架构：通过 Facade 查询播放状态，而不是直接访问 Model
-        if (commands != null && commands.playback() != null && commands.playback().isPlaying()) {
-            ensurePlayheadVisible();
-        }
-
         // 3. 处理快捷键（仅在窗口聚焦且鼠标在窗口范围内时）
         // ✅ 防止在 Minecraft 游戏中操作时误触快捷键（如空格键播放）
         if (focused && ImGui.isWindowHovered()) {
@@ -551,20 +545,21 @@ public class TimelinePanel extends AbstractPanel
             return;
         }
 
-        // 检查是否有任何活跃的 ImGui 控件（如滑块、输入框等）
-        // 如果用户正在与 UI 交互，暂停自动跟随
-        if (ImGui.isAnyItemActive() || ImGui.isAnyItemHovered()) {
-            return;
-        }
-        // 这样用户可以自由查看时间线的其他区域，而不会被强制拉回播放头位置
-        if (ImGui.isMouseDown(ImGuiMouseButton.Left) ||
-                ImGui.isMouseDown(ImGuiMouseButton.Middle) ||
-                ImGui.isMouseDown(ImGuiMouseButton.Right)) {
+        // 检查是否有任何活跃的 ImGui 控件（如滑块、输入框等）。
+        // 普通 hover 不应暂停自动跟随，否则鼠标停在时间线面板上时播放头会跑出视野。
+        if (ImGui.isAnyItemActive()) {
             return;
         }
 
         // 委托给 NavigationHandler 处理
         navigationHandler.ensurePlayheadVisible(cachedContentX, cachedContentW, PLAYHEAD_MARGIN);
+    }
+
+    private boolean isPlaybackActive() {
+        if (commands != null && commands.playback() != null) {
+            return commands.playback().isPlaying();
+        }
+        return model != null && model.isPlaying();
     }
 
     /**
@@ -696,6 +691,11 @@ public class TimelinePanel extends AbstractPanel
         // 确保使用的是最新值
         cachedContentX = contentX;
         cachedContentW = contentW;
+
+        // ⭐ 自动跟随：播放时确保播放头始终在本帧可见区域内
+        if (isPlaybackActive()) {
+            ensurePlayheadVisible();
+        }
 
         // 1) 告知 renderer 当前视图参数（用于坐标转换）
         // 这一步非常重要，它会把 contentX 同步给 Renderer 内部的 Viewport 对象
@@ -942,9 +942,8 @@ public class TimelinePanel extends AbstractPanel
             float tagYOffset
     ) {
         float x = renderer.timeToX(time, contentX);
-        float minX = contentX;
         float maxX = contentX + contentW;
-        if (x < minX - 2f || x > maxX + 2f) {
+        if (x < contentX - 2f || x > maxX + 2f) {
             return;
         }
 
@@ -959,7 +958,7 @@ public class TimelinePanel extends AbstractPanel
         float tagLeft = placeRight
                 ? xAligned + RANGE_TAG_GAP
                 : xAligned - RANGE_TAG_GAP - RANGE_TAG_WIDTH;
-        tagLeft = clamp(tagLeft, minX, maxX - RANGE_TAG_WIDTH);
+        tagLeft = clamp(tagLeft, contentX, maxX - RANGE_TAG_WIDTH);
         float tagRight = tagLeft + RANGE_TAG_WIDTH;
 
         int tagBg = TimelineColors.adjustAlpha(lineColor, 55);
