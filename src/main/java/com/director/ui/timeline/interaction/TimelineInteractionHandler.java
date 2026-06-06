@@ -1050,19 +1050,6 @@ public class TimelineInteractionHandler {
         model.selectItem(kf, addToSelection);
         syncPropertiesSelection(kf);
 
-        // ⭐ 功能：选中单个关键帧时，播放头自动跳转到该关键帧的时间位置
-        if (!addToSelection && model.getSelectedCount() == 1) {
-            // 确保选中的确实是关键帧（不是 Clip 或其他类型）
-            Object selected = model.getSelectedItems().getFirst();
-            if (selected instanceof com.director.ui.timeline.model.clip.ClipKeyframe) {
-                float keyframeTime = kf.getTime();
-                model.setCurrentTime(keyframeTime);
-                if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("[Timeline] 选中关键帧，播放头跳转到 {:.2f}s", keyframeTime);
-                }
-            }
-        }
-
         // 启动拖动交互（交给 MoveClipKeyframeCommand 在结束时记录 Undo）
         KeyframeHandle handle = new KeyframeHandle(track, clip, kf, kf.getTime());
         interactionManager.startInteraction(
@@ -1152,19 +1139,6 @@ public class TimelineInteractionHandler {
         
         // 同步到属性面板：多选关键帧时显示"多选关键帧"占位，避免显示单个对象属性
         syncPropertiesSelection(keyframe);
-
-        // ⭐ 功能：选中单个关键帧时，播放头自动跳转到该关键帧的时间位置
-        if (!addToSelection && model.getSelectedCount() == 1) {
-            // 确保选中的确实是关键帧（不是 Clip 或其他类型）
-            Object selected = model.getSelectedItems().getFirst();
-            if (selected instanceof TimelineSelectable && !(selected instanceof TimelineClip)) {
-                float keyframeTime = keyframe.getStartTime();
-                model.setCurrentTime(keyframeTime);
-                if (LOGGER.isDebugEnabled()) {
-                    LOGGER.debug("[Timeline] 选中自动化关键帧，播放头跳转到 {:.2f}s", keyframeTime);
-                }
-            }
-        }
 
         // 🔒 音频事件点：不允许鼠标拖动改变时间（它应与容器方块时刻严格对应）
         if (track.getType() == com.director.ui.timeline.model.TrackType.AUDIO
@@ -1339,18 +1313,6 @@ public class TimelineInteractionHandler {
                     }
                     syncPropertiesSelection(clipKeyframe);
                     LOGGER.debug("[Timeline] 右键选择 ClipKeyframe @ {}s", clipKeyframe.getTime());
-                    
-                    // ⭐ 功能：选中单个关键帧时，播放头自动跳转到该关键帧的时间位置
-                    if (!addToSelection && model.getSelectedCount() == 1) {
-                        Object selected = model.getSelectedItems().getFirst();
-                        if (selected instanceof com.director.ui.timeline.model.clip.ClipKeyframe) {
-                            float keyframeTime = clipKeyframe.getTime();
-                            model.setCurrentTime(keyframeTime);
-                            if (LOGGER.isDebugEnabled()) {
-                                LOGGER.debug("[Timeline] 右键选中关键帧，播放头跳转到 {:.2f}s", keyframeTime);
-                            }
-                        }
-                    }
                 } else {
                     // 回退：如果没有 ClipKeyframe 对象，选择 clip
                     TimelineClip clip = hit.clip();
@@ -1420,18 +1382,6 @@ public class TimelineInteractionHandler {
                     syncPropertiesSelection(keyframe);
                     if (keyframe instanceof com.director.ui.timeline.model.camera.CameraKeyframe ck) {
                         LOGGER.debug("[Timeline] 右键摄像机关键帧 @ {}s，准备弹出关键帧菜单", ck.getTime());
-                    }
-                    
-                    // ⭐ 功能：选中单个关键帧时，播放头自动跳转到该关键帧的时间位置
-                    if (!addToSelection && model.getSelectedCount() == 1) {
-                        Object selected = model.getSelectedItems().getFirst();
-                        if (selected instanceof TimelineSelectable && !(selected instanceof TimelineClip)) {
-                            float keyframeTime = keyframe.getStartTime();
-                            model.setCurrentTime(keyframeTime);
-                            if (LOGGER.isDebugEnabled()) {
-                                LOGGER.debug("[Timeline] 右键选中自动化关键帧，播放头跳转到 {:.2f}s", keyframeTime);
-                            }
-                        }
                     }
                 }
             }
