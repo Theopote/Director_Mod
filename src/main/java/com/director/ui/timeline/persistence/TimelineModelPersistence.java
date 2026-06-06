@@ -9,6 +9,7 @@ import com.director.core.animation.sequence.evaluator.FlowType;
 import com.director.core.animation.sequence.evaluator.OriginType;
 import com.director.ui.timeline.audio.TimelineAudioService;
 import com.director.ui.timeline.model.TimelineClip;
+import com.director.ui.timeline.model.TimelineMarker;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.TimelineInterpolation;
@@ -120,13 +121,28 @@ public class TimelineModelPersistence {
         public float pixelsPerSecond = 80.0f;
         public float scrollX = 0f;
         public boolean snapEnabled = true;
-        public float snapInterval = 0.25f;
+        public float snapInterval = 0.1f;
+        public boolean snapToGrid = true;
+        public boolean snapToClipEdges = true;
+        public boolean snapToKeyframes = true;
+        public float snapPixelThreshold = 8.0f;
         public float frameRate = 30.0f;
         public int timeUnit = 0;
+        public boolean loopEnabled = false;
+        public float playbackSpeed = 1.0f;
         public Float inPoint = null;
         public Float outPoint = null;
+        public List<MarkerDTO> markers = new ArrayList<>();
         public long timestamp;
         public String worldFingerprint;
+    }
+
+    public static class MarkerDTO {
+        public String id;
+        public String name;
+        public float time;
+        public int color = 0xFFBBBBBB;
+        public String note;
     }
     
     /**
@@ -460,12 +476,29 @@ public class TimelineModelPersistence {
         }
         dto.snapEnabled = model.isSnappingEnabled();
         dto.snapInterval = model.getSnapSettings().getGridInterval();
+        dto.snapToGrid = model.getSnapSettings().isSnapToGrid();
+        dto.snapToClipEdges = model.getSnapSettings().isSnapToClipEdges();
+        dto.snapToKeyframes = model.getSnapSettings().isSnapToKeyframes();
+        dto.snapPixelThreshold = model.getSnapSettings().getPixelThreshold();
         dto.frameRate = model.getFrameRate();
         dto.timeUnit = model.getTimeUnit();
+        dto.loopEnabled = model.isLoopEnabled();
+        dto.playbackSpeed = model.getPlaybackSpeed();
         dto.inPoint = model.hasInPoint() ? model.getInPoint() : null;
         dto.outPoint = model.hasOutPoint() ? model.getOutPoint() : null;
         dto.timestamp = System.currentTimeMillis();
         dto.worldFingerprint = getWorldFingerprint();
+
+        for (TimelineMarker marker : model.getMarkers()) {
+            if (marker == null) continue;
+            MarkerDTO markerDTO = new MarkerDTO();
+            markerDTO.id = marker.getId().toString();
+            markerDTO.name = marker.getName();
+            markerDTO.time = marker.getTime();
+            markerDTO.color = marker.getColor();
+            markerDTO.note = marker.getNote();
+            dto.markers.add(markerDTO);
+        }
         
         // 保存所有轨道
         for (TimelineTrack track : model.getTracks()) {
@@ -833,14 +866,55 @@ public class TimelineModelPersistence {
         }
         model.setSnappingEnabled(dto.snapEnabled);
         model.getSnapSettings().setGridInterval(dto.snapInterval);
+        model.getSnapSettings().setSnapToGrid(dto.snapToGrid);
+        model.getSnapSettings().setSnapToClipEdges(dto.snapToClipEdges);
+        model.getSnapSettings().setSnapToKeyframes(dto.snapToKeyframes);
+        model.getSnapSettings().setPixelThreshold(dto.snapPixelThreshold);
         model.setFrameRate(dto.frameRate);
         model.setTimeUnit(dto.timeUnit);
+        model.setLoopEnabled(dto.loopEnabled);
+        model.setPlaybackSpeed(dto.playbackSpeed);
         
         // 清空现有轨道
         model.getTracks().clear();
+        for (TimelineMarker marker : model.getMarkers()) {
+            if (marker != null) {
+                model.removeMarker(marker.getId());
+            }
+        }
+
+        if (dto.markers != null) {
+            for (MarkerDTO markerDTO : dto.markers) {
+                if (markerDTO == null) {
+                    continue;
+                }
+                UUID id = null;
+                if (markerDTO.id != null && !markerDTO.id.isBlank()) {
+                    try {
+                        id = UUID.fromString(markerDTO.id);
+                    } catch (IllegalArgumentException e) {
+                        LOGGER.warn("[TimelineModelPersistence] 无法解析标记 ID: {}", markerDTO.id);
+                    }
+                }
+                TimelineMarker marker = new TimelineMarker(
+                    id,
+                    markerDTO.name != null ? markerDTO.name : "Marker",
+                    markerDTO.time
+                );
+                marker.setColor(markerDTO.color);
+                marker.setNote(markerDTO.note);
+                model.addMarker(marker);
+            }
+        }
         
+        int restoredTrackCount = 0;
+
         // 恢复所有轨道
+        if (dto.tracks != null) {
         for (TrackDTO trackDTO : dto.tracks) {
+            if (trackDTO == null) {
+                continue;
+            }
             // 创建轨道
             TrackType type = resolveTrackType(trackDTO);
             
@@ -1329,6 +1403,8 @@ public class TimelineModelPersistence {
             }
 
             model.addTrack(track);
+            restoredTrackCount++;
+        }
         }
 
         model.clearInOut();
@@ -1339,7 +1415,7 @@ public class TimelineModelPersistence {
             model.setOutPoint(dto.outPoint);
         }
         
-        LOGGER.info("[TimelineModelPersistence] 成功恢复 {} 条轨道", dto.tracks.size());
+        LOGGER.info("[TimelineModelPersistence] 成功恢复 {} 条轨道", restoredTrackCount);
     
         } finally {
             model.setSuppressPersistenceWrites(false);

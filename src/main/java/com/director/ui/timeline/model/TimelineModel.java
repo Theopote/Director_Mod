@@ -231,6 +231,7 @@ public class TimelineModel implements ITimelineProject {
         playing = false;
         scrubbing = false;
         loopEnabled = false;
+        playbackSpeed = 1.0f;
         currentTime = 0f;
         frameRate = 30.0f;
         timeUnit = 0;
@@ -240,6 +241,7 @@ public class TimelineModel implements ITimelineProject {
         cachedDynamicDuration = 0f;
         isDurationDirty = true;
         tracks.clear();
+        markers.clear();
         selectedItems.clear();
         lastClickedItem = null;
         multiSelectMode = false;
@@ -251,6 +253,9 @@ public class TimelineModel implements ITimelineProject {
 
         // 重置吸附
         snapSettings.setEnabled(true);
+        snapSettings.setSnapToGrid(true);
+        snapSettings.setSnapToClipEdges(true);
+        snapSettings.setSnapToKeyframes(true);
         snapSettings.setGridInterval(0.1f);
         snapSettings.setPixelThreshold(8f);
 
@@ -322,7 +327,11 @@ public class TimelineModel implements ITimelineProject {
     }
     
     public void setLoopEnabled(boolean loopEnabled) {
+        if (this.loopEnabled == loopEnabled) {
+            return;
+        }
         this.loopEnabled = loopEnabled;
+        markDirty();
     }
 
     public float getPlaybackSpeed() {
@@ -331,7 +340,12 @@ public class TimelineModel implements ITimelineProject {
 
     public void setPlaybackSpeed(float playbackSpeed) {
         // 合理范围：防止 0 或负数导致卡死/倒放（如需倒放以后再单独实现）
-        this.playbackSpeed = Math.max(0.1f, Math.min(8.0f, playbackSpeed));
+        float clamped = Math.max(0.1f, Math.min(8.0f, playbackSpeed));
+        if (Math.abs(this.playbackSpeed - clamped) < 0.0001f) {
+            return;
+        }
+        this.playbackSpeed = clamped;
+        markDirty();
     }
 
     public boolean hasInPoint() {
@@ -351,6 +365,8 @@ public class TimelineModel implements ITimelineProject {
     }
 
     public void setInPoint(float point) {
+        Float oldInPoint = inPoint;
+        Float oldOutPoint = outPoint;
         float clamped = clamp(point, getDuration());
         inPoint = clamped;
         if (outPoint != null && outPoint < clamped) {
@@ -359,9 +375,13 @@ public class TimelineModel implements ITimelineProject {
         if (currentTime < clamped) {
             setCurrentTime(clamped);
         }
+        if (!java.util.Objects.equals(oldInPoint, inPoint) || !java.util.Objects.equals(oldOutPoint, outPoint)) {
+            markDirty();
+        }
     }
 
     public void setOutPoint(float point) {
+        Float oldOutPoint = outPoint;
         float clamped = clamp(point, getDuration());
         if (inPoint != null && clamped < inPoint) {
             clamped = inPoint;
@@ -370,11 +390,18 @@ public class TimelineModel implements ITimelineProject {
         if (currentTime > clamped) {
             setCurrentTime(clamped);
         }
+        if (!java.util.Objects.equals(oldOutPoint, outPoint)) {
+            markDirty();
+        }
     }
 
     public void clearInOut() {
+        if (inPoint == null && outPoint == null) {
+            return;
+        }
         inPoint = null;
         outPoint = null;
+        markDirty();
     }
 
     public float getPlaybackRangeStart() {
@@ -473,7 +500,11 @@ public class TimelineModel implements ITimelineProject {
      * @param px 像素阈值（必须 >= 1）
      */
     public void setSnapPixelThreshold(float px) {
+        float oldValue = snapSettings.getPixelThreshold();
         snapSettings.setPixelThreshold(px);
+        if (Math.abs(oldValue - snapSettings.getPixelThreshold()) >= 0.0001f) {
+            markDirty();
+        }
     }
     
     // ---------- 统一"是否启用"入口 ----------
@@ -493,7 +524,11 @@ public class TimelineModel implements ITimelineProject {
      * @param enabled 是否启用
      */
     public void setSnappingEnabled(boolean enabled) {
+        if (snapSettings.isEnabled() == enabled) {
+            return;
+        }
         snapSettings.setEnabled(enabled);
+        markDirty();
     }
     
     // ---------- 网格吸附（供 TimelineSnapping 调用） ----------
@@ -572,7 +607,7 @@ public class TimelineModel implements ITimelineProject {
      */
     @Deprecated
     public void setSnapEnabled(boolean enabled) {
-        snapSettings.setEnabled(enabled);
+        setSnappingEnabled(enabled);
     }
     
     /**
@@ -588,7 +623,11 @@ public class TimelineModel implements ITimelineProject {
      */
     @Deprecated
     public void setSnapInterval(float interval) {
+        float oldValue = snapSettings.getGridInterval();
         snapSettings.setGridInterval(interval);
+        if (Math.abs(oldValue - snapSettings.getGridInterval()) >= 0.0001f) {
+            markDirty();
+        }
     }
     
     /**

@@ -13,7 +13,11 @@ public class TimelineMarker implements TimelineSelectable {
     private String note;
 
     public TimelineMarker(String name, float time) {
-        this.id = UUID.randomUUID();
+        this(UUID.randomUUID(), name, time);
+    }
+
+    public TimelineMarker(UUID id, String name, float time) {
+        this.id = id != null ? id : UUID.randomUUID();
         this.name = name;
         this.time = time;
     }
