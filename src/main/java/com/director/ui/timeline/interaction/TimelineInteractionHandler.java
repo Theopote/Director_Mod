@@ -353,13 +353,36 @@ public class TimelineInteractionHandler {
             // 静默结束 scrubbing，不通知摄像机控制器
             model.setScrubbing(false);
         }
+        Object active = interactionManager.getActiveObject();
+        if ((mode == InteractionMode.DRAG_CLIP
+                || mode == InteractionMode.RESIZE_CLIP_LEFT
+                || mode == InteractionMode.RESIZE_CLIP_RIGHT)
+                && active instanceof ClipHandle handle) {
+            TimelineTrack currentTrack = model.findTrackForClip(handle.clip);
+            if (currentTrack != null && currentTrack != handle.track) {
+                currentTrack.removeClip(handle.clip);
+                if (handle.track != null && !handle.track.getClips().contains(handle.clip)) {
+                    handle.track.addClip(handle.clip);
+                }
+            }
+            handle.clip.setTimeRange(
+                    interactionManager.getDragStartValue(),
+                    interactionManager.getDragStartValue2());
+            model.markDurationDirty();
+        } else if ((mode == InteractionMode.DRAG_PATH_CLIP
+                || mode == InteractionMode.RESIZE_PATH_CLIP_LEFT
+                || mode == InteractionMode.RESIZE_PATH_CLIP_RIGHT)
+                && active instanceof PathClipHandle handle) {
+            handle.clip.setStartTime(interactionManager.getDragStartValue());
+            handle.clip.setEndTime(interactionManager.getDragStartValue2());
+            handle.tempStart = handle.clip.getStartTime();
+            handle.tempEnd = handle.clip.getEndTime();
+            model.markDurationDirty();
+        }
         if (interactionManager.isInteracting(InteractionMode.DRAG_AUTOMATION_KEYFRAME)) {
-            Object active = interactionManager.getActiveObject();
             if (active instanceof AutomationKeyframeHandle handle
                     && handle.keyframe instanceof com.director.ui.timeline.model.audio.AudioEvent
                     && handle.currentTrack != handle.originalTrack) {
-                handle.currentTrack.removeAutomationKeyframe(handle.keyframe.getId());
-                handle.originalTrack.addAutomationKeyframe(handle.keyframe);
                 handle.currentTrack = handle.originalTrack;
             }
         }
@@ -633,8 +656,10 @@ public class TimelineInteractionHandler {
         // 使用 rightClickedOnCanvas 参数，因�?invisibleButton 会拦截右键事�?
         // 右键：统一使用 ImGui 的点击检测
         if (ImGui.isMouseClicked(ImGuiMouseButton.Right)) {
-            // ⭐⭐ 修复 F：右键按下后阻止拖动行为
-            interactionManager.cancelAllInteractionsSilently();
+            if (interactionManager.isInteracting()) {
+                endInteractionIfNeeded();
+                return;
+            }
             
             LOGGER.info("[Timeline] 右键点击: hit.type = {}, rightClickedOnCanvas = {}, trackControlHit = {}",
                     hit != null ? hit.type() : "null",
@@ -1525,12 +1550,14 @@ public class TimelineInteractionHandler {
                 float originalTime = interactionManager.getDragStartValue();
                 float finalTime = handle.currentTime;
 
-                // ⭐⭐ 修复：使用 MoveClipKeyframeCommand 而不是 Remove + Add
-                // 这样确保 Undo/Redo 正确工作，且不会导致数据结构混乱
-                commandHistory.executeCommand(
-                    new com.director.ui.timeline.commands.MoveClipKeyframeCommand(
-                        model, handle.track, handle.clip, handle.keyframe, originalTime, finalTime)
-                );
+                if (Math.abs(finalTime - originalTime) > 0.001f) {
+                    // ⭐⭐ 修复：使用 MoveClipKeyframeCommand 而不是 Remove + Add
+                    // 这样确保 Undo/Redo 正确工作，且不会导致数据结构混乱
+                    commandHistory.executeCommand(
+                        new com.director.ui.timeline.commands.MoveClipKeyframeCommand(
+                            model, handle.track, handle.clip, handle.keyframe, originalTime, finalTime)
+                    );
+                }
 
                 if (callbacks != null) callbacks.onDataChanged();
 
@@ -1545,16 +1572,18 @@ public class TimelineInteractionHandler {
             if (obj instanceof AutomationKeyframeHandle handle) {
                 float originalTime = interactionManager.getDragStartValue();
                 float finalTime = handle.currentTime;
+                boolean trackChanged = handle.currentTrack != handle.originalTrack;
 
                 if (handle.keyframe instanceof com.director.ui.timeline.model.audio.AudioEvent
-                        && handle.currentTrack != handle.originalTrack) {
+                        && trackChanged) {
                     commandHistory.executeCommand(
                         new MoveAutomationKeyframeBetweenTracksCommand(
                             model, handle.originalTrack, handle.currentTrack, handle.keyframe, originalTime, finalTime)
                     );
                 } else if (handle.keyframe instanceof com.director.ui.timeline.model.camera.CameraKeyframe cameraKeyframe
                         && handle.currentTrack != null
-                        && handle.currentTrack.findCustomPathClipForKeyframe(cameraKeyframe) != null) {
+                        && handle.currentTrack.findCustomPathClipForKeyframe(cameraKeyframe) != null
+                        && Math.abs(finalTime - originalTime) > 0.001f) {
                     commandHistory.executeCommand(
                         new com.director.ui.timeline.commands.MoveCameraPathKeyframeCommand(
                             model,
@@ -1563,7 +1592,7 @@ public class TimelineInteractionHandler {
                             originalTime,
                             finalTime)
                     );
-                } else {
+                } else if (Math.abs(finalTime - originalTime) > 0.001f) {
                     // ⭐⭐ 修复：改成单一命令处理
                     // 所有数据结构修改都在这里执行一次，拖动过程中不会修改模型
                     commandHistory.executeCommand(
@@ -1583,11 +1612,13 @@ public class TimelineInteractionHandler {
                 float originalTime = interactionManager.getDragStartValue();
                 float finalTime = handle.currentTime;
 
-                // ⭐ 使用 MoveMarkerCommand 处理标记移动（支持撤销/重做）
-                commandHistory.executeCommand(
-                    new com.director.ui.timeline.commands.MoveMarkerCommand(
-                        model, handle.marker, originalTime, finalTime)
-                );
+                if (Math.abs(finalTime - originalTime) > 0.001f) {
+                    // ⭐ 使用 MoveMarkerCommand 处理标记移动（支持撤销/重做）
+                    commandHistory.executeCommand(
+                        new com.director.ui.timeline.commands.MoveMarkerCommand(
+                            model, handle.marker, originalTime, finalTime)
+                    );
+                }
 
                 if (callbacks != null) callbacks.onDataChanged();
 
@@ -2069,8 +2100,6 @@ public class TimelineInteractionHandler {
                             && newTrack != handle.currentTrack
                             && !newTrack.isLocked()
                             && newTrack.getType() == com.director.ui.timeline.model.TrackType.AUDIO) {
-                        handle.currentTrack.removeAutomationKeyframe(handle.keyframe.getId());
-                        newTrack.addAutomationKeyframe(handle.keyframe);
                         handle.currentTrack = newTrack;
                     }
                 }
@@ -2317,11 +2346,13 @@ public class TimelineInteractionHandler {
             float originalTime = interactionManager.getDragStartValue();
             float finalTime = handle.currentTime;
 
-            // 使用 MoveMarkerCommand 处理标记移动（支持撤销/重做）
-            commandHistory.executeCommand(
-                new com.director.ui.timeline.commands.MoveMarkerCommand(
-                    model, handle.marker, originalTime, finalTime)
-            );
+            if (Math.abs(finalTime - originalTime) > 0.001f) {
+                // 使用 MoveMarkerCommand 处理标记移动（支持撤销/重做）
+                commandHistory.executeCommand(
+                    new com.director.ui.timeline.commands.MoveMarkerCommand(
+                        model, handle.marker, originalTime, finalTime)
+                );
+            }
 
             if (callbacks != null) callbacks.onDataChanged();
 
