@@ -98,8 +98,7 @@ public abstract class MouseMixin {
                 if (!controller.isTimelineActive()) {
                     // ⭐ 播放头静止且不在编辑关键帧 + 玩家鼠标移动 = 立即切回玩家控制
                     controller.clearPreviewState();
-                    runtime.setOwner(com.director.ui.timeline.playback.camera.CameraRuntime.Owner.PLAYER);
-                    com.director.client.DirectorClientController.getInstance().setHideCrosshair(false);
+                    controller.releaseCameraToPlayer();
                     LOGGER.debug("[MouseMixin] 检测到玩家鼠标输入，自动切换回玩家控制");
                 }
             }

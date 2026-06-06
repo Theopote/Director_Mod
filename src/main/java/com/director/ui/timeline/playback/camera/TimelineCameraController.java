@@ -319,11 +319,11 @@ public final class TimelineCameraController {
      * 注意：scrubbing 状态由 TimelineModel.setScrubbing(false) 设置，这里只负责摄像机状态同步
      */
     public void endScrubbing(float timeSeconds) {
-        this.previewing = false;
+        this.previewing = true;
+        this.previewTimeSeconds = timeSeconds;
         sampler.onStop();
-        if (timelineModel == null || !timelineModel.isPlaying()) {
-            releaseCameraToPlayer();
-        }
+        ensureCameraDataBuilt();
+        applySampleAtTime(timeSeconds);
 
         LOGGER.debug("[TimelineCameraController] 结束 scrubbing @ {}s", String.format("%.2f", timeSeconds));
     }
@@ -372,12 +372,18 @@ public final class TimelineCameraController {
      * ⭐ 修复：清空 PathClip 状态，确保下次播放时 onEnter() 能重新触发
      */
     public void stopPlayback() {
-        this.previewing = false;
+        this.previewing = timelineModel != null;
+        this.previewTimeSeconds = timelineModel != null ? timelineModel.getCurrentTime() : previewTimeSeconds;
         this.keyframeEditFramesRemaining = 0;
         this.keyframeEditSample = null;
         // ⭐ 修复：清空 PathClip 状态，确保下次播放时能重新触发 onEnter()
         sampler.onStop();
-        releaseCameraToPlayer();
+        if (timelineModel != null) {
+            ensureCameraDataBuilt();
+            applySampleAtTime(previewTimeSeconds);
+        } else {
+            releaseCameraToPlayer();
+        }
         LOGGER.debug("[TimelineCameraController] 停止播放");
     }
 
@@ -464,9 +470,9 @@ public final class TimelineCameraController {
             keyframeEditSample = null;
         }
 
-        boolean previewActive = false;
+        boolean previewActive = previewing && !playing && !scrubbing;
         CameraRuntime runtime = CameraRuntime.getInstance();
-        boolean wantsTimeline = playing || scrubbing;
+        boolean wantsTimeline = playing || scrubbing || previewActive;
         if (wantsTimeline) {
             ensureCameraDataBuilt();
         }
@@ -516,6 +522,8 @@ public final class TimelineCameraController {
                 // ⭐ 播放/Scrubbing：使用 tick() 统一驱动
                 // tick() 负责采样当前时间（时间推进由 TimelinePanel.updatePlayback() 负责）
                 sampler.tick(timelineModel, 0f).ifPresent(runtime::applyTimelineSample);
+            } else if (previewActive) {
+                sampler.sample(previewTimeSeconds).ifPresent(runtime::applyTimelineSample);
             }
         } else {
             // ⭐ 玩家模式：只负责处理平滑过渡
@@ -559,11 +567,15 @@ public final class TimelineCameraController {
         keyframeEditSample = null;
     }
 
-    private void releaseCameraToPlayer() {
+    public synchronized void releaseCameraToPlayer() {
         CameraRuntime runtime = CameraRuntime.getInstance();
         if (runtime.isTimelineOwner()) {
+            CameraAccessor.applySampleToPlayerEntity(MinecraftClient.getInstance(), runtime.getCurrentSample());
             runtime.setOwner(CameraRuntime.Owner.PLAYER);
         }
+        this.previewing = false;
+        this.keyframeEditFramesRemaining = 0;
+        this.keyframeEditSample = null;
         DirectorClientController.getInstance().setHideCrosshair(false);
     }
 
@@ -588,14 +600,13 @@ public final class TimelineCameraController {
             return;
         }
 
-        this.previewing = false;
+        this.previewing = true;
         this.previewTimeSeconds = timeSeconds;
 
         ensureCameraDataBuilt();
-        sampler.sample(timeSeconds)
-                .ifPresent(sample -> CameraAccessor.applySampleToPlayerEntity(MinecraftClient.getInstance(), sample));
-        CameraRuntime.getInstance().setOwner(CameraRuntime.Owner.PLAYER);
-        DirectorClientController.getInstance().setHideCrosshair(false);
+        applySampleAtTime(timeSeconds);
+        CameraRuntime.getInstance().setOwner(CameraRuntime.Owner.TIMELINE);
+        DirectorClientController.getInstance().setHideCrosshair(true);
         LOGGER.debug("[TimelineCameraController] 预览 @ {}s", String.format("%.2f", timeSeconds));
     }
 
@@ -671,10 +682,11 @@ public final class TimelineCameraController {
         // 将镜头位置直接写到玩家实体 / 相机
         sampler.sample(timeSeconds)
                 .ifPresent(sample -> CameraAccessor.applySampleToPlayerEntity(MinecraftClient.getInstance(), sample));
-        // 保持玩家 owner，允许继续移动、录制下一帧
-        this.previewing = false; // ⭐ 确保不触发下一帧的预览→TIMELINE 切换
-        CameraRuntime.getInstance().setOwner(CameraRuntime.Owner.PLAYER);
-        DirectorClientController.getInstance().setHideCrosshair(false);
+        this.previewing = true;
+        this.previewTimeSeconds = timeSeconds;
+        sampler.sample(timeSeconds).ifPresent(CameraRuntime.getInstance()::applyTimelineSample);
+        CameraRuntime.getInstance().setOwner(CameraRuntime.Owner.TIMELINE);
+        DirectorClientController.getInstance().setHideCrosshair(true);
         LOGGER.debug("[TimelineCamera] jumpToTimeAsPlayer @ {}s", timeSeconds);
     }
 

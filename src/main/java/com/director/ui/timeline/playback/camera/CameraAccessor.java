@@ -56,9 +56,12 @@ public final class CameraAccessor {
         double px = sample.position().x;
         double py = sample.position().y - eye;
         double pz = sample.position().z;
+        client.player.refreshPositionAndAngles(px, py, pz, sample.yaw(), sample.pitch());
         client.player.setPos(px, py, pz);
         client.player.setYaw(sample.yaw());
         client.player.setPitch(sample.pitch());
+        client.player.setHeadYaw(sample.yaw());
+        client.player.setBodyYaw(sample.yaw());
     }
 
     /**

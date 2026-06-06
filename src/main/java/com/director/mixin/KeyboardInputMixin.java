@@ -41,6 +41,21 @@ public class KeyboardInputMixin extends Input {
             // 如果鼠标在UI外，允许移动输入
             if (!mouseOverGui) {
                 var window = client.getWindow();
+    w'w'w'w'w'w'w'w'w'w'w'w'w                boolean anyMovementKey = InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_W)
+                        || InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_S)
+                        || InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_A)
+                        || InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_D)
+                        || InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_SPACE)
+                        || InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_LEFT_SHIFT)
+                        || InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_LEFT_CONTROL);
+                if (anyMovementKey) {
+                    var runtime = com.director.ui.timeline.playback.camera.CameraRuntime.getInstance();
+                    var controller = com.director.ui.timeline.playback.camera.TimelineCameraController.getInstance();
+                    if (runtime.isTimelineOwner() && !controller.isTimelineActive()) {
+                        controller.releaseCameraToPlayer();
+                    }
+                }
+
                 float forwardAmt = 0.0F;
                 float sidewaysAmt = 0.0F;
                 
