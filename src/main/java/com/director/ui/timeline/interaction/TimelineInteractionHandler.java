@@ -1269,15 +1269,6 @@ public class TimelineInteractionHandler {
         model.selectItem(clip, addToSelection);
         syncPropertiesSelection(clip);
         
-        // ⭐ 功能：选中单个 Path Clip 时，播放头自动跳转到开始时间
-        if (!addToSelection && model.getSelectedCount() == 1) {
-            float startTime = clip.getStartTime();
-            model.setCurrentTime(startTime);
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("[Timeline] 选中 Path Clip，播放头跳转到 {:.2f}s", startTime);
-            }
-        }
-        
         // 根据命中区域决定交互模式
         PathClipHit.HitZone zone = pathClipHit.zone();
         PathClipHandle handle = new PathClipHandle(track, clip);
