@@ -97,6 +97,15 @@ public class SeasonSample {
     }
 
     /**
+     * 检查采样是否包含任何可见季节效果。
+     */
+    public boolean hasAnyEffect() {
+        return hasNonZeroTint()
+            || (snowAmount > 0.01f && snowThickness > 0)
+            || freezeStrength > 0.01f;
+    }
+
+    /**
      * 深拷贝当前采样。
      */
     public SeasonSample copy() {

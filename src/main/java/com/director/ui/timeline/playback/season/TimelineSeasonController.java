@@ -541,7 +541,7 @@ public final class TimelineSeasonController {
             return false;
         }
         
-        return currentSample.hasNonZeroTint();
+        return currentSample.hasAnyEffect();
     }
     
     /**
