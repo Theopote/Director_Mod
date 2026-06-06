@@ -14,6 +14,7 @@ import com.director.ui.timeline.model.camera.CameraKeyframe;
 import com.director.ui.timeline.model.camera.path.OrbitPathClip;
 import com.director.ui.timeline.model.camera.path.DollyPathClip;
 import com.director.ui.timeline.model.camera.path.CranePathClip;
+import com.director.ui.timeline.model.camera.path.CustomPathClip;
 import com.director.ui.timeline.model.time.TimeKeyframe;
 import com.director.ui.timeline.model.selection.TimelineKeyframeMultiSelection;
 
@@ -198,6 +199,8 @@ public final class PropertyAdapterBootstrap {
             registeredCount++;
             
             // ✅ 摄像机路径片段适配器
+            registerAdapter(CustomPathClip.class, new CustomPathClipPropertyAdapter());
+            registeredCount++;
             registerAdapter(OrbitPathClip.class, new OrbitPathClipPropertyAdapter());
             registeredCount++;
             registerAdapter(DollyPathClip.class, new DollyPathClipPropertyAdapter());
