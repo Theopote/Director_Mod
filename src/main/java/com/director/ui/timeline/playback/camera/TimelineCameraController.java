@@ -10,7 +10,6 @@ import com.director.ui.timeline.model.camera.CameraKeyframe;
 import com.director.ui.timeline.model.camera.path.CameraPathClip;
 import com.director.ui.timeline.model.camera.path.CustomPathClip;
 import net.minecraft.client.MinecraftClient;
-import net.minecraft.util.math.Vec3d;
 import org.joml.Vector3f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -489,7 +488,7 @@ public final class TimelineCameraController {
         boolean shouldTimeline = (wantsTimeline || isExporting) && hasCameraData;
 
         // ⭐ 调试日志：检查 owner 切换逻辑
-        if (LOGGER.isDebugEnabled() && (wantsTimeline || isExporting || keyframeEditActive)) {
+        if (LOGGER.isDebugEnabled() && (wantsTimeline || isExporting)) {
             LOGGER.debug(
                     "[CameraController] wantsTimeline={}, isExporting={}, hasKeyframes={}, hasPathClips={}, hasCameraData={}, shouldTimeline={}, keyframeEditActive={}, isTimelineOwner={}",
                     wantsTimeline, isExporting, hasKeyframes, hasPathClips, hasCameraData, shouldTimeline,
@@ -634,37 +633,6 @@ public final class TimelineCameraController {
     }
 
     /**
-     * 停止关键帧编辑预览（通常在关键帧取消选中时调用）。
-     */
-    public synchronized void stopKeyframePreview() {
-        keyframeEditFramesRemaining = 0;
-        keyframeEditSample = null;
-    }
-
-    /**
-     * 将 CameraKeyframe 直接转换为 CameraSample（不经过 PathManager）。
-     * 与 TimelineCameraPathManager.toSample() 保持一致的安全值逻辑。
-     */
-    private CameraSample keyframeToSample(CameraKeyframe kf) {
-        Vector3f pos = kf.getPosition();
-        Vector3f rot = kf.getRotation();
-        float fov  = kf.getFov() > 1f ? kf.getFov() : 70f;
-        float near = kf.getNearPlane() > 0.0001f ? kf.getNearPlane() : 0.01f;
-        float far  = Math.max(kf.getFarPlane(), near + 0.1f);
-
-        return new CameraSample(
-                new Vec3d(pos.x, pos.y, pos.z),
-                rot.y,   // yaw
-                rot.x,   // pitch
-                rot.z,   // roll
-                fov, near, far,
-                kf.isDepthOfFieldEnabled(),
-                kf.getFocusDistance(),
-                kf.getAperture()
-        );
-    }
-
-    /**
      * 点击时间标尺时：只采样并把镜头落到玩家态，允许立即调整。
      * ⭐ 修复：不再设置 previewing=true，否则下一帧 updateOwnerAndSample()
      *   会检测到 previewing 并将 owner 切回 TIMELINE，造成 1~2 帧闪烁。
@@ -717,27 +685,7 @@ public final class TimelineCameraController {
         DirectorClientController.getInstance().setHideCrosshair(true);
     }
 
-    // ================== 关键帧捕捉 ==================
 
-    /**
-     * 捕捉关键帧：从「当前相机状态」采样。
-     * <p>
-     * ⭐ 关键修复：确保设置关键帧时：
-     * 1. owner 是 PLAYER，玩家可以继续移动摄像机设置下一个关键帧
-     * 2. 立即从游戏摄像机读取，而不是等待下一帧更新 CameraRuntime
-     * 3. 捕获的参数与播放时一致（使用同一套插值算法）
-     * <p>
-     * 工作流程（参考专业动画软件如 Blender、After Effects）：
-     * - 如果当前 owner 是 TIMELINE（预览/播放状态），先切回 PLAYER
-     * - 立即从游戏摄像机直接采样（不等待 CameraMixin 更新）
-     * - 如果 owner 已经是 PLAYER，也从游戏摄像机直接采样（确保是最新状态）
-     * - 将采样结果同步到 CameraRuntime，然后设置关键帧属性
-     * <p>
-     * 关键原则：
-     * - 设置关键帧时：从游戏摄像机直接读取（玩家当前视角）
-     * - 播放关键帧时：从关键帧插值得到 sample（时间线视角）
-     * - 两者使用同一套数据源（CameraRuntime.currentSample）和插值算法
-     */
     /**
      * 从当前游戏摄像机捕捉状态并写入关键帧。
      * @return true 表示捕捉成功，false 表示由于非玩家模式或其他原因失败
@@ -793,11 +741,6 @@ public final class TimelineCameraController {
         return true;
     }
 
-    // ================== 内部工具：收集摄像机关键帧 ==================
-
-    /**
-     * ⭐ v5.0：从指定 CAMERA 轨道中提取 CameraKeyframe，并按时间排序
-     */
     /**
      * ⭐ v5.0：从指定轨道收集摄像机关键帧
      * 
