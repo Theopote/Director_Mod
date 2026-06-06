@@ -3,6 +3,7 @@ package com.director.ui.timeline.commands;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.camera.CameraKeyframe;
+import com.director.ui.timeline.playback.camera.TimelineCameraController;
 import org.joml.Vector3f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,6 +67,7 @@ public class ChangeBezierHandleCommand extends BaseTimelineCommand {
         // 设置新的控制柄
         keyframe.setBezierInHandle(newInHandle);
         keyframe.setBezierOutHandle(newOutHandle);
+        TimelineCameraController.getInstance().onKeyframeChanged();
 
         LOGGER.debug("[Timeline] 修改控制柄: 关键帧 @ {}s", keyframe.getTime());
     }
@@ -79,6 +81,7 @@ public class ChangeBezierHandleCommand extends BaseTimelineCommand {
         // 恢复旧的控制柄
         keyframe.setBezierInHandle(oldInHandle);
         keyframe.setBezierOutHandle(oldOutHandle);
+        TimelineCameraController.getInstance().onKeyframeChanged();
 
         LOGGER.debug("[Timeline] 撤销修改控制柄: 关键帧 @ {}s", keyframe.getTime());
     }

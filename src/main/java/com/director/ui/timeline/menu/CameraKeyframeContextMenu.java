@@ -6,6 +6,7 @@ import com.director.ui.timeline.commands.BatchDeleteSelectionCommand;
 import com.director.ui.timeline.commands.BatchChangeCameraKeyframeKeyTypeCommand;
 import com.director.ui.timeline.commands.BatchChangeCameraKeyframeSegmentTypeCommand;
 import com.director.ui.timeline.commands.BatchChangeCameraKeyframeRotationInterpolationCommand;
+import com.director.ui.timeline.commands.BatchChangeCameraKeyframeHandleModeCommand;
 import com.director.ui.timeline.commands.TimelineCommandHistory;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;
@@ -140,9 +141,9 @@ public class CameraKeyframeContextMenu extends TimelineContextMenu {
             TimelineContextMenu handleMenu = new TimelineContextMenu(getCommandHistory());
             handleMenu.setPopupId("CameraKeyframeHandleMenu");
             
-            addHandleModeItem(handleMenu, "自动 (Auto)", CameraKeyframe.HandleMode.AUTO);
-            addHandleModeItem(handleMenu, "自由 (Free)", CameraKeyframe.HandleMode.FREE);
-            addHandleModeItem(handleMenu, "对齐 (Aligned)", CameraKeyframe.HandleMode.ALIGNED);
+            addHandleModeItem(handleMenu, "自动 (Auto)", CameraKeyframe.HandleMode.AUTO, selectedCameraKeyframes);
+            addHandleModeItem(handleMenu, "自由 (Free)", CameraKeyframe.HandleMode.FREE, selectedCameraKeyframes);
+            addHandleModeItem(handleMenu, "对齐 (Aligned)", CameraKeyframe.HandleMode.ALIGNED, selectedCameraKeyframes);
             
             handleMenu.addSeparator();
             handleMenu.addItem("清除控制柄", () -> {
@@ -235,12 +236,15 @@ public class CameraKeyframeContextMenu extends TimelineContextMenu {
         });
     }
 
-    private void addHandleModeItem(TimelineContextMenu menu, String label, CameraKeyframe.HandleMode mode) {
+    private void addHandleModeItem(TimelineContextMenu menu, String label, CameraKeyframe.HandleMode mode, List<CameraKeyframe> selected) {
         boolean isSelected = keyframe.getHandleMode() == mode;
         String displayLabel = isSelected ? "✓ " + label : label;
         menu.addItem(displayLabel, () -> {
-            keyframe.setHandleMode(mode);
-            TimelineCameraController.getInstance().onKeyframeChanged();
+            if (selected != null && selected.size() > 1) {
+                getCommandHistory().executeCommand(new BatchChangeCameraKeyframeHandleModeCommand(model, selected, mode));
+            } else {
+                getCommandHistory().executeCommand(new BatchChangeCameraKeyframeHandleModeCommand(model, java.util.List.of(keyframe), mode));
+            }
             LOGGER.debug("[Timeline] 设置摄像机关键帧控制柄模式: {}", mode);
         });
     }

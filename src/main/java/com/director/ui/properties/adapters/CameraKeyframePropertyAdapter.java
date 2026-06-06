@@ -3,7 +3,9 @@ package com.director.ui.properties.adapters;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
+import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.camera.CameraKeyframe;
+import com.director.ui.timeline.model.camera.path.CustomPathClip;
 import com.director.ui.timeline.playback.camera.TimelineCameraController;
 import com.director.ui.tools.ToolRegistry;
 import com.director.ui.tools.impl.CameraPathEditTool;
@@ -97,7 +99,11 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
         // ----- 时间 -----
         f1.set(kf.getTime());
         if (dragFloat("时间 (秒)", f1, 0.02f, 0f, 10000f, "%.2f")) {
-            kf.setTime(f1.get());
+            float clampedTime = clampTimeToOwnerClip(kf, f1.get());
+            if (Math.abs(clampedTime - f1.get()) > 0.0001f) {
+                f1.set(clampedTime);
+            }
+            kf.setTime(clampedTime);
             if (ImGui.isItemDeactivatedAfterEdit()) {
                 changed.set(true);
             }
@@ -115,6 +121,18 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
         }
         tooltip("决定关键帧 UI、拐角行为、是否需要控制柄等");
         ImGui.unindent();
+    }
+
+    private float clampTimeToOwnerClip(CameraKeyframe keyframe, float time) {
+        TimelineTrack activeTrack = TimelineCameraController.getInstance().getActiveCameraTrack();
+        if (activeTrack == null) {
+            return time;
+        }
+        CustomPathClip ownerClip = activeTrack.findCustomPathClipForKeyframe(keyframe);
+        if (ownerClip == null) {
+            return time;
+        }
+        return Math.max(ownerClip.getStartTime(), Math.min(ownerClip.getEndTime(), time));
     }
 
     // ============================================================================

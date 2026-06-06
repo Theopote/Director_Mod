@@ -518,9 +518,14 @@ public class TimelineRenderer {
                             pathClipY + pathClipHeight - 3f, TimelineColors.rgba(0, 0, 0, 80));
                     drawList.addRectFilled(kxAligned - 0.5f, pathClipY + 3f, kxAligned + 0.5f,
                             pathClipY + pathClipHeight - 3f, kfColor);
-                    drawList.addCircleFilled(kxAligned, centerY, TimelineClipRenderer.KEYFRAME_RADIUS + 1.0f,
-                            TimelineColors.rgba(0, 0, 0, 180));
-                    drawList.addCircleFilled(kxAligned, centerY, TimelineClipRenderer.KEYFRAME_RADIUS, kfColor);
+                    float keyframeSize = TimelineClipRenderer.KEYFRAME_RADIUS * 1.2f;
+                    if (keySelected) {
+                        keyframeSize *= 1.15f;
+                        drawList.addCircle(kxAligned, centerY, keyframeSize + 3.0f,
+                                TimelineColors.COLOR_KEYFRAME_SELECTED_RING, 0, 2.0f);
+                    }
+                    drawKeyframeShape(drawList, kxAligned, centerY, keyframeSize,
+                            kfColor, keyframe.getKeyType(), keySelected);
                 }
             }
         }
