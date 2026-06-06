@@ -12,14 +12,10 @@ import com.director.ui.timeline.model.camera.path.CameraPathClip;
 import com.director.ui.timeline.model.camera.path.CameraPathType;
 import com.director.ui.timeline.model.time.TimeKeyframe;
 import com.director.ui.timeline.model.season.SeasonKeyframe;
-// ⚠️ TimelineMarker 已移至时间标尺渲染，不再在轨道上渲染
-// import com.director.ui.timeline.model.TimelineMarker;
 
 import imgui.ImDrawList;
 import imgui.ImGui;
 import java.util.List;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * TimelineRenderer v9.0 - 专业级渲染器（Director 风格）
@@ -58,8 +54,6 @@ import org.slf4j.LoggerFactory;
  * @version 9.0 - 专业级架构（拆分优化）
  */
 public class TimelineRenderer {
-
-    private static final Logger logger = LoggerFactory.getLogger(TimelineRenderer.class);
 
     // ========== 颜色常量已迁移到 TimelineColors ==========
     // 所有颜色常量现在通过 TimelineColors 访问
@@ -931,17 +925,6 @@ public class TimelineRenderer {
 
     public List<TimelineTrackControlHit.Hit> getTrackControlHitAreas() {
         return trackControlHit.getTrackControlHitAreas();
-    }
-
-    // ===================== 坐标转换：X ↔ 时间（v9.0 统一 API）=====================
-
-    /**
-     * 屏幕像素 X → 时间秒数（不含磁吸）
-     * 
-     * <p>v9.0：使用 TimelineRenderMath 进行统一坐标转换
-     */
-    public float xToTime(float mouseX) {
-        return math.xToTime(mouseX);
     }
 
     /**
