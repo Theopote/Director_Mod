@@ -41,7 +41,7 @@ public class KeyboardInputMixin extends Input {
             // 如果鼠标在UI外，允许移动输入
             if (!mouseOverGui) {
                 var window = client.getWindow();
-    w'w'w'w'w'w'w'w'w'w'w'w'w                boolean anyMovementKey = InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_W)
+                boolean anyMovementKey = InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_W)
                         || InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_S)
                         || InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_A)
                         || InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_D)
