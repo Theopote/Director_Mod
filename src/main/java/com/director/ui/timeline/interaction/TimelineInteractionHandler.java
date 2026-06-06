@@ -1381,6 +1381,8 @@ public class TimelineInteractionHandler {
                     // 同步属性面板：多选关键帧时显示"多选关键帧"占位
                     syncPropertiesSelection(keyframe);
                     if (keyframe instanceof com.director.ui.timeline.model.camera.CameraKeyframe ck) {
+                        com.director.ui.timeline.playback.camera.TimelineCameraController.getInstance()
+                                .previewAt(ck.getTime());
                         LOGGER.debug("[Timeline] 右键摄像机关键帧 @ {}s，准备弹出关键帧菜单", ck.getTime());
                     }
                 }
