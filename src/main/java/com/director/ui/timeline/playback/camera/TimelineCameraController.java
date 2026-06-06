@@ -321,7 +321,6 @@ public final class TimelineCameraController {
     public void endScrubbing(float timeSeconds) {
         this.previewing = true;
         this.previewTimeSeconds = timeSeconds;
-        sampler.onStop();
         ensureCameraDataBuilt();
         applySampleAtTime(timeSeconds);
 
@@ -376,8 +375,6 @@ public final class TimelineCameraController {
         this.previewTimeSeconds = timelineModel != null ? timelineModel.getCurrentTime() : previewTimeSeconds;
         this.keyframeEditFramesRemaining = 0;
         this.keyframeEditSample = null;
-        // ⭐ 修复：清空 PathClip 状态，确保下次播放时能重新触发 onEnter()
-        sampler.onStop();
         if (timelineModel != null) {
             ensureCameraDataBuilt();
             applySampleAtTime(previewTimeSeconds);
@@ -573,6 +570,7 @@ public final class TimelineCameraController {
             CameraAccessor.applySampleToPlayerEntity(MinecraftClient.getInstance(), runtime.getCurrentSample());
             runtime.setOwner(CameraRuntime.Owner.PLAYER);
         }
+        sampler.onStop();
         this.previewing = false;
         this.keyframeEditFramesRemaining = 0;
         this.keyframeEditSample = null;
