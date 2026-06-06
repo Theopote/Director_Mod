@@ -47,12 +47,12 @@ public class CustomPathClipPropertyAdapter implements IPropertyAdapter<CustomPat
             lastClip = clip;
         }
 
-        boolean modified = false;
+        boolean modified;
 
         renderHeader(clip);
         ImGui.separator();
 
-        modified |= renderBasicSection(clip);
+        modified = renderBasicSection(clip);
         ImGui.separator();
 
         renderTimingSection(clip);
