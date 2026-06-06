@@ -319,12 +319,11 @@ public final class TimelineCameraController {
      * 注意：scrubbing 状态由 TimelineModel.setScrubbing(false) 设置，这里只负责摄像机状态同步
      */
     public void endScrubbing(float timeSeconds) {
-        // 检查 model 的状态（单一真相源）
-        if (timelineModel == null || !timelineModel.isScrubbing()) {
-            return;
-        }
-
         this.previewing = false;
+        sampler.onStop();
+        if (timelineModel == null || !timelineModel.isPlaying()) {
+            releaseCameraToPlayer();
+        }
 
         LOGGER.debug("[TimelineCameraController] 结束 scrubbing @ {}s", String.format("%.2f", timeSeconds));
     }
@@ -374,8 +373,11 @@ public final class TimelineCameraController {
      */
     public void stopPlayback() {
         this.previewing = false;
+        this.keyframeEditFramesRemaining = 0;
+        this.keyframeEditSample = null;
         // ⭐ 修复：清空 PathClip 状态，确保下次播放时能重新触发 onEnter()
         sampler.onStop();
+        releaseCameraToPlayer();
         LOGGER.debug("[TimelineCameraController] 停止播放");
     }
 
@@ -447,23 +449,24 @@ public final class TimelineCameraController {
             previewing = false;
             LOGGER.debug("[CameraController] 自动清除预览状态（播放头静止）");
         }
+        if (!playing && !scrubbing && keyframeEditFramesRemaining > 0) {
+            keyframeEditFramesRemaining = 0;
+            keyframeEditSample = null;
+        }
 
         // ⭐ 属性面板实时预览：倒计时管理
         // 当 renderProperties() 每帧调用 previewKeyframeDirect() 时，计数器被重置。
         // 当关键帧取消选中（renderProperties 不再被调用），计数器自然递减归零。
         boolean keyframeEditActive = false;
-        if (keyframeEditFramesRemaining > 0 && !playing && !scrubbing) {
-            keyframeEditActive = true;
-            keyframeEditFramesRemaining--;
-        } else if (playing || scrubbing) {
+        if (playing || scrubbing) {
             // 播放/Scrubbing 时强制停止关键帧编辑预览
             keyframeEditFramesRemaining = 0;
             keyframeEditSample = null;
         }
 
-        boolean previewActive = previewing && !playing && !scrubbing;
+        boolean previewActive = false;
         CameraRuntime runtime = CameraRuntime.getInstance();
-        boolean wantsTimeline = playing || scrubbing || previewActive || keyframeEditActive;
+        boolean wantsTimeline = playing || scrubbing;
         if (wantsTimeline) {
             ensureCameraDataBuilt();
         }
@@ -480,9 +483,7 @@ public final class TimelineCameraController {
             this.previewing = false;
         }
 
-        // ⭐ 关键帧编辑预览不需要 PathClip/关键帧数据，因为直接使用 keyframeEditSample
-        boolean shouldTimeline = keyframeEditActive
-                || ((wantsTimeline || isExporting) && hasCameraData);
+        boolean shouldTimeline = (wantsTimeline || isExporting) && hasCameraData;
 
         // ⭐ 调试日志：检查 owner 切换逻辑
         if (LOGGER.isDebugEnabled() && (wantsTimeline || isExporting || keyframeEditActive)) {
@@ -507,7 +508,7 @@ public final class TimelineCameraController {
 
         // ⭐ 时间线模式：根据当前时间采样相机（播放/scrubbing/预览时）
         // ⭐ 关键修复：使用 tick() 统一入口，确保播放时每帧都采样
-        if (shouldTimeline || runtime.isTimelineOwner()) {
+        if (shouldTimeline) {
             // ✅ 性能关键：播放时不要每帧 rebuild（会导致 FPS 大幅下降）
             ensureCameraDataBuilt();
 
@@ -515,12 +516,6 @@ public final class TimelineCameraController {
                 // ⭐ 播放/Scrubbing：使用 tick() 统一驱动
                 // tick() 负责采样当前时间（时间推进由 TimelinePanel.updatePlayback() 负责）
                 sampler.tick(timelineModel, 0f).ifPresent(runtime::applyTimelineSample);
-            } else if (keyframeEditActive && keyframeEditSample != null) {
-                // ⭐ 关键帧属性编辑实时预览：直接使用缓存的 CameraSample，无需 PathManager 采样
-                runtime.applyTimelineSample(keyframeEditSample);
-            } else if (previewActive) {
-                // ⭐ 预览模式：直接采样预览时间（不使用 tick，因为预览不是播放状态）
-                sampler.sample(previewTimeSeconds).ifPresent(runtime::applyTimelineSample);
             }
         } else {
             // ⭐ 玩家模式：只负责处理平滑过渡
@@ -564,16 +559,23 @@ public final class TimelineCameraController {
         keyframeEditSample = null;
     }
 
+    private void releaseCameraToPlayer() {
+        CameraRuntime runtime = CameraRuntime.getInstance();
+        if (runtime.isTimelineOwner()) {
+            runtime.setOwner(CameraRuntime.Owner.PLAYER);
+        }
+        DirectorClientController.getInstance().setHideCrosshair(false);
+    }
+
     /**
      * 检查时间线是否真正在活动（播放、scrubbing 或关键帧属性编辑预览）
      * 用于判断是否应该保持 TIMELINE owner
      */
     public synchronized boolean isTimelineActive() {
         if (timelineModel == null) {
-            return keyframeEditFramesRemaining > 0;
+            return false;
         }
-        return timelineModel.isPlaying() || timelineModel.isScrubbing()
-                || keyframeEditFramesRemaining > 0;
+        return timelineModel.isPlaying() || timelineModel.isScrubbing();
     }
 
     /**
@@ -586,11 +588,14 @@ public final class TimelineCameraController {
             return;
         }
 
-        this.previewing = true;
+        this.previewing = false;
         this.previewTimeSeconds = timeSeconds;
 
         ensureCameraDataBuilt();
-        applySampleAtTime(timeSeconds);
+        sampler.sample(timeSeconds)
+                .ifPresent(sample -> CameraAccessor.applySampleToPlayerEntity(MinecraftClient.getInstance(), sample));
+        CameraRuntime.getInstance().setOwner(CameraRuntime.Owner.PLAYER);
+        DirectorClientController.getInstance().setHideCrosshair(false);
         LOGGER.debug("[TimelineCameraController] 预览 @ {}s", String.format("%.2f", timeSeconds));
     }
 
@@ -615,9 +620,8 @@ public final class TimelineCameraController {
      * @param kf 当前正在编辑的关键帧
      */
     public synchronized void previewKeyframeDirect(CameraKeyframe kf) {
-        if (kf == null) return;
-        keyframeEditSample = keyframeToSample(kf);
-        keyframeEditFramesRemaining = 5; // 存活 5 帧，允许 update 与 ImGui 帧率差异
+        keyframeEditFramesRemaining = 0;
+        keyframeEditSample = null;
     }
 
     /**

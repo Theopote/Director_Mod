@@ -213,8 +213,20 @@ public final class CameraRuntime {
     }
 
     private void unlockPlayerInput(MinecraftClient client) {
-        // 基本上不需要做额外事情，只要不再每帧清零就行
-        // KeyBinding 在玩家下一次按键时会自动更新状态
+        if (client.player != null && client.player.input != null) {
+            var input = client.player.input;
+            input.playerInput = new net.minecraft.util.PlayerInput(false, false, false, false, false, false, false);
+        }
+
+        if (client.options != null) {
+            clearKey(client.options.forwardKey);
+            clearKey(client.options.backKey);
+            clearKey(client.options.leftKey);
+            clearKey(client.options.rightKey);
+            clearKey(client.options.jumpKey);
+            clearKey(client.options.sneakKey);
+            clearKey(client.options.sprintKey);
+        }
     }
 
     private void clearKey(net.minecraft.client.option.KeyBinding key) {

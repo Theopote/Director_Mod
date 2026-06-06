@@ -69,6 +69,10 @@ public class KeyboardInputMixin extends Input {
                 }
                 
                 ci.cancel(); // 阻止原版处理
+            } else {
+                this.movementVector = Vec2f.ZERO;
+                this.playerInput = new PlayerInput(false, false, false, false, false, false, false);
+                ci.cancel();
             }
         }
     }

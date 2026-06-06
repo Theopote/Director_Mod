@@ -843,12 +843,16 @@ public class TimelineModel implements ITimelineProject {
      * </ul>
      */
     public void setScrubbing(boolean scrubbing) {
+        boolean wasScrubbing = this.scrubbing;
         if (scrubbing && this.playing) {
             // scrubbing 和 playing 互斥，如果开始 scrubbing，先停止播放
             this.playing = false;
             com.director.ui.timeline.playback.camera.TimelineCameraController.getInstance().onPlaybackStopped();
         }
         this.scrubbing = scrubbing;
+        if (wasScrubbing && !scrubbing && !this.playing) {
+            com.director.ui.timeline.playback.camera.TimelineCameraController.getInstance().endScrubbing(currentTime);
+        }
     }
     
     /**
