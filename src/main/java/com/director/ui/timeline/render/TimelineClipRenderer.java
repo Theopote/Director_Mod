@@ -57,13 +57,6 @@ public final class TimelineClipRenderer {
     private static final float CLIP_TEXT_OFFSET_X = 6.0f;
     
     /**
-     * 片段文本 Y 偏移（像素）
-     * 
-     * <p>片段标签文本距离轨道顶部的偏移量。
-     */
-    private static final float CLIP_TEXT_OFFSET_Y = 6.0f;
-    
-    /**
      * 调整手柄宽度（像素）
      * 
      * <p>片段左右两侧用于调整宽度的拖拽手柄宽度。
@@ -388,10 +381,10 @@ public final class TimelineClipRenderer {
     private void renderEventClip(ImDrawList drawList, TimelineClip clip, TimelineTrack track, int trackIndex,
                                  float contentX, float y, float trackH, float contentW) {
         float x1 = math.timeToX(clip.getStartTime());
-        float centerX = x1; // 事件在开始时间位置
+        // 事件在开始时间位置
         float maxX = contentX + contentW;
 
-        if (centerX < contentX || centerX > maxX) return;
+        if (x1 < contentX || x1 > maxX) return;
 
         int col = clip.getColor();
         boolean isTrackLocked = track != null && track.isLocked();
@@ -405,27 +398,27 @@ public final class TimelineClipRenderer {
         // 绘制事件点（菱形 ◆）
         // 使用两个三角形绘制菱形
         drawList.addTriangleFilled(
-            centerX, centerY - eventRadius,
-            centerX + eventRadius, centerY,
-            centerX, centerY + eventRadius,
+                x1, centerY - eventRadius,
+            x1 + eventRadius, centerY,
+                x1, centerY + eventRadius,
             col
         );
         drawList.addTriangleFilled(
-            centerX, centerY - eventRadius,
-            centerX - eventRadius, centerY,
-            centerX, centerY + eventRadius,
+                x1, centerY - eventRadius,
+            x1 - eventRadius, centerY,
+                x1, centerY + eventRadius,
             col
         );
 
         // 边框
-        drawList.addLine(centerX, centerY - eventRadius, centerX + eventRadius, centerY, TimelineColors.rgba(0, 0, 0, 200), 1.0f);
-        drawList.addLine(centerX + eventRadius, centerY, centerX, centerY + eventRadius, TimelineColors.rgba(0, 0, 0, 200), 1.0f);
-        drawList.addLine(centerX, centerY + eventRadius, centerX - eventRadius, centerY, TimelineColors.rgba(0, 0, 0, 200), 1.0f);
-        drawList.addLine(centerX - eventRadius, centerY, centerX, centerY - eventRadius, TimelineColors.rgba(0, 0, 0, 200), 1.0f);
+        drawList.addLine(x1, centerY - eventRadius, x1 + eventRadius, centerY, TimelineColors.rgba(0, 0, 0, 200), 1.0f);
+        drawList.addLine(x1 + eventRadius, centerY, x1, centerY + eventRadius, TimelineColors.rgba(0, 0, 0, 200), 1.0f);
+        drawList.addLine(x1, centerY + eventRadius, x1 - eventRadius, centerY, TimelineColors.rgba(0, 0, 0, 200), 1.0f);
+        drawList.addLine(x1 - eventRadius, centerY, x1, centerY - eventRadius, TimelineColors.rgba(0, 0, 0, 200), 1.0f);
 
         // 选中时显示外圈
         if (clip == model.getSelectedClip() && !isTrackLocked) {
-            drawList.addCircle(centerX, centerY, eventRadius + 2.0f, TimelineColors.COLOR_SELECTED_BORDER, 0, 2.0f);
+            drawList.addCircle(x1, centerY, eventRadius + 2.0f, TimelineColors.COLOR_SELECTED_BORDER, 0, 2.0f);
         }
 
         // 事件不显示调整手柄和关键帧

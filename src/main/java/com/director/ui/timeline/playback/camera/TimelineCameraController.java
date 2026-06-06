@@ -59,6 +59,7 @@ public final class TimelineCameraController {
     /** 是否处于「单帧预览关键帧」的状态 */
     private boolean previewing = false;
     private float previewTimeSeconds = 0f;
+    private CameraSample previewSample = null;
 
     /**
      * ⭐ 属性面板实时预览：选中关键帧并编辑属性时，直接将关键帧转换为 CameraSample 应用到相机，
@@ -130,6 +131,8 @@ public final class TimelineCameraController {
             sampler.setKeyframes(new ArrayList<>());
             pathManager.setKeyframes(new ArrayList<>());
             cameraDataDirty = false;
+            previewing = false;
+            previewSample = null;
         }
     }
 
@@ -171,6 +174,9 @@ public final class TimelineCameraController {
     public synchronized void onKeyframeChanged() {
         cameraDataDirty = true;
         rebuildFromActiveTrack();
+        if (previewing && timelineModel != null && !timelineModel.isPlaying() && !timelineModel.isScrubbing()) {
+            setStaticPreviewAt(previewTimeSeconds);
+        }
     }
 
     /**
@@ -281,6 +287,7 @@ public final class TimelineCameraController {
      */
     public void beginScrubbing(float timeSeconds) {
         this.previewing = false;
+        this.previewSample = null;
         ensureCameraDataBuilt();
         // ⭐ 使用 tick() 统一入口（deltaSec=0，因为 scrubbing 不推进时间）
         sampler.tick(timelineModel, 0f).ifPresent(CameraRuntime.getInstance()::applyTimelineSample);
@@ -318,10 +325,7 @@ public final class TimelineCameraController {
      * 注意：scrubbing 状态由 TimelineModel.setScrubbing(false) 设置，这里只负责摄像机状态同步
      */
     public void endScrubbing(float timeSeconds) {
-        this.previewing = true;
-        this.previewTimeSeconds = timeSeconds;
-        ensureCameraDataBuilt();
-        applySampleAtTime(timeSeconds);
+        setStaticPreviewAt(timeSeconds);
 
         LOGGER.debug("[TimelineCameraController] 结束 scrubbing @ {}s", String.format("%.2f", timeSeconds));
     }
@@ -337,6 +341,7 @@ public final class TimelineCameraController {
      */
     public void startPlayback() {
         this.previewing = false;
+        this.previewSample = null;
         ensureCameraDataBuilt();
 
         // ⭐ 修复：检查是否有摄像机数据（关键帧或 PathClip）
@@ -370,13 +375,10 @@ public final class TimelineCameraController {
      * ⭐ 修复：清空 PathClip 状态，确保下次播放时 onEnter() 能重新触发
      */
     public void stopPlayback() {
-        this.previewing = timelineModel != null;
-        this.previewTimeSeconds = timelineModel != null ? timelineModel.getCurrentTime() : previewTimeSeconds;
         this.keyframeEditFramesRemaining = 0;
         this.keyframeEditSample = null;
         if (timelineModel != null) {
-            ensureCameraDataBuilt();
-            applySampleAtTime(previewTimeSeconds);
+            setStaticPreviewAt(timelineModel.getCurrentTime());
         } else {
             releaseCameraToPlayer();
         }
@@ -395,6 +397,7 @@ public final class TimelineCameraController {
         }
         if (!scrubbing) {
             this.previewing = false;
+            this.previewSample = null;
         }
     }
 
@@ -410,6 +413,7 @@ public final class TimelineCameraController {
      */
     public void onTimelineUiClosed() {
         this.previewing = false;
+        this.previewSample = null;
         // scrubbing 状态由 TimelineModel 管理，这里不需要设置
         if (timelineModel != null) {
             timelineModel.setPlaying(false);
@@ -445,12 +449,6 @@ public final class TimelineCameraController {
         boolean playing = timelineModel.isPlaying();
         boolean scrubbing = timelineModel.isScrubbing();
 
-        // ⭐ 修复：如果不在播放/scrubbing，自动清除 previewing 状态
-        // 这样当播放头静止时，玩家可以立即操作摄像机，无需先拖动播放头
-        if (!playing && !scrubbing && previewing) {
-            previewing = false;
-            LOGGER.debug("[CameraController] 自动清除预览状态（播放头静止）");
-        }
         if (!playing && !scrubbing && keyframeEditFramesRemaining > 0) {
             keyframeEditFramesRemaining = 0;
             keyframeEditSample = null;
@@ -483,6 +481,7 @@ public final class TimelineCameraController {
         // 🔒 导出期间：强制禁用预览状态，避免 UI 循环采样“游标时间”与导出采样“导出时间”冲突。
         if (isExporting && previewing) {
             this.previewing = false;
+            this.previewSample = null;
         }
 
         boolean shouldTimeline = (wantsTimeline || isExporting) && hasCameraData;
@@ -519,7 +518,12 @@ public final class TimelineCameraController {
                 // tick() 负责采样当前时间（时间推进由 TimelinePanel.updatePlayback() 负责）
                 sampler.tick(timelineModel, 0f).ifPresent(runtime::applyTimelineSample);
             } else if (previewActive) {
-                sampler.sample(previewTimeSeconds).ifPresent(runtime::applyTimelineSample);
+                if (previewSample == null) {
+                    previewSample = sampler.sample(previewTimeSeconds).orElse(null);
+                }
+                if (previewSample != null) {
+                    runtime.applyTimelineSample(previewSample);
+                }
             }
         } else {
             // ⭐ 玩家模式：只负责处理平滑过渡
@@ -556,6 +560,7 @@ public final class TimelineCameraController {
     public synchronized void clearPreviewState() {
         if (previewing) {
             previewing = false;
+            previewSample = null;
             LOGGER.debug("[TimelineCameraController] 清除预览状态");
         }
         // ⭐ 同时清除关键帧编辑预览，避免残留状态导致下一帧又切回 TIMELINE
@@ -571,6 +576,7 @@ public final class TimelineCameraController {
         }
         sampler.onStop();
         this.previewing = false;
+        this.previewSample = null;
         this.keyframeEditFramesRemaining = 0;
         this.keyframeEditSample = null;
         DirectorClientController.getInstance().setHideCrosshair(false);
@@ -597,24 +603,42 @@ public final class TimelineCameraController {
             return;
         }
 
-        this.previewing = true;
-        this.previewTimeSeconds = timeSeconds;
-
-        ensureCameraDataBuilt();
-        applySampleAtTime(timeSeconds);
-        CameraRuntime.getInstance().setOwner(CameraRuntime.Owner.TIMELINE);
-        DirectorClientController.getInstance().setHideCrosshair(true);
+        setStaticPreviewAt(timeSeconds);
         LOGGER.debug("[TimelineCameraController] 预览 @ {}s", String.format("%.2f", timeSeconds));
     }
 
     /**
      * ⭐ v5.0：对指定时间采样，并写入 CameraRuntime
      */
-    private void applySampleAtTime(float timeSeconds) {
+    private Optional<CameraSample> applySampleAtTime(float timeSeconds) {
         Optional<CameraSample> opt = sampler.sample(timeSeconds);
         CameraRuntime runtime = CameraRuntime.getInstance();
 
         opt.ifPresent(runtime::applyTimelineSample);
+        return opt;
+    }
+
+    /**
+     * 静止预览只在进入静止状态时采样一次。
+     * Dolly/Crane 等路径会沿用上一帧朝向；如果静止状态每帧重采样，朝向会受到采样器内部状态影响。
+     */
+    private void setStaticPreviewAt(float timeSeconds) {
+        this.previewing = true;
+        this.previewTimeSeconds = timeSeconds;
+
+        ensureCameraDataBuilt();
+        this.previewSample = applySampleAtTime(timeSeconds).orElse(null);
+
+        if (previewSample == null) {
+            releaseCameraToPlayer();
+            return;
+        }
+
+        CameraRuntime runtime = CameraRuntime.getInstance();
+        if (!runtime.isTimelineOwner()) {
+            runtime.setOwner(CameraRuntime.Owner.TIMELINE);
+        }
+        DirectorClientController.getInstance().setHideCrosshair(true);
     }
 
     // ================== 属性面板实时预览 ==================
@@ -633,9 +657,8 @@ public final class TimelineCameraController {
     }
 
     /**
-     * 点击时间标尺时：只采样并把镜头落到玩家态，允许立即调整。
-     * ⭐ 修复：不再设置 previewing=true，否则下一帧 updateOwnerAndSample()
-     *   会检测到 previewing 并将 owner 切回 TIMELINE，造成 1~2 帧闪烁。
+     * 点击时间标尺时：用时间线接管相机并停在当前路径位置。
+     * 玩家输入会通过 MouseMixin / KeyboardInputMixin 释放预览，恢复自由控制。
      */
     public synchronized void jumpToTimeAsPlayer(float timeSeconds) {
         if (!hasValidActiveTrack()) {
@@ -644,15 +667,7 @@ public final class TimelineCameraController {
 
         this.previewTimeSeconds = timeSeconds;
 
-        ensureCameraDataBuilt();
-        // 将镜头位置直接写到玩家实体 / 相机
-        sampler.sample(timeSeconds)
-                .ifPresent(sample -> CameraAccessor.applySampleToPlayerEntity(MinecraftClient.getInstance(), sample));
-        this.previewing = true;
-        this.previewTimeSeconds = timeSeconds;
-        sampler.sample(timeSeconds).ifPresent(CameraRuntime.getInstance()::applyTimelineSample);
-        CameraRuntime.getInstance().setOwner(CameraRuntime.Owner.TIMELINE);
-        DirectorClientController.getInstance().setHideCrosshair(true);
+        setStaticPreviewAt(timeSeconds);
         LOGGER.debug("[TimelineCamera] jumpToTimeAsPlayer @ {}s", timeSeconds);
     }
 
