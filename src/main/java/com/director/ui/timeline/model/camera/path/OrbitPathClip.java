@@ -288,6 +288,13 @@ public class OrbitPathClip extends CameraPathClip {
         }
         return startAngle;
     }
+
+    /**
+     * 返回片段保存的起始角配置值，不受当前运行时摄像机位置影响。
+     */
+    public float getConfiguredStartAngle() {
+        return startAngle;
+    }
     
     public void setStartAngle(float startAngle) {
         this.startAngle = normalizeAngle(startAngle);
@@ -298,7 +305,7 @@ public class OrbitPathClip extends CameraPathClip {
     }
     
     public void setEndAngle(float endAngle) {
-        this.endAngle = normalizeAngle(endAngle);
+        this.endAngle = sanitizeAngle(endAngle);
     }
     
     public StartAngleMode getStartAngleMode() {
@@ -464,23 +471,12 @@ public class OrbitPathClip extends CameraPathClip {
         
         // ⭐ 特殊处理：如果是完整一圈（360°），保持完整一圈
         if (Math.abs(currentSweep - 360f) < 0.1f) {
-            // 完整一圈，保持 360° 扫过角度
             setStartAngle(angleDeg);
-            float newEndAngle = angleDeg + 360f;
-            // 如果超过 360，归一化到 [0, 360] 范围（但保持 360° 作为有效值）
-            if (newEndAngle > 360f) {
-                newEndAngle = 360f;  // 保持 360° 作为结束角度
-            }
-            setEndAngle(newEndAngle);
+            setEndAngle(angleDeg + 360f);
         } else {
             // 部分扫过，保持扫过角度不变
             setStartAngle(angleDeg);
-            float newEndAngle = angleDeg + currentSweep;
-            // 如果超过 360，归一化到 [0, 360] 范围
-            if (newEndAngle > 360f) {
-                newEndAngle = newEndAngle % 360f;
-            }
-            setEndAngle(newEndAngle);
+            setEndAngle(angleDeg + currentSweep);
         }
         
         // ⭐ 调试日志：记录角度对齐
@@ -573,6 +569,7 @@ public class OrbitPathClip extends CameraPathClip {
      * <p>注意：允许 360° 作为有效值（完整一圈），而不是归一化为 0°
      */
     private static float normalizeAngle(float angle) {
+        angle = sanitizeAngle(angle);
         // ⭐ 特殊处理：360° 是有效值，不应该被归一化为 0°
         if (angle == 360f) {
             return 360f;
@@ -583,6 +580,13 @@ public class OrbitPathClip extends CameraPathClip {
             angle += 360f;
         }
         return angle;
+    }
+
+    private static float sanitizeAngle(float angle) {
+        if (!Float.isFinite(angle)) {
+            return 0f;
+        }
+        return Math.max(-3600f, Math.min(3600f, angle));
     }
     
     @Override

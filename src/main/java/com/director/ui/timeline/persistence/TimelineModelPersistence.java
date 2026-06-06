@@ -662,7 +662,7 @@ public class TimelineModelPersistence {
                         pathClipDTO.heightMode = orbit.getHeightMode() != null ? orbit.getHeightMode().name() : null;
                         pathClipDTO.height = orbit.getHeight();
                         pathClipDTO.cachedHeight = orbit.getCachedHeight();
-                        pathClipDTO.startAngle = orbit.getStartAngle();
+                        pathClipDTO.startAngle = orbit.getConfiguredStartAngle();
                         pathClipDTO.endAngle = orbit.getEndAngle();
                         pathClipDTO.startAngleMode = orbit.getStartAngleMode() != null ? orbit.getStartAngleMode().name() : null;
                         pathClipDTO.clockwise = orbit.isClockwise();

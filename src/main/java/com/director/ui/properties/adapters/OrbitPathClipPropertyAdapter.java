@@ -587,7 +587,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
                 endAngleFloat.set(clip.getEndAngle());
             }
             
-            boolean endAngleSliderChanged = ImGui.sliderFloat("End Angle (度)", endAngleFloat.getData(), 0f, 360f, "%.1f°");
+            boolean endAngleSliderChanged = ImGui.sliderFloat("End Angle (度)", endAngleFloat.getData(), 0f, 720f, "%.1f°");
             boolean isEndAngleSliderActive = ImGui.isItemActive();
             
             if (endAngleSliderChanged) {

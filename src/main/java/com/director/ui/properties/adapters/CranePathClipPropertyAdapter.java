@@ -277,8 +277,7 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
 
             CameraPathEnterContext ctx = getCameraPathEnterContext(currentSample);
 
-            // 调用对齐方法
-            clip.onEnter(ctx);
+            clip.alignFromContext(ctx);
             
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("[CranePathClipPropertyAdapter] 已从当前摄像机状态对齐: 位置 {}", 

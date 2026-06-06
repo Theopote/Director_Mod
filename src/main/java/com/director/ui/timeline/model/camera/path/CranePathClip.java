@@ -82,13 +82,28 @@ public class CranePathClip extends CameraPathClip {
      */
     @Override
     public void onEnter(CameraPathEnterContext ctx) {
-        if (!alignStartToCurrentPosition || ctx == null) {
+        if (ctx == null) {
             return;
         }
-        
-        // 捕获进入时的完整位置
+
+        if (!alignStartToCurrentPosition && startPosition != null) {
+            return;
+        }
+
+        alignFromContext(ctx);
+    }
+
+    /**
+     * 从指定摄像机状态重新捕获升降路径起点。
+     * 属性面板的手动对齐需要无视 alignStartToCurrentPosition 开关。
+     */
+    public void alignFromContext(CameraPathEnterContext ctx) {
+        if (ctx == null || ctx.position == null) {
+            return;
+        }
+
         this.startPosition = ctx.position;
-        
+
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("[CranePathClip] onEnter() 起始位置: {}, 高度变化: {} blocks",
                     startPosition, heightDelta);
@@ -97,6 +112,10 @@ public class CranePathClip extends CameraPathClip {
     
     @Override
     public CameraPathSample sample(float timeSeconds) {
+        if (startPosition == null) {
+            initializeFromCurrentCamera();
+        }
+
         if (startPosition == null) {
             // 尚未初始化（理论上不会，但防御性编程）
             if (LOGGER.isWarnEnabled()) {
@@ -172,6 +191,24 @@ public class CranePathClip extends CameraPathClip {
         copy.setAlignStartToCurrentPosition(alignStartToCurrentPosition);
         copy.setEnabled(isEnabled());
         return copy;
+    }
+
+    private void initializeFromCurrentCamera() {
+        try {
+            com.director.ui.timeline.playback.camera.CameraSample currentSample =
+                    com.director.ui.timeline.playback.camera.CameraRuntime.getInstance().getCurrentSample();
+            if (currentSample == null) {
+                return;
+            }
+            alignFromContext(new CameraPathEnterContext(
+                    currentSample.position(),
+                    currentSample.yaw(),
+                    currentSample.pitch()));
+        } catch (Exception e) {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("[CranePathClip] 无法从当前摄像机状态初始化", e);
+            }
+        }
     }
     
     @Override

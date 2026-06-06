@@ -97,14 +97,28 @@ public class DollyPathClip extends CameraPathClip {
      */
     @Override
     public void onEnter(CameraPathEnterContext ctx) {
-        if (!alignStartToCurrentPosition || ctx == null) {
+        if (ctx == null) {
             return;
         }
-        
-        // ① 捕获起始位置（无缝衔接）
+
+        if (!alignStartToCurrentPosition && startPosition != null && dollyDirection != null) {
+            return;
+        }
+
+        alignFromContext(ctx);
+    }
+
+    /**
+     * 从指定摄像机状态重新捕获推拉路径起点和方向。
+     * 属性面板的手动对齐需要无视 alignStartToCurrentPosition 开关。
+     */
+    public void alignFromContext(CameraPathEnterContext ctx) {
+        if (ctx == null || ctx.position == null) {
+            return;
+        }
+
         this.startPosition = ctx.position;
-        
-        // ② 决定 Dolly 方向
+
         switch (directionMode) {
             case CAMERA_FORWARD -> {
                 // ⭐ 使用当前摄像机的 forward 方向（镜头朝向）
@@ -142,6 +156,10 @@ public class DollyPathClip extends CameraPathClip {
     
     @Override
     public CameraPathSample sample(float timeSeconds) {
+        if (startPosition == null || dollyDirection == null) {
+            initializeFromCurrentCamera();
+        }
+
         if (startPosition == null || dollyDirection == null) {
             // 尚未初始化（理论上不会，但防御性编程）
             if (LOGGER.isWarnEnabled()) {
@@ -191,6 +209,7 @@ public class DollyPathClip extends CameraPathClip {
     
     public void setDirectionMode(DirectionMode directionMode) {
         this.directionMode = directionMode != null ? directionMode : DirectionMode.CAMERA_FORWARD;
+        this.dollyDirection = null;
     }
     
     public Vec3d getFixedDirection() {
@@ -199,6 +218,9 @@ public class DollyPathClip extends CameraPathClip {
     
     public void setFixedDirection(Vec3d fixedDirection) {
         this.fixedDirection = fixedDirection != null ? fixedDirection : new Vec3d(0, 0, 1);
+        if (directionMode == DirectionMode.FIXED_DIRECTION) {
+            this.dollyDirection = null;
+        }
     }
     
     public boolean isAlignStartToCurrentPosition() {
@@ -239,6 +261,24 @@ public class DollyPathClip extends CameraPathClip {
     }
     
     // ========== 工具方法 ==========
+
+    private void initializeFromCurrentCamera() {
+        try {
+            com.director.ui.timeline.playback.camera.CameraSample currentSample =
+                    com.director.ui.timeline.playback.camera.CameraRuntime.getInstance().getCurrentSample();
+            if (currentSample == null) {
+                return;
+            }
+            alignFromContext(new CameraPathEnterContext(
+                    currentSample.position(),
+                    currentSample.yaw(),
+                    currentSample.pitch()));
+        } catch (Exception e) {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("[DollyPathClip] 无法从当前摄像机状态初始化", e);
+            }
+        }
+    }
     
     /**
      * 安全归一化向量（防止除零和 NaN）

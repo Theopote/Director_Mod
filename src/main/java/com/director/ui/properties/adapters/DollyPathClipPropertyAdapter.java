@@ -373,8 +373,7 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
 
             CameraPathEnterContext ctx = getCameraPathEnterContext(currentSample);
 
-            // 调用对齐方法
-            clip.onEnter(ctx);
+            clip.alignFromContext(ctx);
             
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("[DollyPathClipPropertyAdapter] 已从当前摄像机状态对齐: 位置 {}, 方向 {}", 
