@@ -9,6 +9,7 @@ import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.render.fog.FogRenderer;
 import net.minecraft.client.world.ClientWorld;
+import net.minecraft.util.math.Vec3d;
 import org.joml.Vector4f;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -109,6 +110,12 @@ public abstract class BackgroundRendererMixin {
             r = clamp01(original.x * (1f + clampTint(seasonSample.fogTint.x)));
             g = clamp01(original.y * (1f + clampTint(seasonSample.fogTint.y)));
             b = clamp01(original.z * (1f + clampTint(seasonSample.fogTint.z)));
+
+            Vec3d sky = unpackSkyColor(world.getSkyColor(camera.getPos(), tickCounter.getTickProgress(false)));
+            float blendToSky = fogSkyBlendAmount(seasonSample);
+            r = lerp(r, (float) sky.x, blendToSky);
+            g = lerp(g, (float) sky.y, blendToSky);
+            b = lerp(b, (float) sky.z, blendToSky);
             
             cir.setReturnValue(new Vector4f(r, g, b, a));
         }
@@ -130,6 +137,27 @@ public abstract class BackgroundRendererMixin {
     @Unique
     private static float clampTint(float v) {
         return Math.max(-0.99f, Math.min(3f, v));
+    }
+
+    @Unique
+    private static Vec3d unpackSkyColor(int argb) {
+        float r = ((argb >> 16) & 0xFF) / 255f;
+        float g = ((argb >> 8) & 0xFF) / 255f;
+        float b = (argb & 0xFF) / 255f;
+        return new Vec3d(r, g, b);
+    }
+
+    @Unique
+    private static float fogSkyBlendAmount(SeasonSample sample) {
+        float strength = Math.max(
+                Math.max(Math.abs(sample.fogTint.x), Math.abs(sample.fogTint.y)),
+                Math.abs(sample.fogTint.z));
+        return Math.min(0.35f, 0.12f + strength * 0.18f);
+    }
+
+    @Unique
+    private static float lerp(float a, float b, float t) {
+        return a + (b - a) * t;
     }
 }
 

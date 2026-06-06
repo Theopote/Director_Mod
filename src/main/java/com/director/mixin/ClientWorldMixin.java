@@ -297,6 +297,12 @@ public abstract class ClientWorldMixin {
                 rf = clamp01(rf * (1f + clampTint(seasonSample.skyTint.x)));
                 gf = clamp01(gf * (1f + clampTint(seasonSample.skyTint.y)));
                 bf = clamp01(bf * (1f + clampTint(seasonSample.skyTint.z)));
+
+                // 雾色属于大气颜色的一部分。如果只修改 FogRenderer 的雾色而天空保持原色，
+                // 天际线处会出现明显硬接。这里让天空获得一部分 fogTint，形成更自然的过渡。
+                rf = applyAtmosphericFogTint(rf, seasonSample.fogTint.x);
+                gf = applyAtmosphericFogTint(gf, seasonSample.fogTint.y);
+                bf = applyAtmosphericFogTint(bf, seasonSample.fogTint.z);
             }
         }
         
@@ -322,6 +328,21 @@ public abstract class ClientWorldMixin {
     @Unique
     private static float clampTint(float v) {
         return Math.max(-0.99f, Math.min(3f, v));
+    }
+
+    @Unique
+    private static float applyAtmosphericFogTint(float base, float fogTint) {
+        float tint = clampTint(fogTint);
+        if (Math.abs(tint) < 0.0001f) {
+            return base;
+        }
+        float fogged = clamp01(base * (1f + tint));
+        return clamp01(lerp(base, fogged, 0.55f));
+    }
+
+    @Unique
+    private static float lerp(float a, float b, float t) {
+        return a + (b - a) * t;
     }
     
     // 注意：天气相关的方法（getRainGradient, getThunderGradient, isRaining, isThundering）
