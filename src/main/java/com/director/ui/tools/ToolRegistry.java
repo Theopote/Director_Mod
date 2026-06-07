@@ -135,8 +135,8 @@ public final class ToolRegistry {
         ));
         META.put("actor_path", ToolMetadata.of(
                 ToolGroup.WORLD, 80,
-                "绘制路径并生成移动片段",
-                "左键加点，右键完成"
+                "Draw an actor route from world waypoints",
+                "Left click adds waypoints, right click creates a RouteClip"
         ));
 
         // 占位工具（让 World/Timeline 架子先完整，后续直接替换/追加真实工具）

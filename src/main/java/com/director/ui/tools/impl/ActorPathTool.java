@@ -7,7 +7,7 @@ import com.director.ui.tools.ToolLifecycle;
 public final class ActorPathTool extends AbstractWorldTool implements ToolLifecycle {
 
     public ActorPathTool() {
-        super("actor_path", "演员路径", Icons.PATH, "在世界中绘制路径并生成移动片段。");
+        super("actor_path", "Actor Route", Icons.PATH, "Draw waypoints in the world and create an ActorRouteClip.");
     }
 
     @Override

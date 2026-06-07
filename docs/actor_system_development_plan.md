@@ -139,6 +139,12 @@ Each tool should activate a clear editing context and expose its settings in Pro
 - path tool creates RouteClip instead of many TransformClips
 - loop and ping-pong playback
 
+Status:
+
+- `ActorRouteClip` model, sampling, persistence, and property editing are implemented.
+- Actor Route tool currently creates deterministic waypoint RouteClips.
+- Minecraft `PathNavigation` integration remains future work and should be added as an optional local navigation policy.
+
 ### Phase 3: Groups
 
 - `ActorGroup` model
@@ -146,6 +152,12 @@ Each tool should activate a clear editing context and expose its settings in Pro
 - group commands
 - delay policies
 - group route/action authoring
+
+Status:
+
+- `ActorGroup` / `ActorGroupRef` project models are implemented.
+- ActorRegistry save/load supports groups.
+- Actor project properties include basic group creation, editing, and actor membership toggles.
 
 ### Phase 4: Formation
 
