@@ -271,6 +271,13 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                     modified = true;
                 }
 
+                float[] spacing = { group.getFormationSpacing() };
+                if (ImGui.sliderFloat("Formation Spacing##groupFormationSpacing" + group.getGroupId(),
+                        spacing, 0.1f, 12.0f, "%.1f blocks")) {
+                    group.setFormationSpacing(spacing[0]);
+                    modified = true;
+                }
+
                 ActorGroup.DelayPolicy[] delays = ActorGroup.DelayPolicy.values();
                 ImInt delay = new ImInt(group.getDelayPolicy().ordinal());
                 String[] delayLabels = new String[delays.length];

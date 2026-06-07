@@ -136,6 +136,7 @@ public class ActorRegistryPersistence {
             groupObj.addProperty("groupId", group.getGroupId().toString());
             groupObj.addProperty("name", group.getName());
             groupObj.addProperty("formationType", group.getFormationType().name());
+            groupObj.addProperty("formationSpacing", group.getFormationSpacing());
             groupObj.addProperty("delayPolicy", group.getDelayPolicy().name());
             groupObj.addProperty("delayStepSeconds", group.getDelayStepSeconds());
 
@@ -217,6 +218,9 @@ public class ActorRegistryPersistence {
                                 group.setFormationType(ActorGroup.FormationType.valueOf(groupObj.get("formationType").getAsString()));
                             } catch (Exception ignored) {
                             }
+                        }
+                        if (groupObj.has("formationSpacing")) {
+                            group.setFormationSpacing(groupObj.get("formationSpacing").getAsFloat());
                         }
                         if (groupObj.has("delayPolicy")) {
                             try {

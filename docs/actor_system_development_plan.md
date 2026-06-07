@@ -170,6 +170,14 @@ Status:
 - route offsets per member
 - formation timeline clip
 
+Status:
+
+- `ActorGroup` stores formation spacing.
+- Group route copying applies first-pass formation offsets for LINE, CIRCLE, GRID,
+  and FOLLOW_LEADER. The offsets are baked into copied per-actor `ActorRouteClip`
+  waypoints.
+- A dedicated `ActorFormationClip` and dynamic facing policies remain future work.
+
 ### Phase 5: Animation Library
 
 - action preset registry

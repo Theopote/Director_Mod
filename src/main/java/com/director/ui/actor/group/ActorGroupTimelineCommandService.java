@@ -126,7 +126,8 @@ public final class ActorGroupTimelineCommandService {
             }
 
             float delay = computeDelay(group, actorId, i, actorIds.size());
-            ActorRouteClip copy = copyRouteClip(source, delay);
+            Vector3f formationOffset = computeFormationOffset(group, source, i, actorIds.size());
+            ActorRouteClip copy = copyRouteClip(source, delay, formationOffset);
             entityTrack.addClip(copy);
             EntityTimelineClip timelineClip = new EntityTimelineClip(copy, entityTrack.getColorRgba());
             model.addClip(timelineTrack, timelineClip);
@@ -190,7 +191,7 @@ public final class ActorGroupTimelineCommandService {
         return latestBeforeOrAtPlayhead != null ? latestBeforeOrAtPlayhead : latestOverall;
     }
 
-    private ActorRouteClip copyRouteClip(ActorRouteClip source, float startDelaySeconds) {
+    private ActorRouteClip copyRouteClip(ActorRouteClip source, float startDelaySeconds, Vector3f offset) {
         float start = source.getStartTime() + Math.max(0.0f, startDelaySeconds);
         float end = source.getEndTime() + Math.max(0.0f, startDelaySeconds);
         ActorRouteClip copy = new ActorRouteClip(source.getName(), start, end);
@@ -200,10 +201,71 @@ public final class ActorGroupTimelineCommandService {
         copy.setAlignRotationToRoute(source.isAlignRotationToRoute());
 
         List<Vector3f> points = new ArrayList<>();
+        Vector3f safeOffset = offset != null ? offset : new Vector3f();
         for (Vector3f point : source.getWaypoints()) {
-            points.add(new Vector3f(point));
+            points.add(new Vector3f(point).add(safeOffset));
         }
         copy.setWaypoints(points);
         return copy;
+    }
+
+    private Vector3f computeFormationOffset(ActorGroup group, ActorRouteClip source, int index, int count) {
+        if (group == null || source == null || count <= 1) {
+            return new Vector3f();
+        }
+
+        float spacing = Math.max(0.1f, group.getFormationSpacing());
+        RouteAxes axes = computeRouteAxes(source);
+        float center = (count - 1) * 0.5f;
+
+        return switch (group.getFormationType()) {
+            case FREE -> new Vector3f();
+            case LINE -> new Vector3f(axes.right).mul((index - center) * spacing);
+            case CIRCLE -> {
+                float radius = Math.max(spacing, (spacing * count) / (float) (Math.PI * 2.0));
+                float angle = ((float) Math.PI * 2.0f * index) / count;
+                Vector3f rightPart = new Vector3f(axes.right).mul((float) Math.cos(angle) * radius);
+                Vector3f forwardPart = new Vector3f(axes.forward).mul((float) Math.sin(angle) * radius);
+                yield rightPart.add(forwardPart);
+            }
+            case GRID -> {
+                int columns = Math.max(1, (int) Math.ceil(Math.sqrt(count)));
+                int row = index / columns;
+                int col = index % columns;
+                int rows = (int) Math.ceil(count / (float) columns);
+                float colOffset = (col - (columns - 1) * 0.5f) * spacing;
+                float rowOffset = (row - (rows - 1) * 0.5f) * spacing;
+                Vector3f rightPart = new Vector3f(axes.right).mul(colOffset);
+                Vector3f backPart = new Vector3f(axes.forward).mul(-rowOffset);
+                yield rightPart.add(backPart);
+            }
+            case FOLLOW_LEADER -> new Vector3f(axes.forward).mul(-index * spacing);
+        };
+    }
+
+    private RouteAxes computeRouteAxes(ActorRouteClip source) {
+        Vector3f forward = new Vector3f(0.0f, 0.0f, 1.0f);
+        List<Vector3f> points = source.getWaypoints();
+        if (points.size() >= 2) {
+            Vector3f first = points.get(0);
+            for (int i = 1; i < points.size(); i++) {
+                Vector3f candidate = new Vector3f(points.get(i)).sub(first);
+                candidate.y = 0.0f;
+                if (candidate.lengthSquared() > 0.0001f) {
+                    forward = candidate.normalize();
+                    break;
+                }
+            }
+        }
+        Vector3f right = new Vector3f(-forward.z, 0.0f, forward.x);
+        if (right.lengthSquared() <= 0.0001f) {
+            right.set(1.0f, 0.0f, 0.0f);
+        } else {
+            right.normalize();
+        }
+        return new RouteAxes(forward, right);
+    }
+
+    private record RouteAxes(Vector3f forward, Vector3f right) {
     }
 }

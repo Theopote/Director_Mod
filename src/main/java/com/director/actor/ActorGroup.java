@@ -34,6 +34,7 @@ public final class ActorGroup {
     private FormationType formationType = FormationType.FREE;
     private DelayPolicy delayPolicy = DelayPolicy.NONE;
     private float delayStepSeconds = 0.1f;
+    private float formationSpacing = 2.0f;
 
     public ActorGroup(String name) {
         this(UUID.randomUUID(), name);
@@ -104,5 +105,13 @@ public final class ActorGroup {
 
     public void setDelayStepSeconds(float delayStepSeconds) {
         this.delayStepSeconds = Math.max(0.0f, delayStepSeconds);
+    }
+
+    public float getFormationSpacing() {
+        return formationSpacing;
+    }
+
+    public void setFormationSpacing(float formationSpacing) {
+        this.formationSpacing = Math.max(0.1f, formationSpacing);
     }
 }

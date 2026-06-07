@@ -55,6 +55,12 @@ public final class ActorGroupPropertyAdapter implements IPropertyAdapter<ActorGr
                 group.setFormationType(formationTypes[Math.max(0, Math.min(formation.get(), formationTypes.length - 1))]);
                 changed = true;
             }
+
+            float[] spacing = { group.getFormationSpacing() };
+            if (ImGui.sliderFloat("间距##groupFormationSpacing", spacing, 0.1f, 12.0f, "%.1f blocks")) {
+                group.setFormationSpacing(spacing[0]);
+                changed = true;
+            }
         }
 
         if (ImGui.collapsingHeader(Icons.TIME + " 延迟策略", ImGuiTreeNodeFlags.DefaultOpen)) {
