@@ -1378,6 +1378,17 @@ public class TimelinePanel extends AbstractPanel
         com.director.ui.selection.SelectionManager.get().clearSelection();
         markDataChanged();
     }
+
+    /**
+     * 执行时间线命令（公共方法，供 Facade 调用）。
+     */
+    public void executeCommand(TimelineCommand command) {
+        if (command == null) {
+            return;
+        }
+        commandHistory.executeCommand(command);
+        markDataChanged();
+    }
     
     /**
      * 撤销最近一次操作（公共方法，供 Facade 调用）

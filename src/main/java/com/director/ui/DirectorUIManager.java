@@ -915,7 +915,7 @@ public class DirectorUIManager {
                         new com.director.ui.timeline.model.TimelineTrack(trackName, 
                                 com.director.ui.timeline.model.TrackType.CAMERA);
                 
-                timelineModel.addTrack(newTrack);
+                addTrackViaCommand(newTrack);
                 LOGGER.info("[Commands] 已添加摄像机轨道: {}", trackName);
             } catch (Exception e) {
                 LOGGER.error("[Commands] 添加摄像机轨道失败: {}", e.getMessage(), e);
@@ -940,7 +940,7 @@ public class DirectorUIManager {
                         new com.director.ui.timeline.model.TimelineTrack(trackName, 
                                 com.director.ui.timeline.model.TrackType.ENTITY);
                 
-                timelineModel.addTrack(newTrack);
+                addTrackViaCommand(newTrack);
                 
                 // 如果是第一条实体轨道，自动激活
                 if (sameTypeCount == 0) {
@@ -973,7 +973,7 @@ public class DirectorUIManager {
                         new com.director.ui.timeline.model.TimelineTrack(trackName, 
                                 com.director.ui.timeline.model.TrackType.WEATHER);
                 
-                timelineModel.addTrack(newTrack);
+                addTrackViaCommand(newTrack);
                 
                 // 如果是第一条天气轨道，自动激活
                 if (sameTypeCount == 0) {
@@ -1006,10 +1006,20 @@ public class DirectorUIManager {
                 com.director.ui.timeline.model.audio.AudioTrack newTrack = 
                         new com.director.ui.timeline.model.audio.AudioTrack(trackName);
                 
-                timelineModel.addTrack(newTrack);
+                addTrackViaCommand(newTrack);
                 LOGGER.info("[Commands] 已添加音频轨道: {}", trackName);
             } catch (Exception e) {
                 LOGGER.error("[Commands] 添加音频轨道失败: {}", e.getMessage(), e);
+            }
+        }
+
+        private void addTrackViaCommand(com.director.ui.timeline.model.TimelineTrack track) {
+            com.director.ui.timeline.commands.AddTrackCommand command =
+                    new com.director.ui.timeline.commands.AddTrackCommand(timelineModel, track);
+            if (timelinePanel != null) {
+                timelinePanel.executeCommand(command);
+            } else {
+                command.execute();
             }
         }
         

@@ -1,6 +1,7 @@
 package com.director.ui.timeline.menu;
 
 import com.director.ui.panels.TimelinePanel;
+import com.director.ui.timeline.commands.AddEntityClipCommand;
 import com.director.ui.timeline.commands.AddAutomationKeyframeCommand;
 import com.director.ui.timeline.commands.BindClipToContainerCommand;
 import com.director.ui.timeline.commands.DeleteClipCommand;
@@ -34,8 +35,6 @@ import com.director.ui.timeline.model.entity.EntityDespawnClip;
 import com.director.ui.timeline.model.entity.EntityLookAtClip;
 import com.director.ui.timeline.model.entity.EntitySpawnClip;
 import com.director.ui.timeline.model.entity.EntityStateClip;
-import com.director.ui.timeline.model.entity.EntityTimelineClip;
-import com.director.ui.timeline.model.entity.EntityTrack;
 import com.director.ui.timeline.model.entity.EntityTransformClip;
 import com.director.ui.timeline.model.weather.WeatherKeyframe;
 import com.director.ui.timeline.playback.camera.TimelineCameraController;
@@ -471,11 +470,6 @@ public class TimelineContextMenuFactory {
         // ⭐ 新建轨道：改为子菜单，包含所有轨道类型选项
         TimelineContextMenuBuilder.SubMenuBuilder addTrackSubmenu = builder.submenu("新建轨道");
         for (com.director.ui.timeline.model.TrackType type : com.director.ui.timeline.model.TrackType.values()) {
-            // ⚠️ EntityTrack 已隐藏，等待下一版本
-            if (type == com.director.ui.timeline.model.TrackType.ENTITY) {
-                continue;
-            }
-            
             // 为每个轨道类型创建菜单项
             addTrackSubmenu.item(type.getIconAndName(), () -> createNewTrack(type));
         }
@@ -685,7 +679,6 @@ public class TimelineContextMenuFactory {
                                     new EntitySpawnClip(
                                         "出现", currentTime, currentTime + 1.0f);
                                 addEntityClip(track, clip);
-                                model.markDirty();
                             })
                             .item("位移/旋转 (Transform)", () -> {
                                 float currentTime = model.getCurrentTime();
@@ -693,7 +686,6 @@ public class TimelineContextMenuFactory {
                                     new EntityTransformClip(
                                         "移动", currentTime, currentTime + 2.0f);
                                 addEntityClip(track, clip);
-                                model.markDirty();
                             })
                             .item("动画 (Animation)", () -> {
                                 float currentTime = model.getCurrentTime();
@@ -701,7 +693,6 @@ public class TimelineContextMenuFactory {
                                     new EntityAnimationClip(
                                         "动画", currentTime, currentTime + 2.0f);
                                 addEntityClip(track, clip);
-                                model.markDirty();
                             })
                             .separator()
                             .item("行为 (Action)", () -> {
@@ -710,7 +701,6 @@ public class TimelineContextMenuFactory {
                                     new EntityActionClip(
                                         "行为", currentTime, currentTime + 0.5f);
                                 addEntityClip(track, clip);
-                                model.markDirty();
                             })
                             .item("状态 (State)", () -> {
                                 float currentTime = model.getCurrentTime();
@@ -718,7 +708,6 @@ public class TimelineContextMenuFactory {
                                     new EntityStateClip(
                                         "状态", currentTime, currentTime + 2.0f);
                                 addEntityClip(track, clip);
-                                model.markDirty();
                             })
                             .item("看向 (LookAt)", () -> {
                                 float currentTime = model.getCurrentTime();
@@ -726,7 +715,6 @@ public class TimelineContextMenuFactory {
                                     new EntityLookAtClip(
                                         "看向", currentTime, currentTime + 2.0f);
                                 addEntityClip(track, clip);
-                                model.markDirty();
                             })
                             .item("离场 (Despawn)", () -> {
                                 float currentTime = model.getCurrentTime();
@@ -734,7 +722,6 @@ public class TimelineContextMenuFactory {
                                     new EntityDespawnClip(
                                         "离场", currentTime, currentTime + 1.0f);
                                 addEntityClip(track, clip);
-                                model.markDirty();
                             })
                         .end();
             default -> { /* no-op */ }
@@ -814,9 +801,7 @@ public class TimelineContextMenuFactory {
         if (track == null || clip == null) {
             return;
         }
-        EntityTrack entityTrack = track.getOrCreateEntityTrackPayload();
-        entityTrack.addClip(clip);
-        track.addClip(new EntityTimelineClip(clip, entityTrack.getColorRgba()));
+        commandHistory.executeCommand(new AddEntityClipCommand(model, track, clip));
     }
 
     /**
