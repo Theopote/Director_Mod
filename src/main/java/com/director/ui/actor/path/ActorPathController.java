@@ -7,10 +7,9 @@ import com.director.ui.actor.selection.ActorSelectionHub;
 import com.director.ui.timeline.container.ContainerTimelineService;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.TimelineInterpolation;
+import com.director.ui.timeline.model.entity.ActorRouteClip;
 import com.director.ui.timeline.model.entity.EntityTimelineClip;
 import com.director.ui.timeline.model.entity.EntityTrack;
-import com.director.ui.timeline.model.entity.EntityTransformClip;
 import imgui.ImGui;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.hit.BlockHitResult;
@@ -18,6 +17,7 @@ import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Vec3d;
 import org.lwjgl.glfw.GLFW;
+import org.joml.Vector3f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,7 +36,6 @@ public final class ActorPathController {
 
     private static final int MAX_PATH_POINTS = 2048;
     private static final double MIN_SAMPLE_DISTANCE_SQ = 0.25;
-    private static final double MIN_SEGMENT_DISTANCE_SQ = 0.01;
     private static final float DEFAULT_SPEED = 2.0f;
     private static final float MIN_SEGMENT_DURATION = 0.1f;
 
@@ -185,40 +184,26 @@ public final class ActorPathController {
             return;
         }
 
-        float timeCursor = model.getCurrentTime();
-        int created = 0;
+        float start = model.getCurrentTime();
+        float duration = Math.max(MIN_SEGMENT_DURATION, computeRouteLength(pathPoints) / DEFAULT_SPEED);
+        ActorRouteClip clip = new ActorRouteClip("Route", start, start + duration);
+        clip.setSpeed(DEFAULT_SPEED);
+        clip.setInterpolationMode(ActorRouteClip.InterpolationMode.LINEAR);
+        clip.setLoopMode(ActorRouteClip.LoopMode.ONCE);
+        clip.setAlignRotationToRoute(true);
 
-        for (int i = 0; i < pathPoints.size() - 1; i++) {
-            Vec3d from = pathPoints.get(i);
-            Vec3d to = pathPoints.get(i + 1);
-            double distanceSq = from.squaredDistanceTo(to);
-            if (distanceSq < MIN_SEGMENT_DISTANCE_SQ) {
-                continue;
-            }
-
-            float duration = Math.max(MIN_SEGMENT_DURATION, (float) (Math.sqrt(distanceSq) / DEFAULT_SPEED));
-            EntityTransformClip clip = new EntityTransformClip("Path", timeCursor, timeCursor + duration);
-            clip.setInterpolation(TimelineInterpolation.LINEAR);
-            clip.setFromPos((float) from.x, (float) from.y, (float) from.z);
-            clip.setToPos((float) to.x, (float) to.y, (float) to.z);
-
-            float[] yawPitch = computeYawPitch(from, to);
-            clip.setFromRot(yawPitch[0], yawPitch[1], 0f);
-            clip.setToRot(yawPitch[0], yawPitch[1], 0f);
-            clip.setFromScale(1f, 1f, 1f);
-            clip.setToScale(1f, 1f, 1f);
-
-            entityTrack.addClip(clip);
-            model.addClip(timelineTrack, new EntityTimelineClip(clip, entityTrack.getColorRgba()));
-
-            timeCursor += duration;
-            created++;
+        List<Vector3f> routePoints = new ArrayList<>(pathPoints.size());
+        for (Vec3d point : pathPoints) {
+            routePoints.add(new Vector3f((float) point.x, (float) point.y, (float) point.z));
         }
+        clip.setWaypoints(routePoints);
 
-        if (created > 0) {
-            model.markDirty();
-            LOGGER.info("[ActorPath] Created {} path segments for actor {}", created, actorId);
-        }
+        entityTrack.addClip(clip);
+        EntityTimelineClip timelineClip = new EntityTimelineClip(clip, entityTrack.getColorRgba());
+        model.addClip(timelineTrack, timelineClip);
+        model.selectItem(timelineClip, false);
+        model.markDirty();
+        LOGGER.info("[ActorPath] Created route clip with {} waypoints for actor {}", routePoints.size(), actorId);
 
         resetState();
     }
@@ -261,16 +246,11 @@ public final class ActorPathController {
         return null;
     }
 
-    private float[] computeYawPitch(Vec3d from, Vec3d to) {
-        double dx = to.x - from.x;
-        double dy = to.y - from.y;
-        double dz = to.z - from.z;
-        double horizontal = Math.sqrt(dx * dx + dz * dz);
-        if (horizontal < 1.0e-6 && Math.abs(dy) < 1.0e-6) {
-            return new float[]{0f, 0f};
+    private float computeRouteLength(List<Vec3d> points) {
+        float total = 0.0f;
+        for (int i = 0; i < points.size() - 1; i++) {
+            total += (float) points.get(i).distanceTo(points.get(i + 1));
         }
-        float yaw = (float) Math.toDegrees(Math.atan2(-dx, dz));
-        float pitch = (float) Math.toDegrees(Math.atan2(-dy, horizontal));
-        return new float[]{yaw, pitch};
+        return total;
     }
 }

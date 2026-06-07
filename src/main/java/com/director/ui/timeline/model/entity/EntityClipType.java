@@ -168,7 +168,14 @@ public enum EntityClipType {
      *
      * <p>用于在 RigProfile 生成基础动作后，对头部、身体、手臂、腿部做导演级微调。</p>
      */
-    ACTOR_POSE("局部姿态", "覆盖演员头部/身体/四肢的局部姿态");
+    ACTOR_POSE("局部姿态", "覆盖演员头部/身体/四肢的局部姿态"),
+
+    /**
+     * 演员路线片段。
+     *
+     * <p>用确定性的路点序列驱动演员移动。未来可接入 Minecraft PathNavigation 作为局部避障辅助。</p>
+     */
+    ACTOR_ROUTE("路线", "沿路点序列移动演员");
 
     private final String displayName;
     private final String description;

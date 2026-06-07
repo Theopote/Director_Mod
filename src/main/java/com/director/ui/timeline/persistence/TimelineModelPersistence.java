@@ -256,6 +256,13 @@ public class TimelineModelPersistence {
         public Float poseHeadPitch, poseHeadYaw;
         public Float poseLeftArmPitch, poseRightArmPitch;
         public Float poseLeftLegPitch, poseRightLegPitch;
+
+        // ===== ActorRouteClip =====
+        public List<Vec3DTO> routeWaypoints = new ArrayList<>();
+        public String routeInterpolationMode;
+        public String routeLoopMode;
+        public Float routeSpeed;
+        public Boolean routeAlignRotation;
     }
 
     /**
@@ -334,6 +341,10 @@ public class TimelineModelPersistence {
         
         public net.minecraft.util.math.Vec3d toVec3d() {
             return new net.minecraft.util.math.Vec3d(x, y, z);
+        }
+
+        public org.joml.Vector3f toVector3f() {
+            return new org.joml.Vector3f(x, y, z);
         }
     }
     
@@ -849,6 +860,15 @@ public class TimelineModelPersistence {
                             cdto.poseRightArmPitch = pc.getRightArmPitch();
                             cdto.poseLeftLegPitch = pc.getLeftLegPitch();
                             cdto.poseRightLegPitch = pc.getRightLegPitch();
+                        }
+                        case com.director.ui.timeline.model.entity.ActorRouteClip rc -> {
+                            for (org.joml.Vector3f waypoint : rc.getWaypoints()) {
+                                cdto.routeWaypoints.add(Vec3DTO.from(waypoint));
+                            }
+                            cdto.routeInterpolationMode = rc.getInterpolationMode() != null ? rc.getInterpolationMode().name() : null;
+                            cdto.routeLoopMode = rc.getLoopMode() != null ? rc.getLoopMode().name() : null;
+                            cdto.routeSpeed = rc.getSpeed();
+                            cdto.routeAlignRotation = rc.isAlignRotationToRoute();
                         }
                         default -> {
                         }
@@ -1425,6 +1445,25 @@ public class TimelineModelPersistence {
                                         if (cdto.poseLeftLegPitch != null) pc.setLeftLegPitch(cdto.poseLeftLegPitch);
                                         if (cdto.poseRightLegPitch != null) pc.setRightLegPitch(cdto.poseRightLegPitch);
                                     }
+                                    case com.director.ui.timeline.model.entity.ActorRouteClip rc -> {
+                                        if (cdto.routeWaypoints != null) {
+                                            java.util.List<org.joml.Vector3f> points = new java.util.ArrayList<>();
+                                            for (Vec3DTO point : cdto.routeWaypoints) {
+                                                if (point != null) {
+                                                    points.add(point.toVector3f());
+                                                }
+                                            }
+                                            rc.setWaypoints(points);
+                                        }
+                                        if (cdto.routeInterpolationMode != null) {
+                                            try { rc.setInterpolationMode(com.director.ui.timeline.model.entity.ActorRouteClip.InterpolationMode.valueOf(cdto.routeInterpolationMode)); } catch (Exception ignored) {}
+                                        }
+                                        if (cdto.routeLoopMode != null) {
+                                            try { rc.setLoopMode(com.director.ui.timeline.model.entity.ActorRouteClip.LoopMode.valueOf(cdto.routeLoopMode)); } catch (Exception ignored) {}
+                                        }
+                                        if (cdto.routeSpeed != null) rc.setSpeed(cdto.routeSpeed);
+                                        if (cdto.routeAlignRotation != null) rc.setAlignRotationToRoute(cdto.routeAlignRotation);
+                                    }
                                     default -> {
                                     }
                                 }
@@ -1476,6 +1515,7 @@ public class TimelineModelPersistence {
             case DESPAWN -> new com.director.ui.timeline.model.entity.EntityDespawnClip(cname, cdto.startTime, cdto.endTime);
             case ACTOR_ACTION -> new com.director.ui.timeline.model.entity.ActorActionClip(cname, cdto.startTime, cdto.endTime);
             case ACTOR_POSE -> new com.director.ui.timeline.model.entity.ActorPoseClip(cname, cdto.startTime, cdto.endTime);
+            case ACTOR_ROUTE -> new com.director.ui.timeline.model.entity.ActorRouteClip(cname, cdto.startTime, cdto.endTime);
         };
         clip.setMuted(cdto.muted);
         clip.setWeight(cdto.weight);

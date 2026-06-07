@@ -265,6 +265,9 @@ public final class PropertyAdapterBootstrap {
             registerAdapter(com.director.ui.timeline.model.entity.ActorPoseClip.class,
                     new com.director.ui.properties.adapters.ActorPoseClipPropertyAdapter());
             registeredCount++;
+            registerAdapter(com.director.ui.timeline.model.entity.ActorRouteClip.class,
+                    new com.director.ui.properties.adapters.ActorRouteClipPropertyAdapter());
+            registeredCount++;
             
             // ✅ 实体片段关键帧适配器
             registerAdapter(com.director.ui.timeline.model.entity.EntityClipKeyframe.class,

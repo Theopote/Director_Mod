@@ -116,6 +116,7 @@ public class EntityClipSampler {
         List<EntityDespawnClip> despawnClips = new ArrayList<>();
         List<ActorActionClip> actorActionClips = new ArrayList<>();
         List<ActorPoseClip> actorPoseClips = new ArrayList<>();
+        List<ActorRouteClip> actorRouteClips = new ArrayList<>();
 
         for (EntityClip clip : clipsAtTime) {
             if (clip.isMuted()) {
@@ -168,6 +169,11 @@ public class EntityClipSampler {
                         actorPoseClips.add(actorPoseClip);
                     }
                     break;
+                case ACTOR_ROUTE:
+                    if (clip instanceof ActorRouteClip actorRouteClip) {
+                        actorRouteClips.add(actorRouteClip);
+                    }
+                    break;
             }
         }
 
@@ -177,6 +183,10 @@ public class EntityClipSampler {
             EntitySpawnClip spawnClip = spawnClips.getLast();
             applySpawnClip(result, spawnClip, timeSeconds);
         }
+
+        // ========== 处理 ActorRoute Clip（路线移动）==========
+        // 规则：last-wins（取 startTime 最大的那个），Transform 仍可覆盖它
+        applyActorRoute(result, actorRouteClips, timeSeconds);
 
         // ========== 处理 Transform Clip（位置/旋转/缩放）==========
         // 规则：覆盖（最后一个生效，按时间排序）
@@ -613,6 +623,105 @@ public class EntityClipSampler {
         result.poseRightArmPitch = active.getRightArmPitch();
         result.poseLeftLegPitch = active.getLeftLegPitch();
         result.poseRightLegPitch = active.getRightLegPitch();
+    }
+
+    private void applyActorRoute(EntitySample result, List<ActorRouteClip> clips, float timeSeconds) {
+        ActorRouteClip active = null;
+        for (ActorRouteClip clip : clips) {
+            if (clip.isMuted()) {
+                continue;
+            }
+            if (timeSeconds >= clip.getStartTime() && timeSeconds <= clip.getEndTime()) {
+                if (active == null || clip.getStartTime() > active.getStartTime()) {
+                    active = clip;
+                }
+            }
+        }
+        if (active == null || active.getWaypoints().isEmpty()) {
+            return;
+        }
+
+        List<Vector3f> points = active.getWaypoints();
+        if (points.size() == 1) {
+            result.position.set(points.getFirst());
+            return;
+        }
+
+        float clipLength = Math.max(0.0001f, active.getLength());
+        float localTime = Math.max(0.0f, timeSeconds - active.getStartTime());
+        float routeDuration = computeRouteDuration(active);
+        float duration = routeDuration > 0.0f ? routeDuration : clipLength;
+        float travelTime = resolveRouteTime(active, localTime, duration);
+        float distance = travelTime * Math.max(0.05f, active.getSpeed());
+
+        RouteSample sample = sampleRoute(points, distance, active.getInterpolationMode());
+        result.position.set(sample.position);
+        if (active.isAlignRotationToRoute() && sample.direction.lengthSquared() > 1.0e-6f) {
+            result.rotation.x = (float) Math.toDegrees(Math.atan2(-sample.direction.x, sample.direction.z));
+            double horizontal = Math.sqrt(sample.direction.x * sample.direction.x + sample.direction.z * sample.direction.z);
+            result.rotation.y = (float) Math.toDegrees(Math.atan2(-sample.direction.y, horizontal));
+        }
+    }
+
+    private float computeRouteDuration(ActorRouteClip clip) {
+        float distance = computeRouteLength(clip.getWaypoints());
+        return distance / Math.max(0.05f, clip.getSpeed());
+    }
+
+    private float resolveRouteTime(ActorRouteClip clip, float localTime, float duration) {
+        if (duration <= 0.0f) {
+            return 0.0f;
+        }
+        return switch (clip.getLoopMode()) {
+            case ONCE -> Math.min(localTime, duration);
+            case LOOP -> localTime % duration;
+            case PING_PONG -> {
+                float cycle = duration * 2.0f;
+                float t = localTime % cycle;
+                yield t <= duration ? t : cycle - t;
+            }
+        };
+    }
+
+    private float computeRouteLength(List<Vector3f> points) {
+        float total = 0.0f;
+        for (int i = 0; i < points.size() - 1; i++) {
+            total += points.get(i).distance(points.get(i + 1));
+        }
+        return total;
+    }
+
+    private RouteSample sampleRoute(List<Vector3f> points, float distance, ActorRouteClip.InterpolationMode interpolationMode) {
+        float remaining = Math.max(0.0f, distance);
+        for (int i = 0; i < points.size() - 1; i++) {
+            Vector3f from = points.get(i);
+            Vector3f to = points.get(i + 1);
+            float segmentLength = from.distance(to);
+            if (segmentLength <= 1.0e-6f) {
+                continue;
+            }
+            if (remaining <= segmentLength) {
+                float t = remaining / segmentLength;
+                if (interpolationMode == ActorRouteClip.InterpolationMode.SMOOTH) {
+                    t = t * t * (3.0f - 2.0f * t);
+                }
+                Vector3f pos = new Vector3f(from).lerp(to, t);
+                Vector3f dir = new Vector3f(to).sub(from).normalize();
+                return new RouteSample(pos, dir);
+            }
+            remaining -= segmentLength;
+        }
+
+        Vector3f last = points.getLast();
+        Vector3f prev = points.get(points.size() - 2);
+        Vector3f dir = new Vector3f(last).sub(prev);
+        if (dir.lengthSquared() > 1.0e-6f) {
+            dir.normalize();
+        }
+        return new RouteSample(new Vector3f(last), dir);
+    }
+
+    private record RouteSample(Vector3f position, Vector3f direction) {
     }
 
     /**
