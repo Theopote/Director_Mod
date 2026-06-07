@@ -1,6 +1,7 @@
 package com.director.actor.persistence;
 
 import com.director.actor.Actor;
+import com.director.actor.ActorGroup;
 import com.director.actor.ActorRegistry;
 import com.director.actor.ActorType;
 import com.director.util.WorldIdentifier;
@@ -116,6 +117,7 @@ public class ActorRegistryPersistence {
         JsonObject root = new JsonObject();
         root.addProperty("version", "1.0");
         root.addProperty("actorCount", registry.size());
+        root.addProperty("groupCount", registry.groupSize());
 
         JsonArray actorsArray = new JsonArray();
         for (Actor actor : registry.getAllActors()) {
@@ -127,6 +129,24 @@ public class ActorRegistryPersistence {
             actorsArray.add(actorObj);
         }
         root.add("actors", actorsArray);
+
+        JsonArray groupsArray = new JsonArray();
+        for (ActorGroup group : registry.getAllGroups()) {
+            JsonObject groupObj = new JsonObject();
+            groupObj.addProperty("groupId", group.getGroupId().toString());
+            groupObj.addProperty("name", group.getName());
+            groupObj.addProperty("formationType", group.getFormationType().name());
+            groupObj.addProperty("delayPolicy", group.getDelayPolicy().name());
+            groupObj.addProperty("delayStepSeconds", group.getDelayStepSeconds());
+
+            JsonArray memberArray = new JsonArray();
+            for (UUID actorId : group.getActorIds()) {
+                memberArray.add(actorId.toString());
+            }
+            groupObj.add("actorIds", memberArray);
+            groupsArray.add(groupObj);
+        }
+        root.add("groups", groupsArray);
         return root;
     }
 
@@ -180,6 +200,52 @@ public class ActorRegistryPersistence {
                 }
 
                 LOGGER.info("[ActorRegistryPersistence] 从文件加载 ActorRegistry: {} ({} 个 Actor)", file, loadedCount);
+            }
+
+            if (root.has("groups")) {
+                JsonArray groupsArray = root.getAsJsonArray("groups");
+                int loadedGroupCount = 0;
+                for (JsonElement element : groupsArray) {
+                    try {
+                        JsonObject groupObj = element.getAsJsonObject();
+                        UUID groupId = UUID.fromString(groupObj.get("groupId").getAsString());
+                        String name = groupObj.has("name") ? groupObj.get("name").getAsString() : "Actor Group";
+                        ActorGroup group = new ActorGroup(groupId, name);
+
+                        if (groupObj.has("formationType")) {
+                            try {
+                                group.setFormationType(ActorGroup.FormationType.valueOf(groupObj.get("formationType").getAsString()));
+                            } catch (Exception ignored) {
+                            }
+                        }
+                        if (groupObj.has("delayPolicy")) {
+                            try {
+                                group.setDelayPolicy(ActorGroup.DelayPolicy.valueOf(groupObj.get("delayPolicy").getAsString()));
+                            } catch (Exception ignored) {
+                            }
+                        }
+                        if (groupObj.has("delayStepSeconds")) {
+                            group.setDelayStepSeconds(groupObj.get("delayStepSeconds").getAsFloat());
+                        }
+                        if (groupObj.has("actorIds")) {
+                            for (JsonElement actorIdElement : groupObj.getAsJsonArray("actorIds")) {
+                                try {
+                                    UUID actorId = UUID.fromString(actorIdElement.getAsString());
+                                    if (registry.contains(actorId)) {
+                                        group.addActor(actorId);
+                                    }
+                                } catch (Exception ignored) {
+                                }
+                            }
+                        }
+
+                        registry.registerGroup(group);
+                        loadedGroupCount++;
+                    } catch (Exception e) {
+                        LOGGER.warn("[ActorRegistryPersistence] 加载 ActorGroup 失败，跳过", e);
+                    }
+                }
+                LOGGER.info("[ActorRegistryPersistence] 从文件加载 ActorGroup: {} 个", loadedGroupCount);
             }
 
         } catch (IOException e) {

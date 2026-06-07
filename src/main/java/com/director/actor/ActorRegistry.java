@@ -29,6 +29,7 @@ import java.util.*;
 public final class ActorRegistry {
 
     private final Map<UUID, Actor> actors = new LinkedHashMap<>();
+    private final Map<UUID, ActorGroup> groups = new LinkedHashMap<>();
 
     // ======================
     // 基础 CRUD
@@ -66,7 +67,13 @@ public final class ActorRegistry {
     public boolean removeActor(UUID actorId) {
         // 自动保存（可选）
         // if (removed) ActorRegistryManager.save();
-        return actors.remove(actorId) != null;
+        boolean removed = actors.remove(actorId) != null;
+        if (removed) {
+            for (ActorGroup group : groups.values()) {
+                group.removeActor(actorId);
+            }
+        }
+        return removed;
     }
 
     /**
@@ -103,6 +110,7 @@ public final class ActorRegistry {
      */
     public void clear() {
         actors.clear();
+        groups.clear();
     }
 
     /**
@@ -162,6 +170,50 @@ public final class ActorRegistry {
         String trimmed = name.trim();
         return actors.values().stream()
                 .anyMatch(actor -> trimmed.equals(actor.getName()));
+    }
+
+    // ======================
+    // ActorGroup support
+    // ======================
+
+    public ActorGroup createGroup(String name) {
+        ActorGroup group = new ActorGroup(name);
+        groups.put(group.getGroupId(), group);
+        return group;
+    }
+
+    public void registerGroup(ActorGroup group) {
+        if (group == null) return;
+        groups.put(group.getGroupId(), group);
+    }
+
+    public boolean removeGroup(UUID groupId) {
+        return groupId != null && groups.remove(groupId) != null;
+    }
+
+    public Optional<ActorGroup> getGroup(UUID groupId) {
+        return Optional.ofNullable(groups.get(groupId));
+    }
+
+    public List<ActorGroup> getAllGroups() {
+        return List.copyOf(groups.values());
+    }
+
+    public boolean containsGroup(UUID groupId) {
+        return groups.containsKey(groupId);
+    }
+
+    public int groupSize() {
+        return groups.size();
+    }
+
+    public boolean hasGroupWithName(String name) {
+        if (name == null || name.isBlank()) {
+            return false;
+        }
+        String trimmed = name.trim();
+        return groups.values().stream()
+                .anyMatch(group -> trimmed.equals(group.getName()));
     }
 }
 

@@ -188,6 +188,8 @@ public final class PropertyAdapterBootstrap {
                 LOGGER.warn("[PropertyAdapterBootstrap] Actor 类未找到，跳过 Actor 类注册");
             }
             registeredCount++;
+            registerAdapter(com.director.actor.ActorGroup.class, new ActorGroupPropertyAdapter());
+            registeredCount++;
             
             // ✅ 材质库适配器
             registerAdapter(new MaterialLibraryPropertyAdapter(), "MaterialLibrary");

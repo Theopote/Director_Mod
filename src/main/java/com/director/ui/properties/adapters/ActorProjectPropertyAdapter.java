@@ -1,6 +1,7 @@
 package com.director.ui.properties.adapters;
 
 import com.director.actor.Actor;
+import com.director.actor.ActorGroup;
 import com.director.actor.ActorRef;
 import com.director.actor.ActorRegistry;
 import com.director.actor.ActorRegistryManager;
@@ -26,6 +27,7 @@ import com.director.ui.timeline.model.entity.EntityTrack;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiTreeNodeFlags;
+import imgui.type.ImInt;
 import imgui.type.ImString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,6 +75,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     private boolean createPopupOpen = false;
     private final ImString newActorName = new ImString("Actor", 256);
     private ActorType newActorType = ActorType.VILLAGER;
+    private final ImString newGroupName = new ImString("Group", 256);
     
     // Edit state
     private final ImString editingActorName = new ImString("", 256);
@@ -125,11 +128,19 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         if (projectView) {
             // Actor 列表
             modified |= renderActorList(actorRegistry);
+
+            ImGui.spacing();
+            modified |= renderGroupList(actorRegistry);
             
             // 创建 Actor 按钮
             ImGui.spacing();
             if (ImGui.button("+ Add Actor")) {
                 openCreateActorPopup();
+            }
+            ImGui.sameLine();
+            if (ImGui.button("+ Add Group")) {
+                createGroup(actorRegistry);
+                modified = true;
             }
             
             // 创建 Actor 弹窗
@@ -220,6 +231,73 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         
         return modified;
     }
+
+    private boolean renderGroupList(ActorRegistry actorRegistry) {
+        UITheme.label("Actor Groups", UITheme.DarkTheme.TEXT);
+        UITheme.separator();
+
+        List<ActorGroup> groups = actorRegistry.getAllGroups();
+        if (groups.isEmpty()) {
+            ImGui.textDisabled("No actor groups in project.");
+            return false;
+        }
+
+        boolean modified = false;
+        for (ActorGroup group : groups) {
+            String groupLabel = String.format("%s  (%d actors)", group.getName(), group.size());
+            if (ImGui.treeNodeEx(group.getGroupId().toString(),
+                    ImGuiTreeNodeFlags.DefaultOpen,
+                    groupLabel)) {
+                ImString name = new ImString(group.getName(), 128);
+                if (ImGui.inputText("Name##groupName" + group.getGroupId(), name, ImGuiInputTextFlags.EnterReturnsTrue)) {
+                    group.setName(name.get());
+                    modified = true;
+                }
+
+                ActorGroup.FormationType[] formations = ActorGroup.FormationType.values();
+                ImInt formation = new ImInt(group.getFormationType().ordinal());
+                String[] formationLabels = new String[formations.length];
+                for (int i = 0; i < formations.length; i++) {
+                    formationLabels[i] = formations[i].name();
+                }
+                if (ImGui.combo("Formation##groupFormation" + group.getGroupId(), formation, formationLabels)) {
+                    group.setFormationType(formations[Math.max(0, Math.min(formation.get(), formations.length - 1))]);
+                    modified = true;
+                }
+
+                ActorGroup.DelayPolicy[] delays = ActorGroup.DelayPolicy.values();
+                ImInt delay = new ImInt(group.getDelayPolicy().ordinal());
+                String[] delayLabels = new String[delays.length];
+                for (int i = 0; i < delays.length; i++) {
+                    delayLabels[i] = delays[i].name();
+                }
+                if (ImGui.combo("Delay##groupDelay" + group.getGroupId(), delay, delayLabels)) {
+                    group.setDelayPolicy(delays[Math.max(0, Math.min(delay.get(), delays.length - 1))]);
+                    modified = true;
+                }
+
+                float[] step = { group.getDelayStepSeconds() };
+                if (ImGui.sliderFloat("Delay Step##groupDelayStep" + group.getGroupId(), step, 0.0f, 5.0f, "%.2fs")) {
+                    group.setDelayStepSeconds(step[0]);
+                    modified = true;
+                }
+
+                if (ImGui.button("Delete Group##deleteGroup" + group.getGroupId())) {
+                    actorRegistry.removeGroup(group.getGroupId());
+                    modified = true;
+                    ImGui.treePop();
+                    break;
+                }
+
+                ImGui.treePop();
+            }
+        }
+
+        if (modified) {
+            ActorRegistryManager.save();
+        }
+        return modified;
+    }
     
     // =========================================================
     // Selected actor editor
@@ -296,6 +374,10 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         renderActionBrushSelector();
         
         ImGui.spacing();
+
+        modified |= renderSelectedActorGroups(actorRegistry, actor);
+
+        ImGui.spacing();
         
         // ---- Performance Style (风格滑条) ----
         ActorRigProfile rigProfile = actor.getRigProfile();
@@ -313,6 +395,36 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         // ---- Usage Information (只读) ----
         renderActorUsage(actor);
         
+        return modified;
+    }
+
+    private boolean renderSelectedActorGroups(ActorRegistry actorRegistry, Actor actor) {
+        if (actor == null) {
+            return false;
+        }
+        UITheme.label("🎭 Groups", UITheme.DarkTheme.TEXT);
+        List<ActorGroup> groups = actorRegistry.getAllGroups();
+        if (groups.isEmpty()) {
+            ImGui.textDisabled("No groups yet. Use + Add Group in the Actors project view.");
+            return false;
+        }
+
+        boolean modified = false;
+        UUID actorId = actor.getActorId();
+        for (ActorGroup group : groups) {
+            boolean member = group.containsActor(actorId);
+            if (ImGui.checkbox(group.getName() + "##actorGroupMember" + group.getGroupId(), member)) {
+                if (member) {
+                    group.removeActor(actorId);
+                } else {
+                    group.addActor(actorId);
+                }
+                modified = true;
+            }
+        }
+        if (modified) {
+            ActorRegistryManager.save();
+        }
         return modified;
     }
     
@@ -348,6 +460,22 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         newActorType = ActorType.VILLAGER;
         createPopupOpen = true;
         ImGui.openPopup("Create Actor");
+    }
+
+    private void createGroup(ActorRegistry actorRegistry) {
+        String baseName = newGroupName.get();
+        if (baseName == null || baseName.isBlank()) {
+            baseName = "Group";
+        }
+        String name = baseName.trim();
+        int suffix = 1;
+        String candidate = name;
+        while (actorRegistry.hasGroupWithName(candidate)) {
+            candidate = name + " " + suffix++;
+        }
+        actorRegistry.createGroup(candidate);
+        ActorRegistryManager.save();
+        LOGGER.info("[ActorProjectPropertyAdapter] Created ActorGroup: {}", candidate);
     }
     
     private void renderCreateActorPopup(ActorRegistry actorRegistry) {
@@ -867,4 +995,3 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         ImGui.textDisabled("💡 在 Timeline 的 EntityTrack 上拖拽一段，即可创建 " + currentLabel + " 动作区间");
     }
 }
-
