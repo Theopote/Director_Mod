@@ -6,6 +6,7 @@ import com.director.ui.theme.Icons;
 import com.director.ui.tools.impl.ActorLookAtTool;
 import com.director.ui.tools.impl.ActorMoveTool;
 import com.director.ui.tools.impl.ActorPathTool;
+import com.director.ui.tools.impl.ActorPoseTool;
 import com.director.ui.tools.impl.ActorRotateTool;
 import com.director.ui.tools.impl.ActorScaleTool;
 import com.director.ui.tools.impl.ActorSelectTool;
@@ -43,6 +44,7 @@ public final class ToolRegistry {
     public static final String ACTOR_ROTATE_TOOL_ID = ActorRotateTool.ID;
     public static final String ACTOR_SCALE_TOOL_ID = ActorScaleTool.ID;
     public static final String ACTOR_LOOK_AT_TOOL_ID = ActorLookAtTool.ID;
+    public static final String ACTOR_POSE_TOOL_ID = ActorPoseTool.ID;
     public static final String ACTOR_PATH_TOOL_ID = "actor_path";
 
     private final SelectionManager selectionManager = SelectionManager.get();
@@ -126,8 +128,13 @@ public final class ToolRegistry {
                 "Make the selected actor look at a target",
                 "Click a world point to create or update a LookAt clip"
         ));
-        META.put("actor_path", ToolMetadata.of(
+        META.put(ACTOR_POSE_TOOL_ID, ToolMetadata.of(
                 ToolGroup.WORLD, 70,
+                "Author actor pose/action clips",
+                "Use Properties to create semantic ActorAction clips"
+        ));
+        META.put("actor_path", ToolMetadata.of(
+                ToolGroup.WORLD, 80,
                 "绘制路径并生成移动片段",
                 "左键加点，右键完成"
         ));
@@ -162,6 +169,7 @@ public final class ToolRegistry {
                 || Objects.equals(toolId, ACTOR_ROTATE_TOOL_ID)
                 || Objects.equals(toolId, ACTOR_SCALE_TOOL_ID)
                 || Objects.equals(toolId, ACTOR_LOOK_AT_TOOL_ID)
+                || Objects.equals(toolId, ACTOR_POSE_TOOL_ID)
                 || Objects.equals(toolId, ACTOR_PATH_TOOL_ID);
     }
 
@@ -368,6 +376,7 @@ public final class ToolRegistry {
         addExtraToolIfMissing(new ActorRotateTool());
         addExtraToolIfMissing(new ActorScaleTool());
         addExtraToolIfMissing(new ActorLookAtTool());
+        addExtraToolIfMissing(new ActorPoseTool());
         addExtraToolIfMissing(new ActorPathTool());
         addExtraToolIfMissing(new CameraPathEditTool());
     }

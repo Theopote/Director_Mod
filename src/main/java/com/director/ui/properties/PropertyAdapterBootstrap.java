@@ -17,6 +17,7 @@ import com.director.ui.timeline.model.camera.path.CranePathClip;
 import com.director.ui.timeline.model.camera.path.CustomPathClip;
 import com.director.ui.timeline.model.time.TimeKeyframe;
 import com.director.ui.timeline.model.selection.TimelineKeyframeMultiSelection;
+import com.director.ui.tools.EditorTool;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -157,6 +158,10 @@ public final class PropertyAdapterBootstrap {
 
             // ✅ 选择工具属性适配器（PropertyContext.TOOL 时由 PropertiesPanel 选用）
             registerAdapter(SelectionTool.class, new SelectionToolPropertyAdapter());
+            registeredCount++;
+
+            // ✅ EditorTool 属性适配器（World/Timeline 工具，如 Actor 工具、Camera Path 工具）
+            registerAdapter(EditorTool.class, new EditorToolPropertyAdapter());
             registeredCount++;
             
             LOGGER.info("  ========== 扩展系统适配器 ==========");

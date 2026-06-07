@@ -69,8 +69,8 @@ public final class PropertyContextService {
         }
         SelectionType st = SelectionManager.get().getSelectionType();
         boolean hasTimeline = (st == SelectionType.TRACK || st == SelectionType.CLIP || st == SelectionType.KEYFRAME);
-        boolean hasTool = false;
-        if (!ToolRegistry.get().hasNonSelectionActiveTool()) {
+        boolean hasTool = ToolRegistry.get().hasNonSelectionActiveTool();
+        if (!hasTool) {
             var core = com.director.core.selection.SelectionManager.get();
             if (core != null && core.getCurrentTool() != null) {
                 hasTool = true;
@@ -108,10 +108,9 @@ public final class PropertyContextService {
             return null;
         }
         return switch (getCurrentContext()) {
-            case TOOL -> {
-                var core = com.director.core.selection.SelectionManager.get();
-                yield core != null ? core.getCurrentTool() : null;
-            }
+            case TOOL -> ToolRegistry.get().hasNonSelectionActiveTool()
+                    ? ToolRegistry.get().getActiveTool()
+                    : com.director.core.selection.SelectionManager.get().getCurrentTool();
             case TIMELINE -> SelectionManager.get().getSelectionPayload();
             default -> null;
         };
