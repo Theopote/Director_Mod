@@ -71,10 +71,32 @@ public final class ActionClipIntervalResolver {
             float endTime,
             ActorActionType actionType
     ) {
+        return resolve(existingClips, startTime, endTime, actionType, 1.0f, true);
+    }
+
+    /**
+     * 解析 ActionClip 区间，并指定新片段的动作参数。
+     *
+     * @param existingClips 已有的 ActionClips（同一 Track）
+     * @param startTime 新 Action 开始时间（秒）
+     * @param endTime 新 Action 结束时间（秒）
+     * @param actionType 新 Action 类型
+     * @param intensity 新 Action 强度
+     * @param loop 新 Action 是否循环
+     * @return 解析后的 ActionClips 列表（无重叠）
+     */
+    public static List<ActorActionClip> resolve(
+            List<ActorActionClip> existingClips,
+            float startTime,
+            float endTime,
+            ActorActionType actionType,
+            float intensity,
+            boolean loop
+    ) {
         if (existingClips == null || existingClips.isEmpty()) {
             // 如果没有已有 Clips，直接创建新的
             List<ActorActionClip> result = new ArrayList<>();
-            result.add(createActionClip(startTime, endTime, actionType));
+            result.add(createActionClip(startTime, endTime, actionType, intensity, loop));
             return result;
         }
 
@@ -122,7 +144,7 @@ public final class ActionClipIntervalResolver {
         }
 
         // 3. 添加新 Action
-        result.add(createActionClip(startTime, endTime, actionType));
+        result.add(createActionClip(startTime, endTime, actionType, intensity, loop));
 
         // 4. 按时间排序（保证结果有序）
         result.sort((a, b) -> Float.compare(a.getStartTime(), b.getStartTime()));

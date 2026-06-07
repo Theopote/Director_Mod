@@ -12,6 +12,7 @@ import com.director.actor.preview.ActorPreviewManager;
 import com.director.actor.query.ActorUsageQuery;
 import com.director.actor.rig.ActorRigProfile;
 import com.director.actor.rig.RigProfileStyle;
+import com.director.ui.actor.group.ActorGroupTimelineCommandService;
 import com.director.ui.actor.selection.ActorSelectionHub;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.actor.RigProfileStylePropertyUI;
@@ -27,6 +28,8 @@ import com.director.ui.timeline.model.entity.EntityTrack;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiTreeNodeFlags;
+import imgui.type.ImBoolean;
+import imgui.type.ImFloat;
 import imgui.type.ImInt;
 import imgui.type.ImString;
 import org.slf4j.Logger;
@@ -79,6 +82,9 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     
     // Edit state
     private final ImString editingActorName = new ImString("", 256);
+    private final ImFloat groupActionDuration = new ImFloat(2.0f);
+    private final ImFloat groupActionIntensity = new ImFloat(1.0f);
+    private final ImBoolean groupActionLoop = new ImBoolean(true);
     
     // Delete confirm state
     private UUID deletingActorId = null;
@@ -282,6 +288,8 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                     modified = true;
                 }
 
+                renderGroupActionAuthoring(group);
+
                 if (ImGui.button("Delete Group##deleteGroup" + group.getGroupId())) {
                     actorRegistry.removeGroup(group.getGroupId());
                     modified = true;
@@ -297,6 +305,53 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             ActorRegistryManager.save();
         }
         return modified;
+    }
+
+    private void renderGroupActionAuthoring(ActorGroup group) {
+        ImGui.spacing();
+        UITheme.label("Group Action", UITheme.DarkTheme.TEXT);
+
+        ActorActionType currentBrush = ActionBrushState.get();
+        String currentLabel = currentBrush != null ? currentBrush.name() : "NONE";
+        if (ImGui.beginCombo("Action##groupAction" + group.getGroupId(), currentLabel)) {
+            for (ActorActionType type : ActorActionType.values()) {
+                boolean selected = type == currentBrush;
+                if (ImGui.selectable(type.name(), selected)) {
+                    ActionBrushState.set(type);
+                }
+                if (selected) {
+                    ImGui.setItemDefaultFocus();
+                }
+            }
+            ImGui.endCombo();
+        }
+
+        ImGui.sliderFloat("Duration##groupActionDuration" + group.getGroupId(),
+                groupActionDuration.getData(), 0.05f, 20.0f, "%.2fs");
+        ImGui.sliderFloat("Intensity##groupActionIntensity" + group.getGroupId(),
+                groupActionIntensity.getData(), 0.0f, 1.0f, "%.2f");
+        ImGui.checkbox("Loop##groupActionLoop" + group.getGroupId(), groupActionLoop);
+
+        boolean canCreate = group.size() > 0 && currentBrush != null;
+        if (!canCreate) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button("Create Action Clips##groupCreateAction" + group.getGroupId())) {
+            int created = ActorGroupTimelineCommandService.getInstance().createActionClips(
+                    group,
+                    currentBrush,
+                    groupActionDuration.get(),
+                    groupActionIntensity.get(),
+                    groupActionLoop.get()
+            );
+            LOGGER.info("[ActorProjectPropertyAdapter] Created {} group action clips for {}", created, group.getName());
+        }
+        if (!canCreate) {
+            ImGui.endDisabled();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("从当前播放头时间开始，为组内每个 Actor 创建 ActorActionClip，并应用 Delay 策略。");
+        }
     }
     
     // =========================================================

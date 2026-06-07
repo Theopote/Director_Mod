@@ -158,6 +158,8 @@ Status:
 - `ActorGroup` / `ActorGroupRef` project models are implemented.
 - ActorRegistry save/load supports groups.
 - Actor project properties include basic group creation, editing, and actor membership toggles.
+- Group action authoring is implemented: the Actor project properties can create per-member
+  `ActorActionClip`s from the current playhead, using the group's delay policy.
 
 ### Phase 4: Formation
 
