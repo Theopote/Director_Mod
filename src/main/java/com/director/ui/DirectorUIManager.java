@@ -21,11 +21,6 @@ import com.director.export.video.VideoExportSettings;
 import com.director.export.video.VideoRenderPipeline;
 import com.director.ui.video.VideoExportDialog;
 import com.director.ui.video.VideoExportProgressOverlay;
-import com.director.ui.timeline.model.camera.CameraViewportProfile;
-import com.director.ui.timeline.model.camera.ViewportMath;
-import com.director.ui.timeline.model.TimelineTrack;
-import com.director.ui.timeline.playback.camera.TimelineCameraController;
-import com.director.ui.timeline.render.TimelineColors;
 import com.director.ui.commands.UICommandFacade;
 import com.director.ui.commands.ProjectCommands;
 import com.director.ui.commands.TimelineCommands;
@@ -765,7 +760,7 @@ public class DirectorUIManager {
     /**
      * 容器命令实现（从 panelRegistry 取 ContainerPanel，委托 requestDeleteSelected）
      */
-    private class ContainerCommandsImpl implements ContainerCommands {
+    private static class ContainerCommandsImpl implements ContainerCommands {
         private final IPanelRegistry registry;
         ContainerCommandsImpl(IPanelRegistry registry) {
             this.registry = registry;
@@ -1041,7 +1036,7 @@ public class DirectorUIManager {
     /**
         * 播放命令实现（统一由 TimelineModel/PlaybackOrchestrator 驱动）
      */
-    private class PlaybackCommandsImpl implements PlaybackCommands {
+    private static class PlaybackCommandsImpl implements PlaybackCommands {
         
         private final TimelineModel timelineModel;
         
@@ -1267,7 +1262,7 @@ public class DirectorUIManager {
     /**
      * 摄像机命令实现（当前阶段：fail-fast，避免 TODO 静默成功）
      */
-    private class CameraCommandsImpl implements CameraCommands {
+    private static class CameraCommandsImpl implements CameraCommands {
 
         private final TimelineModel timelineModel;
 
@@ -1304,7 +1299,7 @@ public class DirectorUIManager {
     /**
      * 视图命令实现（委托 UIPanelManager）
      */
-    private class ViewCommandsImpl implements ViewCommands {
+    private static class ViewCommandsImpl implements ViewCommands {
         
         private final UIPanelManager panelManager;
         
@@ -1526,7 +1521,7 @@ public class DirectorUIManager {
     /**
      * 工具命令实现
      */
-    private class ToolCommandsImpl implements ToolCommands {
+    private static class ToolCommandsImpl implements ToolCommands {
         
         @Override
         public void activateTool(String toolId) {
@@ -1824,55 +1819,6 @@ public class DirectorUIManager {
         }
     }
 
-    /**
-     * 在主 viewport 中渲染与 Minecraft 画面绑定的 Overlay。
-     */
-    private void renderMainViewportOverlays() {
-        imgui.ImGuiViewport mainViewport = ImGui.getMainViewport();
-        if (mainViewport == null) {
-            return;
-        }
-
-        float viewportX = mainViewport.getPosX();
-        float viewportY = mainViewport.getPosY();
-        float viewportW = mainViewport.getSizeX();
-        float viewportH = mainViewport.getSizeY();
-        if (viewportW <= 0.0f || viewportH <= 0.0f) {
-            return;
-        }
-
-        ImGui.setNextWindowPos(viewportX, viewportY, imgui.flag.ImGuiCond.Always);
-        ImGui.setNextWindowSize(viewportW, viewportH, imgui.flag.ImGuiCond.Always);
-        ImGui.setNextWindowViewport(mainViewport.getID());
-
-        int flags = imgui.flag.ImGuiWindowFlags.NoDecoration
-                | imgui.flag.ImGuiWindowFlags.NoMove
-                | imgui.flag.ImGuiWindowFlags.NoSavedSettings
-                | imgui.flag.ImGuiWindowFlags.NoNav
-                | imgui.flag.ImGuiWindowFlags.NoBringToFrontOnFocus
-                | imgui.flag.ImGuiWindowFlags.NoFocusOnAppearing
-                | imgui.flag.ImGuiWindowFlags.NoInputs;
-
-        ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.WindowPadding, 0.0f, 0.0f);
-        ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.WindowBorderSize, 0.0f);
-        ImGui.pushStyleVar(imgui.flag.ImGuiStyleVar.WindowRounding, 0.0f);
-        ImGui.pushStyleColor(imgui.flag.ImGuiCol.WindowBg, 0.0f, 0.0f, 0.0f, 0.0f);
-
-        if (ImGui.begin("##DirectorMainViewportOverlay", flags)) {
-            imgui.ImDrawList dl = ImGui.getWindowDrawList();
-            if (dl != null) {
-                dl.pushClipRect(viewportX, viewportY, viewportX + viewportW, viewportY + viewportH, true);
-                renderCameraViewportOverlay(dl, viewportX, viewportY, viewportW, viewportH);
-                com.director.ui.camera.path.CameraPathEditController.getInstance()
-                        .renderOverlay(viewportX, viewportY, viewportW, viewportH);
-                dl.popClipRect();
-            }
-        }
-        ImGui.end();
-
-        ImGui.popStyleColor();
-        ImGui.popStyleVar(3);
-    }
 
     // =========================================================
     // Video Export API（给 MenuBarPanel / Dialog 调用）
@@ -2169,201 +2115,6 @@ public class DirectorUIManager {
             errorMessage.append("- UI无法正常初始化");
             throw new IllegalStateException(errorMessage.toString());
         }
-    }
-
-    /**
-     * 🎥 渲染摄像机视口 Overlay（导出画幅框、安全区、参考线等）
-     * 
-     * <p>在屏幕上叠加显示摄像机导出画幅区域，不裁切 Minecraft 世界渲染。
-     * 这是一个"导演监视器"功能，帮助用户在编辑时看到最终导出会被裁切的区域。
-     * 
-     * <p>渲染内容：
-     * <ul>
-     *   <li>导出画幅边框 - 显示未来会被导出的区域</li>
-     *   <li>Letterbox 遮罩 - 显示会被裁切的黑边区域</li>
-     *   <li>安全区 - Title Safe / Action Safe 参考线</li>
-     *   <li>参考线 - 中心十字、三分法网格</li>
-     * </ul>
-     * 
-     * <p>设计原则：
-     * <ul>
-     *   <li>✅ 全屏照常渲染 Minecraft 世界</li>
-     *   <li>✅ 在背景层叠加显示导出区域框（会被面板遮挡）</li>
-     *   <li>❌ 不裁切 Minecraft 渲染本身</li>
-     *   <li>❌ 不影响鼠标操作和调试</li>
-     * </ul>
-     */
-    private void renderCameraViewportOverlay(imgui.ImDrawList dl, float screenX, float screenY, float screenW, float screenH) {
-        try {
-            // 获取激活的摄像机轨道
-            TimelineCameraController cameraController = TimelineCameraController.getInstance();
-            TimelineTrack activeCameraTrack = cameraController.getActiveCameraTrack();
-            
-            if (activeCameraTrack == null) {
-                // 没有激活的摄像机轨道，不显示任何 Overlay
-                return;
-            }
-            
-            // 获取摄像机视口配置
-            CameraViewportProfile profile = activeCameraTrack.getCameraViewportProfile();
-            if (profile == null) {
-                return;
-            }
-            
-            if (dl == null || screenW <= 0.0f || screenH <= 0.0f) {
-                return;
-            }
-            
-            // 计算导出画幅区域（Fit 或 Fill）
-            ViewportMath.ViewportRects viewport;
-            CameraViewportProfile.PreviewScalePolicy scalePolicy = profile.getPreviewScalePolicy();
-            float targetAspect = profile.getAspectRatio();
-            
-            if (scalePolicy == CameraViewportProfile.PreviewScalePolicy.FIT) {
-                viewport = ViewportMath.computeFit(screenX, screenY, screenW, screenH, targetAspect);
-            } else {
-                viewport = ViewportMath.computeFill(screenX, screenY, screenW, screenH, targetAspect);
-            }
-            
-            // 1️⃣ Letterbox 遮罩（先画，盖在世界上面）
-            if (profile.isShowLetterboxMask()) {
-                drawLetterboxMask(dl, viewport, profile.getLetterboxAlpha());
-            }
-            
-            // 2️⃣ 导出画幅边框（非常重要）
-            int borderColor = TimelineColors.rgba(255, 255, 255, 255); // 白色
-            float borderThickness = 2.0f;
-            dl.addRect(
-                viewport.innerX, viewport.innerY,
-                viewport.innerX2(), viewport.innerY2(),
-                borderColor, 0f, 0, borderThickness
-            );
-            
-            // 3️⃣ 安全区 / 构图辅助
-            if (profile.isShowSafeAreas()) {
-                drawSafeAreas(dl, viewport, profile.getActionSafe(), profile.getTitleSafe());
-            }
-            
-            // 4️⃣ 参考线
-            if (profile.isShowRuleOfThirds()) {
-                drawRuleOfThirds(dl, viewport);
-            }
-            
-            if (profile.isShowCenterCross()) {
-                drawCenterCross(dl, viewport);
-            }
-            
-        } catch (Exception e) {
-            LOGGER.debug("[DirectorUIManager] 渲染摄像机视口 Overlay 时出错: {}", e.getMessage(), e);
-            // 不抛出异常，避免影响其他 UI 渲染
-        }
-    }
-    
-    /**
-     * 绘制 Letterbox 遮罩（黑边）
-     */
-    private void drawLetterboxMask(imgui.ImDrawList dl, ViewportMath.ViewportRects viewport, float alpha) {
-        // 使用 TimelineColors.rgba() 创建 ARGB 格式颜色
-        int maskColor = TimelineColors.rgba(0, 0, 0, (int)(alpha * 255)); // 黑色，带透明度
-        
-        // 上黑边
-        if (viewport.innerY > viewport.outerY) {
-            dl.addRectFilled(
-                viewport.outerX, viewport.outerY,
-                viewport.outerX + viewport.outerW, viewport.innerY,
-                maskColor
-            );
-        }
-        
-        // 下黑边
-        float bottomY = viewport.outerY + viewport.outerH;
-        if (viewport.innerY2() < bottomY) {
-            dl.addRectFilled(
-                viewport.outerX, viewport.innerY2(),
-                viewport.outerX + viewport.outerW, bottomY,
-                maskColor
-            );
-        }
-        
-        // 左黑边
-        if (viewport.innerX > viewport.outerX) {
-            dl.addRectFilled(
-                viewport.outerX, viewport.innerY,
-                viewport.innerX, viewport.innerY2(),
-                maskColor
-            );
-        }
-        
-        // 右黑边
-        float rightX = viewport.outerX + viewport.outerW;
-        if (viewport.innerX2() < rightX) {
-            dl.addRectFilled(
-                viewport.innerX2(), viewport.innerY,
-                rightX, viewport.innerY2(),
-                maskColor
-            );
-        }
-    }
-    
-    /**
-     * 绘制安全区（Title Safe / Action Safe）
-     */
-    private void drawSafeAreas(imgui.ImDrawList dl, ViewportMath.ViewportRects viewport, 
-                                float actionSafe, float titleSafe) {
-        // Action Safe（动作安全区）
-        float actionW = viewport.innerW * actionSafe;
-        float actionH = viewport.innerH * actionSafe;
-        float actionX = viewport.innerX + (viewport.innerW - actionW) * 0.5f;
-        float actionY = viewport.innerY + (viewport.innerH - actionH) * 0.5f;
-        
-        int actionColor = TimelineColors.rgba(0, 255, 0, 200); // 绿色，半透明
-        dl.addRect(actionX, actionY, actionX + actionW, actionY + actionH, actionColor, 0f, 0, 1.0f);
-        
-        // Title Safe（标题安全区）
-        float titleW = viewport.innerW * titleSafe;
-        float titleH = viewport.innerH * titleSafe;
-        float titleX = viewport.innerX + (viewport.innerW - titleW) * 0.5f;
-        float titleY = viewport.innerY + (viewport.innerH - titleH) * 0.5f;
-        
-        int titleColor = TimelineColors.rgba(255, 0, 0, 200); // 红色，半透明
-        dl.addRect(titleX, titleY, titleX + titleW, titleY + titleH, titleColor, 0f, 0, 1.0f);
-    }
-    
-    /**
-     * 绘制三分法网格
-     */
-    private void drawRuleOfThirds(imgui.ImDrawList dl, ViewportMath.ViewportRects viewport) {
-        int lineColor = TimelineColors.rgba(255, 255, 255, 136); // 半透明白色 (136/255 ≈ 0.53)
-        
-        // 垂直三等分线
-        float thirdW = viewport.innerW / 3.0f;
-        float v1 = viewport.innerX + thirdW;
-        float v2 = viewport.innerX + thirdW * 2.0f;
-        dl.addLine(v1, viewport.innerY, v1, viewport.innerY2(), lineColor, 1.0f);
-        dl.addLine(v2, viewport.innerY, v2, viewport.innerY2(), lineColor, 1.0f);
-        
-        // 水平三等分线
-        float thirdH = viewport.innerH / 3.0f;
-        float h1 = viewport.innerY + thirdH;
-        float h2 = viewport.innerY + thirdH * 2.0f;
-        dl.addLine(viewport.innerX, h1, viewport.innerX2(), h1, lineColor, 1.0f);
-        dl.addLine(viewport.innerX, h2, viewport.innerX2(), h2, lineColor, 1.0f);
-    }
-    
-    /**
-     * 绘制中心十字参考线
-     */
-    private void drawCenterCross(imgui.ImDrawList dl, ViewportMath.ViewportRects viewport) {
-        int lineColor = TimelineColors.rgba(255, 255, 255, 136); // 半透明白色 (136/255 ≈ 0.53)
-        
-        float centerX = viewport.innerX + viewport.innerW * 0.5f;
-        float centerY = viewport.innerY + viewport.innerH * 0.5f;
-        
-        // 垂直中心线
-        dl.addLine(centerX, viewport.innerY, centerX, viewport.innerY2(), lineColor, 1.0f);
-        
-        // 水平中心线
-        dl.addLine(viewport.innerX, centerY, viewport.innerX2(), centerY, lineColor, 1.0f);
     }
 
     /**
