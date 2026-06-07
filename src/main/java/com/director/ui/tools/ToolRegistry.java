@@ -3,10 +3,13 @@ package com.director.ui.tools;
 import com.director.core.selection.SelectionManager;
 import com.director.core.selection.SelectionTool;
 import com.director.ui.theme.Icons;
+import com.director.ui.tools.impl.ActorLookAtTool;
+import com.director.ui.tools.impl.ActorMoveTool;
+import com.director.ui.tools.impl.ActorPathTool;
+import com.director.ui.tools.impl.ActorRotateTool;
+import com.director.ui.tools.impl.ActorScaleTool;
+import com.director.ui.tools.impl.ActorSelectTool;
 import com.director.ui.tools.impl.CameraPathEditTool;
-// ⚠️ Actor 工具已隐藏，等待下一版本
-// import com.director.ui.tools.impl.ActorPathTool;
-// import com.director.ui.tools.impl.ActorSelectTool;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
@@ -36,6 +39,11 @@ public final class ToolRegistry {
     private static final String TIMELINE_PLACEHOLDER_ID = "__timeline_placeholder__";
 
     public static final String ACTOR_SELECT_TOOL_ID = "actor_select";
+    public static final String ACTOR_MOVE_TOOL_ID = ActorMoveTool.ID;
+    public static final String ACTOR_ROTATE_TOOL_ID = ActorRotateTool.ID;
+    public static final String ACTOR_SCALE_TOOL_ID = ActorScaleTool.ID;
+    public static final String ACTOR_LOOK_AT_TOOL_ID = ActorLookAtTool.ID;
+    public static final String ACTOR_PATH_TOOL_ID = "actor_path";
 
     private final SelectionManager selectionManager = SelectionManager.get();
 
@@ -96,10 +104,30 @@ public final class ToolRegistry {
         META.put(ACTOR_SELECT_TOOL_ID, ToolMetadata.of(
                 ToolGroup.WORLD, 20,
                 "Select actor and show Gizmo",
-                "W/E/R: Move/Rotate/Scale"
+                "G/R/S: Move/Rotate/Scale"
+        ));
+        META.put(ACTOR_MOVE_TOOL_ID, ToolMetadata.of(
+                ToolGroup.WORLD, 30,
+                "Move the selected actor",
+                "Click an actor first, then drag the Gizmo arrows"
+        ));
+        META.put(ACTOR_ROTATE_TOOL_ID, ToolMetadata.of(
+                ToolGroup.WORLD, 40,
+                "Rotate the selected actor",
+                "Click an actor first, then drag the rotation Gizmo"
+        ));
+        META.put(ACTOR_SCALE_TOOL_ID, ToolMetadata.of(
+                ToolGroup.WORLD, 50,
+                "Scale the selected actor",
+                "Click an actor first, then drag the scale Gizmo"
+        ));
+        META.put(ACTOR_LOOK_AT_TOOL_ID, ToolMetadata.of(
+                ToolGroup.WORLD, 60,
+                "Make the selected actor look at a target",
+                "Click a world point to create or update a LookAt clip"
         ));
         META.put("actor_path", ToolMetadata.of(
-                ToolGroup.WORLD, 60,
+                ToolGroup.WORLD, 70,
                 "绘制路径并生成移动片段",
                 "左键加点，右键完成"
         ));
@@ -126,6 +154,15 @@ public final class ToolRegistry {
 
     public static ToolRegistry get() {
         return INSTANCE;
+    }
+
+    public static boolean isActorToolId(String toolId) {
+        return Objects.equals(toolId, ACTOR_SELECT_TOOL_ID)
+                || Objects.equals(toolId, ACTOR_MOVE_TOOL_ID)
+                || Objects.equals(toolId, ACTOR_ROTATE_TOOL_ID)
+                || Objects.equals(toolId, ACTOR_SCALE_TOOL_ID)
+                || Objects.equals(toolId, ACTOR_LOOK_AT_TOOL_ID)
+                || Objects.equals(toolId, ACTOR_PATH_TOOL_ID);
     }
 
     public synchronized void initializeIfNeeded() {
@@ -326,9 +363,12 @@ public final class ToolRegistry {
     }
 
     private void registerBuiltInExtraTools() {
-        // ⚠️ Actor 工具已隐藏，等待下一版本
-        // addExtraToolIfMissing(new ActorSelectTool());
-        // addExtraToolIfMissing(new ActorPathTool());
+        addExtraToolIfMissing(new ActorSelectTool());
+        addExtraToolIfMissing(new ActorMoveTool());
+        addExtraToolIfMissing(new ActorRotateTool());
+        addExtraToolIfMissing(new ActorScaleTool());
+        addExtraToolIfMissing(new ActorLookAtTool());
+        addExtraToolIfMissing(new ActorPathTool());
         addExtraToolIfMissing(new CameraPathEditTool());
     }
 

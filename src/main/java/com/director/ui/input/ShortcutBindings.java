@@ -194,6 +194,9 @@ public final class ShortcutBindings {
             case "move" -> ShortcutAction.TOOL_MOVE;
             case "rotate" -> ShortcutAction.TOOL_ROTATE;
             case "scale" -> ShortcutAction.TOOL_SCALE;
+            case com.director.ui.tools.ToolRegistry.ACTOR_MOVE_TOOL_ID -> ShortcutAction.TOOL_MOVE;
+            case com.director.ui.tools.ToolRegistry.ACTOR_ROTATE_TOOL_ID -> ShortcutAction.TOOL_ROTATE;
+            case com.director.ui.tools.ToolRegistry.ACTOR_SCALE_TOOL_ID -> ShortcutAction.TOOL_SCALE;
             default -> null;
         };
         
@@ -312,6 +315,7 @@ public final class ShortcutBindings {
         List<String> gizmo = new ArrayList<>();
         gizmo.add(formatShortcut("W", "Gizmo 移动模式"));
         gizmo.add(formatShortcut("E", "Gizmo 旋转模式"));
+        gizmo.add(formatShortcut("G/R/S", "Actor 工具组内切换移动/旋转/缩放"));
         categories.put("Actor Gizmo 操作", gizmo);
         
         // ==================== 界面操作 ====================

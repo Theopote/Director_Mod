@@ -95,7 +95,7 @@ public final class ActorPickController {
             lastRightMouseDown = isRightMouseDown(client);
             return;
         }
-        if (!ToolRegistry.ACTOR_SELECT_TOOL_ID.equals(ToolRegistry.get().getActiveNonSelectionToolId())) {
+        if (!ToolRegistry.isActorToolId(ToolRegistry.get().getActiveNonSelectionToolId())) {
             lastLeftMouseDown = isLeftMouseDown(client);
             lastRightMouseDown = isRightMouseDown(client);
             return;
