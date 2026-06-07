@@ -489,7 +489,7 @@ public class TimelineContextMenuFactory {
     /**
      * ⭐ 创建新轨道的辅助方法（支持撤销/重做）
      * 
-     * <p>包含自动激活第一条轨道的逻辑，与 TimelineTrackController.createNewTrack() 保持一致
+     * <p>自动激活和撤销恢复由 AddTrackCommand 统一处理。
      */
     private void createNewTrack(com.director.ui.timeline.model.TrackType type) {
 
@@ -512,34 +512,6 @@ public class TimelineContextMenuFactory {
         com.director.ui.timeline.commands.AddTrackCommand cmd = 
             new com.director.ui.timeline.commands.AddTrackCommand(model, newTrack);
         commandHistory.executeCommand(cmd);
-        
-        // ⭐ v3.5：如果是时间轨道且是第一条（创建后只有一条），自动激活
-        if (type == com.director.ui.timeline.model.TrackType.TIME && sameTypeCount == 0) {
-            com.director.ui.timeline.playback.time.TimelineWorldController.getInstance()
-                    .setActiveTimeTrack(newTrack);
-            LOGGER.info("[TimelineContextMenuFactory] 创建第一条时间轨道，自动激活: {}", trackName);
-        }
-        
-        // ⭐ v1.0：如果是季节轨道且是第一条，自动激活
-        if (type == com.director.ui.timeline.model.TrackType.SEASON && sameTypeCount == 0) {
-            com.director.ui.timeline.playback.season.TimelineSeasonController.getInstance()
-                    .setActiveSeasonTrack(newTrack);
-            LOGGER.info("[TimelineContextMenuFactory] 创建第一条季节轨道，自动激活: {}", trackName);
-        }
-        
-        // ⭐ v1.0：如果是天气轨道且是第一条，自动激活
-        if (type == com.director.ui.timeline.model.TrackType.WEATHER && sameTypeCount == 0) {
-            com.director.ui.timeline.playback.weather.TimelineWeatherController.getInstance()
-                    .bindActiveTrack(newTrack);
-            LOGGER.info("[TimelineContextMenuFactory] 创建第一条天气轨道，自动激活: {}", trackName);
-        }
-        
-        // ⭐ v1.0：如果是实体轨道且是第一条，自动激活
-        if (type == com.director.ui.timeline.model.TrackType.ENTITY && sameTypeCount == 0) {
-            com.director.ui.timeline.playback.entity.TimelineEntityController.getInstance()
-                    .bindActiveTrack(newTrack);
-            LOGGER.info("[TimelineContextMenuFactory] 创建第一条实体轨道，自动激活: {}", trackName);
-        }
         
         // 通知面板数据变化（如果有面板引用）
         if (panel != null) {

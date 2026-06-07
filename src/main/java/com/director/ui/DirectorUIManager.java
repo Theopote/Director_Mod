@@ -941,14 +941,6 @@ public class DirectorUIManager {
                                 com.director.ui.timeline.model.TrackType.ENTITY);
                 
                 addTrackViaCommand(newTrack);
-                
-                // 如果是第一条实体轨道，自动激活
-                if (sameTypeCount == 0) {
-                    com.director.ui.timeline.playback.entity.TimelineEntityController
-                            .getInstance().bindActiveTrack(newTrack);
-                    LOGGER.info("[Commands] 创建第一条实体轨道，自动激活: {}", trackName);
-                }
-                
                 LOGGER.info("[Commands] 已添加实体轨道: {}", trackName);
             } catch (Exception e) {
                 LOGGER.error("[Commands] 添加实体轨道失败: {}", e.getMessage(), e);
@@ -974,14 +966,6 @@ public class DirectorUIManager {
                                 com.director.ui.timeline.model.TrackType.WEATHER);
                 
                 addTrackViaCommand(newTrack);
-                
-                // 如果是第一条天气轨道，自动激活
-                if (sameTypeCount == 0) {
-                    com.director.ui.timeline.playback.weather.TimelineWeatherController.getInstance()
-                            .bindActiveTrack(newTrack);
-                    LOGGER.info("[Commands] 创建第一条天气轨道，自动激活: {}", trackName);
-                }
-                
                 LOGGER.info("[Commands] 已添加天气轨道: {}", trackName);
             } catch (Exception e) {
                 LOGGER.error("[Commands] 添加天气轨道失败: {}", e.getMessage(), e);
