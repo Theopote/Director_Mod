@@ -43,8 +43,7 @@ public class PanelFactory implements IPanelFactory {
         DEFAULT_PANEL_TYPES.put(MenuBarPanel.class, MenuBarPanel.class);
         DEFAULT_PANEL_TYPES.put(ToolbarPanel.class, ToolbarPanel.class);
         DEFAULT_PANEL_TYPES.put(ContainerPanel.class, ContainerPanel.class);
-        // ⚠️ ActorsPanel 已隐藏，等待下一版本
-        // DEFAULT_PANEL_TYPES.put(ActorsPanel.class, ActorsPanel.class);
+        DEFAULT_PANEL_TYPES.put(ActorsPanel.class, ActorsPanel.class);
         DEFAULT_PANEL_TYPES.put(PropertiesPanel.class, PropertiesPanel.class);
         DEFAULT_PANEL_TYPES.put(TimelinePanel.class, TimelinePanel.class);
     }
@@ -90,13 +89,11 @@ public class PanelFactory implements IPanelFactory {
             return new ContainerPanel(containerManager, commandHistory);
         });
 
-        // ⚠️ ActorsPanel 已隐藏，等待下一版本
-        // Register ActorsPanel creator
-        // registerPanelCreator(ActorsPanel.class, minecraftClient -> {
-        //     LOGGER.debug("[PanelFactory] Create ActorsPanel (MinecraftClient: {})", 
-        //         minecraftClient != null ? "injected" : "not injected");
-        //     return new ActorsPanel();
-        // });
+        registerPanelCreator(ActorsPanel.class, minecraftClient -> {
+            LOGGER.debug("[PanelFactory] 创建ActorsPanel (MinecraftClient: {})",
+                minecraftClient != null ? "已注入" : "未注入");
+            return new ActorsPanel();
+        });
         
         // 注册PropertiesPanel创建器
         registerPanelCreator(PropertiesPanel.class, minecraftClient -> {

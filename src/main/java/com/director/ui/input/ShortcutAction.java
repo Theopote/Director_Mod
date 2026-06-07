@@ -21,6 +21,20 @@ package com.director.ui.input;
  * @version 1.0
  */
 public enum ShortcutAction {
+
+    // ==================== 项目操作 ====================
+
+    /** 新建项目 */
+    PROJECT_NEW,
+
+    /** 重新加载当前世界项目 */
+    PROJECT_RELOAD,
+
+    /** 保存项目 */
+    PROJECT_SAVE,
+
+    /** 显示快捷键帮助 */
+    HELP_SHORTCUTS,
     
     // ==================== 播放控制 ====================
     

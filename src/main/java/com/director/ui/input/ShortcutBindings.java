@@ -50,6 +50,12 @@ public final class ShortcutBindings {
      * 初始化快捷键绑定
      */
     private static void initializeKeyBindings() {
+        // ==================== 项目操作 ====================
+        registerModifierBinding(GLFW.GLFW_KEY_N, 1, ShortcutAction.PROJECT_NEW);
+        registerModifierBinding(GLFW.GLFW_KEY_O, 1, ShortcutAction.PROJECT_RELOAD);
+        registerModifierBinding(GLFW.GLFW_KEY_S, 1, ShortcutAction.PROJECT_SAVE);
+        KEY_BINDINGS.put(GLFW.GLFW_KEY_F1, ShortcutAction.HELP_SHORTCUTS);
+
         // ==================== 播放控制 ====================
         KEY_BINDINGS.put(GLFW.GLFW_KEY_SPACE, ShortcutAction.PLAY_PAUSE);
         KEY_BINDINGS.put(GLFW.GLFW_KEY_HOME, ShortcutAction.GO_TO_START);
@@ -219,6 +225,7 @@ public final class ShortcutBindings {
             case GLFW.GLFW_KEY_DELETE -> "Delete";
             case GLFW.GLFW_KEY_HOME -> "Home";
             case GLFW.GLFW_KEY_END -> "End";
+            case GLFW.GLFW_KEY_F1 -> "F1";
             case GLFW.GLFW_KEY_1 -> "1";
             case GLFW.GLFW_KEY_2 -> "2";
             case GLFW.GLFW_KEY_3 -> "3";
@@ -231,6 +238,8 @@ public final class ShortcutBindings {
             case GLFW.GLFW_KEY_R -> "R";
             case GLFW.GLFW_KEY_S -> "S";
             case GLFW.GLFW_KEY_L -> "L";
+            case GLFW.GLFW_KEY_N -> "N";
+            case GLFW.GLFW_KEY_O -> "O";
             case GLFW.GLFW_KEY_W -> "W";
             case GLFW.GLFW_KEY_E -> "E";
             case GLFW.GLFW_KEY_Z -> "Z";
@@ -252,9 +261,8 @@ public final class ShortcutBindings {
         // ==================== 文件操作 ====================
         List<String> file = new ArrayList<>();
         file.add(formatShortcut("Ctrl+N", "新建项目"));
-        file.add(formatShortcut("Ctrl+O", "打开项目"));
+        file.add(formatShortcut("Ctrl+O", "重新加载当前世界项目"));
         file.add(formatShortcut("Ctrl+S", "保存"));
-        file.add(formatShortcut("Ctrl+Shift+S", "另存为"));
         file.add(formatShortcut("Alt+F4", "退出应用"));
         categories.put("文件操作", file);
         

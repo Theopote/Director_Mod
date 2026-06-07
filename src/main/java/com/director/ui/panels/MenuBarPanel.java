@@ -9,6 +9,7 @@ import com.director.ui.di.IPanelRegistry;
 import com.director.ui.imgui.ImGuiRenderer;
 import com.director.ui.theme.Icons;
 import com.director.ui.PanelId;
+import com.director.ui.timeline.model.camera.path.CameraPathType;
 
 import net.minecraft.client.MinecraftClient;
 
@@ -82,6 +83,7 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
 
         try {
             renderFileMenu();
+            renderEditMenu();
             renderTimelineMenu();
             renderPlaybackMenu();
             renderWindowMenu();
@@ -125,7 +127,7 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
             if (ImGui.menuItem("New Project", "Ctrl+N")) {
                 commands.project().newProject();
             }
-            if (ImGui.menuItem("Open Project", "Ctrl+O")) {
+            if (ImGui.menuItem("Reload Project", "Ctrl+O")) {
                 commands.project().openProject();
             }
 
@@ -134,7 +136,7 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
             if (ImGui.menuItem("Save", "Ctrl+S")) {
                 commands.project().saveProject();
             }
-            if (ImGui.menuItem("Save As...", "Ctrl+Shift+S")) {
+            if (ImGui.menuItem("Save As...", "", false, false)) {
                 commands.project().saveProjectAs();
             }
 
@@ -154,6 +156,29 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
         }
     }
 
+    // ==================== Edit ====================
+
+    private void renderEditMenu() {
+        if (commands == null) return;
+
+        if (ImGui.beginMenu(Icons.EDIT + " Edit")) {
+            if (ImGui.menuItem(Icons.UNDO + " Undo", "Ctrl+Z")) {
+                commands.timeline().undo();
+            }
+            if (ImGui.menuItem(Icons.REDO + " Redo", "Ctrl+Y")) {
+                commands.timeline().redo();
+            }
+
+            ImGui.separator();
+
+            if (ImGui.menuItem(Icons.DELETE + " Delete Selected", "Del")) {
+                commands.timeline().deleteSelected();
+            }
+
+            ImGui.endMenu();
+        }
+    }
+
     // ==================== Timeline ====================
 
     private void renderTimelineMenu() {
@@ -162,6 +187,24 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
         if (ImGui.beginMenu(Icons.TIMELINE + " Timeline")) {
             if (ImGui.menuItem("Timeline Settings")) {
                 commands.timeline().openTimelineSettings();
+            }
+
+            ImGui.separator();
+
+            if (ImGui.beginMenu(Icons.ADD + " Add Track")) {
+                if (ImGui.menuItem(Icons.CAMERA + " Camera Track")) {
+                    commands.timeline().addCameraTrack(CameraPathType.CUSTOM);
+                }
+                if (ImGui.menuItem(Icons.TARGET + " Actor Track")) {
+                    commands.timeline().addActorTrack();
+                }
+                if (ImGui.menuItem(Icons.LIGHT + " Weather Track")) {
+                    commands.timeline().addWeatherTrack();
+                }
+                if (ImGui.menuItem(Icons.MUSIC + " Audio Track")) {
+                    commands.timeline().addAudioTrack();
+                }
+                ImGui.endMenu();
             }
 
             ImGui.separator();
@@ -325,7 +368,7 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
                 if (ImGui.menuItem("Dark Theme", "", true)) { // 当前默认主题
                     commands.layout().setTheme("Dark");
                 }
-                if (ImGui.menuItem("Light Theme", "", false)) {
+                if (ImGui.menuItem("Light Theme", "", false, false)) {
                     commands.layout().setTheme("Light");
                 }
                 ImGui.endMenu();
@@ -353,7 +396,7 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
 
             ImGui.separator();
 
-            if (ImGui.menuItem("Report Bug")) {
+            if (ImGui.menuItem("Report Bug", "", false, false)) {
                 commands.help().reportBug();
             }
             if (ImGui.menuItem("About Director")) {

@@ -48,6 +48,23 @@ public final class ShortcutActions {
         
         try {
             switch (action) {
+                // ==================== 项目操作 ====================
+                case PROJECT_NEW -> {
+                    commands.project().newProject();
+                    LOGGER.debug("[ShortcutActions] 执行: PROJECT_NEW");
+                }
+                case PROJECT_RELOAD -> {
+                    commands.project().openProject();
+                    LOGGER.debug("[ShortcutActions] 执行: PROJECT_RELOAD");
+                }
+                case PROJECT_SAVE -> {
+                    commands.project().saveProject();
+                    LOGGER.debug("[ShortcutActions] 执行: PROJECT_SAVE");
+                }
+                case HELP_SHORTCUTS -> {
+                    commands.help().showShortcutHelp();
+                    LOGGER.debug("[ShortcutActions] 执行: HELP_SHORTCUTS");
+                }
                 
                 // ==================== 播放控制 ====================
                 case PLAY_PAUSE -> {

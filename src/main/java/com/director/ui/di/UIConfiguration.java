@@ -112,6 +112,7 @@ public class UIConfiguration {
             panels.add(panelFactory.createPanel(MenuBarPanel.class, minecraftClient));
             panels.add(panelFactory.createPanel(ToolbarPanel.class, minecraftClient));
             panels.add(panelFactory.createPanel(ContainerPanel.class, minecraftClient));
+            panels.add(panelFactory.createPanel(ActorsPanel.class, minecraftClient));
             panels.add(panelFactory.createPanel(PropertiesPanel.class, minecraftClient));
             panels.add(panelFactory.createPanel(TimelinePanel.class, minecraftClient));
             
