@@ -515,6 +515,8 @@ public final class ActorRuntimeController {
                 finalPose = rigPose.pose;
             }
 
+            applyPoseOverrides(finalPose, s);
+
             // 5️⃣ 将最终姿态应用到 ActorRuntime（向后兼容）
             applyPoseToRuntime(finalPose);
 
@@ -528,9 +530,32 @@ public final class ActorRuntimeController {
             rig.applyAction(
                     actorRuntime,
                     action,
-                    s.actionIntensity,
-                    deltaTime
+                s.actionIntensity,
+                deltaTime
             );
+        }
+
+        private void applyPoseOverrides(Pose pose, EntitySample s) {
+            if (pose == null || s == null || !s.poseOverrideEnabled) {
+                return;
+            }
+            if (s.poseOverrideBody) {
+                pose.bodyPitch = s.poseBodyPitch;
+                pose.bodyYaw = s.poseBodyYaw;
+                pose.bodyRoll = s.poseBodyRoll;
+            }
+            if (s.poseOverrideHead) {
+                pose.headPitch = s.poseHeadPitch;
+                pose.headYaw = s.poseHeadYaw;
+            }
+            if (s.poseOverrideArms) {
+                pose.leftArmPitch = s.poseLeftArmPitch;
+                pose.rightArmPitch = s.poseRightArmPitch;
+            }
+            if (s.poseOverrideLegs) {
+                pose.leftLegPitch = s.poseLeftLegPitch;
+                pose.rightLegPitch = s.poseRightLegPitch;
+            }
         }
 
         /**

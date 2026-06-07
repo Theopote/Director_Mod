@@ -115,6 +115,23 @@ public class EntitySample {
     /** 动作强度（来自 ActorActionClip）[0.0-1.0] */
     public float actionIntensity = 1.0f;
 
+    // ========== ActorPoseClip 扩展字段 ==========
+
+    public boolean poseOverrideEnabled = false;
+    public boolean poseOverrideBody = false;
+    public boolean poseOverrideHead = false;
+    public boolean poseOverrideArms = false;
+    public boolean poseOverrideLegs = false;
+    public float poseBodyPitch = 0f;
+    public float poseBodyYaw = 0f;
+    public float poseBodyRoll = 0f;
+    public float poseHeadPitch = 0f;
+    public float poseHeadYaw = 0f;
+    public float poseLeftArmPitch = 0f;
+    public float poseRightArmPitch = 0f;
+    public float poseLeftLegPitch = 0f;
+    public float poseRightLegPitch = 0f;
+
     // ========== 速度计算（用于自动动作推断）==========
 
     /** 移动速度（单位：blocks/second，只读给 Runtime） */
@@ -239,6 +256,22 @@ public class EntitySample {
         // ActorActionClip 扩展字段
         action = s.action;
         actionIntensity = s.actionIntensity;
+
+        // ActorPoseClip 扩展字段
+        poseOverrideEnabled = s.poseOverrideEnabled;
+        poseOverrideBody = s.poseOverrideBody;
+        poseOverrideHead = s.poseOverrideHead;
+        poseOverrideArms = s.poseOverrideArms;
+        poseOverrideLegs = s.poseOverrideLegs;
+        poseBodyPitch = s.poseBodyPitch;
+        poseBodyYaw = s.poseBodyYaw;
+        poseBodyRoll = s.poseBodyRoll;
+        poseHeadPitch = s.poseHeadPitch;
+        poseHeadYaw = s.poseHeadYaw;
+        poseLeftArmPitch = s.poseLeftArmPitch;
+        poseRightArmPitch = s.poseRightArmPitch;
+        poseLeftLegPitch = s.poseLeftLegPitch;
+        poseRightLegPitch = s.poseRightLegPitch;
 
         // 速度
         speed = s.speed;

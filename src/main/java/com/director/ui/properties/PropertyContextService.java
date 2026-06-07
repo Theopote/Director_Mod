@@ -4,7 +4,7 @@ import com.director.ui.selection.SelectionManager;
 import com.director.ui.selection.SelectionType;
 import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.TrackType;
-import com.director.ui.timeline.model.entity.EntityClip;
+import com.director.ui.timeline.model.entity.EntityTimelineClip;
 import com.director.ui.tools.ToolRegistry;
 
 /**
@@ -97,7 +97,7 @@ public final class PropertyContextService {
         if (target instanceof TimelineTrack tt) {
             return tt.getType() == TrackType.ENTITY;
         }
-        return target instanceof EntityClip;
+        return false;
     }
 
     /**
@@ -111,7 +111,13 @@ public final class PropertyContextService {
             case TOOL -> ToolRegistry.get().hasNonSelectionActiveTool()
                     ? ToolRegistry.get().getActiveTool()
                     : com.director.core.selection.SelectionManager.get().getCurrentTool();
-            case TIMELINE -> SelectionManager.get().getSelectionPayload();
+            case TIMELINE -> {
+                Object payload = SelectionManager.get().getSelectionPayload();
+                if (payload instanceof EntityTimelineClip entityTimelineClip) {
+                    yield entityTimelineClip.getEntityClip();
+                }
+                yield payload;
+            }
             default -> null;
         };
     }

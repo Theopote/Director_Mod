@@ -246,6 +246,16 @@ public class TimelineModelPersistence {
         public String actorActionType;  // ActorActionType.name()
         public Float actorActionIntensity;
         public Boolean actorActionLoop;
+
+        // ===== ActorPoseClip =====
+        public Boolean poseOverrideBody;
+        public Boolean poseOverrideHead;
+        public Boolean poseOverrideArms;
+        public Boolean poseOverrideLegs;
+        public Float poseBodyPitch, poseBodyYaw, poseBodyRoll;
+        public Float poseHeadPitch, poseHeadYaw;
+        public Float poseLeftArmPitch, poseRightArmPitch;
+        public Float poseLeftLegPitch, poseRightLegPitch;
     }
 
     /**
@@ -825,6 +835,21 @@ public class TimelineModelPersistence {
                             cdto.actorActionIntensity = aac.getIntensity();
                             cdto.actorActionLoop = aac.isLoop();
                         }
+                        case com.director.ui.timeline.model.entity.ActorPoseClip pc -> {
+                            cdto.poseOverrideBody = pc.isOverrideBody();
+                            cdto.poseOverrideHead = pc.isOverrideHead();
+                            cdto.poseOverrideArms = pc.isOverrideArms();
+                            cdto.poseOverrideLegs = pc.isOverrideLegs();
+                            cdto.poseBodyPitch = pc.getBodyPitch();
+                            cdto.poseBodyYaw = pc.getBodyYaw();
+                            cdto.poseBodyRoll = pc.getBodyRoll();
+                            cdto.poseHeadPitch = pc.getHeadPitch();
+                            cdto.poseHeadYaw = pc.getHeadYaw();
+                            cdto.poseLeftArmPitch = pc.getLeftArmPitch();
+                            cdto.poseRightArmPitch = pc.getRightArmPitch();
+                            cdto.poseLeftLegPitch = pc.getLeftLegPitch();
+                            cdto.poseRightLegPitch = pc.getRightLegPitch();
+                        }
                         default -> {
                         }
                     }
@@ -1385,6 +1410,21 @@ public class TimelineModelPersistence {
                                         if (cdto.actorActionIntensity != null) aac.setIntensity(cdto.actorActionIntensity);
                                         if (cdto.actorActionLoop != null) aac.setLoop(cdto.actorActionLoop);
                                     }
+                                    case com.director.ui.timeline.model.entity.ActorPoseClip pc -> {
+                                        if (cdto.poseOverrideBody != null) pc.setOverrideBody(cdto.poseOverrideBody);
+                                        if (cdto.poseOverrideHead != null) pc.setOverrideHead(cdto.poseOverrideHead);
+                                        if (cdto.poseOverrideArms != null) pc.setOverrideArms(cdto.poseOverrideArms);
+                                        if (cdto.poseOverrideLegs != null) pc.setOverrideLegs(cdto.poseOverrideLegs);
+                                        if (cdto.poseBodyPitch != null) pc.setBodyPitch(cdto.poseBodyPitch);
+                                        if (cdto.poseBodyYaw != null) pc.setBodyYaw(cdto.poseBodyYaw);
+                                        if (cdto.poseBodyRoll != null) pc.setBodyRoll(cdto.poseBodyRoll);
+                                        if (cdto.poseHeadPitch != null) pc.setHeadPitch(cdto.poseHeadPitch);
+                                        if (cdto.poseHeadYaw != null) pc.setHeadYaw(cdto.poseHeadYaw);
+                                        if (cdto.poseLeftArmPitch != null) pc.setLeftArmPitch(cdto.poseLeftArmPitch);
+                                        if (cdto.poseRightArmPitch != null) pc.setRightArmPitch(cdto.poseRightArmPitch);
+                                        if (cdto.poseLeftLegPitch != null) pc.setLeftLegPitch(cdto.poseLeftLegPitch);
+                                        if (cdto.poseRightLegPitch != null) pc.setRightLegPitch(cdto.poseRightLegPitch);
+                                    }
                                     default -> {
                                     }
                                 }
@@ -1435,6 +1475,7 @@ public class TimelineModelPersistence {
             case ACTION -> new com.director.ui.timeline.model.entity.EntityActionClip(cname, cdto.startTime, cdto.endTime);
             case DESPAWN -> new com.director.ui.timeline.model.entity.EntityDespawnClip(cname, cdto.startTime, cdto.endTime);
             case ACTOR_ACTION -> new com.director.ui.timeline.model.entity.ActorActionClip(cname, cdto.startTime, cdto.endTime);
+            case ACTOR_POSE -> new com.director.ui.timeline.model.entity.ActorPoseClip(cname, cdto.startTime, cdto.endTime);
         };
         clip.setMuted(cdto.muted);
         clip.setWeight(cdto.weight);

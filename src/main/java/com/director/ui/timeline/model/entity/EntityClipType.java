@@ -161,7 +161,14 @@ public enum EntityClipType {
      *   <li>必须是可插值 / 可过渡的</li>
      * </ul>
      */
-    ACTOR_ACTION("动作语义", "控制演员的持续动作语义状态（Run / Dance / Walk 等）");
+    ACTOR_ACTION("动作语义", "控制演员的持续动作语义状态（Run / Dance / Walk 等）"),
+
+    /**
+     * 演员局部姿态覆盖片段。
+     *
+     * <p>用于在 RigProfile 生成基础动作后，对头部、身体、手臂、腿部做导演级微调。</p>
+     */
+    ACTOR_POSE("局部姿态", "覆盖演员头部/身体/四肢的局部姿态");
 
     private final String displayName;
     private final String description;

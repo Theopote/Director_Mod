@@ -115,6 +115,7 @@ public class EntityClipSampler {
         List<EntityLookAtClip> lookAtClips = new ArrayList<>();
         List<EntityDespawnClip> despawnClips = new ArrayList<>();
         List<ActorActionClip> actorActionClips = new ArrayList<>();
+        List<ActorPoseClip> actorPoseClips = new ArrayList<>();
 
         for (EntityClip clip : clipsAtTime) {
             if (clip.isMuted()) {
@@ -162,6 +163,11 @@ public class EntityClipSampler {
                         actorActionClips.add(actorActionClip);
                     }
                     break;
+                case ACTOR_POSE:
+                    if (clip instanceof ActorPoseClip actorPoseClip) {
+                        actorPoseClips.add(actorPoseClip);
+                    }
+                    break;
             }
         }
 
@@ -202,6 +208,10 @@ public class EntityClipSampler {
         // ========== 处理 ActorAction Clip（动作语义）==========
         // 规则：last-wins（取 startTime 最大的那个）
         applyActorAction(result, actorActionClips, timeSeconds);
+
+        // ========== 处理 ActorPose Clip（局部姿态覆盖）==========
+        // 规则：last-wins（取 startTime 最大的那个）
+        applyActorPose(result, actorPoseClips, timeSeconds);
 
         // ========== 计算速度（用于自动动作推断）==========
         sampleVelocity(result, timeSeconds);
@@ -571,6 +581,38 @@ public class EntityClipSampler {
      */
     private void applyActorAction(EntitySample result, List<ActorActionClip> clips, float timeSeconds) {
         sampleAction(result, clips, timeSeconds);
+    }
+
+    private void applyActorPose(EntitySample result, List<ActorPoseClip> clips, float timeSeconds) {
+        ActorPoseClip active = null;
+        for (ActorPoseClip clip : clips) {
+            if (clip.isMuted()) {
+                continue;
+            }
+            if (timeSeconds >= clip.getStartTime() && timeSeconds <= clip.getEndTime()) {
+                if (active == null || clip.getStartTime() > active.getStartTime()) {
+                    active = clip;
+                }
+            }
+        }
+        if (active == null) {
+            return;
+        }
+
+        result.poseOverrideEnabled = true;
+        result.poseOverrideBody = active.isOverrideBody();
+        result.poseOverrideHead = active.isOverrideHead();
+        result.poseOverrideArms = active.isOverrideArms();
+        result.poseOverrideLegs = active.isOverrideLegs();
+        result.poseBodyPitch = active.getBodyPitch();
+        result.poseBodyYaw = active.getBodyYaw();
+        result.poseBodyRoll = active.getBodyRoll();
+        result.poseHeadPitch = active.getHeadPitch();
+        result.poseHeadYaw = active.getHeadYaw();
+        result.poseLeftArmPitch = active.getLeftArmPitch();
+        result.poseRightArmPitch = active.getRightArmPitch();
+        result.poseLeftLegPitch = active.getLeftLegPitch();
+        result.poseRightLegPitch = active.getRightLegPitch();
     }
 
     /**

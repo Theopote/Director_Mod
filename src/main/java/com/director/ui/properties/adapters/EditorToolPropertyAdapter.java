@@ -15,6 +15,7 @@ import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.TrackType;
 import com.director.ui.timeline.model.entity.ActorActionClip;
+import com.director.ui.timeline.model.entity.ActorPoseClip;
 import com.director.ui.timeline.model.entity.EntityTimelineClip;
 import com.director.ui.timeline.model.entity.EntityTrack;
 import com.director.ui.tools.EditorTool;
@@ -33,6 +34,20 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
     private final ImFloat actionIntensity = new ImFloat(1.0f);
     private final ImFloat actionDuration = new ImFloat(1.0f);
     private final ImBoolean actionLoop = new ImBoolean(true);
+    private final ImFloat poseDuration = new ImFloat(1.0f);
+    private final ImBoolean poseBody = new ImBoolean(false);
+    private final ImBoolean poseHead = new ImBoolean(true);
+    private final ImBoolean poseArms = new ImBoolean(false);
+    private final ImBoolean poseLegs = new ImBoolean(false);
+    private final ImFloat poseHeadPitchDeg = new ImFloat(0.0f);
+    private final ImFloat poseHeadYawDeg = new ImFloat(0.0f);
+    private final ImFloat poseBodyPitchDeg = new ImFloat(0.0f);
+    private final ImFloat poseBodyYawDeg = new ImFloat(0.0f);
+    private final ImFloat poseBodyRollDeg = new ImFloat(0.0f);
+    private final ImFloat poseLeftArmDeg = new ImFloat(0.0f);
+    private final ImFloat poseRightArmDeg = new ImFloat(0.0f);
+    private final ImFloat poseLeftLegDeg = new ImFloat(0.0f);
+    private final ImFloat poseRightLegDeg = new ImFloat(0.0f);
 
     @Override
     public Class<EditorTool> getTargetType() {
@@ -107,10 +122,65 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
 
         if (Objects.equals(tool.getId(), ToolRegistry.ACTOR_POSE_TOOL_ID)) {
             renderPoseAuthoring(actor);
+            renderLocalPoseAuthoring(actor);
         } else if (Objects.equals(tool.getId(), ToolRegistry.ACTOR_LOOK_AT_TOOL_ID)) {
             renderLookAtHint();
         } else {
             renderTransformHint(tool);
+        }
+    }
+
+    private void renderLocalPoseAuthoring(Actor actor) {
+        if (!ImGui.collapsingHeader(Icons.TRANSFORM + " 局部姿态覆盖", ImGuiTreeNodeFlags.DefaultOpen)) {
+            return;
+        }
+        if (actor == null) {
+            ImGui.textDisabled("请先选择一个 Actor。");
+            return;
+        }
+
+        float[] duration = { poseDuration.get() };
+        if (ImGui.sliderFloat("时长##actorLocalPoseDuration", duration, 0.05f, 10.0f, "%.2fs")) {
+            poseDuration.set(Math.max(0.05f, duration[0]));
+        }
+
+        ImGui.checkbox("头部##actorLocalPoseHead", poseHead);
+        ImGui.sameLine();
+        ImGui.checkbox("身体##actorLocalPoseBody", poseBody);
+        ImGui.checkbox("手臂##actorLocalPoseArms", poseArms);
+        ImGui.sameLine();
+        ImGui.checkbox("腿部##actorLocalPoseLegs", poseLegs);
+
+        if (poseHead.get()) {
+            degreeSlider("抬头/低头##actorLocalHeadPitch", poseHeadPitchDeg);
+            degreeSlider("左右转头##actorLocalHeadYaw", poseHeadYawDeg);
+        }
+        if (poseBody.get()) {
+            degreeSlider("身体俯仰##actorLocalBodyPitch", poseBodyPitchDeg);
+            degreeSlider("身体扭转##actorLocalBodyYaw", poseBodyYawDeg);
+            degreeSlider("身体侧倾##actorLocalBodyRoll", poseBodyRollDeg);
+        }
+        if (poseArms.get()) {
+            degreeSlider("左臂##actorLocalLeftArm", poseLeftArmDeg);
+            degreeSlider("右臂##actorLocalRightArm", poseRightArmDeg);
+        }
+        if (poseLegs.get()) {
+            degreeSlider("左腿##actorLocalLeftLeg", poseLeftLegDeg);
+            degreeSlider("右腿##actorLocalRightLeg", poseRightLegDeg);
+        }
+
+        if (ImGui.button(Icons.ADD + " 在当前时间创建局部姿态片段##createActorLocalPoseClip")) {
+            createActorPoseClip(actor);
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("创建 ActorPoseClip，在 RigProfile 姿态之后覆盖选中的身体部位。");
+        }
+    }
+
+    private void degreeSlider(String label, ImFloat value) {
+        float[] arr = { value.get() };
+        if (ImGui.sliderFloat(label, arr, -90.0f, 90.0f, "%.1f deg")) {
+            value.set(arr[0]);
         }
     }
 
@@ -221,6 +291,44 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         trackContext.timelineTrack.addClip(timelineClip);
         model.selectItem(timelineClip, false);
         model.markDirty();
+    }
+
+    private void createActorPoseClip(Actor actor) {
+        if (actor == null) {
+            return;
+        }
+        TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
+        TrackContext trackContext = resolveEntityTrack(model, actor.getActorId());
+        if (model == null || trackContext == null) {
+            return;
+        }
+
+        float start = model.getCurrentTime();
+        float end = start + Math.max(0.05f, poseDuration.get());
+        ActorPoseClip clip = new ActorPoseClip("Pose", start, end);
+        clip.setOverrideBody(poseBody.get());
+        clip.setOverrideHead(poseHead.get());
+        clip.setOverrideArms(poseArms.get());
+        clip.setOverrideLegs(poseLegs.get());
+        clip.setHeadPitch(toRadians(poseHeadPitchDeg));
+        clip.setHeadYaw(toRadians(poseHeadYawDeg));
+        clip.setBodyPitch(toRadians(poseBodyPitchDeg));
+        clip.setBodyYaw(toRadians(poseBodyYawDeg));
+        clip.setBodyRoll(toRadians(poseBodyRollDeg));
+        clip.setLeftArmPitch(toRadians(poseLeftArmDeg));
+        clip.setRightArmPitch(toRadians(poseRightArmDeg));
+        clip.setLeftLegPitch(toRadians(poseLeftLegDeg));
+        clip.setRightLegPitch(toRadians(poseRightLegDeg));
+
+        trackContext.entityTrack.addClip(clip);
+        EntityTimelineClip timelineClip = new EntityTimelineClip(clip, trackContext.entityTrack.getColorRgba());
+        trackContext.timelineTrack.addClip(timelineClip);
+        model.selectItem(timelineClip, false);
+        model.markDirty();
+    }
+
+    private float toRadians(ImFloat degrees) {
+        return (float) Math.toRadians(degrees.get());
     }
 
     private TrackContext resolveEntityTrack(TimelineModel model, UUID actorId) {
