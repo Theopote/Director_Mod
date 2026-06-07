@@ -289,6 +289,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                 }
 
                 renderGroupActionAuthoring(group);
+                renderGroupRouteAuthoring(group);
 
                 if (ImGui.button("Delete Group##deleteGroup" + group.getGroupId())) {
                     actorRegistry.removeGroup(group.getGroupId());
@@ -351,6 +352,31 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("从当前播放头时间开始，为组内每个 Actor 创建 ActorActionClip，并应用 Delay 策略。");
+        }
+    }
+
+    private void renderGroupRouteAuthoring(ActorGroup group) {
+        ImGui.spacing();
+        UITheme.label("Group Route", UITheme.DarkTheme.TEXT);
+
+        UUID sourceActorId = ActorSelectionHub.getSelectedActorId();
+        String sourceLabel = "Source: " + (sourceActorId != null ? sourceActorId : "no selected actor");
+        ImGui.textDisabled(sourceLabel);
+
+        boolean canCreate = group.size() > 0 && sourceActorId != null;
+        if (!canCreate) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button("Copy Selected Actor Route##groupCopyRoute" + group.getGroupId())) {
+            int created = ActorGroupTimelineCommandService.getInstance()
+                    .copyLatestRouteFromActor(group, sourceActorId);
+            LOGGER.info("[ActorProjectPropertyAdapter] Copied selected actor route to {} group members", created);
+        }
+        if (!canCreate) {
+            ImGui.endDisabled();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("复制当前选中 Actor 最近的 ActorRouteClip 到此组成员，并应用 Delay 策略。");
         }
     }
     

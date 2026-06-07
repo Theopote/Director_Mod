@@ -160,6 +160,8 @@ Status:
 - Actor project properties include basic group creation, editing, and actor membership toggles.
 - Group action authoring is implemented: the Actor project properties can create per-member
   `ActorActionClip`s from the current playhead, using the group's delay policy.
+- Group route authoring has a first implementation: a selected actor's latest `ActorRouteClip`
+  can be copied to all group members with delay offsets. Formation offsets remain future work.
 
 ### Phase 4: Formation
 

@@ -8,8 +8,11 @@ import com.director.ui.timeline.model.TimelineClip;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.entity.ActorActionClip;
+import com.director.ui.timeline.model.entity.ActorRouteClip;
+import com.director.ui.timeline.model.entity.EntityClip;
 import com.director.ui.timeline.model.entity.EntityTimelineClip;
 import com.director.ui.timeline.model.entity.EntityTrack;
+import org.joml.Vector3f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,6 +95,52 @@ public final class ActorGroupTimelineCommandService {
         return created;
     }
 
+    public int copyLatestRouteFromActor(ActorGroup group, UUID sourceActorId) {
+        if (group == null || sourceActorId == null || group.size() == 0) {
+            return 0;
+        }
+
+        TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
+        if (model == null) {
+            LOGGER.warn("[ActorGroupTimelineCommandService] TimelineModel is not available");
+            return 0;
+        }
+
+        ActorRouteClip source = findLatestRouteClip(model, sourceActorId);
+        if (source == null || source.getWaypoints().size() < 2) {
+            LOGGER.warn("[ActorGroupTimelineCommandService] Source actor {} has no usable route", sourceActorId);
+            return 0;
+        }
+
+        List<UUID> actorIds = group.getActorIds();
+        int created = 0;
+        for (int i = 0; i < actorIds.size(); i++) {
+            UUID actorId = actorIds.get(i);
+            TimelineTrack timelineTrack = model.findEntityTrackByActorId(actorId);
+            if (timelineTrack == null) {
+                continue;
+            }
+            EntityTrack entityTrack = timelineTrack.getEntityTrackPayload();
+            if (entityTrack == null) {
+                continue;
+            }
+
+            float delay = computeDelay(group, actorId, i, actorIds.size());
+            ActorRouteClip copy = copyRouteClip(source, delay);
+            entityTrack.addClip(copy);
+            EntityTimelineClip timelineClip = new EntityTimelineClip(copy, entityTrack.getColorRgba());
+            model.addClip(timelineTrack, timelineClip);
+            created++;
+        }
+
+        if (created > 0) {
+            model.markDirty();
+        }
+        LOGGER.info("[ActorGroupTimelineCommandService] Copied route from actor {} to {} group members",
+                sourceActorId, created);
+        return created;
+    }
+
     private float computeDelay(ActorGroup group, UUID actorId, int index, int count) {
         float step = Math.max(0.0f, group.getDelayStepSeconds());
         return switch (group.getDelayPolicy()) {
@@ -114,5 +163,47 @@ public final class ActorGroupTimelineCommandService {
         for (ActorActionClip actionClip : actionClips) {
             model.addClip(timelineTrack, new EntityTimelineClip(actionClip, entityTrack.getColorRgba()));
         }
+    }
+
+    private ActorRouteClip findLatestRouteClip(TimelineModel model, UUID actorId) {
+        TimelineTrack timelineTrack = model.findEntityTrackByActorId(actorId);
+        if (timelineTrack == null || timelineTrack.getEntityTrackPayload() == null) {
+            return null;
+        }
+
+        float currentTime = model.getCurrentTime();
+        ActorRouteClip latestBeforeOrAtPlayhead = null;
+        ActorRouteClip latestOverall = null;
+        for (EntityClip clip : timelineTrack.getEntityTrackPayload().getClips()) {
+            if (!(clip instanceof ActorRouteClip routeClip)) {
+                continue;
+            }
+            if (latestOverall == null || routeClip.getStartTime() > latestOverall.getStartTime()) {
+                latestOverall = routeClip;
+            }
+            if (routeClip.getStartTime() <= currentTime
+                    && (latestBeforeOrAtPlayhead == null
+                    || routeClip.getStartTime() > latestBeforeOrAtPlayhead.getStartTime())) {
+                latestBeforeOrAtPlayhead = routeClip;
+            }
+        }
+        return latestBeforeOrAtPlayhead != null ? latestBeforeOrAtPlayhead : latestOverall;
+    }
+
+    private ActorRouteClip copyRouteClip(ActorRouteClip source, float startDelaySeconds) {
+        float start = source.getStartTime() + Math.max(0.0f, startDelaySeconds);
+        float end = source.getEndTime() + Math.max(0.0f, startDelaySeconds);
+        ActorRouteClip copy = new ActorRouteClip(source.getName(), start, end);
+        copy.setSpeed(source.getSpeed());
+        copy.setInterpolationMode(source.getInterpolationMode());
+        copy.setLoopMode(source.getLoopMode());
+        copy.setAlignRotationToRoute(source.isAlignRotationToRoute());
+
+        List<Vector3f> points = new ArrayList<>();
+        for (Vector3f point : source.getWaypoints()) {
+            points.add(new Vector3f(point));
+        }
+        copy.setWaypoints(points);
+        return copy;
     }
 }
