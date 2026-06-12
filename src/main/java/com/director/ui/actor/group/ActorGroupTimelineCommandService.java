@@ -10,8 +10,12 @@ import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.entity.ActorActionClip;
 import com.director.ui.timeline.model.entity.ActorRouteClip;
 import com.director.ui.timeline.model.entity.EntityClip;
+import com.director.ui.timeline.model.entity.EntitySpawnClip;
 import com.director.ui.timeline.model.entity.EntityTimelineClip;
 import com.director.ui.timeline.model.entity.EntityTrack;
+import com.director.ui.timeline.playback.camera.CameraAccessor;
+import com.director.ui.timeline.playback.camera.CameraSample;
+import net.minecraft.client.MinecraftClient;
 import org.joml.Vector3f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +34,7 @@ import java.util.UUID;
  */
 public final class ActorGroupTimelineCommandService {
     private static final Logger LOGGER = LoggerFactory.getLogger(ActorGroupTimelineCommandService.class);
+    private static final float DEFAULT_SPAWN_CLIP_DURATION = 5.0f;
 
     private static final ActorGroupTimelineCommandService INSTANCE = new ActorGroupTimelineCommandService();
 
@@ -142,6 +147,63 @@ public final class ActorGroupTimelineCommandService {
         return created;
     }
 
+    public int placeGroupAtCamera(ActorGroup group) {
+        if (group == null || group.size() == 0) {
+            return 0;
+        }
+
+        MinecraftClient client = MinecraftClient.getInstance();
+        TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
+        CameraSample cameraSample = CameraAccessor.sampleFromGameCamera(client);
+        if (client == null || client.world == null || model == null || cameraSample == null) {
+            LOGGER.warn("[ActorGroupTimelineCommandService] Cannot place group: client, world, timeline, or camera unavailable");
+            return 0;
+        }
+
+        Vector3f basePosition = new Vector3f(
+                (float) cameraSample.position().x,
+                (float) cameraSample.position().y,
+                (float) cameraSample.position().z
+        );
+        Vector3f forward = forwardFromYaw(cameraSample.yaw());
+        float currentTime = model.getCurrentTime();
+        List<UUID> actorIds = group.getActorIds();
+
+        int placed = 0;
+        for (int i = 0; i < actorIds.size(); i++) {
+            UUID actorId = actorIds.get(i);
+            TimelineTrack timelineTrack = model.findEntityTrackByActorId(actorId);
+            if (timelineTrack == null || timelineTrack.getEntityTrackPayload() == null) {
+                continue;
+            }
+
+            EntityTrack entityTrack = timelineTrack.getEntityTrackPayload();
+            Vector3f offset = computeFormationOffset(group, forward, i, actorIds.size());
+            Vector3f position = new Vector3f(basePosition).add(offset);
+            EntitySpawnClip spawnClip = findSpawnClipAt(entityTrack, currentTime);
+            if (spawnClip == null) {
+                spawnClip = new EntitySpawnClip("Spawn", currentTime, currentTime + DEFAULT_SPAWN_CLIP_DURATION);
+                spawnClip.setVisibleOnSpawn(true);
+                entityTrack.addClip(spawnClip);
+            }
+
+            spawnClip.setPosition(position.x, position.y, position.z);
+            spawnClip.setYawDeg(cameraSample.yaw());
+            spawnClip.setPitchDeg(cameraSample.pitch());
+
+            if (spawnClip.getTimelineClip() == null) {
+                model.addClip(timelineTrack, new EntityTimelineClip(spawnClip, entityTrack.getColorRgba()));
+            }
+            placed++;
+        }
+
+        if (placed > 0) {
+            model.markDirty();
+        }
+        LOGGER.info("[ActorGroupTimelineCommandService] Placed {} group actors at camera", placed);
+        return placed;
+    }
+
     private float computeDelay(ActorGroup group, UUID actorId, int index, int count) {
         float step = Math.max(0.0f, group.getDelayStepSeconds());
         return switch (group.getDelayPolicy()) {
@@ -214,8 +276,31 @@ public final class ActorGroupTimelineCommandService {
             return new Vector3f();
         }
 
-        float spacing = Math.max(0.1f, group.getFormationSpacing());
         RouteAxes axes = computeRouteAxes(source);
+        return computeFormationOffset(group, axes.forward, index, count);
+    }
+
+    private Vector3f computeFormationOffset(ActorGroup group, Vector3f forward, int index, int count) {
+        if (group == null || count <= 1) {
+            return new Vector3f();
+        }
+
+        Vector3f safeForward = new Vector3f(forward != null ? forward : new Vector3f(0.0f, 0.0f, 1.0f));
+        safeForward.y = 0.0f;
+        if (safeForward.lengthSquared() <= 0.0001f) {
+            safeForward.set(0.0f, 0.0f, 1.0f);
+        } else {
+            safeForward.normalize();
+        }
+        Vector3f right = new Vector3f(-safeForward.z, 0.0f, safeForward.x);
+        if (right.lengthSquared() <= 0.0001f) {
+            right.set(1.0f, 0.0f, 0.0f);
+        } else {
+            right.normalize();
+        }
+
+        RouteAxes axes = new RouteAxes(safeForward, right);
+        float spacing = Math.max(0.1f, group.getFormationSpacing());
         float center = (count - 1) * 0.5f;
 
         return switch (group.getFormationType()) {
@@ -264,6 +349,27 @@ public final class ActorGroupTimelineCommandService {
             right.normalize();
         }
         return new RouteAxes(forward, right);
+    }
+
+    private EntitySpawnClip findSpawnClipAt(EntityTrack entityTrack, float timeSeconds) {
+        if (entityTrack == null) {
+            return null;
+        }
+        for (EntityClip clip : entityTrack.findClipsAt(timeSeconds)) {
+            if (clip instanceof EntitySpawnClip spawnClip) {
+                return spawnClip;
+            }
+        }
+        return null;
+    }
+
+    private Vector3f forwardFromYaw(float yawDeg) {
+        double yawRad = Math.toRadians(yawDeg);
+        return new Vector3f(
+                (float) -Math.sin(yawRad),
+                0.0f,
+                (float) Math.cos(yawRad)
+        );
     }
 
     private record RouteAxes(Vector3f forward, Vector3f right) {

@@ -161,7 +161,9 @@ Status:
 - Group action authoring is implemented: the Actor project properties can create per-member
   `ActorActionClip`s from the current playhead, using the group's delay policy.
 - Group route authoring has a first implementation: a selected actor's latest `ActorRouteClip`
-  can be copied to all group members with delay offsets. Formation offsets remain future work.
+  can be copied to all group members with delay and formation offsets.
+- Group placement has a first implementation: group members can be placed at the current
+  camera position through `EntitySpawnClip`s, using the group's formation and spacing.
 
 ### Phase 4: Formation
 
@@ -173,9 +175,10 @@ Status:
 Status:
 
 - `ActorGroup` stores formation spacing.
-- Group route copying applies first-pass formation offsets for LINE, CIRCLE, GRID,
-  and FOLLOW_LEADER. The offsets are baked into copied per-actor `ActorRouteClip`
-  waypoints.
+- Group route copying and group placement apply first-pass formation offsets for LINE,
+  CIRCLE, GRID, and FOLLOW_LEADER. Route offsets are baked into copied per-actor
+  `ActorRouteClip` waypoints; placement offsets are baked into per-actor `EntitySpawnClip`
+  positions.
 - A dedicated `ActorFormationClip` and dynamic facing policies remain future work.
 
 ### Phase 5: Animation Library

@@ -297,6 +297,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
 
                 renderGroupActionAuthoring(group);
                 renderGroupRouteAuthoring(group);
+                renderGroupPlacement(group);
 
                 if (ImGui.button("Delete Group##deleteGroup" + group.getGroupId())) {
                     actorRegistry.removeGroup(group.getGroupId());
@@ -384,6 +385,26 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("复制当前选中 Actor 最近的 ActorRouteClip 到此组成员，并应用 Delay 策略。");
+        }
+    }
+
+    private void renderGroupPlacement(ActorGroup group) {
+        ImGui.spacing();
+        UITheme.label("Group Placement", UITheme.DarkTheme.TEXT);
+
+        boolean canPlace = group.size() > 0;
+        if (!canPlace) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button("Place Group at Camera##groupPlaceCamera" + group.getGroupId())) {
+            int placed = ActorGroupTimelineCommandService.getInstance().placeGroupAtCamera(group);
+            LOGGER.info("[ActorProjectPropertyAdapter] Placed {} group actors at camera", placed);
+        }
+        if (!canPlace) {
+            ImGui.endDisabled();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("在当前播放头时间创建或更新组成员的 SpawnClip，并按 Formation/Spacing 排布。");
         }
     }
     
