@@ -506,6 +506,9 @@ public class TimelineContextMenuFactory {
             newTrack = new com.director.ui.timeline.model.audio.AudioTrack(trackName);
         } else {
             newTrack = new com.director.ui.timeline.model.TimelineTrack(trackName, type);
+            if (type == com.director.ui.timeline.model.TrackType.ENTITY) {
+                newTrack.setEntityTrackPayload(new com.director.ui.timeline.model.entity.EntityTrack(trackName));
+            }
         }
         
         // 使用 AddTrackCommand 添加轨道（支持撤销/重做）
