@@ -8,7 +8,7 @@ Actor 放置系统实现了直观的 Actor 创建和放置流程，让用户可�
 
 1. **鼠标附着预览**：创建 Actor 时立即在鼠标位置显示预览实体
 2. **右键放置**：右键点击世界中的位置来放置 Actor
-3. **自动创建轨道和片段**：放置时自动创建 EntityTrack 和 EntitySpawnClip
+3. **自动创建轨道和片段**：放置时自动创建 ActorTrack 和 EntitySpawnClip
 4. **片段长度可调整**：通过属性面板调整 Actor 的生命周期
 
 ---
@@ -37,7 +37,7 @@ PreviewEntity 附着到鼠标（跟随摄像机视线）
 ActorPlacementController.placeActorAt()
         ↓
 1. 正式创建 Actor（保存到 Registry）
-2. 创建 EntityTrack
+2. 创建 ActorTrack
 3. 创建 TimelineTrack
 4. 创建 EntitySpawnClip（默认 5 秒）
 5. 设置位置和朝向
@@ -72,7 +72,7 @@ ActorPlacementController.cancelPlacement()
 - ✅ 管理临时 Actor 和 PreviewEntity
 - ✅ 更新预览实体位置（跟随鼠标/摄像机）
 - ✅ 监听右键点击和 ESC 键
-- ✅ 创建 EntityTrack 和 EntitySpawnClip
+- ✅ 创建 ActorTrack 和 EntitySpawnClip
 
 **关键方法**：
 ```java
@@ -226,7 +226,7 @@ if (ImGui.inputFloat("时长 (秒)", durationFloat)) {
 
 - 不修改 Actor 的生命周期
 - 不修改 TimelineModel 的结构
-- 完全复用现有的 EntityTrack 和 EntityClip 系统
+- 完全复用现有的 ActorTrack 和 EntityClip 系统
 
 ### 6.3 用户友好
 
@@ -256,7 +256,7 @@ if (ImGui.inputFloat("时长 (秒)", durationFloat)) {
 
 ### 7.3 添加关键帧
 
-1. 在时间线上选中 EntityTrack
+1. 在时间线上选中 ActorTrack
 2. 在片段上添加关键帧
 3. 选中关键帧
 4. 在属性面板中编辑关键帧属性

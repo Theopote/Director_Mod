@@ -76,7 +76,7 @@ Track
 ```
 Actor (data)
    ↓
-EntityTrack + Clips
+ActorTrack + Clips
    ↓
 EntityClipSampler
    ↓

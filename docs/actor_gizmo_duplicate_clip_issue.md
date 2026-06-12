@@ -57,11 +57,11 @@
 **修改逻辑**：
 ```java
 // 2️⃣ 找到当前时间覆盖的 TransformClip（last-wins）
-editingClip = findActiveTransformClip(entityTrack, time);
+editingClip = findActiveTransformClip(actorTrack, time);
 
 // 3️⃣ 如果没有，则自动创建一个
 if (editingClip == null) {
-    editingClip = createTransformClip(entityTrack, time, sampledPos);
+    editingClip = createTransformClip(actorTrack, time, sampledPos);
     LOGGER.debug("[ActorGizmoController] 创建新的 TransformClip: start={}, end={}",
             editingClip.getStartTime(), editingClip.getEndTime());
 } else {
@@ -81,18 +81,18 @@ if (editingClip == null) {
 **修改逻辑**：
 ```java
 // 2️⃣ 找到当前时间覆盖的 TransformClip（last-wins）
-editingClip = findActiveTransformClip(entityTrack, time);
+editingClip = findActiveTransformClip(actorTrack, time);
 
 // 3️⃣ 如果没有，检查是否已经有 TransformClip（避免重复创建）
 if (editingClip == null) {
     // ⭐ 检查是否已经存在 TransformClip
-    List<EntityClip> clips = entityTrack.getClips();
+    List<EntityClip> clips = actorTrack.getClips();
     boolean hasTransformClip = clips.stream()
             .anyMatch(c -> c instanceof EntityTransformClip);
     
     if (hasTransformClip) {
         // 如果已有 TransformClip，找到最近的并扩展它
-        editingClip = findNearestTransformClip(entityTrack, time);
+        editingClip = findNearestTransformClip(actorTrack, time);
         if (editingClip != null) {
             // 扩展时间范围
             if (time < editingClip.getStartTime()) {
@@ -108,7 +108,7 @@ if (editingClip == null) {
     
     // 如果还是没有，创建新的
     if (editingClip == null) {
-        editingClip = createTransformClip(entityTrack, time, sampledPos);
+        editingClip = createTransformClip(actorTrack, time, sampledPos);
         LOGGER.debug("[ActorGizmoController] 创建新的 TransformClip: start={}, end={}",
                 editingClip.getStartTime(), editingClip.getEndTime());
     }

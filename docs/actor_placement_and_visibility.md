@@ -10,10 +10,10 @@ Actor 在 Minecraft 世界中显示需要满足以下条件：
    - `ActorRuntimeController.getInstance().setEnabled(true)`
    - 默认已启用
 
-2. ✅ **Timeline 中有 EntityTrack**
-   - 创建 Actor 时会自动创建 EntityTrack
+2. ✅ **Timeline 中有 ActorTrack**
+   - 创建 Actor 时会自动创建 ActorTrack
 
-3. ✅ **EntityTrack 中有 EntitySpawnClip**
+3. ✅ **ActorTrack 中有 EntitySpawnClip**
    - 创建 Actor 时会自动创建默认的 `EntitySpawnClip`
    - 默认位置：`(0, 0, 0)`
 
@@ -26,7 +26,7 @@ Actor 在 Minecraft 世界中显示需要满足以下条件：
 ```
 创建 Actor
     ↓
-自动创建 EntityTrack + EntitySpawnClip
+自动创建 ActorTrack + EntitySpawnClip
     ↓
 ActorRuntimeController.update()（每帧调用）
     ↓

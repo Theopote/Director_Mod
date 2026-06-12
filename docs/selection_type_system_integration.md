@@ -398,7 +398,7 @@ public boolean supports(Object obj) {
 
 因为你已经有了：
 - ✅ Actor
-- ✅ EntityTrack
+- ✅ ActorTrack
 - ✅ Gizmo
 - ✅ LookAt / Marker / Strength
 

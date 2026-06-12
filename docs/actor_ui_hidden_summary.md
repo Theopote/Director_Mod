@@ -1,8 +1,8 @@
-# Actor 和实体轨道 UI 隐藏总结
+# Actor 和演员轨道 UI 隐藏总结
 
 ## 概述
 
-由于演员功能过于复杂，需要花费大量时间开发，因此暂时隐藏所有与实体轨道和演员相关的 UI 面板，等待下一版本再进行开发。
+由于演员功能过于复杂，需要花费大量时间开发，因此暂时隐藏所有与演员轨道和演员相关的 UI 面板，等待下一版本再进行开发。
 
 ## 已隐藏的 UI 组件
 
@@ -10,7 +10,7 @@
 
 **隐藏内容**：
 - ✅ Actor 面板（`SelectionType.ACTOR`）→ 回退到 Project 面板
-- ✅ EntityTrack 面板（`SelectionType.TRACK` 且类型为 `TrackType.ENTITY`）→ 回退到 Project 面板
+- ✅ ActorTrack 面板（`SelectionType.TRACK` 且类型为 `TrackType.ACTOR`）→ 回退到 Project 面板
 - ✅ EntityClip 面板（`SelectionType.CLIP` 且为 `EntityClip` 类型）→ 回退到 Project 面板
 
 **修改位置**：
@@ -23,10 +23,10 @@ case ACTOR -> // Actor 面板（ActorProjectPropertyAdapter）- ⚠️ 已隐藏
         renderProjectPanel(); // 回退到 Project 面板
 
 case TRACK -> {
-    // Track 面板（TimelineTrackPropertyAdapter）- ⚠️ 如果是 EntityTrack 则隐藏
+    // Track 面板（TimelineTrackPropertyAdapter）- ⚠️ 如果是 ActorTrack 则隐藏
     var track = selectionManager.getSelectedTrack();
-    if (track != null && track.getType() == TrackType.ENTITY) {
-        // EntityTrack 已隐藏，回退到 Project 面板
+    if (track != null && track.getType() == TrackType.ACTOR) {
+        // ActorTrack 已隐藏，回退到 Project 面板
         renderProjectPanel();
     } else {
         renderTrackPanel(selectionManager);
@@ -67,7 +67,7 @@ private void registerBuiltInExtraTools() {
 ### 3. TimelineRenderer（时间线渲染器）
 
 **隐藏内容**：
-- ✅ EntityTrack 轨道在时间线上的显示
+- ✅ ActorTrack 轨道在时间线上的显示
 
 **修改位置**：
 - `TimelineRenderer.renderTrackArea()` - 在渲染循环中跳过 ENTITY 类型轨道
@@ -79,8 +79,8 @@ for (int idx = startIndex; idx <= endIndex; idx++) {
     if (track == null) {
         continue;
     }
-    // ⚠️ EntityTrack 已隐藏，等待下一版本
-    if (track.getType() == TrackType.ENTITY) {
+    // ⚠️ ActorTrack 已隐藏，等待下一版本
+    if (track.getType() == TrackType.ACTOR) {
         continue;
     }
     // ... 渲染逻辑 ...
@@ -99,15 +99,15 @@ for (int idx = startIndex; idx <= endIndex; idx++) {
 
 当需要恢复 Actor 功能时，只需：
 
-1. **PropertiesPanel**：取消注释 `renderActorPanel()` 调用，移除 EntityTrack/EntityClip 的过滤逻辑
+1. **PropertiesPanel**：取消注释 `renderActorPanel()` 调用，移除 ActorTrack/EntityClip 的过滤逻辑
 2. **ToolRegistry**：取消注释 Actor 工具注册，恢复导入
 3. **TimelineRenderer**：移除 ENTITY 轨道的跳过逻辑
 
 ## 注意事项
 
 - ⚠️ 这些修改只是**隐藏 UI**，**不删除代码**
-- ⚠️ 数据模型（EntityTrack, EntityClip 等）仍然存在，只是不在 UI 中显示
-- ⚠️ 如果项目中已有 EntityTrack 数据，它们仍然会被保存，只是不可见
+- ⚠️ 数据模型（ActorTrack, EntityClip 等）仍然存在，只是不在 UI 中显示
+- ⚠️ 如果项目中已有 ActorTrack 数据，它们仍然会被保存，只是不可见
 - ⚠️ 相关功能代码（ActorGizmoController, ActorPlacementController 等）仍然存在，只是无法通过 UI 访问
 
 ## 完成时间

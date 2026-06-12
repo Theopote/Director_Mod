@@ -1,8 +1,8 @@
-# Actor 和实体轨道 UI 完全隐藏总结
+# Actor 和演员轨道 UI 完全隐藏总结
 
 ## 概述
 
-已完全隐藏所有与实体轨道和演员相关的 UI 面板和选项，等待下一版本再进行开发。
+已完全隐藏所有与演员轨道和演员相关的 UI 面板和选项，等待下一版本再进行开发。
 
 ## 已隐藏的 UI 组件
 
@@ -10,7 +10,7 @@
 
 **隐藏内容**：
 - ✅ Actor 面板（`SelectionType.ACTOR`）→ 回退到 Project 面板
-- ✅ EntityTrack 面板（`SelectionType.TRACK` 且类型为 `TrackType.ENTITY`）→ 回退到 Project 面板
+- ✅ ActorTrack 面板（`SelectionType.TRACK` 且类型为 `TrackType.ACTOR`）→ 回退到 Project 面板
 - ✅ EntityClip 面板（`SelectionType.CLIP` 且为 `EntityClip` 类型）→ 回退到 Project 面板
 
 **修改位置**：
@@ -29,7 +29,7 @@
 ### 3. TimelineRenderer（时间线渲染器）
 
 **隐藏内容**：
-- ✅ EntityTrack 轨道在时间线上的显示
+- ✅ ActorTrack 轨道在时间线上的显示
 
 **修改位置**：
 - `TimelineRenderer.renderTrackArea()` - 在渲染循环中跳过 ENTITY 类型轨道
@@ -37,16 +37,16 @@
 ### 4. TimelineTrackController（新建轨道菜单）
 
 **隐藏内容**：
-- ✅ "实体轨道"选项在新建轨道菜单中不显示
+- ✅ "演员轨道"选项在新建轨道菜单中不显示
 
 **修改位置**：
-- `TimelineTrackController.renderAddTrackMenu()` - 过滤掉 `TrackType.ENTITY`
+- `TimelineTrackController.renderAddTrackMenu()` - 过滤掉 `TrackType.ACTOR`
 
 **代码示例**：
 ```java
 for (TrackType type : TrackType.values()) {
-    // ⚠️ EntityTrack 已隐藏，等待下一版本
-    if (type == TrackType.ENTITY) {
+    // ⚠️ ActorTrack 已隐藏，等待下一版本
+    if (type == TrackType.ACTOR) {
         continue;
     }
     // ... 显示菜单项 ...
@@ -94,10 +94,10 @@ for (IPanel panel : panelRegistry.getAllPanels()) {
 
 ## 修改的文件列表
 
-1. ✅ `PropertiesPanel.java` - 隐藏 Actor/EntityTrack/EntityClip 面板
+1. ✅ `PropertiesPanel.java` - 隐藏 Actor/ActorTrack/EntityClip 面板
 2. ✅ `ToolRegistry.java` - 隐藏 Actor 工具
-3. ✅ `TimelineRenderer.java` - 隐藏 EntityTrack 显示
-4. ✅ `TimelineTrackController.java` - 隐藏"实体轨道"选项
+3. ✅ `TimelineRenderer.java` - 隐藏 ActorTrack 显示
+4. ✅ `TimelineTrackController.java` - 隐藏"演员轨道"选项
 5. ✅ `UIConfigurationBuilder.java` - 移除 ActorsPanel 注册
 6. ✅ `PanelFactory.java` - 移除 ActorsPanel 创建器和类型映射
 7. ✅ `PanelConfigurationLoader.java` - 移除 ActorsPanel 配置
@@ -126,8 +126,8 @@ for (IPanel panel : panelRegistry.getAllPanels()) {
 ## 注意事项
 
 - ⚠️ 这些修改只是**隐藏 UI**，**不删除代码**
-- ⚠️ 数据模型（EntityTrack, EntityClip 等）仍然存在，只是不在 UI 中显示
-- ⚠️ 如果项目中已有 EntityTrack 数据，它们仍然会被保存，只是不可见
+- ⚠️ 数据模型（ActorTrack, EntityClip 等）仍然存在，只是不在 UI 中显示
+- ⚠️ 如果项目中已有 ActorTrack 数据，它们仍然会被保存，只是不可见
 - ⚠️ 相关功能代码（ActorGizmoController, ActorPlacementController 等）仍然存在，只是无法通过 UI 访问
 
 ## 完成时间

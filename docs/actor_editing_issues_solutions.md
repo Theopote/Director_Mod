@@ -135,7 +135,7 @@ for (int i = 0; i < pathPoints.size() - 1; i++) {
     EntityTransformClip clip = new EntityTransformClip(...);
     clip.setFromPos(...);
     clip.setToPos(...);
-    entityTrack.addClip(clip);
+    actorTrack.addClip(clip);
 }
 ```
 
@@ -151,7 +151,7 @@ clip.setPathId(path.getId());
 clip.setFollowPath(true);
 clip.setPathStartT(0f);
 clip.setPathEndT(1f);
-entityTrack.addClip(clip);
+actorTrack.addClip(clip);
 ```
 
 #### 4. 修改 `EntityClipSampler` 支持路径采样
@@ -301,7 +301,7 @@ if (clip instanceof EntityTimelineClip entityTimelineClip) {
     
     // 采样当前状态作为初始值
     EntityClipSampler sampler = new EntityClipSampler(
-        timelineTrack.getEntityTrackPayload()
+        timelineTrack.getActorTrackPayload()
     );
     EntitySample sample = sampler.sampleAt(time);
     if (sample != null) {

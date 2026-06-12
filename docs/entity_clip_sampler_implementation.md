@@ -79,8 +79,8 @@
 
 ### 三、设计特点
 
-#### ✅ 与 EntityTrackSampler 并存
-- `EntityTrackSampler` - 处理 EntityKeyframe（关键帧系统）
+#### ✅ 与 ActorTrackSampler 并存
+- `ActorTrackSampler` - 处理 EntityKeyframe（关键帧系统）
 - `EntityClipSampler` - 处理 EntityClip（Clip 系统）
 - 两者可以并存，优先使用 Clip，如果没有 Clip 则回退到 Keyframe
 
@@ -97,8 +97,8 @@
 ### 四、使用示例
 
 ```java
-// 创建实体轨道
-EntityTrack actorTrack = new EntityTrack("主角 Steve");
+// 创建演员轨道
+ActorTrack actorTrack = new ActorTrack("主角 Steve");
 actorTrack.setBinding(EntityBinding.spawnNew("minecraft:player"));
 
 // 添加 clips
@@ -137,8 +137,8 @@ EntitySample sample = sampler.sampleAt(3.0f);
 
 ### 五、后续工作
 
-#### 优先级1：TimelineEntityController 集成
-1. **更新 TimelineEntityController**
+#### 优先级1：TimelineActorController 集成
+1. **更新 TimelineActorController**
    - 支持 EntityClipSampler
    - 优先使用 Clip，如果没有 Clip 则回退到 Keyframe
    - 处理 Action Clip 的触发逻辑
@@ -179,5 +179,5 @@ EntityClipSampler 已实现完成：
 4. ✅ **插值支持** - Transform Clip 支持多种插值类型
 5. ✅ **叠加逻辑** - State Clip 支持叠加，多个 clips 可以同时生效
 
-下一步可以集成到 TimelineEntityController 中，实现完整的播放系统。
+下一步可以集成到 TimelineActorController 中，实现完整的播放系统。
 

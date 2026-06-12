@@ -34,7 +34,7 @@ Prop 完全不需要新 Track，它是：
 现有架构：
 ```
 Actor
- └─ EntityTrack
+ └─ ActorTrack
      ├─ TransformClip
      ├─ LookAtClip
      ├─ StateClip

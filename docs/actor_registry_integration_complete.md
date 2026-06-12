@@ -30,12 +30,12 @@
 
 **集成代码**：
 ```java
-// ⭐ 实体轨道控制器 v2：绑定 TimelineModel 和 ActorRegistry
+// ⭐ 演员轨道控制器 v2：绑定 TimelineModel 和 ActorRegistry
 com.director.actor.ActorRegistry actorRegistry = 
     com.director.actor.ActorRegistryManager.getInstance();
 com.director.actor.runtime.ActorRuntimeController.getInstance().bind(model, actorRegistry);
 
-// ⭐ 实体轨道系统 v2：每帧更新实体状态
+// ⭐ 演员轨道系统 v2：每帧更新实体状态
 com.director.actor.runtime.ActorRuntimeController.getInstance().update();
 ```
 
@@ -104,7 +104,7 @@ TimelinePanel
 
 ### 优先级1：测试验证
 - 测试 Actor 创建和注册
-- 测试 EntityTrack 绑定 ActorRef
+- 测试 ActorTrack 绑定 ActorRef
 - 测试 PreviewEntity 生成
 - 测试 Spawn/Despawn 生命周期
 

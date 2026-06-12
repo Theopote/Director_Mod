@@ -10,7 +10,7 @@
 - ✅ 显示 Actor 列表（名称 + 类型）
 - ✅ "+ Add Actor" 按钮
 - ✅ 创建 Actor 弹出窗口（名称输入 + 类型选择）
-- ✅ 原子性创建流程（Actor + EntityTrack + TimelineTrack + SpawnClip）
+- ✅ 原子性创建流程（Actor + ActorTrack + TimelineTrack + SpawnClip）
 
 **UI 行为**：
 - 标题：🎭 Actors
@@ -20,15 +20,15 @@
 
 **创建流程（原子性事务）**：
 1. `ActorRegistry.createActor()` - 创建 Actor
-2. 创建 `EntityTrack` 并设置 `ActorRef`
-3. 创建 `TimelineTrack` (type=ENTITY) 并设置 `EntityTrack` payload
+2. 创建 `ActorTrack` 并设置 `ActorRef`
+3. 创建 `TimelineTrack` (type=ACTOR) 并设置 `ActorTrack` payload
 4. `TimelineModel.addTrack()` - 添加到时间线
-5. `EntityTrack.addDefaultSpawnClip()` - 在当前时间点插入 SpawnClip
+5. `ActorTrack.addDefaultSpawnClip()` - 在当前时间点插入 SpawnClip
 6. `TimelineModel.markDirty()` - 触发保存
 
-### 2. **EntityTrack.addDefaultSpawnClip() 方法**
+### 2. **ActorTrack.addDefaultSpawnClip() 方法**
 
-**位置**：`src/main/java/com/director/ui/timeline/model/entity/EntityTrack.java`
+**位置**：`src/main/java/com/director/ui/timeline/model/entity/ActorTrack.java`
 
 **功能**：
 - 在当前时间点创建默认的 `EntitySpawnClip`
@@ -72,7 +72,7 @@
 
 ### ✅ 原子性事务
 - 创建 Actor 失败 → 全部回滚
-- 创建 EntityTrack 失败 → 全部回滚
+- 创建 ActorTrack 失败 → 全部回滚
 - 添加到 Timeline 失败 → 全部回滚
 - 确保数据一致性
 
@@ -83,7 +83,7 @@
 - ✅ `docs/actor_selector_ui_complete.md`
 
 ### 修改文件
-- ✅ `src/main/java/com/director/ui/timeline/model/entity/EntityTrack.java`
+- ✅ `src/main/java/com/director/ui/timeline/model/entity/ActorTrack.java`
   - 添加 `addDefaultSpawnClip(float time)` 方法
 
 - ✅ `src/main/java/com/director/ui/panels/PropertiesPanel.java`

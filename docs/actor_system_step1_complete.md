@@ -57,9 +57,9 @@
 - `resolve(ActorRef ref)` - 解析 ActorRef 为 Actor
 - `isValid(ActorRef ref)` - 检查 ActorRef 是否有效
 
-### 5. **EntityTrack 更新**
+### 5. **ActorTrack 更新**
 
-**位置**：`src/main/java/com/director/ui/timeline/model/entity/EntityTrack.java`
+**位置**：`src/main/java/com/director/ui/timeline/model/entity/ActorTrack.java`
 
 **变更**：
 - 移除 `Actor actor` 字段
@@ -108,15 +108,15 @@ Project
  │    └─ Actor(主角)
  │
  └─ TimelineModel
-      ├─ EntityTrack
+      ├─ ActorTrack
       │    └─ ActorRef(商人A)
-      └─ EntityTrack
+      └─ ActorTrack
            └─ ActorRef(牛#1)
 ```
 
 **关键设计点**：
 - Timeline 不认识 ActorRegistry
-- Timeline 侧只做一件事：`EntityTrack.actorRef`
+- Timeline 侧只做一件事：`ActorTrack.actorRef`
 - TimelineModel 不 import Actor
 - Timeline 只存 ActorRef
 - ActorRegistry 是 Project 层

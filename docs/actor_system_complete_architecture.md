@@ -1,6 +1,6 @@
 # Director Actor System · 完整架构文档
 
-> **核心宪法**：实体轨道（EntityTrack）不是"控制 Minecraft 实体"，而是"导演一个虚拟演员（Actor）的表演"。
+> **核心宪法**：演员轨道（ActorTrack）不是"控制 Minecraft 实体"，而是"导演一个虚拟演员（Actor）的表演"。
 
 ---
 
@@ -10,7 +10,7 @@
 ┌─────────────────────────────────────────────────────────┐
 │  导演层（Director Layer）                                │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐ │
-│  │   Actor      │  │ EntityTrack  │  │ EntityClip  │ │
+│  │   Actor      │  │ ActorTrack  │  │ EntityClip  │ │
 │  │  (演员概念)   │  │  (表演轨道)   │  │  (表演片段)  │ │
 │  └──────────────┘  └──────────────┘  └──────────────┘ │
 │         ↓                ↓                ↓            │
@@ -93,12 +93,12 @@ public final class Actor {
 
 ---
 
-### 2️⃣ EntityTrack（实体轨道）——"这个演员演什么"
+### 2️⃣ ActorTrack（演员轨道）——"这个演员演什么"
 
-**位置**：`com.director.ui.timeline.model.entity.EntityTrack`
+**位置**：`com.director.ui.timeline.model.entity.ActorTrack`
 
 ```java
-public class EntityTrack {
+public class ActorTrack {
     ActorRef actorRef;           // 指向 Actor（轻量引用）
     List<EntityClip> clips;      // 表演片段列表（按时间排序）
     EntityBinding binding;       // 绑定信息（SPAWN_NEW / BIND_EXISTING）
@@ -111,7 +111,7 @@ public class EntityTrack {
 - 把"Actor"和"时间线上的表演片段"关联起来
 - 管理该演员的所有表演片段（Clips）
 
-**存储**：`TimelineTrack.entityTrackPayload` → `timeline_model.json`
+**存储**：`TimelineTrack.actorTrackPayload` → `timeline_model.json`
 
 ---
 
@@ -144,13 +144,13 @@ public class EntityTrack {
 **位置**：`com.director.ui.timeline.model.TimelineModel`
 
 **核心职责**：
-- 管理所有轨道（包括 EntityTrack）
+- 管理所有轨道（包括 ActorTrack）
 - 维护当前时间（`currentTime`）
 - 管理选择状态（`selectedItem`）
 - 提供序列化/反序列化
 
 **关键方法**：
-- `findEntityTrackByActorId(UUID actorId)` - 根据 Actor ID 查找轨道
+- `findActorTrackByActorId(UUID actorId)` - 根据 Actor ID 查找轨道
 - `selectItem(TimelineSelectable, boolean)` - 统一的选择机制
 - `markDirty()` - 标记需要保存
 
@@ -165,7 +165,7 @@ public class EntityTrack {
 
 **采样逻辑**：
 ```
-EntityTrack + time t
+ActorTrack + time t
     ↓
 找到所有覆盖时间 t 的 Clips
     ↓
@@ -234,7 +234,7 @@ public class EntitySample {
 **位置**：`com.director.actor.runtime.ActorRuntimeController`
 
 **核心职责**：
-- 每一帧，对每条 EntityTrack：
+- 每一帧，对每条 ActorTrack：
   1. 解析 Actor（通过 ActorRef → ActorRegistry）
   2. 采样（`EntityClipSampler.sampleAt(time)`）
   3. 把 Sample 应用到演员的"舞台投影"（PreviewActorEntity）
@@ -254,7 +254,7 @@ public void update() {
 ```
 
 **职责边界**：
-- ✅ 遍历 Timeline 中的 EntityTrack
+- ✅ 遍历 Timeline 中的 ActorTrack
 - ✅ 通过 ActorRef → Actor（通过 ActorRegistry）
 - ✅ 调用 EntityClipSampler 得到 EntitySample
 - ✅ 根据 Sample：Spawn / Despawn PreviewActorEntity
@@ -321,20 +321,20 @@ ActorSelectorPanel.createActorAndTrack()
     ↓
 ┌─────────────────────────────────────┐
 │ 2. TimelineModel.addTrack()         │
-│    → 创建 TimelineTrack (type=ENTITY)│
-│    → 创建 EntityTrack (ActorRef)    │
+│    → 创建 TimelineTrack (type=ACTOR)│
+│    → 创建 ActorTrack (ActorRef)    │
 │    → 保存到 timeline_model.json    │
 └─────────────────────────────────────┘
     ↓
 ┌─────────────────────────────────────┐
-│ 3. EntityTrack.addDefaultSpawnClip()│
+│ 3. ActorTrack.addDefaultSpawnClip()│
 │    → 创建 EntitySpawnClip           │
 │    → 设置初始位置（当前摄像机位置）  │
 └─────────────────────────────────────┘
     ↓
 ActorRuntimeController.rebuildRuntimes()
     ↓
-TrackRuntime 创建（绑定 EntityTrack）
+TrackRuntime 创建（绑定 ActorTrack）
     ↓
 下一帧 update() → sampler.sampleAt() → EntitySample.active = true
     ↓
@@ -353,7 +353,7 @@ TimelinePanel.doRender()
 ActorRuntimeController.update()
     ↓
 ┌─────────────────────────────────────┐
-│ 对每条 EntityTrack:                 │
+│ 对每条 ActorTrack:                 │
 │                                     │
 │ 1. TrackRuntime.update(time)        │
 │    ↓                                │
@@ -362,7 +362,7 @@ ActorRuntimeController.update()
 │    → Actor                          │
 │    ↓                                │
 │ 3. sampler.sampleAt(time)           │
-│    EntityTrack + time               │
+│    ActorTrack + time               │
 │    → 找到所有覆盖的 Clips            │
 │    → 按优先级叠加                    │
 │    → EntitySample                   │
@@ -403,8 +403,8 @@ ActorPreviewManager.getActorId(entity)
 ActorSelectionHub.selectActor(actorId)
     ↓
 ┌─────────────────────────────────────┐
-│ 1. TimelineModel.findEntityTrackByActorId()│
-│    → 找到对应的 EntityTrack         │
+│ 1. TimelineModel.findActorTrackByActorId()│
+│    → 找到对应的 ActorTrack         │
 │    ↓                                │
 │ 2. TimelineModel.selectItem(track)  │
 │    → 时间线选中该轨道               │
@@ -559,7 +559,7 @@ MarkerDragController.updateDrag()
 
 **系统自动完成**：
 - ✅ 创建 `Actor` 对象（保存到 `actor_registry.json`）
-- ✅ 创建 `EntityTrack`（保存到 `timeline_model.json`）
+- ✅ 创建 `ActorTrack`（保存到 `timeline_model.json`）
 - ✅ 创建默认 `EntitySpawnClip`（位置 = 当前摄像机位置）
 - ✅ `ActorRuntimeController` 自动绑定轨道
 - ✅ 下一帧，`PreviewActorEntity` 出现在世界中
@@ -686,7 +686,7 @@ MarkerDragController.updateDrag()
 │  ActorRegistry ──────┐                                   │
 │       │              │                                   │
 │       │              │                                   │
-│  Actor ──→ ActorRef ─┼──→ EntityTrack ──→ EntityClip   │
+│  Actor ──→ ActorRef ─┼──→ ActorTrack ──→ EntityClip   │
 │                       │         │                        │
 │                       │         └──→ TimelineTrack       │
 │                       │              │                    │
@@ -700,7 +700,7 @@ MarkerDragController.updateDrag()
 │  EntityClipSampler ──→ EntitySample  │                    │
 │         ↑                            │                    │
 │         │                            │                    │
-│  EntityTrack ───────────────────────┘                    │
+│  ActorTrack ───────────────────────┘                    │
 │         │                                                  │
 │         └──→ ActorRuntimeController                       │
 │                      │                                    │
@@ -739,16 +739,16 @@ MarkerDragController.updateDrag()
 
 ## 🔑 七、关键设计决策
 
-### 7.1 为什么 Actor 和 EntityTrack 分离？
+### 7.1 为什么 Actor 和 ActorTrack 分离？
 
 **原因**：
 - Actor 是"角色概念"，可被多个 Timeline 复用
-- EntityTrack 是"表演安排"，绑定到特定 Timeline
-- 分离后，Actor 可跨项目使用，EntityTrack 可独立编辑
+- ActorTrack 是"表演安排"，绑定到特定 Timeline
+- 分离后，Actor 可跨项目使用，ActorTrack 可独立编辑
 
 **类比**：
 - Actor = 演员（人）
-- EntityTrack = 剧本（表演安排）
+- ActorTrack = 剧本（表演安排）
 
 ---
 
@@ -838,7 +838,7 @@ Director 已经形成了一个清晰的 **4 层属性编辑体系**：
                         ↓
 ┌─────────────────────────────────────────────────────────┐
 │  第 3 层：数据对象（Data Layer）                         │
-│  Actor / EntityTrack / EntityClip / TimelineTrack       │
+│  Actor / ActorTrack / EntityClip / TimelineTrack       │
 │  - 纯数据对象，可序列化                                  │
 │  - 不包含 UI 逻辑                                        │
 └─────────────────────────────────────────────────────────┘
@@ -933,7 +933,7 @@ PropertiesPanel.renderNoSelectionMessage()
     ↓
 PropertiesPanel 切换到 ActorPropertyAdapter
     ├─ Actor 基础信息（name, type）
-    ├─ 关联的 EntityTrack 列表
+    ├─ 关联的 ActorTrack 列表
     └─ 删除 Actor 按钮
 ```
 
@@ -961,8 +961,8 @@ ActorPreviewManager.getActorId(entity)
 ActorSelectionHub.selectActor(actorId)
     ↓
 ┌─────────────────────────────────────┐
-│ 1. TimelineModel.findEntityTrackByActorId()│
-│    → 找到对应的 EntityTrack         │
+│ 1. TimelineModel.findActorTrackByActorId()│
+│    → 找到对应的 ActorTrack         │
 │    ↓                                │
 │ 2. TimelineModel.selectItem(track)  │
 │    → 时间线选中该轨道               │
@@ -1024,7 +1024,7 @@ PropertiesPanel 显示 TimelineTrackPropertyAdapter
 ActorSelectorPanel.createActorAndTrack()
     ├─ ActorRegistry.createActor() → actor_registry.json
     ├─ TimelineModel.addTrack() → timeline_model.json
-    └─ EntityTrack.addDefaultSpawnClip()
+    └─ ActorTrack.addDefaultSpawnClip()
     ↓
 Selection = null（保持）
     ↓
@@ -1035,7 +1035,7 @@ PropertiesPanel 继续显示 ActorSelectorPanel
 
 **此时状态**：
 - ✅ Actor 已创建
-- ✅ EntityTrack 已创建
+- ✅ ActorTrack 已创建
 - ✅ SpawnClip 已创建
 - ✅ Gizmo 已经可用（因为 Track 已创建）
 - ❌ Clip 面板还没出现（因为还没有选中 Clip）
@@ -1123,22 +1123,22 @@ Actor 的生命周期 > Timeline
 1. **一个 Actor 出现在多个 Timeline**
    ```
    Actor "商人A"
-   ├─ Timeline "场景1" → EntityTrack1
-   └─ Timeline "场景2" → EntityTrack2
+   ├─ Timeline "场景1" → ActorTrack1
+   └─ Timeline "场景2" → ActorTrack2
    ```
 
 2. **切换 Timeline 不丢演员**
    ```
    切换到 Timeline "场景2"
    → Actor "商人A" 仍然存在
-   → 只是 EntityTrack2 被激活
+   → 只是 ActorTrack2 被激活
    ```
 
 3. **复制 Timeline 不复制 Actor**
    ```
    复制 Timeline "场景1"
    → 创建新的 Timeline "场景1_copy"
-   → EntityTrack1_copy 引用同一个 Actor "商人A"
+   → ActorTrack1_copy 引用同一个 Actor "商人A"
    → Actor 不会被复制
    ```
 
@@ -1148,7 +1148,7 @@ Actor 的生命周期 > Timeline
 
 ### 9.8 系统级真相
 
-**Director 的实体轨道系统不是**：
+**Director 的演员轨道系统不是**：
 ```
 "选中实体 → 改参数"
 ```
@@ -1193,7 +1193,7 @@ Actor 的生命周期 > Timeline
 ┌─────────────────────────────────────────────────────────┐
 │                   数据对象层                             │
 │                                                          │
-│  Actor / EntityTrack / EntityClip                        │
+│  Actor / ActorTrack / EntityClip                        │
 │  ├─ 纯数据，可序列化                                    │
 │  ├─ 不包含 UI 逻辑                                      │
 │  └─ TimelineModel.markDirty()                           │

@@ -20,7 +20,7 @@ ActorSelectionHub.selectActor(actorId)
   ↓
 ActorGizmoController.setTargetActor(actorId)
   ↓
-resolveTargetTrack()  // 解析 EntityTrack
+resolveTargetTrack()  // 解析 ActorTrack
   ↓
 activateGizmo()  // 激活 Gizmo
 ```

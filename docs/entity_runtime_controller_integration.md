@@ -8,13 +8,13 @@
 
 #### 核心功能
 1. **多轨道支持**
-   - 支持多条实体轨道同时控制
+   - 支持多条演员轨道同时控制
    - 每条轨道有独立的 TrackRuntime
    - 自动管理轨道生命周期
 
 2. **双采样器支持**
    - 优先使用 `EntityClipSampler`（Clip 系统）
-   - 如果没有 Clip 则回退到 `EntityTrackSampler`（Keyframe 系统）
+   - 如果没有 Clip 则回退到 `ActorTrackSampler`（Keyframe 系统）
    - 自动切换采样器
 
 3. **实体应用逻辑**
@@ -82,9 +82,9 @@ EntityRuntimeController.getInstance().setEntityResolver((track, sample, client) 
 // 按 UUID 绑定实体
 EntityRuntimeController.getInstance().setEntityResolver((track, sample, client) -> {
     // 从 track 的 payload 中获取 UUID
-    if (track.hasEntityTrackPayload()) {
-        EntityTrack entityTrack = track.getEntityTrackPayload();
-        UUID actorId = entityTrack.getActorId();
+    if (track.hasActorTrackPayload()) {
+        ActorTrack actorTrack = track.getActorTrackPayload();
+        UUID actorId = actorTrack.getActorId();
         // TODO: 根据 actorId 查找实体
     }
     return null;
@@ -132,7 +132,7 @@ EntityRuntimeController.getInstance().setEntityResolver((track, sample, client) 
 
 EntityRuntimeController 已完整实现并集成：
 
-1. ✅ **多轨道支持** - 支持多条实体轨道同时控制
+1. ✅ **多轨道支持** - 支持多条演员轨道同时控制
 2. ✅ **双采样器支持** - Clip 系统优先，Keyframe 系统回退
 3. ✅ **完整的实体应用逻辑** - Transform、State、LookAt、Action、NameTag
 4. ✅ **可插拔实体解析器** - 支持自定义绑定策略

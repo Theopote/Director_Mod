@@ -8,7 +8,7 @@
 Actor（演员）
   ├─ 存在于 Timeline / Project
   ├─ 有角色、名字、类型
-  ├─ 有表演（EntityTrack + Clips）
+  ├─ 有表演（ActorTrack + Clips）
   └─ 不直接等同于任何 Minecraft Entity
 ```
 
@@ -58,11 +58,11 @@ public final class Actor {
 - 不包含 Entity UUID
 - 只描述"我是谁"
 
-### EntityTrack = Actor 的表演轨道
+### ActorTrack = Actor 的表演轨道
 
 ```
 Actor
- └─ EntityTrack
+ └─ ActorTrack
       ├─ SpawnClip
       ├─ TransformClip
       ├─ AnimationClip
@@ -149,7 +149,7 @@ ActorRuntimeController
 ### 优先级1：Actor UI
 1. **Actor Picker（创建演员）**
    - Villager / Cow / Zombie / Player / Custom Model
-   - 点击一个 → 创建 Actor + EntityTrack + SpawnClip
+   - 点击一个 → 创建 Actor + ActorTrack + SpawnClip
 
 2. **Actor Panel（属性面板）**
    - Name / Type / Model

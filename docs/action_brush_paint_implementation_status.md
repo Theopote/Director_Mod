@@ -35,7 +35,7 @@
 - 修改：在 `InteractionMode` 枚举中添加了 `PAINT_ACTION` 模式
 - 用途：标识当前处于"涂抹 Action"交互状态
 
-### 4. **EntityTrack** ✅
+### 4. **ActorTrack** ✅
 - 新增方法：
   - `getActionClips()` - 获取所有 ActorActionClip
   - `replaceActionClips(List<ActorActionClip> newClips)` - 替换 ActionClips
@@ -48,7 +48,7 @@
   - 检测 `PAINT_ACTION` 模式
   - 处理鼠标按下 → 拖拽 → 松开
   - 在鼠标松开时调用 `ActionClipIntervalResolver.resolve()`
-  - 应用结果到 `EntityTrack`
+  - 应用结果到 `ActorTrack`
 
 ### 2. **UI Action Brush 选择器** 🚧
 - 位置：`ActorActionClipPropertyAdapter` 或 `ActorProjectPropertyAdapter`
@@ -94,13 +94,13 @@
   ↓
 ActionBrushState.get() → actionType
   ↓
-EntityTrack.getActionClips() → existingClips
+ActorTrack.getActionClips() → existingClips
   ↓
 ActionClipIntervalResolver.resolve(existingClips, start, end, type)
   ↓
 List<ActorActionClip> newClips
   ↓
-EntityTrack.replaceActionClips(newClips)
+ActorTrack.replaceActionClips(newClips)
 ```
 
 ## 四、核心算法示例

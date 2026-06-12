@@ -1,4 +1,4 @@
-# 实体轨道重构总结（基于建议）
+# 演员轨道重构总结（基于建议）
 
 ## ✅ 已完成的重构
 
@@ -25,11 +25,11 @@
   - 可比较排序（按时间）
   - 支持时间偏移（offsetTime）
 
-#### 3. EntityTrack 类 ✅
-- **位置**：`src/main/java/com/director/ui/timeline/model/entity/EntityTrack.java`
-- **设计**：独立的实体轨道数据结构
+#### 3. ActorTrack 类 ✅
+- **位置**：`src/main/java/com/director/ui/timeline/model/entity/ActorTrack.java`
+- **设计**：独立的演员轨道数据结构
 - **特点**：
-  - 一个 EntityTrack = 一个演员（Actor）
+  - 一个 ActorTrack = 一个演员（Actor）
   - 包含 `EntityBinding` 绑定信息
   - 管理 `EntityClip` 列表（按时间排序）
   - 支持查找、添加、移除 Clip
@@ -76,7 +76,7 @@
 #### ✅ 符合建议的核心思想
 
 1. **一个轨道 = 一个演员实例**
-   - `EntityTrack` 包含 `actorId` 和 `displayName`
+   - `ActorTrack` 包含 `actorId` 和 `displayName`
    - 每个轨道代表一个独立的演员
 
 2. **Clip 系统**
@@ -87,7 +87,7 @@
 3. **与现有系统并存**
    - `EntityKeyframe` 系统保留（向后兼容）
    - `EntityClip` 系统新增（新功能）
-   - 未来可以让 `EntityTrackSampler` 同时支持两种来源
+   - 未来可以让 `ActorTrackSampler` 同时支持两种来源
 
 ### 三、代码结构
 
@@ -97,7 +97,7 @@ src/main/java/com/director/ui/timeline/model/entity/
 ├── EntityClipType.java          (已更新 - Clip 类型枚举)
 ├── EntityBinding.java           (新增 - 演员绑定信息)
 ├── EntityClip.java              (新增 - Clip 基类)
-├── EntityTrack.java             (新增 - 演员轨道)
+├── ActorTrack.java             (新增 - 演员轨道)
 ├── EntitySpawnClip.java         (重构 - 出现/绑定 Clip)
 ├── EntityTransformClip.java     (重构 - 位移/旋转 Clip)
 ├── EntityAnimationClip.java     (重构 - 动画 Clip)
@@ -110,21 +110,21 @@ src/main/java/com/director/ui/timeline/model/entity/
 ### 四、与 TimelineTrack 的关系
 
 #### 当前设计
-- `EntityTrack` 是独立的数据结构
+- `ActorTrack` 是独立的数据结构
 - 可以与 `TimelineTrack` 并存
-- 未来可以让 `TimelineTrack` (type=ENTITY) 的 payload 是 `EntityTrack`
+- 未来可以让 `TimelineTrack` (type=ACTOR) 的 payload 是 `ActorTrack`
 
 #### 使用方式
 ```java
-// 方式1：独立使用 EntityTrack
-EntityTrack actorTrack = new EntityTrack("主角 Steve");
+// 方式1：独立使用 ActorTrack
+ActorTrack actorTrack = new ActorTrack("主角 Steve");
 actorTrack.setBinding(EntityBinding.spawnNew("minecraft:player"));
 actorTrack.addClip(new EntitySpawnClip("出现", 0.0f, 1.0f));
 actorTrack.addClip(new EntityTransformClip("移动到", 1.0f, 5.0f));
 
 // 方式2：未来集成到 TimelineTrack
-TimelineTrack timelineTrack = new TimelineTrack("实体轨道", TrackType.ENTITY);
-// timelineTrack.setEntityTrackPayload(actorTrack); // 未来扩展
+TimelineTrack timelineTrack = new TimelineTrack("演员轨道", TrackType.ACTOR);
+// timelineTrack.setActorTrackPayload(actorTrack); // 未来扩展
 ```
 
 ### 五、后续工作
@@ -133,9 +133,9 @@ TimelineTrack timelineTrack = new TimelineTrack("实体轨道", TrackType.ENTITY
 1. **EntityClipSampler**
    - 在 time 上找覆盖的 clips
    - 把结果叠加到 EntitySample
-   - 与现有的 `EntityTrackSampler` 并存
+   - 与现有的 `ActorTrackSampler` 并存
 
-2. **EntityTrackSampler 更新**
+2. **ActorTrackSampler 更新**
    - 同时支持 Keyframe 和 Clip
    - 优先使用 Clip，如果没有 Clip 则回退到 Keyframe
 
@@ -159,17 +159,17 @@ TimelineTrack timelineTrack = new TimelineTrack("实体轨道", TrackType.ENTITY
 
 #### 优先级3：TimelineTrack 集成
 1. **Payload 系统**
-   - 让 `TimelineTrack` (type=ENTITY) 支持 `EntityTrack` payload
+   - 让 `TimelineTrack` (type=ACTOR) 支持 `ActorTrack` payload
    - 序列化/反序列化支持
 
 2. **播放系统**
-   - `TimelineEntityController` 处理 Clip 播放
+   - `TimelineActorController` 处理 Clip 播放
    - 不同类型的 Clip 有不同的播放逻辑
 
 ## 🎯 设计优势
 
 ### ✅ 完全符合建议
-1. **独立的数据结构** - `EntityTrack` 不依赖 `TimelineTrack`
+1. **独立的数据结构** - `ActorTrack` 不依赖 `TimelineTrack`
 2. **TimelineSelectable 实现** - 符合现有代码风格
 3. **完整的 Clip 类型** - 所有 7 种类型都已实现
 4. **EntityBinding 分离** - 绑定逻辑独立管理
@@ -188,7 +188,7 @@ TimelineTrack timelineTrack = new TimelineTrack("实体轨道", TrackType.ENTITY
 
 ```java
 // 创建演员轨道
-EntityTrack actorTrack = new EntityTrack("主角 Steve");
+ActorTrack actorTrack = new ActorTrack("主角 Steve");
 actorTrack.setBinding(EntityBinding.spawnNew("minecraft:player"));
 actorTrack.setColorRgba(0xFF66CCFF);
 
@@ -239,11 +239,11 @@ actorTrack.addClip(despawnClip);
 
 ## ✨ 总结
 
-实体轨道系统已按照建议完全重构：
+演员轨道系统已按照建议完全重构：
 
 1. ✅ **EntityBinding** - 演员绑定信息管理
 2. ✅ **EntityClip** - 独立的 Clip 基类（实现 TimelineSelectable）
-3. ✅ **EntityTrack** - 独立的演员轨道类
+3. ✅ **ActorTrack** - 独立的演员轨道类
 4. ✅ **7 种 Clip 类型** - 全部实现完成
 5. ✅ **设计对齐** - 完全符合建议的设计理念
 

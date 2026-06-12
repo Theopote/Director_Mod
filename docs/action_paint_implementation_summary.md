@@ -16,7 +16,7 @@
 - 修改：在 `InteractionMode` 枚举中添加了 `PAINT_ACTION` 模式
 - 状态：已完成
 
-### 4. **EntityTrack** ✅
+### 4. **ActorTrack** ✅
 - 新增方法：
   - `getActionClips()` - 获取所有 ActorActionClip
   - `replaceActionClips(List<ActorActionClip> newClips)` - 替换 ActionClips
@@ -39,7 +39,7 @@
 
 ### 1. **修复 case EMPTY 处理**
 需要在 `handleMouseButtons()` 中修改 `case EMPTY`，使其：
-- 检查是否在 EntityTrack 上
+- 检查是否在 ActorTrack 上
 - 检查是否可以涂抹（`canStartActionPaint`）
 - 如果可以，调用 `startActionPaint()`
 - 否则，调用 `startMarqueeCandidate()`（原有逻辑）
@@ -59,10 +59,10 @@ switch (hit.type()) {
 **需要修改为**：
 ```java
 // 2) 根据 hit 类型分发
-// ⭐ Action 涂抹：如果是在 EntityTrack 上点击 EMPTY 区域，尝试开始涂抹
+// ⭐ Action 涂抹：如果是在 ActorTrack 上点击 EMPTY 区域，尝试开始涂抹
 if (hit.type() == TimelineHitResult.HitType.EMPTY && hit.track() != null) {
     TimelineTrack track = hit.track();
-    if (track.getType() == TrackType.ENTITY && canStartActionPaint(track)) {
+    if (track.getType() == TrackType.ACTOR && canStartActionPaint(track)) {
         // 开始 Action 涂抹
         startActionPaint(hit, mouseX, contentX);
     } else {

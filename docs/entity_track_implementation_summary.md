@@ -1,4 +1,4 @@
-# 实体轨道实现总结
+# 演员轨道实现总结
 
 ## ✅ 已完成的改进
 
@@ -55,9 +55,9 @@
   - 保留现有的 `EntityKeyframe` 系统（向后兼容）
   - 新增 `EntityClip` 系统（新功能）
 
-- **TrackType.ENTITY** 已支持 `CLIPS` 特性
-  - 可以在实体轨道上添加 Clip
-  - 可以在实体轨道上添加 Keyframe
+- **TrackType.ACTOR** 已支持 `CLIPS` 特性
+  - 可以在演员轨道上添加 Clip
+  - 可以在演员轨道上添加 Keyframe
 
 ### 三、与现有系统的融合
 
@@ -88,11 +88,11 @@
 
 ### 优先级2：播放系统集成
 1. **采样器更新**
-   - `EntityTrackSampler` 需要同时支持 Keyframe 和 Clip
+   - `ActorTrackSampler` 需要同时支持 Keyframe 和 Clip
    - 优先使用 Clip，如果没有 Clip 则回退到 Keyframe
 
 2. **控制器更新**
-   - `TimelineEntityController` 需要处理 Clip 播放
+   - `TimelineActorController` 需要处理 Clip 播放
    - 不同类型的 Clip 有不同的播放逻辑
 
 ### 优先级3：高级功能
@@ -146,43 +146,43 @@ src/main/java/com/director/ui/timeline/model/entity/
 
 src/main/java/com/director/ui/timeline/playback/entity/
 ├── EntitySample.java             (已存在)
-├── EntityTrackSampler.java       (已存在)
-└── TimelineEntityController.java (已存在)
+├── ActorTrackSampler.java       (已存在)
+└── TimelineActorController.java (已存在)
 ```
 
 ## 🎬 使用示例（未来）
 
 ```java
-// 创建实体轨道
-TimelineTrack entityTrack = new TimelineTrack("主角 Steve", TrackType.ENTITY);
-entityTrack.setBoundActorId(UUID.randomUUID());
-entityTrack.setActorDisplayName("主角 Steve");
-entityTrack.setBoundEntityType(EntityType.PLAYER);
+// 创建演员轨道
+TimelineTrack actorTrack = new TimelineTrack("主角 Steve", TrackType.ACTOR);
+actorTrack.setBoundActorId(UUID.randomUUID());
+actorTrack.setActorDisplayName("主角 Steve");
+actorTrack.setBoundEntityType(EntityType.PLAYER);
 
 // 添加 Spawn Clip（角色出现）
 EntitySpawnClip spawnClip = new EntitySpawnClip("出现", 0.0f, 1.0f, 0xFF00FF00);
 spawnClip.setSpawnMode(SpawnMode.SPAWN_NEW);
 spawnClip.setPosition(0, 64, 0);
-entityTrack.addClip(spawnClip);
+actorTrack.addClip(spawnClip);
 
 // 添加 Transform Clip（角色移动）
 EntityTransformClip transformClip = new EntityTransformClip("移动到", 1.0f, 5.0f, 0xFF0000FF);
 transformClip.setFromPosition(0, 64, 0);
 transformClip.setToPosition(10, 64, 10);
 transformClip.setInterpolationType(InterpolationType.CATMULL_ROM);
-entityTrack.addClip(transformClip);
+actorTrack.addClip(transformClip);
 
 // 添加 Animation Clip（角色动画）
 EntityAnimationClip animClip = new EntityAnimationClip("走路", 1.0f, 5.0f, 0xFFFF00FF);
 animClip.setAnimationId("walk");
 animClip.setLoop(true);
 animClip.setSpeed(1.0f);
-entityTrack.addClip(animClip);
+actorTrack.addClip(animClip);
 ```
 
 ## ✨ 总结
 
-实体轨道框架已经按照建议进行了改进：
+演员轨道框架已经按照建议进行了改进：
 
 1. ✅ **Clip 类型系统** - 完整的 Clip 类型定义和基类
 2. ✅ **核心 Clip 实现** - Spawn、Transform、Animation 三个最重要的 Clip

@@ -26,7 +26,7 @@ if (cache.shouldTrigger(actionClip, time)) {
 #### 设计特点
 - 记录本帧触发的 Action 事件
 - 包含行为类型和参数
-- 由 TimelineEntityController 处理这些事件
+- 由 TimelineActorController 处理这些事件
 
 ### 三、EntitySample 扩展
 
@@ -127,7 +127,7 @@ time t
 
 ```java
 // 创建采样器
-EntityClipSampler sampler = new EntityClipSampler(entityTrack);
+EntityClipSampler sampler = new EntityClipSampler(actorTrack);
 
 // 在时间 3.0 秒采样
 EntitySample sample = sampler.sampleAt(3.0f);

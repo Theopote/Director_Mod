@@ -26,7 +26,7 @@ import java.util.*;
  * <ul>
  *   <li>ActorTrack 是独立的演员轨道数据结构</li>
  *   <li>可以与 TimelineTrack 并存，用于不同的使用场景</li>
- *   <li>未来可以让 TimelineTrack (type=ENTITY) 的 payload 是 ActorTrack</li>
+ *   <li>未来可以让 TimelineTrack (type=ACTOR) 的 payload 是 ActorTrack</li>
  * </ul>
  *
  * <p>使用方式：

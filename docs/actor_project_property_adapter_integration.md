@@ -122,7 +122,7 @@ PropertiesPanel 显示 Actor 属性编辑器
 ```
 
 **⚠️ 注意**：
-- 创建 Actor 后，**上层逻辑**（不是本 Adapter）会创建 EntityTrack + SpawnClip
+- 创建 Actor 后，**上层逻辑**（不是本 Adapter）会创建 ActorTrack + SpawnClip
 - 本 Adapter 只负责 Actor 的创建，不涉及 Timeline 操作
 
 ---
@@ -162,7 +162,7 @@ PropertiesPanel 自动切换
 ActorPickController.update()
     ↓
 ActorSelectionHub.selectActor(actorId)
-    ├─ TimelineModel.findEntityTrackByActorId()
+    ├─ TimelineModel.findActorTrackByActorId()
     ├─ TimelineModel.selectItem(track)
     └─ SelectionManager.setCurrentSelection(track)  // ⚠️ 注意：这里设置的是 track，不是 actor
     ↓
@@ -174,8 +174,8 @@ PropertiesPanel 显示 TimelineTrackPropertyAdapter
 **👉 此时 ActorProjectPropertyAdapter 不会显示**，因为 Selection 是 `TimelineTrack`，不是 `Actor`。
 
 **如果要显示 Actor 面板**，需要：
-1. 从 TimelineTrack 获取 EntityTrack
-2. 从 EntityTrack 获取 ActorRef
+1. 从 TimelineTrack 获取 ActorTrack
+2. 从 ActorTrack 获取 ActorRef
 3. 从 ActorRegistry 获取 Actor
 4. 设置 `SelectionManager.setCurrentSelection(actor)`
 

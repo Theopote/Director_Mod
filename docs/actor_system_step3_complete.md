@@ -11,7 +11,7 @@
 - Timeline + Sampler 驱动演员表演
 
 **职责边界**：
-- ✅ 遍历 Timeline 中的 EntityTrack
+- ✅ 遍历 Timeline 中的 ActorTrack
 - ✅ 通过 ActorRef → Actor（通过 ActorRegistry）
 - ✅ 调用 EntityClipSampler 得到 EntitySample
 - ✅ 根据 Sample：Spawn / Despawn PreviewActorEntity
@@ -25,7 +25,7 @@
 **整体链路**：
 ```
 TimelineModel
- └─ EntityTrack
+ └─ ActorTrack
       └─ ActorRef
            ↓
 ActorRegistry
@@ -73,7 +73,7 @@ PreviewActorEntity
 
 2. **100% 对齐已完成的组件**
    - Actor / ActorRegistry ✅
-   - EntityTrack / EntityClip ✅
+   - ActorTrack / EntityClip ✅
    - EntityClipSampler ✅
    - ActorPreviewManager ✅
    - PreviewActorEntity ✅

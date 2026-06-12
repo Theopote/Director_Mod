@@ -162,7 +162,7 @@ public class TimelineModelPersistence {
         public boolean solo = false;
         public String boundContainerName;
         public String boundContainerId;
-        /** 演员轨道 payload（type=ENTITY 时有效） */
+        /** 演员轨道 payload（type=ACTOR 时有效） */
         public ActorTrackDTO actorTrackPayload;
     }
 

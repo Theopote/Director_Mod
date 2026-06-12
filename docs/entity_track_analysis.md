@@ -1,12 +1,12 @@
-# 实体轨道设计分析与改进方案
+# 演员轨道设计分析与改进方案
 
 ## 一、当前实现 vs 建议设计
 
 ### 当前实现（基于关键帧）
-- ✅ `TrackType.ENTITY` - 已实现
+- ✅ `TrackType.ACTOR` - 已实现
 - ✅ `EntityKeyframe` - 已实现（包含位置、旋转、动作等所有属性）
-- ✅ `EntityTrackSampler` - 已实现（关键帧插值）
-- ✅ `TimelineEntityController` - 已实现（控制器框架）
+- ✅ `ActorTrackSampler` - 已实现（关键帧插值）
+- ✅ `TimelineActorController` - 已实现（控制器框架）
 - ✅ `EntityKeyframePropertyAdapter` - 已实现（属性面板）
 
 **特点**：类似天气轨道，使用关键帧系统，所有属性集中在一个关键帧中。
@@ -37,14 +37,14 @@
 
 **当前实现**：
 ```
-EntityTrack
+ActorTrack
   └─ EntityKeyframe[] (关键帧数组)
       └─ 包含所有属性（位置、旋转、动作等）
 ```
 
 **建议设计**：
 ```
-EntityTrack (包含 actorId, entityType)
+ActorTrack (包含 actorId, entityType)
   └─ EntityClip[] (片段数组)
       ├─ EntitySpawnClip (出现/绑定)
       ├─ EntityTransformClip (位移/旋转)
@@ -96,7 +96,7 @@ EntityTrack (包含 actorId, entityType)
    ```
 
 4. **更新轨道特性**
-   - `TrackType.ENTITY` 应该支持 `CLIPS`（当前已支持）
+   - `TrackType.ACTOR` 应该支持 `CLIPS`（当前已支持）
    - 添加 `ENTITY_CLIPS` 特性以区分 Clip 和 Keyframe 模式
 
 ### 阶段2：UI 和交互支持
@@ -117,11 +117,11 @@ EntityTrack (包含 actorId, entityType)
 ### 阶段3：播放系统集成
 
 1. **采样器更新**
-   - `EntityTrackSampler` 需要同时支持 Keyframe 和 Clip
+   - `ActorTrackSampler` 需要同时支持 Keyframe 和 Clip
    - 优先使用 Clip，如果没有 Clip 则回退到 Keyframe
 
 2. **控制器更新**
-   - `TimelineEntityController` 需要处理 Clip 播放
+   - `TimelineActorController` 需要处理 Clip 播放
    - 不同类型的 Clip 有不同的播放逻辑
 
 ## 四、建议的下一步实现

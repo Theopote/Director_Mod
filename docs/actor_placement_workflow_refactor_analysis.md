@@ -19,7 +19,7 @@
    - 已有功能：
      - ✅ 创建临时 Actor 和 PreviewEntity
      - ✅ 监听右键点击放置
-     - ✅ 创建 EntityTrack 和 EntitySpawnClip
+     - ✅ 创建 ActorTrack 和 EntitySpawnClip
      - ✅ Ghost 预览（通过 PreviewEntity）
 
 2. **ActorSelectionHub** ✅

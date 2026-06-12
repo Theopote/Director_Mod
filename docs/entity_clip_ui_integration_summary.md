@@ -25,7 +25,7 @@
 
 #### TimelineContextMenuFactory 集成 ✅
 - **位置**：`src/main/java/com/director/ui/timeline/menu/TimelineContextMenuFactory.java`
-- **功能**：在实体轨道的右键菜单中添加"创建实体片段"子菜单
+- **功能**：在演员轨道的右键菜单中添加"创建实体片段"子菜单
 - **支持的 Clip 类型**：
   - 出现/绑定 (Spawn)
   - 位移/旋转 (Transform)
@@ -36,27 +36,27 @@
   - 离场 (Despawn)
 
 #### 使用方式
-1. 右键点击实体轨道
+1. 右键点击演员轨道
 2. 选择"创建实体片段"
 3. 选择要创建的 Clip 类型
 4. Clip 会在当前播放头位置创建，默认时长为 1-2 秒
 
 ### 三、TimelineTrack 集成
 
-#### EntityTrack Payload 支持 ✅
+#### ActorTrack Payload 支持 ✅
 - **位置**：`src/main/java/com/director/ui/timeline/model/TimelineTrack.java`
 - **新增字段**：
-  - `entityTrackPayload` - EntityTrack 实例
+  - `actorTrackPayload` - ActorTrack 实例
 - **新增方法**：
-  - `getEntityTrackPayload()` - 获取 EntityTrack
-  - `setEntityTrackPayload()` - 设置 EntityTrack
-  - `getOrCreateEntityTrackPayload()` - 获取或创建 EntityTrack（如果不存在则创建）
-  - `hasEntityTrackPayload()` - 检查是否有 EntityTrack
+  - `getActorTrackPayload()` - 获取 ActorTrack
+  - `setActorTrackPayload()` - 设置 ActorTrack
+  - `getOrCreateActorTrackPayload()` - 获取或创建 ActorTrack（如果不存在则创建）
+  - `hasActorTrackPayload()` - 检查是否有 ActorTrack
 
 #### 设计特点
-- EntityTrack 作为 TimelineTrack 的 payload，独立存储
+- ActorTrack 作为 TimelineTrack 的 payload，独立存储
 - 自动同步绑定信息（显示名称、实体类型等）
-- 延迟创建：只有在需要时才创建 EntityTrack
+- 延迟创建：只有在需要时才创建 ActorTrack
 
 ### 四、属性适配器注册
 
@@ -77,11 +77,11 @@
 ### 创建 EntityClip
 
 ```java
-// 1. 获取实体轨道
-TimelineTrack entityTrack = model.getTrackAt(index);
-if (entityTrack.getType() == TrackType.ENTITY) {
-    // 2. 获取或创建 EntityTrack payload
-    EntityTrack actorTrack = entityTrack.getOrCreateEntityTrackPayload();
+// 1. 获取演员轨道
+TimelineTrack actorTrack = model.getTrackAt(index);
+if (actorTrack.getType() == TrackType.ACTOR) {
+    // 2. 获取或创建 ActorTrack payload
+    ActorTrack actorTrack = actorTrack.getOrCreateActorTrackPayload();
     
     // 3. 创建 Spawn Clip
     EntitySpawnClip spawnClip = new EntitySpawnClip("出现", 0.0f, 1.0f);
@@ -151,9 +151,9 @@ if (entityTrack.getType() == TrackType.ENTITY) {
    - 支持撤销/重做
 
 ### 优先级4：序列化
-1. **EntityTrack 序列化**
-   - 保存 EntityTrack payload 到项目文件
-   - 加载时恢复 EntityTrack
+1. **ActorTrack 序列化**
+   - 保存 ActorTrack payload 到项目文件
+   - 加载时恢复 ActorTrack
 
 2. **EntityClip 序列化**
    - 保存所有 Clip 类型
@@ -164,8 +164,8 @@ if (entityTrack.getType() == TrackType.ENTITY) {
 UI 支持和 TimelineTrack 集成已完成：
 
 1. ✅ **属性面板适配器** - EntitySpawnClip 和 EntityTransformClip 的适配器已实现
-2. ✅ **创建菜单** - 在实体轨道右键菜单中可以创建所有类型的 EntityClip
-3. ✅ **TimelineTrack 集成** - EntityTrack 作为 payload 存储在 TimelineTrack 中
+2. ✅ **创建菜单** - 在演员轨道右键菜单中可以创建所有类型的 EntityClip
+3. ✅ **TimelineTrack 集成** - ActorTrack 作为 payload 存储在 TimelineTrack 中
 4. ✅ **属性适配器注册** - 已注册到 PropertyAdapterBootstrap
 
 下一步可以继续实现：

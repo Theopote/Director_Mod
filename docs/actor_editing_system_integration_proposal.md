@@ -43,7 +43,7 @@ Director 应该支持**三种不同层次的编辑方式**，它们互相补充�
 
 **触发条件**：
 - 使用"选择演员工具"选择演员
-- 如果该演员在 Timeline 中有对应的 EntityTrack，显示 Gizmo
+- 如果该演员在 Timeline 中有对应的 ActorTrack，显示 Gizmo
 
 **Gizmo 操作**：
 - **位置拖拽**（XYZ 轴）：
@@ -58,7 +58,7 @@ Director 应该支持**三种不同层次的编辑方式**，它们互相补充�
 // 伪代码
 void onGizmoDrag(Vec3d newPosition) {
     float currentTime = timelineModel.getCurrentTime();
-    EntityTrack track = findTrackForActor(selectedActor);
+    ActorTrack track = findTrackForActor(selectedActor);
     
     // 方案 A：更新最近的 TransformClip
     TransformClip clip = track.findTransformClipAt(currentTime);
@@ -305,8 +305,8 @@ void onGizmoDrag(Vec3d newPosition) {
     // 1. 获取当前 Timeline 时间
     float currentTime = timelineModel.getCurrentTime();
     
-    // 2. 查找对应的 EntityTrack
-    EntityTrack track = findTrackForActor(selectedActor);
+    // 2. 查找对应的 ActorTrack
+    ActorTrack track = findTrackForActor(selectedActor);
     
     // 3. 查找或创建 TransformClip
     EntityTransformClip clip = track.findTransformClipAt(currentTime);

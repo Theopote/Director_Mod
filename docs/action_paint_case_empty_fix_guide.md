@@ -23,10 +23,10 @@ switch (hit.type()) {
 **修复后的代码**：
 ```java
 // 2) 根据 hit 类型分发
-// ⭐ Action 涂抹：如果是在 EntityTrack 上点击 EMPTY 区域，尝试开始涂抹
+// ⭐ Action 涂抹：如果是在 ActorTrack 上点击 EMPTY 区域，尝试开始涂抹
 if (hit.type() == TimelineHitResult.HitType.EMPTY && hit.track() != null) {
     TimelineTrack track = hit.track();
-    if (track.getType() == TrackType.ENTITY && canStartActionPaint(track)) {
+    if (track.getType() == TrackType.ACTOR && canStartActionPaint(track)) {
         // 开始 Action 涂抹
         startActionPaint(hit, mouseX, contentX);
     } else {
@@ -52,7 +52,7 @@ if (hit.type() == TimelineHitResult.HitType.EMPTY && hit.track() != null) {
 
 ## 修复后的行为
 
-- **在 EntityTrack 上点击 EMPTY 区域**：
+- **在 ActorTrack 上点击 EMPTY 区域**：
   - 如果 `canStartActionPaint(track)` 返回 `true` → 开始涂抹（调用 `startActionPaint()`）
   - 否则 → 普通框选（调用 `startMarqueeCandidate()`）
 
@@ -63,6 +63,6 @@ if (hit.type() == TimelineHitResult.HitType.EMPTY && hit.track() != null) {
 
 修复后，应该能够：
 1. 在 ActorProjectPropertyAdapter 中选择 Action Brush（如 RUN）
-2. 在 Timeline 的 EntityTrack 上拖拽一段
+2. 在 Timeline 的 ActorTrack 上拖拽一段
 3. 系统自动创建 ActorActionClip（RUN 动作区间）
 4. 如果拖拽的区域与已有 ActionClip 重叠，自动切割区间
