@@ -46,11 +46,6 @@ public class TimelineTrackController {
             ImGui.separator();
 
             for (TrackType type : TrackType.values()) {
-                // ⚠️ EntityTrack 已隐藏，等待下一版本
-                if (type == TrackType.ENTITY) {
-                    continue;
-                }
-                
                 if (ImGui.menuItem(type.getIconAndName())) {
                     createNewTrack(type);
                 }
@@ -86,6 +81,9 @@ public class TimelineTrackController {
             newTrack = new AudioTrack(trackName);
         } else {
             newTrack = new TimelineTrack(trackName, type);
+            if (type == TrackType.ENTITY) {
+                newTrack.setEntityTrackPayload(new com.director.ui.timeline.model.entity.EntityTrack(trackName));
+            }
         }
         
         model.addTrack(newTrack);
@@ -111,11 +109,11 @@ public class TimelineTrackController {
             LOGGER.info("[TrackController] 创建第一条天气轨道，自动激活: {}", trackName);
         }
         
-        // ⭐ v1.0：如果是实体轨道且是第一条，自动激活
+        // ⭐ v1.0：如果是演员轨道且是第一条，自动激活
         if (type == TrackType.ENTITY && sameTypeCount == 0) {
             com.director.ui.timeline.playback.entity.TimelineEntityController.getInstance()
                     .bindActiveTrack(newTrack);
-            LOGGER.info("[TrackController] 创建第一条实体轨道，自动激活: {}", trackName);
+            LOGGER.info("[TrackController] 创建第一条演员轨道，自动激活: {}", trackName);
         }
 
         onDataChangedCallback.run();
