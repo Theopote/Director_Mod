@@ -2,8 +2,11 @@ package com.director.ui.properties.adapters;
 
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyAdapterRegistry;
+import com.director.ui.actor.track.ActorTrackClipAuthoringService;
+import com.director.ui.actor.track.ActorTrackClipKind;
 import com.director.ui.theme.UITheme;
 import com.director.ui.theme.Icons;
+import com.director.ui.timeline.interaction.ActionBrushState;
 import com.director.ui.timeline.model.TrackType;
 import com.director.ui.timeline.model.TimelineTrack;
 import imgui.ImGui;
@@ -350,31 +353,39 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
             
             UITheme.separator();
             
-            // ========== 实体轨道快捷操作 ==========
-            // 检查是否是 ENTITY 类型的轨道
+            // ========== 演员轨道片段创建 ==========
             if (track instanceof TimelineTrack timelineTrack) {
                 if (timelineTrack.getType() == TrackType.ENTITY) {
                     var entityTrack = timelineTrack.getEntityTrackPayload();
                     if (entityTrack != null) {
                         var actorRef = entityTrack.getActorRef();
                         if (actorRef != null) {
-                            var actorId = actorRef.getActorId();
-                            UITheme.beginGroup("🎭 演员快捷操作");
+                            UITheme.beginGroup("🎭 演员轨道片段");
+                            ImGui.textDisabled("在当前播放头时间创建片段，创建后可在属性面板继续编辑。");
 
-                            if (ImGui.button("👁 Look At Camera", -1, UITheme.Spacing.BUTTON_HEIGHT)) {
-                                // 调用 ActorLookAtGizmoController 创建 Camera LookAtClip
-                                try {
-                                    var lookAtController = com.director.ui.actor.lookat.ActorLookAtGizmoController.getInstance();
-                                    lookAtController.setTargetActor(actorId);
-                                    lookAtController.createCameraLookAtClip();
-                                    modifiedRef[0] = true; // 标记为已修改（创建了新 Clip）
-                                    LOGGER.info("[TimelineTrackPropertyAdapter] 已创建 Camera LookAtClip for Actor: {}", actorId);
-                                } catch (Exception e) {
-                                    LOGGER.error("[TimelineTrackPropertyAdapter] 创建 Camera LookAtClip 失败", e);
-                                }
+                            if (renderActorClipButton(timelineTrack, ActorTrackClipKind.TRANSFORM,
+                                    "Transform", "位置/旋转/缩放片段")) {
+                                modifiedRef[0] = true;
                             }
-                            if (ImGui.isItemHovered()) {
-                                ImGui.setTooltip("在当前时间创建一个看向摄像机的 LookAtClip");
+                            ImGui.sameLine();
+                            if (renderActorClipButton(timelineTrack, ActorTrackClipKind.LOOK_AT_CAMERA,
+                                    "Look At", "看向摄像机片段")) {
+                                modifiedRef[0] = true;
+                            }
+
+                            if (renderActorClipButton(timelineTrack, ActorTrackClipKind.ACTION,
+                                    "Action", "使用当前 Action Brush 创建动作片段")) {
+                                modifiedRef[0] = true;
+                            }
+                            ImGui.sameLine();
+                            if (renderActorClipButton(timelineTrack, ActorTrackClipKind.POSE,
+                                    "Pose", "创建局部姿态覆盖片段")) {
+                                modifiedRef[0] = true;
+                            }
+                            ImGui.sameLine();
+                            if (renderActorClipButton(timelineTrack, ActorTrackClipKind.STATE,
+                                    "State", "创建可见性/潜行/发光等状态片段")) {
+                                modifiedRef[0] = true;
                             }
 
                             UITheme.endGroup();
@@ -451,6 +462,22 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
         }
         
         return modifiedRef[0];
+    }
+
+    private boolean renderActorClipButton(TimelineTrack track, ActorTrackClipKind kind, String label, String tooltip) {
+        if (ImGui.button(label + "##actorTrackCreate" + kind, 92, UITheme.Spacing.BUTTON_HEIGHT)) {
+            var action = ActionBrushState.get();
+            var clip = ActorTrackClipAuthoringService.getInstance().createClip(track, kind, action);
+            boolean created = clip != null;
+            if (created) {
+                LOGGER.info("[TimelineTrackPropertyAdapter] 已创建演员轨道片段: {}", kind);
+            }
+            return created;
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(tooltip);
+        }
+        return false;
     }
     
     // ========== 反射辅助方法 ==========
