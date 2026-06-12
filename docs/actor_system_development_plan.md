@@ -108,6 +108,10 @@ User-facing terminology:
 - The internal enum currently remains `TrackType.ENTITY` for project compatibility and because
   the execution layer still targets Minecraft entities. New UI should say "Actor Track" or
   "演员轨道"; internal model/persistence code may continue using EntityTrack terminology.
+- Actor Track authoring has a unified first implementation through
+  `ActorTrackClipAuthoringService`: the track properties panel can create Transform,
+  LookAt Camera, Action, Pose, and State clips at the current playhead and select the new
+  clip for detailed editing.
 
 ## Tool Roadmap
 
