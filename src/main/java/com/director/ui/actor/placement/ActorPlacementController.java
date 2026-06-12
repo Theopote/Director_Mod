@@ -13,7 +13,7 @@ import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.TrackType;
 import com.director.ui.timeline.model.entity.EntitySpawnClip;
-import com.director.ui.timeline.model.entity.EntityTrack;
+import com.director.ui.timeline.model.entity.ActorTrack;
 import com.director.ui.timeline.model.entity.EntityTimelineClip;
 import com.director.ui.timeline.playback.camera.CameraAccessor;
 import imgui.ImGui;
@@ -34,7 +34,7 @@ import org.slf4j.LoggerFactory;
  * <ul>
  *   <li>✅ 在鼠标位置显示 Actor 预览（创建时）</li>
  *   <li>✅ 监听右键点击放置 Actor</li>
- *   <li>✅ 创建 EntityTrack 和 EntitySpawnClip</li>
+ *   <li>✅ 创建 ActorTrack 和 EntitySpawnClip</li>
  *   <li>❌ 不直接操作 TimelineModel（通过命令系统）</li>
  * </ul>
  *
@@ -43,7 +43,7 @@ import org.slf4j.LoggerFactory;
  *   <li>用户在 UI 中点击"增加演员"</li>
  *   <li>系统创建临时 Actor 并附着到鼠标</li>
  *   <li>用户右键点击世界中的位置</li>
- *   <li>系统创建 EntityTrack 和 EntitySpawnClip</li>
+ *   <li>系统创建 ActorTrack 和 EntitySpawnClip</li>
  *   <li>如果用户取消（ESC），则清理临时 Actor</li>
  * </ol>
  *
@@ -319,14 +319,14 @@ public final class ActorPlacementController {
             Actor actor = actorRegistry.createActor(uniqueName, pendingActor.getType());
             ActorRef ref = new ActorRef(actor.getActorId());
 
-            // 2. 创建 EntityTrack
-            EntityTrack entityTrack = new EntityTrack();
-            entityTrack.setActorRef(ref);
-            entityTrack.setDisplayName(uniqueName);
+            // 2. 创建 ActorTrack
+            ActorTrack actorTrack = new ActorTrack();
+            actorTrack.setActorRef(ref);
+            actorTrack.setDisplayName(uniqueName);
 
             // 3. 创建 TimelineTrack
-            TimelineTrack timelineTrack = new TimelineTrack(uniqueName, TrackType.ENTITY);
-            timelineTrack.setEntityTrackPayload(entityTrack);
+            TimelineTrack timelineTrack = new TimelineTrack(uniqueName, TrackType.ACTOR);
+            timelineTrack.setActorTrackPayload(actorTrack);
 
             // 4. 添加到 TimelineModel
             timelineModel.addTrack(timelineTrack);
@@ -352,8 +352,8 @@ public final class ActorPlacementController {
             }
 
             spawnClip.setVisibleOnSpawn(true);
-            entityTrack.addClip(spawnClip);
-            EntityTimelineClip timelineClip = new EntityTimelineClip(spawnClip, entityTrack.getColorRgba());
+            actorTrack.addClip(spawnClip);
+            EntityTimelineClip timelineClip = new EntityTimelineClip(spawnClip, actorTrack.getColorRgba());
             timelineModel.addClip(timelineTrack, timelineClip);
 
             // 6. 标记为 dirty（触发保存）
@@ -414,7 +414,7 @@ public final class ActorPlacementController {
             return true;
         }
 
-        // 检查轨道名称（特别是实体轨道）
+        // 检查轨道名称（特别是演员轨道）
         if (timelineModel != null) {
             for (TimelineTrack track : timelineModel.getTracks()) {
                 if (track != null && name.equals(track.getName())) {

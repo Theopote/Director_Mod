@@ -11,7 +11,7 @@ import java.util.UUID;
 /**
  * EntityKeyframe v1.0
  *
- * <p>时间线上的「实体关键帧」模型，用于 Entity Track（实体轨道）。</p>
+ * <p>时间线上的「实体关键帧」模型，用于 Actor Track（演员轨道）。</p>
  *
  * <h3>职责</h3>
  * <ul>
@@ -21,7 +21,7 @@ import java.util.UUID;
  * </ul>
  *
  * <h3>核心定位</h3>
- * <p>实体轨道 = 在时间线上"导演"一个会动、会演戏的角色</p>
+ * <p>演员轨道 = 在时间线上"导演"一个会动、会演戏的角色</p>
  * <p>实体不是"被生成一次"，而是被持续调度、被表演、被控制状态与动作</p>
  *
  * <p>实现 {@link TimelineSelectable}，可以作为自动化关键帧出现在时间线交互系统中。</p>
@@ -91,7 +91,7 @@ public class EntityKeyframe implements TimelineSelectable, Comparable<EntityKeyf
     /** 实体类型预设 */
     private EntityType entityType;
 
-    /** 插值类型，用于 EntityTrackSampler 在关键帧之间插值的方式 */
+    /** 插值类型，用于 ActorTrackSampler 在关键帧之间插值的方式 */
     private TimelineInterpolation interpolation;
 
     // ========== ① 位置和旋转 ==========

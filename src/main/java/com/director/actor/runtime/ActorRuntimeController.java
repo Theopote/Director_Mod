@@ -10,7 +10,7 @@ import net.minecraft.entity.Entity;
 import com.director.actor.prop.*;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.entity.EntityTrack;
+import com.director.ui.timeline.model.entity.ActorTrack;
 import com.director.ui.timeline.playback.entity.EntityClipSampler;
 import com.director.ui.timeline.playback.entity.EntitySample;
 import com.director.ui.timeline.playback.entity.EntityActionEvent;
@@ -35,7 +35,7 @@ import java.util.UUID;
  *
  * <p>职责边界：
  * <ul>
- *   <li>✅ 遍历 Timeline 中的 EntityTrack</li>
+ *   <li>✅ 遍历 Timeline 中的 ActorTrack</li>
  *   <li>✅ 通过 ActorRef → Actor</li>
  *   <li>✅ 调用 EntityClipSampler 得到 EntitySample</li>
  *   <li>✅ 根据 Sample：Spawn / Despawn PreviewActorEntity</li>
@@ -47,7 +47,7 @@ import java.util.UUID;
  * <p>整体链路：
  * <pre>
  * TimelineModel
- *  └─ EntityTrack
+ *  └─ ActorTrack
  *       └─ ActorRef
  *            ↓
  * ActorRegistry
@@ -79,7 +79,7 @@ public final class ActorRuntimeController {
     private ActorRegistry actorRegistry;
     private TimelineModel.ModelChangeListener modelChangeListener;
 
-    /** 每条 EntityTrack 一个 Sampler Runtime */
+    /** 每条 ActorTrack 一个 Sampler Runtime */
     private final Map<TimelineTrack, TrackRuntime> runtimes = new IdentityHashMap<>();
 
     /** 每个 Actor 一个 PropRuntime */
@@ -199,18 +199,18 @@ public final class ActorRuntimeController {
         }
 
         for (TimelineTrack track : timelineModel.getTracks()) {
-            if (isEntityTrack(track)) {
-                // 检查是否有 EntityTrack payload
-                EntityTrack entityTrack = track.getEntityTrackPayload();
-                if (entityTrack != null) {
+            if (isActorTrack(track)) {
+                // 检查是否有 ActorTrack payload
+                ActorTrack actorTrack = track.getActorTrackPayload();
+                if (actorTrack != null) {
                     try {
                         runtimes.put(track, new TrackRuntime(track));
                     } catch (IllegalArgumentException e) {
-                        // 如果轨道没有有效的 EntityTrack payload，跳过它
-                        LOGGER.warn("[ActorRuntime] 跳过无效的实体轨道: {} - {}", track.getName(), e.getMessage());
+                        // 如果轨道没有有效的 ActorTrack payload，跳过它
+                        LOGGER.warn("[ActorRuntime] 跳过无效的演员轨道: {} - {}", track.getName(), e.getMessage());
                     }
                 } else {
-                    LOGGER.warn("[ActorRuntime] 跳过没有 EntityTrack payload 的轨道: {}", track.getName());
+                    LOGGER.warn("[ActorRuntime] 跳过没有 ActorTrack payload 的轨道: {}", track.getName());
                 }
             }
         }
@@ -227,15 +227,15 @@ public final class ActorRuntimeController {
     }
 
     /**
-     * 检查是否为实体轨道
+     * 检查是否为演员轨道
      *
      * @param track TimelineTrack
-     * @return 如果是实体轨道则返回 true
+     * @return 如果是演员轨道则返回 true
      */
-    private boolean isEntityTrack(TimelineTrack track) {
+    private boolean isActorTrack(TimelineTrack track) {
         return track != null
                 && track.getType() != null
-                && track.getType() == com.director.ui.timeline.model.TrackType.ENTITY;
+                && track.getType() == com.director.ui.timeline.model.TrackType.ACTOR;
     }
 
     // =========================================================
@@ -247,7 +247,7 @@ public final class ActorRuntimeController {
      */
     private final class TrackRuntime {
 
-        private final EntityTrack entityTrack;
+        private final ActorTrack actorTrack;
         private final EntityClipSampler sampler;
 
         /** 当前绑定的 Actor */
@@ -269,14 +269,14 @@ public final class ActorRuntimeController {
          * 构造函数
          *
          * @param track TimelineTrack
-         * @throws IllegalArgumentException 如果轨道没有 EntityTrack payload
+         * @throws IllegalArgumentException 如果轨道没有 ActorTrack payload
          */
         TrackRuntime(TimelineTrack track) {
-            this.entityTrack = track.getEntityTrackPayload();
-            if (this.entityTrack == null) {
-                throw new IllegalArgumentException("Track does not have EntityTrack payload");
+            this.actorTrack = track.getActorTrackPayload();
+            if (this.actorTrack == null) {
+                throw new IllegalArgumentException("Track does not have ActorTrack payload");
             }
-            this.sampler = new EntityClipSampler(entityTrack);
+            this.sampler = new EntityClipSampler(actorTrack);
         }
 
         /**
@@ -286,7 +286,7 @@ public final class ActorRuntimeController {
          */
         void update(float time) {
             // 1️⃣ 解析 Actor
-            ActorRef ref = entityTrack.getActorRef();
+            ActorRef ref = actorTrack.getActorRef();
             if (ref == null) {
                 // 没有 ActorRef，无法继续
                 if (spawned) {

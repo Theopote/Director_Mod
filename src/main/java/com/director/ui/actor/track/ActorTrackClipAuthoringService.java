@@ -12,7 +12,7 @@ import com.director.ui.timeline.model.entity.EntityLookAtClip;
 import com.director.ui.timeline.model.entity.EntitySpawnClip;
 import com.director.ui.timeline.model.entity.EntityStateClip;
 import com.director.ui.timeline.model.entity.EntityTimelineClip;
-import com.director.ui.timeline.model.entity.EntityTrack;
+import com.director.ui.timeline.model.entity.ActorTrack;
 import com.director.ui.timeline.model.entity.EntityTransformClip;
 import com.director.ui.timeline.playback.camera.CameraAccessor;
 import com.director.ui.timeline.playback.camera.CameraSample;
@@ -37,22 +37,22 @@ public final class ActorTrackClipAuthoringService {
 
     public EntityTimelineClip createClip(TimelineTrack timelineTrack, ActorTrackClipKind kind, ActorActionType actionType) {
         TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
-        if (model == null || timelineTrack == null || timelineTrack.getType() != TrackType.ENTITY || kind == null) {
+        if (model == null || timelineTrack == null || timelineTrack.getType() != TrackType.ACTOR || kind == null) {
             return null;
         }
 
-        EntityTrack entityTrack = timelineTrack.getOrCreateEntityTrackPayload();
+        ActorTrack actorTrack = timelineTrack.getOrCreateActorTrackPayload();
         float start = Math.max(0.0f, model.getCurrentTime());
         EntityClip clip = switch (kind) {
-            case TRANSFORM -> createTransformClip(entityTrack, start);
+            case TRANSFORM -> createTransformClip(actorTrack, start);
             case LOOK_AT_CAMERA -> createLookAtCameraClip(start);
             case ACTION -> createActionClip(start, actionType);
             case POSE -> createPoseClip(start);
             case STATE -> createStateClip(start);
         };
 
-        entityTrack.addClip(clip);
-        EntityTimelineClip timelineClip = new EntityTimelineClip(clip, entityTrack.getColorRgba());
+        actorTrack.addClip(clip);
+        EntityTimelineClip timelineClip = new EntityTimelineClip(clip, actorTrack.getColorRgba());
         model.addClip(timelineTrack, timelineClip);
         model.selectItem(timelineClip, false);
         model.markDirty();
@@ -61,9 +61,9 @@ public final class ActorTrackClipAuthoringService {
         return timelineClip;
     }
 
-    private EntityTransformClip createTransformClip(EntityTrack entityTrack, float start) {
+    private EntityTransformClip createTransformClip(ActorTrack actorTrack, float start) {
         EntityTransformClip clip = new EntityTransformClip("Transform", start, start + DEFAULT_DURATION_SECONDS);
-        TransformSeed seed = resolveTransformSeed(entityTrack, start);
+        TransformSeed seed = resolveTransformSeed(actorTrack, start);
         clip.setFromPos(seed.position.x, seed.position.y, seed.position.z);
         clip.setToPos(seed.position.x, seed.position.y, seed.position.z);
         clip.setFromRot(seed.yawDeg, seed.pitchDeg, 0.0f);
@@ -104,8 +104,8 @@ public final class ActorTrackClipAuthoringService {
         return clip;
     }
 
-    private TransformSeed resolveTransformSeed(EntityTrack entityTrack, float timeSeconds) {
-        EntitySpawnClip spawn = findNearestSpawnClip(entityTrack, timeSeconds);
+    private TransformSeed resolveTransformSeed(ActorTrack actorTrack, float timeSeconds) {
+        EntitySpawnClip spawn = findNearestSpawnClip(actorTrack, timeSeconds);
         if (spawn != null) {
             return new TransformSeed(new Vector3f(spawn.getPosition()), spawn.getYawDeg(), spawn.getPitchDeg());
         }
@@ -122,13 +122,13 @@ public final class ActorTrackClipAuthoringService {
         return new TransformSeed(new Vector3f(), 0.0f, 0.0f);
     }
 
-    private EntitySpawnClip findNearestSpawnClip(EntityTrack entityTrack, float timeSeconds) {
-        if (entityTrack == null) {
+    private EntitySpawnClip findNearestSpawnClip(ActorTrack actorTrack, float timeSeconds) {
+        if (actorTrack == null) {
             return null;
         }
         EntitySpawnClip nearestBefore = null;
         EntitySpawnClip earliestAfter = null;
-        for (EntityClip clip : entityTrack.getClips()) {
+        for (EntityClip clip : actorTrack.getClips()) {
             if (!(clip instanceof EntitySpawnClip spawnClip)) {
                 continue;
             }

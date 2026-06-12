@@ -12,7 +12,7 @@ import java.util.List;
 /**
  * EntityClipSampler v1.0
  *
- * <p>根据当前时间 sampleTime，从 EntityTrack 中算出实体的最终状态。
+ * <p>根据当前时间 sampleTime，从 ActorTrack 中算出实体的最终状态。
  *
  * <p>流程：
  * <ol>
@@ -29,9 +29,9 @@ import java.util.List;
  *   <li>State Clip 可以叠加</li>
  * </ul>
  *
- * <p>与 EntityTrackSampler 的关系：
+ * <p>与 ActorTrackSampler 的关系：
  * <ul>
- *   <li>EntityTrackSampler - 处理 EntityKeyframe（关键帧系统）</li>
+ *   <li>ActorTrackSampler - 处理 EntityKeyframe（关键帧系统）</li>
  *   <li>EntityClipSampler - 处理 EntityClip（Clip 系统）</li>
  *   <li>两者可以并存，优先使用 Clip，如果没有 Clip 则回退到 Keyframe</li>
  * </ul>
@@ -41,8 +41,8 @@ import java.util.List;
  */
 public class EntityClipSampler {
 
-    /** 要采样的实体轨道 */
-    private final EntityTrack track;
+    /** 要采样的演员轨道 */
+    private final ActorTrack track;
 
     /** 用于 Action Clip 的"已触发记录"（防止重复触发） */
     private final ActionTriggerCache actionCache = new ActionTriggerCache();
@@ -63,11 +63,11 @@ public class EntityClipSampler {
     private static final float RUN_THRESHOLD = 0.12f;
 
     /**
-     * 构造函数（接受实体轨道）。
+     * 构造函数（接受演员轨道）。
      *
-     * @param track 实体轨道
+     * @param track 演员轨道
      */
-    public EntityClipSampler(EntityTrack track) {
+    public EntityClipSampler(ActorTrack track) {
         this.track = track;
     }
 

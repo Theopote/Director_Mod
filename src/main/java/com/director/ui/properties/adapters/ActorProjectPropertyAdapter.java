@@ -24,7 +24,7 @@ import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.TrackType;
 import com.director.ui.timeline.model.entity.EntitySpawnClip;
 import com.director.ui.timeline.model.entity.EntityTimelineClip;
-import com.director.ui.timeline.model.entity.EntityTrack;
+import com.director.ui.timeline.model.entity.ActorTrack;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;
 import imgui.flag.ImGuiTreeNodeFlags;
@@ -691,7 +691,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             return true;
         }
 
-        // 检查轨道名称（特别是实体轨道）
+        // 检查轨道名称（特别是演员轨道）
         if (timelineModel != null) {
             for (TimelineTrack track : timelineModel.getTracks()) {
                 if (track != null && name.equals(track.getName())) {
@@ -722,12 +722,12 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             Actor actor = actorRegistry.createActor(uniqueName, actorType);
             ActorRef ref = new ActorRef(actor.getActorId());
 
-            // 2️⃣ Create EntityTrack
-            EntityTrack entityTrack = new EntityTrack();
-            entityTrack.setActorRef(ref);
-            entityTrack.setDisplayName(actor.getName());
+            // 2️⃣ Create ActorTrack
+            ActorTrack actorTrack = new ActorTrack();
+            actorTrack.setActorRef(ref);
+            actorTrack.setDisplayName(actor.getName());
 
-            // 3️⃣ Create TimelineTrack with EntityTrack payload
+            // 3️⃣ Create TimelineTrack with ActorTrack payload
             if (timelineModel == null) {
                 LOGGER.warn("[ActorProjectPropertyAdapter] TimelineModel 未初始化，无法创建 Track");
                 // 即使没有 TimelineModel，也选中 Actor
@@ -736,8 +736,8 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             }
 
             // 使用唯一的名称创建轨道
-            TimelineTrack timelineTrack = new TimelineTrack(uniqueName, TrackType.ENTITY);
-            timelineTrack.setEntityTrackPayload(entityTrack);
+            TimelineTrack timelineTrack = new TimelineTrack(uniqueName, TrackType.ACTOR);
+            timelineTrack.setActorTrackPayload(actorTrack);
 
             // 4️⃣ Add to TimelineModel
             timelineModel.addTrack(timelineTrack);
@@ -750,8 +750,8 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                     currentTime + DEFAULT_CLIP_DURATION
             );
             spawnClip.setVisibleOnSpawn(true);
-            entityTrack.addClip(spawnClip);
-            EntityTimelineClip timelineClip = new EntityTimelineClip(spawnClip, entityTrack.getColorRgba());
+            actorTrack.addClip(spawnClip);
+            EntityTimelineClip timelineClip = new EntityTimelineClip(spawnClip, actorTrack.getColorRgba());
             timelineTrack.addClip(timelineClip);
 
             // 6️⃣ Mark model as dirty (trigger save)
@@ -760,7 +760,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             // 7️⃣ Select Actor（这会触发 PropertiesPanel 切换到 Actor 面板）
             selectActor(actor);
 
-            LOGGER.info("[ActorProjectPropertyAdapter] 成功创建 Actor: {} ({}), EntityTrack 已添加到时间线",
+            LOGGER.info("[ActorProjectPropertyAdapter] 成功创建 Actor: {} ({}), ActorTrack 已添加到时间线",
                     actor.getName(), actorType);
         } catch (Exception e) {
             LOGGER.error("[ActorProjectPropertyAdapter] 创建 Actor 失败", e);
@@ -792,13 +792,13 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             return;
         }
         
-        // 查询使用该 Actor 的所有 EntityTrack
-        List<EntityTrack> entityTracks = ActorUsageQuery.findTracksUsingActor(
+        // 查询使用该 Actor 的所有 ActorTrack
+        List<ActorTrack> actorTracks = ActorUsageQuery.findTracksUsingActor(
                 timeline,
                 actor.getActorId()
         );
         
-        if (entityTracks.isEmpty()) {
+        if (actorTracks.isEmpty()) {
             ImGui.textDisabled("This actor is not used in the current timeline.");
             ImGui.sameLine();
             if (ImGui.smallButton("Delete Actor##unused")) {
@@ -825,11 +825,11 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         
         // 显示每个 Track
         ImGui.indent();
-        for (int i = 0; i < entityTracks.size(); i++) {
-            EntityTrack entityTrack = entityTracks.get(i);
+        for (int i = 0; i < actorTracks.size(); i++) {
+            ActorTrack actorTrack = actorTracks.get(i);
             TimelineTrack timelineTrack = i < timelineTracks.size() ? timelineTracks.get(i) : null;
             
-            String trackDisplayName = entityTrack.getDisplayName();
+            String trackDisplayName = actorTrack.getDisplayName();
             if (trackDisplayName == null || trackDisplayName.isBlank()) {
                 trackDisplayName = timelineTrack != null && timelineTrack.getName() != null
                         ? timelineTrack.getName()
@@ -902,7 +902,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             return;
         }
         
-        // 查找该 Actor 的 EntityTrack
+        // 查找该 Actor 的 ActorTrack
         var timelineTracks = ActorUsageQuery.findTimelineTracksUsingActor(timelineModel, actor.getActorId());
         if (timelineTracks.isEmpty()) {
             LOGGER.warn("[ActorProjectPropertyAdapter] 未找到 Actor 对应的 Track");
@@ -911,9 +911,9 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         
         // 使用第一个 Track（通常只有一个）
         TimelineTrack timelineTrack = timelineTracks.getFirst();
-        EntityTrack entityTrack = timelineTrack.getEntityTrackPayload();
-        if (entityTrack == null) {
-            LOGGER.warn("[ActorProjectPropertyAdapter] EntityTrack payload 为空");
+        ActorTrack actorTrack = timelineTrack.getActorTrackPayload();
+        if (actorTrack == null) {
+            LOGGER.warn("[ActorProjectPropertyAdapter] ActorTrack payload 为空");
             return;
         }
         
@@ -925,7 +925,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         );
         
         // 查找当前时间是否有 EntitySpawnClip
-        var clipsAtTime = entityTrack.findClipsAt(currentTime);
+        var clipsAtTime = actorTrack.findClipsAt(currentTime);
         EntitySpawnClip spawnClip = null;
         for (var clip : clipsAtTime) {
             if (clip instanceof EntitySpawnClip) {
@@ -948,13 +948,13 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             spawnClip.setYawDeg(cameraSample.yaw());
             spawnClip.setPitchDeg(cameraSample.pitch());
             spawnClip.setVisibleOnSpawn(true);
-            entityTrack.addClip(spawnClip);
+            actorTrack.addClip(spawnClip);
             LOGGER.info("[ActorProjectPropertyAdapter] 创建 SpawnClip 在摄像机位置: ({}, {}, {})",
                     cameraPos.x, cameraPos.y, cameraPos.z);
         }
         
         if (spawnClip.getTimelineClip() == null) {
-            EntityTimelineClip timelineClip = new EntityTimelineClip(spawnClip, entityTrack.getColorRgba());
+            EntityTimelineClip timelineClip = new EntityTimelineClip(spawnClip, actorTrack.getColorRgba());
             timelineTrack.addClip(timelineClip);
         }
         timelineModel.markDirty();
@@ -1018,8 +1018,8 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     }
     
     /**
-     * 删除演员（同时删除该演员在实体轨道上的所有片段）
-     * <p>根据逻辑：在演员面板列表中的演员，一定在实体轨道上有对应的演员片段
+     * 删除演员（同时删除该演员在演员轨道上的所有片段）
+     * <p>根据逻辑：在演员面板列表中的演员，一定在演员轨道上有对应的演员片段
      * <p>删除演员时，应该同时删除该演员对应的轨道和所有片段
      */
     private void deleteActor(ActorRegistry actorRegistry, UUID actorId) {

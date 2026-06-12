@@ -17,7 +17,7 @@ import com.director.ui.timeline.model.TrackType;
 import com.director.ui.timeline.model.entity.ActorActionClip;
 import com.director.ui.timeline.model.entity.ActorPoseClip;
 import com.director.ui.timeline.model.entity.EntityTimelineClip;
-import com.director.ui.timeline.model.entity.EntityTrack;
+import com.director.ui.timeline.model.entity.ActorTrack;
 import com.director.ui.tools.EditorTool;
 import com.director.ui.tools.ToolRegistry;
 import imgui.ImGui;
@@ -274,7 +274,7 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         }
 
         TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
-        TrackContext trackContext = resolveEntityTrack(model, actor.getActorId());
+        TrackContext trackContext = resolveActorTrack(model, actor.getActorId());
         if (model == null || trackContext == null) {
             return;
         }
@@ -286,8 +286,8 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         clip.setIntensity(actionIntensity.get());
         clip.setLoop(actionLoop.get());
 
-        trackContext.entityTrack.addClip(clip);
-        EntityTimelineClip timelineClip = new EntityTimelineClip(clip, trackContext.entityTrack.getColorRgba());
+        trackContext.actorTrack.addClip(clip);
+        EntityTimelineClip timelineClip = new EntityTimelineClip(clip, trackContext.actorTrack.getColorRgba());
         trackContext.timelineTrack.addClip(timelineClip);
         model.selectItem(timelineClip, false);
         model.markDirty();
@@ -298,7 +298,7 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
             return;
         }
         TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
-        TrackContext trackContext = resolveEntityTrack(model, actor.getActorId());
+        TrackContext trackContext = resolveActorTrack(model, actor.getActorId());
         if (model == null || trackContext == null) {
             return;
         }
@@ -320,8 +320,8 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         clip.setLeftLegPitch(toRadians(poseLeftLegDeg));
         clip.setRightLegPitch(toRadians(poseRightLegDeg));
 
-        trackContext.entityTrack.addClip(clip);
-        EntityTimelineClip timelineClip = new EntityTimelineClip(clip, trackContext.entityTrack.getColorRgba());
+        trackContext.actorTrack.addClip(clip);
+        EntityTimelineClip timelineClip = new EntityTimelineClip(clip, trackContext.actorTrack.getColorRgba());
         trackContext.timelineTrack.addClip(timelineClip);
         model.selectItem(timelineClip, false);
         model.markDirty();
@@ -331,25 +331,25 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         return (float) Math.toRadians(degrees.get());
     }
 
-    private TrackContext resolveEntityTrack(TimelineModel model, UUID actorId) {
+    private TrackContext resolveActorTrack(TimelineModel model, UUID actorId) {
         if (model == null || actorId == null) {
             return null;
         }
         for (TimelineTrack track : model.getTracks()) {
-            if (track == null || track.getType() != TrackType.ENTITY) {
+            if (track == null || track.getType() != TrackType.ACTOR) {
                 continue;
             }
-            EntityTrack entityTrack = track.getEntityTrackPayload();
-            if (entityTrack == null || entityTrack.getActorRef() == null) {
+            ActorTrack actorTrack = track.getActorTrackPayload();
+            if (actorTrack == null || actorTrack.getActorRef() == null) {
                 continue;
             }
-            if (Objects.equals(entityTrack.getActorRef().getActorId(), actorId)) {
-                return new TrackContext(track, entityTrack);
+            if (Objects.equals(actorTrack.getActorRef().getActorId(), actorId)) {
+                return new TrackContext(track, actorTrack);
             }
         }
         return null;
     }
 
-    private record TrackContext(TimelineTrack timelineTrack, EntityTrack entityTrack) {
+    private record TrackContext(TimelineTrack timelineTrack, ActorTrack actorTrack) {
     }
 }

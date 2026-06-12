@@ -34,18 +34,18 @@ public class TimelineTrack {
     private String boundContainerName;
     private String boundContainerId;
     
-    // ========== 实体绑定信息（仅对实体轨道有效）==========
+    // ========== 实体绑定信息（仅对演员轨道有效）==========
     /** 绑定的演员ID（用于标识这个轨道控制的是哪个演员） */
     private java.util.UUID boundActorId;
     
-    /** 实体类型（仅对实体轨道有效） */
+    /** 实体类型（仅对演员轨道有效） */
     private com.director.ui.timeline.model.entity.EntityKeyframe.EntityType boundEntityType;
 
     /** 演员显示名称（如 "主角 Steve", "守卫 A"） */
     private String actorDisplayName;
 
-    /** EntityTrack payload（仅对实体轨道有效，用于存储 EntityClip 系统） */
-    private com.director.ui.timeline.model.entity.EntityTrack entityTrackPayload;
+    /** ActorTrack payload（仅对演员轨道有效，用于存储 EntityClip 系统） */
+    private com.director.ui.timeline.model.entity.ActorTrack actorTrackPayload;
     
     // ========== 音频事件（仅对音频轨道有效）==========
     private final List<AudioEvent> audioEvents = new ArrayList<>();
@@ -304,38 +304,38 @@ public class TimelineTrack {
         return Collections.unmodifiableList(audioEvents);
     }
 
-    // ========== EntityTrack payload getter/setter（仅对实体轨道有效）==========
+    // ========== ActorTrack payload getter/setter（仅对演员轨道有效）==========
 
     /**
-     * 获取 EntityTrack payload。
+     * 获取 ActorTrack payload。
      *
-     * @return EntityTrack，如果未设置则返回 null
+     * @return ActorTrack，如果未设置则返回 null
      */
-    public com.director.ui.timeline.model.entity.EntityTrack getEntityTrackPayload() {
-        return entityTrackPayload;
+    public com.director.ui.timeline.model.entity.ActorTrack getActorTrackPayload() {
+        return actorTrackPayload;
     }
 
     /**
-     * 设置 EntityTrack payload。
+     * 设置 ActorTrack payload。
      *
-     * @param entityTrack EntityTrack
+     * @param actorTrack ActorTrack
      */
-    public void setEntityTrackPayload(com.director.ui.timeline.model.entity.EntityTrack entityTrack) {
-        this.entityTrackPayload = entityTrack;
+    public void setActorTrackPayload(com.director.ui.timeline.model.entity.ActorTrack actorTrack) {
+        this.actorTrackPayload = actorTrack;
     }
 
     /**
-     * 获取或创建 EntityTrack payload（如果不存在则创建）。
+     * 获取或创建 ActorTrack payload（如果不存在则创建）。
      *
-     * @return EntityTrack
+     * @return ActorTrack
      */
-    public com.director.ui.timeline.model.entity.EntityTrack getOrCreateEntityTrackPayload() {
-        if (entityTrackPayload == null) {
+    public com.director.ui.timeline.model.entity.ActorTrack getOrCreateActorTrackPayload() {
+        if (actorTrackPayload == null) {
             String displayName = actorDisplayName != null ? actorDisplayName : name;
-            entityTrackPayload = new com.director.ui.timeline.model.entity.EntityTrack(displayName);
+            actorTrackPayload = new com.director.ui.timeline.model.entity.ActorTrack(displayName);
             // 同步绑定信息
             if (boundActorId != null) {
-                // 注意：EntityTrack 的 actorId 是自动生成的，这里只同步显示名称
+                // 注意：ActorTrack 的 actorId 是自动生成的，这里只同步显示名称
             }
             if (boundEntityType != null) {
                 // 可以在这里设置 EntityBinding
@@ -343,10 +343,10 @@ public class TimelineTrack {
                     new com.director.ui.timeline.model.entity.EntityBinding();
                 // 根据 boundEntityType 设置 entityTypeId（简化处理）
                 binding.setEntityTypeId("minecraft:villager"); // 默认值
-                entityTrackPayload.setBinding(binding);
+                actorTrackPayload.setBinding(binding);
             }
         }
-        return entityTrackPayload;
+        return actorTrackPayload;
     }
 
     // ========== 摄像机属性 getter/setter（仅对摄像机轨道有效）==========

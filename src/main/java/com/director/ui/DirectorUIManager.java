@@ -927,13 +927,13 @@ public class DirectorUIManager {
             try {
                 // 计算同类型轨道数量，用于生成名称
                 long sameTypeCount = timelineModel.getTracks().stream()
-                        .filter(t -> t.getType() == com.director.ui.timeline.model.TrackType.ENTITY)
+                        .filter(t -> t.getType() == com.director.ui.timeline.model.TrackType.ACTOR)
                         .count();
                 
                 String trackName = "演员轨道 " + (sameTypeCount + 1);
                 com.director.ui.timeline.model.TimelineTrack newTrack = 
                         new com.director.ui.timeline.model.TimelineTrack(trackName, 
-                                com.director.ui.timeline.model.TrackType.ENTITY);
+                                com.director.ui.timeline.model.TrackType.ACTOR);
                 
                 addTrackViaCommand(newTrack);
                 LOGGER.info("[Commands] 已添加演员轨道: {}", trackName);

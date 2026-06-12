@@ -12,7 +12,7 @@ import com.director.ui.timeline.model.entity.ActorRouteClip;
 import com.director.ui.timeline.model.entity.EntityClip;
 import com.director.ui.timeline.model.entity.EntitySpawnClip;
 import com.director.ui.timeline.model.entity.EntityTimelineClip;
-import com.director.ui.timeline.model.entity.EntityTrack;
+import com.director.ui.timeline.model.entity.ActorTrack;
 import com.director.ui.timeline.playback.camera.CameraAccessor;
 import com.director.ui.timeline.playback.camera.CameraSample;
 import net.minecraft.client.MinecraftClient;
@@ -29,7 +29,7 @@ import java.util.UUID;
  * Creates timeline clips from project-level ActorGroup commands.
  *
  * <p>Group commands intentionally decompose into actor-level clips. Runtime
- * sampling stays deterministic and existing EntityTrack persistence remains the
+ * sampling stays deterministic and existing ActorTrack persistence remains the
  * source of truth.</p>
  */
 public final class ActorGroupTimelineCommandService {
@@ -65,30 +65,30 @@ public final class ActorGroupTimelineCommandService {
         int created = 0;
         for (int i = 0; i < actorIds.size(); i++) {
             UUID actorId = actorIds.get(i);
-            TimelineTrack timelineTrack = model.findEntityTrackByActorId(actorId);
+            TimelineTrack timelineTrack = model.findActorTrackByActorId(actorId);
             if (timelineTrack == null) {
                 LOGGER.debug("[ActorGroupTimelineCommandService] Actor {} has no entity track", actorId);
                 continue;
             }
 
-            EntityTrack entityTrack = timelineTrack.getEntityTrackPayload();
-            if (entityTrack == null) {
-                LOGGER.debug("[ActorGroupTimelineCommandService] Track {} has no EntityTrack payload",
+            ActorTrack actorTrack = timelineTrack.getActorTrackPayload();
+            if (actorTrack == null) {
+                LOGGER.debug("[ActorGroupTimelineCommandService] Track {} has no ActorTrack payload",
                         timelineTrack.getName());
                 continue;
             }
 
             float start = baseStart + computeDelay(group, actorId, i, actorIds.size());
             List<ActorActionClip> resolved = ActionClipIntervalResolver.resolve(
-                    entityTrack.getActionClips(),
+                    actorTrack.getActionClips(),
                     start,
                     start + duration,
                     actionType,
                     clampedIntensity,
                     loop
             );
-            entityTrack.replaceActionClips(resolved);
-            syncActionClipsToTimeline(model, timelineTrack, entityTrack, resolved);
+            actorTrack.replaceActionClips(resolved);
+            syncActionClipsToTimeline(model, timelineTrack, actorTrack, resolved);
             created++;
         }
 
@@ -121,20 +121,20 @@ public final class ActorGroupTimelineCommandService {
         int created = 0;
         for (int i = 0; i < actorIds.size(); i++) {
             UUID actorId = actorIds.get(i);
-            TimelineTrack timelineTrack = model.findEntityTrackByActorId(actorId);
+            TimelineTrack timelineTrack = model.findActorTrackByActorId(actorId);
             if (timelineTrack == null) {
                 continue;
             }
-            EntityTrack entityTrack = timelineTrack.getEntityTrackPayload();
-            if (entityTrack == null) {
+            ActorTrack actorTrack = timelineTrack.getActorTrackPayload();
+            if (actorTrack == null) {
                 continue;
             }
 
             float delay = computeDelay(group, actorId, i, actorIds.size());
             Vector3f formationOffset = computeFormationOffset(group, source, i, actorIds.size());
             ActorRouteClip copy = copyRouteClip(source, delay, formationOffset);
-            entityTrack.addClip(copy);
-            EntityTimelineClip timelineClip = new EntityTimelineClip(copy, entityTrack.getColorRgba());
+            actorTrack.addClip(copy);
+            EntityTimelineClip timelineClip = new EntityTimelineClip(copy, actorTrack.getColorRgba());
             model.addClip(timelineTrack, timelineClip);
             created++;
         }
@@ -172,19 +172,19 @@ public final class ActorGroupTimelineCommandService {
         int placed = 0;
         for (int i = 0; i < actorIds.size(); i++) {
             UUID actorId = actorIds.get(i);
-            TimelineTrack timelineTrack = model.findEntityTrackByActorId(actorId);
-            if (timelineTrack == null || timelineTrack.getEntityTrackPayload() == null) {
+            TimelineTrack timelineTrack = model.findActorTrackByActorId(actorId);
+            if (timelineTrack == null || timelineTrack.getActorTrackPayload() == null) {
                 continue;
             }
 
-            EntityTrack entityTrack = timelineTrack.getEntityTrackPayload();
+            ActorTrack actorTrack = timelineTrack.getActorTrackPayload();
             Vector3f offset = computeFormationOffset(group, forward, i, actorIds.size());
             Vector3f position = new Vector3f(basePosition).add(offset);
-            EntitySpawnClip spawnClip = findSpawnClipAt(entityTrack, currentTime);
+            EntitySpawnClip spawnClip = findSpawnClipAt(actorTrack, currentTime);
             if (spawnClip == null) {
                 spawnClip = new EntitySpawnClip("Spawn", currentTime, currentTime + DEFAULT_SPAWN_CLIP_DURATION);
                 spawnClip.setVisibleOnSpawn(true);
-                entityTrack.addClip(spawnClip);
+                actorTrack.addClip(spawnClip);
             }
 
             spawnClip.setPosition(position.x, position.y, position.z);
@@ -192,7 +192,7 @@ public final class ActorGroupTimelineCommandService {
             spawnClip.setPitchDeg(cameraSample.pitch());
 
             if (spawnClip.getTimelineClip() == null) {
-                model.addClip(timelineTrack, new EntityTimelineClip(spawnClip, entityTrack.getColorRgba()));
+                model.addClip(timelineTrack, new EntityTimelineClip(spawnClip, actorTrack.getColorRgba()));
             }
             placed++;
         }
@@ -215,7 +215,7 @@ public final class ActorGroupTimelineCommandService {
     }
 
     private void syncActionClipsToTimeline(TimelineModel model, TimelineTrack timelineTrack,
-                                           EntityTrack entityTrack, List<ActorActionClip> actionClips) {
+                                           ActorTrack actorTrack, List<ActorActionClip> actionClips) {
         for (TimelineClip clip : new ArrayList<>(timelineTrack.getClips())) {
             if (clip instanceof EntityTimelineClip entityTimelineClip
                     && entityTimelineClip.getEntityClip() instanceof ActorActionClip) {
@@ -224,20 +224,20 @@ public final class ActorGroupTimelineCommandService {
         }
 
         for (ActorActionClip actionClip : actionClips) {
-            model.addClip(timelineTrack, new EntityTimelineClip(actionClip, entityTrack.getColorRgba()));
+            model.addClip(timelineTrack, new EntityTimelineClip(actionClip, actorTrack.getColorRgba()));
         }
     }
 
     private ActorRouteClip findLatestRouteClip(TimelineModel model, UUID actorId) {
-        TimelineTrack timelineTrack = model.findEntityTrackByActorId(actorId);
-        if (timelineTrack == null || timelineTrack.getEntityTrackPayload() == null) {
+        TimelineTrack timelineTrack = model.findActorTrackByActorId(actorId);
+        if (timelineTrack == null || timelineTrack.getActorTrackPayload() == null) {
             return null;
         }
 
         float currentTime = model.getCurrentTime();
         ActorRouteClip latestBeforeOrAtPlayhead = null;
         ActorRouteClip latestOverall = null;
-        for (EntityClip clip : timelineTrack.getEntityTrackPayload().getClips()) {
+        for (EntityClip clip : timelineTrack.getActorTrackPayload().getClips()) {
             if (!(clip instanceof ActorRouteClip routeClip)) {
                 continue;
             }
@@ -351,11 +351,11 @@ public final class ActorGroupTimelineCommandService {
         return new RouteAxes(forward, right);
     }
 
-    private EntitySpawnClip findSpawnClipAt(EntityTrack entityTrack, float timeSeconds) {
-        if (entityTrack == null) {
+    private EntitySpawnClip findSpawnClipAt(ActorTrack actorTrack, float timeSeconds) {
+        if (actorTrack == null) {
             return null;
         }
-        for (EntityClip clip : entityTrack.findClipsAt(timeSeconds)) {
+        for (EntityClip clip : actorTrack.findClipsAt(timeSeconds)) {
             if (clip instanceof EntitySpawnClip spawnClip) {
                 return spawnClip;
             }

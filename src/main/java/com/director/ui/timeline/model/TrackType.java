@@ -99,9 +99,7 @@ public enum TrackType {
     /**
      * 演员轨道 - 在时间线上"导演"一个会动、会演戏的角色。
      * 
-     * <p>内部枚举名暂时保留 ENTITY，避免破坏历史工程和大量已有判断逻辑；
-     * 对用户展示时它就是 Actor Track（演员轨道）。
-     * 演员轨道用于持续调度、表演和控制实体（NPC/玩家/动物/模型）的状态与动作。
+     * <p>演员轨道用于持续调度、表演和控制实体（NPC/玩家/动物/模型）的状态与动作。
      * 与容器轨道不同，演员轨道不是"被生成一次"，而是被持续调度、被表演、被控制状态与动作。
      * 
      * <p>支持的功能：
@@ -111,13 +109,13 @@ public enum TrackType {
      *   <li>状态控制 - 控制实体的状态、动画、行为等</li>
      * </ul>
      */
-    ENTITY(
+    ACTOR(
         "演员轨道",
         Icons.SMILE,
         rgba(220, 120, 180),
         rgba(180, 80, 140),
         "在时间线上导演演员、生物和表演实体，设置关键帧、动作、路线、看向和姿态",
-        EnumSet.of(TrackFeature.CLIPS, TrackFeature.KEYFRAMES, TrackFeature.ENTITY_AUTOMATION)
+        EnumSet.of(TrackFeature.CLIPS, TrackFeature.KEYFRAMES, TrackFeature.ACTOR_AUTOMATION)
     );
 
     private final String displayName;
@@ -171,7 +169,7 @@ public enum TrackType {
             || features.contains(TrackFeature.WEATHER_AUTOMATION)
             || features.contains(TrackFeature.TIME_AUTOMATION)
             || features.contains(TrackFeature.SEASON_AUTOMATION)
-            || features.contains(TrackFeature.ENTITY_AUTOMATION)
+            || features.contains(TrackFeature.ACTOR_AUTOMATION)
             || features.contains(TrackFeature.MARKERS);
     }
 
@@ -204,7 +202,7 @@ public enum TrackType {
     }
 
     public boolean supportsEntityControl() {
-        return features.contains(TrackFeature.ENTITY_AUTOMATION);
+        return features.contains(TrackFeature.ACTOR_AUTOMATION);
     }
 
     /**
@@ -223,8 +221,8 @@ public enum TrackType {
                 return type;
             }
         }
-        if ("实体轨道".equals(name) || "Actor Track".equalsIgnoreCase(name)) {
-            return ENTITY;
+        if ("Actor Track".equalsIgnoreCase(name)) {
+            return ACTOR;
         }
         return CONTAINER;  // 默认返回容器轨道
     }
@@ -244,7 +242,7 @@ public enum TrackType {
         WEATHER_AUTOMATION,
         TIME_AUTOMATION,
         SEASON_AUTOMATION,
-        ENTITY_AUTOMATION,
+        ACTOR_AUTOMATION,
         MARKERS,
         AUDIO_EVENTS
     }

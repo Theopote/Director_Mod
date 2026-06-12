@@ -11,7 +11,7 @@ import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.TrackType;
 import com.director.ui.timeline.model.entity.EntityClip;
-import com.director.ui.timeline.model.entity.EntityTrack;
+import com.director.ui.timeline.model.entity.ActorTrack;
 import com.director.ui.timeline.model.entity.EntityTimelineClip;
 import com.director.ui.timeline.model.entity.EntityTransformClip;
 import com.director.ui.timeline.playback.entity.EntityClipSampler;
@@ -47,7 +47,7 @@ import java.util.UUID;
  *   <li>不渲染 Gizmo（GizmoManager 已存在）</li>
  *   <li>不处理选中逻辑（ActorSelectionHub 已处理）</li>
  *   <li>只负责"编辑 TransformClip"</li>
- *   <li>完全遵守方案 C：只操作 ActorId、EntityTrack、EntityTransformClip</li>
+ *   <li>完全遵守方案 C：只操作 ActorId、ActorTrack、EntityTransformClip</li>
  * </ul>
  *
  * @author Director Team
@@ -65,8 +65,8 @@ public final class ActorGizmoController {
     /** 当前选中的 Actor */
     private UUID targetActorId;
 
-    /** 当前编辑的 EntityTrack（缓存，避免重复查找） */
-    private EntityTrack entityTrack;
+    /** 当前编辑的 ActorTrack（缓存，避免重复查找） */
+    private ActorTrack actorTrack;
     private TimelineTrack timelineTrack;
 
     /** 当前 Gizmo 模式 */
@@ -138,7 +138,7 @@ public final class ActorGizmoController {
      */
     public void clearTarget() {
         this.targetActorId = null;
-        this.entityTrack = null;
+        this.actorTrack = null;
         this.timelineTrack = null;
         this.dragging = false;
         this.editingClip = null;
@@ -347,7 +347,7 @@ public final class ActorGizmoController {
      * <p>由 GizmoInteractionController 在拖动开始时调用
      */
     public void handleGizmoDragStart() {
-        if (targetActorId == null || entityTrack == null) {
+        if (targetActorId == null || actorTrack == null) {
             return;
         }
 
@@ -362,7 +362,7 @@ public final class ActorGizmoController {
         float time = model.getCurrentTime();
 
         // 1️⃣ 采样当前时刻状态
-        EntityClipSampler sampler = new EntityClipSampler(entityTrack);
+        EntityClipSampler sampler = new EntityClipSampler(actorTrack);
         EntitySample sample = sampler.sampleAt(time);
         if (sample == null || !sample.enabled) {
             LOGGER.warn("[ActorGizmoController] 无法采样 Actor {} 在时间 {} 的状态", targetActorId, time);
@@ -377,12 +377,12 @@ public final class ActorGizmoController {
         );
 
         // 2️⃣ 找到当前时间覆盖的 TransformClip（last-wins）
-        editingClip = findActiveTransformClip(entityTrack, time);
+        editingClip = findActiveTransformClip(actorTrack, time);
 
         // 3️⃣ 如果没有，尝试扩展现有的 TransformClip 或创建新的
         if (editingClip == null) {
             // ⭐ 检查是否有相邻的 TransformClip 可以扩展
-            editingClip = findNearestTransformClipForExtension(entityTrack, time);
+            editingClip = findNearestTransformClipForExtension(actorTrack, time);
             
             if (editingClip != null) {
                 // 扩展现有 clip 的时间范围，使其包含当前时间
@@ -393,7 +393,7 @@ public final class ActorGizmoController {
                         editingClip.getStartTime(), editingClip.getEndTime());
             } else {
                 // 没有可以扩展的 clip，创建新的
-                editingClip = createTransformClip(entityTrack, time, sampledPos);
+                editingClip = createTransformClip(actorTrack, time, sampledPos);
                 LOGGER.debug("[ActorGizmoController] 创建新的 TransformClip: start={}, end={}",
                         editingClip.getStartTime(), editingClip.getEndTime());
             }
@@ -615,11 +615,11 @@ public final class ActorGizmoController {
      * 找到覆盖指定时间的 TransformClip（last-wins 规则）
      * <p>last-wins：取 startTime 最大的 TransformClip
      *
-     * @param track EntityTrack
+     * @param track ActorTrack
      * @param time 时间（秒）
      * @return TransformClip，如果未找到则返回 null
      */
-    private EntityTransformClip findActiveTransformClip(EntityTrack track, float time) {
+    private EntityTransformClip findActiveTransformClip(ActorTrack track, float time) {
         if (track == null) {
             return null;
         }
@@ -645,11 +645,11 @@ public final class ActorGizmoController {
      * <p>如果当前时间没有 TransformClip，尝试找到最近的（可以扩展以覆盖当前时间）
      * <p>只在距离很近时返回（避免扩展太远的 clip）
      *
-     * @param track EntityTrack
+     * @param track ActorTrack
      * @param time 时间（秒）
      * @return TransformClip，如果未找到合适的则返回 null
      */
-    private EntityTransformClip findNearestTransformClipForExtension(EntityTrack track, float time) {
+    private EntityTransformClip findNearestTransformClipForExtension(ActorTrack track, float time) {
         if (track == null) {
             return null;
         }
@@ -686,12 +686,12 @@ public final class ActorGizmoController {
     /**
      * 创建新的 TransformClip
      *
-     * @param track EntityTrack
+     * @param track ActorTrack
      * @param time 开始时间（秒）
      * @param pos 起始位置
      * @return 新创建的 TransformClip
      */
-    private EntityTransformClip createTransformClip(EntityTrack track, float time, Vec3d pos) {
+    private EntityTransformClip createTransformClip(ActorTrack track, float time, Vec3d pos) {
 
         EntityTransformClip clip = getEntityTransformClip(time, pos);
 
@@ -751,7 +751,7 @@ public final class ActorGizmoController {
      * 解析目标 Track（缓存，避免重复查找）
      */
     private void resolveTargetTrack() {
-        this.entityTrack = null;
+        this.actorTrack = null;
         this.timelineTrack = null;
 
         if (targetActorId == null) {
@@ -764,18 +764,18 @@ public final class ActorGizmoController {
         }
 
         for (TimelineTrack track : model.getTracks()) {
-            if (track == null || track.getType() != TrackType.ENTITY) {
+            if (track == null || track.getType() != TrackType.ACTOR) {
                 continue;
             }
 
-            EntityTrack et = track.getEntityTrackPayload();
+            ActorTrack et = track.getActorTrackPayload();
             if (et == null) {
                 continue;
             }
 
             ActorRef ref = et.getActorRef();
             if (ref != null && Objects.equals(ref.getActorId(), targetActorId)) {
-                this.entityTrack = et;
+                this.actorTrack = et;
                 this.timelineTrack = track;
                 return;
             }

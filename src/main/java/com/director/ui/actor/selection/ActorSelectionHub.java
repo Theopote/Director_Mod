@@ -8,7 +8,7 @@ import com.director.ui.timeline.container.ContainerTimelineService;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.TrackType;
-import com.director.ui.timeline.model.entity.EntityTrack;
+import com.director.ui.timeline.model.entity.ActorTrack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,7 +28,7 @@ import java.util.UUID;
  *
  * <p>它会负责：
  * <ol>
- *   <li>在 Timeline 中找到对应的 EntityTrack</li>
+ *   <li>在 Timeline 中找到对应的 ActorTrack</li>
  *   <li>选中该 Track（TimelineInteractionHandler）</li>
  *   <li>同步到 SelectionManager（属性面板 / 其他 UI）</li>
  *   <li>通知 Gizmo 目标更新（ActorGizmoController）</li>
@@ -96,11 +96,11 @@ public final class ActorSelectionHub {
             return;
         }
 
-        // 1️⃣ 找到对应的 EntityTrack
-        TimelineTrack track = findEntityTrackByActorId(model, actorId);
+        // 1️⃣ 找到对应的 ActorTrack
+        TimelineTrack track = findActorTrackByActorId(model, actorId);
         if (track == null) {
             // Actor 存在，但当前 Timeline 没有使用它
-            LOGGER.debug("[ActorSelectionHub] 未找到 Actor {} 对应的 EntityTrack，清空选择", actorId);
+            LOGGER.debug("[ActorSelectionHub] 未找到 Actor {} 对应的 ActorTrack，清空选择", actorId);
             clearSelection();
             return;
         }
@@ -259,31 +259,31 @@ public final class ActorSelectionHub {
     // =========================================================
 
     /**
-     * 在 TimelineModel 中查找绑定了指定 Actor 的 EntityTrack
+     * 在 TimelineModel 中查找绑定了指定 Actor 的 ActorTrack
      * <p>Timeline 只通过 ActorRef 间接引用 Actor，这是方案 C 的核心约束。
      *
      * @param model TimelineModel
      * @param actorId Actor ID
      * @return TimelineTrack，如果未找到则返回 null
      */
-    private static TimelineTrack findEntityTrackByActorId(TimelineModel model, UUID actorId) {
+    private static TimelineTrack findActorTrackByActorId(TimelineModel model, UUID actorId) {
         if (model == null || actorId == null) {
             return null;
         }
 
         for (TimelineTrack track : model.getTracks()) {
-            if (track == null || track.getType() != TrackType.ENTITY) {
+            if (track == null || track.getType() != TrackType.ACTOR) {
                 continue;
             }
 
-            // 使用 getEntityTrackPayload() 获取 EntityTrack
-            EntityTrack entityTrack = track.getEntityTrackPayload();
-            if (entityTrack == null) {
+            // 使用 getActorTrackPayload() 获取 ActorTrack
+            ActorTrack actorTrack = track.getActorTrackPayload();
+            if (actorTrack == null) {
                 continue;
             }
 
             // 通过 ActorRef 获取 Actor ID
-            ActorRef ref = entityTrack.getActorRef();
+            ActorRef ref = actorTrack.getActorRef();
             if (ref == null) {
                 continue;
             }

@@ -12,7 +12,7 @@ import java.util.UUID;
  * <ul>
  *   <li>Actor 存在于 Timeline / Project 中</li>
  *   <li>Actor 有角色、名字、类型</li>
- *   <li>Actor 有表演（EntityTrack + Clips）</li>
+ *   <li>Actor 有表演（ActorTrack + Clips）</li>
  *   <li>Actor ≠ Minecraft Entity（绝不等同）</li>
  * </ul>
  *

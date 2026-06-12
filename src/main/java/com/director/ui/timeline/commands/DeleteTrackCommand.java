@@ -9,7 +9,7 @@ import com.director.actor.query.ActorUsageQuery;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.TrackType;
-import com.director.ui.timeline.model.entity.EntityTrack;
+import com.director.ui.timeline.model.entity.ActorTrack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,19 +49,19 @@ public class DeleteTrackCommand extends BaseTimelineCommand {
         removedActor = null;
         removedActorFromRegistry = false;
         
-        // 如果是 EntityTrack，检查删除后 Actor 是否还在其他地方被使用
-        if (track.getType() == TrackType.ENTITY) {
-            EntityTrack entityTrack = track.getEntityTrackPayload();
-            if (entityTrack != null) {
-                ActorRef actorRef = entityTrack.getActorRef();
+        // 如果是 ActorTrack，检查删除后 Actor 是否还在其他地方被使用
+        if (track.getType() == TrackType.ACTOR) {
+            ActorTrack actorTrack = track.getActorTrackPayload();
+            if (actorTrack != null) {
+                ActorRef actorRef = actorTrack.getActorRef();
                 if (actorRef != null) {
                     UUID actorId = actorRef.getActorId();
                     
                     // 检查删除前，该 Actor 是否还在其他地方被使用
-                    List<EntityTrack> tracksUsingActor = ActorUsageQuery.findTracksUsingActor(model, actorId);
+                    List<ActorTrack> tracksUsingActor = ActorUsageQuery.findTracksUsingActor(model, actorId);
                     
                     // 如果只有当前 Track 使用该 Actor，删除后 Actor 将变为"未使用"
-                    if (tracksUsingActor.size() == 1 && tracksUsingActor.contains(entityTrack)) {
+                    if (tracksUsingActor.size() == 1 && tracksUsingActor.contains(actorTrack)) {
                         orphanedActorId = actorId;
                         LOGGER.info("[DeleteTrackCommand] 删除轨道后，Actor {} 将不再被任何轨道使用", actorId);
                     }
@@ -104,16 +104,16 @@ public class DeleteTrackCommand extends BaseTimelineCommand {
      * <p>如果删除轨道后，该演员没有任何轨道和片段了，则从注册表中删除该演员
      */
     private void removeActorIfOrphaned() {
-        if (track == null || track.getType() != TrackType.ENTITY || model == null) {
+        if (track == null || track.getType() != TrackType.ACTOR || model == null) {
             return;
         }
 
-        EntityTrack entityTrack = track.getEntityTrackPayload();
-        if (entityTrack == null) {
+        ActorTrack actorTrack = track.getActorTrackPayload();
+        if (actorTrack == null) {
             return;
         }
 
-        ActorRef actorRef = entityTrack.getActorRef();
+        ActorRef actorRef = actorTrack.getActorRef();
         if (actorRef == null) {
             return;
         }
@@ -163,17 +163,17 @@ public class DeleteTrackCommand extends BaseTimelineCommand {
 
         // 遍历所有轨道，查找该演员的轨道
         for (TimelineTrack t : model.getTracks()) {
-            if (t == null || t.getType() != TrackType.ENTITY) {
+            if (t == null || t.getType() != TrackType.ACTOR) {
                 continue;
             }
-            EntityTrack entityTrack = t.getEntityTrackPayload();
-            if (entityTrack == null) {
+            ActorTrack actorTrack = t.getActorTrackPayload();
+            if (actorTrack == null) {
                 continue;
             }
-            ActorRef ref = entityTrack.getActorRef();
+            ActorRef ref = actorTrack.getActorRef();
             // 找到该演员的轨道，检查是否还有片段
             if (ref != null && actorId.equals(ref.getActorId())) {
-                if (entityTrack.hasClips()) {
+                if (actorTrack.hasClips()) {
                     return true;
                 }
             }

@@ -9,7 +9,7 @@ import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.TrackType;
 import com.director.ui.timeline.model.entity.EntityClip;
 import com.director.ui.timeline.model.entity.EntityLookAtClip;
-import com.director.ui.timeline.model.entity.EntityTrack;
+import com.director.ui.timeline.model.entity.ActorTrack;
 import com.director.ui.timeline.model.entity.EntityTimelineClip;
 import imgui.ImGui;
 import net.minecraft.client.MinecraftClient;
@@ -45,7 +45,7 @@ import java.util.UUID;
  * <ul>
  *   <li>只在 GizmoMode == LOOK_AT 时工作</li>
  *   <li>独立于 ActorGizmoController（避免上帝类）</li>
- *   <li>完全遵守方案 C：只操作 ActorId、EntityTrack、EntityLookAtClip</li>
+ *   <li>完全遵守方案 C：只操作 ActorId、ActorTrack、EntityLookAtClip</li>
  * </ul>
  *
  * @author Director Team
@@ -63,8 +63,8 @@ public final class ActorLookAtGizmoController {
     /** 当前选中的 Actor */
     private UUID targetActorId;
 
-    /** 当前编辑的 EntityTrack（缓存，避免重复查找） */
-    private EntityTrack entityTrack;
+    /** 当前编辑的 ActorTrack（缓存，避免重复查找） */
+    private ActorTrack actorTrack;
     private TimelineTrack timelineTrack;
 
     /** 上次点击时间（用于防抖） */
@@ -91,7 +91,7 @@ public final class ActorLookAtGizmoController {
      */
     public void setTargetActor(UUID actorId) {
         this.targetActorId = actorId;
-        resolveEntityTrack();
+        resolveActorTrack();
     }
 
     /**
@@ -99,7 +99,7 @@ public final class ActorLookAtGizmoController {
      */
     public void clearTarget() {
         this.targetActorId = null;
-        this.entityTrack = null;
+        this.actorTrack = null;
         this.timelineTrack = null;
     }
 
@@ -126,7 +126,7 @@ public final class ActorLookAtGizmoController {
         }
 
         // 2️⃣ 检查是否有目标 Actor
-        if (targetActorId == null || entityTrack == null) {
+        if (targetActorId == null || actorTrack == null) {
             lastLeftMouseDown = false;
             return;
         }
@@ -194,7 +194,7 @@ public final class ActorLookAtGizmoController {
      * <p>由 UI 按钮调用（例如"Look At Camera"按钮）
      */
     public void createCameraLookAtClip() {
-        if (targetActorId == null || entityTrack == null) {
+        if (targetActorId == null || actorTrack == null) {
             LOGGER.warn("[ActorLookAtGizmoController] 无法创建 Camera LookAtClip：未选中 Actor");
             return;
         }
@@ -273,11 +273,11 @@ public final class ActorLookAtGizmoController {
      * @return LookAtClip，如果未找到则返回 null
      */
     private EntityLookAtClip findActiveLookAtClip(float time) {
-        if (entityTrack == null) {
+        if (actorTrack == null) {
             return null;
         }
 
-        List<EntityClip> clips = entityTrack.getClips();
+        List<EntityClip> clips = actorTrack.getClips();
         EntityLookAtClip result = null;
 
         for (EntityClip c : clips) {
@@ -312,9 +312,9 @@ public final class ActorLookAtGizmoController {
         clip.setStrength(1.0f);
 
         // 添加到轨道
-        entityTrack.addClip(clip);
+        actorTrack.addClip(clip);
         if (timelineTrack != null) {
-            EntityTimelineClip timelineClip = new EntityTimelineClip(clip, entityTrack.getColorRgba());
+            EntityTimelineClip timelineClip = new EntityTimelineClip(clip, actorTrack.getColorRgba());
             timelineTrack.addClip(timelineClip);
         }
 
@@ -334,8 +334,8 @@ public final class ActorLookAtGizmoController {
     /**
      * 解析目标 Track（缓存，避免重复查找）
      */
-    private void resolveEntityTrack() {
-        this.entityTrack = null;
+    private void resolveActorTrack() {
+        this.actorTrack = null;
         this.timelineTrack = null;
 
         if (targetActorId == null) {
@@ -348,18 +348,18 @@ public final class ActorLookAtGizmoController {
         }
 
         for (TimelineTrack track : model.getTracks()) {
-            if (track == null || track.getType() != TrackType.ENTITY) {
+            if (track == null || track.getType() != TrackType.ACTOR) {
                 continue;
             }
 
-            EntityTrack et = track.getEntityTrackPayload();
+            ActorTrack et = track.getActorTrackPayload();
             if (et == null) {
                 continue;
             }
 
             ActorRef ref = et.getActorRef();
             if (ref != null && Objects.equals(ref.getActorId(), targetActorId)) {
-                this.entityTrack = et;
+                this.actorTrack = et;
                 this.timelineTrack = track;
                 return;
             }

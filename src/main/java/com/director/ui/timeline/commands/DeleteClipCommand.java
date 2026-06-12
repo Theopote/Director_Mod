@@ -15,7 +15,7 @@ import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.TrackType;
 import com.director.ui.timeline.model.entity.EntityClip;
 import com.director.ui.timeline.model.entity.EntityTimelineClip;
-import com.director.ui.timeline.model.entity.EntityTrack;
+import com.director.ui.timeline.model.entity.ActorTrack;
 
 import java.util.List;
 import java.util.Objects;
@@ -35,7 +35,7 @@ public class DeleteClipCommand extends BaseTimelineCommand {
     private int removedIndex = -1;
     private TimelineTrack ownerTrack;
     private EntityClip linkedEntityClip;
-    private EntityTrack linkedEntityTrack;
+    private ActorTrack linkedActorTrack;
     private Actor removedActor;
     private boolean removedActorFromRegistry;
 
@@ -52,7 +52,7 @@ public class DeleteClipCommand extends BaseTimelineCommand {
             return;
         }
         linkedEntityClip = null;
-        linkedEntityTrack = null;
+        linkedActorTrack = null;
         removedActor = null;
         removedActorFromRegistry = false;
         ownerTrack = clip.getParentTrack();
@@ -71,9 +71,9 @@ public class DeleteClipCommand extends BaseTimelineCommand {
             if (clip instanceof EntityTimelineClip entityTimelineClip) {
                 linkedEntityClip = entityTimelineClip.getEntityClip();
                 TimelineTrack parentTrack = clip.getParentTrack();
-                linkedEntityTrack = parentTrack != null ? parentTrack.getEntityTrackPayload() : null;
-                if (linkedEntityTrack != null) {
-                    linkedEntityTrack.removeClip(linkedEntityClip.getId());
+                linkedActorTrack = parentTrack != null ? parentTrack.getActorTrackPayload() : null;
+                if (linkedActorTrack != null) {
+                    linkedActorTrack.removeClip(linkedEntityClip.getId());
                 }
             }
 
@@ -120,8 +120,8 @@ public class DeleteClipCommand extends BaseTimelineCommand {
                 clipList.add(removedIndex, clip);
             }
             restoreActorIfNeeded();
-            if (linkedEntityTrack != null && linkedEntityClip != null) {
-                linkedEntityTrack.addClip(linkedEntityClip);
+            if (linkedActorTrack != null && linkedEntityClip != null) {
+                linkedActorTrack.addClip(linkedEntityClip);
             }
             LOGGER.debug("[Timeline] 恢复片段到索引: {}", removedIndex);
         }
@@ -133,11 +133,11 @@ public class DeleteClipCommand extends BaseTimelineCommand {
      */
     private void removeActorIfOrphaned() {
         // 只处理实体片段（EntityTimelineClip）
-        if (!(clip instanceof EntityTimelineClip) || linkedEntityTrack == null || model == null) {
+        if (!(clip instanceof EntityTimelineClip) || linkedActorTrack == null || model == null) {
             return;
         }
 
-        ActorRef actorRef = linkedEntityTrack.getActorRef();
+        ActorRef actorRef = linkedActorTrack.getActorRef();
         if (actorRef == null) {
             return;
         }
@@ -187,17 +187,17 @@ public class DeleteClipCommand extends BaseTimelineCommand {
 
         // 遍历所有轨道，查找该演员的轨道
         for (TimelineTrack track : model.getTracks()) {
-            if (track == null || track.getType() != TrackType.ENTITY) {
+            if (track == null || track.getType() != TrackType.ACTOR) {
                 continue;
             }
-            EntityTrack entityTrack = track.getEntityTrackPayload();
-            if (entityTrack == null) {
+            ActorTrack actorTrack = track.getActorTrackPayload();
+            if (actorTrack == null) {
                 continue;
             }
-            ActorRef ref = entityTrack.getActorRef();
+            ActorRef ref = actorTrack.getActorRef();
             // 找到该演员的轨道，检查是否还有片段
             if (ref != null && actorId.equals(ref.getActorId())) {
-                if (entityTrack.hasClips()) {
+                if (actorTrack.hasClips()) {
                     return true;
                 }
             }

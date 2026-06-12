@@ -19,7 +19,7 @@ import com.director.ui.timeline.model.TrackType;
 import com.director.ui.timeline.model.camera.path.CameraPathClip;
 import com.director.ui.timeline.model.entity.ActorActionClip;
 import com.director.ui.timeline.model.entity.EntityTimelineClip;
-import com.director.ui.timeline.model.entity.EntityTrack;
+import com.director.ui.timeline.model.entity.ActorTrack;
 import com.director.ui.timeline.model.selection.TimelineKeyframeMultiSelection;
 import com.director.ui.timeline.render.TimelineRenderer;
 import com.director.ui.timeline.render.TimelineTrackControlHit;
@@ -2688,14 +2688,14 @@ public class TimelineInteractionHandler {
      */
     private static final class ActionPaintHandle {
         final TimelineTrack track;
-        final EntityTrack entityTrack;
+        final ActorTrack actorTrack;
         final ActorActionType actionType;
         float startTime;
         float currentEndTime;
 
-        ActionPaintHandle(TimelineTrack track, EntityTrack entityTrack, ActorActionType actionType, float startTime) {
+        ActionPaintHandle(TimelineTrack track, ActorTrack actorTrack, ActorActionType actionType, float startTime) {
             this.track = track;
-            this.entityTrack = entityTrack;
+            this.actorTrack = actorTrack;
             this.actionType = actionType;
             this.startTime = startTime;
             this.currentEndTime = startTime; // 初始时结束时间等于开始时间
@@ -2708,8 +2708,8 @@ public class TimelineInteractionHandler {
      * 检查是否可以开始 Action 涂抹
      * <p>条件：
      * <ul>
-     *   <li>轨道必须是 EntityTrack</li>
-     *   <li>必须有 EntityTrackPayload</li>
+     *   <li>轨道必须是 ActorTrack</li>
+     *   <li>必须有 ActorTrackPayload</li>
      *   <li>当前 Brush Action 必须被 RigProfile 支持</li>
      * </ul>
      *
@@ -2717,12 +2717,12 @@ public class TimelineInteractionHandler {
      * @return 如果可以涂抹则返回 true
      */
     private boolean canStartActionPaint(TimelineTrack track) {
-        if (track == null || track.getType() != TrackType.ENTITY) {
+        if (track == null || track.getType() != TrackType.ACTOR) {
             return false;
         }
 
-        EntityTrack entityTrack = track.getEntityTrackPayload();
-        if (entityTrack == null) {
+        ActorTrack actorTrack = track.getActorTrackPayload();
+        if (actorTrack == null) {
             return false;
         }
 
@@ -2733,7 +2733,7 @@ public class TimelineInteractionHandler {
         }
 
         // 检查 RigProfile 支持（通过 ActorRef）
-        com.director.actor.ActorRef actorRef = entityTrack.getActorRef();
+        com.director.actor.ActorRef actorRef = actorTrack.getActorRef();
         if (actorRef == null) {
             return true; // 如果没有 ActorRef，允许涂抹（让导演先创建 Clip）
         }
@@ -2761,14 +2761,14 @@ public class TimelineInteractionHandler {
      */
     private void startActionPaint(TimelineHitResult hit, float mouseX, float contentX) {
         TimelineTrack track = hit.track();
-        if (track == null || track.getType() != TrackType.ENTITY) {
+        if (track == null || track.getType() != TrackType.ACTOR) {
             return;
         }
 
-        EntityTrack entityTrack = track.getEntityTrackPayload();
-        if (entityTrack == null) {
-            // 如果 EntityTrackPayload 不存在，创建它
-            entityTrack = track.getOrCreateEntityTrackPayload();
+        ActorTrack actorTrack = track.getActorTrackPayload();
+        if (actorTrack == null) {
+            // 如果 ActorTrackPayload 不存在，创建它
+            actorTrack = track.getOrCreateActorTrackPayload();
         }
 
         ActorActionType actionType = ActionBrushState.get();
@@ -2781,7 +2781,7 @@ public class TimelineInteractionHandler {
         startTime = Math.max(0f, startTime);
 
         // 创建 Handle
-        ActionPaintHandle handle = new ActionPaintHandle(track, entityTrack, actionType, startTime);
+        ActionPaintHandle handle = new ActionPaintHandle(track, actorTrack, actionType, startTime);
         handle.currentEndTime = startTime; // 初始时结束时间等于开始时间
 
         // 开始交互
@@ -2825,7 +2825,7 @@ public class TimelineInteractionHandler {
      * 应用 Action 涂抹结果（鼠标释放时调用）
      */
     private void applyActionPaint(ActionPaintHandle handle) {
-        EntityTrack entityTrack = handle.entityTrack;
+        ActorTrack actorTrack = handle.actorTrack;
         ActorActionType actionType = handle.actionType;
         float startTime = handle.startTime;
         float endTime = handle.currentEndTime;
@@ -2837,7 +2837,7 @@ public class TimelineInteractionHandler {
         }
 
         // 获取现有的 ActionClips
-        java.util.List<ActorActionClip> existingClips = entityTrack.getActionClips();
+        java.util.List<ActorActionClip> existingClips = actorTrack.getActionClips();
 
         // 使用 ActionClipIntervalResolver 解析区间
         java.util.List<ActorActionClip> newClips = ActionClipIntervalResolver.resolve(
@@ -2848,7 +2848,7 @@ public class TimelineInteractionHandler {
         );
 
         // 替换 ActionClips
-        entityTrack.replaceActionClips(newClips);
+        actorTrack.replaceActionClips(newClips);
 
         // 同步到 TimelineTrack（需要重新创建 EntityTimelineClip）
         // TODO: 这里需要确保 EntityTimelineClip 与 EntityClip 同步

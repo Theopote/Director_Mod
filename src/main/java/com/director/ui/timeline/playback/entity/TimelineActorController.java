@@ -6,9 +6,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * TimelineEntityController v1.0
+ * TimelineActorController v1.0
  * -------------------------------------------------------
- * 负责在"导演模式 + 实体轨道启用"时，用 EntityTrackSampler
+ * 负责在"导演模式 + 演员轨道启用"时，用 ActorTrackSampler
  * 驱动 Minecraft 客户端中实体的表现：
  * <p>
  *  - 位置、旋转、缩放
@@ -26,38 +26,38 @@ import org.slf4j.LoggerFactory;
  *  - 时间线播放： updateForPlayback(currentTimeSeconds)
  *  - 拖动时间标尺： previewAt(currentTimeSeconds)
  *  - UI 切换激活轨道： bindActiveTrack(track) / clearActiveTrack()
- *  - 关闭导演模式 / 删除实体轨道： disableAndReset()
+ *  - 关闭导演模式 / 删除演员轨道： disableAndReset()
  *
  * @author Director
  * @version 1.0
  */
-public final class TimelineEntityController {
+public final class TimelineActorController {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(TimelineEntityController.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(TimelineActorController.class);
 
     // ========= 单例 =========
 
-    private static final TimelineEntityController INSTANCE = new TimelineEntityController();
+    private static final TimelineActorController INSTANCE = new TimelineActorController();
 
-    public static TimelineEntityController getInstance() {
+    public static TimelineActorController getInstance() {
         return INSTANCE;
     }
 
     /** 便捷别名，供 Mixin 使用 */
-    public static TimelineEntityController get() {
+    public static TimelineActorController get() {
         return INSTANCE;
     }
 
     // ========= 状态字段 =========
 
-    /** 当前是否启用"实体轨道接管" */
+    /** 当前是否启用"演员轨道接管" */
     private boolean enabled = false;
 
-    /** 当前绑定的实体轨道（可能为 null） */
+    /** 当前绑定的演员轨道（可能为 null） */
     private TimelineTrack activeTrack;
 
     /** 采样器：负责从 EntityKeyframe 列表插值出 EntitySample */
-    private EntityTrackSampler sampler;
+    private ActorTrackSampler sampler;
 
     /** 当前采样结果，供渲染 / 实体系统查询 */
     private EntitySample currentSample;
@@ -65,7 +65,7 @@ public final class TimelineEntityController {
     /** 当前是否有有效 override（enabled + sampler + sample） */
     private boolean hasOverride = false;
 
-    private TimelineEntityController() {
+    private TimelineActorController() {
     }
 
     // ==========================================================
@@ -73,8 +73,8 @@ public final class TimelineEntityController {
     // ==========================================================
 
     /**
-     * 是否启用实体轨道接管。
-     * 通常由 UI 的"启用实体轨道"按钮控制。
+     * 是否启用演员轨道接管。
+     * 通常由 UI 的"启用演员轨道"按钮控制。
      */
     public void setEnabled(boolean enabled) {
         if (this.enabled == enabled) return;
@@ -84,7 +84,7 @@ public final class TimelineEntityController {
             // 关闭时：清理 override，尽量恢复原版实体行为
             clearOverrideAndResetWorld();
         } else {
-            LOGGER.info("[EntityController] 实体轨道接管已启用");
+            LOGGER.info("[EntityController] 演员轨道接管已启用");
         }
     }
 
@@ -93,38 +93,38 @@ public final class TimelineEntityController {
     }
 
     /**
-     * 绑定/切换当前激活的实体轨道。
+     * 绑定/切换当前激活的演员轨道。
      * 一般在 TimelinePanel 用户选中某条 ENTITY 轨道时调用。
      */
     public void bindActiveTrack(TimelineTrack track) {
-        if (track != null && track.getType() != TrackType.ENTITY) {
-            LOGGER.warn("[EntityController] 试图绑定非实体轨道: {}", track.getType());
+        if (track != null && track.getType() != TrackType.ACTOR) {
+            LOGGER.warn("[EntityController] 试图绑定非演员轨道: {}", track.getType());
         }
         this.activeTrack = track;
         rebuildFromActiveTrack();
     }
 
     /**
-     * 设置激活的实体轨道（向后兼容方法）。
+     * 设置激活的演员轨道（向后兼容方法）。
      * 
      * @deprecated 使用 {@link #bindActiveTrack(TimelineTrack)} 代替
      */
     @Deprecated
-    public void setActiveEntityTrack(TimelineTrack track) {
+    public void setActiveActorTrack(TimelineTrack track) {
         bindActiveTrack(track);
     }
 
     /**
-     * 获取当前激活的实体轨道。
+     * 获取当前激活的演员轨道。
      */
-    public TimelineTrack getActiveEntityTrack() {
+    public TimelineTrack getActiveActorTrack() {
         return activeTrack;
     }
 
     /**
-     * 是否存在实体轨道（无论是否已激活）。
+     * 是否存在演员轨道（无论是否已激活）。
      */
-    public boolean hasEntityTrack() {
+    public boolean hasActorTrack() {
         if (com.director.client.DirectorClientController.getInstance().isDirectorModeActive()) {
             return true;
         }
@@ -141,7 +141,7 @@ public final class TimelineEntityController {
             return false;
         }
         for (TimelineTrack track : model.getTracks()) {
-            if (track.getType() == TrackType.ENTITY) {
+            if (track.getType() == TrackType.ACTOR) {
                 return true;
             }
         }
@@ -162,7 +162,7 @@ public final class TimelineEntityController {
             return;
         }
 
-        sampler = new EntityTrackSampler(activeTrack);
+        sampler = new ActorTrackSampler(activeTrack);
         sampler.rebuildKeyframeList();
         
         // 统计关键帧数量
@@ -172,12 +172,12 @@ public final class TimelineEntityController {
                 keyframeCount++;
             }
         }
-        LOGGER.debug("[EntityController] 重建 EntityTrackSampler。关键帧数 = {}", keyframeCount);
+        LOGGER.debug("[EntityController] 重建 ActorTrackSampler。关键帧数 = {}", keyframeCount);
     }
 
     /**
-     * ⭐ v1.0：检查并自动激活唯一的实体轨道。
-     * 当模型结构变更时调用此方法，如果只有一个实体轨道，自动激活它。
+     * ⭐ v1.0：检查并自动激活唯一的演员轨道。
+     * 当模型结构变更时调用此方法，如果只有一个演员轨道，自动激活它。
      * 
      * <p>此方法通过 ContainerTimelineService 获取 TimelineModel，不直接绑定模型。
      */
@@ -193,47 +193,47 @@ public final class TimelineEntityController {
             return;
         }
         
-        // 统计当前实体轨道数量
-        int entityTrackCount = 0;
-        TimelineTrack firstEntityTrack = null;
+        // 统计当前演员轨道数量
+        int actorTrackCount = 0;
+        TimelineTrack firstActorTrack = null;
         for (TimelineTrack track : model.getTracks()) {
-            if (track.getType() == TrackType.ENTITY) {
-                entityTrackCount++;
-                if (firstEntityTrack == null) {
-                    firstEntityTrack = track;
+            if (track.getType() == TrackType.ACTOR) {
+                actorTrackCount++;
+                if (firstActorTrack == null) {
+                    firstActorTrack = track;
                 }
             }
         }
         
-        // ⭐ v1.0：如果只有一个实体轨道，无论当前状态如何，都确保它是激活的
-        if (entityTrackCount == 1) {
-            if (activeTrack != firstEntityTrack) {
-                activeTrack = firstEntityTrack;
-                LOGGER.info("[EntityController] 检测到只有一个实体轨道，自动激活: {}", firstEntityTrack.getName());
+        // ⭐ v1.0：如果只有一个演员轨道，无论当前状态如何，都确保它是激活的
+        if (actorTrackCount == 1) {
+            if (activeTrack != firstActorTrack) {
+                activeTrack = firstActorTrack;
+                LOGGER.info("[EntityController] 检测到只有一个演员轨道，自动激活: {}", firstActorTrack.getName());
                 rebuildFromActiveTrack();
             }
             // ⭐ 自动启用实体控制器（如果有激活轨道）
             if (!enabled) {
                 setEnabled(true);
             }
-        } else if (entityTrackCount == 0) {
-            // 没有实体轨道时，清空激活轨道并禁用控制器
+        } else if (actorTrackCount == 0) {
+            // 没有演员轨道时，清空激活轨道并禁用控制器
             if (activeTrack != null) {
                 activeTrack = null;
                 sampler = null;
                 currentSample = null;
                 hasOverride = false;
-                LOGGER.info("[EntityController] 没有实体轨道，清空激活轨道");
+                LOGGER.info("[EntityController] 没有演员轨道，清空激活轨道");
             }
             if (enabled) {
                 setEnabled(false);
             }
         } else {
-            // 有多个实体轨道时，检查当前激活轨道是否仍然在模型中
+            // 有多个演员轨道时，检查当前激活轨道是否仍然在模型中
             if (activeTrack != null && !model.getTracks().contains(activeTrack)) {
                 // 当前激活轨道已被删除，切换到第一条轨道（但不强制，因为可能有多个）
-                activeTrack = firstEntityTrack;
-                LOGGER.info("[EntityController] 当前激活轨道已被删除，切换到: {}", firstEntityTrack.getName());
+                activeTrack = firstActorTrack;
+                LOGGER.info("[EntityController] 当前激活轨道已被删除，切换到: {}", firstActorTrack.getName());
                 rebuildFromActiveTrack();
             }
             // ⭐ 如果有激活轨道，确保控制器启用
@@ -344,7 +344,7 @@ public final class TimelineEntityController {
      * 清除 override 状态（但不强制恢复 Vanilla 实体行为）。
      * 一般用于：
      *  - 停止播放但仍在导演模式中
-     *  - 暂停实体轨道接管
+     *  - 暂停演员轨道接管
      */
     public void clearOverride() {
         this.hasOverride = false;

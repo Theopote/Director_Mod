@@ -355,10 +355,10 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
             
             // ========== 演员轨道片段创建 ==========
             if (track instanceof TimelineTrack timelineTrack) {
-                if (timelineTrack.getType() == TrackType.ENTITY) {
-                    var entityTrack = timelineTrack.getEntityTrackPayload();
-                    if (entityTrack != null) {
-                        var actorRef = entityTrack.getActorRef();
+                if (timelineTrack.getType() == TrackType.ACTOR) {
+                    var actorTrack = timelineTrack.getActorTrackPayload();
+                    if (actorTrack != null) {
+                        var actorRef = actorTrack.getActorRef();
                         if (actorRef != null) {
                             UITheme.beginGroup("🎭 演员轨道片段");
                             ImGui.textDisabled("在当前播放头时间创建片段，创建后可在属性面板继续编辑。");

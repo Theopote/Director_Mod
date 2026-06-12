@@ -506,8 +506,8 @@ public class TimelineContextMenuFactory {
             newTrack = new com.director.ui.timeline.model.audio.AudioTrack(trackName);
         } else {
             newTrack = new com.director.ui.timeline.model.TimelineTrack(trackName, type);
-            if (type == com.director.ui.timeline.model.TrackType.ENTITY) {
-                newTrack.setEntityTrackPayload(new com.director.ui.timeline.model.entity.EntityTrack(trackName));
+            if (type == com.director.ui.timeline.model.TrackType.ACTOR) {
+                newTrack.setActorTrackPayload(new com.director.ui.timeline.model.entity.ActorTrack(trackName));
             }
         }
         
@@ -645,7 +645,7 @@ public class TimelineContextMenuFactory {
                             track,
                             new WeatherKeyframe("Weather @" + formatTime(time), time)))
                 .end();
-            case ENTITY -> // 实体轨道：添加 EntityClip 创建菜单
+            case ACTOR -> // 演员轨道：添加 EntityClip 创建菜单
                     builder
                         .submenu("创建实体片段")
                             .item("出现/绑定 (Spawn)", () -> {

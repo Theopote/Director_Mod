@@ -9,7 +9,7 @@ import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.entity.ActorRouteClip;
 import com.director.ui.timeline.model.entity.EntityTimelineClip;
-import com.director.ui.timeline.model.entity.EntityTrack;
+import com.director.ui.timeline.model.entity.ActorTrack;
 import imgui.ImGui;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.hit.BlockHitResult;
@@ -170,16 +170,16 @@ public final class ActorPathController {
             return;
         }
 
-        TimelineTrack timelineTrack = model.findEntityTrackByActorId(actorId);
+        TimelineTrack timelineTrack = model.findActorTrackByActorId(actorId);
         if (timelineTrack == null) {
             LOGGER.warn("[ActorPath] No entity track for actor {}", actorId);
             resetState();
             return;
         }
 
-        EntityTrack entityTrack = timelineTrack.getEntityTrackPayload();
-        if (entityTrack == null) {
-            LOGGER.warn("[ActorPath] EntityTrack payload missing for {}", timelineTrack.getName());
+        ActorTrack actorTrack = timelineTrack.getActorTrackPayload();
+        if (actorTrack == null) {
+            LOGGER.warn("[ActorPath] ActorTrack payload missing for {}", timelineTrack.getName());
             resetState();
             return;
         }
@@ -198,8 +198,8 @@ public final class ActorPathController {
         }
         clip.setWaypoints(routePoints);
 
-        entityTrack.addClip(clip);
-        EntityTimelineClip timelineClip = new EntityTimelineClip(clip, entityTrack.getColorRgba());
+        actorTrack.addClip(clip);
+        EntityTimelineClip timelineClip = new EntityTimelineClip(clip, actorTrack.getColorRgba());
         model.addClip(timelineTrack, timelineClip);
         model.selectItem(timelineClip, false);
         model.markDirty();

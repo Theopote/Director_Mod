@@ -81,8 +81,8 @@ public class TimelineTrackController {
             newTrack = new AudioTrack(trackName);
         } else {
             newTrack = new TimelineTrack(trackName, type);
-            if (type == TrackType.ENTITY) {
-                newTrack.setEntityTrackPayload(new com.director.ui.timeline.model.entity.EntityTrack(trackName));
+            if (type == TrackType.ACTOR) {
+                newTrack.setActorTrackPayload(new com.director.ui.timeline.model.entity.ActorTrack(trackName));
             }
         }
         
@@ -110,8 +110,8 @@ public class TimelineTrackController {
         }
         
         // ⭐ v1.0：如果是演员轨道且是第一条，自动激活
-        if (type == TrackType.ENTITY && sameTypeCount == 0) {
-            com.director.ui.timeline.playback.entity.TimelineEntityController.getInstance()
+        if (type == TrackType.ACTOR && sameTypeCount == 0) {
+            com.director.ui.timeline.playback.entity.TimelineActorController.getInstance()
                     .bindActiveTrack(newTrack);
             LOGGER.info("[TrackController] 创建第一条演员轨道，自动激活: {}", trackName);
         }

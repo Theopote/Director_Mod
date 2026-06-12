@@ -235,8 +235,8 @@ public final class ActorSelectorPanel {
                 String newName = editingActorName.get();
                 if (newName != null && !newName.trim().isEmpty()) {
                     editingActor.setName(newName.trim());
-                    // 同步更新关联的 EntityTrack 显示名称
-                    updateEntityTrackDisplayName(editingActor);
+                    // 同步更新关联的 ActorTrack 显示名称
+                    updateActorTrackDisplayName(editingActor);
                     timelineModel.markDirty();
                     LOGGER.info("[ActorSelector] 已更新 Actor 名称: {}", newName);
                 }
@@ -302,14 +302,14 @@ public final class ActorSelectorPanel {
     // =========================================================
 
     /**
-     * 删除 Actor（同时清理关联的 EntityTrack）
+     * 删除 Actor（同时清理关联的 ActorTrack）
      */
     private void deleteActor(Actor actor) {
         if (actor == null) return;
 
         try {
-            // 1️⃣ 删除关联的 EntityTrack
-            removeEntityTracksForActor(actor.getActorId());
+            // 1️⃣ 删除关联的 ActorTrack
+            removeActorTracksForActor(actor.getActorId());
 
             // 2️⃣ 从 ActorRegistry 删除 Actor
             actorRegistry.removeActor(actor.getActorId());
@@ -325,18 +325,18 @@ public final class ActorSelectorPanel {
     }
 
     /**
-     * 移除与指定 Actor 关联的所有 EntityTrack
+     * 移除与指定 Actor 关联的所有 ActorTrack
      */
-    private void removeEntityTracksForActor(java.util.UUID actorId) {
+    private void removeActorTracksForActor(java.util.UUID actorId) {
         if (actorId == null || timelineModel == null) return;
 
         java.util.List<com.director.ui.timeline.model.TimelineTrack> tracksToRemove = new java.util.ArrayList<>();
 
         for (com.director.ui.timeline.model.TimelineTrack track : timelineModel.getAllTracks()) {
-            if (track.getType() == com.director.ui.timeline.model.TrackType.ENTITY) {
-                com.director.ui.timeline.model.entity.EntityTrack entityTrack = track.getEntityTrackPayload();
-                if (entityTrack != null) {
-                    com.director.actor.ActorRef ref = entityTrack.getActorRef();
+            if (track.getType() == com.director.ui.timeline.model.TrackType.ACTOR) {
+                com.director.ui.timeline.model.entity.ActorTrack actorTrack = track.getActorTrackPayload();
+                if (actorTrack != null) {
+                    com.director.actor.ActorRef ref = actorTrack.getActorRef();
                     if (ref != null && actorId.equals(ref.getActorId())) {
                         tracksToRemove.add(track);
                     }
@@ -346,23 +346,23 @@ public final class ActorSelectorPanel {
 
         for (com.director.ui.timeline.model.TimelineTrack track : tracksToRemove) {
             timelineModel.removeTrack(track);
-            LOGGER.debug("[ActorSelector] 已移除关联的 EntityTrack: {}", track.getName());
+            LOGGER.debug("[ActorSelector] 已移除关联的 ActorTrack: {}", track.getName());
         }
     }
 
     /**
-     * 更新 EntityTrack 的显示名称以匹配 Actor 名称
+     * 更新 ActorTrack 的显示名称以匹配 Actor 名称
      */
-    private void updateEntityTrackDisplayName(Actor actor) {
+    private void updateActorTrackDisplayName(Actor actor) {
         if (actor == null || timelineModel == null) return;
 
         for (com.director.ui.timeline.model.TimelineTrack track : timelineModel.getAllTracks()) {
-            if (track.getType() == com.director.ui.timeline.model.TrackType.ENTITY) {
-                com.director.ui.timeline.model.entity.EntityTrack entityTrack = track.getEntityTrackPayload();
-                if (entityTrack != null) {
-                    com.director.actor.ActorRef ref = entityTrack.getActorRef();
+            if (track.getType() == com.director.ui.timeline.model.TrackType.ACTOR) {
+                com.director.ui.timeline.model.entity.ActorTrack actorTrack = track.getActorTrackPayload();
+                if (actorTrack != null) {
+                    com.director.actor.ActorRef ref = actorTrack.getActorRef();
                     if (ref != null && actor.getActorId().equals(ref.getActorId())) {
-                        entityTrack.setDisplayName(actor.getName());
+                        actorTrack.setDisplayName(actor.getName());
                         track.setName(actor.getName()); // 同时更新 TimelineTrack 名称
                     }
                 }

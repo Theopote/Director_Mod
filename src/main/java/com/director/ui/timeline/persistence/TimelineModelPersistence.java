@@ -163,13 +163,13 @@ public class TimelineModelPersistence {
         public String boundContainerName;
         public String boundContainerId;
         /** 演员轨道 payload（type=ENTITY 时有效） */
-        public EntityTrackDTO entityTrackPayload;
+        public ActorTrackDTO actorTrackPayload;
     }
 
     /**
      * 演员轨道 DTO
      */
-    public static final class EntityTrackDTO {
+    public static final class ActorTrackDTO {
         public String actorRefId;       // ActorRef UUID
         public String displayName;
         public EntityBindingDTO binding;
@@ -740,19 +740,19 @@ public class TimelineModelPersistence {
             }
 
             // 保存演员轨道 payload
-            if (track.getEntityTrackPayload() != null) {
-                com.director.ui.timeline.model.entity.EntityTrack entityTrack = track.getEntityTrackPayload();
-                EntityTrackDTO etDTO = new EntityTrackDTO();
-                etDTO.displayName = entityTrack.getDisplayName();
-                etDTO.enabled = entityTrack.isEnabled();
-                etDTO.colorRgba = entityTrack.getColorRgba();
+            if (track.getActorTrackPayload() != null) {
+                com.director.ui.timeline.model.entity.ActorTrack actorTrack = track.getActorTrackPayload();
+                ActorTrackDTO etDTO = new ActorTrackDTO();
+                etDTO.displayName = actorTrack.getDisplayName();
+                etDTO.enabled = actorTrack.isEnabled();
+                etDTO.colorRgba = actorTrack.getColorRgba();
 
-                com.director.actor.ActorRef actorRef = entityTrack.getActorRef();
+                com.director.actor.ActorRef actorRef = actorTrack.getActorRef();
                 if (actorRef != null) {
                     etDTO.actorRefId = actorRef.getActorId().toString();
                 }
 
-                com.director.ui.timeline.model.entity.EntityBinding binding = entityTrack.getBinding();
+                com.director.ui.timeline.model.entity.EntityBinding binding = actorTrack.getBinding();
                 if (binding != null) {
                     EntityBindingDTO bdto = new EntityBindingDTO();
                     bdto.mode = binding.getMode() != null ? binding.getMode().name() : null;
@@ -763,7 +763,7 @@ public class TimelineModelPersistence {
                     etDTO.binding = bdto;
                 }
 
-                for (com.director.ui.timeline.model.entity.EntityClip clip : entityTrack.getClips()) {
+                for (com.director.ui.timeline.model.entity.EntityClip clip : actorTrack.getClips()) {
                     if (clip == null) continue;
                     EntityClipDTO cdto = new EntityClipDTO();
                     cdto.id = clip.getId().toString();
@@ -877,7 +877,7 @@ public class TimelineModelPersistence {
                     etDTO.clips.add(cdto);
                 }
 
-                trackDTO.entityTrackPayload = etDTO;
+                trackDTO.actorTrackPayload = etDTO;
             }
 
             dto.tracks.add(trackDTO);
@@ -1299,16 +1299,16 @@ public class TimelineModelPersistence {
             }
             
             // 恢复演员轨道 payload
-            if (trackDTO.entityTrackPayload != null) {
+            if (trackDTO.actorTrackPayload != null) {
                 try {
-                    EntityTrackDTO etDTO = trackDTO.entityTrackPayload;
-                    com.director.ui.timeline.model.entity.EntityTrack entityTrack = new com.director.ui.timeline.model.entity.EntityTrack(etDTO.displayName);
-                    entityTrack.setEnabled(etDTO.enabled);
-                    entityTrack.setColorRgba(etDTO.colorRgba);
+                    ActorTrackDTO etDTO = trackDTO.actorTrackPayload;
+                    com.director.ui.timeline.model.entity.ActorTrack actorTrack = new com.director.ui.timeline.model.entity.ActorTrack(etDTO.displayName);
+                    actorTrack.setEnabled(etDTO.enabled);
+                    actorTrack.setColorRgba(etDTO.colorRgba);
 
                     if (etDTO.actorRefId != null) {
                         try {
-                            entityTrack.setActorRef(new com.director.actor.ActorRef(java.util.UUID.fromString(etDTO.actorRefId)));
+                            actorTrack.setActorRef(new com.director.actor.ActorRef(java.util.UUID.fromString(etDTO.actorRefId)));
                         } catch (Exception ignored) {}
                     }
 
@@ -1324,7 +1324,7 @@ public class TimelineModelPersistence {
                         binding.setTargetPlayerName(bdto.targetPlayerName);
                         if (bdto.entityTypeId != null) binding.setEntityTypeId(bdto.entityTypeId);
                         binding.setPersistent(bdto.persistent);
-                        entityTrack.setBinding(binding);
+                        actorTrack.setBinding(binding);
                     }
 
                     if (etDTO.clips != null) {
@@ -1468,16 +1468,16 @@ public class TimelineModelPersistence {
                                     }
                                 }
 
-                                entityTrack.addClip(clip);
+                                actorTrack.addClip(clip);
                             } catch (Exception e) {
                                 LOGGER.error("[TimelineModelPersistence] 加载 EntityClip 时发生错误: {}", cdto.name, e);
                             }
                         }
                     }
 
-                    track.setEntityTrackPayload(entityTrack);
+                    track.setActorTrackPayload(actorTrack);
                 } catch (Exception e) {
-                    LOGGER.error("[TimelineModelPersistence] 加载 EntityTrack payload 时发生错误: {}", e.getMessage(), e);
+                    LOGGER.error("[TimelineModelPersistence] 加载 ActorTrack payload 时发生错误: {}", e.getMessage(), e);
                 }
             }
 

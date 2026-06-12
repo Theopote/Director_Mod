@@ -4,7 +4,7 @@ import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.entity.EntityClip;
 import com.director.ui.timeline.model.entity.EntityTimelineClip;
-import com.director.ui.timeline.model.entity.EntityTrack;
+import com.director.ui.timeline.model.entity.ActorTrack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -16,7 +16,7 @@ public class AddEntityClipCommand extends BaseTimelineCommand {
 
     private final TimelineTrack track;
     private final EntityClip entityClip;
-    private EntityTrack entityTrack;
+    private ActorTrack actorTrack;
     private EntityTimelineClip timelineClip;
     private boolean added;
 
@@ -33,13 +33,13 @@ public class AddEntityClipCommand extends BaseTimelineCommand {
             return;
         }
 
-        entityTrack = track.getOrCreateEntityTrackPayload();
+        actorTrack = track.getOrCreateActorTrackPayload();
         if (timelineClip == null) {
-            timelineClip = new EntityTimelineClip(entityClip, entityTrack.getColorRgba());
+            timelineClip = new EntityTimelineClip(entityClip, actorTrack.getColorRgba());
         }
 
         if (track.addClip(timelineClip)) {
-            entityTrack.addClip(entityClip);
+            actorTrack.addClip(entityClip);
             added = true;
             LOGGER.debug("[Timeline] 添加实体片段: {}", entityClip.getName());
         } else {
@@ -54,8 +54,8 @@ public class AddEntityClipCommand extends BaseTimelineCommand {
         }
 
         track.removeClip(timelineClip);
-        if (entityTrack != null) {
-            entityTrack.removeClip(entityClip.getId());
+        if (actorTrack != null) {
+            actorTrack.removeClip(entityClip.getId());
         }
         added = false;
         LOGGER.debug("[Timeline] 撤销添加实体片段: {}", entityClip.getName());

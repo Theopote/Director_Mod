@@ -7,7 +7,7 @@ import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.TrackType;
 import com.director.ui.timeline.playback.camera.TimelineCameraController;
-import com.director.ui.timeline.playback.entity.TimelineEntityController;
+import com.director.ui.timeline.playback.entity.TimelineActorController;
 import com.director.ui.timeline.playback.season.TimelineSeasonController;
 import com.director.ui.timeline.playback.time.TimelineWorldController;
 import com.director.ui.timeline.playback.weather.TimelineWeatherController;
@@ -61,12 +61,12 @@ public class AddTrackCommand extends BaseTimelineCommand {
             case TIME -> TimelineWorldController.getInstance().getActiveTimeTrack();
             case SEASON -> TimelineSeasonController.getInstance().getActiveSeasonTrack();
             case WEATHER -> TimelineWeatherController.getInstance().getActiveWeatherTrack();
-            case ENTITY -> TimelineEntityController.getInstance().getActiveEntityTrack();
+            case ACTOR -> TimelineActorController.getInstance().getActiveActorTrack();
             default -> null;
         };
 
         previousWeatherEnabled = TimelineWeatherController.getInstance().isEnabled();
-        previousEntityEnabled = TimelineEntityController.getInstance().isEnabled();
+        previousEntityEnabled = TimelineActorController.getInstance().isEnabled();
     }
 
     private boolean shouldAutoActivateTrack(TimelineTrack track) {
@@ -75,7 +75,7 @@ public class AddTrackCommand extends BaseTimelineCommand {
                 && type != TrackType.TIME
                 && type != TrackType.SEASON
                 && type != TrackType.WEATHER
-                && type != TrackType.ENTITY) {
+                && type != TrackType.ACTOR) {
             return false;
         }
 
@@ -91,7 +91,7 @@ public class AddTrackCommand extends BaseTimelineCommand {
             case TIME -> TimelineWorldController.getInstance().setActiveTimeTrack(track);
             case SEASON -> TimelineSeasonController.getInstance().setActiveSeasonTrack(track);
             case WEATHER -> TimelineWeatherController.getInstance().bindActiveTrack(track);
-            case ENTITY -> TimelineEntityController.getInstance().bindActiveTrack(track);
+            case ACTOR -> TimelineActorController.getInstance().bindActiveTrack(track);
             default -> { /* no-op */ }
         }
     }
@@ -110,8 +110,8 @@ public class AddTrackCommand extends BaseTimelineCommand {
                 controller.bindActiveTrack(previousActiveTrack);
                 controller.setEnabled(previousWeatherEnabled);
             }
-            case ENTITY -> {
-                TimelineEntityController controller = TimelineEntityController.getInstance();
+            case ACTOR -> {
+                TimelineActorController controller = TimelineActorController.getInstance();
                 controller.bindActiveTrack(previousActiveTrack);
                 controller.setEnabled(previousEntityEnabled);
             }

@@ -12,7 +12,7 @@ import com.director.ui.theme.UITheme;
 import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.TrackType;
 import com.director.ui.timeline.model.entity.ActorActionClip;
-import com.director.ui.timeline.model.entity.EntityTrack;
+import com.director.ui.timeline.model.entity.ActorTrack;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;
@@ -160,16 +160,16 @@ public class ActorActionClipPropertyAdapter implements IPropertyAdapter<ActorAct
         SelectionManager sel = SelectionManager.get();
         TimelineTrack track = sel.getSelectedTrack();
         
-        if (track == null || track.getType() != TrackType.ENTITY) {
+        if (track == null || track.getType() != TrackType.ACTOR) {
             return null;
         }
 
-        EntityTrack entityTrack = track.getEntityTrackPayload();
-        if (entityTrack == null) {
+        ActorTrack actorTrack = track.getActorTrackPayload();
+        if (actorTrack == null) {
             return null;
         }
 
-        var actorRef = entityTrack.getActorRef();
+        var actorRef = actorTrack.getActorRef();
         if (actorRef == null) {
             return null;
         }

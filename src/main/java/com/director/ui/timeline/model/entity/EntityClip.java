@@ -14,7 +14,7 @@ import java.util.UUID;
 /**
  * EntityClip v1.0
  *
- * <p>实体轨道上的片段（表演段落）。
+ * <p>演员轨道上的片段（表演段落）。
  *
  * <p>设计特点：
  * <ul>

@@ -697,22 +697,22 @@ public class TimelineModel implements ITimelineProject {
     }
 
     /**
-     * 根据 Actor ID 查找对应的 EntityTrack
+     * 根据 Actor ID 查找对应的 ActorTrack
      * <p>用于世界点击选中演员时，自动定位到时间线上的对应轨道
      *
      * @param actorId Actor ID
      * @return TimelineTrack，如果未找到则返回 null
      */
-    public TimelineTrack findEntityTrackByActorId(java.util.UUID actorId) {
+    public TimelineTrack findActorTrackByActorId(java.util.UUID actorId) {
         if (actorId == null) {
             return null;
         }
 
         for (TimelineTrack track : tracks) {
-            if (track.getType() == TrackType.ENTITY) {
-                com.director.ui.timeline.model.entity.EntityTrack entityTrack = track.getEntityTrackPayload();
-                if (entityTrack != null) {
-                    com.director.actor.ActorRef ref = entityTrack.getActorRef();
+            if (track.getType() == TrackType.ACTOR) {
+                com.director.ui.timeline.model.entity.ActorTrack actorTrack = track.getActorTrackPayload();
+                if (actorTrack != null) {
+                    com.director.actor.ActorRef ref = actorTrack.getActorRef();
                     if (ref != null && actorId.equals(ref.getActorId())) {
                         return track;
                     }

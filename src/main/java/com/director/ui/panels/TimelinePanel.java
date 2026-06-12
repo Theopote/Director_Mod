@@ -264,7 +264,7 @@ public class TimelinePanel extends AbstractPanel
         com.director.ui.timeline.playback.time.TimelineWorldController.getInstance().setTimelineModel(model);
         // ⭐ 注册季节轨道控制器，控制季节颜色和气候
         com.director.ui.timeline.playback.season.TimelineSeasonController.getInstance().init(model);
-        // ⭐ 实体轨道控制器 v2：绑定 TimelineModel 和 ActorRegistry
+        // ⭐ 演员轨道控制器 v2：绑定 TimelineModel 和 ActorRegistry
         com.director.actor.ActorRegistry actorRegistry = 
             com.director.actor.ActorRegistryManager.getInstance();
         com.director.actor.runtime.ActorRuntimeController.getInstance().bind(model, actorRegistry);
@@ -1251,12 +1251,12 @@ public class TimelinePanel extends AbstractPanel
             new EntityClipKeyframe(clickTime);
 
         // 采样当前状态作为初始值
-        if (track != null && track.getType() == TrackType.ENTITY) {
-            com.director.ui.timeline.model.entity.EntityTrack entityTrack =
-                track.getEntityTrackPayload();
-            if (entityTrack != null) {
+        if (track != null && track.getType() == TrackType.ACTOR) {
+            com.director.ui.timeline.model.entity.ActorTrack actorTrack =
+                track.getActorTrackPayload();
+            if (actorTrack != null) {
                 com.director.ui.timeline.playback.entity.EntityClipSampler sampler =
-                    new com.director.ui.timeline.playback.entity.EntityClipSampler(entityTrack);
+                    new com.director.ui.timeline.playback.entity.EntityClipSampler(actorTrack);
                 com.director.ui.timeline.playback.entity.EntitySample sample =
                     sampler.sampleAt(clickTime);
                 if (sample != null && sample.enabled) {
@@ -1564,19 +1564,19 @@ public class TimelinePanel extends AbstractPanel
                 
                 handled = true;
             } else if (type.supportsEntityControl()) {
-                // ⭐ 实体轨道：添加实体关键帧
+                // ⭐ 演员轨道：添加实体关键帧
                 if (track.isLocked()) {
                     LOGGER.warn("[TimelinePanel] 轨道已锁定，无法添加关键帧 (轨道: {})", track.getName());
                     return;
                 }
                 
-                // ⭐ v1.0：检查是否是激活的实体轨道
-                com.director.ui.timeline.playback.entity.TimelineEntityController entityController =
-                        com.director.ui.timeline.playback.entity.TimelineEntityController.getInstance();
-                com.director.ui.timeline.model.TimelineTrack activeTrack = entityController.getActiveEntityTrack();
+                // ⭐ v1.0：检查是否是激活的演员轨道
+                com.director.ui.timeline.playback.entity.TimelineActorController entityController =
+                        com.director.ui.timeline.playback.entity.TimelineActorController.getInstance();
+                com.director.ui.timeline.model.TimelineTrack activeTrack = entityController.getActiveActorTrack();
                 
                 if (activeTrack != track) {
-                    LOGGER.warn("[TimelinePanel] 只能在激活的实体轨道上添加关键帧，当前轨道：{}，激活轨道：{}",
+                    LOGGER.warn("[TimelinePanel] 只能在激活的演员轨道上添加关键帧，当前轨道：{}，激活轨道：{}",
                             track.getName(),
                             activeTrack != null ? activeTrack.getName() : "null");
                     return;
@@ -1591,7 +1591,7 @@ public class TimelinePanel extends AbstractPanel
                         entityKeyframe
                 ));
                 
-                // ⭐ 通知 TimelineEntityController 更新
+                // ⭐ 通知 TimelineActorController 更新
                 entityController.rebuildFromActiveTrack();
                 
                 handled = true;

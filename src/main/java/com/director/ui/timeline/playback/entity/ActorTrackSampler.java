@@ -10,9 +10,9 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * EntityTrackSampler v1.0
+ * ActorTrackSampler v1.0
  *
- * <p>根据当前时间 sampleTime，从实体轨道中算出实体的最终状态。
+ * <p>根据当前时间 sampleTime，从演员轨道中算出实体的最终状态。
  * <p>流程：
  *  1. 找到 sampleTime 前后的两个关键帧
  *  2. 将它们转换成 EntitySample
@@ -27,7 +27,7 @@ import java.util.List;
  * @author Director
  * @version 1.0
  */
-public class EntityTrackSampler {
+public class ActorTrackSampler {
 
     /** 要采样的轨道（属 TimelineModel） */
     private final TimelineTrack track;
@@ -38,7 +38,7 @@ public class EntityTrackSampler {
     /**
      * 构造函数（接受轨道）。
      */
-    public EntityTrackSampler(TimelineTrack track) {
+    public ActorTrackSampler(TimelineTrack track) {
         this.track = track;
         rebuildKeyframeList();
     }
@@ -81,7 +81,7 @@ public class EntityTrackSampler {
     }
 
     // ==========================================================
-    // 主采样函数 —— TimelineEntityController 会每 tick 调用
+    // 主采样函数 —— TimelineActorController 会每 tick 调用
     // ==========================================================
 
     /**

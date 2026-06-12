@@ -5,7 +5,7 @@ import com.director.actor.ActorRef;
 import java.util.*;
 
 /**
- * EntityTrack v1.0
+ * ActorTrack v1.0
  *
  * <p>一个"演员"（Actor）轨道。
  *
@@ -19,14 +19,14 @@ import java.util.*;
  * <ul>
  *   <li>Timeline 永远不直接持有 Actor，只持有 ActorRef</li>
  *   <li>Actor 由 ActorRegistry 管理（Project 层）</li>
- *   <li>EntityTrack 通过 ActorRef 引用 Actor</li>
+ *   <li>ActorTrack 通过 ActorRef 引用 Actor</li>
  * </ul>
  *
  * <p>与 {@link com.director.ui.timeline.model.TimelineTrack} 的关系：
  * <ul>
- *   <li>EntityTrack 是独立的实体轨道数据结构</li>
+ *   <li>ActorTrack 是独立的演员轨道数据结构</li>
  *   <li>可以与 TimelineTrack 并存，用于不同的使用场景</li>
- *   <li>未来可以让 TimelineTrack (type=ENTITY) 的 payload 是 EntityTrack</li>
+ *   <li>未来可以让 TimelineTrack (type=ENTITY) 的 payload 是 ActorTrack</li>
  * </ul>
  *
  * <p>使用方式：
@@ -38,7 +38,7 @@ import java.util.*;
  * @author Director Team
  * @version 1.0
  */
-public class EntityTrack {
+public class ActorTrack {
 
     /** Actor 引用（Timeline 只持有 ActorRef，不直接持有 Actor） */
     private ActorRef actorRef;
@@ -61,7 +61,7 @@ public class EntityTrack {
     /**
      * 默认构造函数
      */
-    public EntityTrack() {
+    public ActorTrack() {
     }
 
     /**
@@ -69,7 +69,7 @@ public class EntityTrack {
      *
      * @param displayName 显示名称
      */
-    public EntityTrack(String displayName) {
+    public ActorTrack(String displayName) {
         this.displayName = (displayName == null || displayName.isBlank()) ? "Actor" : displayName;
     }
 

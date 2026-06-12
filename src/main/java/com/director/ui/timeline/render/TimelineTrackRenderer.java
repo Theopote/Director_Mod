@@ -255,7 +255,7 @@ public final class TimelineTrackRenderer {
                 TimelineTrack activeTrack = controller.getActiveWeatherTrack();
                 keyframeEnabled = (activeTrack == track);  // 只有激活轨道才可用
             } else {
-                // 其他支持关键帧的轨道（如实体轨道），默认启用
+                // 其他支持关键帧的轨道（如演员轨道），默认启用
                 keyframeEnabled = true;
             }
         }

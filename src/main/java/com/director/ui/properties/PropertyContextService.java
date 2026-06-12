@@ -91,11 +91,11 @@ public final class PropertyContextService {
 
     /**
      * 当 ctx=TIMELINE 时，是否应将 target 按「项目面板」渲染而非 Adapter。
-     * 用于 EntityTrack、EntityClip 等尚未提供专用 Adapter 的类型，由 Service 统一决策，Panel 不判断。
+     * 用于 ActorTrack、EntityClip 等尚未提供专用 Adapter 的类型，由 Service 统一决策，Panel 不判断。
      */
     public boolean isTimelineTargetRenderedAsProject(Object target) {
         if (target instanceof TimelineTrack tt) {
-            return tt.getType() == TrackType.ENTITY;
+            return tt.getType() == TrackType.ACTOR;
         }
         return false;
     }

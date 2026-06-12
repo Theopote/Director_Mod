@@ -7,7 +7,7 @@ import com.director.ui.timeline.container.ContainerTimelineService;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.entity.EntityKeyframe;
-import com.director.ui.timeline.playback.entity.TimelineEntityController;
+import com.director.ui.timeline.playback.entity.TimelineActorController;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;
@@ -31,7 +31,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *   <li>🏷️ 行为和交互（激活状态、名称标签）</li>
  * </ul>
  * 
- * <p>改动后自动触发 TimelineEntityController 刷新采样器 + 预览
+ * <p>改动后自动触发 TimelineActorController 刷新采样器 + 预览
  *
  * @author Director
  * @version 1.0
@@ -101,21 +101,21 @@ public class EntityKeyframePropertyAdapter implements IPropertyAdapter<EntityKey
         }
 
         // ⭐ v1.0：提取公共对象，减少重复获取
-        TimelineEntityController entityController = TimelineEntityController.getInstance();
+        TimelineActorController entityController = TimelineActorController.getInstance();
         TimelineModel timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
         
-        // ⭐ v1.0：检查关键帧是否属于激活的实体轨道
+        // ⭐ v1.0：检查关键帧是否属于激活的演员轨道
         TimelineTrack keyframeTrack = null;
         if (timelineModel != null) {
             keyframeTrack = timelineModel.findTrackForKeyframe(kf);
         }
         
-        TimelineTrack activeTrack = entityController.getActiveEntityTrack();
+        TimelineTrack activeTrack = entityController.getActiveActorTrack();
         boolean isTrackActive = (keyframeTrack != null && keyframeTrack == activeTrack);
         
         if (!isTrackActive) {
             UITheme.title(TITLE);
-            UITheme.label(Icons.WARNING + " 此关键帧不属于激活的实体轨道", UITheme.DarkTheme.TEXT_WARNING);
+            UITheme.label(Icons.WARNING + " 此关键帧不属于激活的演员轨道", UITheme.DarkTheme.TEXT_WARNING);
             ImGui.textDisabled("当前激活轨道: " + (activeTrack != null ? activeTrack.getName() : "<无>"));
             if (keyframeTrack != null) {
                 ImGui.textDisabled("关键帧所在轨道: " + keyframeTrack.getName());

@@ -10,7 +10,7 @@ import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.TrackType;
 import com.director.ui.timeline.model.entity.EntityClip;
 import com.director.ui.timeline.model.entity.EntityLookAtClip;
-import com.director.ui.timeline.model.entity.EntityTrack;
+import com.director.ui.timeline.model.entity.ActorTrack;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.*;
 import net.minecraft.client.util.math.MatrixStack;
@@ -143,23 +143,23 @@ public final class ActorLookAtVisualizer {
         float time = model.getCurrentTime();
 
         for (TimelineTrack track : model.getTracks()) {
-            if (track == null || track.getType() != TrackType.ENTITY) {
+            if (track == null || track.getType() != TrackType.ACTOR) {
                 continue;
             }
 
-            EntityTrack entityTrack = track.getEntityTrackPayload();
-            if (entityTrack == null) {
+            ActorTrack actorTrack = track.getActorTrackPayload();
+            if (actorTrack == null) {
                 continue;
             }
 
-            ActorRef ref = entityTrack.getActorRef();
+            ActorRef ref = actorTrack.getActorRef();
             if (ref == null || !Objects.equals(ref.getActorId(), actorId)) {
                 continue;
             }
 
             // 找到覆盖当前时间的 LookAtClip（last-wins）
             EntityLookAtClip best = null;
-            List<EntityClip> clips = entityTrack.getClips();
+            List<EntityClip> clips = actorTrack.getClips();
             for (EntityClip c : clips) {
                 if (c instanceof EntityLookAtClip lc && !lc.isMuted()) {
                     if (time >= lc.getStartTime() && time <= lc.getEndTime()) {
