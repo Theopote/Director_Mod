@@ -219,6 +219,9 @@ public class GizmoInteractionController {
         if (activeRotationHandle != null) {
             activeRotationHandle.endRotation();
             activeRotationHandle = null;
+            if (transformApplier != null) {
+                transformApplier.resetAccumulators();
+            }
             state = GizmoState.IDLE;
         } else if (activeHandle != null) {
             activeHandle.onDragEnd();

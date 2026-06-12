@@ -27,4 +27,10 @@ abstract class ActorGizmoModeTool extends AbstractWorldTool implements ToolLifec
             ActorLookAtGizmoController.getInstance().setTargetActor(selectedActorId);
         }
     }
+
+    @Override
+    public void onDeactivate() {
+        ActorGizmoController.getInstance().clearTarget();
+        ActorLookAtGizmoController.getInstance().clearTarget();
+    }
 }

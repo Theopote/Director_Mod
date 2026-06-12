@@ -84,7 +84,7 @@ public final class TimelineActorController {
             // 关闭时：清理 override，尽量恢复原版实体行为
             clearOverrideAndResetWorld();
         } else {
-            LOGGER.info("[EntityController] 演员轨道接管已启用");
+            LOGGER.info("[ActorController] 演员轨道接管已启用");
         }
     }
 
@@ -98,7 +98,7 @@ public final class TimelineActorController {
      */
     public void bindActiveTrack(TimelineTrack track) {
         if (track != null && track.getType() != TrackType.ACTOR) {
-            LOGGER.warn("[EntityController] 试图绑定非演员轨道: {}", track.getType());
+            LOGGER.warn("[ActorController] 试图绑定非演员轨道: {}", track.getType());
         }
         this.activeTrack = track;
         rebuildFromActiveTrack();
@@ -172,7 +172,7 @@ public final class TimelineActorController {
                 keyframeCount++;
             }
         }
-        LOGGER.debug("[EntityController] 重建 ActorTrackSampler。关键帧数 = {}", keyframeCount);
+        LOGGER.debug("[ActorController] 重建 ActorTrackSampler。关键帧数 = {}", keyframeCount);
     }
 
     /**
@@ -209,7 +209,7 @@ public final class TimelineActorController {
         if (actorTrackCount == 1) {
             if (activeTrack != firstActorTrack) {
                 activeTrack = firstActorTrack;
-                LOGGER.info("[EntityController] 检测到只有一个演员轨道，自动激活: {}", firstActorTrack.getName());
+                LOGGER.info("[ActorController] 检测到只有一个演员轨道，自动激活: {}", firstActorTrack.getName());
                 rebuildFromActiveTrack();
             }
             // ⭐ 自动启用实体控制器（如果有激活轨道）
@@ -223,7 +223,7 @@ public final class TimelineActorController {
                 sampler = null;
                 currentSample = null;
                 hasOverride = false;
-                LOGGER.info("[EntityController] 没有演员轨道，清空激活轨道");
+                LOGGER.info("[ActorController] 没有演员轨道，清空激活轨道");
             }
             if (enabled) {
                 setEnabled(false);
@@ -233,7 +233,7 @@ public final class TimelineActorController {
             if (activeTrack != null && !model.getTracks().contains(activeTrack)) {
                 // 当前激活轨道已被删除，切换到第一条轨道（但不强制，因为可能有多个）
                 activeTrack = firstActorTrack;
-                LOGGER.info("[EntityController] 当前激活轨道已被删除，切换到: {}", firstActorTrack.getName());
+                LOGGER.info("[ActorController] 当前激活轨道已被删除，切换到: {}", firstActorTrack.getName());
                 rebuildFromActiveTrack();
             }
             // ⭐ 如果有激活轨道，确保控制器启用
@@ -332,7 +332,7 @@ public final class TimelineActorController {
         // - 控制实体可见性
         // - 控制名称标签显示
         
-        LOGGER.trace("[EntityController] 应用实体采样: position={}, rotation={}, action={}", 
+        LOGGER.trace("[ActorController] 应用实体采样: position={}, rotation={}, action={}", 
                 sample.position, sample.rotation, sample.actionType);
     }
 
@@ -368,7 +368,7 @@ public final class TimelineActorController {
         // - 恢复实体动作、动画
         // - 恢复实体可见性
         
-        LOGGER.info("[EntityController] 清除实体 override，并尝试恢复 Vanilla 实体状态");
+        LOGGER.info("[ActorController] 清除实体 override，并尝试恢复 Vanilla 实体状态");
     }
 
     /**
@@ -388,7 +388,7 @@ public final class TimelineActorController {
 
         // TODO: 清理实体子系统
         
-        LOGGER.info("[EntityController] Cleared entity override state - 恢复游戏默认实体状态");
+        LOGGER.info("[ActorController] Cleared entity override state - 恢复游戏默认实体状态");
     }
 
 }

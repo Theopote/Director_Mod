@@ -1,7 +1,9 @@
 package com.director.ui.actor.gizmo;
 
+import com.director.client.gizmo.Axis;
 import com.director.client.gizmo.logic.TransformApplier;
 import com.director.core.selection.SelectionManager;
+import net.minecraft.util.math.Vec3i;
 import net.minecraft.util.math.Vec3d;
 
 /**
@@ -16,7 +18,8 @@ import net.minecraft.util.math.Vec3d;
 public class ActorTransformApplier extends TransformApplier {
 
     private final ActorGizmoController actorGizmoController;
-    private Vec3d lastDragDelta = Vec3d.ZERO;
+    private Vec3d accumulatedMoveDelta = Vec3d.ZERO;
+    private Vec3d accumulatedScaleDelta = Vec3d.ZERO;
     private boolean isDragging = false;
 
     public ActorTransformApplier(SelectionManager selectionManager, ActorGizmoController actorGizmoController) {
@@ -28,18 +31,9 @@ public class ActorTransformApplier extends TransformApplier {
     public void applyMove(Vec3d delta) {
         // ⭐ 检查是否有目标 Actor（而不是检查 isEditing，因为 editingClip 是在拖动开始时才设置的）
         if (actorGizmoController != null && actorGizmoController.getTargetActorId() != null) {
-            // 计算增量（相对于上次的增量）
-            Vec3d actualDelta = delta.subtract(lastDragDelta);
-            lastDragDelta = delta;
-
-            if (!isDragging) {
-                // 第一次调用，开始拖动
-                actorGizmoController.handleGizmoDragStart();
-                isDragging = true;
-            }
-
-            // 更新拖动
-            actorGizmoController.handleGizmoDragUpdate(actualDelta);
+            beginActorDragIfNeeded();
+            accumulatedMoveDelta = accumulatedMoveDelta.add(delta);
+            actorGizmoController.handleGizmoDragUpdate(accumulatedMoveDelta);
         } else {
             // 否则使用默认行为（移动选区）
             super.applyMove(delta);
@@ -47,9 +41,58 @@ public class ActorTransformApplier extends TransformApplier {
     }
 
     @Override
+    public void applyResize(Axis axis, double delta) {
+        applyResize(axis, true, delta);
+    }
+
+    @Override
+    public void applyResize(Axis axis, boolean isMaxFace, double delta) {
+        if (actorGizmoController != null && actorGizmoController.getTargetActorId() != null) {
+            beginActorDragIfNeeded();
+            accumulatedScaleDelta = accumulatedScaleDelta.add(axisDelta(axis, delta));
+            actorGizmoController.handleGizmoDragUpdate(accumulatedScaleDelta);
+        } else {
+            super.applyResize(axis, isMaxFace, delta);
+        }
+    }
+
+    @Override
+    public void applyResize(Vec3d axisDelta) {
+        if (actorGizmoController != null && actorGizmoController.getTargetActorId() != null) {
+            beginActorDragIfNeeded();
+            accumulatedScaleDelta = accumulatedScaleDelta.add(axisDelta);
+            actorGizmoController.handleGizmoDragUpdate(accumulatedScaleDelta);
+        } else {
+            super.applyResize(axisDelta);
+        }
+    }
+
+    @Override
+    public void applyResizeFromCorner(Vec3d delta, Vec3i cornerSign) {
+        if (actorGizmoController != null && actorGizmoController.getTargetActorId() != null) {
+            beginActorDragIfNeeded();
+            accumulatedScaleDelta = accumulatedScaleDelta.add(delta);
+            actorGizmoController.handleGizmoDragUpdate(accumulatedScaleDelta);
+        } else {
+            super.applyResizeFromCorner(delta, cornerSign);
+        }
+    }
+
+    @Override
+    public void applyRotation(double angle, Axis axis) {
+        if (actorGizmoController != null && actorGizmoController.getTargetActorId() != null) {
+            beginActorDragIfNeeded();
+            actorGizmoController.handleGizmoDragUpdate(rotationDelta(axis, Math.toDegrees(angle)));
+        } else {
+            super.applyRotation(angle, axis);
+        }
+    }
+
+    @Override
     public void resetAccumulators() {
         super.resetAccumulators();
-        lastDragDelta = Vec3d.ZERO;
+        accumulatedMoveDelta = Vec3d.ZERO;
+        accumulatedScaleDelta = Vec3d.ZERO;
         if (isDragging) {
             // 结束拖动
             if (actorGizmoController != null) {
@@ -57,6 +100,29 @@ public class ActorTransformApplier extends TransformApplier {
             }
             isDragging = false;
         }
+    }
+
+    private void beginActorDragIfNeeded() {
+        if (!isDragging) {
+            actorGizmoController.handleGizmoDragStart();
+            isDragging = actorGizmoController.isEditing();
+        }
+    }
+
+    private static Vec3d axisDelta(Axis axis, double delta) {
+        return switch (axis) {
+            case X -> new Vec3d(delta, 0.0, 0.0);
+            case Y -> new Vec3d(0.0, delta, 0.0);
+            case Z -> new Vec3d(0.0, 0.0, delta);
+        };
+    }
+
+    private static Vec3d rotationDelta(Axis axis, double degrees) {
+        return switch (axis) {
+            case X -> new Vec3d(0.0, degrees, 0.0);
+            case Y -> new Vec3d(degrees, 0.0, 0.0);
+            case Z -> new Vec3d(0.0, 0.0, degrees);
+        };
     }
 }
 
