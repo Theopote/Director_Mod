@@ -102,6 +102,13 @@ Current and planned Entity Track clips:
 - `EntityDespawnClip`: exit/removal
 - future `ActorFormationClip`: group formation state
 
+User-facing terminology:
+
+- The timeline exposes this as an Actor Track / 演员轨道.
+- The internal enum currently remains `TrackType.ENTITY` for project compatibility and because
+  the execution layer still targets Minecraft entities. New UI should say "Actor Track" or
+  "演员轨道"; internal model/persistence code may continue using EntityTrack terminology.
+
 ## Tool Roadmap
 
 Toolbar World tools should evolve toward:

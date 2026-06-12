@@ -248,7 +248,7 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
     private void renderLookAtHint() {
         if (ImGui.collapsingHeader(Icons.TARGET + " 视线工具", ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.textWrapped("点击世界中的目标点，创建或更新当前时间覆盖的 LookAtClip。");
-            ImGui.textWrapped("需要看向摄像机时，可在 Entity Track 属性中使用 Look At Camera。");
+            ImGui.textWrapped("需要看向摄像机时，可在演员轨道属性中使用 Look At Camera。");
         }
     }
 

@@ -930,15 +930,15 @@ public class DirectorUIManager {
                         .filter(t -> t.getType() == com.director.ui.timeline.model.TrackType.ENTITY)
                         .count();
                 
-                String trackName = "实体轨道 " + (sameTypeCount + 1);
+                String trackName = "演员轨道 " + (sameTypeCount + 1);
                 com.director.ui.timeline.model.TimelineTrack newTrack = 
                         new com.director.ui.timeline.model.TimelineTrack(trackName, 
                                 com.director.ui.timeline.model.TrackType.ENTITY);
                 
                 addTrackViaCommand(newTrack);
-                LOGGER.info("[Commands] 已添加实体轨道: {}", trackName);
+                LOGGER.info("[Commands] 已添加演员轨道: {}", trackName);
             } catch (Exception e) {
-                LOGGER.error("[Commands] 添加实体轨道失败: {}", e.getMessage(), e);
+                LOGGER.error("[Commands] 添加演员轨道失败: {}", e.getMessage(), e);
             }
         }
         

@@ -833,7 +833,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             if (trackDisplayName == null || trackDisplayName.isBlank()) {
                 trackDisplayName = timelineTrack != null && timelineTrack.getName() != null
                         ? timelineTrack.getName()
-                        : "Entity Track";
+                        : "Actor Track";
             }
             
             ImGui.text(String.format("- Track: %s", trackDisplayName));
@@ -1098,9 +1098,9 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         }
         
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("选择当前绘制动作\\n在 Timeline 的 EntityTrack 上拖拽即可创建 ActionClip");
+            ImGui.setTooltip("选择当前绘制动作\\n在 Timeline 的演员轨道上拖拽即可创建 ActionClip");
         }
         
-        ImGui.textDisabled("💡 在 Timeline 的 EntityTrack 上拖拽一段，即可创建 " + currentLabel + " 动作区间");
+        ImGui.textDisabled("💡 在 Timeline 的演员轨道上拖拽一段，即可创建 " + currentLabel + " 动作区间");
     }
 }

@@ -14,7 +14,7 @@ import java.util.EnumSet;
  *   <li>🌤️ 天气轨道 - 控制 Minecraft 天气和光照</li>
  *   <li>🕐 时间轨道 - 控制完整一天的时间变化</li>
  *   <li>🔊 音频轨道 - 事件驱动型音频，自动同步动画声音</li>
- *   <li>🎭 实体轨道 - 在时间线上"导演"会动、会演戏的角色（NPC/玩家/动物/模型）</li>
+ *   <li>🎭 演员轨道 - 在时间线上"导演"会动、会演戏的角色（NPC/玩家/动物/模型）</li>
  * </ul>
  */
 public enum TrackType {
@@ -97,11 +97,12 @@ public enum TrackType {
     ),
 
     /**
-     * 实体轨道 - 在时间线上"导演"一个会动、会演戏的角色。
+     * 演员轨道 - 在时间线上"导演"一个会动、会演戏的角色。
      * 
-     * <p>实体轨道用于持续调度、表演和控制实体（NPC/玩家/动物/模型）的状态与动作。
-     * 与容器轨道不同，实体轨道不是"被生成一次"，而是被持续调度、被表演、被控制状态与动作。
-     * 可以理解为 Actor Track（演员轨道）。
+     * <p>内部枚举名暂时保留 ENTITY，避免破坏历史工程和大量已有判断逻辑；
+     * 对用户展示时它就是 Actor Track（演员轨道）。
+     * 演员轨道用于持续调度、表演和控制实体（NPC/玩家/动物/模型）的状态与动作。
+     * 与容器轨道不同，演员轨道不是"被生成一次"，而是被持续调度、被表演、被控制状态与动作。
      * 
      * <p>支持的功能：
      * <ul>
@@ -111,11 +112,11 @@ public enum TrackType {
      * </ul>
      */
     ENTITY(
-        "实体轨道",
+        "演员轨道",
         Icons.SMILE,
         rgba(220, 120, 180),
         rgba(180, 80, 140),
-        "在时间线上导演会动、会演戏的角色，持续调度和控制实体的状态与动作",
+        "在时间线上导演演员、生物和表演实体，设置关键帧、动作、路线、看向和姿态",
         EnumSet.of(TrackFeature.CLIPS, TrackFeature.KEYFRAMES, TrackFeature.ENTITY_AUTOMATION)
     );
 
@@ -221,6 +222,9 @@ public enum TrackType {
             if (type.displayName.equals(name)) {
                 return type;
             }
+        }
+        if ("实体轨道".equals(name) || "Actor Track".equalsIgnoreCase(name)) {
+            return ENTITY;
         }
         return CONTAINER;  // 默认返回容器轨道
     }
