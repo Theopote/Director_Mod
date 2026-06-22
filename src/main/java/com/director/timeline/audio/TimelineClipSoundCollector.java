@@ -7,5 +7,7 @@ import com.director.timeline.model.TimelineClip;
  */
 public interface TimelineClipSoundCollector {
 
+    TimelineClipSoundCollector NOOP = clip -> {};
+
     void collectAndAddSoundEvents(TimelineClip clip);
 }

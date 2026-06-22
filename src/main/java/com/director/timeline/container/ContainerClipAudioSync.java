@@ -9,6 +9,16 @@ import java.util.UUID;
  */
 public interface ContainerClipAudioSync {
 
+    ContainerClipAudioSync NOOP = new ContainerClipAudioSync() {
+        @Override
+        public void onClipRemoved(TimelineClip clip) {
+        }
+
+        @Override
+        public void updateLinkedAudioClipLabel(UUID containerId, String newName) {
+        }
+    };
+
     void onClipRemoved(TimelineClip clip);
 
     void updateLinkedAudioClipLabel(UUID containerId, String newName);

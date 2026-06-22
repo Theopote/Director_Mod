@@ -24,10 +24,10 @@ import org.slf4j.LoggerFactory;
 public class TimelineTrack {
     private static final Logger LOGGER = LoggerFactory.getLogger(TimelineTrack.class);
 
-    private static volatile TimelineClipSoundCollector clipSoundCollector = clip -> {};
+    private static volatile TimelineClipSoundCollector clipSoundCollector = TimelineClipSoundCollector.NOOP;
 
     public static void setClipSoundCollector(TimelineClipSoundCollector collector) {
-        clipSoundCollector = collector != null ? collector : clip -> {};
+        clipSoundCollector = collector != null ? collector : TimelineClipSoundCollector.NOOP;
     }
 
     private String name;
@@ -121,11 +121,7 @@ public class TimelineTrack {
             // 没有音频轨道/没有对应事件时，播放应保持静音（由音频轨道事件驱动）。
             if (clip.getBoundContainerId() != null
                     && type == TrackType.CONTAINER) {
-                try {
-                    clipSoundCollector.collectAndAddSoundEvents(clip);
-                } catch (Exception e) {
-                    // 如果收集器未注册，忽略错误（向后兼容）
-                }
+                clipSoundCollector.collectAndAddSoundEvents(clip);
             }
             return true;
         }

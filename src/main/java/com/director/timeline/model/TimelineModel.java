@@ -15,10 +15,12 @@ import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineSelectable;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
+import com.director.timeline.playback.TimelinePlaybackLifecycle;
 import com.director.timeline.persistence.TimelineModelPersistence;
 import com.director.timeline.snapping.TimelineSnapSettings;
 import com.director.timeline.snapping.TimelineSnapping;
-import com.director.timeline.playback.camera.TimelineCameraController;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Timeline 数据模型（v7.4 统一真相源）
@@ -35,6 +37,8 @@ import com.director.timeline.playback.camera.TimelineCameraController;
  * @version 7.4
  */
 public class TimelineModel implements ITimelineProject, ActorTimelineSource {
+    private static final Logger LOGGER = LoggerFactory.getLogger(TimelineModel.class);
+
     private float frameRate = 30.0f;
     private int timeUnit = 0;
     // ========== 核心动画状态（现在直接拥有）==========
@@ -55,17 +59,10 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
     // ========== 吸附设置（统一配置系统）==========
     private final TimelineSnapSettings snapSettings = new TimelineSnapSettings();
 
-    private TimelineClipSoundCollector clipSoundCollector = clip -> {};
-    private TimelineTrackPlaybackListener trackPlaybackListener = new TimelineTrackPlaybackListener() {
-        @Override
-        public void onTrackAdded(TimelineTrack track) {
-        }
-
-        @Override
-        public void onTrackRemoved(TimelineTrack track) {
-        }
-    };
+    private TimelineClipSoundCollector clipSoundCollector = TimelineClipSoundCollector.NOOP;
+    private TimelineTrackPlaybackListener trackPlaybackListener = TimelineTrackPlaybackListener.NOOP;
     private TimelineAudioLoadHook audioLoadHook = TimelineAudioLoadHook.NOOP;
+    private TimelinePlaybackLifecycle playbackLifecycle = TimelinePlaybackLifecycle.NOOP;
     
     // ========== 轨道数据 ==========
     private final List<TimelineTrack> tracks = new ArrayList<>();
@@ -118,17 +115,18 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
             for (ModelChangeListener listener : listeners) {
                 try {
                     listener.onModelChanged(changeType);
-                } catch (Exception e) {
-                    // 防止监听器异常影响其他监听器
-                    System.err.println("[TimelineModel] 监听器异常: " + e.getMessage());
+                } catch (RuntimeException e) {
+                    LOGGER.warn("[TimelineModel] 监听器异常 (changeType={}): {}", changeType, e.getMessage());
+                    LOGGER.debug("[TimelineModel] 监听器异常详情", e);
                 }
             }
             if ("track_added".equals(changeType) || "track_removed".equals(changeType)) {
                 for (ActorTimelineSource.TrackStructureListener listener : trackStructureListeners) {
                     try {
                         listener.onTrackStructureChanged();
-                    } catch (Exception e) {
-                        System.err.println("[TimelineModel] 轨道结构监听器异常: " + e.getMessage());
+                    } catch (RuntimeException e) {
+                        LOGGER.warn("[TimelineModel] 轨道结构监听器异常: {}", e.getMessage());
+                        LOGGER.debug("[TimelineModel] 轨道结构监听器异常详情", e);
                     }
                 }
             }
@@ -232,28 +230,20 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
     }
 
     public void setClipSoundCollector(TimelineClipSoundCollector collector) {
-        this.clipSoundCollector = collector != null ? collector : clip -> {};
+        this.clipSoundCollector = collector != null ? collector : TimelineClipSoundCollector.NOOP;
         TimelineTrack.setClipSoundCollector(this.clipSoundCollector);
     }
 
     public void setTrackPlaybackListener(TimelineTrackPlaybackListener listener) {
-        if (listener == null) {
-            this.trackPlaybackListener = new TimelineTrackPlaybackListener() {
-                @Override
-                public void onTrackAdded(TimelineTrack track) {
-                }
-
-                @Override
-                public void onTrackRemoved(TimelineTrack track) {
-                }
-            };
-        } else {
-            this.trackPlaybackListener = listener;
-        }
+        this.trackPlaybackListener = listener != null ? listener : TimelineTrackPlaybackListener.NOOP;
     }
 
     public void setAudioLoadHook(TimelineAudioLoadHook hook) {
         this.audioLoadHook = hook != null ? hook : TimelineAudioLoadHook.NOOP;
+    }
+
+    public void setPlaybackLifecycle(TimelinePlaybackLifecycle lifecycle) {
+        this.playbackLifecycle = lifecycle != null ? lifecycle : TimelinePlaybackLifecycle.NOOP;
     }
 
     public TimelineAudioLoadHook getAudioLoadHook() {
@@ -334,9 +324,7 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         snapSettings.setPixelThreshold(8f);
 
         // 断开摄像机驱动（避免切档瞬间残留状态）
-        try {
-            TimelineCameraController.getInstance().onTimelineUiClosed();
-        } catch (Exception ignored) {}
+        playbackLifecycle.onTimelineMemoryReset();
     }
 
     /**

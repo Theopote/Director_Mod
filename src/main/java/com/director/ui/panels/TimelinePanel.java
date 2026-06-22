@@ -256,6 +256,7 @@ public class TimelinePanel extends AbstractPanel
         model.setClipSoundCollector(audioService);
         model.setTrackPlaybackListener(
                 com.director.ui.timeline.playback.TimelineAudioController.getInstance());
+        model.setPlaybackLifecycle(TimelineCameraController.getInstance()::onTimelineUiClosed);
         
         // 初始化音频服务（自动收集声音事件）
         audioService.setTimelineModel(model);

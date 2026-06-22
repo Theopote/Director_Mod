@@ -8,6 +8,7 @@ import com.director.core.animation.AnimationSoundCollector;
 import com.director.core.animation.sequence.BlockSequenceEntry;
 import com.director.core.animation.sequence.BlockSequenceGenerator;
 import com.director.core.container.Container;
+import com.director.core.container.ContainerType;
 import com.director.core.container.ContainerManager;
 import com.director.core.animation.ClipAnimationConfig;
 import com.director.timeline.model.TimelineClip;
@@ -162,16 +163,13 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
                     // 只在允许创建时才补齐音频片段；否则仅尝试查找现有绑定
                     if (!suppressAutoCreate) {
                         try {
-                            // ✅ 基于容器类型判断是否为拆除容器（不再依赖轨道类型）
-                            boolean isDemolition = false;
-                            try {
-                                Container c = DirectorServices.get().containers().getContainer(clip.getBoundContainerId());
-                                if (c != null) {
-                                    isDemolition = c.getType() == com.director.core.container.ContainerType.DEMOLITION;
-                                }
-                            } catch (Exception ignored) {}
+                            boolean isDemolition = isDemolitionContainer(clip.getBoundContainerId());
                             audioClip = ensureAudioClipForContainerClip(clip, audioTrack, !hasPersistedEvents, isDemolition);
-                        } catch (Exception ignored) {}
+                        } catch (RuntimeException e) {
+                            LOGGER.warn("[TimelineAudio] 无法为容器片段 '{}' 建立音频片段绑定: {}",
+                                    clip.getLabel(), e.getMessage());
+                            LOGGER.debug("[TimelineAudio] 音频片段绑定失败详情", e);
+                        }
                     }
                     if (audioClip != null) {
                         linkedAudioClipsByClip.put(clip, audioClip);
@@ -276,16 +274,7 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
             return;
         }
 
-        // 判断是否为擦除轨道
-        boolean isEraseTrack = false;
-        try {
-            // ✅ 基于容器类型判断是否为拆除容器（不再依赖轨道类型）
-            Container c = DirectorServices.get().containers().getContainer(clip.getBoundContainerId());
-            if (c != null && c.getType() == com.director.core.container.ContainerType.DEMOLITION) {
-                isEraseTrack = true;
-            }
-        } catch (Exception ignored) {
-        }
+        boolean isEraseTrack = isDemolitionContainer(clip.getBoundContainerId());
         
         TimelineClip audioClip = ensureAudioClipForContainerClip(clip, audioTrack, allowCreate, isEraseTrack);
         if (audioClip == null) {
@@ -305,11 +294,9 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         float clipDuration = Math.max(0.05f, clip.getLength());
         float animDuration = Math.max(0.05f, Math.min(config.getDuration(), clipDuration));
         float totalDelay = Math.max(0.0f, config.getDelay());
-        try {
-            if (config.getSequenceParameters() != null) {
-                totalDelay += Math.max(0.0f, config.getSequenceParameters().getGlobalDelay());
-            }
-        } catch (Exception ignored) {
+        com.director.core.animation.sequence.SequenceParameters sequenceParameters = config.getSequenceParameters();
+        if (sequenceParameters != null) {
+            totalDelay += Math.max(0.0f, sequenceParameters.getGlobalDelay());
         }
 
         List<BlockSequenceEntry> sequenceEntries = BlockSequenceGenerator.generate(
@@ -910,9 +897,18 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
                 audioTrack.addClip(upgraded);
             }
             return upgraded;
-        } catch (Exception ignored) {
+        } catch (RuntimeException e) {
+            LOGGER.warn("[TimelineAudio] 升级 AudioTimelineClip 失败，保留原片段: {}", clip.getLabel(), e);
             return clip;
         }
+    }
+
+    private boolean isDemolitionContainer(UUID containerId) {
+        if (containerId == null) {
+            return false;
+        }
+        Container container = DirectorServices.get().containers().getContainer(containerId);
+        return container != null && container.getType() == ContainerType.DEMOLITION;
     }
 
     private void linkAudioClip(TimelineClip containerClip, TimelineClip audioClip) {
@@ -1196,18 +1192,23 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
             return Optional.of(container);
         }
         // 回退：如果是同一个 boundContainerId，也尝试从已链接的容器片段中找一个
-        try {
-            UUID id = audioClip.getBoundContainerId();
-            if (id != null) {
-                for (TimelineClip c : linkedAudioClipsByClip.keySet()) {
-                    if (c != null && id.equals(c.getBoundContainerId())) {
-                        return Optional.of(c);
-                    }
+        UUID id = audioClip.getBoundContainerId();
+        if (id != null) {
+            for (TimelineClip c : linkedAudioClipsByClip.keySet()) {
+                if (c != null && id.equals(c.getBoundContainerId())) {
+                    return Optional.of(c);
                 }
             }
-        } catch (Exception ignored) {
         }
         return Optional.empty();
+    }
+
+    private int hashConfigParam(ClipAnimationConfig cfg, String key) {
+        if (cfg == null || cfg.getParams() == null) {
+            return 0;
+        }
+        Object value = cfg.getParams().get(key);
+        return value != null ? value.toString().hashCode() : 0;
     }
 
     private int computeAutoSoundSignature(TimelineClip clip) {
@@ -1215,12 +1216,7 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         if (cfg == null) {
             return 0;
         }
-        // 注：此签名只用于“避免重复重建”；不要求完美覆盖所有字段，但必须覆盖影响 blockStartTime/blockEndTime/序列分布的关键字段。
-        com.director.core.animation.sequence.SequenceParameters sp = null;
-        try {
-            sp = cfg.getSequenceParameters();
-        } catch (Exception ignored) {
-        }
+        com.director.core.animation.sequence.SequenceParameters sp = cfg.getSequenceParameters();
 
         int h = 17;
         h = 31 * h + Float.floatToIntBits(clip.getStartTime());
@@ -1231,30 +1227,10 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         h = 31 * h + Float.floatToIntBits(cfg.getDelay());
         h = 31 * h + (cfg.getEasing() != null ? cfg.getEasing().hashCode() : 0);
         h = 31 * h + (cfg.getSequenceMode() != null ? cfg.getSequenceMode().ordinal() : 0);
-        // 放置音效时机（ENTER）：属于“音效派生结果”，改了需要重建事件
-        try {
-            Object t = cfg.getParams().get("enterSoundTiming");
-            h = 31 * h + (t != null ? t.toString().hashCode() : 0);
-        } catch (Exception ignored) {
-        }
-        // 破坏音效时机（EXIT）
-        try {
-            Object t = cfg.getParams().get("exitSoundTiming");
-            h = 31 * h + (t != null ? t.toString().hashCode() : 0);
-        } catch (Exception ignored) {
-        }
-        // 音效偏移（ENTER/EXIT）
-        try {
-            Object t = cfg.getParams().get("enterSoundOffsetSeconds");
-            h = 31 * h + (t != null ? t.toString().hashCode() : 0);
-        } catch (Exception ignored) {
-        }
-        try {
-            Object t = cfg.getParams().get("exitSoundOffsetSeconds");
-            h = 31 * h + (t != null ? t.toString().hashCode() : 0);
-        } catch (Exception ignored) {
-        }
-        // 序列参数：至少包含会影响 BlockSequenceGenerator.generate() 的字段
+        h = 31 * h + hashConfigParam(cfg, "enterSoundTiming");
+        h = 31 * h + hashConfigParam(cfg, "exitSoundTiming");
+        h = 31 * h + hashConfigParam(cfg, "enterSoundOffsetSeconds");
+        h = 31 * h + hashConfigParam(cfg, "exitSoundOffsetSeconds");
         if (sp != null) {
             h = 31 * h + (sp.getFlowType() != null ? sp.getFlowType().ordinal() : 0);
             h = 31 * h + (sp.getFillType() != null ? sp.getFillType().ordinal() : 0);
@@ -1275,9 +1251,9 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
             h = 31 * h + (sp.getTimeMappingStrategy() != null ? sp.getTimeMappingStrategy().ordinal() : 0);
             h = 31 * h + Float.floatToIntBits(sp.getPerBlockDuration());
             h = 31 * h + Float.floatToIntBits(sp.getGlobalDelay());
-            try {
-                h = 31 * h + sp.getExtraParams().hashCode();
-            } catch (Exception ignored) {
+            Map<String, Object> extraParams = sp.getExtraParams();
+            if (extraParams != null) {
+                h = 31 * h + extraParams.hashCode();
             }
         }
         return h;

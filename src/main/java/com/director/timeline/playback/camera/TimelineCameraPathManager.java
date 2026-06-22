@@ -403,21 +403,13 @@ public final class TimelineCameraPathManager {
     }
 
     private CameraKeyframe.KeyType safeKeyType(CameraKeyframe kf) {
-        try {
-            CameraKeyframe.KeyType t = kf.getKeyType();
-            return t != null ? t : CameraKeyframe.KeyType.STANDARD;
-        } catch (Throwable ignored) {
-            return CameraKeyframe.KeyType.STANDARD;
-        }
+        CameraKeyframe.KeyType type = kf.getKeyType();
+        return type != null ? type : CameraKeyframe.KeyType.STANDARD;
     }
 
     private CameraKeyframe.RotationInterpolation safeRotType(CameraKeyframe k) {
-        try {
-            CameraKeyframe.RotationInterpolation t = k.getRotationInterpolation();
-            return t != null ? t : CameraKeyframe.RotationInterpolation.DEFAULT;
-        } catch (Throwable ignored) {
-            return CameraKeyframe.RotationInterpolation.DEFAULT;
-        }
+        CameraKeyframe.RotationInterpolation type = k.getRotationInterpolation();
+        return type != null ? type : CameraKeyframe.RotationInterpolation.DEFAULT;
     }
 
     /**

@@ -7,6 +7,16 @@ import com.director.timeline.model.TimelineTrack;
  */
 public interface TimelineTrackPlaybackListener {
 
+    TimelineTrackPlaybackListener NOOP = new TimelineTrackPlaybackListener() {
+        @Override
+        public void onTrackAdded(TimelineTrack track) {
+        }
+
+        @Override
+        public void onTrackRemoved(TimelineTrack track) {
+        }
+    };
+
     void onTrackAdded(TimelineTrack track);
 
     void onTrackRemoved(TimelineTrack track);
