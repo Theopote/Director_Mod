@@ -1,5 +1,7 @@
 package com.director.ui.panels;
 
+import com.director.i18n.DirectorI18n;
+import com.director.i18n.DirectorLang;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
@@ -55,6 +57,10 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
      * <p>用于解决窄窗口时不同组图标字符宽度不一致导致的缩进对齐问题。</p>
      */
     private static final float GROUP_ICON_COLUMN_WIDTH = UITheme.Spacing.BUTTON_HEIGHT; // 24px：与按钮高度一致，视觉统一
+
+    private static String tr(String key) {
+        return DirectorI18n.translate(key);
+    }
 
     /**
      * 构造函数 - 初始化选择管理器
@@ -271,10 +277,12 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
 
         if (ImGui.isItemHovered()) {
             ImGui.beginTooltip();
-            ImGui.text("工具按钮显示");
+            ImGui.text(tr(DirectorLang.Toolbar.TOOL_DISPLAY_TITLE));
             ImGui.separator();
-            ImGui.text(SHOW_TOOL_TEXT ? "当前：图标 + 文字" : "当前：仅图标");
-            ImGui.text("点击切换显示方式");
+            ImGui.text(tr(SHOW_TOOL_TEXT
+                    ? DirectorLang.Toolbar.TOOL_DISPLAY_ICONS_TEXT
+                    : DirectorLang.Toolbar.TOOL_DISPLAY_ICONS_ONLY));
+            ImGui.text(tr(DirectorLang.Toolbar.TOOL_DISPLAY_TOGGLE_HINT));
             ImGui.endTooltip();
         }
     }
@@ -304,7 +312,7 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
         String shortcut = com.director.ui.input.ShortcutBindings.getToolShortcutText(tool.getId());
         if (shortcut != null && !shortcut.isBlank()) {
             ImGui.separator();
-            ImGui.text("快捷键: " + shortcut);
+            ImGui.text(DirectorI18n.translate(DirectorLang.Toolbar.SHORTCUT, shortcut));
         }
         ImGui.endTooltip();
     }
