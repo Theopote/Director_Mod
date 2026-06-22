@@ -43,13 +43,29 @@ public class ImGuiRenderer {
 
     private ImGuiRenderer() {}
 
+    /**
+     * 创建单例实例（在 {@link com.director.core.DirectorServices#initializeClient()} 中调用，幂等）。
+     * OpenGL 后端须在 {@link #init()} 中于 {@code CLIENT_STARTED} 之后初始化。
+     */
+    public static void initialize() {
+        if (INSTANCE != null) {
+            return;
+        }
+        synchronized (LOCK) {
+            if (INSTANCE == null) {
+                INSTANCE = new ImGuiRenderer();
+            }
+        }
+    }
+
+    /**
+     * @deprecated 请使用 {@link com.director.core.DirectorServices#get()}{@code .imgui()}
+     */
+    @Deprecated
     public static ImGuiRenderer getInstance() {
         if (INSTANCE == null) {
-            synchronized (LOCK) {
-                if (INSTANCE == null) {
-                    INSTANCE = new ImGuiRenderer();
-                }
-            }
+            throw new IllegalStateException(
+                    "[ImGuiRenderer] Not initialized — call DirectorServices.initializeClient()");
         }
         return INSTANCE;
     }

@@ -13,6 +13,7 @@ SKIP_FILES = {
     "ContainerManager.java",
     "ContainerServices.java",
     "GlobalShortcutManager.java",
+    "ImGuiRenderer.java",
 }
 
 REPLACEMENTS = [
@@ -51,6 +52,11 @@ REPLACEMENTS = [
         "DirectorServices.get().globalShortcuts()",
     ),
     (r"GlobalShortcutManager\.getInstance\(\)", "DirectorServices.get().globalShortcuts()"),
+    (
+        r"com\.director\.ui\.imgui\.ImGuiRenderer\.getInstance\(\)",
+        "DirectorServices.get().imgui()",
+    ),
+    (r"ImGuiRenderer\.getInstance\(\)", "DirectorServices.get().imgui()"),
 ]
 
 IMPORT_LINE = "import com.director.core.DirectorServices;\n"

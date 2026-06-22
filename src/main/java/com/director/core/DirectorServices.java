@@ -3,6 +3,7 @@ package com.director.core;
 import com.director.core.container.ContainerManager;
 import com.director.core.container.visibility.ContainerVisibilityService;
 import com.director.core.selection.SelectionManager;
+import com.director.ui.imgui.ImGuiRenderer;
 import com.director.ui.input.GlobalShortcutManager;
 import com.director.ui.properties.PropertyContextService;
 import com.director.ui.timeline.container.ContainerTimelineService;
@@ -26,6 +27,7 @@ import org.slf4j.LoggerFactory;
  * <ul>
  *   <li>{@link #visibilityOrNull()} — 服务器 {@code SERVER_STARTED} 后可用（集成服务器/单人游戏同样适用）</li>
  *   <li>{@link #globalShortcuts()} — 客户端 {@link #initializeClient()} 后可用</li>
+ *   <li>{@link #imgui()} — 客户端 {@link #initializeClient()} 后可用；{@code init()} 在 {@code CLIENT_STARTED} 后调用</li>
  * </ul>
  */
 public final class DirectorServices {
@@ -42,6 +44,8 @@ public final class DirectorServices {
     private volatile ContainerVisibilityService visibilityService;
     /** 客户端初始化后绑定，专用服务器上为 {@code null} */
     private volatile GlobalShortcutManager globalShortcuts;
+    /** ImGui 渲染器实例；{@link ImGuiRenderer#init()} 在 CLIENT_STARTED 后执行 */
+    private volatile ImGuiRenderer imgui;
 
     private DirectorServices(
             ContainerManager containers,
@@ -90,9 +94,11 @@ public final class DirectorServices {
             if (get().globalShortcuts != null) {
                 return;
             }
+            ImGuiRenderer.initialize();
             GlobalShortcutManager.initialize();
+            get().imgui = ImGuiRenderer.getInstance();
             get().globalShortcuts = GlobalShortcutManager.getInstance();
-            LOGGER.info("[DirectorServices] Client services ready (globalShortcuts)");
+            LOGGER.info("[DirectorServices] Client services ready (imgui, globalShortcuts)");
         }
     }
 
@@ -156,5 +162,27 @@ public final class DirectorServices {
 
     public @Nullable GlobalShortcutManager globalShortcutsOrNull() {
         return globalShortcuts;
+    }
+
+    /**
+     * ImGui 渲染器（仅客户端）。实例在 {@link #initializeClient()} 时创建；
+     * OpenGL 后端须调用 {@link ImGuiRenderer#init()}（通常在 {@code CLIENT_STARTED}）。
+     *
+     * @throws IllegalStateException 若 {@link #initializeClient()} 尚未执行
+     */
+    public ImGuiRenderer imgui() {
+        ImGuiRenderer renderer = imgui;
+        if (renderer != null) {
+            return renderer;
+        }
+        throw new IllegalStateException(
+                "[DirectorServices] ImGui not initialized — call DirectorServices.initializeClient()");
+    }
+
+    /**
+     * @return ImGui 实例，若客户端服务未初始化则为 {@code null}
+     */
+    public @Nullable ImGuiRenderer imguiOrNull() {
+        return imgui;
     }
 }

@@ -1,5 +1,6 @@
 package com.director.ui.window;
 
+import com.director.core.DirectorServices;
 import com.director.ui.DirectorScreen;
 import com.director.ui.imgui.ImGuiRenderer;
 import imgui.ImDrawData;
@@ -99,7 +100,7 @@ public final class DetachedDirectorWindow {
             currentLeftMouseDown = false;
             currentRightMouseDown = false;
             currentMiddleMouseDown = false;
-            ImGuiRenderer.getInstance().bindPlatformBackendToWindow(windowHandle);
+            DirectorServices.get().imgui().bindPlatformBackendToWindow(windowHandle);
             GLFW.glfwShowWindow(windowHandle);
             fitWindowFrameIntoWorkarea(posX, posY, width, height, workareaX, workareaY, workareaWidth, workareaHeight);
             GLFW.glfwSetWindowSize(windowHandle, width[0], height[0]);
@@ -210,7 +211,7 @@ public final class DetachedDirectorWindow {
         currentMiddleMouseDown = false;
 
         if (handleToDestroy != 0L) {
-            ImGuiRenderer.getInstance().restorePrimaryPlatformBackend();
+            DirectorServices.get().imgui().restorePrimaryPlatformBackend();
             try {
                 Callbacks.glfwFreeCallbacks(handleToDestroy);
             } catch (Exception e) {

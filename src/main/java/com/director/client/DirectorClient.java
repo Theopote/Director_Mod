@@ -1,5 +1,6 @@
 package com.director.client;
 
+import com.director.core.DirectorServices;
 import com.director.i18n.LanguageChangeListener;
 import net.fabricmc.fabric.api.resource.v1.ResourceLoader;
 import net.minecraft.resource.ResourceType;
@@ -87,9 +88,9 @@ public class DirectorClient implements ClientModInitializer {
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
             LOGGER.info("[Director] Minecraft client started, proceeding with ImGui initialization.");
             try {
-                LOGGER.info("[Director] Calling ImGuiRenderer.getInstance().init()...");
-                com.director.ui.imgui.ImGuiRenderer.getInstance().init();
-                if (com.director.ui.imgui.ImGuiRenderer.getInstance().isInitialized()) {
+                LOGGER.info("[Director] Calling DirectorServices.get().imgui().init()...");
+                DirectorServices.get().imgui().init();
+                if (DirectorServices.get().imgui().isInitialized()) {
                     LOGGER.info("[Director] ImGui renderer initialized successfully.");
                 } else {
                     LOGGER.error("[Director] ImGui renderer failed to initialize after client start.");
@@ -385,7 +386,7 @@ public class DirectorClient implements ClientModInitializer {
             
             // UI 状态检查现在由 ImGuiRenderer 统一管理
             // 检查 ImGuiRenderer 是否已初始化
-            if (!com.director.ui.imgui.ImGuiRenderer.getInstance().isInitialized()) {
+            if (!DirectorServices.get().imgui().isInitialized()) {
                 LOGGER.debug("[Director] Item use blocked - ImGui not initialized");
                 return false;
             }
@@ -481,7 +482,7 @@ public class DirectorClient implements ClientModInitializer {
         
         // ImGui 初始化现在由 ImGuiRenderer 统一管理
         // 检查 ImGuiRenderer 是否已初始化
-        if (!com.director.ui.imgui.ImGuiRenderer.getInstance().isInitialized()) {
+        if (!DirectorServices.get().imgui().isInitialized()) {
             LOGGER.warn("[Director] ImGui not initialized, cannot open screen");
             return;
         }

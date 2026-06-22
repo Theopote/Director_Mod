@@ -1,5 +1,6 @@
 package com.director.mixin;
 
+import com.director.core.DirectorServices;
 import com.director.ui.DirectorScreen;
 import com.director.ui.imgui.ImGuiRenderer;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -23,7 +24,7 @@ public class RenderSystemMixin {
         if (!(mc.currentScreen instanceof DirectorScreen)) {
             return;
         }
-        ImGuiRenderer renderer = ImGuiRenderer.getInstance();
+        ImGuiRenderer renderer = DirectorServices.get().imgui();
         if (renderer.isInitialized() && renderer.hasPendingDrawData()) {
             renderer.renderPendingDrawData();
         }

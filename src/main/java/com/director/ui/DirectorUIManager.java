@@ -787,7 +787,7 @@ public class DirectorUIManager {
                             // 使用 reloadForCurrentWorld 自动处理保存和加载
                             layoutManager.reloadForCurrentWorld("render()");
                             // 更新 ImGui INI 路径
-                            com.director.ui.imgui.ImGuiRenderer.getInstance().checkAndUpdateIniPath();
+                            DirectorServices.get().imgui().checkAndUpdateIniPath();
                             // 重置布局标志，以便在新世界中检查是否需要应用默认布局
                             isFirstLayout = true;
                             com.director.core.container.persistence.ContainerPersistence.loadForCurrentWorld(

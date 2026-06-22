@@ -1,5 +1,6 @@
 package com.director.ui.panels;
 
+import com.director.core.DirectorServices;
 import com.director.ui.aware.ICommandsAware;
 import com.director.ui.aware.IPanelRegistryAware;
 import imgui.ImGui;
@@ -336,14 +337,14 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
             boolean detachedWindow = false;
             MinecraftClient client = MinecraftClient.getInstance();
             if (client.currentScreen instanceof com.director.ui.DirectorScreen directorScreen) {
-                detachedWindow = ImGuiRenderer.getInstance().isDetachedDirectorOpen(directorScreen);
+                detachedWindow = DirectorServices.get().imgui().isDetachedDirectorOpen(directorScreen);
             }
             if (ImGui.menuItem(Icons.WINDOW + " External Window", "", detachedWindow)) {
                 if (client.currentScreen instanceof com.director.ui.DirectorScreen directorScreen) {
                     if (detachedWindow) {
-                        ImGuiRenderer.getInstance().closeDetachedDirectorWindow(directorScreen);
+                        DirectorServices.get().imgui().closeDetachedDirectorWindow(directorScreen);
                     } else {
-                        ImGuiRenderer.getInstance().openDetachedDirectorWindow(directorScreen);
+                        DirectorServices.get().imgui().openDetachedDirectorWindow(directorScreen);
                     }
                 }
             }

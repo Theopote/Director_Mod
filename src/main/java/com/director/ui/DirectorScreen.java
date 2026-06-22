@@ -132,7 +132,7 @@ public class DirectorScreen extends Screen {
             return;
         }
 
-        if (!ImGuiRenderer.getInstance().isInitialized()) {
+        if (!DirectorServices.get().imgui().isInitialized()) {
             LOGGER.error("[Director] ImGui 未初始化，UI 无法显示");
             initializationFailed = true;
             return;
@@ -217,7 +217,7 @@ public class DirectorScreen extends Screen {
 
         try {
             // 获取ImGui渲染器实例
-            ImGuiRenderer imGuiRenderer = ImGuiRenderer.getInstance();
+            ImGuiRenderer imGuiRenderer = DirectorServices.get().imgui();
             if (imGuiRenderer.consumeDetachedWindowCloseRequest(this)) {
                 // 系统关闭按钮（外置窗口 X）触发时，在主路径安全关闭 detached window，
                 // 避免在 detached 渲染上下文内直接销毁原生窗口。
@@ -430,7 +430,7 @@ public class DirectorScreen extends Screen {
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("[Director] 窗口大小变更: {}x{}", width, height);
         }
-        ImGuiRenderer.getInstance().updateDisplaySize();
+        DirectorServices.get().imgui().updateDisplaySize();
     }
 
     /**
@@ -487,7 +487,7 @@ public class DirectorScreen extends Screen {
         com.director.client.DirectorClient.markDirectorScreenClosed();
 
         try {
-            ImGuiRenderer.getInstance().closeDetachedDirectorWindow(this);
+            DirectorServices.get().imgui().closeDetachedDirectorWindow(this);
         } catch (Exception e) {
             LOGGER.warn("[Director] 关闭外置 Director 窗口失败", e);
         }
