@@ -1,13 +1,14 @@
 package com.director.ui.panels;
 
 import com.director.core.DirectorServices;
+import com.director.i18n.DirectorI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.aware.ICommandsAware;
 import com.director.ui.aware.IPanelRegistryAware;
 import imgui.ImGui;
 
 import com.director.ui.commands.UICommandFacade;
 import com.director.ui.di.IPanelRegistry;
-import com.director.ui.imgui.ImGuiRenderer;
 import com.director.ui.theme.Icons;
 import com.director.ui.PanelId;
 import com.director.timeline.model.camera.path.CameraPathType;
@@ -74,6 +75,14 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
         renderMainMenuBar();
     }
 
+    private static String tr(String key) {
+        return DirectorI18n.translate(key);
+    }
+
+    private static String menuLabel(String icon, String key) {
+        return icon + " " + tr(key);
+    }
+
     private void renderMainMenuBar() {
         boolean startedInsideWindow = ImGui.beginMenuBar();
         boolean startedGlobal;
@@ -104,16 +113,14 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
     // ==================== Right Side ====================
 
     private void renderRightSideControls() {
-        // 将光标移动到右侧
-        float closeButtonWidth = ImGui.calcTextSize(Icons.CLOSE).x 
+        float closeButtonWidth = ImGui.calcTextSize(Icons.CLOSE).x
                 + ImGui.getStyle().getFramePadding().x * 2.0f;
-        float rightX = ImGui.getWindowWidth() 
-                - closeButtonWidth 
+        float rightX = ImGui.getWindowWidth()
+                - closeButtonWidth
                 - ImGui.getStyle().getWindowPadding().x;
-        
+
         ImGui.sameLine(Math.max(ImGui.getCursorPosX(), rightX));
 
-        // 关闭按钮
         if (ImGui.button(Icons.CLOSE + "##closeDirector")) {
             MinecraftClient.getInstance().setScreen(null);
         }
@@ -124,32 +131,32 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
     private void renderFileMenu() {
         if (commands == null) return;
 
-        if (ImGui.beginMenu(Icons.FOLDER + " File")) {
-            if (ImGui.menuItem("New Project", "Ctrl+N")) {
+        if (ImGui.beginMenu(menuLabel(Icons.FOLDER, DirectorLang.Menu.FILE))) {
+            if (ImGui.menuItem(tr(DirectorLang.Menu.FILE_NEW_PROJECT), "Ctrl+N")) {
                 commands.project().newProject();
             }
-            if (ImGui.menuItem("Reload Project", "Ctrl+O")) {
+            if (ImGui.menuItem(tr(DirectorLang.Menu.FILE_RELOAD_PROJECT), "Ctrl+O")) {
                 commands.project().openProject();
             }
 
             ImGui.separator();
 
-            if (ImGui.menuItem("Save", "Ctrl+S")) {
+            if (ImGui.menuItem(tr(DirectorLang.Menu.FILE_SAVE), "Ctrl+S")) {
                 commands.project().saveProject();
             }
-            if (ImGui.menuItem("Save As...", "", false, false)) {
+            if (ImGui.menuItem(tr(DirectorLang.Menu.FILE_SAVE_AS), "", false, false)) {
                 commands.project().saveProjectAs();
             }
 
             ImGui.separator();
 
-            if (ImGui.menuItem(Icons.VIDEO + " Export Video")) {
+            if (ImGui.menuItem(menuLabel(Icons.VIDEO, DirectorLang.Menu.FILE_EXPORT_VIDEO))) {
                 commands.project().exportVideo();
             }
 
             ImGui.separator();
 
-            if (ImGui.menuItem("Exit", "Alt+F4")) {
+            if (ImGui.menuItem(tr(DirectorLang.Menu.FILE_EXIT), "Alt+F4")) {
                 commands.project().exitApplication();
             }
 
@@ -162,17 +169,17 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
     private void renderEditMenu() {
         if (commands == null) return;
 
-        if (ImGui.beginMenu(Icons.EDIT + " Edit")) {
-            if (ImGui.menuItem(Icons.UNDO + " Undo", "Ctrl+Z")) {
+        if (ImGui.beginMenu(menuLabel(Icons.EDIT, DirectorLang.Menu.EDIT))) {
+            if (ImGui.menuItem(menuLabel(Icons.UNDO, DirectorLang.Menu.EDIT_UNDO), "Ctrl+Z")) {
                 commands.timeline().undo();
             }
-            if (ImGui.menuItem(Icons.REDO + " Redo", "Ctrl+Y")) {
+            if (ImGui.menuItem(menuLabel(Icons.REDO, DirectorLang.Menu.EDIT_REDO), "Ctrl+Y")) {
                 commands.timeline().redo();
             }
 
             ImGui.separator();
 
-            if (ImGui.menuItem(Icons.DELETE + " Delete Selected", "Del")) {
+            if (ImGui.menuItem(menuLabel(Icons.DELETE, DirectorLang.Menu.EDIT_DELETE_SELECTED), "Del")) {
                 commands.timeline().deleteSelected();
             }
 
@@ -185,24 +192,24 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
     private void renderTimelineMenu() {
         if (commands == null) return;
 
-        if (ImGui.beginMenu(Icons.TIMELINE + " Timeline")) {
-            if (ImGui.menuItem("Timeline Settings")) {
+        if (ImGui.beginMenu(menuLabel(Icons.TIMELINE, DirectorLang.Menu.TIMELINE))) {
+            if (ImGui.menuItem(tr(DirectorLang.Menu.TIMELINE_SETTINGS))) {
                 commands.timeline().openTimelineSettings();
             }
 
             ImGui.separator();
 
-            if (ImGui.beginMenu(Icons.ADD + " Add Track")) {
-                if (ImGui.menuItem(Icons.CAMERA + " Camera Track")) {
+            if (ImGui.beginMenu(menuLabel(Icons.ADD, DirectorLang.Menu.TIMELINE_ADD_TRACK))) {
+                if (ImGui.menuItem(menuLabel(Icons.CAMERA, DirectorLang.Menu.TIMELINE_TRACK_CAMERA))) {
                     commands.timeline().addCameraTrack(CameraPathType.CUSTOM);
                 }
-                if (ImGui.menuItem(Icons.TARGET + " Actor Track")) {
+                if (ImGui.menuItem(menuLabel(Icons.TARGET, DirectorLang.Menu.TIMELINE_TRACK_ACTOR))) {
                     commands.timeline().addActorTrack();
                 }
-                if (ImGui.menuItem(Icons.LIGHT + " Weather Track")) {
+                if (ImGui.menuItem(menuLabel(Icons.LIGHT, DirectorLang.Menu.TIMELINE_TRACK_WEATHER))) {
                     commands.timeline().addWeatherTrack();
                 }
-                if (ImGui.menuItem(Icons.MUSIC + " Audio Track")) {
+                if (ImGui.menuItem(menuLabel(Icons.MUSIC, DirectorLang.Menu.TIMELINE_TRACK_AUDIO))) {
                     commands.timeline().addAudioTrack();
                 }
                 ImGui.endMenu();
@@ -210,10 +217,10 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
 
             ImGui.separator();
 
-            if (ImGui.menuItem("Scroll to Playhead")) {
+            if (ImGui.menuItem(tr(DirectorLang.Menu.TIMELINE_SCROLL_TO_PLAYHEAD))) {
                 commands.timeline().scrollToPlayhead();
             }
-            if (ImGui.menuItem("Zoom to Fit")) {
+            if (ImGui.menuItem(tr(DirectorLang.Menu.TIMELINE_ZOOM_TO_FIT))) {
                 commands.timeline().zoomToFit();
             }
 
@@ -226,24 +233,23 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
     private void renderPlaybackMenu() {
         if (commands == null) return;
 
-        if (ImGui.beginMenu(Icons.PLAY + " Playback")) {
-            // 播放/暂停
+        if (ImGui.beginMenu(menuLabel(Icons.PLAY, DirectorLang.Menu.PLAYBACK))) {
             boolean isPlaying = commands.playback().isPlaying();
-            String playPauseLabel = isPlaying ? Icons.PAUSE + " Pause" : Icons.PLAY + " Play";
+            String playPauseLabel = isPlaying
+                    ? menuLabel(Icons.PAUSE, DirectorLang.Menu.PLAYBACK_PAUSE)
+                    : menuLabel(Icons.PLAY, DirectorLang.Menu.PLAYBACK_PLAY);
             if (ImGui.menuItem(playPauseLabel, "Space")) {
                 commands.playback().togglePlayPause();
             }
-            
-            // 停止
-            if (ImGui.menuItem("Stop")) {
+
+            if (ImGui.menuItem(tr(DirectorLang.Menu.PLAYBACK_STOP))) {
                 commands.playback().stop();
             }
 
             ImGui.separator();
 
-            // 播放速度子菜单（显示当前选中的速度）
             float currentSpeed = commands.playback().getPlaybackSpeed();
-            if (ImGui.beginMenu("Playback Speed")) {
+            if (ImGui.beginMenu(tr(DirectorLang.Menu.PLAYBACK_SPEED))) {
                 if (ImGui.menuItem("0.25x", "", Math.abs(currentSpeed - 0.25f) < 0.01f)) {
                     commands.playback().setPlaybackSpeed(0.25f);
                 }
@@ -259,19 +265,17 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
                 ImGui.endMenu();
             }
 
-            // 循环播放（带复选框）
             boolean isLooping = commands.playback().isLooping();
-            if (ImGui.menuItem("Toggle Loop", "", isLooping)) {
+            if (ImGui.menuItem(tr(DirectorLang.Menu.PLAYBACK_TOGGLE_LOOP), "", isLooping)) {
                 commands.playback().toggleLoop();
             }
 
             ImGui.separator();
 
-            // In/Out 区间
-            if (ImGui.menuItem("Set In Point", "I")) {
+            if (ImGui.menuItem(tr(DirectorLang.Menu.PLAYBACK_SET_IN), "I")) {
                 commands.playback().setInPoint();
             }
-            if (ImGui.menuItem("Set Out Point", "O")) {
+            if (ImGui.menuItem(tr(DirectorLang.Menu.PLAYBACK_SET_OUT), "O")) {
                 commands.playback().setOutPoint();
             }
 
@@ -280,22 +284,20 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
             float inPoint = commands.playback().getInPoint();
             float outPoint = commands.playback().getOutPoint();
             String rangeLabel = (hasIn || hasOut)
-                    ? String.format("Range: %.2fs - %.2fs", inPoint, outPoint)
-                    : "Range: Full Timeline";
+                    ? DirectorI18n.translate(DirectorLang.Menu.PLAYBACK_RANGE, inPoint, outPoint)
+                    : tr(DirectorLang.Menu.PLAYBACK_RANGE_FULL);
             ImGui.menuItem(rangeLabel, "", false, false);
 
-            if (ImGui.menuItem("Clear In/Out", "", false, hasIn || hasOut)) {
+            if (ImGui.menuItem(tr(DirectorLang.Menu.PLAYBACK_CLEAR_IN_OUT), "", false, hasIn || hasOut)) {
                 commands.playback().clearInOut();
             }
 
             ImGui.separator();
 
-            // 跳转到开始
-            if (ImGui.menuItem("Go to Start", "Home")) {
+            if (ImGui.menuItem(tr(DirectorLang.Menu.PLAYBACK_GO_TO_START), "Home")) {
                 commands.playback().goToStart();
             }
-            // 跳转到结束
-            if (ImGui.menuItem("Go to End", "End")) {
+            if (ImGui.menuItem(tr(DirectorLang.Menu.PLAYBACK_GO_TO_END), "End")) {
                 commands.playback().goToEnd();
             }
 
@@ -308,17 +310,17 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
     private void renderWindowMenu() {
         if (commands == null) return;
 
-        if (ImGui.beginMenu(Icons.WINDOW + " Window")) {
-            if (ImGui.menuItem("Show All Panels")) {
+        if (ImGui.beginMenu(menuLabel(Icons.WINDOW, DirectorLang.Menu.WINDOW))) {
+            if (ImGui.menuItem(tr(DirectorLang.Menu.WINDOW_SHOW_ALL))) {
                 commands.view().showAllPanels();
             }
-            if (ImGui.menuItem("Hide All Panels")) {
+            if (ImGui.menuItem(tr(DirectorLang.Menu.WINDOW_HIDE_ALL))) {
                 commands.view().hideAllPanels();
             }
 
             ImGui.separator();
 
-            if (panelRegistry != null && ImGui.beginMenu("Toggle Panels")) {
+            if (panelRegistry != null && ImGui.beginMenu(tr(DirectorLang.Menu.WINDOW_TOGGLE_PANELS))) {
                 for (IPanel panel : panelRegistry.getAllPanels()) {
                     if (panel == this) continue;
 
@@ -339,7 +341,7 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
             if (client.currentScreen instanceof com.director.ui.DirectorScreen directorScreen) {
                 detachedWindow = DirectorServices.get().imgui().isDetachedDirectorOpen(directorScreen);
             }
-            if (ImGui.menuItem(Icons.WINDOW + " External Window", "", detachedWindow)) {
+            if (ImGui.menuItem(menuLabel(Icons.WINDOW, DirectorLang.Menu.WINDOW_EXTERNAL), "", detachedWindow)) {
                 if (client.currentScreen instanceof com.director.ui.DirectorScreen directorScreen) {
                     if (detachedWindow) {
                         DirectorServices.get().imgui().closeDetachedDirectorWindow(directorScreen);
@@ -351,25 +353,23 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
 
             ImGui.separator();
 
-            // 布局管理
-            if (ImGui.menuItem("Save Layout")) {
+            if (ImGui.menuItem(tr(DirectorLang.Menu.WINDOW_SAVE_LAYOUT))) {
                 commands.layout().showSaveLayoutDialog();
             }
-            if (ImGui.menuItem("Load Layout")) {
+            if (ImGui.menuItem(tr(DirectorLang.Menu.WINDOW_LOAD_LAYOUT))) {
                 commands.layout().showLoadLayoutDialog();
             }
-            if (ImGui.menuItem("Restore Default Layout")) {
+            if (ImGui.menuItem(tr(DirectorLang.Menu.WINDOW_RESTORE_LAYOUT))) {
                 commands.layout().restoreDefaultLayout();
             }
 
             ImGui.separator();
 
-            // 主题切换
-            if (ImGui.beginMenu("Theme")) {
-                if (ImGui.menuItem("Dark Theme", "", true)) { // 当前默认主题
+            if (ImGui.beginMenu(tr(DirectorLang.Menu.WINDOW_THEME))) {
+                if (ImGui.menuItem(tr(DirectorLang.Menu.WINDOW_THEME_DARK), "", true)) {
                     commands.layout().setTheme("Dark");
                 }
-                if (ImGui.menuItem("Light Theme", "", false, false)) {
+                if (ImGui.menuItem(tr(DirectorLang.Menu.WINDOW_THEME_LIGHT), "", false, false)) {
                     commands.layout().setTheme("Light");
                 }
                 ImGui.endMenu();
@@ -384,23 +384,23 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
     private void renderHelpMenu() {
         if (commands == null) return;
 
-        if (ImGui.beginMenu(Icons.HELP + " Help")) {
-            if (ImGui.menuItem("Shortcuts", "F1")) {
+        if (ImGui.beginMenu(menuLabel(Icons.HELP, DirectorLang.Menu.HELP))) {
+            if (ImGui.menuItem(tr(DirectorLang.Menu.HELP_SHORTCUTS), "F1")) {
                 commands.help().showShortcutHelp();
             }
-            if (ImGui.menuItem("User Manual")) {
+            if (ImGui.menuItem(tr(DirectorLang.Menu.HELP_MANUAL))) {
                 commands.help().openUserManual();
             }
-            if (ImGui.menuItem("Video Tutorial")) {
+            if (ImGui.menuItem(tr(DirectorLang.Menu.HELP_VIDEO))) {
                 commands.help().openVideoTutorial();
             }
 
             ImGui.separator();
 
-            if (ImGui.menuItem("Report Bug", "", false, false)) {
+            if (ImGui.menuItem(tr(DirectorLang.Menu.HELP_REPORT_BUG), "", false, false)) {
                 commands.help().reportBug();
             }
-            if (ImGui.menuItem("About Director")) {
+            if (ImGui.menuItem(tr(DirectorLang.Menu.HELP_ABOUT))) {
                 commands.help().showAboutDialog();
             }
 

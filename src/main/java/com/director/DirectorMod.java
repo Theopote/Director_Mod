@@ -11,7 +11,6 @@ import com.director.config.DirectorConfig;
 import com.director.command.DirectorCommands;
 import com.director.compatibility.ModCompatibilityChecker;
 import com.director.compatibility.VersionCompatibilityChecker;
-import com.director.i18n.DirectorI18n;
 import com.director.core.DirectorServices;
 import com.director.core.container.visibility.ContainerServices;
 
@@ -54,11 +53,10 @@ public class DirectorMod implements ModInitializer {
     
     // 初始化步骤常量
     private static final int STEP_CONFIG = 1;
-    private static final int STEP_I18N = 2;
-    private static final int STEP_COMPATIBILITY = 3;
-    private static final int STEP_COMMANDS = 4;
-    private static final int STEP_ITEMS = 5;
-    private static final int STEP_COMPLETE = 6;
+    private static final int STEP_COMPATIBILITY = 2;
+    private static final int STEP_COMMANDS = 3;
+    private static final int STEP_ITEMS = 4;
+    private static final int STEP_COMPLETE = 5;
     
     /**
      * 创建模组资源标识符的辅助方法
@@ -196,22 +194,19 @@ public class DirectorMod implements ModInitializer {
             // 步骤 1b: 初始化核心服务注册表（容器、选区、时间线关联等）
             initializeDirectorServices();
             
-            // 步骤 2: 初始化国际化系统
-            initializeI18n();
-            
-            // 步骤 3: 检查模组兼容性
+            // 步骤 2: 检查模组兼容性
             checkModCompatibility();
             
-            // 步骤 4: 注册命令
+            // 步骤 3: 注册命令
             registerCommands();
             
-            // 步骤 5: 注册物品和方块
+            // 步骤 4: 注册物品和方块
             registerItems();
             
-            // 步骤 6: 注册服务器生命周期事件
+            // 步骤 5: 注册服务器生命周期事件
             registerServerLifecycleEvents();
             
-            // 步骤 7: 完成初始化
+            // 完成初始化
             completeInitialization();
             
         } catch (Exception e) {
@@ -249,24 +244,6 @@ public class DirectorMod implements ModInitializer {
         }
     }
 
-    /**
-     * 初始化国际化系统
-     */
-    private void initializeI18n() {
-        LOGGER.info("[Director] 步骤 {}/{}: 初始化国际化系统...", STEP_I18N, STEP_COMPLETE);
-        
-        try {
-            DirectorI18n.initialize();
-            initStep.set(STEP_I18N);
-            LOGGER.info("[Director] 国际化系统初始化完成");
-            
-        } catch (Exception e) {
-            LOGGER.error("[Director] 国际化系统初始化失败: {}", e.getMessage(), e);
-            // 国际化系统失败不应该阻止模组加载
-            LOGGER.warn("[Director] 继续加载模组，但国际化功能可能不可用");
-        }
-    }
-    
     /**
      * 检查模组兼容性
      */
@@ -465,7 +442,6 @@ public class DirectorMod implements ModInitializer {
     private String getErrorMessageForStep(int step) {
         return switch (step) {
             case STEP_CONFIG -> "配置系统初始化失败，请检查配置文件权限";
-            case STEP_I18N -> "国际化系统初始化失败，请检查翻译文件";
             case STEP_COMPATIBILITY -> "模组兼容性检查失败，请检查模组依赖";
             case STEP_COMMANDS -> "命令注册失败，请检查命令权限";
             case STEP_ITEMS -> "物品注册失败，请检查注册表";
@@ -497,12 +473,6 @@ public class DirectorMod implements ModInitializer {
             LOGGER.info("[Director] 调试模式: {}", DirectorConfig.isDebugMode());
             LOGGER.info("[Director] 性能优化: {}", DirectorConfig.getConfig().performance.enableOptimizations);
             LOGGER.info("[Director] UI主题: {}", DirectorConfig.getConfig().ui.defaultTheme);
-        }
-        
-        // 记录国际化摘要
-        LOGGER.info("[Director] 国际化系统: {}", DirectorI18n.getStatus());
-        if (DirectorI18n.isInitialized()) {
-            LOGGER.info("[Director] 当前语言: {}", DirectorI18n.getCurrentLanguage());
         }
         
         // 记录网络摘要

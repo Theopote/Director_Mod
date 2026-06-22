@@ -4,18 +4,17 @@ import net.minecraft.client.option.KeyBinding;
 import net.minecraft.util.Identifier;
 
 /**
- * 1.21.10+：KeyBinding 分类改为 {@link KeyBinding.Category}（由 Identifier 注册，翻译 key 为 key.category.<id>）。
- * 这里集中创建分类，避免多处重复 create() 导致重复注册异常。
+ * Director 在 Minecraft 控制设置中的按键分类。
+ * <p>
+ * 关闭 Director 界面后，与 Minecraft 集成的 Director 快捷键仅有「打开 Director」
+ * （见 {@link com.director.client.DirectorClient} 注册的 {@code key.director.open_ui}）。
+ * Director 界面内的编辑快捷键由 {@link com.director.ui.input.GlobalShortcutManager} 处理，
+ * 不会注册为 Minecraft {@link KeyBinding}。
  */
 public final class DirectorKeyCategories {
 
     public static final KeyBinding.Category GENERAL =
             KeyBinding.Category.create(Identifier.of("director", "general"));
 
-    public static final KeyBinding.Category SELECTION =
-            KeyBinding.Category.create(Identifier.of("director", "selection"));
-
     private DirectorKeyCategories() {}
 }
-
-

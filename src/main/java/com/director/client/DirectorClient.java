@@ -1,9 +1,6 @@
 package com.director.client;
 
 import com.director.core.DirectorServices;
-import com.director.i18n.LanguageChangeListener;
-import net.fabricmc.fabric.api.resource.v1.ResourceLoader;
-import net.minecraft.resource.ResourceType;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.minecraft.client.MinecraftClient;
@@ -45,7 +42,7 @@ public class DirectorClient implements ClientModInitializer {
     // ImGui 组件现在由 ImGuiRenderer 统一管理
     // 移除了重复的 ImGui 状态管理，避免冲突
     
-    // 自定义键绑定
+    // 关闭 Director 界面后，唯一注册到 Minecraft 控制设置的快捷键（打开 Director UI）
     private static KeyBinding directorKeyBinding;
     
     // 性能优化：缓存玩家手持的工具状态
@@ -111,16 +108,17 @@ public class DirectorClient implements ClientModInitializer {
     }
     
     /**
-     * 注册自定义键绑定
+     * 注册打开 Director 的 Minecraft 按键（仅在未打开 Director 界面时生效）。
+     * Director 内的编辑快捷键由 {@link com.director.ui.input.GlobalShortcutManager} 管理。
      */
     private void registerKeyBindings() {
         directorKeyBinding = KeyBindingHelper.registerKeyBinding(new KeyBinding(
-            "key.director.open_ui", // 翻译键
+            "key.director.open_ui",
             InputUtil.Type.KEYSYM,
-            GLFW.GLFW_KEY_C, // 默认按键 C
-            DirectorKeyCategories.GENERAL // 分类
+            GLFW.GLFW_KEY_C,
+            DirectorKeyCategories.GENERAL
         ));
-        LOGGER.info("[Director] Key binding registered: C key for opening UI");
+        LOGGER.info("[Director] 已注册打开 Director 快捷键（默认 C）");
     }
     
     /**
@@ -136,25 +134,7 @@ public class DirectorClient implements ClientModInitializer {
         // 注册优化的物品使用检测
         registerOptimizedItemUseHandler();
         
-        // 注册语言切换监听器
-        registerLanguageChangeListener();
-        
-        // 注册导演模式快捷键
-        registerAdminModeKeyBindings();
-        
         LOGGER.info("[Director] Event handlers registered successfully");
-    }
-    
-    /**
-     * 注册导演模式快捷键
-     */
-    private void registerAdminModeKeyBindings() {
-        try {
-            // 导演模式快捷键已移除，因为导演模式现在自动集成到DirectorScreen中
-            LOGGER.info("[Director] 导演模式快捷键已移除（自动集成）");
-        } catch (Exception e) {
-            LOGGER.error("[Director] 导演模式快捷键注册失败", e);
-        }
     }
 
     private void initializeRendererRegistry() {
@@ -184,35 +164,17 @@ public class DirectorClient implements ClientModInitializer {
     }
     
     /**
-     * 注册语言切换监听器
-     * 监听Minecraft资源重载事件，当玩家在设置中切换语言时自动更新翻译
-     */
-    private void registerLanguageChangeListener() {
-        try {
-            LanguageChangeListener listener = new LanguageChangeListener();
-            ResourceLoader.get(ResourceType.CLIENT_RESOURCES)
-                .registerReloader(listener.getFabricId(), listener);
-            LOGGER.info("[Director] 语言切换监听器已注册");
-        } catch (Exception e) {
-            LOGGER.error("[Director] 注册语言切换监听器失败", e);
-        }
-    }
-    
-    /**
-     * 注册键绑定事件处理器
+     * 注册键绑定事件处理器（仅在未打开任何界面时响应「打开 Director」）
      */
     private void registerKeyBindingHandler() {
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             com.director.ui.DirectorScreen.tickPendingRestore(client);
 
             if (client.player != null && client.currentScreen == null) {
-                // 检查自定义键绑定
                 if (directorKeyBinding.wasPressed()) {
                     openDirectorScreen();
                     LOGGER.debug("[Director] Director UI opened via key binding");
                 }
-                
-                // 导演模式快捷键处理已移除（自动集成）
             }
         });
     }
