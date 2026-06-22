@@ -11,7 +11,7 @@ import com.director.ui.timeline.container.ContainerTimelineService;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineSelectable;
 import com.director.ui.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.TrackType;
+import com.director.timeline.model.TrackType;
 import com.director.ui.timeline.model.camera.CameraKeyframe;
 import com.director.ui.timeline.model.camera.path.CustomPathClip;
 import com.director.timeline.playback.camera.CameraSample;

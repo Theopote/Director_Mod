@@ -7,7 +7,7 @@ import com.director.ui.timeline.model.TimelineMarker;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineSelectable;
 import com.director.ui.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.TrackType;
+import com.director.timeline.model.TrackType;
 import com.director.ui.timeline.model.camera.CameraKeyframe;
 import com.director.ui.timeline.model.camera.path.CameraPathClip;
 import com.director.timeline.playback.camera.TimelineCameraController;

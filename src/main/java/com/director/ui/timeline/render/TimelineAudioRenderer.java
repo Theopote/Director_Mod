@@ -5,7 +5,7 @@ import com.director.core.container.Container;
 import com.director.core.container.ContainerManager;
 import com.director.core.container.ContainerType;
 import com.director.ui.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.TrackType;
+import com.director.timeline.model.TrackType;
 import com.director.ui.timeline.model.audio.AudioEvent;
 import com.director.ui.timeline.audio.TimelineAudioService;
 import com.director.ui.timeline.model.TimelineClip;

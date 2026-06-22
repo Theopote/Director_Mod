@@ -6,7 +6,7 @@ import org.slf4j.LoggerFactory;
 
 import com.director.ui.timeline.model.TimelineClip;
 import com.director.ui.timeline.model.TimelineModel;
-import com.director.ui.timeline.model.TrackType;
+import com.director.timeline.model.TrackType;
 
 import java.util.UUID;
 

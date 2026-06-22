@@ -333,7 +333,7 @@ public final class ActorSelectorPanel {
         java.util.List<com.director.ui.timeline.model.TimelineTrack> tracksToRemove = new java.util.ArrayList<>();
 
         for (com.director.ui.timeline.model.TimelineTrack track : timelineModel.getAllTracks()) {
-            if (track.getType() == com.director.ui.timeline.model.TrackType.ACTOR) {
+            if (track.getType() == com.director.timeline.model.TrackType.ACTOR) {
                 com.director.ui.timeline.model.entity.ActorTrack actorTrack = track.getActorTrackPayload();
                 if (actorTrack != null) {
                     com.director.actor.ActorRef ref = actorTrack.getActorRef();
@@ -357,7 +357,7 @@ public final class ActorSelectorPanel {
         if (actor == null || timelineModel == null) return;
 
         for (com.director.ui.timeline.model.TimelineTrack track : timelineModel.getAllTracks()) {
-            if (track.getType() == com.director.ui.timeline.model.TrackType.ACTOR) {
+            if (track.getType() == com.director.timeline.model.TrackType.ACTOR) {
                 com.director.ui.timeline.model.entity.ActorTrack actorTrack = track.getActorTrackPayload();
                 if (actorTrack != null) {
                     com.director.actor.ActorRef ref = actorTrack.getActorRef();

@@ -73,7 +73,7 @@ public class CameraKeyframeContextMenu extends TimelineContextMenu {
         // ⭐ v5.0：检查轨道状态，如果锁定或未激活，禁用所有操作
         boolean isLocked = track.isLocked();
         boolean isActive = true;
-        if (track.getType() == com.director.ui.timeline.model.TrackType.CAMERA) {
+        if (track.getType() == com.director.timeline.model.TrackType.CAMERA) {
             com.director.timeline.playback.camera.TimelineCameraController controller =
                     com.director.timeline.playback.camera.TimelineCameraController.getInstance();
             com.director.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();

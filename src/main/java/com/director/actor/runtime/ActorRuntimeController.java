@@ -235,7 +235,7 @@ public final class ActorRuntimeController {
     private boolean isActorTrack(TimelineTrack track) {
         return track != null
                 && track.getType() != null
-                && track.getType() == com.director.ui.timeline.model.TrackType.ACTOR;
+                && track.getType() == com.director.timeline.model.TrackType.ACTOR;
     }
 
     // =========================================================

@@ -4,7 +4,7 @@ import com.director.ui.timeline.audio.TimelineAudioService;
 import com.director.ui.timeline.model.TimelineClip;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.TrackType;
+import com.director.timeline.model.TrackType;
 
 import java.util.*;
 

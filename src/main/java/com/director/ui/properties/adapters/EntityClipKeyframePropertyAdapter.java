@@ -3,7 +3,7 @@ package com.director.ui.properties.adapters;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
-import com.director.ui.timeline.model.TimelineInterpolation;
+import com.director.timeline.model.TimelineInterpolation;
 import com.director.ui.timeline.model.entity.EntityClipKeyframe;
 import com.director.ui.timeline.model.entity.EntityKeyframe;
 import imgui.ImGui;

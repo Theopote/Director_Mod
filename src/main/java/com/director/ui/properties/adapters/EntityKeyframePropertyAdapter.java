@@ -85,8 +85,8 @@ public class EntityKeyframePropertyAdapter implements IPropertyAdapter<EntityKey
     }
 
     private static String[] buildInterpolationLabels() {
-        com.director.ui.timeline.model.TimelineInterpolation[] types = 
-            com.director.ui.timeline.model.TimelineInterpolation.values();
+        com.director.timeline.model.TimelineInterpolation[] types = 
+            com.director.timeline.model.TimelineInterpolation.values();
         String[] labels = new String[types.length];
         for (int i = 0; i < types.length; i++) {
             labels[i] = types[i].getDisplayName();
@@ -169,8 +169,8 @@ public class EntityKeyframePropertyAdapter implements IPropertyAdapter<EntityKey
 
             // 插值方式
             interpolationIndex.set(kf.getInterpolation().ordinal());
-            com.director.ui.timeline.model.TimelineInterpolation[] interpolationTypes = 
-                com.director.ui.timeline.model.TimelineInterpolation.values();
+            com.director.timeline.model.TimelineInterpolation[] interpolationTypes = 
+                com.director.timeline.model.TimelineInterpolation.values();
 
             if (ImGui.combo("插值模式", interpolationIndex, INTERPOLATION_LABELS)) {
                 kf.setInterpolation(interpolationTypes[interpolationIndex.get()]);

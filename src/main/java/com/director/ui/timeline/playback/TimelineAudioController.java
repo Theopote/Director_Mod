@@ -2,7 +2,7 @@ package com.director.ui.timeline.playback;
 
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.TrackType;
+import com.director.timeline.model.TrackType;
 import com.director.ui.timeline.model.audio.AudioTrack;
 import com.director.ui.timeline.playback.audio.AudioTrackSampler;
 import org.slf4j.Logger;

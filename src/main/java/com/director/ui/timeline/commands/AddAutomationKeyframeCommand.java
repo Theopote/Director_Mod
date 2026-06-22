@@ -3,7 +3,7 @@ package com.director.ui.timeline.commands;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineSelectable;
 import com.director.ui.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.TrackType;
+import com.director.timeline.model.TrackType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

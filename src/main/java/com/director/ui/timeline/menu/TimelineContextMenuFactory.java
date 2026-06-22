@@ -18,11 +18,11 @@ import com.director.ui.timeline.commands.ToggleTrackLockCommand;
 import com.director.ui.timeline.dialog.TrackRenameDialog;
 import com.director.ui.timeline.interaction.TimelineHitResult;
 import com.director.ui.timeline.model.TimelineClip;
-import com.director.ui.timeline.model.TimelineInterpolation;
+import com.director.timeline.model.TimelineInterpolation;
 import com.director.ui.timeline.model.TimelineMarker;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.TrackType;
+import com.director.timeline.model.TrackType;
 import com.director.ui.timeline.model.camera.CameraKeyframe;
 import com.director.ui.timeline.model.audio.AudioEvent;
 import com.director.ui.timeline.model.camera.path.CranePathClip;
@@ -470,7 +470,7 @@ public class TimelineContextMenuFactory {
 
         // ⭐ 新建轨道：改为子菜单，包含所有轨道类型选项
         TimelineContextMenuBuilder.SubMenuBuilder addTrackSubmenu = builder.submenu("新建轨道");
-        for (com.director.ui.timeline.model.TrackType type : com.director.ui.timeline.model.TrackType.values()) {
+        for (com.director.timeline.model.TrackType type : com.director.timeline.model.TrackType.values()) {
             // 为每个轨道类型创建菜单项
             addTrackSubmenu.item(type.getIconAndName(), () -> createNewTrack(type));
         }
@@ -492,7 +492,7 @@ public class TimelineContextMenuFactory {
      * 
      * <p>自动激活和撤销恢复由 AddTrackCommand 统一处理。
      */
-    private void createNewTrack(com.director.ui.timeline.model.TrackType type) {
+    private void createNewTrack(com.director.timeline.model.TrackType type) {
 
         // 计算同类型轨道数量
         long sameTypeCount = model.getTracks().stream()
@@ -503,11 +503,11 @@ public class TimelineContextMenuFactory {
         com.director.ui.timeline.model.TimelineTrack newTrack;
         
         // 如果是音频轨道，使用 AudioTrack 类
-        if (type == com.director.ui.timeline.model.TrackType.AUDIO) {
+        if (type == com.director.timeline.model.TrackType.AUDIO) {
             newTrack = new com.director.ui.timeline.model.audio.AudioTrack(trackName);
         } else {
             newTrack = new com.director.ui.timeline.model.TimelineTrack(trackName, type);
-            if (type == com.director.ui.timeline.model.TrackType.ACTOR) {
+            if (type == com.director.timeline.model.TrackType.ACTOR) {
                 newTrack.setActorTrackPayload(new com.director.ui.timeline.model.entity.ActorTrack(trackName));
             }
         }
@@ -810,7 +810,7 @@ public class TimelineContextMenuFactory {
                     .build();
         }
         
-        if (track.getType() == com.director.ui.timeline.model.TrackType.CAMERA) {
+        if (track.getType() == com.director.timeline.model.TrackType.CAMERA) {
             com.director.timeline.playback.camera.TimelineCameraController controller =
                     com.director.timeline.playback.camera.TimelineCameraController.getInstance();
             com.director.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();

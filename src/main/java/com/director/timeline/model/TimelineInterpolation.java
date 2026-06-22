@@ -1,4 +1,4 @@
-package com.director.ui.timeline.model;
+package com.director.timeline.model;
 
 /**
  * 时间线插值类型枚举

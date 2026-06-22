@@ -12,7 +12,7 @@ import com.director.client.input.DirectorInputSystem;
 import com.director.ui.timeline.container.ContainerTimelineService;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.TrackType;
+import com.director.timeline.model.TrackType;
 import com.director.ui.timeline.model.entity.EntitySpawnClip;
 import com.director.ui.timeline.model.entity.ActorTrack;
 import com.director.ui.timeline.model.entity.EntityTimelineClip;

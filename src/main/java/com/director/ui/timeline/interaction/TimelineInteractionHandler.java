@@ -510,10 +510,10 @@ public class TimelineInteractionHandler {
                 tooltip = isActive ? "当前激活的天气轨道（点击切换到其他轨道）" : "设为当前激活的天气轨道";
             }
             case ADD_KEYFRAME -> {
-                com.director.ui.timeline.model.TrackType trackType = track.getType();
-                if (trackType == com.director.ui.timeline.model.TrackType.CONTAINER) {
+                com.director.timeline.model.TrackType trackType = track.getType();
+                if (trackType == com.director.timeline.model.TrackType.CONTAINER) {
                     tooltip = "容器轨道不支持轨道级关键帧，请使用片段内的动画配置";
-                } else if (trackType == com.director.ui.timeline.model.TrackType.CAMERA) {
+                } else if (trackType == com.director.timeline.model.TrackType.CAMERA) {
                     tooltip = "添加摄像机关键帧（需位于自定义路径片段内）";
                 } else {
                     tooltip = "添加关键帧";

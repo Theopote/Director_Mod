@@ -2,7 +2,7 @@ package com.director.timeline.playback.entity;
 
 import com.director.core.DirectorServices;
 import com.director.ui.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.TrackType;
+import com.director.timeline.model.TrackType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

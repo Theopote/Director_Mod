@@ -13,7 +13,7 @@ import org.slf4j.LoggerFactory;
 import com.director.ui.timeline.model.TimelineClip;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.TrackType;
+import com.director.timeline.model.TrackType;
 import com.director.ui.timeline.model.entity.EntityClip;
 import com.director.ui.timeline.model.entity.EntityTimelineClip;
 import com.director.ui.timeline.model.entity.ActorTrack;

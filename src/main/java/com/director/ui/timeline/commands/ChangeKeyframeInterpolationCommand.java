@@ -1,7 +1,7 @@
 package com.director.ui.timeline.commands;
 
 import com.director.ui.timeline.model.TimelineClip;
-import com.director.ui.timeline.model.TimelineInterpolation;
+import com.director.timeline.model.TimelineInterpolation;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;
 

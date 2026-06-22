@@ -115,6 +115,14 @@
 - `com.director.ui.timeline.model.*` → `com.director.timeline.model.*`
 - 同步迁移子包：`model.entity/*`、`model.camera/*`、`model.audio/*`、`model.weather/*`…
 
+### 3.1 当前进度（已开始）
+
+- ✅ `TrackType` → `com.director.timeline.model.TrackType`
+- ✅ `TimelineInterpolation` → `com.director.timeline.model.TimelineInterpolation`
+- ✅ `ITimelineProject` → `com.director.timeline.model.ITimelineProject`
+
+说明：以上三项迁移后已完成全项目 import/FQN 更新并通过编译。
+
 批次拆分建议：
 
 - 3.1 先迁 `TrackType`、`TimelineInterpolation`、轻量 enum/value

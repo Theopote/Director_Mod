@@ -1,6 +1,6 @@
 package com.director.timeline.playback.entity;
 
-import com.director.ui.timeline.model.TimelineInterpolation;
+import com.director.timeline.model.TimelineInterpolation;
 import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.entity.EntityKeyframe;
 

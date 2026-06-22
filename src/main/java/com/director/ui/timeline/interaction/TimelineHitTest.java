@@ -120,7 +120,7 @@ public final class TimelineHitTest {
         float timeAtMouse = renderer.xToTime(mouseX, contentX);
 
         // 自定义摄像机路径片段内的关键帧优先于 Path Clip 块命中
-        if (track.getType() == com.director.ui.timeline.model.TrackType.CAMERA && track.hasCameraPathClips()) {
+        if (track.getType() == com.director.timeline.model.TrackType.CAMERA && track.hasCameraPathClips()) {
             TimelineHitResult pathKeyHit = hitTestCameraPathKeyframes(renderer, model, track, trackIndex,
                     mouseX, mouseY, contentX, trackY, trackBottom);
             if (pathKeyHit.type() == TimelineHitResult.HitType.AUTOMATION_KEYFRAME) {
@@ -129,7 +129,7 @@ public final class TimelineHitTest {
         }
 
         // ⭐ 命中 Path Clip（在关键帧之前检测，但优先级低于关键帧）
-        if (track.getType() == com.director.ui.timeline.model.TrackType.CAMERA && track.hasCameraPathClips()) {
+        if (track.getType() == com.director.timeline.model.TrackType.CAMERA && track.hasCameraPathClips()) {
             PathClipHit pathClipHit = hitTestPathClips(renderer, model, track, trackIndex,
                     mouseX, mouseY, contentX, trackY, trackBottom);
             if (pathClipHit != null) {

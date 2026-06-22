@@ -12,9 +12,9 @@ import com.director.ui.timeline.model.TimelineClip;
 import com.director.ui.timeline.model.TimelineMarker;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.TimelineInterpolation;
+import com.director.timeline.model.TimelineInterpolation;
 import com.director.ui.timeline.model.TimelineViewportState;
-import com.director.ui.timeline.model.TrackType;
+import com.director.timeline.model.TrackType;
 import com.director.ui.timeline.model.audio.AudioClipKeyframe;
 import com.director.ui.timeline.model.audio.AudioEvent;
 import com.director.ui.timeline.model.audio.AudioTrack;
@@ -1342,7 +1342,7 @@ public class TimelineModelPersistence {
                                         try {
                                             com.director.ui.timeline.model.entity.EntityClipKeyframe kf = new com.director.ui.timeline.model.entity.EntityClipKeyframe(kfdto.time);
                                             if (kfdto.interpolation != null) {
-                                                try { kf.setInterpolation(com.director.ui.timeline.model.TimelineInterpolation.valueOf(kfdto.interpolation)); } catch (Exception ignored) {}
+                                                try { kf.setInterpolation(com.director.timeline.model.TimelineInterpolation.valueOf(kfdto.interpolation)); } catch (Exception ignored) {}
                                             }
                                             if (kfdto.position != null) kf.setPosition(kfdto.position.x, kfdto.position.y, kfdto.position.z);
                                             if (kfdto.rotation != null) kf.setRotation(kfdto.rotation.x, kfdto.rotation.y, kfdto.rotation.z);
@@ -1375,7 +1375,7 @@ public class TimelineModelPersistence {
                                     }
                                     case com.director.ui.timeline.model.entity.EntityTransformClip tc -> {
                                         if (cdto.transformInterpolation != null) {
-                                            try { tc.setInterpolation(com.director.ui.timeline.model.TimelineInterpolation.valueOf(cdto.transformInterpolation)); } catch (Exception ignored) {}
+                                            try { tc.setInterpolation(com.director.timeline.model.TimelineInterpolation.valueOf(cdto.transformInterpolation)); } catch (Exception ignored) {}
                                         }
                                         if (cdto.fromPos != null) tc.setFromPos(cdto.fromPos.x, cdto.fromPos.y, cdto.fromPos.z);
                                         if (cdto.toPos != null) tc.setToPos(cdto.toPos.x, cdto.toPos.y, cdto.toPos.z);

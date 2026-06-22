@@ -1,6 +1,6 @@
 package com.director.timeline.playback.weather;
 
-import com.director.ui.timeline.model.TimelineInterpolation;
+import com.director.timeline.model.TimelineInterpolation;
 import com.director.ui.timeline.model.weather.WeatherKeyframe;
 import org.joml.Vector3f;
 

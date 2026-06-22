@@ -1,7 +1,7 @@
 package com.director.ui.timeline.render;
 
 import com.director.ui.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.TrackType;
+import com.director.timeline.model.TrackType;
 import java.util.ArrayList;
 import java.util.List;
 import org.slf4j.Logger;

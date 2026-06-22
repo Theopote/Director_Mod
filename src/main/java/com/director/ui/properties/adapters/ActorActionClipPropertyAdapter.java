@@ -11,7 +11,7 @@ import com.director.ui.selection.SelectionManager;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import com.director.ui.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.TrackType;
+import com.director.timeline.model.TrackType;
 import com.director.ui.timeline.model.entity.ActorActionClip;
 import com.director.ui.timeline.model.entity.ActorTrack;
 import imgui.ImGui;

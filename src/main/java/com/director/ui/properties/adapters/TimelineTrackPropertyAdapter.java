@@ -7,7 +7,7 @@ import com.director.ui.actor.track.ActorTrackClipKind;
 import com.director.ui.theme.UITheme;
 import com.director.ui.theme.Icons;
 import com.director.ui.timeline.interaction.ActionBrushState;
-import com.director.ui.timeline.model.TrackType;
+import com.director.timeline.model.TrackType;
 import com.director.ui.timeline.model.TimelineTrack;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;

@@ -2,7 +2,7 @@ package com.director.timeline.playback.weather;
 
 import com.director.core.DirectorServices;
 import com.director.ui.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.TrackType;
+import com.director.timeline.model.TrackType;
 import com.director.ui.timeline.model.weather.WeatherKeyframe;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;

@@ -51,9 +51,9 @@ public class DuplicateClipCommand extends BaseTimelineCommand {
 
         // 复制关键帧的插值信息
         for (float keyframeTime : originalClip.getKeyframes()) {
-            com.director.ui.timeline.model.TimelineInterpolation interpolation = 
+            com.director.timeline.model.TimelineInterpolation interpolation = 
                 ChangeKeyframeInterpolationCommand.getKeyframeInterpolation(originalClip, keyframeTime);
-            if (interpolation != null && interpolation != com.director.ui.timeline.model.TimelineInterpolation.LINEAR) {
+            if (interpolation != null && interpolation != com.director.timeline.model.TimelineInterpolation.LINEAR) {
                 // 计算新位置的关键帧时间
                 float newKeyframeTime = keyframeTime + offset;
                 ChangeKeyframeInterpolationCommand.setKeyframeInterpolationDirectly(

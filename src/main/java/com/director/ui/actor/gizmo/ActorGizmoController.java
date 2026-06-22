@@ -10,7 +10,7 @@ import com.director.client.gizmo.GizmoType;
 import com.director.ui.timeline.container.ContainerTimelineService;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.TrackType;
+import com.director.timeline.model.TrackType;
 import com.director.ui.timeline.model.entity.EntityClip;
 import com.director.ui.timeline.model.entity.ActorTrack;
 import com.director.ui.timeline.model.entity.EntityTimelineClip;
@@ -697,7 +697,7 @@ public final class ActorGizmoController {
         EntityTransformClip clip = getEntityTransformClip(time, pos);
 
         // 默认插值类型为 SMOOTH
-        clip.setInterpolation(com.director.ui.timeline.model.TimelineInterpolation.SMOOTH);
+        clip.setInterpolation(com.director.timeline.model.TimelineInterpolation.SMOOTH);
 
         // 添加到轨道
         track.addClip(clip);

@@ -1,6 +1,7 @@
 package com.director.ui.timeline.model;
 
 import com.director.core.DirectorServices;
+import com.director.timeline.model.TrackType;
 import com.director.ui.timeline.model.audio.AudioEvent;
 import com.director.ui.timeline.model.camera.CameraViewportProfile;
 import com.director.ui.timeline.model.camera.CameraKeyframe;

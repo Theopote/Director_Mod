@@ -3,7 +3,7 @@ package com.director.timeline.playback.time;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineSelectable;
 import com.director.ui.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.TrackType;
+import com.director.timeline.model.TrackType;
 import com.director.ui.timeline.model.time.TimeKeyframe;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
