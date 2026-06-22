@@ -1,9 +1,10 @@
 package com.director.ui.properties.adapters;
 
 import com.director.core.DirectorServices;
+import com.director.i18n.DirectorLang;
+import com.director.i18n.TimelinePropertyAdapterI18n;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyReflection;
-import com.director.ui.selection.SelectionManager;
 import com.director.ui.theme.UITheme;
 import com.director.ui.theme.Icons;
 import imgui.ImGui;
@@ -66,20 +67,13 @@ import java.util.List;
  */
 public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object> {
     private static final Logger LOGGER = LoggerFactory.getLogger(TimelineSequencePropertyAdapter.class);
-    
-    // 播放模式选项
-    private static final String[] PLAY_MODES = {
-        "顺序播放 (Sequential)",
-        "循环播放 (Loop)",
-        "往返播放 (PingPong)",
-        "随机播放 (Random)"
-    };
 
     @Override
     public boolean renderProperties(Object sequence) {
         if (sequence == null) {
             UITheme.spacingLarge();
-            UITheme.label("时间线序列为 null", UITheme.DarkTheme.TEXT_DISABLED);
+            UITheme.label(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.NULL_SEQUENCE),
+                    UITheme.DarkTheme.TEXT_DISABLED);
             return false;
         }
         
@@ -87,86 +81,109 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
         final boolean[] modifiedRef = {false};
         
         // 标题
-        UITheme.title("⏱ 时间线序列属性编辑器");
+        UITheme.title("⏱ " + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.TITLE));
         
         try {
             // ========== 基础信息 ==========
-            if (ImGui.collapsingHeader("📋 基础信息", ImGuiTreeNodeFlags.DefaultOpen)) {
+            if (ImGui.collapsingHeader("📋 "
+                    + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.SECTION_BASIC),
+                    ImGuiTreeNodeFlags.DefaultOpen)) {
                 // 序列名称
-                String currentName = PropertyReflection.getString(sequence, "name", "getName", "未命名序列");
+                String currentName = PropertyReflection.getString(sequence, "name", "getName",
+                        TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.DEFAULT_NAME));
                 ImString nameBuffer = new ImString(currentName, 256);
-                if (ImGui.inputText("序列名称", nameBuffer, ImGuiInputTextFlags.EnterReturnsTrue)) {
+                if (ImGui.inputText(
+                        TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.SEQUENCE_NAME),
+                        nameBuffer, ImGuiInputTextFlags.EnterReturnsTrue)) {
                     if (PropertyReflection.setString(sequence, "name", "setName", nameBuffer.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineSequencePropertyAdapter] 序列名称已更新: {}", nameBuffer.get());
                     }
                 }
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("时间线序列的显示名称");
+                    ImGui.setTooltip(TimelinePropertyAdapterI18n.tr(
+                            DirectorLang.Properties.AdapterTimelineSequence.SEQUENCE_NAME_TOOLTIP));
                 }
                 
                 // 总时长
                 float currentDuration = PropertyReflection.getFloat(sequence, "duration", "getDuration", 10.0f);
                 float[] duration = {currentDuration};
-                if (ImGui.dragFloat("总时长 (秒)", duration, 0.1f, 0.1f, 600.0f)) {
+                if (ImGui.dragFloat(
+                        TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.TOTAL_DURATION),
+                        duration, 0.1f, 0.1f, 600.0f)) {
                     if (PropertyReflection.setFloat(sequence, "duration", "setDuration", duration[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineSequencePropertyAdapter] 总时长已更新: {}", duration[0]);
                     }
                 }
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("整个序列的时间长度");
+                    ImGui.setTooltip(TimelinePropertyAdapterI18n.tr(
+                            DirectorLang.Properties.AdapterTimelineSequence.TOTAL_DURATION_TOOLTIP));
                 }
                 
                 // 时间缩放
                 float currentTimeScale = PropertyReflection.getFloat(sequence, "timeScale", "getTimeScale", 1.0f);
                 float[] timeScale = {currentTimeScale};
-                if (ImGui.dragFloat("时间缩放", timeScale, 0.01f, 0.1f, 10.0f, "%.2f")) {
+                if (ImGui.dragFloat(
+                        TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.TIME_SCALE),
+                        timeScale, 0.01f, 0.1f, 10.0f, "%.2f")) {
                     if (PropertyReflection.setFloat(sequence, "timeScale", "setTimeScale", timeScale[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineSequencePropertyAdapter] 时间缩放已更新: {}", timeScale[0]);
                     }
                 }
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("全局时间流速（1.0 = 正常速度，2.0 = 2倍速）");
+                    ImGui.setTooltip(TimelinePropertyAdapterI18n.tr(
+                            DirectorLang.Properties.AdapterTimelineSequence.TIME_SCALE_TOOLTIP));
                 }
                 
                 // UUID 显示
                 String id = PropertyReflection.getString(sequence, "id", "getId", null);
                 if (id != null) {
                     UITheme.spacingSmall();
-                    UITheme.label("序列 ID: " + id, UITheme.DarkTheme.TEXT_DISABLED);
+                    UITheme.label(TimelinePropertyAdapterI18n.tr(
+                            DirectorLang.Properties.AdapterTimelineSequence.SEQUENCE_ID, id),
+                            UITheme.DarkTheme.TEXT_DISABLED);
                 }
             }
             
             // ========== 播放控制 ==========
-            if (ImGui.collapsingHeader("⚙️ 播放控制", ImGuiTreeNodeFlags.DefaultOpen)) {
+            if (ImGui.collapsingHeader("⚙️ "
+                    + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.SECTION_PLAYBACK),
+                    ImGuiTreeNodeFlags.DefaultOpen)) {
                 // 循环播放
                 boolean currentLoop = PropertyReflection.getBoolean(sequence, "loop", "isLoop", false);
                 ImBoolean loop = new ImBoolean(currentLoop);
-                if (ImGui.checkbox("循环播放", loop)) {
+                if (ImGui.checkbox(
+                        TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.LOOP_PLAYBACK),
+                        loop)) {
                     if (PropertyReflection.setBoolean(sequence, "loop", "setLoop", loop.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineSequencePropertyAdapter] 循环播放已更新: {}", loop.get());
                     }
                 }
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("播放到末尾后是否自动重新开始");
+                    ImGui.setTooltip(TimelinePropertyAdapterI18n.tr(
+                            DirectorLang.Properties.AdapterTimelineSequence.LOOP_PLAYBACK_TOOLTIP));
                 }
                 
                 // 播放模式（如果支持）
                 int currentPlayMode = PropertyReflection.getInt(sequence, "playMode", "getPlayMode", 0);
                 if (currentPlayMode >= 0) {
+                    String[] playModes = TimelinePropertyAdapterI18n.sequencePlayModes();
                     imgui.type.ImInt playModeIdx = new imgui.type.ImInt(currentPlayMode);
-                    if (ImGui.combo("播放模式", playModeIdx, PLAY_MODES)) {
+                    if (ImGui.combo(
+                            TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.PLAY_MODE),
+                            playModeIdx, playModes)) {
                         if (PropertyReflection.setInt(sequence, "playMode", "setPlayMode", playModeIdx.get())) {
                             modifiedRef[0] = true;
                             LOGGER.debug("[TimelineSequencePropertyAdapter] 播放模式已更新: {}", 
-                                PLAY_MODES[playModeIdx.get()]);
+                                playModes[playModeIdx.get()]);
                         }
                     }
                     if (ImGui.isItemHovered()) {
-                        ImGui.setTooltip("控制序列的播放方式");
+                        ImGui.setTooltip(TimelinePropertyAdapterI18n.tr(
+                                DirectorLang.Properties.AdapterTimelineSequence.PLAY_MODE_TOOLTIP));
                     }
                 }
                 
@@ -174,17 +191,24 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
                 
                 // 当前播放时间（只读）
                 float currentTime = PropertyReflection.getFloat(sequence, "currentTime", "getCurrentTime", 0.0f);
-                UITheme.label(String.format("当前时间: %.2f 秒", currentTime), 
+                UITheme.label(TimelinePropertyAdapterI18n.tr(
+                        DirectorLang.Properties.AdapterTimelineSequence.CURRENT_TIME, currentTime), 
                     UITheme.DarkTheme.TEXT_SELECTED);
                 
                 // 播放状态（只读）
                 boolean isPlaying = PropertyReflection.getBoolean(sequence, "playing", "isPlaying", false);
-                String playStatus = isPlaying ? Icons.PLAY + " 播放中" : Icons.PAUSE + " 已暂停";
+                String playStatus = isPlaying
+                        ? TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.PLAYING_STATUS,
+                                Icons.PLAY)
+                        : TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.PAUSED_STATUS,
+                                Icons.PAUSE);
                 UITheme.label(playStatus, UITheme.DarkTheme.TEXT_DISABLED);
             }
             
             // ========== 轨道管理 ==========
-            if (ImGui.collapsingHeader(Icons.FILM + " 轨道管理", ImGuiTreeNodeFlags.DefaultOpen)) {
+            if (ImGui.collapsingHeader(Icons.FILM + " "
+                    + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.SECTION_TRACKS),
+                    ImGuiTreeNodeFlags.DefaultOpen)) {
                 // 获取轨道列表
                 Object tracksObj = PropertyReflection.readProperty(sequence, "tracks", "getTracks");
                 
@@ -193,15 +217,21 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
                     List<Object> tracks = (List<Object>) tracksObj;
                     
                     if (tracks.isEmpty()) {
-                        UITheme.label("轨道: 无", UITheme.DarkTheme.TEXT_DISABLED);
-                        UITheme.label("使用下方按钮添加新轨道", UITheme.DarkTheme.TEXT_DISABLED);
+                        UITheme.label(TimelinePropertyAdapterI18n.tr(
+                                DirectorLang.Properties.AdapterTimelineSequence.TRACKS_NONE),
+                                UITheme.DarkTheme.TEXT_DISABLED);
+                        UITheme.label(TimelinePropertyAdapterI18n.tr(
+                                DirectorLang.Properties.AdapterTimelineSequence.ADD_TRACK_HINT),
+                                UITheme.DarkTheme.TEXT_DISABLED);
                     } else {
                         // 轨道列表
                         for (int i = 0; i < tracks.size(); i++) {
                             Object track = tracks.get(i);
                             ImGui.pushID(i);
                             
-                            String trackName = PropertyReflection.getString(track, "name", "getName", "轨道 " + i);
+                            String trackName = PropertyReflection.getString(track, "name", "getName",
+                                    TimelinePropertyAdapterI18n.tr(
+                                            DirectorLang.Properties.AdapterTimelineSequence.DEFAULT_TRACK_NAME, i));
                             boolean trackEnabled = PropertyReflection.getBoolean(track, "enabled", "isEnabled", true);
                             String statusIcon = trackEnabled ? "●" : "○";
                             
@@ -209,31 +239,43 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
                                     ImGuiTreeNodeFlags.Framed | ImGuiTreeNodeFlags.SpanAvailWidth)) {
                                 
                                 // 轨道简要信息
-                                String trackType = PropertyReflection.getString(track, "type", "getType", "未知");
-                                UITheme.label("类型: " + trackType, UITheme.DarkTheme.TEXT);
+                                String trackType = PropertyReflection.getString(track, "type", "getType",
+                                        TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineCommon.UNKNOWN));
+                                UITheme.label(TimelinePropertyAdapterI18n.tr(
+                                        DirectorLang.Properties.AdapterTimelineSequence.TRACK_TYPE, trackType),
+                                        UITheme.DarkTheme.TEXT);
                                 
                                 float trackWeight = PropertyReflection.getFloat(track, "weight", "getWeight", 1.0f);
-                                UITheme.label(String.format("权重: %.0f%%", trackWeight * 100), 
+                                UITheme.label(TimelinePropertyAdapterI18n.tr(
+                                        DirectorLang.Properties.AdapterTimelineSequence.TRACK_WEIGHT, trackWeight * 100), 
                                     UITheme.DarkTheme.TEXT);
                                 
                                 int keyframeCount = PropertyReflection.getInt(track, "keyframeCount", "getKeyframeCount", 0);
-                                UITheme.label("关键帧: " + keyframeCount, UITheme.DarkTheme.TEXT);
+                                UITheme.label(TimelinePropertyAdapterI18n.tr(
+                                        DirectorLang.Properties.AdapterTimelineSequence.TRACK_KEYFRAMES, keyframeCount),
+                                        UITheme.DarkTheme.TEXT);
                                 
                                 UITheme.spacingSmall();
                                 
                                 // 操作按钮
-                                if (ImGui.button("编辑此轨道", 110, UITheme.Spacing.BUTTON_HEIGHT)) {
+                                if (ImGui.button(
+                                        TimelinePropertyAdapterI18n.tr(
+                                                DirectorLang.Properties.AdapterTimelineSequence.EDIT_TRACK),
+                                        110, UITheme.Spacing.BUTTON_HEIGHT)) {
                                     // 切换选择到此轨道
                                     DirectorServices.get().uiSelection().setCurrentSelection(track);
                                     LOGGER.debug("[TimelineSequencePropertyAdapter] 跳转编辑轨道: {}", trackName);
                                 }
                                 if (ImGui.isItemHovered()) {
-                                    ImGui.setTooltip("在属性面板中编辑此轨道");
+                                    ImGui.setTooltip(TimelinePropertyAdapterI18n.tr(
+                                            DirectorLang.Properties.AdapterTimelineSequence.EDIT_TRACK_TOOLTIP));
                                 }
                                 
                                 ImGui.sameLine();
                                 
-                                if (ImGui.button("删除##track" + i, 110, UITheme.Spacing.BUTTON_HEIGHT)) {
+                                if (ImGui.button(
+                                        TimelinePropertyAdapterI18n.tr(DirectorLang.Common.DELETE) + "##track" + i,
+                                        110, UITheme.Spacing.BUTTON_HEIGHT)) {
                                     // 调用 removeTrack 方法
                                     try {
                                         var removeMethod = sequence.getClass().getMethod("removeTrack", Object.class);
@@ -245,7 +287,8 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
                                     }
                                 }
                                 if (ImGui.isItemHovered()) {
-                                    ImGui.setTooltip("从序列中移除此轨道");
+                                    ImGui.setTooltip(TimelinePropertyAdapterI18n.tr(
+                                            DirectorLang.Properties.AdapterTimelineSequence.DELETE_TRACK_TOOLTIP));
                                 }
                                 
                                 ImGui.treePop();
@@ -255,37 +298,48 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
                         }
                         
                         UITheme.spacingSmall();
-                        UITheme.label("提示: 点击 '编辑此轨道' 可在属性面板中深入编辑", 
+                        UITheme.label(TimelinePropertyAdapterI18n.tr(
+                                DirectorLang.Properties.AdapterTimelineSequence.TRACK_HINT), 
                             UITheme.DarkTheme.TEXT_DISABLED);
                     }
                 } else {
-                    UITheme.label("无法获取轨道列表", UITheme.DarkTheme.TEXT_DISABLED);
+                    UITheme.label(TimelinePropertyAdapterI18n.tr(
+                            DirectorLang.Properties.AdapterTimelineSequence.CANNOT_GET_TRACKS),
+                            UITheme.DarkTheme.TEXT_DISABLED);
                 }
                 
                 UITheme.spacingSmall();
                 
                 // 添加和清空按钮
-                if (ImGui.button("➕ 添加轨道", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
+                if (ImGui.button("➕ "
+                        + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.ADD_TRACK),
+                        120, UITheme.Spacing.BUTTON_HEIGHT)) {
                     LOGGER.info("[TimelineSequencePropertyAdapter] 添加新轨道");
                     // TODO: 创建并添加新轨道
                 }
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("创建新的时间线轨道");
+                    ImGui.setTooltip(TimelinePropertyAdapterI18n.tr(
+                            DirectorLang.Properties.AdapterTimelineSequence.ADD_TRACK_TOOLTIP));
                 }
                 
                 ImGui.sameLine();
                 
-                if (ImGui.button("🗑 清空所有轨道", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
+                if (ImGui.button("🗑 "
+                        + TimelinePropertyAdapterI18n.tr(
+                                DirectorLang.Properties.AdapterTimelineSequence.CLEAR_ALL_TRACKS),
+                        120, UITheme.Spacing.BUTTON_HEIGHT)) {
                     LOGGER.warn("[TimelineSequencePropertyAdapter] 清空所有轨道");
                     // TODO: 清空轨道列表
                 }
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("移除序列中的所有轨道（危险操作）");
+                    ImGui.setTooltip(TimelinePropertyAdapterI18n.tr(
+                            DirectorLang.Properties.AdapterTimelineSequence.CLEAR_ALL_TRACKS_TOOLTIP));
                 }
             }
             
             // ========== 统计信息 ==========
-            if (ImGui.collapsingHeader("📊 统计信息")) {
+            if (ImGui.collapsingHeader("📊 "
+                    + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.SECTION_STATS))) {
                 // 轨道统计
                 Object tracksObj = PropertyReflection.readProperty(sequence, "tracks", "getTracks");
                 int trackCount = 0;
@@ -303,8 +357,12 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
                     }
                 }
                 
-                UITheme.label("轨道总数: " + trackCount, UITheme.DarkTheme.TEXT);
-                UITheme.label("总关键帧数: " + totalKeyframes, UITheme.DarkTheme.TEXT);
+                UITheme.label(TimelinePropertyAdapterI18n.tr(
+                        DirectorLang.Properties.AdapterTimelineSequence.TRACK_TOTAL, trackCount),
+                        UITheme.DarkTheme.TEXT);
+                UITheme.label(TimelinePropertyAdapterI18n.tr(
+                        DirectorLang.Properties.AdapterTimelineSequence.TOTAL_KEYFRAMES, totalKeyframes),
+                        UITheme.DarkTheme.TEXT);
                 
                 // 时间统计
                 float duration = PropertyReflection.getFloat(sequence, "duration", "getDuration", 0.0f);
@@ -312,68 +370,88 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
                 float actualDuration = duration / timeScale;
                 
                 UITheme.spacingSmall();
-                UITheme.label(String.format("总时长: %.2f 秒", duration), 
+                UITheme.label(TimelinePropertyAdapterI18n.tr(
+                        DirectorLang.Properties.AdapterTimelineSequence.DURATION_LABEL, duration), 
                     UITheme.DarkTheme.TEXT_DISABLED);
-                UITheme.label(String.format("实际播放时长: %.2f 秒 (缩放: %.2fx)", actualDuration, timeScale), 
+                UITheme.label(TimelinePropertyAdapterI18n.tr(
+                        DirectorLang.Properties.AdapterTimelineSequence.ACTUAL_DURATION, actualDuration, timeScale), 
                     UITheme.DarkTheme.TEXT_DISABLED);
             }
             
             UITheme.separator();
             
             // ========== 快捷操作 ==========
-            UITheme.beginGroup("快捷操作");
+            UITheme.beginGroup(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineCommon.QUICK_ACTIONS));
             
             // 播放控制
-            UITheme.label("播放控制", UITheme.DarkTheme.TEXT);
+            UITheme.label(TimelinePropertyAdapterI18n.tr(
+                    DirectorLang.Properties.AdapterTimelineSequence.PLAYBACK_CONTROL),
+                    UITheme.DarkTheme.TEXT);
             UITheme.spacingSmall();
             
-            if (ImGui.button(Icons.PLAY + " 播放", 80, UITheme.Spacing.BUTTON_HEIGHT)) {
+            if (ImGui.button(Icons.PLAY + " "
+                    + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.PLAY),
+                    80, UITheme.Spacing.BUTTON_HEIGHT)) {
                 if (PropertyReflection.invokeVoid(sequence, "play")) {
                     LOGGER.info("[TimelineSequencePropertyAdapter] 播放序列");
                 }
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("开始播放序列");
+                ImGui.setTooltip(TimelinePropertyAdapterI18n.tr(
+                        DirectorLang.Properties.AdapterTimelineSequence.PLAY_TOOLTIP));
             }
             
             ImGui.sameLine();
             
-            if (ImGui.button(Icons.PAUSE + " 暂停", 80, UITheme.Spacing.BUTTON_HEIGHT)) {
+            if (ImGui.button(Icons.PAUSE + " "
+                    + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.PAUSE),
+                    80, UITheme.Spacing.BUTTON_HEIGHT)) {
                 if (PropertyReflection.invokeVoid(sequence, "pause")) {
                     LOGGER.info("[TimelineSequencePropertyAdapter] 暂停序列");
                 }
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("暂停播放");
+                ImGui.setTooltip(TimelinePropertyAdapterI18n.tr(
+                        DirectorLang.Properties.AdapterTimelineSequence.PAUSE_TOOLTIP));
             }
             
             ImGui.sameLine();
             
-            if (ImGui.button("⏹ 停止", 80, UITheme.Spacing.BUTTON_HEIGHT)) {
+            if (ImGui.button("⏹ "
+                    + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.STOP),
+                    80, UITheme.Spacing.BUTTON_HEIGHT)) {
                 if (PropertyReflection.invokeVoid(sequence, "stop")) {
                     LOGGER.info("[TimelineSequencePropertyAdapter] 停止序列");
                 }
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("停止播放并重置到起始位置");
+                ImGui.setTooltip(TimelinePropertyAdapterI18n.tr(
+                        DirectorLang.Properties.AdapterTimelineSequence.STOP_TOOLTIP));
             }
             
             UITheme.spacingSmall();
-            UITheme.label("序列操作", UITheme.DarkTheme.TEXT);
+            UITheme.label(TimelinePropertyAdapterI18n.tr(
+                    DirectorLang.Properties.AdapterTimelineSequence.SEQUENCE_OPS),
+                    UITheme.DarkTheme.TEXT);
             UITheme.spacingSmall();
             
             // 序列操作
-            if (ImGui.button("复制序列", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
+            if (ImGui.button(TimelinePropertyAdapterI18n.tr(
+                    DirectorLang.Properties.AdapterTimelineSequence.DUPLICATE_SEQUENCE),
+                    120, UITheme.Spacing.BUTTON_HEIGHT)) {
                 LOGGER.info("[TimelineSequencePropertyAdapter] 复制序列");
                 // TODO: 实现复制逻辑
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("创建此序列的副本");
+                ImGui.setTooltip(TimelinePropertyAdapterI18n.tr(
+                        DirectorLang.Properties.AdapterTimelineSequence.DUPLICATE_SEQUENCE_TOOLTIP));
             }
             
             ImGui.sameLine();
             
-            if (ImGui.button("重置序列", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
+            if (ImGui.button(TimelinePropertyAdapterI18n.tr(
+                    DirectorLang.Properties.AdapterTimelineSequence.RESET_SEQUENCE),
+                    120, UITheme.Spacing.BUTTON_HEIGHT)) {
                 // 重置到初始状态
                 PropertyReflection.setFloat(sequence, "currentTime", "setCurrentTime", 0.0f);
                 PropertyReflection.invokeVoid(sequence, "stop");
@@ -381,14 +459,17 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
                 LOGGER.info("[TimelineSequencePropertyAdapter] 重置序列");
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("将序列重置到初始状态");
+                ImGui.setTooltip(TimelinePropertyAdapterI18n.tr(
+                        DirectorLang.Properties.AdapterTimelineSequence.RESET_SEQUENCE_TOOLTIP));
             }
             
             UITheme.endGroup();
             
         } catch (Exception e) {
             LOGGER.error("[TimelineSequencePropertyAdapter] 渲染序列属性时出错", e);
-            UITheme.label("渲染出错: " + e.getMessage(), UITheme.DarkTheme.TEXT_DISABLED);
+            UITheme.label(TimelinePropertyAdapterI18n.tr(
+                    DirectorLang.Properties.AdapterTimelineCommon.RENDER_ERROR, e.getMessage()),
+                    UITheme.DarkTheme.TEXT_DISABLED);
         }
         
         return modifiedRef[0];
@@ -401,7 +482,7 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
     
     @Override
     public String getAdapterName() {
-        return "时间线序列属性编辑器";
+        return TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineSequence.ADAPTER_NAME);
     }
     
     @Override
@@ -414,4 +495,3 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
                className.contains("timeline");
     }
 }
-
