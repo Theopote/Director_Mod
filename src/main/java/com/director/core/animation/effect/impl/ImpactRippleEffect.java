@@ -3,8 +3,10 @@ package com.director.core.animation.effect.impl;
 import com.director.core.animation.BlockAnimationSnapshot;
 import com.director.core.animation.effect.EffectInstance;
 import com.director.core.animation.effect.IBlockEffect;
+import com.director.core.animation.effect.EffectType;
 import com.director.core.animation.effect.ui.EffectUIHelper;
 import com.director.core.animation.effect.ui.EffectUIUtils;
+import com.director.i18n.EffectUiI18n;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.particle.ParticleManager;
@@ -94,25 +96,25 @@ public class ImpactRippleEffect implements IBlockEffect {
             return false;
         boolean modified = false;
 
-        EffectUIHelper.label("落地涟漪参数");
+        EffectUIHelper.label(EffectUiI18n.section(EffectType.IMPACT_RIPPLE));
 
         float radius = EffectUIUtils.getFloat(params, "radius", 0.8f);
         float[] rArr = { radius };
-        if (EffectUIHelper.dragFloat("扩散半径 (Radius)", rArr, 0.05f, 0.1f, 3.0f, "%.2f")) {
+        if (EffectUIHelper.dragFloat(EffectUiI18n.spreadRadius(), rArr, 0.05f, 0.1f, 3.0f, "%.2f")) {
             params.put("radius", rArr[0]);
             modified = true;
         }
 
         float intensity = EffectUIUtils.getFloat(params, "intensity", 1.0f);
         float[] iArr = { intensity };
-        if (EffectUIHelper.dragFloat("强度 (Intensity)", iArr, 0.1f, 0.0f, 5.0f, "%.1f")) {
+        if (EffectUIHelper.dragFloat(EffectUiI18n.intensity(), iArr, 0.1f, 0.0f, 5.0f, "%.1f")) {
             params.put("intensity", iArr[0]);
             modified = true;
         }
 
         float hOffset = EffectUIUtils.getFloat(params, "heightOffset", 0.05f);
         float[] hArr = { hOffset };
-        if (EffectUIHelper.dragFloat("离地高度 (Y Offset)", hArr, 0.01f, -0.5f, 0.5f, "%.2f")) {
+        if (EffectUIHelper.dragFloat(EffectUiI18n.yOffset(), hArr, 0.01f, -0.5f, 0.5f, "%.2f")) {
             params.put("heightOffset", hArr[0]);
             modified = true;
         }

@@ -3,8 +3,10 @@ package com.director.core.animation.effect.impl;
 import com.director.core.animation.BlockAnimationSnapshot;
 import com.director.core.animation.effect.EffectInstance;
 import com.director.core.animation.effect.IBlockEffect;
+import com.director.core.animation.effect.EffectType;
 import com.director.core.animation.effect.ui.EffectUIHelper;
 import com.director.core.animation.effect.ui.EffectUIUtils;
+import com.director.i18n.EffectUiI18n;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.particle.ParticleManager;
 import net.minecraft.client.util.math.MatrixStack;
@@ -106,18 +108,18 @@ public class MotionTrailEffect implements IBlockEffect {
             return false;
         boolean modified = false;
 
-        EffectUIHelper.label("位移尾迹参数");
+        EffectUIHelper.label(EffectUiI18n.section(EffectType.MOTION_TRAIL));
 
         float intensity = EffectUIUtils.getFloat(params, "intensity", 1.0f);
         float[] iArr = { intensity };
-        if (EffectUIHelper.dragFloat("强度 (Intensity)", iArr, 0.1f, 0.0f, 5.0f, "%.1f")) {
+        if (EffectUIHelper.dragFloat(EffectUiI18n.intensity(), iArr, 0.1f, 0.0f, 5.0f, "%.1f")) {
             params.put("intensity", iArr[0]);
             modified = true;
         }
 
         float density = EffectUIUtils.getFloat(params, "density", 1.0f);
         float[] dArr = { density };
-        if (EffectUIHelper.dragFloat("密度 (Density)", dArr, 0.1f, 0.0f, 5.0f, "%.1f")) {
+        if (EffectUIHelper.dragFloat(EffectUiI18n.density(), dArr, 0.1f, 0.0f, 5.0f, "%.1f")) {
             params.put("density", dArr[0]);
             modified = true;
         }

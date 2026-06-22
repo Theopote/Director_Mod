@@ -3,8 +3,10 @@ package com.director.core.animation.effect.impl;
 import com.director.core.animation.BlockAnimationSnapshot;
 import com.director.core.animation.effect.EffectInstance;
 import com.director.core.animation.effect.IBlockEffect;
+import com.director.core.animation.effect.EffectType;
 import com.director.core.animation.effect.ui.EffectUIHelper;
 import com.director.core.animation.effect.ui.EffectUIUtils;
+import com.director.i18n.EffectUiI18n;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.particle.ParticleManager;
 import net.minecraft.client.world.ClientWorld;
@@ -114,32 +116,32 @@ public class GlowPulseEffect implements IBlockEffect {
         }
         boolean modified = false;
 
-        EffectUIHelper.label("脉冲发光参数");
+        EffectUIHelper.label(EffectUiI18n.section(EffectType.GLOW_PULSE));
 
         float intensity = EffectUIUtils.getFloat(params, "intensity", 1.0f);
         float[] intensityArr = { intensity };
-        if (EffectUIHelper.dragFloat("强度 (Intensity)", intensityArr, 0.1f, 0.0f, 5.0f, "%.1f")) {
+        if (EffectUIHelper.dragFloat(EffectUiI18n.intensity(), intensityArr, 0.1f, 0.0f, 5.0f, "%.1f")) {
             params.put("intensity", intensityArr[0]);
             modified = true;
         }
 
         float radius = EffectUIUtils.getFloat(params, "radius", 0.45f);
         float[] radiusArr = { radius };
-        if (EffectUIHelper.dragFloat("半径 (Radius)", radiusArr, 0.02f, 0.05f, 2.0f, "%.2f")) {
+        if (EffectUIHelper.dragFloat(EffectUiI18n.radius(), radiusArr, 0.02f, 0.05f, 2.0f, "%.2f")) {
             params.put("radius", radiusArr[0]);
             modified = true;
         }
 
         int pulseCount = Math.max(1, EffectUIUtils.getInt(params, "pulseCount", 2));
         float[] pulseAsFloat = { (float) pulseCount };
-        if (EffectUIHelper.dragFloat("脉冲次数 (PulseCount)", pulseAsFloat, 1.0f, 1.0f, 10.0f, "%.0f")) {
+        if (EffectUIHelper.dragFloat(EffectUiI18n.pulseCount(), pulseAsFloat, 1.0f, 1.0f, 10.0f, "%.0f")) {
             params.put("pulseCount", Math.max(1, Math.round(pulseAsFloat[0])));
             modified = true;
         }
 
         boolean cloud = EffectUIUtils.getBoolean(params, "cloud", true);
         boolean[] cloudArr = { cloud };
-        if (EffectUIHelper.checkbox("附加轻雾 (Cloud)", cloudArr)) {
+        if (EffectUIHelper.checkbox(EffectUiI18n.cloud(), cloudArr)) {
             params.put("cloud", cloudArr[0]);
             modified = true;
         }
