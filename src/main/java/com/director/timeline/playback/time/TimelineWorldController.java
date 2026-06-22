@@ -6,6 +6,8 @@ import com.director.timeline.model.TimelineSelectable;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
 import com.director.timeline.model.time.TimeKeyframe;
+import com.director.timeline.playback.TimelinePlaybackController;
+import com.director.timeline.playback.TimelinePlaybackThreading;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.server.MinecraftServer;
@@ -58,8 +60,9 @@ import java.util.Optional;
  *
  * @author Director Team
  * @version 2.0 - 正式可用版本
+ * @see TimelinePlaybackThreading
  */
-public final class TimelineWorldController {
+public final class TimelineWorldController implements TimelinePlaybackController<TimeSample> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TimelineWorldController.class);
     private static final TimelineWorldController INSTANCE = new TimelineWorldController();
@@ -475,6 +478,11 @@ public final class TimelineWorldController {
      */
     public synchronized TimeSample current() {
         return hasOverride() ? currentSample : null;
+    }
+
+    @Override
+    public synchronized TimeSample getCurrentSample() {
+        return current();
     }
 
     // ================== 模型变更处理 ==================

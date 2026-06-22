@@ -4,6 +4,8 @@ import com.director.client.world.WorldRenderOverride;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
+import com.director.timeline.playback.TimelinePlaybackController;
+import com.director.timeline.playback.TimelinePlaybackThreading;
 import net.minecraft.client.MinecraftClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,8 +38,9 @@ import org.slf4j.LoggerFactory;
  * 
  * @author Director Team
  * @version 1.1 - 改进代码结构、添加 update(float) 重载、改进文档
+ * @see TimelinePlaybackThreading
  */
-public final class TimelineSeasonController {
+public final class TimelineSeasonController implements TimelinePlaybackController<SeasonSample> {
     
     private static final Logger LOGGER = LoggerFactory.getLogger(TimelineSeasonController.class);
     private static final TimelineSeasonController INSTANCE = new TimelineSeasonController();

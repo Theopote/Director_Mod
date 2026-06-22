@@ -34,6 +34,24 @@ public final class RenderOverrideSnapshots {
                 com.director.timeline.playback.time.TimelineWorldController.getInstance().update();
             } catch (RuntimeException ignored) {
             }
+            try {
+                com.director.timeline.playback.season.TimelineSeasonController.getInstance().update();
+            } catch (RuntimeException ignored) {
+            }
+            try {
+                com.director.timeline.playback.weather.TimelineWeatherController.getInstance()
+                        .updateForPlayback(resolveTimelineTime());
+            } catch (RuntimeException ignored) {
+            }
         });
+    }
+
+    private static float resolveTimelineTime() {
+        var service = com.director.core.DirectorServices.get().containerTimeline();
+        if (service == null) {
+            return 0f;
+        }
+        var model = service.getTimelineModel();
+        return model != null ? model.getCurrentTime() : 0f;
     }
 }
