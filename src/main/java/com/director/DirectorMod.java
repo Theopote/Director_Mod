@@ -8,7 +8,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.director.config.DirectorConfig;
-import com.director.network.DirectorNetwork;
 import com.director.command.DirectorCommands;
 import com.director.compatibility.ModCompatibilityChecker;
 import com.director.compatibility.VersionCompatibilityChecker;
@@ -57,10 +56,9 @@ public class DirectorMod implements ModInitializer {
     private static final int STEP_CONFIG = 1;
     private static final int STEP_I18N = 2;
     private static final int STEP_COMPATIBILITY = 3;
-    private static final int STEP_NETWORK = 4;
-    private static final int STEP_COMMANDS = 5;
-    private static final int STEP_ITEMS = 6;
-    private static final int STEP_COMPLETE = 7;
+    private static final int STEP_COMMANDS = 4;
+    private static final int STEP_ITEMS = 5;
+    private static final int STEP_COMPLETE = 6;
     
     /**
      * 创建模组资源标识符的辅助方法
@@ -204,19 +202,16 @@ public class DirectorMod implements ModInitializer {
             // 步骤 3: 检查模组兼容性
             checkModCompatibility();
             
-            // 步骤 4: 初始化网络系统
-            initializeNetwork();
-            
-            // 步骤 5: 注册命令
+            // 步骤 4: 注册命令
             registerCommands();
             
-            // 步骤 6: 注册物品和方块
+            // 步骤 5: 注册物品和方块
             registerItems();
             
-            // 步骤 7: 注册服务器生命周期事件
+            // 步骤 6: 注册服务器生命周期事件
             registerServerLifecycleEvents();
             
-            // 步骤 8: 完成初始化
+            // 步骤 7: 完成初始化
             completeInitialization();
             
         } catch (Exception e) {
@@ -306,23 +301,6 @@ public class DirectorMod implements ModInitializer {
         }
     }
     
-    
-    /**
-     * 初始化网络系统
-     */
-    private void initializeNetwork() {
-        LOGGER.info("[Director] 步骤 {}/{}: 初始化网络系统...", STEP_NETWORK, STEP_COMPLETE);
-        
-        try {
-            DirectorNetwork.initialize();
-            initStep.set(STEP_NETWORK);
-            LOGGER.info("[Director] 网络系统初始化完成");
-            
-        } catch (Exception e) {
-            LOGGER.error("[Director] 网络系统初始化失败: {}", e.getMessage(), e);
-            throw new RuntimeException("网络系统初始化失败", e);
-        }
-    }
     
     /**
      * 注册命令
@@ -489,7 +467,6 @@ public class DirectorMod implements ModInitializer {
             case STEP_CONFIG -> "配置系统初始化失败，请检查配置文件权限";
             case STEP_I18N -> "国际化系统初始化失败，请检查翻译文件";
             case STEP_COMPATIBILITY -> "模组兼容性检查失败，请检查模组依赖";
-            case STEP_NETWORK -> "网络系统初始化失败，请检查网络配置";
             case STEP_COMMANDS -> "命令注册失败，请检查命令权限";
             case STEP_ITEMS -> "物品注册失败，请检查注册表";
             default -> "未知初始化步骤失败";

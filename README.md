@@ -2,6 +2,16 @@
 
 A professional cinematic toolset mod for Minecraft (Fabric), designed for machinima creators, cinematic filmmakers, and content producers who want fine-grained control over camera movement, actor animation, and scene composition inside Minecraft.
 
+## Scope
+
+**Director is a single-player / local integrated-server tool.** It is intended for solo worlds and offline machinima workflows.
+
+- **No multiplayer sync** — there is no custom client–server packet layer; timeline, containers, actors, and editor state are not replicated to remote players.
+- **Not supported on dedicated multiplayer servers** — installing the mod on a server for shared cinematic editing is out of scope.
+- **Integrated server is sufficient** — single-player and "Open to LAN" with only the local editor using Director is the expected setup.
+
+If you need collaborative editing across clients, that would require a separate networking design and is not planned for this mod.
+
 ## Features
 
 ### Camera System
@@ -104,7 +114,7 @@ src/main/java/com/director/
 ├── core/           Core container and scene state management
 ├── export/         Video export pipeline
 ├── mixin/          Fabric mixins (HUD injection, etc.)
-├── network/        Client–server packet handlers
+├── timeline/       Timeline domain model, playback, persistence
 ├── ui/             ImGui UI system
 │   ├── camera/     Camera path edit tool and controller
 │   ├── panels/     All editor panel implementations
