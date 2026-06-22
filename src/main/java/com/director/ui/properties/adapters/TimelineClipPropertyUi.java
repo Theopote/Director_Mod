@@ -1263,7 +1263,7 @@ public class TimelineClipPropertyUi {
 
         if (hasEffects || hasCopied) {
             if (hasEffects) {
-                if (ImGui.button(Icons.DELETE + " " + ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_CLEAR_ALL)) {
+                if (ImGui.button(Icons.DELETE + " " + ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_CLEAR_ALL))) {
                     config.getEffects().clear();
                     modified = true;
                 }
@@ -1273,7 +1273,7 @@ public class TimelineClipPropertyUi {
             if (hasCopied) {
                 if (hasEffects)
                     ImGui.sameLine();
-                if (ImGui.button(Icons.CLIPBOARD + " " + ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_PASTE)) {
+                if (ImGui.button(Icons.CLIPBOARD + " " + ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_PASTE))) {
                     EffectInstance copied = EffectClipboardManager.getCopiedEffect();
                     if (copied != null) {
                         config.addEffect(copied);

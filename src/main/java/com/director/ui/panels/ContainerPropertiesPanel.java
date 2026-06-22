@@ -47,16 +47,6 @@ public class ContainerPropertiesPanel {
 
     private UUID currentEditingContainerId = null;
 
-    private static final String[] ANIM_MODE_NAMES;
-
-    static {
-        AnimationMode[] modes = AnimationMode.values();
-        ANIM_MODE_NAMES = new String[modes.length];
-        for (int i = 0; i < modes.length; i++) {
-            ANIM_MODE_NAMES[i] = modes[i].getDisplayName();
-        }
-    }
-
     private final ContainerPanelController controller;
 
     public ContainerPropertiesPanel(ContainerPanelController controller) {
@@ -75,6 +65,15 @@ public class ContainerPropertiesPanel {
         String[] names = new String[AVAILABLE_TYPES.length];
         for (int i = 0; i < AVAILABLE_TYPES.length; i++) {
             names[i] = AVAILABLE_TYPES[i].getDisplayName();
+        }
+        return names;
+    }
+
+    private static String[] buildAnimationModeNames() {
+        AnimationMode[] modes = AnimationMode.values();
+        String[] names = new String[modes.length];
+        for (int i = 0; i < modes.length; i++) {
+            names[i] = modes[i].getDisplayName();
         }
         return names;
     }
