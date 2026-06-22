@@ -679,7 +679,8 @@ public class DirectorUIManager {
     /**
      * 启动导出任务（由 VideoExportDialog 调用）。
      *
-     * <p>当前为任务骨架：先跑通 UI + 进度回调，后续替换为真实离屏渲染与编码器。</p>
+     * <p>委托 {@link com.director.export.video.VideoExportManager} 在后台线程执行
+     * {@link com.director.export.video.VideoExportTask}（逐帧渲染 + FFmpeg/PNG 编码）。</p>
      */
     public void startVideoExport(VideoExportSettings settings) {
         if (settings == null) {

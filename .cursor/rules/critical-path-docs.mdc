@@ -1,0 +1,45 @@
+---
+description: 关键路径类文档必须与实现同步（export / playback / 持久化）
+globs: src/main/java/com/director/export/**/*.java,src/main/java/com/director/timeline/playback/**/*.java,src/main/java/com/director/timeline/persistence/**/*.java,src/main/java/com/director/ui/**/playback/**/*.java
+alwaysApply: false
+---
+
+# 关键路径文档同步
+
+修改以下路径中的**行为、入口、依赖**时，同一 PR 必须更新对应**类级 Javadoc**（及明显相关的 public 方法注释）。
+
+## 适用范围
+
+- `export/**` — 视频/音频导出、编码、抓帧
+- `timeline/playback/**` — 采样、播放控制器、方块片段
+- `timeline/persistence/**` — 序列化与工程加载
+- `ui/**/playback/**` — `PlaybackOrchestrator` 等 UI 驱动层
+
+## 必须描述的内容
+
+1. **当前真实行为**（谁调用、驱动什么、输出什么）
+2. **权威数据源**（如 `TimelineModel` 为时钟来源）
+3. **已知限制**（单独小节，勿与“未实现”混为“整个模块是 stub”）
+
+## 禁止写法（已实现能力）
+
+```java
+// ❌ 已实现 FFmpeg + 真实抓帧，仍写：
+/** 任务骨架；模拟逐帧进度；后续接入 FFmpeg */
+
+// ✅
+/** 后台线程运行 VideoExportTask：TimelinePlaybackSampler 采样 →
+ *  VideoRenderPipeline 抓帧 → FFmpegVideoEncoder / PngSequenceEncoder 写出 */
+```
+
+| 禁用表述 | 替换为 |
+|---------|--------|
+| 模拟进度 / 假进度 | 描述真实进度来源（帧索引、编码阶段） |
+| 任务骨架 / UI 闭环占位 | 列出实际委托的类与方法 |
+| 后续接入 X（X 已存在） | 写清 X 的当前职责；未暴露的参数标为「限制」 |
+
+## PR 自检（3 项）
+
+- [ ] 类级 Javadoc 与 `grep` 到的调用链一致
+- [ ] 「限制 / 待办」与「当前能力」分开写
+- [ ] 未把 `VideoRenderPipeline` 类限制误写成「整个导出未实现」

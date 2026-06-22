@@ -30,14 +30,14 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Consumer;
 
 /**
- * 离屏渲染管线（v1：基于主 Framebuffer 抓帧）
+ * 视频导出抓帧管线（v1：基于主 Framebuffer）。
  *
- * <p>
- * 重要说明：
- * </p>
- * - 真实的“独立 FBO 离屏渲染 + 指定分辨率 + 关闭 UI/HUD”属于下一阶段；
- * - 当前实现仍然是“可用”的：在导出任务中逐帧驱动时间线/相机，然后在下一帧 UI 渲染开始处
- * 从主 Framebuffer 抓取像素为 {@link NativeImage}，交给编码器写出 PNG。
+ * <p>流程：后台线程请求时间点 → 客户端线程驱动 {@link TimelinePlaybackSampler}
+ * 与相机 → 下一帧 UI 渲染开始时从主 Framebuffer 抓取 {@link NativeImage} →
+ * 交给 {@link VideoEncoder}（MP4 或 PNG 序列）。</p>
+ *
+ * <p><b>已知限制：</b>独立 FBO 离屏渲染、自定义分辨率缩放、关闭 UI/HUD 尚未实现；
+ * 当前分辨率/画面内容受主窗口 Framebuffer 约束。</p>
  */
 public final class VideoRenderPipeline {
     private static final Logger LOGGER = LoggerFactory.getLogger(VideoRenderPipeline.class);
