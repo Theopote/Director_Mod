@@ -195,7 +195,7 @@ public class TimelineContextMenuFactory {
             LOGGER.warn("[Timeline] 创建 ClipKeyframe 菜单失败：clipKeyframe 或 clip 为 null");
             return TimelineContextMenuBuilder
                     .forKeyframe(commandHistory)
-                    .disabledItem("无关键帧")
+                    .disabledItem(tr(DirectorLang.Timeline.ContextMenu.NO_KEYFRAME))
                     .build();
         }
         
@@ -207,7 +207,7 @@ public class TimelineContextMenuFactory {
             LOGGER.warn("[Timeline] 创建 ClipKeyframe 菜单失败：track 为 null");
             return TimelineContextMenuBuilder
                     .forKeyframe(commandHistory)
-                    .disabledItem("无轨道")
+                    .disabledItem(tr(DirectorLang.Timeline.ContextMenu.NO_TRACK))
                     .build();
         }
 
@@ -224,10 +224,9 @@ public class TimelineContextMenuFactory {
 
         TimelineContextMenuBuilder builder = TimelineContextMenuBuilder
                 .forKeyframe(commandHistory)
-                .disabledItem(String.format("关键帧 @ %.3fs", clipKeyframe.getTime()))
+                .disabledItem(tr(DirectorLang.Timeline.ContextMenu.KEYFRAME_AT, clipKeyframe.getTime()))
                 .separator()
-                // 多选：删除选中（工具栏 Delete/Del 键同一入口）
-                .item("删除选中",
+                .item(tr(DirectorLang.Timeline.ContextMenu.DELETE_SELECTED),
                         () -> {
                             if (panel != null) {
                                 panel.onDeleteSelectedClicked();
@@ -235,59 +234,54 @@ public class TimelineContextMenuFactory {
                         },
                         "Del",
                         panel != null && model.getSelectedCount() > 1)
-                // 删除关键帧
-                .command("删除关键帧",
+                .command(tr(DirectorLang.Timeline.ContextMenu.DELETE_KEYFRAME),
                         new com.director.ui.timeline.commands.RemoveClipKeyframeCommand(model, track, clip, clipKeyframe),
                         "Del")
                 .separator()
-                // 跳转到此关键帧
-                .item("跳转到此时间", () -> {
+                .item(tr(DirectorLang.Timeline.ContextMenu.JUMP_TO_TIME), () -> {
                     model.setCurrentTime(clipKeyframe.getTime());
                     com.director.timeline.playback.block.TimelineClipBlockController
                             .getInstance()
                             .update();
                 })
                 .separator()
-                // 插值方式子菜单
-                .submenu("插值方式")
+                .submenu(tr(DirectorLang.Timeline.ContextMenu.INTERPOLATION_SUBMENU))
                     .command(
-                        (interp == TimelineInterpolation.LINEAR ? "✓ " : "") + "线性（匀速）",
+                        checkedLabel(interp == TimelineInterpolation.LINEAR, DirectorLang.Timeline.ContextMenu.INTERP_LINEAR),
                         new com.director.ui.timeline.commands.ChangeClipKeyframeInterpolationCommand(
                             model, track, clip, clipKeyframe, TimelineInterpolation.LINEAR
                         ))
                     .command(
-                        (interp == TimelineInterpolation.SMOOTH ? "✓ " : "") + "平滑（缓入缓出）",
+                        checkedLabel(interp == TimelineInterpolation.SMOOTH, DirectorLang.Timeline.ContextMenu.INTERP_SMOOTH),
                         new com.director.ui.timeline.commands.ChangeClipKeyframeInterpolationCommand(
                             model, track, clip, clipKeyframe, TimelineInterpolation.SMOOTH
                         ))
                     .command(
-                        (interp == TimelineInterpolation.STEP ? "✓ " : "") + "阶梯（保持再跳变）",
+                        checkedLabel(interp == TimelineInterpolation.STEP, DirectorLang.Timeline.ContextMenu.INTERP_STEP),
                         new com.director.ui.timeline.commands.ChangeClipKeyframeInterpolationCommand(
                             model, track, clip, clipKeyframe, TimelineInterpolation.STEP
                         ))
                 .end()
                 .separator()
-                // 重置插值
-                .command("重置插值为线性",
+                .command(tr(DirectorLang.Timeline.ContextMenu.RESET_INTERP_LINEAR),
                         new com.director.ui.timeline.commands.ChangeClipKeyframeInterpolationCommand(
                             model, track, clip, clipKeyframe, TimelineInterpolation.LINEAR
                         ))
                 ;
 
-        // 多选：批量插值（SubMenuBuilder 不支持 enabled 参数，这里用禁用项占位）
-        TimelineContextMenuBuilder.SubMenuBuilder sub = builder.submenu("批量插值");
+        TimelineContextMenuBuilder.SubMenuBuilder sub = builder.submenu(tr(DirectorLang.Timeline.ContextMenu.BATCH_INTERP_SUBMENU));
         if (hasMultiClipKeyframes) {
-            sub.command("线性（Linear）",
+            sub.command(tr(DirectorLang.Timeline.ContextMenu.BATCH_INTERP_LINEAR),
                     new com.director.ui.timeline.commands.BatchChangeClipKeyframeInterpolationCommand(
                             model, selectedClipKeyframes, TimelineInterpolation.LINEAR));
-            sub.command("平滑（Smooth）",
+            sub.command(tr(DirectorLang.Timeline.ContextMenu.BATCH_INTERP_SMOOTH),
                     new com.director.ui.timeline.commands.BatchChangeClipKeyframeInterpolationCommand(
                             model, selectedClipKeyframes, TimelineInterpolation.SMOOTH));
-            sub.command("阶梯（Step）",
+            sub.command(tr(DirectorLang.Timeline.ContextMenu.BATCH_INTERP_STEP),
                     new com.director.ui.timeline.commands.BatchChangeClipKeyframeInterpolationCommand(
                             model, selectedClipKeyframes, TimelineInterpolation.STEP));
         } else {
-            sub.disabledItem("（请先选中多个关键帧）");
+            sub.disabledItem(tr(DirectorLang.Timeline.ContextMenu.BATCH_INTERP_HINT));
         }
         sub.end();
 
@@ -304,11 +298,10 @@ public class TimelineContextMenuFactory {
             LOGGER.warn("[Timeline] 创建 Keyframe 菜单失败：track 或 clip 为 null");
             return TimelineContextMenuBuilder
                     .forKeyframe(commandHistory)
-                    .disabledItem("无关键帧")
+                    .disabledItem(tr(DirectorLang.Timeline.ContextMenu.NO_KEYFRAME))
                     .build();
         }
 
-        // ⭐ 从 Clip 内部查找真正的 ClipKeyframe 对象
         final float EPS = 0.001f;
         com.director.timeline.model.clip.ClipKeyframe kf =
                 clip.findKeyframeAt(keyframeTime, EPS);
@@ -317,7 +310,7 @@ public class TimelineContextMenuFactory {
             LOGGER.warn("[Timeline] 未找到时间 {:.3f}s 对应的 ClipKeyframe", keyframeTime);
             return TimelineContextMenuBuilder
                     .forKeyframe(commandHistory)
-                    .disabledItem(String.format("关键帧 @ %.3fs (未找到对象)", keyframeTime))
+                    .disabledItem(tr(DirectorLang.Timeline.ContextMenu.KEYFRAME_AT_NOT_FOUND, keyframeTime))
                     .build();
         }
 
@@ -335,34 +328,34 @@ public class TimelineContextMenuFactory {
             LOGGER.warn("[Timeline] 创建自动化关键帧菜单失败：keyframe 或 track 为 null");
             return TimelineContextMenuBuilder
                     .custom(commandHistory, "AutomationKeyframeMenu")
-                    .disabledItem("无关键帧")
+                    .disabledItem(tr(DirectorLang.Timeline.ContextMenu.NO_KEYFRAME))
                     .build();
         }
 
-        // ⭐ 音频事件：提供“取消链接（不再跟随片段移动）”
         if (keyframe instanceof AudioEvent audioEvent) {
             var audioService = com.director.ui.timeline.audio.TimelineAudioService.getInstance();
             boolean linked = audioService.isEventLinked(audioEvent);
             String linkedInfo = linked
                     ? audioService.getLinkedClip(audioEvent)
-                        .map(c -> "已链接到片段: " + (c.getLabel() != null ? c.getLabel() : "(未命名)"))
-                        .orElse("已链接到片段")
-                    : "未链接（独立事件）";
+                        .map(c -> tr(DirectorLang.Timeline.ContextMenu.LINKED_TO_CLIP,
+                                c.getLabel() != null ? c.getLabel() : tr(DirectorLang.Timeline.ContextMenu.UNNAMED)))
+                        .orElse(tr(DirectorLang.Timeline.ContextMenu.LINKED_TO_CLIP_GENERIC))
+                    : tr(DirectorLang.Timeline.ContextMenu.UNLINKED_EVENT);
 
             TimelineContextMenuBuilder builder = TimelineContextMenuBuilder
                     .custom(commandHistory, "AudioEventMenu")
-                    .disabledItem(String.format("音频事件 @ %.3fs", audioEvent.getStartTime()))
+                    .disabledItem(tr(DirectorLang.Timeline.ContextMenu.AUDIO_EVENT_AT, audioEvent.getStartTime()))
                     .disabledItem(linkedInfo)
                     .separator();
 
             if (linked) {
-                builder.item("取消与片段链接（不再跟随移动）", () -> audioService.unlinkEvent(audioEvent));
+                builder.item(tr(DirectorLang.Timeline.ContextMenu.UNLINK_FROM_CLIP), () -> audioService.unlinkEvent(audioEvent));
             } else {
-                builder.disabledItem("取消与片段链接（当前已是独立事件）");
+                builder.disabledItem(tr(DirectorLang.Timeline.ContextMenu.UNLINK_ALREADY_INDEPENDENT));
             }
 
             builder.separator()
-                    .item("删除选中",
+                    .item(tr(DirectorLang.Timeline.ContextMenu.DELETE_SELECTED),
                             () -> {
                                 if (panel != null) {
                                     panel.onDeleteSelectedClicked();
@@ -370,7 +363,7 @@ public class TimelineContextMenuFactory {
                             },
                             "Del",
                             panel != null && model.getSelectedCount() > 1)
-                    .command("删除音频事件",
+                    .command(tr(DirectorLang.Timeline.ContextMenu.DELETE_AUDIO_EVENT),
                             new com.director.ui.timeline.commands.RemoveAutomationKeyframeCommand(model, track, audioEvent),
                             "Del");
 
@@ -384,33 +377,30 @@ public class TimelineContextMenuFactory {
                 // 锁定的轨道：显示禁用菜单
                 return TimelineContextMenuBuilder
                         .custom(commandHistory, "CameraKeyframeMenu")
-                        .disabledItem("摄像机关键帧 @ " + String.format("%.3fs", cameraKeyframe.getTime()))
-                        .disabledItem("轨道已锁定，无法操作")
+                        .disabledItem(tr(DirectorLang.Timeline.ContextMenu.CAMERA_KEYFRAME_AT, cameraKeyframe.getTime()))
+                        .disabledItem(tr(DirectorLang.Timeline.ContextMenu.TRACK_LOCKED))
                         .build();
             }
             
-            // 检查是否是激活的摄像机轨道
             com.director.timeline.playback.camera.TimelineCameraController controller =
                     com.director.timeline.playback.camera.TimelineCameraController.getInstance();
             com.director.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
             
             if (activeTrack != track) {
-                // 未激活的轨道：显示禁用菜单
                 return TimelineContextMenuBuilder
                         .custom(commandHistory, "CameraKeyframeMenu")
-                        .disabledItem("摄像机关键帧 @ " + String.format("%.3fs", cameraKeyframe.getTime()))
-                        .disabledItem("轨道未激活，无法操作")
+                        .disabledItem(tr(DirectorLang.Timeline.ContextMenu.CAMERA_KEYFRAME_AT, cameraKeyframe.getTime()))
+                        .disabledItem(tr(DirectorLang.Timeline.ContextMenu.TRACK_INACTIVE))
                         .build();
             }
             
             return new CameraKeyframeContextMenu(commandHistory, cameraKeyframe, track, model);
         }
 
-        // 其他类型的自动化关键帧：使用通用菜单
         String menuLabel = keyframe.getName();
         switch (keyframe) {
-            case WeatherKeyframe ignored -> menuLabel = "天气关键帧";
-            case TimelineMarker ignored -> menuLabel = "标记";
+            case WeatherKeyframe ignored -> menuLabel = tr(DirectorLang.Timeline.ContextMenu.WEATHER_KEYFRAME);
+            case TimelineMarker ignored -> menuLabel = tr(DirectorLang.Timeline.ContextMenu.MARKER);
             default -> {
             }
         }
@@ -419,7 +409,7 @@ public class TimelineContextMenuFactory {
                 .custom(commandHistory, "AutomationKeyframeMenu")
                 .disabledItem(String.format("%s @ %.3fs", menuLabel, keyframe.getStartTime()))
                 .separator()
-                .command("删除关键帧",
+                .command(tr(DirectorLang.Timeline.ContextMenu.DELETE_KEYFRAME),
                         new com.director.ui.timeline.commands.RemoveAutomationKeyframeCommand(model, track, keyframe),
                         "Del")
                 .build();  // ⭐⭐ 修复：使用 build() 而不是 open()，由 openContextMenuForHit 统一打开
@@ -429,7 +419,7 @@ public class TimelineContextMenuFactory {
         if (track == null) {
             return TimelineContextMenuBuilder
                     .forTrack(commandHistory)
-                    .disabledItem("无轨道")
+                    .disabledItem(tr(DirectorLang.Timeline.ContextMenu.NO_TRACK))
                     .build();
         }
 
@@ -442,31 +432,26 @@ public class TimelineContextMenuFactory {
 
         TimelineContextMenuBuilder builder = TimelineContextMenuBuilder
                 .forTrack(commandHistory)
-                .disabledItem(String.format("轨道: %s", trackName))
-                .disabledItem(String.format("类型: %s", track.getType().getDisplayName()))
+                .disabledItem(tr(DirectorLang.Timeline.ContextMenu.TRACK_LABEL, trackName))
+                .disabledItem(tr(DirectorLang.Timeline.ContextMenu.TRACK_TYPE, track.getType().getDisplayName()))
                 .separator()
-                // ⚠️ 独奏和静音选项已删除（暂时不需要）
-                // .command(track.isMuted() ? "取消静音" : "静音",
-                //     new ToggleTrackMuteCommand(model, track),
-                //     "M")
-                // .command(track.isSolo() ? "取消独奏" : "独奏",
-                //     new ToggleTrackSoloCommand(model, track),
-                //     "S")
-                .command(track.isLocked() ? "解锁轨道" : "锁定轨道",
+                .command(track.isLocked()
+                        ? tr(DirectorLang.Timeline.ContextMenu.UNLOCK_TRACK)
+                        : tr(DirectorLang.Timeline.ContextMenu.LOCK_TRACK),
                     new ToggleTrackLockCommand(model, track))
                 .separator()
-                .item("重命名轨道...", () -> TrackRenameDialog.open(track))
+                .item(tr(DirectorLang.Timeline.ContextMenu.RENAME_TRACK), () -> TrackRenameDialog.open(track))
                 .separator()
-                .command("上移轨道",
+                .command(tr(DirectorLang.Timeline.ContextMenu.MOVE_TRACK_UP),
                     new MoveTrackCommand(model, trackIndex, trackIndex - 1),
                     "Alt+Up",
                     canMoveUp)
-                .command("下移轨道",
+                .command(tr(DirectorLang.Timeline.ContextMenu.MOVE_TRACK_DOWN),
                     new MoveTrackCommand(model, trackIndex, trackIndex + 1),
                     "Alt+Down",
                     canMoveDown)
                 .separator()
-                .command("删除轨道", deleteTrackCmd, "Del")
+                .command(tr(DirectorLang.Timeline.ContextMenu.DELETE_TRACK), deleteTrackCmd, "Del")
                 .separator();
 
         addTrackTypeSpecificMenu(builder, track);
@@ -479,24 +464,21 @@ public class TimelineContextMenuFactory {
     public TimelineContextMenu createEmptyAreaMenu(float time) {
         TimelineContextMenuBuilder builder = TimelineContextMenuBuilder
                 .custom(commandHistory, "TimelineEmptyAreaMenu")
-                .disabledItem(String.format("时间: %.3fs", time))
+                .disabledItem(tr(DirectorLang.Timeline.ContextMenu.TIME_AT, time))
                 .separator();
 
-        // ⭐ 新建轨道：改为子菜单，包含所有轨道类型选项
-        TimelineContextMenuBuilder.SubMenuBuilder addTrackSubmenu = builder.submenu("新建轨道");
+        TimelineContextMenuBuilder.SubMenuBuilder addTrackSubmenu = builder.submenu(tr(DirectorLang.Timeline.ContextMenu.NEW_TRACK_SUBMENU));
         for (com.director.timeline.model.TrackType type : com.director.timeline.model.TrackType.values()) {
-            // 为每个轨道类型创建菜单项
-            addTrackSubmenu.item(type.getIconAndName(), () -> createNewTrack(type));
+            addTrackSubmenu.item(TrackI18n.iconAndName(type), () -> createNewTrack(type));
         }
         addTrackSubmenu.end();
         
         builder.separator();
         
-        // ⭐ 标记：在时间标尺上右键添加标记
-        builder.command("在当前位置添加标记",
+        builder.command(tr(DirectorLang.Timeline.ContextMenu.ADD_MARKER_AT_PLAYHEAD),
                 new com.director.ui.timeline.commands.AddMarkerCommand(
                         model,
-                        new TimelineMarker("Marker @" + formatTime(time), time)));
+                        new TimelineMarker(tr(DirectorLang.Timeline.DefaultNames.MARKER_AT, formatTime(time)), time)));
 
         return builder.build();  // ⭐⭐ 修复：使用 build() 而不是 open()，由 openContextMenuForHit 统一打开
     }
@@ -571,20 +553,17 @@ public class TimelineContextMenuFactory {
                 com.director.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
                 boolean isActiveTrack = (activeTrack == track);
                 
-                // ⭐ 摄像机属性菜单项
                 builder
-                    .item("摄像机属性", () -> {
-                        // 选择轨道并打开属性面板
+                    .item(tr(DirectorLang.Timeline.ContextMenu.CAMERA_PROPERTIES), () -> {
                         DirectorServices.get().uiSelection().selectTrack(track);
                         LOGGER.info("[TimelineContextMenuFactory] 打开摄像机属性: {}", track.getName());
                     })
                     .separator();
                 
                 if (isActiveTrack) {
-                    // 激活轨道：摄像机路径统一以片段形式创建，关键帧只能添加到自定义路径片段内
                     builder
-                        .submenu("摄像机路径")
-                            .item("创建自定义路径", () -> {
+                        .submenu(tr(DirectorLang.Timeline.ContextMenu.CAMERA_PATH_SUBMENU))
+                            .item(tr(DirectorLang.Timeline.ContextMenu.CREATE_CUSTOM_PATH), () -> {
                                 float currentTime = model.getCurrentTime();
                                 CustomPathClip customClip = getCustomPathClip(currentTime);
                                 commandHistory.executeCommand(
@@ -595,122 +574,103 @@ public class TimelineContextMenuFactory {
                                 LOGGER.info("[TimelineContextMenuFactory] 创建自定义路径: {} @ {:.2f}s",
                                     customClip.getName(), currentTime);
                             })
-                            .item("创建围绕路径 (Orbit)", () -> {
-                                // 创建 Orbit Path Clip
+                            .item(tr(DirectorLang.Timeline.ContextMenu.CREATE_ORBIT_PATH), () -> {
                                 float currentTime = model.getCurrentTime();
-                                float duration = 5.0f; // 默认 5 秒
-                                
-                                // 获取当前摄像机位置作为中心点（如果可能）
+                                float duration = 5.0f;
                                 OrbitPathClip orbitClip = getOrbitPathClip(currentTime, duration);
-
-                                // ⭐ 性能优化：使用命令系统，避免直接调用 markDirty() 导致重复触发模型变更通知
                                 com.director.ui.timeline.commands.AddPathClipCommand cmd = 
                                     new com.director.ui.timeline.commands.AddPathClipCommand(model, track, orbitClip);
                                 commandHistory.executeCommand(cmd);
-                                
-                                // 选择轨道并打开属性面板（让用户编辑参数）
                                 DirectorServices.get().uiSelection().selectTrack(track);
                                 LOGGER.info("[TimelineContextMenuFactory] 创建围绕路径: {} @ {:.2f}s", 
                                     orbitClip.getName(), currentTime);
                             })
-                            .item("创建推拉路径 (Dolly)", () -> {
-                                // 创建 Dolly Path Clip
+                            .item(tr(DirectorLang.Timeline.ContextMenu.CREATE_DOLLY_PATH), () -> {
                                 float currentTime = model.getCurrentTime();
                                 DollyPathClip dollyClip = getDollyPathClip(currentTime);
-
-                                // ⭐ 性能优化：使用命令系统
                                 com.director.ui.timeline.commands.AddPathClipCommand cmd = 
                                     new com.director.ui.timeline.commands.AddPathClipCommand(model, track, dollyClip);
                                 commandHistory.executeCommand(cmd);
-                                
-                                // 选择轨道并打开属性面板（让用户编辑参数）
                                 DirectorServices.get().uiSelection().selectTrack(track);
                                 LOGGER.info("[TimelineContextMenuFactory] 创建推拉路径: {} @ {:.2f}s", 
                                     dollyClip.getName(), currentTime);
                             })
-                            .item("创建升降路径 (Crane)", () -> {
-                                // 创建 Crane Path Clip
+                            .item(tr(DirectorLang.Timeline.ContextMenu.CREATE_CRANE_PATH), () -> {
                                 float currentTime = model.getCurrentTime();
                                 CranePathClip craneClip = getCranePathClip(currentTime);
-
-                                // ⭐ 性能优化：使用命令系统
                                 com.director.ui.timeline.commands.AddPathClipCommand cmd = 
                                     new com.director.ui.timeline.commands.AddPathClipCommand(model, track, craneClip);
                                 commandHistory.executeCommand(cmd);
-                                
-                                // 选择轨道并打开属性面板（让用户编辑参数）
                                 DirectorServices.get().uiSelection().selectTrack(track);
                                 LOGGER.info("[TimelineContextMenuFactory] 创建升降路径: {} @ {:.2f}s", 
                                     craneClip.getName(), currentTime);
                             })
                         .end();
                 } else {
-                    // 非激活轨道：禁用路径创建
                     builder
-                        .submenu("摄像机路径")
-                            .disabledItem("创建路径（仅激活轨道可用）")
+                        .submenu(tr(DirectorLang.Timeline.ContextMenu.CAMERA_PATH_SUBMENU))
+                            .disabledItem(tr(DirectorLang.Timeline.ContextMenu.CREATE_PATH_INACTIVE_HINT))
                         .end();
                 }
             }
             case WEATHER -> builder
-                .submenu("天气关键帧")
-                    .command("添加天气关键帧",
+                .submenu(tr(DirectorLang.Timeline.ContextMenu.WEATHER_KEYFRAME_SUBMENU))
+                    .command(tr(DirectorLang.Timeline.ContextMenu.ADD_WEATHER_KEYFRAME),
                         new AddAutomationKeyframeCommand(
                             model,
                             track,
-                            new WeatherKeyframe("Weather @" + formatTime(time), time)))
+                            new WeatherKeyframe(tr(DirectorLang.Timeline.DefaultNames.WEATHER_AT, formatTime(time)), time)))
                 .end();
-            case ACTOR -> // 演员轨道：添加 EntityClip 创建菜单
-                    builder
-                        .submenu("创建实体片段")
-                            .item("出现/绑定 (Spawn)", () -> {
+            case ACTOR -> builder
+                        .submenu(tr(DirectorLang.Timeline.ContextMenu.CREATE_ENTITY_CLIP_SUBMENU))
+                            .item(tr(DirectorLang.Timeline.ContextMenu.ENTITY_SPAWN), () -> {
                                 float currentTime = model.getCurrentTime();
                                 EntitySpawnClip clip =
                                     new EntitySpawnClip(
-                                        "出现", currentTime, currentTime + 1.0f);
+                                        tr(DirectorLang.Timeline.DefaultNames.ENTITY_SPAWN), currentTime, currentTime + 1.0f);
                                 addEntityClip(track, clip);
                             })
-                            .item("位移/旋转 (Transform)", () -> {
+                            .item(tr(DirectorLang.Timeline.ContextMenu.ENTITY_TRANSFORM), () -> {
                                 float currentTime = model.getCurrentTime();
                                 EntityTransformClip clip =
                                     new EntityTransformClip(
-                                        "移动", currentTime, currentTime + 2.0f);
+                                        tr(DirectorLang.Timeline.DefaultNames.ENTITY_TRANSFORM), currentTime, currentTime + 2.0f);
                                 addEntityClip(track, clip);
                             })
-                            .item("动画 (Animation)", () -> {
+                            .item(tr(DirectorLang.Timeline.ContextMenu.ENTITY_ANIMATION), () -> {
                                 float currentTime = model.getCurrentTime();
                                 EntityAnimationClip clip =
                                     new EntityAnimationClip(
-                                        "动画", currentTime, currentTime + 2.0f);
+                                        tr(DirectorLang.Timeline.DefaultNames.ENTITY_ANIMATION), currentTime, currentTime + 2.0f);
                                 addEntityClip(track, clip);
                             })
                             .separator()
-                            .item("行为 (Action)", () -> {
+                            .item(tr(DirectorLang.Timeline.ContextMenu.ENTITY_ACTION), () -> {
                                 float currentTime = model.getCurrentTime();
                                 EntityActionClip clip =
                                     new EntityActionClip(
-                                        "行为", currentTime, currentTime + 0.5f);
+                                        tr(DirectorLang.Timeline.DefaultNames.ENTITY_ACTION), currentTime, currentTime + 0.5f);
                                 addEntityClip(track, clip);
                             })
-                            .item("状态 (State)", () -> {
+                            .item(tr(DirectorLang.Timeline.ContextMenu.ENTITY_STATE), () -> {
                                 float currentTime = model.getCurrentTime();
                                 EntityStateClip clip =
                                     new EntityStateClip(
-                                        "状态", currentTime, currentTime + 2.0f);
+                                        tr(DirectorLang.Timeline.DefaultNames.ENTITY_STATE), currentTime, currentTime + 2.0f);
                                 addEntityClip(track, clip);
                             })
-                            .item("看向 (LookAt)", () -> {
+                            .item(tr(DirectorLang.Timeline.ContextMenu.ENTITY_LOOK_AT), () -> {
                                 float currentTime = model.getCurrentTime();
                                 EntityLookAtClip clip =
                                     new EntityLookAtClip(
-                                        "看向", currentTime, currentTime + 2.0f);
+                                        tr(DirectorLang.Timeline.DefaultNames.ENTITY_LOOK_AT), currentTime, currentTime + 2.0f);
                                 addEntityClip(track, clip);
                             })
-                            .item("离场 (Despawn)", () -> {
+                            .item(tr(DirectorLang.Timeline.ContextMenu.ENTITY_DESPAWN), () -> {
                                 float currentTime = model.getCurrentTime();
                                 EntityDespawnClip clip =
                                     new EntityDespawnClip(
-                                        "离场", currentTime, currentTime + 1.0f);
+                                        tr(DirectorLang.Timeline.DefaultNames.ENTITY_DESPAWN), currentTime, currentTime + 1.0f);
                                 addEntityClip(track, clip);
                             })
                         .end();
@@ -724,7 +684,7 @@ public class TimelineContextMenuFactory {
         // 创建 Crane Path Clip
         CranePathClip craneClip =
             new CranePathClip(
-                "升降路径 @" + formatTime(currentTime),
+                tr(DirectorLang.Timeline.DefaultNames.CRANE_PATH_AT, formatTime(currentTime)),
                     currentTime,
                 currentTime + duration
             );
@@ -737,7 +697,7 @@ public class TimelineContextMenuFactory {
     private @NotNull CustomPathClip getCustomPathClip(float currentTime) {
         float duration = 5.0f;
         return new CustomPathClip(
-            "自定义路径 @" + formatTime(currentTime),
+            tr(DirectorLang.Timeline.DefaultNames.CUSTOM_PATH_AT, formatTime(currentTime)),
             currentTime,
             currentTime + duration
         );
@@ -749,7 +709,7 @@ public class TimelineContextMenuFactory {
         // 创建 Dolly Path Clip
         DollyPathClip dollyClip =
             new DollyPathClip(
-                "推拉路径 @" + formatTime(currentTime),
+                tr(DirectorLang.Timeline.DefaultNames.DOLLY_PATH_AT, formatTime(currentTime)),
                     currentTime,
                 currentTime + duration
             );
@@ -778,7 +738,7 @@ public class TimelineContextMenuFactory {
 
         // 创建 Orbit Path Clip
         return new OrbitPathClip(
-            "围绕路径 @" + formatTime(currentTime),
+            tr(DirectorLang.Timeline.DefaultNames.ORBIT_PATH_AT, formatTime(currentTime)),
                 currentTime,
             currentTime + duration,
             center,
@@ -801,7 +761,7 @@ public class TimelineContextMenuFactory {
         if (pathClipHit == null) {
             return TimelineContextMenuBuilder
                     .custom(commandHistory, "PathClipMenu")
-                    .disabledItem("无 Path Clip")
+                    .disabledItem(tr(DirectorLang.Timeline.ContextMenu.NO_PATH_CLIP))
                     .build();
         }
         
@@ -811,16 +771,15 @@ public class TimelineContextMenuFactory {
         if (clip == null || track == null) {
             return TimelineContextMenuBuilder
                     .custom(commandHistory, "PathClipMenu")
-                    .disabledItem("无 Path Clip")
+                    .disabledItem(tr(DirectorLang.Timeline.ContextMenu.NO_PATH_CLIP))
                     .build();
         }
         
-        // 检查轨道锁定和激活状态
         if (track.isLocked()) {
             return TimelineContextMenuBuilder
                     .custom(commandHistory, "PathClipMenu")
-                    .disabledItem("Path Clip: " + clip.getName())
-                    .disabledItem("轨道已锁定，无法操作")
+                    .disabledItem(tr(DirectorLang.Timeline.ContextMenu.PATH_CLIP_LABEL, clip.getName()))
+                    .disabledItem(tr(DirectorLang.Timeline.ContextMenu.TRACK_LOCKED))
                     .build();
         }
         
@@ -832,19 +791,18 @@ public class TimelineContextMenuFactory {
             if (activeTrack != track) {
                 return TimelineContextMenuBuilder
                         .custom(commandHistory, "PathClipMenu")
-                        .disabledItem("Path Clip: " + clip.getName())
-                        .disabledItem("轨道未激活，无法操作")
+                        .disabledItem(tr(DirectorLang.Timeline.ContextMenu.PATH_CLIP_LABEL, clip.getName()))
+                        .disabledItem(tr(DirectorLang.Timeline.ContextMenu.TRACK_INACTIVE))
                         .build();
             }
         }
         
         TimelineContextMenuBuilder builder = TimelineContextMenuBuilder
                 .custom(commandHistory, "PathClipMenu")
-                .disabledItem("Path Clip: " + clip.getName())
-                .disabledItem(String.format("@ %.2fs - %.2fs", clip.getStartTime(), clip.getEndTime()))
+                .disabledItem(tr(DirectorLang.Timeline.ContextMenu.PATH_CLIP_LABEL, clip.getName()))
+                .disabledItem(tr(DirectorLang.Timeline.ContextMenu.TIME_RANGE, clip.getStartTime(), clip.getEndTime()))
                 .separator()
-                .item("Path 属性...", () -> {
-                    // 选择 Path Clip 并打开属性面板
+                .item(tr(DirectorLang.Timeline.ContextMenu.PATH_PROPERTIES), () -> {
                     model.selectItem(clip, false);
                     DirectorServices.get().uiSelection().setCurrentSelection(clip);
                     LOGGER.info("[TimelineContextMenuFactory] 打开 Path Clip 属性: {}", clip.getName());
@@ -853,11 +811,12 @@ public class TimelineContextMenuFactory {
                 ;
 
         if (clip instanceof CustomPathClip customPathClip) {
-            builder.item("添加摄像机关键帧", () -> {
+            builder.item(tr(DirectorLang.Timeline.ContextMenu.ADD_CAMERA_KEYFRAME), () -> {
                 float currentTime = Math.max(customPathClip.getStartTime(),
                         Math.min(customPathClip.getEndTime(), model.getCurrentTime()));
                 String timeLabel = formatTime(currentTime);
-                CameraKeyframe keyframe = new CameraKeyframe("Camera @" + timeLabel, currentTime);
+                CameraKeyframe keyframe = new CameraKeyframe(
+                        tr(DirectorLang.Timeline.DefaultNames.CAMERA_AT, timeLabel), currentTime);
                 boolean captured = TimelineCameraController.getInstance().captureFromCurrentCamera(keyframe);
                 if (!captured) {
                     LOGGER.warn("[TimelineContextMenu] 摄像机状态捕获失败（可能不在玩家模式），取消添加关键帧");
@@ -870,7 +829,7 @@ public class TimelineContextMenuFactory {
             builder.separator();
         }
 
-        builder.command("删除 Path Clip", 
+        builder.command(tr(DirectorLang.Timeline.ContextMenu.DELETE_PATH_CLIP),
                     new com.director.ui.timeline.commands.DeletePathClipCommand(model, track, clip), 
                     "Del");
         

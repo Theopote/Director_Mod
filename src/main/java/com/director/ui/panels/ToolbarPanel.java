@@ -2,6 +2,7 @@ package com.director.ui.panels;
 
 import com.director.i18n.DirectorI18n;
 import com.director.i18n.DirectorLang;
+import com.director.ui.PanelWindows;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
@@ -76,7 +77,7 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
 
     @Override
     public String getWindowName() {
-        return "Toolbar###ToolbarPanel";
+        return PanelWindows.toolbar();
     }
 
     @Override
@@ -169,6 +170,9 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
         // 组图标（只绘制一次），并使用“固定图标列宽”保证所有组按钮起始 X 一致
         float groupStartX = ImGui.getCursorPosX();
         UITheme.label(groupIcon, UITheme.DarkTheme.TEXT_SELECTED);
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(group.getDisplayName());
+        }
         ImGui.sameLine();
         ImGui.setCursorPosX(groupStartX + GROUP_ICON_COLUMN_WIDTH);
         float buttonsStartX = ImGui.getCursorPosX();

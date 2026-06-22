@@ -248,6 +248,7 @@
   "gui.director.timeline.track.actor.name": "演员轨道",
   "gui.director.timeline.track.actor.desc": "在时间线上导演演员、生物和表演实体，设置关键帧、动作、路线、看向和姿态",
 
+  "gui.director.toolbar.panel.title": "工具栏",
   "gui.director.toolbar.tool_display_title": "工具按钮显示",
   "gui.director.toolbar.tool_display_icons_text": "当前：图标 + 文字",
   "gui.director.toolbar.tool_display_icons_only": "当前：仅图标",

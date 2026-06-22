@@ -268,6 +268,7 @@ public final class DirectorLang {
     }
 
     public static final class Toolbar {
+        public static final String PANEL_TITLE = "gui.director.toolbar.panel.title";
         public static final String TOOL_DISPLAY_TITLE = "gui.director.toolbar.tool_display_title";
         public static final String TOOL_DISPLAY_ICONS_TEXT = "gui.director.toolbar.tool_display_icons_text";
         public static final String TOOL_DISPLAY_ICONS_ONLY = "gui.director.toolbar.tool_display_icons_only";

@@ -248,6 +248,7 @@
   "gui.director.timeline.track.actor.name": "Actor Track",
   "gui.director.timeline.track.actor.desc": "Direct actors and performing entities with keyframes, actions, routes, look-at, and poses",
 
+  "gui.director.toolbar.panel.title": "Toolbar",
   "gui.director.toolbar.tool_display_title": "Tool button display",
   "gui.director.toolbar.tool_display_icons_text": "Current: icon + text",
   "gui.director.toolbar.tool_display_icons_only": "Current: icon only",
