@@ -383,6 +383,121 @@ public final class DirectorLang {
         public static final String LAYOUT_LEFT_WIDTH = "gui.director.container.header.layout_left_width";
         public static final String LAYOUT_TOGGLE_HINT = "gui.director.container.header.layout_toggle_hint";
 
+        public static final String DEFAULT_CONTAINER_NAME = "gui.director.container.default.container";
+        public static final String DEFAULT_GROUP_NAME = "gui.director.container.default.group";
+
+        public static final class Toolbar {
+            public static final String CREATE_CONTAINER = "gui.director.container.toolbar.create_container";
+            public static final String CREATE_CONTAINER_TOOLTIP = "gui.director.container.toolbar.create_container_tooltip";
+            public static final String CREATE_GROUP = "gui.director.container.toolbar.create_group";
+            public static final String CREATE_GROUP_TOOLTIP = "gui.director.container.toolbar.create_group_tooltip";
+            public static final String GENERATE_CONTAINER = "gui.director.container.toolbar.generate_container";
+            public static final String GENERATE_CONTAINER_TOOLTIP = "gui.director.container.toolbar.generate_container_tooltip";
+            public static final String GENERATE_DEMOLITION = "gui.director.container.toolbar.generate_demolition";
+            public static final String GENERATE_DEMOLITION_TOOLTIP = "gui.director.container.toolbar.generate_demolition_tooltip";
+            public static final String INTAKE_SELECTION = "gui.director.container.toolbar.intake_selection";
+            public static final String INTAKE_SELECTION_TOOLTIP = "gui.director.container.toolbar.intake_selection_tooltip";
+            public static final String STOP_INTAKE = "gui.director.container.toolbar.stop_intake";
+            public static final String STOP_INTAKE_TOOLTIP = "gui.director.container.toolbar.stop_intake_tooltip";
+            public static final String LIVE_INTAKE = "gui.director.container.toolbar.live_intake";
+            public static final String LIVE_INTAKE_TOOLTIP = "gui.director.container.toolbar.live_intake_tooltip";
+            public static final String TOOLTIP_SELECT_CONTAINER_FIRST = "gui.director.container.toolbar.tooltip_select_container_first";
+            public static final String TOOLTIP_GROUP_NO_INTAKE = "gui.director.container.toolbar.tooltip_group_no_intake";
+            public static final String TOOLTIP_TIMELINE_NO_INTAKE = "gui.director.container.toolbar.tooltip_timeline_no_intake";
+            public static final String TOOLTIP_SELECT_BLOCKS_MC = "gui.director.container.toolbar.tooltip_select_blocks_mc";
+            public static final String TOOLTIP_GROUP_NO_LIVE_INTAKE = "gui.director.container.toolbar.tooltip_group_no_live_intake";
+            public static final String TOOLTIP_TIMELINE_NO_LIVE_INTAKE = "gui.director.container.toolbar.tooltip_timeline_no_live_intake";
+            public static final String NO_SELECTION = "gui.director.container.toolbar.no_selection";
+            public static final String SELECTED_COUNT = "gui.director.container.toolbar.selected_count";
+            public static final String SELECTED_SINGLE = "gui.director.container.toolbar.selected_single";
+
+            private Toolbar() {
+            }
+        }
+
+        public static final class ContextMenu {
+            public static final String PANEL_TITLE = "gui.director.container.context.panel_title";
+            public static final String NEW_CONTAINER = "gui.director.container.context.new_container";
+            public static final String GROUP_SELECTED = "gui.director.container.context.group_selected";
+            public static final String UNGROUP_SELECTED = "gui.director.container.context.ungroup_selected";
+            public static final String MERGE_SELECTED = "gui.director.container.context.merge_selected";
+            public static final String PASTE_AS_ROOT = "gui.director.container.context.paste_as_root";
+            public static final String COLLAPSE_ALL = "gui.director.container.context.collapse_all";
+            public static final String EXPAND_ALL = "gui.director.container.context.expand_all";
+            public static final String CLEAR_ALL = "gui.director.container.context.clear_all";
+            public static final String SELECTED_COUNT = "gui.director.container.context.selected_count";
+            public static final String TIMELINE_CONTROLLED = "gui.director.container.context.timeline_controlled";
+            public static final String PASTE_AS_CHILD = "gui.director.container.context.paste_as_child";
+            public static final String NEW_CHILD_CONTAINER = "gui.director.container.context.new_child_container";
+            public static final String STOP_LIVE_INTAKE = "gui.director.container.context.stop_live_intake";
+            public static final String START_LIVE_INTAKE = "gui.director.container.context.start_live_intake";
+            public static final String RELEASE_CONTAINER = "gui.director.container.context.release_container";
+            public static final String HIDE = "gui.director.container.context.hide";
+            public static final String HIDE_BLOCKS = "gui.director.container.context.hide_blocks";
+            public static final String RENAME = "gui.director.container.context.rename";
+            public static final String DELETE = "gui.director.container.context.delete";
+            public static final String MOVE_TO_GROUP = "gui.director.container.context.move_to_group";
+            public static final String MOVE_OUT_OF_GROUP = "gui.director.container.context.move_out_of_group";
+            public static final String MOVE_UP = "gui.director.container.context.move_up";
+            public static final String MOVE_DOWN = "gui.director.container.context.move_down";
+            public static final String BATCH_VISIBILITY = "gui.director.container.context.batch_visibility";
+            public static final String BATCH_VISIBILITY_TARGET = "gui.director.container.context.batch_visibility_target";
+            public static final String SHOW_ALL = "gui.director.container.context.show_all";
+            public static final String HIDE_ALL = "gui.director.container.context.hide_all";
+            public static final String BATCH_LOCK = "gui.director.container.context.batch_lock";
+            public static final String BATCH_LOCK_TARGET = "gui.director.container.context.batch_lock_target";
+            public static final String LOCK_ALL = "gui.director.container.context.lock_all";
+            public static final String UNLOCK_ALL = "gui.director.container.context.unlock_all";
+            public static final String SHOW = "gui.director.container.context.show";
+            public static final String LOCK = "gui.director.container.context.lock";
+            public static final String UNLOCK = "gui.director.container.context.unlock";
+            public static final String SET_TAG_COLOR = "gui.director.container.context.set_tag_color";
+            public static final String TAG_COLOR_SELECTED = "gui.director.container.context.tag_color_selected";
+            public static final String TAG_COLOR_LABEL = "gui.director.container.context.tag_color_label";
+            public static final String RESET_TAG_COLOR = "gui.director.container.context.reset_tag_color";
+            public static final String DRAG_MULTIPLE = "gui.director.container.context.drag_multiple";
+            public static final String DRAG_SINGLE = "gui.director.container.context.drag_single";
+
+            private ContextMenu() {
+            }
+        }
+
+        public static final class Tree {
+            public static final String EMPTY = "gui.director.container.tree.empty";
+            public static final String LOCK_TIMELINE_TOOLTIP = "gui.director.container.tree.lock_timeline_tooltip";
+            public static final String UNLOCK_CONTAINER = "gui.director.container.tree.unlock_container";
+            public static final String LOCK_CONTAINER = "gui.director.container.tree.lock_container";
+            public static final String VISIBILITY_TIMELINE_TOOLTIP = "gui.director.container.tree.visibility_timeline_tooltip";
+            public static final String SHOW_CONTAINER_TOOLTIP = "gui.director.container.tree.show_container_tooltip";
+            public static final String HIDE_CONTAINER_TOOLTIP = "gui.director.container.tree.hide_container_tooltip";
+            public static final String TOOLTIP_NAME = "gui.director.container.tree.tooltip_name";
+            public static final String TOOLTIP_TYPE = "gui.director.container.tree.tooltip_type";
+            public static final String TOOLTIP_BLOCK_COUNT = "gui.director.container.tree.tooltip_block_count";
+            public static final String TOOLTIP_CHILD_COUNT = "gui.director.container.tree.tooltip_child_count";
+            public static final String TOOLTIP_TOTAL_BLOCKS = "gui.director.container.tree.tooltip_total_blocks";
+            public static final String TOOLTIP_CENTER = "gui.director.container.tree.tooltip_center";
+            public static final String TOOLTIP_SIZE = "gui.director.container.tree.tooltip_size";
+            public static final String TOOLTIP_ON_TIMELINE = "gui.director.container.tree.tooltip_on_timeline";
+            public static final String TOOLTIP_READONLY = "gui.director.container.tree.tooltip_readonly";
+            public static final String TOOLTIP_RIGHT_CLICK = "gui.director.container.tree.tooltip_right_click";
+            public static final String TOOLTIP_DRAG_TO_TIMELINE = "gui.director.container.tree.tooltip_drag_to_timeline";
+
+            private Tree() {
+            }
+        }
+
+        public static final class Dialog {
+            public static final String CLEAR_ALL_CONFIRM = "gui.director.container.dialog.clear_all_confirm";
+            public static final String DELETE_CONFIRM = "gui.director.container.dialog.delete_confirm";
+            public static final String CONFIRM_DELETE = "gui.director.container.dialog.confirm_delete";
+            public static final String RELEASE_TITLE = "gui.director.container.dialog.release_title";
+            public static final String RELEASE_MESSAGE = "gui.director.container.dialog.release_message";
+            public static final String CONFIRM_RELEASE = "gui.director.container.dialog.confirm_release";
+
+            private Dialog() {
+            }
+        }
+
         private ContainerPanel() {
         }
     }

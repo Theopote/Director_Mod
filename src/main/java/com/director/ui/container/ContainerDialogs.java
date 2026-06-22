@@ -1,6 +1,8 @@
 package com.director.ui.container;
 
 import com.director.core.container.Container;
+import com.director.i18n.DirectorI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.theme.Icons;
 import imgui.ImGui;
 import imgui.ImVec2;
@@ -17,8 +19,6 @@ import java.util.UUID;
 public class ContainerDialogs {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ContainerDialogs.class);
-    private static final String LABEL_CANCEL = "取消";
-    private static final String LABEL_CONFIRM = "确定";
 
     private final ContainerPanelController controller;
     private final ContainerPanelState state;
@@ -26,6 +26,14 @@ public class ContainerDialogs {
     public ContainerDialogs(ContainerPanelController controller, ContainerPanelState state) {
         this.controller = controller;
         this.state = state;
+    }
+
+    private static String tr(String key) {
+        return DirectorI18n.translate(key);
+    }
+
+    private static String tr(String key, Object... args) {
+        return DirectorI18n.translate(key, args);
     }
 
     public void render() {
@@ -46,16 +54,16 @@ public class ContainerDialogs {
         ImVec2 center = ImGui.getMainViewport().getCenter();
         ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
         if (ImGui.beginPopupModal("ConfirmClearAll", ImGuiWindowFlags.AlwaysAutoResize)) {
-            ImGui.text(Icons.WARNING + " " + "您确定要清空所有容器吗？");
+            ImGui.text(Icons.WARNING + " " + tr(DirectorLang.ContainerPanel.Dialog.CLEAR_ALL_CONFIRM));
             ImGui.separator();
-            if (ImGui.button(ContainerDialogs.LABEL_CONFIRM, 120, 0)) {
+            if (ImGui.button(tr(DirectorLang.Common.OK), 120, 0)) {
                 if (onConfirm != null) {
                     onConfirm.run();
                 }
                 ImGui.closeCurrentPopup();
             }
             ImGui.sameLine();
-            if (ImGui.button(LABEL_CANCEL, 120, 0)) {
+            if (ImGui.button(tr(DirectorLang.Common.CANCEL), 120, 0)) {
                 ImGui.closeCurrentPopup();
             }
             ImGui.endPopup();
@@ -70,16 +78,16 @@ public class ContainerDialogs {
         ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
         if (ImGui.beginPopupModal("ConfirmDeletion", ImGuiWindowFlags.AlwaysAutoResize)) {
             LOGGER.info("[ContainerDialogs] ConfirmDeletion visible");
-            ImGui.text(Icons.WARNING + " " + "您确定要删除选中的容器吗？");
+            ImGui.text(Icons.WARNING + " " + tr(DirectorLang.ContainerPanel.Dialog.DELETE_CONFIRM));
             ImGui.separator();
-            if (ImGui.button("确认删除", 120, 0)) {
+            if (ImGui.button(tr(DirectorLang.ContainerPanel.Dialog.CONFIRM_DELETE), 120, 0)) {
                 LOGGER.info("[ContainerDialogs] delete confirmed");
                 controller.deleteSelectedContainers();
                 state.setPendingDeletionRequested(false);
                 ImGui.closeCurrentPopup();
             }
             ImGui.sameLine();
-            if (ImGui.button(LABEL_CANCEL, 120, 0)) {
+            if (ImGui.button(tr(DirectorLang.Common.CANCEL), 120, 0)) {
                 LOGGER.info("[ContainerDialogs] delete cancelled");
                 state.setPendingDeletionRequested(false);
                 ImGui.closeCurrentPopup();
@@ -109,18 +117,18 @@ public class ContainerDialogs {
                 return;
             }
 
-            ImGui.text(Icons.WARNING + " " + "释放容器 \"" + target.getName() + "\" ?");
+            ImGui.text(Icons.WARNING + " " + tr(DirectorLang.ContainerPanel.Dialog.RELEASE_TITLE, target.getName()));
             ImGui.separator();
-            ImGui.textWrapped("释放后容器将被删除，方块将重新显示在世界中。");
+            ImGui.textWrapped(tr(DirectorLang.ContainerPanel.Dialog.RELEASE_MESSAGE));
             ImGui.spacing();
 
-            if (ImGui.button("确认释放", 120, 0)) {
+            if (ImGui.button(tr(DirectorLang.ContainerPanel.Dialog.CONFIRM_RELEASE), 120, 0)) {
                 controller.releaseContainer(targetId);
                 state.setPendingReleaseContainerId(null);
                 ImGui.closeCurrentPopup();
             }
             ImGui.sameLine();
-            if (ImGui.button(LABEL_CANCEL, 120, 0)) {
+            if (ImGui.button(tr(DirectorLang.Common.CANCEL), 120, 0)) {
                 state.setPendingReleaseContainerId(null);
                 ImGui.closeCurrentPopup();
             }

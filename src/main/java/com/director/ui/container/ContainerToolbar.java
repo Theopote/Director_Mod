@@ -3,6 +3,8 @@ package com.director.ui.container;
 import com.director.core.DirectorServices;
 import com.director.core.container.Container;
 import com.director.core.container.ContainerType;
+import com.director.i18n.DirectorI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import com.director.timeline.container.ContainerTimelineService;
@@ -23,6 +25,14 @@ public class ContainerToolbar {
         renderCreationButtons();
         renderContainerControlButtons();
         renderSelectionInfo();
+    }
+
+    private static String tr(String key) {
+        return DirectorI18n.translate(key);
+    }
+
+    private static String tr(String key, Object... args) {
+        return DirectorI18n.translate(key, args);
     }
 
     private boolean showText() {
@@ -66,22 +76,30 @@ public class ContainerToolbar {
     }
 
     private void renderCreationButtons() {
-        if (toolbarButton("container_create", Icons.ADD, "新建容器", "创建一个新的容器")) {
+        String createContainer = tr(DirectorLang.ContainerPanel.Toolbar.CREATE_CONTAINER);
+        if (toolbarButton("container_create", Icons.ADD, createContainer,
+                tr(DirectorLang.ContainerPanel.Toolbar.CREATE_CONTAINER_TOOLTIP))) {
             controller.createNewContainer();
         }
 
-        sameLineOrWrap(Icons.FOLDER, "新建分组");
-        if (toolbarButton("group_create", Icons.FOLDER, "新建分组", "创建一个新的分组（仅用于组织容器）")) {
+        String createGroup = tr(DirectorLang.ContainerPanel.Toolbar.CREATE_GROUP);
+        sameLineOrWrap(Icons.FOLDER, createGroup);
+        if (toolbarButton("group_create", Icons.FOLDER, createGroup,
+                tr(DirectorLang.ContainerPanel.Toolbar.CREATE_GROUP_TOOLTIP))) {
             controller.createNewGroupContainer();
         }
 
-        sameLineOrWrap(Icons.CONTAINER, "生成容器");
-        if (toolbarButton("container_generate", Icons.CONTAINER, "生成容器", "用当前 Minecraft 选区生成容器")) {
+        String generateContainer = tr(DirectorLang.ContainerPanel.Toolbar.GENERATE_CONTAINER);
+        sameLineOrWrap(Icons.CONTAINER, generateContainer);
+        if (toolbarButton("container_generate", Icons.CONTAINER, generateContainer,
+                tr(DirectorLang.ContainerPanel.Toolbar.GENERATE_CONTAINER_TOOLTIP))) {
             controller.generateContainerFromSelection();
         }
 
-        sameLineOrWrap(Icons.ERASER, "生成拆除容器");
-        if (toolbarButton("container_generate_demolition", Icons.ERASER, "生成拆除容器", "用当前 Minecraft 选区生成拆除容器")) {
+        String generateDemolition = tr(DirectorLang.ContainerPanel.Toolbar.GENERATE_DEMOLITION);
+        sameLineOrWrap(Icons.ERASER, generateDemolition);
+        if (toolbarButton("container_generate_demolition", Icons.ERASER, generateDemolition,
+                tr(DirectorLang.ContainerPanel.Toolbar.GENERATE_DEMOLITION_TOOLTIP))) {
             controller.generateDemolitionContainerFromSelection();
         }
     }
@@ -94,50 +112,55 @@ public class ContainerToolbar {
 
         boolean hasMinecraftSelection = ContainerSelectionUtil.hasMinecraftSelection();
 
-        sameLineOrWrap(Icons.DOWNLOAD, "收纳选区");
+        String intakeSelection = tr(DirectorLang.ContainerPanel.Toolbar.INTAKE_SELECTION);
+        sameLineOrWrap(Icons.DOWNLOAD, intakeSelection);
         boolean canIntake = hasSelection && !isGroup && !timelineControlled && hasMinecraftSelection;
         if (hasSelection && selectedContainer.isLocked()) {
             canIntake = false;
         }
         if (!canIntake) ImGui.beginDisabled();
-        if (toolbarButton("intake_selection", Icons.DOWNLOAD, "收纳选区", "将当前选区添加到选中的容器")) {
+        if (toolbarButton("intake_selection", Icons.DOWNLOAD, intakeSelection,
+                tr(DirectorLang.ContainerPanel.Toolbar.INTAKE_SELECTION_TOOLTIP))) {
             controller.intakeCurrentSelection();
         }
         if (!canIntake) ImGui.endDisabled();
         if (ImGui.isItemHovered()) {
             if (!hasSelection) {
-                ImGui.setTooltip("请先选择一个容器");
+                ImGui.setTooltip(tr(DirectorLang.ContainerPanel.Toolbar.TOOLTIP_SELECT_CONTAINER_FIRST));
             } else if (isGroup) {
-                ImGui.setTooltip("组仅用于分类，无法收纳方块");
+                ImGui.setTooltip(tr(DirectorLang.ContainerPanel.Toolbar.TOOLTIP_GROUP_NO_INTAKE));
             } else if (timelineControlled) {
-                ImGui.setTooltip("容器已由时间线接管，不能再收纳方块");
+                ImGui.setTooltip(tr(DirectorLang.ContainerPanel.Toolbar.TOOLTIP_TIMELINE_NO_INTAKE));
             } else if (!hasMinecraftSelection) {
-                ImGui.setTooltip("请在Minecraft中选择方块");
+                ImGui.setTooltip(tr(DirectorLang.ContainerPanel.Toolbar.TOOLTIP_SELECT_BLOCKS_MC));
             } else {
-                ImGui.setTooltip("将当前选区添加到选中的容器");
+                ImGui.setTooltip(tr(DirectorLang.ContainerPanel.Toolbar.INTAKE_SELECTION_TOOLTIP));
             }
         }
 
         boolean intakeEnabled = hasSelection && !isGroup && selectedContainer.isIntakeEnabled() && !selectedContainer.isLocked();
         String intakeIcon = intakeEnabled ? Icons.PAUSE : Icons.PLAY;
-        String intakeLabel = intakeEnabled ? "停止接收" : "实时接收";
+        String intakeLabel = intakeEnabled
+            ? tr(DirectorLang.ContainerPanel.Toolbar.STOP_INTAKE)
+            : tr(DirectorLang.ContainerPanel.Toolbar.LIVE_INTAKE);
         sameLineOrWrap(intakeIcon, intakeLabel);
         if (!hasSelection || isGroup || timelineControlled || selectedContainer.isLocked()) ImGui.beginDisabled();
         if (toolbarButton("toggle_intake", intakeIcon, intakeLabel,
-            intakeEnabled ? "停止实时接收选中的方块" : "开启实时接收模式：每次选中方块时自动收纳到此容器")) {
+            intakeEnabled
+                ? tr(DirectorLang.ContainerPanel.Toolbar.STOP_INTAKE_TOOLTIP)
+                : tr(DirectorLang.ContainerPanel.Toolbar.LIVE_INTAKE_TOOLTIP))) {
             if (selectedContainer != null) {
                 controller.toggleIntake(selectedContainer.getId());
             }
         }
         if (!hasSelection || isGroup || timelineControlled || selectedContainer.isLocked()) ImGui.endDisabled();
-        // tooltip 已在 toolbarButton() 中设置；这里保留原逻辑的特殊提示（覆盖更精准）
         if (ImGui.isItemHovered()) {
             if (!hasSelection) {
-                ImGui.setTooltip("请先选择一个容器");
+                ImGui.setTooltip(tr(DirectorLang.ContainerPanel.Toolbar.TOOLTIP_SELECT_CONTAINER_FIRST));
             } else if (isGroup) {
-                ImGui.setTooltip("组无法开启实时接收");
+                ImGui.setTooltip(tr(DirectorLang.ContainerPanel.Toolbar.TOOLTIP_GROUP_NO_LIVE_INTAKE));
             } else if (timelineControlled) {
-                ImGui.setTooltip("容器已由时间线接管，不能开启实时接收");
+                ImGui.setTooltip(tr(DirectorLang.ContainerPanel.Toolbar.TOOLTIP_TIMELINE_NO_LIVE_INTAKE));
             }
         }
 
@@ -153,16 +176,17 @@ public class ContainerToolbar {
         java.util.Set<Container> selected = controller.getSelectedContainers();
         int n = selected != null ? selected.size() : 0;
         if (n == 0) {
-            ImGui.textDisabled("(未选择容器)");
+            ImGui.textDisabled(tr(DirectorLang.ContainerPanel.Toolbar.NO_SELECTION));
         } else if (n > 1) {
-            ImGui.textColored(0.0f, 0.588f, 1.0f, 1.0f, "选中 " + n + " 个容器");
+            ImGui.textColored(0.0f, 0.588f, 1.0f, 1.0f,
+                tr(DirectorLang.ContainerPanel.Toolbar.SELECTED_COUNT, n));
         } else {
             Container c = controller.getSelectedContainer();
             if (c != null) {
                 ImGui.textColored(0.0f, 0.588f, 1.0f, 1.0f,
-                    "选中: " + c.getName() + " (" + c.getType().getDisplayName() + ")");
+                    tr(DirectorLang.ContainerPanel.Toolbar.SELECTED_SINGLE, c.getName(), c.getType().getDisplayName()));
             } else {
-                ImGui.textDisabled("(未选择容器)");
+                ImGui.textDisabled(tr(DirectorLang.ContainerPanel.Toolbar.NO_SELECTION));
             }
         }
     }
