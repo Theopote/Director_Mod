@@ -1,6 +1,9 @@
 package com.director.mixin;
 
 import com.director.client.DirectorClientController;
+import com.director.client.RenderTimeState;
+import com.director.client.world.WorldRenderOverride;
+import com.director.timeline.playback.time.TimeSample;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.client.render.WorldRenderer;
 import net.minecraft.client.util.math.MatrixStack;
@@ -70,17 +73,16 @@ public abstract class WorldRendererMixin {
             boolean thickFog,
             CallbackInfo ci
     ) {
-        com.director.timeline.playback.time.TimelineWorldController controller = com.director.timeline.playback.time.TimelineWorldController.getInstance();
-        if (controller != null && controller.hasOverride()) {
-            com.director.timeline.playback.time.TimeSample sample = controller.current();
+        WorldRenderOverride state = WorldRenderOverride.get();
+        if (state.hasTimeOverride()) {
+            TimeSample sample = state.timeSample();
             if (sample != null) {
                 float rad = sample.getSkyAngle() * (float) (Math.PI * 2.0);
-                com.director.client.RenderTimeState.setSkyAngleRadians(rad);
+                RenderTimeState.setSkyAngleRadians(rad);
                 return;
             }
         }
-        // 无覆盖时清除状态
-        com.director.client.RenderTimeState.clear();
+        RenderTimeState.clear();
     }
 
     // ⭐ v2.0：Weather - 云颜色控制

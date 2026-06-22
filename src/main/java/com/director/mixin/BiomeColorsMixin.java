@@ -1,7 +1,7 @@
 package com.director.mixin;
 
+import com.director.client.world.WorldRenderOverride;
 import com.director.timeline.playback.season.SeasonSample;
-import com.director.timeline.playback.season.TimelineSeasonController;
 import net.minecraft.client.color.world.BiomeColors;
 import net.minecraft.world.BlockRenderView;
 import net.minecraft.util.math.BlockPos;
@@ -45,12 +45,12 @@ public abstract class BiomeColorsMixin {
         cancellable = true
     )
     private static void modifyGrassColor(BlockRenderView world, BlockPos pos, CallbackInfoReturnable<Integer> cir) {
-        TimelineSeasonController controller = TimelineSeasonController.getInstance();
-        if (!controller.hasOverride()) {
-            return; // 没有季节覆盖，直接返回原始颜色
+        WorldRenderOverride state = WorldRenderOverride.get();
+        if (!state.hasSeasonOverride()) {
+            return;
         }
-        
-        SeasonSample s = controller.getCurrentSample();
+
+        SeasonSample s = state.seasonSample();
         if (s == null) {
             return;
         }
@@ -66,12 +66,12 @@ public abstract class BiomeColorsMixin {
         cancellable = true
     )
     private static void modifyFoliageColor(BlockRenderView world, BlockPos pos, CallbackInfoReturnable<Integer> cir) {
-        TimelineSeasonController controller = TimelineSeasonController.getInstance();
-        if (!controller.hasOverride()) {
-            return; // 没有季节覆盖，直接返回原始颜色
+        WorldRenderOverride state = WorldRenderOverride.get();
+        if (!state.hasSeasonOverride()) {
+            return;
         }
-        
-        SeasonSample s = controller.getCurrentSample();
+
+        SeasonSample s = state.seasonSample();
         if (s == null) {
             return;
         }

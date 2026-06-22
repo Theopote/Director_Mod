@@ -1,7 +1,7 @@
 package com.director.mixin;
 
+import com.director.client.world.WorldRenderOverride;
 import com.director.timeline.playback.time.TimeSample;
-import com.director.timeline.playback.time.TimelineWorldController;
 import net.minecraft.client.render.DimensionEffects;
 import net.minecraft.client.render.SkyRendering;
 import net.minecraft.client.render.state.SkyRenderState;
@@ -12,11 +12,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/**
- * SkyRenderingMixin v1.0
- *
- * <p>确保自定义太阳高度角能够驱动天空太阳位置（renderCelestialBodies 使用 state.time）。</p>
- */
 @Mixin(SkyRendering.class)
 public abstract class SkyRenderingMixin {
 
@@ -32,16 +27,15 @@ public abstract class SkyRenderingMixin {
             SkyRenderState state,
             CallbackInfo ci
     ) {
-        TimelineWorldController controller = TimelineWorldController.getInstance();
-        if (!controller.hasOverride()) {
+        WorldRenderOverride renderState = WorldRenderOverride.get();
+        if (!renderState.hasTimeOverride()) {
             return;
         }
-        TimeSample sample = controller.current();
+        TimeSample sample = renderState.timeSample();
         if (sample == null || sample.isUseWorldTime()) {
             return;
         }
 
-        // 仅在自定义太阳模式下覆盖天空时间与太阳角度
         float skyAngle = sample.getSkyAngle();
         state.time = skyAngle;
         state.solarAngle = skyAngle * (float) (Math.PI * 2.0);

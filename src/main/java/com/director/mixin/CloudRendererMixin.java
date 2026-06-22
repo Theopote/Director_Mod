@@ -1,6 +1,6 @@
 package com.director.mixin;
 
-import com.director.timeline.playback.weather.TimelineWeatherController;
+import com.director.client.world.WorldRenderOverride;
 import com.director.timeline.playback.weather.WeatherSample;
 import net.minecraft.client.option.CloudRenderMode;
 import net.minecraft.client.render.CloudRenderer;
@@ -57,13 +57,13 @@ public abstract class CloudRendererMixin {
             return;
         }
 
-        TimelineWeatherController controller = TimelineWeatherController.getInstance();
-        if (!controller.hasOverride()) {
+        WorldRenderOverride state = WorldRenderOverride.get();
+        if (!state.hasWeatherOverride()) {
             director$restoreBaseCells();
             return;
         }
 
-        WeatherSample sample = controller.getCurrentSample();
+        WeatherSample sample = state.weatherSample();
         if (sample == null || !sample.enabled) {
             director$restoreBaseCells();
             return;
@@ -101,11 +101,11 @@ public abstract class CloudRendererMixin {
         argsOnly = true
     )
     private float director$scaleCloudPhase(float cloudPhase) {
-        TimelineWeatherController controller = TimelineWeatherController.getInstance();
-        if (!controller.hasOverride()) {
+        WorldRenderOverride state = WorldRenderOverride.get();
+        if (!state.hasWeatherOverride()) {
             return cloudPhase;
         }
-        WeatherSample sample = controller.getCurrentSample();
+        WeatherSample sample = state.weatherSample();
         if (sample == null || !sample.enabled) {
             return cloudPhase;
         }

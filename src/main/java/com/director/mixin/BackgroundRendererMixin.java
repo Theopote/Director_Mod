@@ -1,7 +1,7 @@
 package com.director.mixin;
 
+import com.director.client.world.WorldRenderOverride;
 import com.director.timeline.playback.season.SeasonSample;
-import com.director.timeline.playback.season.TimelineSeasonController;
 // ⚠️ 雾功能已禁用，以下导入暂时保留以备将来使用
 // import com.director.timeline.playback.weather.WeatherSample;
 // import com.director.timeline.playback.weather.TimelineWeatherController;
@@ -103,9 +103,9 @@ public abstract class BackgroundRendererMixin {
         */
         
         // ⭐ 季节系统：应用雾颜色偏移（如果天气系统没有覆盖）
-        TimelineSeasonController seasonController = TimelineSeasonController.getInstance();
-        SeasonSample seasonSample = seasonController.getCurrentSample();
-        if (seasonController.hasOverride() && seasonSample != null) {
+        WorldRenderOverride state = WorldRenderOverride.get();
+        SeasonSample seasonSample = state.seasonSample();
+        if (state.hasSeasonOverride() && seasonSample != null) {
             // tint: 相对偏移（-0.99 ~ 3），限制范围避免负值或过度增强
             r = clamp01(original.x * (1f + clampTint(seasonSample.fogTint.x)));
             g = clamp01(original.y * (1f + clampTint(seasonSample.fogTint.y)));

@@ -1,5 +1,6 @@
 package com.director.timeline.playback.time;
 
+import com.director.client.world.WorldRenderOverride;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineSelectable;
 import com.director.timeline.model.TimelineTrack;
@@ -388,6 +389,7 @@ public final class TimelineWorldController {
         long oldWorldTime = currentSample != null ? currentSample.getWorldTimeTicks() : -1;
         this.hasCustomSample = true;
         this.currentSample = newSample; // TimeSample 是不可变的，直接赋值即可
+        publishRenderOverride();
 
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("[TimelineWorld] applySampleInternal cache: old={} new={} freezeActive={}",
@@ -448,6 +450,7 @@ public final class TimelineWorldController {
         freezeTimeActive = false;
         savedDoDaylightCycle = null;
 
+        publishRenderOverride();
         LOGGER.info("[TimelineWorld] Cleared time override state");
     }
 
@@ -663,9 +666,11 @@ public final class TimelineWorldController {
         }
         try {
             internalTimeUpdate = true;
+            publishRenderOverride();
             world.setTime(normalizedTicks, normalizedTicks, false);
         } finally {
             internalTimeUpdate = false;
+            publishRenderOverride();
         }
         
         // 更新冻结时间快照
@@ -848,9 +853,11 @@ public final class TimelineWorldController {
                     // ⭐ 修复：实际将服务器时间写入客户端，确保时间完全同步
                     try {
                         internalTimeUpdate = true;
+                        publishRenderOverride();
                         client.world.setTime(serverTime, serverTime, false);
                     } finally {
                         internalTimeUpdate = false;
+                        publishRenderOverride();
                     }
                     LOGGER.info("[TimelineWorld] 已同步客户端时间与服务器 (服务器时间: {})", serverTime);
                 } catch (Exception e) {
@@ -900,4 +907,7 @@ public final class TimelineWorldController {
         return sampler.getKeyframes().isEmpty();
     }
 
+    private void publishRenderOverride() {
+        WorldRenderOverride.publishTime(hasOverride(), internalTimeUpdate, currentSample);
+    }
 }

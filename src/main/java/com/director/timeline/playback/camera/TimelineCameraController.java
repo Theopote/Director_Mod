@@ -1,6 +1,7 @@
 package com.director.timeline.playback.camera;
 
 import com.director.client.DirectorClientController;
+import com.director.client.camera.CameraRenderOverride;
 import com.director.client.renderer.CameraPathDebugRenderer;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
@@ -527,9 +528,16 @@ public final class TimelineCameraController {
             }
         } else {
             // ⭐ 玩家模式：只负责处理平滑过渡
-            // 玩家真实相机位置由 CameraMixin → CameraRuntime.updateFromGameCamera() 维护
+            // 玩家真实相机位置由 CameraMixin → CameraRenderOverride.reportPlayerView() 维护
             // Controller 这里只负责 lerp（如果正在进行平滑过渡）
             runtime.tickPlayerLerp(deltaSeconds);
+        }
+
+        if (timelineModel != null) {
+            CameraRenderOverride.publishTimelineActive(
+                    timelineModel.isPlaying() || timelineModel.isScrubbing());
+        } else {
+            CameraRenderOverride.publishTimelineActive(false);
         }
     }
 

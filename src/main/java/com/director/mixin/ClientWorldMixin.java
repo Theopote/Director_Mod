@@ -1,12 +1,11 @@
 package com.director.mixin;
 
 import com.director.client.DirectorClientController;
+import com.director.client.world.ClientWorldSkyEffects;
+import com.director.client.world.WorldRenderOverride;
 import com.director.timeline.playback.season.SeasonSample;
-import com.director.timeline.playback.season.TimelineSeasonController;
 import com.director.timeline.playback.time.TimeSample;
-import com.director.timeline.playback.time.TimelineWorldController;
 import com.director.timeline.playback.weather.WeatherSample;
-import com.director.timeline.playback.weather.TimelineWeatherController;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
@@ -18,26 +17,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * ClientWorldMixin v4.0
- * 
- * <p>在 Director 导演模式下实现选择性冻结：
- * <ul>
- *   <li>暂停世界时间流逝 (tickTime) - 仅导演模式</li>
- *   <li>停止随机方块显示效果 (doRandomBlockDisplayTicks)</li>
- *   <li>应用季节系统的天空颜色偏移</li>
- * </ul>
- * 
- * <p>注意：时间轨道系统的时间冻结由服务器端 GameRule 控制，客户端不负责冻结逻辑。
- * 
- * @author Director Team
- * @version 4.0 - 添加天气系统支持
+ * ClientWorldMixin v4.1
+ *
+ * <p>渲染覆盖状态只读 {@link WorldRenderOverride}，不依赖 playback Controller 单例。
  */
 @Mixin(ClientWorld.class)
 public abstract class ClientWorldMixin {
 
-    /**
-     * Director 模式：冻结客户端时间
-     */
     @Inject(method = "tickTime", at = @At("HEAD"), cancellable = true)
     private void onTickTime(CallbackInfo ci) {
         DirectorClientController controller = DirectorClientController.getInstance();
@@ -46,9 +32,6 @@ public abstract class ClientWorldMixin {
         }
     }
 
-    /**
-     * Director 模式：不生成随机粒子 / 特效
-     */
     @Inject(method = "doRandomBlockDisplayTicks", at = @At("HEAD"), cancellable = true)
     private void stopDisplayTicks(int cx, int cy, int cz, CallbackInfo ci) {
         DirectorClientController c = DirectorClientController.getInstance();
@@ -59,115 +42,52 @@ public abstract class ClientWorldMixin {
 
     @Inject(method = "setTime(JJZ)V", at = @At("HEAD"), cancellable = true)
     private void blockExternalTimeUpdate(long time, long timeOfDay, boolean doDaylightCycle, CallbackInfo ci) {
-        TimelineWorldController controller = TimelineWorldController.getInstance();
-        if (!controller.hasOverride()) {
+        WorldRenderOverride state = WorldRenderOverride.get();
+        if (!state.hasTimeOverride()) {
             return;
         }
-        boolean internal = controller.isInternalTimeUpdate();
-        if (!internal) {
+        if (!state.isInternalTimeUpdate()) {
             ci.cancel();
         }
     }
 
     @Inject(method = "getSkyBrightness(F)F", at = @At("HEAD"), cancellable = true)
     private void overrideSkyBrightness(float tickDelta, CallbackInfoReturnable<Float> cir) {
-        TimelineWorldController controller = TimelineWorldController.getInstance();
-        if (!controller.hasOverride()) {
+        WorldRenderOverride state = WorldRenderOverride.get();
+        if (!state.hasTimeOverride()) {
             return;
         }
-        TimeSample sample = controller.current();
-        if (sample == null) {
+        TimeSample sample = state.timeSample();
+        if (sample == null || sample.isUseWorldTime()) {
             return;
-        }
-        if (sample.isUseWorldTime()) {
-            return; // /time set 语义：让原版按世界时间计算亮度
         }
 
-        // 自定义太阳模式：使用 skyAngle 走原版亮度曲线
-        float f = sample.getSkyAngle();
-        float g = 1.0f - (MathHelper.cos(f * (float) (Math.PI * 2)) * 2.0f + 0.2f);
-        g = MathHelper.clamp(g, 0.0f, 1.0f);
-        g = 1.0f - g;
-        float baseBrightness = g;
-        
         ClientWorld world = (ClientWorld) (Object) this;
-        
-        // ✅ 修复：当天气轨道启用时，禁止原版天气影响天空亮度
-        // 原版天气的雨/雷暴梯度已经被 WorldMixin 覆盖，这里使用轨道系统的值
-        TimelineWeatherController weatherController = TimelineWeatherController.getInstance();
-        if (weatherController.hasOverride()) {
-            WeatherSample weatherSample = weatherController.getCurrentSample();
-            if (weatherSample != null && weatherSample.enabled) {
-                // 使用轨道系统的雨/雷暴强度影响天空亮度
-                float rainGradient = weatherSample.rainStrength;
-                float thunderGradient = weatherSample.thunderStrength;
-                baseBrightness *= 1.0f - rainGradient * 5.0f / 16.0f;
-                baseBrightness *= 1.0f - thunderGradient * 5.0f / 16.0f;
-            } else {
-                // 天气轨道启用但 sample 无效，禁止原版天气影响
-                // 不应用任何雨/雷暴暗度
-            }
-        } else {
-            // 天气轨道未启用，使用原版天气
-            baseBrightness *= 1.0f - world.getRainGradient(tickDelta) * 5.0f / 16.0f;
-            baseBrightness *= 1.0f - world.getThunderGradient(tickDelta) * 5.0f / 16.0f;
-        }
-        baseBrightness = baseBrightness * 0.8f + 0.2f;
-        
-        // ⭐ 天气系统：应用云量影响天空亮度（云越多，天空越暗）
-        if (weatherController.hasOverride()) {
-            WeatherSample weatherSample = weatherController.getCurrentSample();
-            if (weatherSample != null && weatherSample.enabled) {
-                // 云量影响：云越多，天空越暗（最多降低50%亮度）
-                if (weatherSample.cloudCoverage > 0.01f) {
-                    float cloudDarkness = weatherSample.cloudCoverage * 0.5f;
-                    baseBrightness *= (1.0f - cloudDarkness);
-                }
-                
-                // ⭐ v1.1 架构：闪电闪白效果（通过 WeatherEventController 控制）
-                // ✅ 修复：使用乘数而不是直接加法，让闪白更明显
-                float flashFactor = com.director.timeline.playback.weather.WeatherEventController.getInstance().getCurrentFlashBrightness();
-                if (flashFactor > 0.01f) {
-                    // 闪白时：brightness = base * (1.0 - stormDark) + flashFactor（瞬时增益）
-                    // 使用混合方式：mix(skyColor, WHITE, flashFactor)
-                    baseBrightness = baseBrightness * (1.0f - flashFactor * 0.3f) + flashFactor * 0.7f;
-                    baseBrightness = MathHelper.clamp(baseBrightness, 0f, 1f);
-                }
-            }
-        }
-
-        cir.setReturnValue(baseBrightness);
+        WeatherSample weatherSample = state.weatherSample();
+        float brightness = ClientWorldSkyEffects.computeSkyBrightness(
+                sample,
+                weatherSample,
+                state.hasWeatherOverride(),
+                state.weatherFlashBrightness(),
+                world,
+                tickDelta
+        );
+        cir.setReturnValue(brightness);
     }
 
     @Inject(method = "getStarBrightness(F)F", at = @At("HEAD"), cancellable = true)
     private void overrideStarBrightness(float tickDelta, CallbackInfoReturnable<Float> cir) {
-        TimelineWorldController controller = TimelineWorldController.getInstance();
-        if (!controller.hasOverride()) {
+        WorldRenderOverride state = WorldRenderOverride.get();
+        if (!state.hasTimeOverride()) {
             return;
         }
-        TimeSample sample = controller.current();
-        if (sample == null) {
+        TimeSample sample = state.timeSample();
+        if (sample == null || sample.isUseWorldTime()) {
             return;
         }
-        if (sample.isUseWorldTime()) {
-            return; // /time set 语义：让原版按世界时间计算星星亮度
-        }
-        // ⭐ 直接使用 TimeSample.getSkyLight() 计算星星亮度
-        // 星星亮度与天空亮度反相关：亮度越低（夜晚），星星越亮
-        float skyLight = sample.getSkyLight(); // 0.0-1.0
-        float starBrightness = 1.0f - skyLight;
-        starBrightness = starBrightness * starBrightness * 0.5f; // 二次函数增强对比
-        
-        cir.setReturnValue(starBrightness);
+        cir.setReturnValue(ClientWorldSkyEffects.computeStarBrightness(sample));
     }
 
-    /**
-     * Weather + Time：云颜色控制
-     * 
-     * <p>方法签名（Minecraft 1.21）：getCloudsColor(float tickProgress) -> int (ARGB)
-     * 
-     * <p>根据提供的 ClientWorld 源码，该方法返回 int (ARGB 格式)，而不是 Vec3d
-     */
     @Inject(
         method = "getCloudsColor(F)I",
         at = @At("RETURN"),
@@ -175,35 +95,29 @@ public abstract class ClientWorldMixin {
     )
     private void tintClouds(float tickDelta, CallbackInfoReturnable<Integer> cir) {
         int originalColor = cir.getReturnValue();
-
-        // 从 ARGB int 提取 RGB 分量
         int r = (originalColor >> 16) & 0xFF;
         int g = (originalColor >> 8) & 0xFF;
         int b = originalColor & 0xFF;
         int a = (originalColor >> 24) & 0xFF;
         if (a == 0) {
-            a = 0xFF; // 确保 alpha 通道有效
+            a = 0xFF;
         }
 
-        // 转换为 float [0-1]
         float rf = r / 255f;
         float gf = g / 255f;
         float bf = b / 255f;
 
-        // ⭐ 天气系统：应用在原版时间影响之后
-        TimelineWeatherController weatherController = TimelineWeatherController.getInstance();
-        if (weatherController.hasOverride()) {
-            WeatherSample weatherSample = weatherController.getCurrentSample();
+        WorldRenderOverride state = WorldRenderOverride.get();
+        if (state.hasWeatherOverride()) {
+            WeatherSample weatherSample = state.weatherSample();
             if (weatherSample != null && weatherSample.enabled) {
                 float coverage = clamp01(weatherSample.cloudCoverage);
                 if (coverage > 0.01f) {
-                    // 应用云亮度（1.0 = Minecraft 默认）
                     float cloudBrightness = MathHelper.clamp(weatherSample.cloudBrightness, 0.3f, 1.2f);
                     rf *= cloudBrightness;
                     gf *= cloudBrightness;
                     bf *= cloudBrightness;
-                    
-                    // 雨天使云变暗
+
                     if (weatherSample.rainStrength > 0.01f) {
                         float rainDarkness = weatherSample.rainStrength * 0.3f;
                         rf *= (1.0f - rainDarkness);
@@ -214,10 +128,8 @@ public abstract class ClientWorldMixin {
             }
         }
 
-        // ⭐ 季节系统：应用光照 tint（在天气调整之后）
-        TimelineSeasonController seasonController = TimelineSeasonController.getInstance();
-        if (seasonController.hasOverride()) {
-            SeasonSample seasonSample = seasonController.getCurrentSample();
+        if (state.hasSeasonOverride()) {
+            SeasonSample seasonSample = state.seasonSample();
             if (seasonSample != null) {
                 rf = clamp01(rf * (1f + clampTint(seasonSample.lightTint.x)));
                 gf = clamp01(gf * (1f + clampTint(seasonSample.lightTint.y)));
@@ -225,24 +137,15 @@ public abstract class ClientWorldMixin {
             }
         }
 
-        // 限制范围并转换回 ARGB int
         rf = clamp01(rf);
         gf = clamp01(gf);
         bf = clamp01(bf);
 
-        int newColor = (a << 24)
+        cir.setReturnValue((a << 24)
                 | ((int) (rf * 255) << 16)
                 | ((int) (gf * 255) << 8)
-                | (int) (bf * 255);
-
-        cir.setReturnValue(newColor);
+                | (int) (bf * 255));
     }
-
-    /**
-     * Season + Weather：天空颜色和暗度
-     * 
-     * <p>优先级：Weather Track > Season Track > Minecraft 原版
-     */
 
     @Inject(
         method = "getSkyColor(Lnet/minecraft/util/math/Vec3d;F)I",
@@ -254,77 +157,54 @@ public abstract class ClientWorldMixin {
         int r = (color >> 16) & 0xFF;
         int g = (color >> 8) & 0xFF;
         int b = color & 0xFF;
-        
-        // 确保 Alpha 通道为 0xFF（天空颜色应该完全不透明）
-        int a = (color >> 24) & 0xFF;
-        if (a == 0) {
-        }
-        
+
         float rf = r / 255f;
         float gf = g / 255f;
         float bf = b / 255f;
 
-        // ⭐ 天气系统：优先级最高，应用天空暗度和雷暴暗度
-        TimelineWeatherController weatherController = TimelineWeatherController.getInstance();
-        if (weatherController.hasOverride()) {
-            WeatherSample weatherSample = weatherController.getCurrentSample();
+        WorldRenderOverride state = WorldRenderOverride.get();
+        if (state.hasWeatherOverride()) {
+            WeatherSample weatherSample = state.weatherSample();
             if (weatherSample != null && weatherSample.enabled) {
-                // 应用天空暗度
-                float dark = weatherSample.skyDarkness; // Use skyDarkness from WeatherSample
+                float dark = weatherSample.skyDarkness;
                 float factor = Math.max(0f, 1f - dark);
                 rf *= factor;
                 gf *= factor;
                 bf *= factor;
-                
-                // 雷暴会进一步降低亮度
+
                 if (weatherSample.thunderIntensity > 0.01f) {
                     float thunderFactor = 1f - (weatherSample.thunderIntensity * 0.6f);
                     rf *= thunderFactor;
                     gf *= thunderFactor;
                     bf *= thunderFactor;
                 }
-                
             }
         }
-        
-        // ⭐ 季节系统：应用天空 tint 偏移（如果天气系统没有覆盖）
-        TimelineSeasonController seasonController = TimelineSeasonController.getInstance();
-        if (seasonController.hasOverride()) {
-            SeasonSample seasonSample = seasonController.getCurrentSample();
+
+        if (state.hasSeasonOverride()) {
+            SeasonSample seasonSample = state.seasonSample();
             if (seasonSample != null) {
-                // ⭐ 修复：天空颜色只应用 skyTint，lightTint 应只影响光照系统，
-                // 而不应在天空颜色上与 skyTint 乘法叠加导致极端颜色
                 rf = clamp01(rf * (1f + clampTint(seasonSample.skyTint.x)));
                 gf = clamp01(gf * (1f + clampTint(seasonSample.skyTint.y)));
                 bf = clamp01(bf * (1f + clampTint(seasonSample.skyTint.z)));
 
-                // 雾色属于大气颜色的一部分。如果只修改 FogRenderer 的雾色而天空保持原色，
-                // 天际线处会出现明显硬接。这里让天空获得一部分 fogTint，形成更自然的过渡。
                 rf = applyAtmosphericFogTint(rf, seasonSample.fogTint.x);
                 gf = applyAtmosphericFogTint(gf, seasonSample.fogTint.y);
                 bf = applyAtmosphericFogTint(bf, seasonSample.fogTint.z);
             }
         }
-        
-        // 重新打包为 ARGB 格式，确保 alpha = 0xFF
+
         cir.setReturnValue((0xFF << 24)
                 | ((int) (clamp01(rf) * 255) << 16)
                 | ((int) (clamp01(gf) * 255) << 8)
                 | (int) (clamp01(bf) * 255));
     }
 
-    /**
-     * 将值限制在 [0, 1] 范围内
-     */
     @Unique
     private static float clamp01(float v) {
         return Math.max(0f, Math.min(1f, v));
     }
 
-    /**
-     * 限制 tint 范围，避免负值导致颜色突变或过度增强
-     * <p>tint ∈ [-0.99, +3]：允许最多 -99% 到 +300% 的偏移
-     */
     @Unique
     private static float clampTint(float v) {
         return Math.max(-0.99f, Math.min(3f, v));
@@ -344,7 +224,4 @@ public abstract class ClientWorldMixin {
     private static float lerp(float a, float b, float t) {
         return a + (b - a) * t;
     }
-    
-    // 注意：天气相关的方法（getRainGradient, getThunderGradient, isRaining, isThundering）
-    // 已移至 WorldMixin，因为这些方法在 World 基类中定义，而不是 ClientWorld 中。
 }

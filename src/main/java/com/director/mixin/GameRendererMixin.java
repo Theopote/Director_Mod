@@ -1,8 +1,8 @@
 package com.director.mixin;
 
 import com.director.client.DirectorClientController;
+import com.director.client.camera.CameraRenderOverride;
 import com.director.export.video.VideoRenderPipeline;
-import com.director.timeline.playback.camera.CameraRuntime;
 import com.director.timeline.playback.camera.CameraSample;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.GameRenderer;
@@ -60,14 +60,13 @@ public class GameRendererMixin {
                                           float tickDelta,
                                           boolean changingFov,
                                           CallbackInfoReturnable<Float> cir) {
-        CameraRuntime runtime = CameraRuntime.getInstance();
+        CameraRenderOverride state = CameraRenderOverride.get();
 
-        // 只有时间线接管摄像机时才覆盖 FOV
-        if (!runtime.isTimelineOwner()) {
+        if (!state.isTimelineOwner()) {
             return;
         }
 
-        CameraSample sample = runtime.getCurrentSample();
+        CameraSample sample = state.sample();
         if (sample != null) {
             cir.setReturnValue(sample.fov());
         }

@@ -1,5 +1,6 @@
 package com.director.mixin;
 
+import com.director.client.camera.CameraRenderOverride;
 import com.director.export.video.VideoExportManager;
 import com.director.ui.DirectorScreen;
 import net.minecraft.client.MinecraftClient;
@@ -49,9 +50,9 @@ public class KeyboardInputMixin extends Input {
                         || InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_LEFT_SHIFT)
                         || InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_LEFT_CONTROL);
                 if (anyMovementKey) {
-                    var runtime = com.director.timeline.playback.camera.CameraRuntime.getInstance();
+                    CameraRenderOverride cameraState = CameraRenderOverride.get();
                     var controller = com.director.timeline.playback.camera.TimelineCameraController.getInstance();
-                    if (runtime.isTimelineOwner() && !controller.isTimelineActive()) {
+                    if (cameraState.isTimelineOwner() && !cameraState.isTimelineActive()) {
                         controller.releaseCameraToPlayer();
                     }
                 }

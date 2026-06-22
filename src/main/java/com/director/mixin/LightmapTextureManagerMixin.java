@@ -1,8 +1,7 @@
 package com.director.mixin;
 
+import com.director.client.world.WorldRenderOverride;
 import com.director.timeline.playback.season.SeasonSample;
-import com.director.timeline.playback.season.TimelineSeasonController;
-import com.director.timeline.playback.weather.WeatherEventController;
 import net.minecraft.client.render.LightmapTextureManager;
 import org.joml.Vector3f;
 import org.spongepowered.asm.mixin.Mixin;
@@ -58,7 +57,7 @@ public abstract class LightmapTextureManagerMixin {
 
         // ✅ v1.1：闪电闪白 — 提升 lightmap 亮度
         // MC 的闪电视觉效果主要通过 lightmap 实现，仅修改 getSkyBrightness 不够明显
-        float flash = WeatherEventController.getInstance().getCurrentFlashBrightness();
+        float flash = WorldRenderOverride.get().weatherFlashBrightness();
         if (flash > 0.01f) {
             // 闪白时将光照颜色混合向白色，flash=1.0 时完全白
             result.set(
@@ -69,9 +68,9 @@ public abstract class LightmapTextureManagerMixin {
         }
 
         // 季节光照色调
-        TimelineSeasonController controller = TimelineSeasonController.getInstance();
-        if (controller.hasOverride()) {
-            SeasonSample sample = controller.getCurrentSample();
+        WorldRenderOverride state = WorldRenderOverride.get();
+        if (state.hasSeasonOverride()) {
+            SeasonSample sample = state.seasonSample();
             if (sample != null) {
                 if (applyLightTint) {
                     result.set(

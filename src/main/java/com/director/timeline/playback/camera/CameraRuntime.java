@@ -1,5 +1,6 @@
 package com.director.timeline.playback.camera;
 
+import com.director.client.camera.CameraRenderOverride;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.Vec3d;
 import org.slf4j.Logger;
@@ -52,7 +53,9 @@ public final class CameraRuntime {
 
     private volatile LerpState lerpState = LerpState.INACTIVE;
 
-    private CameraRuntime() {}
+    private CameraRuntime() {
+        publishRenderOverride();
+    }
 
     public static CameraRuntime getInstance() {
         return INSTANCE;
@@ -92,6 +95,7 @@ public final class CameraRuntime {
                 10.0f,
                 2.8f
         );
+        publishRenderOverride();
     }
 
     /**
@@ -101,6 +105,7 @@ public final class CameraRuntime {
     public void applyTimelineSample(CameraSample sample) {
         if (sample == null) return;
         this.currentSample = sample;
+        publishRenderOverride();
     }
 
     /**
@@ -119,6 +124,7 @@ public final class CameraRuntime {
         if (sample == null) return;
         assert owner == Owner.PLAYER : "updateCurrentSample should only be called in PLAYER mode";
         this.currentSample = sample;
+        publishRenderOverride();
     }
 
     /**
@@ -152,6 +158,7 @@ public final class CameraRuntime {
         MinecraftClient mc = MinecraftClient.getInstance();
         CameraAccessor.applySampleToPlayerEntity(mc, blended);
         this.currentSample = blended;
+        publishRenderOverride();
 
         if (t >= 1f - EPSILON) {
             this.lerpState = LerpState.INACTIVE;
@@ -169,6 +176,7 @@ public final class CameraRuntime {
         }
 
         this.owner = newOwner;
+        publishRenderOverride();
         MinecraftClient mc = MinecraftClient.getInstance();
         if (mc.player == null) return;
 
@@ -190,7 +198,11 @@ public final class CameraRuntime {
      */
     public void reset() {
         setOwner(Owner.PLAYER);
-        // 不强制清空 currentSample，后续 Camera.update 会刷新
+        publishRenderOverride();
+    }
+
+    private void publishRenderOverride() {
+        CameraRenderOverride.publish(owner == Owner.TIMELINE, currentSample);
     }
 
     // ================== 玩家输入锁定 / 解锁 ==================

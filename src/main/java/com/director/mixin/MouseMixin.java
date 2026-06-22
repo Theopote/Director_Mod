@@ -1,5 +1,6 @@
 package com.director.mixin;
 
+import com.director.client.camera.CameraRenderOverride;
 import com.director.core.DirectorServices;
 import com.director.core.selection.SelectionInputHandler;
 import com.director.export.video.VideoExportManager;
@@ -85,18 +86,15 @@ public abstract class MouseMixin {
 
         // ⭐ 检测玩家鼠标输入：如果不在播放/scrubbing，立即切回玩家控制
         if (!hover && client.player != null) {
-            com.director.timeline.playback.camera.CameraRuntime runtime = 
-                com.director.timeline.playback.camera.CameraRuntime.getInstance();
-            
-            // 检测鼠标移动（表示玩家想要操作摄像机）
+            CameraRenderOverride cameraState = CameraRenderOverride.get();
+
             boolean hasMouseMovement = Math.abs(dx) > 0.001 || Math.abs(dy) > 0.001;
-            
-            if (hasMouseMovement && runtime.isTimelineOwner()) {
-                // 检查时间线是否真的在活动（播放、scrubbing 或关键帧属性编辑预览）
+
+            if (hasMouseMovement && cameraState.isTimelineOwner()) {
                 com.director.timeline.playback.camera.TimelineCameraController controller =
                     com.director.timeline.playback.camera.TimelineCameraController.getInstance();
-                
-                if (!controller.isTimelineActive()) {
+
+                if (!cameraState.isTimelineActive()) {
                     // ⭐ 播放头静止且不在编辑关键帧 + 玩家鼠标移动 = 立即切回玩家控制
                     controller.clearPreviewState();
                     controller.releaseCameraToPlayer();
@@ -105,7 +103,7 @@ public abstract class MouseMixin {
             }
             
             // 中键拖拽时移动视角（仅在玩家控制时）
-            if (director$isDragging && runtime.isPlayerOwner()) {
+            if (director$isDragging && cameraState.isPlayerOwner()) {
                 double baseSensitivity = client.options.getMouseSensitivity().getValue();
                 double scale = baseSensitivity * 2.0; // ✅ 动态灵敏度系数
                 client.player.changeLookDirection(dx * scale, dy * scale);

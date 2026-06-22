@@ -1,5 +1,6 @@
 package com.director.timeline.playback.weather;
 
+import com.director.client.world.WorldRenderOverride;
 import com.director.core.DirectorServices;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
@@ -159,6 +160,7 @@ public final class TimelineWeatherController {
             sampler = null;
             currentSample = null;
             hasOverride = false;
+            syncRenderOverride();
             return;
         }
 
@@ -190,6 +192,7 @@ public final class TimelineWeatherController {
             this.hasOverride = true;
             applyToWorld(sample);
         }
+        syncRenderOverride();
     }
 
     /**
@@ -277,6 +280,7 @@ public final class TimelineWeatherController {
                 setEnabled(true);
             }
         }
+        syncRenderOverride();
     }
 
     // ==========================================================
@@ -311,6 +315,7 @@ public final class TimelineWeatherController {
 
         // 分发到各个子系统
         applyToWorld(sample);
+        syncRenderOverride();
     }
     
     /**
@@ -331,6 +336,7 @@ public final class TimelineWeatherController {
         } catch (Exception e) {
             LOGGER.debug("[WeatherController] 无法更新事件子系统", e);
         }
+        syncRenderOverride();
     }
 
     /**
@@ -521,6 +527,7 @@ public final class TimelineWeatherController {
         } catch (Exception e) {
             LOGGER.debug("[WeatherController] 无法清除 WeatherRenderer", e);
         }
+        syncRenderOverride();
     }
 
     /**
@@ -573,6 +580,7 @@ public final class TimelineWeatherController {
         // 注意：雨/雷的恢复由 WorldMixin 自动处理（当 hasOverride() 返回 false 时）
         // 雾和云的恢复由 BackgroundRendererMixin 和 ClientWorldMixin 自动处理（当 hasOverride() 返回 false 时）
         LOGGER.info("[WeatherController] 清除天气 override，并尝试恢复 Vanilla 晴天状态");
+        syncRenderOverride();
     }
 
     /**
@@ -635,6 +643,15 @@ public final class TimelineWeatherController {
         }
 
         LOGGER.info("[WeatherController] Cleared weather override state - 恢复游戏默认天气状态");
+        syncRenderOverride();
     }
 
+    private void syncRenderOverride() {
+        WorldRenderOverride.publishWeather(
+                hasWeatherTrack(),
+                hasOverride(),
+                currentSample,
+                WeatherEventController.getInstance().getCurrentFlashBrightness()
+        );
+    }
 }

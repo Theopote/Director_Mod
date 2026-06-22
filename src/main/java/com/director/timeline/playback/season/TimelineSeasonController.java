@@ -1,5 +1,6 @@
 package com.director.timeline.playback.season;
 
+import com.director.client.world.WorldRenderOverride;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
@@ -467,6 +468,7 @@ public final class TimelineSeasonController {
         
         // 更新缓存的 hasOverride 状态
         this.cachedHasOverride = computeHasOverride();
+        WorldRenderOverride.publishSeason(hasOverride(), currentSample);
         
         // 节流：限制区块重渲染频率，避免插值播放时每帧全量刷新
         long now = System.currentTimeMillis();

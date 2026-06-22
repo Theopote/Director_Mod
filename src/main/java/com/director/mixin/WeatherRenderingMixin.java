@@ -1,6 +1,6 @@
 package com.director.mixin;
 
-import com.director.timeline.playback.weather.TimelineWeatherController;
+import com.director.client.world.WorldRenderOverride;
 import com.director.timeline.playback.weather.WeatherSample;
 import net.minecraft.client.render.WeatherRendering;
 import net.minecraft.util.math.BlockPos;
@@ -37,12 +37,12 @@ public abstract class WeatherRenderingMixin {
             World world, BlockPos pos,
             CallbackInfoReturnable<Biome.Precipitation> cir) {
 
-        TimelineWeatherController controller = TimelineWeatherController.getInstance();
-        if (!controller.hasOverride()) {
+        WorldRenderOverride state = WorldRenderOverride.get();
+        if (!state.hasWeatherOverride()) {
             return;
         }
 
-        WeatherSample sample = controller.getCurrentSample();
+        WeatherSample sample = state.weatherSample();
         if (sample == null || !sample.enabled) {
             return;
         }
