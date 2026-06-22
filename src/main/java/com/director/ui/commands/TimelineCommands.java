@@ -64,4 +64,16 @@ public interface TimelineCommands {
      * 删除选中的项
      */
     void deleteSelected();
+
+    /** 剪切选中的片段 */
+    void cutSelected();
+
+    /** 复制选中的片段 */
+    void copySelected();
+
+    /** 粘贴片段 */
+    void paste();
+
+    /** 取消进行中的时间线交互 */
+    void cancelInteraction();
 }

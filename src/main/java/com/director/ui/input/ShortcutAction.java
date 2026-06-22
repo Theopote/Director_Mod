@@ -121,6 +121,18 @@ public enum ShortcutAction {
     /** 删除选中项 */
     TIMELINE_DELETE,
 
+    /** 剪切选中片段 */
+    TIMELINE_CUT,
+
+    /** 复制选中片段 */
+    TIMELINE_COPY,
+
+    /** 粘贴片段 */
+    TIMELINE_PASTE,
+
+    /** 取消时间线进行中的交互（拖动/框选等） */
+    TIMELINE_CANCEL_INTERACTION,
+
     /** 请求删除选中的容器（弹出确认，仅当容器树焦点时） */
     CONTAINER_DELETE,
     

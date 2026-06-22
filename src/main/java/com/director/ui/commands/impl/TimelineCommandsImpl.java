@@ -171,4 +171,44 @@ public final class TimelineCommandsImpl implements TimelineCommands {
             LOGGER.warn("[TimelineCommands] TimelinePanel 不可用，无法删除");
         }
     }
+
+    @Override
+    public void cutSelected() {
+        if (timelinePanel != null) {
+            timelinePanel.cutSelected();
+            LOGGER.debug("[TimelineCommands] 剪切选中片段");
+        } else {
+            LOGGER.warn("[TimelineCommands] TimelinePanel 不可用，无法剪切");
+        }
+    }
+
+    @Override
+    public void copySelected() {
+        if (timelinePanel != null) {
+            timelinePanel.copySelected();
+            LOGGER.debug("[TimelineCommands] 复制选中片段");
+        } else {
+            LOGGER.warn("[TimelineCommands] TimelinePanel 不可用，无法复制");
+        }
+    }
+
+    @Override
+    public void paste() {
+        if (timelinePanel != null) {
+            timelinePanel.paste();
+            LOGGER.debug("[TimelineCommands] 粘贴片段");
+        } else {
+            LOGGER.warn("[TimelineCommands] TimelinePanel 不可用，无法粘贴");
+        }
+    }
+
+    @Override
+    public void cancelInteraction() {
+        if (timelinePanel != null) {
+            timelinePanel.cancelInteraction();
+            LOGGER.debug("[TimelineCommands] 取消时间线交互");
+        } else {
+            LOGGER.warn("[TimelineCommands] TimelinePanel 不可用，无法取消交互");
+        }
+    }
 }

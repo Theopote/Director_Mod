@@ -1,6 +1,5 @@
 package com.director.mixin;
 
-import com.director.core.DirectorServices;
 import com.director.ui.input.InputFocusManager;
 import net.minecraft.client.Keyboard;
 import net.minecraft.client.input.CharInput;
@@ -44,23 +43,16 @@ public class KeyboardMixin {
 
         // 如果Director窗口激活且应该捕获键盘
         if (focusManager.shouldCaptureKeyboard()) {
-            // ✅ 优先使用新的 ShortcutDispatcher（Facade 架构）
-            // 尝试获取 DirectorScreen 的 UIManager 并调用 ShortcutDispatcher
-            boolean handledByNewSystem = false;
             if (!textInputActive) {
                 try {
-                    // 通过 MinecraftClient 获取当前 Screen
                     var client = net.minecraft.client.MinecraftClient.getInstance();
                     if (client != null && client.currentScreen instanceof com.director.ui.DirectorScreen directorScreen) {
                         var uiManager = directorScreen.getUIManager();
                         if (uiManager != null) {
                             var shortcutDispatcher = uiManager.getShortcutDispatcher();
                             if (shortcutDispatcher != null) {
-                                int keyCode = input.key();
-                                int mods = input.modifiers();
-                                // 使用新的 ShortcutDispatcher 处理快捷键
-                                shortcutDispatcher.handleGLFWKeyEvent(keyCode, org.lwjgl.glfw.GLFW.GLFW_PRESS, mods);
-                                handledByNewSystem = true;
+                                shortcutDispatcher.handleGLFWKeyEvent(
+                                        input.key(), org.lwjgl.glfw.GLFW.GLFW_PRESS, input.modifiers());
                             }
                         }
                     }
@@ -69,19 +61,6 @@ public class KeyboardMixin {
                         LOGGER.debug("[KeyboardMixin] 无法获取 ShortcutDispatcher: {}", e.getMessage());
                     }
                 }
-            }
-            
-            // 如果新系统没有处理，回退到旧的 GlobalShortcutManager
-            if (!textInputActive && !handledByNewSystem) {
-                try {
-                    var mgr = DirectorServices.get().globalShortcuts();
-                    int keyCode = input.key();
-                    int mods = input.modifiers();
-                    boolean ctrl = (mods & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL) != 0;
-                    boolean shift = (mods & org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT) != 0;
-                    boolean alt = (mods & org.lwjgl.glfw.GLFW.GLFW_MOD_ALT) != 0;
-                    mgr.handleGLFWInput(keyCode, ctrl, shift, alt);
-                } catch (Exception ignored) {}
             }
 
             if (DEBUG) {

@@ -298,61 +298,26 @@ public class DirectorScreen extends Screen {
     }
     
     /**
-     * 处理键盘输入事件
-     * 权威路径：ShortcutDispatcher（Facade）
-     * 兼容回退：GlobalShortcutManager（尚未迁移的旧快捷键）
+     * 处理键盘输入事件（统一由 ShortcutDispatcher 分发）。
+     * KeyboardMixin 为 GLFW 层主入口；此处作为 Screen 层补充，内部防抖避免重复触发。
      */
     @Override
     public boolean keyPressed(KeyInput input) {
-        int keyCode = input.key();
-        int modifiers = input.modifiers();
-
-        // KeyboardMixin 通常会优先分发快捷键；该方法作为屏幕层补充入口。
-        // 为保证行为一致，这里仍先走 ShortcutDispatcher，内部防抖会避免重复触发。
         if (uiManager != null) {
             var shortcutDispatcher = uiManager.getShortcutDispatcher();
             if (shortcutDispatcher != null) {
-                // 使用 ShortcutDispatcher 处理（只处理按下事件）
-                // 注意：ShortcutDispatcher 内部会检查上下文和文本输入状态，并有防抖机制
-                shortcutDispatcher.handleGLFWKeyEvent(keyCode, org.lwjgl.glfw.GLFW.GLFW_PRESS, modifiers);
-                // 注意：ShortcutDispatcher 不返回是否已处理，因为它只处理已绑定的快捷键
-                // 如果快捷键被处理，会在 ShortcutActions.dispatch() 中执行
-            } else {
-                // 调试：记录 ShortcutDispatcher 为 null 的情况
-                if (org.slf4j.LoggerFactory.getLogger(DirectorScreen.class).isDebugEnabled()) {
-                    org.slf4j.LoggerFactory.getLogger(DirectorScreen.class)
-                        .debug("[DirectorScreen] ShortcutDispatcher 为 null，无法处理快捷键: key={}", keyCode);
-                }
-            }
-        } else {
-            // 调试：记录 uiManager 为 null 的情况
-            if (org.slf4j.LoggerFactory.getLogger(DirectorScreen.class).isDebugEnabled()) {
-                org.slf4j.LoggerFactory.getLogger(DirectorScreen.class)
-                    .debug("[DirectorScreen] uiManager 为 null，无法处理快捷键: key={}", keyCode);
+                shortcutDispatcher.handleGLFWKeyEvent(
+                        input.key(), org.lwjgl.glfw.GLFW.GLFW_PRESS, input.modifiers());
             }
         }
 
-        // 检查ImGui是否想要捕获键盘事件
         if (ImGui.getIO() != null && ImGui.getIO().getWantCaptureKeyboard()) {
-            // ImGui 捕获键盘时，使用旧的 GlobalShortcutManager 作为后备
-            // （用于处理尚未迁移到新系统的快捷键）
-            var shortcutManager = DirectorServices.get().globalShortcuts();
-            if (shortcutManager.handleImGuiInput(ImGui.getIO())) {
-                return true; // 已处理
-            }
             return super.keyPressed(input);
         }
-        
-        // ImGui 不捕获键盘时，使用 GLFW 输入处理（保留旧系统作为后备）
-        var shortcutManager = DirectorServices.get().globalShortcuts();
-        boolean ctrlPressed = (modifiers & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL) != 0;
-        boolean shiftPressed = (modifiers & org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT) != 0;
-        boolean altPressed = (modifiers & org.lwjgl.glfw.GLFW.GLFW_MOD_ALT) != 0;
-        return shortcutManager.handleGLFWInput(keyCode, ctrlPressed, shiftPressed, altPressed); // 已处理，阻止游戏处理
+        return false;
     }
 
-    // ⚠️ getModifiers() 方法已移除
-    // 快捷键处理已移到 keyPressed() 方法开头，确保优先处理
+    // 快捷键处理在 keyPressed() 中统一经 ShortcutDispatcher 完成
 
     /**
      * 处理鼠标点击事件

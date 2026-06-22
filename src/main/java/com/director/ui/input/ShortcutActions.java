@@ -180,15 +180,29 @@ public final class ShortcutActions {
                     LOGGER.debug("[ShortcutActions] 执行: TIMELINE_REDO");
                 }
                 case TIMELINE_DELETE -> {
-                    // 优先尝试删除时间线项，如果没有选中项则清除选择
                     try {
                         commands.timeline().deleteSelected();
                         LOGGER.debug("[ShortcutActions] 执行: TIMELINE_DELETE");
                     } catch (Exception e) {
-                        // 如果删除失败（可能没有选中项），尝试清除选择
                         commands.tools().clearSelection();
                         LOGGER.debug("[ShortcutActions] TIMELINE_DELETE 失败，回退到 CLEAR_SELECTION");
                     }
+                }
+                case TIMELINE_CUT -> {
+                    commands.timeline().cutSelected();
+                    LOGGER.debug("[ShortcutActions] 执行: TIMELINE_CUT");
+                }
+                case TIMELINE_COPY -> {
+                    commands.timeline().copySelected();
+                    LOGGER.debug("[ShortcutActions] 执行: TIMELINE_COPY");
+                }
+                case TIMELINE_PASTE -> {
+                    commands.timeline().paste();
+                    LOGGER.debug("[ShortcutActions] 执行: TIMELINE_PASTE");
+                }
+                case TIMELINE_CANCEL_INTERACTION -> {
+                    commands.timeline().cancelInteraction();
+                    LOGGER.debug("[ShortcutActions] 执行: TIMELINE_CANCEL_INTERACTION");
                 }
                 case CONTAINER_DELETE -> {
                     commands.container().requestDeleteSelected();

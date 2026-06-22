@@ -114,8 +114,22 @@ public class ShortcutDispatcher {
         boolean altPressed = (modifiers & GLFW.GLFW_MOD_ALT) != 0;
         
         // 无修饰 Delete：按焦点路由到 CONTAINER_DELETE 或 TIMELINE_DELETE；带修饰的 Delete 仍走 ShortcutBindings -> TIMELINE_DELETE
+        // Esc：时间线有进行中交互时取消交互，否则清除选区
         ShortcutAction shortcut;
-        if (key == GLFW.GLFW_KEY_DELETE && !ctrlPressed && !shiftPressed && !altPressed) {
+        if (key == GLFW.GLFW_KEY_ESCAPE && !ctrlPressed && !shiftPressed && !altPressed) {
+            if (com.director.ui.panels.TimelinePanel.isFocused()
+                    && panelRegistry != null) {
+                com.director.ui.panels.TimelinePanel timelinePanel =
+                        panelRegistry.getPanel(com.director.ui.panels.TimelinePanel.class);
+                if (timelinePanel != null && timelinePanel.isInteractionActive()) {
+                    shortcut = ShortcutAction.TIMELINE_CANCEL_INTERACTION;
+                } else {
+                    shortcut = ShortcutAction.CLEAR_SELECTION;
+                }
+            } else {
+                shortcut = ShortcutAction.CLEAR_SELECTION;
+            }
+        } else if (key == GLFW.GLFW_KEY_DELETE && !ctrlPressed && !shiftPressed && !altPressed) {
             if (com.director.ui.panels.ContainerPanel.isContainerTreeFocused()) {
                 shortcut = ShortcutAction.CONTAINER_DELETE;
             } else if (com.director.ui.panels.TimelinePanel.isFocused()) {
@@ -125,6 +139,15 @@ public class ShortcutDispatcher {
             }
         } else {
             shortcut = ShortcutBindings.getAction(key, ctrlPressed, shiftPressed, altPressed);
+        }
+
+        if (shortcut != null && requiresTimelineFocus(shortcut) && !com.director.ui.panels.TimelinePanel.isFocused()) {
+            if (LOGGER.isDebugEnabled()) {
+                LOGGER.debug("[ShortcutDispatcher] 时间线快捷键需要 Timeline 焦点，已忽略: action={}", shortcut);
+            }
+            lastProcessedKey = key;
+            lastProcessedTime = currentTime;
+            return;
         }
         
         if (shortcut == null) {
@@ -146,6 +169,14 @@ public class ShortcutDispatcher {
         
         // 分发到 Facade
         ShortcutActions.dispatch(shortcut, commands);
+    }
+
+    private static boolean requiresTimelineFocus(ShortcutAction action) {
+        return switch (action) {
+            case TIMELINE_UNDO, TIMELINE_REDO, TIMELINE_DELETE, TIMELINE_CUT, TIMELINE_COPY, TIMELINE_PASTE,
+                 TIMELINE_CANCEL_INTERACTION, PLAY_PAUSE, GO_TO_START, GO_TO_END -> true;
+            default -> false;
+        };
     }
     
     // 注意：ImGui 的键码系统不支持数字键和大部分字母键

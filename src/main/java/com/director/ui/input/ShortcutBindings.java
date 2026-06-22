@@ -92,6 +92,11 @@ public final class ShortcutBindings {
         registerModifierBinding(GLFW.GLFW_KEY_Z, 1, ShortcutAction.TIMELINE_UNDO); // Ctrl = 1
         // Ctrl+Y: 重做
         registerModifierBinding(GLFW.GLFW_KEY_Y, 1, ShortcutAction.TIMELINE_REDO); // Ctrl = 1
+        // Ctrl+X/C/V: 剪切/复制/粘贴
+        registerModifierBinding(GLFW.GLFW_KEY_X, 1, ShortcutAction.TIMELINE_CUT);
+        registerModifierBinding(GLFW.GLFW_KEY_C, 1, ShortcutAction.TIMELINE_COPY);
+        registerModifierBinding(GLFW.GLFW_KEY_V, 1, ShortcutAction.TIMELINE_PASTE);
+        // Esc：由 ShortcutDispatcher 按交互状态路由到 TIMELINE_CANCEL_INTERACTION 或 CLEAR_SELECTION
         // 无修饰 Delete：由 ShortcutDispatcher 按 Container/Timeline 焦点路由到 CONTAINER_DELETE 或 TIMELINE_DELETE，此处不绑定
         // 带修饰 Delete：仍映射到 TIMELINE_DELETE
         registerModifierBinding(GLFW.GLFW_KEY_DELETE, 1, ShortcutAction.TIMELINE_DELETE); // Ctrl+Delete
@@ -321,7 +326,7 @@ public final class ShortcutBindings {
         // ==================== 界面操作 ====================
         List<String> ui = new ArrayList<>();
         ui.add(formatShortcut("F1", "显示快捷键帮助"));
-        ui.add(formatShortcut("Esc", "清除选择"));
+        ui.add(formatShortcut("Esc", "取消时间线交互 / 清除选区"));
         categories.put("界面操作", ui);
         
         return categories;

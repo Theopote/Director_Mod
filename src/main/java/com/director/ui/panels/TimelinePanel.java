@@ -26,10 +26,8 @@ import com.director.ui.timeline.render.TimelineColors;
 import com.director.ui.timeline.render.TimelineRenderer;
 import com.director.ui.timeline.state.*;
 import com.director.ui.timeline.ui.TimelineControlBar;
-import com.director.ui.timeline.shortcuts.TimelineShortcutManager;
 import com.director.timeline.playback.camera.TimelineCameraController;
 import com.director.timeline.playback.time.TimelineWorldController;
-import com.director.ui.input.GlobalShortcutManager;
 import net.minecraft.client.MinecraftClient;
 import imgui.ImGui;
 import imgui.ImDrawList;
@@ -111,8 +109,6 @@ public class TimelinePanel extends AbstractPanel
     private final TimelineInteractionManager interactionManager;
     private final TimelineInteractionHandler interactionHandler;
     private final TimelineControlBar controlBar;
-    private final TimelineShortcutManager shortcutManager;
-    private boolean globalTimelineShortcutsActive = false;
     
     // ⭐ Facade 架构：命令门面（用于控制命令，如播放/暂停/跳转）
     private com.director.ui.commands.UICommandFacade commands;
@@ -298,97 +294,20 @@ public class TimelinePanel extends AbstractPanel
         // ⭐ v1.2 改进：在 TimelinePanel 初始化时绑定 Orchestrator（生命周期节点）
         // 这避免了每帧 bindModel，确保模型绑定只在生命周期节点发生
         com.director.ui.timeline.playback.PlaybackOrchestrator.get().bindModel(model);
-        
-        // 初始化快捷键管理器
-        this.shortcutManager = new TimelineShortcutManager(
-                model, commandHistory, interactionManager,
-                new TimelineShortcutManager.Callbacks() {
-                    @Override
-                    public void cutSelectedClip() {
-                        TimelinePanel.this.cutSelectedClip();
-                    }
-
-                    @Override
-                    public void copySelectedClip() {
-                        TimelinePanel.this.copySelectedClip();
-                    }
-
-                    @Override
-                    public void pasteClip() {
-                        TimelinePanel.this.pasteClip();
-                    }
-
-                    @Override
-                    public void deleteSelectedClip() {
-                        TimelinePanel.this.deleteSelectedClip();
-                    }
-                }
-        );
-
-        // ✅ 全局快捷键（GLFW）兜底：避免 ImGui KeyState/回调异常时，时间线快捷键完全不可用
-        registerGlobalTimelineShortcuts();
     }
 
-    private void registerGlobalTimelineShortcuts() {
-        // ⚠️ 时间线快捷键已迁移到 ShortcutDispatcher 系统（Facade 架构）
-        // 新的快捷键系统通过 ShortcutAction → ShortcutActions → UICommandFacade 统一处理
-        // 不再需要在此处注册，所有快捷键都通过 ShortcutDispatcher 统一分发
-        
-        // GlobalShortcutManager manager = DirectorServices.get().globalShortcuts();
-        //
-        // manager.registerCtrlGLFW(
-        //         "timeline.undo.glfw",
-        //         "时间线：撤销",
-        //         GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
-        //         200,
-        //         GLFW.GLFW_KEY_Z,
-        //         commandHistory::undo
-        // );
-        // manager.registerCtrlGLFW(
-        //         "timeline.redo.glfw",
-        //         "时间线：重做",
-        //         GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
-        //         200,
-        //         GLFW.GLFW_KEY_Y,
-        //         commandHistory::redo
-        // );
-        //
-        // // Delete：注册多个变体，允许用户仍按住 Ctrl/Shift/Alt 时也能删除（多选习惯）
-        // manager.registerKeyGLFW(
-        //         "timeline.delete.glfw",
-        //         "时间线：删除选中",
-        //         GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
-        //         200,
-        //         GLFW.GLFW_KEY_DELETE,
-        //         this::deleteSelectedClip
-        // );
-        // manager.registerGLFW(
-        //         "timeline.delete.ctrl.glfw",
-        //         "时间线：删除选中（Ctrl+Del）",
-        //         GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
-        //         200,
-        //         GLFW.GLFW_KEY_DELETE,
-        //         true, false, false,
-        //         this::deleteSelectedClip
-        // );
-        // manager.registerGLFW(
-        //         "timeline.delete.shift.glfw",
-        //         "时间线：删除选中（Shift+Del）",
-        //         GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
-        //         200,
-        //         GLFW.GLFW_KEY_DELETE,
-        //         false, true, false,
-        //         this::deleteSelectedClip
-        // );
-        // manager.registerGLFW(
-        //         "timeline.delete.alt.glfw",
-        //         "时间线：删除选中（Alt+Del）",
-        //         GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
-        //         200,
-        //         GLFW.GLFW_KEY_DELETE,
-        //         false, false, true,
-        //         this::deleteSelectedClip
-        // );
+    /**
+     * 是否有进行中的时间线交互（拖动片段、框选等），供 ShortcutDispatcher 路由 Esc。
+     */
+    public boolean isInteractionActive() {
+        return interactionManager.isInteracting();
+    }
+
+    /**
+     * 取消进行中的时间线交互（Esc 快捷键）。
+     */
+    public void cancelInteraction() {
+        interactionManager.cancelInteraction();
     }
 
     @Override
@@ -450,18 +369,6 @@ public class TimelinePanel extends AbstractPanel
         // ✅ 只有时间线面板聚焦时才启用时间线快捷键上下文，避免影响其他面板输入
         // 注意：ImGui.isWindowFocused() 必须在 ImGui.begin() 之后调用（已在 AbstractPanel.render() 中确保）
         boolean focused = ImGui.isWindowFocused(ImGuiFocusedFlags.RootAndChildWindows);
-        boolean hovered = ImGui.isWindowHovered();
-        
-        // ✅ 只有窗口聚焦且鼠标在窗口范围内时才认为面板激活（防止在 Minecraft 游戏中误触）
-        boolean active = focused && hovered;
-        
-        if (active != globalTimelineShortcutsActive) {
-            globalTimelineShortcutsActive = active;
-            DirectorServices.get().globalShortcuts().setContextEnabled(
-                    GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
-                    globalTimelineShortcutsActive
-            );
-        }
         
         // ⭐ v1.1：更新焦点状态（供 ShortcutContext / ShortcutDispatcher 使用，如 Delete、播放等键盘快捷键）
         // 仅用 focused：键盘快捷键在窗口（或其子窗口）有焦点时即可生效，不要求鼠标悬停；
@@ -477,12 +384,6 @@ public class TimelinePanel extends AbstractPanel
         // 所有播放相关的 Controller 更新现在通过 commands.playback().tick(deltaTime) 统一处理
         // 这确保了播放逻辑不依赖于 TimelinePanel 的可见性，与 Menu/Toolbar/Shortcut 的行为一致
         
-        // 3. 处理快捷键（仅在窗口聚焦且鼠标在窗口范围内时）
-        // ✅ 防止在 Minecraft 游戏中操作时误触快捷键（如空格键播放）
-        if (focused && ImGui.isWindowHovered()) {
-            shortcutManager.handle();
-        }
-
         // 3. 渲染控制栏（优先给专职的组件）
         renderControlBar();
 
@@ -1335,9 +1236,9 @@ public class TimelinePanel extends AbstractPanel
     }
 
     /**
-     * 剪切选中的片段（快捷键）
+     * 剪切选中的片段（快捷键，供 Facade 调用）
      */
-    private void cutSelectedClip() {
+    public void cutSelected() {
         TimelineClip selectedClip = model.getSelectedClip();
         if (selectedClip == null) return;
 
@@ -1349,9 +1250,9 @@ public class TimelinePanel extends AbstractPanel
     }
 
     /**
-     * 复制选中的片段（快捷键）
+     * 复制选中的片段（快捷键，供 Facade 调用）
      */
-    private void copySelectedClip() {
+    public void copySelected() {
         TimelineClip selectedClip = model.getSelectedClip();
         if (selectedClip == null) return;
 
@@ -1359,20 +1260,13 @@ public class TimelinePanel extends AbstractPanel
     }
 
     /**
-     * 粘贴片段（快捷键）
+     * 粘贴片段（快捷键，供 Facade 调用）
      */
-    private void pasteClip() {
+    public void paste() {
         clipboard.paste(model);
         markDataChanged();
     }
 
-    /**
-     * 删除选中的片段
-     */
-    private void deleteSelectedClip() {
-        deleteSelected();
-    }
-    
     /**
      * 删除选中的项（公共方法，供 Facade 调用）
      */
@@ -1702,7 +1596,7 @@ public class TimelinePanel extends AbstractPanel
 
     @Override
     public void onDeleteSelectedClicked() {
-        deleteSelectedClip();
+        deleteSelected();
     }
 
     @Override
