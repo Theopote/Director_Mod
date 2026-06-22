@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
  * Mod 级服务注册表（依赖注入基础设施）。
  * <p>
  * 在 {@link com.director.DirectorMod} 启动时显式初始化，新代码应通过本类获取依赖；
- * 遗留的 {@code Xxx.getInstance()} / {@code SelectionManager.get()} 仍可用，但已标记为废弃。
+ * 遗留的 {@code Xxx.getInstance()} 仍可用但已标记为废弃；选区服务请用 {@link #selection()} / {@link #uiSelection()}。
  *
  * <h3>选择服务区分</h3>
  * <ul>
@@ -73,13 +73,14 @@ public final class DirectorServices {
             SelectionManager.initialize();
             com.director.ui.selection.SelectionManager.initialize();
             ContainerManager.initialize();
-            PropertyContextService.initialize();
 
             instance = new DirectorServices(
                     ContainerManager.getInstance(),
-                    SelectionManager.getInstance(),
-                    com.director.ui.selection.SelectionManager.getInstance(),
+                    SelectionManager.get(),
+                    com.director.ui.selection.SelectionManager.get(),
                     ContainerTimelineService.getInstance());
+
+            PropertyContextService.wireUiSelection(instance.uiSelection());
 
             LOGGER.info("[DirectorServices] Services ready (containers, blockSelection, uiSelection, containerTimeline)");
         }

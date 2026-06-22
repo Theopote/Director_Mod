@@ -1,7 +1,6 @@
 package com.director.ui.properties;
 
 import com.director.core.DirectorServices;
-import com.director.core.DirectorServices;
 import com.director.ui.selection.SelectionManager;
 import com.director.ui.selection.SelectionType;
 import com.director.timeline.model.TimelineTrack;
@@ -45,9 +44,9 @@ public final class PropertyContextService {
     private static volatile boolean listenerRegistered = false;
 
     /**
-     * 注册 UI 选择变化监听（须在 {@link com.director.core.DirectorServices#initialize()} 中调用）。
+     * 注册 UI 选择变化监听（由 {@link DirectorServices#initialize()} 在实例创建后调用）。
      */
-    public static void initialize() {
+    public static void wireUiSelection(SelectionManager uiSelection) {
         if (listenerRegistered) {
             return;
         }
@@ -55,7 +54,6 @@ public final class PropertyContextService {
             if (listenerRegistered) {
                 return;
             }
-            SelectionManager uiSelection = SelectionManager.getInstance();
             uiSelection.addSelectionChangedListener(ignore -> {
                 PropertyContextService svc = PropertyContextService.get();
                 SelectionType t = uiSelection.getSelectionType();

@@ -24,4 +24,4 @@ public static Foo getInstance() { return INSTANCE; }
 public static Foo get() { return INSTANCE; }
 ```
 
-已有 `SelectionManager` 的 `getInstance()` → `get()` 委托为遗留例外；新类不要复制该模式。
+已有 `SelectionManager` 的 `get()` / `getInstance()` 均 `@Deprecated`，请用 `DirectorServices.get().selection()` 或 `.uiSelection()`。

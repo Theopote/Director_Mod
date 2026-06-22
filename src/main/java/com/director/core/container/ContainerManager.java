@@ -11,7 +11,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import com.director.core.DirectorServices;
 import com.director.core.container.persistence.ContainerPersistence;
-import com.director.core.selection.SelectionManager;
 import com.director.timeline.container.ContainerTimelineService;
 import net.minecraft.registry.RegistryKey;
 
@@ -1098,7 +1097,7 @@ public class ContainerManager {
         
         // 从选区中移除已收纳的方块（如果它们在选区中的话）
         try {
-            var selectionManager = SelectionManager.getInstance();
+            var selectionManager = DirectorServices.get().selection();
             if (selectionManager != null) {
                 var selectionSet = selectionManager.getSelectionSet();
                 if (selectionSet != null && !selectionSet.isEmpty()) {
