@@ -43,7 +43,7 @@ public class TimelineInteractionHandler {
     private static final Logger LOGGER = LoggerFactory.getLogger(TimelineInteractionHandler.class);
 
     private static final float DOUBLE_CLICK_THRESHOLD = 0.25f;
-
+    
     private final TimelineModel model;
     private final TimelineInteractionManager interactionManager;
     @SuppressWarnings("unused")
@@ -684,7 +684,7 @@ public class TimelineInteractionHandler {
                 actionPaintHandler.applyActionPaint(handle);
             } else if (mode == InteractionMode.DRAG_MARKER && obj instanceof MarkerHandle handle) {
                 playheadMarkerController.finishMarkerDragOnRelease(handle);
-            } else if (mode == InteractionMode.DRAG_PLAYHEAD) {
+        } else if (mode == InteractionMode.DRAG_PLAYHEAD) {
                 playheadMarkerController.finishPlayheadDrag();
             }
         }
