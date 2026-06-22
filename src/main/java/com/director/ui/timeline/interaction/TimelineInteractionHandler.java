@@ -1,10 +1,11 @@
 package com.director.ui.timeline.interaction;
 
-import com.director.actor.Actor;
-import com.director.actor.ActorRegistry;
-import com.director.actor.ActorRegistryManager;
-import com.director.actor.action.ActorActionType;
-import com.director.actor.rig.ActorRigProfile;
+import com.director.ui.timeline.interaction.TimelineDragHandles.ActionPaintHandle;
+import com.director.ui.timeline.interaction.TimelineDragHandles.AutomationKeyframeHandle;
+import com.director.ui.timeline.interaction.TimelineDragHandles.ClipHandle;
+import com.director.ui.timeline.interaction.TimelineDragHandles.KeyframeHandle;
+import com.director.ui.timeline.interaction.TimelineDragHandles.MarkerHandle;
+import com.director.ui.timeline.interaction.TimelineDragHandles.PathClipHandle;
 import com.director.ui.timeline.commands.ResizeClipCommand;
 import com.director.ui.timeline.commands.TimelineCommandHistory;
 import com.director.ui.timeline.interaction.TimelineInteractionManager.InteractionMode;
@@ -60,12 +61,13 @@ public class TimelineInteractionHandler {
     private final TimelineCommandHistory commandHistory;
     private final TimelineRenderer renderer;
     
-    private TimelineContextMenuFactory menuFactory;
     private InteractionCallbacks callbacks;
-    private TimelineContextMenu activeContextMenu;
 
     private final TimelineSnapGuideState snapGuideState = new TimelineSnapGuideState();
     private final TimelineMarqueeSelector marqueeSelector;
+    private final TimelinePlayheadMarkerController playheadMarkerController;
+    private final TimelineActionPaintHandler actionPaintHandler;
+    private final TimelineContextMenuController contextMenuController;
 
     private float lastClickTime = 0f;
     private float lastClickX = 0f;
@@ -107,6 +109,43 @@ public class TimelineInteractionHandler {
                         }
                     }
                 });
+        this.playheadMarkerController = new TimelinePlayheadMarkerController(
+                model, interactionManager, renderer, commandHistory,
+                new TimelinePlayheadMarkerController.SnapGuide() {
+                    @Override
+                    public void update(TimelineSnapping.Result snap) {
+                        snapGuideState.update(snap);
+                    }
+
+                    @Override
+                    public void clear() {
+                        snapGuideState.clear();
+                    }
+                },
+                () -> {
+                    if (callbacks != null) {
+                        callbacks.onDataChanged();
+                    }
+                });
+        this.actionPaintHandler = new TimelineActionPaintHandler(
+                interactionManager, renderer,
+                () -> {
+                    if (callbacks != null) {
+                        callbacks.onDataChanged();
+                    }
+                });
+        this.contextMenuController = new TimelineContextMenuController(model,
+                new TimelineContextMenuController.SelectionSync() {
+                    @Override
+                    public void syncClipSelection(TimelineClip clip) {
+                        TimelineInteractionHandler.this.syncClipSelection(clip);
+                    }
+
+                    @Override
+                    public void syncPropertiesSelection(Object target) {
+                        TimelineInteractionHandler.this.syncPropertiesSelection(target);
+                    }
+                });
     }
     
     public void setCallbacks(InteractionCallbacks callbacks) {
@@ -114,11 +153,11 @@ public class TimelineInteractionHandler {
     }
 
     public void setMenuFactory(TimelineContextMenuFactory menuFactory) {
-        this.menuFactory = menuFactory;
+        contextMenuController.setMenuFactory(menuFactory);
     }
 
     public TimelineContextMenu getActiveContextMenu() {
-        return activeContextMenu;
+        return contextMenuController.getActiveContextMenu();
     }
 
     // ========== 吸附参考线查询（供 Renderer 使用）==========
@@ -176,15 +215,7 @@ public class TimelineInteractionHandler {
      * 应该在每帧渲染时调用，确保菜单状态正确
      */
     public void updateMenuState() {
-        if (activeContextMenu != null) {
-            // 检查 popup 是否仍然打开
-            String popupId = activeContextMenu.getPopupId();
-            if (popupId != null && !imgui.ImGui.isPopupOpen(popupId, imgui.flag.ImGuiPopupFlags.None)) {
-                // Popup 已关闭，清理引用
-                activeContextMenu = null;
-                LOGGER.debug("[Timeline] 菜单已关闭，清理引用");
-            }
-        }
+        contextMenuController.updateMenuState();
     }
     
     /**
@@ -233,21 +264,7 @@ public class TimelineInteractionHandler {
      * @return 临时时间，如果没有拖动则返回 -1
      */
     public float getDraggedMarkerTime(com.director.ui.timeline.model.TimelineMarker marker) {
-        if (marker == null) {
-            return -1f;
-        }
-        
-        InteractionMode mode = interactionManager.getCurrentMode();
-        if (mode == InteractionMode.DRAG_MARKER) {
-            Object active = interactionManager.getActiveObject();
-            if (active instanceof MarkerHandle handle) {
-                if (handle.marker == marker || handle.marker.getId().equals(marker.getId())) {
-                    return handle.currentTime;
-                }
-            }
-        }
-        
-        return -1f;
+        return playheadMarkerController.getDraggedMarkerTime(marker);
     }
     
     /**
@@ -1149,180 +1166,11 @@ public class TimelineInteractionHandler {
     // ========================================================
 
     private void openContextMenuForHit(TimelineHitResult hit) {
-        if (menuFactory == null) {
-            LOGGER.warn("[Timeline] menuFactory 为 null，无法打开上下文菜单");
-            return;
-        }
-
-        if (hit == null) {
-            LOGGER.warn("[Timeline] hit 为 null，无法打开上下文菜单");
-            return;
-        }
-
-        // ⭐ 右键时，先做"自动选中"，保证菜单操作对象和属性面板对象一致
-        switch (hit.type()) {
-            case CLIP -> {
-                TimelineClip clip = hit.clip();
-                if (clip != null) {
-                    // ✅ 右键命中已选中的对象时，不要破坏当前多选（否则无法批量操作）
-                    if (!model.isSelected(clip)) {
-                        model.setSelectedClip(clip);
-                    }
-                    // 同步到属性面板（单选 clip）
-                    syncClipSelection(clip);
-                }
-            }
-            case KEYFRAME -> {
-                // ⭐⭐ 修复：正确选择 ClipKeyframe 对象
-                com.director.ui.timeline.model.clip.ClipKeyframe clipKeyframe = hit.clipKeyframe();
-                if (clipKeyframe != null) {
-                    ImGuiIO io = ImGui.getIO();
-                    boolean addToSelection = io.getKeyCtrl();
-                    // ✅ 右键点在已选中的关键帧上：保持现有选择（不清空多选）
-                    if (!model.isSelected(clipKeyframe)) {
-                        model.selectItem(clipKeyframe, addToSelection);
-                    }
-                    syncPropertiesSelection(clipKeyframe);
-                    LOGGER.debug("[Timeline] 右键选择 ClipKeyframe @ {}s", clipKeyframe.getTime());
-                } else {
-                    // 回退：如果没有 ClipKeyframe 对象，选择 clip
-                    TimelineClip clip = hit.clip();
-                    if (clip != null) {
-                        if (!model.isSelected(clip)) {
-                            model.setSelectedClip(clip);
-                        }
-                        syncClipSelection(clip);
-                    }
-                }
-            }
-            case AUTOMATION_KEYFRAME -> {
-                TimelineSelectable keyframe = hit.automationKeyframe();
-                TimelineTrack track = hit.track();
-                
-                if (keyframe != null && track != null) {
-                    // ⭐ v5.0：检查轨道锁定和激活状态
-                    if (track.isLocked()) {
-                        LOGGER.debug("[Timeline] 轨道已锁定，禁止右键操作关键帧 (轨道: {})", track.getName());
-                        return; // 阻止打开菜单
-                    }
-                    
-                    // 如果是摄像机轨道，检查是否是激活的轨道
-                    if (track.getType() == com.director.ui.timeline.model.TrackType.CAMERA) {
-                        com.director.ui.timeline.playback.camera.TimelineCameraController controller =
-                                com.director.ui.timeline.playback.camera.TimelineCameraController.getInstance();
-                        com.director.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
-                        
-                        if (activeTrack != track) {
-                            LOGGER.debug("[Timeline] 摄像机轨道未激活，禁止右键操作关键帧 (轨道: {})", track.getName());
-                            return; // 阻止打开菜单
-                        }
-                    }
-                    
-                    // 如果是时间轨道，检查是否是激活的轨道
-                    if (track.getType() == com.director.ui.timeline.model.TrackType.TIME) {
-                        com.director.ui.timeline.playback.time.TimelineWorldController controller =
-                                com.director.ui.timeline.playback.time.TimelineWorldController.getInstance();
-                        com.director.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveTimeTrack();
-                        
-                        if (activeTrack != track) {
-                            LOGGER.debug("[Timeline] 时间轨道未激活，禁止右键操作关键帧 (轨道: {})", track.getName());
-                            return; // 阻止打开菜单
-                        }
-                    }
-                    
-                    // 如果是季节轨道，检查是否是激活的轨道
-                    if (track.getType() == com.director.ui.timeline.model.TrackType.SEASON) {
-                        com.director.ui.timeline.playback.season.TimelineSeasonController controller =
-                                com.director.ui.timeline.playback.season.TimelineSeasonController.getInstance();
-                        com.director.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveSeasonTrack();
-                        
-                        if (activeTrack != track) {
-                            LOGGER.debug("[Timeline] 季节轨道未激活，禁止右键操作关键帧 (轨道: {})", track.getName());
-                            return; // 阻止打开菜单
-                        }
-                    }
-                    
-                    // TimelineModel 内部选中
-                    ImGuiIO io = ImGui.getIO();
-                    boolean addToSelection = io.getKeyCtrl(); // 右键支持 Ctrl 多选也合理
-                    // ✅ 右键点在已选中的关键帧上：保持现有选择（不清空多选）
-                    if (!model.isSelected(keyframe)) {
-                        model.selectItem(keyframe, addToSelection);
-                    }
-                    // 同步属性面板：多选关键帧时显示"多选关键帧"占位
-                    syncPropertiesSelection(keyframe);
-                    if (keyframe instanceof com.director.ui.timeline.model.camera.CameraKeyframe ck) {
-                        com.director.ui.timeline.playback.camera.TimelineCameraController.getInstance()
-                                .previewAt(ck.getTime());
-                        LOGGER.debug("[Timeline] 右键摄像机关键帧 @ {}s，准备弹出关键帧菜单", ck.getTime());
-                    }
-                }
-            }
-            case MARKER -> {
-                // ⭐ 标记右键：选择标记并打开属性面板（已在 TimelinePanel.handleRulerInteractions 中处理）
-                com.director.ui.timeline.model.TimelineMarker marker = 
-                    (com.director.ui.timeline.model.TimelineMarker) hit.automationKeyframe();
-                if (marker != null) {
-                    if (!model.isSelected(marker)) {
-                        model.selectItem(marker, false);
-                    }
-                    syncPropertiesSelection(marker);
-                }
-            }
-            case PATH_CLIP -> {
-                // ⭐ Path Clip 右键：选择 Path Clip 并打开属性面板
-                PathClipHit pathClipHit = hit.pathClipHit();
-                if (pathClipHit != null) {
-                    com.director.ui.timeline.model.camera.path.CameraPathClip clip = pathClipHit.clip();
-                    TimelineTrack track = pathClipHit.track();
-                    
-                    if (clip != null && track != null) {
-                        // 检查轨道锁定和激活状态
-                        if (track.isLocked()) {
-                            LOGGER.debug("[Timeline] 轨道已锁定，禁止右键操作 Path Clip (轨道: {})", track.getName());
-                            return;
-                        }
-                        
-                        if (track.getType() == com.director.ui.timeline.model.TrackType.CAMERA) {
-                            com.director.ui.timeline.playback.camera.TimelineCameraController controller =
-                                    com.director.ui.timeline.playback.camera.TimelineCameraController.getInstance();
-                            com.director.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
-                            
-                            if (activeTrack != track) {
-                                LOGGER.debug("[Timeline] 摄像机轨道未激活，禁止右键操作 Path Clip (轨道: {})", track.getName());
-                                return;
-                            }
-                        }
-                        
-                        if (!model.isSelected(clip)) {
-                            model.selectItem(clip, false);
-                        }
-                        syncPropertiesSelection(clip);
-                    }
-                }
-            }
-            case EMPTY, NONE, TRACK_HEADER -> {
-                // 空白区域右键：保持现有选择，很多软件右键空白也不清空
-            }
-        }
-
-        LOGGER.info("[Timeline] 尝试打开上下文菜单，hit.type = {}, track = {}, clip = {}",
-                hit.type(), hit.track(), hit.clip());
-
-        activeContextMenu = menuFactory.buildContextMenu(hit);
-        if (activeContextMenu != null) {
-            activeContextMenu.open();
-            System.out.println("[TimelineInteractionHandler] 成功打开上下文菜�? " + hit.type());
-            LOGGER.info("[Timeline] 成功打开上下文菜�? {}", hit.type());
-        } else {
-            LOGGER.warn("[Timeline] buildContextMenu 返回 null，hit.type() = {}", hit.type());
-        }
+        contextMenuController.openForHit(hit);
     }
 
     /**
-     * 结束交互（鼠标释放时调用�?
-     * 
-     * <p>�?优化：为所有操作添�?Undo 支持，使用命令模�?
+     * 结束交互（鼠标释放时调用）
      */
     private void endInteractionIfNeeded() {
         InteractionMode mode = interactionManager.getCurrentMode();
@@ -1410,9 +1258,8 @@ public class TimelineInteractionHandler {
                 LOGGER.debug("[Timeline] 关键帧拖动完�? {} -> {}", originalTime, finalTime);
             }
         } else if (mode == InteractionMode.PAINT_ACTION) {
-            // ⭐ Action 涂抹：应用涂抹结果
             if (obj instanceof ActionPaintHandle handle) {
-                applyActionPaint(handle);
+                actionPaintHandler.applyActionPaint(handle);
             }
         } else if (mode == InteractionMode.DRAG_AUTOMATION_KEYFRAME) {
             if (obj instanceof AutomationKeyframeHandle handle) {
@@ -1455,27 +1302,10 @@ public class TimelineInteractionHandler {
             }
         } else if (mode == InteractionMode.DRAG_MARKER) {
             if (obj instanceof MarkerHandle handle) {
-                float originalTime = interactionManager.getDragStartValue();
-                float finalTime = handle.currentTime;
-
-                if (Math.abs(finalTime - originalTime) > 0.001f) {
-                    // ⭐ 使用 MoveMarkerCommand 处理标记移动（支持撤销/重做）
-                    commandHistory.executeCommand(
-                        new com.director.ui.timeline.commands.MoveMarkerCommand(
-                            model, handle.marker, originalTime, finalTime)
-                    );
-                }
-
-                if (callbacks != null) callbacks.onDataChanged();
-
-                LOGGER.debug("[Timeline] 标记拖动完成 {} -> {}", originalTime, finalTime);
+                playheadMarkerController.finishMarkerDragOnRelease(handle);
             }
         } else if (mode == InteractionMode.DRAG_PLAYHEAD) {
-            // ⭐ 拖动播放头结束：通知摄像机控制器结束 scrubbing
-            float finalTime = model.getCurrentTime();
-            model.setScrubbing(false);
-            com.director.ui.timeline.playback.camera.TimelineCameraController.getInstance().endScrubbing(finalTime);
-            LOGGER.debug("[TimelineInteractionHandler] 拖动播放头结束 @ {:.2f}s", finalTime);
+            playheadMarkerController.finishPlayheadDrag();
         } else if (mode == InteractionMode.DRAG_PATH_CLIP) {
             // ⭐ 拖动 Path Clip：使用 MovePathClipCommand
             if (obj instanceof PathClipHandle handle) {
@@ -1575,9 +1405,9 @@ public class TimelineInteractionHandler {
             case RESIZE_CLIP_RIGHT -> resizeClipRight(mouseX, contentX);
             case DRAG_KEYFRAME -> dragKeyframe(mouseX, contentX);
             case DRAG_AUTOMATION_KEYFRAME -> dragAutomationKeyframe(mouseX, contentX, mouseY, trackAreaTop, scrollY);
-            case DRAG_MARKER -> dragMarker(mouseX, contentX);  // ⭐ 拖动标记
-            case DRAG_PLAYHEAD -> dragPlayhead(mouseX, contentX);
-            case PAINT_ACTION -> paintAction(mouseX, contentX); // ⭐ Action 涂抹
+            case DRAG_MARKER -> playheadMarkerController.dragMarker(mouseX, contentX);
+            case DRAG_PLAYHEAD -> playheadMarkerController.dragPlayhead(mouseX, contentX);
+            case PAINT_ACTION -> actionPaintHandler.paintAction(mouseX, contentX);
             case DRAG_PATH_CLIP -> dragPathClip(mouseX, contentX); // ⭐ 拖动 Path Clip
             case RESIZE_PATH_CLIP_LEFT -> resizePathClipLeft(mouseX, contentX); // ⭐ 拉伸 Path Clip 左边缘
             case RESIZE_PATH_CLIP_RIGHT -> resizePathClipRight(mouseX, contentX); // ⭐ 拉伸 Path Clip 右边缘
@@ -2039,239 +1869,30 @@ public class TimelineInteractionHandler {
         }
     }
 
-    /**
-     * 开始播放头拖动（由 TimelinePanel 调用，用于刻度尺交互�?
-     * 
-     * @param mouseX 鼠标 X 坐标
-     * @param contentX 内容区域 X 起点
-     */
     public void startPlayheadDrag(float mouseX, float contentX) {
-        // 先更新播放头位置（如果还没有在正确位置）
-        float rawTime = renderer.xToTime(mouseX, contentX);
-        TimelineSnapping.Result snap = TimelineSnapping.snapTime(
-                model, rawTime, null, null, 0f
-        );
-        updateSnapGuide(snap);
-        float clampedTime = Math.max(0f, Math.min(model.getDuration(), snap.snappedTime));
-        model.setCurrentTime(clampedTime);
-        model.setScrubbing(true);
-        
-        // �?功能：开始拖动播放头时，立即更新片段方块显示状�?
-        com.director.ui.timeline.playback.TimelineClipBlockController.getInstance().update();
-        
-        // 开始拖动交�?
-        interactionManager.startInteraction(
-                InteractionMode.DRAG_PLAYHEAD,
-                null,
-                mouseX, ImGui.getMousePosY(),
-                clampedTime, 0f
-        );
-        // ⭐ 通知摄像机控制器开始 scrubbing
-        com.director.ui.timeline.playback.camera.TimelineCameraController.getInstance().beginScrubbing(clampedTime);
-        
-        if (callbacks != null) {
-            callbacks.onDataChanged();
-        }
-        
-        LOGGER.debug("[TimelineInteractionHandler] 开始拖动播放头 @ {:.2f}s", clampedTime);
+        playheadMarkerController.startPlayheadDrag(mouseX, contentX);
     }
-    
-    /**
-     * ⭐ 点击时间标尺（只跳转时间，不进入 scrubbing）
-     * 由 TimelinePanel 在检测到点击时间标尺时调用
-     * 
-     * @param mouseX 鼠标 X 坐标
-     * @param contentX 内容区域 X 起点
-     */
+
     public void clickTimeRuler(float mouseX, float contentX) {
-        // 计算时间并应用吸附
-        float rawTime = renderer.xToTime(mouseX, contentX);
-        TimelineSnapping.Result snap = TimelineSnapping.snapTime(
-                model, rawTime, null, null, 0f
-        );
-        float clampedTime = Math.max(0f, Math.min(model.getDuration(), snap.snappedTime));
-        
-        // 只更新时间，不进入 scrubbing
-        model.setCurrentTime(clampedTime);
-        
-        // ⭐ 季节轨道系统：点击时间刻度时更新季节采样
-        com.director.ui.timeline.playback.season.TimelineSeasonController.getInstance().onTimelineTick(clampedTime);
-        
-        // ⭐ 天气轨道系统：点击时间刻度时更新天气采样（预览模式）
-        com.director.ui.timeline.playback.weather.TimelineWeatherController.getInstance().previewAt(clampedTime);
-        
-        // 点击时间刻度时跳转镜头到该时间并保持玩家态，便于继续微调
-        com.director.ui.timeline.playback.camera.TimelineCameraController.getInstance().jumpToTimeAsPlayer(clampedTime);
-        
-        // 更新片段方块显示状态
-        com.director.ui.timeline.playback.TimelineClipBlockController.getInstance().update();
-        
-        if (callbacks != null) {
-            callbacks.onDataChanged();
-        }
-        
-        LOGGER.debug("[TimelineInteractionHandler] 点击时间标尺，跳转到 {:.2f}s", clampedTime);
+        playheadMarkerController.clickTimeRuler(mouseX, contentX);
     }
-    
-    /**
-     * ⭐ 开始拖动标记（右键拖动）
-     * 
-     * @param marker 要拖动的标记
-     * @param mouseX 鼠标 X 坐标
-     * @param contentX 内容区域 X 起点
-     */
+
     public void startMarkerDrag(com.director.ui.timeline.model.TimelineMarker marker, float mouseX, float contentX) {
-        if (marker == null) {
-            LOGGER.warn("[Timeline] 开始拖动标记失败：marker 为 null");
-            return;
-        }
-        
-        // 开始拖动交互
-        MarkerHandle handle = new MarkerHandle(marker);
-        interactionManager.startInteraction(
-                InteractionMode.DRAG_MARKER,
-                handle,
-                mouseX, ImGui.getMousePosY(),
-                marker.getTime(), 0f
-        );
-        
-        if (callbacks != null) {
-            callbacks.onDataChanged();
-        }
-        
-        LOGGER.debug("[TimelineInteractionHandler] 开始拖动标记 @ {:.2f}s", marker.getTime());
+        playheadMarkerController.startMarkerDrag(marker, mouseX, contentX);
     }
-    
-    /**
-     * ⭐ 更新标记拖动位置
-     * 
-     * @param mouseX 鼠标 X 坐标
-     * @param contentX 内容区域 X 起点
-     */
+
     public void updateMarkerDrag(float mouseX, float contentX) {
-        if (!interactionManager.isInteracting(InteractionMode.DRAG_MARKER)) {
-            return;
-        }
-        
-        Object active = interactionManager.getActiveObject();
-        if (!(active instanceof MarkerHandle handle)) {
-            return;
-        }
-        
-        float rawTime = renderer.xToTime(mouseX, contentX);
-        TimelineSnapping.Result snap = TimelineSnapping.snapTime(
-                model, rawTime, null, null, 0f
-        );
-        updateSnapGuide(snap);
-        float newTime = Math.max(0f, Math.min(model.getDuration(), snap.snappedTime));
-        
-        float eps = 0.001f;
-        if (Math.abs(newTime - handle.currentTime) < eps) {
-            return;
-        }
-        
-        // 实时预览：只更新 Handle 的临时时间，不修改模型
-        handle.currentTime = newTime;
-        
-        // 通知 UI 刷新（渲染系统会读取 handle.currentTime 来显示标记位置）
-        if (callbacks != null) {
-            callbacks.onDataChanged();
-        }
+        playheadMarkerController.updateMarkerDrag(mouseX, contentX);
     }
-    
-    /**
-     * ⭐ 结束标记拖动
-     */
+
     public void endMarkerDrag() {
-        if (!interactionManager.isInteracting(InteractionMode.DRAG_MARKER)) {
-            return;
-        }
-        
-        Object active = interactionManager.getActiveObject();
-        if (active instanceof MarkerHandle handle) {
-            float originalTime = interactionManager.getDragStartValue();
-            float finalTime = handle.currentTime;
-
-            if (Math.abs(finalTime - originalTime) > 0.001f) {
-                // 使用 MoveMarkerCommand 处理标记移动（支持撤销/重做）
-                commandHistory.executeCommand(
-                    new com.director.ui.timeline.commands.MoveMarkerCommand(
-                        model, handle.marker, originalTime, finalTime)
-                );
-            }
-
-            if (callbacks != null) callbacks.onDataChanged();
-
-            LOGGER.debug("[Timeline] 标记拖动完成 {} -> {}", originalTime, finalTime);
-        }
-        
-        clearSnapGuide();
-        interactionManager.endInteraction();
+        playheadMarkerController.endMarkerDrag();
     }
-    
-    /**
-     * ⭐ 检查是否正在拖动标记
-     */
+
     public boolean isDraggingMarker() {
-        return interactionManager.isInteracting(InteractionMode.DRAG_MARKER);
-    }
-    
-    /**
-     * ⭐ 拖动标记（内部方法，由 handleDrag 调用）
-     */
-    private void dragMarker(float mouseX, float contentX) {
-        Object active = interactionManager.getActiveObject();
-        if (!(active instanceof MarkerHandle handle)) {
-            return;
-        }
-        
-        float rawTime = renderer.xToTime(mouseX, contentX);
-        TimelineSnapping.Result snap = TimelineSnapping.snapTime(
-                model, rawTime, null, null, 0f
-        );
-        updateSnapGuide(snap);
-        float newTime = Math.max(0f, Math.min(model.getDuration(), snap.snappedTime));
-        
-        float eps = 0.001f;
-        if (Math.abs(newTime - handle.currentTime) < eps) {
-            return;
-        }
-        
-        // 实时预览：只更新 Handle 的临时时间，不修改模型
-        handle.currentTime = newTime;
-        
-        // 通知 UI 刷新
-        if (callbacks != null) {
-            callbacks.onDataChanged();
-        }
+        return playheadMarkerController.isDraggingMarker();
     }
 
-    private void dragPlayhead(float mouseX, float contentX) {
-        float rawTime = renderer.xToTime(mouseX, contentX);
-        TimelineSnapping.Result snap = TimelineSnapping.snapTime(
-                model, rawTime, null, null, 0f
-        );
-        updateSnapGuide(snap);
-        float clampedTime = Math.max(0f, Math.min(model.getDuration(), snap.snappedTime));
-        
-        // 更新模型时间
-        model.setCurrentTime(clampedTime);
-        
-        // ⭐ 季节轨道系统：拖动播放头时更新季节采样
-        com.director.ui.timeline.playback.season.TimelineSeasonController.getInstance().onTimelineTick(clampedTime);
-        
-        // ⭐ 天气轨道系统：拖动播放头时更新天气采样（预览模式）
-        com.director.ui.timeline.playback.weather.TimelineWeatherController.getInstance().previewAt(clampedTime);
-        
-        // ⭐ 通知摄像机控制器更新 scrubbing 位置
-        com.director.ui.timeline.playback.camera.TimelineCameraController.getInstance().updateScrubbing(clampedTime);
-        
-        // �?功能：播放头拖动时，立即更新片段方块显示状�?
-        com.director.ui.timeline.playback.TimelineClipBlockController.getInstance().update();
-        
-        if (callbacks != null) callbacks.onDataChanged();
-    }
-    
     /**
      * ⭐ 拖动 Path Clip（整体移动）
      */
@@ -2454,259 +2075,6 @@ public class TimelineInteractionHandler {
             return false;
         }
         return track.hasCameraPathOverlap(start, end, exclude);
-    }
-
-    // ========== 小型 Handle 类型 ==========
-
-    private static final class ClipHandle {
-        final TimelineTrack track;
-        final TimelineClip clip;
-
-        ClipHandle(TimelineTrack track, TimelineClip clip) {
-            this.track = track;
-            this.clip = clip;
-        }
-    }
-
-    private static final class KeyframeHandle {
-        final TimelineTrack track;
-        final TimelineClip clip;
-        final com.director.ui.timeline.model.clip.ClipKeyframe keyframe;
-        float currentTime;
-
-        KeyframeHandle(TimelineTrack track,
-                       TimelineClip clip,
-                       com.director.ui.timeline.model.clip.ClipKeyframe keyframe,
-                       float time) {
-            this.track = track;
-            this.clip = clip;
-            this.keyframe = keyframe;
-            this.currentTime = time;
-        }
-    }
-
-    private static final class AutomationKeyframeHandle {
-        final TimelineTrack originalTrack;
-        TimelineTrack currentTrack;
-        final TimelineSelectable keyframe;
-        float currentTime;
-
-        AutomationKeyframeHandle(TimelineTrack track, TimelineSelectable keyframe) {
-            this.originalTrack = track;
-            this.currentTrack = track;
-            this.keyframe = keyframe;
-            this.currentTime = keyframe.getStartTime();
-        }
-    }
-    
-    /**
-     * 标记拖动 Handle（用于存储拖动状态）
-     */
-    private static final class MarkerHandle {
-        final com.director.ui.timeline.model.TimelineMarker marker;
-        float currentTime;
-
-        MarkerHandle(com.director.ui.timeline.model.TimelineMarker marker) {
-            this.marker = marker;
-            this.currentTime = marker.getTime();
-        }
-    }
-
-    /**
-     * ⭐ Path Clip 拖动 Handle（用于存储拖动状态）
-     */
-    private static final class PathClipHandle {
-        final TimelineTrack track;
-        final com.director.ui.timeline.model.camera.path.CameraPathClip clip;
-        float tempStart;  // 拖动中的临时开始时间
-        float tempEnd;    // 拖动中的临时结束时间
-
-        PathClipHandle(TimelineTrack track, com.director.ui.timeline.model.camera.path.CameraPathClip clip) {
-            this.track = track;
-            this.clip = clip;
-            this.tempStart = clip.getStartTime();
-            this.tempEnd = clip.getEndTime();
-        }
-    }
-
-    /**
-     * Action 涂抹 Handle（用于存储涂抹状态）
-     */
-    private static final class ActionPaintHandle {
-        final TimelineTrack track;
-        final ActorTrack actorTrack;
-        final ActorActionType actionType;
-        float startTime;
-        float currentEndTime;
-
-        ActionPaintHandle(TimelineTrack track, ActorTrack actorTrack, ActorActionType actionType, float startTime) {
-            this.track = track;
-            this.actorTrack = actorTrack;
-            this.actionType = actionType;
-            this.startTime = startTime;
-            this.currentEndTime = startTime; // 初始时结束时间等于开始时间
-        }
-    }
-
-    // ========== Action 涂抹逻辑 ==========
-
-    /**
-     * 检查是否可以开始 Action 涂抹
-     * <p>条件：
-     * <ul>
-     *   <li>轨道必须是 ActorTrack</li>
-     *   <li>必须有 ActorTrackPayload</li>
-     *   <li>当前 Brush Action 必须被 RigProfile 支持</li>
-     * </ul>
-     *
-     * @param track TimelineTrack
-     * @return 如果可以涂抹则返回 true
-     */
-    private boolean canStartActionPaint(TimelineTrack track) {
-        if (track == null || track.getType() != TrackType.ACTOR) {
-            return false;
-        }
-
-        ActorTrack actorTrack = track.getActorTrackPayload();
-        if (actorTrack == null) {
-            return false;
-        }
-
-        // 检查当前 Brush Action 是否被 RigProfile 支持
-        ActorActionType brushAction = ActionBrushState.get();
-        if (brushAction == null) {
-            return false;
-        }
-
-        // 检查 RigProfile 支持（通过 ActorRef）
-        com.director.actor.ActorRef actorRef = actorTrack.getActorRef();
-        if (actorRef == null) {
-            return true; // 如果没有 ActorRef，允许涂抹（让导演先创建 Clip）
-        }
-
-        // 尝试获取 Actor 和 RigProfile
-        ActorRegistry actorRegistry = ActorRegistryManager.getInstance();
-
-        java.util.Optional<Actor> actorOpt = actorRegistry.getActor(actorRef.getActorId());
-        if (actorOpt.isEmpty()) {
-            return true; // 如果找不到 Actor，允许涂抹
-        }
-
-        Actor actor = actorOpt.get();
-        ActorRigProfile rig = actor.getRigProfile();
-        if (rig == null) {
-            return true; // 如果没有 RigProfile，允许涂抹
-        }
-
-        // 检查 RigProfile 是否支持当前 Action
-        return rig.supports(brushAction);
-    }
-
-    /**
-     * 开始 Action 涂抹
-     */
-    private void startActionPaint(TimelineHitResult hit, float mouseX, float contentX) {
-        TimelineTrack track = hit.track();
-        if (track == null || track.getType() != TrackType.ACTOR) {
-            return;
-        }
-
-        ActorTrack actorTrack = track.getActorTrackPayload();
-        if (actorTrack == null) {
-            // 如果 ActorTrackPayload 不存在，创建它
-            actorTrack = track.getOrCreateActorTrackPayload();
-        }
-
-        ActorActionType actionType = ActionBrushState.get();
-        if (actionType == null) {
-            return;
-        }
-
-        // 计算开始时间
-        float startTime = renderer.xToTime(mouseX, contentX);
-        startTime = Math.max(0f, startTime);
-
-        // 创建 Handle
-        ActionPaintHandle handle = new ActionPaintHandle(track, actorTrack, actionType, startTime);
-        handle.currentEndTime = startTime; // 初始时结束时间等于开始时间
-
-        // 开始交互
-        interactionManager.startInteraction(
-            InteractionMode.PAINT_ACTION,
-            handle,
-            mouseX, ImGui.getMousePosY(),
-            startTime, startTime
-        );
-
-        LOGGER.debug("[Timeline] 开始 Action 涂抹: Action={}, StartTime={:.2f}s", actionType, startTime);
-    }
-
-    /**
-     * Action 涂抹拖拽（更新结束时间）
-     */
-    private void paintAction(float mouseX, float contentX) {
-        Object active = interactionManager.getActiveObject();
-        if (!(active instanceof ActionPaintHandle handle)) {
-            return;
-        }
-
-        // 计算当前结束时间
-        float endTime = renderer.xToTime(mouseX, contentX);
-        endTime = Math.max(0f, endTime);
-
-        // 确保结束时间不小于开始时间（最小长度为 0.1 秒）
-        if (endTime < handle.startTime) {
-            endTime = handle.startTime;
-        }
-        if (endTime - handle.startTime < 0.1f) {
-            endTime = handle.startTime + 0.1f;
-        }
-
-        handle.currentEndTime = endTime;
-
-        // TODO: 这里可以添加预览渲染（拖拽过程中显示半透明色块）
-    }
-
-    /**
-     * 应用 Action 涂抹结果（鼠标释放时调用）
-     */
-    private void applyActionPaint(ActionPaintHandle handle) {
-        ActorTrack actorTrack = handle.actorTrack;
-        ActorActionType actionType = handle.actionType;
-        float startTime = handle.startTime;
-        float endTime = handle.currentEndTime;
-
-        if (endTime <= startTime) {
-            // 如果结束时间不大于开始时间，不创建 Clip
-            LOGGER.debug("[Timeline] Action 涂抹取消: 时间段过短 ({}s -> {}s)", startTime, endTime);
-            return;
-        }
-
-        // 获取现有的 ActionClips
-        java.util.List<ActorActionClip> existingClips = actorTrack.getActionClips();
-
-        // 使用 ActionClipIntervalResolver 解析区间
-        java.util.List<ActorActionClip> newClips = ActionClipIntervalResolver.resolve(
-            existingClips,
-            startTime,
-            endTime,
-            actionType
-        );
-
-        // 替换 ActionClips
-        actorTrack.replaceActionClips(newClips);
-
-        // 同步到 TimelineTrack（需要重新创建 EntityTimelineClip）
-        // TODO: 这里需要确保 EntityTimelineClip 与 EntityClip 同步
-        // 目前暂时依赖现有的同步机制
-
-        LOGGER.info("[Timeline] Action 涂抹完成: Action={}, Time=[{:.2f}s, {:.2f}s], Clips={}",
-            actionType, startTime, endTime, newClips.size());
-
-        // 通知数据变化
-        if (callbacks != null) {
-            callbacks.onDataChanged();
-        }
     }
 }
 
