@@ -30,6 +30,7 @@ import com.director.timeline.model.season.SeasonKeyframe;
 import com.director.timeline.model.time.TimeKeyframe;
 import com.director.timeline.model.weather.WeatherKeyframe;
 import com.director.timeline.model.VisibilityKeyframe;
+import com.director.util.ParseUtils;
 import com.director.util.WorldIdentifier;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -108,7 +109,8 @@ public class TimelineModelPersistence {
             if (savePath != null) {
                 return savePath.resolve("director");
             }
-        } catch (Exception ignored) {
+        } catch (RuntimeException e) {
+            LOGGER.debug("[TimelineModelPersistence] Cannot resolve world save path: {}", e.getMessage());
         }
         return null;
     }
@@ -933,13 +935,9 @@ public class TimelineModelPersistence {
                 if (markerDTO == null) {
                     continue;
                 }
-                UUID id = null;
-                if (markerDTO.id != null && !markerDTO.id.isBlank()) {
-                    try {
-                        id = UUID.fromString(markerDTO.id);
-                    } catch (IllegalArgumentException e) {
-                        LOGGER.warn("[TimelineModelPersistence] 无法解析标记 ID: {}", markerDTO.id);
-                    }
+                UUID id = ParseUtils.uuidOrNull(markerDTO.id, "TimelineMarker.id");
+                if (markerDTO.id != null && !markerDTO.id.isBlank() && id == null) {
+                    LOGGER.warn("[TimelineModelPersistence] 无法解析标记 ID: {}", markerDTO.id);
                 }
                 TimelineMarker marker = new TimelineMarker(
                     id,
@@ -980,18 +978,18 @@ public class TimelineModelPersistence {
                                 ck.setNearPlane(kdto.nearPlane);
                                 ck.setFarPlane(kdto.farPlane);
                                 if (kdto.cameraKeyType != null) {
-                                    try { ck.setKeyType(CameraKeyframe.KeyType.valueOf(kdto.cameraKeyType)); } catch (Exception ignored) {}
+                                    ParseUtils.setEnumIfValid(kdto.cameraKeyType, CameraKeyframe.KeyType.class, "KeyType", ck::setKeyType);
                                 }
                                 if (kdto.cameraSegmentType != null) {
-                                    try { ck.setSegmentType(CameraKeyframe.SegmentPathType.valueOf(kdto.cameraSegmentType)); } catch (Exception ignored) {}
+                                    ParseUtils.setEnumIfValid(kdto.cameraSegmentType, CameraKeyframe.SegmentPathType.class, "SegmentPathType", ck::setSegmentType);
                                 }
                                 if (kdto.cameraRotationInterpolation != null) {
-                                    try { ck.setRotationInterpolation(CameraKeyframe.RotationInterpolation.valueOf(kdto.cameraRotationInterpolation)); } catch (Exception ignored) {}
+                                    ParseUtils.setEnumIfValid(kdto.cameraRotationInterpolation, CameraKeyframe.RotationInterpolation.class, "RotationInterpolation", ck::setRotationInterpolation);
                                 }
                                 if (kdto.bezierInHandle != null) ck.setBezierInHandle(new org.joml.Vector3f(kdto.bezierInHandle.x, kdto.bezierInHandle.y, kdto.bezierInHandle.z));
                                 if (kdto.bezierOutHandle != null) ck.setBezierOutHandle(new org.joml.Vector3f(kdto.bezierOutHandle.x, kdto.bezierOutHandle.y, kdto.bezierOutHandle.z));
                                 if (kdto.cameraHandleMode != null) {
-                                    try { ck.setHandleMode(CameraKeyframe.HandleMode.valueOf(kdto.cameraHandleMode)); } catch (Exception ignored) {}
+                                    ParseUtils.setEnumIfValid(kdto.cameraHandleMode, CameraKeyframe.HandleMode.class, "HandleMode", ck::setHandleMode);
                                 }
                                 ck.setDepthOfFieldEnabled(kdto.dofEnabled);
                                 ck.setFocusDistance(kdto.focusDistance);
@@ -1005,10 +1003,10 @@ public class TimelineModelPersistence {
                                 tk.setSunElevation(kdto.sunElevation);
                                 tk.setSunAzimuth(kdto.sunAzimuth);
                                 if (kdto.timePathInterpolation != null) {
-                                    try { tk.setPathInterpolation(TimeKeyframe.TimeInterpolation.valueOf(kdto.timePathInterpolation)); } catch (Exception ignored) {}
+                                    ParseUtils.setEnumIfValid(kdto.timePathInterpolation, TimeKeyframe.TimeInterpolation.class, "TimeInterpolation", tk::setPathInterpolation);
                                 }
                                 if (kdto.timeAngleInterpolation != null) {
-                                    try { tk.setAngleInterpolation(TimeKeyframe.TimeInterpolation.valueOf(kdto.timeAngleInterpolation)); } catch (Exception ignored) {}
+                                    ParseUtils.setEnumIfValid(kdto.timeAngleInterpolation, TimeKeyframe.TimeInterpolation.class, "TimeInterpolation", tk::setAngleInterpolation);
                                 }
                                 track.addAutomationKeyframe(tk);
                             }
@@ -1018,12 +1016,12 @@ public class TimelineModelPersistence {
                                 // 再逐个恢复参数，最后设置真正的 weatherType（不触发默认值覆盖）
                                 wk.setWeatherType(WeatherKeyframe.WeatherType.CUSTOM);
                                 if (kdto.weatherInterpolation != null) {
-                                    try { wk.setInterpolation(TimelineInterpolation.valueOf(kdto.weatherInterpolation)); } catch (Exception ignored) {}
+                                    ParseUtils.setEnumIfValid(kdto.weatherInterpolation, TimelineInterpolation.class, "TimelineInterpolation", wk::setInterpolation);
                                 }
                                 wk.setRainStrength(kdto.rainStrength);
                                 wk.setSnowStrength(kdto.snowStrength);
                                 if (kdto.rainType != null) {
-                                    try { wk.setRainType(WeatherKeyframe.RainType.valueOf(kdto.rainType)); } catch (Exception ignored) {}
+                                    ParseUtils.setEnumIfValid(kdto.rainType, WeatherKeyframe.RainType.class, "RainType", wk::setRainType);
                                 }
                                 wk.setRainParticleDensity(kdto.rainParticleDensity);
                                 wk.setPuddleLevel(kdto.puddleLevel);
@@ -1049,19 +1047,19 @@ public class TimelineModelPersistence {
                                 wk.setTempBias(kdto.tempBias);
                                 wk.setHumidityBias(kdto.humidityBias);
                                 if (kdto.specialWeatherType != null) {
-                                    try { wk.setSpecialWeatherType(WeatherKeyframe.SpecialWeatherType.valueOf(kdto.specialWeatherType)); } catch (Exception ignored) {}
+                                    ParseUtils.setEnumIfValid(kdto.specialWeatherType, WeatherKeyframe.SpecialWeatherType.class, "SpecialWeatherType", wk::setSpecialWeatherType);
                                 }
                                 wk.setSpecialWeatherIntensity(kdto.specialWeatherIntensity);
                                 // ✅ 修复：最后设置 weatherType（直接写字段，不触发 applyWeatherDefaults）
                                 if (kdto.weatherType != null) {
-                                    try { wk.setWeatherType(WeatherKeyframe.WeatherType.valueOf(kdto.weatherType)); } catch (Exception ignored) {}
+                                    ParseUtils.setEnumIfValid(kdto.weatherType, WeatherKeyframe.WeatherType.class, "WeatherType", wk::setWeatherType);
                                 }
                                 track.addAutomationKeyframe(wk);
                             }
                             case "SeasonKeyframe" -> {
                                 SeasonKeyframe sk = new SeasonKeyframe(kdto.name != null ? kdto.name : "Season Keyframe", kdto.time);
                                 if (kdto.seasonType != null) {
-                                    try { sk.applySeasonPreset(SeasonKeyframe.SeasonType.valueOf(kdto.seasonType)); } catch (Exception ignored) {}
+                                    ParseUtils.setEnumIfValid(kdto.seasonType, SeasonKeyframe.SeasonType.class, "SeasonType", sk::applySeasonPreset);
                                 }
                                 if (kdto.seasonHumiditySet) {
                                     sk.setHumidity(kdto.seasonHumidity);
@@ -1076,7 +1074,7 @@ public class TimelineModelPersistence {
                                 if (kdto.fogTint != null) sk.setFogTint(new org.joml.Vector3f(kdto.fogTint.x, kdto.fogTint.y, kdto.fogTint.z));
                                 if (kdto.lightTint != null) sk.setLightTint(new org.joml.Vector3f(kdto.lightTint.x, kdto.lightTint.y, kdto.lightTint.z));
                                 if (kdto.seasonInterpolation != null) {
-                                    try { sk.setInterpolation(SeasonKeyframe.Interpolation.valueOf(kdto.seasonInterpolation)); } catch (Exception ignored) {}
+                                    ParseUtils.setEnumIfValid(kdto.seasonInterpolation, SeasonKeyframe.Interpolation.class, "Interpolation", sk::setInterpolation);
                                 }
                                 track.addAutomationKeyframe(sk);
                             }
@@ -1105,9 +1103,10 @@ public class TimelineModelPersistence {
                 clip.setAutoFadeOpacity(clipDTO.autoFadeOpacity);
                 ClipAnimationConfig config = clip.getAnimationConfig();
                 if (clipDTO.animationMode != null) {
-                    try {
-                        config.setMode(AnimationMode.valueOf(clipDTO.animationMode));
-                    } catch (IllegalArgumentException ignored) {
+                    AnimationMode mode = ParseUtils.enumOrNull(clipDTO.animationMode, AnimationMode.class, "Clip.animationMode");
+                    if (mode != null) {
+                        config.setMode(mode);
+                    } else {
                         LOGGER.warn("[TimelineModelPersistence] 未知的动画模式: {}", clipDTO.animationMode);
                     }
                 }
@@ -1145,18 +1144,18 @@ public class TimelineModelPersistence {
                 SequenceParameters seqParams = config.getSequenceParameters();
                 if (seqParams != null && clipDTO.sequenceParams != null && !clipDTO.sequenceParams.isEmpty()) {
                     Map<String, Object> raw = clipDTO.sequenceParams;
-                    seqParams.setFlowType(parseEnum(raw.get("flowType"), FlowType.class, seqParams.getFlowType()));
-                    seqParams.setFillType(parseEnum(raw.get("fillType"), FillType.class, seqParams.getFillType()));
-                    seqParams.setOriginType(parseEnum(raw.get("originType"), OriginType.class, seqParams.getOriginType()));
-                    seqParams.setPlaneYaw(asFloat(raw.get("planeYaw"), seqParams.getPlaneYaw()));
-                    seqParams.setPlanePitch(asFloat(raw.get("planePitch"), seqParams.getPlanePitch()));
-                    int customX = asInt(raw.get("customX"), seqParams.getCustomX());
-                    int customY = asInt(raw.get("customY"), seqParams.getCustomY());
-                    int customZ = asInt(raw.get("customZ"), seqParams.getCustomZ());
+                    seqParams.setFlowType(ParseUtils.enumFromObject(raw.get("flowType"), FlowType.class, seqParams.getFlowType(), "sequenceParams.flowType"));
+                    seqParams.setFillType(ParseUtils.enumFromObject(raw.get("fillType"), FillType.class, seqParams.getFillType(), "sequenceParams.fillType"));
+                    seqParams.setOriginType(ParseUtils.enumFromObject(raw.get("originType"), OriginType.class, seqParams.getOriginType(), "sequenceParams.originType"));
+                    seqParams.setPlaneYaw(ParseUtils.asFloat(raw.get("planeYaw"), seqParams.getPlaneYaw(), "sequenceParams.planeYaw"));
+                    seqParams.setPlanePitch(ParseUtils.asFloat(raw.get("planePitch"), seqParams.getPlanePitch(), "sequenceParams.planePitch"));
+                    int customX = ParseUtils.asInt(raw.get("customX"), seqParams.getCustomX(), "sequenceParams.customX");
+                    int customY = ParseUtils.asInt(raw.get("customY"), seqParams.getCustomY(), "sequenceParams.customY");
+                    int customZ = ParseUtils.asInt(raw.get("customZ"), seqParams.getCustomZ(), "sequenceParams.customZ");
                     seqParams.setCustomXYZ(customX, customY, customZ);
-                    seqParams.setPriorityWeight(asFloat(raw.get("priorityWeight"), seqParams.getPriorityWeight()));
-                    seqParams.setReverse(asBoolean(raw.get("reverse"), seqParams.isReverse()));
-                    seqParams.setAlternating(asBoolean(raw.get("alternating"), seqParams.isAlternating()));
+                    seqParams.setPriorityWeight(ParseUtils.asFloat(raw.get("priorityWeight"), seqParams.getPriorityWeight(), "sequenceParams.priorityWeight"));
+                    seqParams.setReverse(ParseUtils.asBoolean(raw.get("reverse"), seqParams.isReverse()));
+                    seqParams.setAlternating(ParseUtils.asBoolean(raw.get("alternating"), seqParams.isAlternating()));
 
                     Map<String, Object> extras = new HashMap<>();
                     Object extraObj = raw.get("extraParams");
@@ -1173,9 +1172,10 @@ public class TimelineModelPersistence {
                 }
 
                 if (clipDTO.boundContainerId != null && !clipDTO.boundContainerId.isBlank()) {
-                    try {
-                        clip.setBoundContainerId(UUID.fromString(clipDTO.boundContainerId));
-                    } catch (IllegalArgumentException e) {
+                    UUID containerId = ParseUtils.uuidOrNull(clipDTO.boundContainerId, "Clip.boundContainerId");
+                    if (containerId != null) {
+                        clip.setBoundContainerId(containerId);
+                    } else {
                         LOGGER.warn("[TimelineModelPersistence] 无法解析容器 ID: {}", clipDTO.boundContainerId);
                     }
                 }
@@ -1192,7 +1192,7 @@ public class TimelineModelPersistence {
                         if (ckfdto == null) continue;
                         TimelineInterpolation interp = TimelineInterpolation.LINEAR;
                         if (ckfdto.interpolation != null) {
-                            try { interp = TimelineInterpolation.valueOf(ckfdto.interpolation); } catch (Exception ignored) {}
+                            interp = ParseUtils.enumOr(ckfdto.interpolation, TimelineInterpolation.class, interp, "TimelineInterpolation");
                         }
                         ClipKeyframe ckf;
                         if (track.getType() == TrackType.AUDIO || ckfdto.audioVolume != null) {
@@ -1211,12 +1211,13 @@ public class TimelineModelPersistence {
                         if (vdto == null) continue;
                         VisibilityKeyframe.VisibilityMode mode = VisibilityKeyframe.VisibilityMode.NORMAL;
                         if (vdto.mode != null) {
-                            try { mode = VisibilityKeyframe.VisibilityMode.valueOf(vdto.mode); } catch (Exception ignored) {}
+                            mode = ParseUtils.enumOr(vdto.mode, VisibilityKeyframe.VisibilityMode.class, mode, "VisibilityMode");
                         }
                         try {
                             clip.addVisibilityKeyframe(new VisibilityKeyframe(vdto.time, vdto.alpha, mode));
-                        } catch (Exception ignored) {
-                            // 保持加载流程不中断
+                        } catch (IllegalArgumentException e) {
+                            LOGGER.debug("[TimelineModelPersistence] Skip invalid visibility keyframe at {}: {}",
+                                    vdto.time, e.getMessage());
                         }
                     }
                 }
@@ -1252,16 +1253,16 @@ public class TimelineModelPersistence {
 
                                 if (pathClipDTO.lookAt != null) orbit.setLookAt(pathClipDTO.lookAt.toVec3d());
                                 if (pathClipDTO.radiusMode != null) {
-                                    try { orbit.setRadiusMode(com.director.timeline.model.camera.path.OrbitPathClip.RadiusMode.valueOf(pathClipDTO.radiusMode)); } catch (Exception ignored) {}
+                                    ParseUtils.setEnumIfValid(pathClipDTO.radiusMode, com.director.timeline.model.camera.path.OrbitPathClip.RadiusMode.class, "RadiusMode", orbit::setRadiusMode);
                                 }
                                 if (pathClipDTO.heightMode != null) {
-                                    try { orbit.setHeightMode(com.director.timeline.model.camera.path.OrbitPathClip.HeightMode.valueOf(pathClipDTO.heightMode)); } catch (Exception ignored) {}
+                                    ParseUtils.setEnumIfValid(pathClipDTO.heightMode, com.director.timeline.model.camera.path.OrbitPathClip.HeightMode.class, "HeightMode", orbit::setHeightMode);
                                 }
                                 if (pathClipDTO.cachedHeight != null) orbit.setCachedHeight(pathClipDTO.cachedHeight);
                                 if (pathClipDTO.startAngle != null) orbit.setStartAngle(pathClipDTO.startAngle);
                                 if (pathClipDTO.endAngle != null) orbit.setEndAngle(pathClipDTO.endAngle);
                                 if (pathClipDTO.startAngleMode != null) {
-                                    try { orbit.setStartAngleMode(com.director.timeline.model.camera.path.OrbitPathClip.StartAngleMode.valueOf(pathClipDTO.startAngleMode)); } catch (Exception ignored) {}
+                                    ParseUtils.setEnumIfValid(pathClipDTO.startAngleMode, com.director.timeline.model.camera.path.OrbitPathClip.StartAngleMode.class, "StartAngleMode", orbit::setStartAngleMode);
                                 }
                                 if (pathClipDTO.clockwise != null) orbit.setClockwise(pathClipDTO.clockwise);
                                 
@@ -1277,7 +1278,7 @@ public class TimelineModelPersistence {
                                 
                                 if (pathClipDTO.distance != null) dolly.setDistance(pathClipDTO.distance);
                                 if (pathClipDTO.directionMode != null) {
-                                    try { dolly.setDirectionMode(com.director.timeline.model.camera.path.DollyPathClip.DirectionMode.valueOf(pathClipDTO.directionMode)); } catch (Exception ignored) {}
+                                    ParseUtils.setEnumIfValid(pathClipDTO.directionMode, com.director.timeline.model.camera.path.DollyPathClip.DirectionMode.class, "DirectionMode", dolly::setDirectionMode);
                                 }
                                 if (pathClipDTO.fixedDirection != null) dolly.setFixedDirection(pathClipDTO.fixedDirection.toVec3d());
                                 if (pathClipDTO.alignStartToCurrentPosition != null) dolly.setAlignStartToCurrentPosition(pathClipDTO.alignStartToCurrentPosition);
@@ -1307,19 +1308,17 @@ public class TimelineModelPersistence {
                     actorTrack.setColorRgba(etDTO.colorRgba);
 
                     if (etDTO.actorRefId != null) {
-                        try {
-                            actorTrack.setActorRef(new com.director.actor.ActorRef(java.util.UUID.fromString(etDTO.actorRefId)));
-                        } catch (Exception ignored) {}
+                        { UUID actorRefId = ParseUtils.uuidOrNull(etDTO.actorRefId, "ActorTrack.actorRefId"); if (actorRefId != null) actorTrack.setActorRef(new com.director.actor.ActorRef(actorRefId)); }
                     }
 
                     if (etDTO.binding != null) {
                         EntityBindingDTO bdto = etDTO.binding;
                         com.director.timeline.model.entity.EntityBinding binding = new com.director.timeline.model.entity.EntityBinding();
                         if (bdto.mode != null) {
-                            try { binding.setMode(com.director.timeline.model.entity.EntityBinding.Mode.valueOf(bdto.mode)); } catch (Exception ignored) {}
+                            ParseUtils.setEnumIfValid(bdto.mode, com.director.timeline.model.entity.EntityBinding.Mode.class, "Mode", binding::setMode);
                         }
                         if (bdto.targetEntityUuid != null) {
-                            try { binding.setTargetEntityUuid(java.util.UUID.fromString(bdto.targetEntityUuid)); } catch (Exception ignored) {}
+                            ParseUtils.setUuidIfValid(bdto.targetEntityUuid, "binding.setTargetEntityUuid", binding::setTargetEntityUuid);
                         }
                         binding.setTargetPlayerName(bdto.targetPlayerName);
                         if (bdto.entityTypeId != null) binding.setEntityTypeId(bdto.entityTypeId);
@@ -1342,13 +1341,13 @@ public class TimelineModelPersistence {
                                         try {
                                             com.director.timeline.model.entity.EntityClipKeyframe kf = new com.director.timeline.model.entity.EntityClipKeyframe(kfdto.time);
                                             if (kfdto.interpolation != null) {
-                                                try { kf.setInterpolation(com.director.timeline.model.TimelineInterpolation.valueOf(kfdto.interpolation)); } catch (Exception ignored) {}
+                                                ParseUtils.setEnumIfValid(kfdto.interpolation, com.director.timeline.model.TimelineInterpolation.class, "TimelineInterpolation", kf::setInterpolation);
                                             }
                                             if (kfdto.position != null) kf.setPosition(kfdto.position.x, kfdto.position.y, kfdto.position.z);
                                             if (kfdto.rotation != null) kf.setRotation(kfdto.rotation.x, kfdto.rotation.y, kfdto.rotation.z);
                                             if (kfdto.scale != null) kf.setScale(kfdto.scale.x, kfdto.scale.y, kfdto.scale.z);
                                             if (kfdto.actionType != null) {
-                                                try { kf.setActionType(com.director.timeline.model.entity.EntityKeyframe.ActionType.valueOf(kfdto.actionType)); } catch (Exception ignored) {}
+                                                ParseUtils.setEnumIfValid(kfdto.actionType, com.director.timeline.model.entity.EntityKeyframe.ActionType.class, "ActionType", kf::setActionType);
                                             }
                                             if (kfdto.actionSpeed != null) kf.setActionSpeed(kfdto.actionSpeed);
                                             if (kfdto.actionLoop != null) kf.setActionLoop(kfdto.actionLoop);
@@ -1357,10 +1356,13 @@ public class TimelineModelPersistence {
                                             if (kfdto.displayName != null) kf.setDisplayName(kfdto.displayName);
                                             if (kfdto.showNameTag != null) kf.setShowNameTag(kfdto.showNameTag);
                                             if (kfdto.entityType != null) {
-                                                try { kf.setEntityType(com.director.timeline.model.entity.EntityKeyframe.EntityType.valueOf(kfdto.entityType)); } catch (Exception ignored) {}
+                                                ParseUtils.setEnumIfValid(kfdto.entityType, com.director.timeline.model.entity.EntityKeyframe.EntityType.class, "EntityType", kf::setEntityType);
                                             }
                                             clip.addKeyframe(kf);
-                                        } catch (Exception ignored) {}
+                                        } catch (RuntimeException e) {
+                                            LOGGER.debug("[TimelineModelPersistence] Skip invalid entity clip keyframe at {}: {}",
+                                                    kfdto.time, e.getMessage());
+                                        }
                                     }
                                 }
 
@@ -1375,7 +1377,7 @@ public class TimelineModelPersistence {
                                     }
                                     case com.director.timeline.model.entity.EntityTransformClip tc -> {
                                         if (cdto.transformInterpolation != null) {
-                                            try { tc.setInterpolation(com.director.timeline.model.TimelineInterpolation.valueOf(cdto.transformInterpolation)); } catch (Exception ignored) {}
+                                            ParseUtils.setEnumIfValid(cdto.transformInterpolation, com.director.timeline.model.TimelineInterpolation.class, "TimelineInterpolation", tc::setInterpolation);
                                         }
                                         if (cdto.fromPos != null) tc.setFromPos(cdto.fromPos.x, cdto.fromPos.y, cdto.fromPos.z);
                                         if (cdto.toPos != null) tc.setToPos(cdto.toPos.x, cdto.toPos.y, cdto.toPos.z);
@@ -1388,17 +1390,17 @@ public class TimelineModelPersistence {
                                     }
                                     case com.director.timeline.model.entity.EntityLookAtClip lc -> {
                                         if (cdto.lookAtMode != null) {
-                                            try { lc.setMode(com.director.timeline.model.entity.EntityLookAtClip.TargetMode.valueOf(cdto.lookAtMode)); } catch (Exception ignored) {}
+                                            ParseUtils.setEnumIfValid(cdto.lookAtMode, com.director.timeline.model.entity.EntityLookAtClip.TargetMode.class, "TargetMode", lc::setMode);
                                         }
                                         if (cdto.lookAtWorldPoint != null) lc.setWorldPoint(cdto.lookAtWorldPoint.x, cdto.lookAtWorldPoint.y, cdto.lookAtWorldPoint.z);
                                         if (cdto.lookAtTargetEntityUuid != null) {
-                                            try { lc.setTargetEntityUuid(java.util.UUID.fromString(cdto.lookAtTargetEntityUuid)); } catch (Exception ignored) {}
+                                            ParseUtils.setUuidIfValid(cdto.lookAtTargetEntityUuid, "lc.setTargetEntityUuid", lc::setTargetEntityUuid);
                                         }
                                         if (cdto.lookAtStrength != null) lc.setStrength(cdto.lookAtStrength);
                                     }
                                     case com.director.timeline.model.entity.EntityAnimationClip ac -> {
                                         if (cdto.animationSource != null) {
-                                            try { ac.setSource(com.director.timeline.model.entity.EntityAnimationClip.AnimationSource.valueOf(cdto.animationSource)); } catch (Exception ignored) {}
+                                            ParseUtils.setEnumIfValid(cdto.animationSource, com.director.timeline.model.entity.EntityAnimationClip.AnimationSource.class, "AnimationSource", ac::setSource);
                                         }
                                         if (cdto.animationId != null) ac.setAnimationId(cdto.animationId);
                                         if (cdto.animationLoop != null) ac.setLoop(cdto.animationLoop);
@@ -1413,19 +1415,19 @@ public class TimelineModelPersistence {
                                     }
                                     case com.director.timeline.model.entity.EntityActionClip xac -> {
                                         if (cdto.actionType != null) {
-                                            try { xac.setActionType(com.director.timeline.model.entity.EntityActionClip.ActionType.valueOf(cdto.actionType)); } catch (Exception ignored) {}
+                                            ParseUtils.setEnumIfValid(cdto.actionType, com.director.timeline.model.entity.EntityActionClip.ActionType.class, "ActionType", xac::setActionType);
                                         }
                                         if (cdto.actionParams != null) cdto.actionParams.forEach(xac::setParam);
                                         if (cdto.triggerOnce != null) xac.setTriggerOnce(cdto.triggerOnce);
                                     }
                                     case com.director.timeline.model.entity.EntityDespawnClip dc -> {
                                         if (cdto.despawnMode != null) {
-                                            try { dc.setMode(com.director.timeline.model.entity.EntityDespawnClip.DespawnMode.valueOf(cdto.despawnMode)); } catch (Exception ignored) {}
+                                            ParseUtils.setEnumIfValid(cdto.despawnMode, com.director.timeline.model.entity.EntityDespawnClip.DespawnMode.class, "DespawnMode", dc::setMode);
                                         }
                                     }
                                     case com.director.timeline.model.entity.ActorActionClip aac -> {
                                         if (cdto.actorActionType != null) {
-                                            try { aac.setActionType(com.director.actor.action.ActorActionType.valueOf(cdto.actorActionType)); } catch (Exception ignored) {}
+                                            ParseUtils.setEnumIfValid(cdto.actorActionType, com.director.actor.action.ActorActionType.class, "ActorActionType", aac::setActionType);
                                         }
                                         if (cdto.actorActionIntensity != null) aac.setIntensity(cdto.actorActionIntensity);
                                         if (cdto.actorActionLoop != null) aac.setLoop(cdto.actorActionLoop);
@@ -1456,10 +1458,10 @@ public class TimelineModelPersistence {
                                             rc.setWaypoints(points);
                                         }
                                         if (cdto.routeInterpolationMode != null) {
-                                            try { rc.setInterpolationMode(com.director.timeline.model.entity.ActorRouteClip.InterpolationMode.valueOf(cdto.routeInterpolationMode)); } catch (Exception ignored) {}
+                                            ParseUtils.setEnumIfValid(cdto.routeInterpolationMode, com.director.timeline.model.entity.ActorRouteClip.InterpolationMode.class, "InterpolationMode", rc::setInterpolationMode);
                                         }
                                         if (cdto.routeLoopMode != null) {
-                                            try { rc.setLoopMode(com.director.timeline.model.entity.ActorRouteClip.LoopMode.valueOf(cdto.routeLoopMode)); } catch (Exception ignored) {}
+                                            ParseUtils.setEnumIfValid(cdto.routeLoopMode, com.director.timeline.model.entity.ActorRouteClip.LoopMode.class, "LoopMode", rc::setLoopMode);
                                         }
                                         if (cdto.routeSpeed != null) rc.setSpeed(cdto.routeSpeed);
                                         if (cdto.routeAlignRotation != null) rc.setAlignRotationToRoute(cdto.routeAlignRotation);
@@ -1567,18 +1569,18 @@ public class TimelineModelPersistence {
         ck.setNearPlane(kdto.nearPlane);
         ck.setFarPlane(kdto.farPlane);
         if (kdto.cameraKeyType != null) {
-            try { ck.setKeyType(CameraKeyframe.KeyType.valueOf(kdto.cameraKeyType)); } catch (Exception ignored) {}
+            ParseUtils.setEnumIfValid(kdto.cameraKeyType, CameraKeyframe.KeyType.class, "KeyType", ck::setKeyType);
         }
         if (kdto.cameraSegmentType != null) {
-            try { ck.setSegmentType(CameraKeyframe.SegmentPathType.valueOf(kdto.cameraSegmentType)); } catch (Exception ignored) {}
+            ParseUtils.setEnumIfValid(kdto.cameraSegmentType, CameraKeyframe.SegmentPathType.class, "SegmentPathType", ck::setSegmentType);
         }
         if (kdto.cameraRotationInterpolation != null) {
-            try { ck.setRotationInterpolation(CameraKeyframe.RotationInterpolation.valueOf(kdto.cameraRotationInterpolation)); } catch (Exception ignored) {}
+            ParseUtils.setEnumIfValid(kdto.cameraRotationInterpolation, CameraKeyframe.RotationInterpolation.class, "RotationInterpolation", ck::setRotationInterpolation);
         }
         if (kdto.bezierInHandle != null) ck.setBezierInHandle(new org.joml.Vector3f(kdto.bezierInHandle.x, kdto.bezierInHandle.y, kdto.bezierInHandle.z));
         if (kdto.bezierOutHandle != null) ck.setBezierOutHandle(new org.joml.Vector3f(kdto.bezierOutHandle.x, kdto.bezierOutHandle.y, kdto.bezierOutHandle.z));
         if (kdto.cameraHandleMode != null) {
-            try { ck.setHandleMode(CameraKeyframe.HandleMode.valueOf(kdto.cameraHandleMode)); } catch (Exception ignored) {}
+            ParseUtils.setEnumIfValid(kdto.cameraHandleMode, CameraKeyframe.HandleMode.class, "HandleMode", ck::setHandleMode);
         }
         ck.setDepthOfFieldEnabled(kdto.dofEnabled);
         ck.setFocusDistance(kdto.focusDistance);
@@ -1808,55 +1810,6 @@ public class TimelineModelPersistence {
         } catch (IOException e) {
             LOGGER.warn("[TimelineModelPersistence] 删除时间线存档失败: {}", e.getMessage(), e);
         }
-    }
-
-    private static <E extends Enum<E>> E parseEnum(Object value, Class<E> type, E defaultValue) {
-        if (value instanceof String s) {
-            try {
-                return Enum.valueOf(type, s);
-            } catch (IllegalArgumentException ignored) {
-            }
-        }
-        return defaultValue;
-    }
-
-    private static float asFloat(Object value, float defaultValue) {
-        if (value instanceof Number number) {
-            return number.floatValue();
-        }
-        if (value instanceof String s) {
-            try {
-                return Float.parseFloat(s);
-            } catch (NumberFormatException ignored) {
-            }
-        }
-        return defaultValue;
-    }
-
-    private static int asInt(Object value, int defaultValue) {
-        if (value instanceof Number number) {
-            return number.intValue();
-        }
-        if (value instanceof String s) {
-            try {
-                return Integer.parseInt(s);
-            } catch (NumberFormatException ignored) {
-            }
-        }
-        return defaultValue;
-    }
-
-    private static boolean asBoolean(Object value, boolean defaultValue) {
-        if (value instanceof Boolean b) {
-            return b;
-        }
-        if (value instanceof Number number) {
-            return number.intValue() != 0;
-        }
-        if (value instanceof String s) {
-            return Boolean.parseBoolean(s);
-        }
-        return defaultValue;
     }
 
     private static Map<String, Object> toStringObjectMap(Map<?, ?> raw) {
