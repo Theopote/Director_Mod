@@ -249,9 +249,16 @@ public class TimelinePanel extends AbstractPanel
         DirectorServices.get().containerTimeline().setTimelineModel(model);
         DirectorServices.get().containerTimeline().setAudioSync(
                 com.director.ui.timeline.audio.TimelineAudioService.getInstance());
+
+        com.director.ui.timeline.audio.TimelineAudioService audioService =
+                com.director.ui.timeline.audio.TimelineAudioService.getInstance();
+        model.setAudioLoadHook(audioService);
+        model.setClipSoundCollector(audioService);
+        model.setTrackPlaybackListener(
+                com.director.ui.timeline.playback.TimelineAudioController.getInstance());
         
         // 初始化音频服务（自动收集声音事件）
-        com.director.ui.timeline.audio.TimelineAudioService.getInstance().setTimelineModel(model);
+        audioService.setTimelineModel(model);
         
         // 初始化音频控制器（播放时触发声音）
         com.director.ui.timeline.playback.TimelineAudioController.getInstance().setTimelineModel(model);

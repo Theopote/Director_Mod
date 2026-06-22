@@ -156,11 +156,43 @@
 
 ---
 
+## Batch 5：领域层收尾（snapping / persistence / 音频端口）✅
+
+### 5.1 迁出 snapping 与 persistence
+
+| 原包 | 新包 |
+|------|------|
+| `ui.timeline.snapping.*` | `timeline.snapping.*` |
+| `ui.timeline.persistence.*` | `timeline.persistence.*` |
+
+工具脚本：`tools/relocate_timeline_snapping_persistence.py`
+
+### 5.2 解除 `timeline.model` 对 UI 音频的直接依赖
+
+新增 `com.director.timeline.audio` 端口：
+
+| 接口 | 用途 | UI 实现 |
+|------|------|---------|
+| `TimelineClipSoundCollector` | 容器片段绑定后收集声音 | `TimelineAudioService` |
+| `TimelineTrackPlaybackListener` | 轨道增删时管理采样器 | `TimelineAudioController` |
+| `TimelineAudioLoadHook` | 持久化加载时抑制/回绑音频 | `TimelineAudioService` |
+
+- `TimelineModel` 通过 setter 注入上述端口（`TimelinePanel` 接线）
+- `TimelineTrack.addClip` 改为调用 `TimelineClipSoundCollector`，不再引用 `TimelineAudioService`
+- `TimelineModelPersistence.fromDTO` 通过 `model.getAudioLoadHook()` 协作
+
+### 验收（Batch 5 后）
+
+- `com.director.timeline.*` **零** `com.director.ui.timeline.*` 依赖 ✅
+- 阶段 A 分层目标全部达成 ✅
+
+---
+
 ## 验收标准
 
 完成阶段 A 的最终目标（可分阶段验收）：
 
 1. `core/`、`actor/`、`mixin/`、`export/` **不再 import `com.director.ui.timeline.model.*` 或 `com.director.ui.timeline.playback.*`** ✅（已达成）
-2. `ui.timeline.*` 仅保留 ImGui/交互/渲染/命令 UI glue，不承载领域模型
+2. `ui.timeline.*` 仅保留 ImGui/交互/渲染/命令 UI glue，不承载领域模型 ✅
 3. 全量编译通过：`./gradlew compileJava`
 
