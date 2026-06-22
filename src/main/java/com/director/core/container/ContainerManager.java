@@ -50,68 +50,51 @@ public class ContainerManager {
     // ========== 事件监听器 ==========
     private final List<ContainerListener> listeners = new CopyOnWriteArrayList<>();
     
-    public ContainerManager() {
-        this(true);
-    }
-
-    private ContainerManager(boolean registerGlobal) {
-        initializing = true;  // 设置初始化标志
-        try {
-            createDefaultContainers();
-            if (registerGlobal) {
-                registerGlobalInstance(this);
+  /**
+     * 在模组启动时显式初始化全局实例（幂等）。
+     * <p>须在任意 {@link #getInstance()} 调用之前由 {@link com.director.DirectorMod} 完成。
+     */
+    public static void initialize() {
+        if (GLOBAL.get() != null) {
+            return;
+        }
+        synchronized (ContainerManager.class) {
+            if (GLOBAL.get() == null) {
+                new ContainerManager();
             }
-            // 加载当前存档的容器数据
-            ContainerPersistence.loadForCurrentWorld(this);
-            
-            LOGGER.info("[ContainerManager] Initialized");
-        } finally {
-            initializing = false;  // 清除初始化标志
         }
     }
-    
+
+    public ContainerManager() {
+        initializing = true;
+        try {
+            registerGlobalInstance(this);
+            createDefaultContainers();
+            ContainerPersistence.loadForCurrentWorld(this);
+            LOGGER.info("[ContainerManager] Initialized");
+        } finally {
+            initializing = false;
+        }
+    }
+
     private static void registerGlobalInstance(ContainerManager manager) {
         if (GLOBAL.compareAndSet(null, manager)) {
             LOGGER.info("[ContainerManager] Global instance set");
         }
     }
-    
+
+    /**
+     * 返回已初始化的全局实例，永不返回 {@code null}。
+     *
+     * @throws IllegalStateException 若 {@link #initialize()} 尚未在模组启动时执行
+     */
     public static ContainerManager getInstance() {
         ContainerManager existing = GLOBAL.get();
         if (existing != null) {
             return existing;
         }
-        // 如果正在初始化，等待初始化完成
-        if (initializing) {
-            // 等待一小段时间，让初始化完成
-            int retries = 0;
-            while (initializing && retries < 100) {
-                try {
-                    Thread.sleep(10);
-                    retries++;
-                    existing = GLOBAL.get();
-                    if (existing != null) {
-                        return existing;
-                    }
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
-            }
-            // 如果等待后仍然没有实例，返回null而不是创建新实例
-            existing = GLOBAL.get();
-            if (existing != null) {
-                return existing;
-            }
-            LOGGER.warn("[ContainerManager] 初始化超时，返回null");
-            return null;
-        }
-        ContainerManager created = new ContainerManager(false);
-        if (GLOBAL.compareAndSet(null, created)) {
-            LOGGER.info("[ContainerManager] Global fallback instance created");
-            return created;
-        }
-        return GLOBAL.get();
+        throw new IllegalStateException(
+                "[ContainerManager] Not initialized — call ContainerManager.initialize() during mod startup");
     }
     
     /**

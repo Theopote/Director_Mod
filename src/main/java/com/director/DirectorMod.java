@@ -13,6 +13,7 @@ import com.director.command.DirectorCommands;
 import com.director.compatibility.ModCompatibilityChecker;
 import com.director.compatibility.VersionCompatibilityChecker;
 import com.director.i18n.DirectorI18n;
+import com.director.core.container.ContainerManager;
 import com.director.core.container.visibility.ContainerServices;
 
 import net.minecraft.util.Identifier;
@@ -193,6 +194,9 @@ public class DirectorMod implements ModInitializer {
         try {
             // 步骤 1: 初始化配置系统
             initializeConfig();
+
+            // 步骤 1b: 显式初始化容器管理器（须在任意 getInstance() 之前）
+            initializeContainerManager();
             
             // 步骤 2: 初始化国际化系统
             initializeI18n();
@@ -237,6 +241,19 @@ public class DirectorMod implements ModInitializer {
         }
     }
     
+    /**
+     * 显式初始化容器管理器，避免懒加载与轮询等待。
+     */
+    private void initializeContainerManager() {
+        try {
+            ContainerManager.initialize();
+            LOGGER.info("[Director] 容器管理器初始化完成");
+        } catch (Exception e) {
+            LOGGER.error("[Director] 容器管理器初始化失败: {}", e.getMessage(), e);
+            throw new RuntimeException("容器管理器初始化失败", e);
+        }
+    }
+
     /**
      * 初始化国际化系统
      */

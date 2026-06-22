@@ -49,9 +49,7 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
             if (containerId == null) {
                 return false;
             }
-            Container container = ContainerManager.getInstance() != null
-                    ? ContainerManager.getInstance().getContainer(containerId)
-                    : null;
+            Container container = ContainerManager.getInstance().getContainer(containerId);
             return container != null && container.getType() == com.director.core.container.ContainerType.DEMOLITION;
         } catch (Exception e) {
             return false;

@@ -161,9 +161,7 @@ public class TimelineAudioService {
                             // ✅ 基于容器类型判断是否为拆除容器（不再依赖轨道类型）
                             boolean isDemolition = false;
                             try {
-                                Container c = ContainerManager.getInstance() != null
-                                        ? ContainerManager.getInstance().getContainer(clip.getBoundContainerId())
-                                        : null;
+                                Container c = ContainerManager.getInstance().getContainer(clip.getBoundContainerId());
                                 if (c != null) {
                                     isDemolition = c.getType() == com.director.core.container.ContainerType.DEMOLITION;
                                 }
@@ -278,9 +276,7 @@ public class TimelineAudioService {
         boolean isEraseTrack = false;
         try {
             // ✅ 基于容器类型判断是否为拆除容器（不再依赖轨道类型）
-            Container c = ContainerManager.getInstance() != null
-                    ? ContainerManager.getInstance().getContainer(clip.getBoundContainerId())
-                    : null;
+            Container c = ContainerManager.getInstance().getContainer(clip.getBoundContainerId());
             if (c != null && c.getType() == com.director.core.container.ContainerType.DEMOLITION) {
                 isEraseTrack = true;
             }

@@ -41,10 +41,6 @@ public class ContainerServices {
 
         try {
             ContainerManager manager = ContainerManager.getInstance();
-            if (manager == null) {
-                return;
-            }
-
             int synced = 0;
             for (Container container : manager.getAllContainers()) {
                 if (container != null && container.isHidden() && container.getBlockCount() > 0) {

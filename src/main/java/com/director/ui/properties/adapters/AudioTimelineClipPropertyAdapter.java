@@ -100,9 +100,7 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
                         try {
                             UUID containerId = containerClip.getBoundContainerId();
                             if (containerId != null) {
-                                Container c = ContainerManager.getInstance() != null
-                                        ? ContainerManager.getInstance().getContainer(containerId)
-                                        : null;
+                                Container c = ContainerManager.getInstance().getContainer(containerId);
                                 if (c != null && c.getType() == com.director.core.container.ContainerType.DEMOLITION) {
                                     isErase = true;
                                 }

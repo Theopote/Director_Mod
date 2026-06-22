@@ -156,9 +156,7 @@ public class TimelineAudioRenderer {
             if (linked != null) {
                 // ✅ 基于容器类型判断是否为拆除容器（不再依赖轨道类型）
                 try {
-                    Container c = ContainerManager.getInstance() != null
-                            ? ContainerManager.getInstance().getContainer(linked.getBoundContainerId())
-                            : null;
+                    Container c = ContainerManager.getInstance().getContainer(linked.getBoundContainerId());
                     if (c != null && c.getType() == ContainerType.DEMOLITION) {
                         return COLOR_BLOCK_PLACE;
                     }

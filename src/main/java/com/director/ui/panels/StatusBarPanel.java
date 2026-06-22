@@ -199,7 +199,7 @@ public class StatusBarPanel extends AbstractPanel implements IPanelRegistryAware
         // 7. Containers
         try {
             ContainerManager cm = ContainerManager.getInstance();
-            if (cm != null && cm.getContainerCount() > 0) {
+            if (cm.getContainerCount() > 0) {
                 UITheme.label(
                         "Containers: " + cm.getContainerCount(),
                         UITheme.DarkTheme.TEXT_DISABLED

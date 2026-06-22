@@ -50,9 +50,7 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
             if (containerId == null) {
                 return false;
             }
-            Container container = ContainerManager.getInstance() != null
-                    ? ContainerManager.getInstance().getContainer(containerId)
-                    : null;
+            Container container = ContainerManager.getInstance().getContainer(containerId);
             if (container == null) {
                 return false;
             }

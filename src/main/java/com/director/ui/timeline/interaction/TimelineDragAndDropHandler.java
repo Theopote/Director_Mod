@@ -240,9 +240,7 @@ public class TimelineDragAndDropHandler {
 
                 // 清除轨道默认使用“淡出”更符合直觉（不强制，用户可改）
                 try {
-                    Container c = ContainerManager.getInstance() != null
-                            ? ContainerManager.getInstance().getContainer(containerUuid)
-                            : null;
+                    Container c = ContainerManager.getInstance().getContainer(containerUuid);
                     if (c != null && c.getType() == ContainerType.DEMOLITION) {
                         ClipAnimationConfig cfg = clip.getAnimationConfig();
                         cfg.setPhase(ClipAnimationConfig.AnimationPhase.EXIT);
