@@ -1,4 +1,4 @@
-package com.director.ui.timeline.playback.time;
+package com.director.timeline.playback.time;
 
 /**
  * 时间采样结果 v3.0 - 专业动画级天空控制

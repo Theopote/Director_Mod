@@ -144,8 +144,8 @@ public final class TimelineTrackControlHit {
         if (supportsKeyframes) {
             if (type == TrackType.CAMERA) {
                 // 检查是否是激活的摄像机轨道
-                com.director.ui.timeline.playback.camera.TimelineCameraController controller =
-                        com.director.ui.timeline.playback.camera.TimelineCameraController.getInstance();
+                com.director.timeline.playback.camera.TimelineCameraController controller =
+                        com.director.timeline.playback.camera.TimelineCameraController.getInstance();
                 com.director.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
                 
                 // 只有激活的摄像机轨道才注册关键帧按钮
@@ -154,8 +154,8 @@ public final class TimelineTrackControlHit {
                 }
             } else if (type == TrackType.TIME) {
                 // 检查是否是激活的时间轨道
-                com.director.ui.timeline.playback.time.TimelineWorldController controller =
-                        com.director.ui.timeline.playback.time.TimelineWorldController.getInstance();
+                com.director.timeline.playback.time.TimelineWorldController controller =
+                        com.director.timeline.playback.time.TimelineWorldController.getInstance();
                 com.director.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveTimeTrack();
                 
                 // 只有激活的时间轨道才注册关键帧按钮
@@ -164,8 +164,8 @@ public final class TimelineTrackControlHit {
                 }
             } else if (type == TrackType.SEASON) {
                 // 检查是否是激活的季节轨道
-                com.director.ui.timeline.playback.season.TimelineSeasonController controller =
-                        com.director.ui.timeline.playback.season.TimelineSeasonController.getInstance();
+                com.director.timeline.playback.season.TimelineSeasonController controller =
+                        com.director.timeline.playback.season.TimelineSeasonController.getInstance();
                 com.director.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveSeasonTrack();
                 
                 // 只有激活的季节轨道才注册关键帧按钮
@@ -174,8 +174,8 @@ public final class TimelineTrackControlHit {
                 }
             } else if (type == TrackType.WEATHER) {
                 // 检查是否是激活的天气轨道
-                com.director.ui.timeline.playback.weather.TimelineWeatherController controller =
-                        com.director.ui.timeline.playback.weather.TimelineWeatherController.getInstance();
+                com.director.timeline.playback.weather.TimelineWeatherController controller =
+                        com.director.timeline.playback.weather.TimelineWeatherController.getInstance();
                 com.director.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveWeatherTrack();
                 
                 // 只有激活的天气轨道才注册关键帧按钮

@@ -8,7 +8,7 @@ import com.director.ui.timeline.container.ContainerTimelineService;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.season.SeasonKeyframe;
-import com.director.ui.timeline.playback.season.TimelineSeasonController;
+import com.director.timeline.playback.season.TimelineSeasonController;
 import imgui.ImGui;
 import imgui.flag.ImGuiColorEditFlags;
 import imgui.flag.ImGuiTreeNodeFlags;

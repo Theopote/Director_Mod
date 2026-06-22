@@ -9,7 +9,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import com.director.ui.timeline.persistence.TimelineModelPersistence;
 import com.director.ui.timeline.snapping.TimelineSnapSettings;
 import com.director.ui.timeline.snapping.TimelineSnapping;
-import com.director.ui.timeline.playback.camera.TimelineCameraController;
+import com.director.timeline.playback.camera.TimelineCameraController;
 
 /**
  * Timeline 数据模型（v7.4 统一真相源）
@@ -836,8 +836,8 @@ public class TimelineModel implements ITimelineProject {
         
         // ⭐ 关键修复：播放状态改变时通知摄像机控制器
         if (wasPlaying != playing) {
-            com.director.ui.timeline.playback.camera.TimelineCameraController controller = 
-                com.director.ui.timeline.playback.camera.TimelineCameraController.getInstance();
+            com.director.timeline.playback.camera.TimelineCameraController controller = 
+                com.director.timeline.playback.camera.TimelineCameraController.getInstance();
             
             if (playing) {
                 // ⭐ UI 事件驱动：开始播放
@@ -884,11 +884,11 @@ public class TimelineModel implements ITimelineProject {
         if (scrubbing && this.playing) {
             // scrubbing 和 playing 互斥，如果开始 scrubbing，先停止播放
             this.playing = false;
-            com.director.ui.timeline.playback.camera.TimelineCameraController.getInstance().onPlaybackStopped();
+            com.director.timeline.playback.camera.TimelineCameraController.getInstance().onPlaybackStopped();
         }
         this.scrubbing = scrubbing;
         if (wasScrubbing && !scrubbing && !this.playing) {
-            com.director.ui.timeline.playback.camera.TimelineCameraController.getInstance().endScrubbing(currentTime);
+            com.director.timeline.playback.camera.TimelineCameraController.getInstance().endScrubbing(currentTime);
         }
     }
     

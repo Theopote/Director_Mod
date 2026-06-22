@@ -2,7 +2,7 @@ package com.director.ui.timeline.playback;
 
 import net.minecraft.client.MinecraftClient;
 import com.director.ui.timeline.model.TimelineModel;
-import com.director.ui.timeline.playback.camera.TimelineCameraController;
+import com.director.timeline.playback.camera.TimelineCameraController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -197,7 +197,7 @@ public final class PlaybackOrchestrator {
 
         // ⭐ 播放采样：季节/天气（保持 TimelinePanel 原逻辑）
         try {
-            com.director.ui.timeline.playback.season.TimelineSeasonController.getInstance()
+            com.director.timeline.playback.season.TimelineSeasonController.getInstance()
                     .onTimelineTick(newTime);
         } catch (Exception e) {
             if (LOGGER.isTraceEnabled()) {
@@ -206,7 +206,7 @@ public final class PlaybackOrchestrator {
         }
 
         try {
-            com.director.ui.timeline.playback.weather.TimelineWeatherController.getInstance()
+            com.director.timeline.playback.weather.TimelineWeatherController.getInstance()
                     .updateForPlayback(newTime);
         } catch (Exception e) {
             if (LOGGER.isTraceEnabled()) {
@@ -239,7 +239,7 @@ public final class PlaybackOrchestrator {
         }
 
         try {
-            com.director.ui.timeline.playback.time.TimelineWorldController.getInstance().update();
+            com.director.timeline.playback.time.TimelineWorldController.getInstance().update();
         } catch (Exception e) {
             if (LOGGER.isTraceEnabled()) {
                 LOGGER.trace("[PlaybackOrchestrator] TimelineWorldController 更新失败", e);
@@ -279,7 +279,7 @@ public final class PlaybackOrchestrator {
         }
 
         try {
-            com.director.ui.timeline.playback.weather.WeatherParticleController.getInstance().tick();
+            com.director.timeline.playback.weather.WeatherParticleController.getInstance().tick();
         } catch (Exception e) {
             if (LOGGER.isTraceEnabled()) {
                 LOGGER.trace("[PlaybackOrchestrator] WeatherParticleController 更新失败", e);
@@ -288,7 +288,7 @@ public final class PlaybackOrchestrator {
 
         // v1.1：天气事件 tick（依赖当前时间）
         try {
-            com.director.ui.timeline.playback.weather.TimelineWeatherController.getInstance()
+            com.director.timeline.playback.weather.TimelineWeatherController.getInstance()
                     .tickEvents(model.getCurrentTime());
         } catch (Exception e) {
             if (LOGGER.isTraceEnabled()) {

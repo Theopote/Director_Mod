@@ -1,6 +1,6 @@
 package com.director.client.renderer.weather;
 
-import com.director.ui.timeline.playback.weather.WeatherSample;
+import com.director.timeline.playback.weather.WeatherSample;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.particle.ParticleManager;
 import net.minecraft.client.world.ClientWorld;

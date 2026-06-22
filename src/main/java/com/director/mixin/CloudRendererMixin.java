@@ -1,7 +1,7 @@
 package com.director.mixin;
 
-import com.director.ui.timeline.playback.weather.TimelineWeatherController;
-import com.director.ui.timeline.playback.weather.WeatherSample;
+import com.director.timeline.playback.weather.TimelineWeatherController;
+import com.director.timeline.playback.weather.WeatherSample;
 import net.minecraft.client.option.CloudRenderMode;
 import net.minecraft.client.render.CloudRenderer;
 import net.minecraft.resource.ResourceManager;

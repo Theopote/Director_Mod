@@ -172,7 +172,7 @@ public final class TimelineKeyframeDragHandler {
         }
 
         if (keyframe instanceof CameraKeyframe cameraKeyframe) {
-            com.director.ui.timeline.playback.camera.TimelineCameraController.getInstance()
+            com.director.timeline.playback.camera.TimelineCameraController.getInstance()
                     .previewAt(cameraKeyframe.getTime());
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("[Timeline] 预览摄像机关键帧 @ {:.2f}s", cameraKeyframe.getTime());
@@ -290,7 +290,7 @@ public final class TimelineKeyframeDragHandler {
         handle.currentTime = newTime;
 
         if (handle.keyframe instanceof CameraKeyframe) {
-            com.director.ui.timeline.playback.camera.TimelineCameraController.getInstance().previewAt(newTime);
+            com.director.timeline.playback.camera.TimelineCameraController.getInstance().previewAt(newTime);
         }
         callbacks.onDataChanged();
     }
@@ -348,7 +348,7 @@ public final class TimelineKeyframeDragHandler {
             return true;
         }
         if (track.getType() == TrackType.CAMERA) {
-            var active = com.director.ui.timeline.playback.camera.TimelineCameraController.getInstance()
+            var active = com.director.timeline.playback.camera.TimelineCameraController.getInstance()
                     .getActiveCameraTrack();
             if (active != track) {
                 if (LOGGER.isDebugEnabled()) {
@@ -358,7 +358,7 @@ public final class TimelineKeyframeDragHandler {
             }
         }
         if (track.getType() == TrackType.TIME) {
-            var active = com.director.ui.timeline.playback.time.TimelineWorldController.getInstance()
+            var active = com.director.timeline.playback.time.TimelineWorldController.getInstance()
                     .getActiveTimeTrack();
             if (active != track) {
                 if (LOGGER.isDebugEnabled()) {
@@ -368,7 +368,7 @@ public final class TimelineKeyframeDragHandler {
             }
         }
         if (track.getType() == TrackType.SEASON) {
-            var active = com.director.ui.timeline.playback.season.TimelineSeasonController.getInstance()
+            var active = com.director.timeline.playback.season.TimelineSeasonController.getInstance()
                     .getActiveSeasonTrack();
             if (active != track) {
                 if (LOGGER.isDebugEnabled()) {

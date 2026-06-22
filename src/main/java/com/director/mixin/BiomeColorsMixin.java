@@ -1,7 +1,7 @@
 package com.director.mixin;
 
-import com.director.ui.timeline.playback.season.SeasonSample;
-import com.director.ui.timeline.playback.season.TimelineSeasonController;
+import com.director.timeline.playback.season.SeasonSample;
+import com.director.timeline.playback.season.TimelineSeasonController;
 import net.minecraft.client.color.world.BiomeColors;
 import net.minecraft.world.BlockRenderView;
 import net.minecraft.util.math.BlockPos;

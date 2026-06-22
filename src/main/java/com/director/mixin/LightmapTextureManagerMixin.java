@@ -1,8 +1,8 @@
 package com.director.mixin;
 
-import com.director.ui.timeline.playback.season.SeasonSample;
-import com.director.ui.timeline.playback.season.TimelineSeasonController;
-import com.director.ui.timeline.playback.weather.WeatherEventController;
+import com.director.timeline.playback.season.SeasonSample;
+import com.director.timeline.playback.season.TimelineSeasonController;
+import com.director.timeline.playback.weather.WeatherEventController;
 import net.minecraft.client.render.LightmapTextureManager;
 import org.joml.Vector3f;
 import org.spongepowered.asm.mixin.Mixin;

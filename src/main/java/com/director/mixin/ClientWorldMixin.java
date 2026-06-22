@@ -1,12 +1,12 @@
 package com.director.mixin;
 
 import com.director.client.DirectorClientController;
-import com.director.ui.timeline.playback.season.SeasonSample;
-import com.director.ui.timeline.playback.season.TimelineSeasonController;
-import com.director.ui.timeline.playback.time.TimeSample;
-import com.director.ui.timeline.playback.time.TimelineWorldController;
-import com.director.ui.timeline.playback.weather.WeatherSample;
-import com.director.ui.timeline.playback.weather.TimelineWeatherController;
+import com.director.timeline.playback.season.SeasonSample;
+import com.director.timeline.playback.season.TimelineSeasonController;
+import com.director.timeline.playback.time.TimeSample;
+import com.director.timeline.playback.time.TimelineWorldController;
+import com.director.timeline.playback.weather.WeatherSample;
+import com.director.timeline.playback.weather.TimelineWeatherController;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.util.math.MathHelper;
 import net.minecraft.util.math.Vec3d;
@@ -126,7 +126,7 @@ public abstract class ClientWorldMixin {
                 
                 // ⭐ v1.1 架构：闪电闪白效果（通过 WeatherEventController 控制）
                 // ✅ 修复：使用乘数而不是直接加法，让闪白更明显
-                float flashFactor = com.director.ui.timeline.playback.weather.WeatherEventController.getInstance().getCurrentFlashBrightness();
+                float flashFactor = com.director.timeline.playback.weather.WeatherEventController.getInstance().getCurrentFlashBrightness();
                 if (flashFactor > 0.01f) {
                     // 闪白时：brightness = base * (1.0 - stormDark) + flashFactor（瞬时增益）
                     // 使用混合方式：mix(skyColor, WHITE, flashFactor)

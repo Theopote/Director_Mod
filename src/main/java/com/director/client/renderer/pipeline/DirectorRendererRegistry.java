@@ -371,7 +371,7 @@ public final class DirectorRendererRegistry {
             // 说明：ContainerTimelineService 的 model 绑定可能在某些 UI 生命周期下为 null 或不同步。
             // TimelineCameraController 绑定 TimelineModel 更早、更稳定，因此以它为真相源。
             try {
-                return com.director.ui.timeline.playback.camera.TimelineCameraController
+                return com.director.timeline.playback.camera.TimelineCameraController
                         .getInstance()
                         .isTimelineActive();
             } catch (Throwable ignored) {

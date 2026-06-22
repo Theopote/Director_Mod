@@ -1,4 +1,4 @@
-package com.director.ui.timeline.playback.weather;
+package com.director.timeline.playback.weather;
 
 import com.director.ui.timeline.model.TimelineInterpolation;
 import com.director.ui.timeline.model.TimelineTrack;

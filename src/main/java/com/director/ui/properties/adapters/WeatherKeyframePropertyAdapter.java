@@ -8,7 +8,7 @@ import com.director.ui.timeline.container.ContainerTimelineService;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.weather.WeatherKeyframe;
-import com.director.ui.timeline.playback.weather.TimelineWeatherController;
+import com.director.timeline.playback.weather.TimelineWeatherController;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;

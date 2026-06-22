@@ -1,4 +1,4 @@
-package com.director.ui.timeline.playback.time;
+package com.director.timeline.playback.time;
 
 import com.director.ui.timeline.model.time.TimeKeyframe;
 import org.slf4j.Logger;

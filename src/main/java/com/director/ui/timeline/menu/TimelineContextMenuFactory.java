@@ -38,7 +38,7 @@ import com.director.ui.timeline.model.entity.EntitySpawnClip;
 import com.director.ui.timeline.model.entity.EntityStateClip;
 import com.director.ui.timeline.model.entity.EntityTransformClip;
 import com.director.ui.timeline.model.weather.WeatherKeyframe;
-import com.director.ui.timeline.playback.camera.TimelineCameraController;
+import com.director.timeline.playback.camera.TimelineCameraController;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -376,8 +376,8 @@ public class TimelineContextMenuFactory {
             }
             
             // 检查是否是激活的摄像机轨道
-            com.director.ui.timeline.playback.camera.TimelineCameraController controller =
-                    com.director.ui.timeline.playback.camera.TimelineCameraController.getInstance();
+            com.director.timeline.playback.camera.TimelineCameraController controller =
+                    com.director.timeline.playback.camera.TimelineCameraController.getInstance();
             com.director.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
             
             if (activeTrack != track) {
@@ -552,8 +552,8 @@ public class TimelineContextMenuFactory {
             }
             case CAMERA -> {
                 // ⭐ v5.0：检查是否是激活的摄像机轨道
-                com.director.ui.timeline.playback.camera.TimelineCameraController controller =
-                        com.director.ui.timeline.playback.camera.TimelineCameraController.getInstance();
+                com.director.timeline.playback.camera.TimelineCameraController controller =
+                        com.director.timeline.playback.camera.TimelineCameraController.getInstance();
                 com.director.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
                 boolean isActiveTrack = (activeTrack == track);
                 
@@ -754,9 +754,9 @@ public class TimelineContextMenuFactory {
         float radius = 10.0f; // 默认半径 10 方块
 
         // 尝试从当前摄像机状态获取位置
-        com.director.ui.timeline.playback.camera.CameraRuntime runtime =
-            com.director.ui.timeline.playback.camera.CameraRuntime.getInstance();
-        com.director.ui.timeline.playback.camera.CameraSample currentSample = runtime.getCurrentSample();
+        com.director.timeline.playback.camera.CameraRuntime runtime =
+            com.director.timeline.playback.camera.CameraRuntime.getInstance();
+        com.director.timeline.playback.camera.CameraSample currentSample = runtime.getCurrentSample();
         if (currentSample != null) {
             center = currentSample.position();
             height = (float) center.y;
@@ -811,8 +811,8 @@ public class TimelineContextMenuFactory {
         }
         
         if (track.getType() == com.director.ui.timeline.model.TrackType.CAMERA) {
-            com.director.ui.timeline.playback.camera.TimelineCameraController controller =
-                    com.director.ui.timeline.playback.camera.TimelineCameraController.getInstance();
+            com.director.timeline.playback.camera.TimelineCameraController controller =
+                    com.director.timeline.playback.camera.TimelineCameraController.getInstance();
             com.director.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
             
             if (activeTrack != track) {

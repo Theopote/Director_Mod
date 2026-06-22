@@ -1,10 +1,10 @@
 package com.director.mixin;
 
-import com.director.ui.timeline.playback.season.SeasonSample;
-import com.director.ui.timeline.playback.season.TimelineSeasonController;
+import com.director.timeline.playback.season.SeasonSample;
+import com.director.timeline.playback.season.TimelineSeasonController;
 // ⚠️ 雾功能已禁用，以下导入暂时保留以备将来使用
-// import com.director.ui.timeline.playback.weather.WeatherSample;
-// import com.director.ui.timeline.playback.weather.TimelineWeatherController;
+// import com.director.timeline.playback.weather.WeatherSample;
+// import com.director.timeline.playback.weather.TimelineWeatherController;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.RenderTickCounter;
 import net.minecraft.client.render.fog.FogRenderer;

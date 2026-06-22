@@ -1,4 +1,4 @@
-package com.director.ui.timeline.playback.season;
+package com.director.timeline.playback.season;
 
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;

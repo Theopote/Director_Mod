@@ -1,9 +1,9 @@
 package com.director.mixin;
 
-import com.director.ui.timeline.playback.weather.TimelineWeatherController;
-import com.director.ui.timeline.playback.weather.WeatherSample;
-import com.director.ui.timeline.playback.time.TimeSample;
-import com.director.ui.timeline.playback.time.TimelineWorldController;
+import com.director.timeline.playback.weather.TimelineWeatherController;
+import com.director.timeline.playback.weather.WeatherSample;
+import com.director.timeline.playback.time.TimeSample;
+import com.director.timeline.playback.time.TimelineWorldController;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.world.World;
 import org.spongepowered.asm.mixin.Mixin;

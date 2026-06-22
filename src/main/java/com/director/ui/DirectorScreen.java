@@ -56,7 +56,7 @@ public class DirectorScreen extends Screen {
     private static volatile PendingRestoreState pendingRestoreState;
 
     private static final class UISessionState {
-        private final com.director.ui.timeline.playback.camera.CameraSample cameraSample;
+        private final com.director.timeline.playback.camera.CameraSample cameraSample;
         private final long worldTime;
         private final long worldTimeOfDay;
         private final float rainGradient;
@@ -66,7 +66,7 @@ public class DirectorScreen extends Screen {
         private final Boolean serverDoDaylightCycle;
 
         private UISessionState(
-            com.director.ui.timeline.playback.camera.CameraSample cameraSample,
+            com.director.timeline.playback.camera.CameraSample cameraSample,
             long worldTime,
             long worldTimeOfDay,
             float rainGradient,
@@ -502,7 +502,7 @@ public class DirectorScreen extends Screen {
 
         // ⭐ 单一摄像机系统：关闭窗口时通知时间线控制器停止驱动摄像机
         try {
-            com.director.ui.timeline.playback.camera.TimelineCameraController.getInstance().onTimelineUiClosed();
+            com.director.timeline.playback.camera.TimelineCameraController.getInstance().onTimelineUiClosed();
             LOGGER.info("[Director] 已通知 TimelineCameraController 关闭窗口");
         } catch (Exception e) {
             LOGGER.warn("[Director] 通知 TimelineCameraController 关闭窗口时出错", e);
@@ -510,7 +510,7 @@ public class DirectorScreen extends Screen {
 
         // ⭐ 时间轨道系统：关闭窗口时清理时间控制器状态
         try {
-            com.director.ui.timeline.playback.time.TimelineWorldController.getInstance().clear();
+            com.director.timeline.playback.time.TimelineWorldController.getInstance().clear();
             LOGGER.info("[Director] 已清理 TimelineWorldController 状态");
         } catch (Exception e) {
             LOGGER.warn("[Director] 清理 TimelineWorldController 状态时出错", e);
@@ -518,7 +518,7 @@ public class DirectorScreen extends Screen {
 
         // ⭐ 季节轨道系统：关闭窗口时清理季节控制器状态
         try {
-            com.director.ui.timeline.playback.season.TimelineSeasonController.getInstance().clear();
+            com.director.timeline.playback.season.TimelineSeasonController.getInstance().clear();
             LOGGER.info("[Director] 已清理 TimelineSeasonController 状态");
         } catch (Exception e) {
             LOGGER.warn("[Director] 清理 TimelineSeasonController 状态时出错", e);
@@ -526,7 +526,7 @@ public class DirectorScreen extends Screen {
 
         // ⭐ 天气轨道系统：关闭窗口时清理天气控制器状态
         try {
-            com.director.ui.timeline.playback.weather.TimelineWeatherController.getInstance().clear();
+            com.director.timeline.playback.weather.TimelineWeatherController.getInstance().clear();
             LOGGER.info("[Director] 已清理 TimelineWeatherController 状态");
         } catch (Exception e) {
             LOGGER.warn("[Director] 清理 TimelineWeatherController 状态时出错", e);
@@ -761,7 +761,7 @@ public class DirectorScreen extends Screen {
             return;
         }
         try {
-            var cameraSample = com.director.ui.timeline.playback.camera.CameraAccessor.sampleFromGameCamera(client);
+            var cameraSample = com.director.timeline.playback.camera.CameraAccessor.sampleFromGameCamera(client);
             long worldTime = client.world.getTime();
             long worldTimeOfDay = client.world.getTimeOfDay();
             float rain = client.world.getRainGradient(1.0f);
@@ -807,10 +807,10 @@ public class DirectorScreen extends Screen {
         try {
             // 先恢复相机视角，再恢复世界时间与天气，尽量回到打开 UI 前状态。
             if (uiSessionState.cameraSample != null) {
-                com.director.ui.timeline.playback.camera.CameraAccessor.applySampleToPlayerEntity(
+                com.director.timeline.playback.camera.CameraAccessor.applySampleToPlayerEntity(
                     client, uiSessionState.cameraSample
                 );
-                com.director.ui.timeline.playback.camera.CameraRuntime.getInstance()
+                com.director.timeline.playback.camera.CameraRuntime.getInstance()
                     .updateCurrentSample(uiSessionState.cameraSample);
             }
 
@@ -914,7 +914,7 @@ public class DirectorScreen extends Screen {
             return;
         }
 
-        com.director.ui.timeline.playback.weather.TimelineWeatherController.getInstance()
+        com.director.timeline.playback.weather.TimelineWeatherController.getInstance()
             .forceDisableVanillaWeather();
 
         // failsafe：节流，避免异常状态下每 tick 打日志/反复激活

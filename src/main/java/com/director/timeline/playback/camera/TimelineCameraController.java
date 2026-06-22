@@ -1,4 +1,4 @@
-package com.director.ui.timeline.playback.camera;
+package com.director.timeline.playback.camera;
 
 import com.director.client.DirectorClientController;
 import com.director.client.renderer.CameraPathDebugRenderer;

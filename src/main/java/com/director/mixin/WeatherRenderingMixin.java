@@ -1,7 +1,7 @@
 package com.director.mixin;
 
-import com.director.ui.timeline.playback.weather.TimelineWeatherController;
-import com.director.ui.timeline.playback.weather.WeatherSample;
+import com.director.timeline.playback.weather.TimelineWeatherController;
+import com.director.timeline.playback.weather.WeatherSample;
 import net.minecraft.client.render.WeatherRendering;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;

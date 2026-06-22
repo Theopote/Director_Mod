@@ -1,4 +1,4 @@
-package com.director.ui.timeline.playback.camera;
+package com.director.timeline.playback.camera;
 
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.Vec3d;

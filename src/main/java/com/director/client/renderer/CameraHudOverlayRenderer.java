@@ -4,7 +4,7 @@ import com.director.ui.camera.path.CameraPathEditController;
 import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.camera.CameraViewportProfile;
 import com.director.ui.timeline.model.camera.ViewportMath;
-import com.director.ui.timeline.playback.camera.TimelineCameraController;
+import com.director.timeline.playback.camera.TimelineCameraController;
 import com.director.ui.timeline.render.TimelineColors;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;

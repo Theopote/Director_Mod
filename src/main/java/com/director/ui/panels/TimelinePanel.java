@@ -25,8 +25,8 @@ import com.director.ui.timeline.render.TimelineRenderer;
 import com.director.ui.timeline.state.*;
 import com.director.ui.timeline.ui.TimelineControlBar;
 import com.director.ui.timeline.shortcuts.TimelineShortcutManager;
-import com.director.ui.timeline.playback.camera.TimelineCameraController;
-import com.director.ui.timeline.playback.time.TimelineWorldController;
+import com.director.timeline.playback.camera.TimelineCameraController;
+import com.director.timeline.playback.time.TimelineWorldController;
 import com.director.ui.input.GlobalShortcutManager;
 import net.minecraft.client.MinecraftClient;
 import imgui.ImGui;
@@ -260,9 +260,9 @@ public class TimelinePanel extends AbstractPanel
         // ⭐ 注册时间轨道控制器，控制世界时间和太阳角度
         TimelineWorldController.getInstance().setTimelineModel(model);
         // ⭐ 注册时间轨道控制器，控制世界时间和太阳角度
-        com.director.ui.timeline.playback.time.TimelineWorldController.getInstance().setTimelineModel(model);
+        com.director.timeline.playback.time.TimelineWorldController.getInstance().setTimelineModel(model);
         // ⭐ 注册季节轨道控制器，控制季节颜色和气候
-        com.director.ui.timeline.playback.season.TimelineSeasonController.getInstance().init(model);
+        com.director.timeline.playback.season.TimelineSeasonController.getInstance().init(model);
         // ⭐ 演员轨道控制器 v2：绑定 TimelineModel 和 ActorRegistry
         com.director.actor.ActorRegistry actorRegistry = 
             com.director.actor.ActorRegistryManager.getInstance();
@@ -270,9 +270,9 @@ public class TimelinePanel extends AbstractPanel
 
         // ⭐ 天气轨道控制器：v1.0 不再需要 init()，改为通过 bindActiveTrack() 绑定轨道
         // 注册模型变更监听器，用于自动激活唯一的天气轨道
-        model.addModelChangeListener(changeType -> com.director.ui.timeline.playback.weather.TimelineWeatherController.getInstance().checkAndAutoActivate());
+        model.addModelChangeListener(changeType -> com.director.timeline.playback.weather.TimelineWeatherController.getInstance().checkAndAutoActivate());
         // 初始化时检查并自动激活唯一的天气轨道
-        com.director.ui.timeline.playback.weather.TimelineWeatherController.getInstance().checkAndAutoActivate();
+        com.director.timeline.playback.weather.TimelineWeatherController.getInstance().checkAndAutoActivate();
 
         // 注册容器监听器，用于同步容器名称变更到时间线片段
         DirectorServices.get().containers().addListener(this);
@@ -1489,8 +1489,8 @@ public class TimelinePanel extends AbstractPanel
                 }
                 
                 // ⭐ 检查是否是激活的摄像机轨道
-                com.director.ui.timeline.playback.camera.TimelineCameraController cameraController =
-                        com.director.ui.timeline.playback.camera.TimelineCameraController.getInstance();
+                com.director.timeline.playback.camera.TimelineCameraController cameraController =
+                        com.director.timeline.playback.camera.TimelineCameraController.getInstance();
                 com.director.ui.timeline.model.TimelineTrack activeTrack = cameraController.getActiveCameraTrack();
                 
                 if (activeTrack != track) {
@@ -1500,7 +1500,7 @@ public class TimelinePanel extends AbstractPanel
                     return;
                 }
                 
-                if (!com.director.ui.timeline.playback.camera.CameraRuntime.getInstance().isPlayerOwner()) {
+                if (!com.director.timeline.playback.camera.CameraRuntime.getInstance().isPlayerOwner()) {
                     LOGGER.warn("[TimelinePanel] 当前非玩家模式，跳过摄像机关键帧捕捉");
                     return;
                 }
@@ -1538,8 +1538,8 @@ public class TimelinePanel extends AbstractPanel
                 }
                 
                 // ⭐ v3.5：检查是否是激活的时间轨道
-                com.director.ui.timeline.playback.time.TimelineWorldController timeController =
-                        com.director.ui.timeline.playback.time.TimelineWorldController.getInstance();
+                com.director.timeline.playback.time.TimelineWorldController timeController =
+                        com.director.timeline.playback.time.TimelineWorldController.getInstance();
                 com.director.ui.timeline.model.TimelineTrack activeTrack = timeController.getActiveTimeTrack();
                 
                 if (activeTrack != track) {
@@ -1602,8 +1602,8 @@ public class TimelinePanel extends AbstractPanel
                 }
                 
                 // ⭐ v1.1：检查是否是激活的季节轨道
-                com.director.ui.timeline.playback.season.TimelineSeasonController seasonController =
-                        com.director.ui.timeline.playback.season.TimelineSeasonController.getInstance();
+                com.director.timeline.playback.season.TimelineSeasonController seasonController =
+                        com.director.timeline.playback.season.TimelineSeasonController.getInstance();
                 com.director.ui.timeline.model.TimelineTrack activeTrack = seasonController.getActiveSeasonTrack();
                 
                 if (activeTrack != track) {
@@ -1623,7 +1623,7 @@ public class TimelinePanel extends AbstractPanel
                 ));
                 
                 // ⭐ 通知 TimelineSeasonController 更新
-                com.director.ui.timeline.playback.season.TimelineSeasonController.getInstance()
+                com.director.timeline.playback.season.TimelineSeasonController.getInstance()
                         .rebuildFromActiveTrack();
                 
                 handled = true;

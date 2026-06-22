@@ -4,7 +4,7 @@ import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import com.director.ui.timeline.model.time.TimeKeyframe;
-import com.director.ui.timeline.playback.time.TimelineWorldController;
+import com.director.timeline.playback.time.TimelineWorldController;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;

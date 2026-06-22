@@ -143,7 +143,7 @@ public final class TimelineTrackRenderer {
         
         // ⭐ v5.0：激活摄像机按钮（仅 CAMERA 轨道，放在原来隐藏按钮的位置）
         if (type == TrackType.CAMERA) {
-            boolean isActive = com.director.ui.timeline.playback.camera.TimelineCameraController.getInstance()
+            boolean isActive = com.director.timeline.playback.camera.TimelineCameraController.getInstance()
                     .getActiveCameraTrack() == track;
             // 实心圆 = 激活，空心圆 = 未激活（使用 DOT 和 CHECK_CIRCLE）
             String icon = isActive ? Icons.DOT : Icons.CHECK_CIRCLE;
@@ -155,7 +155,7 @@ public final class TimelineTrackRenderer {
         
         // ⭐ v3.5：激活时间按钮（仅 TIME 轨道，放在原来隐藏按钮的位置）
         if (type == TrackType.TIME) {
-            boolean isActive = com.director.ui.timeline.playback.time.TimelineWorldController.getInstance()
+            boolean isActive = com.director.timeline.playback.time.TimelineWorldController.getInstance()
                     .getActiveTimeTrack() == track;
             // 实心圆 = 激活，空心圆 = 未激活（使用 DOT 和 CHECK_CIRCLE）
             String icon = isActive ? Icons.DOT : Icons.CHECK_CIRCLE;
@@ -167,7 +167,7 @@ public final class TimelineTrackRenderer {
         
         // ⭐ v1.1：激活季节按钮（仅 SEASON 轨道，放在原来隐藏按钮的位置）
         if (type == TrackType.SEASON) {
-            boolean isActive = com.director.ui.timeline.playback.season.TimelineSeasonController.getInstance()
+            boolean isActive = com.director.timeline.playback.season.TimelineSeasonController.getInstance()
                     .getActiveSeasonTrack() == track;
             // 实心圆 = 激活，空心圆 = 未激活（使用 DOT 和 CHECK_CIRCLE）
             String icon = isActive ? Icons.DOT : Icons.CHECK_CIRCLE;
@@ -179,7 +179,7 @@ public final class TimelineTrackRenderer {
         
         // ⭐ v1.0：激活天气按钮（仅 WEATHER 轨道，放在原来隐藏按钮的位置）
         if (type == TrackType.WEATHER) {
-            boolean isActive = com.director.ui.timeline.playback.weather.TimelineWeatherController.getInstance()
+            boolean isActive = com.director.timeline.playback.weather.TimelineWeatherController.getInstance()
                     .getActiveWeatherTrack() == track;
             // 实心圆 = 激活，空心圆 = 未激活（使用 DOT 和 CHECK_CIRCLE）
             String icon = isActive ? Icons.DOT : Icons.CHECK_CIRCLE;
@@ -235,23 +235,23 @@ public final class TimelineTrackRenderer {
         boolean keyframeEnabled = false;
         if (shouldShowKeyframeButton) {
             if (type == TrackType.CAMERA) {
-                com.director.ui.timeline.playback.camera.TimelineCameraController controller =
-                        com.director.ui.timeline.playback.camera.TimelineCameraController.getInstance();
+                com.director.timeline.playback.camera.TimelineCameraController controller =
+                        com.director.timeline.playback.camera.TimelineCameraController.getInstance();
                 TimelineTrack activeTrack = controller.getActiveCameraTrack();
                 keyframeEnabled = (activeTrack == track);  // 只有激活轨道才可用
             } else if (type == TrackType.TIME) {
-                com.director.ui.timeline.playback.time.TimelineWorldController controller =
-                        com.director.ui.timeline.playback.time.TimelineWorldController.getInstance();
+                com.director.timeline.playback.time.TimelineWorldController controller =
+                        com.director.timeline.playback.time.TimelineWorldController.getInstance();
                 TimelineTrack activeTrack = controller.getActiveTimeTrack();
                 keyframeEnabled = (activeTrack == track);  // 只有激活轨道才可用
             } else if (type == TrackType.SEASON) {
-                com.director.ui.timeline.playback.season.TimelineSeasonController controller =
-                        com.director.ui.timeline.playback.season.TimelineSeasonController.getInstance();
+                com.director.timeline.playback.season.TimelineSeasonController controller =
+                        com.director.timeline.playback.season.TimelineSeasonController.getInstance();
                 TimelineTrack activeTrack = controller.getActiveSeasonTrack();
                 keyframeEnabled = (activeTrack == track);  // 只有激活轨道才可用
             } else if (type == TrackType.WEATHER) {
-                com.director.ui.timeline.playback.weather.TimelineWeatherController controller =
-                        com.director.ui.timeline.playback.weather.TimelineWeatherController.getInstance();
+                com.director.timeline.playback.weather.TimelineWeatherController controller =
+                        com.director.timeline.playback.weather.TimelineWeatherController.getInstance();
                 TimelineTrack activeTrack = controller.getActiveWeatherTrack();
                 keyframeEnabled = (activeTrack == track);  // 只有激活轨道才可用
             } else {

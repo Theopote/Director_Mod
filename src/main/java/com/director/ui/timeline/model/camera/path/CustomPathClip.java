@@ -1,8 +1,8 @@
 package com.director.ui.timeline.model.camera.path;
 
 import com.director.ui.timeline.model.camera.CameraKeyframe;
-import com.director.ui.timeline.playback.camera.CameraSample;
-import com.director.ui.timeline.playback.camera.TimelineCameraPathManager;
+import com.director.timeline.playback.camera.CameraSample;
+import com.director.timeline.playback.camera.TimelineCameraPathManager;
 import net.minecraft.util.math.Vec3d;
 
 import java.util.ArrayList;

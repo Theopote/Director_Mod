@@ -1,4 +1,4 @@
-package com.director.ui.timeline.playback.weather;
+package com.director.timeline.playback.weather;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

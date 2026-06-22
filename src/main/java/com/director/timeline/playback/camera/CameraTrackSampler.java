@@ -1,4 +1,4 @@
-package com.director.ui.timeline.playback.camera;
+package com.director.timeline.playback.camera;
 
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;

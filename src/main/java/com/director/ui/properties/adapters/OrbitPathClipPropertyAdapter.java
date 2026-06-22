@@ -8,9 +8,9 @@ import com.director.ui.timeline.container.ContainerTimelineService;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.camera.path.CameraPathEnterContext;
 import com.director.ui.timeline.model.camera.path.OrbitPathClip;
-import com.director.ui.timeline.playback.camera.CameraRuntime;
-import com.director.ui.timeline.playback.camera.CameraSample;
-import com.director.ui.timeline.playback.camera.TimelineCameraController;
+import com.director.timeline.playback.camera.CameraRuntime;
+import com.director.timeline.playback.camera.CameraSample;
+import com.director.timeline.playback.camera.TimelineCameraController;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImFloat;
@@ -387,9 +387,9 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
                     // 切换到 KEEP_CURRENT 模式
                     clip.setHeightMode(com.director.ui.timeline.model.camera.path.OrbitPathClip.HeightMode.KEEP_CURRENT);
                     // 立即缓存当前高度
-                    com.director.ui.timeline.playback.camera.CameraRuntime runtime = 
-                        com.director.ui.timeline.playback.camera.CameraRuntime.getInstance();
-                    com.director.ui.timeline.playback.camera.CameraSample currentSample = runtime.getCurrentSample();
+                    com.director.timeline.playback.camera.CameraRuntime runtime = 
+                        com.director.timeline.playback.camera.CameraRuntime.getInstance();
+                    com.director.timeline.playback.camera.CameraSample currentSample = runtime.getCurrentSample();
                     if (currentSample != null) {
                         float currentHeight = (float) currentSample.position().y;
                         clip.setCachedHeight(currentHeight);

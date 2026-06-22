@@ -16,7 +16,7 @@ import com.director.ui.timeline.model.TrackType;
 import com.director.ui.timeline.model.entity.EntitySpawnClip;
 import com.director.ui.timeline.model.entity.ActorTrack;
 import com.director.ui.timeline.model.entity.EntityTimelineClip;
-import com.director.ui.timeline.playback.camera.CameraAccessor;
+import com.director.timeline.playback.camera.CameraAccessor;
 import imgui.ImGui;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.hit.BlockHitResult;

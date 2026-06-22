@@ -59,16 +59,16 @@ public class MoveAutomationKeyframeBetweenTracksCommand extends BaseTimelineComm
         to.addAutomationKeyframe(keyframe);
 
         if (keyframe instanceof com.director.ui.timeline.model.camera.CameraKeyframe) {
-            com.director.ui.timeline.playback.camera.TimelineCameraController.getInstance()
+            com.director.timeline.playback.camera.TimelineCameraController.getInstance()
                     .onKeyframeChanged();
         } else if (keyframe instanceof com.director.ui.timeline.model.time.TimeKeyframe) {
-            com.director.ui.timeline.playback.time.TimelineWorldController.getInstance()
+            com.director.timeline.playback.time.TimelineWorldController.getInstance()
                     .rebuildFromActiveTrack();
         } else if (keyframe instanceof com.director.ui.timeline.model.season.SeasonKeyframe) {
-            com.director.ui.timeline.playback.season.TimelineSeasonController.getInstance()
+            com.director.timeline.playback.season.TimelineSeasonController.getInstance()
                     .rebuildFromActiveTrack();
         } else if (keyframe instanceof com.director.ui.timeline.model.weather.WeatherKeyframe) {
-            com.director.ui.timeline.playback.weather.TimelineWeatherController.getInstance()
+            com.director.timeline.playback.weather.TimelineWeatherController.getInstance()
                     .rebuildFromActiveTrack();
         }
     }

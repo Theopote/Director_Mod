@@ -3,7 +3,7 @@ package com.director.ui.timeline.commands;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.camera.CameraKeyframe;
 import com.director.ui.timeline.model.camera.path.CustomPathClip;
-import com.director.ui.timeline.playback.camera.TimelineCameraController;
+import com.director.timeline.playback.camera.TimelineCameraController;
 
 public class AddCameraPathKeyframeCommand extends BaseTimelineCommand {
     private final CustomPathClip clip;

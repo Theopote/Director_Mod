@@ -121,9 +121,9 @@ public class OrbitPathClip extends CameraPathClip {
         // ⭐ 如果是 KEEP_CURRENT 模式且尚未缓存高度，尝试从当前摄像机获取
         if (heightMode == HeightMode.KEEP_CURRENT && cachedHeight == null) {
             try {
-                com.director.ui.timeline.playback.camera.CameraRuntime runtime = 
-                    com.director.ui.timeline.playback.camera.CameraRuntime.getInstance();
-                com.director.ui.timeline.playback.camera.CameraSample currentSample = runtime.getCurrentSample();
+                com.director.timeline.playback.camera.CameraRuntime runtime = 
+                    com.director.timeline.playback.camera.CameraRuntime.getInstance();
+                com.director.timeline.playback.camera.CameraSample currentSample = runtime.getCurrentSample();
                 if (currentSample != null) {
                     cachedHeight = (float) currentSample.position().y;
                 }
@@ -256,9 +256,9 @@ public class OrbitPathClip extends CameraPathClip {
         // ⭐ 如果处于 FROM_CURRENT_POSITION 模式，实时从当前摄像机位置计算起始角
         if (startAngleMode == StartAngleMode.FROM_CURRENT_POSITION) {
             try {
-                com.director.ui.timeline.playback.camera.CameraRuntime runtime = 
-                    com.director.ui.timeline.playback.camera.CameraRuntime.getInstance();
-                com.director.ui.timeline.playback.camera.CameraSample currentSample = runtime.getCurrentSample();
+                com.director.timeline.playback.camera.CameraRuntime runtime = 
+                    com.director.timeline.playback.camera.CameraRuntime.getInstance();
+                com.director.timeline.playback.camera.CameraSample currentSample = runtime.getCurrentSample();
                 
                 if (currentSample != null) {
                     Vec3d currentPos = currentSample.position();

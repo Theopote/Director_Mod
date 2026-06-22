@@ -101,7 +101,7 @@ public final class TimelinePathClipDragHandler {
         }
 
         if (track.getType() == TrackType.CAMERA) {
-            var activeTrack = com.director.ui.timeline.playback.camera.TimelineCameraController.getInstance()
+            var activeTrack = com.director.timeline.playback.camera.TimelineCameraController.getInstance()
                     .getActiveCameraTrack();
             if (activeTrack != track) {
                 if (LOGGER.isDebugEnabled()) {
@@ -158,7 +158,7 @@ public final class TimelinePathClipDragHandler {
         }
 
         if (track.getType() == TrackType.CAMERA) {
-            var activeTrack = com.director.ui.timeline.playback.camera.TimelineCameraController.getInstance()
+            var activeTrack = com.director.timeline.playback.camera.TimelineCameraController.getInstance()
                     .getActiveCameraTrack();
             if (activeTrack != track) {
                 return;

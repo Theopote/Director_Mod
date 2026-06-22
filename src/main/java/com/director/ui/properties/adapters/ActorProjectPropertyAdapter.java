@@ -891,7 +891,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         }
         
         // 获取当前摄像机位置
-        var cameraSample = com.director.ui.timeline.playback.camera.CameraAccessor.sampleFromGameCamera(client);
+        var cameraSample = com.director.timeline.playback.camera.CameraAccessor.sampleFromGameCamera(client);
         if (cameraSample == null) {
             LOGGER.warn("[ActorProjectPropertyAdapter] 无法获取摄像机位置");
             return;

@@ -6,7 +6,7 @@ import com.director.ui.theme.UITheme;
 import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.camera.CameraKeyframe;
 import com.director.ui.timeline.model.camera.path.CustomPathClip;
-import com.director.ui.timeline.playback.camera.TimelineCameraController;
+import com.director.timeline.playback.camera.TimelineCameraController;
 import com.director.ui.tools.ToolRegistry;
 import com.director.ui.tools.impl.CameraPathEditTool;
 import imgui.ImGui;

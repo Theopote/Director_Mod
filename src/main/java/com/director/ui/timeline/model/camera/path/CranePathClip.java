@@ -195,8 +195,8 @@ public class CranePathClip extends CameraPathClip {
 
     private void initializeFromCurrentCamera() {
         try {
-            com.director.ui.timeline.playback.camera.CameraSample currentSample =
-                    com.director.ui.timeline.playback.camera.CameraRuntime.getInstance().getCurrentSample();
+            com.director.timeline.playback.camera.CameraSample currentSample =
+                    com.director.timeline.playback.camera.CameraRuntime.getInstance().getCurrentSample();
             if (currentSample == null) {
                 return;
             }

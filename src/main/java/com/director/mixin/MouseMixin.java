@@ -85,16 +85,16 @@ public abstract class MouseMixin {
 
         // ⭐ 检测玩家鼠标输入：如果不在播放/scrubbing，立即切回玩家控制
         if (!hover && client.player != null) {
-            com.director.ui.timeline.playback.camera.CameraRuntime runtime = 
-                com.director.ui.timeline.playback.camera.CameraRuntime.getInstance();
+            com.director.timeline.playback.camera.CameraRuntime runtime = 
+                com.director.timeline.playback.camera.CameraRuntime.getInstance();
             
             // 检测鼠标移动（表示玩家想要操作摄像机）
             boolean hasMouseMovement = Math.abs(dx) > 0.001 || Math.abs(dy) > 0.001;
             
             if (hasMouseMovement && runtime.isTimelineOwner()) {
                 // 检查时间线是否真的在活动（播放、scrubbing 或关键帧属性编辑预览）
-                com.director.ui.timeline.playback.camera.TimelineCameraController controller =
-                    com.director.ui.timeline.playback.camera.TimelineCameraController.getInstance();
+                com.director.timeline.playback.camera.TimelineCameraController controller =
+                    com.director.timeline.playback.camera.TimelineCameraController.getInstance();
                 
                 if (!controller.isTimelineActive()) {
                     // ⭐ 播放头静止且不在编辑关键帧 + 玩家鼠标移动 = 立即切回玩家控制

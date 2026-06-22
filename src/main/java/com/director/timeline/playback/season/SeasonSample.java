@@ -1,4 +1,4 @@
-package com.director.ui.timeline.playback.season;
+package com.director.timeline.playback.season;
 
 import org.joml.Vector3f;
 

@@ -1,4 +1,4 @@
-package com.director.ui.timeline.playback.season;
+package com.director.timeline.playback.season;
 
 import com.director.ui.timeline.model.season.SeasonKeyframe;
 import net.minecraft.util.math.MathHelper;

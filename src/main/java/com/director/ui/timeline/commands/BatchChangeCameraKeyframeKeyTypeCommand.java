@@ -2,7 +2,7 @@ package com.director.ui.timeline.commands;
 
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.camera.CameraKeyframe;
-import com.director.ui.timeline.playback.camera.TimelineCameraController;
+import com.director.timeline.playback.camera.TimelineCameraController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

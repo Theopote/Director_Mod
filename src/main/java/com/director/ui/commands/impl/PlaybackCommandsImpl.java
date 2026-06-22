@@ -4,9 +4,9 @@ import com.director.ui.commands.PlaybackCommands;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.playback.PlaybackOrchestrator;
 import com.director.ui.timeline.playback.TimelineClipBlockController;
-import com.director.ui.timeline.playback.camera.TimelineCameraController;
-import com.director.ui.timeline.playback.season.TimelineSeasonController;
-import com.director.ui.timeline.playback.weather.TimelineWeatherController;
+import com.director.timeline.playback.camera.TimelineCameraController;
+import com.director.timeline.playback.season.TimelineSeasonController;
+import com.director.timeline.playback.weather.TimelineWeatherController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

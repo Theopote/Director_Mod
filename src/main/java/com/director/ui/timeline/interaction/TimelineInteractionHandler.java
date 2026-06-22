@@ -486,26 +486,26 @@ public class TimelineInteractionHandler {
         
         switch (type) {
             case ACTIVE_CAMERA -> {
-                com.director.ui.timeline.playback.camera.TimelineCameraController controller =
-                        com.director.ui.timeline.playback.camera.TimelineCameraController.getInstance();
+                com.director.timeline.playback.camera.TimelineCameraController controller =
+                        com.director.timeline.playback.camera.TimelineCameraController.getInstance();
                 boolean isActive = controller.getActiveCameraTrack() == track;
                 tooltip = isActive ? "当前激活的摄像机轨道（点击切换到其他轨道）" : "设为当前激活的摄像机轨道";
             }
             case ACTIVE_TIME -> {
-                com.director.ui.timeline.playback.time.TimelineWorldController controller =
-                        com.director.ui.timeline.playback.time.TimelineWorldController.getInstance();
+                com.director.timeline.playback.time.TimelineWorldController controller =
+                        com.director.timeline.playback.time.TimelineWorldController.getInstance();
                 boolean isActive = controller.getActiveTimeTrack() == track;
                 tooltip = isActive ? "当前激活的时间轨道（点击切换到其他轨道）" : "设为当前激活的时间轨道";
             }
             case ACTIVE_SEASON -> {
-                com.director.ui.timeline.playback.season.TimelineSeasonController controller =
-                        com.director.ui.timeline.playback.season.TimelineSeasonController.getInstance();
+                com.director.timeline.playback.season.TimelineSeasonController controller =
+                        com.director.timeline.playback.season.TimelineSeasonController.getInstance();
                 boolean isActive = controller.getActiveSeasonTrack() == track;
                 tooltip = isActive ? "当前激活的季节轨道（点击切换到其他轨道）" : "设为当前激活的季节轨道";
             }
             case ACTIVE_WEATHER -> {
-                com.director.ui.timeline.playback.weather.TimelineWeatherController controller =
-                        com.director.ui.timeline.playback.weather.TimelineWeatherController.getInstance();
+                com.director.timeline.playback.weather.TimelineWeatherController controller =
+                        com.director.timeline.playback.weather.TimelineWeatherController.getInstance();
                 boolean isActive = controller.getActiveWeatherTrack() == track;
                 tooltip = isActive ? "当前激活的天气轨道（点击切换到其他轨道）" : "设为当前激活的天气轨道";
             }
@@ -555,16 +555,16 @@ public class TimelineInteractionHandler {
                     case LOCK -> callbacks.onToggleTrackLock(track);
                     case VISIBILITY -> callbacks.onToggleTrackVisible(track);
                     case ACTIVE_CAMERA -> // ⭐ v5.0：设置激活摄像机轨道
-                    com.director.ui.timeline.playback.camera.TimelineCameraController.getInstance()
+                    com.director.timeline.playback.camera.TimelineCameraController.getInstance()
                             .setActiveCameraTrack(track);
             case ACTIVE_TIME -> // ⭐ v3.5：设置激活时间轨道
-                    com.director.ui.timeline.playback.time.TimelineWorldController.getInstance()
+                    com.director.timeline.playback.time.TimelineWorldController.getInstance()
                             .setActiveTimeTrack(track);
             case ACTIVE_SEASON -> // ⭐ v1.1：设置激活季节轨道
-                    com.director.ui.timeline.playback.season.TimelineSeasonController.getInstance()
+                    com.director.timeline.playback.season.TimelineSeasonController.getInstance()
                             .setActiveSeasonTrack(track);
             case ACTIVE_WEATHER -> // ⭐ v1.0：设置激活天气轨道
-                    com.director.ui.timeline.playback.weather.TimelineWeatherController.getInstance()
+                    com.director.timeline.playback.weather.TimelineWeatherController.getInstance()
                             .bindActiveTrack(track);
                 }
                 // 控件点击不再向下传递，不影�?Clip / Keyframe 选择

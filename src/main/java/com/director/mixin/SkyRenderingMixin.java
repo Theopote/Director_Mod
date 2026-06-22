@@ -1,7 +1,7 @@
 package com.director.mixin;
 
-import com.director.ui.timeline.playback.time.TimeSample;
-import com.director.ui.timeline.playback.time.TimelineWorldController;
+import com.director.timeline.playback.time.TimeSample;
+import com.director.timeline.playback.time.TimelineWorldController;
 import net.minecraft.client.render.DimensionEffects;
 import net.minecraft.client.render.SkyRendering;
 import net.minecraft.client.render.state.SkyRenderState;

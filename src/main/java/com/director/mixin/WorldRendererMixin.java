@@ -70,9 +70,9 @@ public abstract class WorldRendererMixin {
             boolean thickFog,
             CallbackInfo ci
     ) {
-        com.director.ui.timeline.playback.time.TimelineWorldController controller = com.director.ui.timeline.playback.time.TimelineWorldController.getInstance();
+        com.director.timeline.playback.time.TimelineWorldController controller = com.director.timeline.playback.time.TimelineWorldController.getInstance();
         if (controller != null && controller.hasOverride()) {
-            com.director.ui.timeline.playback.time.TimeSample sample = controller.current();
+            com.director.timeline.playback.time.TimeSample sample = controller.current();
             if (sample != null) {
                 float rad = sample.getSkyAngle() * (float) (Math.PI * 2.0);
                 com.director.client.RenderTimeState.setSkyAngleRadians(rad);

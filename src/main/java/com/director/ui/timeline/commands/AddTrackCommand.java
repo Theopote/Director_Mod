@@ -6,11 +6,11 @@ import org.slf4j.LoggerFactory;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.TrackType;
-import com.director.ui.timeline.playback.camera.TimelineCameraController;
+import com.director.timeline.playback.camera.TimelineCameraController;
 import com.director.timeline.playback.entity.TimelineActorController;
-import com.director.ui.timeline.playback.season.TimelineSeasonController;
-import com.director.ui.timeline.playback.time.TimelineWorldController;
-import com.director.ui.timeline.playback.weather.TimelineWeatherController;
+import com.director.timeline.playback.season.TimelineSeasonController;
+import com.director.timeline.playback.time.TimelineWorldController;
+import com.director.timeline.playback.weather.TimelineWeatherController;
 
 /**
  * 添加轨道命令（支持撤销）。

@@ -2,8 +2,8 @@ package com.director.mixin;
 
 import com.director.client.DirectorClientController;
 import com.director.export.video.VideoRenderPipeline;
-import com.director.ui.timeline.playback.camera.CameraRuntime;
-import com.director.ui.timeline.playback.camera.CameraSample;
+import com.director.timeline.playback.camera.CameraRuntime;
+import com.director.timeline.playback.camera.CameraSample;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.RenderTickCounter;

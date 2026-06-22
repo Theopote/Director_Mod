@@ -90,21 +90,21 @@ public class TimelineTrackController {
 
         // ⭐ v3.5：如果是时间轨道且是第一条（创建后只有一条），自动激活
         if (type == TrackType.TIME && sameTypeCount == 0) {
-            com.director.ui.timeline.playback.time.TimelineWorldController.getInstance()
+            com.director.timeline.playback.time.TimelineWorldController.getInstance()
                     .setActiveTimeTrack(newTrack);
             LOGGER.info("[TrackController] 创建第一条时间轨道，自动激活: {}", trackName);
         }
         
         // ⭐ v1.0：如果是季节轨道且是第一条，自动激活
         if (type == TrackType.SEASON && sameTypeCount == 0) {
-            com.director.ui.timeline.playback.season.TimelineSeasonController.getInstance()
+            com.director.timeline.playback.season.TimelineSeasonController.getInstance()
                     .setActiveSeasonTrack(newTrack);
             LOGGER.info("[TrackController] 创建第一条季节轨道，自动激活: {}", trackName);
         }
         
         // ⭐ v1.0：如果是天气轨道且是第一条，自动激活
         if (type == TrackType.WEATHER && sameTypeCount == 0) {
-            com.director.ui.timeline.playback.weather.TimelineWeatherController.getInstance()
+            com.director.timeline.playback.weather.TimelineWeatherController.getInstance()
                     .bindActiveTrack(newTrack);
             LOGGER.info("[TrackController] 创建第一条天气轨道，自动激活: {}", trackName);
         }

@@ -6,7 +6,7 @@ import com.director.client.gizmo.logic.TransformApplier;
 import com.director.core.selection.SelectionManager;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.camera.CameraKeyframe;
-import com.director.ui.timeline.playback.camera.TimelineCameraController;
+import com.director.timeline.playback.camera.TimelineCameraController;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import org.joml.Vector3f;
