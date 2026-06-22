@@ -2,8 +2,7 @@ package com.director.ui;
 
 import com.director.core.DirectorServices;
 import com.director.client.DirectorClientController;
-import com.director.client.camera.CameraRenderOverride;
-import com.director.client.world.WorldRenderOverride;
+import com.director.client.RenderOverrideSnapshots;
 import com.director.client.gizmo.GizmoManager;
 import com.director.client.renderer.SelectionRenderer;
 import com.director.client.renderer.ToolPreviewManager;
@@ -530,8 +529,7 @@ public class DirectorScreen extends Screen {
             LOGGER.warn("[Director] 清理 TimelineWeatherController 状态时出错", e);
         }
 
-        WorldRenderOverride.clearAll();
-        CameraRenderOverride.clear();
+        RenderOverrideSnapshots.clearAll();
 
         cleanupRenderSystems(true);
         InputFocusManager.getInstance().setDirectorScreenActive(false);

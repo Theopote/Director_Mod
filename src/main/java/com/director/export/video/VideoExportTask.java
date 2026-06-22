@@ -1,5 +1,6 @@
 package com.director.export.video;
 
+import com.director.client.RenderOverrideSnapshots;
 import net.minecraft.client.texture.NativeImage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -107,6 +108,7 @@ public final class VideoExportTask implements Runnable {
             // 不在 finally 重复 finish：避免对 FFmpeg 二次 waitFor 导致异常
             // 🚀 清理管线缓存的 NativeImage 缓冲区
             VideoRenderPipeline.clearCache();
+            RenderOverrideSnapshots.resyncAfterVideoExport();
 
             // 清理临时音频文件（可按需改为保留）
             if (audioWav != null) {

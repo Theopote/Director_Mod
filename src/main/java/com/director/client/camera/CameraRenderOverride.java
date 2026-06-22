@@ -62,6 +62,22 @@ public final class CameraRenderOverride {
         CameraRuntime.getInstance().updateFromGameCamera(pos, yaw, pitch, fov);
     }
 
+    /**
+     * 玩家输入导致应放弃时间线接管时调用（Mixin 入口，不直接依赖 Controller）。
+     */
+    public static void releaseToPlayerOnUserInput() {
+        var controller = com.director.timeline.playback.camera.TimelineCameraController.getInstance();
+        controller.clearPreviewState();
+        controller.releaseCameraToPlayer();
+    }
+
+    /**
+     * 玩家移动输入导致应放弃时间线接管时调用。
+     */
+    public static void releaseToPlayerOnMovementInput() {
+        com.director.timeline.playback.camera.TimelineCameraController.getInstance().releaseCameraToPlayer();
+    }
+
     public static void clear() {
         publish(false, CameraSample.EMPTY);
         publishTimelineActive(false);

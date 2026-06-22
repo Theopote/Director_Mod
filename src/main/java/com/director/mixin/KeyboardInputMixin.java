@@ -51,9 +51,8 @@ public class KeyboardInputMixin extends Input {
                         || InputUtil.isKeyPressed(window, GLFW.GLFW_KEY_LEFT_CONTROL);
                 if (anyMovementKey) {
                     CameraRenderOverride cameraState = CameraRenderOverride.get();
-                    var controller = com.director.timeline.playback.camera.TimelineCameraController.getInstance();
                     if (cameraState.isTimelineOwner() && !cameraState.isTimelineActive()) {
-                        controller.releaseCameraToPlayer();
+                        CameraRenderOverride.releaseToPlayerOnMovementInput();
                     }
                 }
 
