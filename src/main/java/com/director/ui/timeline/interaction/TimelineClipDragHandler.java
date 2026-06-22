@@ -9,7 +9,7 @@ import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
 import com.director.ui.timeline.render.TimelineRenderer;
-import com.director.ui.timeline.snapping.TimelineSnapping;
+import com.director.timeline.snapping.TimelineSnapping;
 import imgui.ImGui;
 import imgui.flag.ImGuiMouseCursor;
 import org.slf4j.Logger;

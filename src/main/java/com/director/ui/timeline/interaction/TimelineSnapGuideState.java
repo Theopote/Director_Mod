@@ -1,6 +1,6 @@
 package com.director.ui.timeline.interaction;
 
-import com.director.ui.timeline.snapping.TimelineSnapping;
+import com.director.timeline.snapping.TimelineSnapping;
 
 /**
  * 吸附参考线状态，供 {@link TimelineRenderer} 绘制使用。

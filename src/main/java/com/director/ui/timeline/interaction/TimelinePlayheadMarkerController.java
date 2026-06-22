@@ -11,7 +11,7 @@ import com.director.timeline.playback.camera.TimelineCameraController;
 import com.director.timeline.playback.season.TimelineSeasonController;
 import com.director.timeline.playback.weather.TimelineWeatherController;
 import com.director.ui.timeline.render.TimelineRenderer;
-import com.director.ui.timeline.snapping.TimelineSnapping;
+import com.director.timeline.snapping.TimelineSnapping;
 import imgui.ImGui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

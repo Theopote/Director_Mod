@@ -463,7 +463,7 @@ public class DirectorUIManager {
                     timelinePanel.resetWorkspace(true);
                 } else {
                     DirectorServices.get().containers().clear();
-                    com.director.ui.timeline.persistence.TimelineModelPersistence.resetForCurrentWorld();
+                    com.director.timeline.persistence.TimelineModelPersistence.resetForCurrentWorld();
                 }
             } catch (Exception e) {
                 LOGGER.error("[UIManager] 新建动画重置失败: {}", e.getMessage(), e);

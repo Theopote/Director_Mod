@@ -7,14 +7,17 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import com.director.timeline.actor.ActorTimelineSource;
+import com.director.timeline.audio.TimelineAudioLoadHook;
+import com.director.timeline.audio.TimelineClipSoundCollector;
+import com.director.timeline.audio.TimelineTrackPlaybackListener;
 import com.director.timeline.model.ITimelineProject;
 import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineSelectable;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
-import com.director.ui.timeline.persistence.TimelineModelPersistence;
-import com.director.ui.timeline.snapping.TimelineSnapSettings;
-import com.director.ui.timeline.snapping.TimelineSnapping;
+import com.director.timeline.persistence.TimelineModelPersistence;
+import com.director.timeline.snapping.TimelineSnapSettings;
+import com.director.timeline.snapping.TimelineSnapping;
 import com.director.timeline.playback.camera.TimelineCameraController;
 
 /**
@@ -51,6 +54,18 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
     
     // ========== 吸附设置（统一配置系统）==========
     private final TimelineSnapSettings snapSettings = new TimelineSnapSettings();
+
+    private TimelineClipSoundCollector clipSoundCollector = clip -> {};
+    private TimelineTrackPlaybackListener trackPlaybackListener = new TimelineTrackPlaybackListener() {
+        @Override
+        public void onTrackAdded(TimelineTrack track) {
+        }
+
+        @Override
+        public void onTrackRemoved(TimelineTrack track) {
+        }
+    };
+    private TimelineAudioLoadHook audioLoadHook = TimelineAudioLoadHook.NOOP;
     
     // ========== 轨道数据 ==========
     private final List<TimelineTrack> tracks = new ArrayList<>();
@@ -216,6 +231,35 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         this.suppressPersistenceWrites = suppress;
     }
 
+    public void setClipSoundCollector(TimelineClipSoundCollector collector) {
+        this.clipSoundCollector = collector != null ? collector : clip -> {};
+        TimelineTrack.setClipSoundCollector(this.clipSoundCollector);
+    }
+
+    public void setTrackPlaybackListener(TimelineTrackPlaybackListener listener) {
+        if (listener == null) {
+            this.trackPlaybackListener = new TimelineTrackPlaybackListener() {
+                @Override
+                public void onTrackAdded(TimelineTrack track) {
+                }
+
+                @Override
+                public void onTrackRemoved(TimelineTrack track) {
+                }
+            };
+        } else {
+            this.trackPlaybackListener = listener;
+        }
+    }
+
+    public void setAudioLoadHook(TimelineAudioLoadHook hook) {
+        this.audioLoadHook = hook != null ? hook : TimelineAudioLoadHook.NOOP;
+    }
+
+    public TimelineAudioLoadHook getAudioLoadHook() {
+        return audioLoadHook;
+    }
+
     
     /**
      * 重新加载保存的数据
@@ -302,7 +346,7 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         resetInMemoryToDefaults();
 
         // 删除旧存档，随后保存全新状态
-        com.director.ui.timeline.persistence.TimelineModelPersistence.resetForCurrentWorld();
+        com.director.timeline.persistence.TimelineModelPersistence.resetForCurrentWorld();
         save();
     }
     
@@ -677,18 +721,14 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         tracks.add(track);
         markDurationDirty(); // 轨道添加可能影响总时长
         notifyModelChanged("track_added"); // ⭐ 通知监听器（如 TimelineCameraController）轨道已添加
-        
-        // ⭐ 通知音频控制器轨道已添加
-        com.director.ui.timeline.playback.TimelineAudioController.getInstance().onTrackAdded(track);
+        trackPlaybackListener.onTrackAdded(track);
     }
     
     public void removeTrack(TimelineTrack track) {
         tracks.remove(track);
         markDurationDirty(); // 轨道移除可能影响总时长
         notifyModelChanged("track_removed"); // ⭐ 通知监听器轨道已移除
-        
-        // ⭐ 通知音频控制器轨道已删除
-        com.director.ui.timeline.playback.TimelineAudioController.getInstance().onTrackRemoved(track);
+        trackPlaybackListener.onTrackRemoved(track);
     }
     
     public TimelineTrack getTrackAt(int index) {
@@ -831,7 +871,6 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
             if (track.addClip(clip)) {
                 markDirty();
                 markDurationDirty();
-                // 注意：声音事件收集在 TimelineTrack.addClip() 中自动处理
             }
         }
     }

@@ -1,4 +1,4 @@
-package com.director.ui.timeline.persistence;
+package com.director.timeline.persistence;
 
 import com.director.core.animation.ClipAnimationConfig;
 import com.director.core.container.AnimationMode;
@@ -7,7 +7,7 @@ import com.director.core.animation.sequence.SequenceParameters;
 import com.director.core.animation.sequence.evaluator.FillType;
 import com.director.core.animation.sequence.evaluator.FlowType;
 import com.director.core.animation.sequence.evaluator.OriginType;
-import com.director.ui.timeline.audio.TimelineAudioService;
+import com.director.timeline.audio.TimelineAudioLoadHook;
 import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineMarker;
 import com.director.timeline.model.TimelineModel;
@@ -895,9 +895,9 @@ public class TimelineModelPersistence {
             return;
         }
 
-        TimelineAudioService audioService = TimelineAudioService.getInstance();
-        boolean prevSuppress = audioService.isSuppressAutoCreate();
-        audioService.setSuppressAutoCreate(true);
+        TimelineAudioLoadHook audioHook = model.getAudioLoadHook();
+        boolean prevSuppress = audioHook.isSuppressAutoCreate();
+        audioHook.setSuppressAutoCreate(true);
         model.setSuppressPersistenceWrites(true);
         try {
         
@@ -1498,9 +1498,9 @@ public class TimelineModelPersistence {
     
         } finally {
             model.setSuppressPersistenceWrites(false);
-            audioService.setSuppressAutoCreate(prevSuppress);
+            audioHook.setSuppressAutoCreate(prevSuppress);
         }
-        audioService.setTimelineModel(model);
+        audioHook.setTimelineModel(model);
     }
 
     private static @NotNull EntityClip getEntityClip(EntityClipDTO cdto, EntityClipType clipType) {

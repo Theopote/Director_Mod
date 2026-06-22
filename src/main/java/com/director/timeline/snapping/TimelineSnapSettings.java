@@ -1,4 +1,4 @@
-package com.director.ui.timeline.snapping;
+package com.director.timeline.snapping;
 
 /**
  * 时间线吸附设置（Director 风格）

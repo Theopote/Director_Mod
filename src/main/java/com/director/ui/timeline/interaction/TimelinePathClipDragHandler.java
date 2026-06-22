@@ -8,7 +8,7 @@ import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
 import com.director.timeline.model.camera.path.CameraPathClip;
 import com.director.ui.timeline.render.TimelineRenderer;
-import com.director.ui.timeline.snapping.TimelineSnapping;
+import com.director.timeline.snapping.TimelineSnapping;
 import imgui.ImGui;
 import imgui.ImGuiIO;
 import imgui.flag.ImGuiMouseCursor;

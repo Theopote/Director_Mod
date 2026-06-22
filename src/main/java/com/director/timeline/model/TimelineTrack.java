@@ -1,6 +1,7 @@
 package com.director.timeline.model;
 
 import com.director.core.DirectorServices;
+import com.director.timeline.audio.TimelineClipSoundCollector;
 import com.director.timeline.model.TrackType;
 import com.director.timeline.model.audio.AudioEvent;
 import com.director.timeline.model.camera.CameraViewportProfile;
@@ -22,6 +23,12 @@ import org.slf4j.LoggerFactory;
  */
 public class TimelineTrack {
     private static final Logger LOGGER = LoggerFactory.getLogger(TimelineTrack.class);
+
+    private static volatile TimelineClipSoundCollector clipSoundCollector = clip -> {};
+
+    public static void setClipSoundCollector(TimelineClipSoundCollector collector) {
+        clipSoundCollector = collector != null ? collector : clip -> {};
+    }
 
     private String name;
     private TrackType type;  // 轨道类型
@@ -115,11 +122,9 @@ public class TimelineTrack {
             if (clip.getBoundContainerId() != null
                     && type == TrackType.CONTAINER) {
                 try {
-                    com.director.ui.timeline.audio.TimelineAudioService.getInstance()
-                            .collectAndAddSoundEvents(clip);
+                    clipSoundCollector.collectAndAddSoundEvents(clip);
                 } catch (Exception e) {
-                    // 如果服务未初始化，忽略错误（向后兼容）
-                    // 正常情况下服务应该在 TimelinePanel 初始化时注册
+                    // 如果收集器未注册，忽略错误（向后兼容）
                 }
             }
             return true;

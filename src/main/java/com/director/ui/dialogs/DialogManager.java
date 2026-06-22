@@ -65,7 +65,7 @@ public class DialogManager {
      * 时间线设置访问接口（用于读取和修改设置）
      */
     public interface TimelineSettingsAccessor {
-        com.director.ui.timeline.snapping.TimelineSnapSettings getSnapSettings();
+        com.director.timeline.snapping.TimelineSnapSettings getSnapSettings();
         
         /**
          * 获取项目帧率（FPS）
@@ -334,7 +334,7 @@ public class DialogManager {
                 return;
             }
             
-            com.director.ui.timeline.snapping.TimelineSnapSettings snapSettings = 
+            com.director.timeline.snapping.TimelineSnapSettings snapSettings = 
                     timelineSettingsAccessor.getSnapSettings();
             
             if (snapSettings == null) {

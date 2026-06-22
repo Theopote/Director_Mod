@@ -1,5 +1,6 @@
 package com.director.ui.timeline.playback;
 
+import com.director.timeline.audio.TimelineTrackPlaybackListener;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
@@ -34,7 +35,7 @@ import java.util.*;
  * @author Director Team
  * @version 2.0
  */
-public class TimelineAudioController {
+public class TimelineAudioController implements TimelineTrackPlaybackListener {
     private static final Logger LOGGER = LoggerFactory.getLogger(TimelineAudioController.class);
     
     private static TimelineAudioController instance;

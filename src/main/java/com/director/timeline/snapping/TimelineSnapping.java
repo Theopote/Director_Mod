@@ -1,4 +1,4 @@
-package com.director.ui.timeline.snapping;
+package com.director.timeline.snapping;
 
 import java.util.List;
 

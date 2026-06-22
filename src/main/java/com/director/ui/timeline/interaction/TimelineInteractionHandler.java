@@ -20,7 +20,7 @@ import com.director.timeline.model.entity.EntityTimelineClip;
 import com.director.timeline.model.selection.TimelineKeyframeMultiSelection;
 import com.director.ui.timeline.render.TimelineRenderer;
 import com.director.ui.timeline.render.TimelineTrackControlHit;
-import com.director.ui.timeline.snapping.TimelineSnapping;
+import com.director.timeline.snapping.TimelineSnapping;
 
 import imgui.ImGui;
 import imgui.ImGuiIO;
