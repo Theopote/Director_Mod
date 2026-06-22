@@ -414,17 +414,17 @@ public class DirectorUIManager {
 
     private DirectorUILayoutActions layoutActions() {
         return new DirectorUILayoutActions() {
-            @Override
+                        @Override
             public void clearCurrentDockSpaceState() {
                 DirectorUIManager.this.clearCurrentDockSpaceState();
-            }
-
-            @Override
+                        }
+                        
+                        @Override
             public void restoreDefaultPanelVisibility() {
                 DirectorUIManager.this.restoreDefaultPanelVisibility();
-            }
-
-            @Override
+                        }
+                        
+                        @Override
             public void requestDockSpaceRelayout() {
                 DirectorUIManager.this.isFirstLayout = true;
             }
