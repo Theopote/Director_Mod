@@ -137,7 +137,7 @@ public final class TimelineActorController {
         if (service == null) {
             return false;
         }
-        com.director.ui.timeline.model.TimelineModel model = service.getTimelineModel();
+        com.director.timeline.model.TimelineModel model = service.getTimelineModel();
         if (model == null) {
             return false;
         }
@@ -169,7 +169,7 @@ public final class TimelineActorController {
         // 统计关键帧数量
         int keyframeCount = 0;
         for (com.director.timeline.model.TimelineSelectable selectable : activeTrack.getAutomationKeyframes()) {
-            if (selectable instanceof com.director.ui.timeline.model.entity.EntityKeyframe) {
+            if (selectable instanceof com.director.timeline.model.entity.EntityKeyframe) {
                 keyframeCount++;
             }
         }
@@ -189,7 +189,7 @@ public final class TimelineActorController {
             return;
         }
         
-        com.director.ui.timeline.model.TimelineModel model = service.getTimelineModel();
+        com.director.timeline.model.TimelineModel model = service.getTimelineModel();
         if (model == null) {
             return;
         }

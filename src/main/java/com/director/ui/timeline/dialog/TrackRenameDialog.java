@@ -3,7 +3,7 @@ package com.director.ui.timeline.dialog;
 import com.director.ui.theme.UITheme;
 import com.director.ui.timeline.commands.RenameTrackCommand;
 import com.director.ui.timeline.commands.TimelineCommandHistory;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 
 import imgui.ImGui;

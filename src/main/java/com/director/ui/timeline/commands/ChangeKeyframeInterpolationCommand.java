@@ -2,7 +2,7 @@ package com.director.ui.timeline.commands;
 
 import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineInterpolation;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 
 import org.slf4j.Logger;

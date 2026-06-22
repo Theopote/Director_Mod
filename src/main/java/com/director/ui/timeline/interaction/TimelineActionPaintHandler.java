@@ -9,8 +9,8 @@ import com.director.ui.timeline.interaction.TimelineDragHandles.ActionPaintHandl
 import com.director.ui.timeline.interaction.TimelineInteractionManager.InteractionMode;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
-import com.director.ui.timeline.model.entity.ActorActionClip;
-import com.director.ui.timeline.model.entity.ActorTrack;
+import com.director.timeline.model.entity.ActorActionClip;
+import com.director.timeline.model.entity.ActorTrack;
 import com.director.ui.timeline.render.TimelineRenderer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

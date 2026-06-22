@@ -14,12 +14,12 @@ import net.minecraft.resource.ResourceManager;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.random.Random;
 import com.director.ui.timeline.container.ContainerTimelineService;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineSelectable;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
-import com.director.ui.timeline.model.audio.AudioEvent;
-import com.director.ui.timeline.model.audio.AudioTrack;
+import com.director.timeline.model.audio.AudioEvent;
+import com.director.timeline.model.audio.AudioTrack;
 
 import java.io.BufferedOutputStream;
 import java.io.DataOutputStream;

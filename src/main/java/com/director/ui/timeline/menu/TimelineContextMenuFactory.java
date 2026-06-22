@@ -19,25 +19,25 @@ import com.director.ui.timeline.dialog.TrackRenameDialog;
 import com.director.ui.timeline.interaction.TimelineHitResult;
 import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineInterpolation;
-import com.director.ui.timeline.model.TimelineMarker;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineMarker;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
-import com.director.ui.timeline.model.camera.CameraKeyframe;
-import com.director.ui.timeline.model.audio.AudioEvent;
-import com.director.ui.timeline.model.camera.path.CranePathClip;
-import com.director.ui.timeline.model.camera.path.CustomPathClip;
-import com.director.ui.timeline.model.camera.path.DollyPathClip;
-import com.director.ui.timeline.model.camera.path.OrbitPathClip;
-import com.director.ui.timeline.model.entity.EntityActionClip;
-import com.director.ui.timeline.model.entity.EntityAnimationClip;
-import com.director.ui.timeline.model.entity.EntityClip;
-import com.director.ui.timeline.model.entity.EntityDespawnClip;
-import com.director.ui.timeline.model.entity.EntityLookAtClip;
-import com.director.ui.timeline.model.entity.EntitySpawnClip;
-import com.director.ui.timeline.model.entity.EntityStateClip;
-import com.director.ui.timeline.model.entity.EntityTransformClip;
-import com.director.ui.timeline.model.weather.WeatherKeyframe;
+import com.director.timeline.model.camera.CameraKeyframe;
+import com.director.timeline.model.audio.AudioEvent;
+import com.director.timeline.model.camera.path.CranePathClip;
+import com.director.timeline.model.camera.path.CustomPathClip;
+import com.director.timeline.model.camera.path.DollyPathClip;
+import com.director.timeline.model.camera.path.OrbitPathClip;
+import com.director.timeline.model.entity.EntityActionClip;
+import com.director.timeline.model.entity.EntityAnimationClip;
+import com.director.timeline.model.entity.EntityClip;
+import com.director.timeline.model.entity.EntityDespawnClip;
+import com.director.timeline.model.entity.EntityLookAtClip;
+import com.director.timeline.model.entity.EntitySpawnClip;
+import com.director.timeline.model.entity.EntityStateClip;
+import com.director.timeline.model.entity.EntityTransformClip;
+import com.director.timeline.model.weather.WeatherKeyframe;
 import com.director.timeline.playback.camera.TimelineCameraController;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
@@ -88,7 +88,7 @@ public class TimelineContextMenuFactory {
             case CLIP -> createClipMenu(hit.clip(), hit.track() != null ? hit.track() : model.findTrackForClip(hit.clip()));
             // ⭐⭐ 修复 B、D：优先处理 KEYFRAME，使用 ClipKeyframe 对象
             case KEYFRAME -> {
-                com.director.ui.timeline.model.clip.ClipKeyframe clipKeyframe = hit.clipKeyframe();
+                com.director.timeline.model.clip.ClipKeyframe clipKeyframe = hit.clipKeyframe();
                 if (clipKeyframe != null) {
                     yield createClipKeyframeMenu(clipKeyframe, hit.clip(), hit.track());
                 }
@@ -97,7 +97,7 @@ public class TimelineContextMenuFactory {
                 TimelineTrack track = hit.track() != null ? hit.track() : model.findTrackForClip(clip);
                 if (clip != null) {
                     final float EPS = 0.001f;
-                    com.director.ui.timeline.model.clip.ClipKeyframe kf = clip.findKeyframeAt(hit.time(), EPS);
+                    com.director.timeline.model.clip.ClipKeyframe kf = clip.findKeyframeAt(hit.time(), EPS);
                     if (kf != null) {
                         yield createClipKeyframeMenu(kf, clip, track);
                     }
@@ -174,7 +174,7 @@ public class TimelineContextMenuFactory {
      * @return 上下文菜单
      */
     public TimelineContextMenu createClipKeyframeMenu(
-            com.director.ui.timeline.model.clip.ClipKeyframe clipKeyframe,
+            com.director.timeline.model.clip.ClipKeyframe clipKeyframe,
             TimelineClip clip,
             TimelineTrack track) {
         if (clipKeyframe == null || clip == null) {
@@ -200,10 +200,10 @@ public class TimelineContextMenuFactory {
         TimelineInterpolation interp = clipKeyframe.getInterpolation();
 
         // 多选：收集当前选中的 ClipKeyframe（用于批量操作）
-        java.util.List<com.director.ui.timeline.model.clip.ClipKeyframe> selectedClipKeyframes =
+        java.util.List<com.director.timeline.model.clip.ClipKeyframe> selectedClipKeyframes =
                 model.getSelectedItems().stream()
-                        .filter(com.director.ui.timeline.model.clip.ClipKeyframe.class::isInstance)
-                        .map(com.director.ui.timeline.model.clip.ClipKeyframe.class::cast)
+                        .filter(com.director.timeline.model.clip.ClipKeyframe.class::isInstance)
+                        .map(com.director.timeline.model.clip.ClipKeyframe.class::cast)
                         .toList();
 
         boolean hasMultiClipKeyframes = selectedClipKeyframes.size() > 1;
@@ -296,7 +296,7 @@ public class TimelineContextMenuFactory {
 
         // ⭐ 从 Clip 内部查找真正的 ClipKeyframe 对象
         final float EPS = 0.001f;
-        com.director.ui.timeline.model.clip.ClipKeyframe kf =
+        com.director.timeline.model.clip.ClipKeyframe kf =
                 clip.findKeyframeAt(keyframeTime, EPS);
 
         if (kf == null) {
@@ -364,7 +364,7 @@ public class TimelineContextMenuFactory {
         }
 
         // ⭐ 摄像机关键帧：使用专门的 Mine-imator / Blender 风格菜单
-        if (keyframe instanceof com.director.ui.timeline.model.camera.CameraKeyframe cameraKeyframe) {
+        if (keyframe instanceof com.director.timeline.model.camera.CameraKeyframe cameraKeyframe) {
             // ⭐ v5.0：检查轨道是否锁定或未激活
             if (track.isLocked()) {
                 // 锁定的轨道：显示禁用菜单
@@ -504,11 +504,11 @@ public class TimelineContextMenuFactory {
         
         // 如果是音频轨道，使用 AudioTrack 类
         if (type == com.director.timeline.model.TrackType.AUDIO) {
-            newTrack = new com.director.ui.timeline.model.audio.AudioTrack(trackName);
+            newTrack = new com.director.timeline.model.audio.AudioTrack(trackName);
         } else {
             newTrack = new com.director.timeline.model.TimelineTrack(trackName, type);
             if (type == com.director.timeline.model.TrackType.ACTOR) {
-                newTrack.setActorTrackPayload(new com.director.ui.timeline.model.entity.ActorTrack(trackName));
+                newTrack.setActorTrackPayload(new com.director.timeline.model.entity.ActorTrack(trackName));
             }
         }
         
@@ -791,7 +791,7 @@ public class TimelineContextMenuFactory {
                     .build();
         }
         
-        com.director.ui.timeline.model.camera.path.CameraPathClip clip = pathClipHit.clip();
+        com.director.timeline.model.camera.path.CameraPathClip clip = pathClipHit.clip();
         com.director.timeline.model.TimelineTrack track = pathClipHit.track();
         
         if (clip == null || track == null) {

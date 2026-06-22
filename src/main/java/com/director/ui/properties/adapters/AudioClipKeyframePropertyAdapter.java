@@ -5,9 +5,9 @@ import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.theme.UITheme;
 import com.director.timeline.model.TimelineInterpolation;
 import com.director.timeline.model.TimelineClip;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.audio.AudioClipKeyframe;
+import com.director.timeline.model.audio.AudioClipKeyframe;
 import imgui.ImGui;
 import imgui.type.ImInt;
 

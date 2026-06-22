@@ -4,7 +4,7 @@ import com.director.core.DirectorServices;
 import com.director.ui.timeline.commands.DeleteClipCommand;
 import com.director.ui.timeline.commands.TimelineCommandHistory;
 import com.director.timeline.model.TimelineClip;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
 
@@ -172,7 +172,7 @@ public final class ClipboardManager {
         if (clip.getBoundContainerId() == null) {
             return true;
         }
-        if (clip instanceof com.director.ui.timeline.model.audio.AudioTimelineClip) {
+        if (clip instanceof com.director.timeline.model.audio.AudioTimelineClip) {
             return track.getType() == TrackType.AUDIO;
         }
         if (track.getType() != TrackType.CONTAINER) {

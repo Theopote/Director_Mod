@@ -2,7 +2,7 @@ package com.director.ui.timeline.shortcuts;
 
 import com.director.ui.timeline.commands.TimelineCommandHistory;
 import com.director.ui.timeline.interaction.TimelineInteractionManager;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 
 import imgui.ImGui;
 import imgui.ImGuiIO;

@@ -2,11 +2,11 @@ package com.director.ui.timeline.interaction;
 
 import com.director.actor.action.ActorActionType;
 import com.director.timeline.model.TimelineClip;
-import com.director.ui.timeline.model.TimelineMarker;
+import com.director.timeline.model.TimelineMarker;
 import com.director.timeline.model.TimelineSelectable;
 import com.director.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.camera.path.CameraPathClip;
-import com.director.ui.timeline.model.entity.ActorTrack;
+import com.director.timeline.model.camera.path.CameraPathClip;
+import com.director.timeline.model.entity.ActorTrack;
 
 /**
  * 拖动/涂抹交互期间持有的临时状态对象。
@@ -28,13 +28,13 @@ public final class TimelineDragHandles {
     public static final class KeyframeHandle {
         public final TimelineTrack track;
         public final TimelineClip clip;
-        public final com.director.ui.timeline.model.clip.ClipKeyframe keyframe;
+        public final com.director.timeline.model.clip.ClipKeyframe keyframe;
         public float currentTime;
 
         public KeyframeHandle(
                 TimelineTrack track,
                 TimelineClip clip,
-                com.director.ui.timeline.model.clip.ClipKeyframe keyframe,
+                com.director.timeline.model.clip.ClipKeyframe keyframe,
                 float time) {
             this.track = track;
             this.clip = clip;

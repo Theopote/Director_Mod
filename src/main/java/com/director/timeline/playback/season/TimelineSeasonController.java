@@ -1,6 +1,6 @@
 package com.director.timeline.playback.season;
 
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
 import net.minecraft.client.MinecraftClient;

@@ -2,8 +2,8 @@ package com.director.ui.timeline.ui;
 
 import com.director.ui.timeline.commands.TimelineCommandHistory;
 import com.director.ui.timeline.interaction.TimelineNavigationHandler;
-import com.director.ui.timeline.model.TimelineModel;
-import com.director.ui.timeline.model.TimelineViewportState;
+import com.director.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineViewportState;
 import com.director.ui.timeline.render.TimelineRenderer; // 引入 Renderer 获取常量
 import com.director.client.renderer.CameraPathDebugRenderer;
 import com.director.ui.theme.Icons;
@@ -419,12 +419,12 @@ public class TimelineControlBar {
                 case com.director.timeline.model.TimelineClip ignored -> {
                     return true;
                 }
-                case com.director.ui.timeline.model.clip.ClipKeyframe ignored -> {
+                case com.director.timeline.model.clip.ClipKeyframe ignored -> {
                     return true;
                 }
                 case com.director.timeline.model.TimelineSelectable selectable -> {
                     // 与 TimelinePanel.deleteSelectedClip 行为保持一致：AudioEvent 默认不走工具栏批量删除
-                    if (!(selectable instanceof com.director.ui.timeline.model.audio.AudioEvent)) {
+                    if (!(selectable instanceof com.director.timeline.model.audio.AudioEvent)) {
                         return true;
                     }
                 }

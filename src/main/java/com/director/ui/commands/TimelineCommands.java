@@ -1,6 +1,6 @@
 package com.director.ui.commands;
 
-import com.director.ui.timeline.model.camera.path.CameraPathType;
+import com.director.timeline.model.camera.path.CameraPathType;
 
 /**
  * 时间线命令接口 - 时间线结构与视图管理

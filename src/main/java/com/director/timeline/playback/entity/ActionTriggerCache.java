@@ -1,6 +1,6 @@
 package com.director.timeline.playback.entity;
 
-import com.director.ui.timeline.model.entity.EntityActionClip;
+import com.director.timeline.model.entity.EntityActionClip;
 
 import java.util.HashSet;
 import java.util.Set;

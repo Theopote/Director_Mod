@@ -1,6 +1,6 @@
 package com.director.ui.aware;
 
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 
 /**
  * 播放模型提供者 - 能提供 TimelineModel 以便绑定 PlaybackOrchestrator 的面板实现此接口。

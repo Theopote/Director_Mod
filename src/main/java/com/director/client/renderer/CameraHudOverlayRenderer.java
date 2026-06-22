@@ -2,8 +2,8 @@ package com.director.client.renderer;
 
 import com.director.ui.camera.path.CameraPathEditController;
 import com.director.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.camera.CameraViewportProfile;
-import com.director.ui.timeline.model.camera.ViewportMath;
+import com.director.timeline.model.camera.CameraViewportProfile;
+import com.director.timeline.model.camera.ViewportMath;
 import com.director.timeline.playback.camera.TimelineCameraController;
 import com.director.ui.timeline.render.TimelineColors;
 import net.minecraft.client.MinecraftClient;

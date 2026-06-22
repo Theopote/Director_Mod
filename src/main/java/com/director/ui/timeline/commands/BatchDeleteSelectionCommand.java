@@ -1,11 +1,11 @@
 package com.director.ui.timeline.commands;
 
 import com.director.timeline.model.TimelineClip;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineSelectable;
 import com.director.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.camera.path.CameraPathClip;
-import com.director.ui.timeline.model.clip.ClipKeyframe;
+import com.director.timeline.model.camera.path.CameraPathClip;
+import com.director.timeline.model.clip.ClipKeyframe;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -73,7 +73,7 @@ public class BatchDeleteSelectionCommand extends BaseTimelineCommand {
 
         // 3) 标记删除（全局标记，不属于轨道）
         for (Object it : selectionSnapshot) {
-            if (it instanceof com.director.ui.timeline.model.TimelineMarker marker) {
+            if (it instanceof com.director.timeline.model.TimelineMarker marker) {
                 TimelineCommand cmd = new DeleteMarkerCommand(model, marker);
                 cmd.execute();
                 executed.add(cmd);
@@ -101,7 +101,7 @@ public class BatchDeleteSelectionCommand extends BaseTimelineCommand {
                     continue;
                 }
                 // 跳过标记（已在步骤3处理）
-                case com.director.ui.timeline.model.TimelineMarker ignored -> {
+                case com.director.timeline.model.TimelineMarker ignored -> {
                     continue;
                 }
                 // 跳过 Path Clip（已在步骤4处理）
@@ -109,7 +109,7 @@ public class BatchDeleteSelectionCommand extends BaseTimelineCommand {
                     continue;
                 }
                 // 与现有删除逻辑一致：音频事件点默认不通过工具栏/Del 批量删除
-                case com.director.ui.timeline.model.audio.AudioEvent ignored -> {
+                case com.director.timeline.model.audio.AudioEvent ignored -> {
                     continue;
                 }
                 default -> {
@@ -121,8 +121,8 @@ public class BatchDeleteSelectionCommand extends BaseTimelineCommand {
             if (track.isLocked()) continue;
 
             TimelineCommand cmd;
-            if (selectable instanceof com.director.ui.timeline.model.camera.CameraKeyframe cameraKeyframe) {
-                com.director.ui.timeline.model.camera.path.CustomPathClip customPathClip =
+            if (selectable instanceof com.director.timeline.model.camera.CameraKeyframe cameraKeyframe) {
+                com.director.timeline.model.camera.path.CustomPathClip customPathClip =
                         model.findCustomPathClipForKeyframe(cameraKeyframe);
                 if (customPathClip != null) {
                     cmd = new RemoveCameraPathKeyframeCommand(model, customPathClip, cameraKeyframe);
@@ -178,7 +178,7 @@ public class BatchDeleteSelectionCommand extends BaseTimelineCommand {
                         .anyMatch(x -> x != null && keyframe.getId().equals(x.getId()));
                 if (contains) return t;
             }
-            if (keyframe instanceof com.director.ui.timeline.model.camera.CameraKeyframe cameraKeyframe
+            if (keyframe instanceof com.director.timeline.model.camera.CameraKeyframe cameraKeyframe
                     && t.findCustomPathClipForKeyframe(cameraKeyframe) != null) {
                 return t;
             }

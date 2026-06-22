@@ -5,7 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.director.timeline.model.TimelineClip;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TrackType;
 
 import java.util.UUID;
@@ -47,7 +47,7 @@ public class BindClipToContainerCommand extends BaseTimelineCommand {
             return;
         }
         clip.bindToContainer(newContainerId, newContainerName);
-        if (clip instanceof com.director.ui.timeline.model.audio.AudioTimelineClip) {
+        if (clip instanceof com.director.timeline.model.audio.AudioTimelineClip) {
             com.director.ui.timeline.audio.TimelineAudioService.getInstance()
                     .onAudioClipBindingChanged(clip, oldContainerId, newContainerId);
         }
@@ -63,7 +63,7 @@ public class BindClipToContainerCommand extends BaseTimelineCommand {
             return;
         }
         clip.bindToContainer(oldContainerId, oldContainerName);
-        if (clip instanceof com.director.ui.timeline.model.audio.AudioTimelineClip) {
+        if (clip instanceof com.director.timeline.model.audio.AudioTimelineClip) {
             com.director.ui.timeline.audio.TimelineAudioService.getInstance()
                     .onAudioClipBindingChanged(clip, newContainerId, oldContainerId);
         }
@@ -76,7 +76,7 @@ public class BindClipToContainerCommand extends BaseTimelineCommand {
     }
 
     private boolean canBind(UUID containerId) {
-        if (containerId == null || clip instanceof com.director.ui.timeline.model.audio.AudioTimelineClip) {
+        if (containerId == null || clip instanceof com.director.timeline.model.audio.AudioTimelineClip) {
             return true;
         }
         var track = clip.getParentTrack();

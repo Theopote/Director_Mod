@@ -9,13 +9,13 @@ import com.director.core.container.ContainerManager;
 import com.director.core.animation.ClipAnimationConfig;
 import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineInterpolation;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
-import com.director.ui.timeline.model.audio.AudioClipKeyframe;
-import com.director.ui.timeline.model.audio.AudioEvent;
-import com.director.ui.timeline.model.audio.AudioTrack;
-import com.director.ui.timeline.model.audio.AudioTimelineClip;
+import com.director.timeline.model.audio.AudioClipKeyframe;
+import com.director.timeline.model.audio.AudioEvent;
+import com.director.timeline.model.audio.AudioTrack;
+import com.director.timeline.model.audio.AudioTimelineClip;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -968,9 +968,9 @@ public class TimelineAudioService {
             return;
         }
 
-        List<com.director.ui.timeline.model.clip.ClipKeyframe> keyframes =
+        List<com.director.timeline.model.clip.ClipKeyframe> keyframes =
                 new ArrayList<>(audioClip.getClipKeyframes());
-        for (com.director.ui.timeline.model.clip.ClipKeyframe kf : keyframes) {
+        for (com.director.timeline.model.clip.ClipKeyframe kf : keyframes) {
             if (kf == null) {
                 continue;
             }
@@ -1005,14 +1005,14 @@ public class TimelineAudioService {
     }
 
     private float computeVolumeForClipAtTime(TimelineClip clip, float time) {
-        List<com.director.ui.timeline.model.clip.ClipKeyframe> keyframes = clip.getClipKeyframes();
+        List<com.director.timeline.model.clip.ClipKeyframe> keyframes = clip.getClipKeyframes();
         if (keyframes == null || keyframes.isEmpty()) {
             return 1.0f;
         }
 
         AudioClipKeyframe prev = null;
         AudioClipKeyframe next = null;
-        for (com.director.ui.timeline.model.clip.ClipKeyframe kf : keyframes) {
+        for (com.director.timeline.model.clip.ClipKeyframe kf : keyframes) {
             if (!(kf instanceof AudioClipKeyframe audioKf)) {
                 continue;
             }

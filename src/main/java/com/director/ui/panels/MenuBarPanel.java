@@ -10,7 +10,7 @@ import com.director.ui.di.IPanelRegistry;
 import com.director.ui.imgui.ImGuiRenderer;
 import com.director.ui.theme.Icons;
 import com.director.ui.PanelId;
-import com.director.ui.timeline.model.camera.path.CameraPathType;
+import com.director.timeline.model.camera.path.CameraPathType;
 
 import net.minecraft.client.MinecraftClient;
 

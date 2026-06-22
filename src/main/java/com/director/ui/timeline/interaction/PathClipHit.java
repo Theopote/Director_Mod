@@ -1,7 +1,7 @@
 package com.director.ui.timeline.interaction;
 
 import com.director.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.camera.path.CameraPathClip;
+import com.director.timeline.model.camera.path.CameraPathClip;
 
 /**
  * Path Clip 命中检测结果

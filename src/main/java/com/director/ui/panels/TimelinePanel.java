@@ -10,16 +10,16 @@ import com.director.ui.timeline.menu.TimelineContextMenuFactory;
 import com.director.core.DirectorServices;
 import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineInterpolation;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineSelectable;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
-import com.director.ui.timeline.model.TimelineViewportState;
-import com.director.ui.timeline.model.audio.AudioClipKeyframe;
-import com.director.ui.timeline.model.camera.CameraKeyframe;
-import com.director.ui.timeline.model.entity.EntityClipKeyframe;
-import com.director.ui.timeline.model.time.TimeKeyframe;
-import com.director.ui.timeline.model.weather.WeatherKeyframe;
+import com.director.timeline.model.TimelineViewportState;
+import com.director.timeline.model.audio.AudioClipKeyframe;
+import com.director.timeline.model.camera.CameraKeyframe;
+import com.director.timeline.model.entity.EntityClipKeyframe;
+import com.director.timeline.model.time.TimeKeyframe;
+import com.director.timeline.model.weather.WeatherKeyframe;
 import com.director.ui.timeline.render.TimelineColors;
 import com.director.ui.timeline.render.TimelineRenderer;
 import com.director.ui.timeline.state.*;
@@ -143,7 +143,7 @@ public class TimelinePanel extends AbstractPanel
     private static final float DRAG_THRESHOLD = 5f; // 拖动阈值（像素）
     
     // ⭐ 标记拖动状态跟踪（右键拖动标记）
-    private com.director.ui.timeline.model.TimelineMarker draggedMarker = null;
+    private com.director.timeline.model.TimelineMarker draggedMarker = null;
     private float markerDragStartX = -1f;
 
     // ========== 性能优化：基于时间的定时器 ==========
@@ -183,17 +183,17 @@ public class TimelinePanel extends AbstractPanel
             }
             
             @Override
-            public float getDraggedMarkerTime(com.director.ui.timeline.model.TimelineMarker marker) {
+            public float getDraggedMarkerTime(com.director.timeline.model.TimelineMarker marker) {
                 return interactionHandler.getDraggedMarkerTime(marker);
             }
             
             @Override
-            public float getDraggedPathClipStartTime(com.director.ui.timeline.model.camera.path.CameraPathClip clip) {
+            public float getDraggedPathClipStartTime(com.director.timeline.model.camera.path.CameraPathClip clip) {
                 return interactionHandler.getDraggedPathClipStartTime(clip);
             }
             
             @Override
-            public float getDraggedPathClipEndTime(com.director.ui.timeline.model.camera.path.CameraPathClip clip) {
+            public float getDraggedPathClipEndTime(com.director.timeline.model.camera.path.CameraPathClip clip) {
                 return interactionHandler.getDraggedPathClipEndTime(clip);
             }
 
@@ -1067,7 +1067,7 @@ public class TimelinePanel extends AbstractPanel
         // ⭐ 右键点击时间标尺：检测标记或打开空白菜单
         if (ImGui.isMouseClicked(ImGuiMouseButton.Right) && (isInRulerArea || hovered)) {
             // 先检测是否点击了标记
-            com.director.ui.timeline.model.TimelineMarker clickedMarker = hitTestMarker(mouseX, mouseY, contentX, winY, rulerHeight);
+            com.director.timeline.model.TimelineMarker clickedMarker = hitTestMarker(mouseX, mouseY, contentX, winY, rulerHeight);
             if (clickedMarker != null) {
                 // 点击了标记：开始拖动（右键按住拖动）
                 draggedMarker = clickedMarker;
@@ -1122,7 +1122,7 @@ public class TimelinePanel extends AbstractPanel
     /**
      * 检测鼠标是否点击了标记
      */
-    private com.director.ui.timeline.model.TimelineMarker hitTestMarker(
+    private com.director.timeline.model.TimelineMarker hitTestMarker(
             float mouseX, float mouseY, float contentX, float rulerTop, float rulerHeight) {
         if (model == null) {
             return null;
@@ -1131,12 +1131,12 @@ public class TimelinePanel extends AbstractPanel
         float centerY = rulerTop + rulerHeight * 0.5f;
         float hitRadius = 6.0f;  // 6px 半径
         
-        java.util.List<com.director.ui.timeline.model.TimelineMarker> markers = model.getMarkers();
+        java.util.List<com.director.timeline.model.TimelineMarker> markers = model.getMarkers();
         if (markers == null || markers.isEmpty()) {
             return null;
         }
         
-        for (com.director.ui.timeline.model.TimelineMarker marker : markers) {
+        for (com.director.timeline.model.TimelineMarker marker : markers) {
             if (marker == null) continue;
             
             float markerTime = marker.getTime();
@@ -1181,7 +1181,7 @@ public class TimelinePanel extends AbstractPanel
                 clip.getStartTime(), clip.getEndTime());
 
         if (track != null && track.getType() == TrackType.AUDIO) {
-            com.director.ui.timeline.model.clip.ClipKeyframe existing =
+            com.director.timeline.model.clip.ClipKeyframe existing =
                     clip.findKeyframeAt(clickTime, KEYFRAME_TOLERANCE);
             if (existing != null) {
                 RemoveClipKeyframeCommand cmd = new RemoveClipKeyframeCommand(model, track, clip, existing);
@@ -1203,11 +1203,11 @@ public class TimelinePanel extends AbstractPanel
         }
 
         // ⭐ 特殊处理 EntityTimelineClip：创建 EntityClipKeyframe
-        if (clip instanceof com.director.ui.timeline.model.entity.EntityTimelineClip entityTimelineClip) {
-            com.director.ui.timeline.model.entity.EntityClip entityClip = entityTimelineClip.getEntityClip();
+        if (clip instanceof com.director.timeline.model.entity.EntityTimelineClip entityTimelineClip) {
+            com.director.timeline.model.entity.EntityClip entityClip = entityTimelineClip.getEntityClip();
             
             // 查找是否已存在关键帧
-            com.director.ui.timeline.model.entity.EntityClipKeyframe existing = 
+            com.director.timeline.model.entity.EntityClipKeyframe existing = 
                 entityClip.findKeyframeAt(clickTime, KEYFRAME_TOLERANCE);
             
             if (existing != null) {
@@ -1251,7 +1251,7 @@ public class TimelinePanel extends AbstractPanel
 
         // 采样当前状态作为初始值
         if (track != null && track.getType() == TrackType.ACTOR) {
-            com.director.ui.timeline.model.entity.ActorTrack actorTrack =
+            com.director.timeline.model.entity.ActorTrack actorTrack =
                 track.getActorTrackPayload();
             if (actorTrack != null) {
                 com.director.timeline.playback.entity.EntityClipSampler sampler =
@@ -1504,7 +1504,7 @@ public class TimelinePanel extends AbstractPanel
                     LOGGER.warn("[TimelinePanel] 当前非玩家模式，跳过摄像机关键帧捕捉");
                     return;
                 }
-                com.director.ui.timeline.model.camera.path.CustomPathClip customPathClip =
+                com.director.timeline.model.camera.path.CustomPathClip customPathClip =
                         track.findCustomPathClipAt(time);
                 if (customPathClip == null) {
                     LOGGER.warn("[TimelinePanel] 摄像机关键帧只能添加到自定义路径片段内，请先创建自定义路径片段 (轨道: {})", track.getName());
@@ -1581,8 +1581,8 @@ public class TimelinePanel extends AbstractPanel
                     return;
                 }
                 
-                com.director.ui.timeline.model.entity.EntityKeyframe entityKeyframe = 
-                        new com.director.ui.timeline.model.entity.EntityKeyframe("Entity @" + timeLabel, time);
+                com.director.timeline.model.entity.EntityKeyframe entityKeyframe = 
+                        new com.director.timeline.model.entity.EntityKeyframe("Entity @" + timeLabel, time);
                 
                 commandHistory.executeCommand(new AddAutomationKeyframeCommand(
                         model,
@@ -1613,8 +1613,8 @@ public class TimelinePanel extends AbstractPanel
                     return;
                 }
                 
-                com.director.ui.timeline.model.season.SeasonKeyframe seasonKeyframe = 
-                    new com.director.ui.timeline.model.season.SeasonKeyframe("Season @" + timeLabel, time);
+                com.director.timeline.model.season.SeasonKeyframe seasonKeyframe = 
+                    new com.director.timeline.model.season.SeasonKeyframe("Season @" + timeLabel, time);
                 
                 commandHistory.executeCommand(new AddAutomationKeyframeCommand(
                         model,

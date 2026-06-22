@@ -1,9 +1,9 @@
 package com.director.ui.timeline.commands;
 
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineSelectable;
 import com.director.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.audio.AudioEvent;
+import com.director.timeline.model.audio.AudioEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,16 +58,16 @@ public class MoveAutomationKeyframeBetweenTracksCommand extends BaseTimelineComm
         from.removeAutomationKeyframe(keyframe.getId());
         to.addAutomationKeyframe(keyframe);
 
-        if (keyframe instanceof com.director.ui.timeline.model.camera.CameraKeyframe) {
+        if (keyframe instanceof com.director.timeline.model.camera.CameraKeyframe) {
             com.director.timeline.playback.camera.TimelineCameraController.getInstance()
                     .onKeyframeChanged();
-        } else if (keyframe instanceof com.director.ui.timeline.model.time.TimeKeyframe) {
+        } else if (keyframe instanceof com.director.timeline.model.time.TimeKeyframe) {
             com.director.timeline.playback.time.TimelineWorldController.getInstance()
                     .rebuildFromActiveTrack();
-        } else if (keyframe instanceof com.director.ui.timeline.model.season.SeasonKeyframe) {
+        } else if (keyframe instanceof com.director.timeline.model.season.SeasonKeyframe) {
             com.director.timeline.playback.season.TimelineSeasonController.getInstance()
                     .rebuildFromActiveTrack();
-        } else if (keyframe instanceof com.director.ui.timeline.model.weather.WeatherKeyframe) {
+        } else if (keyframe instanceof com.director.timeline.model.weather.WeatherKeyframe) {
             com.director.timeline.playback.weather.TimelineWeatherController.getInstance()
                     .rebuildFromActiveTrack();
         }
@@ -75,14 +75,14 @@ public class MoveAutomationKeyframeBetweenTracksCommand extends BaseTimelineComm
 
     private void setKeyframeTime(TimelineSelectable keyframe, float time) {
         switch (keyframe) {
-            case com.director.ui.timeline.model.camera.CameraKeyframe cameraKeyframe ->
+            case com.director.timeline.model.camera.CameraKeyframe cameraKeyframe ->
                     cameraKeyframe.setTime(time);
-            case com.director.ui.timeline.model.TimelineMarker marker -> marker.setTime(time);
-            case com.director.ui.timeline.model.time.TimeKeyframe timeKeyframe ->
+            case com.director.timeline.model.TimelineMarker marker -> marker.setTime(time);
+            case com.director.timeline.model.time.TimeKeyframe timeKeyframe ->
                     timeKeyframe.setTime(time);
-            case com.director.ui.timeline.model.season.SeasonKeyframe seasonKeyframe ->
+            case com.director.timeline.model.season.SeasonKeyframe seasonKeyframe ->
                     seasonKeyframe.setTime(time);
-            case com.director.ui.timeline.model.weather.WeatherKeyframe weatherKeyframe ->
+            case com.director.timeline.model.weather.WeatherKeyframe weatherKeyframe ->
                     weatherKeyframe.setTime(time);
             case AudioEvent audioEvent -> audioEvent.setTime(time);
             default -> LOGGER.warn("[Timeline] Unsupported keyframe type {}", keyframe.getClass().getSimpleName());

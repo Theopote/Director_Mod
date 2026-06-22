@@ -2,7 +2,7 @@ package com.director.ui.properties.adapters;
 
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.theme.Icons;
-import com.director.ui.timeline.model.camera.path.CustomPathClip;
+import com.director.timeline.model.camera.path.CustomPathClip;
 import com.director.timeline.playback.camera.TimelineCameraController;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;

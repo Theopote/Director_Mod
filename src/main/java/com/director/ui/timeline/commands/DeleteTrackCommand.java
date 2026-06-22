@@ -6,10 +6,10 @@ import com.director.actor.ActorRegistry;
 import com.director.actor.ActorRegistryManager;
 import com.director.actor.preview.ActorPreviewManager;
 import com.director.actor.query.ActorUsageQuery;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
-import com.director.ui.timeline.model.entity.ActorTrack;
+import com.director.timeline.model.entity.ActorTrack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

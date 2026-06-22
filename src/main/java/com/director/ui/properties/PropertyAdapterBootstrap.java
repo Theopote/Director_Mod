@@ -7,16 +7,16 @@ import com.director.core.selection.SelectionTool;
 import com.director.ui.properties.adapters.*;
 import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.audio.AudioEvent;
-import com.director.ui.timeline.model.audio.AudioClipKeyframe;
-import com.director.ui.timeline.model.audio.AudioTimelineClip;
-import com.director.ui.timeline.model.camera.CameraKeyframe;
-import com.director.ui.timeline.model.camera.path.OrbitPathClip;
-import com.director.ui.timeline.model.camera.path.DollyPathClip;
-import com.director.ui.timeline.model.camera.path.CranePathClip;
-import com.director.ui.timeline.model.camera.path.CustomPathClip;
-import com.director.ui.timeline.model.time.TimeKeyframe;
-import com.director.ui.timeline.model.selection.TimelineKeyframeMultiSelection;
+import com.director.timeline.model.audio.AudioEvent;
+import com.director.timeline.model.audio.AudioClipKeyframe;
+import com.director.timeline.model.audio.AudioTimelineClip;
+import com.director.timeline.model.camera.CameraKeyframe;
+import com.director.timeline.model.camera.path.OrbitPathClip;
+import com.director.timeline.model.camera.path.DollyPathClip;
+import com.director.timeline.model.camera.path.CranePathClip;
+import com.director.timeline.model.camera.path.CustomPathClip;
+import com.director.timeline.model.time.TimeKeyframe;
+import com.director.timeline.model.selection.TimelineKeyframeMultiSelection;
 import com.director.ui.tools.EditorTool;
 
 import org.slf4j.Logger;
@@ -220,59 +220,59 @@ public final class PropertyAdapterBootstrap {
             registeredCount++;
             
             // ✅ 季节关键帧适配器
-            registerAdapter(com.director.ui.timeline.model.season.SeasonKeyframe.class, 
+            registerAdapter(com.director.timeline.model.season.SeasonKeyframe.class, 
                     new SeasonKeyframePropertyAdapter());
             registeredCount++;
             
             // ✅ 天气关键帧适配器
-            registerAdapter(com.director.ui.timeline.model.weather.WeatherKeyframe.class, 
+            registerAdapter(com.director.timeline.model.weather.WeatherKeyframe.class, 
                     new WeatherKeyframePropertyAdapter());
             registeredCount++;
             
             // ✅ 标记适配器
-            registerAdapter(com.director.ui.timeline.model.TimelineMarker.class,
+            registerAdapter(com.director.timeline.model.TimelineMarker.class,
                     new com.director.ui.properties.adapters.TimelineMarkerPropertyAdapter());
             registeredCount++;
             
             // ✅ 实体关键帧适配器
-            registerAdapter(com.director.ui.timeline.model.entity.EntityKeyframe.class,
+            registerAdapter(com.director.timeline.model.entity.EntityKeyframe.class,
                     new EntityKeyframePropertyAdapter());
             registeredCount++;
 
             // ✅ 实体片段适配器
-            registerAdapter(com.director.ui.timeline.model.entity.EntitySpawnClip.class,
+            registerAdapter(com.director.timeline.model.entity.EntitySpawnClip.class,
                     new com.director.ui.properties.adapters.EntitySpawnClipPropertyAdapter());
             registeredCount++;
-            registerAdapter(com.director.ui.timeline.model.entity.EntityTransformClip.class,
+            registerAdapter(com.director.timeline.model.entity.EntityTransformClip.class,
                     new com.director.ui.properties.adapters.EntityTransformClipPropertyAdapter());
             registeredCount++;
-            registerAdapter(com.director.ui.timeline.model.entity.EntityAnimationClip.class,
+            registerAdapter(com.director.timeline.model.entity.EntityAnimationClip.class,
                     new com.director.ui.properties.adapters.EntityAnimationClipPropertyAdapter());
             registeredCount++;
-            registerAdapter(com.director.ui.timeline.model.entity.EntityActionClip.class,
+            registerAdapter(com.director.timeline.model.entity.EntityActionClip.class,
                     new com.director.ui.properties.adapters.EntityActionClipPropertyAdapter());
             registeredCount++;
-            registerAdapter(com.director.ui.timeline.model.entity.EntityStateClip.class,
+            registerAdapter(com.director.timeline.model.entity.EntityStateClip.class,
                     new com.director.ui.properties.adapters.EntityStateClipPropertyAdapter());
             registeredCount++;
-            registerAdapter(com.director.ui.timeline.model.entity.EntityLookAtClip.class,
+            registerAdapter(com.director.timeline.model.entity.EntityLookAtClip.class,
                     new com.director.ui.properties.adapters.EntityLookAtClipPropertyAdapter());
             registeredCount++;
-            registerAdapter(com.director.ui.timeline.model.entity.EntityDespawnClip.class,
+            registerAdapter(com.director.timeline.model.entity.EntityDespawnClip.class,
                     new com.director.ui.properties.adapters.EntityDespawnClipPropertyAdapter());
             registeredCount++;
-            registerAdapter(com.director.ui.timeline.model.entity.ActorActionClip.class,
+            registerAdapter(com.director.timeline.model.entity.ActorActionClip.class,
                     new com.director.ui.properties.adapters.ActorActionClipPropertyAdapter());
             registeredCount++;
-            registerAdapter(com.director.ui.timeline.model.entity.ActorPoseClip.class,
+            registerAdapter(com.director.timeline.model.entity.ActorPoseClip.class,
                     new com.director.ui.properties.adapters.ActorPoseClipPropertyAdapter());
             registeredCount++;
-            registerAdapter(com.director.ui.timeline.model.entity.ActorRouteClip.class,
+            registerAdapter(com.director.timeline.model.entity.ActorRouteClip.class,
                     new com.director.ui.properties.adapters.ActorRouteClipPropertyAdapter());
             registeredCount++;
             
             // ✅ 实体片段关键帧适配器
-            registerAdapter(com.director.ui.timeline.model.entity.EntityClipKeyframe.class,
+            registerAdapter(com.director.timeline.model.entity.EntityClipKeyframe.class,
                     new com.director.ui.properties.adapters.EntityClipKeyframePropertyAdapter());
             registeredCount++;
             

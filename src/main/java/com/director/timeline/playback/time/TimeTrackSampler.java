@@ -1,6 +1,6 @@
 package com.director.timeline.playback.time;
 
-import com.director.ui.timeline.model.time.TimeKeyframe;
+import com.director.timeline.model.time.TimeKeyframe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

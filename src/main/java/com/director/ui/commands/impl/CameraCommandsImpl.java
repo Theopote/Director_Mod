@@ -1,8 +1,8 @@
 package com.director.ui.commands.impl;
 
 import com.director.ui.commands.CameraCommands;
-import com.director.ui.timeline.model.TimelineModel;
-import com.director.ui.timeline.model.camera.path.CameraPathType;
+import com.director.timeline.model.TimelineModel;
+import com.director.timeline.model.camera.path.CameraPathType;
 
 public final class CameraCommandsImpl implements CameraCommands {
 

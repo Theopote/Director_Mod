@@ -22,7 +22,7 @@ import com.director.ui.panels.TimelinePanel;
 import com.director.ui.properties.PropertyAdapterContext;
 import com.director.ui.timeline.container.ContainerTimelineService;
 import com.director.timeline.model.ITimelineProject;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.ui.timeline.snapping.TimelineSnapSettings;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

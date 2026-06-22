@@ -1,7 +1,7 @@
 package com.director.timeline.playback.entity;
 
-import com.director.ui.timeline.model.entity.AnimationEvent;
-import com.director.ui.timeline.model.entity.EntityAnimationClip;
+import com.director.timeline.model.entity.AnimationEvent;
+import com.director.timeline.model.entity.EntityAnimationClip;
 
 import java.util.HashSet;
 import java.util.Set;

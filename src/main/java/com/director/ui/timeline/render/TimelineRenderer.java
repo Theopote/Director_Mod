@@ -2,16 +2,16 @@ package com.director.ui.timeline.render;
 
 import com.director.ui.theme.UITheme;
 import com.director.timeline.model.TimelineClip;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineSelectable;
 import com.director.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.TimelineViewportState;
+import com.director.timeline.model.TimelineViewportState;
 import com.director.timeline.model.TrackType;
-import com.director.ui.timeline.model.camera.CameraKeyframe;
-import com.director.ui.timeline.model.camera.path.CameraPathClip;
-import com.director.ui.timeline.model.camera.path.CameraPathType;
-import com.director.ui.timeline.model.time.TimeKeyframe;
-import com.director.ui.timeline.model.season.SeasonKeyframe;
+import com.director.timeline.model.camera.CameraKeyframe;
+import com.director.timeline.model.camera.path.CameraPathClip;
+import com.director.timeline.model.camera.path.CameraPathType;
+import com.director.timeline.model.time.TimeKeyframe;
+import com.director.timeline.model.season.SeasonKeyframe;
 
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -126,7 +126,7 @@ public class TimelineRenderer {
          * @param marker 标记
          * @return 临时时间，如果没有拖动则返回 -1
          */
-        float getDraggedMarkerTime(com.director.ui.timeline.model.TimelineMarker marker);
+        float getDraggedMarkerTime(com.director.timeline.model.TimelineMarker marker);
         
         /**
          * ⭐ 获取正在拖动中的 Path Clip 的临时开始时间
@@ -480,10 +480,10 @@ public class TimelineRenderer {
                 drawList.addText(textX, textY - 7, textColor, label);
             }
 
-            if (clip instanceof com.director.ui.timeline.model.camera.path.CustomPathClip customPathClip
+            if (clip instanceof com.director.timeline.model.camera.path.CustomPathClip customPathClip
                     && customPathClip.hasKeyframes()) {
                 float centerY = pathClipY + pathClipHeight * 0.5f;
-                for (com.director.ui.timeline.model.camera.CameraKeyframe keyframe : customPathClip.getKeyframes()) {
+                for (com.director.timeline.model.camera.CameraKeyframe keyframe : customPathClip.getKeyframes()) {
                     if (keyframe == null) {
                         continue;
                     }
@@ -575,7 +575,7 @@ public class TimelineRenderer {
         };
         
         // ⭐ 性能优化：如果是 Orbit，显示角度范围（避免使用 String.format，改用简单拼接）
-        if (pathType == CameraPathType.ORBIT && clip instanceof com.director.ui.timeline.model.camera.path.OrbitPathClip orbit) {
+        if (pathType == CameraPathType.ORBIT && clip instanceof com.director.timeline.model.camera.path.OrbitPathClip orbit) {
             float startAngle = orbit.getStartAngle();
             float endAngle = orbit.getEndAngle();
             float angleRange = endAngle - startAngle;
@@ -588,7 +588,7 @@ public class TimelineRenderer {
             return typeName + " · " + angleInt + "°";
         }
 
-        if (pathType == CameraPathType.CUSTOM && clip instanceof com.director.ui.timeline.model.camera.path.CustomPathClip custom) {
+        if (pathType == CameraPathType.CUSTOM && clip instanceof com.director.timeline.model.camera.path.CustomPathClip custom) {
             return typeName + " · " + custom.getKeyframes().size() + " KF";
         }
         

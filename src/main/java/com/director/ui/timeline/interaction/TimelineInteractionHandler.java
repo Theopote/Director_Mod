@@ -12,12 +12,12 @@ import com.director.ui.timeline.interaction.TimelineTrackHitTest.TrackControlHit
 import com.director.ui.timeline.menu.TimelineContextMenu;
 import com.director.ui.timeline.menu.TimelineContextMenuFactory;
 import com.director.timeline.model.TimelineClip;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineSelectable;
 import com.director.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.camera.path.CameraPathClip;
-import com.director.ui.timeline.model.entity.EntityTimelineClip;
-import com.director.ui.timeline.model.selection.TimelineKeyframeMultiSelection;
+import com.director.timeline.model.camera.path.CameraPathClip;
+import com.director.timeline.model.entity.EntityTimelineClip;
+import com.director.timeline.model.selection.TimelineKeyframeMultiSelection;
 import com.director.ui.timeline.render.TimelineRenderer;
 import com.director.ui.timeline.render.TimelineTrackControlHit;
 import com.director.ui.timeline.snapping.TimelineSnapping;
@@ -287,7 +287,7 @@ public class TimelineInteractionHandler {
      * @param marker 标记
      * @return 临时时间，如果没有拖动则返回 -1
      */
-    public float getDraggedMarkerTime(com.director.ui.timeline.model.TimelineMarker marker) {
+    public float getDraggedMarkerTime(com.director.timeline.model.TimelineMarker marker) {
         return playheadMarkerController.getDraggedMarkerTime(marker);
     }
     
@@ -339,7 +339,7 @@ public class TimelineInteractionHandler {
         }
         if (interactionManager.isInteracting(InteractionMode.DRAG_AUTOMATION_KEYFRAME)) {
             if (active instanceof AutomationKeyframeHandle handle
-                    && handle.keyframe instanceof com.director.ui.timeline.model.audio.AudioEvent
+                    && handle.keyframe instanceof com.director.timeline.model.audio.AudioEvent
                     && handle.currentTrack != handle.originalTrack) {
                 handle.currentTrack = handle.originalTrack;
             }
@@ -432,11 +432,11 @@ public class TimelineInteractionHandler {
             return;
         }
 
-        List<com.director.ui.timeline.model.clip.ClipKeyframe> clipKeyframes = new ArrayList<>();
+        List<com.director.timeline.model.clip.ClipKeyframe> clipKeyframes = new ArrayList<>();
         List<TimelineSelectable> automationKeyframes = new ArrayList<>();
 
         for (Object it : model.getSelectedItems()) {
-            if (it instanceof com.director.ui.timeline.model.clip.ClipKeyframe ckf) {
+            if (it instanceof com.director.timeline.model.clip.ClipKeyframe ckf) {
                 clipKeyframes.add(ckf);
             } else if (it instanceof TimelineSelectable selectable && !(it instanceof TimelineClip)) {
                 automationKeyframes.add(selectable);
@@ -588,8 +588,8 @@ public class TimelineInteractionHandler {
                 case AUTOMATION_KEYFRAME -> onAutomationKeyframeClicked(hit, mouseX, contentX, isDoubleClick);
                 case MARKER -> {
                     // ⭐ 标记左键点击：选择标记（右键拖动在 TimelinePanel.handleRulerInteractions 中处理）
-                    com.director.ui.timeline.model.TimelineMarker marker = 
-                        (com.director.ui.timeline.model.TimelineMarker) hit.automationKeyframe();
+                    com.director.timeline.model.TimelineMarker marker = 
+                        (com.director.timeline.model.TimelineMarker) hit.automationKeyframe();
                     if (marker != null) {
                         model.selectItem(marker, false);
                         syncPropertiesSelection(marker);
@@ -734,7 +734,7 @@ public class TimelineInteractionHandler {
         playheadMarkerController.clickTimeRuler(mouseX, contentX);
     }
 
-    public void startMarkerDrag(com.director.ui.timeline.model.TimelineMarker marker, float mouseX, float contentX) {
+    public void startMarkerDrag(com.director.timeline.model.TimelineMarker marker, float mouseX, float contentX) {
         playheadMarkerController.startMarkerDrag(marker, mouseX, contentX);
     }
 

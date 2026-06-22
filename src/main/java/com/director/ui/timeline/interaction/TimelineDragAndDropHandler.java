@@ -9,7 +9,7 @@ import com.director.core.animation.ClipAnimationConfig;
 import com.director.core.animation.sequence.ConcurrencyMode;
 import com.director.core.animation.sequence.SequenceParameters;
 import com.director.timeline.model.TimelineClip;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
 import com.director.ui.timeline.render.TimelineRenderer;

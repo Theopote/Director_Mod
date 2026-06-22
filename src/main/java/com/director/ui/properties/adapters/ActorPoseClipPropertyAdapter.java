@@ -3,7 +3,7 @@ package com.director.ui.properties.adapters;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
-import com.director.ui.timeline.model.entity.ActorPoseClip;
+import com.director.timeline.model.entity.ActorPoseClip;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
 

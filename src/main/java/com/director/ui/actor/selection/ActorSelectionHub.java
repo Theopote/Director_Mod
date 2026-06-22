@@ -6,10 +6,10 @@ import com.director.actor.ActorRef;
 import com.director.ui.actor.gizmo.ActorGizmoController;
 import com.director.ui.selection.SelectionManager;
 import com.director.ui.timeline.container.ContainerTimelineService;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
-import com.director.ui.timeline.model.entity.ActorTrack;
+import com.director.timeline.model.entity.ActorTrack;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

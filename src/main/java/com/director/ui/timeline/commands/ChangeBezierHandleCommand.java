@@ -1,8 +1,8 @@
 package com.director.ui.timeline.commands;
 
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.camera.CameraKeyframe;
+import com.director.timeline.model.camera.CameraKeyframe;
 import com.director.timeline.playback.camera.TimelineCameraController;
 import org.joml.Vector3f;
 import org.slf4j.Logger;

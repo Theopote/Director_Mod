@@ -5,7 +5,7 @@ import org.slf4j.LoggerFactory;
 
 import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineInterpolation;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 
 /**
  * 移动关键帧命令（支持撤销）。

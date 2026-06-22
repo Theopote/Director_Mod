@@ -1,7 +1,7 @@
 package com.director.ui.commands.impl;
 
 import com.director.ui.commands.PlaybackCommands;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.ui.timeline.playback.PlaybackOrchestrator;
 import com.director.ui.timeline.playback.TimelineClipBlockController;
 import com.director.timeline.playback.camera.TimelineCameraController;

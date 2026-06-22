@@ -1,8 +1,8 @@
 package com.director.ui.timeline.playback.audio;
 
 import com.director.ui.timeline.audio.TimelineAudioService;
-import com.director.ui.timeline.model.audio.AudioEvent;
-import com.director.ui.timeline.model.audio.AudioTrack;
+import com.director.timeline.model.audio.AudioEvent;
+import com.director.timeline.model.audio.AudioTrack;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.sound.PositionedSoundInstance;
 import net.minecraft.registry.Registries;

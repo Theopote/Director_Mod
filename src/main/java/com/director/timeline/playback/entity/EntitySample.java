@@ -2,7 +2,7 @@ package com.director.timeline.playback.entity;
 
 import com.director.actor.action.ActorActionType;
 import com.director.timeline.model.TimelineInterpolation;
-import com.director.ui.timeline.model.entity.EntityKeyframe;
+import com.director.timeline.model.entity.EntityKeyframe;
 import org.joml.Vector3f;
 
 /**

@@ -2,7 +2,7 @@ package com.director.ui.actor;
 
 import com.director.actor.*;
 import com.director.ui.actor.placement.ActorPlacementController;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;
 import imgui.type.ImString;
@@ -334,7 +334,7 @@ public final class ActorSelectorPanel {
 
         for (com.director.timeline.model.TimelineTrack track : timelineModel.getAllTracks()) {
             if (track.getType() == com.director.timeline.model.TrackType.ACTOR) {
-                com.director.ui.timeline.model.entity.ActorTrack actorTrack = track.getActorTrackPayload();
+                com.director.timeline.model.entity.ActorTrack actorTrack = track.getActorTrackPayload();
                 if (actorTrack != null) {
                     com.director.actor.ActorRef ref = actorTrack.getActorRef();
                     if (ref != null && actorId.equals(ref.getActorId())) {
@@ -358,7 +358,7 @@ public final class ActorSelectorPanel {
 
         for (com.director.timeline.model.TimelineTrack track : timelineModel.getAllTracks()) {
             if (track.getType() == com.director.timeline.model.TrackType.ACTOR) {
-                com.director.ui.timeline.model.entity.ActorTrack actorTrack = track.getActorTrackPayload();
+                com.director.timeline.model.entity.ActorTrack actorTrack = track.getActorTrackPayload();
                 if (actorTrack != null) {
                     com.director.actor.ActorRef ref = actorTrack.getActorRef();
                     if (ref != null && actor.getActorId().equals(ref.getActorId())) {

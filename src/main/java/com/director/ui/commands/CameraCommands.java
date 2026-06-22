@@ -1,6 +1,6 @@
 package com.director.ui.commands;
 
-import com.director.ui.timeline.model.camera.path.CameraPathType;
+import com.director.timeline.model.camera.path.CameraPathType;
 
 /**
  * 摄像机命令接口 - 导演级语义

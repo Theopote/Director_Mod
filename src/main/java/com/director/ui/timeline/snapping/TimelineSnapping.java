@@ -3,7 +3,7 @@ package com.director.ui.timeline.snapping;
 import java.util.List;
 
 import com.director.timeline.model.TimelineClip;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 
 /**

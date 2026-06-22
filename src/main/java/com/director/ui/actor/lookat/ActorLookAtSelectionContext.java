@@ -1,6 +1,6 @@
 package com.director.ui.actor.lookat;
 
-import com.director.ui.timeline.model.entity.EntityLookAtClip;
+import com.director.timeline.model.entity.EntityLookAtClip;
 
 /**
  * ActorLookAtSelectionContext v1.0

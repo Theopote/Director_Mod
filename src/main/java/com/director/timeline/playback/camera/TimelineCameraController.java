@@ -2,13 +2,13 @@ package com.director.timeline.playback.camera;
 
 import com.director.client.DirectorClientController;
 import com.director.client.renderer.CameraPathDebugRenderer;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
 import com.director.timeline.model.TimelineSelectable;
-import com.director.ui.timeline.model.camera.CameraKeyframe;
-import com.director.ui.timeline.model.camera.path.CameraPathClip;
-import com.director.ui.timeline.model.camera.path.CustomPathClip;
+import com.director.timeline.model.camera.CameraKeyframe;
+import com.director.timeline.model.camera.path.CameraPathClip;
+import com.director.timeline.model.camera.path.CustomPathClip;
 import net.minecraft.client.MinecraftClient;
 import org.joml.Vector3f;
 import org.slf4j.Logger;

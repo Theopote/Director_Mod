@@ -5,7 +5,7 @@ import com.director.ui.timeline.commands.TimelineCommandHistory;
 import com.director.ui.timeline.interaction.TimelineDragHandles.ClipHandle;
 import com.director.ui.timeline.interaction.TimelineInteractionManager.InteractionMode;
 import com.director.timeline.model.TimelineClip;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
 import com.director.ui.timeline.render.TimelineRenderer;
@@ -189,7 +189,7 @@ public final class TimelineClipDragHandler {
         float startMouseX = interactionManager.getDragStartMouseX();
         float delta = renderer.xToTime(mouseX, contentX) - renderer.xToTime(startMouseX, contentX);
 
-        boolean isBoundAudioClip = handle.clip instanceof com.director.ui.timeline.model.audio.AudioTimelineClip
+        boolean isBoundAudioClip = handle.clip instanceof com.director.timeline.model.audio.AudioTimelineClip
                 && com.director.ui.timeline.audio.TimelineAudioService.getInstance().isAudioClipBound(handle.clip);
         if (isBoundAudioClip) {
             delta = 0f;
@@ -400,7 +400,7 @@ public final class TimelineClipDragHandler {
         if (clip.getBoundContainerId() == null) {
             return true;
         }
-        if (clip instanceof com.director.ui.timeline.model.audio.AudioTimelineClip) {
+        if (clip instanceof com.director.timeline.model.audio.AudioTimelineClip) {
             return tt == TrackType.AUDIO;
         }
         return tt == TrackType.CONTAINER;

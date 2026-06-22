@@ -2,7 +2,7 @@ package com.director.timeline.playback.entity;
 
 import com.director.timeline.model.TimelineInterpolation;
 import com.director.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.entity.EntityKeyframe;
+import com.director.timeline.model.entity.EntityKeyframe;
 
 import java.util.ArrayList;
 import java.util.Collections;

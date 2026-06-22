@@ -3,7 +3,7 @@ package com.director.ui.timeline.interaction;
 import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineSelectable;
 import com.director.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.clip.ClipKeyframe;
+import com.director.timeline.model.clip.ClipKeyframe;
 
 /**
  * 命中检测结果，用于统一描述鼠标点击命中的元素。
@@ -76,7 +76,7 @@ public record TimelineHitResult(
     /**
      * 创建标记的命中结果（时间标尺上的标记）
      */
-    public static TimelineHitResult marker(com.director.ui.timeline.model.TimelineMarker marker) {
+    public static TimelineHitResult marker(com.director.timeline.model.TimelineMarker marker) {
         return new TimelineHitResult(HitType.MARKER, null, null, null, marker, null,
                 marker != null ? marker.getTime() : -1f, -1, -1);
     }

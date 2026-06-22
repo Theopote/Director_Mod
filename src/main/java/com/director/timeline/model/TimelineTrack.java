@@ -2,11 +2,11 @@ package com.director.timeline.model;
 
 import com.director.core.DirectorServices;
 import com.director.timeline.model.TrackType;
-import com.director.ui.timeline.model.audio.AudioEvent;
-import com.director.ui.timeline.model.camera.CameraViewportProfile;
-import com.director.ui.timeline.model.camera.CameraKeyframe;
-import com.director.ui.timeline.model.camera.path.CameraPathClip;
-import com.director.ui.timeline.model.camera.path.CustomPathClip;
+import com.director.timeline.model.audio.AudioEvent;
+import com.director.timeline.model.camera.CameraViewportProfile;
+import com.director.timeline.model.camera.CameraKeyframe;
+import com.director.timeline.model.camera.path.CameraPathClip;
+import com.director.timeline.model.camera.path.CustomPathClip;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -41,13 +41,13 @@ public class TimelineTrack {
     private java.util.UUID boundActorId;
     
     /** 实体类型（仅对演员轨道有效） */
-    private com.director.ui.timeline.model.entity.EntityKeyframe.EntityType boundEntityType;
+    private com.director.timeline.model.entity.EntityKeyframe.EntityType boundEntityType;
 
     /** 演员显示名称（如 "主角 Steve", "守卫 A"） */
     private String actorDisplayName;
 
     /** ActorTrack payload（仅对演员轨道有效，用于存储 EntityClip 系统） */
-    private com.director.ui.timeline.model.entity.ActorTrack actorTrackPayload;
+    private com.director.timeline.model.entity.ActorTrack actorTrackPayload;
     
     // ========== 音频事件（仅对音频轨道有效）==========
     private final List<AudioEvent> audioEvents = new ArrayList<>();
@@ -90,7 +90,7 @@ public class TimelineTrack {
             // 且“容器片段”不允许被拖到其它轨道（相机/天气/时间等）。
             //
             // 重要：AudioTimelineClip 也可能绑定容器（用于音效同步），不能被当成容器片段处理。
-            boolean isAudioClip = clip instanceof com.director.ui.timeline.model.audio.AudioTimelineClip;
+            boolean isAudioClip = clip instanceof com.director.timeline.model.audio.AudioTimelineClip;
             if (!isAudioClip && clip.getBoundContainerId() != null) {
                 // 容器片段只允许出现在 CONTAINER 轨道
                 if (this.type != TrackType.CONTAINER) {
@@ -300,7 +300,7 @@ public class TimelineTrack {
      * @return 不可修改的旧音频事件列表
      */
     public List<AudioEvent> getLegacyAudioEventsForMigration() {
-        if (this instanceof com.director.ui.timeline.model.audio.AudioTrack at) {
+        if (this instanceof com.director.timeline.model.audio.AudioTrack at) {
             return at.getEvents();
         }
         return Collections.unmodifiableList(audioEvents);
@@ -313,7 +313,7 @@ public class TimelineTrack {
      *
      * @return ActorTrack，如果未设置则返回 null
      */
-    public com.director.ui.timeline.model.entity.ActorTrack getActorTrackPayload() {
+    public com.director.timeline.model.entity.ActorTrack getActorTrackPayload() {
         return actorTrackPayload;
     }
 
@@ -322,7 +322,7 @@ public class TimelineTrack {
      *
      * @param actorTrack ActorTrack
      */
-    public void setActorTrackPayload(com.director.ui.timeline.model.entity.ActorTrack actorTrack) {
+    public void setActorTrackPayload(com.director.timeline.model.entity.ActorTrack actorTrack) {
         this.actorTrackPayload = actorTrack;
     }
 
@@ -331,18 +331,18 @@ public class TimelineTrack {
      *
      * @return ActorTrack
      */
-    public com.director.ui.timeline.model.entity.ActorTrack getOrCreateActorTrackPayload() {
+    public com.director.timeline.model.entity.ActorTrack getOrCreateActorTrackPayload() {
         if (actorTrackPayload == null) {
             String displayName = actorDisplayName != null ? actorDisplayName : name;
-            actorTrackPayload = new com.director.ui.timeline.model.entity.ActorTrack(displayName);
+            actorTrackPayload = new com.director.timeline.model.entity.ActorTrack(displayName);
             // 同步绑定信息
             if (boundActorId != null) {
                 // 注意：ActorTrack 的 actorId 是自动生成的，这里只同步显示名称
             }
             if (boundEntityType != null) {
                 // 可以在这里设置 EntityBinding
-                com.director.ui.timeline.model.entity.EntityBinding binding = 
-                    new com.director.ui.timeline.model.entity.EntityBinding();
+                com.director.timeline.model.entity.EntityBinding binding = 
+                    new com.director.timeline.model.entity.EntityBinding();
                 // 根据 boundEntityType 设置 entityTypeId（简化处理）
                 binding.setEntityTypeId("minecraft:villager"); // 默认值
                 actorTrackPayload.setBinding(binding);

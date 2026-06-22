@@ -115,27 +115,20 @@
 - `com.director.ui.timeline.model.*` → `com.director.timeline.model.*`
 - 同步迁移子包：`model.entity/*`、`model.camera/*`、`model.audio/*`、`model.weather/*`…
 
-### 3.1 当前进度（已开始）
+### Batch 3 — 全部完成 ✅
 
-- ✅ `TrackType` → `com.director.timeline.model.TrackType`
-- ✅ `TimelineInterpolation` → `com.director.timeline.model.TimelineInterpolation`
-- ✅ `ITimelineProject` → `com.director.timeline.model.ITimelineProject`
-- ✅ `TimelineSelectable` → `com.director.timeline.model.TimelineSelectable`
-- ✅ `TimelineClip` → `com.director.timeline.model.TimelineClip`
-- ✅ `TimelineTrack` → `com.director.timeline.model.TimelineTrack`
+所有 `com.director.ui.timeline.model.*` 已迁至 `com.director.timeline.model.*`，零残留引用，编译通过。
 
-说明：以上六项迁移后已完成全项目 import/FQN 更新并通过编译。`TimelineClip.setParentTrack` 改为 `public`，以便跨包由 `TimelineTrack` 维护父引用。
+| 子批次 | 迁移内容 | 工具脚本 |
+|--------|---------|---------|
+| 3.1 | `TrackType`、`TimelineInterpolation`、`ITimelineProject`、`TimelineSelectable`、`TimelineClip` | `relocate_model_core_types.py`、`relocate_model_interface_itimelineproject.py`、`relocate_model_clip_selectable.py` |
+| 3.2 | `TimelineTrack` | `relocate_model_timelinetrack.py` |
+| 3.3 | `TimelineModel`、`VisibilityKeyframe`、`TimelineMarker`、`TimelineViewportState`；子包 `audio/`、`camera/`、`camera/path/`、`clip/`、`entity/`、`season/`、`selection/`、`time/`、`weather/`（共 ~50 文件）| `relocate_model_batch33.py` |
 
-工具脚本：
-
-- `tools/relocate_model_clip_selectable.py`：`TimelineSelectable` / `TimelineClip`
-- `tools/relocate_model_timelinetrack.py`：`TimelineTrack`
-
-批次拆分建议：
-
-- 3.1 先迁 `TrackType`、`TimelineInterpolation`、轻量 enum/value、`TimelineSelectable`、`TimelineClip` ✅
-- 3.2 再迁 `TimelineTrack` ✅
-- 3.3 最后迁 `TimelineModel`（最中心）及子包
+说明：
+- `TimelineClip.setParentTrack` 已改为 `public`（跨包维护父引用）
+- `TimelineModel` 中冗余同包 import 保留（无害，不影响编译）
+- `com.director.ui.timeline.model` 包已清空，目录将由 git 自动清理
 
 ---
 
@@ -156,7 +149,7 @@
 
 完成阶段 A 的最终目标（可分阶段验收）：
 
-1. `core/`、`actor/`、`mixin/`、`export/` **不再 import `com.director.ui.timeline.model.*` 或 `com.director.ui.timeline.playback.*`**
+1. `core/`、`actor/`、`mixin/`、`export/` **不再 import `com.director.ui.timeline.model.*` 或 `com.director.ui.timeline.playback.*`** ✅（已达成）
 2. `ui.timeline.*` 仅保留 ImGui/交互/渲染/命令 UI glue，不承载领域模型
 3. 全量编译通过：`./gradlew compileJava`
 

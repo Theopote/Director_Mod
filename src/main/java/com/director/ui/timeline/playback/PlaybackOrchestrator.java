@@ -1,7 +1,7 @@
 package com.director.ui.timeline.playback;
 
 import net.minecraft.client.MinecraftClient;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.playback.camera.TimelineCameraController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -6,7 +6,7 @@ import com.director.core.container.ContainerState;
 import com.director.core.container.ContainerManager;
 import com.director.ui.timeline.container.ContainerTimelineService;
 import com.director.timeline.model.TimelineClip;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 
 import java.util.ArrayList;

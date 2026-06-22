@@ -4,7 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.director.timeline.model.TimelineClip;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 
 /**
@@ -35,7 +35,7 @@ public class DuplicateClipCommand extends BaseTimelineCommand {
             return;
         }
         if (originalClip.getBoundContainerId() != null
-            && !(originalClip instanceof com.director.ui.timeline.model.audio.AudioTimelineClip)) {
+            && !(originalClip instanceof com.director.timeline.model.audio.AudioTimelineClip)) {
             LOGGER.warn("[Timeline] 容器片段不支持直接复制，请从容器列表重新拖入或移动现有片段: {}",
                 originalClip.getLabel());
             return;

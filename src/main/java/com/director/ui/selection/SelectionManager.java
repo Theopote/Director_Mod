@@ -3,9 +3,9 @@ package com.director.ui.selection;
 import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineSelectable;
 import com.director.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.clip.ClipKeyframe;
-import com.director.ui.timeline.model.entity.EntityClip;
-import com.director.ui.timeline.model.selection.TimelineKeyframeMultiSelection;
+import com.director.timeline.model.clip.ClipKeyframe;
+import com.director.timeline.model.entity.EntityClip;
+import com.director.timeline.model.selection.TimelineKeyframeMultiSelection;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

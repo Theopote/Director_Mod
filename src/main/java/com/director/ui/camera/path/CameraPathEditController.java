@@ -8,12 +8,12 @@ import com.director.client.input.DirectorInputSystem;
 import com.director.client.renderer.CameraPathDebugRenderer;
 import com.director.mixin.accessor.GameRendererAccessor;
 import com.director.ui.timeline.container.ContainerTimelineService;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineSelectable;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
-import com.director.ui.timeline.model.camera.CameraKeyframe;
-import com.director.ui.timeline.model.camera.path.CustomPathClip;
+import com.director.timeline.model.camera.CameraKeyframe;
+import com.director.timeline.model.camera.path.CustomPathClip;
 import com.director.timeline.playback.camera.CameraSample;
 import com.director.timeline.playback.camera.TimelineCameraController;
 import com.director.timeline.playback.camera.TimelineCameraPathManager;
@@ -325,7 +325,7 @@ public final class CameraPathEditController {
             track.removeAutomationKeyframe(selectable.getId());
             removed++;
         }
-        for (com.director.ui.timeline.model.camera.path.CameraPathClip pathClip : track.getCameraPathClips()) {
+        for (com.director.timeline.model.camera.path.CameraPathClip pathClip : track.getCameraPathClips()) {
             if (!(pathClip instanceof CustomPathClip customPathClip)) {
                 continue;
             }
@@ -715,7 +715,7 @@ public final class CameraPathEditController {
                 out.add(keyframe);
             }
         }
-        for (com.director.ui.timeline.model.camera.path.CameraPathClip pathClip : track.getCameraPathClips()) {
+        for (com.director.timeline.model.camera.path.CameraPathClip pathClip : track.getCameraPathClips()) {
             if (pathClip instanceof CustomPathClip customPathClip) {
                 out.addAll(customPathClip.getKeyframes());
             }
@@ -742,7 +742,7 @@ public final class CameraPathEditController {
             groups.add(new KeyframeGroup(null, legacyKeyframes));
         }
 
-        for (com.director.ui.timeline.model.camera.path.CameraPathClip pathClip : track.getCameraPathClips()) {
+        for (com.director.timeline.model.camera.path.CameraPathClip pathClip : track.getCameraPathClips()) {
             if (!(pathClip instanceof CustomPathClip customPathClip) || customPathClip.getKeyframes().size() < 2) {
                 continue;
             }

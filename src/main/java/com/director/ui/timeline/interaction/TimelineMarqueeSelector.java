@@ -1,7 +1,7 @@
 package com.director.ui.timeline.interaction;
 
 import com.director.timeline.model.TimelineClip;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineSelectable;
 import com.director.timeline.model.TimelineTrack;
 import com.director.ui.timeline.render.TimelineColors;
@@ -159,11 +159,11 @@ public final class TimelineMarqueeSelector {
                     if (clip == null) {
                         continue;
                     }
-                    List<com.director.ui.timeline.model.clip.ClipKeyframe> kfs = clip.getClipKeyframes();
+                    List<com.director.timeline.model.clip.ClipKeyframe> kfs = clip.getClipKeyframes();
                     if (kfs == null || kfs.isEmpty()) {
                         continue;
                     }
-                    for (com.director.ui.timeline.model.clip.ClipKeyframe kf : kfs) {
+                    for (com.director.timeline.model.clip.ClipKeyframe kf : kfs) {
                         if (kf == null) {
                             continue;
                         }

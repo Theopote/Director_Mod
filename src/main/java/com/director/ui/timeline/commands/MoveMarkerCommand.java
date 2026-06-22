@@ -1,7 +1,7 @@
 package com.director.ui.timeline.commands;
 
-import com.director.ui.timeline.model.TimelineModel;
-import com.director.ui.timeline.model.TimelineMarker;
+import com.director.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineMarker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

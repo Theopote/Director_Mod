@@ -1,6 +1,6 @@
 package com.director.timeline.playback.season;
 
-import com.director.ui.timeline.model.season.SeasonKeyframe;
+import com.director.timeline.model.season.SeasonKeyframe;
 import net.minecraft.util.math.MathHelper;
 
 import java.util.ArrayList;

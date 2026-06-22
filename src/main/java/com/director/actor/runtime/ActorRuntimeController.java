@@ -8,9 +8,9 @@ import com.director.actor.preview.ActorPreviewManager;
 import com.director.actor.rig.*;
 import net.minecraft.entity.Entity;
 import com.director.actor.prop.*;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.entity.ActorTrack;
+import com.director.timeline.model.entity.ActorTrack;
 import com.director.timeline.playback.entity.EntityClipSampler;
 import com.director.timeline.playback.entity.EntitySample;
 import com.director.timeline.playback.entity.EntityActionEvent;
@@ -697,9 +697,9 @@ public final class ActorRuntimeController {
                 LOGGER.debug("[ActorRuntime] Actor {} 触发 Action: {}", actor.getName(), e.type());
                 
                 // 处理 Prop 相关 Action
-                if (e.type() == com.director.ui.timeline.model.entity.EntityActionClip.ActionType.ATTACH_PROP
-                        || e.type() == com.director.ui.timeline.model.entity.EntityActionClip.ActionType.DETACH_PROP
-                        || e.type() == com.director.ui.timeline.model.entity.EntityActionClip.ActionType.SWITCH_PROP) {
+                if (e.type() == com.director.timeline.model.entity.EntityActionClip.ActionType.ATTACH_PROP
+                        || e.type() == com.director.timeline.model.entity.EntityActionClip.ActionType.DETACH_PROP
+                        || e.type() == com.director.timeline.model.entity.EntityActionClip.ActionType.SWITCH_PROP) {
                     applyPropAction(actor, entity, e);
                 }
                 
@@ -828,7 +828,7 @@ public final class ActorRuntimeController {
                         if (params.containsKey("rotationZ")) attachParams.put("rotationZ", params.get("rotationZ"));
 
                         EntityActionEvent attachEvent = new EntityActionEvent(
-                                com.director.ui.timeline.model.entity.EntityActionClip.ActionType.ATTACH_PROP,
+                                com.director.timeline.model.entity.EntityActionClip.ActionType.ATTACH_PROP,
                                 attachParams
                         );
                         applyPropAction(actor, entity, attachEvent);

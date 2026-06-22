@@ -3,7 +3,7 @@ package com.director.ui.timeline.commands;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 
 /**
  * Timeline 命令基类

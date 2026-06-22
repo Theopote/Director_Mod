@@ -6,7 +6,7 @@ import com.director.core.container.ContainerManager;
 import com.director.core.container.ContainerType;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
-import com.director.ui.timeline.model.audio.AudioEvent;
+import com.director.timeline.model.audio.AudioEvent;
 import com.director.ui.timeline.audio.TimelineAudioService;
 import com.director.timeline.model.TimelineClip;
 import imgui.ImDrawList;
@@ -72,7 +72,7 @@ public class TimelineAudioRenderer {
         }
         
         // 转换为 AudioTrack
-        if (!(track instanceof com.director.ui.timeline.model.audio.AudioTrack audioTrack)) {
+        if (!(track instanceof com.director.timeline.model.audio.AudioTrack audioTrack)) {
             return;
         }
 

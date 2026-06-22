@@ -30,7 +30,7 @@ public final class TimelineRulerRenderer {
     private final TimelineRenderMath math;
     private final TimelineRenderViewport viewport;
     private final TimelineTimeFormatter timeFormatter;
-    private com.director.ui.timeline.model.TimelineModel model;
+    private com.director.timeline.model.TimelineModel model;
     private TimelineRenderer.DragStateQuery dragStateQuery;  // ⭐ 拖动状态查询器（用于显示拖动中的标记位置）
     
     // ★ 性能优化：使用 Map 缓存步长计算，避免重复计算
@@ -52,7 +52,7 @@ public final class TimelineRulerRenderer {
     /**
      * 设置 TimelineModel（用于渲染标记）
      */
-    public void setModel(com.director.ui.timeline.model.TimelineModel model) {
+    public void setModel(com.director.timeline.model.TimelineModel model) {
         this.model = model;
     }
     
@@ -145,7 +145,7 @@ public final class TimelineRulerRenderer {
             return;
         }
         
-        java.util.List<com.director.ui.timeline.model.TimelineMarker> markers = model.getMarkers();
+        java.util.List<com.director.timeline.model.TimelineMarker> markers = model.getMarkers();
         if (markers == null || markers.isEmpty()) {
             return;
         }
@@ -156,7 +156,7 @@ public final class TimelineRulerRenderer {
         float mouseX = ImGui.getIO().getMousePosX();
         float mouseY = ImGui.getIO().getMousePosY();
         
-        for (com.director.ui.timeline.model.TimelineMarker marker : markers) {
+        for (com.director.timeline.model.TimelineMarker marker : markers) {
             if (marker == null) continue;
             
             // ⭐ 检查是否正在拖动此标记（使用拖动中的临时时间）

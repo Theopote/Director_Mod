@@ -1,7 +1,7 @@
 package com.director.ui.properties.adapters;
 
 import com.director.ui.properties.IPropertyAdapter;
-import com.director.ui.timeline.model.selection.TimelineKeyframeMultiSelection;
+import com.director.timeline.model.selection.TimelineKeyframeMultiSelection;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import imgui.ImGui;

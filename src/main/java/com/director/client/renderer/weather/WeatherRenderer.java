@@ -77,7 +77,7 @@ public class WeatherRenderer {
         particleTickCounter++;
 
         // 渲染特殊天气事件（沙暴、暴雪等特殊效果）
-        if (currentSample.specialWeatherType != com.director.ui.timeline.model.weather.WeatherKeyframe.SpecialWeatherType.NONE
+        if (currentSample.specialWeatherType != com.director.timeline.model.weather.WeatherKeyframe.SpecialWeatherType.NONE
                 && currentSample.specialWeatherIntensity > 0.01f) {
             renderSpecialWeather(world, particleManager, playerPos);
         }

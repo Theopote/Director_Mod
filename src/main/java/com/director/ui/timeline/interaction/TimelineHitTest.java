@@ -2,7 +2,7 @@ package com.director.ui.timeline.interaction;
 
 import com.director.ui.timeline.interaction.TimelineTrackHitTest.TrackControlHitResult;
 import com.director.timeline.model.TimelineClip;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineSelectable;
 import com.director.timeline.model.TimelineTrack;
 import com.director.ui.timeline.render.TimelineRenderer;
@@ -222,15 +222,15 @@ public final class TimelineHitTest {
 
         float bestDistSq = Float.MAX_VALUE;
         TimelineClip bestClip = null;
-        com.director.ui.timeline.model.clip.ClipKeyframe bestClipKeyframe = null;
+        com.director.timeline.model.clip.ClipKeyframe bestClipKeyframe = null;
         float bestTime = -1f;
 
         for (TimelineClip clip : clips) {
             float centerY = trackTop + (TimelineRenderer.getTrackHeight() / 2.0f);
 
-            List<com.director.ui.timeline.model.clip.ClipKeyframe> clipKeyframes = clip.getClipKeyframes();
+            List<com.director.timeline.model.clip.ClipKeyframe> clipKeyframes = clip.getClipKeyframes();
             if (clipKeyframes != null && !clipKeyframes.isEmpty()) {
-                for (com.director.ui.timeline.model.clip.ClipKeyframe kf : clipKeyframes) {
+                for (com.director.timeline.model.clip.ClipKeyframe kf : clipKeyframes) {
                     if (kf == null) {
                         continue;
                     }
@@ -281,12 +281,12 @@ public final class TimelineHitTest {
             }
             if (bestTime >= 0f) {
                 final float EPS = 0.001f;
-                com.director.ui.timeline.model.clip.ClipKeyframe clipKeyframe =
+                com.director.timeline.model.clip.ClipKeyframe clipKeyframe =
                         bestClip.findKeyframeAt(bestTime, EPS);
                 if (clipKeyframe != null) {
                     return TimelineHitResult.keyframe(track, bestClip, clipKeyframe, trackIndex);
                 }
-                clipKeyframe = new com.director.ui.timeline.model.clip.ClipKeyframe(bestTime);
+                clipKeyframe = new com.director.timeline.model.clip.ClipKeyframe(bestTime);
                 return TimelineHitResult.keyframe(track, bestClip, clipKeyframe, trackIndex);
             }
         }
@@ -332,9 +332,9 @@ public final class TimelineHitTest {
         float handleWidth = 8f;
         
         // 遍历所有 Path Clip（从后往前，优先命中后面的）
-        java.util.List<com.director.ui.timeline.model.camera.path.CameraPathClip> pathClips = track.getCameraPathClips();
+        java.util.List<com.director.timeline.model.camera.path.CameraPathClip> pathClips = track.getCameraPathClips();
         for (int i = pathClips.size() - 1; i >= 0; i--) {
-            com.director.ui.timeline.model.camera.path.CameraPathClip clip = pathClips.get(i);
+            com.director.timeline.model.camera.path.CameraPathClip clip = pathClips.get(i);
             if (clip == null || !clip.isEnabled()) {
                 continue;
             }
@@ -395,14 +395,14 @@ public final class TimelineHitTest {
         float scrollX = model.getScrollX();
         float centerY = pathClipY + pathClipHeight * 0.5f;
         float bestDistSq = Float.MAX_VALUE;
-        com.director.ui.timeline.model.camera.CameraKeyframe bestKeyframe = null;
+        com.director.timeline.model.camera.CameraKeyframe bestKeyframe = null;
 
-        for (com.director.ui.timeline.model.camera.path.CameraPathClip pathClip : track.getCameraPathClips()) {
-            if (!(pathClip instanceof com.director.ui.timeline.model.camera.path.CustomPathClip customPathClip)
+        for (com.director.timeline.model.camera.path.CameraPathClip pathClip : track.getCameraPathClips()) {
+            if (!(pathClip instanceof com.director.timeline.model.camera.path.CustomPathClip customPathClip)
                     || !customPathClip.isEnabled()) {
                 continue;
             }
-            for (com.director.ui.timeline.model.camera.CameraKeyframe keyframe : customPathClip.getKeyframes()) {
+            for (com.director.timeline.model.camera.CameraKeyframe keyframe : customPathClip.getKeyframes()) {
                 if (keyframe == null) {
                     continue;
                 }

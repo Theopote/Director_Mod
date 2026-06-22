@@ -1,10 +1,10 @@
 package com.director.client.renderer;
 
-import com.director.ui.timeline.model.camera.CameraKeyframe;
-import com.director.ui.timeline.model.camera.path.CameraPathClip;
-import com.director.ui.timeline.model.camera.path.OrbitPathClip;
-import com.director.ui.timeline.model.camera.path.DollyPathClip;
-import com.director.ui.timeline.model.camera.path.CranePathClip;
+import com.director.timeline.model.camera.CameraKeyframe;
+import com.director.timeline.model.camera.path.CameraPathClip;
+import com.director.timeline.model.camera.path.OrbitPathClip;
+import com.director.timeline.model.camera.path.DollyPathClip;
+import com.director.timeline.model.camera.path.CranePathClip;
 import com.director.timeline.model.TimelineTrack;
 import com.director.ui.camera.path.CameraPathEditController;
 import com.director.timeline.playback.camera.CameraSample;

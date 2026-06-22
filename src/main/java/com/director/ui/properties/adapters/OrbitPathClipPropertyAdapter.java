@@ -5,9 +5,9 @@ import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import com.director.ui.timeline.container.ContainerTimelineService;
-import com.director.ui.timeline.model.TimelineModel;
-import com.director.ui.timeline.model.camera.path.CameraPathEnterContext;
-import com.director.ui.timeline.model.camera.path.OrbitPathClip;
+import com.director.timeline.model.TimelineModel;
+import com.director.timeline.model.camera.path.CameraPathEnterContext;
+import com.director.timeline.model.camera.path.OrbitPathClip;
 import com.director.timeline.playback.camera.CameraRuntime;
 import com.director.timeline.playback.camera.CameraSample;
 import com.director.timeline.playback.camera.TimelineCameraController;
@@ -102,7 +102,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
             nameBuffer.set(clip.getName());
             radiusFloat.set(clip.getRadius());
             // ⭐ 高度：只在 ABSOLUTE 模式下更新缓存
-            if (clip.getHeightMode() == com.director.ui.timeline.model.camera.path.OrbitPathClip.HeightMode.ABSOLUTE) {
+            if (clip.getHeightMode() == com.director.timeline.model.camera.path.OrbitPathClip.HeightMode.ABSOLUTE) {
                 heightFloat.set(clip.getHeight());
             }
             startAngleFloat.set(clip.getStartAngle());
@@ -300,15 +300,15 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
             ImGui.text("Radius");
             
             // ⭐ 半径模式选择（From Current Position / Custom Radius）
-            com.director.ui.timeline.model.camera.path.OrbitPathClip.RadiusMode radiusMode = clip.getRadiusMode();
-            boolean isFromCurrent = radiusMode == com.director.ui.timeline.model.camera.path.OrbitPathClip.RadiusMode.FROM_CURRENT_POSITION;
+            com.director.timeline.model.camera.path.OrbitPathClip.RadiusMode radiusMode = clip.getRadiusMode();
+            boolean isFromCurrent = radiusMode == com.director.timeline.model.camera.path.OrbitPathClip.RadiusMode.FROM_CURRENT_POSITION;
             
             // ⭐ 关键修复：切换到 From Current 模式时，立即对齐半径
             // ⭐ 允许重复点击来重新对齐（即使已经选中）
             if (ImGui.radioButton("From Current Camera Position", isFromCurrent)) {
                 // 从其他模式切换过来
                 if (!isFromCurrent) {
-                    clip.setRadiusMode(com.director.ui.timeline.model.camera.path.OrbitPathClip.RadiusMode.FROM_CURRENT_POSITION);
+                    clip.setRadiusMode(com.director.timeline.model.camera.path.OrbitPathClip.RadiusMode.FROM_CURRENT_POSITION);
                     modified = true;
                 }
             }
@@ -316,7 +316,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
             if (ImGui.isItemClicked()) {
                 // 如果当前不是 FROM_CURRENT 模式，先切换模式
                 if (!isFromCurrent) {
-                    clip.setRadiusMode(com.director.ui.timeline.model.camera.path.OrbitPathClip.RadiusMode.FROM_CURRENT_POSITION);
+                    clip.setRadiusMode(com.director.timeline.model.camera.path.OrbitPathClip.RadiusMode.FROM_CURRENT_POSITION);
                     modified = true;
                 }
                 // 重新对齐半径
@@ -326,7 +326,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
             ImGui.sameLine();
             if (ImGui.radioButton("Custom Radius", !isFromCurrent)) {
                 if (isFromCurrent) {
-                    clip.setRadiusMode(com.director.ui.timeline.model.camera.path.OrbitPathClip.RadiusMode.ABSOLUTE);
+                    clip.setRadiusMode(com.director.timeline.model.camera.path.OrbitPathClip.RadiusMode.ABSOLUTE);
                     modified = true;
                 }
             }
@@ -379,13 +379,13 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
             
             // Height（Keep Current / Custom）
             ImGui.text("Height");
-            com.director.ui.timeline.model.camera.path.OrbitPathClip.HeightMode heightMode = clip.getHeightMode();
-            boolean isKeepCurrent = heightMode == com.director.ui.timeline.model.camera.path.OrbitPathClip.HeightMode.KEEP_CURRENT;
+            com.director.timeline.model.camera.path.OrbitPathClip.HeightMode heightMode = clip.getHeightMode();
+            boolean isKeepCurrent = heightMode == com.director.timeline.model.camera.path.OrbitPathClip.HeightMode.KEEP_CURRENT;
             
             if (ImGui.radioButton("Keep Current Height", isKeepCurrent)) {
                 if (!isKeepCurrent) {
                     // 切换到 KEEP_CURRENT 模式
-                    clip.setHeightMode(com.director.ui.timeline.model.camera.path.OrbitPathClip.HeightMode.KEEP_CURRENT);
+                    clip.setHeightMode(com.director.timeline.model.camera.path.OrbitPathClip.HeightMode.KEEP_CURRENT);
                     // 立即缓存当前高度
                     com.director.timeline.playback.camera.CameraRuntime runtime = 
                         com.director.timeline.playback.camera.CameraRuntime.getInstance();
@@ -401,7 +401,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
             if (ImGui.radioButton("Custom Height", !isKeepCurrent)) {
                 if (isKeepCurrent) {
                     // 切换到 ABSOLUTE 模式
-                    clip.setHeightMode(com.director.ui.timeline.model.camera.path.OrbitPathClip.HeightMode.ABSOLUTE);
+                    clip.setHeightMode(com.director.timeline.model.camera.path.OrbitPathClip.HeightMode.ABSOLUTE);
                     // 如果有缓存的高度，使用它；否则使用当前高度值
                     Float cached = clip.getCachedHeight();
                     if (cached != null) {
@@ -513,8 +513,8 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
             
             // ⭐ Start Angle 模式选择（From Current Position / Custom Angle）
             ImGui.text("Start Angle");
-            com.director.ui.timeline.model.camera.path.OrbitPathClip.StartAngleMode startAngleMode = clip.getStartAngleMode();
-            boolean isStartAngleFromCurrent = startAngleMode == com.director.ui.timeline.model.camera.path.OrbitPathClip.StartAngleMode.FROM_CURRENT_POSITION;
+            com.director.timeline.model.camera.path.OrbitPathClip.StartAngleMode startAngleMode = clip.getStartAngleMode();
+            boolean isStartAngleFromCurrent = startAngleMode == com.director.timeline.model.camera.path.OrbitPathClip.StartAngleMode.FROM_CURRENT_POSITION;
             
             // ⭐ 修复：与其他 radioButton 保持一致，添加状态检查
             // ⭐ 关键修复：切换到 From Current 模式时，立即对齐起始角
@@ -522,7 +522,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
             if (ImGui.radioButton("From Current Camera Position", isStartAngleFromCurrent)) {
                 // 从其他模式切换过来
                 if (!isStartAngleFromCurrent) {
-                    clip.setStartAngleMode(com.director.ui.timeline.model.camera.path.OrbitPathClip.StartAngleMode.FROM_CURRENT_POSITION);
+                    clip.setStartAngleMode(com.director.timeline.model.camera.path.OrbitPathClip.StartAngleMode.FROM_CURRENT_POSITION);
                     modified = true;
                 }
             }
@@ -530,7 +530,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
             if (ImGui.isItemClicked()) {
                 // 如果当前不是 FROM_CURRENT 模式，先切换模式
                 if (!isStartAngleFromCurrent) {
-                    clip.setStartAngleMode(com.director.ui.timeline.model.camera.path.OrbitPathClip.StartAngleMode.FROM_CURRENT_POSITION);
+                    clip.setStartAngleMode(com.director.timeline.model.camera.path.OrbitPathClip.StartAngleMode.FROM_CURRENT_POSITION);
                     modified = true;
                 }
                 // 重新对齐起始角
@@ -540,7 +540,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
             ImGui.sameLine();
             if (ImGui.radioButton("Custom Angle", !isStartAngleFromCurrent)) {
                 if (isStartAngleFromCurrent) {
-                    clip.setStartAngleMode(com.director.ui.timeline.model.camera.path.OrbitPathClip.StartAngleMode.CUSTOM);
+                    clip.setStartAngleMode(com.director.timeline.model.camera.path.OrbitPathClip.StartAngleMode.CUSTOM);
                     modified = true;
                 }
             }
@@ -698,7 +698,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
             radiusFloat.set(clip.getRadius());
         }
         // ⭐ 高度：只在 ABSOLUTE 模式下同步
-        if (clip.getHeightMode() == com.director.ui.timeline.model.camera.path.OrbitPathClip.HeightMode.ABSOLUTE) {
+        if (clip.getHeightMode() == com.director.timeline.model.camera.path.OrbitPathClip.HeightMode.ABSOLUTE) {
             if (heightFloat.get() != clip.getHeight()) {
                 heightFloat.set(clip.getHeight());
             }

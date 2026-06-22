@@ -8,9 +8,9 @@ import com.director.ui.timeline.commands.BatchChangeCameraKeyframeSegmentTypeCom
 import com.director.ui.timeline.commands.BatchChangeCameraKeyframeRotationInterpolationCommand;
 import com.director.ui.timeline.commands.BatchChangeCameraKeyframeHandleModeCommand;
 import com.director.ui.timeline.commands.TimelineCommandHistory;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.camera.CameraKeyframe;
+import com.director.timeline.model.camera.CameraKeyframe;
 import com.director.timeline.playback.camera.TimelineCameraController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -181,7 +181,7 @@ public class CameraKeyframeContextMenu extends TimelineContextMenu {
             });
         }
 
-        com.director.ui.timeline.model.camera.path.CustomPathClip ownerPathClip =
+        com.director.timeline.model.camera.path.CustomPathClip ownerPathClip =
                 model.findCustomPathClipForKeyframe(keyframe);
         if (ownerPathClip != null) {
             addCommandItem("删除关键帧",

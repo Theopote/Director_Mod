@@ -2,11 +2,11 @@ package com.director.ui.timeline.render;
 
 import com.director.actor.action.ActorActionType;
 import com.director.timeline.model.TimelineClip;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
-import com.director.ui.timeline.model.entity.ActorActionClip;
-import com.director.ui.timeline.model.entity.EntityTimelineClip;
-import com.director.ui.timeline.model.entity.TimelineClipVisualType;
+import com.director.timeline.model.entity.ActorActionClip;
+import com.director.timeline.model.entity.EntityTimelineClip;
+import com.director.timeline.model.entity.TimelineClipVisualType;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import org.slf4j.Logger;
@@ -220,9 +220,9 @@ public final class TimelineClipRenderer {
         float visibleStart = visibleTimeRange[0];
         float visibleEnd = visibleTimeRange[1];
         
-        List<com.director.ui.timeline.model.clip.ClipKeyframe> clipKeyframes = clip.getClipKeyframes();
+        List<com.director.timeline.model.clip.ClipKeyframe> clipKeyframes = clip.getClipKeyframes();
         if (clipKeyframes != null && !clipKeyframes.isEmpty()) {
-            for (com.director.ui.timeline.model.clip.ClipKeyframe keyframe : clipKeyframes) {
+            for (com.director.timeline.model.clip.ClipKeyframe keyframe : clipKeyframes) {
                 if (keyframe == null) {
                     continue;
                 }

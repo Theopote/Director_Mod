@@ -2,7 +2,7 @@ package com.director.timeline.playback.entity;
 
 import com.director.actor.action.ActorActionType;
 import com.director.timeline.model.TimelineInterpolation;
-import com.director.ui.timeline.model.entity.*;
+import com.director.timeline.model.entity.*;
 import org.joml.Vector3f;
 
 import java.util.ArrayList;
@@ -438,7 +438,7 @@ public class EntityClipSampler {
                 normalizedTime = Math.max(0.0f, Math.min(1.0f, normalizedTime));
 
                 // 检查并触发事件
-                for (com.director.ui.timeline.model.entity.AnimationEvent event : active.getEvents()) {
+                for (com.director.timeline.model.entity.AnimationEvent event : active.getEvents()) {
                     if (animationEventCache.shouldTrigger(active, event, normalizedTime)) {
                         // 触发 Action 事件
                         result.actionEvents.add(event.getAction());

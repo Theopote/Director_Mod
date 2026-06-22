@@ -3,7 +3,7 @@ package com.director.ui.commands.impl;
 import com.director.ui.DirectorScreen;
 import com.director.ui.commands.ProjectCommands;
 import com.director.ui.dialogs.DialogManager;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import net.minecraft.client.MinecraftClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -1,7 +1,7 @@
 package com.director.ui.timeline.interaction;
 
-import com.director.ui.timeline.model.TimelineModel;
-import com.director.ui.timeline.model.TimelineViewportState;
+import com.director.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineViewportState;
 import com.director.ui.timeline.render.TimelineRenderer;
 import imgui.ImGui;
 import org.slf4j.Logger;

@@ -7,11 +7,11 @@ import com.director.ui.timeline.interaction.TimelineDragHandles.AutomationKeyfra
 import com.director.ui.timeline.interaction.TimelineDragHandles.KeyframeHandle;
 import com.director.ui.timeline.interaction.TimelineInteractionManager.InteractionMode;
 import com.director.timeline.model.TimelineClip;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineSelectable;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
-import com.director.ui.timeline.model.camera.CameraKeyframe;
+import com.director.timeline.model.camera.CameraKeyframe;
 import com.director.ui.timeline.render.TimelineRenderer;
 import com.director.ui.timeline.snapping.TimelineSnapping;
 import imgui.ImGui;
@@ -80,7 +80,7 @@ public final class TimelineKeyframeDragHandler {
             return -1f;
         }
 
-        if (keyframe instanceof com.director.ui.timeline.model.audio.AudioEvent audioEvent) {
+        if (keyframe instanceof com.director.timeline.model.audio.AudioEvent audioEvent) {
             float preview = com.director.ui.timeline.audio.TimelineAudioService.getInstance()
                     .getPreviewTimeForEvent(audioEvent);
             if (preview >= 0f) {
@@ -166,7 +166,7 @@ public final class TimelineKeyframeDragHandler {
         model.selectItem(keyframe, addToSelection);
         selectionSync.syncPropertiesSelection(keyframe);
 
-        if (track.getType() == TrackType.AUDIO && keyframe instanceof com.director.ui.timeline.model.audio.AudioEvent) {
+        if (track.getType() == TrackType.AUDIO && keyframe instanceof com.director.timeline.model.audio.AudioEvent) {
             callbacks.onDataChanged();
             return;
         }
@@ -245,7 +245,7 @@ public final class TimelineKeyframeDragHandler {
 
         boolean isAudioEvent = handle.currentTrack != null
                 && handle.currentTrack.getType() == TrackType.AUDIO
-                && handle.keyframe instanceof com.director.ui.timeline.model.audio.AudioEvent;
+                && handle.keyframe instanceof com.director.timeline.model.audio.AudioEvent;
         if (isAudioEvent) {
             if (mouseY > 0 && trackAreaTop > 0) {
                 int newTrackIndex = renderer.yToTrackIndex(mouseY - trackAreaTop, scrollY);
@@ -314,7 +314,7 @@ public final class TimelineKeyframeDragHandler {
             float finalTime = handle.currentTime;
             boolean trackChanged = handle.currentTrack != handle.originalTrack;
 
-            if (handle.keyframe instanceof com.director.ui.timeline.model.audio.AudioEvent && trackChanged) {
+            if (handle.keyframe instanceof com.director.timeline.model.audio.AudioEvent && trackChanged) {
                 commandHistory.executeCommand(
                         new MoveAutomationKeyframeBetweenTracksCommand(
                                 model, handle.originalTrack, handle.currentTrack, handle.keyframe, originalTime, finalTime));

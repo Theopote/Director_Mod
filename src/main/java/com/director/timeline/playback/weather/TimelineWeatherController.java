@@ -3,7 +3,7 @@ package com.director.timeline.playback.weather;
 import com.director.core.DirectorServices;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
-import com.director.ui.timeline.model.weather.WeatherKeyframe;
+import com.director.timeline.model.weather.WeatherKeyframe;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
 import org.slf4j.Logger;
@@ -136,7 +136,7 @@ public final class TimelineWeatherController {
         if (service == null) {
             return false;
         }
-        com.director.ui.timeline.model.TimelineModel model = service.getTimelineModel();
+        com.director.timeline.model.TimelineModel model = service.getTimelineModel();
         if (model == null) {
             return false;
         }
@@ -180,7 +180,7 @@ public final class TimelineWeatherController {
             com.director.ui.timeline.container.ContainerTimelineService svc =
                 DirectorServices.get().containerTimeline();
             if (svc != null) {
-                com.director.ui.timeline.model.TimelineModel m = svc.getTimelineModel();
+                com.director.timeline.model.TimelineModel m = svc.getTimelineModel();
                 if (m != null) {
                     currentTime = m.getCurrentTime();
                 }
@@ -205,7 +205,7 @@ public final class TimelineWeatherController {
             return;
         }
         
-        com.director.ui.timeline.model.TimelineModel model = service.getTimelineModel();
+        com.director.timeline.model.TimelineModel model = service.getTimelineModel();
         if (model == null) {
             return;
         }
@@ -241,7 +241,7 @@ public final class TimelineWeatherController {
                 com.director.ui.timeline.container.ContainerTimelineService svc =
                     DirectorServices.get().containerTimeline();
                 if (svc != null) {
-                    com.director.ui.timeline.model.TimelineModel m = svc.getTimelineModel();
+                    com.director.timeline.model.TimelineModel m = svc.getTimelineModel();
                     if (m != null) {
                         currentTime = m.getCurrentTime();
                     }
@@ -360,7 +360,7 @@ public final class TimelineWeatherController {
      * @deprecated 使用 {@link #bindActiveTrack(TimelineTrack)} 代替
      */
     @Deprecated
-    public void init(com.director.ui.timeline.model.TimelineModel model) {
+    public void init(com.director.timeline.model.TimelineModel model) {
         // v1.0 不再需要绑定模型，改为直接绑定轨道
         LOGGER.debug("[WeatherController] init() 已弃用，请使用 bindActiveTrack()");
     }

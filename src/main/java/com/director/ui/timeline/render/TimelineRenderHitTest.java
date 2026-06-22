@@ -2,7 +2,7 @@ package com.director.ui.timeline.render;
 
 import com.director.ui.timeline.interaction.TimelineHitResult;
 import com.director.timeline.model.TimelineClip;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 
 import java.util.List;
@@ -204,10 +204,10 @@ public class TimelineRenderHitTest {
         float visibleEnd = visibleTimeRange[1] + (KEYFRAME_HIT_RADIUS / math.getPixelsPerSecond());
         
         // ⭐⭐ 修复：优先使用 ClipKeyframe 对象列表
-        java.util.List<com.director.ui.timeline.model.clip.ClipKeyframe> clipKeyframes = 
+        java.util.List<com.director.timeline.model.clip.ClipKeyframe> clipKeyframes = 
                 clip.getClipKeyframes();
         if (clipKeyframes != null && !clipKeyframes.isEmpty()) {
-            for (com.director.ui.timeline.model.clip.ClipKeyframe kf : clipKeyframes) {
+            for (com.director.timeline.model.clip.ClipKeyframe kf : clipKeyframes) {
                 if (kf == null) continue;
                 
                 float kfTime = kf.getTime();
@@ -242,13 +242,13 @@ public class TimelineRenderHitTest {
             if (Math.abs(dx) <= KEYFRAME_HIT_RADIUS) {
                 // 尝试在 ClipKeyframe 列表中查找匹配的对象
                 final float EPS = 0.001f;
-                com.director.ui.timeline.model.clip.ClipKeyframe found = clip.findKeyframeAt(kfTime, EPS);
+                com.director.timeline.model.clip.ClipKeyframe found = clip.findKeyframeAt(kfTime, EPS);
                 if (found != null) {
                     return TimelineHitResult.keyframe(track, clip, found, trackIndex);
                 }
                 // 如果没有找到，创建一个临时对象（向后兼容）
-                com.director.ui.timeline.model.clip.ClipKeyframe temp = 
-                        new com.director.ui.timeline.model.clip.ClipKeyframe(kfTime);
+                com.director.timeline.model.clip.ClipKeyframe temp = 
+                        new com.director.timeline.model.clip.ClipKeyframe(kfTime);
                 return TimelineHitResult.keyframe(track, clip, temp, trackIndex);
             }
             keyframeIdx++;

@@ -3,10 +3,10 @@ package com.director.ui.timeline.interaction;
 import com.director.ui.timeline.commands.DeleteTrackCommand;
 import com.director.ui.timeline.commands.TimelineCommandHistory;
 import com.director.timeline.model.TimelineClip;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
-import com.director.ui.timeline.model.audio.AudioTrack;
+import com.director.timeline.model.audio.AudioTrack;
 import imgui.ImGui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,7 +82,7 @@ public class TimelineTrackController {
         } else {
             newTrack = new TimelineTrack(trackName, type);
             if (type == TrackType.ACTOR) {
-                newTrack.setActorTrackPayload(new com.director.ui.timeline.model.entity.ActorTrack(trackName));
+                newTrack.setActorTrackPayload(new com.director.timeline.model.entity.ActorTrack(trackName));
             }
         }
         
@@ -199,7 +199,7 @@ public class TimelineTrackController {
 
         for (TimelineClip clip : track.getClips()) {
             if (clip.getBoundContainerId() != null
-                && !(clip instanceof com.director.ui.timeline.model.audio.AudioTimelineClip)) {
+                && !(clip instanceof com.director.timeline.model.audio.AudioTimelineClip)) {
                 LOGGER.info("[TrackController] 复制轨道时跳过容器片段: {}", clip.getLabel());
                 continue;
             }

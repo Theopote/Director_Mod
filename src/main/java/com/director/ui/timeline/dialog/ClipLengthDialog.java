@@ -3,7 +3,7 @@ package com.director.ui.timeline.dialog;
 import com.director.ui.timeline.commands.SetClipLengthCommand;
 import com.director.ui.timeline.commands.TimelineCommandHistory;
 import com.director.timeline.model.TimelineClip;
-import com.director.ui.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineModel;
 import com.director.ui.theme.UITheme;
 
 import imgui.ImGui;

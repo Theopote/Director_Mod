@@ -1,7 +1,7 @@
 package com.director.ui.timeline.interaction;
 
 import com.director.actor.action.ActorActionType;
-import com.director.ui.timeline.model.entity.ActorActionClip;
+import com.director.timeline.model.entity.ActorActionClip;
 
 import java.util.ArrayList;
 import java.util.List;

@@ -2,7 +2,7 @@ package com.director.timeline.model;
 
 import com.director.core.animation.ClipAnimationConfig;
 import com.director.core.container.ContainerAnimationPreset;
-import com.director.ui.timeline.model.VisibilityKeyframe;
+import com.director.timeline.model.VisibilityKeyframe;
 import com.director.ui.util.UIUtils;
 
 import java.util.*;
@@ -37,7 +37,7 @@ public class TimelineClip {
     private final NavigableSet<Float> keyframes = new TreeSet<>(); // ⚠️ 保留用于向后兼容
     
     // ⭐ 新增：ClipKeyframe 对象列表（新架构）
-    private final java.util.List<com.director.ui.timeline.model.clip.ClipKeyframe> clipKeyframes = new java.util.ArrayList<>();
+    private final java.util.List<com.director.timeline.model.clip.ClipKeyframe> clipKeyframes = new java.util.ArrayList<>();
 
     // ========== 额外属性 ==========
     private ClipAnimationConfig animationConfig = ClipAnimationConfig.defaultConfig();
@@ -85,7 +85,7 @@ public class TimelineClip {
         this.endTime = other.endTime;
         this.color = other.color;
         this.keyframes.addAll(other.keyframes);
-        for (com.director.ui.timeline.model.clip.ClipKeyframe kf : other.clipKeyframes) {
+        for (com.director.timeline.model.clip.ClipKeyframe kf : other.clipKeyframes) {
             if (kf != null) {
                 this.clipKeyframes.add(kf.copy());
             }
@@ -141,12 +141,12 @@ public class TimelineClip {
         this.keyframes.addAll(movedKeyframes);
 
         if (!this.clipKeyframes.isEmpty()) {
-            for (com.director.ui.timeline.model.clip.ClipKeyframe kf : this.clipKeyframes) {
+            for (com.director.timeline.model.clip.ClipKeyframe kf : this.clipKeyframes) {
                 if (kf != null) {
                     kf.setTime(kf.getTime() + delta);
                 }
             }
-            this.clipKeyframes.sort(java.util.Comparator.comparing(com.director.ui.timeline.model.clip.ClipKeyframe::getTime));
+            this.clipKeyframes.sort(java.util.Comparator.comparing(com.director.timeline.model.clip.ClipKeyframe::getTime));
         }
     }
 
@@ -171,9 +171,9 @@ public class TimelineClip {
         }
         for (Float t : keyframes) {
             if (t == null) continue;
-            clipKeyframes.add(new com.director.ui.timeline.model.clip.ClipKeyframe(t));
+            clipKeyframes.add(new com.director.timeline.model.clip.ClipKeyframe(t));
         }
-        clipKeyframes.sort(java.util.Comparator.comparing(com.director.ui.timeline.model.clip.ClipKeyframe::getTime));
+        clipKeyframes.sort(java.util.Comparator.comparing(com.director.timeline.model.clip.ClipKeyframe::getTime));
     }
 
     /**
@@ -188,15 +188,15 @@ public class TimelineClip {
             ensureClipKeyframesFromLegacy();
             final float EPS = 0.0001f;
             boolean exists = false;
-            for (com.director.ui.timeline.model.clip.ClipKeyframe kf : clipKeyframes) {
+            for (com.director.timeline.model.clip.ClipKeyframe kf : clipKeyframes) {
                 if (kf != null && Math.abs(kf.getTime() - time) <= EPS) {
                     exists = true;
                     break;
                 }
             }
             if (!exists) {
-                clipKeyframes.add(new com.director.ui.timeline.model.clip.ClipKeyframe(time));
-                clipKeyframes.sort(java.util.Comparator.comparing(com.director.ui.timeline.model.clip.ClipKeyframe::getTime));
+                clipKeyframes.add(new com.director.timeline.model.clip.ClipKeyframe(time));
+                clipKeyframes.sort(java.util.Comparator.comparing(com.director.timeline.model.clip.ClipKeyframe::getTime));
             }
         }
     }
@@ -371,7 +371,7 @@ public class TimelineClip {
      * 
      * @return 关键帧对象列表（按时间排序）
      */
-    public java.util.List<com.director.ui.timeline.model.clip.ClipKeyframe> getClipKeyframes() {
+    public java.util.List<com.director.timeline.model.clip.ClipKeyframe> getClipKeyframes() {
         ensureClipKeyframesFromLegacy();
         return java.util.Collections.unmodifiableList(clipKeyframes);
     }
@@ -381,14 +381,14 @@ public class TimelineClip {
      * 
      * @param keyframe 关键帧对象
      */
-    public void addKeyframe(com.director.ui.timeline.model.clip.ClipKeyframe keyframe) {
+    public void addKeyframe(com.director.timeline.model.clip.ClipKeyframe keyframe) {
         if (keyframe == null) {
             return;
         }
         // 确保关键帧在片段范围内
         if (containsTime(keyframe.getTime())) {
             clipKeyframes.add(keyframe);
-            clipKeyframes.sort(java.util.Comparator.comparing(com.director.ui.timeline.model.clip.ClipKeyframe::getTime));
+            clipKeyframes.sort(java.util.Comparator.comparing(com.director.timeline.model.clip.ClipKeyframe::getTime));
         }
     }
 
@@ -408,9 +408,9 @@ public class TimelineClip {
      * @param epsilon 允许的误差范围
      * @return 找到的关键帧对象，否则返回 null
      */
-    public com.director.ui.timeline.model.clip.ClipKeyframe findKeyframeAt(float time, float epsilon) {
+    public com.director.timeline.model.clip.ClipKeyframe findKeyframeAt(float time, float epsilon) {
         ensureClipKeyframesFromLegacy();
-        for (com.director.ui.timeline.model.clip.ClipKeyframe kf : clipKeyframes) {
+        for (com.director.timeline.model.clip.ClipKeyframe kf : clipKeyframes) {
             if (Math.abs(kf.getTime() - time) <= epsilon) {
                 return kf;
             }
@@ -424,7 +424,7 @@ public class TimelineClip {
      * @param keyframe 关键帧对象
      * @param newTime 新时间（全局时间）
      */
-    public void moveKeyframe(com.director.ui.timeline.model.clip.ClipKeyframe keyframe, float newTime) {
+    public void moveKeyframe(com.director.timeline.model.clip.ClipKeyframe keyframe, float newTime) {
         if (keyframe == null) {
             return;
         }
@@ -433,7 +433,7 @@ public class TimelineClip {
             newTime = Math.max(getStartTime(), Math.min(getEndTime(), newTime));
         }
         keyframe.setTime(newTime);
-        clipKeyframes.sort(java.util.Comparator.comparing(com.director.ui.timeline.model.clip.ClipKeyframe::getTime));
+        clipKeyframes.sort(java.util.Comparator.comparing(com.director.timeline.model.clip.ClipKeyframe::getTime));
     }
 
     // ========== 片段复制（语义方法，Director 风格）==========
@@ -457,7 +457,7 @@ public class TimelineClip {
         copy.postAnimationFadeEnd = this.postAnimationFadeEnd;
         // 复制关键帧
         copy.keyframes.addAll(this.keyframes);
-        for (com.director.ui.timeline.model.clip.ClipKeyframe kf : this.clipKeyframes) {
+        for (com.director.timeline.model.clip.ClipKeyframe kf : this.clipKeyframes) {
             if (kf != null) {
                 copy.clipKeyframes.add(kf.copy());
             }
