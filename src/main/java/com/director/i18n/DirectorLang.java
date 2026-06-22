@@ -531,6 +531,306 @@ public final class DirectorLang {
             }
         }
 
+        public static final class AdapterTimelineCommon {
+            public static final String YES = "gui.director.properties.adapter.timeline.common.yes";
+            public static final String NO = "gui.director.properties.adapter.timeline.common.no";
+            public static final String UNKNOWN = "gui.director.properties.adapter.timeline.common.unknown";
+            public static final String RENDER_ERROR = "gui.director.properties.adapter.timeline.common.render_error";
+            public static final String QUICK_ACTIONS = "gui.director.properties.adapter.timeline.common.quick_actions";
+            public static final String UNBOUND = "gui.director.properties.adapter.timeline.common.unbound";
+            public static final String NOT_SAVED = "gui.director.properties.adapter.timeline.common.not_saved";
+
+            private AdapterTimelineCommon() {
+            }
+        }
+
+        public static final class AdapterTimelineProject {
+            public static final String ADAPTER_NAME = "gui.director.properties.adapter.timeline.project.name";
+            public static final String NULL_PROJECT = "gui.director.properties.adapter.timeline.project.null";
+            public static final String TITLE = "gui.director.properties.adapter.timeline.project.title";
+            public static final String DEFAULT_NAME = "gui.director.properties.adapter.timeline.project.default_name";
+            public static final String SECTION_BASIC = "gui.director.properties.adapter.timeline.project.section_basic";
+            public static final String PROJECT_NAME = "gui.director.properties.adapter.timeline.project.project_name";
+            public static final String PROJECT_NAME_TOOLTIP = "gui.director.properties.adapter.timeline.project.project_name_tooltip";
+            public static final String AUTHOR = "gui.director.properties.adapter.timeline.project.author";
+            public static final String AUTHOR_TOOLTIP = "gui.director.properties.adapter.timeline.project.author_tooltip";
+            public static final String DESCRIPTION = "gui.director.properties.adapter.timeline.project.description";
+            public static final String DESCRIPTION_TOOLTIP = "gui.director.properties.adapter.timeline.project.description_tooltip";
+            public static final String VERSION = "gui.director.properties.adapter.timeline.project.version";
+            public static final String PROJECT_ID = "gui.director.properties.adapter.timeline.project.project_id";
+            public static final String SECTION_GLOBAL = "gui.director.properties.adapter.timeline.project.section_global";
+            public static final String FRAME_RATE = "gui.director.properties.adapter.timeline.project.frame_rate";
+            public static final String FRAME_RATE_TOOLTIP = "gui.director.properties.adapter.timeline.project.frame_rate_tooltip";
+            public static final String TIME_UNIT = "gui.director.properties.adapter.timeline.project.time_unit";
+            public static final String TIME_UNIT_TOOLTIP = "gui.director.properties.adapter.timeline.project.time_unit_tooltip";
+            public static final String AUTO_SAVE = "gui.director.properties.adapter.timeline.project.auto_save";
+            public static final String AUTO_SAVE_TOOLTIP = "gui.director.properties.adapter.timeline.project.auto_save_tooltip";
+            public static final String LOOP_ALL = "gui.director.properties.adapter.timeline.project.loop_all";
+            public static final String LOOP_ALL_TOOLTIP = "gui.director.properties.adapter.timeline.project.loop_all_tooltip";
+            public static final String SECTION_SEQUENCES = "gui.director.properties.adapter.timeline.project.section_sequences";
+            public static final String SEQUENCES_NONE = "gui.director.properties.adapter.timeline.project.sequences_none";
+            public static final String CREATE_FIRST_SEQUENCE = "gui.director.properties.adapter.timeline.project.create_first_sequence";
+            public static final String DEFAULT_SEQUENCE_NAME = "gui.director.properties.adapter.timeline.project.default_sequence_name";
+            public static final String SEQUENCE_DURATION = "gui.director.properties.adapter.timeline.project.sequence_duration";
+            public static final String SEQUENCE_TRACK_COUNT = "gui.director.properties.adapter.timeline.project.sequence_track_count";
+            public static final String SEQUENCE_LOOP = "gui.director.properties.adapter.timeline.project.sequence_loop";
+            public static final String SEQUENCE_TIME_SCALE = "gui.director.properties.adapter.timeline.project.sequence_time_scale";
+            public static final String EDIT_SEQUENCE = "gui.director.properties.adapter.timeline.project.edit_sequence";
+            public static final String EDIT_SEQUENCE_TOOLTIP = "gui.director.properties.adapter.timeline.project.edit_sequence_tooltip";
+            public static final String DELETE_SEQUENCE_TOOLTIP = "gui.director.properties.adapter.timeline.project.delete_sequence_tooltip";
+            public static final String SEQUENCE_HINT = "gui.director.properties.adapter.timeline.project.sequence_hint";
+            public static final String CANNOT_GET_SEQUENCES = "gui.director.properties.adapter.timeline.project.cannot_get_sequences";
+            public static final String ADD_SEQUENCE = "gui.director.properties.adapter.timeline.project.add_sequence";
+            public static final String ADD_SEQUENCE_TOOLTIP = "gui.director.properties.adapter.timeline.project.add_sequence_tooltip";
+            public static final String CLEAR_ALL_SEQUENCES = "gui.director.properties.adapter.timeline.project.clear_all_sequences";
+            public static final String CLEAR_ALL_SEQUENCES_TOOLTIP = "gui.director.properties.adapter.timeline.project.clear_all_sequences_tooltip";
+            public static final String SECTION_EXPORT = "gui.director.properties.adapter.timeline.project.section_export";
+            public static final String EXPORT_FORMAT = "gui.director.properties.adapter.timeline.project.export_format";
+            public static final String EXPORT_FORMAT_TOOLTIP = "gui.director.properties.adapter.timeline.project.export_format_tooltip";
+            public static final String EXPORT_PATH = "gui.director.properties.adapter.timeline.project.export_path";
+            public static final String EXPORT_PATH_TOOLTIP = "gui.director.properties.adapter.timeline.project.export_path_tooltip";
+            public static final String BROWSE_PATH = "gui.director.properties.adapter.timeline.project.browse_path";
+            public static final String BROWSE_PATH_TOOLTIP = "gui.director.properties.adapter.timeline.project.browse_path_tooltip";
+            public static final String INCLUDE_RESOURCES = "gui.director.properties.adapter.timeline.project.include_resources";
+            public static final String COMPRESS_EXPORT = "gui.director.properties.adapter.timeline.project.compress_export";
+            public static final String SECTION_STATS = "gui.director.properties.adapter.timeline.project.section_stats";
+            public static final String SEQUENCE_TOTAL = "gui.director.properties.adapter.timeline.project.sequence_total";
+            public static final String TOTAL_TRACKS = "gui.director.properties.adapter.timeline.project.total_tracks";
+            public static final String TOTAL_KEYFRAMES = "gui.director.properties.adapter.timeline.project.total_keyframes";
+            public static final String PROJECT_PATH = "gui.director.properties.adapter.timeline.project.project_path";
+            public static final String CREATED_AT = "gui.director.properties.adapter.timeline.project.created_at";
+            public static final String MODIFIED_AT = "gui.director.properties.adapter.timeline.project.modified_at";
+            public static final String SECTION_CONTROLS = "gui.director.properties.adapter.timeline.project.section_controls";
+            public static final String SAVE_PROJECT = "gui.director.properties.adapter.timeline.project.save_project";
+            public static final String SAVE_PROJECT_TOOLTIP = "gui.director.properties.adapter.timeline.project.save_project_tooltip";
+            public static final String EXPORT_PROJECT = "gui.director.properties.adapter.timeline.project.export_project";
+            public static final String EXPORT_PROJECT_TOOLTIP = "gui.director.properties.adapter.timeline.project.export_project_tooltip";
+            public static final String RELOAD = "gui.director.properties.adapter.timeline.project.reload";
+            public static final String RELOAD_TOOLTIP = "gui.director.properties.adapter.timeline.project.reload_tooltip";
+            public static final String NEW_PROJECT = "gui.director.properties.adapter.timeline.project.new_project";
+            public static final String NEW_PROJECT_TOOLTIP = "gui.director.properties.adapter.timeline.project.new_project_tooltip";
+            public static final String COPY_PROJECT = "gui.director.properties.adapter.timeline.project.copy_project";
+            public static final String COPY_PROJECT_TOOLTIP = "gui.director.properties.adapter.timeline.project.copy_project_tooltip";
+            public static final String CLEAR_CACHE = "gui.director.properties.adapter.timeline.project.clear_cache";
+            public static final String CLEAR_CACHE_TOOLTIP = "gui.director.properties.adapter.timeline.project.clear_cache_tooltip";
+            public static final String FOOTER_HINT = "gui.director.properties.adapter.timeline.project.footer_hint";
+            public static final String EXPORT_FORMAT_JSON = "gui.director.properties.adapter.timeline.project.export_format_json";
+            public static final String EXPORT_FORMAT_NBT = "gui.director.properties.adapter.timeline.project.export_format_nbt";
+            public static final String EXPORT_FORMAT_BINARY = "gui.director.properties.adapter.timeline.project.export_format_binary";
+            public static final String EXPORT_FORMAT_SCENEPACK = "gui.director.properties.adapter.timeline.project.export_format_scenepack";
+            public static final String TIME_UNIT_SECONDS = "gui.director.properties.adapter.timeline.project.time_unit_seconds";
+            public static final String TIME_UNIT_FRAMES = "gui.director.properties.adapter.timeline.project.time_unit_frames";
+            public static final String TIME_UNIT_TICKS = "gui.director.properties.adapter.timeline.project.time_unit_ticks";
+
+            private AdapterTimelineProject() {
+            }
+        }
+
+        public static final class AdapterTimelineTrack {
+            public static final String ADAPTER_NAME = "gui.director.properties.adapter.timeline.track.name";
+            public static final String NULL_TRACK = "gui.director.properties.adapter.timeline.track.null";
+            public static final String TITLE = "gui.director.properties.adapter.timeline.track.title";
+            public static final String DEFAULT_NAME = "gui.director.properties.adapter.timeline.track.default_name";
+            public static final String SECTION_BASIC = "gui.director.properties.adapter.timeline.track.section_basic";
+            public static final String TRACK_NAME = "gui.director.properties.adapter.timeline.track.track_name";
+            public static final String TRACK_NAME_TOOLTIP = "gui.director.properties.adapter.timeline.track.track_name_tooltip";
+            public static final String ENABLE_TRACK = "gui.director.properties.adapter.timeline.track.enable_track";
+            public static final String ENABLE_TRACK_TOOLTIP = "gui.director.properties.adapter.timeline.track.enable_track_tooltip";
+            public static final String TRACK_TYPE = "gui.director.properties.adapter.timeline.track.track_type";
+            public static final String TRACK_ID = "gui.director.properties.adapter.timeline.track.track_id";
+            public static final String SECTION_CONTAINER_BINDING = "gui.director.properties.adapter.timeline.track.section_container_binding";
+            public static final String BOUND_CONTAINER = "gui.director.properties.adapter.timeline.track.bound_container";
+            public static final String BOUND_CONTAINER_TOOLTIP = "gui.director.properties.adapter.timeline.track.bound_container_tooltip";
+            public static final String SELECT_CONTAINER = "gui.director.properties.adapter.timeline.track.select_container";
+            public static final String SELECT_CONTAINER_TOOLTIP = "gui.director.properties.adapter.timeline.track.select_container_tooltip";
+            public static final String CLEAR_BINDING = "gui.director.properties.adapter.timeline.track.clear_binding";
+            public static final String CLEAR_BINDING_TOOLTIP = "gui.director.properties.adapter.timeline.track.clear_binding_tooltip";
+            public static final String SECTION_BLEND = "gui.director.properties.adapter.timeline.track.section_blend";
+            public static final String BLEND_MODE = "gui.director.properties.adapter.timeline.track.blend_mode";
+            public static final String BLEND_MODE_TOOLTIP = "gui.director.properties.adapter.timeline.track.blend_mode_tooltip";
+            public static final String WEIGHT = "gui.director.properties.adapter.timeline.track.weight";
+            public static final String WEIGHT_TOOLTIP = "gui.director.properties.adapter.timeline.track.weight_tooltip";
+            public static final String ADDITIVE_MODE = "gui.director.properties.adapter.timeline.track.additive_mode";
+            public static final String ADDITIVE_MODE_TOOLTIP = "gui.director.properties.adapter.timeline.track.additive_mode_tooltip";
+            public static final String SECTION_ALIGNMENT = "gui.director.properties.adapter.timeline.track.section_alignment";
+            public static final String ALIGNMENT_MODE = "gui.director.properties.adapter.timeline.track.alignment_mode";
+            public static final String ALIGNMENT_MODE_TOOLTIP = "gui.director.properties.adapter.timeline.track.alignment_mode_tooltip";
+            public static final String START_TIME = "gui.director.properties.adapter.timeline.track.start_time";
+            public static final String START_TIME_TOOLTIP = "gui.director.properties.adapter.timeline.track.start_time_tooltip";
+            public static final String END_TIME = "gui.director.properties.adapter.timeline.track.end_time";
+            public static final String END_TIME_TOOLTIP = "gui.director.properties.adapter.timeline.track.end_time_tooltip";
+            public static final String DURATION = "gui.director.properties.adapter.timeline.track.duration";
+            public static final String SECTION_VISUAL = "gui.director.properties.adapter.timeline.track.section_visual";
+            public static final String TRACK_COLOR = "gui.director.properties.adapter.timeline.track.track_color";
+            public static final String TRACK_COLOR_TOOLTIP = "gui.director.properties.adapter.timeline.track.track_color_tooltip";
+            public static final String VISUAL_OFFSET = "gui.director.properties.adapter.timeline.track.visual_offset";
+            public static final String SECTION_STATS = "gui.director.properties.adapter.timeline.track.section_stats";
+            public static final String KEYFRAME_TOTAL = "gui.director.properties.adapter.timeline.track.keyframe_total";
+            public static final String ENABLED_KEYFRAMES = "gui.director.properties.adapter.timeline.track.enabled_keyframes";
+            public static final String TIME_RANGE = "gui.director.properties.adapter.timeline.track.time_range";
+            public static final String DURATION_STATS = "gui.director.properties.adapter.timeline.track.duration_stats";
+            public static final String CURRENT_WEIGHT = "gui.director.properties.adapter.timeline.track.current_weight";
+            public static final String SECTION_ACTOR_CLIPS = "gui.director.properties.adapter.timeline.track.section_actor_clips";
+            public static final String ACTOR_CLIP_HINT = "gui.director.properties.adapter.timeline.track.actor_clip_hint";
+            public static final String ACTOR_CLIP_TRANSFORM = "gui.director.properties.adapter.timeline.track.actor_clip_transform";
+            public static final String ACTOR_CLIP_TRANSFORM_TOOLTIP = "gui.director.properties.adapter.timeline.track.actor_clip_transform_tooltip";
+            public static final String ACTOR_CLIP_LOOK_AT = "gui.director.properties.adapter.timeline.track.actor_clip_look_at";
+            public static final String ACTOR_CLIP_LOOK_AT_TOOLTIP = "gui.director.properties.adapter.timeline.track.actor_clip_look_at_tooltip";
+            public static final String ACTOR_CLIP_ACTION = "gui.director.properties.adapter.timeline.track.actor_clip_action";
+            public static final String ACTOR_CLIP_ACTION_TOOLTIP = "gui.director.properties.adapter.timeline.track.actor_clip_action_tooltip";
+            public static final String ACTOR_CLIP_POSE = "gui.director.properties.adapter.timeline.track.actor_clip_pose";
+            public static final String ACTOR_CLIP_POSE_TOOLTIP = "gui.director.properties.adapter.timeline.track.actor_clip_pose_tooltip";
+            public static final String ACTOR_CLIP_STATE = "gui.director.properties.adapter.timeline.track.actor_clip_state";
+            public static final String ACTOR_CLIP_STATE_TOOLTIP = "gui.director.properties.adapter.timeline.track.actor_clip_state_tooltip";
+            public static final String DUPLICATE_TRACK = "gui.director.properties.adapter.timeline.track.duplicate_track";
+            public static final String DUPLICATE_TRACK_TOOLTIP = "gui.director.properties.adapter.timeline.track.duplicate_track_tooltip";
+            public static final String CLEAR_KEYFRAMES = "gui.director.properties.adapter.timeline.track.clear_keyframes";
+            public static final String CLEAR_KEYFRAMES_TOOLTIP = "gui.director.properties.adapter.timeline.track.clear_keyframes_tooltip";
+            public static final String LOCK_TRACK = "gui.director.properties.adapter.timeline.track.lock_track";
+            public static final String UNLOCK_TRACK = "gui.director.properties.adapter.timeline.track.unlock_track";
+            public static final String LOCK_TRACK_TOOLTIP = "gui.director.properties.adapter.timeline.track.lock_track_tooltip";
+            public static final String UNLOCK_TRACK_TOOLTIP = "gui.director.properties.adapter.timeline.track.unlock_track_tooltip";
+            public static final String RESET_WEIGHT = "gui.director.properties.adapter.timeline.track.reset_weight";
+            public static final String RESET_WEIGHT_TOOLTIP = "gui.director.properties.adapter.timeline.track.reset_weight_tooltip";
+            public static final String RESET_TIME = "gui.director.properties.adapter.timeline.track.reset_time";
+            public static final String RESET_TIME_TOOLTIP = "gui.director.properties.adapter.timeline.track.reset_time_tooltip";
+            public static final String BLEND_OVERRIDE = "gui.director.properties.adapter.timeline.track.blend_override";
+            public static final String BLEND_ADDITIVE = "gui.director.properties.adapter.timeline.track.blend_additive";
+            public static final String BLEND_MULTIPLY = "gui.director.properties.adapter.timeline.track.blend_multiply";
+            public static final String BLEND_SUBTRACT = "gui.director.properties.adapter.timeline.track.blend_subtract";
+            public static final String BLEND_CUSTOM = "gui.director.properties.adapter.timeline.track.blend_custom";
+            public static final String ALIGN_GLOBAL = "gui.director.properties.adapter.timeline.track.align_global";
+            public static final String ALIGN_CONTAINER = "gui.director.properties.adapter.timeline.track.align_container";
+            public static final String ALIGN_LOCAL = "gui.director.properties.adapter.timeline.track.align_local";
+
+            private AdapterTimelineTrack() {
+            }
+        }
+
+        public static final class AdapterTimelineSequence {
+            public static final String ADAPTER_NAME = "gui.director.properties.adapter.timeline.sequence.name";
+            public static final String NULL_SEQUENCE = "gui.director.properties.adapter.timeline.sequence.null";
+            public static final String TITLE = "gui.director.properties.adapter.timeline.sequence.title";
+            public static final String DEFAULT_NAME = "gui.director.properties.adapter.timeline.sequence.default_name";
+            public static final String SECTION_BASIC = "gui.director.properties.adapter.timeline.sequence.section_basic";
+            public static final String SEQUENCE_NAME = "gui.director.properties.adapter.timeline.sequence.sequence_name";
+            public static final String SEQUENCE_NAME_TOOLTIP = "gui.director.properties.adapter.timeline.sequence.sequence_name_tooltip";
+            public static final String TOTAL_DURATION = "gui.director.properties.adapter.timeline.sequence.total_duration";
+            public static final String TOTAL_DURATION_TOOLTIP = "gui.director.properties.adapter.timeline.sequence.total_duration_tooltip";
+            public static final String TIME_SCALE = "gui.director.properties.adapter.timeline.sequence.time_scale";
+            public static final String TIME_SCALE_TOOLTIP = "gui.director.properties.adapter.timeline.sequence.time_scale_tooltip";
+            public static final String SEQUENCE_ID = "gui.director.properties.adapter.timeline.sequence.sequence_id";
+            public static final String SECTION_PLAYBACK = "gui.director.properties.adapter.timeline.sequence.section_playback";
+            public static final String LOOP_PLAYBACK = "gui.director.properties.adapter.timeline.sequence.loop_playback";
+            public static final String LOOP_PLAYBACK_TOOLTIP = "gui.director.properties.adapter.timeline.sequence.loop_playback_tooltip";
+            public static final String PLAY_MODE = "gui.director.properties.adapter.timeline.sequence.play_mode";
+            public static final String PLAY_MODE_TOOLTIP = "gui.director.properties.adapter.timeline.sequence.play_mode_tooltip";
+            public static final String CURRENT_TIME = "gui.director.properties.adapter.timeline.sequence.current_time";
+            public static final String PLAYING_STATUS = "gui.director.properties.adapter.timeline.sequence.playing_status";
+            public static final String PAUSED_STATUS = "gui.director.properties.adapter.timeline.sequence.paused_status";
+            public static final String SECTION_TRACKS = "gui.director.properties.adapter.timeline.sequence.section_tracks";
+            public static final String TRACKS_NONE = "gui.director.properties.adapter.timeline.sequence.tracks_none";
+            public static final String ADD_TRACK_HINT = "gui.director.properties.adapter.timeline.sequence.add_track_hint";
+            public static final String DEFAULT_TRACK_NAME = "gui.director.properties.adapter.timeline.sequence.default_track_name";
+            public static final String TRACK_TYPE = "gui.director.properties.adapter.timeline.sequence.track_type";
+            public static final String TRACK_WEIGHT = "gui.director.properties.adapter.timeline.sequence.track_weight";
+            public static final String TRACK_KEYFRAMES = "gui.director.properties.adapter.timeline.sequence.track_keyframes";
+            public static final String EDIT_TRACK = "gui.director.properties.adapter.timeline.sequence.edit_track";
+            public static final String EDIT_TRACK_TOOLTIP = "gui.director.properties.adapter.timeline.sequence.edit_track_tooltip";
+            public static final String DELETE_TRACK_TOOLTIP = "gui.director.properties.adapter.timeline.sequence.delete_track_tooltip";
+            public static final String TRACK_HINT = "gui.director.properties.adapter.timeline.sequence.track_hint";
+            public static final String CANNOT_GET_TRACKS = "gui.director.properties.adapter.timeline.sequence.cannot_get_tracks";
+            public static final String ADD_TRACK = "gui.director.properties.adapter.timeline.sequence.add_track";
+            public static final String ADD_TRACK_TOOLTIP = "gui.director.properties.adapter.timeline.sequence.add_track_tooltip";
+            public static final String CLEAR_ALL_TRACKS = "gui.director.properties.adapter.timeline.sequence.clear_all_tracks";
+            public static final String CLEAR_ALL_TRACKS_TOOLTIP = "gui.director.properties.adapter.timeline.sequence.clear_all_tracks_tooltip";
+            public static final String SECTION_STATS = "gui.director.properties.adapter.timeline.sequence.section_stats";
+            public static final String TRACK_TOTAL = "gui.director.properties.adapter.timeline.sequence.track_total";
+            public static final String TOTAL_KEYFRAMES = "gui.director.properties.adapter.timeline.sequence.total_keyframes";
+            public static final String DURATION_LABEL = "gui.director.properties.adapter.timeline.sequence.duration_label";
+            public static final String ACTUAL_DURATION = "gui.director.properties.adapter.timeline.sequence.actual_duration";
+            public static final String PLAYBACK_CONTROL = "gui.director.properties.adapter.timeline.sequence.playback_control";
+            public static final String PLAY = "gui.director.properties.adapter.timeline.sequence.play";
+            public static final String PLAY_TOOLTIP = "gui.director.properties.adapter.timeline.sequence.play_tooltip";
+            public static final String PAUSE = "gui.director.properties.adapter.timeline.sequence.pause";
+            public static final String PAUSE_TOOLTIP = "gui.director.properties.adapter.timeline.sequence.pause_tooltip";
+            public static final String STOP = "gui.director.properties.adapter.timeline.sequence.stop";
+            public static final String STOP_TOOLTIP = "gui.director.properties.adapter.timeline.sequence.stop_tooltip";
+            public static final String SEQUENCE_OPS = "gui.director.properties.adapter.timeline.sequence.sequence_ops";
+            public static final String DUPLICATE_SEQUENCE = "gui.director.properties.adapter.timeline.sequence.duplicate_sequence";
+            public static final String DUPLICATE_SEQUENCE_TOOLTIP = "gui.director.properties.adapter.timeline.sequence.duplicate_sequence_tooltip";
+            public static final String RESET_SEQUENCE = "gui.director.properties.adapter.timeline.sequence.reset_sequence";
+            public static final String RESET_SEQUENCE_TOOLTIP = "gui.director.properties.adapter.timeline.sequence.reset_sequence_tooltip";
+            public static final String PLAY_SEQUENTIAL = "gui.director.properties.adapter.timeline.sequence.play_sequential";
+            public static final String PLAY_LOOP = "gui.director.properties.adapter.timeline.sequence.play_loop";
+            public static final String PLAY_PINGPONG = "gui.director.properties.adapter.timeline.sequence.play_pingpong";
+            public static final String PLAY_RANDOM = "gui.director.properties.adapter.timeline.sequence.play_random";
+
+            private AdapterTimelineSequence() {
+            }
+        }
+
+        public static final class AdapterTimelineClip {
+            public static final String ADAPTER_NAME = "gui.director.properties.adapter.timeline.clip.name";
+            public static final String NO_SELECTION = "gui.director.properties.adapter.timeline.clip.no_selection";
+            public static final String VIEW_DETAILS = "gui.director.properties.adapter.timeline.clip.view_details";
+            public static final String SECTION_BASIC = "gui.director.properties.adapter.timeline.clip.section_basic";
+            public static final String SECTION_SEQUENCE = "gui.director.properties.adapter.timeline.clip.section_sequence";
+            public static final String SECTION_ANIMATION = "gui.director.properties.adapter.timeline.clip.section_animation";
+            public static final String EFFECTS_HEADER = "gui.director.properties.adapter.timeline.clip.effects_header";
+            public static final String EFFECTS_HEADER_COUNT = "gui.director.properties.adapter.timeline.clip.effects_header_count";
+
+            private AdapterTimelineClip() {
+            }
+        }
+
+        public static final class AdapterTimelineMarker {
+            public static final String ADAPTER_NAME = "gui.director.properties.adapter.timeline.marker.name";
+            public static final String TITLE = "gui.director.properties.adapter.timeline.marker.title";
+            public static final String NO_SELECTION = "gui.director.properties.adapter.timeline.marker.no_selection";
+            public static final String SECTION_BASIC = "gui.director.properties.adapter.timeline.marker.section_basic";
+            public static final String TIME_POSITION = "gui.director.properties.adapter.timeline.marker.time_position";
+            public static final String TIME_POSITION_TOOLTIP = "gui.director.properties.adapter.timeline.marker.time_position_tooltip";
+            public static final String MARKER_NAME = "gui.director.properties.adapter.timeline.marker.marker_name";
+            public static final String MARKER_NAME_TOOLTIP = "gui.director.properties.adapter.timeline.marker.marker_name_tooltip";
+            public static final String SECTION_APPEARANCE = "gui.director.properties.adapter.timeline.marker.section_appearance";
+            public static final String PRESET_COLORS = "gui.director.properties.adapter.timeline.marker.preset_colors";
+            public static final String CUSTOM_COLOR = "gui.director.properties.adapter.timeline.marker.custom_color";
+            public static final String MARKER_COLOR = "gui.director.properties.adapter.timeline.marker.marker_color";
+            public static final String MARKER_COLOR_TOOLTIP = "gui.director.properties.adapter.timeline.marker.marker_color_tooltip";
+            public static final String SECTION_DESCRIPTION = "gui.director.properties.adapter.timeline.marker.section_description";
+            public static final String DESCRIPTION = "gui.director.properties.adapter.timeline.marker.description";
+            public static final String DESCRIPTION_TOOLTIP = "gui.director.properties.adapter.timeline.marker.description_tooltip";
+            public static final String COLOR_RED = "gui.director.properties.adapter.timeline.marker.color_red";
+            public static final String COLOR_ORANGE = "gui.director.properties.adapter.timeline.marker.color_orange";
+            public static final String COLOR_YELLOW = "gui.director.properties.adapter.timeline.marker.color_yellow";
+            public static final String COLOR_GREEN = "gui.director.properties.adapter.timeline.marker.color_green";
+            public static final String COLOR_CYAN = "gui.director.properties.adapter.timeline.marker.color_cyan";
+            public static final String COLOR_BLUE = "gui.director.properties.adapter.timeline.marker.color_blue";
+            public static final String COLOR_MAGENTA = "gui.director.properties.adapter.timeline.marker.color_magenta";
+            public static final String COLOR_WHITE = "gui.director.properties.adapter.timeline.marker.color_white";
+            public static final String COLOR_GRAY = "gui.director.properties.adapter.timeline.marker.color_gray";
+            public static final String COLOR_DARK_GRAY = "gui.director.properties.adapter.timeline.marker.color_dark_gray";
+            public static final String COLOR_LIGHT_RED = "gui.director.properties.adapter.timeline.marker.color_light_red";
+            public static final String COLOR_TEAL = "gui.director.properties.adapter.timeline.marker.color_teal";
+
+            private AdapterTimelineMarker() {
+            }
+        }
+
+        public static final class AdapterTimelineKeyframeMulti {
+            public static final String ADAPTER_NAME = "gui.director.properties.adapter.timeline.keyframe_multi.name";
+            public static final String TITLE = "gui.director.properties.adapter.timeline.keyframe_multi.title";
+            public static final String SELECTED_COUNT = "gui.director.properties.adapter.timeline.keyframe_multi.selected_count";
+            public static final String CLIP_KEYFRAMES_COUNT = "gui.director.properties.adapter.timeline.keyframe_multi.clip_keyframes_count";
+            public static final String TRACK_KEYFRAMES_COUNT = "gui.director.properties.adapter.timeline.keyframe_multi.track_keyframes_count";
+            public static final String HINT_MULTI_MODE = "gui.director.properties.adapter.timeline.keyframe_multi.hint_multi_mode";
+            public static final String HINT_DELETE = "gui.director.properties.adapter.timeline.keyframe_multi.hint_delete";
+
+            private AdapterTimelineKeyframeMulti() {
+            }
+        }
+
         private Properties() {
         }
     }
