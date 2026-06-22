@@ -1,5 +1,6 @@
 package com.director.ui.timeline.render;
 
+import com.director.core.DirectorServices;
 import com.director.core.container.Container;
 import com.director.core.container.ContainerManager;
 import com.director.core.container.ContainerType;
@@ -156,7 +157,7 @@ public class TimelineAudioRenderer {
             if (linked != null) {
                 // ✅ 基于容器类型判断是否为拆除容器（不再依赖轨道类型）
                 try {
-                    Container c = ContainerManager.getInstance().getContainer(linked.getBoundContainerId());
+                    Container c = DirectorServices.get().containers().getContainer(linked.getBoundContainerId());
                     if (c != null && c.getType() == ContainerType.DEMOLITION) {
                         return COLOR_BLOCK_PLACE;
                     }

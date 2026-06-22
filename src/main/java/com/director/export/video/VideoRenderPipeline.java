@@ -1,5 +1,6 @@
 package com.director.export.video;
 
+import com.director.core.DirectorServices;
 import com.director.core.playback.PlaybackController;
 import com.director.ui.timeline.container.ContainerTimelineService;
 import com.director.ui.timeline.model.TimelineModel;
@@ -157,7 +158,7 @@ public final class VideoRenderPipeline {
         PlaybackController.get().seek(timeSeconds);
 
         // 2) 同步 UI 时间线模型（摄像机轨道采样依赖它）
-        TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
         if (model != null) {
             model.setCurrentTime(timeSeconds);
         }
@@ -168,7 +169,7 @@ public final class VideoRenderPipeline {
             return;
         }
 
-        TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
         if (model == null) {
             return;
         }
@@ -252,7 +253,7 @@ public final class VideoRenderPipeline {
 
         CameraViewportProfile profile = null;
         if (req.settings.cameraMode == VideoExportSettings.CAMERA_TRACK) {
-            TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
+            TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
             if (model != null) {
                 List<TimelineTrack> cameraTracks = getCameraTracks(model);
                 if (!cameraTracks.isEmpty()) {

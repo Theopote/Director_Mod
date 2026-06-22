@@ -1,5 +1,6 @@
 package com.director.ui.timeline.playback.entity;
 
+import com.director.core.DirectorServices;
 import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.TrackType;
 import org.slf4j.Logger;
@@ -132,7 +133,7 @@ public final class TimelineActorController {
             return true;
         }
         com.director.ui.timeline.container.ContainerTimelineService service =
-            com.director.ui.timeline.container.ContainerTimelineService.getInstance();
+            DirectorServices.get().containerTimeline();
         if (service == null) {
             return false;
         }
@@ -183,7 +184,7 @@ public final class TimelineActorController {
      */
     public void checkAndAutoActivate() {
         com.director.ui.timeline.container.ContainerTimelineService service = 
-            com.director.ui.timeline.container.ContainerTimelineService.getInstance();
+            DirectorServices.get().containerTimeline();
         if (service == null) {
             return;
         }

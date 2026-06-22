@@ -1,5 +1,6 @@
 package com.director.ui.timeline.commands;
 
+import com.director.core.DirectorServices;
 import com.director.core.container.ContainerManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -44,13 +45,13 @@ public class RenameClipCommand extends BaseTimelineCommand {
         java.util.UUID containerId = clip.getBoundContainerId();
         if (containerId != null) {
             com.director.core.container.Container container = 
-                Objects.requireNonNull(ContainerManager.getInstance()).getContainer(containerId);
+                DirectorServices.get().containers().getContainer(containerId);
             if (container != null && !newLabel.equals(container.getName())) {
                 // 保存容器旧名称用于撤销
                 oldContainerName = container.getName();
                 // 使用ContainerManager的方法重命名容器（会触发onContainerRenamed事件）
                 // 但我们在onContainerRenamed中会检查片段名称是否已更新，避免循环
-                com.director.core.container.ContainerManager.getInstance().renameContainer(container, newLabel);
+                DirectorServices.get().containers().renameContainer(container, newLabel);
                 LOGGER.info("[Timeline] 片段重命名已同步到容器: {} -> {}", oldContainerName, newLabel);
             }
         }
@@ -69,9 +70,9 @@ public class RenameClipCommand extends BaseTimelineCommand {
         java.util.UUID containerId = clip.getBoundContainerId();
         if (containerId != null && oldContainerName != null) {
             com.director.core.container.Container container = 
-                Objects.requireNonNull(ContainerManager.getInstance()).getContainer(containerId);
+                DirectorServices.get().containers().getContainer(containerId);
             if (container != null && !oldContainerName.equals(container.getName())) {
-                com.director.core.container.ContainerManager.getInstance().renameContainer(container, oldContainerName);
+                DirectorServices.get().containers().renameContainer(container, oldContainerName);
                 LOGGER.info("[Timeline] 撤销片段重命名已同步到容器: {} -> {}", newLabel, oldContainerName);
             }
         }

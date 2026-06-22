@@ -1,5 +1,6 @@
 package com.director.core.selection.tools;
 
+import com.director.core.DirectorServices;
 import com.director.core.container.Container;
 import com.director.core.container.ContainerManager;
 import com.director.core.container.commands.RemoveBlocksFromContainerCommand;
@@ -68,7 +69,7 @@ public class ContainerCullTool implements SelectionTool {
     @Override
     public void onActivate(World world) {
         // 获取激活容器
-        ContainerManager manager = ContainerManager.getInstance();
+        ContainerManager manager = DirectorServices.get().containers();
         targetContainer = manager != null ? manager.getActive() : null;
         
         if (targetContainer == null) {

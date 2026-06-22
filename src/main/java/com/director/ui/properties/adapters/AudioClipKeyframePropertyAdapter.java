@@ -1,5 +1,6 @@
 package com.director.ui.properties.adapters;
 
+import com.director.core.DirectorServices;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.theme.UITheme;
 import com.director.ui.timeline.model.TimelineInterpolation;
@@ -30,7 +31,7 @@ public class AudioClipKeyframePropertyAdapter implements IPropertyAdapter<AudioC
             TimelineClip owner = findOwnerClip(keyframe);
             if (owner != null) {
                 owner.moveKeyframe(keyframe, time[0]);
-                TimelineModel model = com.director.ui.timeline.container.ContainerTimelineService.getInstance()
+                TimelineModel model = DirectorServices.get().containerTimeline()
                         .getTimelineModel();
                 if (model != null) {
                     model.markDirty();
@@ -49,7 +50,7 @@ public class AudioClipKeyframePropertyAdapter implements IPropertyAdapter<AudioC
         float[] volume = {keyframe.getVolume()};
         if (ImGui.sliderFloat("Volume", volume, 0.0f, 1.0f, "%.2f")) {
             keyframe.setVolume(volume[0]);
-            TimelineModel model = com.director.ui.timeline.container.ContainerTimelineService.getInstance()
+            TimelineModel model = DirectorServices.get().containerTimeline()
                     .getTimelineModel();
             if (model != null) {
                 model.markDirty();
@@ -73,7 +74,7 @@ public class AudioClipKeyframePropertyAdapter implements IPropertyAdapter<AudioC
         ImInt selected = new ImInt(current);
         if (ImGui.combo("Mode", selected, labels)) {
             keyframe.setInterpolation(values[selected.get()]);
-            TimelineModel model = com.director.ui.timeline.container.ContainerTimelineService.getInstance()
+            TimelineModel model = DirectorServices.get().containerTimeline()
                     .getTimelineModel();
             if (model != null) {
                 model.markDirty();
@@ -94,7 +95,7 @@ public class AudioClipKeyframePropertyAdapter implements IPropertyAdapter<AudioC
         if (keyframe == null) {
             return null;
         }
-        TimelineModel model = com.director.ui.timeline.container.ContainerTimelineService.getInstance()
+        TimelineModel model = DirectorServices.get().containerTimeline()
                 .getTimelineModel();
         if (model == null) {
             return null;

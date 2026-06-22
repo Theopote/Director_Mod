@@ -1,5 +1,6 @@
 package com.director.ui.container;
 
+import com.director.core.DirectorServices;
 import com.director.core.actions.SelectionToContainerAction;
 import com.director.core.actions.SelectionToDemolitionContainerAction;
 import com.director.core.container.Container;
@@ -621,7 +622,7 @@ public class ContainerCommandService {
         if (container == null) {
             return false;
         }
-        var timelineService = com.director.ui.timeline.container.ContainerTimelineService.getInstance();
+        var timelineService = DirectorServices.get().containerTimeline();
         if (timelineService.isContainerOnTimeline(container.getId())) {
             LOGGER.warn("[ContainerCommandService] 容器 {} 已在时间线上，拒绝{}",
                     container.getName(), action);
@@ -641,7 +642,7 @@ public class ContainerCommandService {
         if (container == null) {
             return false;
         }
-        var timelineService = com.director.ui.timeline.container.ContainerTimelineService.getInstance();
+        var timelineService = DirectorServices.get().containerTimeline();
         if (timelineService.isContainerOnTimeline(container.getId())) {
             return true;
         }

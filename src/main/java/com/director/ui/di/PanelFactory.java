@@ -1,5 +1,6 @@
 package com.director.ui.di;
 
+import com.director.core.DirectorServices;
 import com.director.ui.panels.*;
 import com.director.core.container.ContainerManager;
 import com.director.ui.timeline.commands.TimelineCommandHistory;
@@ -82,7 +83,7 @@ public class PanelFactory implements IPanelFactory {
                 minecraftClient != null ? "已注入" : "未注入");
             
             // 创建依赖对象
-            ContainerManager containerManager = ContainerManager.getInstance();
+            ContainerManager containerManager = DirectorServices.get().containers();
             TimelineCommandHistory commandHistory = new TimelineCommandHistory();
             
             // 使用依赖注入构造函数（v5.0: 移除了WorldBlockCollector参数，propertiesPanel 在内部创建）

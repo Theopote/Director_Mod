@@ -1,5 +1,6 @@
 package com.director.ui;
 
+import com.director.core.DirectorServices;
 import com.director.ui.panels.IPanel;
 import com.director.ui.panels.MenuBarPanel;
 import com.director.ui.panels.ToolbarPanel;
@@ -461,7 +462,7 @@ public class DirectorUIManager {
                 if (timelinePanel != null) {
                     timelinePanel.resetWorkspace(true);
                 } else {
-                    Objects.requireNonNull(com.director.core.container.ContainerManager.getInstance()).clear();
+                    DirectorServices.get().containers().clear();
                     com.director.ui.timeline.persistence.TimelineModelPersistence.resetForCurrentWorld();
                 }
             } catch (Exception e) {
@@ -527,7 +528,7 @@ public class DirectorUIManager {
     private void synchronizeWorldScopedState() {
         try {
             com.director.core.container.persistence.ContainerPersistence.loadForCurrentWorld(
-                com.director.core.container.ContainerManager.getInstance());
+                DirectorServices.get().containers());
         } catch (Exception e) {
             LOGGER.warn("[Director] 同步当前存档容器数据失败 (source={}): {}", "DirectorUIManager.init", e.getMessage(), e);
         }
@@ -790,7 +791,7 @@ public class DirectorUIManager {
                             // 重置布局标志，以便在新世界中检查是否需要应用默认布局
                             isFirstLayout = true;
                             com.director.core.container.persistence.ContainerPersistence.loadForCurrentWorld(
-                                com.director.core.container.ContainerManager.getInstance());
+                                DirectorServices.get().containers());
 
                             // ⭐ 同步时间线：切档时不能把上一个存档的轨道/关键帧带过来
                             try {

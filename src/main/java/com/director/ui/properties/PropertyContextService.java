@@ -1,5 +1,6 @@
 package com.director.ui.properties;
 
+import com.director.core.DirectorServices;
 import com.director.ui.selection.SelectionManager;
 import com.director.ui.selection.SelectionType;
 import com.director.ui.timeline.model.TimelineTrack;
@@ -71,7 +72,7 @@ public final class PropertyContextService {
         boolean hasTimeline = (st == SelectionType.TRACK || st == SelectionType.CLIP || st == SelectionType.KEYFRAME);
         boolean hasTool = ToolRegistry.get().hasNonSelectionActiveTool();
         if (!hasTool) {
-            var core = com.director.core.selection.SelectionManager.get();
+            var core = DirectorServices.get().selection();
             if (core != null && core.getCurrentTool() != null) {
                 hasTool = true;
             }
@@ -110,7 +111,7 @@ public final class PropertyContextService {
         return switch (getCurrentContext()) {
             case TOOL -> ToolRegistry.get().hasNonSelectionActiveTool()
                     ? ToolRegistry.get().getActiveTool()
-                    : com.director.core.selection.SelectionManager.get().getCurrentTool();
+                    : DirectorServices.get().selection().getCurrentTool();
             case TIMELINE -> {
                 Object payload = SelectionManager.get().getSelectionPayload();
                 if (payload instanceof EntityTimelineClip entityTimelineClip) {

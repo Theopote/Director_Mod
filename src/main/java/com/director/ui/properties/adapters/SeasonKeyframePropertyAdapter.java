@@ -1,5 +1,6 @@
 package com.director.ui.properties.adapters;
 
+import com.director.core.DirectorServices;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
@@ -77,7 +78,7 @@ public class SeasonKeyframePropertyAdapter implements IPropertyAdapter<SeasonKey
         }
 
         // ⭐ v1.1：检查关键帧是否属于激活的季节轨道
-        TimelineModel timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel timelineModel = DirectorServices.get().containerTimeline().getTimelineModel();
         TimelineTrack keyframeTrack = null;
         if (timelineModel != null) {
             keyframeTrack = timelineModel.findTrackForKeyframe(keyframe);

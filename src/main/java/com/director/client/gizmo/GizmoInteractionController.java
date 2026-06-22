@@ -1,5 +1,6 @@
 package com.director.client.gizmo;
 
+import com.director.core.DirectorServices;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
@@ -34,14 +35,14 @@ public class GizmoInteractionController {
 
     // BOUNDS Gizmo锛氱Щ鍔ㄢ€滃寘鍥寸洅(鍖哄煙)鈥濋瑙堬紝鏉炬墜鍚庢寜杩囨护鍣ㄩ噸寤洪€夊尯
     private final com.director.core.selection.SelectionManager selectionManager =
-        com.director.core.selection.SelectionManager.get();
+        DirectorServices.get().selection();
     private Vec3d boundsMoveCarry = Vec3d.ZERO;
     
     public GizmoInteractionController(GizmoContext context) {
         this.context = context;
         // 鍒濆鍖?TransformApplier
         this.transformApplier = new TransformApplier(
-            com.director.core.selection.SelectionManager.get()
+            DirectorServices.get().selection()
         );
     }
     
@@ -390,7 +391,7 @@ public class GizmoInteractionController {
      * 浠?SelectionManager 鍚屾 Box
      */
     private void updateBoxFromSelection() {
-        var selectionManager = com.director.core.selection.SelectionManager.get();
+        var selectionManager = DirectorServices.get().selection();
         var selectionSet = selectionManager.getSelectionSet();
         
         if (selectionSet.isEmpty()) {

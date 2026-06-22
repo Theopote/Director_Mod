@@ -1,5 +1,6 @@
 package com.director.ui.input;
 
+import com.director.core.DirectorServices;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,7 +58,7 @@ public class ShortcutInitializer {
             GLFW.GLFW_KEY_ESCAPE,
             () -> {
                 try {
-                    var selectionManager = com.director.core.selection.SelectionManager.get();
+                    var selectionManager = DirectorServices.get().selection();
                     if (selectionManager != null && !selectionManager.getSelectionSet().isEmpty()) {
                         selectionManager.clearSelection();
                         LOGGER.info("[ShortcutInitializer] Esc 键：已清除选区");

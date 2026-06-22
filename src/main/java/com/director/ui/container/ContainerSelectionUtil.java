@@ -1,5 +1,6 @@
 package com.director.ui.container;
 
+import com.director.core.DirectorServices;
 import com.director.core.selection.SelectionManager;
 import com.director.core.selection.SelectionState;
 import org.slf4j.Logger;
@@ -17,7 +18,7 @@ final class ContainerSelectionUtil {
 
     static boolean hasMinecraftSelection() {
         try {
-            SelectionManager selectionManager = SelectionManager.get();
+            SelectionManager selectionManager = DirectorServices.get().selection();
             SelectionState selection = selectionManager != null ? selectionManager.getCurrentSelection() : null;
             return selection != null && !selection.isEmpty();
         } catch (Throwable t) {

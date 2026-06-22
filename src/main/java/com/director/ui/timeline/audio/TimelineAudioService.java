@@ -1,5 +1,6 @@
 package com.director.ui.timeline.audio;
 
+import com.director.core.DirectorServices;
 import com.director.core.animation.AnimationSoundCollector;
 import com.director.core.animation.sequence.BlockSequenceEntry;
 import com.director.core.animation.sequence.BlockSequenceGenerator;
@@ -161,7 +162,7 @@ public class TimelineAudioService {
                             // ✅ 基于容器类型判断是否为拆除容器（不再依赖轨道类型）
                             boolean isDemolition = false;
                             try {
-                                Container c = ContainerManager.getInstance().getContainer(clip.getBoundContainerId());
+                                Container c = DirectorServices.get().containers().getContainer(clip.getBoundContainerId());
                                 if (c != null) {
                                     isDemolition = c.getType() == com.director.core.container.ContainerType.DEMOLITION;
                                 }
@@ -255,7 +256,7 @@ public class TimelineAudioService {
             return;
         }
 
-        Container container = Objects.requireNonNull(ContainerManager.getInstance()).getContainer(containerId);
+        Container container = DirectorServices.get().containers().getContainer(containerId);
         if (container == null) {
             return;
         }
@@ -276,7 +277,7 @@ public class TimelineAudioService {
         boolean isEraseTrack = false;
         try {
             // ✅ 基于容器类型判断是否为拆除容器（不再依赖轨道类型）
-            Container c = ContainerManager.getInstance().getContainer(clip.getBoundContainerId());
+            Container c = DirectorServices.get().containers().getContainer(clip.getBoundContainerId());
             if (c != null && c.getType() == com.director.core.container.ContainerType.DEMOLITION) {
                 isEraseTrack = true;
             }

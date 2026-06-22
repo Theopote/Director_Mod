@@ -1,5 +1,6 @@
 package com.director.core.container;
 
+import com.director.core.DirectorServices;
 import com.director.core.selection.SelectionManager;
 import com.director.core.selection.SelectionState;
 import com.director.ui.timeline.container.ContainerTimelineService;
@@ -48,7 +49,7 @@ public final class ContainerIntakeSubscriber {
     
     private ContainerIntakeSubscriber() {
         // 注册监听器
-        SelectionManager selectionManager = SelectionManager.get();
+        SelectionManager selectionManager = DirectorServices.get().selection();
         if (selectionManager != null) {
             selectionManager.addSelectionChangeListener(this::onSelectionChanged);
             LOGGER.info("[ContainerIntakeSubscriber] 已注册选择变化监听器");
@@ -83,7 +84,7 @@ public final class ContainerIntakeSubscriber {
         }
         
         // 检查是否有激活容器
-        ContainerManager manager = ContainerManager.getInstance();
+        ContainerManager manager = DirectorServices.get().containers();
         if (manager == null) {
             return;
         }
@@ -134,7 +135,7 @@ public final class ContainerIntakeSubscriber {
         
         // 清空选区（可选）
         if (clearSelectionAfterIntake) {
-            SelectionManager selectionManager = SelectionManager.get();
+            SelectionManager selectionManager = DirectorServices.get().selection();
             if (selectionManager != null) {
                 // 延迟清空,避免在回调中修改选区导致问题
                 MC.execute(selectionManager::clearSelection);
@@ -205,7 +206,7 @@ public final class ContainerIntakeSubscriber {
      * @param targetContainer 目标容器，如果为null则使用激活容器或选中容器
      */
     public void intakeCurrentSelection(Container targetContainer) {
-        ContainerManager manager = ContainerManager.getInstance();
+        ContainerManager manager = DirectorServices.get().containers();
         if (manager == null) {
             LOGGER.warn("[ContainerIntakeSubscriber] ContainerManager未初始化");
             return;
@@ -237,7 +238,7 @@ public final class ContainerIntakeSubscriber {
             return;
         }
         
-        SelectionManager selectionManager = SelectionManager.get();
+        SelectionManager selectionManager = DirectorServices.get().selection();
         if (selectionManager == null) {
             LOGGER.warn("[ContainerIntakeSubscriber] SelectionManager未初始化");
             return;
@@ -272,7 +273,7 @@ public final class ContainerIntakeSubscriber {
 
     private boolean isTimelineControlled(Container container) {
         return container != null
-            && ContainerTimelineService.getInstance().isContainerOnTimeline(container.getId());
+            && DirectorServices.get().containerTimeline().isContainerOnTimeline(container.getId());
     }
 }
 

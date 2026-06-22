@@ -1,5 +1,6 @@
 package com.director.ui.timeline.state;
 
+import com.director.core.DirectorServices;
 import com.director.ui.timeline.commands.DeleteClipCommand;
 import com.director.ui.timeline.commands.TimelineCommandHistory;
 import com.director.ui.timeline.model.TimelineClip;
@@ -177,7 +178,7 @@ public final class ClipboardManager {
         if (track.getType() != TrackType.CONTAINER) {
             return false;
         }
-        return isCut || !com.director.ui.timeline.container.ContainerTimelineService.getInstance()
+        return isCut || !DirectorServices.get().containerTimeline()
             .isContainerOnTimeline(clip.getBoundContainerId());
     }
 }

@@ -1,5 +1,6 @@
 package com.director.client.gizmo;
 
+import com.director.core.DirectorServices;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import com.director.core.selection.SelectionManager;
@@ -42,7 +43,7 @@ public class GizmoIntegrationExample {
         // 设置自定义应用回调（可选）
         gm.setOnApply(ctx -> {
             // 应用时，将 ctx.targetBox 写回 SelectionManager 或触发关键帧
-            SelectionManager sm = SelectionManager.get();
+            SelectionManager sm = DirectorServices.get().selection();
             Set<net.minecraft.util.math.BlockPos> vox = GizmoVoxelizer.voxelize(ctx.getTargetBox());
             sm.clearSelection();
             sm.getSelectionSet().addAll(vox);

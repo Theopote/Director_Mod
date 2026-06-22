@@ -1,5 +1,6 @@
 package com.director.ui.container;
 
+import com.director.core.DirectorServices;
 import com.director.core.container.Container;
 import com.director.ui.theme.Icons;
 import imgui.ImDrawList;
@@ -106,7 +107,7 @@ class ContainerTreeRenderer {
         }
 
         // 检查容器是否在时间线上
-        boolean isOnTimeline = com.director.ui.timeline.container.ContainerTimelineService.getInstance()
+        boolean isOnTimeline = DirectorServices.get().containerTimeline()
             .isContainerOnTimeline(container.getId());
 
         // 使用 pushID 隔离节点，避免拖拽、上下文菜单、内联重命名、图标按钮的 ID 冲突
@@ -471,7 +472,7 @@ class ContainerTreeRenderer {
         ImGui.text(String.format("大小: %dx%dx%d",
             bbox.getWidth(), bbox.getHeight(), bbox.getDepth()));
         ImGui.separator();
-        boolean isOnTimeline = com.director.ui.timeline.container.ContainerTimelineService.getInstance()
+        boolean isOnTimeline = DirectorServices.get().containerTimeline()
             .isContainerOnTimeline(container.getId());
         if (isOnTimeline) {
             ImGui.textColored(0.66f, 0.82f, 1.0f, 1.0f, "状态: 已添加到时间线");

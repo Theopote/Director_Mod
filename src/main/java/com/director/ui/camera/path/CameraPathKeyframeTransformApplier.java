@@ -1,5 +1,6 @@
 package com.director.ui.camera.path;
 
+import com.director.core.DirectorServices;
 import com.director.client.gizmo.GizmoManager;
 import com.director.client.gizmo.logic.TransformApplier;
 import com.director.core.selection.SelectionManager;
@@ -14,7 +15,7 @@ final class CameraPathKeyframeTransformApplier extends TransformApplier {
     private final CameraPathEditController controller;
 
     CameraPathKeyframeTransformApplier(CameraPathEditController controller) {
-        super(SelectionManager.get());
+        super(DirectorServices.get().selection());
         this.controller = controller;
     }
 

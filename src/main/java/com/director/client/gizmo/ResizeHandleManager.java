@@ -1,5 +1,6 @@
 package com.director.client.gizmo;
 
+import com.director.core.DirectorServices;
 import com.director.client.renderer.OverlayRenderHelper;
 import com.director.core.selection.SelectionManager;
 import net.minecraft.client.render.VertexConsumer;
@@ -177,7 +178,7 @@ public class ResizeHandleManager {
             // 🧩 实时联动：调用 SelectionManager.expandSelection()
             // 对于多轴手柄，需要分别沿每个轴扩展
             for (Axis axis : activeAxes) {
-                SelectionManager.get().expandSelection(axis, isMaxFaceHandle(activeHandleType, axis), delta);
+                DirectorServices.get().selection().expandSelection(axis, isMaxFaceHandle(activeHandleType, axis), delta);
             }
             
             lastWorldCoord = current;
@@ -334,7 +335,7 @@ public class ResizeHandleManager {
      */
     private Vec3d getHandlePositionFromBox() {
         // 简化实现：从 SelectionManager 获取当前边界
-        Box bounds = SelectionManager.get().getCurrentBounds();
+        Box bounds = DirectorServices.get().selection().getCurrentBounds();
         if (bounds == null || activeHandleType == null) {
             return null;
         }

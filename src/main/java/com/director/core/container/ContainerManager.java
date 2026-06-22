@@ -10,6 +10,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 
 import com.director.core.container.persistence.ContainerPersistence;
+import com.director.core.selection.SelectionManager;
+import com.director.ui.timeline.container.ContainerTimelineService;
 import net.minecraft.registry.RegistryKey;
 
 /**
@@ -50,9 +52,9 @@ public class ContainerManager {
     // ========== 事件监听器 ==========
     private final List<ContainerListener> listeners = new CopyOnWriteArrayList<>();
     
-  /**
+    /**
      * 在模组启动时显式初始化全局实例（幂等）。
-     * <p>须在任意 {@link #getInstance()} 调用之前由 {@link com.director.DirectorMod} 完成。
+     * <p>优先通过 {@link com.director.core.DirectorServices#initialize()} 统一引导。
      */
     public static void initialize() {
         if (GLOBAL.get() != null) {
@@ -86,8 +88,10 @@ public class ContainerManager {
     /**
      * 返回已初始化的全局实例，永不返回 {@code null}。
      *
-     * @throws IllegalStateException 若 {@link #initialize()} 尚未在模组启动时执行
+     * @throws IllegalStateException 若尚未初始化
+     * @deprecated 新代码请使用 {@link com.director.core.DirectorServices#get()}{@code .containers()}
      */
+    @Deprecated
     public static ContainerManager getInstance() {
         ContainerManager existing = GLOBAL.get();
         if (existing != null) {
@@ -322,7 +326,7 @@ public class ContainerManager {
 
         // 2.5) 在锁外删除时间线上的对应片段（避免长时间持有锁）
         try {
-            var timelineService = com.director.ui.timeline.container.ContainerTimelineService.getInstance();
+            var timelineService = ContainerTimelineService.getInstance();
             for (Container c : toRemove) {
                 int removedCount = timelineService.removeClipsForContainer(c.getId());
                 if (removedCount > 0) {
@@ -453,7 +457,7 @@ public class ContainerManager {
         }
         // 在锁外删除时间线上的对应片段（避免长时间持有锁）
         try {
-            var timelineService = com.director.ui.timeline.container.ContainerTimelineService.getInstance();
+            var timelineService = ContainerTimelineService.getInstance();
             for (Container c : all) {
                 int removedCount = timelineService.removeClipsForContainer(c.getId());
                 if (removedCount > 0) {
@@ -1093,7 +1097,7 @@ public class ContainerManager {
         
         // 从选区中移除已收纳的方块（如果它们在选区中的话）
         try {
-            var selectionManager = com.director.core.selection.SelectionManager.get();
+            var selectionManager = SelectionManager.getInstance();
             if (selectionManager != null) {
                 var selectionSet = selectionManager.getSelectionSet();
                 if (selectionSet != null && !selectionSet.isEmpty()) {
@@ -1309,7 +1313,7 @@ public class ContainerManager {
         // 加载存档时 clear() 仅用于切换世界，不应改写时间线存档。
         if (!ContainerPersistence.isLoading()) {
             try {
-                var timelineService = com.director.ui.timeline.container.ContainerTimelineService.getInstance();
+                var timelineService = ContainerTimelineService.getInstance();
                 int totalRemoved = 0;
                 for (Container c : removedContainers) {
                     int removedCount = timelineService.removeClipsForContainer(c.getId());

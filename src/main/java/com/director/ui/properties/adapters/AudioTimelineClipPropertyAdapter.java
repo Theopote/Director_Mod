@@ -1,5 +1,6 @@
 package com.director.ui.properties.adapters;
 
+import com.director.core.DirectorServices;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.theme.UITheme;
 import com.director.ui.timeline.audio.TimelineAudioService;
@@ -69,9 +70,9 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
             float t;
             try {
                 // 这里不依赖 TimelineModel；仅用于给用户一个“当前时间点的音量倍率”参考。
-                float now = com.director.ui.timeline.container.ContainerTimelineService.getInstance()
+                float now = DirectorServices.get().containerTimeline()
                         .getTimelineModel() != null
-                        ? com.director.ui.timeline.container.ContainerTimelineService.getInstance()
+                        ? DirectorServices.get().containerTimeline()
                         .getTimelineModel().getCurrentTime()
                         : -1f;
                 if (now >= 0f) {
@@ -100,7 +101,7 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
                         try {
                             UUID containerId = containerClip.getBoundContainerId();
                             if (containerId != null) {
-                                Container c = ContainerManager.getInstance().getContainer(containerId);
+                                Container c = DirectorServices.get().containers().getContainer(containerId);
                                 if (c != null && c.getType() == com.director.core.container.ContainerType.DEMOLITION) {
                                     isErase = true;
                                 }

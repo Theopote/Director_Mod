@@ -1,5 +1,6 @@
 package com.director.actor.visualizer;
 
+import com.director.core.DirectorServices;
 import com.director.actor.ActorRef;
 import com.director.actor.preview.ActorPreviewManager;
 import net.minecraft.entity.Entity;
@@ -89,7 +90,7 @@ public final class ActorLookAtVisualizer {
         }
 
         // 2️⃣ 获取 TimelineModel
-        TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
         if (model == null) {
             return;
         }

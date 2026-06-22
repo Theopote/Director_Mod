@@ -1,5 +1,6 @@
 package com.director.ui.actor.lookat;
 
+import com.director.core.DirectorServices;
 import com.director.actor.visualizer.ActorLookAtVisualizer;
 import com.director.client.gizmo.GizmoManager;
 import com.director.client.gizmo.GizmoMode;
@@ -161,7 +162,7 @@ public final class MarkerDragController {
         );
 
         // 标记时间线为 dirty
-        TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
         if (model != null) {
             model.markDirty();
         }

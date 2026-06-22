@@ -1,5 +1,6 @@
 package com.director.ui.properties.adapters;
 
+import com.director.core.DirectorServices;
 import com.director.core.animation.effect.EffectInstance;
 import com.director.core.container.Container;
 import com.director.core.container.ContainerManager;
@@ -49,7 +50,7 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
             if (containerId == null) {
                 return false;
             }
-            Container container = ContainerManager.getInstance().getContainer(containerId);
+            Container container = DirectorServices.get().containers().getContainer(containerId);
             return container != null && container.getType() == com.director.core.container.ContainerType.DEMOLITION;
         } catch (Exception e) {
             return false;
@@ -132,7 +133,7 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
                 com.director.ui.timeline.audio.TimelineAudioService.getInstance()
                         .onClipTimeRangeChanged(clip, oldStartTime, oldEndTime, newStart, newEnd);
 
-                var timelineModel = com.director.ui.timeline.container.ContainerTimelineService.getInstance()
+                var timelineModel = DirectorServices.get().containerTimeline()
                         .getTimelineModel();
                 if (timelineModel != null) {
                     timelineModel.markDirty();

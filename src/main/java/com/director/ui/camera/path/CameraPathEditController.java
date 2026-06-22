@@ -1,5 +1,6 @@
 package com.director.ui.camera.path;
 
+import com.director.core.DirectorServices;
 import com.director.client.gizmo.GizmoInteractionController;
 import com.director.client.gizmo.GizmoManager;
 import com.director.client.gizmo.GizmoType;
@@ -127,7 +128,7 @@ public final class CameraPathEditController {
     }
 
     TimelineModel getTimelineModel() {
-        return ContainerTimelineService.getInstance().getTimelineModel();
+        return DirectorServices.get().containerTimeline().getTimelineModel();
     }
 
     public void update() {

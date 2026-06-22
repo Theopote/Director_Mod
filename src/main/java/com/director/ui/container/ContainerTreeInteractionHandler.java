@@ -1,5 +1,6 @@
 package com.director.ui.container;
 
+import com.director.core.DirectorServices;
 import com.director.core.container.Container;
 import com.director.core.container.ContainerType;
 import com.director.ui.timeline.container.ContainerTimelineService;
@@ -610,7 +611,7 @@ class ContainerTreeInteractionHandler {
         if (container == null) {
             return false;
         }
-        if (ContainerTimelineService.getInstance().isContainerOnTimeline(container.getId())) {
+        if (DirectorServices.get().containerTimeline().isContainerOnTimeline(container.getId())) {
             return true;
         }
         for (Container child : container.getChildren()) {

@@ -1,5 +1,6 @@
 package com.director.client.renderer.pipeline;
 
+import com.director.core.DirectorServices;
 import com.director.client.DirectorClientController;
 import com.director.client.gizmo.GizmoRenderEvents;
 import com.director.client.renderer.BlockVisualOverlayRenderer;
@@ -374,7 +375,7 @@ public final class DirectorRendererRegistry {
                         .getInstance()
                         .isTimelineActive();
             } catch (Throwable ignored) {
-                var model = ContainerTimelineService.getInstance().getTimelineModel();
+                var model = DirectorServices.get().containerTimeline().getTimelineModel();
                 return model != null && (model.isPlaying() || model.isScrubbing());
             }
         } catch (Throwable ignored) {
@@ -448,7 +449,7 @@ public final class DirectorRendererRegistry {
         if (camera == null) {
             return;
         }
-        SelectionManager manager = SelectionManager.get();
+        SelectionManager manager = DirectorServices.get().selection();
         if (manager == null) {
             return;
         }
@@ -594,7 +595,7 @@ public final class DirectorRendererRegistry {
         if (!renderer.isEnabled()) {
             return false;
         }
-        SelectionManager manager = SelectionManager.get();
+        SelectionManager manager = DirectorServices.get().selection();
         if (manager == null || !manager.hasCurrentTool()) {
             return false;
         }

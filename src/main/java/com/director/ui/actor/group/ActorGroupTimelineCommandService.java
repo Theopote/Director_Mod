@@ -1,5 +1,6 @@
 package com.director.ui.actor.group;
 
+import com.director.core.DirectorServices;
 import com.director.actor.ActorGroup;
 import com.director.actor.action.ActorActionType;
 import com.director.ui.timeline.container.ContainerTimelineService;
@@ -51,7 +52,7 @@ public final class ActorGroupTimelineCommandService {
             return 0;
         }
 
-        TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
         if (model == null) {
             LOGGER.warn("[ActorGroupTimelineCommandService] TimelineModel is not available");
             return 0;
@@ -105,7 +106,7 @@ public final class ActorGroupTimelineCommandService {
             return 0;
         }
 
-        TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
         if (model == null) {
             LOGGER.warn("[ActorGroupTimelineCommandService] TimelineModel is not available");
             return 0;
@@ -153,7 +154,7 @@ public final class ActorGroupTimelineCommandService {
         }
 
         MinecraftClient client = MinecraftClient.getInstance();
-        TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
         CameraSample cameraSample = CameraAccessor.sampleFromGameCamera(client);
         if (client == null || client.world == null || model == null || cameraSample == null) {
             LOGGER.warn("[ActorGroupTimelineCommandService] Cannot place group: client, world, timeline, or camera unavailable");

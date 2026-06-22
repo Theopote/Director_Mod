@@ -1,5 +1,6 @@
 package com.director.ui.panels;
 
+import com.director.core.DirectorServices;
 import com.director.actor.ActorRegistry;
 import com.director.actor.ActorRegistryManager;
 import com.director.ui.actor.ActorSelectorPanel;
@@ -67,7 +68,7 @@ public final class ActorsPanel extends AbstractPanel {
             return;
         }
 
-        TimelineModel timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel timelineModel = DirectorServices.get().containerTimeline().getTimelineModel();
         if (timelineModel == null) {
             return;
         }

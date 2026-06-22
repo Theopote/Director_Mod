@@ -1,5 +1,6 @@
 package com.director.ui.commands.impl;
 
+import com.director.core.DirectorServices;
 import com.director.core.selection.SelectionManager;
 import com.director.core.selection.SelectionOperation;
 import com.director.core.selection.SelectionOperationSupport;
@@ -27,8 +28,8 @@ public final class ToolCommandsImpl implements ToolCommands {
     public void switchToNextTool() {
         var world = MinecraftClient.getInstance().world;
         if (world != null) {
-            SelectionManager.get().switchToNextTool(world);
-            var id = SelectionManager.get().getCurrentToolId();
+            DirectorServices.get().selection().switchToNextTool(world);
+            var id = DirectorServices.get().selection().getCurrentToolId();
             if (id != null) {
                 PropertyContextService.get().onToolActivated(id);
             }
@@ -40,8 +41,8 @@ public final class ToolCommandsImpl implements ToolCommands {
     public void switchToPreviousTool() {
         var world = MinecraftClient.getInstance().world;
         if (world != null) {
-            SelectionManager.get().switchToPreviousTool(world);
-            var id = SelectionManager.get().getCurrentToolId();
+            DirectorServices.get().selection().switchToPreviousTool(world);
+            var id = DirectorServices.get().selection().getCurrentToolId();
             if (id != null) {
                 PropertyContextService.get().onToolActivated(id);
             }
@@ -51,7 +52,7 @@ public final class ToolCommandsImpl implements ToolCommands {
 
     @Override
     public void setSelectionMode(SelectionOperation operation) {
-        var currentTool = SelectionManager.get().getCurrentTool();
+        var currentTool = DirectorServices.get().selection().getCurrentTool();
         if (currentTool instanceof SelectionOperationSupport operationSupport) {
             operationSupport.setOperation(operation);
             LOGGER.debug("[ToolCommands] 设置选择操作模式: {}", operation.getDisplayName());
@@ -63,7 +64,7 @@ public final class ToolCommandsImpl implements ToolCommands {
 
     @Override
     public void clearSelection() {
-        SelectionManager.get().clearSelection();
+        DirectorServices.get().selection().clearSelection();
         LOGGER.debug("[ToolCommands] 清除选择");
     }
 

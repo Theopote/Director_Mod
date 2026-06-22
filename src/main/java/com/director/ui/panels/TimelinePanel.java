@@ -7,6 +7,7 @@ import com.director.ui.timeline.dialog.*;
 import com.director.ui.timeline.interaction.*;
 import com.director.ui.timeline.menu.TimelineContextMenu;
 import com.director.ui.timeline.menu.TimelineContextMenuFactory;
+import com.director.core.DirectorServices;
 import com.director.ui.timeline.model.TimelineClip;
 import com.director.ui.timeline.model.TimelineInterpolation;
 import com.director.ui.timeline.model.TimelineModel;
@@ -40,8 +41,6 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 // ⚠️ GLFW 导入已不再使用（时间线快捷键已迁移到 ShortcutDispatcher）
-
-import java.util.Objects;
 
 /**
  * Director 专业级时间轴面板（架构重构版 v8.0）
@@ -247,7 +246,7 @@ public class TimelinePanel extends AbstractPanel
         this.lastAutoSaveTime = System.currentTimeMillis();
 
         // 注册容器-时间线关联服务
-        com.director.ui.timeline.container.ContainerTimelineService.getInstance().setTimelineModel(model);
+        DirectorServices.get().containerTimeline().setTimelineModel(model);
         
         // 初始化音频服务（自动收集声音事件）
         com.director.ui.timeline.audio.TimelineAudioService.getInstance().setTimelineModel(model);
@@ -276,7 +275,7 @@ public class TimelinePanel extends AbstractPanel
         com.director.ui.timeline.playback.weather.TimelineWeatherController.getInstance().checkAndAutoActivate();
 
         // 注册容器监听器，用于同步容器名称变更到时间线片段
-        Objects.requireNonNull(ContainerManager.getInstance()).addListener(this);
+        DirectorServices.get().containers().addListener(this);
 
         // 初始化对话框
         ClipRenameDialog.initialize(model, commandHistory);
@@ -575,7 +574,7 @@ public class TimelinePanel extends AbstractPanel
     public void resetWorkspace(boolean clearContainers) {
         model.resetToEmpty();
         if (clearContainers) {
-            Objects.requireNonNull(ContainerManager.getInstance()).clear();
+            DirectorServices.get().containers().clear();
         }
         autoSave.markDirty();
     }
@@ -1811,7 +1810,7 @@ public class TimelinePanel extends AbstractPanel
             return;
         }
 
-        var timelineService = com.director.ui.timeline.container.ContainerTimelineService.getInstance();
+        var timelineService = DirectorServices.get().containerTimeline();
         timelineService.updateClipNamesForContainer(container.getId(), newName);
         markDataChanged();
 

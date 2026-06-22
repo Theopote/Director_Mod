@@ -1,5 +1,6 @@
 package com.director.mixin;
 
+import com.director.core.DirectorServices;
 import com.director.core.selection.SelectionInputHandler;
 import com.director.export.video.VideoExportManager;
 import com.director.ui.DirectorScreen;
@@ -171,7 +172,7 @@ public abstract class MouseMixin {
                         // ✅ 如果 BoxSelectTool 正在拖拽面中心小方块：不触发 click/框选拖拽结束
                         // 面手柄拖拽的结束由 BoxSelectTool.tick() 轮询鼠标释放并调用 faceHandleManager.endDrag() 完成。
                         try {
-                            var sm = com.director.core.selection.SelectionManager.get();
+                            var sm = DirectorServices.get().selection();
                             if (sm != null && sm.getCurrentTool() instanceof com.director.core.selection.tools.boxselecttool.BoxSelectTool boxTool) {
                                 if (boxTool.isDraggingFaceHandle()) {
                                     LOGGER.debug("[Director] 左键释放：面手柄拖拽中，跳过 click/dragEnd");

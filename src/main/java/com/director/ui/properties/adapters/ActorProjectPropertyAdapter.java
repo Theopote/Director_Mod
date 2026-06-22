@@ -1,5 +1,6 @@
 package com.director.ui.properties.adapters;
 
+import com.director.core.DirectorServices;
 import com.director.actor.Actor;
 import com.director.actor.ActorGroup;
 import com.director.actor.ActorRef;
@@ -712,7 +713,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
      */
     private void createActorAndTrack(String actorName, ActorType actorType) {
         ActorRegistry actorRegistry = ActorRegistryManager.getInstance();
-        TimelineModel timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel timelineModel = DirectorServices.get().containerTimeline().getTimelineModel();
 
         try {
             // 0️⃣ 生成唯一的名称
@@ -786,7 +787,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         UITheme.separator();
         UITheme.label("Used In", UITheme.DarkTheme.TEXT);
         
-        TimelineModel timeline = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel timeline = DirectorServices.get().containerTimeline().getTimelineModel();
         if (timeline == null) {
             ImGui.textDisabled("No active timeline.");
             return;
@@ -896,7 +897,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             return;
         }
         
-        var timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+        var timelineModel = DirectorServices.get().containerTimeline().getTimelineModel();
         if (timelineModel == null) {
             LOGGER.warn("[ActorProjectPropertyAdapter] TimelineModel 未初始化");
             return;
@@ -1027,7 +1028,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             return;
         }
         
-        var timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+        var timelineModel = DirectorServices.get().containerTimeline().getTimelineModel();
         if (timelineModel == null) {
             LOGGER.warn("[ActorProjectPropertyAdapter] TimelineModel 未初始化，无法删除轨道");
             // 即使没有 TimelineModel，也尝试删除演员

@@ -1,5 +1,6 @@
 package com.director.ui.timeline.interaction;
 
+import com.director.core.DirectorServices;
 import com.director.core.container.Container;
 import com.director.core.container.ContainerManager;
 import com.director.core.container.ContainerType;
@@ -146,7 +147,7 @@ public class TimelineDragAndDropHandler {
                     continue;
                 }
 
-                Container container = Objects.requireNonNull(ContainerManager.getInstance()).getContainer(containerUuid);
+                Container container = DirectorServices.get().containers().getContainer(containerUuid);
                 if (container == null) {
                     LOGGER.warn("[DragDrop] 容器不存在: {}", containerUuid);
                     continue;
@@ -166,7 +167,7 @@ public class TimelineDragAndDropHandler {
                 prepareContainerForContainerTrack(container);
 
                 // 检查容器是否已经在时间线上有片段
-                var timelineService = com.director.ui.timeline.container.ContainerTimelineService.getInstance();
+                var timelineService = DirectorServices.get().containerTimeline();
                 var existingClips = timelineService.findClipsForContainer(containerUuid);
 
                 if (!existingClips.isEmpty()) {
@@ -240,7 +241,7 @@ public class TimelineDragAndDropHandler {
 
                 // 清除轨道默认使用“淡出”更符合直觉（不强制，用户可改）
                 try {
-                    Container c = ContainerManager.getInstance().getContainer(containerUuid);
+                    Container c = DirectorServices.get().containers().getContainer(containerUuid);
                     if (c != null && c.getType() == ContainerType.DEMOLITION) {
                         ClipAnimationConfig cfg = clip.getAnimationConfig();
                         cfg.setPhase(ClipAnimationConfig.AnimationPhase.EXIT);

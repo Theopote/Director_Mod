@@ -1,5 +1,6 @@
 package com.director.client.renderer;
 
+import com.director.core.DirectorServices;
 import com.director.core.container.Container;
 import com.director.core.container.ContainerManager;
 import com.mojang.blaze3d.opengl.GlStateManager;
@@ -62,7 +63,7 @@ public final class ContainerBoundsRenderer {
             return;
         }
         
-        ContainerManager manager = ContainerManager.getInstance();
+        ContainerManager manager = DirectorServices.get().containers();
         if (manager == null) {
             return;
         }

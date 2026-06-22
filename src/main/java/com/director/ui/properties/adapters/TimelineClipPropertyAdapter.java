@@ -1,5 +1,6 @@
 package com.director.ui.properties.adapters;
 
+import com.director.core.DirectorServices;
 import com.director.core.animation.effect.EffectInstance;
 import com.director.core.container.Container;
 import com.director.core.container.ContainerManager;
@@ -50,7 +51,7 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
             if (containerId == null) {
                 return false;
             }
-            Container container = ContainerManager.getInstance().getContainer(containerId);
+            Container container = DirectorServices.get().containers().getContainer(containerId);
             if (container == null) {
                 return false;
             }
@@ -146,7 +147,7 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
                     com.director.ui.timeline.audio.TimelineAudioService.getInstance()
                             .onClipTimeRangeChanged(clip, oldStartTime, oldEndTime, newStart, newEnd);
 
-                    var timelineModel = com.director.ui.timeline.container.ContainerTimelineService.getInstance()
+                    var timelineModel = DirectorServices.get().containerTimeline()
                             .getTimelineModel();
                     if (timelineModel != null) {
                         timelineModel.markDirty();

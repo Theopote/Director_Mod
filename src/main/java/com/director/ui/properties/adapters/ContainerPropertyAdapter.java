@@ -1,5 +1,6 @@
 package com.director.ui.properties.adapters;
 
+import com.director.core.DirectorServices;
 import com.director.core.container.Container;
 import com.director.core.container.ContainerAnimationPreset;
 import com.director.core.container.ContainerType;
@@ -91,7 +92,7 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
         if (container == null) {
             return false;
         }
-        var timelineService = com.director.ui.timeline.container.ContainerTimelineService.getInstance();
+        var timelineService = DirectorServices.get().containerTimeline();
         if (timelineService.isContainerOnTimeline(container.getId())) {
             return true;
         }

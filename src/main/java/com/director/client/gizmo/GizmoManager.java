@@ -1,5 +1,6 @@
 package com.director.client.gizmo;
 
+import com.director.core.DirectorServices;
 import net.minecraft.client.render.*;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.Box;
@@ -389,7 +390,7 @@ public class GizmoManager {
         
         // 默认行为：写回 SelectionManager
         Set<net.minecraft.util.math.BlockPos> blocks = GizmoVoxelizer.voxelize(newBox);
-        SelectionManager manager = SelectionManager.get();
+        SelectionManager manager = DirectorServices.get().selection();
         if (manager != null) {
             manager.clearSelection();
             manager.getSelectionSet().addAll(blocks);

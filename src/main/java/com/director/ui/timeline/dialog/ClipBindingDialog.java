@@ -1,5 +1,6 @@
 package com.director.ui.timeline.dialog;
 
+import com.director.core.DirectorServices;
 import com.director.core.container.Container;
 import com.director.core.container.ContainerManager;
 import com.director.core.container.ContainerType;
@@ -43,7 +44,7 @@ public final class ClipBindingDialog {
             return;
         }
         clip = c;
-        containers = ContainerManager.getInstance().getAllContainers().stream()
+        containers = DirectorServices.get().containers().getAllContainers().stream()
             .filter(ClipBindingDialog::isBindableContainer)
             .toList();
         selectedIndex = -1;
@@ -161,7 +162,7 @@ public final class ClipBindingDialog {
         if (clip != null && container.getId().equals(clip.getBoundContainerId())) {
             return true;
         }
-        return !ContainerTimelineService.getInstance().isContainerOnTimeline(container.getId());
+        return !DirectorServices.get().containerTimeline().isContainerOnTimeline(container.getId());
     }
 }
 

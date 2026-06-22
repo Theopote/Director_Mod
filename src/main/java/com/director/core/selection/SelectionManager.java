@@ -94,11 +94,33 @@ public class SelectionManager {
         this.eventProcessor = null;
     }
 
+    public static void initialize() {
+        if (INSTANCE != null) {
+            return;
+        }
+        synchronized (SelectionManager.class) {
+            if (INSTANCE == null) {
+                INSTANCE = new SelectionManager();
+            }
+        }
+    }
+
+    /**
+     * @throws IllegalStateException 若尚未初始化
+     * @deprecated 新代码请使用 {@link com.director.core.DirectorServices#get()}{@code .selection()}
+     */
+    @Deprecated
     public static SelectionManager get() {
         if (INSTANCE == null) {
-            INSTANCE = new SelectionManager();
+            throw new IllegalStateException(
+                    "[SelectionManager] Not initialized — call DirectorServices.initialize() during mod startup");
         }
         return INSTANCE;
+    }
+
+    /** @see #get() */
+    public static SelectionManager getInstance() {
+        return get();
     }
     
     /**

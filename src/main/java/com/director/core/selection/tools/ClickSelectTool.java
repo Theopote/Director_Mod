@@ -1,5 +1,6 @@
 package com.director.core.selection.tools;
 
+import com.director.core.DirectorServices;
 import com.director.core.selection.SelectionManager;
 import com.director.core.selection.SelectionOperation;
 import com.director.core.selection.SelectionOperationSupport;
@@ -120,7 +121,7 @@ public class ClickSelectTool implements SelectionTool, SelectionOperationSupport
             return;
         }
 
-        SelectionManager manager = SelectionManager.get();
+        SelectionManager manager = DirectorServices.get().selection();
         if (manager == null) {
             LOGGER.error("[ClickSelectTool] SelectionManager 为空！");
             return;
@@ -179,7 +180,7 @@ public class ClickSelectTool implements SelectionTool, SelectionOperationSupport
             return;
         }
 
-        SelectionManager manager = SelectionManager.get();
+        SelectionManager manager = DirectorServices.get().selection();
         if (manager == null) {
             LOGGER.error("[ClickSelectTool] SelectionManager 为空！");
             return;
@@ -309,20 +310,20 @@ public class ClickSelectTool implements SelectionTool, SelectionOperationSupport
 
     @Override
     public SelectionState getCurrentSelection() {
-        SelectionManager manager = SelectionManager.get();
+        SelectionManager manager = DirectorServices.get().selection();
         return SelectionState.of(manager.getSelectionSet().asUnmodifiableSet());
     }
 
     @Override
     public void clearSelection() {
-        SelectionManager manager = SelectionManager.get();
+        SelectionManager manager = DirectorServices.get().selection();
         manager.clearSelection();
         LOGGER.debug("[ClickSelectTool] 清除选区");
     }
 
     @Override
     public boolean shouldRenderOverlay() {
-        SelectionManager manager = SelectionManager.get();
+        SelectionManager manager = DirectorServices.get().selection();
         return !manager.getSelectionSet().isEmpty();
     }
 

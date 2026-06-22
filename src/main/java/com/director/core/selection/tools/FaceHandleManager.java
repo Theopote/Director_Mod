@@ -1,5 +1,6 @@
 package com.director.core.selection.tools;
 
+import com.director.core.DirectorServices;
 import com.director.client.gizmo.Axis;
 import com.director.core.selection.SelectionManager;
 import net.minecraft.util.math.Box;
@@ -94,7 +95,7 @@ public class FaceHandleManager {
         Vec3d hit = intersectRayWithPlane(rayOrigin, dir, center, dragAxisDir);
         dragAxisOrigin = hit != null ? hit : center;
 
-        SelectionManager manager = SelectionManager.get();
+        SelectionManager manager = DirectorServices.get().selection();
         if (manager != null) {
             manager.beginFaceResize(dragStartBox, draggingFaceIndex);
         }
@@ -117,7 +118,7 @@ public class FaceHandleManager {
         // ✅ 修正方向：当前解算得到的 offset 与“面法线正方向”相反，统一取反
         liveOffset = -offset;
 
-        SelectionManager manager = SelectionManager.get();
+        SelectionManager manager = DirectorServices.get().selection();
         if (manager != null) {
             manager.previewFaceResize(draggingFaceIndex, liveOffset);
         }
@@ -128,7 +129,7 @@ public class FaceHandleManager {
             return;
         }
 
-        SelectionManager manager = SelectionManager.get();
+        SelectionManager manager = DirectorServices.get().selection();
         if (manager != null) {
             manager.applyFaceResize(draggingFaceIndex, liveOffset);
         }
@@ -153,7 +154,7 @@ public class FaceHandleManager {
             clearHover();
             return;
         }
-        SelectionManager manager = SelectionManager.get();
+        SelectionManager manager = DirectorServices.get().selection();
         if (manager != null) {
             manager.cancelFaceResize();
         }

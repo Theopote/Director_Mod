@@ -1,5 +1,6 @@
 package com.director.client.renderer;
 
+import com.director.core.DirectorServices;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.RenderLayer;
@@ -36,7 +37,7 @@ public final class HoverHighlightRenderer {
 
         BlockPos pos = hit.getBlockPos();
         try {
-            var selectionManager = com.director.core.selection.SelectionManager.get();
+            var selectionManager = DirectorServices.get().selection();
             if (selectionManager != null
                 && selectionManager.getCurrentSelection() != null
                 && selectionManager.getCurrentSelection().getSelectedBlocks().contains(pos)) {

@@ -1,5 +1,6 @@
 package com.director.ui.panels;
 
+import com.director.core.DirectorServices;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 
@@ -198,7 +199,7 @@ public class StatusBarPanel extends AbstractPanel implements IPanelRegistryAware
 
         // 7. Containers
         try {
-            ContainerManager cm = ContainerManager.getInstance();
+            ContainerManager cm = DirectorServices.get().containers();
             if (cm.getContainerCount() > 0) {
                 UITheme.label(
                         "Containers: " + cm.getContainerCount(),

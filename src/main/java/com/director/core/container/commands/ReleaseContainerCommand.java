@@ -1,5 +1,6 @@
 package com.director.core.container.commands;
 
+import com.director.core.DirectorServices;
 import com.director.core.container.Container;
 import com.director.core.container.ContainerState;
 import com.director.core.container.ContainerManager;
@@ -110,7 +111,7 @@ public class ReleaseContainerCommand implements ContainerCommand {
     }
 
     private void captureTimelineClips() {
-        ContainerTimelineService timelineService = ContainerTimelineService.getInstance();
+        ContainerTimelineService timelineService = DirectorServices.get().containerTimeline();
         TimelineModel timelineModel = timelineService.getTimelineModel();
         if (timelineModel == null) {
             return;
@@ -128,7 +129,7 @@ public class ReleaseContainerCommand implements ContainerCommand {
     }
 
     private void removeTimelineClips() {
-        ContainerTimelineService timelineService = ContainerTimelineService.getInstance();
+        ContainerTimelineService timelineService = DirectorServices.get().containerTimeline();
         for (Container released : releasedTree) {
             timelineService.removeClipsForContainer(released.getId());
         }
@@ -141,7 +142,7 @@ public class ReleaseContainerCommand implements ContainerCommand {
     }
 
     private void restoreTimelineClips() {
-        ContainerTimelineService timelineService = ContainerTimelineService.getInstance();
+        ContainerTimelineService timelineService = DirectorServices.get().containerTimeline();
         TimelineModel timelineModel = timelineService.getTimelineModel();
         if (timelineModel == null) {
             return;

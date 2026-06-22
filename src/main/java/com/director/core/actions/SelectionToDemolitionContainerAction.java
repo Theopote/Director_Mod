@@ -1,5 +1,6 @@
 package com.director.core.actions;
 
+import com.director.core.DirectorServices;
 import com.director.core.container.Container;
 import com.director.core.container.ContainerManager;
 import com.director.core.container.ContainerType;
@@ -23,14 +24,14 @@ public final class SelectionToDemolitionContainerAction {
     private SelectionToDemolitionContainerAction() {}
 
     public static void execute() {
-        SelectionSet set = SelectionManager.get().getSelectionSet();
+        SelectionSet set = DirectorServices.get().selection().getSelectionSet();
         if (set.isEmpty()) {
             LOGGER.warn("[SelectionToDemolitionContainerAction] 选区为空，无法生成拆除容器");
             return;
         }
 
         try {
-            var selectionState = SelectionManager.get().getCurrentSelection();
+            var selectionState = DirectorServices.get().selection().getCurrentSelection();
             net.minecraft.world.World world = null;
             try {
                 world = net.minecraft.client.MinecraftClient.getInstance().world;
@@ -38,11 +39,11 @@ public final class SelectionToDemolitionContainerAction {
 
             // ★ 关键：拆除容器默认不隐藏世界方块，否则会立刻清空选区
             boolean hiddenDefault = false;
-            Container container = Objects.requireNonNull(ContainerManager.getInstance()).createFromSelection(selectionState, world, hiddenDefault);
+            Container container = DirectorServices.get().containers().createFromSelection(selectionState, world, hiddenDefault);
             if (container != null) {
                 container.setType(ContainerType.DEMOLITION);
                 // 清空选区（创建成功后清除）
-                SelectionManager.get().clearSelection();
+                DirectorServices.get().selection().clearSelection();
                 LOGGER.info("[SelectionToDemolitionContainerAction] 从选区生成拆除容器 '{}' ({} 个方块)",
                     container.getName(), set.size());
             }

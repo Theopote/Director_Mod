@@ -1,5 +1,6 @@
 package com.director.ui.video;
 
+import com.director.core.DirectorServices;
 import net.fabricmc.loader.api.FabricLoader;
 import com.director.export.video.VideoExportSettings;
 import com.director.ui.DirectorUIManager;
@@ -499,7 +500,7 @@ public final class VideoExportDialog {
     }
 
     private static List<TimelineTrack> getCameraTracks() {
-        TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
         if (model == null || model.getAllTracks() == null) {
             return List.of();
         }

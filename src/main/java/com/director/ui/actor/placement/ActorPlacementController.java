@@ -1,5 +1,6 @@
 package com.director.ui.actor.placement;
 
+import com.director.core.DirectorServices;
 import com.director.actor.Actor;
 import com.director.actor.ActorRef;
 import com.director.actor.ActorRegistry;
@@ -303,7 +304,7 @@ public final class ActorPlacementController {
         }
 
         ActorRegistry actorRegistry = ActorRegistryManager.getInstance();
-        TimelineModel timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel timelineModel = DirectorServices.get().containerTimeline().getTimelineModel();
         
         if (timelineModel == null) {
             LOGGER.warn("[ActorPlacement] ActorRegistry 或 TimelineModel 未初始化");

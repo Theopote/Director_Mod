@@ -1,5 +1,6 @@
 package com.director.ui.properties.adapters;
 
+import com.director.core.DirectorServices;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
@@ -812,7 +813,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
      * @return 如果播放头在 clip 的时间范围内返回 true，否则返回 false
      */
     private boolean isPlayheadOnClip(OrbitPathClip clip) {
-        TimelineModel timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel timelineModel = DirectorServices.get().containerTimeline().getTimelineModel();
         if (timelineModel == null) {
             return false;
         }
@@ -832,7 +833,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
      */
     private void updateCameraPreview(OrbitPathClip clip) {
         try {
-            TimelineModel timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+            TimelineModel timelineModel = DirectorServices.get().containerTimeline().getTimelineModel();
             if (timelineModel == null) {
                 return;
             }

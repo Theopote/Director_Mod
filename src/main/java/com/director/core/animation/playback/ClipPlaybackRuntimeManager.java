@@ -1,5 +1,6 @@
 package com.director.core.animation.playback;
 
+import com.director.core.DirectorServices;
 import com.director.core.animation.container.EvaluatedPose;
 import com.director.core.animation.timeline.AnimationTimelineService;
 import com.director.core.container.Container;
@@ -57,7 +58,7 @@ public final class ClipPlaybackRuntimeManager {
      * 更新容器的 ContainerState，这会自动触发 ContainerVisibilityService。
      */
     private void syncVisibilityState(UUID containerId, EvaluatedPose pose) {
-        ContainerManager manager = ContainerManager.getInstance();
+        ContainerManager manager = DirectorServices.get().containers();
         Container container = null;
         if (manager != null) {
             container = manager.getContainer(containerId);

@@ -1,5 +1,6 @@
 package com.director.ui.commands.impl;
 
+import com.director.core.DirectorServices;
 import com.director.ui.PanelId;
 import com.director.ui.commands.CameraCommands;
 import com.director.ui.commands.ContainerCommands;
@@ -59,7 +60,7 @@ public final class UICommandFacadeImpl implements UICommandFacade {
         if (timelinePanel != null) {
             timelineModel = timelinePanel.getModel();
         } else {
-            timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+            timelineModel = DirectorServices.get().containerTimeline().getTimelineModel();
             if (timelineModel == null) {
                 LOGGER.warn("[Commands] TimelineModel not available, some commands may not work");
             }

@@ -1,5 +1,6 @@
 package com.director.ui.timeline.model;
 
+import com.director.core.DirectorServices;
 import com.director.ui.timeline.model.audio.AudioEvent;
 import com.director.ui.timeline.model.camera.CameraViewportProfile;
 import com.director.ui.timeline.model.camera.CameraKeyframe;
@@ -139,7 +140,7 @@ public class TimelineTrack {
         if (containerId == null) {
             return false;
         }
-        var service = com.director.ui.timeline.container.ContainerTimelineService.getInstance();
+        var service = DirectorServices.get().containerTimeline();
         for (TimelineClip existing : service.findClipsForContainer(containerId)) {
             if (existing != null && existing != candidate) {
                 return true;

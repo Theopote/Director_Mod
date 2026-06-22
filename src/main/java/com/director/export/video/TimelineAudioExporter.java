@@ -1,5 +1,6 @@
 package com.director.export.video;
 
+import com.director.core.DirectorServices;
 import it.unimi.dsi.fastutil.floats.FloatArrayList;
 import it.unimi.dsi.fastutil.floats.FloatConsumer;
 import net.fabricmc.loader.api.FabricLoader;
@@ -185,7 +186,7 @@ public final class TimelineAudioExporter implements AudioExporter {
     }
 
     private List<EventClip> collectEventClips(float startTimeSec, float endTimeSec) {
-        TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
         if (model == null) {
             return List.of();
         }

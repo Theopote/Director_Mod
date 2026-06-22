@@ -1,5 +1,6 @@
 package com.director.core.selection.tools.brushselecttool;
 
+import com.director.core.DirectorServices;
 import com.director.client.renderer.ToolPreviewManager;
 import com.director.core.selection.SelectionManager;
 import com.director.core.selection.SelectionOperation;
@@ -125,7 +126,7 @@ public class BrushSelectTool implements SelectionTool, SelectionOperationSupport
      * - 否则交给 onHover 的下一次调用来刷新
      */
     private void refreshPreview() {
-        SelectionManager manager = SelectionManager.get();
+        SelectionManager manager = DirectorServices.get().selection();
         if (!isPainting || manager == null) {
             return;
         }
@@ -170,7 +171,7 @@ public class BrushSelectTool implements SelectionTool, SelectionOperationSupport
      * 只读：返回全局管道（供 ToolPropertiesPanel 等展示）。刷选逻辑统一经 SelectionManager.getEffectiveFilterPipeline()。
      */
     public BlockFilterPipeline getPipeline() {
-        SelectionManager m = SelectionManager.get();
+        SelectionManager m = DirectorServices.get().selection();
         return m != null ? m.getPipeline() : new BlockFilterPipeline();
     }
 
@@ -210,8 +211,8 @@ public class BrushSelectTool implements SelectionTool, SelectionOperationSupport
 
         cancelCurrentTask();
 
-        BlockFilterPipeline effective = (SelectionManager.get() != null)
-            ? SelectionManager.get().getEffectiveFilterPipeline()
+        BlockFilterPipeline effective = (DirectorServices.get().selection() != null)
+            ? DirectorServices.get().selection().getEffectiveFilterPipeline()
             : new BlockFilterPipeline().add(BlockFilters.nonAir());
 
         BrushSelectTask task = BrushSelectTask.start(
@@ -287,7 +288,7 @@ public class BrushSelectTool implements SelectionTool, SelectionOperationSupport
             return;
         }
 
-        SelectionManager manager = SelectionManager.get();
+        SelectionManager manager = DirectorServices.get().selection();
         if (manager == null) {
             LOGGER.warn("[BrushSelectTool] SelectionManager 不存在，无法应用刷选结果");
             return;
@@ -375,14 +376,14 @@ public class BrushSelectTool implements SelectionTool, SelectionOperationSupport
 
     @Override
     public SelectionState getCurrentSelection() {
-        SelectionManager manager = SelectionManager.get();
+        SelectionManager manager = DirectorServices.get().selection();
         return SelectionState.of(manager.getSelectionSet().asUnmodifiableSet());
     }
 
     @Override
     public void clearSelection() {
         cancelCurrentTask();
-        SelectionManager manager = SelectionManager.get();
+        SelectionManager manager = DirectorServices.get().selection();
         if (manager != null) {
             manager.clearSelection();
         }
@@ -392,7 +393,7 @@ public class BrushSelectTool implements SelectionTool, SelectionOperationSupport
 
     @Override
     public boolean shouldRenderOverlay() {
-        SelectionManager manager = SelectionManager.get();
+        SelectionManager manager = DirectorServices.get().selection();
         return (manager != null && !manager.getSelectionSet().isEmpty()) || isPainting;
     }
 

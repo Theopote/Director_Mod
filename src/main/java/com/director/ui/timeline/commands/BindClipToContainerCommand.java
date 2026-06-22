@@ -1,5 +1,6 @@
 package com.director.ui.timeline.commands;
 
+import com.director.core.DirectorServices;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,7 +89,7 @@ public class BindClipToContainerCommand extends BaseTimelineCommand {
         if (containerId.equals(oldContainerId)) {
             return true;
         }
-        for (TimelineClip existing : com.director.ui.timeline.container.ContainerTimelineService.getInstance()
+        for (TimelineClip existing : DirectorServices.get().containerTimeline()
                 .findClipsForContainer(containerId)) {
             if (existing != null && existing != clip) {
                 return false;

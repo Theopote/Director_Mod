@@ -1,5 +1,6 @@
 package com.director.ui.panels;
 
+import com.director.core.DirectorServices;
 import com.director.core.selection.SelectionManager;
 import com.director.core.selection.SelectionState;
 import com.director.core.selection.history.SelectionHistoryManager;
@@ -60,7 +61,7 @@ public class SelectionHistoryPanel extends AbstractPanel {
     // ========== 构造函数 ==========
     public SelectionHistoryPanel() {
         this.historyManager = SelectionHistoryManager.getInstance();
-        this.selectionManager = SelectionManager.get();
+        this.selectionManager = DirectorServices.get().selection();
         
         // 初始化UI组件
         this.toolbar = new ToolbarSection();

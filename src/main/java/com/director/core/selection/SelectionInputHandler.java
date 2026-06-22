@@ -1,5 +1,6 @@
 package com.director.core.selection;
 
+import com.director.core.DirectorServices;
 import com.director.client.gizmo.GizmoManager;
 import com.director.client.settings.RenderSettings;
 import com.director.core.selection.tools.ClickSelectTool;
@@ -52,7 +53,7 @@ public class SelectionInputHandler {
 
     public SelectionInputHandler() {
         this.client = MinecraftClient.getInstance();
-        this.selectionManager = SelectionManager.get();
+        this.selectionManager = DirectorServices.get().selection();
     }
 
     /* -------------------- 统一的射线方法 -------------------- */

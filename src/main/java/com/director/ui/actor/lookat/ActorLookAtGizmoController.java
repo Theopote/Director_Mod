@@ -1,5 +1,6 @@
 package com.director.ui.actor.lookat;
 
+import com.director.core.DirectorServices;
 import com.director.actor.ActorRef;
 import com.director.client.gizmo.GizmoManager;
 import com.director.client.gizmo.GizmoMode;
@@ -199,7 +200,7 @@ public final class ActorLookAtGizmoController {
             return;
         }
 
-        TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
         if (model == null) {
             LOGGER.warn("[ActorLookAtGizmoController] TimelineModel 未初始化");
             return;
@@ -237,7 +238,7 @@ public final class ActorLookAtGizmoController {
      * @param worldPoint 世界坐标点
      */
     private void createOrUpdateLookAtClip(Vec3d worldPoint) {
-        TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
         if (model == null) {
             return;
         }
@@ -319,7 +320,7 @@ public final class ActorLookAtGizmoController {
         }
 
         // 标记模型为 dirty
-        TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
         if (model != null) {
             model.markDirty();
         }
@@ -342,7 +343,7 @@ public final class ActorLookAtGizmoController {
             return;
         }
 
-        TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
         if (model == null) {
             return;
         }

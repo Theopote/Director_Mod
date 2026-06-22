@@ -1,5 +1,6 @@
 package com.director.ui.properties.adapters;
 
+import com.director.core.DirectorServices;
 import com.director.core.selection.SelectionManager;
 import com.director.core.selection.SelectionTool;
 import com.director.ui.properties.IPropertyAdapter;
@@ -24,7 +25,7 @@ public final class SelectionToolPropertyAdapter implements IPropertyAdapter<Sele
     private final IToolPropertyRenderContext context = new IToolPropertyRenderContext() {
         @Override
         public SelectionManager getSelectionManager() {
-            return SelectionManager.get();
+            return DirectorServices.get().selection();
         }
         @Override
         public float[] getFloatBuffer() { return floatBuffer; }

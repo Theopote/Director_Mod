@@ -1,5 +1,6 @@
 package com.director.ui.properties.adapters;
 
+import com.director.core.DirectorServices;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.theme.Icons;
 import com.director.ui.timeline.container.ContainerTimelineService;
@@ -298,7 +299,7 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
      * ⭐ 检查播放头是否在当前 clip 的时间范围内
      */
     private boolean isPlayheadOnClip(CranePathClip clip) {
-        TimelineModel timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel timelineModel = DirectorServices.get().containerTimeline().getTimelineModel();
         if (timelineModel == null) {
             return false;
         }
@@ -315,7 +316,7 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
      */
     private void updateCameraPreview(CranePathClip clip) {
         try {
-            TimelineModel timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+            TimelineModel timelineModel = DirectorServices.get().containerTimeline().getTimelineModel();
             if (timelineModel == null) {
                 return;
             }

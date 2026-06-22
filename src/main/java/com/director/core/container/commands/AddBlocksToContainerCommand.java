@@ -1,5 +1,6 @@
 package com.director.core.container.commands;
 
+import com.director.core.DirectorServices;
 import com.director.core.container.Container;
 import com.director.core.container.ContainerManager;
 import com.director.core.container.visibility.ContainerServices;
@@ -40,7 +41,7 @@ public class AddBlocksToContainerCommand implements ContainerCommand {
     public void execute() {
         actuallyAdded.clear();
         Collection<BlockPos> acceptedBlocks = filterUnownedBlocks();
-        ContainerManager manager = ContainerManager.getInstance();
+        ContainerManager manager = DirectorServices.get().containers();
         if (manager != null) {
             acceptedBlocks = manager.limitBlocksForContainer(container, acceptedBlocks);
         }
@@ -107,7 +108,7 @@ public class AddBlocksToContainerCommand implements ContainerCommand {
     }
 
     private Collection<BlockPos> filterUnownedBlocks() {
-        ContainerManager manager = ContainerManager.getInstance();
+        ContainerManager manager = DirectorServices.get().containers();
         if (manager == null) {
             return blocksToAdd;
         }

@@ -1,5 +1,6 @@
 package com.director.core.container.visibility;
 
+import com.director.core.DirectorServices;
 import com.director.core.container.Container;
 import com.director.core.container.ContainerManager;
 import net.minecraft.server.MinecraftServer;
@@ -40,7 +41,7 @@ public class ContainerServices {
         }
 
         try {
-            ContainerManager manager = ContainerManager.getInstance();
+            ContainerManager manager = DirectorServices.get().containers();
             int synced = 0;
             for (Container container : manager.getAllContainers()) {
                 if (container != null && container.isHidden() && container.getBlockCount() > 0) {

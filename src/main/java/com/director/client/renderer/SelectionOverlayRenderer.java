@@ -1,5 +1,6 @@
 package com.director.client.renderer;
 
+import com.director.core.DirectorServices;
 import com.director.core.selection.SelectionManager;
 import com.mojang.blaze3d.opengl.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -67,7 +68,7 @@ public final class SelectionOverlayRenderer {
         World world = client.world;
         if (world == null) return;
 
-        var manager = SelectionManager.get();
+        var manager = DirectorServices.get().selection();
         if (manager == null || !manager.hasCurrentTool()) return;
 
         var selection = manager.getCurrentSelection();

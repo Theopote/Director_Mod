@@ -1,5 +1,6 @@
 package com.director.ui.panels;
 
+import com.director.core.DirectorServices;
 import com.director.actor.Actor;
 import com.director.actor.ActorRegistryManager;
 import com.director.ui.properties.IPropertyAdapter;
@@ -223,7 +224,7 @@ public class PropertiesPanel extends AbstractPanel {
                 renderObjectTypeHeader();
                 boolean modified = ad.renderProperties(target, adapterCtx);
                 if (modified) {
-                    var timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+                    var timelineModel = DirectorServices.get().containerTimeline().getTimelineModel();
                     if (timelineModel != null) timelineModel.markDirty();
                 }
             } catch (Exception e) {
@@ -294,7 +295,7 @@ public class PropertiesPanel extends AbstractPanel {
                 UITheme.title("🎭 Actor Properties");
                 boolean modified = adapter.renderProperties(actor, PropertyAdapterContext.of(1f, false));
                 if (modified) {
-                    var timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+                    var timelineModel = DirectorServices.get().containerTimeline().getTimelineModel();
                     if (timelineModel != null) {
                         timelineModel.markDirty();
                     }

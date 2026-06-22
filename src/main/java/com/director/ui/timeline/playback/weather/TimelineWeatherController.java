@@ -1,5 +1,6 @@
 package com.director.ui.timeline.playback.weather;
 
+import com.director.core.DirectorServices;
 import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.TrackType;
 import com.director.ui.timeline.model.weather.WeatherKeyframe;
@@ -131,7 +132,7 @@ public final class TimelineWeatherController {
             return true;
         }
         com.director.ui.timeline.container.ContainerTimelineService service =
-            com.director.ui.timeline.container.ContainerTimelineService.getInstance();
+            DirectorServices.get().containerTimeline();
         if (service == null) {
             return false;
         }
@@ -177,7 +178,7 @@ public final class TimelineWeatherController {
         if (enabled && keyframeCount > 0) {
             float currentTime = 0f;
             com.director.ui.timeline.container.ContainerTimelineService svc =
-                com.director.ui.timeline.container.ContainerTimelineService.getInstance();
+                DirectorServices.get().containerTimeline();
             if (svc != null) {
                 com.director.ui.timeline.model.TimelineModel m = svc.getTimelineModel();
                 if (m != null) {
@@ -199,7 +200,7 @@ public final class TimelineWeatherController {
      */
     public void checkAndAutoActivate() {
         com.director.ui.timeline.container.ContainerTimelineService service = 
-            com.director.ui.timeline.container.ContainerTimelineService.getInstance();
+            DirectorServices.get().containerTimeline();
         if (service == null) {
             return;
         }
@@ -238,7 +239,7 @@ public final class TimelineWeatherController {
             if (currentSample == null && sampler != null) {
                 float currentTime = 0f;
                 com.director.ui.timeline.container.ContainerTimelineService svc =
-                    com.director.ui.timeline.container.ContainerTimelineService.getInstance();
+                    DirectorServices.get().containerTimeline();
                 if (svc != null) {
                     com.director.ui.timeline.model.TimelineModel m = svc.getTimelineModel();
                     if (m != null) {

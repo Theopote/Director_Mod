@@ -1,5 +1,6 @@
 package com.director.ui.actor.path;
 
+import com.director.core.DirectorServices;
 import com.director.client.gizmo.GizmoManager;
 import com.director.client.input.DirectorInputSystem;
 import com.director.client.renderer.ToolPreviewManager;
@@ -163,7 +164,7 @@ public final class ActorPathController {
             return;
         }
 
-        TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
         if (model == null) {
             LOGGER.warn("[ActorPath] TimelineModel unavailable");
             resetState();

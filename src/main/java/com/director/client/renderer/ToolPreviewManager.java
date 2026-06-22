@@ -1,4 +1,6 @@
 package com.director.client.renderer;
+
+import com.director.core.DirectorServices;
 import com.director.client.renderer.mesh.BlockOutlineMeshCache;
 import com.director.core.selection.SelectionManager;
 import com.director.core.selection.SelectionTool;
@@ -237,7 +239,7 @@ public class ToolPreviewManager {
         }
         
         try {
-            SelectionManager selectionManager = SelectionManager.get();
+            SelectionManager selectionManager = DirectorServices.get().selection();
             if (selectionManager == null || !selectionManager.hasCurrentTool()) {
                 return;
             }
@@ -290,7 +292,7 @@ public class ToolPreviewManager {
             Matrix4f matrix = matrices.peek().getPositionMatrix();
             Vec3d cameraPos = getCameraPosition();
 
-            SelectionManager selectionManager = SelectionManager.get();
+            SelectionManager selectionManager = DirectorServices.get().selection();
             String activeToolId = "";
             if (selectionManager != null && selectionManager.hasCurrentTool()) {
                 SelectionTool tool = selectionManager.getCurrentTool();

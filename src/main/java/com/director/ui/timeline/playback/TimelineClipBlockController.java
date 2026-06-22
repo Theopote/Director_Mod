@@ -1,5 +1,6 @@
 package com.director.ui.timeline.playback;
 
+import com.director.core.DirectorServices;
 import com.director.core.animation.BlockAnimationEngine;
 import com.director.core.animation.BlockAnimationSnapshot;
 import com.director.core.animation.ClipAnimationConfig;
@@ -339,7 +340,7 @@ public class TimelineClipBlockController {
                 }
 
                 UUID containerId = clip.getBoundContainerId();
-                Container container = Objects.requireNonNull(ContainerManager.getInstance()).getContainer(containerId);
+                Container container = DirectorServices.get().containers().getContainer(containerId);
                 if (container == null) {
                     continue;
                 }
@@ -397,7 +398,7 @@ public class TimelineClipBlockController {
             if (prev == null) {
                 // 第一次看到该容器：保守起见，认为整组都可能变化
                 worldSetChangedByContainer.put(containerId, true);
-                Container container = Objects.requireNonNull(ContainerManager.getInstance()).getContainer(containerId);
+                Container container = DirectorServices.get().containers().getContainer(containerId);
                 if (container != null) {
                     worldStateChangedBlocksForRerender.addAll(getCachedContainerBlocks(container));
                 } else {
@@ -502,7 +503,7 @@ public class TimelineClipBlockController {
                     java.util.Collections.emptySet());
             float opacity = currentFrameOpacity.getOrDefault(containerId, 1.0f);
 
-            Container container = Objects.requireNonNull(ContainerManager.getInstance()).getContainer(containerId);
+            Container container = DirectorServices.get().containers().getContainer(containerId);
             if (container == null) {
                 continue;
             }
@@ -1444,7 +1445,7 @@ public class TimelineClipBlockController {
             return;
         }
 
-        ContainerManager manager = ContainerManager.getInstance();
+        ContainerManager manager = DirectorServices.get().containers();
         for (UUID containerId : removed) {
             Container container = manager != null ? manager.getContainer(containerId) : null;
             if (container == null) {
@@ -1529,7 +1530,7 @@ public class TimelineClipBlockController {
             if (activeContainerId == null) {
                 continue;
             }
-            Container activeContainer = Objects.requireNonNull(ContainerManager.getInstance())
+            Container activeContainer = DirectorServices.get().containers()
                     .getContainer(activeContainerId);
             if (activeContainer == null) {
                 continue;
@@ -1626,7 +1627,7 @@ public class TimelineClipBlockController {
                 if (clip.getStartTime() >= activeStart) {
                     continue;
                 }
-                Container container = Objects.requireNonNull(ContainerManager.getInstance())
+                Container container = DirectorServices.get().containers()
                         .getContainer(clip.getBoundContainerId());
                 if (container == null) {
                     continue;

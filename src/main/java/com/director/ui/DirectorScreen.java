@@ -1,5 +1,6 @@
 package com.director.ui;
 
+import com.director.core.DirectorServices;
 import com.director.client.DirectorClientController;
 import com.director.client.gizmo.GizmoManager;
 import com.director.client.renderer.SelectionRenderer;
@@ -445,7 +446,7 @@ public class DirectorScreen extends Screen {
         }
 
         com.director.core.selection.SelectionManager selectionManager =
-            com.director.core.selection.SelectionManager.get();
+            DirectorServices.get().selection();
         if (selectionManager == null) {
             LOGGER.error("[Director] SelectionManager 为空，无法初始化");
             return;
@@ -560,7 +561,7 @@ public class DirectorScreen extends Screen {
         // ⭐ 关闭前兜底保存：确保“关 UI / 关游戏”都能恢复到上次工作区
         try {
             com.director.core.container.persistence.ContainerPersistence.saveForCurrentWorld(
-                com.director.core.container.ContainerManager.getInstance()
+                DirectorServices.get().containers()
             );
         } catch (Exception e) {
             LOGGER.warn("[Director] 保存容器数据失败: {}", e.getMessage(), e);
@@ -975,7 +976,7 @@ public class DirectorScreen extends Screen {
 
         if (full) {
             try {
-                com.director.core.selection.SelectionManager.get().clearSelection();
+                DirectorServices.get().selection().clearSelection();
             } catch (Exception e) {
                 LOGGER.warn("[Director] 清除选区失败", e);
             }

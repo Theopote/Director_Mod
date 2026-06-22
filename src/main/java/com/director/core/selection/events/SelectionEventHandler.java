@@ -1,5 +1,6 @@
 package com.director.core.selection.events;
 
+import com.director.core.DirectorServices;
 import com.director.core.selection.SelectionManager;
 import com.director.core.selection.SelectionState;
 import org.slf4j.Logger;
@@ -30,7 +31,7 @@ public class SelectionEventHandler {
     
     public SelectionEventHandler() {
         this.eventBus = SelectionEventBus.getInstance();
-        this.selectionManager = SelectionManager.get();
+        this.selectionManager = DirectorServices.get().selection();
         
         // 注册事件监听器
         registerEventListeners();

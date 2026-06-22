@@ -20,11 +20,28 @@ public class ContainerTimelineService {
     }
 
     /**
-     * 获取单例实例
+     * 在模组启动时显式初始化（幂等）。由 {@link com.director.core.DirectorServices} 统一调用。
      */
+    public static void initialize() {
+        if (instance != null) {
+            return;
+        }
+        synchronized (ContainerTimelineService.class) {
+            if (instance == null) {
+                instance = new ContainerTimelineService();
+            }
+        }
+    }
+
+    /**
+     * @throws IllegalStateException 若尚未初始化
+     * @deprecated 新代码请使用 {@link com.director.core.DirectorServices#get()}{@code .containerTimeline()}
+     */
+    @Deprecated
     public static ContainerTimelineService getInstance() {
         if (instance == null) {
-            instance = new ContainerTimelineService();
+            throw new IllegalStateException(
+                    "[ContainerTimelineService] Not initialized — call DirectorServices.initialize() during mod startup");
         }
         return instance;
     }

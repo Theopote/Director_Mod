@@ -1,5 +1,6 @@
 package com.director.ui.properties.adapters;
 
+import com.director.core.DirectorServices;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.theme.Icons;
 import com.director.ui.timeline.container.ContainerTimelineService;
@@ -394,7 +395,7 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
      * ⭐ 检查播放头是否在当前 clip 的时间范围内
      */
     private boolean isPlayheadOnClip(DollyPathClip clip) {
-        TimelineModel timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel timelineModel = DirectorServices.get().containerTimeline().getTimelineModel();
         if (timelineModel == null) {
             return false;
         }
@@ -411,7 +412,7 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
      */
     private void updateCameraPreview(DollyPathClip clip) {
         try {
-            TimelineModel timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+            TimelineModel timelineModel = DirectorServices.get().containerTimeline().getTimelineModel();
             if (timelineModel == null) {
                 return;
             }

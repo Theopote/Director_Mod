@@ -1,5 +1,6 @@
 package com.director.ui.actor.track;
 
+import com.director.core.DirectorServices;
 import com.director.actor.action.ActorActionType;
 import com.director.ui.timeline.container.ContainerTimelineService;
 import com.director.ui.timeline.model.TimelineModel;
@@ -36,7 +37,7 @@ public final class ActorTrackClipAuthoringService {
     }
 
     public EntityTimelineClip createClip(TimelineTrack timelineTrack, ActorTrackClipKind kind, ActorActionType actionType) {
-        TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
         if (model == null || timelineTrack == null || timelineTrack.getType() != TrackType.ACTOR || kind == null) {
             return null;
         }

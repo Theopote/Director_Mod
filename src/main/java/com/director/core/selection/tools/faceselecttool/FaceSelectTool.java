@@ -1,5 +1,6 @@
 package com.director.core.selection.tools.faceselecttool;
 
+import com.director.core.DirectorServices;
 import com.director.client.renderer.ToolPreviewManager;
 import com.director.core.selection.SelectionManager;
 import com.director.core.selection.SelectionOperation;
@@ -221,7 +222,7 @@ public class FaceSelectTool implements SelectionTool, SelectionOperationSupport 
             return;
         }
 
-        SelectionManager manager = SelectionManager.get();
+        SelectionManager manager = DirectorServices.get().selection();
         Set<BlockPos> blocks = result.blocks();
 
         switch (op) {
@@ -308,7 +309,7 @@ public class FaceSelectTool implements SelectionTool, SelectionOperationSupport 
 
     /** 与框选、魔棒、刷选一致：使用 SelectionManager.getEffectiveBlockFilter()，空管道时 nonAir。 */
     private BlockFilter getEffectiveBlockFilter() {
-        SelectionManager m = SelectionManager.get();
+        SelectionManager m = DirectorServices.get().selection();
         return m != null ? m.getEffectiveBlockFilter() : BlockFilters.nonAir();
     }
 
@@ -321,7 +322,7 @@ public class FaceSelectTool implements SelectionTool, SelectionOperationSupport 
     public void clearSelection() {
         cancelRunningTask();
         currentSelection.clear();
-        SelectionManager.get().clearSelection();
+        DirectorServices.get().selection().clearSelection();
         ToolPreviewManager.get().clearFacePreview();
         clearHoverPreview();
         LOGGER.debug("[FaceSelectTool] 清除选择");

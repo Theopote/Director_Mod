@@ -1,5 +1,6 @@
 package com.director.core.actions;
 
+import com.director.core.DirectorServices;
 import com.director.core.selection.SelectionManager;
 import com.director.core.selection.SelectionSet;
 import com.director.core.container.ContainerManager;
@@ -25,7 +26,7 @@ public final class SelectionToContainerAction {
      * 执行选区转容器操作
      */
     public static void execute(String name, Color color) {
-        SelectionSet set = SelectionManager.get().getSelectionSet();
+        SelectionSet set = DirectorServices.get().selection().getSelectionSet();
         if (set.isEmpty()) {
             LOGGER.warn("[SelectionToContainerAction] 选区为空，无法生成容器");
             return;
@@ -33,7 +34,7 @@ public final class SelectionToContainerAction {
 
         try {
             // 使用统一入口：ContainerManager.createFromSelection，确保设置levelKey并捕获快照
-            var selectionState = SelectionManager.get().getCurrentSelection();
+            var selectionState = DirectorServices.get().selection().getCurrentSelection();
             net.minecraft.world.World world = null;
             try {
                 world = net.minecraft.client.MinecraftClient.getInstance().world;
@@ -41,7 +42,7 @@ public final class SelectionToContainerAction {
             }
 
             boolean hiddenDefault = true;
-            Container container = Objects.requireNonNull(ContainerManager.getInstance()).createFromSelection(selectionState, world, hiddenDefault);
+            Container container = DirectorServices.get().containers().createFromSelection(selectionState, world, hiddenDefault);
             if (container != null) {
                 if (color != null) {
                     // 如需设置颜色，可在此处调用 container.setColor(...)
@@ -49,7 +50,7 @@ public final class SelectionToContainerAction {
                 LOGGER.info("[SelectionToContainerAction] 从选区生成容器 '{}' ({} 个方块)", name, set.size());
                 
                 // 清空选区（容器创建成功后清除）
-                SelectionManager.get().clearSelection();
+                DirectorServices.get().selection().clearSelection();
                 LOGGER.debug("[SelectionToContainerAction] 已清除选区");
             }
 

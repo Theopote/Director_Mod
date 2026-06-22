@@ -1,5 +1,6 @@
 package com.director.ui.timeline.commands;
 
+import com.director.core.DirectorServices;
 import com.director.actor.Actor;
 import com.director.actor.ActorRef;
 import com.director.actor.ActorRegistry;
@@ -89,13 +90,13 @@ public class DeleteClipCommand extends BaseTimelineCommand {
             
             // ★ 功能：删除片段后，如果这是该容器的最后一个片段，允许容器显示
             if (containerId != null) {
-                var timelineService = com.director.ui.timeline.container.ContainerTimelineService.getInstance();
+                var timelineService = DirectorServices.get().containerTimeline();
                 boolean hasOtherClips = timelineService.isContainerOnTimeline(containerId);
                 
                 if (!hasOtherClips) {
                     // 这是该容器的最后一个片段，允许容器显示
                     com.director.core.container.Container container = 
-                        Objects.requireNonNull(ContainerManager.getInstance()).getContainer(containerId);
+                        DirectorServices.get().containers().getContainer(containerId);
                     if (container != null && container.getState() == com.director.core.container.ContainerState.HIDDEN) {
                         // 容器当前是隐藏状态，允许用户切换显示（但不在删除时自动显示）
                         LOGGER.info("[Timeline] 容器 {} 的所有片段已删除，现在可以切换显示状态", container.getName());

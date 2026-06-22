@@ -1,5 +1,6 @@
 package com.director.ui.properties.adapters;
 
+import com.director.core.DirectorServices;
 import com.director.actor.Actor;
 import com.director.actor.ActorRegistryManager;
 import com.director.actor.action.ActorActionType;
@@ -273,7 +274,7 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
             return;
         }
 
-        TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
         TrackContext trackContext = resolveActorTrack(model, actor.getActorId());
         if (model == null || trackContext == null) {
             return;
@@ -297,7 +298,7 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         if (actor == null) {
             return;
         }
-        TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
         TrackContext trackContext = resolveActorTrack(model, actor.getActorId());
         if (model == null || trackContext == null) {
             return;

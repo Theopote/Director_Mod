@@ -1,5 +1,6 @@
 package com.director.ui.actor.selection;
 
+import com.director.core.DirectorServices;
 import com.director.actor.Actor;
 import com.director.actor.ActorRef;
 import com.director.ui.actor.gizmo.ActorGizmoController;
@@ -89,7 +90,7 @@ public final class ActorSelectionHub {
             return;
         }
 
-        TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
         if (model == null) {
             LOGGER.warn("[ActorSelectionHub] TimelineModel 未初始化，无法选中 Actor");
             clearSelection();
@@ -114,11 +115,7 @@ public final class ActorSelectionHub {
         // ⭐ 明确清除方块选区（Actor 选择不应该有方块选区）
         // 必须在 SelectionManager.selectActor() 之前清除，避免干扰
         try {
-            com.director.core.selection.SelectionManager blockSelectionManager = 
-                com.director.core.selection.SelectionManager.get();
-            if (blockSelectionManager != null) {
-                blockSelectionManager.clearSelection();
-            }
+            DirectorServices.get().selection().clearSelection();
         } catch (Exception e) {
             LOGGER.debug("[ActorSelectionHub] 清除方块选区失败: {}", e.getMessage());
         }
@@ -158,7 +155,7 @@ public final class ActorSelectionHub {
      * <p>（比如点到空白区域）
      */
     public static void clearSelection() {
-        TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
         if (model != null) {
             // 清空 Timeline 选择
             model.clearSelection();
@@ -169,11 +166,7 @@ public final class ActorSelectionHub {
 
         // 清除方块选区（Minecraft 世界中的选区）
         try {
-            com.director.core.selection.SelectionManager blockSelectionManager = 
-                    com.director.core.selection.SelectionManager.get();
-            if (blockSelectionManager != null) {
-                blockSelectionManager.clearSelection();
-            }
+            DirectorServices.get().selection().clearSelection();
         } catch (Exception e) {
             LOGGER.debug("[ActorSelectionHub] 清除方块选区失败（可能不在客户端）: {}", e.getMessage());
         }

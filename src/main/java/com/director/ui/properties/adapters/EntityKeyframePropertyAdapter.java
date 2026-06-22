@@ -1,5 +1,6 @@
 package com.director.ui.properties.adapters;
 
+import com.director.core.DirectorServices;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
@@ -102,7 +103,7 @@ public class EntityKeyframePropertyAdapter implements IPropertyAdapter<EntityKey
 
         // ⭐ v1.0：提取公共对象，减少重复获取
         TimelineActorController entityController = TimelineActorController.getInstance();
-        TimelineModel timelineModel = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel timelineModel = DirectorServices.get().containerTimeline().getTimelineModel();
         
         // ⭐ v1.0：检查关键帧是否属于激活的演员轨道
         TimelineTrack keyframeTrack = null;

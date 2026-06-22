@@ -1,5 +1,6 @@
 package com.director.core.selection.tools.lassoselecttool;
 
+import com.director.core.DirectorServices;
 import com.director.client.renderer.ToolPreviewManager;
 import com.director.core.selection.SelectionManager;
 import com.director.core.selection.SelectionOperation;
@@ -148,7 +149,7 @@ public final class LassoSelectTask implements Runnable {
                 return;
             }
 
-            SelectionManager manager = SelectionManager.get();
+            SelectionManager manager = DirectorServices.get().selection();
             if (manager == null) {
                 LOGGER.warn("[LassoSelectTask] SelectionManager 为空，跳过应用结果");
                 return;

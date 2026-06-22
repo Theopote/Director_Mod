@@ -1,5 +1,6 @@
 package com.director.core.container.commands;
 
+import com.director.core.DirectorServices;
 import com.director.core.container.Container;
 import com.director.core.container.ContainerManager;
 import com.director.core.container.ContainerState;
@@ -115,7 +116,7 @@ public class MergeContainersCommand implements ContainerCommand {
         }
 
         // ★ 功能：容器合并时，删除被合并容器在时间线上的片段
-        var timelineService = com.director.ui.timeline.container.ContainerTimelineService.getInstance();
+        var timelineService = DirectorServices.get().containerTimeline();
         for (Container container : removedContainers) {
             int removedCount = timelineService.removeClipsForContainer(container.getId());
             if (removedCount > 0) {

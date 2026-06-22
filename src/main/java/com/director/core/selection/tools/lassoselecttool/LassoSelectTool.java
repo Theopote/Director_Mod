@@ -1,5 +1,6 @@
 package com.director.core.selection.tools.lassoselecttool;
 
+import com.director.core.DirectorServices;
 import com.director.client.renderer.ToolPreviewManager;
 import com.director.core.selection.SelectionManager;
 import com.director.core.selection.SelectionOperation;
@@ -94,7 +95,7 @@ public final class LassoSelectTool implements SelectionTool, SelectionOperationS
             return;
         }
 
-        SelectionManager manager = SelectionManager.get();
+        SelectionManager manager = DirectorServices.get().selection();
         if (manager == null) {
             LOGGER.warn("[LassoSelectTool] SelectionManager 不可用，忽略点击");
             return;
@@ -222,14 +223,14 @@ public final class LassoSelectTool implements SelectionTool, SelectionOperationS
 
     @Override
     public SelectionState getCurrentSelection() {
-        SelectionManager manager = SelectionManager.get();
+        SelectionManager manager = DirectorServices.get().selection();
         return manager != null ? manager.getCurrentSelection() : SelectionState.empty();
     }
 
     @Override
     public void clearSelection() {
         cancelActiveTask();
-        SelectionManager manager = SelectionManager.get();
+        SelectionManager manager = DirectorServices.get().selection();
         if (manager != null) {
             manager.clearSelection();
         }
@@ -238,7 +239,7 @@ public final class LassoSelectTool implements SelectionTool, SelectionOperationS
 
     @Override
     public boolean shouldRenderOverlay() {
-        SelectionManager manager = SelectionManager.get();
+        SelectionManager manager = DirectorServices.get().selection();
         return drawing || (manager != null && manager.getSelectionSet() != null
             && !manager.getSelectionSet().isEmpty());
     }
@@ -268,7 +269,7 @@ public final class LassoSelectTool implements SelectionTool, SelectionOperationS
 
     /** 与框选、魔棒、刷选、面选一致：使用 SelectionManager.getEffectiveBlockFilter()，空管道时 nonAir。 */
     private BlockFilter getEffectiveBlockFilter() {
-        SelectionManager m = SelectionManager.get();
+        SelectionManager m = DirectorServices.get().selection();
         return m != null ? m.getEffectiveBlockFilter() : BlockFilters.nonAir();
     }
 

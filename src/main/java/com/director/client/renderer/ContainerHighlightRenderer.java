@@ -1,5 +1,6 @@
 package com.director.client.renderer;
 
+import com.director.core.DirectorServices;
 import com.director.client.renderer.mesh.BlockOutlineMeshCache;
 import com.director.client.settings.RenderSettings;
 import com.director.core.container.Container;
@@ -66,7 +67,7 @@ public final class ContainerHighlightRenderer {
             return;
         }
 
-        ContainerManager manager = ContainerManager.getInstance();
+        ContainerManager manager = DirectorServices.get().containers();
         if (manager == null) {
             return;
         }

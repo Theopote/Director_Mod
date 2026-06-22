@@ -1,5 +1,6 @@
 package com.director.core.selection.tools.magicwandtool;
 
+import com.director.core.DirectorServices;
 import com.director.client.renderer.ToolPreviewManager;
 import com.director.core.selection.SelectionManager;
 import com.director.core.selection.SelectionOperation;
@@ -185,7 +186,7 @@ public class MagicWandTool implements SelectionTool, SelectionOperationSupport {
         
         // 获取限定区域（如果配置了）
         SelectionState limitRegion = config.isLimitToCurrentSelection() ?
-            SelectionManager.get().getCurrentSelection() : null;
+            DirectorServices.get().selection().getCurrentSelection() : null;
         
         // 创建任务
         MagicWandTask task = new MagicWandTask(world, seed, config, limitRegion, getActiveFilterPipeline());
@@ -218,7 +219,7 @@ public class MagicWandTool implements SelectionTool, SelectionOperationSupport {
      * 应用选择结果到 SelectionManager
      */
     private void applyResult(MagicWandTask.MagicWandTaskResult result, SelectionOperation op) {
-        SelectionManager manager = SelectionManager.get();
+        SelectionManager manager = DirectorServices.get().selection();
         
         LOGGER.info("[MagicWandTool] 应用结果: {} 个方块, 操作={}, 达到上限={}",
             result.size(), op, result.reachedLimit());
@@ -322,7 +323,7 @@ public class MagicWandTool implements SelectionTool, SelectionOperationSupport {
             
             // 获取限定区域
             SelectionState limitRegion = config.isLimitToCurrentSelection() ?
-                SelectionManager.get().getCurrentSelection() : null;
+                DirectorServices.get().selection().getCurrentSelection() : null;
             
             // 创建预览任务
             BlockPos seedCopy = hoverSeed; // 避免并发修改
@@ -456,7 +457,7 @@ public class MagicWandTool implements SelectionTool, SelectionOperationSupport {
      * 与框选、刷选等行为一致。
      */
     private BlockFilterPipeline getActiveFilterPipeline() {
-        SelectionManager manager = SelectionManager.get();
+        SelectionManager manager = DirectorServices.get().selection();
         if (manager == null) {
             return new BlockFilterPipeline().add(com.director.core.selection.block_filters.BlockFilters.nonAir());
         }
@@ -490,7 +491,7 @@ public class MagicWandTool implements SelectionTool, SelectionOperationSupport {
     @Override
     public void clearSelection() {
         currentSelection.clear();
-        SelectionManager.get().clearSelection();
+        DirectorServices.get().selection().clearSelection();
         LOGGER.debug("[MagicWandTool] 清除选择");
     }
 
@@ -506,7 +507,7 @@ public class MagicWandTool implements SelectionTool, SelectionOperationSupport {
 
     @Override
     public void onActivate(World world) {
-        syncCurrentSelection(SelectionManager.get());
+        syncCurrentSelection(DirectorServices.get().selection());
         LOGGER.info("[MagicWandTool] 魔棒工具激活 - config={}", config);
     }
 

@@ -1,5 +1,6 @@
 package com.director.client.renderer;
 
+import com.director.core.DirectorServices;
 import com.director.client.renderer.mesh.BlockOutlineMeshCache;
 import com.director.client.settings.RenderSettings;
 import com.director.core.selection.SelectionManager;
@@ -188,7 +189,7 @@ public final class SelectionRenderer {
             if (client.world == null || client.isPaused()) return null;
         }
 
-        SelectionManager manager = SelectionManager.get();
+        SelectionManager manager = DirectorServices.get().selection();
         if (manager == null || !manager.hasCurrentTool()) return null;
 
         SelectionState state = manager.getCurrentSelection();
@@ -273,7 +274,7 @@ public final class SelectionRenderer {
                 }
                 
                 // ⭐ 包围盒渲染：始终以 SelectionManager 当前边界为准（空选区也可显示）
-                SelectionManager mgr = SelectionManager.get();
+                SelectionManager mgr = DirectorServices.get().selection();
                 Box worldBox = null;
                 if (settings.selection_showBoundingBox && mgr != null) {
                     if (mgr.isBoundsGizmoMoveActive() && mgr.getBoundsGizmoMovePreviewBounds() != null) {
@@ -305,7 +306,7 @@ public final class SelectionRenderer {
                 }
 
                 // ⭐ 包围盒渲染：始终以 SelectionManager 当前边界为准（空选区也可显示）
-                SelectionManager mgr = SelectionManager.get();
+                SelectionManager mgr = DirectorServices.get().selection();
                 Box worldBox = null;
                 if (settings.selection_showBoundingBox && mgr != null) {
                     if (mgr.isBoundsGizmoMoveActive() && mgr.getBoundsGizmoMovePreviewBounds() != null) {
@@ -440,7 +441,7 @@ public final class SelectionRenderer {
                     
                     // ⭐ 包围盒填充（根据设置控制）
                     if (settings.selection_showBoundingBox && settings.selection_bboxShowFill) {
-                        SelectionManager mgr = SelectionManager.get();
+                        SelectionManager mgr = DirectorServices.get().selection();
                         Box worldBox = null;
                         if (mgr != null) {
                             if (mgr.isBoundsGizmoMoveActive() && mgr.getBoundsGizmoMovePreviewBounds() != null) {
@@ -485,7 +486,7 @@ public final class SelectionRenderer {
                     }
                     
                     // ⭐ 包围盒填充：始终以 SelectionManager 当前边界为准（空选区也可显示）
-                    SelectionManager manager = SelectionManager.get();
+                    SelectionManager manager = DirectorServices.get().selection();
                     Box worldBox = null;
                     if (settings.selection_showBoundingBox && settings.selection_bboxShowFill && manager != null) {
                         if (manager.isBoundsGizmoMoveActive() && manager.getBoundsGizmoMovePreviewBounds() != null) {

@@ -1,5 +1,6 @@
 package com.director.core.selection.tools.boxselecttool;
 
+import com.director.core.DirectorServices;
 import com.director.client.gizmo.Axis;
 import com.director.client.gizmo.GizmoManager;
 import com.director.client.gizmo.GizmoType;
@@ -100,7 +101,7 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
         }
 
         // 检查是否点击在面中心小方块上
-        Box bounds = SelectionManager.get().getCurrentBounds();
+        Box bounds = DirectorServices.get().selection().getCurrentBounds();
         if (bounds != null) {
             Vec3d[] ray = getMouseRay();
             if (ray != null && ray.length == 2) {
@@ -169,7 +170,7 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
         }
         
         // 检查是否点击在面中心小方块上，如果是则开始拖拽面
-        Box bounds = SelectionManager.get().getCurrentBounds();
+        Box bounds = DirectorServices.get().selection().getCurrentBounds();
         if (bounds != null) {
             Vec3d[] ray = getMouseRay();
             if (ray != null && ray.length == 2) {
@@ -218,8 +219,8 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
             // 拖拽结束后，立即检测当前是否还在悬停
             // 如果不在小方块上，恢复默认光标；如果还在，保持双向箭头光标
             Integer hoveredFace = null;
-            if (!SelectionManager.get().getSelectionSet().isEmpty()) {
-                Box bounds = SelectionManager.get().getCurrentBounds();
+            if (!DirectorServices.get().selection().getSelectionSet().isEmpty()) {
+                Box bounds = DirectorServices.get().selection().getCurrentBounds();
                 if (bounds != null) {
                     Vec3d[] ray = getMouseRay();
                     if (ray != null && ray.length == 2) {
@@ -294,7 +295,7 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
 
                         // 结束后立即重新检测 hover（可能鼠标已经离开）并刷新光标
                         Integer hoveredFace = null;
-                        Box bounds = SelectionManager.get().getCurrentBounds();
+                        Box bounds = DirectorServices.get().selection().getCurrentBounds();
                         if (bounds != null && rayOrigin != null && rayDir != null) {
                             hoveredFace = faceHandleManager.detectHover(bounds, rayOrigin, rayDir);
                         }
@@ -318,8 +319,8 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
         
         // 检测面中心小方块的鼠标悬停
         Integer hoveredFace = null;
-        if (bboxVisible && world != null && !SelectionManager.get().getSelectionSet().isEmpty()) {
-            Box bounds = SelectionManager.get().getCurrentBounds();
+        if (bboxVisible && world != null && !DirectorServices.get().selection().getSelectionSet().isEmpty()) {
+            Box bounds = DirectorServices.get().selection().getCurrentBounds();
             if (bounds != null && rayOrigin != null && rayDir != null) {
                 // 检测悬停
                 hoveredFace = faceHandleManager.detectHover(bounds, rayOrigin, rayDir);
@@ -513,7 +514,7 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
 
     @Override
     public void clearSelection() {
-        SelectionManager.get().clearSelection();
+        DirectorServices.get().selection().clearSelection();
         clearPreview();
         clearDrag();
         clearGizmo();
@@ -526,7 +527,7 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
 
     @Override
     public boolean shouldRenderOverlay() {
-        SelectionManager manager = SelectionManager.get();
+        SelectionManager manager = DirectorServices.get().selection();
         return phase != SelectionPhase.IDLE
             || !manager.getSelectionSet().isEmpty()
             || manager.getCurrentBounds() != null;
@@ -534,7 +535,7 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
 
     @Override
     public SelectionState getCurrentSelection() {
-        SelectionManager manager = SelectionManager.get();
+        SelectionManager manager = DirectorServices.get().selection();
         return SelectionState.of(manager.getSelectionSet().asUnmodifiableSet(), getId());
     }
 
@@ -589,7 +590,7 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
     private void applyBoxSelection(World world, Box box) {
         if (world == null || box == null) return;
 
-        SelectionManager manager = SelectionManager.get();
+        SelectionManager manager = DirectorServices.get().selection();
         SelectionSet set = manager.getSelectionSet();
 
         if (operation == SelectionOperation.NEW) {

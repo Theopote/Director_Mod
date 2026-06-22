@@ -1,5 +1,6 @@
 package com.director.ui.commands.impl;
 
+import com.director.core.DirectorServices;
 import com.director.core.selection.block_filters.BlockFilter;
 import com.director.core.selection.block_filters.BlockFilterPipeline;
 import com.director.core.selection.block_filters.BlockFilterPresetManager;
@@ -18,7 +19,7 @@ import java.util.Set;
 public final class SelectionFilterCommandsImpl implements SelectionFilterCommands {
 
     private static BlockFilterPipeline getPipeline() {
-        return SelectionManager.get().getPipeline();
+        return DirectorServices.get().selection().getPipeline();
     }
 
     @Override

@@ -1,5 +1,6 @@
 package com.director.ui.tools;
 
+import com.director.core.DirectorServices;
 import com.director.core.selection.SelectionManager;
 import com.director.core.selection.SelectionTool;
 import com.director.ui.theme.Icons;
@@ -47,7 +48,7 @@ public final class ToolRegistry {
     public static final String ACTOR_POSE_TOOL_ID = ActorPoseTool.ID;
     public static final String ACTOR_PATH_TOOL_ID = "actor_path";
 
-    private final SelectionManager selectionManager = SelectionManager.get();
+    private final SelectionManager selectionManager = DirectorServices.get().selection();
 
     private final List<EditorTool> selectionTools = new ArrayList<>();
     private final List<EditorTool> extraTools = new ArrayList<>();

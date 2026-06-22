@@ -1,5 +1,6 @@
 package com.director.ui.container;
 
+import com.director.core.DirectorServices;
 import com.director.core.container.Container;
 import com.director.core.container.ContainerType;
 import com.director.ui.theme.Icons;
@@ -145,7 +146,7 @@ public class ContainerToolbar {
 
     private boolean isTimelineControlled(Container container) {
         return container != null
-            && ContainerTimelineService.getInstance().isContainerOnTimeline(container.getId());
+            && DirectorServices.get().containerTimeline().isContainerOnTimeline(container.getId());
     }
 
     private void renderSelectionInfo() {

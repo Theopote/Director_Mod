@@ -1,5 +1,6 @@
 package com.director.ui.actor.gizmo;
 
+import com.director.core.DirectorServices;
 import com.director.actor.ActorRef;
 import com.director.actor.preview.ActorPreviewManager;
 import net.minecraft.entity.Entity;
@@ -112,7 +113,7 @@ public final class ActorGizmoController {
         // Actor Gizmo 不应该与方块选区有任何关联
         try {
             com.director.core.selection.SelectionManager blockSelectionManager = 
-                com.director.core.selection.SelectionManager.get();
+                DirectorServices.get().selection();
             if (blockSelectionManager != null) {
                 blockSelectionManager.clearSelection();
             }
@@ -148,7 +149,7 @@ public final class ActorGizmoController {
         // 因为 deactivate() 会调用 apply()，会将 Gizmo 的 Box 转换为方块选区
         try {
             com.director.core.selection.SelectionManager blockSelectionManager = 
-                    com.director.core.selection.SelectionManager.get();
+                    DirectorServices.get().selection();
             if (blockSelectionManager != null) {
                 blockSelectionManager.clearSelection();
             }
@@ -279,7 +280,7 @@ public final class ActorGizmoController {
                 GizmoManager.get().getController();
             if (controller != null) {
                 com.director.core.selection.SelectionManager selectionManager =
-                    com.director.core.selection.SelectionManager.get();
+                    DirectorServices.get().selection();
                 ActorTransformApplier actorApplier = new ActorTransformApplier(selectionManager, this);
                 controller.setTransformApplier(actorApplier);
                 LOGGER.debug("[ActorGizmoController] 已设置 ActorTransformApplier");
@@ -314,7 +315,7 @@ public final class ActorGizmoController {
                     controller.getTransformApplier();
                 if (!(currentApplier instanceof ActorTransformApplier)) {
                     com.director.core.selection.SelectionManager selectionManager =
-                        com.director.core.selection.SelectionManager.get();
+                        DirectorServices.get().selection();
                     ActorTransformApplier actorApplier = new ActorTransformApplier(selectionManager, this);
                     controller.setTransformApplier(actorApplier);
                     LOGGER.debug("[ActorGizmoController] 已重新设置 ActorTransformApplier");
@@ -351,7 +352,7 @@ public final class ActorGizmoController {
             return;
         }
 
-        TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
         if (model == null) {
             LOGGER.warn("[ActorGizmoController] TimelineModel 未初始化");
             return;
@@ -580,7 +581,7 @@ public final class ActorGizmoController {
         }
 
         // 通知时间线数据已变
-        TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
         if (model != null) {
             model.markDirty();
         }
@@ -596,7 +597,7 @@ public final class ActorGizmoController {
                     editingClip.getId(), currentMode);
 
             // 通知时间线数据已变
-            TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
+            TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
             if (model != null) {
                 model.markDirty();
             }
@@ -706,7 +707,7 @@ public final class ActorGizmoController {
         }
 
         // 通知时间线数据已变
-        TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
         if (model != null) {
             model.markDirty();
         }
@@ -758,7 +759,7 @@ public final class ActorGizmoController {
             return;
         }
 
-        TimelineModel model = ContainerTimelineService.getInstance().getTimelineModel();
+        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
         if (model == null) {
             return;
         }

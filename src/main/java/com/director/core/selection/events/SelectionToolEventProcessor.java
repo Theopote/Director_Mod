@@ -1,5 +1,6 @@
 package com.director.core.selection.events;
 
+import com.director.core.DirectorServices;
 import com.director.core.selection.SelectionManager;
 import com.director.core.selection.SelectionTool;
 import net.minecraft.util.math.BlockPos;
@@ -31,7 +32,7 @@ public class SelectionToolEventProcessor {
     
     public SelectionToolEventProcessor() {
         this.eventHandler = new SelectionEventHandler();
-        this.selectionManager = SelectionManager.get();
+        this.selectionManager = DirectorServices.get().selection();
         
         LOGGER.info("[SelectionToolEventProcessor] 工具事件处理器初始化完成");
     }
