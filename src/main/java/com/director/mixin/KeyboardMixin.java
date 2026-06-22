@@ -13,9 +13,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * 键盘输入Mixin
+ * 键盘输入 Mixin：Director 打开时的快捷键唯一入口（{@link com.director.ui.input.ShortcutDispatcher}）。
  * <p>
- * 拦截键盘输入事件，根据InputFocusManager的状态决定是否允许游戏处理输入
+ * 快捷键在 DirectorScreen 激活且非文本输入时经 GLFW 层分发；仅当 {@link InputFocusManager#shouldCaptureKeyboard()}
+ * 为 true 时才取消 Minecraft 按键处理（ImGui 仍通过 GLFW 回调接收输入）。
  */
 @Mixin(Keyboard.class)
 public class KeyboardMixin {
@@ -25,12 +26,6 @@ public class KeyboardMixin {
     @Unique
     private static final boolean DEBUG = Boolean.getBoolean("director.input.debug");
 
-    /**
-     * 拦截键盘按键事件
-     * <p>
-     * 当Director窗口打开且应该捕获键盘时，阻止游戏处理键盘输入
-     * 注意：ImGui 通过 GLFW 回调直接接收输入，不需要我们转发
-     */
     @Inject(method = "onKey", at = @At("HEAD"), cancellable = true)
     private void onKey(long window, int scanCode, KeyInput input, CallbackInfo ci) {
         InputFocusManager focusManager = InputFocusManager.getInstance();
@@ -38,57 +33,54 @@ public class KeyboardMixin {
         try {
             textInputActive = imgui.ImGui.getIO() != null && imgui.ImGui.getIO().getWantTextInput();
         } catch (Exception ignored) {
-            // If ImGui is between frames, keep the existing capture behavior.
+            // ImGui 帧间状态不可用时，沿用既有捕获逻辑
         }
 
-        // 如果Director窗口激活且应该捕获键盘
-        if (focusManager.shouldCaptureKeyboard()) {
-            if (!textInputActive) {
-                try {
-                    var client = net.minecraft.client.MinecraftClient.getInstance();
-                    if (client != null && client.currentScreen instanceof com.director.ui.DirectorScreen directorScreen) {
-                        var uiManager = directorScreen.getUIManager();
-                        if (uiManager != null) {
-                            var shortcutDispatcher = uiManager.getShortcutDispatcher();
-                            if (shortcutDispatcher != null) {
-                                shortcutDispatcher.handleGLFWKeyEvent(
-                                        input.key(), org.lwjgl.glfw.GLFW.GLFW_PRESS, input.modifiers());
-                            }
-                        }
-                    }
-                } catch (Exception e) {
-                    if (DEBUG) {
-                        LOGGER.debug("[KeyboardMixin] 无法获取 ShortcutDispatcher: {}", e.getMessage());
-                    }
-                }
-            }
+        if (!textInputActive) {
+            dispatchDirectorShortcut(input);
+        }
 
+        if (focusManager.shouldCaptureKeyboard()) {
             if (DEBUG) {
                 LOGGER.debug("[KeyboardMixin] 拦截键盘事件: key={}, scancode={}, mods={} (阻止游戏处理，ImGui通过GLFW回调接收)",
                         input.key(), input.scancode(), input.modifiers());
             }
-            // 取消Minecraft的处理，但ImGui已经通过GLFW回调接收到了输入
             ci.cancel();
         }
     }
 
-    /**
-     * 拦截字符输入事件
-     * <p>
-     * 用于文本输入框等场景
-     * 注意：ImGui 通过 GLFW 回调直接接收输入，不需要我们转发
-     */
+    @Unique
+    private static void dispatchDirectorShortcut(KeyInput input) {
+        try {
+            var client = net.minecraft.client.MinecraftClient.getInstance();
+            if (client == null || !(client.currentScreen instanceof com.director.ui.DirectorScreen directorScreen)) {
+                return;
+            }
+            var uiManager = directorScreen.getUIManager();
+            if (uiManager == null) {
+                return;
+            }
+            var shortcutDispatcher = uiManager.getShortcutDispatcher();
+            if (shortcutDispatcher != null) {
+                shortcutDispatcher.handleGLFWKeyEvent(
+                        input.key(), org.lwjgl.glfw.GLFW.GLFW_PRESS, input.modifiers());
+            }
+        } catch (Exception e) {
+            if (DEBUG) {
+                LOGGER.debug("[KeyboardMixin] 无法分发快捷键: {}", e.getMessage());
+            }
+        }
+    }
+
     @Inject(method = "onChar", at = @At("HEAD"), cancellable = true)
     private void onChar(long window, CharInput input, CallbackInfo ci) {
         InputFocusManager focusManager = InputFocusManager.getInstance();
 
-        // 如果Director窗口激活且应该捕获键盘
         if (focusManager.shouldCaptureKeyboard()) {
             if (DEBUG) {
                 LOGGER.debug("[KeyboardMixin] 拦截字符输入事件: codePoint={} (阻止游戏处理，ImGui通过GLFW回调接收)",
                         input.codepoint());
             }
-            // 取消Minecraft的处理，但ImGui已经通过GLFW回调接收到了输入
             ci.cancel();
         }
     }

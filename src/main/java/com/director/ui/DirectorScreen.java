@@ -39,8 +39,8 @@ public class DirectorScreen extends Screen {
     private DirectorUIManager uiManager;
     
     /**
-     * 获取 UIManager 实例（供 Mixin 使用）
-     * 
+     * 获取 UIManager 实例（供 KeyboardMixin 分发快捷键）。
+     *
      * @return UIManager 实例，如果未初始化则返回 null
      */
     public DirectorUIManager getUIManager() {
@@ -298,26 +298,15 @@ public class DirectorScreen extends Screen {
     }
     
     /**
-     * 处理键盘输入事件（统一由 ShortcutDispatcher 分发）。
-     * KeyboardMixin 为 GLFW 层主入口；此处作为 Screen 层补充，内部防抖避免重复触发。
+     * Screen 层键盘事件：仅将 ImGui 文本输入交给父类，快捷键由 {@link com.director.mixin.KeyboardMixin} 统一分发。
      */
     @Override
     public boolean keyPressed(KeyInput input) {
-        if (uiManager != null) {
-            var shortcutDispatcher = uiManager.getShortcutDispatcher();
-            if (shortcutDispatcher != null) {
-                shortcutDispatcher.handleGLFWKeyEvent(
-                        input.key(), org.lwjgl.glfw.GLFW.GLFW_PRESS, input.modifiers());
-            }
-        }
-
         if (ImGui.getIO() != null && ImGui.getIO().getWantCaptureKeyboard()) {
             return super.keyPressed(input);
         }
         return false;
     }
-
-    // 快捷键处理在 keyPressed() 中统一经 ShortcutDispatcher 完成
 
     /**
      * 处理鼠标点击事件

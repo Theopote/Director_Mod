@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory;
  * <ul>
  *   <li>持有 ShortcutDispatcher（由 UIManager 在 getOrCreateCommandFacade 时注入）</li>
  *   <li>handleKeyEvent(key, action, modifiers) 委托给 ShortcutDispatcher</li>
- *   <li>getShortcutDispatcher() 供 DirectorScreen、KeyboardMixin 等使用</li>
+ *   <li>getShortcutDispatcher() 供 KeyboardMixin 使用</li>
  * </ul>
  * <p>
  * 快捷键为事件驱动（GLFW 按键），无 tick；此处仅做协调与转发，

@@ -43,8 +43,7 @@ public class ShortcutDispatcher {
     private final UICommandFacade commands;
     private final com.director.ui.di.IPanelRegistry panelRegistry;
     
-    // ⭐ 防抖机制：防止同一按键在短时间内被重复处理
-    // 使用静态变量确保所有实例共享防抖状态（防止多个实例导致防抖失效）
+    // ⭐ 防抖：防止同一按键被重复处理（历史遗留的双入口已合并，保留作安全网）
     private static int lastProcessedKey = -1;
     private static long lastProcessedTime = 0;
     private static final long DEBOUNCE_MS = 300; // 300ms 防抖时间（增加到300ms以更好地防止重复触发）
