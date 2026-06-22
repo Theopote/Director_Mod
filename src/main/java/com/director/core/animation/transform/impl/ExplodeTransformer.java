@@ -1,7 +1,8 @@
 package com.director.core.animation.transform.impl;
 
-import com.director.core.animation.transform.IAnimationTransformer;
 import com.director.core.animation.transform.ui.UIHelper;
+import com.director.core.container.AnimationMode;
+import com.director.i18n.TransformerUiI18n;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -12,7 +13,11 @@ import java.util.Random;
  *
  * <p>方块向随机方向散射并逐渐淡出。适合擦除片段的“爆炸/碎片散射”效果。
  */
-public class ExplodeTransformer implements IAnimationTransformer {
+public class ExplodeTransformer extends AbstractModeTransformer {
+
+    public ExplodeTransformer() {
+        super(AnimationMode.EXPLODE);
+    }
 
     @Override
     public TransformResult transform(float progress, Map<String, Object> params, Random random) {
@@ -36,16 +41,6 @@ public class ExplodeTransformer implements IAnimationTransformer {
     }
 
     @Override
-    public String getDisplayName() {
-        return "爆炸";
-    }
-
-    @Override
-    public String getDescription() {
-        return "方块向外散射并淡出，适合作为擦除片段的退场效果";
-    }
-
-    @Override
     public Map<String, Object> getDefaultParams() {
         Map<String, Object> params = new HashMap<>();
         params.put("radius", 2.0f);
@@ -64,25 +59,25 @@ public class ExplodeTransformer implements IAnimationTransformer {
         if (!UIHelper.isUIAvailable()) return false;
         boolean modified = false;
 
-        UIHelper.label("爆炸参数");
+        UIHelper.label(TransformerUiI18n.section(AnimationMode.EXPLODE));
 
         float radius = getFloatParam(params, "radius", 2.0f);
         float[] radiusArr = {radius};
-        if (UIHelper.dragFloat("散射半径", radiusArr, 0.1f, 0.1f, 20.0f, "%.1f")) {
+        if (UIHelper.dragFloat(TransformerUiI18n.scatterRadius(), radiusArr, 0.1f, 0.1f, 20.0f, "%.1f")) {
             params.put("radius", radiusArr[0]);
             modified = true;
         }
 
         float upBias = getFloatParam(params, "upBias", 0.25f);
         float[] upBiasArr = {upBias};
-        if (UIHelper.dragFloat("上抛偏置", upBiasArr, 0.05f, -1.0f, 2.0f, "%.2f")) {
+        if (UIHelper.dragFloat(TransformerUiI18n.upBias(), upBiasArr, 0.05f, -1.0f, 2.0f, "%.2f")) {
             params.put("upBias", upBiasArr[0]);
             modified = true;
         }
 
         float scaleMin = getFloatParam(params, "scaleMin", 0.7f);
         float[] scaleMinArr = {scaleMin};
-        if (UIHelper.dragFloat("最小缩放", scaleMinArr, 0.05f, 0.0f, 1.0f, "%.2f")) {
+        if (UIHelper.dragFloat(TransformerUiI18n.scaleMin(), scaleMinArr, 0.05f, 0.0f, 1.0f, "%.2f")) {
             params.put("scaleMin", scaleMinArr[0]);
             modified = true;
         }

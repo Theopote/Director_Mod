@@ -1,7 +1,8 @@
 package com.director.core.animation.transform.impl;
 
-import com.director.core.animation.transform.IAnimationTransformer;
 import com.director.core.animation.transform.ui.UIHelper;
+import com.director.core.container.AnimationMode;
+import com.director.i18n.TransformerUiI18n;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -15,7 +16,11 @@ import java.util.Random;
  * @author Director Team
  * @version 1.0
  */
-public class RiseUpTransformer implements IAnimationTransformer {
+public class RiseUpTransformer extends AbstractModeTransformer {
+
+    public RiseUpTransformer() {
+        super(AnimationMode.RISE_UP);
+    }
     
     @Override
     public TransformResult transform(float progress, Map<String, Object> params, Random random) {
@@ -31,16 +36,6 @@ public class RiseUpTransformer implements IAnimationTransformer {
         result.scaleY = 0.8f + 0.2f * progress;
         
         return result;
-    }
-    
-    @Override
-    public String getDisplayName() {
-        return "升起";
-    }
-    
-    @Override
-    public String getDescription() {
-        return "方块从下方升起，模拟地形隆起";
     }
     
     @Override
@@ -89,12 +84,12 @@ public class RiseUpTransformer implements IAnimationTransformer {
         boolean modified = false;
         
         // 升起参数
-        UIHelper.label("升起参数");
+        UIHelper.label(TransformerUiI18n.section(AnimationMode.RISE_UP));
         
         // 起始深度
         float riseHeight = getFloatParam(params, 5.0f);
         float[] heightArray = {riseHeight};
-        if (UIHelper.dragFloat("起始深度", heightArray, 0.5f, 0.0f, 20.0f, "%.1f 格")) {
+        if (UIHelper.dragFloat(TransformerUiI18n.startDepth(), heightArray, 0.5f, 0.0f, 20.0f, TransformerUiI18n.blocksFormat())) {
             params.put("riseHeight", heightArray[0]);
             modified = true;
         }

@@ -1,7 +1,8 @@
 package com.director.core.animation.transform.impl;
 
-import com.director.core.animation.transform.IAnimationTransformer;
 import com.director.core.animation.transform.ui.UIHelper;
+import com.director.core.container.AnimationMode;
+import com.director.i18n.TransformerUiI18n;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -16,7 +17,11 @@ import java.util.Random;
  * @author Director Team
  * @version 1.0
  */
-public class GravityFallTransformer implements IAnimationTransformer {
+public class GravityFallTransformer extends AbstractModeTransformer {
+
+    public GravityFallTransformer() {
+        super(AnimationMode.GRAVITY_FALL);
+    }
     
     @Override
     public TransformResult transform(float progress, Map<String, Object> params, Random random) {
@@ -43,16 +48,6 @@ public class GravityFallTransformer implements IAnimationTransformer {
         result.opacity = 1.0f - progress;
         
         return result;
-    }
-    
-    @Override
-    public String getDisplayName() {
-        return "重力坍塌";
-    }
-    
-    @Override
-    public String getDescription() {
-        return "方块受重力影响向下掉落并消失，适合废墟坍塌效果";
     }
     
     @Override
@@ -112,12 +107,12 @@ public class GravityFallTransformer implements IAnimationTransformer {
         
         boolean modified = false;
         
-        UIHelper.label("重力坍塌参数");
+        UIHelper.label(TransformerUiI18n.section(AnimationMode.GRAVITY_FALL));
         
         // 下落速度
         float fallSpeed = getFloatParam(params, "fallSpeed", 5.0f);
         float[] speedArray = {fallSpeed};
-        if (UIHelper.dragFloat("下落速度", speedArray, 0.5f, 1.0f, 20.0f, "%.1f")) {
+        if (UIHelper.dragFloat(TransformerUiI18n.fallSpeed(), speedArray, 0.5f, 1.0f, 20.0f, "%.1f")) {
             params.put("fallSpeed", speedArray[0]);
             modified = true;
         }
@@ -125,7 +120,7 @@ public class GravityFallTransformer implements IAnimationTransformer {
         // 翻滚效果
         boolean tumble = getBooleanParam(params);
         boolean[] tumbleArray = {tumble};
-        if (UIHelper.checkbox("启用翻滚", tumbleArray)) {
+        if (UIHelper.checkbox(TransformerUiI18n.enableTumble(), tumbleArray)) {
             params.put("tumble", tumbleArray[0]);
             modified = true;
         }
@@ -133,7 +128,7 @@ public class GravityFallTransformer implements IAnimationTransformer {
         if (tumble) {
             float tumbleIntensity = getFloatParam(params, "tumbleIntensity", 1.0f);
             float[] intensityArray = {tumbleIntensity};
-            if (UIHelper.dragFloat("翻滚强度", intensityArray, 0.1f, 0.0f, 3.0f, "%.1f")) {
+            if (UIHelper.dragFloat(TransformerUiI18n.tumbleIntensity(), intensityArray, 0.1f, 0.0f, 3.0f, "%.1f")) {
                 params.put("tumbleIntensity", intensityArray[0]);
                 modified = true;
             }

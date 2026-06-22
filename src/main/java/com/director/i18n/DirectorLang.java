@@ -985,6 +985,40 @@ public final class DirectorLang {
             }
         }
 
+        /** Transformer renderUI 区块标题与 clip_ui 未覆盖的字段 */
+        public static final class TransformerUi {
+            public static final String SECTION_GENERIC = "gui.director.animation.transformer.section.generic";
+            public static final String SECTION_FADE_IN = "gui.director.animation.transformer.section.fade_in";
+            public static final String SECTION_FADE_OUT = "gui.director.animation.transformer.section.fade_out";
+            public static final String SECTION_FLY_IN = "gui.director.animation.transformer.section.fly_in";
+            public static final String SECTION_FLY_OUT = "gui.director.animation.transformer.section.fly_out";
+            public static final String SECTION_FALL_DOWN = "gui.director.animation.transformer.section.fall_down";
+            public static final String SECTION_GRAVITY_FALL = "gui.director.animation.transformer.section.gravity_fall";
+            public static final String SECTION_GROW_UP = "gui.director.animation.transformer.section.grow_up";
+            public static final String SECTION_RISE_UP = "gui.director.animation.transformer.section.rise_up";
+            public static final String SECTION_SHAKER = "gui.director.animation.transformer.section.shaker";
+            public static final String SECTION_POP_IN = "gui.director.animation.transformer.section.pop_in";
+            public static final String SECTION_SHRINK_OUT = "gui.director.animation.transformer.section.shrink_out";
+            public static final String SECTION_IMPLODE = "gui.director.animation.transformer.section.implode";
+            public static final String SECTION_EXPLODE = "gui.director.animation.transformer.section.explode";
+            public static final String SECTION_EXPAND = "gui.director.animation.transformer.section.expand";
+            public static final String SECTION_ASSEMBLE = "gui.director.animation.transformer.section.assemble";
+
+            public static final String FLY_OUT_DIRECTION = "gui.director.animation.transformer.fly_out_direction";
+            public static final String START_DEPTH = "gui.director.animation.transformer.start_depth";
+            public static final String SINK_DISTANCE = "gui.director.animation.transformer.sink_distance";
+            public static final String SHAKE_DURATION = "gui.director.animation.transformer.shake_duration";
+            public static final String VERTICAL_WEIGHT = "gui.director.animation.transformer.vertical_weight";
+            public static final String ENABLE_TUMBLE = "gui.director.animation.transformer.enable_tumble";
+            public static final String USE_DISTANCE = "gui.director.animation.transformer.use_distance";
+            public static final String USE_DISTANCE_TOOLTIP = "gui.director.animation.transformer.use_distance_tooltip";
+            public static final String PIVOT_BOTTOM = "gui.director.animation.transformer.pivot.bottom";
+            public static final String PIVOT_CENTER = "gui.director.animation.transformer.pivot.center";
+
+            private TransformerUi() {
+            }
+        }
+
         public static final class AdapterTimelineMarker {
             public static final String ADAPTER_NAME = "gui.director.properties.adapter.timeline.marker.name";
             public static final String TITLE = "gui.director.properties.adapter.timeline.marker.title";

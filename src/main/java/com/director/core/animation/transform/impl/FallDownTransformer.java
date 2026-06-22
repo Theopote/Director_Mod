@@ -1,7 +1,8 @@
 package com.director.core.animation.transform.impl;
 
-import com.director.core.animation.transform.IAnimationTransformer;
 import com.director.core.animation.transform.ui.UIHelper;
+import com.director.core.container.AnimationMode;
+import com.director.i18n.TransformerUiI18n;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -16,7 +17,11 @@ import java.util.Random;
  * @author Director Team
  * @version 1.0
  */
-public class FallDownTransformer implements IAnimationTransformer {
+public class FallDownTransformer extends AbstractModeTransformer {
+
+    public FallDownTransformer() {
+        super(AnimationMode.FALL_DOWN);
+    }
     
     @Override
     public TransformResult transform(float progress, Map<String, Object> params, Random random) {
@@ -47,16 +52,6 @@ public class FallDownTransformer implements IAnimationTransformer {
         }
         
         return result;
-    }
-    
-    @Override
-    public String getDisplayName() {
-        return "坠落";
-    }
-    
-    @Override
-    public String getDescription() {
-        return "方块从上方坠落，支持旋转和弹跳效果";
     }
     
     @Override
@@ -119,12 +114,12 @@ public class FallDownTransformer implements IAnimationTransformer {
         boolean modified = false;
         
         // 坠落参数
-        UIHelper.label("坠落参数");
+        UIHelper.label(TransformerUiI18n.section(AnimationMode.FALL_DOWN));
         
         // 下落高度
         float height = getFloatParam(params, "height", 10.0f);
         float[] heightArray = {height};
-        if (UIHelper.dragFloat("下落高度", heightArray, 0.5f, 0.0f, 50.0f, "%.1f 格")) {
+        if (UIHelper.dragFloat(TransformerUiI18n.fallHeight(), heightArray, 0.5f, 0.0f, 50.0f, TransformerUiI18n.blocksFormat())) {
             params.put("height", heightArray[0]);
             modified = true;
         }
@@ -132,7 +127,7 @@ public class FallDownTransformer implements IAnimationTransformer {
         // 回弹力度
         float bounciness = getFloatParam(params, "bounciness", 0.3f);
         float[] bouncinessArray = {bounciness};
-        if (UIHelper.dragFloat("回弹力度", bouncinessArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
+        if (UIHelper.dragFloat(TransformerUiI18n.bounciness(), bouncinessArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
             params.put("bounciness", bouncinessArray[0]);
             modified = true;
         }
@@ -140,7 +135,7 @@ public class FallDownTransformer implements IAnimationTransformer {
         // 翻滚旋转
         boolean tumble = getBooleanParam(params, "tumble", true);
         boolean[] tumbleArray = {tumble};
-        if (UIHelper.checkbox("翻滚旋转", tumbleArray)) {
+        if (UIHelper.checkbox(TransformerUiI18n.tumble(), tumbleArray)) {
             params.put("tumble", tumbleArray[0]);
             modified = true;
         }
@@ -149,7 +144,7 @@ public class FallDownTransformer implements IAnimationTransformer {
         if (tumbleArray[0]) {
             float tumbleIntensity = getFloatParam(params, "tumbleIntensity", 1.0f);
             float[] intensityArray = {tumbleIntensity};
-            if (UIHelper.dragFloat("旋转强度", intensityArray, 0.1f, 0.0f, 3.0f, "%.1f")) {
+            if (UIHelper.dragFloat(TransformerUiI18n.tumbleIntensity(), intensityArray, 0.1f, 0.0f, 3.0f, "%.1f")) {
                 params.put("tumbleIntensity", intensityArray[0]);
                 modified = true;
             }

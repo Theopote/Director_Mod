@@ -1,7 +1,8 @@
 package com.director.core.animation.transform.impl;
 
-import com.director.core.animation.transform.IAnimationTransformer;
 import com.director.core.animation.transform.ui.UIHelper;
+import com.director.core.container.AnimationMode;
+import com.director.i18n.TransformerUiI18n;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -16,7 +17,11 @@ import java.util.Random;
  * @author Director Team
  * @version 1.0
  */
-public class ShrinkOutTransformer implements IAnimationTransformer {
+public class ShrinkOutTransformer extends AbstractModeTransformer {
+
+    public ShrinkOutTransformer() {
+        super(AnimationMode.SHRINK_OUT);
+    }
     
     @Override
     public TransformResult transform(float progress, Map<String, Object> params, Random random) {
@@ -36,16 +41,6 @@ public class ShrinkOutTransformer implements IAnimationTransformer {
         result.opacity = 1.0f - progress;
         
         return result;
-    }
-    
-    @Override
-    public String getDisplayName() {
-        return "皱缩消失";
-    }
-    
-    @Override
-    public String getDescription() {
-        return "方块迅速缩小直至消失，适合魔法消除效果";
     }
     
     @Override
@@ -93,12 +88,12 @@ public class ShrinkOutTransformer implements IAnimationTransformer {
         
         boolean modified = false;
         
-        UIHelper.label("皱缩消失参数");
+        UIHelper.label(TransformerUiI18n.section(AnimationMode.SHRINK_OUT));
         
         // 目标缩放
         float targetScale = getFloatParam(params);
         float[] scaleArray = {targetScale};
-        if (UIHelper.dragFloat("目标缩放", scaleArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
+        if (UIHelper.dragFloat(TransformerUiI18n.targetScale(), scaleArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
             params.put("targetScale", scaleArray[0]);
             modified = true;
         }

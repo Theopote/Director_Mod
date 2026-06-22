@@ -1,7 +1,8 @@
 package com.director.core.animation.transform.impl;
 
-import com.director.core.animation.transform.IAnimationTransformer;
 import com.director.core.animation.transform.ui.UIHelper;
+import com.director.core.container.AnimationMode;
+import com.director.i18n.TransformerUiI18n;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -15,7 +16,11 @@ import java.util.Random;
  * @author Director Team
  * @version 1.0
  */
-public class FadeInTransformer implements IAnimationTransformer {
+public class FadeInTransformer extends AbstractModeTransformer {
+
+    public FadeInTransformer() {
+        super(AnimationMode.FADE_IN);
+    }
     
     @Override
     public TransformResult transform(float progress, Map<String, Object> params, Random random) {
@@ -37,16 +42,6 @@ public class FadeInTransformer implements IAnimationTransformer {
         }
         
         return result;
-    }
-    
-    @Override
-    public String getDisplayName() {
-        return "淡入";
-    }
-    
-    @Override
-    public String getDescription() {
-        return "方块逐渐变得不透明，适合全息投影效果";
     }
     
     @Override
@@ -106,12 +101,12 @@ public class FadeInTransformer implements IAnimationTransformer {
         boolean modified = false;
         
         // 淡入参数
-        UIHelper.label("淡入参数");
+        UIHelper.label(TransformerUiI18n.section(AnimationMode.FADE_IN));
         
         // 起始透明度
         float startOpacity = getFloatParam(params, "startOpacity", 0.0f);
         float[] opacityArray = {startOpacity};
-        if (UIHelper.dragFloat("起始透明度", opacityArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
+        if (UIHelper.dragFloat(TransformerUiI18n.startOpacity(), opacityArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
             params.put("startOpacity", opacityArray[0]);
             modified = true;
         }

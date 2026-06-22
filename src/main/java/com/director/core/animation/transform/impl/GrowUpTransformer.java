@@ -1,7 +1,8 @@
 package com.director.core.animation.transform.impl;
 
-import com.director.core.animation.transform.IAnimationTransformer;
 import com.director.core.animation.transform.ui.UIHelper;
+import com.director.core.container.AnimationMode;
+import com.director.i18n.TransformerUiI18n;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -16,7 +17,11 @@ import java.util.Random;
  * @author Director Team
  * @version 1.0
  */
-public class GrowUpTransformer implements IAnimationTransformer {
+public class GrowUpTransformer extends AbstractModeTransformer {
+
+    public GrowUpTransformer() {
+        super(AnimationMode.GROW_UP);
+    }
     
     @Override
     public TransformResult transform(float progress, Map<String, Object> params, Random random) {
@@ -58,16 +63,6 @@ public class GrowUpTransformer implements IAnimationTransformer {
         }
         
         return result;
-    }
-    
-    @Override
-    public String getDisplayName() {
-        return "向上生长";
-    }
-    
-    @Override
-    public String getDescription() {
-        return "方块从底部向上缩放，模拟植物生长";
     }
     
     @Override
@@ -125,7 +120,7 @@ public class GrowUpTransformer implements IAnimationTransformer {
         boolean modified = false;
         
         // 生长参数
-        UIHelper.label("生长参数");
+        UIHelper.label(TransformerUiI18n.section(AnimationMode.GROW_UP));
         
         // 生长轴向
         String axis = getStringParam(params, "axis", "Y");
@@ -138,25 +133,26 @@ public class GrowUpTransformer implements IAnimationTransformer {
             }
         }
         int[] axisIndexArray = {axisIndex};
-        if (UIHelper.combo("生长轴向", axisIndexArray, axisOptions)) {
+        if (UIHelper.combo(TransformerUiI18n.growAxis(), axisIndexArray, axisOptions)) {
             params.put("axis", axisOptions[axisIndexArray[0]]);
             modified = true;
         }
         
         // 缩放锚点
         String pivot = getStringParam(params, "pivot", "BOTTOM");
-        String[] pivotOptions = {"BOTTOM", "CENTER"};
+        String[] pivotValues = {"BOTTOM", "CENTER"};
+        String[] pivotLabels = TransformerUiI18n.pivotLabels();
         int pivotIndex = pivot.equals("BOTTOM") ? 0 : 1;
         int[] pivotIndexArray = {pivotIndex};
-        if (UIHelper.combo("缩放锚点", pivotIndexArray, pivotOptions)) {
-            params.put("pivot", pivotOptions[pivotIndexArray[0]]);
+        if (UIHelper.combo(TransformerUiI18n.scalePivot(), pivotIndexArray, pivotLabels)) {
+            params.put("pivot", pivotValues[pivotIndexArray[0]]);
             modified = true;
         }
         
         // 升起距离
         float distance = getFloatParam(params, "distance", 0.0f);
         float[] distanceArray = {distance};
-        if (UIHelper.dragFloat("升起距离", distanceArray, 0.1f, 0.0f, 10.0f, "%.1f 格")) {
+        if (UIHelper.dragFloat(TransformerUiI18n.riseDistance(), distanceArray, 0.1f, 0.0f, 10.0f, TransformerUiI18n.blocksFormat())) {
             params.put("distance", distanceArray[0]);
             modified = true;
         }

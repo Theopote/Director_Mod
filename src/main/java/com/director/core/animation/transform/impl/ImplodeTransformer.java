@@ -1,7 +1,8 @@
 package com.director.core.animation.transform.impl;
 
-import com.director.core.animation.transform.IAnimationTransformer;
 import com.director.core.animation.transform.ui.UIHelper;
+import com.director.core.container.AnimationMode;
+import com.director.i18n.TransformerUiI18n;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -12,7 +13,11 @@ import java.util.Random;
  *
  * <p>方块逐渐缩小并淡出（可选轻微下沉），适合作为擦除片段的“收缩”效果。
  */
-public class ImplodeTransformer implements IAnimationTransformer {
+public class ImplodeTransformer extends AbstractModeTransformer {
+
+    public ImplodeTransformer() {
+        super(AnimationMode.IMPLODE);
+    }
 
     @Override
     public TransformResult transform(float progress, Map<String, Object> params, Random random) {
@@ -28,16 +33,6 @@ public class ImplodeTransformer implements IAnimationTransformer {
         result.translateY = -sink * progress;
         result.opacity = 1.0f - progress;
         return result;
-    }
-
-    @Override
-    public String getDisplayName() {
-        return "收缩";
-    }
-
-    @Override
-    public String getDescription() {
-        return "方块缩小并淡出（可选下沉），适合擦除片段的退场效果";
     }
 
     @Override
@@ -58,18 +53,18 @@ public class ImplodeTransformer implements IAnimationTransformer {
         if (!UIHelper.isUIAvailable()) return false;
         boolean modified = false;
 
-        UIHelper.label("收缩参数");
+        UIHelper.label(TransformerUiI18n.section(AnimationMode.IMPLODE));
 
         float sink = getFloatParam(params, "sink", 0.35f);
         float[] sinkArr = {sink};
-        if (UIHelper.dragFloat("下沉距离", sinkArr, 0.05f, 0.0f, 5.0f, "%.2f")) {
+        if (UIHelper.dragFloat(TransformerUiI18n.sinkDistance(), sinkArr, 0.05f, 0.0f, 5.0f, "%.2f")) {
             params.put("sink", sinkArr[0]);
             modified = true;
         }
 
         float scale = getFloatParam(params, "scale", 0.0f);
         float[] scaleArr = {scale};
-        if (UIHelper.dragFloat("目标比例", scaleArr, 0.05f, 0.0f, 1.0f, "%.2f")) {
+        if (UIHelper.dragFloat(TransformerUiI18n.targetScale(), scaleArr, 0.05f, 0.0f, 1.0f, "%.2f")) {
             params.put("scale", scaleArr[0]);
             modified = true;
         }

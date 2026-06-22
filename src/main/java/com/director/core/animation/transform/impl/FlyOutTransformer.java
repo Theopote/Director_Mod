@@ -1,7 +1,8 @@
 package com.director.core.animation.transform.impl;
 
-import com.director.core.animation.transform.IAnimationTransformer;
 import com.director.core.animation.transform.ui.UIHelper;
+import com.director.core.container.AnimationMode;
+import com.director.i18n.TransformerUiI18n;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -16,7 +17,11 @@ import java.util.Random;
  * @author Director Team
  * @version 1.0
  */
-public class FlyOutTransformer implements IAnimationTransformer {
+public class FlyOutTransformer extends AbstractModeTransformer {
+
+    public FlyOutTransformer() {
+        super(AnimationMode.FLY_OUT);
+    }
     
     @Override
     public TransformResult transform(float progress, Map<String, Object> params, Random random) {
@@ -61,16 +66,6 @@ public class FlyOutTransformer implements IAnimationTransformer {
         result.scaleZ = scale;
         
         return result;
-    }
-    
-    @Override
-    public String getDisplayName() {
-        return "向上飞离";
-    }
-    
-    @Override
-    public String getDescription() {
-        return "方块向指定方向飞走消失，适合被吸走、数据上传等效果";
     }
     
     @Override
@@ -126,7 +121,7 @@ public class FlyOutTransformer implements IAnimationTransformer {
         
         boolean modified = false;
         
-        UIHelper.label("飞离参数");
+        UIHelper.label(TransformerUiI18n.section(AnimationMode.FLY_OUT));
         
         // 飞离方向
         String direction = getStringParam(params);
@@ -139,7 +134,7 @@ public class FlyOutTransformer implements IAnimationTransformer {
             }
         }
         int[] dirIndexArray = {dirIndex};
-        if (UIHelper.combo("飞离方向", dirIndexArray, directions)) {
+        if (UIHelper.combo(TransformerUiI18n.flyOutDirection(), dirIndexArray, directions)) {
             params.put("direction", directions[dirIndexArray[0]]);
             modified = true;
         }
@@ -147,7 +142,7 @@ public class FlyOutTransformer implements IAnimationTransformer {
         // 飞行距离
         float flyDistance = getFloatParam(params);
         float[] distanceArray = {flyDistance};
-        if (UIHelper.dragFloat("飞行距离", distanceArray, 1.0f, 5.0f, 50.0f, "%.0f 格")) {
+        if (UIHelper.dragFloat(TransformerUiI18n.flyDistance(), distanceArray, 1.0f, 5.0f, 50.0f, TransformerUiI18n.blocksFormat())) {
             params.put("flyDistance", distanceArray[0]);
             modified = true;
         }

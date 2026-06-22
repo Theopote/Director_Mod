@@ -1,6 +1,6 @@
 package com.director.core.animation.transform.impl;
 
-import com.director.core.animation.transform.IAnimationTransformer;
+import com.director.core.container.AnimationMode;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -14,22 +14,16 @@ import java.util.Random;
  * @author Director Team
  * @version 1.0
  */
-public class InstantTransformer implements IAnimationTransformer {
+public class InstantTransformer extends AbstractModeTransformer {
+
+    public InstantTransformer() {
+        super(AnimationMode.INSTANT);
+    }
     
     @Override
     public TransformResult transform(float progress, Map<String, Object> params, Random random) {
         // 所有值保持默认（无变换）
         return new TransformResult();
-    }
-    
-    @Override
-    public String getDisplayName() {
-        return "瞬间出现";
-    }
-    
-    @Override
-    public String getDescription() {
-        return "方块立即出现，无任何变换效果";
     }
     
     @Override

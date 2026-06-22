@@ -1,7 +1,8 @@
 package com.director.core.animation.transform.impl;
 
-import com.director.core.animation.transform.IAnimationTransformer;
 import com.director.core.animation.transform.ui.UIHelper;
+import com.director.core.container.AnimationMode;
+import com.director.i18n.TransformerUiI18n;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -12,7 +13,11 @@ import java.util.Random;
  *
  * <p>方块逐渐变得透明，适合作为擦除片段（退出动画）。
  */
-public class FadeOutTransformer implements IAnimationTransformer {
+public class FadeOutTransformer extends AbstractModeTransformer {
+
+    public FadeOutTransformer() {
+        super(AnimationMode.FADE_OUT);
+    }
 
     @Override
     public TransformResult transform(float progress, Map<String, Object> params, Random random) {
@@ -21,16 +26,6 @@ public class FadeOutTransformer implements IAnimationTransformer {
         float endOpacity = getFloatParam(params, "endOpacity", 0.0f);
         result.opacity = startOpacity + (endOpacity - startOpacity) * progress;
         return result;
-    }
-
-    @Override
-    public String getDisplayName() {
-        return "淡出";
-    }
-
-    @Override
-    public String getDescription() {
-        return "方块逐渐变得透明，适合退出/擦除效果";
     }
 
     @Override
@@ -76,18 +71,18 @@ public class FadeOutTransformer implements IAnimationTransformer {
         }
         boolean modified = false;
 
-        UIHelper.label("淡出参数");
+        UIHelper.label(TransformerUiI18n.section(AnimationMode.FADE_OUT));
 
         float startOpacity = getFloatParam(params, "startOpacity", 1.0f);
         float[] startArr = {startOpacity};
-        if (UIHelper.dragFloat("起始透明度", startArr, 0.05f, 0.0f, 1.0f, "%.2f")) {
+        if (UIHelper.dragFloat(TransformerUiI18n.startOpacity(), startArr, 0.05f, 0.0f, 1.0f, "%.2f")) {
             params.put("startOpacity", startArr[0]);
             modified = true;
         }
 
         float endOpacity = getFloatParam(params, "endOpacity", 0.0f);
         float[] endArr = {endOpacity};
-        if (UIHelper.dragFloat("结束透明度", endArr, 0.05f, 0.0f, 1.0f, "%.2f")) {
+        if (UIHelper.dragFloat(TransformerUiI18n.endOpacity(), endArr, 0.05f, 0.0f, 1.0f, "%.2f")) {
             params.put("endOpacity", endArr[0]);
             modified = true;
         }

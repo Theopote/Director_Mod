@@ -1,7 +1,8 @@
 package com.director.core.animation.transform.impl;
 
-import com.director.core.animation.transform.IAnimationTransformer;
 import com.director.core.animation.transform.ui.UIHelper;
+import com.director.core.container.AnimationMode;
+import com.director.i18n.TransformerUiI18n;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -16,7 +17,11 @@ import java.util.Random;
  * @author Director Team
  * @version 1.0
  */
-public class ShakerTransformer implements IAnimationTransformer {
+public class ShakerTransformer extends AbstractModeTransformer {
+
+    public ShakerTransformer() {
+        super(AnimationMode.SHAKER);
+    }
     
     @Override
     public TransformResult transform(float progress, Map<String, Object> params, Random random) {
@@ -51,16 +56,6 @@ public class ShakerTransformer implements IAnimationTransformer {
         // 震动结束后，方块应该回到原位（所有变换为0，这是默认值）
         
         return result;
-    }
-    
-    @Override
-    public String getDisplayName() {
-        return "震动归位";
-    }
-    
-    @Override
-    public String getDescription() {
-        return "方块震动后归位，增加落地感";
     }
     
     @Override
@@ -111,12 +106,12 @@ public class ShakerTransformer implements IAnimationTransformer {
         boolean modified = false;
         
         // 震动参数
-        UIHelper.label("震动参数");
+        UIHelper.label(TransformerUiI18n.section(AnimationMode.SHAKER));
         
         // 震动幅度
         float intensity = getFloatParam(params, "intensity", 0.5f);
         float[] intensityArray = {intensity};
-        if (UIHelper.dragFloat("震动幅度", intensityArray, 0.05f, 0.1f, 2.0f, "%.2f")) {
+        if (UIHelper.dragFloat(TransformerUiI18n.shakeIntensity(), intensityArray, 0.05f, 0.1f, 2.0f, "%.2f")) {
             params.put("intensity", intensityArray[0]);
             modified = true;
         }
@@ -124,7 +119,7 @@ public class ShakerTransformer implements IAnimationTransformer {
         // 衰减速度
         float decay = getFloatParam(params, "decay", 1.0f);
         float[] decayArray = {decay};
-        if (UIHelper.dragFloat("衰减速度", decayArray, 0.1f, 0.1f, 5.0f, "%.1f")) {
+        if (UIHelper.dragFloat(TransformerUiI18n.decaySpeed(), decayArray, 0.1f, 0.1f, 5.0f, "%.1f")) {
             params.put("decay", decayArray[0]);
             modified = true;
         }
@@ -132,7 +127,7 @@ public class ShakerTransformer implements IAnimationTransformer {
         // 震动时长
         float shakeDuration = getFloatParam(params, "shakeDuration", 0.3f);
         float[] durationArray = {shakeDuration};
-        if (UIHelper.dragFloat("震动时长", durationArray, 0.05f, 0.1f, 1.0f, "%.2fs")) {
+        if (UIHelper.dragFloat(TransformerUiI18n.shakeDuration(), durationArray, 0.05f, 0.1f, 1.0f, "%.2fs")) {
             params.put("shakeDuration", durationArray[0]);
             modified = true;
         }

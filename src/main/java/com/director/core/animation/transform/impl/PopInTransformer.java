@@ -1,7 +1,8 @@
 package com.director.core.animation.transform.impl;
 
-import com.director.core.animation.transform.IAnimationTransformer;
 import com.director.core.animation.transform.ui.UIHelper;
+import com.director.core.container.AnimationMode;
+import com.director.i18n.TransformerUiI18n;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -16,7 +17,11 @@ import java.util.Random;
  * @author Director Team
  * @version 1.0
  */
-public class PopInTransformer implements IAnimationTransformer {
+public class PopInTransformer extends AbstractModeTransformer {
+
+    public PopInTransformer() {
+        super(AnimationMode.POP_IN);
+    }
     
     @Override
     public TransformResult transform(float progress, Map<String, Object> params, Random random) {
@@ -38,16 +43,6 @@ public class PopInTransformer implements IAnimationTransformer {
         result.opacity = Math.min(1.0f, progress * 1.2f);
         
         return result;
-    }
-    
-    @Override
-    public String getDisplayName() {
-        return "气泡弹出";
-    }
-    
-    @Override
-    public String getDescription() {
-        return "方块由小变大弹出，带有弹性回弹，适合卡通风格";
     }
     
     @Override
@@ -96,12 +91,12 @@ public class PopInTransformer implements IAnimationTransformer {
         
         boolean modified = false;
         
-        UIHelper.label("气泡弹出参数");
+        UIHelper.label(TransformerUiI18n.section(AnimationMode.POP_IN));
         
         // 初始缩放
         float initialScale = getFloatParam(params, "initialScale", 0.0f);
         float[] scaleArray = {initialScale};
-        if (UIHelper.dragFloat("初始缩放", scaleArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
+        if (UIHelper.dragFloat(TransformerUiI18n.initialScale(), scaleArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
             params.put("initialScale", scaleArray[0]);
             modified = true;
         }
@@ -109,7 +104,7 @@ public class PopInTransformer implements IAnimationTransformer {
         // 弹性程度
         float elasticity = getFloatParam(params, "elasticity", 1.0f);
         float[] elasticityArray = {elasticity};
-        if (UIHelper.dragFloat("弹性程度", elasticityArray, 0.1f, 0.0f, 2.0f, "%.1f")) {
+        if (UIHelper.dragFloat(TransformerUiI18n.elasticity(), elasticityArray, 0.1f, 0.0f, 2.0f, "%.1f")) {
             params.put("elasticity", elasticityArray[0]);
             modified = true;
         }
