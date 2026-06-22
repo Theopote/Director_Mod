@@ -88,12 +88,8 @@ public class MergeContainersCommand implements ContainerCommand {
                 mergedContainer.setLevelKey(container.getLevelKey());
             }
             // 拷贝或补全方块快照：优先复用源容器快照，若缺失则尝试从当前世界读取补齐
-            net.minecraft.client.MinecraftClient mc;
-            net.minecraft.world.World world = null;
-            try {
-                mc = net.minecraft.client.MinecraftClient.getInstance();
-                world = mc != null ? mc.world : null;
-            } catch (Throwable ignored) {}
+            net.minecraft.client.MinecraftClient mc = net.minecraft.client.MinecraftClient.getInstance();
+            net.minecraft.world.World world = mc != null ? mc.world : null;
             for (net.minecraft.util.math.BlockPos pos : container.getBlocks()) {
                 var entry = container.getBlockStore().get(pos);
                 if (entry != null) {

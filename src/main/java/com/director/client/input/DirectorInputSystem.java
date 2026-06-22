@@ -281,33 +281,38 @@ public final class DirectorInputSystem {
      * 这里用反射拿值，保证源码在 IDE/编译环境都稳定。</p>
      */
     private static float getRenderTickDeltaSafe() {
-        try {
-            Object rtc = MC.getRenderTickCounter();
-            if (rtc == null) return 0.0f;
-
-            // 1.21.x（首选）
-            try {
-                var m = rtc.getClass().getMethod("getTickProgress", boolean.class);
-                Object v = m.invoke(rtc, false);
-                if (v instanceof Float f) return f;
-            } catch (ReflectiveOperationException ignored) {}
-
-            // 兜底：有些版本/实现提供动态 delta ticks
-            try {
-                var m = rtc.getClass().getMethod("getDynamicDeltaTicks");
-                Object v = m.invoke(rtc);
-                if (v instanceof Float f) return f;
-            } catch (ReflectiveOperationException ignored) {}
-
-            // 最后兜底：固定 delta ticks
-            try {
-                var m = rtc.getClass().getMethod("getFixedDeltaTicks");
-                Object v = m.invoke(rtc);
-                if (v instanceof Float f) return f;
-            } catch (ReflectiveOperationException ignored) {}
-        } catch (Throwable ignored) {
-            // ignore
+        Object rtc = MC.getRenderTickCounter();
+        if (rtc == null) {
+            return 0.0f;
         }
+
+        // 1.21.x（首选）
+        try {
+            var m = rtc.getClass().getMethod("getTickProgress", boolean.class);
+            Object v = m.invoke(rtc, false);
+            if (v instanceof Float f) {
+                return f;
+            }
+        } catch (ReflectiveOperationException ignored) {}
+
+        // 兜底：有些版本/实现提供动态 delta ticks
+        try {
+            var m = rtc.getClass().getMethod("getDynamicDeltaTicks");
+            Object v = m.invoke(rtc);
+            if (v instanceof Float f) {
+                return f;
+            }
+        } catch (ReflectiveOperationException ignored) {}
+
+        // 最后兜底：固定 delta ticks
+        try {
+            var m = rtc.getClass().getMethod("getFixedDeltaTicks");
+            Object v = m.invoke(rtc);
+            if (v instanceof Float f) {
+                return f;
+            }
+        } catch (ReflectiveOperationException ignored) {}
+
         return 0.0f;
     }
 }

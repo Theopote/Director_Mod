@@ -35,11 +35,8 @@ public final class SelectionToContainerAction {
         try {
             // 使用统一入口：ContainerManager.createFromSelection，确保设置levelKey并捕获快照
             var selectionState = DirectorServices.get().selection().getCurrentSelection();
-            net.minecraft.world.World world = null;
-            try {
-                world = net.minecraft.client.MinecraftClient.getInstance().world;
-            } catch (Throwable ignored) {
-            }
+            net.minecraft.client.MinecraftClient mc = net.minecraft.client.MinecraftClient.getInstance();
+            net.minecraft.world.World world = mc != null ? mc.world : null;
 
             boolean hiddenDefault = true;
             Container container = DirectorServices.get().containers().createFromSelection(selectionState, world, hiddenDefault);

@@ -147,7 +147,7 @@ public final class BrushSelectTask implements Runnable {
             } else {
                 ForkJoinPool.commonPool().execute(this);
             }
-        } catch (Throwable t) {
+        } catch (RuntimeException t) {
             LOGGER.error("[BrushSelectTask] 任务执行出错", t);
             notifyError(t);
         }
@@ -158,7 +158,7 @@ public final class BrushSelectTask implements Runnable {
             try {
                 LOGGER.info("[BrushSelectTask] 完成：共选择 {} 个方块", finalResult.size());
                 callback.onCompleted(this, finalResult);
-            } catch (Throwable t) {
+            } catch (RuntimeException t) {
                 LOGGER.error("[BrushSelectTask] onCompleted 回调出错", t);
             }
         });
@@ -168,7 +168,7 @@ public final class BrushSelectTask implements Runnable {
         runOnClientThread(() -> {
             try {
                 callback.onCancelled(this);
-            } catch (Throwable t) {
+            } catch (RuntimeException t) {
                 LOGGER.error("[BrushSelectTask] onCancelled 回调出错", t);
             }
         });
@@ -178,7 +178,7 @@ public final class BrushSelectTask implements Runnable {
         runOnClientThread(() -> {
             try {
                 callback.onError(this, error);
-            } catch (Throwable t) {
+            } catch (RuntimeException t) {
                 LOGGER.error("[BrushSelectTask] onError 回调出错", t);
             }
         });

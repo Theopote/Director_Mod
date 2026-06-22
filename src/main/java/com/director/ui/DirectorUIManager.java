@@ -1002,7 +1002,7 @@ public class DirectorUIManager {
                         try {
                             logInfo("释放面板资源: {}", panel.getPanelName());
                             panel.dispose();
-                        } catch (Throwable e) {
+                        } catch (RuntimeException e) {
                             panelDisposalErrors++;
                             logError("释放面板 {} 时发生错误", e);
                             // 面板释放失败不是关键错误，继续处理其他面板

@@ -466,11 +466,7 @@ public class DirectorScreen extends Screen {
                 selectionManager.getCurrentToolDisplayName());
         }
 
-        try {
-            SelectionRenderer.getInstance().setEnabled(true);
-        } catch (Throwable ignored) {
-            // 由渲染注册表托管，忽略
-        }
+        SelectionRenderer.getInstance().setEnabled(true);
     }
     
     @Override

@@ -28,10 +28,8 @@ public final class SelectionToDemolitionContainerAction {
 
         try {
             var selectionState = DirectorServices.get().selection().getCurrentSelection();
-            net.minecraft.world.World world = null;
-            try {
-                world = net.minecraft.client.MinecraftClient.getInstance().world;
-            } catch (Throwable ignored) {}
+            net.minecraft.client.MinecraftClient mc = net.minecraft.client.MinecraftClient.getInstance();
+            net.minecraft.world.World world = mc != null ? mc.world : null;
 
             // ★ 关键：拆除容器默认不隐藏世界方块，否则会立刻清空选区
             boolean hiddenDefault = false;

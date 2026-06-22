@@ -53,6 +53,7 @@ public class ImGuiFontManager {
                         LOG_PREFIX, hasSelect, hasBlock);
             }
         } catch (Throwable t) {
+            // ImGui 字体图集为 JNI 绑定，clear/verify 可能抛出非 RuntimeException
             LOGGER.debug("{} Icon glyph verification failed: {}", LOG_PREFIX, t.getMessage());
         }
     }
@@ -71,7 +72,7 @@ public class ImGuiFontManager {
             try {
                 fontAtlas.clear();
             } catch (Throwable t) {
-                // clear() 在不同版本 binding 上行为可能不同；失败时退化为清理 fonts/tex。
+                // fontAtlas.clear() 在不同 imgui-java 版本上行为不一致，退化为分项清理
                 try { fontAtlas.clearFonts(); } catch (Throwable ignored) {}
                 try { fontAtlas.clearTexData(); } catch (Throwable ignored) {}
             }
@@ -88,6 +89,7 @@ public class ImGuiFontManager {
             try {
                 io.setFontDefault(baseFont);
             } catch (Throwable t) {
+                // ImGui IO 为 JNI 绑定；setFontDefault 失败时继续用已加载字体
                 LOGGER.warn("{} setFontDefault failed: {}", LOG_PREFIX, t.getMessage());
             }
 

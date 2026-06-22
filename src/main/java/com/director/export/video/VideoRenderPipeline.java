@@ -282,10 +282,10 @@ public final class VideoRenderPipeline {
                 // ⭐ P0 修复：深拷贝再 complete，避免下一帧覆盖 cachedResizedBuffer 导致画面错乱
                 out = deepCopyBuffer(cachedResizedBuffer);
                 req.future.complete(out);
-            } catch (Throwable t) {
+            } catch (Exception t) {
                 try {
                     img.close();
-                } catch (Throwable ignore) {
+                } catch (Exception ignored) {
                 }
                 req.future.completeExceptionally(t);
             }

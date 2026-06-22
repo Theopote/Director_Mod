@@ -131,8 +131,8 @@ public abstract class AbstractPanel implements IPanel {
     private void updateDockedStateCache() {
         try {
             wasDockedLastFrame = ImGui.isWindowDocked();
-        } catch (Throwable ignored) {
-            // 兼容性兜底：若运行环境不支持 docking API，默认按“游离”处理
+        } catch (RuntimeException e) {
+            // ImGui docking API 在部分绑定版本上可能不可用，按“游离窗口”处理
             wasDockedLastFrame = false;
         }
     }

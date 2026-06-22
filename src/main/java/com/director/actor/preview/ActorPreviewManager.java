@@ -91,7 +91,7 @@ public final class ActorPreviewManager {
                 entityToActor.remove(entity.getId());
                 entity.discard();
                 LOGGER.debug("[ActorPreviewManager] 移除预览实体: {}", actorId);
-            } catch (Throwable e) {
+            } catch (RuntimeException e) {
                 LOGGER.warn("[ActorPreviewManager] 移除预览实体失败: {}", actorId, e);
             }
         }
@@ -130,7 +130,7 @@ public final class ActorPreviewManager {
         for (Entity entity : previews.values()) {
             try {
                 entity.discard();
-            } catch (Throwable e) {
+            } catch (RuntimeException e) {
                 LOGGER.warn("[ActorPreviewManager] 清空预览实体失败", e);
             }
         }
@@ -239,7 +239,7 @@ public final class ActorPreviewManager {
             LOGGER.debug("[ActorPreviewManager] 创建预览实体: {} ({})", actor.getName(), actor.getType());
             return entity;
 
-        } catch (Throwable e) {
+        } catch (RuntimeException e) {
             LOGGER.error("[ActorPreviewManager] 创建预览实体失败: {}", actor.getName(), e);
             return null;
         }

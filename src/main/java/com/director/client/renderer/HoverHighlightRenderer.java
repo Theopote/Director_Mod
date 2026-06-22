@@ -36,14 +36,11 @@ public final class HoverHighlightRenderer {
         }
 
         BlockPos pos = hit.getBlockPos();
-        try {
-            var selectionManager = DirectorServices.get().selection();
-            if (selectionManager != null
-                && selectionManager.getCurrentSelection() != null
-                && selectionManager.getCurrentSelection().getSelectedBlocks().contains(pos)) {
-                return;
-            }
-        } catch (Throwable ignored) {
+        var selectionManager = DirectorServices.get().selection();
+        if (selectionManager != null
+            && selectionManager.getCurrentSelection() != null
+            && selectionManager.getCurrentSelection().getSelectedBlocks().contains(pos)) {
+            return;
         }
 
         Vec3d camPos = MC.gameRenderer.getCamera().getPos();

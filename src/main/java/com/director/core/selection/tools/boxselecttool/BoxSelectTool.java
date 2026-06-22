@@ -478,13 +478,9 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
             }
 
             // 优先复用输入系统当前射线命中，保证与点击/掠过逻辑一致。
-            try {
-                BlockHitResult current = com.director.client.input.DirectorInputSystem.getCurrentRay();
-                if (current != null && current.getType() == net.minecraft.util.hit.HitResult.Type.BLOCK) {
-                    return current.getBlockPos();
-                }
-            } catch (Throwable ignored) {
-                // 输入系统尚未就绪时走下方回退射线
+            BlockHitResult current = com.director.client.input.DirectorInputSystem.getCurrentRay();
+            if (current != null && current.getType() == net.minecraft.util.hit.HitResult.Type.BLOCK) {
+                return current.getBlockPos();
             }
 
             Vec3d[] ray = getMouseRay();

@@ -125,13 +125,9 @@ public class SelectionInputHandler {
         if (player == null || world == null) return null;
 
         // 0) 优先复用渲染阶段已计算的射线，保证与“掠过高亮”完全一致
-        try {
-            BlockHitResult current = com.director.client.input.DirectorInputSystem.getCurrentRay();
-            if (current != null && current.getType() == HitResult.Type.BLOCK) {
-                return current;
-            }
-        } catch (Throwable ignored) {
-            // 兼容初始化阶段
+        BlockHitResult current = com.director.client.input.DirectorInputSystem.getCurrentRay();
+        if (current != null && current.getType() == HitResult.Type.BLOCK) {
+            return current;
         }
 
         Vec3d[] ray = getRayFromMouse();

@@ -107,7 +107,7 @@ public class PreviewEntity {
             LOGGER.debug("[PreviewEntity] 创建预览实体: {} ({})", actor.getName(), actor.getType());
             return true;
 
-        } catch (Throwable e) {
+        } catch (RuntimeException e) {
             LOGGER.error("[PreviewEntity] 创建预览实体失败: {}", actor.getName(), e);
             return false;
         }
@@ -129,7 +129,7 @@ public class PreviewEntity {
             this.entity = null;
             this.created = false;
             LOGGER.debug("[PreviewEntity] 销毁预览实体: {}", actor.getName());
-        } catch (Throwable e) {
+        } catch (RuntimeException e) {
             LOGGER.warn("[PreviewEntity] 销毁预览实体失败: {}", actor.getName(), e);
         }
     }
@@ -188,7 +188,7 @@ public class PreviewEntity {
                         EntityType.VILLAGER;
                 case SHEEP -> EntityType.SHEEP; // 添加 SHEEP 类型支持
             };
-        } catch (Throwable e) {
+        } catch (RuntimeException e) {
             LOGGER.warn("[PreviewEntity] 获取实体类型失败: {}", actor.getType(), e);
             return EntityType.VILLAGER; // 默认
         }

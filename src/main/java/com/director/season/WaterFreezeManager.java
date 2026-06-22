@@ -291,7 +291,7 @@ public class WaterFreezeManager {
         submitSafely(() -> {
             try {
                 scanAndApplyFrozenField(sample);
-            } catch (Throwable t) {
+            } catch (RuntimeException t) {
                 LOGGER.error("[WaterFreezeManager] 扫描/应用冰冻区域时出错", t);
             } finally {
                 scanning.set(false);
@@ -316,7 +316,7 @@ public class WaterFreezeManager {
         submitSafely(() -> {
             try {
                 updateAllExistingIce(sample);
-            } catch (Throwable t) {
+            } catch (RuntimeException t) {
                 LOGGER.error("[WaterFreezeManager] 更新所有已生成冰块时出错", t);
             } finally {
                 scanning.set(false);
@@ -337,7 +337,7 @@ public class WaterFreezeManager {
         submitSafely(() -> {
             try {
                 meltAllCurrentIce();
-            } catch (Throwable t) {
+            } catch (RuntimeException t) {
                 LOGGER.error("[WaterFreezeManager] 融化冰块时出错", t);
             } finally {
                 scanning.set(false);
@@ -358,7 +358,7 @@ public class WaterFreezeManager {
         submitSafely(() -> {
             try {
                 meltAllCurrentIce();
-            } catch (Throwable t) {
+            } catch (RuntimeException t) {
                 LOGGER.error("[WaterFreezeManager] 完全清除冰块时出错", t);
             } finally {
                 scanning.set(false);

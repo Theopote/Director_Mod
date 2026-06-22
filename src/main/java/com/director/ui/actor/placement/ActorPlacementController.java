@@ -120,7 +120,7 @@ public final class ActorPlacementController {
             LOGGER.info("[ActorPlacement] 开始放置 Actor: {} ({})", actorName, actorType);
             return true;
 
-        } catch (Throwable e) {
+        } catch (RuntimeException e) {
             LOGGER.error("[ActorPlacement] 开始放置失败", e);
             cancelPlacement();
             return false;
@@ -370,7 +370,7 @@ public final class ActorPlacementController {
             LOGGER.info("[ActorPlacement] 成功放置 Actor: {} 在位置 ({}, {}, {})",
                     actor.getName(), position.x, position.y, position.z);
 
-        } catch (Throwable e) {
+        } catch (RuntimeException e) {
             LOGGER.error("[ActorPlacement] 放置 Actor 失败", e);
             cancelPlacement();
         }

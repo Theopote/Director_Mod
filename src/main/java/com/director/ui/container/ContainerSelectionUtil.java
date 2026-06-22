@@ -21,7 +21,7 @@ final class ContainerSelectionUtil {
             SelectionManager selectionManager = DirectorServices.get().selection();
             SelectionState selection = selectionManager != null ? selectionManager.getCurrentSelection() : null;
             return selection != null && !selection.isEmpty();
-        } catch (Throwable t) {
+        } catch (RuntimeException t) {
             LOGGER.debug("[ContainerSelectionUtil] 检查Minecraft选区失败: {}", t.getMessage());
             return false;
         }

@@ -374,11 +374,11 @@ public final class DirectorRendererRegistry {
                 return com.director.timeline.playback.camera.TimelineCameraController
                         .getInstance()
                         .isTimelineActive();
-            } catch (Throwable ignored) {
+            } catch (RuntimeException e) {
                 var model = DirectorServices.get().containerTimeline().getTimelineModel();
                 return model != null && (model.isPlaying() || model.isScrubbing());
             }
-        } catch (Throwable ignored) {
+        } catch (RuntimeException e) {
             return false;
         }
     }

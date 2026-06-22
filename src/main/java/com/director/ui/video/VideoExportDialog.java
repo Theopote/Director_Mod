@@ -733,6 +733,7 @@ public final class VideoExportDialog {
             filters.flip();
             chosen = TinyFileDialogs.tinyfd_saveFileDialog(title, defaultPath, filters, filterDesc);
         } catch (Throwable t) {
+            // tinyfd 为 JNI 原生对话框，可能抛出 Error；此处需兜底以免崩溃客户端
             lastError = "打开系统文件选择器失败：" + t.getClass().getSimpleName() + (t.getMessage() != null ? (" - " + t.getMessage()) : "");
             return;
         }

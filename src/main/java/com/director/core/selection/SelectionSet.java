@@ -2,6 +2,8 @@ package com.director.core.selection;
 
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -20,6 +22,8 @@ import java.util.function.Predicate;
  * @version 1.0
  */
 public class SelectionSet {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(SelectionSet.class);
 
     /** 主集合：去重存储所有 BlockPos */
     private final Set<BlockPos> all = new HashSet<>();
@@ -165,8 +169,8 @@ public class SelectionSet {
         for (SelectionSetListener l : listeners) {
             try { 
                 l.onSelectionChanged(this); 
-            } catch (Throwable ignored) {
-                // 忽略监听器异常，避免影响主流程
+            } catch (RuntimeException e) {
+                LOGGER.warn("[SelectionSet] 选区监听器抛出异常，已忽略", e);
             }
         }
     }

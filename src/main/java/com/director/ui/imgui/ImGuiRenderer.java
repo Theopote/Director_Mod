@@ -574,7 +574,7 @@ public class ImGuiRenderer {
                 return "#version 330 core";
             }
         } catch (Throwable t) {
-            // ignore
+            // OpenGL 能力探测：驱动/上下文异常时不应阻断 UI 初始化
         }
         // 最保守 fallback
         return "#version 150";
@@ -600,7 +600,7 @@ public class ImGuiRenderer {
             GL11.glPixelStorei(GL12.GL_PACK_SKIP_ROWS, 0);
             LOGGER.debug("[Director] Reset GL pixel store state for ImGui texture upload");
         } catch (Throwable t) {
-            // 不要因为这里失败导致整个 UI 初始化失败（某些极端环境可能缺 GL12 常量/路径）
+            // GL 状态重置在渲染线程边界执行；失败时降级继续，避免整帧 UI 崩溃
             LOGGER.warn("[Director] Failed to reset GL pixel store state (continuing anyway): {}", t.toString());
         }
     }
