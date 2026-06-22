@@ -1,4 +1,4 @@
-package com.director.ui.timeline.playback.entity;
+package com.director.timeline.playback.entity;
 
 import com.director.core.DirectorServices;
 import com.director.ui.timeline.model.TimelineTrack;

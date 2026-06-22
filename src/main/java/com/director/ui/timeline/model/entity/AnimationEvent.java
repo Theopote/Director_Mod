@@ -1,6 +1,6 @@
 package com.director.ui.timeline.model.entity;
 
-import com.director.ui.timeline.playback.entity.EntityActionEvent;
+import com.director.timeline.playback.entity.EntityActionEvent;
 
 import java.util.Objects;
 

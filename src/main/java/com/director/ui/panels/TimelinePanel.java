@@ -1254,9 +1254,9 @@ public class TimelinePanel extends AbstractPanel
             com.director.ui.timeline.model.entity.ActorTrack actorTrack =
                 track.getActorTrackPayload();
             if (actorTrack != null) {
-                com.director.ui.timeline.playback.entity.EntityClipSampler sampler =
-                    new com.director.ui.timeline.playback.entity.EntityClipSampler(actorTrack);
-                com.director.ui.timeline.playback.entity.EntitySample sample =
+                com.director.timeline.playback.entity.EntityClipSampler sampler =
+                    new com.director.timeline.playback.entity.EntityClipSampler(actorTrack);
+                com.director.timeline.playback.entity.EntitySample sample =
                     sampler.sampleAt(clickTime);
                 if (sample != null && sample.enabled) {
                     keyframe.setPosition(sample.position.x, sample.position.y, sample.position.z);
@@ -1570,8 +1570,8 @@ public class TimelinePanel extends AbstractPanel
                 }
                 
                 // ⭐ v1.0：检查是否是激活的演员轨道
-                com.director.ui.timeline.playback.entity.TimelineActorController entityController =
-                        com.director.ui.timeline.playback.entity.TimelineActorController.getInstance();
+                com.director.timeline.playback.entity.TimelineActorController entityController =
+                        com.director.timeline.playback.entity.TimelineActorController.getInstance();
                 com.director.ui.timeline.model.TimelineTrack activeTrack = entityController.getActiveActorTrack();
                 
                 if (activeTrack != track) {

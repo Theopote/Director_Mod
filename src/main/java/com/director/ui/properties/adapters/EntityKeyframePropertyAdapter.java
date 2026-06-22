@@ -8,7 +8,7 @@ import com.director.ui.timeline.container.ContainerTimelineService;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.entity.EntityKeyframe;
-import com.director.ui.timeline.playback.entity.TimelineActorController;
+import com.director.timeline.playback.entity.TimelineActorController;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;

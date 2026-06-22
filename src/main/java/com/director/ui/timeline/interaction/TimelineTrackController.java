@@ -111,7 +111,7 @@ public class TimelineTrackController {
         
         // ⭐ v1.0：如果是演员轨道且是第一条，自动激活
         if (type == TrackType.ACTOR && sameTypeCount == 0) {
-            com.director.ui.timeline.playback.entity.TimelineActorController.getInstance()
+            com.director.timeline.playback.entity.TimelineActorController.getInstance()
                     .bindActiveTrack(newTrack);
             LOGGER.info("[TrackController] 创建第一条演员轨道，自动激活: {}", trackName);
         }

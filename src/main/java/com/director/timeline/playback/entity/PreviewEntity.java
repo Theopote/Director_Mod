@@ -1,4 +1,4 @@
-package com.director.ui.timeline.playback.entity;
+package com.director.timeline.playback.entity;
 
 import com.director.actor.Actor;
 import com.director.actor.ActorType;
