@@ -36,10 +36,10 @@ import java.util.List;
 import java.util.Objects;
 
 /**
- * Director TimelineInteractionHandler锛圫napping + Renderer v2�?
+ * 时间线画布交互处理器（Snapping + Renderer v2）。
  *
- * <p>鑱岃矗锛氬皢 ImGui 杈撳叆杞崲涓哄�?TimelineModel 鐨勪慨鏀癸紝鍚屾椂缁熶竴浣跨�?
- * TimelineRenderer 鐨勫潗鏍囩郴缁熶�?TimelineSnapping 鐨勭鍚稿伐鍏枫�?/p>
+ * <p>职责：将 ImGui 输入转换为对 {@link TimelineModel} 的修改，并统一使用
+ * {@link TimelineRenderer} 的坐标系与 {@link TimelineSnapping} 的磁吸工具。</p>
  */
 public class TimelineInteractionHandler {
 
@@ -69,7 +69,7 @@ public class TimelineInteractionHandler {
     private float lastClickY = 0f;
 
     /**
-     * 浜や簰鍥炶皟鎺ュ彛锛岀�?TimelinePanel 瀹炵幇銆?
+     * 交互回调接口，由 TimelinePanel 实现。
      */
     public interface InteractionCallbacks {
         void onKeyframeDoubleClick(TimelineClip clip, float mouseX, float contentX);
@@ -354,8 +354,8 @@ public class TimelineInteractionHandler {
     }
 
     /**
-     * @param contentX     轨道内容区域 X 起点�?= winX + leftLabelWidth�?
-     * @param trackAreaTop 轨道区域顶部 Y�?= winY + headerHeight�?
+     * @param contentX     轨道内容区域 X 起点（= winX + leftLabelWidth）
+     * @param trackAreaTop 轨道区域顶部 Y（= winY + headerHeight）
      * @param contentW     内容宽度
      * @param viewportH    内容高度
      * @param scrollY      垂直滚动
@@ -371,12 +371,12 @@ public class TimelineInteractionHandler {
         float mouseX = io.getMousePosX();
         float mouseY = io.getMousePosY();
 
-        // 1) 轨道头部控件命中（锁 / 眼睛�?
+        // 1) 轨道头部控件命中（锁 / 眼睛）
         TrackControlHitResult trackControlHit = TimelineTrackHitTest.hitTrackControls(
                 renderer, mouseX, mouseY
         );
 
-        // 2) 时间线内容命中（Clip / Keyframe / Empty�?
+        // 2) 时间线内容命中（Clip / Keyframe / Empty）
         TimelineHitResult hit = TimelineHitTest.compute(
                 renderer, model,
                 mouseX, mouseY,
@@ -394,7 +394,7 @@ public class TimelineInteractionHandler {
             }
         }
 
-        // �?优化：更新鼠标光标（边缘时显示调整光标，中间显示箭头�?
+        // 优化：更新鼠标光标（边缘时显示调整光标，中间显示箭头）
         updateMouseCursor(hit, contentX, mouseX);
 
         // 鼠标事件
@@ -405,7 +405,7 @@ public class TimelineInteractionHandler {
         // ⭐ v5.0：显示轨道控制按钮的 tooltip
         renderTrackControlTooltips(trackControlHit);
         
-        // 注意：容器拖放处理现在在 TimelinePanel 中直接处理（�?invisibleButton 之后�?
+        // 注意：容器拖放处理现在在 TimelinePanel 中直接处理（在 invisibleButton 之后）
         // 这样可以确保在正确的窗口上下文中设置拖放目标
     }
 
@@ -559,7 +559,7 @@ public class TimelineInteractionHandler {
         // 左键点击
         if (ImGui.isMouseClicked(ImGuiMouseButton.Left)) {
 
-            // 0) 优先处理轨道头部控件（锁 / 眼睛�?
+            // 0) 优先处理轨道头部控件（锁 / 眼睛）
             if (trackControlHit != null && trackControlHit.isHit() && callbacks != null) {
                 TimelineTrack track = trackControlHit.track();
                 TimelineTrackControlHit.TrackControlType type = trackControlHit.type();
@@ -581,7 +581,7 @@ public class TimelineInteractionHandler {
                     com.director.timeline.playback.weather.TimelineWeatherController.getInstance()
                             .bindActiveTrack(track);
                 }
-                // 控件点击不再向下传递，不影�?Clip / Keyframe 选择
+                // 控件点击不再向下传递，不影响 Clip / Keyframe 选择
                 return;
             }
 
@@ -610,12 +610,12 @@ public class TimelineInteractionHandler {
                     }
                 }
                 case EMPTY -> marqueeSelector.startCandidate(mouseX, mouseY);
-                default -> { /* NONE / TRACK_HEADER 在这里忽�?*/ }
+                default -> { /* NONE / TRACK_HEADER 在这里忽略 */ }
             }
         }
 
-        // 右键打开上下文菜单（如果不是点在轨道头控件上�?
-        // 使用 rightClickedOnCanvas 参数，因�?invisibleButton 会拦截右键事�?
+        // 右键打开上下文菜单（如果不是点在轨道头控件上）
+        // 使用 rightClickedOnCanvas 参数，因为 invisibleButton 会拦截右键事件
         // 右键：统一使用 ImGui 的点击检测
         if (ImGui.isMouseClicked(ImGuiMouseButton.Right)) {
             if (interactionManager.isInteracting()) {
