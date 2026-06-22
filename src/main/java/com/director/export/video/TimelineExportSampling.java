@@ -1,7 +1,7 @@
 package com.director.export.video;
 
 import com.director.timeline.playback.TimelinePlaybackSampler;
-import com.director.ui.timeline.playback.TimelineClipBlockController;
+import com.director.timeline.playback.block.TimelineClipBlockController;
 
 /**
  * 导出帧：在客户端线程采样时间线世界状态（不含相机）。

@@ -184,7 +184,7 @@ public final class PlaybackOrchestrator {
         float renderDelta = getRenderDeltaFallback(deltaSeconds);
 
         runSubsystem("TimelineClipBlockController", () ->
-                com.director.ui.timeline.playback.TimelineClipBlockController.getInstance().update());
+                com.director.timeline.playback.block.TimelineClipBlockController.getInstance().update());
         runSubsystem("TimelineCameraController", () ->
                 TimelineCameraController.getInstance().updateOwnerAndSample(renderDelta));
         runSubsystem("TimelineWorldController", () ->

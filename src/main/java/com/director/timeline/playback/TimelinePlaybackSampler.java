@@ -14,7 +14,7 @@ import org.slf4j.LoggerFactory;
  * 以 {@link TimelineModel} 为唯一时钟的时间线采样入口（导出 / 离线抓帧 / 重同步）。
  * <p>
  * UI 帧循环仍由 {@link com.director.ui.timeline.playback.PlaybackOrchestrator} 协调；
- * 方块片段可见性由 {@code TimelineClipBlockController} 在 UI 层补采样。
+ * 方块片段由 {@link com.director.timeline.playback.block.TimelineClipBlockController} 采样。
  */
 public final class TimelinePlaybackSampler {
 

@@ -229,7 +229,7 @@ public class TimelineContextMenuFactory {
                 // 跳转到此关键帧
                 .item("跳转到此时间", () -> {
                     model.setCurrentTime(clipKeyframe.getTime());
-                    com.director.ui.timeline.playback.TimelineClipBlockController
+                    com.director.timeline.playback.block.TimelineClipBlockController
                             .getInstance()
                             .update();
                 })

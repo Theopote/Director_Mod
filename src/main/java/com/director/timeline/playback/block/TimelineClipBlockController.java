@@ -1,4 +1,4 @@
-package com.director.ui.timeline.playback;
+package com.director.timeline.playback.block;
 
 import com.director.core.DirectorServices;
 import com.director.core.animation.BlockAnimationEngine;
@@ -13,6 +13,7 @@ import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
+import com.director.timeline.playback.TimelinePlaybackSampler;
 import com.director.core.container.visibility.BlockVisualStateManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.block.BlockState;
@@ -275,6 +276,13 @@ public class TimelineClipBlockController {
         this.timelineModel = model;
     }
 
+    private TimelineModel resolveActiveModel() {
+        if (timelineModel != null) {
+            return timelineModel;
+        }
+        return TimelinePlaybackSampler.resolveModel();
+    }
+
     /**
      * 更新所有片段对应容器的方块显示状态（每帧调用）
      * 
@@ -290,7 +298,8 @@ public class TimelineClipBlockController {
      * 注意：每个容器有且只有一个片段，所以逻辑可以简化
      */
     public void update() {
-        if (timelineModel == null) {
+        TimelineModel activeModel = resolveActiveModel();
+        if (activeModel == null) {
             if (LOGGER.isTraceEnabled()) {
                 LOGGER.trace("[TimelineClipBlockController] timelineModel 为空，跳过更新");
             }
@@ -299,7 +308,7 @@ public class TimelineClipBlockController {
 
         final long t0 = System.nanoTime();
 
-        float currentTime = timelineModel.getCurrentTime();
+        float currentTime = activeModel.getCurrentTime();
         BlockVisualStateManager visualStateManager = BlockVisualStateManager.getInstance();
 
         // 🔥 步骤 0：清空上一帧的 renderEntries（确保每帧都是全新的）
@@ -323,7 +332,7 @@ public class TimelineClipBlockController {
         final long tAfterClear = System.nanoTime();
 
         // ◆ 步骤1：遍历所有轨道和片段，计算每个容器在当前时间应该显示的方块和其默认透明度
-        for (TimelineTrack track : timelineModel.getAllTracks()) {
+        for (TimelineTrack track : activeModel.getAllTracks()) {
             if (track == null) {
                 continue;
             }
@@ -469,7 +478,7 @@ public class TimelineClipBlockController {
         // ◆ 步骤2：应用遮挡覆盖规则，调整透明度并标记需要隐藏世界方块的容器
         // 构建容器ID到片段的映射，便于后续查询
         Map<UUID, TimelineClip> containerToClipMap = new HashMap<>();
-        for (TimelineTrack track : timelineModel.getAllTracks()) {
+        for (TimelineTrack track : activeModel.getAllTracks()) {
             if (track == null)
                 continue;
             if (!isBlockTrackType(track.getType())) {
@@ -1584,8 +1593,12 @@ public class TimelineClipBlockController {
     }
 
     private List<TimelineClip> findActiveAutoFadeClips(float currentTime) {
+        TimelineModel model = resolveActiveModel();
+        if (model == null) {
+            return List.of();
+        }
         List<TimelineClip> active = new ArrayList<>();
-        for (TimelineTrack track : timelineModel.getAllTracks()) {
+        for (TimelineTrack track : model.getAllTracks()) {
             if (track == null || track.isLocked() || !track.isVisible()) {
                 continue;
             }
@@ -1606,10 +1619,14 @@ public class TimelineClipBlockController {
 
     private List<Container> collectPreviousContainers(TimelineClip activeClip,
             Map<UUID, Set<BlockPos>> currentFrameVisibleBlocks) {
+        TimelineModel model = resolveActiveModel();
+        if (model == null) {
+            return List.of();
+        }
         List<Container> result = new ArrayList<>();
         float activeStart = activeClip.getStartTime();
 
-        for (TimelineTrack track : timelineModel.getAllTracks()) {
+        for (TimelineTrack track : model.getAllTracks()) {
             if (track == null || track.isLocked() || !track.isVisible()) {
                 continue;
             }

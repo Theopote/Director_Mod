@@ -265,7 +265,7 @@ public class TimelinePanel extends AbstractPanel
         com.director.ui.timeline.playback.TimelineAudioController.getInstance().setTimelineModel(model);
 
         // 注册片段方块控制器，根据播放头位置控制片段方块显示
-        com.director.ui.timeline.playback.TimelineClipBlockController.getInstance().setTimelineModel(model);
+        com.director.timeline.playback.block.TimelineClipBlockController.getInstance().setTimelineModel(model);
         TimelineCameraController.getInstance().setTimelineModel(model);
         // ⭐ 注册时间轨道控制器，控制世界时间和太阳角度
         TimelineWorldController.getInstance().setTimelineModel(model);

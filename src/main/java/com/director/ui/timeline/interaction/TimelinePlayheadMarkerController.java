@@ -6,7 +6,7 @@ import com.director.ui.timeline.interaction.TimelineDragHandles.MarkerHandle;
 import com.director.ui.timeline.interaction.TimelineInteractionManager.InteractionMode;
 import com.director.timeline.model.TimelineMarker;
 import com.director.timeline.model.TimelineModel;
-import com.director.ui.timeline.playback.TimelineClipBlockController;
+import com.director.timeline.playback.block.TimelineClipBlockController;
 import com.director.timeline.playback.camera.TimelineCameraController;
 import com.director.timeline.playback.season.TimelineSeasonController;
 import com.director.timeline.playback.weather.TimelineWeatherController;
