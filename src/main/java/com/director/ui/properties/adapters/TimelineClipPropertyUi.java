@@ -282,7 +282,7 @@ public class TimelineClipPropertyUi {
             return renderAnimationSettingsInternal(clip, TimelineClipAnimationPolicy.forVariant(variant));
         } catch (Exception e) {
             LOGGER.error("渲染动画设置时发生异常: {}", e.getMessage(), e);
-            ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ERROR_GENERIC, e.getMessage()));
+            ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ERROR_RENDER_ANIMATION, e.getMessage()));
             return false;
         }
     }
@@ -803,14 +803,7 @@ public class TimelineClipPropertyUi {
         ImGui.popItemWidth();
 
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("""
-                    决定整体"波浪"如何在建筑中推进：
-                    • 不切分：整体作为一个单元，只由内部填充决定顺序
-                    • 平面切分：像扫描仪/盖楼一样一片片推进
-                    • 球形扩散：从中心向外生长或爆炸
-                    • 柱形扩散：从中心向外，但忽略高度
-                    • 完全随机：没有明显流向，偏自然/噪点
-                    """);
+            ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_FLOW_TOOLTIP));
         }
 
         // 仅在 PLANAR 模式下显示平面方向选择
@@ -859,10 +852,7 @@ public class TimelineClipPropertyUi {
                     modified = true;
                 }
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("""
-                            • Yaw：绕竖直轴旋转（0°=沿 Z 方向，90°=沿 X 方向）
-                            • Pitch：0° 垂直切片，90° 水平切层
-                            """);
+                    ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_PLANE_ANGLES_TOOLTIP));
                 }
             }
 
@@ -873,11 +863,7 @@ public class TimelineClipPropertyUi {
                 modified = true;
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("""
-                        控制 Flow 的“层”有多厚：
-                        1.0 = 每 1 格一个层（更细）
-                        2.0 = 每 2 格一个层（更粗、更有片状推进感）
-                        自定义角度时建议适当调大，避免层级被切得过碎。""");
+                ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_LAYER_STEP_TOOLTIP));
             }
 
             String cameraButtonLabel = demolition
@@ -904,15 +890,9 @@ public class TimelineClipPropertyUi {
             }
             if (ImGui.isItemHovered()) {
                 if (demolition) {
-                    ImGui.setTooltip("""
-                        将 Flow 的推进方向对齐到当前摄像机视线。
-                        拆除片段：排序会从近处开始拆除、逐步向远处推进（先拆除近处的，一层层下去）。
-                        提示：这会把 Flow 变成"按深度切片"，更适合拆除演示。""");
+                    ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_ALIGN_CAMERA_TOOLTIP_DEMOLITION));
                 } else {
-                    ImGui.setTooltip("""
-                        将 Flow 的推进方向对齐到当前摄像机视线。
-                        排序会倾向于从远处开始出现、逐步向近处推进，减少"前面先出现把后面遮住"。
-                        提示：这会把 Flow 变成"按深度切片"，更适合镜头演示建造过程。""");
+                    ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_ALIGN_CAMERA_TOOLTIP_BUILD));
                 }
             }
         }
@@ -1003,38 +983,14 @@ public class TimelineClipPropertyUi {
         if (ImGui.isItemHovered()) {
             if (flow == FlowType.CYLINDRICAL) {
                 if (demolition) {
-                    ImGui.setTooltip("""
-                        柱形扩散的起点选项（拆除片段）：
-                        • 顶部中心：从顶部中心向下扩散（拆除时由上到下）
-                        • 几何中心：从整体中心向外扩散
-                        """);
+                    ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_ORIGIN_TOOLTIP_CYLINDRICAL_DEMOLITION));
                 } else {
-                    ImGui.setTooltip("""
-                        柱形扩散的起点选项：
-                        • 底部中心：从地面中心向外扩散
-                        • 几何中心：从整体中心向外扩散
-                        """);
+                    ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_ORIGIN_TOOLTIP_CYLINDRICAL_BUILD));
                 }
             } else if (demolition) {
-                ImGui.setTooltip("""
-                    决定序列的"起点"（拆除片段，方向与容器相反）：
-                    • 最小角：从容器原点（通常是一角）开始
-                    • 几何中心：从整体中心向外
-                    • 底部中心：从地面中心往上（容器片段用）
-                    • 顶部中心：从顶部中心向下（拆除片段推荐，由上到下）
-                    • 自定义：从你指定的坐标开始
-
-                    提示：拆除片段的方向与容器片段相反，例如容器由下到上，拆除由上到下。
-                    推荐使用"顶部中心"作为拆除片段的起始锚点。
-                    """);
+                ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_ORIGIN_TOOLTIP_DEMOLITION));
             } else {
-                ImGui.setTooltip("""
-                        决定序列的"起点"：
-                        • 最小角：从容器原点（通常是一角）开始
-                        • 几何中心：从整体中心向外
-                        • 底部中心：从地面中心往上，适合树/建筑生长
-                        • 自定义：从你指定的坐标开始
-                        """);
+                ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_ORIGIN_TOOLTIP_BUILD));
             }
         }
 
@@ -1071,15 +1027,7 @@ public class TimelineClipPropertyUi {
         ImGui.popItemWidth();
 
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("""
-                    决定每一片区域内部的填充轨迹：
-                    • 线性扫描：像打印机/扫描仪一样一行行扫过去
-                    • 打印机扫描：先分行，再行内逐个（支持蛇形往返）
-                    • 径向扩散：从切片中心向两边扩散
-                    • 螺旋：绕中心画圈推进
-                    • 平滑噪声：Perlin噪声，适合自然碎块/云状效果
-                    • 泛洪蔓延：从起点沿相邻方块蔓延（BFS），适合火焰/藤蔓/生长感
-                    """);
+            ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_FILL_TOOLTIP));
         }
 
         // RASTER 专属参数：行内扫描方向 / 换行步长 / 蛇形
@@ -1098,8 +1046,7 @@ public class TimelineClipPropertyUi {
             }
             ImGui.popItemWidth();
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("选择“行内扫描”沿哪条轴推进；另一条轴会作为“换行方向”。\n" +
-                        "例如：XY 层里选 X，则每行沿 X 扫，按 Y 换行；选 Y 则反之。");
+                ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_RASTER_SCAN_TOOLTIP));
             }
 
             float[] rowStep = { params.getRasterRowStep() };
@@ -1108,7 +1055,7 @@ public class TimelineClipPropertyUi {
                 modified = true;
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("每换一行跨越多少格。\n1.0=每1格换行；2.0=每2格换行（更粗的“行”）。");
+                ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_ROW_STEP_TOOLTIP));
             }
 
             ImBoolean zig = new ImBoolean(params.isRasterZigZag());
@@ -1117,7 +1064,7 @@ public class TimelineClipPropertyUi {
                 modified = true;
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("开启后：第1行从左到右，第2行从右到左……类似打印机回车换行的蛇形路径。");
+                ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_RASTER_ZIGZAG_TOOLTIP));
             }
         }
 
@@ -1136,13 +1083,7 @@ public class TimelineClipPropertyUi {
             ImGui.popItemWidth();
 
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("""
-                        决定每层泛洪蔓延的起点：
-                        • 每层中心：从该切片的几何中心开始蔓延
-                        • 每层最小角：从该切片的 (minX,minY,minZ) 开始
-                        • 每层随机点：每层随机挑选一个方块作为起点
-                        • 全局随机：整个容器随机1个点，从上到下蔓延
-                        """);
+                ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_FLOOD_SEED_TOOLTIP));
             }
         }
 
@@ -1177,8 +1118,8 @@ public class TimelineClipPropertyUi {
         }
 
         return new String[] {
-                "行内扫描方向：" + axisU,
-                "行内扫描方向：" + axisV
+                ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_SCAN_AXIS, axisU),
+                ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_SCAN_AXIS, axisV)
         };
     }
 
@@ -1204,11 +1145,7 @@ public class TimelineClipPropertyUi {
             modified = true;
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("""
-                    控制 Flow 与 Fill 的混合程度：
-                    • 0%：像流水一样整体推进，层与层之间模糊过渡
-                    • 100%：当前层完全盖好后，才会开始下一层
-                    """);
+            ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_WEIGHT_TOOLTIP));
         }
 
         // 可视化提示：用文本模拟进度条
@@ -1221,11 +1158,7 @@ public class TimelineClipPropertyUi {
         bar.append("] ").append(String.format("%.0f%%", weightValue));
         ImGui.textDisabled(bar.toString());
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("""
-                    提示：
-                    0%  = 柔和过渡（像水流）
-                    100% = 严格分层（必须先完成上一层）
-                    """);
+            ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_WEIGHT_BAR_HINT));
         }
 
         // 修饰符
@@ -1249,11 +1182,7 @@ public class TimelineClipPropertyUi {
             modified = true;
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("""
-                    在相邻"层"之间交替反转内部填充顺序：
-                    • 第一层从左到右，第二层从右到左，第三层再从左到右…
-                    类似蛇形走位/耕地轨迹。
-                    """);
+            ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_ALTERNATING_TOOLTIP));
         }
 
         return modified;
@@ -1594,8 +1523,7 @@ public class TimelineClipPropertyUi {
         }
         ImGui.popItemWidth();
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("控制该特效在哪种片段阶段生效：出现片段 / 擦除片段 / 两者都生效。\n" +
-                    "注意：如果特效阶段与片段阶段不匹配，特效不会触发。");
+            ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_PHASE_TOOLTIP));
         }
 
         // ✅ 检查阶段是否匹配，如果不匹配则显示警告
@@ -1610,12 +1538,17 @@ public class TimelineClipPropertyUi {
         if (phaseMismatch) {
             ImGui.textColored(1.0f, 0.6f, 0.0f, 1.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_PHASE_MISMATCH_WARNING));
             if (ImGui.isItemHovered()) {
-                String clipPhaseName = clipPhase == ClipAnimationConfig.AnimationPhase.ENTER ? "出现(Enter)" : "擦除(Exit)";
-                String effectPhaseName = effectPhase == EffectInstance.EffectPhase.ENTER ? "出现(Enter)"
-                        : effectPhase == EffectInstance.EffectPhase.EXIT ? "擦除(Exit)" : "两者(Both)";
-                ImGui.setTooltip("当前片段阶段：" + clipPhaseName +
-                        "\n特效阶段：" + effectPhaseName +
-                        "\n建议：将特效阶段设置为'两者(Both)'或与片段阶段匹配。");
+                String clipPhaseName = clipPhase == ClipAnimationConfig.AnimationPhase.ENTER
+                        ? ClipPropertyUiI18n.effectPhaseName(ClipPropertyUiI18n.EffectPhaseKind.ENTER)
+                        : ClipPropertyUiI18n.effectPhaseName(ClipPropertyUiI18n.EffectPhaseKind.EXIT);
+                String effectPhaseName = switch (effectPhase) {
+                    case ENTER -> ClipPropertyUiI18n.effectPhaseName(ClipPropertyUiI18n.EffectPhaseKind.ENTER);
+                    case EXIT -> ClipPropertyUiI18n.effectPhaseName(ClipPropertyUiI18n.EffectPhaseKind.EXIT);
+                    default -> ClipPropertyUiI18n.effectPhaseName(ClipPropertyUiI18n.EffectPhaseKind.BOTH);
+                };
+                ImGui.setTooltip(ClipPropertyUiI18n.tr(
+                        DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_PHASE_MISMATCH_TOOLTIP,
+                        clipPhaseName, effectPhaseName));
             }
         }
 
@@ -1634,7 +1567,7 @@ public class TimelineClipPropertyUi {
         }
         ImGui.popItemWidth();
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("连续：窗口内每帧触发（适合持续光效）。\n一次：进入窗口时只触发一次（适合爆裂/闪白光，性能更稳）。");
+            ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_TRIGGER_TOOLTIP));
         }
 
         // startOffset 和 duration 都是归一化的 [0..1]
@@ -1656,7 +1589,7 @@ public class TimelineClipPropertyUi {
         }
         ImGui.popItemWidth();
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("相对于“单个方块动画起点”的时间偏移。");
+            ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_START_TOOLTIP));
         }
 
         ImGui.sameLine();
@@ -1669,9 +1602,7 @@ public class TimelineClipPropertyUi {
         }
         ImGui.popItemWidth();
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("特效从开始到结束的持续时间（相对于单块动画窗口）。\n" +
-                    "单块动画窗口长度：" + String.format("%.2f", animLen) + "秒\n" +
-                    "提示：后段特效（如 startOffset > 0.8）适合在动画结束时触发。");
+            ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_DURATION_TOOLTIP, animLen));
         }
 
         // ✅ 添加提示：说明特效时间窗口的概念
@@ -1707,8 +1638,8 @@ public class TimelineClipPropertyUi {
         dl.addRect(x, y, x + previewWidth, y + height, borderColor, 4.0f);
 
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(String.format(
-                    "开始: %.2fs (%.0f%%)\n结束: %.2fs (%.0f%%)",
+            ImGui.setTooltip(ClipPropertyUiI18n.tr(
+                    DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_TIMELINE_PREVIEW,
                     actualStartNorm * animLen,
                     actualStartNorm * 100f,
                     (actualStartNorm + actualDurNorm) * animLen,
@@ -1850,7 +1781,7 @@ public class TimelineClipPropertyUi {
 
         // 工具提示
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("缓动曲线预览\nX轴：时间进度 (0.0 - 1.0)\nY轴：缓动值 (0.0 - 1.0)\n虚线：线性参考");
+            ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EASING_PREVIEW_TOOLTIP));
         }
     }
 
@@ -2124,7 +2055,7 @@ public class TimelineClipPropertyUi {
                     modified = true;
                 }
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("控制方块从中心膨胀扩散的速度，越大越快。");
+                    ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_EXPAND_SPEED_TOOLTIP));
                 }
 
                 // 使用距离
@@ -2138,7 +2069,7 @@ public class TimelineClipPropertyUi {
                     modified = true;
                 }
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("勾选后，离中心越远的方块缩放越大（更有扩散感）。");
+                    ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_USE_DISTANCE_SCALE_TOOLTIP));
                 }
                 break;
             }
