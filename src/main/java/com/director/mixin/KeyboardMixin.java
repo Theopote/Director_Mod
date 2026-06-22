@@ -1,5 +1,6 @@
 package com.director.mixin;
 
+import com.director.core.DirectorServices;
 import com.director.ui.input.InputFocusManager;
 import net.minecraft.client.Keyboard;
 import net.minecraft.client.input.CharInput;
@@ -73,7 +74,7 @@ public class KeyboardMixin {
             // 如果新系统没有处理，回退到旧的 GlobalShortcutManager
             if (!textInputActive && !handledByNewSystem) {
                 try {
-                    var mgr = com.director.ui.input.GlobalShortcutManager.getInstance();
+                    var mgr = DirectorServices.get().globalShortcuts();
                     int keyCode = input.key();
                     int mods = input.modifiers();
                     boolean ctrl = (mods & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL) != 0;

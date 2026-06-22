@@ -23,11 +23,11 @@ import org.slf4j.LoggerFactory;
  * ShortcutInitializer.initialize();
  * 
  * // 在 DirectorScreen 打开时激活 UI_PANEL 上下文
- * GlobalShortcutManager.getInstance().setContextEnabled(
+ * DirectorServices.get().globalShortcuts().setContextEnabled(
  *     GlobalShortcutManager.ShortcutContext.UI_PANEL, true);
  * 
  * // 在选择工具激活时激活 SELECTION_TOOL 上下文
- * GlobalShortcutManager.getInstance().setContextEnabled(
+ * DirectorServices.get().globalShortcuts().setContextEnabled(
  *     GlobalShortcutManager.ShortcutContext.SELECTION_TOOL, true);
  * }</pre>
  * 
@@ -41,7 +41,7 @@ public class ShortcutInitializer {
      * 初始化所有默认快捷键
      */
     public static void initialize() {
-        GlobalShortcutManager manager = GlobalShortcutManager.getInstance();
+        GlobalShortcutManager manager = DirectorServices.get().globalShortcuts();
         
         // ========== 全局快捷键 ==========
         // 这些快捷键在任何状态下都可用
@@ -180,7 +180,7 @@ public class ShortcutInitializer {
      * Activate UI shortcut contexts when DirectorScreen opens.
      */
     public static void activateUIContexts() {
-        GlobalShortcutManager manager = GlobalShortcutManager.getInstance();
+        GlobalShortcutManager manager = DirectorServices.get().globalShortcuts();
         manager.setContextEnabled(GlobalShortcutManager.ShortcutContext.UI_PANEL, true);
         LOGGER.debug("[ShortcutInitializer] 激活 UI 面板上下文");
     }
@@ -189,7 +189,7 @@ public class ShortcutInitializer {
      * 在 DirectorScreen 关闭时调用，停用 UI 相关上下文
      */
     public static void deactivateUIContexts() {
-        GlobalShortcutManager manager = GlobalShortcutManager.getInstance();
+        GlobalShortcutManager manager = DirectorServices.get().globalShortcuts();
         manager.setContextEnabled(GlobalShortcutManager.ShortcutContext.UI_PANEL, false);
         manager.setContextEnabled(GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR, false);
         manager.setContextEnabled(GlobalShortcutManager.ShortcutContext.CONTAINER_MANAGER, false);
@@ -200,7 +200,7 @@ public class ShortcutInitializer {
      * 激活选择工具上下文
      */
     public static void activateSelectionToolContext() {
-        GlobalShortcutManager manager = GlobalShortcutManager.getInstance();
+        GlobalShortcutManager manager = DirectorServices.get().globalShortcuts();
         manager.setContextEnabled(GlobalShortcutManager.ShortcutContext.SELECTION_TOOL, true);
         LOGGER.debug("[ShortcutInitializer] 激活选择工具上下文");
     }
@@ -209,7 +209,7 @@ public class ShortcutInitializer {
      * 停用选择工具上下文
      */
     public static void deactivateSelectionToolContext() {
-        GlobalShortcutManager manager = GlobalShortcutManager.getInstance();
+        GlobalShortcutManager manager = DirectorServices.get().globalShortcuts();
         manager.setContextEnabled(GlobalShortcutManager.ShortcutContext.SELECTION_TOOL, false);
         LOGGER.debug("[ShortcutInitializer] 停用选择工具上下文");
     }

@@ -226,9 +226,25 @@ public class GlobalShortcutManager {
         LOGGER.info("[GlobalShortcutManager] 全局快捷键管理器已初始化");
     }
     
+    public static void initialize() {
+        if (INSTANCE != null) {
+            return;
+        }
+        synchronized (GlobalShortcutManager.class) {
+            if (INSTANCE == null) {
+                INSTANCE = new GlobalShortcutManager();
+            }
+        }
+    }
+
+    /**
+     * @deprecated 请使用 {@link com.director.core.DirectorServices#get()}{@code .globalShortcuts()}
+     */
+    @Deprecated
     public static GlobalShortcutManager getInstance() {
         if (INSTANCE == null) {
-            INSTANCE = new GlobalShortcutManager();
+            throw new IllegalStateException(
+                    "[GlobalShortcutManager] Not initialized — call DirectorServices.initializeClient()");
         }
         return INSTANCE;
     }

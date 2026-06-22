@@ -25,12 +25,14 @@ public class ContainerServices {
      */
     public static void init(MinecraftServer server) {
         visibilityService = new ContainerVisibilityService(server);
+        DirectorServices.bindVisibilityService(visibilityService);
         syncLoadedHiddenContainers();
     }
     
     /**
-     * 获取可见性服务
+     * @deprecated 请使用 {@link DirectorServices#get()}{@code .visibilityOrNull()}
      */
+    @Deprecated
     public static ContainerVisibilityService visibility() {
         return visibilityService;
     }

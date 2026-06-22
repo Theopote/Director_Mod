@@ -1,5 +1,6 @@
 package com.director.core.container.commands;
 
+import com.director.core.DirectorServices;
 import com.director.core.container.Container;
 import com.director.core.container.BlockStore;
 import com.director.core.container.visibility.ContainerServices;
@@ -83,7 +84,7 @@ public class RemoveBlocksFromContainerCommand implements ContainerCommand {
         if (!container.isHidden() || removedBlocks.isEmpty()) {
             return;
         }
-        var visibilityService = ContainerServices.visibility();
+        var visibilityService = DirectorServices.get().visibilityOrNull();
         if (visibilityService != null) {
             visibilityService.restoreContainerBlocks(container, removedBlocks.keySet());
         }
@@ -93,7 +94,7 @@ public class RemoveBlocksFromContainerCommand implements ContainerCommand {
         if (!container.isHidden() || removedBlocks.isEmpty()) {
             return;
         }
-        var visibilityService = ContainerServices.visibility();
+        var visibilityService = DirectorServices.get().visibilityOrNull();
         if (visibilityService != null) {
             visibilityService.hideContainer(container);
         }

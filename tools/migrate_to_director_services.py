@@ -11,6 +11,8 @@ SKIP_FILES = {
     "DirectorServices.java",
     "SelectionManager.java",
     "ContainerManager.java",
+    "ContainerServices.java",
+    "GlobalShortcutManager.java",
 }
 
 REPLACEMENTS = [
@@ -40,9 +42,15 @@ REPLACEMENTS = [
         "DirectorServices.get().selection()",
     ),
     (
-        r"com\.director\.ui\.selection\.SelectionManager\.get\(\)",
-        "DirectorServices.get().uiSelection()",
+        r"com\.director\.core\.container\.visibility\.ContainerServices\.visibility\(\)",
+        "DirectorServices.get().visibilityOrNull()",
     ),
+    (r"ContainerServices\.visibility\(\)", "DirectorServices.get().visibilityOrNull()"),
+    (
+        r"com\.director\.ui\.input\.GlobalShortcutManager\.getInstance\(\)",
+        "DirectorServices.get().globalShortcuts()",
+    ),
+    (r"GlobalShortcutManager\.getInstance\(\)", "DirectorServices.get().globalShortcuts()"),
 ]
 
 IMPORT_LINE = "import com.director.core.DirectorServices;\n"

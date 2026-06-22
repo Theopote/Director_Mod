@@ -1,5 +1,6 @@
 package com.director.core.container;
 
+import com.director.core.DirectorServices;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -179,7 +180,7 @@ public class Container {
         }
         if (isHidden() && !blocks.isEmpty()) {
             try {
-                var visibilityService = com.director.core.container.visibility.ContainerServices.visibility();
+                var visibilityService = DirectorServices.get().visibilityOrNull();
                 if (visibilityService != null) {
                     visibilityService.restoreContainerBlocks(this, new java.util.ArrayList<>(blocks));
                 }
@@ -496,7 +497,7 @@ public class Container {
             
             // 新的可见性系统（v5.2）：使用ContainerVisibilityService
             try {
-                var visibilityService = com.director.core.container.visibility.ContainerServices.visibility();
+                var visibilityService = DirectorServices.get().visibilityOrNull();
                 if (visibilityService != null) {
                     if (state == ContainerState.HIDDEN) {
                         visibilityService.hideContainer(this);

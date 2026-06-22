@@ -492,7 +492,7 @@ public class TimelineClipBlockController {
         // 双重控制机制：
         // 1. 通过 ContainerVisibilityService 控制真实方块显示/隐藏
         // 2. 通过 BlockVisualStateManager 控制视觉状态（透明度、覆盖层等）
-        var visibilityService = com.director.core.container.visibility.ContainerServices.visibility();
+        var visibilityService = DirectorServices.get().visibilityOrNull();
 
         for (Map.Entry<UUID, Set<BlockPos>> entry : currentFrameVisibleBlocks.entrySet()) {
             UUID containerId = entry.getKey();

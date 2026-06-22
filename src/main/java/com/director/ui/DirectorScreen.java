@@ -335,7 +335,7 @@ public class DirectorScreen extends Screen {
         if (ImGui.getIO() != null && ImGui.getIO().getWantCaptureKeyboard()) {
             // ImGui 捕获键盘时，使用旧的 GlobalShortcutManager 作为后备
             // （用于处理尚未迁移到新系统的快捷键）
-            var shortcutManager = com.director.ui.input.GlobalShortcutManager.getInstance();
+            var shortcutManager = DirectorServices.get().globalShortcuts();
             if (shortcutManager.handleImGuiInput(ImGui.getIO())) {
                 return true; // 已处理
             }
@@ -343,7 +343,7 @@ public class DirectorScreen extends Screen {
         }
         
         // ImGui 不捕获键盘时，使用 GLFW 输入处理（保留旧系统作为后备）
-        var shortcutManager = com.director.ui.input.GlobalShortcutManager.getInstance();
+        var shortcutManager = DirectorServices.get().globalShortcuts();
         boolean ctrlPressed = (modifiers & org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL) != 0;
         boolean shiftPressed = (modifiers & org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT) != 0;
         boolean altPressed = (modifiers & org.lwjgl.glfw.GLFW.GLFW_MOD_ALT) != 0;

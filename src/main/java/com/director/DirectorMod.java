@@ -374,7 +374,7 @@ public class DirectorMod implements ModInitializer {
         ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
             com.director.core.container.persistence.ContainerPersistence.flushPendingAutoSave(
                     DirectorServices.get().containers());
-            var visibilityService = ContainerServices.visibility();
+            var visibilityService = DirectorServices.get().visibilityOrNull();
             if (visibilityService != null) {
                 visibilityService.clearAll();
             }
@@ -383,7 +383,7 @@ public class DirectorMod implements ModInitializer {
         });
 
         ServerTickEvents.END_SERVER_TICK.register(server -> {
-            var visibilityService = ContainerServices.visibility();
+            var visibilityService = DirectorServices.get().visibilityOrNull();
             if (visibilityService != null) {
                 visibilityService.tick();
             }

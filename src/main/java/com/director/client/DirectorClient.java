@@ -74,8 +74,9 @@ public class DirectorClient implements ClientModInitializer {
         // 初始化容器实时接收订阅器 (v5.0)
         initializeContainerIntakeSystem();
         
-        // 初始化全局快捷键系统
+        // 初始化客户端服务注册表与全局快捷键
         try {
+            com.director.core.DirectorServices.initializeClient();
             com.director.ui.input.ShortcutInitializer.initialize();
             LOGGER.info("[Director] 全局快捷键系统已初始化");
         } catch (Exception e) {

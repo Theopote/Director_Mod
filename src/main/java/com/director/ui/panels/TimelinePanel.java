@@ -322,7 +322,7 @@ public class TimelinePanel extends AbstractPanel
         // 新的快捷键系统通过 ShortcutAction → ShortcutActions → UICommandFacade 统一处理
         // 不再需要在此处注册，所有快捷键都通过 ShortcutDispatcher 统一分发
         
-        // GlobalShortcutManager manager = GlobalShortcutManager.getInstance();
+        // GlobalShortcutManager manager = DirectorServices.get().globalShortcuts();
         //
         // manager.registerCtrlGLFW(
         //         "timeline.undo.glfw",
@@ -445,7 +445,7 @@ public class TimelinePanel extends AbstractPanel
         
         if (active != globalTimelineShortcutsActive) {
             globalTimelineShortcutsActive = active;
-            GlobalShortcutManager.getInstance().setContextEnabled(
+            DirectorServices.get().globalShortcuts().setContextEnabled(
                     GlobalShortcutManager.ShortcutContext.TIMELINE_EDITOR,
                     globalTimelineShortcutsActive
             );

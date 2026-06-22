@@ -9,6 +9,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.director.core.DirectorServices;
 import com.director.core.container.persistence.ContainerPersistence;
 import com.director.core.selection.SelectionManager;
 import com.director.ui.timeline.container.ContainerTimelineService;
@@ -309,7 +310,7 @@ public class ContainerManager {
 
         // 2) 在锁外处理可见性恢复（避免长时间持有锁）
         try {
-            var visibilityService = com.director.core.container.visibility.ContainerServices.visibility();
+            var visibilityService = DirectorServices.get().visibilityOrNull();
             if (visibilityService != null) {
                 for (Container c : toRemove) {
                     if (c.isHidden() || visibilityService.hasSnapshot(c)) {
@@ -445,7 +446,7 @@ public class ContainerManager {
             all.add(c);
         }
         // 先在锁外处理可见性恢复，避免隐藏残留
-        var visibilityService = com.director.core.container.visibility.ContainerServices.visibility();
+        var visibilityService = DirectorServices.get().visibilityOrNull();
         if (visibilityService != null) {
             for (Container c : all) {
                 try {
@@ -1085,7 +1086,7 @@ public class ContainerManager {
         // 若容器当前为隐藏状态，立刻应用可见性到新加入的方块，避免需手动切换一次才生效
         if (container.isHidden()) {
             try {
-                var visibilityService = com.director.core.container.visibility.ContainerServices.visibility();
+                var visibilityService = DirectorServices.get().visibilityOrNull();
                 if (visibilityService != null) {
                     visibilityService.hideContainer(container);
                 }
@@ -1229,7 +1230,7 @@ public class ContainerManager {
             return;
         }
         try {
-            var visibilityService = com.director.core.container.visibility.ContainerServices.visibility();
+            var visibilityService = DirectorServices.get().visibilityOrNull();
             if (visibilityService == null) {
                 return;
             }

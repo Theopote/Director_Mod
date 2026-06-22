@@ -201,7 +201,7 @@ public class MergeContainersCommand implements ContainerCommand {
             return;
         }
 
-        var visibilityService = ContainerServices.visibility();
+        var visibilityService = DirectorServices.get().visibilityOrNull();
         if (visibilityService == null) {
             LOGGER.warn("[MergeCommand] ContainerVisibilityService未初始化，无法同步合并后容器可见性: {}", mergedContainer.getName());
             return;

@@ -91,7 +91,7 @@ public class AddBlocksToContainerCommand implements ContainerCommand {
         if (!container.isHidden()) {
             return;
         }
-        var visibilityService = ContainerServices.visibility();
+        var visibilityService = DirectorServices.get().visibilityOrNull();
         if (visibilityService != null) {
             visibilityService.hideContainer(container);
         }
@@ -101,7 +101,7 @@ public class AddBlocksToContainerCommand implements ContainerCommand {
         if (!container.isHidden() || blocks == null || blocks.isEmpty()) {
             return;
         }
-        var visibilityService = ContainerServices.visibility();
+        var visibilityService = DirectorServices.get().visibilityOrNull();
         if (visibilityService != null) {
             visibilityService.restoreContainerBlocks(container, blocks);
         }
