@@ -4,6 +4,8 @@ import com.director.core.container.Container;
 import com.director.core.container.ContainerIntakeSubscriber;
 import com.director.core.container.ContainerManager;
 import com.director.core.container.ContainerType;
+import com.director.i18n.DirectorI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.timeline.commands.TimelineCommandHistory;
 
 import java.util.List;
@@ -129,11 +131,13 @@ public class ContainerPanelController {
     /* -------------------- 创建 / 删除 -------------------- */
 
     public void createNewContainer() {
-        handlePostCreate(commandService.createContainer("容器", ContainerType.GENERAL, null));
+        handlePostCreate(commandService.createContainer(
+            DirectorI18n.translate(DirectorLang.ContainerPanel.DEFAULT_CONTAINER_NAME), ContainerType.GENERAL, null));
     }
 
     public void createNewGroupContainer() {
-        handlePostCreate(commandService.createContainer("组", ContainerType.GROUP, null));
+        handlePostCreate(commandService.createContainer(
+            DirectorI18n.translate(DirectorLang.ContainerPanel.DEFAULT_GROUP_NAME), ContainerType.GROUP, null));
     }
 
     public void createNewContainer(String baseName, ContainerType type) {
@@ -141,8 +145,10 @@ public class ContainerPanelController {
     }
 
     public void createChildContainer(ContainerType type, UUID parentId) {
-        handlePostCreate(commandService.createContainer(
-            type == ContainerType.GROUP ? "组" : type.getDisplayName(), type, parentId));
+        String baseName = type == ContainerType.GROUP
+            ? DirectorI18n.translate(DirectorLang.ContainerPanel.DEFAULT_GROUP_NAME)
+            : type.getDisplayName();
+        handlePostCreate(commandService.createContainer(baseName, type, parentId));
     }
 
     private void handlePostCreate(Container created) {

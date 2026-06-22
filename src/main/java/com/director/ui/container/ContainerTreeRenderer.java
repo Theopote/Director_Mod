@@ -2,6 +2,8 @@ package com.director.ui.container;
 
 import com.director.core.DirectorServices;
 import com.director.core.container.Container;
+import com.director.i18n.DirectorI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.theme.Icons;
 import imgui.ImDrawList;
 import imgui.ImGui;
@@ -88,7 +90,7 @@ class ContainerTreeRenderer {
         ImGui.pushStyleVar(ImGuiStyleVar.ItemSpacing, spacingX, ROW_SPACING);
         try {
             if (roots == null || roots.isEmpty()) {
-                ImGui.textDisabled("(暂无容器)");
+                ImGui.textDisabled(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.EMPTY));
                 return;
             }
             for (Container container : roots) {
@@ -398,9 +400,12 @@ class ContainerTreeRenderer {
             }
             if (lockHovered) {
                 if (isOnTimeline) {
-                    ImGui.setTooltip("容器在时间线上，无法切换锁定（请先从时间线删除片段）");
+                    ImGui.setTooltip(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.LOCK_TIMELINE_TOOLTIP));
                 } else {
-                    ImGui.setTooltip(container.isLocked() ? "解锁容器" : "锁定容器");
+                    ImGui.setTooltip(DirectorI18n.translate(
+                        container.isLocked()
+                            ? DirectorLang.ContainerPanel.Tree.UNLOCK_CONTAINER
+                            : DirectorLang.ContainerPanel.Tree.LOCK_CONTAINER));
                 }
             }
             drawIconInRect(drawList, lockMin, lockMax, lockIcon, lockColor);
@@ -425,9 +430,12 @@ class ContainerTreeRenderer {
             }
             if (visibilityHovered) {
                 if (isOnTimeline) {
-                    ImGui.setTooltip("容器在时间线上，无法切换可见性（请先从时间线删除片段）");
+                    ImGui.setTooltip(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.VISIBILITY_TIMELINE_TOOLTIP));
                 } else {
-                    ImGui.setTooltip(isHidden ? "显示容器（方块将在 Minecraft 中可见）" : "隐藏容器（方块将在 Minecraft 中不可见，看起来像被清除）");
+                    ImGui.setTooltip(DirectorI18n.translate(
+                        isHidden
+                            ? DirectorLang.ContainerPanel.Tree.SHOW_CONTAINER_TOOLTIP
+                            : DirectorLang.ContainerPanel.Tree.HIDE_CONTAINER_TOOLTIP));
                 }
             }
             drawIconInRect(drawList, visMin, visMax, visIcon, visColor);
@@ -457,30 +465,31 @@ class ContainerTreeRenderer {
 
     private void renderTooltip(Container container) {
         ImGui.beginTooltip();
-        ImGui.text("容器: " + container.getName());
+        ImGui.text(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_NAME, container.getName()));
         ImGui.separator();
-        ImGui.text("类型: " + container.getType().getDisplayName());
-        ImGui.text("方块数: " + container.getBlockCount());
-        ImGui.text("子容器: " + container.getChildren().size());
-        ImGui.text("总方块数: " + container.getTotalBlockCount());
+        ImGui.text(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_TYPE, container.getType().getDisplayName()));
+        ImGui.text(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_BLOCK_COUNT, container.getBlockCount()));
+        ImGui.text(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_CHILD_COUNT, container.getChildren().size()));
+        ImGui.text(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_TOTAL_BLOCKS, container.getTotalBlockCount()));
 
         if (container.getCenter() != null) {
-            ImGui.text("中心: " + container.getCenter());
+            ImGui.text(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_CENTER, container.getCenter()));
         }
 
         Container.BoundingBox bbox = container.getBoundingBox();
-        ImGui.text(String.format("大小: %dx%dx%d",
+        ImGui.text(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_SIZE,
             bbox.getWidth(), bbox.getHeight(), bbox.getDepth()));
         ImGui.separator();
         boolean isOnTimeline = DirectorServices.get().containerTimeline()
             .isContainerOnTimeline(container.getId());
         if (isOnTimeline) {
-            ImGui.textColored(0.66f, 0.82f, 1.0f, 1.0f, "状态: 已添加到时间线");
-            ImGui.textDisabled("容器属性只读，请先从时间线删除片段再编辑");
+            ImGui.textColored(0.66f, 0.82f, 1.0f, 1.0f,
+                DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_ON_TIMELINE));
+            ImGui.textDisabled(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_READONLY));
             ImGui.separator();
         }
-        ImGui.textDisabled("右键打开菜单");
-        ImGui.textDisabled("拖动到时间线创建轨道");
+        ImGui.textDisabled(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_RIGHT_CLICK));
+        ImGui.textDisabled(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_DRAG_TO_TIMELINE));
         ImGui.endTooltip();
     }
 
