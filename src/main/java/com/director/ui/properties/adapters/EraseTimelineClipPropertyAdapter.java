@@ -4,24 +4,8 @@ import com.director.core.animation.ClipAnimationConfig;
 import com.director.core.animation.easing.EasingFunction;
 import com.director.core.animation.transform.AnimationTransformerFactory;
 import com.director.core.animation.transform.IAnimationTransformer;
-import com.director.core.animation.effect.BlockEffectRegistry;
 import com.director.core.animation.effect.EffectInstance;
-import com.director.core.animation.effect.EffectType;
-import com.director.core.animation.effect.IBlockEffect;
-import com.director.core.animation.effect.preset.EffectPreset;
-import com.director.core.animation.effect.preset.EffectPresetRegistry;
-import com.director.ui.util.EffectClipboardManager;
 import com.director.core.container.AnimationMode;
-import com.director.core.animation.sequence.ConcurrencyMode;
-import net.minecraft.client.MinecraftClient;
-import net.minecraft.util.math.Vec3d;
-import com.director.core.animation.sequence.SequenceMode;
-import com.director.core.animation.sequence.SequenceParameters;
-import com.director.core.animation.sequence.TimeMappingStrategy;
-import com.director.core.animation.sequence.evaluator.FillType;
-import com.director.core.animation.sequence.evaluator.FlowType;
-import com.director.core.animation.sequence.evaluator.FloodSeedMode;
-import com.director.core.animation.sequence.evaluator.OriginType;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.theme.UITheme;
 import com.director.ui.timeline.model.TimelineClip;
@@ -29,18 +13,13 @@ import com.director.ui.theme.Icons;
 import com.director.core.container.Container;
 import com.director.core.container.ContainerManager;
 import java.util.UUID;
-import imgui.ImDrawList;
 import imgui.ImGui;
-import imgui.ImVec2;
-import imgui.flag.ImGuiCol;
-import imgui.flag.ImGuiStyleVar;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImInt;
 
 import java.util.*;
 
-import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -194,10 +173,6 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
 
         return modified;
     }
-
-    /**
-     * 渲染基础属性（与容器片段相同）
-     */
 
     /**
      * 渲染动画设置（拆除片段专用：强制 EXIT 阶段）

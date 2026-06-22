@@ -48,6 +48,9 @@ public class TimelineClipPropertyUi {
 
     private final ImInt addEffectSelectedIndex = new ImInt(0);
     private final ImBoolean showSequenceAdvanced = new ImBoolean(false);
+    private final ImInt animationModeIndex = new ImInt();
+    private final ImInt easingFunctionIndex = new ImInt();
+    private final ImBoolean opacityFade = new ImBoolean(false);
     private static final int EASING_CURVE_SAMPLES = 100;
     private float[] easingCurveCache = new float[EASING_CURVE_SAMPLES];
     private EasingFunction cachedEasingFunction = null;
