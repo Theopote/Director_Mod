@@ -118,7 +118,8 @@ public class SelectionManager {
         return INSTANCE;
     }
 
-    /** @see #get() */
+    /** @deprecated 请使用 {@link com.director.core.DirectorServices#get()}{@code .selection()} */
+    @Deprecated
     public static SelectionManager getInstance() {
         return get();
     }

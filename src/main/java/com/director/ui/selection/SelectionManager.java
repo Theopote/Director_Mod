@@ -39,19 +39,11 @@ import java.util.function.Consumer;
  * 
  * <h3>使用示例</h3>
  * <pre>{@code
- * // 旧 API（向后兼容）
- * Keyframe kf = ...;
+ * // 推荐：通过 DirectorServices 获取
+ * DirectorServices.get().uiSelection().selectTrack(track);
+ *
+ * // 遗留（已废弃）
  * SelectionManager.get().setCurrentSelection(kf);
- * 
- * // 新 API（推荐）
- * SelectionManager.get().selectActor(actorId);
- * SelectionManager.get().selectTrack(track);
- * SelectionManager.get().selectClip(clip);
- * 
- * // 监听选择变化
- * SelectionManager.get().addSelectionChangedListener(selection -> {
- *     System.out.println("Selection changed: " + selection);
- * });
  * }</pre>
  * 
  * @version 5.0
@@ -116,7 +108,8 @@ public final class SelectionManager {
         return instance;
     }
 
-    /** @see #get() */
+    /** @deprecated 请使用 {@link com.director.core.DirectorServices#get()}{@code .uiSelection()} */
+    @Deprecated
     public static SelectionManager getInstance() {
         return get();
     }
