@@ -1,8 +1,6 @@
 package com.director.export.video;
 
-import com.director.core.DirectorServices;
-import com.director.core.playback.PlaybackController;
-import com.director.timeline.container.ContainerTimelineService;
+import com.director.ui.timeline.playback.PlaybackOrchestrator;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
@@ -153,15 +151,7 @@ public final class VideoRenderPipeline {
     }
 
     private void applyTimelineTime(float timeSeconds) {
-        // 1) 驱动核心播放系统（容器/动画可视化）
-        PlaybackController.get().pause();
-        PlaybackController.get().seek(timeSeconds);
-
-        // 2) 同步 UI 时间线模型（摄像机轨道采样依赖它）
-        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
-        if (model != null) {
-            model.setCurrentTime(timeSeconds);
-        }
+        PlaybackOrchestrator.get().sampleAt(timeSeconds);
     }
 
     private void applyCamera(float timeSeconds, VideoExportSettings settings) {
@@ -169,7 +159,7 @@ public final class VideoRenderPipeline {
             return;
         }
 
-        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
+        TimelineModel model = com.director.core.DirectorServices.get().containerTimeline().getTimelineModel();
         if (model == null) {
             return;
         }
@@ -253,7 +243,7 @@ public final class VideoRenderPipeline {
 
         CameraViewportProfile profile = null;
         if (req.settings.cameraMode == VideoExportSettings.CAMERA_TRACK) {
-            TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
+            TimelineModel model = com.director.core.DirectorServices.get().containerTimeline().getTimelineModel();
             if (model != null) {
                 List<TimelineTrack> cameraTracks = getCameraTracks(model);
                 if (!cameraTracks.isEmpty()) {

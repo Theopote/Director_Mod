@@ -173,6 +173,70 @@ public final class PlaybackOrchestrator {
                 .getInstance().updateForPlayback(sampledTime));
     }
 
+    /**
+     * 在指定时间点采样整条时间线（视频导出 / 离线抓帧）。
+     * <p>
+     * {@link TimelineModel} 为唯一时钟来源；不推进 {@code playing} 状态。
+     */
+    public void sampleAt(float timeSeconds) {
+        TimelineModel target = resolveActiveModel();
+        if (target == null) {
+            return;
+        }
+        target.setCurrentTime(timeSeconds);
+        driveSampleSubsystems(timeSeconds);
+    }
+
+    /**
+     * 从已绑定模型或 {@link com.director.timeline.container.ContainerTimelineService} 解析工程时长。
+     */
+    public static float resolveTimelineDuration(float fallbackSeconds) {
+        TimelineModel target = resolveModelFromService();
+        if (target == null) {
+            return fallbackSeconds;
+        }
+        float duration = target.getDuration();
+        return duration > 0f ? duration : fallbackSeconds;
+    }
+
+    private TimelineModel resolveActiveModel() {
+        if (model != null) {
+            return model;
+        }
+        return resolveModelFromService();
+    }
+
+    private static TimelineModel resolveModelFromService() {
+        var service = com.director.core.DirectorServices.get().containerTimeline();
+        if (service == null) {
+            return null;
+        }
+        return service.getTimelineModel();
+    }
+
+    private void driveSampleSubsystems(float timeSeconds) {
+        runSubsystem("季节采样", () -> com.director.timeline.playback.season.TimelineSeasonController
+                .getInstance().onTimelineTick(timeSeconds));
+        runSubsystem("天气采样", () -> com.director.timeline.playback.weather.TimelineWeatherController
+                .getInstance().updateForPlayback(timeSeconds));
+        runSubsystem("TimelineClipBlockController", () ->
+                com.director.ui.timeline.playback.TimelineClipBlockController.getInstance().update());
+        runSubsystem("TimelineWorldController", () ->
+                com.director.timeline.playback.time.TimelineWorldController.getInstance().update());
+        runSubsystem("ActorRuntimeController", () ->
+                com.director.actor.runtime.ActorRuntimeController.getInstance().update());
+        runSubsystem("TimelineActorController", () ->
+                com.director.timeline.playback.entity.TimelineActorController.getInstance()
+                        .updateForPlayback(timeSeconds));
+        runSubsystem("WeatherRenderer", () ->
+                com.director.client.renderer.weather.WeatherRenderer.get().tick());
+        runSubsystem("WeatherParticleController", () ->
+                com.director.timeline.playback.weather.WeatherParticleController.getInstance().tick());
+        runSubsystem("TimelineWeatherController.tickEvents", () ->
+                com.director.timeline.playback.weather.TimelineWeatherController.getInstance()
+                        .tickEvents(timeSeconds));
+    }
+
     private void driveSubsystems(float deltaSeconds) {
         float renderDelta = getRenderDeltaFallback(deltaSeconds);
 

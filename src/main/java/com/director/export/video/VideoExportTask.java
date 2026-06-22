@@ -1,6 +1,7 @@
 package com.director.export.video;
 
 import com.director.client.RenderOverrideSnapshots;
+import com.director.ui.timeline.playback.PlaybackOrchestrator;
 import net.minecraft.client.texture.NativeImage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -138,26 +139,15 @@ public final class VideoExportTask implements Runnable {
         };
     }
 
+    private static final float DEFAULT_DURATION_FALLBACK_SEC = 10f;
+
     private float resolveEndTime() {
-        // 注意：core.PlaybackController 的 duration 来自 AnimationTimelineService 的可播放图，
-        // 在“仅编辑 UI 时间线”但尚未同步到 core 播放图时可能为 0，从而导致导出被回退为 10s（=30fps时 300 帧）。
-        float playbackDuration = com.director.core.playback.PlaybackController.get().getDuration();
-
-        // UI 时间线（TimelinePanel 初始化时会注入到 ContainerTimelineService）
-        float uiTimelineDuration = 0f;
-        com.director.timeline.model.TimelineModel model = com.director.timeline.container.ContainerTimelineService
-                .getInstance().getTimelineModel();
-        if (model != null) {
-            uiTimelineDuration = model.getDuration();
-        }
-
-        float fallback = 10f;
-        float best = Math.max(fallback, Math.max(playbackDuration, uiTimelineDuration));
+        float timelineDuration = PlaybackOrchestrator.resolveTimelineDuration(DEFAULT_DURATION_FALLBACK_SEC);
 
         return switch (settings.rangeMode) {
             case VideoExportSettings.RANGE_CUSTOM -> settings.customEndTime;
-            case VideoExportSettings.RANGE_TIMELINE -> uiTimelineDuration > 0f ? uiTimelineDuration : best;
-            default -> best;
+            case VideoExportSettings.RANGE_TIMELINE -> timelineDuration;
+            default -> timelineDuration;
         };
     }
 }

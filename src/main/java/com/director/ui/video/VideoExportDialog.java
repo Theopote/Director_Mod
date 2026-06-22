@@ -223,7 +223,7 @@ public final class VideoExportDialog {
             settings.customStartTime = Math.max(0f, rangeStartFloat.get());
             settings.customEndTime = Math.max(settings.customStartTime, rangeEndFloat.get());
         } else {
-            ImGui.textDisabled("该范围模式将使用当前工程的时长（来自 PlaybackController）。");
+            ImGui.textDisabled("该范围模式将使用当前 TimelineModel 的工程时长。");
         }
 
         UITheme.spacingSmall();

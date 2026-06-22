@@ -3,6 +3,7 @@ package com.director.client;
 import com.director.client.camera.CameraRenderOverride;
 import com.director.client.entity.EntityRenderOverride;
 import com.director.client.world.WorldRenderOverride;
+import com.director.ui.timeline.playback.PlaybackOrchestrator;
 import net.minecraft.client.MinecraftClient;
 
 /**
@@ -28,26 +29,13 @@ public final class RenderOverrideSnapshots {
             return;
         }
         client.execute(() -> {
+            float time = resolveTimelineTime();
+            try {
+                PlaybackOrchestrator.get().sampleAt(time);
+            } catch (RuntimeException ignored) {
+            }
             try {
                 com.director.timeline.playback.camera.TimelineCameraController.getInstance().update();
-            } catch (RuntimeException ignored) {
-            }
-            try {
-                com.director.timeline.playback.time.TimelineWorldController.getInstance().update();
-            } catch (RuntimeException ignored) {
-            }
-            try {
-                com.director.timeline.playback.season.TimelineSeasonController.getInstance().update();
-            } catch (RuntimeException ignored) {
-            }
-            try {
-                com.director.timeline.playback.weather.TimelineWeatherController.getInstance()
-                        .updateForPlayback(resolveTimelineTime());
-            } catch (RuntimeException ignored) {
-            }
-            try {
-                com.director.timeline.playback.entity.TimelineActorController.getInstance()
-                        .updateForPlayback(resolveTimelineTime());
             } catch (RuntimeException ignored) {
             }
         });
