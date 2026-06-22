@@ -1,5 +1,7 @@
 package com.director.ui.timeline.render;
 
+import com.director.i18n.DirectorI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.theme.UITheme;
 import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineModel;
@@ -273,7 +275,8 @@ public class TimelineRenderer {
         drawList.addRectFilled(contentX, rulerBottom, contentX + contentW, headerBottom, TimelineColors.COLOR_BG_MEDIUM);
         drawList.addLine(contentX, winY, contentX, headerBottom, TimelineColors.rgba(60, 60, 60, 200));
 
-        drawList.addText(winX + TRACK_LABEL_TEXT_OFFSET, winY + 6, TimelineColors.COLOR_TEXT_MEDIUM, "轨道");
+        drawList.addText(winX + TRACK_LABEL_TEXT_OFFSET, winY + 6, TimelineColors.COLOR_TEXT_MEDIUM,
+                DirectorI18n.translate(DirectorLang.Timeline.TRACKS_HEADER));
 
         rulerRenderer.renderRuler(drawList, contentX, winY, contentW, RULER_HEIGHT);
     }

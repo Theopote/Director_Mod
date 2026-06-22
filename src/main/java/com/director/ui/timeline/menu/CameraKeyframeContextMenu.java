@@ -1,5 +1,7 @@
 package com.director.ui.timeline.menu;
 
+import com.director.i18n.DirectorI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.timeline.commands.RemoveAutomationKeyframeCommand;
 import com.director.ui.timeline.commands.RemoveCameraPathKeyframeCommand;
 import com.director.ui.timeline.commands.BatchDeleteSelectionCommand;
@@ -54,11 +56,17 @@ public class CameraKeyframeContextMenu extends TimelineContextMenu {
         buildMenu();
     }
 
-    private void buildMenu() {
-        // 标题：显示关键帧信息
-        addDisabledItem(String.format("摄像机关键帧 @ %.3fs", keyframe.getTime()));
+    private static String tr(String key) {
+        return DirectorI18n.translate(key);
+    }
 
-        // 多选：当前选择里是否包含多个 CameraKeyframe
+    private static String tr(String key, Object... args) {
+        return DirectorI18n.translate(key, args);
+    }
+
+    private void buildMenu() {
+        addDisabledItem(tr(DirectorLang.Timeline.CameraKeyframeMenu.KEYFRAME_AT, keyframe.getTime()));
+
         List<CameraKeyframe> selectedCameraKeyframes = new ArrayList<>();
         for (Object it : model.getSelectedItems()) {
             if (it instanceof CameraKeyframe ckf) {
@@ -67,10 +75,9 @@ public class CameraKeyframeContextMenu extends TimelineContextMenu {
         }
         boolean isMulti = selectedCameraKeyframes.size() > 1;
         if (isMulti) {
-            addDisabledItem(String.format("多选：%d 个关键帧", selectedCameraKeyframes.size()));
+            addDisabledItem(tr(DirectorLang.Timeline.CameraKeyframeMenu.MULTI_SELECT, selectedCameraKeyframes.size()));
         }
         
-        // ⭐ v5.0：检查轨道状态，如果锁定或未激活，禁用所有操作
         boolean isLocked = track.isLocked();
         boolean isActive = true;
         if (track.getType() == com.director.timeline.model.TrackType.CAMERA) {
@@ -81,97 +88,91 @@ public class CameraKeyframeContextMenu extends TimelineContextMenu {
         }
         
         if (isLocked) {
-            addDisabledItem("轨道已锁定，无法操作");
-            return; // 锁定状态下不显示任何操作菜单
+            addDisabledItem(tr(DirectorLang.Timeline.CameraKeyframeMenu.TRACK_LOCKED));
+            return;
         }
         
         if (!isActive) {
-            addDisabledItem("轨道未激活，无法操作");
-            return; // 未激活状态下不显示任何操作菜单
+            addDisabledItem(tr(DirectorLang.Timeline.CameraKeyframeMenu.TRACK_INACTIVE));
+            return;
         }
         
         addSeparator();
 
-        // 关键帧类型菜单
         TimelineContextMenu keyTypeMenu = new TimelineContextMenu(getCommandHistory());
         keyTypeMenu.setPopupId("CameraKeyframeKeyTypeMenu");
         
-        addKeyTypeItem(keyTypeMenu, "Standard（普通）", CameraKeyframe.KeyType.STANDARD, selectedCameraKeyframes);
-        addKeyTypeItem(keyTypeMenu, "Corner（锐角）", CameraKeyframe.KeyType.CORNER, selectedCameraKeyframes);
-        addKeyTypeItem(keyTypeMenu, "Hold（保持）", CameraKeyframe.KeyType.HOLD, selectedCameraKeyframes);
-        addKeyTypeItem(keyTypeMenu, "Smooth（平滑）", CameraKeyframe.KeyType.SMOOTH, selectedCameraKeyframes);
-        addKeyTypeItem(keyTypeMenu, "Manual Bezier（手动贝塞尔）", CameraKeyframe.KeyType.MANUAL_BEZIER, selectedCameraKeyframes);
+        addKeyTypeItem(keyTypeMenu, tr(DirectorLang.Timeline.CameraKeyframeMenu.KEY_TYPE_STANDARD), CameraKeyframe.KeyType.STANDARD, selectedCameraKeyframes);
+        addKeyTypeItem(keyTypeMenu, tr(DirectorLang.Timeline.CameraKeyframeMenu.KEY_TYPE_CORNER), CameraKeyframe.KeyType.CORNER, selectedCameraKeyframes);
+        addKeyTypeItem(keyTypeMenu, tr(DirectorLang.Timeline.CameraKeyframeMenu.KEY_TYPE_HOLD), CameraKeyframe.KeyType.HOLD, selectedCameraKeyframes);
+        addKeyTypeItem(keyTypeMenu, tr(DirectorLang.Timeline.CameraKeyframeMenu.KEY_TYPE_SMOOTH), CameraKeyframe.KeyType.SMOOTH, selectedCameraKeyframes);
+        addKeyTypeItem(keyTypeMenu, tr(DirectorLang.Timeline.CameraKeyframeMenu.KEY_TYPE_MANUAL_BEZIER), CameraKeyframe.KeyType.MANUAL_BEZIER, selectedCameraKeyframes);
         
-        addSubmenu("关键帧类型", keyTypeMenu);
+        addSubmenu(tr(DirectorLang.Timeline.CameraKeyframeMenu.KEY_TYPE_SUBMENU), keyTypeMenu);
 
-        // 位置插值模式菜单
         TimelineContextMenu segmentTypeMenu = new TimelineContextMenu(getCommandHistory());
         segmentTypeMenu.setPopupId("CameraKeyframeSegmentTypeMenu");
         
-        addSegmentTypeItem(segmentTypeMenu, "Default（轨道默认）", CameraKeyframe.SegmentPathType.DEFAULT, selectedCameraKeyframes);
-        addSegmentTypeItem(segmentTypeMenu, "Linear（线性）", CameraKeyframe.SegmentPathType.LINEAR, selectedCameraKeyframes);
-        addSegmentTypeItem(segmentTypeMenu, "Catmull-Rom（样条）", CameraKeyframe.SegmentPathType.CATMULL_ROM, selectedCameraKeyframes);
-        addSegmentTypeItem(segmentTypeMenu, "Bezier（贝塞尔）", CameraKeyframe.SegmentPathType.BEZIER, selectedCameraKeyframes);
-        addSegmentTypeItem(segmentTypeMenu, "Step（无插值）", CameraKeyframe.SegmentPathType.STEP, selectedCameraKeyframes);
-        addSegmentTypeItem(segmentTypeMenu, "Hold（保持）", CameraKeyframe.SegmentPathType.HOLD, selectedCameraKeyframes);
+        addSegmentTypeItem(segmentTypeMenu, tr(DirectorLang.Timeline.CameraKeyframeMenu.SEGMENT_DEFAULT), CameraKeyframe.SegmentPathType.DEFAULT, selectedCameraKeyframes);
+        addSegmentTypeItem(segmentTypeMenu, tr(DirectorLang.Timeline.CameraKeyframeMenu.SEGMENT_LINEAR), CameraKeyframe.SegmentPathType.LINEAR, selectedCameraKeyframes);
+        addSegmentTypeItem(segmentTypeMenu, tr(DirectorLang.Timeline.CameraKeyframeMenu.SEGMENT_CATMULL_ROM), CameraKeyframe.SegmentPathType.CATMULL_ROM, selectedCameraKeyframes);
+        addSegmentTypeItem(segmentTypeMenu, tr(DirectorLang.Timeline.CameraKeyframeMenu.SEGMENT_BEZIER), CameraKeyframe.SegmentPathType.BEZIER, selectedCameraKeyframes);
+        addSegmentTypeItem(segmentTypeMenu, tr(DirectorLang.Timeline.CameraKeyframeMenu.SEGMENT_STEP), CameraKeyframe.SegmentPathType.STEP, selectedCameraKeyframes);
+        addSegmentTypeItem(segmentTypeMenu, tr(DirectorLang.Timeline.CameraKeyframeMenu.SEGMENT_HOLD), CameraKeyframe.SegmentPathType.HOLD, selectedCameraKeyframes);
         
-        addSubmenu("位置插值模式", segmentTypeMenu);
+        addSubmenu(tr(DirectorLang.Timeline.CameraKeyframeMenu.SEGMENT_TYPE_SUBMENU), segmentTypeMenu);
 
-        // 旋转插值模式菜单
         TimelineContextMenu rotationTypeMenu = new TimelineContextMenu(getCommandHistory());
         rotationTypeMenu.setPopupId("CameraKeyframeRotationTypeMenu");
         
-        addRotationTypeItem(rotationTypeMenu, "Default（跟随位置曲线）",
+        addRotationTypeItem(rotationTypeMenu, tr(DirectorLang.Timeline.CameraKeyframeMenu.ROTATION_DEFAULT),
                 CameraKeyframe.RotationInterpolation.DEFAULT, selectedCameraKeyframes);
-        addRotationTypeItem(rotationTypeMenu, "Linear（Slerp）",
+        addRotationTypeItem(rotationTypeMenu, tr(DirectorLang.Timeline.CameraKeyframeMenu.ROTATION_LINEAR),
                 CameraKeyframe.RotationInterpolation.LINEAR, selectedCameraKeyframes);
-        addRotationTypeItem(rotationTypeMenu, "Bezier（Slerp）",
+        addRotationTypeItem(rotationTypeMenu, tr(DirectorLang.Timeline.CameraKeyframeMenu.ROTATION_BEZIER),
                 CameraKeyframe.RotationInterpolation.BEZIER, selectedCameraKeyframes);
-        addRotationTypeItem(rotationTypeMenu, "Catmull-Rom（Slerp）",
+        addRotationTypeItem(rotationTypeMenu, tr(DirectorLang.Timeline.CameraKeyframeMenu.ROTATION_CATMULL_ROM),
                 CameraKeyframe.RotationInterpolation.CATMULL_ROM, selectedCameraKeyframes);
-        addRotationTypeItem(rotationTypeMenu, "Step（保持）",
+        addRotationTypeItem(rotationTypeMenu, tr(DirectorLang.Timeline.CameraKeyframeMenu.ROTATION_STEP),
                 CameraKeyframe.RotationInterpolation.STEP, selectedCameraKeyframes);
         
-        addSubmenu("旋转插值模式", rotationTypeMenu);
+        addSubmenu(tr(DirectorLang.Timeline.CameraKeyframeMenu.ROTATION_TYPE_SUBMENU), rotationTypeMenu);
 
-        // Bezier 控制柄菜单（仅在需要时显示）
         if (keyframe.getKeyType() == CameraKeyframe.KeyType.MANUAL_BEZIER ||
             keyframe.getSegmentPathType() == CameraKeyframe.SegmentPathType.BEZIER) {
             
             TimelineContextMenu handleMenu = new TimelineContextMenu(getCommandHistory());
             handleMenu.setPopupId("CameraKeyframeHandleMenu");
             
-            addHandleModeItem(handleMenu, "自动 (Auto)", CameraKeyframe.HandleMode.AUTO, selectedCameraKeyframes);
-            addHandleModeItem(handleMenu, "自由 (Free)", CameraKeyframe.HandleMode.FREE, selectedCameraKeyframes);
-            addHandleModeItem(handleMenu, "对齐 (Aligned)", CameraKeyframe.HandleMode.ALIGNED, selectedCameraKeyframes);
+            addHandleModeItem(handleMenu, tr(DirectorLang.Timeline.CameraKeyframeMenu.HANDLE_AUTO), CameraKeyframe.HandleMode.AUTO, selectedCameraKeyframes);
+            addHandleModeItem(handleMenu, tr(DirectorLang.Timeline.CameraKeyframeMenu.HANDLE_FREE), CameraKeyframe.HandleMode.FREE, selectedCameraKeyframes);
+            addHandleModeItem(handleMenu, tr(DirectorLang.Timeline.CameraKeyframeMenu.HANDLE_ALIGNED), CameraKeyframe.HandleMode.ALIGNED, selectedCameraKeyframes);
             
             handleMenu.addSeparator();
-            handleMenu.addItem("清除控制柄", () -> {
-                // ⭐ 修复：使用命令模式，支持 Undo/Redo
+            handleMenu.addItem(tr(DirectorLang.Timeline.CameraKeyframeMenu.CLEAR_HANDLES), () -> {
                 getCommandHistory().executeCommand(
                     new com.director.ui.timeline.commands.ChangeBezierHandleCommand(
                         model, track, keyframe,
-                        new org.joml.Vector3f(0, 0, 0),  // 新的 In 控制柄
-                        new org.joml.Vector3f(0, 0, 0)   // 新的 Out 控制柄
+                        new org.joml.Vector3f(0, 0, 0),
+                        new org.joml.Vector3f(0, 0, 0)
                     )
                 );
                 TimelineCameraController.getInstance().onKeyframeChanged();
                 LOGGER.debug("[Timeline] 清除摄像机关键帧控制柄");
             });
             
-            addSubmenu("Bezier 控制柄", handleMenu);
+            addSubmenu(tr(DirectorLang.Timeline.CameraKeyframeMenu.HANDLE_SUBMENU), handleMenu);
         }
 
         addSeparator();
 
-        // 实用功能
-        addItem("跳转到此关键帧", () -> {
+        addItem(tr(DirectorLang.Timeline.CameraKeyframeMenu.JUMP_TO_KEYFRAME), () -> {
             TimelineCameraController.getInstance().previewAt(keyframe.getTime());
             LOGGER.debug("[Timeline] 跳转到摄像机关键帧 @ {}s", keyframe.getTime());
         });
 
         if (isMulti) {
-            addItem("删除选中", () -> {
+            addItem(tr(DirectorLang.Timeline.CameraKeyframeMenu.DELETE_SELECTED), () -> {
                 getCommandHistory().executeCommand(new BatchDeleteSelectionCommand(
                         model,
                         new ArrayList<>(selectedCameraKeyframes)
@@ -184,24 +185,18 @@ public class CameraKeyframeContextMenu extends TimelineContextMenu {
         com.director.timeline.model.camera.path.CustomPathClip ownerPathClip =
                 model.findCustomPathClipForKeyframe(keyframe);
         if (ownerPathClip != null) {
-            addCommandItem("删除关键帧",
+            addCommandItem(tr(DirectorLang.Timeline.CameraKeyframeMenu.DELETE_KEYFRAME),
                     new RemoveCameraPathKeyframeCommand(model, ownerPathClip, keyframe),
                     "Del");
         } else {
-            addCommandItem("删除关键帧",
+            addCommandItem(tr(DirectorLang.Timeline.CameraKeyframeMenu.DELETE_KEYFRAME),
                     new RemoveAutomationKeyframeCommand(model, track, keyframe),
                     "Del");
         }
     }
 
-    // ------------------------------------------------
-    // Helper: 添加菜单项
-    // ------------------------------------------------
-
     private void addKeyTypeItem(TimelineContextMenu menu, String label, CameraKeyframe.KeyType type, List<CameraKeyframe> selected) {
         boolean isSelected = keyframe.getKeyType() == type;
-        // 使用 radio 样式显示选中状态（通过 ImGui.menuItem 的 selected 参数）
-        // 注意：我们需要在 label 中添加选中标记，因为 TimelineContextMenu 当前不支持 radio 参数
         String displayLabel = isSelected ? "✓ " + label : label;
         menu.addItem(displayLabel, () -> {
             if (selected != null && selected.size() > 1) {
@@ -249,4 +244,3 @@ public class CameraKeyframeContextMenu extends TimelineContextMenu {
         });
     }
 }
-

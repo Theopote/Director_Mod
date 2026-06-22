@@ -1,5 +1,7 @@
 package com.director.ui.timeline.dialog;
 
+import com.director.i18n.DirectorI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.theme.UITheme;
 import com.director.ui.timeline.commands.RenameTrackCommand;
 import com.director.ui.timeline.commands.TimelineCommandHistory;
@@ -134,25 +136,25 @@ public final class TrackRenameDialog {
             return;
         }
         
-        final String popupId = "重命名轨道##TrackRenamePopup";
+        final String popupId = DirectorI18n.translate(DirectorLang.Timeline.Dialog.TRACK_RENAME_TITLE) + "##TrackRenamePopup";
         if (popupShouldOpen) {
             ImGui.openPopup(popupId);
             popupShouldOpen = false;
         }
         
         if (ImGui.beginPopupModal(popupId, ImGuiWindowFlags.AlwaysAutoResize)) {
-            ImGui.text("输入新的轨道名称：");
+            ImGui.text(DirectorI18n.translate(DirectorLang.Timeline.Dialog.TRACK_RENAME_PROMPT));
             ImGui.pushItemWidth(UITheme.Spacing.INPUT_WIDTH_LARGE);
             boolean enterPressed = ImGui.inputText("##TrackRenameInput", popupBuffer, 
                 ImGuiInputTextFlags.EnterReturnsTrue);
             ImGui.popItemWidth();
             
-            if (ImGui.button("确定", 0, UITheme.Spacing.BUTTON_HEIGHT) || enterPressed) {
+            if (ImGui.button(DirectorI18n.translate(DirectorLang.Common.OK), 0, UITheme.Spacing.BUTTON_HEIGHT) || enterPressed) {
                 applyRename();
                 ImGui.closeCurrentPopup();
             }
             ImGui.sameLine();
-            if (ImGui.button("取消", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
+            if (ImGui.button(DirectorI18n.translate(DirectorLang.Common.CANCEL), 0, UITheme.Spacing.BUTTON_HEIGHT)) {
                 closePopup();
                 ImGui.closeCurrentPopup();
             }

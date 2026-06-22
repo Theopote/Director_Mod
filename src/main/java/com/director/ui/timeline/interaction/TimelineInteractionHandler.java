@@ -1,6 +1,8 @@
 package com.director.ui.timeline.interaction;
 
 import com.director.core.DirectorServices;
+import com.director.i18n.DirectorI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.timeline.interaction.TimelineDragHandles.ActionPaintHandle;
 import com.director.ui.timeline.interaction.TimelineDragHandles.AutomationKeyframeHandle;
 import com.director.ui.timeline.interaction.TimelineDragHandles.ClipHandle;
@@ -489,38 +491,50 @@ public class TimelineInteractionHandler {
                 com.director.timeline.playback.camera.TimelineCameraController controller =
                         com.director.timeline.playback.camera.TimelineCameraController.getInstance();
                 boolean isActive = controller.getActiveCameraTrack() == track;
-                tooltip = isActive ? "当前激活的摄像机轨道（点击切换到其他轨道）" : "设为当前激活的摄像机轨道";
+                tooltip = isActive
+                        ? DirectorI18n.translate(DirectorLang.Timeline.TrackControl.CAMERA_ACTIVE)
+                        : DirectorI18n.translate(DirectorLang.Timeline.TrackControl.CAMERA_SET_ACTIVE);
             }
             case ACTIVE_TIME -> {
                 com.director.timeline.playback.time.TimelineWorldController controller =
                         com.director.timeline.playback.time.TimelineWorldController.getInstance();
                 boolean isActive = controller.getActiveTimeTrack() == track;
-                tooltip = isActive ? "当前激活的时间轨道（点击切换到其他轨道）" : "设为当前激活的时间轨道";
+                tooltip = isActive
+                        ? DirectorI18n.translate(DirectorLang.Timeline.TrackControl.TIME_ACTIVE)
+                        : DirectorI18n.translate(DirectorLang.Timeline.TrackControl.TIME_SET_ACTIVE);
             }
             case ACTIVE_SEASON -> {
                 com.director.timeline.playback.season.TimelineSeasonController controller =
                         com.director.timeline.playback.season.TimelineSeasonController.getInstance();
                 boolean isActive = controller.getActiveSeasonTrack() == track;
-                tooltip = isActive ? "当前激活的季节轨道（点击切换到其他轨道）" : "设为当前激活的季节轨道";
+                tooltip = isActive
+                        ? DirectorI18n.translate(DirectorLang.Timeline.TrackControl.SEASON_ACTIVE)
+                        : DirectorI18n.translate(DirectorLang.Timeline.TrackControl.SEASON_SET_ACTIVE);
             }
             case ACTIVE_WEATHER -> {
                 com.director.timeline.playback.weather.TimelineWeatherController controller =
                         com.director.timeline.playback.weather.TimelineWeatherController.getInstance();
                 boolean isActive = controller.getActiveWeatherTrack() == track;
-                tooltip = isActive ? "当前激活的天气轨道（点击切换到其他轨道）" : "设为当前激活的天气轨道";
+                tooltip = isActive
+                        ? DirectorI18n.translate(DirectorLang.Timeline.TrackControl.WEATHER_ACTIVE)
+                        : DirectorI18n.translate(DirectorLang.Timeline.TrackControl.WEATHER_SET_ACTIVE);
             }
             case ADD_KEYFRAME -> {
                 com.director.timeline.model.TrackType trackType = track.getType();
                 if (trackType == com.director.timeline.model.TrackType.CONTAINER) {
-                    tooltip = "容器轨道不支持轨道级关键帧，请使用片段内的动画配置";
+                    tooltip = DirectorI18n.translate(DirectorLang.Timeline.TrackControl.CONTAINER_NO_TRACK_KEYFRAME);
                 } else if (trackType == com.director.timeline.model.TrackType.CAMERA) {
-                    tooltip = "添加摄像机关键帧（需位于自定义路径片段内）";
+                    tooltip = DirectorI18n.translate(DirectorLang.Timeline.TrackControl.CAMERA_ADD_KEYFRAME_HINT);
                 } else {
-                    tooltip = "添加关键帧";
+                    tooltip = DirectorI18n.translate(DirectorLang.Timeline.TrackControl.ADD_KEYFRAME);
                 }
             }
-            case LOCK -> tooltip = track.isLocked() ? "解锁轨道" : "锁定轨道";
-            case VISIBILITY -> tooltip = track.isVisible() ? "隐藏轨道" : "显示轨道";
+            case LOCK -> tooltip = track.isLocked()
+                    ? DirectorI18n.translate(DirectorLang.Timeline.TrackControl.UNLOCK_TRACK)
+                    : DirectorI18n.translate(DirectorLang.Timeline.TrackControl.LOCK_TRACK);
+            case VISIBILITY -> tooltip = track.isVisible()
+                    ? DirectorI18n.translate(DirectorLang.Timeline.TrackControl.HIDE_TRACK)
+                    : DirectorI18n.translate(DirectorLang.Timeline.TrackControl.SHOW_TRACK);
         }
         
         if (tooltip != null) {

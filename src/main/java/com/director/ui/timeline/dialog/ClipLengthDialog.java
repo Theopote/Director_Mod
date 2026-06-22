@@ -1,5 +1,7 @@
 package com.director.ui.timeline.dialog;
 
+import com.director.i18n.DirectorI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.timeline.commands.SetClipLengthCommand;
 import com.director.ui.timeline.commands.TimelineCommandHistory;
 import com.director.timeline.model.TimelineClip;
@@ -44,25 +46,25 @@ public final class ClipLengthDialog {
             return;
         }
         
-        final String popupId = "设置时间长度##ClipLengthPopup";
+        final String popupId = DirectorI18n.translate(DirectorLang.Timeline.Dialog.CLIP_LENGTH_TITLE) + "##ClipLengthPopup";
         if (shouldOpen) {
             ImGui.openPopup(popupId);
             shouldOpen = false;
         }
         
         if (ImGui.beginPopupModal(popupId, ImGuiWindowFlags.AlwaysAutoResize)) {
-            ImGui.text("输入新的时间长度（秒）：");
+            ImGui.text(DirectorI18n.translate(DirectorLang.Timeline.Dialog.CLIP_LENGTH_PROMPT));
             ImGui.pushItemWidth(UITheme.Spacing.INPUT_WIDTH_LARGE);
             boolean enterPressed = ImGui.inputText("##ClipLengthInput", buffer, 
                 ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.CharsDecimal);
             ImGui.popItemWidth();
             
-            if (ImGui.button("确定", 0, UITheme.Spacing.BUTTON_HEIGHT) || enterPressed) {
+            if (ImGui.button(DirectorI18n.translate(DirectorLang.Common.OK), 0, UITheme.Spacing.BUTTON_HEIGHT) || enterPressed) {
                 applyLength();
                 ImGui.closeCurrentPopup();
             }
             ImGui.sameLine();
-            if (ImGui.button("取消", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
+            if (ImGui.button(DirectorI18n.translate(DirectorLang.Common.CANCEL), 0, UITheme.Spacing.BUTTON_HEIGHT)) {
                 close();
                 ImGui.closeCurrentPopup();
             }
@@ -108,4 +110,3 @@ public final class ClipLengthDialog {
         shouldOpen = false;
     }
 }
-

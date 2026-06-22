@@ -1,5 +1,8 @@
 package com.director.ui.timeline.interaction;
 
+import com.director.i18n.DirectorI18n;
+import com.director.i18n.DirectorLang;
+import com.director.i18n.TrackI18n;
 import com.director.ui.timeline.commands.DeleteTrackCommand;
 import com.director.ui.timeline.commands.TimelineCommandHistory;
 import com.director.timeline.model.TimelineClip;
@@ -34,26 +37,27 @@ public class TimelineTrackController {
      * 打开新建轨道菜单。
      */
     public void openMenu() {
-        ImGui.openPopup("新建轨道##AddTrackMenu");
+        ImGui.openPopup(DirectorI18n.translate(DirectorLang.Timeline.Dialog.ADD_TRACK_TITLE) + "##AddTrackMenu");
     }
 
     /**
      * 渲染新建轨道弹出菜单。
      */
     public void renderAddTrackMenu() {
-        if (ImGui.beginPopup("新建轨道##AddTrackMenu")) {
-            ImGui.text("选择轨道类型");
+        String popupId = DirectorI18n.translate(DirectorLang.Timeline.Dialog.ADD_TRACK_TITLE) + "##AddTrackMenu";
+        if (ImGui.beginPopup(popupId)) {
+            ImGui.text(DirectorI18n.translate(DirectorLang.Timeline.Dialog.ADD_TRACK_CHOOSE_TYPE));
             ImGui.separator();
 
             for (TrackType type : TrackType.values()) {
-                if (ImGui.menuItem(type.getIconAndName())) {
+                if (ImGui.menuItem(TrackI18n.iconAndName(type))) {
                     createNewTrack(type);
                 }
 
                 // 显示轨道类型说明
                 if (ImGui.isItemHovered()) {
                     ImGui.beginTooltip();
-                    ImGui.text(type.getDescription());
+                    ImGui.text(TrackI18n.description(type));
                     ImGui.endTooltip();
                 }
             }

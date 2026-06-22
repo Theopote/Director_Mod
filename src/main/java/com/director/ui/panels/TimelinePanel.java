@@ -1,5 +1,7 @@
 package com.director.ui.panels;
 
+import com.director.i18n.DirectorI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.timeline.commands.*;
 import com.director.core.container.Container;
 import com.director.core.container.ContainerManager;
@@ -391,12 +393,12 @@ public class TimelinePanel extends AbstractPanel
 
     @Override
     public String getPanelName() {
-        return "Timeline";
+        return DirectorI18n.translate(DirectorLang.Timeline.PANEL_TITLE);
     }
 
     @Override
     public String getWindowName() {
-        return "Timeline###TimelinePanel";
+        return DirectorI18n.translate(DirectorLang.Timeline.PANEL_TITLE) + "###TimelinePanel";
     }
 
     /**

@@ -4,6 +4,8 @@ import com.director.core.DirectorServices;
 import com.director.core.container.Container;
 import com.director.core.container.ContainerManager;
 import com.director.core.container.ContainerType;
+import com.director.i18n.DirectorI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.timeline.commands.BindClipToContainerCommand;
 import com.director.timeline.container.ContainerTimelineService;
 import com.director.ui.timeline.commands.TimelineCommandHistory;
@@ -69,7 +71,7 @@ public final class ClipBindingDialog {
             return;
         }
         
-        final String popupId = "绑定容器##ClipBindingPopup";
+        final String popupId = DirectorI18n.translate(DirectorLang.Timeline.Dialog.BIND_CONTAINER_TITLE) + "##ClipBindingPopup";
         if (shouldOpen) {
             ImGui.openPopup(popupId);
             shouldOpen = false;
@@ -77,7 +79,7 @@ public final class ClipBindingDialog {
         
         if (ImGui.beginPopupModal(popupId, ImGuiWindowFlags.AlwaysAutoResize)) {
             if (containers.isEmpty()) {
-                ImGui.text("当前没有可绑定的容器。");
+                ImGui.text(DirectorI18n.translate(DirectorLang.Timeline.Dialog.BIND_CONTAINER_NO_CONTAINERS));
             } else if (ImGui.beginListBox("##ClipBindingList")) {
                 for (int i = 0; i < containers.size(); i++) {
                     Container container = containers.get(i);
@@ -94,21 +96,21 @@ public final class ClipBindingDialog {
 
             boolean hasSelection = selectedIndex >= 0 && selectedIndex < containers.size();
 
-            if (ImGui.button("绑定", 0, UITheme.Spacing.BUTTON_HEIGHT) && hasSelection) {
+            if (ImGui.button(DirectorI18n.translate(DirectorLang.Common.BIND), 0, UITheme.Spacing.BUTTON_HEIGHT) && hasSelection) {
                 bindToSelected();
                 ImGui.closeCurrentPopup();
             }
 
             if (clip != null && clip.getBoundContainerId() != null) {
                 ImGui.sameLine();
-                if (ImGui.button("取消绑定", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
+                if (ImGui.button(DirectorI18n.translate(DirectorLang.Common.UNBIND), 0, UITheme.Spacing.BUTTON_HEIGHT)) {
                     unbind();
                     ImGui.closeCurrentPopup();
                 }
             }
 
             ImGui.sameLine();
-            if (ImGui.button("关闭", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
+            if (ImGui.button(DirectorI18n.translate(DirectorLang.Common.CLOSE), 0, UITheme.Spacing.BUTTON_HEIGHT)) {
                 close();
                 ImGui.closeCurrentPopup();
             }

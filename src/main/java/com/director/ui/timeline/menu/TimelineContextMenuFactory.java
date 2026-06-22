@@ -1,6 +1,9 @@
 package com.director.ui.timeline.menu;
 
 import com.director.core.DirectorServices;
+import com.director.i18n.DirectorI18n;
+import com.director.i18n.DirectorLang;
+import com.director.i18n.TrackI18n;
 import com.director.ui.panels.TimelinePanel;
 import com.director.ui.timeline.commands.AddEntityClipCommand;
 import com.director.ui.timeline.commands.AddAutomationKeyframeCommand;
@@ -74,6 +77,18 @@ public class TimelineContextMenuFactory {
         return new TimelineContextMenuFactory(commandHistory, model, panel);
     }
 
+    private static String tr(String key) {
+        return DirectorI18n.translate(key);
+    }
+
+    private static String tr(String key, Object... args) {
+        return DirectorI18n.translate(key, args);
+    }
+
+    private static String checkedLabel(boolean selected, String key) {
+        return (selected ? "✓ " : "") + tr(key);
+    }
+
     /**
      * 根据命中结果构建上下文菜单。
      */
@@ -104,13 +119,12 @@ public class TimelineContextMenuFactory {
                     // 如果仍然找不到，返回错误菜单
                     yield TimelineContextMenuBuilder
                             .forKeyframe(commandHistory)
-                            .disabledItem(String.format("关键帧 @ %.3fs (未找到对象)", hit.time()))
+                            .disabledItem(tr(DirectorLang.Timeline.ContextMenu.KEYFRAME_AT_NOT_FOUND, hit.time()))
                             .build();
                 }
-                // 如果 clip 也为 null，返回空菜单
                 yield TimelineContextMenuBuilder
                         .forKeyframe(commandHistory)
-                        .disabledItem("无关键帧")
+                        .disabledItem(tr(DirectorLang.Timeline.ContextMenu.NO_KEYFRAME))
                         .build();
             }
             case AUTOMATION_KEYFRAME -> createAutomationKeyframeMenu(hit.automationKeyframe(), hit.track());
@@ -127,7 +141,7 @@ public class TimelineContextMenuFactory {
         if (clip == null || track == null) {
             return TimelineContextMenuBuilder
                     .forClip(commandHistory)
-                    .disabledItem("无片段")
+                    .disabledItem(tr(DirectorLang.Timeline.ContextMenu.NO_CLIP))
                     .build();
         }
 
@@ -137,23 +151,23 @@ public class TimelineContextMenuFactory {
 
         TimelineContextMenuBuilder builder = TimelineContextMenuBuilder
                 .forClip(commandHistory)
-                .disabledItem(String.format("片段: %s", clipName))
-                .disabledItem(String.format("@ %.2fs - %.2fs", clip.getStartTime(), clip.getEndTime()))
+                .disabledItem(tr(DirectorLang.Timeline.ContextMenu.CLIP_LABEL, clipName))
+                .disabledItem(tr(DirectorLang.Timeline.ContextMenu.TIME_RANGE, clip.getStartTime(), clip.getEndTime()))
                 .separator()
-                .command("复制片段", new DuplicateClipCommand(model, track, clip), "Ctrl+D")
-                .command("删除片段", deleteCmd, "Del")
+                .command(tr(DirectorLang.Timeline.ContextMenu.DUPLICATE_CLIP), new DuplicateClipCommand(model, track, clip), "Ctrl+D")
+                .command(tr(DirectorLang.Timeline.ContextMenu.DELETE_CLIP), deleteCmd, "Del")
                 .separator()
-                .command("设置时长 1s", new SetClipLengthCommand(model, clip, 1.0f))
-                .command("设置时长 2s", new SetClipLengthCommand(model, clip, 2.0f))
-                .command("设置时长 5s", new SetClipLengthCommand(model, clip, 5.0f))
+                .command(tr(DirectorLang.Timeline.ContextMenu.SET_DURATION_1S), new SetClipLengthCommand(model, clip, 1.0f))
+                .command(tr(DirectorLang.Timeline.ContextMenu.SET_DURATION_2S), new SetClipLengthCommand(model, clip, 2.0f))
+                .command(tr(DirectorLang.Timeline.ContextMenu.SET_DURATION_5S), new SetClipLengthCommand(model, clip, 5.0f))
                 .separator();
 
         if (panel != null) {
-            builder.item("重命名片段...", () -> panel.requestClipRename(clip));
-            builder.item("绑定到容器...", () -> panel.requestClipContainerBinding(clip));
+            builder.item(tr(DirectorLang.Timeline.ContextMenu.RENAME_CLIP), () -> panel.requestClipRename(clip));
+            builder.item(tr(DirectorLang.Timeline.ContextMenu.BIND_CONTAINER), () -> panel.requestClipContainerBinding(clip));
         }
 
-        builder.command("取消容器绑定",
+        builder.command(tr(DirectorLang.Timeline.ContextMenu.UNBIND_CONTAINER),
                 new BindClipToContainerCommand(model, clip, null, null),
                 null,
                 containerId != null);
