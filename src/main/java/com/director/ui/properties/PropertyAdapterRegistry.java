@@ -11,9 +11,8 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 属性适配器注册中心 - Director Properties System v4.5（单 Registry 唯一入口）
  *
- * <p><b>本类为属性适配器唯一注册中心。</b> 所有新 Adapter（含 Tool）只能通过
- * {@link PropertyAdapterBootstrap} 注册于此。{@code ui.adapters.LegacyPropertyAdapterRegistry}
- * 已冻结，勿向该处注册。
+ * <p><b>本类为属性适配器唯一注册中心。</b> 所有 Adapter（含 Tool）只能通过
+ * {@link PropertyAdapterBootstrap} 注册于此。
  *
  * <p>管理所有属性适配器的注册和查找，使用线程安全的设计，支持运行时动态注册。
  *
@@ -69,13 +68,7 @@ public final class PropertyAdapterRegistry {
         if (adapter == null) {
             throw new IllegalArgumentException("Adapter cannot be null");
         }
-        // 护栏：禁止 ui.adapters（Legacy）包下的适配器注册到此 Registry
-        String pkg = adapter.getClass().getPackage() != null ? adapter.getClass().getPackage().getName() : "";
-        if (pkg.equals("com.director.ui.adapters") || pkg.startsWith("com.director.ui.adapters.")) {
-            throw new IllegalStateException("Legacy adapter registration is forbidden: "
-                + adapter.getClass().getName() + " is in " + pkg + ". Use com.director.ui.properties.PropertyAdapterRegistry only.");
-        }
-        
+
         // ✅ 支持同一类型注册多个适配器
         adapters.computeIfAbsent(type, k -> new ArrayList<>()).add(adapter);
         LOGGER.debug("[PropertyAdapterRegistry] Registered adapter: {} → {} (total for this type: {})", 
