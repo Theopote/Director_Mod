@@ -2,6 +2,8 @@ package com.director.ui.panels;
 
 import com.director.core.selection.block_filters.BlockFilter;
 import com.director.core.selection.block_filters.FilterIds;
+import com.director.ui.PanelId;
+import com.director.ui.PanelWindows;
 import com.director.ui.commands.SelectionFilterCommands;
 import com.director.ui.commands.UICommandFacade;
 import com.director.ui.theme.Icons;
@@ -34,7 +36,7 @@ import java.util.Set;
  */
 public class SelectionFilterPanel extends AbstractPanel implements ICommandsAware {
 
-    public static final String PANEL_NAME = "SelectionFilter";
+    public static final String PANEL_NAME = PanelId.SELECTION_FILTER;
     private static final Logger LOGGER = LoggerFactory.getLogger(SelectionFilterPanel.class);
 
     private UICommandFacade commands;
@@ -72,7 +74,7 @@ public class SelectionFilterPanel extends AbstractPanel implements ICommandsAwar
 
     @Override
     public String getWindowName() {
-        return Icons.FILTER + " 选择过滤###SelectionFilterPanel";
+        return PanelWindows.selectionFilter();
     }
 
     @Override

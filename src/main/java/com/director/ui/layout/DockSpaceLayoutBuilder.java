@@ -1,7 +1,6 @@
 package com.director.ui.layout;
 
 import com.director.ui.PanelWindows;
-import com.director.ui.theme.Icons;
 import imgui.ImGui;
 import imgui.flag.ImGuiDir;
 import imgui.type.ImInt;
@@ -26,10 +25,7 @@ import org.slf4j.LoggerFactory;
 public class DockSpaceLayoutBuilder {
     private static final Logger LOGGER = LoggerFactory.getLogger(DockSpaceLayoutBuilder.class);
 
-    // 面板窗口名称（与各面板 getWindowName() / PanelWindows 一致，含当前语言标题）
-    public static final String CONTAINER_PANEL_WINDOW = "Container###ContainerPanel";
-    /** 与 PropertiesPanel.getWindowName() 一致：Icons.CLIPBOARD + " 属性###PropertiesPanel" */
-    public static final String PROPERTIES_PANEL_WINDOW = Icons.CLIPBOARD + " 属性###PropertiesPanel";
+    // 面板窗口名称（与各面板 getWindowName() / PanelWindows 一致）
     public static final String CENTRAL_AREA_WINDOW = "MinecraftCentralArea";
 
     // 布局比例常量
@@ -94,9 +90,9 @@ public class DockSpaceLayoutBuilder {
             );
 
             // 5. 将窗口停靠到对应节点
-            imgui.internal.ImGui.dockBuilderDockWindow(CONTAINER_PANEL_WINDOW, dockIdLeft.get());
+            imgui.internal.ImGui.dockBuilderDockWindow(PanelWindows.container(), dockIdLeft.get());
             imgui.internal.ImGui.dockBuilderDockWindow(PanelWindows.toolbar(), dockIdToolbar.get());
-            imgui.internal.ImGui.dockBuilderDockWindow(PROPERTIES_PANEL_WINDOW, dockIdProps.get());
+            imgui.internal.ImGui.dockBuilderDockWindow(PanelWindows.properties(), dockIdProps.get());
             imgui.internal.ImGui.dockBuilderDockWindow(PanelWindows.timeline(), dockIdBottom.get());
             imgui.internal.ImGui.dockBuilderDockWindow(CENTRAL_AREA_WINDOW, dockIdMainRef.get());
 

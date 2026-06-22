@@ -3,6 +3,10 @@ package com.director.ui.panels;
 import com.director.core.DirectorServices;
 import com.director.actor.Actor;
 import com.director.actor.ActorRegistryManager;
+import com.director.i18n.DirectorI18n;
+import com.director.i18n.DirectorLang;
+import com.director.ui.PanelId;
+import com.director.ui.PanelWindows;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyAdapterContext;
 import com.director.ui.properties.PropertyAdapterRegistry;
@@ -99,6 +103,14 @@ import java.util.UUID;
  */
 public class PropertiesPanel extends AbstractPanel {
     private static final Logger LOGGER = LoggerFactory.getLogger(PropertiesPanel.class);
+
+    private static String tr(String key) {
+        return DirectorI18n.translate(key);
+    }
+
+    private static String tr(String key, Object... args) {
+        return DirectorI18n.translate(key, args);
+    }
     
     // ==================== 当前选择 ====================
     
@@ -121,12 +133,12 @@ public class PropertiesPanel extends AbstractPanel {
 
     @Override
     public String getPanelName() {
-        return "Properties";
+        return PanelId.PROPERTIES;
     }
     
     @Override
     public String getWindowName() {
-        return Icons.CLIPBOARD + " 属性###PropertiesPanel";
+        return PanelWindows.properties();
     }
     
     @Override
@@ -243,8 +255,10 @@ public class PropertiesPanel extends AbstractPanel {
         var multi = sm.getMultiSelection();
         if (multi.size() > 1) {
             UITheme.separator();
-            ImGui.textDisabled(String.format("多选 (%d 个对象)", multi.size()));
-            if (ImGui.isItemHovered()) ImGui.setTooltip("当前选择了多个对象，只显示第一个对象的属性");
+            ImGui.textDisabled(tr(DirectorLang.Properties.MULTI_SELECT, multi.size()));
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip(tr(DirectorLang.Properties.MULTI_SELECT_TOOLTIP));
+            }
         }
     }
     
@@ -259,8 +273,8 @@ public class PropertiesPanel extends AbstractPanel {
      * 工具上下文下无当前工具时显示
      */
     private void renderNoToolMessage() {
-        ImGui.textColored(1.0f, 1.0f, 0.0f, 1.0f, Icons.WARNING + " 未选择工具");
-        UITheme.label("请在工具栏中选择一个工具", UITheme.DarkTheme.TEXT);
+        ImGui.textColored(1.0f, 1.0f, 0.0f, 1.0f, Icons.WARNING + " " + tr(DirectorLang.Properties.NO_TOOL));
+        UITheme.label(tr(DirectorLang.Properties.SELECT_TOOL_HINT), UITheme.DarkTheme.TEXT);
     }
     
     /**
@@ -357,7 +371,7 @@ public class PropertiesPanel extends AbstractPanel {
             UITheme.title(adapterName);
         } else if (currentSelection != null) {
             String typeName = currentSelection.getClass().getSimpleName();
-            UITheme.label("对象: " + typeName, UITheme.DarkTheme.TEXT);
+            UITheme.label(tr(DirectorLang.Properties.OBJECT_LABEL, typeName), UITheme.DarkTheme.TEXT);
             UITheme.separator();
         }
     }
@@ -367,78 +381,65 @@ public class PropertiesPanel extends AbstractPanel {
      */
     private void renderNoSelectionMessage() {
         
-        UITheme.label("未选择对象", UITheme.DarkTheme.TEXT_DISABLED);
-        //UITheme.spacingSmall();
+        UITheme.label(tr(DirectorLang.Properties.NO_SELECTION), UITheme.DarkTheme.TEXT_DISABLED);
         
-        ImGui.textWrapped("在时间线或场景中选择一个对象以查看和编辑其属性");
+        ImGui.textWrapped(tr(DirectorLang.Properties.SELECT_OBJECT_HINT));
         
-        //UITheme.spacing();
         UITheme.separator();
         
-        // ========== 支持的对象类型（16+1种）==========
-        UITheme.label(Icons.STAR + " 支持的对象类型（17种）", UITheme.DarkTheme.TEXT);
-        //UITheme.spacingSmall();
+        UITheme.label(Icons.STAR + " " + tr(DirectorLang.Properties.SUPPORTED_TYPES_TITLE), UITheme.DarkTheme.TEXT);
         
-        // 时间线系统（3个）
-        if (ImGui.collapsingHeader(Icons.ANIMATION + " 时间线系统（3个）")) {
+        if (ImGui.collapsingHeader(Icons.ANIMATION + " " + tr(DirectorLang.Properties.GROUP_TIMELINE))) {
             ImGui.indent();
-            ImGui.bullet(); ImGui.text("时间线项目 (TimelineProject)");
-            ImGui.bullet(); ImGui.text("时间线序列 (TimelineSequence)");
-            ImGui.bullet(); ImGui.text("时间线轨道 (TimelineTrack)");
+            ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.TYPE_TIMELINE_PROJECT));
+            ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.TYPE_TIMELINE_SEQUENCE));
+            ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.TYPE_TIMELINE_TRACK));
             ImGui.unindent();
         }
         
-        // 核心对象（2个）
-        if (ImGui.collapsingHeader(Icons.TARGET + " 核心对象（2个）")) {
+        if (ImGui.collapsingHeader(Icons.TARGET + " " + tr(DirectorLang.Properties.GROUP_CORE))) {
             ImGui.indent();
-            ImGui.bullet(); ImGui.text("关键帧 (Keyframe)");
-            ImGui.bullet(); ImGui.text("容器 (Container)");
+            ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.TYPE_KEYFRAME));
+            ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.TYPE_CONTAINER));
             ImGui.unindent();
         }
         
-        // 扩展系统（6个）
-        if (ImGui.collapsingHeader(Icons.STAR + " 扩展系统（6个）")) {
+        if (ImGui.collapsingHeader(Icons.STAR + " " + tr(DirectorLang.Properties.GROUP_EXTENDED))) {
             ImGui.indent();
-            ImGui.bullet(); ImGui.text("特效 (Effect)");
-            ImGui.bullet(); ImGui.text("项目环境 (ProjectEnvironment)");
-            ImGui.bullet(); ImGui.text("材质库 (MaterialLibrary)");
-            ImGui.bullet(); ImGui.text("相机 (Camera)");
-            ImGui.bullet(); ImGui.text("后处理 (PostProcessing)");
-            ImGui.bullet(); ImGui.text("物理环境 (PhysicsEnvironment)");
+            ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.TYPE_EFFECT));
+            ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.TYPE_PROJECT_ENV));
+            ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.TYPE_MATERIAL_LIBRARY));
+            ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.TYPE_CAMERA));
+            ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.TYPE_POST_PROCESSING));
+            ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.TYPE_PHYSICS_ENV));
             ImGui.unindent();
         }
         
-        // 扩展类型（3个）
-        if (ImGui.collapsingHeader(Icons.WRENCH + " 扩展类型（3个）")) {
+        if (ImGui.collapsingHeader(Icons.WRENCH + " " + tr(DirectorLang.Properties.GROUP_TYPES))) {
             ImGui.indent();
-            ImGui.bullet(); ImGui.text("三维向量 (Vector3f)");
-            ImGui.bullet(); ImGui.text("颜色 (Vector4f)");
-            ImGui.bullet(); ImGui.text("列表 (List)");
+            ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.TYPE_VECTOR3F));
+            ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.TYPE_COLOR));
+            ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.TYPE_LIST));
             ImGui.unindent();
         }
         
-        // 通用回退（1个）
-        if (ImGui.collapsingHeader(Icons.SHIELD + " 通用回退（1个）")) {
+        if (ImGui.collapsingHeader(Icons.SHIELD + " " + tr(DirectorLang.Properties.GROUP_FALLBACK))) {
             ImGui.indent();
-            ImGui.bullet(); ImGui.text("任意对象 (GenericPropertyAdapter)");
+            ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.TYPE_GENERIC));
             ImGui.unindent();
         }
         
-        //UITheme.spacing();
         UITheme.separator();
-        //UITheme.spacing();
         
-        // 统计信息
         int adapterCount = PropertyAdapterRegistry.getAdapterCount();
         boolean hasFallback = PropertyAdapterRegistry.hasFallbackAdapter();
         
-        UITheme.label(String.format(Icons.STATS + " 已注册适配器: %d 个", adapterCount), UITheme.DarkTheme.TEXT);
+        UITheme.label(Icons.STATS + " " + tr(DirectorLang.Properties.ADAPTERS_REGISTERED, adapterCount), UITheme.DarkTheme.TEXT);
         
-        // 回退适配器状态（使用颜色）
         if (hasFallback) {
-            ImGui.textColored(0.4f, 1.0f, 0.5f, 1.0f, Icons.SHIELD + " 回退适配器: 已启用");
+            ImGui.textColored(0.4f, 1.0f, 0.5f, 1.0f, Icons.SHIELD + " " + tr(DirectorLang.Properties.FALLBACK_ENABLED));
         } else {
-            UITheme.label(Icons.SHIELD + " 回退适配器: 未启用", UITheme.DarkTheme.TEXT_DISABLED);
+            UITheme.label(Icons.SHIELD + " " + tr(DirectorLang.Properties.FALLBACK_DISABLED), UITheme.DarkTheme.TEXT_DISABLED);
         }
     }
     
@@ -447,61 +448,48 @@ public class PropertiesPanel extends AbstractPanel {
      */
     private void renderNoAdapterMessage() {
         //UITheme.spacingLarge();
-        UITheme.title(Icons.WARNING + " 无可用的属性编辑器");
-        //UITheme.spacingSmall();
+        UITheme.title(Icons.WARNING + " " + tr(DirectorLang.Properties.NO_ADAPTER_TITLE));
         
         String typeName = currentSelection.getClass().getSimpleName();
         String fullClassName = currentSelection.getClass().getName();
         
-        // 警告消息（黄色）
-        ImGui.textColored(1.0f, 0.8f, 0.2f, 1.0f, 
-            String.format("对象类型 \"%s\" 没有注册属性适配器", typeName));
+        ImGui.textColored(1.0f, 0.8f, 0.2f, 1.0f,
+            tr(DirectorLang.Properties.NO_ADAPTER_MESSAGE, typeName));
         
-        //UITheme.spacing();
         UITheme.separator();
-        //UITheme.spacing();
         
-        // 对象信息
-        ImGui.text(Icons.PACKAGE + " 对象信息:");
+        ImGui.text(Icons.PACKAGE + " " + tr(DirectorLang.Properties.OBJECT_INFO));
         ImGui.indent();
-        ImGui.bullet(); ImGui.text(String.format("类名: %s", typeName));
-        ImGui.bullet(); ImGui.text(String.format("完整路径: %s", fullClassName));
-        ImGui.bullet(); ImGui.text(String.format("包名: %s", currentSelection.getClass().getPackageName()));
+        ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.CLASS_NAME, typeName));
+        ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.FULL_CLASS_NAME, fullClassName));
+        ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.PACKAGE_NAME, currentSelection.getClass().getPackageName()));
         ImGui.unindent();
         
-        //UITheme.spacing();
         UITheme.separator();
-        //UITheme.spacing();
         
-        // 解决方案
-        ImGui.text(Icons.LIGHTBULB + " 解决方案:");
+        ImGui.text(Icons.LIGHTBULB + " " + tr(DirectorLang.Properties.SOLUTION));
         ImGui.indent();
-        ImGui.text(Icons.PLUS + " 创建专用适配器:");
+        ImGui.text(Icons.PLUS + " " + tr(DirectorLang.Properties.CREATE_ADAPTER));
         ImGui.indent();
-        ImGui.bulletText("实现 IPropertyAdapter<YourType> 接口");
-        ImGui.bulletText("在 PropertyAdapterBootstrap 中注册");
+        ImGui.bulletText(tr(DirectorLang.Properties.CREATE_ADAPTER_IMPL));
+        ImGui.bulletText(tr(DirectorLang.Properties.CREATE_ADAPTER_REGISTER));
         ImGui.unindent();
         
-        //UITheme.spacingSmall();
-        
-        ImGui.text(Icons.SETTINGS + " 使用通用适配器:");
+        ImGui.text(Icons.SETTINGS + " " + tr(DirectorLang.Properties.USE_GENERIC_ADAPTER));
         ImGui.indent();
-        ImGui.bulletText("确保 GenericPropertyAdapter 已注册为回退适配器");
-        ImGui.bulletText("检查 PropertyAdapterBootstrap.initialize() 是否已调用");
+        ImGui.bulletText(tr(DirectorLang.Properties.USE_GENERIC_ENSURE));
+        ImGui.bulletText(tr(DirectorLang.Properties.USE_GENERIC_INIT));
         ImGui.unindent();
         ImGui.unindent();
         
-        //UITheme.spacing();
         UITheme.separator();
-        //UITheme.spacing();
         
-        // 调试按钮
-        if (ImGui.button(Icons.SEARCH + " 查看注册表详情", 200, 25)) {
+        if (ImGui.button(Icons.SEARCH + " " + tr(DirectorLang.Properties.VIEW_REGISTRY), 200, 25)) {
             LOGGER.info("[PropertiesPanel] 注册表状态:\n{}", 
                 PropertyAdapterRegistry.getDebugInfo());
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("输出所有已注册适配器的详细信息到日志");
+            ImGui.setTooltip(tr(DirectorLang.Properties.VIEW_REGISTRY_TOOLTIP));
         }
     }
     
@@ -510,60 +498,47 @@ public class PropertiesPanel extends AbstractPanel {
      */
     private void renderErrorMessage(Exception e) {
         //UITheme.spacingLarge();
-        UITheme.title(Icons.ERROR + " 渲染错误");
-        //UITheme.spacingSmall();
+        UITheme.title(Icons.ERROR + " " + tr(DirectorLang.Properties.RENDER_ERROR_TITLE));
         
-        // 错误消息（红色）
-        ImGui.textColored(1.0f, 0.4f, 0.4f, 1.0f, "渲染属性时发生错误");
+        ImGui.textColored(1.0f, 0.4f, 0.4f, 1.0f, tr(DirectorLang.Properties.RENDER_ERROR_MESSAGE));
         
-        //UITheme.spacing();
         UITheme.separator();
-        //UITheme.spacing();
         
-        // 错误详情
-        ImGui.text(Icons.CLIPBOARD + " 错误详情:");
+        ImGui.text(Icons.CLIPBOARD + " " + tr(DirectorLang.Properties.ERROR_DETAILS));
         ImGui.indent();
-        ImGui.bullet(); ImGui.text(String.format("异常类型: %s", e.getClass().getSimpleName()));
-        ImGui.bullet(); ImGui.text(String.format("错误消息: %s", e.getMessage() != null ? e.getMessage() : "(无)"));
+        ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.EXCEPTION_TYPE, e.getClass().getSimpleName()));
+        ImGui.bullet(); ImGui.text(tr(DirectorLang.Properties.ERROR_MESSAGE,
+                e.getMessage() != null ? e.getMessage() : tr(DirectorLang.Properties.NO_MESSAGE)));
         ImGui.unindent();
         
-        //UITheme.spacing();
-        
-        // 堆栈跟踪（折叠）
-        if (ImGui.collapsingHeader(Icons.SEARCH + " 堆栈跟踪")) {
+        if (ImGui.collapsingHeader(Icons.SEARCH + " " + tr(DirectorLang.Properties.STACK_TRACE))) {
             ImGui.indent();
             StackTraceElement[] stackTrace = e.getStackTrace();
             for (int i = 0; i < Math.min(stackTrace.length, 10); i++) {
                 ImGui.bulletText(stackTrace[i].toString());
             }
             if (stackTrace.length > 10) {
-                ImGui.text(String.format("... 还有 %d 行", stackTrace.length - 10));
+                ImGui.text(tr(DirectorLang.Properties.STACK_TRACE_MORE, stackTrace.length - 10));
             }
             ImGui.unindent();
         }
         
-        //UITheme.spacing();
         UITheme.separator();
-        //UITheme.spacing();
         
-        // 建议操作
-        ImGui.text(Icons.LIGHTBULB + " 建议操作:");
+        ImGui.text(Icons.LIGHTBULB + " " + tr(DirectorLang.Properties.SUGGESTIONS));
         ImGui.indent();
-        ImGui.bulletText("检查对象是否包含所有必需的属性");
-        ImGui.bulletText("查看日志获取完整的错误堆栈");
-        ImGui.bulletText("确认适配器实现是否正确");
-        ImGui.bulletText("尝试重新选择对象");
+        ImGui.bulletText(tr(DirectorLang.Properties.SUGGEST_CHECK_PROPERTIES));
+        ImGui.bulletText(tr(DirectorLang.Properties.SUGGEST_CHECK_LOG));
+        ImGui.bulletText(tr(DirectorLang.Properties.SUGGEST_CHECK_ADAPTER));
+        ImGui.bulletText(tr(DirectorLang.Properties.SUGGEST_RESELECT));
         ImGui.unindent();
         
-        //UITheme.spacing();
-        
-        // 重新选择按钮
-        if (ImGui.button(Icons.REFRESH + " 清除选择并重试", 150, 25)) {
+        if (ImGui.button(Icons.REFRESH + " " + tr(DirectorLang.Properties.CLEAR_SELECTION_RETRY), 150, 25)) {
             DirectorServices.get().uiSelection().clearSelection();
             updateSelection(null);
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("清除当前选择，尝试解决错误");
+            ImGui.setTooltip(tr(DirectorLang.Properties.CLEAR_SELECTION_TOOLTIP));
         }
     }
     

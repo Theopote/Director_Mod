@@ -4,6 +4,8 @@ import com.director.core.DirectorServices;
 import com.director.core.selection.SelectionManager;
 import com.director.core.selection.SelectionState;
 import com.director.core.selection.history.SelectionHistoryManager;
+import com.director.ui.PanelId;
+import com.director.ui.PanelWindows;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import imgui.ImGui;
@@ -42,7 +44,7 @@ import java.util.Set;
  */
 public class SelectionHistoryPanel extends AbstractPanel {
     
-    public static final String PANEL_NAME = "SelectionHistory";
+    public static final String PANEL_NAME = PanelId.SELECTION_HISTORY;
     private static final Logger LOGGER = LoggerFactory.getLogger(SelectionHistoryPanel.class);
     
     // ========== 依赖 ==========
@@ -78,7 +80,7 @@ public class SelectionHistoryPanel extends AbstractPanel {
     public String getPanelName() { return PANEL_NAME; }
     
     @Override
-    public String getWindowName() { return Icons.UNDO + " 选择历史###SelectionHistoryPanel"; }
+    public String getWindowName() { return PanelWindows.selectionHistory(); }
     
     @Override
     public int getPriority() { return 40; }

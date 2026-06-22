@@ -1,5 +1,7 @@
 package com.director.ui.panels;
 
+import com.director.ui.PanelId;
+import com.director.ui.PanelWindows;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import imgui.ImGui;
@@ -18,7 +20,7 @@ import org.slf4j.LoggerFactory;
  */
 public class ToolPropertiesPanel extends AbstractPanel {
 
-    public static final String PANEL_NAME = "ToolProperties";
+    public static final String PANEL_NAME = PanelId.TOOL_PROPERTIES;
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ToolPropertiesPanel.class);
 
@@ -33,7 +35,7 @@ public class ToolPropertiesPanel extends AbstractPanel {
 
     @Override
     public String getWindowName() {
-        return Icons.TOOLS + " 工具属性（已集成）###ToolPropertiesPanel";
+        return PanelWindows.toolProperties();
     }
 
     @Override

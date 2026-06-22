@@ -1,5 +1,9 @@
 package com.director.ui.panels;
 
+import com.director.i18n.DirectorI18n;
+import com.director.i18n.DirectorLang;
+import com.director.ui.PanelId;
+import com.director.ui.PanelWindows;
 import com.director.core.container.Container;
 import com.director.core.container.ContainerManager;
 import com.director.core.container.ContainerType;
@@ -77,12 +81,12 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
 
     @Override
     public String getPanelName() {
-        return "Container";
+        return PanelId.CONTAINER;
     }
 
     @Override
     public String getWindowName() {
-        return "Container###ContainerPanel";
+        return PanelWindows.container();
     }
 
     @Override
@@ -105,19 +109,24 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
     }
 
     private void renderHeader() {
-        ImGui.textColored(0.4f, 1.0f, 0.4f, 1.0f, Icons.CONTAINER + " 容器管理 ");
+        ImGui.textColored(0.4f, 1.0f, 0.4f, 1.0f,
+                Icons.CONTAINER + " " + DirectorI18n.translate(DirectorLang.ContainerPanel.HEADER_TITLE));
         ImGui.sameLine();
-        ImGui.textDisabled(String.format("(%d 个容器)", containerManager.getContainerCount()));
+        ImGui.textDisabled(DirectorI18n.translate(DirectorLang.ContainerPanel.HEADER_COUNT,
+                containerManager.getContainerCount()));
 
-        // ✅ 紧凑：把"分割比例"变成 tooltip，不占 header 位置
         ImGui.sameLine();
-        ImGui.textDisabled(state.isPropertiesCollapsed() ? "(属性已折叠 · P)" : "(属性已展开 · P)");
+        String propsState = state.isPropertiesCollapsed()
+                ? DirectorLang.ContainerPanel.PROPERTIES_COLLAPSED
+                : DirectorLang.ContainerPanel.PROPERTIES_EXPANDED;
+        ImGui.textDisabled(DirectorI18n.translate(propsState));
         if (ImGui.isItemHovered()) {
             ImGui.beginTooltip();
-            ImGui.text("布局");
+            ImGui.text(DirectorI18n.translate(DirectorLang.ContainerPanel.LAYOUT_TOOLTIP_TITLE));
             ImGui.separator();
-            ImGui.text(String.format("左侧宽度: %.0f%%", state.getLeftPanelWidthRatio() * 100));
-            ImGui.text("点击右侧边界箭头可折叠/展开属性面板");
+            ImGui.text(DirectorI18n.translate(DirectorLang.ContainerPanel.LAYOUT_LEFT_WIDTH,
+                    state.getLeftPanelWidthRatio() * 100));
+            ImGui.text(DirectorI18n.translate(DirectorLang.ContainerPanel.LAYOUT_TOGGLE_HINT));
             ImGui.endTooltip();
         }
 

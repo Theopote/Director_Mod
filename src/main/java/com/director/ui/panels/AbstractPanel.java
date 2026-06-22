@@ -1,5 +1,8 @@
 package com.director.ui.panels;
 
+import com.director.i18n.DirectorI18n;
+import com.director.i18n.DirectorLang;
+import com.director.i18n.PanelI18n;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiHoveredFlags;
@@ -257,7 +260,8 @@ public abstract class AbstractPanel implements IPanel {
         ImGui.pushStyleColor(imgui.flag.ImGuiCol.WindowBg, 0x00000000);
 
         // 显示隐藏提示
-        ImGui.textColored(0.5f, 0.5f, 0.5f, 1.0f, "[" + getPanelName() + " 已隐藏]");
+        ImGui.textColored(0.5f, 0.5f, 0.5f, 1.0f,
+                DirectorI18n.translate(DirectorLang.Panel.HIDDEN, PanelI18n.title(getPanelName())));
 
         ImGui.popStyleColor();
     }

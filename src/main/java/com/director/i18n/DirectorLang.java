@@ -70,7 +70,7 @@ public final class DirectorLang {
     }
 
     public static final class Timeline {
-        public static final String PANEL_TITLE = "gui.director.timeline.panel.title";
+        public static final String PANEL_TITLE = DirectorLang.Panel.TIMELINE;
         public static final String TRACKS_HEADER = "gui.director.timeline.tracks_header";
         public static final String NEW_TRACK = "gui.director.timeline.new_track";
         public static final String CAMERA_PATH = "gui.director.timeline.camera_path";
@@ -268,7 +268,7 @@ public final class DirectorLang {
     }
 
     public static final class Toolbar {
-        public static final String PANEL_TITLE = "gui.director.toolbar.panel.title";
+        public static final String PANEL_TITLE = DirectorLang.Panel.TOOLBAR;
         public static final String TOOL_DISPLAY_TITLE = "gui.director.toolbar.tool_display_title";
         public static final String TOOL_DISPLAY_ICONS_TEXT = "gui.director.toolbar.tool_display_icons_text";
         public static final String TOOL_DISPLAY_ICONS_ONLY = "gui.director.toolbar.tool_display_icons_only";
@@ -285,6 +285,105 @@ public final class DirectorLang {
         public static final String TIMELINE = "gui.director.tool.group.timeline";
 
         private ToolGroupKeys() {
+        }
+    }
+
+    public static final class Panel {
+        public static final String TIMELINE = "gui.director.panel.timeline";
+        public static final String TOOLBAR = "gui.director.panel.toolbar";
+        public static final String MENU_BAR = "gui.director.panel.menu_bar";
+        public static final String STATUS_BAR = "gui.director.panel.status_bar";
+        public static final String PROPERTIES = "gui.director.panel.properties";
+        public static final String INSPECTOR = "gui.director.panel.inspector";
+        public static final String TOOL_PROPERTIES = "gui.director.panel.tool_properties";
+        public static final String CONTAINER = "gui.director.panel.container";
+        public static final String ACTORS = "gui.director.panel.actors";
+        public static final String SELECTION_FILTER = "gui.director.panel.selection_filter";
+        public static final String SELECTION_HISTORY = "gui.director.panel.selection_history";
+        public static final String RENDER_SETTINGS = "gui.director.panel.render_settings";
+        public static final String HIDDEN = "gui.director.panel.hidden";
+
+        private Panel() {
+        }
+    }
+
+    public static final class Properties {
+        public static final String MULTI_SELECT = "gui.director.properties.multi_select";
+        public static final String MULTI_SELECT_TOOLTIP = "gui.director.properties.multi_select_tooltip";
+        public static final String NO_TOOL = "gui.director.properties.no_tool";
+        public static final String SELECT_TOOL_HINT = "gui.director.properties.select_tool_hint";
+        public static final String OBJECT_LABEL = "gui.director.properties.object_label";
+        public static final String NO_SELECTION = "gui.director.properties.no_selection";
+        public static final String SELECT_OBJECT_HINT = "gui.director.properties.select_object_hint";
+        public static final String SUPPORTED_TYPES_TITLE = "gui.director.properties.supported_types_title";
+        public static final String GROUP_TIMELINE = "gui.director.properties.group.timeline";
+        public static final String GROUP_CORE = "gui.director.properties.group.core";
+        public static final String GROUP_EXTENDED = "gui.director.properties.group.extended";
+        public static final String GROUP_TYPES = "gui.director.properties.group.types";
+        public static final String GROUP_FALLBACK = "gui.director.properties.group.fallback";
+        public static final String TYPE_TIMELINE_PROJECT = "gui.director.properties.type.timeline_project";
+        public static final String TYPE_TIMELINE_SEQUENCE = "gui.director.properties.type.timeline_sequence";
+        public static final String TYPE_TIMELINE_TRACK = "gui.director.properties.type.timeline_track";
+        public static final String TYPE_KEYFRAME = "gui.director.properties.type.keyframe";
+        public static final String TYPE_CONTAINER = "gui.director.properties.type.container";
+        public static final String TYPE_EFFECT = "gui.director.properties.type.effect";
+        public static final String TYPE_PROJECT_ENV = "gui.director.properties.type.project_env";
+        public static final String TYPE_MATERIAL_LIBRARY = "gui.director.properties.type.material_library";
+        public static final String TYPE_CAMERA = "gui.director.properties.type.camera";
+        public static final String TYPE_POST_PROCESSING = "gui.director.properties.type.post_processing";
+        public static final String TYPE_PHYSICS_ENV = "gui.director.properties.type.physics_env";
+        public static final String TYPE_VECTOR3F = "gui.director.properties.type.vector3f";
+        public static final String TYPE_COLOR = "gui.director.properties.type.color";
+        public static final String TYPE_LIST = "gui.director.properties.type.list";
+        public static final String TYPE_GENERIC = "gui.director.properties.type.generic";
+        public static final String ADAPTERS_REGISTERED = "gui.director.properties.adapters_registered";
+        public static final String FALLBACK_ENABLED = "gui.director.properties.fallback_enabled";
+        public static final String FALLBACK_DISABLED = "gui.director.properties.fallback_disabled";
+        public static final String NO_ADAPTER_TITLE = "gui.director.properties.no_adapter_title";
+        public static final String NO_ADAPTER_MESSAGE = "gui.director.properties.no_adapter_message";
+        public static final String OBJECT_INFO = "gui.director.properties.object_info";
+        public static final String CLASS_NAME = "gui.director.properties.class_name";
+        public static final String FULL_CLASS_NAME = "gui.director.properties.full_class_name";
+        public static final String PACKAGE_NAME = "gui.director.properties.package_name";
+        public static final String SOLUTION = "gui.director.properties.solution";
+        public static final String CREATE_ADAPTER = "gui.director.properties.create_adapter";
+        public static final String CREATE_ADAPTER_IMPL = "gui.director.properties.create_adapter_impl";
+        public static final String CREATE_ADAPTER_REGISTER = "gui.director.properties.create_adapter_register";
+        public static final String USE_GENERIC_ADAPTER = "gui.director.properties.use_generic_adapter";
+        public static final String USE_GENERIC_ENSURE = "gui.director.properties.use_generic_ensure";
+        public static final String USE_GENERIC_INIT = "gui.director.properties.use_generic_init";
+        public static final String VIEW_REGISTRY = "gui.director.properties.view_registry";
+        public static final String VIEW_REGISTRY_TOOLTIP = "gui.director.properties.view_registry_tooltip";
+        public static final String RENDER_ERROR_TITLE = "gui.director.properties.render_error_title";
+        public static final String RENDER_ERROR_MESSAGE = "gui.director.properties.render_error_message";
+        public static final String ERROR_DETAILS = "gui.director.properties.error_details";
+        public static final String EXCEPTION_TYPE = "gui.director.properties.exception_type";
+        public static final String ERROR_MESSAGE = "gui.director.properties.error_message";
+        public static final String STACK_TRACE = "gui.director.properties.stack_trace";
+        public static final String STACK_TRACE_MORE = "gui.director.properties.stack_trace_more";
+        public static final String SUGGESTIONS = "gui.director.properties.suggestions";
+        public static final String SUGGEST_CHECK_PROPERTIES = "gui.director.properties.suggest.check_properties";
+        public static final String SUGGEST_CHECK_LOG = "gui.director.properties.suggest.check_log";
+        public static final String SUGGEST_CHECK_ADAPTER = "gui.director.properties.suggest.check_adapter";
+        public static final String SUGGEST_RESELECT = "gui.director.properties.suggest.reselect";
+        public static final String CLEAR_SELECTION_RETRY = "gui.director.properties.clear_selection_retry";
+        public static final String CLEAR_SELECTION_TOOLTIP = "gui.director.properties.clear_selection_tooltip";
+        public static final String NO_MESSAGE = "gui.director.properties.no_message";
+
+        private Properties() {
+        }
+    }
+
+    public static final class ContainerPanel {
+        public static final String HEADER_TITLE = "gui.director.container.header.title";
+        public static final String HEADER_COUNT = "gui.director.container.header.count";
+        public static final String PROPERTIES_COLLAPSED = "gui.director.container.header.properties_collapsed";
+        public static final String PROPERTIES_EXPANDED = "gui.director.container.header.properties_expanded";
+        public static final String LAYOUT_TOOLTIP_TITLE = "gui.director.container.header.layout_tooltip_title";
+        public static final String LAYOUT_LEFT_WIDTH = "gui.director.container.header.layout_left_width";
+        public static final String LAYOUT_TOGGLE_HINT = "gui.director.container.header.layout_toggle_hint";
+
+        private ContainerPanel() {
         }
     }
 

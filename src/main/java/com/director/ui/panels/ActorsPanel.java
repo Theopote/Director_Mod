@@ -6,6 +6,8 @@ import com.director.actor.ActorRegistryManager;
 import com.director.ui.actor.ActorSelectorPanel;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyAdapterRegistry;
+import com.director.ui.PanelId;
+import com.director.ui.PanelWindows;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import com.director.timeline.container.ContainerTimelineService;
@@ -16,7 +18,7 @@ import org.slf4j.LoggerFactory;
 
 public final class ActorsPanel extends AbstractPanel {
 
-    public static final String PANEL_NAME = "Actors";
+    public static final String PANEL_NAME = PanelId.ACTORS;
     private static final Logger LOGGER = LoggerFactory.getLogger(ActorsPanel.class);
     private static final String ACTOR_PROJECT_MARKER = "ACTOR_PROJECT";
 
@@ -29,7 +31,7 @@ public final class ActorsPanel extends AbstractPanel {
 
     @Override
     public String getWindowName() {
-        return Icons.TARGET + " Actors###ActorsPanel";
+        return PanelWindows.actors();
     }
 
     @Override

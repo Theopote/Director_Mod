@@ -1,5 +1,7 @@
 package com.director.ui.panels;
 
+import com.director.ui.PanelId;
+import com.director.ui.PanelWindows;
 import com.director.client.settings.RenderSettings;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
@@ -34,7 +36,7 @@ public class RenderSettingsPanel extends AbstractPanel {
     public record FillStyle(String name, float[] color, float intensity) {}
     
     /** 面板名称常量（对外展示为渲染设置） */
-    public static final String PANEL_NAME = "RenderSettings";
+    public static final String PANEL_NAME = PanelId.RENDER_SETTINGS;
     
     private static final Logger LOGGER = LoggerFactory.getLogger(RenderSettingsPanel.class);
     
@@ -88,7 +90,7 @@ public class RenderSettingsPanel extends AbstractPanel {
     
     @Override
     public String getWindowName() {
-        return Icons.COLOR + " 渲染预览设置###RenderSettingsPanel";
+        return PanelWindows.renderSettings();
     }
     
     @Override

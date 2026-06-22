@@ -3,6 +3,7 @@ package com.director.ui.panels;
 import com.director.i18n.DirectorI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.PanelWindows;
+import com.director.ui.PanelId;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
 import imgui.flag.ImGuiStyleVar;
@@ -72,7 +73,7 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
 
     @Override
     public String getPanelName() {
-        return "Toolbar";
+        return PanelId.TOOLBAR;
     }
 
     @Override

@@ -3,6 +3,7 @@ package com.director.ui.panels;
 import com.director.core.DirectorServices;
 import com.director.i18n.DirectorI18n;
 import com.director.i18n.DirectorLang;
+import com.director.i18n.PanelI18n;
 import com.director.ui.aware.ICommandsAware;
 import com.director.ui.aware.IPanelRegistryAware;
 import imgui.ImGui;
@@ -327,7 +328,7 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
                     String id = PanelId.fromPanel(panel);
                     if (id == null) continue;
 
-                    if (ImGui.menuItem(panel.getPanelName(), "", panel.isVisible())) {
+                    if (ImGui.menuItem(PanelI18n.title(id), "", panel.isVisible())) {
                         commands.view().togglePanel(id);
                     }
                 }
