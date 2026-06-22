@@ -2,6 +2,7 @@ package com.director.ui.timeline.playback;
 
 import net.minecraft.client.MinecraftClient;
 import com.director.timeline.model.TimelineModel;
+import com.director.timeline.playback.TimelinePlaybackSampler;
 import com.director.timeline.playback.camera.TimelineCameraController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -177,7 +178,7 @@ public final class PlaybackOrchestrator {
      * 在指定时间点采样整条时间线（视频导出 / 离线抓帧）。
      */
     public void sampleAt(float timeSeconds) {
-        com.director.export.video.TimelineExportSampling.sampleWorldAt(timeSeconds);
+        TimelinePlaybackSampler.sampleWorldAt(timeSeconds);
     }
 
     private void driveSubsystems(float deltaSeconds) {

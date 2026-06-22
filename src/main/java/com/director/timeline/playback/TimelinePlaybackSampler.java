@@ -7,14 +7,14 @@ import com.director.timeline.playback.season.TimelineSeasonController;
 import com.director.timeline.playback.time.TimelineWorldController;
 import com.director.timeline.playback.weather.TimelineWeatherController;
 import com.director.timeline.playback.weather.WeatherParticleController;
+import com.director.timeline.playback.block.TimelineClipBlockController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
  * 以 {@link TimelineModel} 为唯一时钟的时间线采样入口（导出 / 离线抓帧 / 重同步）。
  * <p>
- * UI 帧循环仍由 {@link com.director.ui.timeline.playback.PlaybackOrchestrator} 协调；
- * 方块片段由 {@link com.director.timeline.playback.block.TimelineClipBlockController} 采样。
+ * UI 帧循环仍由 {@link com.director.ui.timeline.playback.PlaybackOrchestrator} 协调。
  */
 public final class TimelinePlaybackSampler {
 
@@ -24,15 +24,16 @@ public final class TimelinePlaybackSampler {
     }
 
     /**
-     * 在指定时间点采样环境/演员等子系统（不含相机与方块片段）。
+     * 在指定时间点采样完整世界状态（环境/演员/方块片段，不含相机）。
      */
-    public static void sampleAt(float timeSeconds) {
+    public static void sampleWorldAt(float timeSeconds) {
         TimelineModel model = resolveModel();
         if (model == null) {
             return;
         }
         model.setCurrentTime(timeSeconds);
         driveSubsystems(timeSeconds);
+        run("方块片段", () -> TimelineClipBlockController.getInstance().update());
     }
 
     public static float resolveDuration(float fallbackSeconds) {

@@ -3,7 +3,6 @@ package com.director.client;
 import com.director.client.camera.CameraRenderOverride;
 import com.director.client.entity.EntityRenderOverride;
 import com.director.client.world.WorldRenderOverride;
-import com.director.export.video.TimelineExportSampling;
 import com.director.timeline.playback.TimelinePlaybackSampler;
 import net.minecraft.client.MinecraftClient;
 
@@ -32,7 +31,7 @@ public final class RenderOverrideSnapshots {
         client.execute(() -> {
             float time = resolveTimelineTime();
             try {
-                TimelineExportSampling.sampleWorldAt(time);
+                TimelinePlaybackSampler.sampleWorldAt(time);
             } catch (RuntimeException ignored) {
             }
             try {
