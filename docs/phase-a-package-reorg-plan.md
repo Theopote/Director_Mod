@@ -132,16 +132,27 @@
 
 ---
 
-## Batch 4：跨域适配与端口（可并行推进）
+## Batch 4：跨域适配与端口 ✅
 
-### Actor 运行时端口（降低未来迁移成本）
+### 4.1 `ContainerTimelineService` 迁出 UI
 
-在 `actor` 或 `timeline` 定义窄接口：
+- `com.director.ui.timeline.container.ContainerTimelineService` → `com.director.timeline.container.ContainerTimelineService`
+- 新增 `ContainerClipAudioSync` 窄端口，解除对 `TimelineAudioService` 的直接依赖
+- `TimelineAudioService` 实现 `ContainerClipAudioSync`，由 `TimelinePanel` 注册
+- `ContainerTimelineCommandAdapter` 从 `core.container.commands` 迁至 `ui.container`（消除 core→ui 命令接口耦合）
 
-- `ActorTimelineSource`（提供 `ActorTrack`/采样输出的视图）
-- UI/编辑器侧实现/转换
+工具脚本：`tools/relocate_container_timeline_service.py`
 
-这样后续即使 timeline model 再演进，也不需要 `ActorRuntimeController` 直接持有 `TimelineModel`。
+### 4.2 `ActorTimelineSource` 演员运行时端口
+
+- 新增 `com.director.timeline.actor.ActorTimelineSource`
+- `TimelineModel` 实现该接口（含 `TrackStructureListener`）
+- `ActorRuntimeController` 改为依赖 `ActorTimelineSource`，不再直接持有 `TimelineModel`
+
+### 验收（Batch 4 后）
+
+- `core/`、`actor/`、`export/` **零** `com.director.ui.timeline.*` 依赖 ✅
+- `timeline/playback/*` 通过 `DirectorServices.containerTimeline()` 访问容器服务 ✅
 
 ---
 

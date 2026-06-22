@@ -3,7 +3,7 @@ package com.director.ui.properties.adapters;
 import com.director.core.DirectorServices;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.theme.Icons;
-import com.director.ui.timeline.container.ContainerTimelineService;
+import com.director.timeline.container.ContainerTimelineService;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.camera.path.CameraPathEnterContext;
 import com.director.timeline.model.camera.path.CranePathClip;

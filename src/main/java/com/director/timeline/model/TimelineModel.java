@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import com.director.timeline.actor.ActorTimelineSource;
 import com.director.timeline.model.ITimelineProject;
 import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineSelectable;
@@ -30,7 +31,7 @@ import com.director.timeline.playback.camera.TimelineCameraController;
  * @author Director Team
  * @version 7.4
  */
-public class TimelineModel implements ITimelineProject {
+public class TimelineModel implements ITimelineProject, ActorTimelineSource {
     private float frameRate = 30.0f;
     private int timeUnit = 0;
     // ========== 核心动画状态（现在直接拥有）==========
@@ -79,6 +80,7 @@ public class TimelineModel implements ITimelineProject {
     }
     
     private final List<ModelChangeListener> listeners = new CopyOnWriteArrayList<>();
+    private final List<ActorTimelineSource.TrackStructureListener> trackStructureListeners = new CopyOnWriteArrayList<>();
     
     // ⭐ 性能优化：防止 notifyModelChanged 的无限循环
     private boolean isNotifyingListeners = false;
@@ -106,6 +108,15 @@ public class TimelineModel implements ITimelineProject {
                     System.err.println("[TimelineModel] 监听器异常: " + e.getMessage());
                 }
             }
+            if ("track_added".equals(changeType) || "track_removed".equals(changeType)) {
+                for (ActorTimelineSource.TrackStructureListener listener : trackStructureListeners) {
+                    try {
+                        listener.onTrackStructureChanged();
+                    } catch (Exception e) {
+                        System.err.println("[TimelineModel] 轨道结构监听器异常: " + e.getMessage());
+                    }
+                }
+            }
         } finally {
             isNotifyingListeners = false;
         }
@@ -128,6 +139,20 @@ public class TimelineModel implements ITimelineProject {
     public void removeModelChangeListener(ModelChangeListener listener) {
         if (listener != null) {
             listeners.remove(listener);
+        }
+    }
+
+    @Override
+    public void addTrackStructureListener(TrackStructureListener listener) {
+        if (listener != null && !trackStructureListeners.contains(listener)) {
+            trackStructureListeners.add(listener);
+        }
+    }
+
+    @Override
+    public void removeTrackStructureListener(TrackStructureListener listener) {
+        if (listener != null) {
+            trackStructureListeners.remove(listener);
         }
     }
     

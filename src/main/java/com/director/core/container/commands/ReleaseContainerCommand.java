@@ -4,7 +4,7 @@ import com.director.core.DirectorServices;
 import com.director.core.container.Container;
 import com.director.core.container.ContainerState;
 import com.director.core.container.ContainerManager;
-import com.director.ui.timeline.container.ContainerTimelineService;
+import com.director.timeline.container.ContainerTimelineService;
 import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;

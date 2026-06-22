@@ -5,7 +5,7 @@ import com.director.client.gizmo.GizmoManager;
 import com.director.client.input.DirectorInputSystem;
 import com.director.client.renderer.ToolPreviewManager;
 import com.director.ui.actor.selection.ActorSelectionHub;
-import com.director.ui.timeline.container.ContainerTimelineService;
+import com.director.timeline.container.ContainerTimelineService;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.entity.ActorRouteClip;

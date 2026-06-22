@@ -5,7 +5,7 @@ import com.director.actor.ActorRef;
 import com.director.actor.preview.ActorPreviewManager;
 import net.minecraft.entity.Entity;
 import com.director.ui.actor.selection.ActorSelectionHub;
-import com.director.ui.timeline.container.ContainerTimelineService;
+import com.director.timeline.container.ContainerTimelineService;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;

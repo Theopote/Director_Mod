@@ -132,7 +132,7 @@ public final class TimelineActorController {
         if (activeTrack != null) {
             return true;
         }
-        com.director.ui.timeline.container.ContainerTimelineService service =
+        com.director.timeline.container.ContainerTimelineService service =
             DirectorServices.get().containerTimeline();
         if (service == null) {
             return false;
@@ -183,7 +183,7 @@ public final class TimelineActorController {
      * <p>此方法通过 ContainerTimelineService 获取 TimelineModel，不直接绑定模型。
      */
     public void checkAndAutoActivate() {
-        com.director.ui.timeline.container.ContainerTimelineService service = 
+        com.director.timeline.container.ContainerTimelineService service = 
             DirectorServices.get().containerTimeline();
         if (service == null) {
             return;

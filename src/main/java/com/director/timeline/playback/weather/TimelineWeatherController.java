@@ -131,7 +131,7 @@ public final class TimelineWeatherController {
         if (activeTrack != null) {
             return true;
         }
-        com.director.ui.timeline.container.ContainerTimelineService service =
+        com.director.timeline.container.ContainerTimelineService service =
             DirectorServices.get().containerTimeline();
         if (service == null) {
             return false;
@@ -177,7 +177,7 @@ public final class TimelineWeatherController {
         // ⭐ v1.2：重建后立即用当前时间采样，保持 currentSample 始终有效
         if (enabled && keyframeCount > 0) {
             float currentTime = 0f;
-            com.director.ui.timeline.container.ContainerTimelineService svc =
+            com.director.timeline.container.ContainerTimelineService svc =
                 DirectorServices.get().containerTimeline();
             if (svc != null) {
                 com.director.timeline.model.TimelineModel m = svc.getTimelineModel();
@@ -199,7 +199,7 @@ public final class TimelineWeatherController {
      * <p>此方法通过 ContainerTimelineService 获取 TimelineModel，不直接绑定模型。
      */
     public void checkAndAutoActivate() {
-        com.director.ui.timeline.container.ContainerTimelineService service = 
+        com.director.timeline.container.ContainerTimelineService service = 
             DirectorServices.get().containerTimeline();
         if (service == null) {
             return;
@@ -238,7 +238,7 @@ public final class TimelineWeatherController {
             //    否则在用户交互前 Mixin/forceDisableVanillaWeather 读到 null
             if (currentSample == null && sampler != null) {
                 float currentTime = 0f;
-                com.director.ui.timeline.container.ContainerTimelineService svc =
+                com.director.timeline.container.ContainerTimelineService svc =
                     DirectorServices.get().containerTimeline();
                 if (svc != null) {
                     com.director.timeline.model.TimelineModel m = svc.getTimelineModel();

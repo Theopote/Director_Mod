@@ -8,7 +8,7 @@ import com.director.actor.preview.ActorPreviewManager;
 import com.director.actor.rig.*;
 import net.minecraft.entity.Entity;
 import com.director.actor.prop.*;
-import com.director.timeline.model.TimelineModel;
+import com.director.timeline.actor.ActorTimelineSource;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.entity.ActorTrack;
 import com.director.timeline.playback.entity.EntityClipSampler;
@@ -75,9 +75,9 @@ public final class ActorRuntimeController {
         return INSTANCE;
     }
 
-    private TimelineModel timelineModel;
+    private ActorTimelineSource timelineSource;
     private ActorRegistry actorRegistry;
-    private TimelineModel.ModelChangeListener modelChangeListener;
+    private ActorTimelineSource.TrackStructureListener trackStructureListener;
 
     /** 每条 ActorTrack 一个 Sampler Runtime */
     private final Map<TimelineTrack, TrackRuntime> runtimes = new IdentityHashMap<>();
@@ -102,29 +102,25 @@ public final class ActorRuntimeController {
     // =========================================================
 
     /**
-     * 绑定 TimelineModel 和 ActorRegistry
+     * 绑定时间线源和 ActorRegistry
      *
-     * @param model TimelineModel
+     * @param source 演员轨道视图（通常为 {@link com.director.timeline.model.TimelineModel}）
      * @param registry ActorRegistry
      */
-    public void bind(TimelineModel model, ActorRegistry registry) {
-        if (this.timelineModel != null && modelChangeListener != null) {
-            this.timelineModel.removeModelChangeListener(modelChangeListener);
+    public void bind(ActorTimelineSource source, ActorRegistry registry) {
+        if (this.timelineSource != null && trackStructureListener != null) {
+            this.timelineSource.removeTrackStructureListener(trackStructureListener);
         }
-        this.timelineModel = model;
+        this.timelineSource = source;
         this.actorRegistry = registry;
-        if (this.timelineModel != null) {
-            modelChangeListener = changeType -> {
-                if ("track_added".equals(changeType) || "track_removed".equals(changeType)) {
-                    rebuildRuntimes();
-                }
-            };
-            this.timelineModel.addModelChangeListener(modelChangeListener);
+        if (this.timelineSource != null) {
+            trackStructureListener = this::rebuildRuntimes;
+            this.timelineSource.addTrackStructureListener(trackStructureListener);
         } else {
-            modelChangeListener = null;
+            trackStructureListener = null;
         }
         rebuildRuntimes();
-        LOGGER.info("[ActorRuntime] 绑定 TimelineModel 和 ActorRegistry，runtimes={}", runtimes.size());
+        LOGGER.info("[ActorRuntime] 绑定 ActorTimelineSource 和 ActorRegistry，runtimes={}", runtimes.size());
     }
 
     /**
@@ -160,11 +156,11 @@ public final class ActorRuntimeController {
      * 每帧更新（由 TimelinePanel 调用）
      */
     public void update() {
-        if (!enabled || timelineModel == null || actorRegistry == null) {
+        if (!enabled || timelineSource == null || actorRegistry == null) {
             return;
         }
 
-        float time = timelineModel.getCurrentTime();
+        float time = timelineSource.getCurrentTime();
         float deltaTime = time - lastUpdateTime;
         if (deltaTime < 0f) {
             // 时间倒流（rewind），重置 deltaTime
@@ -194,11 +190,11 @@ public final class ActorRuntimeController {
     private void rebuildRuntimes() {
         runtimes.clear();
 
-        if (timelineModel == null) {
+        if (timelineSource == null) {
             return;
         }
 
-        for (TimelineTrack track : timelineModel.getTracks()) {
+        for (TimelineTrack track : timelineSource.getTracks()) {
             if (isActorTrack(track)) {
                 // 检查是否有 ActorTrack payload
                 ActorTrack actorTrack = track.getActorTrackPayload();
@@ -220,10 +216,10 @@ public final class ActorRuntimeController {
      * 清理已删除的轨道
      */
     private void pruneDeadTracks() {
-        if (timelineModel == null) {
+        if (timelineSource == null) {
             return;
         }
-        runtimes.keySet().removeIf(t -> !timelineModel.getTracks().contains(t));
+        runtimes.keySet().removeIf(t -> !timelineSource.getTracks().contains(t));
     }
 
     /**

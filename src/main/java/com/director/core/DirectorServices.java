@@ -6,7 +6,7 @@ import com.director.core.selection.SelectionManager;
 import com.director.ui.imgui.ImGuiRenderer;
 import com.director.ui.input.GlobalShortcutManager;
 import com.director.ui.properties.PropertyContextService;
-import com.director.ui.timeline.container.ContainerTimelineService;
+import com.director.timeline.container.ContainerTimelineService;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

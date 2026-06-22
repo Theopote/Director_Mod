@@ -3,7 +3,7 @@ package com.director.ui.container;
 import com.director.core.DirectorServices;
 import com.director.core.container.Container;
 import com.director.core.container.ContainerType;
-import com.director.ui.timeline.container.ContainerTimelineService;
+import com.director.timeline.container.ContainerTimelineService;
 import imgui.ImGui;
 import imgui.flag.ImGuiMouseButton;
 import org.slf4j.Logger;

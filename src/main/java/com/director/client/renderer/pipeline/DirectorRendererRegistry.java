@@ -17,7 +17,7 @@ import com.director.core.container.visibility.BlockVisualStateManager;
 import com.director.core.selection.SelectionManager;
 import com.director.export.video.VideoExportManager;
 import com.director.ui.DirectorScreen;
-import com.director.ui.timeline.container.ContainerTimelineService;
+import com.director.timeline.container.ContainerTimelineService;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.world.WorldRenderEvents;
 import net.minecraft.client.MinecraftClient;

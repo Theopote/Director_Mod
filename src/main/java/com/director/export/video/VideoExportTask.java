@@ -143,7 +143,7 @@ public final class VideoExportTask implements Runnable {
 
         // UI 时间线（TimelinePanel 初始化时会注入到 ContainerTimelineService）
         float uiTimelineDuration = 0f;
-        com.director.timeline.model.TimelineModel model = com.director.ui.timeline.container.ContainerTimelineService
+        com.director.timeline.model.TimelineModel model = com.director.timeline.container.ContainerTimelineService
                 .getInstance().getTimelineModel();
         if (model != null) {
             uiTimelineDuration = model.getDuration();

@@ -4,7 +4,7 @@ import com.director.core.DirectorServices;
 import com.director.actor.ActorRef;
 import com.director.client.gizmo.GizmoManager;
 import com.director.client.gizmo.GizmoMode;
-import com.director.ui.timeline.container.ContainerTimelineService;
+import com.director.timeline.container.ContainerTimelineService;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;

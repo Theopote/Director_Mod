@@ -2,7 +2,7 @@ package com.director.ui.actor.track;
 
 import com.director.core.DirectorServices;
 import com.director.actor.action.ActorActionType;
-import com.director.ui.timeline.container.ContainerTimelineService;
+import com.director.timeline.container.ContainerTimelineService;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;

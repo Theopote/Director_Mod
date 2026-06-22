@@ -247,6 +247,8 @@ public class TimelinePanel extends AbstractPanel
 
         // 注册容器-时间线关联服务
         DirectorServices.get().containerTimeline().setTimelineModel(model);
+        DirectorServices.get().containerTimeline().setAudioSync(
+                com.director.ui.timeline.audio.TimelineAudioService.getInstance());
         
         // 初始化音频服务（自动收集声音事件）
         com.director.ui.timeline.audio.TimelineAudioService.getInstance().setTimelineModel(model);

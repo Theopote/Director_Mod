@@ -7,7 +7,7 @@ import com.director.client.gizmo.GizmoType;
 import com.director.client.input.DirectorInputSystem;
 import com.director.client.renderer.CameraPathDebugRenderer;
 import com.director.mixin.accessor.GameRendererAccessor;
-import com.director.ui.timeline.container.ContainerTimelineService;
+import com.director.timeline.container.ContainerTimelineService;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineSelectable;
 import com.director.timeline.model.TimelineTrack;

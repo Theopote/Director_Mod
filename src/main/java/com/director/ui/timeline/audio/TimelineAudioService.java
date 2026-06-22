@@ -1,6 +1,7 @@
 package com.director.ui.timeline.audio;
 
 import com.director.core.DirectorServices;
+import com.director.timeline.container.ContainerClipAudioSync;
 import com.director.core.animation.AnimationSoundCollector;
 import com.director.core.animation.sequence.BlockSequenceEntry;
 import com.director.core.animation.sequence.BlockSequenceGenerator;
@@ -44,7 +45,7 @@ import java.util.UUID;
  * @author Director Team
  * @version 1.0
  */
-public class TimelineAudioService {
+public class TimelineAudioService implements ContainerClipAudioSync {
     private static final Logger LOGGER = LoggerFactory.getLogger(TimelineAudioService.class);
     
     private static TimelineAudioService instance;

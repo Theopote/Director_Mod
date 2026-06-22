@@ -9,7 +9,7 @@ import com.director.actor.ActorType;
 import com.director.actor.preview.ActorPreviewManager;
 import net.minecraft.entity.Entity;
 import com.director.client.input.DirectorInputSystem;
-import com.director.ui.timeline.container.ContainerTimelineService;
+import com.director.timeline.container.ContainerTimelineService;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;

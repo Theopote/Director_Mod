@@ -7,7 +7,7 @@ import net.minecraft.entity.Entity;
 import com.director.client.gizmo.GizmoManager;
 import com.director.client.gizmo.GizmoMode;
 import com.director.client.gizmo.GizmoType;
-import com.director.ui.timeline.container.ContainerTimelineService;
+import com.director.timeline.container.ContainerTimelineService;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;

@@ -5,7 +5,7 @@ import com.director.actor.Actor;
 import com.director.actor.ActorRef;
 import com.director.ui.actor.gizmo.ActorGizmoController;
 import com.director.ui.selection.SelectionManager;
-import com.director.ui.timeline.container.ContainerTimelineService;
+import com.director.timeline.container.ContainerTimelineService;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;

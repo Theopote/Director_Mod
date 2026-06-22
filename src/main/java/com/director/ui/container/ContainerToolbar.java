@@ -5,7 +5,7 @@ import com.director.core.container.Container;
 import com.director.core.container.ContainerType;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
-import com.director.ui.timeline.container.ContainerTimelineService;
+import com.director.timeline.container.ContainerTimelineService;
 import imgui.ImGui;
 
 /**

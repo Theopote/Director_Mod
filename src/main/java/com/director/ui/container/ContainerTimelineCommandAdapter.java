@@ -1,5 +1,6 @@
-package com.director.core.container.commands;
+package com.director.ui.container;
 
+import com.director.core.container.commands.ContainerCommand;
 import com.director.ui.timeline.commands.TimelineCommand;
 
 /**
@@ -28,4 +29,3 @@ public class ContainerTimelineCommandAdapter implements TimelineCommand {
         return delegate.getDescription();
     }
 }
-

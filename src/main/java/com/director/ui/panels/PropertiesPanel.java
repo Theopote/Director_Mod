@@ -9,7 +9,7 @@ import com.director.ui.properties.PropertyAdapterRegistry;
 import com.director.ui.properties.PropertyContext;
 import com.director.ui.properties.PropertyContextService;
 import com.director.ui.selection.SelectionManager;
-import com.director.ui.timeline.container.ContainerTimelineService;
+import com.director.timeline.container.ContainerTimelineService;
 import com.director.ui.theme.UITheme;
 import com.director.ui.theme.Icons;
 import imgui.ImGui;

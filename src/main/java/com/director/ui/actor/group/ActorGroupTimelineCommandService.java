@@ -3,7 +3,7 @@ package com.director.ui.actor.group;
 import com.director.core.DirectorServices;
 import com.director.actor.ActorGroup;
 import com.director.actor.action.ActorActionType;
-import com.director.ui.timeline.container.ContainerTimelineService;
+import com.director.timeline.container.ContainerTimelineService;
 import com.director.ui.timeline.interaction.ActionClipIntervalResolver;
 import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineModel;

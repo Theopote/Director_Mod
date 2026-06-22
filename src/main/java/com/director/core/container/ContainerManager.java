@@ -12,7 +12,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import com.director.core.DirectorServices;
 import com.director.core.container.persistence.ContainerPersistence;
 import com.director.core.selection.SelectionManager;
-import com.director.ui.timeline.container.ContainerTimelineService;
+import com.director.timeline.container.ContainerTimelineService;
 import net.minecraft.registry.RegistryKey;
 
 /**
