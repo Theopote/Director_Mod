@@ -3,9 +3,11 @@ package com.director.client.world;
 import com.director.timeline.playback.season.SeasonSample;
 import com.director.timeline.playback.weather.WeatherSample;
 import net.minecraft.util.math.MathHelper;
+import org.joml.Vector3f;
+import org.joml.Vector4f;
 
 /**
- * 天空/云层颜色 tint（从 ClientWorldMixin 抽离）。
+ * 世界渲染颜色 tint（天空/云/雾/生物群系），从各 ClientWorld 相关 Mixin 抽离。
  */
 public final class ClientWorldTintEffects {
 
@@ -90,6 +92,71 @@ public final class ClientWorldTintEffects {
         }
 
         return packArgb(0xFF, rf, gf, bf);
+    }
+
+    /**
+     * 季节雾色 tint；无覆盖时返回 {@code null}（调用方保留原版返回值）。
+     */
+    public static Vector4f tintFogColor(
+            Vector4f original,
+            SeasonSample seasonSample,
+            boolean seasonOverrideActive,
+            float skyR,
+            float skyG,
+            float skyB
+    ) {
+        if (original == null || !seasonOverrideActive || seasonSample == null) {
+            return null;
+        }
+
+        float r = clamp01(original.x * (1f + clampTint(seasonSample.fogTint.x)));
+        float g = clamp01(original.y * (1f + clampTint(seasonSample.fogTint.y)));
+        float b = clamp01(original.z * (1f + clampTint(seasonSample.fogTint.z)));
+
+        float blendToSky = fogSkyBlendAmount(seasonSample);
+        r = lerp(r, skyR, blendToSky);
+        g = lerp(g, skyG, blendToSky);
+        b = lerp(b, skyB, blendToSky);
+
+        return new Vector4f(r, g, b, original.w);
+    }
+
+    /**
+     * 将打包的 RGB/ARGB 颜色解为 [0,1] 分量（用于雾色与天空混合）。
+     */
+    public static float[] unpackRgb01(int packedColor) {
+        return new float[] {
+                ((packedColor >> 16) & 0xFF) / 255f,
+                ((packedColor >> 8) & 0xFF) / 255f,
+                (packedColor & 0xFF) / 255f
+        };
+    }
+
+    /**
+     * 生物群系草地/树叶颜色 season tint。
+     */
+    public static int tintBiomeColor(int color, Vector3f tint) {
+        int r = (color >> 16) & 0xFF;
+        int g = (color >> 8) & 0xFF;
+        int b = color & 0xFF;
+
+        int a = (color >> 24) & 0xFF;
+        if (a == 0) {
+            a = 0xFF;
+        }
+
+        float rf = clamp01((r / 255f) * (1f + clampTint(tint.x)));
+        float gf = clamp01((g / 255f) * (1f + clampTint(tint.y)));
+        float bf = clamp01((b / 255f) * (1f + clampTint(tint.z)));
+
+        return packArgb(a, rf, gf, bf);
+    }
+
+    private static float fogSkyBlendAmount(SeasonSample sample) {
+        float strength = Math.max(
+                Math.max(Math.abs(sample.fogTint.x), Math.abs(sample.fogTint.y)),
+                Math.abs(sample.fogTint.z));
+        return Math.min(0.35f, 0.12f + strength * 0.18f);
     }
 
     private static int packArgb(int alpha, float r, float g, float b) {
