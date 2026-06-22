@@ -1,0 +1,27 @@
+---
+description: 单例静态访问器约定（禁止 get + getInstance 双别名）
+globs: src/main/java/com/director/**/*.java
+alwaysApply: false
+---
+
+# 单例访问器
+
+每个单例类**只保留一个**静态入口，禁止新增 `get()` 与 `getInstance()` 并存。
+
+## 约定
+
+| 场景 | 用法 |
+|------|------|
+| `timeline.playback.*` 控制器 | `getInstance()`（与 `TimelineCameraController` 一致） |
+| Mixin 只读快照（`*RenderOverride`） | `get()` |
+| 可注入服务 | `DirectorServices.get().xxx()` |
+
+## 禁止
+
+```java
+// ❌ 双别名
+public static Foo getInstance() { return INSTANCE; }
+public static Foo get() { return INSTANCE; }
+```
+
+已有 `SelectionManager` 的 `getInstance()` → `get()` 委托为遗留例外；新类不要复制该模式。

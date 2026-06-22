@@ -334,7 +334,7 @@ public class MagicWandTool implements SelectionTool, SelectionOperationSupport {
                             // 进度回调：实时更新预览
                             if (update.partialResult() != null && !update.partialResult().isEmpty()) {
                                 net.minecraft.client.MinecraftClient.getInstance().execute(() -> {
-                                    ToolPreviewManager.get().updateMagicWandPreview(
+                                    ToolPreviewManager.getInstance().updateMagicWandPreview(
                                         update.partialResult().blocks(),
                                         update.partialResult().depthMap()
                                     );
@@ -360,11 +360,11 @@ public class MagicWandTool implements SelectionTool, SelectionOperationSupport {
                     
                     // 更新 ToolPreviewManager 的预览（带深度信息用于渐变效果）
                     if (result != null && !result.isEmpty()) {
-                        ToolPreviewManager.get().updateMagicWandPreview(result.blocks(), result.depthMap());
+                        ToolPreviewManager.getInstance().updateMagicWandPreview(result.blocks(), result.depthMap());
                         LOGGER.debug("[MagicWandTool] 预览完成: {} 个方块，最大深度={}", 
                             result.size(), result.getMaxDepth());
                     } else {
-                        ToolPreviewManager.get().clearMagicWandPreview();
+                        ToolPreviewManager.getInstance().clearMagicWandPreview();
                     }
                 }, runnable -> {
                     // 确保在主线程中执行
@@ -374,7 +374,7 @@ public class MagicWandTool implements SelectionTool, SelectionOperationSupport {
                         LOGGER.error("[MagicWandTool] 预览失败", ex);
                     }
                     // 清除预览也要在主线程执行
-                    net.minecraft.client.MinecraftClient.getInstance().execute(() -> ToolPreviewManager.get().clearMagicWandPreview());
+                    net.minecraft.client.MinecraftClient.getInstance().execute(() -> ToolPreviewManager.getInstance().clearMagicWandPreview());
                     return null;
                 });
             }
@@ -439,7 +439,7 @@ public class MagicWandTool implements SelectionTool, SelectionOperationSupport {
             progressiveController = null;
         }
 
-        ToolPreviewManager.get().clearMagicWandPreview();
+        ToolPreviewManager.getInstance().clearMagicWandPreview();
     }
 
     /**
@@ -526,7 +526,7 @@ public class MagicWandTool implements SelectionTool, SelectionOperationSupport {
         useProgressivePreview = false;
         
         // 清除 ToolPreviewManager 的预览
-        ToolPreviewManager.get().clearMagicWandPreview();
+        ToolPreviewManager.getInstance().clearMagicWandPreview();
         
         LOGGER.info("[MagicWandTool] 魔棒工具停用");
     }

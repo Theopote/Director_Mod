@@ -32,10 +32,6 @@ public final class TimelineWeatherController extends AbstractTrackTimelinePlayba
         return INSTANCE;
     }
 
-    public static TimelineWeatherController get() {
-        return INSTANCE;
-    }
-
     @Override
     protected String logTag() {
         return "WeatherController";

@@ -120,7 +120,7 @@ public class BrushSelectTool implements SelectionTool, SelectionOperationSupport
         if (!isPainting || manager == null) {
             return;
         }
-        BlockPos current = ToolPreviewManager.get().getDragCurrentPos();
+        BlockPos current = ToolPreviewManager.getInstance().getDragCurrentPos();
         if (current != null) {
             updateBrushPreview(current);
         }
@@ -132,7 +132,7 @@ public class BrushSelectTool implements SelectionTool, SelectionOperationSupport
      */
     private void updateBrushPreview(BlockPos center) {
         if (center == null) {
-            ToolPreviewManager.get().clearBrushVolumePreview();
+            ToolPreviewManager.getInstance().clearBrushVolumePreview();
             return;
         }
 
@@ -141,7 +141,7 @@ public class BrushSelectTool implements SelectionTool, SelectionOperationSupport
         );
 
         // 只作为"空间范围"的可视化，不影响 SelectionSet
-        ToolPreviewManager.get().updateBrushVolumePreview(previewBlocks);
+        ToolPreviewManager.getInstance().updateBrushVolumePreview(previewBlocks);
     }
 
     @Override
@@ -356,7 +356,7 @@ public class BrushSelectTool implements SelectionTool, SelectionOperationSupport
     @Override
     public void onHover(World world, BlockPos pos) {
         if (world == null || pos == null) {
-            ToolPreviewManager.get().clearBrushVolumePreview();
+            ToolPreviewManager.getInstance().clearBrushVolumePreview();
             return;
         }
 
@@ -377,7 +377,7 @@ public class BrushSelectTool implements SelectionTool, SelectionOperationSupport
         if (manager != null) {
             manager.clearSelection();
         }
-        ToolPreviewManager.get().clearBrushVolumePreview();
+        ToolPreviewManager.getInstance().clearBrushVolumePreview();
         LOGGER.debug("[BrushSelectTool] 清除选择");
     }
 
@@ -398,7 +398,7 @@ public class BrushSelectTool implements SelectionTool, SelectionOperationSupport
         LOGGER.debug("[BrushSelectTool] 工具停用");
         isPainting = false;
         cancelCurrentTask();
-        ToolPreviewManager.get().clearBrushVolumePreview();
+        ToolPreviewManager.getInstance().clearBrushVolumePreview();
         lastTaskStartedAt = 0L;
     }
 }

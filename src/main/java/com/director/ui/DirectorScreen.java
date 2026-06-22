@@ -962,7 +962,7 @@ public class DirectorScreen extends Screen {
             LOGGER.warn("[Director] 清理 SelectionRenderer 状态失败", e);
         }
         try {
-            ToolPreviewManager.get().clearPreview();
+            ToolPreviewManager.getInstance().clearPreview();
         } catch (Exception e) {
             LOGGER.warn("[Director] 清理工具预览失败", e);
         }

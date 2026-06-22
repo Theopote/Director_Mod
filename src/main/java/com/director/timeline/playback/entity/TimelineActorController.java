@@ -30,10 +30,6 @@ public final class TimelineActorController extends AbstractTrackTimelinePlayback
         return INSTANCE;
     }
 
-    public static TimelineActorController get() {
-        return INSTANCE;
-    }
-
     @Override
     protected String logTag() {
         return "ActorController";

@@ -149,13 +149,6 @@ public class ToolPreviewManager {
     }
     
     /**
-     * 便捷方法：获取单例实例（别名方法，与 SelectionEvents API 保持一致）
-     */
-    public static ToolPreviewManager get() {
-        return getInstance();
-    }
-    
-    /**
      * 开始拖拽预览
      */
     public void startDragPreview(BlockPos startPos) {

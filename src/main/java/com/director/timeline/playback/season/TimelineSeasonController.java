@@ -34,10 +34,6 @@ public final class TimelineSeasonController extends AbstractModelTimelinePlaybac
         return INSTANCE;
     }
 
-    public static TimelineSeasonController get() {
-        return INSTANCE;
-    }
-
     @Override
     protected String logTag() {
         return "TimelineSeason";

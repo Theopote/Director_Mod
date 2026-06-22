@@ -139,7 +139,7 @@ public class FaceSelectTool implements SelectionTool, SelectionOperationSupport 
         }
 
         MinecraftClient client = MinecraftClient.getInstance();
-        ToolPreviewManager preview = ToolPreviewManager.get();
+        ToolPreviewManager preview = ToolPreviewManager.getInstance();
 
         synchronized (hoverLock) {
             if (currentHoverTask != null) {
@@ -294,7 +294,7 @@ public class FaceSelectTool implements SelectionTool, SelectionOperationSupport 
                 currentHoverTask = null;
             }
         }
-        ToolPreviewManager.get().clearFaceHoverPreviewImmediately();
+        ToolPreviewManager.getInstance().clearFaceHoverPreviewImmediately();
     }
 
     /** 与框选、魔棒、刷选一致：使用 SelectionManager.getEffectiveBlockFilter()，空管道时 nonAir。 */
@@ -313,7 +313,7 @@ public class FaceSelectTool implements SelectionTool, SelectionOperationSupport 
         cancelRunningTask();
         currentSelection.clear();
         DirectorServices.get().selection().clearSelection();
-        ToolPreviewManager.get().clearFacePreview();
+        ToolPreviewManager.getInstance().clearFacePreview();
         clearHoverPreview();
         LOGGER.debug("[FaceSelectTool] 清除选择");
     }
@@ -352,7 +352,7 @@ public class FaceSelectTool implements SelectionTool, SelectionOperationSupport 
     @Override
     public void onDeactivate(World world) {
         cancelRunningTask();
-        ToolPreviewManager.get().clearFacePreview();
+        ToolPreviewManager.getInstance().clearFacePreview();
         clearHoverPreview();
         LOGGER.debug("[FaceSelectTool] 工具停用");
     }

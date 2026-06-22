@@ -115,12 +115,12 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
             phase = SelectionPhase.FIRST_POINT_SET;
 
             // 兜底：确保工具预览管理器处于启用状态，避免状态残留导致预览不可见。
-            ToolPreviewManager.get().setEnabled(true);
+            ToolPreviewManager.getInstance().setEnabled(true);
             clearPreview();
 
             // 显示第一角点预览（单个方块）
             Box previewBox = makeInclusiveBlockBox(firstCorner, firstCorner).expand(0.01);
-            ToolPreviewManager.get().setPreviewBox(previewBox);
+            ToolPreviewManager.getInstance().setPreviewBox(previewBox);
 
             LOGGER.info("[BoxSelectTool] ✅ 第一角点已设置: {} (左键点击第二角点完成选择)", firstCorner);
             return;
@@ -248,7 +248,7 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
             }
             if (previewCorner != null) {
                 Box preview = makeDragBoxWithMinHeight(firstCorner, previewCorner).expand(0.01);
-                ToolPreviewManager.get().setPreviewBox(preview);
+                ToolPreviewManager.getInstance().setPreviewBox(preview);
             }
         }
         
@@ -674,7 +674,7 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
      */
     private void clearPreview() {
         previewCorner = null;
-        ToolPreviewManager.get().clearPreview();
+        ToolPreviewManager.getInstance().clearPreview();
     }
     
     /**

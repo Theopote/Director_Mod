@@ -25,7 +25,7 @@ import java.util.Optional;
  *
  * <p>核心设计理念（参考 CameraRuntime）：
  * <ul>
- *   <li>统一的状态缓存：Mixin 永远从 TimelineWorldController.get().current() 读取，而不是从 keyframe 或 sampler</li>
+ *   <li>统一的状态缓存：写入 {@link WorldRenderOverride}，Mixin 从快照读取而非直接依赖本类</li>
  *   <li>严格的时间冻结：每 tick mixin 调用 maintainFrozenTime() 来维持冻结时间</li>
  *   <li>自定义太阳轨迹驱动：直接使用 TimeSample 中的参数（sunElevation, sunAzimuth, skyAngle）</li>
  *   <li>支持完整 TimeSample v3.0：包括颜色、月亮等所有参数</li>
@@ -114,11 +114,6 @@ public final class TimelineWorldController extends AbstractModelTimelinePlayback
     }
 
     public static TimelineWorldController getInstance() {
-        return INSTANCE;
-    }
-
-    /** 便捷别名，供 Mixin 使用（兼容参考代码） */
-    public static TimelineWorldController get() {
         return INSTANCE;
     }
 
