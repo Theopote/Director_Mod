@@ -1,5 +1,6 @@
 package com.director.ui.timeline.menu;
 
+import com.director.core.DirectorServices;
 import com.director.ui.panels.TimelinePanel;
 import com.director.ui.timeline.commands.AddEntityClipCommand;
 import com.director.ui.timeline.commands.AddAutomationKeyframeCommand;
@@ -560,7 +561,7 @@ public class TimelineContextMenuFactory {
                 builder
                     .item("摄像机属性", () -> {
                         // 选择轨道并打开属性面板
-                        com.director.ui.selection.SelectionManager.get().selectTrack(track);
+                        DirectorServices.get().uiSelection().selectTrack(track);
                         LOGGER.info("[TimelineContextMenuFactory] 打开摄像机属性: {}", track.getName());
                     })
                     .separator();
@@ -576,7 +577,7 @@ public class TimelineContextMenuFactory {
                                     new com.director.ui.timeline.commands.AddPathClipCommand(model, track, customClip)
                                 );
                                 model.selectItem(customClip, false);
-                                com.director.ui.selection.SelectionManager.get().setCurrentSelection(customClip);
+                                DirectorServices.get().uiSelection().setCurrentSelection(customClip);
                                 LOGGER.info("[TimelineContextMenuFactory] 创建自定义路径: {} @ {:.2f}s",
                                     customClip.getName(), currentTime);
                             })
@@ -594,7 +595,7 @@ public class TimelineContextMenuFactory {
                                 commandHistory.executeCommand(cmd);
                                 
                                 // 选择轨道并打开属性面板（让用户编辑参数）
-                                com.director.ui.selection.SelectionManager.get().selectTrack(track);
+                                DirectorServices.get().uiSelection().selectTrack(track);
                                 LOGGER.info("[TimelineContextMenuFactory] 创建围绕路径: {} @ {:.2f}s", 
                                     orbitClip.getName(), currentTime);
                             })
@@ -609,7 +610,7 @@ public class TimelineContextMenuFactory {
                                 commandHistory.executeCommand(cmd);
                                 
                                 // 选择轨道并打开属性面板（让用户编辑参数）
-                                com.director.ui.selection.SelectionManager.get().selectTrack(track);
+                                DirectorServices.get().uiSelection().selectTrack(track);
                                 LOGGER.info("[TimelineContextMenuFactory] 创建推拉路径: {} @ {:.2f}s", 
                                     dollyClip.getName(), currentTime);
                             })
@@ -624,7 +625,7 @@ public class TimelineContextMenuFactory {
                                 commandHistory.executeCommand(cmd);
                                 
                                 // 选择轨道并打开属性面板（让用户编辑参数）
-                                com.director.ui.selection.SelectionManager.get().selectTrack(track);
+                                DirectorServices.get().uiSelection().selectTrack(track);
                                 LOGGER.info("[TimelineContextMenuFactory] 创建升降路径: {} @ {:.2f}s", 
                                     craneClip.getName(), currentTime);
                             })
@@ -831,7 +832,7 @@ public class TimelineContextMenuFactory {
                 .item("Path 属性...", () -> {
                     // 选择 Path Clip 并打开属性面板
                     model.selectItem(clip, false);
-                    com.director.ui.selection.SelectionManager.get().setCurrentSelection(clip);
+                    DirectorServices.get().uiSelection().setCurrentSelection(clip);
                     LOGGER.info("[TimelineContextMenuFactory] 打开 Path Clip 属性: {}", clip.getName());
                 })
                 .separator()

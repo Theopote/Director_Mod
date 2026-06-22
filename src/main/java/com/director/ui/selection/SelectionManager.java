@@ -61,7 +61,7 @@ public final class SelectionManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(SelectionManager.class);
     
     // 单例实例
-    private static final SelectionManager INSTANCE = new SelectionManager();
+    private static SelectionManager instance;
     
     // =========================
     // SelectionType 系统（v5.0 新增）
@@ -88,14 +88,37 @@ public final class SelectionManager {
     
     // 私有构造函数
     private SelectionManager() {}
+
+    /**
+     * 在模组启动时显式初始化（幂等）。由 {@link com.director.core.DirectorServices} 统一调用。
+     */
+    public static void initialize() {
+        if (instance != null) {
+            return;
+        }
+        synchronized (SelectionManager.class) {
+            if (instance == null) {
+                instance = new SelectionManager();
+            }
+        }
+    }
     
     /**
-     * 获取单例实例
-     * 
-     * @return SelectionManager 实例
+     * @throws IllegalStateException 若尚未初始化
+     * @deprecated 新代码请使用 {@link com.director.core.DirectorServices#get()}{@code .uiSelection()}
      */
+    @Deprecated
     public static SelectionManager get() {
-        return INSTANCE;
+        if (instance == null) {
+            throw new IllegalStateException(
+                    "[UiSelectionManager] Not initialized — call DirectorServices.initialize() during mod startup");
+        }
+        return instance;
+    }
+
+    /** @see #get() */
+    public static SelectionManager getInstance() {
+        return get();
     }
     
     // =========================

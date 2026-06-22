@@ -1,5 +1,6 @@
 package com.director.ui.properties.adapters;
 
+import com.director.core.DirectorServices;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.selection.SelectionManager;
 import com.director.ui.theme.UITheme;
@@ -222,7 +223,7 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
                                 // 操作按钮
                                 if (ImGui.button("编辑此轨道", 110, UITheme.Spacing.BUTTON_HEIGHT)) {
                                     // 切换选择到此轨道
-                                    SelectionManager.get().setCurrentSelection(track);
+                                    DirectorServices.get().uiSelection().setCurrentSelection(track);
                                     LOGGER.debug("[TimelineSequencePropertyAdapter] 跳转编辑轨道: {}", trackName);
                                 }
                                 if (ImGui.isItemHovered()) {

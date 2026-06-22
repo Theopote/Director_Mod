@@ -5,7 +5,6 @@ import com.director.core.selection.block_filters.BlockFilter;
 import com.director.core.selection.block_filters.BlockFilterPipeline;
 import com.director.core.selection.block_filters.BlockFilterPresetManager;
 import com.director.core.selection.block_filters.BlockFilterRegistry;
-import com.director.core.selection.SelectionManager;
 import com.director.core.selection.block_filters.FilterIds;
 import com.director.ui.commands.SelectionFilterCommands;
 

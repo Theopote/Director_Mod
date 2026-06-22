@@ -1,6 +1,7 @@
 package com.director.ui.properties;
 
 import com.director.core.DirectorServices;
+import com.director.core.DirectorServices;
 import com.director.ui.selection.SelectionManager;
 import com.director.ui.selection.SelectionType;
 import com.director.ui.timeline.model.TimelineTrack;
@@ -41,16 +42,31 @@ public final class PropertyContextService {
     /** 上一回时间线选中的 payload；仅当 payload 真正变化时才更新 lastTimelineInteraction，避免切到工具后因重复的「同对象」选中事件导致又切回 TIMELINE */
     private volatile Object lastTimelinePayload = null;
 
-    static {
-        SelectionManager.get().addSelectionChangedListener(ignore -> {
-            PropertyContextService svc = PropertyContextService.get();
-            SelectionType t = SelectionManager.get().getSelectionType();
-            if (t == SelectionType.TRACK || t == SelectionType.CLIP || t == SelectionType.KEYFRAME) {
-                svc.onTimelineSelectionChanged(SelectionManager.get().getSelectionPayload());
-            } else {
-                svc.onTimelineSelectionChanged(null);
+    private static volatile boolean listenerRegistered = false;
+
+    /**
+     * 注册 UI 选择变化监听（须在 {@link com.director.core.DirectorServices#initialize()} 中调用）。
+     */
+    public static void initialize() {
+        if (listenerRegistered) {
+            return;
+        }
+        synchronized (PropertyContextService.class) {
+            if (listenerRegistered) {
+                return;
             }
-        });
+            SelectionManager uiSelection = SelectionManager.getInstance();
+            uiSelection.addSelectionChangedListener(ignore -> {
+                PropertyContextService svc = PropertyContextService.get();
+                SelectionType t = uiSelection.getSelectionType();
+                if (t == SelectionType.TRACK || t == SelectionType.CLIP || t == SelectionType.KEYFRAME) {
+                    svc.onTimelineSelectionChanged(uiSelection.getSelectionPayload());
+                } else {
+                    svc.onTimelineSelectionChanged(null);
+                }
+            });
+            listenerRegistered = true;
+        }
     }
 
     private PropertyContextService() {}
@@ -68,12 +84,12 @@ public final class PropertyContextService {
         if (cleared) {
             return PropertyContext.NONE;
         }
-        SelectionType st = SelectionManager.get().getSelectionType();
+        SelectionType st = DirectorServices.get().uiSelection().getSelectionType();
         boolean hasTimeline = (st == SelectionType.TRACK || st == SelectionType.CLIP || st == SelectionType.KEYFRAME);
         boolean hasTool = ToolRegistry.get().hasNonSelectionActiveTool();
         if (!hasTool) {
             var core = DirectorServices.get().selection();
-            if (core != null && core.getCurrentTool() != null) {
+            if (core.getCurrentTool() != null) {
                 hasTool = true;
             }
         }
@@ -113,7 +129,7 @@ public final class PropertyContextService {
                     ? ToolRegistry.get().getActiveTool()
                     : DirectorServices.get().selection().getCurrentTool();
             case TIMELINE -> {
-                Object payload = SelectionManager.get().getSelectionPayload();
+                Object payload = DirectorServices.get().uiSelection().getSelectionPayload();
                 if (payload instanceof EntityTimelineClip entityTimelineClip) {
                     yield entityTimelineClip.getEntityClip();
                 }

@@ -70,17 +70,17 @@ import java.util.UUID;
  * <pre>{@code
  * // 示例 1: 选择关键帧
  * Keyframe kf = ...;
- * SelectionManager.get().setCurrentSelection(kf);
+ * DirectorServices.get().uiSelection().setCurrentSelection(kf);
  * // → 自动显示关键帧属性编辑器
  * 
  * // 示例 2: 选择相机
  * Camera camera = ...;
- * SelectionManager.get().setCurrentSelection(camera);
+ * DirectorServices.get().uiSelection().setCurrentSelection(camera);
  * // → 自动显示相机属性编辑器（FOV、景深、镜头特效等）
  * 
  * // 示例 3: 选择未知对象
  * MyCustomObject obj = ...;
- * SelectionManager.get().setCurrentSelection(obj);
+ * DirectorServices.get().uiSelection().setCurrentSelection(obj);
  * // → 自动使用通用反射适配器显示所有字段
  * }</pre>
  * 
@@ -159,7 +159,7 @@ public class PropertiesPanel extends AbstractPanel {
         super();
         
         // 注册选择变化监听器
-        SelectionManager.get().addSelectionChangedListener(this::onSelectionChanged);
+        DirectorServices.get().uiSelection().addSelectionChangedListener(this::onSelectionChanged);
         
         
         LOGGER.info("[PropertiesPanel] 已初始化智能属性面板");
@@ -191,7 +191,7 @@ public class PropertiesPanel extends AbstractPanel {
                     currentAdapter = ad;
                     UITheme.title(ad.getAdapterName());
                     ad.renderProperties(target, PropertyAdapterContext.of(1f, false));
-                    renderMultiSelectHint(SelectionManager.get());
+                    renderMultiSelectHint(DirectorServices.get().uiSelection());
                     return;
                 }
             }
@@ -200,13 +200,13 @@ public class PropertiesPanel extends AbstractPanel {
         }
         if (ctx == PropertyContext.NONE || ctx == PropertyContext.WORLD) {
             renderProjectPanel();
-            renderMultiSelectHint(SelectionManager.get());
+            renderMultiSelectHint(DirectorServices.get().uiSelection());
             return;
         }
         if (ctx == PropertyContext.TIMELINE) {
             if (target == null || svc.isTimelineTargetRenderedAsProject(target)) {
                 renderProjectPanel();
-                renderMultiSelectHint(SelectionManager.get());
+                renderMultiSelectHint(DirectorServices.get().uiSelection());
                 return;
             }
             var ad = PropertyAdapterRegistry.getAdapterFor(ctx, target);
@@ -214,7 +214,7 @@ public class PropertiesPanel extends AbstractPanel {
                 currentSelection = target;
                 currentAdapter = null;
                 renderNoAdapterMessage();
-                renderMultiSelectHint(SelectionManager.get());
+                renderMultiSelectHint(DirectorServices.get().uiSelection());
                 return;
             }
             currentSelection = target;
@@ -231,12 +231,12 @@ public class PropertiesPanel extends AbstractPanel {
                 LOGGER.error("[PropertiesPanel] 渲染 TIMELINE 属性时出错", e);
                 renderErrorMessage(e);
             }
-            renderMultiSelectHint(SelectionManager.get());
+            renderMultiSelectHint(DirectorServices.get().uiSelection());
             return;
         }
 
         renderProjectPanel();
-        renderMultiSelectHint(SelectionManager.get());
+        renderMultiSelectHint(DirectorServices.get().uiSelection());
     }
 
     /** 多选时在底部显示提示 */
@@ -324,7 +324,7 @@ public class PropertiesPanel extends AbstractPanel {
      * 检查选择是否变化
      */
     private void checkSelectionChange() {
-        Object newSelection = SelectionManager.get().getCurrentSelection();
+        Object newSelection = DirectorServices.get().uiSelection().getCurrentSelection();
         if (newSelection != currentSelection) {
             updateSelection(newSelection);
         }
@@ -561,7 +561,7 @@ public class PropertiesPanel extends AbstractPanel {
         
         // 重新选择按钮
         if (ImGui.button(Icons.REFRESH + " 清除选择并重试", 150, 25)) {
-            SelectionManager.get().clearSelection();
+            DirectorServices.get().uiSelection().clearSelection();
             updateSelection(null);
         }
         if (ImGui.isItemHovered()) {
@@ -574,7 +574,7 @@ public class PropertiesPanel extends AbstractPanel {
     @Override
     public void dispose() {
         // 移除监听器
-        SelectionManager.get().removeSelectionChangedListener(this::onSelectionChanged);
+        DirectorServices.get().uiSelection().removeSelectionChangedListener(this::onSelectionChanged);
         super.dispose();
         LOGGER.debug("[PropertiesPanel] 已销毁");
     }

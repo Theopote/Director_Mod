@@ -10,6 +10,7 @@ ROOT = Path(__file__).resolve().parents[1] / "src" / "main" / "java"
 SKIP_FILES = {
     "DirectorServices.java",
     "SelectionManager.java",
+    "ContainerManager.java",
 }
 
 REPLACEMENTS = [
@@ -37,6 +38,10 @@ REPLACEMENTS = [
     (
         r"com\.director\.core\.selection\.SelectionManager\.get\(\)",
         "DirectorServices.get().selection()",
+    ),
+    (
+        r"com\.director\.ui\.selection\.SelectionManager\.get\(\)",
+        "DirectorServices.get().uiSelection()",
     ),
 ]
 
@@ -67,6 +72,16 @@ def migrate_file(path: Path) -> bool:
         text = re.sub(
             r"\bSelectionManager\.get\(\)",
             "DirectorServices.get().selection()",
+            text,
+        )
+
+    if (
+        "import com.director.ui.selection.SelectionManager" in text
+        and path.name != "SelectionManager.java"
+    ):
+        text = re.sub(
+            r"\bSelectionManager\.get\(\)",
+            "DirectorServices.get().uiSelection()",
             text,
         )
 

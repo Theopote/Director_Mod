@@ -1,5 +1,6 @@
 package com.director.ui.properties.adapters;
 
+import com.director.core.DirectorServices;
 import com.director.actor.Actor;
 import com.director.actor.ActorRegistry;
 import com.director.actor.ActorRegistryManager;
@@ -157,7 +158,7 @@ public class ActorActionClipPropertyAdapter implements IPropertyAdapter<ActorAct
      * @return Actor，如果无法解析则返回 null
      */
     private Actor resolveActorForClip() {
-        SelectionManager sel = SelectionManager.get();
+        SelectionManager sel = DirectorServices.get().uiSelection();
         TimelineTrack track = sel.getSelectedTrack();
         
         if (track == null || track.getType() != TrackType.ACTOR) {

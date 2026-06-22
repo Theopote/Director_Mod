@@ -121,7 +121,7 @@ public final class ActorSelectionHub {
         }
 
         // 3️⃣ SelectionManager：明确设置为 ACTOR 类型
-        SelectionManager selectionManager = SelectionManager.get();
+        SelectionManager selectionManager = DirectorServices.get().uiSelection();
         // ⭐ 关键：使用 selectActor() 明确设置 SelectionType.ACTOR
         selectionManager.selectActor(actorId);
 
@@ -161,7 +161,7 @@ public final class ActorSelectionHub {
             model.clearSelection();
         }
 
-        SelectionManager selectionManager = SelectionManager.get();
+        SelectionManager selectionManager = DirectorServices.get().uiSelection();
         selectionManager.clearSelection();
 
         // 清除方块选区（Minecraft 世界中的选区）

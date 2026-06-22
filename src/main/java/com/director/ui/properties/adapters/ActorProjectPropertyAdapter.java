@@ -863,7 +863,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         }
         
         // 使用 SelectionManager 选中 Track
-        SelectionManager selectionManager = SelectionManager.get();
+        SelectionManager selectionManager = DirectorServices.get().uiSelection();
         selectionManager.selectTrack(track);
         
         LOGGER.debug("[ActorProjectPropertyAdapter] Focused track: {}", track.getName());

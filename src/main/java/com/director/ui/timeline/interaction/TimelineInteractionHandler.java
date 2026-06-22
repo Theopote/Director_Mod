@@ -1,5 +1,6 @@
 package com.director.ui.timeline.interaction;
 
+import com.director.core.DirectorServices;
 import com.director.ui.timeline.interaction.TimelineDragHandles.ActionPaintHandle;
 import com.director.ui.timeline.interaction.TimelineDragHandles.AutomationKeyframeHandle;
 import com.director.ui.timeline.interaction.TimelineDragHandles.ClipHandle;
@@ -90,7 +91,7 @@ public class TimelineInteractionHandler {
                 new TimelineMarqueeSelector.SelectionSync() {
                     @Override
                     public void onSelectionCleared() {
-                        com.director.ui.selection.SelectionManager.get().clearSelection();
+                        DirectorServices.get().uiSelection().clearSelection();
                     }
 
                     @Override
@@ -251,7 +252,7 @@ public class TimelineInteractionHandler {
         model.selectItem(track, false);
         
         // 同步到 UI SelectionManager
-        com.director.ui.selection.SelectionManager.get().setCurrentSelection(track);
+        DirectorServices.get().uiSelection().setCurrentSelection(track);
         
         LOGGER.debug("[TimelineInteractionHandler] 外部选中 Track: {}", track.getName());
     }
@@ -422,11 +423,11 @@ public class TimelineInteractionHandler {
     private void syncPropertiesSelection(Object lastFocused) {
         int count = model.getSelectedCount();
         if (count <= 0) {
-            com.director.ui.selection.SelectionManager.get().clearSelection();
+            DirectorServices.get().uiSelection().clearSelection();
             return;
         }
         if (count == 1) {
-            com.director.ui.selection.SelectionManager.get()
+            DirectorServices.get().uiSelection()
                     .setCurrentSelection(resolveSelectionTarget(lastFocused));
             return;
         }
@@ -443,11 +444,11 @@ public class TimelineInteractionHandler {
         }
 
         if (!clipKeyframes.isEmpty() || !automationKeyframes.isEmpty()) {
-            com.director.ui.selection.SelectionManager.get()
+            DirectorServices.get().uiSelection()
                     .setCurrentSelection(new TimelineKeyframeMultiSelection(clipKeyframes, automationKeyframes));
         } else {
             // 多选但不是关键帧（例如多选片段）：保持 lastFocused
-            com.director.ui.selection.SelectionManager.get()
+            DirectorServices.get().uiSelection()
                     .setCurrentSelection(resolveSelectionTarget(lastFocused));
         }
     }
@@ -463,7 +464,7 @@ public class TimelineInteractionHandler {
         if (clip == null) {
             return;
         }
-        com.director.ui.selection.SelectionManager.get()
+        DirectorServices.get().uiSelection()
                 .setCurrentSelection(resolveSelectionTarget(clip));
     }
     

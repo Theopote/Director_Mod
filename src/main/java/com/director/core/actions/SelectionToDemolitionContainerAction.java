@@ -2,14 +2,10 @@ package com.director.core.actions;
 
 import com.director.core.DirectorServices;
 import com.director.core.container.Container;
-import com.director.core.container.ContainerManager;
 import com.director.core.container.ContainerType;
-import com.director.core.selection.SelectionManager;
 import com.director.core.selection.SelectionSet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.util.Objects;
 
 /**
  * 将当前选区生成“拆除容器”的操作：

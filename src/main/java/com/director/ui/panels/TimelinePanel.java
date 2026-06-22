@@ -1075,7 +1075,7 @@ public class TimelinePanel extends AbstractPanel
                 // 选择标记
                 model.selectItem(clickedMarker, false);  // 单选标记
                 // 同步到属性面板
-                com.director.ui.selection.SelectionManager.get().setCurrentSelection(clickedMarker);
+                DirectorServices.get().uiSelection().setCurrentSelection(clickedMarker);
                 LOGGER.debug("[TimelinePanel] 右键点击标记，开始拖动: {}", clickedMarker.getName());
             } else {
                 // 没有点击标记：打开空白菜单（可以添加标记）
@@ -1374,7 +1374,7 @@ public class TimelinePanel extends AbstractPanel
         commandHistory.executeCommand(new com.director.ui.timeline.commands.BatchDeleteSelectionCommand(model, items));
 
         model.clearSelection();
-        com.director.ui.selection.SelectionManager.get().clearSelection();
+        DirectorServices.get().uiSelection().clearSelection();
         markDataChanged();
     }
 
