@@ -46,6 +46,15 @@ public class ContainerTimelineService {
         return instance;
     }
 
+    /** 供框架内部使用的非废弃入口。 */
+    public static ContainerTimelineService requireInitialized() {
+        if (instance == null) {
+            throw new IllegalStateException(
+                    "[ContainerTimelineService] Not initialized — call DirectorServices.initialize() during mod startup");
+        }
+        return instance;
+    }
+
     /**
      * 设置时间线模型（由TimelinePanel初始化时调用）
      */

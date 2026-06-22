@@ -75,10 +75,10 @@ public final class DirectorServices {
             ContainerManager.initialize();
 
             instance = new DirectorServices(
-                    ContainerManager.getInstance(),
-                    SelectionManager.get(),
-                    com.director.ui.selection.SelectionManager.get(),
-                    ContainerTimelineService.getInstance());
+                    ContainerManager.requireInitialized(),
+                    SelectionManager.requireInitialized(),
+                    com.director.ui.selection.SelectionManager.requireInitialized(),
+                    ContainerTimelineService.requireInitialized());
 
             PropertyContextService.wireUiSelection(instance.uiSelection());
 
@@ -97,8 +97,8 @@ public final class DirectorServices {
             }
             ImGuiRenderer.initialize();
             GlobalShortcutManager.initialize();
-            get().imgui = ImGuiRenderer.getInstance();
-            get().globalShortcuts = GlobalShortcutManager.getInstance();
+            get().imgui = ImGuiRenderer.requireInitialized();
+            get().globalShortcuts = GlobalShortcutManager.requireInitialized();
             LOGGER.info("[DirectorServices] Client services ready (imgui, globalShortcuts)");
         }
     }

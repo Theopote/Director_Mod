@@ -123,6 +123,15 @@ public class SelectionManager {
     public static SelectionManager getInstance() {
         return get();
     }
+
+    /** 供框架内部使用的非废弃入口。 */
+    public static SelectionManager requireInitialized() {
+        if (INSTANCE == null) {
+            throw new IllegalStateException(
+                    "[SelectionManager] Not initialized — call DirectorServices.initialize() during mod startup");
+        }
+        return INSTANCE;
+    }
     
     /**
      * 闂傚倷娴囬褍霉閻戣棄纾婚柨婵嗩槸绾惧綊鏌″搴″箹缁炬儳娼￠弻銈吤圭€ｎ偅鐝曢悗瑙勬礀瀵墎鎹㈠┑鍥╃瘈闁稿本绮岄。铏圭磽娴ｆ彃浜鹃梺绯曞墲椤洨寮ч埀顒勬⒒閸屾氨澧涚紒瀣浮閺佸秴顓奸崱娆戭啎闂佺绻掗埛鍫濃枔濠婂牊鐓涢悘鐐插⒔濞插鈧鍠曠划娆愪繆濮濆矈妲婚梺鎰佷簻婢у海妲愰幘瀛樺闂傚牊绋戞儫闂備礁鎲￠弻銊х矓閸撲礁鍨濋悗锝庡枛缁犳娊鏌￠崘锝呬壕閻庤娲栭ˇ顖炲Υ閹烘埈娼╅柣鎾虫捣娴狀參鎮跺锝嗘珚婵﹦绮幏鍛存寠婢跺﹥鍎梻浣侯焾椤戝棛绮欓幋锝囦罕婵犲痉鏉库偓鎰板磻閹剧粯鐓?

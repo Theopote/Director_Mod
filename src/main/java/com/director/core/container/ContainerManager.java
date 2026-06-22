@@ -11,7 +11,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import com.director.core.DirectorServices;
 import com.director.core.container.persistence.ContainerPersistence;
-import com.director.timeline.container.ContainerTimelineService;
 import net.minecraft.registry.RegistryKey;
 
 /**
@@ -93,6 +92,16 @@ public class ContainerManager {
      */
     @Deprecated
     public static ContainerManager getInstance() {
+        ContainerManager existing = GLOBAL.get();
+        if (existing != null) {
+            return existing;
+        }
+        throw new IllegalStateException(
+                "[ContainerManager] Not initialized — call ContainerManager.initialize() during mod startup");
+    }
+
+    /** 供框架内部使用的非废弃入口。 */
+    public static ContainerManager requireInitialized() {
         ContainerManager existing = GLOBAL.get();
         if (existing != null) {
             return existing;
@@ -326,7 +335,7 @@ public class ContainerManager {
 
         // 2.5) 在锁外删除时间线上的对应片段（避免长时间持有锁）
         try {
-            var timelineService = ContainerTimelineService.getInstance();
+            var timelineService = DirectorServices.get().containerTimeline();
             for (Container c : toRemove) {
                 int removedCount = timelineService.removeClipsForContainer(c.getId());
                 if (removedCount > 0) {
@@ -457,7 +466,7 @@ public class ContainerManager {
         }
         // 在锁外删除时间线上的对应片段（避免长时间持有锁）
         try {
-            var timelineService = ContainerTimelineService.getInstance();
+            var timelineService = DirectorServices.get().containerTimeline();
             for (Container c : all) {
                 int removedCount = timelineService.removeClipsForContainer(c.getId());
                 if (removedCount > 0) {
@@ -1313,7 +1322,7 @@ public class ContainerManager {
         // 加载存档时 clear() 仅用于切换世界，不应改写时间线存档。
         if (!ContainerPersistence.isLoading()) {
             try {
-                var timelineService = ContainerTimelineService.getInstance();
+                var timelineService = DirectorServices.get().containerTimeline();
                 int totalRemoved = 0;
                 for (Container c : removedContainers) {
                     int removedCount = timelineService.removeClipsForContainer(c.getId());

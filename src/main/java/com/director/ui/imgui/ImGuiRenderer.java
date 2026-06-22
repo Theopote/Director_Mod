@@ -70,6 +70,15 @@ public class ImGuiRenderer {
         return INSTANCE;
     }
 
+    /** 供框架内部使用的非废弃入口。 */
+    public static ImGuiRenderer requireInitialized() {
+        if (INSTANCE == null) {
+            throw new IllegalStateException(
+                    "[ImGuiRenderer] Not initialized — call DirectorServices.initializeClient()");
+        }
+        return INSTANCE;
+    }
+
     public void init() {
         if (initialized) {
             LOGGER.debug("ImGui already initialized, skipping initialization");

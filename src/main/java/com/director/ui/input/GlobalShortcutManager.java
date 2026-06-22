@@ -248,6 +248,15 @@ public class GlobalShortcutManager {
         }
         return INSTANCE;
     }
+
+    /** 供框架内部使用的非废弃入口。 */
+    public static GlobalShortcutManager requireInitialized() {
+        if (INSTANCE == null) {
+            throw new IllegalStateException(
+                    "[GlobalShortcutManager] Not initialized — call DirectorServices.initializeClient()");
+        }
+        return INSTANCE;
+    }
     
     /**
      * 注册快捷键（使用 ImGuiKey - 接受 int 类型）

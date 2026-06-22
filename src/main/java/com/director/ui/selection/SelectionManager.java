@@ -113,6 +113,15 @@ public final class SelectionManager {
     public static SelectionManager getInstance() {
         return get();
     }
+
+    /** 供框架内部使用的非废弃入口。 */
+    public static SelectionManager requireInitialized() {
+        if (instance == null) {
+            throw new IllegalStateException(
+                    "[UiSelectionManager] Not initialized — call DirectorServices.initialize() during mod startup");
+        }
+        return instance;
+    }
     
     // =========================
     // SelectionType API（v5.0 新增）
