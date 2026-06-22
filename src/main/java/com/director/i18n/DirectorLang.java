@@ -784,6 +784,207 @@ public final class DirectorLang {
             }
         }
 
+        public static final class AdapterTimelineClipUi {
+            // basic
+            public static final String BASIC_START_TIME = "gui.director.properties.clip_ui.basic.start_time";
+            public static final String BASIC_START_TIME_TOOLTIP = "gui.director.properties.clip_ui.basic.start_time_tooltip";
+            public static final String BASIC_DURATION = "gui.director.properties.clip_ui.basic.duration";
+            public static final String BASIC_DURATION_TOOLTIP_BUILD = "gui.director.properties.clip_ui.basic.duration_tooltip_build";
+            public static final String BASIC_DURATION_TOOLTIP_DEMOLITION = "gui.director.properties.clip_ui.basic.duration_tooltip_demolition";
+            public static final String BASIC_CLIP_COLOR = "gui.director.properties.clip_ui.basic.clip_color";
+            public static final String BASIC_AUTO_FADE_PREVIOUS = "gui.director.properties.clip_ui.basic.auto_fade_previous";
+            public static final String BASIC_FADE_OPACITY = "gui.director.properties.clip_ui.basic.fade_opacity";
+            public static final String BASIC_OCCLUSION_TRANSPARENCY = "gui.director.properties.clip_ui.basic.occlusion_transparency";
+            public static final String BASIC_POST_ANIMATION_FADE_HEADER = "gui.director.properties.clip_ui.basic.post_animation_fade_header";
+            public static final String BASIC_POST_ANIMATION_FADE_HINT = "gui.director.properties.clip_ui.basic.post_animation_fade_hint";
+            public static final String BASIC_FADE_START_SECONDS = "gui.director.properties.clip_ui.basic.fade_start_seconds";
+            public static final String BASIC_FADE_END_SECONDS = "gui.director.properties.clip_ui.basic.fade_end_seconds";
+            public static final String BASIC_FADE_DURATION_INFO = "gui.director.properties.clip_ui.basic.fade_duration_info";
+            public static final String BASIC_FADE_INSTANT_WARNING = "gui.director.properties.clip_ui.basic.fade_instant_warning";
+            public static final String BASIC_FADE_DISABLED = "gui.director.properties.clip_ui.basic.fade_disabled";
+
+            // animation
+            public static final String ANIMATION_CONFIG_EMPTY = "gui.director.properties.clip_ui.animation.config_empty";
+            public static final String ANIMATION_DURATION_SECONDS = "gui.director.properties.clip_ui.animation.duration_seconds";
+            public static final String ANIMATION_EASING_HEADER = "gui.director.properties.clip_ui.animation.easing_header";
+            public static final String ANIMATION_ADVANCED_HEADER = "gui.director.properties.clip_ui.animation.advanced_header";
+            public static final String ANIMATION_FADE_INTENSITY_FORMAT = "gui.director.properties.clip_ui.animation.fade_intensity_format";
+            public static final String ANIMATION_FADE_INTENSITY_TOOLTIP = "gui.director.properties.clip_ui.animation.fade_intensity_tooltip";
+            public static final String ANIMATION_FLASH_WHITE_HINT = "gui.director.properties.clip_ui.animation.flash_white_hint";
+            public static final String ANIMATION_RESTORE_DEFAULTS = "gui.director.properties.clip_ui.animation.restore_defaults";
+            public static final String ANIMATION_RESTORE_DEFAULTS_TOOLTIP = "gui.director.properties.clip_ui.animation.restore_defaults_tooltip";
+            public static final String ANIMATION_NO_TRANSFORMER = "gui.director.properties.clip_ui.animation.no_transformer";
+            public static final String ANIMATION_POLICY_CONTAINER_SECTION = "gui.director.properties.clip_ui.animation.policy_container_section";
+            public static final String ANIMATION_POLICY_CONTAINER_MODE_TOOLTIP = "gui.director.properties.clip_ui.animation.policy_container_mode_tooltip";
+            public static final String ANIMATION_POLICY_CONTAINER_DURATION_TOOLTIP = "gui.director.properties.clip_ui.animation.policy_container_duration_tooltip";
+            public static final String ANIMATION_POLICY_CONTAINER_OPACITY_FADE = "gui.director.properties.clip_ui.animation.policy_container_opacity_fade";
+            public static final String ANIMATION_POLICY_CONTAINER_OPACITY_FADE_TOOLTIP = "gui.director.properties.clip_ui.animation.policy_container_opacity_fade_tooltip";
+            public static final String ANIMATION_POLICY_DEMOLITION_SECTION = "gui.director.properties.clip_ui.animation.policy_demolition_section";
+            public static final String ANIMATION_POLICY_DEMOLITION_HINT = "gui.director.properties.clip_ui.animation.policy_demolition_hint";
+            public static final String ANIMATION_POLICY_DEMOLITION_MODE_TOOLTIP = "gui.director.properties.clip_ui.animation.policy_demolition_mode_tooltip";
+            public static final String ANIMATION_POLICY_DEMOLITION_DURATION_TOOLTIP = "gui.director.properties.clip_ui.animation.policy_demolition_duration_tooltip";
+            public static final String ANIMATION_POLICY_DEMOLITION_OPACITY_FADE = "gui.director.properties.clip_ui.animation.policy_demolition_opacity_fade";
+            public static final String ANIMATION_POLICY_DEMOLITION_OPACITY_FADE_TOOLTIP = "gui.director.properties.clip_ui.animation.policy_demolition_opacity_fade_tooltip";
+            public static final String ANIMATION_POLICY_ASSEMBLE_EXIT_DESC = "gui.director.properties.clip_ui.animation.policy_assemble_exit_desc";
+
+            // easing
+            public static final String EASING_LINEAR_FALLBACK = "gui.director.properties.clip_ui.easing.linear_fallback";
+            public static final String EASING_PREVIEW_EMPTY = "gui.director.properties.clip_ui.easing.preview_empty";
+            public static final String EASING_PREVIEW_TOOLTIP = "gui.director.properties.clip_ui.easing.preview_tooltip";
+
+            // sequence
+            public static final String SEQUENCE_CONFIG_EMPTY = "gui.director.properties.clip_ui.sequence.config_empty";
+            public static final String SEQUENCE_PARAMS_EMPTY = "gui.director.properties.clip_ui.sequence.params_empty";
+            public static final String SEQUENCE_PRESET_HEADER = "gui.director.properties.clip_ui.sequence.preset_header";
+            public static final String SEQUENCE_PRESET_ORDER = "gui.director.properties.clip_ui.sequence.preset_order";
+            public static final String SEQUENCE_PRESET_RANDOM = "gui.director.properties.clip_ui.sequence.preset_random";
+            public static final String SEQUENCE_PRESET_RADIAL = "gui.director.properties.clip_ui.sequence.preset_radial";
+            public static final String SEQUENCE_PRESET_SPIRAL = "gui.director.properties.clip_ui.sequence.preset_spiral";
+            public static final String SEQUENCE_PRESET_SLICE = "gui.director.properties.clip_ui.sequence.preset_slice";
+            public static final String SEQUENCE_PRESET_WAVE = "gui.director.properties.clip_ui.sequence.preset_wave";
+            public static final String SEQUENCE_PRESET_TOOLTIP = "gui.director.properties.clip_ui.sequence.preset_tooltip";
+            public static final String SEQUENCE_TIMING_HEADER = "gui.director.properties.clip_ui.sequence.timing_header";
+            public static final String SEQUENCE_CONCURRENCY_MODE = "gui.director.properties.clip_ui.sequence.concurrency_mode";
+            public static final String SEQUENCE_TIME_MAPPING = "gui.director.properties.clip_ui.sequence.time_mapping";
+            public static final String SEQUENCE_GLOBAL_DELAY = "gui.director.properties.clip_ui.sequence.global_delay";
+            public static final String SEQUENCE_GLOBAL_DELAY_TOOLTIP = "gui.director.properties.clip_ui.sequence.global_delay_tooltip";
+            public static final String SEQUENCE_BATCH_SIZE = "gui.director.properties.clip_ui.sequence.batch_size";
+            public static final String SEQUENCE_BATCH_INTERVAL = "gui.director.properties.clip_ui.sequence.batch_interval";
+            public static final String SEQUENCE_BATCH_INTERVAL_TOOLTIP = "gui.director.properties.clip_ui.sequence.batch_interval_tooltip";
+            public static final String SEQUENCE_GROUP_INTERVAL = "gui.director.properties.clip_ui.sequence.group_interval";
+            public static final String SEQUENCE_GROUP_INTERVAL_TOOLTIP = "gui.director.properties.clip_ui.sequence.group_interval_tooltip";
+            public static final String SEQUENCE_TIMING_SUMMARY = "gui.director.properties.clip_ui.sequence.timing_summary";
+            public static final String SEQUENCE_FLOW_HEADER = "gui.director.properties.clip_ui.sequence.flow_header";
+            public static final String SEQUENCE_FLOW_TOOLTIP = "gui.director.properties.clip_ui.sequence.flow_tooltip";
+            public static final String SEQUENCE_PLANE_DIRECTION = "gui.director.properties.clip_ui.sequence.plane_direction";
+            public static final String SEQUENCE_QUICK_DIRECTIONS = "gui.director.properties.clip_ui.sequence.quick_directions";
+            public static final String SEQUENCE_AXIS_X = "gui.director.properties.clip_ui.sequence.axis_x";
+            public static final String SEQUENCE_AXIS_Y = "gui.director.properties.clip_ui.sequence.axis_y";
+            public static final String SEQUENCE_AXIS_Y_DOWN = "gui.director.properties.clip_ui.sequence.axis_y_down";
+            public static final String SEQUENCE_AXIS_Z = "gui.director.properties.clip_ui.sequence.axis_z";
+            public static final String SEQUENCE_CUSTOM_ANGLE = "gui.director.properties.clip_ui.sequence.custom_angle";
+            public static final String SEQUENCE_CUSTOM_ANGLE_TOOLTIP = "gui.director.properties.clip_ui.sequence.custom_angle_tooltip";
+            public static final String SEQUENCE_PLANE_ANGLES = "gui.director.properties.clip_ui.sequence.plane_angles";
+            public static final String SEQUENCE_PLANE_ANGLES_TOOLTIP = "gui.director.properties.clip_ui.sequence.plane_angles_tooltip";
+            public static final String SEQUENCE_LAYER_STEP = "gui.director.properties.clip_ui.sequence.layer_step";
+            public static final String SEQUENCE_LAYER_STEP_TOOLTIP = "gui.director.properties.clip_ui.sequence.layer_step_tooltip";
+            public static final String SEQUENCE_ALIGN_CAMERA_NEAR_FAR = "gui.director.properties.clip_ui.sequence.align_camera_near_far";
+            public static final String SEQUENCE_ALIGN_CAMERA_FAR_NEAR = "gui.director.properties.clip_ui.sequence.align_camera_far_near";
+            public static final String SEQUENCE_ALIGN_CAMERA_TOOLTIP_DEMOLITION = "gui.director.properties.clip_ui.sequence.align_camera_tooltip_demolition";
+            public static final String SEQUENCE_ALIGN_CAMERA_TOOLTIP_BUILD = "gui.director.properties.clip_ui.sequence.align_camera_tooltip_build";
+            public static final String SEQUENCE_ORIGIN_HEADER = "gui.director.properties.clip_ui.sequence.origin_header";
+            public static final String SEQUENCE_ORIGIN_HEADER_DEMOLITION = "gui.director.properties.clip_ui.sequence.origin_header_demolition";
+            public static final String SEQUENCE_ORIGIN_DEMOLITION_HINT = "gui.director.properties.clip_ui.sequence.origin_demolition_hint";
+            public static final String SEQUENCE_SPHERICAL_ORIGIN_FIXED = "gui.director.properties.clip_ui.sequence.spherical_origin_fixed";
+            public static final String SEQUENCE_SPHERICAL_ORIGIN_TOOLTIP = "gui.director.properties.clip_ui.sequence.spherical_origin_tooltip";
+            public static final String SEQUENCE_ORIGIN_TOOLTIP_CYLINDRICAL_DEMOLITION = "gui.director.properties.clip_ui.sequence.origin_tooltip_cylindrical_demolition";
+            public static final String SEQUENCE_ORIGIN_TOOLTIP_CYLINDRICAL_BUILD = "gui.director.properties.clip_ui.sequence.origin_tooltip_cylindrical_build";
+            public static final String SEQUENCE_ORIGIN_TOOLTIP_DEMOLITION = "gui.director.properties.clip_ui.sequence.origin_tooltip_demolition";
+            public static final String SEQUENCE_ORIGIN_TOOLTIP_BUILD = "gui.director.properties.clip_ui.sequence.origin_tooltip_build";
+            public static final String SEQUENCE_CUSTOM_COORDS = "gui.director.properties.clip_ui.sequence.custom_coords";
+            public static final String SEQUENCE_FILL_HEADER = "gui.director.properties.clip_ui.sequence.fill_header";
+            public static final String SEQUENCE_FILL_TOOLTIP = "gui.director.properties.clip_ui.sequence.fill_tooltip";
+            public static final String SEQUENCE_RASTER_SETTINGS = "gui.director.properties.clip_ui.sequence.raster_settings";
+            public static final String SEQUENCE_SCAN_AXIS = "gui.director.properties.clip_ui.sequence.scan_axis";
+            public static final String SEQUENCE_RASTER_SCAN_TOOLTIP = "gui.director.properties.clip_ui.sequence.raster_scan_tooltip";
+            public static final String SEQUENCE_ROW_STEP = "gui.director.properties.clip_ui.sequence.row_step";
+            public static final String SEQUENCE_ROW_STEP_TOOLTIP = "gui.director.properties.clip_ui.sequence.row_step_tooltip";
+            public static final String SEQUENCE_RASTER_ZIGZAG = "gui.director.properties.clip_ui.sequence.raster_zigzag";
+            public static final String SEQUENCE_RASTER_ZIGZAG_TOOLTIP = "gui.director.properties.clip_ui.sequence.raster_zigzag_tooltip";
+            public static final String SEQUENCE_FLOOD_SEED_HEADER = "gui.director.properties.clip_ui.sequence.flood_seed_header";
+            public static final String SEQUENCE_FLOOD_SEED_TOOLTIP = "gui.director.properties.clip_ui.sequence.flood_seed_tooltip";
+            public static final String SEQUENCE_WEIGHT_HEADER = "gui.director.properties.clip_ui.sequence.weight_header";
+            public static final String SEQUENCE_WEIGHT_LABEL = "gui.director.properties.clip_ui.sequence.weight_label";
+            public static final String SEQUENCE_WEIGHT_TOOLTIP = "gui.director.properties.clip_ui.sequence.weight_tooltip";
+            public static final String SEQUENCE_WEIGHT_BAR_HINT = "gui.director.properties.clip_ui.sequence.weight_bar_hint";
+            public static final String SEQUENCE_MODIFIERS_LABEL = "gui.director.properties.clip_ui.sequence.modifiers_label";
+            public static final String SEQUENCE_REVERSE = "gui.director.properties.clip_ui.sequence.reverse";
+            public static final String SEQUENCE_REVERSE_TOOLTIP = "gui.director.properties.clip_ui.sequence.reverse_tooltip";
+            public static final String SEQUENCE_ALTERNATING = "gui.director.properties.clip_ui.sequence.alternating";
+            public static final String SEQUENCE_ALTERNATING_TOOLTIP = "gui.director.properties.clip_ui.sequence.alternating_tooltip";
+
+            // effects
+            public static final String EFFECTS_CONFIG_EMPTY = "gui.director.properties.clip_ui.effects.config_empty";
+            public static final String EFFECTS_QUICK_ADD_HEADER = "gui.director.properties.clip_ui.effects.quick_add_header";
+            public static final String EFFECTS_FLASH = "gui.director.properties.clip_ui.effects.flash";
+            public static final String EFFECTS_DUST = "gui.director.properties.clip_ui.effects.dust";
+            public static final String EFFECTS_RIPPLE = "gui.director.properties.clip_ui.effects.ripple";
+            public static final String EFFECTS_TRAIL = "gui.director.properties.clip_ui.effects.trail";
+            public static final String EFFECTS_LIBRARY_HEADER = "gui.director.properties.clip_ui.effects.library_header";
+            public static final String EFFECTS_CLEAR_ALL = "gui.director.properties.clip_ui.effects.clear_all";
+            public static final String EFFECTS_CLEAR_ALL_TOOLTIP = "gui.director.properties.clip_ui.effects.clear_all_tooltip";
+            public static final String EFFECTS_PASTE = "gui.director.properties.clip_ui.effects.paste";
+            public static final String EFFECTS_PRESETS_LABEL = "gui.director.properties.clip_ui.effects.presets_label";
+            public static final String EFFECTS_INDIVIDUAL_LABEL = "gui.director.properties.clip_ui.effects.individual_label";
+            public static final String EFFECTS_ADD = "gui.director.properties.clip_ui.effects.add";
+            public static final String EFFECTS_NONE = "gui.director.properties.clip_ui.effects.none";
+            public static final String EFFECTS_CURRENT = "gui.director.properties.clip_ui.effects.current";
+            public static final String EFFECTS_ENABLED = "gui.director.properties.clip_ui.effects.enabled";
+            public static final String EFFECTS_COPY_TOOLTIP = "gui.director.properties.clip_ui.effects.copy_tooltip";
+            public static final String EFFECTS_DELETE_TOOLTIP = "gui.director.properties.clip_ui.effects.delete_tooltip";
+            public static final String EFFECTS_PARAMS_HEADER = "gui.director.properties.clip_ui.effects.params_header";
+            public static final String EFFECTS_TIMELINE_HEADER = "gui.director.properties.clip_ui.effects.timeline_header";
+            public static final String EFFECTS_PHASE_LABEL = "gui.director.properties.clip_ui.effects.phase_label";
+            public static final String EFFECTS_PHASE_ENTER = "gui.director.properties.clip_ui.effects.phase_enter";
+            public static final String EFFECTS_PHASE_EXIT = "gui.director.properties.clip_ui.effects.phase_exit";
+            public static final String EFFECTS_PHASE_BOTH = "gui.director.properties.clip_ui.effects.phase_both";
+            public static final String EFFECTS_PHASE_TOOLTIP = "gui.director.properties.clip_ui.effects.phase_tooltip";
+            public static final String EFFECTS_PHASE_MISMATCH_WARNING = "gui.director.properties.clip_ui.effects.phase_mismatch_warning";
+            public static final String EFFECTS_PHASE_MISMATCH_TOOLTIP = "gui.director.properties.clip_ui.effects.phase_mismatch_tooltip";
+            public static final String EFFECTS_TRIGGER_LABEL = "gui.director.properties.clip_ui.effects.trigger_label";
+            public static final String EFFECTS_TRIGGER_CONTINUOUS = "gui.director.properties.clip_ui.effects.trigger_continuous";
+            public static final String EFFECTS_TRIGGER_ONE_SHOT = "gui.director.properties.clip_ui.effects.trigger_one_shot";
+            public static final String EFFECTS_TRIGGER_TOOLTIP = "gui.director.properties.clip_ui.effects.trigger_tooltip";
+            public static final String EFFECTS_START_SECONDS = "gui.director.properties.clip_ui.effects.start_seconds";
+            public static final String EFFECTS_START_TOOLTIP = "gui.director.properties.clip_ui.effects.start_tooltip";
+            public static final String EFFECTS_DURATION_SECONDS = "gui.director.properties.clip_ui.effects.duration_seconds";
+            public static final String EFFECTS_DURATION_TOOLTIP = "gui.director.properties.clip_ui.effects.duration_tooltip";
+            public static final String EFFECTS_WINDOW_HINT = "gui.director.properties.clip_ui.effects.window_hint";
+            public static final String EFFECTS_WINDOW_SUMMARY = "gui.director.properties.clip_ui.effects.window_summary";
+            public static final String EFFECTS_TIMELINE_PREVIEW = "gui.director.properties.clip_ui.effects.timeline_preview";
+            public static final String EFFECTS_IMPL_NOT_FOUND = "gui.director.properties.clip_ui.effects.impl_not_found";
+
+            // transformer
+            public static final String TRANSFORMER_FLY_DIRECTION = "gui.director.properties.clip_ui.transformer.fly_direction";
+            public static final String TRANSFORMER_FLY_DISTANCE = "gui.director.properties.clip_ui.transformer.fly_distance";
+            public static final String TRANSFORMER_FALL_HEIGHT = "gui.director.properties.clip_ui.transformer.fall_height";
+            public static final String TRANSFORMER_BOUNCINESS = "gui.director.properties.clip_ui.transformer.bounciness";
+            public static final String TRANSFORMER_FALL_SPEED = "gui.director.properties.clip_ui.transformer.fall_speed";
+            public static final String TRANSFORMER_TUMBLE = "gui.director.properties.clip_ui.transformer.tumble";
+            public static final String TRANSFORMER_TUMBLE_INTENSITY = "gui.director.properties.clip_ui.transformer.tumble_intensity";
+            public static final String TRANSFORMER_GROW_AXIS = "gui.director.properties.clip_ui.transformer.grow_axis";
+            public static final String TRANSFORMER_SCALE_PIVOT = "gui.director.properties.clip_ui.transformer.scale_pivot";
+            public static final String TRANSFORMER_RISE_DISTANCE = "gui.director.properties.clip_ui.transformer.rise_distance";
+            public static final String TRANSFORMER_SHAKE_INTENSITY = "gui.director.properties.clip_ui.transformer.shake_intensity";
+            public static final String TRANSFORMER_DECAY_SPEED = "gui.director.properties.clip_ui.transformer.decay_speed";
+            public static final String TRANSFORMER_TARGET_SCALE = "gui.director.properties.clip_ui.transformer.target_scale";
+            public static final String TRANSFORMER_EXPAND_SPEED = "gui.director.properties.clip_ui.transformer.expand_speed";
+            public static final String TRANSFORMER_EXPAND_SPEED_TOOLTIP = "gui.director.properties.clip_ui.transformer.expand_speed_tooltip";
+            public static final String TRANSFORMER_USE_DISTANCE_SCALE = "gui.director.properties.clip_ui.transformer.use_distance_scale";
+            public static final String TRANSFORMER_USE_DISTANCE_SCALE_TOOLTIP = "gui.director.properties.clip_ui.transformer.use_distance_scale_tooltip";
+            public static final String TRANSFORMER_SPREAD_RADIUS = "gui.director.properties.clip_ui.transformer.spread_radius";
+            public static final String TRANSFORMER_SCATTER_RADIUS = "gui.director.properties.clip_ui.transformer.scatter_radius";
+            public static final String TRANSFORMER_UP_BIAS = "gui.director.properties.clip_ui.transformer.up_bias";
+            public static final String TRANSFORMER_SCALE_MIN = "gui.director.properties.clip_ui.transformer.scale_min";
+            public static final String TRANSFORMER_START_OPACITY = "gui.director.properties.clip_ui.transformer.start_opacity";
+            public static final String TRANSFORMER_END_OPACITY = "gui.director.properties.clip_ui.transformer.end_opacity";
+            public static final String TRANSFORMER_INITIAL_SCALE = "gui.director.properties.clip_ui.transformer.initial_scale";
+            public static final String TRANSFORMER_ELASTICITY = "gui.director.properties.clip_ui.transformer.elasticity";
+            public static final String TRANSFORMER_BLOCKS = "gui.director.properties.clip_ui.transformer.blocks";
+            public static final String TRANSFORMER_BLOCKS_PER_SECOND = "gui.director.properties.clip_ui.transformer.blocks_per_second";
+
+            // error
+            public static final String ERROR_RENDER_ANIMATION = "gui.director.properties.clip_ui.error.render_animation";
+            public static final String ERROR_RENDER_PARAMS = "gui.director.properties.clip_ui.error.render_params";
+            public static final String ERROR_GENERIC = "gui.director.properties.clip_ui.error.generic";
+            public static final String ERROR_RESTORE = "gui.director.properties.clip_ui.error.restore";
+            public static final String ERROR_EFFECT_PARAMS = "gui.director.properties.clip_ui.error.effect_params";
+            public static final String ERROR_EFFECT_IMPL = "gui.director.properties.clip_ui.error.effect_impl";
+
+            private AdapterTimelineClipUi() {
+            }
+        }
+
         public static final class AdapterTimelineMarker {
             public static final String ADAPTER_NAME = "gui.director.properties.adapter.timeline.marker.name";
             public static final String TITLE = "gui.director.properties.adapter.timeline.marker.title";
