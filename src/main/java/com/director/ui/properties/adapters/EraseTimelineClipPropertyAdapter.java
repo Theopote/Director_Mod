@@ -114,32 +114,26 @@ public class EraseTimelineClipPropertyAdapter implements IPropertyAdapter<Timeli
             ImGui.unindent();
         }
 
-        try {
-            if (sequenceModified || animationModified) {
-                if (!ImGui.isAnyItemActive()) {
-                    com.director.ui.timeline.audio.TimelineAudioService.getInstance()
-                            .refreshAutoSoundEventsIfNeeded(clip);
-                }
+        if (sequenceModified || animationModified) {
+            if (!ImGui.isAnyItemActive()) {
+                com.director.ui.timeline.audio.TimelineAudioService.getInstance()
+                        .refreshAutoSoundEventsIfNeeded(clip);
             }
-        } catch (Exception ignored) {
         }
 
-        try {
-            float newStart = clip.getStartTime();
-            float newEnd = clip.getEndTime();
-            boolean timeChanged = Math.abs(newStart - oldStartTime) > 0.0005f
-                    || Math.abs(newEnd - oldEndTime) > 0.0005f;
-            if (timeChanged) {
-                com.director.ui.timeline.audio.TimelineAudioService.getInstance()
-                        .onClipTimeRangeChanged(clip, oldStartTime, oldEndTime, newStart, newEnd);
+        float newStart = clip.getStartTime();
+        float newEnd = clip.getEndTime();
+        boolean timeChanged = Math.abs(newStart - oldStartTime) > 0.0005f
+                || Math.abs(newEnd - oldEndTime) > 0.0005f;
+        if (timeChanged) {
+            com.director.ui.timeline.audio.TimelineAudioService.getInstance()
+                    .onClipTimeRangeChanged(clip, oldStartTime, oldEndTime, newStart, newEnd);
 
-                var timelineModel = DirectorServices.get().containerTimeline()
-                        .getTimelineModel();
-                if (timelineModel != null) {
-                    timelineModel.markDirty();
-                }
+            var timelineModel = DirectorServices.get().containerTimeline()
+                    .getTimelineModel();
+            if (timelineModel != null) {
+                timelineModel.markDirty();
             }
-        } catch (Exception ignored) {
         }
 
         return modified;

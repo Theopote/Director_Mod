@@ -121,40 +121,34 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
             ImGui.unindent();
         }
 
-        try {
-            TimelineTrack parent = clip.getParentTrack();
-            TrackType type = parent != null ? parent.getType() : null;
-            boolean isBlockClip = type == TrackType.CONTAINER;
-            if (isBlockClip && (sequenceModified || animationModified)) {
-                if (!ImGui.isAnyItemActive()) {
-                    com.director.ui.timeline.audio.TimelineAudioService.getInstance()
-                            .refreshAutoSoundEventsIfNeeded(clip);
-                }
+        TimelineTrack parent = clip.getParentTrack();
+        TrackType type = parent != null ? parent.getType() : null;
+        boolean isBlockClip = type == TrackType.CONTAINER;
+        if (isBlockClip && (sequenceModified || animationModified)) {
+            if (!ImGui.isAnyItemActive()) {
+                com.director.ui.timeline.audio.TimelineAudioService.getInstance()
+                        .refreshAutoSoundEventsIfNeeded(clip);
             }
-        } catch (Exception ignored) {
         }
 
-        try {
-            TimelineTrack parent = clip.getParentTrack();
-            TrackType type = parent != null ? parent.getType() : null;
-            boolean isBlockClip = type == TrackType.CONTAINER;
-            if (isBlockClip) {
-                float newStart = clip.getStartTime();
-                float newEnd = clip.getEndTime();
-                boolean timeChanged = Math.abs(newStart - oldStartTime) > 0.0005f
-                        || Math.abs(newEnd - oldEndTime) > 0.0005f;
-                if (timeChanged) {
-                    com.director.ui.timeline.audio.TimelineAudioService.getInstance()
-                            .onClipTimeRangeChanged(clip, oldStartTime, oldEndTime, newStart, newEnd);
+        parent = clip.getParentTrack();
+        type = parent != null ? parent.getType() : null;
+        isBlockClip = type == TrackType.CONTAINER;
+        if (isBlockClip) {
+            float newStart = clip.getStartTime();
+            float newEnd = clip.getEndTime();
+            boolean timeChanged = Math.abs(newStart - oldStartTime) > 0.0005f
+                    || Math.abs(newEnd - oldEndTime) > 0.0005f;
+            if (timeChanged) {
+                com.director.ui.timeline.audio.TimelineAudioService.getInstance()
+                        .onClipTimeRangeChanged(clip, oldStartTime, oldEndTime, newStart, newEnd);
 
-                    var timelineModel = DirectorServices.get().containerTimeline()
-                            .getTimelineModel();
-                    if (timelineModel != null) {
-                        timelineModel.markDirty();
-                    }
+                var timelineModel = DirectorServices.get().containerTimeline()
+                        .getTimelineModel();
+                if (timelineModel != null) {
+                    timelineModel.markDirty();
                 }
             }
-        } catch (Exception ignored) {
         }
 
         return modified;
