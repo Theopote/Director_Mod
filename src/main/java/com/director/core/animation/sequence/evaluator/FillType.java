@@ -1,24 +1,19 @@
 package com.director.core.animation.sequence.evaluator;
 
+import com.director.i18n.SequenceEnumI18n;
+
 /**
  * 微观填充：决定在同一个切面内方块的填充细节。
  */
 public enum FillType {
-    LINEAR_SCAN("线性扫描 (Linear)"),
-    RASTER("打印机扫描 (Raster)"),
-    RADIAL("径向扩散 (Radial)"),
-    SPIRAL("螺旋 (Spiral)"),
-    NOISE("伪随机散布 (Noise)"),
-    FLOOD("泛洪蔓延 (Flood)");
-
-    private final String displayName;
-
-    FillType(String displayName) {
-        this.displayName = displayName;
-    }
+    LINEAR_SCAN,
+    RASTER,
+    RADIAL,
+    SPIRAL,
+    NOISE,
+    FLOOD;
 
     public String getDisplayName() {
-        return displayName;
+        return SequenceEnumI18n.fillName(this);
     }
 }
-

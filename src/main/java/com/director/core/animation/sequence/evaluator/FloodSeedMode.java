@@ -1,22 +1,17 @@
 package com.director.core.animation.sequence.evaluator;
 
+import com.director.i18n.SequenceEnumI18n;
+
 /**
  * 泛洪蔓延起点模式：决定每层泛洪蔓延的起始点选择方式。
  */
 public enum FloodSeedMode {
-    LAYER_CENTER("每层中心"),
-    LAYER_MIN_CORNER("每层最小角"),
-    LAYER_RANDOM("每层随机点"),
-    GLOBAL_RANDOM("全局随机点");
-
-    private final String displayName;
-
-    FloodSeedMode(String displayName) {
-        this.displayName = displayName;
-    }
+    LAYER_CENTER,
+    LAYER_MIN_CORNER,
+    LAYER_RANDOM,
+    GLOBAL_RANDOM;
 
     public String getDisplayName() {
-        return displayName;
+        return SequenceEnumI18n.floodSeedName(this);
     }
 }
-

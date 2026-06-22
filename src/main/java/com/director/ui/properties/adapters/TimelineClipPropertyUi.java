@@ -58,19 +58,14 @@ public class TimelineClipPropertyUi {
     private static final int EASING_CURVE_SAMPLES = 100;
     private float[] easingCurveCache = new float[EASING_CURVE_SAMPLES];
     private EasingFunction cachedEasingFunction = null;
-    private static String[] EASING_FUNCTION_LABELS = null;
+
     static String[] getEasingFunctionLabels() {
-        if (EASING_FUNCTION_LABELS == null) {
-            try {
-                EASING_FUNCTION_LABELS = buildEasingLabels();
-            } catch (Exception e) {
-                LOGGER.error("初始化缓动函数标签失败: {}", e.getMessage(), e);
-                EASING_FUNCTION_LABELS = new String[] {
-                        ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EASING_LINEAR_FALLBACK)
-                };
-            }
+        try {
+            return buildEasingLabels();
+        } catch (Exception e) {
+            LOGGER.error("初始化缓动函数标签失败: {}", e.getMessage(), e);
+            return new String[] { EasingFunction.LINEAR.getDisplayName() };
         }
-        return EASING_FUNCTION_LABELS;
     }
 
     /**
