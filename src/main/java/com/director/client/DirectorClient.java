@@ -72,13 +72,13 @@ public class DirectorClient implements ClientModInitializer {
         // 初始化容器实时接收订阅器 (v5.0)
         initializeContainerIntakeSystem();
         
-        // 初始化客户端服务注册表与全局快捷键
+        // 初始化客户端服务（ImGui）与快捷键绑定
         try {
             com.director.core.DirectorServices.initializeClient();
             com.director.ui.input.ShortcutInitializer.initialize();
-            LOGGER.info("[Director] 全局快捷键系统已初始化");
+            LOGGER.info("[Director] 客户端服务与 ShortcutDispatcher 快捷键已初始化");
         } catch (Exception e) {
-            LOGGER.error("[Director] 初始化全局快捷键系统失败", e);
+            LOGGER.error("[Director] 初始化客户端服务失败", e);
         }
         
         // 注册客户端启动完成事件
@@ -109,7 +109,7 @@ public class DirectorClient implements ClientModInitializer {
     
     /**
      * 注册打开 Director 的 Minecraft 按键（仅在未打开 Director 界面时生效）。
-     * Director 内的编辑快捷键由 {@link com.director.ui.input.GlobalShortcutManager} 管理。
+     * Director 内的编辑快捷键由 {@link com.director.ui.input.ShortcutDispatcher} 经 GLFW 事件分发，
      */
     private void registerKeyBindings() {
         directorKeyBinding = KeyBindingHelper.registerKeyBinding(new KeyBinding(

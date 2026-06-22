@@ -8,7 +8,7 @@ import net.minecraft.util.Identifier;
  * <p>
  * 关闭 Director 界面后，与 Minecraft 集成的 Director 快捷键仅有「打开 Director」
  * （见 {@link com.director.client.DirectorClient} 注册的 {@code key.director.open_ui}）。
- * Director 界面内的编辑快捷键由 {@link com.director.ui.input.GlobalShortcutManager} 处理，
+ * Director 界面内的编辑快捷键由 {@link com.director.ui.input.ShortcutDispatcher} 处理，
  * 不会注册为 Minecraft {@link KeyBinding}。
  */
 public final class DirectorKeyCategories {

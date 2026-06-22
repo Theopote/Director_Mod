@@ -16,7 +16,7 @@ alwaysApply: false
 | 方块选区 | `DirectorServices.get().selection()` |
 | 编辑器选择 | `DirectorServices.get().uiSelection()` |
 | 时间线 | `DirectorServices.get().containerTimeline()` |
-| 客户端快捷键 | `DirectorServices.get().globalShortcuts()` |
+| 界面快捷键 | `DirectorUIManager.getShortcutDispatcher()`（经 `DirectorScreen` / `KeyboardMixin`） |
 | ImGui | `DirectorServices.get().imgui()` |
 | `timeline.playback.*` 控制器 | `getInstance()` |
 | Mixin 只读快照（`*RenderOverride`） | `get()` |

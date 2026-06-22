@@ -12,7 +12,6 @@ SKIP_FILES = {
     "SelectionManager.java",
     "ContainerManager.java",
     "ContainerServices.java",
-    "GlobalShortcutManager.java",
     "ImGuiRenderer.java",
 }
 
@@ -47,11 +46,6 @@ REPLACEMENTS = [
         "DirectorServices.get().visibilityOrNull()",
     ),
     (r"ContainerServices\.visibility\(\)", "DirectorServices.get().visibilityOrNull()"),
-    (
-        r"com\.director\.ui\.input\.GlobalShortcutManager\.getInstance\(\)",
-        "DirectorServices.get().globalShortcuts()",
-    ),
-    (r"GlobalShortcutManager\.getInstance\(\)", "DirectorServices.get().globalShortcuts()"),
     (
         r"com\.director\.ui\.imgui\.ImGuiRenderer\.getInstance\(\)",
         "DirectorServices.get().imgui()",
