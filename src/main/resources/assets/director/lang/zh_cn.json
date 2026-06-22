@@ -85,5 +85,99 @@
 
   "gui.director.tool.group.selection": "选择",
   "gui.director.tool.group.world": "世界",
-  "gui.director.tool.group.timeline": "时间线"
+  "gui.director.tool.group.timeline": "时间线",
+
+  "gui.director.tool.click.name": "点击选择",
+  "gui.director.tool.click.desc": "单击选择方块，双击可按配置扩展选择。",
+  "gui.director.tool.click.tip.1": "单击方块以选择",
+  "gui.director.tool.click.tip.2": "Shift+单击：加选/减选",
+
+  "gui.director.tool.box.name": "框选工具",
+  "gui.director.tool.box.desc": "左键两点框选立方体区域，支持加选/减选/交集模式，支持实时预览与 Gizmo 操作。",
+  "gui.director.tool.box.tip.1": "拖拽以框选一个区域",
+  "gui.director.tool.box.tip.2": "Shift：叠加到当前选区（取决于当前操作模式）",
+
+  "gui.director.tool.wand.name": "魔棒工具",
+  "gui.director.tool.wand.desc": "泛洪式体素连通选择。支持多种匹配模式、连通性配置和实时预览。",
+  "gui.director.tool.wand.tip.1": "选择相邻/相似的方块区域",
+  "gui.director.tool.wand.tip.2": "可在工具属性中调整比较规则与性能限制",
+
+  "gui.director.tool.brush.name": "刷选工具",
+  "gui.director.tool.brush.desc": "几何形状笔刷选择工具，支持球体、圆柱体、金字塔、立方体等形状，支持加选/减选/交集操作。",
+  "gui.director.tool.brush.tip.1": "生成几何体/刷选区域加入选区",
+  "gui.director.tool.brush.tip.2": "可在工具属性中调整形状/半径/高度",
+
+  "gui.director.tool.face.name": "面选择工具",
+  "gui.director.tool.face.desc": "选择方块的特定面并延伸至相连的同类方块；支持操作模式与 Shift+单击加选。",
+  "gui.director.tool.face.tip.1": "按面扩散选择",
+  "gui.director.tool.face.tip.2": "可在工具属性中调整匹配规则/步数",
+
+  "gui.director.tool.lasso.name": "套索选择工具",
+  "gui.director.tool.lasso.desc": "自由绘制闭合路径，选中路径内部的方块区域。",
+  "gui.director.tool.lasso.tip.1": "绘制套索路径进行选择",
+  "gui.director.tool.lasso.tip.2": "可在工具属性中查看采样点与状态",
+
+  "gui.director.tool.container_cull.name": "容器剔除工具",
+  "gui.director.tool.container_cull.desc": "从容器中剔除不需要的方块。",
+  "gui.director.tool.container_cull.tip.1": "从当前激活容器中剔除方块",
+  "gui.director.tool.container_cull.tip.2": "右键确认剔除，ESC 取消",
+
+  "gui.director.tool.inverse.name": "反向选择",
+  "gui.director.tool.inverse.desc": "选择未被选择的方块。用于快速反选区域。",
+
+  "gui.director.tool.typefilter.name": "按类型选择",
+  "gui.director.tool.typefilter.desc": "在选区内一键选择所有同种方块。支持材质和状态过滤器。",
+
+  "gui.director.tool.connected.name": "关联选择",
+  "gui.director.tool.connected.desc": "选择相连的同类方块。比如一整面墙或一整棵树的树叶。",
+
+  "gui.director.tool.actor_select.name": "Actor 选择",
+  "gui.director.tool.actor_select.desc": "选择 Actor 并显示 Gizmo。",
+  "gui.director.tool.actor_select.tip.1": "选择 Actor 并显示 Gizmo",
+  "gui.director.tool.actor_select.tip.2": "G/R/S：移动/旋转/缩放",
+
+  "gui.director.tool.actor_move.name": "Actor 移动",
+  "gui.director.tool.actor_move.desc": "移动所选 Actor 并写入 Transform 片段。",
+  "gui.director.tool.actor_move.tip.1": "移动所选 Actor",
+  "gui.director.tool.actor_move.tip.2": "先点击 Actor，再拖动 Gizmo 箭头",
+
+  "gui.director.tool.actor_rotate.name": "Actor 旋转",
+  "gui.director.tool.actor_rotate.desc": "旋转所选 Actor 并写入 Transform 片段。",
+  "gui.director.tool.actor_rotate.tip.1": "旋转所选 Actor",
+  "gui.director.tool.actor_rotate.tip.2": "先点击 Actor，再拖动旋转 Gizmo",
+
+  "gui.director.tool.actor_scale.name": "Actor 缩放",
+  "gui.director.tool.actor_scale.desc": "缩放所选 Actor 并写入 Transform 片段。",
+  "gui.director.tool.actor_scale.tip.1": "缩放所选 Actor",
+  "gui.director.tool.actor_scale.tip.2": "先点击 Actor，再拖动缩放 Gizmo",
+
+  "gui.director.tool.actor_look_at.name": "Actor 朝向",
+  "gui.director.tool.actor_look_at.desc": "设置所选 Actor 在当前时间的注视目标。",
+  "gui.director.tool.actor_look_at.tip.1": "让所选 Actor 注视目标",
+  "gui.director.tool.actor_look_at.tip.2": "点击世界中的点以创建或更新 LookAt 片段",
+
+  "gui.director.tool.actor_pose.name": "Actor 姿态",
+  "gui.director.tool.actor_pose.desc": "为所选 Actor 编写语义化姿态/动作片段。",
+  "gui.director.tool.actor_pose.tip.1": "编写 Actor 姿态/动作片段",
+  "gui.director.tool.actor_pose.tip.2": "在属性面板中创建语义化 ActorAction 片段",
+
+  "gui.director.tool.actor_path.name": "Actor 路径",
+  "gui.director.tool.actor_path.desc": "在世界中绘制路径点并创建 ActorRouteClip。",
+  "gui.director.tool.actor_path.tip.1": "从世界路径点绘制 Actor 路线",
+  "gui.director.tool.actor_path.tip.2": "左键添加路径点，右键创建 RouteClip",
+
+  "gui.director.tool.camera_path_edit.name": "摄像机路径",
+  "gui.director.tool.camera_path_edit.desc": "使用 Gizmo 选择并移动摄像机路径锚点。",
+  "gui.director.tool.camera_path_edit.tip.1": "编辑摄像机路径锚点",
+  "gui.director.tool.camera_path_edit.tip.2": "点击世界中的摄像机关键帧锚点，再拖动 Gizmo 箭头",
+
+  "gui.director.tool.world_placeholder.name": "世界工具（开发中）",
+  "gui.director.tool.world_placeholder.desc": "世界工具系统尚未接入，敬请期待。",
+  "gui.director.tool.world_placeholder.tip.1": "世界工具系统：开发中",
+  "gui.director.tool.world_placeholder.tip.2": "这里将承载容器/场景/渲染等工具",
+
+  "gui.director.tool.timeline_placeholder.name": "时间线工具（开发中）",
+  "gui.director.tool.timeline_placeholder.desc": "时间线工具系统尚未接入，敬请期待。",
+  "gui.director.tool.timeline_placeholder.tip.1": "时间线工具系统：开发中",
+  "gui.director.tool.timeline_placeholder.tip.2": "这里将承载时间线编辑/剪辑/标记等工具"
 }

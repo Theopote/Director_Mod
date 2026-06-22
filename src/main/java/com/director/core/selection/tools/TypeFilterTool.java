@@ -37,16 +37,6 @@ public class TypeFilterTool implements SelectionTool {
         return "typefilter"; 
     }
     
-    @Override 
-    public String getDisplayName() { 
-        return "按类型选择"; 
-    }
-    
-    @Override
-    public String getDescription() {
-        return "在选区内一键选择所有同种方块。支持材质和状态过滤器。";
-    }
-    
     @Override
     public String getIcon() {
         return Icons.COLOR;

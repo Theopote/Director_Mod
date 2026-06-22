@@ -57,16 +57,6 @@ public class BrushSelectTool implements SelectionTool, SelectionOperationSupport
     }
 
     @Override
-    public String getDisplayName() {
-        return "刷选工具";
-    }
-
-    @Override
-    public String getDescription() {
-        return "几何形状笔刷选择工具，支持球体、圆柱体、金字塔、立方体等形状，支持加选/减选/交集操作。";
-    }
-
-    @Override
     public String getIcon() {
         return Icons.BRUSH;
     }

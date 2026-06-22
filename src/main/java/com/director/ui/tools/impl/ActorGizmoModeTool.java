@@ -11,8 +11,8 @@ import java.util.UUID;
 abstract class ActorGizmoModeTool extends AbstractWorldTool implements ToolLifecycle {
     private final GizmoMode mode;
 
-    protected ActorGizmoModeTool(String id, String displayName, String icon, String description, GizmoMode mode) {
-        super(id, displayName, icon, description);
+    protected ActorGizmoModeTool(String id, String icon, GizmoMode mode) {
+        super(id, icon);
         this.mode = mode != null ? mode : GizmoMode.TRANSLATE;
     }
 

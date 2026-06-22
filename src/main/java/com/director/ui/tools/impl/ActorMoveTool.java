@@ -7,6 +7,6 @@ public final class ActorMoveTool extends ActorGizmoModeTool {
     public static final String ID = "actor_move";
 
     public ActorMoveTool() {
-        super(ID, "Actor Move", Icons.MOVE, "Move the selected actor and write a Transform clip.", GizmoMode.TRANSLATE);
+        super(ID, Icons.MOVE, GizmoMode.TRANSLATE);
     }
 }

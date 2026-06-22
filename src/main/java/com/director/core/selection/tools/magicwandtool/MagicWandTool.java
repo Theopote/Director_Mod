@@ -106,16 +106,6 @@ public class MagicWandTool implements SelectionTool, SelectionOperationSupport {
         return "wand"; 
     }
     
-    @Override 
-    public String getDisplayName() { 
-        return "魔棒工具"; 
-    }
-    
-    @Override
-    public String getDescription() {
-        return "泛洪式体素连通选择。支持多种匹配模式、连通性配置和实时预览。";
-    }
-    
     @Override
     public String getIcon() {
         return Icons.MAGIC;

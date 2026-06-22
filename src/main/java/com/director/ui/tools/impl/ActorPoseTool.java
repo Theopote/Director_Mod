@@ -12,7 +12,7 @@ public final class ActorPoseTool extends AbstractWorldTool implements ToolLifecy
     public static final String ID = "actor_pose";
 
     public ActorPoseTool() {
-        super(ID, "Actor Pose", Icons.ANIMATION, "Author semantic pose/action clips for the selected actor.");
+        super(ID, Icons.ANIMATION);
     }
 
     @Override

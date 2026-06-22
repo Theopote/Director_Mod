@@ -3,6 +3,7 @@ package com.director.ui.tools;
 import com.director.core.DirectorServices;
 import com.director.core.selection.SelectionManager;
 import com.director.core.selection.SelectionTool;
+import com.director.i18n.ToolI18n;
 import com.director.ui.theme.Icons;
 import com.director.ui.tools.impl.ActorLookAtTool;
 import com.director.ui.tools.impl.ActorMoveTool;
@@ -69,92 +70,91 @@ public final class ToolRegistry {
         // Selection 工具（稳定排序）
         META.put("click", ToolMetadata.of(
                 ToolGroup.SELECTION, 10,
-                "单击方块以选择",
-                "Shift+单击：加选/减选"
+                ToolI18n.tipKey("click", 1),
+                ToolI18n.tipKey("click", 2)
         ));
         META.put("box", ToolMetadata.of(
                 ToolGroup.SELECTION, 20,
-                "拖拽以框选一个区域",
-                "Shift：叠加到当前选区（取决于当前操作模式）"
+                ToolI18n.tipKey("box", 1),
+                ToolI18n.tipKey("box", 2)
         ));
         META.put("wand", ToolMetadata.of(
                 ToolGroup.SELECTION, 30,
-                "选择相邻/相似的方块区域",
-                "可在工具属性中调整比较规则与性能限制"
+                ToolI18n.tipKey("wand", 1),
+                ToolI18n.tipKey("wand", 2)
         ));
         META.put("brush", ToolMetadata.of(
                 ToolGroup.SELECTION, 40,
-                "生成几何体/刷选区域加入选区",
-                "可在工具属性中调整形状/半径/高度"
+                ToolI18n.tipKey("brush", 1),
+                ToolI18n.tipKey("brush", 2)
         ));
         META.put("face", ToolMetadata.of(
                 ToolGroup.SELECTION, 50,
-                "按面扩散选择",
-                "可在工具属性中调整匹配规则/步数"
+                ToolI18n.tipKey("face", 1),
+                ToolI18n.tipKey("face", 2)
         ));
         META.put("lasso", ToolMetadata.of(
                 ToolGroup.SELECTION, 60,
-                "绘制套索路径进行选择",
-                "可在工具属性中查看采样点与状态"
+                ToolI18n.tipKey("lasso", 1),
+                ToolI18n.tipKey("lasso", 2)
         ));
 
-        // World 工具（如果未来注册进 SelectionRegistry 也能自动归类）
+        // World 工具
         META.put("container_cull", ToolMetadata.of(
                 ToolGroup.WORLD, 10,
-                "从当前激活容器中剔除方块",
-                "右键确认剔除，ESC 取消"
+                ToolI18n.tipKey("container_cull", 1),
+                ToolI18n.tipKey("container_cull", 2)
         ));
         META.put(ACTOR_SELECT_TOOL_ID, ToolMetadata.of(
                 ToolGroup.WORLD, 20,
-                "Select actor and show Gizmo",
-                "G/R/S: Move/Rotate/Scale"
+                ToolI18n.tipKey(ACTOR_SELECT_TOOL_ID, 1),
+                ToolI18n.tipKey(ACTOR_SELECT_TOOL_ID, 2)
         ));
         META.put(ACTOR_MOVE_TOOL_ID, ToolMetadata.of(
                 ToolGroup.WORLD, 30,
-                "Move the selected actor",
-                "Click an actor first, then drag the Gizmo arrows"
+                ToolI18n.tipKey(ACTOR_MOVE_TOOL_ID, 1),
+                ToolI18n.tipKey(ACTOR_MOVE_TOOL_ID, 2)
         ));
         META.put(ACTOR_ROTATE_TOOL_ID, ToolMetadata.of(
                 ToolGroup.WORLD, 40,
-                "Rotate the selected actor",
-                "Click an actor first, then drag the rotation Gizmo"
+                ToolI18n.tipKey(ACTOR_ROTATE_TOOL_ID, 1),
+                ToolI18n.tipKey(ACTOR_ROTATE_TOOL_ID, 2)
         ));
         META.put(ACTOR_SCALE_TOOL_ID, ToolMetadata.of(
                 ToolGroup.WORLD, 50,
-                "Scale the selected actor",
-                "Click an actor first, then drag the scale Gizmo"
+                ToolI18n.tipKey(ACTOR_SCALE_TOOL_ID, 1),
+                ToolI18n.tipKey(ACTOR_SCALE_TOOL_ID, 2)
         ));
         META.put(ACTOR_LOOK_AT_TOOL_ID, ToolMetadata.of(
                 ToolGroup.WORLD, 60,
-                "Make the selected actor look at a target",
-                "Click a world point to create or update a LookAt clip"
+                ToolI18n.tipKey(ACTOR_LOOK_AT_TOOL_ID, 1),
+                ToolI18n.tipKey(ACTOR_LOOK_AT_TOOL_ID, 2)
         ));
         META.put(ACTOR_POSE_TOOL_ID, ToolMetadata.of(
                 ToolGroup.WORLD, 70,
-                "Author actor pose/action clips",
-                "Use Properties to create semantic ActorAction clips"
+                ToolI18n.tipKey(ACTOR_POSE_TOOL_ID, 1),
+                ToolI18n.tipKey(ACTOR_POSE_TOOL_ID, 2)
         ));
-        META.put("actor_path", ToolMetadata.of(
+        META.put(ACTOR_PATH_TOOL_ID, ToolMetadata.of(
                 ToolGroup.WORLD, 80,
-                "Draw an actor route from world waypoints",
-                "Left click adds waypoints, right click creates a RouteClip"
+                ToolI18n.tipKey(ACTOR_PATH_TOOL_ID, 1),
+                ToolI18n.tipKey(ACTOR_PATH_TOOL_ID, 2)
         ));
 
-        // 占位工具（让 World/Timeline 架子先完整，后续直接替换/追加真实工具）
         META.put(WORLD_PLACEHOLDER_ID, ToolMetadata.of(
                 ToolGroup.WORLD, 9999,
-                "World 工具系统：开发中",
-                "这里将承载容器/场景/渲染等工具"
+                ToolI18n.tipKey(WORLD_PLACEHOLDER_ID, 1),
+                ToolI18n.tipKey(WORLD_PLACEHOLDER_ID, 2)
         ));
         META.put(TIMELINE_PLACEHOLDER_ID, ToolMetadata.of(
                 ToolGroup.TIMELINE, 9999,
-                "时间线工具系统：开发中",
-                "这里将承载时间线编辑/剪辑/标记等工具"
+                ToolI18n.tipKey(TIMELINE_PLACEHOLDER_ID, 1),
+                ToolI18n.tipKey(TIMELINE_PLACEHOLDER_ID, 2)
         ));
         META.put(CameraPathEditTool.ID, ToolMetadata.of(
                 ToolGroup.TIMELINE, 10,
-                "Edit camera path anchors",
-                "Click a camera keyframe anchor in the world, then drag the Gizmo arrows"
+                ToolI18n.tipKey(CameraPathEditTool.ID, 1),
+                ToolI18n.tipKey(CameraPathEditTool.ID, 2)
         ));
     }
 
@@ -408,9 +408,7 @@ public final class ToolRegistry {
                 && extraTools.stream().noneMatch(t -> t != null && Objects.equals(t.getId(), WORLD_PLACEHOLDER_ID))) {
             extraTools.add(new PlaceholderTool(
                     WORLD_PLACEHOLDER_ID,
-                    Icons.WRENCH,
-                    "世界工具(开发中)",
-                    "World 工具系统尚未接入，敬请期待。"
+                    Icons.WRENCH
             ));
         }
 
@@ -418,9 +416,7 @@ public final class ToolRegistry {
                 && extraTools.stream().noneMatch(t -> t != null && Objects.equals(t.getId(), TIMELINE_PLACEHOLDER_ID))) {
             extraTools.add(new PlaceholderTool(
                     TIMELINE_PLACEHOLDER_ID,
-                    Icons.TIME,
-                    "时间线工具(开发中)",
-                    "时间线工具系统尚未接入，敬请期待。"
+                    Icons.TIME
             ));
         }
     }
@@ -446,14 +442,10 @@ public final class ToolRegistry {
     private static final class PlaceholderTool implements EditorTool {
         private final String id;
         private final String icon;
-        private final String displayName;
-        private final String description;
 
-        private PlaceholderTool(String id, String icon, String displayName, String description) {
+        private PlaceholderTool(String id, String icon) {
             this.id = id;
             this.icon = icon;
-            this.displayName = displayName;
-            this.description = description;
         }
 
         @Override
@@ -463,7 +455,7 @@ public final class ToolRegistry {
 
         @Override
         public String getDisplayName() {
-            return displayName;
+            return ToolI18n.name(id);
         }
 
         @Override
@@ -473,7 +465,7 @@ public final class ToolRegistry {
 
         @Override
         public String getDescription() {
-            return description;
+            return ToolI18n.description(id);
         }
 
         @Override

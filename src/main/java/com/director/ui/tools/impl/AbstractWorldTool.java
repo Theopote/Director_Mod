@@ -1,5 +1,6 @@
 package com.director.ui.tools.impl;
 
+import com.director.i18n.ToolI18n;
 import com.director.ui.tools.EditorTool;
 import com.director.ui.tools.ToolGroup;
 import com.director.ui.tools.ToolRegistry;
@@ -9,15 +10,11 @@ import java.util.Objects;
 
 abstract class AbstractWorldTool implements EditorTool {
     private final String id;
-    private final String displayName;
     private final String icon;
-    private final String description;
 
-    protected AbstractWorldTool(String id, String displayName, String icon, String description) {
+    protected AbstractWorldTool(String id, String icon) {
         this.id = Objects.requireNonNull(id, "id");
-        this.displayName = Objects.requireNonNull(displayName, "displayName");
         this.icon = Objects.requireNonNull(icon, "icon");
-        this.description = description != null ? description : "";
     }
 
     @Override
@@ -27,7 +24,7 @@ abstract class AbstractWorldTool implements EditorTool {
 
     @Override
     public String getDisplayName() {
-        return displayName;
+        return ToolI18n.name(id);
     }
 
     @Override
@@ -37,7 +34,7 @@ abstract class AbstractWorldTool implements EditorTool {
 
     @Override
     public String getDescription() {
-        return description;
+        return ToolI18n.description(id);
     }
 
     @Override

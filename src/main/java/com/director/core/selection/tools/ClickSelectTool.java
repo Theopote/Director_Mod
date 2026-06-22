@@ -92,16 +92,6 @@ public class ClickSelectTool implements SelectionTool, SelectionOperationSupport
     }
 
     @Override
-    public String getDisplayName() {
-        return "点击选择";
-    }
-
-    @Override
-    public String getDescription() {
-        return "单击选择方块，双击可按配置扩展选择。";
-    }
-
-    @Override
     public String getIcon() {
         return Icons.SELECT;
     }

@@ -1,5 +1,7 @@
 package com.director.ui.tools;
 
+import com.director.i18n.DirectorI18n;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -14,15 +16,15 @@ import java.util.Objects;
 public final class ToolMetadata {
     private final ToolGroup group;
     private final int order;
-    private final List<String> tooltipLines;
+    private final List<String> tooltipLangKeys;
 
-    public ToolMetadata(ToolGroup group, int order, List<String> tooltipLines) {
+    public ToolMetadata(ToolGroup group, int order, List<String> tooltipLangKeys) {
         this.group = Objects.requireNonNull(group, "group");
         this.order = order;
-        if (tooltipLines == null || tooltipLines.isEmpty()) {
-            this.tooltipLines = Collections.emptyList();
+        if (tooltipLangKeys == null || tooltipLangKeys.isEmpty()) {
+            this.tooltipLangKeys = Collections.emptyList();
         } else {
-            this.tooltipLines = Collections.unmodifiableList(new ArrayList<>(tooltipLines));
+            this.tooltipLangKeys = Collections.unmodifiableList(new ArrayList<>(tooltipLangKeys));
         }
     }
 
@@ -35,15 +37,22 @@ public final class ToolMetadata {
     }
 
     public List<String> getTooltipLines() {
-        return tooltipLines;
+        if (tooltipLangKeys.isEmpty()) {
+            return tooltipLangKeys;
+        }
+        List<String> translated = new ArrayList<>(tooltipLangKeys.size());
+        for (String key : tooltipLangKeys) {
+            translated.add(DirectorI18n.translate(key));
+        }
+        return Collections.unmodifiableList(translated);
     }
 
-    public static ToolMetadata of(ToolGroup group, int order, String... tooltipLines) {
+    public static ToolMetadata of(ToolGroup group, int order, String... tooltipLangKeys) {
         List<String> lines = new ArrayList<>();
-        if (tooltipLines != null) {
-            for (String line : tooltipLines) {
-                if (line != null && !line.isBlank()) {
-                    lines.add(line);
+        if (tooltipLangKeys != null) {
+            for (String key : tooltipLangKeys) {
+                if (key != null && !key.isBlank()) {
+                    lines.add(key);
                 }
             }
         }

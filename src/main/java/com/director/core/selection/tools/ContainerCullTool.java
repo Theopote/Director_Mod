@@ -36,7 +36,6 @@ public class ContainerCullTool implements SelectionTool {
     
     // ========== 工具标识 ==========
     private static final String TOOL_ID = "container_cull";
-    private static final String TOOL_NAME = "容器剔除工具";
     private static final String TOOL_ICON = "✂️";
     
     // ========== 选择状态 ==========
@@ -49,16 +48,6 @@ public class ContainerCullTool implements SelectionTool {
     @Override
     public String getId() {
         return TOOL_ID;
-    }
-    
-    @Override
-    public String getDisplayName() {
-        return TOOL_NAME;
-    }
-    
-    @Override
-    public String getDescription() {
-        return "从容器中剔除不需要的方块";
     }
     
     @Override

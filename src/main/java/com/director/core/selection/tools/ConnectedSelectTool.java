@@ -32,16 +32,6 @@ public class ConnectedSelectTool implements SelectionTool {
         return "connected"; 
     }
     
-    @Override 
-    public String getDisplayName() { 
-        return "关联选择"; 
-    }
-    
-    @Override
-    public String getDescription() {
-        return "选择相连的同类方块。比如一整面墙或一整棵树的树叶。";
-    }
-    
     @Override
     public String getIcon() {
         return Icons.LINK;

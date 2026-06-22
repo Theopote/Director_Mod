@@ -85,5 +85,99 @@
 
   "gui.director.tool.group.selection": "Selection",
   "gui.director.tool.group.world": "World",
-  "gui.director.tool.group.timeline": "Timeline"
+  "gui.director.tool.group.timeline": "Timeline",
+
+  "gui.director.tool.click.name": "Click Select",
+  "gui.director.tool.click.desc": "Click a block to select; double-click can expand per settings.",
+  "gui.director.tool.click.tip.1": "Click a block to select",
+  "gui.director.tool.click.tip.2": "Shift+click: add/remove from selection",
+
+  "gui.director.tool.box.name": "Box Select",
+  "gui.director.tool.box.desc": "Two-click box select; supports add/subtract/intersect with live preview and Gizmo.",
+  "gui.director.tool.box.tip.1": "Drag to box-select a region",
+  "gui.director.tool.box.tip.2": "Shift: add to selection (depends on operation mode)",
+
+  "gui.director.tool.wand.name": "Magic Wand",
+  "gui.director.tool.wand.desc": "Flood-fill voxel selection with multiple match modes and live preview.",
+  "gui.director.tool.wand.tip.1": "Select adjacent or similar block regions",
+  "gui.director.tool.wand.tip.2": "Adjust compare rules and limits in tool properties",
+
+  "gui.director.tool.brush.name": "Brush Select",
+  "gui.director.tool.brush.desc": "Geometric brush selection with shapes and add/subtract/intersect operations.",
+  "gui.director.tool.brush.tip.1": "Add geometric brush volumes to the selection",
+  "gui.director.tool.brush.tip.2": "Adjust shape, radius, and height in tool properties",
+
+  "gui.director.tool.face.name": "Face Select",
+  "gui.director.tool.face.desc": "Select faces and expand to connected similar blocks.",
+  "gui.director.tool.face.tip.1": "Select by face and expand",
+  "gui.director.tool.face.tip.2": "Adjust match rules and steps in tool properties",
+
+  "gui.director.tool.lasso.name": "Lasso Select",
+  "gui.director.tool.lasso.desc": "Draw a closed path to select blocks inside the region.",
+  "gui.director.tool.lasso.tip.1": "Draw a lasso path to select",
+  "gui.director.tool.lasso.tip.2": "View sample points and status in tool properties",
+
+  "gui.director.tool.container_cull.name": "Container Cull",
+  "gui.director.tool.container_cull.desc": "Remove unwanted blocks from the active container.",
+  "gui.director.tool.container_cull.tip.1": "Remove blocks from the active container",
+  "gui.director.tool.container_cull.tip.2": "Right-click to confirm, ESC to cancel",
+
+  "gui.director.tool.inverse.name": "Inverse Select",
+  "gui.director.tool.inverse.desc": "Select blocks that are not currently selected.",
+
+  "gui.director.tool.typefilter.name": "Select by Type",
+  "gui.director.tool.typefilter.desc": "Select all blocks of the same type within the region.",
+
+  "gui.director.tool.connected.name": "Connected Select",
+  "gui.director.tool.connected.desc": "Select connected blocks of the same type.",
+
+  "gui.director.tool.actor_select.name": "Actor Select",
+  "gui.director.tool.actor_select.desc": "Select an actor and show the Gizmo.",
+  "gui.director.tool.actor_select.tip.1": "Select an actor and show the Gizmo",
+  "gui.director.tool.actor_select.tip.2": "G/R/S: Move / Rotate / Scale",
+
+  "gui.director.tool.actor_move.name": "Actor Move",
+  "gui.director.tool.actor_move.desc": "Move the selected actor and write a Transform clip.",
+  "gui.director.tool.actor_move.tip.1": "Move the selected actor",
+  "gui.director.tool.actor_move.tip.2": "Click an actor first, then drag the Gizmo arrows",
+
+  "gui.director.tool.actor_rotate.name": "Actor Rotate",
+  "gui.director.tool.actor_rotate.desc": "Rotate the selected actor and write a Transform clip.",
+  "gui.director.tool.actor_rotate.tip.1": "Rotate the selected actor",
+  "gui.director.tool.actor_rotate.tip.2": "Click an actor first, then drag the rotation Gizmo",
+
+  "gui.director.tool.actor_scale.name": "Actor Scale",
+  "gui.director.tool.actor_scale.desc": "Scale the selected actor and write a Transform clip.",
+  "gui.director.tool.actor_scale.tip.1": "Scale the selected actor",
+  "gui.director.tool.actor_scale.tip.2": "Click an actor first, then drag the scale Gizmo",
+
+  "gui.director.tool.actor_look_at.name": "Actor Look At",
+  "gui.director.tool.actor_look_at.desc": "Set where the selected actor looks at the current time.",
+  "gui.director.tool.actor_look_at.tip.1": "Make the selected actor look at a target",
+  "gui.director.tool.actor_look_at.tip.2": "Click a world point to create or update a LookAt clip",
+
+  "gui.director.tool.actor_pose.name": "Actor Pose",
+  "gui.director.tool.actor_pose.desc": "Author semantic pose/action clips for the selected actor.",
+  "gui.director.tool.actor_pose.tip.1": "Author actor pose/action clips",
+  "gui.director.tool.actor_pose.tip.2": "Use Properties to create semantic ActorAction clips",
+
+  "gui.director.tool.actor_path.name": "Actor Route",
+  "gui.director.tool.actor_path.desc": "Draw waypoints in the world and create an ActorRouteClip.",
+  "gui.director.tool.actor_path.tip.1": "Draw an actor route from world waypoints",
+  "gui.director.tool.actor_path.tip.2": "Left click adds waypoints; right click creates a RouteClip",
+
+  "gui.director.tool.camera_path_edit.name": "Camera Path",
+  "gui.director.tool.camera_path_edit.desc": "Select and move camera path anchors with the Gizmo.",
+  "gui.director.tool.camera_path_edit.tip.1": "Edit camera path anchors",
+  "gui.director.tool.camera_path_edit.tip.2": "Click a camera keyframe anchor in the world, then drag the Gizmo arrows",
+
+  "gui.director.tool.world_placeholder.name": "World Tools (In Development)",
+  "gui.director.tool.world_placeholder.desc": "World tool system is not connected yet.",
+  "gui.director.tool.world_placeholder.tip.1": "World tool system: in development",
+  "gui.director.tool.world_placeholder.tip.2": "Will host container, scene, and rendering tools",
+
+  "gui.director.tool.timeline_placeholder.name": "Timeline Tools (In Development)",
+  "gui.director.tool.timeline_placeholder.desc": "Timeline tool system is not connected yet.",
+  "gui.director.tool.timeline_placeholder.tip.1": "Timeline tool system: in development",
+  "gui.director.tool.timeline_placeholder.tip.2": "Will host timeline editing, clips, and markers"
 }

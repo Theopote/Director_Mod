@@ -31,16 +31,6 @@ public class InverseSelectTool implements SelectionTool {
         return "inverse"; 
     }
     
-    @Override 
-    public String getDisplayName() { 
-        return "反向选择"; 
-    }
-    
-    @Override
-    public String getDescription() {
-        return "选择未被选择的方块。用于快速反选区域。";
-    }
-    
     @Override
     public String getIcon() {
         return Icons.UNDO;

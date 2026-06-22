@@ -7,6 +7,6 @@ import com.director.ui.tools.ToolRegistry;
 public final class ActorSelectTool extends ActorGizmoModeTool {
 
     public ActorSelectTool() {
-        super(ToolRegistry.ACTOR_SELECT_TOOL_ID, "Actor Select", Icons.SELECT, "Select actor and show Gizmo", GizmoMode.TRANSLATE);
+        super(ToolRegistry.ACTOR_SELECT_TOOL_ID, Icons.SELECT, GizmoMode.TRANSLATE);
     }
 }

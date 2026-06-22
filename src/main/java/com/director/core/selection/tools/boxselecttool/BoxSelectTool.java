@@ -74,16 +74,6 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
     }
 
     @Override
-    public String getDisplayName() {
-        return "框选工具";
-    }
-
-    @Override
-    public String getDescription() {
-        return "左键两点框选立方体区域，支持加选/减选/交集模式，支持实时预览与 Gizmo 操作。";
-    }
-
-    @Override
     public String getIcon() {
         return Icons.BOX;
     }

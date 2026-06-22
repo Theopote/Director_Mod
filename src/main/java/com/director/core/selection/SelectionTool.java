@@ -1,5 +1,6 @@
 package com.director.core.selection;
 
+import com.director.i18n.ToolI18n;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
@@ -19,11 +20,13 @@ public interface SelectionTool {
     String getId();
 
     /** 工具显示名 */
-    String getDisplayName();
+    default String getDisplayName() {
+        return ToolI18n.name(getId());
+    }
 
     /** 工具描述 */
     default String getDescription() {
-        return "选择工具";
+        return ToolI18n.description(getId());
     }
 
     /** 工具图标（用于UI显示） */

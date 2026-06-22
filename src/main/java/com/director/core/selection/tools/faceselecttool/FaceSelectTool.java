@@ -53,16 +53,6 @@ public class FaceSelectTool implements SelectionTool, SelectionOperationSupport 
     }
 
     @Override
-    public String getDisplayName() {
-        return "面选择工具";
-    }
-
-    @Override
-    public String getDescription() {
-        return "选择方块的特定面并延伸至相连的同类方块；支持操作模式与 Shift+单击加选。";
-    }
-
-    @Override
     public String getIcon() {
         return Icons.COLOR;
     }

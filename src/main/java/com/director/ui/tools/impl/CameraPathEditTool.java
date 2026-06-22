@@ -1,5 +1,6 @@
 package com.director.ui.tools.impl;
 
+import com.director.i18n.ToolI18n;
 import com.director.ui.camera.path.CameraPathEditController;
 import com.director.ui.theme.Icons;
 import com.director.ui.tools.EditorTool;
@@ -20,7 +21,7 @@ public final class CameraPathEditTool implements EditorTool, ToolLifecycle {
 
     @Override
     public String getDisplayName() {
-        return "Camera Path";
+        return ToolI18n.name(ID);
     }
 
     @Override
@@ -30,7 +31,7 @@ public final class CameraPathEditTool implements EditorTool, ToolLifecycle {
 
     @Override
     public String getDescription() {
-        return "Select and move camera path anchors with the Gizmo";
+        return ToolI18n.description(ID);
     }
 
     @Override

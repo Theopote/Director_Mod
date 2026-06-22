@@ -53,16 +53,6 @@ public final class LassoSelectTool implements SelectionTool, SelectionOperationS
     }
 
     @Override
-    public String getDisplayName() {
-        return "套索选择工具";
-    }
-
-    @Override
-    public String getDescription() {
-        return "自由绘制闭合路径，选中路径内部的方块区域。";
-    }
-
-    @Override
     public String getIcon() {
         return Icons.LASSO;
     }
