@@ -3,8 +3,10 @@ package com.director.core.animation.effect.impl;
 import com.director.core.animation.BlockAnimationSnapshot;
 import com.director.core.animation.effect.EffectInstance;
 import com.director.core.animation.effect.IBlockEffect;
+import com.director.core.animation.effect.EffectType;
 import com.director.core.animation.effect.ui.EffectUIHelper;
 import com.director.core.animation.effect.ui.EffectUIUtils;
+import com.director.i18n.EffectUiI18n;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.particle.ParticleManager;
 import net.minecraft.client.world.ClientWorld;
@@ -91,16 +93,16 @@ public class FlashWhiteEffect implements IBlockEffect {
 
         boolean modified = false;
 
-        EffectUIHelper.label("闪白光参数");
+        EffectUIHelper.label(EffectUiI18n.section(EffectType.FLASH_WHITE));
 
         float intensity = EffectUIUtils.getFloat(params, "intensity", 1.0f);
         float[] intensityArr = { intensity };
-        if (EffectUIHelper.dragFloat("强度 (Intensity)", intensityArr, 0.1f, 0.0f, 5.0f, "%.1f")) {
+        if (EffectUIHelper.dragFloat(EffectUiI18n.intensity(), intensityArr, 0.1f, 0.0f, 5.0f, "%.1f")) {
             params.put("intensity", intensityArr[0]);
             modified = true;
         }
         if (EffectUIHelper.isItemHovered()) {
-            EffectUIHelper.setTooltip("控制闪白光的强度（粒子数量）");
+            EffectUIHelper.setTooltip(EffectUiI18n.flashIntensityTooltip());
         }
 
         return modified;

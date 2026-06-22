@@ -1019,6 +1019,34 @@ public final class DirectorLang {
             }
         }
 
+        /** 特效 renderUI 区块标题与参数字段 */
+        public static final class EffectUi {
+            public static final String SECTION_FLASH_WHITE = "gui.director.animation.effect.ui.section.flash_white";
+            public static final String SECTION_DUST_BURST = "gui.director.animation.effect.ui.section.dust_burst";
+            public static final String SECTION_MAGIC_FLARE = "gui.director.animation.effect.ui.section.magic_flare";
+            public static final String SECTION_GLOW_PULSE = "gui.director.animation.effect.ui.section.glow_pulse";
+            public static final String SECTION_IMPACT_RIPPLE = "gui.director.animation.effect.ui.section.impact_ripple";
+            public static final String SECTION_MOTION_TRAIL = "gui.director.animation.effect.ui.section.motion_trail";
+
+            public static final String INTENSITY = "gui.director.animation.effect.ui.param.intensity";
+            public static final String RADIUS = "gui.director.animation.effect.ui.param.radius";
+            public static final String SCATTER_RADIUS = "gui.director.animation.effect.ui.param.scatter_radius";
+            public static final String SPREAD_RADIUS = "gui.director.animation.effect.ui.param.spread_radius";
+            public static final String DENSITY = "gui.director.animation.effect.ui.param.density";
+            public static final String HEIGHT_JITTER = "gui.director.animation.effect.ui.param.height_jitter";
+            public static final String SPIN_SPEED = "gui.director.animation.effect.ui.param.spin_speed";
+            public static final String PULSE_COUNT = "gui.director.animation.effect.ui.param.pulse_count";
+            public static final String CLOUD = "gui.director.animation.effect.ui.param.cloud";
+            public static final String Y_OFFSET = "gui.director.animation.effect.ui.param.y_offset";
+
+            public static final String FLASH_INTENSITY_TOOLTIP = "gui.director.animation.effect.ui.tooltip.flash_intensity";
+            public static final String DUST_INTENSITY_TOOLTIP = "gui.director.animation.effect.ui.tooltip.dust_intensity";
+            public static final String DUST_RADIUS_TOOLTIP = "gui.director.animation.effect.ui.tooltip.dust_radius";
+
+            private EffectUi() {
+            }
+        }
+
         public static final class AdapterTimelineMarker {
             public static final String ADAPTER_NAME = "gui.director.properties.adapter.timeline.marker.name";
             public static final String TITLE = "gui.director.properties.adapter.timeline.marker.title";
