@@ -68,4 +68,53 @@ public final class DirectorLang {
         private Menu() {
         }
     }
+
+    public static final class Timeline {
+        public static final String NEW_TRACK = "gui.director.timeline.new_track";
+        public static final String CAMERA_PATH = "gui.director.timeline.camera_path";
+        public static final String CAMERA_PATH_TOOLTIP = "gui.director.timeline.camera_path_tooltip";
+        public static final String TIME_LABEL = "gui.director.timeline.time_label";
+        public static final String DURATION_TOOLTIP_TITLE = "gui.director.timeline.duration_tooltip_title";
+        public static final String DURATION_TOOLTIP_HINT = "gui.director.timeline.duration_tooltip_hint";
+        public static final String JUMP_LABEL = "gui.director.timeline.jump_label";
+        public static final String SNAP = "gui.director.timeline.snap";
+        public static final String SNAP_TOOLTIP = "gui.director.timeline.snap_tooltip";
+        public static final String ZOOM_LABEL = "gui.director.timeline.zoom_label";
+        public static final String FIT_VIEW = "gui.director.timeline.fit_view";
+        public static final String FIT_VIEW_TOOLTIP = "gui.director.timeline.fit_view_tooltip";
+        public static final String SCRUB_LABEL = "gui.director.timeline.scrub_label";
+        public static final String SCRUB_TOOLTIP = "gui.director.timeline.scrub_tooltip";
+        public static final String SPEED_LABEL = "gui.director.timeline.speed_label";
+        public static final String SPEED_TOOLTIP = "gui.director.timeline.speed_tooltip";
+
+        private Timeline() {
+        }
+    }
+
+    public static final class Toolbar {
+        public static final String TOOL_DISPLAY_TITLE = "gui.director.toolbar.tool_display_title";
+        public static final String TOOL_DISPLAY_ICONS_TEXT = "gui.director.toolbar.tool_display_icons_text";
+        public static final String TOOL_DISPLAY_ICONS_ONLY = "gui.director.toolbar.tool_display_icons_only";
+        public static final String TOOL_DISPLAY_TOGGLE_HINT = "gui.director.toolbar.tool_display_toggle_hint";
+        public static final String SHORTCUT = "gui.director.toolbar.shortcut";
+
+        private Toolbar() {
+        }
+    }
+
+    public static final class ToolGroupKeys {
+        public static final String SELECTION = "gui.director.tool.group.selection";
+        public static final String WORLD = "gui.director.tool.group.world";
+        public static final String TIMELINE = "gui.director.tool.group.timeline";
+
+        private ToolGroupKeys() {
+        }
+    }
+
+    public static final class Common {
+        public static final String DELETE = "gui.director.common.delete";
+
+        private Common() {
+        }
+    }
 }

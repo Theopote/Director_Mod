@@ -56,5 +56,34 @@
   "gui.director.menu.help.manual": "用户手册",
   "gui.director.menu.help.video": "视频教程",
   "gui.director.menu.help.report_bug": "报告问题",
-  "gui.director.menu.help.about": "关于 Director"
+  "gui.director.menu.help.about": "关于 Director",
+
+  "gui.director.common.delete": "删除",
+
+  "gui.director.timeline.new_track": "新建轨道",
+  "gui.director.timeline.camera_path": "轨迹",
+  "gui.director.timeline.camera_path_tooltip": "在世界中显示摄像机路径",
+  "gui.director.timeline.time_label": "时间:",
+  "gui.director.timeline.duration_tooltip_title": "总时长 (秒)",
+  "gui.director.timeline.duration_tooltip_hint": "支持拖拽或双击输入",
+  "gui.director.timeline.jump_label": "跳转:",
+  "gui.director.timeline.snap": "吸附",
+  "gui.director.timeline.snap_tooltip": "快捷键：按住 Ctrl 临时切换",
+  "gui.director.timeline.zoom_label": "缩放: %.0f",
+  "gui.director.timeline.fit_view": "适应",
+  "gui.director.timeline.fit_view_tooltip": "自动缩放以查看整个时间线",
+  "gui.director.timeline.scrub_label": "定位:",
+  "gui.director.timeline.scrub_tooltip": "拖动快速定位播放头",
+  "gui.director.timeline.speed_label": "速度:",
+  "gui.director.timeline.speed_tooltip": "设置播放速度倍率（影响时间线播放推进速度）",
+
+  "gui.director.toolbar.tool_display_title": "工具按钮显示",
+  "gui.director.toolbar.tool_display_icons_text": "当前：图标 + 文字",
+  "gui.director.toolbar.tool_display_icons_only": "当前：仅图标",
+  "gui.director.toolbar.tool_display_toggle_hint": "点击切换显示方式",
+  "gui.director.toolbar.shortcut": "快捷键: %s",
+
+  "gui.director.tool.group.selection": "选择",
+  "gui.director.tool.group.world": "世界",
+  "gui.director.tool.group.timeline": "时间线"
 }

@@ -1,5 +1,7 @@
 package com.director.ui.timeline.ui;
 
+import com.director.i18n.DirectorI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.timeline.commands.TimelineCommandHistory;
 import com.director.ui.timeline.interaction.TimelineNavigationHandler;
 import com.director.timeline.model.TimelineModel;
@@ -92,6 +94,14 @@ public class TimelineControlBar {
     /** 滚动条宽度估算（像素），用于计算内容区域宽度 */
     private static final float SCROLLBAR_WIDTH_ESTIMATE = 20f;
 
+    private static String tr(String key) {
+        return DirectorI18n.translate(key);
+    }
+
+    private static String btnLabel(String icon, String key) {
+        return icon + " " + tr(key);
+    }
+
     /**
      * 控制栏动作回调接口
      */
@@ -121,7 +131,7 @@ public class TimelineControlBar {
         ImGui.pushStyleVar(ImGuiStyleVar.FramePadding, UITheme.Spacing.BUTTON_PADDING_X, UITheme.Spacing.BUTTON_PADDING_Y);
 
         // ========== 轨道管理按钮 ==========
-        if (ImGui.button(Icons.ADD + " 新建轨道", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
+        if (ImGui.button(btnLabel(Icons.ADD, DirectorLang.Timeline.NEW_TRACK), 0, UITheme.Spacing.BUTTON_HEIGHT)) {
             callbacks.onAddTrackClicked();
         }
 
@@ -129,7 +139,7 @@ public class TimelineControlBar {
 
         boolean canDelete = canDeleteSelection();
         if (!canDelete) ImGui.beginDisabled();
-        if (ImGui.button(Icons.DELETE + " 删除", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
+        if (ImGui.button(btnLabel(Icons.DELETE, DirectorLang.Common.DELETE), 0, UITheme.Spacing.BUTTON_HEIGHT)) {
             callbacks.onDeleteSelectedClicked();
         }
         if (!canDelete) ImGui.endDisabled();
@@ -139,7 +149,7 @@ public class TimelineControlBar {
         // ========== 撤销/重做按钮 ==========
         boolean canUndo = commandHistory.canUndo();
         if (!canUndo) ImGui.beginDisabled();
-        if (ImGui.button(Icons.UNDO + " 撤销", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
+        if (ImGui.button(btnLabel(Icons.UNDO, DirectorLang.Menu.EDIT_UNDO), 0, UITheme.Spacing.BUTTON_HEIGHT)) {
             commandHistory.undo();
         }
         if (!canUndo) ImGui.endDisabled();
@@ -148,7 +158,7 @@ public class TimelineControlBar {
 
         boolean canRedo = commandHistory.canRedo();
         if (!canRedo) ImGui.beginDisabled();
-        if (ImGui.button(Icons.REDO + " 重做", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
+        if (ImGui.button(btnLabel(Icons.REDO, DirectorLang.Menu.EDIT_REDO), 0, UITheme.Spacing.BUTTON_HEIGHT)) {
             commandHistory.redo();
         }
         if (!canRedo) ImGui.endDisabled();
@@ -175,7 +185,11 @@ public class TimelineControlBar {
             }
         }
         ImGui.sameLine();
-        if (ImGui.button(model.isPlaying() ? (Icons.PAUSE + " 暂停") : (Icons.PLAY + " 播放"), 0, UITheme.Spacing.BUTTON_HEIGHT)) {
+        String playPauseKey = model.isPlaying()
+                ? DirectorLang.Menu.PLAYBACK_PAUSE
+                : DirectorLang.Menu.PLAYBACK_PLAY;
+        String playPauseIcon = model.isPlaying() ? Icons.PAUSE : Icons.PLAY;
+        if (ImGui.button(btnLabel(playPauseIcon, playPauseKey), 0, UITheme.Spacing.BUTTON_HEIGHT)) {
             if (commands != null && commands.playback() != null) {
                 commands.playback().togglePlayPause();
             } else {
@@ -198,17 +212,17 @@ public class TimelineControlBar {
         ImGui.sameLine();
         // 轨迹调试开关
         imgui.type.ImBoolean pathFlag = new imgui.type.ImBoolean(showCameraPath);
-        if (ImGui.checkbox(Icons.CAMERA + " 轨迹", pathFlag)) {
+        if (ImGui.checkbox(btnLabel(Icons.CAMERA, DirectorLang.Timeline.CAMERA_PATH), pathFlag)) {
             showCameraPath = pathFlag.get();
             CameraPathDebugRenderer.getInstance().setEnabled(showCameraPath);
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("在世界中显示摄像机路径");
+            ImGui.setTooltip(tr(DirectorLang.Timeline.CAMERA_PATH_TOOLTIP));
         }
         ImGui.sameLine();
         
         ImGui.alignTextToFramePadding();
-        ImGui.text("时间:");
+        ImGui.text(tr(DirectorLang.Timeline.TIME_LABEL));
 
         // ========== 当前时间显示 (只读) ==========
         ImGui.sameLine();
@@ -240,8 +254,8 @@ public class TimelineControlBar {
 
         if (ImGui.isItemHovered()) {
             ImGui.beginTooltip();
-            ImGui.text(Icons.EDIT + " 总时长 (秒)");
-            ImGui.textDisabled("支持拖拽或双击输入");
+            ImGui.text(Icons.EDIT + " " + tr(DirectorLang.Timeline.DURATION_TOOLTIP_TITLE));
+            ImGui.textDisabled(tr(DirectorLang.Timeline.DURATION_TOOLTIP_HINT));
             ImGui.endTooltip();
         }
 
@@ -251,7 +265,7 @@ public class TimelineControlBar {
         
         ImGui.sameLine();
         ImGui.alignTextToFramePadding();
-        ImGui.text("跳转:");
+        ImGui.text(tr(DirectorLang.Timeline.JUMP_LABEL));
         
         ImGui.sameLine();
         
@@ -270,24 +284,24 @@ public class TimelineControlBar {
 
         // ========== 吸附控制 ==========
         boolean snapEnabled = model.isSnappingEnabled();
-        if (ImGui.checkbox("吸附", snapEnabled)) {
+        if (ImGui.checkbox(tr(DirectorLang.Timeline.SNAP), snapEnabled)) {
             model.setSnappingEnabled(!snapEnabled);
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("快捷键: 按住 Ctrl 临时切换");
+            ImGui.setTooltip(tr(DirectorLang.Timeline.SNAP_TOOLTIP));
         }
         ImGui.sameLine();
         
         ImGui.alignTextToFramePadding();
-        ImGui.text(String.format("缩放: %.0f", viewportState.getPixelsPerSecond()));
+        ImGui.text(DirectorI18n.translate(DirectorLang.Timeline.ZOOM_LABEL, viewportState.getPixelsPerSecond()));
 
         ImGui.sameLine();
         // ========== 适应视图按钮 ==========
-        if (ImGui.button("适应", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
+        if (ImGui.button(tr(DirectorLang.Timeline.FIT_VIEW), 0, UITheme.Spacing.BUTTON_HEIGHT)) {
             callbacks.onFitToViewClicked();
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(Icons.FIT_SCREEN + " 自动缩放以查看整个时间线");
+            ImGui.setTooltip(Icons.FIT_SCREEN + " " + tr(DirectorLang.Timeline.FIT_VIEW_TOOLTIP));
         }
 
         ImGui.sameLine();
@@ -328,7 +342,7 @@ public class TimelineControlBar {
         // 阈值：如果剩余空间小于最小阈值，就不显示这个长滑块了，避免挤压
         if (remainingForScrubberAfterReserve > SCRUBBER_MIN_REMAINING_WIDTH) {
             ImGui.alignTextToFramePadding();
-            ImGui.textDisabled("定位:");
+            ImGui.textDisabled(tr(DirectorLang.Timeline.SCRUB_LABEL));
             ImGui.sameLine();
             
             float duration = model.getDuration();
@@ -355,7 +369,7 @@ public class TimelineControlBar {
             }
             
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("拖动快速定位播放头");
+                ImGui.setTooltip(tr(DirectorLang.Timeline.SCRUB_TOOLTIP));
             }
             
             ImGui.popItemWidth();
@@ -366,7 +380,7 @@ public class TimelineControlBar {
         renderSeparator();
         ImGui.sameLine();
         ImGui.alignTextToFramePadding();
-        ImGui.textDisabled("速度:");
+        ImGui.textDisabled(tr(DirectorLang.Timeline.SPEED_LABEL));
         ImGui.sameLine();
 
         String[] speedLabels = new String[] { "0.5x", "1x", "2x", "3x" };
@@ -396,7 +410,7 @@ public class TimelineControlBar {
         }
         ImGui.popItemWidth();
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("设置播放速度倍率（影响时间线播放推进速度）");
+            ImGui.setTooltip(tr(DirectorLang.Timeline.SPEED_TOOLTIP));
         }
 
         ImGui.popStyleVar(2);

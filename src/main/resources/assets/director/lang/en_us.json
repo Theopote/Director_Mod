@@ -56,5 +56,34 @@
   "gui.director.menu.help.manual": "User Manual",
   "gui.director.menu.help.video": "Video Tutorial",
   "gui.director.menu.help.report_bug": "Report Bug",
-  "gui.director.menu.help.about": "About Director"
+  "gui.director.menu.help.about": "About Director",
+
+  "gui.director.common.delete": "Delete",
+
+  "gui.director.timeline.new_track": "New Track",
+  "gui.director.timeline.camera_path": "Path",
+  "gui.director.timeline.camera_path_tooltip": "Show camera path in the world",
+  "gui.director.timeline.time_label": "Time:",
+  "gui.director.timeline.duration_tooltip_title": "Total duration (seconds)",
+  "gui.director.timeline.duration_tooltip_hint": "Drag or double-click to edit",
+  "gui.director.timeline.jump_label": "Jump:",
+  "gui.director.timeline.snap": "Snap",
+  "gui.director.timeline.snap_tooltip": "Shortcut: hold Ctrl to toggle temporarily",
+  "gui.director.timeline.zoom_label": "Zoom: %.0f",
+  "gui.director.timeline.fit_view": "Fit",
+  "gui.director.timeline.fit_view_tooltip": "Auto-zoom to fit the entire timeline",
+  "gui.director.timeline.scrub_label": "Seek:",
+  "gui.director.timeline.scrub_tooltip": "Drag to reposition the playhead",
+  "gui.director.timeline.speed_label": "Speed:",
+  "gui.director.timeline.speed_tooltip": "Playback speed multiplier",
+
+  "gui.director.toolbar.tool_display_title": "Tool button display",
+  "gui.director.toolbar.tool_display_icons_text": "Current: icon + text",
+  "gui.director.toolbar.tool_display_icons_only": "Current: icon only",
+  "gui.director.toolbar.tool_display_toggle_hint": "Click to toggle display mode",
+  "gui.director.toolbar.shortcut": "Shortcut: %s",
+
+  "gui.director.tool.group.selection": "Selection",
+  "gui.director.tool.group.world": "World",
+  "gui.director.tool.group.timeline": "Timeline"
 }
