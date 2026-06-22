@@ -19,6 +19,8 @@ import com.director.core.animation.sequence.evaluator.FillType;
 import com.director.core.animation.sequence.evaluator.FlowType;
 import com.director.core.animation.sequence.evaluator.FloodSeedMode;
 import com.director.core.animation.sequence.evaluator.OriginType;
+import com.director.i18n.ClipPropertyUiI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.util.EffectClipboardManager;
 import com.director.ui.theme.UITheme;
 import com.director.timeline.model.TimelineClip;
@@ -63,7 +65,9 @@ public class TimelineClipPropertyUi {
                 EASING_FUNCTION_LABELS = buildEasingLabels();
             } catch (Exception e) {
                 LOGGER.error("初始化缓动函数标签失败: {}", e.getMessage(), e);
-                EASING_FUNCTION_LABELS = new String[] { "线性" };
+                EASING_FUNCTION_LABELS = new String[] {
+                        ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EASING_LINEAR_FALLBACK)
+                };
             }
         }
         return EASING_FUNCTION_LABELS;
@@ -171,7 +175,7 @@ public class TimelineClipPropertyUi {
         float inputWidth = (contentWidth - labelWidth * 2 - ImGui.getStyle().getItemSpacingX() * 2) / 2;
 
         ImGui.alignTextToFramePadding();
-        ImGui.text("起始时间");
+        ImGui.text(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_START_TIME));
         ImGui.sameLine();
         ImGui.pushItemWidth(inputWidth);
         float[] startVal = { clip.getStartTime() };
@@ -181,13 +185,13 @@ public class TimelineClipPropertyUi {
         }
         ImGui.popItemWidth();
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("片段开始时间");
+            ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_START_TIME_TOOLTIP));
         }
 
         ImGui.sameLine();
 
         ImGui.alignTextToFramePadding();
-        ImGui.text("持续时长");
+        ImGui.text(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_DURATION));
         ImGui.sameLine();
         ImGui.pushItemWidth(inputWidth);
         float[] lengthVal = { clip.getLength() };
@@ -198,14 +202,14 @@ public class TimelineClipPropertyUi {
         ImGui.popItemWidth();
         if (ImGui.isItemHovered()) {
             String lengthTooltip = variant == TimelineClipUiVariant.DEMOLITION
-                    ? "方块从完全显示到被清除的持续时长"
-                    : "方块从隐藏到完全出现的持续时长";
+                    ? ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_DURATION_TOOLTIP_DEMOLITION)
+                    : ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_DURATION_TOOLTIP_BUILD);
             ImGui.setTooltip(lengthTooltip);
         }
 
         int clipColor = clip.getColor();
         float[] colorRGBA = colorIntToFloat(clipColor);
-        if (ImGui.colorEdit4("片段颜色", colorRGBA,
+        if (ImGui.colorEdit4(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_CLIP_COLOR), colorRGBA,
                 imgui.flag.ImGuiColorEditFlags.NoAlpha |
                         imgui.flag.ImGuiColorEditFlags.DisplayRGB |
                         imgui.flag.ImGuiColorEditFlags.InputRGB)) {
@@ -217,14 +221,14 @@ public class TimelineClipPropertyUi {
         ImGui.separator();
 
         ImBoolean autoFade = new ImBoolean(clip.isAutoFadePreviousClips());
-        if (ImGui.checkbox("自动淡化之前片段", autoFade)) {
+        if (ImGui.checkbox(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_AUTO_FADE_PREVIOUS), autoFade)) {
             clip.setAutoFadePreviousClips(autoFade.get());
             modified = true;
         }
 
         if (clip.isAutoFadePreviousClips()) {
             float[] opacity = { clip.getAutoFadeOpacity() };
-            if (ImGui.sliderFloat("淡化透明度", opacity, 0.05f, 0.95f, "%.2f")) {
+            if (ImGui.sliderFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_FADE_OPACITY), opacity, 0.05f, 0.95f, "%.2f")) {
                 clip.setAutoFadeOpacity(opacity[0]);
                 modified = true;
             }
@@ -232,7 +236,7 @@ public class TimelineClipPropertyUi {
 
         if (config != null) {
             ImBoolean occlusionTransparency = new ImBoolean(config.isOcclusionTransparencyEnabled());
-            if (ImGui.checkbox("遮挡时透明显示", occlusionTransparency)) {
+            if (ImGui.checkbox(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_OCCLUSION_TRANSPARENCY), occlusionTransparency)) {
                 config.setOcclusionTransparencyEnabled(occlusionTransparency.get());
                 modified = true;
             }
@@ -240,31 +244,31 @@ public class TimelineClipPropertyUi {
 
         ImGui.separator();
 
-        if (ImGui.collapsingHeader("动画后淡化 (Post-Animation Fade)", imgui.flag.ImGuiTreeNodeFlags.None)) {
+        if (ImGui.collapsingHeader(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_POST_ANIMATION_FADE_HEADER), imgui.flag.ImGuiTreeNodeFlags.None)) {
             ImGui.indent();
-            ImGui.textDisabled("片段动画结束后，可以设置一个淡化阶段，让方块逐渐变透明。");
+            ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_POST_ANIMATION_FADE_HINT));
             UITheme.spacingSmall();
 
             float[] fadeStart = { clip.getPostAnimationFadeStart() };
-            if (ImGui.dragFloat("淡化开始时间 (秒)", fadeStart, 0.1f, 0.0f, 10.0f, "%.1fs")) {
+            if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_FADE_START_SECONDS), fadeStart, 0.1f, 0.0f, 10.0f, "%.1fs")) {
                 clip.setPostAnimationFadeStart(fadeStart[0]);
                 modified = true;
             }
 
             float[] fadeEnd = { clip.getPostAnimationFadeEnd() };
-            if (ImGui.dragFloat("淡化结束时间 (秒)", fadeEnd, 0.1f, fadeStart[0], 30.0f, "%.1fs")) {
+            if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_FADE_END_SECONDS), fadeEnd, 0.1f, fadeStart[0], 30.0f, "%.1fs")) {
                 clip.setPostAnimationFadeEnd(fadeEnd[0]);
                 modified = true;
             }
 
             if (fadeEnd[0] > fadeStart[0]) {
                 float fadeDuration = fadeEnd[0] - fadeStart[0];
-                ImGui.textDisabled(String.format("淡化持续时间: %.1f 秒 (从 %.1f 到 %.1f 秒)",
+                ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_FADE_DURATION_INFO,
                         fadeDuration, fadeStart[0], fadeEnd[0]));
             } else if (fadeEnd[0] == fadeStart[0] && fadeStart[0] > 0.0f) {
-                ImGui.textColored(0.8f, 0.6f, 0.2f, 1.0f, "淡化开始和结束时间相同，淡化效果将立即完成");
+                ImGui.textColored(0.8f, 0.6f, 0.2f, 1.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_FADE_INSTANT_WARNING));
             } else {
-                ImGui.textDisabled("淡化功能已禁用（开始和结束时间均为 0）");
+                ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_FADE_DISABLED));
             }
 
             ImGui.unindent();
@@ -278,7 +282,7 @@ public class TimelineClipPropertyUi {
             return renderAnimationSettingsInternal(clip, TimelineClipAnimationPolicy.forVariant(variant));
         } catch (Exception e) {
             LOGGER.error("渲染动画设置时发生异常: {}", e.getMessage(), e);
-            ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, "错误: " + e.getMessage());
+            ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ERROR_GENERIC, e.getMessage()));
             return false;
         }
     }
@@ -289,7 +293,7 @@ public class TimelineClipPropertyUi {
         ClipAnimationConfig config = clip.getAnimationConfig();
         if (config == null) {
             LOGGER.warn("片段的动画配置为空");
-            ImGui.textDisabled("动画配置为空");
+            ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_CONFIG_EMPTY));
             return false;
         }
 
@@ -406,7 +410,7 @@ public class TimelineClipPropertyUi {
         }
 
         float[] duration = { config.getDuration() };
-        if (ImGui.dragFloat("动画时长 (秒)", duration, 0.05f, 0.0f, clip.getLength(), "%.2fs")) {
+        if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_DURATION_SECONDS), duration, 0.05f, 0.0f, clip.getLength(), "%.2fs")) {
             if (duration[0] < 0.0f) {
                 duration[0] = 0.0f;
             }
@@ -433,20 +437,20 @@ public class TimelineClipPropertyUi {
                     }
                 } catch (Exception e) {
                     LOGGER.warn("渲染动画参数时出错: {}", e.getMessage(), e);
-                    ImGui.textColored(1.0f, 0.5f, 0.0f, 1.0f, "参数渲染失败: " + e.getMessage());
+                    ImGui.textColored(1.0f, 0.5f, 0.0f, 1.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ERROR_RENDER_PARAMS, e.getMessage()));
                 }
             } else {
                 LOGGER.warn("未找到动画模式 {} 对应的 Transformer", currentMode);
-                ImGui.textDisabled("未找到动画模式实现");
+                ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_NO_TRANSFORMER));
             }
         } catch (Exception e) {
             LOGGER.error("渲染动画参数时出错: {}", e.getMessage(), e);
-            ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, "错误: " + e.getMessage());
+            ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ERROR_GENERIC, e.getMessage()));
         }
 
         UITheme.separator();
 
-        UITheme.label("缓动曲线 (Easing)", UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_EASING_HEADER), UITheme.DarkTheme.TEXT_SELECTED);
 
         EasingFunction currentEasingFunc;
         try {
@@ -482,7 +486,7 @@ public class TimelineClipPropertyUi {
 
         UITheme.separator();
 
-        UITheme.label("高级修饰 (Advanced)", UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_ADVANCED_HEADER), UITheme.DarkTheme.TEXT_SELECTED);
 
         opacityFade.set(getBooleanParam(params));
         if (ImGui.checkbox(policy.opacityFadeLabel(), opacityFade)) {
@@ -498,19 +502,19 @@ public class TimelineClipPropertyUi {
             float fadeIntensity = getFloatParam(params);
             float[] fadeArr = { fadeIntensity };
             ImGui.pushItemWidth(100.0f);
-            if (ImGui.dragFloat("##FadeIntensity", fadeArr, 0.05f, 0.1f, 2.0f, "强度: %.2f")) {
+            if (ImGui.dragFloat("##FadeIntensity", fadeArr, 0.05f, 0.1f, 2.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_FADE_INTENSITY_FORMAT))) {
                 params.put("opacityFadeIntensity", fadeArr[0]);
                 modified = true;
             }
             ImGui.popItemWidth();
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("控制淡入的速度：>1 慢，<1 快。");
+                ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_FADE_INTENSITY_TOOLTIP));
             }
         }
 
-        ImGui.textDisabled("提示：闪白光请在下方「特效」面板添加 FLASH_WHITE（或使用特效预设包）。");
+        ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_FLASH_WHITE_HINT));
 
-        if (ImGui.button("恢复当前模式默认参数")) {
+        if (ImGui.button(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_RESTORE_DEFAULTS))) {
             try {
                 IAnimationTransformer transformer = AnimationTransformerFactory.getInstance().getTransformer(currentMode);
                 if (transformer != null) {
@@ -526,11 +530,11 @@ public class TimelineClipPropertyUi {
                 }
             } catch (Exception e) {
                 LOGGER.error("恢复默认值时出错: {}", e.getMessage(), e);
-                ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, "恢复失败: " + e.getMessage());
+                ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ERROR_RESTORE, e.getMessage()));
             }
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("将当前动画模式的参数全部恢复为默认值。");
+            ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_RESTORE_DEFAULTS_TOOLTIP));
         }
 
         return modified;
@@ -595,13 +599,13 @@ public class TimelineClipPropertyUi {
 
         ClipAnimationConfig config = clip.getAnimationConfig();
         if (config == null) {
-            ImGui.textDisabled("动画配置为空，无法编辑序列行为");
+            ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_CONFIG_EMPTY));
             return false;
         }
 
         SequenceParameters params = config.getSequenceParameters();
         if (params == null) {
-            ImGui.textDisabled("序列参数为空，使用默认配置");
+            ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_PARAMS_EMPTY));
             params = new SequenceParameters();
             if (variant == TimelineClipUiVariant.DEMOLITION) {
                 params.setOriginType(OriginType.TOP_CENTER);
@@ -618,16 +622,9 @@ public class TimelineClipPropertyUi {
         }
 
         // ✅ 快捷预设：排序策略（Sequence）属于“序列层”，从动画设置面板移到这里
-        UITheme.label("排序策略预设（Sequence）", UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_PRESET_HEADER), UITheme.DarkTheme.TEXT_SELECTED);
         // 定义所有预设按钮的标签和配置
-        String[] presetLabels = {
-                "顺序(默认)",
-                "随机",
-                "扩散(中心" + Icons.ARROW_RIGHT + "外)",
-                "螺旋",
-                "切片(逐层)",
-                "波浪"
-        };
+        String[] presetLabels = ClipPropertyUiI18n.sequencePresetLabels();
 
         // 记录按钮起始位置，用于换行后对齐
         float buttonsStartX = ImGui.getCursorPosX();
@@ -660,13 +657,11 @@ public class TimelineClipPropertyUi {
 
             // 为最后一个按钮显示工具提示
             if (i == presetLabels.length - 1 && ImGui.isItemHovered()) {
-                ImGui.setTooltip("这些预设等价于旧的\"随机/扩散/螺旋/切片/波浪\"等模式，但现在它们属于排序策略。\n" +
-                        "入场(出现)与退场(擦除)都可以复用同一套排序。");
+                ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_PRESET_TOOLTIP));
             }
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("这些预设等价于旧的“随机/扩散/螺旋/切片/波浪”等模式，但现在它们属于排序策略。\n" +
-                    "入场(出现)与退场(擦除)都可以复用同一套排序。");
+            ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_PRESET_TOOLTIP));
         }
 
         UITheme.separator();
@@ -701,14 +696,14 @@ public class TimelineClipPropertyUi {
             SequenceParameters params) {
         boolean modified = false;
 
-        UITheme.label("5. 节奏/并发 (Timing)", UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_TIMING_HEADER), UITheme.DarkTheme.TEXT_SELECTED);
 
         // 并发模式
         ConcurrencyMode[] conc = ConcurrencyMode.values();
         int concIdxVal = params.getConcurrencyMode().ordinal();
         ImInt concIdx = new ImInt(Math.max(0, Math.min(concIdxVal, conc.length - 1)));
         ImGui.pushItemWidth(ImGui.getContentRegionAvailX());
-        if (ImGui.combo("并发模式", concIdx, getAllEnumDisplayNames(conc))) {
+        if (ImGui.combo(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_CONCURRENCY_MODE), concIdx, getAllEnumDisplayNames(conc))) {
             params.setConcurrencyMode(conc[concIdx.get()]);
             modified = true;
         }
@@ -722,7 +717,7 @@ public class TimelineClipPropertyUi {
         int mapIdxVal = params.getTimeMappingStrategy().ordinal();
         ImInt mapIdx = new ImInt(Math.max(0, Math.min(mapIdxVal, maps.length - 1)));
         ImGui.pushItemWidth(ImGui.getContentRegionAvailX());
-        if (ImGui.combo("时间映射", mapIdx, getAllEnumDisplayNames(maps))) {
+        if (ImGui.combo(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_TIME_MAPPING), mapIdx, getAllEnumDisplayNames(maps))) {
             params.setTimeMappingStrategy(maps[mapIdx.get()]);
             modified = true;
         }
@@ -733,12 +728,12 @@ public class TimelineClipPropertyUi {
 
         // 全局延迟（叠加到 ClipAnimationConfig.delay 上）
         float[] globalDelay = { params.getGlobalDelay() };
-        if (ImGui.dragFloat("序列全局延迟 (秒)", globalDelay, 0.05f, 0.0f, 30.0f, "%.2fs")) {
+        if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_GLOBAL_DELAY), globalDelay, 0.05f, 0.0f, 30.0f, "%.2fs")) {
             params.setGlobalDelay(globalDelay[0]);
             modified = true;
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("在片段自身 delay 基础上，再额外延迟“整套序列”的启动时间。");
+            ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_GLOBAL_DELAY_TOOLTIP));
         }
 
         // 批次参数：用于 IN_BATCHES / BATCH_MAPPING / GROUP_FIRST 的间隔
@@ -749,32 +744,32 @@ public class TimelineClipPropertyUi {
 
         if (needsBatch) {
             int[] bs = { params.getBatchSize() };
-            if (ImGui.dragInt("批次大小 (batchSize)", bs, 1, 1, 10_000)) {
+            if (ImGui.dragInt(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_BATCH_SIZE), bs, 1, 1, 10_000)) {
                 params.setBatchSize(bs[0]);
                 modified = true;
             }
             float[] bi = { params.getBatchInterval() };
-            if (ImGui.dragFloat("批次间隔 (秒)", bi, 0.01f, 0.0f, 10.0f, "%.2fs")) {
+            if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_BATCH_INTERVAL), bi, 0.01f, 0.0f, 10.0f, "%.2fs")) {
                 params.setBatchInterval(bi[0]);
                 modified = true;
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("批与批之间的间隔时间。实际播放会根据片段时长自动缩放/裁剪，避免排不下。");
+                ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_BATCH_INTERVAL_TOOLTIP));
             }
         } else if (needsGroupGap) {
             float[] gi = { params.getBatchInterval() };
-            if (ImGui.dragFloat("组间隔 (秒)", gi, 0.01f, 0.0f, 10.0f, "%.2fs")) {
+            if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_GROUP_INTERVAL), gi, 0.01f, 0.0f, 10.0f, "%.2fs")) {
                 // 复用 batchInterval 作为组间隔（避免新增字段破坏存档）
                 params.setBatchInterval(gi[0]);
                 modified = true;
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("组与组之间的间隔时间（复用 batchInterval 字段）。");
+                ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_GROUP_INTERVAL_TOOLTIP));
             }
         }
 
         // 轻提示：这些字段现在已在运行时生效
-        ImGui.textDisabled(String.format("片段长度 %.2fs / 动画时长 %.2fs / delay(含序列) %.2fs",
+        ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_TIMING_SUMMARY,
                 clip.getLength(),
                 config != null ? config.getDuration() : 0.0f,
                 (config != null ? Math.max(0.0f, config.getDelay()) : 0.0f) + Math.max(0.0f, params.getGlobalDelay())));
@@ -795,7 +790,7 @@ public class TimelineClipPropertyUi {
         boolean modified = false;
         boolean demolition = variant == TimelineClipUiVariant.DEMOLITION;
 
-        UITheme.label("1. 切分方式 (Flow)", UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_FLOW_HEADER), UITheme.DarkTheme.TEXT_SELECTED);
 
         FlowType[] flows = FlowType.values();
         ImInt flowIdx = new ImInt(params.getFlowType().ordinal());
@@ -820,22 +815,22 @@ public class TimelineClipPropertyUi {
 
         // 仅在 PLANAR 模式下显示平面方向选择
         if (params.getFlowType() == FlowType.PLANAR) {
-            UITheme.label("平面方向", UITheme.DarkTheme.TEXT_SELECTED);
+            UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_PLANE_DIRECTION), UITheme.DarkTheme.TEXT_SELECTED);
 
             // 快捷预设：X/Y/Z轴
-            ImGui.textDisabled("快捷方向：");
+            ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_QUICK_DIRECTIONS));
             float planeYaw = params.getPlaneYaw();
             float planePitch = params.getPlanePitch();
 
             boolean xSelected = isAxisSelected(planeYaw, planePitch, 90.0f, 0.0f);
-            if (renderAxisButton("X 轴", xSelected)) {
+            if (renderAxisButton(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_AXIS_X), xSelected)) {
                 params.setPlaneYaw(90.0f);
                 params.setPlanePitch(0.0f);
                 modified = true;
             }
             ImGui.sameLine();
             float yPitch = demolition ? -90.0f : 90.0f;
-            String yLabel = demolition ? "Y 轴（向下）" : "Y 轴";
+            String yLabel = demolition ? ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_AXIS_Y_DOWN) : ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_AXIS_Y);
             boolean ySelected = isAxisSelected(planeYaw, planePitch, 0.0f, yPitch);
             if (renderAxisButton(yLabel, ySelected)) {
                 params.setPlaneYaw(0.0f);
@@ -844,21 +839,21 @@ public class TimelineClipPropertyUi {
             }
             ImGui.sameLine();
             boolean zSelected = isAxisSelected(planeYaw, planePitch, 0.0f, 0.0f);
-            if (renderAxisButton("Z 轴", zSelected)) {
+            if (renderAxisButton(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_AXIS_Z), zSelected)) {
                 params.setPlaneYaw(0.0f);
                 params.setPlanePitch(0.0f);
                 modified = true;
             }
 
             // 自定义角度开关
-            ImGui.checkbox("自定义角度", showSequenceAdvanced);
+            ImGui.checkbox(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_CUSTOM_ANGLE), showSequenceAdvanced);
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("需要精细控制切片平面的倾斜角度时启用");
+                ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_CUSTOM_ANGLE_TOOLTIP));
             }
 
             if (showSequenceAdvanced.get()) {
                 float[] angles = { params.getPlaneYaw(), params.getPlanePitch() };
-                if (ImGui.dragFloat2("平面角度 (Yaw/Pitch)", angles, 1.0f, -180.0f, 180.0f, "%.0f°")) {
+                if (ImGui.dragFloat2(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_PLANE_ANGLES), angles, 1.0f, -180.0f, 180.0f, "%.0f°")) {
                     params.setPlaneYaw(angles[0]);
                     params.setPlanePitch(angles[1]);
                     modified = true;
@@ -873,7 +868,7 @@ public class TimelineClipPropertyUi {
 
             // Flow 层厚度（量化）：避免自定义角度时“层太碎”，让过程更像“盖一片片”
             float[] layerStep = { params.getLayerStep() };
-            if (ImGui.dragFloat("层厚度 (layerStep)", layerStep, 0.1f, 0.1f, 32.0f, "%.1f")) {
+            if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_LAYER_STEP), layerStep, 0.1f, 0.1f, 32.0f, "%.1f")) {
                 params.setLayerStep(layerStep[0]);
                 modified = true;
             }
@@ -886,8 +881,8 @@ public class TimelineClipPropertyUi {
             }
 
             String cameraButtonLabel = demolition
-                    ? "对齐到摄像机视线（近" + Icons.ARROW_RIGHT + "远）"
-                    : "对齐到摄像机视线（远" + Icons.ARROW_RIGHT + "近）";
+                    ? ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_ALIGN_CAMERA_NEAR_FAR, Icons.ARROW_RIGHT)
+                    : ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_ALIGN_CAMERA_FAR_NEAR, Icons.ARROW_RIGHT);
             if (ImGui.button(cameraButtonLabel)) {
                 Vec3d dir = null;
                 MinecraftClient client = MinecraftClient.getInstance();
@@ -940,11 +935,11 @@ public class TimelineClipPropertyUi {
         boolean demolition = variant == TimelineClipUiVariant.DEMOLITION;
 
         String originLabel = demolition
-                ? "2. 起始锚点 (Origin) - 拆除片段"
-                : "2. 起始锚点 (Origin)";
+                ? ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_ORIGIN_HEADER_DEMOLITION)
+                : ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_ORIGIN_HEADER);
         UITheme.label(originLabel, UITheme.DarkTheme.TEXT_SELECTED);
         if (demolition) {
-            UITheme.label("提示：拆除片段的方向与容器片段相反（如容器由下到上，拆除由上到下）",
+            UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_ORIGIN_DEMOLITION_HINT),
                     UITheme.DarkTheme.TEXT_DISABLED);
             UITheme.spacingSmall();
         }
@@ -955,9 +950,9 @@ public class TimelineClipPropertyUi {
                 params.setOriginType(OriginType.CENTER);
                 modified = true;
             }
-            ImGui.textDisabled("球形扩散：起点固定为几何中心");
+            ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_SPHERICAL_ORIGIN_FIXED));
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("球形扩散必须从中心开始，无法自定义起点");
+                ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_SPHERICAL_ORIGIN_TOOLTIP));
             }
             return modified;
         }
@@ -1045,7 +1040,7 @@ public class TimelineClipPropertyUi {
 
         if (params.getOriginType() == OriginType.CUSTOM) {
             int[] xyz = { params.getCustomX(), params.getCustomY(), params.getCustomZ() };
-            if (ImGui.dragInt3("自定义坐标 (XYZ)", xyz)) {
+            if (ImGui.dragInt3(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_CUSTOM_COORDS), xyz)) {
                 params.setCustomXYZ(xyz[0], xyz[1], xyz[2]);
                 modified = true;
             }
@@ -1063,7 +1058,7 @@ public class TimelineClipPropertyUi {
     boolean renderSequenceFillSection(SequenceParameters params) {
         boolean modified = false;
 
-        UITheme.label("3. 内部填充 (Fill)", UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_FILL_HEADER), UITheme.DarkTheme.TEXT_SELECTED);
 
         FillType[] fills = FillType.values();
         ImInt fillIdx = new ImInt(params.getFillType().ordinal());
@@ -1089,7 +1084,7 @@ public class TimelineClipPropertyUi {
 
         // RASTER 专属参数：行内扫描方向 / 换行步长 / 蛇形
         if (params.getFillType() == FillType.RASTER) {
-            UITheme.label("打印机扫描设置", UITheme.DarkTheme.TEXT_SELECTED);
+            UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_RASTER_SETTINGS), UITheme.DarkTheme.TEXT_SELECTED);
 
             // 根据当前 PLANAR 的“层平面”动态给出轴名；非轴对齐时退化为 U/V
             String[] scanAxisLabels = getStrings(params);
@@ -1108,7 +1103,7 @@ public class TimelineClipPropertyUi {
             }
 
             float[] rowStep = { params.getRasterRowStep() };
-            if (ImGui.dragFloat("换行步长 (rowStep)", rowStep, 0.1f, 0.1f, 64.0f, "%.1f")) {
+            if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_ROW_STEP), rowStep, 0.1f, 0.1f, 64.0f, "%.1f")) {
                 params.setRasterRowStep(rowStep[0]);
                 modified = true;
             }
@@ -1117,7 +1112,7 @@ public class TimelineClipPropertyUi {
             }
 
             ImBoolean zig = new ImBoolean(params.isRasterZigZag());
-            if (ImGui.checkbox("行内蛇形往返 (ZigZag)", zig)) {
+            if (ImGui.checkbox(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_RASTER_ZIGZAG), zig)) {
                 params.setRasterZigZag(zig.get());
                 modified = true;
             }
@@ -1128,7 +1123,7 @@ public class TimelineClipPropertyUi {
 
         // FLOOD 专属参数：FloodSeedMode
         if (params.getFillType() == FillType.FLOOD) {
-            UITheme.label("泛洪起点 (Flood Seed)", UITheme.DarkTheme.TEXT_SELECTED);
+            UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_FLOOD_SEED_HEADER), UITheme.DarkTheme.TEXT_SELECTED);
 
             FloodSeedMode[] seedModes = FloodSeedMode.values();
             ImInt seedIdx = new ImInt(params.getFloodSeedMode().ordinal());
@@ -1196,10 +1191,10 @@ public class TimelineClipPropertyUi {
     boolean renderSequenceWeightAndModifiers(SequenceParameters params) {
         boolean modified = false;
 
-        UITheme.label("4. 层级分离与修饰", UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_WEIGHT_HEADER), UITheme.DarkTheme.TEXT_SELECTED);
 
         // 层级分离度
-        ImGui.text("层级分离度 (硬度):");
+        ImGui.text(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_WEIGHT_LABEL));
         ImGui.sameLine();
 
         float[] weight = { params.getPriorityWeight() };
@@ -1234,22 +1229,22 @@ public class TimelineClipPropertyUi {
         }
 
         // 修饰符
-        ImGui.textDisabled("修饰：");
+        ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_MODIFIERS_LABEL));
         ImGui.sameLine();
 
         ImBoolean rev = new ImBoolean(params.isReverse());
-        if (ImGui.checkbox("反向 (Reverse)", rev)) {
+        if (ImGui.checkbox(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_REVERSE), rev)) {
             params.setReverse(rev.get());
             modified = true;
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("将整体播放顺序反转，例如从顶部往下建造。");
+            ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_REVERSE_TOOLTIP));
         }
 
         ImGui.sameLine();
 
         ImBoolean alt = new ImBoolean(params.isAlternating());
-        if (ImGui.checkbox("往复/S 型 (ZigZag)", alt)) {
+        if (ImGui.checkbox(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_ALTERNATING), alt)) {
             params.setAlternating(alt.get());
             modified = true;
         }
@@ -1280,7 +1275,7 @@ public class TimelineClipPropertyUi {
 
         ClipAnimationConfig config = clip.getAnimationConfig();
         if (config == null) {
-            ImGui.textDisabled("动画配置为空，无法编辑特效");
+            ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_CONFIG_EMPTY));
             return false;
         }
 
@@ -1288,11 +1283,11 @@ public class TimelineClipPropertyUi {
         com.director.core.animation.LegacyAdvancedParamsMigrator.migrateIfNeeded(config);
 
         // ========== 1. 快捷添加 (Quick Add / Shortcuts) ==========
-        UITheme.label("快捷特效 (Quick Add)", UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_QUICK_ADD_HEADER), UITheme.DarkTheme.TEXT_SELECTED);
 
         // 第一排
         ImBoolean flash = new ImBoolean(hasEffectType(config, EffectType.FLASH_WHITE));
-        if (ImGui.checkbox("闪白 (Flash)", flash)) {
+        if (ImGui.checkbox(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_FLASH), flash)) {
             if (flash.get())
                 ensureEffect(config, EffectType.FLASH_WHITE, 0.0f, 0.2f);
             else
@@ -1301,7 +1296,7 @@ public class TimelineClipPropertyUi {
         }
         ImGui.sameLine();
         ImBoolean dust = new ImBoolean(hasEffectType(config, EffectType.DUST_BURST));
-        if (ImGui.checkbox("扬尘 (Dust)", dust)) {
+        if (ImGui.checkbox(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_DUST), dust)) {
             if (dust.get())
                 ensureEffect(config, EffectType.DUST_BURST, 0.8f, 0.25f);
             else
@@ -1311,7 +1306,7 @@ public class TimelineClipPropertyUi {
 
         // 第二排
         ImBoolean ripple = new ImBoolean(hasEffectType(config, EffectType.IMPACT_RIPPLE));
-        if (ImGui.checkbox("涟漪 (Ripple)", ripple)) {
+        if (ImGui.checkbox(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_RIPPLE), ripple)) {
             if (ripple.get())
                 ensureEffect(config, EffectType.IMPACT_RIPPLE, 0.85f, 0.3f);
             else
@@ -1320,7 +1315,7 @@ public class TimelineClipPropertyUi {
         }
         ImGui.sameLine();
         ImBoolean trail = new ImBoolean(hasEffectType(config, EffectType.MOTION_TRAIL));
-        if (ImGui.checkbox("尾迹 (Trail)", trail)) {
+        if (ImGui.checkbox(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_TRAIL), trail)) {
             if (trail.get())
                 ensureEffect(config, EffectType.MOTION_TRAIL, 0.0f, 1.0f);
             else
@@ -1331,7 +1326,7 @@ public class TimelineClipPropertyUi {
         UITheme.separator();
 
         // ========== 2. 特效库 (Effect Library) ==========
-        UITheme.label("特效库 (Library)", UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_LIBRARY_HEADER), UITheme.DarkTheme.TEXT_SELECTED);
 
         // 功能性按钮行 (清空 & 粘贴)
         boolean hasEffects = !config.getEffects().isEmpty();
@@ -1339,17 +1334,17 @@ public class TimelineClipPropertyUi {
 
         if (hasEffects || hasCopied) {
             if (hasEffects) {
-                if (ImGui.button(Icons.DELETE + " 清空所有")) {
+                if (ImGui.button(Icons.DELETE + " " + ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_CLEAR_ALL)) {
                     config.getEffects().clear();
                     modified = true;
                 }
                 if (ImGui.isItemHovered())
-                    ImGui.setTooltip("清除当前片段的所有特效");
+                    ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_CLEAR_ALL_TOOLTIP));
             }
             if (hasCopied) {
                 if (hasEffects)
                     ImGui.sameLine();
-                if (ImGui.button(Icons.CLIPBOARD + " 粘贴特效")) {
+                if (ImGui.button(Icons.CLIPBOARD + " " + ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_PASTE)) {
                     EffectInstance copied = EffectClipboardManager.getCopiedEffect();
                     if (copied != null) {
                         config.addEffect(copied);
@@ -1361,7 +1356,7 @@ public class TimelineClipPropertyUi {
         }
 
         // 预设列表
-        ImGui.textDisabled("组合预设 (Presets):");
+        ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_PRESETS_LABEL));
         if (ImGui.beginChild("##PresetLibrary", 0, 80.0f, true)) {
             float availWidth = ImGui.getContentRegionAvailX();
             float btnWidth = (availWidth - ImGui.getStyle().getItemSpacingX()) * 0.5f;
@@ -1381,14 +1376,14 @@ public class TimelineClipPropertyUi {
         ImGui.endChild();
 
         // 单个添加
-        ImGui.textDisabled("手动添加 (Individual):");
+        ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_INDIVIDUAL_LABEL));
         List<EffectType> allTypes = BlockEffectRegistry.getRegisteredTypes();
         String[] effectLabels = allTypes.stream().map(EffectType::getDisplayName).toArray(String[]::new);
         ImGui.pushItemWidth(ImGui.getContentRegionAvailX() * 0.65f);
         ImGui.combo("##AddEffectCombo", addEffectSelectedIndex, effectLabels);
         ImGui.popItemWidth();
         ImGui.sameLine();
-        if (ImGui.button("添加", ImGui.getContentRegionAvailX(), 0)) {
+        if (ImGui.button(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_ADD), ImGui.getContentRegionAvailX(), 0)) {
             EffectType type = allTypes.get(addEffectSelectedIndex.get());
             EffectInstance inst = getEffectInstance(type, config);
             IBlockEffect impl = BlockEffectRegistry.get(type);
@@ -1403,9 +1398,9 @@ public class TimelineClipPropertyUi {
         // ========== 2. 已添加特效列表 ==========
         List<EffectInstance> effects = config.getEffects();
         if (effects.isEmpty()) {
-            ImGui.textDisabled("当前未添加任何特效");
+            ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_NONE));
         } else {
-            UITheme.label("当前特效", UITheme.DarkTheme.TEXT_SELECTED);
+            UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_CURRENT), UITheme.DarkTheme.TEXT_SELECTED);
 
             int index = 0;
             for (EffectInstance inst : effects) {
@@ -1424,7 +1419,7 @@ public class TimelineClipPropertyUi {
 
                 // 启用/禁用开关
                 ImBoolean enabled = new ImBoolean(inst.isEnabled());
-                if (ImGui.checkbox("启用##enable_" + index, enabled)) {
+                if (ImGui.checkbox(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_ENABLED) + "##enable_" + index, enabled)) {
                     inst.setEnabled(enabled.get());
                     modified = true;
                 }
@@ -1436,7 +1431,7 @@ public class TimelineClipPropertyUi {
                     EffectClipboardManager.setCopiedEffect(inst);
                 }
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("复制此特效到剪贴板");
+                    ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_COPY_TOOLTIP));
                 }
 
                 ImGui.sameLine();
@@ -1448,7 +1443,7 @@ public class TimelineClipPropertyUi {
                     modified = true;
                 }
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("删除此特效");
+                    ImGui.setTooltip(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_DELETE_TOOLTIP));
                 }
 
                 if (open) {
@@ -1460,14 +1455,14 @@ public class TimelineClipPropertyUi {
                     if (effectImpl != null) {
                         try {
                             UITheme.separator();
-                            UITheme.label("特效参数", UITheme.DarkTheme.TEXT_SELECTED);
+                            UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_PARAMS_HEADER), UITheme.DarkTheme.TEXT_SELECTED);
                             modified |= renderEffectParams(inst, inst.getType());
                         } catch (Exception e) {
                             LOGGER.error("渲染特效参数 UI 出错: {}", e.getMessage(), e);
-                            ImGui.textColored(1f, 0f, 0f, 1f, "特效参数渲染错误: " + e.getMessage());
+                            ImGui.textColored(1f, 0f, 0f, 1f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ERROR_EFFECT_PARAMS, e.getMessage()));
                         }
                     } else {
-                        ImGui.textDisabled("未找到对应特效实现: " + inst.getType().name());
+                        ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_IMPL_NOT_FOUND, inst.getType().name()));
                     }
 
                     ImGui.treePop();
@@ -1574,7 +1569,7 @@ public class TimelineClipPropertyUi {
     boolean renderSingleEffectTimingUI(EffectInstance inst, TimelineClip clip) {
         boolean modified = false;
 
-        UITheme.label("时间轴", UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.label(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_TIMELINE_HEADER), UITheme.DarkTheme.TEXT_SELECTED);
 
         // ✅ 特效时间轴是“相对于单块动画窗口”的归一化（0..1），而不是相对于片段长度
         ClipAnimationConfig cfg = clip.getAnimationConfig();
@@ -1586,13 +1581,13 @@ public class TimelineClipPropertyUi {
 
         // 作用阶段
         EffectInstance.EffectPhase[] phases = EffectInstance.EffectPhase.values();
-        String[] phaseLabels = new String[] { "出现(Enter)", "擦除(Exit)", "两者(Both)" };
+        String[] phaseLabels = ClipPropertyUiI18n.effectPhaseLabels();
         int phaseIdx = inst.getPhase().ordinal();
         if (phaseIdx >= phases.length)
             phaseIdx = 2;
         ImInt phaseIdxIm = new ImInt(phaseIdx);
         ImGui.pushItemWidth(ImGui.getContentRegionAvailX());
-        if (ImGui.combo("作用阶段", phaseIdxIm, phaseLabels)) {
+        if (ImGui.combo(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_PHASE_LABEL), phaseIdxIm, phaseLabels)) {
             int ni = Math.max(0, Math.min(phaseIdxIm.get(), phases.length - 1));
             inst.setPhase(phases[ni]);
             modified = true;
@@ -1613,7 +1608,7 @@ public class TimelineClipPropertyUi {
                         || (clipPhase == ClipAnimationConfig.AnimationPhase.EXIT
                                 && effectPhase != EffectInstance.EffectPhase.EXIT));
         if (phaseMismatch) {
-            ImGui.textColored(1.0f, 0.6f, 0.0f, 1.0f, "⚠ 警告：特效阶段与片段阶段不匹配，特效可能不会触发！");
+            ImGui.textColored(1.0f, 0.6f, 0.0f, 1.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_PHASE_MISMATCH_WARNING));
             if (ImGui.isItemHovered()) {
                 String clipPhaseName = clipPhase == ClipAnimationConfig.AnimationPhase.ENTER ? "出现(Enter)" : "擦除(Exit)";
                 String effectPhaseName = effectPhase == EffectInstance.EffectPhase.ENTER ? "出现(Enter)"
@@ -1626,13 +1621,13 @@ public class TimelineClipPropertyUi {
 
         // 触发模式
         EffectInstance.TriggerMode[] triggerModes = EffectInstance.TriggerMode.values();
-        String[] triggerLabels = new String[] { "连续(每帧)", "一次(One-shot)" };
+        String[] triggerLabels = ClipPropertyUiI18n.effectTriggerLabels();
         int trigIdx = inst.getTriggerMode().ordinal();
         if (trigIdx >= triggerModes.length)
             trigIdx = 0;
         ImInt trigIdxIm = new ImInt(trigIdx);
         ImGui.pushItemWidth(ImGui.getContentRegionAvailX());
-        if (ImGui.combo("触发方式", trigIdxIm, triggerLabels)) {
+        if (ImGui.combo(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_TRIGGER_LABEL), trigIdxIm, triggerLabels)) {
             int ni = Math.max(0, Math.min(trigIdxIm.get(), triggerModes.length - 1));
             inst.setTriggerMode(triggerModes[ni]);
             modified = true;
@@ -1654,7 +1649,7 @@ public class TimelineClipPropertyUi {
         float[] durBuf = { durSec };
 
         ImGui.pushItemWidth(ImGui.getContentRegionAvailX() * 0.45f);
-        if (ImGui.dragFloat("开始时间 (秒)", startBuf, 0.02f, 0.0f, animLen, "%.2f")) {
+        if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_START_SECONDS), startBuf, 0.02f, 0.0f, animLen, "%.2f")) {
             startBuf[0] = Math.max(0f, Math.min(startBuf[0], animLen));
             inst.setStartOffset(startBuf[0] / animLen);
             modified = true;
@@ -1667,7 +1662,7 @@ public class TimelineClipPropertyUi {
         ImGui.sameLine();
 
         ImGui.pushItemWidth(ImGui.getContentRegionAvailX() * 0.45f);
-        if (ImGui.dragFloat("持续时长 (秒)", durBuf, 0.02f, 0.0f, animLen, "%.2f")) {
+        if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_DURATION_SECONDS), durBuf, 0.02f, 0.0f, animLen, "%.2f")) {
             durBuf[0] = Math.max(0.0f, Math.min(durBuf[0], animLen));
             inst.setDuration(durBuf[0] / animLen);
             modified = true;
@@ -1680,8 +1675,8 @@ public class TimelineClipPropertyUi {
         }
 
         // ✅ 添加提示：说明特效时间窗口的概念
-        ImGui.textDisabled("提示：特效时间窗口是相对于单个方块动画窗口的归一化时间（0..1）。");
-        ImGui.textDisabled(String.format("当前方块动画窗口：%.2f秒 | 特效窗口：[%.2f, %.2f]秒",
+        ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_WINDOW_HINT));
+        ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_WINDOW_SUMMARY,
                 animLen, startSec, startSec + durSec));
 
         // 简单的时间条预览 [====effect====]
@@ -1728,7 +1723,7 @@ public class TimelineClipPropertyUi {
      */
     void renderEasingCurvePreview(EasingFunction easingFunc) {
         if (easingFunc == null) {
-            ImGui.textDisabled("无法预览：缓动函数为空");
+            ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EASING_PREVIEW_EMPTY));
             return;
         }
 
@@ -1942,7 +1937,7 @@ public class TimelineClipPropertyUi {
             // 直接委托给具体实现类的 renderUI 方法
             return effectImpl.renderUI(instance.getParams());
         } else {
-            ImGui.textDisabled("⚠ 未找到实现: " + type.name());
+            ImGui.textDisabled(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ERROR_EFFECT_IMPL, type.name()));
             return false;
         }
     }
@@ -1992,7 +1987,7 @@ public class TimelineClipPropertyUi {
                     }
                 }
                 ImInt dirIdx = new ImInt(dirIndex);
-                if (ImGui.combo("飞入方向", dirIdx, directions)) {
+                if (ImGui.combo(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_FLY_DIRECTION), dirIdx, directions)) {
                     params.put("direction", directions[dirIdx.get()]);
                     modified = true;
                 }
@@ -2000,7 +1995,7 @@ public class TimelineClipPropertyUi {
                 // 飞行距离
                 float flyDistance = getFloatParam(params, "flyDistance", 10.0f);
                 float[] distanceArray = { flyDistance };
-                if (ImGui.dragFloat("飞行距离", distanceArray, 1.0f, 5.0f, 50.0f, "%.0f 格")) {
+                if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_FLY_DISTANCE), distanceArray, 1.0f, 5.0f, 50.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_BLOCKS))) {
                     params.put("flyDistance", distanceArray[0]);
                     modified = true;
                 }
@@ -2012,7 +2007,7 @@ public class TimelineClipPropertyUi {
                     // 下落高度
                     float height = getFloatParam(params, "height", 10.0f);
                     float[] heightArray = { height };
-                    if (ImGui.dragFloat("下落高度", heightArray, 0.5f, 0.0f, 50.0f, "%.1f 格")) {
+                    if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_FALL_HEIGHT), heightArray, 0.5f, 0.0f, 50.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_BLOCKS))) {
                         params.put("height", heightArray[0]);
                         modified = true;
                     }
@@ -2020,7 +2015,7 @@ public class TimelineClipPropertyUi {
                     // 回弹力度
                     float bounciness = getFloatParam(params, "bounciness", 0.3f);
                     float[] bouncinessArray = { bounciness };
-                    if (ImGui.dragFloat("回弹力度", bouncinessArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
+                    if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_BOUNCINESS), bouncinessArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
                         params.put("bounciness", bouncinessArray[0]);
                         modified = true;
                     }
@@ -2028,7 +2023,7 @@ public class TimelineClipPropertyUi {
                     // 重力坍塌：下落速度
                     float fallSpeed = getFloatParam(params, "fallSpeed", 5.0f);
                     float[] speedArray = { fallSpeed };
-                    if (ImGui.dragFloat("下落速度", speedArray, 0.5f, 1.0f, 20.0f, "%.1f 格/秒")) {
+                    if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_FALL_SPEED), speedArray, 0.5f, 1.0f, 20.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_BLOCKS_PER_SECOND))) {
                         params.put("fallSpeed", speedArray[0]);
                         modified = true;
                     }
@@ -2037,7 +2032,7 @@ public class TimelineClipPropertyUi {
                 // 翻滚旋转（两个模式都有）
                 boolean tumble = getBooleanParam(params, true);
                 ImBoolean tumbleBool = new ImBoolean(tumble);
-                if (ImGui.checkbox("翻滚旋转", tumbleBool)) {
+                if (ImGui.checkbox(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_TUMBLE), tumbleBool)) {
                     params.put("tumble", tumbleBool.get());
                     modified = true;
                 }
@@ -2046,7 +2041,7 @@ public class TimelineClipPropertyUi {
                 if (tumbleBool.get()) {
                     float tumbleIntensity = getFloatParam(params, "tumbleIntensity", 1.0f);
                     float[] intensityArray = { tumbleIntensity };
-                    if (ImGui.dragFloat("旋转强度", intensityArray, 0.1f, 0.0f, 3.0f, "%.1f")) {
+                    if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_TUMBLE_INTENSITY), intensityArray, 0.1f, 0.0f, 3.0f, "%.1f")) {
                         params.put("tumbleIntensity", intensityArray[0]);
                         modified = true;
                     }
@@ -2065,7 +2060,7 @@ public class TimelineClipPropertyUi {
                     }
                 }
                 ImInt axisIdx = new ImInt(axisIndex);
-                if (ImGui.combo("生长轴向", axisIdx, axes)) {
+                if (ImGui.combo(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_GROW_AXIS), axisIdx, axes)) {
                     params.put("axis", axes[axisIdx.get()]);
                     modified = true;
                 }
@@ -2075,7 +2070,7 @@ public class TimelineClipPropertyUi {
                 String[] pivots = { "CENTER", "BOTTOM" };
                 int pivotIndex = pivot.equals("BOTTOM") ? 1 : 0;
                 ImInt pivotIdx = new ImInt(pivotIndex);
-                if (ImGui.combo("缩放锚点", pivotIdx, pivots)) {
+                if (ImGui.combo(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_SCALE_PIVOT), pivotIdx, pivots)) {
                     params.put("pivot", pivots[pivotIdx.get()]);
                     modified = true;
                 }
@@ -2083,7 +2078,7 @@ public class TimelineClipPropertyUi {
                 // 升起距离
                 float distance = getFloatParam(params, "distance", 0.0f);
                 float[] distanceArray = { distance };
-                if (ImGui.dragFloat("升起距离", distanceArray, 0.5f, 0.0f, 20.0f, "%.1f 格")) {
+                if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_RISE_DISTANCE), distanceArray, 0.5f, 0.0f, 20.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_BLOCKS))) {
                     params.put("distance", distanceArray[0]);
                     modified = true;
                 }
@@ -2093,7 +2088,7 @@ public class TimelineClipPropertyUi {
                 // 震动幅度
                 float intensity = getFloatParam(params, "intensity", 0.5f);
                 float[] intensityArray = { intensity };
-                if (ImGui.dragFloat("震动幅度", intensityArray, 0.05f, 0.0f, 2.0f, "%.2f")) {
+                if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_SHAKE_INTENSITY), intensityArray, 0.05f, 0.0f, 2.0f, "%.2f")) {
                     params.put("intensity", intensityArray[0]);
                     modified = true;
                 }
@@ -2101,7 +2096,7 @@ public class TimelineClipPropertyUi {
                 // 衰减速度
                 float decay = getFloatParam(params, "decay", 0.8f);
                 float[] decayArray = { decay };
-                if (ImGui.dragFloat("衰减速度", decayArray, 0.05f, 0.1f, 1.0f, "%.2f")) {
+                if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_DECAY_SPEED), decayArray, 0.05f, 0.1f, 1.0f, "%.2f")) {
                     params.put("decay", decayArray[0]);
                     modified = true;
                 }
@@ -2113,7 +2108,7 @@ public class TimelineClipPropertyUi {
                 String paramKey = mode == AnimationMode.IMPLODE ? "scale" : "targetScale";
                 float scale = getFloatParam(params, paramKey, 0.0f);
                 float[] scaleArray = { scale };
-                String label = "目标比例";
+                String label = ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_TARGET_SCALE);
                 if (ImGui.dragFloat(label, scaleArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
                     params.put(paramKey, scaleArray[0]);
                     modified = true;
@@ -2124,7 +2119,7 @@ public class TimelineClipPropertyUi {
                 // 扩散速度
                 float expandSpeed = getFloatParam(params, "expandSpeed", 1.0f);
                 float[] speedArray = { expandSpeed };
-                if (ImGui.dragFloat("扩散速度", speedArray, 0.1f, 0.1f, 5.0f, "%.1f")) {
+                if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_EXPAND_SPEED), speedArray, 0.1f, 0.1f, 5.0f, "%.1f")) {
                     params.put("expandSpeed", speedArray[0]);
                     modified = true;
                 }
@@ -2138,7 +2133,7 @@ public class TimelineClipPropertyUi {
                 if (udVal instanceof Boolean b) useDistance = b;
                 else if (udVal instanceof String s) useDistance = Boolean.parseBoolean(s);
                 ImBoolean useDistBool = new ImBoolean(useDistance);
-                if (ImGui.checkbox("基于距离缩放", useDistBool)) {
+                if (ImGui.checkbox(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_USE_DISTANCE_SCALE), useDistBool)) {
                     params.put("useDistance", useDistBool.get());
                     modified = true;
                 }
@@ -2151,7 +2146,7 @@ public class TimelineClipPropertyUi {
                 // 散开半径（用于 ENTER 阶段的碎片聚合）
                 float spread = getFloatParam(params, "spread", 5.0f);
                 float[] spreadArray = { spread };
-                if (ImGui.dragFloat("散开半径", spreadArray, 0.5f, 1.0f, 20.0f, "%.1f 格")) {
+                if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_SPREAD_RADIUS), spreadArray, 0.5f, 1.0f, 20.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_BLOCKS))) {
                     params.put("spread", spreadArray[0]);
                     modified = true;
                 }
@@ -2162,7 +2157,7 @@ public class TimelineClipPropertyUi {
                 // 散射半径
                 float radius = getFloatParam(params, "radius", 2.0f);
                 float[] radiusArray = { radius };
-                if (ImGui.dragFloat("散射半径", radiusArray, 0.1f, 0.1f, 20.0f, "%.1f 格")) {
+                if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_SCATTER_RADIUS), radiusArray, 0.1f, 0.1f, 20.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_BLOCKS))) {
                     params.put("radius", radiusArray[0]);
                     modified = true;
                 }
@@ -2170,7 +2165,7 @@ public class TimelineClipPropertyUi {
                 // 上抛偏置
                 float upBias = getFloatParam(params, "upBias", 0.25f);
                 float[] upBiasArray = { upBias };
-                if (ImGui.dragFloat("上抛偏置", upBiasArray, 0.05f, -1.0f, 2.0f, "%.2f")) {
+                if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_UP_BIAS), upBiasArray, 0.05f, -1.0f, 2.0f, "%.2f")) {
                     params.put("upBias", upBiasArray[0]);
                     modified = true;
                 }
@@ -2178,7 +2173,7 @@ public class TimelineClipPropertyUi {
                 // 最小缩放
                 float scaleMin = getFloatParam(params, "scaleMin", 0.7f);
                 float[] scaleMinArray = { scaleMin };
-                if (ImGui.dragFloat("最小缩放", scaleMinArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
+                if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_SCALE_MIN), scaleMinArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
                     params.put("scaleMin", scaleMinArray[0]);
                     modified = true;
                 }
@@ -2188,7 +2183,7 @@ public class TimelineClipPropertyUi {
                 // 起始透明度
                 float startOpacity = getFloatParam(params, "startOpacity", 1.0f);
                 float[] startArray = { startOpacity };
-                if (ImGui.dragFloat("起始透明度", startArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
+                if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_START_OPACITY), startArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
                     params.put("startOpacity", startArray[0]);
                     modified = true;
                 }
@@ -2196,7 +2191,7 @@ public class TimelineClipPropertyUi {
                 // 结束透明度
                 float endOpacity = getFloatParam(params, "endOpacity", 0.0f);
                 float[] endArray = { endOpacity };
-                if (ImGui.dragFloat("结束透明度", endArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
+                if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_END_OPACITY), endArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
                     params.put("endOpacity", endArray[0]);
                     modified = true;
                 }
@@ -2206,7 +2201,7 @@ public class TimelineClipPropertyUi {
                 // 初始缩放
                 float initialScale = getFloatParam(params, "initialScale", 0.0f);
                 float[] scaleArray = { initialScale };
-                if (ImGui.dragFloat("初始缩放", scaleArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
+                if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_INITIAL_SCALE), scaleArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
                     params.put("initialScale", scaleArray[0]);
                     modified = true;
                 }
@@ -2214,7 +2209,7 @@ public class TimelineClipPropertyUi {
                 // 弹性程度
                 float elasticity = getFloatParam(params, "elasticity", 1.5f);
                 float[] elasticityArray = { elasticity };
-                if (ImGui.dragFloat("弹性程度", elasticityArray, 0.1f, 0.5f, 3.0f, "%.1f")) {
+                if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_ELASTICITY), elasticityArray, 0.1f, 0.5f, 3.0f, "%.1f")) {
                     params.put("elasticity", elasticityArray[0]);
                     modified = true;
                 }

@@ -2,6 +2,8 @@ package com.director.ui.properties.adapters;
 
 import com.director.core.animation.ClipAnimationConfig;
 import com.director.core.container.AnimationMode;
+import com.director.i18n.ClipPropertyUiI18n;
+import com.director.i18n.DirectorLang;
 
 /**
  * Phase-specific animation UI policy for container (ENTER) vs demolition (EXIT) clips.
@@ -49,7 +51,7 @@ public final class TimelineClipAnimationPolicy {
     private static TimelineClipAnimationPolicy container() {
         return new TimelineClipAnimationPolicy(
                 ClipAnimationConfig.AnimationPhase.ENTER,
-                "动画模式与节奏",
+                ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_POLICY_CONTAINER_SECTION),
                 null,
                 new AnimationMode[] {
                         AnimationMode.INSTANT, AnimationMode.FADE_IN, AnimationMode.GROW_UP,
@@ -57,27 +59,27 @@ public final class TimelineClipAnimationPolicy {
                         AnimationMode.RISE_UP, AnimationMode.FLY_IN, AnimationMode.POP_IN, AnimationMode.SHAKER
                 },
                 AnimationMode.FADE_IN,
-                "选择出现片段的入场方式",
-                "控制单个方块从开始运动到完全就位所用的时间。\n建议不超过片段总时长。",
-                "透明度淡入",
-                "勾选后，动画过程中会从完全透明逐渐变为不透明。");
+                ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_POLICY_CONTAINER_MODE_TOOLTIP),
+                ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_POLICY_CONTAINER_DURATION_TOOLTIP),
+                ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_POLICY_CONTAINER_OPACITY_FADE),
+                ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_POLICY_CONTAINER_OPACITY_FADE_TOOLTIP));
     }
 
     private static TimelineClipAnimationPolicy demolition() {
         return new TimelineClipAnimationPolicy(
                 ClipAnimationConfig.AnimationPhase.EXIT,
-                "清除动画模式与节奏",
-                "拆除容器片段：方块会先播放退出动画，然后在动画结束后被清除",
+                ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_POLICY_DEMOLITION_SECTION),
+                ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_POLICY_DEMOLITION_HINT),
                 new AnimationMode[] {
                         AnimationMode.INSTANT, AnimationMode.FADE_OUT, AnimationMode.EXPLODE,
                         AnimationMode.IMPLODE, AnimationMode.SHRINK_OUT, AnimationMode.GRAVITY_FALL,
                         AnimationMode.FLY_OUT
                 },
                 AnimationMode.FADE_OUT,
-                "选择擦除片段的退出方式（方块先播放退出动画，再被清除）",
-                "控制单个方块从开始运动到完全消失所用的时间。\n建议不超过片段总时长。",
-                "透明度淡入",
-                "勾选后，动画过程中会从完全透明逐渐变为不透明。");
+                ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_POLICY_DEMOLITION_MODE_TOOLTIP),
+                ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_POLICY_DEMOLITION_DURATION_TOOLTIP),
+                ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_POLICY_DEMOLITION_OPACITY_FADE),
+                ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_POLICY_DEMOLITION_OPACITY_FADE_TOOLTIP));
     }
 
     public ClipAnimationConfig.AnimationPhase phase() {
@@ -122,7 +124,7 @@ public final class TimelineClipAnimationPolicy {
 
     public String descriptionForMode(AnimationMode mode) {
         if (phase == ClipAnimationConfig.AnimationPhase.EXIT && mode == AnimationMode.ASSEMBLE) {
-            return "方块向外散射并淡出（由'碎片聚合'自动反向播放得到），适合擦除片段的碎片效果";
+            return ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_POLICY_ASSEMBLE_EXIT_DESC);
         }
         return mode.getDescription();
     }
