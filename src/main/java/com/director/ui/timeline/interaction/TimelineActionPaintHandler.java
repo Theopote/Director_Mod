@@ -7,7 +7,7 @@ import com.director.actor.action.ActorActionType;
 import com.director.actor.rig.ActorRigProfile;
 import com.director.ui.timeline.interaction.TimelineDragHandles.ActionPaintHandle;
 import com.director.ui.timeline.interaction.TimelineInteractionManager.InteractionMode;
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
 import com.director.ui.timeline.model.entity.ActorActionClip;
 import com.director.ui.timeline.model.entity.ActorTrack;

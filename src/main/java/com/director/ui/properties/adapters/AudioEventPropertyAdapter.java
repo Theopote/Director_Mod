@@ -3,7 +3,7 @@ package com.director.ui.properties.adapters;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.theme.UITheme;
 import com.director.ui.timeline.audio.TimelineAudioService;
-import com.director.ui.timeline.model.TimelineClip;
+import com.director.timeline.model.TimelineClip;
 import com.director.ui.timeline.model.audio.AudioEvent;
 import imgui.ImGui;
 import imgui.flag.ImGuiInputTextFlags;

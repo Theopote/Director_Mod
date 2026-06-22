@@ -1,7 +1,7 @@
 package com.director.ui.timeline.model.weather;
 
 import com.director.timeline.model.TimelineInterpolation;
-import com.director.ui.timeline.model.TimelineSelectable;
+import com.director.timeline.model.TimelineSelectable;
 import org.jetbrains.annotations.NotNull;
 import org.joml.Vector3f;
 

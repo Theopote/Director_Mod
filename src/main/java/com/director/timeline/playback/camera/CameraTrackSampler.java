@@ -1,7 +1,7 @@
 package com.director.timeline.playback.camera;
 
 import com.director.ui.timeline.model.TimelineModel;
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.camera.CameraKeyframe;
 import com.director.ui.timeline.model.camera.path.CameraPathClip;
 import com.director.ui.timeline.model.camera.path.CameraPathEnterContext;

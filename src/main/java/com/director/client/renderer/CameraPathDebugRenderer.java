@@ -5,7 +5,7 @@ import com.director.ui.timeline.model.camera.path.CameraPathClip;
 import com.director.ui.timeline.model.camera.path.OrbitPathClip;
 import com.director.ui.timeline.model.camera.path.DollyPathClip;
 import com.director.ui.timeline.model.camera.path.CranePathClip;
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineTrack;
 import com.director.ui.camera.path.CameraPathEditController;
 import com.director.timeline.playback.camera.CameraSample;
 import com.director.timeline.playback.camera.TimelineCameraController;

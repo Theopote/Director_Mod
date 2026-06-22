@@ -1,9 +1,9 @@
 package com.director.ui.timeline.render;
 
 import com.director.actor.action.ActorActionType;
-import com.director.ui.timeline.model.TimelineClip;
+import com.director.timeline.model.TimelineClip;
 import com.director.ui.timeline.model.TimelineModel;
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.entity.ActorActionClip;
 import com.director.ui.timeline.model.entity.EntityTimelineClip;
 import com.director.ui.timeline.model.entity.TimelineClipVisualType;

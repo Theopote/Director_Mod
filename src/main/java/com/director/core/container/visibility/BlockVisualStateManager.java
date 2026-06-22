@@ -4,7 +4,7 @@ import com.director.core.animation.BlockAnimationSnapshot;
 import com.director.core.animation.sequence.BlockSequenceEntry;
 import com.director.core.container.Container;
 import com.director.core.visual.BlockRenderMode;
-import com.director.ui.timeline.model.TimelineClip;
+import com.director.timeline.model.TimelineClip;
 import net.minecraft.block.BlockState;
 import net.minecraft.util.math.BlockPos;
 

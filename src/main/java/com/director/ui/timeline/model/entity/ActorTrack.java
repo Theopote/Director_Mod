@@ -22,7 +22,7 @@ import java.util.*;
  *   <li>ActorTrack 通过 ActorRef 引用 Actor</li>
  * </ul>
  *
- * <p>与 {@link com.director.ui.timeline.model.TimelineTrack} 的关系：
+ * <p>与 {@link com.director.timeline.model.TimelineTrack} 的关系：
  * <ul>
  *   <li>ActorTrack 是独立的演员轨道数据结构</li>
  *   <li>可以与 TimelineTrack 并存，用于不同的使用场景</li>

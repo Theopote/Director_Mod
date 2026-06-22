@@ -1,6 +1,6 @@
 package com.director.ui.timeline.model.time;
 
-import com.director.ui.timeline.model.TimelineSelectable;
+import com.director.timeline.model.TimelineSelectable;
 
 import java.util.UUID;
 

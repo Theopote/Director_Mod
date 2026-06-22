@@ -21,7 +21,7 @@ import com.director.core.animation.sequence.evaluator.FloodSeedMode;
 import com.director.core.animation.sequence.evaluator.OriginType;
 import com.director.ui.util.EffectClipboardManager;
 import com.director.ui.theme.UITheme;
-import com.director.ui.timeline.model.TimelineClip;
+import com.director.timeline.model.TimelineClip;
 import com.director.ui.theme.Icons;
 import imgui.ImDrawList;
 import imgui.ImGui;

@@ -7,6 +7,9 @@ import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import com.director.timeline.model.ITimelineProject;
+import com.director.timeline.model.TimelineClip;
+import com.director.timeline.model.TimelineSelectable;
+import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
 import com.director.ui.timeline.persistence.TimelineModelPersistence;
 import com.director.ui.timeline.snapping.TimelineSnapSettings;

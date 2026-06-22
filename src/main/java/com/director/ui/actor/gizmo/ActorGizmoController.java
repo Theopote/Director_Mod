@@ -9,7 +9,7 @@ import com.director.client.gizmo.GizmoMode;
 import com.director.client.gizmo.GizmoType;
 import com.director.ui.timeline.container.ContainerTimelineService;
 import com.director.ui.timeline.model.TimelineModel;
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
 import com.director.ui.timeline.model.entity.EntityClip;
 import com.director.ui.timeline.model.entity.ActorTrack;

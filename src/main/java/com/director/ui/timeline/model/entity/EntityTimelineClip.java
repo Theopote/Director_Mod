@@ -1,6 +1,6 @@
 package com.director.ui.timeline.model.entity;
 
-import com.director.ui.timeline.model.TimelineClip;
+import com.director.timeline.model.TimelineClip;
 import com.director.ui.timeline.model.clip.ClipKeyframe;
 
 import java.util.List;

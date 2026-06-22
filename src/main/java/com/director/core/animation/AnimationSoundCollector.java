@@ -3,7 +3,7 @@ package com.director.core.animation;
 import com.director.core.animation.sequence.BlockSequenceEntry;
 import com.director.core.animation.easing.EasingFunction;
 import com.director.core.container.Container;
-import com.director.ui.timeline.model.TimelineClip;
+import com.director.timeline.model.TimelineClip;
 import com.director.ui.timeline.model.audio.AudioEvent;
 import net.minecraft.block.BlockState;
 import net.minecraft.util.math.BlockPos;

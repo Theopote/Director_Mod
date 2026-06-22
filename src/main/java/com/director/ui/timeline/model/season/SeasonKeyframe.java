@@ -1,6 +1,6 @@
 package com.director.ui.timeline.model.season;
 
-import com.director.ui.timeline.model.TimelineSelectable;
+import com.director.timeline.model.TimelineSelectable;
 import org.jetbrains.annotations.NotNull;
 import org.joml.Vector3f;
 

@@ -9,7 +9,7 @@ import com.director.ui.timeline.commands.BatchChangeCameraKeyframeRotationInterp
 import com.director.ui.timeline.commands.BatchChangeCameraKeyframeHandleModeCommand;
 import com.director.ui.timeline.commands.TimelineCommandHistory;
 import com.director.ui.timeline.model.TimelineModel;
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.camera.CameraKeyframe;
 import com.director.timeline.playback.camera.TimelineCameraController;
 import org.slf4j.Logger;
@@ -76,7 +76,7 @@ public class CameraKeyframeContextMenu extends TimelineContextMenu {
         if (track.getType() == com.director.timeline.model.TrackType.CAMERA) {
             com.director.timeline.playback.camera.TimelineCameraController controller =
                     com.director.timeline.playback.camera.TimelineCameraController.getInstance();
-            com.director.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
+            com.director.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
             isActive = (activeTrack == track);
         }
         

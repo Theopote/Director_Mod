@@ -1,7 +1,7 @@
 package com.director.timeline.playback.weather;
 
 import com.director.timeline.model.TimelineInterpolation;
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.weather.WeatherKeyframe;
 
 import java.util.ArrayList;
@@ -57,7 +57,7 @@ public class WeatherTrackSampler {
         }
 
         List<WeatherKeyframe> list = new ArrayList<>();
-        for (com.director.ui.timeline.model.TimelineSelectable selectable : track.getAutomationKeyframes()) {
+        for (com.director.timeline.model.TimelineSelectable selectable : track.getAutomationKeyframes()) {
             if (selectable instanceof WeatherKeyframe wk) {
                 list.add(wk);
             }

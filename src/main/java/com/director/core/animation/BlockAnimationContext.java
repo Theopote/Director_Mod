@@ -1,7 +1,7 @@
 package com.director.core.animation;
 
 import com.director.core.animation.sequence.BlockSequenceEntry;
-import com.director.ui.timeline.model.TimelineClip;
+import com.director.timeline.model.TimelineClip;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.jetbrains.annotations.NotNull;

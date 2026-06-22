@@ -2,7 +2,7 @@ package com.director.ui.timeline.interaction;
 
 import java.util.List;
 
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineTrack;
 import com.director.ui.timeline.render.TimelineRenderer;
 import com.director.ui.timeline.render.TimelineTrackControlHit;
 

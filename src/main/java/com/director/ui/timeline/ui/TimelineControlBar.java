@@ -416,13 +416,13 @@ public class TimelineControlBar {
 
         for (Object it : model.getSelectedItems()) {
             switch (it) {
-                case com.director.ui.timeline.model.TimelineClip ignored -> {
+                case com.director.timeline.model.TimelineClip ignored -> {
                     return true;
                 }
                 case com.director.ui.timeline.model.clip.ClipKeyframe ignored -> {
                     return true;
                 }
-                case com.director.ui.timeline.model.TimelineSelectable selectable -> {
+                case com.director.timeline.model.TimelineSelectable selectable -> {
                     // 与 TimelinePanel.deleteSelectedClip 行为保持一致：AudioEvent 默认不走工具栏批量删除
                     if (!(selectable instanceof com.director.ui.timeline.model.audio.AudioEvent)) {
                         return true;

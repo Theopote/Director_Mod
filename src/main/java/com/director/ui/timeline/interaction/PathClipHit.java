@@ -1,6 +1,6 @@
 package com.director.ui.timeline.interaction;
 
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.camera.path.CameraPathClip;
 
 /**

@@ -1,9 +1,9 @@
 package com.director.ui.timeline.render;
 
 import com.director.ui.timeline.interaction.TimelineHitResult;
-import com.director.ui.timeline.model.TimelineClip;
+import com.director.timeline.model.TimelineClip;
 import com.director.ui.timeline.model.TimelineModel;
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineTrack;
 
 import java.util.List;
 import org.slf4j.Logger;

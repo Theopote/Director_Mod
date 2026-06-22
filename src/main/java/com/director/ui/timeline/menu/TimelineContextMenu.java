@@ -2,8 +2,8 @@ package com.director.ui.timeline.menu;
 
 import com.director.ui.timeline.commands.TimelineCommand;
 import com.director.ui.timeline.commands.TimelineCommandHistory;
-import com.director.ui.timeline.model.TimelineClip;
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineClip;
+import com.director.timeline.model.TimelineTrack;
 
 import imgui.ImGui;
 import imgui.flag.ImGuiCond;

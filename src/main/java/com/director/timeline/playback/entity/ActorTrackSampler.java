@@ -1,7 +1,7 @@
 package com.director.timeline.playback.entity;
 
 import com.director.timeline.model.TimelineInterpolation;
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.entity.EntityKeyframe;
 
 import java.util.ArrayList;
@@ -57,7 +57,7 @@ public class ActorTrackSampler {
         }
 
         List<EntityKeyframe> list = new ArrayList<>();
-        for (com.director.ui.timeline.model.TimelineSelectable selectable : track.getAutomationKeyframes()) {
+        for (com.director.timeline.model.TimelineSelectable selectable : track.getAutomationKeyframes()) {
             if (selectable instanceof EntityKeyframe ek) {
                 list.add(ek);
             }

@@ -1,6 +1,6 @@
 package com.director.ui.timeline.model.camera;
 
-import com.director.ui.timeline.model.TimelineSelectable;
+import com.director.timeline.model.TimelineSelectable;
 import org.joml.Vector3f;
 
 import java.util.UUID;

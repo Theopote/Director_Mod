@@ -330,9 +330,9 @@ public final class ActorSelectorPanel {
     private void removeActorTracksForActor(java.util.UUID actorId) {
         if (actorId == null || timelineModel == null) return;
 
-        java.util.List<com.director.ui.timeline.model.TimelineTrack> tracksToRemove = new java.util.ArrayList<>();
+        java.util.List<com.director.timeline.model.TimelineTrack> tracksToRemove = new java.util.ArrayList<>();
 
-        for (com.director.ui.timeline.model.TimelineTrack track : timelineModel.getAllTracks()) {
+        for (com.director.timeline.model.TimelineTrack track : timelineModel.getAllTracks()) {
             if (track.getType() == com.director.timeline.model.TrackType.ACTOR) {
                 com.director.ui.timeline.model.entity.ActorTrack actorTrack = track.getActorTrackPayload();
                 if (actorTrack != null) {
@@ -344,7 +344,7 @@ public final class ActorSelectorPanel {
             }
         }
 
-        for (com.director.ui.timeline.model.TimelineTrack track : tracksToRemove) {
+        for (com.director.timeline.model.TimelineTrack track : tracksToRemove) {
             timelineModel.removeTrack(track);
             LOGGER.debug("[ActorSelector] 已移除关联的 ActorTrack: {}", track.getName());
         }
@@ -356,7 +356,7 @@ public final class ActorSelectorPanel {
     private void updateActorTrackDisplayName(Actor actor) {
         if (actor == null || timelineModel == null) return;
 
-        for (com.director.ui.timeline.model.TimelineTrack track : timelineModel.getAllTracks()) {
+        for (com.director.timeline.model.TimelineTrack track : timelineModel.getAllTracks()) {
             if (track.getType() == com.director.timeline.model.TrackType.ACTOR) {
                 com.director.ui.timeline.model.entity.ActorTrack actorTrack = track.getActorTrackPayload();
                 if (actorTrack != null) {

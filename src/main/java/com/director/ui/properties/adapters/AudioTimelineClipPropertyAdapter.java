@@ -4,7 +4,7 @@ import com.director.core.DirectorServices;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.theme.UITheme;
 import com.director.ui.timeline.audio.TimelineAudioService;
-import com.director.ui.timeline.model.TimelineClip;
+import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TrackType;
 import com.director.ui.timeline.model.audio.AudioClipKeyframe;
 import com.director.ui.timeline.model.audio.AudioTimelineClip;

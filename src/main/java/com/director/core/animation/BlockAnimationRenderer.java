@@ -3,7 +3,7 @@ package com.director.core.animation;
 import com.director.core.animation.sequence.BlockSequenceEntry;
 import com.director.core.container.visibility.BlockVisualStateManager;
 import com.director.core.visual.BlockRenderMode;
-import com.director.ui.timeline.model.TimelineClip;
+import com.director.timeline.model.TimelineClip;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.*;

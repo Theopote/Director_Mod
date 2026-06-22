@@ -2,7 +2,7 @@ package com.director.ui.timeline.dialog;
 
 import com.director.ui.timeline.commands.RenameClipCommand;
 import com.director.ui.timeline.commands.TimelineCommandHistory;
-import com.director.ui.timeline.model.TimelineClip;
+import com.director.timeline.model.TimelineClip;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.theme.UITheme;
 

@@ -1,6 +1,6 @@
 package com.director.ui.timeline.commands;
 
-import com.director.ui.timeline.model.TimelineClip;
+import com.director.timeline.model.TimelineClip;
 
 /**
  * {@link TimelineClip} 到 {@link MoveClipCommand.Clip} 的适配器。

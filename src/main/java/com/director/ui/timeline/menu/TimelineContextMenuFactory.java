@@ -17,11 +17,11 @@ import com.director.ui.timeline.commands.ToggleTrackLockCommand;
 // import com.director.ui.timeline.commands.ToggleTrackSoloCommand;
 import com.director.ui.timeline.dialog.TrackRenameDialog;
 import com.director.ui.timeline.interaction.TimelineHitResult;
-import com.director.ui.timeline.model.TimelineClip;
+import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineInterpolation;
 import com.director.ui.timeline.model.TimelineMarker;
 import com.director.ui.timeline.model.TimelineModel;
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
 import com.director.ui.timeline.model.camera.CameraKeyframe;
 import com.director.ui.timeline.model.audio.AudioEvent;
@@ -315,8 +315,8 @@ public class TimelineContextMenuFactory {
      * 创建自动化关键帧的右键菜单（摄像机关键帧、天气关键帧等）
      */
     public TimelineContextMenu createAutomationKeyframeMenu(
-            com.director.ui.timeline.model.TimelineSelectable keyframe,
-            com.director.ui.timeline.model.TimelineTrack track) {
+            com.director.timeline.model.TimelineSelectable keyframe,
+            com.director.timeline.model.TimelineTrack track) {
         if (keyframe == null || track == null) {
             LOGGER.warn("[Timeline] 创建自动化关键帧菜单失败：keyframe 或 track 为 null");
             return TimelineContextMenuBuilder
@@ -378,7 +378,7 @@ public class TimelineContextMenuFactory {
             // 检查是否是激活的摄像机轨道
             com.director.timeline.playback.camera.TimelineCameraController controller =
                     com.director.timeline.playback.camera.TimelineCameraController.getInstance();
-            com.director.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
+            com.director.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
             
             if (activeTrack != track) {
                 // 未激活的轨道：显示禁用菜单
@@ -500,13 +500,13 @@ public class TimelineContextMenuFactory {
                 .count();
         
         String trackName = type.getDisplayName() + " " + (sameTypeCount + 1);
-        com.director.ui.timeline.model.TimelineTrack newTrack;
+        com.director.timeline.model.TimelineTrack newTrack;
         
         // 如果是音频轨道，使用 AudioTrack 类
         if (type == com.director.timeline.model.TrackType.AUDIO) {
             newTrack = new com.director.ui.timeline.model.audio.AudioTrack(trackName);
         } else {
-            newTrack = new com.director.ui.timeline.model.TimelineTrack(trackName, type);
+            newTrack = new com.director.timeline.model.TimelineTrack(trackName, type);
             if (type == com.director.timeline.model.TrackType.ACTOR) {
                 newTrack.setActorTrackPayload(new com.director.ui.timeline.model.entity.ActorTrack(trackName));
             }
@@ -554,7 +554,7 @@ public class TimelineContextMenuFactory {
                 // ⭐ v5.0：检查是否是激活的摄像机轨道
                 com.director.timeline.playback.camera.TimelineCameraController controller =
                         com.director.timeline.playback.camera.TimelineCameraController.getInstance();
-                com.director.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
+                com.director.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
                 boolean isActiveTrack = (activeTrack == track);
                 
                 // ⭐ 摄像机属性菜单项
@@ -792,7 +792,7 @@ public class TimelineContextMenuFactory {
         }
         
         com.director.ui.timeline.model.camera.path.CameraPathClip clip = pathClipHit.clip();
-        com.director.ui.timeline.model.TimelineTrack track = pathClipHit.track();
+        com.director.timeline.model.TimelineTrack track = pathClipHit.track();
         
         if (clip == null || track == null) {
             return TimelineContextMenuBuilder
@@ -813,7 +813,7 @@ public class TimelineContextMenuFactory {
         if (track.getType() == com.director.timeline.model.TrackType.CAMERA) {
             com.director.timeline.playback.camera.TimelineCameraController controller =
                     com.director.timeline.playback.camera.TimelineCameraController.getInstance();
-            com.director.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
+            com.director.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
             
             if (activeTrack != track) {
                 return TimelineContextMenuBuilder

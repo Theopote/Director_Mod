@@ -5,7 +5,7 @@ import com.director.ui.dialogs.DialogManager;
 import com.director.ui.panels.TimelinePanel;
 import com.director.ui.timeline.commands.AddTrackCommand;
 import com.director.ui.timeline.model.TimelineModel;
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
 import com.director.ui.timeline.model.audio.AudioTrack;
 import com.director.ui.timeline.model.camera.path.CameraPathType;

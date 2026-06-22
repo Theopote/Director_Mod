@@ -4,7 +4,7 @@ import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import com.director.timeline.model.TrackType;
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.camera.CameraViewportProfile;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;

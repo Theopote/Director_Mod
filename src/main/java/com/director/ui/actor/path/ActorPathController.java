@@ -7,7 +7,7 @@ import com.director.client.renderer.ToolPreviewManager;
 import com.director.ui.actor.selection.ActorSelectionHub;
 import com.director.ui.timeline.container.ContainerTimelineService;
 import com.director.ui.timeline.model.TimelineModel;
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.entity.ActorRouteClip;
 import com.director.ui.timeline.model.entity.EntityTimelineClip;
 import com.director.ui.timeline.model.entity.ActorTrack;

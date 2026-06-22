@@ -1,6 +1,6 @@
 package com.director.ui.timeline.render;
 
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
 import java.util.ArrayList;
 import java.util.List;
@@ -146,7 +146,7 @@ public final class TimelineTrackControlHit {
                 // 检查是否是激活的摄像机轨道
                 com.director.timeline.playback.camera.TimelineCameraController controller =
                         com.director.timeline.playback.camera.TimelineCameraController.getInstance();
-                com.director.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
+                com.director.timeline.model.TimelineTrack activeTrack = controller.getActiveCameraTrack();
                 
                 // 只有激活的摄像机轨道才注册关键帧按钮
                 if (activeTrack == track) {
@@ -156,7 +156,7 @@ public final class TimelineTrackControlHit {
                 // 检查是否是激活的时间轨道
                 com.director.timeline.playback.time.TimelineWorldController controller =
                         com.director.timeline.playback.time.TimelineWorldController.getInstance();
-                com.director.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveTimeTrack();
+                com.director.timeline.model.TimelineTrack activeTrack = controller.getActiveTimeTrack();
                 
                 // 只有激活的时间轨道才注册关键帧按钮
                 if (activeTrack == track) {
@@ -166,7 +166,7 @@ public final class TimelineTrackControlHit {
                 // 检查是否是激活的季节轨道
                 com.director.timeline.playback.season.TimelineSeasonController controller =
                         com.director.timeline.playback.season.TimelineSeasonController.getInstance();
-                com.director.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveSeasonTrack();
+                com.director.timeline.model.TimelineTrack activeTrack = controller.getActiveSeasonTrack();
                 
                 // 只有激活的季节轨道才注册关键帧按钮
                 if (activeTrack == track) {
@@ -176,7 +176,7 @@ public final class TimelineTrackControlHit {
                 // 检查是否是激活的天气轨道
                 com.director.timeline.playback.weather.TimelineWeatherController controller =
                         com.director.timeline.playback.weather.TimelineWeatherController.getInstance();
-                com.director.ui.timeline.model.TimelineTrack activeTrack = controller.getActiveWeatherTrack();
+                com.director.timeline.model.TimelineTrack activeTrack = controller.getActiveWeatherTrack();
                 
                 // 只有激活的天气轨道才注册关键帧按钮
                 if (activeTrack == track) {

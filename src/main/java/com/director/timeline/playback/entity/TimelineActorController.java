@@ -1,7 +1,7 @@
 package com.director.timeline.playback.entity;
 
 import com.director.core.DirectorServices;
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -168,7 +168,7 @@ public final class TimelineActorController {
         
         // 统计关键帧数量
         int keyframeCount = 0;
-        for (com.director.ui.timeline.model.TimelineSelectable selectable : activeTrack.getAutomationKeyframes()) {
+        for (com.director.timeline.model.TimelineSelectable selectable : activeTrack.getAutomationKeyframes()) {
             if (selectable instanceof com.director.ui.timeline.model.entity.EntityKeyframe) {
                 keyframeCount++;
             }

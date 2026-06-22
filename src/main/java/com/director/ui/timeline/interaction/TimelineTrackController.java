@@ -2,9 +2,9 @@ package com.director.ui.timeline.interaction;
 
 import com.director.ui.timeline.commands.DeleteTrackCommand;
 import com.director.ui.timeline.commands.TimelineCommandHistory;
-import com.director.ui.timeline.model.TimelineClip;
+import com.director.timeline.model.TimelineClip;
 import com.director.ui.timeline.model.TimelineModel;
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
 import com.director.ui.timeline.model.audio.AudioTrack;
 import imgui.ImGui;

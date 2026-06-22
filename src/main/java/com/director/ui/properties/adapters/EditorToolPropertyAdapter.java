@@ -13,7 +13,7 @@ import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import com.director.ui.timeline.container.ContainerTimelineService;
 import com.director.ui.timeline.model.TimelineModel;
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
 import com.director.ui.timeline.model.entity.ActorActionClip;
 import com.director.ui.timeline.model.entity.ActorPoseClip;

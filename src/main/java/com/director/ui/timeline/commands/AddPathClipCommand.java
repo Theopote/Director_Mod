@@ -1,7 +1,7 @@
 package com.director.ui.timeline.commands;
 
 import com.director.ui.timeline.model.TimelineModel;
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.camera.path.CameraPathClip;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

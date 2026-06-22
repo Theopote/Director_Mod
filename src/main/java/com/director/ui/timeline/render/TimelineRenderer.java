@@ -1,10 +1,10 @@
 package com.director.ui.timeline.render;
 
 import com.director.ui.theme.UITheme;
-import com.director.ui.timeline.model.TimelineClip;
+import com.director.timeline.model.TimelineClip;
 import com.director.ui.timeline.model.TimelineModel;
-import com.director.ui.timeline.model.TimelineSelectable;
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineSelectable;
+import com.director.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.TimelineViewportState;
 import com.director.timeline.model.TrackType;
 import com.director.ui.timeline.model.camera.CameraKeyframe;

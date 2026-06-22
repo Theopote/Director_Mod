@@ -9,7 +9,7 @@ import com.director.actor.rig.*;
 import net.minecraft.entity.Entity;
 import com.director.actor.prop.*;
 import com.director.ui.timeline.model.TimelineModel;
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.entity.ActorTrack;
 import com.director.timeline.playback.entity.EntityClipSampler;
 import com.director.timeline.playback.entity.EntitySample;

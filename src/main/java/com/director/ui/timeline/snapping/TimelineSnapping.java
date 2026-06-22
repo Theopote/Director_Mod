@@ -2,9 +2,9 @@ package com.director.ui.timeline.snapping;
 
 import java.util.List;
 
-import com.director.ui.timeline.model.TimelineClip;
+import com.director.timeline.model.TimelineClip;
 import com.director.ui.timeline.model.TimelineModel;
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineTrack;
 
 /**
  * 时间线吸附工具类（Director 风格）

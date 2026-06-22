@@ -3,9 +3,9 @@ package com.director.ui.timeline.state;
 import com.director.core.DirectorServices;
 import com.director.ui.timeline.commands.DeleteClipCommand;
 import com.director.ui.timeline.commands.TimelineCommandHistory;
-import com.director.ui.timeline.model.TimelineClip;
+import com.director.timeline.model.TimelineClip;
 import com.director.ui.timeline.model.TimelineModel;
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
 
 import org.slf4j.Logger;

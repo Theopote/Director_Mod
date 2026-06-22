@@ -69,11 +69,11 @@ public class SeasonTrackSampler {
     /**
      * 从轨道收集关键帧。
      */
-    public void setFromTrack(com.director.ui.timeline.model.TimelineTrack track) {
+    public void setFromTrack(com.director.timeline.model.TimelineTrack track) {
         keyframes.clear();
         if (track == null) return;
 
-        for (com.director.ui.timeline.model.TimelineSelectable selectable : track.getAutomationKeyframes()) {
+        for (com.director.timeline.model.TimelineSelectable selectable : track.getAutomationKeyframes()) {
             if (selectable instanceof SeasonKeyframe sk) {
                 keyframes.add(sk);
             }
@@ -85,7 +85,7 @@ public class SeasonTrackSampler {
     /**
      * 设置关键帧列表（向后兼容）。
      * 
-     * @deprecated 使用 {@link #setFromTrack(com.director.ui.timeline.model.TimelineTrack)} 代替
+     * @deprecated 使用 {@link #setFromTrack(com.director.timeline.model.TimelineTrack)} 代替
      */
     @Deprecated
     public void setKeyframes(List<SeasonKeyframe> keyframes) {

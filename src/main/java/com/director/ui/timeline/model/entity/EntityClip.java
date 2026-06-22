@@ -1,6 +1,6 @@
 package com.director.ui.timeline.model.entity;
 
-import com.director.ui.timeline.model.TimelineSelectable;
+import com.director.timeline.model.TimelineSelectable;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
@@ -24,7 +24,7 @@ import java.util.UUID;
  *   <li>可比较排序（按时间排序）</li>
  * </ul>
  *
- * <p>与 {@link com.director.ui.timeline.model.TimelineClip} 的关系：
+ * <p>与 {@link com.director.timeline.model.TimelineClip} 的关系：
  * <ul>
  *   <li>EntityClip 是独立的实体片段系统，不继承 TimelineClip</li>
  *   <li>可以与 TimelineClip 并存，用于不同的使用场景</li>

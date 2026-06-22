@@ -1,7 +1,7 @@
 package com.director.client.renderer;
 
 import com.director.ui.camera.path.CameraPathEditController;
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.camera.CameraViewportProfile;
 import com.director.ui.timeline.model.camera.ViewportMath;
 import com.director.timeline.playback.camera.TimelineCameraController;

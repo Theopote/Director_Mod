@@ -3,7 +3,7 @@ package com.director.ui.timeline.commands;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.director.ui.timeline.model.TimelineClip;
+import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineInterpolation;
 import com.director.ui.timeline.model.TimelineModel;
 

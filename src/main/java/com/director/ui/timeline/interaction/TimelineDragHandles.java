@@ -1,10 +1,10 @@
 package com.director.ui.timeline.interaction;
 
 import com.director.actor.action.ActorActionType;
-import com.director.ui.timeline.model.TimelineClip;
+import com.director.timeline.model.TimelineClip;
 import com.director.ui.timeline.model.TimelineMarker;
-import com.director.ui.timeline.model.TimelineSelectable;
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineSelectable;
+import com.director.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.camera.path.CameraPathClip;
 import com.director.ui.timeline.model.entity.ActorTrack;
 

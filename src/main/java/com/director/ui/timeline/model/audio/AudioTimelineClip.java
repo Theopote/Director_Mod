@@ -1,6 +1,6 @@
 package com.director.ui.timeline.model.audio;
 
-import com.director.ui.timeline.model.TimelineClip;
+import com.director.timeline.model.TimelineClip;
 
 /**
  * AudioTimelineClip

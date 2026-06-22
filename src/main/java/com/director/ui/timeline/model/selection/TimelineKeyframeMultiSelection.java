@@ -1,6 +1,6 @@
 package com.director.ui.timeline.model.selection;
 
-import com.director.ui.timeline.model.TimelineSelectable;
+import com.director.timeline.model.TimelineSelectable;
 import com.director.ui.timeline.model.clip.ClipKeyframe;
 
 import java.util.ArrayList;

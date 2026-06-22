@@ -6,7 +6,7 @@ import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import com.director.ui.timeline.container.ContainerTimelineService;
 import com.director.ui.timeline.model.TimelineModel;
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.weather.WeatherKeyframe;
 import com.director.timeline.playback.weather.TimelineWeatherController;
 import imgui.ImGui;

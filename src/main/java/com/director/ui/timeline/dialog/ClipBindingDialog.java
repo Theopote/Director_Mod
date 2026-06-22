@@ -7,7 +7,7 @@ import com.director.core.container.ContainerType;
 import com.director.ui.timeline.commands.BindClipToContainerCommand;
 import com.director.ui.timeline.container.ContainerTimelineService;
 import com.director.ui.timeline.commands.TimelineCommandHistory;
-import com.director.ui.timeline.model.TimelineClip;
+import com.director.timeline.model.TimelineClip;
 import com.director.ui.timeline.model.TimelineModel;
 import com.director.ui.theme.UITheme;
 

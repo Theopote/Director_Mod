@@ -1,4 +1,4 @@
-package com.director.ui.timeline.model;
+package com.director.timeline.model;
 
 import com.director.core.DirectorServices;
 import com.director.timeline.model.TrackType;

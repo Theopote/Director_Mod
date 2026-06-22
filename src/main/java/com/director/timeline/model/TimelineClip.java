@@ -1,7 +1,8 @@
-package com.director.ui.timeline.model;
+package com.director.timeline.model;
 
 import com.director.core.animation.ClipAnimationConfig;
 import com.director.core.container.ContainerAnimationPreset;
+import com.director.ui.timeline.model.VisibilityKeyframe;
 import com.director.ui.util.UIUtils;
 
 import java.util.*;
@@ -732,10 +733,10 @@ public class TimelineClip {
     }
     
     /**
-     * 设置父轨道引用（包级私有，仅供 TimelineTrack 调用）
+     * 设置父轨道引用（仅供 {@link TimelineTrack} 在添加/移除片段时维护反向引用）
      * @param parentTrack 父轨道引用
      */
-    void setParentTrack(TimelineTrack parentTrack) {
+    public void setParentTrack(TimelineTrack parentTrack) {
         this.parentTrack = parentTrack;
     }
 

@@ -1,8 +1,8 @@
 package com.director.ui.selection;
 
-import com.director.ui.timeline.model.TimelineClip;
-import com.director.ui.timeline.model.TimelineSelectable;
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineClip;
+import com.director.timeline.model.TimelineSelectable;
+import com.director.timeline.model.TimelineTrack;
 import com.director.ui.timeline.model.clip.ClipKeyframe;
 import com.director.ui.timeline.model.entity.EntityClip;
 import com.director.ui.timeline.model.selection.TimelineKeyframeMultiSelection;

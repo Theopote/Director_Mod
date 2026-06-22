@@ -2,11 +2,11 @@ package com.director.ui.timeline.interaction;
 
 import com.director.ui.timeline.menu.TimelineContextMenu;
 import com.director.ui.timeline.menu.TimelineContextMenuFactory;
-import com.director.ui.timeline.model.TimelineClip;
+import com.director.timeline.model.TimelineClip;
 import com.director.ui.timeline.model.TimelineMarker;
 import com.director.ui.timeline.model.TimelineModel;
-import com.director.ui.timeline.model.TimelineSelectable;
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineSelectable;
+import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
 import com.director.ui.timeline.model.camera.CameraKeyframe;
 import com.director.ui.timeline.model.camera.path.CameraPathClip;

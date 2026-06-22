@@ -8,11 +8,11 @@ import com.director.ui.timeline.interaction.*;
 import com.director.ui.timeline.menu.TimelineContextMenu;
 import com.director.ui.timeline.menu.TimelineContextMenuFactory;
 import com.director.core.DirectorServices;
-import com.director.ui.timeline.model.TimelineClip;
+import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineInterpolation;
 import com.director.ui.timeline.model.TimelineModel;
-import com.director.ui.timeline.model.TimelineSelectable;
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineSelectable;
+import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
 import com.director.ui.timeline.model.TimelineViewportState;
 import com.director.ui.timeline.model.audio.AudioClipKeyframe;
@@ -1491,7 +1491,7 @@ public class TimelinePanel extends AbstractPanel
                 // ⭐ 检查是否是激活的摄像机轨道
                 com.director.timeline.playback.camera.TimelineCameraController cameraController =
                         com.director.timeline.playback.camera.TimelineCameraController.getInstance();
-                com.director.ui.timeline.model.TimelineTrack activeTrack = cameraController.getActiveCameraTrack();
+                com.director.timeline.model.TimelineTrack activeTrack = cameraController.getActiveCameraTrack();
                 
                 if (activeTrack != track) {
                     LOGGER.warn("[TimelinePanel] 只能在激活的摄像机轨道上添加关键帧，当前轨道：{}，激活轨道：{}",
@@ -1540,7 +1540,7 @@ public class TimelinePanel extends AbstractPanel
                 // ⭐ v3.5：检查是否是激活的时间轨道
                 com.director.timeline.playback.time.TimelineWorldController timeController =
                         com.director.timeline.playback.time.TimelineWorldController.getInstance();
-                com.director.ui.timeline.model.TimelineTrack activeTrack = timeController.getActiveTimeTrack();
+                com.director.timeline.model.TimelineTrack activeTrack = timeController.getActiveTimeTrack();
                 
                 if (activeTrack != track) {
                     LOGGER.warn("[TimelinePanel] 只能在激活的时间轨道上添加关键帧，当前轨道：{}，激活轨道：{}",
@@ -1572,7 +1572,7 @@ public class TimelinePanel extends AbstractPanel
                 // ⭐ v1.0：检查是否是激活的演员轨道
                 com.director.timeline.playback.entity.TimelineActorController entityController =
                         com.director.timeline.playback.entity.TimelineActorController.getInstance();
-                com.director.ui.timeline.model.TimelineTrack activeTrack = entityController.getActiveActorTrack();
+                com.director.timeline.model.TimelineTrack activeTrack = entityController.getActiveActorTrack();
                 
                 if (activeTrack != track) {
                     LOGGER.warn("[TimelinePanel] 只能在激活的演员轨道上添加关键帧，当前轨道：{}，激活轨道：{}",
@@ -1604,7 +1604,7 @@ public class TimelinePanel extends AbstractPanel
                 // ⭐ v1.1：检查是否是激活的季节轨道
                 com.director.timeline.playback.season.TimelineSeasonController seasonController =
                         com.director.timeline.playback.season.TimelineSeasonController.getInstance();
-                com.director.ui.timeline.model.TimelineTrack activeTrack = seasonController.getActiveSeasonTrack();
+                com.director.timeline.model.TimelineTrack activeTrack = seasonController.getActiveSeasonTrack();
                 
                 if (activeTrack != track) {
                     LOGGER.warn("[TimelinePanel] 只能在激活的季节轨道上添加关键帧，当前轨道：{}，激活轨道：{}",

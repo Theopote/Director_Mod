@@ -120,14 +120,22 @@
 - ✅ `TrackType` → `com.director.timeline.model.TrackType`
 - ✅ `TimelineInterpolation` → `com.director.timeline.model.TimelineInterpolation`
 - ✅ `ITimelineProject` → `com.director.timeline.model.ITimelineProject`
+- ✅ `TimelineSelectable` → `com.director.timeline.model.TimelineSelectable`
+- ✅ `TimelineClip` → `com.director.timeline.model.TimelineClip`
+- ✅ `TimelineTrack` → `com.director.timeline.model.TimelineTrack`
 
-说明：以上三项迁移后已完成全项目 import/FQN 更新并通过编译。
+说明：以上六项迁移后已完成全项目 import/FQN 更新并通过编译。`TimelineClip.setParentTrack` 改为 `public`，以便跨包由 `TimelineTrack` 维护父引用。
+
+工具脚本：
+
+- `tools/relocate_model_clip_selectable.py`：`TimelineSelectable` / `TimelineClip`
+- `tools/relocate_model_timelinetrack.py`：`TimelineTrack`
 
 批次拆分建议：
 
-- 3.1 先迁 `TrackType`、`TimelineInterpolation`、轻量 enum/value
-- 3.2 再迁 `TimelineClip`/`TimelineTrack` 接口与基类
-- 3.3 最后迁 `TimelineModel`（最中心）
+- 3.1 先迁 `TrackType`、`TimelineInterpolation`、轻量 enum/value、`TimelineSelectable`、`TimelineClip` ✅
+- 3.2 再迁 `TimelineTrack` ✅
+- 3.3 最后迁 `TimelineModel`（最中心）及子包
 
 ---
 

@@ -1,7 +1,7 @@
 package com.director.timeline.playback.weather;
 
 import com.director.core.DirectorServices;
-import com.director.ui.timeline.model.TimelineTrack;
+import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
 import com.director.ui.timeline.model.weather.WeatherKeyframe;
 import net.minecraft.client.MinecraftClient;
@@ -167,7 +167,7 @@ public final class TimelineWeatherController {
         
         // 统计关键帧数量
         int keyframeCount = 0;
-        for (com.director.ui.timeline.model.TimelineSelectable selectable : activeTrack.getAutomationKeyframes()) {
+        for (com.director.timeline.model.TimelineSelectable selectable : activeTrack.getAutomationKeyframes()) {
             if (selectable instanceof WeatherKeyframe) {
                 keyframeCount++;
             }

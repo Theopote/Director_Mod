@@ -5,7 +5,7 @@ import com.director.core.animation.effect.EffectInstance;
 import com.director.core.container.Container;
 import com.director.core.container.ContainerManager;
 import com.director.ui.properties.IPropertyAdapter;
-import com.director.ui.timeline.model.TimelineClip;
+import com.director.timeline.model.TimelineClip;
 import com.director.ui.theme.Icons;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
