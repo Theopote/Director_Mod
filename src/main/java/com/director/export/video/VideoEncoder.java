@@ -9,8 +9,7 @@ import java.io.IOException;
  *
  * <p>编码器负责把逐帧渲染得到的 {@link NativeImage} 写出到磁盘。</p>
  *
- * <p>当前提供 {@link PngSequenceEncoder}（零依赖 PNG 序列）。后续可替换/新增
- * FFmpeg 编码器实现真正 MP4。</p>
+ * <p>当前实现：{@link PngSequenceEncoder}（PNG 序列）与 {@link FFmpegVideoEncoder}（H.264 MP4）。</p>
  */
 public interface VideoEncoder {
 

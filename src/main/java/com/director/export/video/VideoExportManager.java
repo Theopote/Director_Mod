@@ -8,11 +8,11 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * 🎬 VideoExportManager - 视频导出任务管理器（任务骨架）
+ * 视频导出任务管理器。
  *
- * <p>当前版本先提供“可运行的 UI 闭环”：
- * 后台线程模拟逐帧导出进度，提供取消/完成/失败回调。
- * 后续接入真正的离屏渲染与 FFmpeg 编码时，只需要替换 runExport() 的实现。</p>
+ * <p>在后台线程启动 {@link VideoExportTask}，协调取消/完成/失败回调与并发互斥。
+ * 实际逐帧渲染与编码由 {@link VideoRenderPipeline}、{@link FFmpegVideoEncoder} /
+ * {@link PngSequenceEncoder} 完成。</p>
  */
 public final class VideoExportManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(VideoExportManager.class);

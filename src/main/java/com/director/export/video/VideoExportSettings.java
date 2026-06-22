@@ -6,8 +6,9 @@ import java.nio.file.Paths;
 /**
  * 🎥 VideoExportSettings - 视频导出设置（UI 可直接绑定）
  *
- * <p>目前仅提供 UI 所需字段 + 基础校验。后续接入离屏渲染与 FFmpeg 编码时，可在此补充：
- * bitRate、preset、crf、编码器选择、PNG 序列等。</p>
+ * <p>承载导出对话框字段与基础校验。编码由 {@link FFmpegVideoEncoder}（H.264 MP4）
+ * 或 {@link PngSequenceEncoder}（PNG 序列）消费；高级编码参数（bitRate、crf、preset 等）
+ * 尚未暴露为 UI 字段。</p>
  */
 public class VideoExportSettings {
 
@@ -111,7 +112,7 @@ public class VideoExportSettings {
         }
         String name = p.getFileName() != null ? p.getFileName().toString().toLowerCase() : "";
         if (format == FORMAT_H264_MP4) {
-            // UI 里 MP4 仍要求用户给出 .mp4（后续接入 FFmpeg 时可直接复用）
+            // MP4 输出要求 .mp4 扩展名（由 FFmpegVideoEncoder 写出）
             return name.endsWith(".mp4");
         } else if (format == FORMAT_PNG_SEQUENCE) {
             // PNG 序列：允许任意输出路径（通常用户仍会填 .mp4 作为“基名”）
