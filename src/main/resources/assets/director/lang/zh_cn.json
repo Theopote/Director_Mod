@@ -70,7 +70,6 @@
   "gui.director.panel.menu_bar": "菜单栏",
   "gui.director.panel.status_bar": "状态栏",
   "gui.director.panel.properties": "属性",
-  "gui.director.panel.inspector": "检查器",
   "gui.director.panel.tool_properties": "工具属性（已集成）",
   "gui.director.panel.container": "容器",
   "gui.director.panel.actors": "演员",

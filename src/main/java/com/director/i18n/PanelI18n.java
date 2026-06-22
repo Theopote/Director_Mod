@@ -27,7 +27,6 @@ public final class PanelI18n {
             case PanelId.MENU_BAR -> DirectorLang.Panel.MENU_BAR;
             case PanelId.STATUS_BAR -> DirectorLang.Panel.STATUS_BAR;
             case PanelId.PROPERTIES -> DirectorLang.Panel.PROPERTIES;
-            case PanelId.INSPECTOR -> DirectorLang.Panel.INSPECTOR;
             case PanelId.TOOL_PROPERTIES -> DirectorLang.Panel.TOOL_PROPERTIES;
             case PanelId.CONTAINER -> DirectorLang.Panel.CONTAINER;
             case PanelId.ACTORS -> DirectorLang.Panel.ACTORS;

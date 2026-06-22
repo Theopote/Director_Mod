@@ -294,7 +294,6 @@ public final class DirectorLang {
         public static final String MENU_BAR = "gui.director.panel.menu_bar";
         public static final String STATUS_BAR = "gui.director.panel.status_bar";
         public static final String PROPERTIES = "gui.director.panel.properties";
-        public static final String INSPECTOR = "gui.director.panel.inspector";
         public static final String TOOL_PROPERTIES = "gui.director.panel.tool_properties";
         public static final String CONTAINER = "gui.director.panel.container";
         public static final String ACTORS = "gui.director.panel.actors";

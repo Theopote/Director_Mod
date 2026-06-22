@@ -13,7 +13,7 @@ package com.director.ui;
  * <p>使用示例：
  * <pre>{@code
  * commands.view().togglePanel(PanelId.TIMELINE);
- * commands.view().showPanel(PanelId.INSPECTOR);
+ * commands.view().showPanel(PanelId.PROPERTIES);
  * }</pre>
  * 
  * @author Director Team
@@ -40,14 +40,10 @@ public final class PanelId {
     /** 状态栏面板 */
     public static final String STATUS_BAR = "StatusBar";
     
-    // ==================== 属性与检查器面板 ====================
+    // ==================== 属性面板 ====================
     
     /** 属性面板 */
     public static final String PROPERTIES = "Properties";
-    
-    /** 检查器面板 */
-    public static final String INSPECTOR = "Inspector";
-    
     /** 工具属性面板 */
     public static final String TOOL_PROPERTIES = "ToolProperties";
     
@@ -94,7 +90,6 @@ public final class PanelId {
             case "MenuBar" -> MENU_BAR;
             case "StatusBar" -> STATUS_BAR;
             case "Properties" -> PROPERTIES;
-            case "Inspector" -> INSPECTOR;
             case "ToolProperties" -> TOOL_PROPERTIES;
             case "Container" -> CONTAINER;
             case "Actors" -> ACTORS;
