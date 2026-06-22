@@ -2,6 +2,8 @@ package com.director.ui.properties.adapters;
 
 import com.director.core.animation.ClipAnimationConfig;
 import com.director.core.animation.easing.EasingFunction;
+import com.director.core.animation.transform.AnimationTransformerFactory;
+import com.director.core.animation.transform.IAnimationTransformer;
 import com.director.core.container.AnimationMode;
 import com.director.core.animation.effect.BlockEffectRegistry;
 import com.director.core.animation.effect.EffectInstance;
@@ -271,36 +273,298 @@ public class TimelineClipPropertyUi {
         return modified;
     }
 
+    boolean renderAnimationSettings(TimelineClip clip, TimelineClipUiVariant variant) {
+        try {
+            return renderAnimationSettingsInternal(clip, TimelineClipAnimationPolicy.forVariant(variant));
+        } catch (Exception e) {
+            LOGGER.error("渲染动画设置时发生异常: {}", e.getMessage(), e);
+            ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, "错误: " + e.getMessage());
+            return false;
+        }
+    }
+
+    private boolean renderAnimationSettingsInternal(TimelineClip clip, TimelineClipAnimationPolicy policy) {
+        boolean modified = false;
+
+        ClipAnimationConfig config = clip.getAnimationConfig();
+        if (config == null) {
+            LOGGER.warn("片段的动画配置为空");
+            ImGui.textDisabled("动画配置为空");
+            return false;
+        }
+
+        com.director.core.animation.LegacyAnimationModeMigrator.migrateIfNeeded(config);
+        com.director.core.animation.LegacyAdvancedParamsMigrator.migrateIfNeeded(config);
+
+        AnimationMode currentMode = config.getMode();
+        if (currentMode == null) {
+            currentMode = AnimationMode.INSTANT;
+            config.setMode(currentMode);
+        }
+
+        String currentEasing = config.getEasing();
+        if (currentEasing == null || currentEasing.isEmpty()) {
+            currentEasing = EasingFunction.LINEAR.name();
+            config.setEasing(currentEasing);
+        }
+
+        UITheme.label(policy.sectionTitle(), UITheme.DarkTheme.TEXT_SELECTED);
+        if (policy.sectionHint() != null) {
+            UITheme.label(policy.sectionHint(), UITheme.DarkTheme.TEXT_DISABLED);
+            UITheme.spacingSmall();
+        }
+
+        if (config.getPhase() != policy.phase()) {
+            config.setPhase(policy.phase());
+            modified = true;
+        }
+
+        AnimationMode[] availableModes = policy.availableModes();
+        String[] availableLabels = Arrays.stream(availableModes)
+                .map(policy::labelForMode)
+                .toArray(String[]::new);
+
+        int selectedIdx = 0;
+        for (int i = 0; i < availableModes.length; i++) {
+            if (availableModes[i] == currentMode) {
+                selectedIdx = i;
+                break;
+            }
+        }
+        if (selectedIdx == 0 && currentMode != availableModes[0]) {
+            AnimationMode fallback = policy.invalidModeFallback();
+            config.setMode(fallback);
+            currentMode = fallback;
+            for (int i = 0; i < availableModes.length; i++) {
+                if (availableModes[i] == currentMode) {
+                    selectedIdx = i;
+                    break;
+                }
+            }
+            modified = true;
+        }
+        animationModeIndex.set(selectedIdx);
+
+        ImGui.pushItemWidth(ImGui.getContentRegionAvailX());
+        if (ImGui.combo("##AnimMode", animationModeIndex, availableLabels)) {
+            int newIndex = animationModeIndex.get();
+            if (newIndex < 0 || newIndex >= availableModes.length) {
+                newIndex = 0;
+            }
+            AnimationMode newMode = availableModes[newIndex];
+            config.setMode(newMode);
+            currentMode = newMode;
+
+            try {
+                IAnimationTransformer transformer = AnimationTransformerFactory.getInstance().getTransformer(newMode);
+                if (transformer != null) {
+                    String recommended = transformer.getRecommendedEasing();
+                    if (recommended != null && !recommended.isEmpty()) {
+                        config.setEasing(recommended);
+                        currentEasing = recommended;
+                    }
+
+                    Map<String, Object> params = config.getParams();
+                    Map<String, Object> defaultParams = transformer.getDefaultParams();
+                    if (defaultParams != null) {
+                        boolean opacityFadeValue = params.containsKey("opacityFade")
+                                && (params.get("opacityFade") instanceof Boolean b && b);
+                        float opacityFadeIntensity = 1.0f;
+                        if (params.containsKey("opacityFadeIntensity")) {
+                            Object intensityObj = params.get("opacityFadeIntensity");
+                            if (intensityObj instanceof Number num) {
+                                opacityFadeIntensity = num.floatValue();
+                            } else if (intensityObj instanceof String str) {
+                                try {
+                                    opacityFadeIntensity = Float.parseFloat(str);
+                                } catch (NumberFormatException ignored) {
+                                }
+                            }
+                        }
+
+                        params.clear();
+                        params.putAll(defaultParams);
+                        params.put("opacityFade", opacityFadeValue);
+                        params.put("opacityFadeIntensity", opacityFadeIntensity);
+                    }
+                }
+            } catch (Exception e) {
+                LOGGER.warn("获取推荐缓动函数时出错: {}", e.getMessage());
+            }
+
+            modified = true;
+        }
+        ImGui.popItemWidth();
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(policy.modeComboTooltip());
+        }
+
+        try {
+            drawHelpBox(policy.descriptionForMode(currentMode));
+        } catch (Exception e) {
+            LOGGER.error("显示模式描述时出错: {}", e.getMessage(), e);
+        }
+
+        float[] duration = { config.getDuration() };
+        if (ImGui.dragFloat("动画时长 (秒)", duration, 0.05f, 0.0f, clip.getLength(), "%.2fs")) {
+            if (duration[0] < 0.0f) {
+                duration[0] = 0.0f;
+            }
+            config.setDuration(duration[0]);
+            modified = true;
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(policy.durationTooltip());
+        }
+
+        UITheme.spacingSmall();
+        Map<String, Object> params = config.getParams();
+
+        try {
+            IAnimationTransformer transformer = AnimationTransformerFactory.getInstance().getTransformer(currentMode);
+            if (transformer != null) {
+                Map<String, Object> defaultParams = transformer.getDefaultParams();
+                if (defaultParams != null) {
+                    defaultParams.forEach(params::putIfAbsent);
+                }
+                try {
+                    if (renderAnimationParamsDirectly(currentMode, params)) {
+                        modified = true;
+                    }
+                } catch (Exception e) {
+                    LOGGER.warn("渲染动画参数时出错: {}", e.getMessage(), e);
+                    ImGui.textColored(1.0f, 0.5f, 0.0f, 1.0f, "参数渲染失败: " + e.getMessage());
+                }
+            } else {
+                LOGGER.warn("未找到动画模式 {} 对应的 Transformer", currentMode);
+                ImGui.textDisabled("未找到动画模式实现");
+            }
+        } catch (Exception e) {
+            LOGGER.error("渲染动画参数时出错: {}", e.getMessage(), e);
+            ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, "错误: " + e.getMessage());
+        }
+
+        UITheme.separator();
+
+        UITheme.label("缓动曲线 (Easing)", UITheme.DarkTheme.TEXT_SELECTED);
+
+        EasingFunction currentEasingFunc;
+        try {
+            currentEasingFunc = EasingFunction.fromString(currentEasing);
+        } catch (Exception e) {
+            currentEasingFunc = EasingFunction.LINEAR;
+        }
+
+        int easingOrdinal = currentEasingFunc.ordinal();
+        String[] easingLabels = getEasingFunctionLabels();
+        if (easingOrdinal >= easingLabels.length) {
+            easingOrdinal = 0;
+        }
+        easingFunctionIndex.set(easingOrdinal);
+
+        ImGui.pushItemWidth(ImGui.getContentRegionAvailX());
+        if (ImGui.combo("##Easing", easingFunctionIndex, easingLabels)) {
+            int newIdx = easingFunctionIndex.get();
+            if (newIdx < 0 || newIdx >= EasingFunction.values().length) {
+                newIdx = 0;
+            }
+            EasingFunction newFunc = EasingFunction.values()[newIdx];
+            config.setEasing(newFunc.name());
+            currentEasingFunc = newFunc;
+            modified = true;
+        }
+        ImGui.popItemWidth();
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(currentEasingFunc.getDescription());
+        }
+
+        renderEasingCurvePreview(currentEasingFunc);
+
+        UITheme.separator();
+
+        UITheme.label("高级修饰 (Advanced)", UITheme.DarkTheme.TEXT_SELECTED);
+
+        opacityFade.set(getBooleanParam(params));
+        if (ImGui.checkbox(policy.opacityFadeLabel(), opacityFade)) {
+            params.put("opacityFade", opacityFade.get());
+            modified = true;
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(policy.opacityFadeTooltip());
+        }
+
+        if (opacityFade.get()) {
+            ImGui.sameLine();
+            float fadeIntensity = getFloatParam(params);
+            float[] fadeArr = { fadeIntensity };
+            ImGui.pushItemWidth(100.0f);
+            if (ImGui.dragFloat("##FadeIntensity", fadeArr, 0.05f, 0.1f, 2.0f, "强度: %.2f")) {
+                params.put("opacityFadeIntensity", fadeArr[0]);
+                modified = true;
+            }
+            ImGui.popItemWidth();
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("控制淡入的速度：>1 慢，<1 快。");
+            }
+        }
+
+        ImGui.textDisabled("提示：闪白光请在下方「特效」面板添加 FLASH_WHITE（或使用特效预设包）。");
+
+        if (ImGui.button("恢复当前模式默认参数")) {
+            try {
+                IAnimationTransformer transformer = AnimationTransformerFactory.getInstance().getTransformer(currentMode);
+                if (transformer != null) {
+                    Map<String, Object> defaultParams = transformer.getDefaultParams();
+                    if (defaultParams != null) {
+                        params.clear();
+                        params.putAll(defaultParams);
+                        params.put("opacityFade", false);
+                        params.put("opacityFadeIntensity", 1.0f);
+                        opacityFade.set(false);
+                        modified = true;
+                    }
+                }
+            } catch (Exception e) {
+                LOGGER.error("恢复默认值时出错: {}", e.getMessage(), e);
+                ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, "恢复失败: " + e.getMessage());
+            }
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("将当前动画模式的参数全部恢复为默认值。");
+        }
+
+        return modified;
+    }
+
     boolean applySequencePreset(int presetIndex, SequenceParameters params, TimelineClipUiVariant variant) {
         boolean demolition = variant == TimelineClipUiVariant.DEMOLITION;
         OriginType defaultOrigin = demolition ? OriginType.TOP_CENTER : OriginType.BOTTOM_CENTER;
-        boolean defaultReverse = demolition;
         switch (presetIndex) {
             case 0 -> {
                 params.setFlowType(FlowType.PLANAR);
                 params.setOriginType(defaultOrigin);
                 params.setFillType(FillType.LINEAR_SCAN);
-                params.setReverse(defaultReverse);
+                params.setReverse(demolition);
                 params.setAlternating(false);
             }
             case 1 -> {
                 params.setFlowType(FlowType.RANDOM);
                 params.setFillType(FillType.LINEAR_SCAN);
-                params.setReverse(defaultReverse);
+                params.setReverse(demolition);
                 params.setAlternating(false);
             }
             case 2 -> {
                 params.setFlowType(FlowType.SPHERICAL);
                 params.setOriginType(OriginType.CENTER);
                 params.setFillType(FillType.RADIAL);
-                params.setReverse(defaultReverse);
+                params.setReverse(demolition);
                 params.setAlternating(false);
             }
             case 3 -> {
                 params.setFlowType(FlowType.PLANAR);
                 params.setOriginType(OriginType.CENTER);
                 params.setFillType(FillType.SPIRAL);
-                params.setReverse(defaultReverse);
+                params.setReverse(demolition);
                 params.setAlternating(false);
             }
             case 4 -> {
@@ -309,14 +573,14 @@ public class TimelineClipPropertyUi {
                 params.setFillType(FillType.LINEAR_SCAN);
                 params.setPriorityWeight(100.0f);
                 params.setLayerStep(1.0f);
-                params.setReverse(defaultReverse);
+                params.setReverse(demolition);
                 params.setAlternating(false);
             }
             case 5 -> {
                 params.setFlowType(FlowType.PLANAR);
                 params.setOriginType(defaultOrigin);
                 params.setFillType(FillType.LINEAR_SCAN);
-                params.setReverse(defaultReverse);
+                params.setReverse(demolition);
                 params.setAlternating(true);
             }
             default -> {
