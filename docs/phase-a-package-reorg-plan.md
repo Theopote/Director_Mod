@@ -99,6 +99,13 @@
 - `season/*`：`SeasonSample`
 - `export/video/*`：`TimelineCameraController`（如用于离线渲染）
 
+### 迁移状态
+
+- ✅ 已完成：`playback.weather`
+- ✅ 已完成：`playback.time`
+- ✅ 已完成：`playback.season`
+- ✅ 已完成：`playback.camera`
+
 ---
 
 ## Batch 3：`timeline.model.*`（最大批次）
