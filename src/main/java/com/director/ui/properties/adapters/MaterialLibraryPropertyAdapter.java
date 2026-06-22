@@ -1,6 +1,7 @@
 package com.director.ui.properties.adapters;
 
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyReflection;
 import com.director.ui.theme.UITheme;
 import com.director.ui.theme.Icons;
 import imgui.ImGui;
@@ -76,7 +77,7 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
             // ========== 材质列表 ==========
             if (ImGui.collapsingHeader("📋 材质列表", ImGuiTreeNodeFlags.DefaultOpen)) {
                 // 获取材质列表
-                Object materialsObj = getObjectProperty(library);
+                Object materialsObj = PropertyReflection.readProperty(library, \"materials\", \"getMaterials\");
                 
                 if (materialsObj instanceof List<?>) {
                     @SuppressWarnings("unchecked")
@@ -91,7 +92,7 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
                             Object mat = materials.get(i);
                             ImGui.pushID(i);
                             
-                            String matName = getStringProperty(mat, "name", "getName", "材质 " + i);
+                            String matName = PropertyReflection.getString(mat, "name", "getName", "材质 " + i);
                             boolean selected = (i == selectedMaterialIndex);
                             
                             if (ImGui.selectable(matName, selected, ImGuiSelectableFlags.None)) {
@@ -101,7 +102,7 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
                             
                             // 显示材质预览色块
                             if (ImGui.isItemHovered()) {
-                                float[] color = getFloatArrayProperty(mat, "baseColor", "getBaseColor");
+                                float[] color = PropertyReflection.getFloatArray(mat, "baseColor", "getBaseColor");
                                 if (color != null && color.length >= 3) {
                                     ImGui.setTooltip(String.format("RGB: (%.2f, %.2f, %.2f)", 
                                         color[0], color[1], color[2]));
@@ -143,7 +144,7 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
             }
             
             // ========== 材质属性（选中时显示）==========
-            Object materialsObj2 = getObjectProperty(library);
+            Object materialsObj2 = PropertyReflection.readProperty(library, \"materials\", \"getMaterials\");
             if (materialsObj2 instanceof List<?>) {
                 @SuppressWarnings("unchecked")
                 List<Object> materials = (List<Object>) materialsObj2;
@@ -153,23 +154,23 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
                     
                     if (ImGui.collapsingHeader("🎨 材质属性", ImGuiTreeNodeFlags.DefaultOpen)) {
                         // 材质名称
-                        String currentName = getStringProperty(material, "name", "getName", "未命名材质");
+                        String currentName = PropertyReflection.getString(material, "name", "getName", "未命名材质");
                         ImString nameBuffer = new ImString(currentName, 256);
                         if (ImGui.inputText("材质名称", nameBuffer, ImGuiInputTextFlags.EnterReturnsTrue)) {
-                            if (setStringProperty(material, "name", "setName", nameBuffer.get())) {
+                            if (PropertyReflection.setString(material, "name", "setName", nameBuffer.get())) {
                                 modifiedRef[0] = true;
                                 LOGGER.debug("[MaterialLibraryPropertyAdapter] 材质名称已更新: {}", nameBuffer.get());
                             }
                         }
                         
                         // 基础颜色
-                        float[] baseColor = getFloatArrayProperty(material, "baseColor", "getBaseColor");
+                        float[] baseColor = PropertyReflection.getFloatArray(material, "baseColor", "getBaseColor");
                         if (baseColor == null || baseColor.length < 4) {
                             baseColor = new float[]{1.0f, 1.0f, 1.0f, 1.0f};
                         }
                         
                         if (ImGui.colorEdit4("基础颜色", baseColor)) {
-                            if (setFloatArrayProperty(material, "baseColor", "setBaseColor", baseColor)) {
+                            if (PropertyReflection.setFloatArray(material, "baseColor", "setBaseColor", baseColor)) {
                                 modifiedRef[0] = true;
                                 LOGGER.debug("[MaterialLibraryPropertyAdapter] 基础颜色已更新");
                             }
@@ -179,10 +180,10 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
                         }
                         
                         // 金属度
-                        float currentMetallic = getFloatProperty(material, "metallic", "getMetallic", 0.0f);
+                        float currentMetallic = PropertyReflection.getFloat(material, "metallic", "getMetallic", 0.0f);
                         float[] metallic = {currentMetallic};
                         if (ImGui.sliderFloat("金属度", metallic, 0.0f, 1.0f, "%.2f")) {
-                            if (setFloatProperty(material, "metallic", "setMetallic", metallic[0])) {
+                            if (PropertyReflection.setFloat(material, "metallic", "setMetallic", metallic[0])) {
                                 modifiedRef[0] = true;
                                 LOGGER.debug("[MaterialLibraryPropertyAdapter] 金属度已更新: {}", metallic[0]);
                             }
@@ -192,10 +193,10 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
                         }
                         
                         // 粗糙度
-                        float currentRoughness = getFloatProperty(material, "roughness", "getRoughness", 0.5f);
+                        float currentRoughness = PropertyReflection.getFloat(material, "roughness", "getRoughness", 0.5f);
                         float[] roughness = {currentRoughness};
                         if (ImGui.sliderFloat("粗糙度", roughness, 0.0f, 1.0f, "%.2f")) {
-                            if (setFloatProperty(material, "roughness", "setRoughness", roughness[0])) {
+                            if (PropertyReflection.setFloat(material, "roughness", "setRoughness", roughness[0])) {
                                 modifiedRef[0] = true;
                                 LOGGER.debug("[MaterialLibraryPropertyAdapter] 粗糙度已更新: {}", roughness[0]);
                             }
@@ -205,13 +206,13 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
                         }
                         
                         // 自发光
-                        float[] emissive = getFloatArrayProperty(material, "emissive", "getEmissive");
+                        float[] emissive = PropertyReflection.getFloatArray(material, "emissive", "getEmissive");
                         if (emissive == null || emissive.length < 4) {
                             emissive = new float[]{0.0f, 0.0f, 0.0f, 1.0f};
                         }
                         
                         if (ImGui.colorEdit4("自发光颜色", emissive)) {
-                            if (setFloatArrayProperty(material, "emissive", "setEmissive", emissive)) {
+                            if (PropertyReflection.setFloatArray(material, "emissive", "setEmissive", emissive)) {
                                 modifiedRef[0] = true;
                                 LOGGER.debug("[MaterialLibraryPropertyAdapter] 自发光颜色已更新");
                             }
@@ -224,10 +225,10 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
                     // ========== 纹理管理 ==========
                     if (ImGui.collapsingHeader("🖼️ 纹理管理")) {
                         // 纹理路径
-                        String currentPath = getStringProperty(material, "texturePath", "getTexturePath", "");
+                        String currentPath = PropertyReflection.getString(material, "texturePath", "getTexturePath", "");
                         ImString pathBuffer = new ImString(currentPath, 512);
                         if (ImGui.inputText("纹理路径", pathBuffer, ImGuiInputTextFlags.None)) {
-                            if (setStringProperty(material, "texturePath", "setTexturePath", pathBuffer.get())) {
+                            if (PropertyReflection.setString(material, "texturePath", "setTexturePath", pathBuffer.get())) {
                                 modifiedRef[0] = true;
                                 LOGGER.debug("[MaterialLibraryPropertyAdapter] 纹理路径已更新: {}", pathBuffer.get());
                             }
@@ -250,7 +251,7 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
                         ImGui.sameLine();
                         
                         if (ImGui.button(Icons.REFRESH + " 重载纹理", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
-                            if (callMethod(material, "reload") || callMethod(material, "reloadTexture")) {
+                            if (PropertyReflection.invokeVoid(material, "reload") || PropertyReflection.invokeVoid(material, "reloadTexture")) {
                                 LOGGER.info("[MaterialLibraryPropertyAdapter] 纹理已重载");
                             }
                         }
@@ -270,7 +271,7 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
             
             // ========== 统计信息 ==========
             if (ImGui.collapsingHeader("📊 统计信息")) {
-                Object materialsObj = getObjectProperty(library);
+                Object materialsObj = PropertyReflection.readProperty(library, \"materials\", \"getMaterials\");
                 int materialCount = 0;
                 
                 if (materialsObj instanceof List<?>) {
@@ -324,7 +325,7 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
             
             // 库操作
             if (ImGui.button("💾 保存材质库", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
-                if (callMethod(library, "save")) {
+                if (PropertyReflection.invokeVoid(library, "save")) {
                     LOGGER.info("[MaterialLibraryPropertyAdapter] 材质库已保存");
                 }
             }
@@ -335,7 +336,7 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
             ImGui.sameLine();
             
             if (ImGui.button(Icons.REFRESH + " 重载材质库", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
-                if (callMethod(library, "reload")) {
+                if (PropertyReflection.invokeVoid(library, "reload")) {
                     LOGGER.info("[MaterialLibraryPropertyAdapter] 材质库已重载");
                 }
             }
@@ -351,211 +352,6 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
         }
         
         return modifiedRef[0];
-    }
-    
-    // ========== 反射辅助方法 ==========
-    
-    private String getStringProperty(Object obj, String fieldName, String getterName, String defaultValue) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            Object result = method.invoke(obj);
-            return result != null ? result.toString() : defaultValue;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                return result != null ? result.toString() : defaultValue;
-            } catch (Exception ex) {
-                return defaultValue;
-            }
-        }
-    }
-    
-    private boolean setStringProperty(Object obj, String fieldName, String setterName, String value) {
-        try {
-            var method = obj.getClass().getMethod(setterName, String.class);
-            method.invoke(obj, value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
-    private boolean getBooleanProperty(Object obj, String fieldName, String getterName, boolean defaultValue) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            Object result = method.invoke(obj);
-            return result instanceof Boolean ? (Boolean) result : defaultValue;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                return result instanceof Boolean ? (Boolean) result : defaultValue;
-            } catch (Exception ex) {
-                return defaultValue;
-            }
-        }
-    }
-    
-    private boolean setBooleanProperty(Object obj, String fieldName, String setterName, boolean value) {
-        try {
-            var method = obj.getClass().getMethod(setterName, boolean.class);
-            method.invoke(obj, value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
-    private int getIntProperty(Object obj, String fieldName, String getterName, int defaultValue) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            Object result = method.invoke(obj);
-            return result instanceof Integer ? (Integer) result : defaultValue;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                return result instanceof Integer ? (Integer) result : defaultValue;
-            } catch (Exception ex) {
-                return defaultValue;
-            }
-        }
-    }
-    
-    private boolean setIntProperty(Object obj, String fieldName, String setterName, int value) {
-        try {
-            var method = obj.getClass().getMethod(setterName, int.class);
-            method.invoke(obj, value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
-    private float getFloatProperty(Object obj, String fieldName, String getterName, float defaultValue) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            Object result = method.invoke(obj);
-            if (result instanceof Float) return (Float) result;
-            if (result instanceof Double) return ((Double) result).floatValue();
-            return defaultValue;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                if (result instanceof Float) return (Float) result;
-                if (result instanceof Double) return ((Double) result).floatValue();
-                return defaultValue;
-            } catch (Exception ex) {
-                return defaultValue;
-            }
-        }
-    }
-    
-    private boolean setFloatProperty(Object obj, String fieldName, String setterName, float value) {
-        try {
-            var method = obj.getClass().getMethod(setterName, float.class);
-            method.invoke(obj, value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
-    private Object getObjectProperty(Object obj) {
-        try {
-            var method = obj.getClass().getMethod("getMaterials");
-            return method.invoke(obj);
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField("materials");
-                field.setAccessible(true);
-                return field.get(obj);
-            } catch (Exception ex) {
-                return null;
-            }
-        }
-    }
-    
-    private float[] getFloatArrayProperty(Object obj, String fieldName, String getterName) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            Object result = method.invoke(obj);
-            return result instanceof float[] ? (float[]) result : null;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                return result instanceof float[] ? (float[]) result : null;
-            } catch (Exception ex) {
-                return null;
-            }
-        }
-    }
-    
-    private boolean setFloatArrayProperty(Object obj, String fieldName, String setterName, float[] value) {
-        try {
-            var method = obj.getClass().getMethod(setterName, float[].class);
-            method.invoke(obj, (Object) value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
-    /**
-     * 调用无参方法
-     */
-    private boolean callMethod(Object obj, String methodName) {
-        try {
-            var method = obj.getClass().getMethod(methodName);
-            method.invoke(obj);
-            return true;
-        } catch (Exception e) {
-            LOGGER.debug("[MaterialLibraryPropertyAdapter] 调用方法失败: {}", methodName);
-            return false;
-        }
     }
 
     @Override

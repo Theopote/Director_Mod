@@ -45,11 +45,7 @@ public class AudioEventPropertyAdapter implements IPropertyAdapter<AudioEvent> {
         }
 
         float[] time = { event.getTime() };
-        boolean isLinked = false;
-        try {
-            isLinked = TimelineAudioService.getInstance().isEventLinked(event);
-        } catch (Exception ignored) {
-        }
+        boolean isLinked = TimelineAudioService.getInstance().isEventLinked(event);
 
         if (isLinked) {
             ImGui.textDisabled(String.format("时间(秒): %.2fs", time[0]));
@@ -82,24 +78,21 @@ public class AudioEventPropertyAdapter implements IPropertyAdapter<AudioEvent> {
         }
 
         // 链接信息（可选）
-        try {
-            var linkedClip = TimelineAudioService.getInstance().getLinkedClip(event);
-            if (linkedClip.isPresent()) {
-                TimelineClip clip = linkedClip.get();
-                UITheme.separator();
-                UITheme.label("链接", UITheme.DarkTheme.TEXT_SELECTED);
-                ImGui.textDisabled(String.format("跟随片段: %s [%.2fs - %.2fs]",
-                        clip.getLabel(), clip.getStartTime(), clip.getEndTime()));
+        var linkedClip = TimelineAudioService.getInstance().getLinkedClip(event);
+        if (linkedClip.isPresent()) {
+            TimelineClip clip = linkedClip.get();
+            UITheme.separator();
+            UITheme.label("链接", UITheme.DarkTheme.TEXT_SELECTED);
+            ImGui.textDisabled(String.format("跟随片段: %s [%.2fs - %.2fs]",
+                    clip.getLabel(), clip.getStartTime(), clip.getEndTime()));
 
-                if (ImGui.button("取消与片段链接")) {
-                    TimelineAudioService.getInstance().unlinkEvent(event);
-                    modified = true;
-                }
-                if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("取消后：移动/缩放容器片段不会再自动平移该事件");
-                }
+            if (ImGui.button("取消与片段链接")) {
+                TimelineAudioService.getInstance().unlinkEvent(event);
+                modified = true;
             }
-        } catch (Exception ignored) {
+            if (ImGui.isItemHovered()) {
+                ImGui.setTooltip("取消后：移动/缩放容器片段不会再自动平移该事件");
+            }
         }
 
         return modified;

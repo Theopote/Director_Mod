@@ -90,10 +90,8 @@ public final class PlaybackOrchestrator {
         // ⭐ v1.2 改进：检测播放状态变化并触发生命周期钩子
         boolean playing = model.isPlaying();
         if (playing && !lastPlaying) {
-            // 从 paused → playing
             onPlay();
         } else if (!playing && lastPlaying) {
-            // 从 playing → paused
             onPause();
         }
         lastPlaying = playing;
@@ -112,17 +110,8 @@ public final class PlaybackOrchestrator {
      * 从 paused → playing 时调用
      */
     private void onPlay() {
-        try {
-            // 摄像机 / 音频 / 世界状态准备
-            // 注意：TimelineCameraController.startPlayback() 已由 TimelineModel.setPlaying() 自动调用
-            // 这里可以添加其他需要在播放开始时执行的逻辑（如音频、录制等）
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[PlaybackOrchestrator] 播放开始");
-            }
-        } catch (Exception e) {
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[PlaybackOrchestrator] onPlay 钩子执行失败", e);
-            }
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("[PlaybackOrchestrator] 播放开始");
         }
     }
     
@@ -131,15 +120,8 @@ public final class PlaybackOrchestrator {
      * 从 playing → paused 时调用
      */
     private void onPause() {
-        try {
-            // 暂停态（通常不需要做事，留扩展）
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[PlaybackOrchestrator] 播放暂停");
-            }
-        } catch (Exception e) {
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[PlaybackOrchestrator] onPause 钩子执行失败", e);
-            }
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("[PlaybackOrchestrator] 播放暂停");
         }
     }
     
@@ -148,15 +130,9 @@ public final class PlaybackOrchestrator {
      * playing → stopped（time reset / end）时调用
      */
     private void onStop() {
-        try {
-            TimelineCameraController.getInstance().onPlaybackStopped();
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[PlaybackOrchestrator] 播放停止");
-            }
-        } catch (Exception e) {
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[PlaybackOrchestrator] onStop 钩子执行失败", e);
-            }
+        runSubsystem("onStop", () -> TimelineCameraController.getInstance().onPlaybackStopped());
+        if (LOGGER.isTraceEnabled()) {
+            LOGGER.trace("[PlaybackOrchestrator] 播放停止");
         }
     }
 
@@ -173,17 +149,13 @@ public final class PlaybackOrchestrator {
         // 处理超界：loop or stop
         if (newTime > rangeEnd) {
             if (model.isLoopEnabled() && rangeEnd > rangeStart) {
-                // loop：回到起点继续
                 newTime = rangeStart;
                 if (LOGGER.isTraceEnabled()) {
                     LOGGER.trace("[PlaybackOrchestrator] 播放循环，回到开始 (时间: {:.2f}s)", newTime);
                 }
             } else {
-                // stop：停在终点并停止
                 newTime = rangeEnd;
                 model.setPlaying(false);
-                
-                // ⭐ v1.2 改进：显式调用 onStop 生命周期钩子
                 onStop();
 
                 if (LOGGER.isTraceEnabled()) {
@@ -192,108 +164,46 @@ public final class PlaybackOrchestrator {
             }
         }
 
-        // 写入统一真相源
         model.setCurrentTime(newTime);
 
-        // ⭐ 播放采样：季节/天气（保持 TimelinePanel 原逻辑）
-        try {
-            com.director.timeline.playback.season.TimelineSeasonController.getInstance()
-                    .onTimelineTick(newTime);
-        } catch (Exception e) {
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[PlaybackOrchestrator] 季节采样失败", e);
-            }
-        }
-
-        try {
-            com.director.timeline.playback.weather.TimelineWeatherController.getInstance()
-                    .updateForPlayback(newTime);
-        } catch (Exception e) {
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[PlaybackOrchestrator] 天气采样失败", e);
-            }
-        }
+        float sampledTime = newTime;
+        runSubsystem("季节采样", () -> com.director.timeline.playback.season.TimelineSeasonController
+                .getInstance().onTimelineTick(sampledTime));
+        runSubsystem("天气采样", () -> com.director.timeline.playback.weather.TimelineWeatherController
+                .getInstance().updateForPlayback(sampledTime));
     }
 
     private void driveSubsystems(float deltaSeconds) {
-        // 渲染 delta：用于摄像机采样（和 TimelinePanel 的 getRenderDelta 等价）
         float renderDelta = getRenderDeltaFallback(deltaSeconds);
 
-        // 这些更新原来都在 TimelinePanel.doRender() 里
-        // 现在统一收口在这里：TimelinePanel 不再负责驱动
+        runSubsystem("TimelineClipBlockController", () ->
+                com.director.ui.timeline.playback.TimelineClipBlockController.getInstance().update());
+        runSubsystem("TimelineCameraController", () ->
+                TimelineCameraController.getInstance().updateOwnerAndSample(renderDelta));
+        runSubsystem("TimelineWorldController", () ->
+                com.director.timeline.playback.time.TimelineWorldController.getInstance().update());
+        runSubsystem("TimelineAudioController", () ->
+                com.director.ui.timeline.playback.TimelineAudioController.getInstance().update());
+        runSubsystem("ActorRuntimeController", () ->
+                com.director.actor.runtime.ActorRuntimeController.getInstance().update());
+        runSubsystem("ActorGizmoController", () ->
+                com.director.ui.actor.gizmo.ActorGizmoController.getInstance().update());
+        runSubsystem("WeatherRenderer", () ->
+                com.director.client.renderer.weather.WeatherRenderer.get().tick());
+        runSubsystem("WeatherParticleController", () ->
+                com.director.timeline.playback.weather.WeatherParticleController.getInstance().tick());
 
-        try {
-            com.director.ui.timeline.playback.TimelineClipBlockController.getInstance().update();
-        } catch (Exception e) {
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[PlaybackOrchestrator] TimelineClipBlockController 更新失败", e);
-            }
-        }
+        float currentTime = model.getCurrentTime();
+        runSubsystem("TimelineWeatherController.tickEvents", () ->
+                com.director.timeline.playback.weather.TimelineWeatherController.getInstance()
+                        .tickEvents(currentTime));
+    }
 
+    private void runSubsystem(String name, Runnable action) {
         try {
-            TimelineCameraController.getInstance().updateOwnerAndSample(renderDelta);
-        } catch (Exception e) {
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[PlaybackOrchestrator] TimelineCameraController 更新失败", e);
-            }
-        }
-
-        try {
-            com.director.timeline.playback.time.TimelineWorldController.getInstance().update();
-        } catch (Exception e) {
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[PlaybackOrchestrator] TimelineWorldController 更新失败", e);
-            }
-        }
-
-        try {
-            com.director.ui.timeline.playback.TimelineAudioController.getInstance().update();
-        } catch (Exception e) {
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[PlaybackOrchestrator] TimelineAudioController 更新失败", e);
-            }
-        }
-
-        try {
-            com.director.actor.runtime.ActorRuntimeController.getInstance().update();
-        } catch (Exception e) {
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[PlaybackOrchestrator] ActorRuntimeController 更新失败", e);
-            }
-        }
-
-        try {
-            com.director.ui.actor.gizmo.ActorGizmoController.getInstance().update();
-        } catch (Exception e) {
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[PlaybackOrchestrator] ActorGizmoController 更新失败", e);
-            }
-        }
-
-        try {
-            com.director.client.renderer.weather.WeatherRenderer.get().tick();
-        } catch (Exception e) {
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[PlaybackOrchestrator] WeatherRenderer 更新失败", e);
-            }
-        }
-
-        try {
-            com.director.timeline.playback.weather.WeatherParticleController.getInstance().tick();
-        } catch (Exception e) {
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[PlaybackOrchestrator] WeatherParticleController 更新失败", e);
-            }
-        }
-
-        // v1.1：天气事件 tick（依赖当前时间）
-        try {
-            com.director.timeline.playback.weather.TimelineWeatherController.getInstance()
-                    .tickEvents(model.getCurrentTime());
-        } catch (Exception e) {
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[PlaybackOrchestrator] TimelineWeatherController.tickEvents 更新失败", e);
-            }
+            action.run();
+        } catch (RuntimeException e) {
+            LOGGER.warn("[PlaybackOrchestrator] {} 失败", name, e);
         }
     }
 

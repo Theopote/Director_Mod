@@ -1,6 +1,7 @@
 package com.director.ui.properties.adapters;
 
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyReflection;
 import com.director.ui.theme.UITheme;
 import com.director.ui.theme.Icons;
 import imgui.ImGui;
@@ -95,13 +96,13 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
             // ========== 光照系统 ==========
             if (ImGui.collapsingHeader("💡 光照系统", ImGuiTreeNodeFlags.DefaultOpen)) {
                 // 环境光颜色
-                float[] ambientColor = getFloatArrayProperty(env, "ambientColor", "getAmbientColor");
+                float[] ambientColor = PropertyReflection.getFloatArray(env, "ambientColor", "getAmbientColor");
                 if (ambientColor == null || ambientColor.length < 4) {
                     ambientColor = new float[]{0.7f, 0.7f, 0.7f, 1.0f};
                 }
                 
                 if (ImGui.colorEdit4("环境光颜色", ambientColor)) {
-                    if (setFloatArrayProperty(env, "ambientColor", "setAmbientColor", ambientColor)) {
+                    if (PropertyReflection.setFloatArray(env, "ambientColor", "setAmbientColor", ambientColor)) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 环境光颜色已更新");
                     }
@@ -111,13 +112,13 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 }
                 
                 // 天空光颜色
-                float[] skyColor = getFloatArrayProperty(env, "skyColor", "getSkyColor");
+                float[] skyColor = PropertyReflection.getFloatArray(env, "skyColor", "getSkyColor");
                 if (skyColor == null || skyColor.length < 4) {
                     skyColor = new float[]{0.5f, 0.7f, 1.0f, 1.0f};
                 }
                 
                 if (ImGui.colorEdit4("天空光颜色", skyColor)) {
-                    if (setFloatArrayProperty(env, "skyColor", "setSkyColor", skyColor)) {
+                    if (PropertyReflection.setFloatArray(env, "skyColor", "setSkyColor", skyColor)) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 天空光颜色已更新");
                     }
@@ -127,13 +128,13 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 }
                 
                 // 光照方向
-                float lightYaw = getFloatProperty(env, "lightYaw", "getLightYaw", 45.0f);
-                float lightPitch = getFloatProperty(env, "lightPitch", "getLightPitch", 60.0f);
+                float lightYaw = PropertyReflection.getFloat(env, "lightYaw", "getLightYaw", 45.0f);
+                float lightPitch = PropertyReflection.getFloat(env, "lightPitch", "getLightPitch", 60.0f);
                 float[] lightDirection = {lightYaw, lightPitch};
                 
                 if (ImGui.dragFloat2("光照方向 (偏航/俯仰)", lightDirection, 1.0f, 0.0f, 360.0f)) {
-                    setFloatProperty(env, "lightYaw", "setLightYaw", lightDirection[0]);
-                    setFloatProperty(env, "lightPitch", "setLightPitch", lightDirection[1]);
+                    PropertyReflection.setFloat(env, "lightYaw", "setLightYaw", lightDirection[0]);
+                    PropertyReflection.setFloat(env, "lightPitch", "setLightPitch", lightDirection[1]);
                     modifiedRef[0] = true;
                     LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 光照方向已更新: ({}, {})", 
                         lightDirection[0], lightDirection[1]);
@@ -143,10 +144,10 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 }
                 
                 // 曝光度
-                float currentExposure = getFloatProperty(env, "exposure", "getExposure", 1.0f);
+                float currentExposure = PropertyReflection.getFloat(env, "exposure", "getExposure", 1.0f);
                 float[] exposure = {currentExposure};
                 if (ImGui.dragFloat("曝光度", exposure, 0.05f, 0.1f, 3.0f, "%.2f")) {
-                    if (setFloatProperty(env, "exposure", "setExposure", exposure[0])) {
+                    if (PropertyReflection.setFloat(env, "exposure", "setExposure", exposure[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 曝光度已更新: {}", exposure[0]);
                     }
@@ -159,10 +160,10 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
             // ========== 天气系统 ==========
             if (ImGui.collapsingHeader("🌤 天气系统", ImGuiTreeNodeFlags.DefaultOpen)) {
                 // 雨雪天气
-                boolean currentRain = getBooleanProperty(env, "weatherRain", "isWeatherRain", false);
+                boolean currentRain = PropertyReflection.getBoolean(env, "weatherRain", "isWeatherRain", false);
                 ImBoolean enableRain = new ImBoolean(currentRain);
                 if (ImGui.checkbox("启用雨雪天气", enableRain)) {
-                    if (setBooleanProperty(env, "weatherRain", "setWeatherRain", enableRain.get())) {
+                    if (PropertyReflection.setBoolean(env, "weatherRain", "setWeatherRain", enableRain.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 雨雪天气已更新: {}", enableRain.get());
                     }
@@ -172,10 +173,10 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 }
                 
                 // 雾浓度
-                float currentFog = getFloatProperty(env, "fogDensity", "getFogDensity", 0.1f);
+                float currentFog = PropertyReflection.getFloat(env, "fogDensity", "getFogDensity", 0.1f);
                 float[] fogDensity = {currentFog};
                 if (ImGui.dragFloat("雾浓度", fogDensity, 0.01f, 0.0f, 1.0f, "%.2f")) {
-                    if (setFloatProperty(env, "fogDensity", "setFogDensity", fogDensity[0])) {
+                    if (PropertyReflection.setFloat(env, "fogDensity", "setFogDensity", fogDensity[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 雾浓度已更新: {}", fogDensity[0]);
                     }
@@ -187,10 +188,10 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 UITheme.spacingSmall();
                 
                 // 昼夜循环
-                boolean currentDayCycle = getBooleanProperty(env, "dayCycle", "isDayCycle", false);
+                boolean currentDayCycle = PropertyReflection.getBoolean(env, "dayCycle", "isDayCycle", false);
                 ImBoolean enableDayCycle = new ImBoolean(currentDayCycle);
                 if (ImGui.checkbox("启用昼夜循环", enableDayCycle)) {
-                    if (setBooleanProperty(env, "dayCycle", "setDayCycle", enableDayCycle.get())) {
+                    if (PropertyReflection.setBoolean(env, "dayCycle", "setDayCycle", enableDayCycle.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 昼夜循环已更新: {}", enableDayCycle.get());
                     }
@@ -200,10 +201,10 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 }
                 
                 // 时间（Minecraft ticks）
-                int currentTime = getIntProperty(env);
+                int currentTime = PropertyReflection.getInt(env, "timeOfDay", "getTimeOfDay", 6000);
                 int[] timeOfDay = {currentTime};
                 if (ImGui.dragInt("时间 (ticks)", timeOfDay, 100.0f, 0, 24000)) {
-                    if (setIntProperty(env, timeOfDay[0])) {
+                    if (PropertyReflection.setInt(env, "timeOfDay", "setTimeOfDay", timeOfDay[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 时间已更新: {}", timeOfDay[0]);
                     }
@@ -219,7 +220,7 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 for (int i = 0; i < TIME_PRESETS.length; i++) {
                     ImGui.pushID(i);
                     if (ImGui.button(TIME_PRESET_NAMES[i], 100, UITheme.Spacing.BUTTON_HEIGHT)) {
-                        if (setIntProperty(env, TIME_PRESETS[i])) {
+                        if (PropertyReflection.setInt(env, "timeOfDay", "setTimeOfDay", TIME_PRESETS[i])) {
                             modifiedRef[0] = true;
                             LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 时间预设已应用: {}", 
                                 TIME_PRESET_NAMES[i]);
@@ -235,10 +236,10 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
             // ========== 渲染控制 ==========
             if (ImGui.collapsingHeader("🎨 渲染控制")) {
                 // 启用阴影
-                boolean currentShadows = getBooleanProperty(env, "shadowsEnabled", "isShadowsEnabled", true);
+                boolean currentShadows = PropertyReflection.getBoolean(env, "shadowsEnabled", "isShadowsEnabled", true);
                 ImBoolean enableShadows = new ImBoolean(currentShadows);
                 if (ImGui.checkbox("启用阴影", enableShadows)) {
-                    if (setBooleanProperty(env, "shadowsEnabled", "setShadowsEnabled", enableShadows.get())) {
+                    if (PropertyReflection.setBoolean(env, "shadowsEnabled", "setShadowsEnabled", enableShadows.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 阴影已更新: {}", enableShadows.get());
                     }
@@ -248,10 +249,10 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 }
                 
                 // 抗锯齿
-                boolean currentAA = getBooleanProperty(env, "antiAliasing", "isAntiAliasing", false);
+                boolean currentAA = PropertyReflection.getBoolean(env, "antiAliasing", "isAntiAliasing", false);
                 ImBoolean enableAA = new ImBoolean(currentAA);
                 if (ImGui.checkbox("抗锯齿 (FXAA)", enableAA)) {
-                    if (setBooleanProperty(env, "antiAliasing", "setAntiAliasing", enableAA.get())) {
+                    if (PropertyReflection.setBoolean(env, "antiAliasing", "setAntiAliasing", enableAA.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 抗锯齿已更新: {}", enableAA.get());
                     }
@@ -261,10 +262,10 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 }
                 
                 // 后处理
-                boolean currentPostProcess = getBooleanProperty(env, "postProcessing", "isPostProcessing", false);
+                boolean currentPostProcess = PropertyReflection.getBoolean(env, "postProcessing", "isPostProcessing", false);
                 ImBoolean enablePostProcess = new ImBoolean(currentPostProcess);
                 if (ImGui.checkbox("后处理效果", enablePostProcess)) {
-                    if (setBooleanProperty(env, "postProcessing", "setPostProcessing", enablePostProcess.get())) {
+                    if (PropertyReflection.setBoolean(env, "postProcessing", "setPostProcessing", enablePostProcess.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 后处理已更新: {}", enablePostProcess.get());
                     }
@@ -277,10 +278,10 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
             // ========== 可视层控制 ==========
             if (ImGui.collapsingHeader("🪟 可视层控制")) {
                 // 显示透明方块
-                boolean currentTransparent = getBooleanProperty(env, "showTransparentBlocks", "isShowTransparentBlocks", true);
+                boolean currentTransparent = PropertyReflection.getBoolean(env, "showTransparentBlocks", "isShowTransparentBlocks", true);
                 ImBoolean showTransparent = new ImBoolean(currentTransparent);
                 if (ImGui.checkbox("显示透明方块", showTransparent)) {
-                    if (setBooleanProperty(env, "showTransparentBlocks", "setShowTransparentBlocks", showTransparent.get())) {
+                    if (PropertyReflection.setBoolean(env, "showTransparentBlocks", "setShowTransparentBlocks", showTransparent.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 透明方块显示已更新: {}", showTransparent.get());
                     }
@@ -290,10 +291,10 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 }
                 
                 // 显示实体
-                boolean currentEntities = getBooleanProperty(env, "showEntities", "isShowEntities", true);
+                boolean currentEntities = PropertyReflection.getBoolean(env, "showEntities", "isShowEntities", true);
                 ImBoolean showEntities = new ImBoolean(currentEntities);
                 if (ImGui.checkbox("显示实体模型", showEntities)) {
-                    if (setBooleanProperty(env, "showEntities", "setShowEntities", showEntities.get())) {
+                    if (PropertyReflection.setBoolean(env, "showEntities", "setShowEntities", showEntities.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 实体显示已更新: {}", showEntities.get());
                     }
@@ -303,10 +304,10 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 }
                 
                 // 显示粒子
-                boolean currentParticles = getBooleanProperty(env, "showParticles", "isShowParticles", true);
+                boolean currentParticles = PropertyReflection.getBoolean(env, "showParticles", "isShowParticles", true);
                 ImBoolean showParticles = new ImBoolean(currentParticles);
                 if (ImGui.checkbox("显示粒子特效", showParticles)) {
-                    if (setBooleanProperty(env, "showParticles", "setShowParticles", showParticles.get())) {
+                    if (PropertyReflection.setBoolean(env, "showParticles", "setShowParticles", showParticles.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 粒子显示已更新: {}", showParticles.get());
                     }
@@ -316,10 +317,10 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 }
                 
                 // 显示网格
-                boolean currentGrid = getBooleanProperty(env, "showGrid", "isShowGrid", false);
+                boolean currentGrid = PropertyReflection.getBoolean(env, "showGrid", "isShowGrid", false);
                 ImBoolean showGrid = new ImBoolean(currentGrid);
                 if (ImGui.checkbox("显示网格", showGrid)) {
-                    if (setBooleanProperty(env, "showGrid", "setShowGrid", showGrid.get())) {
+                    if (PropertyReflection.setBoolean(env, "showGrid", "setShowGrid", showGrid.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 网格显示已更新: {}", showGrid.get());
                     }
@@ -354,7 +355,7 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
             UITheme.beginGroup("快捷操作");
             
             if (ImGui.button(Icons.REFRESH + " 重置为默认", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
-                if (callMethod(env)) {
+                if (PropertyReflection.invokeVoid(env)) {
                     modifiedRef[0] = true;
                     LOGGER.info("[ProjectEnvironmentPropertyAdapter] 环境已重置为默认值");
                 }
@@ -399,206 +400,50 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
     private void applyEnvironmentPreset(Object env, int presetIndex) {
         switch (presetIndex) {
             case 0 -> { // ☀️ 白天
-                setFloatArrayProperty(env, "ambientColor", "setAmbientColor", 
+                PropertyReflection.setFloatArray(env, "ambientColor", "setAmbientColor", 
                     new float[]{1.0f, 1.0f, 0.9f, 1.0f});
-                setFloatArrayProperty(env, "skyColor", "setSkyColor", 
+                PropertyReflection.setFloatArray(env, "skyColor", "setSkyColor", 
                     new float[]{0.5f, 0.7f, 1.0f, 1.0f});
-                setFloatProperty(env, "exposure", "setExposure", 1.2f);
-                setIntProperty(env, 6000);
+                PropertyReflection.setFloat(env, "exposure", "setExposure", 1.2f);
+                PropertyReflection.setInt(env, "timeOfDay", "setTimeOfDay", 6000);
             }
             case 1 -> { // 🌅 黄昏
-                setFloatArrayProperty(env, "ambientColor", "setAmbientColor", 
+                PropertyReflection.setFloatArray(env, "ambientColor", "setAmbientColor", 
                     new float[]{1.0f, 0.7f, 0.5f, 1.0f});
-                setFloatArrayProperty(env, "skyColor", "setSkyColor", 
+                PropertyReflection.setFloatArray(env, "skyColor", "setSkyColor", 
                     new float[]{1.0f, 0.5f, 0.3f, 1.0f});
-                setFloatProperty(env, "exposure", "setExposure", 0.9f);
-                setIntProperty(env, 12000);
+                PropertyReflection.setFloat(env, "exposure", "setExposure", 0.9f);
+                PropertyReflection.setInt(env, "timeOfDay", "setTimeOfDay", 12000);
             }
             case 2 -> { // 🌙 夜晚
-                setFloatArrayProperty(env, "ambientColor", "setAmbientColor", 
+                PropertyReflection.setFloatArray(env, "ambientColor", "setAmbientColor", 
                     new float[]{0.2f, 0.2f, 0.3f, 1.0f});
-                setFloatArrayProperty(env, "skyColor", "setSkyColor", 
+                PropertyReflection.setFloatArray(env, "skyColor", "setSkyColor", 
                     new float[]{0.1f, 0.1f, 0.2f, 1.0f});
-                setFloatProperty(env, "exposure", "setExposure", 0.5f);
-                setIntProperty(env, 18000);
+                PropertyReflection.setFloat(env, "exposure", "setExposure", 0.5f);
+                PropertyReflection.setInt(env, "timeOfDay", "setTimeOfDay", 18000);
             }
             case 3 -> { // ☁️ 阴天
-                setFloatArrayProperty(env, "ambientColor", "setAmbientColor", 
+                PropertyReflection.setFloatArray(env, "ambientColor", "setAmbientColor", 
                     new float[]{0.6f, 0.6f, 0.6f, 1.0f});
-                setFloatArrayProperty(env, "skyColor", "setSkyColor", 
+                PropertyReflection.setFloatArray(env, "skyColor", "setSkyColor", 
                     new float[]{0.5f, 0.5f, 0.5f, 1.0f});
-                setFloatProperty(env, "exposure", "setExposure", 0.8f);
+                PropertyReflection.setFloat(env, "exposure", "setExposure", 0.8f);
             }
             case 4 -> { // 🌫️ 雾天
-                setFloatArrayProperty(env, "ambientColor", "setAmbientColor", 
+                PropertyReflection.setFloatArray(env, "ambientColor", "setAmbientColor", 
                     new float[]{0.7f, 0.7f, 0.7f, 1.0f});
-                setFloatProperty(env, "fogDensity", "setFogDensity", 0.5f);
-                setFloatProperty(env, "exposure", "setExposure", 0.7f);
+                PropertyReflection.setFloat(env, "fogDensity", "setFogDensity", 0.5f);
+                PropertyReflection.setFloat(env, "exposure", "setExposure", 0.7f);
             }
             case 5 -> { // 🌧️ 雨天
-                setFloatArrayProperty(env, "ambientColor", "setAmbientColor", 
+                PropertyReflection.setFloatArray(env, "ambientColor", "setAmbientColor", 
                     new float[]{0.5f, 0.5f, 0.6f, 1.0f});
-                setFloatArrayProperty(env, "skyColor", "setSkyColor", 
+                PropertyReflection.setFloatArray(env, "skyColor", "setSkyColor", 
                     new float[]{0.4f, 0.4f, 0.5f, 1.0f});
-                setBooleanProperty(env, "weatherRain", "setWeatherRain", true);
-                setFloatProperty(env, "fogDensity", "setFogDensity", 0.3f);
+                PropertyReflection.setBoolean(env, "weatherRain", "setWeatherRain", true);
+                PropertyReflection.setFloat(env, "fogDensity", "setFogDensity", 0.3f);
             }
-        }
-    }
-    
-    // ========== 反射辅助方法 ==========
-    
-    private boolean getBooleanProperty(Object obj, String fieldName, String getterName, boolean defaultValue) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            Object result = method.invoke(obj);
-            return result instanceof Boolean ? (Boolean) result : defaultValue;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                return result instanceof Boolean ? (Boolean) result : defaultValue;
-            } catch (Exception ex) {
-                return defaultValue;
-            }
-        }
-    }
-    
-    private boolean setBooleanProperty(Object obj, String fieldName, String setterName, boolean value) {
-        try {
-            var method = obj.getClass().getMethod(setterName, boolean.class);
-            method.invoke(obj, value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
-    private int getIntProperty(Object obj) {
-        try {
-            var method = obj.getClass().getMethod("getTimeOfDay");
-            Object result = method.invoke(obj);
-            return result instanceof Integer ? (Integer) result : 6000;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField("timeOfDay");
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                return result instanceof Integer ? (Integer) result : 6000;
-            } catch (Exception ex) {
-                return 6000;
-            }
-        }
-    }
-    
-    private boolean setIntProperty(Object obj, int value) {
-        try {
-            var method = obj.getClass().getMethod("setTimeOfDay", int.class);
-            method.invoke(obj, value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField("timeOfDay");
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
-    private float getFloatProperty(Object obj, String fieldName, String getterName, float defaultValue) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            Object result = method.invoke(obj);
-            if (result instanceof Float) return (Float) result;
-            if (result instanceof Double) return ((Double) result).floatValue();
-            return defaultValue;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                if (result instanceof Float) return (Float) result;
-                if (result instanceof Double) return ((Double) result).floatValue();
-                return defaultValue;
-            } catch (Exception ex) {
-                return defaultValue;
-            }
-        }
-    }
-    
-    private boolean setFloatProperty(Object obj, String fieldName, String setterName, float value) {
-        try {
-            var method = obj.getClass().getMethod(setterName, float.class);
-            method.invoke(obj, value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
-    private float[] getFloatArrayProperty(Object obj, String fieldName, String getterName) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            Object result = method.invoke(obj);
-            return result instanceof float[] ? (float[]) result : null;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                return result instanceof float[] ? (float[]) result : null;
-            } catch (Exception ex) {
-                return null;
-            }
-        }
-    }
-    
-    private boolean setFloatArrayProperty(Object obj, String fieldName, String setterName, float[] value) {
-        try {
-            var method = obj.getClass().getMethod(setterName, float[].class);
-            method.invoke(obj, (Object) value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
-    /**
-     * 调用无参方法
-     */
-    private boolean callMethod(Object obj) {
-        try {
-            var method = obj.getClass().getMethod("resetToDefault");
-            method.invoke(obj);
-            return true;
-        } catch (Exception e) {
-            LOGGER.debug("[ProjectEnvironmentPropertyAdapter] 调用方法失败: {}", "resetToDefault");
-            return false;
         }
     }
 

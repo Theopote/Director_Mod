@@ -2,6 +2,7 @@ package com.director.ui.properties.adapters;
 
 import com.director.core.DirectorServices;
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyReflection;
 import com.director.ui.selection.SelectionManager;
 import com.director.ui.theme.UITheme;
 import com.director.ui.theme.Icons;
@@ -92,10 +93,10 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
             // ========== 基础信息 ==========
             if (ImGui.collapsingHeader("📋 基础信息", ImGuiTreeNodeFlags.DefaultOpen)) {
                 // 序列名称
-                String currentName = getStringProperty(sequence, "name", "getName", "未命名序列");
+                String currentName = PropertyReflection.getString(sequence, "name", "getName", "未命名序列");
                 ImString nameBuffer = new ImString(currentName, 256);
                 if (ImGui.inputText("序列名称", nameBuffer, ImGuiInputTextFlags.EnterReturnsTrue)) {
-                    if (setStringProperty(sequence, nameBuffer.get())) {
+                    if (PropertyReflection.setString(sequence, nameBuffer.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineSequencePropertyAdapter] 序列名称已更新: {}", nameBuffer.get());
                     }
@@ -105,10 +106,10 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
                 }
                 
                 // 总时长
-                float currentDuration = getFloatProperty(sequence, "duration", "getDuration", 10.0f);
+                float currentDuration = PropertyReflection.getFloat(sequence, "duration", "getDuration", 10.0f);
                 float[] duration = {currentDuration};
                 if (ImGui.dragFloat("总时长 (秒)", duration, 0.1f, 0.1f, 600.0f)) {
-                    if (setFloatProperty(sequence, "duration", "setDuration", duration[0])) {
+                    if (PropertyReflection.setFloat(sequence, "duration", "setDuration", duration[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineSequencePropertyAdapter] 总时长已更新: {}", duration[0]);
                     }
@@ -118,10 +119,10 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
                 }
                 
                 // 时间缩放
-                float currentTimeScale = getFloatProperty(sequence, "timeScale", "getTimeScale", 1.0f);
+                float currentTimeScale = PropertyReflection.getFloat(sequence, "timeScale", "getTimeScale", 1.0f);
                 float[] timeScale = {currentTimeScale};
                 if (ImGui.dragFloat("时间缩放", timeScale, 0.01f, 0.1f, 10.0f, "%.2f")) {
-                    if (setFloatProperty(sequence, "timeScale", "setTimeScale", timeScale[0])) {
+                    if (PropertyReflection.setFloat(sequence, "timeScale", "setTimeScale", timeScale[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineSequencePropertyAdapter] 时间缩放已更新: {}", timeScale[0]);
                     }
@@ -131,7 +132,7 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
                 }
                 
                 // UUID 显示
-                String id = getStringProperty(sequence, "id", "getId", null);
+                String id = PropertyReflection.getString(sequence, "id", "getId", null);
                 if (id != null) {
                     UITheme.spacingSmall();
                     UITheme.label("序列 ID: " + id, UITheme.DarkTheme.TEXT_DISABLED);
@@ -141,10 +142,10 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
             // ========== 播放控制 ==========
             if (ImGui.collapsingHeader("⚙️ 播放控制", ImGuiTreeNodeFlags.DefaultOpen)) {
                 // 循环播放
-                boolean currentLoop = getBooleanProperty(sequence, "loop", "isLoop", false);
+                boolean currentLoop = PropertyReflection.getBoolean(sequence, "loop", "isLoop", false);
                 ImBoolean loop = new ImBoolean(currentLoop);
                 if (ImGui.checkbox("循环播放", loop)) {
-                    if (setBooleanProperty(sequence, loop.get())) {
+                    if (PropertyReflection.setBoolean(sequence, loop.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineSequencePropertyAdapter] 循环播放已更新: {}", loop.get());
                     }
@@ -154,11 +155,11 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
                 }
                 
                 // 播放模式（如果支持）
-                int currentPlayMode = getIntProperty(sequence, "playMode", "getPlayMode");
+                int currentPlayMode = PropertyReflection.getInt(sequence, "playMode", "getPlayMode");
                 if (currentPlayMode >= 0) {
                     imgui.type.ImInt playModeIdx = new imgui.type.ImInt(currentPlayMode);
                     if (ImGui.combo("播放模式", playModeIdx, PLAY_MODES)) {
-                        if (setIntProperty(sequence, playModeIdx.get())) {
+                        if (PropertyReflection.setInt(sequence, "playMode", "setPlayMode", playModeIdx.get())) {
                             modifiedRef[0] = true;
                             LOGGER.debug("[TimelineSequencePropertyAdapter] 播放模式已更新: {}", 
                                 PLAY_MODES[playModeIdx.get()]);
@@ -172,12 +173,12 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
                 UITheme.spacingSmall();
                 
                 // 当前播放时间（只读）
-                float currentTime = getFloatProperty(sequence, "currentTime", "getCurrentTime", 0.0f);
+                float currentTime = PropertyReflection.getFloat(sequence, "currentTime", "getCurrentTime", 0.0f);
                 UITheme.label(String.format("当前时间: %.2f 秒", currentTime), 
                     UITheme.DarkTheme.TEXT_SELECTED);
                 
                 // 播放状态（只读）
-                boolean isPlaying = getBooleanProperty(sequence, "playing", "isPlaying", false);
+                boolean isPlaying = PropertyReflection.getBoolean(sequence, "playing", "isPlaying", false);
                 String playStatus = isPlaying ? Icons.PLAY + " 播放中" : Icons.PAUSE + " 已暂停";
                 UITheme.label(playStatus, UITheme.DarkTheme.TEXT_DISABLED);
             }
@@ -185,7 +186,7 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
             // ========== 轨道管理 ==========
             if (ImGui.collapsingHeader(Icons.FILM + " 轨道管理", ImGuiTreeNodeFlags.DefaultOpen)) {
                 // 获取轨道列表
-                Object tracksObj = getObjectProperty(sequence);
+                Object tracksObj = PropertyReflection.readProperty(sequence, \"materials\", \"getMaterials\");
                 
                 if (tracksObj instanceof List<?>) {
                     @SuppressWarnings("unchecked")
@@ -200,22 +201,22 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
                             Object track = tracks.get(i);
                             ImGui.pushID(i);
                             
-                            String trackName = getStringProperty(track, "name", "getName", "轨道 " + i);
-                            boolean trackEnabled = getBooleanProperty(track, "enabled", "isEnabled", true);
+                            String trackName = PropertyReflection.getString(track, "name", "getName", "轨道 " + i);
+                            boolean trackEnabled = PropertyReflection.getBoolean(track, "enabled", "isEnabled", true);
                             String statusIcon = trackEnabled ? "●" : "○";
                             
                             if (ImGui.treeNodeEx(statusIcon + " " + trackName, 
                                     ImGuiTreeNodeFlags.Framed | ImGuiTreeNodeFlags.SpanAvailWidth)) {
                                 
                                 // 轨道简要信息
-                                String trackType = getStringProperty(track, "type", "getType", "未知");
+                                String trackType = PropertyReflection.getString(track, "type", "getType", "未知");
                                 UITheme.label("类型: " + trackType, UITheme.DarkTheme.TEXT);
                                 
-                                float trackWeight = getFloatProperty(track, "weight", "getWeight", 1.0f);
+                                float trackWeight = PropertyReflection.getFloat(track, "weight", "getWeight", 1.0f);
                                 UITheme.label(String.format("权重: %.0f%%", trackWeight * 100), 
                                     UITheme.DarkTheme.TEXT);
                                 
-                                int keyframeCount = getIntProperty(track, "keyframeCount", "getKeyframeCount");
+                                int keyframeCount = PropertyReflection.getInt(track, "keyframeCount", "getKeyframeCount");
                                 UITheme.label("关键帧: " + keyframeCount, UITheme.DarkTheme.TEXT);
                                 
                                 UITheme.spacingSmall();
@@ -286,7 +287,7 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
             // ========== 统计信息 ==========
             if (ImGui.collapsingHeader("📊 统计信息")) {
                 // 轨道统计
-                Object tracksObj = getObjectProperty(sequence);
+                Object tracksObj = PropertyReflection.readProperty(sequence, \"materials\", \"getMaterials\");
                 int trackCount = 0;
                 int totalKeyframes = 0;
                 
@@ -297,7 +298,7 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
                     
                     // 统计总关键帧数
                     for (Object track : tracks) {
-                        int count = getIntProperty(track, "keyframeCount", "getKeyframeCount");
+                        int count = PropertyReflection.getInt(track, "keyframeCount", "getKeyframeCount");
                         totalKeyframes += count;
                     }
                 }
@@ -306,8 +307,8 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
                 UITheme.label("总关键帧数: " + totalKeyframes, UITheme.DarkTheme.TEXT);
                 
                 // 时间统计
-                float duration = getFloatProperty(sequence, "duration", "getDuration", 0.0f);
-                float timeScale = getFloatProperty(sequence, "timeScale", "getTimeScale", 1.0f);
+                float duration = PropertyReflection.getFloat(sequence, "duration", "getDuration", 0.0f);
+                float timeScale = PropertyReflection.getFloat(sequence, "timeScale", "getTimeScale", 1.0f);
                 float actualDuration = duration / timeScale;
                 
                 UITheme.spacingSmall();
@@ -327,7 +328,7 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
             UITheme.spacingSmall();
             
             if (ImGui.button(Icons.PLAY + " 播放", 80, UITheme.Spacing.BUTTON_HEIGHT)) {
-                if (callMethod(sequence, "play")) {
+                if (PropertyReflection.invokeVoid(sequence, "play")) {
                     LOGGER.info("[TimelineSequencePropertyAdapter] 播放序列");
                 }
             }
@@ -338,7 +339,7 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
             ImGui.sameLine();
             
             if (ImGui.button(Icons.PAUSE + " 暂停", 80, UITheme.Spacing.BUTTON_HEIGHT)) {
-                if (callMethod(sequence, "pause")) {
+                if (PropertyReflection.invokeVoid(sequence, "pause")) {
                     LOGGER.info("[TimelineSequencePropertyAdapter] 暂停序列");
                 }
             }
@@ -349,7 +350,7 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
             ImGui.sameLine();
             
             if (ImGui.button("⏹ 停止", 80, UITheme.Spacing.BUTTON_HEIGHT)) {
-                if (callMethod(sequence, "stop")) {
+                if (PropertyReflection.invokeVoid(sequence, "stop")) {
                     LOGGER.info("[TimelineSequencePropertyAdapter] 停止序列");
                 }
             }
@@ -374,8 +375,8 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
             
             if (ImGui.button("重置序列", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
                 // 重置到初始状态
-                setFloatProperty(sequence, "currentTime", "setCurrentTime", 0.0f);
-                callMethod(sequence, "stop");
+                PropertyReflection.setFloat(sequence, "currentTime", "setCurrentTime", 0.0f);
+                PropertyReflection.invokeVoid(sequence, "stop");
                 modifiedRef[0] = true;
                 LOGGER.info("[TimelineSequencePropertyAdapter] 重置序列");
             }
@@ -391,177 +392,6 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
         }
         
         return modifiedRef[0];
-    }
-    
-    // ========== 反射辅助方法 ==========
-    
-    private String getStringProperty(Object obj, String fieldName, String getterName, String defaultValue) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            Object result = method.invoke(obj);
-            return result != null ? result.toString() : defaultValue;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                return result != null ? result.toString() : defaultValue;
-            } catch (Exception ex) {
-                return defaultValue;
-            }
-        }
-    }
-    
-    private boolean setStringProperty(Object obj, String value) {
-        try {
-            var method = obj.getClass().getMethod("setName", String.class);
-            method.invoke(obj, value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField("name");
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
-    private boolean getBooleanProperty(Object obj, String fieldName, String getterName, boolean defaultValue) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            Object result = method.invoke(obj);
-            return result instanceof Boolean ? (Boolean) result : defaultValue;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                return result instanceof Boolean ? (Boolean) result : defaultValue;
-            } catch (Exception ex) {
-                return defaultValue;
-            }
-        }
-    }
-    
-    private boolean setBooleanProperty(Object obj, boolean value) {
-        try {
-            var method = obj.getClass().getMethod("setLoop", boolean.class);
-            method.invoke(obj, value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField("loop");
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
-    private int getIntProperty(Object obj, String fieldName, String getterName) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            Object result = method.invoke(obj);
-            return result instanceof Integer ? (Integer) result : 0;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                return result instanceof Integer ? (Integer) result : 0;
-            } catch (Exception ex) {
-                return 0;
-            }
-        }
-    }
-    
-    private boolean setIntProperty(Object obj, int value) {
-        try {
-            var method = obj.getClass().getMethod("setPlayMode", int.class);
-            method.invoke(obj, value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField("playMode");
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
-    private float getFloatProperty(Object obj, String fieldName, String getterName, float defaultValue) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            Object result = method.invoke(obj);
-            if (result instanceof Float) return (Float) result;
-            if (result instanceof Double) return ((Double) result).floatValue();
-            return defaultValue;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                if (result instanceof Float) return (Float) result;
-                if (result instanceof Double) return ((Double) result).floatValue();
-                return defaultValue;
-            } catch (Exception ex) {
-                return defaultValue;
-            }
-        }
-    }
-    
-    private boolean setFloatProperty(Object obj, String fieldName, String setterName, float value) {
-        try {
-            var method = obj.getClass().getMethod(setterName, float.class);
-            method.invoke(obj, value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
-    private Object getObjectProperty(Object obj) {
-        try {
-            var method = obj.getClass().getMethod("getTracks");
-            return method.invoke(obj);
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField("tracks");
-                field.setAccessible(true);
-                return field.get(obj);
-            } catch (Exception ex) {
-                return null;
-            }
-        }
-    }
-    
-    /**
-     * 调用无参方法
-     */
-    private boolean callMethod(Object obj, String methodName) {
-        try {
-            var method = obj.getClass().getMethod(methodName);
-            method.invoke(obj);
-            return true;
-        } catch (Exception e) {
-            LOGGER.debug("[TimelineSequencePropertyAdapter] 调用方法失败: {}", methodName);
-            return false;
-        }
     }
 
     @Override

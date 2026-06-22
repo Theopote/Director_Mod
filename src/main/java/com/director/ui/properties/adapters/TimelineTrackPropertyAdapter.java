@@ -1,6 +1,7 @@
 package com.director.ui.properties.adapters;
 
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyReflection;
 import com.director.ui.properties.PropertyAdapterRegistry;
 import com.director.ui.actor.track.ActorTrackClipAuthoringService;
 import com.director.ui.actor.track.ActorTrackClipKind;
@@ -107,10 +108,10 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
             if (ImGui.collapsingHeader("📋 基本信息", ImGuiTreeNodeFlags.DefaultOpen)) {
                 ImGui.indent();
                 // 轨道名称
-                String currentName = getStringProperty(track, "name", "getName", "未命名轨道");
+                String currentName = PropertyReflection.getString(track, "name", "getName", "未命名轨道");
                 ImString nameBuffer = new ImString(currentName, 256);
                 if (ImGui.inputText("轨道名称", nameBuffer, ImGuiInputTextFlags.EnterReturnsTrue)) {
-                    if (setStringProperty(track, "name", "setName", nameBuffer.get())) {
+                    if (PropertyReflection.setString(track, "name", "setName", nameBuffer.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineTrackPropertyAdapter] 轨道名称已更新: {}", nameBuffer.get());
                     }
@@ -120,10 +121,10 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
                 }
                 
                 // 启用状态
-                boolean currentEnabled = getBooleanProperty(track, "enabled", "isEnabled", true);
+                boolean currentEnabled = PropertyReflection.getBoolean(track, "enabled", "isEnabled", true);
                 ImBoolean enabled = new ImBoolean(currentEnabled);
                 if (ImGui.checkbox("启用轨道", enabled)) {
-                    if (setBooleanProperty(track, "enabled", "setEnabled", enabled.get())) {
+                    if (PropertyReflection.setBoolean(track, "enabled", "setEnabled", enabled.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineTrackPropertyAdapter] 启用状态已更新: {}", enabled.get());
                     }
@@ -133,12 +134,12 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
                 }
                 
                 // 轨道类型（只读）
-                String type = getStringProperty(track, "type", "getType", "未知");
+                String type = PropertyReflection.getString(track, "type", "getType", "未知");
                 UITheme.spacingSmall();
                 UITheme.label("轨道类型: " + type, UITheme.DarkTheme.TEXT);
                 
                 // UUID 显示
-                String id = getStringProperty(track, "id", "getId", null);
+                String id = PropertyReflection.getString(track, "id", "getId", null);
                 if (id != null) {
                     UITheme.label("轨道 ID: " + id, UITheme.DarkTheme.TEXT_DISABLED);
                 }
@@ -148,10 +149,10 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
             // ========== 容器绑定 ==========
             if (ImGui.collapsingHeader("📦 容器绑定")) {
                 ImGui.indent();
-                String currentContainer = getStringProperty(track, "boundContainerName", "getBoundContainerName", "(未绑定)");
+                String currentContainer = PropertyReflection.getString(track, "boundContainerName", "getBoundContainerName", "(未绑定)");
                 ImString containerBuffer = new ImString(currentContainer, 256);
                 if (ImGui.inputText("绑定容器", containerBuffer, ImGuiInputTextFlags.EnterReturnsTrue)) {
-                    if (setStringProperty(track, "boundContainerName", "setBoundContainerName", containerBuffer.get())) {
+                    if (PropertyReflection.setString(track, "boundContainerName", "setBoundContainerName", containerBuffer.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineTrackPropertyAdapter] 绑定容器已更新: {}", containerBuffer.get());
                     }
@@ -173,7 +174,7 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
                 ImGui.sameLine();
                 
                 if (ImGui.button("清除绑定", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
-                    if (setStringProperty(track, "boundContainerName", "setBoundContainerName", null)) {
+                    if (PropertyReflection.setString(track, "boundContainerName", "setBoundContainerName", null)) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineTrackPropertyAdapter] 已清除容器绑定");
                     }
@@ -188,10 +189,10 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
             if (ImGui.collapsingHeader("🎨 混合与权重", ImGuiTreeNodeFlags.DefaultOpen)) {
                 ImGui.indent();
                 // 混合模式
-                int currentBlendMode = getIntProperty(track, "blendMode", "getBlendMode");
+                int currentBlendMode = PropertyReflection.getInt(track, "blendMode", "getBlendMode");
                 ImInt blendModeIdx = new ImInt(currentBlendMode);
                 if (ImGui.combo("混合模式", blendModeIdx, BLEND_MODES)) {
-                    if (setIntProperty(track, "blendMode", "setBlendMode", blendModeIdx.get())) {
+                    if (PropertyReflection.setInt(track, "blendMode", "setBlendMode", blendModeIdx.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineTrackPropertyAdapter] 混合模式已更新: {}", 
                             BLEND_MODES[blendModeIdx.get()]);
@@ -202,10 +203,10 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
                 }
                 
                 // 权重
-                float currentWeight = getFloatProperty(track, "weight", "getWeight", 1.0f);
+                float currentWeight = PropertyReflection.getFloat(track, "weight", "getWeight", 1.0f);
                 float[] weight = {currentWeight};
                 if (ImGui.dragFloat("权重", weight, 0.01f, 0.0f, 1.0f, "%.2f")) {
-                    if (setFloatProperty(track, "weight", "setWeight", weight[0])) {
+                    if (PropertyReflection.setFloat(track, "weight", "setWeight", weight[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineTrackPropertyAdapter] 权重已更新: {}", weight[0]);
                     }
@@ -221,10 +222,10 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
                 UITheme.spacingSmall();
                 
                 // 叠加模式
-                boolean currentAdditive = getBooleanProperty(track, "additive", "isAdditive", false);
+                boolean currentAdditive = PropertyReflection.getBoolean(track, "additive", "isAdditive", false);
                 ImBoolean additive = new ImBoolean(currentAdditive);
                 if (ImGui.checkbox("叠加模式", additive)) {
-                    if (setBooleanProperty(track, "additive", "setAdditive", additive.get())) {
+                    if (PropertyReflection.setBoolean(track, "additive", "setAdditive", additive.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineTrackPropertyAdapter] 叠加模式已更新: {}", additive.get());
                     }
@@ -239,10 +240,10 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
             if (ImGui.collapsingHeader("⏱ 对齐与范围", ImGuiTreeNodeFlags.DefaultOpen)) {
                 ImGui.indent();
                 // 对齐模式
-                int currentAlignment = getIntProperty(track, "alignmentMode", "getAlignmentMode");
+                int currentAlignment = PropertyReflection.getInt(track, "alignmentMode", "getAlignmentMode");
                 ImInt alignmentIdx = new ImInt(currentAlignment);
                 if (ImGui.combo("对齐模式", alignmentIdx, ALIGNMENT_MODES)) {
-                    if (setIntProperty(track, "alignmentMode", "setAlignmentMode", alignmentIdx.get())) {
+                    if (PropertyReflection.setInt(track, "alignmentMode", "setAlignmentMode", alignmentIdx.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineTrackPropertyAdapter] 对齐模式已更新: {}", 
                             ALIGNMENT_MODES[alignmentIdx.get()]);
@@ -255,10 +256,10 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
                 UITheme.spacingSmall();
                 
                 // 开始时间
-                float currentStart = getFloatProperty(track, "startTime", "getStartTime", 0.0f);
+                float currentStart = PropertyReflection.getFloat(track, "startTime", "getStartTime", 0.0f);
                 float[] startTime = {currentStart};
                 if (ImGui.dragFloat("开始时间 (秒)", startTime, 0.05f, 0.0f, 600.0f)) {
-                    if (setFloatProperty(track, "startTime", "setStartTime", startTime[0])) {
+                    if (PropertyReflection.setFloat(track, "startTime", "setStartTime", startTime[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineTrackPropertyAdapter] 开始时间已更新: {}", startTime[0]);
                     }
@@ -268,10 +269,10 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
                 }
                 
                 // 结束时间
-                float currentEnd = getFloatProperty(track, "endTime", "getEndTime", 5.0f);
+                float currentEnd = PropertyReflection.getFloat(track, "endTime", "getEndTime", 5.0f);
                 float[] endTime = {currentEnd};
                 if (ImGui.dragFloat("结束时间 (秒)", endTime, 0.05f, 0.0f, 600.0f)) {
-                    if (setFloatProperty(track, "endTime", "setEndTime", endTime[0])) {
+                    if (PropertyReflection.setFloat(track, "endTime", "setEndTime", endTime[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineTrackPropertyAdapter] 结束时间已更新: {}", endTime[0]);
                     }
@@ -291,13 +292,13 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
             if (ImGui.collapsingHeader("👁 可视化参数")) {
                 ImGui.indent();
                 // 轨道颜色
-                float[] colorRGBA = getFloatArrayProperty(track);
+                float[] colorRGBA = PropertyReflection.getFloatArray(track);
                 if (colorRGBA == null || colorRGBA.length < 4) {
                     colorRGBA = new float[]{0.4f, 0.8f, 1.0f, 1.0f};
                 }
                 
                 if (ImGui.colorEdit4("轨道颜色", colorRGBA)) {
-                    if (setFloatArrayProperty(track, colorRGBA)) {
+                    if (PropertyReflection.setFloatArray(track, colorRGBA)) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineTrackPropertyAdapter] 轨道颜色已更新");
                     }
@@ -309,7 +310,7 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
                 UITheme.spacingSmall();
                 
                 // 可视化偏移（使用 Vector3fPropertyAdapter）
-                Object visualOffset = getObjectProperty(track);
+                Object visualOffset = PropertyReflection.readProperty(track, \"materials\", \"getMaterials\");
                 if (visualOffset != null) {
                     var vector3fAdapter = PropertyAdapterRegistry.getAdapterFor(visualOffset);
                     if (vector3fAdapter != null) {
@@ -326,15 +327,15 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
             if (ImGui.collapsingHeader("📊 统计信息")) {
                 ImGui.indent();
                 // 关键帧统计
-                int keyframeCount = getIntProperty(track, "keyframeCount", "getKeyframeCount");
+                int keyframeCount = PropertyReflection.getInt(track, "keyframeCount", "getKeyframeCount");
                 UITheme.label("关键帧总数: " + keyframeCount, UITheme.DarkTheme.TEXT);
                 
-                int enabledCount = getIntProperty(track, "enabledKeyframeCount", "countEnabledKeyframes");
+                int enabledCount = PropertyReflection.getInt(track, "enabledKeyframeCount", "countEnabledKeyframes");
                 UITheme.label("已启用关键帧: " + enabledCount, UITheme.DarkTheme.TEXT);
                 
                 // 持续时间统计
-                float start = getFloatProperty(track, "startTime", "getStartTime", 0.0f);
-                float end = getFloatProperty(track, "endTime", "getEndTime", 0.0f);
+                float start = PropertyReflection.getFloat(track, "startTime", "getStartTime", 0.0f);
+                float end = PropertyReflection.getFloat(track, "endTime", "getEndTime", 0.0f);
                 float duration = Math.max(0, end - start);
                 
                 UITheme.spacingSmall();
@@ -344,7 +345,7 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
                     UITheme.DarkTheme.TEXT_DISABLED);
                 
                 // 权重信息
-                float weight = getFloatProperty(track, "weight", "getWeight", 1.0f);
+                float weight = PropertyReflection.getFloat(track, "weight", "getWeight", 1.0f);
                 UITheme.spacingSmall();
                 UITheme.label(String.format("当前权重: %.0f%%", weight * 100), 
                     UITheme.DarkTheme.TEXT_DISABLED);
@@ -419,10 +420,10 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
             
             ImGui.sameLine();
             
-            boolean locked = getBooleanProperty(track, "locked", "isLocked", false);
+            boolean locked = PropertyReflection.getBoolean(track, "locked", "isLocked", false);
             String lockText = locked ? "解锁轨道" : "锁定轨道";
             if (ImGui.button(lockText, 100, UITheme.Spacing.BUTTON_HEIGHT)) {
-                if (setBooleanProperty(track, "locked", "setLocked", !locked)) {
+                if (PropertyReflection.setBoolean(track, "locked", "setLocked", !locked)) {
                     modifiedRef[0] = true;
                     LOGGER.info("[TimelineTrackPropertyAdapter] 轨道锁定状态: {}", !locked);
                 }
@@ -433,7 +434,7 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
             
             // 第二行
             if (ImGui.button("重置权重", 100, UITheme.Spacing.BUTTON_HEIGHT)) {
-                if (setFloatProperty(track, "weight", "setWeight", 1.0f)) {
+                if (PropertyReflection.setFloat(track, "weight", "setWeight", 1.0f)) {
                     modifiedRef[0] = true;
                     LOGGER.debug("[TimelineTrackPropertyAdapter] 重置权重为 1.0");
                 }
@@ -445,8 +446,8 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
             ImGui.sameLine();
             
             if (ImGui.button("重置时间", 100, UITheme.Spacing.BUTTON_HEIGHT)) {
-                setFloatProperty(track, "startTime", "setStartTime", 0.0f);
-                setFloatProperty(track, "endTime", "setEndTime", 5.0f);
+                PropertyReflection.setFloat(track, "startTime", "setStartTime", 0.0f);
+                PropertyReflection.setFloat(track, "endTime", "setEndTime", 5.0f);
                 modifiedRef[0] = true;
                 LOGGER.debug("[TimelineTrackPropertyAdapter] 重置时间范围");
             }
@@ -478,197 +479,6 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
             ImGui.setTooltip(tooltip);
         }
         return false;
-    }
-    
-    // ========== 反射辅助方法 ==========
-    
-    private String getStringProperty(Object obj, String fieldName, String getterName, String defaultValue) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            Object result = method.invoke(obj);
-            return result != null ? result.toString() : defaultValue;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                return result != null ? result.toString() : defaultValue;
-            } catch (Exception ex) {
-                return defaultValue;
-            }
-        }
-    }
-    
-    private boolean setStringProperty(Object obj, String fieldName, String setterName, String value) {
-        try {
-            var method = obj.getClass().getMethod(setterName, String.class);
-            method.invoke(obj, value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
-    private boolean getBooleanProperty(Object obj, String fieldName, String getterName, boolean defaultValue) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            Object result = method.invoke(obj);
-            return result instanceof Boolean ? (Boolean) result : defaultValue;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                return result instanceof Boolean ? (Boolean) result : defaultValue;
-            } catch (Exception ex) {
-                return defaultValue;
-            }
-        }
-    }
-    
-    private boolean setBooleanProperty(Object obj, String fieldName, String setterName, boolean value) {
-        try {
-            var method = obj.getClass().getMethod(setterName, boolean.class);
-            method.invoke(obj, value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
-    private int getIntProperty(Object obj, String fieldName, String getterName) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            Object result = method.invoke(obj);
-            return result instanceof Integer ? (Integer) result : 0;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                return result instanceof Integer ? (Integer) result : 0;
-            } catch (Exception ex) {
-                return 0;
-            }
-        }
-    }
-    
-    private boolean setIntProperty(Object obj, String fieldName, String setterName, int value) {
-        try {
-            var method = obj.getClass().getMethod(setterName, int.class);
-            method.invoke(obj, value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
-    private float getFloatProperty(Object obj, String fieldName, String getterName, float defaultValue) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            Object result = method.invoke(obj);
-            if (result instanceof Float) return (Float) result;
-            if (result instanceof Double) return ((Double) result).floatValue();
-            return defaultValue;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                if (result instanceof Float) return (Float) result;
-                if (result instanceof Double) return ((Double) result).floatValue();
-                return defaultValue;
-            } catch (Exception ex) {
-                return defaultValue;
-            }
-        }
-    }
-    
-    private boolean setFloatProperty(Object obj, String fieldName, String setterName, float value) {
-        try {
-            var method = obj.getClass().getMethod(setterName, float.class);
-            method.invoke(obj, value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
-    private Object getObjectProperty(Object obj) {
-        try {
-            var method = obj.getClass().getMethod("getVisualOffset");
-            return method.invoke(obj);
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField("visualOffset");
-                field.setAccessible(true);
-                return field.get(obj);
-            } catch (Exception ex) {
-                return null;
-            }
-        }
-    }
-    
-    private float[] getFloatArrayProperty(Object obj) {
-        try {
-            var method = obj.getClass().getMethod("getColorRGBA");
-            Object result = method.invoke(obj);
-            return result instanceof float[] ? (float[]) result : null;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField("colorRGBA");
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                return result instanceof float[] ? (float[]) result : null;
-            } catch (Exception ex) {
-                return null;
-            }
-        }
-    }
-    
-    private boolean setFloatArrayProperty(Object obj, float[] value) {
-        try {
-            var method = obj.getClass().getMethod("setColorRGBA", float[].class);
-            method.invoke(obj, (Object) value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField("colorRGBA");
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
     }
 
     @Override

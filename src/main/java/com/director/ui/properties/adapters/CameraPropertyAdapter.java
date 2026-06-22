@@ -1,6 +1,7 @@
 package com.director.ui.properties.adapters;
 
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyReflection;
 import com.director.ui.properties.PropertyAdapterRegistry;
 import com.director.ui.theme.UITheme;
 import com.director.ui.theme.Icons;
@@ -104,10 +105,10 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
             if (ImGui.collapsingHeader("🎥 投影参数", ImGuiTreeNodeFlags.DefaultOpen)) {
                 ImGui.indent();
                 // 视野（FOV）
-                float currentFOV = getFloatProperty(camera, "fov", "getFov", 70.0f);
+                float currentFOV = PropertyReflection.getFloat(camera, "fov", "getFov", 70.0f);
                 float[] fov = {currentFOV};
                 if (ImGui.dragFloat("视野 (FOV)", fov, 0.5f, 10.0f, 150.0f, "%.1f°")) {
-                    if (setFloatProperty(camera, "fov", "setFov", fov[0])) {
+                    if (PropertyReflection.setFloat(camera, "fov", "setFov", fov[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[CameraPropertyAdapter] FOV已更新: {}", fov[0]);
                     }
@@ -122,7 +123,7 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
                 for (int i = 0; i < FOV_PRESETS.length; i++) {
                     ImGui.pushID("fov_" + i);
                     if (ImGui.button(FOV_PRESET_NAMES[i], 90, UITheme.Spacing.BUTTON_HEIGHT)) {
-                        if (setFloatProperty(camera, "fov", "setFov", FOV_PRESETS[i])) {
+                        if (PropertyReflection.setFloat(camera, "fov", "setFov", FOV_PRESETS[i])) {
                             modifiedRef[0] = true;
                             LOGGER.debug("[CameraPropertyAdapter] 应用FOV预设: {}", FOV_PRESETS[i]);
                         }
@@ -136,10 +137,10 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
                 UITheme.spacingSmall();
                 
                 // 近裁剪面
-                float currentNear = getFloatProperty(camera, "nearPlane", "getNearPlane", 0.1f);
+                float currentNear = PropertyReflection.getFloat(camera, "nearPlane", "getNearPlane", 0.1f);
                 float[] nearPlane = {currentNear};
                 if (ImGui.dragFloat("近裁剪面", nearPlane, 0.01f, 0.01f, 10.0f, "%.2f")) {
-                    if (setFloatProperty(camera, "nearPlane", "setNearPlane", nearPlane[0])) {
+                    if (PropertyReflection.setFloat(camera, "nearPlane", "setNearPlane", nearPlane[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[CameraPropertyAdapter] 近裁剪面已更新: {}", nearPlane[0]);
                     }
@@ -149,10 +150,10 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
                 }
                 
                 // 远裁剪面
-                float currentFar = getFloatProperty(camera, "farPlane", "getFarPlane", 1000.0f);
+                float currentFar = PropertyReflection.getFloat(camera, "farPlane", "getFarPlane", 1000.0f);
                 float[] farPlane = {currentFar};
                 if (ImGui.dragFloat("远裁剪面", farPlane, 10.0f, 10.0f, 10000.0f, "%.0f")) {
-                    if (setFloatProperty(camera, "farPlane", "setFarPlane", farPlane[0])) {
+                    if (PropertyReflection.setFloat(camera, "farPlane", "setFarPlane", farPlane[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[CameraPropertyAdapter] 远裁剪面已更新: {}", farPlane[0]);
                     }
@@ -167,10 +168,10 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
             if (ImGui.collapsingHeader("📷 镜头特效")) {
                 ImGui.indent();
                 // 景深开关
-                boolean currentDOF = getBooleanProperty(camera, "depthOfFieldEnabled", "isDepthOfFieldEnabled", false);
+                boolean currentDOF = PropertyReflection.getBoolean(camera, "depthOfFieldEnabled", "isDepthOfFieldEnabled", false);
                 ImBoolean enableDOF = new ImBoolean(currentDOF);
                 if (ImGui.checkbox("启用景深 (Depth of Field)", enableDOF)) {
-                    if (setBooleanProperty(camera, "depthOfFieldEnabled", "setDepthOfFieldEnabled", enableDOF.get())) {
+                    if (PropertyReflection.setBoolean(camera, "depthOfFieldEnabled", "setDepthOfFieldEnabled", enableDOF.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[CameraPropertyAdapter] 景深已更新: {}", enableDOF.get());
                     }
@@ -180,10 +181,10 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
                 }
                 
                 // 焦距
-                float currentFocus = getFloatProperty(camera, "focusDistance", "getFocusDistance", 10.0f);
+                float currentFocus = PropertyReflection.getFloat(camera, "focusDistance", "getFocusDistance", 10.0f);
                 float[] focusDistance = {currentFocus};
                 if (ImGui.dragFloat("焦距", focusDistance, 0.5f, 0.1f, 1000.0f, "%.1f")) {
-                    if (setFloatProperty(camera, "focusDistance", "setFocusDistance", focusDistance[0])) {
+                    if (PropertyReflection.setFloat(camera, "focusDistance", "setFocusDistance", focusDistance[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[CameraPropertyAdapter] 焦距已更新: {}", focusDistance[0]);
                     }
@@ -193,10 +194,10 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
                 }
                 
                 // 光圈
-                float currentAperture = getFloatProperty(camera, "aperture", "getAperture", 2.8f);
+                float currentAperture = PropertyReflection.getFloat(camera, "aperture", "getAperture", 2.8f);
                 float[] aperture = {currentAperture};
                 if (ImGui.dragFloat("光圈 (f-stop)", aperture, 0.1f, 1.4f, 22.0f, "f/%.1f")) {
-                    if (setFloatProperty(camera, "aperture", "setAperture", aperture[0])) {
+                    if (PropertyReflection.setFloat(camera, "aperture", "setAperture", aperture[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[CameraPropertyAdapter] 光圈已更新: {}", aperture[0]);
                     }
@@ -206,10 +207,10 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
                 }
                 
                 // 散景质量
-                int currentBokeh = getIntProperty(camera);
+                int currentBokeh = PropertyReflection.getInt(camera, "bokehQuality", "getBokehQuality", 2);
                 int[] bokehQuality = {currentBokeh};
                 if (ImGui.dragInt("散景质量", bokehQuality, 1.0f, 0, 5)) {
-                    if (setIntProperty(camera, bokehQuality[0])) {
+                    if (PropertyReflection.setInt(camera, "bokehQuality", "setBokehQuality", bokehQuality[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[CameraPropertyAdapter] 散景质量已更新: {}", bokehQuality[0]);
                     }
@@ -224,19 +225,19 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
             if (ImGui.collapsingHeader("🎬 动画控制")) {
                 ImGui.indent();
                 // 动画名称
-                String currentName = getStringProperty(camera);
+                String currentName = PropertyReflection.getString(camera, "animationName", "getAnimationName", "");
                 ImString nameBuffer = new ImString(currentName, 256);
                 if (ImGui.inputText("动画名称", nameBuffer, ImGuiInputTextFlags.EnterReturnsTrue)) {
-                    if (setStringProperty(camera, nameBuffer.get())) {
+                    if (PropertyReflection.setString(camera, "animationName", "setAnimationName", nameBuffer.get())) {
                         modifiedRef[0] = true;
                     }
                 }
                 
                 // 持续时间
-                float currentDuration = getFloatProperty(camera, "animationDuration", "getAnimationDuration", 5.0f);
+                float currentDuration = PropertyReflection.getFloat(camera, "animationDuration", "getAnimationDuration", 5.0f);
                 float[] duration = {currentDuration};
                 if (ImGui.dragFloat("持续时间 (秒)", duration, 0.1f, 0.1f, 300.0f)) {
-                    if (setFloatProperty(camera, "animationDuration", "setAnimationDuration", duration[0])) {
+                    if (PropertyReflection.setFloat(camera, "animationDuration", "setAnimationDuration", duration[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[CameraPropertyAdapter] 动画持续时间已更新: {}", duration[0]);
                     }
@@ -246,20 +247,20 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
                 }
                 
                 // 循环播放
-                boolean currentLoop = getBooleanProperty(camera, "loop", "isLoop", false);
+                boolean currentLoop = PropertyReflection.getBoolean(camera, "loop", "isLoop", false);
                 ImBoolean loop = new ImBoolean(currentLoop);
                 if (ImGui.checkbox("循环播放", loop)) {
-                    if (setBooleanProperty(camera, "loop", "setLoop", loop.get())) {
+                    if (PropertyReflection.setBoolean(camera, "loop", "setLoop", loop.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[CameraPropertyAdapter] 循环播放已更新: {}", loop.get());
                     }
                 }
                 
                 // 平滑插值
-                boolean currentSmooth = getBooleanProperty(camera, "smoothInterpolation", "isSmoothInterpolation", true);
+                boolean currentSmooth = PropertyReflection.getBoolean(camera, "smoothInterpolation", "isSmoothInterpolation", true);
                 ImBoolean smooth = new ImBoolean(currentSmooth);
                 if (ImGui.checkbox("平滑插值", smooth)) {
-                    if (setBooleanProperty(camera, "smoothInterpolation", "setSmoothInterpolation", smooth.get())) {
+                    if (PropertyReflection.setBoolean(camera, "smoothInterpolation", "setSmoothInterpolation", smooth.get())) {
                         modifiedRef[0] = true;
                     }
                 }
@@ -275,7 +276,7 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
             UITheme.beginGroup("快捷操作");
             
             if (ImGui.button(Icons.REFRESH + " 重置相机", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
-                if (callMethod(camera, "reset") || callMethod(camera, "resetToDefault")) {
+                if (PropertyReflection.invokeVoid(camera, "reset") || PropertyReflection.invokeVoid(camera, "resetToDefault")) {
                     modifiedRef[0] = true;
                     LOGGER.info("[CameraPropertyAdapter] 相机已重置");
                 }
@@ -297,7 +298,7 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
             ImGui.sameLine();
             
             if (ImGui.button("👤 对齐到玩家", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
-                if (callMethod(camera, "alignToPlayer")) {
+                if (PropertyReflection.invokeVoid(camera, "alignToPlayer")) {
                     modifiedRef[0] = true;
                     LOGGER.info("[CameraPropertyAdapter] 相机已对齐到玩家");
                 }
@@ -314,174 +315,6 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
         }
         
         return modifiedRef[0];
-    }
-    
-    // ========== 反射辅助方法 ==========
-    
-    private String getStringProperty(Object obj) {
-        try {
-            var method = obj.getClass().getMethod("getAnimationName");
-            Object result = method.invoke(obj);
-            return result != null ? result.toString() : "";
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField("animationName");
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                return result != null ? result.toString() : "";
-            } catch (Exception ex) {
-                return "";
-            }
-        }
-    }
-    
-    private boolean setStringProperty(Object obj, String value) {
-        try {
-            var method = obj.getClass().getMethod("setAnimationName", String.class);
-            method.invoke(obj, value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField("animationName");
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
-    private boolean getBooleanProperty(Object obj, String fieldName, String getterName, boolean defaultValue) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            Object result = method.invoke(obj);
-            return result instanceof Boolean ? (Boolean) result : defaultValue;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                return result instanceof Boolean ? (Boolean) result : defaultValue;
-            } catch (Exception ex) {
-                return defaultValue;
-            }
-        }
-    }
-    
-    private boolean setBooleanProperty(Object obj, String fieldName, String setterName, boolean value) {
-        try {
-            var method = obj.getClass().getMethod(setterName, boolean.class);
-            method.invoke(obj, value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
-    private int getIntProperty(Object obj) {
-        try {
-            var method = obj.getClass().getMethod("getBokehQuality");
-            Object result = method.invoke(obj);
-            return result instanceof Integer ? (Integer) result : 2;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField("bokehQuality");
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                return result instanceof Integer ? (Integer) result : 2;
-            } catch (Exception ex) {
-                return 2;
-            }
-        }
-    }
-    
-    private boolean setIntProperty(Object obj, int value) {
-        try {
-            var method = obj.getClass().getMethod("setBokehQuality", int.class);
-            method.invoke(obj, value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField("bokehQuality");
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
-    private float getFloatProperty(Object obj, String fieldName, String getterName, float defaultValue) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            Object result = method.invoke(obj);
-            if (result instanceof Float) return (Float) result;
-            if (result instanceof Double) return ((Double) result).floatValue();
-            return defaultValue;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                if (result instanceof Float) return (Float) result;
-                if (result instanceof Double) return ((Double) result).floatValue();
-                return defaultValue;
-            } catch (Exception ex) {
-                return defaultValue;
-            }
-        }
-    }
-    
-    private boolean setFloatProperty(Object obj, String fieldName, String setterName, float value) {
-        try {
-            var method = obj.getClass().getMethod(setterName, float.class);
-            method.invoke(obj, value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
-    private Object getObjectProperty(Object obj, String fieldName, String getterName) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            return method.invoke(obj);
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                return field.get(obj);
-            } catch (Exception ex) {
-                return null;
-            }
-        }
-    }
-    
-    private boolean callMethod(Object obj, String methodName) {
-        try {
-            var method = obj.getClass().getMethod(methodName);
-            method.invoke(obj);
-            return true;
-        } catch (Exception e) {
-            LOGGER.debug("[CameraPropertyAdapter] 调用方法失败: {}", methodName);
-            return false;
-        }
     }
 
     @Override

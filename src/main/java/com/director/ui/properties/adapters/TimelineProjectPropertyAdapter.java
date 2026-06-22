@@ -2,6 +2,7 @@ package com.director.ui.properties.adapters;
 
 import com.director.core.DirectorServices;
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyReflection;
 import com.director.ui.selection.SelectionManager;
 import com.director.ui.theme.UITheme;
 import com.director.ui.theme.Icons;
@@ -114,10 +115,10 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
             // ========== 基础信息 ==========
             if (ImGui.collapsingHeader("📋 基础信息", ImGuiTreeNodeFlags.DefaultOpen)) {
                 // 项目名称
-                String currentName = getStringProperty(project, "name", "getName", "未命名项目");
+                String currentName = PropertyReflection.getString(project, "name", "getName", "未命名项目");
                 ImString nameBuffer = new ImString(currentName, 256);
                 if (ImGui.inputText("项目名称", nameBuffer, ImGuiInputTextFlags.EnterReturnsTrue)) {
-                    if (setStringProperty(project, "name", "setName", nameBuffer.get())) {
+                    if (PropertyReflection.setString(project, "name", "setName", nameBuffer.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineProjectPropertyAdapter] 项目名称已更新: {}", nameBuffer.get());
                     }
@@ -127,10 +128,10 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                 }
                 
                 // 作者
-                String currentAuthor = getStringProperty(project, "author", "getAuthor", "");
+                String currentAuthor = PropertyReflection.getString(project, "author", "getAuthor", "");
                 ImString authorBuffer = new ImString(currentAuthor, 256);
                 if (ImGui.inputText("作者", authorBuffer, ImGuiInputTextFlags.EnterReturnsTrue)) {
-                    if (setStringProperty(project, "author", "setAuthor", authorBuffer.get())) {
+                    if (PropertyReflection.setString(project, "author", "setAuthor", authorBuffer.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineProjectPropertyAdapter] 作者已更新: {}", authorBuffer.get());
                     }
@@ -140,10 +141,10 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                 }
                 
                 // 描述（多行文本）
-                String currentDesc = getStringProperty(project, "description", "getDescription", "");
+                String currentDesc = PropertyReflection.getString(project, "description", "getDescription", "");
                 ImString descBuffer = new ImString(currentDesc, 1024);
                 if (ImGui.inputTextMultiline("描述", descBuffer, 200, 60, ImGuiInputTextFlags.None)) {
-                    if (setStringProperty(project, "description", "setDescription", descBuffer.get())) {
+                    if (PropertyReflection.setString(project, "description", "setDescription", descBuffer.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineProjectPropertyAdapter] 描述已更新");
                     }
@@ -153,12 +154,12 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                 }
                 
                 // 版本号
-                String version = getStringProperty(project, "version", "getVersion", "1.0.0");
+                String version = PropertyReflection.getString(project, "version", "getVersion", "1.0.0");
                 UITheme.spacingSmall();
                 UITheme.label("版本: " + version, UITheme.DarkTheme.TEXT_DISABLED);
                 
                 // UUID 显示
-                String id = getStringProperty(project, "id", "getId", null);
+                String id = PropertyReflection.getString(project, "id", "getId", null);
                 if (id != null) {
                     UITheme.label("项目 ID: " + id, UITheme.DarkTheme.TEXT_DISABLED);
                 }
@@ -167,10 +168,10 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
             // ========== 全局设置 ==========
             if (ImGui.collapsingHeader("⚙️ 全局设置", ImGuiTreeNodeFlags.DefaultOpen)) {
                 // 帧率
-                float currentFPS = getFloatProperty(project, "frameRate", "getFrameRate", 30.0f);
+                float currentFPS = PropertyReflection.getFloat(project, "frameRate", "getFrameRate", 30.0f);
                 float[] fps = {currentFPS};
                 if (ImGui.dragFloat("帧率 (FPS)", fps, 1.0f, 1.0f, 240.0f, "%.0f")) {
-                    if (setFloatProperty(project, fps[0])) {
+                    if (PropertyReflection.setFloat(project, fps[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineProjectPropertyAdapter] 帧率已更新: {}", fps[0]);
                     }
@@ -180,10 +181,10 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                 }
                 
                 // 时间单位
-                int currentTimeUnit = getIntProperty(project, "timeUnit", "getTimeUnit");
+                int currentTimeUnit = PropertyReflection.getInt(project, "timeUnit", "getTimeUnit");
                 ImInt timeUnitIdx = new ImInt(currentTimeUnit);
                 if (ImGui.combo("时间单位", timeUnitIdx, TIME_UNITS)) {
-                    if (setIntProperty(project, "timeUnit", "setTimeUnit", timeUnitIdx.get())) {
+                    if (PropertyReflection.setInt(project, "timeUnit", "setTimeUnit", timeUnitIdx.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineProjectPropertyAdapter] 时间单位已更新: {}", 
                             TIME_UNITS[timeUnitIdx.get()]);
@@ -194,10 +195,10 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                 }
                 
                 // 自动保存
-                boolean currentAutoSave = getBooleanProperty(project, "autoSaveEnabled", "isAutoSaveEnabled", false);
+                boolean currentAutoSave = PropertyReflection.getBoolean(project, "autoSaveEnabled", "isAutoSaveEnabled", false);
                 ImBoolean autoSave = new ImBoolean(currentAutoSave);
                 if (ImGui.checkbox("自动保存", autoSave)) {
-                    if (setBooleanProperty(project, "autoSaveEnabled", "setAutoSaveEnabled", autoSave.get())) {
+                    if (PropertyReflection.setBoolean(project, "autoSaveEnabled", "setAutoSaveEnabled", autoSave.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineProjectPropertyAdapter] 自动保存已更新: {}", autoSave.get());
                     }
@@ -207,10 +208,10 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                 }
                 
                 // 循环所有序列
-                boolean currentLoopAll = getBooleanProperty(project, "loopAll", "isLoopAll", false);
+                boolean currentLoopAll = PropertyReflection.getBoolean(project, "loopAll", "isLoopAll", false);
                 ImBoolean loopAll = new ImBoolean(currentLoopAll);
                 if (ImGui.checkbox("循环所有序列", loopAll)) {
-                    if (setBooleanProperty(project, "loopAll", "setLoopAll", loopAll.get())) {
+                    if (PropertyReflection.setBoolean(project, "loopAll", "setLoopAll", loopAll.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineProjectPropertyAdapter] 循环所有序列已更新: {}", loopAll.get());
                     }
@@ -238,9 +239,9 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                             Object seq = sequences.get(i);
                             ImGui.pushID(i);
                             
-                            String seqName = getStringProperty(seq, "name", "getName", "序列 " + i);
-                            float seqDuration = getFloatProperty(seq, "duration", "getDuration", 0.0f);
-                            boolean seqLoop = getBooleanProperty(seq, "loop", "isLoop", false);
+                            String seqName = PropertyReflection.getString(seq, "name", "getName", "序列 " + i);
+                            float seqDuration = PropertyReflection.getFloat(seq, "duration", "getDuration", 0.0f);
+                            boolean seqLoop = PropertyReflection.getBoolean(seq, "loop", "isLoop", false);
                             
                             String loopIcon = seqLoop ? Icons.LOOP : Icons.PLAY;
                             
@@ -261,7 +262,7 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                                 
                                 UITheme.label("循环: " + (seqLoop ? "是" : "否"), UITheme.DarkTheme.TEXT);
                                 
-                                float timeScale = getFloatProperty(seq, "timeScale", "getTimeScale", 1.0f);
+                                float timeScale = PropertyReflection.getFloat(seq, "timeScale", "getTimeScale", 1.0f);
                                 UITheme.label(String.format("时间缩放: %.2fx", timeScale), 
                                     UITheme.DarkTheme.TEXT);
                                 
@@ -333,10 +334,10 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
             // ========== 导出设置 ==========
             if (ImGui.collapsingHeader("📦 导出设置")) {
                 // 导出格式
-                int currentFormat = getIntProperty(project, "exportFormat", "getExportFormat");
+                int currentFormat = PropertyReflection.getInt(project, "exportFormat", "getExportFormat");
                 ImInt formatIdx = new ImInt(currentFormat);
                 if (ImGui.combo("导出格式", formatIdx, EXPORT_FORMATS)) {
-                    if (setIntProperty(project, "exportFormat", "setExportFormat", formatIdx.get())) {
+                    if (PropertyReflection.setInt(project, "exportFormat", "setExportFormat", formatIdx.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineProjectPropertyAdapter] 导出格式已更新: {}", 
                             EXPORT_FORMATS[formatIdx.get()]);
@@ -347,10 +348,10 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                 }
                 
                 // 导出路径
-                String currentPath = getStringProperty(project, "exportPath", "getExportPath", "");
+                String currentPath = PropertyReflection.getString(project, "exportPath", "getExportPath", "");
                 ImString pathBuffer = new ImString(currentPath, 512);
                 if (ImGui.inputText("导出路径", pathBuffer, ImGuiInputTextFlags.None)) {
-                    if (setStringProperty(project, "exportPath", "setExportPath", pathBuffer.get())) {
+                    if (PropertyReflection.setString(project, "exportPath", "setExportPath", pathBuffer.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineProjectPropertyAdapter] 导出路径已更新: {}", pathBuffer.get());
                     }
@@ -380,18 +381,18 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                 // 导出选项
                 UITheme.spacingSmall();
                 
-                boolean includeResources = getBooleanProperty(project, "includeResources", "isIncludeResources", true);
+                boolean includeResources = PropertyReflection.getBoolean(project, "includeResources", "isIncludeResources", true);
                 ImBoolean includeRes = new ImBoolean(includeResources);
                 if (ImGui.checkbox("包含资源文件", includeRes)) {
-                    if (setBooleanProperty(project, "includeResources", "setIncludeResources", includeRes.get())) {
+                    if (PropertyReflection.setBoolean(project, "includeResources", "setIncludeResources", includeRes.get())) {
                         modifiedRef[0] = true;
                     }
                 }
                 
-                boolean compress = getBooleanProperty(project, "compress", "isCompress", false);
+                boolean compress = PropertyReflection.getBoolean(project, "compress", "isCompress", false);
                 ImBoolean compressBool = new ImBoolean(compress);
                 if (ImGui.checkbox("压缩导出", compressBool)) {
-                    if (setBooleanProperty(project, "compress", "setCompress", compressBool.get())) {
+                    if (PropertyReflection.setBoolean(project, "compress", "setCompress", compressBool.get())) {
                         modifiedRef[0] = true;
                     }
                 }
@@ -420,7 +421,7 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                             
                             // 统计关键帧
                             for (Object track : tracks) {
-                                int count = getIntProperty(track, "keyframeCount", "getKeyframeCount");
+                                int count = PropertyReflection.getInt(track, "keyframeCount", "getKeyframeCount");
                                 totalKeyframes += count;
                             }
                         }
@@ -433,7 +434,7 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                 
                 // 文件统计
                 UITheme.spacingSmall();
-                String projectPath = getStringProperty(project, "projectPath", "getProjectPath", "未保存");
+                String projectPath = PropertyReflection.getString(project, "projectPath", "getProjectPath", "未保存");
                 UITheme.label("项目路径: " + projectPath, UITheme.DarkTheme.TEXT_DISABLED);
                 
                 // 创建时间
@@ -458,7 +459,7 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
             
             // 第一行 - 文件操作
             if (ImGui.button("💾 保存项目", 110, UITheme.Spacing.BUTTON_HEIGHT)) {
-                if (callMethod(project, "save")) {
+                if (PropertyReflection.invokeVoid(project, "save")) {
                     LOGGER.info("[TimelineProjectPropertyAdapter] 项目已保存");
                 }
             }
@@ -469,7 +470,7 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
             ImGui.sameLine();
             
             if (ImGui.button("🚀 导出项目", 110, UITheme.Spacing.BUTTON_HEIGHT)) {
-                if (callMethod(project, "export") || callMethod(project, "exportProject")) {
+                if (PropertyReflection.invokeVoid(project, "export") || PropertyReflection.invokeVoid(project, "exportProject")) {
                     LOGGER.info("[TimelineProjectPropertyAdapter] 项目已导出");
                 }
             }
@@ -480,7 +481,7 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
             ImGui.sameLine();
             
             if (ImGui.button(Icons.REFRESH + " 重新加载", 110, UITheme.Spacing.BUTTON_HEIGHT)) {
-                if (callMethod(project, "reload")) {
+                if (PropertyReflection.invokeVoid(project, "reload")) {
                     LOGGER.info("[TimelineProjectPropertyAdapter] 项目已重新加载");
                 }
             }
@@ -510,7 +511,7 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
             ImGui.sameLine();
             
             if (ImGui.button("🧹 清理缓存", 110, UITheme.Spacing.BUTTON_HEIGHT)) {
-                if (callMethod(project, "clearCache")) {
+                if (PropertyReflection.invokeVoid(project, "clearCache")) {
                     LOGGER.info("[TimelineProjectPropertyAdapter] 缓存已清理");
                 }
             }
@@ -530,194 +531,6 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
         }
         
         return modifiedRef[0];
-    }
-    
-    // ========== 反射辅助方法 ==========
-    
-    private String getStringProperty(Object obj, String fieldName, String getterName, String defaultValue) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            Object result = method.invoke(obj);
-            return result != null ? result.toString() : defaultValue;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                return result != null ? result.toString() : defaultValue;
-            } catch (Exception ex) {
-                return defaultValue;
-            }
-        }
-    }
-    
-    private boolean setStringProperty(Object obj, String fieldName, String setterName, String value) {
-        try {
-            var method = obj.getClass().getMethod(setterName, String.class);
-            method.invoke(obj, value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
-    private boolean getBooleanProperty(Object obj, String fieldName, String getterName, boolean defaultValue) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            Object result = method.invoke(obj);
-            return result instanceof Boolean ? (Boolean) result : defaultValue;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                return result instanceof Boolean ? (Boolean) result : defaultValue;
-            } catch (Exception ex) {
-                return defaultValue;
-            }
-        }
-    }
-    
-    private boolean setBooleanProperty(Object obj, String fieldName, String setterName, boolean value) {
-        try {
-            var method = obj.getClass().getMethod(setterName, boolean.class);
-            method.invoke(obj, value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
-    private int getIntProperty(Object obj, String fieldName, String getterName) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            Object result = method.invoke(obj);
-            return result instanceof Integer ? (Integer) result : 0;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                return result instanceof Integer ? (Integer) result : 0;
-            } catch (Exception ex) {
-                return 0;
-            }
-        }
-    }
-    
-    private boolean setIntProperty(Object obj, String fieldName, String setterName, int value) {
-        try {
-            var method = obj.getClass().getMethod(setterName, int.class);
-            method.invoke(obj, value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
-    private float getFloatProperty(Object obj, String fieldName, String getterName, float defaultValue) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            Object result = method.invoke(obj);
-            if (result instanceof Float) return (Float) result;
-            if (result instanceof Double) return ((Double) result).floatValue();
-            return defaultValue;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                if (result instanceof Float) return (Float) result;
-                if (result instanceof Double) return ((Double) result).floatValue();
-                return defaultValue;
-            } catch (Exception ex) {
-                return defaultValue;
-            }
-        }
-    }
-    
-    private boolean setFloatProperty(Object obj, float value) {
-        try {
-            var method = obj.getClass().getMethod("setFrameRate", float.class);
-            method.invoke(obj, value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField("frameRate");
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
-    private long getLongProperty(Object obj, String fieldName, String getterName) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            Object result = method.invoke(obj);
-            return result instanceof Long ? (Long) result : 0L;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                return result instanceof Long ? (Long) result : 0L;
-            } catch (Exception ex) {
-                return 0L;
-            }
-        }
-    }
-    
-    private Object getObjectProperty(Object obj, String fieldName, String getterName) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            return method.invoke(obj);
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                return field.get(obj);
-            } catch (Exception ex) {
-                return null;
-            }
-        }
-    }
-    
-    /**
-     * 调用无参方法
-     */
-    private boolean callMethod(Object obj, String methodName) {
-        try {
-            var method = obj.getClass().getMethod(methodName);
-            method.invoke(obj);
-            return true;
-        } catch (Exception e) {
-            LOGGER.debug("[TimelineProjectPropertyAdapter] 调用方法失败: {}", methodName);
-            return false;
-        }
     }
 
     @Override

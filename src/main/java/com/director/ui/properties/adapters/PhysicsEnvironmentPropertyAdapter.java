@@ -1,6 +1,7 @@
 package com.director.ui.properties.adapters;
 
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyReflection;
 import com.director.ui.properties.PropertyAdapterRegistry;
 import com.director.ui.theme.UITheme;
 import com.director.ui.theme.Icons;
@@ -137,10 +138,10 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 UITheme.spacingSmall();
                 
                 // 风速
-                float currentWindSpeed = getFloatProperty(physics, "windSpeed", "getWindSpeed", 0.0f);
+                float currentWindSpeed = PropertyReflection.getFloat(physics, "windSpeed", "getWindSpeed", 0.0f);
                 float[] windSpeed = {currentWindSpeed};
                 if (ImGui.dragFloat("风速", windSpeed, 0.1f, 0.0f, 50.0f, "%.1f")) {
-                    if (setFloatProperty(physics, "windSpeed", "setWindSpeed", windSpeed[0])) {
+                    if (PropertyReflection.setFloat(physics, "windSpeed", "setWindSpeed", windSpeed[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[PhysicsEnvironmentPropertyAdapter] 风速已更新: {}", windSpeed[0]);
                     }
@@ -150,10 +151,10 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 }
                 
                 // 湍流
-                float currentTurbulence = getFloatProperty(physics, "turbulence", "getTurbulence", 0.0f);
+                float currentTurbulence = PropertyReflection.getFloat(physics, "turbulence", "getTurbulence", 0.0f);
                 float[] turbulence = {currentTurbulence};
                 if (ImGui.dragFloat("湍流强度", turbulence, 0.05f, 0.0f, 1.0f, "%.2f")) {
-                    if (setFloatProperty(physics, "turbulence", "setTurbulence", turbulence[0])) {
+                    if (PropertyReflection.setFloat(physics, "turbulence", "setTurbulence", turbulence[0])) {
                         modifiedRef[0] = true;
                     }
                 }
@@ -165,10 +166,10 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
             // ========== 碰撞系统 ==========
             if (ImGui.collapsingHeader("💥 碰撞系统")) {
                 // 启用碰撞
-                boolean currentCollision = getBooleanProperty(physics, "collisionEnabled", "isCollisionEnabled", true);
+                boolean currentCollision = PropertyReflection.getBoolean(physics, "collisionEnabled", "isCollisionEnabled", true);
                 ImBoolean enableCollision = new ImBoolean(currentCollision);
                 if (ImGui.checkbox("启用碰撞检测", enableCollision)) {
-                    if (setBooleanProperty(physics, "collisionEnabled", "setCollisionEnabled", enableCollision.get())) {
+                    if (PropertyReflection.setBoolean(physics, "collisionEnabled", "setCollisionEnabled", enableCollision.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[PhysicsEnvironmentPropertyAdapter] 碰撞检测已更新: {}", enableCollision.get());
                     }
@@ -178,10 +179,10 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 }
                 
                 // 弹性系数
-                float currentRestitution = getFloatProperty(physics, "restitution", "getRestitution", 0.5f);
+                float currentRestitution = PropertyReflection.getFloat(physics, "restitution", "getRestitution", 0.5f);
                 float[] restitution = {currentRestitution};
                 if (ImGui.dragFloat("弹性系数", restitution, 0.05f, 0.0f, 1.0f, "%.2f")) {
-                    if (setFloatProperty(physics, "restitution", "setRestitution", restitution[0])) {
+                    if (PropertyReflection.setFloat(physics, "restitution", "setRestitution", restitution[0])) {
                         modifiedRef[0] = true;
                     }
                 }
@@ -190,10 +191,10 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 }
                 
                 // 摩擦系数
-                float currentFriction = getFloatProperty(physics, "friction", "getFriction", 0.5f);
+                float currentFriction = PropertyReflection.getFloat(physics, "friction", "getFriction", 0.5f);
                 float[] friction = {currentFriction};
                 if (ImGui.dragFloat("摩擦系数", friction, 0.05f, 0.0f, 1.0f, "%.2f")) {
-                    if (setFloatProperty(physics, "friction", "setFriction", friction[0])) {
+                    if (PropertyReflection.setFloat(physics, "friction", "setFriction", friction[0])) {
                         modifiedRef[0] = true;
                     }
                 }
@@ -205,10 +206,10 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
             // ========== 空气阻力 ==========
             if (ImGui.collapsingHeader("🌫️ 空气阻力")) {
                 // 阻力系数
-                float currentDrag = getFloatProperty(physics, "airResistance", "getAirResistance", 0.01f);
+                float currentDrag = PropertyReflection.getFloat(physics, "airResistance", "getAirResistance", 0.01f);
                 float[] airDrag = {currentDrag};
                 if (ImGui.dragFloat("阻力系数", airDrag, 0.01f, 0.0f, 1.0f, "%.3f")) {
-                    if (setFloatProperty(physics, "airResistance", "setAirResistance", airDrag[0])) {
+                    if (PropertyReflection.setFloat(physics, "airResistance", "setAirResistance", airDrag[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[PhysicsEnvironmentPropertyAdapter] 空气阻力已更新: {}", airDrag[0]);
                     }
@@ -218,10 +219,10 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 }
                 
                 // 流体密度
-                float currentDensity = getFloatProperty(physics, "fluidDensity", "getFluidDensity", 1.0f);
+                float currentDensity = PropertyReflection.getFloat(physics, "fluidDensity", "getFluidDensity", 1.0f);
                 float[] fluidDensity = {currentDensity};
                 if (ImGui.dragFloat("流体密度", fluidDensity, 0.1f, 0.0f, 10.0f, "%.1f")) {
-                    if (setFloatProperty(physics, "fluidDensity", "setFluidDensity", fluidDensity[0])) {
+                    if (PropertyReflection.setFloat(physics, "fluidDensity", "setFluidDensity", fluidDensity[0])) {
                         modifiedRef[0] = true;
                     }
                 }
@@ -233,10 +234,10 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
             // ========== 物理开关 ==========
             if (ImGui.collapsingHeader("⚙️ 物理开关")) {
                 // 启用物理系统
-                boolean currentEnabled = getBooleanProperty(physics, "enabled", "isEnabled", true);
+                boolean currentEnabled = PropertyReflection.getBoolean(physics, "enabled", "isEnabled", true);
                 ImBoolean enabled = new ImBoolean(currentEnabled);
                 if (ImGui.checkbox("启用物理系统", enabled)) {
-                    if (setBooleanProperty(physics, "enabled", "setEnabled", enabled.get())) {
+                    if (PropertyReflection.setBoolean(physics, "enabled", "setEnabled", enabled.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[PhysicsEnvironmentPropertyAdapter] 物理系统已更新: {}", enabled.get());
                     }
@@ -246,10 +247,10 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
                 }
                 
                 // 调试可视化
-                boolean currentDebug = getBooleanProperty(physics, "debugVisualization", "isDebugVisualization", false);
+                boolean currentDebug = PropertyReflection.getBoolean(physics, "debugVisualization", "isDebugVisualization", false);
                 ImBoolean debugVis = new ImBoolean(currentDebug);
                 if (ImGui.checkbox("调试可视化", debugVis)) {
-                    if (setBooleanProperty(physics, "debugVisualization", "setDebugVisualization", debugVis.get())) {
+                    if (PropertyReflection.setBoolean(physics, "debugVisualization", "setDebugVisualization", debugVis.get())) {
                         modifiedRef[0] = true;
                     }
                 }
@@ -264,7 +265,7 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
             UITheme.beginGroup("快捷操作");
             
             if (ImGui.button(Icons.REFRESH + " 重置为默认", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
-                if (callMethod(physics)) {
+                if (PropertyReflection.invokeVoid(physics)) {
                     modifiedRef[0] = true;
                     LOGGER.info("[PhysicsEnvironmentPropertyAdapter] 物理环境已重置");
                 }
@@ -285,10 +286,10 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
             
             ImGui.sameLine();
             
-            boolean currentEnabled = getBooleanProperty(physics, "enabled", "isEnabled", true);
+            boolean currentEnabled = PropertyReflection.getBoolean(physics, "enabled", "isEnabled", true);
             String toggleText = currentEnabled ? Icons.PAUSE + " 暂停物理" : Icons.PLAY + " 启用物理";
             if (ImGui.button(toggleText, 120, UITheme.Spacing.BUTTON_HEIGHT)) {
-                if (setBooleanProperty(physics, "enabled", "setEnabled", !currentEnabled)) {
+                if (PropertyReflection.setBoolean(physics, "enabled", "setEnabled", !currentEnabled)) {
                     modifiedRef[0] = true;
                     LOGGER.info("[PhysicsEnvironmentPropertyAdapter] 物理系统切换: {}", !currentEnabled);
                 }
@@ -325,106 +326,6 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
             } catch (Exception e) {
                 LOGGER.debug("[PhysicsEnvironmentPropertyAdapter] 设置重力向量失败");
             }
-        }
-    }
-    
-    // ========== 反射辅助方法 ==========
-    
-    private boolean getBooleanProperty(Object obj, String fieldName, String getterName, boolean defaultValue) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            Object result = method.invoke(obj);
-            return result instanceof Boolean ? (Boolean) result : defaultValue;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                return result instanceof Boolean ? (Boolean) result : defaultValue;
-            } catch (Exception ex) {
-                return defaultValue;
-            }
-        }
-    }
-    
-    private boolean setBooleanProperty(Object obj, String fieldName, String setterName, boolean value) {
-        try {
-            var method = obj.getClass().getMethod(setterName, boolean.class);
-            method.invoke(obj, value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
-    private float getFloatProperty(Object obj, String fieldName, String getterName, float defaultValue) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            Object result = method.invoke(obj);
-            if (result instanceof Float) return (Float) result;
-            if (result instanceof Double) return ((Double) result).floatValue();
-            return defaultValue;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                if (result instanceof Float) return (Float) result;
-                if (result instanceof Double) return ((Double) result).floatValue();
-                return defaultValue;
-            } catch (Exception ex) {
-                return defaultValue;
-            }
-        }
-    }
-    
-    private boolean setFloatProperty(Object obj, String fieldName, String setterName, float value) {
-        try {
-            var method = obj.getClass().getMethod(setterName, float.class);
-            method.invoke(obj, value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
-    private Object getObjectProperty(Object obj, String fieldName, String getterName) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            return method.invoke(obj);
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                return field.get(obj);
-            } catch (Exception ex) {
-                return null;
-            }
-        }
-    }
-    
-    private boolean callMethod(Object obj) {
-        try {
-            var method = obj.getClass().getMethod("resetToDefault");
-            method.invoke(obj);
-            return true;
-        } catch (Exception e) {
-            LOGGER.debug("[PhysicsEnvironmentPropertyAdapter] 调用方法失败: {}", "resetToDefault");
-            return false;
         }
     }
 

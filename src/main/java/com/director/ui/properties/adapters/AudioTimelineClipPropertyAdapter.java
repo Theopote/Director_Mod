@@ -1,19 +1,22 @@
 package com.director.ui.properties.adapters;
 
 import com.director.core.DirectorServices;
-import com.director.ui.properties.IPropertyAdapter;
-import com.director.ui.theme.UITheme;
-import com.director.ui.timeline.audio.TimelineAudioService;
+import com.director.core.container.Container;
+import com.director.core.container.ContainerType;
 import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TrackType;
 import com.director.timeline.model.audio.AudioClipKeyframe;
 import com.director.timeline.model.audio.AudioTimelineClip;
-import com.director.core.container.Container;
-import com.director.core.container.ContainerManager;
-import java.util.UUID;
+import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.theme.UITheme;
+import com.director.ui.timeline.audio.TimelineAudioService;
+import com.director.util.ParseUtils;
 import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImInt;
+
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * 音频片段属性适配器
@@ -67,19 +70,11 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
                 ImGui.textDisabled("容器ID: " + clip.getBoundContainerId());
             }
 
-            float t;
-            try {
-                // 这里不依赖 TimelineModel；仅用于给用户一个“当前时间点的音量倍率”参考。
-                float now = DirectorServices.get().containerTimeline()
-                        .getTimelineModel() != null
-                        ? DirectorServices.get().containerTimeline()
-                        .getTimelineModel().getCurrentTime()
-                        : -1f;
-                if (now >= 0f) {
-                    t = TimelineAudioService.getInstance().getVolumeAtTimeForClip(clip, now);
-                    ImGui.textDisabled(String.format("当前时间音量倍率: %.2f", t));
-                }
-            } catch (Exception ignored) {
+            var timelineModel = DirectorServices.get().containerTimeline().getTimelineModel();
+            if (timelineModel != null) {
+                float now = timelineModel.getCurrentTime();
+                float volume = TimelineAudioService.getInstance().getVolumeAtTimeForClip(clip, now);
+                ImGui.textDisabled(String.format("当前时间音量倍率: %.2f", volume));
             }
         }
 
@@ -96,19 +91,9 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
                     if (cfg == null) {
                         ImGui.textDisabled("容器片段动画配置为空，无法同步音效。");
                     } else {
-                        // ✅ 基于容器类型判断是否为拆除容器（不再依赖轨道类型）
-                        boolean isErase = false;
-                        try {
-                            UUID containerId = containerClip.getBoundContainerId();
-                            if (containerId != null) {
-                                Container c = DirectorServices.get().containers().getContainer(containerId);
-                                if (c != null && c.getType() == com.director.core.container.ContainerType.DEMOLITION) {
-                                    isErase = true;
-                                }
-                            }
-                        } catch (Exception ignored) {}
+                        boolean isErase = isDemolitionContainer(containerClip.getBoundContainerId());
 
-                        var params = cfg.getParams();
+                        Map<String, Object> params = cfg.getParams();
                         boolean changed = false;
                         boolean requestRefresh = false;
 
@@ -120,13 +105,7 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
                                     "开始（START）",
                                     "归位前一帧（PRE_LAND）"
                             };
-                            String cur = "END";
-                            try {
-                                Object t = params.get("enterSoundTiming");
-                                if (t != null && !t.toString().isBlank()) {
-                                    cur = t.toString();
-                                }
-                            } catch (Exception ignored) {}
+                            String cur = paramString(params, "enterSoundTiming", "END");
                             int idx = switch (cur.toUpperCase()) {
                                 case "IMPACT" -> 1;
                                 case "START" -> 2;
@@ -157,12 +136,7 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
                                 );
                             }
 
-                            float offset = 0.0f;
-                            try {
-                                Object o = params.get("enterSoundOffsetSeconds");
-                                if (o instanceof Number n) offset = n.floatValue();
-                                else if (o != null) offset = Float.parseFloat(o.toString());
-                            } catch (Exception ignored) {}
+                            float offset = ParseUtils.asFloat(params.get("enterSoundOffsetSeconds"), 0.0f, "enterSoundOffsetSeconds");
                             float[] offArr = { offset };
                             if (ImGui.dragFloat("放置音效偏移(秒)", offArr, 0.01f, -2.0f, 2.0f, "%+.2fs")) {
                                 params.put("enterSoundOffsetSeconds", offArr[0]);
@@ -183,13 +157,7 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
                                     "开始（START）",
                                     "消失前一帧（PRE_LAND）"
                             };
-                            String cur = "END";
-                            try {
-                                Object t = params.get("exitSoundTiming");
-                                if (t != null && !t.toString().isBlank()) {
-                                    cur = t.toString();
-                                }
-                            } catch (Exception ignored) {}
+                            String cur = paramString(params, "exitSoundTiming", "END");
                             int idx = switch (cur.toUpperCase()) {
                                 case "IMPACT" -> 1;
                                 case "START" -> 2;
@@ -220,12 +188,7 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
                                 );
                             }
 
-                            float offset = 0.0f;
-                            try {
-                                Object o = params.get("exitSoundOffsetSeconds");
-                                if (o instanceof Number n) offset = n.floatValue();
-                                else if (o != null) offset = Float.parseFloat(o.toString());
-                            } catch (Exception ignored) {}
+                            float offset = ParseUtils.asFloat(params.get("exitSoundOffsetSeconds"), 0.0f, "exitSoundOffsetSeconds");
                             float[] offArr = { offset };
                             if (ImGui.dragFloat("破坏音效偏移(秒)", offArr, 0.01f, -2.0f, 2.0f, "%+.2fs")) {
                                 params.put("exitSoundOffsetSeconds", offArr[0]);
@@ -271,6 +234,26 @@ public class AudioTimelineClipPropertyAdapter implements IPropertyAdapter<AudioT
     @Override
     public String getAdapterName() {
         return TrackType.AUDIO.getIcon() + " 音频片段";
+    }
+
+    private static boolean isDemolitionContainer(UUID containerId) {
+        if (containerId == null) {
+            return false;
+        }
+        Container container = DirectorServices.get().containers().getContainer(containerId);
+        return container != null && container.getType() == ContainerType.DEMOLITION;
+    }
+
+    private static String paramString(Map<String, Object> params, String key, String defaultValue) {
+        if (params == null) {
+            return defaultValue;
+        }
+        Object value = params.get(key);
+        if (value == null) {
+            return defaultValue;
+        }
+        String text = value.toString();
+        return text.isBlank() ? defaultValue : text;
     }
 }
 

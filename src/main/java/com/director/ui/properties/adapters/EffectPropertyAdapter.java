@@ -1,6 +1,7 @@
 package com.director.ui.properties.adapters;
 
 import com.director.ui.properties.IPropertyAdapter;
+import com.director.ui.properties.PropertyReflection;
 import com.director.ui.properties.PropertyAdapterRegistry;
 import com.director.ui.theme.UITheme;
 import imgui.ImGui;
@@ -89,10 +90,10 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
             // ========== 基础信息 ==========
             if (ImGui.collapsingHeader("📋 基础信息", ImGuiTreeNodeFlags.DefaultOpen)) {
                 // 名称编辑（尝试反射获取）
-                String currentName = getStringProperty(effect, "name", "getName", "未命名特效");
+                String currentName = PropertyReflection.getString(effect, "name", "getName", "未命名特效");
                 ImString nameBuffer = new ImString(currentName, 256);
                 if (ImGui.inputText("特效名称", nameBuffer, ImGuiInputTextFlags.EnterReturnsTrue)) {
-                    if (setStringProperty(effect, nameBuffer.get())) {
+                    if (PropertyReflection.setString(effect, nameBuffer.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[EffectPropertyAdapter] 特效名称已更新: {}", nameBuffer.get());
                     }
@@ -102,10 +103,10 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
                 }
                 
                 // 启用状态
-                boolean currentEnabled = getBooleanProperty(effect, "enabled", "isEnabled", true);
+                boolean currentEnabled = PropertyReflection.getBoolean(effect, "enabled", "isEnabled", true);
                 ImBoolean enabled = new ImBoolean(currentEnabled);
                 if (ImGui.checkbox("启用特效", enabled)) {
-                    if (setBooleanProperty(effect, "enabled", "setEnabled", enabled.get())) {
+                    if (PropertyReflection.setBoolean(effect, "enabled", "setEnabled", enabled.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[EffectPropertyAdapter] 启用状态已更新: {}", enabled.get());
                     }
@@ -115,11 +116,11 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
                 }
                 
                 // 特效类型选择
-                int currentTypeIndex = getIntProperty(effect, "typeIndex", "getTypeIndex", 0);
+                int currentTypeIndex = PropertyReflection.getInt(effect, "typeIndex", "getTypeIndex", 0);
                 ImInt selectedIdx = new ImInt(currentTypeIndex);
                 
                 if (ImGui.combo("特效类型", selectedIdx, EFFECT_TYPES)) {
-                    if (setIntProperty(effect, "typeIndex", "setTypeIndex", selectedIdx.get())) {
+                    if (PropertyReflection.setInt(effect, "typeIndex", "setTypeIndex", selectedIdx.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[EffectPropertyAdapter] 特效类型已更新: {}", 
                             EFFECT_TYPES[selectedIdx.get()]);
@@ -130,7 +131,7 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
                 }
                 
                 // UUID 显示（如果有）
-                String id = getStringProperty(effect, "id", "getId", null);
+                String id = PropertyReflection.getString(effect, "id", "getId", null);
                 if (id != null) {
                     UITheme.spacingSmall();
                     UITheme.label("ID: " + id, UITheme.DarkTheme.TEXT_DISABLED);
@@ -140,10 +141,10 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
             // ========== 时间控制 ==========
             if (ImGui.collapsingHeader("⏱ 时间控制", ImGuiTreeNodeFlags.DefaultOpen)) {
                 // 开始时间
-                float currentStart = getFloatProperty(effect, "startTime", "getStartTime", 0.0f);
+                float currentStart = PropertyReflection.getFloat(effect, "startTime", "getStartTime", 0.0f);
                 float[] startTime = {currentStart};
                 if (ImGui.dragFloat("开始时间 (秒)", startTime, 0.05f, 0.0f, 600.0f)) {
-                    if (setFloatProperty(effect, "startTime", "setStartTime", startTime[0])) {
+                    if (PropertyReflection.setFloat(effect, "startTime", "setStartTime", startTime[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[EffectPropertyAdapter] 开始时间已更新: {}", startTime[0]);
                     }
@@ -153,10 +154,10 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
                 }
                 
                 // 持续时间
-                float currentDuration = getFloatProperty(effect, "duration", "getDuration", 2.0f);
+                float currentDuration = PropertyReflection.getFloat(effect, "duration", "getDuration", 2.0f);
                 float[] duration = {currentDuration};
                 if (ImGui.dragFloat("持续时间 (秒)", duration, 0.05f, 0.1f, 600.0f)) {
-                    if (setFloatProperty(effect, "duration", "setDuration", duration[0])) {
+                    if (PropertyReflection.setFloat(effect, "duration", "setDuration", duration[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[EffectPropertyAdapter] 持续时间已更新: {}", duration[0]);
                     }
@@ -166,10 +167,10 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
                 }
                 
                 // 强度
-                float currentIntensity = getFloatProperty(effect, "intensity", "getIntensity", 1.0f);
+                float currentIntensity = PropertyReflection.getFloat(effect, "intensity", "getIntensity", 1.0f);
                 float[] intensity = {currentIntensity};
                 if (ImGui.sliderFloat("强度", intensity, 0.0f, 10.0f, "%.2f")) {
-                    if (setFloatProperty(effect, "intensity", "setIntensity", intensity[0])) {
+                    if (PropertyReflection.setFloat(effect, "intensity", "setIntensity", intensity[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[EffectPropertyAdapter] 强度已更新: {}", intensity[0]);
                     }
@@ -212,10 +213,10 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
                     }
                 } else {
                     // 尝试 float[] colorRGBA
-                    float[] colorRGBA = getFloatArrayProperty(effect);
+                    float[] colorRGBA = PropertyReflection.getFloatArray(effect);
                     if (colorRGBA != null && colorRGBA.length >= 4) {
                         if (ImGui.colorEdit4("特效颜色 (RGBA)", colorRGBA)) {
-                            if (setFloatArrayProperty(effect, colorRGBA)) {
+                            if (PropertyReflection.setFloatArray(effect, colorRGBA)) {
                                 modifiedRef[0] = true;
                                 LOGGER.debug("[EffectPropertyAdapter] 颜色已更新");
                             }
@@ -226,10 +227,10 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
                 UITheme.spacingSmall();
                 
                 // 随机性
-                float currentRandomness = getFloatProperty(effect, "randomness", "getRandomness", 0.0f);
+                float currentRandomness = PropertyReflection.getFloat(effect, "randomness", "getRandomness", 0.0f);
                 float[] randomness = {currentRandomness};
                 if (ImGui.sliderFloat("随机性", randomness, 0.0f, 1.0f, "%.2f")) {
-                    if (setFloatProperty(effect, "randomness", "setRandomness", randomness[0])) {
+                    if (PropertyReflection.setFloat(effect, "randomness", "setRandomness", randomness[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[EffectPropertyAdapter] 随机性已更新: {}", randomness[0]);
                     }
@@ -240,7 +241,7 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
             }
             
             // ========== 类型特定参数 ==========
-            int typeIndex = getIntProperty(effect, "typeIndex", "getTypeIndex", 0);
+            int typeIndex = PropertyReflection.getInt(effect, "typeIndex", "getTypeIndex", 0);
             renderTypeSpecificParameters(effect, typeIndex, modified -> modifiedRef[0] = modifiedRef[0] || modified);
             
             UITheme.separator();
@@ -306,37 +307,37 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
     private void renderParticleParameters(Object effect, ModifiedCallback callback) {
         if (ImGui.collapsingHeader("✨ 粒子参数")) {
             // 粒子数量
-            int count = getIntProperty(effect, "particleCount", "getParticleCount", 100);
+            int count = PropertyReflection.getInt(effect, "particleCount", "getParticleCount", 100);
             int[] particleCount = {count};
             if (ImGui.dragInt("粒子数量", particleCount, 1.0f, 1, 10000)) {
-                if (setIntProperty(effect, "particleCount", "setParticleCount", particleCount[0])) {
+                if (PropertyReflection.setInt(effect, "particleCount", "setParticleCount", particleCount[0])) {
                     callback.onModified(true);
                 }
             }
             
             // 速度
-            float speed = getFloatProperty(effect, "speed", "getSpeed", 1.0f);
+            float speed = PropertyReflection.getFloat(effect, "speed", "getSpeed", 1.0f);
             float[] speedArr = {speed};
             if (ImGui.dragFloat("发射速度", speedArr, 0.01f, 0.0f, 10.0f)) {
-                if (setFloatProperty(effect, "speed", "setSpeed", speedArr[0])) {
+                if (PropertyReflection.setFloat(effect, "speed", "setSpeed", speedArr[0])) {
                     callback.onModified(true);
                 }
             }
             
             // 散射角
-            float spread = getFloatProperty(effect, "spread", "getSpread", 45.0f);
+            float spread = PropertyReflection.getFloat(effect, "spread", "getSpread", 45.0f);
             float[] spreadArr = {spread};
             if (ImGui.dragFloat("散射角度 (°)", spreadArr, 1.0f, 0.0f, 180.0f)) {
-                if (setFloatProperty(effect, "spread", "setSpread", spreadArr[0])) {
+                if (PropertyReflection.setFloat(effect, "spread", "setSpread", spreadArr[0])) {
                     callback.onModified(true);
                 }
             }
             
             // 受重力影响
-            boolean gravity = getBooleanProperty(effect, "affectedByGravity", "isAffectedByGravity", true);
+            boolean gravity = PropertyReflection.getBoolean(effect, "affectedByGravity", "isAffectedByGravity", true);
             ImBoolean gravityBool = new ImBoolean(gravity);
             if (ImGui.checkbox("受重力影响", gravityBool)) {
-                if (setBooleanProperty(effect, "affectedByGravity", "setAffectedByGravity", gravityBool.get())) {
+                if (PropertyReflection.setBoolean(effect, "affectedByGravity", "setAffectedByGravity", gravityBool.get())) {
                     callback.onModified(true);
                 }
             }
@@ -349,28 +350,28 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
     private void renderLightParameters(Object effect, ModifiedCallback callback) {
         if (ImGui.collapsingHeader("💡 光照参数")) {
             // 亮度
-            float brightness = getFloatProperty(effect, "brightness", "getBrightness", 1.0f);
+            float brightness = PropertyReflection.getFloat(effect, "brightness", "getBrightness", 1.0f);
             float[] brightnessArr = {brightness};
             if (ImGui.sliderFloat("亮度", brightnessArr, 0.0f, 5.0f, "%.2f")) {
-                if (setFloatProperty(effect, "brightness", "setBrightness", brightnessArr[0])) {
+                if (PropertyReflection.setFloat(effect, "brightness", "setBrightness", brightnessArr[0])) {
                     callback.onModified(true);
                 }
             }
             
             // 半径
-            float radius = getFloatProperty(effect, "radius", "getRadius", 5.0f);
+            float radius = PropertyReflection.getFloat(effect, "radius", "getRadius", 5.0f);
             float[] radiusArr = {radius};
             if (ImGui.dragFloat("光照半径", radiusArr, 0.1f, 0.0f, 50.0f)) {
-                if (setFloatProperty(effect, "radius", "setRadius", radiusArr[0])) {
+                if (PropertyReflection.setFloat(effect, "radius", "setRadius", radiusArr[0])) {
                     callback.onModified(true);
                 }
             }
             
             // 闪烁
-            boolean flicker = getBooleanProperty(effect, "flicker", "isFlicker", false);
+            boolean flicker = PropertyReflection.getBoolean(effect, "flicker", "isFlicker", false);
             ImBoolean flickerBool = new ImBoolean(flicker);
             if (ImGui.checkbox("光照闪烁", flickerBool)) {
-                if (setBooleanProperty(effect, "flicker", "setFlicker", flickerBool.get())) {
+                if (PropertyReflection.setBoolean(effect, "flicker", "setFlicker", flickerBool.get())) {
                     callback.onModified(true);
                 }
             }
@@ -383,28 +384,28 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
     private void renderCameraShakeParameters(Object effect, ModifiedCallback callback) {
         if (ImGui.collapsingHeader("📷 镜头抖动参数")) {
             // 振幅
-            float amplitude = getFloatProperty(effect, "amplitude", "getAmplitude", 0.2f);
+            float amplitude = PropertyReflection.getFloat(effect, "amplitude", "getAmplitude", 0.2f);
             float[] amplitudeArr = {amplitude};
             if (ImGui.dragFloat("振幅", amplitudeArr, 0.01f, 0.0f, 2.0f)) {
-                if (setFloatProperty(effect, "amplitude", "setAmplitude", amplitudeArr[0])) {
+                if (PropertyReflection.setFloat(effect, "amplitude", "setAmplitude", amplitudeArr[0])) {
                     callback.onModified(true);
                 }
             }
             
             // 频率
-            float frequency = getFloatProperty(effect, "frequency", "getFrequency", 5.0f);
+            float frequency = PropertyReflection.getFloat(effect, "frequency", "getFrequency", 5.0f);
             float[] frequencyArr = {frequency};
             if (ImGui.dragFloat("频率 (Hz)", frequencyArr, 0.1f, 0.0f, 20.0f)) {
-                if (setFloatProperty(effect, "frequency", "setFrequency", frequencyArr[0])) {
+                if (PropertyReflection.setFloat(effect, "frequency", "setFrequency", frequencyArr[0])) {
                     callback.onModified(true);
                 }
             }
             
             // 随机相位
-            boolean randomPhase = getBooleanProperty(effect, "randomPhase", "isRandomPhase", true);
+            boolean randomPhase = PropertyReflection.getBoolean(effect, "randomPhase", "isRandomPhase", true);
             ImBoolean randomPhaseBool = new ImBoolean(randomPhase);
             if (ImGui.checkbox("随机相位", randomPhaseBool)) {
-                if (setBooleanProperty(effect, "randomPhase", "setRandomPhase", randomPhaseBool.get())) {
+                if (PropertyReflection.setBoolean(effect, "randomPhase", "setRandomPhase", randomPhaseBool.get())) {
                     callback.onModified(true);
                 }
             }
@@ -417,28 +418,28 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
     private void renderMaterialFadeParameters(Object effect, ModifiedCallback callback) {
         if (ImGui.collapsingHeader("🎨 材质渐变参数")) {
             // 起始透明度
-            float fromAlpha = getFloatProperty(effect, "fromAlpha", "getFromAlpha", 1.0f);
+            float fromAlpha = PropertyReflection.getFloat(effect, "fromAlpha", "getFromAlpha", 1.0f);
             float[] fromAlphaArr = {fromAlpha};
             if (ImGui.sliderFloat("起始透明度", fromAlphaArr, 0.0f, 1.0f, "%.2f")) {
-                if (setFloatProperty(effect, "fromAlpha", "setFromAlpha", fromAlphaArr[0])) {
+                if (PropertyReflection.setFloat(effect, "fromAlpha", "setFromAlpha", fromAlphaArr[0])) {
                     callback.onModified(true);
                 }
             }
             
             // 目标透明度
-            float toAlpha = getFloatProperty(effect, "toAlpha", "getToAlpha", 0.0f);
+            float toAlpha = PropertyReflection.getFloat(effect, "toAlpha", "getToAlpha", 0.0f);
             float[] toAlphaArr = {toAlpha};
             if (ImGui.sliderFloat("目标透明度", toAlphaArr, 0.0f, 1.0f, "%.2f")) {
-                if (setFloatProperty(effect, "toAlpha", "setToAlpha", toAlphaArr[0])) {
+                if (PropertyReflection.setFloat(effect, "toAlpha", "setToAlpha", toAlphaArr[0])) {
                     callback.onModified(true);
                 }
             }
             
             // 影响子对象
-            boolean affectChildren = getBooleanProperty(effect, "affectChildren", "isAffectChildren", false);
+            boolean affectChildren = PropertyReflection.getBoolean(effect, "affectChildren", "isAffectChildren", false);
             ImBoolean affectChildrenBool = new ImBoolean(affectChildren);
             if (ImGui.checkbox("影响子对象", affectChildrenBool)) {
-                if (setBooleanProperty(effect, "affectChildren", "setAffectChildren", affectChildrenBool.get())) {
+                if (PropertyReflection.setBoolean(effect, "affectChildren", "setAffectChildren", affectChildrenBool.get())) {
                     callback.onModified(true);
                 }
             }
@@ -462,199 +463,6 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
         if (ImGui.collapsingHeader("🔊 音效参数")) {
             UITheme.label("音效播放参数", UITheme.DarkTheme.TEXT_DISABLED);
             UITheme.label("（待实现）", UITheme.DarkTheme.TEXT_DISABLED);
-        }
-    }
-    
-    // ========== 反射辅助方法 ==========
-    
-    private String getStringProperty(Object obj, String fieldName, String getterName, String defaultValue) {
-        try {
-            // 尝试 getter 方法
-            var method = obj.getClass().getMethod(getterName);
-            Object result = method.invoke(obj);
-            return result != null ? result.toString() : defaultValue;
-        } catch (Exception e) {
-            try {
-                // 尝试直接访问字段
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                return result != null ? result.toString() : defaultValue;
-            } catch (Exception ex) {
-                return defaultValue;
-            }
-        }
-    }
-    
-    private boolean setStringProperty(Object obj, String value) {
-        try {
-            var method = obj.getClass().getMethod("setName", String.class);
-            method.invoke(obj, value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField("name");
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
-    private boolean getBooleanProperty(Object obj, String fieldName, String getterName, boolean defaultValue) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            Object result = method.invoke(obj);
-            return result instanceof Boolean ? (Boolean) result : defaultValue;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                return result instanceof Boolean ? (Boolean) result : defaultValue;
-            } catch (Exception ex) {
-                return defaultValue;
-            }
-        }
-    }
-    
-    private boolean setBooleanProperty(Object obj, String fieldName, String setterName, boolean value) {
-        try {
-            var method = obj.getClass().getMethod(setterName, boolean.class);
-            method.invoke(obj, value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
-    private int getIntProperty(Object obj, String fieldName, String getterName, int defaultValue) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            Object result = method.invoke(obj);
-            return result instanceof Integer ? (Integer) result : defaultValue;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                return result instanceof Integer ? (Integer) result : defaultValue;
-            } catch (Exception ex) {
-                return defaultValue;
-            }
-        }
-    }
-    
-    private boolean setIntProperty(Object obj, String fieldName, String setterName, int value) {
-        try {
-            var method = obj.getClass().getMethod(setterName, int.class);
-            method.invoke(obj, value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
-    private float getFloatProperty(Object obj, String fieldName, String getterName, float defaultValue) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            Object result = method.invoke(obj);
-            if (result instanceof Float) return (Float) result;
-            if (result instanceof Double) return ((Double) result).floatValue();
-            return defaultValue;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                if (result instanceof Float) return (Float) result;
-                if (result instanceof Double) return ((Double) result).floatValue();
-                return defaultValue;
-            } catch (Exception ex) {
-                return defaultValue;
-            }
-        }
-    }
-    
-    private boolean setFloatProperty(Object obj, String fieldName, String setterName, float value) {
-        try {
-            var method = obj.getClass().getMethod(setterName, float.class);
-            method.invoke(obj, value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
-        }
-    }
-    
-    private Object getObjectProperty(Object obj, String fieldName, String getterName) {
-        try {
-            var method = obj.getClass().getMethod(getterName);
-            return method.invoke(obj);
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField(fieldName);
-                field.setAccessible(true);
-                return field.get(obj);
-            } catch (Exception ex) {
-                return null;
-            }
-        }
-    }
-    
-    private float[] getFloatArrayProperty(Object obj) {
-        try {
-            var method = obj.getClass().getMethod("getColorRGBA");
-            Object result = method.invoke(obj);
-            return result instanceof float[] ? (float[]) result : null;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField("colorRGBA");
-                field.setAccessible(true);
-                Object result = field.get(obj);
-                return result instanceof float[] ? (float[]) result : null;
-            } catch (Exception ex) {
-                return null;
-            }
-        }
-    }
-    
-    private boolean setFloatArrayProperty(Object obj, float[] value) {
-        try {
-            var method = obj.getClass().getMethod("setColorRGBA", float[].class);
-            method.invoke(obj, (Object) value);
-            return true;
-        } catch (Exception e) {
-            try {
-                var field = obj.getClass().getDeclaredField("colorRGBA");
-                field.setAccessible(true);
-                field.set(obj, value);
-                return true;
-            } catch (Exception ex) {
-                return false;
-            }
         }
     }
 
