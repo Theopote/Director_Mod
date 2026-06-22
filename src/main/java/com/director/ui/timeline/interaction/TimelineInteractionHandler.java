@@ -64,24 +64,12 @@ public class TimelineInteractionHandler {
     private InteractionCallbacks callbacks;
     private TimelineContextMenu activeContextMenu;
 
+    private final TimelineSnapGuideState snapGuideState = new TimelineSnapGuideState();
+    private final TimelineMarqueeSelector marqueeSelector;
+
     private float lastClickTime = 0f;
     private float lastClickX = 0f;
     private float lastClickY = 0f;
-
-    // ===================== 框选（Marquee Select）=====================
-    private boolean marqueeCandidate = false; // 左键按下在空白处：候选（可能是点击清空，也可能是框选）
-    private boolean marqueeActive = false;    // 进入拖拽阈值后：真正框选
-    private float marqueeStartX = 0f;
-    private float marqueeStartY = 0f;
-    private float marqueeCurX = 0f;
-    private float marqueeCurY = 0f;
-
-    // ========== 吸附参考线状态 ==========
-    private boolean snapGuideActive = false;
-    private float snapGuideTime = -1f;
-    private boolean snapGuideToGrid = false;
-    private boolean snapGuideToClip = false;
-    private boolean snapGuideToKey = false;
 
     /**
      * 浜や簰鍥炶皟鎺ュ彛锛岀�?TimelinePanel 瀹炵幇銆?
@@ -104,6 +92,21 @@ public class TimelineInteractionHandler {
         this.interactionManager = Objects.requireNonNull(interactionManager, "interactionManager");
         this.commandHistory = Objects.requireNonNull(commandHistory, "commandHistory");
         this.renderer = Objects.requireNonNull(renderer, "renderer");
+        this.marqueeSelector = new TimelineMarqueeSelector(model, renderer, interactionManager,
+                new TimelineMarqueeSelector.SelectionSync() {
+                    @Override
+                    public void onSelectionCleared() {
+                        com.director.ui.selection.SelectionManager.get().clearSelection();
+                    }
+
+                    @Override
+                    public void onMarqueeSelectionApplied(List<Object> selected, Object lastSelected) {
+                        syncPropertiesSelection(lastSelected);
+                        if (callbacks != null) {
+                            callbacks.onDataChanged();
+                        }
+                    }
+                });
     }
     
     public void setCallbacks(InteractionCallbacks callbacks) {
@@ -120,48 +123,31 @@ public class TimelineInteractionHandler {
 
     // ========== 吸附参考线查询（供 Renderer 使用）==========
     public boolean isSnapGuideActive() {
-        return snapGuideActive;
+        return snapGuideState.isActive();
     }
 
     public float getSnapGuideTime() {
-        return snapGuideTime;
+        return snapGuideState.getTime();
     }
 
     public boolean isSnapGuideToGrid() {
-        return snapGuideToGrid;
+        return snapGuideState.isToGrid();
     }
 
     public boolean isSnapGuideToClip() {
-        return snapGuideToClip;
+        return snapGuideState.isToClip();
     }
 
     public boolean isSnapGuideToKeyframe() {
-        return snapGuideToKey;
+        return snapGuideState.isToKeyframe();
     }
 
     private void updateSnapGuide(TimelineSnapping.Result snap) {
-        if (snap == null) {
-            clearSnapGuide();
-            return;
-        }
-        boolean active = snap.snappedToGrid || snap.snappedToClipEdge || snap.snappedToKeyframe;
-        if (!active) {
-            clearSnapGuide();
-            return;
-        }
-        snapGuideActive = true;
-        snapGuideTime = snap.snappedTime;
-        snapGuideToGrid = snap.snappedToGrid;
-        snapGuideToClip = snap.snappedToClipEdge;
-        snapGuideToKey = snap.snappedToKeyframe;
+        snapGuideState.update(snap);
     }
 
     private void clearSnapGuide() {
-        snapGuideActive = false;
-        snapGuideTime = -1f;
-        snapGuideToGrid = false;
-        snapGuideToClip = false;
-        snapGuideToKey = false;
+        snapGuideState.clear();
     }
 
     /**
@@ -440,7 +426,7 @@ public class TimelineInteractionHandler {
         // 鼠标事件
         handleMouseButtons(hit, trackControlHit, contentX, trackAreaTop, contentW, viewportH, scrollY, rightClickedOnCanvas);
         handleDrag(hit, contentX, trackAreaTop, contentW, viewportH, scrollY);
-        updateMarquee(contentX, trackAreaTop, contentW, viewportH, scrollY);
+        marqueeSelector.update(contentX, trackAreaTop, scrollY);
         
         // ⭐ v5.0：显示轨道控制按钮的 tooltip
         renderTrackControlTooltips(trackControlHit);
@@ -453,17 +439,7 @@ public class TimelineInteractionHandler {
      * 渲染框选矩形（在 TimelinePanel 里调用，确保在正确的 drawList/clipRect 下绘制）
      */
     public void renderMarqueeOverlay(ImDrawList drawList) {
-        if (!marqueeActive) return;
-
-        float x1 = Math.min(marqueeStartX, marqueeCurX);
-        float y1 = Math.min(marqueeStartY, marqueeCurY);
-        float x2 = Math.max(marqueeStartX, marqueeCurX);
-        float y2 = Math.max(marqueeStartY, marqueeCurY);
-
-        int fill = com.director.ui.timeline.render.TimelineColors.rgba(80, 160, 255, 35);
-        int border = com.director.ui.timeline.render.TimelineColors.rgba(80, 160, 255, 180);
-        drawList.addRectFilled(x1, y1, x2, y2, fill, 2.0f);
-        drawList.addRect(x1, y1, x2, y2, border, 2.0f, 0, 1.5f);
+        marqueeSelector.renderOverlay(drawList);
     }
 
     /**
@@ -647,7 +623,7 @@ public class TimelineInteractionHandler {
                         syncPropertiesSelection(marker);
                     }
                 }
-                case EMPTY -> startMarqueeCandidate(mouseX, mouseY, trackAreaTop, scrollY);
+                case EMPTY -> marqueeSelector.startCandidate(mouseX, mouseY);
                 default -> { /* NONE / TRACK_HEADER 在这里忽�?*/ }
             }
         }
@@ -696,136 +672,6 @@ public class TimelineInteractionHandler {
         }
     }
 
-    private void startMarqueeCandidate(float mouseX, float mouseY, float trackAreaTop, float scrollY) {
-        // 如果当前正在进行其他交互（拖片段/拖关键帧/拖播放头），不启动框选
-        if (interactionManager.isInteracting()) {
-            return;
-        }
-        marqueeCandidate = true;
-        marqueeActive = false;
-        marqueeStartX = mouseX;
-        marqueeStartY = mouseY;
-        marqueeCurX = mouseX;
-        marqueeCurY = mouseY;
-    }
-
-    private void updateMarquee(float contentX,
-                               float trackAreaTop,
-                               float contentW,
-                               float viewportH,
-                               float scrollY) {
-        if (!marqueeCandidate) {
-            return;
-        }
-
-        // 若鼠标仍按下：更新当前框
-        if (ImGui.isMouseDown(ImGuiMouseButton.Left)) {
-            marqueeCurX = ImGui.getMousePosX();
-            marqueeCurY = ImGui.getMousePosY();
-
-            // 进入框选阈值
-            if (!marqueeActive) {
-                float dx = marqueeCurX - marqueeStartX;
-                float dy = marqueeCurY - marqueeStartY;
-                final float THRESHOLD_PX = 4.0f;
-                if ((dx * dx + dy * dy) >= (THRESHOLD_PX * THRESHOLD_PX)) {
-                    marqueeActive = true;
-                }
-            }
-            return;
-        }
-
-        // 鼠标已松开：如果未进入框选，则视为“空白点击清空”；否则应用框选
-        if (!marqueeActive) {
-            // 复用原有清空逻辑
-            model.clearSelection();
-            com.director.ui.selection.SelectionManager.get().clearSelection();
-        } else {
-            applyMarqueeSelection(contentX, trackAreaTop, scrollY);
-        }
-
-        marqueeCandidate = false;
-        marqueeActive = false;
-    }
-
-    private void applyMarqueeSelection(float contentX, float trackAreaTop, float scrollY) {
-        float x1 = Math.min(marqueeStartX, marqueeCurX);
-        float y1 = Math.min(marqueeStartY, marqueeCurY);
-        float x2 = Math.max(marqueeStartX, marqueeCurX);
-        float y2 = Math.max(marqueeStartY, marqueeCurY);
-
-        ImGuiIO io = ImGui.getIO();
-        boolean additive = io.getKeyCtrl();
-
-        float pps = model.getPixelsPerSecond();
-        float scrollX = model.getScrollX();
-        float rowHeight = TimelineRenderer.getTrackHeight() + TimelineRenderer.getTrackGap();
-        float r = TimelineRenderer.getKeyframeHitRadius();
-
-        int startIdx = renderer.yToTrackIndex(y1 - trackAreaTop, scrollY);
-        int endIdx = renderer.yToTrackIndex(y2 - trackAreaTop, scrollY);
-        if (startIdx < 0) startIdx = 0;
-        if (endIdx < 0) endIdx = 0;
-        int maxIdx = model.getTrackCount() - 1;
-        startIdx = Math.max(0, Math.min(maxIdx, startIdx));
-        endIdx = Math.max(0, Math.min(maxIdx, endIdx));
-        if (endIdx < startIdx) {
-            int tmp = startIdx;
-            startIdx = endIdx;
-            endIdx = tmp;
-        }
-
-        List<Object> selected = new ArrayList<>();
-
-        for (int idx = startIdx; idx <= endIdx; idx++) {
-            TimelineTrack track = model.getTrackAt(idx);
-            if (track == null || !track.isVisible()) continue;
-
-            float trackTop = trackAreaTop + (idx * rowHeight - scrollY);
-            float centerY = trackTop + (TimelineRenderer.getTrackHeight() / 2.0f);
-            // 用“矩形与关键帧点的半径范围相交”判断，避免用户框选没覆盖到中心线就选不中
-            if (centerY < (y1 - r) || centerY > (y2 + r)) {
-                continue;
-            }
-
-            // Clip 内关键帧（ClipKeyframe）
-            List<TimelineClip> clips = track.getClips();
-            if (clips != null) {
-                for (TimelineClip clip : clips) {
-                    if (clip == null) continue;
-                    List<com.director.ui.timeline.model.clip.ClipKeyframe> kfs = clip.getClipKeyframes();
-                    if (kfs == null || kfs.isEmpty()) continue;
-                    for (com.director.ui.timeline.model.clip.ClipKeyframe kf : kfs) {
-                        if (kf == null) continue;
-                        float kx = contentX + (kf.getTime() * pps) - scrollX;
-                        if (kx >= (x1 - r) && kx <= (x2 + r)) {
-                            selected.add(kf);
-                        }
-                    }
-                }
-            }
-
-            // 轨道级自动化关键帧（TimelineSelectable）
-            if (track.hasAutomationKeyframes()) {
-                for (TimelineSelectable kf : track.getAutomationKeyframes()) {
-                    if (kf == null) continue;
-                    float kx = contentX + (kf.getStartTime() * pps) - scrollX;
-                    if (kx >= (x1 - r) && kx <= (x2 + r)) {
-                        selected.add(kf);
-                    }
-                }
-            }
-        }
-
-        model.addItemsToSelection(selected, !additive);
-        if (!selected.isEmpty()) {
-            Object last = selected.getLast();
-            syncPropertiesSelection(last);
-        }
-        if (callbacks != null) {
-            callbacks.onDataChanged();
-        }
-    }
 
     /**
      * 更新鼠标光标（根据鼠标位置显示不同的光标�?

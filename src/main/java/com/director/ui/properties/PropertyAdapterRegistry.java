@@ -201,7 +201,7 @@ public final class PropertyAdapterRegistry {
             return null;
         }
         // 返回第一个适配器（如果有多个，应该使用 getAdapterFor 方法）
-        return (IPropertyAdapter<T>) adapterList.get(0);
+        return (IPropertyAdapter<T>) adapterList.getFirst();
     }
     
     /**
@@ -229,7 +229,7 @@ public final class PropertyAdapterRegistry {
         List<IPropertyAdapter<?>> removed = adapters.remove(type);
         if (removed != null && !removed.isEmpty()) {
             LOGGER.info("[PropertyAdapterRegistry] Removed {} adapter(s) for {}", removed.size(), type.getSimpleName());
-            return (IPropertyAdapter<T>) removed.get(0);
+            return (IPropertyAdapter<T>) removed.getFirst();
         }
         return null;
     }

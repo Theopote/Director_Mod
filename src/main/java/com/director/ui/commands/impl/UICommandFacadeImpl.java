@@ -87,9 +87,8 @@ public final class UICommandFacadeImpl implements UICommandFacade {
 
                 @Override
                 public float getFrameRate() {
-                    ITimelineProject project = timelineModel;
-                    float fps = project.getFrameRate();
-                    LOGGER.debug("[TimelineSettings] 获取帧率: {} (项目对象: {})", fps, project.getClass().getSimpleName());
+                    float fps = timelineModel.getFrameRate();
+                    LOGGER.debug("[TimelineSettings] 获取帧率: {} (项目对象: {})", fps, ((ITimelineProject) timelineModel).getClass().getSimpleName());
                     return fps;
                 }
 
