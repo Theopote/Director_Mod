@@ -30,7 +30,7 @@ public abstract class AbstractTimelinePlaybackController<TSample>
 
     protected abstract String logTag();
 
-  @Override
+    @Override
     public synchronized void setEnabled(boolean enabled) {
         if (this.enabled == enabled) {
             return;

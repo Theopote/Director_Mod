@@ -10,6 +10,8 @@ import com.director.timeline.model.TimelineSelectable;
 import com.director.timeline.model.camera.CameraKeyframe;
 import com.director.timeline.model.camera.path.CameraPathClip;
 import com.director.timeline.model.camera.path.CustomPathClip;
+import com.director.timeline.playback.TimelinePlaybackController;
+import com.director.timeline.playback.TimelinePlaybackThreading;
 import net.minecraft.client.MinecraftClient;
 import org.joml.Vector3f;
 import org.slf4j.Logger;
@@ -30,8 +32,10 @@ import org.jetbrains.annotations.Nullable;
  * - 根据播放 / 拖动 / 预览状态采样 CameraSample，写入 CameraRuntime
  * - 在需要时接管/释放相机控制权（CameraRuntime.Owner）
  * - 提供「从当前视角捕捉关键帧」等高级操作
+ *
+ * @see TimelinePlaybackThreading
  */
-public final class TimelineCameraController {
+public final class TimelineCameraController implements TimelinePlaybackController<CameraSample> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TimelineCameraController.class);
     private static final TimelineCameraController INSTANCE = new TimelineCameraController();
@@ -80,6 +84,9 @@ public final class TimelineCameraController {
 
     /** ⭐ 帧间隔计时器：用于计算精确的 delta seconds（替代 getTickProgress 误用）*/
     private long lastUpdateNanoTime = 0L;
+
+    /** 热路径：时间线是否接管相机（与 {@link CameraRuntime} 同步刷新） */
+    private volatile boolean cachedHasOverride;
 
     private TimelineCameraController() {
         // 把 pathManager 交给调试渲染器，用同一套轨迹数据
@@ -539,6 +546,34 @@ public final class TimelineCameraController {
         } else {
             CameraRenderOverride.publishTimelineActive(false);
         }
+        cachedHasOverride = CameraRuntime.getInstance().isTimelineOwner();
+    }
+
+    @Override
+    public synchronized boolean isEnabled() {
+        return timelineModel != null;
+    }
+
+    @Override
+    public synchronized void setEnabled(boolean enabled) {
+        if (!enabled) {
+            clear();
+        }
+    }
+
+    @Override
+    public boolean hasOverride() {
+        return cachedHasOverride;
+    }
+
+    @Override
+    public synchronized CameraSample getCurrentSample() {
+        return CameraRuntime.getInstance().getCurrentSample();
+    }
+
+    @Override
+    public synchronized void clear() {
+        releaseCameraToPlayer();
     }
 
     /**

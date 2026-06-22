@@ -1,6 +1,7 @@
 package com.director.client;
 
 import com.director.client.camera.CameraRenderOverride;
+import com.director.client.entity.EntityRenderOverride;
 import com.director.client.world.WorldRenderOverride;
 import net.minecraft.client.MinecraftClient;
 
@@ -15,6 +16,7 @@ public final class RenderOverrideSnapshots {
     public static void clearAll() {
         WorldRenderOverride.clearAll();
         CameraRenderOverride.clear();
+        EntityRenderOverride.clear();
     }
 
     /**
@@ -40,6 +42,11 @@ public final class RenderOverrideSnapshots {
             }
             try {
                 com.director.timeline.playback.weather.TimelineWeatherController.getInstance()
+                        .updateForPlayback(resolveTimelineTime());
+            } catch (RuntimeException ignored) {
+            }
+            try {
+                com.director.timeline.playback.entity.TimelineActorController.getInstance()
                         .updateForPlayback(resolveTimelineTime());
             } catch (RuntimeException ignored) {
             }

@@ -5,6 +5,7 @@ import com.director.timeline.model.TimelineSelectable;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
 import com.director.timeline.model.entity.EntityKeyframe;
+import com.director.client.entity.EntityRenderOverride;
 import com.director.timeline.playback.AbstractTrackTimelinePlaybackController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,7 +53,7 @@ public final class TimelineActorController extends AbstractTrackTimelinePlayback
         return getActiveTrack();
     }
 
-  @Override
+    @Override
     public synchronized boolean hasTrackInModel() {
         if (DirectorClientController.getInstance().isDirectorModeActive()) {
             return true;
@@ -118,6 +119,6 @@ public final class TimelineActorController extends AbstractTrackTimelinePlayback
 
     @Override
     protected void publishRenderSnapshot() {
-        // Actor 暂无 WorldRenderOverride 门面；保留扩展点
+        EntityRenderOverride.publish(hasOverride(), currentSample);
     }
 }

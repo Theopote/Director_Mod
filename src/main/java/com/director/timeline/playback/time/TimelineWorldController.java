@@ -6,7 +6,7 @@ import com.director.timeline.model.TimelineSelectable;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
 import com.director.timeline.model.time.TimeKeyframe;
-import com.director.timeline.playback.TimelinePlaybackController;
+import com.director.timeline.playback.AbstractModelTimelinePlaybackController;
 import com.director.timeline.playback.TimelinePlaybackThreading;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.world.ClientWorld;
@@ -62,25 +62,13 @@ import java.util.Optional;
  * @version 2.0 - 正式可用版本
  * @see TimelinePlaybackThreading
  */
-public final class TimelineWorldController implements TimelinePlaybackController<TimeSample> {
+public final class TimelineWorldController extends AbstractModelTimelinePlaybackController<TimeSample> {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(TimelineWorldController.class);
     private static final TimelineWorldController INSTANCE = new TimelineWorldController();
 
-    /** 时间线数据模型（由 TimelinePanel 注入） */
-    private TimelineModel timelineModel;
-
-    /** 当前激活的时间轨道（可能为 null） */
-    private TimelineTrack activeTimeTrack;
-
     /** 采样器（基于激活轨道） */
     private final TimeTrackSampler sampler = new TimeTrackSampler();
-
-    /** 是否启用时间控制 */
-    private boolean enabled = true;
-
-    /** 监听模型变更 */
-    private TimelineModel.ModelChangeListener modelChangeListener;
 
     // ============================================================
     // 当前采样值（供 Mixin 查询）- v2.0 核心改进
@@ -89,8 +77,6 @@ public final class TimelineWorldController implements TimelinePlaybackController
     /** 是否启用了自定义 TimeSample（有活跃采样） */
     private boolean hasCustomSample = false;
 
-    /** 当前采样结果缓存（Mixin 的唯一真相源） */
-    private TimeSample currentSample = null;
     private volatile boolean internalTimeUpdate = false;
 
     /** 冻结的世界时间快照（用于 maintainFrozenTime） */
@@ -103,6 +89,28 @@ public final class TimelineWorldController implements TimelinePlaybackController
     private Boolean savedDoDaylightCycle = null;
 
     private TimelineWorldController() {
+        super(LOGGER, true);
+    }
+
+    @Override
+    protected String logTag() {
+        return "TimelineWorld";
+    }
+
+    @Override
+    protected TrackType expectedTrackType() {
+        return TrackType.TIME;
+    }
+
+    @Override
+    protected void onModelDetached() {
+        sampler.setKeyframes(new ArrayList<>());
+        clear();
+    }
+
+    @Override
+    protected void onModelStructureChangedComplete() {
+        LOGGER.debug("[TimelineWorld] 模型变更，刷新时间关键帧");
     }
 
     public static TimelineWorldController getInstance() {
@@ -121,76 +129,21 @@ public final class TimelineWorldController implements TimelinePlaybackController
      * 会自动注册 ModelChangeListener，在模型变更时刷新时间关键帧。
      */
     public synchronized void setTimelineModel(TimelineModel model) {
-        if (this.timelineModel == model) {
-            return;
-        }
-
-        // 解绑旧模型监听
-        if (this.timelineModel != null && modelChangeListener != null) {
-            this.timelineModel.removeModelChangeListener(modelChangeListener);
-        }
-
-        this.timelineModel = model;
-
-        if (this.timelineModel == null) {
-            activeTimeTrack = null;
-            sampler.setKeyframes(new ArrayList<>());
-            clear(); // 清除状态缓存
-            return;
-        }
-
-        // 监听时间线结构变化
-        this.modelChangeListener = changeType -> {
-            if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[TimelineWorld] Model changed: {}", changeType);
-            }
-            onModelStructureChanged();
-        };
-        this.timelineModel.addModelChangeListener(this.modelChangeListener);
-
-        // ⭐ v3.5：初始选中第一条 TIME 轨道（如果存在）
-        // ⭐ 如果只有一个时间轨道，自动激活它
-        if (!isValidTimeTrack(activeTimeTrack)) {
-            TimelineTrack firstTimeTrack = findFirstTimeTrack();
-            if (firstTimeTrack != null) {
-                // 检查是否只有一个时间轨道
-                int timeTrackCount = countTimeTracks();
-                activeTimeTrack = firstTimeTrack;
-                if (timeTrackCount == 1) {
-                    LOGGER.info("[TimelineWorld] 检测到只有一个时间轨道，自动激活: {}", firstTimeTrack.getName());
-                }
-            }
-        }
-
-        rebuildFromActiveTrack();
-        // ⭐ v3.0：updateTimeFreezeState() 已在 rebuildFromActiveTrack() 内部调用，无需重复
+        init(model);
     }
 
     /**
      * 获取当前激活的时间轨道
      */
     public synchronized TimelineTrack getActiveTimeTrack() {
-        return activeTimeTrack;
+        return getActiveTrack();
     }
 
     /**
      * 设置当前激活的时间轨道
      */
     public synchronized void setActiveTimeTrack(TimelineTrack track) {
-        if (track != null && track.getType() != TrackType.TIME) {
-            LOGGER.warn("[TimelineWorld] setActiveTimeTrack: 非 TIME 轨道被选中，忽略: {}", track.getName());
-            return;
-        }
-        if (track == activeTimeTrack) {
-            return;
-        }
-
-        this.activeTimeTrack = track;
-        LOGGER.info("[TimelineWorld] 激活时间轨道: {}",
-                track != null ? track.getName() : "<none>");
-
-        rebuildFromActiveTrack();
-        // ⭐ v3.0：updateTimeFreezeState() 已在 rebuildFromActiveTrack() 内部调用，无需重复
+        activateTrack(track);
     }
 
     /**
@@ -220,7 +173,7 @@ public final class TimelineWorldController implements TimelinePlaybackController
             return;
         }
 
-        if (!isValidTimeTrack(activeTimeTrack)) {
+        if (!enabled || !isValidTrack(activeTrack)) {
             return;
         }
 
@@ -247,7 +200,7 @@ public final class TimelineWorldController implements TimelinePlaybackController
             return;
         }
 
-        if (!isValidTimeTrack(activeTimeTrack)) {
+        if (!enabled || !isValidTrack(activeTrack)) {
             return;
         }
 
@@ -304,7 +257,7 @@ public final class TimelineWorldController implements TimelinePlaybackController
             LOGGER.trace("[TimelineWorld] previewAt: t={}s", timeSeconds);
         }
 
-        if (!enabled || !hasValidActiveTrack()) {
+        if (!enabled || !isValidTrack(activeTrack)) {
             LOGGER.warn("[TimelineWorld] previewAt() - 未启用或无有效轨道");
             return;
         }
@@ -391,8 +344,8 @@ public final class TimelineWorldController implements TimelinePlaybackController
         // ⭐ v2.0 核心：更新状态缓存（Mixin 的唯一真相源）
         long oldWorldTime = currentSample != null ? currentSample.getWorldTimeTicks() : -1;
         this.hasCustomSample = true;
-        this.currentSample = newSample; // TimeSample 是不可变的，直接赋值即可
-        publishRenderOverride();
+        this.currentSample = newSample;
+        commitState();
 
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("[TimelineWorld] applySampleInternal cache: old={} new={} freezeActive={}",
@@ -453,19 +406,8 @@ public final class TimelineWorldController implements TimelinePlaybackController
         freezeTimeActive = false;
         savedDoDaylightCycle = null;
 
-        publishRenderOverride();
+        commitState();
         LOGGER.info("[TimelineWorld] Cleared time override state");
-    }
-
-    // ============================================================
-    // 供 Mixin 查询的 Getter（核心）- v2.0 核心接口
-    // ============================================================
-
-    /**
-     * 检查是否有活跃的自定义采样（供 Mixin 使用）
-     */
-    public synchronized boolean hasOverride() {
-        return hasCustomSample && currentSample != null;
     }
 
     public boolean isInternalTimeUpdate() {
@@ -488,47 +430,6 @@ public final class TimelineWorldController implements TimelinePlaybackController
     // ================== 模型变更处理 ==================
 
     /**
-     * 处理模型结构变更（轨道增删、关键帧变化等）
-     * 
-     * <p>⭐ v3.5：如果只有一个时间轨道，自动激活它
-     */
-    private synchronized void onModelStructureChanged() {
-        if (timelineModel == null) {
-            return;
-        }
-
-        // 统计当前时间轨道数量
-        int timeTrackCount = countTimeTracks();
-        TimelineTrack firstTimeTrack = findFirstTimeTrack();
-        
-        // ⭐ v3.5：如果只有一个时间轨道，无论当前状态如何，都确保它是激活的
-        // 这包括：从0个变成1个、从多个变成1个、新建唯一轨道等情况
-        if (timeTrackCount == 1 && firstTimeTrack != null) {
-            if (activeTimeTrack != firstTimeTrack) {
-                activeTimeTrack = firstTimeTrack;
-                LOGGER.info("[TimelineWorld] 模型变更：检测到只有一个时间轨道，自动激活: {}", firstTimeTrack.getName());
-            }
-        } else if (timeTrackCount == 0) {
-            // 没有时间轨道时，清空激活轨道
-            activeTimeTrack = null;
-        } else {
-            // 有多个时间轨道时，检查当前激活轨道是否有效
-            if (!isValidTimeTrack(activeTimeTrack)) {
-                // 当前激活轨道无效，选择第一个作为激活轨道（但不强制，因为可能有多个）
-                activeTimeTrack = firstTimeTrack;
-                if (firstTimeTrack != null) {
-                    LOGGER.info("[TimelineWorld] 模型变更：当前激活轨道无效，切换到: {}", firstTimeTrack.getName());
-                }
-            }
-        }
-
-        rebuildFromActiveTrack();
-        // ⭐ v3.0：updateTimeFreezeState() 已在 rebuildFromActiveTrack() 内部调用，无需重复
-        
-        LOGGER.debug("[TimelineWorld] 模型变更，刷新时间关键帧");
-    }
-
-    /**
      * 从当前激活轨道重建采样器
      * 
      * <p>公开方法，供属性面板等外部组件调用，用于在关键帧属性修改后刷新采样器。
@@ -542,24 +443,23 @@ public final class TimelineWorldController implements TimelinePlaybackController
                     freezeTimeActive, freezeTimeActive ? frozenGameTime : "N/A");
         }
         
-        if (!hasValidActiveTrack()) {
+        if (!isValidTrack(activeTrack)) {
             if (LOGGER.isDebugEnabled()) {
                 LOGGER.debug("[TimelineWorld] rebuildFromActiveTrack() - 无效轨道，清除状态");
             }
             sampler.setKeyframes(new ArrayList<>());
-            clear(); // 清除状态缓存
-            // ⭐ v3.0：轨道无效时也需要更新冻结状态（可能轨道被删除）
+            clear();
             updateTimeFreezeState();
             return;
         }
 
-        List<TimeKeyframe> kfs = collectTimeKeyframes(activeTimeTrack);
-        
+        List<TimeKeyframe> kfs = collectTimeKeyframes(activeTrack);
+
         sampler.setKeyframes(kfs);
 
         if (LOGGER.isDebugEnabled()) {
             LOGGER.debug("[TimelineWorld] Rebuild from track '{}', keyframes = {}",
-                    activeTimeTrack.getName(), kfs.size());
+                    activeTrack.getName(), kfs.size());
         }
         
         // ⭐ v3.0 核心改进：每次重建采样器后立即检查冻结状态
@@ -591,51 +491,6 @@ public final class TimelineWorldController implements TimelinePlaybackController
     }
 
     // ================== 辅助方法 ==================
-
-    /**
-     * 检查是否有有效的激活轨道
-     */
-    private boolean hasValidActiveTrack() {
-        return isValidTimeTrack(activeTimeTrack);
-    }
-
-    /**
-     * 验证轨道是否是有效的时间轨道
-     */
-    private boolean isValidTimeTrack(TimelineTrack track) {
-        return track != null && track.getType() == TrackType.TIME &&
-               timelineModel != null &&
-               timelineModel.getTracks().contains(track);
-    }
-
-    /**
-     * 查找第一条 TIME 轨道
-     */
-    private TimelineTrack findFirstTimeTrack() {
-        if (timelineModel == null) return null;
-        for (TimelineTrack track : timelineModel.getTracks()) {
-            if (track.getType() == TrackType.TIME) {
-                return track;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * 统计 TIME 轨道数量
-     * 
-     * <p>⭐ v3.5：用于判断是否只有一个时间轨道，如果是则自动激活
-     */
-    private int countTimeTracks() {
-        if (timelineModel == null) return 0;
-        int count = 0;
-        for (TimelineTrack track : timelineModel.getTracks()) {
-            if (track.getType() == TrackType.TIME) {
-                count++;
-            }
-        }
-        return count;
-    }
 
     /**
      * 应用世界时间（自然时间模式）
@@ -674,11 +529,11 @@ public final class TimelineWorldController implements TimelinePlaybackController
         }
         try {
             internalTimeUpdate = true;
-            publishRenderOverride();
+            publishRenderSnapshot();
             world.setTime(normalizedTicks, normalizedTicks, false);
         } finally {
             internalTimeUpdate = false;
-            publishRenderOverride();
+            publishRenderSnapshot();
         }
         
         // 更新冻结时间快照
@@ -861,11 +716,11 @@ public final class TimelineWorldController implements TimelinePlaybackController
                     // ⭐ 修复：实际将服务器时间写入客户端，确保时间完全同步
                     try {
                         internalTimeUpdate = true;
-                        publishRenderOverride();
+                        publishRenderSnapshot();
                         client.world.setTime(serverTime, serverTime, false);
                     } finally {
                         internalTimeUpdate = false;
-                        publishRenderOverride();
+                        publishRenderSnapshot();
                     }
                     LOGGER.info("[TimelineWorld] 已同步客户端时间与服务器 (服务器时间: {})", serverTime);
                 } catch (Exception e) {
@@ -889,7 +744,7 @@ public final class TimelineWorldController implements TimelinePlaybackController
      * </ul>
      */
     public synchronized boolean shouldFreezeTime() {
-        if (!enabled || !hasValidActiveTrack()) {
+        if (!enabled || !isValidTrack(activeTrack)) {
             return false;
         }
 
@@ -915,7 +770,25 @@ public final class TimelineWorldController implements TimelinePlaybackController
         return sampler.getKeyframes().isEmpty();
     }
 
-    private void publishRenderOverride() {
-        WorldRenderOverride.publishTime(hasOverride(), internalTimeUpdate, currentSample);
+    @Override
+    protected boolean computeHasOverride() {
+        return hasCustomSample && currentSample != null;
+    }
+
+    @Override
+    protected void publishRenderSnapshot() {
+        WorldRenderOverride.publishTime(cachedHasOverride, internalTimeUpdate, currentSample);
+    }
+
+    @Override
+    protected void onDisabled() {
+    }
+
+    @Override
+    protected void onSampleApplied(TimeSample sample) {
+    }
+
+    @Override
+    protected void onOverrideCleared(boolean fullReset) {
     }
 }
