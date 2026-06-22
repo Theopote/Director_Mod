@@ -125,7 +125,7 @@ import imgui.ImGui;
  *   <li>{@code public void play()}</li>
  *   <li>{@code public void pause()}</li>
  *   <li>{@code public void stop()}</li>
- *   <li>任何直接操作 TimelineModel、BlockAnimationEngine、PlaybackController 的方法</li>
+ *   <li>任何直接操作 TimelineModel、BlockAnimationEngine、PlaybackOrchestrator 的方法</li>
  * </ul>
  * <p>
  * 这些方法只能存在于：

@@ -14,7 +14,7 @@ package com.director.ui.commands;
  * <ul>
  *   <li>按功能域分组，每个子接口负责一个领域</li>
  *   <li>每个方法代表一个明确的"用户意图"（如 play(), pause(), stop()）</li>
- *   <li>不暴露内部实现细节（如 PlaybackController、TimelineModel 等）</li>
+ *   <li>不暴露内部实现细节（如 PlaybackOrchestrator、TimelineModel 等）</li>
  *   <li>支持未来扩展（快捷键、自动化、录制宏等）</li>
  * </ul>
  * 

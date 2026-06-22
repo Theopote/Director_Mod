@@ -1,7 +1,7 @@
 package com.director.export.video;
 
 import com.director.client.RenderOverrideSnapshots;
-import com.director.ui.timeline.playback.PlaybackOrchestrator;
+import com.director.timeline.playback.TimelinePlaybackSampler;
 import net.minecraft.client.texture.NativeImage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -142,7 +142,7 @@ public final class VideoExportTask implements Runnable {
     private static final float DEFAULT_DURATION_FALLBACK_SEC = 10f;
 
     private float resolveEndTime() {
-        float timelineDuration = PlaybackOrchestrator.resolveTimelineDuration(DEFAULT_DURATION_FALLBACK_SEC);
+        float timelineDuration = TimelinePlaybackSampler.resolveDuration(DEFAULT_DURATION_FALLBACK_SEC);
 
         return switch (settings.rangeMode) {
             case VideoExportSettings.RANGE_CUSTOM -> settings.customEndTime;

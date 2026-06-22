@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
  * 
  * 架构改进：
  * - ✅ 单一真相源：TimelineModel 拥有所有数据，不再委托
- * - ✅ 消除单例依赖：不依赖旧 AnimationState 或 PlaybackController
+ * - ✅ 消除单例依赖：不依赖旧 AnimationState 或 core 播放路径
  * - ✅ 完全自洽：模型管理自己的状态
  * - ✅ 易于测试：无全局依赖
  * 

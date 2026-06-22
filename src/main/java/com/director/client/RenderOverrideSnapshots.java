@@ -3,7 +3,8 @@ package com.director.client;
 import com.director.client.camera.CameraRenderOverride;
 import com.director.client.entity.EntityRenderOverride;
 import com.director.client.world.WorldRenderOverride;
-import com.director.ui.timeline.playback.PlaybackOrchestrator;
+import com.director.export.video.TimelineExportSampling;
+import com.director.timeline.playback.TimelinePlaybackSampler;
 import net.minecraft.client.MinecraftClient;
 
 /**
@@ -31,7 +32,7 @@ public final class RenderOverrideSnapshots {
         client.execute(() -> {
             float time = resolveTimelineTime();
             try {
-                PlaybackOrchestrator.get().sampleAt(time);
+                TimelineExportSampling.sampleWorldAt(time);
             } catch (RuntimeException ignored) {
             }
             try {
@@ -42,11 +43,7 @@ public final class RenderOverrideSnapshots {
     }
 
     private static float resolveTimelineTime() {
-        var service = com.director.core.DirectorServices.get().containerTimeline();
-        if (service == null) {
-            return 0f;
-        }
-        var model = service.getTimelineModel();
+        var model = TimelinePlaybackSampler.resolveModel();
         return model != null ? model.getCurrentTime() : 0f;
     }
 }

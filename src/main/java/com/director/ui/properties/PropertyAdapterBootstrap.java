@@ -1,6 +1,5 @@
 package com.director.ui.properties;
 
-import com.director.core.animation.container.AnimationClip;
 import com.director.core.animation.container.Keyframe;
 import com.director.core.container.Container;
 import com.director.core.selection.SelectionTool;
@@ -56,7 +55,7 @@ import org.slf4j.LoggerFactory;
  *   <li><b>核心对象（3个）</b></li>
  *   <li>  - KeyframePropertyAdapter - 关键帧编辑器</li>
  *   <li>  - ContainerPropertyAdapter - 容器编辑器</li>
- *   <li>  - ClipPropertyAdapter - 片段编辑器</li>
+ *   <li>  - TimelineClipPropertyAdapter - 容器片段编辑器</li>
  *   <li><b>扩展系统（6个）</b></li>
  *   <li>  - EffectPropertyAdapter - 特效编辑器</li>
  *   <li>  - ProjectEnvironmentPropertyAdapter - 环境编辑器</li>
@@ -134,9 +133,6 @@ public final class PropertyAdapterBootstrap {
             registerAdapter(Container.class, new ContainerPropertyAdapter());
             registeredCount++;
             
-            // ✅ 动画片段属性适配器（新版动画系统）
-            registerAdapter(AnimationClip.class, new ClipPropertyAdapter());
-            registeredCount++;
             // ✅ 拆除片段属性适配器（高优先级，优先匹配 ERASE 轨道上的片段）
             // 先注册 EraseTimelineClipPropertyAdapter，因为它有更高的 priority (100)
             registerAdapter(TimelineClip.class, new EraseTimelineClipPropertyAdapter());

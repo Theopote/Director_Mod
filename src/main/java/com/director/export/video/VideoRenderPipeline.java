@@ -1,6 +1,6 @@
 package com.director.export.video;
 
-import com.director.ui.timeline.playback.PlaybackOrchestrator;
+import com.director.export.video.TimelineExportSampling;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
@@ -151,7 +151,7 @@ public final class VideoRenderPipeline {
     }
 
     private void applyTimelineTime(float timeSeconds) {
-        PlaybackOrchestrator.get().sampleAt(timeSeconds);
+        TimelineExportSampling.sampleWorldAt(timeSeconds);
     }
 
     private void applyCamera(float timeSeconds, VideoExportSettings settings) {

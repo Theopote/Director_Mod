@@ -47,10 +47,9 @@ import java.util.UUID;
  *   <tr><td>TimelineSequence</td><td>TimelineSequencePropertyAdapter</td></tr>
  *   <tr><td>TimelineTrack</td><td>TimelineTrackPropertyAdapter</td></tr>
  *   <tr><td>TimelineClip</td><td>TimelineClipPropertyAdapter</td></tr>
- *   <tr><td rowspan="3"><b>核心对象</b></td>
+ *   <tr><td rowspan="2"><b>核心对象</b></td>
  *       <td>Keyframe</td><td>KeyframePropertyAdapter</td></tr>
  *   <tr><td>Container</td><td>ContainerPropertyAdapter</td></tr>
- *   <tr><td>AnimationClip</td><td>ClipPropertyAdapter</td></tr>
  *   <tr><td rowspan="6"><b>扩展系统</b></td>
  *       <td>Effect</td><td>EffectPropertyAdapter</td></tr>
  *   <tr><td>ProjectEnvironment</td><td>ProjectEnvironmentPropertyAdapter</td></tr>
@@ -389,12 +388,11 @@ public class PropertiesPanel extends AbstractPanel {
             ImGui.unindent();
         }
         
-        // 核心对象（3个）
-        if (ImGui.collapsingHeader(Icons.TARGET + " 核心对象（3个）")) {
+        // 核心对象（2个）
+        if (ImGui.collapsingHeader(Icons.TARGET + " 核心对象（2个）")) {
             ImGui.indent();
             ImGui.bullet(); ImGui.text("关键帧 (Keyframe)");
             ImGui.bullet(); ImGui.text("容器 (Container)");
-            ImGui.bullet(); ImGui.text("动画片段 (AnimationClip)");
             ImGui.unindent();
         }
         

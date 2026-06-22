@@ -32,7 +32,7 @@ import java.util.List;
  * <ul>
  *   <li>{@code TimelineModel} - 必须通过 Facade 访问</li>
  *   <li>{@code BlockAnimationEngine} - 必须通过 Facade 访问</li>
- *   <li>{@code PlaybackController} - 必须通过 Facade 访问</li>
+ *   <li>{@code PlaybackOrchestrator} - 必须通过 Facade 访问</li>
  * </ul>
  * <p>
  * 这是防止架构退化的"铁门"。如果发现这些导入，说明架构已被破坏。
