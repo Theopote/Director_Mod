@@ -3,8 +3,10 @@ package com.director.core.animation.effect.impl;
 import com.director.core.animation.BlockAnimationSnapshot;
 import com.director.core.animation.effect.EffectInstance;
 import com.director.core.animation.effect.IBlockEffect;
+import com.director.core.animation.effect.EffectType;
 import com.director.core.animation.effect.ui.EffectUIHelper;
 import com.director.core.animation.effect.ui.EffectUIUtils;
+import com.director.i18n.EffectUiI18n;
 import net.minecraft.block.BlockState;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.particle.ParticleManager;
@@ -143,28 +145,28 @@ public class DustBurstEffect implements IBlockEffect {
 
         boolean modified = false;
 
-        EffectUIHelper.label("烟尘爆裂参数");
+        EffectUIHelper.label(EffectUiI18n.section(EffectType.DUST_BURST));
 
         // 强度参数
         float intensity = EffectUIUtils.getFloat(params, "intensity", 1.0f);
         float[] intensityArr = { intensity };
-        if (EffectUIHelper.dragFloat("强度 (Intensity)", intensityArr, 0.1f, 0.0f, 5.0f, "%.1f")) {
+        if (EffectUIHelper.dragFloat(EffectUiI18n.intensity(), intensityArr, 0.1f, 0.0f, 5.0f, "%.1f")) {
             params.put("intensity", intensityArr[0]);
             modified = true;
         }
         if (EffectUIHelper.isItemHovered()) {
-            EffectUIHelper.setTooltip("控制烟尘粒子的产生数量");
+            EffectUIHelper.setTooltip(EffectUiI18n.dustIntensityTooltip());
         }
 
         // 半径参数
         float radius = EffectUIUtils.getFloat(params, "radius", 0.6f);
         float[] radiusArr = { radius };
-        if (EffectUIHelper.dragFloat("散射半径 (Radius)", radiusArr, 0.05f, 0.1f, 3.0f, "%.2f")) {
+        if (EffectUIHelper.dragFloat(EffectUiI18n.scatterRadius(), radiusArr, 0.05f, 0.1f, 3.0f, "%.2f")) {
             params.put("radius", radiusArr[0]);
             modified = true;
         }
         if (EffectUIHelper.isItemHovered()) {
-            EffectUIHelper.setTooltip("控制烟尘飞散的水平范围");
+            EffectUIHelper.setTooltip(EffectUiI18n.dustRadiusTooltip());
         }
 
         return modified;

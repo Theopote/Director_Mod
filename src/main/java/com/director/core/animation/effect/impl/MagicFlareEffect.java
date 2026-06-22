@@ -3,8 +3,10 @@ package com.director.core.animation.effect.impl;
 import com.director.core.animation.BlockAnimationSnapshot;
 import com.director.core.animation.effect.EffectInstance;
 import com.director.core.animation.effect.IBlockEffect;
+import com.director.core.animation.effect.EffectType;
 import com.director.core.animation.effect.ui.EffectUIHelper;
 import com.director.core.animation.effect.ui.EffectUIUtils;
+import com.director.i18n.EffectUiI18n;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.particle.ParticleManager;
 import net.minecraft.client.world.ClientWorld;
@@ -106,32 +108,32 @@ public class MagicFlareEffect implements IBlockEffect {
         }
         boolean modified = false;
 
-        EffectUIHelper.label("魔法光焰参数");
+        EffectUIHelper.label(EffectUiI18n.section(EffectType.MAGIC_FLARE));
 
         float intensity = EffectUIUtils.getFloat(params, "intensity", 1.0f);
         float[] intensityArr = { intensity };
-        if (EffectUIHelper.dragFloat("强度 (Intensity)", intensityArr, 0.1f, 0.0f, 5.0f, "%.1f")) {
+        if (EffectUIHelper.dragFloat(EffectUiI18n.intensity(), intensityArr, 0.1f, 0.0f, 5.0f, "%.1f")) {
             params.put("intensity", intensityArr[0]);
             modified = true;
         }
 
         float radius = EffectUIUtils.getFloat(params, "radius", 0.55f);
         float[] radiusArr = { radius };
-        if (EffectUIHelper.dragFloat("半径 (Radius)", radiusArr, 0.02f, 0.05f, 2.0f, "%.2f")) {
+        if (EffectUIHelper.dragFloat(EffectUiI18n.radius(), radiusArr, 0.02f, 0.05f, 2.0f, "%.2f")) {
             params.put("radius", radiusArr[0]);
             modified = true;
         }
 
         float height = EffectUIUtils.getFloat(params, "height", 0.55f);
         float[] heightArr = { height };
-        if (EffectUIHelper.dragFloat("高度抖动 (Height)", heightArr, 0.02f, 0.0f, 2.0f, "%.2f")) {
+        if (EffectUIHelper.dragFloat(EffectUiI18n.heightJitter(), heightArr, 0.02f, 0.0f, 2.0f, "%.2f")) {
             params.put("height", heightArr[0]);
             modified = true;
         }
 
         float spinSpeed = EffectUIUtils.getFloat(params, "spinSpeed", 1.5f);
         float[] speedArr = { spinSpeed };
-        if (EffectUIHelper.dragFloat("旋转速度 (Spin)", speedArr, 0.1f, 0.0f, 10.0f, "%.1f")) {
+        if (EffectUIHelper.dragFloat(EffectUiI18n.spinSpeed(), speedArr, 0.1f, 0.0f, 10.0f, "%.1f")) {
             params.put("spinSpeed", speedArr[0]);
             modified = true;
         }
