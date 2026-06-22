@@ -1,7 +1,8 @@
 package com.director.core.animation.transform.impl;
 
-import com.director.core.animation.transform.IAnimationTransformer;
 import com.director.core.animation.transform.ui.UIHelper;
+import com.director.core.container.AnimationMode;
+import com.director.i18n.TransformerUiI18n;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -13,7 +14,11 @@ import java.util.Random;
  * <p>方块从随机偏移位置向原位聚拢，同时从透明到不透明。
  * 该模式在 EXIT 阶段会被引擎自动反向播放，从而形成“碎片散射”的退场效果。
  */
-public class AssembleTransformer implements IAnimationTransformer {
+public class AssembleTransformer extends AbstractModeTransformer {
+
+    public AssembleTransformer() {
+        super(AnimationMode.ASSEMBLE);
+    }
 
     @Override
     public TransformResult transform(float progress, Map<String, Object> params, Random random) {
@@ -38,16 +43,6 @@ public class AssembleTransformer implements IAnimationTransformer {
     }
 
     @Override
-    public String getDisplayName() {
-        return "碎片聚合";
-    }
-
-    @Override
-    public String getDescription() {
-        return "方块从周围聚拢到原位，适合组装/聚合效果（Exit 阶段会形成散射退场）";
-    }
-
-    @Override
     public Map<String, Object> getDefaultParams() {
         Map<String, Object> params = new HashMap<>();
         params.put("spread", 2.5f); // 散开半径
@@ -65,18 +60,18 @@ public class AssembleTransformer implements IAnimationTransformer {
         if (!UIHelper.isUIAvailable()) return false;
         boolean modified = false;
 
-        UIHelper.label("碎片聚合参数");
+        UIHelper.label(TransformerUiI18n.section(AnimationMode.ASSEMBLE));
 
         float spread = getFloatParam(params, "spread", 2.5f);
         float[] spreadArr = {spread};
-        if (UIHelper.dragFloat("散开半径", spreadArr, 0.1f, 0.1f, 20.0f, "%.1f")) {
+        if (UIHelper.dragFloat(TransformerUiI18n.spreadRadius(), spreadArr, 0.1f, 0.1f, 20.0f, "%.1f")) {
             params.put("spread", spreadArr[0]);
             modified = true;
         }
 
         float vertical = getFloatParam(params, "vertical", 1.0f);
         float[] verticalArr = {vertical};
-        if (UIHelper.dragFloat("垂直权重", verticalArr, 0.05f, 0.0f, 3.0f, "%.2f")) {
+        if (UIHelper.dragFloat(TransformerUiI18n.verticalWeight(), verticalArr, 0.05f, 0.0f, 3.0f, "%.2f")) {
             params.put("vertical", verticalArr[0]);
             modified = true;
         }

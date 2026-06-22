@@ -1,7 +1,8 @@
 package com.director.core.animation.transform.impl;
 
-import com.director.core.animation.transform.IAnimationTransformer;
 import com.director.core.animation.transform.ui.UIHelper;
+import com.director.core.container.AnimationMode;
+import com.director.i18n.TransformerUiI18n;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -16,7 +17,11 @@ import java.util.Random;
  * @author Director Team
  * @version 1.0
  */
-public class ExpandTransformer implements IAnimationTransformer {
+public class ExpandTransformer extends AbstractModeTransformer {
+
+    public ExpandTransformer() {
+        super(AnimationMode.EXPAND);
+    }
     
     @Override
     public TransformResult transform(float progress, Map<String, Object> params, Random random) {
@@ -31,16 +36,6 @@ public class ExpandTransformer implements IAnimationTransformer {
         result.scaleZ = progress;
         
         return result;
-    }
-    
-    @Override
-    public String getDisplayName() {
-        return "扩散";
-    }
-    
-    @Override
-    public String getDescription() {
-        return "方块从中心向外扩散出现";
     }
     
     @Override
@@ -100,12 +95,12 @@ public class ExpandTransformer implements IAnimationTransformer {
         boolean modified = false;
         
         // 扩散参数
-        UIHelper.label("扩散参数");
+        UIHelper.label(TransformerUiI18n.section(AnimationMode.EXPAND));
         
         // 扩散速度
         float expandSpeed = getFloatParam(params, "expandSpeed", 1.0f);
         float[] speedArray = {expandSpeed};
-        if (UIHelper.dragFloat("扩散速度", speedArray, 0.1f, 0.1f, 5.0f, "%.1f")) {
+        if (UIHelper.dragFloat(TransformerUiI18n.expandSpeed(), speedArray, 0.1f, 0.1f, 5.0f, "%.1f")) {
             params.put("expandSpeed", speedArray[0]);
             modified = true;
         }
@@ -113,11 +108,11 @@ public class ExpandTransformer implements IAnimationTransformer {
         // 基于距离
         boolean useDistance = getBooleanParam(params);
         boolean[] useDistanceArray = {useDistance};
-        if (UIHelper.checkbox("基于距离", useDistanceArray)) {
+        if (UIHelper.checkbox(TransformerUiI18n.useDistance(), useDistanceArray)) {
             params.put("useDistance", useDistanceArray[0]);
             modified = true;
         }
-        UIHelper.setTooltip("启用后，方块按距离中心点的距离排序出现");
+        UIHelper.setTooltip(TransformerUiI18n.useDistanceTooltip());
         
         return modified;
     }
