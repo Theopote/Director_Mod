@@ -369,6 +369,167 @@ public final class DirectorLang {
         public static final String CLEAR_SELECTION_RETRY = "gui.director.properties.clear_selection_retry";
         public static final String CLEAR_SELECTION_TOOLTIP = "gui.director.properties.clear_selection_tooltip";
         public static final String NO_MESSAGE = "gui.director.properties.no_message";
+        public static final String ACTOR_TITLE = "gui.director.properties.actor_title";
+        public static final String NO_ACTOR_ADAPTER = "gui.director.properties.no_actor_adapter";
+
+        public static final class AdapterContainer {
+            public static final String ADAPTER_NAME = "gui.director.properties.adapter.container.name";
+            public static final String NULL_CONTAINER = "gui.director.properties.adapter.container.null";
+            public static final String TIMELINE_READONLY = "gui.director.properties.adapter.container.timeline_readonly";
+            public static final String GROUP_TITLE = "gui.director.properties.adapter.container.group_title";
+            public static final String CONTAINER_TITLE = "gui.director.properties.adapter.container.container_title";
+            public static final String SECTION_BASIC = "gui.director.properties.adapter.container.section_basic";
+            public static final String SECTION_DISPLAY = "gui.director.properties.adapter.container.section_display";
+            public static final String SECTION_VISUAL = "gui.director.properties.adapter.container.section_visual";
+            public static final String SECTION_ANIMATION = "gui.director.properties.adapter.container.section_animation";
+            public static final String SECTION_BOUNDS = "gui.director.properties.adapter.container.section_bounds";
+            public static final String SECTION_STATS = "gui.director.properties.adapter.container.section_stats";
+            public static final String SECTION_HIERARCHY = "gui.director.properties.adapter.container.section_hierarchy";
+            public static final String SECTION_METADATA = "gui.director.properties.adapter.container.section_metadata";
+            public static final String SECTION_CONTENT_STATS = "gui.director.properties.adapter.container.section_content_stats";
+            public static final String NAME = "gui.director.properties.adapter.container.name_field";
+            public static final String NAME_TOOLTIP = "gui.director.properties.adapter.container.name_tooltip";
+            public static final String CONTAINER_TYPE = "gui.director.properties.adapter.container.type";
+            public static final String CONTAINER_TYPE_TOOLTIP = "gui.director.properties.adapter.container.type_tooltip";
+            public static final String TYPE_LABEL = "gui.director.properties.adapter.container.type_label";
+            public static final String VISIBLE = "gui.director.properties.adapter.container.visible";
+            public static final String VISIBLE_TOOLTIP = "gui.director.properties.adapter.container.visible_tooltip";
+            public static final String LOCKED = "gui.director.properties.adapter.container.locked";
+            public static final String LOCKED_TOOLTIP = "gui.director.properties.adapter.container.locked_tooltip";
+            public static final String OPACITY = "gui.director.properties.adapter.container.opacity";
+            public static final String OPACITY_TOOLTIP = "gui.director.properties.adapter.container.opacity_tooltip";
+            public static final String MARKER_COLOR = "gui.director.properties.adapter.container.marker_color";
+            public static final String MARKER_COLOR_TOOLTIP = "gui.director.properties.adapter.container.marker_color_tooltip";
+            public static final String DIRECT_CHILDREN = "gui.director.properties.adapter.container.direct_children";
+            public static final String CHILD_CONTAINERS = "gui.director.properties.adapter.container.child_containers";
+            public static final String CHILD_GROUPS = "gui.director.properties.adapter.container.child_groups";
+            public static final String DESCENDANT_COUNT = "gui.director.properties.adapter.container.descendant_count";
+            public static final String PARENT = "gui.director.properties.adapter.container.parent";
+            public static final String PARENT_NONE = "gui.director.properties.adapter.container.parent_none";
+            public static final String PARENT_JUMP_TOOLTIP = "gui.director.properties.adapter.container.parent_jump_tooltip";
+            public static final String CHILDREN_NONE = "gui.director.properties.adapter.container.children_none";
+            public static final String CHILDREN_TREE = "gui.director.properties.adapter.container.children_tree";
+            public static final String CHILD_TOOLTIP = "gui.director.properties.adapter.container.child_tooltip";
+            public static final String DEPTH = "gui.director.properties.adapter.container.depth";
+            public static final String CREATED_AT = "gui.director.properties.adapter.container.created_at";
+            public static final String MODIFIED_AT = "gui.director.properties.adapter.container.modified_at";
+            public static final String AGE = "gui.director.properties.adapter.container.age";
+            public static final String SINCE_MODIFIED = "gui.director.properties.adapter.container.since_modified";
+            public static final String DEFAULT_ANIMATION = "gui.director.properties.adapter.container.default_animation";
+            public static final String ANIMATION_DEMOLITION_TOOLTIP = "gui.director.properties.adapter.container.animation_demolition_tooltip";
+            public static final String ANIMATION_BUILD_TOOLTIP = "gui.director.properties.adapter.container.animation_build_tooltip";
+            public static final String LEGACY_MODE_SUFFIX = "gui.director.properties.adapter.container.legacy_mode_suffix";
+            public static final String FRAGMENT_SCATTER = "gui.director.properties.adapter.container.fragment_scatter";
+            public static final String LEGACY_MODE_HINT = "gui.director.properties.adapter.container.legacy_mode_hint";
+            public static final String ANIMATION_PARAMS = "gui.director.properties.adapter.container.animation_params";
+            public static final String RENDER_ERROR = "gui.director.properties.adapter.container.render_error";
+            public static final String SUGGESTED_DURATION = "gui.director.properties.adapter.container.suggested_duration";
+            public static final String SUGGESTED_DURATION_TOOLTIP = "gui.director.properties.adapter.container.suggested_duration_tooltip";
+            public static final String DEFAULT_DELAY = "gui.director.properties.adapter.container.default_delay";
+            public static final String CLIP_OVERRIDE_HINT = "gui.director.properties.adapter.container.clip_override_hint";
+            public static final String MIN_POINT = "gui.director.properties.adapter.container.min_point";
+            public static final String MAX_POINT = "gui.director.properties.adapter.container.max_point";
+            public static final String CENTER_POINT = "gui.director.properties.adapter.container.center_point";
+            public static final String DIMENSIONS = "gui.director.properties.adapter.container.dimensions";
+            public static final String DIMENSIONS_TOOLTIP = "gui.director.properties.adapter.container.dimensions_tooltip";
+            public static final String BLOCK_COUNT = "gui.director.properties.adapter.container.block_count";
+            public static final String TOTAL_BLOCKS = "gui.director.properties.adapter.container.total_blocks";
+            public static final String VOLUME = "gui.director.properties.adapter.container.volume";
+            public static final String FILL_RATE = "gui.director.properties.adapter.container.fill_rate";
+            public static final String FILL_RATE_TOOLTIP = "gui.director.properties.adapter.container.fill_rate_tooltip";
+            public static final String QUICK_ACTIONS = "gui.director.properties.adapter.container.quick_actions";
+            public static final String CLONE = "gui.director.properties.adapter.container.clone";
+            public static final String CLONE_TOOLTIP = "gui.director.properties.adapter.container.clone_tooltip";
+            public static final String CLEAR_BLOCKS = "gui.director.properties.adapter.container.clear_blocks";
+            public static final String CLEAR_BLOCKS_TOOLTIP = "gui.director.properties.adapter.container.clear_blocks_tooltip";
+            public static final String SYNC_WORLD = "gui.director.properties.adapter.container.sync_world";
+            public static final String SYNC_WORLD_TOOLTIP = "gui.director.properties.adapter.container.sync_world_tooltip";
+            public static final String REFRESH_STATS = "gui.director.properties.adapter.container.refresh_stats";
+            public static final String REFRESH_STATS_TOOLTIP = "gui.director.properties.adapter.container.refresh_stats_tooltip";
+            public static final String RESET_CENTER = "gui.director.properties.adapter.container.reset_center";
+            public static final String RESET_CENTER_TOOLTIP = "gui.director.properties.adapter.container.reset_center_tooltip";
+            public static final String DURATION_SECONDS = "gui.director.properties.adapter.container.duration_seconds";
+            public static final String DURATION_MINUTES = "gui.director.properties.adapter.container.duration_minutes";
+            public static final String DURATION_HOURS = "gui.director.properties.adapter.container.duration_hours";
+            public static final String DURATION_DAYS = "gui.director.properties.adapter.container.duration_days";
+
+            private AdapterContainer() {
+            }
+        }
+
+        public static final class AdapterKeyframe {
+            public static final String NO_KEYFRAME = "gui.director.properties.adapter.keyframe.no_keyframe";
+            public static final String TIME_GROUP = "gui.director.properties.adapter.keyframe.time_group";
+            public static final String TIME_SECONDS = "gui.director.properties.adapter.keyframe.time_seconds";
+            public static final String VALUE_GROUP = "gui.director.properties.adapter.keyframe.value_group";
+            public static final String VECTOR = "gui.director.properties.adapter.keyframe.vector";
+            public static final String SCALAR = "gui.director.properties.adapter.keyframe.scalar";
+            public static final String VALUE_LABEL = "gui.director.properties.adapter.keyframe.value_label";
+            public static final String INTERPOLATION_GROUP = "gui.director.properties.adapter.keyframe.interpolation_group";
+            public static final String MODE = "gui.director.properties.adapter.keyframe.mode";
+
+            private AdapterKeyframe() {
+            }
+        }
+
+        public static final class EmbeddedContainer {
+            public static final String EMPTY_NO_SELECTION = "gui.director.properties.embedded.container.empty_no_selection";
+            public static final String EMPTY_HINT = "gui.director.properties.embedded.container.empty_hint";
+            public static final String BASIC_PROPERTIES = "gui.director.properties.embedded.container.basic_properties";
+            public static final String NAME = "gui.director.properties.embedded.container.name";
+            public static final String TYPE = "gui.director.properties.embedded.container.type";
+            public static final String TYPE_TOOLTIP = "gui.director.properties.embedded.container.type_tooltip";
+            public static final String DESCRIPTION = "gui.director.properties.embedded.container.description";
+            public static final String ANIMATION_PRESET = "gui.director.properties.embedded.container.animation_preset";
+            public static final String APPEAR_MODE = "gui.director.properties.embedded.container.appear_mode";
+            public static final String SUGGESTED_DURATION = "gui.director.properties.embedded.container.suggested_duration";
+            public static final String SUGGESTED_DURATION_TOOLTIP = "gui.director.properties.embedded.container.suggested_duration_tooltip";
+            public static final String DEFAULT_DELAY = "gui.director.properties.embedded.container.default_delay";
+            public static final String EASING_CURVE = "gui.director.properties.embedded.container.easing_curve";
+            public static final String PLAY_ORDERING = "gui.director.properties.embedded.container.play_ordering";
+            public static final String PRESET_HINT = "gui.director.properties.embedded.container.preset_hint";
+            public static final String CONTAINER_PROPERTIES = "gui.director.properties.embedded.container.container_properties";
+            public static final String UI_TAG_COLOR = "gui.director.properties.embedded.container.ui_tag_color";
+            public static final String UI_TAG_COLOR_TOOLTIP = "gui.director.properties.embedded.container.ui_tag_color_tooltip";
+            public static final String TAG_COLOR_PICKER = "gui.director.properties.embedded.container.tag_color_picker";
+            public static final String CLEAR = "gui.director.properties.embedded.container.clear";
+            public static final String CLEAR_TAG_TOOLTIP = "gui.director.properties.embedded.container.clear_tag_tooltip";
+            public static final String LOCKED = "gui.director.properties.embedded.container.locked";
+            public static final String LOCKED_TOOLTIP = "gui.director.properties.embedded.container.locked_tooltip";
+            public static final String VISIBLE = "gui.director.properties.embedded.container.visible";
+            public static final String HIDE_TOOLTIP = "gui.director.properties.embedded.container.hide_tooltip";
+            public static final String SHOW_TOOLTIP = "gui.director.properties.embedded.container.show_tooltip";
+            public static final String STATS = "gui.director.properties.embedded.container.stats";
+            public static final String BLOCK_COUNT = "gui.director.properties.embedded.container.block_count";
+            public static final String CHILD_COUNT = "gui.director.properties.embedded.container.child_count";
+            public static final String TOTAL_BLOCKS = "gui.director.properties.embedded.container.total_blocks";
+            public static final String SIZE_VOLUME = "gui.director.properties.embedded.container.size_volume";
+            public static final String CENTER = "gui.director.properties.embedded.container.center";
+            public static final String CREATED_AT = "gui.director.properties.embedded.container.created_at";
+            public static final String MODIFIED_AT = "gui.director.properties.embedded.container.modified_at";
+
+            private EmbeddedContainer() {
+            }
+        }
+
+        public static final class EmbeddedGroup {
+            public static final String TITLE = "gui.director.properties.embedded.group.title";
+            public static final String BASIC_INFO = "gui.director.properties.embedded.group.basic_info";
+            public static final String GROUP_NAME = "gui.director.properties.embedded.group.group_name";
+            public static final String NOTES = "gui.director.properties.embedded.group.notes";
+            public static final String STATS_HEADER = "gui.director.properties.embedded.group.stats_header";
+            public static final String CHILD_CONTAINERS = "gui.director.properties.embedded.group.child_containers";
+            public static final String TOTAL_BLOCKS = "gui.director.properties.embedded.group.total_blocks";
+            public static final String INCLUDED_CONTAINERS = "gui.director.properties.embedded.group.included_containers";
+            public static final String NO_CHILDREN = "gui.director.properties.embedded.group.no_children";
+            public static final String CHILD_ITEM = "gui.director.properties.embedded.group.child_item";
+            public static final String MORE_CHILDREN = "gui.director.properties.embedded.group.more_children";
+            public static final String NO_GROUP_SELECTED = "gui.director.properties.embedded.group.no_group_selected";
+            public static final String SELECT_GROUP_HINT = "gui.director.properties.embedded.group.select_group_hint";
+
+            private EmbeddedGroup() {
+            }
+        }
 
         private Properties() {
         }

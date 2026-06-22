@@ -305,7 +305,7 @@ public class PropertiesPanel extends AbstractPanel {
         var adapter = PropertyAdapterRegistry.getAdapterFor(null, actor);
         if (adapter != null) {
             try {
-                UITheme.title("🎭 Actor Properties");
+                UITheme.title(tr(DirectorLang.Properties.ACTOR_TITLE));
                 boolean modified = adapter.renderProperties(actor, PropertyAdapterContext.of(1f, false));
                 if (modified) {
                     var timelineModel = DirectorServices.get().containerTimeline().getTimelineModel();
@@ -318,7 +318,7 @@ public class PropertiesPanel extends AbstractPanel {
                 renderErrorMessage(e);
             }
         } else {
-            UITheme.label("No adapter for Actor", UITheme.DarkTheme.TEXT_DISABLED);
+            UITheme.label(tr(DirectorLang.Properties.NO_ACTOR_ADAPTER), UITheme.DarkTheme.TEXT_DISABLED);
         }
     }
     

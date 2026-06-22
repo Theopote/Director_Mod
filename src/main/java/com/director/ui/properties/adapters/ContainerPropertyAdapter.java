@@ -5,6 +5,8 @@ import com.director.core.container.Container;
 import com.director.core.container.ContainerAnimationPreset;
 import com.director.core.container.ContainerType;
 import com.director.core.container.AnimationMode;
+import com.director.i18n.DirectorI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.theme.UITheme;
 import com.director.ui.theme.Icons;
@@ -59,6 +61,14 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
     private static final Logger LOGGER = LoggerFactory.getLogger(ContainerPropertyAdapter.class);
     private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
+    private static String tr(String key) {
+        return DirectorI18n.translate(key);
+    }
+
+    private static String tr(String key, Object... args) {
+        return DirectorI18n.translate(key, args);
+    }
+
     // 使用持久缓冲区，避免每帧重建导致 IME 合成中断。
     private final ImString nameBuffer = UIUtils.createInputBuffer(UIUtils.DEFAULT_NAME_MAX_CHARACTERS);
     private java.util.UUID editingContainerId;
@@ -67,13 +77,13 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
     public boolean renderProperties(Container container) {
         if (container == null) {
             UITheme.spacingLarge();
-            UITheme.label("容器为 null", UITheme.DarkTheme.TEXT_DISABLED);
+            UITheme.label(tr(DirectorLang.Properties.AdapterContainer.NULL_CONTAINER), UITheme.DarkTheme.TEXT_DISABLED);
             return false;
         }
 
         boolean timelineControlled = isTimelineControlled(container);
         if (timelineControlled) {
-            UITheme.label("已由时间线接管，容器属性只读", UITheme.DarkTheme.TEXT_DISABLED);
+            UITheme.label(tr(DirectorLang.Properties.AdapterContainer.TIMELINE_READONLY), UITheme.DarkTheme.TEXT_DISABLED);
             ImGui.beginDisabled();
         }
         try {
@@ -106,33 +116,33 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
 
     private boolean renderGroupProperties(Container container) {
         boolean modified = false;
-        UITheme.title(Icons.FOLDER + " 组属性编辑器");
+        UITheme.title(Icons.FOLDER + " " + tr(DirectorLang.Properties.AdapterContainer.GROUP_TITLE));
 
-        if (ImGui.collapsingHeader(Icons.CLIPBOARD + " 基本信息", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(Icons.CLIPBOARD + " " + tr(DirectorLang.Properties.AdapterContainer.SECTION_BASIC), ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
             modified |= renderNameAndTypeSection(container, false);
             ImGui.unindent();
         }
 
-        if (ImGui.collapsingHeader(Icons.VISIBLE + " 显示与控制", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(Icons.VISIBLE + " " + tr(DirectorLang.Properties.AdapterContainer.SECTION_DISPLAY), ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
             modified |= renderVisibilityAndLockSection(container);
             ImGui.unindent();
         }
 
-        if (ImGui.collapsingHeader(Icons.CHART + " 内容统计", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(Icons.CHART + " " + tr(DirectorLang.Properties.AdapterContainer.SECTION_CONTENT_STATS), ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
             renderGroupContentStatistics(container);
             ImGui.unindent();
         }
 
-        if (ImGui.collapsingHeader(Icons.PARENT + " 层级结构", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(Icons.PARENT + " " + tr(DirectorLang.Properties.AdapterContainer.SECTION_HIERARCHY), ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
             renderHierarchySection(container);
             ImGui.unindent();
         }
 
-        if (ImGui.collapsingHeader(Icons.CALENDAR + " 元数据")) {
+        if (ImGui.collapsingHeader(Icons.CALENDAR + " " + tr(DirectorLang.Properties.AdapterContainer.SECTION_METADATA))) {
             ImGui.indent();
             renderMetadataSection(container);
             ImGui.unindent();
@@ -143,26 +153,26 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
 
     private boolean renderStandardContainerProperties(Container container) {
         boolean modified = false;
-        UITheme.title(Icons.CONTAINER + " 容器属性编辑器");
+        UITheme.title(Icons.CONTAINER + " " + tr(DirectorLang.Properties.AdapterContainer.CONTAINER_TITLE));
 
-        if (ImGui.collapsingHeader(Icons.CLIPBOARD + " 基本信息", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(Icons.CLIPBOARD + " " + tr(DirectorLang.Properties.AdapterContainer.SECTION_BASIC), ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
             modified |= renderNameAndTypeSection(container, true);
             ImGui.unindent();
         }
 
-        if (ImGui.collapsingHeader(Icons.VISIBLE + " 视觉属性", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(Icons.VISIBLE + " " + tr(DirectorLang.Properties.AdapterContainer.SECTION_VISUAL), ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
             modified |= renderVisibilityAndLockSection(container);
 
             float[] opacity = {container.getOpacity()};
-            if (ImGui.sliderFloat("不透明度", opacity, 0.0f, 1.0f, "%.2f")) {
+            if (ImGui.sliderFloat(tr(DirectorLang.Properties.AdapterContainer.OPACITY), opacity, 0.0f, 1.0f, "%.2f")) {
                 container.setOpacity(opacity[0]);
                 modified = true;
                 LOGGER.debug("[ContainerPropertyAdapter] 不透明度已更新: {}", opacity[0]);
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("容器整体的透明度");
+                ImGui.setTooltip(tr(DirectorLang.Properties.AdapterContainer.OPACITY_TOOLTIP));
             }
 
             UITheme.spacingSmall();
@@ -177,7 +187,7 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
                 ((color >> 24) & 0xFF) / 255.0f
             };
 
-            if (ImGui.colorEdit4("标记颜色", colorRGBA)) {
+            if (ImGui.colorEdit4(tr(DirectorLang.Properties.AdapterContainer.MARKER_COLOR), colorRGBA)) {
                 int newColor = ((int)(colorRGBA[3] * 255) << 24) |
                                ((int)(colorRGBA[0] * 255) << 16) |
                                ((int)(colorRGBA[1] * 255) << 8) |
@@ -187,36 +197,36 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
                 LOGGER.debug("[ContainerPropertyAdapter] 颜色已更新: 0x{}", Integer.toHexString(newColor));
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("容器在编辑器中的标记颜色");
+                ImGui.setTooltip(tr(DirectorLang.Properties.AdapterContainer.MARKER_COLOR_TOOLTIP));
             }
             ImGui.unindent();
         }
 
-        if (ImGui.collapsingHeader(Icons.ANIMATION + " 动画模式")) {
+        if (ImGui.collapsingHeader(Icons.ANIMATION + " " + tr(DirectorLang.Properties.AdapterContainer.SECTION_ANIMATION))) {
             ImGui.indent();
             modified |= renderAnimationSection(container);
             ImGui.unindent();
         }
 
-        if (ImGui.collapsingHeader(Icons.RULER + " 边界信息")) {
+        if (ImGui.collapsingHeader(Icons.RULER + " " + tr(DirectorLang.Properties.AdapterContainer.SECTION_BOUNDS))) {
             ImGui.indent();
             renderBoundingBoxSection(container);
             ImGui.unindent();
         }
 
-        if (ImGui.collapsingHeader(Icons.CHART + " 统计信息")) {
+        if (ImGui.collapsingHeader(Icons.CHART + " " + tr(DirectorLang.Properties.AdapterContainer.SECTION_STATS))) {
             ImGui.indent();
             renderStatisticsSection(container);
             ImGui.unindent();
         }
 
-        if (ImGui.collapsingHeader(Icons.PARENT + " 层级结构")) {
+        if (ImGui.collapsingHeader(Icons.PARENT + " " + tr(DirectorLang.Properties.AdapterContainer.SECTION_HIERARCHY), ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
             renderHierarchySection(container);
             ImGui.unindent();
         }
 
-        if (ImGui.collapsingHeader(Icons.CALENDAR + " 元数据")) {
+        if (ImGui.collapsingHeader(Icons.CALENDAR + " " + tr(DirectorLang.Properties.AdapterContainer.SECTION_METADATA))) {
             ImGui.indent();
             renderMetadataSection(container);
             ImGui.unindent();
@@ -232,7 +242,7 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
         boolean modified = false;
         syncNameBufferIfNeeded(container);
 
-        boolean nameEnterPressed = ImGui.inputText("名称", nameBuffer,
+        boolean nameEnterPressed = ImGui.inputText(tr(DirectorLang.Properties.AdapterContainer.NAME), nameBuffer,
                 ImGuiInputTextFlags.EnterReturnsTrue | ImGuiInputTextFlags.AutoSelectAll);
         if (nameEnterPressed || ImGui.isItemDeactivatedAfterEdit()) {
             String cleanedName = UIUtils.cleanString(nameBuffer.get());
@@ -243,7 +253,7 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
             LOGGER.debug("[ContainerPropertyAdapter] 容器名称已更新: {}", container.getName());
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("对象的显示名称");
+            ImGui.setTooltip(tr(DirectorLang.Properties.AdapterContainer.NAME_TOOLTIP));
         }
 
         if (allowTypeChange) {
@@ -263,17 +273,17 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
                 typeNames[i] = availableTypes.get(i).toString();
             }
 
-            if (ImGui.combo("容器类型", selectedIdx, typeNames)) {
+            if (ImGui.combo(tr(DirectorLang.Properties.AdapterContainer.CONTAINER_TYPE), selectedIdx, typeNames)) {
                 container.setType(availableTypes.get(selectedIdx.get()));
                 modified = true;
                 LOGGER.debug("[ContainerPropertyAdapter] 容器类型已更新: {}", availableTypes.get(selectedIdx.get()).getDisplayName());
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("容器的用途分类");
+                ImGui.setTooltip(tr(DirectorLang.Properties.AdapterContainer.CONTAINER_TYPE_TOOLTIP));
             }
         } else {
             UITheme.spacingSmall();
-            UITheme.label("类型: " + container.getType().getDisplayName(), UITheme.DarkTheme.TEXT_DISABLED);
+            UITheme.label(tr(DirectorLang.Properties.AdapterContainer.TYPE_LABEL, container.getType().getDisplayName()), UITheme.DarkTheme.TEXT_DISABLED);
         }
 
         UITheme.spacingSmall();
@@ -299,23 +309,23 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
         // 使用容器状态（ContainerState）而不是旧的 visible 属性
         boolean isVisible = container.getState() == com.director.core.container.ContainerState.VISIBLE;
         ImBoolean visible = new ImBoolean(isVisible);
-        if (ImGui.checkbox("可见", visible)) {
+        if (ImGui.checkbox(tr(DirectorLang.Properties.AdapterContainer.VISIBLE), visible)) {
             container.toggleState();
             modified = true;
             LOGGER.debug("[ContainerPropertyAdapter] 容器状态已更新: {}", container.getState());
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("控制容器中的方块在 Minecraft 世界中的可见性（隐藏时方块看起来像被清除）");
+            ImGui.setTooltip(tr(DirectorLang.Properties.AdapterContainer.VISIBLE_TOOLTIP));
         }
 
         ImBoolean locked = new ImBoolean(container.isLocked());
-        if (ImGui.checkbox("锁定", locked)) {
+        if (ImGui.checkbox(tr(DirectorLang.Properties.AdapterContainer.LOCKED), locked)) {
             container.setLocked(locked.get());
             modified = true;
             LOGGER.debug("[ContainerPropertyAdapter] 锁定状态已更新: {}", locked.get());
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("锁定后禁止编辑");
+            ImGui.setTooltip(tr(DirectorLang.Properties.AdapterContainer.LOCKED_TOOLTIP));
         }
 
         return modified;
@@ -326,39 +336,39 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
         long groupCount = children.stream().filter(child -> child.getType() == ContainerType.GROUP).count();
         long containerCount = children.size() - groupCount;
 
-        UITheme.label("直接子项: " + children.size(), UITheme.DarkTheme.TEXT);
-        UITheme.label("子容器: " + containerCount, UITheme.DarkTheme.TEXT_SELECTED);
-        UITheme.label("子组: " + groupCount, UITheme.DarkTheme.TEXT);
+        UITheme.label(tr(DirectorLang.Properties.AdapterContainer.DIRECT_CHILDREN, children.size()), UITheme.DarkTheme.TEXT);
+        UITheme.label(tr(DirectorLang.Properties.AdapterContainer.CHILD_CONTAINERS, containerCount), UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.label(tr(DirectorLang.Properties.AdapterContainer.CHILD_GROUPS, groupCount), UITheme.DarkTheme.TEXT);
 
         UITheme.spacingSmall();
-        UITheme.label("后代节点总数: " + countDescendants(container), UITheme.DarkTheme.TEXT_DISABLED);
+        UITheme.label(tr(DirectorLang.Properties.AdapterContainer.DESCENDANT_COUNT, countDescendants(container)), UITheme.DarkTheme.TEXT_DISABLED);
     }
 
     private void renderHierarchySection(Container container) {
         Container parent = container.getParent();
         if (parent != null) {
-            UITheme.label("父节点: " + parent.getName(), UITheme.DarkTheme.TEXT_SELECTED);
+            UITheme.label(tr(DirectorLang.Properties.AdapterContainer.PARENT, parent.getName()), UITheme.DarkTheme.TEXT_SELECTED);
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("点击跳转到父节点（未实现）");
+                ImGui.setTooltip(tr(DirectorLang.Properties.AdapterContainer.PARENT_JUMP_TOOLTIP));
             }
         } else {
-            UITheme.label("父节点: 无（顶层）", UITheme.DarkTheme.TEXT_DISABLED);
+            UITheme.label(tr(DirectorLang.Properties.AdapterContainer.PARENT_NONE), UITheme.DarkTheme.TEXT_DISABLED);
         }
 
         UITheme.spacingSmall();
 
         List<Container> children = container.getChildren();
         if (children.isEmpty()) {
-            UITheme.label("子节点: 无", UITheme.DarkTheme.TEXT_DISABLED);
+            UITheme.label(tr(DirectorLang.Properties.AdapterContainer.CHILDREN_NONE), UITheme.DarkTheme.TEXT_DISABLED);
         } else {
-            if (ImGui.treeNode("子节点 (" + children.size() + ")")) {
+            if (ImGui.treeNode(tr(DirectorLang.Properties.AdapterContainer.CHILDREN_TREE, children.size()))) {
                 for (int i = 0; i < children.size(); i++) {
                     Container child = children.get(i);
                     ImGui.pushID(i);
                     String icon = child.getType().getIcon();
                     UITheme.label(icon + " " + child.getName(), UITheme.DarkTheme.TEXT);
                     if (ImGui.isItemHovered()) {
-                        ImGui.setTooltip(String.format("%s - %d 方块",
+                        ImGui.setTooltip(tr(DirectorLang.Properties.AdapterContainer.CHILD_TOOLTIP,
                             child.getType().getDisplayName(),
                             child.getBlockCount()));
                     }
@@ -369,22 +379,22 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
         }
 
         UITheme.spacingSmall();
-        UITheme.label("层级深度: " + container.getDepth(), UITheme.DarkTheme.TEXT_DISABLED);
+        UITheme.label(tr(DirectorLang.Properties.AdapterContainer.DEPTH, container.getDepth()), UITheme.DarkTheme.TEXT_DISABLED);
     }
 
     private void renderMetadataSection(Container container) {
         long createdTime = container.getCreatedTime();
         long modifiedTime = container.getModifiedTime();
 
-        UITheme.label("创建时间: " + DATE_FORMAT.format(new Date(createdTime)), UITheme.DarkTheme.TEXT_DISABLED);
-        UITheme.label("修改时间: " + DATE_FORMAT.format(new Date(modifiedTime)), UITheme.DarkTheme.TEXT_DISABLED);
+        UITheme.label(tr(DirectorLang.Properties.AdapterContainer.CREATED_AT, DATE_FORMAT.format(new Date(createdTime))), UITheme.DarkTheme.TEXT_DISABLED);
+        UITheme.label(tr(DirectorLang.Properties.AdapterContainer.MODIFIED_AT, DATE_FORMAT.format(new Date(modifiedTime))), UITheme.DarkTheme.TEXT_DISABLED);
 
         long ageSeconds = (System.currentTimeMillis() - createdTime) / 1000;
         long ageSinceModified = (System.currentTimeMillis() - modifiedTime) / 1000;
 
         UITheme.spacingSmall();
-        UITheme.label("存在时长: " + formatDuration(ageSeconds), UITheme.DarkTheme.TEXT_DISABLED);
-        UITheme.label("距上次修改: " + formatDuration(ageSinceModified), UITheme.DarkTheme.TEXT_DISABLED);
+        UITheme.label(tr(DirectorLang.Properties.AdapterContainer.AGE, formatDuration(ageSeconds)), UITheme.DarkTheme.TEXT_DISABLED);
+        UITheme.label(tr(DirectorLang.Properties.AdapterContainer.SINCE_MODIFIED, formatDuration(ageSinceModified)), UITheme.DarkTheme.TEXT_DISABLED);
     }
 
     private boolean renderAnimationSection(Container container) {
@@ -421,15 +431,15 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
             AnimationMode m = modes[i];
             // 旧模式提示
             if (i == 0 && m == currentMode && !java.util.List.of(baseModes).contains(m)) {
-                modeNames[i] = m.getDisplayName() + "（旧/将迁移为序列）";
+                modeNames[i] = m.getDisplayName() + tr(DirectorLang.Properties.AdapterContainer.LEGACY_MODE_SUFFIX);
             } else if (isDemolition && m == AnimationMode.ASSEMBLE) {
-                modeNames[i] = "碎片散射";
+                modeNames[i] = tr(DirectorLang.Properties.AdapterContainer.FRAGMENT_SCATTER);
             } else {
                 modeNames[i] = m.getDisplayName();
             }
         }
 
-        if (ImGui.combo("默认动画效果", selectedIdx, modeNames)) {
+        if (ImGui.combo(tr(DirectorLang.Properties.AdapterContainer.DEFAULT_ANIMATION), selectedIdx, modeNames)) {
             int idx = Math.max(0, Math.min(selectedIdx.get(), modes.length - 1));
             ContainerAnimationPreset updated = preset != null ? preset.copy() : ContainerAnimationPreset.defaultPreset();
             updated.setMode(modes[idx]);
@@ -439,8 +449,8 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(isDemolition
-                    ? "拆除容器：作为“擦除片段”的默认退出动画（方块会在退出动画结束后被清除）"
-                    : "作为新建片段初始值的默认入场动画（排序请在片段的“序列行为”里设置）");
+                    ? tr(DirectorLang.Properties.AdapterContainer.ANIMATION_DEMOLITION_TOOLTIP)
+                    : tr(DirectorLang.Properties.AdapterContainer.ANIMATION_BUILD_TOOLTIP));
         }
 
         UITheme.spacingSmall();
@@ -449,12 +459,11 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
         }
         if (!java.util.List.of(baseModes).contains(currentMode)) {
             UITheme.spacingSmall();
-            UITheme.label("提示：该模式属于旧版本的\"排序策略\"，拖到时间线后会自动迁移到「序列行为」面板。", UITheme.DarkTheme.TEXT_DISABLED);
+            UITheme.label(tr(DirectorLang.Properties.AdapterContainer.LEGACY_MODE_HINT), UITheme.DarkTheme.TEXT_DISABLED);
         }
 
-        // ===== 动画模式参数 =====
         UITheme.separator();
-        UITheme.label("动画细节参数", UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.label(tr(DirectorLang.Properties.AdapterContainer.ANIMATION_PARAMS), UITheme.DarkTheme.TEXT_SELECTED);
         
         // 确保 preset 存在
         if (preset == null) {
@@ -490,14 +499,14 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
             }
         } catch (Exception e) {
             LOGGER.error("渲染动画参数时出错: {}", e.getMessage(), e);
-            imgui.ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, "错误: " + e.getMessage());
+            imgui.ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, tr(DirectorLang.Properties.AdapterContainer.RENDER_ERROR, e.getMessage()));
         }
 
         UITheme.separator();
 
         float[] duration;
         duration = new float[]{preset.getSuggestedDuration()};
-        if (ImGui.dragFloat("建议时长", duration, 0.1f, 0.05f, 120.0f, "%.2fs")) {
+        if (ImGui.dragFloat(tr(DirectorLang.Properties.AdapterContainer.SUGGESTED_DURATION), duration, 0.1f, 0.05f, 120.0f, "%.2fs")) {
             ContainerAnimationPreset updated;
             updated = preset.copy();
             updated.setSuggestedDuration(duration[0]);
@@ -505,12 +514,12 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
             modified = true;
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("用于初始化片段长度，实际片段仍可单独调整");
+            ImGui.setTooltip(tr(DirectorLang.Properties.AdapterContainer.SUGGESTED_DURATION_TOOLTIP));
         }
 
         float[] delay;
         delay = new float[]{preset.getDelay()};
-        if (ImGui.dragFloat("默认延迟", delay, 0.05f, 0.0f, 30.0f, "%.2fs")) {
+        if (ImGui.dragFloat(tr(DirectorLang.Properties.AdapterContainer.DEFAULT_DELAY), delay, 0.05f, 0.0f, 30.0f, "%.2fs")) {
             ContainerAnimationPreset updated;
             updated = preset.copy();
             updated.setDelay(delay[0]);
@@ -519,7 +528,7 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
         }
 
         UITheme.spacingSmall();
-        UITheme.label("提示：时间线片段的设置将覆盖这里的默认值。", UITheme.DarkTheme.TEXT_DISABLED);
+        UITheme.label(tr(DirectorLang.Properties.AdapterContainer.CLIP_OVERRIDE_HINT), UITheme.DarkTheme.TEXT_DISABLED);
         return modified;
     }
 
@@ -529,10 +538,10 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
         BlockPos max = boundingBox.getMax();
         BlockPos center = container.getCenter();
 
-        UITheme.label("最小点: " + formatBlockPos(min), UITheme.DarkTheme.TEXT);
-        UITheme.label("最大点: " + formatBlockPos(max), UITheme.DarkTheme.TEXT);
+        UITheme.label(tr(DirectorLang.Properties.AdapterContainer.MIN_POINT, formatBlockPos(min)), UITheme.DarkTheme.TEXT);
+        UITheme.label(tr(DirectorLang.Properties.AdapterContainer.MAX_POINT, formatBlockPos(max)), UITheme.DarkTheme.TEXT);
         if (center != null) {
-            UITheme.label("中心点: " + formatBlockPos(center), UITheme.DarkTheme.TEXT_SELECTED);
+            UITheme.label(tr(DirectorLang.Properties.AdapterContainer.CENTER_POINT, formatBlockPos(center)), UITheme.DarkTheme.TEXT_SELECTED);
         }
 
         UITheme.spacingSmall();
@@ -541,9 +550,9 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
         int height = boundingBox.getHeight();
         int depth = boundingBox.getDepth();
 
-        UITheme.label(String.format("尺寸: %d × %d × %d", width, height, depth), UITheme.DarkTheme.TEXT_SELECTED);
+        UITheme.label(tr(DirectorLang.Properties.AdapterContainer.DIMENSIONS, width, height, depth), UITheme.DarkTheme.TEXT_SELECTED);
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("宽 × 高 × 深");
+            ImGui.setTooltip(tr(DirectorLang.Properties.AdapterContainer.DIMENSIONS_TOOLTIP));
         }
     }
 
@@ -552,63 +561,63 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
         int totalBlockCount = container.getTotalBlockCount();
         int volume = container.getBoundingBox().getVolume();
 
-        UITheme.label("方块数量: " + blockCount, UITheme.DarkTheme.TEXT);
-        UITheme.label("总方块数（含子容器）: " + totalBlockCount, UITheme.DarkTheme.TEXT);
-        UITheme.label("体积: " + volume + " 方块³", UITheme.DarkTheme.TEXT);
+        UITheme.label(tr(DirectorLang.Properties.AdapterContainer.BLOCK_COUNT, blockCount), UITheme.DarkTheme.TEXT);
+        UITheme.label(tr(DirectorLang.Properties.AdapterContainer.TOTAL_BLOCKS, totalBlockCount), UITheme.DarkTheme.TEXT);
+        UITheme.label(tr(DirectorLang.Properties.AdapterContainer.VOLUME, volume), UITheme.DarkTheme.TEXT);
 
         if (volume > 0) {
             float fillRate = (blockCount / (float) volume) * 100;
-            UITheme.label(String.format("填充率: %.1f%%", fillRate), UITheme.DarkTheme.TEXT_DISABLED);
+            UITheme.label(tr(DirectorLang.Properties.AdapterContainer.FILL_RATE, fillRate), UITheme.DarkTheme.TEXT_DISABLED);
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("实际方块数 / 包围盒体积");
+                ImGui.setTooltip(tr(DirectorLang.Properties.AdapterContainer.FILL_RATE_TOOLTIP));
             }
         }
     }
 
     private boolean renderQuickActions(Container container) {
         boolean modified = false;
-        UITheme.beginGroup("快捷操作");
+        UITheme.beginGroup(tr(DirectorLang.Properties.AdapterContainer.QUICK_ACTIONS));
 
-        if (ImGui.button("克隆容器", 100, UITheme.Spacing.BUTTON_HEIGHT)) {
+        if (ImGui.button(tr(DirectorLang.Properties.AdapterContainer.CLONE), 100, UITheme.Spacing.BUTTON_HEIGHT)) {
             Container cloned = container.clone();
             LOGGER.info("[ContainerPropertyAdapter] 克隆容器: {} -> {}", container.getName(), cloned.getName());
             // TODO: 添加到容器管理器
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("创建此容器的副本");
+            ImGui.setTooltip(tr(DirectorLang.Properties.AdapterContainer.CLONE_TOOLTIP));
         }
 
         ImGui.sameLine();
 
-        if (ImGui.button("清空方块", 100, UITheme.Spacing.BUTTON_HEIGHT)) {
+        if (ImGui.button(tr(DirectorLang.Properties.AdapterContainer.CLEAR_BLOCKS), 100, UITheme.Spacing.BUTTON_HEIGHT)) {
             container.clearBlocks();
             modified = true;
             LOGGER.info("[ContainerPropertyAdapter] 清空容器方块: {}", container.getName());
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("移除容器中的所有方块");
+            ImGui.setTooltip(tr(DirectorLang.Properties.AdapterContainer.CLEAR_BLOCKS_TOOLTIP));
         }
 
         ImGui.sameLine();
 
-        if (ImGui.button("同步到世界", 100, UITheme.Spacing.BUTTON_HEIGHT)) {
+        if (ImGui.button(tr(DirectorLang.Properties.AdapterContainer.SYNC_WORLD), 100, UITheme.Spacing.BUTTON_HEIGHT)) {
             LOGGER.info("[ContainerPropertyAdapter] 同步容器到世界: {}", container.getName());
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("将容器内容同步到 Minecraft 世界");
+            ImGui.setTooltip(tr(DirectorLang.Properties.AdapterContainer.SYNC_WORLD_TOOLTIP));
         }
 
-        if (ImGui.button("刷新统计", 100, UITheme.Spacing.BUTTON_HEIGHT)) {
+        if (ImGui.button(tr(DirectorLang.Properties.AdapterContainer.REFRESH_STATS), 100, UITheme.Spacing.BUTTON_HEIGHT)) {
             modified = true;
             LOGGER.debug("[ContainerPropertyAdapter] 刷新统计: {}", container.getName());
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("重新计算容器统计信息");
+            ImGui.setTooltip(tr(DirectorLang.Properties.AdapterContainer.REFRESH_STATS_TOOLTIP));
         }
 
         ImGui.sameLine();
 
-        if (ImGui.button("重置中心点", 100, UITheme.Spacing.BUTTON_HEIGHT)) {
+        if (ImGui.button(tr(DirectorLang.Properties.AdapterContainer.RESET_CENTER), 100, UITheme.Spacing.BUTTON_HEIGHT)) {
             if (container.getBlockCount() > 0) {
                 container.addBlocks(java.util.Collections.emptySet());
                 modified = true;
@@ -616,7 +625,7 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
             }
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("重新计算容器中心点");
+            ImGui.setTooltip(tr(DirectorLang.Properties.AdapterContainer.RESET_CENTER_TOOLTIP));
         }
 
         UITheme.endGroup();
@@ -638,7 +647,7 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
     
     @Override
     public String getAdapterName() {
-        return "容器属性编辑器";
+        return tr(DirectorLang.Properties.AdapterContainer.ADAPTER_NAME);
     }
     
     /**
@@ -653,13 +662,13 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
      */
     private String formatDuration(long seconds) {
         if (seconds < 60) {
-            return seconds + " 秒";
+            return tr(DirectorLang.Properties.AdapterContainer.DURATION_SECONDS, seconds);
         } else if (seconds < 3600) {
-            return (seconds / 60) + " 分钟";
+            return tr(DirectorLang.Properties.AdapterContainer.DURATION_MINUTES, seconds / 60);
         } else if (seconds < 86400) {
-            return (seconds / 3600) + " 小时";
+            return tr(DirectorLang.Properties.AdapterContainer.DURATION_HOURS, seconds / 3600);
         } else {
-            return (seconds / 86400) + " 天";
+            return tr(DirectorLang.Properties.AdapterContainer.DURATION_DAYS, seconds / 86400);
         }
     }
 }

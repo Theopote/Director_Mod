@@ -2,6 +2,8 @@ package com.director.ui.panels;
 
 import com.director.core.container.Container;
 import com.director.core.container.ContainerType;
+import com.director.i18n.DirectorI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.container.ContainerPanelController;
 import com.director.ui.util.UIUtils;
 import imgui.ImGui;
@@ -27,13 +29,21 @@ public class GroupPropertiesPanel {
         this.controller = controller;
     }
 
+    private static String tr(String key) {
+        return DirectorI18n.translate(key);
+    }
+
+    private static String tr(String key, Object... args) {
+        return DirectorI18n.translate(key, args);
+    }
+
     public void render(Container group) {
         if (group == null || group.getType() != ContainerType.GROUP) {
             renderEmptyState();
             return;
         }
 
-        ImGui.textColored(0.5f, 0.8f, 1.0f, 1.0f, "组属性");
+        ImGui.textColored(0.5f, 0.8f, 1.0f, 1.0f, tr(DirectorLang.Properties.EmbeddedGroup.TITLE));
         ImGui.sameLine();
         ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f,
             String.format("(ID: %s)", group.getId().toString().substring(0, 8)));
@@ -49,11 +59,11 @@ public class GroupPropertiesPanel {
     }
 
     private void renderBasicInfo(Container group) {
-        ImGui.textColored(0.8f, 0.9f, 1.0f, 1.0f, "基本信息");
+        ImGui.textColored(0.8f, 0.9f, 1.0f, 1.0f, tr(DirectorLang.Properties.EmbeddedGroup.BASIC_INFO));
 
         syncBuffersIfNeeded(group);
 
-        ImGui.inputText("组名称", nameBuffer, imgui.flag.ImGuiInputTextFlags.EnterReturnsTrue);
+        ImGui.inputText(tr(DirectorLang.Properties.EmbeddedGroup.GROUP_NAME), nameBuffer, imgui.flag.ImGuiInputTextFlags.EnterReturnsTrue);
         boolean nameEditFinished = ImGui.isItemDeactivatedAfterEdit();
         if (nameEditFinished || ImGui.isKeyPressed(imgui.flag.ImGuiKey.Enter)) {
             String newName = UIUtils.cleanString(nameBuffer.get());
@@ -62,14 +72,14 @@ public class GroupPropertiesPanel {
             }
         }
 
-        if (ImGui.inputTextMultiline("备注", descBuffer, 0, 80)) {
+        if (ImGui.inputTextMultiline(tr(DirectorLang.Properties.EmbeddedGroup.NOTES), descBuffer, 0, 80)) {
             controller.setMetadata(group.getId(), "description", UIUtils.cleanString(descBuffer.get()));
         }
 
         ImGui.spacing();
-        ImGui.textDisabled("统计：");
-        ImGui.text(String.format("  子容器: %d", group.getChildren().size()));
-        ImGui.text(String.format("  总方块: %d", group.getTotalBlockCount()));
+        ImGui.textDisabled(tr(DirectorLang.Properties.EmbeddedGroup.STATS_HEADER));
+        ImGui.text(tr(DirectorLang.Properties.EmbeddedGroup.CHILD_CONTAINERS, group.getChildren().size()));
+        ImGui.text(tr(DirectorLang.Properties.EmbeddedGroup.TOTAL_BLOCKS, group.getTotalBlockCount()));
     }
 
     private void syncBuffersIfNeeded(Container group) {
@@ -89,31 +99,31 @@ public class GroupPropertiesPanel {
     }
 
     private void renderChildrenOverview(Container group) {
-        if (!ImGui.collapsingHeader("包含的容器", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (!ImGui.collapsingHeader(tr(DirectorLang.Properties.EmbeddedGroup.INCLUDED_CONTAINERS), ImGuiTreeNodeFlags.DefaultOpen)) {
             return;
         }
         List<Container> children = group.getChildren();
         if (children.isEmpty()) {
-            ImGui.textDisabled("暂无子容器");
+            ImGui.textDisabled(tr(DirectorLang.Properties.EmbeddedGroup.NO_CHILDREN));
             return;
         }
         int limit = Math.min(children.size(), MAX_CHILDREN_VISIBLE);
         for (int i = 0; i < limit; i++) {
             Container child = children.get(i);
-            ImGui.bulletText(String.format("%s %s (%d 方块)",
+            ImGui.bulletText(tr(DirectorLang.Properties.EmbeddedGroup.CHILD_ITEM,
                 child.getType().getIcon(),
                 child.getName(),
                 child.getTotalBlockCount()));
         }
         if (children.size() > MAX_CHILDREN_VISIBLE) {
-            ImGui.textDisabled("其余 " + (children.size() - MAX_CHILDREN_VISIBLE) + " 个");
+            ImGui.textDisabled(tr(DirectorLang.Properties.EmbeddedGroup.MORE_CHILDREN,
+                children.size() - MAX_CHILDREN_VISIBLE));
         }
     }
 
     private void renderEmptyState() {
-        ImGui.textDisabled("(未选择组)");
+        ImGui.textDisabled(tr(DirectorLang.Properties.EmbeddedGroup.NO_GROUP_SELECTED));
         ImGui.spacing();
-        ImGui.textWrapped("请选择一个组以查看其属性。");
+        ImGui.textWrapped(tr(DirectorLang.Properties.EmbeddedGroup.SELECT_GROUP_HINT));
     }
 }
-
