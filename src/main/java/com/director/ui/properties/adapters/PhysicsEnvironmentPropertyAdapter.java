@@ -91,7 +91,7 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
             // ========== 重力系统 ==========
             if (ImGui.collapsingHeader("🌍 重力系统", ImGuiTreeNodeFlags.DefaultOpen)) {
                 // 重力向量（使用 Vector3fPropertyAdapter）
-                Object gravity = getObjectProperty(physics, "gravity", "getGravity");
+                Object gravity = PropertyReflection.readProperty(physics, "gravity", "getGravity");
                 if (gravity != null) {
                     var gravityAdapter = PropertyAdapterRegistry.getAdapterFor(gravity);
                     if (gravityAdapter != null) {
@@ -124,7 +124,7 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
             // ========== 风场系统 ==========
             if (ImGui.collapsingHeader("🌪️ 风场系统")) {
                 // 风向量（使用 Vector3fPropertyAdapter）
-                Object wind = getObjectProperty(physics, "wind", "getWind");
+                Object wind = PropertyReflection.readProperty(physics, "wind", "getWind");
                 if (wind != null) {
                     var windAdapter = PropertyAdapterRegistry.getAdapterFor(wind);
                     if (windAdapter != null) {
@@ -265,7 +265,7 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
             UITheme.beginGroup("快捷操作");
             
             if (ImGui.button(Icons.REFRESH + " 重置为默认", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
-                if (PropertyReflection.invokeVoid(physics)) {
+                if (PropertyReflection.invokeVoid(physics, "resetToDefault")) {
                     modifiedRef[0] = true;
                     LOGGER.info("[PhysicsEnvironmentPropertyAdapter] 物理环境已重置");
                 }
@@ -317,7 +317,7 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
         float[] preset = GRAVITY_PRESETS[presetIndex];
         
         // 尝试获取 gravity 对象并设置
-        Object gravity = getObjectProperty(physics, "gravity", "getGravity");
+        Object gravity = PropertyReflection.readProperty(physics, "gravity", "getGravity");
         if (gravity != null) {
             try {
                 // 尝试调用 set(x, y, z) 方法
@@ -328,7 +328,6 @@ public class PhysicsEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
             }
         }
     }
-
     @Override
     public Class<Object> getTargetType() {
         return Object.class;

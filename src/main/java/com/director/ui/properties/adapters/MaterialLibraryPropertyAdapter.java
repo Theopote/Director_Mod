@@ -77,7 +77,7 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
             // ========== 材质列表 ==========
             if (ImGui.collapsingHeader("📋 材质列表", ImGuiTreeNodeFlags.DefaultOpen)) {
                 // 获取材质列表
-                Object materialsObj = PropertyReflection.readProperty(library, \"materials\", \"getMaterials\");
+                Object materialsObj = PropertyReflection.readProperty(library, "materials", "getMaterials");
                 
                 if (materialsObj instanceof List<?>) {
                     @SuppressWarnings("unchecked")
@@ -144,7 +144,7 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
             }
             
             // ========== 材质属性（选中时显示）==========
-            Object materialsObj2 = PropertyReflection.readProperty(library, \"materials\", \"getMaterials\");
+            Object materialsObj2 = PropertyReflection.readProperty(library, "materials", "getMaterials");
             if (materialsObj2 instanceof List<?>) {
                 @SuppressWarnings("unchecked")
                 List<Object> materials = (List<Object>) materialsObj2;
@@ -271,7 +271,7 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
             
             // ========== 统计信息 ==========
             if (ImGui.collapsingHeader("📊 统计信息")) {
-                Object materialsObj = PropertyReflection.readProperty(library, \"materials\", \"getMaterials\");
+                Object materialsObj = PropertyReflection.readProperty(library, "materials", "getMaterials");
                 int materialCount = 0;
                 
                 if (materialsObj instanceof List<?>) {
@@ -353,7 +353,6 @@ public class MaterialLibraryPropertyAdapter implements IPropertyAdapter<Object> 
         
         return modifiedRef[0];
     }
-
     @Override
     public Class<Object> getTargetType() {
         return Object.class;

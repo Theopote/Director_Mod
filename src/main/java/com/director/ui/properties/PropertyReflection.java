@@ -82,6 +82,17 @@ public final class PropertyReflection {
         return writeProperty(obj, fieldName, setterName, new Class<?>[]{float[].class}, new Object[]{value});
     }
 
+    public static long getLong(Object obj, String fieldName, String getterName, long defaultValue) {
+        Object result = readProperty(obj, fieldName, getterName);
+        if (result instanceof Long l) {
+            return l;
+        }
+        if (result instanceof Integer i) {
+            return i.longValue();
+        }
+        return defaultValue;
+    }
+
     public static boolean invokeVoid(Object obj, String methodName) {
         try {
             Method method = obj.getClass().getMethod(methodName);
@@ -149,7 +160,7 @@ public final class PropertyReflection {
             Method method = obj.getClass().getMethod(setterName, paramTypes);
             method.invoke(obj, args);
             return true;
-        } catch (NoSuchMethodException ignored) {
+        } catch (NoSuchMethodException unused) {
             // fall through to field
         } catch (InvocationTargetException e) {
             throwUnchecked(e);

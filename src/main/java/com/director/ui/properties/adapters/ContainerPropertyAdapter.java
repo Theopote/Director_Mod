@@ -394,11 +394,7 @@ public class ContainerPropertyAdapter implements IPropertyAdapter<Container> {
 
         // ✅ 统一语义：容器预设只提供“单块动画(How)”，排序/切片/随机等属于片段的“序列行为(Who comes first)”
         // 拆除容器（DEMOLITION）默认用于擦除轨道：更合理只暴露 EXIT 类动画。
-        boolean isDemolition = false;
-        try {
-            isDemolition = container.getType() == ContainerType.DEMOLITION;
-        } catch (Exception ignored) {
-        }
+        boolean isDemolition = container.getType() == ContainerType.DEMOLITION;
 
         AnimationMode[] baseModes = isDemolition
                 ? new AnimationMode[]{AnimationMode.INSTANT, AnimationMode.FADE_OUT, AnimationMode.EXPLODE, AnimationMode.IMPLODE, AnimationMode.SHRINK_OUT, AnimationMode.GRAVITY_FALL, AnimationMode.FLY_OUT}

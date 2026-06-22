@@ -355,7 +355,7 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
             UITheme.beginGroup("快捷操作");
             
             if (ImGui.button(Icons.REFRESH + " 重置为默认", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
-                if (PropertyReflection.invokeVoid(env)) {
+                if (PropertyReflection.invokeVoid(env, "resetToDefault")) {
                     modifiedRef[0] = true;
                     LOGGER.info("[ProjectEnvironmentPropertyAdapter] 环境已重置为默认值");
                 }
@@ -446,7 +446,6 @@ public class ProjectEnvironmentPropertyAdapter implements IPropertyAdapter<Objec
             }
         }
     }
-
     @Override
     public Class<Object> getTargetType() {
         return Object.class;

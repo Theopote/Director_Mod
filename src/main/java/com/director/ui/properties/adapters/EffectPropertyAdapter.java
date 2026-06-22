@@ -93,7 +93,7 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
                 String currentName = PropertyReflection.getString(effect, "name", "getName", "未命名特效");
                 ImString nameBuffer = new ImString(currentName, 256);
                 if (ImGui.inputText("特效名称", nameBuffer, ImGuiInputTextFlags.EnterReturnsTrue)) {
-                    if (PropertyReflection.setString(effect, nameBuffer.get())) {
+                    if (PropertyReflection.setString(effect, "name", "setName", nameBuffer.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[EffectPropertyAdapter] 特效名称已更新: {}", nameBuffer.get());
                     }
@@ -188,7 +188,7 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
             // ========== 通用参数 ==========
             if (ImGui.collapsingHeader("🎨 通用参数")) {
                 // 位置偏移（尝试使用 Vector3fPropertyAdapter）
-                Object offset = getObjectProperty(effect, "offset", "getOffset");
+                Object offset = PropertyReflection.readProperty(effect, "offset", "getOffset");
                 if (offset != null) {
                     var vector3fAdapter = PropertyAdapterRegistry.getAdapterFor(offset);
                     if (vector3fAdapter != null) {
@@ -202,7 +202,7 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
                 UITheme.spacingSmall();
                 
                 // 颜色（尝试使用 ColorPropertyAdapter）
-                Object color = getObjectProperty(effect, "color", "getColor");
+                Object color = PropertyReflection.readProperty(effect, "color", "getColor");
                 if (color != null) {
                     var colorAdapter = PropertyAdapterRegistry.getAdapterFor(color);
                     if (colorAdapter != null) {
@@ -213,10 +213,10 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
                     }
                 } else {
                     // 尝试 float[] colorRGBA
-                    float[] colorRGBA = PropertyReflection.getFloatArray(effect);
+                    float[] colorRGBA = PropertyReflection.getFloatArray(effect, "color", "getColor");
                     if (colorRGBA != null && colorRGBA.length >= 4) {
                         if (ImGui.colorEdit4("特效颜色 (RGBA)", colorRGBA)) {
-                            if (PropertyReflection.setFloatArray(effect, colorRGBA)) {
+                            if (PropertyReflection.setFloatArray(effect, "color", "setColor", colorRGBA)) {
                                 modifiedRef[0] = true;
                                 LOGGER.debug("[EffectPropertyAdapter] 颜色已更新");
                             }
@@ -465,7 +465,6 @@ public class EffectPropertyAdapter implements IPropertyAdapter<Object> {
             UITheme.label("（待实现）", UITheme.DarkTheme.TEXT_DISABLED);
         }
     }
-
     @Override
     public Class<Object> getTargetType() {
         // 使用 Object 以支持各种特效类型

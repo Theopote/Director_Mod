@@ -171,7 +171,7 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                 float currentFPS = PropertyReflection.getFloat(project, "frameRate", "getFrameRate", 30.0f);
                 float[] fps = {currentFPS};
                 if (ImGui.dragFloat("帧率 (FPS)", fps, 1.0f, 1.0f, 240.0f, "%.0f")) {
-                    if (PropertyReflection.setFloat(project, fps[0])) {
+                    if (PropertyReflection.setFloat(project, "fps", "setFps", fps[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineProjectPropertyAdapter] 帧率已更新: {}", fps[0]);
                     }
@@ -181,7 +181,7 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                 }
                 
                 // 时间单位
-                int currentTimeUnit = PropertyReflection.getInt(project, "timeUnit", "getTimeUnit");
+                int currentTimeUnit = PropertyReflection.getInt(project, "timeUnit", "getTimeUnit", 0);
                 ImInt timeUnitIdx = new ImInt(currentTimeUnit);
                 if (ImGui.combo("时间单位", timeUnitIdx, TIME_UNITS)) {
                     if (PropertyReflection.setInt(project, "timeUnit", "setTimeUnit", timeUnitIdx.get())) {
@@ -224,7 +224,7 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
             // ========== 序列管理 ==========
             if (ImGui.collapsingHeader("📜 序列管理", ImGuiTreeNodeFlags.DefaultOpen)) {
                 // 获取序列列表
-                Object sequencesObj = getObjectProperty(project, "sequences", "getSequences");
+                Object sequencesObj = PropertyReflection.readProperty(project, "sequences", "getSequences");
                 
                 if (sequencesObj instanceof List<?>) {
                     @SuppressWarnings("unchecked")
@@ -253,7 +253,7 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                                     UITheme.DarkTheme.TEXT);
                                 
                                 // 获取轨道数量
-                                Object tracksObj = getObjectProperty(seq, "tracks", "getTracks");
+                                Object tracksObj = PropertyReflection.readProperty(seq, "tracks", "getTracks");
                                 int trackCount = 0;
                                 if (tracksObj instanceof List<?>) {
                                     trackCount = ((List<?>) tracksObj).size();
@@ -334,7 +334,7 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
             // ========== 导出设置 ==========
             if (ImGui.collapsingHeader("📦 导出设置")) {
                 // 导出格式
-                int currentFormat = PropertyReflection.getInt(project, "exportFormat", "getExportFormat");
+                int currentFormat = PropertyReflection.getInt(project, "exportFormat", "getExportFormat", 0);
                 ImInt formatIdx = new ImInt(currentFormat);
                 if (ImGui.combo("导出格式", formatIdx, EXPORT_FORMATS)) {
                     if (PropertyReflection.setInt(project, "exportFormat", "setExportFormat", formatIdx.get())) {
@@ -401,7 +401,7 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
             // ========== 统计信息 ==========
             if (ImGui.collapsingHeader("📊 统计信息")) {
                 // 序列统计
-                Object sequencesObj = getObjectProperty(project, "sequences", "getSequences");
+                Object sequencesObj = PropertyReflection.readProperty(project, "sequences", "getSequences");
                 int sequenceCount = 0;
                 int totalTracks = 0;
                 int totalKeyframes = 0;
@@ -413,7 +413,7 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                     
                     // 统计总轨道数和关键帧数
                     for (Object seq : sequences) {
-                        Object tracksObj = getObjectProperty(seq, "tracks", "getTracks");
+                        Object tracksObj = PropertyReflection.readProperty(seq, "tracks", "getTracks");
                         if (tracksObj instanceof List<?>) {
                             @SuppressWarnings("unchecked")
                             List<Object> tracks = (List<Object>) tracksObj;
@@ -421,7 +421,7 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                             
                             // 统计关键帧
                             for (Object track : tracks) {
-                                int count = PropertyReflection.getInt(track, "keyframeCount", "getKeyframeCount");
+                                int count = PropertyReflection.getInt(track, "keyframeCount", "getKeyframeCount", 0);
                                 totalKeyframes += count;
                             }
                         }
@@ -438,14 +438,14 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
                 UITheme.label("项目路径: " + projectPath, UITheme.DarkTheme.TEXT_DISABLED);
                 
                 // 创建时间
-                long createdTime = getLongProperty(project, "createdTime", "getCreatedTime");
+                long createdTime = PropertyReflection.getLong(project, "createdTime", "getCreatedTime", 0L);
                 if (createdTime > 0) {
                     UITheme.label("创建时间: " + DATE_FORMAT.format(new Date(createdTime)), 
                         UITheme.DarkTheme.TEXT_DISABLED);
                 }
                 
                 // 修改时间
-                long modifiedTime = getLongProperty(project, "modifiedTime", "getModifiedTime");
+                long modifiedTime = PropertyReflection.getLong(project, "modifiedTime", "getModifiedTime", 0L);
                 if (modifiedTime > 0) {
                     UITheme.label("修改时间: " + DATE_FORMAT.format(new Date(modifiedTime)), 
                         UITheme.DarkTheme.TEXT_DISABLED);
@@ -532,7 +532,6 @@ public class TimelineProjectPropertyAdapter implements IPropertyAdapter<Object> 
         
         return modifiedRef[0];
     }
-
     @Override
     public Class<Object> getTargetType() {
         // 使用 Object 以支持各种项目类型

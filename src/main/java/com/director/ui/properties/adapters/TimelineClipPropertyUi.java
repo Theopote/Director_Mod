@@ -890,12 +890,9 @@ public class TimelineClipPropertyUi {
                     : "对齐到摄像机视线（远" + Icons.ARROW_RIGHT + "近）";
             if (ImGui.button(cameraButtonLabel)) {
                 Vec3d dir = null;
-                try {
-                    MinecraftClient client = MinecraftClient.getInstance();
-                    if (client != null && client.player != null) {
-                        dir = client.player.getRotationVec(1.0f);
-                    }
-                } catch (Exception ignored) {
+                MinecraftClient client = MinecraftClient.getInstance();
+                if (client != null && client.player != null) {
+                    dir = client.player.getRotationVec(1.0f);
                 }
 
                 if (dir != null && dir.lengthSquared() > 1.0e-6) {
@@ -1160,34 +1157,28 @@ public class TimelineClipPropertyUi {
     static String @NotNull [] getStrings(SequenceParameters params) {
         String axisU = "U";
         String axisV = "V";
-        try {
-            if (params.getFlowType() == FlowType.PLANAR) {
-                // 这里用与 SequenceEvaluator 一致的“是否轴对齐”判断阈值
-                float yawDeg = params.getPlaneYaw();
-                float pitchDeg = params.getPlanePitch();
-                double yaw = Math.toRadians(yawDeg);
-                double pitch = Math.toRadians(pitchDeg);
-                double ny = Math.sin(pitch);
-                double horiz = Math.cos(pitch);
-                double nx = horiz * Math.sin(yaw);
-                double nz = horiz * Math.cos(yaw);
-                double ax = Math.abs(nx), ay = Math.abs(ny), az = Math.abs(nz);
+        if (params.getFlowType() == FlowType.PLANAR) {
+            // 这里用与 SequenceEvaluator 一致的“是否轴对齐”判断阈值
+            float yawDeg = params.getPlaneYaw();
+            float pitchDeg = params.getPlanePitch();
+            double yaw = Math.toRadians(yawDeg);
+            double pitch = Math.toRadians(pitchDeg);
+            double ny = Math.sin(pitch);
+            double horiz = Math.cos(pitch);
+            double nx = horiz * Math.sin(yaw);
+            double nz = horiz * Math.cos(yaw);
+            double ax = Math.abs(nx), ay = Math.abs(ny), az = Math.abs(nz);
 
-                if (az > 0.999) {
-                    // XY 层
-                    axisU = "X";
-                    axisV = "Y";
-                } else if (ay > 0.999) {
-                    // XZ 层
-                    axisU = "X";
-                    axisV = "Z";
-                } else if (ax > 0.999) {
-                    // YZ 层
-                    axisU = "Y";
-                    axisV = "Z";
-                }
+            if (az > 0.999) {
+                axisU = "X";
+                axisV = "Y";
+            } else if (ay > 0.999) {
+                axisU = "X";
+                axisV = "Z";
+            } else if (ax > 0.999) {
+                axisU = "Y";
+                axisV = "Z";
             }
-        } catch (Exception ignored) {
         }
 
         return new String[] {

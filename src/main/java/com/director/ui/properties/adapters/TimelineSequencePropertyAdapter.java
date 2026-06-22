@@ -96,7 +96,7 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
                 String currentName = PropertyReflection.getString(sequence, "name", "getName", "未命名序列");
                 ImString nameBuffer = new ImString(currentName, 256);
                 if (ImGui.inputText("序列名称", nameBuffer, ImGuiInputTextFlags.EnterReturnsTrue)) {
-                    if (PropertyReflection.setString(sequence, nameBuffer.get())) {
+                    if (PropertyReflection.setString(sequence, "name", "setName", nameBuffer.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineSequencePropertyAdapter] 序列名称已更新: {}", nameBuffer.get());
                     }
@@ -145,7 +145,7 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
                 boolean currentLoop = PropertyReflection.getBoolean(sequence, "loop", "isLoop", false);
                 ImBoolean loop = new ImBoolean(currentLoop);
                 if (ImGui.checkbox("循环播放", loop)) {
-                    if (PropertyReflection.setBoolean(sequence, loop.get())) {
+                    if (PropertyReflection.setBoolean(sequence, "loop", "setLoop", loop.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineSequencePropertyAdapter] 循环播放已更新: {}", loop.get());
                     }
@@ -155,7 +155,7 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
                 }
                 
                 // 播放模式（如果支持）
-                int currentPlayMode = PropertyReflection.getInt(sequence, "playMode", "getPlayMode");
+                int currentPlayMode = PropertyReflection.getInt(sequence, "playMode", "getPlayMode", 0);
                 if (currentPlayMode >= 0) {
                     imgui.type.ImInt playModeIdx = new imgui.type.ImInt(currentPlayMode);
                     if (ImGui.combo("播放模式", playModeIdx, PLAY_MODES)) {
@@ -186,7 +186,7 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
             // ========== 轨道管理 ==========
             if (ImGui.collapsingHeader(Icons.FILM + " 轨道管理", ImGuiTreeNodeFlags.DefaultOpen)) {
                 // 获取轨道列表
-                Object tracksObj = PropertyReflection.readProperty(sequence, \"materials\", \"getMaterials\");
+                Object tracksObj = PropertyReflection.readProperty(sequence, "tracks", "getTracks");
                 
                 if (tracksObj instanceof List<?>) {
                     @SuppressWarnings("unchecked")
@@ -216,7 +216,7 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
                                 UITheme.label(String.format("权重: %.0f%%", trackWeight * 100), 
                                     UITheme.DarkTheme.TEXT);
                                 
-                                int keyframeCount = PropertyReflection.getInt(track, "keyframeCount", "getKeyframeCount");
+                                int keyframeCount = PropertyReflection.getInt(track, "keyframeCount", "getKeyframeCount", 0);
                                 UITheme.label("关键帧: " + keyframeCount, UITheme.DarkTheme.TEXT);
                                 
                                 UITheme.spacingSmall();
@@ -287,7 +287,7 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
             // ========== 统计信息 ==========
             if (ImGui.collapsingHeader("📊 统计信息")) {
                 // 轨道统计
-                Object tracksObj = PropertyReflection.readProperty(sequence, \"materials\", \"getMaterials\");
+                Object tracksObj = PropertyReflection.readProperty(sequence, "tracks", "getTracks");
                 int trackCount = 0;
                 int totalKeyframes = 0;
                 
@@ -298,7 +298,7 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
                     
                     // 统计总关键帧数
                     for (Object track : tracks) {
-                        int count = PropertyReflection.getInt(track, "keyframeCount", "getKeyframeCount");
+                        int count = PropertyReflection.getInt(track, "keyframeCount", "getKeyframeCount", 0);
                         totalKeyframes += count;
                     }
                 }
@@ -393,7 +393,6 @@ public class TimelineSequencePropertyAdapter implements IPropertyAdapter<Object>
         
         return modifiedRef[0];
     }
-
     @Override
     public Class<Object> getTargetType() {
         // 使用 Object 以支持各种序列类型

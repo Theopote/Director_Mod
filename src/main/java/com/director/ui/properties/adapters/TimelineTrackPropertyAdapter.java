@@ -189,7 +189,7 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
             if (ImGui.collapsingHeader("🎨 混合与权重", ImGuiTreeNodeFlags.DefaultOpen)) {
                 ImGui.indent();
                 // 混合模式
-                int currentBlendMode = PropertyReflection.getInt(track, "blendMode", "getBlendMode");
+                int currentBlendMode = PropertyReflection.getInt(track, "blendMode", "getBlendMode", 0);
                 ImInt blendModeIdx = new ImInt(currentBlendMode);
                 if (ImGui.combo("混合模式", blendModeIdx, BLEND_MODES)) {
                     if (PropertyReflection.setInt(track, "blendMode", "setBlendMode", blendModeIdx.get())) {
@@ -240,7 +240,7 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
             if (ImGui.collapsingHeader("⏱ 对齐与范围", ImGuiTreeNodeFlags.DefaultOpen)) {
                 ImGui.indent();
                 // 对齐模式
-                int currentAlignment = PropertyReflection.getInt(track, "alignmentMode", "getAlignmentMode");
+                int currentAlignment = PropertyReflection.getInt(track, "alignmentMode", "getAlignmentMode", 0);
                 ImInt alignmentIdx = new ImInt(currentAlignment);
                 if (ImGui.combo("对齐模式", alignmentIdx, ALIGNMENT_MODES)) {
                     if (PropertyReflection.setInt(track, "alignmentMode", "setAlignmentMode", alignmentIdx.get())) {
@@ -292,13 +292,13 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
             if (ImGui.collapsingHeader("👁 可视化参数")) {
                 ImGui.indent();
                 // 轨道颜色
-                float[] colorRGBA = PropertyReflection.getFloatArray(track);
+                float[] colorRGBA = PropertyReflection.getFloatArray(track, "color", "getColor");
                 if (colorRGBA == null || colorRGBA.length < 4) {
                     colorRGBA = new float[]{0.4f, 0.8f, 1.0f, 1.0f};
                 }
                 
                 if (ImGui.colorEdit4("轨道颜色", colorRGBA)) {
-                    if (PropertyReflection.setFloatArray(track, colorRGBA)) {
+                    if (PropertyReflection.setFloatArray(track, "color", "setColor", colorRGBA)) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[TimelineTrackPropertyAdapter] 轨道颜色已更新");
                     }
@@ -310,7 +310,7 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
                 UITheme.spacingSmall();
                 
                 // 可视化偏移（使用 Vector3fPropertyAdapter）
-                Object visualOffset = PropertyReflection.readProperty(track, \"materials\", \"getMaterials\");
+                Object visualOffset = PropertyReflection.readProperty(track, "visualOffset", "getVisualOffset");
                 if (visualOffset != null) {
                     var vector3fAdapter = PropertyAdapterRegistry.getAdapterFor(visualOffset);
                     if (vector3fAdapter != null) {
@@ -327,10 +327,10 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
             if (ImGui.collapsingHeader("📊 统计信息")) {
                 ImGui.indent();
                 // 关键帧统计
-                int keyframeCount = PropertyReflection.getInt(track, "keyframeCount", "getKeyframeCount");
+                int keyframeCount = PropertyReflection.getInt(track, "keyframeCount", "getKeyframeCount", 0);
                 UITheme.label("关键帧总数: " + keyframeCount, UITheme.DarkTheme.TEXT);
                 
-                int enabledCount = PropertyReflection.getInt(track, "enabledKeyframeCount", "countEnabledKeyframes");
+                int enabledCount = PropertyReflection.getInt(track, "enabledKeyframeCount", "countEnabledKeyframes", 0);
                 UITheme.label("已启用关键帧: " + enabledCount, UITheme.DarkTheme.TEXT);
                 
                 // 持续时间统计
@@ -480,7 +480,6 @@ public class TimelineTrackPropertyAdapter implements IPropertyAdapter<Object> {
         }
         return false;
     }
-
     @Override
     public Class<Object> getTargetType() {
         // 使用 Object 以支持各种轨道类型

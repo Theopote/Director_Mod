@@ -654,15 +654,9 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
         
         if (justPressed) {
             // 获取射线命中结果
-            BlockHitResult hit = null;
-            try {
-                // 优先使用 DirectorInputSystem 的缓存射线
-                hit = com.director.client.input.DirectorInputSystem.getCurrentRay();
-            } catch (Throwable ignored) {
-                // 如果获取失败，使用 crosshairTarget
-                if (client.crosshairTarget instanceof BlockHitResult) {
-                    hit = (BlockHitResult) client.crosshairTarget;
-                }
+            BlockHitResult hit = com.director.client.input.DirectorInputSystem.getCurrentRay();
+            if (hit == null && client.crosshairTarget instanceof BlockHitResult crosshairHit) {
+                hit = crosshairHit;
             }
             
             if (hit != null && hit.getType() == HitResult.Type.BLOCK) {

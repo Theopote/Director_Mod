@@ -74,7 +74,7 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
             if (ImGui.collapsingHeader("📍 位置与旋转", ImGuiTreeNodeFlags.DefaultOpen)) {
                 ImGui.indent();
                 // 位置（使用 Vector3fPropertyAdapter）
-                Object position = getObjectProperty(camera, "position", "getPosition");
+                Object position = PropertyReflection.readProperty(camera, "position", "getPosition");
                 if (position != null) {
                     var posAdapter = PropertyAdapterRegistry.getAdapterFor(position);
                     if (posAdapter != null) {
@@ -88,7 +88,7 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
                 UITheme.spacingSmall();
                 
                 // 旋转（使用 Vector3fPropertyAdapter）
-                Object rotation = getObjectProperty(camera, "rotation", "getRotation");
+                Object rotation = PropertyReflection.readProperty(camera, "rotation", "getRotation");
                 if (rotation != null) {
                     var rotAdapter = PropertyAdapterRegistry.getAdapterFor(rotation);
                     if (rotAdapter != null) {
@@ -316,7 +316,6 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
         
         return modifiedRef[0];
     }
-
     @Override
     public Class<Object> getTargetType() {
         return Object.class;

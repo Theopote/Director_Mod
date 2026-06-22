@@ -7,11 +7,13 @@ import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.audio.AudioEvent;
 import net.minecraft.block.BlockState;
 import net.minecraft.util.math.BlockPos;
+import com.director.util.ParseUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 动画声音收集器
@@ -79,11 +81,8 @@ public class AnimationSoundCollector {
 
         float animDuration = Math.max(0.05f, Math.min(config.getDuration(), clipDuration));
         float totalDelay = Math.max(0.0f, config.getDelay());
-        try {
-            if (config.getSequenceParameters() != null) {
-                totalDelay += Math.max(0.0f, config.getSequenceParameters().getGlobalDelay());
-            }
-        } catch (Exception ignored) {
+        if (config.getSequenceParameters() != null) {
+            totalDelay += Math.max(0.0f, config.getSequenceParameters().getGlobalDelay());
         }
 
         float baseSpan = clipDuration - animDuration - totalDelay;
@@ -93,37 +92,13 @@ public class AnimationSoundCollector {
         boolean isExit = config.getPhase() == ClipAnimationConfig.AnimationPhase.EXIT;
         boolean isInstant = config.getMode() == com.director.core.container.AnimationMode.INSTANT;
 
-        // 音效偏移（秒）：允许用户在音频片段属性面板中做“更符合现实”的微调
-        float enterSoundOffsetSeconds = 0.0f;
-        float exitSoundOffsetSeconds = 0.0f;
-        try {
-            Object v = config.getParams().get("enterSoundOffsetSeconds");
-            if (v instanceof Number n) enterSoundOffsetSeconds = n.floatValue();
-            else if (v != null) enterSoundOffsetSeconds = Float.parseFloat(v.toString());
-        } catch (Exception ignored) {}
-        try {
-            Object v = config.getParams().get("exitSoundOffsetSeconds");
-            if (v instanceof Number n) exitSoundOffsetSeconds = n.floatValue();
-            else if (v != null) exitSoundOffsetSeconds = Float.parseFloat(v.toString());
-        } catch (Exception ignored) {}
+        var params = config.getParams();
+        float enterSoundOffsetSeconds = ParseUtils.asFloat(
+                params != null ? params.get("enterSoundOffsetSeconds") : null, 0.0f, "enterSoundOffsetSeconds");
+        float exitSoundOffsetSeconds = ParseUtils.asFloat(
+                params != null ? params.get("exitSoundOffsetSeconds") : null, 0.0f, "exitSoundOffsetSeconds");
 
-        // ENTER 音效触发时机：
-        // - START    : 动画开始
-        // - IMPACT   : 第一次到达目标位置（对某些弹性曲线可能过早）
-        // - PRE_LAND : 在落地/归位前一帧触发（更贴近“看到真方块落地前那一下”）
-        // - END      : 动画完全结束（归位/回弹结束）
-        //
-        // 默认使用 END：与 TimelineClipBlockController 的“真实方块落地/出现在目标格（worldBlocks）”严格对齐。
-        // 这能避免：方块还没出现，音频已经提前出现；或方块已落地很久音频仍未出现。
-        // 如果希望“动画过程中第一次到达目标位置就响”，可设置 enterSoundTiming=IMPACT。
-        String enterTiming = null;
-        try {
-            Object t = config.getParams().get("enterSoundTiming");
-            if (t != null) enterTiming = t.toString();
-        } catch (Exception ignored) {}
-        if (enterTiming == null || enterTiming.isBlank()) {
-            enterTiming = "END";
-        }
+        String enterTiming = soundTimingParam(params, "enterSoundTiming");
 
         float impactT = 1.0f;
         if (!isExit && !isInstant && "IMPACT".equalsIgnoreCase(enterTiming)) {
@@ -131,19 +106,7 @@ public class AnimationSoundCollector {
             impactT = findFirstReachOne(config.getEasing());
         }
 
-        // EXIT 音效触发时机：与 ENTER 保持同样的参数语义，参数名为 exitSoundTiming
-        // - START    : 动画开始
-        // - IMPACT   : 第一次到达 1.0（多数曲线等价于 END）
-        // - PRE_LAND : 在结束前一帧触发（更“提前一点点”的破坏感）
-        // - END      : 动画结束（默认推荐：与真实方块从世界移除对齐）
-        String exitTiming = null;
-        try {
-            Object t = config.getParams().get("exitSoundTiming");
-            if (t != null) exitTiming = t.toString();
-        } catch (Exception ignored) {}
-        if (exitTiming == null || exitTiming.isBlank()) {
-            exitTiming = "END";
-        }
+        String exitTiming = soundTimingParam(params, "exitSoundTiming");
         float exitImpactT = 1.0f;
         if (isExit && !isInstant && "IMPACT".equalsIgnoreCase(exitTiming)) {
             exitImpactT = findFirstReachOne(config.getEasing());
@@ -252,23 +215,14 @@ public class AnimationSoundCollector {
      * 对于不 overshoot 的曲线，结果为 1。
      */
     private float findFirstReachOne(String easingName) {
-        EasingFunction easing = EasingFunction.LINEAR;
-        try {
-            easing = EasingFunction.fromString(easingName);
-        } catch (Exception ignored) {
-        }
+        EasingFunction easing = EasingFunction.fromString(easingName);
 
         // 轻量扫描：步数越大越精确，但也更耗；这里足够用
         final int steps = 200;
         final float threshold = 0.9995f;
         for (int i = 0; i <= steps; i++) {
             float t = i / (float) steps;
-            float v;
-            try {
-                v = easing.apply(t);
-            } catch (Exception e) {
-                return 1.0f;
-            }
+            float v = easing.apply(t);
             if (v >= threshold) {
                 return t;
             }
@@ -300,7 +254,7 @@ public class AnimationSoundCollector {
             if (client != null && client.world != null) {
                 return client.world.getBlockState(pos);
             }
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             LOGGER.warn("[AnimationSoundCollector] 无法从世界获取方块状态: {}", e.getMessage());
         }
         
@@ -360,5 +314,17 @@ public class AnimationSoundCollector {
         } else {
             return "minecraft:block.stone.break";
         }
+    }
+
+    private static String soundTimingParam(Map<String, Object> params, String key) {
+        if (params == null) {
+            return "END";
+        }
+        Object value = params.get(key);
+        if (value == null) {
+            return "END";
+        }
+        String text = value.toString();
+        return text.isBlank() ? "END" : text;
     }
 }

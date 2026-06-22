@@ -84,7 +84,7 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
             // ========== Bloom 泛光 ==========
             if (ImGui.collapsingHeader("🌟 Bloom 泛光", ImGuiTreeNodeFlags.DefaultOpen)) {
                 // 启用 Bloom
-                boolean currentBloom = PropertyReflection.getBoolean(profile, "bloomEnabled", "isBloomEnabled");
+                boolean currentBloom = PropertyReflection.getBoolean(profile, "bloomEnabled", "isBloomEnabled", false);
                 ImBoolean enableBloom = new ImBoolean(currentBloom);
                 if (ImGui.checkbox("启用 Bloom", enableBloom)) {
                     if (PropertyReflection.setBoolean(profile, "bloomEnabled", "setBloomEnabled", enableBloom.get())) {
@@ -125,7 +125,7 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
             // ========== 景深 DOF ==========
             if (ImGui.collapsingHeader("📷 景深 (Depth of Field)")) {
                 // 启用景深
-                boolean currentDOF = PropertyReflection.getBoolean(profile, "depthOfField", "isDepthOfField");
+                boolean currentDOF = PropertyReflection.getBoolean(profile, "depthOfField", "isDepthOfField", false);
                 ImBoolean enableDOF = new ImBoolean(currentDOF);
                 if (ImGui.checkbox("启用景深", enableDOF)) {
                     if (PropertyReflection.setBoolean(profile, "depthOfField", "setDepthOfField", enableDOF.get())) {
@@ -207,7 +207,7 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
             // ========== 屏幕空间效果 ==========
             if (ImGui.collapsingHeader("✨ 屏幕空间效果")) {
                 // SSAO
-                boolean currentSSAO = PropertyReflection.getBoolean(profile, "ssaoEnabled", "isSSAOEnabled");
+                boolean currentSSAO = PropertyReflection.getBoolean(profile, "ssaoEnabled", "isSSAOEnabled", false);
                 ImBoolean enableSSAO = new ImBoolean(currentSSAO);
                 if (ImGui.checkbox("SSAO（环境光遮蔽）", enableSSAO)) {
                     if (PropertyReflection.setBoolean(profile, "ssaoEnabled", "setSSAOEnabled", enableSSAO.get())) {
@@ -216,7 +216,7 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
                 }
                 
                 // SSR
-                boolean currentSSR = PropertyReflection.getBoolean(profile, "ssrEnabled", "isSSREnabled");
+                boolean currentSSR = PropertyReflection.getBoolean(profile, "ssrEnabled", "isSSREnabled", false);
                 ImBoolean enableSSR = new ImBoolean(currentSSR);
                 if (ImGui.checkbox("SSR（屏幕空间反射）", enableSSR)) {
                     if (PropertyReflection.setBoolean(profile, "ssrEnabled", "setSSREnabled", enableSSR.get())) {
@@ -231,7 +231,7 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
             UITheme.beginGroup("快捷操作");
             
             if (ImGui.button(Icons.REFRESH + " 重置为默认", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
-                if (PropertyReflection.invokeVoid(profile)) {
+                if (PropertyReflection.invokeVoid(profile, "resetToDefault")) {
                     modifiedRef[0] = true;
                     LOGGER.info("[PostProcessingPropertyAdapter] 后处理已重置");
                 }
@@ -259,7 +259,6 @@ public class PostProcessingPropertyAdapter implements IPropertyAdapter<Object> {
         
         return modifiedRef[0];
     }
-
     @Override
     public Class<Object> getTargetType() {
         return Object.class;
