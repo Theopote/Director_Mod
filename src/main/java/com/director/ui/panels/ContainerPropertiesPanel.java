@@ -199,7 +199,7 @@ public class ContainerPropertiesPanel {
         AnimationMode[] modes = AnimationMode.values();
 
         animModeIndex.set(preset.getMode().ordinal());
-        if (ImGui.combo(tr(DirectorLang.Properties.EmbeddedContainer.APPEAR_MODE), animModeIndex, ANIM_MODE_NAMES)) {
+        if (ImGui.combo(tr(DirectorLang.Properties.EmbeddedContainer.APPEAR_MODE), animModeIndex, buildAnimationModeNames())) {
             AnimationMode newMode = modes[animModeIndex.get()];
             controller.setPresetMode(container.getId(), newMode);
         }
