@@ -8,13 +8,30 @@ alwaysApply: false
 
 每个单例类**只保留一个**静态入口，禁止新增 `get()` 与 `getInstance()` 并存。
 
-## 约定
+## 业务代码（推荐）
 
-| 场景 | 用法 |
+| 服务 | 用法 |
 |------|------|
-| `timeline.playback.*` 控制器 | `getInstance()`（与 `TimelineCameraController` 一致） |
+| 容器 | `DirectorServices.get().containers()` |
+| 方块选区 | `DirectorServices.get().selection()` |
+| 编辑器选择 | `DirectorServices.get().uiSelection()` |
+| 时间线 | `DirectorServices.get().containerTimeline()` |
+| 客户端快捷键 | `DirectorServices.get().globalShortcuts()` |
+| ImGui | `DirectorServices.get().imgui()` |
+| `timeline.playback.*` 控制器 | `getInstance()` |
 | Mixin 只读快照（`*RenderOverride`） | `get()` |
-| 可注入服务 | `DirectorServices.get().xxx()` |
+
+## 框架启动（仅限 `DirectorServices`）
+
+各服务可提供 `@ApiStatus.Internal requireInitialized()`，**仅供** `DirectorServices.initialize()` / `initializeClient()` 装配，业务层禁止调用。
+
+```java
+// ❌ 业务代码
+ContainerManager.requireInitialized();
+
+// ✅ 业务代码
+DirectorServices.get().containers();
+```
 
 ## 禁止
 
@@ -24,4 +41,4 @@ public static Foo getInstance() { return INSTANCE; }
 public static Foo get() { return INSTANCE; }
 ```
 
-已有 `SelectionManager` 的 `get()` / `getInstance()` 均 `@Deprecated`，请用 `DirectorServices.get().selection()` 或 `.uiSelection()`。
+遗留 `SelectionManager.get()` / `getInstance()` 已 `@Deprecated`，请迁移到 `DirectorServices`。

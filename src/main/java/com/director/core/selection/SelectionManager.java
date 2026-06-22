@@ -19,6 +19,7 @@ import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import net.minecraft.world.World;
 import com.director.client.gizmo.Axis;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -124,7 +125,8 @@ public class SelectionManager {
         return get();
     }
 
-    /** 供框架内部使用的非废弃入口。 */
+    /** 供 {@link com.director.core.DirectorServices} 启动装配；业务代码请用 {@link com.director.core.DirectorServices#get()}{@code .selection()}。 */
+    @ApiStatus.Internal
     public static SelectionManager requireInitialized() {
         if (INSTANCE == null) {
             throw new IllegalStateException(

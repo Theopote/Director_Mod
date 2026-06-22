@@ -7,6 +7,7 @@ import com.director.ui.imgui.ImGuiRenderer;
 import com.director.ui.input.GlobalShortcutManager;
 import com.director.ui.properties.PropertyContextService;
 import com.director.timeline.container.ContainerTimelineService;
+import org.jetbrains.annotations.ApiStatus;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,7 +16,8 @@ import org.slf4j.LoggerFactory;
  * Mod 级服务注册表（依赖注入基础设施）。
  * <p>
  * 在 {@link com.director.DirectorMod} 启动时显式初始化，新代码应通过本类获取依赖；
- * 遗留的 {@code Xxx.getInstance()} 仍可用但已标记为废弃；选区服务请用 {@link #selection()} / {@link #uiSelection()}。
+ * 遗留的 {@code get()/getInstance()} 已废弃；业务代码请用本类实例方法（如 {@link #selection()}）。
+ * 启动装配使用各服务的 {@code requireInitialized()}（{@link ApiStatus.Internal}，仅限本类）。
  *
  * <h3>选择服务区分</h3>
  * <ul>

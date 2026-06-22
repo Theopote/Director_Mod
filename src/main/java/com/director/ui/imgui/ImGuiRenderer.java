@@ -11,6 +11,7 @@ import imgui.glfw.ImGuiImplGlfw;
 import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.util.Window;
+import org.jetbrains.annotations.ApiStatus;
 import org.lwjgl.glfw.GLFW;
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL12;
@@ -70,7 +71,8 @@ public class ImGuiRenderer {
         return INSTANCE;
     }
 
-    /** 供框架内部使用的非废弃入口。 */
+    /** 供 {@link com.director.core.DirectorServices} 客户端启动装配；业务代码请用 {@link com.director.core.DirectorServices#get()}{@code .imgui()}。 */
+    @ApiStatus.Internal
     public static ImGuiRenderer requireInitialized() {
         if (INSTANCE == null) {
             throw new IllegalStateException(

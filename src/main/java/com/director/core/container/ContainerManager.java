@@ -11,6 +11,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import com.director.core.DirectorServices;
 import com.director.core.container.persistence.ContainerPersistence;
+import org.jetbrains.annotations.ApiStatus;
 import net.minecraft.registry.RegistryKey;
 
 /**
@@ -100,7 +101,8 @@ public class ContainerManager {
                 "[ContainerManager] Not initialized — call ContainerManager.initialize() during mod startup");
     }
 
-    /** 供框架内部使用的非废弃入口。 */
+    /** 供 {@link com.director.core.DirectorServices} 启动装配；业务代码请用 {@link com.director.core.DirectorServices#get()}{@code .containers()}。 */
+    @ApiStatus.Internal
     public static ContainerManager requireInitialized() {
         ContainerManager existing = GLOBAL.get();
         if (existing != null) {

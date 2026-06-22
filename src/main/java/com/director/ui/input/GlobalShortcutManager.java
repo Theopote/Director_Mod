@@ -3,6 +3,7 @@ package com.director.ui.input;
 import imgui.ImGui;
 import imgui.ImGuiIO;
 import imgui.flag.ImGuiKey;
+import org.jetbrains.annotations.ApiStatus;
 import org.lwjgl.glfw.GLFW;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -249,7 +250,8 @@ public class GlobalShortcutManager {
         return INSTANCE;
     }
 
-    /** 供框架内部使用的非废弃入口。 */
+    /** 供 {@link com.director.core.DirectorServices} 客户端启动装配；业务代码请用 {@link com.director.core.DirectorServices#get()}{@code .globalShortcuts()}。 */
+    @ApiStatus.Internal
     public static GlobalShortcutManager requireInitialized() {
         if (INSTANCE == null) {
             throw new IllegalStateException(
