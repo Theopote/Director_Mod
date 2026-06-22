@@ -1,5 +1,7 @@
 package com.director.ui.properties.adapters;
 
+import com.director.i18n.DirectorLang;
+import com.director.i18n.TimelinePropertyAdapterI18n;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.timeline.model.selection.TimelineKeyframeMultiSelection;
 import com.director.ui.theme.Icons;
@@ -19,20 +21,24 @@ public class TimelineKeyframeMultiSelectionPropertyAdapter implements IPropertyA
             return false;
         }
 
-        UITheme.title(Icons.KEYFRAME + " 多选关键帧");
+        UITheme.title(Icons.KEYFRAME + " " + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineKeyframeMulti.TITLE));
         ImGui.spacing();
 
         int total = selection.getTotalCount();
-        ImGui.textDisabled(String.format("已选中 %d 个关键帧", total));
-        ImGui.textDisabled(String.format("- 片段关键帧: %d", selection.getClipKeyframes().size()));
-        ImGui.textDisabled(String.format("- 轨道关键帧: %d", selection.getAutomationKeyframes().size()));
+        ImGui.textDisabled(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineKeyframeMulti.SELECTED_COUNT, total));
+        ImGui.textDisabled(TimelinePropertyAdapterI18n.tr(
+                DirectorLang.Properties.AdapterTimelineKeyframeMulti.CLIP_KEYFRAMES_COUNT,
+                selection.getClipKeyframes().size()));
+        ImGui.textDisabled(TimelinePropertyAdapterI18n.tr(
+                DirectorLang.Properties.AdapterTimelineKeyframeMulti.TRACK_KEYFRAMES_COUNT,
+                selection.getAutomationKeyframes().size()));
 
         ImGui.spacing();
         UITheme.separator();
         ImGui.spacing();
 
-        ImGui.textWrapped("提示：当前为多选模式，为避免混乱不显示单个关键帧的属性。");
-        ImGui.textWrapped("你仍然可以使用工具栏的删除按钮或按 Del 删除这些选中项。");
+        ImGui.textWrapped(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineKeyframeMulti.HINT_MULTI_MODE));
+        ImGui.textWrapped(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineKeyframeMulti.HINT_DELETE));
         return false;
     }
 
@@ -43,8 +49,6 @@ public class TimelineKeyframeMultiSelectionPropertyAdapter implements IPropertyA
 
     @Override
     public String getAdapterName() {
-        return "Keyframes (Multi) Properties";
+        return TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineKeyframeMulti.ADAPTER_NAME);
     }
 }
-
-

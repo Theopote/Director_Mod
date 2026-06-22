@@ -3,7 +3,8 @@ package com.director.ui.properties.adapters;
 import com.director.core.DirectorServices;
 import com.director.core.animation.effect.EffectInstance;
 import com.director.core.container.Container;
-import com.director.core.container.ContainerManager;
+import com.director.i18n.DirectorLang;
+import com.director.i18n.TimelinePropertyAdapterI18n;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineTrack;
@@ -33,7 +34,7 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
 
     @Override
     public String getAdapterName() {
-        return "容器片段属性";
+        return TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.ADAPTER_NAME);
     }
 
     @Override
@@ -64,7 +65,7 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
     @Override
     public boolean renderProperties(TimelineClip clip) {
         if (clip == null) {
-            ImGui.textDisabled("未选中片段");
+            ImGui.textDisabled(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.NO_SELECTION));
             return false;
         }
 
@@ -72,8 +73,9 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
             return renderPropertiesInternal(clip);
         } catch (Exception e) {
             LOGGER.error("渲染片段属性时发生异常: {}", e.getMessage(), e);
-            ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f, "渲染错误: " + e.getMessage());
-            if (ImGui.button("查看详情")) {
+            ImGui.textColored(1.0f, 0.0f, 0.0f, 1.0f,
+                    TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineCommon.RENDER_ERROR, e.getMessage()));
+            if (ImGui.button(TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.VIEW_DETAILS))) {
                 LOGGER.error("详细堆栈:", e);
             }
             return false;
@@ -86,7 +88,9 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
         final float oldStartTime = clip.getStartTime();
         final float oldEndTime = clip.getEndTime();
 
-        if (ImGui.collapsingHeader(Icons.SETTINGS + " 基础设置", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(Icons.SETTINGS + " "
+                + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.SECTION_BASIC),
+                ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
             modified |= propertyUi.renderBasicProperties(clip, TimelineClipUiVariant.CONTAINER);
             ImGui.unindent();
@@ -95,14 +99,18 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
         boolean sequenceModified = false;
         boolean animationModified = false;
 
-        if (ImGui.collapsingHeader(Icons.LAYERS + " 序列行为", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(Icons.LAYERS + " "
+                + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.SECTION_SEQUENCE),
+                ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
             sequenceModified = propertyUi.renderSequenceBehavior(clip, TimelineClipUiVariant.CONTAINER);
             modified |= sequenceModified;
             ImGui.unindent();
         }
 
-        if (ImGui.collapsingHeader(Icons.ANIMATION + " 动画设置", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(Icons.ANIMATION + " "
+                + TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.SECTION_ANIMATION),
+                ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
             animationModified = propertyUi.renderAnimationSettings(clip, TimelineClipUiVariant.CONTAINER);
             modified |= animationModified;
@@ -111,10 +119,10 @@ public class TimelineClipPropertyAdapter implements IPropertyAdapter<TimelineCli
 
         List<EffectInstance> effects = clip.getAnimationConfig() != null ? clip.getAnimationConfig().getEffects()
                 : java.util.Collections.emptyList();
-        String effectsHeader = Icons.PARTICLE + " 特效 (Effects)";
-        if (!effects.isEmpty()) {
-            effectsHeader += " (" + effects.size() + ")";
-        }
+        String effectsHeader = Icons.PARTICLE + " "
+                + (effects.isEmpty()
+                ? TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.EFFECTS_HEADER)
+                : TimelinePropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineClip.EFFECTS_HEADER_COUNT, effects.size()));
         if (ImGui.collapsingHeader(effectsHeader, ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
             modified |= propertyUi.renderEffectsSection(clip);
