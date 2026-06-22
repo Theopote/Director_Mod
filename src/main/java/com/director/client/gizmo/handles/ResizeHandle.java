@@ -8,27 +8,29 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * 馃П ResizeHandle - 缂╂斁鎵嬫焺
- * 
- * 閫夊尯 Gizmo 鐨?缂╂斁鎵嬫焺"锛屼綅浜庨€夊尯鐨勯潰鎴栬涓娿€?
- * 鐢ㄦ埛閫氳繃榧犳爣鎷栨嫿鎺у埗閫夊尯杈圭晫鎵╁睍鎴栨敹缂┿€?
- * 
- * 鉁?鏀寔锛?
- *  - 闈㈡墜鏌勶細娌垮崟涓€ Axis 璋冩暣澶у皬
- *  - 瑙掔偣鎵嬫焺锛氬悓鏃舵部涓変釜鏂瑰悜缂╂斁
- *  - 灏勭嚎妫€娴?+ 璺濈鎶曞奖
- * 
+ * ResizeHandle - 缩放手柄。
+ * <p>
+ * 选区 Gizmo 的缩放手柄，位于选区的面或角上。
+ * 用户通过鼠标拖拽控制选区边界扩展或收缩。
+ * <p>
+ * 支持：
+ * <ul>
+ *   <li>面手柄：沿单一 Axis 调整大小</li>
+ *   <li>角点手柄：同时沿三个方向缩放</li>
+ *   <li>射线检测 + 距离投影</li>
+ * </ul>
+ *
  * @author Director
  * @version 1.0
  */
 public class ResizeHandle extends AbstractGizmoHandle {
     private static final Logger LOGGER = LoggerFactory.getLogger(ResizeHandle.class);
     
-    /** 鎵嬫焺绫诲瀷 */
+    /** 手柄类型 */
     public enum Type {
-        /** 闈㈡墜鏌勶紙娌垮崟涓€杞寸缉鏀撅級 */
+        /** 面手柄（沿单一轴缩放） */
         FACE,
-        /** 瑙掔偣鎵嬫焺锛堟部涓変釜杞寸缉鏀撅級 */
+        /** 角点手柄（沿三个轴缩放） */
         CORNER
     }
     
@@ -51,10 +53,10 @@ public class ResizeHandle extends AbstractGizmoHandle {
     
     @Override
     public HitResult intersectRay(Vec3d rayOrigin, Vec3d rayDir) {
-        // 浣跨敤鐞冧綋妫€娴嬶紙绮楃暐妫€娴嬶級
+        // 使用球体检测（粗略检测）
         double distance = RaycastUtil.rayToSphereDistance(rayOrigin, rayDir, position, radius);
         if (distance < Double.POSITIVE_INFINITY) {
-            LOGGER.debug("[ResizeHandle] 鍛戒腑 {} 鎵嬫焺 (dist={})", type, distance);
+            LOGGER.debug("[ResizeHandle] 命中 {} 手柄 (dist={})", type, distance);
             return new HitResult(this, distance);
         }
         return HitResult.miss();
@@ -63,7 +65,7 @@ public class ResizeHandle extends AbstractGizmoHandle {
     @Override
     public void onDragStart(Vec3d rayOrigin, Vec3d rayDir) {
         super.onDragStart(rayOrigin, rayDir);
-        LOGGER.debug("[ResizeHandle] 寮€濮嬫嫋鎷?{} 鎵嬫焺 at {}", type, dragStartHitPoint != null ? dragStartHitPoint : position);
+        LOGGER.debug("[ResizeHandle] 开始拖拽 {} 手柄 at {}", type, dragStartHitPoint != null ? dragStartHitPoint : position);
     }
     
     @Override
@@ -72,45 +74,41 @@ public class ResizeHandle extends AbstractGizmoHandle {
             return Vec3d.ZERO;
         }
         
-        // 璁＄畻褰撳墠鍛戒腑鐐癸紙浣跨敤骞抽潰鎶曞奖锛?
+        // 计算当前命中点（使用平面投影）
         Vec3d currentHit = calculateDragPoint(rayOrigin, rayDir);
         if (currentHit == null) {
-            currentHit = rayOrigin.add(rayDir.multiply(5.0)); // 鍥為€€锛氬浐瀹氳窛绂?
+            currentHit = rayOrigin.add(rayDir.multiply(5.0)); // 回退：固定距离
         }
         
-        // 璁＄畻澧為噺
+        // 计算增量
         Vec3d delta = currentHit.subtract(dragStartHitPoint);
         
-        // 鏍规嵁鎵嬫焺绫诲瀷闄愬埗澧為噺鏂瑰悜
+        // 根据手柄类型限制增量方向
         Vec3d axisDelta = getAxisDelta(delta);
         
-        // 鏇存柊鎷栨嫿璧风偣锛堢敤浜庝笅涓€娆¤绠楋級
+        // 更新拖拽起点（用于下一次计算）
         dragStartHitPoint = currentHit;
         
         return axisDelta;
     }
     
-    /**
-     * 璁＄畻鎷栨嫿鐐癸紙鏍规嵁鎵嬫焺绫诲瀷锛?
-     */
+    /** 计算拖拽点（根据手柄类型）。 */
     private Vec3d calculateDragPoint(Vec3d rayOrigin, Vec3d rayDir) {
         if (type == Type.FACE && axes.length > 0) {
-            // 闈㈡墜鏌勶細鎶曞奖鍒板瀭鐩翠簬杞寸殑骞抽潰
+            // 面手柄：投影到垂直于轴的平面
             Vec3d axisVec = getAxisVector(axes[0]);
             Vec3d planePoint = position;
             Vec3d planeNormal = axisVec;
             
             return RaycastUtil.rayToPlaneIntersection(rayOrigin, rayDir, planePoint, planeNormal);
         } else {
-            // 瑙掔偣鎵嬫焺锛氫娇鐢ㄦ渶杩戠殑杞存柟鍚戞姇褰?
-            // 绠€鍖栧疄鐜帮細浣跨敤鍥哄畾璺濈鎶曞奖
-            return null; // 杩斿洖 null 瑙﹀彂鍥為€€
+            // 角点手柄：使用最近的轴方向投影
+            // 简化实现：使用固定距离投影
+            return null; // 返回 null 触发回退
         }
     }
     
-    /**
-     * 杩斿洖娌胯酱鏂瑰悜鐨勭缉鏀惧€硷紙鐢ㄤ簬浼犻€掔粰 TransformApplier锛?
-     */
+    /** 返回沿轴方向的缩放值（用于传递给 TransformApplier）。 */
     public Vec3d getAxisDelta(Vec3d worldDelta) {
         double dx = 0, dy = 0, dz = 0;
         
@@ -123,7 +121,7 @@ public class ResizeHandle extends AbstractGizmoHandle {
                 }
             }
         } else {
-            // 濡傛灉娌℃湁鎸囧畾杞达紝浣跨敤瀹屾暣澧為噺锛堣鐐规ā寮忥級
+            // 如果没有指定轴，使用完整增量（角点模式）
             dx = worldDelta.x;
             dy = worldDelta.y;
             dz = worldDelta.z;
@@ -132,9 +130,7 @@ public class ResizeHandle extends AbstractGizmoHandle {
         return new Vec3d(dx, dy, dz);
     }
     
-    /**
-     * 鑾峰彇杞村悜閲?
-     */
+    /** 获取轴向量。 */
     private Vec3d getAxisVector(Axis axis) {
         return switch (axis) {
             case X -> new Vec3d(1, 0, 0);
