@@ -1,6 +1,8 @@
 package com.director.ui.panels;
 
 import com.director.core.container.*;
+import com.director.i18n.DirectorI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.container.ContainerColorPicker;
 import com.director.ui.container.ContainerPanelController;
 import com.director.ui.util.UIUtils;
@@ -22,7 +24,6 @@ import java.util.UUID;
  */
 public class ContainerPropertiesPanel {
 
-    // ---------------- UI 缓冲区 ----------------
     private final ImString nameBuffer = UIUtils.createInputBuffer(UIUtils.DEFAULT_NAME_MAX_CHARACTERS);
     private final ImString descBuffer = UIUtils.createInputBuffer(UIUtils.DEFAULT_DESCRIPTION_MAX_CHARACTERS);
     private final ImInt typeIndex = new ImInt(0);
@@ -30,11 +31,9 @@ public class ContainerPropertiesPanel {
     private final float[] tagColorBuffer = new float[4];
     private final ImString easingBuffer = new ImString(64);
     private final ImString orderingBuffer = new ImString(64);
-    
-    // 容器类型选项（排除 GROUP 类型）
+
     private static final ContainerType[] AVAILABLE_TYPES;
-    private static final String[] TYPE_NAMES;
-    
+
     static {
         ContainerType[] allTypes = ContainerType.values();
         java.util.List<ContainerType> available = new java.util.ArrayList<>();
@@ -44,16 +43,10 @@ public class ContainerPropertiesPanel {
             }
         }
         AVAILABLE_TYPES = available.toArray(new ContainerType[0]);
-        TYPE_NAMES = new String[AVAILABLE_TYPES.length];
-        for (int i = 0; i < AVAILABLE_TYPES.length; i++) {
-            TYPE_NAMES[i] = AVAILABLE_TYPES[i].toString();
-        }
     }
 
-    // 缓存当前正在编辑的容器
     private UUID currentEditingContainerId = null;
 
-    // 动画模式名称数组（静态缓存）
     private static final String[] ANIM_MODE_NAMES;
 
     static {
@@ -70,7 +63,22 @@ public class ContainerPropertiesPanel {
         this.controller = controller;
     }
 
-    // ---------------- UI 入口 ----------------
+    private static String tr(String key) {
+        return DirectorI18n.translate(key);
+    }
+
+    private static String tr(String key, Object... args) {
+        return DirectorI18n.translate(key, args);
+    }
+
+    private static String[] buildTypeNames() {
+        String[] names = new String[AVAILABLE_TYPES.length];
+        for (int i = 0; i < AVAILABLE_TYPES.length; i++) {
+            names[i] = AVAILABLE_TYPES[i].getDisplayName();
+        }
+        return names;
+    }
+
     public void render(Container container) {
         if (container == null) {
             renderEmptyState();
@@ -79,11 +87,8 @@ public class ContainerPropertiesPanel {
 
         syncBuffersIfNeeded(container);
 
-        // ✅ 移除外部 header，因为 ContainerPanel 已经有了"属性"标题
-        // 容器信息显示在内容区域顶部
         ImGui.beginChild("ContainerProperties", 0, 0, false);
-        
-        // 在内容区域顶部显示容器信息（更紧凑）
+
         renderContainerInfo(container);
 
         renderBasicProperties(container);
@@ -100,13 +105,10 @@ public class ContainerPropertiesPanel {
         ImGui.endChild();
     }
 
-    // ----------------------------------------------------------
-    // 缓冲区同步（只在容器切换时同步）
-    // ----------------------------------------------------------
     private void syncBuffersIfNeeded(Container container) {
         if (currentEditingContainerId != null &&
             currentEditingContainerId.equals(container.getId())) {
-            return; // buffer 保持用户输入
+            return;
         }
 
         currentEditingContainerId = container.getId();
@@ -116,7 +118,6 @@ public class ContainerPropertiesPanel {
         Object desc = container.getMetadata("description", "");
         descBuffer.set(desc != null ? desc.toString() : "");
 
-        // 设置类型索引（从可用类型中找到当前类型的索引）
         ContainerType currentType = container.getType();
         int currentTypeIndex = 0;
         for (int i = 0; i < AVAILABLE_TYPES.length; i++) {
@@ -127,31 +128,23 @@ public class ContainerPropertiesPanel {
         }
         typeIndex.set(currentTypeIndex);
 
-        // UI 标签颜色（从 metadata 读取）
         Integer tagColor = (Integer) container.getMetadata("tagColor", null);
         int defaultColor = tagColor != null ? tagColor : 0xFFFFFFFF;
         float[] colorArray = ContainerColorPicker.colorIntToFloat(defaultColor);
         System.arraycopy(colorArray, 0, tagColorBuffer, 0, 4);
 
-        // 动画 preset
         ContainerAnimationPreset syncPreset = container.getDefaultAnimationPreset();
         animModeIndex.set(syncPreset.getMode().ordinal());
         easingBuffer.set(syncPreset.getEasing() != null ? syncPreset.getEasing() : "");
         orderingBuffer.set(syncPreset.getOrdering() != null ? syncPreset.getOrdering() : "");
     }
 
-    // ----------------------------------------------------------
-    // UI：空状态
-    // ----------------------------------------------------------
     private void renderEmptyState() {
-        ImGui.textDisabled("(未选择容器)");
+        ImGui.textDisabled(tr(DirectorLang.Properties.EmbeddedContainer.EMPTY_NO_SELECTION));
         ImGui.spacing();
-        ImGui.textWrapped("在左侧容器树中选择一个容器以查看和编辑其属性。");
+        ImGui.textWrapped(tr(DirectorLang.Properties.EmbeddedContainer.EMPTY_HINT));
     }
 
-    // ----------------------------------------------------------
-    // UI：容器信息（紧凑显示）
-    // ----------------------------------------------------------
     private void renderContainerInfo(Container container) {
         ImGui.textColored(0.4f, 1.0f, 0.5f, 1.0f,
                 container.getType().getIcon() + " " + container.getName());
@@ -160,15 +153,12 @@ public class ContainerPropertiesPanel {
         ImGui.spacing();
     }
 
-    // ----------------------------------------------------------
-    // UI：基本属性
-    // ----------------------------------------------------------
     private void renderBasicProperties(Container container) {
-        ImGui.setNextItemOpen(false, ImGuiCond.Once); // ✅ 默认收起（更紧凑）
-        if (!ImGui.collapsingHeader("基本属性")) return;
+        ImGui.setNextItemOpen(false, ImGuiCond.Once);
+        if (!ImGui.collapsingHeader(tr(DirectorLang.Properties.EmbeddedContainer.BASIC_PROPERTIES))) return;
 
-        // 名称
-        boolean nameEnterPressed = ImGui.inputText("名称", nameBuffer, ImGuiInputTextFlags.AutoSelectAll | ImGuiInputTextFlags.EnterReturnsTrue);
+        boolean nameEnterPressed = ImGui.inputText(tr(DirectorLang.Properties.EmbeddedContainer.NAME), nameBuffer,
+                ImGuiInputTextFlags.AutoSelectAll | ImGuiInputTextFlags.EnterReturnsTrue);
         if (nameEnterPressed || ImGui.isItemDeactivatedAfterEdit()) {
             String newName = UIUtils.cleanString(nameBuffer.get());
             if (!newName.isEmpty() && !newName.equals(container.getName())) {
@@ -176,7 +166,6 @@ public class ContainerPropertiesPanel {
             }
         }
 
-        // 类型（可选择）
         int currentTypeIndex = 0;
         ContainerType currentType = container.getType();
         for (int i = 0; i < AVAILABLE_TYPES.length; i++) {
@@ -186,36 +175,31 @@ public class ContainerPropertiesPanel {
             }
         }
         typeIndex.set(currentTypeIndex);
-        
-        if (ImGui.combo("类型", typeIndex, TYPE_NAMES)) {
+
+        if (ImGui.combo(tr(DirectorLang.Properties.EmbeddedContainer.TYPE), typeIndex, buildTypeNames())) {
             ContainerType newType = AVAILABLE_TYPES[typeIndex.get()];
             if (newType != currentType) {
                 controller.setContainerType(container.getId(), newType);
             }
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("容器的用途分类，用于标识和组织不同类型的容器");
+            ImGui.setTooltip(tr(DirectorLang.Properties.EmbeddedContainer.TYPE_TOOLTIP));
         }
 
-        // 描述（用户自由填写）
-        if (ImGui.inputTextMultiline("描述", descBuffer, 0, 55)) {
+        if (ImGui.inputTextMultiline(tr(DirectorLang.Properties.EmbeddedContainer.DESCRIPTION), descBuffer, 0, 55)) {
             controller.setMetadata(container.getId(), "description", UIUtils.cleanString(descBuffer.get()));
         }
     }
 
-    // ----------------------------------------------------------
-    // UI：动画默认预设
-    // ----------------------------------------------------------
     private void renderAnimationPreset(Container container) {
-        ImGui.setNextItemOpen(false, ImGuiCond.Once); // ✅ 默认收起
-        if (!ImGui.collapsingHeader("默认动画预设")) return;
+        ImGui.setNextItemOpen(false, ImGuiCond.Once);
+        if (!ImGui.collapsingHeader(tr(DirectorLang.Properties.EmbeddedContainer.ANIMATION_PRESET))) return;
 
         ContainerAnimationPreset preset = container.getDefaultAnimationPreset();
         AnimationMode[] modes = AnimationMode.values();
 
-        // Mode
         animModeIndex.set(preset.getMode().ordinal());
-        if (ImGui.combo("出现方式", animModeIndex, ANIM_MODE_NAMES)) {
+        if (ImGui.combo(tr(DirectorLang.Properties.EmbeddedContainer.APPEAR_MODE), animModeIndex, ANIM_MODE_NAMES)) {
             AnimationMode newMode = modes[animModeIndex.get()];
             controller.setPresetMode(container.getId(), newMode);
         }
@@ -226,113 +210,101 @@ public class ContainerPropertiesPanel {
 
         ImGui.spacing();
 
-        // Duration
         float dur = preset.getSuggestedDuration();
         float[] durBuf = { dur };
-        if (ImGui.sliderFloat("建议时长 (秒)", durBuf, 0.1f, 60f, "%.1fs")) {
+        if (ImGui.sliderFloat(tr(DirectorLang.Properties.EmbeddedContainer.SUGGESTED_DURATION), durBuf, 0.1f, 60f, "%.1fs")) {
             controller.setPresetDuration(container.getId(), durBuf[0]);
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("新建时间线片段时的默认时长，可在片段属性中单独调整");
+            ImGui.setTooltip(tr(DirectorLang.Properties.EmbeddedContainer.SUGGESTED_DURATION_TOOLTIP));
         }
 
-        // Delay
         float[] delayBuf = { preset.getDelay() };
-        if (ImGui.sliderFloat("默认延迟", delayBuf, 0f, 10f, "%.1fs")) {
+        if (ImGui.sliderFloat(tr(DirectorLang.Properties.EmbeddedContainer.DEFAULT_DELAY), delayBuf, 0f, 10f, "%.1fs")) {
             controller.setPresetDelay(container.getId(), delayBuf[0]);
         }
 
-        // Easing
-        if (ImGui.inputText("Easing 曲线", easingBuffer)) {
+        if (ImGui.inputText(tr(DirectorLang.Properties.EmbeddedContainer.EASING_CURVE), easingBuffer)) {
             controller.setPresetEasing(container.getId(), easingBuffer.get());
         }
 
-        // 播放排序
-        if (ImGui.inputText("播放排序", orderingBuffer)) {
+        if (ImGui.inputText(tr(DirectorLang.Properties.EmbeddedContainer.PLAY_ORDERING), orderingBuffer)) {
             controller.setPresetOrdering(container.getId(), orderingBuffer.get());
         }
 
         ImGui.spacing();
-        ImGui.textDisabled("提示：这些仅是创建时间线片段时的默认参数。");
+        ImGui.textDisabled(tr(DirectorLang.Properties.EmbeddedContainer.PRESET_HINT));
     }
 
-    // ----------------------------------------------------------
-    // UI：容器属性（非渲染相关）
-    // ----------------------------------------------------------
     private void renderVisualProperties(Container container) {
-        ImGui.setNextItemOpen(false, ImGuiCond.Once); // ✅ 默认收起
-        if (!ImGui.collapsingHeader("容器属性")) return;
+        ImGui.setNextItemOpen(false, ImGuiCond.Once);
+        if (!ImGui.collapsingHeader(tr(DirectorLang.Properties.EmbeddedContainer.CONTAINER_PROPERTIES))) return;
 
-        // UI 标签颜色（用于容器树视图中的颜色标记，不影响渲染）
-        ImGui.text("UI 标签颜色:");
+        ImGui.text(tr(DirectorLang.Properties.EmbeddedContainer.UI_TAG_COLOR));
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("在容器树视图中显示的颜色标记，用于分类和识别，不影响 Minecraft 世界中的渲染效果");
+            ImGui.setTooltip(tr(DirectorLang.Properties.EmbeddedContainer.UI_TAG_COLOR_TOOLTIP));
         }
-        
-        if (ContainerColorPicker.renderColorPicker("标签颜色", tagColorBuffer)) {
+
+        String tagColorLabel = tr(DirectorLang.Properties.EmbeddedContainer.TAG_COLOR_PICKER);
+        if (ContainerColorPicker.renderColorPicker(tagColorLabel, tagColorBuffer)) {
             int newTagColor = ContainerColorPicker.colorFloatToInt(tagColorBuffer);
             controller.setMetadata(container.getId(), "tagColor", newTagColor);
         }
 
         ImGui.sameLine();
-        if (ImGui.button("清除##clearTagColor")) {
+        if (ImGui.button(tr(DirectorLang.Properties.EmbeddedContainer.CLEAR) + "##clearTagColor")) {
             controller.setMetadata(container.getId(), "tagColor", null);
-            // 重置缓冲区为白色（默认）
             float[] defaultColorArray = ContainerColorPicker.colorIntToFloat(0xFFFFFFFF);
             System.arraycopy(defaultColorArray, 0, tagColorBuffer, 0, 4);
-            // 强制重新同步缓冲区（下次渲染时会从容器读取）
             currentEditingContainerId = null;
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("清除 UI 标签颜色");
+            ImGui.setTooltip(tr(DirectorLang.Properties.EmbeddedContainer.CLEAR_TAG_TOOLTIP));
         }
 
         ImGui.separator();
 
-        // 锁定和容器状态（同一行）
         boolean locked = container.isLocked();
-        if (ImGui.checkbox("锁定", locked)) {
+        if (ImGui.checkbox(tr(DirectorLang.Properties.EmbeddedContainer.LOCKED), locked)) {
             controller.setContainerLocked(container.getId(), !locked);
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("锁定容器后，将无法修改容器的内容和属性");
+            ImGui.setTooltip(tr(DirectorLang.Properties.EmbeddedContainer.LOCKED_TOOLTIP));
         }
 
         ImGui.sameLine();
-        
-        // 容器状态（显示/隐藏）
+
         ContainerState currentState = container.getState();
         boolean isVisible = currentState == ContainerState.VISIBLE;
-        if (ImGui.checkbox("可见", isVisible)) {
+        if (ImGui.checkbox(tr(DirectorLang.Properties.EmbeddedContainer.VISIBLE), isVisible)) {
             controller.toggleContainerState(container.getId());
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(isVisible ? 
-                "隐藏容器中的方块（方块将在 Minecraft 世界中不可见，看起来像被清除）" :
-                "显示容器中的方块（方块将在 Minecraft 世界中可见）");
+            ImGui.setTooltip(isVisible
+                ? tr(DirectorLang.Properties.EmbeddedContainer.HIDE_TOOLTIP)
+                : tr(DirectorLang.Properties.EmbeddedContainer.SHOW_TOOLTIP));
         }
     }
 
-    // ----------------------------------------------------------
-    // UI：只读信息（不需要可编辑）
-    // ----------------------------------------------------------
     private void renderReadonlyInfo(Container container) {
-        ImGui.setNextItemOpen(false, ImGuiCond.Once); // ✅ 默认收起
-        if (!ImGui.collapsingHeader("统计信息")) return;
+        ImGui.setNextItemOpen(false, ImGuiCond.Once);
+        if (!ImGui.collapsingHeader(tr(DirectorLang.Properties.EmbeddedContainer.STATS))) return;
 
-        ImGui.text("方块数: " + container.getBlockCount());
-        ImGui.text("子容器: " + container.getChildren().size());
-        ImGui.text("总方块数: " + container.getTotalBlockCount());
+        ImGui.text(tr(DirectorLang.Properties.EmbeddedContainer.BLOCK_COUNT, container.getBlockCount()));
+        ImGui.text(tr(DirectorLang.Properties.EmbeddedContainer.CHILD_COUNT, container.getChildren().size()));
+        ImGui.text(tr(DirectorLang.Properties.EmbeddedContainer.TOTAL_BLOCKS, container.getTotalBlockCount()));
 
         Container.BoundingBox bbox = container.getBoundingBox();
-        ImGui.text(String.format("大小: %dx%dx%d (体积 %d)",
+        ImGui.text(tr(DirectorLang.Properties.EmbeddedContainer.SIZE_VOLUME,
                 bbox.getWidth(), bbox.getHeight(), bbox.getDepth(), bbox.getVolume()));
 
         if (container.getCenter() != null) {
-            ImGui.text("中心: " + container.getCenter());
+            ImGui.text(tr(DirectorLang.Properties.EmbeddedContainer.CENTER, container.getCenter()));
         }
 
-        ImGui.textDisabled("创建时间: " + new java.util.Date(container.getCreatedTime()));
-        ImGui.textDisabled("修改时间: " + new java.util.Date(container.getModifiedTime()));
+        ImGui.textDisabled(tr(DirectorLang.Properties.EmbeddedContainer.CREATED_AT,
+                new java.util.Date(container.getCreatedTime())));
+        ImGui.textDisabled(tr(DirectorLang.Properties.EmbeddedContainer.MODIFIED_AT,
+                new java.util.Date(container.getModifiedTime())));
     }
 }
