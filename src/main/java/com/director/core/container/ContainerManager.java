@@ -93,12 +93,7 @@ public class ContainerManager {
      */
     @Deprecated
     public static ContainerManager getInstance() {
-        ContainerManager existing = GLOBAL.get();
-        if (existing != null) {
-            return existing;
-        }
-        throw new IllegalStateException(
-                "[ContainerManager] Not initialized — call ContainerManager.initialize() during mod startup");
+        return requireInitialized();
     }
 
     /** 供 {@link com.director.core.DirectorServices} 启动装配；业务代码请用 {@link com.director.core.DirectorServices#get()}{@code .containers()}。 */

@@ -5,11 +5,15 @@ import com.director.client.entity.EntityRenderOverride;
 import com.director.client.world.WorldRenderOverride;
 import com.director.timeline.playback.TimelinePlaybackSampler;
 import net.minecraft.client.MinecraftClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 渲染覆盖快照的统一清理/重同步入口。
  */
 public final class RenderOverrideSnapshots {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(RenderOverrideSnapshots.class);
 
     private RenderOverrideSnapshots() {
     }
@@ -30,13 +34,16 @@ public final class RenderOverrideSnapshots {
         }
         client.execute(() -> {
             float time = resolveTimelineTime();
+            // best-effort：导出收尾阶段世界/服务可能正在 teardown，失败不阻断 finally
             try {
                 TimelinePlaybackSampler.sampleWorldAt(time);
-            } catch (RuntimeException ignored) {
+            } catch (RuntimeException e) {
+                LOGGER.debug("[RenderOverrideSnapshots] resync sampleWorldAt failed (best-effort)", e);
             }
             try {
                 com.director.timeline.playback.camera.TimelineCameraController.getInstance().update();
-            } catch (RuntimeException ignored) {
+            } catch (RuntimeException e) {
+                LOGGER.debug("[RenderOverrideSnapshots] resync camera update failed (best-effort)", e);
             }
         });
     }
