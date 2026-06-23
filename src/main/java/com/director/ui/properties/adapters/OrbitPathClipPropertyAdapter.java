@@ -8,6 +8,7 @@ import com.director.timeline.container.ContainerTimelineService;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.camera.path.CameraPathEnterContext;
 import com.director.timeline.model.camera.path.OrbitPathClip;
+import com.director.timeline.playback.camera.CameraAccessor;
 import com.director.timeline.playback.camera.CameraRuntime;
 import com.director.timeline.playback.camera.CameraSample;
 import com.director.timeline.playback.camera.TimelineCameraController;
@@ -136,6 +137,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
         
         // ========== 分区 1：路径类型与时间（只读）==========
         renderHeader(clip);
+        modified |= renderQuickAlignSection(clip, isPlayheadOnClip);
         ImGui.separator();
         
         // ========== 分区 2：围绕中心 ==========
@@ -198,6 +200,28 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
         lastDisplayedStartTime = currentStartTime;
         lastDisplayedEndTime = currentEndTime;
         lastDisplayedDuration = currentDuration;
+    }
+
+    /**
+     * 快捷操作：从当前玩家镜头一次性对齐环绕参数。
+     */
+    private boolean renderQuickAlignSection(OrbitPathClip clip, boolean isPlayheadOnClip) {
+        if (ImGui.button(Icons.CAMERA + " 从当前镜头对齐")) {
+            if (alignAllFromCurrentCamera(clip)) {
+                syncCacheFromClip(clip);
+                if (isPlayheadOnClip) {
+                    updateCameraPreview(clip);
+                }
+                return true;
+            }
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(
+                    "将 Center、LookAt、半径、起始角和高度对齐到当前玩家镜头。\n"
+                            + "环绕中心优先取准星命中的方块，否则取视线前方 10 格处。"
+            );
+        }
+        return false;
     }
     
     /**
@@ -708,6 +732,62 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
         }
     }
     
+    /**
+     * 从当前玩家镜头一次性对齐所有环绕参数。
+     *
+     * @return 是否成功对齐
+     */
+    private boolean alignAllFromCurrentCamera(OrbitPathClip clip) {
+        try {
+            MinecraftClient client = MinecraftClient.getInstance();
+            CameraSample sample = null;
+            if (client != null) {
+                sample = CameraAccessor.sampleFromGameCamera(client);
+            }
+            if (sample == null) {
+                sample = CameraRuntime.getInstance().getCurrentSample();
+            }
+            if (sample == null || sample == CameraSample.EMPTY) {
+                LOGGER.warn("[OrbitPathClipPropertyAdapter] 无法获取当前摄像机状态，无法对齐");
+                return false;
+            }
+
+            Vec3d cameraPos = sample.position();
+            CameraPathEnterContext ctx = new CameraPathEnterContext(cameraPos, sample.yaw(), sample.pitch());
+            Vec3d orbitCenter = resolveOrbitCenterFromCamera(client, cameraPos, ctx);
+
+            clip.alignFromCurrentCamera(ctx, orbitCenter);
+            return true;
+        } catch (Exception e) {
+            LOGGER.error("[OrbitPathClipPropertyAdapter] 从当前镜头对齐失败", e);
+            return false;
+        }
+    }
+
+    /**
+     * 解析环绕中心：优先准星射线命中点，否则取视线前方 10 格。
+     */
+    private static Vec3d resolveOrbitCenterFromCamera(
+            MinecraftClient client, Vec3d cameraPos, CameraPathEnterContext ctx) {
+        BlockHitResult hit = null;
+        try {
+            hit = com.director.client.input.DirectorInputSystem.getCurrentRay();
+        } catch (Exception ignored) {
+        }
+        if (hit == null && client != null && client.crosshairTarget instanceof BlockHitResult bhr) {
+            hit = bhr;
+        }
+        if (hit != null && hit.getType() == HitResult.Type.BLOCK) {
+            BlockPos blockPos = hit.getBlockPos();
+            return new Vec3d(
+                    blockPos.getX() + 0.5,
+                    blockPos.getY() + 0.5,
+                    blockPos.getZ() + 0.5
+            );
+        }
+        return cameraPos.add(ctx.getForward().multiply(10.0));
+    }
+
     /**
      * ⭐ 从当前摄像机状态立即对齐起始角（UI 主动调用）
      * 

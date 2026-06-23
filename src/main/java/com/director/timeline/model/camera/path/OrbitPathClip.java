@@ -527,6 +527,39 @@ public class OrbitPathClip extends CameraPathClip {
             }
         }
     }
+
+    /**
+     * 从当前摄像机状态一次性对齐环绕参数（属性面板 / 新建片段用）。
+     *
+     * <p>将 Center、LookAt、半径、起始角、高度固化为可重复播放的配置值，
+     * 不再依赖播放时动态从当前镜头推导。
+     *
+     * @param ctx 当前摄像机状态（位置 + yaw/pitch）
+     * @param orbitCenter 环绕中心与默认注视点（通常为射线命中点或视线前方点）
+     */
+    public void alignFromCurrentCamera(CameraPathEnterContext ctx, Vec3d orbitCenter) {
+        if (ctx == null || ctx.position == null || orbitCenter == null) {
+            LOGGER.warn("[OrbitPathClip] alignFromCurrentCamera() 参数无效，无法对齐");
+            return;
+        }
+
+        setCenter(orbitCenter);
+        setLookAt(orbitCenter);
+        setRadiusMode(RadiusMode.ABSOLUTE);
+        setStartAngleMode(StartAngleMode.CUSTOM);
+        setHeightMode(HeightMode.KEEP_CURRENT);
+        setCachedHeight((float) ctx.position.y);
+
+        alignRadiusFromCamera(ctx);
+        alignStartAngleFromCamera(ctx);
+
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug(
+                    "[OrbitPathClip] alignFromCurrentCamera() center=({}, {}, {}), radius={}, startAngle={}°, height={}",
+                    orbitCenter.x, orbitCenter.y, orbitCenter.z, radius, startAngle, cachedHeight
+            );
+        }
+    }
     
     @Override
     public CameraPathClip copy() {
