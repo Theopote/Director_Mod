@@ -1210,6 +1210,7 @@
   "gui.director.toolbar.shortcut": "Shortcut: %s",
 
   "gui.director.tool.group.selection": "Selection",
+  "gui.director.tool.group.actor": "Actor",
   "gui.director.tool.group.world": "World",
   "gui.director.tool.group.timeline": "Timeline",
 

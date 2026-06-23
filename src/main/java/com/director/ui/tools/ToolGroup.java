@@ -8,6 +8,7 @@ import com.director.i18n.DirectorLang;
  */
 public enum ToolGroup {
     SELECTION(DirectorLang.ToolGroupKeys.SELECTION),
+    ACTOR(DirectorLang.ToolGroupKeys.ACTOR),
     WORLD(DirectorLang.ToolGroupKeys.WORLD),
     TIMELINE(DirectorLang.ToolGroupKeys.TIMELINE);
 

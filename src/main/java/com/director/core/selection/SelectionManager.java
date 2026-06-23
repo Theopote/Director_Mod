@@ -161,6 +161,7 @@ public class SelectionManager {
         
         // 婵犵數濮烽弫鍛婃叏娴兼潙鍨傚┑鍌滎焾閺勩儵鏌″搴′簻闁哄鐗忛埀顒€绠嶉崕閬嶆偋閸℃稑姹查柣鎰劋閻撶喖骞栧ǎ顒€鐒洪柛鐔风箻閺屾盯鎮╁畷鍥р拡闂佺懓绠嶉崹褰掞綖濠婂牆鐒垫い鎺戝閺勩儵鏌嶈閸撴岸濡甸崟顖氱闁糕剝銇炴竟鏇熶繆閻愵亜鈧囨⒔閸曨剛鐝堕柛鈩冪☉閻掑灚銇勯幒宥囶槮闁瑰吋鎮傞弻娑㈠棘鐠恒劎鍔銈冨灪閻熴劎绮诲☉妯锋婵☆垱鍤庨崝鎴﹀蓟閺囩喎绶為柛顐ｇ箓婵海绱?
         registry.register(new com.director.core.selection.tools.boxselecttool.BoxSelectTool());
+        registry.register(new com.director.core.selection.tools.ContainerCullTool());
         
         LOGGER.info("[SelectionManager] Registered {} selection tools", registry.size());
     }

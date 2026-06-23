@@ -8,7 +8,7 @@ import com.director.ui.tools.ToolLifecycle;
 
 import java.util.UUID;
 
-abstract class ActorGizmoModeTool extends AbstractWorldTool implements ToolLifecycle {
+abstract class ActorGizmoModeTool extends AbstractActorTool implements ToolLifecycle {
     private final GizmoMode mode;
 
     protected ActorGizmoModeTool(String id, String icon, GizmoMode mode) {

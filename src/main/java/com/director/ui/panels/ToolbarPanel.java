@@ -133,6 +133,7 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
         boolean firstGroup;
 
         firstGroup = renderToolGroupWrapped(ToolGroup.SELECTION, Icons.TOOLS, true);
+        firstGroup = renderToolGroupWrapped(ToolGroup.ACTOR, Icons.ANIMATION, firstGroup);
         firstGroup = renderToolGroupWrapped(ToolGroup.WORLD, Icons.CONTAINER, firstGroup);
         firstGroup = renderToolGroupWrapped(ToolGroup.TIMELINE, Icons.TIMELINE, firstGroup);
 
@@ -153,7 +154,9 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
      * @return false 表示已经渲染过至少一个组；true 表示仍然是第一个组（通常只会发生在 group 为空时）
      */
     private boolean renderToolGroupWrapped(ToolGroup group, String groupIcon, boolean firstGroup) {
-        List<EditorTool> tools = toolRegistry.getToolsByGroup(group);
+        List<EditorTool> tools = toolRegistry.getToolsByGroup(group).stream()
+                .filter(tool -> tool != null && !ToolRegistry.isPlaceholderToolId(tool.getId()))
+                .toList();
         if (tools.isEmpty()) {
             return firstGroup;
         }

@@ -1210,6 +1210,7 @@
   "gui.director.toolbar.shortcut": "快捷键: %s",
 
   "gui.director.tool.group.selection": "选择",
+  "gui.director.tool.group.actor": "演员",
   "gui.director.tool.group.world": "世界",
   "gui.director.tool.group.timeline": "时间线",
 

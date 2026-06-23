@@ -8,7 +8,7 @@ import com.director.ui.tools.ToolLifecycle;
 
 import java.util.UUID;
 
-public final class ActorPoseTool extends AbstractWorldTool implements ToolLifecycle {
+public final class ActorPoseTool extends AbstractActorTool implements ToolLifecycle {
     public static final String ID = "actor_pose";
 
     public ActorPoseTool() {

@@ -281,6 +281,7 @@ public final class DirectorLang {
 
     public static final class ToolGroupKeys {
         public static final String SELECTION = "gui.director.tool.group.selection";
+        public static final String ACTOR = "gui.director.tool.group.actor";
         public static final String WORLD = "gui.director.tool.group.world";
         public static final String TIMELINE = "gui.director.tool.group.timeline";
 

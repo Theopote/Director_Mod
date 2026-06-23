@@ -8,11 +8,11 @@ import net.minecraft.client.MinecraftClient;
 
 import java.util.Objects;
 
-abstract class AbstractWorldTool implements EditorTool {
+abstract class AbstractActorTool implements EditorTool {
     private final String id;
     private final String icon;
 
-    protected AbstractWorldTool(String id, String icon) {
+    protected AbstractActorTool(String id, String icon) {
         this.id = Objects.requireNonNull(id, "id");
         this.icon = Objects.requireNonNull(icon, "icon");
     }
@@ -39,7 +39,7 @@ abstract class AbstractWorldTool implements EditorTool {
 
     @Override
     public ToolGroup getGroup() {
-        return ToolGroup.WORLD;
+        return ToolGroup.ACTOR;
     }
 
     @Override

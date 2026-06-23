@@ -98,45 +98,45 @@ public final class ToolRegistry {
                 ToolI18n.tipKey("lasso", 1),
                 ToolI18n.tipKey("lasso", 2)
         ));
-
-        // World 工具
         META.put("container_cull", ToolMetadata.of(
-                ToolGroup.WORLD, 10,
+                ToolGroup.SELECTION, 70,
                 ToolI18n.tipKey("container_cull", 1),
                 ToolI18n.tipKey("container_cull", 2)
         ));
+
+        // Actor 工具
         META.put(ACTOR_SELECT_TOOL_ID, ToolMetadata.of(
-                ToolGroup.WORLD, 20,
+                ToolGroup.ACTOR, 20,
                 ToolI18n.tipKey(ACTOR_SELECT_TOOL_ID, 1),
                 ToolI18n.tipKey(ACTOR_SELECT_TOOL_ID, 2)
         ));
         META.put(ACTOR_MOVE_TOOL_ID, ToolMetadata.of(
-                ToolGroup.WORLD, 30,
+                ToolGroup.ACTOR, 30,
                 ToolI18n.tipKey(ACTOR_MOVE_TOOL_ID, 1),
                 ToolI18n.tipKey(ACTOR_MOVE_TOOL_ID, 2)
         ));
         META.put(ACTOR_ROTATE_TOOL_ID, ToolMetadata.of(
-                ToolGroup.WORLD, 40,
+                ToolGroup.ACTOR, 40,
                 ToolI18n.tipKey(ACTOR_ROTATE_TOOL_ID, 1),
                 ToolI18n.tipKey(ACTOR_ROTATE_TOOL_ID, 2)
         ));
         META.put(ACTOR_SCALE_TOOL_ID, ToolMetadata.of(
-                ToolGroup.WORLD, 50,
+                ToolGroup.ACTOR, 50,
                 ToolI18n.tipKey(ACTOR_SCALE_TOOL_ID, 1),
                 ToolI18n.tipKey(ACTOR_SCALE_TOOL_ID, 2)
         ));
         META.put(ACTOR_LOOK_AT_TOOL_ID, ToolMetadata.of(
-                ToolGroup.WORLD, 60,
+                ToolGroup.ACTOR, 60,
                 ToolI18n.tipKey(ACTOR_LOOK_AT_TOOL_ID, 1),
                 ToolI18n.tipKey(ACTOR_LOOK_AT_TOOL_ID, 2)
         ));
         META.put(ACTOR_POSE_TOOL_ID, ToolMetadata.of(
-                ToolGroup.WORLD, 70,
+                ToolGroup.ACTOR, 70,
                 ToolI18n.tipKey(ACTOR_POSE_TOOL_ID, 1),
                 ToolI18n.tipKey(ACTOR_POSE_TOOL_ID, 2)
         ));
         META.put(ACTOR_PATH_TOOL_ID, ToolMetadata.of(
-                ToolGroup.WORLD, 80,
+                ToolGroup.ACTOR, 80,
                 ToolI18n.tipKey(ACTOR_PATH_TOOL_ID, 1),
                 ToolI18n.tipKey(ACTOR_PATH_TOOL_ID, 2)
         ));
@@ -172,6 +172,11 @@ public final class ToolRegistry {
                 || Objects.equals(toolId, ACTOR_LOOK_AT_TOOL_ID)
                 || Objects.equals(toolId, ACTOR_POSE_TOOL_ID)
                 || Objects.equals(toolId, ACTOR_PATH_TOOL_ID);
+    }
+
+    public static boolean isPlaceholderToolId(String toolId) {
+        return Objects.equals(toolId, WORLD_PLACEHOLDER_ID)
+                || Objects.equals(toolId, TIMELINE_PLACEHOLDER_ID);
     }
 
     public synchronized void initializeIfNeeded() {
