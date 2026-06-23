@@ -12,13 +12,28 @@ public final class ContainerCommandBridge {
     private static final Logger LOGGER = LoggerFactory.getLogger(ContainerCommandBridge.class);
 
     private static volatile TimelineCommandHistory history;
+    private static volatile int bindVersion = 0;
 
     private ContainerCommandBridge() {
     }
 
     public static void bindHistory(TimelineCommandHistory commandHistory) {
+        TimelineCommandHistory previous = history;
+        if (previous == commandHistory) {
+            return;
+        }
         history = commandHistory;
-        LOGGER.debug("[ContainerCommandBridge] Bound command history: {}", commandHistory != null);
+        bindVersion++;
+
+        if (commandHistory == null) {
+            LOGGER.warn("[ContainerCommandBridge] Cleared command history binding (version={})", bindVersion);
+            return;
+        }
+        if (previous == null) {
+            LOGGER.info("[ContainerCommandBridge] Bound command history (version={})", bindVersion);
+        } else {
+            LOGGER.info("[ContainerCommandBridge] Replaced command history binding (version={})", bindVersion);
+        }
     }
 
     public static void execute(ContainerCommand command) {
@@ -32,5 +47,9 @@ public final class ContainerCommandBridge {
             LOGGER.warn("[ContainerCommandBridge] No history bound, execute without undo: {}", command.getDescription());
             command.execute();
         }
+    }
+
+    public static int getBindVersion() {
+        return bindVersion;
     }
 }
