@@ -12,7 +12,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * 面手柄管理器：面平面拾取、沿法线拖拽缩放、与 SelectionManager 预览/应用集成。
+ * 面手柄管理器：屏幕空间拾取（穿透遮挡）、沿法线拖拽缩放、与 SelectionManager 预览/应用集成。
  */
 public class FaceHandleManager {
 
@@ -39,7 +39,7 @@ public class FaceHandleManager {
     private boolean hoveringLastFrame;
 
     public Integer detectHover(Box box, Vec3d rayOrigin, Vec3d rayDir) {
-        if (box == null || rayOrigin == null || rayDir == null || rayDir.lengthSquared() == 0) {
+        if (box == null) {
             if (!isDragging()) {
                 clearHover();
             }
@@ -50,21 +50,43 @@ public class FaceHandleManager {
             return draggingFaceIndex;
         }
 
-        Vec3d dir = rayDir.normalize();
+        DirectorInputSystem.FramebufferPoint mouse = DirectorInputSystem.getMouseFramebufferPosition();
+        if (mouse == null) {
+            clearHover();
+            return null;
+        }
+
         Integer closestFace = null;
-        double closestT = Double.POSITIVE_INFINITY;
+        double closestScreenDistSq = Double.POSITIVE_INFINITY;
+        double closestDepth = Double.POSITIVE_INFINITY;
 
         for (int face = 0; face < 6; face++) {
-            Double t = hitFaceHandle(box, face, rayOrigin, dir);
-            if (t != null && t < closestT) {
-                closestT = t;
+            Vec3d center = OverlayRenderHelper.faceCenter(box, face);
+            DirectorInputSystem.FramebufferPoint projected = DirectorInputSystem.projectWorldToFramebuffer(center);
+            if (projected == null) {
+                continue;
+            }
+
+            double radiusPx = computeScreenHoverRadius(face, center, projected);
+            double dx = mouse.x() - projected.x();
+            double dy = mouse.y() - projected.y();
+            double screenDistSq = dx * dx + dy * dy;
+            if (screenDistSq > radiusPx * radiusPx) {
+                continue;
+            }
+
+            double depth = rayOrigin != null ? rayOrigin.distanceTo(center) : 0.0;
+            if (screenDistSq < closestScreenDistSq - 0.25
+                    || (Math.abs(screenDistSq - closestScreenDistSq) <= 0.25 && depth < closestDepth)) {
+                closestScreenDistSq = screenDistSq;
+                closestDepth = depth;
                 closestFace = face;
             }
         }
 
         if (closestFace != null) {
             if (!closestFace.equals(hoveredFaceIndex) || !hoveringLastFrame) {
-                LOGGER.debug("[FaceHandleManager] hover face {}", closestFace);
+                LOGGER.debug("[FaceHandleManager] hover face {} (screen pick)", closestFace);
             }
             hoveredFaceIndex = closestFace;
             hoveringLastFrame = true;
@@ -189,7 +211,7 @@ public class FaceHandleManager {
             return true;
         }
 
-        if (bounds == null || rayOrigin == null || rayDir == null) {
+        if (bounds == null) {
             detectHover(null, null, null);
             return false;
         }
@@ -227,56 +249,9 @@ public class FaceHandleManager {
         hoveredFaceIndex = null;
     }
 
-    private Double hitFaceHandle(Box box, int face, Vec3d rayOrigin, Vec3d dir) {
-        Vec3d center = OverlayRenderHelper.faceCenter(box, face);
-        Vec3d normal = OverlayRenderHelper.faceNormal(face);
-
-        // 仅拾取朝向相机的一面，避免背面/侧面误触
-        if (normal.dotProduct(rayOrigin.subtract(center)) <= 0) {
-            return null;
-        }
-
-        double denom = normal.dotProduct(dir);
-        if (Math.abs(denom) < PARALLEL_EPSILON) {
-            return null;
-        }
-
-        double t = normal.dotProduct(center.subtract(rayOrigin)) / denom;
-        if (t < PARALLEL_EPSILON) {
-            return null;
-        }
-
-        Vec3d hit = rayOrigin.add(dir.multiply(t));
-        if (!isHitInHandleRegion(face, center, hit, HANDLE_PICK_HALF)) {
-            return null;
-        }
-
-        if (!isMouseNearHandleOnScreen(face, center)) {
-            return null;
-        }
-
-        return t;
-    }
-
-    /**
-     * 鼠标在屏幕上必须靠近手柄投影点，才视为悬停（控制双向箭头与 resize 光标）。
-     */
-    private boolean isMouseNearHandleOnScreen(int face, Vec3d center) {
-        DirectorInputSystem.FramebufferPoint projected = DirectorInputSystem.projectWorldToFramebuffer(center);
-        DirectorInputSystem.FramebufferPoint mouse = DirectorInputSystem.getMouseFramebufferPosition();
-        if (projected == null || mouse == null) {
-            return false;
-        }
-
-        double radiusPx = computeScreenHoverRadius(face, center, projected);
-        double dx = mouse.x() - projected.x();
-        double dy = mouse.y() - projected.y();
-        return dx * dx + dy * dy <= radiusPx * radiusPx;
-    }
-
     private static double computeScreenHoverRadius(int face, Vec3d center,
                                                    DirectorInputSystem.FramebufferPoint centerScreen) {
-        Vec3d tangentOffset = faceTangentOffset(face, HANDLE_PICK_HALF);
+        Vec3d tangentOffset = faceTangentOffset(face);
         DirectorInputSystem.FramebufferPoint edge = DirectorInputSystem.projectWorldToFramebuffer(center.add(tangentOffset));
         double projectedHalf = SCREEN_HOVER_RADIUS_MIN_PX;
         if (edge != null) {
@@ -288,21 +263,11 @@ public class FaceHandleManager {
                 Math.min(SCREEN_HOVER_RADIUS_MAX_PX, projectedHalf * SCREEN_HOVER_RADIUS_SCALE));
     }
 
-    private static Vec3d faceTangentOffset(int face, double amount) {
+    private static Vec3d faceTangentOffset(int face) {
         return switch (face) {
-            case 0, 1 -> new Vec3d(0, amount, 0);
-            case 2, 3 -> new Vec3d(amount, 0, 0);
-            case 4, 5 -> new Vec3d(amount, 0, 0);
+            case 0, 1 -> new Vec3d(0, FaceHandleManager.HANDLE_PICK_HALF, 0);
+            case 2, 3, 4, 5 -> new Vec3d(FaceHandleManager.HANDLE_PICK_HALF, 0, 0);
             default -> Vec3d.ZERO;
-        };
-    }
-
-    private static boolean isHitInHandleRegion(int face, Vec3d center, Vec3d hit, double half) {
-        return switch (face) {
-            case 0, 1 -> Math.abs(hit.y - center.y) <= half && Math.abs(hit.z - center.z) <= half;
-            case 2, 3 -> Math.abs(hit.x - center.x) <= half && Math.abs(hit.z - center.z) <= half;
-            case 4, 5 -> Math.abs(hit.x - center.x) <= half && Math.abs(hit.y - center.y) <= half;
-            default -> false;
         };
     }
 
@@ -353,14 +318,6 @@ public class FaceHandleManager {
 
     public Integer getDraggingFaceIndex() {
         return draggingFaceIndex;
-    }
-
-    public double getLiveOffset() {
-        return liveOffset;
-    }
-
-    public Box getDragStartBox() {
-        return dragStartBox;
     }
 
     public static Axis getFaceAxis(int faceIndex) {
