@@ -50,6 +50,7 @@ public class DirectorClientController {
         
         try {
             directorModeActive = true;
+            suppressVanillaWeatherNow();
             DirectorMod.LOGGER.info("Director模式已激活 - 十字星已隐藏，游戏交互已禁用");
             
         } catch (Exception e) {
@@ -144,6 +145,23 @@ public class DirectorClientController {
      */
     public boolean isDirectorModeActive() {
         return directorModeActive;
+    }
+
+    /**
+     * 进入 Director 模式时立即清空客户端天气状态，避免等到下一次 screen tick
+     * 才把原版降雨压下去，从而出现短暂下雨与亮度闪烁。
+     */
+    private void suppressVanillaWeatherNow() {
+        if (client == null || client.world == null) {
+            return;
+        }
+        try {
+            client.world.setRainGradient(0.0f);
+            client.world.setThunderGradient(0.0f);
+            client.world.getLevelProperties().setRaining(false);
+        } catch (Exception e) {
+            DirectorMod.LOGGER.debug("[Director] 立即压制原版天气失败", e);
+        }
     }
 
     /**

@@ -1,5 +1,6 @@
 package com.director.mixin;
 
+import com.director.client.DirectorClientController;
 import com.director.client.RenderTimeState;
 import com.director.client.world.WorldRenderOverride;
 import com.director.timeline.playback.time.TimeSample;
@@ -16,6 +17,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  */
 @Mixin(World.class)
 public abstract class WorldMixin {
+
+    private static boolean director$shouldSuppressVanillaWeather(WorldRenderOverride state) {
+        if (state.hasWeatherTrackManaged()) {
+            return true;
+        }
+        DirectorClientController controller = DirectorClientController.getInstance();
+        return controller != null && controller.isDirectorModeActive();
+    }
 
     @Inject(method = "getTimeOfDay()J", at = @At("HEAD"), cancellable = true)
     private void overrideTimeOfDay(CallbackInfoReturnable<Long> cir) {
@@ -66,7 +75,7 @@ public abstract class WorldMixin {
             return;
         }
         WorldRenderOverride state = WorldRenderOverride.get();
-        if (!state.hasWeatherTrackManaged()) {
+        if (!director$shouldSuppressVanillaWeather(state)) {
             return;
         }
 
@@ -89,7 +98,7 @@ public abstract class WorldMixin {
             return;
         }
         WorldRenderOverride state = WorldRenderOverride.get();
-        if (!state.hasWeatherTrackManaged()) {
+        if (!director$shouldSuppressVanillaWeather(state)) {
             return;
         }
 
@@ -112,7 +121,7 @@ public abstract class WorldMixin {
             return;
         }
         WorldRenderOverride state = WorldRenderOverride.get();
-        if (!state.hasWeatherTrackManaged()) {
+        if (!director$shouldSuppressVanillaWeather(state)) {
             return;
         }
 
@@ -135,7 +144,7 @@ public abstract class WorldMixin {
             return;
         }
         WorldRenderOverride state = WorldRenderOverride.get();
-        if (!state.hasWeatherTrackManaged()) {
+        if (!director$shouldSuppressVanillaWeather(state)) {
             return;
         }
 
