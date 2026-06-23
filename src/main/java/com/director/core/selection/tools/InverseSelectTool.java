@@ -1,5 +1,9 @@
 package com.director.core.selection.tools;
 
+import com.director.core.DirectorServices;
+import com.director.core.selection.SelectionManager;
+import com.director.core.selection.SelectionOperation;
+import com.director.core.selection.SelectionOperationSupport;
 import com.director.core.selection.SelectionState;
 import com.director.core.selection.SelectionTool;
 import com.director.ui.theme.Icons;
@@ -19,12 +23,13 @@ import java.util.Set;
  * @author Director Team
  * @version 1.0
  */
-public class InverseSelectTool implements SelectionTool {
+public class InverseSelectTool implements SelectionTool, SelectionOperationSupport {
     private static final Logger LOGGER = LoggerFactory.getLogger(InverseSelectTool.class);
     
     private SelectionState currentSelection = SelectionState.empty();
+    private SelectionOperation operation = SelectionOperation.NEW;
     private BlockPos selectionCenter = null;
-    private int selectionRadius = 10; // 选择半径
+    private int selectionRadius = 10;
 
     @Override 
     public String getId() { 
@@ -46,7 +51,6 @@ public class InverseSelectTool implements SelectionTool {
         
         LOGGER.debug("[InverseSelectTool] 反向选择中心: {}，半径: {}", pos, selectionRadius);
         
-        // 执行反向选择
         Set<BlockPos> inverseBlocks = selectInverse(world, selectionCenter, selectionRadius);
         
         if (inverseBlocks.isEmpty()) {
@@ -54,14 +58,8 @@ public class InverseSelectTool implements SelectionTool {
             return;
         }
         
-        if (isShiftDown) {
-            // Shift+点击：添加到现有选择
-            currentSelection.addBlocks(inverseBlocks);
-        } else {
-            // 普通点击：替换当前选择
-            currentSelection.clear();
-            currentSelection.addBlocks(inverseBlocks);
-        }
+        SelectionOperation actualOperation = isShiftDown ? SelectionOperation.ADD : operation;
+        applySelection(inverseBlocks, actualOperation);
         
         LOGGER.info("[InverseSelectTool] 反向选择完成，选择 {} 个方块", inverseBlocks.size());
     }
@@ -75,7 +73,6 @@ public class InverseSelectTool implements SelectionTool {
     @Override
     public void onDragUpdate(World world, BlockPos current) {
         if (selectionCenter != null) {
-            // 根据拖拽距离调整半径
             int distance = (int) Math.sqrt(selectionCenter.getSquaredDistance(current));
             selectionRadius = Math.max(1, Math.min(50, distance));
             LOGGER.debug("[InverseSelectTool] 调整半径: {}", selectionRadius);
@@ -85,34 +82,55 @@ public class InverseSelectTool implements SelectionTool {
     @Override
     public void onDragEnd(World world, BlockPos end) {
         if (selectionCenter != null) {
-            // 最终确定半径
             int distance = (int) Math.sqrt(selectionCenter.getSquaredDistance(end));
             selectionRadius = Math.max(1, Math.min(50, distance));
             
-            // 重新执行选择
             Set<BlockPos> inverseBlocks = selectInverse(world, selectionCenter, selectionRadius);
-            
-            currentSelection.clear();
-            currentSelection.addBlocks(inverseBlocks);
+            applySelection(inverseBlocks, operation);
             
             LOGGER.info("[InverseSelectTool] 反向选择完成，半径: {}，选择 {} 个方块", 
                        selectionRadius, inverseBlocks.size());
         }
     }
 
+    private void applySelection(Set<BlockPos> blocks, SelectionOperation op) {
+        if (blocks == null || blocks.isEmpty()) {
+            return;
+        }
+
+        SelectionManager manager = DirectorServices.get().selection();
+        switch (op) {
+            case NEW -> {
+                manager.clearSelection();
+                manager.addAllToSelection(blocks);
+            }
+            case ADD -> manager.addAllToSelection(blocks);
+            case SUBTRACT -> blocks.forEach(manager::removeFromSelection);
+            case INTERSECT -> {
+                var current = manager.getSelectionSet().asUnmodifiableSet();
+                manager.clearSelection();
+                for (BlockPos blockPos : blocks) {
+                    if (current.contains(blockPos)) {
+                        manager.addToSelection(blockPos);
+                    }
+                }
+            }
+        }
+        syncCurrentSelection(manager);
+    }
+
+    private void syncCurrentSelection(SelectionManager manager) {
+        currentSelection = SelectionState.of(manager.getSelectionSet().asUnmodifiableSet());
+    }
+
     /**
-     * 反向选择算法
+     * 反向选择算法：在球形区域内选择当前未选中的非空气方块。
      */
     private Set<BlockPos> selectInverse(World world, BlockPos center, int radius) {
         Set<BlockPos> result = new HashSet<>();
-        
-        // 获取指定半径内的所有方块
-        Set<BlockPos> allBlocks = getAllBlocksInRadius(world, center, radius);
-        
-        // 获取当前已选择的方块（这里需要从SelectionManager获取）
+        Set<BlockPos> allBlocks = getAllBlocksInRadius(center, radius);
         Set<BlockPos> selectedBlocks = getCurrentSelectedBlocks();
         
-        // 反向选择：选择未选中的方块
         for (BlockPos pos : allBlocks) {
             if (!selectedBlocks.contains(pos) && isValidBlock(world, pos)) {
                 result.add(pos);
@@ -122,18 +140,13 @@ public class InverseSelectTool implements SelectionTool {
         return result;
     }
     
-    /**
-     * 获取指定半径内的所有方块
-     */
-    private Set<BlockPos> getAllBlocksInRadius(World world, BlockPos center, int radius) {
+    private Set<BlockPos> getAllBlocksInRadius(BlockPos center, int radius) {
         Set<BlockPos> blocks = new HashSet<>();
         
         for (int x = -radius; x <= radius; x++) {
             for (int y = -radius; y <= radius; y++) {
                 for (int z = -radius; z <= radius; z++) {
                     BlockPos pos = center.add(x, y, z);
-                    
-                    // 检查是否在半径内
                     if (center.getSquaredDistance(pos) <= radius * radius) {
                         blocks.add(pos);
                     }
@@ -144,22 +157,12 @@ public class InverseSelectTool implements SelectionTool {
         return blocks;
     }
     
-    /**
-     * 获取当前已选择的方块
-     * 这里需要从SelectionManager获取，简化实现
-     */
     private Set<BlockPos> getCurrentSelectedBlocks() {
-        // 简化实现：返回空集合
-        // 实际应该从SelectionManager获取当前选择状态
-        return new HashSet<>();
+        return new HashSet<>(DirectorServices.get().selection().getSelectionSet().asUnmodifiableSet());
     }
     
-    /**
-     * 检查方块是否有效（非空气）
-     */
     private boolean isValidBlock(World world, BlockPos pos) {
-        var state = world.getBlockState(pos);
-        return !state.isAir();
+        return !world.getBlockState(pos).isAir();
     }
 
     @Override
@@ -169,18 +172,21 @@ public class InverseSelectTool implements SelectionTool {
 
     @Override
     public void clearSelection() {
-        currentSelection.clear();
+        SelectionManager manager = DirectorServices.get().selection();
+        manager.clearSelection();
+        currentSelection = SelectionState.empty();
         selectionCenter = null;
         LOGGER.debug("[InverseSelectTool] 清除选择");
     }
 
     @Override
     public boolean shouldRenderOverlay() {
-        return !currentSelection.isEmpty() || selectionCenter != null;
+        return !DirectorServices.get().selection().getSelectionSet().isEmpty() || selectionCenter != null;
     }
 
     @Override
     public void onActivate(World world) {
+        syncCurrentSelection(DirectorServices.get().selection());
         LOGGER.debug("[InverseSelectTool] 工具激活，半径: {}", selectionRadius);
     }
 
@@ -190,24 +196,27 @@ public class InverseSelectTool implements SelectionTool {
         selectionCenter = null;
     }
     
-    /**
-     * 设置选择半径
-     */
     public void setSelectionRadius(int radius) {
         this.selectionRadius = Math.max(1, Math.min(50, radius));
     }
     
-    /**
-     * 获取选择半径
-     */
     public int getSelectionRadius() {
         return selectionRadius;
     }
     
-    /**
-     * 获取选择中心
-     */
     public BlockPos getSelectionCenter() {
         return selectionCenter;
+    }
+
+    @Override
+    public SelectionOperation getOperation() {
+        return operation;
+    }
+
+    @Override
+    public void setOperation(SelectionOperation operation) {
+        if (operation != null) {
+            this.operation = operation;
+        }
     }
 }

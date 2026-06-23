@@ -1,5 +1,9 @@
 package com.director.core.selection.tools;
 
+import com.director.core.DirectorServices;
+import com.director.core.selection.SelectionManager;
+import com.director.core.selection.SelectionOperation;
+import com.director.core.selection.SelectionOperationSupport;
 import com.director.core.selection.SelectionState;
 import com.director.core.selection.SelectionTool;
 import com.director.ui.theme.Icons;
@@ -22,10 +26,11 @@ import java.util.*;
  * @author Director Team
  * @version 1.0
  */
-public class TypeFilterTool implements SelectionTool {
+public class TypeFilterTool implements SelectionTool, SelectionOperationSupport {
     private static final Logger LOGGER = LoggerFactory.getLogger(TypeFilterTool.class);
     
     private SelectionState currentSelection = SelectionState.empty();
+    private SelectionOperation operation = SelectionOperation.NEW;
     private Block targetBlockType = null; // 目标方块类型
     private final Set<String> materialFilters = new HashSet<>(); // 材质过滤器
     private final Set<String> stateFilters = new HashSet<>(); // 状态过滤器
@@ -50,6 +55,10 @@ public class TypeFilterTool implements SelectionTool {
         
         // 获取点击的方块类型
         BlockState targetState = world.getBlockState(pos);
+        if (targetState.isAir()) {
+            LOGGER.debug("[TypeFilterTool] 目标方块是空气，跳过");
+            return;
+        }
         targetBlockType = targetState.getBlock();
         selectionCenter = pos;
         
@@ -63,14 +72,8 @@ public class TypeFilterTool implements SelectionTool {
             return;
         }
         
-        if (isShiftDown) {
-            // Shift+点击：添加到现有选择
-            currentSelection.addBlocks(typeBlocks);
-        } else {
-            // 普通点击：替换当前选择
-            currentSelection.clear();
-            currentSelection.addBlocks(typeBlocks);
-        }
+        SelectionOperation actualOperation = isShiftDown ? SelectionOperation.ADD : operation;
+        applySelection(typeBlocks, actualOperation);
         
         LOGGER.info("[TypeFilterTool] 按类型选择完成，选择 {} 个 {} 方块", typeBlocks.size(), targetBlockType);
     }
@@ -78,6 +81,12 @@ public class TypeFilterTool implements SelectionTool {
     @Override
     public void onDragStart(World world, BlockPos start) {
         selectionCenter = start;
+        if (world != null && start != null) {
+            BlockState state = world.getBlockState(start);
+            if (!state.isAir()) {
+                targetBlockType = state.getBlock();
+            }
+        }
         LOGGER.debug("[TypeFilterTool] 开始调整选择区域，中心: {}", start);
     }
 
@@ -100,13 +109,41 @@ public class TypeFilterTool implements SelectionTool {
             
             // 重新执行选择
             Set<BlockPos> typeBlocks = selectByType(world, selectionCenter, selectionRadius, targetBlockType);
-            
-            currentSelection.clear();
-            currentSelection.addBlocks(typeBlocks);
+            applySelection(typeBlocks, operation);
             
             LOGGER.info("[TypeFilterTool] 按类型选择完成，半径: {}，选择 {} 个 {} 方块", 
                        selectionRadius, typeBlocks.size(), targetBlockType);
         }
+    }
+
+    private void applySelection(Set<BlockPos> blocks, SelectionOperation op) {
+        if (blocks == null || blocks.isEmpty()) {
+            return;
+        }
+
+        SelectionManager manager = DirectorServices.get().selection();
+        switch (op) {
+            case NEW -> {
+                manager.clearSelection();
+                manager.addAllToSelection(blocks);
+            }
+            case ADD -> manager.addAllToSelection(blocks);
+            case SUBTRACT -> blocks.forEach(manager::removeFromSelection);
+            case INTERSECT -> {
+                var current = manager.getSelectionSet().asUnmodifiableSet();
+                manager.clearSelection();
+                for (BlockPos blockPos : blocks) {
+                    if (current.contains(blockPos)) {
+                        manager.addToSelection(blockPos);
+                    }
+                }
+            }
+        }
+        syncCurrentSelection(manager);
+    }
+
+    private void syncCurrentSelection(SelectionManager manager) {
+        currentSelection = SelectionState.of(manager.getSelectionSet().asUnmodifiableSet());
     }
 
     /**
@@ -169,9 +206,7 @@ public class TypeFilterTool implements SelectionTool {
                     break;
                 }
             }
-            if (!matchesState) {
-                return false;
-            }
+            return matchesState;
         }
         
         return true;
@@ -184,7 +219,9 @@ public class TypeFilterTool implements SelectionTool {
 
     @Override
     public void clearSelection() {
-        currentSelection.clear();
+        SelectionManager manager = DirectorServices.get().selection();
+        manager.clearSelection();
+        currentSelection = SelectionState.empty();
         targetBlockType = null;
         selectionCenter = null;
         LOGGER.debug("[TypeFilterTool] 清除选择");
@@ -192,11 +229,12 @@ public class TypeFilterTool implements SelectionTool {
 
     @Override
     public boolean shouldRenderOverlay() {
-        return !currentSelection.isEmpty() || selectionCenter != null;
+        return !DirectorServices.get().selection().getSelectionSet().isEmpty() || selectionCenter != null;
     }
 
     @Override
     public void onActivate(World world) {
+        syncCurrentSelection(DirectorServices.get().selection());
         LOGGER.debug("[TypeFilterTool] 工具激活，半径: {}", selectionRadius);
     }
 
@@ -281,5 +319,17 @@ public class TypeFilterTool implements SelectionTool {
      */
     public Set<String> getStateFilters() {
         return new HashSet<>(stateFilters);
+    }
+
+    @Override
+    public SelectionOperation getOperation() {
+        return operation;
+    }
+
+    @Override
+    public void setOperation(SelectionOperation operation) {
+        if (operation != null) {
+            this.operation = operation;
+        }
     }
 }

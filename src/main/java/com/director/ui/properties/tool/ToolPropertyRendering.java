@@ -14,7 +14,10 @@ import com.director.core.selection.tools.geometry.GeometryShape;
 import com.director.core.selection.tools.magicwandtool.MagicWandConfig;
 import com.director.core.selection.tools.magicwandtool.MagicWandTask;
 import com.director.core.selection.tools.magicwandtool.MagicWandTool;
+import com.director.core.selection.tools.InverseSelectTool;
+import com.director.core.selection.tools.TypeFilterTool;
 import com.director.core.selection.tools.lassoselecttool.LassoSelectTool;
+import net.minecraft.block.Block;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import imgui.ImGui;
@@ -359,6 +362,8 @@ public final class ToolPropertyRendering {
         public void render(SelectionTool tool, IToolPropertyRenderContext ctx) {
             if (tool instanceof MagicWandTool wt) renderMagicWand(wt, ctx);
             else if (tool instanceof ConnectedSelectTool ct) renderConnected(ct, ctx);
+            else if (tool instanceof TypeFilterTool tft) renderTypeFilter(tft, ctx);
+            else if (tool instanceof InverseSelectTool ist) renderInverse(ist, ctx);
         }
         private void renderMagicWand(MagicWandTool tool, IToolPropertyRenderContext ctx) {
             MagicWandConfig c = tool.getConfig();
@@ -493,6 +498,49 @@ public final class ToolPropertyRendering {
                 ImGui.textColored(0.5f, 1.0f, 0.5f, 1.0f, Icons.STATS + " 当前选中: " + cnt + " 个方块");
             } else {
                 ImGui.textColored(0.6f, 0.6f, 0.6f, 1.0f, Icons.STATS + " 点击相连方块以选择");
+            }
+        }
+        private void renderTypeFilter(TypeFilterTool tool, IToolPropertyRenderContext ctx) {
+            if (ImGui.collapsingHeader(Icons.COLOR + " 按类型选择", ImGuiTreeNodeFlags.DefaultOpen)) {
+                ImGui.indent();
+                ctx.getIntBuffer1()[0] = tool.getSelectionRadius();
+                if (ImGui.sliderInt("选择半径##typefilterRadius", ctx.getIntBuffer1(), 1, 100)) {
+                    tool.setSelectionRadius(ctx.getIntBuffer1()[0]);
+                }
+                if (ImGui.isItemHovered()) ImGui.setTooltip("球形区域内选择相同类型的方块；拖拽也可调整半径");
+                Block target = tool.getTargetBlockType();
+                if (target != null) {
+                    ImGui.spacing();
+                    UITheme.label("目标类型: " + target.getName().getString(), UITheme.DarkTheme.TEXT);
+                }
+                ImGui.unindent();
+            }
+            ImGui.spacing();
+            ImGui.separator();
+            int cnt = ctx.getSelectionManager().getSelectionSet().size();
+            if (cnt > 0) {
+                ImGui.textColored(0.5f, 1.0f, 0.5f, 1.0f, Icons.STATS + " 当前选中: " + cnt + " 个方块");
+            } else {
+                ImGui.textColored(0.6f, 0.6f, 0.6f, 1.0f, Icons.STATS + " 点击方块以选择同类型");
+            }
+        }
+        private void renderInverse(InverseSelectTool tool, IToolPropertyRenderContext ctx) {
+            if (ImGui.collapsingHeader(Icons.UNDO + " 反向选择", ImGuiTreeNodeFlags.DefaultOpen)) {
+                ImGui.indent();
+                ctx.getIntBuffer1()[0] = tool.getSelectionRadius();
+                if (ImGui.sliderInt("选择半径##inverseRadius", ctx.getIntBuffer1(), 1, 50)) {
+                    tool.setSelectionRadius(ctx.getIntBuffer1()[0]);
+                }
+                if (ImGui.isItemHovered()) ImGui.setTooltip("球形区域内选择当前未选中的方块；拖拽也可调整半径");
+                ImGui.unindent();
+            }
+            ImGui.spacing();
+            ImGui.separator();
+            int cnt = ctx.getSelectionManager().getSelectionSet().size();
+            if (cnt > 0) {
+                ImGui.textColored(0.5f, 1.0f, 0.5f, 1.0f, Icons.STATS + " 当前选中: " + cnt + " 个方块");
+            } else {
+                ImGui.textColored(0.6f, 0.6f, 0.6f, 1.0f, Icons.STATS + " 先建立选区，再点击反选未选中方块");
             }
         }
         @Override

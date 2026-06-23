@@ -1,5 +1,7 @@
 package com.director.core.selection.tools;
 
+import com.director.core.DirectorServices;
+import com.director.core.selection.SelectionManager;
 import com.director.core.selection.SelectionState;
 import com.director.core.selection.SelectionTool;
 import com.director.ui.theme.Icons;
@@ -59,14 +61,18 @@ public class ConnectedSelectTool implements SelectionTool {
             return;
         }
         
+        SelectionManager manager = DirectorServices.get().selection();
         if (isShiftDown) {
             // Shift+点击：添加到现有选择
-            currentSelection.addBlocks(connectedBlocks);
+            manager.addAllToSelection(connectedBlocks);
         } else {
             // 普通点击：替换当前选择
-            currentSelection.clear();
-            currentSelection.addBlocks(connectedBlocks);
+            manager.clearSelection();
+            manager.addAllToSelection(connectedBlocks);
         }
+
+        // 与 SelectionManager 保持一致，确保渲染/面板读取的是同一份选区。
+        currentSelection = SelectionState.of(manager.getSelectionSet().asUnmodifiableSet());
         
         LOGGER.info("[ConnectedSelectTool] 关联选择完成，选择 {} 个方块", connectedBlocks.size());
     }
@@ -165,17 +171,21 @@ public class ConnectedSelectTool implements SelectionTool {
 
     @Override
     public void clearSelection() {
-        currentSelection.clear();
+        SelectionManager manager = DirectorServices.get().selection();
+        manager.clearSelection();
+        currentSelection = SelectionState.empty();
         LOGGER.debug("[ConnectedSelectTool] 清除选择");
     }
 
     @Override
     public boolean shouldRenderOverlay() {
-        return !currentSelection.isEmpty();
+        return !DirectorServices.get().selection().getSelectionSet().isEmpty();
     }
 
     @Override
     public void onActivate(World world) {
+        SelectionManager manager = DirectorServices.get().selection();
+        currentSelection = SelectionState.of(manager.getSelectionSet().asUnmodifiableSet());
         LOGGER.debug("[ConnectedSelectTool] 工具激活");
     }
 
