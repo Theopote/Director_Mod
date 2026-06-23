@@ -7,6 +7,7 @@ import com.director.core.container.commands.RemoveBlocksFromContainerCommand;
 import com.director.core.selection.SelectionState;
 import com.director.core.selection.SelectionTool;
 import com.director.ui.container.ContainerCommandBridge;
+import com.director.ui.theme.Icons;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
@@ -38,7 +39,7 @@ public class ContainerCullTool implements SelectionTool {
     
     // ========== 工具标识 ==========
     private static final String TOOL_ID = "container_cull";
-    private static final String TOOL_ICON = "✂️";
+    private static final String TOOL_ICON = Icons.CUT;
     
     // ========== 选择状态 ==========
     private final Set<BlockPos> selectedBlocks = new HashSet<>();
