@@ -20,6 +20,10 @@ import java.util.*;
  * @see <a href="../../../../../docs/selection-filter-ids.md">selection-filter-ids.md</a>
  */
 public class BlockFilterRegistry {
+    public enum Visibility {
+        USER_VISIBLE,
+        INTERNAL_HIDDEN
+    }
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BlockFilterRegistry.class);
 
@@ -28,6 +32,9 @@ public class BlockFilterRegistry {
 
     /** 反向查找表（用于序列化） */
     private static final Map<BlockFilter, String> reverseRegistry = new HashMap<>();
+
+    /** 可见性元数据 */
+    private static final Map<String, Visibility> visibilityRegistry = new HashMap<>();
 
     /** 旧 id → 规范表 id，仅用于 getFilter / hasFilter 解析，不写入 reverseRegistry */
     private static final Map<String, String> LEGACY_ALIASES = Map.of(
@@ -58,8 +65,13 @@ public class BlockFilterRegistry {
         registerFilter(FilterIds.TRANSPARENT_ONLY, BlockFilters.transparent());
 
         // 内部用
-        registerFilter(FilterIds.ALL, BlockFilters.all());
-        registerFilter(FilterIds.NONE, BlockFilters.none());
+        registerFilter(FilterIds.ALL, BlockFilters.all(), Visibility.INTERNAL_HIDDEN);
+        registerFilter(FilterIds.NONE, BlockFilters.none(), Visibility.INTERNAL_HIDDEN);
+
+        // 调试/系统保留位：先注册为隐藏 no-op，占住规范 id，避免未来补注册时意外暴露到普通 UI。
+        registerReservedHiddenFilter(FilterIds.DEBUG_LOG_REJECT);
+        registerReservedHiddenFilter(FilterIds.PROFILING_ONLY);
+        registerReservedHiddenFilter(FilterIds.DRY_RUN);
 
         // 扩展（高级区）
         registerFilter(FilterIds.LUMINOUS, BlockFilters.luminous(1));
@@ -67,6 +79,15 @@ public class BlockFilterRegistry {
         registerFilter(FilterIds.LUMINOUS_10, BlockFilters.luminous(10));
 
         LOGGER.info("[BlockFilterRegistry] 已注册 {} 个默认过滤器", registeredFilters.size());
+    }
+
+    /**
+     * 为保留的调试/系统 filterId 注册隐藏占位实现。
+     * 当前使用 no-op（恒为 true）过滤器，仅用于占住 id 与可见性元数据，
+     * 后续接入真实调试行为时可直接替换实现而不影响 UI 隔离策略。
+     */
+    private static void registerReservedHiddenFilter(String id) {
+        registerFilter(id, BlockFilters.all(), Visibility.INTERNAL_HIDDEN);
     }
 
     private static String resolveId(String id) {
@@ -83,6 +104,13 @@ public class BlockFilterRegistry {
      * 注册过滤器。id 须非空、非空白；建议来自 FilterIds。
      */
     public static void registerFilter(String id, BlockFilter filter) {
+        registerFilter(id, filter, Visibility.USER_VISIBLE);
+    }
+
+    /**
+     * 注册过滤器并指定在普通 UI 中的可见性。
+     */
+    public static void registerFilter(String id, BlockFilter filter, Visibility visibility) {
         if (id == null || id.isBlank()) {
             LOGGER.warn("[BlockFilterRegistry] 拒绝注册空 id");
             return;
@@ -95,7 +123,8 @@ public class BlockFilterRegistry {
         }
         registeredFilters.put(id, filter);
         reverseRegistry.put(filter, id);
-        LOGGER.debug("[BlockFilterRegistry] 注册过滤器: {}", id);
+        visibilityRegistry.put(id, visibility != null ? visibility : Visibility.USER_VISIBLE);
+        LOGGER.debug("[BlockFilterRegistry] 注册过滤器: {} ({})", id, visibilityRegistry.get(id));
     }
 
     /**
@@ -144,6 +173,30 @@ public class BlockFilterRegistry {
     public static Set<String> getAllFilterIds() {
         return Collections.unmodifiableSet(registeredFilters.keySet());
     }
+
+    /**
+     * 获取对普通 UI 可见的过滤器 ID。
+     */
+    public static Set<String> getUserVisibleFilterIds() {
+        Set<String> visible = new LinkedHashSet<>();
+        for (String id : registeredFilters.keySet()) {
+            if (isUserVisible(id)) {
+                visible.add(id);
+            }
+        }
+        return Collections.unmodifiableSet(visible);
+    }
+
+    /**
+     * 判断指定过滤器是否对普通 UI 可见。
+     */
+    public static boolean isUserVisible(String id) {
+        String canonical = resolveId(id);
+        if (canonical == null) {
+            return false;
+        }
+        return visibilityRegistry.getOrDefault(canonical, Visibility.USER_VISIBLE) == Visibility.USER_VISIBLE;
+    }
     
     /**
      * 根据过滤器实例获取其ID（用于序列化）
@@ -158,6 +211,7 @@ public class BlockFilterRegistry {
     public static void clear() {
         registeredFilters.clear();
         reverseRegistry.clear();
+        visibilityRegistry.clear();
         LOGGER.debug("[BlockFilterRegistry] 清除所有过滤器");
     }
     

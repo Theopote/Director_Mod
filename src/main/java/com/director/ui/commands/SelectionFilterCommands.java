@@ -63,6 +63,7 @@ public interface SelectionFilterCommands {
 
     // ---------- 元数据（Registry，用于下拉框等） ----------
 
+    /** 获取对普通 UI 可见的过滤器 id。隐藏/调试项由 Registry 元数据控制，不应直接暴露给面板。 */
     Set<String> getFilterIds();
 
     /** 按 id 获取过滤器实例（用于「添加到管道」）；null 表示不存在 */

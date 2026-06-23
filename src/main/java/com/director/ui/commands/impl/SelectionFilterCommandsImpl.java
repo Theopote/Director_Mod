@@ -174,7 +174,7 @@ public final class SelectionFilterCommandsImpl implements SelectionFilterCommand
 
     @Override
     public Set<String> getFilterIds() {
-        return BlockFilterRegistry.getAllFilterIds();
+        return BlockFilterRegistry.getUserVisibleFilterIds();
     }
 
     @Override
