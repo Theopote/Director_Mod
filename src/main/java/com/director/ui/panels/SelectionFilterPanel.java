@@ -18,8 +18,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
-import java.util.Set;
 
 /**
  * SelectionFilterPanel v3.0
@@ -37,6 +37,14 @@ import java.util.Set;
  * Commands / Core 完全不变
  */
 public class SelectionFilterPanel extends AbstractPanel implements ICommandsAware {
+    private static final Comparator<String> PRESET_ID_COMPARATOR = Comparator
+            .comparingInt(SelectionFilterPanel::presetSortOrder)
+            .thenComparing(FilterIds::getPresetDisplayName, String.CASE_INSENSITIVE_ORDER)
+            .thenComparing(Comparator.naturalOrder());
+    private static final Comparator<String> FILTER_ID_COMPARATOR = Comparator
+            .comparingInt(SelectionFilterPanel::filterSortOrder)
+            .thenComparing(FilterIds::getFilterDisplayName, String.CASE_INSENSITIVE_ORDER)
+            .thenComparing(Comparator.naturalOrder());
 
     public static final String PANEL_NAME = PanelId.SELECTION_FILTER;
     private static final Logger LOGGER = LoggerFactory.getLogger(SelectionFilterPanel.class);
@@ -171,7 +179,8 @@ public class SelectionFilterPanel extends AbstractPanel implements ICommandsAwar
     private void renderModes(SelectionFilterCommands sf) {
         ImGui.indent();
 
-        Set<String> presetIds = sf.getPresetIds();
+        List<String> presetIds = new ArrayList<>(sf.getPresetIds());
+        presetIds.sort(PRESET_ID_COMPARATOR);
         String current = selectedPresetId.isEmpty() ? t(DirectorLang.SelectionFilterPanel.MODE_CUSTOM) : FilterIds.getPresetDisplayName(selectedPresetId);
 
         if (ImGui.beginCombo(t(DirectorLang.SelectionFilterPanel.MODE_CURRENT_LABEL) + "##modeSelect", current)) {
@@ -224,7 +233,8 @@ public class SelectionFilterPanel extends AbstractPanel implements ICommandsAwar
         ImGui.indent();
 
         // --- 添加规则 ---
-        Set<String> ids = sf.getFilterIds();
+        List<String> ids = new ArrayList<>(sf.getFilterIds());
+        ids.sort(FILTER_ID_COMPARATOR);
         String currentName = selectedFilterId.isEmpty()
                 ? t(DirectorLang.SelectionFilterPanel.ADV_RULE_PLACEHOLDER)
                 : FilterIds.getFilterDisplayName(selectedFilterId);
@@ -304,5 +314,46 @@ public class SelectionFilterPanel extends AbstractPanel implements ICommandsAwar
 
     private static String t(String key, Object... args) {
         return DirectorI18n.translate(key, args);
+    }
+
+    private static int presetSortOrder(String presetId) {
+        if (presetId == null) return Integer.MAX_VALUE;
+        return switch (presetId) {
+            case FilterIds.PRESET_DEFAULT -> 0;
+            case FilterIds.PRESET_TERRAIN_EDIT -> 1;
+            case FilterIds.PRESET_PLANT_EDIT -> 2;
+            case FilterIds.PRESET_FLUID_EDIT -> 3;
+            case FilterIds.PRESET_REPLACEABLE_EDIT -> 4;
+            default -> 1000;
+        };
+    }
+
+    private static int filterSortOrder(String filterId) {
+        if (filterId == null) return Integer.MAX_VALUE;
+        return switch (filterId) {
+            case FilterIds.EXCLUDE_AIR -> 0;
+            case FilterIds.EXCLUDE_WATER -> 1;
+            case FilterIds.EXCLUDE_LAVA -> 2;
+            case FilterIds.SOLID_ONLY -> 3;
+            case FilterIds.PLANT_ONLY -> 4;
+            case FilterIds.REPLACEABLE_ONLY -> 5;
+            case FilterIds.TRANSPARENT_ONLY -> 6;
+
+            case FilterIds.SAME_BLOCK_TYPE -> 100;
+            case FilterIds.SURFACE_ONLY -> 101;
+            case FilterIds.VISIBLE_ONLY -> 102;
+            case FilterIds.CONNECTED_ONLY -> 103;
+            case FilterIds.MAX_DEPTH_LIMIT -> 104;
+
+            case FilterIds.WITHIN_BBOX -> 200;
+            case FilterIds.WITHIN_CHUNK -> 201;
+            case FilterIds.WITHIN_RADIUS -> 202;
+            case FilterIds.MAX_BLOCK_COUNT -> 203;
+
+            case FilterIds.LUMINOUS -> 300;
+            case FilterIds.LUMINOUS_5 -> 301;
+            case FilterIds.LUMINOUS_10 -> 302;
+            default -> 1000;
+        };
     }
 }
