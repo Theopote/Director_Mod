@@ -300,20 +300,9 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
         ImGui.beginTooltip();
         ImGui.text(tool.getDisplayName());
         ImGui.separator();
-        String desc = tool.getDescription();
-        if (desc != null && !desc.isBlank()) {
-            ImGui.textWrapped(desc);
-        }
-
-        // 教学提示（来自 ToolRegistry 元数据）
-        var meta = toolRegistry.getMetadata(tool.getId());
-        if (meta != null && !meta.getTooltipLines().isEmpty()) {
-            ImGui.separator();
-            for (String line : meta.getTooltipLines()) {
-                if (line != null && !line.isBlank()) {
-                    ImGui.textWrapped(line);
-                }
-            }
+        String usage = simplifyUsage(tool.getDescription());
+        if (!usage.isBlank()) {
+            ImGui.textWrapped(usage);
         }
 
         // 快捷键：从 ShortcutBindings 系统读取（若存在）
@@ -323,6 +312,30 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
             ImGui.text(DirectorI18n.translate(DirectorLang.Toolbar.SHORTCUT, shortcut));
         }
         ImGui.endTooltip();
+    }
+
+    private String simplifyUsage(String description) {
+        if (description == null) {
+            return "";
+        }
+        String s = description.replace('\n', ' ').trim();
+        if (s.isEmpty()) {
+            return "";
+        }
+        int cut = firstSentenceCutIndex(s);
+        return cut > 0 ? s.substring(0, cut).trim() : s;
+    }
+
+    private int firstSentenceCutIndex(String s) {
+        int idx = -1;
+        char[] marks = new char[] {'。', '.', '；', ';', '！', '!', '？', '?'};
+        for (char mark : marks) {
+            int i = s.indexOf(mark);
+            if (i >= 0 && (idx < 0 || i < idx)) {
+                idx = i + 1;
+            }
+        }
+        return idx;
     }
 
     // 工具切换与图标映射已统一交由 ToolRegistry/SelectionTool 自身提供（避免 ToolbarPanel 硬编码）
