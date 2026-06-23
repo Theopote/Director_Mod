@@ -1,6 +1,8 @@
 package com.director.ui.timeline.playback;
 
+import com.director.export.video.VideoExportManager;
 import net.minecraft.client.MinecraftClient;
+import com.director.ui.coordinator.UIPlaybackBridge;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.playback.TimelinePlaybackSampler;
 import com.director.timeline.playback.camera.TimelineCameraController;
@@ -76,6 +78,9 @@ public final class PlaybackOrchestrator {
      * @param deltaSeconds UI帧间隔秒数（建议已做clamp）
      */
     public void tick(float deltaSeconds) {
+        if (VideoExportManager.getInstance().isExporting()) {
+            return;
+        }
         if (model == null) {
             return;
         }
@@ -218,7 +223,7 @@ public final class PlaybackOrchestrator {
     private float getRenderDeltaFallback(float deltaSeconds) {
         MinecraftClient client = MinecraftClient.getInstance();
         if (client != null && client.getRenderTickCounter() != null) {
-            return client.getRenderTickCounter().getTickProgress(false);
+            return UIPlaybackBridge.resolveFrameDeltaSeconds(client.getRenderTickCounter());
         }
         return deltaSeconds;
     }

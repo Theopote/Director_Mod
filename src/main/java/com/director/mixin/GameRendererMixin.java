@@ -4,6 +4,7 @@ import com.director.client.DirectorClientController;
 import com.director.client.camera.CameraRenderOverride;
 import com.director.export.video.VideoRenderPipeline;
 import com.director.timeline.playback.camera.CameraSample;
+import com.director.ui.DirectorScreen;
 import net.minecraft.client.render.Camera;
 import net.minecraft.client.render.GameRenderer;
 import net.minecraft.client.render.RenderTickCounter;
@@ -31,10 +32,18 @@ public class GameRendererMixin {
 
     @Inject(method = "renderWorld", at = @At("HEAD"))
     private void director$onRenderWorldHead(RenderTickCounter tickCounter, CallbackInfo ci) {
+        var mc = net.minecraft.client.MinecraftClient.getInstance();
+        if (mc.currentScreen instanceof DirectorScreen screen) {
+            var uiManager = screen.getUIManager();
+            if (uiManager != null) {
+                // 播放驱动必须在世界渲染前完成，避免相机/方块状态落后一帧
+                uiManager.getPlaybackBridge().tickFromRenderWorldHead(tickCounter);
+            }
+        }
+
         // 🎥 视频导出：在世界渲染开始前驱动时间线/相机（避免额外 renderWorld）
         VideoRenderPipeline.getInstance().onRenderWorldHead(tickCounter);
 
-        var mc = net.minecraft.client.MinecraftClient.getInstance();
         var controller = DirectorClientController.getInstance();
         if (mc.player != null) {
             mc.player.setInvisible(controller.shouldHideCrosshair());

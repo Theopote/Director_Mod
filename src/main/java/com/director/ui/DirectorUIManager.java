@@ -411,6 +411,10 @@ public class DirectorUIManager {
         getOrCreateCommandFacade();
         return shortcutCoordinator.getShortcutDispatcher();
     }
+
+    public UIPlaybackBridge getPlaybackBridge() {
+        return playbackBridge;
+    }
     
 
     private DirectorUILayoutActions layoutActions() {
@@ -576,8 +580,7 @@ public class DirectorUIManager {
             return;
         }
 
-        // 🔄 系统级更新循环 - 驱动动画播放（UIPlaybackBridge）
-        playbackBridge.tick();
+        // 播放驱动已迁移至 GameRenderer.renderWorld(HEAD)，与世界渲染同帧同步
 
         // 🎥 视频导出：
         // 目前的抓帧与缩放发生在 GameRenderer.renderWorld 的 HEAD/Tail 钩子中，
