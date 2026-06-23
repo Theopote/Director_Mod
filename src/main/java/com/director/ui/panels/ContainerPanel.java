@@ -109,9 +109,6 @@ public class ContainerPanel extends AbstractPanel implements ContainerManager.Co
     }
 
     private void renderHeader() {
-        ImGui.textColored(0.4f, 1.0f, 0.4f, 1.0f,
-                Icons.CONTAINER + " " + DirectorI18n.translate(DirectorLang.ContainerPanel.HEADER_TITLE));
-        ImGui.sameLine();
         ImGui.textDisabled(DirectorI18n.translate(DirectorLang.ContainerPanel.HEADER_COUNT,
                 containerManager.getContainerCount()));
 
