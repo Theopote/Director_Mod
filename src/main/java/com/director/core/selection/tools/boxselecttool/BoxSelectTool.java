@@ -1,11 +1,10 @@
 package com.director.core.selection.tools.boxselecttool;
 
 import com.director.core.DirectorServices;
-import com.director.client.gizmo.Axis;
 import com.director.client.gizmo.GizmoManager;
 import com.director.client.gizmo.GizmoType;
+import com.director.client.input.DirectorInputSystem;
 import com.director.client.renderer.ToolPreviewManager;
-import com.director.client.settings.RenderSettings;
 import com.director.core.selection.*;
 import com.director.core.selection.algorithms.RegionSelectors;
 import com.director.core.selection.events.SelectionEvents;
@@ -15,7 +14,6 @@ import com.director.core.selection.tools.FaceHandleManager;
 import com.director.core.selection.tools.SelectionPhase;
 import com.director.ui.theme.Icons;
 import com.director.core.util.SnapUtil;
-import com.director.ui.cursor.ImGuiCursorController;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.hit.BlockHitResult;
 import net.minecraft.util.math.BlockPos;
@@ -88,24 +86,6 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
             return;
         }
 
-        // 检查是否点击在面中心小方块上
-        Box bounds = DirectorServices.get().selection().getCurrentBounds();
-        if (bounds != null) {
-            Vec3d[] ray = getMouseRay();
-            if (ray != null && ray.length == 2) {
-                Integer hoveredFace = faceHandleManager.detectHover(bounds, ray[0], ray[1]);
-                if (hoveredFace != null) {
-                    // 开始拖拽面中心小方块
-                    if (faceHandleManager.startDrag(bounds, ray[0], ray[1])) {
-                        phase = SelectionPhase.GIZMO_EDIT;
-                        updateMouseCursor(true);
-                        LOGGER.info("[BoxSelectTool] ✅ 开始拖拽面中心小方块: face={}", hoveredFace);
-                        return;
-                    }
-                }
-            }
-        }
-
         // 两点式：第一次左键设置起点，第二次左键直接确认终点并应用
         if (firstCorner == null) {
             firstCorner = pos.toImmutable();
@@ -149,96 +129,22 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
 
     @Override
     public void onDragStart(World world, BlockPos start) {
-        if (world == null || start == null) return;
-        
-        // 如果正在拖拽面中心小方块，不处理拖拽开始
-        if (faceHandleManager.isDragging()) {
-            LOGGER.debug("[BoxSelectTool] 正在拖拽面中心小方块，跳过拖拽开始");
-            return;
-        }
-        
-        // 检查是否点击在面中心小方块上，如果是则开始拖拽面
-        Box bounds = DirectorServices.get().selection().getCurrentBounds();
-        if (bounds != null) {
-            Vec3d[] ray = getMouseRay();
-            if (ray != null && ray.length == 2) {
-                Integer hoveredFace = faceHandleManager.detectHover(bounds, ray[0], ray[1]);
-                if (hoveredFace != null) {
-                    // 开始拖拽面中心小方块
-                    if (faceHandleManager.startDrag(bounds, ray[0], ray[1])) {
-                        phase = SelectionPhase.GIZMO_EDIT;
-                        updateMouseCursor(true);
-                        LOGGER.info("[BoxSelectTool] ✅ 开始拖拽面中心小方块: face={}", hoveredFace);
-                        return; // 阻止框选拖拽
-                    }
-                }
-            }
-        }
-        
-        // 普通左键拖拽不再触发框选建盒；两点式框选由 onClick 完成。
+        // 两点式框选由 onClick 完成；面手柄拖拽由 SelectionInputHandler 统一驱动。
     }
 
     @Override
     public void onDragUpdate(World world, BlockPos current) {
-        if (world == null || current == null) return;
-        
-        // 如果正在拖拽面中心小方块，更新拖拽
-        if (faceHandleManager.isDragging()) {
-            Vec3d[] ray = getMouseRay();
-            if (ray != null && ray.length == 2) {
-                faceHandleManager.updateDrag(ray[0], ray[1]);
-            }
-            updateMouseCursor(true);
-            return; // 阻止框选拖拽更新
-        }
-
-        // Gizmo 拖拽更新由 GizmoInteractionController 处理，这里不需要额外处理
+        // 面手柄拖拽由 SelectionInputHandler.tick 驱动。
     }
 
     @Override
     public void onDragEnd(World world, BlockPos end) {
-        if (world == null || end == null) return;
-        
-        // 如果正在拖拽面中心小方块，结束拖拽
-        if (faceHandleManager.isDragging()) {
-            faceHandleManager.endDrag();
-            phase = SelectionPhase.IDLE;
-            
-            // 拖拽结束后，立即检测当前是否还在悬停
-            // 如果不在小方块上，恢复默认光标；如果还在，保持双向箭头光标
-            Integer hoveredFace = null;
-            if (!DirectorServices.get().selection().getSelectionSet().isEmpty()) {
-                Box bounds = DirectorServices.get().selection().getCurrentBounds();
-                if (bounds != null) {
-                    Vec3d[] ray = getMouseRay();
-                    if (ray != null && ray.length == 2) {
-                        hoveredFace = faceHandleManager.detectHover(bounds, ray[0], ray[1]);
-                    }
-                }
-            }
-            updateMouseCursor(hoveredFace != null);
-            
-            LOGGER.info("[BoxSelectTool] ✅ 面中心小方块拖拽结束，当前悬停: {}", hoveredFace);
-            return;
-        }
-        
-        // Gizmo 拖拽结束由 GizmoInteractionController 处理，这里不需要额外处理
+        // 面手柄拖拽结束由 SelectionInputHandler.tick 轮询鼠标释放完成。
     }
 
     @Override
     public void tick(World world) {
-        // 实时预览渲染由 ToolPreviewManager 管理
-        boolean bboxVisible = RenderSettings.get().selection_showBoundingBox;
-
-        // 如果用户关闭“显示包围盒”，立即取消面手柄拖拽/预览，避免继续渲染/误应用 resize
-        if (!bboxVisible && faceHandleManager.isDragging()) {
-            faceHandleManager.cancelDrag();
-            phase = SelectionPhase.IDLE;
-            updateMouseCursor(false);
-        }
-
-        // ✅ 两点式建盒：实时预览（参考 formacraft 的做法：选点后持续更新 end）
-        // 当第一角点已设置且还未左键确认终点时，使用当前鼠标指向的方块作为临时第二角点更新预览框。
+        // 两点式建盒：第一角点已设置时，用当前鼠标指向方块更新预览框
         if (phase == SelectionPhase.FIRST_POINT_SET && firstCorner != null && !faceHandleManager.isDragging()) {
             BlockPos hovered = getHoveredBlockPos();
             if (hovered != null) {
@@ -249,178 +155,6 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
                 ToolPreviewManager.getInstance().setPreviewBox(preview);
             }
         }
-        
-        // 获取鼠标射线（面手柄和 Gizmo 都需要）
-        Vec3d[] ray = getMouseRay();
-        Vec3d rayOrigin = null;
-        Vec3d rayDir = null;
-        if (ray != null && ray.length == 2) {
-            rayOrigin = ray[0];
-            rayDir = ray[1];
-        }
-
-        // =====================================================
-        // ✅ 面中心小方块拖拽：改为 tick 驱动（不依赖 BlockPos 变化）
-        // =====================================================
-        // 说明：之前依赖 onDragUpdate/onDragEnd，很多输入实现只会在 BlockPos 变化时触发更新，导致“能变光标但拖不动”。
-        // 这里改为每帧根据射线更新 offset，并用 GLFW 轮询鼠标释放来结束拖拽，确保拖拽必然生效且能正确退出。
-        if (faceHandleManager.isDragging()) {
-            try {
-                // 1) 每帧更新拖拽 offset（实时预览）
-                if (rayOrigin != null && rayDir != null) {
-                    faceHandleManager.updateDrag(rayOrigin, rayDir);
-                }
-
-                // 2) 轮询鼠标左键：释放则结束拖拽并应用 resize
-                MinecraftClient client = MinecraftClient.getInstance();
-                if (client != null && client.getWindow() != null) {
-                    long window = client.getWindow().getHandle();
-                    boolean mouseDown = org.lwjgl.glfw.GLFW.glfwGetMouseButton(window, org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT)
-                            == org.lwjgl.glfw.GLFW.GLFW_PRESS;
-                    if (!mouseDown) {
-                        faceHandleManager.endDrag();
-                        phase = SelectionPhase.IDLE;
-
-                        // 结束后立即重新检测 hover（可能鼠标已经离开）并刷新光标
-                        Integer hoveredFace = null;
-                        Box bounds = DirectorServices.get().selection().getCurrentBounds();
-                        if (bounds != null && rayOrigin != null && rayDir != null) {
-                            hoveredFace = faceHandleManager.detectHover(bounds, rayOrigin, rayDir);
-                        }
-                        updateMouseCursor(bboxVisible && hoveredFace != null);
-                    } else {
-                        // 拖拽中始终保持 resize 光标
-                        updateMouseCursor(true);
-                    }
-                }
-            } catch (Exception e) {
-                // 拖拽异常时兜底：取消拖拽并恢复光标，避免卡住
-                try {
-                    faceHandleManager.cancelDrag();
-                } catch (Exception ignored) {}
-                phase = SelectionPhase.IDLE;
-                updateMouseCursor(false);
-            }
-            // 拖拽面手柄时不再继续 hover/gizmo 检测，避免干扰
-            return;
-        }
-        
-        // 检测面中心小方块的鼠标悬停
-        Integer hoveredFace = null;
-        if (bboxVisible && world != null && !DirectorServices.get().selection().getSelectionSet().isEmpty()) {
-            Box bounds = DirectorServices.get().selection().getCurrentBounds();
-            if (bounds != null && rayOrigin != null && rayDir != null) {
-                // 检测悬停
-                hoveredFace = faceHandleManager.detectHover(bounds, rayOrigin, rayDir);
-                if (hoveredFace != null) {
-                    LOGGER.info("[BoxSelectTool] ✅ 检测到悬停在面中心小方块: face={}, bounds={}", hoveredFace, bounds);
-                } else {
-                    LOGGER.debug("[BoxSelectTool] 未检测到悬停: rayOrigin={}, rayDir={}", rayOrigin, rayDir);
-                }
-            }
-        }
-        
-        // 更新光标
-        boolean shouldShowResizeCursor = bboxVisible && (faceHandleManager.isDragging() || hoveredFace != null);
-        updateMouseCursor(shouldShowResizeCursor);
-    }
-    
-    /**
-     * 获取与 ImGui 鼠标位置对应的世界射线（相机原点 + 方向）
-     * v5.1: 修复为基于实际鼠标位置而非屏幕中心，确保 hover 检测准确
-     * @return [rayOrigin, rayDir] 或 fallback
-     */
-    private Vec3d[] getMouseRay() {
-        try {
-            net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
-            if (client == null || client.gameRenderer == null || client.getWindow() == null) {
-                return new Vec3d[]{Vec3d.ZERO, new Vec3d(0, 0, -1)};
-            }
-
-            var camera = client.gameRenderer.getCamera();
-            double mouseX = client.mouse.getX();
-            double mouseY = client.mouse.getY();
-
-            // 视口尺寸
-            double width = client.getWindow().getFramebufferWidth();
-            double height = client.getWindow().getFramebufferHeight();
-
-            // FOV（度转弧度）
-            double fov = client.options.getFov().getValue() * Math.PI / 180.0;
-            double aspect = width / height;
-
-            // 归一化设备坐标 (-1, 1)
-            double ndcX = (2.0 * mouseX / width - 1.0);
-            double ndcY = (1.0 - 2.0 * mouseY / height); // 注意：屏幕Y是反的
-
-            // 投影到相机平面（透视投影）
-            double tanFov = Math.tan(fov / 2.0);
-            double px = ndcX * tanFov * aspect;
-            double py = ndcY * tanFov;
-
-            // 相机方向向量（使用四元数旋转）
-            var q = camera.getRotation();
-            // 前向向量在相机空间是 (0, 0, -1)，用四元数旋转到世界空间
-            Vec3d camDir = rotateByQuaternion(new Vec3d(0, 0, -1), q);
-            Vec3d camRight = camDir.crossProduct(new Vec3d(0, 1, 0)).normalize();
-            Vec3d camUp = camRight.crossProduct(camDir).normalize();
-
-            // 构建射线方向
-            Vec3d rayDir = camDir
-                    .add(camRight.multiply(px))
-                    .add(camUp.multiply(py))
-                    .normalize();
-
-            return new Vec3d[]{camera.getPos(), rayDir};
-        } catch (Exception e) {
-            LOGGER.debug("[BoxSelectTool] 获取鼠标射线失败", e);
-            return null;
-        }
-    }
-    
-    /**
-     * 使用四元数旋转向量
-     */
-    private Vec3d rotateByQuaternion(Vec3d v, org.joml.Quaternionf q) {
-        float x = (float) v.x;
-        float y = (float) v.y;
-        float z = (float) v.z;
-        float qx = q.x, qy = q.y, qz = q.z, qw = q.w;
-        
-        // v' = v + 2*cross(q.xyz, cross(q.xyz, v) + qw*v)
-        float cx1 = qy * z - qz * y;
-        float cy1 = qz * x - qx * z;
-        float cz1 = qx * y - qy * x;
-        float rx = x + 2.0f * (qy * cz1 - qz * cy1 + qw * cx1);
-        float ry = y + 2.0f * (qz * cx1 - qx * cz1 + qw * cy1);
-        float rz = z + 2.0f * (qx * cy1 - qy * cx1 + qw * cz1);
-        
-        return new Vec3d(rx, ry, rz);
-    }
-    
-    /**
-     * 更新 ImGui 光标类型（取代原有的 GLFW 光标逻辑）
-     */
-    private void updateMouseCursor(boolean shouldShowResizeCursor) {
-        ImGuiCursorController cursor = ImGuiCursorController.get();
-
-        if (!shouldShowResizeCursor) {
-            cursor.setCursorType(ImGuiCursorController.CursorType.DEFAULT);
-            return;
-        }
-
-        Integer targetFace = faceHandleManager.getHoveredFaceIndex();
-        if (targetFace == null && faceHandleManager.isDragging()) {
-            targetFace = faceHandleManager.getDraggingFaceIndex();
-        }
-
-        if (targetFace == null) {
-            cursor.setCursorType(ImGuiCursorController.CursorType.DEFAULT);
-            return;
-        }
-
-        Axis axis = FaceHandleManager.getFaceAxis(targetFace);
-        cursor.setCursorByAxis(axis);
     }
 
     private BlockPos getHoveredBlockPos() {
@@ -431,12 +165,12 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
             }
 
             // 优先复用输入系统当前射线命中，保证与点击/掠过逻辑一致。
-            BlockHitResult current = com.director.client.input.DirectorInputSystem.getCurrentRay();
+            BlockHitResult current = DirectorInputSystem.getCurrentRay();
             if (current != null && current.getType() == net.minecraft.util.hit.HitResult.Type.BLOCK) {
                 return current.getBlockPos();
             }
 
-            Vec3d[] ray = getMouseRay();
+            Vec3d[] ray = DirectorInputSystem.getRayOriginAndDirection();
             if (ray == null || ray.length != 2) {
                 return null;
             }
@@ -627,7 +361,6 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
         } catch (Exception e) {
             LOGGER.debug("[BoxSelectTool] 停用 BOUNDS Gizmo 失败", e);
         }
-        updateMouseCursor(false);
     }
 
     // ====================== Getters & Setters ======================

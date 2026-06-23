@@ -1,5 +1,6 @@
 package com.director.core.selection;
 
+import com.director.client.input.DirectorInputSystem;
 import com.director.core.DirectorServices;
 import com.director.client.gizmo.GizmoManager;
 import com.director.client.settings.RenderSettings;
@@ -329,7 +330,7 @@ public class SelectionInputHandler {
                     currentTool.onHover(client.world, null);
                 }
 
-                updateFaceHandleInteractionForNonBoxTool(currentTool);
+                updateFaceHandleInteraction();
             }
         }
     }
@@ -355,7 +356,7 @@ public class SelectionInputHandler {
             return false;
         }
 
-        Vec3d[] ray = getRayFromMouse();
+        Vec3d[] ray = DirectorInputSystem.getRayOriginAndDirection();
         if (ray == null || ray.length != 2) {
             return false;
         }
@@ -371,51 +372,29 @@ public class SelectionInputHandler {
         return started;
     }
 
-    private void updateFaceHandleInteractionForNonBoxTool(SelectionTool currentTool) {
-        if (currentTool instanceof BoxSelectTool) {
-            return;
-        }
-
+    private void updateFaceHandleInteraction() {
         FaceHandleManager faceHandleManager = selectionManager.getFaceHandleManager();
         if (faceHandleManager == null) {
             return;
         }
 
-        if (!RenderSettings.get().selection_showBoundingBox) {
-            if (faceHandleManager.isDragging()) {
-                faceHandleManager.cancelDrag();
-            } else {
-                faceHandleManager.detectHover(null, null, null);
-            }
-            return;
+        boolean bboxVisible = RenderSettings.get().selection_showBoundingBox;
+        Box bounds = bboxVisible && !selectionManager.getSelectionSet().isEmpty()
+                ? selectionManager.getCurrentBounds()
+                : null;
+
+        Vec3d[] ray = DirectorInputSystem.getRayOriginAndDirection();
+        Vec3d rayOrigin = ray != null ? ray[0] : null;
+        Vec3d rayDir = ray != null ? ray[1] : null;
+
+        boolean mouseLeftDown = false;
+        if (client != null && client.getWindow() != null) {
+            long window = client.getWindow().getHandle();
+            mouseLeftDown = GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
         }
 
-        Box bounds = selectionManager.getCurrentBounds();
-        Vec3d[] ray = getRayFromMouse();
-        if (bounds == null || ray == null || ray.length != 2) {
-            if (!faceHandleManager.isDragging()) {
-                faceHandleManager.detectHover(null, null, null);
-            }
-            return;
-        }
-
-        faceHandleManager.detectHover(bounds, ray[0], ray[1]);
-
-        if (!faceHandleManager.isDragging()) {
-            return;
-        }
-
-        faceHandleManager.updateDrag(ray[0], ray[1]);
-
-        if (client == null || client.getWindow() == null) {
-            return;
-        }
-
-        long window = client.getWindow().getHandle();
-        boolean mouseDown = GLFW.glfwGetMouseButton(window, GLFW.GLFW_MOUSE_BUTTON_LEFT) == GLFW.GLFW_PRESS;
-        if (!mouseDown) {
-            faceHandleManager.endDrag();
-        }
+        faceHandleManager.tickInteraction(bounds, rayOrigin, rayDir, bboxVisible, mouseLeftDown);
+        faceHandleManager.syncCursor(bboxVisible);
     }
 
     /* -------------------- getters -------------------- */

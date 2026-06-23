@@ -184,6 +184,19 @@ public final class DirectorInputSystem {
 
     public record ImGuiRay(Vec3d origin, Vec3d direction) {}
 
+    /**
+     * 返回与 ImGui 鼠标位置一致的世界射线，供面手柄拾取等交互复用。
+     *
+     * @return [origin, direction]，不可用时返回 null
+     */
+    public static Vec3d[] getRayOriginAndDirection() {
+        ImGuiRay ray = computeImGuiRay();
+        if (ray == null) {
+            return null;
+        }
+        return new Vec3d[]{ray.origin(), ray.direction()};
+    }
+
     public static ImGuiRay computeImGuiRay() {
         if (MC.world == null || MC.player == null || MC.getCameraEntity() == null) {
             return null;

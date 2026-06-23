@@ -766,13 +766,10 @@ public class SelectionManager {
     }
 
     private int snapResizeOffsetToBlocks(double offset) {
-        if (offset >= 1.0) {
-            return (int) Math.floor(offset);
+        if (Math.abs(offset) < 0.5) {
+            return 0;
         }
-        if (offset <= -1.0) {
-            return (int) Math.ceil(offset);
-        }
-        return 0;
+        return (int) Math.round(offset);
     }
     
     /**
