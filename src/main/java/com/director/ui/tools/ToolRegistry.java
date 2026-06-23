@@ -49,8 +49,6 @@ public final class ToolRegistry {
     public static final String ACTOR_POSE_TOOL_ID = ActorPoseTool.ID;
     public static final String ACTOR_PATH_TOOL_ID = "actor_path";
 
-    private final SelectionManager selectionManager = DirectorServices.get().selection();
-
     private final List<EditorTool> selectionTools = new ArrayList<>();
     private final List<EditorTool> extraTools = new ArrayList<>();
     private volatile boolean initialized = false;
@@ -160,6 +158,10 @@ public final class ToolRegistry {
 
     private ToolRegistry() {}
 
+    private SelectionManager selectionManager() {
+        return DirectorServices.get().selection();
+    }
+
     public static ToolRegistry get() {
         return INSTANCE;
     }
@@ -183,6 +185,7 @@ public final class ToolRegistry {
         if (initialized) return;
 
         selectionTools.clear();
+        SelectionManager selectionManager = selectionManager();
 
         // 1) Selection 工具：来自 SelectionRegistry（保持现状，不改现有工具）
         for (SelectionTool tool : selectionManager.getRegistry().getAllTools()) {
@@ -224,6 +227,7 @@ public final class ToolRegistry {
     }
 
     public String getActiveToolId() {
+        SelectionManager selectionManager = selectionManager();
         return activeNonSelectionToolId != null ? activeNonSelectionToolId : selectionManager.getCurrentToolId();
     }
 
@@ -274,6 +278,7 @@ public final class ToolRegistry {
     public void ensureDefaultTool(String toolId) {
         // 如果用户当前处于非 Selection 工具模式，不要强行切换 Selection 默认工具
         if (activeNonSelectionToolId != null) return;
+        SelectionManager selectionManager = selectionManager();
         if (selectionManager.hasCurrentTool()) return;
         activate(toolId);
     }
@@ -285,6 +290,7 @@ public final class ToolRegistry {
      */
     public boolean activate(String toolId) {
         if (toolId == null || toolId.isBlank()) return false;
+        SelectionManager selectionManager = selectionManager();
 
         // 优先：如果是 extra 工具，走 editor-level 激活
         EditorTool extra = findExtraTool(toolId);
