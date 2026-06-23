@@ -3,6 +3,7 @@ package com.director.ui.di;
 import com.director.core.DirectorServices;
 import com.director.ui.panels.*;
 import com.director.core.container.ContainerManager;
+import com.director.ui.container.ContainerCommandBridge;
 import com.director.ui.timeline.commands.TimelineCommandHistory;
 import net.minecraft.client.MinecraftClient;
 import org.slf4j.Logger;
@@ -85,6 +86,7 @@ public class PanelFactory implements IPanelFactory {
             // 创建依赖对象
             ContainerManager containerManager = DirectorServices.get().containers();
             TimelineCommandHistory commandHistory = new TimelineCommandHistory();
+            ContainerCommandBridge.bindHistory(commandHistory);
             
             // 使用依赖注入构造函数（v5.0: 移除了WorldBlockCollector参数，propertiesPanel 在内部创建）
             return new ContainerPanel(containerManager, commandHistory);

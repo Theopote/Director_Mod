@@ -5,6 +5,7 @@ import com.director.core.selection.SelectionOperationSupport;
 import com.director.core.selection.SelectionState;
 import com.director.core.selection.SelectionTool;
 import com.director.core.selection.tools.ClickSelectTool;
+import com.director.core.selection.tools.ContainerCullTool;
 import com.director.core.selection.tools.boxselecttool.BoxSelectTool;
 import com.director.core.selection.tools.brushselecttool.BrushSelectTool;
 import com.director.core.selection.tools.faceselecttool.FaceSelectConfig;
@@ -44,6 +45,7 @@ public final class ToolPropertyRendering {
         registerRenderer(new BrushToolRenderer());
         registerRenderer(new BoxV3ToolRenderer());
         registerRenderer(new ClickToolRenderer());
+        registerRenderer(new ContainerCullToolRenderer());
         registerRenderer(new FloodFillToolRenderer());
         registerRenderer(new FaceSelectToolRenderer());
         registerRenderer(new LassoToolRenderer());
@@ -350,6 +352,43 @@ public final class ToolPropertyRendering {
         @Override
         public Class<ClickSelectTool> getToolClass() {
             return ClickSelectTool.class;
+        }
+    }
+
+    private static final class ContainerCullToolRenderer implements ToolPropertyRenderer<ContainerCullTool> {
+        @Override
+        public void render(ContainerCullTool tool, IToolPropertyRenderContext ctx) {
+            tool.refreshActiveContainer();
+
+            if (ImGui.collapsingHeader(Icons.CONTAINER + " 容器剔除", ImGuiTreeNodeFlags.DefaultOpen)) {
+                ImGui.indent();
+                if (tool.hasActiveContainer()) {
+                    UITheme.label("目标容器: " + tool.getActiveContainerName(), UITheme.DarkTheme.TEXT);
+                    UITheme.label("待剔除方块: " + tool.getSelectedBlockCount(), UITheme.DarkTheme.TEXT_SELECTED);
+                    ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "左键单选，Shift+左键多选，拖拽连续框取；右键确认剔除。");
+                } else {
+                    UITheme.label("未检测到激活容器", UITheme.DarkTheme.TEXT_DISABLED);
+                    ImGui.textColored(0.8f, 0.6f, 0.2f, 1.0f, "请先在容器面板激活一个容器。");
+                }
+                ImGui.unindent();
+            }
+
+            ImGui.spacing();
+            boolean canConfirm = tool.canConfirmCull();
+            if (!canConfirm) ImGui.beginDisabled();
+            if (ImGui.button(Icons.CHECK + " 确认剔除##containerCullConfirm", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
+                tool.confirmCull();
+            }
+            if (!canConfirm) ImGui.endDisabled();
+            ImGui.sameLine();
+            if (ImGui.button(Icons.CLOSE + " 取消选择##containerCullCancel", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
+                tool.cancelCull();
+            }
+        }
+
+        @Override
+        public Class<ContainerCullTool> getToolClass() {
+            return ContainerCullTool.class;
         }
     }
 

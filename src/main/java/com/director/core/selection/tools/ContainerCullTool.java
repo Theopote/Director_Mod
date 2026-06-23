@@ -6,12 +6,14 @@ import com.director.core.container.ContainerManager;
 import com.director.core.container.commands.RemoveBlocksFromContainerCommand;
 import com.director.core.selection.SelectionState;
 import com.director.core.selection.SelectionTool;
+import com.director.ui.container.ContainerCommandBridge;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.Set;
 
 /**
@@ -41,9 +43,12 @@ public class ContainerCullTool implements SelectionTool {
     // ========== 选择状态 ==========
     private final Set<BlockPos> selectedBlocks = new HashSet<>();
     private Container targetContainer = null;
+    private BlockPos lastDragPos = null;
     
     // ========== 预览颜色 ==========
     private static final int PREVIEW_COLOR = 0xFFFF3333; // 红色半透明
+
+    private final SelectionState previewState = new SelectionState(TOOL_ID);
     
     @Override
     public String getId() {
@@ -57,30 +62,24 @@ public class ContainerCullTool implements SelectionTool {
     
     @Override
     public void onActivate(World world) {
-        // 获取激活容器
-        ContainerManager manager = DirectorServices.get().containers();
-        targetContainer = manager != null ? manager.getActive() : null;
-        
-        if (targetContainer == null) {
-            LOGGER.warn("[ContainerCullTool] 没有激活的容器，无法使用剔除工具");
-        } else {
-            LOGGER.info("[ContainerCullTool] 激活剔除工具，目标容器: {}", 
-                targetContainer.getName());
-        }
-        
+        refreshActiveContainer();
         selectedBlocks.clear();
+        syncToSelectionManager();
     }
     
     @Override
     public void onDeactivate(World world) {
         selectedBlocks.clear();
+        syncToSelectionManager();
         targetContainer = null;
+        lastDragPos = null;
         LOGGER.info("[ContainerCullTool] 停用剔除工具");
     }
     
     @Override
     public void onClick(World world, BlockPos pos, boolean isShiftDown) {
-        if (targetContainer == null) {
+        refreshActiveContainer();
+        if (targetContainer == null || pos == null) {
             LOGGER.warn("[ContainerCullTool] 没有激活的容器");
             return;
         }
@@ -92,6 +91,11 @@ public class ContainerCullTool implements SelectionTool {
             return;
         }
         
+        // 默认单选；按住 Shift 可进行多选切换。
+        if (!isShiftDown) {
+            selectedBlocks.clear();
+        }
+
         // 切换选择
         if (selectedBlocks.contains(pos)) {
             selectedBlocks.remove(pos);
@@ -102,7 +106,25 @@ public class ContainerCullTool implements SelectionTool {
         }
         
         // 更新选择状态
-        updateSelection();
+        syncToSelectionManager();
+    }
+
+    @Override
+    public void onDragStart(World world, BlockPos start) {
+        refreshActiveContainer();
+        lastDragPos = null;
+        tryAddDuringDrag(start);
+    }
+
+    @Override
+    public void onDragUpdate(World world, BlockPos current) {
+        tryAddDuringDrag(current);
+    }
+
+    @Override
+    public void onDragEnd(World world, BlockPos end) {
+        tryAddDuringDrag(end);
+        lastDragPos = null;
     }
     
     @Override
@@ -113,23 +135,29 @@ public class ContainerCullTool implements SelectionTool {
     
     @Override
     public SelectionState getCurrentSelection() {
-        SelectionState state = new SelectionState(TOOL_ID);
-        state.addBlocks(selectedBlocks);
-        state.setHighlightColor(PREVIEW_COLOR);
-        state.setName("待剔除方块");
-        return state;
+        previewState.clear();
+        previewState.addBlocks(selectedBlocks);
+        previewState.setHighlightColor(PREVIEW_COLOR);
+        previewState.setName("待剔除方块");
+        return previewState;
     }
     
     @Override
     public void clearSelection() {
         selectedBlocks.clear();
-        updateSelection();
+        syncToSelectionManager();
+    }
+
+    @Override
+    public boolean shouldRenderOverlay() {
+        return !selectedBlocks.isEmpty();
     }
     
     /**
      * 确认剔除
      */
-    private void confirmCull() {
+    public void confirmCull() {
+        refreshActiveContainer();
         if (targetContainer == null) {
             LOGGER.warn("[ContainerCullTool] 没有激活的容器");
             return;
@@ -140,21 +168,34 @@ public class ContainerCullTool implements SelectionTool {
             return;
         }
         
+        Set<BlockPos> validBlocks = new LinkedHashSet<>();
+        for (BlockPos pos : selectedBlocks) {
+            if (targetContainer.containsBlock(pos)) {
+                validBlocks.add(pos);
+            }
+        }
+        if (validBlocks.isEmpty()) {
+            LOGGER.info("[ContainerCullTool] 选中的方块已不在容器中，取消剔除");
+            selectedBlocks.clear();
+            syncToSelectionManager();
+            return;
+        }
+
         // 创建命令并执行
         RemoveBlocksFromContainerCommand command = new RemoveBlocksFromContainerCommand(
             targetContainer, 
-            selectedBlocks
+            validBlocks
         );
         
-        // 执行命令
-        command.execute();
+        // 通过统一历史入口执行；若历史未绑定则自动退化为直接执行。
+        ContainerCommandBridge.execute(command);
         
         LOGGER.info("[ContainerCullTool] 从容器 {} 剔除 {} 个方块", 
-            targetContainer.getName(), selectedBlocks.size());
+            targetContainer.getName(), validBlocks.size());
         
         // 清空选择
         selectedBlocks.clear();
-        updateSelection();
+        syncToSelectionManager();
         
         // 可以选择性地切换回默认工具
         // SelectionManager.get().setCurrentTool(null);
@@ -166,7 +207,11 @@ public class ContainerCullTool implements SelectionTool {
     public void cancelCull() {
         LOGGER.info("[ContainerCullTool] 取消剔除");
         selectedBlocks.clear();
-        updateSelection();
+        syncToSelectionManager();
+    }
+
+    public boolean canConfirmCull() {
+        return targetContainer != null && !selectedBlocks.isEmpty();
     }
     
     /**
@@ -175,9 +220,12 @@ public class ContainerCullTool implements SelectionTool {
      * <p>注意：SelectionManager会自动通过getCurrentSelection()获取状态，
      * 因此这里只需要等待下一次渲染周期即可。
      */
-    private void updateSelection() {
-        // SelectionManager会在下一次渲染时自动获取getCurrentSelection()的结果
-        // 不需要手动触发通知
+    private void syncToSelectionManager() {
+        var selectionManager = DirectorServices.get().selection();
+        selectionManager.clearSelection();
+        if (!selectedBlocks.isEmpty()) {
+            selectionManager.addAllToSelection(selectedBlocks);
+        }
     }
     
     /**
@@ -199,6 +247,39 @@ public class ContainerCullTool implements SelectionTool {
      */
     public boolean hasActiveContainer() {
         return targetContainer != null;
+    }
+
+    public String getActiveContainerName() {
+        return targetContainer != null ? targetContainer.getName() : "";
+    }
+
+    public void refreshActiveContainer() {
+        ContainerManager manager = DirectorServices.get().containers();
+        Container active = manager != null ? manager.getActive() : null;
+        if (active != targetContainer) {
+            targetContainer = active;
+            if (targetContainer == null) {
+                LOGGER.warn("[ContainerCullTool] 当前无激活容器");
+                selectedBlocks.clear();
+                syncToSelectionManager();
+            } else {
+                LOGGER.info("[ContainerCullTool] 当前目标容器: {}", targetContainer.getName());
+            }
+        }
+    }
+
+    private void tryAddDuringDrag(BlockPos pos) {
+        if (pos == null || targetContainer == null) {
+            return;
+        }
+        if (pos.equals(lastDragPos)) {
+            return;
+        }
+        lastDragPos = pos;
+        if (targetContainer.containsBlock(pos)) {
+            selectedBlocks.add(pos);
+            syncToSelectionManager();
+        }
     }
 }
 
