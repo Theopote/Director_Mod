@@ -1,6 +1,7 @@
 package com.director.core.selection.tools;
 
 import com.director.client.gizmo.Axis;
+import com.director.client.input.DirectorInputSystem;
 import com.director.client.renderer.OverlayRenderHelper;
 import com.director.core.DirectorServices;
 import com.director.core.selection.SelectionManager;
@@ -23,6 +24,10 @@ public class FaceHandleManager {
     /** 与 {@link OverlayRenderHelper} 视觉手柄对齐，略放大便于点击。 */
     private static final double HANDLE_PICK_HALF = OverlayRenderHelper.HANDLE_PICK_HALF_SIZE;
     private static final double PARALLEL_EPSILON = 1e-6;
+    /** 屏幕空间悬停半径下限/上限（帧缓冲像素），仅鼠标靠近手柄中心时才显示双向箭头。 */
+    private static final double SCREEN_HOVER_RADIUS_MIN_PX = 10.0;
+    private static final double SCREEN_HOVER_RADIUS_MAX_PX = 28.0;
+    private static final double SCREEN_HOVER_RADIUS_SCALE = 1.1;
 
     private Integer hoveredFaceIndex;
     private Integer draggingFaceIndex;
@@ -193,7 +198,7 @@ public class FaceHandleManager {
         return getHoveredFaceIndex() != null;
     }
 
-    /** 根据当前悬停/拖拽面同步 ImGui resize 光标。 */
+    /** 根据当前悬停/拖拽面同步 ImGui resize 光标；仅悬停且鼠标靠近手柄时切换。 */
     public void syncCursor(boolean bboxVisible) {
         ImGuiCursorController cursor = ImGuiCursorController.get();
         if (!bboxVisible) {
@@ -201,13 +206,17 @@ public class FaceHandleManager {
             return;
         }
 
-        Integer face = isDragging() ? draggingFaceIndex : hoveredFaceIndex;
-        if (face == null) {
+        if (isDragging()) {
+            cursor.setCursorByAxis(getFaceAxis(draggingFaceIndex));
+            return;
+        }
+
+        if (hoveredFaceIndex == null) {
             cursor.setCursorType(ImGuiCursorController.CursorType.DEFAULT);
             return;
         }
 
-        cursor.setCursorByAxis(getFaceAxis(face));
+        cursor.setCursorByAxis(getFaceAxis(hoveredFaceIndex));
     }
 
     private void clearHover() {
@@ -242,7 +251,50 @@ public class FaceHandleManager {
             return null;
         }
 
+        if (!isMouseNearHandleOnScreen(face, center)) {
+            return null;
+        }
+
         return t;
+    }
+
+    /**
+     * 鼠标在屏幕上必须靠近手柄投影点，才视为悬停（控制双向箭头与 resize 光标）。
+     */
+    private boolean isMouseNearHandleOnScreen(int face, Vec3d center) {
+        DirectorInputSystem.FramebufferPoint projected = DirectorInputSystem.projectWorldToFramebuffer(center);
+        DirectorInputSystem.FramebufferPoint mouse = DirectorInputSystem.getMouseFramebufferPosition();
+        if (projected == null || mouse == null) {
+            return false;
+        }
+
+        double radiusPx = computeScreenHoverRadius(face, center, projected);
+        double dx = mouse.x() - projected.x();
+        double dy = mouse.y() - projected.y();
+        return dx * dx + dy * dy <= radiusPx * radiusPx;
+    }
+
+    private static double computeScreenHoverRadius(int face, Vec3d center,
+                                                   DirectorInputSystem.FramebufferPoint centerScreen) {
+        Vec3d tangentOffset = faceTangentOffset(face, HANDLE_PICK_HALF);
+        DirectorInputSystem.FramebufferPoint edge = DirectorInputSystem.projectWorldToFramebuffer(center.add(tangentOffset));
+        double projectedHalf = SCREEN_HOVER_RADIUS_MIN_PX;
+        if (edge != null) {
+            double edx = edge.x() - centerScreen.x();
+            double edy = edge.y() - centerScreen.y();
+            projectedHalf = Math.sqrt(edx * edx + edy * edy);
+        }
+        return Math.max(SCREEN_HOVER_RADIUS_MIN_PX,
+                Math.min(SCREEN_HOVER_RADIUS_MAX_PX, projectedHalf * SCREEN_HOVER_RADIUS_SCALE));
+    }
+
+    private static Vec3d faceTangentOffset(int face, double amount) {
+        return switch (face) {
+            case 0, 1 -> new Vec3d(0, amount, 0);
+            case 2, 3 -> new Vec3d(amount, 0, 0);
+            case 4, 5 -> new Vec3d(amount, 0, 0);
+            default -> Vec3d.ZERO;
+        };
     }
 
     private static boolean isHitInHandleRegion(int face, Vec3d center, Vec3d hit, double half) {

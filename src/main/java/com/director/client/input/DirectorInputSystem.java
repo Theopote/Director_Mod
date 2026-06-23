@@ -261,6 +261,74 @@ public final class DirectorInputSystem {
         return new ImGuiRay(cameraPos, rayDir);
     }
 
+    public record FramebufferPoint(double x, double y) {}
+
+    /**
+     * 当前鼠标在帧缓冲中的像素坐标（与 {@link #computeImGuiRay()} 使用同一套 DPI 换算）。
+     */
+    public static FramebufferPoint getMouseFramebufferPosition() {
+        if (MC.getWindow() == null) {
+            return null;
+        }
+        int windowW = MC.getWindow().getWidth();
+        int windowH = MC.getWindow().getHeight();
+        int fbw = MC.getWindow().getFramebufferWidth();
+        int fbh = MC.getWindow().getFramebufferHeight();
+        if (windowW <= 0 || windowH <= 0 || fbw <= 0 || fbh <= 0) {
+            return null;
+        }
+        double mouseX = MC.mouse.getX() * fbw / (double) windowW;
+        double mouseY = MC.mouse.getY() * fbh / (double) windowH;
+        return new FramebufferPoint(mouseX, mouseY);
+    }
+
+    /**
+     * 将世界坐标投影到帧缓冲像素坐标；点在相机后方时返回 null。
+     */
+    public static FramebufferPoint projectWorldToFramebuffer(Vec3d worldPos) {
+        if (worldPos == null || MC.gameRenderer == null || MC.getWindow() == null) {
+            return null;
+        }
+
+        Camera camera = MC.gameRenderer.getCamera();
+        if (camera == null) {
+            return null;
+        }
+
+        Vec3d rel = worldPos.subtract(camera.getPos());
+        org.joml.Vector3f view = new org.joml.Vector3f((float) rel.x, (float) rel.y, (float) rel.z);
+        new org.joml.Quaternionf(camera.getRotation()).conjugate().transform(view);
+        if (view.z >= -1e-4f) {
+            return null;
+        }
+
+        GameRenderer gr = MC.gameRenderer;
+        float tickDelta = getRenderTickDeltaSafe();
+        float fov;
+        if (gr instanceof GameRendererAccessor accessor) {
+            fov = accessor.director$invokeGetFov(camera, tickDelta, true);
+        } else {
+            fov = (float) MC.options.getFov().getValue();
+        }
+
+        Matrix4f projection = new Matrix4f(gr.getBasicProjectionMatrix(fov));
+        Vector4f clip = new Vector4f(view.x, view.y, view.z, 1.0f).mul(projection);
+        if (Math.abs(clip.w) < 1e-6f) {
+            return null;
+        }
+
+        clip.div(clip.w);
+        if (!Float.isFinite(clip.x) || !Float.isFinite(clip.y) || !Float.isFinite(clip.z)) {
+            return null;
+        }
+
+        int fbw = MC.getWindow().getFramebufferWidth();
+        int fbh = MC.getWindow().getFramebufferHeight();
+        double x = (clip.x + 1.0) * 0.5 * fbw;
+        double y = (1.0 - clip.y) * 0.5 * fbh;
+        return new FramebufferPoint(x, y);
+    }
+
     /**
      * 获取当前缓存的射线结果
      */
