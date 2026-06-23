@@ -691,6 +691,18 @@ public class TimelineContextMenuFactory {
 
         // 设置默认参数
         craneClip.setHeightDelta(10.0f); // 默认高度变化 10 方块（上升）
+
+        // ⭐ 新建时固化“起始位置 = 当前相机位置”，避免播放时进入片段再捕获导致大跳变
+        try {
+            var sample = com.director.timeline.playback.camera.CameraRuntime.getInstance().getCurrentSample();
+            if (sample != null && sample != com.director.timeline.playback.camera.CameraSample.EMPTY) {
+                craneClip.alignFromContext(new com.director.timeline.model.camera.path.CameraPathEnterContext(
+                        sample.position(), sample.yaw(), sample.pitch()
+                ));
+                craneClip.setAlignStartToCurrentPosition(false);
+            }
+        } catch (Exception ignored) {
+        }
         return craneClip;
     }
 
@@ -719,32 +731,98 @@ public class TimelineContextMenuFactory {
         dollyClip.setDirectionMode(
             DollyPathClip.DirectionMode.CAMERA_FORWARD
         );
+
+        // ⭐ 新建时固化“起始位置/方向 = 当前相机状态”，避免播放进入片段时重新捕获导致参数失真
+        try {
+            var sample = com.director.timeline.playback.camera.CameraRuntime.getInstance().getCurrentSample();
+            if (sample != null && sample != com.director.timeline.playback.camera.CameraSample.EMPTY) {
+                dollyClip.alignFromContext(new com.director.timeline.model.camera.path.CameraPathEnterContext(
+                        sample.position(), sample.yaw(), sample.pitch()
+                ));
+                dollyClip.setAlignStartToCurrentPosition(false);
+            }
+        } catch (Exception ignored) {
+        }
         return dollyClip;
     }
 
     private @NotNull OrbitPathClip getOrbitPathClip(float currentTime, float duration) {
-        net.minecraft.util.math.Vec3d center = net.minecraft.util.math.Vec3d.ZERO;
-        float height = 64.0f; // 默认高度
-        float radius = 10.0f; // 默认半径 10 方块
+        // ⭐ 重要：Orbit 的 “center” 不能默认等于当前相机位置（否则相机一开始就在圆心上，必然跳变）。
+        // 新建策略：
+        // - center：优先取当前准星/射线命中的方块中心；否则取相机 forward 方向前方 10 格的点
+        // - radius/startAngle：由“当前相机位置相对于 center”的几何关系一次性计算并固化
+        // - height：使用当前相机高度（KEEP_CURRENT + cachedHeight），保持镜头高度不变
 
-        // 尝试从当前摄像机状态获取位置
-        com.director.timeline.playback.camera.CameraRuntime runtime =
-            com.director.timeline.playback.camera.CameraRuntime.getInstance();
-        com.director.timeline.playback.camera.CameraSample currentSample = runtime.getCurrentSample();
-        if (currentSample != null) {
-            center = currentSample.position();
-            height = (float) center.y;
+        net.minecraft.util.math.Vec3d center = net.minecraft.util.math.Vec3d.ZERO;
+        float cachedHeight = 64.0f;
+        float radius = 10.0f;
+        float startAngle = 0f;
+
+        try {
+            var sample = com.director.timeline.playback.camera.CameraRuntime.getInstance().getCurrentSample();
+            if (sample != null && sample != com.director.timeline.playback.camera.CameraSample.EMPTY) {
+                net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
+
+                // 1) center：优先射线命中点（主体点）
+                net.minecraft.util.hit.BlockHitResult hit = null;
+                try {
+                    hit = com.director.client.input.DirectorInputSystem.getCurrentRay();
+                } catch (Exception ignored) {
+                }
+                if (hit == null && client != null && client.crosshairTarget instanceof net.minecraft.util.hit.BlockHitResult bhr) {
+                    hit = bhr;
+                }
+                if (hit != null && hit.getType() == net.minecraft.util.hit.HitResult.Type.BLOCK) {
+                    var bp = hit.getBlockPos();
+                    center = new net.minecraft.util.math.Vec3d(bp.getX() + 0.5, bp.getY() + 0.5, bp.getZ() + 0.5);
+                } else {
+                    // 2) fallback：相机 forward 前方 10 格
+                    var ctx = new com.director.timeline.model.camera.path.CameraPathEnterContext(
+                            sample.position(), sample.yaw(), sample.pitch()
+                    );
+                    center = sample.position().add(ctx.getForward().multiply(10.0));
+                }
+
+                cachedHeight = (float) sample.position().y;
+
+                // 3) radius：从当前相机到 center 的 XZ 投影距离
+                double dx = sample.position().x - center.x;
+                double dz = sample.position().z - center.z;
+                double dist = Math.sqrt(dx * dx + dz * dz);
+                if (dist > 1e-3) {
+                    radius = (float) dist;
+                } else {
+                    radius = 8.0f;
+                }
+
+                // 4) startAngle：从 center 指向当前相机的平面角度（一次性固化）
+                float angleDeg = (float) Math.toDegrees(Math.atan2(dz, dx));
+                if (angleDeg < 0) {
+                    angleDeg += 360f;
+                }
+                startAngle = angleDeg;
+            }
+        } catch (Exception ignored) {
         }
 
-        // 创建 Orbit Path Clip
-        return new OrbitPathClip(
-            tr(DirectorLang.Timeline.DefaultNames.ORBIT_PATH_AT, formatTime(currentTime)),
+        OrbitPathClip clip = new OrbitPathClip(
+                tr(DirectorLang.Timeline.DefaultNames.ORBIT_PATH_AT, formatTime(currentTime)),
                 currentTime,
-            currentTime + duration,
-            center,
-            radius,
-            height
+                currentTime + duration,
+                center,
+                radius,
+                cachedHeight
         );
+
+        // ⭐ 固化默认行为：新建时就以当前镜头为起点，不在播放时动态重算
+        clip.setLookAt(center);
+        clip.setRadiusMode(OrbitPathClip.RadiusMode.ABSOLUTE);
+        clip.setStartAngleMode(OrbitPathClip.StartAngleMode.CUSTOM);
+        clip.setStartAngle(startAngle);
+        clip.setEndAngle(startAngle + 360f);
+        clip.setHeightMode(OrbitPathClip.HeightMode.KEEP_CURRENT);
+        clip.setCachedHeight(cachedHeight);
+        return clip;
     }
 
     private void addEntityClip(TimelineTrack track, EntityClip clip) {
