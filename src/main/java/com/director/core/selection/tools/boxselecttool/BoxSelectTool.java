@@ -35,12 +35,12 @@ import java.util.Set;
  * <p>
  * 功能特性：
  * ✅ 两点式建盒（左键第一次设置起点，第二次设置终点）
- * ✅ 包围盒生成时自动在几何中心激活 Gizmo，用于移动选区
+ * ✅ 面中心双向箭头调整选区大小（FaceHandleManager）
  * ✅ 一方块步进（网格对齐）
  * ✅ 支持新建选区 / 加选 / 减选 / 交集 模式
  * ✅ 实时渲染预览（ToolPreviewManager）
  * ✅ 自动同步 SelectionEvents（用于 Renderer / Gizmo / Timeline）
- * ✅ 模块化 Gizmo 激活
+ * ✅ 模块化面手柄交互
  * ✅ 操作性能优化（高效交集算法）
  * ✅ 历史记录支持（撤销/重做）
  *
@@ -60,8 +60,6 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
     
     // ====================== Gizmo 编辑状态 ======================
     @SuppressWarnings("unused")
-    private boolean gizmoActive = false;
-    
     // ====================== 面中心小方块管理器 ======================
     private final FaceHandleManager faceHandleManager = FaceHandleManager.SHARED;
 
@@ -325,41 +323,6 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
         // 更新光标
         boolean shouldShowResizeCursor = bboxVisible && (faceHandleManager.isDragging() || hoveredFace != null);
         updateMouseCursor(shouldShowResizeCursor);
-        
-        // 更新 Gizmo 交互（悬停高亮和拖动）
-        if (rayOrigin != null && rayDir != null) {
-            updateGizmoInteraction(rayOrigin, rayDir);
-        }
-    }
-    
-    /**
-     * 更新 Gizmo 交互状态（每帧调用）
-     */
-    private void updateGizmoInteraction(Vec3d rayOrigin, Vec3d rayDir) {
-        try {
-            com.director.client.gizmo.GizmoManager gizmoManager = com.director.client.gizmo.GizmoManager.get();
-            if (gizmoManager == null || !gizmoManager.isActive()) {
-                return;
-            }
-            
-            // 检测鼠标状态
-            net.minecraft.client.MinecraftClient client = net.minecraft.client.MinecraftClient.getInstance();
-            if (client == null || client.mouse == null) {
-                return;
-            }
-            
-            // 获取鼠标按下状态（通过 GLFW）
-            long window = client.getWindow().getHandle();
-            boolean mouseDown = org.lwjgl.glfw.GLFW.glfwGetMouseButton(window, org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT) 
-                    == org.lwjgl.glfw.GLFW.GLFW_PRESS;
-            boolean mouseReleased = org.lwjgl.glfw.GLFW.glfwGetMouseButton(window, org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT) 
-                    == org.lwjgl.glfw.GLFW.GLFW_RELEASE;
-            
-            // 调用 GizmoManager.tick()
-            gizmoManager.tick(rayOrigin, rayDir, mouseDown, mouseReleased);
-        } catch (Exception e) {
-            LOGGER.debug("[BoxSelectTool] 更新 Gizmo 交互失败", e);
-        }
     }
     
     /**
@@ -633,33 +596,8 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
 
         // 🔔 触发事件同步
         SelectionEvents.fireChanged(SelectionChangeType.SELECTION_UPDATED);
-
-        // 🧭 激活或停用 Bounds Gizmo（在包围盒几何中心，用于移动选区）
-        Box bounds = manager.getCurrentBounds();
-        if (bounds == null) {
-            clearGizmo();
-        } else if (delta > 0 || operation == SelectionOperation.NEW) {
-            // 选区变化或新建包围盒时，激活/更新 Gizmo
-            Vec3d pivot = new Vec3d(
-                (bounds.minX + bounds.maxX) / 2.0,
-                (bounds.minY + bounds.maxY) / 2.0,
-                (bounds.minZ + bounds.maxZ) / 2.0
-            );
-            try {
-                GizmoManager.get().activate(GizmoType.BOUNDS, bounds, pivot);
-                gizmoActive = true;
-                LOGGER.info("[BoxSelectTool] ✅ 已激活 Gizmo（几何中心）：Box={}, Pivot={}", bounds, pivot);
-            } catch (Exception e) {
-                LOGGER.warn("[BoxSelectTool] 激活 Gizmo 失败", e);
-                gizmoActive = false;
-            }
-        }
     }
 
-    // ====================== Gizmo 相关方法 ======================
-    // Gizmo 现在在包围盒生成时自动在几何中心激活，用于移动选区
-    // 拖拽操作由 GizmoInteractionController 处理，通过 TransformApplier 移动选区
-    
     // ====================== 清理方法 ======================
     
     /**
@@ -678,17 +616,17 @@ public class BoxSelectTool implements SelectionTool, SelectionOperationSupport {
     }
     
     /**
-     * 清理 Gizmo
+     * 清理选区 BOUNDS Gizmo（若仍存在则停用，不影响演员 TRANSFORM Gizmo）
      */
     private void clearGizmo() {
-        gizmoActive = false;
-        // 停用 Gizmo，确保所有手柄和 Gizmo 元素消失
         try {
-            com.director.client.gizmo.GizmoManager.get().deactivate();
+            GizmoManager gm = GizmoManager.get();
+            if (gm.isActive() && gm.getContext() != null && gm.getContext().getType() == GizmoType.BOUNDS) {
+                gm.deactivate();
+            }
         } catch (Exception e) {
-            LOGGER.debug("[BoxSelectTool] 停用 Gizmo 失败", e);
+            LOGGER.debug("[BoxSelectTool] 停用 BOUNDS Gizmo 失败", e);
         }
-        // 恢复默认鼠标光标
         updateMouseCursor(false);
     }
 

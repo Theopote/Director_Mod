@@ -76,6 +76,11 @@ public class GizmoManager {
             LOGGER.warn("[GizmoManager] 无法激活：targetBox 为 null");
             return;
         }
+
+        if (type == GizmoType.BOUNDS) {
+            // 选区不使用中心 Gizmo；缩放由 FaceHandleManager 负责
+            return;
+        }
         
         // 计算轴心点
         if (pivot == null) {
@@ -141,11 +146,11 @@ public class GizmoManager {
         Vec3d center = ctx.getPivot();
         
         if (ctx.getType() == GizmoType.BOUNDS) {
-            // BOUNDS 类型：不再创建角点手柄
-            // 用户只需要面中心小方块来调整选区大小，不需要角点手柄
+            // 选区缩放/调整由 FaceHandleManager + InteractionHintRenderer 负责，不显示中心 Gizmo
+            return handles;
         }
-        
-        // 创建轴手柄（所有类型都有）
+
+        // 创建轴手柄（TRANSFORM / PIVOT 等）
         handles.add(new AxisHandle("axis_x", center, Axis.X, AXIS_ARROW_LENGTH, AXIS_ARROW_RADIUS));
         handles.add(new AxisHandle("axis_y", center, Axis.Y, AXIS_ARROW_LENGTH, AXIS_ARROW_RADIUS));
         handles.add(new AxisHandle("axis_z", center, Axis.Z, AXIS_ARROW_LENGTH, AXIS_ARROW_RADIUS));
