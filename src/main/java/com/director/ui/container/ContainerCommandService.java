@@ -31,6 +31,7 @@ public class ContainerCommandService {
                                    TimelineCommandHistory commandHistory) {
         this.containerManager = containerManager;
         this.commandHistory = commandHistory;
+        ContainerCommandBridge.bindHistory(commandHistory);
     }
 
     /* ---------------------- 创建 / 删除 ---------------------- */
@@ -660,7 +661,7 @@ public class ContainerCommandService {
         if (command == null) {
             return;
         }
-        commandHistory.executeCommand(new ContainerTimelineCommandAdapter(command));
+        ContainerCommandBridge.execute(command);
     }
 
     /* ---------------------- 内部剪贴板 ---------------------- */
