@@ -378,9 +378,12 @@ public class TimelineModelPersistence {
         public String directionMode; // DirectionMode.name()
         public Vec3DTO fixedDirection;
         public Boolean alignStartToCurrentPosition;
+        public Vec3DTO startPosition;
+        public Vec3DTO dollyDirection;
         
         // CranePathClip 参数
         public Float heightDelta;
+        public Vec3DTO craneStartPosition;
 
         // CustomPathClip 参数
         public List<AutomationKeyframeDTO> cameraKeyframes = new ArrayList<>();
@@ -728,10 +731,13 @@ public class TimelineModelPersistence {
                         pathClipDTO.directionMode = dolly.getDirectionMode() != null ? dolly.getDirectionMode().name() : null;
                         pathClipDTO.fixedDirection = Vec3DTO.fromVec3d(dolly.getFixedDirection());
                         pathClipDTO.alignStartToCurrentPosition = dolly.isAlignStartToCurrentPosition();
+                        pathClipDTO.startPosition = Vec3DTO.fromVec3d(dolly.getStartPosition());
+                        pathClipDTO.dollyDirection = Vec3DTO.fromVec3d(dolly.getDollyDirection());
                     }
                     case com.director.timeline.model.camera.path.CranePathClip crane -> {
                         pathClipDTO.heightDelta = crane.getHeightDelta();
                         pathClipDTO.alignStartToCurrentPosition = crane.isAlignStartToCurrentPosition();
+                        pathClipDTO.craneStartPosition = Vec3DTO.fromVec3d(crane.getStartPosition());
                     }
                     default -> {
                         // 其他类型暂不支持序列化
@@ -1281,11 +1287,24 @@ public class TimelineModelPersistence {
                                     ParseUtils.setEnumIfValid(pathClipDTO.directionMode, com.director.timeline.model.camera.path.DollyPathClip.DirectionMode.class, "DirectionMode", dolly::setDirectionMode);
                                 }
                                 if (pathClipDTO.fixedDirection != null) dolly.setFixedDirection(pathClipDTO.fixedDirection.toVec3d());
-                                if (pathClipDTO.alignStartToCurrentPosition != null) dolly.setAlignStartToCurrentPosition(pathClipDTO.alignStartToCurrentPosition);
+                                if (pathClipDTO.startPosition != null) dolly.setStartPosition(pathClipDTO.startPosition.toVec3d());
+                                if (pathClipDTO.dollyDirection != null) dolly.setDollyDirection(pathClipDTO.dollyDirection.toVec3d());
+                                if (pathClipDTO.startPosition != null && pathClipDTO.dollyDirection != null) {
+                                    dolly.setAlignStartToCurrentPosition(false);
+                                } else if (pathClipDTO.alignStartToCurrentPosition != null) {
+                                    dolly.setAlignStartToCurrentPosition(pathClipDTO.alignStartToCurrentPosition);
+                                }
                                 
                                 pathClip = dolly;
                             }
-                            case "CRANE" -> pathClip = getCranePathClip(pathClipDTO);
+                            case "CRANE" -> {
+                                com.director.timeline.model.camera.path.CranePathClip crane = getCranePathClip(pathClipDTO);
+                                if (pathClipDTO.craneStartPosition != null) {
+                                    crane.setStartPosition(pathClipDTO.craneStartPosition.toVec3d());
+                                    crane.setAlignStartToCurrentPosition(false);
+                                }
+                                pathClip = crane;
+                            }
                             default -> LOGGER.warn("[TimelineModelPersistence] 未知的 PathClip 类型: {}", pathClipDTO.type);
                         }
                         

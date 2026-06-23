@@ -179,6 +179,14 @@ public class CranePathClip extends CameraPathClip {
     public Vec3d getStartPosition() {
         return startPosition;
     }
+
+    /**
+     * 用于复制/持久化恢复：直接设置已捕获的起始位置。
+     * 若设置成功，建议同时将 alignStartToCurrentPosition 设为 false，避免进入时被覆盖。
+     */
+    public void setStartPosition(Vec3d startPosition) {
+        this.startPosition = startPosition;
+    }
     
     @Override
     public CameraPathClip copy() {
@@ -189,6 +197,11 @@ public class CranePathClip extends CameraPathClip {
         );
         copy.setHeightDelta(heightDelta);
         copy.setAlignStartToCurrentPosition(alignStartToCurrentPosition);
+        // ⭐ 复制必须复刻行为：若原片段已固化起点，则复制缓存并禁用再次对齐
+        if (startPosition != null) {
+            copy.setStartPosition(startPosition);
+            copy.setAlignStartToCurrentPosition(false);
+        }
         copy.setEnabled(isEnabled());
         return copy;
     }

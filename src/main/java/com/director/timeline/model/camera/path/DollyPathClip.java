@@ -244,6 +244,21 @@ public class DollyPathClip extends CameraPathClip {
     public Vec3d getDollyDirection() {
         return dollyDirection;
     }
+
+    /**
+     * 用于复制/持久化恢复：直接设置已捕获的起始位置。
+     * 若设置成功，建议同时将 alignStartToCurrentPosition 设为 false，避免进入时被覆盖。
+     */
+    public void setStartPosition(Vec3d startPosition) {
+        this.startPosition = startPosition;
+    }
+
+    /**
+     * 用于复制/持久化恢复：直接设置已捕获的推拉方向（建议传入单位向量）。
+     */
+    public void setDollyDirection(Vec3d dollyDirection) {
+        this.dollyDirection = dollyDirection;
+    }
     
     @Override
     public CameraPathClip copy() {
@@ -256,6 +271,12 @@ public class DollyPathClip extends CameraPathClip {
         copy.setDirectionMode(directionMode);
         copy.setFixedDirection(fixedDirection);
         copy.setAlignStartToCurrentPosition(alignStartToCurrentPosition);
+        // ⭐ 复制必须复刻行为：若原片段已固化起点/方向，则复制缓存并禁用再次对齐
+        if (startPosition != null && dollyDirection != null) {
+            copy.setStartPosition(startPosition);
+            copy.setDollyDirection(dollyDirection);
+            copy.setAlignStartToCurrentPosition(false);
+        }
         copy.setEnabled(isEnabled());
         return copy;
     }
