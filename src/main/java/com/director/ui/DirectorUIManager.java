@@ -898,7 +898,8 @@ public class DirectorUIManager {
             }
 
             boolean visibleByDefault = switch (panel.getClass().getSimpleName()) {
-                case "SelectionFilterPanel", "SelectionHistoryPanel", "RenderSettingsPanel", "ToolPropertiesPanel" -> false;
+                case "SelectionFilterPanel", "SelectionHistoryPanel", "RenderSettingsPanel",
+                     "ToolPropertiesPanel", "ActorsPanel" -> false;
                 default -> true;
             };
 

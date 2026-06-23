@@ -76,10 +76,6 @@ public final class ActorSelectorPanel {
      * 渲染 Actor Selector 面板
      */
     public void render() {
-        ImGui.textColored(0.9f, 0.7f, 1.0f, 1.0f, "🎭 Actors");
-
-        ImGui.separator();
-
         renderActorList();
 
         ImGui.spacing();

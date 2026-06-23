@@ -46,12 +46,12 @@ public class ToolbarPanel extends AbstractPanel implements IPanelRegistryAware, 
     private UICommandFacade commands;
 
     /**
-     * 工具按钮是否显示文字（默认：图标模式，更紧凑）
+     * 工具按钮是否显示文字（默认：图标 + 文字，更易读）
      *
      * <p>说明：这里先用静态字段做会话级别开关；如果你希望跨存档/跨会话持久化，
      * 后续可以把它接入 UI 配置系统或布局持久化。</p>
      */
-    private static boolean SHOW_TOOL_TEXT = false;
+    private static boolean SHOW_TOOL_TEXT = true;
 
     /**
      * 工具分组“图标列”的固定宽度。

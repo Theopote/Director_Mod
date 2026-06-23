@@ -19,7 +19,6 @@ import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.actor.RigProfileStylePropertyUI;
 import com.director.ui.selection.SelectionManager;
 import com.director.ui.theme.UITheme;
-import com.director.timeline.container.ContainerTimelineService;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
@@ -128,9 +127,6 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         if (obj instanceof Actor actor) {
             selectedActorId = actor.getActorId();
         }
-        
-        // 标题
-        UITheme.title("🎭 Actors");
         
         if (projectView) {
             // Actor 列表

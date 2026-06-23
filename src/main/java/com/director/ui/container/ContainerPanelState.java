@@ -50,7 +50,7 @@ public final class ContainerPanelState {
      * - false：仅图标（更紧凑）
      * - true：图标 + 文字（更易读）
      */
-    private boolean showToolbarText = false;
+    private boolean showToolbarText = true;
 
     // ==================== EphemeralState（瞬时交互状态，不应被保存） ====================
 

@@ -8,9 +8,6 @@ import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyAdapterRegistry;
 import com.director.ui.PanelId;
 import com.director.ui.PanelWindows;
-import com.director.ui.theme.Icons;
-import com.director.ui.theme.UITheme;
-import com.director.timeline.container.ContainerTimelineService;
 import com.director.timeline.model.TimelineModel;
 import imgui.ImGui;
 import org.slf4j.Logger;
@@ -23,6 +20,10 @@ public final class ActorsPanel extends AbstractPanel {
     private static final String ACTOR_PROJECT_MARKER = "ACTOR_PROJECT";
 
     private ActorSelectorPanel actorSelectorPanel;
+
+    public ActorsPanel() {
+        setVisible(false);  // 默认布局不打开，需从菜单「窗口」打开
+    }
 
     @Override
     public String getPanelName() {
@@ -41,7 +42,6 @@ public final class ActorsPanel extends AbstractPanel {
 
     @Override
     protected void doRender() {
-        UITheme.title(Icons.TARGET + " Actors");
         renderActorProjectSection();
     }
 
