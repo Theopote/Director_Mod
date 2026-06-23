@@ -81,7 +81,7 @@ public class ContainerCullTool implements SelectionTool {
     public void onClick(World world, BlockPos pos, boolean isShiftDown) {
         refreshActiveContainer();
         if (targetContainer == null || pos == null) {
-            LOGGER.warn("[ContainerCullTool] 没有激活的容器");
+            LOGGER.warn("[ContainerCullTool] 没有可用容器（未激活且未选中）");
             return;
         }
         
@@ -160,7 +160,7 @@ public class ContainerCullTool implements SelectionTool {
     public void confirmCull() {
         refreshActiveContainer();
         if (targetContainer == null) {
-            LOGGER.warn("[ContainerCullTool] 没有激活的容器");
+            LOGGER.warn("[ContainerCullTool] 没有可用容器（未激活且未选中）");
             return;
         }
         
@@ -256,11 +256,18 @@ public class ContainerCullTool implements SelectionTool {
 
     public void refreshActiveContainer() {
         ContainerManager manager = DirectorServices.get().containers();
-        Container active = manager != null ? manager.getActive() : null;
+        Container active = null;
+        if (manager != null) {
+            active = manager.getActive();
+            if (active == null) {
+                // 容器剔除更偏编辑操作；当没有“实时接收激活容器”时，回退到当前选中容器。
+                active = manager.getSelectedContainer();
+            }
+        }
         if (active != targetContainer) {
             targetContainer = active;
             if (targetContainer == null) {
-                LOGGER.warn("[ContainerCullTool] 当前无激活容器");
+                LOGGER.warn("[ContainerCullTool] 当前无可用容器（未激活且未选中）");
                 selectedBlocks.clear();
                 syncToSelectionManager();
             } else {

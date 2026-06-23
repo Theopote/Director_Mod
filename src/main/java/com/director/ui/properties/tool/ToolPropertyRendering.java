@@ -367,8 +367,8 @@ public final class ToolPropertyRendering {
                     UITheme.label("待剔除方块: " + tool.getSelectedBlockCount(), UITheme.DarkTheme.TEXT_SELECTED);
                     ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "左键单选，Shift+左键多选，拖拽连续框取；右键确认剔除。");
                 } else {
-                    UITheme.label("未检测到激活容器", UITheme.DarkTheme.TEXT_DISABLED);
-                    ImGui.textColored(0.8f, 0.6f, 0.2f, 1.0f, "请先在容器面板激活一个容器。");
+                    UITheme.label("未检测到可用容器", UITheme.DarkTheme.TEXT_DISABLED);
+                    ImGui.textColored(0.8f, 0.6f, 0.2f, 1.0f, "请先在容器面板选中一个容器（或启用实时接收激活容器）。");
                 }
                 ImGui.unindent();
             }
