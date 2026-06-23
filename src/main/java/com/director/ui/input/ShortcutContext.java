@@ -70,96 +70,19 @@ public final class ShortcutContext {
      * 检查是否应该处理快捷键（v1.1 新增：支持面板焦点检测）
      * 
      * @param io ImGui IO 对象
-     * @param panelRegistry 面板注册表（可选，用于检查 TimelinePanel 焦点）
+     * @param panelRegistry 面板注册表（保留参数供未来扩展；上下文路由在 {@link ShortcutDispatcher} 内按动作处理）
      * @return true 如果应该处理，false 如果不应该
      */
     public static boolean shouldHandleShortcut(ImGuiIO io, com.director.ui.di.IPanelRegistry panelRegistry) {
-        // 如果在文本输入中，不处理
         if (isTextInputContext(io)) {
             org.slf4j.LoggerFactory.getLogger(ShortcutContext.class)
                 .debug("[ShortcutContext] 文本输入中，拒绝快捷键");
             return false;
         }
-        
-        // v1.1：检查 TimelinePanel 是否聚焦（播放快捷键需要）
-        // 如果提供了 panelRegistry，检查 TimelinePanel 焦点
-        if (panelRegistry != null) {
-            boolean timelineFocused = isTimelinePanelFocused(panelRegistry);
-            
-            // 添加调试日志
-            if (org.slf4j.LoggerFactory.getLogger(ShortcutContext.class).isDebugEnabled()) {
-                com.director.ui.panels.TimelinePanel timelinePanel = 
-                    panelRegistry.getPanel(com.director.ui.panels.TimelinePanel.class);
-                org.slf4j.LoggerFactory.getLogger(ShortcutContext.class)
-                    .debug("[ShortcutContext] TimelinePanel 检查: exists={}, visible={}, focused={}", 
-                        timelinePanel != null,
-                            timelinePanel != null && timelinePanel.isVisible(),
-                        timelineFocused);
-            }
-            
-            // ✅ TimelinePanel 或 ContainerPanel 聚焦时允许处理快捷键
-            if (timelineFocused) {
-                return true;
-            }
-            return com.director.ui.panels.ContainerPanel.isContainerTreeFocused();
-            
-            // 如果都未聚焦，不允许处理（避免在其他面板或游戏中误触发）
-        }
-        
-        // 降级方案：如果没有 panelRegistry，使用默认检查（允许所有快捷键）
-        // 这确保了向后兼容性
-        return isGlobalContext();
-    }
-    
-    /**
-     * 检查 TimelinePanel 是否聚焦（通过 PanelRegistry）
-     * 
-     * <p>v1.1 新增：支持面板焦点检测
-     * 
-     * @param panelRegistry 面板注册表（用于验证面板存在和获取焦点状态）
-     * @return true 如果 TimelinePanel 聚焦，false 如果不聚焦
-     */
-    private static boolean isTimelinePanelFocused(com.director.ui.di.IPanelRegistry panelRegistry) {
-        // ⭐ v1.1 实现：使用 TimelinePanel 维护的静态焦点状态
-        // TimelinePanel 在 doRender() 中会更新 isTimelinePanelFocused 状态
-        try {
-            // 首先检查 TimelinePanel 是否存在
-            if (panelRegistry == null) {
-                return false;
-            }
-            
-            com.director.ui.panels.TimelinePanel timelinePanel = 
-                panelRegistry.getPanel(com.director.ui.panels.TimelinePanel.class);
-            if (timelinePanel == null) {
-                return false;
-            }
-            
-            // 检查 TimelinePanel 是否可见
-            // 如果面板不可见，不应该处理快捷键
-            if (!timelinePanel.isVisible()) {
-                return false;
-            }
-            
-            // 检查 TimelinePanel 维护的焦点状态
-            // 这个状态由 TimelinePanel.doRender() 更新
-            // 注意：如果面板未渲染（隐藏），焦点状态可能不会更新
-            // 所以我们需要同时检查可见性和焦点状态
-            boolean focused = com.director.ui.panels.TimelinePanel.isFocused();
-            
-            // 调试日志（仅在 trace 级别）
-            if (org.slf4j.LoggerFactory.getLogger(ShortcutContext.class).isTraceEnabled()) {
-                org.slf4j.LoggerFactory.getLogger(ShortcutContext.class)
-                    .trace("[ShortcutContext] TimelinePanel 可见性: {}, 焦点状态: {}", 
-                        timelinePanel.isVisible(), focused);
-            }
-            
-            return focused;
-        } catch (Exception e) {
-            // 如果检查失败，记录错误但不抛出异常
-            org.slf4j.LoggerFactory.getLogger(ShortcutContext.class)
-                .warn("[ShortcutContext] 检查 TimelinePanel 焦点失败", e);
-            // 默认不允许（安全起见）
-            return false;
-        }
+
+        // 非文本输入时允许全局快捷键（工具切换、F1 帮助、Esc 清选区等）。
+        // 时间线/容器等“需要焦点”的动作由 ShortcutDispatcher.requiresTimelineFocus() 与各按键路由单独判断，
+        // 不能在此处要求 Timeline/Container 焦点，否则在 3D 视口工作时工具栏快捷键（1/V/B/Tab 等）全部失效。
+        return true;
     }
 }

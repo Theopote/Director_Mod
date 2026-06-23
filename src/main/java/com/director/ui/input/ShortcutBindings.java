@@ -209,15 +209,24 @@ public final class ShortcutBindings {
             return null;
         }
         
-        // 查找对应的按键
+        // 查找对应的按键（优先数字键，再字母键）
+        String fromDigit = null;
+        String fromLetter = null;
         for (var entry : KEY_BINDINGS.entrySet()) {
-            if (entry.getValue() == action) {
-                int key = entry.getKey();
-                return glfwKeyToString(key);
+            if (entry.getValue() != action) {
+                continue;
+            }
+            int key = entry.getKey();
+            if (key >= GLFW.GLFW_KEY_0 && key <= GLFW.GLFW_KEY_9) {
+                fromDigit = glfwKeyToString(key);
+            } else {
+                fromLetter = glfwKeyToString(key);
             }
         }
-        
-        return null;
+        if (fromDigit != null && fromLetter != null) {
+            return fromDigit + " / " + fromLetter;
+        }
+        return fromDigit != null ? fromDigit : fromLetter;
     }
     
     /**

@@ -112,21 +112,15 @@ public final class ShortcutActions {
                     LOGGER.debug("[ShortcutActions] 执行: TOOL_FACE");
                 }
                 case TOOL_MOVE -> {
-                    commands.tools().activateTool(isActorToolActive()
-                            ? com.director.ui.tools.ToolRegistry.ACTOR_MOVE_TOOL_ID
-                            : "move");
+                    commands.tools().activateTool(com.director.ui.tools.ToolRegistry.ACTOR_MOVE_TOOL_ID);
                     LOGGER.debug("[ShortcutActions] 执行: TOOL_MOVE");
                 }
                 case TOOL_ROTATE -> {
-                    commands.tools().activateTool(isActorToolActive()
-                            ? com.director.ui.tools.ToolRegistry.ACTOR_ROTATE_TOOL_ID
-                            : "rotate");
+                    commands.tools().activateTool(com.director.ui.tools.ToolRegistry.ACTOR_ROTATE_TOOL_ID);
                     LOGGER.debug("[ShortcutActions] 执行: TOOL_ROTATE");
                 }
                 case TOOL_SCALE -> {
-                    commands.tools().activateTool(isActorToolActive()
-                            ? com.director.ui.tools.ToolRegistry.ACTOR_SCALE_TOOL_ID
-                            : "scale");
+                    commands.tools().activateTool(com.director.ui.tools.ToolRegistry.ACTOR_SCALE_TOOL_ID);
                     LOGGER.debug("[ShortcutActions] 执行: TOOL_SCALE");
                 }
                 case TOOL_NEXT -> {
