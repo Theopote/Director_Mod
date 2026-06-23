@@ -239,7 +239,7 @@ public class MenuBarPanel extends AbstractPanel implements IPanelRegistryAware, 
             String playPauseLabel = isPlaying
                     ? menuLabel(Icons.PAUSE, DirectorLang.Menu.PLAYBACK_PAUSE)
                     : menuLabel(Icons.PLAY, DirectorLang.Menu.PLAYBACK_PLAY);
-            if (ImGui.menuItem(playPauseLabel, "Space")) {
+            if (ImGui.menuItem(playPauseLabel, "Enter")) {
                 commands.playback().togglePlayPause();
             }
 

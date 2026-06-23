@@ -57,7 +57,8 @@ public final class ShortcutBindings {
         KEY_BINDINGS.put(GLFW.GLFW_KEY_F1, ShortcutAction.HELP_SHORTCUTS);
 
         // ==================== 播放控制 ====================
-        KEY_BINDINGS.put(GLFW.GLFW_KEY_SPACE, ShortcutAction.PLAY_PAUSE);
+        KEY_BINDINGS.put(GLFW.GLFW_KEY_ENTER, ShortcutAction.PLAY_PAUSE);
+        KEY_BINDINGS.put(GLFW.GLFW_KEY_KP_ENTER, ShortcutAction.PLAY_PAUSE);
         KEY_BINDINGS.put(GLFW.GLFW_KEY_HOME, ShortcutAction.GO_TO_START);
         KEY_BINDINGS.put(GLFW.GLFW_KEY_END, ShortcutAction.GO_TO_END);
         KEY_BINDINGS.put(GLFW.GLFW_KEY_L, ShortcutAction.TOGGLE_LOOP);
@@ -238,6 +239,8 @@ public final class ShortcutBindings {
     private static String glfwKeyToString(int key) {
         return switch (key) {
             case GLFW.GLFW_KEY_SPACE -> "Space";
+            case GLFW.GLFW_KEY_ENTER -> "Enter";
+            case GLFW.GLFW_KEY_KP_ENTER -> "Enter";
             case GLFW.GLFW_KEY_TAB -> "Tab";
             case GLFW.GLFW_KEY_DELETE -> "Delete";
             case GLFW.GLFW_KEY_HOME -> "Home";
@@ -285,7 +288,7 @@ public final class ShortcutBindings {
         
         // ==================== 播放控制 ====================
         List<String> playback = new ArrayList<>();
-        playback.add(formatShortcut("Space", "播放/暂停"));
+        playback.add(formatShortcut("Enter", "播放/暂停"));
         playback.add(formatShortcut("Home", "跳转到开始"));
         playback.add(formatShortcut("End", "跳转到结束"));
         playback.add(formatShortcut("L", "切换循环播放"));

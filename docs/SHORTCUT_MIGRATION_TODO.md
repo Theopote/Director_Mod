@@ -9,7 +9,7 @@ Panel 内仅保留**局部**快捷键（如 Timeline 内 Scrub、InlineRenamer �
 
 | 快捷键 | 动作 | 说明 |
 |--------|------|------|
-| Space / Ctrl+Space | 播放/暂停 | 已迁移 |
+| Enter | 播放/暂停 | 已迁移 |
 | Ctrl+Z | 撤销 | 已迁移 |
 | Ctrl+Y | 重做 | 已迁移 |
 | Delete | 删除选中 | 已迁移 |
