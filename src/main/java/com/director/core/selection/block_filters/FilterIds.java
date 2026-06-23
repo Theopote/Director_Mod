@@ -1,12 +1,15 @@
 package com.director.core.selection.block_filters;
 
+import com.director.i18n.DirectorI18n;
+import com.director.i18n.DirectorLang;
+
 import java.util.Set;
 
 /**
  * Selection Filter ID 常量表（官方）
  * <p>
  * 所有 filterId、presetId 必须来自此类或 {@code docs/selection-filter-ids.md}，禁止 magic string。
- * UI 文案可本地化，见文档；此处仅提供预设的显示名映射。
+ * UI 文案可本地化，见文档；此处提供预设与过滤器的显示名映射入口。
  *
  * @see <a href="../../../../../docs/selection-filter-ids.md">selection-filter-ids.md</a>
  */
@@ -87,12 +90,56 @@ public final class FilterIds {
     public static String getPresetDisplayName(String presetId) {
         if (presetId == null) return "";
         return switch (presetId) {
-            case "default" -> "通用编辑";
-            case "terrain_edit" -> "地形编辑";
-            case "plant_edit" -> "植物编辑";
-            case "fluid_edit" -> "流体编辑";
-            case "replaceable_edit" -> "可替换方块";
+            case PRESET_DEFAULT -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.PRESET_DEFAULT);
+            case PRESET_TERRAIN_EDIT -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.PRESET_TERRAIN_EDIT);
+            case PRESET_PLANT_EDIT -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.PRESET_PLANT_EDIT);
+            case PRESET_FLUID_EDIT -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.PRESET_FLUID_EDIT);
+            case PRESET_REPLACEABLE_EDIT -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.PRESET_REPLACEABLE_EDIT);
             default -> presetId;
+        };
+    }
+
+    /**
+     * 过滤器规则的 UI 显示名（可本地化替换）
+     */
+    public static String getFilterDisplayName(String filterId) {
+        if (filterId == null) return "";
+        String canonical = switch (filterId) {
+            case "non_air" -> EXCLUDE_AIR;
+            case "not_water" -> EXCLUDE_WATER;
+            case "not_lava" -> EXCLUDE_LAVA;
+            case "solid" -> SOLID_ONLY;
+            case "plant" -> PLANT_ONLY;
+            case "replaceable" -> REPLACEABLE_ONLY;
+            case "transparent" -> TRANSPARENT_ONLY;
+            default -> filterId;
+        };
+        return switch (canonical) {
+            case EXCLUDE_AIR -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.FILTER_EXCLUDE_AIR);
+            case EXCLUDE_WATER -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.FILTER_EXCLUDE_WATER);
+            case EXCLUDE_LAVA -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.FILTER_EXCLUDE_LAVA);
+            case SOLID_ONLY -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.FILTER_SOLID_ONLY);
+            case PLANT_ONLY -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.FILTER_PLANT_ONLY);
+            case REPLACEABLE_ONLY -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.FILTER_REPLACEABLE_ONLY);
+            case TRANSPARENT_ONLY -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.FILTER_TRANSPARENT_ONLY);
+            case SAME_BLOCK_TYPE -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.FILTER_SAME_BLOCK_TYPE);
+            case SURFACE_ONLY -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.FILTER_SURFACE_ONLY);
+            case VISIBLE_ONLY -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.FILTER_VISIBLE_ONLY);
+            case CONNECTED_ONLY -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.FILTER_CONNECTED_ONLY);
+            case MAX_DEPTH_LIMIT -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.FILTER_MAX_DEPTH_LIMIT);
+            case WITHIN_BBOX -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.FILTER_WITHIN_BBOX);
+            case WITHIN_CHUNK -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.FILTER_WITHIN_CHUNK);
+            case WITHIN_RADIUS -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.FILTER_WITHIN_RADIUS);
+            case MAX_BLOCK_COUNT -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.FILTER_MAX_BLOCK_COUNT);
+            case DEBUG_LOG_REJECT -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.FILTER_DEBUG_LOG_REJECT);
+            case PROFILING_ONLY -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.FILTER_PROFILING_ONLY);
+            case DRY_RUN -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.FILTER_DRY_RUN);
+            case ALL -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.FILTER_ALL);
+            case NONE -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.FILTER_NONE);
+            case LUMINOUS -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.FILTER_LUMINOUS);
+            case LUMINOUS_5 -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.FILTER_LUMINOUS_5);
+            case LUMINOUS_10 -> DirectorI18n.translate(DirectorLang.SelectionFilterPanel.FILTER_LUMINOUS_10);
+            default -> canonical;
         };
     }
 }

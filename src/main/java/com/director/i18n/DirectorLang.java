@@ -1251,6 +1251,36 @@ public final class DirectorLang {
         public static final String ADV_ADD_RULE_BUTTON = "gui.director.selection_filter.advanced.add_rule_button";
         public static final String ADV_EMPTY = "gui.director.selection_filter.advanced.empty";
         public static final String ADV_CLEAR_ALL = "gui.director.selection_filter.advanced.clear_all";
+        public static final String ADV_UNREGISTERED_FILTER = "gui.director.selection_filter.advanced.unregistered_filter";
+        public static final String PRESET_DEFAULT = "gui.director.selection_filter.preset.default";
+        public static final String PRESET_TERRAIN_EDIT = "gui.director.selection_filter.preset.terrain_edit";
+        public static final String PRESET_PLANT_EDIT = "gui.director.selection_filter.preset.plant_edit";
+        public static final String PRESET_FLUID_EDIT = "gui.director.selection_filter.preset.fluid_edit";
+        public static final String PRESET_REPLACEABLE_EDIT = "gui.director.selection_filter.preset.replaceable_edit";
+        public static final String FILTER_EXCLUDE_AIR = "gui.director.selection_filter.filter.exclude_air";
+        public static final String FILTER_EXCLUDE_WATER = "gui.director.selection_filter.filter.exclude_water";
+        public static final String FILTER_EXCLUDE_LAVA = "gui.director.selection_filter.filter.exclude_lava";
+        public static final String FILTER_SOLID_ONLY = "gui.director.selection_filter.filter.solid_only";
+        public static final String FILTER_PLANT_ONLY = "gui.director.selection_filter.filter.plant_only";
+        public static final String FILTER_REPLACEABLE_ONLY = "gui.director.selection_filter.filter.replaceable_only";
+        public static final String FILTER_TRANSPARENT_ONLY = "gui.director.selection_filter.filter.transparent_only";
+        public static final String FILTER_SAME_BLOCK_TYPE = "gui.director.selection_filter.filter.same_block_type";
+        public static final String FILTER_SURFACE_ONLY = "gui.director.selection_filter.filter.surface_only";
+        public static final String FILTER_VISIBLE_ONLY = "gui.director.selection_filter.filter.visible_only";
+        public static final String FILTER_CONNECTED_ONLY = "gui.director.selection_filter.filter.connected_only";
+        public static final String FILTER_MAX_DEPTH_LIMIT = "gui.director.selection_filter.filter.max_depth_limit";
+        public static final String FILTER_WITHIN_BBOX = "gui.director.selection_filter.filter.within_bbox";
+        public static final String FILTER_WITHIN_CHUNK = "gui.director.selection_filter.filter.within_chunk";
+        public static final String FILTER_WITHIN_RADIUS = "gui.director.selection_filter.filter.within_radius";
+        public static final String FILTER_MAX_BLOCK_COUNT = "gui.director.selection_filter.filter.max_block_count";
+        public static final String FILTER_DEBUG_LOG_REJECT = "gui.director.selection_filter.filter.debug_log_reject";
+        public static final String FILTER_PROFILING_ONLY = "gui.director.selection_filter.filter.profiling_only";
+        public static final String FILTER_DRY_RUN = "gui.director.selection_filter.filter.dry_run";
+        public static final String FILTER_ALL = "gui.director.selection_filter.filter.all";
+        public static final String FILTER_NONE = "gui.director.selection_filter.filter.none";
+        public static final String FILTER_LUMINOUS = "gui.director.selection_filter.filter.luminous";
+        public static final String FILTER_LUMINOUS_5 = "gui.director.selection_filter.filter.luminous_5";
+        public static final String FILTER_LUMINOUS_10 = "gui.director.selection_filter.filter.luminous_10";
 
         private SelectionFilterPanel() {
         }

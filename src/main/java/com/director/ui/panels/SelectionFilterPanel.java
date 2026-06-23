@@ -225,12 +225,15 @@ public class SelectionFilterPanel extends AbstractPanel implements ICommandsAwar
 
         // --- 添加规则 ---
         Set<String> ids = sf.getFilterIds();
-        String currentName = selectedFilterId.isEmpty() ? t(DirectorLang.SelectionFilterPanel.ADV_RULE_PLACEHOLDER) : selectedFilterId;
+        String currentName = selectedFilterId.isEmpty()
+                ? t(DirectorLang.SelectionFilterPanel.ADV_RULE_PLACEHOLDER)
+                : FilterIds.getFilterDisplayName(selectedFilterId);
 
         if (ImGui.beginCombo(t(DirectorLang.SelectionFilterPanel.ADV_ADD_RULE_LABEL) + "##filterType", currentName)) {
             for (String id : ids) {
                 boolean selected = id.equals(selectedFilterId);
-                if (ImGui.selectable(id, selected)) selectedFilterId = id;
+                String label = FilterIds.getFilterDisplayName(id);
+                if (ImGui.selectable(label + "##" + id, selected)) selectedFilterId = id;
                 if (selected) ImGui.setItemDefaultFocus();
             }
             ImGui.endCombo();
@@ -257,8 +260,10 @@ public class SelectionFilterPanel extends AbstractPanel implements ICommandsAwar
         } else {
             for (int i = 0; i < filters.size(); i++) {
                 BlockFilter filter = filters.get(i);
-                String name = sf.getFilterId(filter);
-                if (name == null) name = filter.getClass().getSimpleName();
+                String filterId = sf.getFilterId(filter);
+                String name = filterId != null
+                        ? FilterIds.getFilterDisplayName(filterId)
+                        : t(DirectorLang.SelectionFilterPanel.ADV_UNREGISTERED_FILTER);
 
                 boolean open = ImGui.treeNodeEx(
                         "[" + (i + 1) + "] " + name + "##card" + i,
@@ -276,7 +281,11 @@ public class SelectionFilterPanel extends AbstractPanel implements ICommandsAwar
 
                 if (open) {
                     ImGui.indent();
-                    UITheme.label(filter.getClass().getName(), UITheme.DarkTheme.TEXT_DISABLED);
+                    if (filterId != null && !filterId.isBlank()) {
+                        UITheme.label(filterId, UITheme.DarkTheme.TEXT_DISABLED);
+                    } else {
+                        UITheme.label(t(DirectorLang.SelectionFilterPanel.ADV_UNREGISTERED_FILTER), UITheme.DarkTheme.TEXT_DISABLED);
+                    }
                     ImGui.unindent();
                     ImGui.treePop();
                 }
