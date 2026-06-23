@@ -1248,21 +1248,6 @@
   "gui.director.tool.container_cull.tip.1": "Remove blocks from the active container",
   "gui.director.tool.container_cull.tip.2": "Right-click to confirm, ESC to cancel",
 
-  "gui.director.tool.inverse.name": "Inverse Select",
-  "gui.director.tool.inverse.desc": "Select blocks that are not currently selected.",
-  "gui.director.tool.inverse.tip.1": "Select unselected blocks within a spherical radius",
-  "gui.director.tool.inverse.tip.2": "Shift+click: add inverse selection; drag to adjust radius",
-
-  "gui.director.tool.typefilter.name": "Select by Type",
-  "gui.director.tool.typefilter.desc": "Select all blocks of the same type within the region.",
-  "gui.director.tool.typefilter.tip.1": "Click a block to select all matching blocks within the radius",
-  "gui.director.tool.typefilter.tip.2": "Shift+click: add to selection; drag to adjust radius",
-
-  "gui.director.tool.connected.name": "Connected Select",
-  "gui.director.tool.connected.desc": "Select connected blocks of the same type.",
-  "gui.director.tool.connected.tip.1": "Click a block to select connected blocks of the same type",
-  "gui.director.tool.connected.tip.2": "Shift+click: add connected selection to current selection",
-
   "gui.director.tool.actor_select.name": "Actor Select",
   "gui.director.tool.actor_select.desc": "Select an actor and show the Gizmo.",
   "gui.director.tool.actor_select.tip.1": "Select an actor and show the Gizmo",

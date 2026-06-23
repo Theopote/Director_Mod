@@ -5,7 +5,6 @@ import com.director.core.selection.SelectionOperationSupport;
 import com.director.core.selection.SelectionState;
 import com.director.core.selection.SelectionTool;
 import com.director.core.selection.tools.ClickSelectTool;
-import com.director.core.selection.tools.ConnectedSelectTool;
 import com.director.core.selection.tools.boxselecttool.BoxSelectTool;
 import com.director.core.selection.tools.brushselecttool.BrushSelectTool;
 import com.director.core.selection.tools.faceselecttool.FaceSelectConfig;
@@ -14,10 +13,7 @@ import com.director.core.selection.tools.geometry.GeometryShape;
 import com.director.core.selection.tools.magicwandtool.MagicWandConfig;
 import com.director.core.selection.tools.magicwandtool.MagicWandTask;
 import com.director.core.selection.tools.magicwandtool.MagicWandTool;
-import com.director.core.selection.tools.InverseSelectTool;
-import com.director.core.selection.tools.TypeFilterTool;
 import com.director.core.selection.tools.lassoselecttool.LassoSelectTool;
-import net.minecraft.block.Block;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import imgui.ImGui;
@@ -361,12 +357,36 @@ public final class ToolPropertyRendering {
         @Override
         public void render(SelectionTool tool, IToolPropertyRenderContext ctx) {
             if (tool instanceof MagicWandTool wt) renderMagicWand(wt, ctx);
-            else if (tool instanceof ConnectedSelectTool ct) renderConnected(ct, ctx);
-            else if (tool instanceof TypeFilterTool tft) renderTypeFilter(tft, ctx);
-            else if (tool instanceof InverseSelectTool ist) renderInverse(ist, ctx);
         }
         private void renderMagicWand(MagicWandTool tool, IToolPropertyRenderContext ctx) {
             MagicWandConfig c = tool.getConfig();
+            if (ImGui.collapsingHeader(Icons.MAGIC + " 选择方式", ImGuiTreeNodeFlags.DefaultOpen)) {
+                ImGui.indent();
+                MagicWandConfig.SpreadMode spread = c.getSpreadMode();
+                if (ImGui.beginCombo("扩散方式##wandSpreadMode", spread.getDisplayName())) {
+                    for (MagicWandConfig.SpreadMode o : MagicWandConfig.SpreadMode.values()) {
+                        if (ImGui.selectable(o.getDisplayName(), o == spread)) {
+                            c.setSpreadMode(o);
+                            tool.requestPreviewRefresh();
+                        }
+                        if (ImGui.isItemHovered()) ImGui.setTooltip(o.getDescription());
+                        if (o == spread) ImGui.setItemDefaultFocus();
+                    }
+                    ImGui.endCombo();
+                }
+                ImGui.spacing();
+                ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, spread.getDescription());
+                if (spread == MagicWandConfig.SpreadMode.SPHERE_REGION) {
+                    ImGui.spacing();
+                    ctx.getIntBuffer1()[0] = c.getSphereRadius();
+                    if (ImGui.sliderInt("扫描半径##wandSphereRadius", ctx.getIntBuffer1(), 1, 100)) {
+                        c.setSphereRadius(ctx.getIntBuffer1()[0]);
+                        tool.requestPreviewRefresh();
+                    }
+                    if (ImGui.isItemHovered()) ImGui.setTooltip("球形区域内选择所有匹配方块；拖拽也可调整半径");
+                }
+                ImGui.unindent();
+            }
             if (ImGui.collapsingHeader(Icons.FILTER + " 匹配规则", ImGuiTreeNodeFlags.DefaultOpen)) {
                 ImGui.indent();
                 MagicWandConfig.CompareMode m = c.getCompareMode();
@@ -401,7 +421,8 @@ public final class ToolPropertyRendering {
                 }
                 ImGui.unindent();
             }
-            if (ImGui.collapsingHeader(Icons.LINK + " 连通性与传播", ImGuiTreeNodeFlags.DefaultOpen)) {
+            if (c.getSpreadMode() == MagicWandConfig.SpreadMode.CONNECTED_FLOOD
+                && ImGui.collapsingHeader(Icons.LINK + " 连通性与传播", ImGuiTreeNodeFlags.DefaultOpen)) {
                 ImGui.indent();
                 MagicWandConfig.Connectivity conn = c.getConnectivity();
                 if (ImGui.beginCombo("连通性##wandConnectivity", conn.getDisplayName() + " (" + conn.getCount() + "邻居)")) {
@@ -425,24 +446,24 @@ public final class ToolPropertyRendering {
                 ctx.getIntBuffer1()[0] = c.getMaxBlocks();
                 if (ImGui.sliderInt("最大方块数##wandMaxBlocks", ctx.getIntBuffer1(), 100, 500_000)) { c.setMaxBlocks(ctx.getIntBuffer1()[0]); tool.requestPreviewRefresh(); }
                 if (ImGui.isItemHovered()) ImGui.setTooltip("防止选择过多方块影响性能");
-                if (ImGui.isItemHovered()) ImGui.setTooltip("防止选择过多方块影响性能");
                 
-                int r = c.getRange();
-                boolean useRange = r != -1;
-                if (ImGui.checkbox("限制扩散范围##wandUseRange", useRange)) {
-                    c.setRange(useRange ? -1 : 64); // Toggle: if was on, turn off; if was off, set to default 64
-                    tool.requestPreviewRefresh();
-                }
-                if (c.getRange() != -1) {
-                    ImGui.sameLine();
-                    ctx.getIntBuffer2()[0] = c.getRange();
-                    if (ImGui.sliderInt("范围 (最大步数)##wandRange", ctx.getIntBuffer2(), 1, 200)) { 
-                        c.setRange(ctx.getIntBuffer2()[0]); 
-                        tool.requestPreviewRefresh(); 
+                if (c.getSpreadMode() == MagicWandConfig.SpreadMode.CONNECTED_FLOOD) {
+                    int r = c.getRange();
+                    boolean useRange = r != -1;
+                    if (ImGui.checkbox("限制扩散范围##wandUseRange", useRange)) {
+                        c.setRange(useRange ? -1 : 64);
+                        tool.requestPreviewRefresh();
                     }
+                    if (c.getRange() != -1) {
+                        ImGui.sameLine();
+                        ctx.getIntBuffer2()[0] = c.getRange();
+                        if (ImGui.sliderInt("范围 (最大步数)##wandRange", ctx.getIntBuffer2(), 1, 200)) {
+                            c.setRange(ctx.getIntBuffer2()[0]);
+                            tool.requestPreviewRefresh();
+                        }
+                    }
+                    ImGui.spacing();
                 }
-                ImGui.spacing();
-                if (ImGui.isItemHovered()) ImGui.setTooltip("只选择至少有一面临空气的方块");
                 if (ImGui.checkbox("限定在当前选区##wandLimitSel", c.isLimitToCurrentSelection())) { c.setLimitToCurrentSelection(!c.isLimitToCurrentSelection()); tool.requestPreviewRefresh(); }
                 if (ImGui.isItemHovered()) ImGui.setTooltip("只在已有选区内部进行泛洪填充");
                 ImGui.unindent();
@@ -480,67 +501,6 @@ public final class ToolPropertyRendering {
                 }
             } else {
                 ImGui.textColored(0.6f, 0.6f, 0.6f, 1.0f, "悬停方块以显示预览");
-            }
-        }
-        private void renderConnected(ConnectedSelectTool tool, IToolPropertyRenderContext ctx) {
-            // 1) 洪填充设置（与魔棒「连通性与传播」同级）
-            if (ImGui.collapsingHeader(Icons.LINK + " 洪填充设置", ImGuiTreeNodeFlags.DefaultOpen)) {
-                ImGui.indent();
-                UITheme.label("最大选择数量: " + tool.getMaxSelectionSize(), UITheme.DarkTheme.TEXT);
-                if (ImGui.checkbox("包含对角线连接##connectedDiagonal", tool.isIncludeDiagonal())) tool.setIncludeDiagonal(!tool.isIncludeDiagonal());
-                ImGui.unindent();
-            }
-            // 2) 底部：选中预览（与魔棒一致）
-            ImGui.spacing();
-            ImGui.separator();
-            int cnt = ctx.getSelectionManager().getSelectionSet().size();
-            if (cnt > 0) {
-                ImGui.textColored(0.5f, 1.0f, 0.5f, 1.0f, Icons.STATS + " 当前选中: " + cnt + " 个方块");
-            } else {
-                ImGui.textColored(0.6f, 0.6f, 0.6f, 1.0f, Icons.STATS + " 点击相连方块以选择");
-            }
-        }
-        private void renderTypeFilter(TypeFilterTool tool, IToolPropertyRenderContext ctx) {
-            if (ImGui.collapsingHeader(Icons.COLOR + " 按类型选择", ImGuiTreeNodeFlags.DefaultOpen)) {
-                ImGui.indent();
-                ctx.getIntBuffer1()[0] = tool.getSelectionRadius();
-                if (ImGui.sliderInt("选择半径##typefilterRadius", ctx.getIntBuffer1(), 1, 100)) {
-                    tool.setSelectionRadius(ctx.getIntBuffer1()[0]);
-                }
-                if (ImGui.isItemHovered()) ImGui.setTooltip("球形区域内选择相同类型的方块；拖拽也可调整半径");
-                Block target = tool.getTargetBlockType();
-                if (target != null) {
-                    ImGui.spacing();
-                    UITheme.label("目标类型: " + target.getName().getString(), UITheme.DarkTheme.TEXT);
-                }
-                ImGui.unindent();
-            }
-            ImGui.spacing();
-            ImGui.separator();
-            int cnt = ctx.getSelectionManager().getSelectionSet().size();
-            if (cnt > 0) {
-                ImGui.textColored(0.5f, 1.0f, 0.5f, 1.0f, Icons.STATS + " 当前选中: " + cnt + " 个方块");
-            } else {
-                ImGui.textColored(0.6f, 0.6f, 0.6f, 1.0f, Icons.STATS + " 点击方块以选择同类型");
-            }
-        }
-        private void renderInverse(InverseSelectTool tool, IToolPropertyRenderContext ctx) {
-            if (ImGui.collapsingHeader(Icons.UNDO + " 反向选择", ImGuiTreeNodeFlags.DefaultOpen)) {
-                ImGui.indent();
-                ctx.getIntBuffer1()[0] = tool.getSelectionRadius();
-                if (ImGui.sliderInt("选择半径##inverseRadius", ctx.getIntBuffer1(), 1, 50)) {
-                    tool.setSelectionRadius(ctx.getIntBuffer1()[0]);
-                }
-                if (ImGui.isItemHovered()) ImGui.setTooltip("球形区域内选择当前未选中的方块；拖拽也可调整半径");
-                ImGui.unindent();
-            }
-            ImGui.spacing();
-            ImGui.separator();
-            int cnt = ctx.getSelectionManager().getSelectionSet().size();
-            if (cnt > 0) {
-                ImGui.textColored(0.5f, 1.0f, 0.5f, 1.0f, Icons.STATS + " 当前选中: " + cnt + " 个方块");
-            } else {
-                ImGui.textColored(0.6f, 0.6f, 0.6f, 1.0f, Icons.STATS + " 先建立选区，再点击反选未选中方块");
             }
         }
         @Override

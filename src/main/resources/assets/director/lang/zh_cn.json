@@ -1248,21 +1248,6 @@
   "gui.director.tool.container_cull.tip.1": "从当前激活容器中剔除方块",
   "gui.director.tool.container_cull.tip.2": "右键确认剔除，ESC 取消",
 
-  "gui.director.tool.inverse.name": "反向选择",
-  "gui.director.tool.inverse.desc": "选择未被选择的方块。用于快速反选区域。",
-  "gui.director.tool.inverse.tip.1": "在球形区域内选择当前未选中的方块",
-  "gui.director.tool.inverse.tip.2": "Shift+点击：叠加反选结果；拖拽可调整半径",
-
-  "gui.director.tool.typefilter.name": "按类型选择",
-  "gui.director.tool.typefilter.desc": "在选区内一键选择所有同种方块。支持材质和状态过滤器。",
-  "gui.director.tool.typefilter.tip.1": "点击方块，在半径内选择所有同类型方块",
-  "gui.director.tool.typefilter.tip.2": "Shift+点击：叠加选择；拖拽可调整选择半径",
-
-  "gui.director.tool.connected.name": "关联选择",
-  "gui.director.tool.connected.desc": "选择相连的同类方块。比如一整面墙或一整棵树的树叶。",
-  "gui.director.tool.connected.tip.1": "点击一个方块，选择与其连通的同类方块",
-  "gui.director.tool.connected.tip.2": "Shift+点击：在现有选区上叠加关联选择",
-
   "gui.director.tool.actor_select.name": "Actor 选择",
   "gui.director.tool.actor_select.desc": "选择 Actor 并显示 Gizmo。",
   "gui.director.tool.actor_select.tip.1": "选择 Actor 并显示 Gizmo",

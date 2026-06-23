@@ -145,7 +145,9 @@ public final class MagicWandTask {
         
         // 初始化 Chunk 缓存
         chunkCache = new ChunkCache(world);
-        if (config.getRange() >= 0) {
+        if (config.getSpreadMode() == MagicWandConfig.SpreadMode.SPHERE_REGION) {
+            chunkCache.preload(seed, config.getSphereRadius());
+        } else if (config.getRange() >= 0) {
             // 如果设置了范围限制，预加载周围的 Chunk
             chunkCache.preload(seed, config.getRange());
         }
@@ -172,6 +174,11 @@ public final class MagicWandTask {
                 LOGGER.debug("[MagicWandTask] 种子点未通过过滤管线，返回空结果");
                 return new MagicWandTaskResult(Collections.emptySet(), false, 0, false, Collections.emptyMap());
             }
+        }
+        
+        if (config.getSpreadMode() == MagicWandConfig.SpreadMode.SPHERE_REGION) {
+            int blockLimit = maxSteps < 0 ? config.getMaxBlocks() : Math.min(maxSteps, config.getMaxBlocks());
+            return runSphereScan(blockLimit);
         }
         
         // 初始化队列
@@ -270,6 +277,65 @@ public final class MagicWandTask {
             LOGGER.debug("[MagicWandTask] 缓存统计: {}", stats);
             chunkCache.clear();
         }
+        
+        return new MagicWandTaskResult(new HashSet<>(result), reachedLimit, steps, cancelled, new HashMap<>(depthMap));
+    }
+    
+    /**
+     * 球形区域扫描：在半径内选择所有匹配方块，不要求连通。
+     */
+    private MagicWandTaskResult runSphereScan(int blockLimit) {
+        int radius = config.getSphereRadius();
+        int radiusSq = radius * radius;
+        
+        result.add(seed);
+        depthMap.put(seed, 0);
+        steps = 1;
+        
+        outer:
+        for (int x = -radius; x <= radius; x++) {
+            for (int y = -radius; y <= radius; y++) {
+                for (int z = -radius; z <= radius; z++) {
+                    if (x == 0 && y == 0 && z == 0) {
+                        continue;
+                    }
+                    
+                    BlockPos pos = seed.add(x, y, z);
+                    if (seed.getSquaredDistance(pos) > radiusSq) {
+                        continue;
+                    }
+                    
+                    if (limitRegion != null && !limitRegion.contains(pos)) {
+                        continue;
+                    }
+                    
+                    BlockState state = chunkCache.getBlockState(pos);
+                    if (!matches(pos, state)) {
+                        continue;
+                    }
+                    
+                    if (config.isSurfaceOnly() && !isSurfaceBlock(pos)) {
+                        continue;
+                    }
+                    
+                    result.add(pos);
+                    depthMap.put(pos, (int) Math.sqrt(seed.getSquaredDistance(pos)));
+                    steps++;
+                    
+                    if (result.size() >= blockLimit) {
+                        reachedLimit = true;
+                        break outer;
+                    }
+                }
+            }
+        }
+        
+        if (chunkCache != null) {
+            chunkCache.clear();
+        }
+        
+        LOGGER.debug("[MagicWandTask] 区域扫描完成：找到 {} 个方块，半径={}{}",
+            result.size(), radius, reachedLimit ? "（达到上限）" : "");
         
         return new MagicWandTaskResult(new HashSet<>(result), reachedLimit, steps, cancelled, new HashMap<>(depthMap));
     }

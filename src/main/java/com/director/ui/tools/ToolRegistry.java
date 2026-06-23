@@ -83,21 +83,6 @@ public final class ToolRegistry {
                 ToolI18n.tipKey("wand", 1),
                 ToolI18n.tipKey("wand", 2)
         ));
-        META.put("connected", ToolMetadata.of(
-                ToolGroup.SELECTION, 35,
-                ToolI18n.tipKey("connected", 1),
-                ToolI18n.tipKey("connected", 2)
-        ));
-        META.put("typefilter", ToolMetadata.of(
-                ToolGroup.SELECTION, 38,
-                ToolI18n.tipKey("typefilter", 1),
-                ToolI18n.tipKey("typefilter", 2)
-        ));
-        META.put("inverse", ToolMetadata.of(
-                ToolGroup.SELECTION, 39,
-                ToolI18n.tipKey("inverse", 1),
-                ToolI18n.tipKey("inverse", 2)
-        ));
         META.put("brush", ToolMetadata.of(
                 ToolGroup.SELECTION, 40,
                 ToolI18n.tipKey("brush", 1),

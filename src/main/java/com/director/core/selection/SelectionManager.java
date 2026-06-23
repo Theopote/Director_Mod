@@ -151,9 +151,6 @@ public class SelectionManager {
         // 闂傚倸鍊搁崐鐑芥嚄閸撲焦鍏滈柛顐ｆ礀閻ら箖鏌ｉ幇顓犮偞闁哄绉归弻銊モ攽閸♀晜肖闂侀€炲苯鍘哥紒鑸佃壘閻ｇ兘濡搁埡濠冩櫍閻熸粌绉瑰鏌ユ偐缂佹ǚ鎷洪梻鍌氱墛娓氭危閸洘鐓曢幖绮光偓瀹犲煘濡?
         registry.register(new com.director.core.selection.tools.ClickSelectTool());
         registry.register(new com.director.core.selection.tools.magicwandtool.MagicWandTool());
-        registry.register(new com.director.core.selection.tools.ConnectedSelectTool());
-        registry.register(new com.director.core.selection.tools.TypeFilterTool());
-        registry.register(new com.director.core.selection.tools.InverseSelectTool());
         
         // 婵犵數濮撮惀澶愬级鎼存挸浜鹃柡鍥ュ灩绾惧湱鎲搁悧鍫濆潑闁逞屽墾缁犳挸鐣烽崼鏇椻偓锕傚箣閻戝棗鏅梻鍌欑劍閹爼宕曞鍛勃闁兼亽鍎查悵姘舵⒒閸屾瑧绐旀繛浣冲泚鍥敇閵忕姷锛熼梺鍛婎殘閸庢劙宕?
         registry.register(new com.director.core.selection.tools.faceselecttool.FaceSelectTool());

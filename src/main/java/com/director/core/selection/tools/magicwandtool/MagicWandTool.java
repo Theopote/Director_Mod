@@ -98,6 +98,9 @@ public class MagicWandTool implements SelectionTool, SelectionOperationSupport {
     
     /** 当前执行的任务 Future */
     private CompletableFuture<MagicWandTask.MagicWandTaskResult> executionFuture = null;
+    
+    /** 区域扫描模式下拖拽调整半径时的中心点 */
+    private BlockPos dragCenter = null;
 
     // ==================== SelectionTool 接口实现 ====================
     
@@ -141,6 +144,38 @@ public class MagicWandTool implements SelectionTool, SelectionOperationSupport {
         
         LOGGER.info("[MagicWandTool] 右键减选: pos={}", pos);
         executeSelection(world, pos, SelectionOperation.SUBTRACT);
+    }
+
+    @Override
+    public void onDragStart(World world, BlockPos start) {
+        if (config.getSpreadMode() != MagicWandConfig.SpreadMode.SPHERE_REGION || world == null || start == null) {
+            return;
+        }
+        dragCenter = start;
+        hoverSeed = start;
+        previewDirty = true;
+    }
+
+    @Override
+    public void onDragUpdate(World world, BlockPos current) {
+        if (dragCenter == null || config.getSpreadMode() != MagicWandConfig.SpreadMode.SPHERE_REGION) {
+            return;
+        }
+        int distance = (int) Math.sqrt(dragCenter.getSquaredDistance(current));
+        config.setSphereRadius(Math.max(1, Math.min(100, distance)));
+        hoverSeed = dragCenter;
+        requestPreviewRefresh();
+    }
+
+    @Override
+    public void onDragEnd(World world, BlockPos end) {
+        if (dragCenter == null || config.getSpreadMode() != MagicWandConfig.SpreadMode.SPHERE_REGION) {
+            return;
+        }
+        int distance = (int) Math.sqrt(dragCenter.getSquaredDistance(end));
+        config.setSphereRadius(Math.max(1, Math.min(100, distance)));
+        executeSelection(world, dragCenter, operation);
+        dragCenter = null;
     }
     
     @Override
@@ -321,7 +356,8 @@ public class MagicWandTool implements SelectionTool, SelectionOperationSupport {
             
             // 决定使用渐进式还是一次性预览
             // 如果预计方块数较大，使用渐进式预览以获得平滑体验
-            boolean shouldUseProgressive = config.getMaxBlocks() > 5000 || useProgressivePreview;
+            boolean shouldUseProgressive = config.getSpreadMode() == MagicWandConfig.SpreadMode.CONNECTED_FLOOD
+                && (config.getMaxBlocks() > 5000 || useProgressivePreview);
             
             if (shouldUseProgressive) {
                 // 使用渐进式预览

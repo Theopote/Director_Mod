@@ -18,6 +18,33 @@ import com.director.core.selection.block_filters.BlockFilter;
 public final class MagicWandConfig {
     
     /**
+     * 选择扩散方式 - 决定如何从种子点扩展选区
+     */
+    public enum SpreadMode {
+        /** 连通泛洪：仅选择与种子点相连的匹配方块 */
+        CONNECTED_FLOOD("连通扩散", "从种子点泛洪，仅选择相连的方块"),
+        
+        /** 球形区域扫描：半径内所有匹配方块，不要求相连 */
+        SPHERE_REGION("区域扫描", "在球形区域内选择所有匹配方块，不要求相连");
+        
+        private final String displayName;
+        private final String description;
+        
+        SpreadMode(String displayName, String description) {
+            this.displayName = displayName;
+            this.description = description;
+        }
+        
+        public String getDisplayName() {
+            return displayName;
+        }
+        
+        public String getDescription() {
+            return description;
+        }
+    }
+    
+    /**
      * 比较模式 - 决定哪些方块被认为是"相同"的
      */
     public enum CompareMode {
@@ -36,7 +63,7 @@ public final class MagicWandConfig {
         /** 按标签匹配（例如 #minecraft:logs） */
         BY_TAG("按标签匹配", "使用方块标签进行匹配"),
         
-        /** 使用高级过滤器（与 TypeFilterTool 联动） */
+        /** 使用高级过滤器 */
         BY_FILTER("高级过滤", "使用自定义过滤规则");
         
         private final String displayName;
@@ -94,6 +121,12 @@ public final class MagicWandConfig {
     
     // ==================== 基础配置 ====================
     
+    /** 扩散方式 */
+    private SpreadMode spreadMode = SpreadMode.CONNECTED_FLOOD;
+    
+    /** 区域扫描半径（仅 spreadMode = SPHERE_REGION 时有效） */
+    private int sphereRadius = 20;
+    
     /** 比较模式 */
     private CompareMode compareMode = CompareMode.SAME_BLOCK;
     
@@ -146,6 +179,24 @@ public final class MagicWandConfig {
     private BlockFilter customFilter = null;
     
     // ==================== Getters & Setters ====================
+    
+    public SpreadMode getSpreadMode() {
+        return spreadMode;
+    }
+    
+    public void setSpreadMode(SpreadMode spreadMode) {
+        if (spreadMode != null) {
+            this.spreadMode = spreadMode;
+        }
+    }
+    
+    public int getSphereRadius() {
+        return sphereRadius;
+    }
+    
+    public void setSphereRadius(int sphereRadius) {
+        this.sphereRadius = Math.max(1, Math.min(sphereRadius, 100));
+    }
     
     public CompareMode getCompareMode() {
         return compareMode;
@@ -279,6 +330,8 @@ public final class MagicWandConfig {
      */
     public MagicWandConfig clone() {
         MagicWandConfig config = new MagicWandConfig();
+        config.spreadMode = this.spreadMode;
+        config.sphereRadius = this.sphereRadius;
         config.compareMode = this.compareMode;
         config.connectivity = this.connectivity;
         config.maxBlocks = this.maxBlocks;
@@ -298,8 +351,8 @@ public final class MagicWandConfig {
     
     @Override
     public String toString() {
-        return String.format("MagicWandConfig[mode=%s, connectivity=%s, max=%d, range=%d]",
-            compareMode, connectivity, maxBlocks, range);
+        return String.format("MagicWandConfig[spread=%s, mode=%s, connectivity=%s, max=%d, range=%d, sphere=%d]",
+            spreadMode, compareMode, connectivity, maxBlocks, range, sphereRadius);
     }
 }
 
