@@ -2,6 +2,8 @@ package com.director.ui.panels;
 
 import com.director.core.selection.block_filters.BlockFilter;
 import com.director.core.selection.block_filters.FilterIds;
+import com.director.i18n.DirectorI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.PanelId;
 import com.director.ui.PanelWindows;
 import com.director.ui.commands.SelectionFilterCommands;
@@ -91,28 +93,28 @@ public class SelectionFilterPanel extends AbstractPanel implements ICommandsAwar
     protected void doRender() {
         SelectionFilterCommands sf = sf();
         if (sf == null) {
-            ImGui.textDisabled("(等待命令门面)");
+            ImGui.textDisabled(t(DirectorLang.SelectionFilterPanel.WAITING_COMMANDS));
             return;
         }
 
         // ===============================
         // 🟢 层 1：基础内容过滤（普通用户）
         // ===============================
-        if (ImGui.collapsingHeader(Icons.TARGET + " 选择内容", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(Icons.TARGET + " " + t(DirectorLang.SelectionFilterPanel.SECTION_BASIC), ImGuiTreeNodeFlags.DefaultOpen)) {
             renderBasicFilters(sf);
         }
 
         // ===============================
         // 🟣 层 2：选择模式（预设）
         // ===============================
-        if (ImGui.collapsingHeader(Icons.BOOKMARK + " 选择模式")) {
+        if (ImGui.collapsingHeader(Icons.BOOKMARK + " " + t(DirectorLang.SelectionFilterPanel.SECTION_MODES))) {
             renderModes(sf);
         }
 
         // ===============================
         // 🔵 层 3：高级过滤（专家）
         // ===============================
-        if (ImGui.collapsingHeader(Icons.TOOLS + " 高级过滤器")) {
+        if (ImGui.collapsingHeader(Icons.TOOLS + " " + t(DirectorLang.SelectionFilterPanel.SECTION_ADVANCED))) {
             renderAdvancedFilters(sf);
         }
     }
@@ -123,16 +125,16 @@ public class SelectionFilterPanel extends AbstractPanel implements ICommandsAwar
     private void renderBasicFilters(SelectionFilterCommands sf) {
         ImGui.indent();
 
-        checkboxFilter(sf, "忽略空气", FilterIds.EXCLUDE_AIR);
-        checkboxFilter(sf, "忽略水", FilterIds.EXCLUDE_WATER);
-        checkboxFilter(sf, "忽略岩浆", FilterIds.EXCLUDE_LAVA);
+        checkboxFilter(sf, t(DirectorLang.SelectionFilterPanel.BASIC_EXCLUDE_AIR), FilterIds.EXCLUDE_AIR);
+        checkboxFilter(sf, t(DirectorLang.SelectionFilterPanel.BASIC_EXCLUDE_WATER), FilterIds.EXCLUDE_WATER);
+        checkboxFilter(sf, t(DirectorLang.SelectionFilterPanel.BASIC_EXCLUDE_LAVA), FilterIds.EXCLUDE_LAVA);
 
         ImGui.separator();
 
-        checkboxFilter(sf, "仅选择固体方块", FilterIds.SOLID_ONLY);
-        checkboxFilter(sf, "仅选择植物", FilterIds.PLANT_ONLY);
-        checkboxFilter(sf, "仅选择可替换方块（草 / 花 / 雪）", FilterIds.REPLACEABLE_ONLY);
-        checkboxFilter(sf, "仅选择透明方块", FilterIds.TRANSPARENT_ONLY);
+        checkboxFilter(sf, t(DirectorLang.SelectionFilterPanel.BASIC_SOLID_ONLY), FilterIds.SOLID_ONLY);
+        checkboxFilter(sf, t(DirectorLang.SelectionFilterPanel.BASIC_PLANT_ONLY), FilterIds.PLANT_ONLY);
+        checkboxFilter(sf, t(DirectorLang.SelectionFilterPanel.BASIC_REPLACEABLE_ONLY), FilterIds.REPLACEABLE_ONLY);
+        checkboxFilter(sf, t(DirectorLang.SelectionFilterPanel.BASIC_TRANSPARENT_ONLY), FilterIds.TRANSPARENT_ONLY);
 
         String conflict = getBasicConflictHint(sf);
         if (conflict != null) {
@@ -147,11 +149,11 @@ public class SelectionFilterPanel extends AbstractPanel implements ICommandsAwar
     private String getBasicConflictHint(SelectionFilterCommands sf) {
         if (!sf.isFilterEnabled(FilterIds.SOLID_ONLY)) return null;
         List<String> with = new ArrayList<>();
-        if (sf.isFilterEnabled(FilterIds.PLANT_ONLY)) with.add("仅选择植物");
-        if (sf.isFilterEnabled(FilterIds.REPLACEABLE_ONLY)) with.add("仅选择可替换方块");
-        if (sf.isFilterEnabled(FilterIds.TRANSPARENT_ONLY)) with.add("仅选择透明方块");
+        if (sf.isFilterEnabled(FilterIds.PLANT_ONLY)) with.add(t(DirectorLang.SelectionFilterPanel.BASIC_PLANT_ONLY));
+        if (sf.isFilterEnabled(FilterIds.REPLACEABLE_ONLY)) with.add(t(DirectorLang.SelectionFilterPanel.CONFLICT_REPLACEABLE_SHORT));
+        if (sf.isFilterEnabled(FilterIds.TRANSPARENT_ONLY)) with.add(t(DirectorLang.SelectionFilterPanel.BASIC_TRANSPARENT_ONLY));
         if (with.isEmpty()) return null;
-        return "当前组合可能导致选不到任何方块：仅选择固体 + " + String.join("、", with);
+        return t(DirectorLang.SelectionFilterPanel.CONFLICT_HINT, String.join(t(DirectorLang.SelectionFilterPanel.CONFLICT_DELIMITER), with));
     }
 
     private void checkboxFilter(SelectionFilterCommands sf, String label, String filterId) {
@@ -170,9 +172,9 @@ public class SelectionFilterPanel extends AbstractPanel implements ICommandsAwar
         ImGui.indent();
 
         Set<String> presetIds = sf.getPresetIds();
-        String current = selectedPresetId.isEmpty() ? "自定义" : FilterIds.getPresetDisplayName(selectedPresetId);
+        String current = selectedPresetId.isEmpty() ? t(DirectorLang.SelectionFilterPanel.MODE_CUSTOM) : FilterIds.getPresetDisplayName(selectedPresetId);
 
-        if (ImGui.beginCombo("当前模式##modeSelect", current)) {
+        if (ImGui.beginCombo(t(DirectorLang.SelectionFilterPanel.MODE_CURRENT_LABEL) + "##modeSelect", current)) {
             for (String id : presetIds) {
                 boolean selected = id.equals(selectedPresetId);
                 String label = FilterIds.getPresetDisplayName(id);
@@ -190,16 +192,16 @@ public class SelectionFilterPanel extends AbstractPanel implements ICommandsAwar
         ImGui.separator();
         ImGui.spacing();
 
-        UITheme.label("保存当前过滤为新模式:", UITheme.DarkTheme.TEXT);
+        UITheme.label(t(DirectorLang.SelectionFilterPanel.MODE_SAVE_LABEL), UITheme.DarkTheme.TEXT);
         ImGui.inputText("##newModeName", presetNameInput);
         ImGui.sameLine();
-        if (ImGui.button("保存模式")) {
+        if (ImGui.button(t(DirectorLang.SelectionFilterPanel.MODE_SAVE_BUTTON))) {
             String name = presetNameInput.get().trim();
             saveBlockedReason = null;
             if (name.isEmpty()) {
                 // 不保存
             } else if (FilterIds.isBuiltinPresetId(name)) {
-                saveBlockedReason = "不能使用内置模式名（如 default、terrain_edit）";
+                saveBlockedReason = t(DirectorLang.SelectionFilterPanel.MODE_SAVE_BUILTIN_BLOCKED);
             } else if (sf.isEmpty()) {
                 // 不保存空管道
             } else {
@@ -223,9 +225,9 @@ public class SelectionFilterPanel extends AbstractPanel implements ICommandsAwar
 
         // --- 添加规则 ---
         Set<String> ids = sf.getFilterIds();
-        String currentName = selectedFilterId.isEmpty() ? "选择规则..." : selectedFilterId;
+        String currentName = selectedFilterId.isEmpty() ? t(DirectorLang.SelectionFilterPanel.ADV_RULE_PLACEHOLDER) : selectedFilterId;
 
-        if (ImGui.beginCombo("添加规则##filterType", currentName)) {
+        if (ImGui.beginCombo(t(DirectorLang.SelectionFilterPanel.ADV_ADD_RULE_LABEL) + "##filterType", currentName)) {
             for (String id : ids) {
                 boolean selected = id.equals(selectedFilterId);
                 if (ImGui.selectable(id, selected)) selectedFilterId = id;
@@ -238,7 +240,7 @@ public class SelectionFilterPanel extends AbstractPanel implements ICommandsAwar
             BlockFilter filter = sf.getFilter(selectedFilterId);
             if (filter != null) {
                 ImGui.sameLine();
-                if (ImGui.button("添加到规则列表")) {
+                if (ImGui.button(t(DirectorLang.SelectionFilterPanel.ADV_ADD_RULE_BUTTON))) {
                     sf.appendFilter(filter);
                     selectedPresetId = "";
                     LOGGER.info("[SelectionFilter] 添加高级规则: {}", selectedFilterId);
@@ -251,7 +253,7 @@ public class SelectionFilterPanel extends AbstractPanel implements ICommandsAwar
         // --- 当前规则列表 ---
         List<BlockFilter> filters = new ArrayList<>(sf.getFilters());
         if (filters.isEmpty()) {
-            UITheme.label("当前没有启用任何高级规则", UITheme.DarkTheme.TEXT_DISABLED);
+            UITheme.label(t(DirectorLang.SelectionFilterPanel.ADV_EMPTY), UITheme.DarkTheme.TEXT_DISABLED);
         } else {
             for (int i = 0; i < filters.size(); i++) {
                 BlockFilter filter = filters.get(i);
@@ -282,12 +284,16 @@ public class SelectionFilterPanel extends AbstractPanel implements ICommandsAwar
         }
 
         ImGui.spacing();
-        if (ImGui.button("清空所有规则")) {
+        if (ImGui.button(t(DirectorLang.SelectionFilterPanel.ADV_CLEAR_ALL))) {
             sf.clear();
             selectedPresetId = "";
             LOGGER.info("[SelectionFilter] 清空所有规则");
         }
 
         ImGui.unindent();
+    }
+
+    private static String t(String key, Object... args) {
+        return DirectorI18n.translate(key, args);
     }
 }

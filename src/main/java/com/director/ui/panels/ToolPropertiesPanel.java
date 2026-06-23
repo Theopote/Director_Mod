@@ -1,5 +1,7 @@
 package com.director.ui.panels;
 
+import com.director.i18n.DirectorI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.PanelId;
 import com.director.ui.PanelWindows;
 import com.director.ui.theme.Icons;
@@ -45,8 +47,12 @@ public class ToolPropertiesPanel extends AbstractPanel {
 
     @Override
     protected void doRender() {
-        UITheme.label(Icons.INFO + " 工具属性已集成到属性面板", UITheme.DarkTheme.TEXT);
+        UITheme.label(Icons.INFO + " " + t(DirectorLang.ToolPropertiesPanel.EMBEDDED_TITLE), UITheme.DarkTheme.TEXT);
         ImGui.spacing();
-        ImGui.textWrapped("请使用右侧「属性」面板查看和编辑工具参数。选中工具时，属性面板会自动显示该工具的配置。");
+        ImGui.textWrapped(t(DirectorLang.ToolPropertiesPanel.EMBEDDED_HINT));
+    }
+
+    private static String t(String key, Object... args) {
+        return DirectorI18n.translate(key, args);
     }
 }

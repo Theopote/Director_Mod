@@ -1226,6 +1226,44 @@ public final class DirectorLang {
         }
     }
 
+    public static final class SelectionFilterPanel {
+        public static final String WAITING_COMMANDS = "gui.director.selection_filter.waiting_commands";
+        public static final String SECTION_BASIC = "gui.director.selection_filter.section.basic";
+        public static final String SECTION_MODES = "gui.director.selection_filter.section.modes";
+        public static final String SECTION_ADVANCED = "gui.director.selection_filter.section.advanced";
+        public static final String BASIC_EXCLUDE_AIR = "gui.director.selection_filter.basic.exclude_air";
+        public static final String BASIC_EXCLUDE_WATER = "gui.director.selection_filter.basic.exclude_water";
+        public static final String BASIC_EXCLUDE_LAVA = "gui.director.selection_filter.basic.exclude_lava";
+        public static final String BASIC_SOLID_ONLY = "gui.director.selection_filter.basic.solid_only";
+        public static final String BASIC_PLANT_ONLY = "gui.director.selection_filter.basic.plant_only";
+        public static final String BASIC_REPLACEABLE_ONLY = "gui.director.selection_filter.basic.replaceable_only";
+        public static final String BASIC_TRANSPARENT_ONLY = "gui.director.selection_filter.basic.transparent_only";
+        public static final String CONFLICT_REPLACEABLE_SHORT = "gui.director.selection_filter.conflict.replaceable_short";
+        public static final String CONFLICT_HINT = "gui.director.selection_filter.conflict.hint";
+        public static final String CONFLICT_DELIMITER = "gui.director.selection_filter.conflict.delimiter";
+        public static final String MODE_CUSTOM = "gui.director.selection_filter.mode.custom";
+        public static final String MODE_CURRENT_LABEL = "gui.director.selection_filter.mode.current_label";
+        public static final String MODE_SAVE_LABEL = "gui.director.selection_filter.mode.save_label";
+        public static final String MODE_SAVE_BUTTON = "gui.director.selection_filter.mode.save_button";
+        public static final String MODE_SAVE_BUILTIN_BLOCKED = "gui.director.selection_filter.mode.save_builtin_blocked";
+        public static final String ADV_RULE_PLACEHOLDER = "gui.director.selection_filter.advanced.rule_placeholder";
+        public static final String ADV_ADD_RULE_LABEL = "gui.director.selection_filter.advanced.add_rule_label";
+        public static final String ADV_ADD_RULE_BUTTON = "gui.director.selection_filter.advanced.add_rule_button";
+        public static final String ADV_EMPTY = "gui.director.selection_filter.advanced.empty";
+        public static final String ADV_CLEAR_ALL = "gui.director.selection_filter.advanced.clear_all";
+
+        private SelectionFilterPanel() {
+        }
+    }
+
+    public static final class ToolPropertiesPanel {
+        public static final String EMBEDDED_TITLE = "gui.director.tool_properties.embedded_title";
+        public static final String EMBEDDED_HINT = "gui.director.tool_properties.embedded_hint";
+
+        private ToolPropertiesPanel() {
+        }
+    }
+
     public static final class Common {
         public static final String DELETE = "gui.director.common.delete";
         public static final String OK = "gui.director.common.ok";
