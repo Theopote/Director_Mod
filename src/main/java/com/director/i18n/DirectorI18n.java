@@ -2,6 +2,7 @@ package com.director.i18n;
 
 import net.minecraft.client.resource.language.I18n;
 import net.minecraft.text.Text;
+import net.minecraft.util.Language;
 
 /**
  * Director 文案翻译：委托 Minecraft 标准 lang 资源（{@code assets/director/lang/*.json}）。
@@ -21,7 +22,12 @@ public final class DirectorI18n {
     }
 
     public static String translate(String key, Object... args) {
-        return String.format(I18n.translate(key), args);
+        if (args == null || args.length == 0) {
+            return I18n.translate(key);
+        }
+        // 取原始模板，避免 I18n.translate(key) 以 0 个参数预格式化导致 "Format error"
+        String format = Language.getInstance().get(key, key);
+        return String.format(format, args);
     }
 
     public static Text translatable(String key) {
