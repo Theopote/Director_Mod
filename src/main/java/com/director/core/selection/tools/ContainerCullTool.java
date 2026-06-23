@@ -66,13 +66,11 @@ public class ContainerCullTool implements SelectionTool {
     public void onActivate(World world) {
         refreshActiveContainer();
         selectedBlocks.clear();
-        syncToSelectionManager();
     }
     
     @Override
     public void onDeactivate(World world) {
         selectedBlocks.clear();
-        syncToSelectionManager();
         targetContainer = null;
         lastDragPos = null;
         LOGGER.info("[ContainerCullTool] 停用剔除工具");
