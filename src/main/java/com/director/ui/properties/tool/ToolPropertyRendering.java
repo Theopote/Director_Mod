@@ -365,7 +365,16 @@ public final class ToolPropertyRendering {
                 if (tool.hasActiveContainer()) {
                     UITheme.label("目标容器: " + tool.getActiveContainerName(), UITheme.DarkTheme.TEXT);
                     UITheme.label("待剔除方块: " + tool.getSelectedBlockCount(), UITheme.DarkTheme.TEXT_SELECTED);
-                    ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "左键单选，Shift+左键多选，拖拽连续框取；右键确认剔除。");
+                    if (ImGui.checkbox("多选模式##containerCullMulti", tool.isMultiSelectEnabled())) {
+                        tool.setMultiSelectEnabled(!tool.isMultiSelectEnabled());
+                    }
+                    if (ImGui.isItemHovered()) ImGui.setTooltip("开启后左键点击不会清空之前选择，用于累积多选。");
+                    if (ImGui.button(Icons.IMPORT + " 导入当前选区##containerCullImport", 0, UITheme.Spacing.BUTTON_HEIGHT)) {
+                        int imported = tool.importFromCurrentSelection();
+                        LOGGER.info("[ToolPropertyRendering] 容器剔除导入当前选区: {} 个方块", imported);
+                    }
+                    if (ImGui.isItemHovered()) ImGui.setTooltip("可先用其他选择工具选区，再导入为剔除候选。");
+                    ImGui.textColored(0.7f, 0.7f, 0.7f, 1.0f, "左键选取，拖拽连续框取；右键或按钮确认剔除。");
                 } else {
                     UITheme.label("未检测到可用容器", UITheme.DarkTheme.TEXT_DISABLED);
                     ImGui.textColored(0.8f, 0.6f, 0.2f, 1.0f, "请先在容器面板选中一个容器（或启用实时接收激活容器）。");

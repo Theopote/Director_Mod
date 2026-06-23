@@ -45,6 +45,7 @@ public class ContainerCullTool implements SelectionTool {
     private final Set<BlockPos> selectedBlocks = new HashSet<>();
     private Container targetContainer = null;
     private BlockPos lastDragPos = null;
+    private boolean multiSelectEnabled = false;
     
     // ========== 预览颜色 ==========
     private static final int PREVIEW_COLOR = 0xFFFF3333; // 红色半透明
@@ -92,8 +93,8 @@ public class ContainerCullTool implements SelectionTool {
             return;
         }
         
-        // 默认单选；按住 Shift 可进行多选切换。
-        if (!isShiftDown) {
+        // 默认单选；多选由属性面板复选框控制，避免占用 Shift。
+        if (!multiSelectEnabled) {
             selectedBlocks.clear();
         }
 
@@ -213,6 +214,30 @@ public class ContainerCullTool implements SelectionTool {
 
     public boolean canConfirmCull() {
         return targetContainer != null && !selectedBlocks.isEmpty();
+    }
+
+    public boolean isMultiSelectEnabled() {
+        return multiSelectEnabled;
+    }
+
+    public void setMultiSelectEnabled(boolean enabled) {
+        this.multiSelectEnabled = enabled;
+    }
+
+    public int importFromCurrentSelection() {
+        refreshActiveContainer();
+        if (targetContainer == null) {
+            return 0;
+        }
+        var current = DirectorServices.get().selection().getSelectionSet().asUnmodifiableSet();
+        selectedBlocks.clear();
+        for (BlockPos pos : current) {
+            if (targetContainer.containsBlock(pos)) {
+                selectedBlocks.add(pos);
+            }
+        }
+        syncToSelectionManager();
+        return selectedBlocks.size();
     }
     
     /**

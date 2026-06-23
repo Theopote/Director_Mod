@@ -74,7 +74,6 @@ public final class ShortcutBindings {
         KEY_BINDINGS.put(GLFW.GLFW_KEY_B, ShortcutAction.TOOL_BOX_SELECT);
         KEY_BINDINGS.put(GLFW.GLFW_KEY_G, ShortcutAction.TOOL_MOVE);
         KEY_BINDINGS.put(GLFW.GLFW_KEY_R, ShortcutAction.TOOL_ROTATE);
-        KEY_BINDINGS.put(GLFW.GLFW_KEY_S, ShortcutAction.TOOL_SCALE);
         
         KEY_BINDINGS.put(GLFW.GLFW_KEY_TAB, ShortcutAction.TOOL_NEXT);
         // 注意：Shift 键通常作为修饰键，需要特殊处理
@@ -101,11 +100,9 @@ public final class ShortcutBindings {
         // 无修饰 Delete：由 ShortcutDispatcher 按 Container/Timeline 焦点路由到 CONTAINER_DELETE 或 TIMELINE_DELETE，此处不绑定
         // 带修饰 Delete：仍映射到 TIMELINE_DELETE
         registerModifierBinding(GLFW.GLFW_KEY_DELETE, 1, ShortcutAction.TIMELINE_DELETE); // Ctrl+Delete
-        registerModifierBinding(GLFW.GLFW_KEY_DELETE, 2, ShortcutAction.TIMELINE_DELETE); // Shift+Delete
         registerModifierBinding(GLFW.GLFW_KEY_DELETE, 4, ShortcutAction.TIMELINE_DELETE); // Alt+Delete
         
         // ==================== Actor Gizmo 操作 ====================
-        KEY_BINDINGS.put(GLFW.GLFW_KEY_W, ShortcutAction.GIZMO_MOVE);
         KEY_BINDINGS.put(GLFW.GLFW_KEY_E, ShortcutAction.GIZMO_ROTATE);
         // 注意：R 键已经用于 TOOL_ROTATE，Gizmo Scale 使用其他键或通过其他方式触发
         // 暂时保留 R 键用于工具旋转，Gizmo Scale 可以通过其他方式访问
@@ -256,11 +253,9 @@ public final class ShortcutBindings {
             case GLFW.GLFW_KEY_B -> "B";
             case GLFW.GLFW_KEY_G -> "G";
             case GLFW.GLFW_KEY_R -> "R";
-            case GLFW.GLFW_KEY_S -> "S";
             case GLFW.GLFW_KEY_L -> "L";
             case GLFW.GLFW_KEY_N -> "N";
             case GLFW.GLFW_KEY_O -> "O";
-            case GLFW.GLFW_KEY_W -> "W";
             case GLFW.GLFW_KEY_E -> "E";
             case GLFW.GLFW_KEY_Z -> "Z";
             case GLFW.GLFW_KEY_Y -> "Y";
@@ -303,7 +298,6 @@ public final class ShortcutBindings {
         tools.add(formatShortcut("5", "面选择工具"));
         tools.add(formatShortcut("G", "移动工具"));
         tools.add(formatShortcut("R", "旋转工具"));
-        tools.add(formatShortcut("S", "缩放工具"));
         tools.add(formatShortcut("Tab", "下一个工具"));
         // 注意：上一个工具 (TOOL_PREVIOUS) 在 ShortcutAction 中定义，但尚未绑定快捷键
         categories.put("工具切换", tools);
@@ -324,15 +318,13 @@ public final class ShortcutBindings {
         timeline.add(formatShortcut("Ctrl+V", "粘贴"));
         timeline.add(formatShortcut("Delete", "删除选中项"));
         timeline.add(formatShortcut("Ctrl+Delete", "删除选中项"));
-        timeline.add(formatShortcut("Shift+Delete", "删除选中项"));
         timeline.add(formatShortcut("Alt+Delete", "删除选中项"));
         categories.put("时间线操作", timeline);
         
         // ==================== Actor Gizmo 操作 ====================
         List<String> gizmo = new ArrayList<>();
-        gizmo.add(formatShortcut("W", "Gizmo 移动模式"));
         gizmo.add(formatShortcut("E", "Gizmo 旋转模式"));
-        gizmo.add(formatShortcut("G/R/S", "Actor 工具组内切换移动/旋转/缩放"));
+        gizmo.add(formatShortcut("G/R", "Actor 工具组内切换移动/旋转"));
         categories.put("Actor Gizmo 操作", gizmo);
         
         // ==================== 界面操作 ====================
