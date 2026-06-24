@@ -1,6 +1,7 @@
 package com.director.ui.panels;
 
 import com.director.core.DirectorServices;
+import com.director.persistence.PersistenceSaveStatus;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
 
@@ -182,7 +183,19 @@ public class StatusBarPanel extends AbstractPanel implements IPanelRegistryAware
             }
         }
 
-        // 6. Panels
+        // 6. Save status
+        if (PersistenceSaveStatus.hasSaveFailure()) {
+            UITheme.label(Icons.WARNING + " 上次保存失败", rgba(255, 153, 51));
+            if (ImGui.isItemHovered()) {
+                String reason = PersistenceSaveStatus.getLastFailureReason();
+                ImGui.setTooltip(
+                        reason != null ? reason : "请检查磁盘空间与存档目录权限"
+                );
+            }
+            separator();
+        }
+
+        // 7. Panels
         if (panelRegistry != null) {
             int total = 0;
             int visible = 0;

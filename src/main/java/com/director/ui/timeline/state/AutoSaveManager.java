@@ -10,7 +10,7 @@ import com.director.timeline.model.TimelineModel;
  */
 public final class AutoSaveManager {
     private static final Logger LOGGER = LoggerFactory.getLogger(AutoSaveManager.class);
-    
+
     private final TimelineModel model;
     private long lastSaveTime = System.currentTimeMillis();
     private static final long AUTO_SAVE_INTERVAL = 5000; // 5秒自动保存
@@ -26,10 +26,11 @@ public final class AutoSaveManager {
     public void tick() {
         long currentTime = System.currentTimeMillis();
         if (dirty && (currentTime - lastSaveTime) >= AUTO_SAVE_INTERVAL) {
-            model.save();
-            dirty = false;
-            lastSaveTime = currentTime;
-            LOGGER.debug("[Timeline] 自动保存时间线数据");
+            if (model.save()) {
+                dirty = false;
+                lastSaveTime = currentTime;
+                LOGGER.debug("[Timeline] 自动保存时间线数据");
+            }
         }
     }
 
@@ -39,8 +40,8 @@ public final class AutoSaveManager {
     public void markDirty() {
         dirty = true;
         // 立即保存一份，确保实时落盘；定时 tick 作为兜底。
-        model.save();
-        lastSaveTime = System.currentTimeMillis();
+        if (model.save()) {
+            lastSaveTime = System.currentTimeMillis();
+        }
     }
 }
-

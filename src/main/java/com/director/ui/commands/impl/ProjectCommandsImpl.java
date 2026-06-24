@@ -44,11 +44,10 @@ public final class ProjectCommandsImpl implements ProjectCommands {
     @Override
     public void saveProject() {
         if (timelineModel != null) {
-            try {
-                timelineModel.save();
+            if (timelineModel.save()) {
                 LOGGER.info("[Project] 项目已保存");
-            } catch (Exception e) {
-                LOGGER.error("[Project] 保存项目失败: {}", e.getMessage(), e);
+            } else {
+                LOGGER.warn("[Project] 项目保存失败");
             }
         } else {
             LOGGER.warn("[Project] TimelineModel 不可用，无法保存项目");
@@ -69,8 +68,9 @@ public final class ProjectCommandsImpl implements ProjectCommands {
     @Override
     public void exitApplication() {
         try {
-            if (timelineModel != null) {
-                timelineModel.save();
+            if (timelineModel != null && !timelineModel.save()) {
+                LOGGER.warn("[Project] 退出前保存项目失败");
+            } else if (timelineModel != null) {
                 LOGGER.info("[Project] 退出前已保存项目");
             }
 

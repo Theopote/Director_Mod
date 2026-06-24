@@ -1704,26 +1704,30 @@ public class TimelineModelPersistence {
 
     /**
      * 保存 TimelineModel 到文件（按世界）
+     *
+     * @return 是否成功写入当前存档目录
      */
-    public static void saveToFile(TimelineModel model, TimelineViewportState viewportState) {
+    public static boolean saveToFile(TimelineModel model, TimelineViewportState viewportState) {
         try {
             Path timelineFile = getTimelineFile();
             if (timelineFile == null) {
                 LOGGER.debug("[TimelineModelPersistence] 当前无活动存档目录，跳过保存");
-                return;
+                return false;
             }
-            
+
             // 确保配置目录存在
             if (!Files.exists(timelineFile.getParent())) {
                 Files.createDirectories(timelineFile.getParent());
             }
-            
+
             // 转换为 DTO 并保存
             TimelineDTO dto = toDTO(model, viewportState);
             String json = GSON.toJson(dto);
             Files.writeString(timelineFile, json);
+            return true;
         } catch (IOException e) {
             LOGGER.error("[TimelineModelPersistence] 保存时间线数据失败: {}", e.getMessage(), e);
+            return false;
         }
     }
     

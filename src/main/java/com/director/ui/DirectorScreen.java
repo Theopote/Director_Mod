@@ -523,8 +523,8 @@ public class DirectorScreen extends Screen {
             if (uiManager != null) {
                 com.director.ui.panels.TimelinePanel timelinePanel =
                     uiManager.getPanelRegistry().getPanel(com.director.ui.panels.TimelinePanel.class);
-                if (timelinePanel != null) {
-                    timelinePanel.saveNow();
+                if (timelinePanel != null && !timelinePanel.saveNow()) {
+                    LOGGER.warn("[Director] 关闭前保存时间线数据失败");
                 }
             }
         } catch (Exception e) {

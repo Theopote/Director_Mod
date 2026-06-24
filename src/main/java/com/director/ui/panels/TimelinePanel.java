@@ -501,9 +501,11 @@ public class TimelinePanel extends AbstractPanel
 
     /**
      * 立即落盘一次（用于关闭 Director 界面前的兜底保存）。
+     *
+     * @return 是否成功写入存档
      */
-    public void saveNow() {
-        model.save();
+    public boolean saveNow() {
+        return model.save();
     }
 
     /**

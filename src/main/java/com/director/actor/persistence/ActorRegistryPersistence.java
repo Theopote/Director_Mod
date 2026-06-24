@@ -70,18 +70,19 @@ public class ActorRegistryPersistence {
      * ⭐ 性能优化：添加异常保护，防止保存失败导致崩溃
      *
      * @param registry ActorRegistry
+     * @return 是否成功写入当前存档目录
      */
-    public static void saveToFile(ActorRegistry registry) {
+    public static boolean saveToFile(ActorRegistry registry) {
         if (registry == null) {
             LOGGER.warn("[ActorRegistryPersistence] 尝试保存 null ActorRegistry");
-            return;
+            return false;
         }
 
         try {
             Path file = getActorRegistryFile();
             if (file == null) {
                 LOGGER.debug("[ActorRegistryPersistence] 当前无活动存档目录，跳过保存");
-                return;
+                return false;
             }
             
             Path parent = file.getParent();
@@ -104,12 +105,14 @@ public class ActorRegistryPersistence {
             }
 
             LOGGER.info("[ActorRegistryPersistence] 保存 ActorRegistry 到文件: {} ({} 个 Actor)", file, registry.size());
-
+            return true;
         } catch (IOException e) {
             LOGGER.error("[ActorRegistryPersistence] 保存 ActorRegistry 失败", e);
+            return false;
         } catch (Exception e) {
             // 捕获所有异常，防止保存操作导致崩溃
             LOGGER.error("[ActorRegistryPersistence] 保存 ActorRegistry 时发生未预期的异常", e);
+            return false;
         }
     }
 

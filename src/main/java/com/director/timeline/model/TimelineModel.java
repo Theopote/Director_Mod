@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import com.director.persistence.PersistenceSaveStatus;
 import com.director.timeline.actor.ActorTimelineSource;
 import com.director.timeline.audio.TimelineAudioLoadHook;
 import com.director.timeline.audio.TimelineClipSoundCollector;
@@ -184,16 +185,8 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         // ⭐ 性能优化：节流保存操作，避免频繁的文件 I/O 阻塞主线程
         long currentTime = System.currentTimeMillis();
         if (currentTime - lastSaveTime >= MIN_SAVE_INTERVAL_MS) {
-            try {
-                // 实时保存，确保当前存档的时间线始终落盘
-                save();
-                // 同时保存 ActorRegistry
-                com.director.actor.ActorRegistryManager.save();
+            if (save()) {
                 lastSaveTime = currentTime;
-            } catch (Exception e) {
-                // 保存失败不应该影响程序运行，只记录错误
-                System.err.println("[TimelineModel] 保存失败: " + e.getMessage());
-                e.printStackTrace();
             }
         }
     }
@@ -211,15 +204,33 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
     
     /**
      * 保存当前时间线数据
+     *
+     * @return 时间线与 Actor 数据是否均成功落盘
      */
-    public void save() {
+    public boolean save() {
         if (suppressPersistenceWrites) {
-            return;
+            return true;
         }
 
-        TimelineModelPersistence.saveToFile(this, viewportState);
-        // 同时保存 ActorRegistry
-        com.director.actor.ActorRegistryManager.save();
+        boolean timelineOk = TimelineModelPersistence.saveToFile(this, viewportState);
+        boolean actorOk = com.director.actor.ActorRegistryManager.save();
+        boolean ok = timelineOk && actorOk;
+        if (ok) {
+            PersistenceSaveStatus.reportSuccess();
+        } else {
+            PersistenceSaveStatus.reportFailure(buildSaveFailureReason(timelineOk, actorOk));
+        }
+        return ok;
+    }
+
+    private static String buildSaveFailureReason(boolean timelineOk, boolean actorOk) {
+        if (!timelineOk && !actorOk) {
+            return "时间线与 Actor 数据未能写入存档";
+        }
+        if (!timelineOk) {
+            return "时间线数据未能写入存档";
+        }
+        return "Actor 数据未能写入存档";
     }
 
     /**

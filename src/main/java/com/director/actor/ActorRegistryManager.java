@@ -124,32 +124,34 @@ public final class ActorRegistryManager {
     /**
      * 保存当前 ActorRegistry 到文件
      * ⭐ 性能优化：添加节流机制和并发保护，避免频繁保存导致崩溃
+     *
+     * @return 本次是否成功落盘；节流跳过或并发中视为无失败
      */
-    public static void save() {
-        // ⭐ 性能优化：节流保存操作，避免频繁的文件 I/O 阻塞主线程
+    public static boolean save() {
         long currentTime = System.currentTimeMillis();
-        
-        // 如果正在保存，直接返回（防止并发）
+
         if (isSaving) {
-            return;
+            return true;
         }
-        
-        // 如果距离上次保存时间太短，跳过本次保存
+
         if (currentTime - lastSaveTime < MIN_SAVE_INTERVAL_MS) {
-            return;
+            return true;
         }
-        
+
         ActorRegistry registry = GLOBAL.get();
-        if (registry != null) {
-            isSaving = true;
-            try {
-                ActorRegistryPersistence.saveToFile(registry);
+        if (registry == null) {
+            return true;
+        }
+
+        isSaving = true;
+        try {
+            boolean saved = ActorRegistryPersistence.saveToFile(registry);
+            if (saved) {
                 lastSaveTime = currentTime;
-            } catch (Exception e) {
-                LOGGER.error("[ActorRegistryManager] 保存 ActorRegistry 时发生异常", e);
-            } finally {
-                isSaving = false;
             }
+            return saved;
+        } finally {
+            isSaving = false;
         }
     }
 
