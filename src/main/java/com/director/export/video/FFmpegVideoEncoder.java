@@ -5,17 +5,14 @@ import net.minecraft.client.texture.NativeImage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import net.fabricmc.loader.api.FabricLoader;
-
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.nio.file.Path;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 /**
  * FFmpeg MP4 编码器（stdin 管道写入 raw RGBA）
@@ -25,8 +22,8 @@ import java.util.Locale;
  * </p>
  *
  * <p>
- * 要求：系统可执行 {@code ffmpeg}（Windows: ffmpeg.exe）在 PATH 中，
- * 或通过系统属性 {@code director.ffmpeg} 指定完整路径。
+ * FFmpeg 路径由 {@link FFmpegLocator} 解析：
+ * {@code -Ddirector.ffmpeg} → 游戏目录（含子文件夹）→ 系统 PATH。
  * </p>
  */
 public final class FFmpegVideoEncoder implements VideoEncoder {
@@ -236,27 +233,10 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
     }
 
     private String detectFFmpegBinary() {
-        // 0) 允许开发者通过 JVM 属性显式指定（最高优先级）
-        String override = System.getProperty("director.ffmpeg");
-        if (override != null && !override.isBlank()) {
-            return override.trim();
+        FFmpegLocator.Result result = FFmpegLocator.resolve();
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("[FFmpeg] 使用 {} ({})", result.path(), result.source());
         }
-
-        // 1) 优先查找游戏根目录（.minecraft）下的 ffmpeg 可执行文件
-        try {
-            Path gameDir = FabricLoader.getInstance().getGameDir();
-            String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-            String name = os.contains("win") ? "ffmpeg.exe" : "ffmpeg";
-            Path local = gameDir.resolve(name);
-            if (Files.exists(local)) {
-                return local.toAbsolutePath().toString();
-            }
-        } catch (Exception e) {
-            // ignore and fallback
-        }
-
-        // 2) 回退：系统 PATH
-        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-        return os.contains("win") ? "ffmpeg.exe" : "ffmpeg";
+        return result.path();
     }
 }

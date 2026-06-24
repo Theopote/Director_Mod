@@ -2,6 +2,7 @@ package com.director.ui.video;
 
 import com.director.core.DirectorServices;
 import net.fabricmc.loader.api.FabricLoader;
+import com.director.export.video.FFmpegLocator;
 import com.director.export.video.VideoExportSettings;
 import com.director.ui.DirectorUIManager;
 import com.director.ui.theme.Icons;
@@ -28,10 +29,9 @@ import org.lwjgl.util.tinyfd.TinyFileDialogs;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.concurrent.TimeUnit;
-import java.util.Locale;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * 🎥 VideoExportDialog - 视频导出对话框（遵循 Director 现有 Popup Dialog 风格）
@@ -199,7 +199,7 @@ public final class VideoExportDialog {
         if (ImGui.combo("导出格式", formatInt, formatOptions, formatOptions.length)) {
             settings.format = formatInt.get();
         }
-        ImGui.textDisabled("提示：MP4 依赖 ffmpeg（优先 -Ddirector.ffmpeg，其次放在游戏根目录，最后系统 PATH）。PNG 序列为零依赖。");
+        ImGui.textDisabled("提示：MP4 依赖 ffmpeg（优先 -Ddirector.ffmpeg，其次 .minecraft 及子目录，最后系统 PATH）。PNG 序列为零依赖。");
 
         if (settings.format == VideoExportSettings.FORMAT_H264_MP4) {
             renderFFmpegStatus();
@@ -634,59 +634,22 @@ public final class VideoExportDialog {
         ffmpegPath = null;
         ffmpegError = null;
 
-        // 1) JVM 属性优先（与 encoder 逻辑一致）
-        String override = System.getProperty("director.ffmpeg");
-        if (override != null && !override.isBlank()) {
-            ffmpegPath = override.trim();
-        }
+        FFmpegLocator.Result result = FFmpegLocator.resolve();
+        ffmpegPath = result.path();
 
-        // 2) 游戏根目录（.minecraft）下的 ffmpeg 可执行文件
-        if (ffmpegPath == null) {
-            try {
-                Path gameDir = FabricLoader.getInstance().getGameDir();
-                String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-                String name = os.contains("win") ? "ffmpeg.exe" : "ffmpeg";
-                Path local = gameDir.resolve(name);
-                if (Files.exists(local)) {
-                    ffmpegPath = local.toAbsolutePath().toString();
-                }
-            } catch (Exception ignore) {
-                // ignore
-            }
-        }
-
-        // 3) 系统 PATH 回退
-        if (ffmpegPath == null) {
-            String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-            ffmpegPath = os.contains("win") ? "ffmpeg.exe" : "ffmpeg";
-        }
-
-        // 4) 轻量运行检测：ffmpeg -version，避免玩家点了导出才发现不可执行
-        try {
-            Process p = new ProcessBuilder(ffmpegPath, "-version")
-                    .redirectErrorStream(true)
-                    .start();
-            boolean exited = p.waitFor(2, TimeUnit.SECONDS);
-            if (!exited) {
-                p.destroy();
-                p.destroyForcibly();
-                ffmpegError = "ffmpeg 启动超时（2s）";
-                return false;
-            }
-            if (p.exitValue() != 0) {
-                ffmpegError = "ffmpeg 返回非 0 退出码: " + p.exitValue();
-                return false;
-            }
+        if (FFmpegLocator.verifyExecutable(ffmpegPath)) {
             ffmpegOk = true;
             return true;
-        } catch (Exception e) {
-            ffmpegError = e.getClass().getSimpleName() + ": " + (e.getMessage() != null ? e.getMessage() : "(no message)");
-            // 如果是内置路径但不可执行，补充提示
-            if (ffmpegPath != null && Files.exists(Path.of(ffmpegPath))) {
-                ffmpegError = ffmpegError + "（路径存在但不可执行？）";
-            }
-            return false;
         }
+
+        if (result.isPathFallback()) {
+            ffmpegError = "未在 .minecraft（含子目录）找到 ffmpeg，且系统 PATH 不可用";
+        } else if (ffmpegPath != null && Files.exists(Path.of(ffmpegPath))) {
+            ffmpegError = "路径存在但无法执行 ffmpeg -version（权限或文件损坏？）";
+        } else {
+            ffmpegError = "找不到可执行的 ffmpeg: " + ffmpegPath;
+        }
+        return false;
     }
 
     private static void openOutputPathDialog() {
