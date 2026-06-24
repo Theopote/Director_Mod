@@ -464,7 +464,10 @@ public class ContainerVisibilityService {
         if (containerId == null || pendingTasks.isEmpty()) {
             return;
         }
-        pendingTasks.removeIf(task -> containerId.equals(task.containerId));
+        boolean removed = pendingTasks.removeIf(task -> containerId.equals(task.containerId));
+        if (removed) {
+            ContainerVisibilityFeedback.reset();
+        }
     }
 
     private int getBlocksPerTickBudget() {
