@@ -1,0 +1,7 @@
+# 本机 Gradle / JDK 配置（复制为 gradle-local.properties，勿提交到 git）
+#
+# Windows 示例：
+org.gradle.java.home=C\:\\Program Files\\Java\\jdk-22
+#
+# macOS 示例：
+# org.gradle.java.home=/Library/Java/JavaVirtualMachines/temurin-21.jdk/Contents/Home
