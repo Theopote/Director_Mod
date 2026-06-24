@@ -282,6 +282,61 @@ public class ContainerVisibilityService {
         runOnServer(() -> enqueueTimelineVisibilityTarget(container, target));
     }
 
+    /**
+     * 容器拖入时间线：仅建立快照并记录当前世界可见集，不触发全量 hideContainer。
+     *
+     * <p>世界方块由 {@link #showContainerBlocksForTimeline} 按播放头分帧追平。
+     */
+    public void prepareContainerForTimeline(Container container) {
+        if (container == null) {
+            return;
+        }
+        runOnServer(() -> prepareContainerForTimelineOnServer(container));
+    }
+
+    private void prepareContainerForTimelineOnServer(Container container) {
+        cancelPendingTasks(container.getId());
+        timelineVisibilityTargets.remove(container.getId());
+
+        if (!createSnapshotFromBlockStore(container)) {
+            ServerWorld world = resolveWorld(container);
+            if (world == null) {
+                LOGGER.warn("[Visibility] 容器 {} 未绑定世界，无法为时间线准备快照", container.getName());
+                return;
+            }
+            BlockStore store = snapshots.get(container.getId());
+            if (store == null) {
+                store = new BlockStore();
+                backfillSnapshotFromBlockStore(container, store);
+                if (store.isEmpty()) {
+                    for (BlockPos pos : container.getBlocksView()) {
+                        store.capture(world, pos);
+                    }
+                }
+                snapshots.put(container.getId(), store);
+                LOGGER.debug("[Visibility] 容器 {} 已从世界捕获时间线快照 ({} 个方块)",
+                        container.getName(), store.size());
+            }
+        }
+
+        ServerWorld world = resolveWorld(container);
+        LongOpenHashSet currentlyShown = new LongOpenHashSet(Math.max(16, container.getBlockCount()));
+        for (BlockPos pos : container.getBlocksView()) {
+            if (world == null || !world.getBlockState(pos).isAir()) {
+                currentlyShown.add(pos.asLong());
+            }
+        }
+        lastShownBlocks.put(container.getId(), currentlyShown);
+        timelineDrivingPaused = true;
+
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("[Visibility] 容器 {} 已准备时间线控制 (快照方块: {}, 世界当前可见: {})",
+                    container.getName(),
+                    snapshots.containsKey(container.getId()) ? snapshots.get(container.getId()).size() : 0,
+                    currentlyShown.size());
+        }
+    }
+
     /** 预览静止：暂停分帧追平（仅设标志，不在客户端线程上 clear map）。 */
     public void pauseTimelineDriving() {
         timelineDrivingPaused = true;

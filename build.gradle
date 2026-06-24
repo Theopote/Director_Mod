@@ -55,7 +55,10 @@ dependencies {
 	// ImGui Java bindings (UI framework)
 	// 使用 include(...) 将库打进发布 jar，避免玩家仅放主模组时出现 NoClassDefFoundError。
 	implementation include("io.github.spair:imgui-java-binding:1.86.12")
-	implementation include("io.github.spair:imgui-java-lwjgl3:1.86.12")
+	implementation(include("io.github.spair:imgui-java-lwjgl3:1.86.12")) {
+		// 必须与 Minecraft 自带 LWJGL 保持一致，避免 STBImageResize 方法签名不匹配（NoSuchMethodError）
+		exclude group: "org.lwjgl"
+	}
 	// 打包多平台 natives，确保发布 jar 可在 Windows/Linux/macOS 运行
 	implementation include("io.github.spair:imgui-java-natives-windows:1.86.12")
 	implementation include("io.github.spair:imgui-java-natives-linux:1.86.12")

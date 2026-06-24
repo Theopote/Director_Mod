@@ -297,9 +297,15 @@ public class TimelineDragAndDropHandler {
                 container.setIntakeEnabled(false);
                 LOGGER.info("[DragDrop] 容器 {} 已关闭实时接收（已添加到容器轨道）", container.getName());
             }
+
+            var visibilityService = com.director.core.DirectorServices.get().visibilityOrNull();
+            if (visibilityService != null) {
+                visibilityService.prepareContainerForTimeline(container);
+            }
+
             if (container.getState() != com.director.core.container.ContainerState.HIDDEN) {
-                container.setState(com.director.core.container.ContainerState.HIDDEN);
-                LOGGER.info("[DragDrop] 容器 {} 已隐藏（已添加到容器轨道）", container.getName());
+                container.setState(com.director.core.container.ContainerState.HIDDEN, false);
+                LOGGER.info("[DragDrop] 容器 {} 已标记为隐藏（时间线接管方块，不触发全量 hide）", container.getName());
             }
         } catch (Exception e) {
             LOGGER.warn("[DragDrop] 初始化容器轨道行为失败: {}", container != null ? container.getName() : "<null>", e);

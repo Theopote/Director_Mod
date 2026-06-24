@@ -486,7 +486,15 @@ public class Container {
     // ========== 容器状态（v5.0） ==========
     
     public ContainerState getState() { return state; }
+
     public void setState(ContainerState state) {
+        setState(state, true);
+    }
+
+    /**
+     * @param syncVisibility {@code false} 时仅更新逻辑状态，不触发 {@link com.director.core.container.visibility.ContainerVisibilityService} 全量隐藏/显示（时间线接管方块时使用）
+     */
+    public void setState(ContainerState state, boolean syncVisibility) {
         if (this.state != state) {
             ContainerState oldState = this.state;
             this.state = state;
@@ -495,26 +503,27 @@ public class Container {
             LOGGER.debug("[Container] 容器 {} 状态变更: {} -> {}，方块数量: {}", 
                 name, oldState.getDisplayName(), state.getDisplayName(), getBlockCount());
             
-            // 新的可见性系统（v5.2）：使用ContainerVisibilityService
-            try {
-                var visibilityService = DirectorServices.get().visibilityOrNull();
-                if (visibilityService != null) {
-                    if (state == ContainerState.HIDDEN) {
-                        visibilityService.hideContainer(this);
+            if (syncVisibility) {
+                try {
+                    var visibilityService = DirectorServices.get().visibilityOrNull();
+                    if (visibilityService != null) {
+                        if (state == ContainerState.HIDDEN) {
+                            visibilityService.hideContainer(this);
+                        } else {
+                            visibilityService.showContainer(this);
+                        }
                     } else {
-                        visibilityService.showContainer(this);
+                        LOGGER.warn("[Container] ContainerVisibilityService未初始化，无法切换可见性");
                     }
-                } else {
-                    LOGGER.warn("[Container] ContainerVisibilityService未初始化，无法切换可见性");
+                } catch (Exception e) {
+                    LOGGER.error("[Container] 切换容器可见性失败: {}", e.getMessage(), e);
                 }
-            } catch (Exception e) {
-                LOGGER.error("[Container] 切换容器可见性失败: {}", e.getMessage(), e);
             }
 
             // 组的可见性应级联到子容器
             if (isGroup()) {
                 for (Container child : getChildrenInternal()) {
-                    child.setState(state);
+                    child.setState(state, syncVisibility);
                 }
             }
         }
