@@ -13,6 +13,7 @@ import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
+import com.director.timeline.playback.block.TimelineClipBlockController;
 import com.director.ui.timeline.render.TimelineRenderer;
 import com.director.timeline.snapping.TimelineSnapping;
 import net.minecraft.client.MinecraftClient;
@@ -219,6 +220,7 @@ public class TimelineDragAndDropHandler {
 
                     // 触发数据改变回调
                     onDataChangedCallback.run();
+                    TimelineClipBlockController.getInstance().invalidateState();
 
                     LOGGER.info("[DragDrop] 容器 {} 的片段已移动到轨道 {}，新位置: {}s",
                         container.getName(), targetTrack.getName(), dropTime);
@@ -276,6 +278,7 @@ public class TimelineDragAndDropHandler {
 
                 // 触发数据改变回调
                 onDataChangedCallback.run();
+                TimelineClipBlockController.getInstance().invalidateState();
 
                 LOGGER.info("[DragDrop] Container {} 已添加到轨道 {}，时间 {}s，时长 {}s",
                     container.getName(), targetTrack.getName(), dropTime, duration);

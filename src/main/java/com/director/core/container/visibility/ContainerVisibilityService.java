@@ -302,13 +302,38 @@ public class ContainerVisibilityService {
                 targetLongs.add(pos.asLong());
             }
         }
-        timelineVisibilityTargets.put(container.getId(), targetLongs);
-        lastShownBlocks.computeIfAbsent(container.getId(), id -> new LongOpenHashSet());
 
-        if (!isTimelineTargetSatisfied(container.getId(), targetLongs)) {
-            int kickBudget = Math.max(256, getBlocksPerTickBudget() / 3);
-            applyTimelineVisibilityForContainer(container, targetLongs, kickBudget);
+        UUID containerId = container.getId();
+        if (isTimelineTargetSatisfied(containerId, targetLongs)) {
+            timelineVisibilityTargets.remove(containerId);
+            return;
         }
+
+        LongSet previousTarget = timelineVisibilityTargets.get(containerId);
+        if (previousTarget != null && longSetEquals(previousTarget, targetLongs)) {
+            return;
+        }
+
+        timelineVisibilityTargets.put(containerId, targetLongs);
+        lastShownBlocks.computeIfAbsent(containerId, id -> new LongOpenHashSet());
+
+        int kickBudget = Math.max(256, getBlocksPerTickBudget() / 3);
+        applyTimelineVisibilityForContainer(container, targetLongs, kickBudget);
+    }
+
+    private static boolean longSetEquals(LongSet a, LongSet b) {
+        if (a == b) {
+            return true;
+        }
+        if (a == null || b == null || a.size() != b.size()) {
+            return false;
+        }
+        for (LongIterator it = a.iterator(); it.hasNext(); ) {
+            if (!b.contains(it.nextLong())) {
+                return false;
+            }
+        }
+        return true;
     }
 
     private boolean isTimelineTargetSatisfied(UUID containerId, LongSet target) {
@@ -770,10 +795,6 @@ public class ContainerVisibilityService {
         } catch (Exception e) {
             LOGGER.debug("[Visibility] 光照刷新跳过: {}", e.getMessage());
         }
-    }
-
-    private void restoreBlockEntry(ServerWorld world, BlockPos pos, BlockStore.Entry entry) {
-        restoreBlockEntry(world, pos, entry, null);
     }
 
     private void restoreBlockEntry(ServerWorld world,

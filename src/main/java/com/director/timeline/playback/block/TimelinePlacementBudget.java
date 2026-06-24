@@ -16,25 +16,35 @@ public final class TimelinePlacementBudget {
     }
 
     /**
-     * @param timelinePreview 未播放时的时间线预览（拖动/点击定位），方块应按结构快照即时落地
+     * @param timelineTimeChanged 本帧播放头时间相对上次静止预览发生变化（点击/拖动定位）
      */
-    public static void beginFrame(boolean timelineScrubbing, boolean wasScrubbing, boolean timelinePreview) {
+    public static void beginFrame(boolean timelineScrubbing, boolean wasScrubbing, boolean timelineTimeChanged) {
         scrubbing = timelineScrubbing;
-        instantWorld = timelinePreview;
         if (wasScrubbing && !timelineScrubbing) {
             catchUpFramesRemaining = getCatchUpFrames();
         } else if (catchUpFramesRemaining > 0 && !timelineScrubbing) {
             catchUpFramesRemaining--;
         }
+        instantWorld = timelineScrubbing || catchUpFramesRemaining > 0 || timelineTimeChanged;
     }
 
     public static boolean isScrubbing() {
         return scrubbing;
     }
 
-    /** 预览或拖动播放头：应跳过播放节流、提高落地预算。 */
+    public static boolean isCatchUp() {
+        return catchUpFramesRemaining > 0;
+    }
+
+    /** 拖动/追帧/定位：应跳过播放节流、提高落地预算。 */
+    public static boolean isPlacementAccelerated() {
+        return instantWorld;
+    }
+
+    /** @deprecated 使用 {@link #isPlacementAccelerated()} */
+    @Deprecated
     public static boolean isAccelerated() {
-        return instantWorld || scrubbing || catchUpFramesRemaining > 0;
+        return isPlacementAccelerated();
     }
 
     public static int getPlaybackGlobalPerFrame() {

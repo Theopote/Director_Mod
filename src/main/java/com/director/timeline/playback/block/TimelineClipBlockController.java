@@ -85,11 +85,12 @@ public class TimelineClipBlockController {
 
     /** 上一 UI 帧是否在拖动播放头（用于松手后的追帧预算）。 */
     private boolean wasScrubbing;
-    /** 预览静止时的短路优化：仅在模型变化或时间变化时重算。 */
-    private boolean modelDirty = true;
-    private float lastPreviewTime = Float.NaN;
+    /** 时间线模型变更代数（用于静止预览短路）。 */
+    private long timelineRevision = 1L;
+    private long lastHandledRevision = -1L;
+    private float lastHandledPreviewTime = Float.NaN;
     private TimelineModel observedModel;
-    private final TimelineModel.ModelChangeListener modelChangeListener = changeType -> modelDirty = true;
+    private final TimelineModel.ModelChangeListener modelChangeListener = changeType -> timelineRevision++;
 
     // =====================================================================
     // Perf caches (播放性能关键)
@@ -280,7 +281,14 @@ public class TimelineClipBlockController {
      */
     public void setTimelineModel(TimelineModel model) {
         this.timelineModel = model;
-        modelDirty = true;
+        invalidateState();
+    }
+
+    /** 强制下一帧重算（片段绑定/拖放后调用）。 */
+    public void invalidateState() {
+        timelineRevision++;
+        lastHandledRevision = -1L;
+        lastHandledPreviewTime = Float.NaN;
     }
 
     private void ensureModelListenerBound(TimelineModel model) {
@@ -294,7 +302,7 @@ public class TimelineClipBlockController {
         if (observedModel != null) {
             observedModel.addModelChangeListener(modelChangeListener);
         }
-        modelDirty = true;
+        invalidateState();
     }
 
     private TimelineModel resolveActiveModel() {
@@ -331,19 +339,20 @@ public class TimelineClipBlockController {
         ensureModelListenerBound(activeModel);
 
         float currentTime = activeModel.getCurrentTime();
+        boolean playing = activeModel.isPlaying();
         boolean scrubbing = activeModel.isScrubbing();
-        boolean previewMode = !activeModel.isPlaying();
-        if (previewMode
+        boolean previewMode = !playing;
+        boolean previewTimeChanged = Float.isNaN(lastHandledPreviewTime)
+                || Math.abs(currentTime - lastHandledPreviewTime) > 1e-4f;
+        if (!playing
                 && !scrubbing
-                && !modelDirty
-                && !Float.isNaN(lastPreviewTime)
-                && Math.abs(currentTime - lastPreviewTime) <= 1e-4f) {
-            // 未播放且未拖动时，如果时间和模型都未变化，则跳过本帧的全量计算。
+                && !previewTimeChanged
+                && timelineRevision == lastHandledRevision) {
             return;
         }
-        TimelinePlacementBudget.beginFrame(scrubbing, wasScrubbing, previewMode);
+        TimelinePlacementBudget.beginFrame(scrubbing, wasScrubbing, previewTimeChanged);
         wasScrubbing = scrubbing;
-        final boolean accelerated = TimelinePlacementBudget.isAccelerated();
+        final boolean placementAccelerated = TimelinePlacementBudget.isPlacementAccelerated();
 
         BlockVisualStateManager visualStateManager = BlockVisualStateManager.getInstance();
 
@@ -435,11 +444,11 @@ public class TimelineClipBlockController {
             desiredWorldBlocks.put(entry.getKey(), worldSet != null ? worldSet : Collections.emptySet());
         }
 
-        if (!accelerated) {
+        if (!placementAccelerated) {
             throttleWorldPlacements(currentFrameWorldBlocks, currentFrameSequences);
         }
 
-        Map<UUID, Set<BlockPos>> visibilityWorldBlocks = accelerated ? desiredWorldBlocks : currentFrameWorldBlocks;
+        Map<UUID, Set<BlockPos>> visibilityWorldBlocks = placementAccelerated ? desiredWorldBlocks : currentFrameWorldBlocks;
         final long tAfterVisible = System.nanoTime();
 
         // ✅ 步骤1.5：根据“上一帧可见集 vs 当前帧可见集”推导世界方块变化量，提前为区块重建收集 pos
@@ -452,13 +461,11 @@ public class TimelineClipBlockController {
             Set<BlockPos> now = entry.getValue() != null ? entry.getValue() : java.util.Collections.emptySet();
             Set<BlockPos> prev = lastFrameWorldBlocks.get(containerId);
             if (prev == null) {
-                // 第一次看到该容器：保守起见，认为整组都可能变化
                 worldSetChangedByContainer.put(containerId, true);
-                Container container = DirectorServices.get().containers().getContainer(containerId);
-                if (container != null) {
-                    worldStateChangedBlocksForRerender.addAll(getCachedContainerBlocks(container));
-                } else {
-                    worldStateChangedBlocksForRerender.addAll(now);
+                if (!now.isEmpty()) {
+                    for (BlockPos p : now) {
+                        addBlockAndNeighborsForRerender(worldStateChangedBlocksForRerender, p);
+                    }
                 }
                 continue;
             }
@@ -467,26 +474,13 @@ public class TimelineClipBlockController {
             for (BlockPos p : prev) {
                 if (!now.contains(p)) {
                     changed = true;
-                    worldStateChangedBlocksForRerender.add(p);
-                    // 邻居面也会被暴露/遮挡，加入 6 邻居以提高稳定性
-                    worldStateChangedBlocksForRerender.add(p.up());
-                    worldStateChangedBlocksForRerender.add(p.down());
-                    worldStateChangedBlocksForRerender.add(p.north());
-                    worldStateChangedBlocksForRerender.add(p.south());
-                    worldStateChangedBlocksForRerender.add(p.east());
-                    worldStateChangedBlocksForRerender.add(p.west());
+                    addBlockAndNeighborsForRerender(worldStateChangedBlocksForRerender, p);
                 }
             }
             for (BlockPos p : now) {
                 if (!prev.contains(p)) {
                     changed = true;
-                    worldStateChangedBlocksForRerender.add(p);
-                    worldStateChangedBlocksForRerender.add(p.up());
-                    worldStateChangedBlocksForRerender.add(p.down());
-                    worldStateChangedBlocksForRerender.add(p.north());
-                    worldStateChangedBlocksForRerender.add(p.south());
-                    worldStateChangedBlocksForRerender.add(p.east());
-                    worldStateChangedBlocksForRerender.add(p.west());
+                    addBlockAndNeighborsForRerender(worldStateChangedBlocksForRerender, p);
                 }
             }
             worldSetChangedByContainer.put(containerId, changed);
@@ -599,10 +593,14 @@ public class TimelineClipBlockController {
                         : TrackType.CONTAINER;
                 ensureContainerSnapshot(container, visibilityService, boundType);
 
-                // 性能关键：只有“可见集合发生变化”时才去真正修改世界方块（置 AIR / 恢复）。
-                // 拖动播放头 / 松手追帧：异步高预算追目标；正常播放仍走同步 delta。
-                if (worldSetChanged || containerStructureChanged || accelerated) {
-                    if (accelerated) {
+                // 仅在世界落地集变化、容器结构变化、拖动/追帧/定位时才同步世界方块。
+                boolean needsVisibilitySync = worldSetChanged
+                        || containerStructureChanged
+                        || scrubbing
+                        || TimelinePlacementBudget.isCatchUp()
+                        || (previewMode && previewTimeChanged);
+                if (needsVisibilitySync) {
+                    if (placementAccelerated) {
                         visibilityService.showContainerBlocksForTimeline(container, worldBlocks);
                     } else if (worldBlocks.isEmpty()) {
                         visibilityService.showContainerBlocks(container, java.util.Collections.emptySet());
@@ -737,17 +735,17 @@ public class TimelineClipBlockController {
             // 性能关键：避免每帧复制大 Set；该 Set 在本帧之后不再被修改，直接复用引用即可。
             lastFrameVisibleBlocks.put(id, s != null ? s : java.util.Collections.emptySet());
         }
-        Map<UUID, Set<BlockPos>> lastWorldBlocksSource = accelerated ? desiredWorldBlocks : currentFrameWorldBlocks;
+        Map<UUID, Set<BlockPos>> lastWorldBlocksSource = placementAccelerated ? desiredWorldBlocks : currentFrameWorldBlocks;
         for (Map.Entry<UUID, Set<BlockPos>> e : lastWorldBlocksSource.entrySet()) {
             UUID id = e.getKey();
             Set<BlockPos> s = e.getValue();
             lastFrameWorldBlocks.put(id, s != null ? s : java.util.Collections.emptySet());
         }
-        modelDirty = false;
-        if (previewMode && !scrubbing) {
-            lastPreviewTime = currentTime;
+        lastHandledRevision = timelineRevision;
+        if (!playing && !scrubbing) {
+            lastHandledPreviewTime = currentTime;
         } else {
-            lastPreviewTime = Float.NaN;
+            lastHandledPreviewTime = Float.NaN;
         }
         visualStateManager.finishFrame();
 
@@ -815,6 +813,19 @@ public class TimelineClipBlockController {
                     seqTotal,
                     renderEntryCount);
         }
+    }
+
+    private static void addBlockAndNeighborsForRerender(Set<BlockPos> targets, BlockPos pos) {
+        if (targets == null || pos == null) {
+            return;
+        }
+        targets.add(pos);
+        targets.add(pos.up());
+        targets.add(pos.down());
+        targets.add(pos.north());
+        targets.add(pos.south());
+        targets.add(pos.east());
+        targets.add(pos.west());
     }
 
     /**
@@ -1092,15 +1103,17 @@ public class TimelineClipBlockController {
             }
 
             // ✅ 基于容器类型判断（不再依赖轨道类型）
+            Set<BlockPos> renderBlocks;
+            Set<BlockPos> worldBlocks;
+            boolean isInstant = false;
+            try {
+                isInstant = config != null
+                        && config.getMode() == com.director.core.container.AnimationMode.INSTANT;
+            } catch (Exception ignored) {
+            }
             if (!isDemolition) {
-                Set<BlockPos> renderBlocks = newBlockSetForExpectedSize(Math.min(allBlocks.size(), sequenceEntries.size()));
-                Set<BlockPos> worldBlocks = newBlockSetForExpectedSize(Math.min(allBlocks.size(), sequenceEntries.size()));
-                boolean isInstant = false;
-                try {
-                    isInstant = config != null
-                            && config.getMode() == com.director.core.container.AnimationMode.INSTANT;
-                } catch (Exception ignored) {
-                }
+                renderBlocks = newBlockSetForExpectedSize(Math.min(allBlocks.size(), sequenceEntries.size()));
+                worldBlocks = newBlockSetForExpectedSize(Math.min(allBlocks.size(), sequenceEntries.size()));
                 for (BlockSequenceEntry entry : sequenceEntries) {
                     float normalizedTime = entry.getNormalizedTime();
                     float blockStartTime = clipStart + delay + normalizedTime * sequenceSpan;
@@ -1127,16 +1140,9 @@ public class TimelineClipBlockController {
                         }
                     }
                 }
-                return new VisibleBlocksResult(worldBlocks, renderBlocks, sequenceEntries);
             } else {
-                Set<BlockPos> renderBlocks = newBlockSet(allBlocks);
-                Set<BlockPos> worldBlocks = newBlockSet(allBlocks);
-                boolean isInstant = false;
-                try {
-                    isInstant = config != null
-                            && config.getMode() == com.director.core.container.AnimationMode.INSTANT;
-                } catch (Exception ignored) {
-                }
+                renderBlocks = newBlockSet(allBlocks);
+                worldBlocks = newBlockSet(allBlocks);
 
                 if (previewMode || isInstant) {
                     for (BlockSequenceEntry entry : sequenceEntries) {
@@ -1170,8 +1176,8 @@ public class TimelineClipBlockController {
                         // 动画开始前：方块仍在 renderBlocks 和 worldBlocks 中（完全可见）
                     }
                 }
-                return new VisibleBlocksResult(worldBlocks, renderBlocks, sequenceEntries);
             }
+            return new VisibleBlocksResult(worldBlocks, renderBlocks, sequenceEntries);
         }
 
         // 片段右侧
