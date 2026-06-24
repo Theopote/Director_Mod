@@ -56,6 +56,8 @@ public final class VideoExportDialog {
     private static final ImInt cameraTrackIndexInt = new ImInt(settings.cameraTrackIndex);
     private static final ImInt renderDistanceInt = new ImInt(settings.renderDistance);
     private static final ImBoolean audioEnabledBool = new ImBoolean(settings.enableAudio);
+    private static final ImInt x264PresetIndexInt = new ImInt(3); // slow default
+    private static final ImInt x264CrfInt = new ImInt(settings.x264Crf);
     private static String lastError = null;
     
     // 用于跟踪摄像机轨道选择变化，自动填充分辨率
@@ -124,6 +126,7 @@ public final class VideoExportDialog {
         cameraTrackIndexInt.set(settings.cameraTrackIndex);
         renderDistanceInt.set(settings.renderDistance);
         audioEnabledBool.set(settings.enableAudio);
+        x264CrfInt.set(settings.x264Crf);
 
         // =============================
         // 输出文件
@@ -206,6 +209,34 @@ public final class VideoExportDialog {
         }
 
         UITheme.spacingSmall();
+
+        // =============================
+        // 编码（MP4 / x264）
+        // =============================
+        if (settings.format == VideoExportSettings.FORMAT_H264_MP4) {
+            UITheme.title("编码");
+
+            // preset：速度 vs 压缩效率
+            String[] presetOptions = { "ultrafast", "fast", "medium", "slow" };
+            int presetIdx = 3;
+            String p = settings.x264Preset != null ? settings.x264Preset.trim().toLowerCase(Locale.ROOT) : "";
+            for (int i = 0; i < presetOptions.length; i++) {
+                if (presetOptions[i].equals(p)) {
+                    presetIdx = i;
+                    break;
+                }
+            }
+            x264PresetIndexInt.set(presetIdx);
+            ImGui.combo("速度/压缩效率 (preset)", x264PresetIndexInt, presetOptions, presetOptions.length);
+            settings.x264Preset = presetOptions[Math.max(0, Math.min(presetOptions.length - 1, x264PresetIndexInt.get()))];
+
+            // CRF：质量 vs 体积（越低越清晰）
+            ImGui.sliderInt("质量 (CRF, 越低越清晰)", x264CrfInt.getData(), 0, 51);
+            settings.x264Crf = Math.max(0, Math.min(51, x264CrfInt.get()));
+            ImGui.textDisabled("建议：预览 fast/medium + CRF 22~28；成片 slow + CRF 16~23。");
+
+            UITheme.spacingSmall();
+        }
 
         // =============================
         // 导出范围

@@ -19,6 +19,7 @@ import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
@@ -43,6 +44,11 @@ public final class VideoRenderPipeline {
     private static final Logger LOGGER = LoggerFactory.getLogger(VideoRenderPipeline.class);
 
     private static final VideoRenderPipeline INSTANCE = new VideoRenderPipeline();
+
+    // --- Reflection cache (ScreenshotRecorder overloads vary by MC version) ---
+    private static volatile Method screenshot2Arg; // takeScreenshot(Framebuffer, Consumer)
+    private static volatile Method screenshot3Arg; // takeScreenshot(Framebuffer, int, Consumer)
+    private static final Object SCREENSHOT_METHOD_LOCK = new Object();
 
     public static VideoRenderPipeline getInstance() {
         return INSTANCE;
@@ -215,21 +221,44 @@ public final class VideoRenderPipeline {
         Framebuffer main = client.getFramebuffer();
         Consumer<NativeImage> consumer = getNativeImageConsumer(req, main);
 
-        // 1.21.10+：ScreenshotRecorder 为异步回调形式。
-        try {
-            var m = ScreenshotRecorder.class.getMethod("takeScreenshot", Framebuffer.class,
-                    java.util.function.Consumer.class);
-            m.invoke(null, main, consumer);
-        } catch (ReflectiveOperationException e) {
-            // fallback overload: takeScreenshot(Framebuffer, int, Consumer)
-            try {
-                var m = ScreenshotRecorder.class.getMethod("takeScreenshot", Framebuffer.class, int.class,
-                        java.util.function.Consumer.class);
-                m.invoke(null, main, 0, consumer);
-            } catch (ReflectiveOperationException e2) {
-                e.addSuppressed(e2);
-                throw new IllegalStateException("ScreenshotRecorder.takeScreenshot overload not found", e);
+        // ScreenshotRecorder overload differs across versions: cache reflection lookup once.
+        Method m2 = screenshot2Arg;
+        Method m3 = screenshot3Arg;
+        if (m2 == null && m3 == null) {
+            synchronized (SCREENSHOT_METHOD_LOCK) {
+                m2 = screenshot2Arg;
+                m3 = screenshot3Arg;
+                if (m2 == null && m3 == null) {
+                    try {
+                        m2 = ScreenshotRecorder.class.getMethod("takeScreenshot", Framebuffer.class,
+                                java.util.function.Consumer.class);
+                        screenshot2Arg = m2;
+                    } catch (ReflectiveOperationException ignored) {
+                        // ignore, fallback below
+                    }
+                    if (m2 == null) {
+                        try {
+                            m3 = ScreenshotRecorder.class.getMethod("takeScreenshot", Framebuffer.class, int.class,
+                                    java.util.function.Consumer.class);
+                            screenshot3Arg = m3;
+                        } catch (ReflectiveOperationException e) {
+                            throw new IllegalStateException("ScreenshotRecorder.takeScreenshot overload not found", e);
+                        }
+                    }
+                }
             }
+        }
+
+        try {
+            if (m2 != null) {
+                m2.invoke(null, main, consumer);
+            } else if (m3 != null) {
+                m3.invoke(null, main, 0, consumer);
+            } else {
+                throw new IllegalStateException("ScreenshotRecorder.takeScreenshot overload not resolved");
+            }
+        } catch (ReflectiveOperationException e) {
+            throw new IllegalStateException("ScreenshotRecorder.takeScreenshot invoke failed", e);
         }
     }
 

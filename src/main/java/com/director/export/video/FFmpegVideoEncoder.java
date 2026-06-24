@@ -4,11 +4,15 @@ import com.director.mixin.accessor.NativeImageAccessor;
 import net.minecraft.client.texture.NativeImage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.lwjgl.system.MemoryUtil;
 
 import java.io.BufferedOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -31,13 +35,14 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
 
     private Process ffmpegProcess;
     private OutputStream ffmpegStdin;
+    private WritableByteChannel ffmpegChannel;
 
     private int width;
     private int height;
     private Path audioWavPath;
 
-    /** 复用的帧缓冲（RGBA bytes） */
-    private byte[] rgbaFrameBuffer;
+    /** 复用的帧缓冲（direct, raw RGBA bytes） */
+    private ByteBuffer rgbaDirectBuffer;
 
     /**
      * 设置要混流进 MP4 的 WAV 音频文件（可选）。
@@ -90,8 +95,16 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
         }
         cmd.add("-c:v");
         cmd.add("libx264");
+        // 用户可调：preset / crf（保持默认值即可获得与旧版本相近行为）
+        String preset = (settings.x264Preset != null && !settings.x264Preset.isBlank())
+                ? settings.x264Preset.trim().toLowerCase()
+                : "slow";
+        int crf = Math.max(0, Math.min(51, settings.x264Crf));
+
         cmd.add("-preset");
-        cmd.add("slow");
+        cmd.add(preset);
+        cmd.add("-crf");
+        cmd.add(Integer.toString(crf));
         cmd.add("-pix_fmt");
         cmd.add("yuv420p");
 
@@ -114,12 +127,13 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
         startDrainThread(ffmpegProcess.getInputStream());
 
         ffmpegStdin = new BufferedOutputStream(ffmpegProcess.getOutputStream(), 1024 * 1024);
-        rgbaFrameBuffer = new byte[width * height * 4];
+        ffmpegChannel = Channels.newChannel(ffmpegStdin);
+        rgbaDirectBuffer = MemoryUtil.memAlloc(width * height * 4);
     }
 
     @Override
     public void encodeFrame(NativeImage image, int frameIndex) throws IOException {
-        if (ffmpegStdin == null || ffmpegProcess == null) {
+        if (ffmpegStdin == null || ffmpegChannel == null || ffmpegProcess == null) {
             throw new IOException("FFmpegVideoEncoder 未初始化");
         }
         int imgW = image.getWidth();
@@ -129,31 +143,21 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
                     + ", expected " + width + "x" + height);
         }
 
-        // 🚀 优化：不再使用 image.copyPixelsArgb()，因为它每帧都会分配一个新的大 int[] (4K = 33MB)
-        // 改为直接读取像素并写入复用的字节缓冲区。
-        int p = 0;
-        for (int y = 0; y < imgH; y++) {
-            for (int x = 0; x < imgW; x++) {
-                // getColor(x, y) 在 NativeImage 中返回的是 0xAABBGGRR (小端序直接读 int)
-                // 或者 0xAARRGGBB，取决于具体实现。
-                // 1.21.x NativeImage.getColor(x, y) 返回的是 0xAABBGGRR
-                int c = ((NativeImageAccessor) (Object) image).invokeGetColor(x, y);
-
-                // 我们需要输出 RGBA 给 FFmpeg (-pix_fmt rgba)
-                // c = 0xAABBGGRR
-                byte r = (byte) (c & 0xFF);
-                byte g = (byte) ((c >>> 8) & 0xFF);
-                byte b = (byte) ((c >>> 16) & 0xFF);
-                byte a = (byte) ((c >>> 24) & 0xFF);
-
-                rgbaFrameBuffer[p++] = r;
-                rgbaFrameBuffer[p++] = g;
-                rgbaFrameBuffer[p++] = b;
-                rgbaFrameBuffer[p++] = a;
-            }
+        // 🚀 性能：直接从 NativeImage 的 native 像素区批量拷贝并写入 ffmpeg stdin。
+        // NativeImage 的像素存储是 little-endian RGBA（内存顺序 RGBA），与 ffmpeg rawvideo -pix_fmt rgba 匹配。
+        int size = width * height * 4;
+        long ptr = ((NativeImageAccessor) (Object) image).getPointer();
+        if (ptr == 0L) {
+            throw new IOException("NativeImage pointer == 0");
         }
 
-        ffmpegStdin.write(rgbaFrameBuffer);
+        rgbaDirectBuffer.clear();
+        rgbaDirectBuffer.limit(size);
+        MemoryUtil.memCopy(ptr, MemoryUtil.memAddress(rgbaDirectBuffer), (long) size);
+        while (rgbaDirectBuffer.hasRemaining()) {
+            ffmpegChannel.write(rgbaDirectBuffer);
+        }
+
         // 建议在每几帧 flush 一次，或者完全靠管道缓冲区。
         // 30 帧 (约 1s @ 30fps) flush 一次较为合适。
         if (frameIndex % 30 == 0) {
@@ -166,6 +170,7 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
         // 正常结束：关闭 stdin，让 ffmpeg flush/finish
         closeStdin();
         waitForExitOrThrow();
+        freeBuffers();
     }
 
     /**
@@ -185,6 +190,7 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
                 // ignore
             }
         }
+        freeBuffers();
     }
 
     private void closeStdin() throws IOException {
@@ -192,6 +198,18 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
             ffmpegStdin.flush();
             ffmpegStdin.close();
             ffmpegStdin = null;
+        }
+        ffmpegChannel = null;
+    }
+
+    private void freeBuffers() {
+        if (rgbaDirectBuffer != null) {
+            try {
+                MemoryUtil.memFree(rgbaDirectBuffer);
+            } catch (Exception ignore) {
+                // ignore
+            }
+            rgbaDirectBuffer = null;
         }
     }
 

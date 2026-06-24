@@ -52,6 +52,20 @@ public class VideoExportSettings {
 
     public int format = FORMAT_H264_MP4;
 
+    // ==================== 编码参数（MP4 / x264）====================
+
+    /**
+     * x264 preset：影响编码速度 vs 压缩效率（不直接等同“画质”）。
+     * 常用：ultrafast / fast / medium / slow
+     */
+    public String x264Preset = "slow";
+
+    /**
+     * x264 CRF：影响质量 vs 码率/体积。越小越清晰、文件越大、编码更慢。
+     * 常用范围：16 - 28；默认 18 ~ 23。
+     */
+    public int x264Crf = 18;
+
     // ==================== 质量（先做 UI 字段）====================
 
     public int renderDistance = 12;
@@ -103,6 +117,15 @@ public class VideoExportSettings {
                 return false;
             }
             if (customEndTime < customStartTime) {
+                return false;
+            }
+        }
+        // 编码参数（MP4）
+        if (format == FORMAT_H264_MP4) {
+            if (x264Crf < 0 || x264Crf > 51) { // x264 CRF 合法范围
+                return false;
+            }
+            if (x264Preset == null || x264Preset.isBlank()) {
                 return false;
             }
         }
