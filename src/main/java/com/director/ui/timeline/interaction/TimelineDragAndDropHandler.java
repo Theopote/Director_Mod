@@ -8,6 +8,7 @@ import com.director.core.container.ContainerAnimationPreset;
 import com.director.core.animation.ClipAnimationConfig;
 import com.director.core.animation.sequence.ConcurrencyMode;
 import com.director.core.animation.sequence.SequenceParameters;
+import com.director.timeline.layout.TimelineClipLayoutResolver;
 import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
@@ -183,8 +184,21 @@ public class TimelineDragAndDropHandler {
                     }
                     dropTime = Math.max(0f, Math.min(dropTime, model.getDuration() - 1f));
 
-                    // 保持片段长度不变，只移动开始时间
                     float clipLength = existingClip.getEndTime() - existingClip.getStartTime();
+                    var occupied = TimelineClipLayoutResolver.clipIntervalsOnTrack(targetTrack, existingClip);
+                    float candidateStart = dropTime;
+                    if (TimelineClipLayoutResolver.overlapsAny(occupied, candidateStart, candidateStart + clipLength)) {
+                        float resolved = TimelineClipLayoutResolver.resolveStartForDrag(
+                                occupied, candidateStart, clipLength, 0f);
+                        if (Math.abs(resolved - candidateStart) < 0.001f) {
+                            TimelineClipLayoutResolver.rippleTimelineClipsForward(
+                                    targetTrack, candidateStart, clipLength, existingClip);
+                            dropTime = candidateStart;
+                        } else {
+                            dropTime = resolved;
+                        }
+                    }
+
                     existingClip.setStartTime(dropTime);
                     existingClip.setEndTime(dropTime + clipLength);
 
@@ -222,6 +236,7 @@ public class TimelineDragAndDropHandler {
 
                 // 计算初始片段时长
                 float duration = calculateInitialClipDurationSafe(container);
+                dropTime = targetTrack.resolveClipStartTime(dropTime, duration, null);
 
                 // 创建片段（颜色跟随轨道类型）
                 int clipColor = trackType.getClipColor();

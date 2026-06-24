@@ -94,6 +94,14 @@ public abstract class CameraPathClip implements TimelineSelectable {
     public void setEndTime(float endTime) {
         this.endTime = Math.max(startTime, endTime);
     }
+
+    public void offsetTime(float deltaSeconds) {
+        if (Math.abs(deltaSeconds) < 1e-6f) {
+            return;
+        }
+        this.startTime += deltaSeconds;
+        this.endTime += deltaSeconds;
+    }
     
     public float getDuration() {
         return endTime - startTime;

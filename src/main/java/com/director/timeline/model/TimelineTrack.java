@@ -2,6 +2,7 @@ package com.director.timeline.model;
 
 import com.director.core.DirectorServices;
 import com.director.timeline.audio.TimelineClipSoundCollector;
+import com.director.timeline.layout.TimelineClipLayoutResolver;
 import com.director.timeline.model.TrackType;
 import com.director.timeline.model.audio.AudioEvent;
 import com.director.timeline.model.camera.CameraViewportProfile;
@@ -457,6 +458,43 @@ public class TimelineTrack {
             }
         }
         return false;
+    }
+
+    /**
+     * 检查容器/演员/音频等 {@link TimelineClip} 是否与其他片段重叠。
+     */
+    public boolean hasClipOverlap(float start, float end, TimelineClip exclude) {
+        for (TimelineClip clip : clips) {
+            if (clip == null || clip == exclude) {
+                continue;
+            }
+            if (end > clip.getStartTime() && start < clip.getEndTime()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 解析不重叠的片段起点（就近贴在相邻片段前/后）。
+     */
+    public float resolveClipStartTime(float candidateStart, float length, TimelineClip exclude) {
+        return TimelineClipLayoutResolver.resolveNearestStart(
+                TimelineClipLayoutResolver.clipIntervalsOnTrack(this, exclude),
+                candidateStart,
+                length,
+                0f);
+    }
+
+    /**
+     * 解析不重叠的 Path Clip 起点。
+     */
+    public float resolvePathClipStartTime(float candidateStart, float length, CameraPathClip exclude) {
+        return TimelineClipLayoutResolver.resolveNearestStart(
+                TimelineClipLayoutResolver.pathClipIntervalsOnTrack(this, exclude),
+                candidateStart,
+                length,
+                0f);
     }
 
 }

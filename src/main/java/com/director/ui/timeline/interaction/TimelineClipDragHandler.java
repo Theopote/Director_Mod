@@ -4,6 +4,7 @@ import com.director.ui.timeline.commands.ResizeClipCommand;
 import com.director.ui.timeline.commands.TimelineCommandHistory;
 import com.director.ui.timeline.interaction.TimelineDragHandles.ClipHandle;
 import com.director.ui.timeline.interaction.TimelineInteractionManager.InteractionMode;
+import com.director.timeline.layout.TimelineClipLayoutResolver;
 import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
@@ -242,6 +243,10 @@ public final class TimelineClipDragHandler {
             snappedStart = Math.max(0f, snap.snappedTime);
         }
 
+        if (targetTrack != null && !isBoundAudioClip) {
+            snappedStart = targetTrack.resolveClipStartTime(snappedStart, length, handle.clip);
+        }
+
         handle.clip.setStartTime(snappedStart);
         handle.clip.setEndTime(snappedStart + length);
         model.markDurationDirty();
@@ -290,6 +295,11 @@ public final class TimelineClipDragHandler {
                     model, candidateStart, handle.track, handle.clip, 0f);
             snapGuideState.update(snap);
             float snappedStart = Math.max(0f, Math.min(snap.snappedTime, handle.clip.getEndTime() - minLength));
+            if (handle.track != null) {
+                var occupied = TimelineClipLayoutResolver.clipIntervalsOnTrack(handle.track, handle.clip);
+                snappedStart = TimelineClipLayoutResolver.clampResizeStart(
+                        occupied, snappedStart, originalEnd, minLength, 0f);
+            }
             handle.clip.setStartTime(snappedStart);
         } else {
             float candidateEnd = Math.max(originalStart + minLength, originalEnd + delta);
@@ -297,6 +307,11 @@ public final class TimelineClipDragHandler {
                     model, candidateEnd, handle.track, handle.clip, 0f);
             snapGuideState.update(snap);
             float snappedEnd = Math.max(snap.snappedTime, handle.clip.getStartTime() + minLength);
+            if (handle.track != null) {
+                var occupied = TimelineClipLayoutResolver.clipIntervalsOnTrack(handle.track, handle.clip);
+                snappedEnd = TimelineClipLayoutResolver.clampResizeEnd(
+                        occupied, originalStart, snappedEnd, minLength);
+            }
             handle.clip.setEndTime(snappedEnd);
         }
 

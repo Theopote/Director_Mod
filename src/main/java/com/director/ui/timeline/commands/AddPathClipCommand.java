@@ -36,9 +36,15 @@ public class AddPathClipCommand extends BaseTimelineCommand {
         }
 
         if (track.hasCameraPathOverlap(clip.getStartTime(), clip.getEndTime(), null)) {
-            LOGGER.warn("[AddPathClipCommand] 跳过重叠 Path Clip: {} @ {}s-{}s",
-                    clip.getName(), String.format("%.2f", clip.getStartTime()), String.format("%.2f", clip.getEndTime()));
-            return;
+            float length = clip.getEndTime() - clip.getStartTime();
+            float resolved = track.resolvePathClipStartTime(clip.getStartTime(), length, clip);
+            clip.setStartTime(resolved);
+            clip.setEndTime(resolved + length);
+            if (track.hasCameraPathOverlap(clip.getStartTime(), clip.getEndTime(), clip)) {
+                LOGGER.warn("[AddPathClipCommand] 跳过重叠 Path Clip: {} @ {}s-{}s",
+                        clip.getName(), String.format("%.2f", clip.getStartTime()), String.format("%.2f", clip.getEndTime()));
+                return;
+            }
         }
         
         track.addCameraPathClip(clip);

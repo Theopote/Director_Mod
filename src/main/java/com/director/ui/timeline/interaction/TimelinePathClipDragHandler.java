@@ -3,6 +3,7 @@ package com.director.ui.timeline.interaction;
 import com.director.ui.timeline.commands.TimelineCommandHistory;
 import com.director.ui.timeline.interaction.TimelineDragHandles.PathClipHandle;
 import com.director.ui.timeline.interaction.TimelineInteractionManager.InteractionMode;
+import com.director.timeline.layout.TimelineClipLayoutResolver;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
@@ -206,8 +207,9 @@ public final class TimelinePathClipDragHandler {
         float snappedStart = Math.max(0f, snap.snappedTime);
         float snappedEnd = snappedStart + length;
 
-        if (hasPathClipOverlap(handle.track, snappedStart, snappedEnd, handle.clip)) {
-            return;
+        if (handle.track != null) {
+            snappedStart = handle.track.resolvePathClipStartTime(snappedStart, length, handle.clip);
+            snappedEnd = snappedStart + length;
         }
         snapGuideState.update(snap);
 
@@ -249,8 +251,10 @@ public final class TimelinePathClipDragHandler {
             TimelineSnapping.Result snap = TimelineSnapping.snapTime(
                     model, candidateStart, handle.track, null, 0f);
             float snappedStart = Math.max(0f, Math.min(snap.snappedTime, originalEnd - minLength));
-            if (hasPathClipOverlap(handle.track, snappedStart, originalEnd, handle.clip)) {
-                return;
+            if (handle.track != null) {
+                var occupied = TimelineClipLayoutResolver.pathClipIntervalsOnTrack(handle.track, handle.clip);
+                snappedStart = TimelineClipLayoutResolver.clampResizeStart(
+                        occupied, snappedStart, originalEnd, minLength, 0f);
             }
             snapGuideState.update(snap);
             handle.tempStart = snappedStart;
@@ -262,8 +266,10 @@ public final class TimelinePathClipDragHandler {
             TimelineSnapping.Result snap = TimelineSnapping.snapTime(
                     model, candidateEnd, handle.track, null, 0f);
             float snappedEnd = Math.max(snap.snappedTime, originalStart + minLength);
-            if (hasPathClipOverlap(handle.track, originalStart, snappedEnd, handle.clip)) {
-                return;
+            if (handle.track != null) {
+                var occupied = TimelineClipLayoutResolver.pathClipIntervalsOnTrack(handle.track, handle.clip);
+                snappedEnd = TimelineClipLayoutResolver.clampResizeEnd(
+                        occupied, originalStart, snappedEnd, minLength);
             }
             snapGuideState.update(snap);
             handle.tempStart = originalStart;

@@ -38,6 +38,11 @@ public class AddEntityClipCommand extends BaseTimelineCommand {
             timelineClip = new EntityTimelineClip(entityClip, actorTrack.getColorRgba());
         }
 
+        float length = Math.max(0.05f, entityClip.getEndTime() - entityClip.getStartTime());
+        float resolvedStart = track.resolveClipStartTime(entityClip.getStartTime(), length, null);
+        entityClip.setTimeRange(resolvedStart, resolvedStart + length);
+        timelineClip.setTimeRange(resolvedStart, resolvedStart + length);
+
         if (track.addClip(timelineClip)) {
             actorTrack.addClip(entityClip);
             added = true;
