@@ -1,5 +1,6 @@
 package com.director.core.container;
 
+import com.director.core.container.visibility.ContainerBlockUpdateFlags;
 import net.minecraft.block.BlockState;
 import net.minecraft.nbt.NbtCompound;
 import net.minecraft.util.math.BlockPos;
@@ -122,8 +123,7 @@ public class BlockStore {
             }
 
             // 写回方块
-            world.setBlockState(pos, entry.state, 
-                net.minecraft.block.Block.NOTIFY_ALL | net.minecraft.block.Block.FORCE_STATE);
+            world.setBlockState(pos, entry.state, ContainerBlockUpdateFlags.BATCH);
 
             // 写回 BlockEntity
             if (entry.beNbt != null) {

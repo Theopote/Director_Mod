@@ -2,6 +2,7 @@ package com.director.core.container.visibility;
 
 import com.director.core.container.BlockStore;
 import com.director.core.container.Container;
+import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.block.Blocks;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.MinecraftServer;
@@ -69,10 +70,23 @@ public class ContainerVisibilityService {
             VisibilityTask task = pendingTasks.peekFirst();
             int consumed = task.process(budget);
             budget -= Math.max(1, consumed);
+            ContainerVisibilityFeedback.onTaskProgress(
+                    task.containerName, task.actionLabel, task.remaining());
             if (task.isComplete()) {
                 pendingTasks.removeFirst();
                 task.finish();
             }
+        }
+    }
+
+    private void runOnServer(Runnable action) {
+        if (action == null) {
+            return;
+        }
+        if (server.isOnThread()) {
+            action.run();
+        } else {
+            server.execute(action);
         }
     }
     
@@ -93,6 +107,13 @@ public class ContainerVisibilityService {
      * 如果容器已经有快照（已隐藏），则只处理新增的方块
      */
     public void hideContainer(Container container) {
+        if (container == null) {
+            return;
+        }
+        runOnServer(() -> hideContainerOnServer(container));
+    }
+
+    private void hideContainerOnServer(Container container) {
         ServerWorld world = resolveWorld(container);
         if (world == null) {
             LOGGER.warn("[Visibility] 容器 {} 未绑定世界，无法隐藏", container.getName());
@@ -126,7 +147,7 @@ public class ContainerVisibilityService {
             snapshots.put(container.getId(), store);
             lastShownBlocks.remove(container.getId());
             enqueueOrRun(createHideTask(container, world, store, new java.util.ArrayList<>(container.getBlocksView())));
-            LOGGER.debug("[Visibility] 容器 {} 隐藏完成，保存了 {} 个方块快照", 
+            LOGGER.debug("[Visibility] 容器 {} 隐藏任务已入队，快照 {} 个方块",
                 container.getName(), store.size());
         }
     }
@@ -135,6 +156,13 @@ public class ContainerVisibilityService {
      * 显示容器：从快照恢复方块状态和方块实体
      */
     public void showContainer(Container container) {
+        if (container == null) {
+            return;
+        }
+        runOnServer(() -> showContainerOnServer(container));
+    }
+
+    private void showContainerOnServer(Container container) {
         ServerWorld world = resolveWorld(container);
         if (world == null) {
             LOGGER.warn("[Visibility] 容器 {} 未绑定世界，无法恢复", container.getName());
@@ -159,7 +187,7 @@ public class ContainerVisibilityService {
             container.getName(), store.size());
         
         enqueueOrRun(createShowTask(container, world, store, new java.util.ArrayList<>(store.positions())));
-        LOGGER.debug("[Visibility] 容器 {} 显示完成", container.getName());
+        LOGGER.debug("[Visibility] 容器 {} 显示任务已入队", container.getName());
     }
 
     /**
@@ -172,7 +200,10 @@ public class ContainerVisibilityService {
         if (container == null || blocks == null || blocks.isEmpty()) {
             return;
         }
+        runOnServer(() -> restoreContainerBlocksOnServer(container, blocks));
+    }
 
+    private void restoreContainerBlocksOnServer(Container container, Collection<BlockPos> blocks) {
         ServerWorld world = resolveWorld(container);
         if (world == null) {
             LOGGER.warn("[Visibility] 容器 {} 未绑定世界，无法释放方块", container.getName());
@@ -205,6 +236,7 @@ public class ContainerVisibilityService {
         pendingTasks.clear();
         snapshots.clear();
         lastShownBlocks.clear();
+        ContainerVisibilityFeedback.reset();
         LOGGER.debug("[ContainerVisibilityService] 清除所有快照");
     }
     
@@ -265,6 +297,7 @@ public class ContainerVisibilityService {
         if (firstCall) {
             int hiddenCount = 0;
             int shownCount = 0;
+            LongOpenHashSet affectedChunks = new LongOpenHashSet();
 
             // hide: allSnapshotPositions - now
             // 注意：这里遍历 store.positions()，不要在循环里修改 store（否则可能触发并发修改异常）。
@@ -287,8 +320,8 @@ public class ContainerVisibilityService {
                     if (be != null) {
                         world.removeBlockEntity(pos);
                     }
-                    world.setBlockState(pos, Blocks.AIR.getDefaultState(),
-                            net.minecraft.block.Block.NOTIFY_ALL | net.minecraft.block.Block.FORCE_STATE);
+                    world.setBlockState(pos, Blocks.AIR.getDefaultState(), ContainerBlockUpdateFlags.BATCH);
+                    trackAffectedChunk(affectedChunks, chunkX, chunkZ);
                     hiddenCount++;
                 }
             }
@@ -311,10 +344,12 @@ public class ContainerVisibilityService {
 
                 net.minecraft.block.BlockState currentState = world.getBlockState(pos);
                 if (currentState.isAir()) {
-                    restoreBlockEntry(world, pos, entry);
+                    restoreBlockEntry(world, pos, entry, affectedChunks);
                     shownCount++;
                 }
             }
+
+            flushLightingForChunks(world, affectedChunks);
 
             // 更新 last（复用对象避免分配）
             last.clear();
@@ -329,6 +364,7 @@ public class ContainerVisibilityService {
 
         // 1) 隐藏：last - now
         int hiddenCount = 0;
+        LongOpenHashSet affectedChunks = new LongOpenHashSet();
         for (var it = last.iterator(); it.hasNext(); ) {
             long posLong = it.nextLong();
             if (now.contains(posLong)) {
@@ -351,8 +387,8 @@ public class ContainerVisibilityService {
                 if (be != null) {
                     world.removeBlockEntity(pos);
                 }
-                world.setBlockState(pos, Blocks.AIR.getDefaultState(),
-                        net.minecraft.block.Block.NOTIFY_ALL | net.minecraft.block.Block.FORCE_STATE);
+                world.setBlockState(pos, Blocks.AIR.getDefaultState(), ContainerBlockUpdateFlags.BATCH);
+                trackAffectedChunk(affectedChunks, chunkX, chunkZ);
                 hiddenCount++;
             }
         }
@@ -379,9 +415,13 @@ public class ContainerVisibilityService {
 
             net.minecraft.block.BlockState currentState = world.getBlockState(pos);
             if (currentState.isAir()) {
-                restoreBlockEntry(world, pos, entry);
+                restoreBlockEntry(world, pos, entry, affectedChunks);
                 shownCount++;
             }
+        }
+
+        if (hiddenCount > 0 || shownCount > 0) {
+            flushLightingForChunks(world, affectedChunks);
         }
 
         // 更新 last（复用对象避免分配）
@@ -399,16 +439,13 @@ public class ContainerVisibilityService {
             return;
         }
         cancelPendingTasks(task.containerId);
-        if (task.remaining() <= getBlocksPerTickBudget()) {
-            while (!task.isComplete()) {
-                task.process(getBlocksPerTickBudget());
-            }
-            task.finish();
-            return;
-        }
+        int blockCount = task.remaining();
+        ContainerVisibilityFeedback.onTaskQueued(task.containerName, task.actionLabel, blockCount);
         pendingTasks.addLast(task);
-        LOGGER.info("[Visibility] 容器 {} 的 {} 操作已分帧执行: {} 个方块",
-                task.containerName, task.actionLabel, task.remaining());
+        if (LOGGER.isDebugEnabled()) {
+            LOGGER.debug("[Visibility] 容器 {} 的 {} 操作已入队: {} 个方块",
+                    task.containerName, task.actionLabel, blockCount);
+        }
     }
 
     private VisibilityTask createHideTask(Container container, ServerWorld world, BlockStore store, List<BlockPos> positions) {
@@ -492,7 +529,35 @@ public class ContainerVisibilityService {
         return true;
     }
 
+    private static long chunkKey(int chunkX, int chunkZ) {
+        return (((long) chunkX) << 32) ^ (chunkZ & 0xffffffffL);
+    }
+
+    private static void trackAffectedChunk(LongOpenHashSet affectedChunks, int chunkX, int chunkZ) {
+        if (affectedChunks != null) {
+            affectedChunks.add(chunkKey(chunkX, chunkZ));
+        }
+    }
+
+    private void flushLightingForChunks(ServerWorld world, LongOpenHashSet affectedChunks) {
+        if (world == null || affectedChunks == null || affectedChunks.isEmpty()) {
+            return;
+        }
+        try {
+            world.getChunkManager().getLightingProvider().doLightUpdates();
+        } catch (Exception e) {
+            LOGGER.debug("[Visibility] 光照刷新跳过: {}", e.getMessage());
+        }
+    }
+
     private void restoreBlockEntry(ServerWorld world, BlockPos pos, BlockStore.Entry entry) {
+        restoreBlockEntry(world, pos, entry, null);
+    }
+
+    private void restoreBlockEntry(ServerWorld world,
+                                   BlockPos pos,
+                                   BlockStore.Entry entry,
+                                   LongOpenHashSet affectedChunks) {
         if (world == null || pos == null || entry == null || entry.state == null) {
             return;
         }
@@ -509,8 +574,8 @@ public class ContainerVisibilityService {
             return;
         }
 
-        world.setBlockState(pos, entry.state,
-                net.minecraft.block.Block.NOTIFY_ALL | net.minecraft.block.Block.FORCE_STATE);
+        world.setBlockState(pos, entry.state, ContainerBlockUpdateFlags.BATCH);
+        trackAffectedChunk(affectedChunks, chunkX, chunkZ);
 
         if (entry.beNbt == null) {
             return;
@@ -594,6 +659,7 @@ public class ContainerVisibilityService {
         private final TaskKind kind;
         private final LongSet shown;
         private final Map<Long, Boolean> chunkLoadCache = new HashMap<>();
+        private final LongOpenHashSet affectedChunks = new LongOpenHashSet();
         private int index = 0;
         private int changed = 0;
 
@@ -648,8 +714,8 @@ public class ContainerVisibilityService {
             if (blockEntity != null) {
                 world.removeBlockEntity(pos);
             }
-            world.setBlockState(pos, Blocks.AIR.getDefaultState(),
-                    net.minecraft.block.Block.NOTIFY_ALL | net.minecraft.block.Block.FORCE_STATE);
+            world.setBlockState(pos, Blocks.AIR.getDefaultState(), ContainerBlockUpdateFlags.BATCH);
+            trackAffectedChunk(affectedChunks, chunkX, chunkZ);
             changed++;
         }
 
@@ -658,7 +724,7 @@ public class ContainerVisibilityService {
             if (entry == null) {
                 return;
             }
-            restoreBlockEntry(world, pos, entry);
+            restoreBlockEntry(world, pos, entry, affectedChunks);
             changed++;
         }
 
@@ -670,7 +736,7 @@ public class ContainerVisibilityService {
             if (entry == null) {
                 return;
             }
-            restoreBlockEntry(world, pos, entry);
+            restoreBlockEntry(world, pos, entry, affectedChunks);
             store.remove(pos);
             if (shown != null) {
                 shown.remove(pos.asLong());
@@ -687,6 +753,8 @@ public class ContainerVisibilityService {
         }
 
         void finish() {
+            flushLightingForChunks(world, affectedChunks);
+            ContainerVisibilityFeedback.onTaskComplete(containerName, actionLabel);
             if (kind == TaskKind.SHOW) {
                 snapshots.remove(containerId);
                 lastShownBlocks.remove(containerId);

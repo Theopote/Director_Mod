@@ -1418,7 +1418,8 @@ public final class DirectorLang {
         public static final String DESC_TIMELINE_CUT = "gui.director.shortcuts.desc.timeline_cut";
         public static final String DESC_TIMELINE_COPY = "gui.director.shortcuts.desc.timeline_copy";
         public static final String DESC_TIMELINE_PASTE = "gui.director.shortcuts.desc.timeline_paste";
-        public static final String DESC_TIMELINE_DELETE = "gui.director.shortcuts.desc.timeline_delete";
+        public static final String DESC_DELETE_FOCUS_ROUTED = "gui.director.shortcuts.desc.delete_focus_routed";
+        public static final String DESC_TIMELINE_DELETE_MODIFIED = "gui.director.shortcuts.desc.timeline_delete_modified";
         public static final String DESC_GIZMO_ROTATE = "gui.director.shortcuts.desc.gizmo_rotate";
         public static final String DESC_GIZMO_ACTOR_TOOLS = "gui.director.shortcuts.desc.gizmo_actor_tools";
         public static final String DESC_HELP_SHORTCUTS = "gui.director.shortcuts.desc.help_shortcuts";
@@ -1450,13 +1451,20 @@ public final class DirectorLang {
         public static final String KEY_CTRL_V = "gui.director.shortcuts.key.ctrl_v";
         public static final String KEY_DELETE = "gui.director.shortcuts.key.delete";
         public static final String KEY_CTRL_DELETE = "gui.director.shortcuts.key.ctrl_delete";
-        public static final String KEY_ALT_DELETE = "gui.director.shortcuts.key.alt_delete";
         public static final String KEY_E = "gui.director.shortcuts.key.e";
         public static final String KEY_G_R = "gui.director.shortcuts.key.g_r";
         public static final String KEY_F1 = "gui.director.shortcuts.key.f1";
         public static final String KEY_ESC = "gui.director.shortcuts.key.esc";
 
         private Shortcuts() {
+        }
+    }
+
+    public static final class Status {
+        public static final String VISIBILITY_PROGRESS = "gui.director.status.visibility_progress";
+        public static final String VISIBILITY_COMPLETE = "gui.director.status.visibility_complete";
+
+        private Status() {
         }
     }
 }

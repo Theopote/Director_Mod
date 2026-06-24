@@ -1,6 +1,7 @@
 package com.director.ui.panels;
 
 import com.director.core.DirectorServices;
+import com.director.core.container.visibility.ContainerVisibilityFeedback;
 import com.director.persistence.PersistenceSaveStatus;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
@@ -183,7 +184,16 @@ public class StatusBarPanel extends AbstractPanel implements IPanelRegistryAware
             }
         }
 
-        // 6. Save status
+        // 6. Container visibility batch operations
+        if (ContainerVisibilityFeedback.hasMessage()) {
+            String visibilityMessage = ContainerVisibilityFeedback.getStatusMessage();
+            if (visibilityMessage != null && !visibilityMessage.isBlank()) {
+                UITheme.label(Icons.REFRESH + " " + visibilityMessage, rgba(255, 204, 51));
+                separator();
+            }
+        }
+
+        // 7. Save status
         if (PersistenceSaveStatus.hasSaveFailure()) {
             UITheme.label(Icons.WARNING + " 上次保存失败", rgba(255, 153, 51));
             if (ImGui.isItemHovered()) {

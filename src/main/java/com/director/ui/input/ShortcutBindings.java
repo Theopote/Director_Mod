@@ -101,9 +101,8 @@ public final class ShortcutBindings {
         registerModifierBinding(GLFW.GLFW_KEY_V, 1, ShortcutAction.TIMELINE_PASTE);
         // Esc：由 ShortcutDispatcher 按交互状态路由到 TIMELINE_CANCEL_INTERACTION 或 CLEAR_SELECTION
         // 无修饰 Delete：由 ShortcutDispatcher 按 Container/Timeline 焦点路由到 CONTAINER_DELETE 或 TIMELINE_DELETE，此处不绑定
-        // 带修饰 Delete：仍映射到 TIMELINE_DELETE
-        registerModifierBinding(GLFW.GLFW_KEY_DELETE, 1, ShortcutAction.TIMELINE_DELETE); // Ctrl+Delete
-        registerModifierBinding(GLFW.GLFW_KEY_DELETE, 4, ShortcutAction.TIMELINE_DELETE); // Alt+Delete
+        // Ctrl+Delete：映射到 TIMELINE_DELETE（需时间线焦点，与裸 Delete 在时间线聚焦时等效）
+        registerModifierBinding(GLFW.GLFW_KEY_DELETE, 1, ShortcutAction.TIMELINE_DELETE);
         
         // ==================== Actor Gizmo 操作 ====================
         KEY_BINDINGS.put(GLFW.GLFW_KEY_E, ShortcutAction.GIZMO_ROTATE);
@@ -313,9 +312,8 @@ public final class ShortcutBindings {
         timeline.add(formatShortcut(DirectorLang.Shortcuts.KEY_CTRL_X, DirectorLang.Shortcuts.DESC_TIMELINE_CUT));
         timeline.add(formatShortcut(DirectorLang.Shortcuts.KEY_CTRL_C, DirectorLang.Shortcuts.DESC_TIMELINE_COPY));
         timeline.add(formatShortcut(DirectorLang.Shortcuts.KEY_CTRL_V, DirectorLang.Shortcuts.DESC_TIMELINE_PASTE));
-        timeline.add(formatShortcut(DirectorLang.Shortcuts.KEY_DELETE, DirectorLang.Shortcuts.DESC_TIMELINE_DELETE));
-        timeline.add(formatShortcut(DirectorLang.Shortcuts.KEY_CTRL_DELETE, DirectorLang.Shortcuts.DESC_TIMELINE_DELETE));
-        timeline.add(formatShortcut(DirectorLang.Shortcuts.KEY_ALT_DELETE, DirectorLang.Shortcuts.DESC_TIMELINE_DELETE));
+        timeline.add(formatShortcut(DirectorLang.Shortcuts.KEY_DELETE, DirectorLang.Shortcuts.DESC_DELETE_FOCUS_ROUTED));
+        timeline.add(formatShortcut(DirectorLang.Shortcuts.KEY_CTRL_DELETE, DirectorLang.Shortcuts.DESC_TIMELINE_DELETE_MODIFIED));
         categories.put(tr(DirectorLang.Shortcuts.CATEGORY_TIMELINE), timeline);
 
         List<String> gizmo = new ArrayList<>();
