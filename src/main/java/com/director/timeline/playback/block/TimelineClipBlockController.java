@@ -85,6 +85,11 @@ public class TimelineClipBlockController {
 
     /** 上一 UI 帧是否在拖动播放头（用于松手后的追帧预算）。 */
     private boolean wasScrubbing;
+    /** 预览静止时的短路优化：仅在模型变化或时间变化时重算。 */
+    private boolean modelDirty = true;
+    private float lastPreviewTime = Float.NaN;
+    private TimelineModel observedModel;
+    private final TimelineModel.ModelChangeListener modelChangeListener = changeType -> modelDirty = true;
 
     // =====================================================================
     // Perf caches (播放性能关键)
@@ -275,6 +280,21 @@ public class TimelineClipBlockController {
      */
     public void setTimelineModel(TimelineModel model) {
         this.timelineModel = model;
+        modelDirty = true;
+    }
+
+    private void ensureModelListenerBound(TimelineModel model) {
+        if (model == observedModel) {
+            return;
+        }
+        if (observedModel != null) {
+            observedModel.removeModelChangeListener(modelChangeListener);
+        }
+        observedModel = model;
+        if (observedModel != null) {
+            observedModel.addModelChangeListener(modelChangeListener);
+        }
+        modelDirty = true;
     }
 
     private TimelineModel resolveActiveModel() {
@@ -308,10 +328,19 @@ public class TimelineClipBlockController {
         }
 
         final long t0 = System.nanoTime();
+        ensureModelListenerBound(activeModel);
 
         float currentTime = activeModel.getCurrentTime();
         boolean scrubbing = activeModel.isScrubbing();
         boolean previewMode = !activeModel.isPlaying();
+        if (previewMode
+                && !scrubbing
+                && !modelDirty
+                && !Float.isNaN(lastPreviewTime)
+                && Math.abs(currentTime - lastPreviewTime) <= 1e-4f) {
+            // 未播放且未拖动时，如果时间和模型都未变化，则跳过本帧的全量计算。
+            return;
+        }
         TimelinePlacementBudget.beginFrame(scrubbing, wasScrubbing, previewMode);
         wasScrubbing = scrubbing;
         final boolean accelerated = TimelinePlacementBudget.isAccelerated();
@@ -713,6 +742,12 @@ public class TimelineClipBlockController {
             UUID id = e.getKey();
             Set<BlockPos> s = e.getValue();
             lastFrameWorldBlocks.put(id, s != null ? s : java.util.Collections.emptySet());
+        }
+        modelDirty = false;
+        if (previewMode && !scrubbing) {
+            lastPreviewTime = currentTime;
+        } else {
+            lastPreviewTime = Float.NaN;
         }
         visualStateManager.finishFrame();
 
