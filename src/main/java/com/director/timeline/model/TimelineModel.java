@@ -467,37 +467,11 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         end = Math.min(end, durationValue);
         return Math.max(start, end);
     }
-    
-    // ========== 缩放控制 ==========
-    
-    public void zoom(float factor) {
-        float current = viewportState.getPixelsPerSecond();
-        viewportState.setPixelsPerSecond(current * factor);
-    }
-    
+
     public void setZoom(float pps) {
         viewportState.setPixelsPerSecond(pps);
     }
-    
-    public void adjustScrollAfterZoom(float mouseX, float contentX, float contentW, float oldPps) {
-        float beforeTime = screenToTime(mouseX, contentX, oldPps);
-        float afterTime = screenToTime(mouseX, contentX, viewportState.getPixelsPerSecond());
-        float scrollX = viewportState.getScrollX();
-        scrollX += (afterTime - beforeTime) * viewportState.getPixelsPerSecond();
-        viewportState.setScrollX(clamp(scrollX, Math.max(0f, getDuration() * viewportState.getPixelsPerSecond() - contentW)));
-    }
-    
-    // ========== 滚动控制 ==========
-    
-    public void scroll(float delta) {
-        viewportState.setScrollX(viewportState.getScrollX() + delta);
-    }
-    
-    public void clampScroll(float contentW) {
-        float maxScroll = Math.max(0f, getDuration() * viewportState.getPixelsPerSecond() - contentW);
-        viewportState.setScrollX(clamp(viewportState.getScrollX(), maxScroll));
-    }
-    
+
     // ========== 坐标转换 ==========
     
     public float screenToTime(float mouseX, float contentX) {
@@ -506,10 +480,6 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
     
     private float screenToTime(float mouseX, float contentX, float pps) {
         return (mouseX - contentX + viewportState.getScrollX()) / pps;
-    }
-    
-    public float timeToScreen(float time, float contentX) {
-        return contentX + (time * viewportState.getPixelsPerSecond()) - viewportState.getScrollX();
     }
     
     // ========== 吸附配置 API（Director 统一风格）==========
@@ -522,21 +492,7 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
     public TimelineSnapSettings getSnapSettings() {
         return snapSettings;
     }
-    
-    /**
-     * 当前缩放下的吸附时间阈值（秒）
-     * 
-     * <p>根据当前缩放级别（pixelsPerSecond）将像素阈值转换为时间阈值。
-     * 用于吸附计算时判断时间差是否在阈值范围内。
-     * 
-     * @return 时间阈值（秒），如果缩放级别无效则返回 Float.MAX_VALUE
-     */
-    public float getSnapTimeThreshold() {
-        float pps = getPixelsPerSecond();
-        if (pps <= 0.0001f) return Float.MAX_VALUE;
-        return snapSettings.getPixelThreshold() / pps;
-    }
-    
+
     /**
      * 像素吸附阈值（px）——给工具栏 / 设置面板使用
      * 
@@ -544,19 +500,6 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
      */
     public float getSnapPixelThreshold() {
         return snapSettings.getPixelThreshold();
-    }
-    
-    /**
-     * 设置像素吸附阈值
-     * 
-     * @param px 像素阈值（必须 >= 1）
-     */
-    public void setSnapPixelThreshold(float px) {
-        float oldValue = snapSettings.getPixelThreshold();
-        snapSettings.setPixelThreshold(px);
-        if (Math.abs(oldValue - snapSettings.getPixelThreshold()) >= 0.0001f) {
-            markDirty();
-        }
     }
     
     // ---------- 统一"是否启用"入口 ----------
@@ -1114,15 +1057,6 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
     }
 
     /**
-     * 仅添加到选择（不会切换/移除），用于框选等批量选择场景。
-     */
-    public void addItemToSelection(Object item) {
-        if (item == null) return;
-        selectedItems.add(item);
-        lastClickedItem = item;
-    }
-
-    /**
      * 批量添加到选择。
      * @param items 要添加的项目
      * @param clearFirst 是否先清空现有选择（框选默认会清空，按住 Ctrl 则不清空）
@@ -1148,17 +1082,6 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         }
     }
 
-    /**
-     * 范围选择（Shift键）
-     * @param item 范围结束项
-     */
-    public void selectRange(Object item) {
-        if (item == null || lastClickedItem == null) {
-        }
-
-        // TODO: 实现范围选择逻辑
-        // 需要根据时间顺序选择 lastClickedItem 和 item 之间的所有项
-    }
 
     /**
      * 清除所有选择
@@ -1189,17 +1112,4 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         return selectedItems.contains(item);
     }
 
-    /**
-     * 设置多选模式（Ctrl键状态）
-     */
-    public void setMultiSelectMode(boolean enabled) {
-        this.multiSelectMode = enabled;
-    }
-
-    /**
-     * 获取多选模式状态
-     */
-    public boolean isMultiSelectMode() {
-        return multiSelectMode;
-    }
 }
