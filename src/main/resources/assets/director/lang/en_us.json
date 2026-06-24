@@ -201,6 +201,9 @@
   "gui.director.status.visibility_progress": "%s: %s… (%d of %d blocks remaining)",
   "gui.director.status.visibility_complete": "%s: %s complete",
 
+  "gui.director.memory.low_heap_advisory": "[Director] JVM heap is %s MB (recommended ≥ %s MB). You can still use Director; large containers may feel slower.",
+  "gui.director.memory.low_heap_advisory_hint": "[Director] For smoother editing, add -Xmx8G in your launcher JVM arguments when your PC has enough RAM.",
+
   "gui.director.panel.timeline": "Timeline",
   "gui.director.panel.toolbar": "Toolbar",
   "gui.director.panel.menu_bar": "Menu Bar",

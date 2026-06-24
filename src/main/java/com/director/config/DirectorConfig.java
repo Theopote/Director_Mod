@@ -62,6 +62,8 @@ public class DirectorConfig {
             public int warnBlocksPerContainer = 50000;
             public int maxBlocksPerContainer = 200000;
             public int containerWorldBlocksPerTick = 3000;
+            /** 推荐客户端 JVM 最大堆（MB）。低于此值仅提示，不阻止使用；大容器操作可能更卡。 */
+            public int recommendedClientHeapMb = 8192;
         }
         
         public static class UISettings {

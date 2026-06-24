@@ -201,6 +201,9 @@
   "gui.director.status.visibility_progress": "%s：正在%s…（剩余 %d / %d 个方块）",
   "gui.director.status.visibility_complete": "%s：%s完成",
 
+  "gui.director.memory.low_heap_advisory": "[Director] 当前 JVM 堆内存 %s MB（推荐 ≥ %s MB）。可正常使用；处理大容器时可能更卡。",
+  "gui.director.memory.low_heap_advisory_hint": "[Director] 若电脑内存充足，可在启动器 JVM 参数中添加 -Xmx8G 以获得更流畅的体验。",
+
   "gui.director.panel.timeline": "时间线",
   "gui.director.panel.toolbar": "工具栏",
   "gui.director.panel.menu_bar": "菜单栏",

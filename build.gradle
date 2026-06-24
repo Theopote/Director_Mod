@@ -25,6 +25,15 @@ loom {
 			sourceSet sourceSets.main
 		}
 	}
+
+	// Director 含 ImGui + 大容器快照，开发客户端默认分配 8G 堆（整进程，非模组独占）
+	def clientMaxHeap = project.findProperty("director.clientMaxHeap") ?: "8G"
+	def clientMinHeap = project.findProperty("director.clientMinHeap") ?: "2G"
+	runs {
+		configureEach {
+			vmArgs("-Xmx${clientMaxHeap}", "-Xms${clientMinHeap}")
+		}
+	}
 }
 
 fabricApi {

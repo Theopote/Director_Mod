@@ -69,6 +69,10 @@
 			"java": {
 				"min": "21",
 				"recommended": "21"
+			},
+			"memory": {
+				"recommendedJvmHeap": "8G",
+				"recommendedJvmArgs": "-Xmx8G -Xms2G"
 			}
 		},
 		"features": [

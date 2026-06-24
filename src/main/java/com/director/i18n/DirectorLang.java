@@ -1467,4 +1467,12 @@ public final class DirectorLang {
         private Status() {
         }
     }
+
+    public static final class Memory {
+        public static final String LOW_HEAP_ADVISORY = "gui.director.memory.low_heap_advisory";
+        public static final String LOW_HEAP_ADVISORY_HINT = "gui.director.memory.low_heap_advisory_hint";
+
+        private Memory() {
+        }
+    }
 }

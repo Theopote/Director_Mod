@@ -7,10 +7,11 @@ import net.fabricmc.loader.api.FabricLoader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.director.config.DirectorConfig;
+import com.director.client.DirectorMemoryRequirements;
 import com.director.command.DirectorCommands;
 import com.director.compatibility.ModCompatibilityChecker;
 import com.director.compatibility.VersionCompatibilityChecker;
+import com.director.config.DirectorConfig;
 import com.director.core.DirectorServices;
 import com.director.core.container.visibility.ContainerServices;
 
@@ -462,7 +463,9 @@ public class DirectorMod implements ModInitializer {
         LOGGER.info("[Director] Java版本: {}", System.getProperty("java.version"));
         LOGGER.info("[Director] 操作系统: {} {}", System.getProperty("os.name"), System.getProperty("os.arch"));
         LOGGER.info("[Director] 可用处理器: {}", Runtime.getRuntime().availableProcessors());
-        LOGGER.info("[Director] 最大内存: {} MB", Runtime.getRuntime().maxMemory() / 1024 / 1024);
+        LOGGER.info("[Director] 最大内存: {} MB (Director 推荐 ≥ {} MB)",
+                Runtime.getRuntime().maxMemory() / 1024 / 1024,
+                DirectorMemoryRequirements.getRecommendedHeapMb());
         
         // 记录兼容性摘要
         LOGGER.info("[Director] 模组兼容性: {}", ModCompatibilityChecker.getCompatibilitySummary());

@@ -5,6 +5,7 @@ import com.director.core.DirectorServices;
 import net.fabricmc.api.ClientModInitializer;
 import net.minecraft.client.MinecraftClient;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.minecraft.client.network.ClientPlayerEntity;
@@ -83,6 +84,7 @@ public class DirectorClient implements ClientModInitializer {
         
         // 注册客户端启动完成事件
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
+            DirectorMemoryRequirements.onClientStarted(client);
             LOGGER.info("[Director] Minecraft client started, proceeding with ImGui initialization.");
             try {
                 LOGGER.info("[Director] Calling DirectorServices.get().imgui().init()...");
@@ -125,6 +127,9 @@ public class DirectorClient implements ClientModInitializer {
      * 注册事件处理器（在客户端完全启动后调用）
      */
     private void registerEventHandlers() {
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) ->
+                DirectorMemoryRequirements.onPlayerJoin(client));
+
         // 注册键绑定事件处理器
         registerKeyBindingHandler();
         
@@ -448,32 +453,29 @@ public class DirectorClient implements ClientModInitializer {
             LOGGER.warn("[Director] ImGui not initialized, cannot open screen");
             return;
         }
-        
-        LOGGER.debug("[Director] ImGui is initialized, proceeding with screen opening");
-        
-        try {
+
         MinecraftClient client = MinecraftClient.getInstance();
-            if (client == null) {
-                LOGGER.warn("[Director] Cannot open screen: MinecraftClient is null");
-                return;
-            }
-            
-            // 检查屏幕是否已经打开，避免UI叠加
+        if (client == null) {
+            LOGGER.warn("[Director] Cannot open screen: MinecraftClient is null");
+            return;
+        }
+        DirectorMemoryRequirements.adviseIfLowHeap(client);
+
+        LOGGER.debug("[Director] ImGui is initialized, proceeding with screen opening");
+
+        try {
             if (isDirectorScreenAlreadyOpen(client)) {
                 LOGGER.debug("[Director] Director screen is already open, skipping");
                 return;
             }
-            
-            // 确保在主线程中执行屏幕设置
+
             if (client.isOnThread()) {
-                // 已经在主线程，直接设置屏幕
                 setScreenSafely(client);
             } else {
-                // 不在主线程，调度到主线程执行
                 LOGGER.debug("[Director] Scheduling screen opening to main thread");
                 client.execute(() -> setScreenSafely(client));
             }
-            
+
         } catch (Exception e) {
             LOGGER.error("[Director] Failed to open Director screen", e);
         }
