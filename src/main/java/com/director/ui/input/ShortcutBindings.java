@@ -1,5 +1,8 @@
 package com.director.ui.input;
 
+import com.director.i18n.DirectorI18n;
+import com.director.i18n.DirectorLang;
+
 import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
@@ -272,78 +275,67 @@ public final class ShortcutBindings {
      */
     public static Map<String, List<String>> getAllShortcutsByCategory() {
         Map<String, List<String>> categories = new LinkedHashMap<>();
-        
-        // ==================== 文件操作 ====================
+
         List<String> file = new ArrayList<>();
-        file.add(formatShortcut("Ctrl+N", "新建项目"));
-        file.add(formatShortcut("Ctrl+O", "重新加载当前世界项目"));
-        file.add(formatShortcut("Ctrl+S", "保存"));
-        file.add(formatShortcut("Alt+F4", "退出应用"));
-        categories.put("文件操作", file);
-        
-        // ==================== 播放控制 ====================
+        file.add(formatShortcut(DirectorLang.Shortcuts.KEY_CTRL_N, DirectorLang.Shortcuts.DESC_PROJECT_NEW));
+        file.add(formatShortcut(DirectorLang.Shortcuts.KEY_CTRL_O, DirectorLang.Shortcuts.DESC_PROJECT_RELOAD));
+        file.add(formatShortcut(DirectorLang.Shortcuts.KEY_CTRL_S, DirectorLang.Shortcuts.DESC_PROJECT_SAVE));
+        file.add(formatShortcut(DirectorLang.Shortcuts.KEY_ALT_F4, DirectorLang.Shortcuts.DESC_PROJECT_EXIT));
+        categories.put(tr(DirectorLang.Shortcuts.CATEGORY_FILE), file);
+
         List<String> playback = new ArrayList<>();
-        playback.add(formatShortcut("Enter", "播放/暂停"));
-        playback.add(formatShortcut("Home", "跳转到开始"));
-        playback.add(formatShortcut("End", "跳转到结束"));
-        playback.add(formatShortcut("L", "切换循环播放"));
-        categories.put("播放控制", playback);
-        
-        // ==================== 工具切换 ====================
+        playback.add(formatShortcut(DirectorLang.Shortcuts.KEY_ENTER, DirectorLang.Shortcuts.DESC_PLAY_PAUSE));
+        playback.add(formatShortcut(DirectorLang.Shortcuts.KEY_HOME, DirectorLang.Shortcuts.DESC_GO_TO_START));
+        playback.add(formatShortcut(DirectorLang.Shortcuts.KEY_END, DirectorLang.Shortcuts.DESC_GO_TO_END));
+        playback.add(formatShortcut(DirectorLang.Shortcuts.KEY_L, DirectorLang.Shortcuts.DESC_TOGGLE_LOOP));
+        categories.put(tr(DirectorLang.Shortcuts.CATEGORY_PLAYBACK), playback);
+
         List<String> tools = new ArrayList<>();
-        tools.add(formatShortcut("1 或 V", "点击选择工具"));
-        tools.add(formatShortcut("2 或 B", "框选工具"));
-        tools.add(formatShortcut("3", "魔棒工具"));
-        tools.add(formatShortcut("4", "笔刷工具"));
-        tools.add(formatShortcut("5", "面选择工具"));
-        tools.add(formatShortcut("G", "移动工具"));
-        tools.add(formatShortcut("R", "旋转工具"));
-        tools.add(formatShortcut("Tab", "下一个工具"));
-        // 注意：上一个工具 (TOOL_PREVIOUS) 在 ShortcutAction 中定义，但尚未绑定快捷键
-        categories.put("工具切换", tools);
-        
-        // ==================== 选择操作模式 ====================
+        tools.add(formatShortcut(DirectorLang.Shortcuts.KEY_1_OR_V, DirectorLang.Shortcuts.DESC_TOOL_SELECT));
+        tools.add(formatShortcut(DirectorLang.Shortcuts.KEY_2_OR_B, DirectorLang.Shortcuts.DESC_TOOL_BOX_SELECT));
+        tools.add(formatShortcut(DirectorLang.Shortcuts.KEY_3, DirectorLang.Shortcuts.DESC_TOOL_WAND));
+        tools.add(formatShortcut(DirectorLang.Shortcuts.KEY_4, DirectorLang.Shortcuts.DESC_TOOL_BRUSH));
+        tools.add(formatShortcut(DirectorLang.Shortcuts.KEY_5, DirectorLang.Shortcuts.DESC_TOOL_FACE));
+        tools.add(formatShortcut(DirectorLang.Shortcuts.KEY_G, DirectorLang.Shortcuts.DESC_TOOL_MOVE));
+        tools.add(formatShortcut(DirectorLang.Shortcuts.KEY_R, DirectorLang.Shortcuts.DESC_TOOL_ROTATE));
+        tools.add(formatShortcut(DirectorLang.Shortcuts.KEY_TAB, DirectorLang.Shortcuts.DESC_TOOL_NEXT));
+        categories.put(tr(DirectorLang.Shortcuts.CATEGORY_TOOLS), tools);
+
         List<String> selection = new ArrayList<>();
-        selection.add(formatShortcut("+", "加选模式"));
-        selection.add(formatShortcut("-", "减选模式"));
-        selection.add(formatShortcut("0", "交集模式"));
-        categories.put("选择操作模式", selection);
-        
-        // ==================== 时间线操作 ====================
+        selection.add(formatShortcut(DirectorLang.Shortcuts.KEY_PLUS, DirectorLang.Shortcuts.DESC_SELECTION_ADD));
+        selection.add(formatShortcut(DirectorLang.Shortcuts.KEY_MINUS, DirectorLang.Shortcuts.DESC_SELECTION_SUBTRACT));
+        selection.add(formatShortcut(DirectorLang.Shortcuts.KEY_0, DirectorLang.Shortcuts.DESC_SELECTION_INTERSECT));
+        categories.put(tr(DirectorLang.Shortcuts.CATEGORY_SELECTION_MODE), selection);
+
         List<String> timeline = new ArrayList<>();
-        timeline.add(formatShortcut("Ctrl+Z", "撤销"));
-        timeline.add(formatShortcut("Ctrl+Y", "重做"));
-        timeline.add(formatShortcut("Ctrl+X", "剪切"));
-        timeline.add(formatShortcut("Ctrl+C", "复制"));
-        timeline.add(formatShortcut("Ctrl+V", "粘贴"));
-        timeline.add(formatShortcut("Delete", "删除选中项"));
-        timeline.add(formatShortcut("Ctrl+Delete", "删除选中项"));
-        timeline.add(formatShortcut("Alt+Delete", "删除选中项"));
-        categories.put("时间线操作", timeline);
-        
-        // ==================== Actor Gizmo 操作 ====================
+        timeline.add(formatShortcut(DirectorLang.Shortcuts.KEY_CTRL_Z, DirectorLang.Shortcuts.DESC_TIMELINE_UNDO));
+        timeline.add(formatShortcut(DirectorLang.Shortcuts.KEY_CTRL_Y, DirectorLang.Shortcuts.DESC_TIMELINE_REDO));
+        timeline.add(formatShortcut(DirectorLang.Shortcuts.KEY_CTRL_X, DirectorLang.Shortcuts.DESC_TIMELINE_CUT));
+        timeline.add(formatShortcut(DirectorLang.Shortcuts.KEY_CTRL_C, DirectorLang.Shortcuts.DESC_TIMELINE_COPY));
+        timeline.add(formatShortcut(DirectorLang.Shortcuts.KEY_CTRL_V, DirectorLang.Shortcuts.DESC_TIMELINE_PASTE));
+        timeline.add(formatShortcut(DirectorLang.Shortcuts.KEY_DELETE, DirectorLang.Shortcuts.DESC_TIMELINE_DELETE));
+        timeline.add(formatShortcut(DirectorLang.Shortcuts.KEY_CTRL_DELETE, DirectorLang.Shortcuts.DESC_TIMELINE_DELETE));
+        timeline.add(formatShortcut(DirectorLang.Shortcuts.KEY_ALT_DELETE, DirectorLang.Shortcuts.DESC_TIMELINE_DELETE));
+        categories.put(tr(DirectorLang.Shortcuts.CATEGORY_TIMELINE), timeline);
+
         List<String> gizmo = new ArrayList<>();
-        gizmo.add(formatShortcut("E", "Gizmo 旋转模式"));
-        gizmo.add(formatShortcut("G/R", "Actor 工具组内切换移动/旋转"));
-        categories.put("Actor Gizmo 操作", gizmo);
-        
-        // ==================== 界面操作 ====================
+        gizmo.add(formatShortcut(DirectorLang.Shortcuts.KEY_E, DirectorLang.Shortcuts.DESC_GIZMO_ROTATE));
+        gizmo.add(formatShortcut(DirectorLang.Shortcuts.KEY_G_R, DirectorLang.Shortcuts.DESC_GIZMO_ACTOR_TOOLS));
+        categories.put(tr(DirectorLang.Shortcuts.CATEGORY_GIZMO), gizmo);
+
         List<String> ui = new ArrayList<>();
-        ui.add(formatShortcut("F1", "显示快捷键帮助"));
-        ui.add(formatShortcut("Esc", "取消时间线交互 / 清除选区"));
-        categories.put("界面操作", ui);
-        
+        ui.add(formatShortcut(DirectorLang.Shortcuts.KEY_F1, DirectorLang.Shortcuts.DESC_HELP_SHORTCUTS));
+        ui.add(formatShortcut(DirectorLang.Shortcuts.KEY_ESC, DirectorLang.Shortcuts.DESC_CANCEL_OR_CLEAR));
+        categories.put(tr(DirectorLang.Shortcuts.CATEGORY_UI), ui);
+
         return categories;
     }
-    
-    /**
-     * 格式化快捷键显示文本
-     * 
-     * @param shortcut 快捷键文本
-     * @param description 描述
-     * @return 格式化后的字符串
-     */
-    private static String formatShortcut(String shortcut, String description) {
-        return String.format("%-20s - %s", shortcut, description);
+
+    private static String formatShortcut(String shortcutKey, String descriptionKey) {
+        return String.format("%-20s - %s", tr(shortcutKey), tr(descriptionKey));
+    }
+
+    private static String tr(String key) {
+        return DirectorI18n.translate(key);
     }
 }

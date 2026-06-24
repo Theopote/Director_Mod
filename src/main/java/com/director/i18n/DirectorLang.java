@@ -1301,8 +1301,162 @@ public final class DirectorLang {
         public static final String CLOSE = "gui.director.common.close";
         public static final String BIND = "gui.director.common.bind";
         public static final String UNBIND = "gui.director.common.unbind";
+        public static final String SAVE = "gui.director.common.save";
+        public static final String CONFIRM = "gui.director.common.confirm";
 
         private Common() {
+        }
+    }
+
+    /**
+     * 系统级对话框（{@link com.director.ui.dialogs.DialogManager}）。
+     */
+    public static final class SystemDialog {
+        public static final String SETTINGS_TITLE = "gui.director.dialog.settings.title";
+        public static final String SETTINGS_GENERAL = "gui.director.dialog.settings.general";
+        public static final String SETTINGS_AUTO_SAVE = "gui.director.dialog.settings.auto_save";
+        public static final String SETTINGS_DEFAULT_FPS = "gui.director.dialog.settings.default_fps";
+        public static final String SETTINGS_THEME = "gui.director.dialog.settings.theme";
+        public static final String SETTINGS_THEME_CURRENT = "gui.director.dialog.settings.theme_current";
+
+        public static final String ABOUT_VERSION_INFO = "gui.director.dialog.about.version_info";
+        public static final String ABOUT_DESCRIPTION = "gui.director.dialog.about.description";
+        public static final String ABOUT_DESCRIPTION_DETAIL = "gui.director.dialog.about.description_detail";
+        public static final String ABOUT_CREDITS = "gui.director.dialog.about.credits";
+        public static final String ABOUT_COPYRIGHT = "gui.director.dialog.about.copyright";
+        public static final String ABOUT_BUILT_WITH = "gui.director.dialog.about.built_with";
+        public static final String ABOUT_VERSION = "gui.director.dialog.about.version";
+        public static final String ABOUT_MINECRAFT = "gui.director.dialog.about.minecraft";
+        public static final String ABOUT_JAVA = "gui.director.dialog.about.java";
+
+        public static final String SHORTCUTS_TITLE = "gui.director.dialog.shortcuts.title";
+
+        public static final String RESET_WORKSPACE_TITLE = "gui.director.dialog.reset_workspace.title";
+        public static final String RESET_WORKSPACE_WARNING = "gui.director.dialog.reset_workspace.warning";
+        public static final String RESET_WORKSPACE_MESSAGE = "gui.director.dialog.reset_workspace.message";
+        public static final String RESET_WORKSPACE_CONFIRM = "gui.director.dialog.reset_workspace.confirm";
+
+        public static final String SAVE_LAYOUT_TITLE = "gui.director.dialog.save_layout.title";
+        public static final String SAVE_LAYOUT_PROMPT = "gui.director.dialog.save_layout.prompt";
+        public static final String SAVE_LAYOUT_NAME_REQUIRED = "gui.director.dialog.save_layout.name_required";
+
+        public static final String LOAD_LAYOUT_TITLE = "gui.director.dialog.load_layout.title";
+        public static final String LOAD_LAYOUT_ACCESSOR_UNAVAILABLE = "gui.director.dialog.load_layout.accessor_unavailable";
+        public static final String LOAD_LAYOUT_NONE_FOUND = "gui.director.dialog.load_layout.none_found";
+        public static final String LOAD_LAYOUT_SAVE_FIRST = "gui.director.dialog.load_layout.save_first";
+        public static final String LOAD_LAYOUT_SELECT_PROMPT = "gui.director.dialog.load_layout.select_prompt";
+
+        public static final class TimelineSettings {
+            public static final String ACCESS_ERROR = "gui.director.dialog.timeline_settings.access_error";
+            public static final String UNAVAILABLE = "gui.director.dialog.timeline_settings.unavailable";
+            public static final String PROJECT_GROUP = "gui.director.dialog.timeline_settings.project_group";
+            public static final String FRAME_RATE = "gui.director.dialog.timeline_settings.frame_rate";
+            public static final String FRAME_RATE_ERROR_TOOLTIP = "gui.director.dialog.timeline_settings.frame_rate_error_tooltip";
+            public static final String FRAME_RATE_TOOLTIP = "gui.director.dialog.timeline_settings.frame_rate_tooltip";
+            public static final String TIME_UNIT = "gui.director.dialog.timeline_settings.time_unit";
+            public static final String TIME_UNIT_SECONDS = "gui.director.dialog.timeline_settings.time_unit.seconds";
+            public static final String TIME_UNIT_FRAMES = "gui.director.dialog.timeline_settings.time_unit.frames";
+            public static final String TIME_UNIT_TICKS = "gui.director.dialog.timeline_settings.time_unit.ticks";
+            public static final String TIME_UNIT_TOOLTIP = "gui.director.dialog.timeline_settings.time_unit_tooltip";
+            public static final String SNAP_GROUP = "gui.director.dialog.timeline_settings.snap_group";
+            public static final String SNAP_ENABLED = "gui.director.dialog.timeline_settings.snap_enabled";
+            public static final String SNAP_ENABLED_TOOLTIP = "gui.director.dialog.timeline_settings.snap_enabled_tooltip";
+            public static final String GRID_GROUP = "gui.director.dialog.timeline_settings.grid_group";
+            public static final String SNAP_TO_GRID = "gui.director.dialog.timeline_settings.snap_to_grid";
+            public static final String GRID_INTERVAL = "gui.director.dialog.timeline_settings.grid_interval";
+            public static final String GRID_INTERVAL_TOOLTIP = "gui.director.dialog.timeline_settings.grid_interval_tooltip";
+            public static final String OTHER_SNAP_GROUP = "gui.director.dialog.timeline_settings.other_snap_group";
+            public static final String SNAP_TO_CLIP_EDGES = "gui.director.dialog.timeline_settings.snap_to_clip_edges";
+            public static final String SNAP_TO_CLIP_EDGES_TOOLTIP = "gui.director.dialog.timeline_settings.snap_to_clip_edges_tooltip";
+            public static final String SNAP_TO_KEYFRAMES = "gui.director.dialog.timeline_settings.snap_to_keyframes";
+            public static final String SNAP_TO_KEYFRAMES_TOOLTIP = "gui.director.dialog.timeline_settings.snap_to_keyframes_tooltip";
+            public static final String THRESHOLD_GROUP = "gui.director.dialog.timeline_settings.threshold_group";
+            public static final String PIXEL_THRESHOLD = "gui.director.dialog.timeline_settings.pixel_threshold";
+            public static final String PIXEL_THRESHOLD_TOOLTIP = "gui.director.dialog.timeline_settings.pixel_threshold_tooltip";
+
+            private TimelineSettings() {
+            }
+        }
+
+        private SystemDialog() {
+        }
+    }
+
+    /**
+     * 快捷键帮助列表（{@link com.director.ui.input.ShortcutBindings#getAllShortcutsByCategory()}）。
+     */
+    public static final class Shortcuts {
+        public static final String CATEGORY_FILE = "gui.director.shortcuts.category.file";
+        public static final String CATEGORY_PLAYBACK = "gui.director.shortcuts.category.playback";
+        public static final String CATEGORY_TOOLS = "gui.director.shortcuts.category.tools";
+        public static final String CATEGORY_SELECTION_MODE = "gui.director.shortcuts.category.selection_mode";
+        public static final String CATEGORY_TIMELINE = "gui.director.shortcuts.category.timeline";
+        public static final String CATEGORY_GIZMO = "gui.director.shortcuts.category.gizmo";
+        public static final String CATEGORY_UI = "gui.director.shortcuts.category.ui";
+
+        public static final String DESC_PROJECT_NEW = "gui.director.shortcuts.desc.project_new";
+        public static final String DESC_PROJECT_RELOAD = "gui.director.shortcuts.desc.project_reload";
+        public static final String DESC_PROJECT_SAVE = "gui.director.shortcuts.desc.project_save";
+        public static final String DESC_PROJECT_EXIT = "gui.director.shortcuts.desc.project_exit";
+        public static final String DESC_PLAY_PAUSE = "gui.director.shortcuts.desc.play_pause";
+        public static final String DESC_GO_TO_START = "gui.director.shortcuts.desc.go_to_start";
+        public static final String DESC_GO_TO_END = "gui.director.shortcuts.desc.go_to_end";
+        public static final String DESC_TOGGLE_LOOP = "gui.director.shortcuts.desc.toggle_loop";
+        public static final String DESC_TOOL_SELECT = "gui.director.shortcuts.desc.tool_select";
+        public static final String DESC_TOOL_BOX_SELECT = "gui.director.shortcuts.desc.tool_box_select";
+        public static final String DESC_TOOL_WAND = "gui.director.shortcuts.desc.tool_wand";
+        public static final String DESC_TOOL_BRUSH = "gui.director.shortcuts.desc.tool_brush";
+        public static final String DESC_TOOL_FACE = "gui.director.shortcuts.desc.tool_face";
+        public static final String DESC_TOOL_MOVE = "gui.director.shortcuts.desc.tool_move";
+        public static final String DESC_TOOL_ROTATE = "gui.director.shortcuts.desc.tool_rotate";
+        public static final String DESC_TOOL_NEXT = "gui.director.shortcuts.desc.tool_next";
+        public static final String DESC_SELECTION_ADD = "gui.director.shortcuts.desc.selection_add";
+        public static final String DESC_SELECTION_SUBTRACT = "gui.director.shortcuts.desc.selection_subtract";
+        public static final String DESC_SELECTION_INTERSECT = "gui.director.shortcuts.desc.selection_intersect";
+        public static final String DESC_TIMELINE_UNDO = "gui.director.shortcuts.desc.timeline_undo";
+        public static final String DESC_TIMELINE_REDO = "gui.director.shortcuts.desc.timeline_redo";
+        public static final String DESC_TIMELINE_CUT = "gui.director.shortcuts.desc.timeline_cut";
+        public static final String DESC_TIMELINE_COPY = "gui.director.shortcuts.desc.timeline_copy";
+        public static final String DESC_TIMELINE_PASTE = "gui.director.shortcuts.desc.timeline_paste";
+        public static final String DESC_TIMELINE_DELETE = "gui.director.shortcuts.desc.timeline_delete";
+        public static final String DESC_GIZMO_ROTATE = "gui.director.shortcuts.desc.gizmo_rotate";
+        public static final String DESC_GIZMO_ACTOR_TOOLS = "gui.director.shortcuts.desc.gizmo_actor_tools";
+        public static final String DESC_HELP_SHORTCUTS = "gui.director.shortcuts.desc.help_shortcuts";
+        public static final String DESC_CANCEL_OR_CLEAR = "gui.director.shortcuts.desc.cancel_or_clear";
+
+        public static final String KEY_CTRL_N = "gui.director.shortcuts.key.ctrl_n";
+        public static final String KEY_CTRL_O = "gui.director.shortcuts.key.ctrl_o";
+        public static final String KEY_CTRL_S = "gui.director.shortcuts.key.ctrl_s";
+        public static final String KEY_ALT_F4 = "gui.director.shortcuts.key.alt_f4";
+        public static final String KEY_ENTER = "gui.director.shortcuts.key.enter";
+        public static final String KEY_HOME = "gui.director.shortcuts.key.home";
+        public static final String KEY_END = "gui.director.shortcuts.key.end";
+        public static final String KEY_L = "gui.director.shortcuts.key.l";
+        public static final String KEY_1_OR_V = "gui.director.shortcuts.key.1_or_v";
+        public static final String KEY_2_OR_B = "gui.director.shortcuts.key.2_or_b";
+        public static final String KEY_3 = "gui.director.shortcuts.key.3";
+        public static final String KEY_4 = "gui.director.shortcuts.key.4";
+        public static final String KEY_5 = "gui.director.shortcuts.key.5";
+        public static final String KEY_G = "gui.director.shortcuts.key.g";
+        public static final String KEY_R = "gui.director.shortcuts.key.r";
+        public static final String KEY_TAB = "gui.director.shortcuts.key.tab";
+        public static final String KEY_PLUS = "gui.director.shortcuts.key.plus";
+        public static final String KEY_MINUS = "gui.director.shortcuts.key.minus";
+        public static final String KEY_0 = "gui.director.shortcuts.key.0";
+        public static final String KEY_CTRL_Z = "gui.director.shortcuts.key.ctrl_z";
+        public static final String KEY_CTRL_Y = "gui.director.shortcuts.key.ctrl_y";
+        public static final String KEY_CTRL_X = "gui.director.shortcuts.key.ctrl_x";
+        public static final String KEY_CTRL_C = "gui.director.shortcuts.key.ctrl_c";
+        public static final String KEY_CTRL_V = "gui.director.shortcuts.key.ctrl_v";
+        public static final String KEY_DELETE = "gui.director.shortcuts.key.delete";
+        public static final String KEY_CTRL_DELETE = "gui.director.shortcuts.key.ctrl_delete";
+        public static final String KEY_ALT_DELETE = "gui.director.shortcuts.key.alt_delete";
+        public static final String KEY_E = "gui.director.shortcuts.key.e";
+        public static final String KEY_G_R = "gui.director.shortcuts.key.g_r";
+        public static final String KEY_F1 = "gui.director.shortcuts.key.f1";
+        public static final String KEY_ESC = "gui.director.shortcuts.key.esc";
+
+        private Shortcuts() {
         }
     }
 }
