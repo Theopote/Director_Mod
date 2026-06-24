@@ -64,6 +64,20 @@ public class DirectorConfig {
             public int containerWorldBlocksPerTick = 3000;
             /** 推荐客户端 JVM 最大堆（MB）。低于此值仅提示，不阻止使用；大容器操作可能更卡。 */
             public int recommendedClientHeapMb = 8192;
+            /** 时间线正常播放：每 UI 帧最多落地多少方块（节流） */
+            public int timelineWorldPlacementsPerFrame = 128;
+            public int timelineWorldPlacementsPerContainerPerFrame = 64;
+            /** 拖动播放头 scrubbing：每 UI 帧落地预算（显著提高以快速预览） */
+            public int timelineWorldPlacementsPerFrameScrubbing = 4096;
+            public int timelineWorldPlacementsPerContainerPerFrameScrubbing = 2048;
+            /** 松手后追帧：额外高速落地帧数与预算 */
+            public int timelineScrubCatchUpFrames = 24;
+            public int timelineWorldPlacementsPerFrameCatchUp = 6144;
+            public int timelineWorldPlacementsPerContainerPerFrameCatchUp = 3072;
+            /** 时间线目标方块异步落地时，服务端 tick 预算倍数 */
+            public int timelineVisibilityServerTickMultiplierPlayback = 1;
+            public int timelineVisibilityServerTickMultiplierScrubbing = 6;
+            public int timelineVisibilityServerTickMultiplierCatchUp = 8;
         }
         
         public static class UISettings {

@@ -3,7 +3,9 @@ package com.director.core.container.visibility;
 import com.director.core.container.BlockStore;
 import com.director.core.container.BlockEntityNbtIO;
 import com.director.core.container.Container;
+import com.director.timeline.playback.block.TimelinePlacementBudget;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
+import it.unimi.dsi.fastutil.longs.LongSet;
 import net.minecraft.block.Blocks;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.server.MinecraftServer;
@@ -12,8 +14,7 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
-import it.unimi.dsi.fastutil.longs.LongSet;
+import it.unimi.dsi.fastutil.longs.LongIterator;
 
 import java.util.*;
 
@@ -58,6 +59,9 @@ public class ContainerVisibilityService {
      */
     private final Map<UUID, LongSet> lastShownBlocks = new HashMap<>();
 
+    /** 时间线播放/拖动播放头时期望落地的方块目标集（posLong），由服务端分帧追平。 */
+    private final Map<UUID, LongSet> timelineVisibilityTargets = new HashMap<>();
+
     private final Deque<VisibilityTask> pendingTasks = new ArrayDeque<>();
     
     public ContainerVisibilityService(MinecraftServer server) {
@@ -76,6 +80,24 @@ public class ContainerVisibilityService {
             if (task.isComplete()) {
                 pendingTasks.removeFirst();
                 task.finish();
+            }
+        }
+
+        if (budget > 0 && !timelineVisibilityTargets.isEmpty()) {
+            Iterator<Map.Entry<UUID, LongSet>> iterator = timelineVisibilityTargets.entrySet().iterator();
+            while (iterator.hasNext() && budget > 0) {
+                Map.Entry<UUID, LongSet> entry = iterator.next();
+                UUID containerId = entry.getKey();
+                Container container = com.director.core.DirectorServices.get().containers().getContainer(containerId);
+                if (container == null) {
+                    iterator.remove();
+                    continue;
+                }
+                int consumed = applyTimelineVisibilityForContainer(container, entry.getValue(), budget);
+                budget -= Math.max(1, consumed);
+                if (isTimelineTargetSatisfied(containerId, entry.getValue())) {
+                    iterator.remove();
+                }
             }
         }
     }
@@ -237,10 +259,204 @@ public class ContainerVisibilityService {
         pendingTasks.clear();
         snapshots.clear();
         lastShownBlocks.clear();
+        timelineVisibilityTargets.clear();
         ContainerVisibilityFeedback.reset();
         LOGGER.debug("[ContainerVisibilityService] 清除所有快照");
     }
     
+    /**
+     * 时间线专用：设置期望落地的方块目标集，由服务端分帧追平（不取消进行中的任务、不阻塞 UI 线程）。
+     *
+     * <p>拖动播放头 / 松手追帧时使用；正常播放仍走同步 {@link #showContainerBlocks}。
+     */
+    public void showContainerBlocksForTimeline(Container container, Set<BlockPos> blocksToShow) {
+        if (container == null) {
+            return;
+        }
+        final Set<BlockPos> target = blocksToShow != null ? blocksToShow : Collections.emptySet();
+        runOnServer(() -> enqueueTimelineVisibilityTarget(container, target));
+    }
+
+    private void enqueueTimelineVisibilityTarget(Container container, Set<BlockPos> blocksToShow) {
+        ServerWorld world = resolveWorld(container);
+        if (world == null) {
+            LOGGER.warn("[Visibility] 容器 {} 未绑定世界，无法设置时间线可见性目标", container.getName());
+            return;
+        }
+
+        BlockStore store = snapshots.get(container.getId());
+        if (store == null) {
+            if (createSnapshotFromBlockStore(container)) {
+                store = snapshots.get(container.getId());
+            }
+            if (store == null) {
+                LOGGER.warn("[Visibility] 容器 {} 无快照可恢复，跳过时间线可见性", container.getName());
+                return;
+            }
+        }
+        backfillSnapshotFromBlockStore(container, store);
+
+        LongOpenHashSet targetLongs = new LongOpenHashSet(Math.max(16, blocksToShow.size() * 2));
+        for (BlockPos pos : blocksToShow) {
+            if (pos != null) {
+                targetLongs.add(pos.asLong());
+            }
+        }
+        timelineVisibilityTargets.put(container.getId(), targetLongs);
+        lastShownBlocks.computeIfAbsent(container.getId(), id -> new LongOpenHashSet());
+
+        if (!isTimelineTargetSatisfied(container.getId(), targetLongs)) {
+            int kickBudget = Math.max(256, getBlocksPerTickBudget() / 3);
+            applyTimelineVisibilityForContainer(container, targetLongs, kickBudget);
+        }
+    }
+
+    private boolean isTimelineTargetSatisfied(UUID containerId, LongSet target) {
+        LongSet last = lastShownBlocks.get(containerId);
+        if (target == null || target.isEmpty()) {
+            return last == null || last.isEmpty();
+        }
+        if (last == null || last.size() != target.size()) {
+            return false;
+        }
+        for (LongIterator it = target.iterator(); it.hasNext(); ) {
+            if (!last.contains(it.nextLong())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private int applyTimelineVisibilityForContainer(Container container, LongSet target, int budget) {
+        if (budget <= 0 || container == null || target == null) {
+            return 0;
+        }
+
+        BlockStore store = snapshots.get(container.getId());
+        if (store == null) {
+            return 0;
+        }
+        ServerWorld world = resolveWorld(container);
+        if (world == null) {
+            return 0;
+        }
+
+        LongSet last = lastShownBlocks.computeIfAbsent(container.getId(), id -> new LongOpenHashSet());
+        LongOpenHashSet affectedChunks = new LongOpenHashSet();
+        int processed = 0;
+        boolean preferShows = TimelinePlacementBudget.isAccelerated();
+
+        if (preferShows) {
+            processed += applyTimelineShows(world, store, last, target, affectedChunks, budget);
+            processed += applyTimelineHides(world, store, last, target, affectedChunks, budget - processed);
+        } else {
+            processed += applyTimelineHides(world, store, last, target, affectedChunks, budget);
+            processed += applyTimelineShows(world, store, last, target, affectedChunks, budget - processed);
+        }
+
+        if (processed > 0) {
+            flushLightingForChunks(world, affectedChunks);
+        }
+        return processed;
+    }
+
+    private int applyTimelineHides(ServerWorld world,
+            BlockStore store,
+            LongSet last,
+            LongSet target,
+            LongOpenHashSet affectedChunks,
+            int budget) {
+        if (budget <= 0 || last.isEmpty()) {
+            return 0;
+        }
+        int processed = 0;
+        List<Long> toHide = new ArrayList<>();
+        for (LongIterator it = last.iterator(); it.hasNext(); ) {
+            long posLong = it.nextLong();
+            if (!target.contains(posLong)) {
+                toHide.add(posLong);
+            }
+        }
+        for (long posLong : toHide) {
+            if (processed >= budget) {
+                break;
+            }
+            BlockPos pos = BlockPos.fromLong(posLong);
+            if (timelineHideAt(world, store, pos, affectedChunks)) {
+                last.remove(posLong);
+                processed++;
+            }
+        }
+        return processed;
+    }
+
+    private int applyTimelineShows(ServerWorld world,
+            BlockStore store,
+            LongSet last,
+            LongSet target,
+            LongOpenHashSet affectedChunks,
+            int budget) {
+        if (budget <= 0 || target.isEmpty()) {
+            return 0;
+        }
+        int processed = 0;
+        for (LongIterator it = target.iterator(); it.hasNext(); ) {
+            if (processed >= budget) {
+                break;
+            }
+            long posLong = it.nextLong();
+            if (last.contains(posLong)) {
+                continue;
+            }
+            BlockPos pos = BlockPos.fromLong(posLong);
+            if (timelineShowAt(world, store, pos, affectedChunks)) {
+                last.add(posLong);
+                processed++;
+            }
+        }
+        return processed;
+    }
+
+    private boolean timelineHideAt(ServerWorld world, BlockStore store, BlockPos pos, LongOpenHashSet affectedChunks) {
+        int chunkX = pos.getX() >> 4;
+        int chunkZ = pos.getZ() >> 4;
+        if (!world.getChunkManager().isChunkLoaded(chunkX, chunkZ)) {
+            return false;
+        }
+        net.minecraft.block.BlockState currentState = world.getBlockState(pos);
+        if (currentState.isAir()) {
+            return false;
+        }
+        if (!store.contains(pos)) {
+            store.capture(world, pos);
+        }
+        net.minecraft.block.entity.BlockEntity be = world.getBlockEntity(pos);
+        if (be != null) {
+            world.removeBlockEntity(pos);
+        }
+        world.setBlockState(pos, Blocks.AIR.getDefaultState(), ContainerBlockUpdateFlags.BATCH);
+        trackAffectedChunk(affectedChunks, chunkX, chunkZ);
+        return true;
+    }
+
+    private boolean timelineShowAt(ServerWorld world, BlockStore store, BlockPos pos, LongOpenHashSet affectedChunks) {
+        BlockStore.Entry entry = store.get(pos);
+        if (entry == null) {
+            return false;
+        }
+        int chunkX = pos.getX() >> 4;
+        int chunkZ = pos.getZ() >> 4;
+        if (!world.getChunkManager().isChunkLoaded(chunkX, chunkZ)) {
+            return false;
+        }
+        net.minecraft.block.BlockState currentState = world.getBlockState(pos);
+        if (!currentState.isAir()) {
+            return false;
+        }
+        restoreBlockEntry(world, pos, entry, affectedChunks);
+        return true;
+    }
+
     /**
      * 显示容器的部分方块（动画效果使用）
      * 
@@ -472,11 +688,13 @@ public class ContainerVisibilityService {
     }
 
     private int getBlocksPerTickBudget() {
+        int base;
         try {
-            return Math.max(1, com.director.config.DirectorConfig.getConfig().performance.containerWorldBlocksPerTick);
+            base = Math.max(1, com.director.config.DirectorConfig.getConfig().performance.containerWorldBlocksPerTick);
         } catch (Exception ignored) {
-            return 3000;
+            base = 3000;
         }
+        return Math.max(1, base * TimelinePlacementBudget.getVisibilityTickMultiplier());
     }
     
     /**
