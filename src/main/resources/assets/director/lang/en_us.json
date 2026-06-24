@@ -201,6 +201,10 @@
   "gui.director.status.visibility_progress": "%s: %s… (%d of %d blocks remaining)",
   "gui.director.status.visibility_complete": "%s: %s complete",
 
+  "gui.director.status.large_container_advisory": "Large container: %s (%s blocks) — hide/restore may take longer",
+  "gui.director.status.container_blocks_truncated": "Container %s: block add capped (%d requested, %d applied, max %d)",
+  "gui.director.status.save_failed_advisory": "[Director] Save failed: %s",
+
   "gui.director.memory.low_heap_advisory": "[Director] JVM heap is %s MB (recommended ≥ %s MB). You can still use Director; large containers may feel slower.",
   "gui.director.memory.low_heap_advisory_hint": "[Director] For smoother editing, add -Xmx8G in your launcher JVM arguments when your PC has enough RAM.",
 

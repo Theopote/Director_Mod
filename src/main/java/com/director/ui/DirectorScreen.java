@@ -527,6 +527,7 @@ public class DirectorScreen extends Screen {
         } catch (Exception e) {
             LOGGER.warn("[Director] 保存时间线数据失败: {}", e.getMessage(), e);
         }
+        com.director.persistence.PersistenceUserNotifier.notifySaveFailureIfNeeded(client);
 
         if (uiManager != null) {
             try {

@@ -2,6 +2,7 @@ package com.director.ui.panels;
 
 import com.director.core.DirectorServices;
 import com.director.core.container.visibility.ContainerVisibilityFeedback;
+import com.director.core.container.ContainerStatusFeedback;
 import com.director.persistence.PersistenceSaveStatus;
 import imgui.ImGui;
 import imgui.flag.ImGuiWindowFlags;
@@ -189,6 +190,15 @@ public class StatusBarPanel extends AbstractPanel implements IPanelRegistryAware
             String visibilityMessage = ContainerVisibilityFeedback.getStatusMessage();
             if (visibilityMessage != null && !visibilityMessage.isBlank()) {
                 UITheme.label(Icons.REFRESH + " " + visibilityMessage, rgba(255, 204, 51));
+                separator();
+            }
+        }
+
+        // 6.5. Container operational advisories
+        if (ContainerStatusFeedback.hasMessage()) {
+            String advisory = ContainerStatusFeedback.getMessage();
+            if (advisory != null && !advisory.isBlank()) {
+                UITheme.label(Icons.WARNING + " " + advisory, rgba(255, 153, 51));
                 separator();
             }
         }

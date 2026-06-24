@@ -1193,6 +1193,8 @@ public class ContainerManager {
         if (positions.size() > limited.size() && maxBlocks > 0) {
             LOGGER.warn("[ContainerManager] 容器 {} 添加方块被上限裁剪: 请求 {}，实际 {}，上限 {}",
                     container.getName(), positions.size(), limited.size(), maxBlocks);
+            ContainerStatusFeedback.onBlocksTruncated(
+                    container.getName(), positions.size(), limited.size(), maxBlocks);
         }
         warnIfLargeContainer("容器 " + container.getName(), finalCount);
         return limited;
@@ -1227,6 +1229,7 @@ public class ContainerManager {
         if (warnBlocks > 0 && blockCount >= warnBlocks) {
             LOGGER.warn("[ContainerManager] {} 方块数较大: {}，隐藏/恢复/保存可能需要更长时间",
                     context, blockCount);
+            ContainerStatusFeedback.onLargeContainer(context, blockCount);
         }
     }
 

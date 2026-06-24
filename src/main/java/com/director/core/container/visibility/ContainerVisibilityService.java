@@ -1,6 +1,7 @@
 package com.director.core.container.visibility;
 
 import com.director.core.container.BlockStore;
+import com.director.core.container.BlockEntityNbtIO;
 import com.director.core.container.Container;
 import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import net.minecraft.block.Blocks;
@@ -588,22 +589,7 @@ public class ContainerVisibilityService {
         if (be == null) {
             return;
         }
-        try {
-            java.lang.reflect.Method loadMethod = be.getClass()
-                    .getMethod("loadWithComponents", net.minecraft.nbt.NbtCompound.class,
-                            net.minecraft.registry.RegistryWrapper.WrapperLookup.class);
-            loadMethod.invoke(be, entry.beNbt, world.getRegistryManager());
-            be.markDirty();
-        } catch (Exception e) {
-            try {
-                java.lang.reflect.Method readNbtMethod = be.getClass()
-                        .getMethod("readNbt", net.minecraft.nbt.NbtCompound.class,
-                                net.minecraft.registry.RegistryWrapper.WrapperLookup.class);
-                readNbtMethod.invoke(be, entry.beNbt, world.getRegistryManager());
-                be.markDirty();
-            } catch (Exception ignored) {
-            }
-        }
+        BlockEntityNbtIO.restore(be, entry.beNbt, world.getRegistryManager());
     }
 
     /**

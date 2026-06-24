@@ -201,6 +201,10 @@
   "gui.director.status.visibility_progress": "%s：正在%s…（剩余 %d / %d 个方块）",
   "gui.director.status.visibility_complete": "%s：%s完成",
 
+  "gui.director.status.large_container_advisory": "大容器：%s（%s 个方块），隐藏/恢复可能较慢",
+  "gui.director.status.container_blocks_truncated": "容器 %s：添加方块已裁剪（请求 %d，实际 %d，上限 %d）",
+  "gui.director.status.save_failed_advisory": "[Director] 保存失败：%s",
+
   "gui.director.memory.low_heap_advisory": "[Director] 当前 JVM 堆内存 %s MB（推荐 ≥ %s MB）。可正常使用；处理大容器时可能更卡。",
   "gui.director.memory.low_heap_advisory_hint": "[Director] 若电脑内存充足，可在启动器 JVM 参数中添加 -Xmx8G 以获得更流畅的体验。",
 

@@ -75,12 +75,7 @@ public class BlockStore {
 
         BlockEntity be = world.getBlockEntity(pos);
         if (be != null) {
-            try {
-                // Minecraft 1.21+ 使用 createNbt
-                tag = be.createNbt(world.getRegistryManager());
-            } catch (Exception e) {
-                // 忽略
-            }
+            tag = BlockEntityNbtIO.capture(world, be);
         }
 
         data.put(pos.toImmutable(), new Entry(state, tag));
@@ -129,36 +124,7 @@ public class BlockStore {
             if (entry.beNbt != null) {
                 BlockEntity newBe = world.getBlockEntity(pos);
                 if (newBe != null) {
-                    try {
-                        // Minecraft 1.21+ 使用 loadWithComponents
-                        java.lang.reflect.Method loadMethod = newBe.getClass()
-                            .getMethod("loadWithComponents", NbtCompound.class, 
-                                net.minecraft.registry.RegistryWrapper.WrapperLookup.class);
-                        loadMethod.invoke(newBe, entry.beNbt, world.getRegistryManager());
-                        newBe.markDirty();
-                    } catch (NoSuchMethodException e1) {
-                        // 如果上面的方法失败，尝试使用旧的方法签名
-                        try {
-                            java.lang.reflect.Method readNbtMethod = newBe.getClass()
-                                .getMethod("readNbt", NbtCompound.class, 
-                                    net.minecraft.registry.RegistryWrapper.WrapperLookup.class);
-                            readNbtMethod.invoke(newBe, entry.beNbt, world.getRegistryManager());
-                            newBe.markDirty();
-                        } catch (NoSuchMethodException e2) {
-                            try {
-                                java.lang.reflect.Method readNbtMethod = newBe.getClass()
-                                    .getMethod("readNbt", NbtCompound.class);
-                                readNbtMethod.invoke(newBe, entry.beNbt);
-                                newBe.markDirty();
-                            } catch (Exception e3) {
-                                // 忽略恢复失败
-                            }
-                        } catch (Exception e2) {
-                            // 忽略恢复失败
-                        }
-                    } catch (Exception e1) {
-                        // 忽略恢复失败
-                    }
+                    BlockEntityNbtIO.restore(newBe, entry.beNbt, world.getRegistryManager());
                 }
             }
         }

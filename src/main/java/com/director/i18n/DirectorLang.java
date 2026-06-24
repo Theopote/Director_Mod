@@ -1463,6 +1463,9 @@ public final class DirectorLang {
     public static final class Status {
         public static final String VISIBILITY_PROGRESS = "gui.director.status.visibility_progress";
         public static final String VISIBILITY_COMPLETE = "gui.director.status.visibility_complete";
+        public static final String LARGE_CONTAINER_ADVISORY = "gui.director.status.large_container_advisory";
+        public static final String CONTAINER_BLOCKS_TRUNCATED = "gui.director.status.container_blocks_truncated";
+        public static final String SAVE_FAILED_ADVISORY = "gui.director.status.save_failed_advisory";
 
         private Status() {
         }
