@@ -464,7 +464,7 @@ public class ContainerVisibilityService {
         LongSet last = lastShownBlocks.computeIfAbsent(container.getId(), id -> new LongOpenHashSet());
         LongOpenHashSet affectedChunks = new LongOpenHashSet();
         int processed = 0;
-        boolean preferShows = TimelinePlacementBudget.isAccelerated();
+        boolean preferShows = TimelinePlacementBudget.isPlacementAccelerated();
 
         if (preferShows) {
             processed += applyTimelineShows(world, store, last, target, affectedChunks, budget);
