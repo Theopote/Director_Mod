@@ -11,7 +11,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * PlaybackOrchestrator
- *
+ * <p>
  * ✅ 单一播放驱动入口（替代 TimelinePanel 内的 updatePlayback + 一堆 Controller.tick）
  * ✅ 每帧由 UIManager 调用 tick(deltaSeconds)
  * ✅ TimelineModel 作为单一真相源（playing/currentTime/speed/loop/scrubbing）
@@ -189,8 +189,12 @@ public final class PlaybackOrchestrator {
     private void driveSubsystems(float deltaSeconds) {
         float renderDelta = getRenderDeltaFallback(deltaSeconds);
 
-        runSubsystem("TimelineClipBlockController", () ->
-                com.director.timeline.playback.block.TimelineClipBlockController.getInstance().update());
+        runSubsystem("TimelineClipBlockController", () -> {
+            var clipController = com.director.timeline.playback.block.TimelineClipBlockController.getInstance();
+            if (clipController.needsClipBlockUpdate(model)) {
+                clipController.update();
+            }
+        });
         runSubsystem("TimelineCameraController", () ->
                 TimelineCameraController.getInstance().updateOwnerAndSample(renderDelta));
         runSubsystem("TimelineWorldController", () ->

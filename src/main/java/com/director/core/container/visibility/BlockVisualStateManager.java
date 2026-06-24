@@ -309,6 +309,28 @@ public class BlockVisualStateManager {
         visualOverrides.clear();
         renderEntries.clear();
     }
+
+    /** 是否存在需要 Mixin / 覆盖层处理的方块状态。 */
+    public boolean hasActiveOverrides() {
+        return !visualOverrides.isEmpty();
+    }
+
+    /**
+     * 移除指定容器方块的视觉覆盖（时间线预览模式下世界方块由 Minecraft 直接渲染，不需要覆盖层）。
+     */
+    public void clearOverridesFor(Container container) {
+        if (container == null) {
+            return;
+        }
+        for (BlockPos pos : container.getBlocksView()) {
+            if (pos == null) {
+                continue;
+            }
+            visualOverrides.remove(pos);
+            renderEntries.remove(pos);
+            lastFrameStates.remove(pos);
+        }
+    }
     
     /**
      * 设置方块的视觉状态

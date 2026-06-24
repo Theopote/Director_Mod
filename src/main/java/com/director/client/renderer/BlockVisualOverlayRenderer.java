@@ -39,6 +39,9 @@ public class BlockVisualOverlayRenderer {
      */
     public void renderOverlays(MatrixStack matrices, VertexConsumerProvider vertexConsumers, Vec3d camera) {
         BlockVisualStateManager manager = BlockVisualStateManager.getInstance();
+        if (!manager.hasActiveOverrides()) {
+            return;
+        }
         Set<BlockPos> overlayBlocks = manager.getOverlayBlocks();
         
         if (overlayBlocks.isEmpty()) {
@@ -103,8 +106,7 @@ public class BlockVisualOverlayRenderer {
         float r = 1.0f;
         float g = 1.0f;
         float b = 1.0f;
-        float a = alpha;
-        
+
         // 渲染方块的6个面（稍微缩小以避免Z-fighting）
         float offset = 0.001f;
         float size = 1.0f - offset * 2;
@@ -115,12 +117,12 @@ public class BlockVisualOverlayRenderer {
         );
         
         // 使用现有的渲染方法
-        renderQuad(buffer, matrices.peek().getPositionMatrix(), box, new float[]{r, g, b, a}, 0, 1, 2, 3, x, y, z); // 底面
-        renderQuad(buffer, matrices.peek().getPositionMatrix(), box, new float[]{r, g, b, a}, 4, 5, 6, 7, x, y, z); // 顶面
-        renderQuad(buffer, matrices.peek().getPositionMatrix(), box, new float[]{r, g, b, a}, 0, 1, 5, 4, x, y, z); // 前面
-        renderQuad(buffer, matrices.peek().getPositionMatrix(), box, new float[]{r, g, b, a}, 2, 3, 7, 6, x, y, z); // 后面
-        renderQuad(buffer, matrices.peek().getPositionMatrix(), box, new float[]{r, g, b, a}, 0, 4, 7, 3, x, y, z); // 左面
-        renderQuad(buffer, matrices.peek().getPositionMatrix(), box, new float[]{r, g, b, a}, 1, 2, 6, 5, x, y, z); // 右面
+        renderQuad(buffer, matrices.peek().getPositionMatrix(), box, new float[]{r, g, b, alpha}, 0, 1, 2, 3, x, y, z); // 底面
+        renderQuad(buffer, matrices.peek().getPositionMatrix(), box, new float[]{r, g, b, alpha}, 4, 5, 6, 7, x, y, z); // 顶面
+        renderQuad(buffer, matrices.peek().getPositionMatrix(), box, new float[]{r, g, b, alpha}, 0, 1, 5, 4, x, y, z); // 前面
+        renderQuad(buffer, matrices.peek().getPositionMatrix(), box, new float[]{r, g, b, alpha}, 2, 3, 7, 6, x, y, z); // 后面
+        renderQuad(buffer, matrices.peek().getPositionMatrix(), box, new float[]{r, g, b, alpha}, 0, 4, 7, 3, x, y, z); // 左面
+        renderQuad(buffer, matrices.peek().getPositionMatrix(), box, new float[]{r, g, b, alpha}, 1, 2, 6, 5, x, y, z); // 右面
         
         matrices.pop();
     }

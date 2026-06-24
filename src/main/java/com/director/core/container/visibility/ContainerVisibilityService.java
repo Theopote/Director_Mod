@@ -62,6 +62,9 @@ public class ContainerVisibilityService {
     /** 时间线播放/拖动播放头时期望落地的方块目标集（posLong），由服务端分帧追平。 */
     private final Map<UUID, LongSet> timelineVisibilityTargets = new HashMap<>();
 
+    /** 静止预览时暂停分帧追平（不清 map，避免与 tick 迭代并发冲突）。 */
+    private volatile boolean timelineDrivingPaused = true;
+
     private final Deque<VisibilityTask> pendingTasks = new ArrayDeque<>();
     
     public ContainerVisibilityService(MinecraftServer server) {
@@ -83,20 +86,22 @@ public class ContainerVisibilityService {
             }
         }
 
-        if (budget > 0 && !timelineVisibilityTargets.isEmpty()) {
-            Iterator<Map.Entry<UUID, LongSet>> iterator = timelineVisibilityTargets.entrySet().iterator();
-            while (iterator.hasNext() && budget > 0) {
-                Map.Entry<UUID, LongSet> entry = iterator.next();
+        if (!timelineDrivingPaused && budget > 0 && !timelineVisibilityTargets.isEmpty()) {
+            List<Map.Entry<UUID, LongSet>> pendingTimeline = new ArrayList<>(timelineVisibilityTargets.entrySet());
+            for (Map.Entry<UUID, LongSet> entry : pendingTimeline) {
+                if (budget <= 0) {
+                    break;
+                }
                 UUID containerId = entry.getKey();
                 Container container = com.director.core.DirectorServices.get().containers().getContainer(containerId);
                 if (container == null) {
-                    iterator.remove();
+                    timelineVisibilityTargets.remove(containerId);
                     continue;
                 }
                 int consumed = applyTimelineVisibilityForContainer(container, entry.getValue(), budget);
                 budget -= Math.max(1, consumed);
-                if (isTimelineTargetSatisfied(containerId, entry.getValue())) {
-                    iterator.remove();
+                if (isTimelineTargetSatisfied(containerId, entry.getValue(), resolveWorld(container))) {
+                    timelineVisibilityTargets.remove(containerId);
                 }
             }
         }
@@ -277,7 +282,17 @@ public class ContainerVisibilityService {
         runOnServer(() -> enqueueTimelineVisibilityTarget(container, target));
     }
 
+    /** 预览静止：暂停分帧追平（仅设标志，不在客户端线程上 clear map）。 */
+    public void pauseTimelineDriving() {
+        timelineDrivingPaused = true;
+    }
+
+    public void resumeTimelineDriving() {
+        timelineDrivingPaused = false;
+    }
+
     private void enqueueTimelineVisibilityTarget(Container container, Set<BlockPos> blocksToShow) {
+        timelineDrivingPaused = false;
         ServerWorld world = resolveWorld(container);
         if (world == null) {
             LOGGER.warn("[Visibility] 容器 {} 未绑定世界，无法设置时间线可见性目标", container.getName());
@@ -304,7 +319,7 @@ public class ContainerVisibilityService {
         }
 
         UUID containerId = container.getId();
-        if (isTimelineTargetSatisfied(containerId, targetLongs)) {
+        if (isTimelineTargetSatisfied(containerId, targetLongs, world)) {
             timelineVisibilityTargets.remove(containerId);
             return;
         }
@@ -336,18 +351,43 @@ public class ContainerVisibilityService {
         return true;
     }
 
-    private boolean isTimelineTargetSatisfied(UUID containerId, LongSet target) {
+    private boolean isTimelineTargetSatisfied(UUID containerId, LongSet target, ServerWorld world) {
         LongSet last = lastShownBlocks.get(containerId);
         if (target == null || target.isEmpty()) {
             return last == null || last.isEmpty();
         }
-        if (last == null || last.size() != target.size()) {
-            return false;
+        if (last == null) {
+            last = new LongOpenHashSet();
         }
         for (LongIterator it = target.iterator(); it.hasNext(); ) {
-            if (!last.contains(it.nextLong())) {
-                return false;
+            long posLong = it.nextLong();
+            if (last.contains(posLong)) {
+                continue;
             }
+            if (world != null) {
+                BlockPos pos = BlockPos.fromLong(posLong);
+                int chunkX = pos.getX() >> 4;
+                int chunkZ = pos.getZ() >> 4;
+                if (!world.getChunkManager().isChunkLoaded(chunkX, chunkZ)) {
+                    continue;
+                }
+            }
+            return false;
+        }
+        for (LongIterator it = last.iterator(); it.hasNext(); ) {
+            long posLong = it.nextLong();
+            if (target.contains(posLong)) {
+                continue;
+            }
+            if (world != null) {
+                BlockPos pos = BlockPos.fromLong(posLong);
+                int chunkX = pos.getX() >> 4;
+                int chunkZ = pos.getZ() >> 4;
+                if (!world.getChunkManager().isChunkLoaded(chunkX, chunkZ)) {
+                    continue;
+                }
+            }
+            return false;
         }
         return true;
     }

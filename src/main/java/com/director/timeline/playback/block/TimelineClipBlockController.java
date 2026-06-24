@@ -89,6 +89,7 @@ public class TimelineClipBlockController {
     private long timelineRevision = 1L;
     private long lastHandledRevision = -1L;
     private float lastHandledPreviewTime = Float.NaN;
+    private boolean timelineDrivingPaused = true;
     private TimelineModel observedModel;
     private final TimelineModel.ModelChangeListener modelChangeListener = changeType -> timelineRevision++;
 
@@ -289,6 +290,25 @@ public class TimelineClipBlockController {
         timelineRevision++;
         lastHandledRevision = -1L;
         lastHandledPreviewTime = Float.NaN;
+        timelineDrivingPaused = false;
+    }
+
+    /**
+     * 是否需要在当前帧运行方块控制器（播放 / 拖动 / 模型或时间变化后的单次同步）。
+     */
+    public boolean needsClipBlockUpdate(TimelineModel model) {
+        if (model == null) {
+            return false;
+        }
+        if (model.isPlaying() || model.isScrubbing()) {
+            return true;
+        }
+        if (timelineRevision != lastHandledRevision) {
+            return true;
+        }
+        float currentTime = model.getCurrentTime();
+        return Float.isNaN(lastHandledPreviewTime)
+                || Math.abs(currentTime - lastHandledPreviewTime) > 1e-4f;
     }
 
     private void ensureModelListenerBound(TimelineModel model) {
@@ -356,8 +376,10 @@ public class TimelineClipBlockController {
 
         BlockVisualStateManager visualStateManager = BlockVisualStateManager.getInstance();
 
-        // 🔥 步骤 0：清空上一帧的 renderEntries（确保每帧都是全新的）
-        visualStateManager.clearFrame(); // 这会清空 visualOverrides 和 renderEntries
+        // 预览模式：世界方块由 Minecraft 直接渲染，不维护数万规模的 visualOverrides
+        if (!previewMode) {
+            visualStateManager.clearFrame();
+        }
 
         // currentFrameVisibleBlocks：保持为“渲染可见集合”（用于遮挡/overlay/视觉状态）
         Map<UUID, Set<BlockPos>> currentFrameVisibleBlocks = new LinkedHashMap<>();
@@ -600,6 +622,9 @@ public class TimelineClipBlockController {
                         || TimelinePlacementBudget.isCatchUp()
                         || (previewMode && previewTimeChanged);
                 if (needsVisibilitySync) {
+                    if (visibilityService != null) {
+                        visibilityService.resumeTimelineDriving();
+                    }
                     if (placementAccelerated) {
                         visibilityService.showContainerBlocksForTimeline(container, worldBlocks);
                     } else if (worldBlocks.isEmpty()) {
@@ -617,72 +642,79 @@ public class TimelineClipBlockController {
                 LOGGER.warn("[TimelineClipBlockController] ContainerVisibilityService 未初始化，无法控制方块显示");
             }
 
-            // ◆ 然后设置视觉状态（用于半透明效果和遮挡淡化）
-            // 性能关键：避免每帧对全量 blocks/allBlocks 调 setBlocksState。
-            // - 可见集合变化：只处理新增/移除的方块
-            // - 视觉参数变化：对当前可见集做一次更新（通常很少发生）
-            Set<BlockPos> prevVisible = lastFrameVisibleBlocks.getOrDefault(containerId,
-                    java.util.Collections.emptySet());
+            // ◆ 然后设置视觉状态（用于半透明效果和遮挡淡化）——仅播放时需要
+            if (!previewMode) {
+                Set<BlockPos> prevVisible = lastFrameVisibleBlocks.getOrDefault(containerId,
+                        java.util.Collections.emptySet());
 
-            if (containerStructureChanged) {
-                // 容器本身被编辑过：做一次全量同步（但仍避免每帧做）
-                List<BlockPos> all = getCachedContainerBlocks(container);
-                if (renderBlocks == null || renderBlocks.isEmpty()) {
-                    visualStateManager.setBlocksState(all, BlockVisualStateManager.BlockVisualState.hidden());
-                } else {
-                    // 先把所有设为隐藏，再把可见集覆盖为目标状态（减少漏网）
-                    visualStateManager.setBlocksState(all, BlockVisualStateManager.BlockVisualState.hidden());
-                    // 说明：当半透明且不写深度时，方块自身的前后面会叠加绘制，视觉上容易“更深/更暗”。
-                    // 这里统一改为写深度（GHOST_WITH_DEPTH），让动画/遮挡期间的颜色更接近最终落地后的世界渲染。
-                    BlockVisualStateManager.BlockVisualState visibleState = (opacity < 1.0f)
-                            ? BlockVisualStateManager.BlockVisualState.ghost(opacity, true, true)
-                                    .withSuppressWorldRendering(true)
-                            : BlockVisualStateManager.BlockVisualState.normal();
-                    visualStateManager.setBlocksState(renderBlocks, visibleState);
-                }
-            } else {
-                if (renderSetChanged) {
-                    // removed = prev - now
-                    if (prevVisible != null && !prevVisible.isEmpty()) {
-                        Set<BlockPos> removed = new HashSet<>(prevVisible);
-                        if (renderBlocks != null && !renderBlocks.isEmpty()) {
-                            removed.removeAll(renderBlocks);
-                        }
-                        if (!removed.isEmpty()) {
-                            visualStateManager.setBlocksState(removed,
-                                    BlockVisualStateManager.BlockVisualState.hidden());
-                        }
-                    }
-
-                    // added = now - prev
-                    if (renderBlocks != null && !renderBlocks.isEmpty()) {
-                        Set<BlockPos> added = new HashSet<>(renderBlocks);
-                        if (prevVisible != null && !prevVisible.isEmpty()) {
-                            added.removeAll(prevVisible);
-                        }
-                        if (!added.isEmpty()) {
-                            BlockVisualStateManager.BlockVisualState visibleState = (opacity < 1.0f)
-                                    ? BlockVisualStateManager.BlockVisualState.ghost(opacity, true, true)
-                                            .withSuppressWorldRendering(true)
-                                    : BlockVisualStateManager.BlockVisualState.normal();
-                            visualStateManager.setBlocksState(added, visibleState);
-                        }
-                    }
-                }
-
-                if (visualParamsChanged) {
-                    // 参数变化：把当前可见集整体更新一次
-                    if (renderBlocks != null && !renderBlocks.isEmpty()) {
+                if (containerStructureChanged) {
+                    List<BlockPos> all = getCachedContainerBlocks(container);
+                    if (renderBlocks == null || renderBlocks.isEmpty()) {
+                        visualStateManager.setBlocksState(all, BlockVisualStateManager.BlockVisualState.hidden());
+                    } else {
+                        visualStateManager.setBlocksState(all, BlockVisualStateManager.BlockVisualState.hidden());
                         BlockVisualStateManager.BlockVisualState visibleState = (opacity < 1.0f)
                                 ? BlockVisualStateManager.BlockVisualState.ghost(opacity, true, true)
                                         .withSuppressWorldRendering(true)
                                 : BlockVisualStateManager.BlockVisualState.normal();
                         visualStateManager.setBlocksState(renderBlocks, visibleState);
                     }
+                } else {
+                    if (renderSetChanged) {
+                        if (prevVisible != null && !prevVisible.isEmpty()) {
+                            Set<BlockPos> removed = new HashSet<>(prevVisible);
+                            if (renderBlocks != null && !renderBlocks.isEmpty()) {
+                                removed.removeAll(renderBlocks);
+                            }
+                            if (!removed.isEmpty()) {
+                                visualStateManager.setBlocksState(removed,
+                                        BlockVisualStateManager.BlockVisualState.hidden());
+                            }
+                        }
+
+                        if (renderBlocks != null && !renderBlocks.isEmpty()) {
+                            Set<BlockPos> added = new HashSet<>(renderBlocks);
+                            if (prevVisible != null && !prevVisible.isEmpty()) {
+                                added.removeAll(prevVisible);
+                            }
+                            if (!added.isEmpty()) {
+                                BlockVisualStateManager.BlockVisualState visibleState = (opacity < 1.0f)
+                                        ? BlockVisualStateManager.BlockVisualState.ghost(opacity, true, true)
+                                                .withSuppressWorldRendering(true)
+                                        : BlockVisualStateManager.BlockVisualState.normal();
+                                visualStateManager.setBlocksState(added, visibleState);
+                            }
+                        }
+                    }
+
+                    if (visualParamsChanged) {
+                        if (renderBlocks != null && !renderBlocks.isEmpty()) {
+                            BlockVisualStateManager.BlockVisualState visibleState = (opacity < 1.0f)
+                                    ? BlockVisualStateManager.BlockVisualState.ghost(opacity, true, true)
+                                            .withSuppressWorldRendering(true)
+                                    : BlockVisualStateManager.BlockVisualState.normal();
+                            visualStateManager.setBlocksState(renderBlocks, visibleState);
+                        }
+                    }
                 }
+
+                TimelineClip playbackClip = containerToClipMap.get(containerId);
+                ClipAnimationConfig playbackConfig = currentFrameConfigs.get(containerId);
+                List<BlockSequenceEntry> sequenceEntries = currentFrameSequences.getOrDefault(containerId,
+                        Collections.emptyList());
+                registerRenderEntriesForContainer(
+                        visualStateManager,
+                        container,
+                        playbackClip,
+                        playbackConfig,
+                        sequenceEntries,
+                        currentTime,
+                        renderBlocks,
+                        previewMode);
+            } else {
+                visualStateManager.clearOverridesFor(container);
             }
 
-            // 记录本帧视觉参数（用于下一帧增量）
             if (lastParams == null) {
                 lastParams = new LastVisualParams();
                 lastVisualParamsByContainerId.put(containerId, lastParams);
@@ -690,20 +722,6 @@ public class TimelineClipBlockController {
             lastParams.opacity = opacity;
             lastParams.occluded = isOccluded;
             lastParams.containerModifiedTime = containerMod;
-
-            TimelineClip playbackClip = containerToClipMap.get(containerId);
-            ClipAnimationConfig playbackConfig = currentFrameConfigs.get(containerId);
-            List<BlockSequenceEntry> sequenceEntries = currentFrameSequences.getOrDefault(containerId,
-                    Collections.emptyList());
-            registerRenderEntriesForContainer(
-                    visualStateManager,
-                    container,
-                    playbackClip,
-                    playbackConfig,
-                    sequenceEntries,
-                    currentTime,
-                    renderBlocks,
-                    previewMode);
         }
         final long tAfterEntries = System.nanoTime();
 
@@ -711,12 +729,14 @@ public class TimelineClipBlockController {
         // 1) visualState 的 suppressWorldRendering/overlay 变化
         // 2) 世界方块真实变化（AIR/恢复）导致的面更新（防止“黑洞/虚空”）
         Set<BlockPos> rerender = new HashSet<>();
-        try {
-            Set<BlockPos> vsChanged = visualStateManager.getChangedBlocks();
-            if (vsChanged != null && !vsChanged.isEmpty()) {
-                rerender.addAll(vsChanged);
+        if (!previewMode) {
+            try {
+                Set<BlockPos> vsChanged = visualStateManager.getChangedBlocks();
+                if (vsChanged != null && !vsChanged.isEmpty()) {
+                    rerender.addAll(vsChanged);
+                }
+            } catch (Exception ignored) {
             }
-        } catch (Exception ignored) {
         }
         if (!worldStateChangedBlocksForRerender.isEmpty()) {
             rerender.addAll(worldStateChangedBlocksForRerender);
@@ -744,10 +764,17 @@ public class TimelineClipBlockController {
         lastHandledRevision = timelineRevision;
         if (!playing && !scrubbing) {
             lastHandledPreviewTime = currentTime;
+            if (!timelineDrivingPaused && visibilityService != null) {
+                visibilityService.pauseTimelineDriving();
+                timelineDrivingPaused = true;
+            }
         } else {
             lastHandledPreviewTime = Float.NaN;
+            timelineDrivingPaused = false;
         }
-        visualStateManager.finishFrame();
+        if (!previewMode) {
+            visualStateManager.finishFrame();
+        }
 
         // ✅ 修复：定期清理不再活跃的容器/片段缓存，防止内存泄漏
         // 每 60 帧（约 3 秒）执行一次清理

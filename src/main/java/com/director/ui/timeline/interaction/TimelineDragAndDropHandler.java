@@ -2,7 +2,6 @@ package com.director.ui.timeline.interaction;
 
 import com.director.core.DirectorServices;
 import com.director.core.container.Container;
-import com.director.core.container.ContainerManager;
 import com.director.core.container.ContainerType;
 import com.director.core.container.ContainerAnimationPreset;
 import com.director.core.animation.ClipAnimationConfig;
@@ -13,6 +12,7 @@ import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
+import com.director.core.container.visibility.BlockVisualStateManager;
 import com.director.timeline.playback.block.TimelineClipBlockController;
 import com.director.ui.timeline.render.TimelineRenderer;
 import com.director.timeline.snapping.TimelineSnapping;
@@ -23,7 +23,6 @@ import imgui.ImGui;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -167,6 +166,8 @@ public class TimelineDragAndDropHandler {
                 }
 
                 prepareContainerForContainerTrack(container);
+                BlockVisualStateManager.getInstance().clearOverridesFor(container);
+                TimelineClipBlockController.getInstance().invalidateState();
 
                 // 检查容器是否已经在时间线上有片段
                 var timelineService = DirectorServices.get().containerTimeline();
@@ -337,32 +338,6 @@ public class TimelineDragAndDropHandler {
         } catch (Exception e) {
             LOGGER.error("[DragDrop] 绑定容器世界失败: {}", e.getMessage(), e);
         }
-    }
-
-    /**
-     * 根据容器中的方块数量计算片段的初始时间长度。
-     */
-    private float calculateInitialClipDuration(Container container) {
-        if (container == null) {
-            return 2.0f; // 默认 2 秒
-        }
-
-        // 获取容器中的方块数量（包括子容器的总方块数）
-        int blockCount = container.getTotalBlockCount();
-
-        // 计算时间长度：每 10 个方块 2 秒
-        float duration = (blockCount / 10.0f) * 2.0f;
-
-        // 最少 2 秒
-        duration = Math.max(2.0f, duration);
-
-        // 最多 60 秒
-        duration = Math.min(60.0f, duration);
-
-        LOGGER.debug("[DragDrop] 容器 {} 有 {} 个方块，计算初始时长: {}s",
-            container.getName(), blockCount, duration);
-
-        return duration;
     }
     
     /**

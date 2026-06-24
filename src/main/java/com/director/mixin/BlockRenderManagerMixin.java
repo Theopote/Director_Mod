@@ -62,7 +62,7 @@ public class BlockRenderManagerMixin {
             CallbackInfo ci
     ) {
         BlockVisualStateManager visualStateManager = BlockVisualStateManager.getInstance();
-        if (visualStateManager == null || pos == null) {
+        if (!visualStateManager.hasActiveOverrides()) {
             return;
         }
 
