@@ -1,6 +1,7 @@
 package com.director.actor;
 
 import com.director.actor.persistence.ActorRegistryPersistence;
+import com.director.persistence.PersistenceSaveStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,7 +89,7 @@ public final class ActorRegistryManager {
             // 保存当前实例（如果存在）
             ActorRegistry oldRegistry = GLOBAL.get();
             if (oldRegistry != null && !oldRegistry.isEmpty()) {
-                ActorRegistryPersistence.saveToFile(oldRegistry);
+                persistNow(oldRegistry);
             }
             
             GLOBAL.set(registry);
@@ -109,7 +110,7 @@ public final class ActorRegistryManager {
         if (registry != null) {
             // 保存当前实例
             if (!registry.isEmpty()) {
-                ActorRegistryPersistence.saveToFile(registry);
+                persistNow(registry);
             }
             registry.clear();
             LOGGER.info("[ActorRegistryManager] 清空 ActorRegistry");
@@ -145,14 +146,23 @@ public final class ActorRegistryManager {
 
         isSaving = true;
         try {
-            boolean saved = ActorRegistryPersistence.saveToFile(registry);
-            if (saved) {
-                lastSaveTime = currentTime;
-            }
-            return saved;
+            return persistNow(registry);
         } finally {
             isSaving = false;
         }
+    }
+
+    private static boolean persistNow(ActorRegistry registry) {
+        if (registry == null || registry.isEmpty()) {
+            return true;
+        }
+
+        boolean saved = ActorRegistryPersistence.saveToFile(registry);
+        PersistenceSaveStatus.reportActorResult(saved);
+        if (saved) {
+            lastSaveTime = System.currentTimeMillis();
+        }
+        return saved;
     }
 
     /**

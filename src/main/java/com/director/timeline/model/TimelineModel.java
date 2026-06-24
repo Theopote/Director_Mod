@@ -214,23 +214,8 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
 
         boolean timelineOk = TimelineModelPersistence.saveToFile(this, viewportState);
         boolean actorOk = com.director.actor.ActorRegistryManager.save();
-        boolean ok = timelineOk && actorOk;
-        if (ok) {
-            PersistenceSaveStatus.reportSuccess();
-        } else {
-            PersistenceSaveStatus.reportFailure(buildSaveFailureReason(timelineOk, actorOk));
-        }
-        return ok;
-    }
-
-    private static String buildSaveFailureReason(boolean timelineOk, boolean actorOk) {
-        if (!timelineOk && !actorOk) {
-            return "时间线与 Actor 数据未能写入存档";
-        }
-        if (!timelineOk) {
-            return "时间线数据未能写入存档";
-        }
-        return "Actor 数据未能写入存档";
+        PersistenceSaveStatus.reportTimelineResult(timelineOk);
+        return timelineOk && actorOk;
     }
 
     /**

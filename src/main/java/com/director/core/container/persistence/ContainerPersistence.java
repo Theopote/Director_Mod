@@ -5,6 +5,7 @@ import com.director.core.container.Container;
 import com.director.core.container.ContainerManager;
 import com.director.core.container.ContainerState;
 import com.director.core.container.ContainerType;
+import com.director.persistence.PersistenceSaveStatus;
 import com.director.util.WorldIdentifier;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
@@ -67,16 +68,19 @@ public final class ContainerPersistence {
         return null;
     }
 
-    public static void saveForCurrentWorld(ContainerManager manager) {
+    /**
+     * @return 是否成功写入当前存档目录；跳过保存时视为无失败
+     */
+    public static boolean saveForCurrentWorld(ContainerManager manager) {
         if (manager == null || loading) {
-            return;
+            return true;
         }
-        pendingAutoSave = false;
         try {
             Path file = getContainerFile();
             if (file == null) {
                 LOGGER.debug("[ContainerPersistence] 当前无活动存档目录，跳过保存");
-                return;
+                PersistenceSaveStatus.reportContainerResult(false);
+                return false;
             }
             if (!Files.exists(file.getParent())) {
                 Files.createDirectories(file.getParent());
@@ -90,8 +94,13 @@ public final class ContainerPersistence {
             root.put("containers", list);
             NbtIo.writeCompressed(root, file);
             LOGGER.debug("[ContainerPersistence] 已保存容器数据: {}", file);
+            pendingAutoSave = false;
+            PersistenceSaveStatus.reportContainerResult(true);
+            return true;
         } catch (Exception e) {
             LOGGER.warn("[ContainerPersistence] 保存容器数据失败: {}", e.getMessage(), e);
+            PersistenceSaveStatus.reportContainerResult(false);
+            return false;
         }
     }
 

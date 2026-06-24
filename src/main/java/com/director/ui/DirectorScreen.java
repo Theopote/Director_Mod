@@ -512,12 +512,9 @@ public class DirectorScreen extends Screen {
         }
 
         // ⭐ 关闭前兜底保存：确保“关 UI / 关游戏”都能恢复到上次工作区
-        try {
-            com.director.core.container.persistence.ContainerPersistence.saveForCurrentWorld(
-                DirectorServices.get().containers()
-            );
-        } catch (Exception e) {
-            LOGGER.warn("[Director] 保存容器数据失败: {}", e.getMessage(), e);
+        if (!com.director.core.container.persistence.ContainerPersistence.saveForCurrentWorld(
+                DirectorServices.get().containers())) {
+            LOGGER.warn("[Director] 关闭前保存容器数据失败");
         }
         try {
             if (uiManager != null) {
