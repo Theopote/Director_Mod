@@ -9,6 +9,7 @@ import net.minecraft.block.BlockState;
 import net.minecraft.util.math.BlockPos;
 
 import java.util.*;
+import java.util.UUID;
 
 /**
  * 方块视觉状态管理器
@@ -36,13 +37,16 @@ public class BlockVisualStateManager {
      * </ul>
      */
     public static class BlockVisualState {
-        private BlockRenderMode mode;
-        private float alphaMultiplier;  // 与动画 alpha 相乘
-        private Boolean depthWriteOverride; // null = 交给 mode 决定；true/false = 强制
-        private boolean suppressWorldRendering; // 是否阻止 Minecraft 世界方块渲染
+        private BlockRenderMode mode = BlockRenderMode.SOLID;
+        private float alphaMultiplier = 1.0f;  // 与动画 alpha 相乘
+        private Boolean depthWriteOverride = null; // null = 交给 mode 决定；true/false = 强制
+        private boolean suppressWorldRendering = false; // 是否阻止 Minecraft 世界方块渲染
         
         // 向后兼容字段
-        private boolean useOverlay;  // 是否使用覆盖层渲染（用于半透明效果）
+        private boolean useOverlay = false;  // 是否使用覆盖层渲染（用于半透明效果）
+
+        public BlockVisualState() {
+        }
         
         /**
          * 创建视觉状态（新 API）
@@ -69,6 +73,23 @@ public class BlockVisualStateManager {
             this.depthWriteOverride = depthWriteOverride;
             this.suppressWorldRendering = suppressWorldRendering;
             this.useOverlay = (mode == BlockRenderMode.GHOST_WITH_DEPTH || mode == BlockRenderMode.GHOST_NO_DEPTH);
+        }
+
+        /**
+         * 向后兼容构造函数
+         */
+        public BlockVisualState(boolean hidden, float alpha, boolean useOverlay) {
+            if (hidden) {
+                this.mode = BlockRenderMode.HIDDEN;
+                this.alphaMultiplier = 0.0f;
+            } else if (alpha >= 1.0f && !useOverlay) {
+            } else if (useOverlay) {
+                this.mode = BlockRenderMode.GHOST_NO_DEPTH; // 默认不写深度
+                this.alphaMultiplier = alpha;
+            } else {
+                this.alphaMultiplier = alpha;
+            }
+            this.useOverlay = useOverlay;
         }
 
         // ========== 新 API ==========
@@ -107,6 +128,15 @@ public class BlockVisualStateManager {
          */
         public boolean shouldSuppressWorldRendering() {
             return suppressWorldRendering;
+        }
+
+        /**
+         * 设置是否阻止世界方块渲染
+         *
+         * @param suppressWorldRendering 是否阻止世界方块渲染
+         */
+        public void setSuppressWorldRendering(boolean suppressWorldRendering) {
+            this.suppressWorldRendering = suppressWorldRendering;
         }
 
         /**
@@ -155,6 +185,24 @@ public class BlockVisualStateManager {
         }
 
         /**
+         * 是否处于幽灵（遮挡透明）模式
+         */
+        public boolean isGhostMode() {
+            return mode == BlockRenderMode.GHOST_WITH_DEPTH || mode == BlockRenderMode.GHOST_NO_DEPTH;
+        }
+
+        /**
+         * 是否处于半透明覆盖模式
+         */
+        public boolean isTranslucentMode() {
+            return useOverlay || mode == BlockRenderMode.GHOST_NO_DEPTH;
+        }
+
+        public void setUseOverlay(boolean useOverlay) {
+            this.useOverlay = useOverlay;
+        }
+
+        /**
          * 检查是否为正常状态（不隐藏，完全不透明，不使用覆盖层）
          */
         public boolean isNormal() {
@@ -168,6 +216,16 @@ public class BlockVisualStateManager {
          */
         public static BlockVisualState solid() {
             return new BlockVisualState(BlockRenderMode.SOLID, 1.0f, null);
+        }
+
+        /**
+         * 创建半透明幽灵状态
+         *
+         * @param alpha 透明度 [0..1]
+         * @param depthWrite 是否写入深度
+         */
+        public static BlockVisualState ghost(float alpha, boolean depthWrite) {
+            return ghost(alpha, depthWrite, true); // 默认阻止世界渲染
         }
         
         /**
@@ -200,6 +258,12 @@ public class BlockVisualStateManager {
             return solid();
         }
 
+        /**
+         * 创建半透明状态（向后兼容）
+         */
+        public static BlockVisualState translucent(float alpha) {
+            return ghost(alpha, false); // 默认不写深度
+        }
     }
     
     /**
@@ -300,6 +364,16 @@ public class BlockVisualStateManager {
         return visualOverrides.getOrDefault(pos, BlockVisualState.normal());
     }
 
+    /**
+     * 检查方块是否应该隐藏
+     *
+     * @param pos 方块位置
+     * @return 如果应该隐藏返回 true
+     */
+    public boolean isBlockHidden(BlockPos pos) {
+        BlockVisualState state = getBlockState(pos);
+        return state.isHidden();
+    }
     
     /**
      * 获取方块的透明度
@@ -310,6 +384,17 @@ public class BlockVisualStateManager {
     public float getBlockAlpha(BlockPos pos) {
         BlockVisualState state = getBlockState(pos);
         return state.getAlpha();
+    }
+
+    /**
+     * 检查方块是否应该使用覆盖层渲染
+     *
+     * @param pos 方块位置
+     * @return 如果应该使用覆盖层返回 true
+     */
+    public boolean shouldUseOverlay(BlockPos pos) {
+        BlockVisualState state = getBlockState(pos);
+        return state.shouldUseOverlay();
     }
 
     /**
@@ -341,6 +426,21 @@ public class BlockVisualStateManager {
         Set<BlockPos> result = new HashSet<>();
         for (Map.Entry<BlockPos, BlockVisualState> entry : visualOverrides.entrySet()) {
             if (entry.getValue().shouldUseOverlay() && !entry.getValue().isHidden()) {
+                result.add(entry.getKey());
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 获取所有需要特殊处理的方块（非正常状态）
+     *
+     * @return 方块位置集合
+     */
+    public Set<BlockPos> getSpecialBlocks() {
+        Set<BlockPos> result = new HashSet<>();
+        for (Map.Entry<BlockPos, BlockVisualState> entry : visualOverrides.entrySet()) {
+            if (!entry.getValue().isNormal()) {
                 result.add(entry.getKey());
             }
         }
@@ -414,6 +514,155 @@ public class BlockVisualStateManager {
     }
 
     /**
+     * 为容器中的所有方块设置透明度
+     *
+     * @param containerId 容器ID
+     * @param blocks 方块位置集合
+     * @param alpha 透明度 0~1
+     * @param useOverlay 是否使用覆盖层渲染
+     */
+    public void setContainerOpacity(UUID containerId, Collection<BlockPos> blocks, float alpha, boolean useOverlay) {
+        if (blocks == null || blocks.isEmpty()) {
+            return;
+        }
+        BlockVisualState state = BlockVisualState.translucent(clamp01(alpha));
+        state.setUseOverlay(useOverlay);
+        setBlocksState(blocks, state);
+    }
+
+    /**
+     * 为容器中的特定方块设置透明度
+     *
+     * @param container 容器对象
+     * @param blockPositions 要设置的方块位置集合
+     * @param alpha 透明度 0~1
+     * @param useOverlay 是否使用覆盖层渲染
+     */
+    public void setContainerBlocksOpacity(Container container, Collection<BlockPos> blockPositions,
+                                         float alpha, boolean useOverlay) {
+        if (container == null || blockPositions == null || blockPositions.isEmpty()) {
+            return;
+        }
+        BlockVisualState state = BlockVisualState.translucent(clamp01(alpha));
+        state.setUseOverlay(useOverlay);
+        Set<BlockPos> containerBlocks = container.getBlocksView();
+        for (BlockPos pos : blockPositions) {
+            if (pos != null && containerBlocks.contains(pos)) {
+                setBlockState(pos, state);
+            }
+        }
+    }
+
+    /**
+     * 隐藏容器中的所有方块
+     *
+     * @param container 容器对象
+     */
+    public void hideContainer(Container container) {
+        if (container == null) {
+            return;
+        }
+        setBlocksState(container.getBlocksView(), BlockVisualState.hidden());
+    }
+
+    /**
+     * 隐藏容器中的特定方块
+     *
+     * @param container 容器对象
+     * @param blockPositions 要隐藏的方块位置集合
+     */
+    public void hideContainerBlocks(Container container, Collection<BlockPos> blockPositions) {
+        if (container == null || blockPositions == null || blockPositions.isEmpty()) {
+            return;
+        }
+        Set<BlockPos> containerBlocks = container.getBlocksView();
+        for (BlockPos pos : blockPositions) {
+            if (pos != null && containerBlocks.contains(pos)) {
+                setBlockState(pos, BlockVisualState.hidden());
+            }
+        }
+    }
+
+    /**
+     * 恢复容器中的所有方块为正常状态（不隐藏，完全不透明）
+     *
+     * @param container 容器对象
+     */
+    public void restoreContainer(Container container) {
+        if (container == null) {
+            return;
+        }
+        setBlocksState(container.getBlocksView(), BlockVisualState.normal());
+    }
+
+    /**
+     * 为单个方块设置透明度（便捷方法）
+     *
+     * @param pos 方块位置
+     * @param alpha 透明度 0~1
+     * @param useOverlay 是否使用覆盖层渲染
+     */
+    public void setBlockOpacity(BlockPos pos, float alpha, boolean useOverlay) {
+        if (pos == null) {
+            return;
+        }
+        BlockVisualState state = BlockVisualState.translucent(clamp01(alpha));
+        state.setUseOverlay(useOverlay);
+        setBlockState(pos, state);
+    }
+
+    /**
+     * 隐藏单个方块（便捷方法）
+     *
+     * @param pos 方块位置
+     */
+    public void hideBlock(BlockPos pos) {
+        if (pos == null) {
+            return;
+        }
+        setBlockState(pos, BlockVisualState.hidden());
+    }
+
+    /**
+     * 恢复单个方块为正常状态（便捷方法）
+     *
+     * @param pos 方块位置
+     */
+    public void restoreBlock(BlockPos pos) {
+        if (pos == null) {
+            return;
+        }
+        setBlockState(pos, BlockVisualState.normal());
+    }
+
+    /**
+     * 获取容器的所有特殊状态方块
+     *
+     * @param container 容器对象
+     * @return 需要特殊处理的方块集合
+     */
+    public Set<BlockPos> getContainerSpecialBlocks(Container container) {
+        if (container == null) {
+            return Collections.emptySet();
+        }
+        Set<BlockPos> result = new HashSet<>();
+        for (BlockPos pos : container.getBlocksView()) {
+            BlockVisualState state = getBlockState(pos);
+            if (!state.isNormal()) {
+                result.add(pos);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * 将值限制在 [0, 1] 范围内
+     */
+    private static float clamp01(float v) {
+        return v < 0f ? 0f : (Math.min(v, 1f));
+    }
+
+    /**
      * 渲染条目 2.0（用于批量渲染，包含动画语义）
      * 
      * <p>设计目标：
@@ -426,9 +675,12 @@ public class BlockVisualStateManager {
     public static final class RenderEntry {
 
         private final BlockPos pos;
+        private final BlockState blockState;
+        private final BlockVisualState visualState;
 
         // 🔥 新增动画语义
         private final TimelineClip clip;
+        private final BlockSequenceEntry seqEntry;
 
         // 可选：外部覆盖动画快照（通常不使用）
         private final BlockAnimationSnapshot overrideSnapshot;
@@ -442,13 +694,22 @@ public class BlockVisualStateManager {
                 BlockAnimationSnapshot overrideSnapshot
         ) {
             this.pos = pos;
-            BlockVisualState visualState1 = visualState != null ? visualState : BlockVisualState.normal();
+            this.blockState = blockState;
+            this.visualState = visualState != null ? visualState : BlockVisualState.normal();
             this.clip = clip;
+            this.seqEntry = seqEntry;
             this.overrideSnapshot = overrideSnapshot;
         }
 
         public BlockPos pos() { return pos; }
+        public BlockState blockState() { return blockState; }
+        public BlockVisualState visualState() { return visualState; }
 
+        public TimelineClip clip() { return clip; }
+        public BlockSequenceEntry seqEntry() { return seqEntry; }
+
+        public BlockAnimationSnapshot overrideSnapshot() { return overrideSnapshot; }
+        public boolean hasOverrideSnapshot() { return overrideSnapshot != null; }
     }
 
 }
