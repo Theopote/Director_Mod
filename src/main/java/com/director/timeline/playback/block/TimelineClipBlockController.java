@@ -660,18 +660,8 @@ public class TimelineClipBlockController {
                     if (visibilityService != null) {
                         visibilityService.resumeTimelineDriving();
                     }
-                    if (placementAccelerated) {
-                        visibilityService.showContainerBlocksForTimeline(container, worldBlocks);
-                    } else if (worldBlocks.isEmpty()) {
-                        visibilityService.showContainerBlocks(container, java.util.Collections.emptySet());
-                    } else {
-                        visibilityService.showContainerBlocks(container, worldBlocks);
-
-                        if (LOGGER.isTraceEnabled()) {
-                            LOGGER.trace("[TimelineClipBlockController] 容器 {} 显示 {} 个方块(时间: {:.2f}s, 遮挡: {})",
-                                    container.getName(), worldBlocks.size(), currentTime, isOccluded);
-                        }
-                    }
+                    // 时间线驱动：统一走分帧追平，避免 showContainerBlocks 的 firstCall 全量同步/强制光照刷新卡死主线程
+                    visibilityService.showContainerBlocksForTimeline(container, worldBlocks);
                 }
             } else {
                 LOGGER.warn("[TimelineClipBlockController] ContainerVisibilityService 未初始化，无法控制方块显示");

@@ -586,7 +586,6 @@ public class ContainerVisibilityService {
      * @param blocksToShow 应该显示的方块位置集合
      */
     public void showContainerBlocks(Container container, java.util.Set<net.minecraft.util.math.BlockPos> blocksToShow) {
-        cancelPendingTasks(container.getId());
         ServerWorld world = resolveWorld(container);
         if (world == null) {
             LOGGER.warn("[Visibility] 容器 {} 未绑定世界，无法显示方块", container.getName());
@@ -632,70 +631,37 @@ public class ContainerVisibilityService {
 
         // 0) 首次调用：全量对齐（把非目标方块清空为 AIR）
         if (firstCall) {
-            int hiddenCount = 0;
-            int shownCount = 0;
-            LongOpenHashSet affectedChunks = new LongOpenHashSet();
+            // 性能关键：首次进入时间线 partial-show 时，可能涉及 1w~5w 方块。
+            // 不能在服务端主线程同步全量 setBlockState + flushLighting，否则会直接卡死 tick。
+            // 改为入队分帧任务执行（与 hideContainer/showContainer 行为一致）。
 
-            // hide: allSnapshotPositions - now
-            // 注意：这里遍历 store.positions()，不要在循环里修改 store（否则可能触发并发修改异常）。
+            java.util.ArrayList<BlockPos> toHide = new java.util.ArrayList<>();
             for (BlockPos pos : store.positions()) {
                 if (pos == null) continue;
-                long posLong = pos.asLong();
-                if (now.contains(posLong)) {
-                    continue;
-                }
-
-                int chunkX = pos.getX() >> 4;
-                int chunkZ = pos.getZ() >> 4;
-                if (!world.getChunkManager().isChunkLoaded(chunkX, chunkZ)) {
-                    continue;
-                }
-
-                net.minecraft.block.BlockState currentState = world.getBlockState(pos);
-                if (!currentState.isAir()) {
-                    net.minecraft.block.entity.BlockEntity be = world.getBlockEntity(pos);
-                    if (be != null) {
-                        world.removeBlockEntity(pos);
-                    }
-                    world.setBlockState(pos, Blocks.AIR.getDefaultState(), ContainerBlockUpdateFlags.BATCH);
-                    trackAffectedChunk(affectedChunks, chunkX, chunkZ);
-                    hiddenCount++;
+                if (!now.contains(pos.asLong())) {
+                    toHide.add(pos);
                 }
             }
 
-            // show: now (from snapshot)
+            java.util.ArrayList<BlockPos> toShow = new java.util.ArrayList<>();
             for (var it = now.iterator(); it.hasNext(); ) {
                 long posLong = it.nextLong();
                 BlockPos pos = BlockPos.fromLong(posLong);
-
-                BlockStore.Entry entry = store.get(pos);
-                if (entry == null) {
-                    continue;
-                }
-
-                int chunkX = pos.getX() >> 4;
-                int chunkZ = pos.getZ() >> 4;
-                if (!world.getChunkManager().isChunkLoaded(chunkX, chunkZ)) {
-                    continue;
-                }
-
-                net.minecraft.block.BlockState currentState = world.getBlockState(pos);
-                if (currentState.isAir()) {
-                    restoreBlockEntry(world, pos, entry, affectedChunks);
-                    shownCount++;
+                if (store.get(pos) != null) {
+                    toShow.add(pos);
                 }
             }
 
-            flushLightingForChunks(world, affectedChunks);
+            if (!toHide.isEmpty()) {
+                enqueueOrRun(createHideTask(container, world, store, toHide));
+            }
+            if (!toShow.isEmpty()) {
+                enqueueOrRun(createShowTask(container, world, store, toShow));
+            }
 
-            // 更新 last（复用对象避免分配）
+            // 先把 last 置为目标集，避免下一帧重复走 firstCall；真实落地由 task 分帧追平
             last.clear();
             last.addAll(now);
-
-            if (LOGGER.isDebugEnabled() && (shownCount > 0 || hiddenCount > 0)) {
-                LOGGER.debug("[Visibility] 容器 {} 部分方块更新(first-sync): +{} -{} (目标显示 {})",
-                        container.getName(), shownCount, hiddenCount, now.size());
-            }
             return;
         }
 
