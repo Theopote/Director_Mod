@@ -11,11 +11,6 @@ import com.director.timeline.actor.ActorTimelineSource;
 import com.director.timeline.audio.TimelineAudioLoadHook;
 import com.director.timeline.audio.TimelineClipSoundCollector;
 import com.director.timeline.audio.TimelineTrackPlaybackListener;
-import com.director.timeline.model.ITimelineProject;
-import com.director.timeline.model.TimelineClip;
-import com.director.timeline.model.TimelineSelectable;
-import com.director.timeline.model.TimelineTrack;
-import com.director.timeline.model.TrackType;
 import com.director.timeline.playback.TimelinePlaybackLifecycle;
 import com.director.timeline.persistence.TimelineModelPersistence;
 import com.director.timeline.snapping.TimelineSnapSettings;
@@ -25,9 +20,9 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Timeline 数据模型（v7.4 统一真相源）
- * 
+ * <p>
  * 负责管理时间轴的所有业务数据，与 UI 渲染完全解耦
- * 
+ * <p>
  * 架构改进：
  * - ✅ 单一真相源：TimelineModel 拥有所有数据，不再委托
  * - ✅ 消除单例依赖：不依赖旧 AnimationState 或 core 播放路径
@@ -60,7 +55,6 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
     // ========== 吸附设置（统一配置系统）==========
     private final TimelineSnapSettings snapSettings = new TimelineSnapSettings();
 
-    private TimelineClipSoundCollector clipSoundCollector = TimelineClipSoundCollector.NOOP;
     private TimelineTrackPlaybackListener trackPlaybackListener = TimelineTrackPlaybackListener.NOOP;
     private TimelineAudioLoadHook audioLoadHook = TimelineAudioLoadHook.NOOP;
     private TimelinePlaybackLifecycle playbackLifecycle = TimelinePlaybackLifecycle.NOOP;
@@ -226,8 +220,8 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
     }
 
     public void setClipSoundCollector(TimelineClipSoundCollector collector) {
-        this.clipSoundCollector = collector != null ? collector : TimelineClipSoundCollector.NOOP;
-        TimelineTrack.setClipSoundCollector(this.clipSoundCollector);
+        TimelineClipSoundCollector clipSoundCollector = collector != null ? collector : TimelineClipSoundCollector.NOOP;
+        TimelineTrack.setClipSoundCollector(clipSoundCollector);
     }
 
     public void setTrackPlaybackListener(TimelineTrackPlaybackListener listener) {
@@ -1173,20 +1167,6 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         selectedItems.clear();
         lastClickedItem = null;
     }
-    
-    /**
-     * 全选所有片段（包括所有轨道的所有 Clip）
-     */
-    public void selectAll() {
-        selectedItems.clear();
-
-        // 使用 Stream API 收集所有轨道的所有片段
-        List<TimelineClip> allClips = tracks.stream()
-            .flatMap(track -> track.getClips().stream())
-            .toList();
-
-        selectedItems.addAll(allClips);
-    }
 
     /**
      * 获取所有选中的项目
@@ -1208,14 +1188,14 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
     public boolean isSelected(Object item) {
         return selectedItems.contains(item);
     }
-    
+
     /**
      * 设置多选模式（Ctrl键状态）
      */
     public void setMultiSelectMode(boolean enabled) {
         this.multiSelectMode = enabled;
     }
-    
+
     /**
      * 获取多选模式状态
      */
