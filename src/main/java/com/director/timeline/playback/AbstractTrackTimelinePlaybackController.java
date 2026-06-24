@@ -33,6 +33,14 @@ public abstract class AbstractTrackTimelinePlaybackController<TSample>
     }
 
     /**
+     * 校验目标轨道是否可在当前激活轨道上添加关键帧。
+     */
+    public synchronized boolean isAddKeyframeTargetValid(TimelineTrack track) {
+        return TrackKeyframeEditSupport.validateAddTarget(
+                track, activeTrack, expectedTrackType(), logger, logTag());
+    }
+
+    /**
      * 模型中是否存在本类型轨道（子类可扩展判定逻辑）。
      */
     public synchronized boolean hasTrackInModel() {

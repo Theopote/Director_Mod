@@ -26,8 +26,15 @@ import com.director.ui.timeline.render.TimelineColors;
 import com.director.ui.timeline.render.TimelineRenderer;
 import com.director.ui.timeline.state.*;
 import com.director.ui.timeline.ui.TimelineControlBar;
+import com.director.timeline.model.entity.EntityKeyframe;
+import com.director.timeline.model.season.SeasonKeyframe;
+import com.director.timeline.playback.camera.CameraRuntime;
 import com.director.timeline.playback.camera.TimelineCameraController;
+import com.director.timeline.playback.entity.TimelineActorController;
+import com.director.timeline.playback.season.TimelineSeasonController;
 import com.director.timeline.playback.time.TimelineWorldController;
+import com.director.timeline.playback.weather.TimelineWeatherController;
+import com.director.timeline.model.camera.path.CustomPathClip;
 import net.minecraft.client.MinecraftClient;
 import imgui.ImGui;
 import imgui.ImDrawList;
@@ -546,244 +553,221 @@ public class TimelinePanel extends AbstractPanel
      * - Ctrl + 滚动：缩放（垂直鼠标）
      * - Shift + 滚动：水平滚动（scrollX）
      */
+    private record TimelineCanvasLayout(
+            float winX,
+            float winY,
+            float winW,
+            float availH,
+            float headerHeight,
+            float trackViewportHeight,
+            float contentX,
+            float contentW,
+            float trackRegionTop
+    ) {
+    }
+
     private void renderTimelineCanvas() {
-        // ⭐ 单一摄像机系统：不再需要检测鼠标悬停状态
-        // 时间线直接驱动游戏摄像机，不需要额外的状态管理
-
         ImDrawList drawList = ImGui.getWindowDrawList();
+        TimelineCanvasLayout layout = computeTimelineCanvasLayout();
+        boolean skipDividerDrag = shouldSkipDividerDragForKeyframes(layout);
 
+        prepareTimelineCanvasFrame(layout, skipDividerDrag);
+        renderTimelineCanvasHeader(layout, drawList);
+        handleRulerInteractions(layout.winY(), layout.contentX(), layout.contentW());
+        navigationHandler.handleMouseWheel(
+                layout.winX(), layout.winY(), layout.winW(),
+                layout.headerHeight(), layout.trackViewportHeight()
+        );
+
+        if (layout.trackViewportHeight() <= 0f) {
+            ImGui.setCursorScreenPos(layout.winX(), layout.winY() + layout.headerHeight());
+            return;
+        }
+
+        renderTimelineTrackRegion(layout, drawList);
+        renderTimelinePlayheadOverlay(layout, drawList);
+        ImGui.setCursorScreenPos(layout.winX(), layout.trackRegionTop() + layout.trackViewportHeight());
+    }
+
+    private TimelineCanvasLayout computeTimelineCanvasLayout() {
         float winX = ImGui.getCursorScreenPosX();
         float winY = ImGui.getCursorScreenPosY();
         float winW = ImGui.getContentRegionAvailX();
         float availH = ImGui.getContentRegionAvailY();
-
         float headerHeight = TimelineRenderer.getHeaderHeight();
-        // 确保高度不为负，最小高度为 10px 以避免画布问题
         float trackViewportHeight = Math.max(10f, availH - headerHeight);
-
-        // ============================================================
-        // ⭐ v9.0 修复 2：基于当前宽度计算坐标（用于关键帧检测）
-        // ============================================================
         float contentX = winX + TimelineRenderer.getLeftLabelWidth();
         float contentW = winW - TimelineRenderer.getLeftLabelWidth();
         float trackRegionTop = winY + headerHeight;
+        return new TimelineCanvasLayout(
+                winX, winY, winW, availH,
+                headerHeight, trackViewportHeight,
+                contentX, contentW, trackRegionTop
+        );
+    }
 
-        // ⭐ 修复：先快速检测关键帧，如果命中关键帧则跳过分割线拖动（避免冲突）
-        boolean shouldSkipDividerDrag = false;
+    private boolean shouldSkipDividerDragForKeyframes(TimelineCanvasLayout layout) {
         float mouseX = ImGui.getMousePosX();
         float mouseY = ImGui.getMousePosY();
-        float dividerX = winX + TimelineRenderer.getLeftLabelWidth();
-        float DIVIDER_HIT_WIDTH = 4f; // 与 TimelineDividerHandler 中的常量一致
-        
-        // 只检测分割线附近的关键帧（避免全量检测影响性能）
-        if (mouseX >= dividerX - DIVIDER_HIT_WIDTH && mouseX <= dividerX + DIVIDER_HIT_WIDTH
-                && mouseY >= trackRegionTop && mouseY <= trackRegionTop + trackViewportHeight) {
-            // 快速检测：只检测时间接近0的关键帧（在分割线附近）
-            float scrollY = viewportState.getScrollY();
-            TimelineHitResult quickHit = com.director.ui.timeline.interaction.TimelineHitTest.compute(
-                    renderer, model,
-                    mouseX, mouseY,
-                    contentX, trackRegionTop,
-                    contentW, trackViewportHeight,
-                    scrollY,
-                    null // trackControlHit 可以为 null，因为我们只关心关键帧
-            );
-            // 如果命中关键帧，跳过分割线拖动
-            if (quickHit.type() == com.director.ui.timeline.interaction.TimelineHitResult.HitType.KEYFRAME
-                    || quickHit.type() == com.director.ui.timeline.interaction.TimelineHitResult.HitType.AUTOMATION_KEYFRAME) {
-                shouldSkipDividerDrag = true;
-            }
+        float dividerX = layout.winX() + TimelineRenderer.getLeftLabelWidth();
+        float dividerHitWidth = 4f;
+
+        if (mouseX < dividerX - dividerHitWidth || mouseX > dividerX + dividerHitWidth) {
+            return false;
+        }
+        if (mouseY < layout.trackRegionTop() || mouseY > layout.trackRegionTop() + layout.trackViewportHeight()) {
+            return false;
         }
 
-        // ============================================================
-        // ⭐ v9.0 修复 1：处理布局调整逻辑（带跳过标志）
-        // ============================================================
-        // 必须在计算 contentX 之后调用，因为我们需要先检测关键帧
-        renderer.updateLeftSectionWidth(winX, winY, availH, shouldSkipDividerDrag);
+        TimelineHitResult quickHit = TimelineHitTest.compute(
+                renderer, model,
+                mouseX, mouseY,
+                layout.contentX(), layout.trackRegionTop(),
+                layout.contentW(), layout.trackViewportHeight(),
+                viewportState.getScrollY(),
+                null
+        );
+        return quickHit.type() == TimelineHitResult.HitType.KEYFRAME
+                || quickHit.type() == TimelineHitResult.HitType.AUTOMATION_KEYFRAME;
+    }
 
-        // ⭐ 缓存可视区域参数（用于自动跟随功能）
-        // 确保使用的是最新值
-        cachedContentX = contentX;
-        cachedContentW = contentW;
-
-        // ⭐ 自动跟随：播放时确保播放头始终在本帧可见区域内
+    private void prepareTimelineCanvasFrame(TimelineCanvasLayout layout, boolean skipDividerDrag) {
+        renderer.updateLeftSectionWidth(layout.winX(), layout.winY(), layout.availH(), skipDividerDrag);
+        cachedContentX = layout.contentX();
+        cachedContentW = layout.contentW();
         if (isPlaybackActive()) {
             ensurePlayheadVisible();
         }
+        renderer.beginFrame(layout.winX(), layout.winY(), layout.winW(), layout.availH());
+    }
 
-        // 1) 告知 renderer 当前视图参数（用于坐标转换）
-        // 这一步非常重要，它会把 contentX 同步给 Renderer 内部的 Viewport 对象
-        renderer.beginFrame(winX, winY, winW, availH);
-
-        // ⭐ 优化 A：显式剪裁 Header 区域，防止标记绘制到外面
-        pushClipRectSafe(drawList, winX, winY, winX + winW, winY + headerHeight);
-        renderer.renderTimelineHeader(drawList, winX, winY, winW);
+    private void renderTimelineCanvasHeader(TimelineCanvasLayout layout, ImDrawList drawList) {
+        pushClipRectSafe(
+                drawList,
+                layout.winX(), layout.winY(),
+                layout.winX() + layout.winW(), layout.winY() + layout.headerHeight()
+        );
+        renderer.renderTimelineHeader(drawList, layout.winX(), layout.winY(), layout.winW());
         drawList.popClipRect();
+    }
 
-        // 2.5) 处理刻度尺交互（点击跳转播放头，拖动播放头）
-        handleRulerInteractions(winY, contentX, contentW);
-
-        // 3) 处理滚动：缩放 / 水平滚动（委托给 NavigationHandler）
-        navigationHandler.handleMouseWheel(winX, winY, winW, headerHeight, trackViewportHeight);
-
-        if (trackViewportHeight <= 0f) {
-            // 空高度就不画轨道了
-            ImGui.setCursorScreenPos(winX, winY + headerHeight);
-            return;
-        }
-
-        // 4) 计算轨道总高度（用于滚动条）
+    private void renderTimelineTrackRegion(TimelineCanvasLayout layout, ImDrawList drawList) {
         int trackCount = model.getTrackCount();
         float trackHeight = TimelineRenderer.getTrackHeight();
         float trackGap = TimelineRenderer.getTrackGap();
         float rowHeight = trackHeight + trackGap;
-        float totalTracksHeight = trackCount > 0 ?
-                (trackCount * trackHeight + (trackCount - 1) * trackGap) : 0f;
+        float totalTracksHeight = trackCount > 0
+                ? (trackCount * trackHeight + (trackCount - 1) * trackGap)
+                : 0f;
 
-        // 轨道区域子窗口：支持垂直滚动
-        // 如果轨道总高度超过视图高度，ImGui 会自动显示垂直滚动条
-        ImGui.setCursorScreenPos(winX, trackRegionTop);
+        ImGui.setCursorScreenPos(layout.winX(), layout.trackRegionTop());
+        ImGui.beginChild("##TimelineTrackRegion", layout.winW(), layout.trackViewportHeight(), false, ImGuiWindowFlags.None);
 
-        // ⭐ 优化 B：移除 HorizontalScrollbar 标志
-        // 我们只需要垂直滚动条，水平方向由 Virtual ScrollX 控制
-        // 使用 None 标志，ImGui 会自动处理垂直滚动条（当内容超出时）
-        ImGui.beginChild("##TimelineTrackRegion",
-                winW, trackViewportHeight,
-                false,
-                ImGuiWindowFlags.None); // 移除 HorizontalScrollbar，ImGui会自动处理垂直滚动条
-
-        // 计算虚拟高度，开启垂直滚动条
-        // ⭐ v9.0 优化：使用常量代替魔法数值，便于后期 UI 微调
         float totalTracksHeightWithPadding = totalTracksHeight + DUMMY_SCROLL_PADDING;
-
-        if (totalTracksHeightWithPadding > trackViewportHeight) {
-            // 在内容结束位置创建虚拟控件，撑开滚动条
+        if (totalTracksHeightWithPadding > layout.trackViewportHeight()) {
             ImGui.setCursorPos(0, totalTracksHeightWithPadding);
-            ImGui.dummy(1.0f, 1.0f); // 撑开滚动条
-            // 复位到开始位置
+            ImGui.dummy(1.0f, 1.0f);
             ImGui.setCursorPos(0, 0);
         }
 
         float scrollY = ImGui.getScrollY();
         viewportState.setScrollY(scrollY);
 
-        // ⭐ 优化 A：显式剪裁轨道区域
-        // 剪裁整个轨道区域（防止内容在滚动时溢出子窗口边缘）
-        pushClipRectSafe(drawList, winX, trackRegionTop, winX + winW, trackRegionTop + trackViewportHeight);
-
-        // 在主窗口坐标系中绘制（所以传 winX / trackRegionTop），scrollY 从 viewportState 同步
-        // 注意：RenderTrackArea 会画整个区域（包括左侧标签和右侧内容）
-        // 但片段画布在 renderClip 中已经被限制在内容区域内（通过 clampedX1/clampedX2）
-        renderer.renderTrackArea(drawList, winX, trackRegionTop, winW, trackViewportHeight);
-
-        // 6) Drop 高亮（在剪裁区域内）
-        if (dropTargetTrackIndex >= 0) {
-            // 使用已计算的 rowHeight
-            float y = trackRegionTop - scrollY + dropTargetTrackIndex * rowHeight;
-            renderer.renderDropHighlight(drawList, contentX, y, contentW);
-        }
-
-        // 6.5) 吸附参考线（在剪裁区域内）
-        renderer.renderSnapGuide(drawList, contentX, trackRegionTop, contentW, trackViewportHeight);
-
-        // 恢复轨道区域剪裁
+        pushClipRectSafe(
+                drawList,
+                layout.winX(), layout.trackRegionTop(),
+                layout.winX() + layout.winW(), layout.trackRegionTop() + layout.trackViewportHeight()
+        );
+        renderer.renderTrackArea(
+                drawList, layout.winX(), layout.trackRegionTop(), layout.winW(), layout.trackViewportHeight()
+        );
+        renderTimelineTrackOverlays(layout, drawList, scrollY, rowHeight);
         drawList.popClipRect();
 
-        // 5) 渲染原位编辑和弹出框（这些是标记 ImGui 控件，自带剪裁，不需要 pushClipRect）
-        // 注意：Clip 相关的 Popup 应该在剪裁区域之外渲染，Dialog 会新建 Layer，所以没问题
-        // 但 InlineEdit (InputText) 必须在 Child 内渲染以跟随滚动
-        renderInlineEdit(winX, trackRegionTop, scrollY);
+        renderTimelineTrackEditors(layout, scrollY);
+        renderTimelineTrackDialogs();
+        renderTimelineTrackInteractions(layout, scrollY, totalTracksHeight);
 
-        // 这些 Dialog 渲染逻辑是安全的，因为它们内部使用 beginPopup / beginTooltip
+        ImGui.endChild();
+    }
+
+    private void renderTimelineTrackOverlays(
+            TimelineCanvasLayout layout,
+            ImDrawList drawList,
+            float scrollY,
+            float rowHeight
+    ) {
+        if (dropTargetTrackIndex >= 0) {
+            float y = layout.trackRegionTop() - scrollY + dropTargetTrackIndex * rowHeight;
+            renderer.renderDropHighlight(drawList, layout.contentX(), y, layout.contentW());
+        }
+        renderer.renderSnapGuide(
+                drawList,
+                layout.contentX(), layout.trackRegionTop(),
+                layout.contentW(), layout.trackViewportHeight()
+        );
+    }
+
+    private void renderTimelineTrackEditors(TimelineCanvasLayout layout, float scrollY) {
+        renderInlineEdit(layout.winX(), layout.trackRegionTop(), scrollY);
+    }
+
+    private void renderTimelineTrackDialogs() {
         TrackRenameDialog.renderPopupIfNeeded();
         ClipRenameDialog.renderIfNeeded();
         ClipBindingDialog.renderIfNeeded();
         ClipLengthDialog.renderIfNeeded();
+    }
 
-        // 7) InvisibleButton 用于交互
-        // ⭐ 关键修复：InvisibleButton 在 Child 窗口中的定位
-        //
-        // 问题分析：
-        // - 在 Child 窗口中，(0,0) 是内容区域的左上角（相对于 Child 窗口）
-        // - 当 scrollY > 0 时，(0,0) 会滚动到视图上方
-        // - 如果使用 setCursorScreenPos，坐标会与 Child 窗口的坐标系不兼容
-        //
-        // 解决方案：
-        // - 使用 setCursorPos(0, 0) 在 Child 窗口的内容坐标系中定位
-        // - 创建一个覆盖整个内容区域（包括可能滚动的部分）的按钮
-        // - ImGui 的 invisibleButton 会自动处理滚动，只要在正确的 Child 窗口上下文中创建即可
-        //
+    private void renderTimelineTrackInteractions(
+            TimelineCanvasLayout layout,
+            float scrollY,
+            float totalTracksHeight
+    ) {
         ImGui.setCursorPos(0, 0);
-        // 创建一个覆盖整个内容区域（包括所有可能滚动的轨道）的按钮
-        // 宽度使用 winW，高度使用“轨道高度”（加一些边距），这样无论滚动到哪里都能捕捉点击
-        float buttonHeight = Math.max(trackViewportHeight, totalTracksHeight + 100f); // 添加边距确保覆盖
-        ImGui.invisibleButton("##TimelineCanvas", winW, buttonHeight);
-
-        // 检查 invisibleButton 是否被右键点击（用于上下文菜单）
-        // 注意：invisibleButton 会拦截右键事件，所以我们需要在这里检查
-        // ⭐ 优化 D：确保 InvisibleButton 的 ID 唯一性，并利用其状态
+        float buttonHeight = Math.max(layout.trackViewportHeight(), totalTracksHeight + 100f);
+        ImGui.invisibleButton("##TimelineCanvas", layout.winW(), buttonHeight);
         boolean rightClickedOnCanvas = ImGui.isItemHovered() && ImGui.isMouseClicked(ImGuiMouseButton.Right);
 
-        // 7.5) 设置容器拖放目标（委托给 DragDropHandler）
-        // 使用子窗口的 contentX（在子窗口之前保存的值）
-        this.dropTargetTrackIndex = dragDropHandler.handleDragDropTarget(trackRegionTop, scrollY, contentX);
+        dropTargetTrackIndex = dragDropHandler.handleDragDropTarget(
+                layout.trackRegionTop(), scrollY, layout.contentX()
+        );
+        interactionHandler.handleCanvasInteractions(
+                layout.contentX(), layout.trackRegionTop(),
+                layout.contentW(), layout.trackViewportHeight(),
+                scrollY, rightClickedOnCanvas
+        );
 
-        // 8) 把几何信息传给交互处理器（命名 / 拖动 / 上下文菜单）
-        interactionHandler.handleCanvasInteractions(contentX, trackRegionTop, contentW, trackViewportHeight, scrollY, rightClickedOnCanvas);
-
-        // 8.2) 框选覆盖层（多选关键帧）
-        pushClipRectSafe(drawList, winX, trackRegionTop, winX + winW, trackRegionTop + trackViewportHeight);
+        ImDrawList drawList = ImGui.getWindowDrawList();
+        pushClipRectSafe(
+                drawList,
+                layout.winX(), layout.trackRegionTop(),
+                layout.winX() + layout.winW(), layout.trackRegionTop() + layout.trackViewportHeight()
+        );
         interactionHandler.renderMarqueeOverlay(drawList);
         drawList.popClipRect();
 
-        // 8.5) 更新菜单状态（检查是否已关闭）
         interactionHandler.updateMenuState();
-        
-        // 8.6) ⭐⭐ 渲染活动的上下文菜单（必须在 endChild 之前）
-        // ⚠️ 重要：只渲染一次，不要重复渲染！
         TimelineContextMenu activeMenu = interactionHandler.getActiveContextMenu();
         if (activeMenu != null) {
             activeMenu.render();
         }
+    }
 
-        ImGui.endChild();
-
-        // ============================================================
-        // ⭐ 修复：在 EndChild 之后渲染播放头（v8.1 关键修复）
-        // ============================================================
-        //
-        // 问题分析：
-        // - 子窗口（Child Window）有默认的剪裁区域（ClipRect）
-        // - 如果播放头在子窗口内画布，标记上的三角形手柄会被子窗口底部边缘剪裁掉
-        // - 用户只能看到轨道上的红线，看不到标记上的手柄
-        //
-        // 解决方案：
-        // - 把 renderPlayhead 移到 endChild() 之后，在主窗口层画布
-        // - 这样播放头会覆盖在所有内容之上，且不会被子窗口剪裁
-        // - 使用单独的剪裁区域确保播放头只显示在内容区域内
-        //
-        // ============================================================
-
-        // 使用主窗口的 DrawList（此时已不在 Child 作用域外）
-        // ⭐ v9.0 更新：手柄现在在刻度尺内（顶部与底部三角对齐），不需要扩展剪裁区域
-        float trackAreaBottom = trackRegionTop + trackViewportHeight;
-
-        // 设置剪裁区域：从刻度尺顶部一直到轨道区域底部
-        // 手柄在底部三角内，所以不需要向上扩展剪裁区域
-        pushClipRectSafe(drawList, contentX, winY, contentX + contentW, trackAreaBottom);
-
-        // 在播放头下方绘制 In/Out 参考线，播放头保持最上层可读性。
-        renderPlaybackRangeGuides(drawList, contentX, winY, contentW, trackAreaBottom);
-
-        // 注意参数调整：
-        // - contentY 用 winY（Header 顶部），以便 renderer 计算正确的手柄位置
-        // - contentH 用 availH（总高度），让播放头线画到底部
-        renderer.renderPlayhead(drawList, contentX, winY, contentW, availH);
-
+    private void renderTimelinePlayheadOverlay(TimelineCanvasLayout layout, ImDrawList drawList) {
+        float trackAreaBottom = layout.trackRegionTop() + layout.trackViewportHeight();
+        pushClipRectSafe(
+                drawList,
+                layout.contentX(), layout.winY(),
+                layout.contentX() + layout.contentW(), trackAreaBottom
+        );
+        renderPlaybackRangeGuides(
+                drawList, layout.contentX(), layout.winY(), layout.contentW(), trackAreaBottom
+        );
+        renderer.renderPlayhead(
+                drawList, layout.contentX(), layout.winY(), layout.contentW(), layout.availH()
+        );
         drawList.popClipRect();
-
-        // 9) 把光标移动到子窗口下面，避免下一个控件重叠
-        ImGui.setCursorScreenPos(winX, trackRegionTop + trackViewportHeight);
     }
 
     private void renderPlaybackRangeGuides(
@@ -1377,8 +1361,6 @@ public class TimelinePanel extends AbstractPanel
         }
 
         TrackType type = track.getType();
-        
-        // ✅ 修复：容器轨道和清除轨道不支持轨道级关键帧
         if (type == TrackType.CONTAINER) {
             LOGGER.warn("[TimelinePanel] 容器轨道不支持轨道级关键帧，请使用片段内的动画配置 (轨道: {})", track.getName());
             return;
@@ -1386,177 +1368,154 @@ public class TimelinePanel extends AbstractPanel
 
         float time = clamp(model.getCurrentTime(), 0f, model.getDuration());
         String timeLabel = String.format("%.2f", time);
-        boolean handled = false;
 
-        if (type != null) {
-            if (type.supportsCameraPath()) {
-                // ⭐ 检查轨道是否锁定
-                if (track.isLocked()) {
-                    LOGGER.warn("[TimelinePanel] 轨道已锁定，无法添加关键帧 (轨道: {})", track.getName());
-                    return;
-                }
-                
-                // ⭐ 检查是否是激活的摄像机轨道
-                com.director.timeline.playback.camera.TimelineCameraController cameraController =
-                        com.director.timeline.playback.camera.TimelineCameraController.getInstance();
-                com.director.timeline.model.TimelineTrack activeTrack = cameraController.getActiveCameraTrack();
-                
-                if (activeTrack != track) {
-                    LOGGER.warn("[TimelinePanel] 只能在激活的摄像机轨道上添加关键帧，当前轨道：{}，激活轨道：{}",
-                            track.getName(),
-                            activeTrack != null ? activeTrack.getName() : "null");
-                    return;
-                }
-                
-                if (!com.director.timeline.playback.camera.CameraRuntime.getInstance().isPlayerOwner()) {
-                    LOGGER.warn("[TimelinePanel] 当前非玩家模式，跳过摄像机关键帧捕捉");
-                    return;
-                }
-                com.director.timeline.model.camera.path.CustomPathClip customPathClip =
-                        track.findCustomPathClipAt(time);
-                if (customPathClip == null) {
-                    LOGGER.warn("[TimelinePanel] 摄像机关键帧只能添加到自定义路径片段内，请先创建自定义路径片段 (轨道: {})", track.getName());
-                    return;
-                }
-                CameraKeyframe keyframe = new CameraKeyframe("Camera @" + timeLabel, time);
-                // ⭐ 自动捕获完整的当前相机状态（位置、旋转、FOV等所有属性）
-                boolean captured = TimelineCameraController.getInstance().captureFromCurrentCamera(keyframe);
-                if (!captured) {
-                    LOGGER.warn("[TimelinePanel] 摄像机状态捕获失败，取消添加关键帧");
-                    return;
-                }
-                commandHistory.executeCommand(new com.director.ui.timeline.commands.AddCameraPathKeyframeCommand(
-                        model,
-                        customPathClip,
-                        keyframe
-                ));
-                handled = true;
-            } else if (type.supportsWeatherControl()) {
-                commandHistory.executeCommand(new AddAutomationKeyframeCommand(
-                        model,
-                        track,
-                        new WeatherKeyframe("Weather @" + timeLabel, time)
-                ));
-                handled = true;
-            } else if (type.supportsTimeControl()) {
-                // ⭐ 时间轨道：添加时间关键帧，捕获当前世界时间
-                if (track.isLocked()) {
-                    LOGGER.warn("[TimelinePanel] 轨道已锁定，无法添加关键帧 (轨道: {})", track.getName());
-                    return;
-                }
-                
-                // ⭐ v3.5：检查是否是激活的时间轨道
-                com.director.timeline.playback.time.TimelineWorldController timeController =
-                        com.director.timeline.playback.time.TimelineWorldController.getInstance();
-                com.director.timeline.model.TimelineTrack activeTrack = timeController.getActiveTimeTrack();
-                
-                if (activeTrack != track) {
-                    LOGGER.warn("[TimelinePanel] 只能在激活的时间轨道上添加关键帧，当前轨道：{}，激活轨道：{}",
-                            track.getName(),
-                            activeTrack != null ? activeTrack.getName() : "null");
-                    return;
-                }
-                
-                // 获取当前 Minecraft 世界时间
-                TimeKeyframe timeKeyframe = getTimeKeyframe(timeLabel, time);
-
-                commandHistory.executeCommand(new AddAutomationKeyframeCommand(
-                        model,
-                        track,
-                        timeKeyframe
-                ));
-                
-                // ⭐ 通知 TimelineWorldController 更新
-                timeController.rebuildFromActiveTrack();
-                
-                handled = true;
-            } else if (type.supportsEntityControl()) {
-                // ⭐ 演员轨道：添加实体关键帧
-                if (track.isLocked()) {
-                    LOGGER.warn("[TimelinePanel] 轨道已锁定，无法添加关键帧 (轨道: {})", track.getName());
-                    return;
-                }
-                
-                // ⭐ v1.0：检查是否是激活的演员轨道
-                com.director.timeline.playback.entity.TimelineActorController entityController =
-                        com.director.timeline.playback.entity.TimelineActorController.getInstance();
-                com.director.timeline.model.TimelineTrack activeTrack = entityController.getActiveActorTrack();
-                
-                if (activeTrack != track) {
-                    LOGGER.warn("[TimelinePanel] 只能在激活的演员轨道上添加关键帧，当前轨道：{}，激活轨道：{}",
-                            track.getName(),
-                            activeTrack != null ? activeTrack.getName() : "null");
-                    return;
-                }
-                
-                com.director.timeline.model.entity.EntityKeyframe entityKeyframe = 
-                        new com.director.timeline.model.entity.EntityKeyframe("Entity @" + timeLabel, time);
-                
-                commandHistory.executeCommand(new AddAutomationKeyframeCommand(
-                        model,
-                        track,
-                        entityKeyframe
-                ));
-                
-                // ⭐ 通知 TimelineActorController 更新
-                entityController.rebuildFromActiveTrack();
-                
-                handled = true;
-            } else if (type.supportsSeasonControl()) {
-                // ⭐ 季节轨道：添加季节关键帧
-                if (track.isLocked()) {
-                    LOGGER.warn("[TimelinePanel] 轨道已锁定，无法添加关键帧 (轨道: {})", track.getName());
-                    return;
-                }
-                
-                // ⭐ v1.1：检查是否是激活的季节轨道
-                com.director.timeline.playback.season.TimelineSeasonController seasonController =
-                        com.director.timeline.playback.season.TimelineSeasonController.getInstance();
-                com.director.timeline.model.TimelineTrack activeTrack = seasonController.getActiveSeasonTrack();
-                
-                if (activeTrack != track) {
-                    LOGGER.warn("[TimelinePanel] 只能在激活的季节轨道上添加关键帧，当前轨道：{}，激活轨道：{}",
-                            track.getName(),
-                            activeTrack != null ? activeTrack.getName() : "null");
-                    return;
-                }
-                
-                com.director.timeline.model.season.SeasonKeyframe seasonKeyframe = 
-                    new com.director.timeline.model.season.SeasonKeyframe("Season @" + timeLabel, time);
-                
-                commandHistory.executeCommand(new AddAutomationKeyframeCommand(
-                        model,
-                        track,
-                        seasonKeyframe
-                ));
-                
-                // ⭐ 通知 TimelineSeasonController 更新
-                com.director.timeline.playback.season.TimelineSeasonController.getInstance()
-                        .rebuildFromActiveTrack();
-                
-                handled = true;
-            }
+        if (tryAddCameraKeyframe(track, time, timeLabel)
+                || tryAddWeatherKeyframe(track, time, timeLabel)
+                || tryAddTimeKeyframe(track, time, timeLabel)
+                || tryAddEntityKeyframe(track, time, timeLabel)
+                || tryAddSeasonKeyframe(track, time, timeLabel)) {
+            return;
         }
 
-        if (!handled) {
-            TimelineClip targetClip = track.findClipAtTime(time);
-            if (targetClip == null) {
-                TimelineClip selected = model.getSelectedClip();
-                if (selected != null && model.findTrackForClip(selected) == track) {
-                    targetClip = selected;
-                }
-            }
-
-            if (targetClip == null) {
-                LOGGER.warn("[TimelinePanel] Failed to add keyframe: track {} has no editable clip at current time", track.getName());
-                return;
-            }
-
-            float clampedTime = clamp(time, targetClip.getStartTime(), targetClip.getEndTime());
-            commandHistory.executeCommand(new AddKeyframeCommand(model, targetClip, clampedTime));
-        }
-
+        addClipKeyframeAtPlayhead(track, time);
         markDataChanged();
+    }
+
+    private void executeAutomationKeyframeAdd(
+            TimelineTrack track,
+            TimelineSelectable keyframe,
+            Runnable rebuildSampler
+    ) {
+        commandHistory.executeCommand(new AddAutomationKeyframeCommand(model, track, keyframe));
+        rebuildSampler.run();
+        markDataChanged();
+    }
+
+    private boolean tryAddCameraKeyframe(TimelineTrack track, float time, String timeLabel) {
+        if (!track.getType().supportsCameraPath()) {
+            return false;
+        }
+
+        TimelineCameraController cameraController = TimelineCameraController.getInstance();
+        if (!cameraController.isAddKeyframeTargetValid(track)) {
+            return true;
+        }
+        if (!CameraRuntime.getInstance().isPlayerOwner()) {
+            LOGGER.warn("[TimelinePanel] 当前非玩家模式，跳过摄像机关键帧捕捉");
+            return true;
+        }
+
+        CustomPathClip customPathClip = track.findCustomPathClipAt(time);
+        if (customPathClip == null) {
+            LOGGER.warn(
+                    "[TimelinePanel] 摄像机关键帧只能添加到自定义路径片段内，请先创建自定义路径片段 (轨道: {})",
+                    track.getName()
+            );
+            return true;
+        }
+
+        CameraKeyframe keyframe = new CameraKeyframe("Camera @" + timeLabel, time);
+        if (!cameraController.captureFromCurrentCamera(keyframe)) {
+            LOGGER.warn("[TimelinePanel] 摄像机状态捕获失败，取消添加关键帧");
+            return true;
+        }
+
+        commandHistory.executeCommand(new AddCameraPathKeyframeCommand(model, customPathClip, keyframe));
+        markDataChanged();
+        return true;
+    }
+
+    private boolean tryAddWeatherKeyframe(TimelineTrack track, float time, String timeLabel) {
+        if (!track.getType().supportsWeatherControl()) {
+            return false;
+        }
+
+        TimelineWeatherController weatherController = TimelineWeatherController.getInstance();
+        if (!weatherController.isAddKeyframeTargetValid(track)) {
+            return true;
+        }
+
+        executeAutomationKeyframeAdd(
+                track,
+                new WeatherKeyframe("Weather @" + timeLabel, time),
+                weatherController::rebuildFromActiveTrack
+        );
+        return true;
+    }
+
+    private boolean tryAddTimeKeyframe(TimelineTrack track, float time, String timeLabel) {
+        if (!track.getType().supportsTimeControl()) {
+            return false;
+        }
+
+        TimelineWorldController timeController = TimelineWorldController.getInstance();
+        if (!timeController.isAddKeyframeTargetValid(track)) {
+            return true;
+        }
+
+        executeAutomationKeyframeAdd(
+                track,
+                getTimeKeyframe(timeLabel, time),
+                timeController::rebuildFromActiveTrack
+        );
+        return true;
+    }
+
+    private boolean tryAddEntityKeyframe(TimelineTrack track, float time, String timeLabel) {
+        if (!track.getType().supportsEntityControl()) {
+            return false;
+        }
+
+        TimelineActorController entityController = TimelineActorController.getInstance();
+        if (!entityController.isAddKeyframeTargetValid(track)) {
+            return true;
+        }
+
+        executeAutomationKeyframeAdd(
+                track,
+                new EntityKeyframe("Entity @" + timeLabel, time),
+                entityController::rebuildFromActiveTrack
+        );
+        return true;
+    }
+
+    private boolean tryAddSeasonKeyframe(TimelineTrack track, float time, String timeLabel) {
+        if (!track.getType().supportsSeasonControl()) {
+            return false;
+        }
+
+        TimelineSeasonController seasonController = TimelineSeasonController.getInstance();
+        if (!seasonController.isAddKeyframeTargetValid(track)) {
+            return true;
+        }
+
+        executeAutomationKeyframeAdd(
+                track,
+                new SeasonKeyframe("Season @" + timeLabel, time),
+                seasonController::rebuildFromActiveTrack
+        );
+        return true;
+    }
+
+    private void addClipKeyframeAtPlayhead(TimelineTrack track, float time) {
+        TimelineClip targetClip = track.findClipAtTime(time);
+        if (targetClip == null) {
+            TimelineClip selected = model.getSelectedClip();
+            if (selected != null && model.findTrackForClip(selected) == track) {
+                targetClip = selected;
+            }
+        }
+
+        if (targetClip == null) {
+            LOGGER.warn(
+                    "[TimelinePanel] Failed to add keyframe: track {} has no editable clip at current time",
+                    track.getName()
+            );
+            return;
+        }
+
+        float clampedTime = clamp(time, targetClip.getStartTime(), targetClip.getEndTime());
+        commandHistory.executeCommand(new AddKeyframeCommand(model, targetClip, clampedTime));
     }
 
     private static @NotNull TimeKeyframe getTimeKeyframe(String timeLabel, float time) {
