@@ -117,6 +117,7 @@ public class EntityClipSampler {
         List<ActorActionClip> actorActionClips = new ArrayList<>();
         List<ActorPoseClip> actorPoseClips = new ArrayList<>();
         List<ActorRouteClip> actorRouteClips = new ArrayList<>();
+        List<ActorRelationClip> actorRelationClips = new ArrayList<>();
 
         for (EntityClip clip : clipsAtTime) {
             if (clip.isMuted()) {
@@ -174,6 +175,11 @@ public class EntityClipSampler {
                         actorRouteClips.add(actorRouteClip);
                     }
                     break;
+                case ACTOR_RELATION:
+                    if (clip instanceof ActorRelationClip actorRelationClip) {
+                        actorRelationClips.add(actorRelationClip);
+                    }
+                    break;
             }
         }
 
@@ -222,6 +228,10 @@ public class EntityClipSampler {
         // ========== 处理 ActorPose Clip（局部姿态覆盖）==========
         // 规则：last-wins（取 startTime 最大的那个）
         applyActorPose(result, actorPoseClips, timeSeconds);
+
+        // ========== 处理 ActorRelation Clip（多演员关系）==========
+        // 规则：last-wins（取 startTime 最大的那个）
+        applyActorRelation(result, actorRelationClips, timeSeconds);
 
         // ========== 计算速度（用于自动动作推断）==========
         sampleVelocity(result, timeSeconds);
@@ -661,6 +671,31 @@ public class EntityClipSampler {
             double horizontal = Math.sqrt(sample.direction.x * sample.direction.x + sample.direction.z * sample.direction.z);
             result.rotation.y = (float) Math.toDegrees(Math.atan2(-sample.direction.y, horizontal));
         }
+    }
+
+    private void applyActorRelation(EntitySample result, List<ActorRelationClip> clips, float timeSeconds) {
+        ActorRelationClip active = null;
+        for (ActorRelationClip clip : clips) {
+            if (clip.isMuted()) {
+                continue;
+            }
+            if (timeSeconds >= clip.getStartTime() && timeSeconds <= clip.getEndTime()) {
+                if (active == null || clip.getStartTime() > active.getStartTime()) {
+                    active = clip;
+                }
+            }
+        }
+        if (active == null || active.getTargetActorId() == null) {
+            return;
+        }
+
+        result.relationEnabled = true;
+        result.relationType = active.getRelationType().name();
+        result.relationTargetActorId = active.getTargetActorId();
+        result.relationDistance = active.getDistance();
+        result.relationAngle = active.getAngle();
+        result.relationHeightOffset = active.getHeightOffset();
+        result.relationMaintainLookAt = active.isMaintainLookAt();
     }
 
     private float computeRouteDuration(ActorRouteClip clip) {

@@ -265,6 +265,14 @@ public class TimelineModelPersistence {
         public String routeLoopMode;
         public Float routeSpeed;
         public Boolean routeAlignRotation;
+
+        // ===== ActorRelationClip =====
+        public String relationTargetActorId;
+        public String relationType;
+        public Float relationDistance;
+        public Float relationAngle;
+        public Float relationHeightOffset;
+        public Boolean relationMaintainLookAt;
     }
 
     /**
@@ -878,6 +886,14 @@ public class TimelineModelPersistence {
                             cdto.routeSpeed = rc.getSpeed();
                             cdto.routeAlignRotation = rc.isAlignRotationToRoute();
                         }
+                        case com.director.timeline.model.entity.ActorRelationClip rel -> {
+                            cdto.relationTargetActorId = rel.getTargetActorId() != null ? rel.getTargetActorId().toString() : null;
+                            cdto.relationType = rel.getRelationType() != null ? rel.getRelationType().name() : null;
+                            cdto.relationDistance = rel.getDistance();
+                            cdto.relationAngle = rel.getAngle();
+                            cdto.relationHeightOffset = rel.getHeightOffset();
+                            cdto.relationMaintainLookAt = rel.isMaintainLookAt();
+                        }
                         default -> {
                         }
                     }
@@ -1485,6 +1501,18 @@ public class TimelineModelPersistence {
                                         if (cdto.routeSpeed != null) rc.setSpeed(cdto.routeSpeed);
                                         if (cdto.routeAlignRotation != null) rc.setAlignRotationToRoute(cdto.routeAlignRotation);
                                     }
+                                    case com.director.timeline.model.entity.ActorRelationClip rel -> {
+                                        if (cdto.relationTargetActorId != null) {
+                                            ParseUtils.setUuidIfValid(cdto.relationTargetActorId, "rel.setTargetActorId", rel::setTargetActorId);
+                                        }
+                                        if (cdto.relationType != null) {
+                                            ParseUtils.setEnumIfValid(cdto.relationType, com.director.timeline.model.entity.ActorRelationClip.RelationType.class, "RelationType", rel::setRelationType);
+                                        }
+                                        if (cdto.relationDistance != null) rel.setDistance(cdto.relationDistance);
+                                        if (cdto.relationAngle != null) rel.setAngle(cdto.relationAngle);
+                                        if (cdto.relationHeightOffset != null) rel.setHeightOffset(cdto.relationHeightOffset);
+                                        if (cdto.relationMaintainLookAt != null) rel.setMaintainLookAt(cdto.relationMaintainLookAt);
+                                    }
                                     default -> {
                                     }
                                 }
@@ -1537,6 +1565,7 @@ public class TimelineModelPersistence {
             case ACTOR_ACTION -> new com.director.timeline.model.entity.ActorActionClip(cname, cdto.startTime, cdto.endTime);
             case ACTOR_POSE -> new com.director.timeline.model.entity.ActorPoseClip(cname, cdto.startTime, cdto.endTime);
             case ACTOR_ROUTE -> new com.director.timeline.model.entity.ActorRouteClip(cname, cdto.startTime, cdto.endTime);
+            case ACTOR_RELATION -> new com.director.timeline.model.entity.ActorRelationClip(cname, cdto.startTime, cdto.endTime);
         };
         clip.setMuted(cdto.muted);
         clip.setWeight(cdto.weight);

@@ -107,17 +107,27 @@ public class DefaultAnimationPlayer implements AnimationPlayer {
             return;
         }
 
+        float duration = currentAnimation.getDuration();
+        if (duration <= 0f) {
+            // 零时长动画无法推进时间，直接视为结束
+            currentTime = 0f;
+            if (!loop) {
+                playing = false;
+            }
+            return;
+        }
+
         // 更新播放时间
         currentTime += deltaTime * speed;
 
         // 检查是否播放完毕
-        if (currentTime >= currentAnimation.getDuration()) {
+        if (currentTime >= duration) {
             if (loop) {
                 // 循环播放
-                currentTime = currentTime % currentAnimation.getDuration();
+                currentTime = currentTime % duration;
             } else {
                 // 停止播放
-                currentTime = currentAnimation.getDuration();
+                currentTime = duration;
                 playing = false;
                 LOGGER.debug("[AnimationPlayer] 动画播放完毕: {}", currentAnimationId);
             }

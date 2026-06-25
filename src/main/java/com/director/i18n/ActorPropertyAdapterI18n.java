@@ -2,6 +2,7 @@ package com.director.i18n;
 
 import com.director.actor.ActorGroup;
 import com.director.actor.ActorType;
+import com.director.timeline.model.entity.ActorRelationClip;
 import com.director.timeline.model.entity.ActorRouteClip;
 import com.director.timeline.model.entity.EntityLookAtClip;
 
@@ -74,6 +75,17 @@ public final class ActorPropertyAdapterI18n {
         };
     }
 
+    public static String[] relationTypeLabels() {
+        return new String[]{
+                tr(DirectorLang.Properties.AdapterActor.Relation.TYPE_FACE_TO_FACE),
+                tr(DirectorLang.Properties.AdapterActor.Relation.TYPE_FOLLOW),
+                tr(DirectorLang.Properties.AdapterActor.Relation.TYPE_CIRCLE_AROUND),
+                tr(DirectorLang.Properties.AdapterActor.Relation.TYPE_MIRROR),
+                tr(DirectorLang.Properties.AdapterActor.Relation.TYPE_PASS_OBJECT),
+                tr(DirectorLang.Properties.AdapterActor.Relation.TYPE_RELATIVE_POSITION)
+        };
+    }
+
     public static String[] lookAtTargetModeLabels() {
         return new String[]{
                 tr(DirectorLang.Properties.AdapterActor.LookAt.MODE_WORLD_POINT),
@@ -108,6 +120,13 @@ public final class ActorPropertyAdapterI18n {
             return routeLoopLabels()[0];
         }
         return routeLoopLabels()[mode.ordinal()];
+    }
+
+    public static String relationTypeLabel(ActorRelationClip.RelationType type) {
+        if (type == null) {
+            return relationTypeLabels()[0];
+        }
+        return relationTypeLabels()[type.ordinal()];
     }
 
     public static String lookAtModeLabel(EntityLookAtClip.TargetMode mode) {

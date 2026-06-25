@@ -175,7 +175,14 @@ public enum EntityClipType {
      *
      * <p>用确定性的路点序列驱动演员移动。未来可接入 Minecraft PathNavigation 作为局部避障辅助。</p>
      */
-    ACTOR_ROUTE("路线", "沿路点序列移动演员");
+    ACTOR_ROUTE("路线", "沿路点序列移动演员"),
+
+    /**
+     * 演员关系片段。
+     *
+     * <p>定义当前演员与目标演员的相对关系（面对面、跟随、相对偏移）。</p>
+     */
+    ACTOR_RELATION("演员关系", "定义演员之间的相对位置和关系");
 
     private final String displayName;
     private final String description;

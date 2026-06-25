@@ -174,6 +174,7 @@ public final class DirectorLang {
             public static final String ENTITY_STATE = "gui.director.timeline.context.entity_state";
             public static final String ENTITY_LOOK_AT = "gui.director.timeline.context.entity_look_at";
             public static final String ENTITY_DESPAWN = "gui.director.timeline.context.entity_despawn";
+            public static final String ACTOR_RELATION = "gui.director.timeline.context.actor_relation";
             public static final String NO_PATH_CLIP = "gui.director.timeline.context.no_path_clip";
             public static final String PATH_CLIP_LABEL = "gui.director.timeline.context.path_clip_label";
             public static final String PATH_PROPERTIES = "gui.director.timeline.context.path_properties";
@@ -258,6 +259,7 @@ public final class DirectorLang {
             public static final String ENTITY_STATE = "gui.director.timeline.default.entity_state";
             public static final String ENTITY_LOOK_AT = "gui.director.timeline.default.entity_look_at";
             public static final String ENTITY_DESPAWN = "gui.director.timeline.default.entity_despawn";
+            public static final String ACTOR_RELATION = "gui.director.timeline.default.actor_relation";
 
             private DefaultNames() {
             }
@@ -1505,6 +1507,30 @@ public final class DirectorLang {
                 public static final String LOOP_PING_PONG = "gui.director.properties.adapter.actor.route.loop_ping_pong";
 
                 private Route() {
+                }
+            }
+
+            public static final class Relation {
+                public static final String ADAPTER_NAME = "gui.director.properties.adapter.actor.relation.name";
+                public static final String NO_CLIP = "gui.director.properties.adapter.actor.relation.no_clip";
+                public static final String SECTION_RELATION = "gui.director.properties.adapter.actor.relation.section_relation";
+                public static final String SECTION_TARGET = "gui.director.properties.adapter.actor.relation.section_target";
+                public static final String RELATION_TYPE = "gui.director.properties.adapter.actor.relation.relation_type";
+                public static final String DISTANCE = "gui.director.properties.adapter.actor.relation.distance";
+                public static final String ANGLE = "gui.director.properties.adapter.actor.relation.angle";
+                public static final String HEIGHT_OFFSET = "gui.director.properties.adapter.actor.relation.height_offset";
+                public static final String MAINTAIN_LOOK_AT = "gui.director.properties.adapter.actor.relation.maintain_look_at";
+                public static final String TARGET_ACTOR = "gui.director.properties.adapter.actor.relation.target_actor";
+                public static final String TARGET_ACTOR_NONE = "gui.director.properties.adapter.actor.relation.target_actor_none";
+                public static final String TARGET_ACTOR_UUID_FMT = "gui.director.properties.adapter.actor.relation.target_actor_uuid_fmt";
+                public static final String TYPE_FACE_TO_FACE = "gui.director.properties.adapter.actor.relation.type_face_to_face";
+                public static final String TYPE_FOLLOW = "gui.director.properties.adapter.actor.relation.type_follow";
+                public static final String TYPE_CIRCLE_AROUND = "gui.director.properties.adapter.actor.relation.type_circle_around";
+                public static final String TYPE_MIRROR = "gui.director.properties.adapter.actor.relation.type_mirror";
+                public static final String TYPE_PASS_OBJECT = "gui.director.properties.adapter.actor.relation.type_pass_object";
+                public static final String TYPE_RELATIVE_POSITION = "gui.director.properties.adapter.actor.relation.type_relative_position";
+
+                private Relation() {
                 }
             }
 

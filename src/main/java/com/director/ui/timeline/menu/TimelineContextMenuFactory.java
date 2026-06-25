@@ -33,6 +33,7 @@ import com.director.timeline.model.camera.path.CustomPathClip;
 import com.director.timeline.model.camera.path.DollyPathClip;
 import com.director.timeline.model.camera.path.OrbitPathClip;
 import com.director.timeline.model.entity.EntityActionClip;
+import com.director.timeline.model.entity.ActorRelationClip;
 import com.director.timeline.model.entity.EntityAnimationClip;
 import com.director.timeline.model.entity.EntityClip;
 import com.director.timeline.model.entity.EntityDespawnClip;
@@ -671,6 +672,14 @@ public class TimelineContextMenuFactory {
                                 EntityDespawnClip clip =
                                     new EntityDespawnClip(
                                         tr(DirectorLang.Timeline.DefaultNames.ENTITY_DESPAWN), currentTime, currentTime + 1.0f);
+                                addEntityClip(track, clip);
+                            })
+                            .separator()
+                            .item(tr(DirectorLang.Timeline.ContextMenu.ACTOR_RELATION), () -> {
+                                float currentTime = model.getCurrentTime();
+                                ActorRelationClip clip =
+                                    new ActorRelationClip(
+                                        tr(DirectorLang.Timeline.DefaultNames.ACTOR_RELATION), currentTime, currentTime + 2.0f);
                                 addEntityClip(track, clip);
                             })
                         .end();

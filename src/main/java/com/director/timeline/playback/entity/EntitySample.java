@@ -77,6 +77,29 @@ public class EntitySample {
     /** 动画速度（来自 EntityAnimationClip） */
     public float animationSpeed = 1.0f;
 
+    // ========== ActorRelationClip 扩展字段 ==========
+
+    /** 是否启用关系约束 */
+    public boolean relationEnabled = false;
+
+    /** 关系类型（ActorRelationClip.RelationType.name()） */
+    public String relationType;
+
+    /** 关系目标 Actor ID */
+    public java.util.UUID relationTargetActorId;
+
+    /** 关系距离 */
+    public float relationDistance = 2.0f;
+
+    /** 关系角度 */
+    public float relationAngle = 0f;
+
+    /** 高度偏移 */
+    public float relationHeightOffset = 0f;
+
+    /** 是否保持注视目标 */
+    public boolean relationMaintainLookAt = true;
+
     /** LookAt 目标模式（来自 EntityLookAtClip） */
     public String lookAtMode; // "WORLD_POINT", "ENTITY_UUID", "CAMERA"
 
@@ -241,6 +264,13 @@ public class EntitySample {
         animationSource = s.animationSource;
         animationLoop = s.animationLoop;
         animationSpeed = s.animationSpeed;
+        relationEnabled = s.relationEnabled;
+        relationType = s.relationType;
+        relationTargetActorId = s.relationTargetActorId;
+        relationDistance = s.relationDistance;
+        relationAngle = s.relationAngle;
+        relationHeightOffset = s.relationHeightOffset;
+        relationMaintainLookAt = s.relationMaintainLookAt;
         lookAtMode = s.lookAtMode;
         lookAtPoint.set(s.lookAtPoint);
         lookAtEntityUuid = s.lookAtEntityUuid;

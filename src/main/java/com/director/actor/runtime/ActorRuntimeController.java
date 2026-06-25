@@ -4,12 +4,14 @@ import com.director.actor.Actor;
 import com.director.actor.ActorRegistry;
 import com.director.actor.ActorRef;
 import com.director.actor.action.ActorActionType;
+import com.director.actor.animation.DefaultAnimationPlayer;
 import com.director.actor.preview.ActorPreviewManager;
 import com.director.actor.rig.*;
 import net.minecraft.entity.Entity;
 import com.director.actor.prop.*;
 import com.director.timeline.actor.ActorTimelineSource;
 import com.director.timeline.model.TimelineTrack;
+import com.director.timeline.model.entity.ActorRelationClip;
 import com.director.timeline.model.entity.ActorTrack;
 import com.director.timeline.playback.entity.EntityClipSampler;
 import com.director.timeline.playback.entity.EntitySample;
@@ -85,6 +87,9 @@ public final class ActorRuntimeController {
     /** 每个 Actor 一个 PropRuntime */
     private final Map<UUID, ActorPropRuntime> propRuntimes = new HashMap<>();
 
+    /** 每个 Actor 一个 AnimationPlayer */
+    private final Map<UUID, DefaultAnimationPlayer> animationPlayers = new HashMap<>();
+
     /** 投掷物管理器 */
     private final ProjectileRuntimeManager projectileManager = ProjectileRuntimeManager.getInstance();
 
@@ -133,6 +138,7 @@ public final class ActorRuntimeController {
         if (!enabled) {
             ActorPreviewManager.getInstance().clear();
             ProjectileRuntimeManager.getInstance().clear();
+            animationPlayers.clear();
             LOGGER.info("[ActorRuntime] 已禁用，清空所有预览实体和投掷物");
         } else {
             LOGGER.info("[ActorRuntime] 已启用");
@@ -367,6 +373,9 @@ public final class ActorRuntimeController {
                 if (propRuntime != null) {
                     propRuntime.dispose();
                 }
+
+                // 清理 AnimationPlayer
+                animationPlayers.remove(actorId);
             }
             spawned = false;
             actor = null;
@@ -432,6 +441,11 @@ public final class ActorRuntimeController {
                     s.rotation.x,
                     s.rotation.y
             );
+
+            // === ActorRelation（多演员关系）===
+            if (s.relationEnabled) {
+                applyActorRelation(entity, s);
+            }
 
             // === LookAt（简化：直接调整 yaw/pitch）===
             if (s.lookAtEnabled) {
@@ -499,7 +513,7 @@ public final class ActorRuntimeController {
             );
 
             // 3️⃣ Animation pose（明确动画，可能为 null）
-            AnimationPoseResult animPose = getAnimationPose(s);
+            AnimationPoseResult animPose = getAnimationPose(s, deltaTime);
 
             // 4️⃣ Blend（混合）
             Pose finalPose;
@@ -557,27 +571,45 @@ public final class ActorRuntimeController {
         /**
          * 获取当前动画姿态结果。
          *
-         * <p>TODO: 未来这里需要从实际的动画播放系统获取姿态。
-         * 目前暂时返回 null（表示没有动画）。
+         * <p>基于 EntitySample 中的 animationId/loop/speed 驱动每个 Actor 的 DefaultAnimationPlayer。
          *
          * @param s 当前 Sample
          * @return AnimationPoseResult，如果没有动画则返回 null
          */
-        private AnimationPoseResult getAnimationPose(EntitySample s) {
-            // 如果 Sample 中有动画信息，尝试获取动画姿态
-            if (s.animationId == null || s.animationId.isBlank()) {
+        private AnimationPoseResult getAnimationPose(EntitySample s, float deltaTime) {
+            if (actor == null || s == null) {
                 return null;
             }
 
-            // TODO: 未来实现实际的动画播放器
-            // 例如：
-            // AnimationPlayer player = getAnimationPlayer(s.animationId);
-            // if (player != null) {
-            //     return player.getCurrentPose();
-            // }
+            // 如果 Sample 中有动画信息，尝试获取动画姿态
+            if (s.animationId == null || s.animationId.isBlank()) {
+                DefaultAnimationPlayer player = animationPlayers.get(actor.getActorId());
+                if (player != null) {
+                    player.stop();
+                }
+                return null;
+            }
 
-            // 目前暂时返回 null（表示没有动画，使用 RigProfile）
-            return null;
+            DefaultAnimationPlayer player = animationPlayers.computeIfAbsent(
+                    actor.getActorId(),
+                    k -> new DefaultAnimationPlayer()
+            );
+
+            String currentAnimationId = player.getCurrentAnimationId();
+            boolean animationChanged = currentAnimationId == null || !currentAnimationId.equals(s.animationId);
+
+            if (animationChanged) {
+                player.play(s.animationId, s.animationLoop, s.animationSpeed);
+            } else if (!player.isPlaying()) {
+                player.resume();
+            }
+
+            float safeDelta = Math.max(0f, deltaTime);
+            if (safeDelta > 0f) {
+                player.update(safeDelta);
+            }
+
+            return player.getCurrentPose();
         }
 
         /**
@@ -655,6 +687,56 @@ public final class ActorRuntimeController {
                     runtime.setHeadYaw((float) Math.toRadians(yaw - currentYaw));
                     runtime.setHeadPitch((float) Math.toRadians(pitch - currentPitch));
                 }
+            }
+        }
+
+        private void applyActorRelation(Entity entity, EntitySample s) {
+            if (s.relationTargetActorId == null || s.relationType == null) {
+                return;
+            }
+
+            Entity target = ActorPreviewManager.getInstance().getPreview(s.relationTargetActorId);
+            if (target == null) {
+                return;
+            }
+
+            ActorRelationClip.RelationType relationType;
+            try {
+                relationType = ActorRelationClip.RelationType.valueOf(s.relationType);
+            } catch (IllegalArgumentException e) {
+                return;
+            }
+
+            Vec3d targetPos = new Vec3d(target.getX(), target.getY(), target.getZ());
+            float targetYaw = target.getYaw();
+            double radians = Math.toRadians(targetYaw + s.relationAngle);
+            double offsetX = -Math.sin(radians) * s.relationDistance;
+            double offsetZ = Math.cos(radians) * s.relationDistance;
+
+            switch (relationType) {
+                case FACE_TO_FACE, FOLLOW, RELATIVE_POSITION -> {
+                    double newX = targetPos.x + offsetX;
+                    double newY = targetPos.y + s.relationHeightOffset;
+                    double newZ = targetPos.z + offsetZ;
+                    entity.refreshPositionAndAngles(newX, newY, newZ, entity.getYaw(), entity.getPitch());
+                }
+                case CIRCLE_AROUND -> {
+                    double orbitX = targetPos.x + offsetX;
+                    double orbitY = targetPos.y + s.relationHeightOffset;
+                    double orbitZ = targetPos.z + offsetZ;
+                    entity.refreshPositionAndAngles(orbitX, orbitY, orbitZ, entity.getYaw(), entity.getPitch());
+                }
+                default -> {
+                    // MIRROR / PASS_OBJECT 暂不在 Runtime 层实现，保留采样信息供后续扩展
+                }
+            }
+
+            if (s.relationMaintainLookAt && (relationType == ActorRelationClip.RelationType.FACE_TO_FACE
+                    || relationType == ActorRelationClip.RelationType.FOLLOW
+                    || relationType == ActorRelationClip.RelationType.CIRCLE_AROUND)) {
+                s.lookAtEnabled = true;
+                s.lookAtPoint.set((float) targetPos.x, (float) targetPos.y + 1.6f, (float) targetPos.z);
+                s.lookAtStrength = Math.max(0.85f, s.lookAtStrength);
             }
         }
 
