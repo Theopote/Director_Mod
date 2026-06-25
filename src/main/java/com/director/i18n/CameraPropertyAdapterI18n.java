@@ -55,4 +55,32 @@ public final class CameraPropertyAdapterI18n {
                 tr(DirectorLang.Timeline.CameraKeyframeMenu.HANDLE_ALIGNED)
         };
     }
+
+    public static String[] fovPresetLabels() {
+        return new String[]{
+                tr(DirectorLang.Properties.AdapterCamera.Object.FOV_PRESET_60),
+                tr(DirectorLang.Properties.AdapterCamera.Object.FOV_PRESET_70),
+                tr(DirectorLang.Properties.AdapterCamera.Object.FOV_PRESET_90),
+                tr(DirectorLang.Properties.AdapterCamera.Object.FOV_PRESET_110)
+        };
+    }
+
+    public static String[] aspectRatioModeLabels() {
+        return new String[]{
+                tr(DirectorLang.Properties.AdapterCamera.Track.ASPECT_16_9),
+                tr(DirectorLang.Properties.AdapterCamera.Track.ASPECT_9_16),
+                tr(DirectorLang.Properties.AdapterCamera.Track.ASPECT_1_1),
+                tr(DirectorLang.Properties.AdapterCamera.Track.ASPECT_4_3),
+                tr(DirectorLang.Properties.AdapterCamera.Track.ASPECT_3_2),
+                tr(DirectorLang.Properties.AdapterCamera.Track.ASPECT_21_9),
+                tr(DirectorLang.Properties.AdapterCamera.Track.ASPECT_CUSTOM)
+        };
+    }
+
+    public static String[] previewScalePolicyLabels() {
+        return new String[]{
+                tr(DirectorLang.Properties.AdapterCamera.Track.SCALE_FIT),
+                tr(DirectorLang.Properties.AdapterCamera.Track.SCALE_FILL)
+        };
+    }
 }

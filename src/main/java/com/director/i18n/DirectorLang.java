@@ -1268,6 +1268,109 @@ public final class DirectorLang {
                 }
             }
 
+            public static final class Object {
+                public static final String ADAPTER_NAME = "gui.director.properties.adapter.camera.object.name";
+                public static final String NULL_CAMERA = "gui.director.properties.adapter.camera.object.null";
+                public static final String TITLE = "gui.director.properties.adapter.camera.object.title";
+                public static final String SECTION_TRANSFORM = "gui.director.properties.adapter.camera.object.section_transform";
+                public static final String POSITION = "gui.director.properties.adapter.camera.object.position";
+                public static final String ROTATION = "gui.director.properties.adapter.camera.object.rotation";
+                public static final String SECTION_PROJECTION = "gui.director.properties.adapter.camera.object.section_projection";
+                public static final String FOV = "gui.director.properties.adapter.camera.object.fov";
+                public static final String FOV_TOOLTIP = "gui.director.properties.adapter.camera.object.fov_tooltip";
+                public static final String FOV_PRESETS = "gui.director.properties.adapter.camera.object.fov_presets";
+                public static final String FOV_PRESET_60 = "gui.director.properties.adapter.camera.object.fov_preset_60";
+                public static final String FOV_PRESET_70 = "gui.director.properties.adapter.camera.object.fov_preset_70";
+                public static final String FOV_PRESET_90 = "gui.director.properties.adapter.camera.object.fov_preset_90";
+                public static final String FOV_PRESET_110 = "gui.director.properties.adapter.camera.object.fov_preset_110";
+                public static final String NEAR = "gui.director.properties.adapter.camera.object.near";
+                public static final String NEAR_TOOLTIP = "gui.director.properties.adapter.camera.object.near_tooltip";
+                public static final String FAR = "gui.director.properties.adapter.camera.object.far";
+                public static final String FAR_TOOLTIP = "gui.director.properties.adapter.camera.object.far_tooltip";
+                public static final String SECTION_LENS = "gui.director.properties.adapter.camera.object.section_lens";
+                public static final String DOF_ENABLED = "gui.director.properties.adapter.camera.object.dof_enabled";
+                public static final String DOF_TOOLTIP = "gui.director.properties.adapter.camera.object.dof_tooltip";
+                public static final String FOCUS = "gui.director.properties.adapter.camera.object.focus";
+                public static final String FOCUS_TOOLTIP = "gui.director.properties.adapter.camera.object.focus_tooltip";
+                public static final String APERTURE = "gui.director.properties.adapter.camera.object.aperture";
+                public static final String APERTURE_TOOLTIP = "gui.director.properties.adapter.camera.object.aperture_tooltip";
+                public static final String BOKEH = "gui.director.properties.adapter.camera.object.bokeh";
+                public static final String BOKEH_TOOLTIP = "gui.director.properties.adapter.camera.object.bokeh_tooltip";
+                public static final String SECTION_ANIMATION = "gui.director.properties.adapter.camera.object.section_animation";
+                public static final String ANIMATION_NAME = "gui.director.properties.adapter.camera.object.animation_name";
+                public static final String ANIMATION_DURATION = "gui.director.properties.adapter.camera.object.animation_duration";
+                public static final String ANIMATION_DURATION_TOOLTIP = "gui.director.properties.adapter.camera.object.animation_duration_tooltip";
+                public static final String LOOP = "gui.director.properties.adapter.camera.object.loop";
+                public static final String SMOOTH = "gui.director.properties.adapter.camera.object.smooth";
+                public static final String SMOOTH_TOOLTIP = "gui.director.properties.adapter.camera.object.smooth_tooltip";
+                public static final String RESET = "gui.director.properties.adapter.camera.object.reset";
+                public static final String RESET_TOOLTIP = "gui.director.properties.adapter.camera.object.reset_tooltip";
+                public static final String COPY = "gui.director.properties.adapter.camera.object.copy";
+                public static final String COPY_TOOLTIP = "gui.director.properties.adapter.camera.object.copy_tooltip";
+                public static final String ALIGN_PLAYER = "gui.director.properties.adapter.camera.object.align_player";
+                public static final String ALIGN_PLAYER_TOOLTIP = "gui.director.properties.adapter.camera.object.align_player_tooltip";
+
+                private Object() {
+                }
+            }
+
+            public static final class Track {
+                public static final String ADAPTER_NAME = "gui.director.properties.adapter.camera.track.name";
+                public static final String NULL_TRACK = "gui.director.properties.adapter.camera.track.null_track";
+                public static final String NOT_CAMERA_TRACK = "gui.director.properties.adapter.camera.track.not_camera_track";
+                public static final String TITLE = "gui.director.properties.adapter.camera.track.title";
+                public static final String SECTION_ASPECT = "gui.director.properties.adapter.camera.track.section_aspect";
+                public static final String SECTION_SAFE_AREA = "gui.director.properties.adapter.camera.track.section_safe_area";
+                public static final String SECTION_PREVIEW_RES = "gui.director.properties.adapter.camera.track.section_preview_res";
+                public static final String SECTION_PREVIEW_OPTS = "gui.director.properties.adapter.camera.track.section_preview_opts";
+                public static final String SECTION_GUIDES = "gui.director.properties.adapter.camera.track.section_guides";
+                public static final String ASPECT_RATIO = "gui.director.properties.adapter.camera.track.aspect_ratio";
+                public static final String ASPECT_RATIO_TOOLTIP = "gui.director.properties.adapter.camera.track.aspect_ratio_tooltip";
+                public static final String PRESET_16_9 = "gui.director.properties.adapter.camera.track.preset_16_9";
+                public static final String PRESET_9_16 = "gui.director.properties.adapter.camera.track.preset_9_16";
+                public static final String PRESET_1_1 = "gui.director.properties.adapter.camera.track.preset_1_1";
+                public static final String CUSTOM_RATIO = "gui.director.properties.adapter.camera.track.custom_ratio";
+                public static final String CUSTOM_RATIO_TOOLTIP = "gui.director.properties.adapter.camera.track.custom_ratio_tooltip";
+                public static final String CURRENT_RATIO_FMT = "gui.director.properties.adapter.camera.track.current_ratio_fmt";
+                public static final String EXPORT_NOTE = "gui.director.properties.adapter.camera.track.export_note";
+                public static final String SHOW_SAFE_AREAS = "gui.director.properties.adapter.camera.track.show_safe_areas";
+                public static final String SHOW_SAFE_AREAS_TOOLTIP = "gui.director.properties.adapter.camera.track.show_safe_areas_tooltip";
+                public static final String ACTION_SAFE = "gui.director.properties.adapter.camera.track.action_safe";
+                public static final String ACTION_SAFE_TOOLTIP = "gui.director.properties.adapter.camera.track.action_safe_tooltip";
+                public static final String TITLE_SAFE = "gui.director.properties.adapter.camera.track.title_safe";
+                public static final String TITLE_SAFE_TOOLTIP = "gui.director.properties.adapter.camera.track.title_safe_tooltip";
+                public static final String SAFE_AREA_NOTE = "gui.director.properties.adapter.camera.track.safe_area_note";
+                public static final String PREVIEW_RES = "gui.director.properties.adapter.camera.track.preview_res";
+                public static final String PREVIEW_RES_TOOLTIP = "gui.director.properties.adapter.camera.track.preview_res_tooltip";
+                public static final String PRESET_1080P = "gui.director.properties.adapter.camera.track.preset_1080p";
+                public static final String PRESET_720P = "gui.director.properties.adapter.camera.track.preset_720p";
+                public static final String PRESET_4K = "gui.director.properties.adapter.camera.track.preset_4k";
+                public static final String SCALE_POLICY = "gui.director.properties.adapter.camera.track.scale_policy";
+                public static final String SCALE_POLICY_TOOLTIP = "gui.director.properties.adapter.camera.track.scale_policy_tooltip";
+                public static final String PREVIEW_RES_NOTE = "gui.director.properties.adapter.camera.track.preview_res_note";
+                public static final String SHOW_LETTERBOX = "gui.director.properties.adapter.camera.track.show_letterbox";
+                public static final String SHOW_LETTERBOX_TOOLTIP = "gui.director.properties.adapter.camera.track.show_letterbox_tooltip";
+                public static final String MASK_ALPHA = "gui.director.properties.adapter.camera.track.mask_alpha";
+                public static final String LETTERBOX_NOTE = "gui.director.properties.adapter.camera.track.letterbox_note";
+                public static final String SHOW_CENTER_CROSS = "gui.director.properties.adapter.camera.track.show_center_cross";
+                public static final String SHOW_CENTER_CROSS_TOOLTIP = "gui.director.properties.adapter.camera.track.show_center_cross_tooltip";
+                public static final String SHOW_RULE_OF_THIRDS = "gui.director.properties.adapter.camera.track.show_rule_of_thirds";
+                public static final String SHOW_RULE_OF_THIRDS_TOOLTIP = "gui.director.properties.adapter.camera.track.show_rule_of_thirds_tooltip";
+                public static final String GUIDES_NOTE = "gui.director.properties.adapter.camera.track.guides_note";
+                public static final String ASPECT_16_9 = "gui.director.properties.adapter.camera.track.aspect_16_9";
+                public static final String ASPECT_9_16 = "gui.director.properties.adapter.camera.track.aspect_9_16";
+                public static final String ASPECT_1_1 = "gui.director.properties.adapter.camera.track.aspect_1_1";
+                public static final String ASPECT_4_3 = "gui.director.properties.adapter.camera.track.aspect_4_3";
+                public static final String ASPECT_3_2 = "gui.director.properties.adapter.camera.track.aspect_3_2";
+                public static final String ASPECT_21_9 = "gui.director.properties.adapter.camera.track.aspect_21_9";
+                public static final String ASPECT_CUSTOM = "gui.director.properties.adapter.camera.track.aspect_custom";
+                public static final String SCALE_FIT = "gui.director.properties.adapter.camera.track.scale_fit";
+                public static final String SCALE_FILL = "gui.director.properties.adapter.camera.track.scale_fill";
+
+                private Track() {
+                }
+            }
+
             private AdapterCamera() {
             }
         }

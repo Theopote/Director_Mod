@@ -1,5 +1,7 @@
 package com.director.ui.properties.adapters;
 
+import com.director.i18n.CameraPropertyAdapterI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyReflection;
 import com.director.ui.properties.PropertyAdapterRegistry;
@@ -15,84 +17,51 @@ import org.slf4j.LoggerFactory;
 
 /**
  * 相机属性适配器 v4.9 - Director Properties System
- * 
- * <p>为 Director 相机对象提供专用属性编辑器。
- * 
- * <h3>相机（Camera）</h3>
- * <p>Camera 控制场景的视角和镜头参数，包括：
- * <ul>
- *   <li>位置和旋转 - 相机在世界中的位姿</li>
- *   <li>投影参数 - FOV、近裁剪面、远裁剪面</li>
- *   <li>镜头特效 - 景深、焦距、光圈</li>
- *   <li>动画控制 - 相机路径、关键帧、缓动</li>
- * </ul>
- * 
- * <h3>支持的属性</h3>
- * <ul>
- *   <li>📍 位置与旋转（XYZ位置、偏航/俯仰/翻滚）</li>
- *   <li>🎥 投影参数（FOV、近/远裁剪面、纵横比）</li>
- *   <li>📷 镜头特效（景深、焦距、光圈、散景）</li>
- *   <li>🎬 动画控制（持续时间、循环、缓动曲线）</li>
- *   <li>⚡ 快捷操作（重置、复制、对齐到玩家）</li>
- * </ul>
- * 
- * <h3>UI 特性</h3>
- * <ul>
- *   <li>折叠式分组 - 清晰的属性分类</li>
- *   <li>Vector3f 集成 - 使用 Vector3fPropertyAdapter</li>
- *   <li>实时预览 - 当前值显示</li>
- *   <li>智能提示 - Tooltip 说明</li>
- *   <li>快捷预设 - 常用 FOV 值</li>
- * </ul>
- * 
- * @author Director Team
- * @version 4.9
- * @since 2025-10-16
  */
 public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
     private static final Logger LOGGER = LoggerFactory.getLogger(CameraPropertyAdapter.class);
-    
-    // FOV 预设
+
     private static final float[] FOV_PRESETS = {60.0f, 70.0f, 90.0f, 110.0f};
-    private static final String[] FOV_PRESET_NAMES = {"60° 正常", "70° 标准", "90° 广角", "110° 超广角"};
 
     @Override
     public boolean renderProperties(Object camera) {
         if (camera == null) {
             UITheme.spacingLarge();
-            UITheme.label("相机对象为 null", UITheme.DarkTheme.TEXT_DISABLED);
+            UITheme.label(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.NULL_CAMERA),
+                    UITheme.DarkTheme.TEXT_DISABLED);
             return false;
         }
-        
+
         final boolean[] modifiedRef = {false};
-        
-        // 标题
-        UITheme.title("🎥 相机属性编辑器");
-        
+
+        UITheme.title(Icons.CAMERA + " "
+                + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.TITLE));
+
         try {
-            // ========== 位置与旋转 ==========
-            if (ImGui.collapsingHeader("📍 位置与旋转", ImGuiTreeNodeFlags.DefaultOpen)) {
+            if (ImGui.collapsingHeader(Icons.PIN + " "
+                    + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.SECTION_TRANSFORM),
+                    ImGuiTreeNodeFlags.DefaultOpen)) {
                 ImGui.indent();
-                // 位置（使用 Vector3fPropertyAdapter）
                 Object position = PropertyReflection.readProperty(camera, "position", "getPosition");
                 if (position != null) {
                     var posAdapter = PropertyAdapterRegistry.getAdapterFor(position);
                     if (posAdapter != null) {
-                        UITheme.label("相机位置", UITheme.DarkTheme.TEXT);
+                        UITheme.label(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.POSITION),
+                                UITheme.DarkTheme.TEXT);
                         if (posAdapter.renderProperties(position)) {
                             modifiedRef[0] = true;
                         }
                     }
                 }
-                
+
                 UITheme.spacingSmall();
-                
-                // 旋转（使用 Vector3fPropertyAdapter）
+
                 Object rotation = PropertyReflection.readProperty(camera, "rotation", "getRotation");
                 if (rotation != null) {
                     var rotAdapter = PropertyAdapterRegistry.getAdapterFor(rotation);
                     if (rotAdapter != null) {
-                        UITheme.label("相机旋转 (偏航/俯仰/翻滚)", UITheme.DarkTheme.TEXT);
+                        UITheme.label(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.ROTATION),
+                                UITheme.DarkTheme.TEXT);
                         if (rotAdapter.renderProperties(rotation)) {
                             modifiedRef[0] = true;
                         }
@@ -100,29 +69,31 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
                 }
                 ImGui.unindent();
             }
-            
-            // ========== 投影参数 ==========
-            if (ImGui.collapsingHeader("🎥 投影参数", ImGuiTreeNodeFlags.DefaultOpen)) {
+
+            if (ImGui.collapsingHeader(Icons.CAMERA + " "
+                    + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.SECTION_PROJECTION),
+                    ImGuiTreeNodeFlags.DefaultOpen)) {
                 ImGui.indent();
-                // 视野（FOV）
                 float currentFOV = PropertyReflection.getFloat(camera, "fov", "getFov", 70.0f);
                 float[] fov = {currentFOV};
-                if (ImGui.dragFloat("视野 (FOV)", fov, 0.5f, 10.0f, 150.0f, "%.1f°")) {
+                if (ImGui.dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.FOV),
+                        fov, 0.5f, 10.0f, 150.0f, "%.1f°")) {
                     if (PropertyReflection.setFloat(camera, "fov", "setFov", fov[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[CameraPropertyAdapter] FOV已更新: {}", fov[0]);
                     }
                 }
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("相机的视野角度（越大视野越广）");
+                    ImGui.setTooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.FOV_TOOLTIP));
                 }
-                
-                // FOV 快捷预设
+
                 UITheme.spacingSmall();
-                UITheme.label("快速预设:", UITheme.DarkTheme.TEXT);
+                UITheme.label(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.FOV_PRESETS),
+                        UITheme.DarkTheme.TEXT);
+                String[] fovPresetNames = CameraPropertyAdapterI18n.fovPresetLabels();
                 for (int i = 0; i < FOV_PRESETS.length; i++) {
                     ImGui.pushID("fov_" + i);
-                    if (ImGui.button(FOV_PRESET_NAMES[i], 90, UITheme.Spacing.BUTTON_HEIGHT)) {
+                    if (ImGui.button(fovPresetNames[i], 90, UITheme.Spacing.BUTTON_HEIGHT)) {
                         if (PropertyReflection.setFloat(camera, "fov", "setFov", FOV_PRESETS[i])) {
                             modifiedRef[0] = true;
                             LOGGER.debug("[CameraPropertyAdapter] 应用FOV预设: {}", FOV_PRESETS[i]);
@@ -133,208 +104,215 @@ public class CameraPropertyAdapter implements IPropertyAdapter<Object> {
                     }
                     ImGui.popID();
                 }
-                
+
                 UITheme.spacingSmall();
-                
-                // 近裁剪面
+
                 float currentNear = PropertyReflection.getFloat(camera, "nearPlane", "getNearPlane", 0.1f);
                 float[] nearPlane = {currentNear};
-                if (ImGui.dragFloat("近裁剪面", nearPlane, 0.01f, 0.01f, 10.0f, "%.2f")) {
+                if (ImGui.dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.NEAR),
+                        nearPlane, 0.01f, 0.01f, 10.0f, "%.2f")) {
                     if (PropertyReflection.setFloat(camera, "nearPlane", "setNearPlane", nearPlane[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[CameraPropertyAdapter] 近裁剪面已更新: {}", nearPlane[0]);
                     }
                 }
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("相机能看到的最近距离");
+                    ImGui.setTooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.NEAR_TOOLTIP));
                 }
-                
-                // 远裁剪面
+
                 float currentFar = PropertyReflection.getFloat(camera, "farPlane", "getFarPlane", 1000.0f);
                 float[] farPlane = {currentFar};
-                if (ImGui.dragFloat("远裁剪面", farPlane, 10.0f, 10.0f, 10000.0f, "%.0f")) {
+                if (ImGui.dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.FAR),
+                        farPlane, 10.0f, 10.0f, 10000.0f, "%.0f")) {
                     if (PropertyReflection.setFloat(camera, "farPlane", "setFarPlane", farPlane[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[CameraPropertyAdapter] 远裁剪面已更新: {}", farPlane[0]);
                     }
                 }
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("相机能看到的最远距离");
+                    ImGui.setTooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.FAR_TOOLTIP));
                 }
                 ImGui.unindent();
             }
-            
-            // ========== 镜头特效 ==========
-            if (ImGui.collapsingHeader("📷 镜头特效")) {
+
+            if (ImGui.collapsingHeader(Icons.IMAGE + " "
+                    + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.SECTION_LENS))) {
                 ImGui.indent();
-                // 景深开关
                 boolean currentDOF = PropertyReflection.getBoolean(camera, "depthOfFieldEnabled", "isDepthOfFieldEnabled", false);
                 ImBoolean enableDOF = new ImBoolean(currentDOF);
-                if (ImGui.checkbox("启用景深 (Depth of Field)", enableDOF)) {
+                if (ImGui.checkbox(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.DOF_ENABLED), enableDOF)) {
                     if (PropertyReflection.setBoolean(camera, "depthOfFieldEnabled", "setDepthOfFieldEnabled", enableDOF.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[CameraPropertyAdapter] 景深已更新: {}", enableDOF.get());
                     }
                 }
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("模拟真实相机的景深效果");
+                    ImGui.setTooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.DOF_TOOLTIP));
                 }
-                
-                // 焦距
+
                 float currentFocus = PropertyReflection.getFloat(camera, "focusDistance", "getFocusDistance", 10.0f);
                 float[] focusDistance = {currentFocus};
-                if (ImGui.dragFloat("焦距", focusDistance, 0.5f, 0.1f, 1000.0f, "%.1f")) {
+                if (ImGui.dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.FOCUS),
+                        focusDistance, 0.5f, 0.1f, 1000.0f, "%.1f")) {
                     if (PropertyReflection.setFloat(camera, "focusDistance", "setFocusDistance", focusDistance[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[CameraPropertyAdapter] 焦距已更新: {}", focusDistance[0]);
                     }
                 }
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("焦点距离（此距离的物体最清晰）");
+                    ImGui.setTooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.FOCUS_TOOLTIP));
                 }
-                
-                // 光圈
+
                 float currentAperture = PropertyReflection.getFloat(camera, "aperture", "getAperture", 2.8f);
                 float[] aperture = {currentAperture};
-                if (ImGui.dragFloat("光圈 (f-stop)", aperture, 0.1f, 1.4f, 22.0f, "f/%.1f")) {
+                if (ImGui.dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.APERTURE),
+                        aperture, 0.1f, 1.4f, 22.0f, "f/%.1f")) {
                     if (PropertyReflection.setFloat(camera, "aperture", "setAperture", aperture[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[CameraPropertyAdapter] 光圈已更新: {}", aperture[0]);
                     }
                 }
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("光圈大小（越小景深效果越强，如 f/1.4 = 浅景深）");
+                    ImGui.setTooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.APERTURE_TOOLTIP));
                 }
-                
-                // 散景质量
+
                 int currentBokeh = PropertyReflection.getInt(camera, "bokehQuality", "getBokehQuality", 2);
                 int[] bokehQuality = {currentBokeh};
-                if (ImGui.dragInt("散景质量", bokehQuality, 1.0f, 0, 5)) {
+                if (ImGui.dragInt(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.BOKEH),
+                        bokehQuality, 1.0f, 0, 5)) {
                     if (PropertyReflection.setInt(camera, "bokehQuality", "setBokehQuality", bokehQuality[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[CameraPropertyAdapter] 散景质量已更新: {}", bokehQuality[0]);
                     }
                 }
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("背景模糊的质量（0 = 关闭，5 = 最高）");
+                    ImGui.setTooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.BOKEH_TOOLTIP));
                 }
                 ImGui.unindent();
             }
-            
-            // ========== 动画控制 ==========
-            if (ImGui.collapsingHeader("🎬 动画控制")) {
+
+            if (ImGui.collapsingHeader(Icons.FILM + " "
+                    + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.SECTION_ANIMATION))) {
                 ImGui.indent();
-                // 动画名称
                 String currentName = PropertyReflection.getString(camera, "animationName", "getAnimationName", "");
                 ImString nameBuffer = new ImString(currentName, 256);
-                if (ImGui.inputText("动画名称", nameBuffer, ImGuiInputTextFlags.EnterReturnsTrue)) {
+                if (ImGui.inputText(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.ANIMATION_NAME),
+                        nameBuffer, ImGuiInputTextFlags.EnterReturnsTrue)) {
                     if (PropertyReflection.setString(camera, "animationName", "setAnimationName", nameBuffer.get())) {
                         modifiedRef[0] = true;
                     }
                 }
-                
-                // 持续时间
+
                 float currentDuration = PropertyReflection.getFloat(camera, "animationDuration", "getAnimationDuration", 5.0f);
                 float[] duration = {currentDuration};
-                if (ImGui.dragFloat("持续时间 (秒)", duration, 0.1f, 0.1f, 300.0f)) {
+                if (ImGui.dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.ANIMATION_DURATION),
+                        duration, 0.1f, 0.1f, 300.0f)) {
                     if (PropertyReflection.setFloat(camera, "animationDuration", "setAnimationDuration", duration[0])) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[CameraPropertyAdapter] 动画持续时间已更新: {}", duration[0]);
                     }
                 }
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("相机动画的时长");
+                    ImGui.setTooltip(CameraPropertyAdapterI18n.tr(
+                            DirectorLang.Properties.AdapterCamera.Object.ANIMATION_DURATION_TOOLTIP));
                 }
-                
-                // 循环播放
+
                 boolean currentLoop = PropertyReflection.getBoolean(camera, "loop", "isLoop", false);
                 ImBoolean loop = new ImBoolean(currentLoop);
-                if (ImGui.checkbox("循环播放", loop)) {
+                if (ImGui.checkbox(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.LOOP), loop)) {
                     if (PropertyReflection.setBoolean(camera, "loop", "setLoop", loop.get())) {
                         modifiedRef[0] = true;
                         LOGGER.debug("[CameraPropertyAdapter] 循环播放已更新: {}", loop.get());
                     }
                 }
-                
-                // 平滑插值
+
                 boolean currentSmooth = PropertyReflection.getBoolean(camera, "smoothInterpolation", "isSmoothInterpolation", true);
                 ImBoolean smooth = new ImBoolean(currentSmooth);
-                if (ImGui.checkbox("平滑插值", smooth)) {
+                if (ImGui.checkbox(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.SMOOTH), smooth)) {
                     if (PropertyReflection.setBoolean(camera, "smoothInterpolation", "setSmoothInterpolation", smooth.get())) {
                         modifiedRef[0] = true;
                     }
                 }
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("使用平滑曲线插值相机路径");
+                    ImGui.setTooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.SMOOTH_TOOLTIP));
                 }
                 ImGui.unindent();
             }
-            
+
             UITheme.separator();
-            
-            // ========== 快捷操作 ==========
-            UITheme.beginGroup("快捷操作");
-            
-            if (ImGui.button(Icons.REFRESH + " 重置相机", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
+
+            UITheme.beginGroup(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineCommon.QUICK_ACTIONS));
+
+            if (ImGui.button(Icons.REFRESH + " "
+                    + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.RESET),
+                    120, UITheme.Spacing.BUTTON_HEIGHT)) {
                 if (PropertyReflection.invokeVoid(camera, "reset") || PropertyReflection.invokeVoid(camera, "resetToDefault")) {
                     modifiedRef[0] = true;
                     LOGGER.info("[CameraPropertyAdapter] 相机已重置");
                 }
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("将相机重置为默认位置和参数");
+                ImGui.setTooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.RESET_TOOLTIP));
             }
-            
+
             ImGui.sameLine();
-            
-            if (ImGui.button("📋 复制相机", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
+
+            if (ImGui.button(Icons.CLIPBOARD + " "
+                    + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.COPY),
+                    120, UITheme.Spacing.BUTTON_HEIGHT)) {
                 LOGGER.info("[CameraPropertyAdapter] 复制相机设置");
-                // TODO: 复制到剪贴板
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("复制当前相机设置");
+                ImGui.setTooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.COPY_TOOLTIP));
             }
-            
+
             ImGui.sameLine();
-            
-            if (ImGui.button("👤 对齐到玩家", 120, UITheme.Spacing.BUTTON_HEIGHT)) {
+
+            if (ImGui.button(Icons.HAND + " "
+                    + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.ALIGN_PLAYER),
+                    120, UITheme.Spacing.BUTTON_HEIGHT)) {
                 if (PropertyReflection.invokeVoid(camera, "alignToPlayer")) {
                     modifiedRef[0] = true;
                     LOGGER.info("[CameraPropertyAdapter] 相机已对齐到玩家");
                 }
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("将相机移动到玩家当前位置");
+                ImGui.setTooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.ALIGN_PLAYER_TOOLTIP));
             }
-            
+
             UITheme.endGroup();
-            
+
         } catch (Exception e) {
             LOGGER.error("[CameraPropertyAdapter] 渲染相机属性时出错", e);
-            UITheme.label("渲染出错: " + e.getMessage(), UITheme.DarkTheme.TEXT_DISABLED);
+            UITheme.label(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterTimelineCommon.RENDER_ERROR, e.getMessage()),
+                    UITheme.DarkTheme.TEXT_DISABLED);
         }
-        
+
         return modifiedRef[0];
     }
+
     @Override
     public Class<Object> getTargetType() {
         return Object.class;
     }
 
     @Override
-    public int getPriority() { return 60; }
-    
+    public int getPriority() {
+        return 60;
+    }
+
     @Override
     public String getAdapterName() {
-        return "相机属性编辑器";
+        return CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Object.ADAPTER_NAME);
     }
-    
+
     @Override
     public boolean supports(Object target) {
-        if (target == null) return false;
-        
+        if (target == null) {
+            return false;
+        }
+
         String className = target.getClass().getSimpleName().toLowerCase();
         return className.contains("camera");
     }
 }
-
