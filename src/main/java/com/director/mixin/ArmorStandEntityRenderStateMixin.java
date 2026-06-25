@@ -1,5 +1,6 @@
 package com.director.mixin;
 
+import com.director.bridge.DirectorActorIdHolder;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 
@@ -11,7 +12,7 @@ import java.util.UUID;
  * 供后续 getTexture() 覆盖使用。
  */
 @Mixin(net.minecraft.client.render.entity.state.ArmorStandEntityRenderState.class)
-public abstract class ArmorStandEntityRenderStateMixin implements ArmorStandEntityRenderStateMixin.DirectorActorIdHolder {
+public abstract class ArmorStandEntityRenderStateMixin implements DirectorActorIdHolder {
 
     @Unique
     private UUID director$actorId;
@@ -26,13 +27,5 @@ public abstract class ArmorStandEntityRenderStateMixin implements ArmorStandEnti
         this.director$actorId = actorId;
     }
 
-    /**
-     * 以接口的形式暴露给 Renderer mixin 使用，避免反射。
-     */
-    public interface DirectorActorIdHolder {
-        UUID director$getActorId();
-
-        void director$setActorId(UUID actorId);
-    }
 }
 

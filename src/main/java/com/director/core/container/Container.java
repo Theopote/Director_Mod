@@ -505,6 +505,11 @@ public class Container {
             
             if (syncVisibility) {
                 try {
+                    if (!DirectorServices.isInitialized()) {
+                        // 启动早期：ContainerManager.createDefaultContainers() 期间可能会触发 setState，
+                        // 此时 DirectorServices 仍在装配，跳过可见性同步即可（服务会在 SERVER_STARTED 后绑定）。
+                        return;
+                    }
                     var visibilityService = DirectorServices.get().visibilityOrNull();
                     if (visibilityService != null) {
                         if (state == ContainerState.HIDDEN) {
@@ -515,6 +520,9 @@ public class Container {
                     } else {
                         LOGGER.warn("[Container] ContainerVisibilityService未初始化，无法切换可见性");
                     }
+                } catch (IllegalStateException e) {
+                    // 兼容历史初始化顺序：此时服务可能尚未装配完成，降级为 warn 避免 ERROR 刷屏。
+                    LOGGER.warn("[Container] 切换容器可见性跳过（服务未就绪）: {}", e.getMessage());
                 } catch (Exception e) {
                     LOGGER.error("[Container] 切换容器可见性失败: {}", e.getMessage(), e);
                 }
