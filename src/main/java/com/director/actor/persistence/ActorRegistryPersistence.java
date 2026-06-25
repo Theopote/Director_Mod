@@ -128,6 +128,9 @@ public class ActorRegistryPersistence {
             actorObj.addProperty("actorId", actor.getActorId().toString());
             actorObj.addProperty("name", actor.getName());
             actorObj.addProperty("type", actor.getType().name());
+            if (actor.getSkinFileName() != null) {
+                actorObj.addProperty("skinFileName", actor.getSkinFileName());
+            }
             // 未来可以扩展更多字段（如 modelId）
             actorsArray.add(actorObj);
         }
@@ -195,6 +198,14 @@ public class ActorRegistryPersistence {
                         ActorType type = ActorType.valueOf(typeStr);
 
                         Actor actor = new Actor(actorId, name, type);
+                        if (actorObj.has("skinFileName")) {
+                            try {
+                                String skinFileName = actorObj.get("skinFileName").getAsString();
+                                actor.setSkinFileName(skinFileName);
+                            } catch (Exception ignored) {
+                                // 旧版本或异常字段时忽略皮肤信息，保证兼容性
+                            }
+                        }
                         registry.registerActor(actor);
                         loadedCount++;
 

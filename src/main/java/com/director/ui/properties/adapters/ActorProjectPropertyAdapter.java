@@ -9,6 +9,8 @@ import com.director.actor.ActorRegistryManager;
 import com.director.actor.ActorType;
 import com.director.actor.action.ActorActionType;
 import com.director.ui.timeline.interaction.ActionBrushState;
+import com.director.actor.skin.ActorSkinStorage;
+import com.director.actor.skin.ActorSkinTextureManager;
 import com.director.actor.preview.ActorPreviewManager;
 import com.director.actor.query.ActorUsageQuery;
 import com.director.actor.rig.ActorRigProfile;
@@ -40,6 +42,8 @@ import org.slf4j.LoggerFactory;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 /**
  * ActorProjectPropertyAdapter v1.0
@@ -497,13 +501,86 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                 modified = true; // 标记为已修改（即使只是 UI 交互）
             }
         }
-        
+
         ImGui.spacing();
-        
+
+        // ---- Skin / Appearance ----
+        modified |= renderActorSkinSection(actor);
+
+        ImGui.spacing();
+
         // ---- Usage Information (只读) ----
         renderActorUsage(actor);
         
         return modified;
+    }
+
+    private boolean renderActorSkinSection(Actor actor) {
+        if (actor == null) {
+            return false;
+        }
+        boolean modified = false;
+        UITheme.label("Skin", UITheme.DarkTheme.TEXT);
+
+        String current = actor.getSkinFileName();
+        ImGui.textDisabled(current != null ? current : "(默认皮肤)");
+
+        // Import button
+        if (ImGui.button("选择 PNG...")) {
+            String chosen = openPngFileDialog();
+            if (chosen != null && !chosen.isBlank()) {
+                try {
+                    Path source = Paths.get(chosen.trim());
+                    String relative = ActorSkinStorage.importSkin(source, actor.getActorId());
+                    if (relative != null) {
+                        actor.setSkinFileName(relative);
+                        ActorSkinTextureManager.invalidate(actor.getActorId());
+                        ActorRegistryManager.save();
+                        modified = true;
+                    }
+                } catch (Exception e) {
+                    LOGGER.warn("[ActorProjectPropertyAdapter] 导入皮肤失败: {}", chosen, e);
+                }
+            }
+        }
+
+        ImGui.sameLine();
+
+        boolean hasSkin = actor.getSkinFileName() != null;
+        if (!hasSkin) {
+            ImGui.beginDisabled();
+        }
+        if (ImGui.button("清除皮肤")) {
+            UUID id = actor.getActorId();
+            ActorSkinStorage.deleteSkin(id);
+            actor.setSkinFileName(null);
+            ActorSkinTextureManager.invalidate(id);
+            ActorRegistryManager.save();
+            modified = true;
+        }
+        if (!hasSkin) {
+            ImGui.endDisabled();
+        }
+        return modified;
+    }
+
+    private String openPngFileDialog() {
+        // 复用 VideoExportDialog 使用的 tinyfd 依赖；此处简单包装，仅选择 PNG。
+        try (org.lwjgl.system.MemoryStack stack = org.lwjgl.system.MemoryStack.stackPush()) {
+            String title = "选择演员皮肤 PNG 文件";
+            String defaultPath = "";
+            String[] patterns = new String[]{"*.png"};
+            org.lwjgl.PointerBuffer filters = stack.mallocPointer(patterns.length);
+            for (String p : patterns) {
+                filters.put(stack.UTF8(p));
+            }
+            filters.flip();
+            String filterDesc = "PNG 文件 (*.png)";
+            return org.lwjgl.util.tinyfd.TinyFileDialogs.tinyfd_openFileDialog(title, defaultPath, filters, filterDesc, false);
+        } catch (Throwable t) {
+            LOGGER.warn("[ActorProjectPropertyAdapter] 打开皮肤选择对话框失败: {}", t.getMessage());
+            return null;
+        }
     }
 
     private boolean renderSelectedActorGroups(ActorRegistry actorRegistry, Actor actor) {
@@ -1052,6 +1129,13 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         boolean removed = actorRegistry.removeActor(actorId);
         
         if (removed) {
+            // 删除关联的皮肤文件与纹理
+            try {
+                ActorSkinStorage.deleteSkin(actorId);
+                ActorSkinTextureManager.invalidate(actorId);
+            } catch (Exception e) {
+                LOGGER.warn("[ActorProjectPropertyAdapter] 清理演员皮肤资源失败: {}", actorId, e);
+            }
             // 如果删除的是当前选中的 Actor，清空选择
             if (actorId.equals(selectedActorId)) {
                 selectedActorId = null;

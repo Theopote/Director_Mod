@@ -34,6 +34,13 @@ public final class Actor {
     private String name;
     private ActorType type;
     private ActorRigProfile rigProfile;
+    /**
+     * 可选的自定义皮肤文件名，相对于当前世界的 director 目录。
+     * 例如：{@code skins/<actorId>.png}。
+     * <p>
+     * 为空或 null 表示使用默认外观。
+     */
+    private String skinFileName;
 
     /**
      * 构造函数
@@ -96,6 +103,14 @@ public final class Actor {
         this.rigProfile = rigProfile;
     }
 
+    public String getSkinFileName() {
+        return skinFileName;
+    }
+
+    public void setSkinFileName(String skinFileName) {
+        this.skinFileName = (skinFileName == null || skinFileName.isBlank()) ? null : skinFileName.trim();
+    }
+
     /**
      * 根据 ActorType 创建默认的 RigProfile。
      *
@@ -137,6 +152,7 @@ public final class Actor {
                 "actorId=" + actorId +
                 ", name='" + name + '\'' +
                 ", type=" + type +
+                ", skinFileName='" + skinFileName + '\'' +
                 '}';
     }
 }

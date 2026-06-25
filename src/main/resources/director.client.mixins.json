@@ -27,6 +27,7 @@
     "BiomeColorsMixin",
     "BackgroundRendererMixin",
     "LivingEntityRendererMixin",
+    "ArmorStandRendererMixin",
     "accessor.GameRendererAccessor",
     "accessor.CameraAccessorMixin",
     "accessor.MinecraftClientAccessor",
