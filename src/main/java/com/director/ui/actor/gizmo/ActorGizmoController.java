@@ -1,13 +1,12 @@
 package com.director.ui.actor.gizmo;
 
 import com.director.core.DirectorServices;
-import com.director.actor.ActorRef;
 import com.director.actor.preview.ActorPreviewManager;
+import com.director.actor.ActorRef;
 import net.minecraft.entity.Entity;
 import com.director.client.gizmo.GizmoManager;
 import com.director.client.gizmo.GizmoMode;
 import com.director.client.gizmo.GizmoType;
-import com.director.timeline.container.ContainerTimelineService;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
@@ -362,20 +361,34 @@ public final class ActorGizmoController {
 
         float time = model.getCurrentTime();
 
-        // 1️⃣ 采样当前时刻状态
+        // 1️⃣ 采样当前时刻状态（优先使用时间线采样，失败时回退到预览实体）
         EntityClipSampler sampler = new EntityClipSampler(actorTrack);
         EntitySample sample = sampler.sampleAt(time);
-        if (sample == null || !sample.enabled) {
-            LOGGER.warn("[ActorGizmoController] 无法采样 Actor {} 在时间 {} 的状态", targetActorId, time);
-            dragging = false;
-            return;
-        }
 
-        Vec3d sampledPos = new Vec3d(
-                sample.position.x,
-                sample.position.y,
-                sample.position.z
-        );
+        Vec3d sampledPos;
+        Vec3d sampledRot;
+        Vec3d sampledScale;
+
+        if (sample != null && sample.enabled) {
+            sampledPos = new Vec3d(sample.position.x, sample.position.y, sample.position.z);
+            sampledRot = new Vec3d(sample.rotation.x, sample.rotation.y, sample.rotation.z);
+            sampledScale = new Vec3d(sample.scale.x, sample.scale.y, sample.scale.z);
+        } else {
+            // 回退：直接从 PreviewActorEntity 读取当前位置，使用默认旋转/缩放
+            Entity preview = ActorPreviewManager.getInstance().getPreview(targetActorId);
+            if (preview == null) {
+                LOGGER.warn("[ActorGizmoController] 无法采样 Actor {} 在时间 {} 的状态，且不存在预览实体", targetActorId, time);
+                dragging = false;
+                return;
+            }
+            sampledPos = new Vec3d(preview.getX(), preview.getY(), preview.getZ());
+            // 旋转和缩放在没有采样数据时使用默认值；后续旋转/缩放拖动会基于 Gizmo 增量
+            sampledRot = Vec3d.ZERO;
+            sampledScale = new Vec3d(1.0, 1.0, 1.0);
+
+            LOGGER.debug("[ActorGizmoController] 使用预览实体回退采样 Actor {} 在时间 {} 的状态: pos={}",
+                    targetActorId, time, sampledPos);
+        }
 
         // 2️⃣ 找到当前时间覆盖的 TransformClip（last-wins）
         editingClip = findActiveTransformClip(actorTrack, time);
@@ -433,7 +446,7 @@ public final class ActorGizmoController {
             }
             case ROTATE -> {
                 // 使用当前 clip 的 fromRot 作为 base（如果 clip 已存在）
-                // 否则使用采样值
+                // 否则使用采样值（若无采样则使用 sampledRot 默认值）
                 if (editingClip.getFromRot().x != 0 || editingClip.getFromRot().y != 0 || editingClip.getFromRot().z != 0) {
                     dragBaseRot = new Vec3d(
                             editingClip.getFromRot().x,
@@ -442,14 +455,14 @@ public final class ActorGizmoController {
                     );
                 } else {
                     dragBaseRot = new Vec3d(
-                            sample.rotation.x,
-                            sample.rotation.y,
-                            sample.rotation.z
+                            sampledRot.x,
+                            sampledRot.y,
+                            sampledRot.z
                     );
                     editingClip.setFromRot(
-                            sample.rotation.x,
-                            sample.rotation.y,
-                            sample.rotation.z
+                            (float) sampledRot.x,
+                            (float) sampledRot.y,
+                            (float) sampledRot.z
                     );
                 }
                 // 初始化 toRot = fromRot
@@ -461,7 +474,7 @@ public final class ActorGizmoController {
             }
             case SCALE -> {
                 // 使用当前 clip 的 fromScale 作为 base（如果 clip 已存在）
-                // 否则使用采样值
+                // 否则使用采样值（若无采样则使用 sampledScale 默认值）
                 if (editingClip.getFromScale().x != 1 || editingClip.getFromScale().y != 1 || editingClip.getFromScale().z != 1) {
                     dragBaseScale = new Vec3d(
                             editingClip.getFromScale().x,
@@ -470,14 +483,14 @@ public final class ActorGizmoController {
                     );
                 } else {
                     dragBaseScale = new Vec3d(
-                            sample.scale.x,
-                            sample.scale.y,
-                            sample.scale.z
+                            sampledScale.x,
+                            sampledScale.y,
+                            sampledScale.z
                     );
                     editingClip.setFromScale(
-                            sample.scale.x,
-                            sample.scale.y,
-                            sample.scale.z
+                            (float) sampledScale.x,
+                            (float) sampledScale.y,
+                            (float) sampledScale.z
                     );
                 }
                 // 初始化 toScale = fromScale

@@ -1,7 +1,6 @@
 package com.director.actor.skin;
 
 import com.director.actor.Actor;
-import com.director.actor.ActorRegistry;
 import com.director.actor.ActorRegistryManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.texture.NativeImage;
