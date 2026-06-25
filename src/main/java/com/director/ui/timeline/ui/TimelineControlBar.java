@@ -53,9 +53,6 @@ public class TimelineControlBar {
     // ⭐ Facade 架构：命令门面（用于控制命令，如播放/暂停/跳转）
     private com.director.ui.commands.UICommandFacade commands;
 
-    // 是否显示相机轨迹（调试用）
-    private boolean showCameraPath = false;
-
     // ========== 性能优化：复用数据容器，避免每帧 GC ==========
     // 这些数组在构造函数中分配一次，在 render() 方法中复用
     // 避免每帧创建新数组导致的 GC 压力（60 FPS 下每秒创建 180 个数组对象）
@@ -210,11 +207,10 @@ public class TimelineControlBar {
         ImGui.popStyleVar();
 
         ImGui.sameLine();
-        // 轨迹调试开关
-        imgui.type.ImBoolean pathFlag = new imgui.type.ImBoolean(showCameraPath);
+        // 轨迹调试开关（状态以 CameraPathDebugRenderer 为准，便于摄像机路径工具自动同步）
+        imgui.type.ImBoolean pathFlag = new imgui.type.ImBoolean(CameraPathDebugRenderer.getInstance().isEnabled());
         if (ImGui.checkbox(btnLabel(Icons.CAMERA, DirectorLang.Timeline.CAMERA_PATH), pathFlag)) {
-            showCameraPath = pathFlag.get();
-            CameraPathDebugRenderer.getInstance().setEnabled(showCameraPath);
+            CameraPathDebugRenderer.getInstance().setEnabled(pathFlag.get());
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(tr(DirectorLang.Timeline.CAMERA_PATH_TOOLTIP));
