@@ -1,11 +1,17 @@
 package com.director.ui.properties.adapters;
 
+import com.director.actor.ActorRef;
 import com.director.actor.Actor;
 import com.director.actor.ActorRegistry;
 import com.director.actor.ActorRegistryManager;
+import com.director.core.DirectorServices;
 import com.director.i18n.ActorPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
+import com.director.timeline.model.TimelineTrack;
+import com.director.timeline.model.TrackType;
+import com.director.timeline.model.entity.ActorTrack;
 import com.director.timeline.model.entity.ActorRelationClip;
+import com.director.timeline.model.entity.EntityClip;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
@@ -58,32 +64,52 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
                 changed = true;
             }
 
-            float[] distance = {clip.getDistance()};
-            if (ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.DISTANCE) + "##relationDistance",
-                    distance, 0.1f, 20.0f, "%.2f")) {
-                clip.setDistance(distance[0]);
-                changed = true;
+            ActorRelationClip.RelationType relationType = clip.getRelationType();
+            boolean showDistance = relationType == ActorRelationClip.RelationType.FACE_TO_FACE
+                    || relationType == ActorRelationClip.RelationType.FOLLOW
+                    || relationType == ActorRelationClip.RelationType.CIRCLE_AROUND
+                    || relationType == ActorRelationClip.RelationType.RELATIVE_POSITION;
+            boolean showAngle = relationType == ActorRelationClip.RelationType.CIRCLE_AROUND
+                    || relationType == ActorRelationClip.RelationType.RELATIVE_POSITION;
+            boolean showHeight = relationType != ActorRelationClip.RelationType.PASS_OBJECT;
+            boolean showLookAt = relationType == ActorRelationClip.RelationType.FACE_TO_FACE
+                    || relationType == ActorRelationClip.RelationType.FOLLOW
+                    || relationType == ActorRelationClip.RelationType.CIRCLE_AROUND;
+
+            if (showDistance) {
+                float[] distance = {clip.getDistance()};
+                if (ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.DISTANCE) + "##relationDistance",
+                        distance, 0.1f, 20.0f, "%.2f")) {
+                    clip.setDistance(distance[0]);
+                    changed = true;
+                }
             }
 
-            float[] angle = {clip.getAngle()};
-            if (ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.ANGLE) + "##relationAngle",
-                    angle, -180.0f, 180.0f, "%.1f deg")) {
-                clip.setAngle(angle[0]);
-                changed = true;
+            if (showAngle) {
+                float[] angle = {clip.getAngle()};
+                if (ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.ANGLE) + "##relationAngle",
+                        angle, -180.0f, 180.0f, "%.1f deg")) {
+                    clip.setAngle(angle[0]);
+                    changed = true;
+                }
             }
 
-            float[] height = {clip.getHeightOffset()};
-            if (ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.HEIGHT_OFFSET) + "##relationHeight",
-                    height, -5.0f, 5.0f, "%.2f")) {
-                clip.setHeightOffset(height[0]);
-                changed = true;
+            if (showHeight) {
+                float[] height = {clip.getHeightOffset()};
+                if (ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.HEIGHT_OFFSET) + "##relationHeight",
+                        height, -5.0f, 5.0f, "%.2f")) {
+                    clip.setHeightOffset(height[0]);
+                    changed = true;
+                }
             }
 
-            boolean maintainLookAt = clip.isMaintainLookAt();
-            if (ImGui.checkbox(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.MAINTAIN_LOOK_AT) + "##relationLookAt",
-                    maintainLookAt)) {
-                clip.setMaintainLookAt(!maintainLookAt);
-                changed = true;
+            if (showLookAt) {
+                boolean maintainLookAt = clip.isMaintainLookAt();
+                if (ImGui.checkbox(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.MAINTAIN_LOOK_AT) + "##relationLookAt",
+                        maintainLookAt)) {
+                    clip.setMaintainLookAt(!maintainLookAt);
+                    changed = true;
+                }
             }
         }
 
@@ -91,7 +117,13 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
                 + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.SECTION_TARGET),
                 ImGuiTreeNodeFlags.DefaultOpen)) {
             ActorRegistry registry = ActorRegistryManager.getInstance();
-            List<Actor> actors = new ArrayList<>(registry.getAllActors());
+            UUID selfActorId = resolveSelfActorId(clip);
+            List<Actor> actors = new ArrayList<>();
+            for (Actor actor : registry.getAllActors()) {
+                if (selfActorId == null || !selfActorId.equals(actor.getActorId())) {
+                    actors.add(actor);
+                }
+            }
             String[] labels = new String[actors.size() + 1];
             labels[0] = ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.TARGET_ACTOR_NONE);
 
@@ -125,5 +157,65 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
         }
 
         return changed;
+    }
+
+    private UUID resolveSelfActorId(ActorRelationClip clip) {
+        TimelineTrack selectedTrack = DirectorServices.get().uiSelection().getSelectedTrack();
+        UUID actorIdFromSelectedTrack = resolveActorIdFromTrack(selectedTrack);
+        if (actorIdFromSelectedTrack != null) {
+            return actorIdFromSelectedTrack;
+        }
+
+        Object payload = DirectorServices.get().uiSelection().getSelectionPayload();
+        if (payload instanceof TimelineTrack payloadTrack) {
+            UUID actorIdFromPayloadTrack = resolveActorIdFromTrack(payloadTrack);
+            if (actorIdFromPayloadTrack != null) {
+                return actorIdFromPayloadTrack;
+            }
+        }
+
+        if (!(payload instanceof EntityClip) && clip == null) {
+            return null;
+        }
+
+        EntityClip targetClip = payload instanceof EntityClip entityClip ? entityClip : clip;
+        if (targetClip == null) {
+            return null;
+        }
+
+        var model = DirectorServices.get().containerTimeline().getTimelineModel();
+        if (model == null) {
+            return null;
+        }
+
+        for (TimelineTrack track : model.getTracks()) {
+            UUID actorId = resolveActorIdFromTrack(track);
+            if (actorId == null) {
+                continue;
+            }
+            ActorTrack actorTrack = track.getActorTrackPayload();
+            if (actorTrack == null) {
+                continue;
+            }
+            for (EntityClip entityClip : actorTrack.getClips()) {
+                if (entityClip == targetClip || entityClip.getId().equals(targetClip.getId())) {
+                    return actorId;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private UUID resolveActorIdFromTrack(TimelineTrack selectedTrack) {
+        if (selectedTrack == null || selectedTrack.getType() != TrackType.ACTOR) {
+            return null;
+        }
+        ActorTrack actorTrack = selectedTrack.getActorTrackPayload();
+        if (actorTrack == null) {
+            return null;
+        }
+        ActorRef actorRef = actorTrack.getActorRef();
+        return actorRef != null ? actorRef.getActorId() : null;
     }
 }
