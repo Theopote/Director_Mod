@@ -7,7 +7,6 @@ import com.director.client.gizmo.GizmoType;
 import com.director.client.input.DirectorInputSystem;
 import com.director.client.renderer.CameraPathRenderer;
 import com.director.mixin.accessor.GameRendererAccessor;
-import com.director.timeline.container.ContainerTimelineService;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineSelectable;
 import com.director.timeline.model.TimelineTrack;
@@ -757,16 +756,18 @@ public final class CameraPathEditController {
     }
 
     private static void ensureLinearClipInitialized(CameraPathClip clip) {
-        if (clip == null) {
-            return;
-        }
-        if (clip instanceof DollyPathClip dolly) {
-            if (dolly.getStartPosition() == null || dolly.getDollyDirection() == null) {
-                dolly.sample(clip.getStartTime());
+        switch (clip) {
+            case DollyPathClip dolly -> {
+                if (dolly.getStartPosition() == null || dolly.getDollyDirection() == null) {
+                    dolly.sample(clip.getStartTime());
+                }
             }
-        } else if (clip instanceof CranePathClip crane) {
-            if (crane.getStartPosition() == null) {
-                crane.sample(clip.getStartTime());
+            case CranePathClip crane -> {
+                if (crane.getStartPosition() == null) {
+                    crane.sample(clip.getStartTime());
+                }
+            }
+            case null, default -> {
             }
         }
     }
@@ -1000,14 +1001,13 @@ public final class CameraPathEditController {
     }
 
     private SegmentHit distanceRayToSegment(Vec3d rayOrigin, Vec3d rayDir, Vec3d segA, Vec3d segB) {
-        Vec3d u = rayDir;
         Vec3d v = segB.subtract(segA);
         Vec3d w0 = rayOrigin.subtract(segA);
 
-        double a = u.dotProduct(u);
-        double b = u.dotProduct(v);
+        double a = rayDir.dotProduct(rayDir);
+        double b = rayDir.dotProduct(v);
         double c = v.dotProduct(v);
-        double d = u.dotProduct(w0);
+        double d = rayDir.dotProduct(w0);
         double e = v.dotProduct(w0);
         double denom = a * c - b * b;
 
@@ -1016,7 +1016,7 @@ public final class CameraPathEditController {
         s = Math.max(0.0, s);
         t = Math.max(0.0, Math.min(1.0, t));
 
-        Vec3d rayPoint = rayOrigin.add(u.multiply(s));
+        Vec3d rayPoint = rayOrigin.add(rayDir.multiply(s));
         Vec3d segmentPoint = segA.add(v.multiply(t));
         return new SegmentHit(rayPoint.distanceTo(segmentPoint), segmentPoint, t);
     }
