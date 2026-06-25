@@ -661,12 +661,13 @@ public final class CameraPathDebugRenderer {
         Vec3d center = clip.getCenter();
         Vec3d lookAt = clip.getLookAt();
         
-        // 中心点：黄色小点
-        float centerR = 255 / 255.0f;
-        float centerG = 255 / 255.0f;
-        float centerB = 0 / 255.0f;
+        // 中心点：黄色小点（选中时高亮为青色并放大）
+        boolean centerSelected = CameraPathEditController.getInstance().isOrbitCenterSelected(clip);
+        float centerR = centerSelected ? 0 / 255.0f : 255 / 255.0f;
+        float centerG = centerSelected ? 255 / 255.0f : 255 / 255.0f;
+        float centerB = centerSelected ? 255 / 255.0f : 0 / 255.0f;
         float centerA = 255 / 255.0f;
-        double centerSize = 0.1;
+        double centerSize = centerSelected ? 0.18 : 0.1;
         
         double cx = center.x - cameraPos.x;
         double cy = center.y - cameraPos.y;
