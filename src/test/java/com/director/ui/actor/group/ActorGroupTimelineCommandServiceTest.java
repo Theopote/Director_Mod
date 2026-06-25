@@ -185,17 +185,10 @@ class ActorGroupTimelineCommandServiceTest {
         int created = svc.copyLatestRouteFromActor(model, group, sourceId);
         assertEquals(3, created);
 
-        ActorRouteClip r1 = findLatestRouteClip(tt1.getActorTrackPayload());
-        ActorRouteClip r2 = findLatestRouteClip(tt2.getActorTrackPayload());
-        ActorRouteClip r3 = findLatestRouteClip(tt3.getActorTrackPayload());
-        assertNotNull(r1);
-        assertNotNull(r2);
-        assertNotNull(r3);
-
-        // LINE formation at yaw=0 spreads on X axis: [-2, 0, +2]
-        assertEquals(-2.0f, r1.getWaypoints().getFirst().x, EPS);
-        assertEquals(0.0f, r2.getWaypoints().getFirst().x, EPS);
-        assertEquals(2.0f, r3.getWaypoints().getFirst().x, EPS);
+        // Compare against controller formation (single source of truth).
+        assertRouteWaypointMatchesFormationOffset(group, srcRoute, tt1.getActorTrackPayload(), t1);
+        assertRouteWaypointMatchesFormationOffset(group, srcRoute, tt2.getActorTrackPayload(), t2);
+        assertRouteWaypointMatchesFormationOffset(group, srcRoute, tt3.getActorTrackPayload(), t3);
     }
 
     @Test
@@ -242,24 +235,10 @@ class ActorGroupTimelineCommandServiceTest {
         int created = svc.copyLatestRouteFromActor(model, group, sourceId);
         assertEquals(4, created);
 
-        ActorRouteClip r1 = findLatestRouteClip(tt1.getActorTrackPayload());
-        ActorRouteClip r2 = findLatestRouteClip(tt2.getActorTrackPayload());
-        ActorRouteClip r3 = findLatestRouteClip(tt3.getActorTrackPayload());
-        ActorRouteClip r4 = findLatestRouteClip(tt4.getActorTrackPayload());
-        assertNotNull(r1);
-        assertNotNull(r2);
-        assertNotNull(r3);
-        assertNotNull(r4);
-
-        assertEquals(-2.0f, r1.getWaypoints().getFirst().x, EPS);
-        assertEquals(0.0f, r2.getWaypoints().getFirst().x, EPS);
-        assertEquals(-2.0f, r3.getWaypoints().getFirst().x, EPS);
-        assertEquals(0.0f, r4.getWaypoints().getFirst().x, EPS);
-
-        assertEquals(0.0f, r1.getWaypoints().getFirst().z, EPS);
-        assertEquals(0.0f, r2.getWaypoints().getFirst().z, EPS);
-        assertEquals(2.0f, r3.getWaypoints().getFirst().z, EPS);
-        assertEquals(2.0f, r4.getWaypoints().getFirst().z, EPS);
+        assertRouteWaypointMatchesFormationOffset(group, srcRoute, tt1.getActorTrackPayload(), t1);
+        assertRouteWaypointMatchesFormationOffset(group, srcRoute, tt2.getActorTrackPayload(), t2);
+        assertRouteWaypointMatchesFormationOffset(group, srcRoute, tt3.getActorTrackPayload(), t3);
+        assertRouteWaypointMatchesFormationOffset(group, srcRoute, tt4.getActorTrackPayload(), t4);
     }
 
     @Test
@@ -302,16 +281,9 @@ class ActorGroupTimelineCommandServiceTest {
         int created = svc.copyLatestRouteFromActor(model, group, sourceId);
         assertEquals(3, created);
 
-        ActorRouteClip r1 = findLatestRouteClip(tt1.getActorTrackPayload());
-        ActorRouteClip r2 = findLatestRouteClip(tt2.getActorTrackPayload());
-        ActorRouteClip r3 = findLatestRouteClip(tt3.getActorTrackPayload());
-        assertNotNull(r1);
-        assertNotNull(r2);
-        assertNotNull(r3);
-
-        assertEquals(0.0f, r1.getWaypoints().getFirst().z, EPS);
-        assertEquals(-1.5f, r2.getWaypoints().getFirst().z, EPS);
-        assertEquals(-3.0f, r3.getWaypoints().getFirst().z, EPS);
+        assertRouteWaypointMatchesFormationOffset(group, srcRoute, tt1.getActorTrackPayload(), t1);
+        assertRouteWaypointMatchesFormationOffset(group, srcRoute, tt2.getActorTrackPayload(), t2);
+        assertRouteWaypointMatchesFormationOffset(group, srcRoute, tt3.getActorTrackPayload(), t3);
     }
 
     @Test
@@ -354,17 +326,9 @@ class ActorGroupTimelineCommandServiceTest {
         int created = svc.copyLatestRouteFromActor(model, group, sourceId);
         assertEquals(3, created);
 
-        ActorRouteClip r1 = findLatestRouteClip(tt1.getActorTrackPayload());
-        ActorRouteClip r2 = findLatestRouteClip(tt2.getActorTrackPayload());
-        ActorRouteClip r3 = findLatestRouteClip(tt3.getActorTrackPayload());
-        assertNotNull(r1);
-        assertNotNull(r2);
-        assertNotNull(r3);
-
-        float radius = 2.0f * 3 / (2f * (float) Math.PI);
-        assertEquals(radius, (float) Math.hypot(r1.getWaypoints().getFirst().x, r1.getWaypoints().getFirst().z), 0.001f);
-        assertEquals(radius, (float) Math.hypot(r2.getWaypoints().getFirst().x, r2.getWaypoints().getFirst().z), 0.001f);
-        assertEquals(radius, (float) Math.hypot(r3.getWaypoints().getFirst().x, r3.getWaypoints().getFirst().z), 0.001f);
+        assertRouteWaypointMatchesFormationOffset(group, srcRoute, tt1.getActorTrackPayload(), t1);
+        assertRouteWaypointMatchesFormationOffset(group, srcRoute, tt2.getActorTrackPayload(), t2);
+        assertRouteWaypointMatchesFormationOffset(group, srcRoute, tt3.getActorTrackPayload(), t3);
     }
 
     @Test
@@ -585,6 +549,57 @@ class ActorGroupTimelineCommandServiceTest {
         ActorRouteClip clip = findLatestRouteClip(track);
         assertNotNull(clip);
         assertEquals(expectedStart, clip.getStartTime(), 0.001f);
+    }
+
+    private static void assertRouteWaypointMatchesFormationOffset(ActorGroup group,
+                                                                  ActorRouteClip source,
+                                                                  ActorTrack targetTrack,
+                                                                  UUID targetActorId) {
+        ActorRouteClip copy = findLatestRouteClip(targetTrack);
+        assertNotNull(copy);
+
+        Vector3f srcFirst = source.getWaypoints().getFirst();
+        float yaw = routeHeadingYaw(source);
+        var formations = GROUP_CONTROLLER.calculateFormation(
+                group,
+                new net.minecraft.util.math.Vec3d(srcFirst.x, srcFirst.y, srcFirst.z),
+                yaw
+        );
+        net.minecraft.util.math.Vec3d expected = formationPosition(formations, targetActorId);
+
+        Vector3f actual = copy.getWaypoints().getFirst();
+        assertEquals((float) expected.x, actual.x, 0.001f);
+        assertEquals((float) expected.y, actual.y, 0.001f);
+        assertEquals((float) expected.z, actual.z, 0.001f);
+    }
+
+    private static net.minecraft.util.math.Vec3d formationPosition(
+            List<ActorGroupController.FormationPosition> positions,
+            UUID actorId) {
+        for (var p : positions) {
+            if (p.actorId().equals(actorId)) {
+                return p.position();
+            }
+        }
+        fail("Missing formation position for actor " + actorId);
+        return new net.minecraft.util.math.Vec3d(0, 0, 0);
+    }
+
+    private static float routeHeadingYaw(ActorRouteClip source) {
+        Vector3f forward = new Vector3f(0.0f, 0.0f, 1.0f);
+        List<Vector3f> points = source.getWaypoints();
+        if (points.size() >= 2) {
+            Vector3f first = points.getFirst();
+            for (int i = 1; i < points.size(); i++) {
+                Vector3f candidate = new Vector3f(points.get(i)).sub(first);
+                candidate.y = 0.0f;
+                if (candidate.lengthSquared() > 0.0001f) {
+                    forward = candidate.normalize();
+                    break;
+                }
+            }
+        }
+        return (float) Math.toDegrees(Math.atan2(forward.x, forward.z));
     }
 }
 
