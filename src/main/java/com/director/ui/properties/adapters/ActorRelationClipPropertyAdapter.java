@@ -19,11 +19,16 @@ import imgui.ImGui;
 import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImInt;
 
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Deque;
 import java.util.List;
 import java.util.UUID;
 
 public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<ActorRelationClip> {
+    private static final int MAX_RECENT_TARGETS = 5;
+    private static final Deque<UUID> RECENT_TARGETS = new ArrayDeque<>();
+
     @Override
     public Class<ActorRelationClip> getTargetType() {
         return ActorRelationClip.class;
@@ -131,10 +136,14 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
             UUID currentTarget = clip.getTargetActorId();
             for (int i = 0; i < actors.size(); i++) {
                 Actor actor = actors.get(i);
-                labels[i + 1] = actor.getName();
+                labels[i + 1] = buildActorLabel(actor);
                 if (currentTarget != null && currentTarget.equals(actor.getActorId())) {
                     selectedIndex = i + 1;
                 }
+            }
+
+            if (renderRecentTargets(clip, actors)) {
+                changed = true;
             }
 
             ImInt targetSelection = new ImInt(selectedIndex);
@@ -144,7 +153,9 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
                 if (index <= 0) {
                     clip.setTargetActorId(null);
                 } else {
-                    clip.setTargetActorId(actors.get(index - 1).getActorId());
+                    UUID targetActorId = actors.get(index - 1).getActorId();
+                    clip.setTargetActorId(targetActorId);
+                    pushRecentTarget(targetActorId);
                 }
                 changed = true;
             }
@@ -217,5 +228,60 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
         }
         ActorRef actorRef = actorTrack.getActorRef();
         return actorRef != null ? actorRef.getActorId() : null;
+    }
+
+    private static String buildActorLabel(Actor actor) {
+        if (actor == null) {
+            return "";
+        }
+        String type = ActorPropertyAdapterI18n.actorTypeLabel(actor.getType());
+        return actor.getName() + " (" + type + ")";
+    }
+
+    private boolean renderRecentTargets(ActorRelationClip clip, List<Actor> availableActors) {
+        if (availableActors == null || availableActors.isEmpty() || RECENT_TARGETS.isEmpty()) {
+            return false;
+        }
+
+        boolean changed = false;
+        ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.RECENT_TARGETS));
+        String recentPrefix = ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.TARGET_RECENT_PREFIX);
+        int index = 0;
+        for (UUID actorId : RECENT_TARGETS) {
+            Actor actor = findActorById(availableActors, actorId);
+            if (actor == null) {
+                continue;
+            }
+            if (ImGui.button(recentPrefix + ": " + buildActorLabel(actor) + "##recentRelationTarget" + actorId)) {
+                clip.setTargetActorId(actorId);
+                pushRecentTarget(actorId);
+                changed = true;
+            }
+            index++;
+            if (index >= 3) {
+                break;
+            }
+        }
+        return changed;
+    }
+
+    private static Actor findActorById(List<Actor> actors, UUID actorId) {
+        for (Actor actor : actors) {
+            if (actor.getActorId().equals(actorId)) {
+                return actor;
+            }
+        }
+        return null;
+    }
+
+    private static void pushRecentTarget(UUID actorId) {
+        if (actorId == null) {
+            return;
+        }
+        RECENT_TARGETS.remove(actorId);
+        RECENT_TARGETS.addFirst(actorId);
+        while (RECENT_TARGETS.size() > MAX_RECENT_TARGETS) {
+            RECENT_TARGETS.removeLast();
+        }
     }
 }

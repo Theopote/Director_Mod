@@ -1402,6 +1402,8 @@
   "gui.director.properties.adapter.actor.relation.target_actor": "Target Actor",
   "gui.director.properties.adapter.actor.relation.target_actor_none": "(None)",
   "gui.director.properties.adapter.actor.relation.target_actor_uuid_fmt": "Target UUID: %s",
+  "gui.director.properties.adapter.actor.relation.recent_targets": "Recent Targets",
+  "gui.director.properties.adapter.actor.relation.target_recent_prefix": "Recent",
   "gui.director.properties.adapter.actor.relation.type_face_to_face": "Face to Face",
   "gui.director.properties.adapter.actor.relation.type_follow": "Follow",
   "gui.director.properties.adapter.actor.relation.type_circle_around": "Circle Around",

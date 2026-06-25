@@ -1523,6 +1523,8 @@ public final class DirectorLang {
                 public static final String TARGET_ACTOR = "gui.director.properties.adapter.actor.relation.target_actor";
                 public static final String TARGET_ACTOR_NONE = "gui.director.properties.adapter.actor.relation.target_actor_none";
                 public static final String TARGET_ACTOR_UUID_FMT = "gui.director.properties.adapter.actor.relation.target_actor_uuid_fmt";
+                public static final String RECENT_TARGETS = "gui.director.properties.adapter.actor.relation.recent_targets";
+                public static final String TARGET_RECENT_PREFIX = "gui.director.properties.adapter.actor.relation.target_recent_prefix";
                 public static final String TYPE_FACE_TO_FACE = "gui.director.properties.adapter.actor.relation.type_face_to_face";
                 public static final String TYPE_FOLLOW = "gui.director.properties.adapter.actor.relation.type_follow";
                 public static final String TYPE_CIRCLE_AROUND = "gui.director.properties.adapter.actor.relation.type_circle_around";

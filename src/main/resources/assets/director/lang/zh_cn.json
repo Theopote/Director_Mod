@@ -1402,6 +1402,8 @@
   "gui.director.properties.adapter.actor.relation.target_actor": "目标演员",
   "gui.director.properties.adapter.actor.relation.target_actor_none": "(无)",
   "gui.director.properties.adapter.actor.relation.target_actor_uuid_fmt": "目标UUID: %s",
+  "gui.director.properties.adapter.actor.relation.recent_targets": "最近目标",
+  "gui.director.properties.adapter.actor.relation.target_recent_prefix": "最近",
   "gui.director.properties.adapter.actor.relation.type_face_to_face": "面对面",
   "gui.director.properties.adapter.actor.relation.type_follow": "跟随",
   "gui.director.properties.adapter.actor.relation.type_circle_around": "环绕",
