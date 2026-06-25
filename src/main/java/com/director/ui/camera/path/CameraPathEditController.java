@@ -122,7 +122,7 @@ public final class CameraPathEditController {
         selectedLinearEndpoint = selectedLinearClip != null ? LinearEndpoint.START : null;
         if (selectedOrbitClip != null) {
             showGizmoForOrbitCenter(selectedOrbitClip);
-        } else if (selectedLinearClip != null && selectedLinearEndpoint != null) {
+        } else if (selectedLinearClip != null) {
             showGizmoForLinearEndpoint(selectedLinearClip, selectedLinearEndpoint);
         } else if (selectedKeyframe != null) {
             showGizmoFor(selectedKeyframe);
@@ -308,9 +308,6 @@ public final class CameraPathEditController {
         lastLeftMouseDown = leftDown;
     }
 
-    public void renderOverlay(float viewportX, float viewportY, float viewportW, float viewportH) {
-        // Deprecated: screen-space overlays are now rendered in Minecraft HUD pipeline.
-    }
 
     public void renderHudOverlay(DrawContext context) {
         if (!active || !pendingWorldMouseDown || !boxDragging) {
