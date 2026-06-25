@@ -48,3 +48,4 @@ icons_original_backup_*/
 
 # ImGui config
 config/director/imgui.ini
+/logs/latest.log

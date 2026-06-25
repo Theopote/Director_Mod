@@ -49,13 +49,21 @@ public final class ActorGroupTimelineCommandService {
 
     public int createActionClips(ActorGroup group, ActorActionType actionType, float durationSeconds,
                                  float intensity, boolean loop) {
-        if (group == null || actionType == null || group.size() == 0) {
-            return 0;
-        }
-
         TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
+        return createActionClips(model, group, actionType, durationSeconds, intensity, loop);
+    }
+
+    int createActionClips(TimelineModel model,
+                          ActorGroup group,
+                          ActorActionType actionType,
+                          float durationSeconds,
+                          float intensity,
+                          boolean loop) {
         if (model == null) {
             LOGGER.warn("[ActorGroupTimelineCommandService] TimelineModel is not available");
+            return 0;
+        }
+        if (group == null || actionType == null || group.size() == 0) {
             return 0;
         }
 
@@ -105,13 +113,16 @@ public final class ActorGroupTimelineCommandService {
     }
 
     public int copyLatestRouteFromActor(ActorGroup group, UUID sourceActorId) {
-        if (group == null || sourceActorId == null || group.size() == 0) {
-            return 0;
-        }
-
         TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
+        return copyLatestRouteFromActor(model, group, sourceActorId);
+    }
+
+    int copyLatestRouteFromActor(TimelineModel model, ActorGroup group, UUID sourceActorId) {
         if (model == null) {
             LOGGER.warn("[ActorGroupTimelineCommandService] TimelineModel is not available");
+            return 0;
+        }
+        if (group == null || sourceActorId == null || group.size() == 0) {
             return 0;
         }
 
@@ -342,6 +353,20 @@ public final class ActorGroupTimelineCommandService {
                 0.0f,
                 (float) Math.cos(yawRad)
         );
+    }
+
+    private float computeDelay(ActorGroup group, UUID actorId, int index, int count) {
+        if (group == null || actorId == null || count <= 0) {
+            return 0.0f;
+        }
+
+        float step = Math.max(0.0f, group.getDelayStepSeconds());
+        return switch (group.getDelayPolicy()) {
+            case NONE -> 0.0f;
+            case SEQUENTIAL -> index * step;
+            case WAVE -> Math.abs(index - ((count - 1) * 0.5f)) * step;
+            case RANDOM -> Math.floorMod(group.getGroupId().hashCode() ^ actorId.hashCode(), Math.max(1, count)) * step;
+        };
     }
 
     private float resolveTriggerTime(List<ActorGroupController.ActionTrigger> triggers, UUID actorId, float fallback) {
