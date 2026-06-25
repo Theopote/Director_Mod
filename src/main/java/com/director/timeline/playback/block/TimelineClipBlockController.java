@@ -28,10 +28,10 @@ import java.util.*;
 
 /**
  * 时间线片段方块控制器
- * 
+ *
  * <p>
  * 根据播放头位置和片段配置控制片段对应容器的方块在Minecraft中的显示/隐藏。
- * 
+ *
  * <p>
  * ◆ 核心设计原则：片段完全独立于容器状态
  * <ul>
@@ -40,14 +40,14 @@ import java.util.*;
  * <li>容器的状态（VISIBLE/HIDDEN）不影响片段的动画控制</li>
  * <li>片段通过 BlockVisualStateManager 控制方块显示，而不是直接修改容器状态</li>
  * </ul>
- * 
+ *
  * <p>
  * 重要约束：
  * <ul>
  * <li>每个容器有且只有一个片段</li>
  * <li>同一个容器只能在轨道上产生一个片段</li>
  * </ul>
- * 
+ *
  * <p>
  * 方块出现规则（完全基于片段配置）：
  * <ul>
@@ -56,7 +56,7 @@ import java.util.*;
  * <li>播放头在片段右侧 → 显示所有方块（完全显示）</li>
  * <li>轨道锁定或隐藏 → 强制隐藏方块（覆盖片段配置）</li>
  * </ul>
- * 
+ *
  * <p>
  * 动画配置来源：
  * <ul>
@@ -178,11 +178,11 @@ public class TimelineClipBlockController {
     }
 
     private List<BlockSequenceEntry> getOrGenerateSequenceEntries(TimelineClip clip,
-            Container container,
-            ClipAnimationConfig config,
-            float clipDuration,
-            float animDuration,
-            float totalDelay) {
+                                                                  Container container,
+                                                                  ClipAnimationConfig config,
+                                                                  float clipDuration,
+                                                                  float animDuration,
+                                                                  float totalDelay) {
         if (clip == null || container == null) {
             return List.of();
         }
@@ -336,8 +336,18 @@ public class TimelineClipBlockController {
             return true;
         }
         float currentTime = model.getCurrentTime();
-        return Float.isNaN(lastHandledPreviewTime)
+        boolean timeChanged = Float.isNaN(lastHandledPreviewTime)
                 || Math.abs(currentTime - lastHandledPreviewTime) > 1e-4f;
+        if (timeChanged) {
+            return true;
+        }
+        // 【修复】静止预览时，若 timelineDrivingPaused 还是 false（分帧追平尚未被暂停），
+        // 仍然需要进入 update() 执行一次帧末尾的 pauseTimelineDriving()，
+        // 否则 tick() 会持续处理已经完成的时间线目标，浪费服务端资源。
+        if (!timelineDrivingPaused) {
+            return true;
+        }
+        return false;
     }
 
     private void ensureModelListenerBound(TimelineModel model) {
@@ -363,7 +373,7 @@ public class TimelineClipBlockController {
 
     /**
      * 更新所有片段对应容器的方块显示状态（每帧调用）
-     * 
+     *
      * <p>
      * ◆ 核心逻辑：完全基于片段配置，不依赖容器状态
      * <ul>
@@ -371,7 +381,7 @@ public class TimelineClipBlockController {
      * <li>使用 BlockVisualStateManager 控制方块显示，而不是直接修改容器状态</li>
      * <li>容器的状态（VISIBLE/HIDDEN）不影响片段的动画控制</li>
      * </ul>
-     * 
+     *
      * <p>
      * 注意：每个容器有且只有一个片段，所以逻辑可以简化
      */
@@ -621,7 +631,7 @@ public class TimelineClipBlockController {
             TimelineClip occludedClip = containerToClipMap.get(containerId);
             boolean occlusionTransparencyEnabled = occludedClip == null
                     || (occludedClip.getAnimationConfig() != null
-                            && occludedClip.getAnimationConfig().isOcclusionTransparencyEnabled());
+                    && occludedClip.getAnimationConfig().isOcclusionTransparencyEnabled());
             boolean isOccluded = occlusionTransparencyEnabled && occludedContainers.contains(containerId);
 
             boolean visualParamsChanged = lastParams == null
@@ -644,9 +654,11 @@ public class TimelineClipBlockController {
                         : TrackType.CONTAINER;
                 ensureContainerSnapshot(container, visibilityService, boundType);
 
-                // 仅在世界落地集变化、容器结构变化、拖动/追帧/定位时才同步世界方块。
+                // 仅在世界落地集变化、拖动/追帧/定位时才同步世界方块。
+                // 【修复】去掉 containerStructureChanged：容器结构变化只影响渲染，不应触发世界方块同步。
+                // containerStructureChanged=true 时（如容器刚拖入时间线），若同时触发 showContainerBlocksForTimeline，
+                // 会绕过 backfill 幂等保护，导致每帧调用 O(N) 扫描 + 向服务端提交无用任务。
                 boolean needsVisibilitySync = worldSetChanged
-                        || containerStructureChanged
                         || scrubbing
                         || TimelinePlacementBudget.isCatchUp()
                         || (previewMode && previewTimeChanged);
@@ -680,7 +692,7 @@ public class TimelineClipBlockController {
                         visualStateManager.setBlocksState(all, BlockVisualStateManager.BlockVisualState.hidden());
                         BlockVisualStateManager.BlockVisualState visibleState = (opacity < 1.0f)
                                 ? BlockVisualStateManager.BlockVisualState.ghost(opacity, true, true)
-                                        .withSuppressWorldRendering(true)
+                                .withSuppressWorldRendering(true)
                                 : BlockVisualStateManager.BlockVisualState.normal();
                         visualStateManager.setBlocksState(renderBlocks, visibleState);
                     }
@@ -705,7 +717,7 @@ public class TimelineClipBlockController {
                             if (!added.isEmpty()) {
                                 BlockVisualStateManager.BlockVisualState visibleState = (opacity < 1.0f)
                                         ? BlockVisualStateManager.BlockVisualState.ghost(opacity, true, true)
-                                                .withSuppressWorldRendering(true)
+                                        .withSuppressWorldRendering(true)
                                         : BlockVisualStateManager.BlockVisualState.normal();
                                 visualStateManager.setBlocksState(added, visibleState);
                             }
@@ -716,7 +728,7 @@ public class TimelineClipBlockController {
                         if (renderBlocks != null && !renderBlocks.isEmpty()) {
                             BlockVisualStateManager.BlockVisualState visibleState = (opacity < 1.0f)
                                     ? BlockVisualStateManager.BlockVisualState.ghost(opacity, true, true)
-                                            .withSuppressWorldRendering(true)
+                                    .withSuppressWorldRendering(true)
                                     : BlockVisualStateManager.BlockVisualState.normal();
                             visualStateManager.setBlocksState(renderBlocks, visibleState);
                         }
@@ -985,7 +997,7 @@ public class TimelineClipBlockController {
      * </ul>
      */
     private void throttleWorldPlacements(Map<UUID, Set<BlockPos>> currentFrameWorldBlocks,
-            Map<UUID, List<BlockSequenceEntry>> currentFrameSequences) {
+                                         Map<UUID, List<BlockSequenceEntry>> currentFrameSequences) {
         if (currentFrameWorldBlocks == null || currentFrameWorldBlocks.isEmpty()) {
             return;
         }
@@ -1036,14 +1048,14 @@ public class TimelineClipBlockController {
 
         if (throttledContainers > 0 && LOGGER.isDebugEnabled()) {
             LOGGER.debug("[TimelineClipBlockController] 节流世界落地: containers={}, deferredPlacements={}, budgetPerTick={}, perContainer={}",
-                throttledContainers, deferredPlacements, TimelinePlacementBudget.getGlobalPerFrame(), perContainerBudget);
+                    throttledContainers, deferredPlacements, TimelinePlacementBudget.getGlobalPerFrame(), perContainerBudget);
         }
     }
 
     private List<BlockPos> collectOrderedAdditions(UUID containerId,
-            Set<BlockPos> desired,
-            Set<BlockPos> previous,
-            Map<UUID, List<BlockSequenceEntry>> currentFrameSequences) {
+                                                   Set<BlockPos> desired,
+                                                   Set<BlockPos> previous,
+                                                   Map<UUID, List<BlockSequenceEntry>> currentFrameSequences) {
         List<BlockSequenceEntry> entries = currentFrameSequences != null ? currentFrameSequences.get(containerId) : null;
         List<BlockPos> additions = new ArrayList<>();
         for (BlockPos pos : desired) {
@@ -1084,11 +1096,11 @@ public class TimelineClipBlockController {
     }
 
     private VisibleBlocksResult calculateVisibleBlocks(TimelineClip clip,
-            float currentTime,
-            boolean trackEnabled,
-            Container container,
-            ClipAnimationConfig config,
-            boolean previewMode) {
+                                                       float currentTime,
+                                                       boolean trackEnabled,
+                                                       Container container,
+                                                       ClipAnimationConfig config,
+                                                       boolean previewMode) {
         List<BlockSequenceEntry> sequenceEntries = List.of();
 
         // ✅ 基于容器类型判断是否为拆除容器（不再依赖轨道类型）
@@ -1296,7 +1308,7 @@ public class TimelineClipBlockController {
 
     /**
      * 🔥 为容器注册所有需要渲染的方块（RenderEntry 2.0）
-     * 
+     *
      * <p>
      * 核心逻辑：
      * <ol>
@@ -1306,7 +1318,7 @@ public class TimelineClipBlockController {
      * <li>将 snapshot 作为 overrideSnapshot 传入 RenderEntry</li>
      * <li>加入 BlockVisualStateManager</li>
      * </ol>
-     * 
+     *
      * <p>
      * 关键修复：snapshot 在此处使用时间线时间（currentTime）生成，
      * 并作为 overrideSnapshot 传入 RenderEntry，避免渲染时用世界时间重采样导致动画错误。
@@ -1586,9 +1598,9 @@ public class TimelineClipBlockController {
     }
 
     private void cleanupContainersNoLongerControlled(Set<UUID> activeContainerIds,
-            com.director.core.container.visibility.ContainerVisibilityService visibilityService,
-            BlockVisualStateManager visualStateManager,
-            Set<BlockPos> rerender) {
+                                                     com.director.core.container.visibility.ContainerVisibilityService visibilityService,
+                                                     BlockVisualStateManager visualStateManager,
+                                                     Set<BlockPos> rerender) {
         if (lastFrameWorldBlocks.isEmpty()) {
             return;
         }
@@ -1639,12 +1651,12 @@ public class TimelineClipBlockController {
 
     /**
      * 检查 snapshot 的变换是否是单位变换（无动画）
-     * 
+     *
      * <p>
      * 通过逐元素比较矩阵与单位矩阵，允许一定的浮点精度误差。
      * 如果变换矩阵接近单位矩阵，说明方块处于静止状态（INSTANT 模式或动画未开始），
      * 可以跳过 overlay 渲染，直接使用世界渲染。
-     * 
+     *
      * @return true 如果是单位变换（无动画），false 如果有动画变换
      */
     private boolean isIdentityTransform(BlockAnimationSnapshot snapshot) {
@@ -1667,14 +1679,14 @@ public class TimelineClipBlockController {
     }
 
     private record VisibleBlocksResult(Set<BlockPos> worldBlocks, Set<BlockPos> renderBlocks,
-            List<BlockSequenceEntry> sequenceEntries) {
+                                       List<BlockSequenceEntry> sequenceEntries) {
     }
 
     private void applyOcclusionOverrides(float currentTime,
-            Map<UUID, Set<BlockPos>> currentFrameVisibleBlocks,
-            Map<UUID, Float> currentFrameOpacity,
-            Set<UUID> occludedContainers,
-            Map<UUID, TimelineClip> containerToClipMap) {
+                                         Map<UUID, Set<BlockPos>> currentFrameVisibleBlocks,
+                                         Map<UUID, Float> currentFrameOpacity,
+                                         Set<UUID> occludedContainers,
+                                         Map<UUID, TimelineClip> containerToClipMap) {
 
         List<TimelineClip> activeFadeClips = findActiveAutoFadeClips(currentTime);
         if (activeFadeClips.isEmpty()) {
@@ -1716,7 +1728,7 @@ public class TimelineClipBlockController {
                 TimelineClip occludedClip = containerToClipMap != null ? containerToClipMap.get(containerId) : null;
                 boolean occlusionTransparencyEnabled = occludedClip == null
                         || (occludedClip.getAnimationConfig() != null
-                                && occludedClip.getAnimationConfig().isOcclusionTransparencyEnabled());
+                        && occludedClip.getAnimationConfig().isOcclusionTransparencyEnabled());
                 if (!occlusionTransparencyEnabled) {
                     continue;
                 }
@@ -1765,7 +1777,7 @@ public class TimelineClipBlockController {
     }
 
     private List<Container> collectPreviousContainers(TimelineClip activeClip,
-            Map<UUID, Set<BlockPos>> currentFrameVisibleBlocks) {
+                                                      Map<UUID, Set<BlockPos>> currentFrameVisibleBlocks) {
         TimelineModel model = resolveActiveModel();
         if (model == null) {
             return List.of();
@@ -1810,10 +1822,10 @@ public class TimelineClipBlockController {
 
     /**
      * 确保容器绑定了世界
-     * 
+     *
      * <p>
      * 如果容器没有绑定世界，尝试从客户端获取当前世界并绑定
-     * 
+     *
      * @param container 容器对象
      */
     private void ensureContainerWorldBinding(Container container) {
@@ -1847,24 +1859,24 @@ public class TimelineClipBlockController {
 
     /**
      * 确保容器有快照
-     * 
+     *
      * <p>
      * 如果容器在ContainerVisibilityService 中没有快照，但有方块数据，
      * 需要先创建快照。
-     * 
+     *
      * <p>
      * 策略：
      * <ol>
      * <li>优先使用容器的 blockStore（如果已有数据），因为它是创建容器时捕获的原始状态</li>
      * <li>如果容器的 blockStore 为空，调用 hideContainer 从世界中捕获（但此时方块可能已经是 AIR）</li>
      * </ol>
-     * 
+     *
      * @param container         容器对象
      * @param visibilityService 可见性服务
      */
     private void ensureContainerSnapshot(Container container,
-            com.director.core.container.visibility.ContainerVisibilityService visibilityService,
-            TrackType trackType) {
+                                         com.director.core.container.visibility.ContainerVisibilityService visibilityService,
+                                         TrackType trackType) {
         if (container == null || visibilityService == null) {
             return;
         }
