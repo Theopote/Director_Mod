@@ -756,8 +756,10 @@ public class DirectorUIManager {
             // 使用try-with-resources管理窗口
             try (var window = ImGuiUtils.beginWindow(DOCKSPACE_WINDOW_NAME, DOCKSPACE_FLAGS)) {
                 if (window != null) {
+                    boolean recorded = false;
                     try {
                         com.director.ui.imgui.ImGuiStateChecker.recordBegin("DockSpace", DOCKSPACE_WINDOW_NAME);
+                        recorded = true;
                         panelManager.renderMenuBar();
                         
                         // 创建DockSpace - 全屏透明，基础停靠功能
@@ -811,12 +813,15 @@ public class DirectorUIManager {
                         
                         // 注意：面板渲染应该在 DockSpace 外部进行，而不是在内部
                         // 这样可以确保中央区域保持空白，不被面板占满
-                        
-                        com.director.ui.imgui.ImGuiStateChecker.recordEnd("DockSpace", DOCKSPACE_WINDOW_NAME);
                     } catch (Exception e) {
                         logError("DockSpace创建失败", e);
                         com.director.ui.imgui.ImGuiStateChecker.recordError("DockSpace", "dockSpace创建", e.getMessage());
                         dockspaceId = -1;
+                    } finally {
+                        // 关闭流程里可能会强制清空调用栈；这里做一次防御，避免 recordEnd() 误报。
+                        if (recorded && com.director.ui.imgui.ImGuiStateChecker.getStackDepth() > 0) {
+                            com.director.ui.imgui.ImGuiStateChecker.recordEnd("DockSpace", DOCKSPACE_WINDOW_NAME);
+                        }
                     }
                 } else {
                     logWarn("DockSpace窗口未能开始，可能被其他窗口遮挡");

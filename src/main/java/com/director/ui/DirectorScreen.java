@@ -543,6 +543,9 @@ public class DirectorScreen extends Screen {
         }
 
         try {
+            // 关闭屏幕可能发生在一次 ImGui 帧的中途：强行清空会让后续正常的 End 误报。
+            // 这里改为“检查+必要时清理”，避免制造新的 End 不匹配错误。
+            com.director.ui.imgui.ImGuiStateChecker.checkStackState("DirectorScreen.close 清理");
             com.director.ui.imgui.ImGuiStateChecker.forceCleanupStack("DirectorScreen.close 清理");
         } catch (Exception e) {
             LOGGER.warn("[Director] 清理 ImGui 状态时发生错误", e);
@@ -626,6 +629,13 @@ public class DirectorScreen extends Screen {
         try {
             captureUiSessionState();
 
+            // ⭐ Actor 运行时：进入导演模式时启用（确保重新打开 UI 后演员可用）
+            try {
+                com.director.actor.runtime.ActorRuntimeController.getInstance().setEnabled(true);
+            } catch (Exception e) {
+                LOGGER.warn("[Director] 启用 ActorRuntimeController 失败", e);
+            }
+
             // 1️⃣ 冻结世界时间与实体
             freezeWorld();
 
@@ -652,6 +662,14 @@ public class DirectorScreen extends Screen {
         LOGGER.info("[Director] 🧭 退出导演模式...");
 
         try {
+            // ⭐ Actor 运行时：关闭导演模式时清空所有演员预览（回到原版）
+            // 放在最前面：即使世界已卸载也要清理残留预览实体
+            try {
+                com.director.actor.runtime.ActorRuntimeController.getInstance().setEnabled(false);
+            } catch (Exception e) {
+                LOGGER.warn("[Director] 禁用 ActorRuntimeController 失败", e);
+            }
+
             if (client.world != null) {
                 if (LOGGER.isTraceEnabled()) {
                     LOGGER.trace("[Director] 实体保持自由移动");

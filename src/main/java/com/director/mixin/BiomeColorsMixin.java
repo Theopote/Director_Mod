@@ -10,6 +10,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import java.util.Objects;
+
 /**
  * BiomeColors mixin — 季节草地/树叶 tint 委托 {@link ClientWorldTintEffects}。
  */
@@ -27,7 +29,7 @@ public abstract class BiomeColorsMixin {
             return;
         }
         cir.setReturnValue(ClientWorldTintEffects.tintBiomeColor(
-                cir.getReturnValue(), state.seasonSample().grassTint));
+                cir.getReturnValue(), Objects.requireNonNull(state.seasonSample()).grassTint));
     }
 
     @Inject(
@@ -41,6 +43,6 @@ public abstract class BiomeColorsMixin {
             return;
         }
         cir.setReturnValue(ClientWorldTintEffects.tintBiomeColor(
-                cir.getReturnValue(), state.seasonSample().foliageTint));
+                cir.getReturnValue(), Objects.requireNonNull(state.seasonSample()).foliageTint));
     }
 }

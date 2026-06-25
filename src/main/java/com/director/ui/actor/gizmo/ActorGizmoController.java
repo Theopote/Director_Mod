@@ -668,7 +668,6 @@ public final class ActorGizmoController {
             return null;
         }
 
-        float maxDistance = DEFAULT_CLIP_DURATION; // 最多扩展到 1 秒内的 clip
         EntityTransformClip nearest = null;
         float minDistance = Float.MAX_VALUE;
 
@@ -687,7 +686,7 @@ public final class ActorGizmoController {
                     continue;
                 }
 
-                if (distance < maxDistance && distance < minDistance) {
+                if (distance < DEFAULT_CLIP_DURATION && distance < minDistance) {
                     minDistance = distance;
                     nearest = tc;
                 }

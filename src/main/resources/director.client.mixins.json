@@ -28,6 +28,7 @@
     "BackgroundRendererMixin",
     "LivingEntityRendererMixin",
     "ArmorStandRendererMixin",
+    "ArmorStandEntityRenderStateMixin",
     "accessor.GameRendererAccessor",
     "accessor.CameraAccessorMixin",
     "accessor.MinecraftClientAccessor",
