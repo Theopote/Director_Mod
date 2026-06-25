@@ -60,6 +60,90 @@ class ActorGroupTimelineCommandServiceTest {
     }
 
     @Test
+    void createActionClipsHonorsWaveDelay() {
+        TimelineModel model = new TimelineModel(new TimelineViewportState());
+        model.setCurrentTime(3.0f);
+
+        UUID a = UUID.randomUUID();
+        UUID b = UUID.randomUUID();
+        UUID c = UUID.randomUUID();
+        UUID d = UUID.randomUUID();
+        UUID e = UUID.randomUUID();
+
+        ActorTrack atA = createActorTrackPayload(a);
+        ActorTrack atB = createActorTrackPayload(b);
+        ActorTrack atC = createActorTrackPayload(c);
+        ActorTrack atD = createActorTrackPayload(d);
+        ActorTrack atE = createActorTrackPayload(e);
+
+        model.addTrack(createActorTimelineTrack("A", atA));
+        model.addTrack(createActorTimelineTrack("B", atB));
+        model.addTrack(createActorTimelineTrack("C", atC));
+        model.addTrack(createActorTimelineTrack("D", atD));
+        model.addTrack(createActorTimelineTrack("E", atE));
+
+        ActorGroup group = new ActorGroup("g");
+        group.addActor(a);
+        group.addActor(b);
+        group.addActor(c);
+        group.addActor(d);
+        group.addActor(e);
+        group.setDelayPolicy(ActorGroup.DelayPolicy.WAVE);
+        group.setDelayStepSeconds(0.1f);
+
+        ActorGroupTimelineCommandService svc = ActorGroupTimelineCommandService.getInstance();
+        int created = svc.createActionClips(model, group, ActorActionType.IDLE, 1.0f, 1.0f, true);
+        assertEquals(5, created);
+
+        // Wave mapping in ActorGroupController:
+        // i=0->0, i=1->4, i=2->1, i=3->3, i=4->2
+        assertSingleActionClip(atA, 3.0f, 4.0f, ActorActionType.IDLE);
+        assertSingleActionClip(atB, 3.4f, 4.4f, ActorActionType.IDLE);
+        assertSingleActionClip(atC, 3.1f, 4.1f, ActorActionType.IDLE);
+        assertSingleActionClip(atD, 3.3f, 4.3f, ActorActionType.IDLE);
+        assertSingleActionClip(atE, 3.2f, 4.2f, ActorActionType.IDLE);
+    }
+
+    @Test
+    void createActionClipsRandomDelayWithinBounds() {
+        TimelineModel model = new TimelineModel(new TimelineViewportState());
+        model.setCurrentTime(8.0f);
+
+        UUID a = UUID.randomUUID();
+        UUID b = UUID.randomUUID();
+        UUID c = UUID.randomUUID();
+        UUID d = UUID.randomUUID();
+
+        ActorTrack atA = createActorTrackPayload(a);
+        ActorTrack atB = createActorTrackPayload(b);
+        ActorTrack atC = createActorTrackPayload(c);
+        ActorTrack atD = createActorTrackPayload(d);
+
+        model.addTrack(createActorTimelineTrack("A", atA));
+        model.addTrack(createActorTimelineTrack("B", atB));
+        model.addTrack(createActorTimelineTrack("C", atC));
+        model.addTrack(createActorTimelineTrack("D", atD));
+
+        ActorGroup group = new ActorGroup("g");
+        group.addActor(a);
+        group.addActor(b);
+        group.addActor(c);
+        group.addActor(d);
+        group.setDelayPolicy(ActorGroup.DelayPolicy.RANDOM);
+        group.setDelayStepSeconds(0.2f);
+
+        float duration = 2.0f;
+        ActorGroupTimelineCommandService svc = ActorGroupTimelineCommandService.getInstance();
+        int created = svc.createActionClips(model, group, ActorActionType.RUN, duration, 1.0f, true);
+        assertEquals(4, created);
+
+        assertRandomDelayClipBounds(atA, 8.0f, 8.0f + 0.2f * 4, duration, ActorActionType.RUN);
+        assertRandomDelayClipBounds(atB, 8.0f, 8.0f + 0.2f * 4, duration, ActorActionType.RUN);
+        assertRandomDelayClipBounds(atC, 8.0f, 8.0f + 0.2f * 4, duration, ActorActionType.RUN);
+        assertRandomDelayClipBounds(atD, 8.0f, 8.0f + 0.2f * 4, duration, ActorActionType.RUN);
+    }
+
+    @Test
     void copyLatestRouteAppliesLineFormationOffset() {
         TimelineModel model = new TimelineModel(new TimelineViewportState());
         model.setCurrentTime(1.0f);
@@ -112,6 +196,175 @@ class ActorGroupTimelineCommandServiceTest {
         assertEquals(2.0f, r3.getWaypoints().getFirst().x, EPS);
     }
 
+    @Test
+    void copyLatestRouteAppliesGridFormationOffset() {
+        TimelineModel model = new TimelineModel(new TimelineViewportState());
+        model.setCurrentTime(1.0f);
+
+        UUID sourceId = UUID.randomUUID();
+        UUID t1 = UUID.randomUUID();
+        UUID t2 = UUID.randomUUID();
+        UUID t3 = UUID.randomUUID();
+        UUID t4 = UUID.randomUUID();
+
+        ActorTrack srcTrack = createActorTrackPayload(sourceId);
+        ActorRouteClip srcRoute = new ActorRouteClip("route", 0.0f, 5.0f);
+        srcRoute.setWaypoints(List.of(
+                new Vector3f(0, 64, 0),
+                new Vector3f(0, 64, 10)
+        ));
+        srcTrack.addClip(srcRoute);
+
+        TimelineTrack srcTimeline = createActorTimelineTrack("src", srcTrack);
+        TimelineTrack tt1 = createActorTimelineTrack("t1", createActorTrackPayload(t1));
+        TimelineTrack tt2 = createActorTimelineTrack("t2", createActorTrackPayload(t2));
+        TimelineTrack tt3 = createActorTimelineTrack("t3", createActorTrackPayload(t3));
+        TimelineTrack tt4 = createActorTimelineTrack("t4", createActorTrackPayload(t4));
+
+        model.addTrack(srcTimeline);
+        model.addTrack(tt1);
+        model.addTrack(tt2);
+        model.addTrack(tt3);
+        model.addTrack(tt4);
+
+        ActorGroup group = new ActorGroup("g");
+        group.addActor(t1);
+        group.addActor(t2);
+        group.addActor(t3);
+        group.addActor(t4);
+        group.setFormationType(ActorGroup.FormationType.GRID);
+        group.setFormationSpacing(2.0f);
+        group.setDelayPolicy(ActorGroup.DelayPolicy.NONE);
+
+        ActorGroupTimelineCommandService svc = ActorGroupTimelineCommandService.getInstance();
+        int created = svc.copyLatestRouteFromActor(model, group, sourceId);
+        assertEquals(4, created);
+
+        ActorRouteClip r1 = findLatestRouteClip(tt1.getActorTrackPayload());
+        ActorRouteClip r2 = findLatestRouteClip(tt2.getActorTrackPayload());
+        ActorRouteClip r3 = findLatestRouteClip(tt3.getActorTrackPayload());
+        ActorRouteClip r4 = findLatestRouteClip(tt4.getActorTrackPayload());
+        assertNotNull(r1);
+        assertNotNull(r2);
+        assertNotNull(r3);
+        assertNotNull(r4);
+
+        assertEquals(-2.0f, r1.getWaypoints().getFirst().x, EPS);
+        assertEquals(0.0f, r2.getWaypoints().getFirst().x, EPS);
+        assertEquals(-2.0f, r3.getWaypoints().getFirst().x, EPS);
+        assertEquals(0.0f, r4.getWaypoints().getFirst().x, EPS);
+
+        assertEquals(0.0f, r1.getWaypoints().getFirst().z, EPS);
+        assertEquals(0.0f, r2.getWaypoints().getFirst().z, EPS);
+        assertEquals(2.0f, r3.getWaypoints().getFirst().z, EPS);
+        assertEquals(2.0f, r4.getWaypoints().getFirst().z, EPS);
+    }
+
+    @Test
+    void copyLatestRouteAppliesFollowLeaderFormationOffset() {
+        TimelineModel model = new TimelineModel(new TimelineViewportState());
+        model.setCurrentTime(1.0f);
+
+        UUID sourceId = UUID.randomUUID();
+        UUID t1 = UUID.randomUUID();
+        UUID t2 = UUID.randomUUID();
+        UUID t3 = UUID.randomUUID();
+
+        ActorTrack srcTrack = createActorTrackPayload(sourceId);
+        ActorRouteClip srcRoute = new ActorRouteClip("route", 0.0f, 5.0f);
+        srcRoute.setWaypoints(List.of(
+                new Vector3f(0, 64, 0),
+                new Vector3f(0, 64, 10)
+        ));
+        srcTrack.addClip(srcRoute);
+
+        TimelineTrack srcTimeline = createActorTimelineTrack("src", srcTrack);
+        TimelineTrack tt1 = createActorTimelineTrack("t1", createActorTrackPayload(t1));
+        TimelineTrack tt2 = createActorTimelineTrack("t2", createActorTrackPayload(t2));
+        TimelineTrack tt3 = createActorTimelineTrack("t3", createActorTrackPayload(t3));
+
+        model.addTrack(srcTimeline);
+        model.addTrack(tt1);
+        model.addTrack(tt2);
+        model.addTrack(tt3);
+
+        ActorGroup group = new ActorGroup("g");
+        group.addActor(t1);
+        group.addActor(t2);
+        group.addActor(t3);
+        group.setFormationType(ActorGroup.FormationType.FOLLOW_LEADER);
+        group.setFormationSpacing(1.5f);
+        group.setDelayPolicy(ActorGroup.DelayPolicy.NONE);
+
+        ActorGroupTimelineCommandService svc = ActorGroupTimelineCommandService.getInstance();
+        int created = svc.copyLatestRouteFromActor(model, group, sourceId);
+        assertEquals(3, created);
+
+        ActorRouteClip r1 = findLatestRouteClip(tt1.getActorTrackPayload());
+        ActorRouteClip r2 = findLatestRouteClip(tt2.getActorTrackPayload());
+        ActorRouteClip r3 = findLatestRouteClip(tt3.getActorTrackPayload());
+        assertNotNull(r1);
+        assertNotNull(r2);
+        assertNotNull(r3);
+
+        assertEquals(0.0f, r1.getWaypoints().getFirst().z, EPS);
+        assertEquals(-1.5f, r2.getWaypoints().getFirst().z, EPS);
+        assertEquals(-3.0f, r3.getWaypoints().getFirst().z, EPS);
+    }
+
+    @Test
+    void copyLatestRouteAppliesCircleFormationOffset() {
+        TimelineModel model = new TimelineModel(new TimelineViewportState());
+        model.setCurrentTime(1.0f);
+
+        UUID sourceId = UUID.randomUUID();
+        UUID t1 = UUID.randomUUID();
+        UUID t2 = UUID.randomUUID();
+        UUID t3 = UUID.randomUUID();
+
+        ActorTrack srcTrack = createActorTrackPayload(sourceId);
+        ActorRouteClip srcRoute = new ActorRouteClip("route", 0.0f, 5.0f);
+        srcRoute.setWaypoints(List.of(
+                new Vector3f(0, 64, 0),
+                new Vector3f(0, 64, 10)
+        ));
+        srcTrack.addClip(srcRoute);
+
+        TimelineTrack srcTimeline = createActorTimelineTrack("src", srcTrack);
+        TimelineTrack tt1 = createActorTimelineTrack("t1", createActorTrackPayload(t1));
+        TimelineTrack tt2 = createActorTimelineTrack("t2", createActorTrackPayload(t2));
+        TimelineTrack tt3 = createActorTimelineTrack("t3", createActorTrackPayload(t3));
+
+        model.addTrack(srcTimeline);
+        model.addTrack(tt1);
+        model.addTrack(tt2);
+        model.addTrack(tt3);
+
+        ActorGroup group = new ActorGroup("g");
+        group.addActor(t1);
+        group.addActor(t2);
+        group.addActor(t3);
+        group.setFormationType(ActorGroup.FormationType.CIRCLE);
+        group.setFormationSpacing(2.0f);
+        group.setDelayPolicy(ActorGroup.DelayPolicy.NONE);
+
+        ActorGroupTimelineCommandService svc = ActorGroupTimelineCommandService.getInstance();
+        int created = svc.copyLatestRouteFromActor(model, group, sourceId);
+        assertEquals(3, created);
+
+        ActorRouteClip r1 = findLatestRouteClip(tt1.getActorTrackPayload());
+        ActorRouteClip r2 = findLatestRouteClip(tt2.getActorTrackPayload());
+        ActorRouteClip r3 = findLatestRouteClip(tt3.getActorTrackPayload());
+        assertNotNull(r1);
+        assertNotNull(r2);
+        assertNotNull(r3);
+
+        float radius = 2.0f * 3 / (2f * (float) Math.PI);
+        assertEquals(radius, (float) Math.hypot(r1.getWaypoints().getFirst().x, r1.getWaypoints().getFirst().z), 0.001f);
+        assertEquals(radius, (float) Math.hypot(r2.getWaypoints().getFirst().x, r2.getWaypoints().getFirst().z), 0.001f);
+        assertEquals(radius, (float) Math.hypot(r3.getWaypoints().getFirst().x, r3.getWaypoints().getFirst().z), 0.001f);
+    }
+
     private static ActorTrack createActorTrackPayload(UUID actorId) {
         ActorTrack actorTrack = new ActorTrack("actor");
         actorTrack.setActorRef(new ActorRef(actorId));
@@ -131,6 +384,20 @@ class ActorGroupTimelineCommandServiceTest {
         assertEquals(type, clip.getActionType());
         assertEquals(start, clip.getStartTime(), EPS);
         assertEquals(end, clip.getEndTime(), EPS);
+    }
+
+    private static void assertRandomDelayClipBounds(ActorTrack track,
+                                                   float minStart,
+                                                   float maxStartInclusive,
+                                                   float duration,
+                                                   ActorActionType type) {
+        List<ActorActionClip> clips = track.getActionClips();
+        assertEquals(1, clips.size());
+        ActorActionClip clip = clips.getFirst();
+        assertEquals(type, clip.getActionType());
+        assertTrue(clip.getStartTime() >= minStart - EPS, "startTime should be >= base");
+        assertTrue(clip.getStartTime() <= maxStartInclusive + EPS, "startTime should be <= base + delayStep * count");
+        assertEquals(clip.getStartTime() + duration, clip.getEndTime(), 0.001f);
     }
 
     private static ActorRouteClip findLatestRouteClip(ActorTrack track) {

@@ -363,7 +363,7 @@ public final class ActorGroupTimelineCommandService {
             case NONE -> 0.0f;
             case SEQUENTIAL -> index * step;
             case WAVE -> Math.abs(index - ((count - 1) * 0.5f)) * step;
-            case RANDOM -> Math.floorMod(group.getGroupId().hashCode() ^ actorId.hashCode(), Math.max(1, count)) * step;
+            case RANDOM -> Math.floorMod(group.getGroupId().hashCode() ^ actorId.hashCode(), count) * step;
         };
     }
 
