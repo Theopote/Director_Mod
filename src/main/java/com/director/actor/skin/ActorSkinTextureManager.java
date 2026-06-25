@@ -19,6 +19,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Supplier;
 
 /**
  * ActorSkinTextureManager
@@ -73,9 +74,15 @@ public final class ActorSkinTextureManager {
         TextureManager textureManager = client.getTextureManager();
         Identifier id = Identifier.of(NAMESPACE, PATH_PREFIX + actorId);
 
+        NativeImage image = null;
+        NativeImageBackedTexture texture = null;
         try {
-            NativeImage image = NativeImage.read(Files.newInputStream(skinPath));
-            NativeImageBackedTexture texture = new NativeImageBackedTexture(image);
+            try (var in = Files.newInputStream(skinPath)) {
+                image = NativeImage.read(in);
+            }
+
+            Supplier<String> nameSupplier = () -> NAMESPACE + ":" + PATH_PREFIX + actorId;
+            texture = new NativeImageBackedTexture(nameSupplier, image);
             textureManager.registerTexture(id, texture);
             CACHE.put(actorId, id);
             LOGGER.debug("[ActorSkinTextureManager] 注册皮肤纹理: {} -> {}", skinPath, id);
@@ -83,6 +90,25 @@ public final class ActorSkinTextureManager {
         } catch (IOException e) {
             LOGGER.error("[ActorSkinTextureManager] 读取皮肤纹理失败: {}", skinPath, e);
             return null;
+        } catch (RuntimeException e) {
+            LOGGER.error("[ActorSkinTextureManager] 注册皮肤纹理失败: {}", skinPath, e);
+            return null;
+        } finally {
+            if (!CACHE.containsKey(actorId)) {
+                if (texture != null) {
+                    try {
+                        texture.close();
+                    } catch (Exception ignored) {
+                        // best-effort cleanup
+                    }
+                } else if (image != null) {
+                    try {
+                        image.close();
+                    } catch (Exception ignored) {
+                        // best-effort cleanup
+                    }
+                }
+            }
         }
     }
 

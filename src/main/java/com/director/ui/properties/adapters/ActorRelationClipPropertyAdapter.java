@@ -118,7 +118,7 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
             }
         }
 
-        if (ImGui.collapsingHeader(Icons.USER + " "
+        if (ImGui.collapsingHeader(Icons.PIN + " "
                 + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Relation.SECTION_TARGET),
                 ImGuiTreeNodeFlags.DefaultOpen)) {
             ActorRegistry registry = ActorRegistryManager.getInstance();
