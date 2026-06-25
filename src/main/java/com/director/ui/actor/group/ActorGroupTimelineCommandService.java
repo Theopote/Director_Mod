@@ -132,6 +132,8 @@ public final class ActorGroupTimelineCommandService {
         }
 
         List<UUID> actorIds = group.getActorIds();
+        List<ActorGroupController.ActionTrigger> triggers =
+                GROUP_CONTROLLER.applyDelayPolicy(group, ActorActionType.IDLE, 0.0f);
         int created = 0;
         for (int i = 0; i < actorIds.size(); i++) {
             UUID actorId = actorIds.get(i);
@@ -144,7 +146,7 @@ public final class ActorGroupTimelineCommandService {
                 continue;
             }
 
-            float delay = computeDelay(group, actorId, i, actorIds.size());
+            float delay = Math.max(0.0f, resolveTriggerTime(triggers, actorId, 0.0f));
             Vector3f formationOffset = computeFormationOffset(group, source, i, actorIds.size());
             ActorRouteClip copy = copyRouteClip(source, delay, formationOffset);
             actorTrack.addClip(copy);
@@ -351,20 +353,6 @@ public final class ActorGroupTimelineCommandService {
                 0.0f,
                 (float) Math.cos(yawRad)
         );
-    }
-
-    private float computeDelay(ActorGroup group, UUID actorId, int index, int count) {
-        if (group == null || actorId == null || count <= 0) {
-            return 0.0f;
-        }
-
-        float step = Math.max(0.0f, group.getDelayStepSeconds());
-        return switch (group.getDelayPolicy()) {
-            case NONE -> 0.0f;
-            case SEQUENTIAL -> index * step;
-            case WAVE -> Math.abs(index - ((count - 1) * 0.5f)) * step;
-            case RANDOM -> Math.floorMod(group.getGroupId().hashCode() ^ actorId.hashCode(), count) * step;
-        };
     }
 
     private float resolveTriggerTime(List<ActorGroupController.ActionTrigger> triggers, UUID actorId, float fallback) {

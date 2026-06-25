@@ -3,6 +3,7 @@ package com.director.ui.actor.group;
 import com.director.actor.ActorGroup;
 import com.director.actor.ActorRef;
 import com.director.actor.action.ActorActionType;
+import com.director.actor.group.ActorGroupController;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TimelineViewportState;
@@ -21,6 +22,7 @@ import static org.junit.jupiter.api.Assertions.*;
 class ActorGroupTimelineCommandServiceTest {
 
     private static final float EPS = 0.0001f;
+    private static final ActorGroupController GROUP_CONTROLLER = ActorGroupController.getInstance();
 
     @Test
     void createActionClipsHonorsSequentialDelay() {
@@ -365,6 +367,162 @@ class ActorGroupTimelineCommandServiceTest {
         assertEquals(radius, (float) Math.hypot(r3.getWaypoints().getFirst().x, r3.getWaypoints().getFirst().z), 0.001f);
     }
 
+    @Test
+    void copyLatestRouteHonorsSequentialDelay() {
+        TimelineModel model = new TimelineModel(new TimelineViewportState());
+        model.setCurrentTime(1.0f);
+
+        UUID sourceId = UUID.randomUUID();
+        UUID t1 = UUID.randomUUID();
+        UUID t2 = UUID.randomUUID();
+        UUID t3 = UUID.randomUUID();
+
+        ActorRouteClip source = new ActorRouteClip("route", 2.0f, 6.0f);
+        source.setWaypoints(List.of(
+                new Vector3f(0, 64, 0),
+                new Vector3f(0, 64, 10)
+        ));
+        ActorTrack srcTrack = createActorTrackPayload(sourceId);
+        srcTrack.addClip(source);
+
+        TimelineTrack srcTimeline = createActorTimelineTrack("src", srcTrack);
+        TimelineTrack tt1 = createActorTimelineTrack("t1", createActorTrackPayload(t1));
+        TimelineTrack tt2 = createActorTimelineTrack("t2", createActorTrackPayload(t2));
+        TimelineTrack tt3 = createActorTimelineTrack("t3", createActorTrackPayload(t3));
+        model.addTrack(srcTimeline);
+        model.addTrack(tt1);
+        model.addTrack(tt2);
+        model.addTrack(tt3);
+
+        ActorGroup group = new ActorGroup("g");
+        group.addActor(t1);
+        group.addActor(t2);
+        group.addActor(t3);
+        group.setDelayPolicy(ActorGroup.DelayPolicy.SEQUENTIAL);
+        group.setDelayStepSeconds(0.5f);
+        group.setFormationType(ActorGroup.FormationType.FREE);
+
+        ActorGroupTimelineCommandService svc = ActorGroupTimelineCommandService.getInstance();
+        int created = svc.copyLatestRouteFromActor(model, group, sourceId);
+        assertEquals(3, created);
+
+        assertRouteClipStart(tt1.getActorTrackPayload(), 2.0f);
+        assertRouteClipStart(tt2.getActorTrackPayload(), 2.5f);
+        assertRouteClipStart(tt3.getActorTrackPayload(), 3.0f);
+    }
+
+    @Test
+    void copyLatestRouteHonorsWaveDelay() {
+        TimelineModel model = new TimelineModel(new TimelineViewportState());
+        model.setCurrentTime(1.0f);
+
+        UUID sourceId = UUID.randomUUID();
+        UUID a = UUID.randomUUID();
+        UUID b = UUID.randomUUID();
+        UUID c = UUID.randomUUID();
+        UUID d = UUID.randomUUID();
+        UUID e = UUID.randomUUID();
+
+        ActorRouteClip source = new ActorRouteClip("route", 1.0f, 3.0f);
+        source.setWaypoints(List.of(
+                new Vector3f(0, 64, 0),
+                new Vector3f(0, 64, 10)
+        ));
+        ActorTrack srcTrack = createActorTrackPayload(sourceId);
+        srcTrack.addClip(source);
+
+        TimelineTrack srcTimeline = createActorTimelineTrack("src", srcTrack);
+        TimelineTrack ta = createActorTimelineTrack("a", createActorTrackPayload(a));
+        TimelineTrack tb = createActorTimelineTrack("b", createActorTrackPayload(b));
+        TimelineTrack tc = createActorTimelineTrack("c", createActorTrackPayload(c));
+        TimelineTrack td = createActorTimelineTrack("d", createActorTrackPayload(d));
+        TimelineTrack te = createActorTimelineTrack("e", createActorTrackPayload(e));
+        model.addTrack(srcTimeline);
+        model.addTrack(ta);
+        model.addTrack(tb);
+        model.addTrack(tc);
+        model.addTrack(td);
+        model.addTrack(te);
+
+        ActorGroup group = new ActorGroup("g");
+        group.addActor(a);
+        group.addActor(b);
+        group.addActor(c);
+        group.addActor(d);
+        group.addActor(e);
+        group.setDelayPolicy(ActorGroup.DelayPolicy.WAVE);
+        group.setDelayStepSeconds(0.1f);
+        group.setFormationType(ActorGroup.FormationType.FREE);
+
+        // Reference delays from controller (ensures "same semantics" guarantee)
+        var triggers = GROUP_CONTROLLER.applyDelayPolicy(group, ActorActionType.IDLE, 0.0f);
+        float da = triggerTime(triggers, a);
+        float db = triggerTime(triggers, b);
+        float dc = triggerTime(triggers, c);
+        float dd = triggerTime(triggers, d);
+        float de = triggerTime(triggers, e);
+
+        ActorGroupTimelineCommandService svc = ActorGroupTimelineCommandService.getInstance();
+        int created = svc.copyLatestRouteFromActor(model, group, sourceId);
+        assertEquals(5, created);
+
+        assertRouteClipStart(ta.getActorTrackPayload(), 1.0f + da);
+        assertRouteClipStart(tb.getActorTrackPayload(), 1.0f + db);
+        assertRouteClipStart(tc.getActorTrackPayload(), 1.0f + dc);
+        assertRouteClipStart(td.getActorTrackPayload(), 1.0f + dd);
+        assertRouteClipStart(te.getActorTrackPayload(), 1.0f + de);
+    }
+
+    @Test
+    void copyLatestRouteRandomDelayMatchesGroupController() {
+        TimelineModel model = new TimelineModel(new TimelineViewportState());
+        model.setCurrentTime(1.0f);
+
+        UUID groupId = UUID.fromString("00000000-0000-0000-0000-000000000007");
+        UUID sourceId = UUID.fromString("00000000-0000-0000-0000-000000000100");
+        UUID a = UUID.fromString("00000000-0000-0000-0000-000000000001");
+        UUID b = UUID.fromString("00000000-0000-0000-0000-000000000002");
+        UUID c = UUID.fromString("00000000-0000-0000-0000-000000000003");
+
+        ActorRouteClip source = new ActorRouteClip("route", 5.0f, 7.0f);
+        source.setWaypoints(List.of(
+                new Vector3f(0, 64, 0),
+                new Vector3f(0, 64, 10)
+        ));
+        ActorTrack srcTrack = createActorTrackPayload(sourceId);
+        srcTrack.addClip(source);
+
+        TimelineTrack srcTimeline = createActorTimelineTrack("src", srcTrack);
+        TimelineTrack ta = createActorTimelineTrack("a", createActorTrackPayload(a));
+        TimelineTrack tb = createActorTimelineTrack("b", createActorTrackPayload(b));
+        TimelineTrack tc = createActorTimelineTrack("c", createActorTrackPayload(c));
+        model.addTrack(srcTimeline);
+        model.addTrack(ta);
+        model.addTrack(tb);
+        model.addTrack(tc);
+
+        ActorGroup group = new ActorGroup(groupId, "g");
+        group.addActor(a);
+        group.addActor(b);
+        group.addActor(c);
+        group.setDelayPolicy(ActorGroup.DelayPolicy.RANDOM);
+        group.setDelayStepSeconds(0.2f);
+        group.setFormationType(ActorGroup.FormationType.FREE);
+
+        var triggers = GROUP_CONTROLLER.applyDelayPolicy(group, ActorActionType.IDLE, 0.0f);
+        float da = triggerTime(triggers, a);
+        float db = triggerTime(triggers, b);
+        float dc = triggerTime(triggers, c);
+
+        ActorGroupTimelineCommandService svc = ActorGroupTimelineCommandService.getInstance();
+        int created = svc.copyLatestRouteFromActor(model, group, sourceId);
+        assertEquals(3, created);
+
+        assertRouteClipStart(ta.getActorTrackPayload(), 5.0f + da);
+        assertRouteClipStart(tb.getActorTrackPayload(), 5.0f + db);
+        assertRouteClipStart(tc.getActorTrackPayload(), 5.0f + dc);
+    }
+
     private static ActorTrack createActorTrackPayload(UUID actorId) {
         ActorTrack actorTrack = new ActorTrack("actor");
         actorTrack.setActorRef(new ActorRef(actorId));
@@ -411,6 +569,22 @@ class ActorGroupTimelineCommandServiceTest {
             }
         }
         return latest;
+    }
+
+    private static float triggerTime(List<ActorGroupController.ActionTrigger> triggers, UUID actorId) {
+        for (var t : triggers) {
+            if (t.actorId().equals(actorId)) {
+                return t.triggerTime();
+            }
+        }
+        fail("Missing trigger for actor " + actorId);
+        return 0.0f;
+    }
+
+    private static void assertRouteClipStart(ActorTrack track, float expectedStart) {
+        ActorRouteClip clip = findLatestRouteClip(track);
+        assertNotNull(clip);
+        assertEquals(expectedStart, clip.getStartTime(), 0.001f);
     }
 }
 
