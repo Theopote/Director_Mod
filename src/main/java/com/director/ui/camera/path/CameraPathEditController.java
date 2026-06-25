@@ -5,7 +5,7 @@ import com.director.client.gizmo.GizmoInteractionController;
 import com.director.client.gizmo.GizmoManager;
 import com.director.client.gizmo.GizmoType;
 import com.director.client.input.DirectorInputSystem;
-import com.director.client.renderer.CameraPathDebugRenderer;
+import com.director.client.renderer.CameraPathRenderer;
 import com.director.mixin.accessor.GameRendererAccessor;
 import com.director.timeline.container.ContainerTimelineService;
 import com.director.timeline.model.TimelineModel;
@@ -115,8 +115,8 @@ public final class CameraPathEditController {
         lastDeleteDown = false;
         lastGizmoPosition = null;
         lastClickTimeMs = 0L;
-        previousPathRendererEnabled = CameraPathDebugRenderer.getInstance().isEnabled();
-        CameraPathDebugRenderer.getInstance().setEnabled(true);
+        previousPathRendererEnabled = CameraPathRenderer.getInstance().isEnabled();
+        CameraPathRenderer.getInstance().setEnabled(true);
         selectedKeyframe = findSelectedCameraKeyframe();
         selectedOrbitClip = findSelectedOrbitClip();
         selectedLinearClip = findSelectedLinearPathClip();
@@ -145,7 +145,7 @@ public final class CameraPathEditController {
         selectedOrbitClip = null;
         selectedLinearClip = null;
         selectedLinearEndpoint = null;
-        CameraPathDebugRenderer.getInstance().setEnabled(previousPathRendererEnabled);
+        CameraPathRenderer.getInstance().setEnabled(previousPathRendererEnabled);
         if (GizmoManager.get().isActive()) {
             GizmoManager.get().deactivate();
         }
@@ -589,7 +589,7 @@ public final class CameraPathEditController {
     }
 
     private OrbitPathClip pickNearestOrbitInteraction(Vec3d rayOrigin, Vec3d rayDir) {
-        if (!active || !CameraPathDebugRenderer.getInstance().isEnabled()) {
+        if (!active || !CameraPathRenderer.getInstance().isEnabled()) {
             return null;
         }
 
@@ -684,7 +684,7 @@ public final class CameraPathEditController {
     }
 
     private LinearPathHit pickNearestLinearInteraction(Vec3d rayOrigin, Vec3d rayDir) {
-        if (!active || !CameraPathDebugRenderer.getInstance().isEnabled()) {
+        if (!active || !CameraPathRenderer.getInstance().isEnabled()) {
             return null;
         }
 

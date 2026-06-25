@@ -31,9 +31,7 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * CameraPathDebugRenderer v2.0
- * <p>
- * 在世界中渲染摄像机轨迹，可视化：
+ * 在世界中渲染摄像机路径轨迹，可视化：
  *  - 整体路径（线）
  *  - 关键帧位置（点）
  *  - Bezier 控制柄线段
@@ -42,18 +40,18 @@ import java.util.Optional;
  * <p>
  * 使用方式：
  *  - TimelineCameraController 在构造时注入 pathManager：
- *      CameraPathDebugRenderer.getInstance().setPathManager(pathManager);
+ *      CameraPathRenderer.getInstance().setPathManager(pathManager);
  *  - UI 中通过 checkbox 开关：
- *      CameraPathDebugRenderer.getInstance().setEnabled(showCameraPath);
+ *      CameraPathRenderer.getInstance().setEnabled(showCameraPath);
  *  - 每帧 world render 时调用 render(matrixStack, tickDelta, currentTimeSeconds)
  */
 @Environment(EnvType.CLIENT)
-public final class CameraPathDebugRenderer {
+public final class CameraPathRenderer {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(CameraPathDebugRenderer.class);
-    private static final CameraPathDebugRenderer INSTANCE = new CameraPathDebugRenderer();
+    private static final Logger LOGGER = LoggerFactory.getLogger(CameraPathRenderer.class);
+    private static final CameraPathRenderer INSTANCE = new CameraPathRenderer();
 
-    /** 是否渲染调试轨迹（由 UI 开关控制） */
+    /** 是否渲染摄像机轨迹（由 UI 开关控制） */
     private boolean enabled = false;
 
     /** 轨迹数据来源 */
@@ -71,9 +69,9 @@ public final class CameraPathDebugRenderer {
     /** 当前播放点大小 */
     private static final double CURRENT_POINT_SIZE = 0.08;
 
-    private CameraPathDebugRenderer() {}
+    private CameraPathRenderer() {}
 
-    public static CameraPathDebugRenderer getInstance() {
+    public static CameraPathRenderer getInstance() {
         return INSTANCE;
     }
 
@@ -81,12 +79,12 @@ public final class CameraPathDebugRenderer {
 
     public void setPathManager(TimelineCameraPathManager pathManager) {
         this.pathManager = pathManager;
-        LOGGER.debug("[CameraPathDebugRenderer] pathManager 绑定: {}", pathManager != null);
+        LOGGER.debug("[CameraPathRenderer] pathManager 绑定: {}", pathManager != null);
     }
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
-        LOGGER.info("[CameraPathDebugRenderer] 轨迹渲染开关: {} (pathManager: {}, isEmpty: {})", 
+        LOGGER.info("[CameraPathRenderer] 轨迹渲染开关: {} (pathManager: {}, isEmpty: {})", 
                 enabled, 
                 pathManager != null, 
                 pathManager != null ? pathManager.isEmpty() : "N/A");
@@ -110,7 +108,7 @@ public final class CameraPathDebugRenderer {
             return;
         }
         if (pathManager == null) {
-            LOGGER.warn("[CameraPathDebugRenderer] pathManager 为 null，跳过渲染。请确保 TimelineCameraController 已初始化。");
+            LOGGER.warn("[CameraPathRenderer] pathManager 为 null，跳过渲染。请确保 TimelineCameraController 已初始化。");
             return;
         }
         
@@ -119,11 +117,11 @@ public final class CameraPathDebugRenderer {
         boolean hasOrbitPaths = hasOrbitPathsToRender();
         
         if (!hasKeyframes && !hasOrbitPaths) {
-            LOGGER.debug("[CameraPathDebugRenderer] 没有可渲染的数据（关键帧: {}, 围绕轨迹: {}）", false, false);
+            LOGGER.debug("[CameraPathRenderer] 没有可渲染的数据（关键帧: {}, 围绕轨迹: {}）", false, false);
             return;
         }
         
-        LOGGER.debug("[CameraPathDebugRenderer] 开始渲染轨迹（关键帧数: {}, 围绕轨迹: {}）", 
+        LOGGER.debug("[CameraPathRenderer] 开始渲染轨迹（关键帧数: {}, 围绕轨迹: {}）", 
                 pathManager.getKeyframes().size(), hasOrbitPaths);
         MinecraftClient client = MinecraftClient.getInstance();
         float tickDelta = client != null && client.getRenderTickCounter() != null
@@ -172,7 +170,7 @@ public final class CameraPathDebugRenderer {
         // ⭐ 如果既没有路径点也没有关键帧，且没有围绕轨迹，则不渲染
         // 注意：即使没有关键帧，如果有围绕轨迹，也应该继续渲染
         if (pathPoints.size() < 2 && keyframes.isEmpty() && !hasOrbitPaths) {
-            LOGGER.debug("[CameraPathDebugRenderer] 没有可渲染的数据（路径点: {}, 关键帧: {}, 围绕轨迹: {}）",
+            LOGGER.debug("[CameraPathRenderer] 没有可渲染的数据（路径点: {}, 关键帧: {}, 围绕轨迹: {}）",
                     pathPoints.size(), 0, false);
             return;
         }
@@ -442,14 +440,14 @@ public final class CameraPathDebugRenderer {
         VertexConsumer consumer = consumers.getBuffer(RenderLayer.getLines());
 
         // X 轴
-        consumer.vertex(matrix, (float) (x - CameraPathDebugRenderer.CURRENT_POINT_SIZE), (float) y, (float) z).color((float) 1.0, g, b, (float) 1.0).normal(1f, 0f, 0f);
-        consumer.vertex(matrix, (float) (x + CameraPathDebugRenderer.CURRENT_POINT_SIZE), (float) y, (float) z).color((float) 1.0, g, b, (float) 1.0).normal(1f, 0f, 0f);
+        consumer.vertex(matrix, (float) (x - CameraPathRenderer.CURRENT_POINT_SIZE), (float) y, (float) z).color((float) 1.0, g, b, (float) 1.0).normal(1f, 0f, 0f);
+        consumer.vertex(matrix, (float) (x + CameraPathRenderer.CURRENT_POINT_SIZE), (float) y, (float) z).color((float) 1.0, g, b, (float) 1.0).normal(1f, 0f, 0f);
         // Y 轴
-        consumer.vertex(matrix, (float) x, (float) (y - CameraPathDebugRenderer.CURRENT_POINT_SIZE), (float) z).color((float) 1.0, g, b, (float) 1.0).normal(0f, 1f, 0f);
-        consumer.vertex(matrix, (float) x, (float) (y + CameraPathDebugRenderer.CURRENT_POINT_SIZE), (float) z).color((float) 1.0, g, b, (float) 1.0).normal(0f, 1f, 0f);
+        consumer.vertex(matrix, (float) x, (float) (y - CameraPathRenderer.CURRENT_POINT_SIZE), (float) z).color((float) 1.0, g, b, (float) 1.0).normal(0f, 1f, 0f);
+        consumer.vertex(matrix, (float) x, (float) (y + CameraPathRenderer.CURRENT_POINT_SIZE), (float) z).color((float) 1.0, g, b, (float) 1.0).normal(0f, 1f, 0f);
         // Z 轴
-        consumer.vertex(matrix, (float) x, (float) y, (float) (z - CameraPathDebugRenderer.CURRENT_POINT_SIZE)).color((float) 1.0, g, b, (float) 1.0).normal(0f, 0f, 1f);
-        consumer.vertex(matrix, (float) x, (float) y, (float) (z + CameraPathDebugRenderer.CURRENT_POINT_SIZE)).color((float) 1.0, g, b, (float) 1.0).normal(0f, 0f, 1f);
+        consumer.vertex(matrix, (float) x, (float) y, (float) (z - CameraPathRenderer.CURRENT_POINT_SIZE)).color((float) 1.0, g, b, (float) 1.0).normal(0f, 0f, 1f);
+        consumer.vertex(matrix, (float) x, (float) y, (float) (z + CameraPathRenderer.CURRENT_POINT_SIZE)).color((float) 1.0, g, b, (float) 1.0).normal(0f, 0f, 1f);
     }
 
     /**
@@ -566,14 +564,14 @@ public final class CameraPathDebugRenderer {
         TimelineTrack activeTrack = controller.getActiveCameraTrack();
         if (activeTrack == null) {
             if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[CameraPathDebugRenderer] 没有激活的摄像机轨道，跳过路径片段渲染");
+                LOGGER.trace("[CameraPathRenderer] 没有激活的摄像机轨道，跳过路径片段渲染");
             }
             return;
         }
         
         if (!activeTrack.hasCameraPathClips()) {
             if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[CameraPathDebugRenderer] 轨道 {} 没有 PathClips，跳过路径片段渲染", activeTrack.getName());
+                LOGGER.trace("[CameraPathRenderer] 轨道 {} 没有 PathClips，跳过路径片段渲染", activeTrack.getName());
             }
             return;
         }
@@ -597,7 +595,7 @@ public final class CameraPathDebugRenderer {
         }
         
         if (LOGGER.isDebugEnabled() && (orbitCount > 0 || dollyCount > 0 || craneCount > 0)) {
-            LOGGER.debug("[CameraPathDebugRenderer] 已渲染 {} 个围绕轨迹, {} 个推拉轨迹, {} 个升降轨迹", 
+            LOGGER.debug("[CameraPathRenderer] 已渲染 {} 个围绕轨迹, {} 个推拉轨迹, {} 个升降轨迹", 
                     orbitCount, dollyCount, craneCount);
         }
     }
@@ -609,13 +607,13 @@ public final class CameraPathDebugRenderer {
         List<Vec3d> orbitPoints = clip.samplePathPositions();
         if (orbitPoints.size() < 2) {
             if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[CameraPathDebugRenderer] OrbitPathClip 采样点不足 ({} 个点)，跳过渲染", orbitPoints.size());
+                LOGGER.trace("[CameraPathRenderer] OrbitPathClip 采样点不足 ({} 个点)，跳过渲染", orbitPoints.size());
             }
             return;
         }
         
         if (LOGGER.isTraceEnabled()) {
-            LOGGER.trace("[CameraPathDebugRenderer] 渲染围绕轨迹: {} 个点, center=({:.2f}, {:.2f}, {:.2f}), radius={:.2f}",
+            LOGGER.trace("[CameraPathRenderer] 渲染围绕轨迹: {} 个点, center=({:.2f}, {:.2f}, {:.2f}), radius={:.2f}",
                     orbitPoints.size(), clip.getCenter().x, clip.getCenter().y, clip.getCenter().z, clip.getRadius());
         }
 
@@ -767,7 +765,7 @@ public final class CameraPathDebugRenderer {
         List<Vec3d> dollyPoints = sampleDollyPath(clip);
         if (dollyPoints.size() < 2) {
             if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[CameraPathDebugRenderer] DollyPathClip 采样点不足 ({} 个点)，跳过渲染", dollyPoints.size());
+                LOGGER.trace("[CameraPathRenderer] DollyPathClip 采样点不足 ({} 个点)，跳过渲染", dollyPoints.size());
             }
             return;
         }
@@ -885,7 +883,7 @@ public final class CameraPathDebugRenderer {
         List<Vec3d> cranePoints = sampleCranePath(clip);
         if (cranePoints.size() < 2) {
             if (LOGGER.isTraceEnabled()) {
-                LOGGER.trace("[CameraPathDebugRenderer] CranePathClip 采样点不足 ({} 个点)，跳过渲染", cranePoints.size());
+                LOGGER.trace("[CameraPathRenderer] CranePathClip 采样点不足 ({} 个点)，跳过渲染", cranePoints.size());
             }
             return;
         }

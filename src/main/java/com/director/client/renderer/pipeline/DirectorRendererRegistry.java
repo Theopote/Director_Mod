@@ -4,7 +4,7 @@ import com.director.core.DirectorServices;
 import com.director.client.DirectorClientController;
 import com.director.client.gizmo.GizmoRenderEvents;
 import com.director.client.renderer.BlockVisualOverlayRenderer;
-import com.director.client.renderer.CameraPathDebugRenderer;
+import com.director.client.renderer.CameraPathRenderer;
 import com.director.client.renderer.ContainerHighlightRenderer;
 import com.director.client.renderer.HoverHighlightRenderer;
 import com.director.client.renderer.InteractionHintRenderer;
@@ -253,10 +253,10 @@ public final class DirectorRendererRegistry {
                     RendererStage.GIZMO.getOrder());
             }
 
-            // 摄像机轨迹调试渲染（使用 TOOL_PREVIEW 阶段，因为 DEBUG_OVERLAY 默认禁用）
+            // 摄像机轨迹渲染（使用 TOOL_PREVIEW 阶段，因为 DEBUG_OVERLAY 默认禁用）
             if (RendererStage.TOOL_PREVIEW.isEnabled()) {
-                registerRenderer(RendererStage.TOOL_PREVIEW, "CameraPathDebug",
-                        ctx -> CameraPathDebugRenderer.getInstance().render(ctx),
+                registerRenderer(RendererStage.TOOL_PREVIEW, "CameraPath",
+                        ctx -> CameraPathRenderer.getInstance().render(ctx),
                         RendererStage.TOOL_PREVIEW.getOrder() + 10); // 在工具预览之后渲染
             }
 
@@ -387,7 +387,8 @@ public final class DirectorRendererRegistry {
         if (rendererName == null) return false;
         // 这些项对“播放/导出结果”不是必需，但很吃 GPU/CPU：
         // 播放时优先保证“时间线动画本体”的流畅度：选择/交互提示/工具预览全部属于编辑辅助，可跳过。
-        return rendererName.equalsIgnoreCase("CameraPathDebug")
+        return rendererName.equalsIgnoreCase("CameraPath")
+                || rendererName.equalsIgnoreCase("CameraPathDebug")
                 || rendererName.equalsIgnoreCase("Gizmo")
                 || rendererName.equalsIgnoreCase("ToolPreview")
                 // Selection（大量线段/填充会触发 GPU 顶点压力，导致 FPS 极低，但 CPU 计时未必能反映）

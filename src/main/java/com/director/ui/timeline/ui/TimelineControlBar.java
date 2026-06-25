@@ -7,7 +7,7 @@ import com.director.ui.timeline.interaction.TimelineNavigationHandler;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineViewportState;
 import com.director.ui.timeline.render.TimelineRenderer; // 引入 Renderer 获取常量
-import com.director.client.renderer.CameraPathDebugRenderer;
+import com.director.client.renderer.CameraPathRenderer;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
 import imgui.ImGui;
@@ -207,10 +207,10 @@ public class TimelineControlBar {
         ImGui.popStyleVar();
 
         ImGui.sameLine();
-        // 轨迹调试开关（状态以 CameraPathDebugRenderer 为准，便于摄像机路径工具自动同步）
-        imgui.type.ImBoolean pathFlag = new imgui.type.ImBoolean(CameraPathDebugRenderer.getInstance().isEnabled());
+        // 轨迹显示开关（状态以 CameraPathRenderer 为准，便于摄像机路径工具自动同步）
+        imgui.type.ImBoolean pathFlag = new imgui.type.ImBoolean(CameraPathRenderer.getInstance().isEnabled());
         if (ImGui.checkbox(btnLabel(Icons.CAMERA, DirectorLang.Timeline.CAMERA_PATH), pathFlag)) {
-            CameraPathDebugRenderer.getInstance().setEnabled(pathFlag.get());
+            CameraPathRenderer.getInstance().setEnabled(pathFlag.get());
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(tr(DirectorLang.Timeline.CAMERA_PATH_TOOLTIP));

@@ -2,7 +2,7 @@ package com.director.timeline.playback.camera;
 
 import com.director.client.DirectorClientController;
 import com.director.client.camera.CameraRenderOverride;
-import com.director.client.renderer.CameraPathDebugRenderer;
+import com.director.client.renderer.CameraPathRenderer;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
@@ -78,7 +78,7 @@ public final class TimelineCameraController extends AbstractModelTimelinePlaybac
 
     private TimelineCameraController() {
         super(LOGGER, true);
-        CameraPathDebugRenderer.getInstance().setPathManager(pathManager);
+        CameraPathRenderer.getInstance().setPathManager(pathManager);
     }
 
     public static TimelineCameraController getInstance() {
