@@ -126,13 +126,21 @@ public class DollyPathClip extends CameraPathClip {
                 Vec3d forward = ctx.getForward();
                 this.dollyDirection = normalizeSafe(forward);
             }
-            
+
             case TOWARDS_TARGET -> {
                 // 沿 Camera → LookAt 方向：正距离 = 向焦点推近，负距离 = 拉远
-                Vec3d dir = ctx.lookAt.subtract(ctx.position);
-                this.dollyDirection = normalizeSafe(dir);
+                if (ctx.lookAt == null) {
+                    if (LOGGER.isWarnEnabled()) {
+                        LOGGER.warn("[DollyPathClip] TOWARDS_TARGET 模式但 lookAt 为 null，回退到 CAMERA_FORWARD");
+                    }
+                    Vec3d forward = ctx.getForward();
+                    this.dollyDirection = normalizeSafe(forward);
+                } else {
+                    Vec3d dir = ctx.lookAt.subtract(ctx.position);
+                    this.dollyDirection = normalizeSafe(dir);
+                }
             }
-            
+
             case FIXED_DIRECTION -> {
                 // 使用固定方向
                 this.dollyDirection = normalizeSafe(fixedDirection);

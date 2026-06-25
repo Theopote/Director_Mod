@@ -40,7 +40,10 @@ import org.slf4j.LoggerFactory;
 public class CranePathClip extends CameraPathClip {
     
     private static final Logger LOGGER = LoggerFactory.getLogger(CranePathClip.class);
-    
+
+    /** 升降高度差的合理上下限（blocks），防止摄像机飞出世界 */
+    private static final float MAX_HEIGHT_DELTA = 500.0f;
+
     /** 垂直移动距离（blocks），正 = 上升，负 = 下降 */
     private float heightDelta = 5.0f;
     
@@ -203,7 +206,9 @@ public class CranePathClip extends CameraPathClip {
             return;
         }
         ensurePathInitialized();
-        heightDelta += (float) delta.y;
+        float newHeightDelta = heightDelta + (float) delta.y;
+        // ⭐ 限制在合理范围内，避免摄像机飞出世界
+        heightDelta = Math.max(-MAX_HEIGHT_DELTA, Math.min(MAX_HEIGHT_DELTA, newHeightDelta));
         alignStartToCurrentPosition = false;
     }
 
@@ -220,7 +225,8 @@ public class CranePathClip extends CameraPathClip {
     }
     
     public void setHeightDelta(float heightDelta) {
-        this.heightDelta = heightDelta;
+        // ⭐ 限制在合理范围内，避免摄像机飞出世界
+        this.heightDelta = Math.max(-MAX_HEIGHT_DELTA, Math.min(MAX_HEIGHT_DELTA, heightDelta));
     }
     
     public boolean isAlignStartToCurrentPosition() {

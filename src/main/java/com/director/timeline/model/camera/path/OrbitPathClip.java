@@ -623,20 +623,40 @@ public class OrbitPathClip extends CameraPathClip {
 
     /**
      * 按选定方向在起止角之间插值。
-     * 完整一圈（≈360°）时顺时针走 -360°，逆时针走 +360°；
-     * 部分扫过时顺时针取反方向弧（例如 0°→90° 顺时针为 -270°）。
+     *
+     * <p>设计语义：
+     * <ul>
+     *   <li>完整一圈（≈360°）：按 clockwise 方向走整圈</li>
+     *   <li>部分扫过：始终走最短路径，clockwise 只影响方向符号</li>
+     *   <li>10°→90° 顺时针 = 实际坐标系中负方向旋转 80°（即 -80°）</li>
+     *   <li>10°→90° 逆时针 = 实际坐标系中正方向旋转 80°（即 +80°）</li>
+     * </ul>
+     *
+     * <p>修复后的逻辑：
+     * clockwise 控制旋转的"物理方向"（俯视时的左/右转），而不是选择长弧/短弧。
      */
     static float interpolateOrbitAngle(float start, float end, float t, boolean clockwise) {
         t = Math.max(0f, Math.min(1f, t));
         float sweep = end - start;
-        if (Math.abs(sweep - 360f) < 0.1f) {
+
+        // ⭐ 完整一圈特殊处理（允许 ≈±360° 都算完整一圈）
+        if (Math.abs(Math.abs(sweep) - 360f) < 0.1f) {
             sweep = clockwise ? -360f : 360f;
-        } else if (clockwise) {
-            if (sweep > 0f) {
-                sweep -= 360f;
+        } else {
+            // ⭐ 部分扫过：归一化到 [-180°, 180°] 最短路径
+            while (sweep > 180f) sweep -= 360f;
+            while (sweep < -180f) sweep += 360f;
+
+            // ⭐ 根据 clockwise 调整方向符号
+            // clockwise=true 表示"负方向"（俯视顺时针）
+            // clockwise=false 表示"正方向"（俯视逆时针）
+            if (clockwise) {
+                // 强制为负值（顺时针 = 负方向）
+                sweep = -Math.abs(sweep);
+            } else {
+                // 强制为正值（逆时针 = 正方向）
+                sweep = Math.abs(sweep);
             }
-        } else if (sweep < 0f) {
-            sweep += 360f;
         }
         return start + sweep * t;
     }
