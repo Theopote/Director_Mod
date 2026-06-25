@@ -3,7 +3,7 @@ package com.director.ui.actor.group;
 import com.director.core.DirectorServices;
 import com.director.actor.ActorGroup;
 import com.director.actor.action.ActorActionType;
-import com.director.timeline.container.ContainerTimelineService;
+import com.director.actor.group.ActorGroupController;
 import com.director.ui.timeline.interaction.ActionClipIntervalResolver;
 import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineModel;
@@ -17,13 +17,13 @@ import com.director.timeline.model.entity.ActorTrack;
 import com.director.timeline.playback.camera.CameraAccessor;
 import com.director.timeline.playback.camera.CameraSample;
 import net.minecraft.client.MinecraftClient;
+import net.minecraft.util.math.Vec3d;
 import org.joml.Vector3f;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -38,6 +38,7 @@ public final class ActorGroupTimelineCommandService {
     private static final float DEFAULT_SPAWN_CLIP_DURATION = 5.0f;
 
     private static final ActorGroupTimelineCommandService INSTANCE = new ActorGroupTimelineCommandService();
+    private static final ActorGroupController GROUP_CONTROLLER = ActorGroupController.getInstance();
 
     private ActorGroupTimelineCommandService() {
     }
@@ -62,6 +63,8 @@ public final class ActorGroupTimelineCommandService {
         float duration = Math.max(0.05f, durationSeconds);
         float clampedIntensity = Math.max(0.0f, Math.min(1.0f, intensity));
         List<UUID> actorIds = group.getActorIds();
+        List<ActorGroupController.ActionTrigger> triggers =
+                GROUP_CONTROLLER.applyDelayPolicy(group, actionType, baseStart);
 
         int created = 0;
         for (int i = 0; i < actorIds.size(); i++) {
@@ -79,7 +82,7 @@ public final class ActorGroupTimelineCommandService {
                 continue;
             }
 
-            float start = baseStart + computeDelay(group, actorId, i, actorIds.size());
+            float start = resolveTriggerTime(triggers, actorId, baseStart);
             List<ActorActionClip> resolved = ActionClipIntervalResolver.resolve(
                     actorTrack.getActionClips(),
                     start,
@@ -166,7 +169,11 @@ public final class ActorGroupTimelineCommandService {
                 (float) cameraSample.position().y,
                 (float) cameraSample.position().z
         );
-        Vector3f forward = forwardFromYaw(cameraSample.yaw());
+        List<ActorGroupController.FormationPosition> formationPositions = GROUP_CONTROLLER.calculateFormation(
+                group,
+                new Vec3d(basePosition.x, basePosition.y, basePosition.z),
+                cameraSample.yaw()
+        );
         float currentTime = model.getCurrentTime();
         List<UUID> actorIds = group.getActorIds();
 
@@ -179,8 +186,12 @@ public final class ActorGroupTimelineCommandService {
             }
 
             ActorTrack actorTrack = timelineTrack.getActorTrackPayload();
-            Vector3f offset = computeFormationOffset(group, forward, i, actorIds.size());
-            Vector3f position = new Vector3f(basePosition).add(offset);
+            Vec3d resolvedPosition = resolveFormationPosition(
+                    formationPositions,
+                    actorId,
+                    new Vec3d(basePosition.x, basePosition.y, basePosition.z)
+            );
+            Vector3f position = new Vector3f((float) resolvedPosition.x, (float) resolvedPosition.y, (float) resolvedPosition.z);
             EntitySpawnClip spawnClip = findSpawnClipAt(actorTrack, currentTime);
             if (spawnClip == null) {
                 spawnClip = new EntitySpawnClip("Spawn", currentTime, currentTime + DEFAULT_SPAWN_CLIP_DURATION);
@@ -203,16 +214,6 @@ public final class ActorGroupTimelineCommandService {
         }
         LOGGER.info("[ActorGroupTimelineCommandService] Placed {} group actors at camera", placed);
         return placed;
-    }
-
-    private float computeDelay(ActorGroup group, UUID actorId, int index, int count) {
-        float step = Math.max(0.0f, group.getDelayStepSeconds());
-        return switch (group.getDelayPolicy()) {
-            case NONE -> 0.0f;
-            case SEQUENTIAL -> index * step;
-            case WAVE -> Math.abs(index - ((count - 1) * 0.5f)) * step;
-            case RANDOM -> Math.floorMod(Objects.hash(group.getGroupId(), actorId), Math.max(1, count)) * step;
-        };
     }
 
     private void syncActionClipsToTimeline(TimelineModel model, TimelineTrack timelineTrack,
@@ -276,60 +277,36 @@ public final class ActorGroupTimelineCommandService {
         if (group == null || source == null || count <= 1) {
             return new Vector3f();
         }
-
-        RouteAxes axes = computeRouteAxes(source);
-        return computeFormationOffset(group, axes.forward, index, count);
-    }
-
-    private Vector3f computeFormationOffset(ActorGroup group, Vector3f forward, int index, int count) {
-        if (group == null || count <= 1) {
+        List<UUID> actorIds = group.getActorIds();
+        if (index < 0 || index >= actorIds.size()) {
             return new Vector3f();
         }
 
-        Vector3f safeForward = new Vector3f(forward != null ? forward : new Vector3f(0.0f, 0.0f, 1.0f));
-        safeForward.y = 0.0f;
-        if (safeForward.lengthSquared() <= 0.0001f) {
-            safeForward.set(0.0f, 0.0f, 1.0f);
-        } else {
-            safeForward.normalize();
+        List<Vector3f> points = source.getWaypoints();
+        if (points.isEmpty()) {
+            return new Vector3f();
         }
-        Vector3f right = new Vector3f(-safeForward.z, 0.0f, safeForward.x);
-        if (right.lengthSquared() <= 0.0001f) {
-            right.set(1.0f, 0.0f, 0.0f);
-        } else {
-            right.normalize();
-        }
-
-        RouteAxes axes = new RouteAxes(safeForward, right);
-        float spacing = Math.max(0.1f, group.getFormationSpacing());
-        float center = (count - 1) * 0.5f;
-
-        return switch (group.getFormationType()) {
-            case FREE -> new Vector3f();
-            case LINE -> new Vector3f(axes.right).mul((index - center) * spacing);
-            case CIRCLE -> {
-                float radius = Math.max(spacing, (spacing * count) / (float) (Math.PI * 2.0));
-                float angle = ((float) Math.PI * 2.0f * index) / count;
-                Vector3f rightPart = new Vector3f(axes.right).mul((float) Math.cos(angle) * radius);
-                Vector3f forwardPart = new Vector3f(axes.forward).mul((float) Math.sin(angle) * radius);
-                yield rightPart.add(forwardPart);
-            }
-            case GRID -> {
-                int columns = Math.max(1, (int) Math.ceil(Math.sqrt(count)));
-                int row = index / columns;
-                int col = index % columns;
-                int rows = (int) Math.ceil(count / (float) columns);
-                float colOffset = (col - (columns - 1) * 0.5f) * spacing;
-                float rowOffset = (row - (rows - 1) * 0.5f) * spacing;
-                Vector3f rightPart = new Vector3f(axes.right).mul(colOffset);
-                Vector3f backPart = new Vector3f(axes.forward).mul(-rowOffset);
-                yield rightPart.add(backPart);
-            }
-            case FOLLOW_LEADER -> new Vector3f(axes.forward).mul(-index * spacing);
-        };
+        Vector3f centerPoint = points.getFirst();
+        float yaw = routeHeadingYaw(source);
+        List<ActorGroupController.FormationPosition> formations = GROUP_CONTROLLER.calculateFormation(
+                group,
+                new Vec3d(centerPoint.x, centerPoint.y, centerPoint.z),
+                yaw
+        );
+        UUID actorId = actorIds.get(index);
+        Vec3d resolved = resolveFormationPosition(
+                formations,
+                actorId,
+                new Vec3d(centerPoint.x, centerPoint.y, centerPoint.z)
+        );
+        return new Vector3f(
+                (float) (resolved.x - centerPoint.x),
+                (float) (resolved.y - centerPoint.y),
+                (float) (resolved.z - centerPoint.z)
+        );
     }
 
-    private RouteAxes computeRouteAxes(ActorRouteClip source) {
+    private float routeHeadingYaw(ActorRouteClip source) {
         Vector3f forward = new Vector3f(0.0f, 0.0f, 1.0f);
         List<Vector3f> points = source.getWaypoints();
         if (points.size() >= 2) {
@@ -343,13 +320,7 @@ public final class ActorGroupTimelineCommandService {
                 }
             }
         }
-        Vector3f right = new Vector3f(-forward.z, 0.0f, forward.x);
-        if (right.lengthSquared() <= 0.0001f) {
-            right.set(1.0f, 0.0f, 0.0f);
-        } else {
-            right.normalize();
-        }
-        return new RouteAxes(forward, right);
+        return (float) Math.toDegrees(Math.atan2(forward.x, forward.z));
     }
 
     private EntitySpawnClip findSpawnClipAt(ActorTrack actorTrack, float timeSeconds) {
@@ -373,6 +344,29 @@ public final class ActorGroupTimelineCommandService {
         );
     }
 
-    private record RouteAxes(Vector3f forward, Vector3f right) {
+    private float resolveTriggerTime(List<ActorGroupController.ActionTrigger> triggers, UUID actorId, float fallback) {
+        if (triggers == null || actorId == null) {
+            return fallback;
+        }
+        for (ActorGroupController.ActionTrigger trigger : triggers) {
+            if (trigger.actorId().equals(actorId)) {
+                return trigger.triggerTime();
+            }
+        }
+        return fallback;
+    }
+
+    private Vec3d resolveFormationPosition(List<ActorGroupController.FormationPosition> positions,
+                                           UUID actorId,
+                                           Vec3d fallback) {
+        if (positions == null || actorId == null) {
+            return fallback;
+        }
+        for (ActorGroupController.FormationPosition position : positions) {
+            if (position.actorId().equals(actorId)) {
+                return position.position();
+            }
+        }
+        return fallback;
     }
 }
