@@ -107,6 +107,14 @@ public final class DirectorServices {
     }
 
     /**
+     * 是否已完成核心服务初始化。
+     * <p>用于启动早期（服务装配阶段）避免调用 {@link #get()} 触发异常/刷屏日志。
+     */
+    public static boolean isInitialized() {
+        return instance != null;
+    }
+
+    /**
      * @throws IllegalStateException 若 {@link #initialize()} 尚未执行
      */
     public static DirectorServices get() {
