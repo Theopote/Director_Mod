@@ -1,6 +1,8 @@
 package com.director.ui.properties.adapters;
 
 import com.director.core.DirectorServices;
+import com.director.i18n.CameraPropertyAdapterI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.theme.Icons;
 import com.director.timeline.container.ContainerTimelineService;
@@ -64,7 +66,7 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
     @Override
     public boolean renderProperties(CranePathClip clip) {
         if (clip == null) {
-            ImGui.textDisabled("未选择升降路径片段");
+            ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Crane.NO_CLIP));
             lastClip = null;
             return false;
         }
@@ -119,12 +121,12 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
      */
     private void renderHeader(CranePathClip clip) {
         // 第一行：类型标识（突出显示）
-        ImGui.text(Icons.CAMERA + " Camera Path");
+        ImGui.text(Icons.CAMERA + " " + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.PATH_HEADER));
         ImGui.sameLine();
-        ImGui.text("· CRANE");
+        ImGui.text("· " + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Crane.TYPE_LABEL));
         
         // 第二行：语义描述（稍小，灰色）
-        ImGui.textDisabled("Vertical Move");
+        ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Crane.SUBTITLE));
     }
     
     /**
@@ -133,19 +135,19 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
     private boolean renderTiming(CranePathClip clip) {
         boolean modified = false;
         
-        if (ImGui.collapsingHeader("Timing", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIMING_SECTION), ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
             ImGui.beginDisabled();
             float startTime = clip.getStartTime();
             float endTime = clip.getEndTime();
             float duration = clip.getDuration();
             
-            ImGui.text(String.format("Start: %.2fs", startTime));
-            ImGui.text(String.format("End:   %.2fs", endTime));
-            ImGui.text(String.format("Duration: %.2fs", duration));
+            ImGui.text(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIMING_START, startTime));
+            ImGui.text(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIMING_END, endTime));
+            ImGui.text(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIMING_DURATION, duration));
             ImGui.endDisabled();
             
-            ImGui.textDisabled("Edit timing on the timeline.");
+            ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIMING_HINT));
             ImGui.unindent();
         }
         
@@ -159,16 +161,18 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
     private boolean renderMotionSection(CranePathClip clip) {
         boolean modified = false;
         
-        if (ImGui.collapsingHeader("Motion", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.MOTION_SECTION), ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
             // ⭐ 方向提示：在 slider 上方显示升降语义
-            ImGui.textDisabled(Icons.ARROW_DOWN + " Down");
+            String downLabel = Icons.ARROW_DOWN + " " + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Crane.DOWN);
+            String upLabel = CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Crane.UP) + " " + Icons.ARROW_UP;
+            ImGui.textDisabled(downLabel);
             ImGui.sameLine();
             
             // 计算可用宽度，使 slider 居中
             float availableWidth = ImGui.getContentRegionAvailX();
-            float leftTextWidth = ImGui.calcTextSize(Icons.ARROW_DOWN + " Down").x;
-            float rightTextWidth = ImGui.calcTextSize("Up " + Icons.ARROW_UP).x;
+            float leftTextWidth = ImGui.calcTextSize(downLabel).x;
+            float rightTextWidth = ImGui.calcTextSize(upLabel).x;
             float spacing = 10f; // 左右间距
             
             // 计算 slider 的起始位置（居中）
@@ -176,7 +180,7 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
             ImGui.setCursorPosX(sliderStartX);
             
             // Slider（使用更语义化的 label）
-            String sliderLabel = "Height (blocks)";
+            String sliderLabel = CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Crane.HEIGHT_LABEL);
             boolean heightDeltaSliderChanged = ImGui.sliderFloat(sliderLabel, heightDeltaFloat.getData(), -32f, 32f, "%.1f");
             boolean isHeightDeltaSliderActive = ImGui.isItemActive();
             
@@ -197,14 +201,14 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
             
             // 右侧方向提示
             ImGui.sameLine();
-            ImGui.textDisabled("Up " + Icons.ARROW_UP);
+            ImGui.textDisabled(upLabel);
             
             // ⭐ 解释性文本：强调 Crane 的构图稳定性
             ImGui.spacing();
-            ImGui.textDisabled("Keeps horizontal framing stable");
+            ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Crane.FRAMING_STABLE_HINT));
             
             // ⭐ 微调提示：告诉用户如何精确调整
-            ImGui.textDisabled("Tip: Hold Ctrl for fine adjustment");
+            ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIP_CTRL_FINE));
             ImGui.unindent();
         }
         
@@ -217,30 +221,30 @@ public class CranePathClipPropertyAdapter implements IPropertyAdapter<CranePathC
     private boolean renderAdvancedSection(CranePathClip clip) {
         boolean modified = false;
         
-        if (ImGui.collapsingHeader("Advanced", ImGuiTreeNodeFlags.None)) {
+        if (ImGui.collapsingHeader(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.ADVANCED_SECTION), ImGuiTreeNodeFlags.None)) {
             ImGui.indent();
             ImBoolean align = new ImBoolean(clip.isAlignStartToCurrentPosition());
-            if (ImGui.checkbox("Align start to current camera", align)) {
+            if (ImGui.checkbox(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.ALIGN_START), align)) {
                 clip.setAlignStartToCurrentPosition(align.get());
                 modified = true;
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("启用后，进入 PathClip 时会自动对齐到当前摄像机位置，实现无缝衔接");
+                ImGui.setTooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.ALIGN_START_TOOLTIP));
             }
             
             // 调试信息（可折叠）
-            if (ImGui.collapsingHeader("Debug Info", ImGuiTreeNodeFlags.None)) {
+            if (ImGui.collapsingHeader(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.DEBUG_INFO_SECTION), ImGuiTreeNodeFlags.None)) {
                 ImGui.indent();
                 Vec3d startPos = clip.getStartPosition();
                 if (startPos != null) {
-                    ImGui.textDisabled(String.format("Start Position: (%.2f, %.2f, %.2f)", 
+                    ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.START_POSITION_FMT,
                             startPos.x, startPos.y, startPos.z));
                 } else {
-                    ImGui.textDisabled("Not initialized (will be calculated on enter)");
+                    ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.DEBUG_NOT_INITIALIZED));
                 }
                 
                 // 手动对齐按钮
-                if (ImGui.button("Align from current camera")) {
+                if (ImGui.button(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.ALIGN_FROM_CAMERA))) {
                     alignFromCurrentCamera(clip);
                     modified = true;
                 }

@@ -1,5 +1,7 @@
 package com.director.ui.properties.adapters;
 
+import com.director.i18n.CameraPropertyAdapterI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
@@ -53,7 +55,8 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
     @Override
     public boolean renderProperties(CameraKeyframe kf) {
         if (kf == null) {
-            UITheme.label("（没有选中关键帧）", UITheme.DarkTheme.TEXT_DISABLED);
+            UITheme.label(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.NO_SELECTION),
+                    UITheme.DarkTheme.TEXT_DISABLED);
             return false;
         }
 
@@ -62,7 +65,8 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
         AtomicBoolean editing = new AtomicBoolean(false);
 
         // 标题
-        UITheme.title(Icons.CLIPBOARD + " 摄像机关键帧");
+        UITheme.title(Icons.CLIPBOARD + " "
+                + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.TITLE));
 
         // 渲染各个 UI 区域
         basicInfoSection(kf, changed);
@@ -92,13 +96,16 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
     // ① 基础信息（时间、关键帧类型）
     // ============================================================================
     private void basicInfoSection(CameraKeyframe kf, AtomicBoolean changed) {
-        if (!ImGui.collapsingHeader(Icons.CLIPBOARD + " 基础信息", ImGuiTreeNodeFlags.DefaultOpen))
+        if (!ImGui.collapsingHeader(Icons.CLIPBOARD + " "
+                + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.SECTION_BASIC),
+                ImGuiTreeNodeFlags.DefaultOpen))
             return;
         ImGui.indent();
 
         // ----- 时间 -----
         f1.set(kf.getTime());
-        if (dragFloat("时间 (秒)", f1, 0.02f, 0f, 10000f, "%.2f")) {
+        if (dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.TIME),
+                f1, 0.02f, 0f, 10000f, "%.2f")) {
             float clampedTime = clampTimeToOwnerClip(kf, f1.get());
             if (Math.abs(clampedTime - f1.get()) > 0.0001f) {
                 f1.set(clampedTime);
@@ -108,18 +115,19 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
                 changed.set(true);
             }
         }
-        tooltip("关键帧在时间线中的位置");
+        tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.TIME_TOOLTIP));
 
         ImGui.spacing();
 
         // ----- 关键帧类型 -----
-        String[] keyTypeLabels = {"Standard", "Corner", "Hold", "Smooth", "Manual Bezier"};
+        String[] keyTypeLabels = CameraPropertyAdapterI18n.keyframeTypeLabels();
         i1.set(kf.getKeyType().ordinal());
-        if (enumCombo("关键帧类型", i1, keyTypeLabels)) {
+        if (enumCombo(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.KEY_TYPE),
+                i1, keyTypeLabels)) {
             kf.setKeyType(CameraKeyframe.KeyType.values()[i1.get()]);
             changed.set(true);
         }
-        tooltip("决定关键帧 UI、拐角行为、是否需要控制柄等");
+        tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.KEY_TYPE_TOOLTIP));
         ImGui.unindent();
     }
 
@@ -139,49 +147,35 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
     // ② 曲线插值（位置 + 旋转）
     // ============================================================================
     private void interpolationSection(CameraKeyframe kf, AtomicBoolean changed, AtomicBoolean editing) {
-        if (!ImGui.collapsingHeader(Icons.INTERPOLATION + " 插值选项 (位置/旋转)", ImGuiTreeNodeFlags.DefaultOpen))
+        if (!ImGui.collapsingHeader(Icons.INTERPOLATION + " "
+                + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.SECTION_INTERPOLATION),
+                ImGuiTreeNodeFlags.DefaultOpen))
             return;
         ImGui.indent();
 
         // --- Segment Path Type（位置曲线） ---
-        String[] segLabels = {"Default", "Linear", "Catmull-Rom", "Bezier", "Step", "Hold"};
+        String[] segLabels = CameraPropertyAdapterI18n.segmentPathTypeLabels();
         i1.set(kf.getSegmentPathType().ordinal());
-        if (enumCombo("位置曲线", i1, segLabels)) {
+        if (enumCombo(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.POSITION_CURVE),
+                i1, segLabels)) {
             kf.setSegmentPathType(CameraKeyframe.SegmentPathType.values()[i1.get()]);
             changed.set(true);
             editing.set(true);
         }
-        tooltip("""
-                控制"位置"的插值方式：
-                - Default：使用轨道默认
-                - Linear：直线
-                - Catmull-Rom：自动平滑
-                - Bezier：可用控制柄
-                - Step/Hold：保持上一关键帧
-                """);
+        tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.POSITION_CURVE_TOOLTIP));
 
         ImGui.spacing();
 
         // --- RotationInterpolation（旋转曲线） ---
-        String[] rLabels = {
-                "Default（跟随位置曲线）",
-                "Linear（Slerp）",
-                "Bezier（预留 Squad）",
-                "Catmull-Rom（预留 Squad）",
-                "Step（不插值）"
-        };
+        String[] rLabels = CameraPropertyAdapterI18n.rotationInterpolationLabels();
         i1.set(kf.getRotationInterpolation().ordinal());
-        if (enumCombo("旋转曲线", i1, rLabels)) {
+        if (enumCombo(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.ROTATION_CURVE),
+                i1, rLabels)) {
             kf.setRotationInterpolation(CameraKeyframe.RotationInterpolation.values()[i1.get()]);
             changed.set(true);
             editing.set(true);
         }
-        tooltip("""
-                控制摄像机旋转的插值：
-                - Default：由位置曲线推导（Bezier/Catmull-Rom = Slerp）
-                - Linear：四元数 Slerp
-                - Step：维持上一帧
-                """);
+        tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.ROTATION_CURVE_TOOLTIP));
         ImGui.unindent();
     }
 
@@ -189,32 +183,37 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
     // ③ 位置（Position）与旋转（Rotation）
     // ============================================================================
     private void transformSection(CameraKeyframe kf, AtomicBoolean changed, AtomicBoolean editing) {
-        if (!ImGui.collapsingHeader(Icons.TRANSFORM + " 位置与旋转", ImGuiTreeNodeFlags.DefaultOpen))
+        if (!ImGui.collapsingHeader(Icons.TRANSFORM + " "
+                + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.SECTION_TRANSFORM),
+                ImGuiTreeNodeFlags.DefaultOpen))
             return;
         ImGui.indent();
 
         // ---- Capture 按钮 ----
-        if (ImGui.button(Icons.CAMERA + " 从当前视角捕获", -1, 0)) {
+        if (ImGui.button(Icons.CAMERA + " "
+                + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.CAPTURE_FROM_VIEW), -1, 0)) {
             boolean ok = TimelineCameraController.getInstance().captureFromCurrentCamera(kf);
             if (ok) {
                 changed.set(true);
             }
         }
-        tooltip("从当前玩家视角记录到关键帧");
+        tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.CAPTURE_TOOLTIP));
 
         ImGui.spacing();
 
         // ----- Position -----
-        if (vector3("位置 Position", kf.getPosition(), kf::setPosition, 0.05f,
-                "摄像机世界位置", editing)) {
+        if (vector3(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.POSITION),
+                kf.getPosition(), kf::setPosition, 0.05f,
+                CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.POSITION_TOOLTIP), editing)) {
             changed.set(true);
         }
 
         ImGui.spacing();
 
         // ----- Rotation -----
-        if (vector3("旋转 Pitch/Yaw/Roll", kf.getRotation(), kf::setRotation, 0.1f,
-                "摄像机欧拉角（度）", editing)) {
+        if (vector3(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.ROTATION),
+                kf.getRotation(), kf::setRotation, 0.1f,
+                CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.ROTATION_TOOLTIP), editing)) {
             changed.set(true);
         }
         ImGui.unindent();
@@ -227,31 +226,38 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
         boolean show = kf.getSegmentPathType() == CameraKeyframe.SegmentPathType.BEZIER
                 || kf.getKeyType() == CameraKeyframe.KeyType.MANUAL_BEZIER;
         
-        if (!show || !ImGui.collapsingHeader(Icons.BEZIER + " Bezier 控制柄", ImGuiTreeNodeFlags.DefaultOpen))
+        if (!show || !ImGui.collapsingHeader(Icons.BEZIER + " "
+                + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.SECTION_BEZIER),
+                ImGuiTreeNodeFlags.DefaultOpen))
             return;
         ImGui.indent();
 
         // 手柄模式
-        String[] modeLabels = {"自动", "自由", "对齐"};
+        String[] modeLabels = CameraPropertyAdapterI18n.handleModeLabels();
         i1.set(kf.getHandleMode().ordinal());
-        if (enumCombo("手柄模式", i1, modeLabels)) {
+        if (enumCombo(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.HANDLE_MODE),
+                i1, modeLabels)) {
             kf.setHandleMode(CameraKeyframe.HandleMode.values()[i1.get()]);
             changed.set(true);
         }
-        tooltip("AUTO：自动平滑\nFREE：可手动调节\nALIGNED：进出柄保持同线方向");
+        tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.HANDLE_MODE_TOOLTIP));
 
         ImGui.spacing();
 
         // AUTO 模式：隐藏手柄编辑，提示用户
         boolean auto = kf.getHandleMode() == CameraKeyframe.HandleMode.AUTO;
         if (auto) {
-            UITheme.label("当前为自动模式，手柄由系统自动计算", UITheme.DarkTheme.TEXT_DISABLED);
+            UITheme.label(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.HANDLE_AUTO_HINT),
+                    UITheme.DarkTheme.TEXT_DISABLED);
             return;
         }
 
         // In handle
-        boolean inChanged = vector3("进入控制柄 (In)", kf.getBezierInHandle(), kf::setBezierInHandle, 0.05f,
-                "相对坐标。若为 (0,0,0)，系统自动生成", editing);
+        boolean inChanged = vector3(
+                CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.HANDLE_IN),
+                kf.getBezierInHandle(), kf::setBezierInHandle, 0.05f,
+                CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.HANDLE_AUTO_GENERATED_HINT),
+                editing);
         
         if (inChanged) {
             changed.set(true);
@@ -271,8 +277,11 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
         ImGui.spacing();
 
         // Out handle
-        boolean outChanged = vector3("离开控制柄 (Out)", kf.getBezierOutHandle(), kf::setBezierOutHandle, 0.05f,
-                "相对坐标。若为 (0,0,0)，系统自动生成", editing);
+        boolean outChanged = vector3(
+                CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.HANDLE_OUT),
+                kf.getBezierOutHandle(), kf::setBezierOutHandle, 0.05f,
+                CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.HANDLE_AUTO_GENERATED_HINT),
+                editing);
         
         if (outChanged) {
             changed.set(true);
@@ -290,8 +299,8 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
         }
 
         ImGui.spacing();
-        ImGui.text("提示：控制柄为相对坐标（相对于关键帧本身的位置）");
-        ImGui.text("若为 (0,0,0)，则 TimelineCameraPathManager 会使用自动生成的控制柄");
+        ImGui.text(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.HANDLE_RELATIVE_HINT));
+        ImGui.text(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.HANDLE_AUTO_GENERATED_HINT));
         ImGui.unindent();
     }
 
@@ -299,13 +308,16 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
     // ⑤ 投影参数（FOV / near / far）
     // ============================================================================
     private void projectionSection(CameraKeyframe kf, AtomicBoolean changed, AtomicBoolean editing) {
-        if (!ImGui.collapsingHeader(Icons.CAMERA + " 投影参数", ImGuiTreeNodeFlags.DefaultOpen))
+        if (!ImGui.collapsingHeader(Icons.CAMERA + " "
+                + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.SECTION_PROJECTION),
+                ImGuiTreeNodeFlags.DefaultOpen))
             return;
         ImGui.indent();
 
         // FOV
         f1.set(kf.getFov());
-        if (dragFloat("FOV", f1, 0.1f, 1f, 180f, "%.1f°")) {
+        if (dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.FOV),
+                f1, 0.1f, 1f, 180f, "%.1f°")) {
             kf.setFov(f1.get());
             editing.set(true); // ⭐ 拖拽中实时预览
             // 只在鼠标松开时才标记为 changed，避免拖动时频繁刷新 PathManager
@@ -313,37 +325,40 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
                 changed.set(true);
             }
         }
-        tooltip("摄像机的视野角度（度）");
+        tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.FOV_TOOLTIP));
 
         ImGui.spacing();
 
         // near plane
         f1.set(kf.getNearPlane());
-        if (dragFloat("Near", f1, 0.001f, 0.001f, 10f, "%.3f")) {
+        if (dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.NEAR),
+                f1, 0.001f, 0.001f, 10f, "%.3f")) {
             kf.setNearPlane(f1.get());
             editing.set(true); // ⭐ 拖拽中实时预览
             if (ImGui.isItemDeactivatedAfterEdit()) {
                 changed.set(true);
             }
         }
-        tooltip("近裁剪平面距离");
+        tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.NEAR_TOOLTIP));
 
         ImGui.spacing();
 
         // far plane
         f2.set(kf.getFarPlane());
-        if (dragFloat("Far", f2, 0.1f, 1f, 10000f, "%.1f")) {
+        if (dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.FAR),
+                f2, 0.1f, 1f, 10000f, "%.1f")) {
             kf.setFarPlane(f2.get());
             editing.set(true); // ⭐ 拖拽中实时预览
             if (ImGui.isItemDeactivatedAfterEdit()) {
                 changed.set(true);
             }
         }
-        tooltip("远裁剪平面距离");
+        tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.FAR_TOOLTIP));
 
         // near < far 校验
         if (kf.getNearPlane() >= kf.getFarPlane()) {
-            UITheme.label("⚠ Near 应小于 Far", UITheme.DarkTheme.TEXT_WARNING);
+            UITheme.label(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.NEAR_FAR_WARNING),
+                    UITheme.DarkTheme.TEXT_WARNING);
         }
         ImGui.unindent();
     }
@@ -352,17 +367,19 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
     // ⑥ 景深（DOF）
     // ============================================================================
     private void depthOfFieldSection(CameraKeyframe kf, AtomicBoolean changed, AtomicBoolean editing) {
-        if (!ImGui.collapsingHeader(Icons.EFFECT + " 景深 Depth of Field"))
+        if (!ImGui.collapsingHeader(Icons.EFFECT + " "
+                + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.SECTION_DOF)))
             return;
         ImGui.indent();
 
         // 复用 ImBoolean 对象
         dofEnabled.set(kf.isDepthOfFieldEnabled());
-        if (ImGui.checkbox("启用景深", dofEnabled)) {
+        if (ImGui.checkbox(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.DOF_ENABLED),
+                dofEnabled)) {
             kf.setDepthOfFieldEnabled(dofEnabled.get());
             changed.set(true);
         }
-        tooltip("启用景深效果，模拟相机模糊");
+        tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.DOF_TOOLTIP));
 
         if (!dofEnabled.get()) {
             ImGui.unindent();
@@ -371,27 +388,29 @@ public final class CameraKeyframePropertyAdapter implements IPropertyAdapter<Cam
 
         // 焦距
         f1.set(kf.getFocusDistance());
-        if (dragFloat("焦距 Focus", f1, 0.05f, 0f, 2000f, "%.2f")) {
+        if (dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.FOCUS),
+                f1, 0.05f, 0f, 2000f, "%.2f")) {
             kf.setFocusDistance(f1.get());
             editing.set(true); // ⭐ 拖拽中实时预览
             if (ImGui.isItemDeactivatedAfterEdit()) {
                 changed.set(true);
             }
         }
-        tooltip("焦点距离");
+        tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.FOCUS_TOOLTIP));
 
         ImGui.spacing();
 
         // 光圈
         f1.set(kf.getAperture());
-        if (dragFloat("光圈 Aperture", f1, 0.01f, 0.01f, 10f, "%.2f")) {
+        if (dragFloat(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.APERTURE),
+                f1, 0.01f, 0.01f, 10f, "%.2f")) {
             kf.setAperture(f1.get());
             editing.set(true); // ⭐ 拖拽中实时预览
             if (ImGui.isItemDeactivatedAfterEdit()) {
                 changed.set(true);
             }
         }
-        tooltip("光圈值，控制模糊强度");
+        tooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Keyframe.APERTURE_TOOLTIP));
 
         ImGui.unindent(); // 嵌套的启用景深后的缩进
         ImGui.unindent(); // collapsingHeader 的缩进

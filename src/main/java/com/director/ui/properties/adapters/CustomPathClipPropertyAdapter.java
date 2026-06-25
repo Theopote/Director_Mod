@@ -1,5 +1,7 @@
 package com.director.ui.properties.adapters;
 
+import com.director.i18n.CameraPropertyAdapterI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.theme.Icons;
 import com.director.timeline.model.camera.path.CustomPathClip;
@@ -36,7 +38,7 @@ public class CustomPathClipPropertyAdapter implements IPropertyAdapter<CustomPat
     @Override
     public boolean renderProperties(CustomPathClip clip) {
         if (clip == null) {
-            ImGui.textDisabled("未选择自定义路径片段");
+            ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Custom.NO_CLIP));
             lastClip = null;
             return false;
         }
@@ -70,21 +72,21 @@ public class CustomPathClipPropertyAdapter implements IPropertyAdapter<CustomPat
     }
 
     private void renderHeader(CustomPathClip clip) {
-        ImGui.text(Icons.CAMERA + " Camera Path");
+        ImGui.text(Icons.CAMERA + " " + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.PATH_HEADER));
         ImGui.sameLine();
-        ImGui.text("· CUSTOM");
-        ImGui.textDisabled("Keyframed camera path");
+        ImGui.text("· " + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Custom.TYPE_LABEL));
+        ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Custom.SUBTITLE));
     }
 
     private boolean renderBasicSection(CustomPathClip clip) {
         boolean modified = false;
-        if (ImGui.collapsingHeader("Basic", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Custom.BASIC_SECTION), ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
-            if (ImGui.inputText("Name", nameBuffer)) {
+            if (ImGui.inputText(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Custom.NAME), nameBuffer)) {
                 clip.setName(nameBuffer.get());
                 modified = true;
             }
-            if (ImGui.checkbox("Enabled", enabled)) {
+            if (ImGui.checkbox(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Custom.ENABLED), enabled)) {
                 clip.setEnabled(enabled.get());
                 modified = true;
             }
@@ -94,27 +96,27 @@ public class CustomPathClipPropertyAdapter implements IPropertyAdapter<CustomPat
     }
 
     private void renderTimingSection(CustomPathClip clip) {
-        if (ImGui.collapsingHeader("Timing", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIMING_SECTION), ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
             ImGui.beginDisabled();
-            ImGui.text(String.format("Start: %.2fs", clip.getStartTime()));
-            ImGui.text(String.format("End:   %.2fs", clip.getEndTime()));
-            ImGui.text(String.format("Duration: %.2fs", clip.getDuration()));
+            ImGui.text(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIMING_START, clip.getStartTime()));
+            ImGui.text(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIMING_END, clip.getEndTime()));
+            ImGui.text(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIMING_DURATION, clip.getDuration()));
             ImGui.endDisabled();
-            ImGui.textDisabled("Edit timing on the timeline.");
+            ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIMING_HINT));
             ImGui.unindent();
         }
     }
 
     private void renderKeyframeSection(CustomPathClip clip) {
-        if (ImGui.collapsingHeader("Keyframes", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Custom.KEYFRAMES_SECTION), ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
             int count = clip.getKeyframes().size();
-            ImGui.text(String.format("Camera keyframes: %d", count));
+            ImGui.text(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Custom.KEYFRAME_COUNT, count));
             if (count == 0) {
-                ImGui.textDisabled("Add keyframes from the custom path clip or timeline playhead.");
+                ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Custom.KEYFRAME_EMPTY_HINT));
             } else {
-                ImGui.textDisabled("Select individual keyframes to edit camera transform and interpolation.");
+                ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Custom.KEYFRAME_SELECT_HINT));
             }
             ImGui.unindent();
         }

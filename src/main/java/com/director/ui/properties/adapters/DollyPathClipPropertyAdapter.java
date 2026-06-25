@@ -1,6 +1,8 @@
 package com.director.ui.properties.adapters;
 
 import com.director.core.DirectorServices;
+import com.director.i18n.CameraPropertyAdapterI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.theme.Icons;
 import com.director.timeline.container.ContainerTimelineService;
@@ -64,7 +66,7 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
     @Override
     public boolean renderProperties(DollyPathClip clip) {
         if (clip == null) {
-            ImGui.textDisabled("未选择推拉路径片段");
+            ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Dolly.NO_CLIP));
             lastClip = null;
             return false;
         }
@@ -127,12 +129,12 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
      */
     private void renderHeader(DollyPathClip clip) {
         // 第一行：类型标识（突出显示）
-        ImGui.text(Icons.CAMERA + " Camera Path");
+        ImGui.text(Icons.CAMERA + " " + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.PATH_HEADER));
         ImGui.sameLine();
-        ImGui.text("· DOLLY");
+        ImGui.text("· " + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Dolly.TYPE_LABEL));
         
         // 第二行：语义描述（稍小，灰色）
-        ImGui.textDisabled("Push / Pull");
+        ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Dolly.SUBTITLE));
     }
     
     /**
@@ -141,19 +143,19 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
     private boolean renderTiming(DollyPathClip clip) {
         boolean modified = false;
         
-        if (ImGui.collapsingHeader("Timing", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIMING_SECTION), ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
             ImGui.beginDisabled();
             float startTime = clip.getStartTime();
             float endTime = clip.getEndTime();
             float duration = clip.getDuration();
             
-            ImGui.text(String.format("Start: %.2fs", startTime));
-            ImGui.text(String.format("End:   %.2fs", endTime));
-            ImGui.text(String.format("Duration: %.2fs", duration));
+            ImGui.text(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIMING_START, startTime));
+            ImGui.text(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIMING_END, endTime));
+            ImGui.text(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIMING_DURATION, duration));
             ImGui.endDisabled();
             
-            ImGui.textDisabled("Edit timing on the timeline.");
+            ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIMING_HINT));
             ImGui.unindent();
         }
         
@@ -167,16 +169,18 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
     private boolean renderMotionSection(DollyPathClip clip) {
         boolean modified = false;
         
-        if (ImGui.collapsingHeader("Motion", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.MOTION_SECTION), ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
             // ⭐ 方向提示：在 slider 上方显示方向语义
-            ImGui.textDisabled(Icons.ARROW_LEFT + " Pull Back");
+            String pullBackLabel = Icons.ARROW_LEFT + " " + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Dolly.PULL_BACK);
+            String pushInLabel = CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Dolly.PUSH_IN) + " " + Icons.ARROW_RIGHT;
+            ImGui.textDisabled(pullBackLabel);
             ImGui.sameLine();
             
             // 计算可用宽度，使 slider 居中
             float availableWidth = ImGui.getContentRegionAvailX();
-            float leftTextWidth = ImGui.calcTextSize(Icons.ARROW_LEFT + " Pull Back").x;
-            float rightTextWidth = ImGui.calcTextSize("Push In " + Icons.ARROW_RIGHT).x;
+            float leftTextWidth = ImGui.calcTextSize(pullBackLabel).x;
+            float rightTextWidth = ImGui.calcTextSize(pushInLabel).x;
             float spacing = 10f; // 左右间距
             
             // 计算 slider 的起始位置（居中）
@@ -184,7 +188,7 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
             ImGui.setCursorPosX(sliderStartX);
             
             // Slider（使用隐藏的 label，实际显示在 slider 内部）
-            String sliderLabel = "Distance (blocks)";
+            String sliderLabel = CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Dolly.DISTANCE_LABEL);
             boolean distanceSliderChanged = ImGui.sliderFloat(sliderLabel, distanceFloat.getData(), -32f, 32f, "%.1f");
             boolean isDistanceSliderActive = ImGui.isItemActive();
             
@@ -205,10 +209,10 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
             
             // 右侧方向提示
             ImGui.sameLine();
-            ImGui.textDisabled("Push In " + Icons.ARROW_RIGHT);
+            ImGui.textDisabled(pushInLabel);
             
             // ⭐ 微调提示：告诉用户如何精确调整
-            ImGui.textDisabled("Tip: Hold Ctrl for fine adjustment");
+            ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.TIP_CTRL_FINE));
             ImGui.unindent();
         }
         
@@ -222,41 +226,41 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
     private boolean renderDirectionSection(DollyPathClip clip) {
         boolean modified = false;
         
-        if (ImGui.collapsingHeader("Direction", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Dolly.DIRECTION_SECTION), ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
             DollyPathClip.DirectionMode mode = clip.getDirectionMode();
             
             // ⭐ 语义化选项 1：沿镜头朝向（最常用，标记为推荐）
-            if (ImGui.radioButton(Icons.DOT + " Along Camera View (Recommended)", mode == DollyPathClip.DirectionMode.CAMERA_FORWARD)) {
+            if (ImGui.radioButton(Icons.DOT + " " + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Dolly.DIRECTION_ALONG_VIEW), mode == DollyPathClip.DirectionMode.CAMERA_FORWARD)) {
                 if (mode != DollyPathClip.DirectionMode.CAMERA_FORWARD) {
                     clip.setDirectionMode(DollyPathClip.DirectionMode.CAMERA_FORWARD);
                     modified = true;
                 }
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("沿当前摄像机的镜头朝向推拉（最常用，推荐）");
+                ImGui.setTooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Dolly.DIRECTION_ALONG_VIEW_TOOLTIP));
             }
             
             // ⭐ 语义化选项 2：向焦点推拉
-            if (ImGui.radioButton(Icons.CHECK_CIRCLE + " Towards Focus Point", mode == DollyPathClip.DirectionMode.TOWARDS_TARGET)) {
+            if (ImGui.radioButton(Icons.CHECK_CIRCLE + " " + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Dolly.DIRECTION_TOWARDS_FOCUS), mode == DollyPathClip.DirectionMode.TOWARDS_TARGET)) {
                 if (mode != DollyPathClip.DirectionMode.TOWARDS_TARGET) {
                     clip.setDirectionMode(DollyPathClip.DirectionMode.TOWARDS_TARGET);
                     modified = true;
                 }
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("向当前注视点（Focus Point）推近或拉远");
+                ImGui.setTooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Dolly.DIRECTION_TOWARDS_FOCUS_TOOLTIP));
             }
             
             // ⭐ 语义化选项 3：自定义方向（高级，默认折叠）
-            if (ImGui.radioButton(Icons.CHECK_CIRCLE + " Custom World Direction (Advanced)", mode == DollyPathClip.DirectionMode.FIXED_DIRECTION)) {
+            if (ImGui.radioButton(Icons.CHECK_CIRCLE + " " + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Dolly.DIRECTION_CUSTOM), mode == DollyPathClip.DirectionMode.FIXED_DIRECTION)) {
                 if (mode != DollyPathClip.DirectionMode.FIXED_DIRECTION) {
                     clip.setDirectionMode(DollyPathClip.DirectionMode.FIXED_DIRECTION);
                     modified = true;
                 }
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("使用固定的世界方向（高级选项）");
+                ImGui.setTooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Dolly.DIRECTION_CUSTOM_TOOLTIP));
             }
             
             // ⭐ Custom Direction 输入（仅在 FIXED_DIRECTION 模式下显示，放在可折叠子区域）
@@ -264,7 +268,7 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
                 ImGui.spacing();
                 ImGui.indent();
                 // 使用可折叠区域，让高级选项更"收"一些
-                if (ImGui.collapsingHeader("Custom Direction Vector", ImGuiTreeNodeFlags.DefaultOpen)) {
+                if (ImGui.collapsingHeader(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Dolly.CUSTOM_DIRECTION_VECTOR), ImGuiTreeNodeFlags.DefaultOpen)) {
                     float[] dirArr = {fixedDirectionArr[0].get(), fixedDirectionArr[1].get(), fixedDirectionArr[2].get()};
                     boolean directionChanged = ImGui.dragFloat3("##direction_vector", dirArr, 0.01f);
                     boolean isDirectionActive = ImGui.isItemActive();
@@ -286,7 +290,7 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
                         modified = true;
                     }
                     
-                    ImGui.textDisabled("Will be normalized automatically");
+                    ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Dolly.NORMALIZE_HINT));
                 }
                 ImGui.unindent();
             }
@@ -302,33 +306,33 @@ public class DollyPathClipPropertyAdapter implements IPropertyAdapter<DollyPathC
     private boolean renderAdvancedSection(DollyPathClip clip) {
         boolean modified = false;
         
-        if (ImGui.collapsingHeader("Advanced", ImGuiTreeNodeFlags.None)) {
+        if (ImGui.collapsingHeader(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.ADVANCED_SECTION), ImGuiTreeNodeFlags.None)) {
             ImGui.indent();
             ImBoolean align = new ImBoolean(clip.isAlignStartToCurrentPosition());
-            if (ImGui.checkbox("Align start to current camera", align)) {
+            if (ImGui.checkbox(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.ALIGN_START), align)) {
                 clip.setAlignStartToCurrentPosition(align.get());
                 modified = true;
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("启用后，进入 PathClip 时会自动对齐到当前摄像机位置，实现无缝衔接");
+                ImGui.setTooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.ALIGN_START_TOOLTIP));
             }
             
             // 调试信息（可折叠）
-            if (ImGui.collapsingHeader("Debug Info", ImGuiTreeNodeFlags.None)) {
+            if (ImGui.collapsingHeader(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.DEBUG_INFO_SECTION), ImGuiTreeNodeFlags.None)) {
                 ImGui.indent();
                 Vec3d startPos = clip.getStartPosition();
                 Vec3d dollyDir = clip.getDollyDirection();
                 if (startPos != null && dollyDir != null) {
-                    ImGui.textDisabled(String.format("Start Position: (%.2f, %.2f, %.2f)", 
+                    ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.START_POSITION_FMT,
                             startPos.x, startPos.y, startPos.z));
-                    ImGui.textDisabled(String.format("Dolly Direction: (%.2f, %.2f, %.2f)", 
+                    ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.DOLLY_DIRECTION_FMT,
                             dollyDir.x, dollyDir.y, dollyDir.z));
                 } else {
-                    ImGui.textDisabled("Not initialized (will be calculated on enter)");
+                    ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.DEBUG_NOT_INITIALIZED));
                 }
                 
                 // 手动对齐按钮
-                if (ImGui.button("Align from current camera")) {
+                if (ImGui.button(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.ALIGN_FROM_CAMERA))) {
                     alignFromCurrentCamera(clip);
                     modified = true;
                 }

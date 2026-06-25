@@ -1094,6 +1094,184 @@ public final class DirectorLang {
             }
         }
 
+        public static final class AdapterCamera {
+
+            public static final class Common {
+                public static final String PATH_HEADER = "gui.director.properties.adapter.camera.common.path_header";
+                public static final String TIMING_SECTION = "gui.director.properties.adapter.camera.common.timing_section";
+                public static final String TIMING_START = "gui.director.properties.adapter.camera.common.timing_start";
+                public static final String TIMING_END = "gui.director.properties.adapter.camera.common.timing_end";
+                public static final String TIMING_DURATION = "gui.director.properties.adapter.camera.common.timing_duration";
+                public static final String TIMING_HINT = "gui.director.properties.adapter.camera.common.timing_hint";
+                public static final String MOTION_SECTION = "gui.director.properties.adapter.camera.common.motion_section";
+                public static final String ADVANCED_SECTION = "gui.director.properties.adapter.camera.common.advanced_section";
+                public static final String DEBUG_INFO_SECTION = "gui.director.properties.adapter.camera.common.debug_info_section";
+                public static final String ALIGN_START = "gui.director.properties.adapter.camera.common.align_start";
+                public static final String ALIGN_START_TOOLTIP = "gui.director.properties.adapter.camera.common.align_start_tooltip";
+                public static final String ALIGN_FROM_CAMERA = "gui.director.properties.adapter.camera.common.align_from_camera";
+                public static final String DEBUG_NOT_INITIALIZED = "gui.director.properties.adapter.camera.common.debug_not_initialized";
+                public static final String START_POSITION_FMT = "gui.director.properties.adapter.camera.common.start_position_fmt";
+                public static final String DOLLY_DIRECTION_FMT = "gui.director.properties.adapter.camera.common.dolly_direction_fmt";
+                public static final String TIP_CTRL_FINE = "gui.director.properties.adapter.camera.common.tip_ctrl_fine";
+                public static final String CAPTURE_FROM_VIEW = "gui.director.properties.adapter.camera.common.capture_from_view";
+
+                private Common() {
+                }
+            }
+
+            public static final class Keyframe {
+                public static final String TITLE = "gui.director.properties.adapter.camera.keyframe.title";
+                public static final String NO_SELECTION = "gui.director.properties.adapter.camera.keyframe.no_selection";
+                public static final String SECTION_BASIC = "gui.director.properties.adapter.camera.keyframe.section_basic";
+                public static final String SECTION_INTERPOLATION = "gui.director.properties.adapter.camera.keyframe.section_interpolation";
+                public static final String SECTION_TRANSFORM = "gui.director.properties.adapter.camera.keyframe.section_transform";
+                public static final String SECTION_BEZIER = "gui.director.properties.adapter.camera.keyframe.section_bezier";
+                public static final String SECTION_PROJECTION = "gui.director.properties.adapter.camera.keyframe.section_projection";
+                public static final String SECTION_DOF = "gui.director.properties.adapter.camera.keyframe.section_dof";
+                public static final String TIME = "gui.director.properties.adapter.camera.keyframe.time";
+                public static final String TIME_TOOLTIP = "gui.director.properties.adapter.camera.keyframe.time_tooltip";
+                public static final String KEY_TYPE = "gui.director.properties.adapter.camera.keyframe.key_type";
+                public static final String KEY_TYPE_TOOLTIP = "gui.director.properties.adapter.camera.keyframe.key_type_tooltip";
+                public static final String POSITION_CURVE = "gui.director.properties.adapter.camera.keyframe.position_curve";
+                public static final String POSITION_CURVE_TOOLTIP = "gui.director.properties.adapter.camera.keyframe.position_curve_tooltip";
+                public static final String ROTATION_CURVE = "gui.director.properties.adapter.camera.keyframe.rotation_curve";
+                public static final String ROTATION_CURVE_TOOLTIP = "gui.director.properties.adapter.camera.keyframe.rotation_curve_tooltip";
+                public static final String ROTATION_DEFAULT = "gui.director.properties.adapter.camera.keyframe.rotation_default";
+                public static final String ROTATION_LINEAR = "gui.director.properties.adapter.camera.keyframe.rotation_linear";
+                public static final String ROTATION_BEZIER = "gui.director.properties.adapter.camera.keyframe.rotation_bezier";
+                public static final String ROTATION_CATMULL_ROM = "gui.director.properties.adapter.camera.keyframe.rotation_catmull_rom";
+                public static final String ROTATION_STEP = "gui.director.properties.adapter.camera.keyframe.rotation_step";
+                public static final String CAPTURE_TOOLTIP = "gui.director.properties.adapter.camera.keyframe.capture_tooltip";
+                public static final String POSITION = "gui.director.properties.adapter.camera.keyframe.position";
+                public static final String POSITION_TOOLTIP = "gui.director.properties.adapter.camera.keyframe.position_tooltip";
+                public static final String ROTATION = "gui.director.properties.adapter.camera.keyframe.rotation";
+                public static final String ROTATION_TOOLTIP = "gui.director.properties.adapter.camera.keyframe.rotation_tooltip";
+                public static final String HANDLE_MODE = "gui.director.properties.adapter.camera.keyframe.handle_mode";
+                public static final String HANDLE_MODE_TOOLTIP = "gui.director.properties.adapter.camera.keyframe.handle_mode_tooltip";
+                public static final String HANDLE_AUTO_HINT = "gui.director.properties.adapter.camera.keyframe.handle_auto_hint";
+                public static final String HANDLE_IN = "gui.director.properties.adapter.camera.keyframe.handle_in";
+                public static final String HANDLE_OUT = "gui.director.properties.adapter.camera.keyframe.handle_out";
+                public static final String HANDLE_RELATIVE_HINT = "gui.director.properties.adapter.camera.keyframe.handle_relative_hint";
+                public static final String HANDLE_AUTO_GENERATED_HINT = "gui.director.properties.adapter.camera.keyframe.handle_auto_generated_hint";
+                public static final String FOV = "gui.director.properties.adapter.camera.keyframe.fov";
+                public static final String FOV_TOOLTIP = "gui.director.properties.adapter.camera.keyframe.fov_tooltip";
+                public static final String NEAR = "gui.director.properties.adapter.camera.keyframe.near";
+                public static final String NEAR_TOOLTIP = "gui.director.properties.adapter.camera.keyframe.near_tooltip";
+                public static final String FAR = "gui.director.properties.adapter.camera.keyframe.far";
+                public static final String FAR_TOOLTIP = "gui.director.properties.adapter.camera.keyframe.far_tooltip";
+                public static final String NEAR_FAR_WARNING = "gui.director.properties.adapter.camera.keyframe.near_far_warning";
+                public static final String DOF_ENABLED = "gui.director.properties.adapter.camera.keyframe.dof_enabled";
+                public static final String DOF_TOOLTIP = "gui.director.properties.adapter.camera.keyframe.dof_tooltip";
+                public static final String FOCUS = "gui.director.properties.adapter.camera.keyframe.focus";
+                public static final String FOCUS_TOOLTIP = "gui.director.properties.adapter.camera.keyframe.focus_tooltip";
+                public static final String APERTURE = "gui.director.properties.adapter.camera.keyframe.aperture";
+                public static final String APERTURE_TOOLTIP = "gui.director.properties.adapter.camera.keyframe.aperture_tooltip";
+
+                private Keyframe() {
+                }
+            }
+
+            public static final class Orbit {
+                public static final String TITLE = "gui.director.properties.adapter.camera.orbit.title";
+                public static final String NO_CLIP = "gui.director.properties.adapter.camera.orbit.no_clip";
+                public static final String DURATION_FMT = "gui.director.properties.adapter.camera.orbit.duration_fmt";
+                public static final String START_FMT = "gui.director.properties.adapter.camera.orbit.start_fmt";
+                public static final String END_FMT = "gui.director.properties.adapter.camera.orbit.end_fmt";
+                public static final String TIMING_HINT = "gui.director.properties.adapter.camera.orbit.timing_hint";
+                public static final String CAPTURE_TOOLTIP = "gui.director.properties.adapter.camera.orbit.capture_tooltip";
+                public static final String SECTION_CENTER = "gui.director.properties.adapter.camera.orbit.section_center";
+                public static final String CENTER_LABEL = "gui.director.properties.adapter.camera.orbit.center_label";
+                public static final String PICK_FROM_WORLD = "gui.director.properties.adapter.camera.orbit.pick_from_world";
+                public static final String CANCEL_PICK = "gui.director.properties.adapter.camera.orbit.cancel_pick";
+                public static final String PICK_HINT = "gui.director.properties.adapter.camera.orbit.pick_hint";
+                public static final String LOOK_AT_LABEL = "gui.director.properties.adapter.camera.orbit.look_at_label";
+                public static final String SAME_AS_CENTER = "gui.director.properties.adapter.camera.orbit.same_as_center";
+                public static final String CUSTOM_POINT = "gui.director.properties.adapter.camera.orbit.custom_point";
+                public static final String SECTION_MOTION = "gui.director.properties.adapter.camera.orbit.section_motion";
+                public static final String RADIUS_LABEL = "gui.director.properties.adapter.camera.orbit.radius_label";
+                public static final String FROM_CURRENT_RADIUS = "gui.director.properties.adapter.camera.orbit.from_current_radius";
+                public static final String CUSTOM_RADIUS = "gui.director.properties.adapter.camera.orbit.custom_radius";
+                public static final String RADIUS_FROM_CURRENT_FMT = "gui.director.properties.adapter.camera.orbit.radius_from_current_fmt";
+                public static final String RADIUS_FROM_CURRENT_TOOLTIP = "gui.director.properties.adapter.camera.orbit.radius_from_current_tooltip";
+                public static final String HEIGHT_LABEL = "gui.director.properties.adapter.camera.orbit.height_label";
+                public static final String KEEP_CURRENT_HEIGHT = "gui.director.properties.adapter.camera.orbit.keep_current_height";
+                public static final String CUSTOM_HEIGHT = "gui.director.properties.adapter.camera.orbit.custom_height";
+                public static final String HEIGHT_CACHED_FMT = "gui.director.properties.adapter.camera.orbit.height_cached_fmt";
+                public static final String HEIGHT_AUTO_HINT = "gui.director.properties.adapter.camera.orbit.height_auto_hint";
+                public static final String DIRECTION_LABEL = "gui.director.properties.adapter.camera.orbit.direction_label";
+                public static final String CLOCKWISE = "gui.director.properties.adapter.camera.orbit.clockwise";
+                public static final String COUNTER_CLOCKWISE = "gui.director.properties.adapter.camera.orbit.counter_clockwise";
+                public static final String SECTION_ANGLE = "gui.director.properties.adapter.camera.orbit.section_angle";
+                public static final String FULL_ORBIT_BTN = "gui.director.properties.adapter.camera.orbit.full_orbit_btn";
+                public static final String SWEEP_90 = "gui.director.properties.adapter.camera.orbit.sweep_90";
+                public static final String SWEEP_180 = "gui.director.properties.adapter.camera.orbit.sweep_180";
+                public static final String START_ANGLE_LABEL = "gui.director.properties.adapter.camera.orbit.start_angle_label";
+                public static final String FROM_CURRENT_ANGLE = "gui.director.properties.adapter.camera.orbit.from_current_angle";
+                public static final String CUSTOM_ANGLE = "gui.director.properties.adapter.camera.orbit.custom_angle";
+                public static final String CURRENT_START_ANGLE_FMT = "gui.director.properties.adapter.camera.orbit.current_start_angle_fmt";
+                public static final String START_ANGLE_TOOLTIP = "gui.director.properties.adapter.camera.orbit.start_angle_tooltip";
+                public static final String START_ANGLE_SLIDER = "gui.director.properties.adapter.camera.orbit.start_angle_slider";
+                public static final String END_ANGLE_SLIDER = "gui.director.properties.adapter.camera.orbit.end_angle_slider";
+                public static final String ANGLE_RANGE_FMT = "gui.director.properties.adapter.camera.orbit.angle_range_fmt";
+
+                private Orbit() {
+                }
+            }
+
+            public static final class Dolly {
+                public static final String TYPE_LABEL = "gui.director.properties.adapter.camera.dolly.type_label";
+                public static final String SUBTITLE = "gui.director.properties.adapter.camera.dolly.subtitle";
+                public static final String NO_CLIP = "gui.director.properties.adapter.camera.dolly.no_clip";
+                public static final String DISTANCE_LABEL = "gui.director.properties.adapter.camera.dolly.distance_label";
+                public static final String PULL_BACK = "gui.director.properties.adapter.camera.dolly.pull_back";
+                public static final String PUSH_IN = "gui.director.properties.adapter.camera.dolly.push_in";
+                public static final String DIRECTION_SECTION = "gui.director.properties.adapter.camera.dolly.direction_section";
+                public static final String DIRECTION_ALONG_VIEW = "gui.director.properties.adapter.camera.dolly.direction_along_view";
+                public static final String DIRECTION_ALONG_VIEW_TOOLTIP = "gui.director.properties.adapter.camera.dolly.direction_along_view_tooltip";
+                public static final String DIRECTION_TOWARDS_FOCUS = "gui.director.properties.adapter.camera.dolly.direction_towards_focus";
+                public static final String DIRECTION_TOWARDS_FOCUS_TOOLTIP = "gui.director.properties.adapter.camera.dolly.direction_towards_focus_tooltip";
+                public static final String DIRECTION_CUSTOM = "gui.director.properties.adapter.camera.dolly.direction_custom";
+                public static final String DIRECTION_CUSTOM_TOOLTIP = "gui.director.properties.adapter.camera.dolly.direction_custom_tooltip";
+                public static final String CUSTOM_DIRECTION_VECTOR = "gui.director.properties.adapter.camera.dolly.custom_direction_vector";
+                public static final String NORMALIZE_HINT = "gui.director.properties.adapter.camera.dolly.normalize_hint";
+
+                private Dolly() {
+                }
+            }
+
+            public static final class Crane {
+                public static final String TYPE_LABEL = "gui.director.properties.adapter.camera.crane.type_label";
+                public static final String SUBTITLE = "gui.director.properties.adapter.camera.crane.subtitle";
+                public static final String NO_CLIP = "gui.director.properties.adapter.camera.crane.no_clip";
+                public static final String HEIGHT_LABEL = "gui.director.properties.adapter.camera.crane.height_label";
+                public static final String DOWN = "gui.director.properties.adapter.camera.crane.down";
+                public static final String UP = "gui.director.properties.adapter.camera.crane.up";
+                public static final String FRAMING_STABLE_HINT = "gui.director.properties.adapter.camera.crane.framing_stable_hint";
+
+                private Crane() {
+                }
+            }
+
+            public static final class Custom {
+                public static final String TYPE_LABEL = "gui.director.properties.adapter.camera.custom.type_label";
+                public static final String SUBTITLE = "gui.director.properties.adapter.camera.custom.subtitle";
+                public static final String NO_CLIP = "gui.director.properties.adapter.camera.custom.no_clip";
+                public static final String BASIC_SECTION = "gui.director.properties.adapter.camera.custom.basic_section";
+                public static final String NAME = "gui.director.properties.adapter.camera.custom.name";
+                public static final String ENABLED = "gui.director.properties.adapter.camera.custom.enabled";
+                public static final String KEYFRAMES_SECTION = "gui.director.properties.adapter.camera.custom.keyframes_section";
+                public static final String KEYFRAME_COUNT = "gui.director.properties.adapter.camera.custom.keyframe_count";
+                public static final String KEYFRAME_EMPTY_HINT = "gui.director.properties.adapter.camera.custom.keyframe_empty_hint";
+                public static final String KEYFRAME_SELECT_HINT = "gui.director.properties.adapter.camera.custom.keyframe_select_hint";
+
+                private Custom() {
+                }
+            }
+
+            private AdapterCamera() {
+            }
+        }
+
         private Properties() {
         }
     }

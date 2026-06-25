@@ -1,6 +1,8 @@
 package com.director.ui.properties.adapters;
 
 import com.director.core.DirectorServices;
+import com.director.i18n.CameraPropertyAdapterI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
@@ -95,7 +97,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
     @Override
     public boolean renderProperties(OrbitPathClip clip) {
         if (clip == null) {
-            ImGui.textDisabled("未选择围绕路径片段");
+            ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.NO_CLIP));
             lastClip = null;
             currentPickMode = PickMode.NONE;
             pickingClip = null;
@@ -185,7 +187,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
      * 直接使用 ImGui.text() 显示，确保每次渲染都显示最新值。
      */
     private void renderHeader(OrbitPathClip clip) {
-        UITheme.title(Icons.CAMERA + " Orbit Camera Path");
+        UITheme.title(Icons.CAMERA + " " + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.TITLE));
         
         // ⭐ 实时读取最新时间值（确保拖动时能实时更新）
         // ⭐ 每次渲染都直接从 clip 读取，不依赖缓存，确保拖动过程中实时更新
@@ -197,10 +199,10 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
         // 时间范围（只读，通过 Timeline 控制）
         // ⭐ 直接使用 ImGui.text() 显示，每次渲染都会显示最新值
         // ⭐ 不使用 pushID，避免 ImGui 缓存文本内容
-        ImGui.textDisabled(String.format("时长: %.2f 秒", currentDuration));
-        ImGui.textDisabled(String.format("开始: %.2f 秒", currentStartTime));
-        ImGui.textDisabled(String.format("结束: %.2f 秒", currentEndTime));
-        ImGui.textDisabled("提示：时间通过 Timeline 拖动/拉伸调整");
+        ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.DURATION_FMT, currentDuration));
+        ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.START_FMT, currentStartTime));
+        ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.END_FMT, currentEndTime));
+        ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.TIMING_HINT));
         
         // ⭐ 更新缓存的时间值（用于检测变化，但不影响显示）
         lastDisplayedStartTime = currentStartTime;
@@ -212,7 +214,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
      * 快捷操作：从当前玩家视角捕获环绕参数（只写参数，不移动镜头）。
      */
     private boolean renderQuickAlignSection(OrbitPathClip clip) {
-        if (ImGui.button(Icons.CAMERA + " 从当前视角捕获")) {
+        if (ImGui.button(Icons.CAMERA + " " + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Common.CAPTURE_FROM_VIEW))) {
             if (captureFromCurrentView(clip)) {
                 syncCacheFromClip(clip);
                 suppressPreviewAfterCapture = true;
@@ -220,13 +222,9 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
             }
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip(
-                    "将 Center、LookAt、半径、起始角和高度对齐到当前玩家视角。\n"
-                            + "环绕中心：准星命中的方块中心；看向空气时取视线前方 "
-                            + (int) OrbitCenterResolver.DEFAULT_AIR_LOOK_DISTANCE
-                            + " 格处。\n"
-                            + "仅更新参数，不会移动当前镜头。"
-            );
+            ImGui.setTooltip(CameraPropertyAdapterI18n.tr(
+                    DirectorLang.Properties.AdapterCamera.Orbit.CAPTURE_TOOLTIP,
+                    (int) OrbitCenterResolver.DEFAULT_AIR_LOOK_DISTANCE));
         }
         return false;
     }
@@ -237,10 +235,10 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
     private boolean renderCenterSection(OrbitPathClip clip) {
         boolean modified = false;
         
-        if (ImGui.collapsingHeader(Icons.TARGET + " 围绕中心", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(Icons.TARGET + " " + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.SECTION_CENTER), ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
             // Center
-            ImGui.text("Center");
+            ImGui.text(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.CENTER_LABEL));
             Vec3d center = clip.getCenter();
             float[] centerArr = {(float) center.x, (float) center.y, (float) center.z};
             if (ImGui.inputFloat3("##center", centerArr)) {
@@ -250,7 +248,9 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
             ImGui.sameLine();
             boolean isPickingCenter = currentPickMode == PickMode.PICK_CENTER && pickingClip == clip;
             // ⭐ 改进：按钮显示当前状态
-            if (ImGui.button(isPickingCenter ? "取消拾取" : "从世界拾取")) {
+            if (ImGui.button(isPickingCenter
+                    ? CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.CANCEL_PICK)
+                    : CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.PICK_FROM_WORLD))) {
                 if (isPickingCenter) {
                     currentPickMode = PickMode.NONE;
                     pickingClip = null;
@@ -261,26 +261,26 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
             }
             if (isPickingCenter) {
                 ImGui.sameLine();
-                ImGui.textColored(1.0f, 0.8f, 0.0f, 1.0f, Icons.CROSSHAIR + " 点击世界中的方块");
+                ImGui.textColored(1.0f, 0.8f, 0.0f, 1.0f, Icons.CROSSHAIR + " " + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.PICK_HINT));
             }
             
             UITheme.spacingSmall();
             
             // Look At
-            ImGui.text("Look At");
+            ImGui.text(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.LOOK_AT_LABEL));
             Vec3d lookAt = clip.getLookAt();
             Vec3d center2 = clip.getCenter();
             boolean lookAtSameAsCenter = lookAt.equals(center2);
             
             // 单选按钮：Same as Center / Custom Point
-            if (ImGui.radioButton("Same as Center", lookAtSameAsCenter)) {
+            if (ImGui.radioButton(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.SAME_AS_CENTER), lookAtSameAsCenter)) {
                 if (!lookAtSameAsCenter) {
                     clip.setLookAt(center2);
                     modified = true;
                 }
             }
             ImGui.sameLine();
-            if (ImGui.radioButton("Custom Point", !lookAtSameAsCenter)) {
+            if (ImGui.radioButton(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.CUSTOM_POINT), !lookAtSameAsCenter)) {
                 if (lookAtSameAsCenter) {
                     // 切换到自定义时，保持当前 lookAt（如果等于 center，则稍微偏移）
                     if (lookAt.equals(center2)) {
@@ -299,7 +299,9 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
                 ImGui.sameLine();
                 boolean isPickingLookAt = currentPickMode == PickMode.PICK_LOOKAT && pickingClip == clip;
                 // ⭐ 改进：按钮显示当前状态
-                if (ImGui.button(isPickingLookAt ? "取消拾取##lookAt" : "从世界拾取##lookAt")) {
+                if (ImGui.button(isPickingLookAt
+                        ? CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.CANCEL_PICK) + "##lookAt"
+                        : CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.PICK_FROM_WORLD) + "##lookAt")) {
                     if (isPickingLookAt) {
                         currentPickMode = PickMode.NONE;
                         pickingClip = null;
@@ -310,7 +312,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
                 }
                 if (isPickingLookAt) {
                     ImGui.sameLine();
-                    ImGui.textColored(1.0f, 0.8f, 0.0f, 1.0f, Icons.CROSSHAIR + " 点击世界中的方块");
+                    ImGui.textColored(1.0f, 0.8f, 0.0f, 1.0f, Icons.CROSSHAIR + " " + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.PICK_HINT));
                 }
             }
             ImGui.unindent();
@@ -325,10 +327,10 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
     private boolean renderMotionSection(OrbitPathClip clip) {
         boolean modified = false;
         
-        if (ImGui.collapsingHeader(Icons.SCALE + " 运动形态", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(Icons.SCALE + " " + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.SECTION_MOTION), ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
             // Radius（模式选择 + Slider）
-            ImGui.text("Radius");
+            ImGui.text(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.RADIUS_LABEL));
             
             // ⭐ 半径模式选择（From Current Position / Custom Radius）
             com.director.timeline.model.camera.path.OrbitPathClip.RadiusMode radiusMode = clip.getRadiusMode();
@@ -336,7 +338,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
             
             // ⭐ 关键修复：切换到 From Current 模式时，立即对齐半径
             // ⭐ 允许重复点击来重新对齐（即使已经选中）
-            if (ImGui.radioButton("From Current Camera Position", isFromCurrent)) {
+            if (ImGui.radioButton(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.FROM_CURRENT_RADIUS), isFromCurrent)) {
                 // 从其他模式切换过来
                 if (!isFromCurrent) {
                     clip.setRadiusMode(com.director.timeline.model.camera.path.OrbitPathClip.RadiusMode.FROM_CURRENT_POSITION);
@@ -355,7 +357,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
                 modified = true;
             }
             ImGui.sameLine();
-            if (ImGui.radioButton("Custom Radius", !isFromCurrent)) {
+            if (ImGui.radioButton(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.CUSTOM_RADIUS), !isFromCurrent)) {
                 if (isFromCurrent) {
                     clip.setRadiusMode(com.director.timeline.model.camera.path.OrbitPathClip.RadiusMode.ABSOLUTE);
                     modified = true;
@@ -400,20 +402,20 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
                 // ⭐ 实时计算并显示当前半径（如果可能）
                 float displayRadius = getDisplayRadius(clip);
 
-                ImGui.textDisabled(String.format("Radius: %.2f blocks (从当前摄像机位置计算)", displayRadius));
+                ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.RADIUS_FROM_CURRENT_FMT, displayRadius));
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("半径会实时从当前摄像机位置计算（投影到 XZ 平面）\n点击上面的选项可以重新对齐");
+                    ImGui.setTooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.RADIUS_FROM_CURRENT_TOOLTIP));
                 }
             }
             
             UITheme.spacingSmall();
             
             // Height（Keep Current / Custom）
-            ImGui.text("Height");
+            ImGui.text(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.HEIGHT_LABEL));
             com.director.timeline.model.camera.path.OrbitPathClip.HeightMode heightMode = clip.getHeightMode();
             boolean isKeepCurrent = heightMode == com.director.timeline.model.camera.path.OrbitPathClip.HeightMode.KEEP_CURRENT;
             
-            if (ImGui.radioButton("Keep Current Height", isKeepCurrent)) {
+            if (ImGui.radioButton(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.KEEP_CURRENT_HEIGHT), isKeepCurrent)) {
                 if (!isKeepCurrent) {
                     // 切换到 KEEP_CURRENT 模式
                     clip.setHeightMode(com.director.timeline.model.camera.path.OrbitPathClip.HeightMode.KEEP_CURRENT);
@@ -429,7 +431,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
                 }
             }
             ImGui.sameLine();
-            if (ImGui.radioButton("Custom Height", !isKeepCurrent)) {
+            if (ImGui.radioButton(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.CUSTOM_HEIGHT), !isKeepCurrent)) {
                 if (isKeepCurrent) {
                     // 切换到 ABSOLUTE 模式
                     clip.setHeightMode(com.director.timeline.model.camera.path.OrbitPathClip.HeightMode.ABSOLUTE);
@@ -453,25 +455,25 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
                 // KEEP_CURRENT 模式：显示当前缓存的高度（只读）
                 Float cached = clip.getCachedHeight();
                 if (cached != null) {
-                    ImGui.textDisabled("当前高度: " + String.format("%.2f", cached));
+                    ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.HEIGHT_CACHED_FMT, cached));
                 } else {
-                    ImGui.textDisabled("将在首次采样时自动获取当前高度");
+                    ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.HEIGHT_AUTO_HINT));
                 }
             }
             
             UITheme.spacingSmall();
             
             // Direction（Clockwise / Counter-clockwise）
-            ImGui.text("Direction");
+            ImGui.text(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.DIRECTION_LABEL));
             boolean clockwise = clip.isClockwise();
-            if (ImGui.radioButton("Clockwise", clockwise)) {
+            if (ImGui.radioButton(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.CLOCKWISE), clockwise)) {
                 if (!clockwise) {
                     clip.setClockwise(true);
                     modified = true;
                 }
             }
             ImGui.sameLine();
-            if (ImGui.radioButton("Counter-clockwise", !clockwise)) {
+            if (ImGui.radioButton(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.COUNTER_CLOCKWISE), !clockwise)) {
                 if (clockwise) {
                     clip.setClockwise(false);
                     modified = true;
@@ -512,10 +514,10 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
     private boolean renderAngleSection(OrbitPathClip clip) {
         boolean modified = false;
         
-        if (ImGui.collapsingHeader(Icons.ROTATE + " 角度区间", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(Icons.ROTATE + " " + CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.SECTION_ANGLE), ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.indent();
             // ⭐ 快捷按钮：Full Orbit / 90° Sweep / 180° Sweep
-            if (ImGui.button("Full Orbit (0° - 360°)")) {
+            if (ImGui.button(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.FULL_ORBIT_BTN))) {
                 clip.setStartAngle(0f);
                 clip.setEndAngle(360f);
                 // ⭐ 确保缓存值同步更新，避免滑动条显示错误
@@ -524,7 +526,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
                 modified = true;
             }
             ImGui.sameLine();
-            if (ImGui.button("90° Sweep")) {
+            if (ImGui.button(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.SWEEP_90))) {
                 float currentStart = startAngleFloat.get();
                 clip.setStartAngle(currentStart);
                 clip.setEndAngle(currentStart + 90f);
@@ -532,7 +534,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
                 modified = true;
             }
             ImGui.sameLine();
-            if (ImGui.button("180° Sweep")) {
+            if (ImGui.button(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.SWEEP_180))) {
                 float currentStart = startAngleFloat.get();
                 clip.setStartAngle(currentStart);
                 clip.setEndAngle(currentStart + 180f);
@@ -543,14 +545,14 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
             UITheme.spacingSmall();
             
             // ⭐ Start Angle 模式选择（From Current Position / Custom Angle）
-            ImGui.text("Start Angle");
+            ImGui.text(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.START_ANGLE_LABEL));
             com.director.timeline.model.camera.path.OrbitPathClip.StartAngleMode startAngleMode = clip.getStartAngleMode();
             boolean isStartAngleFromCurrent = startAngleMode == com.director.timeline.model.camera.path.OrbitPathClip.StartAngleMode.FROM_CURRENT_POSITION;
             
             // ⭐ 修复：与其他 radioButton 保持一致，添加状态检查
             // ⭐ 关键修复：切换到 From Current 模式时，立即对齐起始角
             // ⭐ 允许重复点击来重新对齐（即使已经选中）
-            if (ImGui.radioButton("From Current Camera Position", isStartAngleFromCurrent)) {
+            if (ImGui.radioButton(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.FROM_CURRENT_ANGLE), isStartAngleFromCurrent)) {
                 // 从其他模式切换过来
                 if (!isStartAngleFromCurrent) {
                     clip.setStartAngleMode(com.director.timeline.model.camera.path.OrbitPathClip.StartAngleMode.FROM_CURRENT_POSITION);
@@ -569,7 +571,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
                 modified = true;
             }
             ImGui.sameLine();
-            if (ImGui.radioButton("Custom Angle", !isStartAngleFromCurrent)) {
+            if (ImGui.radioButton(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.CUSTOM_ANGLE), !isStartAngleFromCurrent)) {
                 if (isStartAngleFromCurrent) {
                     clip.setStartAngleMode(com.director.timeline.model.camera.path.OrbitPathClip.StartAngleMode.CUSTOM);
                     modified = true;
@@ -580,9 +582,9 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
             if (isStartAngleFromCurrent) {
                 // ⭐ 实时获取当前摄像机位置计算的角度
                 float currentAngle = clip.getStartAngle();
-                ImGui.text(String.format("当前起始角: %.1f° (从当前摄像机位置计算)", currentAngle));
+                ImGui.text(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.CURRENT_START_ANGLE_FMT, currentAngle));
                 if (ImGui.isItemHovered()) {
-                    ImGui.setTooltip("起始角会实时从当前摄像机位置计算（平面角度），实现无缝衔接");
+                    ImGui.setTooltip(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.START_ANGLE_TOOLTIP));
                 }
                 // ⭐ 同步缓存值，以便切换回 CUSTOM 模式时使用
                 startAngleFloat.set(currentAngle);
@@ -593,7 +595,9 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
                     startAngleFloat.set(clip.getStartAngle());
                 }
                 
-                boolean startAngleSliderChanged = ImGui.sliderFloat("Start Angle (度)", startAngleFloat.getData(), 0f, 360f, "%.1f°");
+                boolean startAngleSliderChanged = ImGui.sliderFloat(
+                        CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.START_ANGLE_SLIDER),
+                        startAngleFloat.getData(), 0f, 360f, "%.1f°");
                 boolean isStartAngleSliderActive = ImGui.isItemActive();
                 
                 if (startAngleSliderChanged) {
@@ -619,7 +623,9 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
                 endAngleFloat.set(clip.getEndAngle());
             }
             
-            boolean endAngleSliderChanged = ImGui.sliderFloat("End Angle (度)", endAngleFloat.getData(), 0f, 720f, "%.1f°");
+            boolean endAngleSliderChanged = ImGui.sliderFloat(
+                    CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.END_ANGLE_SLIDER),
+                    endAngleFloat.getData(), 0f, 720f, "%.1f°");
             boolean isEndAngleSliderActive = ImGui.isItemActive();
             
             if (endAngleSliderChanged) {
@@ -641,7 +647,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
             if (angleRange < 0) {
                 angleRange += 360f;
             }
-            ImGui.textDisabled("角度范围: " + String.format("%.1f", angleRange) + "°");
+            ImGui.textDisabled(CameraPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterCamera.Orbit.ANGLE_RANGE_FMT, angleRange));
             
             // ⭐ 注意：起始角模式选择已在上面实现（From Current Camera Position / Custom Angle）
             // 移除了旧的 checkbox，现在起始角、半径、高度都使用统一的模式选择 UI
