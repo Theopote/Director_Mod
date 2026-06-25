@@ -359,7 +359,12 @@ public class ImGuiRenderer {
                 long nowMs = System.currentTimeMillis();
                 if (nowMs - lastPerfLogMs > 5000L) {
                     lastPerfLogMs = nowMs;
-                    LOGGER.warn("[Perf][ImGui] renderDrawData last={}ms", String.format("%.2f", lastRenderNs / 1_000_000.0));
+                    double lastMs = lastRenderNs / 1_000_000.0;
+                    if (lastMs >= 8.0) {
+                        LOGGER.warn("[Perf][ImGui] renderDrawData last={}ms", String.format("%.2f", lastMs));
+                    } else if (LOGGER.isDebugEnabled()) {
+                        LOGGER.debug("[Perf][ImGui] renderDrawData last={}ms", String.format("%.2f", lastMs));
+                    }
                 }
             }
         }

@@ -443,6 +443,9 @@ public class DirectorScreen extends Screen {
             LOGGER.warn("[Director] 关闭外置 Director 窗口失败", e);
         }
 
+        // 在清理世界/渲染状态之前优先落盘，避免关闭流程导致世界路径不可用。
+        persistWorkspaceBeforeShutdown();
+
         // 样式隔离已改为 DirectorStyleScope（每帧 push/pop），不再需要上下文切换或恢复
 
         LOGGER.info("[Director] 🧭 退出导演模式界面 (source={})", source);
@@ -500,35 +503,6 @@ public class DirectorScreen extends Screen {
             LOGGER.info("[Director] 鼠标光标已锁定，恢复游戏状态");
         }
 
-        // 在关闭前保存当前世界的布局
-        try {
-            com.director.ui.layout.LayoutPersistenceManager layoutManager =
-                com.director.ui.layout.LayoutPersistenceManager.getInstance();
-            layoutManager.saveLayout();
-            layoutManager.saveImGuiIni();
-            LOGGER.info("[Director] 已保存当前世界的布局配置");
-        } catch (Exception e) {
-            LOGGER.warn("[Director] 保存布局配置失败: {}", e.getMessage(), e);
-        }
-
-        // ⭐ 关闭前兜底保存：确保“关 UI / 关游戏”都能恢复到上次工作区
-        if (!com.director.core.container.persistence.ContainerPersistence.saveForCurrentWorld(
-                DirectorServices.get().containers())) {
-            LOGGER.warn("[Director] 关闭前保存容器数据失败");
-        }
-        try {
-            if (uiManager != null) {
-                com.director.ui.panels.TimelinePanel timelinePanel =
-                    uiManager.getPanelRegistry().getPanel(com.director.ui.panels.TimelinePanel.class);
-                if (timelinePanel != null && !timelinePanel.saveNow()) {
-                    LOGGER.warn("[Director] 关闭前保存时间线数据失败");
-                }
-            }
-        } catch (Exception e) {
-            LOGGER.warn("[Director] 保存时间线数据失败: {}", e.getMessage(), e);
-        }
-        com.director.persistence.PersistenceUserNotifier.notifySaveFailureIfNeeded(client);
-
         if (uiManager != null) {
             try {
                 uiManager.dispose();
@@ -564,6 +538,37 @@ public class DirectorScreen extends Screen {
         isInitialized = false;
 
         LOGGER.info("[Director] DirectorScreen 已关闭，恢复游戏输入模式");
+    }
+
+    private void persistWorkspaceBeforeShutdown() {
+        // 在关闭前保存当前世界的布局
+        try {
+            com.director.ui.layout.LayoutPersistenceManager layoutManager =
+                com.director.ui.layout.LayoutPersistenceManager.getInstance();
+            layoutManager.saveLayout();
+            layoutManager.saveImGuiIni();
+            LOGGER.info("[Director] 已保存当前世界的布局配置");
+        } catch (Exception e) {
+            LOGGER.warn("[Director] 保存布局配置失败: {}", e.getMessage(), e);
+        }
+
+        // 关闭前兜底保存：确保“关 UI / 关游戏”都能恢复到上次工作区
+        if (!com.director.core.container.persistence.ContainerPersistence.saveForCurrentWorld(
+                DirectorServices.get().containers())) {
+            LOGGER.warn("[Director] 关闭前保存容器数据失败");
+        }
+        try {
+            if (uiManager != null) {
+                com.director.ui.panels.TimelinePanel timelinePanel =
+                    uiManager.getPanelRegistry().getPanel(com.director.ui.panels.TimelinePanel.class);
+                if (timelinePanel != null && !timelinePanel.saveNow()) {
+                    LOGGER.warn("[Director] 关闭前保存时间线数据失败");
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.warn("[Director] 保存时间线数据失败: {}", e.getMessage(), e);
+        }
+        com.director.persistence.PersistenceUserNotifier.notifySaveFailureIfNeeded(client);
     }
     
     /**

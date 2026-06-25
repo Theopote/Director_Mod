@@ -344,15 +344,21 @@ public final class DirectorRendererRegistry {
                         .limit(4)
                         .toList();
                 StringBuilder sbStage = new StringBuilder();
+                double maxStageLastMs = 0.0;
                 for (var e : topStages) {
                     ProfStat s = e.getValue();
+                    maxStageLastMs = Math.max(maxStageLastMs, s.lastMs());
                     sbStage.append(e.getKey().name())
                             .append(" last=").append(String.format("%.2f", s.lastMs())).append("ms")
                             .append(" avg=").append(String.format("%.2f", s.avgMs())).append("ms")
                             .append(" | ");
                 }
 
-                LOGGER.warn("[Perf][RendererRegistry] topRenderers: {} topStages: {}", sb, sbStage);
+                if (maxStageLastMs >= 2.0) {
+                    LOGGER.warn("[Perf][RendererRegistry] topRenderers: {} topStages: {}", sb, sbStage);
+                } else if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("[Perf][RendererRegistry] topRenderers: {} topStages: {}", sb, sbStage);
+                }
             } catch (Exception ignored) {
             }
         }

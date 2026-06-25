@@ -27,6 +27,8 @@ public class WorldIdentifier {
     // 缓存当前维度键，用于调试和日志记录（虽然不直接用于世界切换检测，但保留以便跟踪当前维度）
     @SuppressWarnings("unused")
     private static RegistryKey<World> cachedWorldKey = null;
+    // 缓存最近一次可用的世界目录，避免关闭流程中 server/world 释放后无法解析路径。
+    private static Path cachedWorldSavePath = null;
     
     /**
      * 获取当前世界的唯一标识
@@ -163,6 +165,7 @@ public class WorldIdentifier {
     public static void clearCache() {
         cachedWorldId = null;
         cachedWorldKey = null;
+        cachedWorldSavePath = null;
         LOGGER.debug("[WorldIdentifier] 世界标识缓存已清除");
     }
     
@@ -213,7 +216,8 @@ public class WorldIdentifier {
                 try {
                     Path serverSavePath = client.getServer().getSavePath(WorldSavePath.ROOT);
                     if (serverSavePath != null && Files.exists(serverSavePath)) {
-                        return serverSavePath.toAbsolutePath().normalize();
+                        cachedWorldSavePath = serverSavePath.toAbsolutePath().normalize();
+                        return cachedWorldSavePath;
                     }
                 } catch (Exception e) {
                     LOGGER.debug("[WorldIdentifier] 通过服务器API获取存档路径失败，回退到目录扫描: {}", e.getMessage());
@@ -241,7 +245,8 @@ public class WorldIdentifier {
                             }
                             String dirName = save.getName();
                             if (dirName.equals(levelName) || sanitizeWorldName(dirName).equals(expectedSanitized)) {
-                                return save.toPath().toAbsolutePath().normalize();
+                                cachedWorldSavePath = save.toPath().toAbsolutePath().normalize();
+                                return cachedWorldSavePath;
                             }
                         }
                     }
@@ -251,7 +256,12 @@ public class WorldIdentifier {
         } catch (Exception e) {
             LOGGER.warn("[WorldIdentifier] 获取世界保存路径失败: {}", e.getMessage());
         }
-        
+
+        // 关闭阶段客户端状态可能已释放；回退到最近一次成功解析的路径。
+        if (cachedWorldSavePath != null && Files.exists(cachedWorldSavePath)) {
+            return cachedWorldSavePath;
+        }
+
         return null;
     }
 }
