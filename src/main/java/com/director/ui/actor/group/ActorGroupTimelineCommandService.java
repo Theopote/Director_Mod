@@ -75,8 +75,7 @@ public final class ActorGroupTimelineCommandService {
                 GROUP_CONTROLLER.applyDelayPolicy(group, actionType, baseStart);
 
         int created = 0;
-        for (int i = 0; i < actorIds.size(); i++) {
-            UUID actorId = actorIds.get(i);
+        for (UUID actorId : actorIds) {
             TimelineTrack timelineTrack = model.findActorTrackByActorId(actorId);
             if (timelineTrack == null) {
                 LOGGER.debug("[ActorGroupTimelineCommandService] Actor {} has no entity track", actorId);
@@ -189,8 +188,7 @@ public final class ActorGroupTimelineCommandService {
         List<UUID> actorIds = group.getActorIds();
 
         int placed = 0;
-        for (int i = 0; i < actorIds.size(); i++) {
-            UUID actorId = actorIds.get(i);
+        for (UUID actorId : actorIds) {
             TimelineTrack timelineTrack = model.findActorTrackByActorId(actorId);
             if (timelineTrack == null || timelineTrack.getActorTrackPayload() == null) {
                 continue;
@@ -321,7 +319,7 @@ public final class ActorGroupTimelineCommandService {
         Vector3f forward = new Vector3f(0.0f, 0.0f, 1.0f);
         List<Vector3f> points = source.getWaypoints();
         if (points.size() >= 2) {
-            Vector3f first = points.get(0);
+            Vector3f first = points.getFirst();
             for (int i = 1; i < points.size(); i++) {
                 Vector3f candidate = new Vector3f(points.get(i)).sub(first);
                 candidate.y = 0.0f;

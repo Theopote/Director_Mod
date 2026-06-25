@@ -190,9 +190,6 @@ public final class ActorRelationClipPropertyAdapter implements IPropertyAdapter<
         }
 
         EntityClip targetClip = payload instanceof EntityClip entityClip ? entityClip : clip;
-        if (targetClip == null) {
-            return null;
-        }
 
         var model = DirectorServices.get().containerTimeline().getTimelineModel();
         if (model == null) {
