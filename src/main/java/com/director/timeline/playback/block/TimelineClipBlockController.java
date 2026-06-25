@@ -344,7 +344,10 @@ public class TimelineClipBlockController {
         // 【修复】静止预览时，若 timelineDrivingPaused 还是 false（分帧追平尚未被暂停），
         // 仍然需要进入 update() 执行一次帧末尾的 pauseTimelineDriving()，
         // 否则 tick() 会持续处理已经完成的时间线目标，浪费服务端资源。
-        return !timelineDrivingPaused;
+        if (!timelineDrivingPaused) {
+            return true;
+        }
+        return false;
     }
 
     private void ensureModelListenerBound(TimelineModel model) {
@@ -426,7 +429,6 @@ public class TimelineClipBlockController {
         Map<UUID, ClipAnimationConfig> currentFrameConfigs = new LinkedHashMap<>();
 
         // 本帧世界方块（AIR/恢复）变化导致的重渲染位置（与视觉覆盖层无关）
-        Set<BlockPos> worldStateChangedBlocksForRerender = new HashSet<>();
 
         if (LOGGER.isTraceEnabled()) {
             LOGGER.trace("[TimelineClipBlockController] 开始更新 (当前时间: {:.2f}s)", currentTime);
@@ -509,10 +511,15 @@ public class TimelineClipBlockController {
         Map<UUID, Set<BlockPos>> visibilityWorldBlocks = placementAccelerated ? desiredWorldBlocks : currentFrameWorldBlocks;
         final long tAfterVisible = System.nanoTime();
 
-        // ✅ 步骤1.5：根据“上一帧可见集 vs 当前帧可见集”推导世界方块变化量，提前为区块重建收集 pos
-        // 说明：showContainerBlocks 会真实修改世界方块（置 AIR / 从快照恢复），但客户端区块重建可能滞后。
-        // 这里通过 scheduleBlockRenders 主动触发重渲染，避免清除过程出现“黑洞/虚空”。
-        // 世界落地集合变化（用于 showContainerBlocks 与区块重渲染）
+        // ✅ 步骤1.5：计算世界落地集的变化量（仅用于 needsVisibilitySync 判断）
+        //
+        // 【关键修复】彻底去掉 addBlockAndNeighborsForRerender 的调用。
+        // previewMode 下，世界方块由服务端 tick() 里的 setBlockState 实际修改，
+        // MC 客户端收到数据包后会自动触发区块重建，不需要客户端再调用 scheduleBlockRenders。
+        // 如果客户端对可见集对称差（几万 pos）手动调用 scheduleBlockRenders，
+        // 会导致 GPU 每帧重建几百个 chunk section，帧时间拉到 100ms+，FPS 掉到 7~10。
+        // scheduleBlockRenders 仅在 BlockVisualStateManager overlay/suppress 状态变化时才需要，
+        // 由下面的 !previewMode 分支通过 visualStateManager.getChangedBlocks() 驱动。
         Map<UUID, Boolean> worldSetChangedByContainer = new HashMap<>();
         for (Map.Entry<UUID, Set<BlockPos>> entry : visibilityWorldBlocks.entrySet()) {
             UUID containerId = entry.getKey();
@@ -520,30 +527,20 @@ public class TimelineClipBlockController {
             Set<BlockPos> prev = lastFrameWorldBlocks.get(containerId);
             if (prev == null) {
                 worldSetChangedByContainer.put(containerId, true);
-                if (!now.isEmpty()) {
-                    for (BlockPos p : now) {
-                        addBlockAndNeighborsForRerender(worldStateChangedBlocksForRerender, p);
-                    }
-                }
                 continue;
             }
-            // 计算对称差（发生显示/隐藏切换的 pos）
+            // 只判断是否有变化（用于 needsVisibilitySync），不收集 pos 用于 rerender
             boolean changed = false;
             for (BlockPos p : prev) {
-                if (!now.contains(p)) {
-                    changed = true;
-                    addBlockAndNeighborsForRerender(worldStateChangedBlocksForRerender, p);
-                }
+                if (!now.contains(p)) { changed = true; break; }
             }
-            for (BlockPos p : now) {
-                if (!prev.contains(p)) {
-                    changed = true;
-                    addBlockAndNeighborsForRerender(worldStateChangedBlocksForRerender, p);
+            if (!changed) {
+                for (BlockPos p : now) {
+                    if (!prev.contains(p)) { changed = true; break; }
                 }
             }
             worldSetChangedByContainer.put(containerId, changed);
         }
-        // 渲染可见集合变化（用于 BlockVisualStateManager 的增量更新）
         Map<UUID, Boolean> renderSetChangedByContainer = new HashMap<>();
         for (Map.Entry<UUID, Set<BlockPos>> entry : currentFrameVisibleBlocks.entrySet()) {
             UUID containerId = entry.getKey();
@@ -666,7 +663,9 @@ public class TimelineClipBlockController {
                         && currentTime < boundClip.getStartTime() - 1e-3f
                         && (worldBlocks == null || worldBlocks.isEmpty());
                 if (needsVisibilitySync && !deferWorldSync) {
-                    visibilityService.resumeTimelineDriving();
+                    if (visibilityService != null) {
+                        visibilityService.resumeTimelineDriving();
+                    }
                     // 时间线驱动：统一走分帧追平，避免 showContainerBlocks 的 firstCall 全量同步/强制光照刷新卡死主线程
                     visibilityService.showContainerBlocksForTimeline(container, worldBlocks);
                 }
@@ -769,9 +768,6 @@ public class TimelineClipBlockController {
                 }
             } catch (Exception ignored) {
             }
-        }
-        if (!worldStateChangedBlocksForRerender.isEmpty()) {
-            rerender.addAll(worldStateChangedBlocksForRerender);
         }
         cleanupContainersNoLongerControlled(desiredWorldBlocks.keySet(), visibilityService, visualStateManager, rerender);
         scheduleBlockRerender(rerender);
