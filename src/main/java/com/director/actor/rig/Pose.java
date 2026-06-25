@@ -56,4 +56,54 @@ public final class Pose {
         leftArmPitch = rightArmPitch = 0f;
         leftLegPitch = rightLegPitch = 0f;
     }
+
+    /**
+     * 复制姿态
+     *
+     * @return 姿态副本
+     */
+    public Pose copy() {
+        Pose copy = new Pose();
+        copy.bodyPitch = this.bodyPitch;
+        copy.bodyYaw = this.bodyYaw;
+        copy.bodyRoll = this.bodyRoll;
+        copy.headPitch = this.headPitch;
+        copy.headYaw = this.headYaw;
+        copy.leftArmPitch = this.leftArmPitch;
+        copy.rightArmPitch = this.rightArmPitch;
+        copy.leftLegPitch = this.leftLegPitch;
+        copy.rightLegPitch = this.rightLegPitch;
+        return copy;
+    }
+
+    /**
+     * 线性插值两个姿态
+     *
+     * @param a 起始姿态
+     * @param b 结束姿态
+     * @param t 插值系数 [0.0-1.0]
+     * @return 插值后的姿态
+     */
+    public static Pose lerp(Pose a, Pose b, float t) {
+        t = Math.max(0f, Math.min(1f, t));
+
+        Pose result = new Pose();
+        result.bodyPitch = lerp(a.bodyPitch, b.bodyPitch, t);
+        result.bodyYaw = lerp(a.bodyYaw, b.bodyYaw, t);
+        result.bodyRoll = lerp(a.bodyRoll, b.bodyRoll, t);
+        result.headPitch = lerp(a.headPitch, b.headPitch, t);
+        result.headYaw = lerp(a.headYaw, b.headYaw, t);
+        result.leftArmPitch = lerp(a.leftArmPitch, b.leftArmPitch, t);
+        result.rightArmPitch = lerp(a.rightArmPitch, b.rightArmPitch, t);
+        result.leftLegPitch = lerp(a.leftLegPitch, b.leftLegPitch, t);
+        result.rightLegPitch = lerp(a.rightLegPitch, b.rightLegPitch, t);
+        return result;
+    }
+
+    /**
+     * 线性插值（辅助方法）
+     */
+    private static float lerp(float a, float b, float t) {
+        return a + (b - a) * t;
+    }
 }
