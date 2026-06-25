@@ -153,15 +153,7 @@ public final class CameraPathEditController {
     }
 
     public void update() {
-        boolean trajectoryVisible = CameraPathDebugRenderer.getInstance().isEnabled();
-        if (!active && !trajectoryVisible) {
-            if (selectedOrbitClip != null) {
-                TimelineModel model = getTimelineModel();
-                if (model != null) {
-                    model.clearSelection();
-                }
-                clearOrbitSelectionAndGizmo();
-            }
+        if (!active) {
             return;
         }
 
@@ -170,69 +162,7 @@ public final class CameraPathEditController {
             return;
         }
 
-        if (!trajectoryVisible && !active) {
-            clearOrbitSelectionAndGizmo();
-            return;
-        }
-
-        if (!active) {
-            updateOrbitTrajectoryInteraction(client);
-            return;
-        }
-
         updateFullCameraPathEdit(client);
-    }
-
-    /** 「轨迹」开启但未激活摄像机路径工具时：仅支持围绕轨迹/中心拾取与 Gizmo 拖动 */
-    private void updateOrbitTrajectoryInteraction(MinecraftClient client) {
-        if (selectedOrbitClip != null && !containsActiveTrackOrbitClip(selectedOrbitClip)) {
-            clearOrbitSelectionAndGizmo();
-        }
-
-        boolean draggingNow = GizmoManager.get().isDraggingHandle();
-
-        if (!draggingNow && !GizmoManager.get().isHot()) {
-            syncSelectionFromTimeline();
-        }
-
-        if (selectedOrbitClip != null && !draggingNow) {
-            syncGizmoToSelectedOrbitCenter();
-        }
-
-        if (wasGizmoDragging && !draggingNow && selectedOrbitClip != null) {
-            TimelineModel model = getTimelineModel();
-            if (model != null) {
-                model.markDirty();
-            }
-        }
-        wasGizmoDragging = draggingNow;
-
-        boolean leftDown = isLeftMouseDown(client);
-
-        if (leftDown && !lastLeftMouseDown && GizmoManager.get().isHot()) {
-            gizmoMouseCaptured = true;
-        }
-        if (!leftDown) {
-            gizmoMouseCaptured = false;
-        }
-        if (draggingNow || (leftDown && gizmoMouseCaptured)) {
-            pendingWorldMouseDown = false;
-            lastLeftMouseDown = leftDown;
-            return;
-        }
-
-        if (!pendingWorldMouseDown && isMouseOverDirectorUi()) {
-            lastLeftMouseDown = leftDown;
-            return;
-        }
-
-        if (leftDown && !lastLeftMouseDown) {
-            pendingWorldMouseDown = true;
-        } else if (!leftDown && lastLeftMouseDown && pendingWorldMouseDown) {
-            handleOrbitTrajectoryPick();
-            pendingWorldMouseDown = false;
-        }
-        lastLeftMouseDown = leftDown;
     }
 
     private void updateFullCameraPathEdit(MinecraftClient client) {
@@ -391,7 +321,7 @@ public final class CameraPathEditController {
     }
 
     public boolean isOrbitCenterSelected(OrbitPathClip clip) {
-        if (clip == null) {
+        if (!active || clip == null) {
             return false;
         }
         TimelineModel model = getTimelineModel();
@@ -496,25 +426,6 @@ public final class CameraPathEditController {
         return selected;
     }
 
-    private void handleOrbitTrajectoryPick() {
-        DirectorInputSystem.ImGuiRay ray = DirectorInputSystem.computeImGuiRay();
-        if (ray == null) {
-            return;
-        }
-
-        OrbitPathClip orbitPicked = pickNearestOrbitInteraction(ray.origin(), ray.direction());
-        if (orbitPicked != null) {
-            selectOrbitCenter(orbitPicked);
-            return;
-        }
-
-        TimelineModel model = getTimelineModel();
-        if (model != null) {
-            model.clearSelection();
-        }
-        clearOrbitSelectionAndGizmo();
-    }
-
     private void handleAnchorPick() {
         DirectorInputSystem.ImGuiRay ray = DirectorInputSystem.computeImGuiRay();
         if (ray == null) {
@@ -570,7 +481,7 @@ public final class CameraPathEditController {
     }
 
     private OrbitPathClip pickNearestOrbitInteraction(Vec3d rayOrigin, Vec3d rayDir) {
-        if (!CameraPathDebugRenderer.getInstance().isEnabled()) {
+        if (!active || !CameraPathDebugRenderer.getInstance().isEnabled()) {
             return null;
         }
 
