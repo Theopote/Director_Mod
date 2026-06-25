@@ -1375,6 +1375,279 @@ public final class DirectorLang {
             }
         }
 
+        public static final class AdapterActor {
+
+            public static final class Common {
+                public static final String NO_CLIP = "gui.director.properties.adapter.actor.common.no_clip";
+                public static final String START_FMT = "gui.director.properties.adapter.actor.common.start_fmt";
+                public static final String END_FMT = "gui.director.properties.adapter.actor.common.end_fmt";
+                public static final String DURATION_FMT = "gui.director.properties.adapter.actor.common.duration_fmt";
+                public static final String WAYPOINT_COUNT_FMT = "gui.director.properties.adapter.actor.common.waypoint_count_fmt";
+                public static final String SECTION_BASIC = "gui.director.properties.adapter.actor.common.section_basic";
+                public static final String TIME_RANGE = "gui.director.properties.adapter.actor.common.time_range";
+                public static final String START_TIME = "gui.director.properties.adapter.actor.common.start_time";
+                public static final String END_TIME = "gui.director.properties.adapter.actor.common.end_time";
+                public static final String NAME = "gui.director.properties.adapter.actor.common.name";
+                public static final String TYPE = "gui.director.properties.adapter.actor.common.type";
+                public static final String ID_FMT = "gui.director.properties.adapter.actor.common.id_fmt";
+                public static final String MEMBER_COUNT_FMT = "gui.director.properties.adapter.actor.common.member_count_fmt";
+                public static final String INTENSITY = "gui.director.properties.adapter.actor.common.intensity";
+                public static final String INTENSITY_STYLE_HINT = "gui.director.properties.adapter.actor.common.intensity_style_hint";
+                public static final String LOOP = "gui.director.properties.adapter.actor.common.loop";
+                public static final String DELETE = "gui.director.properties.adapter.actor.common.delete";
+                public static final String CANCEL = "gui.director.properties.adapter.actor.common.cancel";
+                public static final String CREATE = "gui.director.properties.adapter.actor.common.create";
+                public static final String SAVE = "gui.director.properties.adapter.actor.common.save";
+                public static final String EDIT = "gui.director.properties.adapter.actor.common.edit";
+                public static final String PLACE = "gui.director.properties.adapter.actor.common.place";
+                public static final String NONE = "gui.director.properties.adapter.actor.common.none";
+                public static final String DURATION = "gui.director.properties.adapter.actor.common.duration";
+
+                private Common() {
+                }
+            }
+
+            public static final class ActorType {
+                public static final String PLAYER = "gui.director.properties.adapter.actor.type.player";
+                public static final String VILLAGER = "gui.director.properties.adapter.actor.type.villager";
+                public static final String COW = "gui.director.properties.adapter.actor.type.cow";
+                public static final String SHEEP = "gui.director.properties.adapter.actor.type.sheep";
+                public static final String ZOMBIE = "gui.director.properties.adapter.actor.type.zombie";
+                public static final String SKELETON = "gui.director.properties.adapter.actor.type.skeleton";
+                public static final String CUSTOM = "gui.director.properties.adapter.actor.type.custom";
+
+                private ActorType() {
+                }
+            }
+
+            public static final class Formation {
+                public static final String FREE = "gui.director.properties.adapter.actor.formation.free";
+                public static final String LINE = "gui.director.properties.adapter.actor.formation.line";
+                public static final String CIRCLE = "gui.director.properties.adapter.actor.formation.circle";
+                public static final String GRID = "gui.director.properties.adapter.actor.formation.grid";
+                public static final String FOLLOW_LEADER = "gui.director.properties.adapter.actor.formation.follow_leader";
+
+                private Formation() {
+                }
+            }
+
+            public static final class DelayPolicy {
+                public static final String NONE = "gui.director.properties.adapter.actor.delay.none";
+                public static final String SEQUENTIAL = "gui.director.properties.adapter.actor.delay.sequential";
+                public static final String WAVE = "gui.director.properties.adapter.actor.delay.wave";
+                public static final String RANDOM = "gui.director.properties.adapter.actor.delay.random";
+
+                private DelayPolicy() {
+                }
+            }
+
+            public static final class Action {
+                public static final String ADAPTER_NAME = "gui.director.properties.adapter.actor.action.name";
+                public static final String TITLE = "gui.director.properties.adapter.actor.action.title";
+                public static final String SECTION_SEMANTICS = "gui.director.properties.adapter.actor.action.section_semantics";
+                public static final String SECTION_INTENSITY = "gui.director.properties.adapter.actor.action.section_intensity";
+                public static final String SECTION_LOOP = "gui.director.properties.adapter.actor.action.section_loop";
+                public static final String SECTION_TIME_EDIT = "gui.director.properties.adapter.actor.action.section_time_edit";
+                public static final String ACTION_TYPE = "gui.director.properties.adapter.actor.action.action_type";
+                public static final String ACTION_TYPE_TOOLTIP = "gui.director.properties.adapter.actor.action.action_type_tooltip";
+                public static final String NOT_SUPPORTED_SUFFIX = "gui.director.properties.adapter.actor.action.not_supported_suffix";
+                public static final String NOT_SUPPORTED_TOOLTIP = "gui.director.properties.adapter.actor.action.not_supported_tooltip";
+                public static final String NOT_SUPPORTED_RIG_FMT = "gui.director.properties.adapter.actor.action.not_supported_rig_fmt";
+                public static final String RIG_WARNING = "gui.director.properties.adapter.actor.action.rig_warning";
+                public static final String RIG_WARNING_FMT = "gui.director.properties.adapter.actor.action.rig_warning_fmt";
+                public static final String RIG_WARNING_HINT = "gui.director.properties.adapter.actor.action.rig_warning_hint";
+                public static final String INTENSITY_TOOLTIP = "gui.director.properties.adapter.actor.action.intensity_tooltip";
+                public static final String LOOP_TOOLTIP = "gui.director.properties.adapter.actor.action.loop_tooltip";
+
+                private Action() {
+                }
+            }
+
+            public static final class Pose {
+                public static final String ADAPTER_NAME = "gui.director.properties.adapter.actor.pose.name";
+                public static final String SECTION_OVERRIDE = "gui.director.properties.adapter.actor.pose.section_override";
+                public static final String BODY = "gui.director.properties.adapter.actor.pose.body";
+                public static final String HEAD = "gui.director.properties.adapter.actor.pose.head";
+                public static final String ARMS = "gui.director.properties.adapter.actor.pose.arms";
+                public static final String LEGS = "gui.director.properties.adapter.actor.pose.legs";
+                public static final String SECTION_HEAD = "gui.director.properties.adapter.actor.pose.section_head";
+                public static final String SECTION_BODY = "gui.director.properties.adapter.actor.pose.section_body";
+                public static final String SECTION_ARMS = "gui.director.properties.adapter.actor.pose.section_arms";
+                public static final String SECTION_LEGS = "gui.director.properties.adapter.actor.pose.section_legs";
+                public static final String HEAD_PITCH = "gui.director.properties.adapter.actor.pose.head_pitch";
+                public static final String HEAD_YAW = "gui.director.properties.adapter.actor.pose.head_yaw";
+                public static final String BODY_PITCH = "gui.director.properties.adapter.actor.pose.body_pitch";
+                public static final String BODY_YAW = "gui.director.properties.adapter.actor.pose.body_yaw";
+                public static final String BODY_ROLL = "gui.director.properties.adapter.actor.pose.body_roll";
+                public static final String LEFT_ARM = "gui.director.properties.adapter.actor.pose.left_arm";
+                public static final String RIGHT_ARM = "gui.director.properties.adapter.actor.pose.right_arm";
+                public static final String LEFT_LEG = "gui.director.properties.adapter.actor.pose.left_leg";
+                public static final String RIGHT_LEG = "gui.director.properties.adapter.actor.pose.right_leg";
+
+                private Pose() {
+                }
+            }
+
+            public static final class Route {
+                public static final String ADAPTER_NAME = "gui.director.properties.adapter.actor.route.name";
+                public static final String SECTION_SETTINGS = "gui.director.properties.adapter.actor.route.section_settings";
+                public static final String SPEED = "gui.director.properties.adapter.actor.route.speed";
+                public static final String INTERPOLATION = "gui.director.properties.adapter.actor.route.interpolation";
+                public static final String LOOP_MODE = "gui.director.properties.adapter.actor.route.loop_mode";
+                public static final String ALIGN_ROTATION = "gui.director.properties.adapter.actor.route.align_rotation";
+                public static final String SECTION_WAYPOINTS = "gui.director.properties.adapter.actor.route.section_waypoints";
+                public static final String WAYPOINT_FMT = "gui.director.properties.adapter.actor.route.waypoint_fmt";
+                public static final String ADD_WAYPOINT = "gui.director.properties.adapter.actor.route.add_waypoint";
+                public static final String INTERP_LINEAR = "gui.director.properties.adapter.actor.route.interp_linear";
+                public static final String INTERP_SMOOTH = "gui.director.properties.adapter.actor.route.interp_smooth";
+                public static final String LOOP_ONCE = "gui.director.properties.adapter.actor.route.loop_once";
+                public static final String LOOP_LOOP = "gui.director.properties.adapter.actor.route.loop_loop";
+                public static final String LOOP_PING_PONG = "gui.director.properties.adapter.actor.route.loop_ping_pong";
+
+                private Route() {
+                }
+            }
+
+            public static final class Group {
+                public static final String ADAPTER_NAME = "gui.director.properties.adapter.actor.group.name";
+                public static final String NO_GROUP = "gui.director.properties.adapter.actor.group.no_group";
+                public static final String SECTION_FORMATION = "gui.director.properties.adapter.actor.group.section_formation";
+                public static final String FORMATION_TYPE = "gui.director.properties.adapter.actor.group.formation_type";
+                public static final String SPACING = "gui.director.properties.adapter.actor.group.spacing";
+                public static final String SECTION_DELAY = "gui.director.properties.adapter.actor.group.section_delay";
+                public static final String DELAY_POLICY = "gui.director.properties.adapter.actor.group.delay_policy";
+                public static final String DELAY_STEP = "gui.director.properties.adapter.actor.group.delay_step";
+                public static final String SECTION_MEMBERS = "gui.director.properties.adapter.actor.group.section_members";
+
+                private Group() {
+                }
+            }
+
+            public static final class LookAt {
+                public static final String TITLE = "gui.director.properties.adapter.actor.look_at.title";
+                public static final String SECTION_TARGET_MODE = "gui.director.properties.adapter.actor.look_at.section_target_mode";
+                public static final String SECTION_TARGET = "gui.director.properties.adapter.actor.look_at.section_target";
+                public static final String SECTION_STRENGTH = "gui.director.properties.adapter.actor.look_at.section_strength";
+                public static final String TARGET_MODE = "gui.director.properties.adapter.actor.look_at.target_mode";
+                public static final String WORLD_COORDS = "gui.director.properties.adapter.actor.look_at.world_coords";
+                public static final String TARGET_ENTITY_UUID_FMT = "gui.director.properties.adapter.actor.look_at.target_entity_uuid_fmt";
+                public static final String NO_TARGET_ENTITY = "gui.director.properties.adapter.actor.look_at.no_target_entity";
+                public static final String LOOK_AT_CAMERA = "gui.director.properties.adapter.actor.look_at.look_at_camera";
+                public static final String STRENGTH_TOOLTIP = "gui.director.properties.adapter.actor.look_at.strength_tooltip";
+                public static final String MODE_WORLD_POINT = "gui.director.properties.adapter.actor.look_at.mode_world_point";
+                public static final String MODE_ENTITY = "gui.director.properties.adapter.actor.look_at.mode_entity";
+                public static final String MODE_CAMERA = "gui.director.properties.adapter.actor.look_at.mode_camera";
+
+                private LookAt() {
+                }
+            }
+
+            public static final class RigStyle {
+                public static final String NO_STYLE = "gui.director.properties.adapter.actor.rig_style.no_style";
+                public static final String SECTION = "gui.director.properties.adapter.actor.rig_style.section";
+                public static final String MOTION_SCALE = "gui.director.properties.adapter.actor.rig_style.motion_scale";
+                public static final String MOTION_SCALE_TOOLTIP = "gui.director.properties.adapter.actor.rig_style.motion_scale_tooltip";
+                public static final String TEMPO = "gui.director.properties.adapter.actor.rig_style.tempo";
+                public static final String TEMPO_TOOLTIP = "gui.director.properties.adapter.actor.rig_style.tempo_tooltip";
+                public static final String LEAN_BIAS = "gui.director.properties.adapter.actor.rig_style.lean_bias";
+                public static final String LEAN_BIAS_TOOLTIP = "gui.director.properties.adapter.actor.rig_style.lean_bias_tooltip";
+                public static final String ARM_EXPRESSIVENESS = "gui.director.properties.adapter.actor.rig_style.arm_expressiveness";
+                public static final String ARM_EXPRESSIVENESS_TOOLTIP = "gui.director.properties.adapter.actor.rig_style.arm_expressiveness_tooltip";
+                public static final String LEG_EXPRESSIVENESS = "gui.director.properties.adapter.actor.rig_style.leg_expressiveness";
+                public static final String LEG_EXPRESSIVENESS_TOOLTIP = "gui.director.properties.adapter.actor.rig_style.leg_expressiveness_tooltip";
+                public static final String GLOBAL_HINT = "gui.director.properties.adapter.actor.rig_style.global_hint";
+                public static final String GLOBAL_TOOLTIP = "gui.director.properties.adapter.actor.rig_style.global_tooltip";
+
+                private RigStyle() {
+                }
+            }
+
+            public static final class Selector {
+                public static final String ADD_ACTOR = "gui.director.properties.adapter.actor.selector.add_actor";
+                public static final String NO_ACTORS = "gui.director.properties.adapter.actor.selector.no_actors";
+                public static final String EDIT_NAME = "gui.director.properties.adapter.actor.selector.edit_name";
+                public static final String DELETE = "gui.director.properties.adapter.actor.selector.delete";
+                public static final String POPUP_CREATE = "gui.director.properties.adapter.actor.selector.popup_create";
+                public static final String POPUP_EDIT_NAME = "gui.director.properties.adapter.actor.selector.popup_edit_name";
+                public static final String POPUP_DELETE = "gui.director.properties.adapter.actor.selector.popup_delete";
+                public static final String NAME_LABEL = "gui.director.properties.adapter.actor.selector.name_label";
+                public static final String TYPE_LABEL = "gui.director.properties.adapter.actor.selector.type_label";
+                public static final String PLACE_HINT = "gui.director.properties.adapter.actor.selector.place_hint";
+                public static final String ACTOR_NAME_LABEL = "gui.director.properties.adapter.actor.selector.actor_name_label";
+                public static final String DELETE_CONFIRM = "gui.director.properties.adapter.actor.selector.delete_confirm";
+                public static final String DELETE_NAME_FMT = "gui.director.properties.adapter.actor.selector.delete_name_fmt";
+                public static final String DELETE_TYPE_FMT = "gui.director.properties.adapter.actor.selector.delete_type_fmt";
+                public static final String DELETE_WARNING = "gui.director.properties.adapter.actor.selector.delete_warning";
+
+                private Selector() {
+                }
+            }
+
+            public static final class Project {
+                public static final String ADAPTER_NAME = "gui.director.properties.adapter.actor.project.name";
+                public static final String ACTOR_LIST = "gui.director.properties.adapter.actor.project.actor_list";
+                public static final String NO_ACTORS = "gui.director.properties.adapter.actor.project.no_actors";
+                public static final String ACTOR_GROUPS = "gui.director.properties.adapter.actor.project.actor_groups";
+                public static final String NO_GROUPS = "gui.director.properties.adapter.actor.project.no_groups";
+                public static final String GROUP_LABEL_FMT = "gui.director.properties.adapter.actor.project.group_label_fmt";
+                public static final String ADD_ACTOR = "gui.director.properties.adapter.actor.project.add_actor";
+                public static final String ADD_GROUP = "gui.director.properties.adapter.actor.project.add_group";
+                public static final String PLACE_TOOLTIP = "gui.director.properties.adapter.actor.project.place_tooltip";
+                public static final String GROUP_ACTION = "gui.director.properties.adapter.actor.project.group_action";
+                public static final String GROUP_ROUTE = "gui.director.properties.adapter.actor.project.group_route";
+                public static final String GROUP_PLACEMENT = "gui.director.properties.adapter.actor.project.group_placement";
+                public static final String GROUP_ACTION_TOOLTIP = "gui.director.properties.adapter.actor.project.group_action_tooltip";
+                public static final String GROUP_ROUTE_TOOLTIP = "gui.director.properties.adapter.actor.project.group_route_tooltip";
+                public static final String GROUP_PLACEMENT_TOOLTIP = "gui.director.properties.adapter.actor.project.group_placement_tooltip";
+                public static final String SOURCE_FMT = "gui.director.properties.adapter.actor.project.source_fmt";
+                public static final String SOURCE_NONE = "gui.director.properties.adapter.actor.project.source_none";
+                public static final String CREATE_ACTION_CLIPS = "gui.director.properties.adapter.actor.project.create_action_clips";
+                public static final String COPY_SELECTED_ROUTE = "gui.director.properties.adapter.actor.project.copy_selected_route";
+                public static final String PLACE_GROUP_AT_CAMERA = "gui.director.properties.adapter.actor.project.place_group_at_camera";
+                public static final String DELETE_GROUP = "gui.director.properties.adapter.actor.project.delete_group";
+                public static final String ACTOR_PROPERTIES = "gui.director.properties.adapter.actor.project.actor_properties";
+                public static final String FOCUS_IN_WORLD = "gui.director.properties.adapter.actor.project.focus_in_world";
+                public static final String PLACE_AT_CAMERA = "gui.director.properties.adapter.actor.project.place_at_camera";
+                public static final String DELETE_ACTOR = "gui.director.properties.adapter.actor.project.delete_actor";
+                public static final String PLACE_TIP = "gui.director.properties.adapter.actor.project.place_tip";
+                public static final String GROUPS_SECTION = "gui.director.properties.adapter.actor.project.groups_section";
+                public static final String NO_GROUPS_HINT = "gui.director.properties.adapter.actor.project.no_groups_hint";
+                public static final String POPUP_CREATE = "gui.director.properties.adapter.actor.project.popup_create";
+                public static final String CREATE_NEW_ACTOR = "gui.director.properties.adapter.actor.project.create_new_actor";
+                public static final String USED_IN = "gui.director.properties.adapter.actor.project.used_in";
+                public static final String NO_TIMELINE = "gui.director.properties.adapter.actor.project.no_timeline";
+                public static final String NOT_USED_IN_TIMELINE = "gui.director.properties.adapter.actor.project.not_used_in_timeline";
+                public static final String DELETE_UNUSED_TOOLTIP = "gui.director.properties.adapter.actor.project.delete_unused_tooltip";
+                public static final String TIMELINE_FMT = "gui.director.properties.adapter.actor.project.timeline_fmt";
+                public static final String TRACK_FMT = "gui.director.properties.adapter.actor.project.track_fmt";
+                public static final String FOCUS_TRACK = "gui.director.properties.adapter.actor.project.focus_track";
+                public static final String CURRENT_TIMELINE = "gui.director.properties.adapter.actor.project.current_timeline";
+                public static final String DEFAULT_TRACK_NAME = "gui.director.properties.adapter.actor.project.default_track_name";
+                public static final String POPUP_DELETE = "gui.director.properties.adapter.actor.project.popup_delete";
+                public static final String DELETE_CONFIRM = "gui.director.properties.adapter.actor.project.delete_confirm";
+                public static final String DELETE_ACTOR_FMT = "gui.director.properties.adapter.actor.project.delete_actor_fmt";
+                public static final String DELETE_UNDO_WARNING = "gui.director.properties.adapter.actor.project.delete_undo_warning";
+                public static final String ACTION_BRUSH = "gui.director.properties.adapter.actor.project.action_brush";
+                public static final String CURRENT_BRUSH = "gui.director.properties.adapter.actor.project.current_brush";
+                public static final String BRUSH_TOOLTIP = "gui.director.properties.adapter.actor.project.brush_tooltip";
+                public static final String BRUSH_HINT_FMT = "gui.director.properties.adapter.actor.project.brush_hint_fmt";
+                public static final String ACTOR_DISPLAY_FMT = "gui.director.properties.adapter.actor.project.actor_display_fmt";
+                public static final String FORMATION = "gui.director.properties.adapter.actor.project.formation";
+                public static final String FORMATION_SPACING = "gui.director.properties.adapter.actor.project.formation_spacing";
+                public static final String DELAY = "gui.director.properties.adapter.actor.project.delay";
+                public static final String DELAY_STEP = "gui.director.properties.adapter.actor.project.delay_step";
+                public static final String ACTION = "gui.director.properties.adapter.actor.project.action";
+                public static final String PANEL_RENDER_ERROR = "gui.director.properties.adapter.actor.project.panel_render_error";
+                public static final String TIMELINE_NOT_READY = "gui.director.properties.adapter.actor.project.timeline_not_ready";
+
+                private Project() {
+                }
+            }
+
+            private AdapterActor() {
+            }
+        }
+
         private Properties() {
         }
     }

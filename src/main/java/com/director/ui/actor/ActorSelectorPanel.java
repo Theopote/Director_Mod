@@ -1,6 +1,8 @@
 package com.director.ui.actor;
 
 import com.director.actor.*;
+import com.director.i18n.ActorPropertyAdapterI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.actor.placement.ActorPlacementController;
 import com.director.timeline.model.TimelineModel;
 import imgui.ImGui;
@@ -11,30 +13,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
-/**
- * ActorSelectorPanel v1.0
- *
- * <p>属性面板中的"演员管理器"
- * <p>职责：让导演"创建演员"这件事，直觉、快速、不可犯错
- *
- * <p>核心功能：
- * <ul>
- *   <li>显示 Actor 列表</li>
- *   <li>创建新 Actor（原子性：Actor placement preview）</li>
- *   <li>选择 ActorType</li>
- * </ul>
- *
- * <p>设计原则：
- * <ul>
- *   <li>✅ 只做方案 C（Actor 系统）</li>
- *   <li>✅ 不绑定已有世界实体</li>
- *   <li>✅ 不编辑 Transform / Animation（那是 Step 4B）</li>
- *   <li>✅ 不涉及 Runtime / Preview 逻辑</li>
- * </ul>
- *
- * @author Director Team
- * @version 1.0
- */
 public final class ActorSelectorPanel {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ActorSelectorPanel.class);
@@ -46,40 +24,24 @@ public final class ActorSelectorPanel {
     private boolean editNamePopupOpen = false;
     private boolean deleteConfirmPopupOpen = false;
 
-    // Create popup state
     private final ImString newActorName = new ImString("Actor", 256);
     private ActorType newActorType = ActorType.VILLAGER;
 
-    // Edit popup state
     private Actor editingActor = null;
     private final ImString editingActorName = new ImString("", 256);
 
-    // Delete confirm popup state
     private Actor deletingActor = null;
 
-    /**
-     * 构造函数
-     *
-     * @param actorRegistry ActorRegistry 实例
-     * @param timelineModel TimelineModel 实例
-     */
     public ActorSelectorPanel(ActorRegistry actorRegistry, TimelineModel timelineModel) {
         this.actorRegistry = actorRegistry;
         this.timelineModel = timelineModel;
     }
 
-    // =========================================================
-    // Render
-    // =========================================================
-
-    /**
-     * 渲染 Actor Selector 面板
-     */
     public void render() {
         renderActorList();
 
         ImGui.spacing();
-        if (ImGui.button("+ Add Actor")) {
+        if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Selector.ADD_ACTOR))) {
             openCreatePopup();
         }
 
@@ -88,71 +50,63 @@ public final class ActorSelectorPanel {
         renderDeleteConfirmPopup();
     }
 
-    // =========================================================
-    // Actor List
-    // =========================================================
-
     private void renderActorList() {
         List<Actor> actors = actorRegistry.getAllActors();
 
         if (actors.isEmpty()) {
-            ImGui.textDisabled("No actors yet.");
+            ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Selector.NO_ACTORS));
             return;
         }
 
         for (Actor actor : actors) {
             ImGui.pushID(actor.getActorId().toString());
-            
-            // 显示 Actor 信息（可点击选择）
-            String displayText = actor.getName() + "  (" + actor.getType().name() + ")";
+
+            String displayText = actor.getName() + "  (" + ActorPropertyAdapterI18n.actorTypeLabel(actor.getType()) + ")";
             if (ImGui.selectable(displayText, false)) {
-                // TODO: 选择 Actor 后可以显示其详细信息或关联的轨道
+                // TODO: select actor details or linked track
             }
-            
-            // 右键菜单：编辑/删除
+
             if (ImGui.beginPopupContextItem("ActorContextMenu")) {
-                if (ImGui.menuItem("编辑名称")) {
+                if (ImGui.menuItem(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Selector.EDIT_NAME))) {
                     openEditActorNamePopup(actor);
                 }
-                if (ImGui.menuItem("删除")) {
+                if (ImGui.menuItem(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Selector.DELETE))) {
                     openDeleteActorConfirmPopup(actor);
                 }
                 ImGui.endPopup();
             }
-            
+
             ImGui.popID();
         }
     }
-
-    // =========================================================
-    // Create Actor Popup
-    // =========================================================
 
     private void openCreatePopup() {
         newActorName.set("Actor");
         newActorType = ActorType.VILLAGER;
         createPopupOpen = true;
-        ImGui.openPopup("Create Actor");
+        ImGui.openPopup(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Selector.POPUP_CREATE));
     }
 
     private void renderCreatePopup() {
-        if (!createPopupOpen) return;
+        if (!createPopupOpen) {
+            return;
+        }
 
-        if (ImGui.beginPopupModal("Create Actor", ImGuiCond.Always)) {
-
-            ImGui.text("Name:");
+        String popupCreate = ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Selector.POPUP_CREATE);
+        if (ImGui.beginPopupModal(popupCreate, ImGuiCond.Always)) {
+            ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Selector.NAME_LABEL));
             ImGui.sameLine();
             ImGui.inputText("##ActorName", newActorName);
 
-            ImGui.text("Type:");
+            ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Selector.TYPE_LABEL));
             ImGui.sameLine();
             renderActorTypeCombo();
 
-            ImGui.textDisabled("Right-click in world to place actor.");
+            ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Selector.PLACE_HINT));
 
             ImGui.separator();
 
-            if (ImGui.button("Create")) {
+            if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.CREATE))) {
                 createActorAndTrack();
                 ImGui.closeCurrentPopup();
                 createPopupOpen = false;
@@ -160,7 +114,7 @@ public final class ActorSelectorPanel {
 
             ImGui.sameLine();
 
-            if (ImGui.button("Cancel")) {
+            if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.CANCEL))) {
                 ImGui.closeCurrentPopup();
                 createPopupOpen = false;
             }
@@ -170,11 +124,14 @@ public final class ActorSelectorPanel {
     }
 
     private void renderActorTypeCombo() {
-        String currentTypeName = newActorType.name();
+        String currentTypeName = ActorPropertyAdapterI18n.actorTypeLabel(newActorType);
+        String[] typeLabels = ActorPropertyAdapterI18n.actorTypeLabels();
         if (ImGui.beginCombo("##ActorType", currentTypeName)) {
-            for (ActorType type : ActorType.values()) {
+            ActorType[] types = ActorType.values();
+            for (int i = 0; i < types.length; i++) {
+                ActorType type = types[i];
                 boolean selected = (type == newActorType);
-                if (ImGui.selectable(type.name(), selected)) {
+                if (ImGui.selectable(typeLabels[i], selected)) {
                     newActorType = type;
                 }
                 if (selected) {
@@ -185,13 +142,6 @@ public final class ActorSelectorPanel {
         }
     }
 
-    // =========================================================
-    // Creation Logic（事务）
-    // =========================================================
-
-    /**
-     * Start actor placement (preview + right-click to place).
-     */
     private void createActorAndTrack() {
         String actorName = newActorName.get();
         if (actorName == null || actorName.trim().isEmpty()) {
@@ -206,32 +156,29 @@ public final class ActorSelectorPanel {
         }
     }
 
-    // =========================================================
-    // Edit Actor Name Popup
-    // =========================================================
-
     private void openEditActorNamePopup(Actor actor) {
         editingActor = actor;
         editingActorName.set(actor.getName());
         editNamePopupOpen = true;
-        ImGui.openPopup("Edit Actor Name");
+        ImGui.openPopup(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Selector.POPUP_EDIT_NAME));
     }
 
     private void renderEditNamePopup() {
-        if (!editNamePopupOpen || editingActor == null) return;
+        if (!editNamePopupOpen || editingActor == null) {
+            return;
+        }
 
-        if (ImGui.beginPopupModal("Edit Actor Name", ImGuiCond.Always)) {
-            ImGui.text("Actor Name:");
+        if (ImGui.beginPopupModal(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Selector.POPUP_EDIT_NAME), ImGuiCond.Always)) {
+            ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Selector.ACTOR_NAME_LABEL));
             ImGui.sameLine();
             ImGui.inputText("##EditActorName", editingActorName);
 
             ImGui.separator();
 
-            if (ImGui.button("Save")) {
+            if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.SAVE))) {
                 String newName = editingActorName.get();
                 if (newName != null && !newName.trim().isEmpty()) {
                     editingActor.setName(newName.trim());
-                    // 同步更新关联的 ActorTrack 显示名称
                     updateActorTrackDisplayName(editingActor);
                     timelineModel.markDirty();
                     LOGGER.info("[ActorSelector] 已更新 Actor 名称: {}", newName);
@@ -243,7 +190,7 @@ public final class ActorSelectorPanel {
 
             ImGui.sameLine();
 
-            if (ImGui.button("Cancel")) {
+            if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.CANCEL))) {
                 ImGui.closeCurrentPopup();
                 editNamePopupOpen = false;
                 editingActor = null;
@@ -253,28 +200,28 @@ public final class ActorSelectorPanel {
         }
     }
 
-    // =========================================================
-    // Delete Actor Confirm Popup
-    // =========================================================
-
     private void openDeleteActorConfirmPopup(Actor actor) {
         deletingActor = actor;
         deleteConfirmPopupOpen = true;
-        ImGui.openPopup("Delete Actor");
+        ImGui.openPopup(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Selector.POPUP_DELETE));
     }
 
     private void renderDeleteConfirmPopup() {
-        if (!deleteConfirmPopupOpen || deletingActor == null) return;
+        if (!deleteConfirmPopupOpen || deletingActor == null) {
+            return;
+        }
 
-        if (ImGui.beginPopupModal("Delete Actor", ImGuiCond.Always)) {
-            ImGui.text("确定要删除 Actor 吗？");
-            ImGui.text("名称: " + deletingActor.getName());
-            ImGui.text("类型: " + deletingActor.getType().name());
-            ImGui.textColored(1.0f, 0.4f, 0.4f, 1.0f, "警告：此操作无法撤销！");
+        if (ImGui.beginPopupModal(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Selector.POPUP_DELETE), ImGuiCond.Always)) {
+            ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Selector.DELETE_CONFIRM));
+            ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Selector.DELETE_NAME_FMT, deletingActor.getName()));
+            ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Selector.DELETE_TYPE_FMT,
+                    ActorPropertyAdapterI18n.actorTypeLabel(deletingActor.getType())));
+            ImGui.textColored(1.0f, 0.4f, 0.4f, 1.0f,
+                    ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Selector.DELETE_WARNING));
 
             ImGui.separator();
 
-            if (ImGui.button("删除", 100, 0)) {
+            if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DELETE), 100, 0)) {
                 deleteActor(deletingActor);
                 ImGui.closeCurrentPopup();
                 deleteConfirmPopupOpen = false;
@@ -283,7 +230,7 @@ public final class ActorSelectorPanel {
 
             ImGui.sameLine();
 
-            if (ImGui.button("取消", 100, 0)) {
+            if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.CANCEL), 100, 0)) {
                 ImGui.closeCurrentPopup();
                 deleteConfirmPopupOpen = false;
                 deletingActor = null;
@@ -293,38 +240,25 @@ public final class ActorSelectorPanel {
         }
     }
 
-    // =========================================================
-    // Actor Management
-    // =========================================================
-
-    /**
-     * 删除 Actor（同时清理关联的 ActorTrack）
-     */
     private void deleteActor(Actor actor) {
-        if (actor == null) return;
+        if (actor == null) {
+            return;
+        }
 
         try {
-            // 1️⃣ 删除关联的 ActorTrack
             removeActorTracksForActor(actor.getActorId());
-
-            // 2️⃣ 从 ActorRegistry 删除 Actor
             actorRegistry.removeActor(actor.getActorId());
-
-            // 3️⃣ 标记模型为 dirty
             timelineModel.markDirty();
-
             LOGGER.info("[ActorSelector] 已删除 Actor: {} ({})", actor.getName(), actor.getType());
-
         } catch (Exception e) {
             LOGGER.error("[ActorSelector] 删除 Actor 失败", e);
         }
     }
 
-    /**
-     * 移除与指定 Actor 关联的所有 ActorTrack
-     */
     private void removeActorTracksForActor(java.util.UUID actorId) {
-        if (actorId == null || timelineModel == null) return;
+        if (actorId == null || timelineModel == null) {
+            return;
+        }
 
         java.util.List<com.director.timeline.model.TimelineTrack> tracksToRemove = new java.util.ArrayList<>();
 
@@ -346,11 +280,10 @@ public final class ActorSelectorPanel {
         }
     }
 
-    /**
-     * 更新 ActorTrack 的显示名称以匹配 Actor 名称
-     */
     private void updateActorTrackDisplayName(Actor actor) {
-        if (actor == null || timelineModel == null) return;
+        if (actor == null || timelineModel == null) {
+            return;
+        }
 
         for (com.director.timeline.model.TimelineTrack track : timelineModel.getAllTracks()) {
             if (track.getType() == com.director.timeline.model.TrackType.ACTOR) {
@@ -359,11 +292,10 @@ public final class ActorSelectorPanel {
                     com.director.actor.ActorRef ref = actorTrack.getActorRef();
                     if (ref != null && actor.getActorId().equals(ref.getActorId())) {
                         actorTrack.setDisplayName(actor.getName());
-                        track.setName(actor.getName()); // 同时更新 TimelineTrack 名称
+                        track.setName(actor.getName());
                     }
                 }
             }
         }
     }
 }
-

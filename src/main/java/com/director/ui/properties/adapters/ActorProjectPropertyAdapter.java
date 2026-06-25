@@ -13,6 +13,8 @@ import com.director.actor.preview.ActorPreviewManager;
 import com.director.actor.query.ActorUsageQuery;
 import com.director.actor.rig.ActorRigProfile;
 import com.director.actor.rig.RigProfileStyle;
+import com.director.i18n.ActorPropertyAdapterI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.actor.group.ActorGroupTimelineCommandService;
 import com.director.ui.actor.selection.ActorSelectionHub;
 import com.director.ui.properties.IPropertyAdapter;
@@ -137,11 +139,11 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             
             // 创建 Actor 按钮
             ImGui.spacing();
-            if (ImGui.button("+ Add Actor")) {
+            if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.ADD_ACTOR))) {
                 openCreateActorPopup();
             }
             ImGui.sameLine();
-            if (ImGui.button("+ Add Group")) {
+            if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.ADD_GROUP))) {
                 createGroup(actorRegistry);
                 modified = true;
             }
@@ -163,7 +165,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     
     @Override
     public String getAdapterName() {
-        return "Actor Project Adapter";
+        return ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.ADAPTER_NAME);
     }
     
     // =========================================================
@@ -172,12 +174,12 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     
     private boolean renderActorList(ActorRegistry actorRegistry) {
         // 使用 UITheme 的方式显示分隔符文本
-        UITheme.label("Actor List", UITheme.DarkTheme.TEXT);
+        UITheme.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.ACTOR_LIST), UITheme.DarkTheme.TEXT);
         UITheme.separator();
-        
+
         List<Actor> actors = actorRegistry.getAllActors();
         if (actors.isEmpty()) {
-            ImGui.textDisabled("No actors in project.");
+            ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.NO_ACTORS));
             return false;
         }
         
@@ -190,7 +192,8 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                       | ImGuiTreeNodeFlags.NoTreePushOnOpen
                       | (selected ? ImGuiTreeNodeFlags.Selected : 0);
             
-            String displayText = String.format("%s  (%s)", actor.getName(), actor.getType().name());
+            String displayText = ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.ACTOR_DISPLAY_FMT,
+                    actor.getName(), ActorPropertyAdapterI18n.actorTypeLabel(actor.getType()));
             
             ImGui.treeNodeEx(actor.getActorId().toString(), flags, displayText);
             
@@ -205,26 +208,26 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             float buttonWidth = 60.0f;
             ImGui.setCursorPosX(ImGui.getCursorPosX() + ImGui.getContentRegionAvailX() - buttonWidth);
             
-            if (ImGui.smallButton("Place")) {
+            if (ImGui.smallButton(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.PLACE))) {
                 // 开始放置模式
                 com.director.ui.actor.selection.ActorSelectionHub.beginPlace(actor);
                 LOGGER.debug("[ActorProjectPropertyAdapter] 开始放置 Actor: {}", actor.getName());
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("在世界中放置此 Actor\n右键点击世界中的位置来放置");
+                ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.PLACE_TOOLTIP));
             }
             
             // 右键菜单：编辑/删除
             if (ImGui.beginPopupContextItem("ActorContextMenu_" + actor.getActorId())) {
-                if (ImGui.selectable("Edit")) {
+                if (ImGui.selectable(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.EDIT))) {
                     selectActor(actor);
                     ImGui.closeCurrentPopup();
                 }
-                if (ImGui.selectable("Place")) {
+                if (ImGui.selectable(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.PLACE))) {
                     com.director.ui.actor.selection.ActorSelectionHub.beginPlace(actor);
                     ImGui.closeCurrentPopup();
                 }
-                if (ImGui.selectable("Delete")) {
+                if (ImGui.selectable(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DELETE))) {
                     openDeleteConfirm(actor.getActorId());
                     ImGui.closeCurrentPopup();
                 }
@@ -236,40 +239,38 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     }
 
     private boolean renderGroupList(ActorRegistry actorRegistry) {
-        UITheme.label("Actor Groups", UITheme.DarkTheme.TEXT);
+        UITheme.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.ACTOR_GROUPS), UITheme.DarkTheme.TEXT);
         UITheme.separator();
 
         List<ActorGroup> groups = actorRegistry.getAllGroups();
         if (groups.isEmpty()) {
-            ImGui.textDisabled("No actor groups in project.");
+            ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.NO_GROUPS));
             return false;
         }
 
         boolean modified = false;
         for (ActorGroup group : groups) {
-            String groupLabel = String.format("%s  (%d actors)", group.getName(), group.size());
+            String groupLabel = ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUP_LABEL_FMT,
+                    group.getName(), group.size());
             if (ImGui.treeNodeEx(group.getGroupId().toString(),
                     ImGuiTreeNodeFlags.DefaultOpen,
                     groupLabel)) {
                 ImString name = new ImString(group.getName(), 128);
-                if (ImGui.inputText("Name##groupName" + group.getGroupId(), name, ImGuiInputTextFlags.EnterReturnsTrue)) {
+                if (ImGui.inputText(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.NAME) + "##groupName" + group.getGroupId(), name, ImGuiInputTextFlags.EnterReturnsTrue)) {
                     group.setName(name.get());
                     modified = true;
                 }
 
                 ActorGroup.FormationType[] formations = ActorGroup.FormationType.values();
                 ImInt formation = new ImInt(group.getFormationType().ordinal());
-                String[] formationLabels = new String[formations.length];
-                for (int i = 0; i < formations.length; i++) {
-                    formationLabels[i] = formations[i].name();
-                }
-                if (ImGui.combo("Formation##groupFormation" + group.getGroupId(), formation, formationLabels)) {
+                if (ImGui.combo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.FORMATION) + "##groupFormation" + group.getGroupId(),
+                        formation, ActorPropertyAdapterI18n.formationTypeLabels())) {
                     group.setFormationType(formations[Math.max(0, Math.min(formation.get(), formations.length - 1))]);
                     modified = true;
                 }
 
                 float[] spacing = { group.getFormationSpacing() };
-                if (ImGui.sliderFloat("Formation Spacing##groupFormationSpacing" + group.getGroupId(),
+                if (ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.FORMATION_SPACING) + "##groupFormationSpacing" + group.getGroupId(),
                         spacing, 0.1f, 12.0f, "%.1f blocks")) {
                     group.setFormationSpacing(spacing[0]);
                     modified = true;
@@ -277,17 +278,14 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
 
                 ActorGroup.DelayPolicy[] delays = ActorGroup.DelayPolicy.values();
                 ImInt delay = new ImInt(group.getDelayPolicy().ordinal());
-                String[] delayLabels = new String[delays.length];
-                for (int i = 0; i < delays.length; i++) {
-                    delayLabels[i] = delays[i].name();
-                }
-                if (ImGui.combo("Delay##groupDelay" + group.getGroupId(), delay, delayLabels)) {
+                if (ImGui.combo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.DELAY) + "##groupDelay" + group.getGroupId(),
+                        delay, ActorPropertyAdapterI18n.delayPolicyLabels())) {
                     group.setDelayPolicy(delays[Math.max(0, Math.min(delay.get(), delays.length - 1))]);
                     modified = true;
                 }
 
                 float[] step = { group.getDelayStepSeconds() };
-                if (ImGui.sliderFloat("Delay Step##groupDelayStep" + group.getGroupId(), step, 0.0f, 5.0f, "%.2fs")) {
+                if (ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.DELAY_STEP) + "##groupDelayStep" + group.getGroupId(), step, 0.0f, 5.0f, "%.2fs")) {
                     group.setDelayStepSeconds(step[0]);
                     modified = true;
                 }
@@ -296,7 +294,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                 renderGroupRouteAuthoring(group);
                 renderGroupPlacement(group);
 
-                if (ImGui.button("Delete Group##deleteGroup" + group.getGroupId())) {
+                if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.DELETE_GROUP) + "##deleteGroup" + group.getGroupId())) {
                     actorRegistry.removeGroup(group.getGroupId());
                     modified = true;
                     ImGui.treePop();
@@ -315,11 +313,11 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
 
     private void renderGroupActionAuthoring(ActorGroup group) {
         ImGui.spacing();
-        UITheme.label("Group Action", UITheme.DarkTheme.TEXT);
+        UITheme.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUP_ACTION), UITheme.DarkTheme.TEXT);
 
         ActorActionType currentBrush = ActionBrushState.get();
-        String currentLabel = currentBrush != null ? currentBrush.name() : "NONE";
-        if (ImGui.beginCombo("Action##groupAction" + group.getGroupId(), currentLabel)) {
+        String currentLabel = currentBrush != null ? currentBrush.name() : ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.NONE);
+        if (ImGui.beginCombo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.ACTION) + "##groupAction" + group.getGroupId(), currentLabel)) {
             for (ActorActionType type : ActorActionType.values()) {
                 boolean selected = type == currentBrush;
                 if (ImGui.selectable(type.name(), selected)) {
@@ -332,17 +330,17 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             ImGui.endCombo();
         }
 
-        ImGui.sliderFloat("Duration##groupActionDuration" + group.getGroupId(),
+        ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DURATION) + "##groupActionDuration" + group.getGroupId(),
                 groupActionDuration.getData(), 0.05f, 20.0f, "%.2fs");
-        ImGui.sliderFloat("Intensity##groupActionIntensity" + group.getGroupId(),
+        ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.INTENSITY) + "##groupActionIntensity" + group.getGroupId(),
                 groupActionIntensity.getData(), 0.0f, 1.0f, "%.2f");
-        ImGui.checkbox("Loop##groupActionLoop" + group.getGroupId(), groupActionLoop);
+        ImGui.checkbox(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.LOOP) + "##groupActionLoop" + group.getGroupId(), groupActionLoop);
 
         boolean canCreate = group.size() > 0 && currentBrush != null;
         if (!canCreate) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button("Create Action Clips##groupCreateAction" + group.getGroupId())) {
+        if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.CREATE_ACTION_CLIPS) + "##groupCreateAction" + group.getGroupId())) {
             int created = ActorGroupTimelineCommandService.getInstance().createActionClips(
                     group,
                     currentBrush,
@@ -356,23 +354,25 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             ImGui.endDisabled();
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("从当前播放头时间开始，为组内每个 Actor 创建 ActorActionClip，并应用 Delay 策略。");
+            ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUP_ACTION_TOOLTIP));
         }
     }
 
     private void renderGroupRouteAuthoring(ActorGroup group) {
         ImGui.spacing();
-        UITheme.label("Group Route", UITheme.DarkTheme.TEXT);
+        UITheme.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUP_ROUTE), UITheme.DarkTheme.TEXT);
 
         UUID sourceActorId = ActorSelectionHub.getSelectedActorId();
-        String sourceLabel = "Source: " + (sourceActorId != null ? sourceActorId : "no selected actor");
+        String sourceLabel = ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.SOURCE_FMT,
+                sourceActorId != null ? sourceActorId.toString()
+                        : ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.SOURCE_NONE));
         ImGui.textDisabled(sourceLabel);
 
         boolean canCreate = group.size() > 0 && sourceActorId != null;
         if (!canCreate) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button("Copy Selected Actor Route##groupCopyRoute" + group.getGroupId())) {
+        if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.COPY_SELECTED_ROUTE) + "##groupCopyRoute" + group.getGroupId())) {
             int created = ActorGroupTimelineCommandService.getInstance()
                     .copyLatestRouteFromActor(group, sourceActorId);
             LOGGER.info("[ActorProjectPropertyAdapter] Copied selected actor route to {} group members", created);
@@ -381,19 +381,19 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             ImGui.endDisabled();
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("复制当前选中 Actor 最近的 ActorRouteClip 到此组成员，并应用 Delay 策略。");
+            ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUP_ROUTE_TOOLTIP));
         }
     }
 
     private void renderGroupPlacement(ActorGroup group) {
         ImGui.spacing();
-        UITheme.label("Group Placement", UITheme.DarkTheme.TEXT);
+        UITheme.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUP_PLACEMENT), UITheme.DarkTheme.TEXT);
 
         boolean canPlace = group.size() > 0;
         if (!canPlace) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button("Place Group at Camera##groupPlaceCamera" + group.getGroupId())) {
+        if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.PLACE_GROUP_AT_CAMERA) + "##groupPlaceCamera" + group.getGroupId())) {
             int placed = ActorGroupTimelineCommandService.getInstance().placeGroupAtCamera(group);
             LOGGER.info("[ActorProjectPropertyAdapter] Placed {} group actors at camera", placed);
         }
@@ -401,7 +401,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             ImGui.endDisabled();
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("在当前播放头时间创建或更新组成员的 SpawnClip，并按 Formation/Spacing 排布。");
+            ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUP_PLACEMENT_TOOLTIP));
         }
     }
     
@@ -420,11 +420,10 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         boolean modified = false;
         
         UITheme.separator();
-        UITheme.label("Actor Properties", UITheme.DarkTheme.TEXT);
-        
-        // ---- Name ----
+        UITheme.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.ACTOR_PROPERTIES), UITheme.DarkTheme.TEXT);
+
         editingActorName.set(actor.getName());
-        if (ImGui.inputText("Name", editingActorName, ImGuiInputTextFlags.EnterReturnsTrue)) {
+        if (ImGui.inputText(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.NAME), editingActorName, ImGuiInputTextFlags.EnterReturnsTrue)) {
             String newName = editingActorName.get();
             if (newName != null && !newName.isBlank() && !newName.equals(actor.getName())) {
                 actor.setName(newName);
@@ -434,11 +433,14 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         }
         
         // ---- Type ----
-        String currentTypeName = actor.getType().name();
-        if (ImGui.beginCombo("Type", currentTypeName)) {
-            for (ActorType type : ActorType.values()) {
+        String currentTypeName = ActorPropertyAdapterI18n.actorTypeLabel(actor.getType());
+        if (ImGui.beginCombo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.TYPE), currentTypeName)) {
+            ActorType[] types = ActorType.values();
+            String[] typeLabels = ActorPropertyAdapterI18n.actorTypeLabels();
+            for (int i = 0; i < types.length; i++) {
+                ActorType type = types[i];
                 boolean isSelected = type == actor.getType();
-                if (ImGui.selectable(type.name(), isSelected)) {
+                if (ImGui.selectable(typeLabels[i], isSelected)) {
                     actor.setType(type);
                     modified = true;
                     LOGGER.debug("[ActorProjectPropertyAdapter] Actor type changed: {}", type);
@@ -453,26 +455,26 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         ImGui.spacing();
         
         // ---- Actions ----
-        if (ImGui.button("Focus in World")) {
+        if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.FOCUS_IN_WORLD))) {
             ActorSelectionHub.selectActor(actor.getActorId());
             LOGGER.debug("[ActorProjectPropertyAdapter] Focus actor in world: {}", actor.getActorId());
         }
         
         ImGui.sameLine();
         
-        if (ImGui.button("Place at Camera")) {
+        if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.PLACE_AT_CAMERA))) {
             placeActorAtCamera(actor);
             LOGGER.debug("[ActorProjectPropertyAdapter] Place actor at camera: {}", actor.getActorId());
         }
         
         ImGui.sameLine();
         
-        if (ImGui.button("Delete Actor")) {
+        if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.DELETE_ACTOR))) {
             openDeleteConfirm(actor.getActorId());
         }
         
         // 提示信息
-        ImGui.textDisabled("💡 Tip: Right-click in world to place actor");
+        ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.PLACE_TIP));
         
         ImGui.spacing();
         
@@ -508,10 +510,10 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         if (actor == null) {
             return false;
         }
-        UITheme.label("🎭 Groups", UITheme.DarkTheme.TEXT);
+        UITheme.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUPS_SECTION), UITheme.DarkTheme.TEXT);
         List<ActorGroup> groups = actorRegistry.getAllGroups();
         if (groups.isEmpty()) {
-            ImGui.textDisabled("No groups yet. Use + Add Group in the Actors project view.");
+            ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.NO_GROUPS_HINT));
             return false;
         }
 
@@ -565,7 +567,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         newActorName.set("Actor");
         newActorType = ActorType.VILLAGER;
         createPopupOpen = true;
-        ImGui.openPopup("Create Actor");
+        ImGui.openPopup(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.POPUP_CREATE));
     }
 
     private void createGroup(ActorRegistry actorRegistry) {
@@ -589,21 +591,23 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             return;
         }
         
-        if (ImGui.beginPopupModal("Create Actor")) {
-            ImGui.text("Create New Actor");
+        if (ImGui.beginPopupModal(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.POPUP_CREATE))) {
+            ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.CREATE_NEW_ACTOR));
             ImGui.separator();
-            
-            // Name input
-            if (ImGui.inputText("Name", newActorName, ImGuiInputTextFlags.EnterReturnsTrue)) {
+
+            if (ImGui.inputText(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.NAME), newActorName, ImGuiInputTextFlags.EnterReturnsTrue)) {
                 // Enter key pressed, but we'll handle it in the Create button
             }
             
             // Type combo
-            String currentTypeName = newActorType.name();
-            if (ImGui.beginCombo("Type", currentTypeName)) {
-                for (ActorType type : ActorType.values()) {
+            String currentTypeName = ActorPropertyAdapterI18n.actorTypeLabel(newActorType);
+            if (ImGui.beginCombo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.TYPE), currentTypeName)) {
+                ActorType[] types = ActorType.values();
+                String[] typeLabels = ActorPropertyAdapterI18n.actorTypeLabels();
+                for (int i = 0; i < types.length; i++) {
+                    ActorType type = types[i];
                     boolean selected = type == newActorType;
-                    if (ImGui.selectable(type.name(), selected)) {
+                    if (ImGui.selectable(typeLabels[i], selected)) {
                         newActorType = type;
                     }
                     if (selected) {
@@ -616,7 +620,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             ImGui.separator();
             
             // Buttons
-            if (ImGui.button("Create")) {
+            if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.CREATE))) {
                 String name = newActorName.get();
                 if (name != null && !name.isBlank()) {
                     // 使用新的放置系统
@@ -636,7 +640,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             
             ImGui.sameLine();
             
-            if (ImGui.button("Cancel")) {
+            if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.CANCEL))) {
                 ImGui.closeCurrentPopup();
                 createPopupOpen = false;
             }
@@ -781,11 +785,11 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         }
         
         UITheme.separator();
-        UITheme.label("Used In", UITheme.DarkTheme.TEXT);
-        
+        UITheme.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.USED_IN), UITheme.DarkTheme.TEXT);
+
         TimelineModel timeline = DirectorServices.get().containerTimeline().getTimelineModel();
         if (timeline == null) {
-            ImGui.textDisabled("No active timeline.");
+            ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.NO_TIMELINE));
             return;
         }
         
@@ -796,13 +800,13 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         );
         
         if (actorTracks.isEmpty()) {
-            ImGui.textDisabled("This actor is not used in the current timeline.");
+            ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.NOT_USED_IN_TIMELINE));
             ImGui.sameLine();
-            if (ImGui.smallButton("Delete Actor##unused")) {
+            if (ImGui.smallButton(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.DELETE_ACTOR) + "##unused")) {
                 openDeleteConfirm(actor.getActorId());
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("This actor is not used in any track. Click to delete it.");
+                ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.DELETE_UNUSED_TOOLTIP));
             }
             return;
         }
@@ -814,11 +818,9 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         );
         
         // 显示 Timeline 名称（目前只有一个 Timeline，未来可扩展）
-        String timelineName = "Current Timeline";
-        // 如果 TimelineModel 有 getName() 方法，可以使用它
-        // timelineName = timeline.getName() != null ? timeline.getName() : "Unnamed Timeline";
-        
-        ImGui.bulletText(String.format("Timeline: %s", timelineName));
+        String timelineName = ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.CURRENT_TIMELINE);
+
+        ImGui.bulletText(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.TIMELINE_FMT, timelineName));
         
         // 显示每个 Track
         ImGui.indent();
@@ -830,15 +832,13 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             if (trackDisplayName == null || trackDisplayName.isBlank()) {
                 trackDisplayName = timelineTrack != null && timelineTrack.getName() != null
                         ? timelineTrack.getName()
-                        : "Actor Track";
+                        : ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.DEFAULT_TRACK_NAME);
             }
-            
-            ImGui.text(String.format("- Track: %s", trackDisplayName));
-            
-            // Focus Track 按钮
+
+            ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.TRACK_FMT, trackDisplayName));
+
             if (timelineTrack != null) {
-                // 使用 track 的 hashCode 作为唯一标识符
-                String buttonId = "Focus Track##" + timelineTrack.hashCode();
+                String buttonId = ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.FOCUS_TRACK) + "##" + timelineTrack.hashCode();
                 if (ImGui.smallButton(buttonId)) {
                     focusTrack(timelineTrack);
                 }
@@ -967,7 +967,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     private void openDeleteConfirm(UUID actorId) {
         deletingActorId = actorId;
         deleteConfirmOpen = true;
-        ImGui.openPopup("Delete Actor");
+        ImGui.openPopup(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.POPUP_DELETE));
     }
     
     private void renderDeleteConfirmPopup(ActorRegistry actorRegistry) {
@@ -975,7 +975,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             return;
         }
         
-        if (ImGui.beginPopupModal("Delete Actor")) {
+        if (ImGui.beginPopupModal(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.POPUP_DELETE))) {
             Optional<Actor> actorOpt = actorRegistry.getActor(deletingActorId);
             if (actorOpt.isEmpty()) {
                 ImGui.closeCurrentPopup();
@@ -987,14 +987,15 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             
             Actor actor = actorOpt.get();
             
-            ImGui.text("Are you sure you want to delete this actor?");
-            ImGui.textColored(1.0f, 0.5f, 0.5f, 1.0f, 
-                String.format("Actor: %s (%s)", actor.getName(), actor.getType().name()));
-            ImGui.textDisabled("This action cannot be undone.");
-            
+            ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.DELETE_CONFIRM));
+            ImGui.textColored(1.0f, 0.5f, 0.5f, 1.0f,
+                    ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.DELETE_ACTOR_FMT,
+                            actor.getName(), ActorPropertyAdapterI18n.actorTypeLabel(actor.getType())));
+            ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.DELETE_UNDO_WARNING));
+
             ImGui.separator();
-            
-            if (ImGui.button("Delete")) {
+
+            if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DELETE))) {
                 deleteActor(actorRegistry, deletingActorId);
                 
                 ImGui.closeCurrentPopup();
@@ -1004,7 +1005,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             
             ImGui.sameLine();
             
-            if (ImGui.button("Cancel")) {
+            if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.CANCEL))) {
                 ImGui.closeCurrentPopup();
                 deleteConfirmOpen = false;
                 deletingActorId = null;
@@ -1075,12 +1076,13 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
      * <p>导演在这里选择当前绘制动作（RUN / DANCE / CARRY 等）
      */
     private void renderActionBrushSelector() {
-        UITheme.label("🎨 Action Brush", UITheme.DarkTheme.TEXT);
-        
+        UITheme.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.ACTION_BRUSH), UITheme.DarkTheme.TEXT);
+
         ActorActionType currentBrush = ActionBrushState.get();
-        String currentLabel = currentBrush != null ? currentBrush.name() : "NONE";
-        
-        if (ImGui.beginCombo("Current Brush", currentLabel)) {
+        String currentLabel = currentBrush != null ? currentBrush.name()
+                : ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.NONE);
+
+        if (ImGui.beginCombo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.CURRENT_BRUSH), currentLabel)) {
             for (ActorActionType type : ActorActionType.values()) {
                 boolean selected = type == currentBrush;
                 if (ImGui.selectable(type.name(), selected)) {
@@ -1095,9 +1097,9 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         }
         
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("选择当前绘制动作\\n在 Timeline 的演员轨道上拖拽即可创建 ActionClip");
+            ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.BRUSH_TOOLTIP));
         }
-        
-        ImGui.textDisabled("💡 在 Timeline 的演员轨道上拖拽一段，即可创建 " + currentLabel + " 动作区间");
+
+        ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.BRUSH_HINT_FMT, currentLabel));
     }
 }

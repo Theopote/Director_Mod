@@ -1,5 +1,7 @@
 package com.director.ui.properties.adapters;
 
+import com.director.i18n.ActorPropertyAdapterI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
@@ -13,17 +15,7 @@ import org.joml.Vector3f;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-/**
- * EntityLookAtClipPropertyAdapter v1.0
- *
- * <p>实体看向片段属性面板适配器。
- *
- * @author Director Team
- * @version 1.0
- */
 public class EntityLookAtClipPropertyAdapter implements IPropertyAdapter<EntityLookAtClip> {
-
-    private static final String TITLE = Icons.SMILE + " 看向片段";
 
     private final ImInt modeIndex = new ImInt();
     private final ImFloat worldPointX = new ImFloat();
@@ -38,51 +30,54 @@ public class EntityLookAtClipPropertyAdapter implements IPropertyAdapter<EntityL
     @Override
     public boolean renderProperties(EntityLookAtClip clip) {
         if (clip == null) {
-            ImGui.text("（无片段）");
+            ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.NO_CLIP));
             return false;
         }
 
         AtomicBoolean changed = new AtomicBoolean(false);
 
-        UITheme.title(TITLE);
+        UITheme.title(Icons.SMILE + " " + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.TITLE));
 
-        // ========== 基础信息 ==========
-        if (ImGui.collapsingHeader("⏱ 基础信息", ImGuiTreeNodeFlags.DefaultOpen)) {
-            UITheme.beginGroup("时间范围");
-            ImGui.text(String.format("开始: %.2fs", clip.getStartTime()));
-            ImGui.text(String.format("结束: %.2fs", clip.getEndTime()));
-            ImGui.text(String.format("时长: %.2fs", clip.getLength()));
+        if (ImGui.collapsingHeader(Icons.TIME + " "
+                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.SECTION_BASIC),
+                ImGuiTreeNodeFlags.DefaultOpen)) {
+            UITheme.beginGroup(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.TIME_RANGE));
+            ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.START_FMT, clip.getStartTime()));
+            ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.END_FMT, clip.getEndTime()));
+            ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DURATION_FMT, clip.getLength()));
             UITheme.endGroup();
         }
 
-        // ========== 目标模式 ==========
-        if (ImGui.collapsingHeader("🎯 目标模式", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(Icons.TARGET + " "
+                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.SECTION_TARGET_MODE),
+                ImGuiTreeNodeFlags.DefaultOpen)) {
             EntityLookAtClip.TargetMode[] modes = EntityLookAtClip.TargetMode.values();
-            String[] modeLabels = new String[modes.length];
             for (int i = 0; i < modes.length; i++) {
-                modeLabels[i] = modes[i].getDisplayName();
                 if (modes[i] == clip.getMode()) {
                     modeIndex.set(i);
+                    break;
                 }
             }
 
-            if (ImGui.combo("目标模式", modeIndex, modeLabels)) {
+            if (ImGui.combo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.TARGET_MODE),
+                    modeIndex, ActorPropertyAdapterI18n.lookAtTargetModeLabels())) {
                 clip.setMode(modes[modeIndex.get()]);
                 changed.set(true);
             }
         }
 
-        // ========== 目标设置 ==========
-        if (ImGui.collapsingHeader("📍 目标设置", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(Icons.PIN + " "
+                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.SECTION_TARGET),
+                ImGuiTreeNodeFlags.DefaultOpen)) {
             EntityLookAtClip.TargetMode mode = clip.getMode();
-            
+
             if (mode == EntityLookAtClip.TargetMode.WORLD_POINT) {
                 Vector3f worldPoint = clip.getWorldPoint();
                 worldPointX.set(worldPoint.x);
                 worldPointY.set(worldPoint.y);
                 worldPointZ.set(worldPoint.z);
 
-                UITheme.beginGroup("世界坐标");
+                UITheme.beginGroup(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.WORLD_COORDS));
                 if (ImGui.inputFloat("X", worldPointX)) {
                     clip.setWorldPoint(worldPointX.get(), worldPoint.y, worldPoint.z);
                     changed.set(true);
@@ -99,28 +94,28 @@ public class EntityLookAtClipPropertyAdapter implements IPropertyAdapter<EntityL
             } else if (mode == EntityLookAtClip.TargetMode.ENTITY_UUID) {
                 UUID targetUuid = clip.getTargetEntityUuid();
                 if (targetUuid != null) {
-                    ImGui.text("目标实体UUID: " + targetUuid);
+                    ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.TARGET_ENTITY_UUID_FMT, targetUuid));
                 } else {
-                    ImGui.textDisabled("未设置目标实体");
+                    ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.NO_TARGET_ENTITY));
                 }
             } else if (mode == EntityLookAtClip.TargetMode.CAMERA) {
-                ImGui.text("看向摄像机");
+                ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.LOOK_AT_CAMERA));
             }
         }
 
-        // ========== 跟随强度 ==========
-        if (ImGui.collapsingHeader("💪 跟随强度")) {
+        if (ImGui.collapsingHeader(Icons.SCALE + " "
+                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.SECTION_STRENGTH))) {
             float[] strengthArray = {clip.getStrength()};
-            if (ImGui.sliderFloat("强度", strengthArray, 0.0f, 1.0f)) {
+            if (ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.INTENSITY),
+                    strengthArray, 0.0f, 1.0f)) {
                 clip.setStrength(strengthArray[0]);
                 changed.set(true);
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("头部跟随目标的强度（0=不跟随，1=完全跟随）");
+                ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.LookAt.STRENGTH_TOOLTIP));
             }
         }
 
         return changed.get();
     }
 }
-

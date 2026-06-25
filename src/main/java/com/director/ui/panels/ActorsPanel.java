@@ -3,6 +3,8 @@ package com.director.ui.panels;
 import com.director.core.DirectorServices;
 import com.director.actor.ActorRegistry;
 import com.director.actor.ActorRegistryManager;
+import com.director.i18n.ActorPropertyAdapterI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.actor.ActorSelectorPanel;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyAdapterRegistry;
@@ -52,14 +54,14 @@ public final class ActorsPanel extends AbstractPanel {
                 adapter.renderProperties(ACTOR_PROJECT_MARKER);
             } catch (Exception e) {
                 LOGGER.error("[ActorsPanel] Failed to render actor panel", e);
-                ImGui.textDisabled("Failed to render actor panel.");
+                ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.PANEL_RENDER_ERROR));
             }
             return;
         }
 
         ensureActorSelectorInitialized();
         if (actorSelectorPanel == null) {
-            ImGui.textDisabled("Timeline model not ready.");
+            ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.TIMELINE_NOT_READY));
             return;
         }
         actorSelectorPanel.render();

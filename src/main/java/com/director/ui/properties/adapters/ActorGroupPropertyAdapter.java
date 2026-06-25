@@ -3,6 +3,8 @@ package com.director.ui.properties.adapters;
 import com.director.actor.Actor;
 import com.director.actor.ActorGroup;
 import com.director.actor.ActorRegistryManager;
+import com.director.i18n.ActorPropertyAdapterI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
@@ -21,68 +23,72 @@ public final class ActorGroupPropertyAdapter implements IPropertyAdapter<ActorGr
 
     @Override
     public String getAdapterName() {
-        return Icons.GROUP + " 演员剧团";
+        return Icons.GROUP + " " + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.ADAPTER_NAME);
     }
 
     @Override
     public boolean renderProperties(ActorGroup group) {
         if (group == null) {
-            ImGui.textDisabled("无 ActorGroup");
+            ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.NO_GROUP));
             return false;
         }
 
         boolean changed = false;
         UITheme.title(getAdapterName());
 
-        if (ImGui.collapsingHeader(Icons.INFO + " 基础信息", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(Icons.INFO + " "
+                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.SECTION_BASIC),
+                ImGuiTreeNodeFlags.DefaultOpen)) {
             ImString name = new ImString(group.getName(), 128);
-            if (ImGui.inputText("名称##actorGroupName", name)) {
+            if (ImGui.inputText(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.NAME) + "##actorGroupName", name)) {
                 group.setName(name.get());
                 changed = true;
             }
-            ImGui.text("ID: " + group.getGroupId());
-            ImGui.text("成员数: " + group.size());
+            ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.ID_FMT, group.getGroupId()));
+            ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.MEMBER_COUNT_FMT, group.size()));
         }
 
-        if (ImGui.collapsingHeader(Icons.DISTRIBUTE + " 编队", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(Icons.DISTRIBUTE + " "
+                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.SECTION_FORMATION),
+                ImGuiTreeNodeFlags.DefaultOpen)) {
             ActorGroup.FormationType[] formationTypes = ActorGroup.FormationType.values();
             ImInt formation = new ImInt(group.getFormationType().ordinal());
-            String[] labels = new String[formationTypes.length];
-            for (int i = 0; i < formationTypes.length; i++) {
-                labels[i] = formationTypes[i].name();
-            }
-            if (ImGui.combo("编队类型##groupFormation", formation, labels)) {
+            if (ImGui.combo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.FORMATION_TYPE) + "##groupFormation",
+                    formation, ActorPropertyAdapterI18n.formationTypeLabels())) {
                 group.setFormationType(formationTypes[Math.max(0, Math.min(formation.get(), formationTypes.length - 1))]);
                 changed = true;
             }
 
-            float[] spacing = { group.getFormationSpacing() };
-            if (ImGui.sliderFloat("间距##groupFormationSpacing", spacing, 0.1f, 12.0f, "%.1f blocks")) {
+            float[] spacing = {group.getFormationSpacing()};
+            if (ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.SPACING) + "##groupFormationSpacing",
+                    spacing, 0.1f, 12.0f, "%.1f blocks")) {
                 group.setFormationSpacing(spacing[0]);
                 changed = true;
             }
         }
 
-        if (ImGui.collapsingHeader(Icons.TIME + " 延迟策略", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(Icons.TIME + " "
+                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.SECTION_DELAY),
+                ImGuiTreeNodeFlags.DefaultOpen)) {
             ActorGroup.DelayPolicy[] delayPolicies = ActorGroup.DelayPolicy.values();
             ImInt delay = new ImInt(group.getDelayPolicy().ordinal());
-            String[] labels = new String[delayPolicies.length];
-            for (int i = 0; i < delayPolicies.length; i++) {
-                labels[i] = delayPolicies[i].name();
-            }
-            if (ImGui.combo("策略##groupDelayPolicy", delay, labels)) {
+            if (ImGui.combo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.DELAY_POLICY) + "##groupDelayPolicy",
+                    delay, ActorPropertyAdapterI18n.delayPolicyLabels())) {
                 group.setDelayPolicy(delayPolicies[Math.max(0, Math.min(delay.get(), delayPolicies.length - 1))]);
                 changed = true;
             }
 
-            float[] step = { group.getDelayStepSeconds() };
-            if (ImGui.sliderFloat("间隔##groupDelayStep", step, 0.0f, 5.0f, "%.2fs")) {
+            float[] step = {group.getDelayStepSeconds()};
+            if (ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.DELAY_STEP) + "##groupDelayStep",
+                    step, 0.0f, 5.0f, "%.2fs")) {
                 group.setDelayStepSeconds(step[0]);
                 changed = true;
             }
         }
 
-        if (ImGui.collapsingHeader(Icons.SMILE + " 成员", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(Icons.SMILE + " "
+                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Group.SECTION_MEMBERS),
+                ImGuiTreeNodeFlags.DefaultOpen)) {
             var registry = ActorRegistryManager.getInstance();
             for (UUID actorId : group.getActorIds()) {
                 String label = registry.getActor(actorId)
