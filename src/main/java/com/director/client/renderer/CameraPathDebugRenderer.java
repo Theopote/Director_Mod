@@ -809,39 +809,41 @@ public final class CameraPathDebugRenderer {
                     .normal(nx, ny, nz);
         }
         
-        // 渲染起始点和方向箭头（可选，用于调试）
+        // 渲染起始点、终点与方向箭头
         Vec3d startPos = clip.getStartPosition();
+        Vec3d endPos = clip.getEndPosition();
         Vec3d dollyDir = clip.getDollyDirection();
-        
+
+        if (startPos != null) {
+            boolean startSelected = CameraPathEditController.getInstance()
+                    .isLinearEndpointSelected(clip, CameraPathEditController.LinearEndpoint.START);
+            renderLinearEndpointMarker(consumer, matrix, cameraPos, startPos, startSelected,
+                    0 / 255.0f, 255 / 255.0f, 255 / 255.0f);
+        }
+        if (endPos != null) {
+            boolean endSelected = CameraPathEditController.getInstance()
+                    .isLinearEndpointSelected(clip, CameraPathEditController.LinearEndpoint.END);
+            renderLinearEndpointMarker(consumer, matrix, cameraPos, endPos, endSelected,
+                    100 / 255.0f, 255 / 255.0f, 200 / 255.0f);
+        }
+
         if (startPos != null && dollyDir != null) {
-            // 起始点：青色小点
-            float startR = 0 / 255.0f;
-            float startG = 255 / 255.0f;
-            float startB = 255 / 255.0f;
-            float startA = 255 / 255.0f;
-            double startSize = 0.1;
-            
+            float arrowR = 0 / 255.0f;
+            float arrowG = 255 / 255.0f;
+            float arrowB = 255 / 255.0f;
+            float arrowA = 255 / 255.0f;
+
             double sx = startPos.x - cameraPos.x;
             double sy = startPos.y - cameraPos.y;
             double sz = startPos.z - cameraPos.z;
-            
-            // 起始点十字
-            consumer.vertex(matrix, (float)(sx - startSize), (float) sy, (float) sz).color(startR, startG, startB, startA).normal(1f, 0f, 0f);
-            consumer.vertex(matrix, (float)(sx + startSize), (float) sy, (float) sz).color(startR, startG, startB, startA).normal(1f, 0f, 0f);
-            consumer.vertex(matrix, (float) sx, (float)(sy - startSize), (float) sz).color(startR, startG, startB, startA).normal(0f, 1f, 0f);
-            consumer.vertex(matrix, (float) sx, (float)(sy + startSize), (float) sz).color(startR, startG, startB, startA).normal(0f, 1f, 0f);
-            consumer.vertex(matrix, (float) sx, (float) sy, (float)(sz - startSize)).color(startR, startG, startB, startA).normal(0f, 0f, 1f);
-            consumer.vertex(matrix, (float) sx, (float) sy, (float)(sz + startSize)).color(startR, startG, startB, startA).normal(0f, 0f, 1f);
-            
-            // 方向箭头（显示推拉方向）
+
             double arrowLength = 2.0;
             Vec3d arrowEnd = startPos.add(dollyDir.multiply(arrowLength));
             double ex = arrowEnd.x - cameraPos.x;
             double ey = arrowEnd.y - cameraPos.y;
             double ez = arrowEnd.z - cameraPos.z;
-            
-            consumer.vertex(matrix, (float) sx, (float) sy, (float) sz).color(startR, startG, startB, startA).normal(0f, 1f, 0f);
-            consumer.vertex(matrix, (float) ex, (float) ey, (float) ez).color(startR, startG, startB, startA).normal(0f, 1f, 0f);
+
+            drawLine(consumer, matrix, sx, sy, sz, ex, ey, ez, arrowR, arrowG, arrowB, arrowA);
         }
     }
     
@@ -925,28 +927,44 @@ public final class CameraPathDebugRenderer {
                     .normal(nx, ny, nz);
         }
         
-        // 渲染起始点（可选，用于调试）
+        // 渲染起始点与终点
         Vec3d startPos = clip.getStartPosition();
+        Vec3d endPos = clip.getEndPosition();
         if (startPos != null) {
-            // 起始点：橙色小点
-            float startR = 255 / 255.0f;
-            float startG = 200 / 255.0f;
-            float startB = 0 / 255.0f;
-            float startA = 255 / 255.0f;
-            double startSize = 0.1;
-            
-            double sx = startPos.x - cameraPos.x;
-            double sy = startPos.y - cameraPos.y;
-            double sz = startPos.z - cameraPos.z;
-            
-            // 起始点十字
-            consumer.vertex(matrix, (float)(sx - startSize), (float) sy, (float) sz).color(startR, startG, startB, startA).normal(1f, 0f, 0f);
-            consumer.vertex(matrix, (float)(sx + startSize), (float) sy, (float) sz).color(startR, startG, startB, startA).normal(1f, 0f, 0f);
-            consumer.vertex(matrix, (float) sx, (float)(sy - startSize), (float) sz).color(startR, startG, startB, startA).normal(0f, 1f, 0f);
-            consumer.vertex(matrix, (float) sx, (float)(sy + startSize), (float) sz).color(startR, startG, startB, startA).normal(0f, 1f, 0f);
-            consumer.vertex(matrix, (float) sx, (float) sy, (float)(sz - startSize)).color(startR, startG, startB, startA).normal(0f, 0f, 1f);
-            consumer.vertex(matrix, (float) sx, (float) sy, (float)(sz + startSize)).color(startR, startG, startB, startA).normal(0f, 0f, 1f);
+            boolean startSelected = CameraPathEditController.getInstance()
+                    .isLinearEndpointSelected(clip, CameraPathEditController.LinearEndpoint.START);
+            renderLinearEndpointMarker(consumer, matrix, cameraPos, startPos, startSelected,
+                    255 / 255.0f, 200 / 255.0f, 0 / 255.0f);
         }
+        if (endPos != null) {
+            boolean endSelected = CameraPathEditController.getInstance()
+                    .isLinearEndpointSelected(clip, CameraPathEditController.LinearEndpoint.END);
+            renderLinearEndpointMarker(consumer, matrix, cameraPos, endPos, endSelected,
+                    255 / 255.0f, 140 / 255.0f, 80 / 255.0f);
+        }
+    }
+
+    private void renderLinearEndpointMarker(
+            VertexConsumer consumer,
+            Matrix4f matrix,
+            Vec3d cameraPos,
+            Vec3d worldPos,
+            boolean selected,
+            float baseR, float baseG, float baseB) {
+        double cx = worldPos.x - cameraPos.x;
+        double cy = worldPos.y - cameraPos.y;
+        double cz = worldPos.z - cameraPos.z;
+        double distToCam = Math.sqrt(cx * cx + cy * cy + cz * cz);
+        double size = Math.max(0.35, Math.min(1.2, distToCam * 0.025));
+        if (selected) {
+            size *= 1.25;
+        }
+
+        float r = selected ? 0 / 255.0f : baseR;
+        float g = selected ? 255 / 255.0f : baseG;
+        float b = selected ? 255 / 255.0f : baseB;
+        float a = 255 / 255.0f;
+        drawCross(consumer, matrix, cx, cy, cz, size, r, g, b, a);
     }
     
     /**

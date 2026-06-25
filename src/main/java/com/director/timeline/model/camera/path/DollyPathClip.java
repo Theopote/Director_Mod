@@ -191,6 +191,82 @@ public class DollyPathClip extends CameraPathClip {
         // 这正是 Dolly 的导演语义：推近但构图不变
         return new CameraPathSample(pos, null);
     }
+
+    /** 路径终点（t=1） */
+    public Vec3d getEndPosition() {
+        if (startPosition == null || dollyDirection == null) {
+            return null;
+        }
+        return startPosition.add(dollyDirection.multiply(distance));
+    }
+
+    public java.util.List<Vec3d> samplePathPositions() {
+        return samplePathPositions(16);
+    }
+
+    public java.util.List<Vec3d> samplePathPositions(int minSampleCount) {
+        java.util.List<Vec3d> points = new java.util.ArrayList<>();
+        float duration = getEndTime() - getStartTime();
+        if (duration <= 0) {
+            return points;
+        }
+        int sampleCount = Math.max(minSampleCount, (int) (duration * 10));
+        for (int i = 0; i <= sampleCount; i++) {
+            float timeSeconds = getStartTime() + (duration * i) / sampleCount;
+            CameraPathSample sample = sample(timeSeconds);
+            if (sample != null) {
+                points.add(sample.getPosition());
+            }
+        }
+        return points;
+    }
+
+    /** 拖动起点：保持终点不动，更新方向与距离 */
+    public void applyStartEndpointDelta(Vec3d delta) {
+        if (delta == null || delta.lengthSquared() < 1e-12) {
+            return;
+        }
+        ensurePathInitialized();
+        Vec3d end = getEndPosition();
+        if (startPosition == null || end == null) {
+            return;
+        }
+        setEndpointsFromPositions(startPosition.add(delta), end);
+    }
+
+    /** 拖动终点：保持起点不动，更新方向与距离 */
+    public void applyEndEndpointDelta(Vec3d delta) {
+        if (delta == null || delta.lengthSquared() < 1e-12) {
+            return;
+        }
+        ensurePathInitialized();
+        Vec3d end = getEndPosition();
+        if (startPosition == null || end == null) {
+            return;
+        }
+        setEndpointsFromPositions(startPosition, end.add(delta));
+    }
+
+    private void setEndpointsFromPositions(Vec3d start, Vec3d end) {
+        Vec3d offset = end.subtract(start);
+        double len = offset.length();
+        if (len < 1e-6) {
+            return;
+        }
+        this.startPosition = start;
+        this.dollyDirection = offset.multiply(1.0 / len);
+        this.distance = (float) len;
+        this.alignStartToCurrentPosition = false;
+        if (directionMode == DirectionMode.FIXED_DIRECTION) {
+            this.fixedDirection = this.dollyDirection;
+        }
+    }
+
+    private void ensurePathInitialized() {
+        if (startPosition == null || dollyDirection == null) {
+            sample(getStartTime());
+        }
+    }
     
     // ========== Getter / Setter ==========
     

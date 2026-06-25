@@ -154,6 +154,64 @@ public class CranePathClip extends CameraPathClip {
         // 这正是 Crane 的导演语义：升降但构图不变
         return new CameraPathSample(pos, null);
     }
+
+    /** 路径终点（t=1） */
+    public Vec3d getEndPosition() {
+        if (startPosition == null) {
+            return null;
+        }
+        return new Vec3d(startPosition.x, startPosition.y + heightDelta, startPosition.z);
+    }
+
+    public java.util.List<Vec3d> samplePathPositions() {
+        return samplePathPositions(16);
+    }
+
+    public java.util.List<Vec3d> samplePathPositions(int minSampleCount) {
+        java.util.List<Vec3d> points = new java.util.ArrayList<>();
+        float duration = getEndTime() - getStartTime();
+        if (duration <= 0) {
+            return points;
+        }
+        int sampleCount = Math.max(minSampleCount, (int) (duration * 10));
+        for (int i = 0; i <= sampleCount; i++) {
+            float timeSeconds = getStartTime() + (duration * i) / sampleCount;
+            CameraPathSample sample = sample(timeSeconds);
+            if (sample != null) {
+                points.add(sample.getPosition());
+            }
+        }
+        return points;
+    }
+
+    /** 拖动起点：保持升降高度差不变，整体平移立柱 */
+    public void applyStartEndpointDelta(Vec3d delta) {
+        if (delta == null || delta.lengthSquared() < 1e-12) {
+            return;
+        }
+        ensurePathInitialized();
+        if (startPosition == null) {
+            return;
+        }
+        startPosition = startPosition.add(delta);
+        alignStartToCurrentPosition = false;
+    }
+
+    /** 拖动终点：仅调整垂直高度差 */
+    public void applyEndEndpointDelta(Vec3d delta) {
+        if (delta == null || Math.abs(delta.y) < 1e-6) {
+            return;
+        }
+        ensurePathInitialized();
+        heightDelta += (float) delta.y;
+        alignStartToCurrentPosition = false;
+    }
+
+    private void ensurePathInitialized() {
+        if (startPosition == null) {
+            sample(getStartTime());
+        }
+    }
     
     // ========== Getter / Setter ==========
     

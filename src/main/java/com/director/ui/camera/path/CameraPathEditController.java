@@ -13,7 +13,10 @@ import com.director.timeline.model.TimelineSelectable;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
 import com.director.timeline.model.camera.CameraKeyframe;
+import com.director.timeline.model.camera.path.CameraPathClip;
+import com.director.timeline.model.camera.path.CranePathClip;
 import com.director.timeline.model.camera.path.CustomPathClip;
+import com.director.timeline.model.camera.path.DollyPathClip;
 import com.director.timeline.model.camera.path.OrbitPathClip;
 import com.director.timeline.playback.camera.CameraSample;
 import com.director.timeline.playback.camera.TimelineCameraController;
@@ -50,6 +53,10 @@ public final class CameraPathEditController {
     private static final double ORBIT_CENTER_PICK_DISTANCE_SCALE = 0.008;
     private static final double ORBIT_PATH_PICK_BASE_RADIUS = 0.55;
     private static final double ORBIT_PATH_PICK_DISTANCE_SCALE = 0.006;
+    private static final double LINEAR_ENDPOINT_PICK_BASE_RADIUS = 0.45;
+    private static final double LINEAR_ENDPOINT_PICK_DISTANCE_SCALE = 0.008;
+    private static final double LINEAR_PATH_PICK_BASE_RADIUS = 0.55;
+    private static final double LINEAR_PATH_PICK_DISTANCE_SCALE = 0.006;
     private static final double ANCHOR_PICK_BASE_RADIUS = 0.35;
     private static final double ANCHOR_PICK_DISTANCE_SCALE = 0.006;
     private static final double CURVE_PICK_BASE_RADIUS = 0.28;
@@ -67,6 +74,8 @@ public final class CameraPathEditController {
     private boolean previousPathRendererEnabled = false;
     private CameraKeyframe selectedKeyframe = null;
     private OrbitPathClip selectedOrbitClip = null;
+    private CameraPathClip selectedLinearClip = null;
+    private LinearEndpoint selectedLinearEndpoint = null;
     private Vec3d lastGizmoPosition = null;
     private boolean pendingWorldMouseDown = false;
     private boolean boxDragging = false;
@@ -82,6 +91,14 @@ public final class CameraPathEditController {
     private double lastClickY = 0.0;
 
     private CameraPathEditController() {
+    }
+
+    public enum LinearEndpoint {
+        START,
+        END
+    }
+
+    private record LinearPathHit(CameraPathClip clip, LinearEndpoint endpoint, double distance) {
     }
 
     public static CameraPathEditController getInstance() {
@@ -102,8 +119,12 @@ public final class CameraPathEditController {
         CameraPathDebugRenderer.getInstance().setEnabled(true);
         selectedKeyframe = findSelectedCameraKeyframe();
         selectedOrbitClip = findSelectedOrbitClip();
+        selectedLinearClip = findSelectedLinearPathClip();
+        selectedLinearEndpoint = selectedLinearClip != null ? LinearEndpoint.START : null;
         if (selectedOrbitClip != null) {
             showGizmoForOrbitCenter(selectedOrbitClip);
+        } else if (selectedLinearClip != null && selectedLinearEndpoint != null) {
+            showGizmoForLinearEndpoint(selectedLinearClip, selectedLinearEndpoint);
         } else if (selectedKeyframe != null) {
             showGizmoFor(selectedKeyframe);
         }
@@ -122,6 +143,8 @@ public final class CameraPathEditController {
         lastClickTimeMs = 0L;
         selectedKeyframe = null;
         selectedOrbitClip = null;
+        selectedLinearClip = null;
+        selectedLinearEndpoint = null;
         CameraPathDebugRenderer.getInstance().setEnabled(previousPathRendererEnabled);
         if (GizmoManager.get().isActive()) {
             GizmoManager.get().deactivate();
@@ -139,6 +162,28 @@ public final class CameraPathEditController {
 
     OrbitPathClip getSelectedOrbitClip() {
         return selectedOrbitClip;
+    }
+
+    CameraPathClip getSelectedLinearClip() {
+        return selectedLinearClip;
+    }
+
+    LinearEndpoint getSelectedLinearEndpoint() {
+        return selectedLinearEndpoint;
+    }
+
+    Vec3d getLinearEndpointPosition(CameraPathClip clip, LinearEndpoint endpoint) {
+        if (clip == null || endpoint == null) {
+            return null;
+        }
+        ensureLinearClipInitialized(clip);
+        if (clip instanceof DollyPathClip dolly) {
+            return endpoint == LinearEndpoint.START ? dolly.getStartPosition() : dolly.getEndPosition();
+        }
+        if (clip instanceof CranePathClip crane) {
+            return endpoint == LinearEndpoint.START ? crane.getStartPosition() : crane.getEndPosition();
+        }
+        return null;
     }
 
     static boolean isLookAtSameAsCenter(Vec3d center, Vec3d lookAt) {
@@ -172,6 +217,9 @@ public final class CameraPathEditController {
         if (selectedOrbitClip != null && !containsActiveTrackOrbitClip(selectedOrbitClip)) {
             clearSelectionAndGizmo();
         }
+        if (selectedLinearClip != null && !containsActiveTrackLinearClip(selectedLinearClip)) {
+            clearSelectionAndGizmo();
+        }
 
         boolean draggingNow = GizmoManager.get().isDraggingHandle();
 
@@ -183,6 +231,8 @@ public final class CameraPathEditController {
 
         if (selectedOrbitClip != null && !draggingNow) {
             syncGizmoToSelectedOrbitCenter();
+        } else if (selectedLinearClip != null && selectedLinearEndpoint != null && !draggingNow) {
+            syncGizmoToSelectedLinearEndpoint();
         } else if (selectedKeyframe != null && !draggingNow) {
             syncGizmoToSelectedKeyframe();
         }
@@ -190,6 +240,10 @@ public final class CameraPathEditController {
         if (wasGizmoDragging && !draggingNow) {
             TimelineModel model = getTimelineModel();
             if (selectedOrbitClip != null) {
+                if (model != null) {
+                    model.markDirty();
+                }
+            } else if (selectedLinearClip != null) {
                 if (model != null) {
                     model.markDirty();
                 }
@@ -336,6 +390,25 @@ public final class CameraPathEditController {
         return false;
     }
 
+    public boolean isLinearEndpointSelected(CameraPathClip clip, LinearEndpoint endpoint) {
+        if (!active || clip == null || endpoint == null) {
+            return false;
+        }
+        if (selectedLinearClip != clip || selectedLinearEndpoint != endpoint) {
+            return false;
+        }
+        TimelineModel model = getTimelineModel();
+        if (model == null) {
+            return true;
+        }
+        for (Object item : model.getSelectedItems()) {
+            if (item == clip && containsActiveTrackLinearClip(clip)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private boolean isMouseOverDirectorUi() {
         return InputFocusManager.getInstance().isPanelHovered()
                 || ImGui.isAnyItemHovered()
@@ -404,6 +477,8 @@ public final class CameraPathEditController {
         }
         selectedKeyframe = null;
         selectedOrbitClip = null;
+        selectedLinearClip = null;
+        selectedLinearEndpoint = null;
         lastGizmoPosition = null;
         if (GizmoManager.get().isActive()) {
             GizmoManager.get().deactivate();
@@ -438,6 +513,12 @@ public final class CameraPathEditController {
             return;
         }
 
+        LinearPathHit linearPicked = pickNearestLinearInteraction(ray.origin(), ray.direction());
+        if (linearPicked != null) {
+            selectLinearEndpoint(linearPicked.clip(), linearPicked.endpoint());
+            return;
+        }
+
         CameraKeyframe picked = pickNearestKeyframe(ray.origin(), ray.direction());
         if (picked == null) {
             picked = pickNearestKeyframeFromCurve(ray.origin(), ray.direction());
@@ -448,6 +529,8 @@ public final class CameraPathEditController {
         }
 
         selectedOrbitClip = null;
+        selectedLinearClip = null;
+        selectedLinearEndpoint = null;
         selectedKeyframe = picked;
         TimelineModel model = getTimelineModel();
         if (model != null) {
@@ -458,6 +541,8 @@ public final class CameraPathEditController {
 
     private void selectOrbitCenter(OrbitPathClip clip) {
         selectedKeyframe = null;
+        selectedLinearClip = null;
+        selectedLinearEndpoint = null;
         selectedOrbitClip = clip;
         TimelineModel model = getTimelineModel();
         if (model != null) {
@@ -466,15 +551,38 @@ public final class CameraPathEditController {
         showGizmoForOrbitCenter(clip);
     }
 
+    private void selectLinearEndpoint(CameraPathClip clip, LinearEndpoint endpoint) {
+        selectedKeyframe = null;
+        selectedOrbitClip = null;
+        selectedLinearClip = clip;
+        selectedLinearEndpoint = endpoint;
+        TimelineModel model = getTimelineModel();
+        if (model != null) {
+            model.selectItem(clip, false);
+        }
+        showGizmoForLinearEndpoint(clip, endpoint);
+    }
+
     private void syncSelectionFromTimeline() {
         OrbitPathClip orbit = findSelectedOrbitClip();
+        CameraPathClip linear = findSelectedLinearPathClip();
         CameraKeyframe keyframe = findSelectedCameraKeyframe();
         if (orbit != null && orbit != selectedOrbitClip) {
             selectedKeyframe = null;
+            selectedLinearClip = null;
+            selectedLinearEndpoint = null;
             selectedOrbitClip = orbit;
             showGizmoForOrbitCenter(orbit);
+        } else if (linear != null && (linear != selectedLinearClip || selectedLinearEndpoint == null)) {
+            selectedKeyframe = null;
+            selectedOrbitClip = null;
+            selectedLinearClip = linear;
+            selectedLinearEndpoint = LinearEndpoint.START;
+            showGizmoForLinearEndpoint(linear, LinearEndpoint.START);
         } else if (keyframe != null && keyframe != selectedKeyframe) {
             selectedOrbitClip = null;
+            selectedLinearClip = null;
+            selectedLinearEndpoint = null;
             selectedKeyframe = keyframe;
             showGizmoFor(keyframe);
         }
@@ -575,6 +683,94 @@ public final class CameraPathEditController {
         return best;
     }
 
+    private LinearPathHit pickNearestLinearInteraction(Vec3d rayOrigin, Vec3d rayDir) {
+        if (!active || !CameraPathDebugRenderer.getInstance().isEnabled()) {
+            return null;
+        }
+
+        TimelineTrack track = TimelineCameraController.getInstance().getActiveCameraTrack();
+        if (track == null || track.getType() != TrackType.CAMERA) {
+            return null;
+        }
+
+        LinearPathHit best = null;
+        for (CameraPathClip pathClip : track.getCameraPathClips()) {
+            if (!(pathClip instanceof DollyPathClip || pathClip instanceof CranePathClip) || !pathClip.isEnabled()) {
+                continue;
+            }
+            ensureLinearClipInitialized(pathClip);
+
+            for (LinearEndpoint endpoint : LinearEndpoint.values()) {
+                Vec3d point = getLinearEndpointPosition(pathClip, endpoint);
+                if (point == null) {
+                    continue;
+                }
+                double distance = distanceRayToPoint(rayOrigin, rayDir, point);
+                double threshold = LINEAR_ENDPOINT_PICK_BASE_RADIUS
+                        + Math.min(1.0, rayOrigin.distanceTo(point) * LINEAR_ENDPOINT_PICK_DISTANCE_SCALE);
+                if (distance <= threshold && (best == null || distance < best.distance())) {
+                    best = new LinearPathHit(pathClip, endpoint, distance);
+                }
+            }
+
+            java.util.List<Vec3d> points = sampleLinearPathPositions(pathClip);
+            for (int i = 0; i < points.size() - 1; i++) {
+                SegmentHit hit = distanceRayToSegment(rayOrigin, rayDir, points.get(i), points.get(i + 1));
+                double threshold = LINEAR_PATH_PICK_BASE_RADIUS
+                        + Math.min(1.0, rayOrigin.distanceTo(hit.point) * LINEAR_PATH_PICK_DISTANCE_SCALE);
+                if (hit.distance > threshold) {
+                    continue;
+                }
+                Vec3d start = getLinearEndpointPosition(pathClip, LinearEndpoint.START);
+                Vec3d end = getLinearEndpointPosition(pathClip, LinearEndpoint.END);
+                if (start == null || end == null) {
+                    continue;
+                }
+                LinearEndpoint endpoint = start.squaredDistanceTo(hit.point) <= end.squaredDistanceTo(hit.point)
+                        ? LinearEndpoint.START
+                        : LinearEndpoint.END;
+                if (best == null || hit.distance < best.distance()) {
+                    best = new LinearPathHit(pathClip, endpoint, hit.distance);
+                }
+            }
+        }
+        return best;
+    }
+
+    private static double distanceRayToPoint(Vec3d rayOrigin, Vec3d rayDir, Vec3d point) {
+        double t = point.subtract(rayOrigin).dotProduct(rayDir);
+        if (t < 0) {
+            return Double.POSITIVE_INFINITY;
+        }
+        Vec3d closest = rayOrigin.add(rayDir.multiply(t));
+        return closest.distanceTo(point);
+    }
+
+    private static java.util.List<Vec3d> sampleLinearPathPositions(CameraPathClip clip) {
+        if (clip instanceof DollyPathClip dolly) {
+            return dolly.samplePathPositions();
+        }
+        if (clip instanceof CranePathClip crane) {
+            return crane.samplePathPositions();
+        }
+        return java.util.List.of();
+    }
+
+    private static void ensureLinearClipInitialized(CameraPathClip clip) {
+        if (clip == null) {
+            return;
+        }
+        if (clip instanceof DollyPathClip dolly) {
+            if (dolly.getStartPosition() == null || dolly.getDollyDirection() == null) {
+                dolly.sample(clip.getStartTime());
+            }
+        } else if (clip instanceof CranePathClip crane) {
+            if (crane.getStartPosition() == null) {
+                crane.sample(clip.getStartTime());
+            }
+        }
+    }
+
     private boolean isDoubleClick(MinecraftClient client) {
         long now = System.currentTimeMillis();
         double dx = client.mouse.getX() - lastClickX;
@@ -631,6 +827,8 @@ public final class CameraPathEditController {
 
         selectedKeyframe = keyframe;
         selectedOrbitClip = null;
+        selectedLinearClip = null;
+        selectedLinearEndpoint = null;
         showGizmoFor(keyframe);
         return true;
     }
@@ -679,10 +877,14 @@ public final class CameraPathEditController {
         if (selected.size() == 1) {
             selectedKeyframe = selected.getFirst();
             selectedOrbitClip = null;
+            selectedLinearClip = null;
+            selectedLinearEndpoint = null;
             showGizmoFor(selectedKeyframe);
         } else {
             selectedKeyframe = null;
             selectedOrbitClip = null;
+            selectedLinearClip = null;
+            selectedLinearEndpoint = null;
             if (GizmoManager.get().isActive()) {
                 GizmoManager.get().deactivate();
             }
@@ -849,6 +1051,42 @@ public final class CameraPathEditController {
         }
     }
 
+    private void showGizmoForLinearEndpoint(CameraPathClip clip, LinearEndpoint endpoint) {
+        Vec3d pos = getLinearEndpointPosition(clip, endpoint);
+        if (pos == null) {
+            return;
+        }
+        Box box = anchorBox(pos);
+        GizmoManager.get().activate(GizmoType.TRANSFORM, box, pos);
+        lastGizmoPosition = pos;
+        GizmoInteractionController controller = GizmoManager.get().getController();
+        if (controller != null) {
+            controller.setRotationHandles(Collections.emptyList());
+            controller.setTransformApplier(new LinearPathEndpointTransformApplier(this));
+        }
+    }
+
+    private void syncGizmoToSelectedLinearEndpoint() {
+        if (!GizmoManager.get().isActive()) {
+            showGizmoForLinearEndpoint(selectedLinearClip, selectedLinearEndpoint);
+            return;
+        }
+        Vec3d pos = getLinearEndpointPosition(selectedLinearClip, selectedLinearEndpoint);
+        if (pos == null) {
+            return;
+        }
+        if (lastGizmoPosition == null || lastGizmoPosition.squaredDistanceTo(pos) > GIZMO_SYNC_EPSILON_SQ) {
+            GizmoManager.get().setTargetBox(anchorBox(pos));
+            GizmoManager.get().setPivot(pos);
+            lastGizmoPosition = pos;
+        }
+        GizmoInteractionController controller = GizmoManager.get().getController();
+        if (controller != null && !(controller.getTransformApplier() instanceof LinearPathEndpointTransformApplier)) {
+            controller.setRotationHandles(Collections.emptyList());
+            controller.setTransformApplier(new LinearPathEndpointTransformApplier(this));
+        }
+    }
+
     private void showGizmoFor(CameraKeyframe keyframe) {
         Vec3d pos = toVec(keyframe.getPosition());
         Box box = anchorBox(pos);
@@ -889,9 +1127,21 @@ public final class CameraPathEditController {
         }
     }
 
+    private void clearLinearSelectionAndGizmo() {
+        selectedLinearClip = null;
+        selectedLinearEndpoint = null;
+        lastGizmoPosition = null;
+        if (GizmoManager.get().isActive()
+                && GizmoManager.get().getController() != null
+                && GizmoManager.get().getController().getTransformApplier() instanceof LinearPathEndpointTransformApplier) {
+            GizmoManager.get().deactivate();
+        }
+    }
+
     private void clearSelectionAndGizmo() {
         selectedKeyframe = null;
         clearOrbitSelectionAndGizmo();
+        clearLinearSelectionAndGizmo();
         lastGizmoPosition = null;
         TimelineModel model = getTimelineModel();
         if (model != null) {
@@ -913,6 +1163,38 @@ public final class CameraPathEditController {
             }
         }
         return null;
+    }
+
+    private CameraPathClip findSelectedLinearPathClip() {
+        TimelineModel model = getTimelineModel();
+        if (model == null) {
+            return selectedLinearClip;
+        }
+        for (Object item : model.getSelectedItems()) {
+            if (item instanceof DollyPathClip dolly && containsActiveTrackLinearClip(dolly)) {
+                return dolly;
+            }
+            if (item instanceof CranePathClip crane && containsActiveTrackLinearClip(crane)) {
+                return crane;
+            }
+        }
+        return null;
+    }
+
+    private boolean containsActiveTrackLinearClip(CameraPathClip clip) {
+        if (clip == null) {
+            return false;
+        }
+        TimelineTrack track = TimelineCameraController.getInstance().getActiveCameraTrack();
+        if (track == null || track.getType() != TrackType.CAMERA) {
+            return false;
+        }
+        for (CameraPathClip pathClip : track.getCameraPathClips()) {
+            if (pathClip == clip) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean containsActiveTrackOrbitClip(OrbitPathClip clip) {
