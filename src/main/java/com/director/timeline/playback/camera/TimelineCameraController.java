@@ -132,9 +132,10 @@ public final class TimelineCameraController extends AbstractModelTimelinePlaybac
     /**
      * 绑定 TimelineModel。
      */
-    public synchronized void setTimelineModel(TimelineModel model) {
+    @Override
+    public synchronized void init(TimelineModel model) {
         cameraDataDirty = true;
-        init(model);
+        super.init(model);
     }
 
     @Nullable
@@ -313,22 +314,6 @@ public final class TimelineCameraController extends AbstractModelTimelinePlaybac
         LOGGER.debug("[TimelineCameraController] 停止播放");
     }
 
-    /**
-     * @deprecated 使用 beginScrubbing/updateScrubbing/endScrubbing 代替
-     *             scrubbing 状态现在完全由 TimelineModel 管理
-     */
-    @Deprecated
-    public void setScrubbing(boolean scrubbing) {
-        // 不再使用内部变量，状态由 TimelineModel 管理
-        if (timelineModel != null) {
-            timelineModel.setScrubbing(scrubbing);
-        }
-        if (!scrubbing) {
-            this.previewing = false;
-            this.previewSample = null;
-        }
-    }
-
     /** 由 TimelineModel.setPlaying(false) 通知 */
     public void onPlaybackStopped() {
         LOGGER.debug("[TimelineCameraController] 播放停止");
@@ -362,7 +347,7 @@ public final class TimelineCameraController extends AbstractModelTimelinePlaybac
 
     /**
      * TimelinePanel 每帧调用：根据播放/拖动/预览状态切换 owner 并采样。
-     * ⭐ 修复：添加 synchronized，与 setActiveCameraTrack / setTimelineModel 等保持一致，
+     * ⭐ 修复：添加 synchronized，与 setActiveCameraTrack / init 等保持一致，
      *   避免并发读写 activeCameraTrack / previewing / timelineModel 导致状态撕裂。
      */
     public synchronized void updateOwnerAndSample(float deltaSeconds) {

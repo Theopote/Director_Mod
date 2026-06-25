@@ -271,7 +271,7 @@ public class TimelinePanel extends AbstractPanel
 
         // 注册片段方块控制器，根据播放头位置控制片段方块显示
         com.director.timeline.playback.block.TimelineClipBlockController.getInstance().setTimelineModel(model);
-        TimelineCameraController.getInstance().setTimelineModel(model);
+        TimelineCameraController.getInstance().init(model);
         // ⭐ 注册时间轨道控制器，控制世界时间和太阳角度
         TimelineWorldController.getInstance().setTimelineModel(model);
         // ⭐ 注册时间轨道控制器，控制世界时间和太阳角度
@@ -878,8 +878,8 @@ public class TimelinePanel extends AbstractPanel
      *
      * <p>⭐ 关键修复 (v3.2)：
      * <ul>
-     *   <li>左键按下时：通知 TimelineCameraController.setScrubbing(true)</li>
-     *   <li>左键松开时：通知 TimelineCameraController.setScrubbing(false)</li>
+     *   <li>左键按下时：通知 TimelineCameraController.beginScrubbing()</li>
+     *   <li>左键松开时：通知 TimelineCameraController.endScrubbing()</li>
      *   <li>让"拖动播放头"状态与相机状态机同步，避免 PREVIEW/GAME 来回切换</li>
      * </ul>
      *

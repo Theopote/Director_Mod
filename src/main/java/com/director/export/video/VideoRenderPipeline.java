@@ -173,7 +173,7 @@ public final class VideoRenderPipeline {
         TimelineTrack track = cameraTracks.get(idx);
 
         TimelineCameraController cameraController = TimelineCameraController.getInstance();
-        cameraController.setTimelineModel(model); // 确保已绑定（重复调用安全）
+        cameraController.init(model); // 确保已绑定（重复调用安全）
         cameraController.setActiveCameraTrack(track);
         // 导出模式必须“严格确定”：不能把采样写到 player 实体上让渲染用 tickDelta 插值，否则会出现逐帧抖动。
         // 这里让 CameraRuntime 进入 TIMELINE owner，由 CameraMixin 在 Camera.update(TAIL)
