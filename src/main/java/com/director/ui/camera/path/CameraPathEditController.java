@@ -48,6 +48,8 @@ public final class CameraPathEditController {
 
     private static final double ORBIT_CENTER_PICK_BASE_RADIUS = 0.45;
     private static final double ORBIT_CENTER_PICK_DISTANCE_SCALE = 0.008;
+    private static final double ORBIT_PATH_PICK_BASE_RADIUS = 0.55;
+    private static final double ORBIT_PATH_PICK_DISTANCE_SCALE = 0.006;
     private static final double ANCHOR_PICK_BASE_RADIUS = 0.35;
     private static final double ANCHOR_PICK_DISTANCE_SCALE = 0.006;
     private static final double CURVE_PICK_BASE_RADIUS = 0.28;
@@ -151,7 +153,15 @@ public final class CameraPathEditController {
     }
 
     public void update() {
-        if (!active) {
+        boolean trajectoryVisible = CameraPathDebugRenderer.getInstance().isEnabled();
+        if (!active && !trajectoryVisible) {
+            if (selectedOrbitClip != null) {
+                TimelineModel model = getTimelineModel();
+                if (model != null) {
+                    model.clearSelection();
+                }
+                clearOrbitSelectionAndGizmo();
+            }
             return;
         }
 
@@ -160,6 +170,72 @@ public final class CameraPathEditController {
             return;
         }
 
+        if (!trajectoryVisible && !active) {
+            clearOrbitSelectionAndGizmo();
+            return;
+        }
+
+        if (!active) {
+            updateOrbitTrajectoryInteraction(client);
+            return;
+        }
+
+        updateFullCameraPathEdit(client);
+    }
+
+    /** 「轨迹」开启但未激活摄像机路径工具时：仅支持围绕轨迹/中心拾取与 Gizmo 拖动 */
+    private void updateOrbitTrajectoryInteraction(MinecraftClient client) {
+        if (selectedOrbitClip != null && !containsActiveTrackOrbitClip(selectedOrbitClip)) {
+            clearOrbitSelectionAndGizmo();
+        }
+
+        boolean draggingNow = GizmoManager.get().isDraggingHandle();
+
+        if (!draggingNow && !GizmoManager.get().isHot()) {
+            syncSelectionFromTimeline();
+        }
+
+        if (selectedOrbitClip != null && !draggingNow) {
+            syncGizmoToSelectedOrbitCenter();
+        }
+
+        if (wasGizmoDragging && !draggingNow && selectedOrbitClip != null) {
+            TimelineModel model = getTimelineModel();
+            if (model != null) {
+                model.markDirty();
+            }
+        }
+        wasGizmoDragging = draggingNow;
+
+        boolean leftDown = isLeftMouseDown(client);
+
+        if (leftDown && !lastLeftMouseDown && GizmoManager.get().isHot()) {
+            gizmoMouseCaptured = true;
+        }
+        if (!leftDown) {
+            gizmoMouseCaptured = false;
+        }
+        if (draggingNow || (leftDown && gizmoMouseCaptured)) {
+            pendingWorldMouseDown = false;
+            lastLeftMouseDown = leftDown;
+            return;
+        }
+
+        if (!pendingWorldMouseDown && isMouseOverDirectorUi()) {
+            lastLeftMouseDown = leftDown;
+            return;
+        }
+
+        if (leftDown && !lastLeftMouseDown) {
+            pendingWorldMouseDown = true;
+        } else if (!leftDown && lastLeftMouseDown && pendingWorldMouseDown) {
+            handleOrbitTrajectoryPick();
+            pendingWorldMouseDown = false;
+        }
+        lastLeftMouseDown = leftDown;
+    }
+
+    private void updateFullCameraPathEdit(MinecraftClient client) {
         if (selectedKeyframe != null && !containsActiveTrackKeyframe(selectedKeyframe)) {
             clearSelectionAndGizmo();
         }
@@ -420,13 +496,32 @@ public final class CameraPathEditController {
         return selected;
     }
 
+    private void handleOrbitTrajectoryPick() {
+        DirectorInputSystem.ImGuiRay ray = DirectorInputSystem.computeImGuiRay();
+        if (ray == null) {
+            return;
+        }
+
+        OrbitPathClip orbitPicked = pickNearestOrbitInteraction(ray.origin(), ray.direction());
+        if (orbitPicked != null) {
+            selectOrbitCenter(orbitPicked);
+            return;
+        }
+
+        TimelineModel model = getTimelineModel();
+        if (model != null) {
+            model.clearSelection();
+        }
+        clearOrbitSelectionAndGizmo();
+    }
+
     private void handleAnchorPick() {
         DirectorInputSystem.ImGuiRay ray = DirectorInputSystem.computeImGuiRay();
         if (ray == null) {
             return;
         }
 
-        OrbitPathClip orbitPicked = pickNearestOrbitCenter(ray.origin(), ray.direction());
+        OrbitPathClip orbitPicked = pickNearestOrbitInteraction(ray.origin(), ray.direction());
         if (orbitPicked != null) {
             selectOrbitCenter(orbitPicked);
             return;
@@ -474,11 +569,73 @@ public final class CameraPathEditController {
         }
     }
 
-    private OrbitPathClip pickNearestOrbitCenter(Vec3d rayOrigin, Vec3d rayDir) {
+    private OrbitPathClip pickNearestOrbitInteraction(Vec3d rayOrigin, Vec3d rayDir) {
         if (!CameraPathDebugRenderer.getInstance().isEnabled()) {
             return null;
         }
 
+        OrbitPathClip pathPick = pickNearestOrbitPath(rayOrigin, rayDir);
+        OrbitPathClip centerPick = pickNearestOrbitCenter(rayOrigin, rayDir);
+        if (pathPick == null) {
+            return centerPick;
+        }
+        if (centerPick == null) {
+            return pathPick;
+        }
+        return pickOrbitHitDistance(rayOrigin, rayDir, pathPick, true)
+                <= pickOrbitHitDistance(rayOrigin, rayDir, centerPick, false)
+                ? pathPick
+                : centerPick;
+    }
+
+    private double pickOrbitHitDistance(Vec3d rayOrigin, Vec3d rayDir, OrbitPathClip clip, boolean pathNotCenter) {
+        if (pathNotCenter) {
+            double best = Double.POSITIVE_INFINITY;
+            java.util.List<Vec3d> points = clip.samplePathPositions();
+            for (int i = 0; i < points.size() - 1; i++) {
+                SegmentHit hit = distanceRayToSegment(rayOrigin, rayDir, points.get(i), points.get(i + 1));
+                if (hit.distance < best) {
+                    best = hit.distance;
+                }
+            }
+            return best;
+        }
+        Vec3d point = clip.getCenter();
+        double t = point.subtract(rayOrigin).dotProduct(rayDir);
+        if (t < 0) {
+            return Double.POSITIVE_INFINITY;
+        }
+        Vec3d closest = rayOrigin.add(rayDir.multiply(t));
+        return closest.distanceTo(point);
+    }
+
+    private OrbitPathClip pickNearestOrbitPath(Vec3d rayOrigin, Vec3d rayDir) {
+        TimelineTrack track = TimelineCameraController.getInstance().getActiveCameraTrack();
+        if (track == null || track.getType() != TrackType.CAMERA) {
+            return null;
+        }
+
+        OrbitPathClip best = null;
+        double bestDistance = Double.POSITIVE_INFINITY;
+        for (com.director.timeline.model.camera.path.CameraPathClip pathClip : track.getCameraPathClips()) {
+            if (!(pathClip instanceof OrbitPathClip orbit) || !orbit.isEnabled()) {
+                continue;
+            }
+            java.util.List<Vec3d> points = orbit.samplePathPositions();
+            for (int i = 0; i < points.size() - 1; i++) {
+                SegmentHit hit = distanceRayToSegment(rayOrigin, rayDir, points.get(i), points.get(i + 1));
+                double threshold = ORBIT_PATH_PICK_BASE_RADIUS
+                        + Math.min(1.0, rayOrigin.distanceTo(hit.point) * ORBIT_PATH_PICK_DISTANCE_SCALE);
+                if (hit.distance <= threshold && hit.distance < bestDistance) {
+                    bestDistance = hit.distance;
+                    best = orbit;
+                }
+            }
+        }
+        return best;
+    }
+
+    private OrbitPathClip pickNearestOrbitCenter(Vec3d rayOrigin, Vec3d rayDir) {
         TimelineTrack track = TimelineCameraController.getInstance().getActiveCameraTrack();
         if (track == null || track.getType() != TrackType.CAMERA) {
             return null;
@@ -811,9 +968,19 @@ public final class CameraPathEditController {
         }
     }
 
+    private void clearOrbitSelectionAndGizmo() {
+        selectedOrbitClip = null;
+        lastGizmoPosition = null;
+        if (GizmoManager.get().isActive()
+                && GizmoManager.get().getController() != null
+                && GizmoManager.get().getController().getTransformApplier() instanceof OrbitCenterTransformApplier) {
+            GizmoManager.get().deactivate();
+        }
+    }
+
     private void clearSelectionAndGizmo() {
         selectedKeyframe = null;
-        selectedOrbitClip = null;
+        clearOrbitSelectionAndGizmo();
         lastGizmoPosition = null;
         TimelineModel model = getTimelineModel();
         if (model != null) {

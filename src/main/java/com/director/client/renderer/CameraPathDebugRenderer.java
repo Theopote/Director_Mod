@@ -606,8 +606,7 @@ public final class CameraPathDebugRenderer {
      * 渲染单个 OrbitPathClip 的围绕轨迹
      */
     private void renderOrbitPath(VertexConsumerProvider consumers, Matrix4f matrix, Vec3d cameraPos, OrbitPathClip clip) {
-        // 采样围绕路径的点
-        List<Vec3d> orbitPoints = sampleOrbitPath(clip);
+        List<Vec3d> orbitPoints = clip.samplePathPositions();
         if (orbitPoints.size() < 2) {
             if (LOGGER.isTraceEnabled()) {
                 LOGGER.trace("[CameraPathDebugRenderer] OrbitPathClip 采样点不足 ({} 个点)，跳过渲染", orbitPoints.size());
@@ -657,43 +656,23 @@ public final class CameraPathDebugRenderer {
                     .normal(nx, ny, nz);
         }
 
-        // 渲染中心点和注视点（可选，用于调试）
+        // 渲染中心点与辅助连线（更易辨认）
+        boolean centerSelected = CameraPathEditController.getInstance().isOrbitCenterSelected(clip);
+        renderOrbitCenterMarker(consumer, matrix, cameraPos, clip, orbitPoints, centerSelected);
+
         Vec3d center = clip.getCenter();
         Vec3d lookAt = clip.getLookAt();
-        
-        // 中心点：黄色小点（选中时高亮为青色并放大）
-        boolean centerSelected = CameraPathEditController.getInstance().isOrbitCenterSelected(clip);
-        float centerR = centerSelected ? 0 / 255.0f : 255 / 255.0f;
-        float centerG = centerSelected ? 255 / 255.0f : 255 / 255.0f;
-        float centerB = centerSelected ? 255 / 255.0f : 0 / 255.0f;
-        float centerA = 255 / 255.0f;
-        double centerSize = centerSelected ? 0.18 : 0.1;
-        
-        double cx = center.x - cameraPos.x;
-        double cy = center.y - cameraPos.y;
-        double cz = center.z - cameraPos.z;
-        
-        // 中心点十字
-        consumer.vertex(matrix, (float)(cx - centerSize), (float) cy, (float) cz).color(centerR, centerG, centerB, centerA).normal(1f, 0f, 0f);
-        consumer.vertex(matrix, (float)(cx + centerSize), (float) cy, (float) cz).color(centerR, centerG, centerB, centerA).normal(1f, 0f, 0f);
-        consumer.vertex(matrix, (float) cx, (float)(cy - centerSize), (float) cz).color(centerR, centerG, centerB, centerA).normal(0f, 1f, 0f);
-        consumer.vertex(matrix, (float) cx, (float)(cy + centerSize), (float) cz).color(centerR, centerG, centerB, centerA).normal(0f, 1f, 0f);
-        consumer.vertex(matrix, (float) cx, (float) cy, (float)(cz - centerSize)).color(centerR, centerG, centerB, centerA).normal(0f, 0f, 1f);
-        consumer.vertex(matrix, (float) cx, (float) cy, (float)(cz + centerSize)).color(centerR, centerG, centerB, centerA).normal(0f, 0f, 1f);
-
-        // 如果注视点与中心点不同，渲染注视点
         if (!lookAt.equals(center)) {
             float lookAtR = 255 / 255.0f;
             float lookAtG = 200 / 255.0f;
             float lookAtB = 0 / 255.0f;
             float lookAtA = 255 / 255.0f;
             double lookAtSize = 0.08;
-            
+
             double lx = lookAt.x - cameraPos.x;
             double ly = lookAt.y - cameraPos.y;
             double lz = lookAt.z - cameraPos.z;
-            
-            // 注视点十字
+
             consumer.vertex(matrix, (float)(lx - lookAtSize), (float) ly, (float) lz).color(lookAtR, lookAtG, lookAtB, lookAtA).normal(1f, 0f, 0f);
             consumer.vertex(matrix, (float)(lx + lookAtSize), (float) ly, (float) lz).color(lookAtR, lookAtG, lookAtB, lookAtA).normal(1f, 0f, 0f);
             consumer.vertex(matrix, (float) lx, (float)(ly - lookAtSize), (float) lz).color(lookAtR, lookAtG, lookAtB, lookAtA).normal(0f, 1f, 0f);
@@ -703,38 +682,83 @@ public final class CameraPathDebugRenderer {
         }
     }
 
-    /**
-     * 采样 OrbitPathClip 的路径点
-     */
-    private List<Vec3d> sampleOrbitPath(OrbitPathClip clip) {
-        List<Vec3d> points = new java.util.ArrayList<>();
-        
-        float startTime = clip.getStartTime();
-        float endTime = clip.getEndTime();
-        float duration = endTime - startTime;
-        
-        if (duration <= 0) {
-            return points;
+    private void renderOrbitCenterMarker(
+            VertexConsumer consumer,
+            Matrix4f matrix,
+            Vec3d cameraPos,
+            OrbitPathClip clip,
+            List<Vec3d> orbitPoints,
+            boolean centerSelected) {
+        Vec3d center = clip.getCenter();
+        double cx = center.x - cameraPos.x;
+        double cy = center.y - cameraPos.y;
+        double cz = center.z - cameraPos.z;
+        double distToCam = Math.sqrt(cx * cx + cy * cy + cz * cz);
+        double centerSize = Math.max(0.35, Math.min(1.2, distToCam * 0.025));
+        if (centerSelected) {
+            centerSize *= 1.25;
         }
-        
-        // 采样点数：根据时长决定，确保轨迹平滑
-        // 至少32个点，或每0.1秒一个点，确保圆形轨迹足够平滑
-        int sampleCount = Math.max(32, (int)(duration * 10));
-        
-        for (int i = 0; i <= sampleCount; i++) {
-            float t = (float) i / sampleCount;
-            float timeSeconds = startTime + t * duration;
-            
-            // 使用 clip 的 sample 方法获取位置
-            var sample = clip.sample(timeSeconds);
-            if (sample != null) {
-                points.add(sample.getPosition());
-            }
+
+        float centerR = centerSelected ? 0 / 255.0f : 255 / 255.0f;
+        float centerG = centerSelected ? 255 / 255.0f : 255 / 255.0f;
+        float centerB = centerSelected ? 255 / 255.0f : 0 / 255.0f;
+        float centerA = 255 / 255.0f;
+
+        drawCross(consumer, matrix, cx, cy, cz, centerSize, centerR, centerG, centerB, centerA);
+
+        // 垂直指示线
+        double pole = Math.max(0.75, clip.getRadius() * 0.2);
+        drawLine(consumer, matrix, cx, cy, cz, cx, cy + pole, cz, centerR, centerG, centerB, 180 / 255.0f);
+
+        // 中心到轨迹的辐条（起点 + 中点）
+        float spokeR = 255 / 255.0f;
+        float spokeG = 220 / 255.0f;
+        float spokeB = 64 / 255.0f;
+        float spokeA = 180 / 255.0f;
+        Vec3d ringStart = orbitPoints.getFirst();
+        drawWorldLine(consumer, matrix, cameraPos, center, ringStart, spokeR, spokeG, spokeB, spokeA);
+        if (orbitPoints.size() > 2) {
+            Vec3d ringMid = orbitPoints.get(orbitPoints.size() / 2);
+            drawWorldLine(consumer, matrix, cameraPos, center, ringMid, spokeR, spokeG, spokeB, spokeA);
         }
-        
-        return points;
     }
-    
+
+    private static void drawCross(
+            VertexConsumer consumer, Matrix4f matrix,
+            double x, double y, double z, double size,
+            float r, float g, float b, float a) {
+        drawLine(consumer, matrix, x - size, y, z, x + size, y, z, r, g, b, a);
+        drawLine(consumer, matrix, x, y - size, z, x, y + size, z, r, g, b, a);
+        drawLine(consumer, matrix, x, y, z - size, x, y, z + size, r, g, b, a);
+    }
+
+    private static void drawWorldLine(
+            VertexConsumer consumer, Matrix4f matrix, Vec3d cameraPos,
+            Vec3d from, Vec3d to,
+            float r, float g, float b, float a) {
+        drawLine(
+                consumer, matrix,
+                from.x - cameraPos.x, from.y - cameraPos.y, from.z - cameraPos.z,
+                to.x - cameraPos.x, to.y - cameraPos.y, to.z - cameraPos.z,
+                r, g, b, a);
+    }
+
+    private static void drawLine(
+            VertexConsumer consumer, Matrix4f matrix,
+            double x0, double y0, double z0,
+            double x1, double y1, double z1,
+            float r, float g, float b, float a) {
+        double dx = x1 - x0;
+        double dy = y1 - y0;
+        double dz = z1 - z0;
+        double len = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        float nx = len > 1e-6 ? (float) (dx / len) : 0f;
+        float ny = len > 1e-6 ? (float) (dy / len) : 1f;
+        float nz = len > 1e-6 ? (float) (dz / len) : 0f;
+        consumer.vertex(matrix, (float) x0, (float) y0, (float) z0).color(r, g, b, a).normal(nx, ny, nz);
+        consumer.vertex(matrix, (float) x1, (float) y1, (float) z1).color(r, g, b, a).normal(nx, ny, nz);
+    }
+
     /**
      * 渲染单个 DollyPathClip 的推拉轨迹
      */

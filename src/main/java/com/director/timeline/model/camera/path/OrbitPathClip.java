@@ -177,6 +177,33 @@ public class OrbitPathClip extends CameraPathClip {
         Vec3d position = new Vec3d(x, y, z);
         return new CameraPathSample(position, lookAt);
     }
+
+    /**
+     * 采样环绕轨迹上的世界坐标点（用于调试渲染与视口拾取）。
+     */
+    public java.util.List<Vec3d> samplePathPositions() {
+        return samplePathPositions(32);
+    }
+
+    public java.util.List<Vec3d> samplePathPositions(int minSampleCount) {
+        java.util.List<Vec3d> points = new java.util.ArrayList<>();
+        float startTime = getStartTime();
+        float endTime = getEndTime();
+        float duration = endTime - startTime;
+        if (duration <= 0) {
+            return points;
+        }
+        int sampleCount = Math.max(minSampleCount, (int) (duration * 10));
+        for (int i = 0; i <= sampleCount; i++) {
+            float t = (float) i / sampleCount;
+            float timeSeconds = startTime + t * duration;
+            CameraPathSample sample = this.sample(timeSeconds);
+            if (sample != null) {
+                points.add(sample.getPosition());
+            }
+        }
+        return points;
+    }
     
     // ========== Getter / Setter ==========
     
