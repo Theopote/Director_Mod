@@ -527,13 +527,13 @@ public class OrbitPathClip extends CameraPathClip {
     }
 
     /**
-     * 从当前摄像机状态一次性对齐环绕参数（属性面板 / 新建片段用）。
+     * 从当前摄像机状态一次性对齐环绕参数（属性面板捕获 / 新建片段用）。
      *
-     * <p>将 Center、LookAt、半径、起始角、高度固化为可重复播放的配置值，
-     * 不再依赖播放时动态从当前镜头推导。
+     * <p>将 Center、LookAt、半径、起始角、高度固化为可重复播放的配置值。
+     * 仅写入参数，不驱动时间线采样；调用方应避免紧接着触发轨道预览。
      *
      * @param ctx 当前摄像机状态（位置 + yaw/pitch）
-     * @param orbitCenter 环绕中心与默认注视点（通常为射线命中点或视线前方点）
+     * @param orbitCenter 环绕中心与默认注视点（通常为射线命中方块中心或视线前方点）
      */
     public void alignFromCurrentCamera(CameraPathEnterContext ctx, Vec3d orbitCenter) {
         if (ctx == null || ctx.position == null || orbitCenter == null) {

@@ -7,6 +7,7 @@ import com.director.ui.theme.UITheme;
 import com.director.timeline.container.ContainerTimelineService;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.camera.path.CameraPathEnterContext;
+import com.director.timeline.model.camera.path.OrbitCenterResolver;
 import com.director.timeline.model.camera.path.OrbitPathClip;
 import com.director.timeline.playback.camera.CameraAccessor;
 import com.director.timeline.playback.camera.CameraRuntime;
@@ -74,6 +75,9 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
     private boolean wasRadiusSliderActive = false;
     private boolean wasStartAngleSliderActive = false;
     private boolean wasEndAngleSliderActive = false;
+
+    /** 捕获视角后跳过本帧实时预览，避免参数写入后镜头跳变 */
+    private boolean suppressPreviewAfterCapture = false;
     
     @Override
     public Class<OrbitPathClip> getTargetType() {
@@ -137,7 +141,7 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
         
         // ========== 分区 1：路径类型与时间（只读）==========
         renderHeader(clip);
-        modified |= renderQuickAlignSection(clip, isPlayheadOnClip);
+        modified |= renderQuickAlignSection(clip);
         ImGui.separator();
         
         // ========== 分区 2：围绕中心 ==========
@@ -162,9 +166,11 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
         }
         
         // ⭐ 实时预览：如果参数被修改且播放头在当前 clip 上，立即更新摄像机
-        if (modified && isPlayheadOnClip) {
+        // 捕获视角时只写参数，不预览（否则会立刻用轨道采样覆盖玩家视角）
+        if (modified && isPlayheadOnClip && !suppressPreviewAfterCapture) {
             updateCameraPreview(clip);
         }
+        suppressPreviewAfterCapture = false;
         
         return modified;
     }
@@ -203,22 +209,23 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
     }
 
     /**
-     * 快捷操作：从当前玩家镜头一次性对齐环绕参数。
+     * 快捷操作：从当前玩家视角捕获环绕参数（只写参数，不移动镜头）。
      */
-    private boolean renderQuickAlignSection(OrbitPathClip clip, boolean isPlayheadOnClip) {
-        if (ImGui.button(Icons.CAMERA + " 从当前镜头对齐")) {
-            if (alignAllFromCurrentCamera(clip)) {
+    private boolean renderQuickAlignSection(OrbitPathClip clip) {
+        if (ImGui.button(Icons.CAMERA + " 从当前视角捕获")) {
+            if (captureFromCurrentView(clip)) {
                 syncCacheFromClip(clip);
-                if (isPlayheadOnClip) {
-                    updateCameraPreview(clip);
-                }
+                suppressPreviewAfterCapture = true;
                 return true;
             }
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip(
-                    "将 Center、LookAt、半径、起始角和高度对齐到当前玩家镜头。\n"
-                            + "环绕中心优先取准星命中的方块，否则取视线前方 10 格处。"
+                    "将 Center、LookAt、半径、起始角和高度对齐到当前玩家视角。\n"
+                            + "环绕中心：准星命中的方块中心；看向空气时取视线前方 "
+                            + (int) OrbitCenterResolver.DEFAULT_AIR_LOOK_DISTANCE
+                            + " 格处。\n"
+                            + "仅更新参数，不会移动当前镜头。"
             );
         }
         return false;
@@ -733,59 +740,44 @@ public class OrbitPathClipPropertyAdapter implements IPropertyAdapter<OrbitPathC
     }
     
     /**
-     * 从当前玩家镜头一次性对齐所有环绕参数。
+     * 从当前玩家视角捕获环绕参数。
      *
-     * @return 是否成功对齐
+     * <p>只更新 OrbitPathClip 的数值，不触发时间线预览，避免镜头跳变。
+     *
+     * @return 是否成功捕获
      */
-    private boolean alignAllFromCurrentCamera(OrbitPathClip clip) {
+    private boolean captureFromCurrentView(OrbitPathClip clip) {
         try {
             MinecraftClient client = MinecraftClient.getInstance();
+            CameraRuntime runtime = CameraRuntime.getInstance();
+
+            // 时间线接管时先释放，确保读到的是玩家正在看的画面
+            if (!runtime.isPlayerOwner()) {
+                TimelineCameraController.getInstance().releaseCameraToPlayer();
+            }
+
             CameraSample sample = null;
             if (client != null) {
                 sample = CameraAccessor.sampleFromGameCamera(client);
             }
             if (sample == null) {
-                sample = CameraRuntime.getInstance().getCurrentSample();
+                sample = runtime.getCurrentSample();
             }
             if (sample == null || sample == CameraSample.EMPTY) {
-                LOGGER.warn("[OrbitPathClipPropertyAdapter] 无法获取当前摄像机状态，无法对齐");
+                LOGGER.warn("[OrbitPathClipPropertyAdapter] 无法获取当前摄像机状态，无法捕获");
                 return false;
             }
 
             Vec3d cameraPos = sample.position();
             CameraPathEnterContext ctx = new CameraPathEnterContext(cameraPos, sample.yaw(), sample.pitch());
-            Vec3d orbitCenter = resolveOrbitCenterFromCamera(client, cameraPos, ctx);
+            Vec3d orbitCenter = OrbitCenterResolver.resolve(client, ctx);
 
             clip.alignFromCurrentCamera(ctx, orbitCenter);
             return true;
         } catch (Exception e) {
-            LOGGER.error("[OrbitPathClipPropertyAdapter] 从当前镜头对齐失败", e);
+            LOGGER.error("[OrbitPathClipPropertyAdapter] 从当前视角捕获失败", e);
             return false;
         }
-    }
-
-    /**
-     * 解析环绕中心：优先准星射线命中点，否则取视线前方 10 格。
-     */
-    private static Vec3d resolveOrbitCenterFromCamera(
-            MinecraftClient client, Vec3d cameraPos, CameraPathEnterContext ctx) {
-        BlockHitResult hit = null;
-        try {
-            hit = com.director.client.input.DirectorInputSystem.getCurrentRay();
-        } catch (Exception ignored) {
-        }
-        if (hit == null && client != null && client.crosshairTarget instanceof BlockHitResult bhr) {
-            hit = bhr;
-        }
-        if (hit != null && hit.getType() == HitResult.Type.BLOCK) {
-            BlockPos blockPos = hit.getBlockPos();
-            return new Vec3d(
-                    blockPos.getX() + 0.5,
-                    blockPos.getY() + 0.5,
-                    blockPos.getZ() + 0.5
-            );
-        }
-        return cameraPos.add(ctx.getForward().multiply(10.0));
     }
 
     /**
