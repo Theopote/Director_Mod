@@ -54,6 +54,11 @@ public final class CameraTrackSampler {
     /** ⭐ 记录上一帧的摄像机状态，用于传递给 onEnter() */
     private CameraSample lastSample = null;
 
+    /** 当前 PathClip 入口处的朝向（Dolly/Crane 保持构图用） */
+    private CameraPathClip entryOrientationClip = null;
+    private float entryOrientationYaw = 0f;
+    private float entryOrientationPitch = 0f;
+
     /** ⭐ 是否正在接管摄像机控制权（用于 tick() 状态管理） */
     private boolean active = false;
 
@@ -71,6 +76,7 @@ public final class CameraTrackSampler {
         if (this.cameraTrack != track) {
             this.lastActivePathClip = null;
             this.lastSample = null;
+            this.entryOrientationClip = null;
         }
         this.cameraTrack = track;
     }
@@ -104,6 +110,7 @@ public final class CameraTrackSampler {
     public void onStop() {
         // ⭐ 清空 lastActivePathClip，确保下次进入 PathClip 时能触发 onEnter()
         lastActivePathClip = null;
+        entryOrientationClip = null;
         // 注意：保留 lastSample，因为可能立即进入另一个 PathClip
         active = false;
         if (LOGGER.isDebugEnabled()) {
@@ -228,35 +235,15 @@ public final class CameraTrackSampler {
                         activePathClip.getClass().getSimpleName(), timeSeconds);
             }
 
-            // 刚进入 PathClip，触发 onEnter() 生命周期钩子
-            // 使用上一帧的摄像机状态作为进入上下文
-            if (lastSample != null) {
-                // 从上一帧的 CameraSample 构造进入上下文
-                // ⭐ 使用 yaw/pitch 构造函数，更精确且支持 CAMERA_FORWARD 模式
-                Vec3d lastPos = lastSample.position();
-                CameraPathEnterContext ctx = new CameraPathEnterContext(
-                        lastPos,
-                        lastSample.yaw(),
-                        lastSample.pitch());
+            CameraPathEnterContext ctx = resolvePathClipEnterContext(activePathClip);
+            if (ctx != null) {
                 activePathClip.onEnter(ctx);
-            } else {
-                // 如果没有上一帧状态，尝试从 CameraRuntime 获取当前状态
-                try {
-                    CameraRuntime runtime = CameraRuntime.getInstance();
-                    CameraSample currentSample = runtime.getCurrentSample();
-                    if (currentSample != null) {
-                        Vec3d currentPos = currentSample.position();
-                        // ⭐ 使用 yaw/pitch 构造函数
-                        CameraPathEnterContext ctx = new CameraPathEnterContext(
-                                currentPos,
-                                currentSample.yaw(),
-                                currentSample.pitch());
-                        activePathClip.onEnter(ctx);
-                    }
-                } catch (Exception e) {
-                    // ⭐ 记录异常而非静默吞掉，便于排查 PathClip 初始化问题
-                    LOGGER.warn("[CameraTrackSampler] onEnter fallback 获取 CameraRuntime 状态失败", e);
-                }
+                entryOrientationClip = activePathClip;
+                entryOrientationYaw = ctx.yaw;
+                entryOrientationPitch = ctx.pitch;
+            } else if (LOGGER.isWarnEnabled()) {
+                LOGGER.warn("[CameraTrackSampler] 无法解析 PathClip 进入上下文: {} @ {}s",
+                        activePathClip.getClass().getSimpleName(), timeSeconds);
             }
         }
 
@@ -310,29 +297,27 @@ public final class CameraTrackSampler {
                     yaw = (float) Math.toDegrees(Math.atan2(-direction.x, direction.z));
                     pitch = (float) Math.toDegrees(Math.asin(-direction.y));
                 } else {
-                    // lookAt 为 null，沿用上一帧或关键帧的朝向
-                    if (lastSample != null) {
-                        // 使用上一帧的朝向（保持构图）
+                    // lookAt 为 null：锁定片段入口朝向，保持 Dolly/Crane 构图
+                    if (activePathClip == entryOrientationClip) {
+                        yaw = entryOrientationYaw;
+                        pitch = entryOrientationPitch;
+                    } else if (lastSample != null) {
                         yaw = lastSample.yaw();
                         pitch = lastSample.pitch();
-                    } else {
-                        // 如果没有上一帧，从关键帧获取朝向
-                        if (!keyframes.isEmpty()) {
-                            Optional<CameraSample> keyframeSample = pathManager.sample(timeSeconds);
-                            if (keyframeSample.isPresent()) {
-                                CameraSample kfSample = keyframeSample.get();
-                                cachedKeyframeSample = kfSample;
-                                yaw = kfSample.yaw();
-                                pitch = kfSample.pitch();
-                            } else {
-                                // 最后的 fallback：使用默认朝向
-                                yaw = 0f;
-                                pitch = 0f;
-                            }
+                    } else if (!keyframes.isEmpty()) {
+                        Optional<CameraSample> keyframeSample = pathManager.sample(timeSeconds);
+                        if (keyframeSample.isPresent()) {
+                            CameraSample kfSample = keyframeSample.get();
+                            cachedKeyframeSample = kfSample;
+                            yaw = kfSample.yaw();
+                            pitch = kfSample.pitch();
                         } else {
                             yaw = 0f;
                             pitch = 0f;
                         }
+                    } else {
+                        yaw = 0f;
+                        pitch = 0f;
                     }
                 }
 
@@ -427,6 +412,7 @@ public final class CameraTrackSampler {
         if (activePathClip == null && lastActivePathClip != null) {
             // 离开 PathClip，重置状态
             lastActivePathClip = null;
+            entryOrientationClip = null;
             // 注意：保留 lastSample，因为可能立即进入另一个 PathClip
         } else {
             lastActivePathClip = activePathClip;
@@ -434,5 +420,147 @@ public final class CameraTrackSampler {
         lastSample = result;
 
         return Optional.of(result);
+    }
+
+    /**
+     * 解析进入 PathClip 时传给 onEnter() 的上下文。
+     *
+     * <p>使用片段起点处的摄像机状态（不含本片段自身的位移/旋转），
+     * 确保 Dolly/Crane/Orbit 的起始点与关键帧或前序片段无缝衔接；
+     * 直接 scrub 到片段中间时也不会把“当前 scrub 位置”误当成起点。
+     */
+    private CameraPathEnterContext resolvePathClipEnterContext(CameraPathClip enteringClip) {
+        if (enteringClip == null) {
+            return null;
+        }
+
+        float entryTime = enteringClip.getStartTime();
+        if (entryTime > 1e-4f) {
+            Optional<CameraSample> beforeStart = sampleAtTimeExcludingPathClip(entryTime - 1e-4f, enteringClip);
+            if (beforeStart.isPresent()) {
+                CameraSample sample = beforeStart.get();
+                return new CameraPathEnterContext(sample.position(), sample.yaw(), sample.pitch());
+            }
+        }
+
+        if (!keyframes.isEmpty()) {
+            Optional<CameraSample> keyframeSample = pathManager.sample(entryTime);
+            if (keyframeSample.isPresent()) {
+                CameraSample sample = keyframeSample.get();
+                return new CameraPathEnterContext(sample.position(), sample.yaw(), sample.pitch());
+            }
+        }
+
+        if (lastSample != null) {
+            return new CameraPathEnterContext(lastSample.position(), lastSample.yaw(), lastSample.pitch());
+        }
+
+        try {
+            CameraSample currentSample = CameraRuntime.getInstance().getCurrentSample();
+            if (currentSample != null && currentSample != CameraSample.EMPTY) {
+                return new CameraPathEnterContext(
+                        currentSample.position(),
+                        currentSample.yaw(),
+                        currentSample.pitch());
+            }
+        } catch (Exception e) {
+            LOGGER.warn("[CameraTrackSampler] resolvePathClipEnterContext fallback 获取 CameraRuntime 状态失败", e);
+        }
+
+        return null;
+    }
+
+    /**
+     * 在指定时间采样，但忽略 {@code excludeClip} 的路径贡献（用于解析片段入口状态）。
+     */
+    private Optional<CameraSample> sampleAtTimeExcludingPathClip(float timeSeconds, CameraPathClip excludeClip) {
+        CameraPathClip activePathClip = null;
+        if (cameraTrack != null && cameraTrack.hasCameraPathClips()) {
+            activePathClip = cameraTrack.findActivePathClip(timeSeconds);
+            if (activePathClip == excludeClip) {
+                activePathClip = null;
+            }
+        }
+
+        if (activePathClip == null) {
+            if (keyframes.isEmpty()) {
+                return Optional.empty();
+            }
+            return pathManager.sample(timeSeconds);
+        }
+
+        if (activePathClip instanceof CustomPathClip customPathClip) {
+            CameraSample customSample = customPathClip.sampleCamera(timeSeconds);
+            if (customSample != null) {
+                return Optional.of(customSample);
+            }
+            return pathManager.sample(timeSeconds);
+        }
+
+        CameraPathSample pathSample = activePathClip.sample(timeSeconds);
+        if (pathSample == null) {
+            return pathManager.sample(timeSeconds);
+        }
+
+        Vec3d position = pathSample.getPosition();
+        float yaw;
+        float pitch;
+
+        if (pathSample.hasLookAt()) {
+            Vec3d direction = pathSample.getDirection();
+            yaw = (float) Math.toDegrees(Math.atan2(-direction.x, direction.z));
+            pitch = (float) Math.toDegrees(Math.asin(-direction.y));
+        } else if (!keyframes.isEmpty()) {
+            Optional<CameraSample> keyframeSample = pathManager.sample(timeSeconds);
+            if (keyframeSample.isPresent()) {
+                CameraSample kfSample = keyframeSample.get();
+                yaw = kfSample.yaw();
+                pitch = kfSample.pitch();
+            } else {
+                yaw = 0f;
+                pitch = 0f;
+            }
+        } else {
+            yaw = 0f;
+            pitch = 0f;
+        }
+
+        return Optional.of(buildCameraSampleFromPath(position, yaw, pitch, timeSeconds));
+    }
+
+    private CameraSample buildCameraSampleFromPath(Vec3d position, float yaw, float pitch, float timeSeconds) {
+        float roll = 0f;
+        float fov = 70f;
+        float nearPlane = 0.1f;
+        float farPlane = 1000f;
+        boolean depthOfFieldEnabled = false;
+        float focusDistance = 10f;
+        float aperture = 2.8f;
+
+        if (!keyframes.isEmpty()) {
+            Optional<CameraSample> keyframeSample = pathManager.sample(timeSeconds);
+            if (keyframeSample.isPresent()) {
+                CameraSample kfSample = keyframeSample.get();
+                roll = kfSample.roll();
+                fov = kfSample.fov();
+                nearPlane = kfSample.nearPlane();
+                farPlane = kfSample.farPlane();
+                depthOfFieldEnabled = kfSample.depthOfFieldEnabled();
+                focusDistance = kfSample.focusDistance();
+                aperture = kfSample.aperture();
+            }
+        }
+
+        return new CameraSample(
+                position,
+                yaw,
+                pitch,
+                roll,
+                fov,
+                nearPlane,
+                farPlane,
+                depthOfFieldEnabled,
+                focusDistance,
+                aperture);
     }
 }

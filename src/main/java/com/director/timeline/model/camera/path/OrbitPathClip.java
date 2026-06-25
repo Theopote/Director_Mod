@@ -150,14 +150,8 @@ public class OrbitPathClip extends CameraPathClip {
      * 在归一化时间 [0,1] 处采样
      */
     private CameraPathSample sampleAtNormalizedTime(float t) {
-        // 角度插值
-        float angle = lerp(startAngle, endAngle, t);
-        
-        // 顺时针/逆时针
-        if (clockwise) {
-            angle = -angle;  // 顺时针为负角度（数学上）
-        }
-        
+        float angle = interpolateOrbitAngle(startAngle, endAngle, t, clockwise);
+
         // 转换为弧度
         double rad = Math.toRadians(angle);
         
@@ -417,6 +411,10 @@ public class OrbitPathClip extends CameraPathClip {
         // ⭐ 兼容性：如果 alignStartToCurrentPosition 为 true，也执行对齐（向后兼容）
         boolean shouldAlignAngle = (startAngleMode == StartAngleMode.FROM_CURRENT_POSITION) || alignStartToCurrentPosition;
         
+        if (heightMode == HeightMode.KEEP_CURRENT) {
+            cachedHeight = (float) pos.y;
+        }
+
         if (shouldAlignAngle) {
             alignStartAngleFromCamera(ctx);
         }
@@ -594,6 +592,26 @@ public class OrbitPathClip extends CameraPathClip {
     private static float lerp(float a, float b, float t) {
         t = Math.max(0f, Math.min(1f, t));
         return a + (b - a) * t;
+    }
+
+    /**
+     * 按选定方向在起止角之间插值。
+     * 完整一圈（≈360°）时顺时针走 -360°，逆时针走 +360°；
+     * 部分扫过时顺时针取反方向弧（例如 0°→90° 顺时针为 -270°）。
+     */
+    static float interpolateOrbitAngle(float start, float end, float t, boolean clockwise) {
+        t = Math.max(0f, Math.min(1f, t));
+        float sweep = end - start;
+        if (Math.abs(sweep - 360f) < 0.1f) {
+            sweep = clockwise ? -360f : 360f;
+        } else if (clockwise) {
+            if (sweep > 0f) {
+                sweep -= 360f;
+            }
+        } else if (sweep < 0f) {
+            sweep += 360f;
+        }
+        return start + sweep * t;
     }
     
     /**

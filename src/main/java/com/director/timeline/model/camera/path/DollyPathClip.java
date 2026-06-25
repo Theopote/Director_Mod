@@ -128,9 +128,8 @@ public class DollyPathClip extends CameraPathClip {
             }
             
             case TOWARDS_TARGET -> {
-                // ⭐ 沿着 LookAt → Camera 的方向（向主体推近/拉远）
-                // 这是从目标点指向摄像机的方向，与镜头朝向可能不同
-                Vec3d dir = ctx.position.subtract(ctx.lookAt); // 注意：是 position - lookAt（向主体）
+                // 沿 Camera → LookAt 方向：正距离 = 向焦点推近，负距离 = 拉远
+                Vec3d dir = ctx.lookAt.subtract(ctx.position);
                 this.dollyDirection = normalizeSafe(dir);
             }
             
