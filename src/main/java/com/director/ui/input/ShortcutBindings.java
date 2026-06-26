@@ -201,10 +201,10 @@ public final class ShortcutBindings {
             case "rotate" -> ShortcutAction.TOOL_ROTATE;
             case "scale" -> ShortcutAction.TOOL_SCALE;
             case com.director.ui.tools.ToolRegistry.ACTOR_SELECT_TOOL_ID,
-                 com.director.ui.tools.ToolRegistry.ACTOR_MOVE_TOOL_ID -> ShortcutAction.TOOL_MOVE;
-            case com.director.ui.tools.ToolRegistry.ACTOR_ROTATE_TOOL_ID -> ShortcutAction.TOOL_ROTATE;
-            case com.director.ui.tools.ToolRegistry.ACTOR_SCALE_TOOL_ID -> ShortcutAction.GIZMO_SCALE;
-            case com.director.ui.tools.ToolRegistry.ACTOR_LOOK_AT_TOOL_ID -> ShortcutAction.GIZMO_LOOK_AT;
+                 "actor_move" -> ShortcutAction.TOOL_MOVE;
+            case "actor_rotate" -> ShortcutAction.TOOL_ROTATE;
+            case "actor_scale" -> ShortcutAction.GIZMO_SCALE;
+            case "actor_look_at" -> ShortcutAction.GIZMO_LOOK_AT;
             default -> null;
         };
         

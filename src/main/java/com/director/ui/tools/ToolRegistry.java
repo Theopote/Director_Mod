@@ -40,16 +40,27 @@ public final class ToolRegistry {
     private static final String TIMELINE_PLACEHOLDER_ID = "__timeline_placeholder__";
 
     public static final String ACTOR_SELECT_TOOL_ID = "actor_select";
-    /** @deprecated 已并入 {@link #ACTOR_SELECT_TOOL_ID} */
-    public static final String ACTOR_MOVE_TOOL_ID = "actor_move";
-    /** @deprecated 已并入 {@link #ACTOR_SELECT_TOOL_ID}，用 G/R 切换 Gizmo 旋转模式 */
-    public static final String ACTOR_ROTATE_TOOL_ID = "actor_rotate";
-    /** @deprecated 已并入 {@link #ACTOR_SELECT_TOOL_ID}，用 S 切换 Gizmo 缩放模式 */
-    public static final String ACTOR_SCALE_TOOL_ID = "actor_scale";
-    /** @deprecated 已并入 {@link #ACTOR_SELECT_TOOL_ID}，用 T 切换朝向模式 */
-    public static final String ACTOR_LOOK_AT_TOOL_ID = "actor_look_at";
     public static final String ACTOR_POSE_TOOL_ID = ActorPoseTool.ID;
     public static final String ACTOR_PATH_TOOL_ID = "actor_path";
+
+    /** 已并入 {@link #ACTOR_SELECT_TOOL_ID} 的旧工具 ID（快捷键/配置兼容）。 */
+    private static final String LEGACY_ACTOR_MOVE_ID = "actor_move";
+    private static final String LEGACY_ACTOR_ROTATE_ID = "actor_rotate";
+    private static final String LEGACY_ACTOR_SCALE_ID = "actor_scale";
+    private static final String LEGACY_ACTOR_LOOK_AT_ID = "actor_look_at";
+
+    /** @deprecated 已并入 {@link #ACTOR_SELECT_TOOL_ID} */
+    @Deprecated
+    public static final String ACTOR_MOVE_TOOL_ID = LEGACY_ACTOR_MOVE_ID;
+    /** @deprecated 已并入 {@link #ACTOR_SELECT_TOOL_ID} */
+    @Deprecated
+    public static final String ACTOR_ROTATE_TOOL_ID = LEGACY_ACTOR_ROTATE_ID;
+    /** @deprecated 已并入 {@link #ACTOR_SELECT_TOOL_ID} */
+    @Deprecated
+    public static final String ACTOR_SCALE_TOOL_ID = LEGACY_ACTOR_SCALE_ID;
+    /** @deprecated 已并入 {@link #ACTOR_SELECT_TOOL_ID} */
+    @Deprecated
+    public static final String ACTOR_LOOK_AT_TOOL_ID = LEGACY_ACTOR_LOOK_AT_ID;
 
     private final List<EditorTool> selectionTools = new ArrayList<>();
     private final List<EditorTool> extraTools = new ArrayList<>();
@@ -150,18 +161,14 @@ public final class ToolRegistry {
 
     public static boolean isActorTransformGizmoToolId(String toolId) {
         return Objects.equals(toolId, ACTOR_SELECT_TOOL_ID)
-                || Objects.equals(toolId, ACTOR_MOVE_TOOL_ID)
-                || Objects.equals(toolId, ACTOR_ROTATE_TOOL_ID)
-                || Objects.equals(toolId, ACTOR_SCALE_TOOL_ID)
-                || Objects.equals(toolId, ACTOR_LOOK_AT_TOOL_ID);
+                || Objects.equals(toolId, LEGACY_ACTOR_MOVE_ID)
+                || Objects.equals(toolId, LEGACY_ACTOR_ROTATE_ID)
+                || Objects.equals(toolId, LEGACY_ACTOR_SCALE_ID)
+                || Objects.equals(toolId, LEGACY_ACTOR_LOOK_AT_ID);
     }
 
     public static boolean isActorToolId(String toolId) {
-        return Objects.equals(toolId, ACTOR_SELECT_TOOL_ID)
-                || Objects.equals(toolId, ACTOR_MOVE_TOOL_ID)
-                || Objects.equals(toolId, ACTOR_ROTATE_TOOL_ID)
-                || Objects.equals(toolId, ACTOR_SCALE_TOOL_ID)
-                || Objects.equals(toolId, ACTOR_LOOK_AT_TOOL_ID)
+        return isActorTransformGizmoToolId(toolId)
                 || Objects.equals(toolId, ACTOR_POSE_TOOL_ID)
                 || Objects.equals(toolId, ACTOR_PATH_TOOL_ID);
     }
@@ -173,10 +180,10 @@ public final class ToolRegistry {
 
     /** 将已废弃的变换/朝向工具 ID 映射到 actor_select。 */
     public static String normalizeActorToolId(String toolId) {
-        if (Objects.equals(toolId, ACTOR_MOVE_TOOL_ID)
-                || Objects.equals(toolId, ACTOR_ROTATE_TOOL_ID)
-                || Objects.equals(toolId, ACTOR_SCALE_TOOL_ID)
-                || Objects.equals(toolId, ACTOR_LOOK_AT_TOOL_ID)) {
+        if (Objects.equals(toolId, LEGACY_ACTOR_MOVE_ID)
+                || Objects.equals(toolId, LEGACY_ACTOR_ROTATE_ID)
+                || Objects.equals(toolId, LEGACY_ACTOR_SCALE_ID)
+                || Objects.equals(toolId, LEGACY_ACTOR_LOOK_AT_ID)) {
             return ACTOR_SELECT_TOOL_ID;
         }
         return toolId;
@@ -184,16 +191,16 @@ public final class ToolRegistry {
 
     /** 废弃工具 ID 对应的 Gizmo 模式（激活 actor_select 后应用）。 */
     public static GizmoMode deprecatedActorGizmoMode(String toolId) {
-        if (Objects.equals(toolId, ACTOR_MOVE_TOOL_ID)) {
+        if (Objects.equals(toolId, LEGACY_ACTOR_MOVE_ID)) {
             return GizmoMode.TRANSLATE;
         }
-        if (Objects.equals(toolId, ACTOR_ROTATE_TOOL_ID)) {
+        if (Objects.equals(toolId, LEGACY_ACTOR_ROTATE_ID)) {
             return GizmoMode.ROTATE;
         }
-        if (Objects.equals(toolId, ACTOR_SCALE_TOOL_ID)) {
+        if (Objects.equals(toolId, LEGACY_ACTOR_SCALE_ID)) {
             return GizmoMode.SCALE;
         }
-        if (Objects.equals(toolId, ACTOR_LOOK_AT_TOOL_ID)) {
+        if (Objects.equals(toolId, LEGACY_ACTOR_LOOK_AT_ID)) {
             return GizmoMode.LOOK_AT;
         }
         return null;
