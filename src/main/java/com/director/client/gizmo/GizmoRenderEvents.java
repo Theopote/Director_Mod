@@ -6,7 +6,6 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.util.math.Vec3d;
 
-import com.director.client.gizmo.GizmoManager;
 import com.director.client.gizmo.handles.AxisHandle;
 import com.director.client.input.DirectorInputSystem;
 import com.director.ui.cursor.ImGuiCursorController;

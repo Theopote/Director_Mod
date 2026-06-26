@@ -181,12 +181,10 @@ public class GizmoInteractionController {
         transformApplier.resetAccumulators();
         if (transformApplier instanceof com.director.ui.actor.gizmo.ActorTransformApplier actorApplier) {
             actorApplier.prepareDragSession();
-            if (context != null
-                    && context.getType() == GizmoType.TRANSFORM
-                    && com.director.ui.actor.gizmo.ActorGizmoController.getInstance().getTargetActorId() != null
-                    && !com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging()) {
-                return false;
-            }
+            return context == null
+                    || context.getType() != GizmoType.TRANSFORM
+                    || com.director.ui.actor.gizmo.ActorGizmoController.getInstance().getTargetActorId() == null
+                    || com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging();
         }
         return true;
     }
