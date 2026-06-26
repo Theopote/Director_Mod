@@ -9,7 +9,7 @@ import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiInputTextFlags;
-import imgui.flag.ImGuiPopupFlags;
+import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,7 +24,7 @@ public final class ActorPathLibraryPanel {
     private static final Logger LOGGER = LoggerFactory.getLogger(ActorPathLibraryPanel.class);
     private static final int NAME_BUFFER = 128;
     private static final float CONTROL_BUTTON_SIZE = 22.0f;
-    private static final String DELETE_POPUP_ID = "##ActorPathLibraryDelete";
+    private static final String DELETE_POPUP_ID = "ConfirmActorPathDelete##ActorPathLibrary";
 
     private final ImString renameBuffer = new ImString("", NAME_BUFFER);
     private UUID renamingPathId = null;
@@ -33,33 +33,30 @@ public final class ActorPathLibraryPanel {
     private boolean deleteConfirmPopupOpen = false;
 
     public void render() {
-        if (!ImGui.collapsingHeader(Icons.PATH + " "
-                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.HEADER))) {
-            return;
-        }
+        boolean headerOpen = ImGui.collapsingHeader(Icons.PATH + " "
+                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.HEADER));
 
-        ImGui.textWrapped(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.HINT));
-        ImGui.spacing();
+        if (headerOpen) {
+            ImGui.textWrapped(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.HINT));
+            ImGui.spacing();
 
-        var paths = ActorPathLibraryManager.getAllPaths();
-        if (paths.isEmpty()) {
-            ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.EMPTY));
-            renderDeleteConfirmPopup();
-            return;
-        }
-
-        float avail = ImGui.getContentRegionAvailX();
-        for (ActorPathDefinition path : paths) {
-            boolean selected = path.getId().equals(selectedPathId);
-            ImGui.pushID(path.getId().toString());
-
-            if (renamingPathId != null && renamingPathId.equals(path.getId())) {
-                renderRenameRow(path);
+            var paths = ActorPathLibraryManager.getAllPaths();
+            if (paths.isEmpty()) {
+                ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.EMPTY));
             } else {
-                renderPathRow(path, selected, avail);
-            }
+                for (ActorPathDefinition path : paths) {
+                    boolean selected = path.getId().equals(selectedPathId);
+                    ImGui.pushID(path.getId().toString());
 
-            ImGui.popID();
+                    if (renamingPathId != null && renamingPathId.equals(path.getId())) {
+                        renderRenameRow(path);
+                    } else {
+                        renderPathRow(path, selected);
+                    }
+
+                    ImGui.popID();
+                }
+            }
         }
 
         renderDeleteConfirmPopup();
@@ -69,7 +66,7 @@ public final class ActorPathLibraryPanel {
         return selectedPathId;
     }
 
-    private void renderPathRow(ActorPathDefinition path, boolean selected, float availWidth) {
+    private void renderPathRow(ActorPathDefinition path, boolean selected) {
         String label = ActorPropertyAdapterI18n.tr(
                 DirectorLang.Properties.AdapterActor.PathLibrary.WAYPOINT_COUNT_FMT,
                 path.getName(),
@@ -80,10 +77,10 @@ public final class ActorPathLibraryPanel {
         }
 
         float controlsWidth = CONTROL_BUTTON_SIZE * 4.0f + ImGui.getStyle().getItemInnerSpacingX() * 3.0f;
-        float nameWidth = Math.max(80.0f, availWidth - controlsWidth);
+        float iconRegionStart = ImGui.getContentRegionMaxX() - controlsWidth;
+        float rowStartX = ImGui.getCursorPosX();
+        float nameWidth = Math.max(0.0f, iconRegionStart - rowStartX - ImGui.getStyle().getItemInnerSpacingX());
 
-        ImGui.beginGroup();
-        ImGui.pushItemWidth(nameWidth);
         if (ImGui.selectable(label, selected, 0, nameWidth, 0)) {
             selectedPathId = path.getId();
             if (path.isLocked()) {
@@ -95,12 +92,9 @@ public final class ActorPathLibraryPanel {
         if (path.isLocked() && ImGui.isItemHovered()) {
             ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.LOCKED_HINT));
         }
-        ImGui.popItemWidth();
-        ImGui.endGroup();
 
         ImGui.sameLine();
-        float cursorX = ImGui.getCursorPosX();
-        ImGui.setCursorPosX(Math.max(cursorX, ImGui.getWindowContentRegionMaxX() - controlsWidth));
+        ImGui.setCursorPosX(iconRegionStart);
 
         if (iconButton(path.isLocked() ? Icons.LOCK : Icons.UNLOCK, "##lock")) {
             boolean becomingLocked = !path.isLocked();
@@ -171,7 +165,6 @@ public final class ActorPathLibraryPanel {
     private void openDeleteConfirmPopup(UUID pathId) {
         pendingDeletePathId = pathId;
         deleteConfirmPopupOpen = true;
-        ImGui.openPopup(deletePopupId(), ImGuiPopupFlags.None);
     }
 
     private void renderDeleteConfirmPopup() {
@@ -179,9 +172,13 @@ public final class ActorPathLibraryPanel {
             return;
         }
 
+        if (!ImGui.isPopupOpen(DELETE_POPUP_ID)) {
+            ImGui.openPopup(DELETE_POPUP_ID);
+        }
+
         ImVec2 center = ImGui.getMainViewport().getCenter();
         ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
-        if (ImGui.beginPopupModal(deletePopupId(), ImGuiCond.Always)) {
+        if (ImGui.beginPopupModal(DELETE_POPUP_ID, ImGuiWindowFlags.AlwaysAutoResize)) {
             ActorPathDefinition path = ActorPathLibraryManager.getPath(pendingDeletePathId);
             String pathName = path != null ? path.getName() : pendingDeletePathId.toString();
 
@@ -227,10 +224,6 @@ public final class ActorPathLibraryPanel {
     private void cancelDelete() {
         deleteConfirmPopupOpen = false;
         pendingDeletePathId = null;
-    }
-
-    private static String deletePopupId() {
-        return ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.POPUP_DELETE) + DELETE_POPUP_ID;
     }
 
     private void commitRename(UUID pathId) {
