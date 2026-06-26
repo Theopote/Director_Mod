@@ -115,7 +115,7 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
                     LOGGER.debug("[TimelineModel] 监听器异常详情", e);
                 }
             }
-            if ("track_added".equals(changeType) || "track_removed".equals(changeType)) {
+            if ("track_added".equals(changeType) || "track_removed".equals(changeType) || "track_moved".equals(changeType)) {
                 for (ActorTimelineSource.TrackStructureListener listener : trackStructureListeners) {
                     try {
                         listener.onTrackStructureChanged();
@@ -657,6 +657,32 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
             return tracks.get(index);
         }
         return null;
+    }
+
+    /**
+     * 返回轨道在列表中的索引。
+     *
+     * @return 索引；未找到时返回 -1
+     */
+    public int getTrackIndex(TimelineTrack track) {
+        if (track == null) {
+            return -1;
+        }
+        return tracks.indexOf(track);
+    }
+
+    /**
+     * 将轨道从 {@code fromIndex} 移动到 {@code toIndex}。
+     */
+    public void moveTrack(int fromIndex, int toIndex) {
+        if (fromIndex < 0 || fromIndex >= tracks.size()
+                || toIndex < 0 || toIndex >= tracks.size()
+                || fromIndex == toIndex) {
+            return;
+        }
+        TimelineTrack track = tracks.remove(fromIndex);
+        tracks.add(toIndex, track);
+        notifyModelChanged("track_moved");
     }
     
     // ========== 标记管理 ==========

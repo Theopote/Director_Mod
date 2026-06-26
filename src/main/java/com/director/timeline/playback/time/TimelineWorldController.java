@@ -120,14 +120,6 @@ public final class TimelineWorldController extends AbstractModelTimelinePlayback
     // ================== 生命周期 / 绑定模型 ==================
 
     /**
-     * 绑定 TimelineModel。
-     * 会自动注册 ModelChangeListener，在模型变更时刷新时间关键帧。
-     */
-    public synchronized void setTimelineModel(TimelineModel model) {
-        init(model);
-    }
-
-    /**
      * 获取当前激活的时间轨道
      */
     public synchronized TimelineTrack getActiveTimeTrack() {

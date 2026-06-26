@@ -163,6 +163,20 @@ public class TimelineContextMenuFactory {
                 .command(tr(DirectorLang.Timeline.ContextMenu.SET_DURATION_5S), new SetClipLengthCommand(model, clip, 5.0f))
                 .separator();
 
+        // ⭐ 新增：容器片段的"生成音频"菜单项
+        if (track.getType() == TrackType.CONTAINER) {
+            builder.item("生成音频", () -> {
+                com.director.ui.timeline.audio.TimelineAudioService audioService =
+                    com.director.ui.timeline.audio.TimelineAudioService.getInstance();
+                boolean success = audioService.generateAudioForClip(clip);
+                if (success && panel != null) {
+                    // 刷新面板显示
+                    panel.onDataChanged();
+                }
+            });
+            builder.separator();
+        }
+
         if (panel != null) {
             builder.item(tr(DirectorLang.Timeline.ContextMenu.RENAME_CLIP), () -> panel.requestClipRename(clip));
             builder.item(tr(DirectorLang.Timeline.ContextMenu.BIND_CONTAINER), () -> panel.requestClipContainerBinding(clip));

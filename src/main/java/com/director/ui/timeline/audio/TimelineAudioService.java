@@ -53,7 +53,8 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
     
     private static TimelineAudioService instance;
     private TimelineModel timelineModel;
-    private boolean suppressAutoCreate = false;
+    // ⭐ 默认禁用自动生成音频：用户需要通过右键菜单手动生成
+    private boolean suppressAutoCreate = true;
 
     /**
      * 自动生成音频事件与其所属 Clip 的链接关系（内存态）。
@@ -122,6 +123,108 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
 
     public boolean isSuppressAutoCreate() {
         return suppressAutoCreate;
+    }
+
+    /**
+     * ⭐ 手动为容器片段生成音频
+     *
+     * <p>用户通过右键菜单触发，在容器片段下方生成音频轨道和对应的音频片段。
+     *
+     * @param containerClip 容器片段
+     * @return 是否成功生成
+     */
+    public boolean generateAudioForClip(TimelineClip containerClip) {
+        if (containerClip == null || timelineModel == null) {
+            LOGGER.warn("[TimelineAudio] 无法生成音频：片段或时间线模型为空");
+            return false;
+        }
+
+        if (!isContainerClip(containerClip)) {
+            LOGGER.warn("[TimelineAudio] 无法生成音频：不是容器片段");
+            return false;
+        }
+
+        UUID containerId = containerClip.getBoundContainerId();
+        if (containerId == null) {
+            LOGGER.warn("[TimelineAudio] 无法生成音频：片段未绑定容器");
+            return false;
+        }
+
+        Container container = DirectorServices.get().containers().getContainer(containerId);
+        if (container == null) {
+            LOGGER.warn("[TimelineAudio] 无法生成音频：容器不存在");
+            return false;
+        }
+
+        // 1. 查找或创建音频轨道
+        AudioTrack audioTrack = findOrCreateAudioTrackBelowContainer(containerClip);
+        if (audioTrack == null) {
+            LOGGER.warn("[TimelineAudio] 无法生成音频：无法创建音频轨道");
+            return false;
+        }
+
+        // 2. 判断容器类型
+        boolean isDemolition = container.getType() == ContainerType.DEMOLITION;
+
+        // 3. 创建音频片段（临时禁用 suppressAutoCreate）
+        boolean oldSuppress = suppressAutoCreate;
+        try {
+            suppressAutoCreate = false;
+            TimelineClip audioClip = ensureAudioClipForContainerClip(containerClip, audioTrack, true, isDemolition);
+            if (audioClip == null) {
+                LOGGER.warn("[TimelineAudio] 无法生成音频：音频片段创建失败");
+                return false;
+            }
+
+            // 4. 生成音频事件
+            collectAndAddSoundEvents(containerClip, true);
+
+            LOGGER.info("[TimelineAudio] 成功为容器片段 '{}' 生成音频", containerClip.getLabel());
+            return true;
+        } finally {
+            suppressAutoCreate = oldSuppress;
+        }
+    }
+
+    /**
+     * 在容器片段所在轨道的下方查找或创建音频轨道
+     */
+    private AudioTrack findOrCreateAudioTrackBelowContainer(TimelineClip containerClip) {
+        if (timelineModel == null) {
+            return null;
+        }
+
+        // 1. 查找现有音频轨道
+        AudioTrack existingAudioTrack = findAudioTrack();
+        if (existingAudioTrack != null) {
+            return existingAudioTrack;
+        }
+
+        // 2. 创建新音频轨道，放在容器轨道下方
+        TimelineTrack containerTrack = timelineModel.findTrackForClip(containerClip);
+        AudioTrack newTrack = new AudioTrack("Audio");
+
+        if (containerTrack == null) {
+            // 找不到容器轨道，就添加到末尾
+            timelineModel.addTrack(newTrack);
+            LOGGER.info("[TimelineAudio] 在时间线末尾创建音频轨道");
+            return newTrack;
+        }
+
+        // 在容器轨道下方插入音频轨道
+        // 由于没有 insertTrack()，我们先添加到末尾，然后移动到正确位置
+        int containerTrackIndex = timelineModel.getTrackIndex(containerTrack);
+        timelineModel.addTrack(newTrack);
+
+        // 移动到容器轨道下方
+        int targetIndex = containerTrackIndex + 1;
+        int currentIndex = timelineModel.getTrackCount() - 1;
+        if (currentIndex != targetIndex) {
+            timelineModel.moveTrack(currentIndex, targetIndex);
+        }
+
+        LOGGER.info("[TimelineAudio] 在容器轨道 '{}' 下方创建音频轨道", containerTrack.getName());
+        return newTrack;
     }
 
     private void rebuildAudioLinksFromTimeline() {

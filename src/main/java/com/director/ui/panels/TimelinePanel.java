@@ -273,9 +273,7 @@ public class TimelinePanel extends AbstractPanel
         com.director.timeline.playback.block.TimelineClipBlockController.getInstance().setTimelineModel(model);
         TimelineCameraController.getInstance().init(model);
         // ⭐ 注册时间轨道控制器，控制世界时间和太阳角度
-        TimelineWorldController.getInstance().setTimelineModel(model);
-        // ⭐ 注册时间轨道控制器，控制世界时间和太阳角度
-        com.director.timeline.playback.time.TimelineWorldController.getInstance().setTimelineModel(model);
+        TimelineWorldController.getInstance().init(model);
         // ⭐ 注册季节轨道控制器，控制季节颜色和气候
         com.director.timeline.playback.season.TimelineSeasonController.getInstance().init(model);
         // ⭐ 演员轨道控制器 v2：绑定 TimelineModel 和 ActorRegistry
