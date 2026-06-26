@@ -8,8 +8,12 @@ import java.util.List;
 
 public final class ActorRouteClip extends EntityClip {
     public enum InterpolationMode {
+        /** 折线：锚点之间直线连接 */
         LINEAR,
-        SMOOTH
+        /** 平滑：每段使用 smoothstep 缓入缓出 */
+        SMOOTH,
+        /** Catmull-Rom 样条：经过所有锚点的平滑曲线 */
+        CATMULL_ROM
     }
 
     public enum LoopMode {

@@ -4,6 +4,7 @@ import com.director.core.DirectorServices;
 import com.director.client.DirectorClientController;
 import com.director.client.gizmo.GizmoRenderEvents;
 import com.director.client.renderer.BlockVisualOverlayRenderer;
+import com.director.client.renderer.ActorPathRenderer;
 import com.director.client.renderer.CameraPathRenderer;
 import com.director.client.renderer.ContainerHighlightRenderer;
 import com.director.client.renderer.HoverHighlightRenderer;
@@ -258,6 +259,9 @@ public final class DirectorRendererRegistry {
                 registerRenderer(RendererStage.TOOL_PREVIEW, "CameraPath",
                         ctx -> CameraPathRenderer.getInstance().render(ctx),
                         RendererStage.TOOL_PREVIEW.getOrder() + 10); // 在工具预览之后渲染
+                registerRenderer(RendererStage.TOOL_PREVIEW, "ActorPath",
+                        ctx -> ActorPathRenderer.getInstance().render(ctx),
+                        RendererStage.TOOL_PREVIEW.getOrder() + 11);
             }
 
             // Actor LookAt 可视化（使用 INTERACTION_HINT 阶段，在实体渲染后显示视线和 Marker）

@@ -63,7 +63,8 @@ public final class ActorPropertyAdapterI18n {
     public static String[] routeInterpolationLabels() {
         return new String[]{
                 tr(DirectorLang.Properties.AdapterActor.Route.INTERP_LINEAR),
-                tr(DirectorLang.Properties.AdapterActor.Route.INTERP_SMOOTH)
+                tr(DirectorLang.Properties.AdapterActor.Route.INTERP_SMOOTH),
+                tr(DirectorLang.Properties.AdapterActor.Route.INTERP_CATMULL_ROM)
         };
     }
 

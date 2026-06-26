@@ -1389,8 +1389,9 @@
   "gui.director.properties.adapter.actor.route.section_waypoints": "路点",
   "gui.director.properties.adapter.actor.route.waypoint_fmt": "路点 %d",
   "gui.director.properties.adapter.actor.route.add_waypoint": "添加路点",
-  "gui.director.properties.adapter.actor.route.interp_linear": "线性",
+  "gui.director.properties.adapter.actor.route.interp_linear": "折线",
   "gui.director.properties.adapter.actor.route.interp_smooth": "平滑",
+  "gui.director.properties.adapter.actor.route.interp_catmull_rom": "Catmull-Rom 曲线",
   "gui.director.properties.adapter.actor.route.loop_once": "一次",
   "gui.director.properties.adapter.actor.route.loop_loop": "循环",
   "gui.director.properties.adapter.actor.route.loop_ping_pong": "往返",
@@ -1891,9 +1892,9 @@
   "gui.director.tool.actor_pose.tip.2": "在属性面板中创建语义化 ActorAction 片段",
 
   "gui.director.tool.actor_path.name": "Actor 路径",
-  "gui.director.tool.actor_path.desc": "在世界中绘制路径点并创建 ActorRouteClip。",
-  "gui.director.tool.actor_path.tip.1": "从世界路径点绘制 Actor 路线",
-  "gui.director.tool.actor_path.tip.2": "左键添加路径点，右键创建 RouteClip",
+  "gui.director.tool.actor_path.desc": "在世界中绘制路径锚点，自动生成曲线并创建 ActorRouteClip。",
+  "gui.director.tool.actor_path.tip.1": "右键放置锚点，左键选中锚点编辑",
+  "gui.director.tool.actor_path.tip.2": "Enter 创建/更新 RouteClip，属性面板可切换曲线类型",
 
   "gui.director.tool.camera_path_edit.name": "摄像机路径",
   "gui.director.tool.camera_path_edit.desc": "使用 Gizmo 选择并移动摄像机路径锚点。",

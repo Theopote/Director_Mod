@@ -1389,8 +1389,9 @@
   "gui.director.properties.adapter.actor.route.section_waypoints": "Waypoints",
   "gui.director.properties.adapter.actor.route.waypoint_fmt": "Waypoint %d",
   "gui.director.properties.adapter.actor.route.add_waypoint": "Add Waypoint",
-  "gui.director.properties.adapter.actor.route.interp_linear": "Linear",
+  "gui.director.properties.adapter.actor.route.interp_linear": "Polyline",
   "gui.director.properties.adapter.actor.route.interp_smooth": "Smooth",
+  "gui.director.properties.adapter.actor.route.interp_catmull_rom": "Catmull-Rom",
   "gui.director.properties.adapter.actor.route.loop_once": "Once",
   "gui.director.properties.adapter.actor.route.loop_loop": "Loop",
   "gui.director.properties.adapter.actor.route.loop_ping_pong": "Ping Pong",
@@ -1891,9 +1892,9 @@
   "gui.director.tool.actor_pose.tip.2": "Use Properties to create semantic ActorAction clips",
 
   "gui.director.tool.actor_path.name": "Actor Route",
-  "gui.director.tool.actor_path.desc": "Draw waypoints in the world and create an ActorRouteClip.",
-  "gui.director.tool.actor_path.tip.1": "Draw an actor route from world waypoints",
-  "gui.director.tool.actor_path.tip.2": "Left click adds waypoints; right click creates a RouteClip",
+  "gui.director.tool.actor_path.desc": "Place path anchors in the world, preview curves, and create an ActorRouteClip.",
+  "gui.director.tool.actor_path.tip.1": "Right click places anchors; left click selects anchors",
+  "gui.director.tool.actor_path.tip.2": "Press Enter to create/update RouteClip; change curve type in Properties",
 
   "gui.director.tool.camera_path_edit.name": "Camera Path",
   "gui.director.tool.camera_path_edit.desc": "Select and move camera path anchors with the Gizmo.",

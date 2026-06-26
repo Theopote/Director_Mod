@@ -18,8 +18,11 @@ import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
 import com.director.timeline.model.entity.ActorActionClip;
 import com.director.timeline.model.entity.ActorPoseClip;
+import com.director.timeline.model.entity.ActorRouteClip;
 import com.director.timeline.model.entity.EntityTimelineClip;
 import com.director.timeline.model.entity.ActorTrack;
+import com.director.i18n.ActorPropertyAdapterI18n;
+import com.director.ui.actor.path.ActorPathController;
 import com.director.ui.tools.EditorTool;
 import com.director.ui.tools.ToolRegistry;
 import imgui.ImGui;
@@ -125,6 +128,8 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         if (Objects.equals(tool.getId(), ToolRegistry.ACTOR_POSE_TOOL_ID)) {
             renderPoseAuthoring(actor);
             renderLocalPoseAuthoring(actor);
+        } else if (Objects.equals(tool.getId(), ToolRegistry.ACTOR_PATH_TOOL_ID)) {
+            renderActorPathToolProperties(actor);
         } else if (ToolRegistry.isActorTransformGizmoToolId(tool.getId())) {
             if (actor != null) {
                 ActorLiveTransformPropertyUI.render(actor.getActorId());
@@ -246,6 +251,39 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         }
         if (ImGui.isItemHovered()) {
             ImGui.setTooltip("创建 ActorActionClip，由 RigProfile 在播放时生成最终姿态。");
+        }
+    }
+
+    private void renderActorPathToolProperties(Actor actor) {
+        if (!ImGui.collapsingHeader(Icons.PATH + " 路径绘制", ImGuiTreeNodeFlags.DefaultOpen)) {
+            return;
+        }
+
+        ActorPathController controller = ActorPathController.getInstance();
+        if (actor == null) {
+            ImGui.textDisabled("请先选择一个 Actor。");
+            return;
+        }
+
+        ImGui.textWrapped("右键：在世界中放置锚点；左键：选中锚点并用 Gizmo 移动；Enter：创建/更新 RouteClip；Delete：删除选中锚点；Esc：清空。");
+
+        ActorRouteClip.InterpolationMode[] modes = ActorRouteClip.InterpolationMode.values();
+        ImInt interpolation = new ImInt(controller.getInterpolationMode().ordinal());
+        if (ImGui.combo("曲线类型##actorPathInterpolation", interpolation, ActorPropertyAdapterI18n.routeInterpolationLabels())) {
+            controller.setInterpolationMode(modes[Math.max(0, Math.min(interpolation.get(), modes.length - 1))]);
+        }
+
+        ImGui.text("锚点数量: " + controller.getAnchorCount());
+        if (controller.isDrawing()) {
+            ImGui.textDisabled("路径预览已启用");
+        }
+
+        if (ImGui.button(Icons.ADD + " 创建/更新 RouteClip##actorPathFinalize")) {
+            controller.finalizePath();
+        }
+        ImGui.sameLine();
+        if (ImGui.button(Icons.DELETE + " 删除选中锚点##actorPathDeleteAnchor")) {
+            controller.removeSelectedAnchor();
         }
     }
 

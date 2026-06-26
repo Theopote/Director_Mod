@@ -664,12 +664,14 @@ public class EntityClipSampler {
         float travelTime = resolveRouteTime(active, localTime, duration);
         float distance = travelTime * Math.max(0.05f, active.getSpeed());
 
-        RouteSample sample = sampleRoute(points, distance, active.getInterpolationMode());
-        result.position.set(sample.position);
-        if (active.isAlignRotationToRoute() && sample.direction.lengthSquared() > 1.0e-6f) {
-            result.rotation.x = (float) Math.toDegrees(Math.atan2(-sample.direction.x, sample.direction.z));
-            double horizontal = Math.sqrt(sample.direction.x * sample.direction.x + sample.direction.z * sample.direction.z);
-            result.rotation.y = (float) Math.toDegrees(Math.atan2(-sample.direction.y, horizontal));
+        ActorRouteSampler.RouteSample sample = ActorRouteSampler.sampleAtDistance(
+                points, distance, active.getInterpolationMode());
+        result.position.set(sample.position());
+        Vector3f direction = sample.direction();
+        if (active.isAlignRotationToRoute() && direction.lengthSquared() > 1.0e-6f) {
+            result.rotation.x = (float) Math.toDegrees(Math.atan2(-direction.x, direction.z));
+            double horizontal = Math.sqrt(direction.x * direction.x + direction.z * direction.z);
+            result.rotation.y = (float) Math.toDegrees(Math.atan2(-direction.y, horizontal));
         }
     }
 
@@ -699,7 +701,7 @@ public class EntityClipSampler {
     }
 
     private float computeRouteDuration(ActorRouteClip clip) {
-        float distance = computeRouteLength(clip.getWaypoints());
+        float distance = ActorRouteSampler.computeCurveLength(clip.getWaypoints(), clip.getInterpolationMode());
         return distance / Math.max(0.05f, clip.getSpeed());
     }
 
@@ -716,47 +718,6 @@ public class EntityClipSampler {
                 yield t <= duration ? t : cycle - t;
             }
         };
-    }
-
-    private float computeRouteLength(List<Vector3f> points) {
-        float total = 0.0f;
-        for (int i = 0; i < points.size() - 1; i++) {
-            total += points.get(i).distance(points.get(i + 1));
-        }
-        return total;
-    }
-
-    private RouteSample sampleRoute(List<Vector3f> points, float distance, ActorRouteClip.InterpolationMode interpolationMode) {
-        float remaining = Math.max(0.0f, distance);
-        for (int i = 0; i < points.size() - 1; i++) {
-            Vector3f from = points.get(i);
-            Vector3f to = points.get(i + 1);
-            float segmentLength = from.distance(to);
-            if (segmentLength <= 1.0e-6f) {
-                continue;
-            }
-            if (remaining <= segmentLength) {
-                float t = remaining / segmentLength;
-                if (interpolationMode == ActorRouteClip.InterpolationMode.SMOOTH) {
-                    t = t * t * (3.0f - 2.0f * t);
-                }
-                Vector3f pos = new Vector3f(from).lerp(to, t);
-                Vector3f dir = new Vector3f(to).sub(from).normalize();
-                return new RouteSample(pos, dir);
-            }
-            remaining -= segmentLength;
-        }
-
-        Vector3f last = points.getLast();
-        Vector3f prev = points.get(points.size() - 2);
-        Vector3f dir = new Vector3f(last).sub(prev);
-        if (dir.lengthSquared() > 1.0e-6f) {
-            dir.normalize();
-        }
-        return new RouteSample(new Vector3f(last), dir);
-    }
-
-    private record RouteSample(Vector3f position, Vector3f direction) {
     }
 
     /**

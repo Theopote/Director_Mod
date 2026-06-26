@@ -1502,6 +1502,7 @@ public final class DirectorLang {
                 public static final String ADD_WAYPOINT = "gui.director.properties.adapter.actor.route.add_waypoint";
                 public static final String INTERP_LINEAR = "gui.director.properties.adapter.actor.route.interp_linear";
                 public static final String INTERP_SMOOTH = "gui.director.properties.adapter.actor.route.interp_smooth";
+                public static final String INTERP_CATMULL_ROM = "gui.director.properties.adapter.actor.route.interp_catmull_rom";
                 public static final String LOOP_ONCE = "gui.director.properties.adapter.actor.route.loop_once";
                 public static final String LOOP_LOOP = "gui.director.properties.adapter.actor.route.loop_loop";
                 public static final String LOOP_PING_PONG = "gui.director.properties.adapter.actor.route.loop_ping_pong";
