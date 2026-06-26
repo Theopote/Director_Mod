@@ -6,7 +6,6 @@ import com.director.client.gizmo.GizmoInteractionController;
 import com.director.client.gizmo.GizmoManager;
 import com.director.client.gizmo.GizmoType;
 import com.director.client.input.DirectorInputSystem;
-import com.director.client.renderer.ActorPathRenderer;
 import com.director.core.DirectorServices;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineTrack;
@@ -73,14 +72,12 @@ public final class ActorPathController {
         resetTransientInputState();
         beginNewDraft();
         tryLoadSelectedRouteClip();
-        ActorPathRenderer.getInstance().setEnabled(true);
         LOGGER.info("[ActorPath] Activated");
     }
 
     public void deactivate() {
         active = false;
         clearGizmo();
-        ActorPathRenderer.getInstance().setEnabled(false);
         resetState();
         LOGGER.info("[ActorPath] Deactivated");
     }
@@ -120,6 +117,9 @@ public final class ActorPathController {
         if (index < 0 || index >= pathPoints.size() || position == null) {
             return;
         }
+        if (isEditingLocked()) {
+            return;
+        }
         pathPoints.set(index, position);
         drawing = !pathPoints.isEmpty();
         syncDraftToStorage();
@@ -155,6 +155,10 @@ public final class ActorPathController {
         }
         ActorPathDefinition path = ActorPathLibraryManager.getPath(pathId);
         if (path == null) {
+            return;
+        }
+        if (path.isLocked()) {
+            LOGGER.warn("[ActorPath] Path '{}' is locked, cannot edit", path.getName());
             return;
         }
         editingLibraryPathId = pathId;
@@ -349,6 +353,9 @@ public final class ActorPathController {
     }
 
     private void handleDeleteSelectedAnchor() {
+        if (isEditingLocked()) {
+            return;
+        }
         if (selectedAnchorIndex < 0 || selectedAnchorIndex >= pathPoints.size()) {
             return;
         }
@@ -365,6 +372,9 @@ public final class ActorPathController {
     }
 
     private void syncDraftToStorage() {
+        if (isEditingLocked()) {
+            return;
+        }
         if (editingLibraryPathId != null && pathPoints.size() >= 2) {
             ActorPathLibraryManager.updatePath(editingLibraryPathId, getWaypointVectors(), interpolationMode);
         }
@@ -610,5 +620,13 @@ public final class ActorPathController {
 
     private static boolean isKeyPressed(MinecraftClient client, int key) {
         return GLFW.glfwGetKey(client.getWindow().getHandle(), key) == GLFW.GLFW_PRESS;
+    }
+
+    private boolean isEditingLocked() {
+        if (editingLibraryPathId == null) {
+            return false;
+        }
+        ActorPathDefinition path = ActorPathLibraryManager.getPath(editingLibraryPathId);
+        return path != null && path.isLocked();
     }
 }

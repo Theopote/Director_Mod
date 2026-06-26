@@ -2,9 +2,14 @@ package com.director.ui.actor.path;
 
 import com.director.actor.path.ActorPathDefinition;
 import com.director.actor.path.ActorPathLibraryManager;
+import com.director.i18n.ActorPropertyAdapterI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.theme.Icons;
 import imgui.ImGui;
+import imgui.ImVec2;
+import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiInputTextFlags;
+import imgui.flag.ImGuiWindowFlags;
 import imgui.type.ImString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,31 +17,37 @@ import org.slf4j.LoggerFactory;
 import java.util.UUID;
 
 /**
- * 演员路径库面板：列出、重命名、选择、删除已保存路径。
+ * 演员路径库面板：列出、重命名、锁定、可见性、删除已保存路径。
  */
 public final class ActorPathLibraryPanel {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ActorPathLibraryPanel.class);
     private static final int NAME_BUFFER = 128;
+    private static final float CONTROL_BUTTON_SIZE = 22.0f;
 
     private final ImString renameBuffer = new ImString("", NAME_BUFFER);
     private UUID renamingPathId = null;
     private UUID selectedPathId = null;
+    private UUID pendingDeletePathId = null;
+    private boolean deleteConfirmPopupOpen = false;
 
     public void render() {
-        if (!ImGui.collapsingHeader(Icons.PATH + " 演员路径库")) {
+        if (!ImGui.collapsingHeader(Icons.PATH + " "
+                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.HEADER))) {
             return;
         }
 
-        ImGui.textWrapped("绘制的路径会保存在当前存档中。左键点击空白处完成绘制；再次右键开始新路径。");
+        ImGui.textWrapped(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.HINT));
         ImGui.spacing();
 
         var paths = ActorPathLibraryManager.getAllPaths();
         if (paths.isEmpty()) {
-            ImGui.textDisabled("暂无已保存路径");
+            ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.EMPTY));
+            renderDeleteConfirmPopup();
             return;
         }
 
+        float avail = ImGui.getContentRegionAvailX();
         for (ActorPathDefinition path : paths) {
             boolean selected = path.getId().equals(selectedPathId);
             ImGui.pushID(path.getId().toString());
@@ -44,52 +55,105 @@ public final class ActorPathLibraryPanel {
             if (renamingPathId != null && renamingPathId.equals(path.getId())) {
                 renderRenameRow(path);
             } else {
-                renderPathRow(path, selected);
+                renderPathRow(path, selected, avail);
             }
 
             ImGui.popID();
         }
+
+        renderDeleteConfirmPopup();
     }
 
     public UUID getSelectedPathId() {
         return selectedPathId;
     }
 
-    private void renderPathRow(ActorPathDefinition path, boolean selected) {
-        String label = path.getName() + " (" + path.getWaypoints().size() + " 锚点)";
-        if (ImGui.selectable(label, selected)) {
+    private void renderPathRow(ActorPathDefinition path, boolean selected, float availWidth) {
+        String label = ActorPropertyAdapterI18n.tr(
+                DirectorLang.Properties.AdapterActor.PathLibrary.WAYPOINT_COUNT_FMT,
+                path.getName(),
+                path.getWaypoints().size()
+        );
+        if (path.isLocked()) {
+            label = Icons.LOCK + " " + label;
+        }
+
+        float controlsWidth = CONTROL_BUTTON_SIZE * 4.0f + ImGui.getStyle().getItemInnerSpacingX() * 3.0f;
+        float nameWidth = Math.max(80.0f, availWidth - controlsWidth);
+
+        ImGui.beginGroup();
+        ImGui.pushItemWidth(nameWidth);
+        if (ImGui.selectable(label, selected, 0, nameWidth, 0)) {
             selectedPathId = path.getId();
-            ActorPathController.getInstance().loadPathForEditing(path.getId());
+            if (path.isLocked()) {
+                LOGGER.info("[ActorPathLibraryPanel] Path '{}' is locked", path.getName());
+            } else {
+                ActorPathController.getInstance().loadPathForEditing(path.getId());
+            }
         }
+        if (path.isLocked() && ImGui.isItemHovered()) {
+            ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.LOCKED_HINT));
+        }
+        ImGui.popItemWidth();
+        ImGui.endGroup();
 
         ImGui.sameLine();
-        if (ImGui.smallButton(Icons.EDIT + "##rename")) {
-            renamingPathId = path.getId();
-            renameBuffer.set(path.getName());
-        }
-        if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("重命名");
-        }
+        float cursorX = ImGui.getCursorPosX();
+        ImGui.setCursorPosX(Math.max(cursorX, ImGui.getWindowContentRegionMaxX() - controlsWidth));
 
-        ImGui.sameLine();
-        if (ImGui.smallButton(Icons.DELETE + "##delete")) {
-            if (ActorPathLibraryManager.removePath(path.getId())) {
-                if (path.getId().equals(selectedPathId)) {
-                    selectedPathId = null;
-                }
-                if (path.getId().equals(renamingPathId)) {
-                    renamingPathId = null;
-                }
+        if (iconButton(path.isLocked() ? Icons.LOCK : Icons.UNLOCK, "##lock")) {
+            boolean becomingLocked = !path.isLocked();
+            ActorPathLibraryManager.setPathLocked(path.getId(), becomingLocked);
+            if (becomingLocked && path.getId().equals(ActorPathController.getInstance().getEditingLibraryPathId())) {
                 ActorPathController.getInstance().onPathRemovedFromLibrary(path.getId());
             }
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("删除路径");
+            ImGui.setTooltip(ActorPropertyAdapterI18n.tr(
+                    path.isLocked()
+                            ? DirectorLang.Properties.AdapterActor.PathLibrary.UNLOCK
+                            : DirectorLang.Properties.AdapterActor.PathLibrary.LOCK
+            ));
+        }
+
+        ImGui.sameLine();
+        if (iconButton(path.isVisible() ? Icons.VISIBLE : Icons.INVISIBLE, "##visible")) {
+            ActorPathLibraryManager.setPathVisible(path.getId(), !path.isVisible());
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(ActorPropertyAdapterI18n.tr(
+                    path.isVisible()
+                            ? DirectorLang.Properties.AdapterActor.PathLibrary.HIDE
+                            : DirectorLang.Properties.AdapterActor.PathLibrary.SHOW
+            ));
+        }
+
+        ImGui.sameLine();
+        if (iconButton(Icons.EDIT, "##rename")) {
+            if (!path.isLocked()) {
+                renamingPathId = path.getId();
+                renameBuffer.set(path.getName());
+            }
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.RENAME));
+        }
+
+        ImGui.sameLine();
+        if (iconButton(Icons.DELETE, "##delete")) {
+            openDeleteConfirmPopup(path.getId());
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.DELETE));
         }
     }
 
+    private boolean iconButton(String icon, String id) {
+        return ImGui.button(icon + id, CONTROL_BUTTON_SIZE, CONTROL_BUTTON_SIZE);
+    }
+
     private void renderRenameRow(ActorPathDefinition path) {
-        ImGui.setNextItemWidth(-80);
+        ImGui.setNextItemWidth(-120);
         if (ImGui.inputText("##renameInput", renameBuffer, ImGuiInputTextFlags.EnterReturnsTrue)) {
             commitRename(path.getId());
         }
@@ -101,6 +165,68 @@ public final class ActorPathLibraryPanel {
         if (ImGui.button(Icons.CLOSE + "##cancel")) {
             renamingPathId = null;
         }
+    }
+
+    private void openDeleteConfirmPopup(UUID pathId) {
+        pendingDeletePathId = pathId;
+        deleteConfirmPopupOpen = true;
+        ImGui.openPopup(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.POPUP_DELETE));
+    }
+
+    private void renderDeleteConfirmPopup() {
+        if (!deleteConfirmPopupOpen || pendingDeletePathId == null) {
+            return;
+        }
+
+        String popupId = ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.POPUP_DELETE);
+        ImVec2 center = ImGui.getMainViewport().getCenter();
+        ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
+        if (ImGui.beginPopupModal(popupId, ImGuiWindowFlags.AlwaysAutoResize)) {
+            ActorPathDefinition path = ActorPathLibraryManager.getPath(pendingDeletePathId);
+            String pathName = path != null ? path.getName() : pendingDeletePathId.toString();
+
+            ImGui.text(Icons.WARNING + " "
+                    + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.DELETE_CONFIRM));
+            ImGui.text(ActorPropertyAdapterI18n.tr(
+                    DirectorLang.Properties.AdapterActor.PathLibrary.DELETE_NAME_FMT, pathName));
+            ImGui.textColored(1.0f, 0.4f, 0.4f, 1.0f,
+                    ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.DELETE_WARNING));
+            ImGui.separator();
+
+            if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DELETE), 100, 0)) {
+                confirmDelete();
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.sameLine();
+            if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.CANCEL), 100, 0)) {
+                cancelDelete();
+                ImGui.closeCurrentPopup();
+            }
+            ImGui.endPopup();
+        }
+    }
+
+    private void confirmDelete() {
+        if (pendingDeletePathId == null) {
+            return;
+        }
+        UUID pathId = pendingDeletePathId;
+        if (ActorPathLibraryManager.removePath(pathId)) {
+            if (pathId.equals(selectedPathId)) {
+                selectedPathId = null;
+            }
+            if (pathId.equals(renamingPathId)) {
+                renamingPathId = null;
+            }
+            ActorPathController.getInstance().onPathRemovedFromLibrary(pathId);
+        }
+        deleteConfirmPopupOpen = false;
+        pendingDeletePathId = null;
+    }
+
+    private void cancelDelete() {
+        deleteConfirmPopupOpen = false;
+        pendingDeletePathId = null;
     }
 
     private void commitRename(UUID pathId) {

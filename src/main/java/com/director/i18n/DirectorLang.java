@@ -1511,6 +1511,27 @@ public final class DirectorLang {
                 }
             }
 
+            public static final class PathLibrary {
+                public static final String HEADER = "gui.director.properties.adapter.actor.path_library.header";
+                public static final String HINT = "gui.director.properties.adapter.actor.path_library.hint";
+                public static final String EMPTY = "gui.director.properties.adapter.actor.path_library.empty";
+                public static final String WAYPOINT_COUNT_FMT = "gui.director.properties.adapter.actor.path_library.waypoint_count_fmt";
+                public static final String LOCK = "gui.director.properties.adapter.actor.path_library.lock";
+                public static final String UNLOCK = "gui.director.properties.adapter.actor.path_library.unlock";
+                public static final String SHOW = "gui.director.properties.adapter.actor.path_library.show";
+                public static final String HIDE = "gui.director.properties.adapter.actor.path_library.hide";
+                public static final String DELETE = "gui.director.properties.adapter.actor.path_library.delete";
+                public static final String RENAME = "gui.director.properties.adapter.actor.path_library.rename";
+                public static final String LOCKED_HINT = "gui.director.properties.adapter.actor.path_library.locked_hint";
+                public static final String POPUP_DELETE = "gui.director.properties.adapter.actor.path_library.popup_delete";
+                public static final String DELETE_CONFIRM = "gui.director.properties.adapter.actor.path_library.delete_confirm";
+                public static final String DELETE_NAME_FMT = "gui.director.properties.adapter.actor.path_library.delete_name_fmt";
+                public static final String DELETE_WARNING = "gui.director.properties.adapter.actor.path_library.delete_warning";
+
+                private PathLibrary() {
+                }
+            }
+
             public static final class Relation {
                 public static final String ADAPTER_NAME = "gui.director.properties.adapter.actor.relation.name";
                 public static final String NO_CLIP = "gui.director.properties.adapter.actor.relation.no_clip";

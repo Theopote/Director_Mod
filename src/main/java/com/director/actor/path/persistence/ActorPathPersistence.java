@@ -106,6 +106,8 @@ public final class ActorPathPersistence {
         obj.addProperty("id", path.getId().toString());
         obj.addProperty("name", path.getName());
         obj.addProperty("interpolation", path.getInterpolationMode().name());
+        obj.addProperty("locked", path.isLocked());
+        obj.addProperty("visible", path.isVisible());
         JsonArray waypoints = new JsonArray();
         for (Vector3f point : path.getWaypoints()) {
             JsonObject wp = new JsonObject();
@@ -130,6 +132,12 @@ public final class ActorPathPersistence {
             } catch (IllegalArgumentException ignored) {
                 // keep default
             }
+        }
+        if (obj.has("locked")) {
+            path.setLocked(obj.get("locked").getAsBoolean());
+        }
+        if (obj.has("visible")) {
+            path.setVisible(obj.get("visible").getAsBoolean());
         }
         List<Vector3f> waypoints = new ArrayList<>();
         if (obj.has("waypoints")) {

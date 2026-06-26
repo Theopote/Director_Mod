@@ -76,7 +76,7 @@ public final class ActorPathLibraryManager {
 
     public static boolean updatePath(UUID id, List<Vector3f> waypoints, ActorRouteClip.InterpolationMode mode) {
         ActorPathDefinition path = getInstance().get(id);
-        if (path == null) {
+        if (path == null || path.isLocked()) {
             return false;
         }
         path.setWaypoints(waypoints);
@@ -86,6 +86,10 @@ public final class ActorPathLibraryManager {
     }
 
     public static boolean renamePath(UUID id, String newName) {
+        ActorPathDefinition path = getInstance().get(id);
+        if (path == null || path.isLocked()) {
+            return false;
+        }
         boolean renamed = getInstance().rename(id, newName);
         if (renamed) {
             save();
@@ -99,5 +103,25 @@ public final class ActorPathLibraryManager {
             save();
         }
         return removed;
+    }
+
+    public static boolean setPathLocked(UUID id, boolean locked) {
+        ActorPathDefinition path = getInstance().get(id);
+        if (path == null) {
+            return false;
+        }
+        path.setLocked(locked);
+        save();
+        return true;
+    }
+
+    public static boolean setPathVisible(UUID id, boolean visible) {
+        ActorPathDefinition path = getInstance().get(id);
+        if (path == null) {
+            return false;
+        }
+        path.setVisible(visible);
+        save();
+        return true;
     }
 }

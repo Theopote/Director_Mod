@@ -18,6 +18,8 @@ public final class ActorPathDefinition {
     private String name;
     private final List<Vector3f> waypoints = new ArrayList<>();
     private ActorRouteClip.InterpolationMode interpolationMode = ActorRouteClip.InterpolationMode.CATMULL_ROM;
+    private boolean locked = false;
+    private boolean visible = true;
 
     public ActorPathDefinition(String name) {
         this(UUID.randomUUID(), name);
@@ -67,10 +69,28 @@ public final class ActorPathDefinition {
                 : ActorRouteClip.InterpolationMode.CATMULL_ROM;
     }
 
+    public boolean isLocked() {
+        return locked;
+    }
+
+    public void setLocked(boolean locked) {
+        this.locked = locked;
+    }
+
+    public boolean isVisible() {
+        return visible;
+    }
+
+    public void setVisible(boolean visible) {
+        this.visible = visible;
+    }
+
     public ActorPathDefinition copy() {
         ActorPathDefinition copy = new ActorPathDefinition(id, name);
         copy.setWaypoints(waypoints);
         copy.setInterpolationMode(interpolationMode);
+        copy.setLocked(locked);
+        copy.setVisible(visible);
         return copy;
     }
 }
