@@ -381,7 +381,10 @@ public final class BlockAnimationEngine {
         try {
             if (phase == ClipAnimationConfig.AnimationPhase.ENTER) {
                 Map<String, Object> p = config.getParams();
-                Object enabledObj = p.get("opacityFade");
+                Object enabledObj = null;
+                if (p != null) {
+                    enabledObj = p.get("opacityFade");
+                }
                 boolean enabled = (enabledObj instanceof Boolean b) ? b
                         : (enabledObj instanceof String s && Boolean.parseBoolean(s));
                 if (enabled) {
