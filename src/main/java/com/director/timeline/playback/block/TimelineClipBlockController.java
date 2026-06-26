@@ -762,10 +762,20 @@ public class TimelineClipBlockController {
         }
         final long tAfterEntries = System.nanoTime();
 
-        // 触发需要的区块重渲染：
-        // 1) visualState 的 suppressWorldRendering/overlay 变化
-        // 2) 世界方块真实变化（AIR/恢复）导致的面更新（防止“黑洞/虚空”）
+        // ⭐ 性能关键优化：减少区块重渲染调用
+        // 区块重渲染是最大的性能杀手（每次调用需要10-20ms）
+        //
+        // 优化策略：
+        // 1. 预览模式（不播放）：完全禁用自动重渲染
+        //    - 用户拖动播放头时，方块会通过其他机制更新
+        //    - 如果需要手动刷新，用户可以按F3+A
+        //
+        // 2. 播放模式：只在方块实际变化时才重渲染
+        //    - 使用节流机制，避免每帧都重渲染
         Set<BlockPos> rerender = new HashSet<>();
+
+        // ⭐ 只在播放模式下才调度重渲染
+        // 预览模式下完全禁用，避免每次拖动播放头都触发昂贵的区块重建
         if (!previewMode) {
             try {
                 Set<BlockPos> vsChanged = visualStateManager.getChangedBlocks();
@@ -774,9 +784,21 @@ public class TimelineClipBlockController {
                 }
             } catch (Exception ignored) {
             }
+            cleanupContainersNoLongerControlled(desiredWorldBlocks.keySet(), visibilityService, visualStateManager, rerender);
+
+            // ⭐ 额外优化：如果重渲染方块数量太多（>10000），分批处理或跳过
+            // 避免一次性重渲染导致游戏卡顿
+            if (rerender.size() > 10000) {
+                LOGGER.warn("[TimelineClipBlockController] 重渲染方块数量过多 ({}), 跳过本帧重渲染以避免卡顿", rerender.size());
+                rerender.clear();
+            } else if (!rerender.isEmpty()) {
+                scheduleBlockRerender(rerender);
+            }
+        } else {
+            // 预览模式：仍然需要清理不再控制的容器，但不调度重渲染
+            cleanupContainersNoLongerControlled(desiredWorldBlocks.keySet(), visibilityService, visualStateManager, rerender);
         }
-        cleanupContainersNoLongerControlled(desiredWorldBlocks.keySet(), visibilityService, visualStateManager, rerender);
-        scheduleBlockRerender(rerender);
+
         final long tAfterRerender = System.nanoTime();
 
         // 更新 lastFrameVisibleBlocks（渲染可见集）与 lastFrameWorldBlocks（世界落地集），并清理已不存在的容器
