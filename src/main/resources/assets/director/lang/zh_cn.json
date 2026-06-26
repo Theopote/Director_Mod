@@ -1323,6 +1323,7 @@
   "gui.director.properties.adapter.actor.common.place": "放置",
   "gui.director.properties.adapter.actor.common.none": "无",
   "gui.director.properties.adapter.actor.common.duration": "时长",
+  "gui.director.properties.adapter.actor.common.degree_fmt": "%.1f°",
 
   "gui.director.properties.adapter.actor.type.player": "玩家",
   "gui.director.properties.adapter.actor.type.villager": "村民",
@@ -1617,6 +1618,14 @@
   "gui.director.properties.adapter.actor.tool_editor.transform_hint_2": "G：平移（三轴箭头）  R：旋转（三色环）  S：缩放  T：朝向（点击世界目标点）",
   "gui.director.properties.adapter.actor.tool_editor.transform_hint_3": "朝向模式下点击地面创建 LookAtClip；看向摄像机可在演员轨道属性中设置。",
   "gui.director.properties.adapter.actor.tool_editor.transform_hint_4": "也可在时间线选中对应片段后，于属性面板精确编辑数值。",
+
+  "gui.director.properties.adapter.editor_tool.name": "工具属性",
+  "gui.director.properties.adapter.editor_tool.no_tool_selected": "未选择工具",
+  "gui.director.properties.adapter.editor_tool.section_status": "工具状态",
+  "gui.director.properties.adapter.editor_tool.id_fmt": "ID: %s",
+  "gui.director.properties.adapter.editor_tool.group_fmt": "分组: %s",
+  "gui.director.properties.adapter.editor_tool.status_available": "状态: 可用",
+  "gui.director.properties.adapter.editor_tool.status_unavailable": "状态: 不可用",
 
   "gui.director.container.header.title": "容器管理",
   "gui.director.container.header.count": "(%d 个容器)",

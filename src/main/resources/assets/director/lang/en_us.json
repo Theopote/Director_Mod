@@ -1323,6 +1323,7 @@
   "gui.director.properties.adapter.actor.common.place": "Place",
   "gui.director.properties.adapter.actor.common.none": "NONE",
   "gui.director.properties.adapter.actor.common.duration": "Duration",
+  "gui.director.properties.adapter.actor.common.degree_fmt": "%.1f°",
 
   "gui.director.properties.adapter.actor.type.player": "Player",
   "gui.director.properties.adapter.actor.type.villager": "Villager",
@@ -1617,6 +1618,14 @@
   "gui.director.properties.adapter.actor.tool_editor.transform_hint_2": "G: translate (arrows)  R: rotate (rings)  S: scale  T: look-at (click a world target)",
   "gui.director.properties.adapter.actor.tool_editor.transform_hint_3": "In look-at mode, click the ground to create a LookAtClip; look-at-camera can be set in actor track properties.",
   "gui.director.properties.adapter.actor.tool_editor.transform_hint_4": "You can also select the clip on the timeline and edit values precisely in the properties panel.",
+
+  "gui.director.properties.adapter.editor_tool.name": "Tool Properties",
+  "gui.director.properties.adapter.editor_tool.no_tool_selected": "No tool selected",
+  "gui.director.properties.adapter.editor_tool.section_status": "Tool Status",
+  "gui.director.properties.adapter.editor_tool.id_fmt": "ID: %s",
+  "gui.director.properties.adapter.editor_tool.group_fmt": "Group: %s",
+  "gui.director.properties.adapter.editor_tool.status_available": "Status: available",
+  "gui.director.properties.adapter.editor_tool.status_unavailable": "Status: unavailable",
 
   "gui.director.container.header.title": "Container Manager",
   "gui.director.container.header.count": "(%d containers)",

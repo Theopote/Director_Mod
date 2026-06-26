@@ -21,6 +21,7 @@ import com.director.timeline.model.entity.ActorRouteClip;
 import com.director.timeline.model.entity.EntityTimelineClip;
 import com.director.timeline.model.entity.ActorTrack;
 import com.director.i18n.ActorPropertyAdapterI18n;
+import com.director.i18n.DirectorI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.actor.path.ActorPathController;
 import com.director.ui.tools.EditorTool;
@@ -66,7 +67,7 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
 
     @Override
     public String getAdapterName() {
-        return Icons.TOOLBOX + " 工具属性";
+        return Icons.TOOLBOX + " " + tr(DirectorLang.Properties.AdapterEditorTool.ADAPTER_NAME);
     }
 
     @Override
@@ -77,7 +78,7 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
     @Override
     public boolean renderProperties(EditorTool tool) {
         if (tool == null) {
-            ImGui.textDisabled("未选择工具");
+            ImGui.textDisabled(tr(DirectorLang.Properties.AdapterEditorTool.NO_TOOL_SELECTED));
             return false;
         }
 
@@ -100,10 +101,13 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
     }
 
     private void renderGenericToolProperties(EditorTool tool) {
-        if (ImGui.collapsingHeader(Icons.INFO + " 工具状态", ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.text("ID: " + tool.getId());
-            ImGui.text("Group: " + tool.getGroup());
-            ImGui.text(tool.isEnabled() ? "状态: 可用" : "状态: 不可用");
+        if (ImGui.collapsingHeader(Icons.INFO + " " + tr(DirectorLang.Properties.AdapterEditorTool.SECTION_STATUS),
+                ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.text(tr(DirectorLang.Properties.AdapterEditorTool.ID_FMT, tool.getId()));
+            ImGui.text(tr(DirectorLang.Properties.AdapterEditorTool.GROUP_FMT, tool.getGroup()));
+            ImGui.text(tool.isEnabled()
+                    ? tr(DirectorLang.Properties.AdapterEditorTool.STATUS_AVAILABLE)
+                    : tr(DirectorLang.Properties.AdapterEditorTool.STATUS_UNAVAILABLE));
         }
     }
 
@@ -198,7 +202,8 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
 
     private void degreeSlider(String label, ImFloat value) {
         float[] arr = { value.get() };
-        if (ImGui.sliderFloat(label, arr, -90.0f, 90.0f, "%.1f deg")) {
+        if (ImGui.sliderFloat(label, arr, -90.0f, 90.0f,
+                ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DEGREE_FMT))) {
             value.set(arr[0]);
         }
     }
@@ -415,5 +420,13 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
     }
 
     private record TrackContext(TimelineTrack timelineTrack, ActorTrack actorTrack) {
+    }
+
+    private static String tr(String key) {
+        return DirectorI18n.translate(key);
+    }
+
+    private static String tr(String key, Object... args) {
+        return DirectorI18n.translate(key, args);
     }
 }

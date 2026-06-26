@@ -1404,6 +1404,7 @@ public final class DirectorLang {
                 public static final String PLACE = "gui.director.properties.adapter.actor.common.place";
                 public static final String NONE = "gui.director.properties.adapter.actor.common.none";
                 public static final String DURATION = "gui.director.properties.adapter.actor.common.duration";
+                public static final String DEGREE_FMT = "gui.director.properties.adapter.actor.common.degree_fmt";
 
                 private Common() {
                 }
@@ -1796,6 +1797,19 @@ public final class DirectorLang {
             }
 
             private AdapterActor() {
+            }
+        }
+
+        public static final class AdapterEditorTool {
+            public static final String ADAPTER_NAME = "gui.director.properties.adapter.editor_tool.name";
+            public static final String NO_TOOL_SELECTED = "gui.director.properties.adapter.editor_tool.no_tool_selected";
+            public static final String SECTION_STATUS = "gui.director.properties.adapter.editor_tool.section_status";
+            public static final String ID_FMT = "gui.director.properties.adapter.editor_tool.id_fmt";
+            public static final String GROUP_FMT = "gui.director.properties.adapter.editor_tool.group_fmt";
+            public static final String STATUS_AVAILABLE = "gui.director.properties.adapter.editor_tool.status_available";
+            public static final String STATUS_UNAVAILABLE = "gui.director.properties.adapter.editor_tool.status_unavailable";
+
+            private AdapterEditorTool() {
             }
         }
 
