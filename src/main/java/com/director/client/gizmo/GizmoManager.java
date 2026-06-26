@@ -265,10 +265,10 @@ public class GizmoManager {
             return;
         }
         
-        controller.update(rayOrigin, rayDir, mouseDown, mouseReleased);
-        
-        // 更新 Handle 位置（如果 Box 或 Pivot 改变了）
+        // 先同步手柄/旋转环位置与半径，再跑射线检测，避免“看得见但点不到”
         updateHandlePositions();
+
+        controller.update(rayOrigin, rayDir, mouseDown, mouseReleased);
     }
     
     /**
@@ -444,6 +444,7 @@ public class GizmoManager {
             return false;
         }
         return controller.getHoveredHandle() != null
+            || controller.getHoveredRotationHandle() != null
             || controller.getActiveHandle() != null
             || controller.getActiveRotationHandle() != null;
     }

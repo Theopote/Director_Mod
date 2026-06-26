@@ -26,6 +26,7 @@ public class GizmoInteractionController {
     private GizmoContext context;
     private GizmoState state = GizmoState.IDLE;
     private GizmoHandle hoveredHandle = null;
+    private RotationHandle hoveredRotationHandle = null;
     private GizmoHandle activeHandle = null;
     private RotationHandle activeRotationHandle = null;
     private List<GizmoHandle> handles = new ArrayList<>();
@@ -103,110 +104,154 @@ public class GizmoInteractionController {
         RotationHandle closestRotationHandle = null;
         double closestDistance = Double.POSITIVE_INFINITY;
 
-        // 仅在 ROTATE 模式下检测旋转环，避免平移/缩放时旋转环抢占轴手柄
-        if (allowsRotationHandles()) {
-            for (RotationHandle rotHandle : rotationHandles) {
-                double distance = rotHandle.intersectRay(rayOrigin, rayDir);
-                if (distance < closestDistance) {
-                    closestDistance = distance;
-                    closestRotationHandle = rotHandle;
-                    closestHandle = null;
-                }
-            }
+        // 旋转环悬停（任意模式都检测，用于高亮；拖拽仅在 ROTATE 模式或下方自动切换）
+        RotationHandle rotationHover = pickRotationHandle(rayOrigin, rayDir);
+        if (rotationHover != null) {
+            closestRotationHandle = rotationHover;
+            closestDistance = rotationHover.intersectRay(rayOrigin, rayDir);
         }
-        
-        if (!allowsMoveHandles()) {
+
+        if (allowsRotationHandles()) {
             hoveredHandle = null;
-            if (closestRotationHandle != null) {
-                state = GizmoState.HOVER;
-            } else {
-                state = GizmoState.IDLE;
-            }
+            hoveredRotationHandle = closestRotationHandle;
+            state = closestRotationHandle != null ? GizmoState.HOVER : GizmoState.IDLE;
             return;
         }
+
+        if (!allowsMoveHandles()) {
+            hoveredHandle = null;
+            hoveredRotationHandle = closestRotationHandle;
+            state = closestRotationHandle != null ? GizmoState.HOVER : GizmoState.IDLE;
+            return;
+        }
+
+        double moveBestDistance = Double.POSITIVE_INFINITY;
 
         // 检测 ResizeHandle（优先级高于普通 Handle）
         for (com.director.client.gizmo.handles.ResizeHandle resizeHandle : resizeHandles) {
             HitResult hit = resizeHandle.intersectRay(rayOrigin, rayDir);
-            if (hit.isHit() && hit.getDistance() < closestDistance) {
-                closestDistance = hit.getDistance();
+            if (hit.isHit() && hit.getDistance() < moveBestDistance) {
+                moveBestDistance = hit.getDistance();
                 closestHandle = resizeHandle;
-                closestRotationHandle = null;
             }
         }
-        
+
         // 检测普通 Handle
         for (GizmoHandle handle : handles) {
             HitResult hit = handle.intersectRay(rayOrigin, rayDir);
-            if (hit.isHit() && hit.getDistance() < closestDistance) {
-                closestDistance = hit.getDistance();
+            if (hit.isHit() && hit.getDistance() < moveBestDistance) {
+                moveBestDistance = hit.getDistance();
                 closestHandle = handle;
-                closestRotationHandle = null; // 普通 Handle 优先于旋转环
             }
         }
-        
-        if (closestRotationHandle != null) {
-            // 旋转环悬停（当前简化，不显示悬停状态）
-            hoveredHandle = null;
+
+        // 平移/缩放模式：移动手柄优先于旋转环
+        if (closestHandle != null && (rotationHover == null || moveBestDistance <= closestDistance)) {
+            hoveredHandle = closestHandle;
+            hoveredRotationHandle = null;
             state = GizmoState.HOVER;
-        } else if (closestHandle != null) {
-            if (hoveredHandle != closestHandle) {
-                hoveredHandle = closestHandle;
-                state = GizmoState.HOVER;
-            }
+        } else if (rotationHover != null) {
+            hoveredHandle = null;
+            hoveredRotationHandle = rotationHover;
+            state = GizmoState.HOVER;
         } else {
             hoveredHandle = null;
+            hoveredRotationHandle = null;
             state = GizmoState.IDLE;
         }
+    }
+
+    private RotationHandle pickRotationHandle(Vec3d rayOrigin, Vec3d rayDir) {
+        RotationHandle closest = null;
+        double closestDistance = Double.POSITIVE_INFINITY;
+        for (RotationHandle rotHandle : rotationHandles) {
+            double distance = rotHandle.intersectRay(rayOrigin, rayDir);
+            if (distance < closestDistance) {
+                closestDistance = distance;
+                closest = rotHandle;
+            }
+        }
+        return closestDistance < Double.POSITIVE_INFINITY ? closest : null;
+    }
+
+    private boolean beginTransformApplierSession() {
+        if (transformApplier == null) {
+            return true;
+        }
+        transformApplier.resetAccumulators();
+        if (transformApplier instanceof com.director.ui.actor.gizmo.ActorTransformApplier actorApplier) {
+            actorApplier.prepareDragSession();
+            if (context != null
+                    && context.getType() == GizmoType.TRANSFORM
+                    && com.director.ui.actor.gizmo.ActorGizmoController.getInstance().getTargetActorId() != null
+                    && !com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private void promoteRotateModeForRingInteraction() {
+        if (context == null || context.getType() != GizmoType.TRANSFORM) {
+            return;
+        }
+        if (currentMode() == GizmoMode.ROTATE) {
+            return;
+        }
+        context.setMode(GizmoMode.ROTATE);
+        com.director.ui.actor.gizmo.ActorGizmoController.getInstance().setPreferredMode(GizmoMode.ROTATE);
     }
     
     /** 开始拖拽。 */
     private void startDrag(Vec3d rayOrigin, Vec3d rayDir) {
-        if (allowsRotationHandles()) {
-            RotationHandle closestRotationHandle = null;
-            double closestDistance = Double.POSITIVE_INFINITY;
-            for (RotationHandle rotHandle : rotationHandles) {
-                double distance = rotHandle.intersectRay(rayOrigin, rayDir);
-                if (distance < closestDistance) {
-                    closestDistance = distance;
-                    closestRotationHandle = rotHandle;
-                }
-            }
-            if (closestRotationHandle != null) {
-                activeRotationHandle = closestRotationHandle;
-                if (transformApplier != null) {
-                    transformApplier.resetAccumulators();
-                    if (transformApplier instanceof com.director.ui.actor.gizmo.ActorTransformApplier actorApplier) {
-                        actorApplier.prepareDragSession();
-                    }
-                }
-                closestRotationHandle.beginRotation(rayOrigin, rayDir);
-                state = GizmoState.DRAGGING;
-                return;
+        RotationHandle rotationHit = pickRotationHandle(rayOrigin, rayDir);
+        boolean moveHit = allowsMoveHandles() && hoveredHandle != null;
+
+        if (moveHit && rotationHit != null) {
+            double moveDistance = hoveredHandle.intersectRay(rayOrigin, rayDir).getDistance();
+            double rotationDistance = rotationHit.intersectRay(rayOrigin, rayDir);
+            if (rotationDistance < moveDistance) {
+                moveHit = false;
             }
         }
 
-        if (!allowsMoveHandles()) {
+        if (!moveHit && rotationHit != null) {
+            promoteRotateModeForRingInteraction();
+            if (!beginTransformApplierSession()) {
+                return;
+            }
+            activeRotationHandle = rotationHit;
+            rotationHit.beginRotation(rayOrigin, rayDir);
+            state = GizmoState.DRAGGING;
             return;
         }
-        
-        // 检测普通 Handle
-        if (hoveredHandle != null) {
-            activeHandle = hoveredHandle;
-            if (transformApplier != null) {
-                transformApplier.resetAccumulators();
-                if (transformApplier instanceof com.director.ui.actor.gizmo.ActorTransformApplier actorApplier) {
-                    actorApplier.prepareDragSession();
-                }
+
+        if (allowsRotationHandles() && rotationHit != null) {
+            if (!beginTransformApplierSession()) {
+                return;
             }
-            if (context != null && context.getType() == GizmoType.BOUNDS && isMoveHandle(activeHandle)) {
-                boundsMoveCarry = Vec3d.ZERO;
-                selectionManager.setBoundsGizmoMovePreviewBounds(context.getTargetBox());
-            }
-            activeHandle.onDragStart(rayOrigin, rayDir);
-            context.setActiveHandle(activeHandle);
+            activeRotationHandle = rotationHit;
+            rotationHit.beginRotation(rayOrigin, rayDir);
             state = GizmoState.DRAGGING;
+            return;
         }
+
+        if (!moveHit || hoveredHandle == null) {
+            return;
+        }
+
+        if (!beginTransformApplierSession()) {
+            return;
+        }
+
+        activeHandle = hoveredHandle;
+        if (context != null && context.getType() == GizmoType.BOUNDS && isMoveHandle(activeHandle)) {
+            boundsMoveCarry = Vec3d.ZERO;
+            selectionManager.setBoundsGizmoMovePreviewBounds(context.getTargetBox());
+        }
+        activeHandle.onDragStart(rayOrigin, rayDir);
+        context.setActiveHandle(activeHandle);
+        state = GizmoState.DRAGGING;
     }
     
     /**
@@ -300,6 +345,7 @@ public class GizmoInteractionController {
         
         // 清除悬停状态，强制重新检测（鼠标可能已经不在手柄上了）
         hoveredHandle = null;
+        hoveredRotationHandle = null;
     }
     
     /**
@@ -528,6 +574,10 @@ public class GizmoInteractionController {
         return new ArrayList<>(rotationHandles);
     }
     
+    public RotationHandle getHoveredRotationHandle() {
+        return hoveredRotationHandle;
+    }
+
     public RotationHandle getActiveRotationHandle() {
         return activeRotationHandle;
     }

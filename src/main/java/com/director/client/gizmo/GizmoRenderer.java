@@ -619,10 +619,16 @@ public class GizmoRenderer {
         for (com.director.client.gizmo.handles.RotationHandle rotHandle : rotationHandles) {
             float[] color = getRotationRingColor(rotHandle.getAxis());
 
-            // 检查是否激活
+            // 检查是否激活或悬停
+            RotationHandle hoveredRotation = controller.getHoveredRotationHandle();
             if (controller.getActiveRotationHandle() == rotHandle) {
                 color = new float[]{1.0f, 1.0f, 1.0f, 1.0f}; // 白色高亮
                 color[3] *= (1.0f + 0.3f * (float) Math.sin(time * 10.0)); // 脉冲效果
+            } else if (hoveredRotation == rotHandle) {
+                color = new float[]{color[0], color[1], color[2], 1.0f};
+                color[0] = Math.min(1.0f, color[0] + 0.25f);
+                color[1] = Math.min(1.0f, color[1] + 0.25f);
+                color[2] = Math.min(1.0f, color[2] + 0.25f);
             }
 
             double ringRadius = rotHandle.getRadius();

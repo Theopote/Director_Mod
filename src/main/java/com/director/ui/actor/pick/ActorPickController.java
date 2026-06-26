@@ -95,6 +95,12 @@ public final class ActorPickController {
             lastRightMouseDown = isRightMouseDown(client);
             return;
         }
+        if (com.director.client.gizmo.GizmoManager.get().isHot()
+                || com.director.client.gizmo.GizmoManager.get().isDraggingHandle()) {
+            lastLeftMouseDown = isLeftMouseDown(client);
+            lastRightMouseDown = isRightMouseDown(client);
+            return;
+        }
         if (!ToolRegistry.isActorToolId(ToolRegistry.get().getActiveNonSelectionToolId())) {
             lastLeftMouseDown = isLeftMouseDown(client);
             lastRightMouseDown = isRightMouseDown(client);

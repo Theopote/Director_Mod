@@ -6,7 +6,10 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.util.math.Vec3d;
 
+import com.director.client.gizmo.GizmoManager;
+import com.director.client.gizmo.handles.AxisHandle;
 import com.director.client.input.DirectorInputSystem;
+import com.director.ui.cursor.ImGuiCursorController;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -139,20 +142,46 @@ public class GizmoRenderEvents {
             boolean mouseReleased = lastMouseDown && !mouseDown;
             lastMouseDown = mouseDown;
 
-            boolean dragging = gm.isDraggingHandle();
-            if (com.director.ui.input.InputFocusManager.getInstance().isPanelHovered() && !dragging) {
-                return;
-            }
-
             DirectorInputSystem.ImGuiRay ray = DirectorInputSystem.computeImGuiRay();
             if (ray == null) {
                 return;
             }
 
             gm.tick(ray.origin(), ray.direction(), mouseDown, mouseReleased);
+            updateGizmoCursor(gm);
         } catch (Exception e) {
             LOGGER.warn("[GizmoRenderEvents] Gizmo 交互 tick 失败", e);
         }
+    }
+
+    private static void updateGizmoCursor(GizmoManager gm) {
+        ImGuiCursorController cursor = ImGuiCursorController.get();
+        if (gm == null || !gm.isActive() || gm.getController() == null) {
+            cursor.setCursorType(ImGuiCursorController.CursorType.DEFAULT);
+            return;
+        }
+        var controller = gm.getController();
+        if (controller.getActiveRotationHandle() != null) {
+            cursor.setCursorType(ImGuiCursorController.CursorType.RESIZE_Z);
+            return;
+        }
+        if (controller.getHoveredRotationHandle() != null) {
+            cursor.setCursorType(ImGuiCursorController.CursorType.RESIZE_Z);
+            return;
+        }
+        if (controller.getHoveredHandle() instanceof AxisHandle axisHandle) {
+            cursor.setCursorByAxis(axisHandle.getAxis());
+            return;
+        }
+        if (controller.getActiveHandle() instanceof AxisHandle activeAxis) {
+            cursor.setCursorByAxis(activeAxis.getAxis());
+            return;
+        }
+        if (gm.isHot()) {
+            cursor.setCursorType(ImGuiCursorController.CursorType.RESIZE_Z);
+            return;
+        }
+        cursor.setCursorType(ImGuiCursorController.CursorType.DEFAULT);
     }
 
     /**

@@ -33,7 +33,7 @@ public class ActorTransformApplier extends TransformApplier {
             return;
         }
         actorGizmoController.handleGizmoDragStart();
-        isDragging = actorGizmoController.isEditing();
+        isDragging = actorGizmoController.isDragging();
         accumulatedMoveDelta = Vec3d.ZERO;
         accumulatedScaleDelta = Vec3d.ZERO;
         accumulatedRotateDelta = Vec3d.ZERO;
@@ -109,7 +109,7 @@ public class ActorTransformApplier extends TransformApplier {
             if (!isDragging) {
                 return;
             }
-            accumulatedRotateDelta = accumulatedRotateDelta.add(rotationDelta(axis, Math.toDegrees(angle)));
+            accumulatedRotateDelta = rotationDelta(axis, Math.toDegrees(angle));
             actorGizmoController.handleGizmoDragUpdate(accumulatedRotateDelta);
         } else {
             super.applyRotation(angle, axis);
@@ -134,7 +134,7 @@ public class ActorTransformApplier extends TransformApplier {
     private void beginActorDragIfNeeded() {
         if (!isDragging) {
             actorGizmoController.handleGizmoDragStart();
-            isDragging = actorGizmoController.isEditing();
+            isDragging = actorGizmoController.isDragging();
         }
     }
 

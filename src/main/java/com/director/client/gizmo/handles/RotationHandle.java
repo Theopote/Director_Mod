@@ -49,6 +49,10 @@ public class RotationHandle {
      * @param rayDir 射线方向（归一化）
      * @return 命中点的距离（如果命中），否则返回 Double.POSITIVE_INFINITY
      */
+    public boolean isHit(Vec3d rayOrigin, Vec3d rayDir) {
+        return intersectRay(rayOrigin, rayDir) < Double.POSITIVE_INFINITY;
+    }
+
     public double intersectRay(Vec3d rayOrigin, Vec3d rayDir) {
         Vec3d normal = getAxisNormal();
         
@@ -61,8 +65,8 @@ public class RotationHandle {
         // 计算交点到中心的距离
         Vec3d toCenter = intersection.subtract(center);
         double dist = toCenter.length();
-        // 检查是否在环的范围内（允许一定误差，半径随视距缩放）
-        double tolerance = Math.max(0.15, radius * 0.12);
+        // 检查是否在环的范围内（容差随环半径放大，提升拾取稳定性）
+        double tolerance = Math.max(0.35, radius * 0.22);
         if (Math.abs(dist - radius) < tolerance) {
             double distance = rayOrigin.subtract(intersection).length();
             LOGGER.debug("[RotationHandle] 命中旋转环 (轴: {}, 距离误差: {})", axis, Math.abs(dist - radius));
