@@ -28,6 +28,17 @@ public class ActorTransformApplier extends TransformApplier {
         this.actorGizmoController = actorGizmoController;
     }
 
+    public void prepareDragSession() {
+        if (actorGizmoController == null) {
+            return;
+        }
+        actorGizmoController.handleGizmoDragStart();
+        isDragging = actorGizmoController.isEditing();
+        accumulatedMoveDelta = Vec3d.ZERO;
+        accumulatedScaleDelta = Vec3d.ZERO;
+        accumulatedRotateDelta = Vec3d.ZERO;
+    }
+
     @Override
     public void applyMove(Vec3d delta) {
         // ⭐ 检查是否有目标 Actor（而不是检查 isEditing，因为 editingClip 是在拖动开始时才设置的）

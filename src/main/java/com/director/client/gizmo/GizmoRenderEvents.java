@@ -101,21 +101,8 @@ public class GizmoRenderEvents {
                            gizmoContext.isActive());
             }
             
-            // 计算射线（用于 Gizmo 交互）
-            DirectorInputSystem.ImGuiRay ray = DirectorInputSystem.computeImGuiRay();
-            Vec3d rayOrigin = ray != null ? ray.origin() : cameraPos;
-            Vec3d rayDir = ray != null ? ray.direction() : calculateRayDirectionFallback(client);
-            
-            // 获取鼠标状态
-            boolean mouseDown = org.lwjgl.glfw.GLFW.glfwGetMouseButton(client.getWindow().getHandle(), 0) == 1;
-            
-            // 检测鼠标释放（从按下到释放的瞬间）
-            boolean mouseReleased = lastMouseDown && !mouseDown;
-            lastMouseDown = mouseDown;
-            
-            // 更新 Gizmo（每帧调用）
+            // 更新 Gizmo（交互在 DirectorScreen.tick / tickInteraction 中处理，此处仅渲染）
             double time = client.world != null ? client.world.getTime() : 0.0;
-            gm.tick(cameraPos, rayDir, mouseDown, mouseReleased);
             
             // 渲染 Gizmo
             LOGGER.debug("[GizmoRenderEvents] 调用 gm.render()");
@@ -129,8 +116,49 @@ public class GizmoRenderEvents {
     }
 
     /**
+     * 每帧更新 Gizmo 交互（在 DirectorScreen.tick 中调用，与世界渲染解耦）。
+     */
+    public static void tickInteraction() {
+        try {
+            GizmoManager gm = GizmoManager.get();
+            if (!gm.isActive()) {
+                lastMouseDown = false;
+                return;
+            }
+
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client == null || client.world == null || client.getWindow() == null) {
+                return;
+            }
+            if (client.gameRenderer == null || client.gameRenderer.getCamera() == null) {
+                return;
+            }
+
+            boolean mouseDown = org.lwjgl.glfw.GLFW.glfwGetMouseButton(
+                    client.getWindow().getHandle(), org.lwjgl.glfw.GLFW.GLFW_MOUSE_BUTTON_LEFT) == 1;
+            boolean mouseReleased = lastMouseDown && !mouseDown;
+            lastMouseDown = mouseDown;
+
+            boolean dragging = gm.isDraggingHandle();
+            if (com.director.ui.input.InputFocusManager.getInstance().isPanelHovered() && !dragging) {
+                return;
+            }
+
+            DirectorInputSystem.ImGuiRay ray = DirectorInputSystem.computeImGuiRay();
+            if (ray == null) {
+                return;
+            }
+
+            gm.tick(ray.origin(), ray.direction(), mouseDown, mouseReleased);
+        } catch (Exception e) {
+            LOGGER.warn("[GizmoRenderEvents] Gizmo 交互 tick 失败", e);
+        }
+    }
+
+    /**
      * 计算射线方向（从鼠标位置），在 {@link DirectorInputSystem#computeImGuiRay()} 不可用时回退。
      */
+    @SuppressWarnings("unused")
     private static Vec3d calculateRayDirectionFallback(MinecraftClient client) {
         try {
             var hitResult = DirectorInputSystem.getCurrentRay();

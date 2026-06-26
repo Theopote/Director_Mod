@@ -139,6 +139,12 @@ public class GizmoInteractionController {
             double distance = rotHandle.intersectRay(rayOrigin, rayDir);
             if (distance < Double.POSITIVE_INFINITY) {
                 activeRotationHandle = rotHandle;
+                if (transformApplier != null) {
+                    transformApplier.resetAccumulators();
+                    if (transformApplier instanceof com.director.ui.actor.gizmo.ActorTransformApplier actorApplier) {
+                        actorApplier.prepareDragSession();
+                    }
+                }
                 rotHandle.beginRotation(rayOrigin, rayDir);
                 state = GizmoState.DRAGGING;
                 return;
@@ -150,6 +156,9 @@ public class GizmoInteractionController {
             activeHandle = hoveredHandle;
             if (transformApplier != null) {
                 transformApplier.resetAccumulators();
+                if (transformApplier instanceof com.director.ui.actor.gizmo.ActorTransformApplier actorApplier) {
+                    actorApplier.prepareDragSession();
+                }
             }
             if (context != null && context.getType() == GizmoType.BOUNDS && isMoveHandle(activeHandle)) {
                 boundsMoveCarry = Vec3d.ZERO;

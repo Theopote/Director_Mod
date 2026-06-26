@@ -202,7 +202,7 @@ public class GizmoRenderer {
             // 渲染旋转环（TRANSFORM 类型或动画模式）
             if (context.getType() == GizmoType.TRANSFORM || context.getType() == GizmoType.PIVOT) {
                 try {
-                    renderRotationRings(posMat, vcp, pivot, time);
+                    renderRotationRings(posMat, vcp, pivot, time, distanceMultiplier);
                     LOGGER.debug("[GizmoRenderer] ✅ 旋转环渲染完成");
                 } catch (Exception e) {
                     LOGGER.error("[GizmoRenderer] ❌ 渲染旋转环失败", e);
@@ -609,7 +609,8 @@ public class GizmoRenderer {
     /**
      * 渲染旋转环
      */
-    private void renderRotationRings(Matrix4f posMat, VertexConsumerProvider vcp, Vec3d center, double time) {
+    private void renderRotationRings(Matrix4f posMat, VertexConsumerProvider vcp, Vec3d center, double time,
+                                   double distanceMultiplier) {
         VertexConsumer lineConsumer = vcp.getBuffer(RenderLayer.getLines());
 
         List<com.director.client.gizmo.handles.RotationHandle> rotationHandles =
@@ -624,13 +625,19 @@ public class GizmoRenderer {
                 color[3] *= (1.0f + 0.3f * (float) Math.sin(time * 10.0)); // 脉冲效果
             }
 
+            double ringRadius = rotHandle.getRadius();
+            if (ringRadius <= 0.0) {
+                ringRadius = com.director.client.gizmo.util.GizmoVisualScale.BASE_ROTATION_RING_RADIUS
+                        * distanceMultiplier;
+            }
+
             // 使用 SelectionRenderer 的 drawRing 方法
             OverlayRenderHelper.drawRing(
                     lineConsumer,
                     posMat,
                     rotHandle.getCenter(),
                     rotHandle.getAxis(),
-                    rotHandle.getRadius(),
+                    ringRadius,
                     color
             );
         }

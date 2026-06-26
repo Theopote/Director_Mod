@@ -61,9 +61,8 @@ public class RotationHandle {
         // 计算交点到中心的距离
         Vec3d toCenter = intersection.subtract(center);
         double dist = toCenter.length();
-        
-        // 检查是否在环的范围内（允许一定误差）
-        double tolerance = 0.15; // 环的厚度容差
+        // 检查是否在环的范围内（允许一定误差，半径随视距缩放）
+        double tolerance = Math.max(0.15, radius * 0.12);
         if (Math.abs(dist - radius) < tolerance) {
             double distance = rayOrigin.subtract(intersection).length();
             LOGGER.debug("[RotationHandle] 命中旋转环 (轴: {}, 距离误差: {})", axis, Math.abs(dist - radius));

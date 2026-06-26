@@ -371,7 +371,7 @@ public final class ActorGizmoController {
             return;
         }
 
-        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
+        TimelineModel model = resolveTimelineModel();
         if (model == null) {
             LOGGER.warn("[ActorGizmoController] TimelineModel 未初始化");
             return;
@@ -447,11 +447,7 @@ public final class ActorGizmoController {
                 return;
             }
             case TRANSLATE -> {
-                dragBasePos = new Vec3d(
-                        editingClip.getFromPos().x,
-                        editingClip.getFromPos().y,
-                        editingClip.getFromPos().z
-                );
+                dragBasePos = new Vec3d(sampledPos.x, sampledPos.y, sampledPos.z);
                 // 确保 fromPos 和 toPos 初始化为当前采样位置
                 editingClip.setFromPos(
                         (float) sampledPos.x,
@@ -613,11 +609,63 @@ public final class ActorGizmoController {
             }
         }
 
+        applyLivePreview();
+
         // 通知时间线数据已变
-        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
+        TimelineModel model = resolveTimelineModel();
         if (model != null) {
             model.markDirty();
         }
+    }
+
+    /**
+     * 拖动过程中立即更新预览实体，避免等待下一帧采样才看到位移。
+     */
+    private void applyLivePreview() {
+        if (targetActorId == null || editingClip == null) {
+            return;
+        }
+        Entity preview = ActorPreviewManager.getInstance().getPreview(targetActorId);
+        if (preview == null) {
+            return;
+        }
+
+        switch (currentMode) {
+            case TRANSLATE -> {
+                var to = editingClip.getToPos();
+                preview.refreshPositionAndAngles(
+                        to.x, to.y, to.z,
+                        preview.getYaw(), preview.getPitch());
+                GizmoManager gm = GizmoManager.get();
+                if (gm.isActive()) {
+                    Vec3d pos = new Vec3d(to.x, to.y, to.z);
+                    gm.setPivot(pos);
+                    Box box = preview.getBoundingBox();
+                    if (box != null) {
+                        gm.setTargetBox(box);
+                    }
+                }
+            }
+            case ROTATE -> {
+                var to = editingClip.getToRot();
+                preview.refreshPositionAndAngles(
+                        preview.getX(), preview.getY(), preview.getZ(),
+                        to.x, to.y);
+            }
+            case SCALE -> {
+                // 缩放由预览系统下一帧采样应用；此处不强制改实体尺寸
+            }
+            default -> {
+            }
+        }
+    }
+
+    private TimelineModel resolveTimelineModel() {
+        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
+        if (model != null) {
+            return model;
+        }
+        return com.director.ui.timeline.playback.PlaybackOrchestrator.get().getBoundModel();
     }
 
     /**
@@ -630,7 +678,7 @@ public final class ActorGizmoController {
                     editingClip.getId(), currentMode);
 
             // 通知时间线数据已变
-            TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
+            TimelineModel model = resolveTimelineModel();
             if (model != null) {
                 model.markDirty();
             }

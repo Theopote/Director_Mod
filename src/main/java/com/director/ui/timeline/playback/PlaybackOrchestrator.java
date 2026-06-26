@@ -203,8 +203,7 @@ public final class PlaybackOrchestrator {
                 com.director.ui.timeline.playback.TimelineAudioController.getInstance().update());
         runSubsystem("ActorRuntimeController", () ->
                 com.director.actor.runtime.ActorRuntimeController.getInstance().update());
-        runSubsystem("ActorGizmoController", () ->
-                com.director.ui.actor.gizmo.ActorGizmoController.getInstance().update());
+        // ActorGizmoController：改由 DirectorScreen.tick 驱动（与 Gizmo 交互同帧）
         runSubsystem("WeatherRenderer", () ->
                 com.director.client.renderer.weather.WeatherRenderer.get().tick());
         runSubsystem("WeatherParticleController", () ->

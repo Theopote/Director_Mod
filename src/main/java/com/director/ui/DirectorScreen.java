@@ -907,6 +907,12 @@ public class DirectorScreen extends Screen {
             registry.ensureInitialized();
         }
 
+        // ⭐ Actor Gizmo：跟随预览实体并确保 TransformApplier 就绪（须在交互 tick 之前）
+        com.director.ui.actor.gizmo.ActorGizmoController.getInstance().update();
+
+        // ⭐ Gizmo 交互（平移/旋转手柄拖拽）
+        com.director.client.gizmo.GizmoRenderEvents.tickInteraction();
+
         // ⭐ Actor 选择系统：每帧更新点击检测
         com.director.ui.actor.pick.ActorPickController.getInstance().update();
 

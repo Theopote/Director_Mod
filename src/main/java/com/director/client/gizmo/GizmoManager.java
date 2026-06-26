@@ -1,6 +1,7 @@
 package com.director.client.gizmo;
 
 import com.director.core.DirectorServices;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.render.*;
 import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.util.math.Box;
@@ -339,6 +340,16 @@ public class GizmoManager {
             } else if (handle instanceof AxisHandle || handle instanceof PlaneHandle) {
                 // 轴和平面手柄跟随轴心点
                 handle.setPosition(newPivot);
+            }
+        }
+
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client != null && client.gameRenderer != null && client.gameRenderer.getCamera() != null) {
+            Vec3d cameraPos = client.gameRenderer.getCamera().getPos();
+            double ringRadius = com.director.client.gizmo.util.GizmoVisualScale.rotationRingRadius(newPivot, cameraPos);
+            for (com.director.client.gizmo.handles.RotationHandle rotHandle : controller.getRotationHandles()) {
+                rotHandle.setCenter(newPivot);
+                rotHandle.setRadius(ringRadius);
             }
         }
         
