@@ -2,7 +2,6 @@ package com.director.ui.timeline.render;
 
 import com.director.core.DirectorServices;
 import com.director.core.container.Container;
-import com.director.core.container.ContainerManager;
 import com.director.core.container.ContainerType;
 import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
@@ -54,7 +53,7 @@ public class TimelineAudioRenderer {
     
     /**
      * 渲染音频轨道上的所有事件点
-     *
+     * <p>
      * ⭐ 性能优化：当事件数量过多时（>1000），使用连续波形线代替单个圆点
      *
      * @param drawList ImGui 绘制列表
@@ -106,7 +105,7 @@ public class TimelineAudioRenderer {
 
     /**
      * ⭐ 新方法：将大量音频事件渲染为简化的水平线段（高性能、简洁）
-     *
+     * <p>
      * 用户需求：音频仅用于示意位置，不需要精确表示密度或波形
      * 渲染策略：有音频的区域绘制简单的水平线段，没有的区域留空
      */
@@ -156,9 +155,8 @@ public class TimelineAudioRenderer {
             } else {
                 // 没有音频：如果之前有段，绘制线段
                 if (lineStartX >= 0) {
-                    float lineEndX = segmentX;
                     drawList.addLine(lineStartX, trackCenterY + lineOffsetY,
-                                   lineEndX, trackCenterY + lineOffsetY,
+                            segmentX, trackCenterY + lineOffsetY,
                                    lineColor, lineThickness);
                     lineStartX = -1;
                 }

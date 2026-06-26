@@ -526,18 +526,8 @@ public class TimelineContextMenuFactory {
                 .count();
         
         String trackName = type.getDisplayName() + " " + (sameTypeCount + 1);
-        com.director.timeline.model.TimelineTrack newTrack;
-        
-        // 如果是音频轨道，使用 AudioTrack 类
-        if (type == com.director.timeline.model.TrackType.AUDIO) {
-            newTrack = new com.director.timeline.model.audio.AudioTrack(trackName);
-        } else {
-            newTrack = new com.director.timeline.model.TimelineTrack(trackName, type);
-            if (type == com.director.timeline.model.TrackType.ACTOR) {
-                newTrack.setActorTrackPayload(new com.director.timeline.model.entity.ActorTrack(trackName));
-            }
-        }
-        
+        TimelineTrack newTrack = getTimelineTrack(type, trackName);
+
         // 使用 AddTrackCommand 添加轨道（支持撤销/重做）
         com.director.ui.timeline.commands.AddTrackCommand cmd = 
             new com.director.ui.timeline.commands.AddTrackCommand(model, newTrack);
@@ -551,6 +541,21 @@ public class TimelineContextMenuFactory {
         
         LOGGER.info("[TimelineContextMenuFactory] 创建新轨道 {} (类型: {}, 同类型第 {} 个)",
                 trackName, type.getDisplayName(), sameTypeCount + 1);
+    }
+
+    private static @NotNull TimelineTrack getTimelineTrack(TrackType type, String trackName) {
+        TimelineTrack newTrack;
+
+        // 如果是音频轨道，使用 AudioTrack 类
+        if (type == TrackType.AUDIO) {
+            newTrack = new com.director.timeline.model.audio.AudioTrack(trackName);
+        } else {
+            newTrack = new TimelineTrack(trackName, type);
+            if (type == TrackType.ACTOR) {
+                newTrack.setActorTrackPayload(new com.director.timeline.model.entity.ActorTrack(trackName));
+            }
+        }
+        return newTrack;
     }
 
     // =========================================================
