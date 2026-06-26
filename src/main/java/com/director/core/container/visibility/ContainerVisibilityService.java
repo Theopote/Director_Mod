@@ -707,23 +707,36 @@ public class ContainerVisibilityService {
             return last == null || last.isEmpty();
         }
         if (last == null) last = new LongOpenHashSet();
+
+        // ⭐ 修复：检查目标方块是否全部已显示
         for (LongIterator it = target.iterator(); it.hasNext(); ) {
             long posLong = it.nextLong();
-            if (last.contains(posLong)) continue;
+            if (last.contains(posLong)) continue;  // 已显示
+
+            // ⚠️ 关键修复：如果方块所在区块未加载，返回 false（未满足）
+            // 之前的逻辑是 continue（跳过），导致在区块未加载时误判为"已满足"
             if (world != null) {
                 BlockPos pos = BlockPos.fromLong(posLong);
-                if (!world.getChunkManager().isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4)) continue;
+                if (!world.getChunkManager().isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4)) {
+                    return false;  // 区块未加载，无法确认是否满足，保持目标继续追平
+                }
             }
-            return false;
+            return false;  // 有方块未显示
         }
+
+        // ⭐ 修复：检查是否有多余的已显示方块需要隐藏
         for (LongIterator it = last.iterator(); it.hasNext(); ) {
             long posLong = it.nextLong();
-            if (target.contains(posLong)) continue;
+            if (target.contains(posLong)) continue;  // 仍需显示
+
+            // ⚠️ 关键修复：如果方块所在区块未加载，返回 false（未满足）
             if (world != null) {
                 BlockPos pos = BlockPos.fromLong(posLong);
-                if (!world.getChunkManager().isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4)) continue;
+                if (!world.getChunkManager().isChunkLoaded(pos.getX() >> 4, pos.getZ() >> 4)) {
+                    return false;  // 区块未加载，无法确认是否满足，保持目标继续追平
+                }
             }
-            return false;
+            return false;  // 有多余方块需要隐藏
         }
         return true;
     }
