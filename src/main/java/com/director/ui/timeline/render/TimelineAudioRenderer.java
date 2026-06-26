@@ -54,23 +54,25 @@ public class TimelineAudioRenderer {
     
     /**
      * 渲染音频轨道上的所有事件点
-     * 
+     *
+     * ⭐ 性能优化：当事件数量过多时（>1000），使用连续波形线代替单个圆点
+     *
      * @param drawList ImGui 绘制列表
      * @param track 音频轨道
      * @param contentX 内容区域起始X坐标
      * @param y 轨道Y坐标
      * @param contentW 内容区域宽度
      */
-    public void renderAudioEvents(ImDrawList drawList, TimelineTrack track, 
+    public void renderAudioEvents(ImDrawList drawList, TimelineTrack track,
                                   float contentX, float y, float contentW) {
         if (track == null || track.getType() != TrackType.AUDIO) {
             return;
         }
-        
+
         if (!track.isVisible() || track.isLocked()) {
             return;
         }
-        
+
         // 转换为 AudioTrack
         if (!(track instanceof com.director.timeline.model.audio.AudioTrack audioTrack)) {
             return;
@@ -80,29 +82,121 @@ public class TimelineAudioRenderer {
         if (audioTrack.isMuted()) {
             return;
         }
-        
+
         float trackCenterY = y + com.director.ui.theme.UITheme.Spacing.TIMELINE_TRACK_HEIGHT / 2.0f;
         float pixelsPerSecond = viewport.getPixelsPerSecond();
         float scrollX = viewport.getScrollX();
-        
+
         // 计算可见时间范围
         float startTime = scrollX / pixelsPerSecond;
         float endTime = startTime + (contentW / pixelsPerSecond);
-        
+
         // 获取可见范围内的音频事件
         var events = audioTrack.getEventsInRange(startTime, endTime);
-        
+
+        // ⭐ 性能关键优化：根据事件数量选择渲染模式
+        if (events.size() > 1000) {
+            // 大量事件：使用连续波形线渲染
+            renderAudioEventsAsWaveform(drawList, events, contentX, trackCenterY, contentW, pixelsPerSecond, scrollX);
+        } else {
+            // 少量事件：使用传统圆点渲染
+            renderAudioEventsAsDots(drawList, events, contentX, trackCenterY, contentW, pixelsPerSecond, scrollX);
+        }
+    }
+
+    /**
+     * ⭐ 新方法：将大量音频事件渲染为连续波形线（高性能）
+     *
+     * 不绘制单个圆点，而是将事件密度转换为波形高度，用线段连接
+     */
+    private void renderAudioEventsAsWaveform(ImDrawList drawList, java.util.List<AudioEvent> events,
+                                             float contentX, float trackCenterY, float contentW,
+                                             float pixelsPerSecond, float scrollX) {
+        if (events.isEmpty()) {
+            return;
+        }
+
+        // 将时间轴分成若干段（每段2-5像素），统计每段的事件密度
+        float segmentWidth = 3.0f;  // 每段3像素
+        int segmentCount = (int) Math.ceil(contentW / segmentWidth);
+        float[] densities = new float[segmentCount];
+
+        // 统计每段的事件密度
+        for (AudioEvent event : events) {
+            if (!event.isEnabled()) {
+                continue;
+            }
+
+            float eventTime = event.getTime();
+            float eventX = contentX + (eventTime * pixelsPerSecond) - scrollX;
+
+            // 计算事件属于哪个段
+            int segmentIndex = (int) ((eventX - contentX) / segmentWidth);
+            if (segmentIndex >= 0 && segmentIndex < segmentCount) {
+                densities[segmentIndex] += 1.0f;
+            }
+        }
+
+        // 归一化密度（找到最大值）
+        float maxDensity = 1.0f;
+        for (float density : densities) {
+            if (density > maxDensity) {
+                maxDensity = density;
+            }
+        }
+
+        // 绘制波形线
+        float maxWaveHeight = 15.0f;  // 最大波形高度（像素）
+        int waveColor = TimelineColors.rgba(100, 200, 100, 200);  // 半透明绿色
+
+        // 用连续的线段绘制波形
+        for (int i = 0; i < segmentCount - 1; i++) {
+            float x1 = contentX + i * segmentWidth;
+            float x2 = contentX + (i + 1) * segmentWidth;
+
+            // 根据密度计算波形高度
+            float height1 = (densities[i] / maxDensity) * maxWaveHeight;
+            float height2 = (densities[i + 1] / maxDensity) * maxWaveHeight;
+
+            // 绘制上半波形
+            float y1Top = trackCenterY - height1;
+            float y2Top = trackCenterY - height2;
+            drawList.addLine(x1, y1Top, x2, y2Top, waveColor, 2.0f);
+
+            // 绘制下半波形（镜像）
+            float y1Bottom = trackCenterY + height1;
+            float y2Bottom = trackCenterY + height2;
+            drawList.addLine(x1, y1Bottom, x2, y2Bottom, waveColor, 2.0f);
+
+            // 填充中间区域（可选，创建实心效果）
+            if (height1 > 0 || height2 > 0) {
+                int fillColor = TimelineColors.rgba(100, 200, 100, 80);  // 更透明的填充
+                drawList.addRectFilled(x1, y1Top, x2, y1Bottom, fillColor);
+            }
+        }
+
+        // 绘制中心线（参考线）
+        int centerLineColor = TimelineColors.rgba(150, 150, 150, 100);
+        drawList.addLine(contentX, trackCenterY, contentX + contentW, trackCenterY, centerLineColor, 1.0f);
+    }
+
+    /**
+     * 传统圆点渲染方法（用于少量事件）
+     */
+    private void renderAudioEventsAsDots(ImDrawList drawList, java.util.List<AudioEvent> events,
+                                         float contentX, float trackCenterY, float contentW,
+                                         float pixelsPerSecond, float scrollX) {
         // 获取鼠标位置（用于悬停检测）
         float mouseX = ImGui.getMousePosX();
         float mouseY = ImGui.getMousePosY();
-        
+
         // 绘制所有事件点
         for (AudioEvent event : events) {
             // 跳过未启用的事件
             if (!event.isEnabled()) {
                 continue;
             }
-            
+
             float eventTime = event.getTime();
             if (dragStateQuery != null) {
                 float previewTime = dragStateQuery.getDraggedAutomationKeyframeTime(event);
@@ -111,35 +205,32 @@ public class TimelineAudioRenderer {
                 }
             }
             float eventX = contentX + (eventTime * pixelsPerSecond) - scrollX;
-            
+
             // 检查是否在可见范围内
             if (eventX < contentX || eventX > contentX + contentW) {
                 continue;
             }
-            
+
             // 获取事件颜色（根据声音ID推断类型）
             int eventColor = getEventColor(event);
-            
+
             // 检查鼠标悬停
             float pointSize = EVENT_POINT_SIZE;
             float distance = (float) Math.sqrt(
                 Math.pow(mouseX - eventX, 2) + Math.pow(mouseY - trackCenterY, 2)
             );
-            
+
             if (distance < EVENT_POINT_HOVER_SIZE) {
                 pointSize = EVENT_POINT_HOVER_SIZE;
             }
-            
+
             // 绘制事件点（小圆点）
             drawList.addCircleFilled(eventX, trackCenterY, pointSize, eventColor);
-            
+
             // 绘制外圈（增强可见性）
-            // 将 0.5f (50% 透明度) 转换为 0-255 范围：255 * 0.5 = 127
             int outerColor = TimelineColors.adjustAlpha(eventColor, 127);
             drawList.addCircle(eventX, trackCenterY, pointSize + 1.0f, outerColor, 12);
         }
-        
-        // 需求：不需要文字（包括 tooltip 文本），因此不显示 tooltip
     }
     
     /**
