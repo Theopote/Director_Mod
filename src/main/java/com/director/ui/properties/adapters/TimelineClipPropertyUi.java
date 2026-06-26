@@ -59,6 +59,10 @@ public class TimelineClipPropertyUi {
     private float[] easingCurveCache = new float[EASING_CURVE_SAMPLES];
     private EasingFunction cachedEasingFunction = null;
 
+    // ⭐ 性能优化：跟踪滑动条拖动状态，避免拖动时频繁触发 markDirty()
+    // 只在拖动结束时（ImGui.isItemDeactivatedAfterEdit()）才返回 true 触发保存
+    private boolean isDraggingSlider = false;
+
     static String[] getEasingFunctionLabels() {
         try {
             return buildEasingLabels();
@@ -176,6 +180,9 @@ public class TimelineClipPropertyUi {
         float[] startVal = { clip.getStartTime() };
         if (ImGui.dragFloat("##StartTime", startVal, 0.05f, 0f, 10000f, "%.2fs")) {
             clip.setStartTime(Math.max(0f, startVal[0]));
+        }
+        // ⭐ 性能优化：只在拖动结束时才标记为已修改（触发 markDirty）
+        if (ImGui.isItemDeactivatedAfterEdit()) {
             modified = true;
         }
         ImGui.popItemWidth();
@@ -192,6 +199,9 @@ public class TimelineClipPropertyUi {
         float[] lengthVal = { clip.getLength() };
         if (ImGui.dragFloat("##Length", lengthVal, 0.05f, 0.05f, 10000f, "%.2fs")) {
             clip.setLength(lengthVal[0]);
+        }
+        // ⭐ 性能优化：只在拖动结束时才标记为已修改（触发 markDirty）
+        if (ImGui.isItemDeactivatedAfterEdit()) {
             modified = true;
         }
         ImGui.popItemWidth();
@@ -225,6 +235,9 @@ public class TimelineClipPropertyUi {
             float[] opacity = { clip.getAutoFadeOpacity() };
             if (ImGui.sliderFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_FADE_OPACITY), opacity, 0.05f, 0.95f, "%.2f")) {
                 clip.setAutoFadeOpacity(opacity[0]);
+            }
+            // ⭐ 性能优化：只在滑动结束时才标记为已修改
+            if (ImGui.isItemDeactivatedAfterEdit()) {
                 modified = true;
             }
         }
@@ -247,12 +260,18 @@ public class TimelineClipPropertyUi {
             float[] fadeStart = { clip.getPostAnimationFadeStart() };
             if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_FADE_START_SECONDS), fadeStart, 0.1f, 0.0f, 10.0f, "%.1fs")) {
                 clip.setPostAnimationFadeStart(fadeStart[0]);
+            }
+            // ⭐ 性能优化：只在拖动结束时才标记为已修改
+            if (ImGui.isItemDeactivatedAfterEdit()) {
                 modified = true;
             }
 
             float[] fadeEnd = { clip.getPostAnimationFadeEnd() };
             if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.BASIC_FADE_END_SECONDS), fadeEnd, 0.1f, fadeStart[0], 30.0f, "%.1fs")) {
                 clip.setPostAnimationFadeEnd(fadeEnd[0]);
+            }
+            // ⭐ 性能优化：只在拖动结束时才标记为已修改
+            if (ImGui.isItemDeactivatedAfterEdit()) {
                 modified = true;
             }
 
@@ -410,6 +429,9 @@ public class TimelineClipPropertyUi {
                 duration[0] = 0.0f;
             }
             config.setDuration(duration[0]);
+        }
+        // ⭐ 性能优化：只在拖动结束时才标记为已修改
+        if (ImGui.isItemDeactivatedAfterEdit()) {
             modified = true;
         }
         if (ImGui.isItemHovered()) {
@@ -499,6 +521,9 @@ public class TimelineClipPropertyUi {
             ImGui.pushItemWidth(100.0f);
             if (ImGui.dragFloat("##FadeIntensity", fadeArr, 0.05f, 0.1f, 2.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_FADE_INTENSITY_FORMAT))) {
                 params.put("opacityFadeIntensity", fadeArr[0]);
+            }
+            // ⭐ 性能优化：只在拖动结束时才标记为已修改
+            if (ImGui.isItemDeactivatedAfterEdit()) {
                 modified = true;
             }
             ImGui.popItemWidth();
@@ -725,6 +750,9 @@ public class TimelineClipPropertyUi {
         float[] globalDelay = { params.getGlobalDelay() };
         if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_GLOBAL_DELAY), globalDelay, 0.05f, 0.0f, 30.0f, "%.2fs")) {
             params.setGlobalDelay(globalDelay[0]);
+        }
+        // ⭐ 性能优化：只在拖动结束时才标记为已修改
+        if (ImGui.isItemDeactivatedAfterEdit()) {
             modified = true;
         }
         if (ImGui.isItemHovered()) {
@@ -746,6 +774,9 @@ public class TimelineClipPropertyUi {
             float[] bi = { params.getBatchInterval() };
             if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_BATCH_INTERVAL), bi, 0.01f, 0.0f, 10.0f, "%.2fs")) {
                 params.setBatchInterval(bi[0]);
+            }
+            // ⭐ 性能优化：只在拖动结束时才标记为已修改
+            if (ImGui.isItemDeactivatedAfterEdit()) {
                 modified = true;
             }
             if (ImGui.isItemHovered()) {
@@ -756,6 +787,9 @@ public class TimelineClipPropertyUi {
             if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_GROUP_INTERVAL), gi, 0.01f, 0.0f, 10.0f, "%.2fs")) {
                 // 复用 batchInterval 作为组间隔（避免新增字段破坏存档）
                 params.setBatchInterval(gi[0]);
+            }
+            // ⭐ 性能优化：只在拖动结束时才标记为已修改
+            if (ImGui.isItemDeactivatedAfterEdit()) {
                 modified = true;
             }
             if (ImGui.isItemHovered()) {
@@ -844,6 +878,9 @@ public class TimelineClipPropertyUi {
                 if (ImGui.dragFloat2(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_PLANE_ANGLES), angles, 1.0f, -180.0f, 180.0f, "%.0f°")) {
                     params.setPlaneYaw(angles[0]);
                     params.setPlanePitch(angles[1]);
+                }
+                // ⭐ 性能优化：只在拖动结束时才标记为已修改
+                if (ImGui.isItemDeactivatedAfterEdit()) {
                     modified = true;
                 }
                 if (ImGui.isItemHovered()) {
@@ -851,10 +888,13 @@ public class TimelineClipPropertyUi {
                 }
             }
 
-            // Flow 层厚度（量化）：避免自定义角度时“层太碎”，让过程更像“盖一片片”
+            // Flow 层厚度（量化）：避免自定义角度时”层太碎”，让过程更像”盖一片片”
             float[] layerStep = { params.getLayerStep() };
             if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_LAYER_STEP), layerStep, 0.1f, 0.1f, 32.0f, "%.1f")) {
                 params.setLayerStep(layerStep[0]);
+            }
+            // ⭐ 性能优化：只在拖动结束时才标记为已修改
+            if (ImGui.isItemDeactivatedAfterEdit()) {
                 modified = true;
             }
             if (ImGui.isItemHovered()) {
@@ -1047,6 +1087,9 @@ public class TimelineClipPropertyUi {
             float[] rowStep = { params.getRasterRowStep() };
             if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_ROW_STEP), rowStep, 0.1f, 0.1f, 64.0f, "%.1f")) {
                 params.setRasterRowStep(rowStep[0]);
+            }
+            // ⭐ 性能优化：只在拖动结束时才标记为已修改
+            if (ImGui.isItemDeactivatedAfterEdit()) {
                 modified = true;
             }
             if (ImGui.isItemHovered()) {
@@ -1137,6 +1180,9 @@ public class TimelineClipPropertyUi {
         // 0 = 完全融合，100 = 严格分层
         if (ImGui.sliderFloat("##SeqWeight", weight, 0.0f, 100.0f, "%.0f")) {
             params.setPriorityWeight(weight[0]);
+        }
+        // ⭐ 性能优化：只在滑动结束时才标记为已修改
+        if (ImGui.isItemDeactivatedAfterEdit()) {
             modified = true;
         }
         if (ImGui.isItemHovered()) {
@@ -1580,6 +1626,9 @@ public class TimelineClipPropertyUi {
         if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_START_SECONDS), startBuf, 0.02f, 0.0f, animLen, "%.2f")) {
             startBuf[0] = Math.max(0f, Math.min(startBuf[0], animLen));
             inst.setStartOffset(startBuf[0] / animLen);
+        }
+        // ⭐ 性能优化：只在拖动结束时才标记为已修改
+        if (ImGui.isItemDeactivatedAfterEdit()) {
             modified = true;
         }
         ImGui.popItemWidth();
@@ -1593,6 +1642,9 @@ public class TimelineClipPropertyUi {
         if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.EFFECTS_DURATION_SECONDS), durBuf, 0.02f, 0.0f, animLen, "%.2f")) {
             durBuf[0] = Math.max(0.0f, Math.min(durBuf[0], animLen));
             inst.setDuration(durBuf[0] / animLen);
+        }
+        // ⭐ 性能优化：只在拖动结束时才标记为已修改
+        if (ImGui.isItemDeactivatedAfterEdit()) {
             modified = true;
         }
         ImGui.popItemWidth();
@@ -1923,6 +1975,9 @@ public class TimelineClipPropertyUi {
                 float[] distanceArray = { flyDistance };
                 if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_FLY_DISTANCE), distanceArray, 1.0f, 5.0f, 50.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_BLOCKS))) {
                     params.put("flyDistance", distanceArray[0]);
+                }
+                // ⭐ 性能优化：只在拖动结束时才标记为已修改
+                if (ImGui.isItemDeactivatedAfterEdit()) {
                     modified = true;
                 }
                 break;
@@ -1935,6 +1990,9 @@ public class TimelineClipPropertyUi {
                     float[] heightArray = { height };
                     if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_FALL_HEIGHT), heightArray, 0.5f, 0.0f, 50.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_BLOCKS))) {
                         params.put("height", heightArray[0]);
+                    }
+                    // ⭐ 性能优化：只在拖动结束时才标记为已修改
+                    if (ImGui.isItemDeactivatedAfterEdit()) {
                         modified = true;
                     }
 
@@ -1943,6 +2001,9 @@ public class TimelineClipPropertyUi {
                     float[] bouncinessArray = { bounciness };
                     if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_BOUNCINESS), bouncinessArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
                         params.put("bounciness", bouncinessArray[0]);
+                    }
+                    // ⭐ 性能优化：只在拖动结束时才标记为已修改
+                    if (ImGui.isItemDeactivatedAfterEdit()) {
                         modified = true;
                     }
                 } else {
@@ -1951,6 +2012,9 @@ public class TimelineClipPropertyUi {
                     float[] speedArray = { fallSpeed };
                     if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_FALL_SPEED), speedArray, 0.5f, 1.0f, 20.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_BLOCKS_PER_SECOND))) {
                         params.put("fallSpeed", speedArray[0]);
+                    }
+                    // ⭐ 性能优化：只在拖动结束时才标记为已修改
+                    if (ImGui.isItemDeactivatedAfterEdit()) {
                         modified = true;
                     }
                 }
@@ -1969,6 +2033,9 @@ public class TimelineClipPropertyUi {
                     float[] intensityArray = { tumbleIntensity };
                     if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_TUMBLE_INTENSITY), intensityArray, 0.1f, 0.0f, 3.0f, "%.1f")) {
                         params.put("tumbleIntensity", intensityArray[0]);
+                    }
+                    // ⭐ 性能优化：只在拖动结束时才标记为已修改
+                    if (ImGui.isItemDeactivatedAfterEdit()) {
                         modified = true;
                     }
                 }
@@ -2006,6 +2073,9 @@ public class TimelineClipPropertyUi {
                 float[] distanceArray = { distance };
                 if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_RISE_DISTANCE), distanceArray, 0.5f, 0.0f, 20.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_BLOCKS))) {
                     params.put("distance", distanceArray[0]);
+                }
+                // ⭐ 性能优化：只在拖动结束时才标记为已修改
+                if (ImGui.isItemDeactivatedAfterEdit()) {
                     modified = true;
                 }
                 break;
@@ -2016,6 +2086,9 @@ public class TimelineClipPropertyUi {
                 float[] intensityArray = { intensity };
                 if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_SHAKE_INTENSITY), intensityArray, 0.05f, 0.0f, 2.0f, "%.2f")) {
                     params.put("intensity", intensityArray[0]);
+                }
+                // ⭐ 性能优化：只在拖动结束时才标记为已修改
+                if (ImGui.isItemDeactivatedAfterEdit()) {
                     modified = true;
                 }
 
@@ -2024,6 +2097,9 @@ public class TimelineClipPropertyUi {
                 float[] decayArray = { decay };
                 if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_DECAY_SPEED), decayArray, 0.05f, 0.1f, 1.0f, "%.2f")) {
                     params.put("decay", decayArray[0]);
+                }
+                // ⭐ 性能优化：只在拖动结束时才标记为已修改
+                if (ImGui.isItemDeactivatedAfterEdit()) {
                     modified = true;
                 }
                 break;
@@ -2037,6 +2113,9 @@ public class TimelineClipPropertyUi {
                 String label = ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_TARGET_SCALE);
                 if (ImGui.dragFloat(label, scaleArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
                     params.put(paramKey, scaleArray[0]);
+                }
+                // ⭐ 性能优化：只在拖动结束时才标记为已修改
+                if (ImGui.isItemDeactivatedAfterEdit()) {
                     modified = true;
                 }
                 break;
@@ -2047,6 +2126,9 @@ public class TimelineClipPropertyUi {
                 float[] speedArray = { expandSpeed };
                 if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_EXPAND_SPEED), speedArray, 0.1f, 0.1f, 5.0f, "%.1f")) {
                     params.put("expandSpeed", speedArray[0]);
+                }
+                // ⭐ 性能优化：只在拖动结束时才标记为已修改
+                if (ImGui.isItemDeactivatedAfterEdit()) {
                     modified = true;
                 }
                 if (ImGui.isItemHovered()) {
@@ -2074,6 +2156,9 @@ public class TimelineClipPropertyUi {
                 float[] spreadArray = { spread };
                 if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_SPREAD_RADIUS), spreadArray, 0.5f, 1.0f, 20.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_BLOCKS))) {
                     params.put("spread", spreadArray[0]);
+                }
+                // ⭐ 性能优化：只在拖动结束时才标记为已修改
+                if (ImGui.isItemDeactivatedAfterEdit()) {
                     modified = true;
                 }
                 break;
@@ -2085,6 +2170,9 @@ public class TimelineClipPropertyUi {
                 float[] radiusArray = { radius };
                 if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_SCATTER_RADIUS), radiusArray, 0.1f, 0.1f, 20.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_BLOCKS))) {
                     params.put("radius", radiusArray[0]);
+                }
+                // ⭐ 性能优化：只在拖动结束时才标记为已修改
+                if (ImGui.isItemDeactivatedAfterEdit()) {
                     modified = true;
                 }
 
@@ -2093,6 +2181,9 @@ public class TimelineClipPropertyUi {
                 float[] upBiasArray = { upBias };
                 if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_UP_BIAS), upBiasArray, 0.05f, -1.0f, 2.0f, "%.2f")) {
                     params.put("upBias", upBiasArray[0]);
+                }
+                // ⭐ 性能优化：只在拖动结束时才标记为已修改
+                if (ImGui.isItemDeactivatedAfterEdit()) {
                     modified = true;
                 }
 
@@ -2101,6 +2192,9 @@ public class TimelineClipPropertyUi {
                 float[] scaleMinArray = { scaleMin };
                 if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_SCALE_MIN), scaleMinArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
                     params.put("scaleMin", scaleMinArray[0]);
+                }
+                // ⭐ 性能优化：只在拖动结束时才标记为已修改
+                if (ImGui.isItemDeactivatedAfterEdit()) {
                     modified = true;
                 }
                 break;
@@ -2111,6 +2205,9 @@ public class TimelineClipPropertyUi {
                 float[] startArray = { startOpacity };
                 if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_START_OPACITY), startArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
                     params.put("startOpacity", startArray[0]);
+                }
+                // ⭐ 性能优化：只在拖动结束时才标记为已修改
+                if (ImGui.isItemDeactivatedAfterEdit()) {
                     modified = true;
                 }
 
@@ -2119,6 +2216,9 @@ public class TimelineClipPropertyUi {
                 float[] endArray = { endOpacity };
                 if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_END_OPACITY), endArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
                     params.put("endOpacity", endArray[0]);
+                }
+                // ⭐ 性能优化：只在拖动结束时才标记为已修改
+                if (ImGui.isItemDeactivatedAfterEdit()) {
                     modified = true;
                 }
                 break;
@@ -2129,6 +2229,9 @@ public class TimelineClipPropertyUi {
                 float[] scaleArray = { initialScale };
                 if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_INITIAL_SCALE), scaleArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
                     params.put("initialScale", scaleArray[0]);
+                }
+                // ⭐ 性能优化：只在拖动结束时才标记为已修改
+                if (ImGui.isItemDeactivatedAfterEdit()) {
                     modified = true;
                 }
 
@@ -2137,6 +2240,9 @@ public class TimelineClipPropertyUi {
                 float[] elasticityArray = { elasticity };
                 if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_ELASTICITY), elasticityArray, 0.1f, 0.5f, 3.0f, "%.1f")) {
                     params.put("elasticity", elasticityArray[0]);
+                }
+                // ⭐ 性能优化：只在拖动结束时才标记为已修改
+                if (ImGui.isItemDeactivatedAfterEdit()) {
                     modified = true;
                 }
                 break;
