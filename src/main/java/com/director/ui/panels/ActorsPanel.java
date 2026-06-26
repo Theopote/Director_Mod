@@ -5,6 +5,7 @@ import com.director.actor.ActorRegistry;
 import com.director.actor.ActorRegistryManager;
 import com.director.i18n.ActorPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
+import com.director.ui.actor.path.ActorPathLibraryPanel;
 import com.director.ui.actor.ActorSelectorPanel;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyAdapterRegistry;
@@ -22,6 +23,7 @@ public final class ActorsPanel extends AbstractPanel {
     private static final String ACTOR_PROJECT_MARKER = "ACTOR_PROJECT";
 
     private ActorSelectorPanel actorSelectorPanel;
+    private final ActorPathLibraryPanel actorPathLibraryPanel = new ActorPathLibraryPanel();
 
     public ActorsPanel() {
         setVisible(false);  // 默认布局不打开，需从菜单「窗口」打开
@@ -56,15 +58,17 @@ public final class ActorsPanel extends AbstractPanel {
                 LOGGER.error("[ActorsPanel] Failed to render actor panel", e);
                 ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.PANEL_RENDER_ERROR));
             }
-            return;
+        } else {
+            ensureActorSelectorInitialized();
+            if (actorSelectorPanel == null) {
+                ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.TIMELINE_NOT_READY));
+            } else {
+                actorSelectorPanel.render();
+            }
         }
 
-        ensureActorSelectorInitialized();
-        if (actorSelectorPanel == null) {
-            ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.TIMELINE_NOT_READY));
-            return;
-        }
-        actorSelectorPanel.render();
+        ImGui.separator();
+        actorPathLibraryPanel.render();
     }
 
     private void ensureActorSelectorInitialized() {

@@ -1,5 +1,7 @@
 package com.director.ui.actor.path;
 
+import com.director.actor.path.ActorPathDefinition;
+import com.director.actor.path.ActorPathLibraryManager;
 import com.director.client.gizmo.GizmoInteractionController;
 import com.director.client.gizmo.GizmoManager;
 import com.director.client.gizmo.GizmoType;
@@ -49,13 +51,14 @@ public final class ActorPathController {
     private boolean lastLeftMouseDown = false;
     private boolean lastRightMouseDown = false;
     private boolean wasGizmoDragging = false;
-    private boolean lastEnterDown = false;
     private boolean lastDeleteDown = false;
 
     private int selectedAnchorIndex = -1;
     private Vec3d lastGizmoPosition = null;
     private ActorRouteClip.InterpolationMode interpolationMode = ActorRouteClip.InterpolationMode.CATMULL_ROM;
 
+    /** 正在编辑的库路径；null 表示正在绘制新路径 */
+    private UUID editingLibraryPathId = null;
     private ActorRouteClip editingClip = null;
 
     private ActorPathController() {
@@ -68,10 +71,7 @@ public final class ActorPathController {
     public void activate() {
         active = true;
         resetTransientInputState();
-        pathPoints.clear();
-        selectedAnchorIndex = -1;
-        editingClip = null;
-        drawing = false;
+        beginNewDraft();
         tryLoadSelectedRouteClip();
         ActorPathRenderer.getInstance().setEnabled(true);
         LOGGER.info("[ActorPath] Activated");
@@ -105,6 +105,10 @@ public final class ActorPathController {
         return selectedAnchorIndex;
     }
 
+    public UUID getEditingLibraryPathId() {
+        return editingLibraryPathId;
+    }
+
     public Vec3d getAnchorPosition(int index) {
         if (index < 0 || index >= pathPoints.size()) {
             return null;
@@ -117,9 +121,8 @@ public final class ActorPathController {
             return;
         }
         pathPoints.set(index, position);
-        drawing = pathPoints.size() >= 2;
-        syncEditingClipWaypoints();
-        refreshPreview();
+        drawing = !pathPoints.isEmpty();
+        syncDraftToStorage();
     }
 
     public ActorRouteClip.InterpolationMode getInterpolationMode() {
@@ -131,6 +134,7 @@ public final class ActorPathController {
             return;
         }
         interpolationMode = mode;
+        syncDraftToStorage();
         if (editingClip != null) {
             editingClip.setInterpolationMode(mode);
             markTimelineDirty();
@@ -143,6 +147,37 @@ public final class ActorPathController {
 
     public boolean isDrawing() {
         return drawing;
+    }
+
+    public void loadPathForEditing(UUID pathId) {
+        if (!active || pathId == null) {
+            return;
+        }
+        ActorPathDefinition path = ActorPathLibraryManager.getPath(pathId);
+        if (path == null) {
+            return;
+        }
+        editingLibraryPathId = pathId;
+        editingClip = null;
+        interpolationMode = path.getInterpolationMode();
+        pathPoints.clear();
+        for (Vector3f point : path.getWaypoints()) {
+            pathPoints.add(new Vec3d(point.x, point.y, point.z));
+        }
+        drawing = pathPoints.size() >= 2;
+        selectedAnchorIndex = pathPoints.isEmpty() ? -1 : 0;
+        if (selectedAnchorIndex >= 0) {
+            showGizmoForAnchor(selectedAnchorIndex);
+        } else {
+            clearGizmo();
+        }
+        LOGGER.info("[ActorPath] Loaded library path '{}' for editing", path.getName());
+    }
+
+    public void onPathRemovedFromLibrary(UUID pathId) {
+        if (pathId != null && pathId.equals(editingLibraryPathId)) {
+            beginNewDraft();
+        }
     }
 
     public void update() {
@@ -168,6 +203,7 @@ public final class ActorPathController {
         }
 
         if (wasGizmoDragging && !draggingNow) {
+            syncDraftToStorage();
             markTimelineDirty();
         }
         wasGizmoDragging = draggingNow;
@@ -181,29 +217,24 @@ public final class ActorPathController {
         }
 
         if (GLFW.glfwGetKey(client.getWindow().getHandle(), GLFW.GLFW_KEY_ESCAPE) == GLFW.GLFW_PRESS) {
-            resetState();
+            beginNewDraft();
             return;
         }
 
-        boolean enterDown = isKeyPressed(client, GLFW.GLFW_KEY_ENTER) || isKeyPressed(client, GLFW.GLFW_KEY_KP_ENTER);
         boolean deleteDown = isKeyPressed(client, GLFW.GLFW_KEY_DELETE) || isKeyPressed(client, GLFW.GLFW_KEY_BACKSPACE);
-        if (enterDown && !lastEnterDown) {
-            handleFinalizePath();
-        }
         if (deleteDown && !lastDeleteDown) {
             handleDeleteSelectedAnchor();
         }
-        lastEnterDown = enterDown;
         lastDeleteDown = deleteDown;
 
         boolean leftDown = isLeftMouseDown(client);
         boolean rightDown = isRightMouseDown(client);
 
         if (rightDown && !lastRightMouseDown) {
-            handleAddPoint(client);
+            handleRightClick(client);
         }
         if (leftDown && !lastLeftMouseDown) {
-            handleAnchorPick();
+            handleLeftClick();
         }
 
         lastLeftMouseDown = leftDown;
@@ -211,11 +242,50 @@ public final class ActorPathController {
     }
 
     public void finalizePath() {
-        handleFinalizePath();
+        completeCurrentPath();
     }
 
     public void removeSelectedAnchor() {
         handleDeleteSelectedAnchor();
+    }
+
+    public void applyPathToSelectedActor() {
+        UUID pathId = editingLibraryPathId;
+        if (pathPoints.size() >= 2) {
+            pathId = completeCurrentPath();
+        }
+        if (pathId == null) {
+            return;
+        }
+        createRouteClipFromLibraryPath(pathId);
+    }
+
+    private void handleRightClick(MinecraftClient client) {
+        if (!drawing || pathPoints.isEmpty()) {
+            beginNewDraft();
+        }
+        handleAddPoint(client);
+    }
+
+    private void handleLeftClick() {
+        DirectorInputSystem.ImGuiRay ray = DirectorInputSystem.computeImGuiRay();
+        if (ray == null) {
+            return;
+        }
+
+        int picked = pickNearestAnchor(ray.origin(), ray.direction());
+        if (picked >= 0) {
+            selectedAnchorIndex = picked;
+            showGizmoForAnchor(picked);
+            return;
+        }
+
+        if (drawing && pathPoints.size() >= 2) {
+            completeCurrentPath();
+            return;
+        }
+
+        clearAnchorSelection();
     }
 
     private void handleAddPoint(MinecraftClient client) {
@@ -238,27 +308,44 @@ public final class ActorPathController {
         }
 
         pathPoints.add(pos);
-        drawing = pathPoints.size() >= 2;
+        drawing = true;
         selectedAnchorIndex = pathPoints.size() - 1;
         showGizmoForAnchor(selectedAnchorIndex);
-        syncEditingClipWaypoints();
-        refreshPreview();
+        syncDraftToStorage();
     }
 
-    private void handleAnchorPick() {
-        DirectorInputSystem.ImGuiRay ray = DirectorInputSystem.computeImGuiRay();
-        if (ray == null) {
-            return;
+    private UUID completeCurrentPath() {
+        if (pathPoints.size() < 2) {
+            return editingLibraryPathId;
         }
 
-        int picked = pickNearestAnchor(ray.origin(), ray.direction());
-        if (picked < 0) {
-            clearAnchorSelection();
-            return;
+        List<Vector3f> waypoints = getWaypointVectors();
+        UUID savedId;
+        if (editingLibraryPathId != null) {
+            savedId = editingLibraryPathId;
+            ActorPathLibraryManager.updatePath(savedId, waypoints, interpolationMode);
+            ActorPathDefinition path = ActorPathLibraryManager.getPath(savedId);
+            LOGGER.info("[ActorPath] Updated library path '{}'", path != null ? path.getName() : savedId);
+        } else {
+            ActorPathDefinition created = ActorPathLibraryManager.createPath(
+                    ActorPathLibraryManager.getInstance().generateUniqueName("Path"),
+                    waypoints,
+                    interpolationMode
+            );
+            savedId = created.getId();
+            LOGGER.info("[ActorPath] Saved new library path '{}'", created.getName());
         }
 
-        selectedAnchorIndex = picked;
-        showGizmoForAnchor(picked);
+        beginNewDraft();
+        return savedId;
+    }
+
+    private void beginNewDraft() {
+        pathPoints.clear();
+        drawing = false;
+        selectedAnchorIndex = -1;
+        editingLibraryPathId = null;
+        clearGizmo();
     }
 
     private void handleDeleteSelectedAnchor() {
@@ -270,25 +357,28 @@ public final class ActorPathController {
             drawing = false;
             clearAnchorSelection();
         } else {
+            drawing = true;
             selectedAnchorIndex = Math.min(selectedAnchorIndex, pathPoints.size() - 1);
             showGizmoForAnchor(selectedAnchorIndex);
         }
-        syncEditingClipWaypoints();
-        refreshPreview();
-        markTimelineDirty();
+        syncDraftToStorage();
     }
 
-    private void handleFinalizePath() {
-        if (!drawing || pathPoints.size() < 2) {
-            return;
+    private void syncDraftToStorage() {
+        if (editingLibraryPathId != null && pathPoints.size() >= 2) {
+            ActorPathLibraryManager.updatePath(editingLibraryPathId, getWaypointVectors(), interpolationMode);
         }
-
         if (editingClip != null) {
-            syncEditingClipWaypoints();
+            editingClip.setWaypoints(getWaypointVectors());
             editingClip.setInterpolationMode(interpolationMode);
             updateRouteDuration(editingClip);
             markTimelineDirty();
-            LOGGER.info("[ActorPath] Updated route clip with {} waypoints", pathPoints.size());
+        }
+    }
+
+    private void createRouteClipFromLibraryPath(UUID pathId) {
+        ActorPathDefinition libraryPath = ActorPathLibraryManager.getPath(pathId);
+        if (libraryPath == null || libraryPath.getWaypoints().size() < 2) {
             return;
         }
 
@@ -300,7 +390,6 @@ public final class ActorPathController {
 
         TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
         if (model == null) {
-            LOGGER.warn("[ActorPath] TimelineModel unavailable");
             return;
         }
 
@@ -312,28 +401,30 @@ public final class ActorPathController {
 
         ActorTrack actorTrack = timelineTrack.getActorTrackPayload();
         if (actorTrack == null) {
-            LOGGER.warn("[ActorPath] ActorTrack payload missing for {}", timelineTrack.getName());
             return;
         }
 
+        List<Vector3f> waypoints = new ArrayList<>(libraryPath.getWaypoints());
+        ActorRouteClip.InterpolationMode mode = libraryPath.getInterpolationMode();
+        String clipName = libraryPath.getName();
+
         float start = model.getCurrentTime();
         float duration = Math.max(MIN_SEGMENT_DURATION,
-                ActorRouteSampler.computeCurveLength(getWaypointVectors(), interpolationMode) / DEFAULT_SPEED);
-        ActorRouteClip clip = new ActorRouteClip("Route", start, start + duration);
+                ActorRouteSampler.computeCurveLength(waypoints, mode) / DEFAULT_SPEED);
+        ActorRouteClip clip = new ActorRouteClip(clipName, start, start + duration);
         clip.setSpeed(DEFAULT_SPEED);
-        clip.setInterpolationMode(interpolationMode);
+        clip.setInterpolationMode(mode);
         clip.setLoopMode(ActorRouteClip.LoopMode.ONCE);
         clip.setAlignRotationToRoute(true);
-        clip.setWaypoints(getWaypointVectors());
+        clip.setWaypoints(waypoints);
 
         actorTrack.addClip(clip);
         EntityTimelineClip timelineClip = new EntityTimelineClip(clip, actorTrack.getColorRgba());
         model.addClip(timelineTrack, timelineClip);
         model.selectItem(timelineClip, false);
         model.markDirty();
-
         editingClip = clip;
-        LOGGER.info("[ActorPath] Created route clip with {} waypoints for actor {}", pathPoints.size(), actorId);
+        LOGGER.info("[ActorPath] Created route clip '{}' for actor {}", clipName, actorId);
     }
 
     private void tryLoadSelectedRouteClip() {
@@ -358,6 +449,7 @@ public final class ActorPathController {
             }
 
             editingClip = routeClip;
+            editingLibraryPathId = null;
             interpolationMode = routeClip.getInterpolationMode();
             pathPoints.clear();
             for (Vector3f point : routeClip.getWaypoints()) {
@@ -371,15 +463,6 @@ public final class ActorPathController {
             LOGGER.info("[ActorPath] Loaded existing route clip with {} anchors", pathPoints.size());
             return;
         }
-    }
-
-    private void syncEditingClipWaypoints() {
-        if (editingClip == null) {
-            return;
-        }
-        editingClip.setWaypoints(getWaypointVectors());
-        editingClip.setInterpolationMode(interpolationMode);
-        updateRouteDuration(editingClip);
     }
 
     private void updateRouteDuration(ActorRouteClip clip) {
@@ -474,6 +557,7 @@ public final class ActorPathController {
         pathPoints.clear();
         drawing = false;
         selectedAnchorIndex = -1;
+        editingLibraryPathId = null;
         editingClip = null;
         interpolationMode = ActorRouteClip.InterpolationMode.CATMULL_ROM;
         resetTransientInputState();
@@ -484,12 +568,7 @@ public final class ActorPathController {
         lastLeftMouseDown = false;
         lastRightMouseDown = false;
         wasGizmoDragging = false;
-        lastEnterDown = false;
         lastDeleteDown = false;
-    }
-
-    private void refreshPreview() {
-        // 路径预览由 ActorPathRenderer 负责
     }
 
     private void markTimelineDirty() {

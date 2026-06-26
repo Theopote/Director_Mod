@@ -275,6 +275,13 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
             System.err.println("[TimelineModel] 切档重载 ActorRegistry 失败: " + e.getMessage());
             e.printStackTrace();
         }
+
+        try {
+            com.director.actor.path.ActorPathLibraryManager.reloadForCurrentWorld();
+        } catch (Exception e) {
+            System.err.println("[TimelineModel] 切档重载 ActorPathLibrary 失败: " + e.getMessage());
+            e.printStackTrace();
+        }
     }
 
     /**

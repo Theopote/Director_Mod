@@ -1892,9 +1892,9 @@
   "gui.director.tool.actor_pose.tip.2": "Use Properties to create semantic ActorAction clips",
 
   "gui.director.tool.actor_path.name": "Actor Route",
-  "gui.director.tool.actor_path.desc": "Place path anchors in the world, preview curves, and create an ActorRouteClip.",
-  "gui.director.tool.actor_path.tip.1": "Right click places anchors; left click selects anchors",
-  "gui.director.tool.actor_path.tip.2": "Press Enter to create/update RouteClip; change curve type in Properties",
+  "gui.director.tool.actor_path.desc": "Draw path anchors in the world, save to the path library, and apply to actors.",
+  "gui.director.tool.actor_path.tip.1": "Right click places anchors; left click empty space to finish",
+  "gui.director.tool.actor_path.tip.2": "Paths are saved in Actors panel library; names must be unique",
 
   "gui.director.tool.camera_path_edit.name": "Camera Path",
   "gui.director.tool.camera_path_edit.desc": "Select and move camera path anchors with the Gizmo.",

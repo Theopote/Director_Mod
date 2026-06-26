@@ -264,7 +264,7 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
             return;
         }
 
-        ImGui.textWrapped("右键：在世界中放置锚点；左键：选中锚点并用 Gizmo 移动；Enter：创建/更新 RouteClip；Delete：删除选中锚点；Esc：清空。");
+        ImGui.textWrapped("右键：放置锚点；左键点锚点：编辑；左键点空白：完成并保存路径；再次右键：开始新路径；Esc：取消当前草稿。");
 
         ActorRouteClip.InterpolationMode[] modes = ActorRouteClip.InterpolationMode.values();
         ImInt interpolation = new ImInt(controller.getInterpolationMode().ordinal());
@@ -274,11 +274,14 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
 
         ImGui.text("锚点数量: " + controller.getAnchorCount());
         if (controller.isDrawing()) {
-            ImGui.textDisabled("路径预览已启用");
+            ImGui.textDisabled("正在绘制路径…");
         }
 
-        if (ImGui.button(Icons.ADD + " 创建/更新 RouteClip##actorPathFinalize")) {
-            controller.finalizePath();
+        if (ImGui.button(Icons.ADD + " 应用到选中 Actor##actorPathApplyActor")) {
+            controller.applyPathToSelectedActor();
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("将当前路径（或库中选中路径）创建为 ActorRouteClip");
         }
         ImGui.sameLine();
         if (ImGui.button(Icons.DELETE + " 删除选中锚点##actorPathDeleteAnchor")) {

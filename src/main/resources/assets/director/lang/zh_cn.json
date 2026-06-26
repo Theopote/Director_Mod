@@ -1892,9 +1892,9 @@
   "gui.director.tool.actor_pose.tip.2": "在属性面板中创建语义化 ActorAction 片段",
 
   "gui.director.tool.actor_path.name": "Actor 路径",
-  "gui.director.tool.actor_path.desc": "在世界中绘制路径锚点，自动生成曲线并创建 ActorRouteClip。",
-  "gui.director.tool.actor_path.tip.1": "右键放置锚点，左键选中锚点编辑",
-  "gui.director.tool.actor_path.tip.2": "Enter 创建/更新 RouteClip，属性面板可切换曲线类型",
+  "gui.director.tool.actor_path.desc": "在世界中绘制路径锚点，保存到路径库，并可应用到 Actor。",
+  "gui.director.tool.actor_path.tip.1": "右键放置锚点，左键空白完成路径",
+  "gui.director.tool.actor_path.tip.2": "路径保存在演员面板的「演员路径库」，名称唯一可重命名",
 
   "gui.director.tool.camera_path_edit.name": "摄像机路径",
   "gui.director.tool.camera_path_edit.desc": "使用 Gizmo 选择并移动摄像机路径锚点。",
