@@ -154,14 +154,29 @@ public class TimelineContextMenuFactory {
                 .forClip(commandHistory)
                 .disabledItem(tr(DirectorLang.Timeline.ContextMenu.CLIP_LABEL, clipName))
                 .disabledItem(tr(DirectorLang.Timeline.ContextMenu.TIME_RANGE, clip.getStartTime(), clip.getEndTime()))
-                .separator()
-                .command(tr(DirectorLang.Timeline.ContextMenu.DUPLICATE_CLIP), new DuplicateClipCommand(model, track, clip), "Ctrl+D")
-                .command(tr(DirectorLang.Timeline.ContextMenu.DELETE_CLIP), deleteCmd, "Del")
-                .separator()
-                .command(tr(DirectorLang.Timeline.ContextMenu.SET_DURATION_1S), new SetClipLengthCommand(model, clip, 1.0f))
-                .command(tr(DirectorLang.Timeline.ContextMenu.SET_DURATION_2S), new SetClipLengthCommand(model, clip, 2.0f))
-                .command(tr(DirectorLang.Timeline.ContextMenu.SET_DURATION_5S), new SetClipLengthCommand(model, clip, 5.0f))
                 .separator();
+
+        // ⭐ 音频片段：简化菜单（只保留基本操作）
+        if (track.getType() == TrackType.AUDIO) {
+            builder.command(tr(DirectorLang.Timeline.ContextMenu.DUPLICATE_CLIP), new DuplicateClipCommand(model, track, clip), "Ctrl+D")
+                   .command(tr(DirectorLang.Timeline.ContextMenu.DELETE_CLIP), deleteCmd, "Del")
+                   .separator();
+
+            if (panel != null) {
+                builder.item(tr(DirectorLang.Timeline.ContextMenu.RENAME_CLIP), () -> panel.requestClipRename(clip));
+            }
+
+            return builder.build();
+        }
+
+        // ⭐ 容器片段和其他片段：完整菜单
+        builder.command(tr(DirectorLang.Timeline.ContextMenu.DUPLICATE_CLIP), new DuplicateClipCommand(model, track, clip), "Ctrl+D")
+               .command(tr(DirectorLang.Timeline.ContextMenu.DELETE_CLIP), deleteCmd, "Del")
+               .separator()
+               .command(tr(DirectorLang.Timeline.ContextMenu.SET_DURATION_1S), new SetClipLengthCommand(model, clip, 1.0f))
+               .command(tr(DirectorLang.Timeline.ContextMenu.SET_DURATION_2S), new SetClipLengthCommand(model, clip, 2.0f))
+               .command(tr(DirectorLang.Timeline.ContextMenu.SET_DURATION_5S), new SetClipLengthCommand(model, clip, 5.0f))
+               .separator();
 
         // ⭐ 新增：容器片段的"生成音频"菜单项
         if (track.getType() == TrackType.CONTAINER) {
