@@ -119,9 +119,24 @@ public class TimelineClipBlockController {
         List<BlockSequenceEntry> entries = List.of();
     }
 
+    /**
+     * ⭐ 性能关键：可见方块结果缓存
+     * 避免每帧重新构建包含数万元素的 HashSet
+     */
+    private static final class VisibleBlocksCache {
+        float lastCurrentTime;
+        boolean lastTrackEnabled;
+        boolean lastPreviewMode;
+        long containerModifiedTime;
+        int sequenceParamsHash;
+        VisibleBlocksResult result;
+    }
+
     private final Map<Container, ContainerBlocksCache> blocksCacheByContainer = new IdentityHashMap<>();
     private final Map<TimelineClip, ClipSequenceCache> sequenceCacheByClip = new IdentityHashMap<>();
     private final Map<UUID, SequenceOrderCache> sequenceOrderCacheByContainerId = new HashMap<>();
+    // ⭐ 新增：可见方块结果缓存
+    private final Map<TimelineClip, VisibleBlocksCache> visibleBlocksCacheByClip = new IdentityHashMap<>();
 
     private static final class SequenceOrderCache {
         List<BlockSequenceEntry> entries;
@@ -845,6 +860,11 @@ public class TimelineClipBlockController {
                 TimelineClip c = e.getKey();
                 return c == null || !activeContainerIds.contains(c.getBoundContainerId());
             });
+            // ⭐ 同时清理可见方块结果缓存
+            visibleBlocksCacheByClip.entrySet().removeIf(e -> {
+                TimelineClip c = e.getKey();
+                return c == null || !activeContainerIds.contains(c.getBoundContainerId());
+            });
             sequenceOrderCacheByContainerId.keySet().retainAll(activeContainerIds);
         }
 
@@ -1102,6 +1122,52 @@ public class TimelineClipBlockController {
     }
 
     private VisibleBlocksResult calculateVisibleBlocks(TimelineClip clip,
+                                                       float currentTime,
+                                                       boolean trackEnabled,
+                                                       Container container,
+                                                       ClipAnimationConfig config,
+                                                       boolean previewMode) {
+        // ⭐ 性能关键优化：检查可见方块结果缓存
+        // 如果时间、轨道状态、容器内容都没变，直接返回缓存结果
+        // 这避免了每帧重新构建包含数万元素的 HashSet
+        VisibleBlocksCache cache = visibleBlocksCacheByClip.get(clip);
+        if (cache != null && container != null && config != null) {
+            long containerMod = container.getModifiedTime();
+            var params = config.getSequenceParameters();
+            int paramsHash = hashSequenceParameters(params);
+
+            // 检查所有影响可见方块的因素是否都没变
+            if (Math.abs(cache.lastCurrentTime - currentTime) < 0.0001f &&
+                cache.lastTrackEnabled == trackEnabled &&
+                cache.lastPreviewMode == previewMode &&
+                cache.containerModifiedTime == containerMod &&
+                cache.sequenceParamsHash == paramsHash &&
+                cache.result != null) {
+                // 缓存命中！直接返回
+                return cache.result;
+            }
+        }
+
+        // 缓存未命中，需要计算
+        VisibleBlocksResult result = calculateVisibleBlocksInternal(
+            clip, currentTime, trackEnabled, container, config, previewMode);
+
+        // 保存到缓存
+        if (cache == null) {
+            cache = new VisibleBlocksCache();
+            visibleBlocksCacheByClip.put(clip, cache);
+        }
+        cache.lastCurrentTime = currentTime;
+        cache.lastTrackEnabled = trackEnabled;
+        cache.lastPreviewMode = previewMode;
+        cache.containerModifiedTime = container != null ? container.getModifiedTime() : 0;
+        cache.sequenceParamsHash = config != null ? hashSequenceParameters(config.getSequenceParameters()) : 0;
+        cache.result = result;
+
+        return result;
+    }
+
+    private VisibleBlocksResult calculateVisibleBlocksInternal(TimelineClip clip,
                                                        float currentTime,
                                                        boolean trackEnabled,
                                                        Container container,
