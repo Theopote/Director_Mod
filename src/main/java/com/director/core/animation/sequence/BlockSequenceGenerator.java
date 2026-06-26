@@ -313,45 +313,62 @@ public final class BlockSequenceGenerator {
                 posMap.put(item.getPos(), item);
             }
 
-            // 3. 选择 BFS 起点
-            BlockPos seed = selectFloodSeed(groupItems, seedMode, bbox, groupId, globalSeed);
-
-            // 4. BFS
+            // 3. 多连通分量 BFS：循环直到所有方块都被访问
             Map<BlockPos, Integer> bfsDistance = new HashMap<>();
-            Queue<BlockPos> queue = new ArrayDeque<>();
+            Set<BlockPos> unvisited = new HashSet<>(posSet);
+            int componentOffset = 0; // 每个连通分量的距离偏移
 
-            if (posSet.contains(seed)) {
-                queue.add(seed);
-                bfsDistance.put(seed, 0);
-            } else {
-                // 如果种子不在块集合中，找最近的块作为起点
-                BlockPos closest = findClosest(seed, posSet);
-                if (closest != null) {
-                    queue.add(closest);
-                    bfsDistance.put(closest, 0);
+            while (!unvisited.isEmpty()) {
+                // 3.1 选择当前连通分量的 BFS 起点
+                BlockPos seed;
+                if (componentOffset == 0) {
+                    // 第一个连通分量：使用用户指定的种子模式
+                    seed = selectFloodSeed(groupItems, seedMode, bbox, groupId, globalSeed);
+                    if (!unvisited.contains(seed)) {
+                        // 如果种子不在未访问集合中，找最近的未访问方块
+                        seed = findClosest(seed, unvisited);
+                    }
+                } else {
+                    // 后续连通分量：从未访问方块中任选一个（确定性选择）
+                    seed = unvisited.iterator().next();
                 }
-            }
 
-            while (!queue.isEmpty()) {
-                BlockPos current = queue.poll();
-                int dist = bfsDistance.get(current);
-                for (BlockPos offset : NEIGHBORS) {
-                    BlockPos neighbor = current.add(offset);
-                    if (posSet.contains(neighbor) && !bfsDistance.containsKey(neighbor)) {
-                        bfsDistance.put(neighbor, dist + 1);
-                        queue.add(neighbor);
+                if (seed == null) {
+                    break; // 不应该发生，但保险起见
+                }
+
+                // 3.2 对当前连通分量执行 BFS
+                Queue<BlockPos> queue = new ArrayDeque<>();
+                queue.add(seed);
+                bfsDistance.put(seed, componentOffset);
+                unvisited.remove(seed);
+
+                int maxDistInComponent = componentOffset;
+
+                while (!queue.isEmpty()) {
+                    BlockPos current = queue.poll();
+                    int dist = bfsDistance.get(current);
+                    for (BlockPos offset : NEIGHBORS) {
+                        BlockPos neighbor = current.add(offset);
+                        if (unvisited.contains(neighbor)) {
+                            int neighborDist = dist + 1;
+                            bfsDistance.put(neighbor, neighborDist);
+                            queue.add(neighbor);
+                            unvisited.remove(neighbor);
+                            maxDistInComponent = Math.max(maxDistInComponent, neighborDist);
+                        }
                     }
                 }
+
+                // 3.3 下一个连通分量的距离从当前最大距离+间隔开始
+                // 间隔设为1，使不同连通分量的方块在序列中保持分离
+                componentOffset = maxDistInComponent + 1;
             }
 
-            // 5. 用 BFS 距离设置新 score
-            // 未到达的孤立方块给一个极大距离值，排在最后
-            int maxDist = bfsDistance.isEmpty() ? 0
-                    : bfsDistance.values().stream().max(Integer::compareTo).orElse(0);
-            int unreachableDist = maxDist + 1;
-
+            // 4. 用 BFS 距离设置新 score
+            // 所有方块都应该被访问到了，不再需要 unreachableDist
             for (BlockSequenceItem item : groupItems) {
-                int dist = bfsDistance.getOrDefault(item.getPos(), unreachableDist++);
+                int dist = bfsDistance.getOrDefault(item.getPos(), 0); // 不应该发生
                 float bfsScore = (float) dist;
                 // 重新计算 finalScore = flowScore(groupId) * weight + bfsScore
                 float finalScore = (float) groupId * weight + bfsScore;

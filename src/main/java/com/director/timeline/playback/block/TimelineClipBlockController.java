@@ -17,7 +17,6 @@ import com.director.timeline.playback.TimelinePlaybackSampler;
 import com.director.core.container.visibility.BlockVisualStateManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.block.BlockState;
-import net.minecraft.client.util.math.MatrixStack;
 import net.minecraft.registry.RegistryKey;
 import net.minecraft.world.World;
 import net.minecraft.util.math.BlockPos;
@@ -80,7 +79,7 @@ public class TimelineClipBlockController {
     // 简化遮挡检测器
     private final BlockOcclusionResolver occlusionResolver = new BlockOcclusionResolver();
 
-    // ✅ 缓存清理计数器：每 60 帧清理一次过期缓存
+    // ✅ 缓存清理计数器：每 N 帧清理一次过期缓存
     private int cacheCleanupCounter = 0;
 
     /** 上一 UI 帧是否在拖动播放头（用于松手后的追帧预算）。 */
@@ -414,13 +413,7 @@ public class TimelineClipBlockController {
         boolean scrubbing = activeModel.isScrubbing();
         boolean previewMode = !playing;
         boolean previewTimeChanged = Float.isNaN(lastHandledPreviewTime)
-                || Math.abs(currentTime - lastHandledPreviewTime) > 1e-4f;
-
-        // ⭐ 临时调试：记录 update() 是否被调用
-        if (System.currentTimeMillis() % 5000 < 50) {
-            LOGGER.warn("[DEBUG] update() called: playing={}, scrubbing={}, previewTimeChanged={}, revisionChanged={}",
-                playing, scrubbing, previewTimeChanged, timelineRevision != lastHandledRevision);
-        }
+                || Math.abs(currentTime - lastHandledPreviewTime) > com.director.core.animation.AnimationConstants.TIME_EPSILON;
 
         if (!playing
                 && !scrubbing
@@ -802,9 +795,9 @@ public class TimelineClipBlockController {
         }
         cleanupContainersNoLongerControlled(desiredWorldBlocks.keySet(), visibilityService, visualStateManager, rerender);
 
-        // ⭐ 额外优化：如果重渲染方块数量太多（>10000），分批处理或跳过
+        // ⭐ 额外优化：如果重渲染方块数量太多，分批处理或跳过
         // 避免一次性重渲染导致游戏卡顿
-        if (rerender.size() > 10000) {
+        if (rerender.size() > com.director.core.animation.AnimationConstants.MAX_RERENDER_BLOCKS) {
             LOGGER.warn("[TimelineClipBlockController] 重渲染方块数量过多 ({}), 跳过本帧重渲染以避免卡顿", rerender.size());
             rerender.clear();
         } else if (!rerender.isEmpty()) {
@@ -845,8 +838,8 @@ public class TimelineClipBlockController {
         }
 
         // ✅ 修复：定期清理不再活跃的容器/片段缓存，防止内存泄漏
-        // 每 60 帧（约 3 秒）执行一次清理
-        if (++cacheCleanupCounter >= 60) {
+        // 每 N 帧（约 3 秒 @ 60fps）执行一次清理
+        if (++cacheCleanupCounter >= com.director.core.animation.AnimationConstants.CACHE_CLEANUP_INTERVAL) {
             cacheCleanupCounter = 0;
             Set<UUID> activeContainerIds = currentFrameVisibleBlocks.keySet();
             blocksCacheByContainer.entrySet().removeIf(e -> {
@@ -865,9 +858,9 @@ public class TimelineClipBlockController {
             sequenceOrderCacheByContainerId.keySet().retainAll(activeContainerIds);
         }
 
-        // ===== 节流性能日志（每 5 秒一次）=====
+        // ===== 节流性能日志（定期输出）=====
         long nowMs = System.currentTimeMillis();
-        if (nowMs - lastPerfLogMs > 5000L) {
+        if (nowMs - lastPerfLogMs > com.director.core.animation.AnimationConstants.PERF_LOG_INTERVAL_MS && LOGGER.isInfoEnabled()) {
             lastPerfLogMs = nowMs;
             int containerCount = currentFrameVisibleBlocks.size();
             long visibleTotal = 0L;
@@ -899,7 +892,7 @@ public class TimelineClipBlockController {
             double msStep3 = (tAfterEntries - tAfterOcclusion) / 1_000_000.0;
             double msRerender = (tAfterRerender - tAfterEntries) / 1_000_000.0;
 
-            LOGGER.warn(
+            LOGGER.info(
                     "[Perf][TimelineClipBlockController] total={}ms (clear={}ms, step1_visible={}ms, diff={}ms, occlusion={}ms, step3_apply+entries={}ms, rerender={}ms) containers={}, visibleTotal={}, seqTotal={}, renderEntries={}",
                     String.format("%.2f", msTotal),
                     String.format("%.2f", msClear),
@@ -1134,7 +1127,7 @@ public class TimelineClipBlockController {
             int paramsHash = hashSequenceParameters(params);
 
             // 检查所有影响可见方块的因素是否都没变
-            if (Math.abs(cache.lastCurrentTime - currentTime) < 0.0001f &&
+            if (Math.abs(cache.lastCurrentTime - currentTime) < com.director.core.animation.AnimationConstants.VISIBLE_BLOCKS_CACHE_TIME_EPSILON &&
                 cache.lastTrackEnabled == trackEnabled &&
                 cache.lastPreviewMode == previewMode &&
                 cache.containerModifiedTime == containerMod &&
@@ -1506,14 +1499,9 @@ public class TimelineClipBlockController {
             boolean needsEffects = !config.getEffects().isEmpty();
             boolean shouldSampleForEffects = isInstant && needsEffects && currentTime >= blockStartTime;
 
-            // ===== 提前计算交接窗口（Handoff Window），用于下方的跳过判断 =====
-            float PRE_POST_WINDOW = 0.3f;
-            float MASK_WINDOW = 0.2f;
-            boolean inEnterHandoffEarly = (phase != ClipAnimationConfig.AnimationPhase.EXIT)
-                    && (currentTime >= blockEndTime - MASK_WINDOW && currentTime < blockEndTime + PRE_POST_WINDOW);
-            boolean inExitHandoffEarly = (phase == ClipAnimationConfig.AnimationPhase.EXIT)
-                    && (currentTime >= blockStartTime - PRE_POST_WINDOW && currentTime < blockStartTime + MASK_WINDOW);
-            boolean inHandoffWindow = inEnterHandoffEarly || inExitHandoffEarly;
+            // ===== 使用 HandoffWindowManager 判断交接窗口 =====
+            boolean inHandoffWindow = com.director.core.animation.HandoffWindowManager.isInHandoffWindow(
+                    currentTime, blockStartTime, blockEndTime, phase);
 
             if (!inAnimWindow && !shouldSampleForEffects) {
                 // 静态块：如果视觉状态是 NORMAL 且不抑制世界渲染，完全不需要 overlay / snapshot
@@ -1599,45 +1587,27 @@ public class TimelineClipBlockController {
                     || snapshot.getAlpha() < 0.999f
                     || !isIdentityTransform(snapshot)
                     || (phase == ClipAnimationConfig.AnimationPhase.EXIT && inAnimWindow)
-                    || inEnterHandoffEarly
-                    || inExitHandoffEarly;
+                    || inHandoffWindow;
 
             if (!needsOverlay) {
                 continue;
             }
 
             // 如果处于交接窗口，强制修正 snapshot 状态，确保平滑过渡且遮挡底下的瑕疵
-            if (inEnterHandoffEarly || inExitHandoffEarly) {
-                // 1. 强制完全显示（Alpha 1.0），遮挡内部
-                snapshot.setAlpha(1.0f);
-                snapshot.markFullyVisible();
+            // 如果处于交接窗口，应用交接窗口修正
+            if (inHandoffWindow) {
+                // 使用 HandoffWindowManager 统一处理交接窗口修正
+                com.director.core.animation.HandoffWindowManager.applyHandoffCorrection(snapshot, phase);
 
-                // 2. 交接窗口缩放策略
-                // ENTER：在动画末段改为轻微缩小（0.99），避免与刚出现的真实方块重叠导致瞬时发黑
-                // EXIT：保持微放大（1.002）以覆盖边界缝隙
-                // 必须从中心缩放：translate(0.5) -> scale -> translate(-0.5)
-                MatrixStack ms = new MatrixStack();
-                ms.translate(0.5, 0.5, 0.5);
-                float s = inEnterHandoffEarly ? 0.99f : 1.002f;
-                ms.scale(s, s, s);
-                ms.translate(-0.5, -0.5, -0.5);
-                snapshot.setTransform(ms);
-
-                // 3. 🔥 关键修复：交接期间 suppress=false 让区块重建正常进行，
-                //    但 visualState 必须设为 GHOST_WITH_DEPTH（非 NORMAL），
-                //    否则渲染器 renderAnimatedBlockWithVisualState 检查
-                //    isNormal() && !shouldSuppressWorldRendering() 会直接跳过覆盖层渲染，
-                //    导致动画结束瞬间覆盖层消失 → 区块重建完成前出现空隙。
-                //    GHOST_WITH_DEPTH + alpha=1.0 + depthWrite=true 视觉效果等同实体方块。
-                visualState = BlockVisualStateManager.BlockVisualState.ghost(1.0f, true, false);
+                // 设置交接窗口专用的视觉状态
+                visualState = com.director.core.animation.HandoffWindowManager.createHandoffVisualState();
                 visualStateManager.setBlockState(pos, visualState);
             }
 
             // 🔥 步骤 6：确保视觉状态抑制世界渲染（除非在交接窗口期间）
-            // 注意：在交接窗口期间（inEnterHandoff || inExitHandoff），已经设置 suppressWorldRendering =
-            // false
+            // 注意：在交接窗口期间，已经设置 suppressWorldRendering = false
             // 这里只对非交接窗口的动画方块启用抑制
-            if (!inEnterHandoffEarly && !inExitHandoffEarly && !visualState.shouldSuppressWorldRendering()) {
+            if (!inHandoffWindow && !visualState.shouldSuppressWorldRendering()) {
                 visualState = visualState.withSuppressWorldRendering(true);
                 visualStateManager.setBlockState(pos, visualState);
             }

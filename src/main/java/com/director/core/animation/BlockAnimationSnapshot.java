@@ -56,6 +56,23 @@ public final class BlockAnimationSnapshot {
     private float sequenceNormalizedTime;
 
     /**
+     * 动画是否已经完成（超过动画结束时间）
+     *
+     * <p>用于区分两种状态：
+     * <ul>
+     *   <li>rawProgress = 1.0 且 animationFinished = false：动画刚好结束（t = endTime）</li>
+     *   <li>rawProgress = 1.0 且 animationFinished = true：动画已经结束一段时间（t > endTime）</li>
+     * </ul>
+     *
+     * <p>这个标记主要用于特效系统，帮助判断：
+     * <ul>
+     *   <li>CONTINUOUS 特效：在动画结束后应该停止</li>
+     *   <li>后段特效（如 DUST_BURST）：只在动画刚结束时触发一次</li>
+     * </ul>
+     */
+    private boolean animationFinished;
+
+    /**
      * 是否需要阻止原版世界网格渲染（与 BlockVisualStateManager / Mixin 配合），
      * 例如：遮挡淡化 / ghost 渲染时，把真实网格隐藏，只画一份透明的。
      */
@@ -125,6 +142,14 @@ public final class BlockAnimationSnapshot {
 
     public void setSequenceNormalizedTime(float sequenceNormalizedTime) {
         this.sequenceNormalizedTime = sequenceNormalizedTime;
+    }
+
+    public boolean isAnimationFinished() {
+        return animationFinished;
+    }
+
+    public void setAnimationFinished(boolean animationFinished) {
+        this.animationFinished = animationFinished;
     }
 
     public boolean isSuppressWorldRendering() {

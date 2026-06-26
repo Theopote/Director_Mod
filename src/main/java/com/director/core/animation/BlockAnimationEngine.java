@@ -283,9 +283,10 @@ public final class BlockAnimationEngine {
                 snapshot.setSequenceNormalizedTime(seqNormalizedTime);
                 snapshot.setTransform(null); // null = identity
                 snapshot.setAlpha(1.0f);
-                // ✅ 修复：动画结束后，设置 rawProgress = 1.001f，允许后段特效触发并确保持续特效能正常结束
-                snapshot.setRawProgress(1.001f);
+                // ✅ 修复：使用独立的标记表示"动画已结束"，而不是 rawProgress = 1.001f
+                snapshot.setRawProgress(1.0f);
                 snapshot.setEasedProgress(1.0f);
+                snapshot.setAnimationFinished(true);
             }
             // ✅ 修复：动画结束后仍然检查并触发特效（特别是后段特效，如 DUST_BURST）
             applyEffectsSafe(snapshot, config, now, randomSeed);
@@ -342,7 +343,8 @@ public final class BlockAnimationEngine {
         if (transformer != null) {
             // ⚠️ 防御：config.getParams() 可能为 null
             Map<String, Object> baseParams = config.getParams();
-            Map<String, Object> tempParams = new java.util.HashMap<>(baseParams);
+            Map<String, Object> tempParams = new java.util.HashMap<>(
+                    baseParams != null ? baseParams : java.util.Collections.emptyMap());
 
             // 合并默认参数
             Map<String, Object> defaultParams = transformer.getDefaultParams();
@@ -495,9 +497,11 @@ public final class BlockAnimationEngine {
             return;
         }
 
-        // ✅ EffectInstance 的时间轴是“相对于单个方块动画起点的偏移（归一化 0..1）”
-        // 因此我们用 snapshot.rawProgress（未 easing 的 t_raw）来驱动特效。
+        // ✅ 使用 snapshot.rawProgress 和 snapshot.animationFinished 来驱动特效
+        // rawProgress 在 [0..1] 范围内表示动画进度
+        // animationFinished = true 表示动画已经完全结束（超过 endTime）
         float tRaw = snapshot != null ? MathHelper.clamp(snapshot.getRawProgress(), 0.0f, 1.0f) : 0.0f;
+        boolean isFinished = snapshot != null && snapshot.isAnimationFinished();
 
         for (EffectInstance inst : config.getEffects()) {
             if (inst == null || !inst.isEnabled()) {
@@ -534,6 +538,16 @@ public final class BlockAnimationEngine {
             // ✅ 修复：确保 endNorm 不超过 1.0f，避免特效在动画结束后仍然触发
             float endNorm = MathHelper.clamp(startNorm + durNorm, 0.0f, 1.0f);
 
+            // ✅ 优化：如果动画已结束，跳过 CONTINUOUS 特效（持续型特效应该在动画结束时停止）
+            // 但允许在动画刚结束时（isFinished && tRaw >= endNorm）触发后段 ONE_SHOT 特效
+            if (isFinished && inst.getTriggerMode() == com.director.core.animation.effect.EffectInstance.TriggerMode.CONTINUOUS) {
+                if (LOGGER.isTraceEnabled()) {
+                    LOGGER.trace("[BlockAnimationEngine] 特效 {} 跳过：动画已结束，CONTINUOUS 特效停止",
+                            inst.getType());
+                }
+                continue;
+            }
+
             if (tRaw < startNorm || tRaw > endNorm) {
                 if (LOGGER.isTraceEnabled()) {
                     LOGGER.trace("[BlockAnimationEngine] 特效 {} 时间窗口不匹配：tRaw={} 窗口=[{}, {}]",
@@ -555,22 +569,25 @@ public final class BlockAnimationEngine {
                     // ONE_SHOT：只在进入时间窗口时触发一次（支持回放/拖动倒退时再次触发）
                     if (inst.getTriggerMode() == com.director.core.animation.effect.EffectInstance.TriggerMode.ONE_SHOT) {
                         var gate = EffectRuntimeGate.get(snapshot.getPos().asLong(), inst.getId(), now);
+
+                        // ✅ 优化：使用动态容差，基于时间变化量，确保在不同帧率下稳定工作
+                        // 最小容差 1e-4f 用于静止/极慢播放，最大不超过时间变化量的50%避免跳过边界
+                        float timeDelta = Math.abs(tRaw - gate.lastTRaw);
+                        float epsilon = Math.max(1e-4f, Math.min(timeDelta * 0.5f, 0.05f));
+
                         if (!gate.initialized) {
                             gate.initialized = true;
                             gate.lastTRaw = tRaw;
                             // 首次看到该方块：
-                            // - 默认不触发，避免在片段中途开始渲染时“突然爆一堆”
-                            // - 但如果特效窗口从 0 开始，且当前正处于动画刚起步（tRaw 非常小），允许触发一次
-                            // 这样 startOffset=0 的 ONE_SHOT（如闪白光）不会永远不触发。
-                            // ✅ 修复：首次初始化时，如果当前已经在特效窗口内，允许触发一次
-                            // 这样即使 startOffset 不是 0，也能正常触发
-                            if (tRaw + 1e-4f < startNorm) {
+                            // - 默认不触发，避免在片段中途开始渲染时”突然爆一堆”
+                            // - 但如果特效窗口从 0 开始，且当前正处于动画刚起步，允许触发一次
+                            if (tRaw < startNorm - epsilon) {
                                 // 当前时间还没到特效窗口，等待进入窗口
                                 gate.lastTRaw = tRaw;
                                 if (LOGGER.isDebugEnabled()) {
                                     LOGGER.debug(
-                                            "[BlockAnimationEngine] ONE_SHOT 特效 {} 等待进入窗口: tRaw={} startNorm={} endNorm={}",
-                                            inst.getType(), tRaw, startNorm, endNorm);
+                                            "[BlockAnimationEngine] ONE_SHOT 特效 {} 等待进入窗口: tRaw={} startNorm={} epsilon={}",
+                                            inst.getType(), tRaw, startNorm, epsilon);
                                 }
                                 continue;
                             }
@@ -579,33 +596,33 @@ public final class BlockAnimationEngine {
                             effectT = 0.0f;
                             if (LOGGER.isDebugEnabled()) {
                                 LOGGER.debug(
-                                        "[BlockAnimationEngine] ONE_SHOT 特效 {} 首次触发（已在窗口内）: tRaw={} startNorm={} endNorm={}",
-                                        inst.getType(), tRaw, startNorm, endNorm);
+                                        "[BlockAnimationEngine] ONE_SHOT 特效 {} 首次触发（已在窗口内）: tRaw={} startNorm={} epsilon={}",
+                                        inst.getType(), tRaw, startNorm, epsilon);
                             }
                         } else {
                             // 如果时间倒退（拖动播放头/循环），重置状态以允许重新触发
-                            if (tRaw + 1e-4f < gate.lastTRaw) {
+                            if (tRaw < gate.lastTRaw - epsilon) {
                                 // 时间倒退：重置状态，允许下次前进时重新触发
                                 gate.lastTRaw = tRaw;
                                 // 如果倒退到特效窗口之前，重置 initialized 以允许重新触发
-                                if (tRaw + 1e-4f < startNorm) {
+                                if (tRaw < startNorm - epsilon) {
                                     gate.initialized = false;
                                     if (LOGGER.isDebugEnabled()) {
                                         LOGGER.debug(
-                                                "[BlockAnimationEngine] ONE_SHOT 特效 {} 时间倒退，重置状态: tRaw={} startNorm={}",
-                                                inst.getType(), tRaw, startNorm);
+                                                "[BlockAnimationEngine] ONE_SHOT 特效 {} 时间倒退，重置状态: tRaw={} startNorm={} epsilon={}",
+                                                inst.getType(), tRaw, startNorm, epsilon);
                                     }
                                 }
                                 continue;
                             }
-                            // ✅ 修复：检查是否跨越了特效开始边界（从窗口外进入窗口内）
-                            boolean crossed = gate.lastTRaw + 1e-4f < startNorm && tRaw + 1e-4f >= startNorm;
+                            // ✅ 修复：使用动态容差检查是否跨越了特效开始边界（从窗口外进入窗口内）
+                            boolean crossed = gate.lastTRaw < startNorm - epsilon && tRaw >= startNorm - epsilon;
                             gate.lastTRaw = tRaw;
                             if (!crossed) {
                                 if (LOGGER.isTraceEnabled()) {
                                     LOGGER.trace(
-                                            "[BlockAnimationEngine] ONE_SHOT 特效 {} 未跨越边界: lastTRaw={} tRaw={} startNorm={}",
-                                            inst.getType(), gate.lastTRaw, tRaw, startNorm);
+                                            "[BlockAnimationEngine] ONE_SHOT 特效 {} 未跨越边界: lastTRaw={} tRaw={} startNorm={} epsilon={}",
+                                            inst.getType(), gate.lastTRaw, tRaw, startNorm, epsilon);
                                 }
                                 continue;
                             }
@@ -613,8 +630,8 @@ public final class BlockAnimationEngine {
                             effectT = 0.0f;
                             if (LOGGER.isDebugEnabled()) {
                                 LOGGER.debug(
-                                        "[BlockAnimationEngine] ONE_SHOT 特效 {} 跨越边界触发: lastTRaw={} tRaw={} startNorm={}",
-                                        inst.getType(), gate.lastTRaw, tRaw, startNorm);
+                                        "[BlockAnimationEngine] ONE_SHOT 特效 {} 跨越边界触发: lastTRaw={} tRaw={} startNorm={} epsilon={}",
+                                        inst.getType(), gate.lastTRaw, tRaw, startNorm, epsilon);
                             }
                         }
                     }
