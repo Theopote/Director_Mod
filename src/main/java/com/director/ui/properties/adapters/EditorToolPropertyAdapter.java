@@ -8,6 +8,7 @@ import com.director.actor.rig.ActorRigProfile;
 import com.director.ui.actor.selection.ActorSelectionHub;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.PropertyContext;
+import com.director.ui.properties.actor.ActorLiveTransformPropertyUI;
 import com.director.ui.properties.actor.RigProfileStylePropertyUI;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
@@ -125,7 +126,11 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
             renderPoseAuthoring(actor);
             renderLocalPoseAuthoring(actor);
         } else if (ToolRegistry.isActorTransformGizmoToolId(tool.getId())) {
-            renderTransformHint();
+            if (actor != null) {
+                ActorLiveTransformPropertyUI.render(actor.getActorId());
+            } else {
+                renderTransformHint();
+            }
         }
     }
 
