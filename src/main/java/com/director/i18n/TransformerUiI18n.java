@@ -48,11 +48,12 @@ public final class TransformerUiI18n {
     }
 
     public static String blocksFormat() {
-        return tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_BLOCKS);
+        // ImGui printf format 必须为 ASCII，不可使用含中文的 lang 字符串
+        return "%.0f";
     }
 
     public static String blocksPerSecondFormat() {
-        return tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_BLOCKS_PER_SECOND);
+        return "%.1f";
     }
 
     public static String fallHeight() {

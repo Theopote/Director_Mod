@@ -59,9 +59,12 @@ public class TimelineClipPropertyUi {
     private float[] easingCurveCache = new float[EASING_CURVE_SAMPLES];
     private EasingFunction cachedEasingFunction = null;
 
-    // ⭐ 性能优化：跟踪滑动条拖动状态，避免拖动时频繁触发 markDirty()
-    // 只在拖动结束时（ImGui.isItemDeactivatedAfterEdit()）才返回 true 触发保存
-    private boolean isDraggingSlider = false;
+    // ImGui dragFloat 的 format 必须为纯 ASCII printf 格式；含中文会导致 imgui-java 原生崩溃。
+    private static final String IMGUI_FMT_FLOAT0 = "%.0f";
+    private static final String IMGUI_FMT_FLOAT1 = "%.1f";
+    private static final String IMGUI_FMT_FLOAT2 = "%.2f";
+
+    private int animationParamsSkipFrames = 0;
 
     static String[] getEasingFunctionLabels() {
         try {
@@ -363,6 +366,7 @@ public class TimelineClipPropertyUi {
         }
         animationModeIndex.set(selectedIdx);
 
+        boolean animationModeJustChanged = false;
         ImGui.pushItemWidth(ImGui.getContentRegionAvailX());
         if (ImGui.combo("##AnimMode", animationModeIndex, availableLabels)) {
             int newIndex = animationModeIndex.get();
@@ -410,6 +414,8 @@ public class TimelineClipPropertyUi {
                 LOGGER.warn("获取推荐缓动函数时出错: {}", e.getMessage());
             }
 
+            animationModeJustChanged = true;
+            animationParamsSkipFrames = 2;
             modified = true;
         }
         ImGui.popItemWidth();
@@ -449,8 +455,14 @@ public class TimelineClipPropertyUi {
                     defaultParams.forEach(params::putIfAbsent);
                 }
                 try {
-                    if (renderAnimationParamsDirectly(currentMode, params)) {
+                    // 模式切换当帧跳过参数控件：避免 combo 弹窗未关闭时重建 dragFloat 导致 ImGui 原生崩溃
+                    if (animationParamsSkipFrames <= 0
+                            && !animationModeJustChanged
+                            && renderAnimationParamsDirectly(currentMode, params)) {
                         modified = true;
+                    }
+                    if (animationParamsSkipFrames > 0) {
+                        animationParamsSkipFrames--;
                     }
                 } catch (Exception e) {
                     LOGGER.warn("渲染动画参数时出错: {}", e.getMessage(), e);
@@ -519,7 +531,7 @@ public class TimelineClipPropertyUi {
             float fadeIntensity = getFloatParam(params);
             float[] fadeArr = { fadeIntensity };
             ImGui.pushItemWidth(100.0f);
-            if (ImGui.dragFloat("##FadeIntensity", fadeArr, 0.05f, 0.1f, 2.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.ANIMATION_FADE_INTENSITY_FORMAT))) {
+            if (ImGui.dragFloat("##FadeIntensity", fadeArr, 0.05f, 0.1f, 2.0f, IMGUI_FMT_FLOAT2)) {
                 params.put("opacityFadeIntensity", fadeArr[0]);
             }
             // ⭐ 性能优化：只在拖动结束时才标记为已修改
@@ -875,7 +887,7 @@ public class TimelineClipPropertyUi {
 
             if (showSequenceAdvanced.get()) {
                 float[] angles = { params.getPlaneYaw(), params.getPlanePitch() };
-                if (ImGui.dragFloat2(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_PLANE_ANGLES), angles, 1.0f, -180.0f, 180.0f, "%.0f°")) {
+                if (ImGui.dragFloat2(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.SEQUENCE_PLANE_ANGLES) + "##planeAngles", angles, 1.0f, -180.0f, 180.0f, IMGUI_FMT_FLOAT0)) {
                     params.setPlaneYaw(angles[0]);
                     params.setPlanePitch(angles[1]);
                 }
@@ -1950,6 +1962,7 @@ public class TimelineClipPropertyUi {
      */
     boolean renderAnimationParamsDirectly(AnimationMode mode, Map<String, Object> params) {
         boolean modified = false;
+        ImGui.pushID("AnimParams_" + mode.name());
 
         switch (mode) {
             case FLY_IN:
@@ -1973,7 +1986,7 @@ public class TimelineClipPropertyUi {
                 // 飞行距离
                 float flyDistance = getFloatParam(params, "flyDistance", 10.0f);
                 float[] distanceArray = { flyDistance };
-                if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_FLY_DISTANCE), distanceArray, 1.0f, 5.0f, 50.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_BLOCKS))) {
+                if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_FLY_DISTANCE) + "##flyDistance", distanceArray, 1.0f, 5.0f, 50.0f, IMGUI_FMT_FLOAT0)) {
                     params.put("flyDistance", distanceArray[0]);
                 }
                 // ⭐ 性能优化：只在拖动结束时才标记为已修改
@@ -1988,7 +2001,7 @@ public class TimelineClipPropertyUi {
                     // 下落高度
                     float height = getFloatParam(params, "height", 10.0f);
                     float[] heightArray = { height };
-                    if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_FALL_HEIGHT), heightArray, 0.5f, 0.0f, 50.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_BLOCKS))) {
+                    if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_FALL_HEIGHT) + "##fallHeight", heightArray, 0.5f, 0.0f, 50.0f, IMGUI_FMT_FLOAT0)) {
                         params.put("height", heightArray[0]);
                     }
                     // ⭐ 性能优化：只在拖动结束时才标记为已修改
@@ -2010,7 +2023,7 @@ public class TimelineClipPropertyUi {
                     // 重力坍塌：下落速度
                     float fallSpeed = getFloatParam(params, "fallSpeed", 5.0f);
                     float[] speedArray = { fallSpeed };
-                    if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_FALL_SPEED), speedArray, 0.5f, 1.0f, 20.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_BLOCKS_PER_SECOND))) {
+                    if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_FALL_SPEED) + "##fallSpeed", speedArray, 0.5f, 1.0f, 20.0f, IMGUI_FMT_FLOAT1)) {
                         params.put("fallSpeed", speedArray[0]);
                     }
                     // ⭐ 性能优化：只在拖动结束时才标记为已修改
@@ -2071,7 +2084,7 @@ public class TimelineClipPropertyUi {
                 // 升起距离
                 float distance = getFloatParam(params, "distance", 0.0f);
                 float[] distanceArray = { distance };
-                if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_RISE_DISTANCE), distanceArray, 0.5f, 0.0f, 20.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_BLOCKS))) {
+                if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_RISE_DISTANCE) + "##riseDistance", distanceArray, 0.5f, 0.0f, 20.0f, IMGUI_FMT_FLOAT0)) {
                     params.put("distance", distanceArray[0]);
                 }
                 // ⭐ 性能优化：只在拖动结束时才标记为已修改
@@ -2111,7 +2124,7 @@ public class TimelineClipPropertyUi {
                 float scale = getFloatParam(params, paramKey, 0.0f);
                 float[] scaleArray = { scale };
                 String label = ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_TARGET_SCALE);
-                if (ImGui.dragFloat(label, scaleArray, 0.05f, 0.0f, 1.0f, "%.2f")) {
+                if (ImGui.dragFloat(label + "##targetScale", scaleArray, 0.05f, 0.0f, 1.0f, IMGUI_FMT_FLOAT2)) {
                     params.put(paramKey, scaleArray[0]);
                 }
                 // ⭐ 性能优化：只在拖动结束时才标记为已修改
@@ -2154,7 +2167,7 @@ public class TimelineClipPropertyUi {
                 // 散开半径（用于 ENTER 阶段的碎片聚合）
                 float spread = getFloatParam(params, "spread", 5.0f);
                 float[] spreadArray = { spread };
-                if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_SPREAD_RADIUS), spreadArray, 0.5f, 1.0f, 20.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_BLOCKS))) {
+                if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_SPREAD_RADIUS) + "##spreadRadius", spreadArray, 0.5f, 1.0f, 20.0f, IMGUI_FMT_FLOAT0)) {
                     params.put("spread", spreadArray[0]);
                 }
                 // ⭐ 性能优化：只在拖动结束时才标记为已修改
@@ -2168,7 +2181,7 @@ public class TimelineClipPropertyUi {
                 // 散射半径
                 float radius = getFloatParam(params, "radius", 2.0f);
                 float[] radiusArray = { radius };
-                if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_SCATTER_RADIUS), radiusArray, 0.1f, 0.1f, 20.0f, ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_BLOCKS))) {
+                if (ImGui.dragFloat(ClipPropertyUiI18n.tr(DirectorLang.Properties.AdapterTimelineClipUi.TRANSFORMER_SCATTER_RADIUS) + "##scatterRadius", radiusArray, 0.1f, 0.1f, 20.0f, IMGUI_FMT_FLOAT0)) {
                     params.put("radius", radiusArray[0]);
                 }
                 // ⭐ 性能优化：只在拖动结束时才标记为已修改
@@ -2252,6 +2265,7 @@ public class TimelineClipPropertyUi {
                 break;
         }
 
+        ImGui.popID();
         return modified;
     }
 
