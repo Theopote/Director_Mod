@@ -9,7 +9,6 @@ import com.director.core.animation.sequence.BlockSequenceEntry;
 import com.director.core.animation.sequence.BlockSequenceGenerator;
 import com.director.core.container.Container;
 import com.director.core.container.ContainerType;
-import com.director.core.container.ContainerManager;
 import com.director.core.animation.ClipAnimationConfig;
 import com.director.timeline.model.TimelineClip;
 import com.director.timeline.model.TimelineInterpolation;
@@ -29,7 +28,6 @@ import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
