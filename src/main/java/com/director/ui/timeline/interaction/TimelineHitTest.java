@@ -452,6 +452,10 @@ public final class TimelineHitTest {
         float bestDistSq = Float.MAX_VALUE;
         TimelineSelectable bestKeyframe = null;
 
+        // ⭐ 音频轨道：使用更小的命中半径，让音频片段更容易被选中
+        boolean isAudioTrack = track.getType() == com.director.timeline.model.TrackType.AUDIO;
+        float hitRadius = isAudioTrack ? 3.0f : TimelineRenderer.getKeyframeHitRadius();
+
         for (TimelineSelectable keyframe : track.getAutomationKeyframes()) {
             if (keyframe == null) continue;
 
@@ -461,8 +465,7 @@ public final class TimelineHitTest {
             float dy = mouseY - centerY;
             float distSq = dx * dx + dy * dy;
 
-            float r = TimelineRenderer.getKeyframeHitRadius();
-            if (distSq <= r * r && distSq < bestDistSq) {
+            if (distSq <= hitRadius * hitRadius && distSq < bestDistSq) {
                 bestDistSq = distSq;
                 bestKeyframe = keyframe;
             }
