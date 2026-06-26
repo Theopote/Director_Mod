@@ -430,17 +430,25 @@ public final class ActorRuntimeController {
                 EntitySample prev,
                 float deltaTime
         ) {
+            // Gizmo 拖动期间跳过 Transform 写回，避免与 applyLivePreview 打架
+            UUID actorId = actor != null ? actor.getActorId() : null;
+            boolean gizmoDragging = actorId != null
+                    && com.director.ui.actor.gizmo.ActorGizmoController.getInstance().isDragging()
+                    && actorId.equals(com.director.ui.actor.gizmo.ActorGizmoController.getInstance().getTargetActorId());
+
             // === Visibility ===
             entity.setInvisible(s.visibility <= 0.01f);
 
             // === Transform ===
-            entity.refreshPositionAndAngles(
-                    s.position.x,
-                    s.position.y,
-                    s.position.z,
-                    s.rotation.x,
-                    s.rotation.y
-            );
+            if (!gizmoDragging) {
+                entity.refreshPositionAndAngles(
+                        s.position.x,
+                        s.position.y,
+                        s.position.z,
+                        s.rotation.x,
+                        s.rotation.y
+                );
+            }
 
             // === ActorRelation（多演员关系）===
             if (s.relationEnabled) {
@@ -714,17 +722,11 @@ public final class ActorRuntimeController {
             double offsetZ = Math.cos(radians) * s.relationDistance;
 
             switch (relationType) {
-                case FACE_TO_FACE, FOLLOW, RELATIVE_POSITION -> {
+                case FACE_TO_FACE, FOLLOW, RELATIVE_POSITION, CIRCLE_AROUND -> {
                     double newX = targetPos.x + offsetX;
                     double newY = targetPos.y + s.relationHeightOffset;
                     double newZ = targetPos.z + offsetZ;
                     entity.refreshPositionAndAngles(newX, newY, newZ, entity.getYaw(), entity.getPitch());
-                }
-                case CIRCLE_AROUND -> {
-                    double orbitX = targetPos.x + offsetX;
-                    double orbitY = targetPos.y + s.relationHeightOffset;
-                    double orbitZ = targetPos.z + offsetZ;
-                    entity.refreshPositionAndAngles(orbitX, orbitY, orbitZ, entity.getYaw(), entity.getPitch());
                 }
                 default -> {
                     // MIRROR / PASS_OBJECT 暂不在 Runtime 层实现，保留采样信息供后续扩展

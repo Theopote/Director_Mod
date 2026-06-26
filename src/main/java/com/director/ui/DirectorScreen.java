@@ -907,7 +907,10 @@ public class DirectorScreen extends Screen {
             registry.ensureInitialized();
         }
 
-        // ⭐ Actor Gizmo：跟随预览实体并确保 TransformApplier 就绪（须在交互 tick 之前）
+        // Camera path edit tool: world-space anchor picking and Gizmo movement.
+        com.director.ui.camera.path.CameraPathEditController.getInstance().update();
+
+        // ⭐ Actor Gizmo：跟随预览实体并确保 TransformApplier 就绪（须在交互 tick 之前，且在相机路径之后）
         com.director.ui.actor.gizmo.ActorGizmoController.getInstance().update();
 
         // ⭐ Gizmo 交互（平移/旋转手柄拖拽）
@@ -921,9 +924,6 @@ public class DirectorScreen extends Screen {
 
         // ⭐ Actor 路径工具：每帧更新（路径点采集与预览）
         com.director.ui.actor.path.ActorPathController.getInstance().update();
-
-        // Camera path edit tool: world-space anchor picking and Gizmo movement.
-        com.director.ui.camera.path.CameraPathEditController.getInstance().update();
 
         // ⭐ Actor LookAt Gizmo 系统：每帧更新（LOOK_AT 模式下处理世界点击）
         com.director.ui.actor.lookat.ActorLookAtGizmoController.getInstance().update();

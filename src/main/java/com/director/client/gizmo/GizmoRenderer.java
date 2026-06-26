@@ -199,7 +199,7 @@ public class GizmoRenderer {
                 // }
             }
 
-            // 渲染旋转环（TRANSFORM 类型或动画模式）
+            // 渲染旋转环（TRANSFORM / PIVOT 始终可见；交互仅在 ROTATE 模式下启用）
             if (context.getType() == GizmoType.TRANSFORM || context.getType() == GizmoType.PIVOT) {
                 try {
                     renderRotationRings(posMat, vcp, pivot, time, distanceMultiplier);

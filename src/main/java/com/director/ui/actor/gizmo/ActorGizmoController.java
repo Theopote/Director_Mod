@@ -178,6 +178,13 @@ public final class ActorGizmoController {
         return editingClip != null;
     }
 
+    /**
+     * 是否正在拖动 Gizmo 编辑该演员（供 Runtime 避免覆盖实时预览）。
+     */
+    public boolean isDragging() {
+        return dragging;
+    }
+
     public void setPreferredMode(GizmoMode mode) {
         this.currentMode = mode != null ? mode : GizmoMode.TRANSLATE;
         if (GizmoManager.get().getContext() != null) {
@@ -213,20 +220,14 @@ public final class ActorGizmoController {
             return;
         }
 
-        // 1️⃣ 读取当前 Gizmo 模式
-        updateCurrentMode();
-
-        // 2️⃣ 更新 Gizmo 位置（跟随实体）
+        // 1️⃣ 更新 Gizmo 位置（跟随实体）；模式由 setPreferredMode / 工具切换驱动，不从 Gizmo 上下文反向覆盖
         updateGizmoPosition(preview);
-
-        // 3️⃣ 处理 Gizmo 拖动（如果发生）
-        // 注意：拖动事件通过 GizmoInteractionController 的回调处理
-        // 这里只检查状态，实际处理在 handleGizmoDragStart/Update/End 中
     }
 
     /**
-     * 更新当前 Gizmo 模式（从 GizmoManager 读取）
+     * @deprecated 模式由工具/快捷键 {@link #setPreferredMode} 驱动，不再从 Gizmo 上下文反向读取
      */
+    @Deprecated
     private void updateCurrentMode() {
         GizmoManager gm = GizmoManager.get();
         if (gm != null && gm.isActive() && gm.getContext() != null) {
@@ -263,9 +264,7 @@ public final class ActorGizmoController {
         Vec3d pivot = new Vec3d(entity.getX(), entity.getY(), entity.getZ());
         GizmoManager gm = GizmoManager.get();
 
-        boolean needsFullActivate = !gm.isActive()
-                || gm.getType() != GizmoType.TRANSFORM
-                || !hasActorTransformApplier(gm);
+        boolean needsFullActivate = !gm.isActive() || gm.getType() != GizmoType.TRANSFORM;
 
         if (needsFullActivate) {
             if (gm.isActive()) {
@@ -273,6 +272,9 @@ public final class ActorGizmoController {
             }
             gm.activate(GizmoType.TRANSFORM, box, pivot);
             ownsGizmo = true;
+            if (gm.getContext() != null) {
+                gm.getContext().setMode(currentMode);
+            }
             configureActorTransformGizmo(gm);
             lastGizmoBox = box;
             lastGizmoPivot = pivot;
@@ -282,6 +284,7 @@ public final class ActorGizmoController {
         }
 
         ownsGizmo = true;
+        ensureActorTransformApplier(gm);
 
         boolean boxChanged = lastGizmoBox == null || !boxesEqual(box, lastGizmoBox);
         boolean pivotChanged = lastGizmoPivot == null
@@ -368,12 +371,14 @@ public final class ActorGizmoController {
         }
         if (actorTrack == null) {
             LOGGER.warn("[ActorGizmoController] 无法开始 Gizmo 拖动：未找到 Actor {} 的轨道", targetActorId);
+            dragging = false;
             return;
         }
 
         TimelineModel model = resolveTimelineModel();
         if (model == null) {
             LOGGER.warn("[ActorGizmoController] TimelineModel 未初始化");
+            dragging = false;
             return;
         }
 
@@ -548,12 +553,18 @@ public final class ActorGizmoController {
                     return;
                 }
                 Vec3d newPos = dragBasePos.add(deltaWorld);
+                // 播放头处立即生效：from/to 同步，避免采样在 t=0 时仍落在 fromPos 而把演员拉回
+                editingClip.setFromPos(
+                        (float) newPos.x,
+                        (float) newPos.y,
+                        (float) newPos.z
+                );
                 editingClip.setToPos(
                         (float) newPos.x,
                         (float) newPos.y,
                         (float) newPos.z
                 );
-                LOGGER.trace("[ActorGizmoController] 更新 TransformClip toPos: ({}, {}, {})",
+                LOGGER.trace("[ActorGizmoController] 更新 TransformClip pos: ({}, {}, {})",
                         newPos.x, newPos.y, newPos.z);
             }
 
@@ -564,18 +575,22 @@ public final class ActorGizmoController {
                 if (dragBaseRot == null) {
                     return;
                 }
-                // 约定：deltaWorld.x/y/z 映射为 yaw / pitch / roll 的增量（度）
                 Vec3d newRot = dragBaseRot.add(
                         deltaWorld.x,
                         deltaWorld.y,
                         deltaWorld.z
+                );
+                editingClip.setFromRot(
+                        (float) newRot.x,
+                        (float) newRot.y,
+                        (float) newRot.z
                 );
                 editingClip.setToRot(
                         (float) newRot.x,
                         (float) newRot.y,
                         (float) newRot.z
                 );
-                LOGGER.trace("[ActorGizmoController] 更新 TransformClip toRot: ({}, {}, {})",
+                LOGGER.trace("[ActorGizmoController] 更新 TransformClip rot: ({}, {}, {})",
                         newRot.x, newRot.y, newRot.z);
             }
 
@@ -598,6 +613,11 @@ public final class ActorGizmoController {
                         clamp(newScale.x),
                         clamp(newScale.y),
                         clamp(newScale.z)
+                );
+                editingClip.setFromScale(
+                        (float) newScale.x,
+                        (float) newScale.y,
+                        (float) newScale.z
                 );
                 editingClip.setToScale(
                         (float) newScale.x,
@@ -687,6 +707,16 @@ public final class ActorGizmoController {
         dragging = false;
         editingClip = null;
         clearDragBases();
+
+        // 拖动结束后立即把 Gizmo 拉回演员身上，避免 pivot 与实体脱节
+        if (targetActorId != null) {
+            Entity preview = ActorPreviewManager.getInstance().getPreview(targetActorId);
+            if (preview != null) {
+                lastGizmoBox = null;
+                lastGizmoPivot = null;
+                updateGizmoPosition(preview);
+            }
+        }
     }
 
     // =========================================================
@@ -839,7 +869,7 @@ public final class ActorGizmoController {
             return;
         }
 
-        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
+        TimelineModel model = resolveTimelineModel();
         if (model == null) {
             return;
         }
