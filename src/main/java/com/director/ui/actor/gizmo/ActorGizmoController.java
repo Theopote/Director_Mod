@@ -156,9 +156,7 @@ public final class ActorGizmoController {
             LOGGER.debug("[ActorGizmoController] 清除方块选区失败（可能不在客户端）: {}", e.getMessage());
         }
 
-        if (ownsGizmo && GizmoManager.get().isActive()) {
-            GizmoManager.get().deactivate();
-        }
+        deactivateActorTransformGizmoIfPresent();
         ownsGizmo = false;
     }
 
@@ -252,74 +250,89 @@ public final class ActorGizmoController {
         if (dragging) {
             return;
         }
-        
+
+        if (actorTrack == null) {
+            resolveTargetTrack();
+        }
+
         Box box = entity.getBoundingBox();
         if (box == null) {
             return;
         }
 
         Vec3d pivot = new Vec3d(entity.getX(), entity.getY(), entity.getZ());
+        GizmoManager gm = GizmoManager.get();
 
-        // ⭐ 检查 Box 和 Pivot 是否真正变化（避免不必要的更新）
-        boolean boxChanged = lastGizmoBox == null || !boxesEqual(box, lastGizmoBox);
-        boolean pivotChanged = lastGizmoPivot == null || 
-                              lastGizmoPivot.squaredDistanceTo(pivot) > BOX_CHANGE_THRESHOLD_SQ;
+        boolean needsFullActivate = !gm.isActive()
+                || gm.getType() != GizmoType.TRANSFORM
+                || !hasActorTransformApplier(gm);
 
-        // 如果 Gizmo 未激活，激活它
-        if (!GizmoManager.get().isActive()) {
-            GizmoManager.get().activate(GizmoType.TRANSFORM, box, pivot);
+        if (needsFullActivate) {
+            if (gm.isActive()) {
+                gm.deactivate();
+            }
+            gm.activate(GizmoType.TRANSFORM, box, pivot);
             ownsGizmo = true;
-            // 设置默认模式
-            if (GizmoManager.get().getContext() != null) {
-                GizmoManager.get().getContext().setMode(currentMode);
-            }
-            
-            // ⭐ 设置 ActorTransformApplier，使 Gizmo 拖动能够更新 TransformClip
-            com.director.client.gizmo.GizmoInteractionController controller = 
-                GizmoManager.get().getController();
-            if (controller != null) {
-                com.director.core.selection.SelectionManager selectionManager =
-                    DirectorServices.get().selection();
-                ActorTransformApplier actorApplier = new ActorTransformApplier(selectionManager, this);
-                controller.setTransformApplier(actorApplier);
-                LOGGER.debug("[ActorGizmoController] 已设置 ActorTransformApplier");
-            }
-            
+            configureActorTransformGizmo(gm);
             lastGizmoBox = box;
             lastGizmoPivot = pivot;
-            LOGGER.debug("[ActorGizmoController] 已激活 Gizmo: Actor={}, Mode={}", targetActorId, currentMode);
-        } else {
-            // 如果已激活，只在真正变化时更新位置和模式
-            if (boxChanged || pivotChanged) {
-                if (boxChanged) {
-                    GizmoManager.get().setTargetBox(box);
-                }
-                if (pivotChanged) {
-                    GizmoManager.get().setPivot(pivot);
-                }
-                lastGizmoBox = box;
-                lastGizmoPivot = pivot;
-            }
-            
-            // 模式更新（不依赖位置变化）
-            if (GizmoManager.get().getContext() != null) {
-                GizmoManager.get().getContext().setMode(currentMode);
-            }
-            
-            // ⭐ 确保 TransformApplier 已正确设置（防止被其他系统覆盖）
-            com.director.client.gizmo.GizmoInteractionController controller = 
-                GizmoManager.get().getController();
-            if (controller != null) {
-                com.director.client.gizmo.logic.TransformApplier currentApplier = 
-                    controller.getTransformApplier();
-                if (!(currentApplier instanceof ActorTransformApplier)) {
-                    com.director.core.selection.SelectionManager selectionManager =
-                        DirectorServices.get().selection();
-                    ActorTransformApplier actorApplier = new ActorTransformApplier(selectionManager, this);
-                    controller.setTransformApplier(actorApplier);
-                    LOGGER.debug("[ActorGizmoController] 已重新设置 ActorTransformApplier");
-                }
-            }
+            LOGGER.debug("[ActorGizmoController] 已激活 Actor Transform Gizmo: actor={}, mode={}",
+                    targetActorId, currentMode);
+            return;
+        }
+
+        ownsGizmo = true;
+
+        boolean boxChanged = lastGizmoBox == null || !boxesEqual(box, lastGizmoBox);
+        boolean pivotChanged = lastGizmoPivot == null
+                || lastGizmoPivot.squaredDistanceTo(pivot) > BOX_CHANGE_THRESHOLD_SQ;
+
+        if (boxChanged) {
+            gm.setTargetBox(box);
+            lastGizmoBox = box;
+        }
+        if (pivotChanged) {
+            gm.setPivot(pivot);
+            lastGizmoPivot = pivot;
+        }
+
+        configureActorTransformGizmo(gm);
+    }
+
+    private void configureActorTransformGizmo(GizmoManager gm) {
+        ensureActorTransformApplier(gm);
+        gm.ensureRotationHandlesForTransform();
+        if (gm.getContext() != null) {
+            gm.getContext().setMode(currentMode);
+        }
+    }
+
+    private static boolean hasActorTransformApplier(GizmoManager gm) {
+        com.director.client.gizmo.GizmoInteractionController controller = gm.getController();
+        return controller != null
+                && controller.getTransformApplier() instanceof ActorTransformApplier;
+    }
+
+    private void ensureActorTransformApplier(GizmoManager gm) {
+        com.director.client.gizmo.GizmoInteractionController controller = gm.getController();
+        if (controller == null) {
+            return;
+        }
+        if (controller.getTransformApplier() instanceof ActorTransformApplier) {
+            return;
+        }
+        com.director.core.selection.SelectionManager selectionManager = DirectorServices.get().selection();
+        controller.setTransformApplier(new ActorTransformApplier(selectionManager, this));
+        LOGGER.debug("[ActorGizmoController] 已设置 ActorTransformApplier");
+    }
+
+    private void deactivateActorTransformGizmoIfPresent() {
+        GizmoManager gm = GizmoManager.get();
+        if (!gm.isActive() || gm.getType() != GizmoType.TRANSFORM) {
+            return;
+        }
+        if (ownsGizmo || hasActorTransformApplier(gm)) {
+            gm.deactivate();
         }
     }
     
@@ -347,7 +360,14 @@ public final class ActorGizmoController {
      * <p>由 GizmoInteractionController 在拖动开始时调用
      */
     public void handleGizmoDragStart() {
-        if (targetActorId == null || actorTrack == null) {
+        if (targetActorId == null) {
+            return;
+        }
+        if (actorTrack == null) {
+            resolveTargetTrack();
+        }
+        if (actorTrack == null) {
+            LOGGER.warn("[ActorGizmoController] 无法开始 Gizmo 拖动：未找到 Actor {} 的轨道", targetActorId);
             return;
         }
 

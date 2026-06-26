@@ -573,5 +573,23 @@ public class GizmoManager {
         
         LOGGER.info("[GizmoManager] 🧹 状态已清空");
     }
+
+    /**
+     * 确保 TRANSFORM / PIVOT Gizmo 拥有旋转环手柄。
+     * <p>相机路径等工具可能将旋转环清空；演员变换编辑需要恢复它们。
+     */
+    public void ensureRotationHandlesForTransform() {
+        if (context == null || controller == null) {
+            return;
+        }
+        if (context.getType() != GizmoType.TRANSFORM && context.getType() != GizmoType.PIVOT) {
+            return;
+        }
+        if (!controller.getRotationHandles().isEmpty()) {
+            return;
+        }
+        controller.setRotationHandles(createRotationHandles(context));
+        LOGGER.debug("[GizmoManager] 已恢复 Transform Gizmo 旋转环手柄");
+    }
 }
 

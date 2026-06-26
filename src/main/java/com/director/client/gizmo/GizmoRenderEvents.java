@@ -7,7 +7,6 @@ import net.minecraft.client.render.VertexConsumerProvider;
 import net.minecraft.util.math.Vec3d;
 
 import com.director.client.input.DirectorInputSystem;
-import com.director.ui.DirectorScreen;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -103,7 +102,9 @@ public class GizmoRenderEvents {
             }
             
             // 计算射线（用于 Gizmo 交互）
-            Vec3d rayDir = calculateRayDirection(client);
+            DirectorInputSystem.ImGuiRay ray = DirectorInputSystem.computeImGuiRay();
+            Vec3d rayOrigin = ray != null ? ray.origin() : cameraPos;
+            Vec3d rayDir = ray != null ? ray.direction() : calculateRayDirectionFallback(client);
             
             // 获取鼠标状态
             boolean mouseDown = org.lwjgl.glfw.GLFW.glfwGetMouseButton(client.getWindow().getHandle(), 0) == 1;
@@ -128,20 +129,10 @@ public class GizmoRenderEvents {
     }
 
     /**
-     * 计算射线方向（从鼠标位置）
-     * 
-     * 使用 DirectorInputSystem 的方法来计算射线
+     * 计算射线方向（从鼠标位置），在 {@link DirectorInputSystem#computeImGuiRay()} 不可用时回退。
      */
-    private static Vec3d calculateRayDirection(MinecraftClient client) {
+    private static Vec3d calculateRayDirectionFallback(MinecraftClient client) {
         try {
-            // 尝试使用 DirectorInputSystem 的射线结果
-            if (client.currentScreen instanceof DirectorScreen) {
-                DirectorInputSystem.ImGuiRay ray = DirectorInputSystem.computeImGuiRay();
-                if (ray != null) {
-                    return ray.direction();
-                }
-            }
-
             var hitResult = DirectorInputSystem.getCurrentRay();
             if (hitResult != null && hitResult.getType() == net.minecraft.util.hit.BlockHitResult.Type.BLOCK) {
                 Vec3d cameraPos = client.gameRenderer.getCamera().getPos();
