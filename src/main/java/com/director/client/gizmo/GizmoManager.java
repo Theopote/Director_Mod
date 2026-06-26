@@ -113,13 +113,7 @@ public class GizmoManager {
         }
         
         // 创建 ResizeHandle（BOUNDS 类型使用）
-        if (type == GizmoType.BOUNDS) {
-            // ⚠️ 注意：框选工具（BoxSelectTool）的“缩放/改包围盒”由 FaceHandleManager 负责；
-            // Gizmo 这里主要用于“整体移动”，因此不要注册不可见的 ResizeHandle，
-            // 否则它们会在拾取优先级上抢占 AxisHandle，导致箭头 hover/拖拽失效。
-            controller.setResizeHandles(java.util.List.of());
-        }
-        
+
         LOGGER.info("[GizmoManager] ✅ Gizmo 已激活：类型={}, Box={}, Pivot={}, Context={}, Renderer={}", 
                    type, targetBox, pivot, context != null, renderer != null);
         

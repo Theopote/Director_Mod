@@ -197,12 +197,9 @@ public final class ShortcutBindings {
             case "wand" -> ShortcutAction.TOOL_WAND;
             case "brush" -> ShortcutAction.TOOL_BRUSH;
             case "face" -> ShortcutAction.TOOL_FACE;
-            case "move" -> ShortcutAction.TOOL_MOVE;
-            case "rotate" -> ShortcutAction.TOOL_ROTATE;
+            case "move", com.director.ui.tools.ToolRegistry.ACTOR_SELECT_TOOL_ID, "actor_move" -> ShortcutAction.TOOL_MOVE;
+            case "rotate", "actor_rotate" -> ShortcutAction.TOOL_ROTATE;
             case "scale" -> ShortcutAction.TOOL_SCALE;
-            case com.director.ui.tools.ToolRegistry.ACTOR_SELECT_TOOL_ID,
-                 "actor_move" -> ShortcutAction.TOOL_MOVE;
-            case "actor_rotate" -> ShortcutAction.TOOL_ROTATE;
             case "actor_scale" -> ShortcutAction.GIZMO_SCALE;
             case "actor_look_at" -> ShortcutAction.GIZMO_LOOK_AT;
             default -> null;
@@ -241,8 +238,7 @@ public final class ShortcutBindings {
     private static String glfwKeyToString(int key) {
         return switch (key) {
             case GLFW.GLFW_KEY_SPACE -> "Space";
-            case GLFW.GLFW_KEY_ENTER -> "Enter";
-            case GLFW.GLFW_KEY_KP_ENTER -> "Enter";
+            case GLFW.GLFW_KEY_ENTER, GLFW.GLFW_KEY_KP_ENTER -> "Enter";
             case GLFW.GLFW_KEY_TAB -> "Tab";
             case GLFW.GLFW_KEY_DELETE -> "Delete";
             case GLFW.GLFW_KEY_HOME -> "Home";
