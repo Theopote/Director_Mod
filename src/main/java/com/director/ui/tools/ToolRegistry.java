@@ -6,7 +6,6 @@ import com.director.core.selection.SelectionTool;
 import com.director.i18n.ToolI18n;
 import com.director.ui.theme.Icons;
 import com.director.ui.tools.impl.ActorLookAtTool;
-import com.director.ui.tools.impl.ActorMoveTool;
 import com.director.ui.tools.impl.ActorPathTool;
 import com.director.ui.tools.impl.ActorPoseTool;
 import com.director.ui.tools.impl.ActorRotateTool;
@@ -42,7 +41,8 @@ public final class ToolRegistry {
     private static final String TIMELINE_PLACEHOLDER_ID = "__timeline_placeholder__";
 
     public static final String ACTOR_SELECT_TOOL_ID = "actor_select";
-    public static final String ACTOR_MOVE_TOOL_ID = ActorMoveTool.ID;
+    /** @deprecated 已并入 {@link #ACTOR_SELECT_TOOL_ID}，仅作快捷键/旧配置兼容 */
+    public static final String ACTOR_MOVE_TOOL_ID = "actor_move";
     public static final String ACTOR_ROTATE_TOOL_ID = ActorRotateTool.ID;
     public static final String ACTOR_SCALE_TOOL_ID = ActorScaleTool.ID;
     public static final String ACTOR_LOOK_AT_TOOL_ID = ActorLookAtTool.ID;
@@ -108,11 +108,6 @@ public final class ToolRegistry {
                 ToolI18n.tipKey(ACTOR_SELECT_TOOL_ID, 1),
                 ToolI18n.tipKey(ACTOR_SELECT_TOOL_ID, 2)
         ));
-        META.put(ACTOR_MOVE_TOOL_ID, ToolMetadata.of(
-                ToolGroup.ACTOR, 30,
-                ToolI18n.tipKey(ACTOR_MOVE_TOOL_ID, 1),
-                ToolI18n.tipKey(ACTOR_MOVE_TOOL_ID, 2)
-        ));
         META.put(ACTOR_ROTATE_TOOL_ID, ToolMetadata.of(
                 ToolGroup.ACTOR, 40,
                 ToolI18n.tipKey(ACTOR_ROTATE_TOOL_ID, 1),
@@ -166,6 +161,13 @@ public final class ToolRegistry {
         return INSTANCE;
     }
 
+    public static boolean isActorTransformGizmoToolId(String toolId) {
+        return Objects.equals(toolId, ACTOR_SELECT_TOOL_ID)
+                || Objects.equals(toolId, ACTOR_MOVE_TOOL_ID)
+                || Objects.equals(toolId, ACTOR_ROTATE_TOOL_ID)
+                || Objects.equals(toolId, ACTOR_SCALE_TOOL_ID);
+    }
+
     public static boolean isActorToolId(String toolId) {
         return Objects.equals(toolId, ACTOR_SELECT_TOOL_ID)
                 || Objects.equals(toolId, ACTOR_MOVE_TOOL_ID)
@@ -179,6 +181,14 @@ public final class ToolRegistry {
     public static boolean isPlaceholderToolId(String toolId) {
         return Objects.equals(toolId, WORLD_PLACEHOLDER_ID)
                 || Objects.equals(toolId, TIMELINE_PLACEHOLDER_ID);
+    }
+
+    /** 将已废弃的 actor_move 映射到 actor_select。 */
+    public static String normalizeActorToolId(String toolId) {
+        if (Objects.equals(toolId, ACTOR_MOVE_TOOL_ID)) {
+            return ACTOR_SELECT_TOOL_ID;
+        }
+        return toolId;
     }
 
     public synchronized void initializeIfNeeded() {
@@ -290,6 +300,7 @@ public final class ToolRegistry {
      */
     public boolean activate(String toolId) {
         if (toolId == null || toolId.isBlank()) return false;
+        toolId = normalizeActorToolId(toolId);
         SelectionManager selectionManager = selectionManager();
 
         // 优先：如果是 extra 工具，走 editor-level 激活
@@ -325,6 +336,7 @@ public final class ToolRegistry {
 
     private EditorTool findExtraTool(String toolId) {
         if (toolId == null) return null;
+        toolId = normalizeActorToolId(toolId);
         for (EditorTool t : extraTools) {
             if (t != null && Objects.equals(toolId, t.getId())) {
                 return t;
@@ -384,7 +396,6 @@ public final class ToolRegistry {
 
     private void registerBuiltInExtraTools() {
         addExtraToolIfMissing(new ActorSelectTool());
-        addExtraToolIfMissing(new ActorMoveTool());
         addExtraToolIfMissing(new ActorRotateTool());
         addExtraToolIfMissing(new ActorScaleTool());
         addExtraToolIfMissing(new ActorLookAtTool());

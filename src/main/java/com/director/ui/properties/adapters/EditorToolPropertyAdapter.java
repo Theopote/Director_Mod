@@ -254,10 +254,12 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
     }
 
     private void renderTransformHint(EditorTool tool) {
+        if (!ToolRegistry.isActorTransformGizmoToolId(tool.getId())) {
+            return;
+        }
         if (ImGui.collapsingHeader(Icons.TRANSFORM + " 变换工具", ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.textWrapped("选择 Actor 后拖动 Gizmo，系统会在当前时间创建或更新 TransformClip。");
-            ImGui.text("当前工具: " + tool.getDisplayName());
-            ImGui.textDisabled("G/R/S 可在 Actor 工具组内切换移动、旋转、缩放。");
+            ImGui.textDisabled("G/R/S：平移 / 旋转 / 缩放 Gizmo 模式（无需切换移动工具）。");
         }
     }
 

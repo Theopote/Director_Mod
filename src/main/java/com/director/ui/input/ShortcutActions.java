@@ -1,8 +1,11 @@
 package com.director.ui.input;
 
+import com.director.client.gizmo.GizmoMode;
+import com.director.ui.actor.gizmo.ActorGizmoController;
 import com.director.ui.commands.UICommandFacade;
 import com.director.ui.PanelId;
 import com.director.core.selection.SelectionOperation;
+import com.director.ui.tools.ToolRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -112,16 +115,16 @@ public final class ShortcutActions {
                     LOGGER.debug("[ShortcutActions] 执行: TOOL_FACE");
                 }
                 case TOOL_MOVE -> {
-                    commands.tools().activateTool(com.director.ui.tools.ToolRegistry.ACTOR_MOVE_TOOL_ID);
-                    LOGGER.debug("[ShortcutActions] 执行: TOOL_MOVE");
+                    activateActorSelectWithGizmoMode(GizmoMode.TRANSLATE, commands);
+                    LOGGER.debug("[ShortcutActions] 执行: TOOL_MOVE -> actor_select TRANSLATE");
                 }
                 case TOOL_ROTATE -> {
-                    commands.tools().activateTool(com.director.ui.tools.ToolRegistry.ACTOR_ROTATE_TOOL_ID);
-                    LOGGER.debug("[ShortcutActions] 执行: TOOL_ROTATE");
+                    activateActorSelectWithGizmoMode(GizmoMode.ROTATE, commands);
+                    LOGGER.debug("[ShortcutActions] 执行: TOOL_ROTATE -> actor_select ROTATE");
                 }
                 case TOOL_SCALE -> {
-                    commands.tools().activateTool(com.director.ui.tools.ToolRegistry.ACTOR_SCALE_TOOL_ID);
-                    LOGGER.debug("[ShortcutActions] 执行: TOOL_SCALE");
+                    activateActorSelectWithGizmoMode(GizmoMode.SCALE, commands);
+                    LOGGER.debug("[ShortcutActions] 执行: TOOL_SCALE -> actor_select SCALE");
                 }
                 case TOOL_NEXT -> {
                     commands.tools().switchToNextTool();
@@ -205,28 +208,28 @@ public final class ShortcutActions {
                 
                 // ==================== Actor Gizmo 操作 ====================
                 case GIZMO_MOVE -> {
-                    if (isActorToolActive()) {
-                        commands.tools().activateTool(com.director.ui.tools.ToolRegistry.ACTOR_MOVE_TOOL_ID);
-                        com.director.ui.actor.gizmo.ActorGizmoController.getInstance()
-                                .setPreferredMode(com.director.client.gizmo.GizmoMode.TRANSLATE);
-                        LOGGER.debug("[ShortcutActions] 执行: GIZMO_MOVE");
+                    if (isActorTransformGizmoToolActive()) {
+                        ActorGizmoController.getInstance().setPreferredMode(GizmoMode.TRANSLATE);
+                    } else if (isActorToolActive()) {
+                        ActorGizmoController.getInstance().setPreferredMode(GizmoMode.TRANSLATE);
                     }
+                    LOGGER.debug("[ShortcutActions] 执行: GIZMO_MOVE");
                 }
                 case GIZMO_ROTATE -> {
-                    if (isActorToolActive()) {
-                        commands.tools().activateTool(com.director.ui.tools.ToolRegistry.ACTOR_ROTATE_TOOL_ID);
-                        com.director.ui.actor.gizmo.ActorGizmoController.getInstance()
-                                .setPreferredMode(com.director.client.gizmo.GizmoMode.ROTATE);
-                        LOGGER.debug("[ShortcutActions] 执行: GIZMO_ROTATE");
+                    if (isActorTransformGizmoToolActive()) {
+                        ActorGizmoController.getInstance().setPreferredMode(GizmoMode.ROTATE);
+                    } else if (isActorToolActive()) {
+                        ActorGizmoController.getInstance().setPreferredMode(GizmoMode.ROTATE);
                     }
+                    LOGGER.debug("[ShortcutActions] 执行: GIZMO_ROTATE");
                 }
                 case GIZMO_SCALE -> {
-                    if (isActorToolActive()) {
-                        commands.tools().activateTool(com.director.ui.tools.ToolRegistry.ACTOR_SCALE_TOOL_ID);
-                        com.director.ui.actor.gizmo.ActorGizmoController.getInstance()
-                                .setPreferredMode(com.director.client.gizmo.GizmoMode.SCALE);
-                        LOGGER.debug("[ShortcutActions] 执行: GIZMO_SCALE");
+                    if (isActorTransformGizmoToolActive()) {
+                        ActorGizmoController.getInstance().setPreferredMode(GizmoMode.SCALE);
+                    } else {
+                        activateActorSelectWithGizmoMode(GizmoMode.SCALE, commands);
                     }
+                    LOGGER.debug("[ShortcutActions] 执行: GIZMO_SCALE");
                 }
             }
         } catch (Exception e) {
@@ -234,8 +237,18 @@ public final class ShortcutActions {
         }
     }
 
+    private static void activateActorSelectWithGizmoMode(GizmoMode mode, UICommandFacade commands) {
+        commands.tools().activateTool(ToolRegistry.ACTOR_SELECT_TOOL_ID);
+        ActorGizmoController.getInstance().setPreferredMode(mode);
+    }
+
     private static boolean isActorToolActive() {
-        return com.director.ui.tools.ToolRegistry.isActorToolId(
-                com.director.ui.tools.ToolRegistry.get().getActiveNonSelectionToolId());
+        return ToolRegistry.isActorToolId(
+                ToolRegistry.get().getActiveNonSelectionToolId());
+    }
+
+    private static boolean isActorTransformGizmoToolActive() {
+        return ToolRegistry.isActorTransformGizmoToolId(
+                ToolRegistry.get().getActiveNonSelectionToolId());
     }
 }

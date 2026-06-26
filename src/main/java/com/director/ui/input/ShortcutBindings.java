@@ -77,6 +77,7 @@ public final class ShortcutBindings {
         KEY_BINDINGS.put(GLFW.GLFW_KEY_B, ShortcutAction.TOOL_BOX_SELECT);
         KEY_BINDINGS.put(GLFW.GLFW_KEY_G, ShortcutAction.TOOL_MOVE);
         KEY_BINDINGS.put(GLFW.GLFW_KEY_R, ShortcutAction.TOOL_ROTATE);
+        KEY_BINDINGS.put(GLFW.GLFW_KEY_S, ShortcutAction.GIZMO_SCALE);
         
         KEY_BINDINGS.put(GLFW.GLFW_KEY_TAB, ShortcutAction.TOOL_NEXT);
         // 注意：Shift 键通常作为修饰键，需要特殊处理
@@ -106,8 +107,7 @@ public final class ShortcutBindings {
         
         // ==================== Actor Gizmo 操作 ====================
         KEY_BINDINGS.put(GLFW.GLFW_KEY_E, ShortcutAction.GIZMO_ROTATE);
-        // 注意：R 键已经用于 TOOL_ROTATE，Gizmo Scale 使用其他键或通过其他方式触发
-        // 暂时保留 R 键用于工具旋转，Gizmo Scale 可以通过其他方式访问
+        // S：演员 Gizmo 缩放（GIZMO_SCALE）；G/R 激活演员选择工具并切换平移/旋转模式
     }
     
     /**
@@ -199,9 +199,10 @@ public final class ShortcutBindings {
             case "move" -> ShortcutAction.TOOL_MOVE;
             case "rotate" -> ShortcutAction.TOOL_ROTATE;
             case "scale" -> ShortcutAction.TOOL_SCALE;
+            case com.director.ui.tools.ToolRegistry.ACTOR_SELECT_TOOL_ID -> ShortcutAction.TOOL_MOVE;
             case com.director.ui.tools.ToolRegistry.ACTOR_MOVE_TOOL_ID -> ShortcutAction.TOOL_MOVE;
             case com.director.ui.tools.ToolRegistry.ACTOR_ROTATE_TOOL_ID -> ShortcutAction.TOOL_ROTATE;
-            case com.director.ui.tools.ToolRegistry.ACTOR_SCALE_TOOL_ID -> ShortcutAction.TOOL_SCALE;
+            case com.director.ui.tools.ToolRegistry.ACTOR_SCALE_TOOL_ID -> ShortcutAction.GIZMO_SCALE;
             default -> null;
         };
         
@@ -255,6 +256,7 @@ public final class ShortcutBindings {
             case GLFW.GLFW_KEY_B -> "B";
             case GLFW.GLFW_KEY_G -> "G";
             case GLFW.GLFW_KEY_R -> "R";
+            case GLFW.GLFW_KEY_S -> "S";
             case GLFW.GLFW_KEY_L -> "L";
             case GLFW.GLFW_KEY_N -> "N";
             case GLFW.GLFW_KEY_O -> "O";
@@ -317,6 +319,7 @@ public final class ShortcutBindings {
         categories.put(tr(DirectorLang.Shortcuts.CATEGORY_TIMELINE), timeline);
 
         List<String> gizmo = new ArrayList<>();
+        gizmo.add(formatShortcut(DirectorLang.Shortcuts.KEY_S, DirectorLang.Shortcuts.DESC_GIZMO_SCALE));
         gizmo.add(formatShortcut(DirectorLang.Shortcuts.KEY_E, DirectorLang.Shortcuts.DESC_GIZMO_ROTATE));
         gizmo.add(formatShortcut(DirectorLang.Shortcuts.KEY_G_R, DirectorLang.Shortcuts.DESC_GIZMO_ACTOR_TOOLS));
         categories.put(tr(DirectorLang.Shortcuts.CATEGORY_GIZMO), gizmo);
