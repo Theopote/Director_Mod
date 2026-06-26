@@ -124,10 +124,8 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         if (Objects.equals(tool.getId(), ToolRegistry.ACTOR_POSE_TOOL_ID)) {
             renderPoseAuthoring(actor);
             renderLocalPoseAuthoring(actor);
-        } else if (Objects.equals(tool.getId(), ToolRegistry.ACTOR_LOOK_AT_TOOL_ID)) {
-            renderLookAtHint();
-        } else {
-            renderTransformHint(tool);
+        } else if (ToolRegistry.isActorTransformGizmoToolId(tool.getId())) {
+            renderTransformHint();
         }
     }
 
@@ -246,20 +244,12 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         }
     }
 
-    private void renderLookAtHint() {
-        if (ImGui.collapsingHeader(Icons.TARGET + " 视线工具", ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.textWrapped("点击世界中的目标点，创建或更新当前时间覆盖的 LookAtClip。");
-            ImGui.textWrapped("需要看向摄像机时，可在演员轨道属性中使用 Look At Camera。");
-        }
-    }
-
-    private void renderTransformHint(EditorTool tool) {
-        if (!ToolRegistry.isActorTransformGizmoToolId(tool.getId())) {
-            return;
-        }
-        if (ImGui.collapsingHeader(Icons.TRANSFORM + " 变换工具", ImGuiTreeNodeFlags.DefaultOpen)) {
+    private void renderTransformHint() {
+        if (ImGui.collapsingHeader(Icons.TRANSFORM + " 变换与朝向", ImGuiTreeNodeFlags.DefaultOpen)) {
             ImGui.textWrapped("选择 Actor 后拖动 Gizmo，系统会在当前时间创建或更新 TransformClip。");
-            ImGui.textDisabled("G/R/S：平移 / 旋转 / 缩放 Gizmo 模式（无需切换移动工具）。");
+            ImGui.textWrapped("G：平移（三轴箭头）  R：旋转（三色环）  S：缩放  T：朝向（点击世界目标点）");
+            ImGui.textWrapped("朝向模式下点击地面创建 LookAtClip；看向摄像机可在演员轨道属性中设置。");
+            ImGui.textDisabled("也可在时间线选中对应片段后，于属性面板精确编辑数值。");
         }
     }
 

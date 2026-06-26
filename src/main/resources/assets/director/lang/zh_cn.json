@@ -164,7 +164,8 @@
   "gui.director.shortcuts.desc.timeline_delete_modified": "删除时间线选中项（需时间线焦点；在时间线聚焦时与 Delete 等效）",
   "gui.director.shortcuts.desc.gizmo_rotate": "演员 Gizmo 旋转模式（需已激活演员工具）",
   "gui.director.shortcuts.desc.gizmo_scale": "演员 Gizmo 缩放模式",
-  "gui.director.shortcuts.desc.gizmo_actor_tools": "G/R/S：演员平移/旋转/缩放 Gizmo 模式",
+  "gui.director.shortcuts.desc.gizmo_look_at": "演员 Gizmo 朝向模式（点击世界目标点）",
+  "gui.director.shortcuts.desc.gizmo_actor_tools": "G/R/S/T：演员平移/旋转/缩放/朝向 Gizmo 模式",
   "gui.director.shortcuts.desc.help_shortcuts": "显示快捷键帮助",
   "gui.director.shortcuts.desc.cancel_or_clear": "时间线有进行中交互时取消交互，否则清除选区（取决于焦点）",
 
@@ -184,6 +185,7 @@
   "gui.director.shortcuts.key.g": "G",
   "gui.director.shortcuts.key.r": "R",
   "gui.director.shortcuts.key.s": "S",
+  "gui.director.shortcuts.key.t": "T",
   "gui.director.shortcuts.key.tab": "Tab",
   "gui.director.shortcuts.key.plus": "+",
   "gui.director.shortcuts.key.minus": "-",
@@ -1859,9 +1861,9 @@
   "gui.director.tool.container_cull.tip.2": "右键确认剔除，ESC 取消",
 
   "gui.director.tool.actor_select.name": "Actor 选择/变换",
-  "gui.director.tool.actor_select.desc": "选择 Actor 并显示 Gizmo；G/R/S 切换平移/旋转/缩放。",
+  "gui.director.tool.actor_select.desc": "选择 Actor，编辑位置、旋转、缩放与朝向（Gizmo 或属性面板）。",
   "gui.director.tool.actor_select.tip.1": "点击演员选中并显示 Gizmo",
-  "gui.director.tool.actor_select.tip.2": "拖动 Gizmo 编辑位置/旋转/缩放；G/R/S 切换模式",
+  "gui.director.tool.actor_select.tip.2": "G/R/S/T：平移/旋转/缩放/朝向；属性面板可精确输入",
 
   "gui.director.tool.actor_move.name": "Actor 移动",
   "gui.director.tool.actor_move.desc": "移动所选 Actor 并写入 Transform 片段。",

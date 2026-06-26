@@ -145,5 +145,8 @@ public enum ShortcutAction {
     GIZMO_ROTATE,
     
     /** Gizmo 缩放模式 */
-    GIZMO_SCALE
+    GIZMO_SCALE,
+
+    /** Gizmo 朝向（LookAt）模式 */
+    GIZMO_LOOK_AT
 }

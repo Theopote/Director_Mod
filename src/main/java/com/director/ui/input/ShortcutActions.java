@@ -231,6 +231,14 @@ public final class ShortcutActions {
                     }
                     LOGGER.debug("[ShortcutActions] 执行: GIZMO_SCALE");
                 }
+                case GIZMO_LOOK_AT -> {
+                    if (isActorTransformGizmoToolActive()) {
+                        ActorGizmoController.getInstance().setPreferredMode(GizmoMode.LOOK_AT);
+                    } else {
+                        activateActorSelectWithGizmoMode(GizmoMode.LOOK_AT, commands);
+                    }
+                    LOGGER.debug("[ShortcutActions] 执行: GIZMO_LOOK_AT");
+                }
             }
         } catch (Exception e) {
             LOGGER.error("[ShortcutActions] 执行快捷键动作失败: action={}", action, e);

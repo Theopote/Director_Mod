@@ -164,7 +164,8 @@
   "gui.director.shortcuts.desc.timeline_delete_modified": "Delete timeline selection (requires timeline focus; same as Delete when timeline is focused)",
   "gui.director.shortcuts.desc.gizmo_rotate": "Actor Gizmo rotate mode (actor tool active)",
   "gui.director.shortcuts.desc.gizmo_scale": "Actor Gizmo scale mode",
-  "gui.director.shortcuts.desc.gizmo_actor_tools": "G/R/S: actor translate / rotate / scale Gizmo modes",
+  "gui.director.shortcuts.desc.gizmo_look_at": "Actor Gizmo look-at mode (click a world target)",
+  "gui.director.shortcuts.desc.gizmo_actor_tools": "G/R/S/T: actor translate / rotate / scale / look-at Gizmo modes",
   "gui.director.shortcuts.desc.help_shortcuts": "Show keyboard shortcuts",
   "gui.director.shortcuts.desc.cancel_or_clear": "Cancel timeline interaction when active, otherwise clear selection (depends on focus)",
 
@@ -184,6 +185,7 @@
   "gui.director.shortcuts.key.g": "G",
   "gui.director.shortcuts.key.r": "R",
   "gui.director.shortcuts.key.s": "S",
+  "gui.director.shortcuts.key.t": "T",
   "gui.director.shortcuts.key.tab": "Tab",
   "gui.director.shortcuts.key.plus": "+",
   "gui.director.shortcuts.key.minus": "-",
@@ -1859,9 +1861,9 @@
   "gui.director.tool.container_cull.tip.2": "Right-click to confirm, ESC to cancel",
 
   "gui.director.tool.actor_select.name": "Actor Select/Transform",
-  "gui.director.tool.actor_select.desc": "Select an actor and show the Gizmo; G/R/S switch translate/rotate/scale.",
+  "gui.director.tool.actor_select.desc": "Select an actor; edit position, rotation, scale, and look-at (Gizmo or Properties).",
   "gui.director.tool.actor_select.tip.1": "Click an actor to select and show the Gizmo",
-  "gui.director.tool.actor_select.tip.2": "Drag the Gizmo to edit transform; G/R/S switch modes",
+  "gui.director.tool.actor_select.tip.2": "G/R/S/T: translate / rotate / scale / look-at; use Properties for exact values",
 
   "gui.director.tool.actor_move.name": "Actor Move",
   "gui.director.tool.actor_move.desc": "Move the selected actor and write a Transform clip.",

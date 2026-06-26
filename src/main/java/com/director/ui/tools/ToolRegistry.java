@@ -1,15 +1,14 @@
 package com.director.ui.tools;
 
+import com.director.client.gizmo.GizmoMode;
 import com.director.core.DirectorServices;
 import com.director.core.selection.SelectionManager;
 import com.director.core.selection.SelectionTool;
 import com.director.i18n.ToolI18n;
+import com.director.ui.actor.gizmo.ActorGizmoController;
 import com.director.ui.theme.Icons;
-import com.director.ui.tools.impl.ActorLookAtTool;
 import com.director.ui.tools.impl.ActorPathTool;
 import com.director.ui.tools.impl.ActorPoseTool;
-import com.director.ui.tools.impl.ActorRotateTool;
-import com.director.ui.tools.impl.ActorScaleTool;
 import com.director.ui.tools.impl.ActorSelectTool;
 import com.director.ui.tools.impl.CameraPathEditTool;
 import net.minecraft.client.MinecraftClient;
@@ -41,11 +40,14 @@ public final class ToolRegistry {
     private static final String TIMELINE_PLACEHOLDER_ID = "__timeline_placeholder__";
 
     public static final String ACTOR_SELECT_TOOL_ID = "actor_select";
-    /** @deprecated 已并入 {@link #ACTOR_SELECT_TOOL_ID}，仅作快捷键/旧配置兼容 */
+    /** @deprecated 已并入 {@link #ACTOR_SELECT_TOOL_ID} */
     public static final String ACTOR_MOVE_TOOL_ID = "actor_move";
-    public static final String ACTOR_ROTATE_TOOL_ID = ActorRotateTool.ID;
-    public static final String ACTOR_SCALE_TOOL_ID = ActorScaleTool.ID;
-    public static final String ACTOR_LOOK_AT_TOOL_ID = ActorLookAtTool.ID;
+    /** @deprecated 已并入 {@link #ACTOR_SELECT_TOOL_ID}，用 G/R 切换 Gizmo 旋转模式 */
+    public static final String ACTOR_ROTATE_TOOL_ID = "actor_rotate";
+    /** @deprecated 已并入 {@link #ACTOR_SELECT_TOOL_ID}，用 S 切换 Gizmo 缩放模式 */
+    public static final String ACTOR_SCALE_TOOL_ID = "actor_scale";
+    /** @deprecated 已并入 {@link #ACTOR_SELECT_TOOL_ID}，用 T 切换朝向模式 */
+    public static final String ACTOR_LOOK_AT_TOOL_ID = "actor_look_at";
     public static final String ACTOR_POSE_TOOL_ID = ActorPoseTool.ID;
     public static final String ACTOR_PATH_TOOL_ID = "actor_path";
 
@@ -108,28 +110,13 @@ public final class ToolRegistry {
                 ToolI18n.tipKey(ACTOR_SELECT_TOOL_ID, 1),
                 ToolI18n.tipKey(ACTOR_SELECT_TOOL_ID, 2)
         ));
-        META.put(ACTOR_ROTATE_TOOL_ID, ToolMetadata.of(
-                ToolGroup.ACTOR, 40,
-                ToolI18n.tipKey(ACTOR_ROTATE_TOOL_ID, 1),
-                ToolI18n.tipKey(ACTOR_ROTATE_TOOL_ID, 2)
-        ));
-        META.put(ACTOR_SCALE_TOOL_ID, ToolMetadata.of(
-                ToolGroup.ACTOR, 50,
-                ToolI18n.tipKey(ACTOR_SCALE_TOOL_ID, 1),
-                ToolI18n.tipKey(ACTOR_SCALE_TOOL_ID, 2)
-        ));
-        META.put(ACTOR_LOOK_AT_TOOL_ID, ToolMetadata.of(
-                ToolGroup.ACTOR, 60,
-                ToolI18n.tipKey(ACTOR_LOOK_AT_TOOL_ID, 1),
-                ToolI18n.tipKey(ACTOR_LOOK_AT_TOOL_ID, 2)
-        ));
         META.put(ACTOR_POSE_TOOL_ID, ToolMetadata.of(
-                ToolGroup.ACTOR, 70,
+                ToolGroup.ACTOR, 30,
                 ToolI18n.tipKey(ACTOR_POSE_TOOL_ID, 1),
                 ToolI18n.tipKey(ACTOR_POSE_TOOL_ID, 2)
         ));
         META.put(ACTOR_PATH_TOOL_ID, ToolMetadata.of(
-                ToolGroup.ACTOR, 80,
+                ToolGroup.ACTOR, 40,
                 ToolI18n.tipKey(ACTOR_PATH_TOOL_ID, 1),
                 ToolI18n.tipKey(ACTOR_PATH_TOOL_ID, 2)
         ));
@@ -165,7 +152,8 @@ public final class ToolRegistry {
         return Objects.equals(toolId, ACTOR_SELECT_TOOL_ID)
                 || Objects.equals(toolId, ACTOR_MOVE_TOOL_ID)
                 || Objects.equals(toolId, ACTOR_ROTATE_TOOL_ID)
-                || Objects.equals(toolId, ACTOR_SCALE_TOOL_ID);
+                || Objects.equals(toolId, ACTOR_SCALE_TOOL_ID)
+                || Objects.equals(toolId, ACTOR_LOOK_AT_TOOL_ID);
     }
 
     public static boolean isActorToolId(String toolId) {
@@ -183,12 +171,32 @@ public final class ToolRegistry {
                 || Objects.equals(toolId, TIMELINE_PLACEHOLDER_ID);
     }
 
-    /** 将已废弃的 actor_move 映射到 actor_select。 */
+    /** 将已废弃的变换/朝向工具 ID 映射到 actor_select。 */
     public static String normalizeActorToolId(String toolId) {
-        if (Objects.equals(toolId, ACTOR_MOVE_TOOL_ID)) {
+        if (Objects.equals(toolId, ACTOR_MOVE_TOOL_ID)
+                || Objects.equals(toolId, ACTOR_ROTATE_TOOL_ID)
+                || Objects.equals(toolId, ACTOR_SCALE_TOOL_ID)
+                || Objects.equals(toolId, ACTOR_LOOK_AT_TOOL_ID)) {
             return ACTOR_SELECT_TOOL_ID;
         }
         return toolId;
+    }
+
+    /** 废弃工具 ID 对应的 Gizmo 模式（激活 actor_select 后应用）。 */
+    public static GizmoMode deprecatedActorGizmoMode(String toolId) {
+        if (Objects.equals(toolId, ACTOR_MOVE_TOOL_ID)) {
+            return GizmoMode.TRANSLATE;
+        }
+        if (Objects.equals(toolId, ACTOR_ROTATE_TOOL_ID)) {
+            return GizmoMode.ROTATE;
+        }
+        if (Objects.equals(toolId, ACTOR_SCALE_TOOL_ID)) {
+            return GizmoMode.SCALE;
+        }
+        if (Objects.equals(toolId, ACTOR_LOOK_AT_TOOL_ID)) {
+            return GizmoMode.LOOK_AT;
+        }
+        return null;
     }
 
     public synchronized void initializeIfNeeded() {
@@ -300,13 +308,18 @@ public final class ToolRegistry {
      */
     public boolean activate(String toolId) {
         if (toolId == null || toolId.isBlank()) return false;
+        GizmoMode deprecatedGizmoMode = deprecatedActorGizmoMode(toolId);
         toolId = normalizeActorToolId(toolId);
         SelectionManager selectionManager = selectionManager();
 
         // 优先：如果是 extra 工具，走 editor-level 激活
         EditorTool extra = findExtraTool(toolId);
         if (extra != null) {
-            return activateNonSelection(extra);
+            boolean activated = activateNonSelection(extra);
+            if (activated && deprecatedGizmoMode != null) {
+                ActorGizmoController.getInstance().setPreferredMode(deprecatedGizmoMode);
+            }
+            return activated;
         }
 
         World world = MinecraftClient.getInstance().world;
@@ -396,9 +409,6 @@ public final class ToolRegistry {
 
     private void registerBuiltInExtraTools() {
         addExtraToolIfMissing(new ActorSelectTool());
-        addExtraToolIfMissing(new ActorRotateTool());
-        addExtraToolIfMissing(new ActorScaleTool());
-        addExtraToolIfMissing(new ActorLookAtTool());
         addExtraToolIfMissing(new ActorPoseTool());
         addExtraToolIfMissing(new ActorPathTool());
         addExtraToolIfMissing(new CameraPathEditTool());

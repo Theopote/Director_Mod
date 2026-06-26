@@ -78,6 +78,7 @@ public final class ShortcutBindings {
         KEY_BINDINGS.put(GLFW.GLFW_KEY_G, ShortcutAction.TOOL_MOVE);
         KEY_BINDINGS.put(GLFW.GLFW_KEY_R, ShortcutAction.TOOL_ROTATE);
         KEY_BINDINGS.put(GLFW.GLFW_KEY_S, ShortcutAction.GIZMO_SCALE);
+        KEY_BINDINGS.put(GLFW.GLFW_KEY_T, ShortcutAction.GIZMO_LOOK_AT);
         
         KEY_BINDINGS.put(GLFW.GLFW_KEY_TAB, ShortcutAction.TOOL_NEXT);
         // 注意：Shift 键通常作为修饰键，需要特殊处理
@@ -199,10 +200,11 @@ public final class ShortcutBindings {
             case "move" -> ShortcutAction.TOOL_MOVE;
             case "rotate" -> ShortcutAction.TOOL_ROTATE;
             case "scale" -> ShortcutAction.TOOL_SCALE;
-            case com.director.ui.tools.ToolRegistry.ACTOR_SELECT_TOOL_ID -> ShortcutAction.TOOL_MOVE;
-            case com.director.ui.tools.ToolRegistry.ACTOR_MOVE_TOOL_ID -> ShortcutAction.TOOL_MOVE;
+            case com.director.ui.tools.ToolRegistry.ACTOR_SELECT_TOOL_ID,
+                 com.director.ui.tools.ToolRegistry.ACTOR_MOVE_TOOL_ID -> ShortcutAction.TOOL_MOVE;
             case com.director.ui.tools.ToolRegistry.ACTOR_ROTATE_TOOL_ID -> ShortcutAction.TOOL_ROTATE;
             case com.director.ui.tools.ToolRegistry.ACTOR_SCALE_TOOL_ID -> ShortcutAction.GIZMO_SCALE;
+            case com.director.ui.tools.ToolRegistry.ACTOR_LOOK_AT_TOOL_ID -> ShortcutAction.GIZMO_LOOK_AT;
             default -> null;
         };
         
@@ -257,6 +259,7 @@ public final class ShortcutBindings {
             case GLFW.GLFW_KEY_G -> "G";
             case GLFW.GLFW_KEY_R -> "R";
             case GLFW.GLFW_KEY_S -> "S";
+            case GLFW.GLFW_KEY_T -> "T";
             case GLFW.GLFW_KEY_L -> "L";
             case GLFW.GLFW_KEY_N -> "N";
             case GLFW.GLFW_KEY_O -> "O";
@@ -320,6 +323,7 @@ public final class ShortcutBindings {
 
         List<String> gizmo = new ArrayList<>();
         gizmo.add(formatShortcut(DirectorLang.Shortcuts.KEY_S, DirectorLang.Shortcuts.DESC_GIZMO_SCALE));
+        gizmo.add(formatShortcut(DirectorLang.Shortcuts.KEY_T, DirectorLang.Shortcuts.DESC_GIZMO_LOOK_AT));
         gizmo.add(formatShortcut(DirectorLang.Shortcuts.KEY_E, DirectorLang.Shortcuts.DESC_GIZMO_ROTATE));
         gizmo.add(formatShortcut(DirectorLang.Shortcuts.KEY_G_R, DirectorLang.Shortcuts.DESC_GIZMO_ACTOR_TOOLS));
         categories.put(tr(DirectorLang.Shortcuts.CATEGORY_GIZMO), gizmo);

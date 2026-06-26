@@ -2004,6 +2004,7 @@ public final class DirectorLang {
         public static final String DESC_TIMELINE_DELETE_MODIFIED = "gui.director.shortcuts.desc.timeline_delete_modified";
         public static final String DESC_GIZMO_ROTATE = "gui.director.shortcuts.desc.gizmo_rotate";
         public static final String DESC_GIZMO_SCALE = "gui.director.shortcuts.desc.gizmo_scale";
+        public static final String DESC_GIZMO_LOOK_AT = "gui.director.shortcuts.desc.gizmo_look_at";
         public static final String DESC_GIZMO_ACTOR_TOOLS = "gui.director.shortcuts.desc.gizmo_actor_tools";
         public static final String DESC_HELP_SHORTCUTS = "gui.director.shortcuts.desc.help_shortcuts";
         public static final String DESC_CANCEL_OR_CLEAR = "gui.director.shortcuts.desc.cancel_or_clear";
@@ -2024,6 +2025,7 @@ public final class DirectorLang {
         public static final String KEY_G = "gui.director.shortcuts.key.g";
         public static final String KEY_R = "gui.director.shortcuts.key.r";
         public static final String KEY_S = "gui.director.shortcuts.key.s";
+        public static final String KEY_T = "gui.director.shortcuts.key.t";
         public static final String KEY_TAB = "gui.director.shortcuts.key.tab";
         public static final String KEY_PLUS = "gui.director.shortcuts.key.plus";
         public static final String KEY_MINUS = "gui.director.shortcuts.key.minus";
