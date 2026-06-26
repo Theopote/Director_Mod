@@ -105,9 +105,10 @@ public class TimelineAudioRenderer {
     }
 
     /**
-     * ⭐ 新方法：将大量音频事件渲染为连续波形线（高性能）
+     * ⭐ 新方法：将大量音频事件渲染为简化的水平线段（高性能、简洁）
      *
-     * 不绘制单个圆点，而是将事件密度转换为波形高度，用线段连接
+     * 用户需求：音频仅用于示意位置，不需要精确表示密度或波形
+     * 渲染策略：有音频的区域绘制简单的水平线段，没有的区域留空
      */
     private void renderAudioEventsAsWaveform(ImDrawList drawList, java.util.List<AudioEvent> events,
                                              float contentX, float trackCenterY, float contentW,
@@ -116,12 +117,12 @@ public class TimelineAudioRenderer {
             return;
         }
 
-        // 将时间轴分成若干段（每段2-5像素），统计每段的事件密度
-        float segmentWidth = 3.0f;  // 每段3像素
+        // 将时间轴分成若干段（每段5像素），检查每段是否有音频事件
+        float segmentWidth = 5.0f;  // 每段5像素
         int segmentCount = (int) Math.ceil(contentW / segmentWidth);
-        float[] densities = new float[segmentCount];
+        boolean[] hasAudio = new boolean[segmentCount];
 
-        // 统计每段的事件密度
+        // 标记有音频事件的段
         for (AudioEvent event : events) {
             if (!event.isEnabled()) {
                 continue;
@@ -133,51 +134,44 @@ public class TimelineAudioRenderer {
             // 计算事件属于哪个段
             int segmentIndex = (int) ((eventX - contentX) / segmentWidth);
             if (segmentIndex >= 0 && segmentIndex < segmentCount) {
-                densities[segmentIndex] += 1.0f;
+                hasAudio[segmentIndex] = true;
             }
         }
 
-        // 归一化密度（找到最大值）
-        float maxDensity = 1.0f;
-        for (float density : densities) {
-            if (density > maxDensity) {
-                maxDensity = density;
+        // 绘制简化的水平线段（连续的音频区域合并为一条线）
+        int lineColor = TimelineColors.rgba(100, 200, 100, 220);  // 半透明绿色
+        float lineThickness = 3.0f;
+        float lineOffsetY = 0.0f;  // 在轨道中心绘制
+
+        // 找连续的有音频的段，绘制为一条水平线
+        float lineStartX = -1;
+        for (int i = 0; i < segmentCount; i++) {
+            float segmentX = contentX + i * segmentWidth;
+
+            if (hasAudio[i]) {
+                // 有音频：如果是新段，记录起始位置
+                if (lineStartX < 0) {
+                    lineStartX = segmentX;
+                }
+            } else {
+                // 没有音频：如果之前有段，绘制线段
+                if (lineStartX >= 0) {
+                    float lineEndX = segmentX;
+                    drawList.addLine(lineStartX, trackCenterY + lineOffsetY,
+                                   lineEndX, trackCenterY + lineOffsetY,
+                                   lineColor, lineThickness);
+                    lineStartX = -1;
+                }
             }
         }
 
-        // 绘制波形线
-        float maxWaveHeight = 15.0f;  // 最大波形高度（像素）
-        int waveColor = TimelineColors.rgba(100, 200, 100, 200);  // 半透明绿色
-
-        // 用连续的线段绘制波形
-        for (int i = 0; i < segmentCount - 1; i++) {
-            float x1 = contentX + i * segmentWidth;
-            float x2 = contentX + (i + 1) * segmentWidth;
-
-            // 根据密度计算波形高度
-            float height1 = (densities[i] / maxDensity) * maxWaveHeight;
-            float height2 = (densities[i + 1] / maxDensity) * maxWaveHeight;
-
-            // 绘制上半波形
-            float y1Top = trackCenterY - height1;
-            float y2Top = trackCenterY - height2;
-            drawList.addLine(x1, y1Top, x2, y2Top, waveColor, 2.0f);
-
-            // 绘制下半波形（镜像）
-            float y1Bottom = trackCenterY + height1;
-            float y2Bottom = trackCenterY + height2;
-            drawList.addLine(x1, y1Bottom, x2, y2Bottom, waveColor, 2.0f);
-
-            // 填充中间区域（可选，创建实心效果）
-            if (height1 > 0 || height2 > 0) {
-                int fillColor = TimelineColors.rgba(100, 200, 100, 80);  // 更透明的填充
-                drawList.addRectFilled(x1, y1Top, x2, y1Bottom, fillColor);
-            }
+        // 绘制最后一段（如果到达末尾还在绘制）
+        if (lineStartX >= 0) {
+            float lineEndX = contentX + contentW;
+            drawList.addLine(lineStartX, trackCenterY + lineOffsetY,
+                           lineEndX, trackCenterY + lineOffsetY,
+                           lineColor, lineThickness);
         }
-
-        // 绘制中心线（参考线）
-        int centerLineColor = TimelineColors.rgba(150, 150, 150, 100);
-        drawList.addLine(contentX, trackCenterY, contentX + contentW, trackCenterY, centerLineColor, 1.0f);
     }
 
     /**

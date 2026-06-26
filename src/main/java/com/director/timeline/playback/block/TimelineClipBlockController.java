@@ -601,10 +601,9 @@ public class TimelineClipBlockController {
 
         final long tAfterDiff = System.nanoTime();
 
-        // ⭐ 性能优化：完全禁用遮挡检测功能
-        // 遮挡检测是最大的性能杀手（每帧需要遍历数万个方块进行包围盒检测）
-        // 用户可以通过调整摄像机角度来避免遮挡问题
-        // 构建容器ID到片段的映射（保留，因为后续代码需要）
+        // ⭐ 步骤2：应用遮挡检测（容器之间的半透明效果）
+        // 现在主要性能问题（音频渲染）已经解决，可以重新启用遮挡检测
+        // 构建容器ID到片段的映射
         Map<UUID, TimelineClip> containerToClipMap = new HashMap<>();
         for (TimelineTrack track : activeModel.getAllTracks()) {
             if (track == null)
@@ -619,8 +618,10 @@ public class TimelineClipBlockController {
             }
         }
 
-        // ⭐ 遮挡检测已禁用 - 不再调用 applyOcclusionOverrides
-        Set<UUID> occludedContainers = new HashSet<>(); // 保持空集合，表示没有容器被遮挡
+        // ⭐ 重新启用遮挡检测
+        Set<UUID> occludedContainers = new HashSet<>();
+        applyOcclusionOverrides(currentTime, currentFrameVisibleBlocks, currentFrameOpacity,
+                                occludedContainers, containerToClipMap);
         final long tAfterOcclusion = System.nanoTime();
 
         // ✅ 步骤3：应用方块可见性状态（两层系统）
@@ -784,41 +785,30 @@ public class TimelineClipBlockController {
         }
         final long tAfterEntries = System.nanoTime();
 
-        // ⭐ 性能关键优化：减少区块重渲染调用
-        // 区块重渲染是最大的性能杀手（每次调用需要10-20ms）
+        // ⭐ 区块重渲染策略优化
         //
         // 优化策略：
-        // 1. 预览模式（不播放）：完全禁用自动重渲染
-        //    - 用户拖动播放头时，方块会通过其他机制更新
-        //    - 如果需要手动刷新，用户可以按F3+A
-        //
-        // 2. 播放模式：只在方块实际变化时才重渲染
-        //    - 使用节流机制，避免每帧都重渲染
+        // 1. 播放模式：正常重渲染，使用节流机制避免过于频繁
+        // 2. 预览模式（拖动播放头）：允许重渲染，确保用户看到正确的方块状态
+        //    - 但需要限制重渲染范围，避免性能问题
         Set<BlockPos> rerender = new HashSet<>();
 
-        // ⭐ 只在播放模式下才调度重渲染
-        // 预览模式下完全禁用，避免每次拖动播放头都触发昂贵的区块重建
-        if (!previewMode) {
-            try {
-                Set<BlockPos> vsChanged = visualStateManager.getChangedBlocks();
-                if (vsChanged != null && !vsChanged.isEmpty()) {
-                    rerender.addAll(vsChanged);
-                }
-            } catch (Exception ignored) {
+        try {
+            Set<BlockPos> vsChanged = visualStateManager.getChangedBlocks();
+            if (vsChanged != null && !vsChanged.isEmpty()) {
+                rerender.addAll(vsChanged);
             }
-            cleanupContainersNoLongerControlled(desiredWorldBlocks.keySet(), visibilityService, visualStateManager, rerender);
+        } catch (Exception ignored) {
+        }
+        cleanupContainersNoLongerControlled(desiredWorldBlocks.keySet(), visibilityService, visualStateManager, rerender);
 
-            // ⭐ 额外优化：如果重渲染方块数量太多（>10000），分批处理或跳过
-            // 避免一次性重渲染导致游戏卡顿
-            if (rerender.size() > 10000) {
-                LOGGER.warn("[TimelineClipBlockController] 重渲染方块数量过多 ({}), 跳过本帧重渲染以避免卡顿", rerender.size());
-                rerender.clear();
-            } else if (!rerender.isEmpty()) {
-                scheduleBlockRerender(rerender);
-            }
-        } else {
-            // 预览模式：仍然需要清理不再控制的容器，但不调度重渲染
-            cleanupContainersNoLongerControlled(desiredWorldBlocks.keySet(), visibilityService, visualStateManager, rerender);
+        // ⭐ 额外优化：如果重渲染方块数量太多（>10000），分批处理或跳过
+        // 避免一次性重渲染导致游戏卡顿
+        if (rerender.size() > 10000) {
+            LOGGER.warn("[TimelineClipBlockController] 重渲染方块数量过多 ({}), 跳过本帧重渲染以避免卡顿", rerender.size());
+            rerender.clear();
+        } else if (!rerender.isEmpty()) {
+            scheduleBlockRerender(rerender);
         }
 
         final long tAfterRerender = System.nanoTime();
