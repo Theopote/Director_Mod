@@ -297,6 +297,7 @@ public class BlockVisualStateManager {
     public void clearFrame() {
         visualOverrides.clear();
         renderEntries.clear();
+        overlayBlocksCacheDirty = true;  // ⭐ 标记缓存为脏
     }
 
     /** 是否存在需要 Mixin / 覆盖层处理的方块状态。 */
@@ -319,11 +320,12 @@ public class BlockVisualStateManager {
             renderEntries.remove(pos);
             lastFrameStates.remove(pos);
         }
+        overlayBlocksCacheDirty = true;  // ⭐ 标记缓存为脏
     }
-    
+
     /**
      * 设置方块的视觉状态
-     * 
+     *
      * @param pos 方块位置
      * @param state 视觉状态
      */
@@ -332,11 +334,12 @@ public class BlockVisualStateManager {
             return;
         }
         visualOverrides.put(pos, state);
+        overlayBlocksCacheDirty = true;  // ⭐ 标记缓存为脏
     }
-    
+
     /**
      * 批量设置方块的视觉状态
-     * 
+     *
      * @param blocks 方块位置集合
      * @param state 视觉状态
      */
@@ -349,6 +352,7 @@ public class BlockVisualStateManager {
                 visualOverrides.put(pos, state);
             }
         }
+        overlayBlocksCacheDirty = true;  // ⭐ 标记缓存为脏
     }
     
     /**
@@ -417,19 +421,27 @@ public class BlockVisualStateManager {
         return renderEntries.values();
     }
     
+    // ⭐ 性能关键：缓存覆盖层方块集合，避免每帧重新构建
+    private Set<BlockPos> cachedOverlayBlocks = new HashSet<>();
+    private boolean overlayBlocksCacheDirty = true;
+
     /**
      * 获取所有需要覆盖层渲染的方块
-     * 
+     *
      * @return 方块位置集合
      */
     public Set<BlockPos> getOverlayBlocks() {
-        Set<BlockPos> result = new HashSet<>();
-        for (Map.Entry<BlockPos, BlockVisualState> entry : visualOverrides.entrySet()) {
-            if (entry.getValue().shouldUseOverlay() && !entry.getValue().isHidden()) {
-                result.add(entry.getKey());
+        // ⭐ 性能优化：只有在状态变化时才重新计算
+        if (overlayBlocksCacheDirty) {
+            cachedOverlayBlocks.clear();
+            for (Map.Entry<BlockPos, BlockVisualState> entry : visualOverrides.entrySet()) {
+                if (entry.getValue().shouldUseOverlay() && !entry.getValue().isHidden()) {
+                    cachedOverlayBlocks.add(entry.getKey());
+                }
             }
+            overlayBlocksCacheDirty = false;
         }
-        return result;
+        return cachedOverlayBlocks;
     }
 
     /**

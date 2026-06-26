@@ -415,6 +415,13 @@ public class TimelineClipBlockController {
         boolean previewMode = !playing;
         boolean previewTimeChanged = Float.isNaN(lastHandledPreviewTime)
                 || Math.abs(currentTime - lastHandledPreviewTime) > 1e-4f;
+
+        // ⭐ 临时调试：记录 update() 是否被调用
+        if (System.currentTimeMillis() % 5000 < 50) {
+            LOGGER.warn("[DEBUG] update() called: playing={}, scrubbing={}, previewTimeChanged={}, revisionChanged={}",
+                playing, scrubbing, previewTimeChanged, timelineRevision != lastHandledRevision);
+        }
+
         if (!playing
                 && !scrubbing
                 && !previewTimeChanged

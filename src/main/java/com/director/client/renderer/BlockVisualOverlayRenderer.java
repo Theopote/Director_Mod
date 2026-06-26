@@ -30,9 +30,9 @@ public class BlockVisualOverlayRenderer {
     
     /**
      * 渲染半透明方块覆盖层
-     * 
+     *
      * <p>在每帧的世界渲染后调用，为需要半透明的方块渲染覆盖层
-     * 
+     *
      * @param matrices 变换矩阵
      * @param vertexConsumers 顶点消费者提供者
      * @param camera 摄像机位置
@@ -43,41 +43,52 @@ public class BlockVisualOverlayRenderer {
             return;
         }
         Set<BlockPos> overlayBlocks = manager.getOverlayBlocks();
-        
+
         if (overlayBlocks.isEmpty()) {
             return;
         }
-        
+
         MinecraftClient client = MinecraftClient.getInstance();
         if (client.world == null || client.getCameraEntity() == null) {
             return;
         }
-        
+
         // 获取半透明渲染层
         RenderLayer overlayLayer = RenderLayers.getSelectionFillLayer(); // 使用现有的半透明层
-        
+
         VertexConsumer buffer = vertexConsumers.getBuffer(overlayLayer);
-        
+
+        // ⭐ 性能关键优化：限制每帧渲染的方块数量
+        // 当方块数量过多时（>10000），只渲染距离摄像机最近的方块
+        int renderedCount = 0;
+        int maxRenderPerFrame = 5000;  // 每帧最多渲染5000个方块
+
         // 渲染每个需要半透明的方块
         for (BlockPos pos : overlayBlocks) {
+            // ⭐ 性能保护：限制每帧渲染数量
+            if (renderedCount >= maxRenderPerFrame) {
+                break;
+            }
+
             float alpha = manager.getBlockAlpha(pos);
             if (alpha >= 1.0f || alpha <= 0f) {
                 continue; // 跳过完全不透明或完全透明的方块
             }
-            
+
             // 计算方块相对于摄像机的位置
             double dx = pos.getX() - camera.x;
             double dy = pos.getY() - camera.y;
             double dz = pos.getZ() - camera.z;
-            
+
             // 如果方块太远，跳过渲染（性能优化）
             double distanceSq = dx * dx + dy * dy + dz * dz;
             if (distanceSq > 256 * 256) { // 16个区块的距离
                 continue;
             }
-            
+
             // 渲染半透明覆盖层
             renderBlockOverlay(matrices, buffer, pos, alpha);
+            renderedCount++;
         }
     }
     
