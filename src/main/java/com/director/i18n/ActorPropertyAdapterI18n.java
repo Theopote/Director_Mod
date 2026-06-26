@@ -2,6 +2,7 @@ package com.director.i18n;
 
 import com.director.actor.ActorGroup;
 import com.director.actor.ActorType;
+import com.director.actor.action.ActorActionType;
 import com.director.timeline.model.entity.ActorRelationClip;
 import com.director.timeline.model.entity.ActorRouteClip;
 import com.director.timeline.model.entity.EntityLookAtClip;
@@ -39,6 +40,38 @@ public final class ActorPropertyAdapterI18n {
             return tr(DirectorLang.Properties.AdapterActor.ActorType.CUSTOM);
         }
         return actorTypeLabels()[type.ordinal()];
+    }
+
+    public static String[] actionSemanticLabels() {
+        return new String[]{
+                tr(DirectorLang.Properties.AdapterActor.Semantic.IDLE),
+                tr(DirectorLang.Properties.AdapterActor.Semantic.WALK),
+                tr(DirectorLang.Properties.AdapterActor.Semantic.RUN),
+                tr(DirectorLang.Properties.AdapterActor.Semantic.DANCE),
+                tr(DirectorLang.Properties.AdapterActor.Semantic.CELEBRATE),
+                tr(DirectorLang.Properties.AdapterActor.Semantic.SIT),
+                tr(DirectorLang.Properties.AdapterActor.Semantic.MEDITATE),
+                tr(DirectorLang.Properties.AdapterActor.Semantic.CARRY),
+                tr(DirectorLang.Properties.AdapterActor.Semantic.THROW_PREPARE),
+                tr(DirectorLang.Properties.AdapterActor.Semantic.ATTACK),
+                tr(DirectorLang.Properties.AdapterActor.Semantic.GRAZE),
+                tr(DirectorLang.Properties.AdapterActor.Semantic.ROAR),
+                tr(DirectorLang.Properties.AdapterActor.Semantic.CUSTOM)
+        };
+    }
+
+    public static String actionSemanticLabel(ActorActionType type) {
+        if (type == null) {
+            return tr(DirectorLang.Properties.AdapterActor.Semantic.IDLE);
+        }
+        return actionSemanticLabels()[type.ordinal()];
+    }
+
+    public static String[] liveLookAtModeLabels() {
+        return new String[]{
+                tr(DirectorLang.Properties.AdapterActor.LookAt.MODE_WORLD_POINT),
+                tr(DirectorLang.Properties.AdapterActor.LookAt.MODE_CAMERA)
+        };
     }
 
     public static String[] formationTypeLabels() {

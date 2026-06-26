@@ -1,5 +1,7 @@
 package com.director.ui.properties.adapters;
 
+import com.director.i18n.ActorPropertyAdapterI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.theme.Icons;
 import com.director.ui.theme.UITheme;
@@ -20,8 +22,6 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public class EntityStateClipPropertyAdapter implements IPropertyAdapter<EntityStateClip> {
 
-    private static final String TITLE = Icons.SMILE + " 状态片段";
-
     private final ImBoolean sneakingBoolean = new ImBoolean();
     private final ImBoolean sprintingBoolean = new ImBoolean();
     private final ImBoolean glowingBoolean = new ImBoolean();
@@ -35,57 +35,60 @@ public class EntityStateClipPropertyAdapter implements IPropertyAdapter<EntitySt
     @Override
     public boolean renderProperties(EntityStateClip clip) {
         if (clip == null) {
-            ImGui.text("（无片段）");
+            ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.NO_CLIP));
             return false;
         }
 
         AtomicBoolean changed = new AtomicBoolean(false);
 
-        UITheme.title(TITLE);
+        UITheme.title(Icons.SMILE + " " + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.State.ADAPTER_NAME));
 
-        // ========== 基础信息 ==========
-        if (ImGui.collapsingHeader("⏱ 基础信息", ImGuiTreeNodeFlags.DefaultOpen)) {
-            UITheme.beginGroup("时间范围");
-            ImGui.text(String.format("开始: %.2fs", clip.getStartTime()));
-            ImGui.text(String.format("结束: %.2fs", clip.getEndTime()));
-            ImGui.text(String.format("时长: %.2fs", clip.getLength()));
+        if (ImGui.collapsingHeader(Icons.TIME + " "
+                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.SECTION_BASIC),
+                ImGuiTreeNodeFlags.DefaultOpen)) {
+            UITheme.beginGroup(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.TIME_RANGE));
+            ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.START_FMT, clip.getStartTime()));
+            ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.END_FMT, clip.getEndTime()));
+            ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DURATION_FMT, clip.getLength()));
             UITheme.endGroup();
         }
 
-        // ========== 行为状态 ==========
-        if (ImGui.collapsingHeader("🏃 行为状态", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(Icons.SMILE + " "
+                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.State.SECTION_BEHAVIOR),
+                ImGuiTreeNodeFlags.DefaultOpen)) {
             sneakingBoolean.set(clip.isSneaking());
-            if (ImGui.checkbox("潜行", sneakingBoolean)) {
+            if (ImGui.checkbox(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.State.SNEAKING), sneakingBoolean)) {
                 clip.setSneaking(sneakingBoolean.get());
                 changed.set(true);
             }
 
             sprintingBoolean.set(clip.isSprinting());
-            if (ImGui.checkbox("冲刺", sprintingBoolean)) {
+            if (ImGui.checkbox(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.State.SPRINTING), sprintingBoolean)) {
                 clip.setSprinting(sprintingBoolean.get());
                 changed.set(true);
             }
         }
 
-        // ========== 视觉效果 ==========
-        if (ImGui.collapsingHeader("✨ 视觉效果")) {
+        if (ImGui.collapsingHeader(Icons.STAR + " "
+                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.State.SECTION_VISUAL))) {
             glowingBoolean.set(clip.isGlowing());
-            if (ImGui.checkbox("发光", glowingBoolean)) {
+            if (ImGui.checkbox(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.State.GLOWING), glowingBoolean)) {
                 clip.setGlowing(glowingBoolean.get());
                 changed.set(true);
             }
 
             float[] visibilityArray = {clip.getVisibility()};
-            if (ImGui.sliderFloat("可见性", visibilityArray, 0.0f, 1.0f)) {
+            if (ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.State.VISIBILITY),
+                    visibilityArray, 0.0f, 1.0f)) {
                 clip.setVisibility(visibilityArray[0]);
                 changed.set(true);
             }
         }
 
-        // ========== 战斗状态 ==========
-        if (ImGui.collapsingHeader("🛡️ 战斗状态")) {
+        if (ImGui.collapsingHeader(Icons.SHIELD + " "
+                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.State.SECTION_COMBAT))) {
             invulnerableBoolean.set(clip.isInvulnerable());
-            if (ImGui.checkbox("无敌", invulnerableBoolean)) {
+            if (ImGui.checkbox(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.State.INVULNERABLE), invulnerableBoolean)) {
                 clip.setInvulnerable(invulnerableBoolean.get());
                 changed.set(true);
             }
@@ -94,4 +97,3 @@ public class EntityStateClipPropertyAdapter implements IPropertyAdapter<EntitySt
         return changed.get();
     }
 }
-

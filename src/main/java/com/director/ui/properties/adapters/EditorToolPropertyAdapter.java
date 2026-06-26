@@ -21,6 +21,7 @@ import com.director.timeline.model.entity.ActorRouteClip;
 import com.director.timeline.model.entity.EntityTimelineClip;
 import com.director.timeline.model.entity.ActorTrack;
 import com.director.i18n.ActorPropertyAdapterI18n;
+import com.director.i18n.DirectorLang;
 import com.director.ui.actor.path.ActorPathController;
 import com.director.ui.tools.EditorTool;
 import com.director.ui.tools.ToolRegistry;
@@ -108,15 +109,20 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
 
     private void renderActorToolProperties(EditorTool tool) {
         Actor actor = resolveSelectedActor();
-        if (ImGui.collapsingHeader(Icons.SMILE + " 当前演员", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (ImGui.collapsingHeader(Icons.SMILE + " "
+                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.CURRENT_ACTOR),
+                ImGuiTreeNodeFlags.DefaultOpen)) {
             if (actor == null) {
-                ImGui.textDisabled("未选择 Actor");
-                ImGui.textWrapped("在当前 Actor 工具下点击世界中的演员，或在 Actor 轨道中选择一个演员。");
+                ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.NO_ACTOR_SELECTED));
+                ImGui.textWrapped(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.SELECT_ACTOR_HINT));
             } else {
-                ImGui.text("Name: " + actor.getName());
-                ImGui.text("Type: " + actor.getType());
+                ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.NAME_FMT, actor.getName()));
+                ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.TYPE_FMT,
+                        ActorPropertyAdapterI18n.actorTypeLabel(actor.getType())));
                 ActorRigProfile rig = actor.getRigProfile();
-                ImGui.text("Rig: " + (rig != null ? rig.getClass().getSimpleName() : "None"));
+                ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.RIG_FMT,
+                        rig != null ? rig.getClass().getSimpleName()
+                                : ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.RIG_NONE)));
             }
         }
 
@@ -139,49 +145,54 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
     }
 
     private void renderLocalPoseAuthoring(Actor actor) {
-        if (!ImGui.collapsingHeader(Icons.TRANSFORM + " 局部姿态覆盖", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (!ImGui.collapsingHeader(Icons.TRANSFORM + " "
+                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.LOCAL_POSE_OVERRIDE),
+                ImGuiTreeNodeFlags.DefaultOpen)) {
             return;
         }
         if (actor == null) {
-            ImGui.textDisabled("请先选择一个 Actor。");
+            ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.SELECT_ACTOR_FIRST));
             return;
         }
 
         float[] duration = { poseDuration.get() };
-        if (ImGui.sliderFloat("时长##actorLocalPoseDuration", duration, 0.05f, 10.0f, "%.2fs")) {
+        if (ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DURATION) + "##actorLocalPoseDuration",
+                duration, 0.05f, 10.0f, "%.2fs")) {
             poseDuration.set(Math.max(0.05f, duration[0]));
         }
 
-        ImGui.checkbox("头部##actorLocalPoseHead", poseHead);
+        ImGui.checkbox(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.HEAD) + "##actorLocalPoseHead", poseHead);
         ImGui.sameLine();
-        ImGui.checkbox("身体##actorLocalPoseBody", poseBody);
-        ImGui.checkbox("手臂##actorLocalPoseArms", poseArms);
+        ImGui.checkbox(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.BODY) + "##actorLocalPoseBody", poseBody);
+        ImGui.checkbox(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.ARMS) + "##actorLocalPoseArms", poseArms);
         ImGui.sameLine();
-        ImGui.checkbox("腿部##actorLocalPoseLegs", poseLegs);
+        ImGui.checkbox(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.LEGS) + "##actorLocalPoseLegs", poseLegs);
 
         if (poseHead.get()) {
-            degreeSlider("抬头/低头##actorLocalHeadPitch", poseHeadPitchDeg);
-            degreeSlider("左右转头##actorLocalHeadYaw", poseHeadYawDeg);
+            degreeSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.HEAD_PITCH) + "##actorLocalHeadPitch", poseHeadPitchDeg);
+            degreeSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.HEAD_YAW) + "##actorLocalHeadYaw", poseHeadYawDeg);
         }
         if (poseBody.get()) {
-            degreeSlider("身体俯仰##actorLocalBodyPitch", poseBodyPitchDeg);
-            degreeSlider("身体扭转##actorLocalBodyYaw", poseBodyYawDeg);
-            degreeSlider("身体侧倾##actorLocalBodyRoll", poseBodyRollDeg);
+            degreeSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.BODY_PITCH) + "##actorLocalBodyPitch", poseBodyPitchDeg);
+            degreeSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.BODY_YAW) + "##actorLocalBodyYaw", poseBodyYawDeg);
+            degreeSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.BODY_ROLL) + "##actorLocalBodyRoll", poseBodyRollDeg);
         }
         if (poseArms.get()) {
-            degreeSlider("左臂##actorLocalLeftArm", poseLeftArmDeg);
-            degreeSlider("右臂##actorLocalRightArm", poseRightArmDeg);
+            degreeSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.LEFT_ARM) + "##actorLocalLeftArm", poseLeftArmDeg);
+            degreeSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.RIGHT_ARM) + "##actorLocalRightArm", poseRightArmDeg);
         }
         if (poseLegs.get()) {
-            degreeSlider("左腿##actorLocalLeftLeg", poseLeftLegDeg);
-            degreeSlider("右腿##actorLocalRightLeg", poseRightLegDeg);
+            degreeSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.LEFT_LEG) + "##actorLocalLeftLeg", poseLeftLegDeg);
+            degreeSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.RIGHT_LEG) + "##actorLocalRightLeg", poseRightLegDeg);
         }
 
-        if (ImGui.button(Icons.ADD + " 在当前时间创建局部姿态片段##createActorLocalPoseClip")) {
+        if (ImGui.button(Icons.ADD + " "
+                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.CREATE_LOCAL_POSE_CLIP)
+                + "##createActorLocalPoseClip")) {
             createActorPoseClip(actor);
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("创建 ActorPoseClip，在 RigProfile 姿态之后覆盖选中的身体部位。");
+            ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.CREATE_LOCAL_POSE_TOOLTIP));
         }
     }
 
@@ -193,24 +204,26 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
     }
 
     private void renderPoseAuthoring(Actor actor) {
-        if (!ImGui.collapsingHeader(Icons.ANIMATION + " 姿态片段", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (!ImGui.collapsingHeader(Icons.ANIMATION + " "
+                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.POSE_CLIP),
+                ImGuiTreeNodeFlags.DefaultOpen)) {
             return;
         }
 
         if (actor == null) {
-            ImGui.textDisabled("请先选择一个 Actor。");
+            ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.SELECT_ACTOR_FIRST));
             return;
         }
 
         ActorActionType[] actions = ActorActionType.values();
         int current = Math.max(0, Math.min(actionIndex.get(), actions.length - 1));
         ActorRigProfile rig = actor.getRigProfile();
-        String currentLabel = actions[current].name();
+        String currentLabel = ActorPropertyAdapterI18n.actionSemanticLabel(actions[current]);
         if (rig != null && !rig.supports(actions[current])) {
-            currentLabel += " (当前 Rig 不支持)";
+            currentLabel += ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.RIG_NOT_SUPPORTED_SUFFIX);
         }
 
-        if (ImGui.beginCombo("动作语义##actorPoseAction", currentLabel)) {
+        if (ImGui.beginCombo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.ACTION_SEMANTIC) + "##actorPoseAction", currentLabel)) {
             for (int i = 0; i < actions.length; i++) {
                 ActorActionType action = actions[i];
                 boolean supported = rig == null || rig.supports(action);
@@ -218,7 +231,7 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
                 if (!supported) {
                     ImGui.beginDisabled();
                 }
-                if (ImGui.selectable(action.name(), selected)) {
+                if (ImGui.selectable(ActorPropertyAdapterI18n.actionSemanticLabel(action), selected)) {
                     actionIndex.set(i);
                 }
                 if (!supported) {
@@ -232,69 +245,82 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         }
 
         float[] intensity = { actionIntensity.get() };
-        if (ImGui.sliderFloat("强度##actorPoseIntensity", intensity, 0.0f, 1.0f, "%.2f")) {
+        if (ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.INTENSITY) + "##actorPoseIntensity",
+                intensity, 0.0f, 1.0f, "%.2f")) {
             actionIntensity.set(intensity[0]);
         }
 
         float[] duration = { actionDuration.get() };
-        if (ImGui.sliderFloat("时长##actorPoseDuration", duration, 0.05f, 10.0f, "%.2fs")) {
+        if (ImGui.sliderFloat(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DURATION) + "##actorPoseDuration",
+                duration, 0.05f, 10.0f, "%.2fs")) {
             actionDuration.set(Math.max(0.05f, duration[0]));
         }
 
-        if (ImGui.checkbox("循环##actorPoseLoop", actionLoop)) {
+        if (ImGui.checkbox(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.LOOP) + "##actorPoseLoop", actionLoop)) {
             // ImBoolean is updated by ImGui.
         }
 
-        if (ImGui.button(Icons.ADD + " 在当前时间创建姿态片段##createActorPoseClip")) {
+        if (ImGui.button(Icons.ADD + " "
+                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.CREATE_POSE_CLIP)
+                + "##createActorPoseClip")) {
             createActorActionClip(actor, actions[Math.max(0, Math.min(actionIndex.get(), actions.length - 1))]);
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("创建 ActorActionClip，由 RigProfile 在播放时生成最终姿态。");
+            ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.CREATE_POSE_TOOLTIP));
         }
     }
 
     private void renderActorPathToolProperties(Actor actor) {
-        if (!ImGui.collapsingHeader(Icons.PATH + " 路径绘制", ImGuiTreeNodeFlags.DefaultOpen)) {
+        if (!ImGui.collapsingHeader(Icons.PATH + " "
+                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.PATH_DRAWING),
+                ImGuiTreeNodeFlags.DefaultOpen)) {
             return;
         }
 
         ActorPathController controller = ActorPathController.getInstance();
         if (actor == null) {
-            ImGui.textDisabled("请先选择一个 Actor。");
+            ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.SELECT_ACTOR_FIRST));
             return;
         }
 
-        ImGui.textWrapped("右键：放置锚点；左键点锚点：编辑；左键点空白：完成并保存路径；再次右键：开始新路径；Esc：取消当前草稿。");
+        ImGui.textWrapped(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.PATH_DRAW_HINT));
 
         ActorRouteClip.InterpolationMode[] modes = ActorRouteClip.InterpolationMode.values();
         ImInt interpolation = new ImInt(controller.getInterpolationMode().ordinal());
-        if (ImGui.combo("曲线类型##actorPathInterpolation", interpolation, ActorPropertyAdapterI18n.routeInterpolationLabels())) {
+        if (ImGui.combo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.CURVE_TYPE) + "##actorPathInterpolation",
+                interpolation, ActorPropertyAdapterI18n.routeInterpolationLabels())) {
             controller.setInterpolationMode(modes[Math.max(0, Math.min(interpolation.get(), modes.length - 1))]);
         }
 
-        ImGui.text("锚点数量: " + controller.getAnchorCount());
+        ImGui.text(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.ANCHOR_COUNT_FMT, controller.getAnchorCount()));
         if (controller.isDrawing()) {
-            ImGui.textDisabled("正在绘制路径…");
+            ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.DRAWING_IN_PROGRESS));
         }
 
-        if (ImGui.button(Icons.ADD + " 应用到选中 Actor##actorPathApplyActor")) {
+        if (ImGui.button(Icons.ADD + " "
+                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.APPLY_TO_ACTOR)
+                + "##actorPathApplyActor")) {
             controller.applyPathToSelectedActor();
         }
         if (ImGui.isItemHovered()) {
-            ImGui.setTooltip("将当前路径（或库中选中路径）创建为 ActorRouteClip");
+            ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.APPLY_PATH_TOOLTIP));
         }
         ImGui.sameLine();
-        if (ImGui.button(Icons.DELETE + " 删除选中锚点##actorPathDeleteAnchor")) {
+        if (ImGui.button(Icons.DELETE + " "
+                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.DELETE_SELECTED_ANCHOR)
+                + "##actorPathDeleteAnchor")) {
             controller.removeSelectedAnchor();
         }
     }
 
     private void renderTransformHint() {
-        if (ImGui.collapsingHeader(Icons.TRANSFORM + " 变换与朝向", ImGuiTreeNodeFlags.DefaultOpen)) {
-            ImGui.textWrapped("选择 Actor 后拖动 Gizmo，系统会在当前时间创建或更新 TransformClip。");
-            ImGui.textWrapped("G：平移（三轴箭头）  R：旋转（三色环）  S：缩放  T：朝向（点击世界目标点）");
-            ImGui.textWrapped("朝向模式下点击地面创建 LookAtClip；看向摄像机可在演员轨道属性中设置。");
-            ImGui.textDisabled("也可在时间线选中对应片段后，于属性面板精确编辑数值。");
+        if (ImGui.collapsingHeader(Icons.TRANSFORM + " "
+                + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.TRANSFORM_AND_LOOK_AT),
+                ImGuiTreeNodeFlags.DefaultOpen)) {
+            ImGui.textWrapped(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.TRANSFORM_HINT_1));
+            ImGui.textWrapped(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.TRANSFORM_HINT_2));
+            ImGui.textWrapped(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.TRANSFORM_HINT_3));
+            ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.ToolEditor.TRANSFORM_HINT_4));
         }
     }
 

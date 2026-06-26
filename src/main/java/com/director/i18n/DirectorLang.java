@@ -1694,6 +1694,107 @@ public final class DirectorLang {
                 }
             }
 
+            public static final class Semantic {
+                public static final String IDLE = "gui.director.properties.adapter.actor.semantic.idle";
+                public static final String WALK = "gui.director.properties.adapter.actor.semantic.walk";
+                public static final String RUN = "gui.director.properties.adapter.actor.semantic.run";
+                public static final String DANCE = "gui.director.properties.adapter.actor.semantic.dance";
+                public static final String CELEBRATE = "gui.director.properties.adapter.actor.semantic.celebrate";
+                public static final String SIT = "gui.director.properties.adapter.actor.semantic.sit";
+                public static final String MEDITATE = "gui.director.properties.adapter.actor.semantic.meditate";
+                public static final String CARRY = "gui.director.properties.adapter.actor.semantic.carry";
+                public static final String THROW_PREPARE = "gui.director.properties.adapter.actor.semantic.throw_prepare";
+                public static final String ATTACK = "gui.director.properties.adapter.actor.semantic.attack";
+                public static final String GRAZE = "gui.director.properties.adapter.actor.semantic.graze";
+                public static final String ROAR = "gui.director.properties.adapter.actor.semantic.roar";
+                public static final String CUSTOM = "gui.director.properties.adapter.actor.semantic.custom";
+
+                private Semantic() {
+                }
+            }
+
+            public static final class LiveTransform {
+                public static final String SECTION_TRANSFORM = "gui.director.properties.adapter.actor.live_transform.section_transform";
+                public static final String SECTION_LOOK_AT = "gui.director.properties.adapter.actor.live_transform.section_look_at";
+                public static final String TIMELINE_NOT_LOADED = "gui.director.properties.adapter.actor.live_transform.timeline_not_loaded";
+                public static final String TIME_HINT_FMT = "gui.director.properties.adapter.actor.live_transform.time_hint_fmt";
+                public static final String POSITION = "gui.director.properties.adapter.actor.live_transform.position";
+                public static final String ROTATION = "gui.director.properties.adapter.actor.live_transform.rotation";
+                public static final String SCALE = "gui.director.properties.adapter.actor.live_transform.scale";
+                public static final String YAW = "gui.director.properties.adapter.actor.live_transform.yaw";
+                public static final String PITCH = "gui.director.properties.adapter.actor.live_transform.pitch";
+                public static final String ROLL = "gui.director.properties.adapter.actor.live_transform.roll";
+                public static final String TARGET_MODE = "gui.director.properties.adapter.actor.live_transform.target_mode";
+                public static final String STRENGTH = "gui.director.properties.adapter.actor.live_transform.strength";
+                public static final String APPLY_LOOK_AT_CAMERA = "gui.director.properties.adapter.actor.live_transform.apply_look_at_camera";
+                public static final String GIZMO_HINT = "gui.director.properties.adapter.actor.live_transform.gizmo_hint";
+
+                private LiveTransform() {
+                }
+            }
+
+            public static final class Skin {
+                public static final String SECTION = "gui.director.properties.adapter.actor.skin.section";
+                public static final String DEFAULT = "gui.director.properties.adapter.actor.skin.default";
+                public static final String CHOOSE_PNG = "gui.director.properties.adapter.actor.skin.choose_png";
+                public static final String CLEAR = "gui.director.properties.adapter.actor.skin.clear";
+                public static final String DIALOG_TITLE = "gui.director.properties.adapter.actor.skin.dialog_title";
+                public static final String DIALOG_FILTER = "gui.director.properties.adapter.actor.skin.dialog_filter";
+
+                private Skin() {
+                }
+            }
+
+            public static final class State {
+                public static final String ADAPTER_NAME = "gui.director.properties.adapter.actor.state.name";
+                public static final String SECTION_BEHAVIOR = "gui.director.properties.adapter.actor.state.section_behavior";
+                public static final String SECTION_VISUAL = "gui.director.properties.adapter.actor.state.section_visual";
+                public static final String SECTION_COMBAT = "gui.director.properties.adapter.actor.state.section_combat";
+                public static final String SNEAKING = "gui.director.properties.adapter.actor.state.sneaking";
+                public static final String SPRINTING = "gui.director.properties.adapter.actor.state.sprinting";
+                public static final String GLOWING = "gui.director.properties.adapter.actor.state.glowing";
+                public static final String VISIBILITY = "gui.director.properties.adapter.actor.state.visibility";
+                public static final String INVULNERABLE = "gui.director.properties.adapter.actor.state.invulnerable";
+
+                private State() {
+                }
+            }
+
+            public static final class ToolEditor {
+                public static final String CURRENT_ACTOR = "gui.director.properties.adapter.actor.tool_editor.current_actor";
+                public static final String NO_ACTOR_SELECTED = "gui.director.properties.adapter.actor.tool_editor.no_actor_selected";
+                public static final String SELECT_ACTOR_HINT = "gui.director.properties.adapter.actor.tool_editor.select_actor_hint";
+                public static final String NAME_FMT = "gui.director.properties.adapter.actor.tool_editor.name_fmt";
+                public static final String TYPE_FMT = "gui.director.properties.adapter.actor.tool_editor.type_fmt";
+                public static final String RIG_FMT = "gui.director.properties.adapter.actor.tool_editor.rig_fmt";
+                public static final String RIG_NONE = "gui.director.properties.adapter.actor.tool_editor.rig_none";
+                public static final String SELECT_ACTOR_FIRST = "gui.director.properties.adapter.actor.tool_editor.select_actor_first";
+                public static final String LOCAL_POSE_OVERRIDE = "gui.director.properties.adapter.actor.tool_editor.local_pose_override";
+                public static final String CREATE_LOCAL_POSE_CLIP = "gui.director.properties.adapter.actor.tool_editor.create_local_pose_clip";
+                public static final String CREATE_LOCAL_POSE_TOOLTIP = "gui.director.properties.adapter.actor.tool_editor.create_local_pose_tooltip";
+                public static final String POSE_CLIP = "gui.director.properties.adapter.actor.tool_editor.pose_clip";
+                public static final String ACTION_SEMANTIC = "gui.director.properties.adapter.actor.tool_editor.action_semantic";
+                public static final String RIG_NOT_SUPPORTED_SUFFIX = "gui.director.properties.adapter.actor.tool_editor.rig_not_supported_suffix";
+                public static final String CREATE_POSE_CLIP = "gui.director.properties.adapter.actor.tool_editor.create_pose_clip";
+                public static final String CREATE_POSE_TOOLTIP = "gui.director.properties.adapter.actor.tool_editor.create_pose_tooltip";
+                public static final String PATH_DRAWING = "gui.director.properties.adapter.actor.tool_editor.path_drawing";
+                public static final String PATH_DRAW_HINT = "gui.director.properties.adapter.actor.tool_editor.path_draw_hint";
+                public static final String CURVE_TYPE = "gui.director.properties.adapter.actor.tool_editor.curve_type";
+                public static final String ANCHOR_COUNT_FMT = "gui.director.properties.adapter.actor.tool_editor.anchor_count_fmt";
+                public static final String DRAWING_IN_PROGRESS = "gui.director.properties.adapter.actor.tool_editor.drawing_in_progress";
+                public static final String APPLY_TO_ACTOR = "gui.director.properties.adapter.actor.tool_editor.apply_to_actor";
+                public static final String APPLY_PATH_TOOLTIP = "gui.director.properties.adapter.actor.tool_editor.apply_path_tooltip";
+                public static final String DELETE_SELECTED_ANCHOR = "gui.director.properties.adapter.actor.tool_editor.delete_selected_anchor";
+                public static final String TRANSFORM_AND_LOOK_AT = "gui.director.properties.adapter.actor.tool_editor.transform_and_look_at";
+                public static final String TRANSFORM_HINT_1 = "gui.director.properties.adapter.actor.tool_editor.transform_hint_1";
+                public static final String TRANSFORM_HINT_2 = "gui.director.properties.adapter.actor.tool_editor.transform_hint_2";
+                public static final String TRANSFORM_HINT_3 = "gui.director.properties.adapter.actor.tool_editor.transform_hint_3";
+                public static final String TRANSFORM_HINT_4 = "gui.director.properties.adapter.actor.tool_editor.transform_hint_4";
+
+                private ToolEditor() {
+                }
+            }
+
             private AdapterActor() {
             }
         }

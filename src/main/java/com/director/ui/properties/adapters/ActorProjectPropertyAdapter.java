@@ -320,11 +320,13 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         UITheme.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.GROUP_ACTION), UITheme.DarkTheme.TEXT);
 
         ActorActionType currentBrush = ActionBrushState.get();
-        String currentLabel = currentBrush != null ? currentBrush.name() : ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.NONE);
+        String currentLabel = currentBrush != null
+                ? ActorPropertyAdapterI18n.actionSemanticLabel(currentBrush)
+                : ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.NONE);
         if (ImGui.beginCombo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.ACTION) + "##groupAction" + group.getGroupId(), currentLabel)) {
             for (ActorActionType type : ActorActionType.values()) {
                 boolean selected = type == currentBrush;
-                if (ImGui.selectable(type.name(), selected)) {
+                if (ImGui.selectable(ActorPropertyAdapterI18n.actionSemanticLabel(type), selected)) {
                     ActionBrushState.set(type);
                 }
                 if (selected) {
@@ -520,13 +522,12 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             return false;
         }
         boolean modified = false;
-        UITheme.label("Skin", UITheme.DarkTheme.TEXT);
+        UITheme.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Skin.SECTION), UITheme.DarkTheme.TEXT);
 
         String current = actor.getSkinFileName();
-        ImGui.textDisabled(current != null ? current : "(默认皮肤)");
+        ImGui.textDisabled(current != null ? current : ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Skin.DEFAULT));
 
-        // Import button
-        if (ImGui.button("选择 PNG...")) {
+        if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Skin.CHOOSE_PNG))) {
             String chosen = openPngFileDialog();
             if (chosen != null && !chosen.isBlank()) {
                 try {
@@ -550,7 +551,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         if (!hasSkin) {
             ImGui.beginDisabled();
         }
-        if (ImGui.button("清除皮肤")) {
+        if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Skin.CLEAR))) {
             UUID id = actor.getActorId();
             ActorSkinStorage.deleteSkin(id);
             actor.setSkinFileName(null);
@@ -567,7 +568,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     private String openPngFileDialog() {
         // 复用 VideoExportDialog 使用的 tinyfd 依赖；此处简单包装，仅选择 PNG。
         try (org.lwjgl.system.MemoryStack stack = org.lwjgl.system.MemoryStack.stackPush()) {
-            String title = "选择演员皮肤 PNG 文件";
+            String title = ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Skin.DIALOG_TITLE);
             String defaultPath = "";
             String[] patterns = new String[]{"*.png"};
             org.lwjgl.PointerBuffer filters = stack.mallocPointer(patterns.length);
@@ -575,7 +576,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                 filters.put(stack.UTF8(p));
             }
             filters.flip();
-            String filterDesc = "PNG 文件 (*.png)";
+            String filterDesc = ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Skin.DIALOG_FILTER);
             return org.lwjgl.util.tinyfd.TinyFileDialogs.tinyfd_openFileDialog(title, defaultPath, filters, filterDesc, false);
         } catch (Throwable t) {
             LOGGER.warn("[ActorProjectPropertyAdapter] 打开皮肤选择对话框失败: {}", t.getMessage());
@@ -1163,13 +1164,14 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         UITheme.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.ACTION_BRUSH), UITheme.DarkTheme.TEXT);
 
         ActorActionType currentBrush = ActionBrushState.get();
-        String currentLabel = currentBrush != null ? currentBrush.name()
+        String currentLabel = currentBrush != null
+                ? ActorPropertyAdapterI18n.actionSemanticLabel(currentBrush)
                 : ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.NONE);
 
         if (ImGui.beginCombo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.CURRENT_BRUSH), currentLabel)) {
             for (ActorActionType type : ActorActionType.values()) {
                 boolean selected = type == currentBrush;
-                if (ImGui.selectable(type.name(), selected)) {
+                if (ImGui.selectable(ActorPropertyAdapterI18n.actionSemanticLabel(type), selected)) {
                     ActionBrushState.set(type);
                     LOGGER.debug("[ActorProjectPropertyAdapter] Action Brush 设置为: {}", type);
                 }

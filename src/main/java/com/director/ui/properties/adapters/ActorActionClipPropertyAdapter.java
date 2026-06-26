@@ -153,9 +153,9 @@ public class ActorActionClipPropertyAdapter implements IPropertyAdapter<ActorAct
         Actor actor = resolveActorForClip();
         ActorRigProfile rig = actor != null ? actor.getRigProfile() : null;
 
-        String currentLabel = current.name();
+        String currentLabel = ActorPropertyAdapterI18n.actionSemanticLabel(current);
         if (rig != null && !rig.supports(current)) {
-            currentLabel = current.name() + " ⚠";
+            currentLabel = ActorPropertyAdapterI18n.actionSemanticLabel(current) + " ⚠";
         }
 
         if (ImGui.beginCombo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Action.ACTION_TYPE), currentLabel)) {
@@ -163,7 +163,7 @@ public class ActorActionClipPropertyAdapter implements IPropertyAdapter<ActorAct
                 boolean supported = rig == null || rig.supports(type);
                 boolean selected = (type == current);
 
-                String label = type.name();
+                String label = ActorPropertyAdapterI18n.actionSemanticLabel(type);
                 if (!supported) {
                     label = label + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Action.NOT_SUPPORTED_SUFFIX);
                 }
@@ -220,7 +220,7 @@ public class ActorActionClipPropertyAdapter implements IPropertyAdapter<ActorAct
             ImGui.textColored(1.0f, 0.6f, 0.2f, 1.0f,
                     ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Action.RIG_WARNING));
             ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Action.RIG_WARNING_FMT,
-                    actor.getName(), currentAction.name(), rig.getClass().getSimpleName()));
+                    actor.getName(), ActorPropertyAdapterI18n.actionSemanticLabel(currentAction), rig.getClass().getSimpleName()));
             ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Action.RIG_WARNING_HINT));
         }
     }
