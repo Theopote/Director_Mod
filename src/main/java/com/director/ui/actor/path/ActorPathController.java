@@ -196,6 +196,8 @@ public final class ActorPathController {
 
         boolean draggingNow = GizmoManager.get().isDraggingHandle();
 
+        processDeleteShortcut();
+
         if (ImGui.getIO().getWantCaptureMouse() && !draggingNow) {
             lastLeftMouseDown = isLeftMouseDown(client);
             lastRightMouseDown = isRightMouseDown(client);
@@ -224,12 +226,6 @@ public final class ActorPathController {
             beginNewDraft();
             return;
         }
-
-        boolean deleteDown = isKeyPressed(client, GLFW.GLFW_KEY_DELETE) || isKeyPressed(client, GLFW.GLFW_KEY_BACKSPACE);
-        if (deleteDown && !lastDeleteDown) {
-            handleDeleteSelectedAnchor();
-        }
-        lastDeleteDown = deleteDown;
 
         boolean leftDown = isLeftMouseDown(client);
         boolean rightDown = isRightMouseDown(client);
@@ -350,6 +346,25 @@ public final class ActorPathController {
         selectedAnchorIndex = -1;
         editingLibraryPathId = null;
         clearGizmo();
+    }
+
+    private void processDeleteShortcut() {
+        if (selectedAnchorIndex < 0) {
+            lastDeleteDown = false;
+            return;
+        }
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.getWindow() == null) {
+            return;
+        }
+        boolean deleteDown = isKeyPressed(client, GLFW.GLFW_KEY_DELETE)
+                || isKeyPressed(client, GLFW.GLFW_KEY_BACKSPACE);
+        if (deleteDown && !lastDeleteDown) {
+            if (!(ImGui.getIO().getWantTextInput() || ImGui.isAnyItemActive())) {
+                handleDeleteSelectedAnchor();
+            }
+        }
+        lastDeleteDown = deleteDown;
     }
 
     private void handleDeleteSelectedAnchor() {

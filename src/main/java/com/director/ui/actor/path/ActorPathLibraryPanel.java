@@ -9,7 +9,7 @@ import imgui.ImGui;
 import imgui.ImVec2;
 import imgui.flag.ImGuiCond;
 import imgui.flag.ImGuiInputTextFlags;
-import imgui.flag.ImGuiWindowFlags;
+import imgui.flag.ImGuiPopupFlags;
 import imgui.type.ImString;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +24,7 @@ public final class ActorPathLibraryPanel {
     private static final Logger LOGGER = LoggerFactory.getLogger(ActorPathLibraryPanel.class);
     private static final int NAME_BUFFER = 128;
     private static final float CONTROL_BUTTON_SIZE = 22.0f;
+    private static final String DELETE_POPUP_ID = "##ActorPathLibraryDelete";
 
     private final ImString renameBuffer = new ImString("", NAME_BUFFER);
     private UUID renamingPathId = null;
@@ -170,7 +171,7 @@ public final class ActorPathLibraryPanel {
     private void openDeleteConfirmPopup(UUID pathId) {
         pendingDeletePathId = pathId;
         deleteConfirmPopupOpen = true;
-        ImGui.openPopup(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.POPUP_DELETE));
+        ImGui.openPopup(deletePopupId(), ImGuiPopupFlags.None);
     }
 
     private void renderDeleteConfirmPopup() {
@@ -178,10 +179,9 @@ public final class ActorPathLibraryPanel {
             return;
         }
 
-        String popupId = ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.POPUP_DELETE);
         ImVec2 center = ImGui.getMainViewport().getCenter();
         ImGui.setNextWindowPos(center.x, center.y, ImGuiCond.Appearing, 0.5f, 0.5f);
-        if (ImGui.beginPopupModal(popupId, ImGuiWindowFlags.AlwaysAutoResize)) {
+        if (ImGui.beginPopupModal(deletePopupId(), ImGuiCond.Always)) {
             ActorPathDefinition path = ActorPathLibraryManager.getPath(pendingDeletePathId);
             String pathName = path != null ? path.getName() : pendingDeletePathId.toString();
 
@@ -227,6 +227,10 @@ public final class ActorPathLibraryPanel {
     private void cancelDelete() {
         deleteConfirmPopupOpen = false;
         pendingDeletePathId = null;
+    }
+
+    private static String deletePopupId() {
+        return ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.PathLibrary.POPUP_DELETE) + DELETE_POPUP_ID;
     }
 
     private void commitRename(UUID pathId) {
