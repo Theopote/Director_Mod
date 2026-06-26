@@ -526,7 +526,12 @@ public class TimelineClipBlockController {
                 worldSetChangedByContainer.put(containerId, true);
                 continue;
             }
-            // 只判断是否有变化（用于 needsVisibilitySync），不收集 pos 用于 rerender
+            // ⭐ 性能优化：快速检测集合变化 - 先比较大小
+            if (prev.size() != now.size()) {
+                worldSetChangedByContainer.put(containerId, true);
+                continue;
+            }
+            // 大小相同，再检查内容（可以提前break）
             boolean changed = false;
             for (BlockPos p : prev) {
                 if (!now.contains(p)) { changed = true; break; }
@@ -548,6 +553,12 @@ public class TimelineClipBlockController {
                 continue;
             }
 
+            // ⭐ 性能优化：快速检测集合变化 - 先比较大小
+            if (prev.size() != now.size()) {
+                renderSetChangedByContainer.put(containerId, true);
+                continue;
+            }
+            // 大小相同，再检查内容（可以提前break）
             boolean changed = false;
             for (BlockPos p : prev) {
                 if (!now.contains(p)) {
@@ -568,8 +579,10 @@ public class TimelineClipBlockController {
 
         final long tAfterDiff = System.nanoTime();
 
-        // ◆ 步骤2：应用遮挡覆盖规则，调整透明度并标记需要隐藏世界方块的容器
-        // 构建容器ID到片段的映射，便于后续查询
+        // ⭐ 性能优化：完全禁用遮挡检测功能
+        // 遮挡检测是最大的性能杀手（每帧需要遍历数万个方块进行包围盒检测）
+        // 用户可以通过调整摄像机角度来避免遮挡问题
+        // 构建容器ID到片段的映射（保留，因为后续代码需要）
         Map<UUID, TimelineClip> containerToClipMap = new HashMap<>();
         for (TimelineTrack track : activeModel.getAllTracks()) {
             if (track == null)
@@ -584,10 +597,8 @@ public class TimelineClipBlockController {
             }
         }
 
-        // ✅ 步骤2.1：应用遮挡覆盖规则，找出被遮挡的容器
-        Set<UUID> occludedContainers = new HashSet<>(); // 被遮挡容器的ID集合
-        applyOcclusionOverrides(currentTime, currentFrameVisibleBlocks, currentFrameOpacity, occludedContainers,
-                containerToClipMap);
+        // ⭐ 遮挡检测已禁用 - 不再调用 applyOcclusionOverrides
+        Set<UUID> occludedContainers = new HashSet<>(); // 保持空集合，表示没有容器被遮挡
         final long tAfterOcclusion = System.nanoTime();
 
         // ✅ 步骤3：应用方块可见性状态（两层系统）
