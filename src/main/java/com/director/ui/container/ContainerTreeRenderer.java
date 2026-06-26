@@ -5,6 +5,7 @@ import com.director.core.container.Container;
 import com.director.i18n.DirectorI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.theme.Icons;
+import com.director.ui.theme.UITheme;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.flag.ImGuiCol;
@@ -49,10 +50,7 @@ class ContainerTreeRenderer {
     private static final int VISIBLE_COLOR = 0xFFB4B4B4;
     private static final int VISIBLE_DISABLED_COLOR = 0xB4969696;
 
-    /** 每行背景：未选中深灰，选中明显更亮的中灰，便于区分行与选中态。 */
-    private static final int ROW_BG_DEFAULT = 0xFF252525;
-    private static final int ROW_BG_TIMELINE = 0xFF443326;
-    private static final int ROW_BG_SELECTED = 0xFF5E5E5E;
+    /** 每行背景：未选中深灰；选中/悬停使用 {@link UITheme.DarkTheme} 列表行色。 */
     private static final int TIMELINE_TEXT_COLOR = 0xFFD8C2A8;
     private static final int TIMELINE_BADGE_BG = 0xCC6B4A24;
     private static final int TIMELINE_BADGE_BORDER = 0xFF9A7445;
@@ -141,19 +139,36 @@ class ContainerTreeRenderer {
             // ✅ 让文字在“行背景/按钮”中看起来更垂直居中
             ImGui.alignTextToFramePadding();
 
-            // 行背景：未选中深灰，选中中灰；在 TreeNode 之前绘制以保证在文字/图标下层
+            // 行背景：选中蓝色高亮；悬停略提亮；在 TreeNode 之前绘制以保证在文字/图标下层
             boolean isSelected = controller.isContainerSelected(container.getId());
             float rx = ImGui.getCursorScreenPosX();
             float ry = ImGui.getCursorScreenPosY();
             float rw = ImGui.getContentRegionAvailX();
             float rh = ImGui.getTextLineHeight() + ImGui.getStyle().getFramePadding().y * 2.0f; // 行高，见类注释
-            int rowBg = isSelected ? ROW_BG_SELECTED : (isOnTimeline ? ROW_BG_TIMELINE : ROW_BG_DEFAULT);
-            ImGui.getWindowDrawList().addRectFilled(rx, ry, rx + rw, ry + rh, rowBg);
+            float mouseX = ImGui.getMousePosX();
+            float mouseY = ImGui.getMousePosY();
+            boolean rowHovered = mouseX >= rx && mouseX < rx + rw && mouseY >= ry && mouseY < ry + rh;
+            int rowBg = resolveRowBackground(isSelected, rowHovered, isOnTimeline);
+            int headerStylePushes = 0;
+            if (isSelected) {
+                // TreeNode 选中态会自行绘制 Header 背景，会盖住 addRectFilled；须把 Header 设为蓝色才能持久高亮
+                headerStylePushes = pushHeaderColors(
+                        rowHovered
+                                ? UITheme.DarkTheme.LIST_ROW_BG_SELECTED_HOVERED
+                                : UITheme.DarkTheme.LIST_ROW_BG_SELECTED,
+                        UITheme.DarkTheme.LIST_ROW_BG_SELECTED_HOVERED,
+                        UITheme.DarkTheme.LIST_ROW_BG_SELECTED_HOVERED);
+            } else {
+                ImGui.getWindowDrawList().addRectFilled(rx, ry, rx + rw, ry + rh, rowBg);
+            }
 
             if (isOnTimeline && !isSelected) {
                 pushTextColor(TIMELINE_TEXT_COLOR);
             }
             boolean nodeOpen = ImGui.treeNodeEx(label, flags);
+            if (headerStylePushes > 0) {
+                ImGui.popStyleColor(headerStylePushes);
+            }
             if (isOnTimeline && !isSelected) {
                 ImGui.popStyleColor();
             }
@@ -180,8 +195,6 @@ class ContainerTreeRenderer {
             }
 
             // 使用行矩形做显式命中，避免 TreeNode/拖拽目标/缩进状态导致组内某些行点不中。
-            float mouseX = ImGui.getMousePosX();
-            float mouseY = ImGui.getMousePosY();
             boolean isHovered = rectContainsScreen(rowMin, rowMax, mouseX, mouseY);
             boolean isLeftClicked = isHovered && ImGui.isMouseClicked(ImGuiMouseButton.Left);
             boolean isDoubleClicked = isHovered && ImGui.isMouseDoubleClicked(ImGuiMouseButton.Left);
@@ -354,6 +367,23 @@ class ContainerTreeRenderer {
         ImGui.pushStyleColor(ImGuiCol.Text, r / 255.0f, g / 255.0f, b / 255.0f, a / 255.0f);
     }
 
+    /** 将 {@link UITheme#imCol32} 色推入 ImGui 样式（R 在低位）。 */
+    private static void pushImColStyleColor(int styleCol, int imCol32) {
+        float r = (imCol32 & 0xFF) / 255.0f;
+        float g = ((imCol32 >> 8) & 0xFF) / 255.0f;
+        float b = ((imCol32 >> 16) & 0xFF) / 255.0f;
+        float a = ((imCol32 >> 24) & 0xFF) / 255.0f;
+        ImGui.pushStyleColor(styleCol, r, g, b, a);
+    }
+
+    /** TreeNode 选中/悬停/按下时使用同一套行背景色，避免松开后回到灰色 Header。 */
+    private static int pushHeaderColors(int header, int hovered, int active) {
+        pushImColStyleColor(ImGuiCol.Header, header);
+        pushImColStyleColor(ImGuiCol.HeaderHovered, hovered);
+        pushImColStyleColor(ImGuiCol.HeaderActive, active);
+        return 3;
+    }
+
     private int buildNodeFlags(Container container) {
         int flags = ImGuiTreeNodeFlags.SpanAvailWidth | ImGuiTreeNodeFlags.OpenOnArrow;
         if (!container.hasChildren()) {
@@ -491,6 +521,18 @@ class ContainerTreeRenderer {
         ImGui.textDisabled(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_RIGHT_CLICK));
         ImGui.textDisabled(DirectorI18n.translate(DirectorLang.ContainerPanel.Tree.TOOLTIP_DRAG_TO_TIMELINE));
         ImGui.endTooltip();
+    }
+
+    private static int resolveRowBackground(boolean selected, boolean hovered, boolean onTimeline) {
+        if (selected) {
+            return hovered
+                    ? UITheme.DarkTheme.LIST_ROW_BG_SELECTED_HOVERED
+                    : UITheme.DarkTheme.LIST_ROW_BG_SELECTED;
+        }
+        if (hovered) {
+            return UITheme.DarkTheme.LIST_ROW_BG_HOVERED;
+        }
+        return onTimeline ? UITheme.DarkTheme.LIST_ROW_BG_TIMELINE : UITheme.DarkTheme.LIST_ROW_BG;
     }
 
     private record IconClickState(boolean lockClicked, boolean visibilityClicked) {

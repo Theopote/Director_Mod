@@ -81,14 +81,25 @@ public class UITheme {
         public static final int SEPARATOR_HOVERED = rgba(82, 84, 94, 255);
         public static final int SEPARATOR_ACTIVE = rgba(100, 102, 114, 255);
         
-        // 表头
+        // 表头（折叠区块、可选列表项等与选中态统一的蓝色系）
         public static final int HEADER = rgba(52, 54, 62, 255);
-        public static final int HEADER_HOVERED = rgba(64, 66, 76, 255);
-        public static final int HEADER_ACTIVE = rgba(78, 80, 92, 255);
+        public static final int HEADER_HOVERED = rgba(64, 72, 88, 255);
+        public static final int HEADER_ACTIVE = rgba(56, 96, 160, 255);
         
         // 高亮色（选择、激活等）
         public static final int HIGHLIGHT = rgba(72, 130, 210, 130);
         public static final int HIGHLIGHT_HOVERED = rgba(100, 168, 255, 180);
+
+        /**
+         * 列表行背景（容器树、表格等 ImDrawList 绘制）。
+         * 使用 {@link UITheme#imCol32(int, int, int, int)} 打包，与 ImGui IM_COL32 一致。
+         */
+        public static final int LIST_ROW_BG = imCol32(37, 37, 37, 255);
+        public static final int LIST_ROW_BG_HOVERED = imCol32(48, 52, 62, 255);
+        public static final int LIST_ROW_BG_SELECTED = imCol32(56, 96, 160, 255);
+        public static final int LIST_ROW_BG_SELECTED_HOVERED = imCol32(72, 130, 210, 255);
+        /** 已在时间线上的容器行（未选中时） */
+        public static final int LIST_ROW_BG_TIMELINE = imCol32(38, 51, 68, 255);
         
         // 调整大小手柄
         public static final int RESIZE_GRIP = rgba(72, 130, 210, 70);
@@ -345,6 +356,13 @@ public class UITheme {
     private static void setStyleColor(ImGuiStyle style, int idx, int rgba) {
         float[] color = toFloatArray(rgba);
         style.setColor(idx, color[0], color[1], color[2], color[3]);
+    }
+
+    /**
+     * 打包为 ImGui {@code IM_COL32(R,G,B,A)} 整型色（供 ImDrawList 等使用）。
+     */
+    public static int imCol32(int r, int g, int b, int a) {
+        return (a << 24) | (b << 16) | (g << 8) | r;
     }
 
     /**
