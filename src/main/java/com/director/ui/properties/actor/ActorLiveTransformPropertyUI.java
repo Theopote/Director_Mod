@@ -96,7 +96,9 @@ public final class ActorLiveTransformPropertyUI {
                 applyCurrentLookAt(actorId, time);
             }
 
-            if (ImGui.sliderFloat("强度##actorLiveLookAtStrength", lookAtStrength, 0f, 1f, "%.2f")) {
+            float[] strength = {lookAtStrength.get()};
+            if (ImGui.sliderFloat("强度##actorLiveLookAtStrength", strength, 0f, 1f, "%.2f")) {
+                lookAtStrength.set(strength[0]);
                 applyCurrentLookAt(actorId, time);
             }
 
