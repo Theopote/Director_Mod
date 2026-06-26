@@ -344,10 +344,7 @@ public class TimelineClipBlockController {
         // 【修复】静止预览时，若 timelineDrivingPaused 还是 false（分帧追平尚未被暂停），
         // 仍然需要进入 update() 执行一次帧末尾的 pauseTimelineDriving()，
         // 否则 tick() 会持续处理已经完成的时间线目标，浪费服务端资源。
-        if (!timelineDrivingPaused) {
-            return true;
-        }
-        return false;
+        return !timelineDrivingPaused;
     }
 
     private void ensureModelListenerBound(TimelineModel model) {
@@ -663,9 +660,7 @@ public class TimelineClipBlockController {
                         && currentTime < boundClip.getStartTime() - 1e-3f
                         && (worldBlocks == null || worldBlocks.isEmpty());
                 if (needsVisibilitySync && !deferWorldSync) {
-                    if (visibilityService != null) {
-                        visibilityService.resumeTimelineDriving();
-                    }
+                    visibilityService.resumeTimelineDriving();
                     // 时间线驱动：统一走分帧追平，避免 showContainerBlocks 的 firstCall 全量同步/强制光照刷新卡死主线程
                     visibilityService.showContainerBlocksForTimeline(container, worldBlocks);
                 }
@@ -868,19 +863,6 @@ public class TimelineClipBlockController {
                     seqTotal,
                     renderEntryCount);
         }
-    }
-
-    private static void addBlockAndNeighborsForRerender(Set<BlockPos> targets, BlockPos pos) {
-        if (targets == null || pos == null) {
-            return;
-        }
-        targets.add(pos);
-        targets.add(pos.up());
-        targets.add(pos.down());
-        targets.add(pos.north());
-        targets.add(pos.south());
-        targets.add(pos.east());
-        targets.add(pos.west());
     }
 
     /**
