@@ -343,21 +343,9 @@ public class TimelineClipBlockController {
 
             // 清理容器相关的所有片段缓存
             // 注意：需要遍历找到引用该容器的片段
-            Iterator<Map.Entry<TimelineClip, ClipSequenceCache>> seqIter = sequenceCacheByClip.entrySet().iterator();
-            while (seqIter.hasNext()) {
-                Map.Entry<TimelineClip, ClipSequenceCache> entry = seqIter.next();
-                if (container.getId().equals(entry.getKey().getBoundContainerId())) {
-                    seqIter.remove();
-                }
-            }
+            sequenceCacheByClip.entrySet().removeIf(entry -> container.getId().equals(entry.getKey().getBoundContainerId()));
 
-            Iterator<Map.Entry<TimelineClip, VisibleBlocksCache>> visIter = visibleBlocksCacheByClip.entrySet().iterator();
-            while (visIter.hasNext()) {
-                Map.Entry<TimelineClip, VisibleBlocksCache> entry = visIter.next();
-                if (container.getId().equals(entry.getKey().getBoundContainerId())) {
-                    visIter.remove();
-                }
-            }
+            visibleBlocksCacheByClip.entrySet().removeIf(entry -> container.getId().equals(entry.getKey().getBoundContainerId()));
 
             // 清理可见方块跟踪
             lastFrameVisibleBlocks.remove(container.getId());

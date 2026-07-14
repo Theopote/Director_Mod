@@ -24,6 +24,7 @@ import com.director.timeline.model.time.TimeKeyframe;
 import com.director.timeline.model.weather.WeatherKeyframe;
 import com.director.ui.timeline.render.TimelineColors;
 import com.director.ui.timeline.render.TimelineRenderer;
+import com.director.ui.timeline.audio.TimelineAudioService;
 import com.director.ui.timeline.state.*;
 import com.director.ui.timeline.ui.TimelineControlBar;
 import com.director.timeline.model.entity.EntityKeyframe;
@@ -116,6 +117,7 @@ public class TimelinePanel extends AbstractPanel
     private final TimelineInteractionManager interactionManager;
     private final TimelineInteractionHandler interactionHandler;
     private final TimelineControlBar controlBar;
+    private final TimelineAudioService audioService = TimelineAudioService.getInstance();
     
     // ⭐ Facade 架构：命令门面（用于控制命令，如播放/暂停/跳转）
     private com.director.ui.commands.UICommandFacade commands;
@@ -252,11 +254,8 @@ public class TimelinePanel extends AbstractPanel
 
         // 注册容器-时间线关联服务
         DirectorServices.get().containerTimeline().setTimelineModel(model);
-        DirectorServices.get().containerTimeline().setAudioSync(
-                com.director.ui.timeline.audio.TimelineAudioService.getInstance());
+        DirectorServices.get().containerTimeline().setAudioSync(audioService);
 
-        com.director.ui.timeline.audio.TimelineAudioService audioService =
-                com.director.ui.timeline.audio.TimelineAudioService.getInstance();
         model.setAudioLoadHook(audioService);
         model.setClipSoundCollector(audioService);
         model.setTrackPlaybackListener(

@@ -115,6 +115,14 @@ public class TimelineAudioService implements ContainerClipAudioSync, TimelineCli
         rebuildAudioLinksFromTimeline();
     }
 
+    /**
+     * 释放面板关闭时持有的运行态资源（单例本身不销毁）。
+     */
+    public void dispose() {
+        endAllClipTimeRangePreviews();
+        setTimelineModel(null);
+    }
+
     public void setSuppressAutoCreate(boolean suppress) {
         this.suppressAutoCreate = suppress;
     }
