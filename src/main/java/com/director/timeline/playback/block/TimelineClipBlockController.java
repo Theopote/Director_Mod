@@ -346,7 +346,7 @@ public class TimelineClipBlockController {
             Iterator<Map.Entry<TimelineClip, ClipSequenceCache>> seqIter = sequenceCacheByClip.entrySet().iterator();
             while (seqIter.hasNext()) {
                 Map.Entry<TimelineClip, ClipSequenceCache> entry = seqIter.next();
-                if (container.getId().equals(entry.getKey().getContainerId())) {
+                if (container.getId().equals(entry.getKey().getBoundContainerId())) {
                     seqIter.remove();
                 }
             }
@@ -354,7 +354,7 @@ public class TimelineClipBlockController {
             Iterator<Map.Entry<TimelineClip, VisibleBlocksCache>> visIter = visibleBlocksCacheByClip.entrySet().iterator();
             while (visIter.hasNext()) {
                 Map.Entry<TimelineClip, VisibleBlocksCache> entry = visIter.next();
-                if (container.getId().equals(entry.getKey().getContainerId())) {
+                if (container.getId().equals(entry.getKey().getBoundContainerId())) {
                     visIter.remove();
                 }
             }
