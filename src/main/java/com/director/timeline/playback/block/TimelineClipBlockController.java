@@ -82,6 +82,11 @@ public class TimelineClipBlockController {
     // ✅ 缓存清理计数器：每 N 帧清理一次过期缓存
     private int cacheCleanupCounter = 0;
 
+    // ⭐ 缓存容量限制：防止内存无限增长
+    private static final int MAX_CONTAINER_CACHE_SIZE = 100;
+    private static final int MAX_CLIP_CACHE_SIZE = 200;
+    private static final int CACHE_CLEANUP_INTERVAL = 300; // 每300帧检查一次（约5秒）
+
     /** 上一 UI 帧是否在拖动播放头（用于松手后的追帧预算）。 */
     private boolean wasScrubbing;
     /** 时间线模型变更代数（用于静止预览短路）。 */
@@ -308,6 +313,107 @@ public class TimelineClipBlockController {
     private long lastPerfLogMs = 0L;
 
     private TimelineClipBlockController() {
+        // 注册容器删除监听器，主动清理缓存防止内存泄漏
+        DirectorServices.get().containers().addListener(new ContainerManager.ContainerListener() {
+            @Override
+            public void onContainerRemoved(Container container) {
+                cleanupCacheForContainer(container);
+            }
+        });
+    }
+
+    /**
+     * 清理指定容器的所有相关缓存
+     * <p>
+     * 当容器被删除时调用，防止缓存无限增长导致内存泄漏
+     *
+     * @param container 被删除的容器
+     */
+    private void cleanupCacheForContainer(Container container) {
+        if (container == null) {
+            return;
+        }
+
+        try {
+            // 清理容器方块缓存
+            blocksCacheByContainer.remove(container);
+
+            // 清理序列顺序缓存
+            sequenceOrderCacheByContainerId.remove(container.getId());
+
+            // 清理容器相关的所有片段缓存
+            // 注意：需要遍历找到引用该容器的片段
+            Iterator<Map.Entry<TimelineClip, ClipSequenceCache>> seqIter = sequenceCacheByClip.entrySet().iterator();
+            while (seqIter.hasNext()) {
+                Map.Entry<TimelineClip, ClipSequenceCache> entry = seqIter.next();
+                if (container.getId().equals(entry.getKey().getContainerId())) {
+                    seqIter.remove();
+                }
+            }
+
+            Iterator<Map.Entry<TimelineClip, VisibleBlocksCache>> visIter = visibleBlocksCacheByClip.entrySet().iterator();
+            while (visIter.hasNext()) {
+                Map.Entry<TimelineClip, VisibleBlocksCache> entry = visIter.next();
+                if (container.getId().equals(entry.getKey().getContainerId())) {
+                    visIter.remove();
+                }
+            }
+
+            // 清理可见方块跟踪
+            lastFrameVisibleBlocks.remove(container.getId());
+            lastFrameWorldBlocks.remove(container.getId());
+            lastVisualParamsByContainerId.remove(container.getId());
+
+            LOGGER.debug("[TimelineClipBlockController] 已清理容器 {} 的所有缓存", container.getName());
+        } catch (Exception e) {
+            LOGGER.warn("[TimelineClipBlockController] 清理容器缓存时出错: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 强制执行容器缓存容量限制
+     * <p>
+     * 当缓存超过最大容量时，移除最老的条目（简单FIFO策略）
+     */
+    private void enforceContainerCacheLimit() {
+        if (blocksCacheByContainer.size() > MAX_CONTAINER_CACHE_SIZE) {
+            int toRemove = blocksCacheByContainer.size() - MAX_CONTAINER_CACHE_SIZE;
+            Iterator<Container> iter = blocksCacheByContainer.keySet().iterator();
+            for (int i = 0; i < toRemove && iter.hasNext(); i++) {
+                iter.next();
+                iter.remove();
+            }
+            LOGGER.debug("[TimelineClipBlockController] 容器缓存超限，已清理 {} 条", toRemove);
+        }
+    }
+
+    /**
+     * 强制执行片段缓存容量限制
+     * <p>
+     * 当缓存超过最大容量时，移除最老的条目（简单FIFO策略）
+     */
+    private void enforceClipCacheLimit() {
+        // 清理序列缓存
+        if (sequenceCacheByClip.size() > MAX_CLIP_CACHE_SIZE) {
+            int toRemove = sequenceCacheByClip.size() - MAX_CLIP_CACHE_SIZE;
+            Iterator<TimelineClip> iter = sequenceCacheByClip.keySet().iterator();
+            for (int i = 0; i < toRemove && iter.hasNext(); i++) {
+                iter.next();
+                iter.remove();
+            }
+            LOGGER.debug("[TimelineClipBlockController] 片段序列缓存超限，已清理 {} 条", toRemove);
+        }
+
+        // 清理可见方块缓存
+        if (visibleBlocksCacheByClip.size() > MAX_CLIP_CACHE_SIZE) {
+            int toRemove = visibleBlocksCacheByClip.size() - MAX_CLIP_CACHE_SIZE;
+            Iterator<TimelineClip> iter = visibleBlocksCacheByClip.keySet().iterator();
+            for (int i = 0; i < toRemove && iter.hasNext(); i++) {
+                iter.next();
+                iter.remove();
+            }
+            LOGGER.debug("[TimelineClipBlockController] 可见方块缓存超限，已清理 {} 条", toRemove);
+        }
     }
 
     /**
@@ -842,6 +948,8 @@ public class TimelineClipBlockController {
         if (++cacheCleanupCounter >= com.director.core.animation.AnimationConstants.CACHE_CLEANUP_INTERVAL) {
             cacheCleanupCounter = 0;
             Set<UUID> activeContainerIds = currentFrameVisibleBlocks.keySet();
+
+            // 清理不活跃的缓存
             blocksCacheByContainer.entrySet().removeIf(e -> {
                 Container c = e.getKey();
                 return c == null || !activeContainerIds.contains(c.getId());
@@ -856,6 +964,10 @@ public class TimelineClipBlockController {
                 return c == null || !activeContainerIds.contains(c.getBoundContainerId());
             });
             sequenceOrderCacheByContainerId.keySet().retainAll(activeContainerIds);
+
+            // ⭐ 新增：强制容量限制，防止缓存无限增长
+            enforceContainerCacheLimit();
+            enforceClipCacheLimit();
         }
 
         // ===== 节流性能日志（定期输出）=====

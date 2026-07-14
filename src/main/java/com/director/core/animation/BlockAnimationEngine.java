@@ -136,7 +136,8 @@ public final class BlockAnimationEngine {
                 if (seq != null) {
                     delay += Math.max(0.0f, seq.getGlobalDelay());
                 }
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                LOGGER.debug("[BlockAnimationEngine] 获取序列参数失败，使用默认延迟: {}", e.getMessage());
             }
 
             float seqNormalizedTime = (seqEntry != null)
@@ -189,7 +190,8 @@ public final class BlockAnimationEngine {
             if (seq != null) {
                 delay += Math.max(0.0f, seq.getGlobalDelay());
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            LOGGER.debug("[BlockAnimationEngine] 获取序列参数失败，使用默认延迟: {}", e.getMessage());
         }
 
         // 性能敏感：sample() 会被每帧对大量方块调用，禁止使用 info 级日志刷屏。
@@ -395,7 +397,8 @@ public final class BlockAnimationEngine {
                     snapshot.setAlpha(snapshot.getAlpha() * fade);
                 }
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            LOGGER.debug("[BlockAnimationEngine] 应用透明度渐变失败: {}", e.getMessage());
         }
 
         // 回到方块左下角
@@ -528,7 +531,8 @@ public final class BlockAnimationEngine {
                         continue;
                     }
                 }
-            } catch (Exception ignored) {
+            } catch (Exception e) {
+                LOGGER.debug("[BlockAnimationEngine] 检查特效阶段失败: {}", e.getMessage());
             }
 
             float startNorm = MathHelper.clamp(inst.getStartOffset(), 0.0f, 1.0f);

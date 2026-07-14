@@ -349,16 +349,34 @@ public class TimelinePanel extends AbstractPanel
             return;
         }
         disposed = true;
-        
+
         LOGGER.debug("[TimelinePanel] 开始清理面板资源");
-        
+
         // 1. 静默取消所有交互（不通知 CameraController）
         interactionHandler.cancelAllInteractionsSilently();
-        
+
         // 2. 强制 UI 状态归零
         model.setScrubbing(false);
         // 不改 isPlaying，由上层控制
-        
+
+        // 3. 清理监听器，防止内存泄漏
+        try {
+            DirectorServices.get().containers().removeListener(this);
+            LOGGER.debug("[TimelinePanel] 已移除容器监听器");
+        } catch (Exception e) {
+            LOGGER.warn("[TimelinePanel] 移除容器监听器失败: {}", e.getMessage());
+        }
+
+        // 4. 清理音频服务资源
+        if (audioService != null) {
+            try {
+                audioService.dispose();
+                LOGGER.debug("[TimelinePanel] 已清理音频服务");
+            } catch (Exception e) {
+                LOGGER.warn("[TimelinePanel] 清理音频服务失败: {}", e.getMessage());
+            }
+        }
+
         LOGGER.debug("[TimelinePanel] 面板资源清理完成");
     }
     

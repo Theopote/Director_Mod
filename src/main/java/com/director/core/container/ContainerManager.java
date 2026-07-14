@@ -327,7 +327,8 @@ public class ContainerManager {
                     }
                 }
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            LOGGER.warn("[ContainerManager] 删除容器时恢复方块状态失败: {}", e.getMessage());
         }
 
         // 2.5) 在锁外删除时间线上的对应片段（避免长时间持有锁）
@@ -458,7 +459,9 @@ public class ContainerManager {
                     if (c.isHidden() || visibilityService.hasSnapshot(c)) {
                         visibilityService.showContainer(c);
                     }
-                } catch (Exception ignored) {}
+                } catch (Exception e) {
+                    LOGGER.warn("[ContainerManager] 恢复容器 {} 可见性失败: {}", c.getName(), e.getMessage());
+                }
             }
         }
         // 在锁外删除时间线上的对应片段（避免长时间持有锁）
@@ -1362,6 +1365,16 @@ public class ContainerManager {
         }
     }
 
+    /**
+     * 移除容器事件监听器
+     * <p>
+     * 在组件销毁时调用此方法，避免内存泄漏
+     *
+     * @param listener 要移除的监听器
+     */
+    public void removeListener(ContainerListener listener) {
+        listeners.remove(listener);
+    }
 
     private void fireContainerAdded(Container container) {
         for (ContainerListener listener : listeners) {
