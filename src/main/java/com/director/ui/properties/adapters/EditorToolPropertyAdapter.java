@@ -164,12 +164,15 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         }
         if (ImGui.isItemHovered()) ImGui.setTooltip("开启后，骨骼 Gizmo 写入 AnimationAsset；关闭时写入快速姿态片段");
 
-        animationBoneGizmoMode.set(settings.getBoneGizmoMode() == com.director.client.gizmo.GizmoMode.TRANSLATE ? 1 : 0);
+        animationBoneGizmoMode.set(settings.getBoneGizmoMode() == com.director.client.gizmo.GizmoMode.TRANSLATE ? 1
+                : settings.getBoneGizmoMode() == com.director.client.gizmo.GizmoMode.SCALE ? 2 : 0);
         if (ImGui.combo("骨骼 Gizmo##actorBoneGizmoMode", animationBoneGizmoMode,
-                new String[]{"旋转", "位移（支持的骨骼）"})) {
-            settings.setBoneGizmoMode(animationBoneGizmoMode.get() == 1
-                    ? com.director.client.gizmo.GizmoMode.TRANSLATE
-                    : com.director.client.gizmo.GizmoMode.ROTATE);
+                new String[]{"旋转", "位移（支持的骨骼）", "缩放（支持的骨骼）"})) {
+            settings.setBoneGizmoMode(switch (animationBoneGizmoMode.get()) {
+                case 1 -> com.director.client.gizmo.GizmoMode.TRANSLATE;
+                case 2 -> com.director.client.gizmo.GizmoMode.SCALE;
+                default -> com.director.client.gizmo.GizmoMode.ROTATE;
+            });
         }
         if (ImGui.isItemHovered()) ImGui.setTooltip("位移关键帧目前用于支持该通道的骨骼；标准人形首先开放 Root");
 

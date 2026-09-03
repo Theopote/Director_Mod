@@ -30,4 +30,14 @@ class ActorBoneGizmoControllerTest {
         assertEquals(1f, result.y, 1.0e-5f);
         assertEquals(5f, result.z, 1.0e-5f);
     }
+
+    @Test
+    void appliesMultiplicativeScaleAndClampsPositive() {
+        Vector3f result = ActorBoneGizmoController.scale(
+                new Vector3f(2f, 3f, 4f), new Vec3d(0.5, -0.5, -2.0));
+
+        assertEquals(3f, result.x, 1.0e-5f);
+        assertEquals(1.5f, result.y, 1.0e-5f);
+        assertEquals(0.01f, result.z, 1.0e-5f);
+    }
 }

@@ -82,6 +82,19 @@ public final class ActorAnimationDopeSheet {
         }
 
         for (Map.Entry<String, BoneTrack> entry : asset.boneTracks().entrySet()) {
+            if (entry.getValue().scale().isEmpty()) continue;
+            if (ImGui.treeNode(Icons.SCALE + " " + entry.getKey() + " · 缩放##dopeScale:" + asset.id())) {
+                for (var frame : entry.getValue().scale().keyframes()) {
+                    if (ImGui.selectable(String.format("%s %.3fs  [%s]##dopeScale:%s:%s:%f",
+                            Icons.KEYFRAME, frame.time(), frame.interpolation(), asset.id(), entry.getKey(), frame.time()), false)) {
+                        model.setCurrentTime(toTimelineTime(clip, frame.time()));
+                    }
+                }
+                ImGui.treePop();
+            }
+        }
+
+        for (Map.Entry<String, BoneTrack> entry : asset.boneTracks().entrySet()) {
             if (entry.getValue().rotation().isEmpty()) continue;
             String boneId = entry.getKey();
             if (ImGui.treeNode(boneId + "##dopeBone:" + asset.id())) {

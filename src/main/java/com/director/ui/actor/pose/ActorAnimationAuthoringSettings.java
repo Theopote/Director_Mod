@@ -24,6 +24,6 @@ public final class ActorAnimationAuthoringSettings {
     public void setNewAssetDuration(float value) { newAssetDuration = Math.max(0.1f, Math.min(600f, value)); }
     public GizmoMode getBoneGizmoMode() { return boneGizmoMode; }
     public void setBoneGizmoMode(GizmoMode value) {
-        boneGizmoMode = value == GizmoMode.TRANSLATE ? GizmoMode.TRANSLATE : GizmoMode.ROTATE;
+        boneGizmoMode = value == GizmoMode.TRANSLATE || value == GizmoMode.SCALE ? value : GizmoMode.ROTATE;
     }
 }
