@@ -35,4 +35,16 @@ class RigPoseTest {
         assertEquals(1f, copy.localTransform(head).translation().x, 1.0e-5f);
         assertFalse(copy.isAuthored(HumanoidRig.DEFINITION.requireBoneIndex(HumanoidRig.ROOT)));
     }
+
+    @Test
+    void resolvesActorTransformIntoWorldSpace() {
+        RigPose pose = new RigPose(HumanoidRig.DEFINITION);
+        RigWorldPose world = RigWorldPose.resolve(pose, new Matrix4f().translate(10f, 2f, -3f));
+
+        Vector3f head = world.position(HumanoidRig.HEAD);
+
+        assertEquals(10f, head.x, 1.0e-5f);
+        assertEquals(3.625f, head.y, 1.0e-5f);
+        assertEquals(-3f, head.z, 1.0e-5f);
+    }
 }

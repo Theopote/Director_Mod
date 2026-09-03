@@ -272,6 +272,9 @@ public final class DirectorRendererRegistry {
                             visualizer.render(ctx.matrices(), getTickDelta(), ctx.consumers());
                         },
                         RendererStage.INTERACTION_HINT.getOrder() + 20); // 在交互提示之后渲染
+                registerRenderer(RendererStage.INTERACTION_HINT, "ActorBoneOverlay",
+                        ctx -> com.director.actor.visualizer.ActorBoneOverlayRenderer.getInstance().render(ctx),
+                        RendererStage.INTERACTION_HINT.getOrder() + 21);
             }
 
             LOGGER.info("[RendererRegistry] ✅ 默认渲染器注册完成");

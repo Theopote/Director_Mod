@@ -207,7 +207,9 @@ public final class ActorPreviewManager {
                 return null;
             }
 
-            Entity entity = type.create(world, SpawnReason.COMMAND);
+            Entity entity = type == EntityType.ARMOR_STAND
+                    ? new PreviewActorEntity(EntityType.ARMOR_STAND, world)
+                    : type.create(world, SpawnReason.COMMAND);
             if (entity == null) {
                 LOGGER.warn("[ActorPreviewManager] 创建预览实体失败: {}", actor.getType());
                 return null;

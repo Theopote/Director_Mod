@@ -127,12 +127,18 @@ public final class ActorSelectionHub {
 
         // 4️⃣ Gizmo：设置目标 Actor
         ActorGizmoController gizmoController = ActorGizmoController.getInstance();
-        gizmoController.setTargetActor(actorId);
-
-        // 5️⃣ LookAt Gizmo：设置目标 Actor
         com.director.ui.actor.lookat.ActorLookAtGizmoController lookAtController =
                 com.director.ui.actor.lookat.ActorLookAtGizmoController.getInstance();
-        lookAtController.setTargetActor(actorId);
+        com.director.ui.actor.pose.ActorBoneSelectionController boneSelection =
+                com.director.ui.actor.pose.ActorBoneSelectionController.getInstance();
+        if (boneSelection.isActive()) {
+            boneSelection.synchronizeActor(actorId);
+            gizmoController.clearTarget();
+            lookAtController.clearTarget();
+        } else {
+            gizmoController.setTargetActor(actorId);
+            lookAtController.setTargetActor(actorId);
+        }
 
         // 6️⃣ 更新当前选中的 Actor ID（供 Visualizer 使用）
         currentActorId = actorId;
@@ -177,6 +183,8 @@ public final class ActorSelectionHub {
         com.director.ui.actor.lookat.ActorLookAtGizmoController lookAtController =
                 com.director.ui.actor.lookat.ActorLookAtGizmoController.getInstance();
         lookAtController.clearTarget();
+
+        com.director.ui.actor.pose.ActorBoneSelectionController.getInstance().deactivate();
 
         // 清除 LookAt 选择上下文
         com.director.ui.actor.lookat.ActorLookAtSelectionContext.setActiveLookAtClip(null);

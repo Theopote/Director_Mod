@@ -8,7 +8,8 @@
 - 已增加通用 `BoneTransform`、`BoneDefinition`、`RigDefinition` 和 `RigPose`。
 - 已增加 `director:humanoid` 标准人形骨架及旧 `Pose` 适配器。
 - 已贯通 `Pose -> RigPose -> ArmorStand` 的首条渲染链路。
-- 骨骼 Gizmo、关键帧资产和 Dope Sheet 尚未开始，仍按下述阶段推进。
+- Phase 1 已实现骨骼世界空间查询、鼠标射线拾取、选择状态和视口骨架高亮。
+- 骨骼旋转 Gizmo、关键帧资产和 Dope Sheet 尚未开始，仍按下述阶段推进。
 
 Director 有可能实现接近 Mine-imator 的角色摆姿和动画制作体验，但不应把目标理解为“一次性复制 Mine-imator 的全部能力”。更合理的目标是：
 

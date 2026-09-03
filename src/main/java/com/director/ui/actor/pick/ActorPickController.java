@@ -5,6 +5,9 @@ import com.director.actor.preview.ActorPreviewManager;
 import com.director.client.input.DirectorInputSystem;
 import com.director.ui.actor.placement.ActorPlacementController;
 import com.director.ui.actor.selection.ActorSelectionHub;
+import com.director.ui.actor.pose.ActorBoneSelectionController;
+import com.director.ui.actor.pose.ActorBoneWorldQuery;
+import com.director.ui.actor.pose.BoneRayPicker;
 import com.director.ui.tools.ToolRegistry;
 import imgui.ImGui;
 import net.minecraft.client.MinecraftClient;
@@ -108,6 +111,20 @@ public final class ActorPickController {
         }
 
         boolean leftDown = isLeftMouseDown(client);
+
+        ActorBoneSelectionController boneSelection = ActorBoneSelectionController.getInstance();
+        if (boneSelection.isActive()) {
+            DirectorInputSystem.ImGuiRay ray = DirectorInputSystem.computeImGuiRay();
+            String hovered = ray == null ? null : BoneRayPicker.pick(
+                    ActorBoneWorldQuery.resolve(boneSelection.getActorId()), ray.origin(), ray.direction());
+            boneSelection.setHoveredBone(hovered);
+            if (leftDown && !lastLeftMouseDown && hovered != null) {
+                boneSelection.selectBone(hovered);
+            }
+            lastLeftMouseDown = leftDown;
+            lastRightMouseDown = isRightMouseDown(client);
+            return;
+        }
 
         // 只在"刚按下"的那一帧处理（edge trigger）
         if (leftDown && !lastLeftMouseDown) {
