@@ -104,6 +104,10 @@ public final class ActorAnimationDopeSheet {
             ImGui.sameLine();
             if (ImGui.smallButton(Icons.COPY + " 复制##dopeCopy")) copySelection(asset);
             ImGui.sameLine();
+            if (ImGui.smallButton(Icons.FLIP_HORIZONTAL + " 镜像##dopeMirrorSelected")) {
+                mirrorAt(model, clip, asset, selection.stream().map(KeyId::time).distinct().toList());
+            }
+            ImGui.sameLine();
             if (ImGui.smallButton(Icons.DELETE + " 删除##dopeDelete")) {
                 if (ActorAnimationKeyframeEditing.deleteRotations(model, selectedKeys)) clearSelection();
             }
@@ -116,6 +120,11 @@ public final class ActorAnimationDopeSheet {
             }
             ImGui.sameLine();
             ImGui.textDisabled(clipboard.size() + " 个");
+        }
+        if (selectedKeys.isEmpty() && ImGui.smallButton(Icons.FLIP_HORIZONTAL + " 镜像播放头姿态##dopeMirrorPlayhead")) {
+            float localTime = Math.max(0f, (model.getCurrentTime() - clip.getStartTime())
+                    * Math.max(0.01f, clip.getSpeed()));
+            mirrorAt(model, clip, asset, List.of(Math.min(asset.duration(), localTime)));
         }
     }
 
@@ -434,6 +443,25 @@ public final class ActorAnimationDopeSheet {
             selectedAssetId = asset.id();
             selection.clear();
             selection.addAll(pastedIds);
+        }
+    }
+
+    private static void mirrorAt(TimelineModel model, EntityAnimationClip clip,
+                                 AnimationAsset asset, List<Float> times) {
+        if (ActorAnimationKeyframeEditing.mirrorHumanoidPoses(model, asset, times,
+                ActorAnimationAuthoringSettings.getInstance().getInterpolation())) {
+            selectedAssetId = asset.id();
+            selection.clear();
+            String[] bones = {
+                    com.director.actor.rig.skeleton.HumanoidRig.BODY,
+                    com.director.actor.rig.skeleton.HumanoidRig.HEAD,
+                    com.director.actor.rig.skeleton.HumanoidRig.LEFT_ARM,
+                    com.director.actor.rig.skeleton.HumanoidRig.RIGHT_ARM,
+                    com.director.actor.rig.skeleton.HumanoidRig.LEFT_LEG,
+                    com.director.actor.rig.skeleton.HumanoidRig.RIGHT_LEG
+            };
+            for (float time : times) for (String bone : bones) selection.add(new KeyId(bone, time));
+            seekToFirst(model, clip);
         }
     }
 

@@ -1,7 +1,10 @@
 package com.director.ui.actor.pose;
 
 import com.director.actor.animation.asset.BoneTrack;
+import com.director.actor.animation.asset.AnimationAsset;
+import com.director.actor.animation.asset.AnimationLoopMode;
 import com.director.actor.animation.asset.InterpolationMode;
+import com.director.actor.rig.skeleton.HumanoidRig;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.TimelineViewportState;
 import com.director.ui.timeline.commands.TimelineCommandBridge;
@@ -144,5 +147,49 @@ class ActorAnimationKeyframeEditingTest {
     void canvasZoomStartIsClampedToAnimationBounds() {
         assertEquals(0f, ActorAnimationDopeSheet.zoomedStart(0f, 10f, 1f, 5f, 0f), 1.0e-5f);
         assertEquals(8f, ActorAnimationDopeSheet.zoomedStart(9f, 10f, 5f, 5f, 1f), 1.0e-5f);
+    }
+
+    @Test
+    void quaternionMirrorKeepsPitchAndReversesYawAndRoll() {
+        Quaternionf source = new Quaternionf().rotateXYZ(0.2f, 0.3f, -0.4f);
+        Quaternionf mirrored = ActorAnimationKeyframeEditing.mirrorAcrossX(source);
+        org.joml.Vector3f angles = mirrored.getEulerAnglesXYZ(new org.joml.Vector3f());
+
+        assertEquals(0.2f, angles.x, 1.0e-4f);
+        assertEquals(-0.3f, angles.y, 1.0e-4f);
+        assertEquals(0.4f, angles.z, 1.0e-4f);
+    }
+
+    @Test
+    void mirrorsAndSwapsHumanoidLimbsWithUndo() {
+        TimelineModel model = new TimelineModel(new TimelineViewportState());
+        TimelineCommandHistory history = new TimelineCommandHistory();
+        TimelineCommandBridge.bind(history);
+        AnimationAsset asset = new AnimationAsset("test:mirror", "Mirror", HumanoidRig.DEFINITION,
+                5f, AnimationLoopMode.ONCE);
+        Quaternionf leftBefore = new Quaternionf().rotateXYZ(0.2f, 0.3f, 0.4f);
+        Quaternionf rightBefore = new Quaternionf().rotateXYZ(-0.1f, 0.5f, -0.2f);
+        asset.getOrCreateBoneTrack(HumanoidRig.LEFT_ARM).rotation().put(1f, leftBefore, InterpolationMode.LINEAR);
+        asset.getOrCreateBoneTrack(HumanoidRig.RIGHT_ARM).rotation().put(1f, rightBefore, InterpolationMode.SMOOTH);
+
+        assertTrue(ActorAnimationKeyframeEditing.mirrorHumanoidPoses(
+                model, asset, List.of(1f), InterpolationMode.SMOOTH));
+        Quaternionf mirroredLeft = asset.findBoneTrack(HumanoidRig.LEFT_ARM).orElseThrow()
+                .rotation().findAt(1f).orElseThrow().value();
+        Quaternionf mirroredRight = asset.findBoneTrack(HumanoidRig.RIGHT_ARM).orElseThrow()
+                .rotation().findAt(1f).orElseThrow().value();
+        assertQuaternionEquivalent(ActorAnimationKeyframeEditing.mirrorAcrossX(rightBefore), mirroredLeft);
+        assertQuaternionEquivalent(ActorAnimationKeyframeEditing.mirrorAcrossX(leftBefore), mirroredRight);
+
+        assertTrue(history.undo());
+        assertQuaternionEquivalent(leftBefore, asset.findBoneTrack(HumanoidRig.LEFT_ARM).orElseThrow()
+                .rotation().findAt(1f).orElseThrow().value());
+        assertQuaternionEquivalent(rightBefore, asset.findBoneTrack(HumanoidRig.RIGHT_ARM).orElseThrow()
+                .rotation().findAt(1f).orElseThrow().value());
+        assertTrue(asset.findBoneTrack(HumanoidRig.BODY).orElseThrow().rotation().findAt(1f).isEmpty());
+    }
+
+    private static void assertQuaternionEquivalent(Quaternionf expected, Quaternionf actual) {
+        assertEquals(1f, Math.abs(expected.dot(actual)), 1.0e-5f);
     }
 }
