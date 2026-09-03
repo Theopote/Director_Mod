@@ -2,6 +2,14 @@
 
 ## 1. 目标与结论
 
+### 当前实施状态（2026-09-03）
+
+- Phase 0 数据底座已开始实现。
+- 已增加通用 `BoneTransform`、`BoneDefinition`、`RigDefinition` 和 `RigPose`。
+- 已增加 `director:humanoid` 标准人形骨架及旧 `Pose` 适配器。
+- 已贯通 `Pose -> RigPose -> ArmorStand` 的首条渲染链路。
+- 骨骼 Gizmo、关键帧资产和 Dope Sheet 尚未开始，仍按下述阶段推进。
+
 Director 有可能实现接近 Mine-imator 的角色摆姿和动画制作体验，但不应把目标理解为“一次性复制 Mine-imator 的全部能力”。更合理的目标是：
 
 > 在 Minecraft 客户端内提供一套面向导演的、可视化的骨骼姿态编辑与关键帧动画系统，并与 Director 已有的 Actor、Timeline、撤销、镜头和道具系统形成统一工作流。

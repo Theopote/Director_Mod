@@ -1,6 +1,8 @@
 package com.director.actor.preview;
 
 import com.director.actor.rig.Pose;
+import com.director.actor.rig.skeleton.LegacyHumanoidPoseAdapter;
+import com.director.actor.rig.skeleton.RigPose;
 import com.director.actor.runtime.ActorRuntime;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.Entity;
@@ -12,7 +14,6 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.storage.ReadView;
 import net.minecraft.storage.WriteView;
 import net.minecraft.util.math.Vec3d;
-import net.minecraft.util.math.EulerAngle;
 
 /**
  * PreviewActorEntity v1.0
@@ -48,6 +49,9 @@ public class PreviewActorEntity extends ArmorStandEntity {
 
     /** 最终混合姿态（由 ActorRuntimeController 设置，Renderer 读取） */
     private Pose finalPose;
+
+    /** Standard indexed pose used by the bone animation/editor pipeline. */
+    private RigPose finalRigPose;
 
     /**
      * 构造函数
@@ -86,25 +90,21 @@ public class PreviewActorEntity extends ArmorStandEntity {
     public void setFinalPose(Pose pose) {
         this.finalPose = pose;
         if (pose == null) {
+            this.finalRigPose = null;
             return;
         }
-
-        // ArmorStandEntity 的姿态是渲染器实际读取的数据。Pose 内部统一使用弧度，
-        // EulerAngle 使用角度，因此在预览实体边界处完成转换。
-        setBodyRotation(toEuler(pose.bodyPitch, pose.bodyYaw, pose.bodyRoll));
-        setHeadRotation(toEuler(pose.headPitch, pose.headYaw, 0f));
-        setLeftArmRotation(toEuler(pose.leftArmPitch, pose.leftArmYaw, pose.leftArmRoll));
-        setRightArmRotation(toEuler(pose.rightArmPitch, pose.rightArmYaw, pose.rightArmRoll));
-        setLeftLegRotation(toEuler(pose.leftLegPitch, 0f, 0f));
-        setRightLegRotation(toEuler(pose.rightLegPitch, 0f, 0f));
+        setFinalRigPose(LegacyHumanoidPoseAdapter.convert(pose));
     }
 
-    private static EulerAngle toEuler(float pitch, float yaw, float roll) {
-        return new EulerAngle(
-                (float) Math.toDegrees(pitch),
-                (float) Math.toDegrees(yaw),
-                (float) Math.toDegrees(roll)
-        );
+    public void setFinalRigPose(RigPose pose) {
+        this.finalRigPose = pose == null ? null : pose.copy();
+        if (this.finalRigPose != null) {
+            HumanoidArmorStandRigBinding.apply(this, this.finalRigPose);
+        }
+    }
+
+    public RigPose getFinalRigPose() {
+        return finalRigPose == null ? null : finalRigPose.copy();
     }
 
     /**
