@@ -177,6 +177,10 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         if (ImGui.combo("关键帧插值##actorAnimationInterpolation", animationInterpolation, labels)) {
             settings.setInterpolation(modes[Math.max(0, Math.min(animationInterpolation.get(), modes.length - 1))]);
         }
+        ImGui.separator();
+        UUID actorId = ActorSelectionHub.getSelectedActorId();
+        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
+        com.director.ui.actor.pose.ActorAnimationDopeSheet.render(model, actorId);
     }
 
     private void renderLocalPoseAuthoring(Actor actor) {
