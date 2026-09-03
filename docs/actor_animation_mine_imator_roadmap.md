@@ -16,8 +16,8 @@
 - `EntityAnimationClip` 已可通过 animationId 播放新资产，并保留旧 `AnimationLibrary` 回退。
 - Actor Pose 属性面板已增加默认关闭的“自动关键帧”、资产 ID、新资产时长和插值模式。
 - 骨骼旋转 Gizmo 已能在播放头写入 Quaternion 关键帧；必要时自动创建动画资产与时间线片段，整次拖动支持撤销/重做。
-- Actor Pose 面板已接入紧凑 Dope Sheet，可按骨骼查看和定位旋转关键帧，并按项目帧率移动或删除，操作支持撤销/重做。
-- Dope Sheet 的框选/批量编辑、复制粘贴、拖拽和姿态镜像尚未接入。
+- Actor Pose 面板已接入紧凑 Dope Sheet，可按骨骼查看和定位旋转关键帧，支持 Ctrl 多选、按帧批量移动、删除及相对时间复制粘贴；整批操作只占一个撤销步骤。
+- Dope Sheet 的框选、鼠标拖拽和姿态镜像尚未接入。
 
 Director 有可能实现接近 Mine-imator 的角色摆姿和动画制作体验，但不应把目标理解为“一次性复制 Mine-imator 的全部能力”。更合理的目标是：
 

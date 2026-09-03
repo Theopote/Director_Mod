@@ -15,14 +15,18 @@ import imgui.ImGui;
 import org.joml.Quaternionf;
 
 import java.util.Map;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
 
 /** Compact dope sheet for the active rig animation on the selected actor. */
 public final class ActorAnimationDopeSheet {
     private static String selectedAssetId;
-    private static String selectedBoneId;
-    private static float selectedTime = -1f;
+    private static final Set<KeyId> selection = new LinkedHashSet<>();
+    private static final List<CopiedKey> clipboard = new ArrayList<>();
 
     private ActorAnimationDopeSheet() {}
 
@@ -49,13 +53,12 @@ public final class ActorAnimationDopeSheet {
             String boneId = entry.getKey();
             if (ImGui.treeNode(boneId + "##dopeBone:" + asset.id())) {
                 for (ChannelKeyframe<Quaternionf> frame : entry.getValue().rotation().keyframes()) {
-                    boolean selected = Objects.equals(selectedAssetId, asset.id())
-                            && Objects.equals(selectedBoneId, boneId)
-                            && Math.abs(selectedTime - frame.time()) <= 1.0e-5f;
+                    KeyId key = new KeyId(boneId, frame.time());
+                    boolean selected = Objects.equals(selectedAssetId, asset.id()) && selection.contains(key);
                     String label = String.format("%s %.3fs  [%s]##dope:%s:%s:%f",
                             Icons.KEYFRAME, frame.time(), frame.interpolation(), asset.id(), boneId, frame.time());
                     if (ImGui.selectable(label, selected)) {
-                        select(asset.id(), boneId, frame.time());
+                        select(asset.id(), key, ImGui.getIO().getKeyCtrl());
                         model.setCurrentTime(toTimelineTime(clip, frame.time()));
                     }
                 }
@@ -63,31 +66,41 @@ public final class ActorAnimationDopeSheet {
             }
         }
 
-        if (!Objects.equals(selectedAssetId, asset.id())) return;
-        BoneTrack selectedTrack = asset.findBoneTrack(selectedBoneId).orElse(null);
-        if (selectedTrack == null || selectedTrack.rotation().findAt(selectedTime).isEmpty()) {
-            clearSelection();
-            return;
-        }
+        pruneSelection(asset);
+        List<ActorAnimationKeyframeEditing.RotationKey> selectedKeys = selectedKeys(asset);
         float localFrame = Math.max(0.01f, clip.getSpeed()) / Math.max(1f, model.getFrameRate());
-        if (ImGui.smallButton(Icons.ARROW_LEFT + " 1帧##dopePrevious")) {
-            float target = Math.max(0f, selectedTime - localFrame);
-            if (ActorAnimationKeyframeEditing.moveRotation(model, selectedTrack, selectedTime, target)) {
-                selectedTime = target;
-                model.setCurrentTime(toTimelineTime(clip, target));
+        if (!selectedKeys.isEmpty()) {
+            ImGui.textDisabled("已选择 " + selectedKeys.size() + " 个关键帧（Ctrl+点击多选）");
+            if (ImGui.smallButton(Icons.ARROW_LEFT + " 1帧##dopePrevious")) {
+                if (withinDuration(-localFrame, asset.duration())
+                        && ActorAnimationKeyframeEditing.moveRotations(model, selectedKeys, -localFrame)) {
+                    shiftSelection(-localFrame);
+                    seekToFirst(model, clip);
+                }
+            }
+            ImGui.sameLine();
+            if (ImGui.smallButton(Icons.ARROW_RIGHT + " 1帧##dopeNext")) {
+                if (withinDuration(localFrame, asset.duration())
+                        && ActorAnimationKeyframeEditing.moveRotations(model, selectedKeys, localFrame)) {
+                    shiftSelection(localFrame);
+                    seekToFirst(model, clip);
+                }
+            }
+            ImGui.sameLine();
+            if (ImGui.smallButton(Icons.COPY + " 复制##dopeCopy")) copySelection(asset);
+            ImGui.sameLine();
+            if (ImGui.smallButton(Icons.DELETE + " 删除##dopeDelete")) {
+                if (ActorAnimationKeyframeEditing.deleteRotations(model, selectedKeys)) clearSelection();
             }
         }
-        ImGui.sameLine();
-        if (ImGui.smallButton(Icons.ARROW_RIGHT + " 1帧##dopeNext")) {
-            float target = Math.min(asset.duration(), selectedTime + localFrame);
-            if (ActorAnimationKeyframeEditing.moveRotation(model, selectedTrack, selectedTime, target)) {
-                selectedTime = target;
-                model.setCurrentTime(toTimelineTime(clip, target));
+        if (!clipboard.isEmpty()) {
+            if (ImGui.smallButton(Icons.CLIPBOARD + " 粘贴到播放头##dopePaste")) {
+                float localTime = Math.max(0f, (model.getCurrentTime() - clip.getStartTime())
+                        * Math.max(0.01f, clip.getSpeed()));
+                pasteAt(model, asset, Math.min(asset.duration(), localTime));
             }
-        }
-        ImGui.sameLine();
-        if (ImGui.smallButton(Icons.DELETE + " 删除##dopeDelete")) {
-            if (ActorAnimationKeyframeEditing.deleteRotation(model, selectedTrack, selectedTime)) clearSelection();
+            ImGui.sameLine();
+            ImGui.textDisabled(clipboard.size() + " 个");
         }
     }
 
@@ -95,16 +108,89 @@ public final class ActorAnimationDopeSheet {
         return clip.getStartTime() + localTime / Math.max(0.01f, clip.getSpeed());
     }
 
-    private static void select(String assetId, String boneId, float time) {
+    private static void select(String assetId, KeyId key, boolean additive) {
+        if (!Objects.equals(selectedAssetId, assetId) || !additive) selection.clear();
         selectedAssetId = assetId;
-        selectedBoneId = boneId;
-        selectedTime = time;
+        if (additive && selection.contains(key)) selection.remove(key); else selection.add(key);
     }
 
     private static void clearSelection() {
         selectedAssetId = null;
-        selectedBoneId = null;
-        selectedTime = -1f;
+        selection.clear();
+    }
+
+    private static void pruneSelection(AnimationAsset asset) {
+        if (!Objects.equals(selectedAssetId, asset.id())) return;
+        selection.removeIf(key -> asset.findBoneTrack(key.boneId()).isEmpty()
+                || asset.findBoneTrack(key.boneId()).orElseThrow().rotation().findAt(key.time()).isEmpty());
+        if (selection.isEmpty()) selectedAssetId = null;
+    }
+
+    private static List<ActorAnimationKeyframeEditing.RotationKey> selectedKeys(AnimationAsset asset) {
+        List<ActorAnimationKeyframeEditing.RotationKey> result = new ArrayList<>();
+        if (!Objects.equals(selectedAssetId, asset.id())) return result;
+        for (KeyId key : selection) asset.findBoneTrack(key.boneId()).ifPresent(
+                track -> result.add(new ActorAnimationKeyframeEditing.RotationKey(track, key.time())));
+        return result;
+    }
+
+    private static boolean withinDuration(float delta, float duration) {
+        for (KeyId key : selection) {
+            float target = key.time() + delta;
+            if (target < 0f || target > duration) return false;
+        }
+        return true;
+    }
+
+    private static void shiftSelection(float delta) {
+        Set<KeyId> shifted = new LinkedHashSet<>();
+        for (KeyId key : selection) shifted.add(new KeyId(key.boneId(), key.time() + delta));
+        selection.clear();
+        selection.addAll(shifted);
+    }
+
+    private static void seekToFirst(TimelineModel model, EntityAnimationClip clip) {
+        if (!selection.isEmpty()) model.setCurrentTime(toTimelineTime(clip, selection.iterator().next().time()));
+    }
+
+    private static void copySelection(AnimationAsset asset) {
+        clipboard.clear();
+        if (selection.isEmpty()) return;
+        float origin = selection.stream().map(KeyId::time).min(Float::compare).orElse(0f);
+        for (KeyId key : selection) asset.findBoneTrack(key.boneId()).flatMap(
+                track -> track.rotation().findAt(key.time())).ifPresent(frame -> clipboard.add(
+                        new CopiedKey(key.boneId(), frame.time() - origin, frame.value(), frame.interpolation())));
+    }
+
+    private static void pasteAt(TimelineModel model, AnimationAsset asset, float origin) {
+        List<ActorAnimationKeyframeEditing.RotationPaste> pasted = new ArrayList<>();
+        Set<KeyId> pastedIds = new LinkedHashSet<>();
+        for (CopiedKey copied : clipboard) {
+            float time = origin + copied.offset();
+            if (time > asset.duration()) return;
+            BoneTrack track;
+            try {
+                track = asset.getOrCreateBoneTrack(copied.boneId());
+            } catch (IllegalArgumentException ignored) {
+                return;
+            }
+            pasted.add(new ActorAnimationKeyframeEditing.RotationPaste(
+                    track, time, copied.value(), copied.interpolation()));
+            pastedIds.add(new KeyId(copied.boneId(), time));
+        }
+        if (ActorAnimationKeyframeEditing.pasteRotations(model, pasted)) {
+            selectedAssetId = asset.id();
+            selection.clear();
+            selection.addAll(pastedIds);
+        }
+    }
+
+    private record KeyId(String boneId, float time) {}
+    private record CopiedKey(String boneId, float offset, Quaternionf value,
+                             com.director.actor.animation.asset.InterpolationMode interpolation) {
+        private CopiedKey {
+            value = new Quaternionf(value);
+        }
     }
 
     private static ActorTrack findActorTrack(TimelineModel model, UUID actorId) {
