@@ -19,6 +19,7 @@ import org.joml.Quaternionf;
 
 import java.util.Map;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
@@ -38,6 +39,7 @@ public final class ActorAnimationDopeSheet {
     private static float interactionCurrentX;
     private static float interactionCurrentY;
     private static String interactionAssetId;
+    private static final Map<String, ViewState> views = new HashMap<>();
 
     private ActorAnimationDopeSheet() {}
 
@@ -124,6 +126,20 @@ public final class ActorAnimationDopeSheet {
         }
         if (rows.isEmpty()) return;
 
+        ViewState view = views.computeIfAbsent(asset.id(), ignored -> new ViewState());
+        clampView(view, asset.duration());
+        if (ImGui.smallButton(Icons.ZOOM_IN + "##dopeZoomIn")) zoomView(view, asset.duration(), view.zoom * 1.5f, 0.5f);
+        ImGui.sameLine();
+        if (ImGui.smallButton(Icons.ZOOM_OUT + "##dopeZoomOut")) zoomView(view, asset.duration(), view.zoom / 1.5f, 0.5f);
+        ImGui.sameLine();
+        if (ImGui.smallButton(Icons.FIT_SCREEN + " 适配##dopeFit")) {
+            view.zoom = 1f;
+            view.startTime = 0f;
+        }
+        ImGui.sameLine();
+        ImGui.textDisabled(String.format("%.1fx  %.2f–%.2fs", view.zoom, view.startTime,
+                view.startTime + visibleDuration(asset.duration(), view.zoom)));
+
         final float labelWidth = 72f;
         final float rulerHeight = 18f;
         final float rowHeight = 22f;
@@ -134,9 +150,11 @@ public final class ActorAnimationDopeSheet {
         float y = ImGui.getCursorScreenPosY();
         float timeX = x + labelWidth;
         float timeWidth = Math.max(1f, width - labelWidth);
-        float pixelsPerSecond = timeWidth / Math.max(0.001f, asset.duration());
         ImGui.invisibleButton("##actorDopeCanvas:" + asset.id(), width, height);
         boolean hovered = ImGui.isItemHovered();
+        handleNavigation(view, asset.duration(), hovered, timeX, timeWidth);
+        float visibleDuration = visibleDuration(asset.duration(), view.zoom);
+        float pixelsPerSecond = timeWidth / visibleDuration;
         ImDrawList draw = ImGui.getWindowDrawList();
         draw.addRectFilled(x, y, x + width, y + height, TimelineColors.rgba(24, 27, 32, 255), 3f);
         draw.addLine(timeX, y, timeX, y + height, TimelineColors.rgba(75, 80, 90, 255), 1f);
@@ -145,7 +163,7 @@ public final class ActorAnimationDopeSheet {
             float tx = timeX + timeWidth * tick / 4f;
             draw.addLine(tx, y, tx, y + height, TimelineColors.rgba(65, 70, 80, 120), 1f);
             draw.addText(tx + 2f, y + 2f, TimelineColors.rgba(165, 170, 180, 255),
-                    String.format("%.1f", asset.duration() * tick / 4f));
+                    String.format("%.1f", view.startTime + visibleDuration * tick / 4f));
         }
         for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
             Row row = rows.get(rowIndex);
@@ -155,7 +173,8 @@ public final class ActorAnimationDopeSheet {
                     TimelineColors.rgba(55, 60, 68, 180), 1f);
             draw.addText(x + 4f, cy - 7f, TimelineColors.rgba(200, 205, 215, 255), row.boneId());
             for (ChannelKeyframe<Quaternionf> frame : row.track().rotation().keyframes()) {
-                float kx = timeX + frame.time() * pixelsPerSecond;
+                float kx = timeX + (frame.time() - view.startTime) * pixelsPerSecond;
+                if (kx < timeX - keyRadius || kx > timeX + timeWidth + keyRadius) continue;
                 boolean selected = Objects.equals(selectedAssetId, asset.id())
                         && selection.contains(new KeyId(row.boneId(), frame.time()));
                 int color = selected ? TimelineColors.rgba(255, 190, 70, 255)
@@ -164,18 +183,27 @@ public final class ActorAnimationDopeSheet {
             }
         }
 
+        float playheadLocal = Math.max(0f, (model.getCurrentTime() - clip.getStartTime())
+                * Math.max(0.01f, clip.getSpeed()));
+        float playheadX = timeX + (playheadLocal - view.startTime) * pixelsPerSecond;
+        if (playheadX >= timeX && playheadX <= timeX + timeWidth) {
+            draw.addLine(playheadX, y, playheadX, y + height, TimelineColors.rgba(255, 90, 80, 230), 1.5f);
+        }
+
         handleCanvasInput(model, clip, asset, rows, x, y, timeX, timeWidth,
-                rulerHeight, rowHeight, keyRadius, pixelsPerSecond, hovered, draw);
+                rulerHeight, rowHeight, keyRadius, pixelsPerSecond, view.startTime, hovered, draw);
     }
 
     private static void handleCanvasInput(TimelineModel model, EntityAnimationClip clip, AnimationAsset asset,
                                           List<Row> rows, float x, float y, float timeX, float timeWidth,
                                           float rulerHeight, float rowHeight, float keyRadius,
-                                          float pixelsPerSecond, boolean hovered, ImDrawList draw) {
+                                          float pixelsPerSecond, float viewStartTime,
+                                          boolean hovered, ImDrawList draw) {
         float mx = ImGui.getMousePosX();
         float my = ImGui.getMousePosY();
         if (hovered && ImGui.isMouseClicked(ImGuiMouseButton.Left)) {
-            KeyId hit = hitKey(rows, mx, my, y, timeX, rulerHeight, rowHeight, keyRadius, pixelsPerSecond);
+            KeyId hit = hitKey(rows, mx, my, y, timeX, timeWidth, rulerHeight, rowHeight,
+                    keyRadius, pixelsPerSecond, viewStartTime);
             interactionStartX = interactionCurrentX = mx;
             interactionStartY = interactionCurrentY = my;
             interactionAdditive = ImGui.getIO().getKeyCtrl();
@@ -203,7 +231,7 @@ public final class ActorAnimationDopeSheet {
             float localFrame = Math.max(0.01f, clip.getSpeed()) / Math.max(1f, model.getFrameRate());
             float delta = snapDragDelta(dx, pixelsPerSecond, localFrame);
             for (KeyId key : selection) {
-                float ghostX = timeX + (key.time() + delta) * pixelsPerSecond;
+                float ghostX = timeX + (key.time() + delta - viewStartTime) * pixelsPerSecond;
                 int row = rowIndex(rows, key.boneId());
                 if (row >= 0) {
                     float cy = y + rulerHeight + row * rowHeight + rowHeight * 0.5f;
@@ -221,7 +249,8 @@ public final class ActorAnimationDopeSheet {
         }
         if (ImGui.isMouseReleased(ImGuiMouseButton.Left) && (dragCandidate || marqueeCandidate)) {
             if (dragCandidate && activated) finishDrag(model, clip, asset, pixelsPerSecond, dx);
-            else if (marqueeCandidate && activated) finishMarquee(asset, rows, y, timeX, rulerHeight, rowHeight, pixelsPerSecond);
+            else if (marqueeCandidate && activated) finishMarquee(asset, rows, y, timeX, rulerHeight,
+                    rowHeight, pixelsPerSecond, viewStartTime);
             else if (marqueeCandidate && !interactionAdditive) clearSelection();
             dragCandidate = false;
             marqueeCandidate = false;
@@ -242,7 +271,8 @@ public final class ActorAnimationDopeSheet {
     }
 
     private static void finishMarquee(AnimationAsset asset, List<Row> rows, float y, float timeX,
-                                      float rulerHeight, float rowHeight, float pixelsPerSecond) {
+                                      float rulerHeight, float rowHeight, float pixelsPerSecond,
+                                      float viewStartTime) {
         if (!interactionAdditive || !Objects.equals(selectedAssetId, asset.id())) selection.clear();
         selectedAssetId = asset.id();
         float x1 = Math.min(interactionStartX, interactionCurrentX);
@@ -254,21 +284,23 @@ public final class ActorAnimationDopeSheet {
             float cy = y + rulerHeight + rowIndex * rowHeight + rowHeight * 0.5f;
             if (cy < y1 || cy > y2) continue;
             for (ChannelKeyframe<Quaternionf> frame : row.track().rotation().keyframes()) {
-                float kx = timeX + frame.time() * pixelsPerSecond;
+                float kx = timeX + (frame.time() - viewStartTime) * pixelsPerSecond;
                 if (kx >= x1 && kx <= x2) selection.add(new KeyId(row.boneId(), frame.time()));
             }
         }
         if (selection.isEmpty()) selectedAssetId = null;
     }
 
-    private static KeyId hitKey(List<Row> rows, float mx, float my, float y, float timeX,
-                                float rulerHeight, float rowHeight, float radius, float pixelsPerSecond) {
+    private static KeyId hitKey(List<Row> rows, float mx, float my, float y, float timeX, float timeWidth,
+                                float rulerHeight, float rowHeight, float radius, float pixelsPerSecond,
+                                float viewStartTime) {
+        if (mx < timeX || mx > timeX + timeWidth) return null;
         for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
             Row row = rows.get(rowIndex);
             float cy = y + rulerHeight + rowIndex * rowHeight + rowHeight * 0.5f;
             if (Math.abs(my - cy) > radius + 3f) continue;
             for (ChannelKeyframe<Quaternionf> frame : row.track().rotation().keyframes()) {
-                if (Math.abs(mx - (timeX + frame.time() * pixelsPerSecond)) <= radius + 3f)
+                if (Math.abs(mx - (timeX + (frame.time() - viewStartTime) * pixelsPerSecond)) <= radius + 3f)
                     return new KeyId(row.boneId(), frame.time());
             }
         }
@@ -283,6 +315,45 @@ public final class ActorAnimationDopeSheet {
     static float snapDragDelta(float pixelDelta, float pixelsPerSecond, float localFrame) {
         if (!Float.isFinite(pixelDelta) || pixelsPerSecond <= 0f || localFrame <= 0f) return 0f;
         return Math.round((pixelDelta / pixelsPerSecond) / localFrame) * localFrame;
+    }
+
+    private static void handleNavigation(ViewState view, float duration, boolean hovered,
+                                         float timeX, float timeWidth) {
+        if (!hovered || dragCandidate || marqueeCandidate) return;
+        float wheel = ImGui.getIO().getMouseWheel();
+        if (Math.abs(wheel) < 0.01f) return;
+        if (ImGui.getIO().getKeyCtrl()) {
+            float anchor = Math.max(0f, Math.min(1f, (ImGui.getMousePosX() - timeX) / timeWidth));
+            zoomView(view, duration, view.zoom * (wheel > 0f ? 1.25f : 0.8f), anchor);
+        } else if (ImGui.getIO().getKeyShift()) {
+            view.startTime -= wheel * visibleDuration(duration, view.zoom) * 0.1f;
+            clampView(view, duration);
+        }
+    }
+
+    static float visibleDuration(float duration, float zoom) {
+        return Math.max(0.001f, duration) / Math.max(1f, zoom);
+    }
+
+    static float zoomedStart(float oldStart, float duration, float oldZoom, float newZoom, float anchor) {
+        float safeAnchor = Math.max(0f, Math.min(1f, anchor));
+        float pivot = oldStart + visibleDuration(duration, oldZoom) * safeAnchor;
+        float result = pivot - visibleDuration(duration, newZoom) * safeAnchor;
+        float max = Math.max(0f, duration - visibleDuration(duration, newZoom));
+        return Math.max(0f, Math.min(max, result));
+    }
+
+    private static void zoomView(ViewState view, float duration, float newZoom, float anchor) {
+        float clampedZoom = Math.max(1f, Math.min(50f, newZoom));
+        view.startTime = zoomedStart(view.startTime, duration, view.zoom, clampedZoom, anchor);
+        view.zoom = clampedZoom;
+        clampView(view, duration);
+    }
+
+    private static void clampView(ViewState view, float duration) {
+        view.zoom = Math.max(1f, Math.min(50f, view.zoom));
+        float max = Math.max(0f, duration - visibleDuration(duration, view.zoom));
+        view.startTime = Math.max(0f, Math.min(max, view.startTime));
     }
 
     private static float toTimelineTime(EntityAnimationClip clip, float localTime) {
@@ -368,6 +439,10 @@ public final class ActorAnimationDopeSheet {
 
     private record KeyId(String boneId, float time) {}
     private record Row(String boneId, BoneTrack track) {}
+    private static final class ViewState {
+        private float zoom = 1f;
+        private float startTime;
+    }
     private record CopiedKey(String boneId, float offset, Quaternionf value,
                              com.director.actor.animation.asset.InterpolationMode interpolation) {
         private CopiedKey {

@@ -126,4 +126,23 @@ class ActorAnimationKeyframeEditingTest {
         assertEquals(-0.15f, ActorAnimationDopeSheet.snapDragDelta(-14f, 100f, 0.05f), 1.0e-5f);
         assertEquals(0f, ActorAnimationDopeSheet.snapDragDelta(20f, 0f, 0.05f), 1.0e-5f);
     }
+
+    @Test
+    void canvasZoomPreservesTimeUnderMouseAnchor() {
+        float oldStart = 2f;
+        float duration = 10f;
+        float anchor = 0.25f;
+        float pivotBefore = oldStart + ActorAnimationDopeSheet.visibleDuration(duration, 2f) * anchor;
+        float newStart = ActorAnimationDopeSheet.zoomedStart(oldStart, duration, 2f, 4f, anchor);
+        float pivotAfter = newStart + ActorAnimationDopeSheet.visibleDuration(duration, 4f) * anchor;
+
+        assertEquals(pivotBefore, pivotAfter, 1.0e-5f);
+        assertEquals(2.625f, newStart, 1.0e-5f);
+    }
+
+    @Test
+    void canvasZoomStartIsClampedToAnimationBounds() {
+        assertEquals(0f, ActorAnimationDopeSheet.zoomedStart(0f, 10f, 1f, 5f, 0f), 1.0e-5f);
+        assertEquals(8f, ActorAnimationDopeSheet.zoomedStart(9f, 10f, 5f, 5f, 1f), 1.0e-5f);
+    }
 }
