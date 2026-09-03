@@ -11,12 +11,14 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.nio.channels.Channels;
 import java.nio.channels.WritableByteChannel;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * FFmpeg MP4 编码器（stdin 管道写入 raw RGBA）
@@ -32,6 +34,7 @@ import java.util.List;
  */
 public final class FFmpegVideoEncoder implements VideoEncoder {
     private static final Logger LOGGER = LoggerFactory.getLogger(FFmpegVideoEncoder.class);
+    private static final long EXIT_TIMEOUT_SECONDS = 300L;
 
     private Process ffmpegProcess;
     private OutputStream ffmpegStdin;
@@ -218,7 +221,13 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
             return;
         }
         try {
-            int exit = ffmpegProcess.waitFor();
+            boolean exited = ffmpegProcess.waitFor(EXIT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            if (!exited) {
+                ffmpegProcess.destroyForcibly();
+                throw new IOException("FFmpeg 在 " + EXIT_TIMEOUT_SECONDS
+                    + " 秒内未退出，已强制终止。请检查磁盘空间、编码器和系统资源。");
+            }
+            int exit = ffmpegProcess.exitValue();
             if (exit != 0) {
                 throw new IOException("FFmpeg 编码失败（退出码 " + exit + "），请检查 ffmpeg 是否安装/可用。");
             }
@@ -239,7 +248,7 @@ public final class FFmpegVideoEncoder implements VideoEncoder {
                     }
                     // 仅在 debug 时输出，避免刷屏
                     if (LOGGER.isDebugEnabled() && n > 0) {
-                        LOGGER.debug("[FFmpeg] {}", new String(buf, 0, n));
+                        LOGGER.debug("[FFmpeg] {}", new String(buf, 0, n, StandardCharsets.UTF_8));
                     }
                 }
             } catch (Exception ignore) {

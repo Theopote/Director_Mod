@@ -22,7 +22,7 @@ If you need collaborative editing across clients, that would require a separate 
 
 ### Timeline & Keyframing
 - **Non-linear Timeline** — A full-featured timeline panel with track lanes, keyframe editing, and playback controls.
-- **Snapping & Shortcuts** — Snap keyframes to grid, use standard edit shortcuts (Ctrl+Z undo, Delete to remove, etc.).
+- **Snapping & Timeline Shortcuts** — Snap keyframes to grid and use timeline edit shortcuts such as Ctrl+Z and Delete. Direct 3D camera-path and actor-gizmo transforms are not currently part of the timeline undo history.
 - **Container-based Scenes** — Group cameras, actors, and props into named containers/scenes. Persist and reload scene state.
 - **Audio Track Support** — Reference audio tracks alongside camera and actor tracks.
 
