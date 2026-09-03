@@ -222,7 +222,6 @@ public class GizmoRenderer {
 
         } catch (Exception e) {
             LOGGER.error("[GizmoRenderer] ❌ 渲染 Gizmo 时发生异常", e);
-            e.printStackTrace();
         } finally {
             // ✅ v4.8.1: 确保状态恢复，即使发生异常也恢复
             // 注意：需要恢复lineWidth，但Minecraft通常不恢复它，所以我们也不恢复

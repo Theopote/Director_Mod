@@ -113,7 +113,6 @@ public class GizmoRenderEvents {
             
         } catch (Exception e) {
             LOGGER.error("[GizmoRenderEvents] ❌ 渲染 Gizmo 失败: {}", e.getMessage(), e);
-            e.printStackTrace();
         }
     }
 

@@ -3,7 +3,7 @@
 	"id": "director",
 	"version": "${version}",
 	"name": "Director",
-	"description": "A powerful time-based building and planning mod for Minecraft. Create, manage, and visualize complex building projects with advanced UI tools.",
+	"description": "A single-player cinematic toolkit for Minecraft with camera paths, actor animation, scene composition, and a non-linear timeline.",
 	"authors": [
 		"Director Team"
 	],
@@ -12,9 +12,9 @@
 		"sources": "https://github.com/Director/director",
 		"issues": "https://github.com/Director/director/issues"
 	},
-	"license": "MIT",
+	"license": "Apache-2.0",
 	"icon": "assets/director/icon.png",
-	"environment": "*",
+	"environment": "client",
 	"entrypoints": {
 		"main": [
 			"com.director.DirectorMod"
@@ -76,12 +76,12 @@
 			}
 		},
 		"features": [
-			"Advanced UI System",
-			"Time-based Planning",
+			"Camera Path Editing",
+			"Actor Animation",
+			"Non-linear Timeline",
+			"Scene Containers",
 			"3D Visualization",
-			"Project Management",
-			"Multi-layer Support",
-			"Real-time Collaboration"
+			"Video Export"
 		]
 	}
 }

@@ -1,6 +1,7 @@
 package com.director.timeline.persistence;
 
 import com.director.core.animation.ClipAnimationConfig;
+import com.director.persistence.AtomicFileWriter;
 import com.director.core.container.AnimationMode;
 import com.director.core.animation.sequence.SequenceMode;
 import com.director.core.animation.sequence.SequenceParameters;
@@ -1752,7 +1753,7 @@ public class TimelineModelPersistence {
             // 转换为 DTO 并保存
             TimelineDTO dto = toDTO(model, viewportState);
             String json = GSON.toJson(dto);
-            Files.writeString(timelineFile, json);
+            AtomicFileWriter.writeString(timelineFile, json);
             return true;
         } catch (IOException e) {
             LOGGER.error("[TimelineModelPersistence] 保存时间线数据失败: {}", e.getMessage(), e);

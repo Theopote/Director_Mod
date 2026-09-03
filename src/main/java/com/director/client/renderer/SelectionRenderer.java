@@ -516,7 +516,6 @@ public final class SelectionRenderer {
             
         } catch (Exception e) {
             LOGGER.error("[SelectionRenderer] ❌ 渲染填充时发生异常", e);
-            e.printStackTrace();
         } finally {
             // ✅ v1.9.3: 释放重入锁（确保总是释放）
             synchronized (RENDER_LOCK) {

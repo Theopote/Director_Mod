@@ -6,6 +6,7 @@ import com.director.core.container.ContainerManager;
 import com.director.core.container.ContainerState;
 import com.director.core.container.ContainerType;
 import com.director.persistence.PersistenceSaveStatus;
+import com.director.persistence.AtomicFileWriter;
 import com.director.util.WorldIdentifier;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
@@ -63,7 +64,8 @@ public final class ContainerPersistence {
             if (savePath != null) {
                 return savePath.resolve("director");
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            LOGGER.debug("[ContainerPersistence] 无法解析当前世界存档目录", e);
         }
         return null;
     }
@@ -92,7 +94,7 @@ public final class ContainerPersistence {
                 list.add(encodeContainer(c));
             }
             root.put("containers", list);
-            NbtIo.writeCompressed(root, file);
+            AtomicFileWriter.write(file, tempFile -> NbtIo.writeCompressed(root, tempFile));
             LOGGER.debug("[ContainerPersistence] 已保存容器数据: {}", file);
             pendingAutoSave = false;
             PersistenceSaveStatus.reportContainerResult(true);
@@ -313,13 +315,17 @@ public final class ContainerPersistence {
         ContainerState decodedState = c.getState();
         try {
             decodedState = ContainerState.valueOf(stateStr);
-        } catch (Exception ignored) {}
+        } catch (IllegalArgumentException e) {
+            LOGGER.warn("[ContainerPersistence] 无效的容器状态 '{}'，使用默认值", stateStr);
+        }
         String levelStr = tag.getString("level", "");
         if (!levelStr.isEmpty()) {
             try {
                 Identifier levelId = Identifier.of(levelStr);
                 c.setLevelKey(net.minecraft.registry.RegistryKey.of(net.minecraft.registry.RegistryKeys.WORLD, levelId));
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                LOGGER.warn("[ContainerPersistence] 无效的容器维度 '{}'，忽略该字段", levelStr, e);
+            }
         }
 
         // blocks

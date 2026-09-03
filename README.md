@@ -69,7 +69,7 @@ If you need collaborative editing across clients, that would require a separate 
 **Prerequisites:** JDK 21, Git
 
 ```bash
-git clone https://github.com/your-org/director.git
+git clone https://github.com/Director/director.git
 cd director
 ./gradlew build
 ```

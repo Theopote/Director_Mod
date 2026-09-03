@@ -6,7 +6,7 @@
 
 ## 根本原因分析
 
-### 1. **遮挡检测（最大的性能杀手）** ✅ 已完全禁用
+### 1. **遮挡检测（最大的性能杀手）** ✅ 已改为按需启用
 
 **问题代码位置**：`TimelineClipBlockController.applyOcclusionOverrides()`
 
@@ -17,14 +17,11 @@
 
 **解决方案**：
 ```java
-// ⭐ 性能优化：完全禁用遮挡检测功能
-// 遮挡检测是最大的性能杀手（每帧需要遍历数万个方块进行包围盒检测）
-// 用户可以通过调整摄像机角度来避免遮挡问题
-Set<UUID> occludedContainers = new HashSet<>(); // 保持空集合，表示没有容器被遮挡
-// 不再调用 applyOcclusionOverrides()
+// 默认不执行遮挡检测。
+// 只有当前片段启用“自动淡化前方片段”时，applyOcclusionOverrides() 才按需执行。
 ```
 
-**性能提升**：消除了最大的性能瓶颈，节省每帧数十毫秒
+**性能提升**：默认场景绕过遮挡计算；需要该效果时仍可显式启用
 
 ---
 
@@ -78,11 +75,11 @@ if (prev.size() != now.size()) {
 
 ---
 
-### 4. **遮挡检测缓存优化** ✅ 已优化（但功能已禁用）
+### 4. **遮挡检测缓存优化** ✅ 已优化（功能按需启用）
 
 **位置**：`BlockOcclusionResolver.java`
 
-虽然遮挡检测功能已完全禁用，但代码中已添加了缓存机制，如果将来需要重新启用，可以直接使用。
+遮挡检测使用缓存，并只在当前片段明确启用“自动淡化前方片段”时运行。
 
 ---
 
@@ -99,7 +96,7 @@ if (prev.size() != now.size()) {
 - **total**：总耗时（应该 < 16ms 才能保持60FPS）
 - **step1_visible**：计算可见方块耗时（包括序列生成）
 - **diff**：集合差异检测耗时
-- **occlusion**：遮挡检测耗时（现在应该接近0ms）
+- **occlusion**：遮挡检测耗时（未启用自动淡化时应接近 0ms）
 - **step3_apply+entries**：应用视觉状态耗时
 - **containers**：活跃容器数量
 - **visibleTotal**：可见方块总数
@@ -188,7 +185,7 @@ LOGGER.warn("Cache MISS for clip {}, generating {} blocks", clip.getLabel(), blo
 
 ## 已知限制
 
-1. **遮挡检测功能已禁用**：如果多个容器在空间上重叠，不会自动做半透明处理，需要手动调整摄像机角度
+1. **遮挡检测默认不运行**：仅当片段启用“自动淡化前方片段”时按需运行
 2. **大规模场景（10万+方块）**：可能仍有性能问题，建议将建筑拆分成更小的部分
 
 ---
@@ -198,8 +195,8 @@ LOGGER.warn("Cache MISS for clip {}, generating {} blocks", clip.getLabel(), blo
 ### 已修改文件：
 
 1. **TimelineClipPropertyUi.java** - 30+ 处修改，所有drag/slider控件延迟触发
-2. **TimelineClipBlockController.java** - 禁用遮挡检测，优化集合差异检测
-3. **BlockOcclusionResolver.java** - 添加缓存机制（虽然功能已禁用）
+2. **TimelineClipBlockController.java** - 按需触发遮挡检测，优化集合差异检测
+3. **BlockOcclusionResolver.java** - 为按需遮挡检测添加缓存机制
 
 ### 修改标识：
 
