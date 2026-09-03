@@ -1,6 +1,7 @@
 package com.director.ui.actor.pose;
 
 import com.director.client.gizmo.Axis;
+import net.minecraft.util.math.Vec3d;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
@@ -18,5 +19,15 @@ class ActorBoneGizmoControllerTest {
         assertEquals(expected.x, actual.x, 1.0e-5f);
         assertEquals(expected.y, actual.y, 1.0e-5f);
         assertEquals(expected.z, actual.z, 1.0e-5f);
+    }
+
+    @Test
+    void appliesAccumulatedTranslationToGestureBase() {
+        Vector3f result = ActorBoneGizmoController.translate(
+                new Vector3f(1f, 2f, 3f), new Vec3d(0.5, -1.0, 2.0));
+
+        assertEquals(1.5f, result.x, 1.0e-5f);
+        assertEquals(1f, result.y, 1.0e-5f);
+        assertEquals(5f, result.z, 1.0e-5f);
     }
 }

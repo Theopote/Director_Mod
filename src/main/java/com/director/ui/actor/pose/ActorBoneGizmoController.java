@@ -59,10 +59,14 @@ public final class ActorBoneGizmoController {
     private BoneTrack editingBoneTrack;
     private EntityAnimationClip editingAnimationClip;
     private ChannelKeyframe<Quaternionf> beforeRotationKey;
+    private ChannelKeyframe<Vector3f> beforeTranslationKey;
     private Quaternionf animationBaseRotation;
+    private Vector3f animationBaseTranslation;
+    private Vec3d animationActorBasePosition;
     private float animationKeyTime;
     private boolean createdAsset;
     private boolean createdAnimationClip;
+    private GizmoMode activeBoneMode = GizmoMode.ROTATE;
 
     private ActorBoneGizmoController() {}
     public static ActorBoneGizmoController getInstance() { return INSTANCE; }
@@ -83,21 +87,36 @@ public final class ActorBoneGizmoController {
             resolveTrack();
         }
         boneId = selectedBone;
-        if ("root".equals(boneId)) {
-            deactivateOwnedGizmo();
-            return;
-        }
         RigWorldPose worldPose = ActorBoneWorldQuery.resolve(actorId);
         if (worldPose == null) {
             deactivateOwnedGizmo();
             return;
         }
+        GizmoMode desiredMode = desiredMode(worldPose);
+        activeBoneMode = desiredMode;
+        if ("root".equals(boneId) && desiredMode != GizmoMode.TRANSLATE) {
+            deactivateOwnedGizmo();
+            return;
+        }
         Vector3f p = worldPose.position(boneId);
         Vec3d pivot = new Vec3d(p.x, p.y, p.z);
-        configureGizmo(pivot);
+        configureGizmo(pivot, desiredMode);
     }
 
-    private void configureGizmo(Vec3d pivot) {
+    private GizmoMode desiredMode(RigWorldPose worldPose) {
+        GizmoMode requested = ActorAnimationAuthoringSettings.getInstance().getBoneGizmoMode();
+        if (requested != GizmoMode.TRANSLATE || !ActorAnimationAuthoringSettings.getInstance().isAutoKeyframe()) {
+            return GizmoMode.ROTATE;
+        }
+        try {
+            return worldPose.rig().bone(worldPose.rig().requireBoneIndex(boneId)).capabilities().translation()
+                    ? GizmoMode.TRANSLATE : GizmoMode.ROTATE;
+        } catch (RuntimeException ignored) {
+            return GizmoMode.ROTATE;
+        }
+    }
+
+    private void configureGizmo(Vec3d pivot, GizmoMode mode) {
         if (dragging) return;
         GizmoManager gm = GizmoManager.get();
         boolean ours = gm.isActive() && gm.getType() == GizmoType.TRANSFORM
@@ -109,15 +128,15 @@ public final class ActorBoneGizmoController {
                     pivot.x + 0.06, pivot.y + 0.06, pivot.z + 0.06);
             gm.activate(GizmoType.TRANSFORM, box, pivot);
             ownsGizmo = true;
-            gm.getContext().setMode(GizmoMode.ROTATE);
+            gm.getContext().setMode(mode);
             gm.getController().setTransformApplier(
                     new ActorBoneTransformApplier(DirectorServices.get().selection(), this));
-            gm.ensureRotationHandlesForTransform();
+            if (mode == GizmoMode.ROTATE) gm.ensureRotationHandlesForTransform();
             lastPivot = pivot;
             return;
         }
         ownsGizmo = true;
-        gm.getContext().setMode(GizmoMode.ROTATE);
+        gm.getContext().setMode(mode);
         if (lastPivot == null || lastPivot.squaredDistanceTo(pivot) > PIVOT_EPSILON_SQ) {
             gm.setPivot(pivot);
             gm.setTargetBox(new Box(pivot.x - 0.06, pivot.y - 0.06, pivot.z - 0.06,
@@ -127,7 +146,8 @@ public final class ActorBoneGizmoController {
     }
 
     void beginRotationGesture() {
-        if (actorId == null || boneId == null || "root".equals(boneId)) return;
+        if (actorId == null || boneId == null
+                || ("root".equals(boneId) && activeBoneMode != GizmoMode.TRANSLATE)) return;
         if (actorTrack == null) resolveTrack();
         TimelineModel model = resolveModel();
         if (actorTrack == null || model == null) return;
@@ -153,6 +173,18 @@ public final class ActorBoneGizmoController {
         for (Axis axis : Axis.values()) baseAngles.put(axis, BonePoseChannelMapper.read(editingClip, boneId, axis));
         dragging = true;
         model.markDirty();
+    }
+
+    void beginTransformGesture() { beginRotationGesture(); }
+
+    void updateTranslationGesture(Vec3d delta) {
+        if (!animationGesture || editingBoneTrack == null || animationBaseTranslation == null) return;
+        Vector3f value = translate(animationBaseTranslation, delta);
+        editingBoneTrack.translation().put(animationKeyTime, value,
+                ActorAnimationAuthoringSettings.getInstance().getInterpolation());
+        applyLiveRigTranslation(value);
+        TimelineModel model = resolveModel();
+        if (model != null) model.markDirty();
     }
 
     void updateRotationGesture(Axis axis, float angleRadians) {
@@ -218,8 +250,17 @@ public final class ActorBoneGizmoController {
         animationKeyTime = Math.min(editingAsset.duration(),
                 Math.max(0f, (timelineTime - editingAnimationClip.getStartTime()) * speed));
         editingBoneTrack = editingAsset.getOrCreateBoneTrack(boneId);
-        beforeRotationKey = editingBoneTrack.rotation().findAt(animationKeyTime).orElse(null);
-        animationBaseRotation = resolveAnimationBaseRotation(editingAsset, animationKeyTime);
+        if (activeBoneMode == GizmoMode.TRANSLATE) {
+            beforeTranslationKey = editingBoneTrack.translation().findAt(animationKeyTime).orElse(null);
+            animationBaseTranslation = resolveAnimationBaseTranslation(editingAsset, animationKeyTime);
+            if (ActorPreviewManager.getInstance().getPreview(actorId) instanceof PreviewActorEntity preview) {
+                animationActorBasePosition = new Vec3d(preview.getX(), preview.getY(), preview.getZ()).subtract(
+                        animationBaseTranslation.x, animationBaseTranslation.y, animationBaseTranslation.z);
+            }
+        } else {
+            beforeRotationKey = editingBoneTrack.rotation().findAt(animationKeyTime).orElse(null);
+            animationBaseRotation = resolveAnimationBaseRotation(editingAsset, animationKeyTime);
+        }
         animationGesture = true;
         dragging = true;
         model.markDirty();
@@ -234,6 +275,17 @@ public final class ActorBoneGizmoController {
             if (pose != null && pose.rig().id().equals(asset.rigId())) return pose.localTransform(boneId).rotation();
         }
         return asset.rig().bone(asset.rig().requireBoneIndex(boneId)).restLocal().rotation();
+    }
+
+    private Vector3f resolveAnimationBaseTranslation(AnimationAsset asset, float keyTime) {
+        if (asset.findBoneTrack(boneId).filter(track -> !track.translation().isEmpty()).isPresent()) {
+            return asset.sample(keyTime, AnimationLoopMode.ONCE).localTransform(boneId).translation();
+        }
+        if (ActorPreviewManager.getInstance().getPreview(actorId) instanceof PreviewActorEntity preview) {
+            RigPose pose = preview.getFinalRigPose();
+            if (pose != null && pose.rig().id().equals(asset.rigId())) return pose.localTransform(boneId).translation();
+        }
+        return asset.rig().bone(asset.rig().requireBoneIndex(boneId)).restLocal().translation();
     }
 
     private void updateAnimationGesture(Axis axis, float angleRadians) {
@@ -254,6 +306,10 @@ public final class ActorBoneGizmoController {
         };
     }
 
+    static Vector3f translate(Vector3f base, Vec3d delta) {
+        return new Vector3f(base).add((float) delta.x, (float) delta.y, (float) delta.z);
+    }
+
     private void applyLiveRigPreview(Quaternionf rotation) {
         if (!(ActorPreviewManager.getInstance().getPreview(actorId) instanceof PreviewActorEntity preview)) return;
         RigPose pose = preview.getFinalRigPose();
@@ -263,6 +319,20 @@ public final class ActorBoneGizmoController {
         preview.setFinalRigPose(pose);
     }
 
+    private void applyLiveRigTranslation(Vector3f translation) {
+        if (!(ActorPreviewManager.getInstance().getPreview(actorId) instanceof PreviewActorEntity preview)) return;
+        RigPose pose = preview.getFinalRigPose();
+        if (pose == null || !pose.rig().id().equals(editingAsset.rigId())) pose = editingAsset.sample(animationKeyTime, AnimationLoopMode.ONCE);
+        BoneTransform current = pose.localTransform(boneId);
+        pose.setLocalTransform(boneId, new BoneTransform(translation, current.rotation(), current.scale()));
+        preview.setFinalRigPose(pose);
+        if ("root".equals(boneId) && animationActorBasePosition != null) {
+            Vec3d target = animationActorBasePosition.add(translation.x, translation.y, translation.z);
+            preview.refreshPositionAndAngles(target.x, target.y, target.z, preview.getYaw(), preview.getPitch());
+            GizmoManager.get().setPivot(target);
+        }
+    }
+
     private void registerAnimationUndo(TimelineModel model) {
         AnimationAsset asset = editingAsset;
         BoneTrack boneTrack = editingBoneTrack;
@@ -270,12 +340,15 @@ public final class ActorBoneGizmoController {
         EntityTimelineClip wrapper = clip == null ? null : clip.getTimelineClip();
         ChannelKeyframe<Quaternionf> before = beforeRotationKey;
         ChannelKeyframe<Quaternionf> after = boneTrack.rotation().findAt(animationKeyTime).orElse(null);
+        ChannelKeyframe<Vector3f> beforeTranslation = beforeTranslationKey;
+        ChannelKeyframe<Vector3f> afterTranslation = boneTrack.translation().findAt(animationKeyTime).orElse(null);
+        boolean translating = animationBaseTranslation != null;
         float keyTime = animationKeyTime;
         boolean addAsset = createdAsset;
         boolean addClip = createdAnimationClip;
         ActorTrack targetActorTrack = actorTrack;
         TimelineTrack targetTimelineTrack = timelineTrack;
-        if (after == null) {
+        if ((!translating && after == null) || (translating && afterTranslation == null)) {
             if (addClip && clip != null) {
                 targetActorTrack.removeClip(clip.getId());
                 if (targetTimelineTrack != null && wrapper != null) targetTimelineTrack.removeClip(wrapper);
@@ -286,7 +359,10 @@ public final class ActorBoneGizmoController {
         }
         TimelineCommandBridge.execute(new StateChangeCommand(model, "Keyframe actor bone",
                 () -> {
-                    if (before == null) boneTrack.rotation().removeAt(keyTime);
+                    if (translating) {
+                        if (beforeTranslation == null) boneTrack.translation().removeAt(keyTime);
+                        else boneTrack.translation().put(beforeTranslation.time(), beforeTranslation.value(), beforeTranslation.interpolation());
+                    } else if (before == null) boneTrack.rotation().removeAt(keyTime);
                     else boneTrack.rotation().put(before.time(), before.value(), before.interpolation());
                     if (addClip && clip != null) {
                         targetActorTrack.removeClip(clip.getId());
@@ -300,7 +376,8 @@ public final class ActorBoneGizmoController {
                         targetActorTrack.addClip(clip);
                         if (targetTimelineTrack != null && wrapper != null && !targetTimelineTrack.getClips().contains(wrapper)) targetTimelineTrack.addClip(wrapper);
                     }
-                    boneTrack.rotation().put(after.time(), after.value(), after.interpolation());
+                    if (translating) boneTrack.translation().put(afterTranslation.time(), afterTranslation.value(), afterTranslation.interpolation());
+                    else boneTrack.rotation().put(after.time(), after.value(), after.interpolation());
                 }));
     }
 
@@ -311,7 +388,10 @@ public final class ActorBoneGizmoController {
         editingBoneTrack = null;
         editingAnimationClip = null;
         beforeRotationKey = null;
+        beforeTranslationKey = null;
         animationBaseRotation = null;
+        animationBaseTranslation = null;
+        animationActorBasePosition = null;
         createdAsset = false;
         createdAnimationClip = false;
         animationKeyTime = 0f;

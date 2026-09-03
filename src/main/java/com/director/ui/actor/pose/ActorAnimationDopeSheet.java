@@ -64,6 +64,19 @@ public final class ActorAnimationDopeSheet {
         renderCanvas(model, clip, asset);
 
         for (Map.Entry<String, BoneTrack> entry : asset.boneTracks().entrySet()) {
+            if (entry.getValue().translation().isEmpty()) continue;
+            if (ImGui.treeNode(Icons.MOVE + " " + entry.getKey() + " · 位移##dopeTranslation:" + asset.id())) {
+                for (var frame : entry.getValue().translation().keyframes()) {
+                    if (ImGui.selectable(String.format("%s %.3fs  [%s]##dopeTranslation:%s:%s:%f",
+                            Icons.KEYFRAME, frame.time(), frame.interpolation(), asset.id(), entry.getKey(), frame.time()), false)) {
+                        model.setCurrentTime(toTimelineTime(clip, frame.time()));
+                    }
+                }
+                ImGui.treePop();
+            }
+        }
+
+        for (Map.Entry<String, BoneTrack> entry : asset.boneTracks().entrySet()) {
             if (entry.getValue().rotation().isEmpty()) continue;
             String boneId = entry.getKey();
             if (ImGui.treeNode(boneId + "##dopeBone:" + asset.id())) {

@@ -59,6 +59,7 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
     private final ImString animationAssetId = new ImString("project:actor_animation", 128);
     private final ImInt animationInterpolation = new ImInt(2);
     private final ImFloat animationAssetDuration = new ImFloat(5f);
+    private final ImInt animationBoneGizmoMode = new ImInt(0);
 
     @Override
     public Class<EditorTool> getTargetType() {
@@ -162,6 +163,15 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
             settings.setAutoKeyframe(animationAutoKeyframe.get());
         }
         if (ImGui.isItemHovered()) ImGui.setTooltip("开启后，骨骼 Gizmo 写入 AnimationAsset；关闭时写入快速姿态片段");
+
+        animationBoneGizmoMode.set(settings.getBoneGizmoMode() == com.director.client.gizmo.GizmoMode.TRANSLATE ? 1 : 0);
+        if (ImGui.combo("骨骼 Gizmo##actorBoneGizmoMode", animationBoneGizmoMode,
+                new String[]{"旋转", "位移（支持的骨骼）"})) {
+            settings.setBoneGizmoMode(animationBoneGizmoMode.get() == 1
+                    ? com.director.client.gizmo.GizmoMode.TRANSLATE
+                    : com.director.client.gizmo.GizmoMode.ROTATE);
+        }
+        if (ImGui.isItemHovered()) ImGui.setTooltip("位移关键帧目前用于支持该通道的骨骼；标准人形首先开放 Root");
 
         animationAssetId.set(settings.getAssetId());
         if (ImGui.inputText("动画资产 ID##actorAnimationAssetId", animationAssetId)) {

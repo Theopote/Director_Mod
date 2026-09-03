@@ -538,6 +538,7 @@ public final class ActorRuntimeController {
                     boolean boneDragging = com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().isDragging()
                             && actor.getActorId().equals(com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().getActorId());
                     if (!boneDragging) previewEntity.setFinalRigPose(finalRigPose);
+                    if (!boneDragging) applyRootAnimationOffset(previewEntity, finalRigPose);
                 }
                 rig.applyAction(actorRuntime, action, s.actionIntensity, deltaTime);
                 return;
@@ -605,6 +606,19 @@ public final class ActorRuntimeController {
                 pose.leftLegPitch = s.poseLeftLegPitch;
                 pose.rightLegPitch = s.poseRightLegPitch;
             }
+        }
+
+        private void applyRootAnimationOffset(Entity entity,
+                                              com.director.actor.rig.skeleton.RigPose pose) {
+            if (entity == null || pose == null) return;
+            org.joml.Vector3f offset = pose.localTransform(
+                    com.director.actor.rig.skeleton.HumanoidRig.ROOT).translation();
+            if (offset.lengthSquared() <= 1.0e-10f) return;
+            entity.refreshPositionAndAngles(
+                    entity.getX() + offset.x,
+                    entity.getY() + offset.y,
+                    entity.getZ() + offset.z,
+                    entity.getYaw(), entity.getPitch());
         }
 
         private void applyRigPoseOverrides(com.director.actor.rig.skeleton.RigPose pose, EntitySample s) {
