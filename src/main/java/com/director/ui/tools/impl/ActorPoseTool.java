@@ -4,6 +4,7 @@ import com.director.ui.actor.gizmo.ActorGizmoController;
 import com.director.ui.actor.lookat.ActorLookAtGizmoController;
 import com.director.ui.actor.selection.ActorSelectionHub;
 import com.director.ui.actor.pose.ActorBoneSelectionController;
+import com.director.ui.actor.pose.ActorBoneGizmoController;
 import com.director.ui.theme.Icons;
 import com.director.ui.tools.ToolLifecycle;
 
@@ -27,6 +28,7 @@ public final class ActorPoseTool extends AbstractActorTool implements ToolLifecy
 
     @Override
     public void onDeactivate() {
+        ActorBoneGizmoController.getInstance().deactivate();
         ActorBoneSelectionController.getInstance().deactivate();
     }
 }

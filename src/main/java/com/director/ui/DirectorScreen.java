@@ -913,6 +913,9 @@ public class DirectorScreen extends Screen {
         // ⭐ Actor Gizmo：跟随预览实体并确保 TransformApplier 就绪（须在交互 tick 之前，且在相机路径之后）
         com.director.ui.actor.gizmo.ActorGizmoController.getInstance().update();
 
+        // ⭐ Actor Bone Gizmo：Pose 工具下跟随选中骨骼并接管旋转环
+        com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().update();
+
         // ⭐ Gizmo 交互（平移/旋转手柄拖拽）
         com.director.client.gizmo.GizmoRenderEvents.tickInteraction();
 

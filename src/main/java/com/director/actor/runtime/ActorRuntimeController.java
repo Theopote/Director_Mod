@@ -541,7 +541,11 @@ public final class ActorRuntimeController {
             // 6️⃣ 将最终姿态传递给 PreviewEntity（供 Renderer 使用）
             Entity entity = ActorPreviewManager.getInstance().getPreview(actor.getActorId());
             if (entity instanceof com.director.actor.preview.PreviewActorEntity previewEntity) {
-                previewEntity.setFinalPose(finalPose);
+                boolean boneDragging = com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().isDragging()
+                        && actor.getActorId().equals(com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().getActorId());
+                if (!boneDragging) {
+                    previewEntity.setFinalPose(finalPose);
+                }
             }
 
             // 同时保留原有的 applyAction 调用（向后兼容）

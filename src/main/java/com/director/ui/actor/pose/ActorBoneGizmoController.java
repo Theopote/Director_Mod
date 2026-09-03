@@ -1,0 +1,258 @@
+package com.director.ui.actor.pose;
+
+import com.director.actor.ActorRef;
+import com.director.actor.preview.ActorPreviewManager;
+import com.director.actor.preview.PreviewActorEntity;
+import com.director.actor.rig.Pose;
+import com.director.actor.rig.skeleton.RigWorldPose;
+import com.director.client.gizmo.Axis;
+import com.director.client.gizmo.GizmoManager;
+import com.director.client.gizmo.GizmoMode;
+import com.director.client.gizmo.GizmoType;
+import com.director.core.DirectorServices;
+import com.director.timeline.model.TimelineModel;
+import com.director.timeline.model.TimelineTrack;
+import com.director.timeline.model.TrackType;
+import com.director.timeline.model.entity.ActorPoseClip;
+import com.director.timeline.model.entity.ActorTrack;
+import com.director.timeline.model.entity.EntityClip;
+import com.director.timeline.model.entity.EntityTimelineClip;
+import com.director.ui.timeline.commands.StateChangeCommand;
+import com.director.ui.timeline.commands.TimelineCommandBridge;
+import net.minecraft.util.math.Box;
+import net.minecraft.util.math.Vec3d;
+import org.joml.Vector3f;
+
+import java.util.EnumMap;
+import java.util.Objects;
+import java.util.UUID;
+
+/** Owns the rotation Gizmo and one undo transaction for humanoid bone editing. */
+public final class ActorBoneGizmoController {
+    private static final ActorBoneGizmoController INSTANCE = new ActorBoneGizmoController();
+    private static final float DEFAULT_CLIP_DURATION = 1f;
+    private static final double PIVOT_EPSILON_SQ = 1.0e-8;
+
+    private boolean ownsGizmo;
+    private boolean dragging;
+    private UUID actorId;
+    private String boneId;
+    private Vec3d lastPivot;
+    private ActorTrack actorTrack;
+    private TimelineTrack timelineTrack;
+    private ActorPoseClip editingClip;
+    private PoseClipState beforeState;
+    private boolean createdClip;
+    private final EnumMap<Axis, Float> baseAngles = new EnumMap<>(Axis.class);
+
+    private ActorBoneGizmoController() {}
+    public static ActorBoneGizmoController getInstance() { return INSTANCE; }
+    public boolean isDragging() { return dragging; }
+    public UUID getActorId() { return actorId; }
+
+    public void update() {
+        ActorBoneSelectionController selection = ActorBoneSelectionController.getInstance();
+        if (!selection.isActive() || selection.getActorId() == null || selection.getSelectedBoneId() == null) {
+            deactivateOwnedGizmo();
+            resetTarget();
+            return;
+        }
+        UUID selectedActor = selection.getActorId();
+        String selectedBone = selection.getSelectedBoneId();
+        if (!Objects.equals(actorId, selectedActor)) {
+            actorId = selectedActor;
+            resolveTrack();
+        }
+        boneId = selectedBone;
+        if ("root".equals(boneId)) {
+            deactivateOwnedGizmo();
+            return;
+        }
+        RigWorldPose worldPose = ActorBoneWorldQuery.resolve(actorId);
+        if (worldPose == null) {
+            deactivateOwnedGizmo();
+            return;
+        }
+        Vector3f p = worldPose.position(boneId);
+        Vec3d pivot = new Vec3d(p.x, p.y, p.z);
+        configureGizmo(pivot);
+    }
+
+    private void configureGizmo(Vec3d pivot) {
+        if (dragging) return;
+        GizmoManager gm = GizmoManager.get();
+        boolean ours = gm.isActive() && gm.getType() == GizmoType.TRANSFORM
+                && gm.getController() != null
+                && gm.getController().getTransformApplier() instanceof ActorBoneTransformApplier;
+        if (!ours) {
+            if (gm.isActive()) gm.deactivate();
+            Box box = new Box(pivot.x - 0.06, pivot.y - 0.06, pivot.z - 0.06,
+                    pivot.x + 0.06, pivot.y + 0.06, pivot.z + 0.06);
+            gm.activate(GizmoType.TRANSFORM, box, pivot);
+            ownsGizmo = true;
+            gm.getContext().setMode(GizmoMode.ROTATE);
+            gm.getController().setTransformApplier(
+                    new ActorBoneTransformApplier(DirectorServices.get().selection(), this));
+            gm.ensureRotationHandlesForTransform();
+            lastPivot = pivot;
+            return;
+        }
+        ownsGizmo = true;
+        gm.getContext().setMode(GizmoMode.ROTATE);
+        if (lastPivot == null || lastPivot.squaredDistanceTo(pivot) > PIVOT_EPSILON_SQ) {
+            gm.setPivot(pivot);
+            gm.setTargetBox(new Box(pivot.x - 0.06, pivot.y - 0.06, pivot.z - 0.06,
+                    pivot.x + 0.06, pivot.y + 0.06, pivot.z + 0.06));
+            lastPivot = pivot;
+        }
+    }
+
+    void beginRotationGesture() {
+        if (actorId == null || boneId == null || "root".equals(boneId)) return;
+        if (actorTrack == null) resolveTrack();
+        TimelineModel model = resolveModel();
+        if (actorTrack == null || model == null) return;
+
+        float time = model.getCurrentTime();
+        editingClip = findActivePoseClip(actorTrack, time);
+        createdClip = editingClip == null;
+        if (createdClip) {
+            editingClip = new ActorPoseClip("Pose", time, time + DEFAULT_CLIP_DURATION);
+            seedFromPreview(editingClip);
+            actorTrack.addClip(editingClip);
+            if (timelineTrack != null) timelineTrack.addClip(new EntityTimelineClip(editingClip, actorTrack.getColorRgba()));
+            beforeState = null;
+        } else {
+            beforeState = PoseClipState.capture(editingClip);
+        }
+        BonePoseChannelMapper.enableOverride(editingClip, boneId);
+        baseAngles.clear();
+        for (Axis axis : Axis.values()) baseAngles.put(axis, BonePoseChannelMapper.read(editingClip, boneId, axis));
+        dragging = true;
+        model.markDirty();
+    }
+
+    void updateRotationGesture(Axis axis, float angleRadians) {
+        if (!dragging || editingClip == null || !BonePoseChannelMapper.isEditable(boneId, axis)) return;
+        float value = baseAngles.getOrDefault(axis, 0f) + angleRadians;
+        BonePoseChannelMapper.write(editingClip, boneId, axis, value);
+        applyLivePreview(axis, value);
+        TimelineModel model = resolveModel();
+        if (model != null) model.markDirty();
+    }
+
+    void endRotationGesture() {
+        if (!dragging) return;
+        TimelineModel model = resolveModel();
+        ActorPoseClip clip = editingClip;
+        if (model != null && clip != null) registerUndo(model, clip);
+        dragging = false;
+        editingClip = null;
+        beforeState = null;
+        createdClip = false;
+        baseAngles.clear();
+        lastPivot = null;
+    }
+
+    public void deactivate() {
+        if (dragging) endRotationGesture();
+        deactivateOwnedGizmo();
+        resetTarget();
+    }
+
+    private void seedFromPreview(ActorPoseClip clip) {
+        if (!(ActorPreviewManager.getInstance().getPreview(actorId) instanceof PreviewActorEntity preview)) return;
+        Pose pose = preview.getFinalPose();
+        if (pose == null) return;
+        PoseClipState.fromPose(pose).applyValues(clip);
+    }
+
+    private void applyLivePreview(Axis axis, float value) {
+        if (!(ActorPreviewManager.getInstance().getPreview(actorId) instanceof PreviewActorEntity preview)) return;
+        Pose current = preview.getFinalPose();
+        if (current == null) current = new Pose(); else current = current.copy();
+        BonePoseChannelMapper.write(current, boneId, axis, value);
+        preview.setFinalPose(current);
+    }
+
+    private void registerUndo(TimelineModel model, ActorPoseClip clip) {
+        PoseClipState after = PoseClipState.capture(clip);
+        if (createdClip) {
+            EntityTimelineClip wrapper = clip.getTimelineClip();
+            TimelineCommandBridge.execute(new StateChangeCommand(model, "Pose actor bone",
+                    () -> { actorTrack.removeClip(clip.getId()); if (timelineTrack != null && wrapper != null) timelineTrack.removeClip(wrapper); },
+                    () -> { if (!actorTrack.getClips().contains(clip)) actorTrack.addClip(clip); if (timelineTrack != null && wrapper != null && !timelineTrack.getClips().contains(wrapper)) timelineTrack.addClip(wrapper); after.apply(clip); }));
+        } else if (beforeState != null && !beforeState.equals(after)) {
+            PoseClipState before = beforeState;
+            TimelineCommandBridge.execute(new StateChangeCommand(model, "Pose actor bone",
+                    () -> before.apply(clip), () -> after.apply(clip)));
+        } else {
+            model.markDirty();
+        }
+    }
+
+    private static ActorPoseClip findActivePoseClip(ActorTrack track, float time) {
+        ActorPoseClip result = null;
+        for (EntityClip clip : track.getClips()) {
+            if (clip instanceof ActorPoseClip pose && !pose.isMuted()
+                    && time >= pose.getStartTime() && time <= pose.getEndTime()
+                    && (result == null || pose.getStartTime() >= result.getStartTime())) result = pose;
+        }
+        return result;
+    }
+
+    private void resolveTrack() {
+        actorTrack = null;
+        timelineTrack = null;
+        TimelineModel model = resolveModel();
+        if (model == null || actorId == null) return;
+        for (TimelineTrack track : model.getTracks()) {
+            if (track == null || track.getType() != TrackType.ACTOR) continue;
+            ActorTrack candidate = track.getActorTrackPayload();
+            ActorRef ref = candidate == null ? null : candidate.getActorRef();
+            if (ref != null && Objects.equals(actorId, ref.getActorId())) {
+                actorTrack = candidate;
+                timelineTrack = track;
+                return;
+            }
+        }
+    }
+
+    private static TimelineModel resolveModel() {
+        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
+        return model != null ? model : com.director.ui.timeline.playback.PlaybackOrchestrator.get().getBoundModel();
+    }
+
+    private void deactivateOwnedGizmo() {
+        GizmoManager gm = GizmoManager.get();
+        if (ownsGizmo && gm.isActive() && gm.getController() != null
+                && gm.getController().getTransformApplier() instanceof ActorBoneTransformApplier) gm.deactivate();
+        ownsGizmo = false;
+        lastPivot = null;
+    }
+
+    private void resetTarget() { actorId = null; boneId = null; actorTrack = null; timelineTrack = null; }
+
+    private record PoseClipState(boolean body, boolean head, boolean arms, boolean legs,
+            float bp, float by, float br, float hp, float hy,
+            float lap, float lay, float lar, float rap, float ray, float rar, float llp, float rlp) {
+        static PoseClipState capture(ActorPoseClip c) {
+            return new PoseClipState(c.isOverrideBody(), c.isOverrideHead(), c.isOverrideArms(), c.isOverrideLegs(),
+                    c.getBodyPitch(), c.getBodyYaw(), c.getBodyRoll(), c.getHeadPitch(), c.getHeadYaw(),
+                    c.getLeftArmPitch(), c.getLeftArmYaw(), c.getLeftArmRoll(), c.getRightArmPitch(),
+                    c.getRightArmYaw(), c.getRightArmRoll(), c.getLeftLegPitch(), c.getRightLegPitch());
+        }
+        static PoseClipState fromPose(Pose p) {
+            return new PoseClipState(false, false, false, false, p.bodyPitch, p.bodyYaw, p.bodyRoll,
+                    p.headPitch, p.headYaw, p.leftArmPitch, p.leftArmYaw, p.leftArmRoll,
+                    p.rightArmPitch, p.rightArmYaw, p.rightArmRoll, p.leftLegPitch, p.rightLegPitch);
+        }
+        void apply(ActorPoseClip c) { c.setOverrideBody(body); c.setOverrideHead(head); c.setOverrideArms(arms); c.setOverrideLegs(legs); applyValues(c); }
+        void applyValues(ActorPoseClip c) {
+            c.setBodyPitch(bp); c.setBodyYaw(by); c.setBodyRoll(br); c.setHeadPitch(hp); c.setHeadYaw(hy);
+            c.setLeftArmPitch(lap); c.setLeftArmYaw(lay); c.setLeftArmRoll(lar);
+            c.setRightArmPitch(rap); c.setRightArmYaw(ray); c.setRightArmRoll(rar);
+            c.setLeftLegPitch(llp); c.setRightLegPitch(rlp);
+        }
+    }
+}
