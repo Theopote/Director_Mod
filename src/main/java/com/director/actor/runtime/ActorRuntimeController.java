@@ -520,6 +520,29 @@ public final class ActorRuntimeController {
                     actorRuntime.getTime()
             );
 
+            // 新一代逐骨骼动画资产。存在同 ID 资产时优先使用；旧 AnimationLibrary 继续作为回退。
+            var rigAsset = com.director.actor.animation.asset.AnimationAssetLibrary.getInstance()
+                    .find(s.animationId)
+                    .filter(asset -> com.director.actor.rig.skeleton.HumanoidRig.DEFINITION.id().equals(asset.rigId()));
+            if (rigAsset.isPresent()) {
+                var asset = rigAsset.get();
+                var playbackMode = s.animationLoop ? asset.loopMode()
+                        : com.director.actor.animation.asset.AnimationLoopMode.ONCE;
+                com.director.actor.rig.skeleton.RigPose finalRigPose =
+                        com.director.actor.rig.skeleton.LegacyHumanoidPoseAdapter.convert(rigPose.pose)
+                                .overlay(asset.sample(s.animationLocalTime * Math.max(0.01f, s.animationSpeed), playbackMode));
+                applyRigPoseOverrides(finalRigPose, s);
+                applyPoseToRuntime(rigPose.pose);
+                Entity preview = ActorPreviewManager.getInstance().getPreview(actor.getActorId());
+                if (preview instanceof com.director.actor.preview.PreviewActorEntity previewEntity) {
+                    boolean boneDragging = com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().isDragging()
+                            && actor.getActorId().equals(com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().getActorId());
+                    if (!boneDragging) previewEntity.setFinalRigPose(finalRigPose);
+                }
+                rig.applyAction(actorRuntime, action, s.actionIntensity, deltaTime);
+                return;
+            }
+
             // 3️⃣ Animation pose（明确动画，可能为 null）
             AnimationPoseResult animPose = getAnimationPose(s, deltaTime);
 
@@ -582,6 +605,31 @@ public final class ActorRuntimeController {
                 pose.leftLegPitch = s.poseLeftLegPitch;
                 pose.rightLegPitch = s.poseRightLegPitch;
             }
+        }
+
+        private void applyRigPoseOverrides(com.director.actor.rig.skeleton.RigPose pose, EntitySample s) {
+            if (pose == null || s == null || !s.poseOverrideEnabled) return;
+            if (s.poseOverrideBody) setRigRotation(pose, com.director.actor.rig.skeleton.HumanoidRig.BODY,
+                    s.poseBodyPitch, s.poseBodyYaw, s.poseBodyRoll);
+            if (s.poseOverrideHead) setRigRotation(pose, com.director.actor.rig.skeleton.HumanoidRig.HEAD,
+                    s.poseHeadPitch, s.poseHeadYaw, 0f);
+            if (s.poseOverrideArms) {
+                setRigRotation(pose, com.director.actor.rig.skeleton.HumanoidRig.LEFT_ARM,
+                        s.poseLeftArmPitch, s.poseLeftArmYaw, s.poseLeftArmRoll);
+                setRigRotation(pose, com.director.actor.rig.skeleton.HumanoidRig.RIGHT_ARM,
+                        s.poseRightArmPitch, s.poseRightArmYaw, s.poseRightArmRoll);
+            }
+            if (s.poseOverrideLegs) {
+                setRigRotation(pose, com.director.actor.rig.skeleton.HumanoidRig.LEFT_LEG, s.poseLeftLegPitch, 0f, 0f);
+                setRigRotation(pose, com.director.actor.rig.skeleton.HumanoidRig.RIGHT_LEG, s.poseRightLegPitch, 0f, 0f);
+            }
+        }
+
+        private void setRigRotation(com.director.actor.rig.skeleton.RigPose pose, String boneId,
+                                    float pitch, float yaw, float roll) {
+            var current = pose.localTransform(boneId);
+            pose.setLocalTransform(boneId, current.withRotation(
+                    new org.joml.Quaternionf().rotateXYZ(pitch, yaw, roll)));
         }
 
         /**

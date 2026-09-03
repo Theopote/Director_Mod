@@ -193,6 +193,8 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         if (TimelineModelPersistence.hasSavedData()) {
             TimelineModelPersistence.loadFromFile(this, this.viewportState);
         }
+        com.director.actor.animation.asset.AnimationAssetPersistence.loadFromWorld(
+                com.director.actor.animation.asset.AnimationAssetLibrary.getInstance());
         // 如果没有保存的数据，轨道列表已初始化为空，时间线为空
     }
     
@@ -208,8 +210,10 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
 
         boolean timelineOk = TimelineModelPersistence.saveToFile(this, viewportState);
         boolean actorOk = com.director.actor.ActorRegistryManager.save();
+        boolean animationAssetOk = com.director.actor.animation.asset.AnimationAssetPersistence.saveToWorld(
+                com.director.actor.animation.asset.AnimationAssetLibrary.getInstance());
         PersistenceSaveStatus.reportTimelineResult(timelineOk);
-        return timelineOk && actorOk;
+        return timelineOk && actorOk && animationAssetOk;
     }
 
     /**
@@ -250,6 +254,8 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         com.director.actor.ActorRegistry registry = 
             com.director.actor.ActorRegistryManager.getInstance();
         com.director.actor.persistence.ActorRegistryPersistence.loadFromFile(registry);
+        com.director.actor.animation.asset.AnimationAssetPersistence.loadFromWorld(
+                com.director.actor.animation.asset.AnimationAssetLibrary.getInstance());
     }
 
     /**
@@ -280,6 +286,11 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         } catch (Exception e) {
             LOGGER.error("[TimelineModel] 切档重载 ActorPathLibrary 失败", e);
         }
+
+        com.director.actor.animation.asset.AnimationAssetLibrary assets =
+                com.director.actor.animation.asset.AnimationAssetLibrary.getInstance();
+        assets.clear();
+        com.director.actor.animation.asset.AnimationAssetPersistence.loadFromWorld(assets);
     }
 
     /**
@@ -302,6 +313,7 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         tracks.clear();
         markers.clear();
         selectedItems.clear();
+        com.director.actor.animation.asset.AnimationAssetLibrary.getInstance().clear();
         lastClickedItem = null;
         multiSelectMode = false;
 

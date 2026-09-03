@@ -60,6 +60,20 @@ public final class RigPose {
                 (BitSet) authoredBones.clone());
     }
 
+    /** Returns a copy with authored transforms from {@code higherLayer} replacing this pose. */
+    public RigPose overlay(RigPose higherLayer) {
+        Objects.requireNonNull(higherLayer, "higherLayer");
+        if (!rig.id().equals(higherLayer.rig.id()) || rig.boneCount() != higherLayer.rig.boneCount()) {
+            throw new IllegalArgumentException("Cannot blend poses from different rigs");
+        }
+        RigPose result = copy();
+        for (int i = higherLayer.authoredBones.nextSetBit(0); i >= 0;
+             i = higherLayer.authoredBones.nextSetBit(i + 1)) {
+            result.setLocalTransform(i, higherLayer.localTransforms[i]);
+        }
+        return result;
+    }
+
     /** Calculates one model-space matrix per bone, preserving definition order. */
     public Matrix4f[] calculateModelTransforms() {
         Matrix4f[] result = new Matrix4f[localTransforms.length];

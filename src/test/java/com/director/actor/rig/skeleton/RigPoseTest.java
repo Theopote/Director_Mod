@@ -47,4 +47,18 @@ class RigPoseTest {
         assertEquals(3.625f, head.y, 1.0e-5f);
         assertEquals(-3f, head.z, 1.0e-5f);
     }
+
+    @Test
+    void overlaysOnlyBonesAuthoredByHigherLayer() {
+        RigPose base = new RigPose(HumanoidRig.DEFINITION);
+        base.setLocalTransform(HumanoidRig.HEAD, BoneTransform.translation(1f, 2f, 3f));
+        RigPose animation = new RigPose(HumanoidRig.DEFINITION);
+        animation.setLocalTransform(HumanoidRig.LEFT_ARM, BoneTransform.translation(4f, 5f, 6f));
+
+        RigPose result = base.overlay(animation);
+
+        assertEquals(1f, result.localTransform(HumanoidRig.HEAD).translation().x, 1.0e-5f);
+        assertEquals(4f, result.localTransform(HumanoidRig.LEFT_ARM).translation().x, 1.0e-5f);
+        assertFalse(base.isAuthored(HumanoidRig.DEFINITION.requireBoneIndex(HumanoidRig.LEFT_ARM)));
+    }
 }

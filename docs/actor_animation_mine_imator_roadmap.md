@@ -12,7 +12,9 @@
 - Phase 1 已接入骨骼旋转 Gizmo、`ActorPoseClip` 自动创建/修改、实时预览和整次拖动撤销。
 - Phase 2 数据层已增加 `AnimationAsset`、稀疏 `BoneTrack` 和泛型 `KeyframeTrack`。
 - 新轨道支持 STEP、LINEAR、SMOOTH 与 Quaternion 最短路径插值，以及 ONCE、LOOP、PING_PONG 时间模式。
-- 当前 Gizmo 仍通过旧 Pose 通道写入；新资产的工程持久化、运行时片段引用和 Dope Sheet 尚未接入。
+- 动画资产已支持版本化 JSON、原子替换、`.bak` 恢复，并接入世界工程保存/切换生命周期。
+- `EntityAnimationClip` 已可通过 animationId 播放新资产，并保留旧 `AnimationLibrary` 回退。
+- 当前 Gizmo 仍通过旧 Pose 通道写入；新资产的可视化创建/编辑和 Dope Sheet 尚未接入。
 
 Director 有可能实现接近 Mine-imator 的角色摆姿和动画制作体验，但不应把目标理解为“一次性复制 Mine-imator 的全部能力”。更合理的目标是：
 

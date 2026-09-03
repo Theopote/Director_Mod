@@ -43,7 +43,11 @@ public final class AnimationAsset {
     public boolean removeBoneTrack(String boneId) { return boneTracks.remove(boneId) != null; }
 
     public RigPose sample(float timelineTime) {
-        float localTime = normalizeTime(timelineTime);
+        return sample(timelineTime, loopMode);
+    }
+
+    public RigPose sample(float timelineTime, AnimationLoopMode playbackMode) {
+        float localTime = normalizeTime(timelineTime, playbackMode);
         RigPose result = new RigPose(rig);
         for (Map.Entry<String, BoneTrack> entry : boneTracks.entrySet()) {
             if (entry.getValue().isEmpty()) continue;
@@ -55,9 +59,14 @@ public final class AnimationAsset {
     }
 
     public float normalizeTime(float time) {
+        return normalizeTime(time, loopMode);
+    }
+
+    public float normalizeTime(float time, AnimationLoopMode playbackMode) {
         float safe = Math.max(0f, time);
         if (duration <= 0f) return 0f;
-        return switch (loopMode) {
+        AnimationLoopMode mode = playbackMode == null ? loopMode : playbackMode;
+        return switch (mode) {
             case ONCE -> Math.min(safe, duration);
             case LOOP -> safe % duration;
             case PING_PONG -> {
