@@ -4,6 +4,8 @@ import com.director.actor.preview.ActorPreviewManager;
 import com.director.actor.preview.PreviewActorEntity;
 import com.director.actor.skin.ActorSkinTextureManager;
 import com.director.bridge.DirectorActorIdHolder;
+import com.director.bridge.DirectorActorScaleHolder;
+import com.director.actor.rig.skeleton.HumanoidRig;
 import net.minecraft.client.render.entity.ArmorStandEntityRenderer;
 import net.minecraft.client.render.entity.state.ArmorStandEntityRenderState;
 import net.minecraft.entity.decoration.ArmorStandEntity;
@@ -35,6 +37,14 @@ public abstract class ArmorStandRendererMixin {
                 holder.director$setActorId(null);
             }
         }
+        if (state instanceof DirectorActorScaleHolder scaleHolder) {
+            if (entity instanceof PreviewActorEntity preview && preview.getFinalRigPose() != null) {
+                var scale = preview.getFinalRigPose().localTransform(HumanoidRig.ROOT).scale();
+                scaleHolder.director$setActorScale(scale.x, scale.y, scale.z);
+            } else {
+                scaleHolder.director$setActorScale(1f, 1f, 1f);
+            }
+        }
     }
 
     @Inject(method = "getTexture(Lnet/minecraft/client/render/entity/state/ArmorStandEntityRenderState;)Lnet/minecraft/util/Identifier;",
@@ -54,4 +64,3 @@ public abstract class ArmorStandRendererMixin {
         }
     }
 }
-

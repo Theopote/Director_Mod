@@ -1,6 +1,7 @@
 package com.director.mixin;
 
 import com.director.bridge.DirectorActorIdHolder;
+import com.director.bridge.DirectorActorScaleHolder;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 
@@ -12,10 +13,13 @@ import java.util.UUID;
  * 供后续 getTexture() 覆盖使用。
  */
 @Mixin(net.minecraft.client.render.entity.state.ArmorStandEntityRenderState.class)
-public abstract class ArmorStandEntityRenderStateMixin implements DirectorActorIdHolder {
+public abstract class ArmorStandEntityRenderStateMixin implements DirectorActorIdHolder, DirectorActorScaleHolder {
 
     @Unique
     private UUID director$actorId;
+    @Unique private float director$scaleX = 1f;
+    @Unique private float director$scaleY = 1f;
+    @Unique private float director$scaleZ = 1f;
 
     @Override
     public UUID director$getActorId() {
@@ -27,5 +31,11 @@ public abstract class ArmorStandEntityRenderStateMixin implements DirectorActorI
         this.director$actorId = actorId;
     }
 
-}
+    @Override public void director$setActorScale(float x, float y, float z) {
+        director$scaleX = x; director$scaleY = y; director$scaleZ = z;
+    }
+    @Override public float director$getActorScaleX() { return director$scaleX; }
+    @Override public float director$getActorScaleY() { return director$scaleY; }
+    @Override public float director$getActorScaleZ() { return director$scaleZ; }
 
+}

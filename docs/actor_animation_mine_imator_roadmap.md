@@ -22,7 +22,8 @@
 - 骨骼 Gizmo 已可切换旋转/位移模式；标准人形 Root 位移可写入 `BoneTrack.translation`，实时预览并作为时间线世界位置的动画偏移播放，整次拖动支持撤销/重做。
 - Dope Sheet 已将位移作为绿色 `T` 通道行纳入时间轴画布，支持定位、Ctrl 多选、框选、按帧拖拽、按钮移动、删除以及相对时间复制粘贴，操作均可撤销/重做。
 - 骨骼 Gizmo 已增加缩放模式；支持该能力的骨骼可写入 `BoneTrack.scale`，使用乘法缩放、正数下限保护和整次拖动撤销/重做，Dope Sheet 可列出并定位 `S` 关键帧。
-- ArmorStand 的逐骨骼网格缩放渲染绑定，以及 `S` 通道的画布批量编辑尚未接入。
+- Root Scale 已通过专用 RenderState 桥接到 `LivingEntityRenderer.scale` 的隔离矩阵作用域，支持非均匀 XYZ 视觉缩放，仅影响 Director 预览演员，不污染普通实体。
+- 非 Root 的逐部件网格缩放，以及 `S` 通道的画布批量编辑尚未接入。
 
 Director 有可能实现接近 Mine-imator 的角色摆姿和动画制作体验，但不应把目标理解为“一次性复制 Mine-imator 的全部能力”。更合理的目标是：
 

@@ -27,6 +27,7 @@
     "BiomeColorsMixin",
     "BackgroundRendererMixin",
     "LivingEntityRendererMixin",
+    "ActorScaleRendererMixin",
     "ArmorStandRendererMixin",
     "ArmorStandEntityRenderStateMixin",
     "accessor.GameRendererAccessor",
