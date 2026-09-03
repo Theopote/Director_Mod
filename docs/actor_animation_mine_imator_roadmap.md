@@ -10,7 +10,9 @@
 - 已贯通 `Pose -> RigPose -> ArmorStand` 的首条渲染链路。
 - Phase 1 已实现骨骼世界空间查询、鼠标射线拾取、选择状态和视口骨架高亮。
 - Phase 1 已接入骨骼旋转 Gizmo、`ActorPoseClip` 自动创建/修改、实时预览和整次拖动撤销。
-- 当前仍通过旧 Pose 通道写入；通用关键帧资产和 Dope Sheet 尚未开始。
+- Phase 2 数据层已增加 `AnimationAsset`、稀疏 `BoneTrack` 和泛型 `KeyframeTrack`。
+- 新轨道支持 STEP、LINEAR、SMOOTH 与 Quaternion 最短路径插值，以及 ONCE、LOOP、PING_PONG 时间模式。
+- 当前 Gizmo 仍通过旧 Pose 通道写入；新资产的工程持久化、运行时片段引用和 Dope Sheet 尚未接入。
 
 Director 有可能实现接近 Mine-imator 的角色摆姿和动画制作体验，但不应把目标理解为“一次性复制 Mine-imator 的全部能力”。更合理的目标是：
 
