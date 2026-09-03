@@ -31,7 +31,7 @@ public final class HumanoidArmorStandRigBinding {
 
     private static EulerAngle toEuler(RigPose pose, String boneId) {
         Quaternionf rotation = pose.localTransform(boneId).rotation();
-        Vector3f radians = rotation.getEulerAnglesXYZ(new Vector3f());
+        Vector3f radians = ArmorStandEulerAngles.fromQuaternion(rotation);
         return new EulerAngle(
                 (float) Math.toDegrees(radians.x),
                 (float) Math.toDegrees(radians.y),

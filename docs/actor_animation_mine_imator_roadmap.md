@@ -25,6 +25,7 @@
 - Root Scale 已通过专用 RenderState 桥接到 `LivingEntityRenderer.scale` 的隔离矩阵作用域，支持非均匀 XYZ 视觉缩放，仅影响 Director 预览演员，不污染普通实体。
 - Dope Sheet 已将缩放作为紫色 `S` 通道行纳入统一画布，支持定位、选择/框选、按帧拖动、按钮移动、删除、相对时间复制粘贴、目标冲突保护和单事务撤销/重做。
 - 人形非 Root 骨骼已通过 `ModelPart` 的独立 XYZ scale 接入逐部件视觉缩放；头部同步缩放帽层，写入发生在原版姿态重置之后，并且仅从 Director 预览演员的 RenderState 取值。
+- ArmorStand 姿态桥接使用与 `ModelPart.rotationZYX(roll, yaw, pitch)` 严格配对的 ZYX 欧拉角分解，并有多轴复合旋转四元数往返测试，避免 Gizmo 多轴旋转在渲染端发生朝向偏差。
 
 Director 有可能实现接近 Mine-imator 的角色摆姿和动画制作体验，但不应把目标理解为“一次性复制 Mine-imator 的全部能力”。更合理的目标是：
 
