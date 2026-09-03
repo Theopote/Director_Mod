@@ -25,6 +25,8 @@ public class EntityAnimationClip extends EntityClip {
 
     public enum AnimationSource {
         BUILT_IN,
+        /** 仅为旧存档兼容保留；当前版本没有原版动画导入器。 */
+        @Deprecated
         VANILLA,
         /** 仅为旧存档兼容保留；当前版本没有 GeckoLib 运行时。 */
         @Deprecated GECKOLIB,

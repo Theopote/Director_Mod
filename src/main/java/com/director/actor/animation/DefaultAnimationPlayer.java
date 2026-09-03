@@ -191,7 +191,13 @@ public class DefaultAnimationPlayer implements AnimationPlayer {
      */
     public void setCurrentTime(float time) {
         if (currentAnimation != null) {
-            this.currentTime = Math.max(0f, Math.min(time, currentAnimation.getDuration()));
+            float duration = currentAnimation.getDuration();
+            float safeTime = Math.max(0f, time);
+            if (loop && duration > 0f) {
+                this.currentTime = safeTime % duration;
+            } else {
+                this.currentTime = Math.min(safeTime, duration);
+            }
         }
     }
 }

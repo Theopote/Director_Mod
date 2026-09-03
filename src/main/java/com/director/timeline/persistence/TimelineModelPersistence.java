@@ -258,6 +258,8 @@ public class TimelineModelPersistence {
         public Float poseBodyPitch, poseBodyYaw, poseBodyRoll;
         public Float poseHeadPitch, poseHeadYaw;
         public Float poseLeftArmPitch, poseRightArmPitch;
+        public Float poseLeftArmYaw, poseLeftArmRoll;
+        public Float poseRightArmYaw, poseRightArmRoll;
         public Float poseLeftLegPitch, poseRightLegPitch;
 
         // ===== ActorRouteClip =====
@@ -874,7 +876,11 @@ public class TimelineModelPersistence {
                             cdto.poseHeadPitch = pc.getHeadPitch();
                             cdto.poseHeadYaw = pc.getHeadYaw();
                             cdto.poseLeftArmPitch = pc.getLeftArmPitch();
+                            cdto.poseLeftArmYaw = pc.getLeftArmYaw();
+                            cdto.poseLeftArmRoll = pc.getLeftArmRoll();
                             cdto.poseRightArmPitch = pc.getRightArmPitch();
+                            cdto.poseRightArmYaw = pc.getRightArmYaw();
+                            cdto.poseRightArmRoll = pc.getRightArmRoll();
                             cdto.poseLeftLegPitch = pc.getLeftLegPitch();
                             cdto.poseRightLegPitch = pc.getRightLegPitch();
                         }
@@ -1479,7 +1485,11 @@ public class TimelineModelPersistence {
                                         if (cdto.poseHeadPitch != null) pc.setHeadPitch(cdto.poseHeadPitch);
                                         if (cdto.poseHeadYaw != null) pc.setHeadYaw(cdto.poseHeadYaw);
                                         if (cdto.poseLeftArmPitch != null) pc.setLeftArmPitch(cdto.poseLeftArmPitch);
+                                        if (cdto.poseLeftArmYaw != null) pc.setLeftArmYaw(cdto.poseLeftArmYaw);
+                                        if (cdto.poseLeftArmRoll != null) pc.setLeftArmRoll(cdto.poseLeftArmRoll);
                                         if (cdto.poseRightArmPitch != null) pc.setRightArmPitch(cdto.poseRightArmPitch);
+                                        if (cdto.poseRightArmYaw != null) pc.setRightArmYaw(cdto.poseRightArmYaw);
+                                        if (cdto.poseRightArmRoll != null) pc.setRightArmRoll(cdto.poseRightArmRoll);
                                         if (cdto.poseLeftLegPitch != null) pc.setLeftLegPitch(cdto.poseLeftLegPitch);
                                         if (cdto.poseRightLegPitch != null) pc.setRightLegPitch(cdto.poseRightLegPitch);
                                     }

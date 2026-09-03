@@ -88,10 +88,20 @@ public final class ActorPoseClipPropertyAdapter implements IPropertyAdapter<Acto
         if (clip.isOverrideArms() && ImGui.collapsingHeader(Icons.HAND + " "
                 + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.SECTION_ARMS),
                 ImGuiTreeNodeFlags.DefaultOpen)) {
-            changed |= radSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.LEFT_ARM) + "##poseLeftArm",
+            String leftArm = ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.LEFT_ARM);
+            String rightArm = ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.RIGHT_ARM);
+            changed |= radSlider(leftArm + " Pitch##poseLeftArmPitch",
                     clip.getLeftArmPitch(), clip::setLeftArmPitch);
-            changed |= radSlider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Pose.RIGHT_ARM) + "##poseRightArm",
+            changed |= radSlider(leftArm + " Yaw##poseLeftArmYaw",
+                    clip.getLeftArmYaw(), clip::setLeftArmYaw);
+            changed |= radSlider(leftArm + " Roll##poseLeftArmRoll",
+                    clip.getLeftArmRoll(), clip::setLeftArmRoll);
+            changed |= radSlider(rightArm + " Pitch##poseRightArmPitch",
                     clip.getRightArmPitch(), clip::setRightArmPitch);
+            changed |= radSlider(rightArm + " Yaw##poseRightArmYaw",
+                    clip.getRightArmYaw(), clip::setRightArmYaw);
+            changed |= radSlider(rightArm + " Roll##poseRightArmRoll",
+                    clip.getRightArmRoll(), clip::setRightArmRoll);
         }
 
         if (clip.isOverrideLegs() && ImGui.collapsingHeader(Icons.MOVE + " "

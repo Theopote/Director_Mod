@@ -119,6 +119,13 @@ public class EntityClipSampler {
         List<ActorRouteClip> actorRouteClips = new ArrayList<>();
         List<ActorRelationClip> actorRelationClips = new ArrayList<>();
 
+        // PoseClip 需要轨道上下文来查找前一个目标姿态，不能只收集当前时刻覆盖的片段。
+        for (EntityClip clip : track.getClips()) {
+            if (clip instanceof ActorPoseClip poseClip && !poseClip.isMuted()) {
+                actorPoseClips.add(poseClip);
+            }
+        }
+
         for (EntityClip clip : clipsAtTime) {
             if (clip.isMuted()) {
                 continue; // 跳过静音的 clip
@@ -166,9 +173,7 @@ public class EntityClipSampler {
                     }
                     break;
                 case ACTOR_POSE:
-                    if (clip instanceof ActorPoseClip actorPoseClip) {
-                        actorPoseClips.add(actorPoseClip);
-                    }
+                    // 已在上方从完整轨道收集，避免丢失刚结束的前一姿态。
                     break;
                 case ACTOR_ROUTE:
                     if (clip instanceof ActorRouteClip actorRouteClip) {
@@ -438,6 +443,7 @@ public class EntityClipSampler {
         result.animationId = active.getAnimationId();
         result.animationLoop = active.isLoop();
         result.animationSpeed = active.getSpeed();
+        result.animationLocalTime = Math.max(0.0f, timeSeconds - active.getStartTime());
 
         // 处理 AnimationEvent（动画事件）
         if (active.hasEvents()) {
@@ -605,22 +611,26 @@ public class EntityClipSampler {
 
     private void applyActorPose(EntitySample result, List<ActorPoseClip> clips, float timeSeconds) {
         ActorPoseClip active = null;
-        ActorPoseClip previous = null;
         for (ActorPoseClip clip : clips) {
             if (clip.isMuted()) {
                 continue;
             }
             if (timeSeconds >= clip.getStartTime() && timeSeconds <= clip.getEndTime()) {
                 if (active == null || clip.getStartTime() > active.getStartTime()) {
-                    previous = active;
                     active = clip;
-                } else if (clip != active && (previous == null || clip.getStartTime() > previous.getStartTime())) {
-                    previous = clip;
                 }
             }
         }
         if (active == null) {
             return;
+        }
+
+        ActorPoseClip previous = null;
+        for (ActorPoseClip clip : clips) {
+            if (clip != active && !clip.isMuted() && clip.getStartTime() < active.getStartTime()
+                && (previous == null || clip.getStartTime() > previous.getStartTime())) {
+                previous = clip;
+            }
         }
 
         result.poseOverrideEnabled = true;
@@ -629,11 +639,10 @@ public class EntityClipSampler {
         result.poseOverrideArms = active.isOverrideArms();
         result.poseOverrideLegs = active.isOverrideLegs();
         float blend = 1f;
-        if (previous != null && previous.getStartTime() < active.getStartTime()) {
-            float overlapEnd = Math.min(previous.getEndTime(), active.getEndTime());
-            float overlap = overlapEnd - active.getStartTime();
-            if (overlap > 1.0e-5f) {
-                blend = clamp01((timeSeconds - active.getStartTime()) / overlap);
+        if (previous != null) {
+            float duration = active.getEndTime() - active.getStartTime();
+            if (duration > 1.0e-5f) {
+                blend = clamp01((timeSeconds - active.getStartTime()) / duration);
             }
         }
 
@@ -643,7 +652,11 @@ public class EntityClipSampler {
         result.poseHeadPitch = blend(previous != null && previous.isOverrideHead(), previous == null ? 0f : previous.getHeadPitch(), active.getHeadPitch(), blend);
         result.poseHeadYaw = blend(previous != null && previous.isOverrideHead(), previous == null ? 0f : previous.getHeadYaw(), active.getHeadYaw(), blend);
         result.poseLeftArmPitch = blend(previous != null && previous.isOverrideArms(), previous == null ? 0f : previous.getLeftArmPitch(), active.getLeftArmPitch(), blend);
+        result.poseLeftArmYaw = blend(previous != null && previous.isOverrideArms(), previous == null ? 0f : previous.getLeftArmYaw(), active.getLeftArmYaw(), blend);
+        result.poseLeftArmRoll = blend(previous != null && previous.isOverrideArms(), previous == null ? 0f : previous.getLeftArmRoll(), active.getLeftArmRoll(), blend);
         result.poseRightArmPitch = blend(previous != null && previous.isOverrideArms(), previous == null ? 0f : previous.getRightArmPitch(), active.getRightArmPitch(), blend);
+        result.poseRightArmYaw = blend(previous != null && previous.isOverrideArms(), previous == null ? 0f : previous.getRightArmYaw(), active.getRightArmYaw(), blend);
+        result.poseRightArmRoll = blend(previous != null && previous.isOverrideArms(), previous == null ? 0f : previous.getRightArmRoll(), active.getRightArmRoll(), blend);
         result.poseLeftLegPitch = blend(previous != null && previous.isOverrideLegs(), previous == null ? 0f : previous.getLeftLegPitch(), active.getLeftLegPitch(), blend);
         result.poseRightLegPitch = blend(previous != null && previous.isOverrideLegs(), previous == null ? 0f : previous.getRightLegPitch(), active.getRightLegPitch(), blend);
     }

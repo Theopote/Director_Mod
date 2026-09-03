@@ -57,7 +57,11 @@ public final class PoseBlender {
             result.headPitch = rig.pose.headPitch;
             result.headYaw = rig.pose.headYaw;
             result.leftArmPitch = rig.pose.leftArmPitch;
+            result.leftArmYaw = rig.pose.leftArmYaw;
+            result.leftArmRoll = rig.pose.leftArmRoll;
             result.rightArmPitch = rig.pose.rightArmPitch;
+            result.rightArmYaw = rig.pose.rightArmYaw;
+            result.rightArmRoll = rig.pose.rightArmRoll;
             result.leftLegPitch = rig.pose.leftLegPitch;
             result.rightLegPitch = rig.pose.rightLegPitch;
             return result;
@@ -76,7 +80,11 @@ public final class PoseBlender {
 
         // Arms
         result.leftArmPitch = anim.mask.arms ? anim.pose.leftArmPitch : rig.pose.leftArmPitch;
+        result.leftArmYaw = anim.mask.arms ? anim.pose.leftArmYaw : rig.pose.leftArmYaw;
+        result.leftArmRoll = anim.mask.arms ? anim.pose.leftArmRoll : rig.pose.leftArmRoll;
         result.rightArmPitch = anim.mask.arms ? anim.pose.rightArmPitch : rig.pose.rightArmPitch;
+        result.rightArmYaw = anim.mask.arms ? anim.pose.rightArmYaw : rig.pose.rightArmYaw;
+        result.rightArmRoll = anim.mask.arms ? anim.pose.rightArmRoll : rig.pose.rightArmRoll;
 
         // Legs
         result.leftLegPitch = anim.mask.legs ? anim.pose.leftLegPitch : rig.pose.leftLegPitch;

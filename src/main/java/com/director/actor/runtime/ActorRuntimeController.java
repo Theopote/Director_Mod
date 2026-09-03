@@ -568,7 +568,11 @@ public final class ActorRuntimeController {
             }
             if (s.poseOverrideArms) {
                 pose.leftArmPitch = s.poseLeftArmPitch;
+                pose.leftArmYaw = s.poseLeftArmYaw;
+                pose.leftArmRoll = s.poseLeftArmRoll;
                 pose.rightArmPitch = s.poseRightArmPitch;
+                pose.rightArmYaw = s.poseRightArmYaw;
+                pose.rightArmRoll = s.poseRightArmRoll;
             }
             if (s.poseOverrideLegs) {
                 pose.leftLegPitch = s.poseLeftLegPitch;
@@ -612,10 +616,9 @@ public final class ActorRuntimeController {
                 player.resume();
             }
 
-            float safeDelta = Math.max(0f, deltaTime);
-            if (safeDelta > 0f) {
-                player.update(safeDelta);
-            }
+            // 动画必须由时间轴决定，而不是依赖渲染帧累计 deltaTime；这样暂停、拖动和跳转
+            // 都能得到同一个确定姿态。
+            player.setCurrentTime(s.animationLocalTime * Math.max(0.01f, s.animationSpeed));
 
             return player.getCurrentPose();
         }

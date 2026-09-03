@@ -77,6 +77,9 @@ public class EntitySample {
     /** 动画速度（来自 EntityAnimationClip） */
     public float animationSpeed = 1.0f;
 
+    /** 当前片段内的本地时间（秒，尚未应用播放速度） */
+    public float animationLocalTime = 0.0f;
+
     // ========== ActorRelationClip 扩展字段 ==========
 
     /** 是否启用关系约束 */
@@ -152,6 +155,10 @@ public class EntitySample {
     public float poseHeadYaw = 0f;
     public float poseLeftArmPitch = 0f;
     public float poseRightArmPitch = 0f;
+    public float poseLeftArmYaw = 0f;
+    public float poseLeftArmRoll = 0f;
+    public float poseRightArmYaw = 0f;
+    public float poseRightArmRoll = 0f;
     public float poseLeftLegPitch = 0f;
     public float poseRightLegPitch = 0f;
 
@@ -264,6 +271,7 @@ public class EntitySample {
         animationSource = s.animationSource;
         animationLoop = s.animationLoop;
         animationSpeed = s.animationSpeed;
+        animationLocalTime = s.animationLocalTime;
         relationEnabled = s.relationEnabled;
         relationType = s.relationType;
         relationTargetActorId = s.relationTargetActorId;
@@ -300,6 +308,10 @@ public class EntitySample {
         poseHeadYaw = s.poseHeadYaw;
         poseLeftArmPitch = s.poseLeftArmPitch;
         poseRightArmPitch = s.poseRightArmPitch;
+        poseLeftArmYaw = s.poseLeftArmYaw;
+        poseLeftArmRoll = s.poseLeftArmRoll;
+        poseRightArmYaw = s.poseRightArmYaw;
+        poseRightArmRoll = s.poseRightArmRoll;
         poseLeftLegPitch = s.poseLeftLegPitch;
         poseRightLegPitch = s.poseRightLegPitch;
 

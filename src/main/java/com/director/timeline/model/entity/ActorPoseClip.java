@@ -5,8 +5,9 @@ package com.director.timeline.model.entity;
  *
  * <p>This is intentionally narrower than a full animation system: it stores
  * director-authored offsets for broad body regions, then the runtime applies
- * them after RigProfile has produced the semantic base pose. Overlapping pose
- * clips cross-fade in the overlap interval; isolated clips remain held poses.</p>
+ * them after RigProfile has produced the semantic base pose. A clip with a
+ * preceding pose transitions from that pose to its own target across its
+ * duration; the first pose on a track remains a held pose.</p>
  */
 public final class ActorPoseClip extends EntityClip {
     private boolean overrideBody = false;
@@ -20,7 +21,11 @@ public final class ActorPoseClip extends EntityClip {
     private float headPitch = 0f;
     private float headYaw = 0f;
     private float leftArmPitch = 0f;
+    private float leftArmYaw = 0f;
+    private float leftArmRoll = 0f;
     private float rightArmPitch = 0f;
+    private float rightArmYaw = 0f;
+    private float rightArmRoll = 0f;
     private float leftLegPitch = 0f;
     private float rightLegPitch = 0f;
 
@@ -118,6 +123,11 @@ public final class ActorPoseClip extends EntityClip {
         this.leftArmPitch = leftArmPitch;
     }
 
+    public float getLeftArmYaw() { return leftArmYaw; }
+    public void setLeftArmYaw(float value) { leftArmYaw = value; }
+    public float getLeftArmRoll() { return leftArmRoll; }
+    public void setLeftArmRoll(float value) { leftArmRoll = value; }
+
     public float getRightArmPitch() {
         return rightArmPitch;
     }
@@ -125,6 +135,11 @@ public final class ActorPoseClip extends EntityClip {
     public void setRightArmPitch(float rightArmPitch) {
         this.rightArmPitch = rightArmPitch;
     }
+
+    public float getRightArmYaw() { return rightArmYaw; }
+    public void setRightArmYaw(float value) { rightArmYaw = value; }
+    public float getRightArmRoll() { return rightArmRoll; }
+    public void setRightArmRoll(float value) { rightArmRoll = value; }
 
     public float getLeftLegPitch() {
         return leftLegPitch;

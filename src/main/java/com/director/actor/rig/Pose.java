@@ -35,9 +35,13 @@ public final class Pose {
 
     /** 左臂俯仰（弧度） */
     public float leftArmPitch = 0f;
+    public float leftArmYaw = 0f;
+    public float leftArmRoll = 0f;
 
     /** 右臂俯仰（弧度） */
     public float rightArmPitch = 0f;
+    public float rightArmYaw = 0f;
+    public float rightArmRoll = 0f;
 
     // ========== 腿部姿态 ==========
 
@@ -53,7 +57,8 @@ public final class Pose {
     public void reset() {
         bodyPitch = bodyYaw = bodyRoll = 0f;
         headPitch = headYaw = 0f;
-        leftArmPitch = rightArmPitch = 0f;
+        leftArmPitch = leftArmYaw = leftArmRoll = 0f;
+        rightArmPitch = rightArmYaw = rightArmRoll = 0f;
         leftLegPitch = rightLegPitch = 0f;
     }
 
@@ -70,7 +75,11 @@ public final class Pose {
         copy.headPitch = this.headPitch;
         copy.headYaw = this.headYaw;
         copy.leftArmPitch = this.leftArmPitch;
+        copy.leftArmYaw = this.leftArmYaw;
+        copy.leftArmRoll = this.leftArmRoll;
         copy.rightArmPitch = this.rightArmPitch;
+        copy.rightArmYaw = this.rightArmYaw;
+        copy.rightArmRoll = this.rightArmRoll;
         copy.leftLegPitch = this.leftLegPitch;
         copy.rightLegPitch = this.rightLegPitch;
         return copy;
@@ -94,7 +103,11 @@ public final class Pose {
         result.headPitch = lerp(a.headPitch, b.headPitch, t);
         result.headYaw = lerp(a.headYaw, b.headYaw, t);
         result.leftArmPitch = lerp(a.leftArmPitch, b.leftArmPitch, t);
+        result.leftArmYaw = lerp(a.leftArmYaw, b.leftArmYaw, t);
+        result.leftArmRoll = lerp(a.leftArmRoll, b.leftArmRoll, t);
         result.rightArmPitch = lerp(a.rightArmPitch, b.rightArmPitch, t);
+        result.rightArmYaw = lerp(a.rightArmYaw, b.rightArmYaw, t);
+        result.rightArmRoll = lerp(a.rightArmRoll, b.rightArmRoll, t);
         result.leftLegPitch = lerp(a.leftLegPitch, b.leftLegPitch, t);
         result.rightLegPitch = lerp(a.rightLegPitch, b.rightLegPitch, t);
         return result;

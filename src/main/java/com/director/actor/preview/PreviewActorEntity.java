@@ -12,6 +12,7 @@ import net.minecraft.server.world.ServerWorld;
 import net.minecraft.storage.ReadView;
 import net.minecraft.storage.WriteView;
 import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.EulerAngle;
 
 /**
  * PreviewActorEntity v1.0
@@ -84,6 +85,26 @@ public class PreviewActorEntity extends ArmorStandEntity {
      */
     public void setFinalPose(Pose pose) {
         this.finalPose = pose;
+        if (pose == null) {
+            return;
+        }
+
+        // ArmorStandEntity 的姿态是渲染器实际读取的数据。Pose 内部统一使用弧度，
+        // EulerAngle 使用角度，因此在预览实体边界处完成转换。
+        setBodyRotation(toEuler(pose.bodyPitch, pose.bodyYaw, pose.bodyRoll));
+        setHeadRotation(toEuler(pose.headPitch, pose.headYaw, 0f));
+        setLeftArmRotation(toEuler(pose.leftArmPitch, pose.leftArmYaw, pose.leftArmRoll));
+        setRightArmRotation(toEuler(pose.rightArmPitch, pose.rightArmYaw, pose.rightArmRoll));
+        setLeftLegRotation(toEuler(pose.leftLegPitch, 0f, 0f));
+        setRightLegRotation(toEuler(pose.rightLegPitch, 0f, 0f));
+    }
+
+    private static EulerAngle toEuler(float pitch, float yaw, float roll) {
+        return new EulerAngle(
+                (float) Math.toDegrees(pitch),
+                (float) Math.toDegrees(yaw),
+                (float) Math.toDegrees(roll)
+        );
     }
 
     /**
