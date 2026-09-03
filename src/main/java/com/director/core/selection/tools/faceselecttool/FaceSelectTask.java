@@ -3,6 +3,7 @@ package com.director.core.selection.tools.faceselecttool;
 import com.director.core.selection.block_filters.BlockFilter;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.MapColor;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
@@ -16,9 +17,7 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.Set;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.ForkJoinPool;
 import java.util.function.Consumer;
 
 /**
@@ -32,12 +31,6 @@ import java.util.function.Consumer;
 public class FaceSelectTask implements Runnable {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FaceSelectTask.class);
-
-    private static final ExecutorService EXECUTOR = Executors.newSingleThreadExecutor(r -> {
-        Thread t = new Thread(r, "FaceSelectTask");
-        t.setDaemon(true);
-        return t;
-    });
 
     /** 任务输入 */
     private final World world;
@@ -63,7 +56,7 @@ public class FaceSelectTask implements Runnable {
 
     /** 控制状态 */
     private volatile boolean cancelled = false;
-    private volatile Future<?> future;
+    private volatile boolean running;
 
     public FaceSelectTask(
         World world,
@@ -93,24 +86,32 @@ public class FaceSelectTask implements Runnable {
 
     /** 启动任务 */
     public synchronized void start() {
-        if (future != null && !future.isDone()) {
+        if (running) {
             throw new IllegalStateException("FaceSelectTask 已在运行");
         }
-        future = EXECUTOR.submit(this);
+        running = true;
+        scheduleNextFrame();
     }
 
     /** 取消任务 */
     public void cancel() {
         this.cancelled = true;
-        Future<?> snapshot = this.future;
-        if (snapshot != null) {
-            snapshot.cancel(true);
-        }
     }
 
     @Override
     public void run() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || !client.isOnThread()) {
+            scheduleNextFrame();
+            return;
+        }
+        if (client.world != world) {
+            cancelled = true;
+            running = false;
+            return;
+        }
         if (cancelled) {
+            running = false;
             return;
         }
 
@@ -176,6 +177,7 @@ public class FaceSelectTask implements Runnable {
         }
 
         if (queue.isEmpty() || reachedLimit || cancelled) {
+            running = false;
             Set<BlockPos> snapshot = snapshot();
             if (onComplete != null && !cancelled) {
                 LOGGER.debug("[FaceSelectTask] 完成：blocks={}, reachedLimit={}", snapshot.size(), reachedLimit);
@@ -191,9 +193,19 @@ public class FaceSelectTask implements Runnable {
 
     private void scheduleNextFrame() {
         if (cancelled) {
+            running = false;
             return;
         }
-        future = EXECUTOR.submit(this);
+        // 从非客户端线程入队，避免 MinecraftClient.execute 在客户端线程内立即递归执行，
+        // 从而确保每个批次之间至少让出一次客户端事件循环。
+        ForkJoinPool.commonPool().execute(() -> {
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client != null && !cancelled) {
+                client.execute(this);
+            } else {
+                running = false;
+            }
+        });
     }
 
     private boolean matches(BlockPos pos, BlockState state) {

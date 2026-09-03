@@ -2,6 +2,7 @@ package com.director.core.selection.tools.faceselecttool;
 
 import com.director.core.selection.block_filters.BlockFilter;
 import net.minecraft.block.BlockState;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Direction;
 import net.minecraft.world.World;
@@ -59,6 +60,12 @@ public class FaceSelectHoverTask {
 
     private volatile boolean cancelled = false;
     private volatile boolean finished = false;
+    private final Queue<BlockPos> queue = new ArrayDeque<>();
+    private final Set<BlockPos> visited = new HashSet<>();
+    private final Map<BlockPos, Integer> depthMap = new HashMap<>();
+    private Callback callback;
+    private long startNs;
+    private boolean initialized;
 
     public FaceSelectHoverTask(World world,
                                BlockPos startPos,
@@ -85,7 +92,9 @@ public class FaceSelectHoverTask {
     }
 
     public void start(Callback callback) {
-        ForkJoinPool.commonPool().submit(() -> runFlood(callback));
+        this.callback = callback;
+        this.startNs = System.nanoTime();
+        scheduleNextBatch();
     }
 
     public void cancel() {
@@ -96,8 +105,18 @@ public class FaceSelectHoverTask {
         return finished;
     }
 
-    private void runFlood(Callback callback) {
-        long startNs = System.nanoTime();
+    private void runFlood() {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || !client.isOnThread()) {
+            scheduleNextBatch();
+            return;
+        }
+        if (client.world != world) {
+            cancelled = true;
+            finished = true;
+            if (callback != null) callback.onCancelled();
+            return;
+        }
         if (world == null || startPos == null || face == null || targetState == null) {
             finished = true;
             if (callback != null) {
@@ -108,30 +127,24 @@ public class FaceSelectHoverTask {
             return;
         }
 
-        if (!blockFilter.test(world, startPos, targetState)) {
-            finished = true;
-            Result empty = new Result(Collections.emptySet(), new HashMap<>(), startPos, face, false);
-            if (callback != null) {
-                try {
-                    callback.onCompleted(empty);
-                } catch (Exception ignored) {}
+        if (!initialized) {
+            initialized = true;
+            if (!blockFilter.test(world, startPos, targetState)) {
+                finished = true;
+                Result empty = new Result(Collections.emptySet(), new HashMap<>(), startPos, face, false);
+                if (callback != null) callback.onCompleted(empty);
+                return;
             }
-            return;
+            queue.add(startPos);
+            visited.add(startPos);
+            depthMap.put(startPos, 0);
         }
-
-        Queue<BlockPos> queue = new ArrayDeque<>();
-        Set<BlockPos> visited = new HashSet<>();
-        Map<BlockPos, Integer> depthMap = new HashMap<>();
-
-        queue.add(startPos);
-        visited.add(startPos);
-        depthMap.put(startPos, 0);
 
         List<Direction> planeDirs = getFaceDirections(face);
         int processedInStep = 0;
         boolean reachedLimit = false;
 
-        while (!queue.isEmpty() && !cancelled) {
+        while (!queue.isEmpty() && !cancelled && processedInStep < stepSize) {
             BlockPos current = queue.poll();
             int currentDepth = depthMap.getOrDefault(current, 0);
 
@@ -164,16 +177,18 @@ public class FaceSelectHoverTask {
             }
 
             processedInStep++;
-            if (processedInStep >= stepSize) {
-                processedInStep = 0;
-                if (callback != null) {
-                    try {
-                        callback.onUpdate(snapshotResult(visited, depthMap, false));
-                    } catch (Exception e) {
-                        LOGGER.warn("[FaceSelectHoverTask] onUpdate 回调失败", e);
-                    }
+        }
+
+        if (!cancelled && !reachedLimit && !queue.isEmpty()) {
+            if (callback != null) {
+                try {
+                    callback.onUpdate(snapshotResult(visited, depthMap, false));
+                } catch (Exception e) {
+                    LOGGER.warn("[FaceSelectHoverTask] onUpdate 回调失败", e);
                 }
             }
+            scheduleNextBatch();
+            return;
         }
 
         finished = true;
@@ -204,6 +219,18 @@ public class FaceSelectHoverTask {
         long durationMs = (System.nanoTime() - startNs) / 1_000_000L;
         LOGGER.info("[FaceSelectHoverTask] Hover flood 完成: {} 个方块, limit={}, 耗时 {} ms",
             visited.size(), reachedLimit, durationMs);
+    }
+
+    private void scheduleNextBatch() {
+        if (cancelled || finished) return;
+        ForkJoinPool.commonPool().execute(() -> {
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client != null && !cancelled) {
+                client.execute(this::runFlood);
+            } else {
+                finished = true;
+            }
+        });
     }
 
     private Result snapshotResult(Set<BlockPos> visited,

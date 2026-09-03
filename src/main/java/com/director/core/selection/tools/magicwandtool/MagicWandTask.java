@@ -34,6 +34,7 @@ import java.util.*;
 public final class MagicWandTask {
     
     private static final Logger LOGGER = LoggerFactory.getLogger(MagicWandTask.class);
+    private static final long BATCH_BUDGET_NANOS = 6_000_000L;
     
     // ==================== 输入参数 ====================
     
@@ -58,6 +59,12 @@ public final class MagicWandTask {
     
     private boolean reachedLimit = false;
     private int steps = 0;
+    private boolean initialized = false;
+    private boolean finished = false;
+    private int sphereX;
+    private int sphereY;
+    private int sphereZ;
+    private boolean sphereCursorInitialized;
     
     // ==================== 性能优化：匹配缓存 ====================
     
@@ -128,6 +135,14 @@ public final class MagicWandTask {
     public boolean isCancelled() {
         return cancelled;
     }
+
+    public boolean isFinished() {
+        return finished;
+    }
+
+    public boolean isForWorld(World currentWorld) {
+        return world == currentWorld;
+    }
     
     // ==================== 执行入口 ====================
     
@@ -143,55 +158,56 @@ public final class MagicWandTask {
             return new MagicWandTaskResult(Collections.emptySet(), false, 0, false, Collections.emptyMap());
         }
         
-        // 初始化 Chunk 缓存
-        chunkCache = new ChunkCache(world);
-        if (config.getSpreadMode() == MagicWandConfig.SpreadMode.SPHERE_REGION) {
-            chunkCache.preload(seed, config.getSphereRadius());
-        } else if (config.getRange() >= 0) {
-            // 如果设置了范围限制，预加载周围的 Chunk
-            chunkCache.preload(seed, config.getRange());
+        if (finished) {
+            return snapshotResult();
         }
-        
-        // 初始化起点状态
-        originState = world.getBlockState(seed);
-        originBlock = originState.getBlock();
-        originMapColor = originState.getMapColor(world, seed);
+
+        if (!initialized) {
+            initialized = true;
+            chunkCache = new ChunkCache(world);
+            // 初始化起点状态。不要预加载整个范围；那会在单帧内同步加载大量区块。
+            originState = world.getBlockState(seed);
+            originBlock = originState.getBlock();
+            originMapColor = originState.getMapColor(world, seed);
         
         if (originState.isAir()) {
             LOGGER.debug("[MagicWandTask] 种子点是空气，跳过");
-            return new MagicWandTaskResult(Collections.emptySet(), false, 0, false, Collections.emptyMap());
+            finished = true;
+            return snapshotResult();
         }
         
         // 检查是否在限定区域内
         if (limitRegion != null && !limitRegion.contains(seed)) {
             LOGGER.debug("[MagicWandTask] 种子点不在限定区域内");
-            return new MagicWandTaskResult(Collections.emptySet(), false, 0, false, Collections.emptyMap());
+            finished = true;
+            return snapshotResult();
         }
         
         // 如果存在过滤管线，先判断种子点是否通过
         if (filterPipeline != null && !filterPipeline.isEmpty()) {
             if (!filterPipeline.test(world, seed, originState)) {
                 LOGGER.debug("[MagicWandTask] 种子点未通过过滤管线，返回空结果");
-                return new MagicWandTaskResult(Collections.emptySet(), false, 0, false, Collections.emptyMap());
+                finished = true;
+                return snapshotResult();
             }
         }
-        
+            queue.offer(seed);
+            visited.add(seed);
+            result.add(seed);
+            depthMap.put(seed, 0);
+        }
+
         if (config.getSpreadMode() == MagicWandConfig.SpreadMode.SPHERE_REGION) {
-            int blockLimit = maxSteps < 0 ? config.getMaxBlocks() : Math.min(maxSteps, config.getMaxBlocks());
-            return runSphereScan(blockLimit);
+            return runSphereScan(config.getMaxBlocks(), maxSteps);
         }
         
-        // 初始化队列
-        queue.offer(seed);
-        visited.add(seed);
-        result.add(seed);
-        depthMap.put(seed, 0);  // 种子点深度为 0
-        
         // BFS 泛洪填充
-        int stepLimit = maxSteps < 0 ? Integer.MAX_VALUE : maxSteps;
+        int stepLimit = maxSteps < 0 ? Integer.MAX_VALUE : steps + maxSteps;
+        long deadline = maxSteps < 0 ? Long.MAX_VALUE : System.nanoTime() + BATCH_BUDGET_NANOS;
         int progressReportInterval = Math.max(100, config.getMaxBlocks() / 100); // 每 1% 或至少每100步报告一次
         
-        while (!queue.isEmpty() && result.size() < config.getMaxBlocks() && steps < stepLimit && !cancelled) {
+        while (!queue.isEmpty() && result.size() < config.getMaxBlocks() && steps < stepLimit
+            && System.nanoTime() < deadline && !cancelled) {
             BlockPos current = queue.poll();
             int currentDepth = depthMap.getOrDefault(current, 0);  // 获取当前方块的深度
             steps++;
@@ -262,8 +278,9 @@ public final class MagicWandTask {
             }
         }
         
+        finished = queue.isEmpty() || reachedLimit || cancelled;
         // 最终进度报告
-        if (progressCallback != null && !cancelled) {
+        if (finished && progressCallback != null && !cancelled) {
             progressCallback.onProgress(result.size(), config.getMaxBlocks(), "完成！");
         }
         
@@ -272,72 +289,69 @@ public final class MagicWandTask {
             result.size(), steps, statusMsg, depthMap.values().stream().max(Integer::compareTo).orElse(0));
         
         // 输出缓存统计并清除
-        if (chunkCache != null) {
+        if (finished && chunkCache != null) {
             var stats = chunkCache.getStats();
             LOGGER.debug("[MagicWandTask] 缓存统计: {}", stats);
             chunkCache.clear();
         }
         
+        return snapshotResult();
+    }
+
+    private MagicWandTaskResult snapshotResult() {
         return new MagicWandTaskResult(new HashSet<>(result), reachedLimit, steps, cancelled, new HashMap<>(depthMap));
     }
     
     /**
      * 球形区域扫描：在半径内选择所有匹配方块，不要求连通。
      */
-    private MagicWandTaskResult runSphereScan(int blockLimit) {
+    private MagicWandTaskResult runSphereScan(int blockLimit, int maxSteps) {
         int radius = config.getSphereRadius();
         int radiusSq = radius * radius;
-        
-        result.add(seed);
-        depthMap.put(seed, 0);
-        steps = 1;
-        
-        outer:
-        for (int x = -radius; x <= radius; x++) {
-            for (int y = -radius; y <= radius; y++) {
-                for (int z = -radius; z <= radius; z++) {
-                    if (x == 0 && y == 0 && z == 0) {
-                        continue;
-                    }
-                    
-                    BlockPos pos = seed.add(x, y, z);
-                    if (seed.getSquaredDistance(pos) > radiusSq) {
-                        continue;
-                    }
-                    
-                    if (limitRegion != null && !limitRegion.contains(pos)) {
-                        continue;
-                    }
-                    
-                    BlockState state = chunkCache.getBlockState(pos);
-                    if (!matches(pos, state)) {
-                        continue;
-                    }
-                    
-                    if (config.isSurfaceOnly() && !isSurfaceBlock(pos)) {
-                        continue;
-                    }
-                    
-                    result.add(pos);
-                    depthMap.put(pos, (int) Math.sqrt(seed.getSquaredDistance(pos)));
-                    steps++;
-                    
-                    if (result.size() >= blockLimit) {
-                        reachedLimit = true;
-                        break outer;
-                    }
-                }
-            }
+        if (!sphereCursorInitialized) {
+            sphereCursorInitialized = true;
+            sphereX = sphereY = sphereZ = -radius;
         }
-        
-        if (chunkCache != null) {
+        int budget = maxSteps < 0 ? Integer.MAX_VALUE : maxSteps;
+        long deadline = maxSteps < 0 ? Long.MAX_VALUE : System.nanoTime() + BATCH_BUDGET_NANOS;
+        int processed = 0;
+        while (sphereX <= radius && processed < budget && System.nanoTime() < deadline
+            && !cancelled && !reachedLimit) {
+            int x = sphereX;
+            int y = sphereY;
+            int z = sphereZ;
+            advanceSphereCursor(radius);
+            processed++;
+            steps++;
+            if (x == 0 && y == 0 && z == 0) continue;
+            BlockPos pos = seed.add(x, y, z);
+            if (x * x + y * y + z * z > radiusSq) continue;
+            if (limitRegion != null && !limitRegion.contains(pos)) continue;
+            BlockState state = chunkCache.getBlockState(pos);
+            if (!matches(pos, state)) continue;
+            if (config.isSurfaceOnly() && !isSurfaceBlock(pos)) continue;
+            result.add(pos);
+            depthMap.put(pos, (int) Math.sqrt(x * x + y * y + z * z));
+            if (result.size() >= blockLimit) reachedLimit = true;
+        }
+
+        finished = sphereX > radius || reachedLimit || cancelled;
+        if (finished && chunkCache != null) {
             chunkCache.clear();
         }
-        
-        LOGGER.debug("[MagicWandTask] 区域扫描完成：找到 {} 个方块，半径={}{}",
-            result.size(), radius, reachedLimit ? "（达到上限）" : "");
-        
-        return new MagicWandTaskResult(new HashSet<>(result), reachedLimit, steps, cancelled, new HashMap<>(depthMap));
+        if (finished) {
+            LOGGER.debug("[MagicWandTask] 区域扫描完成：找到 {} 个方块，半径={}{}",
+                result.size(), radius, reachedLimit ? "（达到上限）" : "");
+        }
+        return snapshotResult();
+    }
+
+    private void advanceSphereCursor(int radius) {
+        if (++sphereZ <= radius) return;
+        sphereZ = -radius;
+        if (++sphereY <= radius) return;
+        sphereY = -radius;
+        sphereX++;
     }
     
     // ==================== 邻居计算 ====================

@@ -50,6 +50,8 @@ public final class LassoSelectTask implements Runnable {
 
     /** 防御性限制，避免一次性选区过大耗尽内存 */
     private static final int MAX_BLOCKS = 500_000;
+    private static final int BLOCKS_PER_BATCH = 4_096;
+    private static final long BATCH_BUDGET_NANOS = 6_000_000L;
 
     /** 如果路径不闭合时自动闭合，允许的起终点误差 */
     private static final double CLOSE_EPSILON = 1.5;
@@ -63,6 +65,14 @@ public final class LassoSelectTask implements Runnable {
 
     private int minY;
     private int maxY;
+    private List<Vector2f> polygon;
+    private BoundsXZ bounds;
+    private final Set<BlockPos> result = new HashSet<>();
+    private int cursorX;
+    private int cursorY;
+    private int cursorZ;
+    private boolean initialized;
+    private boolean reachedLimit;
 
     public LassoSelectTask(World world,
                            List<BlockPos> path,
@@ -87,7 +97,7 @@ public final class LassoSelectTask implements Runnable {
     /** 启动任务 */
     public void start() {
         RUNNING_TASKS.add(this);
-        EXECUTOR.submit(this);
+        scheduleNextBatch();
     }
 
     /** 请求取消 */
@@ -110,31 +120,94 @@ public final class LassoSelectTask implements Runnable {
             if (cancelled.get()) {
                 return;
             }
-
-            List<Vector2f> polygon = buildPolygon2D(path);
-            if (polygon.size() < 3) {
-                LOGGER.warn("[LassoSelectTask] 2D 多边形顶点不足，放弃");
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client == null || !client.isOnThread()) {
+                scheduleNextBatch();
                 return;
             }
-
-            BoundsXZ bounds = computeBounds(polygon);
-            if (bounds.isEmpty()) {
-                LOGGER.warn("[LassoSelectTask] 计算得到的包围盒为空，放弃");
+            if (client.world != world) {
+                cancelled.set(true);
                 return;
             }
-
-            Set<BlockPos> result = fillPolygon(bounds, polygon);
-            if (result.isEmpty()) {
-                LOGGER.info("[LassoSelectTask] 填充结果为空");
+            if (!initialized && !initializeScan()) return;
+            boolean complete = scanBatch();
+            if (!complete) {
+                scheduleNextBatch();
                 return;
             }
-
-            applySelectionOnClient(result);
+            if (result.isEmpty()) LOGGER.info("[LassoSelectTask] 填充结果为空");
+            else applySelectionOnClient(Set.copyOf(result));
         } catch (Exception e) {
             LOGGER.error("[LassoSelectTask] 执行异常", e);
         } finally {
-            RUNNING_TASKS.remove(this);
+            if (cancelled.get() || reachedLimit || (initialized && cursorX > bounds.maxX)) {
+                RUNNING_TASKS.remove(this);
+            }
         }
+    }
+
+    private void scheduleNextBatch() {
+        if (cancelled.get()) {
+            RUNNING_TASKS.remove(this);
+            return;
+        }
+        EXECUTOR.submit(() -> {
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client != null && !cancelled.get()) client.execute(this);
+            else RUNNING_TASKS.remove(this);
+        });
+    }
+
+    private boolean initializeScan() {
+        polygon = buildPolygon2D(path);
+        if (polygon.size() < 3) {
+            LOGGER.warn("[LassoSelectTask] 2D 多边形顶点不足，放弃");
+            cancelled.set(true);
+            return false;
+        }
+        bounds = computeBounds(polygon);
+        if (bounds.isEmpty()) {
+            LOGGER.warn("[LassoSelectTask] 计算得到的包围盒为空，放弃");
+            cancelled.set(true);
+            return false;
+        }
+        cursorX = bounds.minX;
+        cursorZ = bounds.minZ;
+        cursorY = minY;
+        initialized = true;
+        return true;
+    }
+
+    private boolean scanBatch() {
+        long started = System.nanoTime();
+        int processed = 0;
+        while (cursorX <= bounds.maxX && !cancelled.get()) {
+            BlockPos pos = new BlockPos(cursorX, cursorY, cursorZ);
+            if (pointInPolygon(polygon, cursorX + 0.5f, cursorZ + 0.5f)) {
+                BlockState state = world.getBlockState(pos);
+                if (blockFilter.test(world, pos, state)) result.add(pos);
+            }
+            advanceCursor();
+            processed++;
+            if (result.size() >= MAX_BLOCKS) {
+                reachedLimit = true;
+                LOGGER.warn("[LassoSelectTask] 选区达到上限 {}，提前停止", MAX_BLOCKS);
+                return true;
+            }
+            if (processed >= BLOCKS_PER_BATCH || System.nanoTime() - started >= BATCH_BUDGET_NANOS) {
+                return false;
+            }
+        }
+        LOGGER.info("[LassoSelectTask] 填充完成，共选中 {} 个方块", result.size());
+        return true;
+    }
+
+    private void advanceCursor() {
+        if (++cursorY <= maxY) return;
+        cursorY = minY;
+        if (++cursorZ <= bounds.maxZ) return;
+        cursorZ = bounds.minZ;
+        cursorX++;
     }
 
     private void applySelectionOnClient(Set<BlockPos> blocks) {
@@ -180,38 +253,6 @@ public final class LassoSelectTask implements Runnable {
             LOGGER.info("[LassoSelectTask] ✅ 应用 {} 操作，当前选区方块数={}",
                 operation, manager.getSelectionSet().size());
         });
-    }
-
-    private Set<BlockPos> fillPolygon(BoundsXZ bounds, List<Vector2f> polygon) {
-        Set<BlockPos> result = new HashSet<>();
-
-        for (int x = bounds.minX; x <= bounds.maxX && !cancelled.get(); x++) {
-            for (int z = bounds.minZ; z <= bounds.maxZ && !cancelled.get(); z++) {
-                float cx = x + 0.5f;
-                float cz = z + 0.5f;
-                if (!pointInPolygon(polygon, cx, cz)) {
-                    continue;
-                }
-
-                for (int y = minY; y <= maxY && !cancelled.get(); y++) {
-                    BlockPos pos = new BlockPos(x, y, z);
-                    BlockState state = world.getBlockState(pos);
-                    if (!blockFilter.test(world, pos, state)) {
-                        continue;
-                    }
-
-                    result.add(pos);
-                    if (result.size() >= MAX_BLOCKS) {
-                        LOGGER.warn("[LassoSelectTask] 选区达到上限 {}，提前停止", MAX_BLOCKS);
-                        cancelled.set(true);
-                        break;
-                    }
-                }
-            }
-        }
-
-        LOGGER.info("[LassoSelectTask] 填充完成，共选中 {} 个方块", result.size());
-        return result;
     }
 
     private void computeVerticalBounds() {

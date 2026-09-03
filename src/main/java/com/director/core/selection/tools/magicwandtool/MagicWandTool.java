@@ -10,6 +10,7 @@ import com.director.core.selection.SelectionTool;
 import com.director.ui.theme.Icons;
 import com.director.core.selection.block_filters.BlockFilterPipeline;
 import com.director.core.selection.progressive.ProgressiveFloodController;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.world.World;
 import org.slf4j.Logger;
@@ -217,10 +218,8 @@ public class MagicWandTool implements SelectionTool, SelectionOperationSupport {
         MagicWandTask task = new MagicWandTask(world, seed, config, limitRegion, getActiveFilterPipeline());
         
         // 异步执行
-        executionFuture = CompletableFuture.supplyAsync(() -> {
-            LOGGER.debug("[MagicWandTool] 开始执行泛洪填充...");
-            return task.run(-1); // -1 表示一次执行完
-        }, THREAD_POOL);
+        LOGGER.debug("[MagicWandTool] 开始执行分批泛洪填充...");
+        executionFuture = executeOnClientInBatches(task, STEPS_PER_FRAME);
         
         // 完成后应用结果（在主线程中执行）
         executionFuture.thenAcceptAsync(result -> {
@@ -388,7 +387,7 @@ public class MagicWandTool implements SelectionTool, SelectionOperationSupport {
                 }
             } else {
                 // 使用一次性异步预览
-                previewFuture = CompletableFuture.supplyAsync(() -> task.run(PREVIEW_LIMIT), THREAD_POOL);
+                previewFuture = executeOnClientInBatches(task, STEPS_PER_FRAME);
                 
                 // 完成后更新结果（在主线程中执行）
                 previewFuture.thenAcceptAsync(result -> {
@@ -424,6 +423,51 @@ public class MagicWandTool implements SelectionTool, SelectionOperationSupport {
                 // 忽略取消异常
             }
         }
+    }
+
+    /**
+     * 工作线程只负责把下一批排入客户端事件循环；所有 World/Chunk 读取均在客户端线程执行。
+     */
+    private CompletableFuture<MagicWandTask.MagicWandTaskResult> executeOnClientInBatches(
+        MagicWandTask task, int stepsPerBatch
+    ) {
+        CompletableFuture<MagicWandTask.MagicWandTaskResult> result = new CompletableFuture<>();
+        class BatchRunner implements Runnable {
+            @Override
+            public void run() {
+                if (result.isCancelled()) {
+                    task.cancel();
+                    return;
+                }
+                MinecraftClient client = MinecraftClient.getInstance();
+                if (client == null || !task.isForWorld(client.world)) {
+                    task.cancel();
+                    result.cancel(false);
+                    return;
+                }
+                try {
+                    MagicWandTask.MagicWandTaskResult partial = task.run(stepsPerBatch);
+                    if (task.isFinished()) {
+                        result.complete(partial);
+                    } else {
+                        THREAD_POOL.execute(() -> {
+                            MinecraftClient nextClient = MinecraftClient.getInstance();
+                            if (nextClient != null) nextClient.execute(this);
+                            else result.completeExceptionally(new IllegalStateException("MinecraftClient 不可用"));
+                        });
+                    }
+                } catch (Exception e) {
+                    result.completeExceptionally(e);
+                }
+            }
+        }
+        BatchRunner runner = new BatchRunner();
+        THREAD_POOL.execute(() -> {
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client != null) client.execute(runner);
+            else result.completeExceptionally(new IllegalStateException("MinecraftClient 不可用"));
+        });
+        return result;
     }
     
     /**

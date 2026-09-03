@@ -4,6 +4,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.director.core.selection.tools.magicwandtool.MagicWandTask;
+import net.minecraft.client.MinecraftClient;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -82,81 +83,62 @@ public class ProgressiveFloodController {
         
         LOGGER.info("[ProgressiveFlood] 开始渐进式泛洪，步长: {}", stepsPerFrame);
         
-        executionFuture = CompletableFuture.supplyAsync(() -> {
-            try {
-                return executeProgressive();
-            } catch (Exception e) {
-                LOGGER.error("[ProgressiveFlood] 执行失败", e);
-                return null;
-            } finally {
-                running.set(false);
-            }
-        });
-        
+        executionFuture = new CompletableFuture<>();
+        scheduleNextStep();
+
         return executionFuture;
     }
-    
-    /**
-     * 渐进式执行主循环
-     */
-    private MagicWandTask.MagicWandTaskResult executeProgressive() {
-        int maxSteps = maxBlocks * 10; // 预估最大步数
-        int executedSteps = 0;
-        
-        while (!cancelled.get() && executedSteps < maxSteps) {
-            // 检查暂停
-            while (paused.get() && !cancelled.get()) {
-                try {
-                    Thread.sleep(50);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
-            }
-            
-            if (cancelled.get()) {
-                break;
-            }
-            
-            // 执行一帧
-            currentResult = task.run(stepsPerFrame);
-            executedSteps = currentResult.steps();
-            currentStep.set(executedSteps);
-            
-            // 计算进度
-            double progress = Math.min(1.0, (double) currentResult.size() / maxBlocks);
-            
-            // 回调通知
-            if (onProgress != null) {
-                ProgressUpdate update = new ProgressUpdate(
-                    currentResult.size(),
-                    executedSteps,
-                    maxSteps,
-                    progress,
-                    currentResult.reachedLimit() || currentResult.cancelled(),
-                    currentResult
-                );
-                
-                onProgress.accept(update);
-            }
-            
-            // 检查是否完成
-            if (currentResult.reachedLimit() || currentResult.cancelled() || currentResult.isEmpty()) {
-                LOGGER.info("[ProgressiveFlood] 完成：{} 个方块，{} 步", 
-                    currentResult.size(), executedSteps);
-                break;
-            }
-            
-            // 帧延迟（避免占用过多CPU）
-            try {
-                Thread.sleep(16); // ~60 FPS
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                break;
-            }
+
+    private void scheduleNextStep() {
+        if (cancelled.get()) {
+            running.set(false);
+            executionFuture.cancel(false);
+            return;
         }
-        
-        return currentResult;
+        CompletableFuture.runAsync(() -> {
+            MinecraftClient client = MinecraftClient.getInstance();
+            if (client == null) {
+                running.set(false);
+                executionFuture.completeExceptionally(new IllegalStateException("MinecraftClient 不可用"));
+                return;
+            }
+            if (!task.isForWorld(client.world)) {
+                task.cancel();
+                running.set(false);
+                executionFuture.cancel(false);
+                return;
+            }
+            client.execute(() -> {
+                if (cancelled.get()) {
+                    running.set(false);
+                    executionFuture.cancel(false);
+                    return;
+                }
+                if (paused.get()) {
+                    scheduleNextStep();
+                    return;
+                }
+                try {
+                    currentResult = task.run(stepsPerFrame);
+                    currentStep.set(currentResult.steps());
+                    double progress = Math.min(1.0, (double) currentResult.size() / maxBlocks);
+                    if (onProgress != null) {
+                        onProgress.accept(new ProgressUpdate(currentResult.size(), currentResult.steps(),
+                            maxBlocks * 10, progress, task.isFinished(), currentResult));
+                    }
+                    if (task.isFinished()) {
+                        running.set(false);
+                        executionFuture.complete(currentResult);
+                    } else {
+                        scheduleNextStep();
+                    }
+                } catch (Exception e) {
+                    running.set(false);
+                    LOGGER.error("[ProgressiveFlood] 执行失败", e);
+                    executionFuture.completeExceptionally(e);
+                }
+            });
+        });
     }
     
     /**
