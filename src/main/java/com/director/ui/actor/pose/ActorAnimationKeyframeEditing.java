@@ -28,6 +28,7 @@ public final class ActorAnimationKeyframeEditing {
 
     public record RotationKey(BoneTrack track, float time) {}
     public record TranslationKey(BoneTrack track, float time) {}
+    public record ScaleKey(BoneTrack track, float time) {}
     public record RotationPaste(BoneTrack track, float time, Quaternionf value,
                                 com.director.actor.animation.asset.InterpolationMode interpolation) {
         public RotationPaste {
@@ -37,6 +38,48 @@ public final class ActorAnimationKeyframeEditing {
     public record TranslationPaste(BoneTrack track, float time, Vector3f value,
                                    InterpolationMode interpolation) {
         public TranslationPaste { value = new Vector3f(value); }
+    }
+    public record ScalePaste(BoneTrack track, float time, Vector3f value,
+                             InterpolationMode interpolation) {
+        public ScalePaste { value = new Vector3f(value); }
+    }
+
+    public static boolean deleteScales(TimelineModel model, List<ScaleKey> keys) {
+        List<ScaleState> removed = resolveScales(keys);
+        if (model == null || removed.isEmpty()) return false;
+        TimelineCommandBridge.execute(new StateChangeCommand(model, "Delete actor scale keyframe",
+                () -> putScales(removed, 0f), () -> removeScales(removed, 0f)));
+        return true;
+    }
+
+    public static boolean moveScales(TimelineModel model, List<ScaleKey> keys, float delta) {
+        if (model == null || !Float.isFinite(delta) || Math.abs(delta) <= EPSILON) return false;
+        List<ScaleState> source = resolveScales(keys);
+        if (source.isEmpty() || source.size() != keys.size()) return false;
+        for (ScaleState state : source) {
+            float target = state.frame.time() + delta;
+            if (target < 0f || occupiedScale(state.track, target, source)) return false;
+        }
+        TimelineCommandBridge.execute(new StateChangeCommand(model, "Move actor scale keyframe",
+                () -> { removeScales(source, delta); putScales(source, 0f); },
+                () -> { removeScales(source, 0f); putScales(source, delta); }));
+        return true;
+    }
+
+    public static boolean pasteScales(TimelineModel model, List<ScalePaste> pasted) {
+        if (model == null || pasted == null || pasted.isEmpty()) return false;
+        List<ScaleState> states = new ArrayList<>();
+        Set<PasteTarget> targets = new HashSet<>();
+        for (ScalePaste paste : pasted) {
+            if (paste == null || paste.track() == null || paste.time() < 0f || !Float.isFinite(paste.time())
+                    || paste.track().scale().findAt(paste.time()).isPresent()
+                    || !targets.add(new PasteTarget(paste.track(), paste.time()))) return false;
+            states.add(new ScaleState(paste.track(),
+                    new ChannelKeyframe<>(paste.time(), paste.value(), paste.interpolation())));
+        }
+        TimelineCommandBridge.execute(new StateChangeCommand(model, "Paste actor scale keyframes",
+                () -> removeScales(states, 0f), () -> putScales(states, 0f)));
+        return true;
     }
 
     public static boolean deleteTranslations(TimelineModel model, List<TranslationKey> keys) {
@@ -202,6 +245,31 @@ public final class ActorAnimationKeyframeEditing {
         return result;
     }
 
+    private static List<ScaleState> resolveScales(List<ScaleKey> keys) {
+        List<ScaleState> result = new ArrayList<>();
+        if (keys == null) return result;
+        for (ScaleKey key : keys) if (key != null && key.track() != null)
+            key.track().scale().findAt(key.time()).ifPresent(
+                    frame -> result.add(new ScaleState(key.track(), frame)));
+        return result;
+    }
+
+    private static boolean occupiedScale(BoneTrack track, float target, List<ScaleState> selected) {
+        if (track.scale().findAt(target).isEmpty()) return false;
+        for (ScaleState state : selected)
+            if (state.track == track && Math.abs(state.frame.time() - target) <= EPSILON) return false;
+        return true;
+    }
+
+    private static void removeScales(List<ScaleState> states, float offset) {
+        for (ScaleState state : states) state.track.scale().removeAt(state.frame.time() + offset);
+    }
+
+    private static void putScales(List<ScaleState> states, float offset) {
+        for (ScaleState state : states) state.track.scale().put(
+                state.frame.time() + offset, state.frame.value(), state.frame.interpolation());
+    }
+
     private static boolean occupiedTranslation(BoneTrack track, float target, List<TranslationState> selected) {
         if (track.translation().findAt(target).isEmpty()) return false;
         for (TranslationState state : selected)
@@ -246,6 +314,7 @@ public final class ActorAnimationKeyframeEditing {
 
     private record KeyState(BoneTrack track, ChannelKeyframe<Quaternionf> frame) {}
     private record TranslationState(BoneTrack track, ChannelKeyframe<Vector3f> frame) {}
+    private record ScaleState(BoneTrack track, ChannelKeyframe<Vector3f> frame) {}
     private record PasteTarget(BoneTrack track, float time) {}
     private record MirrorState(BoneTrack track, float time, ChannelKeyframe<Quaternionf> before,
                                ChannelKeyframe<Quaternionf> after) {}

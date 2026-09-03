@@ -33,6 +33,7 @@ public final class ActorAnimationDopeSheet {
     private static final Set<KeyId> selection = new LinkedHashSet<>();
     private static final List<CopiedKey> clipboard = new ArrayList<>();
     private static final List<CopiedTranslationKey> translationClipboard = new ArrayList<>();
+    private static final List<CopiedScaleKey> scaleClipboard = new ArrayList<>();
     private static boolean dragCandidate;
     private static boolean marqueeCandidate;
     private static boolean interactionAdditive;
@@ -85,8 +86,11 @@ public final class ActorAnimationDopeSheet {
             if (entry.getValue().scale().isEmpty()) continue;
             if (ImGui.treeNode(Icons.SCALE + " " + entry.getKey() + " · 缩放##dopeScale:" + asset.id())) {
                 for (var frame : entry.getValue().scale().keyframes()) {
+                    KeyId key = new KeyId(entry.getKey(), Channel.SCALE, frame.time());
+                    boolean selected = Objects.equals(selectedAssetId, asset.id()) && selection.contains(key);
                     if (ImGui.selectable(String.format("%s %.3fs  [%s]##dopeScale:%s:%s:%f",
-                            Icons.KEYFRAME, frame.time(), frame.interpolation(), asset.id(), entry.getKey(), frame.time()), false)) {
+                            Icons.KEYFRAME, frame.time(), frame.interpolation(), asset.id(), entry.getKey(), frame.time()), selected)) {
+                        select(asset.id(), key, ImGui.getIO().getKeyCtrl());
                         model.setCurrentTime(toTimelineTime(clip, frame.time()));
                     }
                 }
@@ -115,13 +119,14 @@ public final class ActorAnimationDopeSheet {
         pruneSelection(asset);
         List<ActorAnimationKeyframeEditing.RotationKey> selectedKeys = selectedKeys(asset);
         List<ActorAnimationKeyframeEditing.TranslationKey> selectedTranslations = selectedTranslationKeys(asset);
-        int selectedCount = selectedKeys.size() + selectedTranslations.size();
+        List<ActorAnimationKeyframeEditing.ScaleKey> selectedScales = selectedScaleKeys(asset);
+        int selectedCount = selectedKeys.size() + selectedTranslations.size() + selectedScales.size();
         float localFrame = Math.max(0.01f, clip.getSpeed()) / Math.max(1f, model.getFrameRate());
         if (selectedCount > 0) {
             ImGui.textDisabled("已选择 " + selectedCount + " 个关键帧（Ctrl+点击多选）");
             if (ImGui.smallButton(Icons.ARROW_LEFT + " 1帧##dopePrevious")) {
                 if (withinDuration(-localFrame, asset.duration())
-                        && moveSelection(model, selectedKeys, selectedTranslations, -localFrame)) {
+                        && moveSelection(model, selectedKeys, selectedTranslations, selectedScales, -localFrame)) {
                     shiftSelection(-localFrame);
                     seekToFirst(model, clip);
                 }
@@ -129,7 +134,7 @@ public final class ActorAnimationDopeSheet {
             ImGui.sameLine();
             if (ImGui.smallButton(Icons.ARROW_RIGHT + " 1帧##dopeNext")) {
                 if (withinDuration(localFrame, asset.duration())
-                        && moveSelection(model, selectedKeys, selectedTranslations, localFrame)) {
+                        && moveSelection(model, selectedKeys, selectedTranslations, selectedScales, localFrame)) {
                     shiftSelection(localFrame);
                     seekToFirst(model, clip);
                 }
@@ -142,20 +147,22 @@ public final class ActorAnimationDopeSheet {
             }
             ImGui.sameLine();
             if (ImGui.smallButton(Icons.DELETE + " 删除##dopeDelete")) {
-                boolean changed = !selectedTranslations.isEmpty()
+                boolean changed = !selectedScales.isEmpty()
+                        ? ActorAnimationKeyframeEditing.deleteScales(model, selectedScales)
+                        : !selectedTranslations.isEmpty()
                         ? ActorAnimationKeyframeEditing.deleteTranslations(model, selectedTranslations)
                         : ActorAnimationKeyframeEditing.deleteRotations(model, selectedKeys);
                 if (changed) clearSelection();
             }
         }
-        if (!clipboard.isEmpty() || !translationClipboard.isEmpty()) {
+        if (!clipboard.isEmpty() || !translationClipboard.isEmpty() || !scaleClipboard.isEmpty()) {
             if (ImGui.smallButton(Icons.CLIPBOARD + " 粘贴到播放头##dopePaste")) {
                 float localTime = Math.max(0f, (model.getCurrentTime() - clip.getStartTime())
                         * Math.max(0.01f, clip.getSpeed()));
                 pasteAt(model, asset, Math.min(asset.duration(), localTime));
             }
             ImGui.sameLine();
-            ImGui.textDisabled((clipboard.size() + translationClipboard.size()) + " 个");
+            ImGui.textDisabled((clipboard.size() + translationClipboard.size() + scaleClipboard.size()) + " 个");
         }
         if (selectedCount == 0 && ImGui.smallButton(Icons.FLIP_HORIZONTAL + " 镜像播放头姿态##dopeMirrorPlayhead")) {
             float localTime = Math.max(0f, (model.getCurrentTime() - clip.getStartTime())
@@ -168,6 +175,7 @@ public final class ActorAnimationDopeSheet {
         List<Row> rows = new ArrayList<>();
         for (Map.Entry<String, BoneTrack> entry : asset.boneTracks().entrySet()) {
             if (!entry.getValue().translation().isEmpty()) rows.add(new Row(entry.getKey(), entry.getValue(), Channel.TRANSLATION));
+            if (!entry.getValue().scale().isEmpty()) rows.add(new Row(entry.getKey(), entry.getValue(), Channel.SCALE));
             if (!entry.getValue().rotation().isEmpty()) rows.add(new Row(entry.getKey(), entry.getValue(), Channel.ROTATION));
         }
         if (rows.isEmpty()) return;
@@ -218,7 +226,11 @@ public final class ActorAnimationDopeSheet {
                     x + width, y + rulerHeight + (rowIndex + 1) * rowHeight,
                     TimelineColors.rgba(55, 60, 68, 180), 1f);
             draw.addText(x + 4f, cy - 7f, TimelineColors.rgba(200, 205, 215, 255),
-                    row.boneId() + (row.channel() == Channel.TRANSLATION ? " · T" : " · R"));
+                    row.boneId() + switch (row.channel()) {
+                        case TRANSLATION -> " · T";
+                        case SCALE -> " · S";
+                        case ROTATION -> " · R";
+                    });
             for (float frameTime : frameTimes(row)) {
                 float kx = timeX + (frameTime - view.startTime) * pixelsPerSecond;
                 if (kx < timeX - keyRadius || kx > timeX + timeWidth + keyRadius) continue;
@@ -226,6 +238,7 @@ public final class ActorAnimationDopeSheet {
                         && selection.contains(new KeyId(row.boneId(), row.channel(), frameTime));
                 int color = selected ? TimelineColors.rgba(255, 190, 70, 255)
                         : row.channel() == Channel.TRANSLATION ? TimelineColors.rgba(100, 220, 150, 255)
+                        : row.channel() == Channel.SCALE ? TimelineColors.rgba(200, 120, 255, 255)
                         : TimelineColors.rgba(100, 175, 255, 255);
                 draw.addRectFilled(kx - keyRadius, cy - keyRadius, kx + keyRadius, cy + keyRadius, color, 1f);
             }
@@ -312,8 +325,9 @@ public final class ActorAnimationDopeSheet {
         float delta = snapDragDelta(dx, pixelsPerSecond, localFrame);
         List<ActorAnimationKeyframeEditing.RotationKey> keys = selectedKeys(asset);
         List<ActorAnimationKeyframeEditing.TranslationKey> translations = selectedTranslationKeys(asset);
+        List<ActorAnimationKeyframeEditing.ScaleKey> scales = selectedScaleKeys(asset);
         if (withinDuration(delta, asset.duration())
-                && moveSelection(model, keys, translations, delta)) {
+                && moveSelection(model, keys, translations, scales, delta)) {
             shiftSelection(delta);
             seekToFirst(model, clip);
         }
@@ -424,10 +438,11 @@ public final class ActorAnimationDopeSheet {
 
     private static void pruneSelection(AnimationAsset asset) {
         if (!Objects.equals(selectedAssetId, asset.id())) return;
-        selection.removeIf(key -> asset.findBoneTrack(key.boneId()).isEmpty()
-                || (key.channel() == Channel.ROTATION
-                ? asset.findBoneTrack(key.boneId()).orElseThrow().rotation().findAt(key.time()).isEmpty()
-                : asset.findBoneTrack(key.boneId()).orElseThrow().translation().findAt(key.time()).isEmpty()));
+        selection.removeIf(key -> asset.findBoneTrack(key.boneId()).isEmpty() || switch (key.channel()) {
+            case ROTATION -> asset.findBoneTrack(key.boneId()).orElseThrow().rotation().findAt(key.time()).isEmpty();
+            case TRANSLATION -> asset.findBoneTrack(key.boneId()).orElseThrow().translation().findAt(key.time()).isEmpty();
+            case SCALE -> asset.findBoneTrack(key.boneId()).orElseThrow().scale().findAt(key.time()).isEmpty();
+        });
         if (selection.isEmpty()) selectedAssetId = null;
     }
 
@@ -447,11 +462,22 @@ public final class ActorAnimationDopeSheet {
         return result;
     }
 
+    private static List<ActorAnimationKeyframeEditing.ScaleKey> selectedScaleKeys(AnimationAsset asset) {
+        List<ActorAnimationKeyframeEditing.ScaleKey> result = new ArrayList<>();
+        if (!Objects.equals(selectedAssetId, asset.id())) return result;
+        for (KeyId key : selection) if (key.channel() == Channel.SCALE) asset.findBoneTrack(key.boneId()).ifPresent(
+                track -> result.add(new ActorAnimationKeyframeEditing.ScaleKey(track, key.time())));
+        return result;
+    }
+
     private static boolean moveSelection(TimelineModel model,
                                          List<ActorAnimationKeyframeEditing.RotationKey> rotations,
                                          List<ActorAnimationKeyframeEditing.TranslationKey> translations,
+                                         List<ActorAnimationKeyframeEditing.ScaleKey> scales,
                                          float delta) {
-        return !translations.isEmpty()
+        return !scales.isEmpty()
+                ? ActorAnimationKeyframeEditing.moveScales(model, scales, delta)
+                : !translations.isEmpty()
                 ? ActorAnimationKeyframeEditing.moveTranslations(model, translations, delta)
                 : ActorAnimationKeyframeEditing.moveRotations(model, rotations, delta);
     }
@@ -478,19 +504,23 @@ public final class ActorAnimationDopeSheet {
     private static void copySelection(AnimationAsset asset) {
         clipboard.clear();
         translationClipboard.clear();
+        scaleClipboard.clear();
         if (selection.isEmpty()) return;
         float origin = selection.stream().map(KeyId::time).min(Float::compare).orElse(0f);
         for (KeyId key : selection) asset.findBoneTrack(key.boneId()).ifPresent(track -> {
             if (key.channel() == Channel.ROTATION) track.rotation().findAt(key.time()).ifPresent(frame -> clipboard.add(
                     new CopiedKey(key.boneId(), frame.time() - origin, frame.value(), frame.interpolation())));
-            else track.translation().findAt(key.time()).ifPresent(frame -> translationClipboard.add(
+            else if (key.channel() == Channel.TRANSLATION) track.translation().findAt(key.time()).ifPresent(frame -> translationClipboard.add(
                     new CopiedTranslationKey(key.boneId(), frame.time() - origin, frame.value(), frame.interpolation())));
+            else track.scale().findAt(key.time()).ifPresent(frame -> scaleClipboard.add(
+                    new CopiedScaleKey(key.boneId(), frame.time() - origin, frame.value(), frame.interpolation())));
         });
     }
 
     private static void pasteAt(TimelineModel model, AnimationAsset asset, float origin) {
         List<ActorAnimationKeyframeEditing.RotationPaste> pasted = new ArrayList<>();
         List<ActorAnimationKeyframeEditing.TranslationPaste> pastedTranslations = new ArrayList<>();
+        List<ActorAnimationKeyframeEditing.ScalePaste> pastedScales = new ArrayList<>();
         Set<KeyId> pastedIds = new LinkedHashSet<>();
         for (CopiedKey copied : clipboard) {
             float time = origin + copied.offset();
@@ -515,7 +545,19 @@ public final class ActorAnimationDopeSheet {
                     track, time, copied.value(), copied.interpolation()));
             pastedIds.add(new KeyId(copied.boneId(), Channel.TRANSLATION, time));
         }
-        boolean changed = !pastedTranslations.isEmpty()
+        for (CopiedScaleKey copied : scaleClipboard) {
+            float time = origin + copied.offset();
+            if (time > asset.duration()) return;
+            BoneTrack track;
+            try { track = asset.getOrCreateBoneTrack(copied.boneId()); }
+            catch (IllegalArgumentException ignored) { return; }
+            pastedScales.add(new ActorAnimationKeyframeEditing.ScalePaste(
+                    track, time, copied.value(), copied.interpolation()));
+            pastedIds.add(new KeyId(copied.boneId(), Channel.SCALE, time));
+        }
+        boolean changed = !pastedScales.isEmpty()
+                ? ActorAnimationKeyframeEditing.pasteScales(model, pastedScales)
+                : !pastedTranslations.isEmpty()
                 ? ActorAnimationKeyframeEditing.pasteTranslations(model, pastedTranslations)
                 : ActorAnimationKeyframeEditing.pasteRotations(model, pasted);
         if (changed) {
@@ -545,12 +587,14 @@ public final class ActorAnimationDopeSheet {
     }
 
     private static List<Float> frameTimes(Row row) {
-        return row.channel() == Channel.ROTATION
-                ? row.track().rotation().keyframes().stream().map(ChannelKeyframe::time).toList()
-                : row.track().translation().keyframes().stream().map(ChannelKeyframe::time).toList();
+        return switch (row.channel()) {
+            case ROTATION -> row.track().rotation().keyframes().stream().map(ChannelKeyframe::time).toList();
+            case TRANSLATION -> row.track().translation().keyframes().stream().map(ChannelKeyframe::time).toList();
+            case SCALE -> row.track().scale().keyframes().stream().map(ChannelKeyframe::time).toList();
+        };
     }
 
-    private enum Channel { ROTATION, TRANSLATION }
+    private enum Channel { ROTATION, TRANSLATION, SCALE }
     private record KeyId(String boneId, Channel channel, float time) {}
     private record Row(String boneId, BoneTrack track, Channel channel) {}
     private static final class ViewState {
@@ -566,6 +610,10 @@ public final class ActorAnimationDopeSheet {
     private record CopiedTranslationKey(String boneId, float offset, Vector3f value,
                                         com.director.actor.animation.asset.InterpolationMode interpolation) {
         private CopiedTranslationKey { value = new Vector3f(value); }
+    }
+    private record CopiedScaleKey(String boneId, float offset, Vector3f value,
+                                  com.director.actor.animation.asset.InterpolationMode interpolation) {
+        private CopiedScaleKey { value = new Vector3f(value); }
     }
 
     private static ActorTrack findActorTrack(TimelineModel model, UUID actorId) {

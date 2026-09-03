@@ -226,6 +226,42 @@ class ActorAnimationKeyframeEditingTest {
         assertTrue(track.translation().findAt(2f).isPresent());
     }
 
+    @Test
+    void movesScaleKeysWithUndoAndConflictProtection() {
+        TimelineModel model = new TimelineModel(new TimelineViewportState());
+        TimelineCommandHistory history = new TimelineCommandHistory();
+        TimelineCommandBridge.bind(history);
+        BoneTrack track = new BoneTrack();
+        track.scale().put(1f, new Vector3f(1f), InterpolationMode.LINEAR);
+        track.scale().put(3f, new Vector3f(2f), InterpolationMode.SMOOTH);
+
+        assertTrue(ActorAnimationKeyframeEditing.moveScales(model, List.of(
+                new ActorAnimationKeyframeEditing.ScaleKey(track, 1f)), 1f));
+        assertTrue(track.scale().findAt(2f).isPresent());
+        assertFalse(ActorAnimationKeyframeEditing.moveScales(model, List.of(
+                new ActorAnimationKeyframeEditing.ScaleKey(track, 2f)), 1f));
+        assertTrue(history.undo());
+        assertTrue(track.scale().findAt(1f).isPresent());
+    }
+
+    @Test
+    void pastesAndDeletesScaleKeysWithUndo() {
+        TimelineModel model = new TimelineModel(new TimelineViewportState());
+        TimelineCommandHistory history = new TimelineCommandHistory();
+        TimelineCommandBridge.bind(history);
+        BoneTrack track = new BoneTrack();
+
+        assertTrue(ActorAnimationKeyframeEditing.pasteScales(model, List.of(
+                new ActorAnimationKeyframeEditing.ScalePaste(
+                        track, 2f, new Vector3f(1.5f, 2f, 0.5f), InterpolationMode.SMOOTH))));
+        assertEquals(new Vector3f(1.5f, 2f, 0.5f), track.scale().findAt(2f).orElseThrow().value());
+        assertTrue(ActorAnimationKeyframeEditing.deleteScales(model, List.of(
+                new ActorAnimationKeyframeEditing.ScaleKey(track, 2f))));
+        assertTrue(track.scale().findAt(2f).isEmpty());
+        assertTrue(history.undo());
+        assertTrue(track.scale().findAt(2f).isPresent());
+    }
+
     private static void assertQuaternionEquivalent(Quaternionf expected, Quaternionf actual) {
         assertEquals(1f, Math.abs(expected.dot(actual)), 1.0e-5f);
     }
