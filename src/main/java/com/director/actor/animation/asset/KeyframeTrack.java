@@ -32,6 +32,13 @@ public final class KeyframeTrack<T> {
         return keyframes.removeIf(frame -> Math.abs(frame.time() - time) <= TIME_EPSILON);
     }
 
+    public java.util.Optional<ChannelKeyframe<T>> findAt(float time) {
+        for (ChannelKeyframe<T> frame : keyframes) {
+            if (Math.abs(frame.time() - time) <= TIME_EPSILON) return java.util.Optional.of(copied(frame));
+        }
+        return java.util.Optional.empty();
+    }
+
     public T sample(float time, T fallback) {
         if (keyframes.isEmpty()) return values.copy(fallback);
         if (time <= keyframes.getFirst().time()) return values.copy(keyframes.getFirst().value());

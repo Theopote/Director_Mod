@@ -31,6 +31,7 @@ import imgui.flag.ImGuiTreeNodeFlags;
 import imgui.type.ImBoolean;
 import imgui.type.ImFloat;
 import imgui.type.ImInt;
+import imgui.type.ImString;
 
 import java.util.Objects;
 import java.util.UUID;
@@ -54,6 +55,10 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
     private final ImFloat poseRightArmDeg = new ImFloat(0.0f);
     private final ImFloat poseLeftLegDeg = new ImFloat(0.0f);
     private final ImFloat poseRightLegDeg = new ImFloat(0.0f);
+    private final ImBoolean animationAutoKeyframe = new ImBoolean(false);
+    private final ImString animationAssetId = new ImString("project:actor_animation", 128);
+    private final ImInt animationInterpolation = new ImInt(2);
+    private final ImFloat animationAssetDuration = new ImFloat(5f);
 
     @Override
     public Class<EditorTool> getTargetType() {
@@ -135,6 +140,7 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         }
 
         if (Objects.equals(tool.getId(), ToolRegistry.ACTOR_POSE_TOOL_ID)) {
+            renderAnimationAuthoring();
             renderPoseAuthoring(actor);
             renderLocalPoseAuthoring(actor);
         } else if (Objects.equals(tool.getId(), ToolRegistry.ACTOR_PATH_TOOL_ID)) {
@@ -145,6 +151,31 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
             } else {
                 renderTransformHint();
             }
+        }
+    }
+
+    private void renderAnimationAuthoring() {
+        if (!ImGui.collapsingHeader(Icons.ANIMATION + " 关键帧动画", ImGuiTreeNodeFlags.DefaultOpen)) return;
+        var settings = com.director.ui.actor.pose.ActorAnimationAuthoringSettings.getInstance();
+        animationAutoKeyframe.set(settings.isAutoKeyframe());
+        if (ImGui.checkbox("自动关键帧##actorAnimationAutoKey", animationAutoKeyframe)) {
+            settings.setAutoKeyframe(animationAutoKeyframe.get());
+        }
+        if (ImGui.isItemHovered()) ImGui.setTooltip("开启后，骨骼 Gizmo 写入 AnimationAsset；关闭时写入快速姿态片段");
+
+        animationAssetId.set(settings.getAssetId());
+        if (ImGui.inputText("动画资产 ID##actorAnimationAssetId", animationAssetId)) {
+            settings.setAssetId(animationAssetId.get());
+        }
+        float[] duration = { settings.getNewAssetDuration() };
+        if (ImGui.sliderFloat("新资产时长##actorAnimationDuration", duration, 0.1f, 60f, "%.2fs")) {
+            settings.setNewAssetDuration(duration[0]);
+        }
+        var modes = com.director.actor.animation.asset.InterpolationMode.values();
+        animationInterpolation.set(settings.getInterpolation().ordinal());
+        String[] labels = {"阶梯", "线性", "平滑"};
+        if (ImGui.combo("关键帧插值##actorAnimationInterpolation", animationInterpolation, labels)) {
+            settings.setInterpolation(modes[Math.max(0, Math.min(animationInterpolation.get(), modes.length - 1))]);
         }
     }
 

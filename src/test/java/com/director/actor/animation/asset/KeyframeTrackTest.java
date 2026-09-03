@@ -44,6 +44,18 @@ class KeyframeTrackTest {
         assertEquals(1f, forward.z, 1.0e-4f);
     }
 
+    @Test
+    void findsExactKeyframeAndReturnsDefensiveValueCopy() {
+        KeyframeTrack<Quaternionf> track = new KeyframeTrack<>(ChannelValueAdapters.QUATERNION);
+        track.put(1f, new Quaternionf().rotateX(0.5f), InterpolationMode.SMOOTH);
+
+        ChannelKeyframe<Quaternionf> found = track.findAt(1f).orElseThrow();
+        found.value().identity();
+
+        Vector3f actual = track.findAt(1f).orElseThrow().value().transform(new Vector3f(0f, 1f, 0f));
+        assertEquals((float) Math.sin(0.5f), actual.z, 1.0e-5f);
+    }
+
     private static KeyframeTrack<Vector3f> vectorTrack(InterpolationMode mode) {
         KeyframeTrack<Vector3f> track = new KeyframeTrack<>(ChannelValueAdapters.VECTOR3);
         track.put(0f, new Vector3f(), mode);

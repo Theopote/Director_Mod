@@ -14,7 +14,9 @@
 - 新轨道支持 STEP、LINEAR、SMOOTH 与 Quaternion 最短路径插值，以及 ONCE、LOOP、PING_PONG 时间模式。
 - 动画资产已支持版本化 JSON、原子替换、`.bak` 恢复，并接入世界工程保存/切换生命周期。
 - `EntityAnimationClip` 已可通过 animationId 播放新资产，并保留旧 `AnimationLibrary` 回退。
-- 当前 Gizmo 仍通过旧 Pose 通道写入；新资产的可视化创建/编辑和 Dope Sheet 尚未接入。
+- Actor Pose 属性面板已增加默认关闭的“自动关键帧”、资产 ID、新资产时长和插值模式。
+- 骨骼旋转 Gizmo 已能在播放头写入 Quaternion 关键帧；必要时自动创建动画资产与时间线片段，整次拖动支持撤销/重做。
+- Dope Sheet、关键帧批量编辑、复制/移动/删除和姿态镜像尚未接入。
 
 Director 有可能实现接近 Mine-imator 的角色摆姿和动画制作体验，但不应把目标理解为“一次性复制 Mine-imator 的全部能力”。更合理的目标是：
 
