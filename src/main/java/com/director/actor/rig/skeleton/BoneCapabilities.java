@@ -6,6 +6,10 @@ public record BoneCapabilities(boolean translation, boolean rotation, boolean sc
         return new BoneCapabilities(false, true, false);
     }
 
+    public static BoneCapabilities rotationAndScale() {
+        return new BoneCapabilities(false, true, true);
+    }
+
     public static BoneCapabilities full() {
         return new BoneCapabilities(true, true, true);
     }

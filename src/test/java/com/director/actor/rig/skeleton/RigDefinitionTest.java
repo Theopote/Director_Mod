@@ -6,6 +6,7 @@ import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class RigDefinitionTest {
     @Test
@@ -15,6 +16,15 @@ class RigDefinitionTest {
         assertEquals(7, rig.boneCount());
         assertEquals(HumanoidRig.HEAD, rig.bone(rig.requireBoneIndex(HumanoidRig.HEAD)).id());
         assertEquals(-1, rig.findBoneIndex("missing"));
+    }
+
+    @Test
+    void humanoidPartsExposeScaleAuthoring() {
+        RigDefinition rig = HumanoidRig.DEFINITION;
+        for (String boneId : List.of(HumanoidRig.ROOT, HumanoidRig.BODY, HumanoidRig.HEAD,
+                HumanoidRig.LEFT_ARM, HumanoidRig.RIGHT_ARM, HumanoidRig.LEFT_LEG, HumanoidRig.RIGHT_LEG)) {
+            assertTrue(rig.bone(rig.requireBoneIndex(boneId)).capabilities().scale(), boneId);
+        }
     }
 
     @Test

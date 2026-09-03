@@ -24,7 +24,7 @@
 - 骨骼 Gizmo 已增加缩放模式；支持该能力的骨骼可写入 `BoneTrack.scale`，使用乘法缩放、正数下限保护和整次拖动撤销/重做。
 - Root Scale 已通过专用 RenderState 桥接到 `LivingEntityRenderer.scale` 的隔离矩阵作用域，支持非均匀 XYZ 视觉缩放，仅影响 Director 预览演员，不污染普通实体。
 - Dope Sheet 已将缩放作为紫色 `S` 通道行纳入统一画布，支持定位、选择/框选、按帧拖动、按钮移动、删除、相对时间复制粘贴、目标冲突保护和单事务撤销/重做。
-- 非 Root 的逐部件网格缩放尚未接入。
+- 人形非 Root 骨骼已通过 `ModelPart` 的独立 XYZ scale 接入逐部件视觉缩放；头部同步缩放帽层，写入发生在原版姿态重置之后，并且仅从 Director 预览演员的 RenderState 取值。
 
 Director 有可能实现接近 Mine-imator 的角色摆姿和动画制作体验，但不应把目标理解为“一次性复制 Mine-imator 的全部能力”。更合理的目标是：
 

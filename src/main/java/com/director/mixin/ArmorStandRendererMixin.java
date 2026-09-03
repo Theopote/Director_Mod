@@ -5,6 +5,7 @@ import com.director.actor.preview.PreviewActorEntity;
 import com.director.actor.skin.ActorSkinTextureManager;
 import com.director.bridge.DirectorActorIdHolder;
 import com.director.bridge.DirectorActorScaleHolder;
+import com.director.bridge.DirectorActorBoneScaleHolder;
 import com.director.actor.rig.skeleton.HumanoidRig;
 import net.minecraft.client.render.entity.ArmorStandEntityRenderer;
 import net.minecraft.client.render.entity.state.ArmorStandEntityRenderState;
@@ -43,6 +44,15 @@ public abstract class ArmorStandRendererMixin {
                 scaleHolder.director$setActorScale(scale.x, scale.y, scale.z);
             } else {
                 scaleHolder.director$setActorScale(1f, 1f, 1f);
+            }
+        }
+        if (state instanceof DirectorActorBoneScaleHolder boneScaleHolder) {
+            var pose = entity instanceof PreviewActorEntity preview ? preview.getFinalRigPose() : null;
+            String[] bones = { HumanoidRig.BODY, HumanoidRig.HEAD, HumanoidRig.LEFT_ARM,
+                    HumanoidRig.RIGHT_ARM, HumanoidRig.LEFT_LEG, HumanoidRig.RIGHT_LEG };
+            for (String bone : bones) {
+                var scale = pose == null ? new org.joml.Vector3f(1f) : pose.localTransform(bone).scale();
+                boneScaleHolder.director$setBoneScale(bone, scale.x, scale.y, scale.z);
             }
         }
     }

@@ -17,12 +17,12 @@ public final class HumanoidRig {
             "Humanoid",
             List.of(
                     bone(ROOT, -1, BoneTransform.identity(), BoneCapabilities.full()),
-                    bone(BODY, 0, BoneTransform.translation(0f, 1.25f, 0f), BoneCapabilities.rotationOnly()),
-                    bone(HEAD, 1, BoneTransform.translation(0f, 0.375f, 0f), BoneCapabilities.rotationOnly()),
-                    bone(LEFT_ARM, 1, BoneTransform.translation(0.375f, 0.125f, 0f), BoneCapabilities.rotationOnly()),
-                    bone(RIGHT_ARM, 1, BoneTransform.translation(-0.375f, 0.125f, 0f), BoneCapabilities.rotationOnly()),
-                    bone(LEFT_LEG, 0, BoneTransform.translation(0.125f, 0.75f, 0f), BoneCapabilities.rotationOnly()),
-                    bone(RIGHT_LEG, 0, BoneTransform.translation(-0.125f, 0.75f, 0f), BoneCapabilities.rotationOnly())
+                    bone(BODY, 0, BoneTransform.translation(0f, 1.25f, 0f), BoneCapabilities.rotationAndScale()),
+                    bone(HEAD, 1, BoneTransform.translation(0f, 0.375f, 0f), BoneCapabilities.rotationAndScale()),
+                    bone(LEFT_ARM, 1, BoneTransform.translation(0.375f, 0.125f, 0f), BoneCapabilities.rotationAndScale()),
+                    bone(RIGHT_ARM, 1, BoneTransform.translation(-0.375f, 0.125f, 0f), BoneCapabilities.rotationAndScale()),
+                    bone(LEFT_LEG, 0, BoneTransform.translation(0.125f, 0.75f, 0f), BoneCapabilities.rotationAndScale()),
+                    bone(RIGHT_LEG, 0, BoneTransform.translation(-0.125f, 0.75f, 0f), BoneCapabilities.rotationAndScale())
             ));
 
     private HumanoidRig() {}
