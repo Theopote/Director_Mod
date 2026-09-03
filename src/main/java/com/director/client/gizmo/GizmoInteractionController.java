@@ -179,6 +179,7 @@ public class GizmoInteractionController {
             return true;
         }
         transformApplier.resetAccumulators();
+        transformApplier.beginDragSession();
         if (transformApplier instanceof com.director.ui.actor.gizmo.ActorTransformApplier actorApplier) {
             actorApplier.prepareDragSession();
             return context == null
@@ -342,6 +343,9 @@ public class GizmoInteractionController {
         }
         
         // 清除悬停状态，强制重新检测（鼠标可能已经不在手柄上了）
+        if (transformApplier != null) {
+            transformApplier.endDragSession();
+        }
         hoveredHandle = null;
         hoveredRotationHandle = null;
     }

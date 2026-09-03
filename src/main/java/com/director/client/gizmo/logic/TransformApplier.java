@@ -164,6 +164,11 @@ public class TransformApplier {
         resizeCarryX = resizeCarryY = resizeCarryZ = 0.0;
     }
 
+    /** Gesture boundary hooks for domain-specific undo transactions. */
+    public void beginDragSession() {}
+
+    public void endDragSession() {}
+
     private int extractStep(double value) {
         if (value >= 1.0) {
             return (int) Math.floor(value);

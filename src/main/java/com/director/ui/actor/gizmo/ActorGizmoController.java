@@ -16,11 +16,14 @@ import com.director.timeline.model.entity.EntityTimelineClip;
 import com.director.timeline.model.entity.EntityTransformClip;
 import com.director.timeline.playback.entity.EntityClipSampler;
 import com.director.timeline.playback.entity.EntitySample;
+import com.director.ui.timeline.commands.StateChangeCommand;
+import com.director.ui.timeline.commands.TimelineCommandBridge;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 import org.jetbrains.annotations.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.joml.Vector3f;
 
 import java.util.List;
 import java.util.Objects;
@@ -75,6 +78,8 @@ public final class ActorGizmoController {
     /** Gizmo 编辑状态 */
     private EntityTransformClip editingClip;
     private boolean dragging = false;
+    private TransformClipState dragBeforeState;
+    private boolean dragCreatedClip;
     /** 是否由 ActorGizmoController 激活并持有当前 Gizmo。 */
     private boolean ownsGizmo = false;
 
@@ -417,30 +422,24 @@ public final class ActorGizmoController {
 
         // 2️⃣ 找到当前时间覆盖的 TransformClip（last-wins）
         editingClip = findActiveTransformClip(actorTrack, time);
+        boolean activeClipAtCurrentTime = editingClip != null;
+
+        if (editingClip == null) {
+            editingClip = findNearestTransformClipForExtension(actorTrack, time);
+        }
+        dragCreatedClip = editingClip == null;
+        dragBeforeState = dragCreatedClip ? null : TransformClipState.capture(editingClip);
 
         // 3️⃣ 如果没有，尝试扩展现有的 TransformClip 或创建新的
         if (editingClip == null) {
-            // ⭐ 检查是否有相邻的 TransformClip 可以扩展
-            editingClip = findNearestTransformClipForExtension(actorTrack, time);
-            
-            if (editingClip != null) {
-                // 扩展现有 clip 的时间范围，使其包含当前时间
+            editingClip = createTransformClip(actorTrack, time, sampledPos);
+            LOGGER.debug("[ActorGizmoController] 创建新的 TransformClip: start={}, end={}",
+                    editingClip.getStartTime(), editingClip.getEndTime());
+        } else {
+            if (!activeClipAtCurrentTime) {
                 float newStart = Math.min(editingClip.getStartTime(), time);
                 float newEnd = Math.max(editingClip.getEndTime(), time + DEFAULT_CLIP_DURATION);
                 editingClip.setTimeRange(newStart, newEnd);
-                LOGGER.debug("[ActorGizmoController] 扩展现有 TransformClip: start={}, end={}",
-                        editingClip.getStartTime(), editingClip.getEndTime());
-            } else {
-                // 没有可以扩展的 clip，创建新的
-                editingClip = createTransformClip(actorTrack, time, sampledPos);
-                LOGGER.debug("[ActorGizmoController] 创建新的 TransformClip: start={}, end={}",
-                        editingClip.getStartTime(), editingClip.getEndTime());
-            }
-        } else {
-            // ⭐ 如果找到了现有 clip，确保其时间范围包含当前时间（必要时扩展）
-            if (time > editingClip.getEndTime()) {
-                editingClip.setTimeRange(editingClip.getStartTime(), time + DEFAULT_CLIP_DURATION);
-                LOGGER.debug("[ActorGizmoController] 扩展 TransformClip 结束时间: {}", editingClip.getEndTime());
             }
         }
 
@@ -700,13 +699,15 @@ public final class ActorGizmoController {
             // 通知时间线数据已变
             TimelineModel model = resolveTimelineModel();
             if (model != null) {
-                model.markDirty();
+                registerActorTransformUndo(model, editingClip);
             }
         }
 
         dragging = false;
         editingClip = null;
         clearDragBases();
+        dragBeforeState = null;
+        dragCreatedClip = false;
 
         // 拖动结束后立即把 Gizmo 拉回演员身上，避免 pivot 与实体脱节
         if (targetActorId != null) {
@@ -716,6 +717,53 @@ public final class ActorGizmoController {
                 lastGizmoPivot = null;
                 updateGizmoPosition(preview);
             }
+        }
+    }
+
+    private void registerActorTransformUndo(TimelineModel model, EntityTransformClip clip) {
+        TransformClipState after = TransformClipState.capture(clip);
+        if (dragCreatedClip) {
+            ActorTrack targetTrack = actorTrack;
+            TimelineTrack targetTimelineTrack = timelineTrack;
+            EntityTimelineClip wrapper = clip.getTimelineClip();
+            Runnable undo = () -> {
+                targetTrack.removeClip(clip.getId());
+                if (targetTimelineTrack != null && wrapper != null) targetTimelineTrack.removeClip(wrapper);
+            };
+            Runnable redo = () -> {
+                if (!targetTrack.getClips().contains(clip)) targetTrack.addClip(clip);
+                if (targetTimelineTrack != null && wrapper != null) targetTimelineTrack.addClip(wrapper);
+                after.apply(clip);
+            };
+            TimelineCommandBridge.execute(new StateChangeCommand(model, "Transform actor", undo, redo));
+        } else if (dragBeforeState != null && !dragBeforeState.equals(after)) {
+            TransformClipState before = dragBeforeState;
+            TimelineCommandBridge.execute(new StateChangeCommand(model, "Transform actor",
+                () -> before.apply(clip), () -> after.apply(clip)));
+        } else {
+            model.markDirty();
+        }
+    }
+
+    private record TransformClipState(float startTime, float endTime,
+                                      Vector3f fromPos, Vector3f toPos,
+                                      Vector3f fromRot, Vector3f toRot,
+                                      Vector3f fromScale, Vector3f toScale) {
+        static TransformClipState capture(EntityTransformClip clip) {
+            return new TransformClipState(clip.getStartTime(), clip.getEndTime(),
+                new Vector3f(clip.getFromPos()), new Vector3f(clip.getToPos()),
+                new Vector3f(clip.getFromRot()), new Vector3f(clip.getToRot()),
+                new Vector3f(clip.getFromScale()), new Vector3f(clip.getToScale()));
+        }
+
+        void apply(EntityTransformClip clip) {
+            clip.setTimeRange(startTime, endTime);
+            clip.setFromPos(fromPos.x, fromPos.y, fromPos.z);
+            clip.setToPos(toPos.x, toPos.y, toPos.z);
+            clip.setFromRot(fromRot.x, fromRot.y, fromRot.z);
+            clip.setToRot(toRot.x, toRot.y, toRot.z);
+            clip.setFromScale(fromScale.x, fromScale.y, fromScale.z);
+            clip.setToScale(toScale.x, toScale.y, toScale.z);
         }
     }
 

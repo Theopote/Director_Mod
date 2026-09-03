@@ -167,13 +167,18 @@ public class TimelinePanel extends AbstractPanel
     private static final long AUTO_SAVE_INTERVAL_MS = 5000; // 5秒（基于时间，不受FPS影响）
 
     public TimelinePanel() {
+        this(new TimelineCommandHistory());
+    }
+
+    public TimelinePanel(TimelineCommandHistory sharedCommandHistory) {
         super();
 
         // 1. 初始化核心组件
         this.viewportState = new TimelineViewportState();
         this.model = new TimelineModel(viewportState);
         this.renderer = new TimelineRenderer(model, viewportState);
-        this.commandHistory = new TimelineCommandHistory();
+        this.commandHistory = sharedCommandHistory != null ? sharedCommandHistory : new TimelineCommandHistory();
+        com.director.ui.timeline.commands.TimelineCommandBridge.bind(this.commandHistory);
         this.interactionManager = new TimelineInteractionManager();
         this.interactionHandler = new TimelineInteractionHandler(model, interactionManager, commandHistory, renderer);
         

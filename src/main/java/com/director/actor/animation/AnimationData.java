@@ -13,7 +13,7 @@ import java.util.List;
  * <p>设计理念：
  * <ul>
  *   <li>动画数据是不可变的（关键帧只读）</li>
- *   <li>支持多种动画源（Vanilla, GeckoLib, Custom, File）</li>
+ *   <li>记录内建或程序化注册的自定义关键帧来源</li>
  *   <li>提供采样方法（sampleAt）</li>
  * </ul>
  *
@@ -26,17 +26,11 @@ public class AnimationData {
      * 动画来源类型
      */
     public enum AnimationSource {
-        /** Minecraft 原版动画 */
-        VANILLA("原版动画"),
-
-        /** GeckoLib 动画 */
-        GECKOLIB("GeckoLib"),
+        /** Director 随包提供的关键帧动画。 */
+        BUILT_IN("内建动画"),
 
         /** 自定义关键帧动画 */
-        CUSTOM("自定义"),
-
-        /** 外部文件（.anim）*/
-        FILE("文件");
+        CUSTOM("自定义");
 
         private final String displayName;
 

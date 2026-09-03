@@ -5,12 +5,7 @@ import com.director.actor.rig.AnimationPoseResult;
 /**
  * AnimationPlayer v1.0
  *
- * <p>统一的动画播放器接口，支持多种动画源：
- * <ul>
- *   <li>Vanilla Minecraft 原版动画</li>
- *   <li>GeckoLib 动画</li>
- *   <li>自定义关键帧动画</li>
- * </ul>
+ * <p>统一的 Director 关键帧动画播放器接口。
  *
  * <p>设计理念：
  * <ul>

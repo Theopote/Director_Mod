@@ -27,7 +27,9 @@ public class AnimationLibrary {
 
     private final Map<String, AnimationData> animations = new LinkedHashMap<>();
 
-    private AnimationLibrary() {}
+    private AnimationLibrary() {
+        BuiltInAnimations.registerInto(this);
+    }
 
     public static AnimationLibrary getInstance() {
         return INSTANCE;

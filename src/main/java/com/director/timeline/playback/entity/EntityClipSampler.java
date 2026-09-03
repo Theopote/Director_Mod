@@ -605,13 +605,17 @@ public class EntityClipSampler {
 
     private void applyActorPose(EntitySample result, List<ActorPoseClip> clips, float timeSeconds) {
         ActorPoseClip active = null;
+        ActorPoseClip previous = null;
         for (ActorPoseClip clip : clips) {
             if (clip.isMuted()) {
                 continue;
             }
             if (timeSeconds >= clip.getStartTime() && timeSeconds <= clip.getEndTime()) {
                 if (active == null || clip.getStartTime() > active.getStartTime()) {
+                    previous = active;
                     active = clip;
+                } else if (clip != active && (previous == null || clip.getStartTime() > previous.getStartTime())) {
+                    previous = clip;
                 }
             }
         }
@@ -624,15 +628,32 @@ public class EntityClipSampler {
         result.poseOverrideHead = active.isOverrideHead();
         result.poseOverrideArms = active.isOverrideArms();
         result.poseOverrideLegs = active.isOverrideLegs();
-        result.poseBodyPitch = active.getBodyPitch();
-        result.poseBodyYaw = active.getBodyYaw();
-        result.poseBodyRoll = active.getBodyRoll();
-        result.poseHeadPitch = active.getHeadPitch();
-        result.poseHeadYaw = active.getHeadYaw();
-        result.poseLeftArmPitch = active.getLeftArmPitch();
-        result.poseRightArmPitch = active.getRightArmPitch();
-        result.poseLeftLegPitch = active.getLeftLegPitch();
-        result.poseRightLegPitch = active.getRightLegPitch();
+        float blend = 1f;
+        if (previous != null && previous.getStartTime() < active.getStartTime()) {
+            float overlapEnd = Math.min(previous.getEndTime(), active.getEndTime());
+            float overlap = overlapEnd - active.getStartTime();
+            if (overlap > 1.0e-5f) {
+                blend = clamp01((timeSeconds - active.getStartTime()) / overlap);
+            }
+        }
+
+        result.poseBodyPitch = blend(previous != null && previous.isOverrideBody(), previous == null ? 0f : previous.getBodyPitch(), active.getBodyPitch(), blend);
+        result.poseBodyYaw = blend(previous != null && previous.isOverrideBody(), previous == null ? 0f : previous.getBodyYaw(), active.getBodyYaw(), blend);
+        result.poseBodyRoll = blend(previous != null && previous.isOverrideBody(), previous == null ? 0f : previous.getBodyRoll(), active.getBodyRoll(), blend);
+        result.poseHeadPitch = blend(previous != null && previous.isOverrideHead(), previous == null ? 0f : previous.getHeadPitch(), active.getHeadPitch(), blend);
+        result.poseHeadYaw = blend(previous != null && previous.isOverrideHead(), previous == null ? 0f : previous.getHeadYaw(), active.getHeadYaw(), blend);
+        result.poseLeftArmPitch = blend(previous != null && previous.isOverrideArms(), previous == null ? 0f : previous.getLeftArmPitch(), active.getLeftArmPitch(), blend);
+        result.poseRightArmPitch = blend(previous != null && previous.isOverrideArms(), previous == null ? 0f : previous.getRightArmPitch(), active.getRightArmPitch(), blend);
+        result.poseLeftLegPitch = blend(previous != null && previous.isOverrideLegs(), previous == null ? 0f : previous.getLeftLegPitch(), active.getLeftLegPitch(), blend);
+        result.poseRightLegPitch = blend(previous != null && previous.isOverrideLegs(), previous == null ? 0f : previous.getRightLegPitch(), active.getRightLegPitch(), blend);
+    }
+
+    private static float blend(boolean hasPreviousOverride, float previous, float current, float amount) {
+        return hasPreviousOverride ? previous + (current - previous) * amount : current;
+    }
+
+    private static float clamp01(float value) {
+        return Math.max(0f, Math.min(1f, value));
     }
 
     private void applyActorRoute(EntitySample result, List<ActorRouteClip> clips, float timeSeconds) {

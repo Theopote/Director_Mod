@@ -5,7 +5,8 @@ package com.director.timeline.model.entity;
  *
  * <p>This is intentionally narrower than a full animation system: it stores
  * director-authored offsets for broad body regions, then the runtime applies
- * them after RigProfile has produced the semantic base pose.</p>
+ * them after RigProfile has produced the semantic base pose. Overlapping pose
+ * clips cross-fade in the overlap interval; isolated clips remain held poses.</p>
  */
 public final class ActorPoseClip extends EntityClip {
     private boolean overrideBody = false;

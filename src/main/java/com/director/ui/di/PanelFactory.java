@@ -36,6 +36,7 @@ public class PanelFactory implements IPanelFactory {
     
     // 面板类型到创建器的映射
     private final Map<Class<? extends IPanel>, PanelCreator<? extends IPanel>> creators;
+    private final TimelineCommandHistory sharedCommandHistory = new TimelineCommandHistory();
     
     // 默认面板类型映射
     private static final Map<Class<? extends IPanel>, Class<? extends IPanel>> DEFAULT_PANEL_TYPES = new HashMap<>();
@@ -85,7 +86,7 @@ public class PanelFactory implements IPanelFactory {
             
             // 创建依赖对象
             ContainerManager containerManager = DirectorServices.get().containers();
-            TimelineCommandHistory commandHistory = new TimelineCommandHistory();
+            TimelineCommandHistory commandHistory = sharedCommandHistory;
             ContainerCommandBridge.bindHistory(commandHistory);
             
             // 使用依赖注入构造函数（v5.0: 移除了WorldBlockCollector参数，propertiesPanel 在内部创建）
@@ -109,7 +110,7 @@ public class PanelFactory implements IPanelFactory {
         registerPanelCreator(TimelinePanel.class, minecraftClient -> {
             LOGGER.debug("[PanelFactory] 创建TimelinePanel (MinecraftClient: {})", 
                 minecraftClient != null ? "已注入" : "未注入");
-            return new TimelinePanel();
+            return new TimelinePanel(sharedCommandHistory);
         });
 
         // 注册SelectionFilterPanel创建器

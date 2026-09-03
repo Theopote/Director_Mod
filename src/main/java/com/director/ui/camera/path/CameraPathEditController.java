@@ -21,6 +21,8 @@ import com.director.timeline.playback.camera.CameraSample;
 import com.director.timeline.playback.camera.TimelineCameraController;
 import com.director.timeline.playback.camera.TimelineCameraPathManager;
 import com.director.ui.input.InputFocusManager;
+import com.director.ui.timeline.commands.StateChangeCommand;
+import com.director.ui.timeline.commands.TimelineCommandBridge;
 import imgui.ImGui;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.DrawContext;
@@ -42,6 +44,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.function.BooleanSupplier;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 public final class CameraPathEditController {
@@ -80,6 +84,10 @@ public final class CameraPathEditController {
     private boolean boxDragging = false;
     private boolean gizmoMouseCaptured = false;
     private boolean wasGizmoDragging = false;
+    private Runnable pendingGizmoUndo;
+    private Supplier<Runnable> pendingGizmoRedo;
+    private BooleanSupplier pendingGizmoChanged;
+    private String pendingGizmoDescription;
     private boolean lastDeleteDown = false;
     private double dragStartX = 0.0;
     private double dragStartY = 0.0;
@@ -306,6 +314,86 @@ public final class CameraPathEditController {
             boxDragging = false;
         }
         lastLeftMouseDown = leftDown;
+    }
+
+    void beginGizmoUndoTransaction() {
+        clearPendingGizmoTransaction();
+        if (selectedKeyframe != null) {
+            CameraKeyframe keyframe = selectedKeyframe;
+            Vector3f before = new Vector3f(keyframe.getPosition());
+            pendingGizmoUndo = () -> keyframe.setPosition(new Vector3f(before));
+            pendingGizmoRedo = () -> {
+                Vector3f after = new Vector3f(keyframe.getPosition());
+                return () -> keyframe.setPosition(new Vector3f(after));
+            };
+            pendingGizmoChanged = () -> !before.equals(keyframe.getPosition());
+            pendingGizmoDescription = "Move camera path keyframe";
+        } else if (selectedOrbitClip != null) {
+            OrbitPathClip clip = selectedOrbitClip;
+            Vec3d beforeCenter = clip.getCenter();
+            Vec3d beforeLookAt = clip.getLookAt();
+            pendingGizmoUndo = () -> { clip.setCenter(beforeCenter); clip.setLookAt(beforeLookAt); };
+            pendingGizmoRedo = () -> {
+                Vec3d afterCenter = clip.getCenter();
+                Vec3d afterLookAt = clip.getLookAt();
+                return () -> { clip.setCenter(afterCenter); clip.setLookAt(afterLookAt); };
+            };
+            pendingGizmoChanged = () -> !beforeCenter.equals(clip.getCenter()) || !beforeLookAt.equals(clip.getLookAt());
+            pendingGizmoDescription = "Move orbit center";
+        } else if (selectedLinearClip != null && selectedLinearEndpoint != null) {
+            CameraPathClip clip = selectedLinearClip;
+            LinearEndpoint endpoint = selectedLinearEndpoint;
+            Vec3d before = getLinearEndpointPosition(clip, endpoint);
+            if (before == null) return;
+            pendingGizmoUndo = () -> setLinearEndpointPosition(clip, endpoint, before);
+            pendingGizmoRedo = () -> {
+                Vec3d after = getLinearEndpointPosition(clip, endpoint);
+                return () -> setLinearEndpointPosition(clip, endpoint, after);
+            };
+            pendingGizmoChanged = () -> {
+                Vec3d current = getLinearEndpointPosition(clip, endpoint);
+                return current != null && !before.equals(current);
+            };
+            pendingGizmoDescription = "Move camera path endpoint";
+        }
+    }
+
+    void commitGizmoUndoTransaction() {
+        TimelineModel model = getTimelineModel();
+        if (model != null && pendingGizmoUndo != null && pendingGizmoRedo != null
+            && pendingGizmoChanged != null && pendingGizmoChanged.getAsBoolean()) {
+            Runnable undo = pendingGizmoUndo;
+            Runnable redo = pendingGizmoRedo.get();
+            TimelineCommandBridge.execute(new StateChangeCommand(model, pendingGizmoDescription,
+                () -> { undo.run(); refreshCameraPathAfterUndo(); },
+                () -> { redo.run(); refreshCameraPathAfterUndo(); }));
+        }
+        clearPendingGizmoTransaction();
+    }
+
+    private void refreshCameraPathAfterUndo() {
+        TimelineCameraController.getInstance().onKeyframeChanged();
+        lastGizmoPosition = null;
+    }
+
+    private void clearPendingGizmoTransaction() {
+        pendingGizmoUndo = null;
+        pendingGizmoRedo = null;
+        pendingGizmoChanged = null;
+        pendingGizmoDescription = null;
+    }
+
+    private void setLinearEndpointPosition(CameraPathClip clip, LinearEndpoint endpoint, Vec3d target) {
+        Vec3d current = getLinearEndpointPosition(clip, endpoint);
+        if (current == null || target == null) return;
+        Vec3d delta = target.subtract(current);
+        if (clip instanceof DollyPathClip dolly) {
+            if (endpoint == LinearEndpoint.START) dolly.applyStartEndpointDelta(delta);
+            else dolly.applyEndEndpointDelta(delta);
+        } else if (clip instanceof CranePathClip crane) {
+            if (endpoint == LinearEndpoint.START) crane.applyStartEndpointDelta(delta);
+            else crane.applyEndEndpointDelta(delta);
+        }
     }
 
 

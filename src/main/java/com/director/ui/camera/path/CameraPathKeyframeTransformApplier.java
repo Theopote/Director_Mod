@@ -19,6 +19,9 @@ final class CameraPathKeyframeTransformApplier extends TransformApplier {
         this.controller = controller;
     }
 
+    @Override public void beginDragSession() { controller.beginGizmoUndoTransaction(); }
+    @Override public void endDragSession() { controller.commitGizmoUndoTransaction(); }
+
     @Override
     public void applyMove(Vec3d delta) {
         CameraKeyframe keyframe = controller.getSelectedKeyframe();

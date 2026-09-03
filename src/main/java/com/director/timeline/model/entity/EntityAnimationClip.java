@@ -24,12 +24,14 @@ import java.util.List;
 public class EntityAnimationClip extends EntityClip {
 
     public enum AnimationSource {
+        BUILT_IN,
         VANILLA,
-        GECKOLIB,
+        /** 仅为旧存档兼容保留；当前版本没有 GeckoLib 运行时。 */
+        @Deprecated GECKOLIB,
         CUSTOM
     }
 
-    private AnimationSource source = AnimationSource.VANILLA;
+    private AnimationSource source = AnimationSource.BUILT_IN;
 
     /** 动画 id：例如 "walk" / "attack" / "mymod:wave" */
     private String animationId = "idle";
@@ -63,7 +65,7 @@ public class EntityAnimationClip extends EntityClip {
     }
 
     public void setSource(AnimationSource source) {
-        this.source = source != null ? source : AnimationSource.VANILLA;
+        this.source = source != null ? source : AnimationSource.BUILT_IN;
     }
 
     public String getAnimationId() {

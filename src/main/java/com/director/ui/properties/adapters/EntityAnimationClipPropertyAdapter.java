@@ -55,7 +55,11 @@ public class EntityAnimationClipPropertyAdapter implements IPropertyAdapter<Enti
 
         // ========== 动画源 ==========
         if (ImGui.collapsingHeader("🎬 动画源", ImGuiTreeNodeFlags.DefaultOpen)) {
-            EntityAnimationClip.AnimationSource[] sources = EntityAnimationClip.AnimationSource.values();
+            // GeckoLib 尚未集成，保留枚举仅用于旧存档兼容，不在 UI 中继续承诺该能力。
+            EntityAnimationClip.AnimationSource[] sources = {
+                EntityAnimationClip.AnimationSource.BUILT_IN,
+                EntityAnimationClip.AnimationSource.CUSTOM
+            };
             String[] sourceLabels = new String[sources.length];
             for (int i = 0; i < sources.length; i++) {
                 sourceLabels[i] = sources[i].name();
@@ -78,7 +82,7 @@ public class EntityAnimationClipPropertyAdapter implements IPropertyAdapter<Enti
                 changed.set(true);
             }
             if (ImGui.isItemHovered()) {
-                ImGui.setTooltip("例如: walk, attack, mymod:wave");
+                ImGui.setTooltip("内建: idle, walk, wave, attack；CUSTOM 可使用代码注册到 AnimationLibrary 的 ID");
             }
 
             loopBoolean.set(clip.isLoop());

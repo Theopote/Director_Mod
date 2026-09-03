@@ -2,6 +2,7 @@ package com.director.ui.container;
 
 import com.director.core.container.commands.ContainerCommand;
 import com.director.ui.timeline.commands.TimelineCommandHistory;
+import com.director.ui.timeline.commands.TimelineCommandBridge;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,6 +24,7 @@ public final class ContainerCommandBridge {
             return;
         }
         history = commandHistory;
+        TimelineCommandBridge.bind(commandHistory);
         bindVersion++;
 
         if (commandHistory == null) {
