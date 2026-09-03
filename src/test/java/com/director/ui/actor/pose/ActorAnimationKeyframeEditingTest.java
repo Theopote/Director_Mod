@@ -10,6 +10,7 @@ import com.director.timeline.model.TimelineViewportState;
 import com.director.ui.timeline.commands.TimelineCommandBridge;
 import com.director.ui.timeline.commands.TimelineCommandHistory;
 import org.joml.Quaternionf;
+import org.joml.Vector3f;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -187,6 +188,42 @@ class ActorAnimationKeyframeEditingTest {
         assertQuaternionEquivalent(rightBefore, asset.findBoneTrack(HumanoidRig.RIGHT_ARM).orElseThrow()
                 .rotation().findAt(1f).orElseThrow().value());
         assertTrue(asset.findBoneTrack(HumanoidRig.BODY).orElseThrow().rotation().findAt(1f).isEmpty());
+    }
+
+    @Test
+    void movesTranslationKeysWithUndoAndConflictProtection() {
+        TimelineModel model = new TimelineModel(new TimelineViewportState());
+        TimelineCommandHistory history = new TimelineCommandHistory();
+        TimelineCommandBridge.bind(history);
+        BoneTrack track = new BoneTrack();
+        track.translation().put(1f, new Vector3f(1f, 2f, 3f), InterpolationMode.LINEAR);
+        track.translation().put(3f, new Vector3f(3f, 2f, 1f), InterpolationMode.SMOOTH);
+
+        assertTrue(ActorAnimationKeyframeEditing.moveTranslations(model, List.of(
+                new ActorAnimationKeyframeEditing.TranslationKey(track, 1f)), 1f));
+        assertTrue(track.translation().findAt(2f).isPresent());
+        assertFalse(ActorAnimationKeyframeEditing.moveTranslations(model, List.of(
+                new ActorAnimationKeyframeEditing.TranslationKey(track, 2f)), 1f));
+        assertTrue(history.undo());
+        assertTrue(track.translation().findAt(1f).isPresent());
+    }
+
+    @Test
+    void pastesAndDeletesTranslationKeysWithUndo() {
+        TimelineModel model = new TimelineModel(new TimelineViewportState());
+        TimelineCommandHistory history = new TimelineCommandHistory();
+        TimelineCommandBridge.bind(history);
+        BoneTrack track = new BoneTrack();
+
+        assertTrue(ActorAnimationKeyframeEditing.pasteTranslations(model, List.of(
+                new ActorAnimationKeyframeEditing.TranslationPaste(
+                        track, 2f, new Vector3f(4f, 5f, 6f), InterpolationMode.SMOOTH))));
+        assertTrue(track.translation().findAt(2f).isPresent());
+        assertTrue(ActorAnimationKeyframeEditing.deleteTranslations(model, List.of(
+                new ActorAnimationKeyframeEditing.TranslationKey(track, 2f))));
+        assertTrue(track.translation().findAt(2f).isEmpty());
+        assertTrue(history.undo());
+        assertTrue(track.translation().findAt(2f).isPresent());
     }
 
     private static void assertQuaternionEquivalent(Quaternionf expected, Quaternionf actual) {

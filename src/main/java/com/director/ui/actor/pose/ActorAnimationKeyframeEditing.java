@@ -11,6 +11,7 @@ import com.director.timeline.model.TimelineModel;
 import com.director.ui.timeline.commands.StateChangeCommand;
 import com.director.ui.timeline.commands.TimelineCommandBridge;
 import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -26,11 +27,54 @@ public final class ActorAnimationKeyframeEditing {
     private ActorAnimationKeyframeEditing() {}
 
     public record RotationKey(BoneTrack track, float time) {}
+    public record TranslationKey(BoneTrack track, float time) {}
     public record RotationPaste(BoneTrack track, float time, Quaternionf value,
                                 com.director.actor.animation.asset.InterpolationMode interpolation) {
         public RotationPaste {
             value = new Quaternionf(value);
         }
+    }
+    public record TranslationPaste(BoneTrack track, float time, Vector3f value,
+                                   InterpolationMode interpolation) {
+        public TranslationPaste { value = new Vector3f(value); }
+    }
+
+    public static boolean deleteTranslations(TimelineModel model, List<TranslationKey> keys) {
+        List<TranslationState> removed = resolveTranslations(keys);
+        if (model == null || removed.isEmpty()) return false;
+        TimelineCommandBridge.execute(new StateChangeCommand(model, "Delete actor translation keyframe",
+                () -> putTranslations(removed, 0f), () -> removeTranslations(removed, 0f)));
+        return true;
+    }
+
+    public static boolean moveTranslations(TimelineModel model, List<TranslationKey> keys, float delta) {
+        if (model == null || !Float.isFinite(delta) || Math.abs(delta) <= EPSILON) return false;
+        List<TranslationState> source = resolveTranslations(keys);
+        if (source.isEmpty() || source.size() != keys.size()) return false;
+        for (TranslationState state : source) {
+            float target = state.frame.time() + delta;
+            if (target < 0f || occupiedTranslation(state.track, target, source)) return false;
+        }
+        TimelineCommandBridge.execute(new StateChangeCommand(model, "Move actor translation keyframe",
+                () -> { removeTranslations(source, delta); putTranslations(source, 0f); },
+                () -> { removeTranslations(source, 0f); putTranslations(source, delta); }));
+        return true;
+    }
+
+    public static boolean pasteTranslations(TimelineModel model, List<TranslationPaste> pasted) {
+        if (model == null || pasted == null || pasted.isEmpty()) return false;
+        List<TranslationState> states = new ArrayList<>();
+        Set<PasteTarget> targets = new HashSet<>();
+        for (TranslationPaste paste : pasted) {
+            if (paste == null || paste.track() == null || paste.time() < 0f || !Float.isFinite(paste.time())
+                    || paste.track().translation().findAt(paste.time()).isPresent()
+                    || !targets.add(new PasteTarget(paste.track(), paste.time()))) return false;
+            states.add(new TranslationState(paste.track(),
+                    new ChannelKeyframe<>(paste.time(), paste.value(), paste.interpolation())));
+        }
+        TimelineCommandBridge.execute(new StateChangeCommand(model, "Paste actor translation keyframes",
+                () -> removeTranslations(states, 0f), () -> putTranslations(states, 0f)));
+        return true;
     }
 
     public static boolean deleteRotation(TimelineModel model, BoneTrack track, float time) {
@@ -149,6 +193,31 @@ public final class ActorAnimationKeyframeEditing {
         return result;
     }
 
+    private static List<TranslationState> resolveTranslations(List<TranslationKey> keys) {
+        List<TranslationState> result = new ArrayList<>();
+        if (keys == null) return result;
+        for (TranslationKey key : keys) if (key != null && key.track() != null)
+            key.track().translation().findAt(key.time()).ifPresent(
+                    frame -> result.add(new TranslationState(key.track(), frame)));
+        return result;
+    }
+
+    private static boolean occupiedTranslation(BoneTrack track, float target, List<TranslationState> selected) {
+        if (track.translation().findAt(target).isEmpty()) return false;
+        for (TranslationState state : selected)
+            if (state.track == track && Math.abs(state.frame.time() - target) <= EPSILON) return false;
+        return true;
+    }
+
+    private static void removeTranslations(List<TranslationState> states, float offset) {
+        for (TranslationState state : states) state.track.translation().removeAt(state.frame.time() + offset);
+    }
+
+    private static void putTranslations(List<TranslationState> states, float offset) {
+        for (TranslationState state : states) state.track.translation().put(
+                state.frame.time() + offset, state.frame.value(), state.frame.interpolation());
+    }
+
     private static boolean occupiedByUnselected(BoneTrack track, float target, List<KeyState> selected) {
         if (track.rotation().findAt(target).isEmpty()) return false;
         for (KeyState state : selected) {
@@ -176,6 +245,7 @@ public final class ActorAnimationKeyframeEditing {
     }
 
     private record KeyState(BoneTrack track, ChannelKeyframe<Quaternionf> frame) {}
+    private record TranslationState(BoneTrack track, ChannelKeyframe<Vector3f> frame) {}
     private record PasteTarget(BoneTrack track, float time) {}
     private record MirrorState(BoneTrack track, float time, ChannelKeyframe<Quaternionf> before,
                                ChannelKeyframe<Quaternionf> after) {}
