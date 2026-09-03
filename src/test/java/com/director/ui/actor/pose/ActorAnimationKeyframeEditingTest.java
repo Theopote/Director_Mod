@@ -13,6 +13,7 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ActorAnimationKeyframeEditingTest {
@@ -117,5 +118,12 @@ class ActorAnimationKeyframeEditingTest {
         assertTrue(history.undo());
         assertTrue(head.rotation().findAt(4f).isEmpty());
         assertTrue(arm.rotation().findAt(5f).isEmpty());
+    }
+
+    @Test
+    void canvasDragSnapsToProjectFrameStep() {
+        assertEquals(0.1f, ActorAnimationDopeSheet.snapDragDelta(12f, 100f, 0.05f), 1.0e-5f);
+        assertEquals(-0.15f, ActorAnimationDopeSheet.snapDragDelta(-14f, 100f, 0.05f), 1.0e-5f);
+        assertEquals(0f, ActorAnimationDopeSheet.snapDragDelta(20f, 0f, 0.05f), 1.0e-5f);
     }
 }

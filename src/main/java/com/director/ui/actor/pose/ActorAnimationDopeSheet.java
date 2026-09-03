@@ -11,7 +11,10 @@ import com.director.timeline.model.entity.ActorTrack;
 import com.director.timeline.model.entity.EntityAnimationClip;
 import com.director.timeline.model.entity.EntityClip;
 import com.director.ui.theme.Icons;
+import com.director.ui.timeline.render.TimelineColors;
+import imgui.ImDrawList;
 import imgui.ImGui;
+import imgui.flag.ImGuiMouseButton;
 import org.joml.Quaternionf;
 
 import java.util.Map;
@@ -27,6 +30,14 @@ public final class ActorAnimationDopeSheet {
     private static String selectedAssetId;
     private static final Set<KeyId> selection = new LinkedHashSet<>();
     private static final List<CopiedKey> clipboard = new ArrayList<>();
+    private static boolean dragCandidate;
+    private static boolean marqueeCandidate;
+    private static boolean interactionAdditive;
+    private static float interactionStartX;
+    private static float interactionStartY;
+    private static float interactionCurrentX;
+    private static float interactionCurrentY;
+    private static String interactionAssetId;
 
     private ActorAnimationDopeSheet() {}
 
@@ -47,6 +58,8 @@ public final class ActorAnimationDopeSheet {
             ImGui.textDisabled("旋转骨骼后将在这里显示关键帧");
             return;
         }
+
+        renderCanvas(model, clip, asset);
 
         for (Map.Entry<String, BoneTrack> entry : asset.boneTracks().entrySet()) {
             if (entry.getValue().rotation().isEmpty()) continue;
@@ -102,6 +115,174 @@ public final class ActorAnimationDopeSheet {
             ImGui.sameLine();
             ImGui.textDisabled(clipboard.size() + " 个");
         }
+    }
+
+    private static void renderCanvas(TimelineModel model, EntityAnimationClip clip, AnimationAsset asset) {
+        List<Row> rows = new ArrayList<>();
+        for (Map.Entry<String, BoneTrack> entry : asset.boneTracks().entrySet()) {
+            if (!entry.getValue().rotation().isEmpty()) rows.add(new Row(entry.getKey(), entry.getValue()));
+        }
+        if (rows.isEmpty()) return;
+
+        final float labelWidth = 72f;
+        final float rulerHeight = 18f;
+        final float rowHeight = 22f;
+        final float keyRadius = 5f;
+        float width = Math.max(140f, ImGui.getContentRegionAvailX());
+        float height = rulerHeight + rows.size() * rowHeight;
+        float x = ImGui.getCursorScreenPosX();
+        float y = ImGui.getCursorScreenPosY();
+        float timeX = x + labelWidth;
+        float timeWidth = Math.max(1f, width - labelWidth);
+        float pixelsPerSecond = timeWidth / Math.max(0.001f, asset.duration());
+        ImGui.invisibleButton("##actorDopeCanvas:" + asset.id(), width, height);
+        boolean hovered = ImGui.isItemHovered();
+        ImDrawList draw = ImGui.getWindowDrawList();
+        draw.addRectFilled(x, y, x + width, y + height, TimelineColors.rgba(24, 27, 32, 255), 3f);
+        draw.addLine(timeX, y, timeX, y + height, TimelineColors.rgba(75, 80, 90, 255), 1f);
+
+        for (int tick = 0; tick <= 4; tick++) {
+            float tx = timeX + timeWidth * tick / 4f;
+            draw.addLine(tx, y, tx, y + height, TimelineColors.rgba(65, 70, 80, 120), 1f);
+            draw.addText(tx + 2f, y + 2f, TimelineColors.rgba(165, 170, 180, 255),
+                    String.format("%.1f", asset.duration() * tick / 4f));
+        }
+        for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
+            Row row = rows.get(rowIndex);
+            float cy = y + rulerHeight + rowIndex * rowHeight + rowHeight * 0.5f;
+            draw.addLine(x, y + rulerHeight + (rowIndex + 1) * rowHeight,
+                    x + width, y + rulerHeight + (rowIndex + 1) * rowHeight,
+                    TimelineColors.rgba(55, 60, 68, 180), 1f);
+            draw.addText(x + 4f, cy - 7f, TimelineColors.rgba(200, 205, 215, 255), row.boneId());
+            for (ChannelKeyframe<Quaternionf> frame : row.track().rotation().keyframes()) {
+                float kx = timeX + frame.time() * pixelsPerSecond;
+                boolean selected = Objects.equals(selectedAssetId, asset.id())
+                        && selection.contains(new KeyId(row.boneId(), frame.time()));
+                int color = selected ? TimelineColors.rgba(255, 190, 70, 255)
+                        : TimelineColors.rgba(100, 175, 255, 255);
+                draw.addRectFilled(kx - keyRadius, cy - keyRadius, kx + keyRadius, cy + keyRadius, color, 1f);
+            }
+        }
+
+        handleCanvasInput(model, clip, asset, rows, x, y, timeX, timeWidth,
+                rulerHeight, rowHeight, keyRadius, pixelsPerSecond, hovered, draw);
+    }
+
+    private static void handleCanvasInput(TimelineModel model, EntityAnimationClip clip, AnimationAsset asset,
+                                          List<Row> rows, float x, float y, float timeX, float timeWidth,
+                                          float rulerHeight, float rowHeight, float keyRadius,
+                                          float pixelsPerSecond, boolean hovered, ImDrawList draw) {
+        float mx = ImGui.getMousePosX();
+        float my = ImGui.getMousePosY();
+        if (hovered && ImGui.isMouseClicked(ImGuiMouseButton.Left)) {
+            KeyId hit = hitKey(rows, mx, my, y, timeX, rulerHeight, rowHeight, keyRadius, pixelsPerSecond);
+            interactionStartX = interactionCurrentX = mx;
+            interactionStartY = interactionCurrentY = my;
+            interactionAdditive = ImGui.getIO().getKeyCtrl();
+            interactionAssetId = asset.id();
+            if (hit != null) {
+                boolean alreadySelected = Objects.equals(selectedAssetId, asset.id()) && selection.contains(hit);
+                if (!alreadySelected || interactionAdditive) select(asset.id(), hit, interactionAdditive);
+                dragCandidate = true;
+                marqueeCandidate = false;
+                model.setCurrentTime(toTimelineTime(clip, hit.time()));
+            } else {
+                dragCandidate = false;
+                marqueeCandidate = true;
+            }
+        }
+        if (!Objects.equals(interactionAssetId, asset.id())) return;
+        if (ImGui.isMouseDown(ImGuiMouseButton.Left) && (dragCandidate || marqueeCandidate)) {
+            interactionCurrentX = mx;
+            interactionCurrentY = my;
+        }
+        float dx = interactionCurrentX - interactionStartX;
+        float dy = interactionCurrentY - interactionStartY;
+        boolean activated = dx * dx + dy * dy >= 16f;
+        if (dragCandidate && activated) {
+            float localFrame = Math.max(0.01f, clip.getSpeed()) / Math.max(1f, model.getFrameRate());
+            float delta = snapDragDelta(dx, pixelsPerSecond, localFrame);
+            for (KeyId key : selection) {
+                float ghostX = timeX + (key.time() + delta) * pixelsPerSecond;
+                int row = rowIndex(rows, key.boneId());
+                if (row >= 0) {
+                    float cy = y + rulerHeight + row * rowHeight + rowHeight * 0.5f;
+                    draw.addRect(ghostX - keyRadius, cy - keyRadius, ghostX + keyRadius, cy + keyRadius,
+                            TimelineColors.rgba(255, 215, 110, 230), 1f, 0, 2f);
+                }
+            }
+        } else if (marqueeCandidate && activated) {
+            float x1 = Math.min(interactionStartX, interactionCurrentX);
+            float y1 = Math.min(interactionStartY, interactionCurrentY);
+            float x2 = Math.max(interactionStartX, interactionCurrentX);
+            float y2 = Math.max(interactionStartY, interactionCurrentY);
+            draw.addRectFilled(x1, y1, x2, y2, TimelineColors.rgba(80, 160, 255, 35), 2f);
+            draw.addRect(x1, y1, x2, y2, TimelineColors.rgba(80, 160, 255, 190), 2f, 0, 1.5f);
+        }
+        if (ImGui.isMouseReleased(ImGuiMouseButton.Left) && (dragCandidate || marqueeCandidate)) {
+            if (dragCandidate && activated) finishDrag(model, clip, asset, pixelsPerSecond, dx);
+            else if (marqueeCandidate && activated) finishMarquee(asset, rows, y, timeX, rulerHeight, rowHeight, pixelsPerSecond);
+            else if (marqueeCandidate && !interactionAdditive) clearSelection();
+            dragCandidate = false;
+            marqueeCandidate = false;
+            interactionAssetId = null;
+        }
+    }
+
+    private static void finishDrag(TimelineModel model, EntityAnimationClip clip, AnimationAsset asset,
+                                   float pixelsPerSecond, float dx) {
+        float localFrame = Math.max(0.01f, clip.getSpeed()) / Math.max(1f, model.getFrameRate());
+        float delta = snapDragDelta(dx, pixelsPerSecond, localFrame);
+        List<ActorAnimationKeyframeEditing.RotationKey> keys = selectedKeys(asset);
+        if (withinDuration(delta, asset.duration())
+                && ActorAnimationKeyframeEditing.moveRotations(model, keys, delta)) {
+            shiftSelection(delta);
+            seekToFirst(model, clip);
+        }
+    }
+
+    private static void finishMarquee(AnimationAsset asset, List<Row> rows, float y, float timeX,
+                                      float rulerHeight, float rowHeight, float pixelsPerSecond) {
+        if (!interactionAdditive || !Objects.equals(selectedAssetId, asset.id())) selection.clear();
+        selectedAssetId = asset.id();
+        float x1 = Math.min(interactionStartX, interactionCurrentX);
+        float x2 = Math.max(interactionStartX, interactionCurrentX);
+        float y1 = Math.min(interactionStartY, interactionCurrentY);
+        float y2 = Math.max(interactionStartY, interactionCurrentY);
+        for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
+            Row row = rows.get(rowIndex);
+            float cy = y + rulerHeight + rowIndex * rowHeight + rowHeight * 0.5f;
+            if (cy < y1 || cy > y2) continue;
+            for (ChannelKeyframe<Quaternionf> frame : row.track().rotation().keyframes()) {
+                float kx = timeX + frame.time() * pixelsPerSecond;
+                if (kx >= x1 && kx <= x2) selection.add(new KeyId(row.boneId(), frame.time()));
+            }
+        }
+        if (selection.isEmpty()) selectedAssetId = null;
+    }
+
+    private static KeyId hitKey(List<Row> rows, float mx, float my, float y, float timeX,
+                                float rulerHeight, float rowHeight, float radius, float pixelsPerSecond) {
+        for (int rowIndex = 0; rowIndex < rows.size(); rowIndex++) {
+            Row row = rows.get(rowIndex);
+            float cy = y + rulerHeight + rowIndex * rowHeight + rowHeight * 0.5f;
+            if (Math.abs(my - cy) > radius + 3f) continue;
+            for (ChannelKeyframe<Quaternionf> frame : row.track().rotation().keyframes()) {
+                if (Math.abs(mx - (timeX + frame.time() * pixelsPerSecond)) <= radius + 3f)
+                    return new KeyId(row.boneId(), frame.time());
+            }
+        }
+        return null;
+    }
+
+    private static int rowIndex(List<Row> rows, String boneId) {
+        for (int i = 0; i < rows.size(); i++) if (Objects.equals(rows.get(i).boneId(), boneId)) return i;
+        return -1;
+    }
+
+    static float snapDragDelta(float pixelDelta, float pixelsPerSecond, float localFrame) {
+        if (!Float.isFinite(pixelDelta) || pixelsPerSecond <= 0f || localFrame <= 0f) return 0f;
+        return Math.round((pixelDelta / pixelsPerSecond) / localFrame) * localFrame;
     }
 
     private static float toTimelineTime(EntityAnimationClip clip, float localTime) {
@@ -186,6 +367,7 @@ public final class ActorAnimationDopeSheet {
     }
 
     private record KeyId(String boneId, float time) {}
+    private record Row(String boneId, BoneTrack track) {}
     private record CopiedKey(String boneId, float offset, Quaternionf value,
                              com.director.actor.animation.asset.InterpolationMode interpolation) {
         private CopiedKey {
