@@ -63,7 +63,7 @@ public final class ActorBoneOverlayRenderer {
             }
 
             String id = rig.bone(i).id();
-            boolean selected = id.equals(selection.getSelectedBoneId());
+            boolean selected = selection.isBoneSelected(id);
             boolean hovered = id.equals(selection.getHoveredBoneId());
             float r = selected ? 1f : hovered ? 1f : 0.2f;
             float g = selected ? 0.85f : hovered ? 1f : 0.75f;

@@ -40,4 +40,30 @@ class ActorBoneSelectionControllerTest {
         assertEquals(HumanoidRig.BODY, controller.getSelectedBoneId());
         assertNull(controller.getHoveredBoneId());
     }
+
+    @Test
+    void ctrlTogglePreservesOtherPartsAndMaintainsActiveBone() {
+        controller.activate(UUID.randomUUID());
+        controller.selectBone(HumanoidRig.LEFT_ARM);
+        controller.selectBone(HumanoidRig.HEAD, true);
+        var snapshot = controller.getSelectedBoneIds();
+        assertEquals(java.util.List.of(HumanoidRig.LEFT_ARM, HumanoidRig.HEAD), snapshot);
+        assertEquals(HumanoidRig.HEAD, controller.getSelectedBoneId());
+        controller.selectBone(HumanoidRig.HEAD, true);
+        assertEquals(HumanoidRig.LEFT_ARM, controller.getSelectedBoneId());
+        assertEquals(2, snapshot.size());
+        controller.selectBone(HumanoidRig.LEFT_ARM, true);
+        assertTrue(controller.getSelectedBoneIds().isEmpty());
+        assertNull(controller.getSelectedBoneId());
+    }
+
+    @Test
+    void switchingActorClearsMultiSelection() {
+        controller.activate(UUID.randomUUID());
+        controller.selectBone(HumanoidRig.HEAD, true);
+        controller.synchronizeActor(UUID.randomUUID());
+        assertEquals(java.util.List.of(HumanoidRig.BODY), controller.getSelectedBoneIds());
+        controller.deactivate();
+        assertTrue(controller.getSelectedBoneIds().isEmpty());
+    }
 }

@@ -119,7 +119,7 @@ public final class ActorPickController {
                     ActorBoneWorldQuery.resolve(boneSelection.getActorId()), ray.origin(), ray.direction());
             boneSelection.setHoveredBone(hovered);
             if (leftDown && !lastLeftMouseDown && hovered != null) {
-                boneSelection.selectBone(hovered);
+                boneSelection.selectBone(hovered, ImGui.getIO().getKeyCtrl());
             }
             lastLeftMouseDown = leftDown;
             lastRightMouseDown = isRightMouseDown(client);

@@ -24,6 +24,8 @@ public final class ActorBonePropertiesPanel {
         if (!selection.isActive()) selection.activate(actorId);
         else selection.synchronizeActor(actorId);
         renderChildren(HumanoidRig.DEFINITION, -1, selection);
+        ImGui.textWrapped("Ctrl+点击可多选部位；数值和 Gizmo 编辑最后选中的部位，打帧与恢复姿态作用于全部所选部位。");
+        ImGui.textDisabled("已选择 " + selection.getSelectedBoneIds().size() + " 个部位");
         var tracks = ActorUsageQuery.findTracksUsingActor(model, actorId);
         EntityAnimationClip active = null;
         for (var track : tracks) for (var clip : track.getClips()) {
@@ -73,12 +75,13 @@ public final class ActorBonePropertiesPanel {
             ImGui.treePop();
             return;
         }
-        if (ImGui.button("选中骨骼打帧##keyBone")) ActorPoseKeyframeEditing.key(model, asset, time, pose, List.of(boneId), mode);
+        if (ImGui.button("所选部位批量打帧##keyBone")) ActorPoseKeyframeEditing.key(model, asset, time, pose, selection.getSelectedBoneIds(), mode);
         if (ImGui.button("全身打帧##keyPose")) ActorPoseKeyframeEditing.key(model, asset, time, pose,
                 asset.rig().bones().stream().map(BoneDefinition::id).toList(), mode);
-        if (ImGui.button("选中骨骼恢复绑定姿态并打帧##restBone")) {
-            pose.setLocalTransform(boneId, bone.restLocal());
-            ActorPoseKeyframeEditing.key(model, asset, time, pose, List.of(boneId), mode);
+        if (ImGui.button("所选部位恢复绑定姿态并打帧##restBone")) {
+            for (String id : selection.getSelectedBoneIds())
+                pose.setLocalTransform(id, asset.rig().bone(asset.rig().requireBoneIndex(id)).restLocal());
+            ActorPoseKeyframeEditing.key(model, asset, time, pose, selection.getSelectedBoneIds(), mode);
         }
         ImGui.treePop();
     }
@@ -87,8 +90,8 @@ public final class ActorBonePropertiesPanel {
         for (int i = 0; i < rig.boneCount(); i++) {
             BoneDefinition bone = rig.bone(i);
             if (bone.parentIndex() != parent) continue;
-            if (ImGui.selectable(bone.displayName() + "##bone:" + bone.id(), bone.id().equals(selection.getSelectedBoneId())))
-                selection.selectBone(bone.id());
+            if (ImGui.selectable(bone.displayName() + "##bone:" + bone.id(), selection.isBoneSelected(bone.id())))
+                selection.selectBone(bone.id(), ImGui.getIO().getKeyCtrl());
             ImGui.indent();
             renderChildren(rig, i, selection);
             ImGui.unindent();
