@@ -11,13 +11,23 @@ import java.util.UUID;
 
 /** Bone hierarchy plus explicit, undoable asset-local pose editing. */
 public final class ActorBonePropertiesPanel {
-    private static final BoneTransformDraft draft = new BoneTransformDraft();
-    private static String message = "";
+    private static final ActorBonePropertiesPanel PROPERTIES = new ActorBonePropertiesPanel();
+    private static final ActorBonePropertiesPanel TIMELINE = new ActorBonePropertiesPanel();
+    private final BoneTransformDraft draft = new BoneTransformDraft();
+    private String message = "";
     private record EditContext(TimelineModel model, UUID actorId, EntityAnimationClip clip,
                                AnimationAsset asset, String boneId, float timelineTime, float assetTime) {}
     private ActorBonePropertiesPanel() {}
 
     public static void render(TimelineModel model, UUID actorId) {
+        PROPERTIES.renderContents(model, actorId);
+    }
+
+    public static void renderInTimeline(TimelineModel model, UUID actorId) {
+        TIMELINE.renderContents(model, actorId);
+    }
+
+    private void renderContents(TimelineModel model, UUID actorId) {
         if (model == null || actorId == null) { draft.clear(); return; }
         if (!ImGui.treeNode("骨骼与姿态关键帧##actorBones")) { draft.clear(); return; }
         var selection = ActorBoneSelectionController.getInstance();

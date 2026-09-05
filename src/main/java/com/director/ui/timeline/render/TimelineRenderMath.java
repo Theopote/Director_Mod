@@ -100,8 +100,12 @@ public class TimelineRenderMath {
      * @return 屏幕 Y 坐标（相对于视口顶部，已考虑 scrollY）
      */
     public float trackIndexToY(int trackIndex) {
-        float rowHeight = getRowHeight();
-        return trackIndex * rowHeight - viewport.getScrollY();
+        return trackContentY(trackIndex) - viewport.getScrollY();
+    }
+
+    /** Unscrolled track origin, shared by rendering and interaction code. */
+    public float trackContentY(int trackIndex) {
+        return trackIndex * getRowHeight();
     }
 
     /**

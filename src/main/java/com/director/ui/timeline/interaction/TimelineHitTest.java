@@ -86,7 +86,7 @@ public final class TimelineHitTest {
         // ★ 关键修复：轨道Y坐标计算应该与getTrackHeaderBounds保持一致
         // 公式：trackY = trackAreaTop + (trackIndex * rowHeight - scrollY)
         // 这样可以确保第一行轨道（trackIndex=0）当scrollY=0时，trackY = trackAreaTop
-        float trackY = trackAreaTop + (trackIndex * rowHeight - scrollY);
+        float trackY = trackAreaTop + renderer.getMath().trackContentY(trackIndex) - scrollY;
         float trackBottom = trackY + TimelineRenderer.getTrackHeight();
 
         // 确保鼠标确实在该轨道垂直范围内

@@ -299,7 +299,7 @@ public class TimelineRenderHitTest {
         
         float rowHeight = viewport.getTrackHeight() + viewport.getTrackGap();
         float x1 = contentX - leftLabelWidth;
-        float y1 = trackAreaTop + (trackIndex * rowHeight - scrollY);
+        float y1 = trackAreaTop + math.trackContentY(trackIndex) - scrollY;
         float y2 = y1 + viewport.getTrackHeight();
         
         return new Rect(x1, y1, contentX, y2);
@@ -326,7 +326,7 @@ public class TimelineRenderHitTest {
         float x1 = math.timeToX(clip.getStartTime());
         float x2 = math.timeToX(clip.getEndTime());
         float rowHeight = viewport.getTrackHeight() + viewport.getTrackGap();
-        float y1 = trackAreaTop + (trackIndex * rowHeight - scrollY);
+        float y1 = trackAreaTop + math.trackContentY(trackIndex) - scrollY;
         float y2 = y1 + viewport.getTrackHeight();
         
         return new Rect(x1, y1, x2, y2);
@@ -365,7 +365,7 @@ public class TimelineRenderHitTest {
         }
         
         float rowHeight = viewport.getTrackHeight() + viewport.getTrackGap();
-        float y = trackAreaTop + (trackIndex * rowHeight - scrollY) + viewport.getTrackHeight() / 2.0f;
+        float y = trackAreaTop + math.trackContentY(trackIndex) - scrollY + viewport.getTrackHeight() / 2.0f;
         
         return new Circle(x, y, KEYFRAME_HIT_RADIUS);
     }

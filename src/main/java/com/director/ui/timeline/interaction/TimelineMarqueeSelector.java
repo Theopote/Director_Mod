@@ -147,7 +147,7 @@ public final class TimelineMarqueeSelector {
                 continue;
             }
 
-            float trackTop = trackAreaTop + (idx * rowHeight - scrollY);
+            float trackTop = trackAreaTop + renderer.getMath().trackContentY(idx) - scrollY;
             float centerY = trackTop + (TimelineRenderer.getTrackHeight() / 2.0f);
             if (centerY < (y1 - r) || centerY > (y2 + r)) {
                 continue;

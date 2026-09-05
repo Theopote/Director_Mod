@@ -413,6 +413,7 @@ public class TimelinePanel extends AbstractPanel
         
         // 3. 渲染控制栏（优先给专职的组件）
         renderControlBar();
+        com.director.ui.actor.pose.ActorTimelineAnimationPanel.render(model);
 
         // 控制栏与分隔线之间的间距（等于按钮与按钮之间的间距，4像素）
         // 注意：控制栏设置了 ItemSpacing=4px，控制栏结束后会自动添加 4px 间距
@@ -718,7 +719,7 @@ public class TimelinePanel extends AbstractPanel
             float rowHeight
     ) {
         if (dropTargetTrackIndex >= 0) {
-            float y = layout.trackRegionTop() - scrollY + dropTargetTrackIndex * rowHeight;
+            float y = layout.trackRegionTop() - scrollY + renderer.getMath().trackContentY(dropTargetTrackIndex);
             renderer.renderDropHighlight(drawList, layout.contentX(), y, layout.contentW());
         }
         renderer.renderSnapGuide(
@@ -1205,7 +1206,7 @@ public class TimelinePanel extends AbstractPanel
         }
 
         float rowHeight = TimelineRenderer.getTrackHeight() + TimelineRenderer.getTrackGap();
-        float trackY = trackRegionTop - scrollY + trackIndex * rowHeight;
+        float trackY = trackRegionTop - scrollY + renderer.getMath().trackContentY(trackIndex);
 
         // ⭐ v9.0 优化：使用常量代替魔法数值，便于后期 UI 微调
         float nameX = winX + TRACK_EDIT_OFFSET_X;

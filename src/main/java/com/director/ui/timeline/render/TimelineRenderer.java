@@ -317,7 +317,7 @@ public class TimelineRenderer {
                 if (track == null) {
                     continue;
                 }
-                float trackY = winY + (idx * rowHeight - scrollY);
+                float trackY = winY + math.trackContentY(idx) - scrollY;
                 
                 // 使用 TimelineTrackRenderer 渲染轨道
                 trackRenderer.renderTrack(drawList, track, idx, winX, contentX, trackY, contentW);
@@ -1061,7 +1061,7 @@ public class TimelineRenderer {
 
         float x1 = contentX - dividerHandler.getLeftLabelWidth();
         float rowHeight = TRACK_HEIGHT + TRACK_GAP;
-        float y1 = trackAreaTop + (trackIndex * rowHeight - scrollY);
+        float y1 = trackAreaTop + math.trackContentY(trackIndex) - scrollY;
         float y2 = y1 + TRACK_HEIGHT;
 
         return new Rect(x1, y1, contentX, y2);
