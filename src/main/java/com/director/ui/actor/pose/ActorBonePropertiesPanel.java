@@ -6,17 +6,20 @@ import com.director.actor.query.ActorUsageQuery;
 import com.director.timeline.model.TimelineModel;
 import com.director.timeline.model.entity.EntityAnimationClip;
 import imgui.ImGui;
-import org.joml.Quaternionf;
-import org.joml.Vector3f;
 import java.util.List;
 import java.util.UUID;
 
 /** Bone hierarchy plus explicit, undoable asset-local pose editing. */
 public final class ActorBonePropertiesPanel {
+    private static final BoneTransformDraft draft = new BoneTransformDraft();
+    private static String message = "";
+    private record EditContext(TimelineModel model, UUID actorId, EntityAnimationClip clip,
+                               AnimationAsset asset, String boneId, float timelineTime, float assetTime) {}
     private ActorBonePropertiesPanel() {}
 
     public static void render(TimelineModel model, UUID actorId) {
-        if (model == null || actorId == null || !ImGui.treeNode("骨骼与姿态关键帧##actorBones")) return;
+        if (model == null || actorId == null) { draft.clear(); return; }
+        if (!ImGui.treeNode("骨骼与姿态关键帧##actorBones")) { draft.clear(); return; }
         var selection = ActorBoneSelectionController.getInstance();
         if (!selection.isActive()) selection.activate(actorId);
         else selection.synchronizeActor(actorId);
@@ -31,6 +34,7 @@ public final class ActorBonePropertiesPanel {
         AnimationAsset asset = active == null ? null : AnimationAssetLibrary.getInstance().find(active.getAnimationId()).orElse(null);
         String boneId = selection.getSelectedBoneId();
         if (asset == null || boneId == null || !asset.rigId().equals(HumanoidRig.DEFINITION.id())) {
+            draft.clear();
             ImGui.textWrapped("请先将人形动画资产放到演员轨道，并将播放头移入片段。");
             ImGui.treePop();
             return;
@@ -40,29 +44,34 @@ public final class ActorBonePropertiesPanel {
         RigPose pose = asset.sample(time, AnimationLoopMode.ONCE);
         BoneDefinition bone = asset.rig().bone(asset.rig().requireBoneIndex(boneId));
         BoneTransform value = pose.localTransform(boneId);
-        Vector3f t = value.translation(), s = value.scale();
-        Vector3f angles = value.rotation().getEulerAnglesZYX(new Vector3f()).mul((float)(180 / Math.PI));
-        float[] translation = {t.x, t.y, t.z};
-        float[] rotation = {angles.x, angles.y, angles.z};
-        float[] scale = {s.x, s.y, s.z};
+        if (draft.synchronize(new EditContext(model, actorId, active, asset, boneId,
+                model.getCurrentTime(), time), value)) message = "编辑对象或姿态已变化，未应用的数值已取消。";
         ImGui.textDisabled(asset.name() + " · " + String.format("%.3fs", time));
-        ImGui.textWrapped("显示资产局部姿态；按 Enter 提交数值并打帧。全身打帧保存资产采样姿态。共享资产的修改影响所有引用。");
+        ImGui.textWrapped("显示资产局部姿态；编辑后点击应用并打帧。切换骨骼、演员或播放头会取消未应用的数值。共享资产的修改影响所有引用。");
         boolean changed = false;
-        int flags = imgui.flag.ImGuiInputTextFlags.EnterReturnsTrue;
-        if (bone.capabilities().translation()) changed |= ImGui.inputFloat3("位置 XYZ##boneT", translation, "%.3f", flags);
+        if (bone.capabilities().translation()) changed |= ImGui.inputFloat3("位置 XYZ##boneT", draft.translation, "%.3f");
         boolean root = HumanoidRig.ROOT.equals(boneId);
-        boolean rotationChanged = !root && ImGui.inputFloat3("旋转 XYZ（度）##boneR", rotation, "%.2f", flags);
+        boolean rotationChanged = !root && ImGui.inputFloat3("旋转 XYZ（度）##boneR", draft.rotation, "%.2f");
         changed |= rotationChanged;
-        if (bone.capabilities().scale()) changed |= ImGui.inputFloat3("缩放 XYZ##boneS", scale, "%.3f", flags);
+        if (bone.capabilities().scale()) changed |= ImGui.inputFloat3("缩放 XYZ##boneS", draft.scale, "%.3f");
+        if (changed) { draft.markChanged(rotationChanged); message = ""; }
         var mode = ActorAnimationAuthoringSettings.getInstance().getInterpolation();
-        boolean valid = new Vector3f(translation).isFinite() && new Vector3f(rotation).isFinite()
-                && new Vector3f(scale).isFinite() && scale[0] > 0 && scale[1] > 0 && scale[2] > 0;
-        if (changed && !valid) ImGui.textWrapped("请输入有限数值，且缩放必须大于零。");
-        if (valid && changed) {
-            Quaternionf q = rotationChanged ? new Quaternionf().rotationZYX(
-                    (float)Math.toRadians(rotation[2]), (float)Math.toRadians(rotation[1]), (float)Math.toRadians(rotation[0])) : value.rotation();
-            pose.setLocalTransform(boneId, new BoneTransform(new Vector3f(translation), q, new Vector3f(scale)));
-            ActorPoseKeyframeEditing.key(model, asset, time, pose, List.of(boneId), mode);
+        if (draft.isDirty()) {
+            if (!draft.isValid()) ImGui.textWrapped("请输入有限数值，且缩放必须大于零。");
+            if (ImGui.button("应用并打帧##applyBone") && draft.isValid()) {
+                pose.setLocalTransform(boneId, draft.value());
+                ActorPoseKeyframeEditing.key(model, asset, time, pose, List.of(boneId), mode);
+                draft.clear();
+                message = "已应用，可一次撤销整次修改。";
+            }
+            ImGui.sameLine();
+            if (ImGui.button("取消##cancelBone")) { draft.reset(); message = "已取消数值修改。"; }
+        }
+        if (!message.isEmpty()) ImGui.textWrapped(message);
+        if (draft.isDirty()) {
+            ImGui.textWrapped("请先应用或取消数值修改，再进行姿态打帧。");
+            ImGui.treePop();
+            return;
         }
         if (ImGui.button("选中骨骼打帧##keyBone")) ActorPoseKeyframeEditing.key(model, asset, time, pose, List.of(boneId), mode);
         if (ImGui.button("全身打帧##keyPose")) ActorPoseKeyframeEditing.key(model, asset, time, pose,
