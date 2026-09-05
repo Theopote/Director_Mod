@@ -194,6 +194,7 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         UUID actorId = ActorSelectionHub.getSelectedActorId();
         TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
         com.director.ui.actor.pose.ActorAnimationAssetPanel.render(model, actorId);
+        com.director.ui.actor.pose.ActorBonePropertiesPanel.render(model, actorId);
         com.director.ui.actor.pose.ActorAnimationDopeSheet.render(model, actorId);
     }
 
