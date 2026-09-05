@@ -122,8 +122,11 @@ public final class TimelineMarqueeSelector {
         float rowHeight = TimelineRenderer.getTrackHeight() + TimelineRenderer.getTrackGap();
         float r = TimelineRenderer.getKeyframeHitRadius();
 
-        int startIdx = renderer.yToTrackIndex(y1 - trackAreaTop, scrollY);
-        int endIdx = renderer.yToTrackIndex(y2 - trackAreaTop, scrollY);
+        var layout = renderer.getMath().getRowLayout();
+        int startIdx = layout == null ? renderer.yToTrackIndex(y1 - trackAreaTop, scrollY)
+                : layout.ownerAt(Math.max(0, y1 - trackAreaTop + scrollY));
+        int endIdx = layout == null ? renderer.yToTrackIndex(y2 - trackAreaTop, scrollY)
+                : layout.ownerAt(Math.min(Math.nextDown(layout.totalHeight()), y2 - trackAreaTop + scrollY));
         if (startIdx < 0) {
             startIdx = 0;
         }

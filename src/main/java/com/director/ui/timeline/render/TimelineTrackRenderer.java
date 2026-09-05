@@ -65,6 +65,11 @@ public final class TimelineTrackRenderer {
      */
     public void renderTrack(ImDrawList drawList, TimelineTrack track, int trackIndex, float winX,
                              float contentX, float y, float contentW) {
+        renderTrack(drawList, track, trackIndex, winX, contentX, y, contentW, false);
+    }
+
+    public void renderTrack(ImDrawList drawList, TimelineTrack track, int trackIndex, float winX,
+                            float contentX, float y, float contentW, boolean expandable) {
         // 1. 准备颜色和状态
         TrackType type = track.getType();
         boolean isEven = (trackIndex % 2 == 0);
@@ -99,7 +104,7 @@ public final class TimelineTrackRenderer {
         float separatorX = winX + viewport.getLeftLabelWidth() + TRACK_NAME_BUTTONS_SEPARATOR_OFFSET;
         
         // 7. 绘制文字和图标（名称会被裁剪到分割位置）
-        float labelX = winX + TRACK_LABEL_TEXT_OFFSET;
+        float labelX = winX + TRACK_LABEL_TEXT_OFFSET + (expandable ? 20f : 0f);
         if (type != null) {
             String icon = type.getIcon();
             if (icon != null) {

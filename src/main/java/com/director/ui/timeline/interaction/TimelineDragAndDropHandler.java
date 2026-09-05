@@ -50,13 +50,14 @@ public class TimelineDragAndDropHandler {
      *
      * @return 目标轨道索引（用于高亮显示）-1 表示无有效目标。
      */
-    public int handleDragDropTarget(float trackRegionTop, float scrollY, float contentX) {
+    public int handleDragDropTarget(float trackRegionTop, float scrollY, float contentX,
+                                   com.director.ui.timeline.render.TimelineRenderMath math) {
         int dropTargetIndex = -1;
 
         // 在 invisibleButton 之后设置拖放目标
         if (ImGui.beginDragDropTarget()) {
             float mouseX = ImGui.getMousePosX();
-            int targetTrackIndex = getTargetTrackIndex(trackRegionTop, scrollY);
+            int targetTrackIndex = math.headerAtContentY(ImGui.getMousePosY() - trackRegionTop + scrollY);
             boolean isValidTrack = checkTrackValidity(targetTrackIndex);
 
             // 设置高亮索引用于 Panel 渲染
@@ -82,23 +83,6 @@ public class TimelineDragAndDropHandler {
         }
 
         return dropTargetIndex;
-    }
-
-    /**
-     * 根据鼠标位置计算目标轨道索引。
-     */
-    private int getTargetTrackIndex(float trackRegionTop, float scrollY) {
-        float mouseY = ImGui.getMousePosY();
-        float totalRowHeight = TimelineRenderer.getTrackHeight() + TimelineRenderer.getTrackGap();
-        float relativeY = mouseY - trackRegionTop + scrollY;
-        int index = (int) (relativeY / totalRowHeight);
-
-        // 边界修正
-        if (index < 0) index = 0;
-        if (index >= model.getTrackCount()) {
-            index = model.getTrackCount() > 0 ? model.getTrackCount() - 1 : 0;
-        }
-        return index;
     }
 
     /**

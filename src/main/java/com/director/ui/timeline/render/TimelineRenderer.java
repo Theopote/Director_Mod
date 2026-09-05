@@ -90,6 +90,18 @@ public class TimelineRenderer {
     // ======= 新架构：专业级渲染组件（v9.0） =======
     private final TimelineRenderViewport viewport;
     private final TimelineRenderMath math;
+    private final ActorBoneTimelineRows actorBoneRows = new ActorBoneTimelineRows();
+
+    public float prepareTrackRows() {
+        var layout = actorBoneRows.prepare(model, TRACK_HEIGHT, TRACK_GAP);
+        math.setRowLayout(layout);
+        return layout.totalHeight();
+    }
+
+    public boolean handleActorRowClick(float x, float contentX, float right, float top, float height, float scrollY) {
+        return math.getRowLayout() != null && actorBoneRows.handleClick(model, math.getRowLayout(),
+                x, contentX, right, top, height, scrollY, TRACK_HEIGHT, TRACK_GAP);
+    }
 
     // ======= 拆分后的渲染组件（v9.0 重构） =======
     private final TimelineDividerHandler dividerHandler;
@@ -312,6 +324,8 @@ public class TimelineRenderer {
             int startIndex = visibleRange[0];
             int endIndex = visibleRange[1];
 
+            if (startIndex < 0) return;
+
             for (int idx = startIndex; idx <= endIndex; idx++) {
                 TimelineTrack track = model.getTrackAt(idx);
                 if (track == null) {
@@ -320,7 +334,8 @@ public class TimelineRenderer {
                 float trackY = winY + math.trackContentY(idx) - scrollY;
                 
                 // 使用 TimelineTrackRenderer 渲染轨道
-                trackRenderer.renderTrack(drawList, track, idx, winX, contentX, trackY, contentW);
+                trackRenderer.renderTrack(drawList, track, idx, winX, contentX, trackY, contentW, actorBoneRows.supports(track));
+                actorBoneRows.render(drawList, track, winX, contentX, contentX + contentW, trackY, TRACK_HEIGHT, TRACK_GAP);
                 
                 // 注册控制区域（使用 TimelineTrackControlHit）
                 trackControlHit.registerTrackControlAreas(track, winX, trackY, labelWidth);
@@ -328,7 +343,7 @@ public class TimelineRenderer {
                 // 渲染 Clip 内容（使用 TimelineClipRenderer）
                 // ★ 性能优化：在渲染所有 clip 前更新一次鼠标位置
                 clipRenderer.updateMousePosition();
-                drawList.pushClipRect(contentX, trackY, contentX + contentW, trackY + TRACK_HEIGHT);
+                drawList.pushClipRect(contentX, trackY, contentX + contentW, trackY + TRACK_HEIGHT, true);
                 for (TimelineClip clip : track.getClips()) {
                     clipRenderer.renderClip(drawList, clip, track, idx, contentX, trackY, TRACK_HEIGHT, contentW);
                 }
@@ -978,7 +993,7 @@ public class TimelineRenderer {
                 return -1;
             }
         }
-        int index = (int) (relativeY / rowHeight);
+        int index = math.headerAtContentY(relativeY);
         int trackCount = model.getTrackCount();
         return (index >= 0 && index < trackCount) ? index : -1;
     }

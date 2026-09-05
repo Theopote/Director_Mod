@@ -25,6 +25,10 @@ public class TimelineRenderMath {
     private static final Logger logger = LoggerFactory.getLogger(TimelineRenderMath.class);
 
     private final TimelineRenderViewport viewport;
+    private TimelineRowLayout rowLayout;
+
+    public void setRowLayout(TimelineRowLayout layout) { rowLayout = layout; }
+    public TimelineRowLayout getRowLayout() { return rowLayout; }
     
     // ★ 性能优化：缓存 rowHeight 计算，避免重复计算
     private float cachedRowHeight = -1f;
@@ -105,6 +109,7 @@ public class TimelineRenderMath {
 
     /** Unscrolled track origin, shared by rendering and interaction code. */
     public float trackContentY(int trackIndex) {
+        if (rowLayout != null) return rowLayout.trackTop(trackIndex);
         return trackIndex * getRowHeight();
     }
 
@@ -135,7 +140,12 @@ public class TimelineRenderMath {
             }
         }
 
-        return (int) (relativeY / rowHeight);
+        return headerAtContentY(relativeY);
+    }
+
+    public int headerAtContentY(float y) {
+        if (rowLayout != null) return rowLayout.headerAt(y);
+        return Float.isFinite(y) && y >= 0 && getRowHeight() > 0 ? (int) (y / getRowHeight()) : -1;
     }
     
     /**
@@ -222,6 +232,7 @@ public class TimelineRenderMath {
      * @return [startIndex, endIndex] 数组
      */
     public int[] getVisibleTrackRange(int totalTracks) {
+        if (rowLayout != null) return rowLayout.visibleRange(viewport.getScrollY(), viewport.getViewHeight());
         if (totalTracks <= 0) {
             return new int[]{-1, -1};
         }

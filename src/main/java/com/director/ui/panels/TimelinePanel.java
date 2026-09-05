@@ -677,9 +677,7 @@ public class TimelinePanel extends AbstractPanel
         float trackHeight = TimelineRenderer.getTrackHeight();
         float trackGap = TimelineRenderer.getTrackGap();
         float rowHeight = trackHeight + trackGap;
-        float totalTracksHeight = trackCount > 0
-                ? (trackCount * trackHeight + (trackCount - 1) * trackGap)
-                : 0f;
+        float totalTracksHeight = renderer.prepareTrackRows();
 
         ImGui.setCursorScreenPos(layout.winX(), layout.trackRegionTop());
         ImGui.beginChild("##TimelineTrackRegion", layout.winW(), layout.trackViewportHeight(), false, ImGuiWindowFlags.None);
@@ -751,9 +749,11 @@ public class TimelinePanel extends AbstractPanel
         boolean rightClickedOnCanvas = ImGui.isItemHovered() && ImGui.isMouseClicked(ImGuiMouseButton.Right);
 
         dropTargetTrackIndex = dragDropHandler.handleDragDropTarget(
-                layout.trackRegionTop(), scrollY, layout.contentX()
+                layout.trackRegionTop(), scrollY, layout.contentX(), renderer.getMath()
         );
-        interactionHandler.handleCanvasInteractions(
+        boolean actorRowClick = renderer.handleActorRowClick(layout.winX(), layout.contentX(),
+                layout.winX() + layout.winW(), layout.trackRegionTop(), layout.trackViewportHeight(), scrollY);
+        if (!actorRowClick) interactionHandler.handleCanvasInteractions(
                 layout.contentX(), layout.trackRegionTop(),
                 layout.contentW(), layout.trackViewportHeight(),
                 scrollY, rightClickedOnCanvas
