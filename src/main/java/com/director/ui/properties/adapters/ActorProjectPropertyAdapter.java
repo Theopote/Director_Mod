@@ -73,6 +73,7 @@ import java.nio.file.Paths;
  * @version 1.0
  */
 public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
+    private java.util.UUID incompatibleTypeActor;
     
     private static final Logger LOGGER = LoggerFactory.getLogger(ActorProjectPropertyAdapter.class);
     private static final float DEFAULT_CLIP_DURATION = 5.0f;
@@ -447,9 +448,14 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                 ActorType type = types[i];
                 boolean isSelected = type == actor.getType();
                 if (ImGui.selectable(typeLabels[i], isSelected)) {
-                    actor.setType(type);
-                    modified = true;
-                    LOGGER.debug("[ActorProjectPropertyAdapter] Actor type changed: {}", type);
+                    var timeline = DirectorServices.get().containerTimeline().getTimelineModel();
+                    if (timeline == null || com.director.actor.rig.ActorRigCompatibility.canChangeType(timeline, actor.getActorId(), type)) {
+                        actor.setType(type);
+                        incompatibleTypeActor = null;
+                        modified = true;
+                    } else {
+                        incompatibleTypeActor = actor.getActorId();
+                    }
                 }
                 if (isSelected) {
                     ImGui.setItemDefaultFocus();
@@ -457,6 +463,10 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             }
             ImGui.endCombo();
         }
+        if (actor.getActorId().equals(incompatibleTypeActor)) {
+            ImGui.textWrapped("现有动画与目标类型不兼容，请先移除动画引用，再更换演员类型。");
+        }
+        ImGui.textWrapped(com.director.actor.rig.ActorRigCompatibility.explanation(actor.getType()));
         
         ImGui.spacing();
         

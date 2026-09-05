@@ -523,7 +523,7 @@ public final class ActorRuntimeController {
             // 新一代逐骨骼动画资产。存在同 ID 资产时优先使用；旧 AnimationLibrary 继续作为回退。
             var rigAsset = com.director.actor.animation.asset.AnimationAssetLibrary.getInstance()
                     .find(s.animationId)
-                    .filter(asset -> com.director.actor.rig.skeleton.HumanoidRig.DEFINITION.id().equals(asset.rigId()));
+                    .filter(asset -> com.director.actor.rig.ActorRigCompatibility.accepts(actor.getType(), asset.rigId()));
             if (rigAsset.isPresent()) {
                 var asset = rigAsset.get();
                 var playbackMode = s.animationLoop ? asset.loopMode()

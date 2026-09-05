@@ -13,6 +13,7 @@ public final class ActorBoneWorldQuery {
     private ActorBoneWorldQuery() {}
 
     public static RigWorldPose resolve(UUID actorId) {
+        if (!com.director.actor.rig.ActorRigCompatibility.editable(actorId)) return null;
         if (!(ActorPreviewManager.getInstance().getPreview(actorId) instanceof PreviewActorEntity entity)) {
             return null;
         }

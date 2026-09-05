@@ -38,6 +38,10 @@ class ActorAnimationAssetEditingTest {
         var asset = ActorAnimationAssetEditing.create(model, library, "project:a", "A", 3f);
         var track = new TimelineTrack("Actor", TrackType.ACTOR);
         var payload = track.getOrCreateActorTrackPayload();
+        var registry = new com.director.actor.ActorRegistry();
+        com.director.actor.ActorRegistryManager.setRegistry(registry);
+        var actor = registry.createActor("Player", com.director.actor.ActorType.PLAYER);
+        payload.setActorRef(com.director.actor.ActorRef.of(actor));
         model.addTrack(track);
         ActorAnimationAssetEditing.attach(model, library, asset.id(), track);
         payload.getClips().getFirst().setMuted(true);

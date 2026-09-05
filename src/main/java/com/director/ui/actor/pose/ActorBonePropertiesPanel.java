@@ -29,6 +29,12 @@ public final class ActorBonePropertiesPanel {
 
     private void renderContents(TimelineModel model, UUID actorId) {
         if (model == null || actorId == null) { draft.clear(); return; }
+        if (!com.director.actor.rig.ActorRigCompatibility.editable(actorId)) {
+            draft.clear();
+            var actor = com.director.actor.ActorRegistryManager.getInstance().getActor(actorId).orElse(null);
+            ImGui.textWrapped(actor == null ? "演员不存在" : com.director.actor.rig.ActorRigCompatibility.explanation(actor.getType()));
+            return;
+        }
         if (!ImGui.treeNode("骨骼与姿态关键帧##actorBones")) { draft.clear(); return; }
         var selection = ActorBoneSelectionController.getInstance();
         if (!selection.isActive()) selection.activate(actorId);

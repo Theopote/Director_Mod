@@ -409,6 +409,12 @@ public final class TimelineClipDragHandler {
             return false;
         }
         TrackType tt = track.getType();
+        if (clip instanceof com.director.timeline.model.entity.EntityTimelineClip entity) {
+            if (tt != TrackType.ACTOR || track.getActorTrackPayload() == null) return false;
+            // Payload ownership is not transferred by this generic clip drag handler.
+            // Keep instance clips on their owning actor track; reuse assets via Attach instead.
+            if (!track.getActorTrackPayload().getClips().contains(entity.getEntityClip())) return false;
+        }
         if (tt == null) {
             return true;
         }

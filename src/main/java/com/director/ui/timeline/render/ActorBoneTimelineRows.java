@@ -87,7 +87,8 @@ public final class ActorBoneTimelineRows {
             if (payload == null || payload.getActorRef() == null) continue;
             var registry = ActorRegistryManager.getInstance();
             var actor = registry.getActor(payload.getActorRef().getActorId()).orElse(null);
-            if (actor == null || !(actor.getRigProfile() instanceof HumanoidRigProfile)) continue;
+            if (actor == null || com.director.actor.rig.ActorRigCompatibility.family(actor.getType())
+                    != com.director.actor.rig.ActorRigCompatibility.Family.HUMANOID) continue;
             supported.add(track);
             if (expanded.contains(track)) counts[i] = HumanoidRig.DEFINITION.boneCount();
         }

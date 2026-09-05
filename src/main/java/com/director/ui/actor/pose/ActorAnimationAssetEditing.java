@@ -102,6 +102,9 @@ public final class ActorAnimationAssetEditing {
         if (track == null || !model.getAllTracks().contains(track) || track.getActorTrackPayload() == null)
             throw new IllegalArgumentException("请先创建并选择演员轨道");
         var payload = track.getActorTrackPayload();
+        com.director.actor.rig.ActorRigCompatibility.requireCompatible(
+                payload.getActorRef() == null ? null : payload.getActorRef().getActorId(), asset.rigId());
+        if (track.isLocked()) throw new IllegalArgumentException("演员轨道已锁定");
         float start = Math.max(0f, model.getCurrentTime());
         EntityAnimationClip clip = new EntityAnimationClip(asset.name(), start, start + Math.max(0.1f, asset.duration()));
         clip.setAnimationId(id);
@@ -110,7 +113,11 @@ public final class ActorAnimationAssetEditing {
         EntityTimelineClip wrapper = new EntityTimelineClip(clip, payload.getColorRgba());
         TimelineCommandBridge.execute(new StateChangeCommand(model, "Attach animation asset",
                 () -> { payload.removeClip(clip.getId()); track.removeClip(wrapper); },
-                () -> { payload.addClip(clip); track.addClip(wrapper); }));
+                () -> {
+                    com.director.actor.rig.ActorRigCompatibility.requireCompatible(
+                            payload.getActorRef() == null ? null : payload.getActorRef().getActorId(), asset.rigId());
+                    payload.addClip(clip); track.addClip(wrapper);
+                }));
     }
 
     private static void requireNewId(TimelineModel model, AnimationAssetLibrary library, String id) {

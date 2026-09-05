@@ -47,6 +47,7 @@ public final class ActorAnimationDopeSheet {
     private ActorAnimationDopeSheet() {}
 
     public static void render(TimelineModel model, UUID actorId) {
+        if (!com.director.actor.rig.ActorRigCompatibility.editable(actorId)) return;
         ActorTrack actorTrack = findActorTrack(model, actorId);
         EntityAnimationClip clip = findActiveClip(actorTrack, model == null ? 0f : model.getCurrentTime());
         AnimationAsset asset = clip == null ? null
