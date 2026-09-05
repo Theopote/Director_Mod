@@ -335,7 +335,7 @@ public class TimelineRenderer {
                 
                 // 使用 TimelineTrackRenderer 渲染轨道
                 trackRenderer.renderTrack(drawList, track, idx, winX, contentX, trackY, contentW, actorBoneRows.supports(track));
-                actorBoneRows.render(drawList, track, winX, contentX, contentX + contentW, trackY, TRACK_HEIGHT, TRACK_GAP);
+                actorBoneRows.render(drawList, track, winX, contentX, contentX + contentW, trackY, TRACK_HEIGHT, TRACK_GAP, math);
                 
                 // 注册控制区域（使用 TimelineTrackControlHit）
                 trackControlHit.registerTrackControlAreas(track, winX, trackY, labelWidth);
