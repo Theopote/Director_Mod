@@ -99,8 +99,9 @@ public class TimelineRenderer {
     }
 
     public boolean handleActorRowClick(float x, float contentX, float right, float top, float height, float scrollY) {
+        if (actorBoneRows.updateDrag(model)) return true;
         return math.getRowLayout() != null && actorBoneRows.handleClick(model, math.getRowLayout(),
-                x, contentX, right, top, height, scrollY, TRACK_HEIGHT, TRACK_GAP);
+                x, contentX, right, top, height, scrollY, TRACK_HEIGHT, TRACK_GAP, math.getPixelsPerSecond());
     }
 
     // ======= 拆分后的渲染组件（v9.0 重构） =======
