@@ -21,6 +21,11 @@ public final class AnimationAssetLibrary {
     }
 
     public Optional<AnimationAsset> find(String id) { return Optional.ofNullable(assets.get(id)); }
+    /** Editor insert: unlike register, never replaces an existing asset. */
+    public boolean addIfAbsent(AnimationAsset asset) {
+        Objects.requireNonNull(asset, "asset");
+        return assets.putIfAbsent(asset.id(), asset) == null;
+    }
     public boolean contains(String id) { return assets.containsKey(id); }
     public boolean remove(String id) { return assets.remove(id) != null; }
     public int size() { return assets.size(); }
