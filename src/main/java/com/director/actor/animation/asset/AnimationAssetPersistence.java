@@ -31,6 +31,34 @@ public final class AnimationAssetPersistence {
 
     private AnimationAssetPersistence() {}
 
+    /** Portable single-asset format, separate from the project library file. */
+    public static void exportAsset(Path file, AnimationAsset asset) throws IOException {
+        if (Files.exists(file)) throw new IOException("目标文件已存在，请选择新的文件名");
+        JsonObject root = new JsonObject();
+        root.addProperty("format", "director:animation");
+        root.addProperty("schemaVersion", FILE_SCHEMA_VERSION);
+        root.add("asset", writeAsset(asset));
+        // Validate with the same decoder before writing a portable asset.
+        readAsset(root.getAsJsonObject("asset"));
+        AtomicFileWriter.writeString(file, GSON.toJson(root));
+    }
+
+    /** Parse completely before the editor modifies its project library. */
+    public static AnimationAsset importAsset(Path file) throws IOException {
+        try (var input = Files.newInputStream(file)) {
+            int limit = 16 * 1024 * 1024;
+            byte[] bytes = input.readNBytes(limit + 1);
+            if (bytes.length > limit) throw new IOException("动画文件超过 16 MiB 限制");
+            JsonObject root = JsonParser.parseString(new String(bytes, StandardCharsets.UTF_8)).getAsJsonObject();
+            if (!"director:animation".equals(required(root, "format").getAsString())
+                    || required(root, "schemaVersion").getAsInt() != FILE_SCHEMA_VERSION)
+                throw new IllegalArgumentException("不支持的动画文件格式或版本");
+            return readAsset(required(root, "asset").getAsJsonObject());
+        } catch (RuntimeException e) {
+            throw new IOException("动画文件校验失败：" + e.getMessage(), e);
+        }
+    }
+
     public static boolean saveToWorld(AnimationAssetLibrary library) {
         Path file = worldFile();
         if (file == null) return false;
@@ -137,6 +165,20 @@ public final class AnimationAssetPersistence {
             readVectors(required(value, "translation").getAsJsonArray(), track.translation());
             readQuaternions(required(value, "rotation").getAsJsonArray(), track.rotation());
             readVectors(required(value, "scale").getAsJsonArray(), track.scale());
+            for (var frame : track.translation().keyframes()) {
+                if (frame.time() > asset.duration() || !frame.value().isFinite())
+                    throw new IllegalArgumentException("Invalid translation keyframe");
+            }
+            for (var frame : track.rotation().keyframes()) {
+                if (frame.time() > asset.duration() || !frame.value().isFinite())
+                    throw new IllegalArgumentException("Invalid rotation keyframe");
+            }
+            for (var frame : track.scale().keyframes()) {
+                var scale = frame.value();
+                if (frame.time() > asset.duration() || !scale.isFinite()
+                        || scale.x <= 0 || scale.y <= 0 || scale.z <= 0)
+                    throw new IllegalArgumentException("Invalid scale keyframe");
+            }
         }
         if (in.has("markers")) {
             for (JsonElement markerElement : in.getAsJsonArray("markers")) {

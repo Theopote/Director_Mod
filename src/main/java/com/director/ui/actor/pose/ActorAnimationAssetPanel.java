@@ -12,6 +12,7 @@ import java.util.UUID;
 public final class ActorAnimationAssetPanel {
     private static final ImString targetId = new ImString(256);
     private static final ImString name = new ImString(256);
+    private static final ImString importId = new ImString(256);
     private static AnimationAsset selected;
     private static String message = "";
 
@@ -64,6 +65,35 @@ public final class ActorAnimationAssetPanel {
                 ActorAnimationAssetEditing.attach(model, library, selected.id(), tracks.getFirst());
             });
         }
+        ImGui.separator();
+        ImGui.inputText("导入 ID（留空保留原 ID）##assetImportId", importId);
+        if (ImGui.button("导入动画文件##assetImport")) {
+            try {
+                String file = chooseFile(false);
+                if (file != null) {
+                    selected = ActorAnimationAssetEditing.importFile(model, library, java.nio.file.Path.of(file), importId.get());
+                    name.set(selected.name());
+                    targetId.set(selected.id() + "_copy");
+                    settings.setAssetId(selected.id());
+                    message = "导入完成，可撤销。通过放到播放头复用此动作。";
+                }
+            } catch (java.io.IOException | RuntimeException e) {
+                message = "导入失败：" + e.getMessage();
+                org.slf4j.LoggerFactory.getLogger(ActorAnimationAssetPanel.class).warn("Animation import failed", e);
+            }
+        }
+        if (selected != null && ImGui.button("导出所选动画##assetExport")) {
+            try {
+                String file = chooseFile(true);
+                if (file != null) {
+                    com.director.actor.animation.asset.AnimationAssetPersistence.exportAsset(java.nio.file.Path.of(file), selected);
+                    message = "已导出至 " + file + "。导出文件不参与时间线撤销。";
+                }
+            } catch (java.io.IOException | RuntimeException e) {
+                message = "导出失败：" + e.getMessage();
+                org.slf4j.LoggerFactory.getLogger(ActorAnimationAssetPanel.class).warn("Animation export failed", e);
+            }
+        }
         if (!message.isEmpty()) ImGui.textWrapped(message);
         ImGui.treePop();
     }
@@ -74,6 +104,18 @@ public final class ActorAnimationAssetPanel {
             message = "操作完成，可使用时间线撤销/重做。";
         } catch (IllegalArgumentException e) {
             message = e.getMessage();
+        }
+    }
+
+    private static String chooseFile(boolean save) {
+        try (var stack = org.lwjgl.system.MemoryStack.stackPush()) {
+            var filters = stack.mallocPointer(1);
+            filters.put(stack.UTF8("*.json")).flip();
+            return save
+                    ? org.lwjgl.util.tinyfd.TinyFileDialogs.tinyfd_saveFileDialog(
+                            "导出动画（请选择新文件名）", "animation.json", filters, "Director animation JSON")
+                    : org.lwjgl.util.tinyfd.TinyFileDialogs.tinyfd_openFileDialog(
+                            "导入 Director 动画", "", filters, "Director animation JSON", false);
         }
     }
 }

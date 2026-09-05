@@ -15,6 +15,27 @@ import java.util.Objects;
 public final class ActorAnimationAssetEditing {
     private ActorAnimationAssetEditing() {}
 
+    public static AnimationAsset importFile(TimelineModel model, AnimationAssetLibrary library,
+                                            java.nio.file.Path file, String newId) throws java.io.IOException {
+        AnimationAsset asset = AnimationAssetPersistence.importAsset(file);
+        String id = newId == null || newId.isBlank() ? asset.id() : newId.trim();
+        requireNewId(model, library, id);
+        if (id.equals(asset.id())) {
+            insert(model, library, asset);
+            return asset;
+        }
+        AnimationAsset copy = new AnimationAsset(id, asset.name(), asset.rig(), asset.duration(), asset.loopMode());
+        asset.boneTracks().forEach((bone, track) -> {
+            BoneTrack target = copy.getOrCreateBoneTrack(bone);
+            track.translation().keyframes().forEach(k -> target.translation().put(k.time(), k.value(), k.interpolation()));
+            track.rotation().keyframes().forEach(k -> target.rotation().put(k.time(), k.value(), k.interpolation()));
+            track.scale().keyframes().forEach(k -> target.scale().put(k.time(), k.value(), k.interpolation()));
+        });
+        asset.markers().forEach(copy::addMarker);
+        insert(model, library, copy);
+        return copy;
+    }
+
     public static AnimationAsset create(TimelineModel model, AnimationAssetLibrary library,
                                          String id, String name, float duration) {
         requireNewId(model, library, id);
