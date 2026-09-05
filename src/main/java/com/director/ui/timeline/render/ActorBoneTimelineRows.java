@@ -14,6 +14,7 @@ import com.director.ui.actor.selection.ActorSelectionHub;
 import imgui.ImDrawList;
 import imgui.ImGui;
 import imgui.flag.ImGuiMouseButton;
+import imgui.flag.ImGuiHoveredFlags;
 import java.util.*;
 
 /** View-only expansion state, scoped to one timeline renderer. */
@@ -59,7 +60,7 @@ public final class ActorBoneTimelineRows {
         ImGui.setTooltip(String.format("资产时间 %.3fs → %.3fs\n共享资产的所有引用都会变化；Esc 取消。", hit.assetTime(), target));
         if (ImGui.isMouseReleased(ImGuiMouseButton.Left)) {
             dragging = null;
-            if (ImGui.isWindowHovered() && Math.abs(ImGui.getMousePosX() - dragMouseX) >= 3) {
+            if (isCanvasWindowHovered() && Math.abs(ImGui.getMousePosX() - dragMouseX) >= 3) {
                 float delta = target - hit.assetTime();
                 boolean moved = switch (hit.channel()) {
                     case 0 -> ActorAnimationKeyframeEditing.moveTranslations(model,
@@ -94,6 +95,12 @@ public final class ActorBoneTimelineRows {
     }
 
     public boolean supports(TimelineTrack track) { return supported.contains(track); }
+
+    /** The timeline's invisible canvas button owns ActiveId on mouse-down.
+     * Keep popup/window occlusion checks, but do not let that button block its own controls. */
+    private static boolean isCanvasWindowHovered() {
+        return ImGui.isWindowHovered(ImGuiHoveredFlags.AllowWhenBlockedByActiveItem);
+    }
 
     public void render(ImDrawList draw, TimelineTrack track, float x, float contentX, float right,
                        float y, float height, float gap, TimelineRenderMath math) {
@@ -152,7 +159,7 @@ public final class ActorBoneTimelineRows {
                                 draw.addCircle(previewX, cy, 5, colors[channel]);
                             }
                             keyHits.add(new KeyHit(track, bone, px, cy, time, asset, animation, boneTrack, channel, key.time()));
-                            if (ImGui.isWindowHovered() && Math.abs(ImGui.getMousePosX() - px) < 4
+                            if (isCanvasWindowHovered() && Math.abs(ImGui.getMousePosX() - px) < 4
                                     && Math.abs(ImGui.getMousePosY() - cy) < 4) {
                                 ImGui.setTooltip(asset.name() + " · " + new String[]{"位置", "旋转", "缩放"}[channel]
                                         + String.format(" · %.3fs\n点击定位；非循环片段可拖动。共享资产影响全部引用。", time));
@@ -168,7 +175,7 @@ public final class ActorBoneTimelineRows {
     public boolean handleClick(TimelineModel model, TimelineRowLayout layout, float x, float contentX,
                                float right, float top, float viewportHeight, float scrollY, float height, float gap,
                                float pixelsPerSecond) {
-        if (!ImGui.isWindowHovered() || (!ImGui.isMouseClicked(ImGuiMouseButton.Left)
+        if (!isCanvasWindowHovered() || (!ImGui.isMouseClicked(ImGuiMouseButton.Left)
                 && !ImGui.isMouseClicked(ImGuiMouseButton.Right))) return false;
         float mx = ImGui.getMousePosX(), my = ImGui.getMousePosY();
         if (mx < x || mx >= right || my < top || my >= top + viewportHeight) return false;

@@ -14,7 +14,6 @@ import com.director.timeline.model.TimelineTrack;
 import com.director.timeline.model.TrackType;
 import com.director.core.container.visibility.BlockVisualStateManager;
 import com.director.timeline.playback.block.TimelineClipBlockController;
-import com.director.ui.timeline.render.TimelineRenderer;
 import com.director.timeline.snapping.TimelineSnapping;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.registry.RegistryKey;
