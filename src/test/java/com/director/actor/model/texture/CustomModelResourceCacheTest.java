@@ -4,8 +4,7 @@ import com.director.actor.model.BoneCuboid;
 import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 
 class CustomModelResourceCacheTest {
     @Test
@@ -46,7 +45,7 @@ class CustomModelResourceCacheTest {
                 CuboidFaceUvs.uniform(new float[] {0, 0, 16, 16}));
         String first = CustomModelResourceBuilder.contentKey(cuboid, 64, 64, "hash_a");
         String second = CustomModelResourceBuilder.contentKey(cuboid, 64, 64, "hash_b");
-        assertTrue(!first.equals(second));
+        assertNotEquals(first, second);
         assertEquals(64, first.length());
     }
 }

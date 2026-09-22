@@ -7,6 +7,7 @@ import org.joml.Vector3f;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class CustomModelResourceBuilderTest {
@@ -53,5 +54,22 @@ class CustomModelResourceBuilderTest {
         String second = CustomModelResourceBuilder.contentKey(cuboid, 64, 64, "texture_hash");
         assertEquals(first, second);
         assertEquals(first.substring(0, 16), CustomModelResourceBuilder.pieceKeyFromContentKey(first));
+    }
+
+    @Test
+    void geometryWarningsReportClampedPixels() {
+        BoneCuboid cuboid = new BoneCuboid(
+                "torso",
+                new Vector3f(-2f, 0f, 0f),
+                new Vector3f(4f, 1f, 1f),
+                "minecraft:white_concrete",
+                "director:custom_model_piece/test",
+                "0",
+                CuboidFaceUvs.uniform(new float[] {0, 0, 16, 16}));
+
+        var warnings = CustomModelResourceBuilder.geometryWarnings(cuboid);
+        assertFalse(warnings.isEmpty());
+        assertTrue(warnings.get(0).contains("torso"));
+        assertTrue(warnings.get(0).contains("超出物品模型像素范围"));
     }
 }

@@ -5,15 +5,21 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import net.minecraft.util.Identifier;
 import org.joml.Vector3f;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HexFormat;
+import java.util.List;
 import java.util.Locale;
 
 /** Builds Minecraft item model JSON for a single textured {@link BoneCuboid}. */
 public final class CustomModelResourceBuilder {
+    private static final Logger LOGGER = LoggerFactory.getLogger(CustomModelResourceBuilder.class);
     private static final float PIXELS_PER_BLOCK = 16f;
     private static final float MIN_PIXEL = -16f;
     private static final float MAX_PIXEL = 32f;
@@ -37,8 +43,24 @@ public final class CustomModelResourceBuilder {
         String modelPath = "custom_model_piece/" + safePieceKey;
         Identifier textureId = Identifier.of("director", texturePath);
         Identifier itemModelId = Identifier.of("director", modelPath);
+        for (String warning : geometryWarnings(cuboid)) {
+            LOGGER.warn("[CustomModelResourceBuilder] {}", warning);
+        }
         String json = buildModelJson(cuboid, texturePath, atlasWidth, atlasHeight);
         return new GeneratedItemModel(itemModelId, textureId, json);
+    }
+
+    /** Returns warnings for cuboid geometry that must be clamped into Minecraft item model bounds. */
+    public static List<String> geometryWarnings(BoneCuboid cuboid) {
+        if (cuboid == null) {
+            return List.of();
+        }
+        List<String> warnings = new ArrayList<>();
+        Vector3f from = toPixelCorner(cuboid.offset(), cuboid.size(), false);
+        Vector3f to = toPixelCorner(cuboid.offset(), cuboid.size(), true);
+        recordCornerClamp(warnings, cuboid.boneId(), "from", from);
+        recordCornerClamp(warnings, cuboid.boneId(), "to", to);
+        return Collections.unmodifiableList(warnings);
     }
 
     public static String contentKey(
@@ -143,6 +165,27 @@ public final class CustomModelResourceBuilder {
 
     private static float clampPixel(float value) {
         return Math.max(MIN_PIXEL, Math.min(MAX_PIXEL, value));
+    }
+
+    private static void recordCornerClamp(List<String> warnings, String boneId, String corner, Vector3f vector) {
+        recordAxisClamp(warnings, boneId, corner + ".x", vector.x);
+        recordAxisClamp(warnings, boneId, corner + ".y", vector.y);
+        recordAxisClamp(warnings, boneId, corner + ".z", vector.z);
+    }
+
+    private static void recordAxisClamp(List<String> warnings, String boneId, String axis, float value) {
+        float clamped = clampPixel(value);
+        if (Float.compare(clamped, value) != 0) {
+            warnings.add(String.format(
+                    Locale.ROOT,
+                    "bone \"%s\" %s=%.3f 超出物品模型像素范围 [%.0f, %.0f]，已钳制为 %.3f",
+                    boneId,
+                    axis,
+                    value,
+                    MIN_PIXEL,
+                    MAX_PIXEL,
+                    clamped));
+        }
     }
 
     private static Vector3f toPixelCorner(Vector3f offset, Vector3f size, boolean end) {

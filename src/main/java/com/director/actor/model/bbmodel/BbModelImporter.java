@@ -3,7 +3,7 @@ package com.director.actor.model.bbmodel;
 import com.director.actor.model.BoneCuboid;
 import com.director.actor.model.CustomModelDefinition;
 import com.director.actor.model.texture.CuboidFaceUvs;
-import com.director.actor.model.texture.CustomModelResourceBuilder;
+import com.director.actor.model.texture.CustomModelItemModelResolver;
 import com.director.actor.model.texture.CustomModelResourceCache;
 import com.director.actor.rig.skeleton.BoneCapabilities;
 import com.director.actor.rig.skeleton.BoneDefinition;
@@ -470,19 +470,8 @@ public final class BbModelImporter {
             Map<String, Path> extractedTextures,
             int atlasWidth,
             int atlasHeight) {
-        Path textureFile = extractedTextures.get(textureKey);
-        if (textureFile != null && Files.isRegularFile(textureFile)) {
-            try {
-                String textureHash = CustomModelResourceCache.hashFile(textureFile);
-                CustomModelResourceCache.CacheEntry entry = CustomModelResourceCache.getInstance().resolve(
-                        draft, modelId, textureKey, textureHash, atlasWidth, atlasHeight);
-                return entry.itemModelId();
-            } catch (IOException | RuntimeException ignored) {
-                // Fall back to geometry-only key when texture hashing is unavailable.
-            }
-        }
-        String contentKey = CustomModelResourceBuilder.contentKey(draft, atlasWidth, atlasHeight, "missing_texture");
-        return CustomModelResourceCache.itemModelId(CustomModelResourceBuilder.pieceKeyFromContentKey(contentKey));
+        return CustomModelItemModelResolver.resolve(
+                draft, modelId, textureKey, extractedTextures, atlasWidth, atlasHeight);
     }
 
     private static CuboidFaceUvs parseFaceUvs(BbModelFile.Element element) {

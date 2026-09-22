@@ -19,6 +19,7 @@ import com.director.i18n.ActorPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.actor.group.ActorGroupTimelineCommandService;
 import com.director.ui.actor.model.BbModelAssetEditing;
+import com.director.ui.actor.model.CustomModelCuboidPropertyUI;
 import com.director.ui.actor.selection.ActorSelectionHub;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.actor.RigProfileStylePropertyUI;
@@ -599,6 +600,13 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
 
         if (!bbModelImportMessage.isEmpty()) {
             ImGui.textWrapped(bbModelImportMessage);
+        }
+
+        if (actor.getCustomModelId() != null) {
+            TimelineModel timeline = DirectorServices.get().containerTimeline().getTimelineModel();
+            if (timeline != null) {
+                CustomModelCuboidPropertyUI.render(actor, timeline);
+            }
         }
         return modified;
     }

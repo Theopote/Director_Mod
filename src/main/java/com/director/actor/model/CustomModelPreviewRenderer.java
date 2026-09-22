@@ -40,6 +40,7 @@ public final class CustomModelPreviewRenderer {
 
     private final Map<UUID, List<SpawnedCuboid>> spawned = new HashMap<>();
     private final Map<UUID, String> spawnedModelId = new HashMap<>();
+    private final Map<UUID, String> spawnedModelRevision = new HashMap<>();
 
     private CustomModelPreviewRenderer() {}
 
@@ -50,10 +51,13 @@ public final class CustomModelPreviewRenderer {
             remove(actorId);
             return;
         }
-        if (!model.id().equals(spawnedModelId.get(actorId))) {
+        String revision = modelRevision(model);
+        if (!model.id().equals(spawnedModelId.get(actorId))
+                || !revision.equals(spawnedModelRevision.get(actorId))) {
             remove(actorId);
             spawned.put(actorId, spawnAll(world, model));
             spawnedModelId.put(actorId, model.id());
+            spawnedModelRevision.put(actorId, revision);
         }
         for (SpawnedCuboid sc : spawned.getOrDefault(actorId, List.of())) {
             int boneIndex = worldPose.rig().findBoneIndex(sc.cuboid().boneId());
@@ -69,7 +73,7 @@ public final class CustomModelPreviewRenderer {
         Vector3f rotatedOffset = rotation.transform(new Vector3f(sc.cuboid().offset()));
         AffineTransformation transform = new AffineTransformation(
                 rotatedOffset, new Quaternionf(rotation), new Vector3f(sc.cuboid().size()), new Quaternionf());
-        ((DisplayEntityAccessor) (Object) sc.entity()).director$invokeSetTransformation(transform);
+        ((DisplayEntityAccessor) sc.entity()).director$invokeSetTransformation(transform);
     }
 
     private List<SpawnedCuboid> spawnAll(ClientWorld world, CustomModelDefinition model) {
@@ -93,7 +97,7 @@ public final class CustomModelPreviewRenderer {
 
     private static DisplayEntity spawnPlaceholderCuboid(ClientWorld world, BoneCuboid cuboid) {
         DisplayEntity.BlockDisplayEntity entity = new DisplayEntity.BlockDisplayEntity(EntityType.BLOCK_DISPLAY, world);
-        ((BlockDisplayEntityAccessor) (Object) entity).director$invokeSetBlockState(resolveBlockState(cuboid.blockStateId()));
+        ((BlockDisplayEntityAccessor) entity).director$invokeSetBlockState(resolveBlockState(cuboid.blockStateId()));
         return entity;
     }
 
@@ -119,10 +123,21 @@ public final class CustomModelPreviewRenderer {
         return block.getDefaultState();
     }
 
+    private static String modelRevision(CustomModelDefinition model) {
+        StringBuilder revision = new StringBuilder();
+        for (BoneCuboid cuboid : model.cuboids()) {
+            revision.append(cuboid.boneId()).append('|')
+                    .append(cuboid.itemModelId()).append('|')
+                    .append(cuboid.textureId()).append(';');
+        }
+        return revision.toString();
+    }
+
     public void remove(UUID actorId) {
         if (actorId == null) return;
         List<SpawnedCuboid> list = spawned.remove(actorId);
         spawnedModelId.remove(actorId);
+        spawnedModelRevision.remove(actorId);
         if (list == null) return;
         for (SpawnedCuboid sc : list) {
             try {
