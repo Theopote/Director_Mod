@@ -13,7 +13,7 @@ class ActorRigCompatibilityTest {
             assertFalse(ActorRigCompatibility.accepts(type, "unknown:rig"));
             assertFalse(ActorRigCompatibility.explanation(type).isBlank());
         }
-        assertFalse(ActorRigCompatibility.accepts(null, HumanoidRig.DEFINITION.id()));
+        assertFalse(ActorRigCompatibility.accepts((ActorType) null, HumanoidRig.DEFINITION.id()));
     }
     @Test void distinctFamiliesDoNotDependOnProceduralProfileFallback() {
         assertEquals(ActorRigCompatibility.Family.VILLAGER, ActorRigCompatibility.family(ActorType.VILLAGER));
