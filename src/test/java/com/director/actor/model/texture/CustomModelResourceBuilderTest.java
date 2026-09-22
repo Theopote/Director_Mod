@@ -40,7 +40,7 @@ class CustomModelResourceBuilderTest {
     }
 
     @Test
-    void pieceKeyIsStableForSameGeometry() {
+    void contentKeyIsStableForSameGeometryAndTextureHash() {
         BoneCuboid cuboid = new BoneCuboid(
                 "torso",
                 new Vector3f(0f, 0f, 0f),
@@ -49,8 +49,9 @@ class CustomModelResourceBuilderTest {
                 "director:custom_model_piece/test",
                 "0",
                 CuboidFaceUvs.uniform(new float[] {0, 0, 16, 16}));
-        String first = CustomModelResourceBuilder.pieceKey(cuboid, "project:robot", "0");
-        String second = CustomModelResourceBuilder.pieceKey(cuboid, "project:robot", "0");
+        String first = CustomModelResourceBuilder.contentKey(cuboid, 64, 64, "texture_hash");
+        String second = CustomModelResourceBuilder.contentKey(cuboid, 64, 64, "texture_hash");
         assertEquals(first, second);
+        assertEquals(first.substring(0, 16), CustomModelResourceBuilder.pieceKeyFromContentKey(first));
     }
 }

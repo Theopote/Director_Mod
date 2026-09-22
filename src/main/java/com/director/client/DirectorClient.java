@@ -127,8 +127,10 @@ public class DirectorClient implements ClientModInitializer {
      * 注册事件处理器（在客户端完全启动后调用）
      */
     private void registerEventHandlers() {
-        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) ->
-                DirectorMemoryRequirements.onPlayerJoin(client));
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+            DirectorMemoryRequirements.onPlayerJoin(client);
+            com.director.actor.model.texture.CustomModelResourceWarmup.scheduleForCurrentWorld();
+        });
 
         // 注册键绑定事件处理器
         registerKeyBindingHandler();

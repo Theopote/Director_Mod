@@ -4,6 +4,7 @@ import com.director.actor.model.BoneCuboid;
 import com.director.actor.model.CustomModelDefinition;
 import com.director.actor.model.texture.CuboidFaceUvs;
 import com.director.actor.model.texture.CustomModelResourceBuilder;
+import com.director.actor.model.texture.CustomModelResourceCache;
 import com.director.actor.rig.skeleton.BoneCapabilities;
 import com.director.actor.rig.skeleton.BoneDefinition;
 import com.director.actor.rig.skeleton.BoneTransform;
@@ -57,6 +58,7 @@ public final class BbModelImporter {
         }
 
         BbModelFile bbModel = BbModelParser.parse(file);
+        CustomModelResourceCache.getInstance().loadForCurrentWorld();
         List<String> warnings = new ArrayList<>();
         warnUnsupportedModelFormat(bbModel, warnings);
 
@@ -100,10 +102,19 @@ public final class BbModelImporter {
         RigDefinition rig = new RigDefinition(rigId, displayName, bones);
         int atlasWidth = bbModel.resolution == null ? 64 : Math.max(1, bbModel.resolution.width);
         int atlasHeight = bbModel.resolution == null ? 64 : Math.max(1, bbModel.resolution.height);
-        List<BoneCuboid> cuboids = buildCuboids(
-                elementsByUuid, elementToBone, boneOrigins, defaultBlockStateId, modelId, bbModel.textures, warnings);
-        CustomModelDefinition model = new CustomModelDefinition(modelId, displayName, rigId, cuboids);
         Map<String, Path> extractedTextures = extractTextures(bbModel.textures, modelId, warnings);
+        List<BoneCuboid> cuboids = buildCuboids(
+                elementsByUuid,
+                elementToBone,
+                boneOrigins,
+                defaultBlockStateId,
+                modelId,
+                bbModel.textures,
+                extractedTextures,
+                atlasWidth,
+                atlasHeight,
+                warnings);
+        CustomModelDefinition model = new CustomModelDefinition(modelId, displayName, rigId, cuboids);
 
         return new BbModelImportResult(
                 rig, model, List.copyOf(warnings), Map.copyOf(extractedTextures), atlasWidth, atlasHeight);
@@ -235,6 +246,9 @@ public final class BbModelImporter {
             String defaultBlockStateId,
             String modelId,
             List<BbModelFile.Texture> textures,
+            Map<String, Path> extractedTextures,
+            int atlasWidth,
+            int atlasHeight,
             List<String> warnings) {
         List<BoneCuboid> cuboids = new ArrayList<>();
         int ignoredRotations = 0;
@@ -278,8 +292,8 @@ public final class BbModelImporter {
                 CuboidFaceUvs faceUvs = parseFaceUvs(element);
                 if (textureKey != null && faceUvs != null && faceUvs.hasAnyFace()) {
                     BoneCuboid draft = new BoneCuboid(entry.getValue(), offset, size, defaultBlockStateId, null, textureKey, faceUvs);
-                    String pieceKey = CustomModelResourceBuilder.pieceKey(draft, modelId, textureKey);
-                    String itemModelId = "director:custom_model_piece/" + pieceKey;
+                    String itemModelId = resolveItemModelId(
+                            draft, modelId, textureKey, extractedTextures, atlasWidth, atlasHeight);
                     cuboids.add(new BoneCuboid(
                             entry.getValue(), offset, size, defaultBlockStateId, itemModelId, textureKey, faceUvs));
                 } else {
@@ -447,6 +461,28 @@ public final class BbModelImporter {
         if (!"free".equals(format) && !"bedrock".equals(format)) {
             warnings.add("model_format=\"" + bbModel.meta.model_format + "\" 将按 free 模型处理");
         }
+    }
+
+    private static String resolveItemModelId(
+            BoneCuboid draft,
+            String modelId,
+            String textureKey,
+            Map<String, Path> extractedTextures,
+            int atlasWidth,
+            int atlasHeight) {
+        Path textureFile = extractedTextures.get(textureKey);
+        if (textureFile != null && Files.isRegularFile(textureFile)) {
+            try {
+                String textureHash = CustomModelResourceCache.hashFile(textureFile);
+                CustomModelResourceCache.CacheEntry entry = CustomModelResourceCache.getInstance().resolve(
+                        draft, modelId, textureKey, textureHash, atlasWidth, atlasHeight);
+                return entry.itemModelId();
+            } catch (IOException | RuntimeException ignored) {
+                // Fall back to geometry-only key when texture hashing is unavailable.
+            }
+        }
+        String contentKey = CustomModelResourceBuilder.contentKey(draft, atlasWidth, atlasHeight, "missing_texture");
+        return CustomModelResourceCache.itemModelId(CustomModelResourceBuilder.pieceKeyFromContentKey(contentKey));
     }
 
     private static CuboidFaceUvs parseFaceUvs(BbModelFile.Element element) {

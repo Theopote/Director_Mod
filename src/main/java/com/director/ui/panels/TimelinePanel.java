@@ -176,6 +176,7 @@ public class TimelinePanel extends AbstractPanel
         // 1. 初始化核心组件
         this.viewportState = new TimelineViewportState();
         this.model = new TimelineModel(viewportState);
+        com.director.actor.model.texture.CustomModelResourceWarmup.scheduleForCurrentWorld();
         this.renderer = new TimelineRenderer(model, viewportState);
         this.commandHistory = sharedCommandHistory != null ? sharedCommandHistory : new TimelineCommandHistory();
         com.director.ui.timeline.commands.TimelineCommandBridge.bind(this.commandHistory);
@@ -525,6 +526,7 @@ public class TimelinePanel extends AbstractPanel
      */
     public void reloadForCurrentWorld() {
         model.reloadForCurrentWorld();
+        com.director.actor.model.texture.CustomModelResourceWarmup.scheduleForCurrentWorld();
     }
 
     /**
