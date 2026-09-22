@@ -1,6 +1,7 @@
 package com.director.ui.actor.pose;
 
 import com.director.actor.rig.skeleton.HumanoidRig;
+import com.director.actor.rig.skeleton.RigDefinition;
 
 import java.util.UUID;
 
@@ -18,10 +19,23 @@ public final class ActorBoneSelectionController {
 
     public static ActorBoneSelectionController getInstance() { return INSTANCE; }
 
+    /** Rig currently bound to {@code actorId}, or the built-in humanoid rig as a safe fallback. */
+    private RigDefinition rigFor(UUID actorId) {
+        if (actorId == null) return HumanoidRig.DEFINITION;
+        return com.director.actor.ActorRegistryManager.getInstance().getActor(actorId)
+                .flatMap(com.director.actor.rig.ActorRigCompatibility::resolveRig)
+                .orElse(HumanoidRig.DEFINITION);
+    }
+
+    private String defaultBone(UUID actorId) {
+        RigDefinition rig = rigFor(actorId);
+        return rig.findBoneIndex(HumanoidRig.BODY) >= 0 ? HumanoidRig.BODY : rig.bone(0).id();
+    }
+
     public void activate(UUID actorId) {
         active = actorId != null;
         this.actorId = actorId;
-        selectedBoneId = active ? HumanoidRig.BODY : null;
+        selectedBoneId = active ? defaultBone(actorId) : null;
         resetSelection();
         hoveredBoneId = null;
     }
@@ -29,7 +43,7 @@ public final class ActorBoneSelectionController {
     public void synchronizeActor(UUID actorId) {
         if (!active || java.util.Objects.equals(this.actorId, actorId)) return;
         this.actorId = actorId;
-        selectedBoneId = actorId == null ? null : HumanoidRig.BODY;
+        selectedBoneId = actorId == null ? null : defaultBone(actorId);
         resetSelection();
         hoveredBoneId = null;
     }
@@ -48,7 +62,7 @@ public final class ActorBoneSelectionController {
 
     /** Ctrl toggles membership; the most recently selected bone is the active Gizmo target. */
     public boolean selectBone(String boneId, boolean additive) {
-        if (!active || actorId == null || HumanoidRig.DEFINITION.findBoneIndex(boneId) < 0) return false;
+        if (!active || actorId == null || rigFor(actorId).findBoneIndex(boneId) < 0) return false;
         if (!additive) selectedBones.clear();
         if (additive && selectedBones.remove(boneId)) {
             if (boneId.equals(selectedBoneId))
@@ -69,7 +83,7 @@ public final class ActorBoneSelectionController {
     public boolean isBoneSelected(String boneId) { return selectedBones.contains(boneId); }
 
     public void setHoveredBone(String boneId) {
-        hoveredBoneId = active && HumanoidRig.DEFINITION.findBoneIndex(boneId) >= 0 ? boneId : null;
+        hoveredBoneId = active && rigFor(actorId).findBoneIndex(boneId) >= 0 ? boneId : null;
     }
 
     public boolean isActive() { return active; }

@@ -43,6 +43,14 @@ public final class Actor {
     private String skinFileName;
 
     /**
+     * 仅当 {@link #type} 为 {@link ActorType#CUSTOM} 时使用：
+     * 指向 {@code CustomRigLibrary} 中一个用户自定义骨架的 rig id。
+     * <p>
+     * 为空表示该 CUSTOM 演员尚未绑定自定义骨架，不能使用关键帧动画。
+     */
+    private String customRigId;
+
+    /**
      * 构造函数
      *
      * @param name 演员名称
@@ -111,6 +119,22 @@ public final class Actor {
         this.skinFileName = (skinFileName == null || skinFileName.isBlank()) ? null : skinFileName.trim();
     }
 
+    public String getCustomRigId() {
+        return customRigId;
+    }
+
+    public void setCustomRigId(String customRigId) {
+        this.customRigId = (customRigId == null || customRigId.isBlank()) ? null : customRigId.trim();
+    }
+
+    /**
+     * 解析此演员当前可用于关键帧动画的骨架（{@code null} 表示暂不支持关键帧动画，
+     * 例如四足/村民类型，或尚未绑定骨架的 CUSTOM 类型）。
+     */
+    public java.util.Optional<com.director.actor.rig.skeleton.RigDefinition> resolveRigDefinition() {
+        return com.director.actor.rig.ActorRigCompatibility.resolveRig(this);
+    }
+
     /**
      * 根据 ActorType 创建默认的 RigProfile。
      *
@@ -153,6 +177,7 @@ public final class Actor {
                 ", name='" + name + '\'' +
                 ", type=" + type +
                 ", skinFileName='" + skinFileName + '\'' +
+                ", customRigId='" + customRigId + '\'' +
                 '}';
     }
 }

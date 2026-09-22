@@ -1,6 +1,7 @@
 package com.director.actor.preview;
 
 import com.director.actor.rig.skeleton.HumanoidRig;
+import com.director.actor.rig.skeleton.HumanoidTopology;
 import com.director.actor.rig.skeleton.RigPose;
 import net.minecraft.entity.decoration.ArmorStandEntity;
 import net.minecraft.util.math.EulerAngle;
@@ -9,16 +10,15 @@ import org.joml.Vector3f;
 
 import java.util.Objects;
 
-/** Maps the standard Director humanoid rig onto Minecraft's ArmorStand pose channels. */
+/** Maps any humanoid-topology rig (built-in or custom-proportioned) onto Minecraft's ArmorStand pose channels. */
 public final class HumanoidArmorStandRigBinding {
     private HumanoidArmorStandRigBinding() {}
 
     public static void apply(ArmorStandEntity entity, RigPose pose) {
         Objects.requireNonNull(entity, "entity");
         Objects.requireNonNull(pose, "pose");
-        if (pose.rig() != HumanoidRig.DEFINITION
-                && !HumanoidRig.DEFINITION.id().equals(pose.rig().id())) {
-            throw new IllegalArgumentException("Expected humanoid rig, got " + pose.rig().id());
+        if (!HumanoidTopology.matches(pose.rig())) {
+            throw new IllegalArgumentException("Expected a humanoid-topology rig, got " + pose.rig().id());
         }
 
         entity.setBodyRotation(toEuler(pose, HumanoidRig.BODY));

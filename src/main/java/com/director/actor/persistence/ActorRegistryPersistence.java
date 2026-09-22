@@ -131,6 +131,9 @@ public class ActorRegistryPersistence {
             if (actor.getSkinFileName() != null) {
                 actorObj.addProperty("skinFileName", actor.getSkinFileName());
             }
+            if (actor.getCustomRigId() != null) {
+                actorObj.addProperty("customRigId", actor.getCustomRigId());
+            }
             // 未来可以扩展更多字段（如 modelId）
             actorsArray.add(actorObj);
         }
@@ -204,6 +207,13 @@ public class ActorRegistryPersistence {
                                 actor.setSkinFileName(skinFileName);
                             } catch (Exception ignored) {
                                 // 旧版本或异常字段时忽略皮肤信息，保证兼容性
+                            }
+                        }
+                        if (actorObj.has("customRigId")) {
+                            try {
+                                actor.setCustomRigId(actorObj.get("customRigId").getAsString());
+                            } catch (Exception ignored) {
+                                // 旧版本或异常字段时忽略自定义骨架绑定
                             }
                         }
                         registry.registerActor(actor);

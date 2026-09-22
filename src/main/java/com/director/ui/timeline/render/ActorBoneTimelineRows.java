@@ -22,6 +22,7 @@ public final class ActorBoneTimelineRows {
     public static final float CHILD_HEIGHT = 24f;
     private final Set<TimelineTrack> expanded = Collections.newSetFromMap(new IdentityHashMap<>());
     private final Set<TimelineTrack> supported = Collections.newSetFromMap(new IdentityHashMap<>());
+    private final Map<TimelineTrack, com.director.actor.rig.skeleton.RigDefinition> trackRigs = new IdentityHashMap<>();
     private record KeyHit(TimelineTrack track, String bone, float x, float y, float time,
                           AnimationAsset asset, EntityAnimationClip clip, BoneTrack boneTrack, int channel, float assetTime) {}
     private final List<KeyHit> keyHits = new ArrayList<>();
@@ -80,6 +81,7 @@ public final class ActorBoneTimelineRows {
         var tracks = model.getAllTracks();
         expanded.retainAll(tracks);
         supported.clear();
+        trackRigs.keySet().retainAll(tracks);
         int[] counts = new int[model.getTrackCount()];
         for (int i = 0; i < counts.length; i++) {
             var track = model.getTrackAt(i);
@@ -87,15 +89,21 @@ public final class ActorBoneTimelineRows {
             if (payload == null || payload.getActorRef() == null) continue;
             var registry = ActorRegistryManager.getInstance();
             var actor = registry.getActor(payload.getActorRef().getActorId()).orElse(null);
-            if (actor == null || com.director.actor.rig.ActorRigCompatibility.family(actor.getType())
-                    != com.director.actor.rig.ActorRigCompatibility.Family.HUMANOID) continue;
+            var rig = actor == null ? Optional.<com.director.actor.rig.skeleton.RigDefinition>empty()
+                    : com.director.actor.rig.ActorRigCompatibility.resolveRig(actor);
+            if (rig.isEmpty()) continue;
             supported.add(track);
-            if (expanded.contains(track)) counts[i] = HumanoidRig.DEFINITION.boneCount();
+            trackRigs.put(track, rig.get());
+            if (expanded.contains(track)) counts[i] = rig.get().boneCount();
         }
         return new TimelineRowLayout(height, gap, CHILD_HEIGHT, counts);
     }
 
     public boolean supports(TimelineTrack track) { return supported.contains(track); }
+
+    private com.director.actor.rig.skeleton.RigDefinition rigFor(TimelineTrack track) {
+        return trackRigs.getOrDefault(track, HumanoidRig.DEFINITION);
+    }
 
     /** The timeline's invisible canvas button owns ActiveId on mouse-down.
      * Keep popup/window occlusion checks, but do not let that button block its own controls. */
@@ -110,7 +118,7 @@ public final class ActorBoneTimelineRows {
         if (!expanded.contains(track)) return;
         var selection = ActorBoneSelectionController.getInstance();
         var actorId = track.getActorTrackPayload().getActorRef().getActorId();
-        var rig = HumanoidRig.DEFINITION;
+        var rig = rigFor(track);
         for (int i = 0; i < rig.boneCount(); i++) {
             var bone = rig.bone(i);
             float top = y + height + gap + i * CHILD_HEIGHT;
@@ -135,7 +143,7 @@ public final class ActorBoneTimelineRows {
             for (var clip : track.getActorTrackPayload().getClips()) {
                 if (!(clip instanceof EntityAnimationClip animation) || clip.isMuted()) continue;
                 var asset = AnimationAssetLibrary.getInstance().find(animation.getAnimationId()).orElse(null);
-                if (asset == null || !asset.rigId().equals(HumanoidRig.DEFINITION.id())) continue;
+                if (asset == null || !asset.rigId().equals(rigFor(track).id())) continue;
                 var boneTrack = asset.findBoneTrack(bone).orElse(null);
                 if (boneTrack == null) continue;
                 var channels = List.of(boneTrack.translation(), boneTrack.rotation(), boneTrack.scale());
@@ -192,7 +200,8 @@ public final class ActorBoneTimelineRows {
         }
         if (!expanded.contains(track) || local < height + gap) return false;
         int bone = (int) ((local - height - gap) / CHILD_HEIGHT);
-        if (bone >= HumanoidRig.DEFINITION.boneCount()) return false;
+        var rig = rigFor(track);
+        if (bone >= rig.boneCount()) return false;
         if (ImGui.isMouseClicked(ImGuiMouseButton.Left)) {
             var actorId = track.getActorTrackPayload().getActorRef().getActorId();
             var selection = ActorBoneSelectionController.getInstance();
@@ -200,12 +209,12 @@ public final class ActorBoneTimelineRows {
             else selection.synchronizeActor(actorId);
             ActorSelectionHub.selectActor(actorId);
             model.selectItem(track, false);
-            selection.selectBone(HumanoidRig.DEFINITION.bone(bone).id(), ImGui.getIO().getKeyCtrl());
+            selection.selectBone(rig.bone(bone).id(), ImGui.getIO().getKeyCtrl());
             if (mx >= contentX) {
                 KeyHit closest = null;
                 float distance = 36f;
                 for (var hit : keyHits) {
-                    if (hit.track() != track || !hit.bone().equals(HumanoidRig.DEFINITION.bone(bone).id())) continue;
+                    if (hit.track() != track || !hit.bone().equals(rig.bone(bone).id())) continue;
                     float d = (mx - hit.x()) * (mx - hit.x()) + (my - hit.y()) * (my - hit.y());
                     if (d < distance) { closest = hit; distance = d; }
                 }

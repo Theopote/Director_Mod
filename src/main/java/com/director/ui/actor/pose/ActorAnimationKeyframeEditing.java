@@ -172,11 +172,11 @@ public final class ActorAnimationKeyframeEditing {
         return true;
     }
 
-    /** Mirrors complete humanoid poses at the supplied asset-local times across the X axis. */
+    /** Mirrors complete humanoid-topology poses at the supplied asset-local times across the X axis. */
     public static boolean mirrorHumanoidPoses(TimelineModel model, AnimationAsset asset,
                                                Collection<Float> times, InterpolationMode interpolation) {
         if (model == null || asset == null || times == null || times.isEmpty()
-                || !HumanoidRig.DEFINITION.id().equals(asset.rigId())) return false;
+                || !com.director.actor.rig.skeleton.HumanoidTopology.matches(asset.rig())) return false;
         Set<Float> uniqueTimes = new LinkedHashSet<>();
         for (Float time : times) {
             if (time != null && Float.isFinite(time) && time >= 0f && time <= asset.duration()) uniqueTimes.add(time);

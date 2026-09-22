@@ -195,6 +195,9 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         }
         com.director.actor.animation.asset.AnimationAssetPersistence.loadFromWorld(
                 com.director.actor.animation.asset.AnimationAssetLibrary.getInstance());
+        com.director.actor.rig.skeleton.CustomRigPersistence.loadFromWorld(
+                com.director.actor.rig.skeleton.CustomRigLibrary.getInstance());
+        com.director.actor.rig.skeleton.BuiltInCustomRigs.registerDefaults();
         // 如果没有保存的数据，轨道列表已初始化为空，时间线为空
     }
     
@@ -212,8 +215,10 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         boolean actorOk = com.director.actor.ActorRegistryManager.save();
         boolean animationAssetOk = com.director.actor.animation.asset.AnimationAssetPersistence.saveToWorld(
                 com.director.actor.animation.asset.AnimationAssetLibrary.getInstance());
+        boolean customRigOk = com.director.actor.rig.skeleton.CustomRigPersistence.saveToWorld(
+                com.director.actor.rig.skeleton.CustomRigLibrary.getInstance());
         PersistenceSaveStatus.reportTimelineResult(timelineOk);
-        return timelineOk && actorOk && animationAssetOk;
+        return timelineOk && actorOk && animationAssetOk && customRigOk;
     }
 
     /**
@@ -256,6 +261,9 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         com.director.actor.persistence.ActorRegistryPersistence.loadFromFile(registry);
         com.director.actor.animation.asset.AnimationAssetPersistence.loadFromWorld(
                 com.director.actor.animation.asset.AnimationAssetLibrary.getInstance());
+        com.director.actor.rig.skeleton.CustomRigPersistence.loadFromWorld(
+                com.director.actor.rig.skeleton.CustomRigLibrary.getInstance());
+        com.director.actor.rig.skeleton.BuiltInCustomRigs.registerDefaults();
     }
 
     /**
@@ -291,6 +299,12 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
                 com.director.actor.animation.asset.AnimationAssetLibrary.getInstance();
         assets.clear();
         com.director.actor.animation.asset.AnimationAssetPersistence.loadFromWorld(assets);
+
+        com.director.actor.rig.skeleton.CustomRigLibrary customRigs =
+                com.director.actor.rig.skeleton.CustomRigLibrary.getInstance();
+        customRigs.clear();
+        com.director.actor.rig.skeleton.CustomRigPersistence.loadFromWorld(customRigs);
+        com.director.actor.rig.skeleton.BuiltInCustomRigs.registerDefaults();
     }
 
     /**

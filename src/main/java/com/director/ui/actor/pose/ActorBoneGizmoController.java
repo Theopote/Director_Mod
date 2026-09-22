@@ -244,7 +244,10 @@ public final class ActorBoneGizmoController {
             editingAsset = library.find(assetId).orElse(null);
             createdAsset = editingAsset == null;
             if (createdAsset) {
-                editingAsset = new AnimationAsset(assetId, assetId, HumanoidRig.DEFINITION,
+                var rig = com.director.actor.ActorRegistryManager.getInstance().getActor(actorId)
+                        .flatMap(com.director.actor.rig.ActorRigCompatibility::resolveRig)
+                        .orElse(HumanoidRig.DEFINITION);
+                editingAsset = new AnimationAsset(assetId, assetId, rig,
                         settings.getNewAssetDuration(), AnimationLoopMode.ONCE);
                 library.register(editingAsset);
             }

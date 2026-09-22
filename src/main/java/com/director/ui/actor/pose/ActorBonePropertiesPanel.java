@@ -29,17 +29,18 @@ public final class ActorBonePropertiesPanel {
 
     private void renderContents(TimelineModel model, UUID actorId) {
         if (model == null || actorId == null) { draft.clear(); return; }
-        if (!com.director.actor.rig.ActorRigCompatibility.editable(actorId)) {
+        var actor = com.director.actor.ActorRegistryManager.getInstance().getActor(actorId).orElse(null);
+        var actorRig = actor == null ? null : com.director.actor.rig.ActorRigCompatibility.resolveRig(actor).orElse(null);
+        if (actorRig == null) {
             draft.clear();
-            var actor = com.director.actor.ActorRegistryManager.getInstance().getActor(actorId).orElse(null);
-            ImGui.textWrapped(actor == null ? "演员不存在" : com.director.actor.rig.ActorRigCompatibility.explanation(actor.getType()));
+            ImGui.textWrapped(actor == null ? "演员不存在" : com.director.actor.rig.ActorRigCompatibility.explanation(actor));
             return;
         }
         if (!ImGui.treeNode("骨骼与姿态关键帧##actorBones")) { draft.clear(); return; }
         var selection = ActorBoneSelectionController.getInstance();
         if (!selection.isActive()) selection.activate(actorId);
         else selection.synchronizeActor(actorId);
-        renderChildren(HumanoidRig.DEFINITION, -1, selection);
+        renderChildren(actorRig, -1, selection);
         ImGui.textWrapped("Ctrl+点击可多选部位；数值和 Gizmo 编辑最后选中的部位，打帧与恢复姿态作用于全部所选部位。");
         ImGui.textDisabled("已选择 " + selection.getSelectedBoneIds().size() + " 个部位");
         var tracks = ActorUsageQuery.findTracksUsingActor(model, actorId);
@@ -51,9 +52,9 @@ public final class ActorBonePropertiesPanel {
         }
         AnimationAsset asset = active == null ? null : AnimationAssetLibrary.getInstance().find(active.getAnimationId()).orElse(null);
         String boneId = selection.getSelectedBoneId();
-        if (asset == null || boneId == null || !asset.rigId().equals(HumanoidRig.DEFINITION.id())) {
+        if (asset == null || boneId == null || !asset.rigId().equals(actorRig.id())) {
             draft.clear();
-            ImGui.textWrapped("请先将人形动画资产放到演员轨道，并将播放头移入片段。");
+            ImGui.textWrapped("请先将匹配此演员骨架的动画资产放到演员轨道，并将播放头移入片段。");
             ImGui.treePop();
             return;
         }

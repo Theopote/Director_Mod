@@ -38,8 +38,15 @@ public final class ActorAnimationAssetEditing {
 
     public static AnimationAsset create(TimelineModel model, AnimationAssetLibrary library,
                                          String id, String name, float duration) {
+        return create(model, library, id, name, duration, HumanoidRig.DEFINITION);
+    }
+
+    /** Creates a new asset against an explicit rig (e.g. an actor's bound custom skeleton). */
+    public static AnimationAsset create(TimelineModel model, AnimationAssetLibrary library,
+                                         String id, String name, float duration,
+                                         com.director.actor.rig.skeleton.RigDefinition rig) {
         requireNewId(model, library, id);
-        AnimationAsset asset = new AnimationAsset(id, name, HumanoidRig.DEFINITION, duration, AnimationLoopMode.ONCE);
+        AnimationAsset asset = new AnimationAsset(id, name, rig, duration, AnimationLoopMode.ONCE);
         insert(model, library, asset);
         return asset;
     }

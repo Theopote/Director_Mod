@@ -43,7 +43,13 @@ public final class ActorAnimationAssetPanel {
         ImGui.inputText("名称##assetName", name);
         ImGui.inputText("新建/副本 ID##assetTargetId", targetId);
         if (ImGui.button("新建##assetCreate")) run(() -> {
-            selected = ActorAnimationAssetEditing.create(model, library, targetId.get().trim(), name.get(), settings.getNewAssetDuration());
+            var actor = actorId == null ? null : com.director.actor.ActorRegistryManager.getInstance().getActor(actorId).orElse(null);
+            var rig = actor == null ? null : com.director.actor.rig.ActorRigCompatibility.resolveRig(actor).orElse(null);
+            if (rig == null) {
+                selected = ActorAnimationAssetEditing.create(model, library, targetId.get().trim(), name.get(), settings.getNewAssetDuration());
+            } else {
+                selected = ActorAnimationAssetEditing.create(model, library, targetId.get().trim(), name.get(), settings.getNewAssetDuration(), rig);
+            }
             settings.setAssetId(selected.id());
         });
         if (selected != null) {

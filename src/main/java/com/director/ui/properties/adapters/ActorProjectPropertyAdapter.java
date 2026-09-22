@@ -466,7 +466,33 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         if (actor.getActorId().equals(incompatibleTypeActor)) {
             ImGui.textWrapped("现有动画与目标类型不兼容，请先移除动画引用，再更换演员类型。");
         }
-        ImGui.textWrapped(com.director.actor.rig.ActorRigCompatibility.explanation(actor.getType()));
+        ImGui.textWrapped(com.director.actor.rig.ActorRigCompatibility.explanation(actor));
+
+        // ---- Custom rig binding (only relevant for ActorType.CUSTOM) ----
+        if (actor.getType() == ActorType.CUSTOM) {
+            var customRigs = com.director.actor.rig.skeleton.CustomRigLibrary.getInstance().all();
+            String currentRigLabel = actor.getCustomRigId() == null ? "（未绑定）" : actor.getCustomRigId();
+            if (ImGui.beginCombo("自定义骨架##customRig", currentRigLabel)) {
+                if (ImGui.selectable("（未绑定）", actor.getCustomRigId() == null)) {
+                    actor.setCustomRigId(null);
+                    modified = true;
+                }
+                for (var rig : customRigs) {
+                    boolean isSelected = rig.id().equals(actor.getCustomRigId());
+                    if (ImGui.selectable(rig.displayName() + "##rig:" + rig.id(), isSelected)) {
+                        actor.setCustomRigId(rig.id());
+                        modified = true;
+                    }
+                    if (isSelected) {
+                        ImGui.setItemDefaultFocus();
+                    }
+                }
+                ImGui.endCombo();
+            }
+            if (customRigs.isEmpty()) {
+                ImGui.textWrapped("项目中暂无自定义骨架，可通过骨架文件导入，或使用内置示例骨架。");
+            }
+        }
         
         ImGui.spacing();
         
