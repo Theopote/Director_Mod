@@ -138,6 +138,7 @@ public final class ActorRuntimeController {
         if (!enabled) {
             ActorPreviewManager.getInstance().clear();
             ProjectileRuntimeManager.getInstance().clear();
+            com.director.actor.model.CustomModelPreviewRenderer.getInstance().clear();
             animationPlayers.clear();
             LOGGER.info("[ActorRuntime] 已禁用，清空所有预览实体和投掷物");
         } else {
@@ -367,6 +368,7 @@ public final class ActorRuntimeController {
             if (ref != null) {
                 UUID actorId = ref.getActorId();
                 ActorPreviewManager.getInstance().removePreview(actorId);
+                com.director.actor.model.CustomModelPreviewRenderer.getInstance().remove(actorId);
                 
                 // 清理 PropRuntime
                 ActorPropRuntime propRuntime = propRuntimes.remove(actorId);
@@ -407,6 +409,7 @@ public final class ActorRuntimeController {
             if (!sample.active && spawned) {
                 // 需要移除预览实体
                 ActorPreviewManager.getInstance().removePreview(actor.getActorId());
+                com.director.actor.model.CustomModelPreviewRenderer.getInstance().remove(actor.getActorId());
                 spawned = false;
                 LOGGER.debug("[ActorRuntime] Despawn 预览实体: {}", actor.getName());
             }
@@ -468,6 +471,38 @@ public final class ActorRuntimeController {
 
             // === Action（一次性触发）===
             applyActionEvents(s, prev);
+
+            // === 自定义方块拼接模型（非人形拓扑骨架的可视化回路）===
+            syncCustomModel(entity);
+        }
+
+        /**
+         * 若演员绑定了自定义方块模型，按当前骨架世界姿态重新定位各个 cuboid，
+         * 并隐藏作为锦点的 ArmorStand 宿主实体。
+         */
+        private void syncCustomModel(Entity entity) {
+            if (actor == null || entity == null) return;
+            String modelId = actor.getCustomModelId();
+            if (modelId == null) return;
+            var model = com.director.actor.model.CustomModelLibrary.getInstance().find(modelId).orElse(null);
+            if (model == null) return;
+            var rig = com.director.actor.rig.skeleton.RigDefinitions.find(model.rigId()).orElse(null);
+            if (rig == null) return;
+            com.director.actor.rig.skeleton.RigPose pose = null;
+            if (entity instanceof com.director.actor.preview.PreviewActorEntity preview) {
+                var current = preview.getFinalRigPose();
+                if (current != null && current.rig().boneCount() == rig.boneCount()) pose = current;
+                entity.setInvisible(true); // 宿主 ArmorStand 仅作锦点，真正外观由 cuboid 提供
+            }
+            if (pose == null) pose = new com.director.actor.rig.skeleton.RigPose(rig);
+            var actorTransform = new org.joml.Matrix4f()
+                    .translate((float) entity.getX(), (float) entity.getY(), (float) entity.getZ())
+                    .rotateY((float) Math.toRadians(-entity.getYaw()));
+            var worldPose = com.director.actor.rig.skeleton.RigWorldPose.resolve(pose, actorTransform);
+            if (entity.getEntityWorld() instanceof net.minecraft.client.world.ClientWorld clientWorld) {
+                com.director.actor.model.CustomModelPreviewRenderer.getInstance()
+                        .sync(actor.getActorId(), clientWorld, worldPose, model);
+            }
         }
 
         /**
@@ -523,14 +558,19 @@ public final class ActorRuntimeController {
             // 新一代逐骨骼动画资产。存在同 ID 资产时优先使用；旧 AnimationLibrary 继续作为回退。
             var rigAsset = com.director.actor.animation.asset.AnimationAssetLibrary.getInstance()
                     .find(s.animationId)
-                    .filter(asset -> com.director.actor.rig.ActorRigCompatibility.accepts(actor.getType(), asset.rigId()));
+                    .filter(asset -> com.director.actor.rig.ActorRigCompatibility.accepts(actor, asset.rigId()));
             if (rigAsset.isPresent()) {
                 var asset = rigAsset.get();
                 var playbackMode = s.animationLoop ? asset.loopMode()
                         : com.director.actor.animation.asset.AnimationLoopMode.ONCE;
+                float sampleTime = s.animationLocalTime * Math.max(0.01f, s.animationSpeed);
+                // Arbitrary-topology custom rigs (no body/head/arm/leg bones) have no procedural base
+                // pose to overlay onto; play the keyframe asset directly instead.
                 com.director.actor.rig.skeleton.RigPose finalRigPose =
-                        com.director.actor.rig.skeleton.LegacyHumanoidPoseAdapter.convert(rigPose.pose)
-                                .overlay(asset.sample(s.animationLocalTime * Math.max(0.01f, s.animationSpeed), playbackMode));
+                        com.director.actor.rig.skeleton.HumanoidTopology.matches(asset.rig())
+                                ? com.director.actor.rig.skeleton.LegacyHumanoidPoseAdapter.convert(rigPose.pose, asset.rig())
+                                        .overlay(asset.sample(sampleTime, playbackMode))
+                                : asset.sample(sampleTime, playbackMode);
                 applyRigPoseOverrides(finalRigPose, s);
                 applyPoseToRuntime(rigPose.pose);
                 Entity preview = ActorPreviewManager.getInstance().getPreview(actor.getActorId());

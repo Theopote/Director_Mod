@@ -25,6 +25,19 @@ public final class BuiltInCustomRigs {
                     bone(HumanoidRig.RIGHT_LEG, 0, BoneTransform.translation(-0.125f, 0.5f, 0f), BoneCapabilities.rotationAndScale())
             ));
 
+    /** Non-humanoid-topology demo: proves arbitrary rigs (rendered via block-cuboid models) work too. */
+    public static final RigDefinition SIMPLE_ROBOT = new RigDefinition(
+            "director:custom_simple_robot",
+            "Simple Robot (\u793a\u4f8b)",
+            List.of(
+                    bone("root", -1, BoneTransform.identity(), BoneCapabilities.full()),
+                    bone("torso", 0, BoneTransform.translation(0f, 1.0f, 0f), BoneCapabilities.rotationAndScale()),
+                    bone("head", 1, BoneTransform.translation(0f, 0.75f, 0f), BoneCapabilities.rotationAndScale()),
+                    bone("left_arm", 1, BoneTransform.translation(0.45f, 0.6f, 0f), BoneCapabilities.rotationAndScale()),
+                    bone("right_arm", 1, BoneTransform.translation(-0.45f, 0.6f, 0f), BoneCapabilities.rotationAndScale()),
+                    bone("antenna", 2, BoneTransform.translation(0f, 0.3f, 0f), BoneCapabilities.rotationOnly())
+            ));
+
     private BuiltInCustomRigs() {}
 
     /** Idempotent: registers built-in demo rigs into the project custom rig library if missing. */
@@ -32,6 +45,9 @@ public final class BuiltInCustomRigs {
         CustomRigLibrary library = CustomRigLibrary.getInstance();
         if (!library.contains(CHIBI_HUMANOID.id())) {
             library.register(CHIBI_HUMANOID);
+        }
+        if (!library.contains(SIMPLE_ROBOT.id())) {
+            library.register(SIMPLE_ROBOT);
         }
     }
 

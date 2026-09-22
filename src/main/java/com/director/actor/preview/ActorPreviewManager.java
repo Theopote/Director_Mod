@@ -269,7 +269,10 @@ public final class ActorPreviewManager {
         // 未来可以通过自定义渲染器来显示不同的模型
         return switch (type) {
             case PLAYER -> EntityType.ARMOR_STAND;
-            case VILLAGER, CUSTOM -> EntityType.VILLAGER;
+            case VILLAGER -> EntityType.VILLAGER;
+            // CUSTOM 演员用 ARMOR_STAND 作为骨架驱动锚点：人形拓扑骨架直接复用其渲染，
+            // 非人形拓扑自定义模型则由 CustomModelPreviewRenderer 在锚点位置叠加方块显示实体。
+            case CUSTOM -> EntityType.ARMOR_STAND;
             case COW -> EntityType.COW;
             case SHEEP -> EntityType.SHEEP;
             case ZOMBIE -> EntityType.ZOMBIE;

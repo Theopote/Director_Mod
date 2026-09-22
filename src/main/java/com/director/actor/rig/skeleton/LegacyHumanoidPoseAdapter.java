@@ -10,8 +10,14 @@ public final class LegacyHumanoidPoseAdapter {
     private LegacyHumanoidPoseAdapter() {}
 
     public static RigPose convert(Pose source) {
+        return convert(source, HumanoidRig.DEFINITION);
+    }
+
+    /** Same field mapping, but targeting any humanoid-topology rig (e.g. a custom-proportioned one). */
+    public static RigPose convert(Pose source, RigDefinition rig) {
         Objects.requireNonNull(source, "source");
-        RigPose result = new RigPose(HumanoidRig.DEFINITION);
+        Objects.requireNonNull(rig, "rig");
+        RigPose result = new RigPose(rig);
         rotate(result, HumanoidRig.BODY, source.bodyPitch, source.bodyYaw, source.bodyRoll);
         rotate(result, HumanoidRig.HEAD, source.headPitch, source.headYaw, 0f);
         rotate(result, HumanoidRig.LEFT_ARM, source.leftArmPitch, source.leftArmYaw, source.leftArmRoll);

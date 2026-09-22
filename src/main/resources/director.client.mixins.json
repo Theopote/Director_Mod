@@ -34,7 +34,9 @@
     "accessor.GameRendererAccessor",
     "accessor.CameraAccessorMixin",
     "accessor.MinecraftClientAccessor",
-    "accessor.NativeImageAccessor"
+    "accessor.NativeImageAccessor",
+    "accessor.DisplayEntityAccessor",
+    "accessor.BlockDisplayEntityAccessor"
   ],
   "injectors": {
     "defaultRequire": 1

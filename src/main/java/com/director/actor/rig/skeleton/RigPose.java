@@ -63,8 +63,8 @@ public final class RigPose {
     /** Returns a copy with authored transforms from {@code higherLayer} replacing this pose. */
     public RigPose overlay(RigPose higherLayer) {
         Objects.requireNonNull(higherLayer, "higherLayer");
-        if (!rig.id().equals(higherLayer.rig.id()) || rig.boneCount() != higherLayer.rig.boneCount()) {
-            throw new IllegalArgumentException("Cannot blend poses from different rigs");
+        if (!sameBoneLayout(rig, higherLayer.rig)) {
+            throw new IllegalArgumentException("Cannot blend poses from incompatible rigs");
         }
         RigPose result = copy();
         for (int i = higherLayer.authoredBones.nextSetBit(0); i >= 0;
@@ -72,6 +72,18 @@ public final class RigPose {
             result.setLocalTransform(i, higherLayer.localTransforms[i]);
         }
         return result;
+    }
+
+    /** Index-wise bone id/parent match: overlay only needs matching layout, not the same rig id. */
+    private static boolean sameBoneLayout(RigDefinition a, RigDefinition b) {
+        if (a == b) return true;
+        if (a.boneCount() != b.boneCount()) return false;
+        for (int i = 0; i < a.boneCount(); i++) {
+            BoneDefinition boneA = a.bone(i);
+            BoneDefinition boneB = b.bone(i);
+            if (!boneA.id().equals(boneB.id()) || boneA.parentIndex() != boneB.parentIndex()) return false;
+        }
+        return true;
     }
 
     /** Calculates one model-space matrix per bone, preserving definition order. */

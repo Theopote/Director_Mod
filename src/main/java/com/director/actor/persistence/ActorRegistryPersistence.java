@@ -134,6 +134,9 @@ public class ActorRegistryPersistence {
             if (actor.getCustomRigId() != null) {
                 actorObj.addProperty("customRigId", actor.getCustomRigId());
             }
+            if (actor.getCustomModelId() != null) {
+                actorObj.addProperty("customModelId", actor.getCustomModelId());
+            }
             // 未来可以扩展更多字段（如 modelId）
             actorsArray.add(actorObj);
         }
@@ -214,6 +217,13 @@ public class ActorRegistryPersistence {
                                 actor.setCustomRigId(actorObj.get("customRigId").getAsString());
                             } catch (Exception ignored) {
                                 // 旧版本或异常字段时忽略自定义骨架绑定
+                            }
+                        }
+                        if (actorObj.has("customModelId")) {
+                            try {
+                                actor.setCustomModelId(actorObj.get("customModelId").getAsString());
+                            } catch (Exception ignored) {
+                                // 旧版本或异常字段时忽略自定义模型绑定
                             }
                         }
                         registry.registerActor(actor);

@@ -492,6 +492,31 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             if (customRigs.isEmpty()) {
                 ImGui.textWrapped("项目中暂无自定义骨架，可通过骨架文件导入，或使用内置示例骨架。");
             }
+
+            if (actor.getCustomRigId() != null) {
+                var models = com.director.actor.model.CustomModelLibrary.getInstance().forRig(actor.getCustomRigId());
+                String currentModelLabel = actor.getCustomModelId() == null ? "（无外观，仅骨架）" : actor.getCustomModelId();
+                if (ImGui.beginCombo("自定义模型外观##customModel", currentModelLabel)) {
+                    if (ImGui.selectable("（无外观，仅骨架）", actor.getCustomModelId() == null)) {
+                        actor.setCustomModelId(null);
+                        modified = true;
+                    }
+                    for (var model : models) {
+                        boolean isSelected = model.id().equals(actor.getCustomModelId());
+                        if (ImGui.selectable(model.displayName() + "##model:" + model.id(), isSelected)) {
+                            actor.setCustomModelId(model.id());
+                            modified = true;
+                        }
+                        if (isSelected) {
+                            ImGui.setItemDefaultFocus();
+                        }
+                    }
+                    ImGui.endCombo();
+                }
+                if (models.isEmpty()) {
+                    ImGui.textWrapped("该骨架暂无匹配的方块外观模型；非人形拓扑骨架需要绑定模型才能显示外观。");
+                }
+            }
         }
         
         ImGui.spacing();

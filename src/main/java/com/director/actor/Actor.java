@@ -51,6 +51,14 @@ public final class Actor {
     private String customRigId;
 
     /**
+     * 仅当 {@link #type} 为 {@link ActorType#CUSTOM} 且绑定了非人形拓扑骨架时使用：
+     * 指向 {@code CustomModelLibrary} 中一个方块拼接模型的 id，用于运行时渲染。
+     * <p>
+     * 为空表示该 CUSTOM 演员没有可见外观（仅能驱动骨架，无法渲染）。
+     */
+    private String customModelId;
+
+    /**
      * 构造函数
      *
      * @param name 演员名称
@@ -127,6 +135,14 @@ public final class Actor {
         this.customRigId = (customRigId == null || customRigId.isBlank()) ? null : customRigId.trim();
     }
 
+    public String getCustomModelId() {
+        return customModelId;
+    }
+
+    public void setCustomModelId(String customModelId) {
+        this.customModelId = (customModelId == null || customModelId.isBlank()) ? null : customModelId.trim();
+    }
+
     /**
      * 解析此演员当前可用于关键帧动画的骨架（{@code null} 表示暂不支持关键帧动画，
      * 例如四足/村民类型，或尚未绑定骨架的 CUSTOM 类型）。
@@ -178,6 +194,7 @@ public final class Actor {
                 ", type=" + type +
                 ", skinFileName='" + skinFileName + '\'' +
                 ", customRigId='" + customRigId + '\'' +
+                ", customModelId='" + customModelId + '\'' +
                 '}';
     }
 }

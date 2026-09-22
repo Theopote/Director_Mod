@@ -198,6 +198,9 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         com.director.actor.rig.skeleton.CustomRigPersistence.loadFromWorld(
                 com.director.actor.rig.skeleton.CustomRigLibrary.getInstance());
         com.director.actor.rig.skeleton.BuiltInCustomRigs.registerDefaults();
+        com.director.actor.model.CustomModelPersistence.loadFromWorld(
+                com.director.actor.model.CustomModelLibrary.getInstance());
+        com.director.actor.model.BuiltInCustomModels.registerDefaults();
         // 如果没有保存的数据，轨道列表已初始化为空，时间线为空
     }
     
@@ -217,8 +220,10 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
                 com.director.actor.animation.asset.AnimationAssetLibrary.getInstance());
         boolean customRigOk = com.director.actor.rig.skeleton.CustomRigPersistence.saveToWorld(
                 com.director.actor.rig.skeleton.CustomRigLibrary.getInstance());
+        boolean customModelOk = com.director.actor.model.CustomModelPersistence.saveToWorld(
+                com.director.actor.model.CustomModelLibrary.getInstance());
         PersistenceSaveStatus.reportTimelineResult(timelineOk);
-        return timelineOk && actorOk && animationAssetOk && customRigOk;
+        return timelineOk && actorOk && animationAssetOk && customRigOk && customModelOk;
     }
 
     /**
@@ -264,6 +269,9 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         com.director.actor.rig.skeleton.CustomRigPersistence.loadFromWorld(
                 com.director.actor.rig.skeleton.CustomRigLibrary.getInstance());
         com.director.actor.rig.skeleton.BuiltInCustomRigs.registerDefaults();
+        com.director.actor.model.CustomModelPersistence.loadFromWorld(
+                com.director.actor.model.CustomModelLibrary.getInstance());
+        com.director.actor.model.BuiltInCustomModels.registerDefaults();
     }
 
     /**
@@ -305,6 +313,12 @@ public class TimelineModel implements ITimelineProject, ActorTimelineSource {
         customRigs.clear();
         com.director.actor.rig.skeleton.CustomRigPersistence.loadFromWorld(customRigs);
         com.director.actor.rig.skeleton.BuiltInCustomRigs.registerDefaults();
+
+        com.director.actor.model.CustomModelLibrary customModels =
+                com.director.actor.model.CustomModelLibrary.getInstance();
+        customModels.clear();
+        com.director.actor.model.CustomModelPersistence.loadFromWorld(customModels);
+        com.director.actor.model.BuiltInCustomModels.registerDefaults();
     }
 
     /**

@@ -98,7 +98,9 @@ public class PreviewActorEntity extends ArmorStandEntity {
 
     public void setFinalRigPose(RigPose pose) {
         this.finalRigPose = pose == null ? null : pose.copy();
-        if (this.finalRigPose != null) {
+        // Non-humanoid-topology rigs (arbitrary custom models) have no ArmorStand channel mapping;
+        // CustomModelPreviewRenderer reads getFinalRigPose() directly instead.
+        if (this.finalRigPose != null && com.director.actor.rig.skeleton.HumanoidTopology.matches(this.finalRigPose.rig())) {
             HumanoidArmorStandRigBinding.apply(this, this.finalRigPose);
         }
     }
