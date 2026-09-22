@@ -36,7 +36,8 @@
     "accessor.MinecraftClientAccessor",
     "accessor.NativeImageAccessor",
     "accessor.DisplayEntityAccessor",
-    "accessor.BlockDisplayEntityAccessor"
+    "accessor.BlockDisplayEntityAccessor",
+    "client.DirectorRuntimeResourcePackMixin"
   ],
   "injectors": {
     "defaultRequire": 1

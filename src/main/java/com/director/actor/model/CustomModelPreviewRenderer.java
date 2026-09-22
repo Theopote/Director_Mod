@@ -3,12 +3,16 @@ package com.director.actor.model;
 import com.director.actor.rig.skeleton.RigWorldPose;
 import com.director.mixin.accessor.BlockDisplayEntityAccessor;
 import com.director.mixin.accessor.DisplayEntityAccessor;
+import com.director.registry.ModItems;
 import net.minecraft.block.Block;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
 import net.minecraft.client.world.ClientWorld;
+import net.minecraft.component.DataComponentTypes;
 import net.minecraft.entity.EntityType;
 import net.minecraft.entity.decoration.DisplayEntity;
+import net.minecraft.item.ItemDisplayContext;
+import net.minecraft.item.ItemStack;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.Identifier;
 import net.minecraft.util.math.AffineTransformation;
@@ -25,17 +29,14 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Client-only renderer for {@link CustomModelDefinition}s: one block-display entity per
+ * Client-only renderer for {@link CustomModelDefinition}s: one display entity per
  * {@link BoneCuboid}, repositioned every frame to follow the owning actor's {@link RigWorldPose}.
- *
- * <p>This is the arbitrary-topology counterpart of {@code HumanoidArmorStandRigBinding}: it does not
- * require the rig to match the built-in humanoid bone layout.
  */
 public final class CustomModelPreviewRenderer {
     private static final Logger LOGGER = LoggerFactory.getLogger(CustomModelPreviewRenderer.class);
     private static final CustomModelPreviewRenderer INSTANCE = new CustomModelPreviewRenderer();
 
-    private record SpawnedCuboid(BoneCuboid cuboid, DisplayEntity.BlockDisplayEntity entity) {}
+    private record SpawnedCuboid(BoneCuboid cuboid, DisplayEntity entity) {}
 
     private final Map<UUID, List<SpawnedCuboid>> spawned = new HashMap<>();
     private final Map<UUID, String> spawnedModelId = new HashMap<>();
@@ -44,7 +45,6 @@ public final class CustomModelPreviewRenderer {
 
     public static CustomModelPreviewRenderer getInstance() { return INSTANCE; }
 
-    /** Spawns (if needed) and repositions this actor's cuboids to match {@code worldPose} for the current frame. */
     public void sync(UUID actorId, ClientWorld world, RigWorldPose worldPose, CustomModelDefinition model) {
         if (actorId == null || world == null || worldPose == null || model == null) {
             remove(actorId);
@@ -76,19 +76,41 @@ public final class CustomModelPreviewRenderer {
         List<SpawnedCuboid> list = new ArrayList<>();
         for (BoneCuboid cuboid : model.cuboids()) {
             try {
-                DisplayEntity.BlockDisplayEntity entity =
-                        new DisplayEntity.BlockDisplayEntity(EntityType.BLOCK_DISPLAY, world);
-                ((BlockDisplayEntityAccessor) (Object) entity).director$invokeSetBlockState(resolveBlockState(cuboid.blockStateId()));
+                DisplayEntity entity = cuboid.usesCustomTexture()
+                        ? spawnTexturedCuboid(world, cuboid)
+                        : spawnPlaceholderCuboid(world, cuboid);
                 entity.setInvulnerable(true);
                 entity.setNoGravity(true);
                 entity.setSilent(true);
                 world.addEntity(entity);
                 list.add(new SpawnedCuboid(cuboid, entity));
             } catch (RuntimeException e) {
-                LOGGER.warn("[CustomModelPreviewRenderer] 生成方块显示实体失败: {}", cuboid.boneId(), e);
+                LOGGER.warn("[CustomModelPreviewRenderer] 生成显示实体失败: {}", cuboid.boneId(), e);
             }
         }
         return list;
+    }
+
+    private static DisplayEntity spawnPlaceholderCuboid(ClientWorld world, BoneCuboid cuboid) {
+        DisplayEntity.BlockDisplayEntity entity = new DisplayEntity.BlockDisplayEntity(EntityType.BLOCK_DISPLAY, world);
+        ((BlockDisplayEntityAccessor) (Object) entity).director$invokeSetBlockState(resolveBlockState(cuboid.blockStateId()));
+        return entity;
+    }
+
+    private static DisplayEntity spawnTexturedCuboid(ClientWorld world, BoneCuboid cuboid) {
+        if (ModItems.CUSTOM_MODEL_CARRIER == null) {
+            throw new IllegalStateException("Custom model carrier item is not registered");
+        }
+        Identifier modelId = Identifier.tryParse(cuboid.itemModelId());
+        if (modelId == null) {
+            throw new IllegalArgumentException("Invalid item model id: " + cuboid.itemModelId());
+        }
+        DisplayEntity.ItemDisplayEntity entity = new DisplayEntity.ItemDisplayEntity(EntityType.ITEM_DISPLAY, world);
+        ItemStack stack = new ItemStack(ModItems.CUSTOM_MODEL_CARRIER);
+        stack.set(DataComponentTypes.ITEM_MODEL, modelId);
+        entity.setItemStack(stack);
+        entity.setItemDisplayContext(ItemDisplayContext.FIXED);
+        return entity;
     }
 
     private static BlockState resolveBlockState(String blockStateId) {
@@ -106,7 +128,7 @@ public final class CustomModelPreviewRenderer {
             try {
                 sc.entity().discard();
             } catch (RuntimeException e) {
-                LOGGER.warn("[CustomModelPreviewRenderer] 移除方块显示实体失败", e);
+                LOGGER.warn("[CustomModelPreviewRenderer] 移除显示实体失败", e);
             }
         }
     }

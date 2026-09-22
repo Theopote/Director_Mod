@@ -12,5 +12,7 @@ public record BbModelImportResult(
         RigDefinition rig,
         CustomModelDefinition model,
         List<String> warnings,
-        Map<String, Path> extractedTextures
+        Map<String, Path> extractedTextures,
+        int textureAtlasWidth,
+        int textureAtlasHeight
 ) {}

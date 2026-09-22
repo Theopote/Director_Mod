@@ -2,6 +2,8 @@ package com.director.actor.model.bbmodel;
 
 import com.director.actor.model.BoneCuboid;
 import com.director.actor.model.CustomModelDefinition;
+import com.director.actor.model.texture.CuboidFaceUvs;
+import com.director.actor.model.texture.CustomModelResourceBuilder;
 import com.director.actor.rig.skeleton.BoneCapabilities;
 import com.director.actor.rig.skeleton.BoneDefinition;
 import com.director.actor.rig.skeleton.BoneTransform;
@@ -96,11 +98,15 @@ public final class BbModelImporter {
 
         String displayName = deriveDisplayName(file);
         RigDefinition rig = new RigDefinition(rigId, displayName, bones);
-        List<BoneCuboid> cuboids = buildCuboids(elementsByUuid, elementToBone, boneOrigins, defaultBlockStateId, warnings);
+        int atlasWidth = bbModel.resolution == null ? 64 : Math.max(1, bbModel.resolution.width);
+        int atlasHeight = bbModel.resolution == null ? 64 : Math.max(1, bbModel.resolution.height);
+        List<BoneCuboid> cuboids = buildCuboids(
+                elementsByUuid, elementToBone, boneOrigins, defaultBlockStateId, modelId, bbModel.textures, warnings);
         CustomModelDefinition model = new CustomModelDefinition(modelId, displayName, rigId, cuboids);
         Map<String, Path> extractedTextures = extractTextures(bbModel.textures, modelId, warnings);
 
-        return new BbModelImportResult(rig, model, List.copyOf(warnings), Map.copyOf(extractedTextures));
+        return new BbModelImportResult(
+                rig, model, List.copyOf(warnings), Map.copyOf(extractedTextures), atlasWidth, atlasHeight);
     }
 
     private record OutlinerLayout(
@@ -227,6 +233,8 @@ public final class BbModelImporter {
             Map<String, String> elementToBone,
             Map<String, float[]> boneOrigins,
             String defaultBlockStateId,
+            String modelId,
+            List<BbModelFile.Texture> textures,
             List<String> warnings) {
         List<BoneCuboid> cuboids = new ArrayList<>();
         int ignoredRotations = 0;
@@ -266,7 +274,17 @@ public final class BbModelImporter {
             applyMirrorX(offset);
 
             try {
-                cuboids.add(new BoneCuboid(entry.getValue(), offset, size, defaultBlockStateId));
+                String textureKey = resolveElementTextureKey(element, textures);
+                CuboidFaceUvs faceUvs = parseFaceUvs(element);
+                if (textureKey != null && faceUvs != null && faceUvs.hasAnyFace()) {
+                    BoneCuboid draft = new BoneCuboid(entry.getValue(), offset, size, defaultBlockStateId, null, textureKey, faceUvs);
+                    String pieceKey = CustomModelResourceBuilder.pieceKey(draft, modelId, textureKey);
+                    String itemModelId = "director:custom_model_piece/" + pieceKey;
+                    cuboids.add(new BoneCuboid(
+                            entry.getValue(), offset, size, defaultBlockStateId, itemModelId, textureKey, faceUvs));
+                } else {
+                    cuboids.add(new BoneCuboid(entry.getValue(), offset, size, defaultBlockStateId));
+                }
             } catch (IllegalArgumentException e) {
                 invalidGeometry++;
             }
@@ -429,6 +447,61 @@ public final class BbModelImporter {
         if (!"free".equals(format) && !"bedrock".equals(format)) {
             warnings.add("model_format=\"" + bbModel.meta.model_format + "\" 将按 free 模型处理");
         }
+    }
+
+    private static CuboidFaceUvs parseFaceUvs(BbModelFile.Element element) {
+        if (element.faces == null || element.faces.isEmpty()) {
+            return null;
+        }
+        return new CuboidFaceUvs(
+                readFaceUv(element.faces.get("north")),
+                readFaceUv(element.faces.get("south")),
+                readFaceUv(element.faces.get("east")),
+                readFaceUv(element.faces.get("west")),
+                readFaceUv(element.faces.get("up")),
+                readFaceUv(element.faces.get("down")));
+    }
+
+    private static float[] readFaceUv(BbModelFile.Face face) {
+        if (face == null || face.uv == null || face.uv.length < 4) {
+            return null;
+        }
+        return new float[] {face.uv[0], face.uv[1], face.uv[2], face.uv[3]};
+    }
+
+    private static String resolveElementTextureKey(BbModelFile.Element element, List<BbModelFile.Texture> textures) {
+        if (element.faces == null || element.faces.isEmpty()) {
+            return null;
+        }
+        Object textureRef = null;
+        for (BbModelFile.Face face : element.faces.values()) {
+            if (face != null && face.texture != null) {
+                textureRef = face.texture;
+                break;
+            }
+        }
+        if (textureRef == null) {
+            return null;
+        }
+        int index = parseTextureIndex(textureRef);
+        if (textures != null && index >= 0 && index < textures.size()) {
+            return textureKey(textures.get(index));
+        }
+        return String.valueOf(index);
+    }
+
+    private static int parseTextureIndex(Object textureRef) {
+        if (textureRef instanceof Number number) {
+            return number.intValue();
+        }
+        if (textureRef instanceof String string) {
+            try {
+                return Integer.parseInt(string);
+            } catch (NumberFormatException ignored) {
+                return -1;
+            }
+        }
+        return -1;
     }
 
     private static String deriveDisplayName(Path file) {

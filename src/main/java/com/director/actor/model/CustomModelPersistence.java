@@ -1,5 +1,6 @@
 package com.director.actor.model;
 
+import com.director.actor.model.texture.CuboidFaceUvs;
 import com.director.persistence.AtomicFileWriter;
 import com.director.util.WorldIdentifier;
 import com.google.gson.Gson;
@@ -107,6 +108,15 @@ public final class CustomModelPersistence {
             c.add("offset", writeVector(cuboid.offset()));
             c.add("size", writeVector(cuboid.size()));
             c.addProperty("blockStateId", cuboid.blockStateId());
+            if (cuboid.itemModelId() != null) {
+                c.addProperty("itemModelId", cuboid.itemModelId());
+            }
+            if (cuboid.textureId() != null) {
+                c.addProperty("textureId", cuboid.textureId());
+            }
+            if (cuboid.faceUvs() != null) {
+                c.add("faceUvs", writeFaceUvs(cuboid.faceUvs()));
+            }
             cuboids.add(c);
         }
         out.add("cuboids", cuboids);
@@ -120,10 +130,14 @@ public final class CustomModelPersistence {
         List<BoneCuboid> cuboids = new ArrayList<>();
         for (JsonElement element : required(in, "cuboids").getAsJsonArray()) {
             JsonObject c = element.getAsJsonObject();
-            cuboids.add(new BoneCuboid(required(c, "boneId").getAsString(),
+            cuboids.add(new BoneCuboid(
+                    required(c, "boneId").getAsString(),
                     readVector(required(c, "offset").getAsJsonObject()),
                     readVector(required(c, "size").getAsJsonObject()),
-                    required(c, "blockStateId").getAsString()));
+                    required(c, "blockStateId").getAsString(),
+                    optionalString(c, "itemModelId"),
+                    optionalString(c, "textureId"),
+                    c.has("faceUvs") ? readFaceUvs(c.getAsJsonObject("faceUvs")) : null));
         }
         return new CustomModelDefinition(id, displayName, rigId, cuboids);
     }
@@ -136,6 +150,62 @@ public final class CustomModelPersistence {
 
     private static Vector3f readVector(JsonObject in) {
         return new Vector3f(required(in, "x").getAsFloat(), required(in, "y").getAsFloat(), required(in, "z").getAsFloat());
+    }
+
+    private static JsonObject writeFaceUvs(CuboidFaceUvs faceUvs) {
+        JsonObject out = new JsonObject();
+        writeFace(out, "north", faceUvs.north());
+        writeFace(out, "south", faceUvs.south());
+        writeFace(out, "east", faceUvs.east());
+        writeFace(out, "west", faceUvs.west());
+        writeFace(out, "up", faceUvs.up());
+        writeFace(out, "down", faceUvs.down());
+        return out;
+    }
+
+    private static void writeFace(JsonObject out, String name, float[] uv) {
+        if (uv == null || uv.length < 4) {
+            return;
+        }
+        JsonArray array = new JsonArray();
+        array.add(uv[0]);
+        array.add(uv[1]);
+        array.add(uv[2]);
+        array.add(uv[3]);
+        out.add(name, array);
+    }
+
+    private static CuboidFaceUvs readFaceUvs(JsonObject in) {
+        return new CuboidFaceUvs(
+                readFace(in, "north"),
+                readFace(in, "south"),
+                readFace(in, "east"),
+                readFace(in, "west"),
+                readFace(in, "up"),
+                readFace(in, "down"));
+    }
+
+    private static float[] readFace(JsonObject in, String name) {
+        if (!in.has(name) || in.get(name).isJsonNull()) {
+            return null;
+        }
+        JsonArray array = in.getAsJsonArray(name);
+        if (array.size() < 4) {
+            return null;
+        }
+        return new float[] {
+                array.get(0).getAsFloat(),
+                array.get(1).getAsFloat(),
+                array.get(2).getAsFloat(),
+                array.get(3).getAsFloat()
+        };
+    }
+
+    private static String optionalString(JsonObject object, String name) {
+        if (!object.has(name) || object.get(name).isJsonNull()) {
+            return null;
+        }
+        return object.get(name).getAsString();
     }
 
     private static JsonElement required(JsonObject object, String name) {

@@ -4,7 +4,10 @@ import com.director.actor.Actor;
 import com.director.actor.ActorRegistryManager;
 import com.director.actor.ActorType;
 import com.director.actor.model.CustomModelLibrary;
+import com.director.actor.model.texture.CustomModelResourceService;
 import com.director.actor.model.bbmodel.BbModelImportResult;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.loader.api.FabricLoader;
 import com.director.actor.model.bbmodel.BbModelImporter;
 import com.director.actor.rig.skeleton.CustomRigLibrary;
 import com.director.timeline.model.TimelineModel;
@@ -65,8 +68,24 @@ public final class BbModelAssetEditing {
                     rigLibrary.register(result.rig());
                     modelLibrary.register(result.model());
                     bindImportedModel(actor, resolvedRigId, resolvedModelId);
+                    buildClientResources(result);
                 }));
         return result;
+    }
+
+    private static void buildClientResources(BbModelImportResult result) {
+        try {
+            if (FabricLoader.getInstance().getEnvironmentType() != EnvType.CLIENT) {
+                return;
+            }
+            CustomModelResourceService.buildForModel(
+                    result.model(),
+                    result.extractedTextures(),
+                    result.textureAtlasWidth(),
+                    result.textureAtlasHeight());
+        } catch (RuntimeException ignored) {
+            // Unit tests and dedicated servers do not have a Fabric client runtime.
+        }
     }
 
     public static String suggestRigId(Path file) {

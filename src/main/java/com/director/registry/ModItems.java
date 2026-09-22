@@ -1,6 +1,7 @@
 package com.director.registry;
 
 import com.director.DirectorMod;
+import com.director.item.CustomModelCarrierItem;
 import com.director.item.DirectorToolItem;
 import net.fabricmc.fabric.api.itemgroup.v1.ItemGroupEvents;
 import net.minecraft.item.Item;
@@ -16,6 +17,7 @@ import net.minecraft.util.Identifier;
  */
 public final class ModItems {
     public static Item DIRECTOR_TOOL;
+    public static Item CUSTOM_MODEL_CARRIER;
 
     private ModItems() {}
 
@@ -28,6 +30,11 @@ public final class ModItems {
 
         // Register item
         Registry.register(Registries.ITEM, id, DIRECTOR_TOOL);
+
+        Identifier carrierId = DirectorMod.id("custom_model_carrier");
+        RegistryKey<Item> carrierKey = RegistryKey.of(RegistryKeys.ITEM, carrierId);
+        CUSTOM_MODEL_CARRIER = new CustomModelCarrierItem(new Item.Settings().registryKey(carrierKey).maxCount(1));
+        Registry.register(Registries.ITEM, carrierId, CUSTOM_MODEL_CARRIER);
 
         // Add to Tools creative tab
         ItemGroupEvents.modifyEntriesEvent(ItemGroups.TOOLS).register(entries -> entries.add(DIRECTOR_TOOL));

@@ -184,6 +184,47 @@ class BbModelImporterTest {
     }
 
     @Test
+    void parsesFaceUvsAndAssignsItemModelId() throws Exception {
+        String textured = """
+                {
+                  "resolution": { "width": 64, "height": 64 },
+                  "elements": [
+                    {
+                      "uuid": "e1",
+                      "name": "torso_box",
+                      "from": [-3, 0, -2],
+                      "to": [3, 7, 2],
+                      "faces": {
+                        "north": { "uv": [0, 8, 6, 15], "texture": 0 },
+                        "south": { "uv": [6, 8, 12, 15], "texture": 0 }
+                      }
+                    }
+                  ],
+                  "textures": [
+                    { "id": "0", "name": "skin.png", "source": "data:image/png;base64,iVBORw0KGgo=" }
+                  ],
+                  "outliner": [
+                    {
+                      "name": "root",
+                      "uuid": "b0",
+                      "origin": [0, 0, 0],
+                      "children": ["e1"]
+                    }
+                  ]
+                }
+                """;
+        Path file = writeModel("textured.bbmodel", textured);
+        BbModelImportResult result = BbModelImporter.importFile(
+                file, "test:rig", "test:model", "minecraft:white_concrete");
+
+        BoneCuboid cuboid = result.model().cuboids().getFirst();
+        assertTrue(cuboid.usesCustomTexture());
+        assertEquals("0", cuboid.textureId());
+        assertTrue(cuboid.itemModelId().startsWith("director:custom_model_piece/"));
+        assertEquals(64, result.textureAtlasWidth());
+    }
+
+    @Test
     void skipsInvalidCuboidsWithWarning() throws Exception {
         Path file = writeModel("invalid_cuboid.bbmodel", INVALID_CUBOID);
         BbModelImportResult result = BbModelImporter.importFile(
