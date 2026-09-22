@@ -18,6 +18,7 @@ import com.director.actor.rig.RigProfileStyle;
 import com.director.i18n.ActorPropertyAdapterI18n;
 import com.director.i18n.DirectorLang;
 import com.director.ui.actor.group.ActorGroupTimelineCommandService;
+import com.director.ui.actor.model.BbModelAssetEditing;
 import com.director.ui.actor.selection.ActorSelectionHub;
 import com.director.ui.properties.IPropertyAdapter;
 import com.director.ui.properties.actor.RigProfileStylePropertyUI;
@@ -89,6 +90,9 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     
     // Edit state
     private final ImString editingActorName = new ImString("", 256);
+    private final ImString bbModelRigId = new ImString("", 256);
+    private final ImString bbModelModelId = new ImString("", 256);
+    private String bbModelImportMessage = "";
     private final ImFloat groupActionDuration = new ImFloat(2.0f);
     private final ImFloat groupActionIntensity = new ImFloat(1.0f);
     private final ImBoolean groupActionLoop = new ImBoolean(true);
@@ -470,53 +474,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
 
         // ---- Custom rig binding (only relevant for ActorType.CUSTOM) ----
         if (actor.getType() == ActorType.CUSTOM) {
-            var customRigs = com.director.actor.rig.skeleton.CustomRigLibrary.getInstance().all();
-            String currentRigLabel = actor.getCustomRigId() == null ? "（未绑定）" : actor.getCustomRigId();
-            if (ImGui.beginCombo("自定义骨架##customRig", currentRigLabel)) {
-                if (ImGui.selectable("（未绑定）", actor.getCustomRigId() == null)) {
-                    actor.setCustomRigId(null);
-                    modified = true;
-                }
-                for (var rig : customRigs) {
-                    boolean isSelected = rig.id().equals(actor.getCustomRigId());
-                    if (ImGui.selectable(rig.displayName() + "##rig:" + rig.id(), isSelected)) {
-                        actor.setCustomRigId(rig.id());
-                        modified = true;
-                    }
-                    if (isSelected) {
-                        ImGui.setItemDefaultFocus();
-                    }
-                }
-                ImGui.endCombo();
-            }
-            if (customRigs.isEmpty()) {
-                ImGui.textWrapped("项目中暂无自定义骨架，可通过骨架文件导入，或使用内置示例骨架。");
-            }
-
-            if (actor.getCustomRigId() != null) {
-                var models = com.director.actor.model.CustomModelLibrary.getInstance().forRig(actor.getCustomRigId());
-                String currentModelLabel = actor.getCustomModelId() == null ? "（无外观，仅骨架）" : actor.getCustomModelId();
-                if (ImGui.beginCombo("自定义模型外观##customModel", currentModelLabel)) {
-                    if (ImGui.selectable("（无外观，仅骨架）", actor.getCustomModelId() == null)) {
-                        actor.setCustomModelId(null);
-                        modified = true;
-                    }
-                    for (var model : models) {
-                        boolean isSelected = model.id().equals(actor.getCustomModelId());
-                        if (ImGui.selectable(model.displayName() + "##model:" + model.id(), isSelected)) {
-                            actor.setCustomModelId(model.id());
-                            modified = true;
-                        }
-                        if (isSelected) {
-                            ImGui.setItemDefaultFocus();
-                        }
-                    }
-                    ImGui.endCombo();
-                }
-                if (models.isEmpty()) {
-                    ImGui.textWrapped("该骨架暂无匹配的方块外观模型；非人形拓扑骨架需要绑定模型才能显示外观。");
-                }
-            }
+            modified |= renderCustomActorAssets(actor);
         }
         
         ImGui.spacing();
@@ -576,6 +534,129 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         renderActorUsage(actor);
         
         return modified;
+    }
+
+    private boolean renderCustomActorAssets(Actor actor) {
+        boolean modified = false;
+        var customRigs = com.director.actor.rig.skeleton.CustomRigLibrary.getInstance().all();
+        String currentRigLabel = actor.getCustomRigId() == null ? "（未绑定）" : actor.getCustomRigId();
+        if (ImGui.beginCombo("自定义骨架##customRig", currentRigLabel)) {
+            if (ImGui.selectable("（未绑定）", actor.getCustomRigId() == null)) {
+                actor.setCustomRigId(null);
+                modified = true;
+            }
+            for (var rig : customRigs) {
+                boolean isSelected = rig.id().equals(actor.getCustomRigId());
+                if (ImGui.selectable(rig.displayName() + "##rig:" + rig.id(), isSelected)) {
+                    actor.setCustomRigId(rig.id());
+                    modified = true;
+                }
+                if (isSelected) {
+                    ImGui.setItemDefaultFocus();
+                }
+            }
+            ImGui.endCombo();
+        }
+        ImGui.sameLine();
+        if (ImGui.button("导入 .bbmodel##importBbModel")) {
+            modified |= importBbModel(actor);
+        }
+        if (ImGui.isItemHovered()) {
+            ImGui.setTooltip("从 Blockbench 工程文件导入自定义骨架与方块外观模型");
+        }
+
+        ImGui.inputText("骨架 ID##bbModelRigId", bbModelRigId);
+        ImGui.inputText("模型 ID##bbModelModelId", bbModelModelId);
+
+        if (customRigs.isEmpty()) {
+            ImGui.textWrapped("项目中暂无自定义骨架，可通过 .bbmodel 导入，或使用内置示例骨架。");
+        }
+
+        if (actor.getCustomRigId() != null) {
+            var models = com.director.actor.model.CustomModelLibrary.getInstance().forRig(actor.getCustomRigId());
+            String currentModelLabel = actor.getCustomModelId() == null ? "（无外观，仅骨架）" : actor.getCustomModelId();
+            if (ImGui.beginCombo("自定义模型外观##customModel", currentModelLabel)) {
+                if (ImGui.selectable("（无外观，仅骨架）", actor.getCustomModelId() == null)) {
+                    actor.setCustomModelId(null);
+                    modified = true;
+                }
+                for (var model : models) {
+                    boolean isSelected = model.id().equals(actor.getCustomModelId());
+                    if (ImGui.selectable(model.displayName() + "##model:" + model.id(), isSelected)) {
+                        actor.setCustomModelId(model.id());
+                        modified = true;
+                    }
+                    if (isSelected) {
+                        ImGui.setItemDefaultFocus();
+                    }
+                }
+                ImGui.endCombo();
+            }
+            if (models.isEmpty()) {
+                ImGui.textWrapped("该骨架暂无匹配的方块外观模型；非人形拓扑骨架需要绑定模型才能显示外观。");
+            }
+        }
+
+        if (!bbModelImportMessage.isEmpty()) {
+            ImGui.textWrapped(bbModelImportMessage);
+        }
+        return modified;
+    }
+
+    private boolean importBbModel(Actor actor) {
+        TimelineModel timeline = DirectorServices.get().containerTimeline().getTimelineModel();
+        if (timeline == null) {
+            bbModelImportMessage = "时间线未初始化，无法导入。";
+            return false;
+        }
+
+        String file = chooseBbModelFile();
+        if (file == null || file.isBlank()) {
+            return false;
+        }
+
+        Path path = Paths.get(file.trim());
+        if (bbModelRigId.get().isBlank()) {
+            bbModelRigId.set(BbModelAssetEditing.suggestRigId(path));
+        }
+        if (bbModelModelId.get().isBlank()) {
+            bbModelModelId.set(BbModelAssetEditing.suggestModelId(path));
+        }
+
+        try {
+            var result = BbModelAssetEditing.importFile(
+                    timeline,
+                    path,
+                    bbModelRigId.get().trim(),
+                    bbModelModelId.get().trim(),
+                    actor);
+            bbModelRigId.set(result.rig().id());
+            bbModelModelId.set(result.model().id());
+            StringBuilder message = new StringBuilder("导入完成，可撤销。");
+            if (!result.warnings().isEmpty()) {
+                message.append('\n').append(String.join("\n", result.warnings()));
+            }
+            bbModelImportMessage = message.toString();
+            return true;
+        } catch (IllegalArgumentException e) {
+            bbModelImportMessage = e.getMessage();
+        } catch (Exception e) {
+            bbModelImportMessage = "导入失败：" + e.getMessage();
+            LOGGER.warn("[ActorProjectPropertyAdapter] bbmodel import failed", e);
+        }
+        return false;
+    }
+
+    private static String chooseBbModelFile() {
+        try (org.lwjgl.system.MemoryStack stack = org.lwjgl.system.MemoryStack.stackPush()) {
+            org.lwjgl.PointerBuffer filters = stack.mallocPointer(1);
+            filters.put(stack.UTF8("*.bbmodel")).flip();
+            return org.lwjgl.util.tinyfd.TinyFileDialogs.tinyfd_openFileDialog(
+                    "导入 Blockbench 模型", "", filters, "Blockbench .bbmodel", false);
+        } catch (Throwable t) {
+            LOGGER.warn("[ActorProjectPropertyAdapter] 打开 .bbmodel 选择对话框失败: {}", t.getMessage());
+            return null;
+        }
     }
 
     private boolean renderActorSkinSection(Actor actor) {
