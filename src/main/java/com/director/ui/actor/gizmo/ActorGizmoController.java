@@ -113,6 +113,8 @@ public final class ActorGizmoController {
      * @param actorId Actor ID，如果为 null 则清除目标
      */
     public void setTargetActor(UUID actorId) {
+        if (Objects.equals(targetActorId, actorId)) return;
+        if (dragging) handleGizmoDragEnd();
         // ⭐ 清除方块选区（Gizmo 激活前）
         // Actor Gizmo 不应该与方块选区有任何关联
         try {
@@ -142,6 +144,7 @@ public final class ActorGizmoController {
      * 清除目标
      */
     public void clearTarget() {
+        if (dragging) handleGizmoDragEnd();
         this.targetActorId = null;
         this.actorTrack = null;
         this.timelineTrack = null;
@@ -387,6 +390,8 @@ public final class ActorGizmoController {
             return;
         }
 
+        if (timelineTrack != null && timelineTrack.isLocked()) return;
+        if (currentMode == GizmoMode.LOOK_AT) return;
         dragging = true;
 
         float time = model.getCurrentTime();
@@ -629,12 +634,8 @@ public final class ActorGizmoController {
         }
 
         applyLivePreview();
-
-        // 通知时间线数据已变
-        TimelineModel model = resolveTimelineModel();
-        if (model != null) {
-            model.markDirty();
-        }
+        // Preview reads the edited clip directly. Notify/save once at gesture commit,
+        // never on every pointer sample (markDirty may synchronously save the project).
     }
 
     /**
@@ -864,11 +865,7 @@ public final class ActorGizmoController {
             timelineTrack.addClip(timelineClip);
         }
 
-        // 通知时间线数据已变
-        TimelineModel model = DirectorServices.get().containerTimeline().getTimelineModel();
-        if (model != null) {
-            model.markDirty();
-        }
+        // The completed drag command performs notification and persistence.
 
         return clip;
     }

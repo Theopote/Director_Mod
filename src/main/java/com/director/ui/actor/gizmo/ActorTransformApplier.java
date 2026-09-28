@@ -41,6 +41,7 @@ public class ActorTransformApplier extends TransformApplier {
 
     @Override
     public void applyMove(Vec3d delta) {
+        if (delta.lengthSquared() == 0.0) return;
         // ⭐ 检查是否有目标 Actor（而不是检查 isEditing，因为 editingClip 是在拖动开始时才设置的）
         if (actorGizmoController != null && actorGizmoController.getTargetActorId() != null) {
             beginActorDragIfNeeded();
@@ -109,7 +110,9 @@ public class ActorTransformApplier extends TransformApplier {
             if (!isDragging) {
                 return;
             }
-            accumulatedRotateDelta = rotationDelta(axis, Math.toDegrees(angle));
+            Vec3d rotation = rotationDelta(axis, Math.toDegrees(angle));
+            if (rotation.equals(accumulatedRotateDelta)) return;
+            accumulatedRotateDelta = rotation;
             actorGizmoController.handleGizmoDragUpdate(accumulatedRotateDelta);
         } else {
             super.applyRotation(angle, axis);

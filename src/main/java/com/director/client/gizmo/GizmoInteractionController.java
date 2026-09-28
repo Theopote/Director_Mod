@@ -33,6 +33,8 @@ public class GizmoInteractionController {
     private List<RotationHandle> rotationHandles = new ArrayList<>();
     private List<com.director.client.gizmo.handles.ResizeHandle> resizeHandles = new ArrayList<>();
     private TransformApplier transformApplier;
+    private final com.director.client.gizmo.util.DragSnapAccumulator actorDragSnap =
+            new com.director.client.gizmo.util.DragSnapAccumulator();
 
     // BOUNDS Gizmo：移动"包围盒(区域)"预览，松手后按过滤器重建选区
     private final com.director.core.selection.SelectionManager selectionManager =
@@ -175,6 +177,7 @@ public class GizmoInteractionController {
     }
 
     private boolean beginTransformApplierSession() {
+        actorDragSnap.reset();
         if (transformApplier == null) {
             return true;
         }
@@ -277,7 +280,9 @@ public class GizmoInteractionController {
             Vec3d delta = activeHandle.onDragUpdate(rayOrigin, rayDir);
             
             // 应用吸附
-            if (context.getSnapStep() > 0) {
+            if (transformApplier instanceof com.director.ui.actor.gizmo.ActorTransformApplier) {
+                delta = actorDragSnap.update(delta, context.getSnapStep());
+            } else if (context.getSnapStep() > 0) {
                 delta = SnapUtil.snapVec(delta, context.getSnapStep(), null);
             }
             

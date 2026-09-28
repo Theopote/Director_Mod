@@ -454,12 +454,12 @@ public final class ActorRuntimeController {
             }
 
             // === ActorRelation（多演员关系）===
-            if (s.relationEnabled) {
+            if (s.relationEnabled && !gizmoDragging) {
                 applyActorRelation(entity, s);
             }
 
             // === LookAt（简化：直接调整 yaw/pitch）===
-            if (s.lookAtEnabled) {
+            if (s.lookAtEnabled && !gizmoDragging) {
                 applyLookAt(entity, s);
             }
 
@@ -626,6 +626,9 @@ public final class ActorRuntimeController {
         private void applyRootAnimationOffset(Entity entity,
                                               com.director.actor.rig.skeleton.RigPose pose) {
             if (entity == null || pose == null) return;
+            var transformGizmo = com.director.ui.actor.gizmo.ActorGizmoController.getInstance();
+            if (transformGizmo.isDragging() && actor != null
+                    && actor.getActorId().equals(transformGizmo.getTargetActorId())) return;
             org.joml.Vector3f offset = pose.localTransform(
                     com.director.actor.rig.skeleton.HumanoidRig.ROOT).translation();
             if (offset.lengthSquared() <= 1.0e-10f) return;

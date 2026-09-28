@@ -258,6 +258,9 @@ public class DirectorScreen extends Screen {
             // 更新输入焦点管理器状态
             InputFocusManager.getInstance().update();
 
+            // Use fresh ImGui pointer/viewport coordinates once per rendered frame.
+            com.director.client.gizmo.GizmoRenderEvents.frameInteraction();
+
             // 移除调试状态栏显示（FPS、Panels、Frame#已在工具栏和状态栏显示）
             // renderDebugStatusBar();
 

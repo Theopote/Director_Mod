@@ -120,6 +120,21 @@ public class GizmoRenderEvents {
      * 每帧更新 Gizmo 交互（在 DirectorScreen.tick 中调用，与世界渲染解耦）。
      */
     public static void tickInteraction() {
+        if (!usesFrameInteraction()) pollInteraction();
+    }
+
+    /** Actor transforms follow the UI frame rate, rather than the 20 Hz world tick. */
+    public static void frameInteraction() {
+        if (usesFrameInteraction()) pollInteraction();
+    }
+
+    private static boolean usesFrameInteraction() {
+        var controller = GizmoManager.get().getController();
+        return controller != null && controller.getTransformApplier()
+                instanceof com.director.ui.actor.gizmo.ActorTransformApplier;
+    }
+
+    private static void pollInteraction() {
         try {
             GizmoManager gm = GizmoManager.get();
             if (!gm.isActive()) {
@@ -142,6 +157,11 @@ public class GizmoRenderEvents {
 
             DirectorInputSystem.ImGuiRay ray = DirectorInputSystem.computeImGuiRay();
             if (ray == null) {
+                // Release must still commit the gesture when the cursor has left the viewport.
+                if (mouseReleased && gm.getController() != null
+                        && gm.getController().getState() == GizmoState.DRAGGING) {
+                    gm.getController().update(Vec3d.ZERO, new Vec3d(0, 0, 1), false, true);
+                }
                 return;
             }
 
