@@ -53,7 +53,8 @@ public final class AnimationAsset {
             if (entry.getValue().isEmpty()) continue;
             int boneIndex = rig.requireBoneIndex(entry.getKey());
             result.setLocalTransform(boneIndex,
-                    entry.getValue().sample(localTime, rig.bone(boneIndex).restLocal()));
+                    entry.getValue().sample(localTime, rig.bone(boneIndex).restLocal()),
+                    entry.getValue().authoredChannels());
         }
         return result;
     }

@@ -141,6 +141,12 @@ public class EntitySample {
     /** 动作强度（来自 ActorActionClip）[0.0-1.0] */
     public float actionIntensity = 1.0f;
 
+    /** Explicit IDLE must suppress automatic locomotion too. */
+    public boolean actionExplicit;
+
+    /** Timeline-derived procedural phase, never accumulated per rendered frame. */
+    public float actionLocalTime;
+
     // ========== ActorPoseClip 扩展字段 ==========
 
     public boolean poseOverrideEnabled = false;
@@ -228,6 +234,8 @@ public class EntitySample {
         actionType = (t < 0.5f) ? a.actionType : b.actionType;
         entityType = (t < 0.5f) ? a.entityType : b.entityType;
         action = (t < 0.5f) ? a.action : b.action;
+        actionExplicit = (t < 0.5f) ? a.actionExplicit : b.actionExplicit;
+        actionLocalTime = lerp(a.actionLocalTime, b.actionLocalTime, t);
 
         // 动作强度插值
         actionIntensity = lerp(a.actionIntensity, b.actionIntensity, t);
@@ -293,6 +301,8 @@ public class EntitySample {
 
         // ActorActionClip 扩展字段
         action = s.action;
+        actionExplicit = s.actionExplicit;
+        actionLocalTime = s.actionLocalTime;
         actionIntensity = s.actionIntensity;
 
         // ActorPoseClip 扩展字段

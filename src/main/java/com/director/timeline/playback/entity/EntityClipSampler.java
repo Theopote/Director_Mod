@@ -50,12 +50,6 @@ public class EntityClipSampler {
     /** 用于 AnimationEvent 的"已触发记录"（防止重复触发） */
     private final AnimationEventTriggerCache animationEventCache = new AnimationEventTriggerCache();
 
-    /** 上一帧位置（用于计算速度） */
-    private Vector3f previousPosition = null;
-
-    /** 上一帧时间（用于计算速度） */
-    private float previousTime = -1.0f;
-
     /**
      * 动作推断阈值（blocks/second）
      */
@@ -105,6 +99,7 @@ public class EntityClipSampler {
         // 创建初始采样（从 Spawn Clip 或默认值开始）
         EntitySample result = new EntitySample();
         result.enabled = true;
+        result.actionLocalTime = Math.max(0f, timeSeconds);
 
         // 按类型分类处理 clips
         List<EntitySpawnClip> spawnClips = new ArrayList<>();
@@ -238,9 +233,6 @@ public class EntityClipSampler {
         // 规则：last-wins（取 startTime 最大的那个）
         applyActorRelation(result, actorRelationClips, timeSeconds);
 
-        // ========== 计算速度（用于自动动作推断）==========
-        sampleVelocity(result, timeSeconds);
-
         // ========== 自动动作推断（仅在未显式指定时生效）==========
         resolveAutoAction(result);
 
@@ -284,6 +276,8 @@ public class EntityClipSampler {
         }
 
         applyTransformClip(result, active, time);
+        result.speed = transformSpeed(active, time);
+        result.actionLocalTime = Math.max(0f, time - active.getStartTime());
     }
 
     /**
@@ -307,7 +301,7 @@ public class EntityClipSampler {
                 if (interp == TimelineInterpolation.SMOOTH) {
                     t = t * t * (3f - 2f * t);
                 } else if (interp == TimelineInterpolation.STEP) {
-                    t = 1f; // 步进：使用下一个关键帧的值
+                    t = 0f; // 保持前一关键帧，直到时间到达下一关键帧
                 }
                 
                 // 位置插值
@@ -354,10 +348,10 @@ public class EntityClipSampler {
         // 应用插值
         TimelineInterpolation interp = clip.getInterpolation();
         if (interp == TimelineInterpolation.STEP) {
-            // 步进：使用结束值
-            result.position.set(clip.getToPos());
-            result.rotation.set(clip.getToRot());
-            result.scale.set(clip.getToScale());
+            // 保持起始值，在结束时间切换；与关键帧 STEP 一致。
+            result.position.set(t < 1f ? clip.getFromPos() : clip.getToPos());
+            result.rotation.set(t < 1f ? clip.getFromRot() : clip.getToRot());
+            result.scale.set(t < 1f ? clip.getFromScale() : clip.getToScale());
         } else {
             // 线性或平滑插值
             if (interp == TimelineInterpolation.SMOOTH) {
@@ -596,6 +590,8 @@ public class EntityClipSampler {
         }
 
         if (active != null) {
+            result.actionExplicit = true;
+            result.actionLocalTime = Math.max(0f, timeSeconds - active.getStartTime());
             result.action = active.getActionType();
             result.actionIntensity = active.getIntensity();
         }
@@ -701,7 +697,12 @@ public class EntityClipSampler {
         ActorRouteSampler.RouteSample sample = ActorRouteSampler.sampleAtDistance(
                 points, distance, active.getInterpolationMode());
         result.position.set(sample.position());
+        result.actionLocalTime = localTime;
+        result.speed = routeDuration <= 0f || (active.getLoopMode() == ActorRouteClip.LoopMode.ONCE
+                && localTime >= routeDuration) ? 0f : Math.max(0.05f, active.getSpeed());
         Vector3f direction = sample.direction();
+        if (active.getLoopMode() == ActorRouteClip.LoopMode.PING_PONG && duration > 0f
+                && localTime % (2f * duration) >= duration) direction.negate();
         if (active.isAlignRotationToRoute() && direction.lengthSquared() > 1.0e-6f) {
             result.rotation.x = (float) Math.toDegrees(Math.atan2(-direction.x, direction.z));
             double horizontal = Math.sqrt(direction.x * direction.x + direction.z * direction.z);
@@ -754,42 +755,26 @@ public class EntityClipSampler {
         };
     }
 
-    /**
-     * 计算移动速度（基于相邻两帧位置变化）。
-     *
-     * @param result 当前采样结果
-     * @param timeSeconds 当前时间（秒）
-     */
-    private void sampleVelocity(EntitySample result, float timeSeconds) {
-        if (previousPosition == null || previousTime < 0.0f) {
-            // 第一帧，无法计算速度
-            result.speed = 0.0f;
-            // 缓存当前位置和时间
-            previousPosition = new Vector3f(result.position);
-            previousTime = timeSeconds;
-            return;
+    /** Derivative of the selected transform segment; never samples events or previous frames. */
+    private float transformSpeed(EntityTransformClip clip, float time) {
+        var keys = clip.getKeyframes();
+        if (!keys.isEmpty()) {
+            var previous = findPrevKeyframe(keys, time);
+            var next = findNextKeyframe(keys, time);
+            if (previous == null || next == null) return 0f;
+            return segmentSpeed(previous.getPosition(), next.getPosition(), previous.getTime(),
+                    next.getTime(), time, next.getInterpolation());
         }
+        return segmentSpeed(clip.getFromPos(), clip.getToPos(), clip.getStartTime(),
+                clip.getEndTime(), time, clip.getInterpolation());
+    }
 
-        float deltaTime = timeSeconds - previousTime;
-        if (deltaTime <= 0.0f) {
-            // 时间未前进，保持上一帧速度
-            return;
-        }
-
-        // 计算位置变化
-        float dx = result.position.x - previousPosition.x;
-        float dy = result.position.y - previousPosition.y;
-        float dz = result.position.z - previousPosition.z;
-
-        // 计算距离
-        float distance = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
-
-        // 计算速度（blocks/second）
-        result.speed = distance / deltaTime;
-
-        // 更新缓存
-        previousPosition.set(result.position);
-        previousTime = timeSeconds;
+    private float segmentSpeed(Vector3f from, Vector3f to, float start, float end,
+                               float time, TimelineInterpolation interpolation) {
+        if (end <= start || time < start || time >= end || interpolation == TimelineInterpolation.STEP) return 0f;
+        float t = (time - start) / (end - start);
+        float derivative = interpolation == TimelineInterpolation.SMOOTH ? 6f * t * (1f - t) : 1f;
+        return from.distance(to) / (end - start) * derivative;
     }
 
     /**
@@ -806,7 +791,7 @@ public class EntityClipSampler {
      */
     private void resolveAutoAction(EntitySample result) {
         // 1️⃣ 如果导演明确指定了 ActionClip，完全尊重，不自动推断
-        if (result.action != ActorActionType.IDLE) {
+        if (result.actionExplicit) {
             return;
         }
 
@@ -867,9 +852,6 @@ public class EntityClipSampler {
     public void clearAllCaches() {
         actionCache.clear();
         animationEventCache.clear();
-        // 清除速度计算缓存（时间跳转时需要重置）
-        previousPosition = null;
-        previousTime = -1.0f;
     }
 
     /**

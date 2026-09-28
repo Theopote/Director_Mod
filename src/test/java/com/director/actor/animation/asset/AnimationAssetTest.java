@@ -13,6 +13,27 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class AnimationAssetTest {
     @Test
+    void scaleOnlyAnimationPreservesLowerLayerRotationAndTranslation() {
+        var asset = new AnimationAsset("scale", "Scale", HumanoidRig.DEFINITION, 2f, AnimationLoopMode.ONCE);
+        asset.getOrCreateBoneTrack(HumanoidRig.RIGHT_ARM).scale()
+                .put(0f, new Vector3f(2f), InterpolationMode.LINEAR);
+        int arm = HumanoidRig.DEFINITION.requireBoneIndex(HumanoidRig.RIGHT_ARM);
+        var base = new RigPose(HumanoidRig.DEFINITION);
+        var rotation = new Quaternionf().rotateX(0.7f);
+        base.setLocalTransform(arm, new com.director.actor.rig.skeleton.BoneTransform(
+                new Vector3f(1f, 2f, 3f), rotation, new Vector3f(1f)));
+        var sampled = asset.sample(1f).copy();
+        assertEquals(RigPose.SCALE, sampled.authoredChannels(arm));
+        var composed = new RigPose(HumanoidRig.DEFINITION).overlay(sampled);
+        assertEquals(RigPose.SCALE, composed.authoredChannels(arm));
+        var result = base.overlay(composed).localTransform(arm);
+        assertEquals(1f, Math.abs(rotation.dot(result.rotation())), 1e-5f);
+        assertEquals(new Vector3f(1f, 2f, 3f), result.translation());
+        assertEquals(new Vector3f(2f), result.scale());
+        assertEquals(new Vector3f(1f), base.localTransform(arm).scale());
+    }
+
+    @Test
     void samplesOnlyAuthoredBonesAndChannels() {
         AnimationAsset asset = new AnimationAsset("project:wave", "Wave", HumanoidRig.DEFINITION,
                 2f, AnimationLoopMode.ONCE);

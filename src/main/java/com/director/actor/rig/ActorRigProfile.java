@@ -29,6 +29,15 @@ import com.director.actor.runtime.ActorRuntime;
  */
 public interface ActorRigProfile {
 
+    /** Deterministic timeline entry point; clears state left by a previously sampled action. */
+    default RigPoseResult sampleAt(ActorRuntime runtime, ActorActionType action, float intensity, float time) {
+        runtime.resetPose();
+        runtime.setTime(Math.max(0f, time));
+        ActorActionType supportedAction = supports(action) ? action : ActorActionType.IDLE;
+        applyAction(runtime, supportedAction, intensity, 0f);
+        return buildPose(supportedAction, intensity, runtime.getTime());
+    }
+
     /**
      * 该 Rig 支持哪些动作语义。
      *

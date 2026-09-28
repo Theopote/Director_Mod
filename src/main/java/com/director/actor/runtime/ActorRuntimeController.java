@@ -535,25 +535,9 @@ public final class ActorRuntimeController {
                 action = ActorActionType.IDLE;
             }
 
-            // 检查 Rig 是否支持该动作
-            if (!rig.supports(action)) {
-                // 不支持的动作，重置姿态
-                actorRuntime.resetPose();
-                return;
-            }
-
-            // ========== 分层动画混合系统 ==========
-
-            // 1️⃣ Base pose（默认站姿）
+            // Sampling is a pure function of the timeline phase, including paused/rewound frames.
             Pose base = new Pose();
-            base.reset();
-
-            // 2️⃣ Rig pose（语义驱动）
-            RigPoseResult rigPose = rig.buildPose(
-                    action,
-                    s.actionIntensity,
-                    actorRuntime.getTime()
-            );
+            RigPoseResult rigPose = rig.sampleAt(actorRuntime, action, s.actionIntensity, s.actionLocalTime);
 
             // 新一代逐骨骼动画资产。存在同 ID 资产时优先使用；旧 AnimationLibrary 继续作为回退。
             var rigAsset = com.director.actor.animation.asset.AnimationAssetLibrary.getInstance()
@@ -580,7 +564,6 @@ public final class ActorRuntimeController {
                     if (!boneDragging) previewEntity.setFinalRigPose(finalRigPose);
                     if (!boneDragging) applyRootAnimationOffset(previewEntity, finalRigPose);
                 }
-                rig.applyAction(actorRuntime, action, s.actionIntensity, deltaTime);
                 return;
             }
 
@@ -611,14 +594,6 @@ public final class ActorRuntimeController {
                     previewEntity.setFinalPose(finalPose);
                 }
             }
-
-            // 同时保留原有的 applyAction 调用（向后兼容）
-            rig.applyAction(
-                    actorRuntime,
-                    action,
-                s.actionIntensity,
-                deltaTime
-            );
         }
 
         private void applyPoseOverrides(Pose pose, EntitySample s) {

@@ -8,23 +8,30 @@ import java.util.Objects;
 
 /** Mutable pose instance backed by indexed local bone transforms. */
 public final class RigPose {
+    public static final int TRANSLATION = 1;
+    public static final int ROTATION = 2;
+    public static final int SCALE = 4;
+    public static final int ALL_CHANNELS = TRANSLATION | ROTATION | SCALE;
     private final RigDefinition rig;
     private final BoneTransform[] localTransforms;
     private final BitSet authoredBones;
+    private final int[] authoredChannels;
 
     public RigPose(RigDefinition rig) {
         this.rig = Objects.requireNonNull(rig, "rig");
         this.localTransforms = new BoneTransform[rig.boneCount()];
         this.authoredBones = new BitSet(rig.boneCount());
+        this.authoredChannels = new int[rig.boneCount()];
         for (int i = 0; i < localTransforms.length; i++) {
             localTransforms[i] = rig.bone(i).restLocal();
         }
     }
 
-    private RigPose(RigDefinition rig, BoneTransform[] localTransforms, BitSet authoredBones) {
+    private RigPose(RigDefinition rig, BoneTransform[] localTransforms, BitSet authoredBones, int[] authoredChannels) {
         this.rig = rig;
         this.localTransforms = localTransforms;
         this.authoredBones = authoredBones;
+        this.authoredChannels = authoredChannels;
     }
 
     public RigDefinition rig() { return rig; }
@@ -38,9 +45,22 @@ public final class RigPose {
     }
 
     public void setLocalTransform(int boneIndex, BoneTransform transform) {
+        setLocalTransform(boneIndex, transform, ALL_CHANNELS);
+    }
+
+    /** Writes only supplied channels; other channels retain their current values. */
+    public void setLocalTransform(int boneIndex, BoneTransform transform, int channels) {
         int index = checkedIndex(boneIndex);
-        localTransforms[index] = Objects.requireNonNull(transform, "transform");
+        Objects.requireNonNull(transform, "transform");
+        if ((channels & ~ALL_CHANNELS) != 0) throw new IllegalArgumentException("Unknown pose channels");
+        if (channels == 0) return;
+        BoneTransform current = localTransforms[index];
+        localTransforms[index] = new BoneTransform(
+                (channels & TRANSLATION) != 0 ? transform.translation() : current.translation(),
+                (channels & ROTATION) != 0 ? transform.rotation() : current.rotation(),
+                (channels & SCALE) != 0 ? transform.scale() : current.scale());
         authoredBones.set(index);
+        authoredChannels[index] |= channels;
     }
 
     public void setLocalTransform(String boneId, BoneTransform transform) {
@@ -55,12 +75,16 @@ public final class RigPose {
         return (BitSet) authoredBones.clone();
     }
 
-    public RigPose copy() {
-        return new RigPose(rig, Arrays.copyOf(localTransforms, localTransforms.length),
-                (BitSet) authoredBones.clone());
+    public int authoredChannels(int boneIndex) {
+        return authoredChannels[checkedIndex(boneIndex)];
     }
 
-    /** Returns a copy with authored transforms from {@code higherLayer} replacing this pose. */
+    public RigPose copy() {
+        return new RigPose(rig, Arrays.copyOf(localTransforms, localTransforms.length),
+                (BitSet) authoredBones.clone(), authoredChannels.clone());
+    }
+
+    /** Returns a copy with only the authored TRS channels from the higher layer replaced. */
     public RigPose overlay(RigPose higherLayer) {
         Objects.requireNonNull(higherLayer, "higherLayer");
         if (!sameBoneLayout(rig, higherLayer.rig)) {
@@ -69,7 +93,7 @@ public final class RigPose {
         RigPose result = copy();
         for (int i = higherLayer.authoredBones.nextSetBit(0); i >= 0;
              i = higherLayer.authoredBones.nextSetBit(i + 1)) {
-            result.setLocalTransform(i, higherLayer.localTransforms[i]);
+            result.setLocalTransform(i, higherLayer.localTransforms[i], higherLayer.authoredChannels[i]);
         }
         return result;
     }
