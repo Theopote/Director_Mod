@@ -104,11 +104,9 @@ public final class Actor {
     }
 
     public void setType(ActorType type) {
-        this.type = type != null ? type : this.type;
-        // 类型改变时，如果 rigProfile 为空，自动设置默认值
-        if (this.rigProfile == null) {
-            this.rigProfile = createDefaultRigProfile(this.type);
-        }
+        if (type == null || type == this.type) return;
+        this.type = type;
+        this.rigProfile = createDefaultRigProfile(type);
     }
 
     public ActorRigProfile getRigProfile() {

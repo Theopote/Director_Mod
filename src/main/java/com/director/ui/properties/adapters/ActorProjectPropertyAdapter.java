@@ -82,9 +82,14 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     
     // UI state
     private UUID selectedActorId;
+    private UUID nameDraftActorId;
+    private String nameDraftSource;
+    private ActorType actorTypeFilter;
+    private final ImString actorSearch = new ImString("", 256);
     
     // Create popup state
     private boolean createPopupOpen = false;
+    private String createError = "";
     private final ImString newActorName = new ImString("Actor", 256);
     private ActorType newActorType = ActorType.VILLAGER;
     private final ImString newGroupName = new ImString("Group", 256);
@@ -141,6 +146,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         }
         
         if (projectView) {
+            selectedActorId = ActorSelectionHub.getSelectedActorId();
             // Actor 列表
             modified |= renderActorList(actorRegistry);
 
@@ -193,59 +199,41 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             return false;
         }
         
-        boolean modified = false;
-        
+        ImGui.inputText("搜索演员##actorSearch", actorSearch);
+        if (ImGui.beginCombo("类型筛选##actorTypeFilter", actorTypeFilter == null ? "全部类型" : ActorPropertyAdapterI18n.actorTypeLabel(actorTypeFilter))) {
+            if (ImGui.selectable("全部类型", actorTypeFilter == null)) actorTypeFilter = null;
+            for (var type : ActorType.values()) {
+                if (ImGui.selectable(ActorPropertyAdapterI18n.actorTypeLabel(type), type == actorTypeFilter)) actorTypeFilter = type;
+            }
+            ImGui.endCombo();
+        }
+        String query = actorSearch.get().strip().toLowerCase(java.util.Locale.ROOT);
+        int visible = 0;
         for (Actor actor : actors) {
-            boolean selected = actor.getActorId().equals(selectedActorId);
-            
-            int flags = ImGuiTreeNodeFlags.Leaf
-                      | ImGuiTreeNodeFlags.NoTreePushOnOpen
-                      | (selected ? ImGuiTreeNodeFlags.Selected : 0);
-            
-            String displayText = ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.ACTOR_DISPLAY_FMT,
-                    actor.getName(), ActorPropertyAdapterI18n.actorTypeLabel(actor.getType()));
-            
-            ImGui.treeNodeEx(actor.getActorId().toString(), flags, displayText);
-            
-            if (ImGui.isItemClicked()) {
-                selectActor(actor);
-                modified = true;
-            }
-            
-            // Place 按钮（在同一行）
-            ImGui.sameLine();
-            float itemWidth = ImGui.getItemRectSizeX();
-            float buttonWidth = 60.0f;
-            ImGui.setCursorPosX(ImGui.getCursorPosX() + ImGui.getContentRegionAvailX() - buttonWidth);
-            
-            if (ImGui.smallButton(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.PLACE))) {
-                // 开始放置模式
-                com.director.ui.actor.selection.ActorSelectionHub.beginPlace(actor);
-                LOGGER.debug("[ActorProjectPropertyAdapter] 开始放置 Actor: {}", actor.getName());
-            }
-            if (ImGui.isItemHovered()) {
-                ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.PLACE_TOOLTIP));
-            }
-            
-            // 右键菜单：编辑/删除
-            if (ImGui.beginPopupContextItem("ActorContextMenu_" + actor.getActorId())) {
-                if (ImGui.selectable(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.EDIT))) {
-                    selectActor(actor);
-                    ImGui.closeCurrentPopup();
-                }
-                if (ImGui.selectable(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.PLACE))) {
-                    com.director.ui.actor.selection.ActorSelectionHub.beginPlace(actor);
-                    ImGui.closeCurrentPopup();
-                }
-                if (ImGui.selectable(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DELETE))) {
-                    openDeleteConfirm(actor.getActorId());
-                    ImGui.closeCurrentPopup();
+            if (actorTypeFilter != null && actor.getType() != actorTypeFilter) continue;
+            String label = actor.getName() + " (" + ActorPropertyAdapterI18n.actorTypeLabel(actor.getType()) + ")";
+            if (!label.toLowerCase(java.util.Locale.ROOT).contains(query)) continue;
+            visible++;
+            ImGui.pushID(actor.getActorId().toString());
+            String placeLabel = ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.PLACE);
+            float buttonWidth = ImGui.calcTextSize(placeLabel).x + ImGui.getStyle().getFramePaddingX() * 2;
+            float rowWidth = Math.max(30, ImGui.getContentRegionAvailX() - buttonWidth - ImGui.getStyle().getItemSpacingX());
+            if (ImGui.selectable(label + "###actorRow", actor.getActorId().equals(selectedActorId), 0, rowWidth, 0)) selectActor(actor);
+            if (ImGui.beginPopupContextItem("ActorContextMenu")) {
+                if (ImGui.menuItem(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.EDIT))) selectActor(actor);
+                if (ImGui.menuItem(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.PLACE))) ActorSelectionHub.beginPlace(actor);
+                if (ImGui.menuItem(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.DELETE))) {
+                    deletingActorId = actor.getActorId();
+                    deleteConfirmOpen = true;
                 }
                 ImGui.endPopup();
             }
+            ImGui.sameLine();
+            if (ImGui.smallButton(placeLabel)) ActorSelectionHub.beginPlace(actor);
+            ImGui.popID();
         }
-        
-        return modified;
+        if (visible == 0) ImGui.textDisabled("没有匹配的演员");
+        return false;
     }
 
     private boolean renderGroupList(ActorRegistry actorRegistry) {
@@ -434,11 +422,17 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         UITheme.separator();
         UITheme.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.ACTOR_PROPERTIES), UITheme.DarkTheme.TEXT);
 
-        editingActorName.set(actor.getName());
+        if (!actor.getActorId().equals(nameDraftActorId) || !actor.getName().equals(nameDraftSource)) {
+            nameDraftActorId = actor.getActorId();
+            nameDraftSource = actor.getName();
+            editingActorName.set(nameDraftSource);
+        }
         if (ImGui.inputText(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.NAME), editingActorName, ImGuiInputTextFlags.EnterReturnsTrue)) {
             String newName = editingActorName.get();
             if (newName != null && !newName.isBlank() && !newName.equals(actor.getName())) {
-                actor.setName(newName);
+                var timeline = DirectorServices.get().containerTimeline().getTimelineModel();
+                com.director.ui.actor.ActorPropertyEditing.rename(timeline, actor, newName);
+                nameDraftSource = actor.getName();
                 modified = true;
                 LOGGER.debug("[ActorProjectPropertyAdapter] Actor name changed: {}", newName);
             }
@@ -454,8 +448,24 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                 boolean isSelected = type == actor.getType();
                 if (ImGui.selectable(typeLabels[i], isSelected)) {
                     var timeline = DirectorServices.get().containerTimeline().getTimelineModel();
-                    if (timeline == null || com.director.actor.rig.ActorRigCompatibility.canChangeType(timeline, actor.getActorId(), type)) {
-                        actor.setType(type);
+                    if (timeline != null && com.director.actor.rig.ActorRigCompatibility.canChangeType(timeline, actor.getActorId(), type)) {
+                        if (actor.getType() != type) {
+                            com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().deactivate();
+                            com.director.ui.actor.ActorPropertyEditing.changeType(timeline, actor, type, () -> {
+                                ActorPreviewManager.getInstance().removePreview(actor.getActorId());
+                                if (actor.getActorId().equals(ActorSelectionHub.getSelectedActorId())) {
+                                    com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().deactivate();
+                                    com.director.ui.actor.pose.ActorBoneSelectionController.getInstance().deactivate();
+                                    ActorSelectionHub.selectActor(actor.getActorId());
+                                    var tools = com.director.ui.tools.ToolRegistry.get();
+                                    if (com.director.ui.tools.ToolRegistry.ACTOR_POSE_TOOL_ID.equals(tools.getActiveNonSelectionToolId())) {
+                                        tools.activate(actor.resolveRigDefinition().isPresent()
+                                                ? com.director.ui.tools.ToolRegistry.ACTOR_POSE_TOOL_ID
+                                                : com.director.ui.tools.ToolRegistry.ACTOR_SELECT_TOOL_ID);
+                                    }
+                                }
+                            });
+                        }
                         incompatibleTypeActor = null;
                         modified = true;
                     } else {
@@ -505,7 +515,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         ImGui.spacing();
         
         // ---- Action Brush (动作涂抹笔刷) ----
-        renderActionBrushSelector();
+        renderActionBrushSelector(actor);
         
         ImGui.spacing();
 
@@ -518,9 +528,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         if (rigProfile != null) {
             RigProfileStyle style = rigProfile.getStyle();
             if (style != null) {
-                RigProfileStylePropertyUI.render(style);
-                // Style 的修改会立即生效，因为 RigProfile 在 Runtime 中会读取 style 的值
-                modified = true; // 标记为已修改（即使只是 UI 交互）
+                modified |= RigProfileStylePropertyUI.render(style);
             }
         }
 
@@ -769,8 +777,8 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     // =========================================================
     
     /**
-     * 在演员面板中选中演员（仅更新内部状态，不设置全局选择）
-     * <p>只有在点击"Focus in World"等按钮时，才通过 ActorSelectionHub.selectActor() 设置全局选择
+     * 在演员面板中选中演员，并同步场景和时间线选择
+     * <p>通过 ActorSelectionHub.selectActor() 共享选择状态
      *
      * @param actor Actor 实例
      */
@@ -780,8 +788,8 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             return;
         }
         
-        // 只更新内部的选中状态，不设置全局 SelectionManager
-        // 这样属性面板不会因为演员面板中的选择而显示重复内容
+        // 所有编辑入口指向同一个演员。
+        ActorSelectionHub.selectActor(actor.getActorId());
         this.selectedActorId = actor.getActorId();
 
         LOGGER.debug("[ActorProjectPropertyAdapter] Selected actor in panel: {}", actor.getActorId());
@@ -792,6 +800,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
     // =========================================================
     
     private void openCreateActorPopup() {
+        createError = "";
         newActorName.set("Actor");
         newActorType = ActorType.VILLAGER;
         createPopupOpen = true;
@@ -845,27 +854,23 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                 ImGui.endCombo();
             }
             
+            ImGui.textWrapped(com.director.actor.rig.ActorRigCompatibility.explanation(newActorType));
             ImGui.separator();
             
             // Buttons
             if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.CREATE))) {
-                String name = newActorName.get();
-                if (name != null && !name.isBlank()) {
-                    // 使用新的放置系统
-                    com.director.ui.actor.placement.ActorPlacementController placementController =
-                            com.director.ui.actor.placement.ActorPlacementController.getInstance();
-                    
-                    if (placementController.startPlacement(name, newActorType)) {
-                        LOGGER.info("[ActorProjectPropertyAdapter] 开始放置 Actor: {} ({})", name, newActorType);
-                    } else {
-                        LOGGER.warn("[ActorProjectPropertyAdapter] 无法开始放置 Actor");
-                    }
+                String name = newActorName.get().strip();
+                if (name.isBlank()) {
+                    createError = "请输入演员名称。";
+                } else if (com.director.ui.actor.placement.ActorPlacementController.getInstance().startPlacement(name, newActorType)) {
+                    ImGui.closeCurrentPopup();
+                    createPopupOpen = false;
+                    createError = "";
+                } else {
+                    createError = "无法开始放置，请确认已进入世界并打开时间线。";
                 }
-                
-                ImGui.closeCurrentPopup();
-                createPopupOpen = false;
             }
-            
+
             ImGui.sameLine();
             
             if (ImGui.button(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.CANCEL))) {
@@ -873,6 +878,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
                 createPopupOpen = false;
             }
             
+            if (!createError.isEmpty()) ImGui.textWrapped(createError);
             ImGui.endPopup();
         }
     }
@@ -1137,6 +1143,7 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
         // 使用第一个 Track（通常只有一个）
         TimelineTrack timelineTrack = timelineTracks.getFirst();
         ActorTrack actorTrack = timelineTrack.getActorTrackPayload();
+        if (timelineTrack.isLocked()) return;
         if (actorTrack == null) {
             LOGGER.warn("[ActorProjectPropertyAdapter] ActorTrack payload 为空");
             return;
@@ -1203,7 +1210,9 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
             return;
         }
         
-        if (ImGui.beginPopupModal(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.POPUP_DELETE))) {
+        String deletePopup = ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.POPUP_DELETE);
+        if (!ImGui.isPopupOpen(deletePopup)) ImGui.openPopup(deletePopup);
+        if (ImGui.beginPopupModal(deletePopup)) {
             Optional<Actor> actorOpt = actorRegistry.getActor(deletingActorId);
             if (actorOpt.isEmpty()) {
                 ImGui.closeCurrentPopup();
@@ -1310,16 +1319,19 @@ public class ActorProjectPropertyAdapter implements IPropertyAdapter<Object> {
      * 渲染 Action Brush 选择器（用于涂抹式编辑）
      * <p>导演在这里选择当前绘制动作（RUN / DANCE / CARRY 等）
      */
-    private void renderActionBrushSelector() {
+    private void renderActionBrushSelector(Actor actor) {
         UITheme.label(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.ACTION_BRUSH), UITheme.DarkTheme.TEXT);
 
         ActorActionType currentBrush = ActionBrushState.get();
+        if (currentBrush != null && (actor.getRigProfile() == null || !actor.getRigProfile().supports(currentBrush)))
+            ImGui.textWrapped("当前笔刷不适用于此演员，请选择下方支持的动作。");
         String currentLabel = currentBrush != null
                 ? ActorPropertyAdapterI18n.actionSemanticLabel(currentBrush)
                 : ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Common.NONE);
 
         if (ImGui.beginCombo(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.CURRENT_BRUSH), currentLabel)) {
             for (ActorActionType type : ActorActionType.values()) {
+                if (actor.getRigProfile() == null || !actor.getRigProfile().supports(type)) continue;
                 boolean selected = type == currentBrush;
                 if (ImGui.selectable(ActorPropertyAdapterI18n.actionSemanticLabel(type), selected)) {
                     ActionBrushState.set(type);

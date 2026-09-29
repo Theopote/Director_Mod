@@ -137,7 +137,10 @@ public final class EditorToolPropertyAdapter implements IPropertyAdapter<EditorT
         }
 
         if (actor != null && actor.getRigProfile() != null) {
-            RigProfileStylePropertyUI.render(actor.getRigProfile().getStyle());
+            if (RigProfileStylePropertyUI.render(actor.getRigProfile().getStyle())) {
+                var model = DirectorServices.get().containerTimeline().getTimelineModel();
+                if (model != null) model.markDirty();
+            }
         }
 
         if (Objects.equals(tool.getId(), ToolRegistry.ACTOR_POSE_TOOL_ID)) {

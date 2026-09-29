@@ -9,33 +9,34 @@ import imgui.flag.ImGuiTreeNodeFlags;
 
 public final class RigProfileStylePropertyUI {
 
-    public static void render(RigProfileStyle style) {
+    public static boolean render(RigProfileStyle style) {
         if (style == null) {
             ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.RigStyle.NO_STYLE));
-            return;
+            return false;
         }
 
+        boolean changed = false;
         if (ImGui.collapsingHeader(Icons.SMILE + " "
                 + ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.RigStyle.SECTION),
                 ImGuiTreeNodeFlags.DefaultOpen)) {
 
-            slider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.RigStyle.MOTION_SCALE),
+            changed |= slider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.RigStyle.MOTION_SCALE),
                     style, "motionScale", 0.5f, 1.5f,
                     ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.RigStyle.MOTION_SCALE_TOOLTIP));
 
-            slider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.RigStyle.TEMPO),
+            changed |= slider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.RigStyle.TEMPO),
                     style, "tempo", 0.7f, 1.3f,
                     ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.RigStyle.TEMPO_TOOLTIP));
 
-            slider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.RigStyle.LEAN_BIAS),
+            changed |= slider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.RigStyle.LEAN_BIAS),
                     style, "leanBias", 0.5f, 1.5f,
                     ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.RigStyle.LEAN_BIAS_TOOLTIP));
 
-            slider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.RigStyle.ARM_EXPRESSIVENESS),
+            changed |= slider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.RigStyle.ARM_EXPRESSIVENESS),
                     style, "armExpressiveness", 0.3f, 1.5f,
                     ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.RigStyle.ARM_EXPRESSIVENESS_TOOLTIP));
 
-            slider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.RigStyle.LEG_EXPRESSIVENESS),
+            changed |= slider(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.RigStyle.LEG_EXPRESSIVENESS),
                     style, "legExpressiveness", 0.3f, 1.5f,
                     ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.RigStyle.LEG_EXPRESSIVENESS_TOOLTIP));
 
@@ -45,9 +46,11 @@ public final class RigProfileStylePropertyUI {
                 ImGui.setTooltip(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.RigStyle.GLOBAL_TOOLTIP));
             }
         }
+        return changed;
     }
 
-    private static void slider(String label, RigProfileStyle style, String field, float min, float max, String tooltip) {
+    private static boolean slider(String label, RigProfileStyle style, String field, float min, float max, String tooltip) {
+        boolean changed = false;
         try {
             var f = RigProfileStyle.class.getField(field);
             float value = f.getFloat(style);
@@ -55,6 +58,7 @@ public final class RigProfileStylePropertyUI {
 
             if (ImGui.sliderFloat(label, arr, min, max, "%.2f")) {
                 f.setFloat(style, arr[0]);
+                changed = true;
             }
 
             if (tooltip != null && ImGui.isItemHovered()) {
@@ -62,5 +66,6 @@ public final class RigProfileStylePropertyUI {
             }
         } catch (Exception ignored) {
         }
+        return changed;
     }
 }

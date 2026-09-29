@@ -46,14 +46,27 @@ public final class ActorsPanel extends AbstractPanel {
 
     @Override
     protected void doRender() {
-        renderActorProjectSection();
+        if (ImGui.beginTabBar("##actorPanelTabs")) {
+            if (ImGui.beginTabItem("演员与分组")) {
+                renderActorProjectSection();
+                ImGui.endTabItem();
+            }
+            if (ImGui.beginTabItem("路径库")) {
+                actorPathLibraryPanel.render();
+                ImGui.endTabItem();
+            }
+            ImGui.endTabBar();
+        }
     }
 
     private void renderActorProjectSection() {
         IPropertyAdapter<Object> adapter = PropertyAdapterRegistry.getAdapterFor(ACTOR_PROJECT_MARKER);
         if (adapter != null && adapter.supports(ACTOR_PROJECT_MARKER)) {
             try {
-                adapter.renderProperties(ACTOR_PROJECT_MARKER);
+                if (adapter.renderProperties(ACTOR_PROJECT_MARKER)) {
+                    var model = DirectorServices.get().containerTimeline().getTimelineModel();
+                    if (model != null) model.markDirty();
+                }
             } catch (Exception e) {
                 LOGGER.error("[ActorsPanel] Failed to render actor panel", e);
                 ImGui.textDisabled(ActorPropertyAdapterI18n.tr(DirectorLang.Properties.AdapterActor.Project.PANEL_RENDER_ERROR));
@@ -67,8 +80,7 @@ public final class ActorsPanel extends AbstractPanel {
             }
         }
 
-        ImGui.separator();
-        actorPathLibraryPanel.render();
+
     }
 
     private void ensureActorSelectorInitialized() {
