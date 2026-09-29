@@ -15,6 +15,11 @@ final class ActorPathWaypointTransformApplier extends TransformApplier {
         this.controller = controller;
     }
 
+    @Override public void resetAccumulators() {
+        super.resetAccumulators();
+        controller.finishAnchorDrag();
+    }
+
     @Override
     public void applyMove(Vec3d delta) {
         if (delta == null || delta.lengthSquared() < 1.0e-12) {

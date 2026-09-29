@@ -154,7 +154,7 @@ public final class ActorBoneGizmoController {
                 || ("root".equals(boneId) && activeBoneMode == GizmoMode.ROTATE)) return;
         if (actorTrack == null) resolveTrack();
         TimelineModel model = resolveModel();
-        if (actorTrack == null || model == null) return;
+        if (actorTrack == null || model == null || timelineTrack == null || timelineTrack.isLocked()) return;
 
         float time = model.getCurrentTime();
         if (ActorAnimationAuthoringSettings.getInstance().isAutoKeyframe()) {
@@ -468,10 +468,12 @@ public final class ActorBoneGizmoController {
     private void registerUndo(TimelineModel model, ActorPoseClip clip) {
         PoseClipState after = PoseClipState.capture(clip);
         if (createdClip) {
+            ActorTrack targetActorTrack = actorTrack;
+            TimelineTrack targetTimelineTrack = timelineTrack;
             EntityTimelineClip wrapper = clip.getTimelineClip();
             TimelineCommandBridge.execute(new StateChangeCommand(model, "Pose actor bone",
-                    () -> { actorTrack.removeClip(clip.getId()); if (timelineTrack != null && wrapper != null) timelineTrack.removeClip(wrapper); },
-                    () -> { if (!actorTrack.getClips().contains(clip)) actorTrack.addClip(clip); if (timelineTrack != null && wrapper != null && !timelineTrack.getClips().contains(wrapper)) timelineTrack.addClip(wrapper); after.apply(clip); }));
+                    () -> { targetActorTrack.removeClip(clip.getId()); if (targetTimelineTrack != null && wrapper != null) targetTimelineTrack.removeClip(wrapper); },
+                    () -> { if (!targetActorTrack.getClips().contains(clip)) targetActorTrack.addClip(clip); if (targetTimelineTrack != null && wrapper != null && !targetTimelineTrack.getClips().contains(wrapper)) targetTimelineTrack.addClip(wrapper); after.apply(clip); }));
         } else if (beforeState != null && !beforeState.equals(after)) {
             PoseClipState before = beforeState;
             TimelineCommandBridge.execute(new StateChangeCommand(model, "Pose actor bone",

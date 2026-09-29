@@ -276,6 +276,7 @@ public class EntityClipSampler {
         }
 
         applyTransformClip(result, active, time);
+        result.routeClip = null;
         result.speed = transformSpeed(active, time);
         result.actionLocalTime = Math.max(0f, time - active.getStartTime());
     }
@@ -681,6 +682,8 @@ public class EntityClipSampler {
             return;
         }
 
+        result.routeClip = active;
+
         List<Vector3f> points = active.getWaypoints();
         if (points.size() == 1) {
             result.position.set(points.getFirst());
@@ -789,7 +792,7 @@ public class EntityClipSampler {
      *
      * @param result 采样结果
      */
-    private void resolveAutoAction(EntitySample result) {
+    public static void resolveAutoAction(EntitySample result) {
         // 1️⃣ 如果导演明确指定了 ActionClip，完全尊重，不自动推断
         if (result.actionExplicit) {
             return;

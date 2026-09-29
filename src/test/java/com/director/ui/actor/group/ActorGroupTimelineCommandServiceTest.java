@@ -161,6 +161,9 @@ class ActorGroupTimelineCommandServiceTest {
                 new Vector3f(0, 64, 0),
                 new Vector3f(0, 64, 10)
         ));
+        srcRoute.setJumpStart(1f);
+        srcRoute.setJumpDuration(0.7f);
+        srcRoute.setJumpHeight(0.8f);
         srcTrack.addClip(srcRoute);
 
         TimelineTrack srcTimeline = createActorTimelineTrack("src", srcTrack);
@@ -184,6 +187,10 @@ class ActorGroupTimelineCommandServiceTest {
         ActorGroupTimelineCommandService svc = ActorGroupTimelineCommandService.getInstance();
         int created = svc.copyLatestRouteFromActor(model, group, sourceId);
         assertEquals(3, created);
+        var copied = (ActorRouteClip) tt1.getActorTrackPayload().getClips().getFirst();
+        assertEquals(1f, copied.getJumpStart());
+        assertEquals(0.7f, copied.getJumpDuration());
+        assertEquals(0.8f, copied.getJumpHeight());
 
         // Compare against controller formation (single source of truth).
         assertRouteWaypointMatchesFormationOffset(group, srcRoute, tt1.getActorTrackPayload(), t1);

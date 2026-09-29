@@ -12,6 +12,11 @@ public final class ActorPoseKeyframeEditing {
 
     public static void key(TimelineModel model, AnimationAsset asset, float time,
                            RigPose pose, Collection<String> bones, InterpolationMode mode) {
+        keyChannels(model, asset, time, pose, bones, mode, RigPose.ALL_CHANNELS);
+    }
+
+    public static void keyChannels(TimelineModel model, AnimationAsset asset, float time,
+                                   RigPose pose, Collection<String> bones, InterpolationMode mode, int channels) {
         Objects.requireNonNull(model);
         if (!Float.isFinite(time) || time < 0 || time > asset.duration())
             throw new IllegalArgumentException("关键帧时间超出动画范围");
@@ -22,17 +27,18 @@ public final class ActorPoseKeyframeEditing {
             var bone = asset.rig().bone(asset.rig().requireBoneIndex(id));
             var transform = pose.localTransform(id);
             var scale = transform.scale();
-            if (scale.x <= 0 || scale.y <= 0 || scale.z <= 0)
+            if ((channels & RigPose.SCALE) != 0 && (scale.x <= 0 || scale.y <= 0 || scale.z <= 0))
                 throw new IllegalArgumentException("缩放必须大于零");
             boolean existed = asset.findBoneTrack(id).isPresent();
             BoneTrack track = asset.findBoneTrack(id).orElseGet(BoneTrack::new);
             var t = track.translation().findAt(time).orElse(null);
             var r = track.rotation().findAt(time).orElse(null);
             var s = track.scale().findAt(time).orElse(null);
-            boolean translation = bone.capabilities().translation();
+            boolean translation = (channels & RigPose.TRANSLATION) != 0 && bone.capabilities().translation();
             // Root rotation is not consumed by the current humanoid render binding.
-            boolean rotation = bone.capabilities().rotation() && !HumanoidRig.ROOT.equals(id);
-            boolean scaling = bone.capabilities().scale();
+            boolean rotation = (channels & RigPose.ROTATION) != 0 && bone.capabilities().rotation() && !HumanoidRig.ROOT.equals(id);
+            boolean scaling = (channels & RigPose.SCALE) != 0 && bone.capabilities().scale();
+            if (!translation && !rotation && !scaling) continue;
             before.add(() -> {
                 BoneTrack target = asset.getOrCreateBoneTrack(id);
                 if (translation) restore(target.translation(), time, t);

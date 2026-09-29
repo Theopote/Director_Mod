@@ -47,6 +47,17 @@ public final class ActorRouteSampler {
         return total;
     }
 
+    /** Ground locomotion measures horizontal travel; raising control points must not slow it down. */
+    public static float computeGroundCurveLength(List<Vector3f> waypoints, ActorRouteClip.InterpolationMode mode) {
+        List<Vec3d> curve = sampleCurvePositions(waypoints, mode);
+        double length = 0;
+        for (int i = 1; i < curve.size(); i++) {
+            Vec3d a = curve.get(i - 1), b = curve.get(i);
+            length += Math.hypot(b.x - a.x, b.z - a.z);
+        }
+        return (float) length;
+    }
+
     public static RouteSample sampleAtDistance(List<Vector3f> waypoints,
                                                float distance,
                                                ActorRouteClip.InterpolationMode mode) {

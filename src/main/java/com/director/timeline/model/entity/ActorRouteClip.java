@@ -27,6 +27,22 @@ public final class ActorRouteClip extends EntityClip {
     private LoopMode loopMode = LoopMode.ONCE;
     private float speed = 2.0f;
     private boolean alignRotationToRoute = true;
+    private float jumpStart;
+    private float jumpDuration = 0.5f;
+    private float jumpHeight;
+    private long terrainRevision;
+    private String terrainWarning = "";
+
+    public float getJumpStart() { return jumpStart; }
+    public void setJumpStart(float value) { jumpStart = Float.isFinite(value) ? Math.max(0, value) : 0; }
+    public float getJumpDuration() { return jumpDuration; }
+    public void setJumpDuration(float value) { jumpDuration = Float.isFinite(value) ? Math.max(0.1f, Math.min(0.8f, value)) : 0.5f; }
+    public float getJumpHeight() { return jumpHeight; }
+    public void setJumpHeight(float value) { jumpHeight = Float.isFinite(value) ? Math.max(0, Math.min(1.25f, value)) : 0; }
+    public long getTerrainRevision() { return terrainRevision; }
+    public void refreshTerrain() { terrainRevision++; terrainWarning = ""; }
+    public String getTerrainWarning() { return terrainWarning; }
+    public void setTerrainWarning(String warning) { terrainWarning = warning == null ? "" : warning; }
 
     public ActorRouteClip(String name, float startTime, float endTime) {
         super(name, startTime, endTime);
@@ -47,31 +63,34 @@ public final class ActorRouteClip extends EntityClip {
     }
 
     public void setWaypoints(List<Vector3f> points) {
+        List<Vector3f> copy = new ArrayList<>();
+        if (points != null) for (Vector3f point : points) {
+            if (point != null && point.isFinite()) copy.add(new Vector3f(point));
+        }
+        refreshTerrain();
         waypoints.clear();
-        if (points == null) {
-            return;
-        }
-        for (Vector3f point : points) {
-            if (point != null) {
-                waypoints.add(new Vector3f(point));
-            }
-        }
+        waypoints.addAll(copy);
     }
 
     public void addWaypoint(float x, float y, float z) {
+        if (!Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(z)) return;
+        refreshTerrain();
         waypoints.add(new Vector3f(x, y, z));
     }
 
     public void setWaypoint(int index, float x, float y, float z) {
+        if (!Float.isFinite(x) || !Float.isFinite(y) || !Float.isFinite(z)) return;
         if (index < 0 || index >= waypoints.size()) {
             return;
         }
         waypoints.get(index).set(x, y, z);
+        refreshTerrain();
     }
 
     public void removeWaypoint(int index) {
         if (index >= 0 && index < waypoints.size()) {
             waypoints.remove(index);
+            refreshTerrain();
         }
     }
 
@@ -80,6 +99,7 @@ public final class ActorRouteClip extends EntityClip {
     }
 
     public void setInterpolationMode(InterpolationMode interpolationMode) {
+        refreshTerrain();
         this.interpolationMode = interpolationMode != null ? interpolationMode : InterpolationMode.LINEAR;
     }
 
@@ -96,7 +116,7 @@ public final class ActorRouteClip extends EntityClip {
     }
 
     public void setSpeed(float speed) {
-        this.speed = Math.max(0.05f, speed);
+        this.speed = Float.isFinite(speed) ? Math.max(0.05f, Math.min(20f, speed)) : 2f;
     }
 
     public boolean isAlignRotationToRoute() {

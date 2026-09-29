@@ -33,4 +33,33 @@ class ActorPoseKeyframeEditingTest {
         assertTrue(history.redo());
         assertEquals(7, asset.boneTracks().size());
     }
+
+    @Test void rotationOnlyKeyLeavesOtherChannelsUnauthoredAndSupportsUndo() {
+        var model = new TimelineModel(new TimelineViewportState());
+        var history = new TimelineCommandHistory();
+        TimelineCommandBridge.bind(history);
+        var asset = new AnimationAsset("project:sparse", "Sparse", HumanoidRig.DEFINITION, 5f, AnimationLoopMode.ONCE);
+        var pose = new RigPose(HumanoidRig.DEFINITION);
+        ActorPoseKeyframeEditing.keyChannels(model, asset, 1f, pose,
+                java.util.List.of(HumanoidRig.HEAD), InterpolationMode.LINEAR, RigPose.ROTATION);
+        var track = asset.findBoneTrack(HumanoidRig.HEAD).orElseThrow();
+        assertTrue(track.translation().isEmpty());
+        assertTrue(track.scale().isEmpty());
+        assertTrue(track.rotation().findAt(1f).isPresent());
+        assertTrue(history.undo());
+        assertTrue(asset.boneTracks().isEmpty());
+        assertTrue(history.redo());
+        assertTrue(asset.findBoneTrack(HumanoidRig.HEAD).orElseThrow().translation().isEmpty());
+    }
+
+    @Test void unsupportedChannelDoesNotCreateTrackOrUndoEntry() {
+        var model = new TimelineModel(new TimelineViewportState());
+        var history = new TimelineCommandHistory();
+        TimelineCommandBridge.bind(history);
+        var asset = new AnimationAsset("project:root", "Root", HumanoidRig.DEFINITION, 5f, AnimationLoopMode.ONCE);
+        ActorPoseKeyframeEditing.keyChannels(model, asset, 1f, new RigPose(HumanoidRig.DEFINITION),
+                java.util.List.of(HumanoidRig.ROOT), InterpolationMode.LINEAR, RigPose.ROTATION);
+        assertTrue(asset.boneTracks().isEmpty());
+        assertFalse(history.undo());
+    }
 }

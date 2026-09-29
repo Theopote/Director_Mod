@@ -172,6 +172,8 @@ public class EntitySample {
 
     /** 移动速度（单位：blocks/second，只读给 Runtime） */
     public float speed = 0.0f;
+    /** Effective route only; a Transform clip clears this because it takes precedence. */
+    public com.director.timeline.model.entity.ActorRouteClip routeClip;
 
     // ==========================================================
     // 工具方法
@@ -242,6 +244,7 @@ public class EntitySample {
 
         // 速度插值（线性）
         speed = lerp(a.speed, b.speed, t);
+        routeClip = t < 0.5f ? a.routeClip : b.routeClip;
 
         // 布尔值：取最近关键帧的值（不插值）
         actionLoop = (t < 0.5f) ? a.actionLoop : b.actionLoop;
@@ -327,6 +330,7 @@ public class EntitySample {
 
         // 速度
         speed = s.speed;
+        routeClip = s.routeClip;
     }
 
     private float lerp(float a, float b, float t) {

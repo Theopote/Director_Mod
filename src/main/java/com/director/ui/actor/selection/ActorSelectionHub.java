@@ -152,6 +152,21 @@ public final class ActorSelectionHub {
      *
      * @return 当前选中的 Actor ID，如果未选中则返回 null
      */
+    public static void selectBone(UUID actorId, String boneId, boolean additive) {
+        if (actorId == null || boneId == null) return;
+        var selection = com.director.ui.actor.pose.ActorBoneSelectionController.getInstance();
+        com.director.ui.actor.pose.ActorBoneGizmoController.getInstance().deactivate();
+        selectActor(actorId);
+        if (!actorId.equals(currentActorId)) return;
+        var tools = com.director.ui.tools.ToolRegistry.get();
+        tools.initializeIfNeeded();
+        if (!com.director.ui.tools.ToolRegistry.ACTOR_POSE_TOOL_ID.equals(tools.getActiveNonSelectionToolId()))
+            tools.activate(com.director.ui.tools.ToolRegistry.ACTOR_POSE_TOOL_ID);
+        if (!selection.isActive()) selection.activate(actorId);
+        else selection.synchronizeActor(actorId);
+        selection.selectBone(boneId, additive);
+    }
+
     public static UUID getSelectedActorId() {
         return currentActorId;
     }

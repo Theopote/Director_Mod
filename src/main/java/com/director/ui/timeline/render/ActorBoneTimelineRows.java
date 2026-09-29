@@ -204,12 +204,8 @@ public final class ActorBoneTimelineRows {
         if (bone >= rig.boneCount()) return false;
         if (ImGui.isMouseClicked(ImGuiMouseButton.Left)) {
             var actorId = track.getActorTrackPayload().getActorRef().getActorId();
-            var selection = ActorBoneSelectionController.getInstance();
-            if (!selection.isActive()) selection.activate(actorId);
-            else selection.synchronizeActor(actorId);
-            ActorSelectionHub.selectActor(actorId);
+            ActorSelectionHub.selectBone(actorId, rig.bone(bone).id(), ImGui.getIO().getKeyCtrl());
             model.selectItem(track, false);
-            selection.selectBone(rig.bone(bone).id(), ImGui.getIO().getKeyCtrl());
             if (mx >= contentX) {
                 KeyHit closest = null;
                 float distance = 36f;

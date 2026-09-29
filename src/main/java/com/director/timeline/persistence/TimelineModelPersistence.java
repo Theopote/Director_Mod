@@ -268,6 +268,9 @@ public class TimelineModelPersistence {
         public String routeLoopMode;
         public Float routeSpeed;
         public Boolean routeAlignRotation;
+        public Float routeJumpStart;
+        public Float routeJumpDuration;
+        public Float routeJumpHeight;
 
         // ===== ActorRelationClip =====
         public String relationTargetActorId;
@@ -892,6 +895,9 @@ public class TimelineModelPersistence {
                             cdto.routeLoopMode = rc.getLoopMode() != null ? rc.getLoopMode().name() : null;
                             cdto.routeSpeed = rc.getSpeed();
                             cdto.routeAlignRotation = rc.isAlignRotationToRoute();
+                            cdto.routeJumpStart = rc.getJumpStart();
+                            cdto.routeJumpDuration = rc.getJumpDuration();
+                            cdto.routeJumpHeight = rc.getJumpHeight();
                         }
                         case com.director.timeline.model.entity.ActorRelationClip rel -> {
                             cdto.relationTargetActorId = rel.getTargetActorId() != null ? rel.getTargetActorId().toString() : null;
@@ -1511,6 +1517,9 @@ public class TimelineModelPersistence {
                                         }
                                         if (cdto.routeSpeed != null) rc.setSpeed(cdto.routeSpeed);
                                         if (cdto.routeAlignRotation != null) rc.setAlignRotationToRoute(cdto.routeAlignRotation);
+                                        if (cdto.routeJumpStart != null) rc.setJumpStart(cdto.routeJumpStart);
+                                        if (cdto.routeJumpDuration != null) rc.setJumpDuration(cdto.routeJumpDuration);
+                                        if (cdto.routeJumpHeight != null) rc.setJumpHeight(cdto.routeJumpHeight);
                                     }
                                     case com.director.timeline.model.entity.ActorRelationClip rel -> {
                                         if (cdto.relationTargetActorId != null) {

@@ -13,6 +13,7 @@ final class BoneTransformDraft {
     final float[] scale = new float[3];
     private Object context;
     private BoneTransform source;
+    private int changedChannels;
     private boolean dirty;
     private boolean rotationChanged;
 
@@ -30,6 +31,13 @@ final class BoneTransformDraft {
         dirty = true;
         rotationChanged |= rotationEdited;
     }
+
+    void markChannelsChanged(int channels) {
+        changedChannels |= channels;
+        markChanged((channels & com.director.actor.rig.skeleton.RigPose.ROTATION) != 0);
+    }
+
+    int changedChannels() { return changedChannels; }
 
     boolean isDirty() { return dirty; }
 
@@ -50,6 +58,7 @@ final class BoneTransformDraft {
         copy(source.translation(), translation);
         copy(source.rotation().getEulerAnglesZYX(new Vector3f()).mul((float)(180 / Math.PI)), rotation);
         copy(source.scale(), scale);
+        changedChannels = 0;
         dirty = false;
         rotationChanged = false;
     }
@@ -57,6 +66,7 @@ final class BoneTransformDraft {
     void clear() {
         context = null;
         source = null;
+        changedChannels = 0;
         dirty = false;
         rotationChanged = false;
     }

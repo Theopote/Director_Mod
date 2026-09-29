@@ -274,6 +274,9 @@ public final class ActorGroupTimelineCommandService {
         copy.setInterpolationMode(source.getInterpolationMode());
         copy.setLoopMode(source.getLoopMode());
         copy.setAlignRotationToRoute(source.isAlignRotationToRoute());
+        copy.setJumpStart(source.getJumpStart());
+        copy.setJumpDuration(source.getJumpDuration());
+        copy.setJumpHeight(source.getJumpHeight());
 
         List<Vector3f> points = new ArrayList<>();
         Vector3f safeOffset = offset != null ? offset : new Vector3f();

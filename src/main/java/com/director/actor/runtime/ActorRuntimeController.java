@@ -267,6 +267,10 @@ public final class ActorRuntimeController {
 
         /** ActorRuntime（身体控制参数） */
         private final ActorRuntime actorRuntime = new ActorRuntime();
+        private com.director.actor.path.GroundRoute groundRoute;
+        private com.director.timeline.model.entity.ActorRouteClip groundClip;
+        private long groundRevision = -1;
+        private Entity groundEntity;
 
         /**
          * 构造函数
@@ -338,6 +342,7 @@ public final class ActorRuntimeController {
                         }
                     }
 
+                    applyGroundRoute(entity, sample, time);
                     applySample(entity, sample, lastSample, deltaTime);
                     
                     // 5️⃣ 将 ActorRuntime 传递给 PreviewEntity（供 Renderer 使用）
@@ -355,6 +360,55 @@ public final class ActorRuntimeController {
 
             lastSample = sample;
             lastTime = time;
+        }
+
+        private void applyGroundRoute(Entity entity, EntitySample sample, float time) {
+            var clip = sample.routeClip;
+            if (clip == null) return;
+            var terrain = new com.director.actor.path.ActorGroundTerrain(entity);
+            if (groundRoute == null || groundClip != clip || groundRevision != clip.getTerrainRevision()
+                    || groundEntity != entity) {
+                groundRoute = com.director.actor.path.GroundRoute.compile(
+                        com.director.timeline.playback.entity.ActorRouteSampler.sampleCurvePositions(
+                                clip.getWaypoints(), clip.getInterpolationMode()), terrain);
+                groundClip = clip;
+                groundRevision = clip.getTerrainRevision();
+                groundEntity = entity;
+            }
+            clip.setTerrainWarning(groundRoute.warning());
+            if (!groundRoute.valid()) {
+                // No safe starting point: don't render an actor suspended in mid-air.
+                sample.visibility = 0;
+                sample.speed = 0;
+                EntityClipSampler.resolveAutoAction(sample);
+                return;
+            }
+            double local = Math.max(0, time - clip.getStartTime());
+            var motion = groundRoute.sample(local, clip.getSpeed(), clip.getLoopMode());
+            Vec3d feet = motion.position();
+            var support = terrain.floor(feet.x, feet.z, feet.y, 0.6, 1.25);
+            if (support.isEmpty()) {
+                // A changed/unloaded block must not leave the cached actor floating.
+                clip.setTerrainWarning("当前位置地形已改变或未加载，请重新检测路径");
+                sample.visibility = 0;
+                sample.speed = 0;
+                EntityClipSampler.resolveAutoAction(sample);
+                return;
+            }
+            feet = new Vec3d(feet.x, support.getAsDouble(), feet.z);
+            double hop = com.director.actor.path.GroundRoute.jumpOffset(local,
+                    clip.getJumpStart(), clip.getJumpDuration(), clip.getJumpHeight());
+            Vec3d airborne = feet.add(0, hop, 0);
+            if (hop > 0 && terrain.clear(airborne)) feet = airborne;
+            else if (hop > 0) clip.setTerrainWarning("跳跃上方空间不足，已保持地面位置");
+            sample.position.set((float) feet.x, (float) feet.y, (float) feet.z);
+            sample.speed = motion.moving() ? clip.getSpeed() : 0;
+            if (clip.isAlignRotationToRoute()) {
+                if (motion.direction().lengthSquared() > 1e-8) sample.rotation.x =
+                        (float) Math.toDegrees(Math.atan2(-motion.direction().x, motion.direction().z));
+                sample.rotation.y = 0; // Ground actors stay upright on slopes.
+            }
+            EntityClipSampler.resolveAutoAction(sample);
         }
 
         /**
@@ -473,7 +527,8 @@ public final class ActorRuntimeController {
             applyActionEvents(s, prev);
 
             // === 自定义方块拼接模型（非人形拓扑骨架的可视化回路）===
-            syncCustomModel(entity);
+            if (s.visibility > 0.01f) syncCustomModel(entity);
+            else if (actor != null) com.director.actor.model.CustomModelPreviewRenderer.getInstance().remove(actor.getActorId());
         }
 
         /**

@@ -42,4 +42,15 @@ class BoneTransformDraftTest {
         assertFalse(draft.isDirty());
         assertEquals(source.rotation(), draft.value().rotation());
     }
+
+    @Test void changedChannelsAccumulateAndResetWithContext() {
+        var draft = new BoneTransformDraft();
+        draft.synchronize("a", BoneTransform.identity());
+        draft.markChannelsChanged(com.director.actor.rig.skeleton.RigPose.TRANSLATION);
+        draft.markChannelsChanged(com.director.actor.rig.skeleton.RigPose.SCALE);
+        assertEquals(5, draft.changedChannels());
+        draft.synchronize("b", BoneTransform.identity());
+        assertEquals(0, draft.changedChannels());
+        assertFalse(draft.isDirty());
+    }
 }

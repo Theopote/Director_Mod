@@ -49,7 +49,6 @@ public final class ActorPathController {
     private boolean drawing = false;
     private boolean lastLeftMouseDown = false;
     private boolean lastRightMouseDown = false;
-    private boolean wasGizmoDragging = false;
     private boolean lastDeleteDown = false;
 
     private int selectedAnchorIndex = -1;
@@ -59,6 +58,7 @@ public final class ActorPathController {
     /** 正在编辑的库路径；null 表示正在绘制新路径 */
     private UUID editingLibraryPathId = null;
     private ActorRouteClip editingClip = null;
+    private boolean anchorDragDirty;
 
     private ActorPathController() {
     }
@@ -76,6 +76,7 @@ public final class ActorPathController {
     }
 
     public void deactivate() {
+        finishAnchorDrag();
         active = false;
         clearGizmo();
         resetState();
@@ -122,6 +123,16 @@ public final class ActorPathController {
         }
         pathPoints.set(index, position);
         drawing = !pathPoints.isEmpty();
+        if (GizmoManager.get().isDraggingHandle()) {
+            anchorDragDirty = true;
+            return; // Draw the draft immediately; rebuild terrain and save only on release.
+        }
+        syncDraftToStorage();
+    }
+
+    void finishAnchorDrag() {
+        if (!anchorDragDirty) return;
+        anchorDragDirty = false;
         syncDraftToStorage();
     }
 
@@ -130,7 +141,7 @@ public final class ActorPathController {
     }
 
     public void setInterpolationMode(ActorRouteClip.InterpolationMode mode) {
-        if (mode == null) {
+        if (mode == null || isEditingLocked()) {
             return;
         }
         interpolationMode = mode;
@@ -195,6 +206,7 @@ public final class ActorPathController {
         }
 
         boolean draggingNow = GizmoManager.get().isDraggingHandle();
+        if (!draggingNow) finishAnchorDrag();
 
         processDeleteShortcut();
 
@@ -208,11 +220,6 @@ public final class ActorPathController {
             syncGizmoToSelectedAnchor();
         }
 
-        if (wasGizmoDragging && !draggingNow) {
-            syncDraftToStorage();
-            markTimelineDirty();
-        }
-        wasGizmoDragging = draggingNow;
 
         if (draggingNow || GizmoManager.get().isHot()) {
             boolean leftDown = isLeftMouseDown(client);
@@ -435,7 +442,7 @@ public final class ActorPathController {
 
         float start = model.getCurrentTime();
         float duration = Math.max(MIN_SEGMENT_DURATION,
-                ActorRouteSampler.computeCurveLength(waypoints, mode) / DEFAULT_SPEED);
+                ActorRouteSampler.computeGroundCurveLength(waypoints, mode) / DEFAULT_SPEED);
         ActorRouteClip clip = new ActorRouteClip(clipName, start, start + duration);
         clip.setSpeed(DEFAULT_SPEED);
         clip.setInterpolationMode(mode);
@@ -491,7 +498,7 @@ public final class ActorPathController {
     }
 
     private void updateRouteDuration(ActorRouteClip clip) {
-        float distance = ActorRouteSampler.computeCurveLength(clip.getWaypoints(), clip.getInterpolationMode());
+        float distance = ActorRouteSampler.computeGroundCurveLength(clip.getWaypoints(), clip.getInterpolationMode());
         float duration = Math.max(MIN_SEGMENT_DURATION, distance / Math.max(0.05f, clip.getSpeed()));
         clip.setTimeRange(clip.getStartTime(), clip.getStartTime() + duration);
     }
@@ -592,7 +599,6 @@ public final class ActorPathController {
     private void resetTransientInputState() {
         lastLeftMouseDown = false;
         lastRightMouseDown = false;
-        wasGizmoDragging = false;
         lastDeleteDown = false;
     }
 
