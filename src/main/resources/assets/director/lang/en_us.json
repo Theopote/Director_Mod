@@ -2101,5 +2101,9 @@
   "gui.director.actor.path.target_library": "Editing a library path. Existing actor routes remain independent.",
   "gui.director.actor.path.target_route": "Editing the selected actor's route instance. Library paths remain independent.",
   "gui.director.actor.path.target_draft": "Drawing a path draft. Apply creates an actor route; save to the library for reuse.",
-  "gui.director.actor.path.save_library": "Save to path library"
+  "gui.director.actor.path.save_library": "Save to path library",
+  "gui.director.actor.route.unavailable": "Pause playback and select a valid unlocked actor route.",
+  "gui.director.actor.route.duration": "Duration (s)",
+  "gui.director.actor.route.duration_hint": "Speed controls travel; duration controls the playback window, including repeated cycles.",
+  "gui.director.actor.route.cancelled": "Route changed; edit cancelled."
 }

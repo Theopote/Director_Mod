@@ -2101,5 +2101,9 @@
   "gui.director.actor.path.target_library": "正在编辑路径库资源；已有演员路线保持独立。",
   "gui.director.actor.path.target_route": "正在编辑所选演员的路线实例；路径库资源保持独立。",
   "gui.director.actor.path.target_draft": "正在绘制路径草稿。应用到演员会创建路线；保存到路径库可供复用。",
-  "gui.director.actor.path.save_library": "保存到路径库"
+  "gui.director.actor.path.save_library": "保存到路径库",
+  "gui.director.actor.route.unavailable": "请先暂停播放，并选择未锁定的有效演员路线。",
+  "gui.director.actor.route.duration": "片段时长（秒）",
+  "gui.director.actor.route.duration_hint": "速度控制沿路径运动的快慢；片段时长决定持续多久，可容纳多次循环。",
+  "gui.director.actor.route.cancelled": "路线目标已变化，已取消编辑。"
 }

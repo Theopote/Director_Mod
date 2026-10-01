@@ -217,14 +217,14 @@ public final class ActorPathEditing {
         }));
         return wrapper;
     }
-    private static boolean validOwner(TimelineModel model, TimelineTrack owner, ActorTrack payload, UUID actorId) {
+    static boolean validOwner(TimelineModel model, TimelineTrack owner, ActorTrack payload, UUID actorId) {
         return owner != null && payload != null && actorId != null && model.getAllTracks().contains(owner)
                 && owner.getType() == TrackType.ACTOR && !owner.isLocked() && !owner.isMuted()
                 && owner.getActorTrackPayload() == payload && payload.getActorRef() != null
                 && actorId.equals(payload.getActorRef().getActorId())
                 && ActorRegistryManager.getInstance().getActor(actorId).isPresent();
     }
-    private static void requireEditing(TimelineModel model) {
+    static void requireEditing(TimelineModel model) {
         if (model == null || model.isPlaying() || !Float.isFinite(model.getCurrentTime()) || model.getCurrentTime() < 0)
             throw new IllegalArgumentException("请先暂停时间线再编辑路径");
     }
@@ -233,7 +233,7 @@ public final class ActorPathEditing {
         if (!Float.isFinite(duration)) throw new IllegalArgumentException("路径长度超出有效范围");
         return duration;
     }
-    private static void rejectOverlap(ActorTrack payload, ActorRouteClip excluded, float start, float end) {
+    static void rejectOverlap(ActorTrack payload, ActorRouteClip excluded, float start, float end) {
         if (!Float.isFinite(end)) throw new IllegalArgumentException("路径时间范围无效");
         for (var clip : payload.getClips()) if (clip != excluded && !clip.isMuted()
                 && (clip instanceof ActorRouteClip || clip instanceof EntityTransformClip)
